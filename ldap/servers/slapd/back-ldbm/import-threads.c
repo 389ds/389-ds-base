@@ -1501,12 +1501,13 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry, int flag_block)
 {
     struct backentry *ep = NULL, *old_ep = NULL;
     int idx;
-    ID id = job->lead_ID + 1;
+    ID id = 0;
     Slapi_Attr *attr = NULL;
     size_t newesize = 0;
 
     PR_Lock(job->wire_lock);
-
+	/* Let's do this inside the lock !*/
+    id = job->lead_ID + 1;
     /* generate uniqueid if necessary */
     import_generate_uniqueid(job, entry);
 
@@ -1544,6 +1545,11 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry, int flag_block)
                 DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
             else
             {
+				/* DBBD: Argh -- why not just block, what's the benefit to this ?? */
+				/* I think that to support pipelining in the transport, we need to block here, */
+				/* Otherwise evil things could happen where we say we're busy for operation N, but */
+				/* Not for operation N+1, but the sender doesn't find out about this until after sending */
+				/* Operation N+2 etc. Seems possible to end up with children processed before parents which won't work. */
                 PR_Unlock(job->wire_lock);
                 return LDAP_BUSY;
             }
@@ -1678,8 +1684,10 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
             /* silently skip */
             return 0;
         }
+		/* These days, we don't want to return LDAP_BUSY (it makes pipelineing impossible 
+		and actually doesn't achieve anything anyway). So we pass '1' for the block flag. */
         return bulk_import_queue(job, pb->pb_import_entry,
-                                        job->flags & FLAG_USE_FILES);
+                                        1);
     }
 
     thread = job->main_thread;

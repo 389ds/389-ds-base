@@ -583,13 +583,14 @@ typedef enum  {read_data, write_data, new_connection} work_type;
 static int wait_on_new_work(Connection **ppConn, work_type *type);
 static int issue_new_read(Connection *conn);
 static int finished_chomping(Connection *conn);
-static int read_the_data(Connection *op, int *process_op);
+static int read_the_data(Connection *op, int *process_op, int *defer_io, int *defer_pushback);
 static int is_new_operation(Connection *conn);
 static int process_operation(Connection *conn, Operation *op);
 static int connection_operation_new(Connection *conn, Operation **ppOp);
 Operation *get_current_op(Connection *conn);
 static int handle_read_data(Connection *conn,Operation **op,
 	 int * connection_referenced);
+int queue_pushed_back_data(Connection *conn);
 
 static void inc_op_count(Connection* conn)
 {
@@ -703,7 +704,10 @@ static int handle_read_data(Connection *conn,Operation **op,
 			 int * connection_referenced)
 {
 	int return_value = 0;
+	int return_value2 = 0;
 	int process_op = 0; /* Do we or do we not process a complete operation now ? */
+	int defer_io = 0;
+	int defer_pushback = 0;
 
 	if (is_new_operation(conn)) {
 		return_value = connection_operation_new(conn,op);
@@ -719,16 +723,31 @@ static int handle_read_data(Connection *conn,Operation **op,
 	    return return_value;
 	}
 
-	return_value = read_the_data(conn,&process_op);
+	return_value = read_the_data(conn,&process_op, &defer_io, &defer_pushback);
 
 	if (0 == return_value) {
+		int replication_session = conn->c_isreplication_session;
 		if (0 != process_op)
 			return_value = process_operation(conn,*op);
+		/* Post any pending I/O operation _after_ processing any operation */
+		if (replication_session) {
+			/* Initiate any deferred I/O here */
+			if (defer_io) {
+				return_value2 = issue_new_read(conn);
+			}
+			if (defer_pushback) {
+				return_value2 = queue_pushed_back_data(conn);
+			}
+		}
 	}
 	else
 		*connection_referenced = 1;
 
-	return return_value;
+	if (return_value) {
+		return return_value;
+	} else {
+		return return_value2;
+	}
 }
 
 /* Function which does the work involved in servicing an LDAP operation. */
@@ -849,6 +868,7 @@ struct Conn_private {
 	char *c_buffer;
 	DWORD c_number_of_async_bytes_read;
 	DWORD c_buffer_offset;
+	DWORD c_deferred_length;
 #else
 #endif
 	/* Now the platform independent part */
@@ -937,13 +957,14 @@ static int remove_from_select_set(Connection *conn)
 static HANDLE completion_port = INVALID_HANDLE_VALUE;
 #define COMPKEY_DIE ((DWORD) -1L) /* used to kill off workers */
 
-static int push_back_data(Connection *conn, size_t offset, size_t length);
+static void push_back_data(Connection *conn, size_t offset, size_t length);
+static int queue_pushed_back_data(Connection *conn);
 
 /* Called when we've read from the completion queue, so there's data
  * waiting for us to pickup. We're told: the number of bytes read, the
  * address of the buffer, the state of this connection (new op, middle of op).
  */
-static int read_the_data(Connection *conn, int *process_op)
+static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *defer_pushback)
 {
 	Conn_private *priv = conn->c_private;
 	Operation *op = NULL;
@@ -953,6 +974,9 @@ static int read_the_data(Connection *conn, int *process_op)
 	int return_value = -1;
 	unsigned long ber_len = 0;
 	unsigned long Bytes_Scanned = 0;
+
+	*defer_io = 0;
+	*defer_pushback = 0;
 
 	op = priv->c_current_op;
 	Bytes_Read = priv->c_number_of_async_bytes_read;
@@ -1051,21 +1075,33 @@ static int read_the_data(Connection *conn, int *process_op)
 			     */
 			    return (0);
 			}
-			if ((return_value = push_back_data(conn,priv->c_overlapped.Offset + Bytes_Scanned,
-			    Bytes_Read-Bytes_Scanned)) == -1) {
-		 	    /* MAB: 25 jan 01 we need to decrement the conn refcnt before leaving... Otherwise,
-			     * this thread will unbalance the ref_cnt inc and dec for this connection
-			     * and the result is that the connection is never closed and instead is kept 
-			     * forever an never released -> this was causing a fd starvation on NT
-			     */
-			    connection_decrement_reference(conn);
-			    LDAPDebug(LDAP_DEBUG_CONNS,
-				      "push_back_data failed: closing conn %d fd=%d\n",
-				      conn->c_connid,conn->c_sd,0); 
+			push_back_data(conn,priv->c_overlapped.Offset + Bytes_Scanned,Bytes_Read-Bytes_Scanned);
+			if (!conn->c_isreplication_session) {
+				if ((return_value = queue_pushed_back_data(conn)) == -1) {
+		 			/* MAB: 25 jan 01 we need to decrement the conn refcnt before leaving... Otherwise,
+					 * this thread will unbalance the ref_cnt inc and dec for this connection
+					 * and the result is that the connection is never closed and instead is kept 
+					 * forever an never released -> this was causing a fd starvation on NT
+					 */
+					connection_decrement_reference(conn);
+					LDAPDebug(LDAP_DEBUG_CONNS,
+						  "push_back_data failed: closing conn %d fd=%d\n",
+						  conn->c_connid,conn->c_sd,0); 
+				}
+			} else {
+				/* Queue the I/O later to serialize */
+				*defer_pushback = 1;
+				return_value = 0;
 			}
 		} else {
 			priv->c_overlapped.Offset = 0;
-			return_value = issue_new_read(conn);
+			if (!conn->c_isreplication_session) {
+				return_value = issue_new_read(conn);
+			} else {
+				/* Queue the I/O later to serialize */
+				*defer_io = 1;
+				return_value = 0;
+			}
 		}
 	} else {
 		/* SSL */
@@ -1089,14 +1125,19 @@ static int read_the_data(Connection *conn, int *process_op)
 
 	return return_value;
 }
+ 
+void push_back_data(Connection *conn, size_t offset, size_t length)
+{
+	conn->c_private->c_overlapped.Offset = offset;
+	conn->c_private->c_deferred_length = length;
+}
 
-int push_back_data(Connection *conn, size_t offset, size_t length)
+int queue_pushed_back_data(Connection *conn)
 {
 	/* Use PostQueuedCompletionStatus() to push the data back up the pipe */
 	BOOL return_bool = FALSE;
 
-	conn->c_private->c_overlapped.Offset = offset;
-	return_bool = PostQueuedCompletionStatus(completion_port,length,(DWORD)conn,&conn->c_private->c_overlapped); 
+	return_bool = PostQueuedCompletionStatus(completion_port,conn->c_private->c_deferred_length,(DWORD)conn,&conn->c_private->c_overlapped); 
 
 	if (return_bool) {
 		return 0;
@@ -1306,7 +1347,8 @@ int connection_activity(Connection *conn)
 	    /* MAB: 25 Jan 01: let's return on error and pray this won't leak */
 	    return (-1);
 	}
-	return push_back_data(conn, 0, 1);
+	push_back_data(conn, 0, 1);
+	return queue_pushed_back_data(conn);
 }
 
 static int finished_chomping(Connection *conn)
@@ -1889,6 +1931,7 @@ connection_threadmain()
 	int thread_turbo_flag = 0;
 	int ret = 0;
 	int more_data = 0;
+	int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
 
 #if defined( OSF1 ) || defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
@@ -1992,8 +2035,12 @@ connection_threadmain()
 		 * Similarly, if we are in turbo mode, don't send the socket 
 		 * back to the poll set.
 		 * more_data: [blackflag 624234]
+		 * If the connection is from a replication supplier, don't make it readable here.
+		 * We want to ensure that replication operations are processed strictly in the order
+		 * they are received off the wire.
 		 */
-		if (tag != LDAP_REQ_UNBIND && (!thread_turbo_flag) && !more_data) {
+		replication_connection = conn->c_isreplication_session;
+		if (tag != LDAP_REQ_UNBIND && (!thread_turbo_flag) && !more_data && !replication_connection) {
 			connection_make_readable(conn);
 		}
 
@@ -2056,7 +2103,8 @@ done:
 			}
 		    PR_Unlock( conn->c_mutex );
 		}
-		if (1 == is_timedout && !more_data)
+		/* Since we didn't do so earlier, we need to make a replication connection readable again here */
+		if ( ((1 == is_timedout) || (replication_connection && !thread_turbo_flag)) && !more_data)
 			connection_make_readable(conn);
 		pb = NULL;
 

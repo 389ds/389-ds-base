@@ -35,10 +35,13 @@ typedef struct private_repl_protocol
 	Object *replica_object;
 	void *private;
     PRBool replica_acquired;
+	int repl50consumer; /* Flag to tell us if this is a 5.0-style consumer we're talking to */
 } Private_Repl_Protocol;
 
 extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new();
 extern Private_Repl_Protocol *Repl_5_Tot_Protocol_new();
+extern Private_Repl_Protocol *Windows_Inc_Protocol_new();
+extern Private_Repl_Protocol *Windows_Tot_Protocol_new();
 
 #define PROTOCOL_TERMINATION_NORMAL 301
 #define PROTOCOL_TERMINATION_ABNORMAL 302
@@ -59,8 +62,11 @@ extern Private_Repl_Protocol *Repl_5_Tot_Protocol_new();
 /* protocol related functions */
 void release_replica(Private_Repl_Protocol *prp);
 int acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv);
-BerElement *entry2bere(const Slapi_Entry *e);
+BerElement *entry2bere(const Slapi_Entry *e, char **excluded_attrs);
 CSN *get_current_csn(Slapi_DN *replarea_sdn);
 char* protocol_response2string (int response);
+int repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod **);
+void windows_release_replica(Private_Repl_Protocol *prp);
+int windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv);
 
 #endif /* _REPL5_PROT_PRIVATE_H_ */

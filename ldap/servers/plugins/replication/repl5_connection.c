@@ -16,6 +16,7 @@ replica locked. Seems like right thing to do.
 
 #include "repl5.h"
 #include "ldappr.h"
+#include "ldap-extension.h"
 
 typedef struct repl_connection
 {
@@ -33,6 +34,7 @@ typedef struct repl_connection
 	int supports_ldapv3; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int supports_ds50_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int supports_ds40_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
+	int supports_ds71_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int linger_time; /* time in seconds to leave an idle connection open */
 	PRBool linger_active;
 	Slapi_Eq_Context *linger_event;
@@ -120,6 +122,8 @@ conn_new(Repl_Agmt *agmt)
 	rpc->supports_ldapv3 = -1;
 	rpc->supports_ds40_repl = -1;
 	rpc->supports_ds50_repl = -1;
+	rpc->supports_ds71_repl = -1;
+
 	rpc->linger_active = PR_FALSE;
 	rpc->delete_after_linger = PR_FALSE;
 	rpc->linger_event = NULL;
@@ -216,6 +220,193 @@ conn_get_error(Repl_Connection *conn, int *operation, int *error)
 	PR_Unlock(conn->lock);
 }
 
+/*
+ * Return the last operation type processed by the connection
+ * object, and the LDAP error encountered.
+ * Beware that the error string will only be in scope and valid
+ * before the next operation result has been read from the connection
+ * (so don't alias the pointer).
+ */
+void
+conn_get_error_ex(Repl_Connection *conn, int *operation, int *error, char **error_string)
+{
+	PR_Lock(conn->lock);
+	*operation = conn->last_operation;
+	*error = conn->last_ldap_error;
+	*error_string = conn->last_ldap_errmsg;
+	PR_Unlock(conn->lock);
+}
+
+/* Returns the result (asyncronously) from an opertation and also returns that operations message ID */
+/* The _ex version handles a bunch of parameters (retoidp et al) that were present in the original
+ * sync operation functions, but were never actually used) */
+ConnResult
+conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int *message_id, int block)
+{
+			LDAPMessage *res = NULL;
+			int setlevel = 0;
+			int rc = 0;
+			int return_value = 0;
+			LDAPControl **loc_returned_controls = NULL;
+			struct timeval local_timeout = {0};
+			time_t time_now = 0;
+			time_t start_time = time( NULL );
+			int backoff_time = 1;
+			Slapi_Eq_Context eqctx = repl5_start_debug_timeout(&setlevel);
+
+			/* Here, we want to not block inside ldap_result().
+			 * Reason is that blocking there will deadlock with a
+			 * concurrent sender. We send concurrently, and hence
+			 * blocking is not good : deadlock results.
+			 * So, instead, we call ldap_result() with a zero timeout.
+			 * This makes it do a non-blocking poll and return to us
+			 * if there's no data to read.
+			 * We can then handle our timeout here by sleeping and re-trying.
+			 * In order that we do pickup results reasonably quickly,
+			 * we implement a backoff algorithm for the sleep: if we
+			 * keep getting results quickly then we won't spend much time sleeping.
+			 */
+
+			while (1) 
+			{
+				rc = ldap_result(conn->ld, LDAP_RES_ANY , 1, &local_timeout, &res);
+				if (0 != rc)
+				{
+					/* Something other than a timeout happened */
+					break;
+				}
+				if (block)
+				{
+					/* Did the connection's timeout expire ? */
+					time_now = time( NULL );
+					if (conn->timeout.tv_sec <= ( time_now - start_time ))
+					{
+						/* We timed out */
+						rc = 0;
+						break;
+					}
+					/* Otherwise we backoff */
+					DS_Sleep(PR_MillisecondsToInterval(backoff_time));
+					if (backoff_time < 1000) 
+					{
+						backoff_time <<= 1;
+					}
+				} else
+				{
+					rc = 0;
+					break;
+				}
+			}
+
+			repl5_stop_debug_timeout(eqctx, &setlevel);
+
+			if (0 == rc)
+			{
+				/* Timeout */
+				rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+				conn->last_ldap_error = LDAP_TIMEOUT;
+				return_value = CONN_TIMEOUT;
+			}
+			else if (-1 == rc)
+			{
+				/* Error */
+				char *s = NULL;
+		
+				rc = ldap_get_lderrno(conn->ld, NULL, &s);
+				conn->last_ldap_errmsg = s;
+				conn->last_ldap_error = rc;
+				/* some errors will require a disconnect and retry the connection
+				   later */
+				if (IS_DISCONNECT_ERROR(rc))
+				{
+					conn_disconnect(conn);
+					return_value = CONN_NOT_CONNECTED;
+				}
+				else
+				{
+					conn->status = STATUS_CONNECTED;
+					return_value = CONN_OPERATION_FAILED;
+				}
+			}
+			else
+			{
+				int err;
+				char *errmsg = NULL;
+				char **referrals = NULL;
+				char *matched = NULL;
+
+				if (message_id) 
+				{
+					*message_id = ldap_msgid(res);
+				}
+
+				rc = ldap_parse_result(conn->ld, res, &err, &matched,
+									   &errmsg, &referrals, &loc_returned_controls,
+									   0 /* Don't free the result */);
+				if (IS_DISCONNECT_ERROR(rc))
+				{
+					conn->last_ldap_error = rc;
+					conn_disconnect(conn);
+					return_value = CONN_NOT_CONNECTED;
+				}
+				else if (IS_DISCONNECT_ERROR(err))
+				{
+					conn->last_ldap_error = err;
+					conn_disconnect(conn);
+					return_value = CONN_NOT_CONNECTED;
+				}
+				/* Got a result */
+				if ((rc == LDAP_SUCCESS) && (err == LDAP_BUSY))
+				    	return_value = CONN_BUSY;
+				else if (retoidp)
+				{
+					if (!((rc == LDAP_SUCCESS) && (err == LDAP_BUSY)))
+					{
+						if (rc == LDAP_SUCCESS) {
+							rc = ldap_parse_extended_result(conn->ld, res, retoidp,
+								retdatap, 0 /* Don't Free it */);
+						} 
+						conn->last_ldap_error = rc;
+						return_value = (LDAP_SUCCESS == conn->last_ldap_error ? 
+										CONN_OPERATION_SUCCESS : CONN_OPERATION_FAILED);
+					}
+				}
+				else /* regular operation, result returned */
+				{
+					if (NULL != returned_controls)
+					{
+						*returned_controls = loc_returned_controls;
+					}
+					if (LDAP_SUCCESS != rc)
+					{
+						conn->last_ldap_error = rc;
+					}
+					else
+					{
+						conn->last_ldap_error = err;
+					}
+					return_value = LDAP_SUCCESS == conn->last_ldap_error ? CONN_OPERATION_SUCCESS : CONN_OPERATION_FAILED;
+				}
+				/*
+				 * XXXggood do I need to free matched, referrals,
+				 * anything else? Or can I pass NULL for the args
+				 * I'm not interested in?
+				 */
+				/* Good question! Meanwhile, as RTM aproaches, let's free them... */
+				slapi_ch_free((void **) &errmsg);
+				slapi_ch_free((void **) &matched);
+				charray_free(referrals);
+				conn->status = STATUS_CONNECTED;
+			}
+			if (res) ldap_msgfree(res);
+			return return_value;
+}
+
+ConnResult
+conn_read_result(Repl_Connection *conn, int *message_id)
+{
+	return conn_read_result_ex(conn,NULL,NULL,NULL,message_id,1);
+}
 
 /*
  * Common code to send an LDAPv3 operation and collect the result.
@@ -229,20 +420,22 @@ conn_get_error(Repl_Connection *conn, int *operation, int *error)
  * reacquire the replica (if needed).
  * CONN_BUSY - the server is busy with previous requests, must wait for a while 
  * before retrying
+ * DBDB: also returns the operation's message ID, if it was successfully sent, now that
+ * we're reading results async.
  */
 static ConnResult
 perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	LDAPMod **attrs, const char *newrdn, const char *newparent,
 	int deleteoldrdn, LDAPControl *update_control,
-	const char *extop_oid, struct berval *extop_payload, char **retoidp,
-	struct berval **retdatap, LDAPControl ***returned_controls)
+	const char *extop_oid, struct berval *extop_payload, int *message_id)
 {
 	int rc;
-	ConnResult return_value;
+	ConnResult return_value = CONN_OPERATION_FAILED;
 	LDAPControl *server_controls[3];
-	LDAPControl **loc_returned_controls;
+	/* LDAPControl **loc_returned_controls; */
 	const char *op_string = NULL;
 	const char *extra_op_string = NULL;
+	int msgid = 0;
 
 	server_controls[0] = &manageDSAITControl;
 	server_controls[1] = update_control;
@@ -250,7 +443,57 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 
 	if (conn_connected(conn))
 	{
-		int msgid;
+		int setlevel = 0;
+
+		Slapi_Eq_Context eqctx = repl5_start_debug_timeout(&setlevel);
+
+		/* Because the SDK isn't really thread-safe (it can deadlock between
+		 * a thread sending an operation and a thread trying to retrieve a response
+		 * on the same connection), we need to _first_ verify that the connection
+		 * is writable. If it isn't, we can deadlock if we proceed any further...
+		 */
+		{
+				struct PRPollDesc	pr_pd;
+				PRIntervalTime	timeout = PR_SecondsToInterval(conn->timeout.tv_sec);
+				PRFileDesc *prfd = NULL;
+				struct lextiof_socket_private *socketargp = NULL;
+				PRLDAPSocketInfo    soi;
+
+				if ( (rc = ldap_get_option(conn->ld, LDAP_X_OPT_SOCKETARG, &socketargp)) != LDAP_SUCCESS)
+				{
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: Failed call to ldap_get_option in perform_operation: LDAP error %d (%s)\n",
+					agmt_get_long_name(conn->agmt),
+					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
+					conn->last_ldap_error = rc;
+     				return CONN_OPERATION_FAILED;
+				}
+				memset( &soi, 0, sizeof(soi));
+				soi.soinfo_size = PRLDAP_SOCKETINFO_SIZE;
+				if (LDAP_SUCCESS != (rc = prldap_get_socket_info(0, socketargp, &soi))) 
+				{
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: Failed call to prldap_get_socket_info in perform_operation: LDAP error %d (%s)\n",
+					agmt_get_long_name(conn->agmt),
+					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
+					conn->last_ldap_error = rc;
+     				return CONN_OPERATION_FAILED;
+				} 
+				prfd = soi.soinfo_prfd;
+				/* Before we connect, the prfd can be null */
+				if (prfd) 
+				{
+					pr_pd.fd = prfd;
+					pr_pd.in_flags = PR_POLL_WRITE;
+					pr_pd.out_flags = 0;
+					rc = PR_Poll(&pr_pd, 1, timeout);
+					/* Did we time out ? */
+					if (rc == 0)
+					{
+						return CONN_TIMEOUT;
+					}
+				}
+		}
 
 		conn->last_operation = optype;
 		switch (optype)
@@ -286,118 +529,14 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 			rc = ldap_extended_operation(conn->ld, extop_oid, extop_payload,
 				server_controls, NULL /* clientctls */, &msgid);
 		}
+		repl5_stop_debug_timeout(eqctx, &setlevel);
 		if (LDAP_SUCCESS == rc)
 		{
-			LDAPMessage *res = NULL;
-			int setlevel = 0;
-			Slapi_Eq_Context eqctx = repl5_start_debug_timeout(&setlevel);
-
-			rc = ldap_result(conn->ld, msgid, 1, &conn->timeout, &res);
-			repl5_stop_debug_timeout(eqctx, &setlevel);
-			if (0 == rc)
-			{
-				/* Timeout */
-				rc = ldap_get_lderrno(conn->ld, NULL, NULL);
-				conn->last_ldap_error = LDAP_TIMEOUT;
-				return_value = CONN_TIMEOUT;
-			}
-			else if (-1 == rc)
-			{
-				/* Error */
-				char *s = NULL;
-		
-				rc = ldap_get_lderrno(conn->ld, NULL, &s);
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-						"%s: Received error %d: %s for %s operation\n",
-						agmt_get_long_name(conn->agmt),
-						rc, s ? s : "NULL",
-						op_string ? op_string : "NULL");
-				conn->last_ldap_error = rc;
-				/* some errors will require a disconnect and retry the connection
-				   later */
-				if (IS_DISCONNECT_ERROR(rc))
-				{
-					conn_disconnect(conn);
-					return_value = CONN_NOT_CONNECTED;
-				}
-				else
-				{
-					conn->status = STATUS_CONNECTED;
-					return_value = CONN_OPERATION_FAILED;
-				}
-			}
-			else
-			{
-				int err;
-				char *errmsg = NULL;
-				char **referrals = NULL;
-				char *matched = NULL;
-
-				rc = ldap_parse_result(conn->ld, res, &err, &matched,
-									   &errmsg, &referrals, &loc_returned_controls,
-									   0 /* Don't free the result */);
-				if (IS_DISCONNECT_ERROR(rc))
-				{
-					conn->last_ldap_error = rc;
-					conn_disconnect(conn);
-					return_value = CONN_NOT_CONNECTED;
-				}
-				else if (IS_DISCONNECT_ERROR(err))
-				{
-					conn->last_ldap_error = err;
-					conn_disconnect(conn);
-					return_value = CONN_NOT_CONNECTED;
-				}
-				/* Got a result */
-				else if (CONN_EXTENDED_OPERATION == optype)
-				{
-					if ((rc == LDAP_SUCCESS) && (err == LDAP_BUSY))
-				    	return_value = CONN_BUSY;
-					else {
-						if (rc == LDAP_SUCCESS) {
-							rc = ldap_parse_extended_result(conn->ld, res, retoidp,
-								retdatap, 0 /* Don't Free it */);
-						} 
-						conn->last_ldap_error = rc;
-						return_value = (LDAP_SUCCESS == conn->last_ldap_error ? 
-										CONN_OPERATION_SUCCESS : CONN_OPERATION_FAILED);
-					}
-				}
-				else /* regular operation, result returned */
-				{
-					if (NULL != returned_controls)
-					{
-						*returned_controls = loc_returned_controls;
-					}
-					if (LDAP_SUCCESS != rc)
-					{
-						conn->last_ldap_error = rc;
-					}
-					else
-					{
-						conn->last_ldap_error = err;
-					}
-					return_value = LDAP_SUCCESS == conn->last_ldap_error ? CONN_OPERATION_SUCCESS : CONN_OPERATION_FAILED;
-				}
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-					"%s: Received result code %d for %s operation %s%s\n",
-					agmt_get_long_name(conn->agmt),
-					conn->last_ldap_error,
-					op_string == NULL ? "" : op_string,
-					extra_op_string == NULL ? "" : extra_op_string,
-					extra_op_string ==  NULL ? "" : " ");
-				/*
-				 * XXXggood do I need to free matched, referrals,
-				 * anything else? Or can I pass NULL for the args
-				 * I'm not interested in?
-				 */
-				/* Good question! Meanwhile, as RTM aproaches, let's free them... */
-				slapi_ch_free((void **) &errmsg);
-				slapi_ch_free((void **) &matched);
-				charray_free(referrals);
-				conn->status = STATUS_CONNECTED;
-			}
-			if (res) ldap_msgfree(res);
+			/* DBDB: The code that used to be here has been moved for async operation 
+			 * Results are now picked up in another thread. All we need to do here is
+			 * queue the operation details in the outstanding operation list.
+			 */
+			return_value = CONN_OPERATION_SUCCESS;
 		}
 		else
 		{
@@ -426,6 +565,10 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		 */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	if (message_id)
+	{
+		*message_id = msgid;
+	}
 	return return_value;
 }
 
@@ -434,12 +577,11 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
  */
 ConnResult
 conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl *update_control, int *message_id)
 {
 	return perform_operation(conn, CONN_ADD, dn, attrs, NULL /* newrdn */,
 		NULL /* newparent */, 0 /* deleteoldrdn */, update_control,
-		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
-		NULL /* retdatap */, returned_controls);
+		NULL /* extop OID */, NULL /* extop payload */, message_id);
 }
 
 
@@ -448,12 +590,11 @@ conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
  */
 ConnResult
 conn_send_delete(Repl_Connection *conn, const char *dn,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl *update_control, int *message_id)
 {
 	return perform_operation(conn, CONN_DELETE, dn, NULL /* attrs */,
 		NULL /* newrdn */, NULL /* newparent */, 0 /* deleteoldrdn */,
-		update_control, NULL /* extop OID */, NULL /* extop payload */,
-		NULL /* retoidp */, NULL /* retdatap */, returned_controls);
+		update_control, NULL /* extop OID */, NULL /* extop payload */, message_id);
 }
 
 
@@ -462,12 +603,11 @@ conn_send_delete(Repl_Connection *conn, const char *dn,
  */
 ConnResult
 conn_send_modify(Repl_Connection *conn, const char *dn, LDAPMod **mods,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl *update_control, int *message_id)
 {
 	return perform_operation(conn, CONN_MODIFY, dn, mods, NULL /* newrdn */,
 		NULL /* newparent */, 0 /* deleteoldrdn */, update_control,
-		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
-		NULL /* retdatap */, returned_controls);
+		NULL /* extop OID */, NULL /* extop payload */, message_id);
 }
 
 /*
@@ -476,12 +616,11 @@ conn_send_modify(Repl_Connection *conn, const char *dn, LDAPMod **mods,
 ConnResult
 conn_send_rename(Repl_Connection *conn, const char *dn,
 	const char *newrdn, const char *newparent, int deleteoldrdn,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl *update_control, int *message_id)
 {
 	return perform_operation(conn, CONN_RENAME, dn, NULL /* attrs */,
 		newrdn, newparent, deleteoldrdn, update_control,
-		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
-		NULL /* retdatap */, returned_controls);
+		NULL /* extop OID */, NULL /* extop payload */, message_id);
 }
 
 
@@ -490,13 +629,12 @@ conn_send_rename(Repl_Connection *conn, const char *dn,
  */
 ConnResult
 conn_send_extended_operation(Repl_Connection *conn, const char *extop_oid,
-	struct berval *payload, char **retoidp, struct berval **retdatap,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	struct berval *payload,
+	LDAPControl *update_control, int *message_id)
 {
 	return perform_operation(conn, CONN_EXTENDED_OPERATION, NULL /* dn */, NULL /* attrs */,
 		NULL /* newrdn */, NULL /* newparent */,  0 /* deleteoldrdn */,
-		update_control, extop_oid, payload, retoidp, retdatap,
-		returned_controls);
+		update_control, extop_oid, payload, message_id);
 }
 
 
@@ -784,8 +922,8 @@ conn_connect(Repl_Connection *conn)
 			"%s: Trying %s slapi_ldap_init\n",
 			agmt_get_long_name(conn->agmt),
 			secure ? "secure" : "non-secure");
-		
-		conn->ld = slapi_ldap_init(conn->hostname, conn->port, secure, 0);
+		/* shared = 1 because we will read results from a second thread */
+		conn->ld = slapi_ldap_init(conn->hostname, conn->port, secure, 1);
 		if (NULL == conn->ld)
 		{
 			return_value = CONN_OPERATION_FAILED;
@@ -874,6 +1012,7 @@ close_connection_internal(Repl_Connection *conn)
 	conn->state = STATE_DISCONNECTED;
 	conn->status = STATUS_DISCONNECTED;
 	conn->supports_ds50_repl = -1;
+	conn->supports_ds71_repl = -1;
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 		"%s: Disconnected from the consumer\n", agmt_get_long_name(conn->agmt));
 }
@@ -975,7 +1114,89 @@ conn_replica_supports_ds5_repl(Repl_Connection *conn)
 }
 
 
+/*
+ * Determine if the remote replica supports DS 5.0 replication.
+ * Return codes:
+ * CONN_SUPPORTS_DS71_REPL - the remote replica suport DS5 replication
+ * CONN_DOES_NOT_SUPPORT_DS71_REPL - the remote replica does not
+ * support DS5 replication.
+ * CONN_OPERATION_FAILED - it could not be determined if the remote
+ * replica supports DS5 replication.
+ * CONN_NOT_CONNECTED - no connection was active.
+ */
+ConnResult
+conn_replica_supports_ds71_repl(Repl_Connection *conn)
+{
+	ConnResult return_value;
+	int ldap_rc;
 
+	if (conn_connected(conn))
+	{
+		if (conn->supports_ds71_repl == -1) {
+			LDAPMessage *res = NULL;
+			LDAPMessage *entry = NULL;
+			char *attrs[] = {"supportedcontrol", "supportedextension", NULL};
+			
+			conn->status = STATUS_SEARCHING;
+			ldap_rc = ldap_search_ext_s(conn->ld, "", LDAP_SCOPE_BASE,
+										"(objectclass=*)", attrs, 0 /* attrsonly */,
+										NULL /* server controls */, NULL /* client controls */,
+										&conn->timeout, LDAP_NO_LIMIT, &res);
+			if (LDAP_SUCCESS == ldap_rc)
+			{
+				conn->supports_ds71_repl = 0;
+				entry = ldap_first_entry(conn->ld, res);
+				if (!attribute_string_value_present(conn->ld, entry, "supportedextension", REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID))
+				{
+					return_value = CONN_DOES_NOT_SUPPORT_DS71_REPL;
+				}
+				else
+				{
+					conn->supports_ds71_repl = 1;
+					return_value = CONN_SUPPORTS_DS71_REPL;
+				}
+			}
+			else
+			{
+				if (IS_DISCONNECT_ERROR(ldap_rc))
+				{
+					conn->last_ldap_error = ldap_rc;	/* specific reason */
+					conn_disconnect(conn);
+					return_value = CONN_NOT_CONNECTED;
+				}
+				else
+				{
+					return_value = CONN_OPERATION_FAILED;
+				}
+			}
+			if (NULL != res)
+				ldap_msgfree(res);
+		}
+		else {
+			return_value = conn->supports_ds71_repl ? CONN_SUPPORTS_DS71_REPL : CONN_DOES_NOT_SUPPORT_DS71_REPL;
+		}
+	}
+	else
+	{
+		/* Not connected */
+		return_value = CONN_NOT_CONNECTED;
+	}
+	return return_value;
+}
+
+/* Determine if the replica is read-only */
+ConnResult
+conn_replica_is_readonly(Repl_Connection *conn)
+{
+	ReplicaId rid = agmt_get_consumer_rid( (Repl_Agmt *) conn->agmt, conn );
+	if (rid == READ_ONLY_REPLICA_ID)
+	{
+		return CONN_IS_READONLY;
+	} else 
+	{
+		return CONN_IS_NOT_READONLY;
+	}
+}
 
 
 /*
@@ -1169,7 +1390,8 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 					}
 					atmod.mod_bvalues[numvalues] = NULL;
 
-					result = conn_send_modify(conn, "cn=schema", attrs, NULL, NULL);
+					result = conn_send_modify(conn, "cn=schema", attrs, NULL, NULL); /* DBDB: this needs to be fixed to use async */
+					result = conn_read_result(conn,NULL);
 					switch (result)
 					{
 					case CONN_OPERATION_FAILED:
@@ -1225,6 +1447,15 @@ conn_set_timeout(Repl_Connection *conn, long timeout)
 	PR_Lock(conn->lock);
 	conn->timeout.tv_sec = timeout;
 	PR_Unlock(conn->lock);
+}
+
+long
+conn_get_timeout(Repl_Connection *conn)
+{
+	long retval = 0;
+	PR_ASSERT(NULL != conn);
+	retval = conn->timeout.tv_sec;
+	return retval;
 }
 
 void conn_set_agmt_changed(Repl_Connection *conn)
@@ -1430,6 +1661,18 @@ repl5_set_debug_timeout(const char *val)
 	}
 }
 
+static time_t 
+PRTime2time_t (PRTime tm)
+{
+    PRInt64 rt;
+
+    PR_ASSERT (tm);
+    
+    LL_DIV(rt, tm, PR_USEC_PER_SEC);
+
+    return (time_t)rt;
+}
+
 static Slapi_Eq_Context
 repl5_start_debug_timeout(int *setlevel)
 {
@@ -1449,7 +1692,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	if (eqctx && !*setlevel) {
-		(void)slapi_eq_cancel(eqctx);
+		int found = slapi_eq_cancel(eqctx);
 	}
 
 	if (s_debug_timeout && s_debug_level && *setlevel) {

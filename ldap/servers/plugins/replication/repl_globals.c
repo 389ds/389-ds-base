@@ -8,6 +8,7 @@
 #include "repl.h"
 
 char *repl_plugin_name = REPL_PLUGIN_NAME;
+char *windows_repl_plugin_name = REPL_PLUGIN_NAME;
 char *repl_plugin_name_cl = REPL_PLUGIN_NAME " - changelog program";
 
 /* String constants (no need to change these for I18N) */
@@ -87,6 +88,12 @@ const char *type_nsds5ReplicaInitialize = "nsds5BeginReplicaRefresh";
 const char *type_nsds5ReplicaTimeout = "nsds5ReplicaTimeout";
 const char *type_nsds5ReplicaBusyWaitTime = "nsds5ReplicaBusyWaitTime";
 const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
+
+/* windows sync specifica attributes */
+const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
+const char *type_nsds7DirectoryReplicaArea = "nsds7DirectoryReplicaSubtree";
+const char *type_nsds7CreateNewUsers = "nsds7NewWinUserSyncEnabled";
+
 
 /* To Allow Consumer Initialisation when adding an agreement - */
 const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";

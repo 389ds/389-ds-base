@@ -1,0 +1,6 @@
+
+LIBRARY passhook
+EXPORTS
+        InitializeChangeNotify
+        PasswordChangeNotify
+        PasswordFilter

@@ -303,6 +303,7 @@ static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size)
 static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size);
 
 /* replay iteration */
+static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator);
 static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consumerRuv,
 			Object *replica, Object *fileObject, CL5ReplayIterator **iterator);
 static int _cl5CheckMissingCSN (const CSN *minCsn, const RUV *supplierRUV, CL5DBFile *file);
@@ -1687,9 +1688,64 @@ int cl5WriteOperation(const char *replName, const char *replGen,
                 flag is set to FALSE for all repolicas except the last traversed.
                 
  */
+int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRuv, 
+                             CL5ReplayIterator **iterator,	ReplicaId consumerRID )
+{
+	int rc;
+	Object *replica;
+	Object *obj = NULL;
+
+	replica = prp->replica_object;
+	if (replica == NULL || consumerRuv == NULL || iterator == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"cl5CreateReplayIterator: invalid parameter\n");
+		return CL5_BAD_DATA;
+	}
+
+    *iterator = NULL;
+
+	if (s_cl5Desc.dbState == CL5_STATE_NONE)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"cl5CreateReplayIterator: changelog is not initialized\n");
+		return CL5_BAD_STATE;
+	}
+
+	/* make sure that changelog is open while operation is in progress */
+	rc = _cl5AddThread ();
+	if (rc != CL5_SUCCESS ) return rc;
+	
+
+	rc = _cl5GetDBFile (replica, &obj);
+	if (rc == CL5_SUCCESS)
+	{
+    	/* iterate through the ruv in csn order to find first master for which 
+	       we can replay changes */		    
+		
+		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator);
+		if (rc != CL5_SUCCESS)
+		{
+			if (obj)
+				object_release (obj);
+		}
+	}
+
+	_cl5RemoveThread ();
+
+	return rc;	
+}
+
+/* cl5CreateReplayIterator is now a wrapper for cl5CreateReplayIteratorEx */
 int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *consumerRuv, 
                              CL5ReplayIterator **iterator)
 {
+
+/*	DBDB : I thought it should be possible to refactor this like so, but it seems to not work.
+	Possibly the ordering of the calls is significant.
+	ReplicaId consumerRID = agmt_get_consumer_rid ( prp->agmt, prp->conn );
+	return cl5CreateReplayIteratorEx(prp,consumerRuv,iterator,consumerRID); */
+	
 	int rc;
 	Object *replica;
 	Object *obj = NULL;
@@ -1733,6 +1789,7 @@ int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *consumerRuv,
 	_cl5RemoveThread ();
 
 	return rc;	
+
 }
 
 /* Name:		cl5GetNextOperationToReplay
@@ -4733,7 +4790,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 		if (rc != 0)
 		{
 			if ( errmsg != NULL ) {
-				slapi_log_error(SLAPI_LOG_PARSE, repl_plugin_name_cl, "%s", errmsg); 
+			        slapi_log_error(SLAPI_LOG_PARSE, repl_plugin_name_cl, "%s", errmsg); 
 				PR_smprintf_free(errmsg );
 			}
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -5288,6 +5345,17 @@ PRBool cl5HelperEntry (const char *csnstr, CSN *csnp)
 	if (NULL == csnp)
 		csn_free(&csn);
 	return retval;
+}
+
+/* Replay iteration helper functions */
+static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator)
+{
+	if (iterator == NULL || 
+		iterator->consumerRuv == NULL || iterator->supplierRuvObj == NULL || 
+        iterator->fileObj == NULL)
+		return PR_FALSE;
+
+	return PR_TRUE;
 }
 
 /* Algorithm: ONREPL!!!

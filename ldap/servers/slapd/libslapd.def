@@ -1145,3 +1145,4 @@ EXPORTS
 	sasl_map_init @1178
 	sasl_map_done @1179
 	slapd_SECITEM_FreeItem @1180
+	slapi_op_type_to_string @1181

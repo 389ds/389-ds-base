@@ -75,9 +75,10 @@ static int _replica_configure_ruv (Replica *r, PRBool isLocked);
 static void _replica_update_state (time_t when, void *arg);
 static char * _replica_get_config_dn (const Slapi_DN *root);
 static char * _replica_type_as_string (const Replica *r);
-static int replica_create_ruv_tombstone(Replica *r);
-static void assign_csn_callback(const CSN *csn, void *data);
-static void abort_csn_callback(const CSN *csn, void *data);
+/* DBDB, I think this is probably bogus : */
+int replica_create_ruv_tombstone(Replica *r);
+void assign_csn_callback(const CSN *csn, void *data);
+void abort_csn_callback(const CSN *csn, void *data);
 static void eq_cb_reap_tombstones(time_t when, void *arg);
 static CSN *_replica_get_purge_csn_nolock (const Replica *r);
 static void replica_get_referrals_nolock (const Replica *r, char ***referrals);
@@ -3282,6 +3283,24 @@ int replica_start_agreement(Replica *r, Repl_Agmt *ra)
     PR_Unlock(r->agmt_lock);
     return ret;
 }
+
+int windows_replica_start_agreement(Replica *r, Repl_Agmt *ra)
+{
+	int ret = 0;
+	
+	if (r == NULL) return -1;
+	
+	PR_Lock(r->agmt_lock);
+	
+	if (!replica_is_state_flag_set(r, REPLICA_AGREEMENTS_DISABLED)) {
+		ret = windows_agmt_start(ra); /* Start the replication agreement */
+		/* ret = windows_agmt_start(ra); Start the replication agreement */
+	}
+	
+	PR_Unlock(r->agmt_lock);
+	return ret;
+}
+
 
 /*
  * A callback function registed as op->o_csngen_handler and

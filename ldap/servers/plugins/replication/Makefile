@@ -90,6 +90,12 @@ LOCAL_OBJS= \
 	repl5_replica_hash.o\
 	repl5_replica_dnhash.o\
 	repl5_updatedn_list.o\
+	windows_inc_protocol.o \
+	windows_tot_protocol.o \
+	windows_total.o \
+	windows_protocol_util.o \
+	windows_private.o \
+	windows_connection.o
 
 LIBREPLICATION_OBJS = $(addprefix $(OBJDEST)/, $(LOCAL_OBJS)) 
 

@@ -85,7 +85,7 @@ static int my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *dele
  *
  */
 BerElement *
-entry2bere(const Slapi_Entry *e)
+entry2bere(const Slapi_Entry *e, char **excluded_attrs)
 {
 	BerElement *ber = NULL;
 	const char *str = NULL;
@@ -151,12 +151,16 @@ entry2bere(const Slapi_Entry *e)
         slapi_attr_get_type (attr, &type);
         if (strcasecmp (type, SLAPI_ATTR_UNIQUEID) != 0)
         {
-            /* Process this attribute */
-            rc = my_ber_printf_attr (ber, attr, PR_FALSE);
-		    if (rc != 0)
-            {
-                goto loser;
-            }
+			/* Check to see if this attribute is excluded by the fractional list */
+			if ( (NULL == excluded_attrs) || !charray_inlist(excluded_attrs,type)) 
+			{
+				/* Process this attribute */
+				rc = my_ber_printf_attr (ber, attr, PR_FALSE);
+				if (rc != 0)
+				{
+					goto loser;
+				}
+			}
         }
 		
 		prev_attr = attr;
@@ -169,12 +173,17 @@ entry2bere(const Slapi_Entry *e)
 	entry_first_deleted_attribute(e, &attr);
 	while (attr != NULL)
 	{
-		/* Process this attribute */
-        rc = my_ber_printf_attr (ber, attr, PR_TRUE);
-        if (rc != 0)
-        {
-            goto loser;
-        }
+		slapi_attr_get_type (attr, &type);
+		/* Check to see if this attribute is excluded by the fractional list */
+		if ( (NULL == excluded_attrs) || !charray_inlist(excluded_attrs,type)) 
+		{
+			/* Process this attribute */
+			rc = my_ber_printf_attr (ber, attr, PR_TRUE);
+			if (rc != 0)
+			{
+				goto loser;
+			}
+		}
 		entry_next_deleted_attribute(e, &attr);
 	}
 	BER_DEBUG("]");
@@ -675,7 +684,8 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
 
 	if (NULL == extop_oid ||
-		strcmp(extop_oid, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID) != 0 ||
+		((strcmp(extop_oid, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID) != 0) && 
+		(strcmp(extop_oid, REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID) != 0)) ||
 		NULL == extop_value)
 	{
 		/* Bogus */

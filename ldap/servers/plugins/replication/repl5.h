@@ -23,6 +23,12 @@
 #include "repl5_ruv.h"
 #include "cl4.h"
 
+#define REPLICA_TYPE_WINDOWS 1
+#define REPLICA_TYPE_MULTIMASTER 0
+#define REPL_DIRSYNC_CONTROL_OID "1.2.840.113556.1.4.841"
+#define CONN_SUPPORTS_DIRSYNC 12
+#define CONN_DOES_NOT_SUPPORT_DIRSYNC  13
+
 /* DS 5.0 replication protocol OIDs */
 #define REPL_START_NSDS50_REPLICATION_REQUEST_OID "2.16.840.1.113730.3.5.3"
 #define REPL_END_NSDS50_REPLICATION_REQUEST_OID "2.16.840.1.113730.3.5.5"
@@ -31,6 +37,21 @@
 #define REPL_NSDS50_UPDATE_INFO_CONTROL_OID    "2.16.840.1.113730.3.4.13"
 #define REPL_NSDS50_INCREMENTAL_PROTOCOL_OID "2.16.840.1.113730.3.6.1"
 #define REPL_NSDS50_TOTAL_PROTOCOL_OID "2.16.840.1.113730.3.6.2"
+/* DS7.1 introduces pipelineing in the protocol : really not much different to the 5.0 
+ * protocol, but enough change to make it unsafe to interoperate the two. So we define 
+ * new OIDs for 7.1 here. The supplier server looks for these on the consumer and 
+ * if they're not there it falls back to the older 5.0 non-pipelined protocol */
+#define REPL_NSDS71_INCREMENTAL_PROTOCOL_OID "2.16.840.1.113730.3.6.4"
+#define REPL_NSDS71_TOTAL_PROTOCOL_OID "2.16.840.1.113730.3.6.3"
+/* The new protocol OIDs above do not help us with determining if a consumer
+ * Supports them or not. That's because they're burried inside the start replication 
+ * extended operation, and are not visible in the support controls and operations list 
+ * So, we add a new extended operation for the 7.1 total protocol. This is partly because
+ * the total protocol is slightly different (no LDAP_BUSY allowed in 7.1) and partly
+ * because we need a handy way to spot the difference between a pre-7.1 and post-7.0 
+ * consumer at the supplier */
+#define REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID "2.16.840.1.113730.3.5.9"
+
 
 /* DS 5.0 replication protocol error codes */
 #define NSDS50_REPL_REPLICA_READY 0x00 /* Replica ready, go ahead */
@@ -83,6 +104,11 @@ extern const char *type_nsds5ReplicaInitialize;
 extern const char *type_nsds5ReplicaTimeout;
 extern const char *type_nsds5ReplicaBusyWaitTime;
 extern const char *type_nsds5ReplicaSessionPauseTime;
+
+/* Attribute names for windows replication agreements */
+extern const char *type_nsds7WindowsReplicaArea;
+extern const char *type_nsds7DirectoryReplicaArea;
+extern const char *type_nsds7CreateNewUsers;
 
 /* To Allow Consumer Initialisation when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
@@ -200,6 +226,7 @@ long agmt_get_timeout(const Repl_Agmt *ra);
 long agmt_get_busywaittime(const Repl_Agmt *ra);
 long agmt_get_pausetime(const Repl_Agmt *ra);
 int agmt_start(Repl_Agmt *ra);
+int windows_agmt_start(Repl_Agmt *ra); 
 int agmt_stop(Repl_Agmt *ra);
 int agmt_replicate_now(Repl_Agmt *ra);
 char *agmt_get_hostname(const Repl_Agmt *ra);
@@ -243,6 +270,13 @@ void agmt_set_last_init_end (Repl_Agmt *ra, time_t end_time);
 void agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *msg);
 void agmt_inc_last_update_changecount (Repl_Agmt *ra, ReplicaId rid, int skipped);
 void agmt_get_changecount_string (Repl_Agmt *ra, char *buf, int bufsize);
+int agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
+int agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr);
+char **agmt_get_fractional_attrs(const Repl_Agmt *ra);
+char **agmt_validate_replicated_attributes(Repl_Agmt *ra);
+
+
+int get_agmt_agreement_type ( Repl_Agmt *agmt);
 
 typedef struct replica Replica;
 
@@ -279,34 +313,44 @@ typedef enum
 	CONN_LOCAL_ERROR,
 	CONN_BUSY,
 	CONN_SSL_NOT_ENABLED,
-	CONN_TIMEOUT
+	CONN_TIMEOUT,
+	CONN_SUPPORTS_DS71_REPL,
+	CONN_DOES_NOT_SUPPORT_DS71_REPL,
+	CONN_IS_READONLY,
+	CONN_IS_NOT_READONLY
 } ConnResult;  
 Repl_Connection *conn_new(Repl_Agmt *agmt);
 ConnResult conn_connect(Repl_Connection *conn);
 void conn_disconnect(Repl_Connection *conn);
 void conn_delete(Repl_Connection *conn);
 void conn_get_error(Repl_Connection *conn, int *operation, int *error);
+void conn_get_error_ex(Repl_Connection *conn, int *operation, int *error, char **error_string);
 ConnResult conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
-	LDAPControl *update_control, LDAPControl ***returned_controls);
+	LDAPControl *update_control, int *message_id);
 ConnResult conn_send_delete(Repl_Connection *conn, const char *dn,
-	LDAPControl *update_control, LDAPControl ***returned_controls);
+	LDAPControl *update_control, int *message_id);
 ConnResult conn_send_modify(Repl_Connection *conn, const char *dn, LDAPMod **mods,
-	LDAPControl *update_control, LDAPControl ***returned_controls);
+	LDAPControl *update_control, int *message_id);
 ConnResult conn_send_rename(Repl_Connection *conn, const char *dn,
 	const char *newrdn, const char *newparent, int deleteoldrdn,
-	LDAPControl *update_control, LDAPControl ***returned_controls);
+	LDAPControl *update_control, int *message_id);
 ConnResult conn_send_extended_operation(Repl_Connection *conn, const char *extop_oid,
-	struct berval *payload, char **retoidp, struct berval **retdatap,
-	LDAPControl *update_control, LDAPControl ***returned_controls);
+	struct berval *payload, LDAPControl *update_control, int *message_id);
 const char *conn_get_status(Repl_Connection *conn);
 void conn_start_linger(Repl_Connection *conn);
 void conn_cancel_linger(Repl_Connection *conn);
 ConnResult conn_replica_supports_ds5_repl(Repl_Connection *conn);
+ConnResult conn_replica_supports_ds71_repl(Repl_Connection *conn);
+ConnResult conn_replica_is_readonly(Repl_Connection *conn);
+
 ConnResult conn_read_entry_attribute(Repl_Connection *conn, const char *dn, char *type,
 	struct berval ***returned_bvals);
 ConnResult conn_push_schema(Repl_Connection *conn, CSN **remotecsn);
 void conn_set_timeout(Repl_Connection *conn, long timeout);
+long conn_get_timeout(Repl_Connection *conn);
 void conn_set_agmt_changed(Repl_Connection *conn);
+ConnResult conn_read_result(Repl_Connection *conn, int *message_id);
+ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int *message_id, int noblock);
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;
@@ -349,6 +393,7 @@ typedef int (*FNEnumReplica) (Replica *r, void *arg);
 /* this function should be called to construct the replica object
    from the data already in the DIT */
 Replica *replica_new(const Slapi_DN *root);
+Replica *windows_replica_new(const Slapi_DN *root);
 /* this function should be called to construct the replica object
    during addition of the replica over LDAP */
 Replica *replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation);
@@ -433,6 +478,7 @@ void replica_set_tombstone_reap_stop(Replica *r, PRBool val);
 void replica_enable_replication (Replica *r);
 void replica_disable_replication (Replica *r, Object *r_obj);
 int replica_start_agreement(Replica *r, Repl_Agmt *ra);
+int windows_replica_start_agreement(Replica *r, Repl_Agmt *ra);
 
 CSN* replica_generate_next_csn ( Slapi_PBlock *pb, const CSN *basecsn );
 int replica_get_attr ( Slapi_PBlock *pb, const char *type, void *value );
@@ -447,6 +493,7 @@ void multimaster_be_state_change (void *handle, char *be_name, int old_be_state,
 /* In repl5_replica_config.c */
 int replica_config_init();
 void replica_config_destroy ();
+int get_replica_type(Replica *r);
 
 /* replutil.c */
 LDAPControl* create_managedsait_control ();
@@ -477,5 +524,23 @@ void replica_updatedn_list_enumerate(ReplicaUpdateDNList list, FNEnumDN fn, void
 #endif
 
 void repl5_set_debug_timeout(const char *val);
+/* temp hack XXX */
+ReplicaId agmt_get_consumerRID(Repl_Agmt *ra);
 
+/* windows_private.c */
+typedef struct windowsprivate Dirsync_Private;
+void windows_private_delete(Dirsync_Private **dp);
+void* get_priv_from_agmt (const Repl_Agmt *agmt);
+Dirsync_Private* windows_private_new();
+void windows_private_set_windows_replarea (const Repl_Agmt *ra,const Slapi_DN* sdn );
+const Slapi_DN* windows_private_get_windows_replarea (const Repl_Agmt *ra);
+void windows_private_set_directory_replarea (const Repl_Agmt *ra,const Slapi_DN* sdn );
+const Slapi_DN* windows_private_get_directory_replarea (const Repl_Agmt *ra);
+LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra);
+ConnResult perform_search(Repl_Connection *conn);
+Slapi_Entry *windows_conn_get_search_result(Repl_Connection *conn );
+void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **controls );
+void windows_private_null_dirsync_control(const Repl_Agmt *ra);
+void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value);
+PRBool windows_private_create_users(const Repl_Agmt *ra);
 #endif /* _REPL5_H_ */

@@ -391,6 +391,9 @@ int cl5WriteOperation(const char *repl_name, const char *repl_gen,
  */
 int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *ruv, 
 							 CL5ReplayIterator **iterator);
+int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRuv,
+				CL5ReplayIterator **iterator,    ReplicaId consumerRID );
+
 
 /* Name:		cl5GetNextOperationToReplay
    Description:	retrieves next operation to be sent to the consumer and

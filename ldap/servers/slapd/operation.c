@@ -198,6 +198,30 @@ slapi_op_get_type(Slapi_Operation *op)
 	return op->o_params.operation_type;
 }
 
+char *
+slapi_op_type_to_string(unsigned long type)
+{
+	switch (type) 
+	{
+		case SLAPI_OPERATION_ADD:
+			return "add";
+		case SLAPI_OPERATION_DELETE:
+			return "delete";
+		case SLAPI_OPERATION_MODIFY:
+			return "modify";
+		case SLAPI_OPERATION_MODRDN:
+			return "modrdn";
+		case SLAPI_OPERATION_BIND:
+			return "bind";
+		case SLAPI_OPERATION_COMPARE:
+			return "compare";
+		case SLAPI_OPERATION_SEARCH:
+			return "search";
+		default:
+			return "unknown operation type";
+	}
+}
+
 /* DEPRECATED : USE FUNCTION ABOVE FOR NEW DVLPT */
 unsigned long
 operation_get_type(Slapi_Operation *op)

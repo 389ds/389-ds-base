@@ -445,7 +445,7 @@ int slapi_op_reserved(Slapi_PBlock *pb);
 void slapi_operation_set_csngen_handler ( Slapi_Operation *op, void *callback );
 void slapi_operation_set_replica_attr_handler ( Slapi_Operation *op, void *callback );
 int slapi_operation_get_replica_attr ( Slapi_PBlock *pb, Slapi_Operation *op, const char *type, void *value );
-
+char *slapi_op_type_to_string(unsigned long type);
 
 /*
  * LDAPMod manipulation routines

@@ -15,12 +15,15 @@
 */
 
 #include "repl5.h"
+#include "windowsrepl.h"
 #include "repl5_prot_private.h"
 
 #define PROTOCOL_5_INCREMENTAL 1
 #define PROTOCOL_5_TOTAL 2
 #define PROTOCOL_4_INCREMENTAL 3
 #define PROTOCOL_4_TOTAL 4
+#define PROTOCOL_WINDOWS_INCREMENTAL 5
+#define PROTOCOL_WINDOWS_TOTAL 6
 
 typedef struct repl_protocol
 {
@@ -70,10 +73,11 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 		goto loser;
 	}
 	rp->agmt = agmt;
+	/* now done in private_protocol_factory
 	if ((rp->conn = conn_new(agmt)) == NULL)
 	{
 		goto loser;
-	}
+	} */
 	/* Acquire the local replica object */
 	replarea_sdn = agmt_get_replarea(agmt);
 	rp->replica_object = replica_get_replica_from_dn(replarea_sdn);
@@ -86,8 +90,18 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 			slapi_sdn_get_dn(replarea_sdn));
 		goto loser;
 	}
+
+	if (get_agmt_agreement_type(agmt) == REPLICA_TYPE_MULTIMASTER)
+	{
 	rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_5_INCREMENTAL);
 	rp->prp_total = private_protocol_factory(rp, PROTOCOL_5_TOTAL);
+	} 
+	else if  (get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS)
+	{
+	rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_WINDOWS_INCREMENTAL);
+	rp->prp_total = private_protocol_factory(rp, PROTOCOL_WINDOWS_TOTAL);
+	}
+
 	/* XXXggood register callback handlers for entries updated, and
 		schedule window enter/leave. */
 	slapi_sdn_free(&replarea_sdn);
@@ -489,13 +503,24 @@ static Private_Repl_Protocol *
 private_protocol_factory(Repl_Protocol *rp, int type)
 {
 	Private_Repl_Protocol *prp;
+
 	switch (type)
 	{
 		case PROTOCOL_5_INCREMENTAL:
+			if ((rp->conn = conn_new(rp->agmt)) != NULL)
 			prp = Repl_5_Inc_Protocol_new(rp);
 			break;
 		case PROTOCOL_5_TOTAL:
+			if ((rp->conn = conn_new(rp->agmt)) != NULL)
 			prp = Repl_5_Tot_Protocol_new(rp);
+			break;
+		case PROTOCOL_WINDOWS_INCREMENTAL: 
+			if ((rp->conn = windows_conn_new(rp->agmt)) != NULL)
+			prp = Windows_Inc_Protocol_new(rp);
+			break;
+		case PROTOCOL_WINDOWS_TOTAL: 
+			if ((rp->conn = windows_conn_new(rp->agmt)) != NULL)
+			prp = Windows_Tot_Protocol_new(rp);
 			break;
 	}
 	return prp;

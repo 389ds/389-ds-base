@@ -106,6 +106,19 @@ ruv_init_new(const char *replGen, ReplicaId rid, const char *purl, RUV **ruv)
     return RUV_SUCCESS;
 }
 
+int ruv_private_new(RUV **ruv, RUV *clone )
+{
+		
+
+	int rc;
+	rc = ruvInit (ruv, dl_get_count(clone->elements) );
+	if (rc != RUV_SUCCESS)
+		return rc;
+
+	(*ruv)->replGen = slapi_ch_strdup (clone->replGen);
+
+	   return RUV_SUCCESS;
+}
 
 /*
  * Create a new RUV and initialize its contents from the provided Slapi_Attr.
@@ -1835,6 +1848,14 @@ ruv_is_newer (Object *sruvobj, Object *cruvobj)
 	{
 		/* A hub may have a dummy ruv with rid 65535 */
 		if ( sreplica->csn == NULL ) continue;
+
+		if ( cruv->elements == NULL )
+			{
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			"ruv_is_newer, consumer RUV has no elements\n");
+			 is_newer=PR_FALSE;
+			 break;
+			}
 
 		for (creplica = dl_get_first (cruv->elements, &ccookie); creplica;
 			 creplica = dl_get_next (cruv->elements, &ccookie))

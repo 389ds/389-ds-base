@@ -41,6 +41,32 @@ typedef struct repl5_inc_private
 	PRUint32 eventbits;
 } repl5_inc_private;
 
+/* Structures used to communicate with the result reading thread */
+
+typedef struct repl5_inc_operation 
+{
+	int ldap_message_id;
+	unsigned long operation_type;
+	char *csn_str;
+	char *uniqueid;
+	ReplicaId  replica_id;
+	struct repl5_inc_operation *next;
+} repl5_inc_operation;
+
+typedef struct result_data
+{
+    Private_Repl_Protocol *prp;
+    int rc;    
+	PRLock *lock; /* Lock to protect access to this structure, the message id list and to force memory barriers */
+	PRThread *result_tid; /* The async result thread */
+	repl5_inc_operation *operation_list_head; /* List of IDs for outstanding operations */
+	repl5_inc_operation *operation_list_tail; /* List of IDs for outstanding operations */
+	int abort; /* Flag used to tell the sending thread asyncronously that it should abort (because an error came up in a result) */
+	PRUint32 num_changes_sent;
+	int stop_result_thread; /* Flag used to tell the result thread to exit */
+	int last_message_id_sent;
+	int last_message_id_received;
+} result_data;
 
 /* Various states the incremental protocol can pass through */
 #define	STATE_START 0                   /* ONREPL - should we rename this - we don't use it just to start up? */
@@ -105,6 +131,319 @@ static PRBool ignore_error_and_keep_going(int error);
 static const char* state2name (int state);
 static const char* event2name (int event);
 static const char* op2string (int op);
+static int repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_crc, int connection_error, char *csn_str, char *uniqueid, ReplicaId replica_id, int* finished, PRUint32 *num_changes_sent);
+
+
+/* Push a newly sent operation onto the tail of the list */
+static void repl5_int_push_operation(result_data *rd, repl5_inc_operation *it)
+{
+	repl5_inc_operation *tail = NULL;
+	PR_Lock(rd->lock);
+	tail = rd->operation_list_tail;
+	if (tail) 
+	{
+		tail->next = it;
+	}
+	if (NULL == rd->operation_list_head) 
+	{
+		rd->operation_list_head = it;
+	}
+	rd->operation_list_tail = it;
+	PR_Unlock(rd->lock);
+}
+
+/* Pop the next operation in line to respond from the list */
+/* The caller is expected to free the operation item */
+static repl5_inc_operation *repl5_inc_pop_operation(result_data *rd)
+{
+	repl5_inc_operation *head = NULL;
+	repl5_inc_operation *ret = NULL;
+	PR_Lock(rd->lock);
+	head = rd->operation_list_head;
+	if (head) 
+	{
+		ret = head;
+		rd->operation_list_head = head->next;
+		if (rd->operation_list_tail == head)
+		{
+			rd->operation_list_tail = NULL;
+		}
+	}
+	PR_Unlock(rd->lock);
+	return ret;
+}
+
+static void
+repl5_inc_op_free(repl5_inc_operation *op)
+{
+	/* First free any payload */
+	if (op->csn_str) 
+	{
+		slapi_ch_free((void **)&(op->csn_str));
+	}
+	if (op->uniqueid)
+	{
+		slapi_ch_free((void **)&(op->uniqueid));
+	}
+	slapi_ch_free((void**)&op);
+}
+
+static repl5_inc_operation *repl5_inc_operation_new()
+{
+	repl5_inc_operation *ret = NULL;
+	ret = (repl5_inc_operation *) slapi_ch_calloc(1,sizeof(repl5_inc_operation));
+	return ret;
+}
+
+/* Called when in compatibility mode, to get the next result from the wire 
+ * The operation thread will not send a second operation until it has read the
+ * previous result. */
+static int
+repl5_inc_get_next_result(result_data *rd)
+{
+	ConnResult conres = 0;
+	int message_id = 0;
+	/* Wait on the next result */
+	conres = conn_read_result(rd->prp->conn, &message_id);
+	/* Return it to the caller */
+	return conres;
+}
+
+static void 
+repl5_inc_log_operation_failure(int operation_code, int ldap_error, char* ldap_error_string, const char *agreement_name)
+{
+	char *op_string = slapi_op_type_to_string(operation_code);
+
+    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		"%s: Received error %d: %s for %s operation\n",
+		agreement_name,
+		ldap_error, ldap_error_string ? ldap_error_string : "NULL",
+		op_string ? op_string : "NULL");
+}
+
+/* Thread that collects results from async operations sent to the consumer */
+static void repl5_inc_result_threadmain(void *param) 
+{
+	result_data *rd = (result_data*) param;
+	int res = 0;
+	ConnResult conres = 0;
+	Repl_Connection *conn = rd->prp->conn;
+	int finished = 0;
+	int message_id = 0;
+
+	while (!finished) 
+	{
+		repl5_inc_operation *op = NULL;
+		int connection_error = 0;
+		char *csn_str = NULL; 
+		char *uniqueid = NULL;
+		ReplicaId replica_id = 0;
+		int operation_code = 0;
+		char *ldap_error_string = NULL;
+		time_t time_now = 0;
+		time_t start_time = time( NULL );
+		int backoff_time = 1;
+
+		/* Read the next result */
+		/* We call the get result function with a short timeout (non-blocking) 
+		 * this is so we don't block here forever, and can stop this thread when
+		 * the time comes. However, we do need to implement blocking with timeout
+		 * semantics here instead.
+		 */
+
+		while (!finished)
+		{
+			conres = conn_read_result_ex(conn, NULL, NULL, NULL, &message_id, 0);
+			/* Timeout here means that we didn't block, not a real timeout */
+			if (CONN_TIMEOUT == conres)
+			{
+				/* We need to a) check that the 'real' timeout hasn't expired and
+				 * b) implement a backoff sleep to avoid spinning */
+				/* Did the connection's timeout expire ? */
+				time_now = time( NULL );
+				if (conn_get_timeout(conn) <= ( time_now - start_time ))
+				{
+					/* We timed out */
+					conres = CONN_TIMEOUT;
+					break;
+				}
+				/* Otherwise we backoff */
+				DS_Sleep(PR_MillisecondsToInterval(backoff_time));
+				if (backoff_time < 1000) 
+				{
+					backoff_time <<= 1;
+				}
+				/* Should we stop ? */
+				PR_Lock(rd->lock);
+				if (rd->stop_result_thread) 
+				{
+					finished = 1;
+				}
+				PR_Unlock(rd->lock);
+			} else
+			{
+				/* Something other than a timeout, so we exit the loop */
+				break;
+			}
+		}
+		if (conres != CONN_TIMEOUT)
+		{
+			if (message_id) 
+			{
+				rd->last_message_id_received = message_id;
+			}
+			/* Handle any error etc */
+
+			/* Get the stored operation details from the queue, unless we timed out... */
+			op = repl5_inc_pop_operation(rd);
+			if (op) 
+			{
+				csn_str = op->csn_str;
+				replica_id = op->replica_id;
+				uniqueid = op->uniqueid;
+			}
+
+			conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
+			if (connection_error)
+			{
+				repl5_inc_log_operation_failure(op ? op->operation_type : 0, connection_error, ldap_error_string, agmt_get_long_name(rd->prp->agmt));
+			}
+			res = repl5_inc_update_from_op_result(rd->prp, conres, connection_error, csn_str, uniqueid, replica_id, &finished, &(rd->num_changes_sent));
+			if (0 != conres)
+			{
+				/* If so then we need to take steps to abort the update process */
+				PR_Lock(rd->lock);
+				rd->abort = 1;
+				PR_Unlock(rd->lock);
+				/* We also need to log the error, including details stored from when the operation was sent */
+			}
+		}
+		/* Should we stop ? */
+		PR_Lock(rd->lock);
+		if (rd->stop_result_thread) 
+		{
+			finished = 1;
+		}
+		PR_Unlock(rd->lock);
+		if (op) 
+		{
+			repl5_inc_op_free(op);
+		}
+	}
+}
+
+static result_data *
+repl5_inc_rd_new(Private_Repl_Protocol *prp)
+{
+	result_data *res = NULL;
+	res = (result_data *) slapi_ch_calloc(1,sizeof(result_data));
+	if (res) {
+		res->prp = prp;
+		res->lock = PR_NewLock();
+		if (NULL == res->lock) {
+			slapi_ch_free((void **)&res);
+			res = NULL;
+		}
+	}
+	return res;
+}
+
+static void 
+repl5_inc_rd_list_destroy(repl5_inc_operation *op)
+{
+	repl5_inc_operation *cur = op;
+	while (op) {
+		repl5_inc_operation *next = op->next;
+		repl5_inc_op_free(op);
+		op = next;
+	}
+}
+
+static void 
+repl5_inc_rd_destroy(result_data **pres)
+{
+	result_data *res = *pres;
+	if (res->lock) {
+		PR_DestroyLock(res->lock);
+	}
+	/* Delete the linked list if we have one */
+	/* Begin at the head */
+	repl5_inc_rd_list_destroy(res->operation_list_head);
+	slapi_ch_free((void **)pres);
+}
+
+static int 
+repl5_inc_create_async_result_thread(result_data *rd)
+{
+	int retval = 0;
+	PRThread *tid = NULL;
+	/* Create a thread that reads results from the connection and stores status in the callback_data structure */
+	tid = PR_CreateThread(PR_USER_THREAD, 
+				repl5_inc_result_threadmain, (void*)rd,
+				PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD, 
+				SLAPD_DEFAULT_THREAD_STACKSIZE);
+	if (NULL == tid) 
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+					"repl5_tot_create_async_result_thread failed. "
+					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+					PR_GetError(), slapd_pr_strerror( PR_GetError() ));
+		retval = -1;
+	} else {
+		rd->result_tid = tid;
+	}
+	return retval; 
+}
+
+static int 
+repl5_inc_destroy_async_result_thread(result_data *rd)
+{
+	int retval = 0;
+	PRThread *tid = rd->result_tid;
+	if (tid) {
+		PR_Lock(rd->lock);
+		rd->stop_result_thread = 1;
+		PR_Unlock(rd->lock);
+		(void)PR_JoinThread(tid);
+	}
+	return retval;
+}
+
+static void
+repl5_inc_waitfor_async_results(result_data *rd)
+{
+	int done = 0;
+	int loops = 0;
+	/* Keep pulling results off the LDAP connection until we catch up to the last message id stored in the rd */
+	while (!done) 
+	{
+		/* Lock the structure to force memory barrier */
+		PR_Lock(rd->lock);
+		/* Are we caught up ? */
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+					"repl5_inc_waitfor_async_results: %d %d\n",
+					rd->last_message_id_received, rd->last_message_id_sent, 0);
+		if (rd->last_message_id_received >= rd->last_message_id_sent) 
+		{
+			/* If so then we're done */
+			done = 1;
+		}
+		PR_Unlock(rd->lock);
+		/* If not then sleep a bit */
+		DS_Sleep(PR_SecondsToInterval(1));
+		loops++;
+		/* If we sleep forever then we can conclude that something bad happened, and bail... */
+		/* Arbitrary 30 second delay : basically we should only expect to wait as long as it takes to process a few operations, which should be on the order of a second at most */
+		if (loops > 300) 
+		{
+			/* Log a warning */
+			slapi_log_error(SLAPI_LOG_FATAL, NULL,
+					"repl5_inc_waitfor_async_results timed out waiting for responses: %d %d\n",
+					rd->last_message_id_received, rd->last_message_id_sent, 0);
+			done = 1;
+		}
+	}
+}
 
 /*
  * It's specifically ok to delete a protocol instance that
@@ -969,7 +1308,7 @@ reset_events (Private_Repl_Protocol *prp)
  * and send the operation to the consumer. 
  */
 ConnResult
-replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op)
+replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *message_id)
 {
 	ConnResult return_value;
 	LDAPControl *update_control;
@@ -1031,20 +1370,29 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op)
 			}
 			else
 			{
+				/* If fractional agreement, trim down the entry */
+				if (agmt_is_fractional(prp->agmt))
+				{
+					repl5_strip_fractional_mods(prp->agmt,entryattrs);
+				}
 				return_value = conn_send_add(prp->conn, op->target_address.dn,
-					entryattrs, update_control, NULL /* returned controls */);
+					entryattrs, update_control, message_id);
 				ldap_mods_free(entryattrs, 1);
 			}
 			break;
 		}
 		case SLAPI_OPERATION_MODIFY:
+			/* If fractional agreement, trim down the mods */
+			if (agmt_is_fractional(prp->agmt))
+			{
+				repl5_strip_fractional_mods(prp->agmt,op->p.p_modify.modify_mods);
+			}
 			return_value = conn_send_modify(prp->conn, op->target_address.dn,
-				op->p.p_modify.modify_mods, update_control,
-				NULL /* returned controls */);
+				op->p.p_modify.modify_mods, update_control, message_id);
 			break;
 		case SLAPI_OPERATION_DELETE:
 			return_value = conn_send_delete(prp->conn, op->target_address.dn,
-				update_control, NULL /* returned controls */);
+				update_control, message_id);
 			break;
 		case SLAPI_OPERATION_MODRDN:
 			/* XXXggood need to pass modrdn mods in update control! */
@@ -1052,7 +1400,7 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op)
 				op->p.p_modrdn.modrdn_newrdn,
 				op->p.p_modrdn.modrdn_newsuperior_address.dn,
 				op->p.p_modrdn.modrdn_deloldrdn,
-				update_control, NULL /* returned controls */);
+				update_control, message_id);
 			break;
 		default:
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: replay_update: Unknown "
@@ -1066,7 +1414,7 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op)
 	if (CONN_OPERATION_SUCCESS == return_value)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: replay_update: Consumer successfully replayed operation with csn %s\n",
+			"%s: replay_update: Consumer successfully sent operation with csn %s\n",
 			agmt_get_long_name(prp->agmt), csn_str);
 	}
 	else
@@ -1126,7 +1474,83 @@ cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
 
 }
 
+/* Helper to update the agreement state based on a the result of a replay operation */
+static int
+repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_crc, int connection_error, char *csn_str, char *uniqueid, ReplicaId replica_id, int* finished, PRUint32 *num_changes_sent)
+{
+	int return_value = 0;
+	
+	/* Indentation is wrong here so we can get a sensible cvs diff */
+				if (CONN_OPERATION_SUCCESS != replay_crc)
+				{
+					/* Figure out what to do next */
+					if (CONN_OPERATION_FAILED == replay_crc)
+					{
+						/* Map ldap error code to return value */
+						if (!ignore_error_and_keep_going(connection_error))
+						{
+							return_value = UPDATE_TRANSIENT_ERROR;
+							*finished = 1;
+						}
+						else
+						{
+							agmt_inc_last_update_changecount (prp->agmt, replica_id, 1 /*skipped*/);
+						}
+						slapi_log_error(*finished ? SLAPI_LOG_FATAL : slapi_log_urp, repl_plugin_name,
+							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s. %s.\n",
+							agmt_get_long_name(prp->agmt),
+							uniqueid, csn_str,
+							ldap_err2string(connection_error),
+							*finished ? "Will retry later" : "Skipping");
+					}
+					else if (CONN_NOT_CONNECTED == replay_crc)
+					{
+						/* We lost the connection - enter backoff state */
 
+						return_value = UPDATE_TRANSIENT_ERROR;
+						*finished = 1;
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): "
+							"%s. Will retry later.\n",
+							agmt_get_long_name(prp->agmt),
+							uniqueid, csn_str,
+							connection_error ? ldap_err2string(connection_error) : "Connection lost");
+					}
+					else if (CONN_TIMEOUT == replay_crc)
+					{
+						return_value = UPDATE_TIMEOUT;
+						*finished = 1;
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
+							"%s.\n",
+							agmt_get_long_name(prp->agmt),
+							uniqueid, csn_str,
+							connection_error ? ldap_err2string(connection_error) : "Timeout");
+					}
+					else if (CONN_LOCAL_ERROR == replay_crc)
+					{
+						/*
+						 * Something bad happened on the local server - enter 
+						 * backoff state.
+						 */
+						return_value = UPDATE_TRANSIENT_ERROR;
+						*finished = 1;
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Failed to replay change (uniqueid %s, CSN %s): "
+							"Local error. Will retry later.\n",
+							agmt_get_long_name(prp->agmt),
+							uniqueid, csn_str);
+					}
+						
+				}
+				else
+				{
+					/* Positive response received */
+					(*num_changes_sent)++;
+					agmt_inc_last_update_changecount (prp->agmt, replica_id, 0 /*replayed*/);
+				}
+				return return_value;
+}
 
 /*
  * Send a set of updates to the replica.  Assumes that (1) the replica
@@ -1146,6 +1570,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	int return_value;
 	int rc;
 	CL5ReplayIterator *changelog_iterator;
+	int message_id = 0;
+	result_data *rd = NULL;
 
 	*num_changes_sent = 0;
 	/*
@@ -1258,6 +1684,19 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		ConnResult replay_crc;
         char csn_str[CSN_STRSIZE];
 
+		/* Start the results reading thread */
+		rd = repl5_inc_rd_new(prp);
+		if (!prp->repl50consumer) 
+		{
+			rc = repl5_inc_create_async_result_thread(rd);
+			if (rc) {
+				slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "%s: repl5_inc_run: "
+							 "repl5_tot_create_async_result_thread failed; error - %d\n", 
+							 agmt_get_long_name(prp->agmt), rc);
+				return_value = UPDATE_FATAL_ERROR;
+			}
+		}
+
 		memset ( (void*)&op, 0, sizeof (op) );
 		entry.op = &op;
 		do {
@@ -1276,7 +1715,12 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						agmt_get_long_name(prp->agmt), csn_as_string(entry.op->csn, PR_FALSE, csn_str));
 				    continue;
                 }
-				replay_crc = replay_update(prp, entry.op);
+				replay_crc = replay_update(prp, entry.op, &message_id);
+				if (message_id) 
+				{
+					rd->last_message_id_sent = message_id;
+				}
+				/* If we're talking to an old non-async replica, we need to pick up the response here */
 				if (CONN_OPERATION_SUCCESS != replay_crc)
 				{
 					int operation, error;
@@ -1344,9 +1788,36 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				}
 				else
 				{
-					/* Positive response received */
-					(*num_changes_sent)++;
-					agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 0 /*replayed*/);
+					char *uniqueid = NULL;
+					ReplicaId replica_id = 0;
+
+					csn_as_string(entry.op->csn, PR_FALSE, csn_str);
+					replica_id = csn_get_replicaid(entry.op->csn);
+					uniqueid = entry.op->target_address.uniqueid;
+
+					if (prp->repl50consumer) 
+					{
+						int operation, error = 0;
+
+						conn_get_error(prp->conn, &operation, &error);
+
+						/* Get the response here */
+						replay_crc = repl5_inc_get_next_result(rd);
+						conn_get_error(prp->conn, &operation, &error);
+						csn_as_string(entry.op->csn, PR_FALSE, csn_str);
+						return_value = repl5_inc_update_from_op_result(prp, replay_crc, error, csn_str, uniqueid, replica_id, &finished, num_changes_sent);
+					}
+					else {
+						/* Queue the details for pickup later in the response thread */
+						repl5_inc_operation *sop = NULL;
+						sop = repl5_inc_operation_new();
+						sop->csn_str = slapi_ch_strdup(csn_str);
+						sop->ldap_message_id = message_id;
+						sop->operation_type = entry.op->operation_type;
+						sop->replica_id = replica_id;
+						sop->uniqueid = slapi_ch_strdup(uniqueid);
+						repl5_int_push_operation(rd,sop);
+					}
 				}
 				break;
 			case CL5_BAD_DATA:
@@ -1400,6 +1871,23 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				finished = 1;
 			}
 		} while (!finished);
+
+		/* Terminate the results reading thread */
+		if (!prp->repl50consumer) 
+		{
+			/* We need to ensure that we wait until all the responses have been recived from our operations */
+			repl5_inc_waitfor_async_results(rd);
+
+			rc = repl5_inc_destroy_async_result_thread(rd);
+			if (rc) {
+				slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "%s: repl5_inc_run: "
+							 "repl5_tot_destroy_async_result_thread failed; error - %d\n", 
+							 agmt_get_long_name(prp->agmt), rc);
+			}
+			*num_changes_sent = rd->num_changes_sent;
+		}
+		repl5_inc_rd_destroy(&rd);
+
 		cl5_operation_parameters_done ( entry.op );
 		cl5DestroyReplayIterator(&changelog_iterator);
 	}
@@ -1527,6 +2015,7 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
 	rip->rp = rp;
 	prp->private = (void *)rip;
     prp->replica_acquired = PR_FALSE;
+	prp->repl50consumer = 0;
 	return prp;
 loser:
 	repl5_inc_delete(&prp);

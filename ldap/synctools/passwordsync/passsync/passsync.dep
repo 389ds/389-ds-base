@@ -1,0 +1,32 @@
+# Microsoft Developer Studio Generated Dependency File, included by passsync.mak
+
+.\ntservice.cpp : \
+	".\dssynchmsg.h"\
+	".\ntservice.h"\
+	".\subuniutil.h"\
+	
+
+..\passhand.cpp : \
+	"..\passhand.h"\
+	
+
+.\service.cpp : \
+	"..\passhand.h"\
+	".\dssynch.h"\
+	".\dssynchmsg.h"\
+	".\ntservice.h"\
+	".\subuniutil.h"\
+	".\synchcmds.h"\
+	".\syncserv.h"\
+	
+
+.\subuniutil.cpp : \
+	".\subuniutil.h"\
+	
+
+.\syncserv.cpp : \
+	"..\passhand.h"\
+	".\ntservice.h"\
+	".\subuniutil.h"\
+	".\syncserv.h"\
+	

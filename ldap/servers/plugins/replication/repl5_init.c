@@ -67,6 +67,7 @@ static char *end_name_list[] = {
 };
 static char *total_oid_list[] = {
 		REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID,
+		REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID,
 		NULL
 };
 static char *total_name_list[] = {

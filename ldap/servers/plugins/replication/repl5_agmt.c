@@ -45,8 +45,10 @@
 */
 
 #include "repl5.h"
+#include "windowsrepl.h" 
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
+#include "slapi-plugin.h"
 
 #define DEFAULT_TIMEOUT 600 /* (seconds) default outbound LDAP connection */
 #define TRANSPORT_FLAG_SSL 1
@@ -96,6 +98,8 @@ typedef struct repl5agmt {
 					   to allow another supplier to send its updates -
 					   should be greater than busywaittime -
 					   if set to 0, this means do not pause */
+	void *priv; /* private data, used for cookie, and windows domain name */
+	int agreement_type;
 } repl5agmt;
 
 /* Forward declarations */
@@ -105,6 +109,7 @@ static int get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e,
 	Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 static int agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
 static int agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
+
 
 /*
 Schema for replication agreement:
@@ -268,6 +273,10 @@ agmt_new_from_entry(Slapi_Entry *e)
 		ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 	}
 	/* XXXggood get fractional attribute include/exclude lists here */
+	/* Alrighty Gordon, you get your way... */
+	if (slapi_entry_attr_find(e, type_nsds5ReplicaUpdateSchedule, &sattr) == 0)
+	{
+	}
 	/* Replication schedule */
 	ra->schedule = schedule_new(update_window_state_change_callback, ra, agmt_get_long_name(ra));
 	if (slapi_entry_attr_find(e, type_nsds5ReplicaUpdateSchedule, &sattr) == 0)
@@ -313,6 +322,39 @@ agmt_new_from_entry(Slapi_Entry *e)
 		ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%d)", agmtname, hostname, ra->port);
 	}
 
+	/* DBDB: review this code */
+	if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement"))
+	{
+		ra->agreement_type = REPLICA_TYPE_WINDOWS;
+		ra->priv = windows_private_new();
+		
+		/* DN of entry at root of replicated area */
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsReplicaArea);
+		if (NULL != tmpstr)
+		{
+			windows_private_set_windows_replarea(ra, slapi_sdn_new_dn_passin(tmpstr) );
+		}
+
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7DirectoryReplicaArea); 
+		if (NULL != tmpstr)
+		{
+			windows_private_set_directory_replarea(ra, slapi_sdn_new_dn_passin(tmpstr) );
+		}
+
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewUsers); 
+		if (NULL != tmpstr)
+			windows_private_set_create_users(ra, PR_TRUE);
+		else
+			windows_private_set_create_users(ra, PR_FALSE);
+
+	}
+	else
+	{
+		ra->agreement_type = REPLICA_TYPE_MULTIMASTER;
+	}
+
+	
+
 	/* Initialize status information */
 	ra->last_update_start_time = 0UL;
 	ra->last_update_end_time = 0UL;
@@ -324,6 +366,30 @@ agmt_new_from_entry(Slapi_Entry *e)
 	ra->last_init_start_time = 0UL;
 	ra->last_init_status[0] = '\0';
 	
+	/* Fractional attributes */
+	if (slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr) == 0)	
+	{
+			char **denied_attrs = NULL;
+			/* New set of excluded attributes */
+			if (agmt_set_replicated_attributes_from_attr(ra, sattr) != 0)
+            {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_add_callback: " 
+                                "failed to parse replicated attributes for agreement %s\n",
+                                agmt_get_long_name(ra));	
+            }
+			/* Check that there are no verboten attributes in the exclude list */
+			denied_attrs = agmt_validate_replicated_attributes(ra);
+			if (denied_attrs)
+			{
+				/* Report the error to the client */
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "WARNING: "
+						"Attempt to exclude illegal attributes from a fractional agreement");
+				/* Free the list */
+				slapi_ch_array_free(denied_attrs);	
+				goto loser;
+			}
+	}
+
 	if (!agmt_is_valid(ra))
 	{
 		goto loser;
@@ -413,6 +479,11 @@ agmt_delete(void **rap)
 	    slapi_ch_free((void **)&ra->changecounters[ra->num_changecounters]);
 	}
 
+	if (ra->agreement_type == REPLICA_TYPE_WINDOWS)
+	{
+		windows_private_delete(ra->priv);
+	}
+
 	schedule_destroy(ra->schedule);
 	slapi_ch_free((void **)&ra->long_name);
 	slapi_ch_free((void **)rap);
@@ -465,6 +536,55 @@ agmt_start(Repl_Agmt *ra)
     PR_Unlock(ra->lock);
     return 0;
 }
+
+
+/*
+ * Allow replication for this replica to begin. Replication will
+ * occur at the next scheduled time. Returns 0 on success, -1 on
+ * failure.
+ */
+int
+windows_agmt_start(Repl_Agmt *ra)
+{
+  Repl_Protocol *prot = NULL;
+
+	int protocol_state;
+
+	/*	To Allow Consumer Initialisation when adding an agreement: */	
+	if (ra->auto_initialize == STATE_PERFORMING_TOTAL_UPDATE)
+	{
+		protocol_state = STATE_PERFORMING_TOTAL_UPDATE;
+	}
+	else
+	{
+		protocol_state = STATE_PERFORMING_INCREMENTAL_UPDATE;
+	}
+
+    /* First, create a new protocol object */
+    if ((prot = prot_new(ra, protocol_state)) == NULL) {
+        return -1;
+    }
+
+    /* Now it is safe to own the agreement lock */
+    PR_Lock(ra->lock);
+
+    /* Check that replication is not already started */
+    if (ra->protocol != NULL) {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
+        PR_Unlock(ra->lock);
+        prot_free(&prot);
+        return 0;
+    }
+
+    ra->protocol = prot;
+
+    /* Start the protocol thread */
+    prot_start(ra->protocol);
+
+    PR_Unlock(ra->lock);
+    return 0;
+}
+
 
 /*
 Cease replicating to this replica as soon as possible.
@@ -621,13 +741,33 @@ agmt_is_fractional(const Repl_Agmt *ra)
 	return return_value;
 }
 
+/* Returns a COPY of the attr list, remember to free it */
+char **
+agmt_get_fractional_attrs(const Repl_Agmt *ra)
+{
+	char ** return_value = NULL;
+	PR_ASSERT(NULL != ra);
+	if (NULL == ra->frac_attrs)
+	{
+		return NULL;
+	}
+	PR_Lock(ra->lock);
+	return_value = charray_dup(ra->frac_attrs);
+	PR_Unlock(ra->lock);
+	return return_value;
+}
 int
 agmt_is_fractional_attr(const Repl_Agmt *ra, const char *attrname)
 {
 	int return_value;
 	PR_ASSERT(NULL != ra);
+	if (NULL == ra->frac_attrs)
+	{
+		return 0;
+	}
 	PR_Lock(ra->lock);
-	return_value = 1; /* XXXggood finish this */
+	/* Scan the list looking for a match */
+	return_value = charray_inlist(ra->frac_attrs,(char*)attrname);
 	PR_Unlock(ra->lock);
 	return return_value;
 }
@@ -831,6 +971,217 @@ agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 	PR_Unlock(ra->lock);
 	prot_notify_agmt_changed(ra->protocol, ra->long_name);
 	return return_value;
+}
+
+static int
+agmt_parse_excluded_attrs_filter(const char *attr_string, size_t *offset)
+{
+	char *filterstring = "(objectclass=*) ";
+	size_t filterstringlen = strlen(filterstring);
+	int retval = 0;
+
+	if (strncmp(attr_string + *offset,filterstring,filterstringlen) == 0) 
+	{
+		(*offset) += filterstringlen; 
+	} else 
+	{
+		retval = -1;
+	}
+	return retval;
+}
+
+static int
+agmt_parse_excluded_attrs_exclude(const char *attr_string, size_t *offset)
+{
+	char *excludestring = "$ EXCLUDE ";
+	size_t excludestringlen = strlen(excludestring);
+	int retval = 0;
+
+	if (strncmp(attr_string + *offset,excludestring,excludestringlen) == 0) 
+	{
+		(*offset) += excludestringlen; 
+	} else 
+	{
+		retval = -1;
+	}
+	return retval;
+}
+
+static int
+agmt_parse_excluded_attrs_next(const char *attr_string, size_t *offset, char*** attrs)
+{
+	int retval = 0;
+	char *beginstr = ((char*) attr_string) + *offset;
+	char *tmpstr = NULL;
+	size_t stringlen = 0;
+	char c = 0;
+
+	/* Find the end of the current attribute name, if one is present */
+	while (1)
+	{
+		c = *(beginstr + stringlen);
+		if ('\0' == c || ' ' == c) 
+		{
+			break;
+		}
+		stringlen++;
+	}
+	if (0 != stringlen) 
+	{
+		tmpstr = slapi_ch_malloc(stringlen + 1);
+		strncpy(tmpstr,beginstr,stringlen);
+		tmpstr[stringlen] = '\0';
+		charray_add(attrs,tmpstr);
+		(*offset) += stringlen;
+		/* Skip a delimiting space */
+		if (c == ' ')
+		{
+			(*offset)++;
+		}
+	} else
+	{
+		retval = -1;
+	}
+	return retval;
+}
+ /* It looks like this:
+ nsDS5ReplicatedAttributeList: (objectclass=*) $ EXCLUDE jpegPhoto telephoneNumber
+ */
+static int 
+agmt_parse_excluded_attrs_config_attr(const char *attr_string, char*** attrs)
+{
+	int retval = 0;
+	size_t offset = 0;
+	char **new_attrs = NULL;
+
+	*attrs = NULL;
+	/* First parse and skip the filter */
+	retval = agmt_parse_excluded_attrs_filter(attr_string, &offset);
+	if (retval) 
+	{
+		goto error;
+	}
+	/* Now look for the 'EXCLUDE' keyword */
+	retval = agmt_parse_excluded_attrs_exclude(attr_string, &offset);
+	if (retval) 
+	{
+		goto error;
+	}
+	/* Finally walk the list of attrs, storing in our chararray */
+	while (!retval)
+	{
+		retval = agmt_parse_excluded_attrs_next(attr_string, &offset, &new_attrs);
+	}
+	/* If we got to here, we can't have an error */
+	retval = 0;
+	if (new_attrs) 
+	{
+		*attrs = new_attrs;
+	}
+error:
+	return retval;
+}
+
+/*
+ * Set or reset the set of replicated attributes.
+ *
+ * Returns 0 if DN set, or -1 if an error occurred.
+ */
+int
+agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = 0;
+
+	PR_ASSERT(NULL != ra);
+	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
+	PR_Lock(ra->lock);
+	if (ra->frac_attrs) 
+	{
+		slapi_ch_array_free(ra->frac_attrs);
+		ra->frac_attrs = NULL;
+	}
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			const char *val = slapi_value_get_string(sval);
+			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs));
+		}
+	}
+	PR_Unlock(ra->lock);
+	prot_notify_agmt_changed(ra->protocol, ra->long_name);
+	return return_value;
+}
+
+/*
+ * Set or reset the set of replicated attributes.
+ *
+ * Returns 0 if DN set, or -1 if an error occurred.
+ */
+int
+agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
+{
+	int return_value = 0;
+
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	if (ra->frac_attrs) 
+	{
+		slapi_ch_array_free(ra->frac_attrs);
+		ra->frac_attrs = NULL;
+	}
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			const char *val = slapi_value_get_string(sval);
+			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs));
+		}
+	}
+	PR_Unlock(ra->lock);
+	return return_value;
+}
+
+char **
+agmt_validate_replicated_attributes(Repl_Agmt *ra)
+{
+	
+	static char* verbotten_attrs[] = {
+		"nsuniqueid",
+		"modifiersname",
+		"lastmodifiedtime",
+		NULL
+	};
+
+	char **retval = NULL;
+	char **frac_attrs = ra->frac_attrs;
+
+	/* Iterate over the frac attrs */
+	if (frac_attrs) 
+	{
+		char *this_attr = NULL;
+		int i = 0;
+		for (i = 0; this_attr = frac_attrs[i]; i++)
+		{
+			if (charray_inlist(verbotten_attrs,this_attr)) {
+				int k = 0;
+				charray_add(&retval,this_attr);
+				/* Remove this attr from the list */
+				for (k = i; frac_attrs[k] ; k++)
+				{
+					frac_attrs[k] = frac_attrs[k+1];
+				}
+				i--;
+			}
+		}
+	}
+
+	return retval;
 }
 
 /*
@@ -1761,3 +2112,23 @@ agmt_get_consumer_rid ( Repl_Agmt *agmt, void *conn )
 
 	return agmt->consumerRID;
 }
+
+int 
+get_agmt_agreement_type( Repl_Agmt *agmt)
+{
+    PR_ASSERT (agmt); 
+    return agmt->agreement_type;
+}
+
+void* get_priv_from_agmt (const Repl_Agmt *agmt)
+{
+	PR_ASSERT (agmt);
+	return agmt->priv;
+
+}
+
+ReplicaId agmt_get_consumerRID(Repl_Agmt *ra)
+{
+	return ra->consumerRID;
+}
+

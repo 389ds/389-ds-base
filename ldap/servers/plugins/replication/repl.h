@@ -238,6 +238,7 @@ void ldapi_initialize_changenumbers(chglog4Info *cl4, changeNumber first, change
 #define REPL_PROTOCOL_40 1
 #define REPL_PROTOCOL_50_INCREMENTAL 2
 #define REPL_PROTOCOL_50_TOTALUPDATE 3
+#define REPL_PROTOCOL_71_TOTALUPDATE 4
 
 /* In repl_globals.c */
 int decrement_repl_active_threads();

@@ -586,6 +586,27 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 				connid, opid, repl_root);
 		isInc = PR_FALSE;
 	}
+	else if (strcmp(protocol_oid, REPL_NSDS71_INCREMENTAL_PROTOCOL_OID) == 0)
+	{
+		/* Stash info that this is an incremental update session */
+		connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"conn=%d op=%d repl=\"%s\": Begin 7.1 incremental protocol\n",
+			connid, opid, repl_root);
+		isInc = PR_TRUE;
+	}
+	else if (strcmp(protocol_oid, REPL_NSDS71_TOTAL_PROTOCOL_OID) == 0)
+	{
+		/* Stash info that this is a total update session */
+		if (NULL != connext)
+		{
+			connext->repl_protocol_version = REPL_PROTOCOL_71_TOTALUPDATE;
+		}
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"conn=%d op=%d repl=\"%s\": Begin 7.1 total protocol\n",
+				connid, opid, repl_root);
+		isInc = PR_FALSE;
+	}
 	else
 	{
 		/* Unknown replication protocol */

@@ -413,8 +413,8 @@ parse_changes_string(char *str)
 			if (rc != 0)
 			{
 				/* ONREPL - log warning */
-				if ( errmsg != NULL ) {
-					slapi_log_error( SLAPI_LOG_PARSE, repl_plugin_name, "%s", errmsg ); 
+			        if ( errmsg != NULL ) {
+				        slapi_log_error( SLAPI_LOG_PARSE, repl_plugin_name, "%s", errmsg ); 
 					PR_smprintf_free(errmsg );
 				}
 				slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, 

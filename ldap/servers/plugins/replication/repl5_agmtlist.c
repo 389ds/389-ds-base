@@ -14,9 +14,12 @@
 
 #define AGMT_CONFIG_BASE "cn=mapping tree, cn=config"
 #define CONFIG_FILTER "(objectclass=nsds5replicationagreement)"
+#define WINDOWS_CONFIG_FILTER "(objectclass=nsdsWindowsreplicationagreement)"
+#define GLOBAL_CONFIG_FILTER "(|" CONFIG_FILTER WINDOWS_CONFIG_FILTER " )"
+
 
 PRCallOnceType once = {0};
-static Objset *agmt_set = NULL; /* The set of replication agreements */
+Objset *agmt_set = NULL; /* The set of replication agreements */
 
 typedef struct agmt_wrapper {
 	Repl_Agmt *agmt;
@@ -102,7 +105,7 @@ agmtlist_release_agmt(Repl_Agmt *ra)
  * on to this reference until the agreement is deleted (or until the
  * server is shut down).
  */
-static int
+int
 add_new_agreement(Slapi_Entry *e)
 {
     int rc = 0;
@@ -357,6 +360,34 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             }
 		}
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+					type_nsds5ReplicatedAttributeList))
+		{
+			char **denied_attrs = NULL;
+			/* New set of excluded attributes */
+			if (agmt_set_replicated_attributes_from_entry(agmt, e) != 0)
+            {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                                "failed to update replicated attributes for agreement %s\n",
+                                agmt_get_long_name(agmt));	
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+			/* Check that there are no verboten attributes in the exclude list */
+			denied_attrs = agmt_validate_replicated_attributes(agmt);
+			if (denied_attrs)
+			{
+				/* Report the error to the client */
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                            "attempt to exclude an illegal attribute in a fractional agreement\n");
+
+				*returncode = LDAP_UNWILLING_TO_PERFORM;
+				rc = SLAPI_DSE_CALLBACK_ERROR;
+				/* Free the deny list if we got one */
+				slapi_ch_array_free(denied_attrs);
+				break;
+			}
+		}
+		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
 											 "nsds5debugreplicatimeout"))
 		{
 			char *val = slapi_entry_attr_get_charptr(e, "nsds5debugreplicatimeout");
@@ -510,7 +541,7 @@ agmtlist_config_init()
 	/* Search the DIT and find all the replication agreements */
 	pb = slapi_pblock_new();
 	slapi_search_internal_set_pb(pb, AGMT_CONFIG_BASE, LDAP_SCOPE_SUBTREE,
-		CONFIG_FILTER, NULL /* attrs */, 0 /* attrsonly */,
+		GLOBAL_CONFIG_FILTER, NULL /* attrs */, 0 /* attrsonly */,
 		NULL, /* controls */ NULL /* uniqueid */,
 		repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* actions */);
 	slapi_search_internal_callback_pb(pb,
