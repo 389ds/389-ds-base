@@ -174,7 +174,7 @@ static char *format_entry(unsigned char *s, int len)
     return format_raw(s, len, FMT_LF_OK | FMT_SP_OK);
 }
 
-static char *idl_format(IDL *idl, int *done)
+static char *idl_format(IDL *idl, int isfirsttime, int *done)
 {
     static char *buf = NULL;
     static uint32 i = 0;
@@ -186,10 +186,14 @@ static char *idl_format(IDL *idl, int *done)
     }
 
     buf[0] = 0;
+    if (0 != isfirsttime) {
+        i = 0;
+    }
     for (; i < idl->used; i++) {
         sprintf((char *)buf + strlen(buf), "%d ", idl->id[i]);
 
         if (strlen(buf) > (size_t)MAX_BUFFER-MIN_BUFFER) {
+            i++;
             done = 0;
             return (char *)buf;
         }
@@ -508,7 +512,7 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
                 int isfirsttime = 1;
                 printf("%s\n", format(key->data, key->size));
                 while (0 == done) {
-                    formatted_idl = idl_format(idl, &done);
+                    formatted_idl = idl_format(idl, isfirsttime, &done);
                     if (NULL == formatted_idl) {
                         done = 1; /* no more idl */
                     } else {
