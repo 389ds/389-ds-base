@@ -76,14 +76,14 @@ int snmp_collator_init(){
 	* Initialize the mmap structure 
 	*/
 	memset((void *) stats, 0, sizeof(*stats));
-	stats->hdr_stats.hdrVersionMjr = AGT_MJR_VERSION;
-	stats->hdr_stats.hdrVersionMnr = AGT_MNR_VERSION;
+	strncpy(stats->hdr_stats.dsVersion, SLAPD_VERSION_STR,
+                (sizeof(stats->hdr_stats.dsVersion)/sizeof(char)) - 1);
 	stats->hdr_stats.restarted = 0;			 
 	stats->hdr_stats.startTime = time(0);		/* This is a bit off, hope it's ok */
 
 	/* point these at the mmaped data */
 	g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds		= &(stats->ops_stats.dsAnonymousBinds);
-    g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds			= &(stats->ops_stats.dsUnAuthBinds);
+        g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds			= &(stats->ops_stats.dsUnAuthBinds);
 	g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds		= &(stats->ops_stats.dsSimpleAuthBinds);
 	g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds		= &(stats->ops_stats.dsStrongAuthBinds);
 	g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors	        = &(stats->ops_stats.dsBindSecurityErrors);

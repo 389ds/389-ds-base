@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #ifndef  _WIN32
@@ -328,3 +329,69 @@ agt_mclose_stats (int hdl)
 
 	return EINVAL;
 }  /* agt_mclose_stats () */
+
+
+int
+agt_mread_stats (int hdl, struct hdr_stats_t *pHdrInfo, struct ops_stats_t *pDsOpsTbl,
+                 struct entries_stats_t *pDsEntTbl) {
+    struct agt_stats_t    *pfile_stats;
+                                                                                                      
+    if ( (hdl > 1) || (hdl < 0) ) {
+        return (EINVAL);
+    }
+                                                                                                      
+    if ((mmap_tbl [hdl].maptype != AGT_MAP_READ) && (mmap_tbl [hdl].maptype != AGT_MAP_RDWR)) {
+        return (EINVAL);        /* Inavlid handle */
+    }
+                                                                                                      
+    if (mmap_tbl [hdl].fp <= (caddr_t) 0) {
+            return (EFAULT);        /* Something got corrupted */
+    }
+                                                                                                      
+    pfile_stats = (struct agt_stats_t *) (mmap_tbl [hdl].fp);
+                                                                                                      
+    if (pHdrInfo != NULL) {
+        /* Header */
+        pHdrInfo->restarted                = pfile_stats->hdr_stats.restarted;
+        pHdrInfo->startTime                = pfile_stats->hdr_stats.startTime;
+        pHdrInfo->updateTime               = pfile_stats->hdr_stats.updateTime;
+        strncpy(pHdrInfo->dsVersion, pfile_stats->hdr_stats.dsVersion,
+               (sizeof(pHdrInfo->dsVersion)/sizeof(char)) - 1);
+    }
+
+    if (pDsOpsTbl != NULL) {
+        /* Ops Table */
+        pDsOpsTbl->dsAnonymousBinds        = pfile_stats->ops_stats.dsAnonymousBinds;
+        pDsOpsTbl->dsUnAuthBinds           = pfile_stats->ops_stats.dsUnAuthBinds;
+        pDsOpsTbl->dsSimpleAuthBinds       = pfile_stats->ops_stats.dsSimpleAuthBinds;
+        pDsOpsTbl->dsStrongAuthBinds       = pfile_stats->ops_stats.dsStrongAuthBinds;
+        pDsOpsTbl->dsBindSecurityErrors    = pfile_stats->ops_stats.dsBindSecurityErrors;
+        pDsOpsTbl->dsInOps                 = pfile_stats->ops_stats.dsInOps;
+        pDsOpsTbl->dsReadOps               = pfile_stats->ops_stats.dsReadOps;
+        pDsOpsTbl->dsCompareOps            = pfile_stats->ops_stats.dsCompareOps;
+        pDsOpsTbl->dsAddEntryOps           = pfile_stats->ops_stats.dsAddEntryOps;
+        pDsOpsTbl->dsRemoveEntryOps        = pfile_stats->ops_stats.dsRemoveEntryOps;
+        pDsOpsTbl->dsModifyEntryOps        = pfile_stats->ops_stats.dsModifyEntryOps;
+        pDsOpsTbl->dsModifyRDNOps          = pfile_stats->ops_stats.dsModifyRDNOps;
+        pDsOpsTbl->dsListOps               = pfile_stats->ops_stats.dsListOps;
+        pDsOpsTbl->dsSearchOps             = pfile_stats->ops_stats.dsSearchOps;
+        pDsOpsTbl->dsOneLevelSearchOps     = pfile_stats->ops_stats.dsOneLevelSearchOps;
+        pDsOpsTbl->dsWholeSubtreeSearchOps = pfile_stats->ops_stats.dsWholeSubtreeSearchOps;
+        pDsOpsTbl->dsReferrals             = pfile_stats->ops_stats.dsReferrals;
+        pDsOpsTbl->dsChainings             = pfile_stats->ops_stats.dsChainings;
+        pDsOpsTbl->dsSecurityErrors        = pfile_stats->ops_stats.dsSecurityErrors;
+        pDsOpsTbl->dsErrors                = pfile_stats->ops_stats.dsErrors;
+    }
+
+    if (pDsEntTbl != NULL) {
+    /* Entries Table */
+        pDsEntTbl->dsMasterEntries = pfile_stats->entries_stats.dsMasterEntries;
+        pDsEntTbl->dsCopyEntries   = pfile_stats->entries_stats.dsCopyEntries;
+        pDsEntTbl->dsCacheEntries  = pfile_stats->entries_stats.dsCacheEntries;
+        pDsEntTbl->dsCacheHits     = pfile_stats->entries_stats.dsCacheHits;
+        pDsEntTbl->dsSlaveHits     = pfile_stats->entries_stats.dsSlaveHits;
+    }
+                                                                                                      
+    return (0);
+}
+

@@ -1437,54 +1437,54 @@ LDAPMod** entry2mods(Slapi_Entry *, LDAPMod **, int *, int);
 
 /* SNMP Variables */
 struct snmp_ops_tbl_t{
-    PRInt32 *dsAnonymousBinds;
-    PRInt32 *dsUnAuthBinds;
-    PRInt32 *dsSimpleAuthBinds;
-    PRInt32 *dsStrongAuthBinds;
-    PRInt32 *dsBindSecurityErrors;
-    PRInt32 *dsInOps;
-    PRInt32 *dsReadOps;
-    PRInt32 *dsCompareOps;
-    PRInt32 *dsAddEntryOps;
-    PRInt32 *dsRemoveEntryOps;
-    PRInt32 *dsModifyEntryOps;
-    PRInt32 *dsModifyRDNOps;
-    PRInt32 *dsListOps;
-    PRInt32 *dsSearchOps;
-    PRInt32 *dsOneLevelSearchOps;
-    PRInt32 *dsWholeSubtreeSearchOps;
-    PRInt32 *dsReferrals;
-    PRInt32 *dsChainings;
-    PRInt32 *dsSecurityErrors;
-    PRInt32 *dsErrors;
-	PRInt32 *dsConnections;	 /* Number of currently connected clients */
-	PRInt32 *dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
-	PRInt32 *dsBytesRecv;	/* Count of bytes read from clients */
-	PRInt32 *dsBytesSent;	/* Count of bytes sent to clients */
-	PRInt32 *dsEntriesReturned;
-	PRInt32 *dsReferralsReturned;
+    PRUint32 *dsAnonymousBinds;
+    PRUint32 *dsUnAuthBinds;
+    PRUint32 *dsSimpleAuthBinds;
+    PRUint32 *dsStrongAuthBinds;
+    PRUint32 *dsBindSecurityErrors;
+    PRUint32 *dsInOps;
+    PRUint32 *dsReadOps;
+    PRUint32 *dsCompareOps;
+    PRUint32 *dsAddEntryOps;
+    PRUint32 *dsRemoveEntryOps;
+    PRUint32 *dsModifyEntryOps;
+    PRUint32 *dsModifyRDNOps;
+    PRUint32 *dsListOps;
+    PRUint32 *dsSearchOps;
+    PRUint32 *dsOneLevelSearchOps;
+    PRUint32 *dsWholeSubtreeSearchOps;
+    PRUint32 *dsReferrals;
+    PRUint32 *dsChainings;
+    PRUint32 *dsSecurityErrors;
+    PRUint32 *dsErrors;
+    PRUint32 *dsConnections;	 /* Number of currently connected clients */
+    PRUint32 *dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
+    PRUint32 *dsBytesRecv;	/* Count of bytes read from clients */
+    PRUint32 *dsBytesSent;	/* Count of bytes sent to clients */
+    PRUint32 *dsEntriesReturned;
+    PRUint32 *dsReferralsReturned;
 };
 
 struct snmp_entries_tbl_t{
    /* entries table */
-   PRInt32 *dsMasterEntries;
-   PRInt32 *dsCopyEntries;
-   PRInt32 *dsCacheEntries;
-   PRInt32 *dsCacheHits;
-   PRInt32 *dsSlaveHits;
+   PRUint32 *dsMasterEntries;
+   PRUint32 *dsCopyEntries;
+   PRUint32 *dsCacheEntries;
+   PRUint32 *dsCacheHits;
+   PRUint32 *dsSlaveHits;
 };
 
 struct snmp_int_tbl_t{
 
    /* interaction table */
-   PRInt32 *dsIntIndex;
+   PRUint32 *dsIntIndex;
    char *dsName;
    time_t *dsTimeOfCreation;          
    time_t *dsTimeOfLastAttempt;      
    time_t *dsTimeOfLastSuccess;      
-   PRInt32 *dsFailuresSinceLastSuccess;
-   PRInt32 *dsFailures;
-   PRInt32 *dsSuccesses;
+   PRUint32 *dsFailuresSinceLastSuccess;
+   PRUint32 *dsFailures;
+   PRUint32 *dsSuccesses;
    char *dsURL;
 };
 

@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "nspr.h"
 #ifdef  _WIN32
 #include <windows.h> 
 #define caddr_t PCHAR
@@ -67,83 +68,78 @@ struct hdr_stats_t{
     /*
      *  Header
      */
-    int		hdrVersionMjr;
-    int		hdrVersionMnr;
     int		restarted; /* 1/0 = Yes/No */
     time_t	startTime;
     time_t	updateTime;
-
+    char        dsVersion[100];
 };
 
 struct ops_stats_t{
     /*
      *      Ops Table attributes
      */
-	int dsAnonymousBinds;
-	int dsUnAuthBinds;
-	int dsSimpleAuthBinds;
-	int dsStrongAuthBinds;
-	int dsBindSecurityErrors;
-	int dsInOps;
-    int dsReadOps;
-    int dsCompareOps;
-	int dsAddEntryOps;
-	int dsRemoveEntryOps;
-	int dsModifyEntryOps;
-	int dsModifyRDNOps;
-	int dsListOps;
-	int dsSearchOps;
-	int dsOneLevelSearchOps;
-	int dsWholeSubtreeSearchOps;
-	int dsReferrals;
-	int dsChainings;
-	int dsSecurityErrors;
-	int dsErrors;
-	int dsConnections;	 /* Number of currently connected clients */
-	int dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
-	int dsBytesRecv;	/* Count of bytes read from clients */
-	int dsBytesSent;	/* Count of bytes sent to clients */
-	int dsEntriesReturned; /* Number of entries returned by the server */
-	int dsReferralsReturned; /* Number of entries returned by the server */
+    PRUint32 dsAnonymousBinds;
+    PRUint32 dsUnAuthBinds;
+    PRUint32 dsSimpleAuthBinds;
+    PRUint32 dsStrongAuthBinds;
+    PRUint32 dsBindSecurityErrors;
+    PRUint32 dsInOps;
+    PRUint32 dsReadOps;
+    PRUint32 dsCompareOps;
+    PRUint32 dsAddEntryOps;
+    PRUint32 dsRemoveEntryOps;
+    PRUint32 dsModifyEntryOps;
+    PRUint32 dsModifyRDNOps;
+    PRUint32 dsListOps;
+    PRUint32 dsSearchOps;
+    PRUint32 dsOneLevelSearchOps;
+    PRUint32 dsWholeSubtreeSearchOps;
+    PRUint32 dsReferrals;
+    PRUint32 dsChainings;
+    PRUint32 dsSecurityErrors;
+    PRUint32 dsErrors;
+    PRUint32 dsConnections;	 /* Number of currently connected clients */
+    PRUint32 dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
+    PRUint32 dsBytesRecv;	/* Count of bytes read from clients */
+    PRUint32 dsBytesSent;	/* Count of bytes sent to clients */
+    PRUint32 dsEntriesReturned; /* Number of entries returned by the server */
+    PRUint32 dsReferralsReturned; /* Number of entries returned by the server */
 };
 
 struct entries_stats_t
 {
-       /*
-	*  Entries Table Attributes
-	*/
-        
-        int dsMasterEntries;
-	int dsCopyEntries;
-	int dsCacheEntries;
-	int dsCacheHits;
-	int dsSlaveHits;
-
+    /*
+     *  Entries Table Attributes
+     */
+    PRUint32 dsMasterEntries;
+    PRUint32 dsCopyEntries;
+    PRUint32 dsCacheEntries;
+    PRUint32 dsCacheHits;
+    PRUint32 dsSlaveHits;
 };
+
 struct int_stats_t
 {
-       /*
-        *   Interaction Table Attributes
-        */
-
-        int     dsIntIndex;
-        char    dsName[100];
-	time_t  dsTimeOfCreation;         
-	time_t  dsTimeOfLastAttempt;      
-	time_t  dsTimeOfLastSuccess;      
-	int     dsFailuresSinceLastSuccess;
-	int     dsFailures;
-	int     dsSuccesses;
-	char    dsURL[100];
-
+    /*
+     *   Interaction Table Attributes
+     */
+    PRUint32 dsIntIndex;
+    char     dsName[100];
+    time_t   dsTimeOfCreation;         
+    time_t   dsTimeOfLastAttempt;      
+    time_t   dsTimeOfLastSuccess;      
+    PRUint32 dsFailuresSinceLastSuccess;
+    PRUint32 dsFailures;
+    PRUint32 dsSuccesses;
+    char     dsURL[100];
 };
+
 struct agt_stats_t
 {
      struct hdr_stats_t hdr_stats;
      struct ops_stats_t ops_stats;
      struct entries_stats_t entries_stats;
      struct int_stats_t int_stats[NUM_SNMP_INT_TBL_ROWS];
-        
 } ;
 
 extern agt_mmap_context_t      	mmap_tbl[];
@@ -185,6 +181,9 @@ int agt_mopen_stats 	(char * statsfile, int mode, int *hdl);
  *
  ****************************************************************************/
 int agt_mclose_stats (int hdl);
+
+int agt_mread_stats(int hdl, struct hdr_stats_t *, struct ops_stats_t *,
+                    struct entries_stats_t *);
 
 #ifdef __cplusplus
 }
