@@ -65,6 +65,41 @@ ifeq ($(ARCH), WINNT)
 else
   SECURITY_DEP = $(SECURITY_LIBPATH)/libssl3.$(DLL_SUFFIX)
 endif
+# if building 64 bit version, also need the 32 bit version of nssckbi.so
+# rename it as nssckbi32.so
+ifeq ($(USE_64), 1)
+# assumes there is a 32 bit version
+  SHARED32_BUILD_DIR = $(NSCP_DISTDIR_FULL_RTL)/shared32
+  NSS32_IMPORT = $(subst $(NS64TAG),,$(SECURITY_IMPORT))
+  NSS32_BINNAMES = modutil
+  NSS32_LIBNAMES = $(SECURITY_LIBNAMES.pkg)
+  NSS32_NEED_CHK = $(SECURITY_NEED_CHK)
+  ifeq ($(ARCH), SOLARIS)
+    NSS32_LIBNAMES += freebl_hybrid_3 freebl_pure32_3
+# these libs have a corresponding .chk file
+    NSS32_NEED_CHK += freebl_hybrid_3 freebl_pure32_3
+  endif
+  ifeq ($(ARCH), HPUX)
+    NSS32_LIBNAMES += freebl_hybrid_3 freebl_pure32_3
+# these libs have a corresponding .chk file
+    NSS32_NEED_CHK += freebl_hybrid_3 freebl_pure32_3
+  endif
+  NSSCKBI_FILE = $(LIB_PREFIX)nssckbi.$(DLL_SUFFIX)
+  NSSCKBI32_FILE = $(LIB_PREFIX)nssckbi32.$(DLL_SUFFIX)
+  NSS32_PULLFILES = bin/modutil lib/$(NSSCKBI_FILE) $(addprefix lib/$(LIB_PREFIX),$(addsuffix .$(DLL_SUFFIX),$(NSS32_LIBNAMES))) $(addprefix lib/$(LIB_PREFIX),$(addsuffix .chk,$(NSS32_NEED_CHK)))
+
+  NSPR32_IMPORT = $(subst $(NS64TAG),,$(NSPR_IMPORT))
+  NSPR32_LIBNAMES = $(NSPR_LIBNAMES)
+  NSPR32_PULLFILES = lib/$(LIB_PREFIX)$(subst $(SPACE),$(COMMA)lib/$(LIB_PREFIX),$(addsuffix .$(DLL_SUFFIX),$(NSPR_LIBNAMES)))
+
+# we need to package the root cert file in the alias directory
+  PACKAGE_SRC_DEST += $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI32_FILE) alias
+# all other files go under shared32/bin or /lib
+  PACKAGE_SRC_DEST += $(SHARED32_BUILD_DIR)/bin/modutil shared32/bin
+
+  NSS32_NSPR32_SRC_LIBS =$(wildcard $(SHARED32_BUILD_DIR)/lib/*)
+  PACKAGE_SRC_DEST += $(addsuffix $(SPACE)shared32/lib,$(NSS32_NSPR32_SRC_LIBS))
+endif # USE_64
 
 ifdef VSFTPD_HACK
 SECURITY_FILES=lib,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
@@ -88,7 +123,21 @@ ifdef VSFTPD_HACK
 		-objdir $(SECURITY_BUILD_DIR) -componentdir $(COMPONENTS_DIR)/nss/$(SECURITY_RELDATE) \
 		-files include
 endif
-endif
+# if building 64 bit version, also need the 32 bit version of nssckbi.so
+# rename it as nssckbi32.so
+# also need the 32 bit modutil, other NSS shared libraries and NSPR shared libraries
+ifeq ($(USE_64), 1)
+	mkdir -p $(SHARED32_BUILD_DIR)/bin
+	mkdir -p $(SHARED32_BUILD_DIR)/lib
+	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
+		-objdir $(SHARED32_BUILD_DIR) -componentdir $(NSPR32_IMPORT) \
+		-files $(NSPR32_PULLFILES)
+	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
+		-objdir $(SHARED32_BUILD_DIR) -componentdir $(NSS32_IMPORT) \
+		-files $(subst $(SPACE),$(COMMA),$(NSS32_PULLFILES))
+	mv $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI_FILE) $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI32_FILE)
+endif # USE_64
+endif # COMPONENT_DEPS
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component NSS file $@" ; \
 	fi

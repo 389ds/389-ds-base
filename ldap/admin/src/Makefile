@@ -209,6 +209,10 @@ INST_INCLUDES = $(OBJDIR)/install_keywords.h
 TEMPLATE_SCRIPTS_SRC = $(wildcard scripts/template-*)
 TEMPLATE_SCRIPTS_DEST = $(subst scripts/,$(SCRIPTSDIR)/,$(TEMPLATE_SCRIPTS_SRC))
 
+ifeq ($(USE_64), 1)
+  FIX_SECMOD_DEP = $(BINDIR)/fix_secmod_db_64
+endif
+
 # gmake 3.74 will remove "intermediate" files if generated via a pattern match rule
 # this is annoying for debugging since it tries to find the .o file
 # if you're debugging and you want to make sure your file does not get removed
@@ -217,7 +221,8 @@ TEMPLATE_SCRIPTS_DEST = $(subst scripts/,$(SCRIPTSDIR)/,$(TEMPLATE_SCRIPTS_SRC))
 #.PRECIOUS: $(OBJDEST)/ds_db2bak.o
 
 all: $(BINDIR) $(OBJDEST) $(INST_INCLUDES) $(ALLOBJS) $(BINS) \
-	installPerlFiles $(SCRIPTSDIR) $(TEMPLATE_SCRIPTS_DEST)
+	installPerlFiles $(SCRIPTSDIR) $(TEMPLATE_SCRIPTS_DEST) \
+	$(FIX_SECMOD_DEP)
 
 $(SCRIPTSDIR):
 	$(MKDIR) $@

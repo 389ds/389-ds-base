@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# We still have 32 bit applications shipped with the 64 bit DS
+# that need to access secmod.db and the root certs file
+# nssckbi shared library.  However, 32 bit apps cannot load
+# the 64 bit version of this shared library.  This script
+# changes secmod.db to have both the 32 bit and 64 bit versions
+# of nssckbi.
+
+# The first argument is the name of the directory where secmod.db
+# and the nssckbi shared libraries (64 bit and 32 bit) are.  If
+# secmod.db does not exist an error will occur.
+
+# The second argument is the path of the modutil
+# command.  If the path is omitted then PATH will be used.
+
+usage()
+{
+	echo Error: $1
+	echo The first argument is the name of the directory where secmod.db
+	echo and the nssckbi shared libraries '(64 bit and 32 bit)' are.  If
+	echo secmod.db does not exist an error will occur.
+	echo The second argument is the path where the modutil command
+	echo is found.
+}
+
+dir="$1"
+shift
+modutildir="$1"
+modutil=$modutildir/modutil
+LD_LIBRARY_PATH=$modutildir/../lib:$LD_LIBRARY_PATH
+SHLIB_PATH=$modutildir/../lib:$SHLIB_PATH
+export LD_LIBRARY_PATH SHLIB_PATH
+
+# see if correct argument was given
+if test \! \( "$dir" -a -d "$dir" \) ; then
+	usage "Invalid directory $dir"
+	exit 1
+fi
+
+# see if the files are there
+
+lib64=$dir/*nssckbi.*
+lib32=$dir/*nssckbi32.*
+
+if test \! \( -f $lib64 -a -f $lib32 \) ; then
+	usage "Files $lib64 and/or $lib32 do not exist in dir $dir"
+	exit 2
+fi
+
+if test \! -f $dir/secmod.db ; then
+	usage "$dir/secmod.db does not exist"
+	exit 3
+fi
+
+modname="Root Certs 32 bit"
+
+# see if the module already exists
+exists=0
+$modutil -force -nocertdb -dbdir $dir -list | grep "$modname" > /dev/null 2>&1 && exists=1
+
+if test $exists -ne 1 ; then
+	$modutil -force -nocertdb -dbdir $dir -add "$modname" -libfile $lib32 || usage "Could not add $modname to $dir/secmod.db: $?"
+else
+	echo "Module $modname already added to secmod.db"
+fi

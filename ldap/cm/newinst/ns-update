@@ -128,8 +128,17 @@ wrap_security_tools $sroot
 
 cd `dirname $0`
 
+rc=0
 if [ "$iDSISolaris" = "" ]; then  
-	exec ./ds_create $* $extraflags 
+	./ds_create $* $extraflags
+	rc=$?
 else
-	exec $PERL -w Install.pl $* $extraflags
+	$PERL -w Install.pl $* $extraflags
+	rc=$?
 fi
+
+if [ -f fix_secmod_db_64 ]; then
+    ./fix_secmod_db_64 $sroot/alias $sroot/shared32/bin
+fi
+
+exit $rc

@@ -177,38 +177,32 @@ else
 endif
 SECURITY_INCLUDE = -I$(SECURITY_INCDIR)
 # add crlutil and ocspclnt when we support CRL and OCSP cert checking in DS
-ifeq ($(SECURITY_RELDATE), NSS_3_7_9_RTM)
-SECURITY_BINNAMES = certutil derdump pp pk12util ssltap modutil
-else
 SECURITY_BINNAMES = certutil derdump pp pk12util ssltap modutil shlibsign
-endif
 SECURITY_LIBNAMES = ssl3 nss3 softokn3
+# these libs have a corresponding .chk file
+SECURITY_NEED_CHK = softokn3
 
-SECURITY_LIBNAMES.pkg = $(SECURITY_LIBNAMES)
-SECURITY_LIBNAMES.pkg += smime3
+SECURITY_LIBNAMES.pkg = $(SECURITY_LIBNAMES) smime3
+
+# these are only needed on 32 bit Solaris and HP-UX
+ifneq ($(USE_64), 1)
 ifeq ($(ARCH), SOLARIS)
-SECURITY_LIBNAMES.pkg += freebl_hybrid_3 freebl_pure32_3 fort swft
+SECURITY_LIBNAMES.pkg += freebl_hybrid_3 freebl_pure32_3
+# these libs have a corresponding .chk file
+SECURITY_NEED_CHK += freebl_hybrid_3 freebl_pure32_3
 endif
 ifeq ($(ARCH), HPUX)
-SECURITY_LIBNAMES.pkg += freebl_hybrid_3 freebl_pure32_3 fort swft
+SECURITY_LIBNAMES.pkg += freebl_hybrid_3 freebl_pure32_3
+# these libs have a corresponding .chk file
+SECURITY_NEED_CHK += freebl_hybrid_3 freebl_pure32_3
 endif
-ifeq ($(ARCH), AIX)
-SECURITY_LIBNAMES.pkg += fort swft
-endif
-ifeq ($(ARCH), OSF1)
-SECURITY_LIBNAMES.pkg += fort swft
-endif
-ifeq ($(ARCH), WINNT)
-SECURITY_LIBNAMES.pkg += fort32 swft32
-endif
+endif # USE_64
 
 SECURITY_TOOLS = $(addsuffix $(EXE_SUFFIX),$(SECURITY_BINNAMES))
 SECURITY_TOOLS_FULLPATH = $(addprefix $(SECURITY_BINPATH)/, $(SECURITY_TOOLS))
 
 SECURITY_LIBS_TO_PKG = $(addsuffix .$(DLL_SUFFIX),$(addprefix $(SECURITY_LIBPATH)/$(LIB_PREFIX),$(SECURITY_LIBNAMES.pkg)))
-ifneq ($(SECURITY_RELDATE), NSS_3_7_9_RTM)
-SECURITY_LIBS_TO_PKG += $(addsuffix .chk,$(addprefix $(SECURITY_LIBPATH)/$(LIB_PREFIX),$(SECURITY_LIBNAMES.pkg)))
-endif
+SECURITY_LIBS_TO_PKG += $(addsuffix .chk,$(addprefix $(SECURITY_LIBPATH)/$(LIB_PREFIX),$(SECURITY_NEED_CHK)))
 LIBS_TO_PKG += $(SECURITY_LIBS_TO_PKG)
 LIBS_TO_PKG_SHARED += $(SECURITY_LIBS_TO_PKG) # for cmd line tools
 ifeq ($(USE_SETUPSDK), 1)
