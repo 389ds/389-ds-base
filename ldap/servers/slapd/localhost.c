@@ -37,6 +37,13 @@
 #define NO_DOMAINNAME 1
 #endif
 
+#if defined (__hpux)
+#if (MAXHOSTNAMELEN < 256)
+#   undef MAXHOSTNAMELEN
+#   define MAXHOSTNAMELEN 256
+#endif
+#endif
+
 static char*
 find_localhost_DNS()
 {
