@@ -17,9 +17,6 @@
 #endif
 #include "slap.h"
 #include "fe.h"
-#if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
-#include "regex.h"
-#endif
 
 void
 slapd_init()
