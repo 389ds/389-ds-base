@@ -116,6 +116,13 @@ if ! [ $silent ]; then
 
 	# put some common answers in the file
 	hostname=`hostname`
+	tryhost=`host $hostname | grep -v "not found" | awk '{print $1}'`
+	if [ "$tryhost" ] ; then
+		hostname=$tryhost
+	fi
+	if ! [ $hostname ] ; then
+		hostname=localhost.localdomain
+	fi
 	echo "" | tee -a $logfile
 	echo -n "Hostname to use (default: $hostname) " | tee -a $logfile
 	read ans
