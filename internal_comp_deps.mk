@@ -394,7 +394,7 @@ endif
 	then echo "Error: could not get component SETUPSDK file $@" ; \
 	fi
 # apache-axis java classes #######################################
-AXIS = axis-$(AXIS_VERSION).zip
+AXIS = axis-bin-$(AXIS_VERSION).zip
 AXIS_FILES = $(AXIS)
 AXIS_RELEASE = $(COMPONENTS_DIR)/axis
 #AXISJAR_DIR = $(AXISJAR_RELEASE)/$(AXISJAR_COMP)/$(AXISJAR_VERSION)
