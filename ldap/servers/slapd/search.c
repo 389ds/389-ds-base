@@ -224,6 +224,7 @@ do_search( Slapi_PBlock *pb )
 	}
 
     slapi_pblock_set( pb, SLAPI_SEARCH_TARGET, base );
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET_DN, slapi_ch_strdup(base) );
     slapi_pblock_set( pb, SLAPI_SEARCH_SCOPE, &scope );
     slapi_pblock_set( pb, SLAPI_SEARCH_DEREF, &deref );
     slapi_pblock_set( pb, SLAPI_SEARCH_FILTER, filter );
@@ -269,6 +270,9 @@ free_and_return:;
 		if (psearch){
 			operation->o_flags &= ~OP_FLAG_PS;
 		}
+		/* we strdup'd this above - need to free */
+		slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
+		slapi_ch_free_string(&base);
     }
 }
 

@@ -360,6 +360,11 @@ ps_send_results( void *arg )
     slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_TARGET, NULL );
 	slapi_ch_free_string(&base);
 
+	/* we strdup'd this in search.c - need to free */
+	slapi_pblock_get( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, &base );
+	slapi_pblock_set( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, NULL );
+	slapi_ch_free_string(&base);
+
     slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_STRFILTER, &fstr );
     slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_STRFILTER, NULL );
 	slapi_ch_free_string(&fstr);

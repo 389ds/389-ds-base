@@ -458,6 +458,7 @@ slapi_free_search_results_internal(Slapi_PBlock *pb)
 
 	For dn based search:
 		SLAPI_TARGET_DN set to search base
+		SLAPI_ORIGINAL_TARGET_DN set to original un-normalized search base
 		SLAPI_SEARCH_SCOPE set to search scope
 		SLAPI_SEARCH_STRFILTER set to search filter
 		SLAPI_CONTROLS_ARG set to request controls if present
@@ -717,6 +718,7 @@ static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	 * changed base search strings
 	 */
 	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &original_base);
+	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN, slapi_ch_strdup(original_base));
 
 	op_shared_search (pb, 1);    
 
@@ -732,6 +734,10 @@ done:
 
 	if(original_base != new_base)
 		slapi_ch_free((void**)new_base);
+
+	/* we strdup'd this above - need to free */
+	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &original_base);
+	slapi_ch_free_string(&original_base);
 
     return(rc);
 }
