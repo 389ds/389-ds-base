@@ -33,6 +33,15 @@ ifneq ($(ARCH), WINNT)
 ARCH := $(shell $(BUILD_ROOT)/nsarch)
 endif
 
+ifeq ($(USE_64), 1)
+ifeq ($(ARCH), HPUX)
+LDFLAGS += -lpthread +DA2.0W +DS2.0 +Z
+endif
+ifeq ($(ARCH), SOLARIS)
+LDFLAGS += -xarch=v9
+endif
+endif
+
 SNMP_OBJS = main.o ldap-agent.o agtmmap.o
 OBJS = $(addprefix $(OBJDEST)/, $(SNMP_OBJS))
 SNMPMODULE  = ldap-agent
