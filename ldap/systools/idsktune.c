@@ -1949,7 +1949,7 @@ static void hp_pthreads_tests(void)
 
   if (tmax < 128) {
     printf("WARNING: only %d threads are available in a process.\n", tmax);
-    printf("NOTICE : use sam Kernel Configuration Parameters to change max_thread_proc\n");
+    printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change max_thread_proc\n");
     printf("and nkthreads as needed.\n\n");
   } else {
     if (flag_debug) printf("DEBUG  : HP-UX max threads %ld\n", tmax);
@@ -1963,7 +1963,7 @@ static void hp_pthreads_tests(void)
   
   if (omax < 120) {
     printf("WARNING: only %d files can be opened at once in a process.\n",omax);
-    printf("NOTICE : use sam Kernel Configuration Parameters to change maxfiles.\n");    
+    printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change maxfiles.\n");    
   } else {
     if (flag_debug) printf("DEBUG  : HP-UX maxfiles %ld\n", omax);    
   }
@@ -2875,7 +2875,7 @@ static void check_mem_size(int ro,char *rn)
 
   if (m_change_needed) {
 #if defined(__hppa)
-    printf("NOTICE : use sam Kernel Configuration Parameters to change maxdsiz parameter.\n");
+    printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change the maxdsiz\nand maxdsiz_64bit parameters.\n");
 #endif
     printf("\n");
   }
