@@ -131,17 +131,6 @@ ifndef ADMINUTIL_VERSDIR
   ADMINUTIL_VERSDIR=adminsdk$(ADMINUTIL_VER)
 endif
 
-# MCC (Console JDK)
-ifndef MCC_REL
-  MCC_REL=62
-endif
-ifndef MCC_COMP
-  MCC_COMP = consolesdk$(MCC_REL)
-endif
-ifndef MCC_RELDATE
-  MCC_RELDATE=20041117
-endif
-
 # LDAP Console
 ifndef LDAPCONSOLE_REL
   LDAPCONSOLE_REL=71

@@ -526,42 +526,6 @@ endif
 	fi
 
 ###########################################################
-
-# MCC java classes - the Mission Control Console #########
-MCC_VERSION=$(MCC_RELDATE)$(SEC_SUFFIX)
-#
-MCCJAR = mcc$(MCC_REL).jar
-MCCJAR_EN = mcc$(MCC_REL)_en.jar
-NMCLFJAR = nmclf$(MCC_REL).jar
-NMCLFJAR_EN = nmclf$(MCC_REL)_en.jar
-BASEJAR = base.jar
-#MCC_RELEASE=$(COMPONENTS_DIR_DEV)
-MCC_RELEASE=$(COMPONENTS_DIR)
-MCC_JARDIR = $(MCC_RELEASE)/$(MCC_COMP)/$(MCC_VERSION)/jars
-MCCJARFILE=$(CLASS_DEST)/$(MCCJAR)
-NMCLFJARFILE=$(CLASS_DEST)/$(NMCLFJAR)
-BASEJARFILE=$(CLASS_DEST)/$(BASEJAR)
-
-MCC_DEP = $(BASEJARFILE)
-MCC_FILES=$(MCCJAR),$(MCCJAR_EN),$(NMCLFJAR),$(NMCLFJAR_EN),$(BASEJAR)
-
-#PACKAGE_UNDER_JAVA += $(addprefix $(CLASS_DEST)/,$(subst $(COMMA),$(SPACE),$(MCC_FILES)))
-
-ifndef MCC_PULL_METHOD
-MCC_PULL_METHOD = $(COMPONENT_PULL_METHOD)
-endif
-
-$(MCC_DEP): $(CLASS_DEST)
-ifdef COMPONENT_DEPS
-	$(FTP_PULL) -method $(MCC_PULL_METHOD) \
-		-objdir $(CLASS_DEST) -componentdir $(MCC_JARDIR) \
-		-files $(MCC_FILES)
-endif
-	-@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component MCC file $@" ; \
-	fi
-
-###########################################################
 # LDAP Console java classes
 ###########################################################
 LDAPCONSOLEJAR = ds$(LDAPCONSOLE_REL).jar
