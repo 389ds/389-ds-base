@@ -20,8 +20,8 @@ extern          "C" {
 /*************************************************************
  * Trap value defines
  */
-#define SERVER_UP 7002 
-#define SERVER_DOWN 7001
+#define SERVER_UP 6002 
+#define SERVER_DOWN 6001
 #define STATE_UNKNOWN 0
 
 /*************************************************************
@@ -33,7 +33,6 @@ typedef struct server_instance_s {
     char *stats_file;
     char *dse_ldif;
     char *description;
-    char *version;
     char *org;
     char *location;
     char *contact;
@@ -68,8 +67,8 @@ typedef struct stats_table_context_s {
     int         dsEntityTable_get_value(netsnmp_request_info *,
                                          netsnmp_index *,
                                          netsnmp_table_request_info *);
-    int		send_nsDirectoryServerDown_trap(server_instance *);
-    int		send_nsDirectoryServerStart_trap(server_instance *);
+    int		send_DirectoryServerDown_trap(server_instance *);
+    int		send_DirectoryServerStart_trap(server_instance *);
 
 /*************************************************************
  * Oid Declarations
@@ -83,13 +82,13 @@ typedef struct stats_table_context_s {
     extern oid      snmptrap_oid[];
     extern size_t   snmptrap_oid_len;
 
-#define enterprise_OID 1,3,6,1,4,1,1450
-#define dsOpsTable_TABLE_OID enterprise_OID,7,1
-#define dsEntriesTable_TABLE_OID enterprise_OID,7,2
-#define dsEntityTable_TABLE_OID enterprise_OID,7,5
+#define enterprise_OID 1,3,6,1,4,1,2312
+#define dsOpsTable_TABLE_OID enterprise_OID,6,1
+#define dsEntriesTable_TABLE_OID enterprise_OID,6,2
+#define dsEntityTable_TABLE_OID enterprise_OID,6,5
 #define snmptrap_OID 1,3,6,1,6,3,1,1,4,1,0
-#define nsDirectoryServerDown_OID enterprise_OID,0,7001
-#define nsDirectoryServerStart_OID enterprise_OID,0,7002
+#define DirectoryServerDown_OID enterprise_OID,0,6001
+#define DirectoryServerStart_OID enterprise_OID,0,6002
 
 /*************************************************************
  * dsOpsTable column defines

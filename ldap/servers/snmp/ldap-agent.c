@@ -289,9 +289,9 @@ load_stats_table(netsnmp_cache *cache, void *foo)
                     if (serv_p->server_state == SERVER_UP) {
                         snmp_log(LOG_INFO, "Detected start of server: %d\n",
                                             serv_p->port);
-                        send_nsDirectoryServerStart_trap(serv_p);
+                        send_DirectoryServerStart_trap(serv_p);
                     } else {
-                        send_nsDirectoryServerDown_trap(serv_p);
+                        send_DirectoryServerDown_trap(serv_p);
                         /* Zero out the ops and entries tables */
                         memset(&ctx->ops_tbl, 0x00, sizeof(ctx->ops_tbl));
                         memset(&ctx->entries_tbl, 0x00, sizeof(ctx->entries_tbl));
@@ -299,8 +299,8 @@ load_stats_table(netsnmp_cache *cache, void *foo)
                 } else if (ctx->hdr_tbl.startTime != previous_start) {
                     /* Send traps if the server has restarted since the last load */
                     snmp_log(LOG_INFO, "Detected restart of server: %d\n", serv_p->port);
-                    send_nsDirectoryServerDown_trap(serv_p);
-                    send_nsDirectoryServerStart_trap(serv_p);
+                    send_DirectoryServerDown_trap(serv_p);
+                    send_DirectoryServerStart_trap(serv_p);
                 }
             }
         } else {
@@ -575,30 +575,37 @@ dsEntityTable_get_value(netsnmp_request_info *request,
 }
 
 /************************************************************
- * send_nsDirectoryServerDown_trap
+ * send_DirectoryServerDown_trap
  *
  * Sends off the server down trap.
  */
 int
-send_nsDirectoryServerDown_trap(server_instance *serv_p)
+send_DirectoryServerDown_trap(server_instance *serv_p)
 {
     netsnmp_variable_list *var_list = NULL;
+    stats_table_context *ctx = NULL;
 
     snmp_log(LOG_INFO, "Sending down trap for server: %d\n", serv_p->port);
 
     /* Define the oids for the trap */
-    oid nsDirectoryServerDown_oid[] = { nsDirectoryServerDown_OID };
+    oid DirectoryServerDown_oid[] = { DirectoryServerDown_OID };
     oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, serv_p->port };
     oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, serv_p->port };
     oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, serv_p->port };
     oid dsEntityContact_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYCONTACT, serv_p->port };
-                                                                                                                
+
+    /* Lookup row to get version string */
+    if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
+        snmp_log(LOG_ERR, "Malloc error finding row for server: %d\n", serv_p->port); 
+        return 1;
+    }
+
     /* Setup the variable list to send with the trap */
     snmp_varlist_add_variable(&var_list,
                               snmptrap_oid, OID_LENGTH(snmptrap_oid),
                               ASN_OBJECT_ID,
-                              (u_char *) &nsDirectoryServerDown_oid,
-                              sizeof(nsDirectoryServerDown_oid));
+                              (u_char *) &DirectoryServerDown_oid,
+                              sizeof(DirectoryServerDown_oid));
     snmp_varlist_add_variable(&var_list,
                               dsEntityDescr_oid,
                               OID_LENGTH(dsEntityDescr_oid), ASN_OCTET_STR,
@@ -607,8 +614,8 @@ send_nsDirectoryServerDown_trap(server_instance *serv_p)
     snmp_varlist_add_variable(&var_list,
                               dsEntityVers_oid,
                               OID_LENGTH(dsEntityVers_oid), ASN_OCTET_STR,
-                              (char *) serv_p->version,
-                              strlen(serv_p->version));
+                              (char *) ctx->hdr_tbl.dsVersion,
+                              strlen(ctx->hdr_tbl.dsVersion));
     snmp_varlist_add_variable(&var_list,
                               dsEntityLocation_oid,
                               OID_LENGTH(dsEntityLocation_oid),
@@ -630,29 +637,36 @@ send_nsDirectoryServerDown_trap(server_instance *serv_p)
 }
 
 /************************************************************
- * send_nsDirectoryServerStart_trap
+ * send_DirectoryServerStart_trap
  *
  * Sends off the server start trap.
  */
 int
-send_nsDirectoryServerStart_trap(server_instance *serv_p)
+send_DirectoryServerStart_trap(server_instance *serv_p)
 {
     netsnmp_variable_list *var_list = NULL;
-                                                                                                                
+    stats_table_context *ctx = NULL;
+
     snmp_log(LOG_INFO, "Sending start trap for server: %d\n", serv_p->port);
-                                                                                                                
+
     /* Define the oids for the trap */
-    oid nsDirectoryServerStart_oid[] = { nsDirectoryServerStart_OID };
+    oid DirectoryServerStart_oid[] = { DirectoryServerStart_OID };
     oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, serv_p->port };
     oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, serv_p->port };
     oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, serv_p->port };
-                                                                                                                
+
+    /* Lookup row to get version string */
+    if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
+        snmp_log(LOG_ERR, "Malloc error finding row for server: %d\n", serv_p->port);
+        return 1;
+    }
+
     /* Setup the variable list to send with the trap */
     snmp_varlist_add_variable(&var_list,
                               snmptrap_oid, OID_LENGTH(snmptrap_oid),
                               ASN_OBJECT_ID,
-                              (u_char *) &nsDirectoryServerStart_oid,
-                              sizeof(nsDirectoryServerStart_oid));
+                              (u_char *) &DirectoryServerStart_oid,
+                              sizeof(DirectoryServerStart_oid));
     snmp_varlist_add_variable(&var_list,
                               dsEntityDescr_oid,
                               OID_LENGTH(dsEntityDescr_oid), ASN_OCTET_STR,
@@ -661,8 +675,8 @@ send_nsDirectoryServerStart_trap(server_instance *serv_p)
     snmp_varlist_add_variable(&var_list,
                               dsEntityVers_oid,
                               OID_LENGTH(dsEntityVers_oid), ASN_OCTET_STR,
-                              (char *) serv_p->version,
-                              strlen(serv_p->version));
+                              (char *) ctx->hdr_tbl.dsVersion,
+                              strlen(ctx->hdr_tbl.dsVersion));
     snmp_varlist_add_variable(&var_list,
                               dsEntityLocation_oid,
                               OID_LENGTH(dsEntityLocation_oid),

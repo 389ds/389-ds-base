@@ -1,0 +1,724 @@
+-- BEGIN COPYRIGHT BLOCK
+-- Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+-- Copyright (C) 2005 Red Hat, Inc.
+-- All rights reserved.
+-- END COPYRIGHT BLOCK
+--
+--
+-- MIB for Red Hat and Fedora Directory Server 
+--
+-- This is an implementation of the MADMAN mib for monitoring LDAP/CLDAP and X.500
+-- directories described in RFC 2788 and 2789
+-- with the addition of traps for server up and down events
+
+RHDS-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+      MODULE-IDENTITY,  Counter32, Gauge32, OBJECT-TYPE
+                 FROM SNMPv2-SMI 
+      DisplayString,    TimeStamp, TEXTUAL-CONVENTION
+                 FROM SNMPv2-TC
+      MODULE-COMPLIANCE, OBJECT-GROUP
+                 FROM SNMPv2-CONF
+      applIndex, DistinguishedName, URLString
+                 FROM NETWORK-SERVICES-MIB
+      enterprises
+                 FROM RFC1155-SMI
+      TRAP-TYPE 
+		 FROM RFC-1215;
+     
+      redhat OBJECT IDENTIFIER ::= {enterprises 2312}
+
+   URLString ::= TEXTUAL-CONVENTION
+       STATUS current
+       DESCRIPTION
+           "I couldn't find it but madman said it should be here, guessing DisplayString"
+       SYNTAX DisplayString
+
+    rhds MODULE-IDENTITY
+       LAST-UPDATED "200503020000Z"
+       ORGANIZATION "Red Hat, Inc."
+       CONTACT-INFO
+              "Red Hat, Inc.
+              Website: http://www.redhat.com"
+            DESCRIPTION
+               " An implementation of the MADMAN mib for monitoring LDAP/CLDAP and X.500
+		 directories described in RFC 2788 and 2789
+                 used for Red Hat and Fedora  Directory Server" 
+            ::= {redhat 6}
+
+    dsOpsTable OBJECT-TYPE
+        SYNTAX SEQUENCE OF DsOpsEntry
+        MAX-ACCESS not-accessible
+        STATUS current
+        DESCRIPTION
+          " The table holding information related to the
+                   DS operations."
+        ::= {rhds 1}
+
+    dsOpsEntry OBJECT-TYPE
+        SYNTAX DsOpsEntry
+        MAX-ACCESS not-accessible
+        STATUS current
+        DESCRIPTION
+          " Entry containing operations related statistics  
+            for a DS."
+        INDEX { applIndex } 
+        ::= {dsOpsTable 1}
+
+    DsOpsEntry ::= SEQUENCE {
+
+    -- Bindings
+
+        dsAnonymousBinds
+            Counter32,
+        dsUnAuthBinds
+            Counter32,
+        dsSimpleAuthBinds
+            Counter32,
+        dsStrongAuthBinds
+            Counter32,
+        dsBindSecurityErrors
+            Counter32,
+
+    -- In-coming operations
+
+        dsInOps
+            Counter32,
+        dsReadOps
+            Counter32,
+        dsCompareOps
+            Counter32,
+        dsAddEntryOps
+            Counter32,
+        dsRemoveEntryOps
+            Counter32,
+        dsModifyEntryOps
+            Counter32,
+        dsModifyRDNOps
+            Counter32,
+        dsListOps
+            Counter32,
+        dsSearchOps
+            Counter32,
+        dsOneLevelSearchOps
+            Counter32,
+        dsWholeSubtreeSearchOps
+            Counter32,
+
+    -- Out going operations
+
+        dsReferrals
+            Counter32,
+	dsChainings
+            Counter32,
+
+    -- Errors
+
+        dsSecurityErrors
+            Counter32,
+        dsErrors
+            Counter32
+    }
+
+    -- CLDAP does not use binds; for A CLDAP DS the bind
+    -- related counters will be inaccessible.
+    --
+    -- CLDAP and LDAP implement "Read" and "List" operations
+    -- indirectly via the "search" operation; the following
+    -- counters will be inaccessible for CLDAP and LDAP DSs:
+    -- dsReadOps, dsListOps
+    --
+    -- CLDAP does not implement "Compare", "Add", "Remove",
+    -- "Modify", "ModifyRDN"; the following counters will be
+    -- inaccessible for CLDAP DSs:
+    -- dsCompareOps, dsAddEntryOps,  dsRemoveEntryOps,
+    -- dsModifyEntryOps, dsModifyRDNOps.
+    --
+    -- CLDAP and LDAP DS's do not return Referrals
+    -- the following fields will remain inaccessible for
+    -- CLDAP and LDAP DSs: dsReferrals.
+
+    dsAnonymousBinds OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of anonymous  binds to this DS from UAs
+            since application start."
+        ::= {dsOpsEntry 1}
+
+    dsUnAuthBinds OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of un-authenticated binds to this DS since
+            application start."
+        ::= {dsOpsEntry 2}
+
+    dsSimpleAuthBinds OBJECT-TYPE
+	SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of binds to this DS that were authenticated
+            using simple authentication procedures since
+            application start."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 8.1.2.1.1. and, RFC1777 Section 4.1"
+        ::= {dsOpsEntry 3}
+
+    dsStrongAuthBinds OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of binds to this DS that were authenticated
+            using the strong authentication procedures since
+            application start. This includes the binds that were
+            authenticated using external authentication procedures."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Sections 8.1.2.1.2 &  8.1.2.1.3. and, RFC1777 Section 4.1."
+        ::= {dsOpsEntry 4}
+
+    dsBindSecurityErrors OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of bind operations that have been rejected
+            by this DS due to inappropriateAuthentication or
+            invalidCredentials."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 12.7.2 and, RFC1777 Section 4."
+        ::= {dsOpsEntry 5}
+
+    dsInOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of operations forwarded to this DS
+            from UAs or other DSs since application
+            start up."
+        ::= {dsOpsEntry 6}
+		
+	dsReadOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of read operations serviced by
+            this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 9.1."
+        ::= {dsOpsEntry 7}
+
+    dsCompareOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of compare operations serviced by
+            this DS  since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 9.2. and, RFC1777 section 4.8"
+        ::= {dsOpsEntry 8}
+
+    dsAddEntryOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of addEntry operations serviced by
+            this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 11.1. and, RFC1777 Section 4.5."
+        ::= {dsOpsEntry 9}
+
+    dsRemoveEntryOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of removeEntry operations serviced by
+            this DS since application startup."
+         REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 11.2. and, RFC1777 Section 4.6."
+        ::= {dsOpsEntry 10}
+
+	dsModifyEntryOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of modifyEntry operations serviced by
+            this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 11.3. and, RFC1777 Section 4.4."
+        ::= {dsOpsEntry 11}
+
+    dsModifyRDNOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of modifyRDN operations serviced by
+                   this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 11.4.and, RFC1777 Section 4.7"
+        ::= {dsOpsEntry 12}
+
+    dsListOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of list operations serviced by
+            this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 10.1."
+        ::= {dsOpsEntry 13}
+
+    dsSearchOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of search operations- baseObject searches,
+            oneLevel searches and  wholeSubtree searches,
+            serviced by this DS  since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 10.2. and, RFC1777 Section 4.3."
+        ::= {dsOpsEntry 14}
+
+	dsOneLevelSearchOps OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of oneLevel search operations serviced
+            by this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 10.2.2.2. and, RFC1777 Section 4.3."
+        ::= {dsOpsEntry 15}
+
+    dsWholeSubtreeSearchOps   OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of wholeSubtree search operations serviced
+            by this DS since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 10.2.2.2. and, RFC1777 Section 4.3."
+        ::= {dsOpsEntry 16}
+
+    dsReferrals OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of referrals returned by this DS in response
+            to requests for operations since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 12.6."
+        ::= {dsOpsEntry 17}
+
+    dsChainings OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of operations forwarded by this DS
+            to other DSs since application startup."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.518, 1988:
+            Section 14."
+        ::= {dsOpsEntry 18}
+
+	dsSecurityErrors OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of operations forwarded to this DS
+            which did not meet the security requirements. "
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Section 12.7. and, RFC1777 Section 4."
+        ::= {dsOpsEntry 19}
+
+    dsErrors  OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of operations that could not be serviced
+            due to errors other than security errors, and
+            referrals.
+            A partially serviced operation will not be counted
+            as an error.
+            The errors include NameErrors, UpdateErrors, Attribute
+            errors and ServiceErrors."
+        REFERENCE
+          " CCITT Blue Book Fascicle VIII.8 - Rec. X.511, 1988:
+            Sections 12.4, 12.5, 12.8 & 12.9. and, RFC1777 Section 4."
+        ::= {dsOpsEntry 20}
+
+    -- Entry statistics/Cache performance
+    dsEntriesTable OBJECT-TYPE
+        SYNTAX SEQUENCE OF DsEntriesEntry
+        MAX-ACCESS not-accessible
+        STATUS current
+        DESCRIPTION
+          " The table holding information related to the
+            entry statistics and cache performance of the DSs."
+        ::= {rhds 2}
+
+    dsEntriesEntry OBJECT-TYPE
+        SYNTAX DsEntriesEntry
+        MAX-ACCESS not-accessible
+        STATUS current
+        DESCRIPTION
+          " Entry containing statistics pertaining to entries
+            held by a DS."
+        INDEX { applIndex }
+        ::= {dsEntriesTable 1}
+
+
+	DsEntriesEntry ::= SEQUENCE {
+
+        dsMasterEntries
+            Gauge32,
+        dsCopyEntries
+            Gauge32,
+        dsCacheEntries
+            Gauge32,
+        dsCacheHits
+            Counter32,
+        dsSlaveHits
+            Counter32
+    }
+
+   -- A (C)LDAP frontend to the X.500 Directory will not have
+   -- MasterEntries, CopyEntries; the following counters will
+   -- be inaccessible for LDAP/CLDAP frontends to the X.500
+   -- directory: dsMasterEntries, dsCopyEntries, dsSlaveHits.
+
+    dsMasterEntries OBJECT-TYPE
+        SYNTAX Gauge32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of entries mastered in the DS."
+        ::= {dsEntriesEntry 1}
+
+    dsCopyEntries OBJECT-TYPE
+        SYNTAX Gauge32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of entries for which systematic (slave)
+            copies are maintained in the DS."
+        ::= {dsEntriesEntry 2}
+
+    dsCacheEntries OBJECT-TYPE
+        SYNTAX Gauge32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of entries cached (non-systematic copies) in
+            the DS. This will include the entries that are
+            cached partially. The negative cache is not counted."
+        ::= {dsEntriesEntry 3}
+
+	dsCacheHits OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of operations that were serviced from
+            the locally held cache since application
+            startup."
+        ::= {dsEntriesEntry 4}
+
+    dsSlaveHits  OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of operations that were serviced from
+            the locally held object replications ( shadow
+            entries) since application startup."
+        ::= {dsEntriesEntry 5}
+
+    -- The dsIntTable contains statistical data on the peer DSs
+    -- with which the monitored DSs (attempt to) interact.  This
+    -- table  will provide a useful insight into  the   effect of
+    -- neighbours on the DS performance.
+    -- The table keeps track of the last "N" DSs with which  the
+    -- monitored  DSs  has  interacted  (attempted to interact),
+    -- where "N" is a locally-defined constant.
+
+    dsIntTable OBJECT-TYPE
+        SYNTAX  SEQUENCE OF DsIntEntry
+        MAX-ACCESS  not-accessible
+        STATUS  current
+        DESCRIPTION
+          " Each row of this table contains some details
+            related to the history of the interaction
+            of the monitored DSs with their respective
+            peer DSs."
+        ::= { rhds 3 }
+
+	dsIntEntry OBJECT-TYPE
+        SYNTAX  DsIntEntry
+        MAX-ACCESS  not-accessible
+        STATUS  current
+        DESCRIPTION
+          " Entry containing interaction details of a DS
+            with a peer DS."
+           INDEX { applIndex, dsIntIndex }
+        ::= { dsIntTable 1 }
+
+    DsIntEntry ::= SEQUENCE {
+
+       dsIntIndex
+	        INTEGER,
+       dsName
+                DistinguishedName,
+       dsTimeOfCreation
+                 TimeStamp,
+       dsTimeOfLastAttempt
+                 TimeStamp,
+       dsTimeOfLastSuccess
+                 TimeStamp,
+       dsFailuresSinceLastSuccess
+                 Counter32,
+       dsFailures
+                 Counter32,
+       dsSuccesses
+                 Counter32,
+       dsURL
+                URLString
+
+    }
+
+   dsIntIndex  OBJECT-TYPE
+     SYNTAX INTEGER (1..2147483647)
+     MAX-ACCESS not-accessible
+       STATUS current
+       DESCRIPTION
+         " Together with applIndex it forms the unique key to
+           identify the conceptual row which contains useful info
+            on the (attempted) interaction between the DS (referred
+            to by applIndex) and a peer DS."
+        ::= {dsIntEntry 1}
+
+    dsName  OBJECT-TYPE
+        SYNTAX DistinguishedName
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Distinguished Name of the peer DS to which this
+		      entry pertains."
+        ::= {dsIntEntry 2}
+
+    dsTimeOfCreation  OBJECT-TYPE
+        SYNTAX TimeStamp
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " The value of sysUpTime when this row was created.
+            If the entry was created before the network management
+            subsystem was initialized, this object will contain
+            a value of zero."
+        ::= {dsIntEntry 3}
+
+    dsTimeOfLastAttempt  OBJECT-TYPE
+        SYNTAX TimeStamp
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " The value of sysUpTime when the last attempt was made
+            to contact this DS. If the last attempt was made before
+            the network management subsystem was initialized, this
+            object will contain a value of zero."
+        ::= {dsIntEntry 4}
+
+    dsTimeOfLastSuccess  OBJECT-TYPE
+        SYNTAX TimeStamp
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " The value of sysUpTime when the last attempt made to
+            contact this DS was successful. If there have
+            been no successful attempts this entry will have a value
+            of zero. If the last successful attempt was made before
+            the network management subsystem was initialized, this
+            object will contain a value of zero."
+        ::= {dsIntEntry 5}
+
+	dsFailuresSinceLastSuccess  OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " The number of failures since the last time an
+            attempt to contact this DS was successful. If
+            there has been no successful attempts, this counter
+            will contain the number of failures since this entry
+            was created."
+        ::= {dsIntEntry 6}
+
+    dsFailures  OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Cumulative failures since the creation of
+            this entry."
+        ::= {dsIntEntry 7}
+
+    dsSuccesses  OBJECT-TYPE
+        SYNTAX Counter32
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Cumulative successes since the creation of
+            this entry."
+        ::= {dsIntEntry 8}
+
+    dsURL  OBJECT-TYPE
+        SYNTAX URLString
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " URL of the DS application."
+        ::= {dsIntEntry 9}
+
+--
+-- Information about this installation of the directory server
+-- 
+
+    dsEntityTable OBJECT-TYPE
+        SYNTAX SEQUENCE OF DsEntityEntry
+        MAX-ACCESS not-accessible
+        STATUS current
+        DESCRIPTION
+          "This table holds general information related to an installed
+                   instance of a directory server"
+        ::= {rhds 5}
+
+    dsEntityEntry OBJECT-TYPE
+        SYNTAX DsEntityEntry
+        MAX-ACCESS not-accessible
+        STATUS current
+        DESCRIPTION
+          "Entry of general information about an installed instance
+           of a directory server"
+        INDEX { applIndex} 
+        ::= {dsEntityTable 1}
+
+    DsEntityEntry ::= SEQUENCE {
+        dsEntityDescr
+	  DisplayString,
+	dsEntityVers
+	  DisplayString,
+	dsEntityOrg
+	  DisplayString,
+  	dsEntityLocation
+	  DisplayString,
+	dsEntityContact
+	  DisplayString,
+	dsEntityName
+	  DisplayString
+    }
+
+    dsEntityDescr	OBJECT-TYPE
+	SYNTAX	DisplayString(SIZE (0..255))
+	ACCESS  read-only
+	STATUS  mandatory
+	DESCRIPTION
+		"A general textual description of this directory server."
+	::= {dsEntityEntry 1}
+
+    dsEntityVers	OBJECT-TYPE
+	SYNTAX	DisplayString(SIZE (0..255))
+	ACCESS  read-only
+	STATUS  mandatory
+	DESCRIPTION
+		"The version of this directory server"
+	::={dsEntityEntry 2}
+
+    dsEntityOrg		OBJECT-TYPE
+	SYNTAX	DisplayString(SIZE (0..255))
+	ACCESS	read-only
+	STATUS  mandatory
+	DESCRIPTION
+		"Organization responsible for directory server at this installation"
+	::={dsEntityEntry 3}
+
+    dsEntityLocation	OBJECT-TYPE
+	SYNTAX	DisplayString(SIZE (0..255))
+	ACCESS	read-only
+	STATUS  mandatory
+	DESCRIPTION
+		"Physical location of this entity (directory server).
+		 For example: hostname, building  number, lab number, etc."
+	::={dsEntityEntry 4}
+
+    dsEntityContact 	OBJECT-TYPE
+	SYNTAX	DisplayString(SIZE (0..255))
+	ACCESS	read-only
+	STATUS  mandatory
+	DESCRIPTION
+		"Contact person(s)responsible for the directory server at this 
+		 installation, together with information on how to conact."
+	::={dsEntityEntry 5}
+	
+    dsEntityName		OBJECT-TYPE
+	SYNTAX	DisplayString(SIZE (0..255))
+	ACCESS	read-only
+	STATUS  mandatory
+	DESCRIPTION
+		"Name assigned to this entity at the installation site"
+	::={dsEntityEntry 6}
+
+--
+--  Traps 
+--
+--
+	DirectoryServerDown 	TRAP-TYPE
+		ENTERPRISE	redhat
+		VARIABLES	{ dsEntityDescr, dsEntityVers, dsEntityLocation,
+				  dsEntityContact } 
+		DESCRIPTION	"This trap is generated whenever the agent detects the
+				 directory server to be (potentially) Down."
+		::= 6001
+				
+	DirectoryServerStart 	TRAP-TYPE
+		ENTERPRISE	redhat
+		VARIABLES	{ dsEntityDescr, dsEntityVers, dsEntityLocation }
+		DESCRIPTION	"This trap is generated whenever the agent detects the
+				 directory server to have (re)started."
+		::= 6002
+				
+   END
+
