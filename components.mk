@@ -566,8 +566,7 @@ endif
 # apache-axis java classes #######################################
 AXIS = axis-bin-$(AXIS_VERSION).zip
 AXIS_FILES = $(AXIS)
-#AXIS_RELEASE = $(COMPONENTS_DIR)
-AXIS_RELEASE = $(COMPONENTS_DIR_DEV)/ds/ds70-bozeman
+AXIS_RELEASE = $(COMPONENTS_DIR)
 #AXISJAR_DIR = $(AXISJAR_RELEASE)/$(AXISJAR_COMP)/$(AXISJAR_VERSION)
 AXIS_DIR = $(AXIS_RELEASE)/axis
 AXIS_FILE = $(CLASS_DEST)/$(AXIS)
@@ -600,7 +599,7 @@ endif
 # other dsml java classes #######################################
 DSMLJAR = activation.jar,jaxrpc-api.jar,jaxrpc.jar,saaj.jar,xercesImpl.jar,xml-apis.jar
 DSMLJAR_FILES = $(DSMLJAR)
-DSMLJAR_RELEASE = $(COMPONENTS_DIR_DEV)/ds/ds70-bozeman
+DSMLJAR_RELEASE = $(COMPONENTS_DIR)
 #DSMLJARJAR_DIR = $(DSMLJARJAR_RELEASE)/$(DSMLJARJAR_COMP)/$(DSMLJARJAR_VERSION)
 DSMLJAR_DIR = $(DSMLJAR_RELEASE)/dsmljars
 DSMLJAR_FILE = $(CLASS_DEST)
