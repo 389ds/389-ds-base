@@ -67,6 +67,6 @@ CSN *get_current_csn(Slapi_DN *replarea_sdn);
 char* protocol_response2string (int response);
 int repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod **);
 void windows_release_replica(Private_Repl_Protocol *prp);
-int windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv);
+int windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv);
 
 #endif /* _REPL5_PROT_PRIVATE_H_ */

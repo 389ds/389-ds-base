@@ -45,7 +45,6 @@
 */
 
 #include "repl5.h"
-#include "windowsrepl.h" 
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
 #include "slapi-plugin.h"
@@ -98,7 +97,7 @@ typedef struct repl5agmt {
 					   to allow another supplier to send its updates -
 					   should be greater than busywaittime -
 					   if set to 0, this means do not pause */
-	void *priv; /* private data, used for cookie, and windows domain name */
+	void *priv; /* private data, used for windows-specific agreement data */
 	int agreement_type;
 } repl5agmt;
 
@@ -326,27 +325,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement"))
 	{
 		ra->agreement_type = REPLICA_TYPE_WINDOWS;
-		ra->priv = windows_private_new();
-		
-		/* DN of entry at root of replicated area */
-		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsReplicaArea);
-		if (NULL != tmpstr)
-		{
-			windows_private_set_windows_replarea(ra, slapi_sdn_new_dn_passin(tmpstr) );
-		}
-
-		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7DirectoryReplicaArea); 
-		if (NULL != tmpstr)
-		{
-			windows_private_set_directory_replarea(ra, slapi_sdn_new_dn_passin(tmpstr) );
-		}
-
-		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewUsers); 
-		if (NULL != tmpstr)
-			windows_private_set_create_users(ra, PR_TRUE);
-		else
-			windows_private_set_create_users(ra, PR_FALSE);
-
+		windows_init_agreement_from_entry(ra,e);
 	}
 	else
 	{
@@ -481,7 +460,7 @@ agmt_delete(void **rap)
 
 	if (ra->agreement_type == REPLICA_TYPE_WINDOWS)
 	{
-		windows_private_delete(ra->priv);
+		windows_agreement_delete(ra);
 	}
 
 	schedule_destroy(ra->schedule);
@@ -2120,11 +2099,16 @@ get_agmt_agreement_type( Repl_Agmt *agmt)
     return agmt->agreement_type;
 }
 
-void* get_priv_from_agmt (const Repl_Agmt *agmt)
+void* agmt_get_priv (const Repl_Agmt *agmt)
 {
 	PR_ASSERT (agmt);
 	return agmt->priv;
+}
 
+void agmt_set_priv (Repl_Agmt *agmt, void* priv)
+{
+	PR_ASSERT (agmt);
+	agmt->priv = priv;
 }
 
 ReplicaId agmt_get_consumerRID(Repl_Agmt *ra)

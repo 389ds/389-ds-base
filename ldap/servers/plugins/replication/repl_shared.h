@@ -98,6 +98,7 @@
 #define CHANGELOG_DB_VERSION_PREV "3.0"
 #define CHANGELOG_DB_VERSION "4.0"
 extern char *repl_plugin_name;
+extern char *windows_repl_plugin_name;
 extern char *repl_plugin_name_cl;
 
 /* repl_monitor.c */

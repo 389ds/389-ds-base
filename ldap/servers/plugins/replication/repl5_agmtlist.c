@@ -530,13 +530,13 @@ agmtlist_config_init()
 
 	/* Register callbacks so we're informed about updates */
 	slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, AGMT_CONFIG_BASE,
-		LDAP_SCOPE_SUBTREE, CONFIG_FILTER, agmtlist_add_callback, NULL);
+		LDAP_SCOPE_SUBTREE, GLOBAL_CONFIG_FILTER, agmtlist_add_callback, NULL);
 	slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, AGMT_CONFIG_BASE,
-		LDAP_SCOPE_SUBTREE, CONFIG_FILTER, agmtlist_modify_callback, NULL);
+		LDAP_SCOPE_SUBTREE, GLOBAL_CONFIG_FILTER, agmtlist_modify_callback, NULL);
 	slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, AGMT_CONFIG_BASE,
-		LDAP_SCOPE_SUBTREE, CONFIG_FILTER, agmtlist_delete_callback, NULL);
+		LDAP_SCOPE_SUBTREE, GLOBAL_CONFIG_FILTER, agmtlist_delete_callback, NULL);
 	slapi_config_register_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, AGMT_CONFIG_BASE,
-		LDAP_SCOPE_SUBTREE, CONFIG_FILTER, agmtlist_rename_callback, NULL);
+		LDAP_SCOPE_SUBTREE, GLOBAL_CONFIG_FILTER, agmtlist_rename_callback, NULL);
 
 	/* Search the DIT and find all the replication agreements */
 	pb = slapi_pblock_new();

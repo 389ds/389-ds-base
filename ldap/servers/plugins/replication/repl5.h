@@ -109,7 +109,9 @@ extern const char *type_nsds5ReplicaSessionPauseTime;
 extern const char *type_nsds7WindowsReplicaArea;
 extern const char *type_nsds7DirectoryReplicaArea;
 extern const char *type_nsds7CreateNewUsers;
-
+extern const char *type_nsds7CreateNewGroups;
+extern const char *type_nsds7DirsyncCookie;
+extern const char *type_nsds7WindowsDomain;
 /* To Allow Consumer Initialisation when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
 
@@ -274,6 +276,8 @@ int agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *
 int agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr);
 char **agmt_get_fractional_attrs(const Repl_Agmt *ra);
 char **agmt_validate_replicated_attributes(Repl_Agmt *ra);
+void* agmt_get_priv (const Repl_Agmt *agmt);
+void agmt_set_priv (Repl_Agmt *agmt, void* priv);
 
 
 int get_agmt_agreement_type ( Repl_Agmt *agmt);
@@ -527,20 +531,10 @@ void repl5_set_debug_timeout(const char *val);
 /* temp hack XXX */
 ReplicaId agmt_get_consumerRID(Repl_Agmt *ra);
 
-/* windows_private.c */
-typedef struct windowsprivate Dirsync_Private;
-void windows_private_delete(Dirsync_Private **dp);
-void* get_priv_from_agmt (const Repl_Agmt *agmt);
-Dirsync_Private* windows_private_new();
-void windows_private_set_windows_replarea (const Repl_Agmt *ra,const Slapi_DN* sdn );
-const Slapi_DN* windows_private_get_windows_replarea (const Repl_Agmt *ra);
-void windows_private_set_directory_replarea (const Repl_Agmt *ra,const Slapi_DN* sdn );
-const Slapi_DN* windows_private_get_directory_replarea (const Repl_Agmt *ra);
-LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra);
-ConnResult perform_search(Repl_Connection *conn);
-Slapi_Entry *windows_conn_get_search_result(Repl_Connection *conn );
-void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **controls );
-void windows_private_null_dirsync_control(const Repl_Agmt *ra);
-void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value);
-PRBool windows_private_create_users(const Repl_Agmt *ra);
+
+void windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
+void windows_agreement_delete(Repl_Agmt *ra);
+Repl_Connection *windows_conn_new(Repl_Agmt *agmt);
+
+
 #endif /* _REPL5_H_ */

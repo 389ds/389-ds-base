@@ -130,6 +130,10 @@ EXTRA_LIBS += $(DLL_EXTRA_LIBS)
 LD=ld
 endif
 
+# ICU used by Windows Sync code
+INCLUDES+= $(ICU_INCLUDE)
+EXTRA_LIBS+=$(ICULINK) 
+
 clientSDK: 
 
 all:	$(OBJDEST) $(LIBDIR) $(LIBREPLICATION)

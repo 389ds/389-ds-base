@@ -15,7 +15,6 @@
 */
 
 #include "repl5.h"
-#include "windowsrepl.h"
 #include "repl5_prot_private.h"
 
 #define PROTOCOL_5_INCREMENTAL 1

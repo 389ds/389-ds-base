@@ -15,8 +15,9 @@ replica locked. Seems like right thing to do.
 */
 
 #include "repl5.h"
-#include "ldappr.h"
 #include "windowsrepl.h"
+#include "ldappr.h"
+#include "slap.h"
 
 typedef struct repl_connection
 {
@@ -108,6 +109,8 @@ windows_conn_new(Repl_Agmt *agmt)
 {
 	Repl_Connection *rpc;
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_new\n", 0, 0, 0 );
+
 	rpc = (Repl_Connection *)slapi_ch_malloc(sizeof(repl_connection));
 	if ((rpc->lock = PR_NewLock()) == NULL)
 	{
@@ -138,9 +141,11 @@ windows_conn_new(Repl_Agmt *agmt)
 	rpc->timeout.tv_usec = 0;
 	rpc->flag_agmt_changed = 0;
 	rpc->plain = NULL;
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_new\n", 0, 0, 0 );
 	return rpc;
 loser:
 	windows_conn_delete(rpc);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_new - loser\n", 0, 0, 0 );
 	return NULL;
 }
 
@@ -152,9 +157,11 @@ static PRBool
 windows_conn_connected(Repl_Connection *conn)
 {
 	PRBool return_value;
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_connected\n", 0, 0, 0 );
 	PR_Lock(conn->lock);
 	return_value = STATE_CONNECTED == conn->state;
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connected\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -165,12 +172,14 @@ windows_conn_connected(Repl_Connection *conn)
 static void
 windows_conn_delete_internal(Repl_Connection *conn)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_delete_internal\n", 0, 0, 0 );
 	PR_ASSERT(NULL != conn);
 	close_connection_internal(conn);
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free((void **)&conn->hostname);
 	slapi_ch_free((void **)&conn->binddn);
 	slapi_ch_free((void **)&conn->plain);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_delete_internal\n", 0, 0, 0 );
 }
 
 /*
@@ -181,6 +190,8 @@ void
 windows_conn_delete(Repl_Connection *conn)
 {
 	PRBool destroy_it = PR_FALSE;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_delete\n", 0, 0, 0 );
 
 	PR_ASSERT(NULL != conn);
 	PR_Lock(conn->lock);
@@ -207,6 +218,7 @@ windows_conn_delete(Repl_Connection *conn)
 	{
 		windows_conn_delete_internal(conn);
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_delete\n", 0, 0, 0 );
 }
 
 
@@ -217,10 +229,12 @@ windows_conn_delete(Repl_Connection *conn)
 void
 windows_conn_get_error(Repl_Connection *conn, int *operation, int *error)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_get_error\n", 0, 0, 0 );
 	PR_Lock(conn->lock);
 	*operation = conn->last_operation;
 	*error = conn->last_ldap_error;
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_get_error\n", 0, 0, 0 );
 }
 
 
@@ -250,6 +264,8 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	LDAPControl **loc_returned_controls;
 	const char *op_string = NULL;
 	const char *extra_op_string = NULL;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_perform_operation\n", 0, 0, 0 );
 
 	server_controls[0] = NULL;
 
@@ -432,11 +448,111 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		 */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_perform_operation\n", 0, 0, 0 );
+	return return_value;
+}
+
+/* Copied from the chaining backend*/
+static Slapi_Entry * 
+windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
+
+	Slapi_Entry * e = slapi_entry_alloc();
+	char * a=NULL;
+	BerElement * ber=NULL;
+
+	if ( e == NULL ) return NULL;
+	if (msg == NULL) {
+		slapi_entry_free(e);
+		return NULL;
+	}
+	
+	/*
+	 * dn not allocated by slapi
+	 * attribute type and values ARE allocated
+	 */
+
+        slapi_entry_set_dn( e, ldap_get_dn( ld, msg ) );
+ 
+        for ( a = ldap_first_attribute( ld, msg, &ber ); a!=NULL; 
+              a=ldap_next_attribute( ld, msg, ber ) ) {
+            if(attrsonly) {
+                slapi_entry_add_value(e, a, (Slapi_Value *)NULL);
+		ldap_memfree(a);
+            } else {
+                struct  berval ** aVal = ldap_get_values_len( ld, msg, a);
+                slapi_entry_add_values( e, a, aVal);
+                
+                ldap_memfree(a);
+                ldap_value_free_len(aVal);
+            }
+        }
+    if ( NULL != ber )
+        ldap_ber_free( ber, 0 );
+
+    return e;
+}
+
+ConnResult
+windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry)
+{
+	ConnResult return_value = 0;
+	int ldap_rc = 0;
+	LDAPMessage *res = NULL;
+	int not_unique = 0;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_search_entry\n", 0, 0, 0 );
+
+	*entry = NULL;
+
+	if (windows_conn_connected(conn))
+	{
+		ldap_rc = ldap_search_ext_s(conn->ld, searchbase, LDAP_SCOPE_SUBTREE,
+			filter, NULL, 0 /* attrsonly */,
+			NULL , NULL /* client controls */,
+			&conn->timeout, 0 /* sizelimit */, &res);
+		if (LDAP_SUCCESS == ldap_rc)
+		{
+			LDAPMessage *message = ldap_first_entry(conn->ld, res);
+			LDAPMessage *next_entry = NULL;
+			if (NULL != entry)
+			{
+				*entry = windows_LDAPMessage2Entry(conn->ld,message,0);
+			}
+			/* See if there are any more entries : if so then that's an error
+			 * but we still need to get them to avoid gumming up the connection
+			 */
+			while (NULL != ( next_entry = ldap_next_entry(conn->ld,res))) 
+			{
+				not_unique = 1;
+			}
+			return_value = CONN_OPERATION_SUCCESS;
+		}
+		else if (IS_DISCONNECT_ERROR(ldap_rc))
+		{
+			windows_conn_disconnect(conn);
+			return_value = CONN_NOT_CONNECTED;
+		}
+		else
+		{
+			return_value = CONN_OPERATION_FAILED;
+		}
+		conn->last_ldap_error = ldap_rc;
+		if (NULL != res)
+		{
+			ldap_msgfree(res);
+			res = NULL;
+		}
+	}
+	else
+	{
+		return_value = CONN_NOT_CONNECTED;
+	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_search_entry\n", 0, 0, 0 );
 	return return_value;
 }
 
 ConnResult
-perform_search(Repl_Connection *conn)
+send_dirsync_search(Repl_Connection *conn)
 {
 	int rc;
 	ConnResult return_value;
@@ -449,23 +565,31 @@ perform_search(Repl_Connection *conn)
 	char* dn = NULL;
 	int i=0;
 	int num_comp=0;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_dirsync_search\n", 0, 0, 0 );
 	
 	/* need to strip the dn down to dc= */
-	/* XXX: this is not the most elegant way of doing this */
-	old_dn = slapi_sdn_get_ndn( windows_private_get_windows_replarea(conn->agmt) );
+	old_dn = slapi_sdn_get_ndn( windows_private_get_windows_subtree(conn->agmt) );
 	dn = strstr(old_dn, "dc=");
 
 	if (windows_conn_connected(conn))
 	{
 		if (conn->supports_dirsync == 0)
+		{
 			server_controls[0] = NULL; /* unsupported */
-		else
+		} else 
+		{
+			/* DBDB: I'm pretty sure that the control is leaked from here */
+			/* Purify agrees */
 			server_controls[0] = windows_private_dirsync_control(conn->agmt); /* yes, or don't know */
+		}
 
 		server_controls[1] = NULL;
 		conn->last_operation = CONN_SEARCH;
 		conn->status = STATUS_SEARCHING;
 		op_string = "search";
+
+		LDAPDebug( LDAP_DEBUG_REPL, "Sending dirsync search request\n", 0, 0, 0 );
 
 		rc = ldap_search_ext( conn->ld, dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", /* filter */
 							  NULL /*attrs */,  PR_FALSE, server_controls, NULL, /* ClientControls */
@@ -473,9 +597,6 @@ perform_search(Repl_Connection *conn)
 
 		if (LDAP_SUCCESS == rc)
 		{
-			
-			int setlevel = 0;
-			int finished = 0;
 			return_value = 0;
 		}
 		else
@@ -496,6 +617,11 @@ perform_search(Repl_Connection *conn)
 				return_value = CONN_OPERATION_FAILED;
 			}
 		}
+		if (server_controls[0])
+		{
+			ldap_control_free(server_controls[0]);
+		}
+		
 	}
 	else
 	{
@@ -505,6 +631,7 @@ perform_search(Repl_Connection *conn)
 		 */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_dirsync_search\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -516,10 +643,14 @@ ConnResult
 windows_conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
 	LDAPControl *update_control, LDAPControl ***returned_controls)
 {
-	return windows_perform_operation(conn, CONN_ADD, dn, attrs, NULL /* newrdn */,
+	ConnResult res = 0;
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_add\n", 0, 0, 0 );
+	res = windows_perform_operation(conn, CONN_ADD, dn, attrs, NULL /* newrdn */,
 		NULL /* newparent */, 0 /* deleteoldrdn */, update_control,
 		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
 		NULL /* retdatap */, returned_controls);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_add\n", 0, 0, 0 );
+	return res;
 }
 
 
@@ -530,6 +661,8 @@ ConnResult
 windows_conn_send_delete(Repl_Connection *conn, const char *dn,
 	LDAPControl *update_control, LDAPControl ***returned_controls)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_delete\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_delete\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_DELETE, dn, NULL /* attrs */,
 		NULL /* newrdn */, NULL /* newparent */, 0 /* deleteoldrdn */,
 		update_control, NULL /* extop OID */, NULL /* extop payload */,
@@ -544,6 +677,8 @@ ConnResult
 windows_conn_send_modify(Repl_Connection *conn, const char *dn, LDAPMod **mods,
 	LDAPControl *update_control, LDAPControl ***returned_controls)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_modify\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_modify\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_MODIFY, dn, mods, NULL /* newrdn */,
 		NULL /* newparent */, 0 /* deleteoldrdn */, update_control,
 		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
@@ -558,6 +693,8 @@ windows_conn_send_rename(Repl_Connection *conn, const char *dn,
 	const char *newrdn, const char *newparent, int deleteoldrdn,
 	LDAPControl *update_control, LDAPControl ***returned_controls)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_rename\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_rename\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_RENAME, dn, NULL /* attrs */,
 		newrdn, newparent, deleteoldrdn, update_control,
 		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
@@ -578,6 +715,9 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 	char *a = "";
 	char *dn = "";
 	BerElement  *ber = NULL;
+	
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_get_search_result\n", 0, 0, 0 );
+
 	if (windows_conn_connected(conn))
 	{
 		rc = ldap_result( conn->ld, LDAP_RES_ANY, 0, &conn->timeout, &res );
@@ -585,49 +725,48 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 		case 0:
 		case -1:
 		case LDAP_RES_SEARCH_REFERENCE:
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "error, rc=%d\n", rc);
-			ldap_msgfree( res );
+			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "error in windows_conn_get_search_result, rc=%d\n", rc);
 			break;
 		case LDAP_RES_SEARCH_RESULT:
 			{
-				LDAPControl **returned_controls;
-				int code=0;
-				int parse_rc;
-				parse_rc = ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 1 );
-				windows_private_update_dirsync_control(conn->agmt, returned_controls);
+				LDAPControl **returned_controls = NULL;
+				int code = 0;
+				int parse_rc = 0;
+				/* Purify says this is a leak : */
+				parse_rc = ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 0 );
+				if (returned_controls)
+				{
+					windows_private_update_dirsync_control(conn->agmt, returned_controls);
+					ldap_controls_free(returned_controls);
+				}
+				if (windows_private_dirsync_has_more(conn->agmt)) {
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received hasmore from dirsync\n", 0);
+				}
 			} 
 			break;
 		case LDAP_RES_SEARCH_ENTRY:
 			{
 				if (( dn = ldap_get_dn( conn->ld, res )) != NULL ) 
 				{
-					slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"found an entry %s\n", dn);
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
 					lm = ldap_first_entry( conn->ld, res );			
-					e = slapi_entry_alloc();
-					slapi_entry_init(e, dn, NULL);
-					for ( a = ldap_first_attribute( conn->ld, lm, &ber ); a != NULL; a = ldap_next_attribute( conn->ld, lm, ber ) ) 
-					{
-						int i =0;				
-						char  **vals;
-									
-						if ((vals = ldap_get_values( conn->ld, lm, a)) != NULL ) 
-						{
-							for ( i = 0; vals[i] != NULL; i++ ) 
-							{							
-								slapi_entry_add_string (e, a, vals[i]);							
-							}
-						ldap_value_free( vals );
-						}
-					}
+					e = windows_LDAPMessage2Entry(conn->ld,lm,0);
+					ldap_memfree(dn);
 				}
 			}
 			break;
 
-		} // switch
-	} //if 
+		} /* switch */
+	} /* if */ 
 
+	if (res) 
+	{
+		ldap_msgfree( res );
+		res = NULL;
+	}
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_get_search_result\n", 0, 0, 0 );
 	return e;
-
 }
 
 
@@ -639,6 +778,8 @@ windows_conn_send_extended_operation(Repl_Connection *conn, const char *extop_oi
 	struct berval *payload, char **retoidp, struct berval **retdatap,
 	LDAPControl *update_control, LDAPControl ***returned_controls)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_extended_operation\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_extended_operation\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_EXTENDED_OPERATION, NULL /* dn */, NULL /* attrs */,
 		NULL /* newrdn */, NULL /* newparent */,  0 /* deleteoldrdn */,
 		update_control, extop_oid, payload, retoidp, retdatap,
@@ -664,6 +805,8 @@ windows_conn_read_entry_attribute(Repl_Connection *conn, const char *dn,
 	LDAPControl *server_controls[2];
 	LDAPMessage *res = NULL;
 	char *attrs[2];
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_read_entry_attribute\n", 0, 0, 0 );
 
 	PR_ASSERT(NULL != type);
 	if (windows_conn_connected(conn))
@@ -705,6 +848,7 @@ windows_conn_read_entry_attribute(Repl_Connection *conn, const char *dn,
 	{
 		return_value = CONN_NOT_CONNECTED;
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_read_entry_attribute\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -716,6 +860,8 @@ windows_conn_read_entry_attribute(Repl_Connection *conn, const char *dn,
 const char *
 windows_conn_get_status(Repl_Connection *conn)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_get_status\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_get_status\n", 0, 0, 0 );
 	return conn->status;
 }
 
@@ -728,6 +874,7 @@ windows_conn_get_status(Repl_Connection *conn)
 void
 windows_conn_cancel_linger(Repl_Connection *conn)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_cancel_linger\n", 0, 0, 0 );
 	PR_ASSERT(NULL != conn);
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
@@ -750,6 +897,7 @@ windows_conn_cancel_linger(Repl_Connection *conn)
 			agmt_get_long_name(conn->agmt));
 	}
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_cancel_linger\n", 0, 0, 0 );
 }
 
 
@@ -764,6 +912,8 @@ linger_timeout(time_t event_time, void *arg)
 {
 	PRBool delete_now;
 	Repl_Connection *conn = (Repl_Connection *)arg;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> linger_timeout\n", 0, 0, 0 );
 
 	PR_ASSERT(NULL != conn);
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -782,6 +932,7 @@ linger_timeout(time_t event_time, void *arg)
 	{
 		windows_conn_delete_internal(conn);
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= linger_timeout\n", 0, 0, 0 );
 }
 
 
@@ -793,6 +944,8 @@ void
 windows_conn_start_linger(Repl_Connection *conn)
 {
 	time_t now;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_start_linger\n", 0, 0, 0 );
 
 	PR_ASSERT(NULL != conn);
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -820,6 +973,7 @@ windows_conn_start_linger(Repl_Connection *conn)
 		conn->status = STATUS_LINGERING;
 	}
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_start_linger\n", 0, 0, 0 );
 }
 
 
@@ -843,8 +997,13 @@ windows_conn_connect(Repl_Connection *conn)
 	ConnResult return_value = CONN_OPERATION_SUCCESS;
 	int pw_ret = 1;
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_connect\n", 0, 0, 0 );
+
 	/** Connection already open just return SUCCESS **/
-	if(conn->state == STATE_CONNECTED) return return_value;
+	if(conn->state == STATE_CONNECTED) {
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
+		return return_value;
+	}
 
 	PR_Lock(conn->lock);
 	if (conn->flag_agmt_changed) {
@@ -882,6 +1041,7 @@ windows_conn_connect(Repl_Connection *conn)
 			return_value = CONN_OPERATION_FAILED;
 			conn->last_ldap_error = LDAP_INVALID_CREDENTIALS;
 			conn->state = STATE_DISCONNECTED;
+			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
 			return (return_value);
 		} /* Else, does not mean that the plain is correct, only means the we had no internal
 		   decoding pb */
@@ -915,6 +1075,7 @@ windows_conn_connect(Repl_Connection *conn)
 			conn->last_operation = CONN_INIT;
 			ber_bvfree(creds);
 			creds = NULL;
+			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
 			return CONN_SSL_NOT_ENABLED;
 		} else
 		{
@@ -944,6 +1105,7 @@ windows_conn_connect(Repl_Connection *conn)
 				secure ? "secure " : "");
 			ber_bvfree(creds);
 			creds = NULL;
+			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
 			return return_value;
 		}
 		
@@ -1004,6 +1166,7 @@ windows_conn_connect(Repl_Connection *conn)
 		conn->state = STATE_CONNECTED;
 	}
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -1011,6 +1174,8 @@ windows_conn_connect(Repl_Connection *conn)
 static void
 close_connection_internal(Repl_Connection *conn)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> close_connection_internal\n", 0, 0, 0 );
+
 	if (NULL != conn->ld)
 	{
 		/* Since we call slapi_ldap_init, 
@@ -1023,15 +1188,18 @@ close_connection_internal(Repl_Connection *conn)
 	conn->supports_ds50_repl = -1;
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 		"%s: Disconnected from the consumer\n", agmt_get_long_name(conn->agmt));
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= close_connection_internal\n", 0, 0, 0 );
 }
 
 void
 windows_conn_disconnect(Repl_Connection *conn)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_disconnect\n", 0, 0, 0 );
 	PR_ASSERT(NULL != conn);
 	PR_Lock(conn->lock);
 	close_connection_internal(conn);
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_disconnect\n", 0, 0, 0 );
 }
 
 
@@ -1050,6 +1218,8 @@ windows_conn_replica_supports_ds5_repl(Repl_Connection *conn)
 {
 	ConnResult return_value;
 	int ldap_rc;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_replica_supports_ds5_repl\n", 0, 0, 0 );
 
 	if (windows_conn_connected(conn))
 	{
@@ -1118,6 +1288,7 @@ windows_conn_replica_supports_ds5_repl(Repl_Connection *conn)
 		/* Not connected */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_replica_supports_ds5_repl\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -1127,6 +1298,8 @@ windows_conn_replica_supports_dirsync(Repl_Connection *conn)
 {
 	ConnResult return_value;
 	int ldap_rc;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_replica_supports_dirsync\n", 0, 0, 0 );
 
 	if (windows_conn_connected(conn))
 	{
@@ -1180,6 +1353,7 @@ windows_conn_replica_supports_dirsync(Repl_Connection *conn)
 		/* Not connected */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_replica_supports_dirsync\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -1194,6 +1368,8 @@ attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type,
 	const char *value)
 {
 	int return_value = 0;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> attribute_string_value_present\n", 0, 0, 0 );
 
 	if (NULL != entry)
 	{
@@ -1228,6 +1404,7 @@ attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type,
 		if (NULL != atype)
 			ldap_memfree(atype);
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= attribute_string_value_present\n", 0, 0, 0 );
 	return return_value;
 }
 
@@ -1251,20 +1428,24 @@ attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type,
 void
 windows_conn_set_timeout(Repl_Connection *conn, long timeout)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_set_timeout\n", 0, 0, 0 );
 	PR_ASSERT(NULL != conn);
 	PR_ASSERT(timeout >= 0);
 	PR_Lock(conn->lock);
 	conn->timeout.tv_sec = timeout;
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_timeout\n", 0, 0, 0 );
 }
 
 void windows_conn_set_agmt_changed(Repl_Connection *conn)
 {
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_set_agmt_changed\n", 0, 0, 0 );
 	PR_ASSERT(NULL != conn);
 	PR_Lock(conn->lock);
 	if (NULL != conn->agmt)
 		conn->flag_agmt_changed = 1;
 	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed\n", 0, 0, 0 );
 }
 
 /*
@@ -1286,6 +1467,8 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	int			rc;
 
 	char * optype; /* ldap_simple_bind or slapd_SSL_client_bind */
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_set_agmt_changed\n", 0, 0, 0 );
 
 	if ( conn->transport_flags == TRANSPORT_FLAG_SSL )
 	{
@@ -1319,6 +1502,8 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 					ldap_err2string(rc));
 				}
 
+				LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
+
 				return (CONN_OPERATION_FAILED);
 			}
 		}
@@ -1326,6 +1511,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 		{
 			if( ( msgid = do_simple_bind( conn, ld, binddn, password ) ) == -1 )
 			{
+				LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
 				return (CONN_OPERATION_FAILED);
 			}
 		}
@@ -1335,6 +1521,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 		optype = "ldap_simple_bind";
 		if( ( msgid = do_simple_bind( conn, ld, binddn, password ) ) == -1 ) 
 		{
+			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
 			return (CONN_OPERATION_FAILED);
 		}
 	}
@@ -1344,7 +1531,9 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 			"%s: Received error from consumer for %s operation\n", 
+
 			agmt_get_long_name(conn->agmt), optype);
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
 
 		return (CONN_OPERATION_FAILED);
 	}
@@ -1357,6 +1546,8 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 			"%s: Received error from consumer for %s operation\n",
 			agmt_get_long_name(conn->agmt), optype);
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
 
 		return (CONN_OPERATION_FAILED);
 	}
@@ -1393,6 +1584,8 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			ldap_controls_free( ctrls );
 		}
 
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_SUCCESS\n", 0, 0, 0 );
+
 		return (CONN_OPERATION_SUCCESS);
 	}
 	else 
@@ -1404,6 +1597,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			agmt_get_long_name(conn->agmt), binddn, rc, errmsg);
 
 		conn->last_ldap_error = rc;	/* specific error */
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
 		return (CONN_OPERATION_FAILED);
 	}
 }
@@ -1412,6 +1606,8 @@ static int
 do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 {
 	int msgid;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> do_simple_bind\n", 0, 0, 0 );
 
 	if( ( msgid = ldap_simple_bind( ld, binddn, password ) ) == -1 ) 
 	{
@@ -1440,6 +1636,7 @@ do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 			"%s: Simple bind resumed\n",
 			agmt_get_long_name(conn->agmt));
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= do_simple_bind\n", 0, 0, 0 );
 	return msgid;
 }
 
@@ -1449,9 +1646,13 @@ PRTime2time_t (PRTime tm)
 {
     PRInt64 rt;
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> PRTime2time_t\n", 0, 0, 0 );
+
     PR_ASSERT (tm);
     
     LL_DIV(rt, tm, PR_USEC_PER_SEC);
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= PRTime2time_t\n", 0, 0, 0 );
 
     return (time_t)rt;
 }
@@ -1460,11 +1661,15 @@ static Slapi_Eq_Context
 repl5_start_debug_timeout(int *setlevel)
 {
 	Slapi_Eq_Context eqctx = 0;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> repl5_start_debug_timeout\n", 0, 0, 0 );
+
 	if (s_debug_timeout && s_debug_level) {
 		time_t now = time(NULL);
 		eqctx = slapi_eq_once(repl5_debug_timeout_callback, setlevel,
 							  s_debug_timeout + now);
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= repl5_start_debug_timeout\n", 0, 0, 0 );
 	return eqctx;
 }
 
@@ -1474,24 +1679,30 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 	char buf[20];
 	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> repl5_stop_debug_timeout\n", 0, 0, 0 );
+
 	if (eqctx && !*setlevel) {
 		int found = slapi_eq_cancel(eqctx);
 	}
 
 	if (s_debug_timeout && s_debug_level && *setlevel) {
-		void config_set_errorlog_level(const char *type, char *buf, char *msg, int apply);
+		/* No longer needed as we are including the one in slap.h */
 		sprintf(buf, "%d", 0);
 		config_set_errorlog_level("nsslapd-errorlog-level", buf, msg, 1);
 	}
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= repl5_stop_debug_timeout\n", 0, 0, 0 );
 }
 
 static void
 repl5_debug_timeout_callback(time_t when, void *arg)
 {
 	int *setlevel = (int *)arg;
-	void config_set_errorlog_level(const char *type, char *buf, char *msg, int apply);
+	/* No longer needed as we are including the one in slap.h */
 	char buf[20];
 	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> repl5_debug_timeout_callback\n", 0, 0, 0 );
 
 	*setlevel = 1;
 	sprintf(buf, "%d", s_debug_level);
@@ -1500,4 +1711,6 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 		"repl5_debug_timeout_callback: set debug level to %d at %d\n",
 		s_debug_level, when);
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= repl5_debug_timeout_callback\n", 0, 0, 0 );
 }

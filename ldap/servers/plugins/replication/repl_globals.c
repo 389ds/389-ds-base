@@ -93,7 +93,9 @@ const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
 const char *type_nsds7DirectoryReplicaArea = "nsds7DirectoryReplicaSubtree";
 const char *type_nsds7CreateNewUsers = "nsds7NewWinUserSyncEnabled";
-
+const char *type_nsds7CreateNewGroups = "nsds7NewWinGroupSyncEnabled";
+const char *type_nsds7WindowsDomain = "nsds7WindowsDomain";
+const char *type_nsds7DirsyncCookie = "nsds7DirsyncCookie";
 
 /* To Allow Consumer Initialisation when adding an agreement - */
 const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";

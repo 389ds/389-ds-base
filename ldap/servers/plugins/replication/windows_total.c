@@ -5,42 +5,9 @@
  * END COPYRIGHT BLOCK **/
 
 
-/*
- repl5_total.c - code that implements a total replica update.
-
- The requestValue of the NSDS50ReplicationEntry looks like this:
-
-     requestValue ::= SEQUENCE { 
-         uniqueid OCTET STRING, 
-         dn LDAPDN, 
-         annotatedAttributes AnnotatedAttributeList 
-     } 
-
-     AnnotatedAttributeList ::= SET OF SEQUENCE { 
-         attributeType AttributeDescription, 
-         attributeDeletionCSN OCTET STRING OPTIONAL,
-         attributeDeleted BOOLEAN DEFAULT FALSE, 
-         annotatedValues SET OF AnnotatedValue 
-     } 
-
-     AnnotatedValue ::= SEQUENCE { 
-         value AttributeValue, 
-         valueDeleted BOOLEAN DEFAULT FALSE, 
-         valueCSNSet SEQUENCE OF ValueCSN, 
-     } 
-
-    ValueCSN ::= SEQUENCE {
-        CSNType ENUMERATED { 
-               valuePresenceCSN           (1),
-               valueDeletionCSN           (2), 
-               valueDistinguishedCSN      (3) 
-          } 
-        CSN OCTET STRING,
-    }
-*/
 
 #include "repl5.h"
-#include "windowsrepl.h"
+#include "slap.h"
 		
 #define CSN_TYPE_VALUE_UPDATED_ON_WIRE 1
 #define CSN_TYPE_VALUE_DELETED_ON_WIRE 2
@@ -72,6 +39,8 @@ my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
 	int rc = -1;
 	int csn_type_as_ber = -1;
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> my_ber_printf_csn\n", 0, 0, 0 );
+
 	switch (t)
 	{
 	    case CSN_TYPE_VALUE_UPDATED:
@@ -88,6 +57,7 @@ my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
 	    default:
             slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "my_ber_printf_csn: unknown "
 			                "csn type %d encountered.\n", (int)t);
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_printf_csn\n", 0, 0, 0 );
         return -1;
 	}
 
@@ -106,6 +76,8 @@ my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
 		BER_DEBUG("{e(csn type)s(csn)}");
     }
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_printf_csn\n", 0, 0, 0 );
+
 	return rc;
 }
 
@@ -122,6 +94,8 @@ my_ber_printf_value(BerElement *ber, const char *type, const Slapi_Value *value,
     void *cookie;
     CSN *csn;
     CSNType t;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> my_ber_printf_value\n", 0, 0, 0 );
 
     bval = slapi_value_get_berval(value);
 	BER_DEBUG("{o(value)");
@@ -183,6 +157,7 @@ my_ber_printf_value(BerElement *ber, const char *type, const Slapi_Value *value,
 	rc = 0;
 
 done:
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_printf_value\n", 0, 0, 0 );
 	return rc;
 
 }
@@ -195,6 +170,8 @@ my_ber_printf_attr (BerElement *ber, Slapi_Attr *attr, PRBool deleted)
 	char *type;
     int i;
     const CSN *csn;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> my_ber_printf_attr\n", 0, 0, 0 );
 			
     /* First, send the type */
 	slapi_attr_get_type(attr, &type);
@@ -272,8 +249,10 @@ my_ber_printf_attr (BerElement *ber, Slapi_Attr *attr, PRBool deleted)
 		goto loser;
 	}
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_printf_attr\n", 0, 0, 0 );
     return 0;
 loser:
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_printf_attr - loser\n", 0, 0, 0 );
     return -1;
 }
 
@@ -291,6 +270,8 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
     char csnstring[CSN_STRSIZE + 1];
 	CSNType csntype;
     char *lasti;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> my_ber_scanf_value\n", 0, 0, 0 );
 
 	PR_ASSERT(ber && value && deleted);
 
@@ -377,6 +358,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 	
     if (attrval)
         ber_bvfree(attrval); 
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_scanf_value\n", 0, 0, 0 );
 	return 0;
 
 loser:
@@ -389,7 +371,7 @@ loser:
     {
         slapi_value_free (value);
     }
-   
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_scanf_value - loser\n", 0, 0, 0 );
 	return -1;
 }
 
@@ -405,6 +387,8 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
     char *str;
     int rc;
     Slapi_Value *value;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> my_ber_scanf_attr\n", 0, 0, 0 );
 
     PR_ASSERT (ber && attr && deleted);
 
@@ -495,6 +479,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
 		goto loser;
 	}
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_scanf_attr\n", 0, 0, 0 );
     return 0;
 loser:
     if (*attr)
@@ -502,6 +487,7 @@ loser:
     if (value)
         slapi_value_free (&value);
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= my_ber_scanf_attr - loser\n", 0, 0, 0 );
     return -1;    
 }
 
@@ -525,6 +511,8 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 	unsigned long tag;
 	int rc;
     PRBool deleted;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> decode_total_update_extop\n", 0, 0, 0 );
 	
 	PR_ASSERT(NULL != pb);
 	PR_ASSERT(NULL != ep);
@@ -645,6 +633,7 @@ free_and_return:
 		ber_free(tmp_bere, 1); 
 		tmp_bere = NULL;
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= decode_total_update_extop\n", 0, 0, 0 );
 	return rc;
 }
 
@@ -659,6 +648,8 @@ ___multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 	Slapi_Entry *e = NULL;
     Slapi_Connection *conn = NULL;
 	int connid, opid;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> ___multimaster_extop_NSDS50ReplicationEntry\n", 0, 0, 0 );
 	
 	connid = 0;
 	slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
@@ -722,6 +713,8 @@ ___multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
             slapi_entry_free (e);
         }
     }
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= ___multimaster_extop_NSDS50ReplicationEntry\n", 0, 0, 0 );
 
 	return rc;
 }
