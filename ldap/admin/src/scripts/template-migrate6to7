@@ -443,6 +443,7 @@ SWITCH: {
 
 @nsds5replicaAttrs = (
 		      'objectclass',
+		      'nsDS5ReplicaName',
 		      'nsDS5ReplicaRoot',
 		      'nsDS5ReplicaType',
 		      'nsDS5ReplicaLegacyConsumer',
@@ -486,6 +487,12 @@ printTrace("\nBackup $serverHome${PATHSEP}config on $serverHome${PATHSEP}config_
 printTrace("\nMigrate the schema...",0);
 MigrateSchema();
 
+#migrate key/cert databases
+# We will migrate the key/cert databases before the dse file because the
+# dse migration may cause SSL to be enabled.
+printTrace("\n\nMigrate key/cert databases...",0,1);
+&MigrateSSL();
+
 # start the server unless it is already started
 &startServer() unless (isDirectoryAlive());
 
@@ -526,10 +533,6 @@ printTrace("\n\nMigrate replicas...",0,1);
 #migrate replication agreements
 printTrace("\n\nMigrate replication agreements...",0,1);
 &MigrateNSDS_replication_agreement();
-
-#migrate key/cert databases
-printTrace("\n\nMigrate key/cert databases...",0,1);
-&MigrateSSL(); 
 
 # migrate certmap.conf
 printTrace("\n\nMigrate Certmap.conf...",0,1);
@@ -1600,7 +1603,7 @@ sub MigrateNSDS5_replica{
     foreach $replica (@new6replicas) {
 	my $DN = $replica->getDN(1);
 	my $newReplica;
-        my @removeAttrs   = qw(nsstate nsds5replicaname nsds5replicachangecount);
+        my @removeAttrs   = qw(nsstate nsds5replicachangecount);
         for (@removeAttrs) {
             $replica->remove($_);
         }
@@ -1906,13 +1909,25 @@ sub migrateChangelog {
         $newchangelogdir = ($newChangelog->getValues($changelogdir))[0];
         stopServer($root,'slapd-'.$newname);
         printTrace("\ncopying $oldchangelogdir${PATHSEP}* to $newchangelogdir",3);
+
+        # Clean destination changelog directory
+        opendir(NEWCLDIR, "$newchangelogdir");
+        while($delfile = readdir(NEWCLDIR)) {
+            if ( -f "$newchangelogdir/$delfile" ) {
+                unlink "$newchangelogdir/$delfile" or die "Can't delete $newchangelogdir/$delfile: $!\n";
+            }
+        }
+
         copyDir("$oldchangelogdir","$newchangelogdir");
 
-	# We need to modify the DBVERSION file for a new verision of the db
-	open(DBVERSION,">$newchangelogdir${PATHSEP}DBVERSION") || die "Can't overwrite $newchangelogdir${PATHSEP}DBVERSION: $! ";
-	print DBVERSION "Changelog5/NSMMReplicationPlugin/3.0";
-	close(DBVERSION);
-
+        # We need to modify the DBVERSION file for a new verision of the db
+        # For 6.21 to 7.0, leave it as 4.0.  For 6.11 to 7.0 we want the server
+        # to perform the migration at startup, so set it to 3.0.
+        if(substr($oldMinor,0,1) < 2) {
+            open(DBVERSION,">$newchangelogdir${PATHSEP}DBVERSION") || die "Can't overwrite $newchangelogdir${PATHSEP}DBVERSION: $! ";
+            print DBVERSION "Changelog5/NSMMReplicationPlugin/3.0";
+            close(DBVERSION);
+        }
         &startServer() unless (isDirectoryAlive());
     }
 }
@@ -2437,12 +2452,15 @@ sub MigrateSSL {
     if (! -d $aliasDir) {
       mkdir($aliasDir, 0750);
     }
-    &stopServer($root,'slapd-'.$newname);
+    &stopServer($root,'slapd-'.$newname) if (isDirectoryAlive());
+
+    my $old_certdb_ver = (substr($oldMinor,0,1) >= 2) ? "8" : "7";
     my $keydb         = "$aliasDir${PATHSEP}slapd-$newname-key3.db"  ;
     my $certdb        = "$aliasDir${PATHSEP}slapd-$newname-cert8.db" ;
-    my $certdb7       = "$aliasDir${PATHSEP}slapd-$newname-cert7.db" ;
+    my $certdb_target = "$aliasDir${PATHSEP}slapd-$newname-cert${old_certdb_ver}.db" ;
     my $old_keydb     = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-key3.db" ;
-    my $old_certdb    = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-cert7.db"; 
+    my $old_certdb    = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-cert${old_certdb_ver}.db";
+
     my $keydb_backup  = "$aliasDir${PATHSEP}slapd-$newname-key3.db_backup"  ;
     my $certdb_backup = "$aliasDir${PATHSEP}slapd-$newname-cert7.db_backup" ;
     if (-f $old_keydb) {
@@ -2471,19 +2489,19 @@ sub MigrateSSL {
 		printMsg("\n$certdb already exists. backup in $certdb_backup ...");
 		&copyBinFile($certdb,$certdb_backup);
 		unlink($certdb) || print "Couldn't delete $certdb : $!\n";
-		&copyBinFile($old_certdb,$certdb7);
+		&copyBinFile($old_certdb,$certdb_target);
 	    }
 	    else {
 		print("\n\n$certdb already exists. Do you want to overwrite it ? [no]: ");
 		my $answer = <STDIN> ;
 		if ($answer =~ /^y|yes$/i) {
 		    unlink($certdb) || print "Couldn't delete $certdb : $!\n";
-		    &copyBinFile($old_certdb,$certdb7);
+		    &copyBinFile($old_certdb,$certdb_target);
 		}
 	    }
 	}
 	else {
-	    &copyBinFile($old_certdb,$certdb7);
+	    &copyBinFile($old_certdb,$certdb_target);
 	}
     }
     # copy the old password file
@@ -2494,7 +2512,7 @@ sub MigrateSSL {
 		  );
     }
     &startServer();
-    if ($PRESERVE) {
+    if ($PRESERVE && $old_certdb_ver == 7) {
 	chown($newuid,$newgid,$certdb) || print "Failed to set uid $newuid gid $newgid on $certdb : $!\n";
 	chmod($mode,$certdb) || print "Failed to set mode $mode on $certdb : $!\n";
     }
@@ -3037,9 +3055,16 @@ sub migrate_credential{
 			chomp($credServerHome = <STDIN>);
 		}
 	}
+
+	my $cur_dir = getCwd();
+	my $migratecreddir = "${quote}$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server";
+	chdir(${migratecreddir}) or die "Could not change directory to $migratecreddir: $!";
+
 # print "\nMigratecred command is: ${quote}$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}$migratecredExecName${quote} -o $credOldHome -n $credServerHome -c @old_value\n";
  
 	my @new_cred   = `${quote}$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}$migratecredExecName${quote} -o $credOldHome -n $credServerHome -c @old_value`;
+
+	chdir(${cur_dir}) or die "Could not change directory back to $cur_dir: $!";
 
  	if ( $? == 0 ) 
 	{
