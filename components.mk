@@ -332,8 +332,7 @@ BINS_TO_PKG_SHARED += $(SECURITY_TOOLS_FULLPATH)
 #  SECURITYLINK += $(OSF1SECURITYHACKOBJ)
 #endif
 
-#SECURITY_FILES=lib,include,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
-SECURITY_FILES=lib,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
+SECURITY_FILES=lib,include,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
 
 ifndef SECURITY_PULL_METHOD
 SECURITY_PULL_METHOD = $(COMPONENT_PULL_METHOD)
@@ -345,9 +344,6 @@ ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(SECURITY_BUILD_DIR) -componentdir $(SECURITY_IMPORT) \
 		-files $(SECURITY_FILES)
-	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
-		-objdir $(SECURITY_BUILD_DIR) -componentdir $(SECURITY_IMPORT)/.. \
-		-files include
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component NSS file $@" ; \
@@ -801,9 +797,8 @@ endif
 $(JSS_DEP): $(CLASS_DEST)
 ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(JSS_PULL_METHOD) \
-		-objdir $(CLASS_DEST)/jss -componentdir $(JSS_RELEASE) \
-		-files xpclass.jar
-	mv $(CLASS_DEST)/jss/xpclass.jar $(CLASS_DEST)/$(JSSJAR)
+		-objdir $(CLASS_DEST) -componentdir $(JSS_RELEASE) \
+		-files $(JSSJAR)
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component JSS file $@" ; \
@@ -896,10 +891,7 @@ $(SASL_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
 		-objdir $(SASL_BUILD_DIR) -componentdir $(SASL_RELEASE) \
-		-files lib
-	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
-		-objdir $(SASL_BUILD_DIR)/include -componentdir $(SASL_RELEASE)/../public \
-		-files .\*
+		-files lib,include
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component SASL file $@" ; \
