@@ -19,6 +19,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <winsock.h>
 extern int getopt();
 extern char *optarg; 
 typedef unsigned char uint8_t;

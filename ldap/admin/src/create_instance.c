@@ -3727,6 +3727,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
         }
     }
 
+#if !defined( XP_WIN32 )
 	/* PAM Pass Through Auth plugin - off by default */
 	fprintf(f, "dn: cn=PAM Pass Through Auth,cn=plugins,cn=config\n");
 	fprintf(f, "objectclass: top\n");
@@ -3750,6 +3751,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
 	fprintf(f, "pamSecure: TRUE\n");
 	fprintf(f, "pamService: ldapserver\n");
 	fprintf(f, "\n");
+#endif /* NO PAM FOR WINDOWS */
 
     fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");

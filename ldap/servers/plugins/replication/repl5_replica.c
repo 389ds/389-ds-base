@@ -2805,8 +2805,6 @@ _replica_get_purge_csn_nolock(const Replica *r)
 	CSN *purge_csn = NULL;
 	CSN **csns = NULL;
 	RUV *ruv;
-	time_t cutoff_time;
-	time_t max_time_in_csn_list;
 	int i;
 
 	if (r->repl_purge_delay > 0)
