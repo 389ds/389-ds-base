@@ -589,20 +589,6 @@ install:: $(SHARED_LIBRARY)
 	$(INSTALL) -m 555 $(SHARED_LIBRARY) $(DIST)/bin
 endif
 
-################################################################################
-## PROGRAM -- this is now needed because final programs are distributed
-##	      through dist and link with dynamic libraries
-
-ifdef PROGRAM
-libs:: $(PROGRAM)
-	$(INSTALL) -m 444 $(PROGRAM) $(DIST)/bin
-
-install:: $(PROGRAM)
-	$(INSTALL) -m 444 $(PROGRAM) $(DIST)/bin
-endif
-
-################################################################################
-
 -include $(DEPENDENCIES)
 
 ifneq ($(OS_ARCH),WINNT)
