@@ -1141,10 +1141,12 @@ typedef char*(*CFP)();
 
 void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *addval, int nvals, int *maxvals);
 
-int re_exec( char *lp );
-char *re_comp( char *pat );
-void re_lock( void );
-int re_unlock( void );
+int slapd_re_exec( char *lp );
+char *slapd_re_comp( char *pat );
+int slapd_re_subs( char *src, char* dst );
+void slapd_re_lock( void );
+int slapd_re_unlock( void );
+int slapd_re_init( void );
 
 
 /* this is the root configuration entry beneath which all plugin
