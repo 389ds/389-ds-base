@@ -7,10 +7,10 @@
 #
 # Makefile for netsite.h
 
-MCOM_ROOT = ../../..
+BUILD_ROOT = ../..
 MODULE=netsiteIncludeBase
 
-include ../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 HDRDEST=$(OBJDIR)/include/base
 
@@ -34,7 +34,7 @@ $(HDRDEST):
 strip:
 depend:
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 $(HDRDEST)/%.h: %.h
 	cat $(PREFIX) $< > $(HDRDEST)/$*.h

@@ -8,12 +8,12 @@
 #
 # Makefile for libldapu.a (ldaputil library)
 #
-MCOM_ROOT=../../..
+BUILD_ROOT=../..
 MODULE=LibLdapUtil
 
 OBJDEST=$(OBJDIR)/lib/ldaputil
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 ifeq ($(ARCH), WINNT)
 LIBS=$(OBJDIR)/lib/libldapu.lib
@@ -24,8 +24,7 @@ endif
 
 LOCAL_DEPS = $(LDAPSDK_DEP)
 
-MCC_INCLUDE=-I$(NSROOT)/include \
-            -I$(MCOM_ROOT)/include \
+MCC_INCLUDE=-I$(BUILD_ROOT)/include \
 			 $(DBM_INCLUDE) $(LDAPSDK_INCLUDE) \
 			 $(SECURITY_INCLUDE) $(NSPR_INCLUDE) 
 

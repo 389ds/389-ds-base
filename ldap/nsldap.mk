@@ -17,28 +17,28 @@
 # This stuff is for UNIX--we wire in absolute paths
 # because it makes the tar'ing easier.
 # On NT we don't bother with this trick.
-# Note that we're setting MCOM_ROOT again,
+# Note that we're setting BUILD_ROOT again,
 # having set it to a relative path above, so
 # we can find the include files.
 ifneq ($(ARCH), WINNT)
 # This seems useless to check for a path of the form word:word if the arch
 # is neq winnt . . .
-MCOM_TMP = $(subst :, , $(shell cd ../../..;pwd))
-MCOM_WORDS = $(words $(MCOM_TMP))
-# convert MCOM_ROOT from relative path to absolute
-#MCOM_ROOT = $(word $(MCOM_WORDS), $(MCOM_TMP))
-ifneq ($(MCOM_WORDS), 1)
-MCOM_DRIVE = $(word 1, $(MCOM_TMP)):
+BUILD_TMP = $(subst :, , $(shell cd ../../..;pwd))
+BUILD_WORDS = $(words $(BUILD_TMP))
+# convert BUILD_ROOT from relative path to absolute
+#BUILD_ROOT = $(word $(BUILD_WORDS), $(BUILD_TMP))
+ifneq ($(BUILD_WORDS), 1)
+BUILD_DRIVE = $(word 1, $(BUILD_TMP)):
 endif
 endif
 
-RELTOP=$(MCOM_ROOT)/ldapserver/built/release
+RELTOP=$(BUILD_ROOT)/built/release
 OBJDIR_BASE = $(notdir $(OBJDIR))
 OBJDIR_BASE_32 = $(notdir $(OBJDIR_32))
 # Release directory for Directory Server
-RELDIR = $(MCOM_DRIVE)$(RELTOP)/$(DIR)/$(OBJDIR_BASE)
-RELDIR_32 = $(MCOM_DRIVE)$(RELTOP)/$(DIR)/$(OBJDIR_BASE_32)
-RELDIR_UNSTRIP = $(MCOM_DRIVE)$(RELTOP)/$(DIR)/$(ARCHPROCESSOR)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-unstripped-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
+RELDIR = $(BUILD_DRIVE)$(RELTOP)/$(DIR)/$(OBJDIR_BASE)
+RELDIR_32 = $(BUILD_DRIVE)$(RELTOP)/$(DIR)/$(OBJDIR_BASE_32)
+RELDIR_UNSTRIP = $(BUILD_DRIVE)$(RELTOP)/$(DIR)/$(ARCHPROCESSOR)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-unstripped-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
 
 # this is the place libraries and plugins go which are used by other
 # components i.e. not specific to slapd and its programs
@@ -68,7 +68,7 @@ else # same place as dll
 LDAP_ADMLIBDIR = $(LDAP_ADMDLLDIR)
 endif
 
-LDAP_SRC = $(MCOM_ROOT)/ldapserver/ldap
+LDAP_SRC = $(BUILD_ROOT)/ldap
 
 LDAP_INSTROOT= $(OBJDIR)
 
@@ -514,6 +514,11 @@ NTSYNCH_DLL=ntsynch-plugin$(DLL_PRESUFFIX)
 PASSTHRU_DLL = passthru-plugin$(DLL_PRESUFFIX)
 
 #
+# Dynamic library, PAM PASS THROUGH AUTHENTICATION PLUGIN
+#
+PAM_PASSTHRU_DLL = pam-passthru-plugin$(DLL_PRESUFFIX)
+
+#
 # Dynamic library, UNIQUE UID CHECKING PLUGIN
 #
 UID_DLL = attr-unique-plugin$(DLL_RESUFFIX)
@@ -581,7 +586,7 @@ endif # SOLARIS
 endif # HPUX
 
 ifeq ($(BUILD_MODULE), HTTP_ADMIN)
-ADMININCLUDEDIR = $(MCOM_ROOT)/ldapserver/include
+ADMININCLUDEDIR = $(BUILD_ROOT)/include
 endif
 
 ifndef ADMSONAME
@@ -677,8 +682,8 @@ else
 #DL=-ldl
 #
 #the new default, which is much better when it comes to porting this product
-NSHTTPD="you need to edit ldapserver/ldap/nsldap.mk for $(ARCH)"
-DYN_NSHTTPD="you need to edit ldapserver/ldap/nsldap.mk for $(ARCH)"
+NSHTTPD="you need to edit ldap/nsldap.mk for $(ARCH)"
+DYN_NSHTTPD="you need to edit ldap/nsldap.mk for $(ARCH)"
 endif # UnixWare
 endif # ReliantUNIX
 endif # Linux
@@ -693,7 +698,7 @@ endif # WINNT
 
 ADMIN_SECGLUEOBJ=$(BASIC_OBJDIR)-admin/admin-lib/secglue.o
 
-SECGLUEOBJ=$(MCOM_ROOT)/ldapserver/built/$(NS_BUILD_FLAVOR)/httpd-lib/secglue.o
+SECGLUEOBJ=$(BUILD_ROOT)/built/$(NS_BUILD_FLAVOR)/httpd-lib/secglue.o
 # XXXggood need to pick up the /share/builds versions of the shared libs
 # because ones we build here don't appear to be compatible with existing
 # shared libs, which are used by admin server.
@@ -875,10 +880,6 @@ DYNAMIC_DEPLIBS=$(LDAP_COMMON_LIBS)
 DYNAMIC_DEPLINK=$(LDAP_COMMON_LIBS)
 endif
 
-ifeq ($(ARCH), WINNT)
-LIBDBM_LIB =	$(MCOM_ROOT)/dist/$(NSOBJDIR_NAME)/lib/libdbm.lib
-endif
-
 ifndef DEPLIBS
 DEPLIBS = $(DYNAMIC_DEPLIBS)
 DEPLINK = $(DYNAMIC_DEPLINK)
@@ -897,7 +898,7 @@ HTMLDEFS=-DPRODUCT_NAME=$(PRODUCT) -D$(ARCH) -DARCH=$(PRETTY_ARCH)
 #
 ifeq ($(ARCH), WINNT)
 
-PLATFORM_INCLUDE = -I$(MCOM_ROOT)/ldapserver/include/nt \
+PLATFORM_INCLUDE = -I$(BUILD_ROOT)/include/nt \
     -I$(LDAP_SRC)/libraries/libutil
 
 SYSERRLIST_IN_STDIO=-DSYSERRLIST_IN_STDIO
@@ -1130,8 +1131,8 @@ PLATFORMCFLAGS=	-D_AIX32_CURSES -DUSE_PTHREADS -DHW_THREADS \
 PLATFORMLIBS= 
 THREADS= -DTHREAD_AIX_PTHREADS
 #SECGLUE= moresecglue.o \
-#        $(MCOM_ROOT)/nspr/src/$(NC_BUILD_FLAVOR)/longlong.o \
-#        $(MCOM_ROOT)/nspr/src/$(NC_BUILD_FLAVOR)/prprf.o
+#        $(BUILD_ROOT)/nspr/src/$(NC_BUILD_FLAVOR)/longlong.o \
+#        $(BUILD_ROOT)/nspr/src/$(NC_BUILD_FLAVOR)/prprf.o
 
 # JCM - Use -bnoquiet to find out which symbols can't be resolved.
 DLL_LDFLAGS= -bexpall -brtl -bM:SRE -bnoentry \
@@ -1266,7 +1267,7 @@ endif #UNIXWARE
 
 ifeq ($(ARCH), UnixWare)
 # Gemini: UnixWare7 (SVR5), or UNIXWARE2.1.x (SVR4) with the UDK
-SYSV_REL := $(shell $(MCOM_ROOT)/ldapserver/nsarch -f | sed 's/UnixWare //')
+SYSV_REL := $(shell $(BUILD_ROOT)/nsarch -f | sed 's/UnixWare //')
 ifeq ($(SYSV_REL),5)
 PLAT_ADMCFLAGS= -DUnixWare -DSVR5 -DSYSV
 PLATFORMCFLAGS= -DUnixWare -DSYSV -DSVR5
@@ -1745,7 +1746,7 @@ INCLUDES += -I$(LIBDB_MAKEDIR)/include
 endif
 
 #Changes required for ACL
-ACLINC = $(MCOM_ROOT)/ldapserver/include/libaccess
+ACLINC = $(BUILD_ROOT)/include/libaccess
 #ACLDIR = -$(LIBPATH)$(LDAP_LIBDIR)
 ACLLIB = -laccess -lbase -lsi18n
 # end of changes

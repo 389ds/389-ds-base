@@ -326,13 +326,14 @@ BINS_TO_PKG_SHARED += $(SECURITY_TOOLS_FULLPATH)
 #ifeq ($(ARCH), OSF1)
 #OSF1SECURITYHACKOBJ = $(OBJDIR)/osf1securityhack.o
 
-#$(OSF1SECURITYHACKOBJ): $(MCOM_ROOT)/ldapserver/osf1securityhack.c
+#$(OSF1SECURITYHACKOBJ): $(BUILD_ROOT)/osf1securityhack.c
 #	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) $< -o $@
 
 #  SECURITYLINK += $(OSF1SECURITYHACKOBJ)
 #endif
 
-SECURITY_FILES=lib,include,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
+#SECURITY_FILES=lib,include,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
+SECURITY_FILES=lib,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
 
 ifndef SECURITY_PULL_METHOD
 SECURITY_PULL_METHOD = $(COMPONENT_PULL_METHOD)
@@ -344,6 +345,9 @@ ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(SECURITY_BUILD_DIR) -componentdir $(SECURITY_IMPORT) \
 		-files $(SECURITY_FILES)
+	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
+		-objdir $(SECURITY_BUILD_DIR) -componentdir $(SECURITY_IMPORT)/.. \
+		-files include
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component NSS file $@" ; \
@@ -797,8 +801,9 @@ endif
 $(JSS_DEP): $(CLASS_DEST)
 ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(JSS_PULL_METHOD) \
-		-objdir $(CLASS_DEST) -componentdir $(JSS_RELEASE) \
-		-files $(JSSJAR)
+		-objdir $(CLASS_DEST)/jss -componentdir $(JSS_RELEASE) \
+		-files xpclass.jar
+	mv $(CLASS_DEST)/jss/xpclass.jar $(CLASS_DEST)/$(JSSJAR)
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component JSS file $@" ; \
@@ -816,7 +821,7 @@ ADMIN_FILE_TAR = admserv.tar
 ADMSDKOBJDIR = $(NSCONFIG)$(NSOBJDIR_TAG).OBJ
 IMPORTADMINSRV_BASE=$(COMPONENTS_DIR)/$(ADMIN_REL)/$(ADMIN_REL_DATE)
 IMPORTADMINSRV = $(IMPORTADMINSRV_BASE)/$(NSOBJDIR_NAME_32)
-ADMSERV_DIR=$(ABS_ROOT)/dist/$(NSOBJDIR_NAME)/admserv
+ADMSERV_DIR=$(ABS_ROOT_PARENT)/dist/$(NSOBJDIR_NAME)/admserv
 ADMSERV_DEP = $(ADMSERV_DIR)/setup$(EXE_SUFFIX)
 
 ifdef FORTEZZA
@@ -845,7 +850,7 @@ ADMSERV_DEPS = $(COMPONENT_DEPS)
 endif
 #IMPORTADMINSRV = /share/builds/sbsrel1/admsvr/admsvr62/ships/20030702.2/spd04_Solaris8/SunOS5.8-domestic-optimize-normal
 #ADM_RELEASE = /share/builds/sbsrel1/admsvr/admsvr62/ships/20030702.2/spd04_Solaris8/SunOS5.8-domestic-optimize-normal
-$(ADMSERV_DEP): $(ABS_ROOT)/dist/$(NSOBJDIR_NAME)
+$(ADMSERV_DEP): $(ABS_ROOT_PARENT)/dist/$(NSOBJDIR_NAME)
 ifdef ADMSERV_DEPS
 	$(FTP_PULL) -method $(ADMSERV_PULL_METHOD) \
 		-objdir $(ADMSERV_DIR) -componentdir $(IMPORTADMINSRV) \
@@ -891,7 +896,10 @@ $(SASL_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
 		-objdir $(SASL_BUILD_DIR) -componentdir $(SASL_RELEASE) \
-		-files lib,include
+		-files lib
+	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
+		-objdir $(SASL_BUILD_DIR)/include -componentdir $(SASL_RELEASE)/../public \
+		-files .\*
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component SASL file $@" ; \

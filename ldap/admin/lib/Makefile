@@ -10,7 +10,7 @@
 #
 
 LDAP_SRC = ../..
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -21,8 +21,8 @@ LIBDIR = $(LDAP_LIBDIR)
 ALIBDIR = $(LDAP_ADMLIBDIR)
 BINDIR=$(LDAP_ADMIN_BIN_RELDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 SRCS	= dsalib_location.c dsalib_debug.c dsalib_updown.c dsalib_tailf.c \
@@ -36,7 +36,7 @@ OBJS = $(OBJS1)  $(PWDOBJ)
 
 INCLUDES += -I$(LDAP_SRC)/admin/include
 ifdef FORTEZZA
-INCLUDES += -I$(MCOM_ROOT)/lib
+INCLUDES += -I$(BUILD_ROOT)/lib
 endif
 
 EXTRA_LIBS += $(LDAP_COMMON_LIBS) $(SECURITYLINK) $(NSPRLINK)

@@ -3,10 +3,10 @@ NO_BUILD_NUM=true
 COMPONENT_DEPS=true
 
 
-MCOM_ROOT=../../../..
+BUILD_ROOT=../../..
 
-include ../../../nsconfig.mk
-include ../../../ldap/javarules.mk
+include $(BUILD_ROOT)/nsconfig.mk
+include $(BUILD_ROOT)/ldap/javarules.mk
 
 all: $(ANT_DEP) $(LDAPJDK_DEP)
 	$(ANT) 

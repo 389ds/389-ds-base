@@ -9,13 +9,13 @@
 # GNU Makefile for Directory Server Console Help 
 #
 
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 LDAP_SRC = ../..
 MODULE=httpdAdminHTML
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 HTMLDEST=$(OBJDIR)/manual/slapd

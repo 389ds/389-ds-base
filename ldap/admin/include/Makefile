@@ -9,13 +9,13 @@
 # GNU Makefile for Directory Server Admin include directory.
 #
 
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 LDAP_SRC = ../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 HDRDEST=$(LDAP_ADMROOT)/include

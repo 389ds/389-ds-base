@@ -19,16 +19,15 @@
 all:
 
 
-
-ABS_ROOT := $(shell cd $(MCOM_ROOT); pwd)
-NSROOT=$(MCOM_ROOT)/ldapserver
+ABS_ROOT := $(shell cd $(BUILD_ROOT); pwd)
+ABS_ROOT_PARENT := $(shell cd $(ABS_ROOT)/..; pwd)
 MAKE=gmake $(BUILDOPT) NO_MOCHA=1
 
 # 7/12/96 Adrian - allow MAKEFLAGS to propagate
 # override MAKEFLAGS := 
 
-include $(NSROOT)/nsdefs.mk
-include $(NSROOT)/component_versions.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/component_versions.mk
 
 # SEC_SUFFIX is the suffix to be applied to the reldate macro which specifies
 # the security of the specified release, either E for export, D for domestic,
@@ -48,7 +47,7 @@ PRETTY_ARCH := $(shell uname -s)
 NSOS_ARCH         := $(subst /,_,$(shell uname -s))
 
 ifneq ($(NO_BUILD_NUM), true)
-  GET_BUILD_NUM := $(shell cat $(NSROOT)/$(BUILD_ARCH)/buildnum.dat)
+  GET_BUILD_NUM := $(shell cat $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat)
 endif
 
 ifeq ($(NSOS_ARCH), IRIX64)
@@ -120,7 +119,7 @@ NSOS_ARCH       := UNIXWARE
 PRETTY_ARCH     := UNIXWARE
 endif # !NCR
 # Check for UW2 using UDK, which looks like a Gemini (UnixWare7) build
-NSOS_RELEASE    := $(shell $(MCOM_ROOT)/ldapserver/nsarch -f | sed 's/UnixWare //')
+NSOS_RELEASE    := $(shell $(BUILD_ROOT)/nsarch -f | sed 's/UnixWare //')
 ifeq ($(NSOS_RELEASE),5)
 NSOS_ARCH       := UnixWare
 else # NSOS_RELEASE = 5
@@ -263,9 +262,9 @@ else
 endif
 
 
-# NSPR build stuff
-NSCP_DIST	=  $(MCOM_ROOT)/dist
-NSCP_DISTDIR          = $(MCOM_ROOT)/dist/$(NSOBJDIR_NAME)
+# Where to put component packages (libs, includes) to build against and package
+NSCP_DIST	=  $(BUILD_ROOT)/../dist
+NSCP_DISTDIR          = $(BUILD_ROOT)/../dist/$(NSOBJDIR_NAME)
 
 MAKE=gmake $(BUILDOPT) NO_MOCHA=1 NO_JAVA=1
 
@@ -284,7 +283,7 @@ NSPR_DEFINES = -DSERVER_BUILD
 
 
 # Destination for class files and packages
-CLASS_DEST        = $(MCOM_ROOT)/dist/classes
+CLASS_DEST        = $(NSCP_DIST)/classes
 
 # ----------- Where to get shared components --------------------
 # COMPONENTS_DIR_DEV can be used to pull stuff from the integration area
@@ -355,7 +354,7 @@ LINK_PLUGIN=$(LINK_DLL)
 
 
 # Used by peer snmp defines below
-DEVROOT = $(MCOM_ROOT)/../peer
+DEVROOT = $(BUILD_ROOT)/peer
 
 ifeq ($(ARCH), AIX)
 # convert the output of oslevel to a 4 digit number
@@ -395,7 +394,7 @@ DEF_LIBPATH=/usr/lib/threads:/usr/lpp/xlC/lib:/usr/lib:/lib
 ifdef OLD_AIX_LINKING
 	MKSHLIB_FLAGS=-p 0 -blibpath:$(DEF_LIBPATH)
 	DLL_LDFLAGS=-bM:SRE -bnoentry -blibpath:$(DEF_LIBPATH)
-	LINK_DLL=$(ABS_ROOT)/build/aixmkshlib -o $@ $(MKSHLIB_FLAGS)
+	LINK_DLL=$(BUILD_ROOT)/build/aixmkshlib -o $@ $(MKSHLIB_FLAGS)
 	MKSHLIB=$(LINK_DLL)
 	EXTRA_LIBS=-lsvld
 else
@@ -579,8 +578,8 @@ LDAP_DONT_USE_SMARTHEAP = 1
 else
 ifeq ($(ARCH), UNIXWARE)
 
-CC=$(ABS_ROOT)/build/hcc
-CXX=$(ABS_ROOT)/build/hcpp
+CC=$(BUILD_ROOT)/build/hcc
+CXX=$(BUILD_ROOT)/build/hcpp
 CCC=$(CXX)
 CPPCMD=/lib/cpp -P
 ARCH_DEBUG=-g
@@ -716,7 +715,7 @@ PEER_ARCH=sco
 else
 ifeq ($(ARCH), NCR)
 
-ABS_ROOT := $(shell cd $(MCOM_ROOT); pwd)
+ABS_ROOT_PARENT := $(shell cd $(BUILD_ROOT)/..; pwd)
 
 NS_USE_GCC	= 1
 
@@ -799,7 +798,7 @@ AUTOCATALOG_VERSION = oem
 else 
 ifeq ($(ARCH), NEC)
 
-CC=$(MCOM_ROOT)/build/hcc
+CC=$(BUILD_ROOT)/build/hcc
 ARCH_DEBUG=-g
 ARCH_OPT=-KOlimit=4000
 ARCH_CFLAGS=-Xa
@@ -1147,14 +1146,14 @@ SNMPNOLIB=
 endif
 
 # ------------------------ The actual build rules ------------------------
-include $(MCOM_ROOT)/ldapserver/nsperl.mk
+include $(BUILD_ROOT)/nsperl.mk
 
-RELTOOLSPATH = $(ABS_ROOT)/reltools
-FTP_PULL = $(PERL) $(RELTOOLSPATH)/ftp_puller_new.pl -logdir $(ABS_ROOT) -trimlog
+RELTOOLSPATH = $(ABS_ROOT_PARENT)/reltools
+FTP_PULL = $(PERL) $(RELTOOLSPATH)/ftp_puller_new.pl -logdir $(ABS_ROOT_PARENT) -trimlog
 
 # make sure ftp puller exists
 $(RELTOOLSPATH)/ftp_puller_new.pl:
-	cd $(ABS_ROOT) ; cvs co RelToolsLite
+	cd $(ABS_ROOT_PARENT) ; cvs co RelToolsLite
 
 # Define preferred pull method for the platform.
 # Can be overridden for the entire build, and also for each component
@@ -1171,7 +1170,7 @@ endif
 # platforms without full rtl debugging versions of libraries i.e. not NT
 FULL_RTL_OBJDIR = $(NSOBJDIR_NAME)
 NSCP_DISTDIR_FULL_RTL = $(NSCP_DISTDIR)
-NSCP_ABS_DISTDIR_FULL_RTL = $(ABS_ROOT)/dist/$(FULL_RTL_OBJDIR)
+NSCP_ABS_DISTDIR_FULL_RTL = $(ABS_ROOT_PARENT)/dist/$(FULL_RTL_OBJDIR)
 
 # these components may have additional RTL debugging support built in on NT
 # adminsdk (adminutil), dbm, ldapsdk, NLS, NSPR, NSS (security)
@@ -1181,19 +1180,19 @@ NSCP_ABS_DISTDIR_FULL_RTL = $(ABS_ROOT)/dist/$(FULL_RTL_OBJDIR)
 ifeq ($(ARCH), WINNT)
   ifeq ($(DEBUG), fulld)
     FULL_RTL_OBJDIR=$(NSOBJDIR_NAME)D
-	NSCP_DISTDIR_FULL_RTL = $(MCOM_ROOT)/dist/$(FULL_RTL_OBJDIR)
-	NSCP_ABS_DISTDIR_FULL_RTL = $(MCOM_ROOT)/dist/$(FULL_RTL_OBJDIR)
+	NSCP_DISTDIR_FULL_RTL = $(BUILD_ROOT)/../dist/$(FULL_RTL_OBJDIR)
+	NSCP_ABS_DISTDIR_FULL_RTL = $(BUILD_ROOT)/../dist/$(FULL_RTL_OBJDIR)
   endif
 endif
 
 $(NSCP_DISTDIR_FULL_RTL) $(CLASS_DEST): $(RELTOOLSPATH)/ftp_puller_new.pl
 	mkdir -p $@
 
-include $(NSROOT)/components.mk
+include $(BUILD_ROOT)/components.mk
 
 # these two macros are to fool the crazy NSPR nsinstall and fasttime
 # stuff into putting the objects and binaries in this location
-ABS_OBJDIR=$(ABS_ROOT)/ldapserver/built/$(NS_BUILD_FLAVOR)
+ABS_OBJDIR=$(ABS_ROOT)/built/$(NS_BUILD_FLAVOR)
 NSDEFS += DIST=$(NSPR_ABS_BUILD_DIR) OBJDIR=$(ABS_OBJDIR) \
 	FASTTIME_HEADER_DEST=$(ABS_OBJDIR)/include \
 	FASTTIME_TARGET_DEST=$(ABS_OBJDIR)
@@ -1231,16 +1230,16 @@ endif # IRIX
 # XXXrobm The Sun MD stuff #includes stuff in the nspr dir without a prefix
 # Otherwise the second NSCP_DISTDIR/include/nspr would not be necessary
 ifdef NSPR20
-MCC_INCLUDE=-I$(NSROOT)/include \
-                        -I$(MCOM_ROOT)/include \
+MCC_INCLUDE=-I$(BUILD_ROOT)/include \
+                        -I$(BUILD_ROOT)/include \
             $(NSPR_INCLUDE) $(DBM_INCLUDE) $(SECURITY_INCLUDE) \
             $(SVRCORE_INCLUDE) \
-                        -I$(MCOM_ROOT)/nspr20/lib
+                        -I$(BUILD_ROOT)/nspr20/lib
 
 #            $(SVRCORE_INCLUDE) $(NLS_INCLUDE) \
 
 else
-MCC_INCLUDE=-I$(NSROOT)/include -I$(MCOM_ROOT)/include \
+MCC_INCLUDE=-I$(BUILD_ROOT)/include \
             -I$(NSCP_DISTDIR)/include -I$(NSCP_DISTDIR)/include/nspr
 endif
 
@@ -1265,18 +1264,18 @@ ifeq ($(BSCINFO), yes)
 CBSCFLAGS=-FR$(OBJDEST)/$*.sbr
 endif
 
-include $(NSROOT)/nscore.mk
+include $(BUILD_ROOT)/nscore.mk
 
 # These are the defaults, individual Makefiles can override them as necessary
 FVERSION=$(MAJOR_VERSION).$(MINOR_VERSION)
 FVERSION_FLAGS=-v$(FVERSION)
 
-$(NSROOT)/fversion.exe: $(NSROOT)/dategen/fversion.c
+$(BUILD_ROOT)/fversion.exe: $(BUILD_ROOT)/dategen/fversion.c
 	cl $< user32.lib -link -out:$@
 
 ifeq ($(ARCH), WINNT)
-$(OBJDEST)/%.res: %.rc $(NSROOT)/fversion.exe
-	$(RC) $(shell $(NSROOT)/fversion.exe $(FVERSION_FLAGS)) -Fo$@ $*.rc
+$(OBJDEST)/%.res: %.rc $(BUILD_ROOT)/fversion.exe
+	$(RC) $(shell $(BUILD_ROOT)/fversion.exe $(FVERSION_FLAGS)) -Fo$@ $*.rc
 endif
 
 ifdef USE_LINT
@@ -1308,7 +1307,7 @@ ifndef NOSTDCOMPILE
 $(OBJDEST)/%.o: %.c
 ifeq ($(ARCH), WINNT)
 ifeq ($(BOUNDS_CHECKER), yes)
-	bcompile -c -Zop $(NSROOT)/bchecker.ini -nologo $(RTFLAG) -W3 -GT -GX -DWIN32 \
+	bcompile -c -Zop $(BUILD_ROOT)/bchecker.ini -nologo $(RTFLAG) -W3 -GT -GX -DWIN32 \
 	    -D_WINDOWS $(CFLAGS) $(MCC_INCLUDE) $< -Fo$(OBJDEST)/$*.o
 else
 	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) $< -Fo$(OBJDEST)/$*.o $(CBSCFLAGS)
@@ -1446,8 +1445,8 @@ $(HTMLDEST)/%.lst: %.lst
 endif
 
 # ------------------------- Finally, the modules -------------------------
-$(NSROOT)/modules.mk: $(NSROOT)/modules.awk
-	@echo re-making $(NSROOT)/modules.mk ...
-	@cd $(NSROOT); sh modules.sh
+$(BUILD_ROOT)/modules.mk: $(BUILD_ROOT)/modules.awk
+	@echo re-making $(BUILD_ROOT)/modules.mk ...
+	@cd $(BUILD_ROOT); sh modules.sh
 
-include $(NSROOT)/modules.mk
+include $(BUILD_ROOT)/modules.mk

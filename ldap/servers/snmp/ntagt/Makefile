@@ -9,7 +9,7 @@
 #                       SNMP NT Subagent Common Rulesets                    #
 #############################################################################
 
-MCOM_ROOT   =   ../../../../..
+BUILD_ROOT   =   ../../../..
 MSRV_ROOT   =   ../../..
 SLAPD_ROOT  =   $(MSRV_ROOT)/servers/slapd
 SNMP_ROOT   =   $(MSRV_ROOT)/servers/snmp
@@ -20,12 +20,12 @@ NOSTDCLEAN = true # don't let nsconfig.mk define target clean
 NOSTDSTRIP = true # don't let nsconfig.mk define target strip
 NSPR20     = true
 
-include         $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include         $(BUILD_ROOT)/nsconfig.mk
 include         $(MSRV_ROOT)/nsldap.mk
 
 OBJ_SUFFIX  = obj
 
-INCLUDES    +=   -I../../slapd -I$(MCOM_ROOT)/ldapserver/ldap/include
+INCLUDES    +=   -I../../slapd -I$(BUILD_ROOT)/ldap/include
 
 CCOPTS      +=  $(CFLAGS) $(DLL_CFLAGS) $(MCC_INCLUDE) $(INCLUDES) -I$(SNMP_ROOT) 
 CXXOPTS     +=  $(CFLAGS) $(DLL_CXXFLAGS) $(MCC_INCLUDE) $(INCLUDES) -I$(SNMP_ROOT) 

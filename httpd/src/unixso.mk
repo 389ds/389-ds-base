@@ -5,11 +5,10 @@
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
-LIBSECDIR=$(MCOM_ROOT)/lib/libsec/$(NSOBJDIR_NAME)
 
 ifneq ($(ARCH), WINNT)
 
-SRCDIR=$(MCOM_ROOT)/ldapserver/httpd/src
+SRCDIR=$(BUILD_ROOT)/httpd/src
 
 AR = ar
 
@@ -67,13 +66,11 @@ endif
 ifeq ($(ARCH), AIX)
 MKSHLIB_FLAGS += -berok -brtl
 SOLINK=-L. -L../../lib -lns-dshttpd$(DLL_PRESUF)
-LIBSECDIR=$(MCOM_ROOT)/lib/libsec/$(NSOBJDIR_NAME)
 #LDAPLINK=-L. $(addsuffix .a, $(addprefix lib, $(LDAP_DOTALIB_NAMES))) \
 #	 $(addprefix -l, $(LDAP_SOLIB_NAMES))
 #NSPRLINK = -L. -lnspr$(DLL_PRESUF)
 #NSPRLINK = -L. -ldsnspr$(DLL_PRESUF)
 ADM_EXTRA := -L. -L../../lib $(LDAPLINK) $(NSPRLINK) $(EXTRA_LIBS) 
-#ADM_EXTRA := -L. -L../../lib $(LDAPLINK) $(NSPRLINK) $(EXTRA_LIBS) -L$(LIBSECDIR) -lsec-$(WHICHA)
 ifdef FORTEZZA
 ADM_EXTRA += $(NSCP_DISTDIR)/lib/libci.$(LIB_SUFFIX)
 endif
@@ -189,7 +186,7 @@ MOCHA=$(NSCP_DISTDIR)/lib/mocha.a
 ADMLIB_LIBS = $(SERVLIBS) $(NSLIBS)
 
 mocha:
-	cd $(MCOM_ROOT)/mocha; $(MAKE) export $(NSDEFS)
+	cd $(BUILD_ROOT)/mocha; $(MAKE) export $(NSDEFS)
 
 
 admobjs:

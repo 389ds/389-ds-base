@@ -7,16 +7,16 @@
 #
 #
 #
-MCOM_ROOT=../../../..
+BUILD_ROOT=../../..
 MODULE=LibAcl
-include ../../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 OBJDEST=.
 UTESTDEST=utest
 
-include ../../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
-MODULE_CFLAGS=-I$(NSROOT)/include/libaccess -I$(NSROOT)/include -I$(NSROOT)/include/public -I. -DACL_LIB_INTERNAL
+MODULE_CFLAGS=-I$(BUILD_ROOT)/include/libaccess -I$(BUILD_ROOT)/include -I$(BUILD_ROOT)/include/public -I. -DACL_LIB_INTERNAL
 
 include $(INCLUDE_DEPENDS)
 

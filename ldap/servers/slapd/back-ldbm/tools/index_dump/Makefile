@@ -10,15 +10,15 @@
 #
 
 LDAP_SRC = ../../../../..
-MCOM_ROOT = ../../../../../../..
+BUILD_ROOT = ../../../../../..
 
 OBJDEST = $(OBJDIR)/lib/libback-ldbm
 LIBDIR = $(LDAP_LIBDIR)
 
-include $(MCOM_ROOT)/netsite/nsdefs.mk
-include $(MCOM_ROOT)/netsite/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-include $(MCOM_ROOT)/netsite/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 
 INCLUDES += -I$(LDAP_SRC)/servers/slapd
 

@@ -12,23 +12,23 @@
 # MODULE before this file is included.
 
 
-NS_LIBDIR=$(NSROOT)/lib
-MCOM_LIBDIR=$(MCOM_ROOT)/lib
-HTTPD=$(NSROOT)/httpd
-PROXY=$(NSROOT)/proxy
-BATMAN=$(NSROOT)/batman
-MAIL=$(NSROOT)/mailserv2
-NEWS=$(NSROOT)/news
-CMS=$(NSROOT)/species
-ROGUE=$(MCOM_ROOT)/lw/rogue
+NS_LIBDIR=$(BUILD_ROOT)/lib
+MCOM_LIBDIR=$(BUILD_ROOT)/lib
+HTTPD=$(BUILD_ROOT)/httpd
+PROXY=$(BUILD_ROOT)/proxy
+BATMAN=$(BUILD_ROOT)/batman
+MAIL=$(BUILD_ROOT)/mailserv2
+NEWS=$(BUILD_ROOT)/news
+CMS=$(BUILD_ROOT)/species
+ROGUE=$(BUILD_ROOT)/lw/rogue
 
 # Ari's definitions for MCOM libraries, these should have if statements 
 # around them to make sure they only apply to the proxy
 ifeq ($(PRODUCT), "Netscape Proxy Server")
 ifeq ($(ARCH), HPUX)
-MCL_CFLAGS="-DMCC_PROXY -I../ldapserver/include -D_HPUX_SOURCE -Aa +DA1.0 +z"
+MCL_CFLAGS="-DMCC_PROXY -I../include -D_HPUX_SOURCE -Aa +DA1.0 +z"
 else
-MCL_CFLAGS="-DMCC_PROXY -I../ldapserver/include"
+MCL_CFLAGS="-DMCC_PROXY -I../include"
 endif
 endif
 
@@ -178,7 +178,7 @@ endif
 #LIBNSPR=$(NSCP_DISTDIR)/lib/$(NSPR_BASENAME).$(LIB_SUFFIX)
 #endif
 #NSPRDIR=nspr20
-#DISTLIB libnspr $(MCOM_ROOT)/$(NSPRDIR)
+#DISTLIB libnspr $(BUILD_ROOT)/$(NSPRDIR)
 #endif
 #else
 #ifneq ($(MODULE), LibNSPR)
@@ -190,31 +190,31 @@ endif
 #SHLIBNSPR=$(NSCP_DISTDIR)/lib/$(NSPR_BASENAME)$(DLL_PRESUF).$(DLL_SUFFIX) 
 #endif
 #NSPRDIR=nspr20
-#DISTLIB libnspr $(MCOM_ROOT)/$(NSPRDIR)
+#DISTLIB libnspr $(BUILD_ROOT)/$(NSPRDIR)
 #endif
 #endif
 #
 #ifneq ($(MODULE), LibSSLio)
 #LIBSSLIO=$(NSCP_DISTDIR)/lib/libsslio.$(LIB_SUFFIX)
-#DISTLIB libsslio $(MCOM_ROOT)/$(NSPRDIR)/lib/sslio libsslio
+#DISTLIB libsslio $(BUILD_ROOT)/$(NSPRDIR)/lib/sslio libsslio
 #endif
 
 ifneq ($(MODULE), LibDirMon)
 LIBDIRMON=$(NSCP_DISTDIR)/lib/libdirmon.$(LIB_SUFFIX)
-#DISTLIB libdirmon $(MCOM_ROOT)/$(NSPRDIR)/lib/dirmon libdirmon
-DISTLIB libdirmon $(MCOM_ROOT)/nspr20/lib/dirmon libdirmon
+#DISTLIB libdirmon $(BUILD_ROOT)/$(NSPRDIR)/lib/dirmon libdirmon
+DISTLIB libdirmon $(BUILD_ROOT)/nspr20/lib/dirmon libdirmon
 endif
 
 
 #LibAres and LibPRstrm are from NSPR20 BIN release
 #ifneq ($(MODULE), LibAres)
 #LIBARES=$(NSCP_DISTDIR)/lib/libares.$(LIB_SUFFIX)
-#DISTLIB libares $(MCOM_ROOT)/$(NSPRDIR)/lib/arlib libares
+#DISTLIB libares $(BUILD_ROOT)/$(NSPRDIR)/lib/arlib libares
 #endif
 
 #ifneq ($(MODULE), LibPRstrm)
 #LIBPRSTRMS=$(NSCP_DISTDIR)/lib/libprstrms.$(LIB_SUFFIX)
-#DISTLIB libprstrms $(MCOM_ROOT)/$(NSPRDIR)/lib/prstreams libprstrms
+#DISTLIB libprstrms $(BUILD_ROOT)/$(NSPRDIR)/lib/prstreams libprstrms
 #endif
 
 #ifneq ($(MODULE), LibXP)
@@ -336,51 +336,51 @@ MODULE proxy-bin $(PROXY)/src
 endif
 
 ifneq ($(MODULE), admservBinary)
-MODULE admin-server $(NSROOT)/admserv libnspr frame safs libsnmp libadmin libadminutil libsec-$(WHICHA)
+MODULE admin-server $(BUILD_ROOT)/admserv libnspr frame safs libsnmp libadmin libadminutil libsec-$(WHICHA)
 endif
 
 ifneq ($(MODULE), mailServer)
-MODULE mail-server $(NSROOT)/mailserv2/code libnspr
+MODULE mail-server $(BUILD_ROOT)/mailserv2/code libnspr
 endif
 
 ifneq ($(MODULE), mailAdmin)
-MODULE mail-admin $(NSROOT)/mailserv2/admin libnspr frame libsec-$(WHICHA) admin
+MODULE mail-admin $(BUILD_ROOT)/mailserv2/admin libnspr frame libsec-$(WHICHA) admin
 endif
 
 ifneq ($(MODULE), mailInstall)
-MODULE mail-inst $(NSROOT)/mailserv2/install libnspr cgiutils regex frame
+MODULE mail-inst $(BUILD_ROOT)/mailserv2/install libnspr cgiutils regex frame
 endif
 
 ifneq ($(MODULE), nnrpdBinary)
-MODULE news-nnrpd $(NSROOT)/news/nnrpd libnspr inn base libsec-$(WHICHA)
+MODULE news-nnrpd $(BUILD_ROOT)/news/nnrpd libnspr inn base libsec-$(WHICHA)
 endif
 
 ifneq ($(MODULE), inndBinary)
-MODULE news-innd $(NSROOT)/news/innd libnspr inn base libsec-$(WHICHA)
+MODULE news-innd $(BUILD_ROOT)/news/innd libnspr inn base libsec-$(WHICHA)
 endif
 
 ifneq ($(MODULE), innBackEnds)
-MODULE news-backends $(NSROOT)/news/backends libnspr inn base libsec-$(WHICHA)
+MODULE news-backends $(BUILD_ROOT)/news/backends libnspr inn base libsec-$(WHICHA)
 endif
 
 ifneq ($(MODULE), innExpire)
-MODULE news-expire $(NSROOT)/news/expire libnspr inn
+MODULE news-expire $(BUILD_ROOT)/news/expire libnspr inn
 endif
 
 ifneq ($(MODULE), innFrontEnds)
-MODULE news-frontends $(NSROOT)/news/frontends libnspr inn
+MODULE news-frontends $(BUILD_ROOT)/news/frontends libnspr inn
 endif
 
 ifneq ($(MODULE), innInstall)
-MODULE news-install $(NSROOT)/news/newinst libnspr inn admin base
+MODULE news-install $(BUILD_ROOT)/news/newinst libnspr inn admin base
 endif
 
 ifneq ($(MODULE), innAdmin)
-MODULE news-admin $(NSROOT)/news/admin libnspr inn admin base 
+MODULE news-admin $(BUILD_ROOT)/news/admin libnspr inn admin base 
 endif
 
 ifneq ($(MODULE), innSiteFiles)
-MODULE news-site $(NSROOT)/news/site libnspr inn
+MODULE news-site $(BUILD_ROOT)/news/site libnspr inn
 endif
 
 
@@ -413,7 +413,7 @@ MODULE httpd-extras $(HTTPD)/extras
 endif
 
 ifneq ($(MODULE), httpd-mc-icons)
-MODULE httpd-mc-icons $(NSROOT)/mc-icons
+MODULE httpd-mc-icons $(BUILD_ROOT)/mc-icons
 endif
 
 ifneq ($(MODULE), cms-rogue)
@@ -421,11 +421,11 @@ MODULE cms-rogue $(ROGUE)
 endif
 
 ifneq ($(MODULE), cms-cert)
-MODULE cms-cert $(MCOM_ROOT)/certsvc
+MODULE cms-cert $(BUILD_ROOT)/certsvc
 endif
 
 ifneq ($(MODULE), ns-config)
-MODULE ns-config $(MCOM_ROOT)/config
+MODULE ns-config $(BUILD_ROOT)/config
 endif
 
 # httpd-bin first so the dll gets built

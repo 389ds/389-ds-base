@@ -7,8 +7,8 @@
 <project name="dsmlgw" default="dist" basedir=".">
 
 <!-- ******************** Adjustable Properties *********************** -->
-<property name="mcom.root"       value="../../../.."/>
-<property name="globaldist.dir"  value="${mcom.root}/dist/classes"/>
+<property name="mcom.root"       value="../../.."/>
+<property name="globaldist.dir"  value="${mcom.root}/../dist/classes"/>
 <property name="app.name"        value="dsmlgw"/>
 <property name="taglib.name"     value="dsmlgw"/>
 
@@ -31,8 +31,8 @@
 <pathelement location="${xmlParserAPIs.jar}"/>
 </path>
 
-<property name="build.dir"      value="${mcom.root}/ldapserver/built/dsmlgw"/>
-<property name="dist.dir"       value="${mcom.root}/dist/dsmlgw"/>
+<property name="build.dir"      value="${mcom.root}/built/dsmlgw"/>
+<property name="dist.dir"       value="${mcom.root}/../dist/dsmlgw"/>
 
 
 

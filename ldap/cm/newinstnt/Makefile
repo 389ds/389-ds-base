@@ -12,12 +12,12 @@
 #
 #
 
-MCOM_ROOT=../../../..
-LDAP_SRC= $(MCOM_ROOT)/ldapserver/ldap
+BUILD_ROOT=../../..
+LDAP_SRC= $(BUILD_ROOT)/ldap
 
 NOSTDCLEAN=1
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 OUTDIR=$(OBJDIR)/setup
@@ -52,7 +52,7 @@ CONSOLOBJS= \
 LIBINSTOBJS = \
 	$(OUTDIR)/libinst.obj
 
-CFLAGS+= /I "$(MCOM_ROOT)/ldapserver/include/nt" /I "$(MCOM_ROOT)/ldapserver/ldap/include" /I "$(MCOM_ROOT)/ldapserver/include" $(ADMINUTIL_INCLUDE) $(NSPR_INCLUDE) /D "NS_DS" /D "XP_WIN32"
+CFLAGS+= /I "$(BUILD_ROOT)/include/nt" /I "$(BUILD_ROOT)/ldap/include" /I "$(BUILD_ROOT)/include" $(ADMINUTIL_INCLUDE) $(NSPR_INCLUDE) /D "NS_DS" /D "XP_WIN32"
 
 CC=cl.exe
 LD=link.exe
@@ -85,7 +85,7 @@ $(OUTDIR)/%.obj: %.c
 	$(CC) $(CFLAGS) $<
 
 $(OUTDIR)/%.inf: %.inf
-	$(PERL) $(FIXINF) $(BUILD_MODULE) $(DIR_VERSION) $(MCOM_ROOT)/ldapserver/$(BUILD_ARCH)/buildnum.dat $< $(SECURITY) "DoesntOnNT" $(IS_DIR_LITE) '$(INSTANCE_NAME_PREFIX)' $@ $(BUILD_BOMB)
+	$(PERL) $(FIXINF) $(BUILD_MODULE) $(DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat $< $(SECURITY) "DoesntOnNT" $(IS_DIR_LITE) '$(INSTANCE_NAME_PREFIX)' $@ $(BUILD_BOMB)
 
 $(OUTDIR)/%.res: %.rc
 	$(RC) $(RCFLAGS) /fo"$@" $<

@@ -9,8 +9,8 @@
 # GNU Makefile for Directory Server and LDAP SDK libraries
 #
 
-MCOM_ROOT = ../../..
-LDAP_SRC = $(MCOM_ROOT)/ldapserver/ldap
+BUILD_ROOT = ../..
+LDAP_SRC = $(BUILD_ROOT)/ldap
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -19,13 +19,13 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 OBJDEST = $(OBJDIR)/lib
 LIBDIR = $(LDAP_LIBDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 # the following lines are to make this work for
 # both db1.85 and db2.0
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 ldap_db_depend:=$(DB_LIB_DEP)
 CFLAGS+= -I$(DB_INCLUDE)
 else
@@ -307,7 +307,7 @@ DEFLDAPMACCLIENTPPC=$(MACDEFDIR)/LDAPClientPPC.prj
 DEFLDAPMACCLIENT68K=$(MACDEFDIR)/LDAPClient68K.prj
 
 # nsdefs.mk contains version number definitions....
-OTHERDEFDEPS=$(MCOM_ROOT)/ldapserver/nsdefs.mk
+OTHERDEFDEPS=$(BUILD_ROOT)/nsdefs.mk
 
 exportfiles:
 	$(MAKE) $(MFLAGS) WINDEFDIR=msdos/winsock doExportFiles

@@ -11,7 +11,7 @@
 #
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -20,9 +20,9 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 OBJDEST = $(OBJDIR)/lib/replication-plugin
 LIBDIR = $(LIB_RELDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 
 ifeq ($(ARCH), WINNT)
 DEF_FILE:=./replication.def

@@ -8,16 +8,16 @@
 #
 # Makefile for ldaputil unit test.
 #
-MCOM_ROOT=../../../..
+BUILD_ROOT=../../..
 MODULE=LibLdapUtil
 
 OBJDEST=.
 UTESTDEST=utest
 
-include ../../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 MODULE_CFLAGS=-I$(NSROOT)/include
- 
+
 include $(INCLUDE_DEPENDS)
 
 TESTFLAGS = -DUTEST -DDBG_PRINT -DDONT_USE_LDAP_SSL
@@ -95,7 +95,7 @@ PLUGIN_INC = ./include
 $(PLUGIN_INC):
 	mkdir -p include
 
-certmap.h: ../../../include/ldaputil/extcmap.h
+certmap.h: $(BUILD_ROOT)/include/ldaputil/extcmap.h
 	\rm -rf $(PLUGIN_INC)/$@
 	cp $^ $(PLUGIN_INC)/$@
 

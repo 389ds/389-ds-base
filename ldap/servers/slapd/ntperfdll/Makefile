@@ -6,15 +6,15 @@
 # END COPYRIGHT BLOCK
 #
 
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 LDAP_SRC = ../../..
 
 OBJDEST = $(OBJDIR)/servers/obj
 BINDIR = $(LDAP_SERVER_RELDIR)
 ALLDIRS = $(BINDIR) $(OBJDEST)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 LINK32=link.exe
@@ -26,7 +26,7 @@ DLLS = nsldapctr
 # -D's get all screwed up: we need to fix them:
 CFLAGS+= -UNS_PERSONAL -DNS_DS
 # this lets us pickup regparms.h
-CFLAGS += -I $(MCOM_ROOT)/ldapserver/include
+CFLAGS += -I $(BUILD_ROOT)/include
 
 MCS = nsldapctrmc
 DEPMC = $(addsuffix .h, $(MCS))

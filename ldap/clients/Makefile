@@ -14,10 +14,10 @@ override BUILD_MODULE=HTTP_ADMIN
 NOSTDCLEAN=true
 NO_BUILD_NUM=true
 
-MCOM_ROOT=../../..
+BUILD_ROOT=../..
 
-include ../../nsconfig.mk
-include ../../ldap/javarules.mk
+include $(BUILD_ROOT)/nsconfig.mk
+include $(BUILD_ROOT)/ldap/javarules.mk
 
 all: _ldaptags _online _dsgw _dsmlgw
 

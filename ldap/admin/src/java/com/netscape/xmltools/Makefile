@@ -14,13 +14,13 @@ NOSTDCLEAN=true
 NO_BUILD_NUM=true
 COMPONENT_DEPS=true
 
-MCOM_ROOT=../../../../../../../..
+BUILD_ROOT=../../../../../../..
 
-include ../../../../../../../nsconfig.mk
-include ../../../../../../../ldap/javarules.mk
+include $(BUILD_ROOT)/nsconfig.mk
+include $(BUILD_ROOT)/ldap/javarules.mk
 CLASS_DIR=$(JAVA_DEST_DIR)/xmltools
-PACKAGE_DIR=$(ABS_ROOT)/dist/$(BUILD_DEBUG)
-_PACKAGE_DIR=$(MCOM_ROOT)/dist/$(BUILD_DEBUG)
+PACKAGE_DIR=$(ABS_ROOT_PARENT)/dist/$(BUILD_DEBUG)
+_PACKAGE_DIR=$(NSCP_DIST)/$(BUILD_DEBUG)
 DEST_DIR=$(CLASS_DIR)/com/netscape/xmltools
 JARS_DIR=lib
 TOOLS_JARS=$(JARS_DIR)/crimson.jar$(PATH_SEP)$(JARS_DIR)/ldapjdk.jar

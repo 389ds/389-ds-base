@@ -7,12 +7,12 @@
 #
 # The admin libraries
 
-MCOM_ROOT=../../..
+BUILD_ROOT=../..
 
 MODULE=LibAdmin
 MODULE_CFLAGS=-DENCRYPT_PASSWORDS -DUSE_ADMSERV
 
-include ../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 OBJDEST=$(OBJDIR)/lib/libadmin
 
@@ -39,10 +39,10 @@ OBJS=$(addprefix $(OBJDEST)/, admconf.o form_get.o error.o  admlog.o \
 
 all: $(OBJDEST) $(LIBS)
 
-$(LIBS): $(addprefix $(MCOM_ROOT)/ldapserver/include/libadmin/, \
+$(LIBS): $(addprefix $(BUILD_ROOT)/include/libadmin/, \
                      hadm_msgs.i la_msgs.i)
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 

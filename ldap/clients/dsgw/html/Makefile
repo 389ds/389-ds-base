@@ -9,13 +9,13 @@
 #
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDSTRIP=true # don't let nsconfig.mak define target strip
 NOSTDCLEAN=true # don't let nsconfig.mak define target clean
 NOSTDDEPEND=true # don't let nsconfig.mak define target depend
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 include ../dsgw_include.mk
@@ -40,7 +40,7 @@ else
 CP2=sh ../../../cm/nbsp2utf8.sh $< >
 endif
 
-include $(MCOM_ROOT)/ldapserver/config/webint.mk
+include $(BUILD_ROOT)/config/webint.mk
 
 all: $(HTMLDEST) $(BINS) all-manual all-info
 

@@ -10,7 +10,7 @@
 #
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -21,11 +21,11 @@ BINDIR = $(LDAP_SERVER_RELDIR)
 
 SLAPD_OBJDIR = $(LDAP_OBJDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 INCLUDES+=-I$(DB_INCLUDE)
 else
 CFLAGS+=-DLDAP_USE_DB185
@@ -111,7 +111,7 @@ endif
 endif
 
 ifndef LDAP_DONT_USE_SMARTHEAP
-include $(MCOM_ROOT)/ldapserver/ns_usesh.mk
+include $(BUILD_ROOT)/ns_usesh.mk
 _smartheap_depend = $(SH_LIB_DEP)
 else
 CFLAGS+=-DLDAP_DONT_USE_SMARTHEAP

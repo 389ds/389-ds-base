@@ -9,14 +9,14 @@
 # GNU Makefile for Directory Server and LDAP SDK libraries
 #
 
-MCOM_ROOT = ../../../..
-LDAP_SRC = $(MCOM_ROOT)/ldapserver/ldap
+BUILD_ROOT = ../../..
+LDAP_SRC = $(BUILD_ROOT)/ldap
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views 

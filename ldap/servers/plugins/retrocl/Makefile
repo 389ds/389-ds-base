@@ -9,7 +9,7 @@
 # GNU Makefile for Directory Server "Retrocl" plugin
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -19,10 +19,10 @@ OBJDEST = $(OBJDIR)/lib/retrocl-plugin
 BINDIR = $(LDAP_SERVER_RELDIR)
 LIBDIR = $(LIB_RELDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 INCLUDES+=-I$(DB_INCLUDE)
 
 ifeq ($(ARCH), WINNT)

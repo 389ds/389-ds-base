@@ -7,10 +7,10 @@
 #
 # Makefile for include/public/nsacl public header files
 
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 MODULE=netsiteIncludeNsacl
 
-include ../../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 HDRDEST=$(OBJDIR)/include/nsacl
 
@@ -32,7 +32,7 @@ $(HDRDEST):
 strip:
 depend:
 
-include ../../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 $(HDRDEST)/%.h: %.h
 	cat $(PREFIX) $< > $(HDRDEST)/$*.h

@@ -7,7 +7,7 @@
 # gnu makefile for LDAP Server tools.
 #
 
-MCOM_ROOT = ../../../../../..
+BUILD_ROOT = ../../../../..
 LDAP_SRC = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
@@ -16,8 +16,8 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 OBJDEST = $(OBJDIR)/lib/replication-plugin
 BINDIR = $(OBJDIR)/bin
 
-include $(MCOM_ROOT)/netsite/nsdefs.mk
-include $(MCOM_ROOT)/netsite/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 LDFLAGS	+= $(EXLDFLAGS)

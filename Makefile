@@ -14,7 +14,7 @@
 # to see a list of available targets.
 
 # Relative path to the top of the build tree (i.e., where the DS source tree is checked out)
-MCOM_ROOT=..
+BUILD_ROOT=.
 
 # define COMPONENT_DEPS here so that components are pulled in this makefile
 COMPONENT_DEPS := 1
@@ -172,7 +172,7 @@ buildDirectory: buildnum pumpkin $(OBJDIR) $(DIRVER_H) $(SDKVER_H) components
 	cd config;           $(MAKE) $(MFLAGS) install $(NSDEFS)
 	$(MAKE) $(MFLAGS) BUILD_MODULE=DIRECTORY LDAP_NO_LIBLCACHE=1 httpdLib
 ifeq ($(ARCH), WINNT)
-	$(PERL) ntversion.pl $(MCOM_ROOT) $(MAJOR_VERSION) $(MINOR_VERSION)
+	$(PERL) ntversion.pl $(BUILD_ROOT) $(MAJOR_VERSION) $(MINOR_VERSION)
 endif
 	cd httpd; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY httpd-bin
 	cd ldap; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY all
@@ -225,11 +225,11 @@ $(RELTOOLSPATH)/brandver.pl:
 	cd $(ABS_ROOT) ; cvs co RelToolsLite
 
 $(SDKVER_H):
-	if test ! -d $(DIRVERDIR); then mkdir $(DIRVERDIR); fi;
+	if test ! -d $(DIRVERDIR); then mkdir -p $(DIRVERDIR); fi;
 	$(PERL) dirver.pl -v "$(DIRSDK_VERSION)" -o $@
 
 $(DIRVER_H):
-	if test ! -d $(DIRVERDIR); then mkdir $(DIRVERDIR); fi;
+	if test ! -d $(DIRVERDIR); then mkdir -p $(DIRVERDIR); fi;
 	$(PERL) dirver.pl -v "$(DIR_VERSION)" -o $@
 
 pkgLdapSDK: setupLdapSDK

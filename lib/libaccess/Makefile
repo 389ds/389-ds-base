@@ -8,15 +8,15 @@
 #
 # Makefile for libaccess.a
 #
-MCOM_ROOT=../../..
+BUILD_ROOT=../..
 MODULE=LibAccess
-include ../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 OBJDEST=$(OBJDIR)/lib/libaccess
 UTESTDEST=$(OBJDIR)/lib/libaccess/utest
 LEX=flex
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 
@@ -87,7 +87,7 @@ OBJS=$(addprefix $(OBJDEST)/,	usi.o \
 #
 AVAMAPFILES = lex.yy.o y.tab.o avapfile.o avadb.o 
 
-MODULE_CFLAGS=-I$(NSROOT)/include -DACL_LIB_INTERNAL $(TESTFLAGS)
+MODULE_CFLAGS=-I$(BUILD_ROOT)/include -DACL_LIB_INTERNAL $(TESTFLAGS)
 
 ifeq ($(LDAP_NO_LIBLCACHE),1)
 MODULE_CFLAGS+=-DNO_LIBLCACHE

@@ -9,13 +9,13 @@
 #
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDSTRIP=true # don't let nsconfig.mak define target strip
 NOSTDCLEAN=true # don't let nsconfig.mak define target clean
 NOSTDDEPEND=true # don't let nsconfig.mak define target depend
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 include ../dsgw_include.mk
 
@@ -48,5 +48,5 @@ $(HTMLDEST)/%.gif: %.gif
 strip:
 depend:
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk

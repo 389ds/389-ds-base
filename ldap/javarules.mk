@@ -11,11 +11,11 @@
 # console
 
 # Where the source root is
-JAVA_SRC_DIR=$(ABS_ROOT)/ldapserver/ldap/admin/src/java
+JAVA_SRC_DIR=$(ABS_ROOT)/ldap/admin/src/java
 
 # Where the class files go
-JAVA_BUILD_DIR=$(ABS_ROOT)/ldapserver/built/java/$(BUILD_DEBUG)/admin
-JAVA_DEST_DIR=$(MCOM_ROOT)/ldapserver/built/java/$(BUILD_DEBUG)
+JAVA_BUILD_DIR=$(ABS_ROOT)/built/java/$(BUILD_DEBUG)/admin
+JAVA_DEST_DIR=$(BUILD_ROOT)/built/java/$(BUILD_DEBUG)
 CLASS_DIR=$(JAVA_DEST_DIR)/admin
 DSADMIN_DIR=$(CLASS_DIR)/com/netscape/admin
 

@@ -8,13 +8,13 @@
 # Gmakefile for Directory Server Gateway
 #
 LDAP_SRC = ../..
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 ifneq ($(ARCH), WINNT)
-#OLD_MCOM_ROOT := $(MCOM_ROOT)
-#MCOM_ROOT = $(shell cd $(OLD_MCOM_ROOT); pwd)
+#OLD_BUILD_ROOT := $(BUILD_ROOT)
+#BUILD_ROOT = $(shell cd $(OLD_BUILD_ROOT); pwd)
 #OLD_LDAP_SRC := $(LDAP_SRC)
 #LDAP_SRC = $(shell cd $(OLD_LDAP_SRC); pwd)
 endif
@@ -22,10 +22,10 @@ endif
 NOSTDCLEAN=true # don't let nsconfig.mak define target clean
 NOSTDSTRIP=true # don't let nsconfig.mak define target strip
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 endif
 
 include dsgw_include.mk
@@ -92,7 +92,7 @@ endif
 BINDIR=$(DSGW_BIN_RELDIR)
 OBJDEST=$(OBJDIR)/clients/dsgw/obj
 
-SRCDIR=$(MCOM_ROOT)/ldapserver/ldap/clients/dsgw
+SRCDIR=$(BUILD_ROOT)/ldap/clients/dsgw
 
 ifeq ($(ARCH), WINNT)
 ALDFLAGS+=-force:multiple

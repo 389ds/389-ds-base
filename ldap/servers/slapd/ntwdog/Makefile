@@ -10,7 +10,7 @@
 #
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -21,14 +21,14 @@ SLAPD_OBJDEST= $(OBJDIR)/obj
 BINDIR = $(LDAP_SERVER_RELDIR)
 LDAP_LIBDIR = $(OBJDIR)/lib
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 ifeq ($(ARCH), WINNT)
 SUBSYSTEM=windows
 endif
 
-#INCLUDES += -I$(MCOM_ROOT)/ldapserver/include/libadmin 
+#INCLUDES += -I$(BUILD_ROOT)/include/libadmin 
 
 DS_SERVER_DEFS = -DNS_DS
 

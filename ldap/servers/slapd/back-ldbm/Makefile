@@ -9,7 +9,7 @@
 # GNU Makefile for Directory Server libback-ldbm
 #
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -21,10 +21,10 @@ ifndef INSTDIR
 INSTDIR = /netscape/server4/
 endif
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 INCLUDES+=-I$(DB_INCLUDE)
 else
 CFLAGS+=-DLDAP_USE_DB185

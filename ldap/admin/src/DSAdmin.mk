@@ -8,16 +8,16 @@
 # Makefile for the DSAdmin dynamic loaded perl module
 
 LDAP_SRC = ../..
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 endif
 
 BINDIR=$(LDAP_ADMIN_BIN_RELDIR)
@@ -48,7 +48,7 @@ else
 endif
 
 ifeq ($(ARCH), WINNT)
-PLATFORM_INCLUDE = -I$(MCOM_ROOT)/ldapserver/include/nt
+PLATFORM_INCLUDE = -I$(BUILD_ROOT)/include/nt
 SUBSYSTEM=console
 EXTRA_LIBS+=comctl32.lib $(LDAP_SDK_LIBLDAP_DLL) $(LDAP_LIBUTIL) 
 EXTRA_LIBS_DEP+=$(LDAP_LIBUTIL_DEP)

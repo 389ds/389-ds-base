@@ -10,10 +10,10 @@
 # provided here.
 
 
-MCOM_ROOT=../../..
+BUILD_ROOT=../..
 MODULE=LibBase
 
-include ../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 OBJDEST=$(OBJDIR)/lib/base
 
@@ -26,7 +26,7 @@ else
 LIBS=$(OBJDIR)/lib/libbase.a
 endif
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 
@@ -84,11 +84,11 @@ OBJS = $(addprefix $(OBJDEST)/,	\
 				$(OSOBJS) \
 				) 
 
-MODULE_CFLAGS=-I$(NSROOT)/include/base
+MODULE_CFLAGS=-I$(BUILD_ROOT)/include/base
 
 ifeq ($(PRODUCT),"Netscape Catalog Server")
 ifeq ($(ARCH), WINNT)
-MCC_INCLUDE := $(subst -I$(MCOM_ROOT)/lib/libnet,,$(MCC_INCLUDE))
+MCC_INCLUDE := $(subst -I$(BUILD_ROOT)/lib/libnet,,$(MCC_INCLUDE))
 endif
 endif
 

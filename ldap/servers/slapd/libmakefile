@@ -11,7 +11,7 @@
 
 FLAG_LDAP_4SLAPD=true
 LDAP_SRC = ../..
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -24,17 +24,17 @@ ifndef INSTDIR
 INSTDIR = /netscape/server4/
 endif
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 _ldap_db_depend:=$(DB_LIB_DEP)
 INCLUDES+=-I$(DB_INCLUDE)
 endif
 include $(LDAP_SRC)/nsdeps.mk
 
-INCLUDES += -I. -I$(MCOM_ROOT)/ldapserver/lib
+INCLUDES += -I. -I$(BUILD_ROOT)/lib
 # uncomment the following to include support in slapd for hacky echo control
 #CFLAGS += -DSLAPD_ECHO_CONTROL
 CFLAGS+=$(SLCFLAGS)

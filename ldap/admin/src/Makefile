@@ -8,7 +8,7 @@
 # Source for the admin forms and CGI programs
 
 LDAP_SRC = ../..
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -19,10 +19,10 @@ OBJDEST=$(LDAP_ADMOBJDIR)
 
 SCRIPTSDIR=$(LDAP_BASE_RELDIR)/admin/scripts
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 endif
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
@@ -57,7 +57,7 @@ EXTRA_LIBS = $(DYNAMIC_DEPLINK) $(ADMINUTIL_LINK) $(LDAP_NOSSL_LINK) \
 	$(SECURITYLINK) $(NSPRLINK) $(SETUPSDK_S_LINK) $(ICULINK) $(OLD_EXTRA_LIBS)
 
 ifeq ($(ARCH), WINNT)
-PLATFORM_INCLUDE = -I$(MCOM_ROOT)/ldapserver/include/nt
+PLATFORM_INCLUDE = -I$(BUILD_ROOT)/include/nt
 SUBSYSTEM=console
 EXTRA_LIBS+=comctl32.lib $(LDAP_LIBUTIL)
 EXTRA_LIBS_DEP+=$(LDAP_LIBUTIL_DEP)
@@ -109,7 +109,7 @@ ifeq ($(ARCH), Linux)
 EXTRA_LIBS += -lcrypt
 else
 #this will help with porting other platforms
-EXTRA_LIBS+="you need to define EXTRA_LIBS for $(ARCH) in ldapserver/ldap/admin/src/Makefile"
+EXTRA_LIBS+="you need to define EXTRA_LIBS for $(ARCH) in ldap/admin/src/Makefile"
 endif # Linux
 endif # UnixWare
 endif # AIX
@@ -138,7 +138,7 @@ SECURE_BINS=
 SECLIB=$(LIBSECURITY)
 endif
 
-ADMIN_DLLGLUEOBJ=$(MCOM_ROOT)/ldapserver/built/$(ARCH)-$(SECURITY)-$(DEBUG)-admin/admin-lib/dllglue.o
+ADMIN_DLLGLUEOBJ=$(BUILD_ROOT)/built/$(ARCH)-$(SECURITY)-$(DEBUG)-admin/admin-lib/dllglue.o
 
 ifeq ($(ARCH),AIX)
 DLLGLUEOBJ=

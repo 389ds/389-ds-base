@@ -6,7 +6,7 @@
 # END COPYRIGHT BLOCK
 #
 LDAP_SRC= ../../..
-MCOM_ROOT= ../../../../..
+BUILD_ROOT= ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -15,7 +15,7 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 OBJDEST= $(OBJDIR)/lib/liblcoll
 LIBDIR= $(LIB_RELDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 INCLUDES+= -I../../slapd  -I../../../include 
@@ -32,7 +32,7 @@ EXTRA_LIBS_DEP+= $(LIBSLAPD_DEP)
 EXTRA_LIBS_DEP+=$(LDAPSDK_DEP)
 endif
 
-# INCLUDES+= -I. -I$(ACLINC) -I$(MCOM_ROOT)/ldapserver/lib
+# INCLUDES+= -I. -I$(ACLINC) -I$(BUILD_ROOT)/lib
 
 # ICU stuff
 INCLUDES+= $(ICU_INCLUDE)

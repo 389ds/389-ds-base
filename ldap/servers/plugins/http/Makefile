@@ -5,7 +5,7 @@
 # All rights reserved.
 # 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -14,8 +14,8 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 OBJDEST = $(OBJDIR)/lib/libhttpclient
 LIBDIR = $(LIB_RELDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 ifeq ($(ARCH), WINNT)

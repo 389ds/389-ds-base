@@ -10,7 +10,7 @@
 #
 
 LDAP_SRC = ..
-MCOM_ROOT = ../../..
+BUILD_ROOT = ../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -21,8 +21,8 @@ BINDIR = $(LDAP_SERVER_RELDIR)
 
 SLAPD_OBJDIR = $(LDAP_OBJDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 ifeq ($(ARCH), OSF1)

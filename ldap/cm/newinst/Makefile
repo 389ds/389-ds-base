@@ -15,13 +15,13 @@
 COMPONENT_DEPS := 1
 override USE_64=
 
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 LDAP_SRC = ../..
 
 MODULE=slapdInstallBin
 # override BUILD_MODULE = HTTP_ADMIN
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 test:
@@ -141,10 +141,10 @@ $(BINDEST)/ns-config: $(OBJS1) $(OBJS2)
 
 ifeq ($(ARCH), WINNT)
 $(INFO):
-	$(PERL) fixINF.pl $(BUILD_MODULE) $(DIR_VERSION) $(MCOM_ROOT)/ldapserver/$(BUILD_ARCH)/buildnum.dat slapd.inf $(SECURITY) $(PRODUCT) $(IS_DIR_LITE) $(INSTANCE_NAME_PREFIX) $@.inf $(BUILD_BOMB) "bin/admin/ns-admin,bin/admin/ns-admin.so"
+	$(PERL) fixINF.pl $(BUILD_MODULE) $(DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat slapd.inf $(SECURITY) $(PRODUCT) $(IS_DIR_LITE) $(INSTANCE_NAME_PREFIX) $@.inf $(BUILD_BOMB) "bin/admin/ns-admin,bin/admin/ns-admin.so"
 else
 $(INFO):
-	$(PERL) fixINF.pl $(BUILD_MODULE) $(DIR_VERSION) $(MCOM_ROOT)/ldapserver/$(BUILD_ARCH)/buildnum.dat slapd.inf $(SECURITY) $(PRODUCT) $(IS_DIR_LITE) $(INSTANCE_NAME_PREFIX) $@.inf $(BUILD_BOMB) "$(addprefix lib/,$(LDAP_SOLIBS)) bin/admin/libnsslapd.sl bin/slapd/bin/ns-slapd bin/slapd/bin/ns-slapd.so bin/slapd/bin/libnsslapd_shr.a"
+	$(PERL) fixINF.pl $(BUILD_MODULE) $(DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat slapd.inf $(SECURITY) $(PRODUCT) $(IS_DIR_LITE) $(INSTANCE_NAME_PREFIX) $@.inf $(BUILD_BOMB) "$(addprefix lib/,$(LDAP_SOLIBS)) bin/admin/libnsslapd.sl bin/slapd/bin/ns-slapd bin/slapd/bin/ns-slapd.so bin/slapd/bin/libnsslapd_shr.a"
 endif
 
 $(OBJDEST)/%.o: %.c

@@ -10,7 +10,7 @@
 #
 
 LDAP_SRC = ../..
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
@@ -22,11 +22,11 @@ ifndef INSTDIR
 INSTDIR = /netscape/server4/
 endif
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-include $(MCOM_ROOT)/ldapserver/ns_usepurify.mk
-include $(MCOM_ROOT)/ldapserver/ns_usequantify.mk
+include $(BUILD_ROOT)/ns_usepurify.mk
+include $(BUILD_ROOT)/ns_usequantify.mk
 include $(LDAP_SRC)/nsdeps.mk
 
 
@@ -64,19 +64,19 @@ LDAP_DONT_USE_SMARTHEAP=1
 endif
 
 ifndef LDAP_DONT_USE_SMARTHEAP
-include $(MCOM_ROOT)/ldapserver/ns_usesh.mk
+include $(BUILD_ROOT)/ns_usesh.mk
 INCLUDES+=-I$(SH_INCLUDE)
 else
 CFLAGS+=-DLDAP_DONT_USE_SMARTHEAP
 endif
 
 ifndef LDAP_USE_OLD_DB
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usedb.mk
 _ldap_db_depend:=$(DB_LIB_DEP)
 INCLUDES+=-I$(DB_INCLUDE)
 endif
 
-INCLUDES += -I. -I$(ACLINC) -I$(MCOM_ROOT)/ldapserver/lib
+INCLUDES += -I. -I$(ACLINC) -I$(BUILD_ROOT)/lib
 
 #ICONS = $(addprefix $(LDAP_SRC)/servers/slapd/ntwdog/, logo.ico key.ico) 
 

@@ -8,15 +8,15 @@
 # The libsi18n library support for getting strings from the
 # string database.
 
-MCOM_ROOT=../../..
+BUILD_ROOT=../..
 MODULE=LibsI18N
-include ../../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 NSDEFS_PRODUCT = $(NS_PRODUCT)
 
 OBJDEST=$(OBJDIR)/lib/libsi18n
 
-L10NDIR = $(MCOM_ROOT)/ldapserver/l10n
+L10NDIR = $(BUILD_ROOT)/l10n
 
 ifeq ($(ARCH), WINNT)
 CCOUT0=  /Fo
@@ -119,7 +119,7 @@ DBTheaders = \
         gsadmserv.h
 endif
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 

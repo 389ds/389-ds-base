@@ -26,10 +26,10 @@ ifdef bogus_variable_to_skip_comments
 #
 #	Here is a sample:
 #
-#MCOM_ROOT=../..
+#BUILD_ROOT=..
 #
-#include $(MCOM_ROOT)/ldapserver/nsconfig.mk
-#include $(MCOM_ROOT)/ldapserver/ns_usesh.mk
+#include $(BUILD_ROOT)/nsconfig.mk
+#include $(BUILD_ROOT)/ns_usesh.mk
 #
 #
 #ifeq ($(ARCH), WINNT)

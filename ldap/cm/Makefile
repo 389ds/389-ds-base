@@ -18,17 +18,17 @@ default help :
 	@echo ""
 
 
-MCOM_ROOT=../../..
-TREE_ROOT=$(MCOM_ROOT)
+BUILD_ROOT=../..
+TREE_ROOT=$(BUILD_ROOT)
 
 # make sure we pull the admin server component here
 ADMSERV_DEPS = 1
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
-include $(MCOM_ROOT)/ldapserver/ldap/nsldap.mk
-include $(MCOM_ROOT)/ldapserver/ldap/javarules.mk
-include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
-include $(MCOM_ROOT)/ldapserver/ns_usesh.mk
+include $(BUILD_ROOT)/nsconfig.mk
+include $(BUILD_ROOT)/ldap/nsldap.mk
+include $(BUILD_ROOT)/ldap/javarules.mk
+include $(BUILD_ROOT)/ns_usedb.mk
+include $(BUILD_ROOT)/ns_usesh.mk
 
 NSDISTMODE = copy
 
@@ -56,12 +56,12 @@ TMP_CM_PWD := $(shell pwd)
 LDAP_CM_ABS_PATH := $(TMP_CM_PWD:/tmp_mnt/%=/%) # AIX prefixes /tmp_mnt to path.
 
 ifneq ($(ARCH), WINNT)
-RELTOOLS=$(MCOM_ROOT)/reltools/ftpname_new.pl
+RELTOOLS=$(RELTOOLSPATH)/ftpname_new.pl
 SUF=-suf .tar
 SUFEXE=-suf .tar.gz
 BACKGROUND=&
 else
-RELTOOLSDIR=$(shell pwd)/../../../reltools
+RELTOOLSDIR=$(RELTOOLSPATH)
 NT_RELTOOLS=$(RELTOOLSDIR)
 RELTOOLS=perl $(RELTOOLSDIR)/ftpname.pl
 SUF=-suf .zip
@@ -173,23 +173,23 @@ ADMIN_SERVER_TARGZ=admserv.tar.gz
 ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
 
 # Release directory for ldapsdk
-RELSDK = $(MCOM_DRIVE)$(RELTOP)/ldapsdk/$(OBJDIR_BASE)
-RELJDK = $(MCOM_DRIVE)$(RELTOP)/ldapjdk
+RELSDK = $(BUILD_DRIVE)$(RELTOP)/ldapsdk/$(OBJDIR_BASE)
+RELJDK = $(BUILD_DRIVE)$(RELTOP)/ldapjdk
 
 # these are files we need to put in the command line/console only package
 #LDAPSDK_IMPORTS=ldapsearch ldapdelete ldapmodify
 
 # perl script to add the slapd information to the base installer
 # setup information file
-FIX_SETUP_INF = $(MCOM_ROOT)/ldapserver/ldap/cm/fixSetupInf.pl
-FIX_BASE_INF = $(MCOM_ROOT)/ldapserver/ldap/cm/fixBaseInf.pl
+FIX_SETUP_INF = $(BUILD_ROOT)/ldap/cm/fixSetupInf.pl
+FIX_BASE_INF = $(BUILD_ROOT)/ldap/cm/fixBaseInf.pl
 
 ifndef INSTDIR
 ifeq ($(ARCH), WINNT)
-INSTDIR = $(TREE_ROOT)/$(MMDD)
+INSTDIR = $(TREE_ROOT)/../$(MMDD)
 else
-INSTDIR = $(MCOM_DRIVE)$(MCOM_ROOT)/$(MMDD)
-ABS_INSTDIR = $(ABS_ROOT)/$(MMDD)
+INSTDIR = $(BUILD_DRIVE)$(BUILD_ROOT)/../$(MMDD)
+ABS_INSTDIR = $(ABS_ROOT_PARENT)/$(MMDD)
 endif
 endif
 # This is the directory where we put what we're making: the files which go on the CD.
@@ -197,9 +197,9 @@ INST_TARGET=$(INSTDIR)/$(NS_BUILD_FLAVOR)
 INST_TARGET_RESKIT=$(INSTDIR)/$(NS_BUILD_FLAVOR)/reskit
 INST_TARGET_INTL=./$(PRODUCT_MARKET)dir
 
-LDAPDIR = $(MCOM_ROOT)/ldapserver/ldap
+LDAPDIR = $(BUILD_ROOT)/ldap
 
-NSDIST = $(MCOM_ROOT)/dist
+NSDIST = $(BUILD_ROOT)/../dist
 
 DS_JAR_SRC_PATH = $(NSDIST)/$(BUILD_DEBUG)
 DS_JAR_DEST_PATH = java/jars
@@ -285,8 +285,8 @@ endif
 	$(CP) -R $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/
 
 	$(INSTALL) -m 644 $(NSDIST)/dsmlgw/dsmlgw.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/dsmlgw/misc/server-config.wsdd $(RELDIR)/clients/dsmlgw/WEB-INF
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(RELDIR)/clients/dsmlgw/
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/server-config.wsdd $(RELDIR)/clients/dsmlgw/WEB-INF
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(RELDIR)/clients/dsmlgw/
 
 
 # now time to move the necessary jars in place
@@ -308,39 +308,39 @@ endif
 	fi ; \
 	done
 
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/dsml/*.dsml $(RELDIR)/bin/slapd/install/dsml
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/dsml/*.dsml $(RELDIR)/bin/slapd/install/dsml
 # Package online and ldaptags only if they exist: they are only built on 
 # Solaris and NT but packaged on all platforms
-	if [ -d $(MCOM_DRIVE)$(MCOM_ROOT)/dist/online ] ; then \
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/dist/online/*.war $(RELDIR)/clients/slapd ; \
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/online/doc/*.html $(RELDIR)/clients/slapd ; \
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/online/ldif/*.ldif $(RELDIR)/clients/slapd ; \
+	if [ -d $(BUILD_DRIVE)$(BUILD_ROOT)/../dist/online ] ; then \
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/../dist/online/*.war $(RELDIR)/clients/slapd ; \
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/online/doc/*.html $(RELDIR)/clients/slapd ; \
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/online/ldif/*.ldif $(RELDIR)/clients/slapd ; \
 	fi
-#	if [ -d $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/ldaptags ] ; then \
-#	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/ldaptags/doc/*.html $(RELDIR)/clients/slapd ; \
+#	if [ -d $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/ldaptags ] ; then \
+#	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/ldaptags/doc/*.html $(RELDIR)/clients/slapd ; \
 #	fi
 
 ### Package up the orgchart ###
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/*.gif $(RELDIR)/clients/orgchart/html
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/*.html $(RELDIR)/clients/orgchart/html
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/*.css $(RELDIR)/clients/orgchart/html
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/*.tmpl $(RELDIR)/clients/orgchart
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.gif $(RELDIR)/clients/orgchart/html
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.html $(RELDIR)/clients/orgchart/html
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.css $(RELDIR)/clients/orgchart/html
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.tmpl $(RELDIR)/clients/orgchart
 
 ifeq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/*.bat $(RELDIR)/clients/orgchart/bin
-	$(INSTALL) -m 755 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/*.pl $(RELDIR)/clients/orgchart/bin
+	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.bat $(RELDIR)/clients/orgchart/bin
+	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.pl $(RELDIR)/clients/orgchart/bin
 else
 	$(MKDIR) $(RELDIR)/clients/orgchart/bin
-	$(CP) $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/org.pl $(RELDIR)/clients/orgchart/bin/org
-	$(CP) $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/clients/orgchart/myorg.pl $(RELDIR)/clients/orgchart/bin/myorg
+	$(CP) $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/org.pl $(RELDIR)/clients/orgchart/bin/org
+	$(CP) $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/myorg.pl $(RELDIR)/clients/orgchart/bin/myorg
 	chmod 755 $(RELDIR)/clients/orgchart/bin/org
 	chmod 755 $(RELDIR)/clients/orgchart/bin/myorg
 endif
 ### end orgchart package ###
 
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/schema/slapd-collations.conf $(RELDIR)/bin/slapd/install/config
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/slapd-collations.conf $(RELDIR)/bin/slapd/install/config
 
 # libdb for windows special and smartheap
 ifeq ($(ARCH), WINNT)
@@ -368,30 +368,30 @@ endif
 endif
 
 # the plugin API
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/slapi-plugin.h $(RELDIR)/plugins/slapd/slapi/include
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin.h $(RELDIR)/plugins/slapd/slapi/include
 	$(INSTALL) -m 644 $(NSPR_BUILD_DIR)/include/*.h $(RELDIR)/plugins/slapd/slapi/include
 	$(INSTALL) -m 644 $(NSPR_BUILD_DIR)/include/obsolete/*.h $(RELDIR)/plugins/slapd/slapi/include/obsolete
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/slapi-plugin-compat4.h $(RELDIR)/plugins/slapd/slapi/include
-#	if [ -f $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/docs/plugin/README ] ; \
-#	then $(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/docs/plugin/README $(RELDIR)/plugins/slapd ; \
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin-compat4.h $(RELDIR)/plugins/slapd/slapi/include
+#	if [ -f $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/docs/plugin/README ] ; \
+#	then $(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/docs/plugin/README $(RELDIR)/plugins/slapd ; \
 #	fi
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/*.c $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/*.h $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/*.c $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/*.h $(RELDIR)/plugins/slapd/slapi/examples
 	$(INSTALL) -m 644 $(DB_INCLUDE)/db.h $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/README $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/clients/*.* $(RELDIR)/plugins/slapd/slapi/examples/clients
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/clients/README $(RELDIR)/plugins/slapd/slapi/examples/clients
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/distrib/*.c $(RELDIR)/plugins/slapd/slapi/examples/distrib
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/distrib/README $(RELDIR)/plugins/slapd/slapi/examples/distrib
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/README $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/clients/*.* $(RELDIR)/plugins/slapd/slapi/examples/clients
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/clients/README $(RELDIR)/plugins/slapd/slapi/examples/clients
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/*.c $(RELDIR)/plugins/slapd/slapi/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/README $(RELDIR)/plugins/slapd/slapi/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples
 	$(MV) $(RELDIR)/plugins/slapd/slapi/examples/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples/Makefile
-	$(CP) $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/distrib/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples/distrib/Makefile
+	$(CP) $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples/distrib/Makefile
 ifeq ($(ARCH), WINNT)
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/testplugin.mak $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/testplugin.def $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/slapd/test-plugins/testplugin.dsp $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/distrib/distrib.dsp $(RELDIR)/plugins/slapd/slapi/examples/distrib
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/distrib/libdistrib.def $(RELDIR)/plugins/slapd/slapi/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.mak $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.def $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.dsp $(RELDIR)/plugins/slapd/slapi/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/distrib.dsp $(RELDIR)/plugins/slapd/slapi/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/libdistrib.def $(RELDIR)/plugins/slapd/slapi/examples/distrib
 endif
 ifeq ($(ARCH), WINNT)
 	$(INSTALL) -m 755 $(LIBSLAPD) $(RELDIR)/plugins/slapd/slapi/lib
@@ -417,7 +417,7 @@ endif
 
 # Images for IM Presence plugin
 ifdef BUILD_PRESENCE
-	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/bin/slapd/install/presence
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/bin/slapd/install/presence
 endif
 
 # docs
@@ -557,7 +557,7 @@ $(INSTDIR)/$(NS_BUILD_FLAVOR)/nsperl/$(NSPERL_ZIP_FILE):
 # one more hack to nsperl - we must remove LDIF.pm because it
 # conflicts with the one in perldap - bug 600138
 # SITEHACK is defined in nsperl.mk
-	$(ZIP) -d $(dir $@)/$(NSPERL_ZIP_FILE) lib/nsPerl5.6.1/$(SITEHACK)/Mozilla/LDAP/LDIF.pm
+#	$(ZIP) -d $(dir $@)/$(NSPERL_ZIP_FILE) lib/nsPerl5.6.1/$(SITEHACK)/Mozilla/LDAP/LDIF.pm
 
 $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd:
 	$(MKDIR) -p $@
@@ -669,8 +669,8 @@ endif
 # Move setup binary to dssetup
 	mv $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup $(INSTDIR)/$(NS_BUILD_FLAVOR)/dssetup
 # Move the new setup wrappers into place
-	cp $(MCOM_ROOT)/ldapserver/ldap/cm/newinst/setup.pl $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.pl
-	cp $(MCOM_ROOT)/ldapserver/ldap/cm/newinst/setup.sh $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.pl
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.sh $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup
 
 # We need to package perl for the new setup wrapper to run
 	mkdir $(INSTDIR)/$(NS_BUILD_FLAVOR)/tmp
@@ -790,8 +790,8 @@ endif  # BUILD_SHIP
 
 cleanDirectory:
 	cd $(LDAPDIR); $(MAKE) clean
-	rm -rf $(MCOM_ROOT)/dist/$(NC_BUILD_FLAVOR)
-	rm -rf $(MCOM_ROOT)/ldapserver/built/$(NS_BUILD_FLAVOR)
+	rm -rf $(BUILD_ROOT)/../dist/$(NC_BUILD_FLAVOR)
+	rm -rf $(BUILD_ROOT)/built/$(NS_BUILD_FLAVOR)
 
 
 ifeq ($(ARCH), WINNT)
@@ -841,15 +841,15 @@ _admserv_files: $(INST_TARGET) $(ADMSERV_DEP)
 # move setup.exe to dssetup.exe
 	mv $(INST_TARGET)/setup.exe $(INST_TARGET)/dssetup.exe
 # copy in the new setup wrapper script
-	cp $(MCOM_ROOT)/ldapserver/ldap/cm/newinst/setup.pl $(INST_TARGET)
-	cp $(MCOM_ROOT)/ldapserver/ldap/cm/newinstnt/setup.bat $(INST_TARGET)
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INST_TARGET)
+	cp $(BUILD_ROOT)/ldap/cm/newinstnt/setup.bat $(INST_TARGET)
 
 
 #----------------------------  slapd rules --------------------------------------------------
 
 # Files which go in the distibution and which we make ourselves
-SLAPD_ZIPFILE=$(ABS_ROOT)/$(MMDD)/$(NS_BUILD_FLAVOR)/$(SLAPD_DIR)/slapd.z
-DSJARS_ZIPFILE=$(ABS_ROOT)/$(MMDD)/$(NS_BUILD_FLAVOR)/$(SLAPD_DIR)/dsjars.z
+SLAPD_ZIPFILE=$(ABS_ROOT_PARENT)/$(MMDD)/$(NS_BUILD_FLAVOR)/$(SLAPD_DIR)/slapd.z
+DSJARS_ZIPFILE=$(ABS_ROOT_PARENT)/$(MMDD)/$(NS_BUILD_FLAVOR)/$(SLAPD_DIR)/dsjars.z
 
 .PHONY: _slapd_files
 
@@ -937,4 +937,4 @@ $(INST_TARGET)/tools: $(INSTDIR)/$(NS_BUILD_FLAVOR)/tools/infozip.zip
 endif
 
 $(OBJDIR)/lib/libsi18n/ns-slapd.properties:
-	cd $(MCOM_ROOT)/ldapserver/lib/libsi18n ; $(MAKE) $(MFLAGS) all
+	cd $(BUILD_ROOT)/lib/libsi18n ; $(MAKE) $(MFLAGS) all

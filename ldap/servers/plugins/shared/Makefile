@@ -11,7 +11,7 @@
 #
 
 LDAP_SRC = ../../..
-MCOM_ROOT = ../../../../..
+BUILD_ROOT = ../../../..
 
 SHARED=shared
 
@@ -22,8 +22,8 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 OBJDEST = $(OBJDIR)/lib/$(SHARED)
 LIBDIR = $(LDAP_LIBDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsdefs.mk
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsdefs.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 CFLAGS+=$(SLCFLAGS)

@@ -7,20 +7,20 @@
 #
 # Makefile.cpp for the Netsite Commerce and Communications servers.
 
-MCOM_ROOT = ../../..
+BUILD_ROOT = ../..
 
 MODULE=httpdBinary
 
 ifneq ($(ARCH), WINNT)
-OLD_MCOM_ROOT := $(MCOM_ROOT)
-MCOM_ROOT := $(shell cd $(OLD_MCOM_ROOT); pwd)
+OLD_BUILD_ROOT := $(BUILD_ROOT)
+BUILD_ROOT := $(shell cd $(OLD_BUILD_ROOT); pwd)
 BUILDSO=mocha admin
 endif
 
 HTTPD_DIR=$(OBJDIR)
 OBJDEST=$(HTTPD_DIR)/obj
 
-include ../../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 
@@ -203,7 +203,7 @@ endif # Netscape Directory Server
 else # WINNT
 
 $(MOCHA):
-	cd $(MCOM_ROOT)/mocha; $(MAKE) export $(NSDEFS)
+	cd $(BUILD_ROOT)/mocha; $(MAKE) export $(NSDEFS)
 
 $(DLLS): $(OBJS) $(DEPLIBS) $(OBJDEST)/ns-httpd.res
 	-@echo EXTRA_LIBS = $(EXTRA_LIBS)

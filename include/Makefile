@@ -7,10 +7,10 @@
 #
 # Makefile for netsite.h
 
-MCOM_ROOT = ../..
+BUILD_ROOT = ..
 MODULE=netsiteInclude
 
-include ../nsdefs.mk
+include $(BUILD_ROOT)/nsdefs.mk
 
 HDRDEST=$(OBJDIR)/include
 
@@ -42,7 +42,7 @@ all: stuff nspr
 strip:
 depend:
 
-include ../nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 
 ifeq ($(NSAPI_CAPABLE), true)
 

@@ -15,7 +15,7 @@
 #	
 #  
 
-MCOM_ROOT = ../../../..
+BUILD_ROOT = ../../..
 LDAP_SRC = ../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
@@ -27,14 +27,14 @@ INCLDEST = $(OBJDIR)/ns-ldapagt/include
 BINDIR = $(LDAP_SERVER_RELDIR)
 EXTDEST = $(BINDIR)
 
-include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 MCC_SERVER=
 
 ARCH := $(shell uname -s)
 ifneq ($(ARCH), WINNT)
-ARCH := $(shell $(MCOM_ROOT)/ldapserver/nsarch)
+ARCH := $(shell $(BUILD_ROOT)/nsarch)
 endif
 
 
