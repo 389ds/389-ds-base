@@ -589,10 +589,14 @@ send_DirectoryServerDown_trap(server_instance *serv_p)
 
     /* Define the oids for the trap */
     oid DirectoryServerDown_oid[] = { DirectoryServerDown_OID };
-    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, serv_p->port };
-    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, serv_p->port };
-    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, serv_p->port };
-    oid dsEntityContact_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYCONTACT, serv_p->port };
+    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, NULL };
+    dsEntityDescr_oid[3] = serv_p->port;
+    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, NULL };
+    dsEntityVers_oid[3] = serv_p->port;
+    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, NULL };
+    dsEntityLocation_oid[3] = serv_p->port;
+    oid dsEntityContact_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYCONTACT, NULL };
+    dsEntityContact_oid[3] = serv_p->port;
 
     /* Lookup row to get version string */
     if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
@@ -651,9 +655,12 @@ send_DirectoryServerStart_trap(server_instance *serv_p)
 
     /* Define the oids for the trap */
     oid DirectoryServerStart_oid[] = { DirectoryServerStart_OID };
-    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, serv_p->port };
-    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, serv_p->port };
-    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, serv_p->port };
+    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, NULL };
+    dsEntityDescr_oid[3] = serv_p->port;
+    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, NULL };
+    dsEntityVers_oid[3] = serv_p->port;
+    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, NULL };
+    dsEntityLocation_oid[3] = serv_p->port;
 
     /* Lookup row to get version string */
     if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {

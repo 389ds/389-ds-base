@@ -371,7 +371,11 @@ NETSNMP_INCLUDE = -I$(NETSNMP_INCDIR)
 NETSNMP_LIBNAMES = netsnmp netsnmpagent netsnmpmibs netsnmphelpers
 NETSNMP_LINK = -L$(NETSNMP_LIBPATH) $(addprefix -l, $(NETSNMP_LIBNAMES))
 ifneq ($(ARCH), WINNT)
-  NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+  ifeq ($(ARCH), HPUX)
+    NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).7, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+  else
+    NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+  endif
   LIBS_TO_PKG += $(addprefix $(NETSNMP_LIBPATH)/,$(NETSNMP_SOLIBS))
 endif
 ###########################################################
