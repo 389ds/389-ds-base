@@ -38,10 +38,33 @@ ds_get_conf_from_file(FILE *conf)
 	if (!PL_strncasecmp(entry, config_entry, cfg_ent_len)) {
 	    char *line = entry;
 	    while ((line = ldif_getline(&entry))) {
+		char *type, *value;
+		int vlen = 0;
+		int rc;
+	        char *errmsg = NULL;
+
+		if ( *line == '\n' || *line == '\0' ) {
+		    break;
+		}
+
+		/* this call modifies line */
+		rc = ldif_parse_line(line, &type, &value, &vlen, &errmsg);
+		if (rc != 0)
+		{
+		    if ( errmsg != NULL ) {
+			ds_send_error(errmsg, 0);
+			PR_smprintf_free(errmsg);
+		    } else {
+			ds_send_error("Unknown error processing config file", 0);
+		    }
+		    free(begin);
+		    return NULL;
+		}
 		listsize++;
 		conf_list = (char **) realloc(conf_list, 
 					      ((listsize + 1) * sizeof(char *)));
-		conf_list[listsize - 1] = strdup(line);
+		/* this is the format expected by ds_get_config_value */
+		conf_list[listsize - 1] = PR_smprintf("%s:%s", type, value);
 		conf_list[listsize] = NULL;		/* always null terminated */
 	    }
 	}
