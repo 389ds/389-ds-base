@@ -179,6 +179,11 @@ ifeq ($(NSOS_ARCH),Linux)
 ifeq (,$(filter-out Linux FreeBSD,$(NSOS_ARCH)))
  NSOS_RELEASE  := $(shell echo $(NSOS_RELEASE) | sed 's/-.*//')
 endif 
+NSOS_RELEASE_TEMP := $(subst ., ,$(NSOS_RELEASE))
+NSOS_RELEASE_COUNT := $(words $(NSOS_RELEASE_TEMP))
+ifeq ($(NSOS_RELEASE_COUNT), 4)
+	NSOS_RELEASE := $(basename $(NSOS_RELEASE))
+endif
 NSOS_RELEASE := $(basename $(NSOS_RELEASE))
 NSOS_ARCH       := Linux
 PRETTY_ARCH     := Linux

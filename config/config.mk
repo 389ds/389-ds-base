@@ -77,6 +77,14 @@ ifeq ($(OS_ARCH),Linux)
 ifeq (,$(filter-out Linux FreeBSD,$(NSOS_ARCH)))
  OS_RELEASE  := $(shell echo $(OS_RELEASE) | sed 's/-.*//')
 endif
+# If the release returned by uname has _4_ components, the original
+# logic here broke. The following lines detect this and add a second
+# 'basename' to fixup the version such that everything still works.
+OS_RELEASE_TEMP := $(subst ., ,$(OS_RELEASE))
+OS_RELEASE_COUNT := $(words $(OS_RELEASE_TEMP))
+ifeq ($(OS_RELEASE_COUNT), 4)
+    OS_RELEASE := $(basename $(OS_RELEASE))
+endif
 OS_RELEASE := $(basename $(OS_RELEASE))
   ifeq (86,$(findstring 86,$(OS_TEST)))
     CPU_TAG = _x86
@@ -229,6 +237,7 @@ NOMD_CFLAGS	= $(XP_DEFINE) $(OPTIMIZER) $(NOMD_OS_CFLAGS) $(DEFINES) $(INCLUDES)
 ifdef NSOS_RELEASE_OVERRIDE
 OS_RELEASE := $(NSOS_RELEASE_OVERRIDE)
 endif
+
 
 include $(DEPTH)/config/$(OS_ARCH)$(OS_RELEASE).mk
 
