@@ -817,7 +817,7 @@ void slapi_ch_free_string( char **s );
 struct berval*  slapi_ch_bvdup(const struct berval*);
 struct berval** slapi_ch_bvecdup(struct berval**);
 void slapi_ch_bvfree(struct berval** v);
-
+char * slapi_ch_smprintf(const char *fmt, ...);
 
 /*
  * syntax plugin routines

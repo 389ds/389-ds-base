@@ -99,7 +99,7 @@ int main( int argc, char **argv )
 			perror( "malloc" );
 		    return( 1 );
 		}
-		while ( buf = fgets(buf, maxlen, stdin) ) {
+		while ( (buf = fgets(buf, maxlen, stdin)) ) {
 			/* if buffer was filled, expand and keep reading unless last char
 			is linefeed, in which case it is OK for buffer to be full */
 			while( ((curlen = strlen(buf)) == (maxlen - 1)) && buf[curlen-1] != '\n' ) {

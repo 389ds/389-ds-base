@@ -26,7 +26,7 @@ OBJS=$(addprefix $(OBJDEST)/, error.o \
                               template.o util.o \
                               authdb.o $(OSOBJS))
 
-# moved files [to libadminutil] : form_post.o strlist.o distadm.o cron_conf.o 
+# moved files [to libadminutil] : form_post.o distadm.o cron_conf.o 
 # candidate for moing: admlog.o error.o admserv.o
 # replaced files: error.o [by libadminutil/errRpt.c]
 # removed for lack of ndbm support from binary release of libdbm.... userdb.o

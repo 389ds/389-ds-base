@@ -89,12 +89,10 @@ static int check_passwords(char *pw1, char *pw2)
 
 static int parse_form(server_config_s *cf)
 {
-    char *sroot=NULL, *servname=NULL;
     char *rm = getenv("REQUEST_METHOD");
     char *qs = getenv("QUERY_STRING");
     char* cfg_sspt_uid_pw1;
     char* cfg_sspt_uid_pw2;
-    int len = 0;
     LDAPURLDesc *desc = 0;
     char *temp = 0;
 
@@ -271,24 +269,18 @@ static int parse_form(server_config_s *cf)
 	char *suffix = dn_normalize_convert(strdup(cf->netscaperoot));
 	/* the config ds connection may require SSL */
 	int isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
-	len = strlen("ldap://") + 1 + strlen(desc->lud_host) + strlen(":") +
-	    6 + strlen("/") + strlen(suffix);
-	cf->config_ldap_url = (char *)calloc(len+1, 1);
-	sprintf(cf->config_ldap_url, "ldap%s://%s:%d/%s",
-		(isSSL ? "s" : ""), desc->lud_host, desc->lud_port, suffix);
+	cf->config_ldap_url = PR_smprintf("ldap%s://%s:%d/%s",
+									  (isSSL ? "s" : ""), desc->lud_host,
+									  desc->lud_port, suffix);
 	ldap_free_urldesc(desc);
     }
 
     /* if being called as a CGI, the user_ldap_url will be the directory
        we're creating */
-    len = strlen("ldap://") + strlen(cf->servname) + strlen(":") +
-	strlen(cf->servport) + strlen("/") + strlen(cf->suffix);
-    cf->user_ldap_url = (char *)calloc(len+1, 1);
     /* this is the directory we're creating, and we cannot create an ssl
-       directory, so we don't have to worry about ldap vs ldaps here */
-    
-    sprintf(cf->user_ldap_url, "ldap://%s:%s/%s", cf->servname,
-	    cf->servport, cf->suffix);
+       directory, so we don't have to worry about ldap vs ldaps here */    
+    cf->user_ldap_url = PR_smprintf("ldap://%s:%s/%s", cf->servname,
+									cf->servport, cf->suffix);
 
     cf->samplesuffix = NULL;
 
@@ -330,7 +322,8 @@ int main(int argc, char *argv[], char */*envp*/[])
 	int reconfig = 0;
 	int ii = 0;
 	int cgi = 0;
-	int _ai = ADMUTIL_Init();
+
+	(void)ADMUTIL_Init();
 	
 	/* Initialize NSS to make ds_salted_sha1_pw_enc() happy */
 	if (NSS_NoDB_Init(NULL) != SECSuccess) {

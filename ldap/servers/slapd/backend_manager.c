@@ -417,31 +417,15 @@ be_add_instance (const char *name, void *plugin_identity)
 static char* 
 be_get_instance_dn (const char *index_name, const char *name)
 {
-	int len;
 	char *dn;
 
 	PR_ASSERT (name);
 
-	len =  strlen ("cn=config,") + strlen (name) + 
-		   strlen (LDBM_CLASS_PREFIX) + 4; /* 4 = "cn=" + ',' + '\0' */
-
-	if (index_name)
-	{
-		len += strlen (index_name) + strlen ("cn=index,") + 4; /* 4 = "cn=" + ',' */
-	}
-
-	dn = (char*)slapi_ch_malloc (len);
-	if (dn)
-	{
-		if (index_name)
-		{
-			sprintf (dn, "cn=%s,cn=index,cn=config,cn=%s,%s", index_name, name, 
-					 LDBM_CLASS_PREFIX);				
-		}
-		else
-		{
-			sprintf (dn, "cn=config,cn=%s,%s", name, LDBM_CLASS_PREFIX);	
-		}
+	if (index_name) {
+		dn = slapi_ch_smprintf("cn=%s,cn=index,cn=config,cn=%s,%s", index_name, name, 
+							   LDBM_CLASS_PREFIX);				
+	} else {
+		dn = slapi_ch_smprintf("cn=config,cn=%s,%s", name, LDBM_CLASS_PREFIX);	
 	}
 
 	return dn;
@@ -690,7 +674,6 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
 	const char *thisdn;
 	int thisdnlen;
 	int suffixlen;
-	int maxinst = 1;
 	int i;
 	int rval = -1;
 

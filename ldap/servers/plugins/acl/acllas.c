@@ -1487,7 +1487,6 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	int			max_nestlevel;
 	int			max_memberlimit;
 	aclUserGroup		*u_group;
-	char			ebuf [ BUFSIZ ];
 	struct member_info	*groupMember = NULL;
 	struct member_info 	*parentGroup = NULL;
 
@@ -3180,13 +3179,10 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		PList_t global_auth)
 {
 
-	char			*s_attrName = NULL;
 	char			*attrName;
 	int				matched;
 	int				rc;
 	Slapi_Attr 		*attr;
-	int				numOflevels = 0;
-	char			*n_currEntryDn = NULL;
 	lasInfo			lasinfo;
 	Slapi_Value     *sval=NULL;
 	const struct berval	*attrVal;
@@ -3477,16 +3473,10 @@ static char **
 acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 	
 	char **a = NULL;
-	char *str = NULL;
 	char *patched_rule = NULL;
 	char *rule_to_use = NULL;
 	char *new_patched_rule = NULL;	
-	char *rule_prefix = NULL;
-	char *rule_suffix = NULL;
-	int  rule_suffix_len = 0;
-	char *comp = NULL;
 	int	matched_val_len = 0;
-	int macro_len = 0;
 	int j = 0;
 	int has_macro_dn = 0;
 	int has_macro_levels = 0;

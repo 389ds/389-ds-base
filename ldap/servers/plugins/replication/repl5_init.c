@@ -36,6 +36,8 @@ nsslapd-plugindescription: Multi-Master Replication Plugin
 #include "dirver.h"
 #include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
+#include "plstr.h"
+
 /* #ifdef _WIN32
 int *module_ldap_debug = 0;
 
@@ -152,15 +154,15 @@ get_repl_session_id (Slapi_PBlock *pb, char *idstr, CSN **csn)
 		/* Avoid "Connection is NULL and hence cannot access SLAPI_CONN_ID" */
 		if (opid) {
 			slapi_pblock_get (pb, SLAPI_CONN_ID, &connid);
-			sprintf (idstr, "conn=%d op=%d", connid, opid);
+			PR_snprintf (idstr, REPL_SESSION_ID_SIZE, "conn=%d op=%d", connid, opid);
 		}
 
 		slapi_pblock_get ( pb, SLAPI_OPERATION, &op );
 		opcsn = operation_get_csn (op);
 		if (opcsn) {
 			csn_as_string (opcsn, PR_FALSE, opcsnstr);
-			strcat (idstr, " csn=");
-			strcat (idstr, opcsnstr);
+			PL_strcatn (idstr, REPL_SESSION_ID_SIZE, " csn=");
+			PL_strcatn (idstr, REPL_SESSION_ID_SIZE, opcsnstr);
 		}
 	}
 	if (csn) {

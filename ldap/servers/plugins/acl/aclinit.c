@@ -36,7 +36,6 @@ static int acl_initialized = 0;
 int
 aclinit_main()
 {
-	char				*cookie = NULL;
 	Slapi_PBlock		*pb;
 	int					rv;
 	Slapi_DN			*sdn;
@@ -194,7 +193,6 @@ aclinit_search_and_update_aci ( int thisbeonly, const Slapi_DN *base,
 {
 	char				*attrs[2] = { "aci", NULL };
 	 /* Tell __aclinit_handler whether it's an add or a delete */
-	int				any_error = op;
 	Slapi_PBlock 	*aPb;
 	LDAPControl		**ctrls=NULL;
 	int				retval;

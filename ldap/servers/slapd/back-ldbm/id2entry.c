@@ -13,7 +13,6 @@
 int
 id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  )
 {
-    struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     DB     *db = NULL;
     DB_TXN *db_txn = NULL;
@@ -137,7 +136,6 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
 struct backentry *
 id2entry( backend *be, ID id, back_txn *txn, int *err  )
 {
-    struct ldbminfo  *li = (struct ldbminfo *) be->be_database->plg_private;
     ldbm_instance    *inst = (ldbm_instance *) be->be_instance_info;
     DB               *db = NULL;
     DB_TXN           *db_txn = NULL;

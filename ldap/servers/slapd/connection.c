@@ -173,7 +173,6 @@ void
 connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is_SSL)
 {
     char *		pTmp = is_SSL ? "SSL " : "";
-    TCPLEN_T		l_fromLen = (TCPLEN_T)fromLen;
     TCPLEN_T		addrlen, destaddrlen;
     struct sockaddr_in	addr, destaddr;
     char		*str_ip, *str_destip, buf_ip[ 256 ], buf_destip[ 256 ];

@@ -724,7 +724,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	 * the session's conn id and op id to identify the the supplier.
 	 */
 	/* junkrc = ruv_get_first_id_and_purl(supplier_ruv, &junkrid, &locking_purl); */
-	sprintf(locking_session, "conn=%d id=%d", connid, opid);
+	PR_snprintf(locking_session, sizeof(locking_session), "conn=%d id=%d", connid, opid);
 	locking_purl = &locking_session[0];
 	if (replica_get_exclusive_access(replica, &isInc, connid, opid,
 									 locking_purl,
@@ -826,7 +826,7 @@ send_response:
 		int resp_log_level = SLAPI_LOG_FATAL;
 		char purlstr[1024] = {0};
 		if (current_purl)
-			sprintf(purlstr, " locked by %s for %s update", current_purl,
+			PR_snprintf(purlstr, sizeof(purlstr), " locked by %s for %s update", current_purl,
 					isInc ? "incremental" : "total");
 
 		/* Don't log replica busy as errors - these are almost always not

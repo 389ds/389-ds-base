@@ -252,7 +252,7 @@ import_get_version(char *str)
 		my_version = atoi(valuecharptr);
 		*(str + offset) = '#';
 		/* the memory below was not allocated by the slapi_ch_ functions */
-		if (errmsg) slapi_ch_free((void **) &errmsg);
+		if (errmsg) PR_smprintf_free(errmsg);
 		if (retmalloc) slapi_ch_free((void **) &valuecharptr);
 		break;
 	    } 
@@ -1736,8 +1736,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     }
     else
     {
-        filename = (char *)slapi_ch_malloc(strlen(file_name) + dlen + 2);
-        sprintf(filename, "%s/%s", dest_dir, file_name);
+        filename = slapi_ch_smprintf("%s/%s", dest_dir, file_name);
     }
     LDAPDebug(LDAP_DEBUG_TRACE, "dse_conf_backup(%s): backup file %s\n",
               filter, filename, 0);
@@ -1896,8 +1895,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     Slapi_Entry **curr_entries = NULL;
     Slapi_PBlock srch_pb;
     
-    filename = (char *)slapi_ch_malloc(strlen(file_name) + strlen(src_dir) + 2);
-    sprintf(filename, "%s/%s", src_dir, file_name);
+    filename = slapi_ch_smprintf("%s/%s", src_dir, file_name);
 
     if (PR_SUCCESS != PR_Access(filename, PR_ACCESS_READ_OK))
     {
@@ -1961,10 +1959,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
 	if (entry_filter != NULL)
 	{ /* Single instance restoration */
-		int mylen = 0;
-		mylen = strlen(entry_filter) + strlen(li->li_plugin->plg_dn) + 2;
-        search_scope = slapi_ch_malloc(mylen);
-		sprintf(search_scope, "%s,%s", entry_filter, li->li_plugin->plg_dn);
+        search_scope = slapi_ch_smprintf("%s,%s", entry_filter, li->li_plugin->plg_dn);
 	} else { /* Normal restoration */
         search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
 	}
@@ -1993,8 +1988,7 @@ out:
 
     slapi_ch_free_string(&filename);
 
-	if (search_scope)
-		slapi_ch_free(&search_scope);
+	slapi_ch_free_string(&search_scope);
 
 
     if (fd > 0)
@@ -2012,17 +2006,11 @@ dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename)
 	
 	if (bename != NULL) /* This was a restore of a single backend */
 	{
-		int mylen = 0;
 		/* Entry filter string */
-		mylen = strlen(bename) + strlen("cn=") + 2;
-        entry_filter = slapi_ch_malloc(mylen);
-		sprintf(entry_filter, "cn=%s", bename);
+        entry_filter = slapi_ch_smprintf("cn=%s", bename);
 
-		mylen = 0;
 		/* Instance search filter */
-		mylen = strlen(DSE_INSTANCE_FILTER) + strlen(bename) + strlen("(&(cn=))") + 2;
-        instance_entry_filter = slapi_ch_malloc(mylen);
-		sprintf(instance_entry_filter, "(&%s(cn=%s))", DSE_INSTANCE_FILTER, bename);
+        instance_entry_filter = slapi_ch_smprintf("(&%s(cn=%s))", DSE_INSTANCE_FILTER, bename);
 	} else {
 	    instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
 	}
@@ -2032,10 +2020,8 @@ dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename)
     rval += dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
                 "Index Config", entry_filter);
 
-	if (entry_filter)
-		slapi_ch_free(&entry_filter);
-	if (instance_entry_filter)
-		slapi_ch_free(&instance_entry_filter);
+	slapi_ch_free_string(&entry_filter);
+	slapi_ch_free_string(&instance_entry_filter);
 
     return rval;
 }

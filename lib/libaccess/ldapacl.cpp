@@ -401,7 +401,6 @@ int acl_map_cert_to_user (NSErr_t *errp, const char *dbname,
 	/* LDAPU_REQ will reconnect & retry once if LDAP server went down */
 	/* it sets the variable rv */
 	if (rv == LDAPU_SUCCESS) {
-	    char *dn = 0;
 
 	    LDAPU_REQ(rv, ldb, ldapu_cert_to_user(cert, ldb->ld, ldb->basedn,
 						  &res, &uid));
@@ -726,7 +725,6 @@ NSAPI_PUBLIC int acl_user_exists (const char *user, const char *userdn,
     PList_t resource = 0;
     PList_t auth_info = 0;
     PList_t global_auth = NULL;
-    char *olddn = 0;
     int rv;
 
     /* Check if the userdn is available in the usr_cache */
@@ -748,9 +746,9 @@ NSAPI_PUBLIC int acl_user_exists (const char *user, const char *userdn,
     }
 
     pool = pool_create();
-    subject = PListCreate(pool, ACL_ATTR_INDEX_MAX, NULL, NULL);
-    resource = PListCreate(pool, ACL_ATTR_INDEX_MAX, NULL, NULL);
-    auth_info = PListCreate(pool, ACL_ATTR_INDEX_MAX, NULL, NULL);
+    subject = PListCreate(pool, ACL_ATTR_INDEX_MAX, 0, 0);
+    resource = PListCreate(pool, ACL_ATTR_INDEX_MAX, 0, 0);
+    auth_info = PListCreate(pool, ACL_ATTR_INDEX_MAX, 0, 0);
  
     if (!pool || !subject || !resource || !auth_info) {
 	/* ran out of memory */

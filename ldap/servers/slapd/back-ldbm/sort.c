@@ -78,7 +78,7 @@ void sort_log_access(Slapi_PBlock *pb,sort_spec_thing *s,IDList *candidates)
 	int prefix_size = strlen(prefix);
 
 	buffer = stack_buffer;
-	size -= sprintf(buffer,"%s",prefix);
+	size -= PR_snprintf(buffer,sizeof(stack_buffer),"%s",prefix);
 	ret = print_out_sort_spec(buffer+prefix_size,s,&size);
 	if (0 != ret) {
 		/* It wouldn't fit in the buffer */

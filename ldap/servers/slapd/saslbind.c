@@ -840,7 +840,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         }
 
         /* set the connection bind credentials */
-        sprintf(authtype, "%s%s", SLAPD_AUTH_SASL, mech);
+        PR_snprintf(authtype, sizeof(authtype), "%s%s", SLAPD_AUTH_SASL, mech);
         bind_credentials_set(pb->pb_conn, authtype, dn, 
                              NULL, NULL, NULL, bind_target_entry);
 

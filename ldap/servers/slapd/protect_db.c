@@ -247,7 +247,7 @@ sample_and_update(char *dir_name)
 	if (is_process_up(pid)) {
 	    result = (long) pid;
 	} else {
-	    sprintf(file_name, "%s/%s", dir_name, entry->name);
+	    PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->name);
 	    PR_Delete(file_name);
 	}
     }
@@ -293,7 +293,7 @@ remove_and_update(char *dir_name)
 	    continue;
 	}	
 	if (!is_process_up(pid) || pid == our_pid) {
-	    sprintf(file_name, "%s/%s", dir_name, entry->d_name);
+	    PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->d_name);
 	    unlink(file_name);
 	}
     }

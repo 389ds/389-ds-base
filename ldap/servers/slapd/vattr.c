@@ -380,7 +380,6 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 
 	if (list) {
 		vattr_sp_handle *current_handle = NULL;
-		Slapi_Attr *cache_attr = NULL;
 		/* first lets consult the cache to save work */
 		int cache_status;
 					
@@ -618,8 +617,6 @@ slapi_vattr_values_get_sp(vattr_context *c,
 		if (list) {
 			vattr_sp_handle *current_handle = NULL;
 			void *hint = NULL;
-			Slapi_Attr* cache_attr = 0;
-			char *vattr_type = NULL;
 			/* first lets consult the cache to save work */
 			int cache_status;
 						
@@ -814,8 +811,6 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 		if (list) {
 			vattr_sp_handle *current_handle = NULL;
 			void *hint = NULL;
-			Slapi_Attr* cache_attr = 0;
-			char *vattr_type=NULL;
 			/* first lets consult the cache to save work */
 			int cache_status;
 			
@@ -1947,7 +1942,6 @@ objAttrValue *vattr_map_entry_build_schema(char *type_name)
 {
 	objAttrValue *ret = 0;
 	struct objclass	*oc;
-	int attr_index = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> vattr_map_entry_build_schema\n",0,0,0);
 

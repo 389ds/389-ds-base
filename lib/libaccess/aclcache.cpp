@@ -150,8 +150,6 @@ ACL_ListHashUpdate(ACLListHandle_t **acllistp)
 NSAPI_PUBLIC void
 ACL_ListHashEnter(ACLListHandle_t **acllistp)
 {
-    NSErr_t *errp = 0;
-
     ACL_CritEnter();
 
     /*  Look for a matching ACL List and use it if we find one.  */

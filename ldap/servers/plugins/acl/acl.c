@@ -35,7 +35,7 @@ static char *ds_map_generic[2] = { NULL, NULL };
 /****************************************************************************/
 static	int	acl__resource_match_aci(struct acl_pblock *aclpb, aci_t	*aci ,
 								int skip_attrEval, int *a_matched);
-static	acl__TestRights(Acl_PBlock *aclpb,int access, char **right,
+static	int acl__TestRights(Acl_PBlock *aclpb,int access, char **right,
 						char ** map_generic, aclResultReason_t *result_reason);
 static int 	acl__scan_for_acis(struct acl_pblock *aclpb, int *err);
 static void	acl__reset_cached_result (struct acl_pblock *aclpb );
@@ -43,7 +43,6 @@ static int 	acl__scan_match_handles ( struct acl_pblock *aclpb, int type);
 static int 	acl__attr_cached_result (struct acl_pblock *aclpb, char *attr, int access );
 static int 	acl__match_handlesFromCache (struct acl_pblock *aclpb, char *attr, int access);
 static int	acl__get_attrEval ( struct acl_pblock *aclpb, char *attr );
-static int	acl__config_get_readonly ();
 static int	acl__recompute_acl (Acl_PBlock *aclpb, AclAttrEval *a_eval,
 									int	access,	int	aciIndex);
 static void	__acl_set_aclIndex_inResult ( Acl_PBlock *aclpb,
@@ -991,8 +990,7 @@ acl_read_access_allowed_on_entry (
 				slapi_ch_free ( (void **) &aclpb->aclpb_Evalattr);
 				aclpb->aclpb_Evalattr = slapi_ch_malloc(len);
 			}
-			strncpy (aclpb->aclpb_Evalattr, attr_type, len);
-			aclpb->aclpb_Evalattr[len] = '\0';
+			PL_strncpyz (aclpb->aclpb_Evalattr, attr_type, len);
 			if ( attr_index >= 0 ) {
 				/*
 				 * access was granted to one of the user specified attributes
@@ -3872,34 +3870,6 @@ acl_regen_aclsignature ()
 }
 	
 
-
-static int
-acl__handle_config_entry (Slapi_Entry *e,  void *callback_data )
-{
-
-    int             *value = (int *) callback_data;
-
-	*value = slapi_entry_attr_get_int( e, "nsslapd-readonly");
-       
-    return 0;
-}
-
-static int
-acl__config_get_readonly ()
-{
-
-	int readonly = 0;
-
-	slapi_search_internal_callback( "cn=config", LDAP_SCOPE_BASE, "(objectclass=*)",
-   	                        NULL, 0 /* attrsonly */,
-                            &readonly/* callback_data */,
-                            NULL /* controls */,
-                            NULL /* result_callback */,
-                            acl__handle_config_entry,
-                            NULL /* referral_callback */);
-
-	return readonly;
-}
 /*
 *
 * Assumptions:

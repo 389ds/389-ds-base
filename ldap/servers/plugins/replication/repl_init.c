@@ -52,7 +52,6 @@ static Slapi_PluginDesc legacypreopdesc = { "replication-legacy-preop", PLUGIN_M
 static Slapi_PluginDesc legacypostopdesc = { "replication-legacy-postop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication post-operation plugin" };
 static Slapi_PluginDesc legacyinternalpreopdesc = { "replication-legacy-internalpreop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication internal pre-operation plugin" };
 static Slapi_PluginDesc legacyinternalpostopdesc = { "replication-legacy-internalpostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication internal post-operation plugin" };
-static Slapi_PluginDesc legacybepostopdesc = { "replication-legacy-bepostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication bepost-operation plugin" };
 static Slapi_PluginDesc legacyentrydesc = { "replication-legacy-entry", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication entry plugin" };
 
 static int legacy_stopped; /* A flag which is set when all the plugin threads are to stop */        
@@ -173,7 +172,6 @@ legacy_entry_init( Slapi_PBlock *pb )
 static int
 create_config_top()
 {
-	const char *dn = REPL_CONFIG_TOP;
 	char *entry_string = slapi_ch_strdup("dn: cn=replication,cn=config\nobjectclass: top\nobjectclass: extensibleobject\ncn: replication\n");
 	Slapi_PBlock *pb = slapi_pblock_new();
 	Slapi_Entry *e = slapi_str2entry(entry_string, 0);

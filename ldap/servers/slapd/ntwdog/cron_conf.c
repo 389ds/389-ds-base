@@ -261,7 +261,7 @@ static cron_conf_obj *get_object(FILE *fp)
 
 		  if (q)
 		    {
-		      sprintf(command, "%s", q);
+		      PR_snprintf(command, S_BUF_SIZE, "%s", q);
 		      /* debug("Setting command to '%s'", command); */
 		      hascom++;
 		    }
@@ -294,7 +294,7 @@ static cron_conf_obj *get_object(FILE *fp)
 
 		  if (q)
 		    {
-		      sprintf(dir, "%s", q);
+		      PR_snprintf(dir, S_BUF_SIZE, "%s", q);
 		      /* debug("Setting dir to '%s'", dir); */
 		      hasdir++;
 		    }
@@ -313,7 +313,7 @@ static cron_conf_obj *get_object(FILE *fp)
 	    {
 	      if (!hasuser)
 		{
-		  sprintf(user, "%s", q);
+		  PR_snprintf(user, S_BUF_SIZE, "%s", q);
 		  /* debug("Setting user to '%s'", user); */
 		  hasuser++;
 		}
@@ -331,7 +331,7 @@ static cron_conf_obj *get_object(FILE *fp)
 	    {
 	      if (!hastime)
 		{
-		  sprintf(start_time, "%s", q);
+		  PR_snprintf(start_time, S_BUF_SIZE, "%s", q);
 		  /* debug("Setting time to '%s'", start_time); */
 		  hastime++;
 		}
@@ -349,7 +349,7 @@ static cron_conf_obj *get_object(FILE *fp)
 	    {
 	      if (!hasdays)
 		{
-		  sprintf(days, "%s", q);
+		  PR_snprintf(days, S_BUF_SIZE, "%s", q);
 		  /* debug("Setting days to '%s'", days); */
 		  hasdays++;
 		}

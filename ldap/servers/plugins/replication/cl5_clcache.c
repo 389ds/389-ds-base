@@ -23,7 +23,7 @@
 #define DEFAULT_CLC_BUFFER_PAGE_COUNT		32
 #define DEFAULT_CLC_BUFFER_PAGE_SIZE		1024
 
-static enum {
+enum {
 	CLC_STATE_READY = 0,		/* ready to iterate */
 	CLC_STATE_UP_TO_DATE,		/* remote RUV already covers the CSN */
 	CLC_STATE_CSN_GT_RUV,		/* local RUV doesn't conver the CSN */
@@ -527,7 +527,6 @@ clcache_adjust_anchorcsn ( CLC_Buffer *buf )
 {
 	PRBool hasChange = PR_FALSE;
 	struct csn_seq_ctrl_block *cscb;
-	int rc = 0;
 	int i;
 
 	if ( buf->buf_state == CLC_STATE_READY ) {
@@ -706,9 +705,7 @@ static CLC_Buffer *
 clcache_new_buffer ( ReplicaId consumer_rid )
 {
 	CLC_Buffer *buf = NULL;
-	int page_count = 0;
 	int welldone = 0;
-	int rc = 0;
 
 	do {
 

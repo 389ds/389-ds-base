@@ -71,10 +71,7 @@ delete_changerecord( changeNumber cnum )
     char	*dnbuf;
     int		delrc;
 
-    dnbuf = slapi_ch_malloc( strlen( attr_changenumber ) + 20 + 
-			     strlen(RETROCL_CHANGELOG_DN));
-    /* Delete the record */
-    sprintf( dnbuf, "%s=%ld, %s", attr_changenumber, cnum, 
+    dnbuf = slapi_ch_smprintf("%s=%ld, %s", attr_changenumber, cnum, 
 	     RETROCL_CHANGELOG_DN);
     pb = slapi_pblock_new ();
     slapi_delete_internal_set_pb ( pb, dnbuf, NULL /*controls*/, NULL /* uniqueid */,
@@ -167,7 +164,7 @@ static Slapi_Entry *get_changerecord( changeNumber cnum, int *err )
 	return NULL;
     }
     crtp->crt_nentries = crtp->crt_err = 0; crtp->crt_entry = NULL;
-    sprintf( fstr, "%s=%ld", attr_changenumber, cnum );
+    PR_snprintf( fstr, sizeof(fstr), "%s=%ld", attr_changenumber, cnum );
     
     pb = slapi_pblock_new ();
     slapi_search_internal_set_pb (pb, RETROCL_CHANGELOG_DN, 

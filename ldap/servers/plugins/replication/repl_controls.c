@@ -36,7 +36,6 @@ create_NSDS50ReplUpdateInfoControl(const char *uuid,
 {
 	int retval;
 	BerElement *tmp_bere = NULL;
-	struct berval tmpval = {0};
 	char csn_str[CSN_STRSIZE];	
 
 	if (NULL == ctrlp)

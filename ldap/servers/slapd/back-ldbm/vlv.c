@@ -280,9 +280,7 @@ vlv_init(ldbm_instance *inst)
 
     /* Initialize lock first time through */
     if(be->vlvSearchList_lock == NULL) {
-        char *rwlockname = (char *)slapi_ch_malloc(sizeof("vlvSearchList") +
-                            strlen(inst->inst_name) + 2);
-        sprintf(rwlockname, "vlvSearchList_%s", inst->inst_name);
+        char *rwlockname = slapi_ch_smprintf("vlvSearchList_%s", inst->inst_name);
         be->vlvSearchList_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, rwlockname);
         slapi_ch_free((void**)&rwlockname);
     }
@@ -303,7 +301,7 @@ vlv_init(ldbm_instance *inst)
     if (inst == NULL) {
         basedn = NULL;
     } else {
-        sprintf(buf, "cn=%s,cn=%s,cn=plugins,cn=config",
+        PR_snprintf(buf, sizeof(buf), "cn=%s,cn=%s,cn=plugins,cn=config",
                 inst->inst_name, inst->inst_li->li_plugin->plg_name);
         basedn = buf;
     }
@@ -359,7 +357,7 @@ vlv_remove_callbacks(ldbm_instance *inst) {
     if (inst == NULL) {
         basedn = NULL;
     } else {
-        sprintf(buf, "cn=%s,cn=%s,cn=plugins,cn=config",
+        PR_snprintf(buf, sizeof(buf), "cn=%s,cn=%s,cn=plugins,cn=config",
                 inst->inst_name, inst->inst_li->li_plugin->plg_name);
         basedn = buf;
     }
@@ -1888,8 +1886,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	backend *be= inst->inst_be;
 
 	tag1=create_vlv_search_tag(dn);
-	buf=slapi_ch_malloc(strlen("cn=MCC ")+strlen(tag1)+strlen(", cn=")+strlen(inst->inst_name)+strlen(LDBM_PLUGIN_ROOT) + 1);
-	sprintf(buf,"%s%s%s%s%s","cn=MCC ",tag1,", cn=",inst->inst_name,LDBM_PLUGIN_ROOT);
+	buf=slapi_ch_smprintf("%s%s%s%s%s","cn=MCC ",tag1,", cn=",inst->inst_name,LDBM_PLUGIN_ROOT);
 	newdn=slapi_sdn_new_dn_byval(buf);
 	PR_RWLock_Wlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
@@ -1897,8 +1894,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
     {	
 		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
 		tag2=create_vlv_search_tag(dn);
-		buf2=slapi_ch_malloc(strlen(TAG)+strlen(tag2)+strlen(buf)+2);
-		sprintf(buf2,"%s%s,%s",TAG,tag2,buf);
+		buf2=slapi_ch_smprintf("%s%s,%s",TAG,tag2,buf);
 		vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
 		/* This line release lock to prevent recursive deadlock caused by slapi_internal_delete calling vlvDeleteSearchEntry */
 		PR_RWLock_Unlock(be->vlvSearchList_lock); 

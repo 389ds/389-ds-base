@@ -23,8 +23,6 @@ valuearray_minus_valuearray(
     Slapi_Value **a, 
     Slapi_Value **b
 );
-static int index_addordel_values( backend *be, const char *type, struct berval **vals, struct berval **evals, ID id, int flags, back_txn *txn );
-static int index_addordel_values_ext( backend *be, const char *type, struct berval **vals, struct berval **evals, ID id, int flags, back_txn *txn,int *idl_disposition, void *buffer_handle );
 
 const char* indextype_PRESENCE = "pres";
 const char* indextype_EQUALITY = "eq";
@@ -1519,7 +1517,7 @@ index_addordel_values_ext_sv(
     char	*basetmp, *basetype;
     
     LDAPDebug( LDAP_DEBUG_TRACE,
-               "=> index_addordel_values( \"%s\", %lu )\n", type, (u_long)id, 0 );
+               "=> index_addordel_values_ext_sv( \"%s\", %lu )\n", type, (u_long)id, 0 );
 
     basetype = buf;
     if ( (basetmp = slapi_attr_basetype( type, buf, sizeof(buf) ))
@@ -1533,7 +1531,7 @@ index_addordel_values_ext_sv(
 		slapi_ch_free_string( &basetmp );
         return( 0 );
     }
-    LDAPDebug( LDAP_DEBUG_ARGS, "   index_addordel_values indexmask 0x%x\n",
+    LDAPDebug( LDAP_DEBUG_ARGS, "   index_addordel_values_ext_sv indexmask 0x%x\n",
                ai->ai_indexmask, 0, 0 );
     if ( (err = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
         LDAPDebug( LDAP_DEBUG_ANY,
@@ -1678,7 +1676,7 @@ index_addordel_values_ext_sv(
         slapi_ch_free( (void**)&basetmp );
     }
 
-    LDAPDebug (LDAP_DEBUG_TRACE, "<= index_addordel_values\n", 0, 0, 0 );
+    LDAPDebug (LDAP_DEBUG_TRACE, "<= index_addordel_values_ext_sv\n", 0, 0, 0 );
     return( 0 );
 
  bad:

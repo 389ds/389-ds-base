@@ -455,8 +455,6 @@ void send_referrals_from_entry(Slapi_PBlock *pb, Slapi_Entry *referral);
 
 #define DSE_BACKEND             "frontend-internal"
 
-#define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
-
 struct dse *dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfilename, const char *configdir);
 struct dse *dse_new_with_filelist(char *filename, char *tmpfilename, char *backfilename, char *startokfilename, const char *configdir, char **filelist);
 int dse_deletedse(Slapi_PBlock *pb);
@@ -1146,6 +1144,12 @@ int ids_sasl_init(void);
 char **ids_sasl_listmech(Slapi_PBlock *pb);
 void ids_sasl_check_bind(Slapi_PBlock *pb);
 void ids_sasl_server_new(Connection *conn);
+
+/*
+ * sasl_io.c
+ */
+/* This function should be called under the connection mutex */
+int sasl_io_setup(Connection *c);
 
 /*
  * daemon.c

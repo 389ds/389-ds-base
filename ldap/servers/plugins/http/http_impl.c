@@ -300,10 +300,10 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 					if (!defaultprefix) /* still could not find it . . . */
     						goto bail; /* . . . can't do anything */
 					defaultprefix++;
-					sprintf(certPref, "%s-",defaultprefix);
+					PR_snprintf(certPref, 1024, "%s-",defaultprefix);
 					strcpy(keyPref, certPref);
 					*defaultprefix= '\0';
-					sprintf(certDir, "%salias", certDir);
+					PR_snprintf(certDir, 1024, "%salias", certDir);
        				nssStatus = NSS_Initialize(certDir, certPref, keyPref, "secmod.db", nssFlags);
 					slapi_ch_free((void **)&val);
 		
@@ -610,12 +610,10 @@ static int nssReinitializationRequired()
 {
 	int nssReinitializationRequired = 0;
 	int err = 0;
-	int str_len = 0;
 	float version = 0;
 	const float DSVERSION = 6.1;
 	char *str = NULL;
 	char *value   = NULL;
-	char *ver_value   = NULL;
 	Slapi_Entry  **entry = NULL;
 	Slapi_PBlock *resultpb= NULL;
 
@@ -679,7 +677,6 @@ static PRStatus sendGetReq(PRFileDesc *fd, const char *path)
 	http_connection_time_out = httpConfig->connectionTimeOut;
 	status = sendFullData( fd, reqBUF, http_connection_time_out);
 
-bail:
 	if (reqBUF) {
 		PR_Free(reqBUF);
 		reqBUF = 0;
@@ -773,7 +770,6 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 
 	status = sendFullData( fd, reqBUF, http_connection_time_out);
 
-bail:
     if (reqBUF) {
             PR_Free(reqBUF);
             reqBUF = 0;
@@ -1360,7 +1356,6 @@ int http_impl_post(char *url, httpheader **httpheaderArray, char *body, char **d
 
 void http_impl_shutdown()
 {
-	int status = HTTP_IMPL_SUCCESS;
 	/**
 	 * Put cleanup code here
 	 */

@@ -77,7 +77,7 @@ AcceptLangList(const char* AcceptLanguage,
     cPtr = strtok(input,",");
     while (cPtr) {
       qvalue[countLang] = 1.0f;
-      if (cPtr1 = strchr(cPtr,';')) {
+      if ((cPtr1 = strchr(cPtr,';'))) {
         sscanf(cPtr1,";q=%f",&qvalue[countLang]);
         *cPtr1 = '\0';
       }

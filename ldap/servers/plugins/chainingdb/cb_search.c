@@ -113,8 +113,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
         	PR_RWLock_Rlock(cb->rwl_config_lock);
 		for (i=0; cb->url_array && cb->url_array[i]; i++) {
-			char * anUrl= slapi_ch_calloc(1,strlen(cb->url_array[i])+strlen(target)+1);
-			sprintf(anUrl,"%s%s",cb->url_array[i],target);
+			char * anUrl = slapi_ch_smprintf("%s%s",cb->url_array[i],target);
                 	bv.bv_val=anUrl;
 			bv.bv_len=strlen(bv.bv_val);
                 	slapi_entry_attr_merge( anEntry, "ref", bvals);
@@ -185,7 +184,9 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 		else
 			cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,cnxerrbuf, 0, NULL);
 
-		slapi_ch_free((void **)&cnxerrbuf);
+		if (cnxerrbuf) {
+			PR_smprintf_free(cnxerrbuf);
+		}
                 /* ping the farm. If the farm is unreachable, we increment the counter */
                 cb_ping_farm(cb,NULL,0);
 		return 1;

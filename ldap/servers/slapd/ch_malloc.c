@@ -355,6 +355,51 @@ slapi_ch_free_string(char **s)
 	slapi_ch_free((void **)s);
 }
 
+/*
+  This function is just like PR_smprintf.  It works like sprintf
+  except that it allocates enough memory to hold the result
+  string and returns that allocated memory to the caller.  The
+  caller must use slapi_ch_free_string to free the memory.
+  It should only be used in those situations that will eventually free
+  the memory using slapi_ch_free_string e.g. allocating a string
+  that will be freed as part of pblock cleanup, or passed in to create
+  a Slapi_DN, or things of that nature.  If you have control of the
+  flow such that the memory will be allocated and freed in the same
+  scope, better to just use PR_smprintf and PR_smprintf_free instead
+  because it is likely faster.
+*/
+char *
+slapi_ch_smprintf(const char *fmt, ...)
+{
+	int ret;
+	int size = 100; /* plus strlen fmt */
+	int incr = 100; /* increment to add each time through */
+	char *p = NULL;
+
+	va_list ap;
+	size += strlen(fmt); /* need at least strlen(fmt) bytes */
+	if ((p = slapi_ch_malloc(size)) == NULL) {
+		return NULL;
+	}
+	while (1) {
+		/* Try to print in the allocated space. */
+		va_start(ap, fmt);
+		ret = PR_vsnprintf(p, size, fmt, ap);
+		va_end(ap);
+		/* If that worked, return the string. */
+		if (ret > -1 && ret < size) {
+			break; /* return p */
+		} else { /* try again with more space */
+			size += incr;
+			if ((p = slapi_ch_realloc(p, size)) == NULL) {
+				break;
+			}
+		}
+	}
+
+	return p;
+}
+
 /* ========================= NT Specific Leak Checking Code ================================== */
 
 #if defined(_WIN32) && defined(DEBUG)
@@ -640,7 +685,7 @@ memory_record_dump( caddr_t data, caddr_t arg )
 	}
 	mr_to_hex_dump(b1, mr->p, size, MR_DUMP_AMOUNT);
 	mr_to_char_dump(b2, mr->p, size, MR_DUMP_AMOUNT);
-	sprintf(b3,"%p %ld %s %s",mr->p,mr->size,b1,b2);
+	PR_snprintf(b3,sizeof(b3),"%p %ld %s %s",mr->p,mr->size,b1,b2);
 	LDAPDebug( LDAP_DEBUG_ANY, "%s\n",b3,0,0);
 	while(mr->ra[frame]!=0)
 	{

@@ -1165,7 +1165,7 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
 	they are in clear. We don't take it */ 
 
 	if ( scheme_list != NULL ) {
-		sprintf( errorbuf,
+			PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 				"pw_storagescheme: invalid encoding scheme - %s\nValid values are: %s\n", value, scheme_list );
 	}
 	retVal = LDAP_UNWILLING_TO_PERFORM;
@@ -1445,14 +1445,6 @@ config_set_pw_exp( const char *attrname, char *value, char *errorbuf, int apply 
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-  /* password policy is disabled in DirLite. */
-  if ( config_is_slapd_lite() ) {
-	if ( NULL != value && strcasecmp(value, "off") != 0 ) {
-	  PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, LITE_PW_EXP_ERR );
-	  retVal = LDAP_UNWILLING_TO_PERFORM;
-	  return retVal;
-	}
-  }
   retVal = config_set_onoff ( attrname,
 							  value, 
 							  &(slapdFrontendConfig->pw_policy.pw_exp),
@@ -1765,7 +1757,6 @@ int
 config_set_rootpw( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  char *hashedpw = NULL;
   struct pw_scheme *is_hashed = NULL;
 
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
@@ -1787,8 +1778,8 @@ config_set_rootpw( const char *attrname, char *value, char *errorbuf, int apply 
 	free_pw_scheme(is_hashed);
   }
   else {
-	hashedpw = (slapdFrontendConfig->rootpwstoragescheme->pws_enc)(value); 
-	slapdFrontendConfig->rootpw = slapi_ch_strdup ( hashedpw );
+	/* pwd enc func returns slapi_ch_malloc memory */
+	slapdFrontendConfig->rootpw = (slapdFrontendConfig->rootpwstoragescheme->pws_enc)(value); 
   }
   
   CFG_UNLOCK_WRITE(slapdFrontendConfig);
@@ -2032,17 +2023,7 @@ config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, in
   if ( 0 == getrlimit( RLIMIT_NOFILE, &rlp ) ) {
 	  maxVal = (int)rlp.rlim_max;
   }
-  
-  /* DirLite: limit the number of concurent connections by limiting 
-   * maxdescriptors.
-   */
-
-  if ( config_is_slapd_lite() && nValue > SLAPD_LITE_MAXDESCRIPTORS ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, LITE_MAXDESCRIPTORS_ERR );
-	retVal = LDAP_UNWILLING_TO_PERFORM;
-	nValue = SLAPD_LITE_MAXDESCRIPTORS;
-  }
-	  
+  	  
   if ( nValue < 1 || nValue > maxVal ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value %d, maximum file descriptors must range from 1 to %d (the current process limit)",
 			attrname, nValue, maxVal );
@@ -2220,12 +2201,6 @@ config_set_defaultreferral( const char *attrname, struct berval **value, char *e
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
-  if ( config_is_slapd_lite() ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, LITE_DEFAULT_REFERRAL_ERR );
-	retVal = LDAP_UNWILLING_TO_PERFORM;
-	return retVal;
-  }
-
   if ( config_value_is_null( attrname, (char *)value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
@@ -2531,10 +2506,6 @@ int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, in
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	slapdFrontendConfig->refer_mode=REFER_MODE_OFF;
-	if ( config_is_slapd_lite() ) {
-	  PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, LITE_REFERRAL_MODE_ERR );
-	  return LDAP_UNWILLING_TO_PERFORM;
-	}
 
     if ((!url) || (!url[0])) {
 	strcpy(errorbuf, "referral url must have a value");
@@ -2554,7 +2525,7 @@ config_set_versionstring( const char *attrname, char *version, char *errorbuf, i
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   if ((!version) || (!version[0])) {
-	strcpy(errorbuf, "versionstring must have a value");
+	PL_strncpyz(errorbuf, "versionstring must have a value", SLAPI_DSE_RETURNTEXT_SIZE);
 	return LDAP_OPERATIONS_ERROR;
   }
   if (apply) {

@@ -234,9 +234,7 @@ char *make_ds_url(char *host, int port){
 
   char *url;
   
-   url = (char *)slapi_ch_malloc( (strlen(host) + PORT_LEN + URL_CHARS_LEN + 1) * sizeof(char));
- 
-   sprintf(url,"ldap://%s:%d/",host, port);
+   url = slapi_ch_smprintf("ldap://%s:%d/",host, port);
  
    return url;
 }
@@ -362,7 +360,7 @@ int snmp_collator_start()
 	 * Get directory for our stats file
 	 */
 
-  sprintf(szStatsFile, "%s/logs/%s", instancedir, 
+  PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/logs/%s", instancedir, 
 		  AGT_STATS_FILE);
   tmpstatsfile = szStatsFile;
 

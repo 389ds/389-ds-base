@@ -203,8 +203,7 @@ attr_index_config(
 				    if (!strcasecmp (index_rules[j], officialOID)) {
 					official_rules[k++] = slapi_ch_strdup (officialOID);
 				    } else {
-					char* preamble = slapi_ch_malloc (strlen (fname) + 30);
-					sprintf (preamble, "%s: line %d", fname, lineno);
+					char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
 					LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
 						   preamble, officialOID, index_rules[j] );
 					slapi_ch_free((void**)&preamble);

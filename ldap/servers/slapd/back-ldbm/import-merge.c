@@ -277,16 +277,13 @@ static int import_count_merge_input_files(ldbm_instance *inst,
 
     for (i = 0; i < passes; i++) {
 	int fd;
-	char *filename = NULL;
-	size_t filename_length = strlen(inst->inst_dir_name) + 1 + 
-	    strlen(indexname) + 10 ;
+	char *filename = slapi_ch_smprintf("%s/%s.%d%s", inst->inst_dir_name, indexname, i+1,
+		LDBM_FILENAME_SUFFIX);
 
-	filename = slapi_ch_malloc(filename_length);
 	if (NULL == filename) {
 	    return -1;
 	}
-	sprintf(filename, "%s/%s.%d%s", inst->inst_dir_name, indexname, i+1,
-		LDBM_FILENAME_SUFFIX);
+
 	fd = dblayer_open_huge_file(filename, O_RDONLY, 0);
 	slapi_ch_free( (void**)&filename);
 	if (fd >= 0) {
@@ -320,14 +317,11 @@ static int import_open_merge_input_files(backend *be, char *indexname,
     }
     for (i = 0; i < passes; i++) {
 	DB *pDB = NULL;
-	char *filename = NULL;
-	size_t filename_length = strlen(indexname) + 10 ;
+	char *filename = slapi_ch_smprintf("%s.%d", indexname, i+1);
 
-	filename = slapi_ch_malloc(filename_length);
 	if (NULL == filename) {
 	    return -1;
 	}
-	sprintf(filename,"%s.%d", indexname, i+1);
 
 	if (vlv_isvlv(filename)) {
 		ret = dblayer_open_file(be, filename, 0, INDEX_VLV, &pDB);

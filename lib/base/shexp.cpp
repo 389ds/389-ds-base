@@ -23,7 +23,7 @@
 int valid_subexp(char *exp, char stop) 
 {
     register int x,y,t;
-    int nsc,np,tld;
+    int nsc,tld;
 
     x=0;nsc=0;tld=0;
 

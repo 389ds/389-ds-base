@@ -310,9 +310,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 		if (dot) {
 			*dot = '\0';
 		}
-		ra->long_name = slapi_ch_malloc(strlen(agmtname) + 
-			strlen(hostname) + 25);
-		sprintf(ra->long_name, "agmt=\"%s\" (%s:%d)", agmtname, hostname, ra->port);
+		ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%d)", agmtname, hostname, ra->port);
 	}
 
 	/* Initialize status information */
@@ -868,7 +866,6 @@ agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
 int
 agmt_set_bind_method_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 {
-	char *tmpstr = NULL;
 	int return_value = 0;
 
 	PR_ASSERT(NULL != ra);

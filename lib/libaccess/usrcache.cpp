@@ -451,15 +451,6 @@ int acl_usr_cache_passwd_check (const char *uid, const char *dbname,
     return rv;
 }
 
-
-static int group_check_helper (UserCacheObj *usrobj, void *val)
-{
-    if (usrobj->group && !strcmp(usrobj->group, (char *)val))
-	return LAS_EVAL_TRUE;
-    else
-	return LAS_EVAL_FALSE;
-}
-
 int acl_usr_cache_group_check (const char *uid, const char *dbname,
 			       const char *group, const time_t time)
 {

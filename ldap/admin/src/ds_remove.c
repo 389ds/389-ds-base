@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	if((isRunning = ds_get_updown_status()) == DS_SERVER_UP) {
 		if ((status = ds_bring_down_server()) != DS_SERVER_DOWN) {
 			char buf[1024];
-			sprintf(buf, "Could not stop server: error %d", status);
+			PR_snprintf(buf, sizeof(buf), "Could not stop server: error %d", status);
 			ds_report_error (DS_GENERAL_FAILURE, servername, buf);
 			return 1;
 		}
@@ -182,8 +182,8 @@ int main(int argc, char *argv[])
 		   and try again */
 		status = ds_rm_rf(installroot, rm_rf_err_func, NULL);
 		while (status && try_rm_rf_again && busy_retries) {
-			sprintf(line, "Some files or directories in %s are still in use.  Will sleep for 30 seconds and try again.",
-					installroot);
+			PR_snprintf(line, sizeof(line), "Some files or directories in %s are still in use.  Will sleep for 30 seconds and try again.",
+						installroot);
 			ds_show_message(line);
 			PR_Sleep(PR_SecondsToInterval(30));
 			try_rm_rf_again = 0;
@@ -191,8 +191,8 @@ int main(int argc, char *argv[])
 			status = ds_rm_rf(installroot, rm_rf_err_func, NULL);
 		}
 		if (status) {
-			sprintf(line, "Could not remove %s.  Please check log messages and try again.",
-					installroot);
+			PR_snprintf(line, sizeof(line), "Could not remove %s.  Please check log messages and try again.",
+						installroot);
 			ds_send_error(line, 0);
 		}
 	}
@@ -221,12 +221,12 @@ int main(int argc, char *argv[])
 
 	if (status == 0) {
 		char buf[1024];
-		sprintf(buf, "Server %s was successfully removed", servername);
+		PR_snprintf(buf, sizeof(buf), "Server %s was successfully removed", servername);
 		ds_show_message(buf);
 		rpt_success("");
 	} else {
 		char buf[1024];
-		sprintf(buf, "Could not remove server %s", servername);
+		PR_snprintf(buf, sizeof(buf), "Could not remove server %s", servername);
 		ds_send_error(buf, 0);
 	}
 

@@ -61,9 +61,6 @@ static int s_debug_level = 0;
 static Slapi_Eq_Context repl5_start_debug_timeout(int *setlevel);
 static void repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel);
 static void repl5_debug_timeout_callback(time_t when, void *arg);
-#ifndef DSE_RETURNTEXT_SIZE
-#define SLAPI_DSE_RETURNTEXT_SIZE 512
-#endif
 
 #define STATE_CONNECTED 600
 #define STATE_DISCONNECTED 601
@@ -1050,9 +1047,6 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 	char *nsschemacsn = "nsschemacsn";
 	Slapi_Entry **entries = NULL;
 	Slapi_Entry *schema_entry = NULL;
-	int push_schema = 1; /* Assume we need to push for now */
-	int local_error = 0; /* No local error encountered yet */
-	int remote_error = 0; /* No remote error encountered yet */
 	CSN *localcsn = NULL;
 	Slapi_PBlock *spb = NULL;
 	char localcsnstr[CSN_STRSIZE + 1] = {0};
@@ -1192,6 +1186,8 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 						break;
 					case CONN_OPERATION_SUCCESS:
 						return_value = CONN_SCHEMA_UPDATED;
+						break;
+					default:
 						break;
 					}
 				}
@@ -1434,18 +1430,6 @@ repl5_set_debug_timeout(const char *val)
 	}
 }
 
-static time_t 
-PRTime2time_t (PRTime tm)
-{
-    PRInt64 rt;
-
-    PR_ASSERT (tm);
-    
-    LL_DIV(rt, tm, PR_USEC_PER_SEC);
-
-    return (time_t)rt;
-}
-
 static Slapi_Eq_Context
 repl5_start_debug_timeout(int *setlevel)
 {
@@ -1465,7 +1449,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	if (eqctx && !*setlevel) {
-		int found = slapi_eq_cancel(eqctx);
+		(void)slapi_eq_cancel(eqctx);
 	}
 
 	if (s_debug_timeout && s_debug_level && *setlevel) {

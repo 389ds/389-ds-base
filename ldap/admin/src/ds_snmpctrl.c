@@ -16,6 +16,7 @@
 #include "libadminutil/admutil.h"
 #include "dsalib.h"
 #include "init_ds_env.h"
+#include "nspr.h"
 
 #if !defined(_WIN32)
 #include <signal.h>
@@ -51,7 +52,6 @@ int nsldapagt_restart(void);
 int main(int argc, char *argv[])
 {
 	char *action_type     = NULL;
-    int haderror=0;
 	int status = 1;
 
 	fprintf(stdout, "Content-type: text/html\n\n");
@@ -94,7 +94,7 @@ get_nsldapagt_pid(pid_t *pid)
    *pid = -1;
 
    SLAPD_ROOT = ds_get_install_root();
-   sprintf(path, "%s/logs/%s", SLAPD_ROOT, NSLDAPAGT_PID);
+   PR_snprintf(path, sizeof(path), "%s/logs/%s", SLAPD_ROOT, NSLDAPAGT_PID);
    if (!ds_file_exists(path)) {
       return(-1);
    }
@@ -193,7 +193,7 @@ smux_master_is_running()
    sin.sin_family = AF_INET;
    sin.sin_addr.s_addr = INADDR_ANY;
 
-   if (pse = getservbyname("smux", "tcp")) {
+   if ((pse = getservbyname("smux", "tcp"))) {
       sin.sin_port = ntohs(pse->s_port);
    } else {
       sin.sin_port = 199;
@@ -245,7 +245,7 @@ nsldapagt_start()
 	   char *SLAPD_ROOT = ds_get_install_root();
 	   char command[1024];
 
-	   sprintf(command, "cd %s/%s; ./%s -d %s", NETSITE_ROOT, SUBAGT_PATH,
+	   PR_snprintf(command, sizeof(command), "cd %s/%s; ./%s -d %s", NETSITE_ROOT, SUBAGT_PATH,
            SUBAGT_NAME, SLAPD_ROOT);
 
 	   (void) system(command);

@@ -353,7 +353,6 @@ int checkPrefix(char *cipher, char *schemaName, char **encrypt)
 int
 pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 {
-	char	*dec = NULL;
 	struct pw_scheme	*pwsp = NULL;
 	struct slapdplugin	*p = NULL;
 
@@ -510,7 +509,6 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 
 	Slapi_Mods	smods;
 	char *timestr;
-	Slapi_PBlock 	*mod_result_pb = NULL;
 	time_t 		pw_exp_date;
 	time_t          cur_time;
 	char 		*dn;
@@ -979,7 +977,6 @@ pw_mod_allowchange_aci(int pw_prohibit_change) {
 	char		*values_mod[2];
 	LDAPMod		mod;
 	LDAPMod		*mods[2];
-	char		*aci_pw = NULL;
 	Slapi_Backend *be;
 	char *cookie = NULL;
 
@@ -1243,104 +1240,104 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 				{
 					slapi_attr_get_type(attr, &attr_name);
 					if (!strcasecmp(attr_name, "passwordminage")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_minage = slapi_value_get_long(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordmaxage")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_maxage = slapi_value_get_long(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordwarning")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_warning = slapi_value_get_long(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordhistory")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_history = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordinhistory")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_inhistory = slapi_value_get_int(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordlockout")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_lockout = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordmaxfailure")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_maxfailure = slapi_value_get_int(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordunlock")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_unlock = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordlockoutduration")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_lockduration = slapi_value_get_long(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordresetfailurecount")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_resetfailurecount = slapi_value_get_long(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordchange")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_change = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}       
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordmustchange")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_must_change = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordchecksyntax")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_syntax = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordminlength")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_minlength = slapi_value_get_int(*sval);
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordexp")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_exp = 
 							pw_boolean_str2value(slapi_value_get_string(*sval));
 						}
 					}
 					else
 					if (!strcasecmp(attr_name, "passwordgracelimit")) {
-						if (sval = attr_get_present_values(attr)) {
+						if ((sval = attr_get_present_values(attr))) {
 							pwdpolicy->pw_gracelimit = slapi_value_get_int(*sval);
 						}
 					}
@@ -1554,7 +1551,7 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 		*/ 
 
 		if ( scheme_list != NULL ) {
-			sprintf( errorbuf,
+			PR_snprintf ( errorbuf, BUFSIZ, 
 				"%s: invalid encoding scheme - %s\nValid values are: %s\n",
 				CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value, scheme_list );
 		}

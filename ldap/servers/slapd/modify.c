@@ -162,7 +162,6 @@ do_modify( Slapi_PBlock *pb )
 		if ( !mod->mod_type || !*mod->mod_type ) {
 			char ebuf[BUFSIZ];
 			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
-			ebuf[BUFSIZ-1] = '\0';
 			op_shared_log_error_access (pb, "MOD", dn, ebuf);
 			send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, ebuf, 0, NULL );
 			slapi_ch_free((void **)&type);

@@ -730,7 +730,6 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 
 	int		i;
 	int		dump_aclpb_info = 0;
-	char    *ds_attr_userdn=NULL;	/* for finding userdn for freeing */
 	int 	rc=-1;
 	char 	*tmp_ptr=NULL;
 

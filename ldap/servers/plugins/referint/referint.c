@@ -295,7 +295,6 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
   int dnsize;
   int x;
   int rc;
-  int valcount = 0;
  
   if ( argv == NULL ) { 
       slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
@@ -783,9 +782,9 @@ void writeintegritylog(char *logfilename, char *dn, char *newrdn){
                          " to update references to this entry.\n");
     }else{
        PRInt32 rv;
-       sprintf(buffer, "%s\t%s\t\n", 
-                dn,
-                (newrdn != NULL) ? newrdn : "NULL");
+       PR_snprintf(buffer, MAX_LINE, "%s\t%s\t\n", 
+				   dn,
+				   (newrdn != NULL) ? newrdn : "NULL");
         if ((rv = PR_Write(prfd,buffer,strlen(buffer))) < 0){
            slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
 	       " writeintegritylog: PR_Write failed : The disk"

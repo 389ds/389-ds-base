@@ -29,7 +29,7 @@ int cb_config_add_dse_entries(cb_backend *cb, char **entries, char *string1, cha
 
         for(x = 0; strlen(entries[x]) > 0; x++) {
                 util_pb = slapi_pblock_new();
-                sprintf(entry_string, entries[x], string1, string2, string3);
+                PR_snprintf(entry_string, sizeof(entry_string), entries[x], string1, string2, string3);
                 e = slapi_str2entry(entry_string, 0);
                 slapi_add_entry_internal_set_pb(util_pb, e, NULL, cb->identity, 0);
 		slapi_add_internal_pb(util_pb);
@@ -125,7 +125,7 @@ int cb_config_load_dse_info(Slapi_PBlock * pb) {
 	/* Get the default instance value entry if it exists */
 	/* else create it 				     */
 
-	sprintf(defaultDn,"cn=default instance config,%s",cb->pluginDN);
+	PR_snprintf(defaultDn,sizeof(defaultDn),"cn=default instance config,%s",cb->pluginDN);
 
         default_pb = slapi_pblock_new();
         slapi_search_internal_set_pb(default_pb, defaultDn, LDAP_SCOPE_BASE,

@@ -814,8 +814,6 @@ dsgw_encDec(CK_ATTRIBUTE_TYPE operation, const char *msg)
   SECItem keyItem = { siBuffer, dsgw_tmmdi, sizeof dsgw_tmmdi };
   int noGood = 0;
   unsigned int inlen;
-  FILE *pptr;
-  int i;
 
   if (msg == NULL) {
     return NULL;

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "nspr.h"
 
 #if defined( XP_WIN32 )
 int ldap_debug = 0;
@@ -39,7 +40,7 @@ ds_log_env(char **envp)
         for ( i = 0; envp[i] != (char *) 0; i++ ) {
             char        envstr[200];
  
-            sprintf(envstr, "%s\n", envp[i]);
+            PR_snprintf(envstr, sizeof(envstr), "%s\n", envp[i]);
             fwrite(envstr, strlen(envstr), 1, file);
         }
         fclose(file);

@@ -86,7 +86,7 @@ storeUserDirectoryInfo()
 			lstrcpy(mi.m_szUserGroupAdminPW, mi.m_szInstancePassword);
 
 		}
-		sprintf(mi.m_szUserGroupURL, "ldap://%s:%d/%s", mi.m_szInstanceHostName,
+		PR_snprintf(mi.m_szUserGroupURL, sizeof(mi.m_szUserGroupURL), "ldap://%s:%d/%s", mi.m_szInstanceHostName,
 				mi.m_nInstanceServerPort, mi.m_szInstanceSuffix);	
 	}
 
@@ -232,7 +232,7 @@ IsValidAdminDomain(
 	int status = FALSE;
 	Ldap *ldap = NULL;
 
-	sprintf(ldapurl, "ldap://%s:%d/%s", host, port, suffix);
+	PR_snprintf(ldapurl, sizeof(ldapurl), "ldap://%s:%d/%s", host, port, suffix);
 	if (createLdap(&ldap, ldapurl, binddn, binddnpwd, 0, 0) == OKAY)
 	{
 		LdapEntry *le = createLdapEntry(ldap);
@@ -590,7 +590,7 @@ void getAdminServInfo()
 
   GetEnvironmentVariable("TEMP", szTempDir, sizeof(szTempDir));
 
-  sprintf(szCacheFile, "%s\\install.inf", szTempDir);
+  PR_snprintf(szCacheFile, sizeof(szCacheFile), "%s\\install.inf", szTempDir);
 
   mi.m_nAdminServerPort = GetPrivateProfileInt(pszAdminSection, SLAPD_KEY_ADMIN_SERVER_PORT, 
 					       -1, szCacheFile);
@@ -616,14 +616,14 @@ BOOL writeINFfile(const char *filename)
       szAdminDN = formAdminDomainDN(mi.m_szAdminDomain);
       if (szAdminDN)
       {
-        sprintf(mi.m_szInstallDN, szAdminDN);
+        PR_snprintf(mi.m_szInstallDN, sizeof(mi.m_szInstallDN), szAdminDN);
         nsSetupFree(szAdminDN);
       }
       else
       {
         //note probably should fail. 
         LogData(NULL, "Warning: Slapd unable to Form Admin Domain, guessing");
-        sprintf(mi.m_szInstallDN, "ou=%s, o=NetscapeRoot", mi.m_szAdminDomain);
+        PR_snprintf(mi.m_szInstallDN, sizeof(mi.m_szInstallDN), "ou=%s, o=NetscapeRoot", mi.m_szAdminDomain);
       }
    }
  
@@ -775,10 +775,9 @@ BOOL isValidServerID(char *pszServerIdentifier)
 		/* for now just check registry to see if this server ID exists,
 			in future add might want to add more sanity checks */
 
-		fullId = (char *)malloc(lstrlen(DS_ID_SERVICE) + lstrlen(pszServerIdentifier) + 6);
-		sprintf(fullId, "%s-%s", DS_ID_SERVICE, pszServerIdentifier);
+		fullId = PR_smprintf("%s-%s", DS_ID_SERVICE, pszServerIdentifier);
 
-		sprintf(line, "%s\\%s", KEY_SERVICES, fullId); 
+		PR_snprintf(line, sizeof(line), "%s\\%s", KEY_SERVICES, fullId); 
    
 		Result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, 
 		                      line,
@@ -797,7 +796,7 @@ BOOL isValidServerID(char *pszServerIdentifier)
 
 		}
 
-		free(fullId);
+		PR_smprintf_free(fullId);
 	}
 
 	return bRC;
@@ -841,21 +840,21 @@ int set_default_ldap_settings()
 
 	/* default admin domain is also derived from the FQDN */
 	++i;
-	sprintf(mi.m_szAdminDomain, "%s", mi.m_szInstanceHostName+i);
+	PR_snprintf(mi.m_szAdminDomain, sizeof(mi.m_szAdminDomain), "%s", mi.m_szInstanceHostName+i);
 	
     mi.m_nInstanceServerPort=DEFAULT_SERVER_PORT;
                                     
-    sprintf(mi.m_szInstanceUnrestrictedUser, DEFAULT_UNRESTRICTED_USER);
+    PR_snprintf(mi.m_szInstanceUnrestrictedUser, sizeof(mi.m_szInstanceUnrestrictedUser), DEFAULT_UNRESTRICTED_USER);
 
     mi.m_nCfgSspt = DEFAULT_CONFIG_SSPT;
 
-	sprintf(mi.m_szSsptUid, DEFAULT_SSPT_USER);
+	PR_snprintf(mi.m_szSsptUid, sizeof(mi.m_szSsptUid), DEFAULT_SSPT_USER);
 
     /* stevross: don't want default for these in silent mode, user must specify them */
     if( SILENTMODE != MODE)
     {
-        sprintf(mi.m_szSupplierDN, DEFAULT_SUPPLIER_DN);
-        sprintf(mi.m_szChangeLogSuffix, DEFAULT_CHANGELOGSUFFIX);
+        PR_snprintf(mi.m_szSupplierDN, sizeof(mi.m_szSupplierDN), DEFAULT_SUPPLIER_DN);
+        PR_snprintf(mi.m_szChangeLogSuffix, sizeof(mi.m_szChangeLogSuffix), DEFAULT_CHANGELOGSUFFIX);
 
     }
 
@@ -886,7 +885,7 @@ int set_default_ldap_settings()
 	mi.m_nMCCPort=DEFAULT_SERVER_PORT;
 
 	mi.m_szMCCBindAs = malloc(MAX_STR_SIZE);
-	sprintf(mi.m_szMCCBindAs, "%s", DEFAULT_SSPT_USER);
+	PR_snprintf(mi.m_szMCCBindAs, sizeof(mi.m_szMCCBindAs), "%s", DEFAULT_SSPT_USER);
 
 	lstrcpy(mi.m_szUGSuffix, mi.m_szInstanceSuffix);
 	mi.m_nUGPort=DEFAULT_SERVER_PORT;
@@ -949,7 +948,7 @@ void set_ldap_settings()
 		lstrcpy(mi.m_szMCCHost, mi.m_szInstanceHostName);
 		mi.m_nMCCPort = mi.m_nInstanceServerPort;
 		lstrcpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT);
-		sprintf(mi.m_szMCCBindAs, "%s", mi.m_szSsptUid);
+		PR_snprintf(mi.m_szMCCBindAs, sizeof(mi.m_szMCCBindAs), "%s", mi.m_szSsptUid);
 		lstrcpy(mi.m_szMCCPw, mi.m_szSsptUidPw);
 
 	}
@@ -2228,7 +2227,7 @@ BOOL Verify_UG_Settings()
 				{
 					/* all settings good */
 					/* set UG LDAP URL */
-					sprintf(mi.m_szUserGroupURL, "ldap://%s:%d/%s",
+					PR_snprintf(mi.m_szUserGroupURL, sizeof(mi.m_szUserGroupURL), "ldap://%s:%d/%s",
 							mi.m_szUGHost, mi.m_nUGPort, mi.m_szUGSuffix);
 				}
 			}
@@ -3959,7 +3958,7 @@ Supplier_Replication_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM l
 		// and wm_init is called again
 		if( !nInitialized )
 		{
-			sprintf(mi.m_szChangeLogDbDir,"%s\\%s-%s\\%s", TARGETDIR,  
+			PR_snprintf(mi.m_szChangeLogDbDir, sizeof(mi.m_szChangeLogDbDir),"%s\\%s-%s\\%s", TARGETDIR,  
 				      DS_ID_SERVICE, mi.m_szServerIdentifier, DEFAULT_CHANGELOGDIR);
 			nInitialized = 1;
 		}
@@ -4195,7 +4194,7 @@ Consumer_DN_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       // you can perform any one time initialization that you require. 
 	  Setup8bitInputDisplay(hwndDlg, h8bitControls);
 
-	  sprintf(mi.m_szConsumerDN, "%s,%s", DEFAULT_CONSUMER_DN, mi.m_szInstanceSuffix);
+	  PR_snprintf(mi.m_szConsumerDN, sizeof(mi.m_szConsumerDN), "%s,%s", DEFAULT_CONSUMER_DN, mi.m_szInstanceSuffix);
 
       break;
 
@@ -5094,7 +5093,7 @@ Sample_Entries_Org_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 				
 				/* assume by browsing user will want this file so check custom radio button for them
 				   and set file to be displayed */
-				sprintf(mi.m_szPopLdifFile, "%s", szCustomFileName);
+				PR_snprintf(mi.m_szPopLdifFile, sizeof(mi.m_szPopLdifFile), "%s", szCustomFileName);
 				CheckRadioButton(hwndDlg, IDC_RADIO_DONT_POPULATE, IDC_RADIO_POPULATE_CUSTOM, IDC_RADIO_POPULATE_CUSTOM);
 
 			default:
@@ -5104,14 +5103,14 @@ Sample_Entries_Org_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 			  if( BST_CHECKED == IsDlgButtonChecked(hwndDlg, IDC_RADIO_POPULATE_SAMPLE ) )
 			  {
 					mi.m_nPopulateSampleEntries = 1;
-					sprintf(mi.m_szPopLdifFile, "%s", szSampleFileName);
+					PR_snprintf(mi.m_szPopLdifFile, sizeof(mi.m_szPopLdifFile), "%s", szSampleFileName);
 			  }else if( BST_CHECKED == IsDlgButtonChecked(hwndDlg, IDC_RADIO_POPULATE_CUSTOM ) ){
 					mi.m_nPopulateSampleEntries = 0;
 					mi.m_nPopulateSampleOrg = 1;
-//		     		sprintf(mi.m_szPopLdifFile, "%s", szCustomFileName);
+//		     		PR_snprintf(mi.m_szPopLdifFile, sizeof(mi.m_szPopLdifFile), "%s", szCustomFileName);
 			  }else{
 					mi.m_nPopulateSampleEntries = 0;
-					sprintf(mi.m_szPopLdifFile, "\0");
+					PR_snprintf(mi.m_szPopLdifFile, sizeof(mi.m_szPopLdifFile), "\0");
 			  }
 
 			  
@@ -5156,9 +5155,9 @@ Sample_Entries_Org_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
           }
 		  
 		  /* warn user about suffix and database import */
-		  sprintf(szMustHaveBase, "(note: must have base %s)", mi.m_szInstanceSuffix );
+		  PR_snprintf(szMustHaveBase, sizeof(szMustHaveBase), "(note: must have base %s)", mi.m_szInstanceSuffix );
 		  SetDlgItemText(hwndDlg, IDC_STATIC_MUST_HAVE_BASE, szMustHaveBase);
-    	  sprintf(szSampleFileName, "%s\\%s", TARGETDIR, SAMPLE_LDIF);	
+    	  PR_snprintf(szSampleFileName, sizeof(szSampleFileName), "%s\\%s", TARGETDIR, SAMPLE_LDIF);	
  
 		  if(mi.m_nExistingUG == 0)
 		  {
@@ -5707,7 +5706,7 @@ DSINST_PreInstall(LPCSTR lpszInstallPath)
 
 	if (mi.m_nReInstall) {
 		char infFile[MAX_PATH] = {0};
-		sprintf(infFile, "%s\\setup\\slapd\\slapd.inf", TARGETDIR);
+		PR_snprintf(infFile, sizeof(infFile), "%s\\setup\\slapd\\slapd.inf", TARGETDIR);
 		GetProductInfoStringWithTok(SETUP_INF_VERSION, "=", oldVersion,
 								OLD_VERSION_SIZE, infFile);
 		myLogData("file %s old version is %s", infFile, oldVersion);
@@ -6057,7 +6056,7 @@ DSINST_WriteGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 
 	/* construct the LDAPURL */
     /* suffix must always be o=netscape root */
-	sprintf(mi.m_szLdapURL, "ldap://%s:%d/%s", mi.m_szMCCHost, mi.m_nMCCPort, NS_DOMAIN_ROOT);
+	PR_snprintf(mi.m_szLdapURL, sizeof(mi.m_szLdapURL), "ldap://%s:%d/%s", mi.m_szMCCHost, mi.m_nMCCPort, NS_DOMAIN_ROOT);
 
 	if(mi.m_nExistingUG == 0)
 	{
@@ -6080,7 +6079,7 @@ DSINST_WriteGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 			lstrcpy(mi.m_szUserGroupAdminPW, mi.m_szInstancePassword);
 
 		}
-		sprintf(mi.m_szUserGroupURL, "ldap://%s:%d/%s", mi.m_szInstanceHostName,
+		PR_snprintf(mi.m_szUserGroupURL, sizeof(mi.m_szUserGroupURL), "ldap://%s:%d/%s", mi.m_szInstanceHostName,
 								 mi.m_nInstanceServerPort, mi.m_szInstanceSuffix);	
 	}
  
@@ -6148,7 +6147,7 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_USE_EXISTING_UG, onezero2yesno(mi.m_nExistingUG), 
 	                        lpszCacheFileName);
 
-   sprintf(szInt, "%d",  mi.m_nInstanceServerPort);
+   PR_snprintf(szInt, sizeof(szInt), "%d",  mi.m_nInstanceServerPort);
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_SERVER_PORT, szInt, 
 	                        lpszCacheFileName);
      
@@ -6179,7 +6178,7 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_ADD_ORG_ENTRIES, onezero2yesno(mi.m_nPopulateSampleOrg), 
 	                        lpszCacheFileName);
 
-   sprintf(szInt, "%s",  onezero2yesno( ( (NO_REPLICATION != mi.m_nSetupConsumerReplication) || (NO_REPLICATION != mi.m_nSetupSupplierReplication) ) ) );
+   PR_snprintf(szInt, sizeof(szInt), "%s",  onezero2yesno( ( (NO_REPLICATION != mi.m_nSetupConsumerReplication) || (NO_REPLICATION != mi.m_nSetupSupplierReplication) ) ) );
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_USE_REPLICATION, szInt, 
 	                        lpszCacheFileName);
    
@@ -6188,9 +6187,9 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    /* write no instead of number for no replication to be like unix installer */
    if(NO_REPLICATION != mi.m_nSetupConsumerReplication)
    {
-		sprintf(szInt, "%d", mi.m_nSetupConsumerReplication);
+		PR_snprintf(szInt, sizeof(szInt), "%d", mi.m_nSetupConsumerReplication);
    }else{
-	    sprintf(szInt, "no");
+	    PR_snprintf(szInt, sizeof(szInt), "no");
    }
 
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_SETUP_CONSUMER, szInt, 
@@ -6199,7 +6198,7 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_CIR_HOST, mi.m_szConsumerHost, 
 	                        lpszCacheFileName);
 
-   sprintf(szInt, "%d", mi.m_nConsumerPort );
+   PR_snprintf(szInt, sizeof(szInt), "%d", mi.m_nConsumerPort );
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_CIR_PORT, szInt, 
 	                        lpszCacheFileName);
 
@@ -6215,7 +6214,7 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_CIR_SECURITY_ON, onezero2yesno(mi.m_nConsumerSSL),
 	                        lpszCacheFileName);
    
-   sprintf(szInt, "%d", mi.m_nCIRInterval );
+   PR_snprintf(szInt, sizeof(szInt), "%d", mi.m_nCIRInterval );
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_CIR_INTERVAL, szInt, 
 	                        lpszCacheFileName);
 
@@ -6250,9 +6249,9 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    /* write no instead of number for no replication to be like unix installer */
    if(NO_REPLICATION != mi.m_nSetupSupplierReplication)
    {
-		sprintf(szInt, "%d", mi.m_nSetupSupplierReplication);
+		PR_snprintf(szInt, sizeof(szInt), "%d", mi.m_nSetupSupplierReplication);
    }else{
-	    sprintf(szInt, "no");
+	    PR_snprintf(szInt, sizeof(szInt), "no");
    }
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_SETUP_SUPPLIER, szInt, 
 	                        lpszCacheFileName);
@@ -6266,7 +6265,7 @@ DSINST_WriteLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_SIR_HOST, mi.m_szSupplierHost, 
 	                        lpszCacheFileName);
 
-   sprintf(szInt, "%d", mi.m_nSupplierPort );
+   PR_snprintf(szInt, sizeof(szInt), "%d", mi.m_nSupplierPort );
    WritePrivateProfileString(lpszSectionName, SLAPD_KEY_SIR_PORT, szInt, 
 	                        lpszCacheFileName);
 
@@ -6894,12 +6893,12 @@ run_cgi(const char *serverroot, const char *cgipath, const char *args)
 	char netsiteRootEnvVar[MAX_STR_SIZE] = {0};
     LPVOID lpMsgBuf;
 
-    sprintf(netsiteRootEnvVar, "NETSITE_ROOT=%s", serverroot);
+    PR_snprintf(netsiteRootEnvVar, sizeof(netsiteRootEnvVar), "NETSITE_ROOT=%s", serverroot);
     _putenv(netsiteRootEnvVar);
     if ( getenv("DEBUG_DSINST") )
 		DebugBreak();
     /* everything is set, start the program */
-	sprintf(prog, "%s\\%s", serverroot, cgipath);
+	PR_snprintf(prog, sizeof(prog), "%s\\%s", serverroot, cgipath);
 	if (!FileExists(prog))
 	{
 		lpMsgBuf = getLastErrorMessage();
@@ -6914,7 +6913,7 @@ run_cgi(const char *serverroot, const char *cgipath, const char *args)
 	}
 	else
 	{
-		sprintf(cmdLine, "\"%s\" %s", prog, args);
+		PR_snprintf(cmdLine, sizeof(cmdLine), "\"%s\" %s", prog, args);
         
 		myLogData("run_cgi: before execution of %s", cmdLine);
 		if ( (procResult = _LaunchAndWait(cmdLine, INFINITE)) != 0)
@@ -6969,7 +6968,7 @@ create_slapd_instance(const char *hostname, const char *serverroot)
 
 	/* create an .inf file to pass to index */
 	/* write the data to a temp file */
-	sprintf(INFfile, "%s\\temp%d.inf", TEMPDIR, _getpid());
+	PR_snprintf(INFfile, sizeof(INFfile), "%s\\temp%d.inf", TEMPDIR, _getpid());
 	myLogData("create_slapd_instance: inf file is %s", INFfile);
 
 	if (TRUE == (status = writeINFfile(INFfile)) )
@@ -6985,9 +6984,9 @@ create_slapd_instance(const char *hostname, const char *serverroot)
 		else
 		{
             /* set temp file for admin output */
-            sprintf(debugFile, "DEBUG_FILE=%s\\debug.%d", TEMPDIR, _getpid());
+            PR_snprintf(debugFile, sizeof(debugFile), "DEBUG_FILE=%s\\debug.%d", TEMPDIR, _getpid());
             _putenv(debugFile);
-			sprintf(szCGIArgs, "\"%s\\bin\\slapd\\admin\\bin\\Install.pl\"",
+			PR_snprintf(szCGIArgs, sizeof(szCGIArgs), "\"%s\\bin\\slapd\\admin\\bin\\Install.pl\"",
 					serverroot);
 		    if (mi.m_nReInstall) 
 			{ 
@@ -7034,7 +7033,7 @@ int generate_mcc_bat()
 	return rc;
     }
 
-    sprintf(szFilename, "%s\\%s-%s\\mcc.bat", TARGETDIR, DS_ID_SERVICE,
+    PR_snprintf(szFilename, sizeof(szFilename), "%s\\%s-%s\\mcc.bat", TARGETDIR, DS_ID_SERVICE,
 			mi.m_szServerIdentifier);
     fp = fopen(szFilename, "wb");
     if (!fp)
@@ -7043,7 +7042,7 @@ int generate_mcc_bat()
 					   ERR_NO_CREATE_FILE, 0, szFilename);
     	rc = -1;
     }else{
-        sprintf(szJavaDir, "%s\\java", TARGETDIR);
+        PR_snprintf(szJavaDir, sizeof(szJavaDir), "%s\\java", TARGETDIR);
                               
         fprintf(fp, "pushd \"%s\"\n", szJavaDir);
 
@@ -7091,7 +7090,7 @@ int generate_install_ldapctrs_bat()
     CHAR szFilename[MAX_STR_SIZE];
     INT rc = 0;
 
-    sprintf(szFilename, "%s\\%s", TARGETDIR, INSTALL_CTRS_BAT);
+    PR_snprintf(szFilename, sizeof(szFilename), "%s\\%s", TARGETDIR, INSTALL_CTRS_BAT);
     fp = fopen(szFilename, "wb");
     if (!fp)
     {
@@ -7287,7 +7286,7 @@ updateRegistryKeys(const char *oldVersion, const char *newVersion)
 	// the first place is under
 	// HKEY_LOCAL_MACHINE\SOFTWARE\Netscape\Directory\oldVersion
 	// we need to change oldVersion to newVersion
-	sprintf(newKey, "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
+	PR_snprintf(newKey, sizeof(newKey), "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
 	strcpy(oldKey, newKey);
 	if (ptr = strstr(oldKey, SVR_VERSION)) {
 		strncpy(ptr, oldVersion, strlen(oldVersion));
@@ -7301,9 +7300,9 @@ updateRegistryKeys(const char *oldVersion, const char *newVersion)
 	// the second place is under
 	// HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\slapdoldVersoin
 	// we need to change oldVersion to newVersion
-	sprintf(oldKey, "%s\\%s%s", KEY_SERVICES, PRODUCT_NAME,
+	PR_snprintf(oldKey, sizeof(oldKey), "%s\\%s%s", KEY_SERVICES, PRODUCT_NAME,
 			oldVersion);
-	sprintf(newKey, "%s\\%s%s", KEY_SERVICES, PRODUCT_NAME,
+	PR_snprintf(newKey, sizeof(newKey), "%s\\%s%s", KEY_SERVICES, PRODUCT_NAME,
 			SVR_VERSION);
 
 	CopyAndDeleteKey(HKEY_LOCAL_MACHINE, oldKey, HKEY_LOCAL_MACHINE,
@@ -7403,7 +7402,7 @@ NSPERLINST_PostInstall(VOID)
 
   // hack to work around potential bug in setupsdk . . .
   SetCurrentDirectory("../slapd");
-  sprintf(infFile, "slapd.inf");
+  PR_snprintf(infFile, sizeof(infFile), "slapd.inf");
   GetProductInfoStringWithTok(NSPERL_POST_INSTALL_PROG, "=", nsPerlPostInstall,
 			      BUFSIZ, infFile);
 
@@ -7420,7 +7419,7 @@ NSPERLINST_PostInstall(VOID)
   // get the RunPostInstall attribute from the inf; this is the name
   // of the post install program
   *p = 0; // p points at last dir sep in the path, so null it
-  sprintf(instDir, "%s\\%s", TARGETDIR, nsPerlPostInstall);
+  PR_snprintf(instDir, sizeof(instDir), "%s\\%s", TARGETDIR, nsPerlPostInstall);
   p++;
 
   // change directory to the directory of the post install program and
@@ -7441,8 +7440,8 @@ NSPERLINST_PostInstall(VOID)
 
   SetCurrentDirectory(szCurrentDir);
 
-  sprintf(srcPath, "%s\\nsperl.exe", instDir);
-  sprintf(destPath, "%s\\%s", TARGETDIR, PERL_EXE);
+  PR_snprintf(srcPath, sizeof(srcPath), "%s\\nsperl.exe", instDir);
+  PR_snprintf(destPath, sizeof(destPath), "%s\\%s", TARGETDIR, PERL_EXE);
 
   if (FALSE == CopyFile(srcPath, destPath, FALSE)) { // FALSE to overwrite file if exists
     myLogError("NSPERLINST_PostInstall: could not copy file %s to %s",
@@ -7544,7 +7543,7 @@ static BOOL RemoveSNMPValue(void)
     DWORD sizeof_value_data_buffer;
 
     /* open registry key for Microsoft SNMP service  */
-    sprintf(line, "%s\\%s", KEY_SERVICES, KEY_SNMP_SERVICE); 
+    PR_snprintf(line, sizeof(line), "%s\\%s", KEY_SERVICES, KEY_SNMP_SERVICE); 
     Result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, 
                           line,
                           0,
@@ -7555,7 +7554,7 @@ static BOOL RemoveSNMPValue(void)
        for slapd snmp value to remove  */
     if (Result == ERROR_SUCCESS) 
     {
-        sprintf(line,
+        PR_snprintf(line, sizeof(line),
                 "%s\\%s\\%s",
                 KEY_SOFTWARE_NETSCAPE, 
                 SVR_KEY_ROOT, 
@@ -7574,7 +7573,7 @@ static BOOL RemoveSNMPValue(void)
             for(iterator = 0; iterator <= NumValues; iterator++)
             {
                 sizeof_value_data_buffer=MAX_PATH;
-                sprintf(NumValuesBuf, "%d", iterator);
+                PR_snprintf(NumValuesBuf, sizeof(NumValuesBuf), "%d", iterator);
                 Result = RegQueryValueEx(hServerKey,
                                          NumValuesBuf,
                                          NULL,
@@ -7604,13 +7603,13 @@ BOOL RemoveSNMPKeys(void)
 
     /* open registry key for Directory SNMP s */
      memset(line, '\0', MAX_PATH);
-     sprintf(line, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
+     PR_snprintf(line, sizeof(line), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
                              	 KEY_SNMP_CURRENTVERSION);
     
      RegDeleteKey(HKEY_LOCAL_MACHINE, line);
 
      memset(line, '\0', MAX_PATH);
-     sprintf(line, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
+     PR_snprintf(line, sizeof(line), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
                              	 SNMP_SERVICE_NAME);
 
      RegDeleteKey(HKEY_LOCAL_MACHINE, line);
@@ -7646,7 +7645,7 @@ BOOL RemoveDirectoryRootKey()
     BOOL  bRC = TRUE;
 
     memset(line, '\0', MAX_PATH);
-    sprintf(line, "%s\\%s", KEY_SOFTWARE_NETSCAPE, DS_NAME_SHORT);
+    PR_snprintf(line, sizeof(line), "%s\\%s", KEY_SOFTWARE_NETSCAPE, DS_NAME_SHORT);
 
     RegDeleteKey(HKEY_LOCAL_MACHINE, line);
   
@@ -7807,7 +7806,7 @@ void ControlSlapdInstance(char *pszServiceName, BOOL bOn)
    		LoadString( mi.m_hModule, IDS_STOPPING_SERVICE, szFormat, MAX_STR_SIZE);
    }
 
-   sprintf(szMessage, szFormat, shortName);
+   PR_snprintf(szMessage, sizeof(szMessage), szFormat, shortName);
 
    myLogData(szMessage);
 	ZeroMemory(&shutdownargs, sizeof(shutdownargs));
@@ -7821,7 +7820,7 @@ void ControlSlapdInstance(char *pszServiceName, BOOL bOn)
 			&& (bOn != (bServerRunning = isServiceRunning( pszServiceName ) ) ) )
 	{
 		/* try to turn of the server */
-		sprintf(szLog, szMessage);
+		PR_snprintf(szLog, sizeof(szLog), szMessage);
 		LogData(NULL, szLog);
 		myLogData(szLog);
 
@@ -7842,7 +7841,7 @@ void ControlSlapdInstance(char *pszServiceName, BOOL bOn)
    				LoadString( mi.m_hModule, IDS_WAIT_SERVICE_STOP, szFormat, MAX_STR_SIZE);
 		   }
 
-	  	   sprintf(szLog, szFormat, shortName);
+	  	   PR_snprintf(szLog, sizeof(szLog), szFormat, shortName);
 		   LogData(NULL, szLog);
 		   myLogData(szLog);
 
@@ -7899,7 +7898,7 @@ static void ConvertPasswordToPin(char *pszServerRoot, char *pszServiceName)
 		return;
 	}
 	/* have to be in the alias directory to run this */
-	sprintf(szNewDir, "%s\\alias", pszServerRoot);
+	PR_snprintf(szNewDir, sizeof(szNewDir), "%s\\alias", pszServerRoot);
 	/* change current dir to the alias directory */
 	if (SetCurrentDirectory(szNewDir) == 0)
 	{
@@ -7909,7 +7908,7 @@ static void ConvertPasswordToPin(char *pszServerRoot, char *pszServiceName)
 	}
 
 	/* spawn the perl script which does the conversion */
-	sprintf(szFormat, "\"%s\\bin\\slapd\\admin\\bin\\migratePwdFile\" \"%s\" %s",
+	PR_snprintf(szFormat, sizeof(szFormat), "\"%s\\bin\\slapd\\admin\\bin\\migratePwdFile\" \"%s\" %s",
 		pszServerRoot, pszServerRoot, pszServiceName);
 	run_cgi(pszServerRoot, PERL_EXE, szFormat);
 
@@ -7946,7 +7945,7 @@ static void ReinstallUpgradeServer(char *pszServerRoot, char *pszServiceName)
 	}
 
 	/* spawn the perl script which does the conversion */
-	sprintf(szFormat, "\"%s\\bin\\slapd\\admin\\bin\\upgradeServer\" \"%s\" %s",
+	PR_snprintf(szFormat, sizeof(szFormat), "\"%s\\bin\\slapd\\admin\\bin\\upgradeServer\" \"%s\" %s",
 		pszServerRoot, pszServerRoot, pszServiceName);
 	run_cgi(pszServerRoot, PERL_EXE, szFormat);
 
@@ -7973,9 +7972,9 @@ BOOL RemoveSlapdInstance(LPCSTR pszServerRoot, char *pszServiceName)
     /* now try to remove the instance */
 
 	/* call remove cgi with inf */
-	sprintf(szINFfile, "%s/unin%d.inf", TEMPDIR, _getpid());	
+	PR_snprintf(szINFfile, sizeof(szINFfile), "%s/unin%d.inf", TEMPDIR, _getpid());	
 	writeUninstINFfile(	szINFfile, pszServerRoot, pszServiceName);
-	sprintf(szCGIArgs, " -f \"%s\"", szINFfile);
+	PR_snprintf(szCGIArgs, sizeof(szCGIArgs), " -f \"%s\"", szINFfile);
 
 	/* remove this instance */
 	status = run_cgi(pszServerRoot, "bin\\slapd\\admin\\bin\\ds_remove.exe", szCGIArgs);
@@ -8026,7 +8025,7 @@ BOOL RemoveMiscSlapdFiles(pszServerRoot)
     for(i=0; miscFilesList[i] != NULL; i++)
     {
         memset(szFileName, '\0', MAX_STR_SIZE);
-        sprintf(szFileName, "%s\\%s", pszServerRoot, miscFilesList[i] );
+        PR_snprintf(szFileName, sizeof(szFileName), "%s\\%s", pszServerRoot, miscFilesList[i] );
         DeleteRecursively(szFileName);
     }
 
@@ -8247,7 +8246,7 @@ DSMessageBox(UINT type, UINT titleKey, UINT msgKey, const char *titlearg, ...)
 		LoadString(mi.m_hModule, titleKey, titleFormat, MAX_STR_SIZE);
 
 	va_start(ap, titlearg);
-	vsprintf(msg, msgFormat, ap);
+	PR_vsnprintf(msg, sizeof(msg), msgFormat, ap);
 	va_end(ap);
 
 	LogData(NULL, msg);
@@ -8256,7 +8255,7 @@ DSMessageBox(UINT type, UINT titleKey, UINT msgKey, const char *titlearg, ...)
 	{
 		if (titleFormat[0])
 		{
-			sprintf(title, titleFormat, titlearg);
+			PR_snprintf(title, sizeof(title), titleFormat, titlearg);
 			retval = NsSetupMessageBox(NULL, msg, title, type);
 		}
 		else
@@ -8292,7 +8291,7 @@ DSMessageBoxOK(UINT titleKey, UINT msgKey, const char *titlearg, ...)
 		LoadString(mi.m_hModule, titleKey, titleFormat, MAX_STR_SIZE);
 
 	va_start(ap, titlearg);
-	vsprintf(msg, msgFormat, ap);
+	PR_vsnprintf(msg, sizeof(msg), msgFormat, ap);
 	va_end(ap);
 
 	LogData(NULL, msg);
@@ -8300,7 +8299,7 @@ DSMessageBoxOK(UINT titleKey, UINT msgKey, const char *titlearg, ...)
 	{
 		if (titleFormat[0])
 		{
-			sprintf(title, titleFormat, titlearg);
+			PR_snprintf(title, sizeof(title), titleFormat, titlearg);
 			retval = NsSetupMessageBox(NULL, msg, title, MB_OK);
 		}
 		else

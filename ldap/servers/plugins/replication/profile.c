@@ -28,15 +28,14 @@ void profile_log(char *file,int line)
 void profile_open()
 {
 	char filename[MAX_FILENAME];
-	strncpy(filename,CFG_rootpath,MAX_FILENAME);
-	strcat(filename,CFG_profilefile);
+	PR_snprintf(filename, MAX_FILENAME, "%s%s", CFG_rootpath, CFG_profilefile);
 	profile_fd= textfile_open(filename,"a");
 }
 
 void profile_close()
 {
 	if (profile_fd==NULL)
-		slapi_log_error(,"profile_close: profile file not open.");
+		slapi_log_error(SLAPI_LOG_ERROR, "repl_profile" ,"profile_close: profile file not open.");
 	else
 		textfile_close(profile_fd);
 }

@@ -441,14 +441,13 @@ static int read_state_from_file (const char *configDir)
 	}
 	else 
 	{
-		path = (char*)slapi_ch_malloc(strlen(configDir) + strlen(STATE_FILE) + 2);
+		path = slapi_ch_smprintf("%s/%s", configDir, STATE_FILE);    
 		if (path == NULL)
 		{
 			slapi_log_error (SLAPI_LOG_FATAL, MODULE, "read_state: "
 							"memory allocation failed.\n");
 			return (UUID_MEMORY_ERROR);
 		}
-		sprintf (path, "%s/%s", configDir, STATE_FILE);    
 	}
 
 	/* open or create state file for read/write and keep it in sync */

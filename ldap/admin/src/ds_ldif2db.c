@@ -16,6 +16,9 @@
 #include "dsalib.h"
 #include "init_ds_env.h"
 #include <string.h>
+#ifdef XP_UNIX
+#include <unistd.h>
+#endif
 
 int main(int argc, char *argv[])
 {

@@ -1353,7 +1353,7 @@ int
 slapi_sdn_get_ndn_len(const Slapi_DN *sdn)
 {
     int r= 0;
-	const char *ndn=slapi_sdn_get_ndn(sdn);
+	(void)slapi_sdn_get_ndn(sdn); /* does the normalization if needed */
 	if(sdn->ndn!=NULL)
 	{
 		r= sdn->ndn_len;	

@@ -165,7 +165,7 @@ static char *make_error(char *fmt, ...)
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(errbuf, fmt, args);
+    PR_vsnprintf(errbuf, sizeof(errbuf), fmt, args);
     va_end(args);
     return errbuf;
 }
@@ -211,7 +211,7 @@ static int getSuiteSpotUserGroup(server_config_s* cf)
     if (cf->servuser)
         return 0;
 
-    sprintf(realFile, "%s/%s", cf->sroot, ssUsersFile);
+    PR_snprintf(realFile, sizeof(realFile), "%s/%s", cf->sroot, ssUsersFile);
     if (!(fp = fopen(realFile, "r")))
         return 1;
 
@@ -256,8 +256,7 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     {
         if( (t = strchr(hn, '.')) )
             *t = '\0';
-        id = (char *) malloc(strlen(hn) + 1);
-        sprintf(id, "%s", hn);
+		id = PR_smprintf("%s", hn);
         if(t)
             *t = '.';
     }
@@ -471,7 +470,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
         }
     }
     /* has that identifier already been used? */
-    sprintf(fn, "%s%c%s-%s", cf->sroot, FILE_PATHSEP, 
+    PR_snprintf(fn, sizeof(fn), "%s%c%s-%s", cf->sroot, FILE_PATHSEP, 
             PRODUCT_NAME, cf->servid);
 
 /* Not an error to upgrade! ???
@@ -649,7 +648,7 @@ char *chownlogs(char *sroot, char *user)
         if(!(pw = getpwnam(user)))
             return make_error("Could not find UID and GID of user '%s'.", 
                               user);
-        sprintf(fn, "%s%clogs", sroot, FILE_PATHSEP);
+        PR_snprintf(fn, sizeof(fn), "%s%clogs", sroot, FILE_PATHSEP);
         return chownfile (pw, fn);
     }
     return NULL;
@@ -663,7 +662,7 @@ char *chownconfig(char *sroot, char *user)
         if(!(pw = getpwnam(user)))
             return make_error("Could not find UID and GID of user '%s'.", 
                               user);
-        sprintf(fn, "%s%cconfig", sroot, FILE_PATHSEP);
+        PR_snprintf(fn, sizeof(fn), "%s%cconfig", sroot, FILE_PATHSEP);
         return chownfile (pw, fn);
     }
     return NULL;
@@ -685,7 +684,7 @@ char *gen_script(char *s_root, char *name, char *fmt, ...)
     char *shell = "/bin/sh";
     va_list args;
 
-    sprintf(fn, "%s%c%s", s_root, FILE_PATHSEP, name);
+    PR_snprintf(fn, sizeof(fn), "%s%c%s", s_root, FILE_PATHSEP, name);
     if(!(f = fopen(fn, "w")))  
         return make_error("Could not write to %s (%s).", fn, ds_system_errmsg());
     va_start(args, fmt);
@@ -737,8 +736,8 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
     FILE *f;
     va_list args;
 
-    sprintf(fn, "%s%c%s", cs_path, FILE_PATHSEP, name);
-    sprintf(myperl, "%s%cbin%cslapd%cadmin%cbin%cperl",
+    PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
+    PR_snprintf(myperl, sizeof(myperl), "%s%cbin%cslapd%cadmin%cbin%cperl",
                     s_root, FILE_PATHSEP, FILE_PATHSEP,
                     FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     if(!(f = fopen(fn, "w")))  
@@ -778,11 +777,11 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
     char fn[PATH_SIZE], ofn[PATH_SIZE];
     const char *table[10][2];
 
-    sprintf(ofn, "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s", s_root,
+    PR_snprintf(ofn, sizeof(ofn), "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s", s_root,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, name);
-    sprintf(fn, "%s%c%s", cs_path, FILE_PATHSEP, name);
-    sprintf(myperl, "!%s%cbin%cslapd%cadmin%cbin%cperl",
+    PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
+    PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
@@ -831,12 +830,12 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
     char fn[PATH_SIZE], ofn[PATH_SIZE];
     const char *table[10][2];
 
-    sprintf(ofn, "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s", s_root,
+    PR_snprintf(ofn, sizeof(ofn), "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s", s_root,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, name);
-    sprintf(fn, "%s%cbin%cslapd%cadmin%cbin%c%s", s_root, FILE_PATHSEP, 
+    PR_snprintf(fn, sizeof(fn), "%s%cbin%cslapd%cadmin%cbin%c%s", s_root, FILE_PATHSEP, 
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, name);
-    sprintf(myperl, "!%s%cbin%cslapd%cadmin%cbin%cperl",
+    PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
@@ -888,7 +887,7 @@ service_exists(char *servid)
 {
     DWORD status, lasterror = 0;
     char szServiceName[MAX_PATH] = {0};
-    sprintf(szServiceName,"%s-%s", SVR_ID_SERVICE, servid);
+    PR_snprintf(szServiceName, sizeof(szServiceName),"%s-%s", SVR_ID_SERVICE, servid);
     /* if the service already exists, error */
     status = SERVICE_GetNTServiceStatus(szServiceName, &lasterror );
     if ( (lasterror == ERROR_SERVICE_DOES_NOT_EXIST) || 
@@ -910,7 +909,7 @@ void setup_nteventlogging(char *szServiceId, char *szMessageFile)
     char szKey[MAX_PATH];
     DWORD dwData;
 
-    sprintf(szKey, "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\%s", szServiceId);
+    PR_snprintf(szKey, sizeof(szKey), "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\%s", szServiceId);
 
     if(RegCreateKey(HKEY_LOCAL_MACHINE, szKey, &hKey) == ERROR_SUCCESS)
     {
@@ -930,10 +929,10 @@ char *add_ntservice(server_config_s *cf)
     char szServiceExe[MAX_PATH], szServiceDisplayName[MAX_PATH], szServiceName[MAX_PATH];
     DWORD dwLastError;
     
-    sprintf ( szServiceExe, "%s/bin/%s/server/%s", cf->sroot, 
+    PR_snprintf(szServiceExe, sizeof(szServiceExe), "%s/bin/%s/server/%s", cf->sroot, 
               SVR_DIR_ROOT, SVR_EXE);
-    sprintf ( szServiceName,"%s-%s", SVR_ID_SERVICE, cf->servid);
-    sprintf ( szServiceDisplayName, "%s (%s)", SVR_NAME_FULL_VERSION, 
+    PR_snprintf(szServiceName, sizeof(szServiceName),"%s-%s", SVR_ID_SERVICE, cf->servid);
+    PR_snprintf(szServiceDisplayName, sizeof(szServiceDisplayName), "%s (%s)", SVR_NAME_FULL_VERSION, 
               cf->servid);
 
     /* install new service - if already installed, try and remove and 
@@ -947,7 +946,7 @@ char *add_ntservice(server_config_s *cf)
     }
 
     // setup event logging registry keys, do this after service creation
-    sprintf(szMessageFile, "%s\\bin\\%s\\server\\%s", cf->sroot, 
+    PR_snprintf(szMessageFile, sizeof(szMessageFile), "%s\\bin\\%s\\server\\%s", cf->sroot, 
         SVR_DIR_ROOT, "slapdmessages30.dll");
     setup_nteventlogging(szServiceName, szMessageFile);
 
@@ -970,16 +969,16 @@ char *setup_ntserver(server_config_s *cf)
     DWORD sizeof_value_data_buffer;
 
     /* MLM - Adding ACL directories authdb and authdb/default */
-    sprintf(subdir, "%s%cauthdb", sroot, FILE_PATHSEP); 
+    PR_snprintf(subdir, sizeof(subdir), "%s%cauthdb", sroot, FILE_PATHSEP); 
     if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
 
-    sprintf(subdir, "%s%cauthdb%cdefault", sroot, FILE_PATHSEP, FILE_PATHSEP); 
+    PR_snprintf(subdir, sizeof(subdir), "%s%cauthdb%cdefault", sroot, FILE_PATHSEP, FILE_PATHSEP); 
     if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
 
     /* Create DS-nickname (corresponding to ServiceID) key in registry */
-    sprintf(line, "%s\\%s\\%s-%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
+    PR_snprintf(line, sizeof(line), "%s\\%s\\%s-%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
         SVR_ID_SERVICE, cf->servid);
 
     Result = RegCreateKey(HKEY_LOCAL_MACHINE, line, &hServerKey);
@@ -990,14 +989,14 @@ char *setup_ntserver(server_config_s *cf)
     
     // note that SVR_ID_PRODUCT is being used here, which is of the form dsX
     // as opposed to SVR_ID_SERVICE, which is of the form dsX30
-    sprintf(line, "%s\\%s-%s\\config", sroot, SVR_ID_PRODUCT, cf->servid);
+    PR_snprintf(line, sizeof(line), "%s\\%s-%s\\config", sroot, SVR_ID_PRODUCT, cf->servid);
     Result = RegSetValueEx(hServerKey, VALUE_CONFIG_PATH, 0, REG_SZ, 
         line, strlen(line) + 1);
 
     RegCloseKey(hServerKey);
 
      /* Create SNMP key in registry */
-    sprintf(line, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
+    PR_snprintf(line, sizeof(line), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
         KEY_SNMP_CURRENTVERSION);
 
     Result = RegCreateKey(HKEY_LOCAL_MACHINE, line, &hServerKey);
@@ -1008,13 +1007,13 @@ char *setup_ntserver(server_config_s *cf)
     
     
     /* Create the SNMP Pathname value */
-    sprintf(line, "%s\\%s", sroot, SNMP_PATH);
+    PR_snprintf(line, sizeof(line), "%s\\%s", sroot, SNMP_PATH);
     Result = RegSetValueEx(hServerKey, VALUE_APP_PATH, 0, REG_SZ, 
         line, strlen(line) + 1);    
     RegCloseKey(hServerKey);
 
     /* write SNMP extension agent value to Microsoft SNMP Part of Registry)  */
-    sprintf(line, "%s\\%s", KEY_SERVICES, KEY_SNMP_SERVICE); 
+    PR_snprintf(line, sizeof(line), "%s\\%s", KEY_SERVICES, KEY_SNMP_SERVICE); 
     Result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, 
                           line,
                           0,
@@ -1027,7 +1026,7 @@ char *setup_ntserver(server_config_s *cf)
         make sure it doesn't already exist, find last one and increment 
         value for new key */
 
-        sprintf(line, "%s\\%s\\%s",    KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, KEY_SNMP_CURRENTVERSION);
+        PR_snprintf(line, sizeof(line), "%s\\%s\\%s",    KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, KEY_SNMP_CURRENTVERSION);
 
         Result = RegQueryInfoKey(hServerKey, NULL, NULL, NULL, NULL, NULL,
                                  NULL, &NumValues, NULL, NULL, NULL, NULL);
@@ -1044,7 +1043,7 @@ char *setup_ntserver(server_config_s *cf)
                    and it would not find the key if it was already there
                 */
                 sizeof_value_data_buffer=MAX_PATH;
-                sprintf(NumValuesBuf, "%d", iterator);
+                PR_snprintf(NumValuesBuf, sizeof(NumValuesBuf), "%d", iterator);
                 Result = RegQueryValueEx(hServerKey,
                                       NumValuesBuf,
                                       NULL,
@@ -1062,7 +1061,7 @@ char *setup_ntserver(server_config_s *cf)
                 
         if(!value_already_exists)
         {
-              sprintf(NumValuesBuf, "%d", NumValues + 1); 
+              PR_snprintf(NumValuesBuf, sizeof(NumValuesBuf), "%d", NumValues + 1); 
             Result = RegSetValueEx(hServerKey, NumValuesBuf, 0, REG_SZ,
                                  line, strlen(line) + 1);
 
@@ -1125,7 +1124,7 @@ char *create_server(server_config_s *cf, char *param_name)
      * <server_root>/.native_solaris file acts as the flag
      */
     if (!iDSISolaris) {
-        sprintf(otherline, "%s%c.native_solaris", sroot, FILE_PATHSEP);    
+        PR_snprintf(otherline, sizeof(otherline), "%s%c.native_solaris", sroot, FILE_PATHSEP);    
         if (create_instance_exists(otherline)) {
             iDSISolaris = 1;
         }
@@ -1137,11 +1136,11 @@ char *create_server(server_config_s *cf, char *param_name)
      */
         sub = sub_token(sroot,"/usr/iplanet/",13,"/var/",5);
         if (sub) {
-            sprintf(subdirvar, "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
+            PR_snprintf(subdirvar, sizeof(subdirvar), "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
             free(sub);
         }
         else {
-            sprintf(subdirvar, "%s/"PRODUCT_NAME"-%s", SOLARIS_VAR_DIR, cf->servid);
+            PR_snprintf(subdirvar, sizeof(subdirvar), "%s/"PRODUCT_NAME"-%s", SOLARIS_VAR_DIR, cf->servid);
         }
         if( (create_instance_mkdir_p(subdirvar, NEWDIR_MODE)) )
             return make_error("mkdir %s failed (%s)", subdirvar, ds_system_errmsg());
@@ -1151,64 +1150,64 @@ char *create_server(server_config_s *cf, char *param_name)
          */
         sub = sub_token(sroot,"/usr/",5,"/etc/",5);
         if (sub) {
-            sprintf(subdiretc, "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
+            PR_snprintf(subdiretc, sizeof(subdiretc), "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
             free(sub);
         }
         else {
-            sprintf(subdiretc, "%s/"PRODUCT_NAME"-%s", SOLARIS_ETC_DIR, cf->servid);
+            PR_snprintf(subdiretc, sizeof(subdiretc), "%s/"PRODUCT_NAME"-%s", SOLARIS_ETC_DIR, cf->servid);
         }
         if( (create_instance_mkdir_p(subdiretc, NEWDIR_MODE)) )
             return make_error("mkdir %s failed (%s)", subdiretc, ds_system_errmsg());
-        sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP,
+        PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP,
                  cf->servid);
         if( (create_instance_symlink(subdirvar, subdir)) )
             return make_error("symlink %s ==> %s failed (%s)", subdir, subdirvar, ds_system_errmsg());
     }
     else {
-        sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+        PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
                  cf->servid);
         if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
             return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
     }      
 #else 
-    sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+    PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
                  cf->servid);
     if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
 #endif /* SOLARIS */
     
     /* Create slapd-nickname/config directory */
-    sprintf(line, "%s%cconfig", subdir, FILE_PATHSEP);
+    PR_snprintf(line, sizeof(line), "%s%cconfig", subdir, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 #if defined( SOLARIS )
     if (iDSISolaris) {
-        sprintf(line, "%s%cconfig", subdirvar, FILE_PATHSEP);
-        sprintf(otherline, "%s%cconfig", subdiretc, FILE_PATHSEP);
+        PR_snprintf(line, sizeof(line), "%s%cconfig", subdirvar, FILE_PATHSEP);
+        PR_snprintf(otherline, sizeof(otherline), "%s%cconfig", subdiretc, FILE_PATHSEP);
         if( (create_instance_symlink(line, otherline)) )
             return make_error("symlink %s ==> %s failed (%s)", otherline, line, ds_system_errmsg());
     }
 #endif /* SOLARIS */
 
     /* Create slapd-nickname/config/schema directory */
-    sprintf(line, "%s%cconfig%cschema", subdir, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(line, sizeof(line), "%s%cconfig%cschema", subdir, FILE_PATHSEP, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 
 #if defined (BUILD_PRESENCE)
     /* Create slapd-nickname/config/presence directory */
-    sprintf(line, "%s%cconfig%cpresence", subdir, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(line, sizeof(line), "%s%cconfig%cpresence", subdir, FILE_PATHSEP, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 #endif
 
     /* Create slapd-nickname/logs directory */
-    sprintf(line, "%s%clogs", subdir, FILE_PATHSEP);
+    PR_snprintf(line, sizeof(line), "%s%clogs", subdir, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWSECDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 
     /* Create httpacl directory */
-    sprintf(line, "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
+    PR_snprintf(line, sizeof(line), "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
     if( (create_instance_mkdir(line, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 #if defined( SOLARIS )
@@ -1599,7 +1598,7 @@ char *create_instance_mkdir_p(char *dir, int mode)
         if(t) *t = '\0';
         if(stat(dir, &fi) == -1) {
             if(create_instance_mkdir(dir, mode) == -1) {
-                sprintf(errmsg, "mkdir %s failed (%s)", dir, ds_system_errmsg());
+                PR_snprintf(errmsg, sizeof(errmsg), "mkdir %s failed (%s)", dir, ds_system_errmsg());
                 return errmsg;
             }
         }
@@ -1708,7 +1707,7 @@ int tryuser(char *user)
     if(geteuid())
         return 0;
 
-    sprintf(fn, "/tmp/trychown.%ld", (long)getpid());
+    PR_snprintf(fn, sizeof(fn), "/tmp/trychown.%ld", (long)getpid());
     if( (fd = creat(fn, 0777)) == -1)
         return 0;         /* Hmm. */
     ret = chown(fn, pw->pw_uid, pw->pw_gid);
@@ -1871,15 +1870,12 @@ file_is_type_x(const char *dirname, const char *filename, PRFileType x)
 {
     struct PRFileInfo inf;
     int status = 0;
-    int size = strlen(dirname) + strlen(filename) + 2; /* 1 for slash + 1 for null */
-    char *fullpath = calloc(sizeof(char), size);
-
-    sprintf(fullpath, "%s/%s", dirname, filename);
+    char *fullpath = PR_smprintf("%s/%s", dirname, filename);
     if (PR_SUCCESS == PR_GetFileInfo(fullpath, &inf) &&
         inf.type == x)
         status = 1;
 
-    free(fullpath);
+    PR_smprintf_free(fullpath);
 
     return status;
 }
@@ -1915,11 +1911,11 @@ ds_copy_group_files_using_mode(char *src_dir, char *dest_dir,
     while( (d = PR_ReadDir(ds, 0)) ) {
         if(d->name[0] != '.') {
             if(!filter || strstr(d->name, filter)) {
-                sprintf(fullname, "%s/%s", src_dir, d->name);
+                PR_snprintf(fullname, sizeof(fullname), "%s/%s", src_dir, d->name);
                 if(PR_SUCCESS != PR_Access(fullname, PR_ACCESS_EXISTS))
                     continue;
-                sprintf(src_file,  "%s%c%s", src_dir,  FILE_PATHSEP, d->name);
-                sprintf(dest_file, "%s%c%s", dest_dir, FILE_PATHSEP, d->name);
+                PR_snprintf(src_file, sizeof(src_file),  "%s%c%s", src_dir,  FILE_PATHSEP, d->name);
+                PR_snprintf(dest_file, sizeof(dest_file), "%s%c%s", dest_dir, FILE_PATHSEP, d->name);
                 if(is_a_dir(src_dir, d->name)) {
                     char *sub_src_dir = strdup(src_file);
                     char *sub_dest_dir = strdup(dest_file);
@@ -1986,45 +1982,45 @@ char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
     char subdir[PATH_SIZE], *t = NULL;
 
     /* create subdir <a_server>/db */
-    sprintf(subdir, "%s%cdb", cs_path, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cdb", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
     chownfile (pw, subdir);
 
     /* create subdir <a_server>/ldif */
-    sprintf(subdir, "%s%cldif", cs_path, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cldif", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
     chownfile (pw, subdir);
 
     /* create subdir <a_server>/dsml */
-    sprintf(subdir, "%s%cdsml", cs_path, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cdsml", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
     chownfile (pw, subdir);
 
     /* create subdir <a_server>/bak */
-    sprintf(subdir, "%s%cbak", cs_path, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cbak", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
     chownfile (pw, subdir);
 
     /* Create slapd-nickname/confbak directory */
-    sprintf(subdir, "%s%cconfbak", cs_path, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cconfbak", cs_path, FILE_PATHSEP);
     if( (t=create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
     chownfile (pw, subdir);
 
     /* create subdir <server_root>/dsgw/context */
-    sprintf(subdir, "%s%cclients", sroot, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cclients", sroot, FILE_PATHSEP);
     if (is_a_dir(subdir, "dsgw")) { /* only create dsgw stuff if we are installing it */
-        sprintf(subdir, "%s%cclients%cdsgw%ccontext", sroot, FILE_PATHSEP,FILE_PATHSEP,FILE_PATHSEP);
+        PR_snprintf(subdir, sizeof(subdir), "%s%cclients%cdsgw%ccontext", sroot, FILE_PATHSEP,FILE_PATHSEP,FILE_PATHSEP);
         if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
             return(t);
     }
 
   /* create subdir <server_root>/bin/slapd/authck */
-    sprintf(subdir, "%s%cbin%cslapd%cauthck", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(subdir, sizeof(subdir), "%s%cbin%cslapd%cauthck", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
 #if defined( SOLARIS )
@@ -2119,10 +2115,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     mysroot = sroot;
     mycs_path = cs_path;
 
-    sprintf(server, "%s/bin/"PRODUCT_NAME"/server", sroot);    
-    sprintf(admin, "%s/bin/"PRODUCT_NAME"/admin/bin", sroot);    
-    sprintf(tools, "%s/shared/bin", sroot);    
-    sprintf(cgics_path, "%s%cbin%cadmin%cadmin%cbin", sroot,
+    PR_snprintf(server, sizeof(server), "%s/bin/"PRODUCT_NAME"/server", sroot);    
+    PR_snprintf(admin, sizeof(admin), "%s/bin/"PRODUCT_NAME"/admin/bin", sroot);    
+    PR_snprintf(tools, sizeof(tools), "%s/shared/bin", sroot);    
+    PR_snprintf(cgics_path, sizeof(cgics_path), "%s%cbin%cadmin%cadmin%cbin", sroot,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
     t = gen_script(cs_path, "monitor", 
@@ -2491,7 +2487,7 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
          */
         if (iDSISolaris)
         { 
-            sprintf(fn, "%s/%s", server, cl_scripts[cls]);
+            PR_snprintf(fn, sizeof(fn), "%s/%s", server, cl_scripts[cls]);
             logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, fn);
         }
 #endif /* SOLARIS */
@@ -2542,10 +2538,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         *q = '\0';
     }
 
-    sprintf(server, "%s/bin/"PRODUCT_NAME"/server", sroot);    
-    sprintf(admin, "%s/bin/"PRODUCT_NAME"/admin/bin", sroot);    
-    sprintf(tools, "%s/shared/bin", sroot);    
-    sprintf(cgics_path, "%s/bin/admin/admin/bin", sroot);
+    PR_snprintf(server, sizeof(server), "%s/bin/"PRODUCT_NAME"/server", sroot);    
+    PR_snprintf(admin, sizeof(admin), "%s/bin/"PRODUCT_NAME"/admin/bin", sroot);    
+    PR_snprintf(tools, sizeof(tools), "%s/shared/bin", sroot);    
+    PR_snprintf(cgics_path, sizeof(cgics_path), "%s/bin/admin/admin/bin", sroot);
 
     ds_unixtodospath( cs_path );
     ds_unixtodospath( server );
@@ -3141,7 +3137,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 void
 suffix_gen_conf(FILE* f, char * suffix, char *be_name)
 {
-    int l;
     char* belowdn;
     
     fprintf(f, "dn: cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
@@ -3193,10 +3188,9 @@ suffix_gen_conf(FILE* f, char * suffix, char *be_name)
     fprintf(f, "cn: index\n");
     fprintf(f, "\n");
 
-    l = strlen("cn=index,cn=") + strlen(be_name) + strlen(",cn=ldbm database,cn=plugins,cn=config");
-    belowdn = (char *)malloc(l + 1);
-    sprintf(belowdn, "cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be_name);
+    belowdn = PR_smprintf("cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be_name);
     ds_gen_index(f, belowdn);
+	PR_smprintf_free(belowdn);
     
     /* done with ldbm entries */
 }
@@ -3224,7 +3218,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     int  rootdse = 0;
     char *shared_lib;
 
-    sprintf(fn, "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(fn, sizeof(fn), "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     if(!(f = fopen(fn, "w")))
         return make_error("Can't write to %s (%s)", fn, ds_system_errmsg());
 
@@ -3727,6 +3721,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
         }
     }
 
+#ifdef BUILD_PAM_PASSTHRU
 #if !defined( XP_WIN32 )
 	/* PAM Pass Through Auth plugin - off by default */
 	fprintf(f, "dn: cn=PAM Pass Through Auth,cn=plugins,cn=config\n");
@@ -3752,6 +3747,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
 	fprintf(f, "pamService: ldapserver\n");
 	fprintf(f, "\n");
 #endif /* NO PAM FOR WINDOWS */
+#endif /* BUILD_PAM_PASSTHRU */
 
     fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");
@@ -3946,17 +3942,17 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
 
     fclose (f);
     
-    sprintf(src, "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
-    sprintf(fn, "%s%cconfig%cdse_original.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(src, sizeof(src), "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(fn, sizeof(fn), "%s%cconfig%cdse_original.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, fn, 0600);
 
     /*
      * generate slapd-collations.conf
      */
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cconfig%c%s-collations.conf",
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cconfig%c%s-collations.conf",
             sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
             FILE_PATHSEP, PRODUCT_NAME);
-    sprintf(dest, "%s%cconfig%c%s-collations.conf", cs_path, FILE_PATHSEP,
+    PR_snprintf(dest, sizeof(dest), "%s%cconfig%c%s-collations.conf", cs_path, FILE_PATHSEP,
             FILE_PATHSEP, PRODUCT_NAME);
     if (!(srcf = fopen(src, "r"))) {
         return make_error("Can't read from %s (%s)", src, ds_system_errmsg());
@@ -3976,20 +3972,20 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fclose(srcf);
     fclose(f);
 
-    sprintf(src, "%s/bin/slapd/install/schema", sroot);
-    sprintf(dest, "%s/config/schema", cs_path);
+    PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/schema", sroot);
+    PR_snprintf(dest, sizeof(dest), "%s/config/schema", cs_path);
     if (NULL != (t = ds_copy_group_files(src, dest, 0)))
         return t;
         
 #if defined (BUILD_PRESENCE)
-    sprintf(src, "%s/bin/slapd/install/presence", sroot);
-    sprintf(dest, "%s/config/presence", cs_path);
+    PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/presence", sroot);
+    PR_snprintf(dest, sizeof(dest), "%s/config/presence", cs_path);
     if (t = ds_copy_group_files(src, dest, 0))
         return t;
 #endif
 
     /* Generate the orgchart configuration */
-    sprintf(src, "%s/clients", sroot);
+    PR_snprintf(src, sizeof(src), "%s/clients", sroot);
     if (is_a_dir(src, "orgchart")) {
         if (NULL != (t = ds_gen_orgchart_conf(sroot, cs_path, cf))) {
             return t;
@@ -3997,7 +3993,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     }
         
     /* Generate dsgw.conf */
-    sprintf(src, "%s/clients", sroot);
+    PR_snprintf(src, sizeof(src), "%s/clients", sroot);
     if (is_a_dir(src, "dsgw")) {
         if (NULL != (t = ds_gen_gw_conf(sroot, cs_path, cf, GW_CONF))) {
             return t;
@@ -4045,7 +4041,7 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
      * copying the rest from NS-HOME/dsgw/config/dsgw.tmpl
      */
 
-    sprintf(dest, "%s%cclients%cdsgw%ccontext%c%s.conf", sroot, FILE_PATHSEP,FILE_PATHSEP,
+    PR_snprintf(dest, sizeof(dest), "%s%cclients%cdsgw%ccontext%c%s.conf", sroot, FILE_PATHSEP,FILE_PATHSEP,
         FILE_PATHSEP, FILE_PATHSEP, ctxt);
 
 
@@ -4082,10 +4078,10 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
 
     /* copy in template */
     if (conf_type == GW_CONF) {
-        sprintf(src, "%s%cclients%cdsgw%cconfig%cdsgw.tmpl",
+        PR_snprintf(src, sizeof(src), "%s%cclients%cdsgw%cconfig%cdsgw.tmpl",
             sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     } else if (conf_type == PB_CONF) {
-        sprintf(src, "%s%cclients%cdsgw%cpbconfig%cpb.tmpl",
+        PR_snprintf(src, sizeof(src), "%s%cclients%cdsgw%cpbconfig%cpb.tmpl",
             sroot, FILE_PATHSEP,FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     } else {
         /*This should never, ever happen if this function is called correctly*/
@@ -4123,7 +4119,7 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
         }
 #endif
 
-        sprintf(defaultconf, "%s%cclients%cdsgw%ccontext%cdefault.conf", sroot, 
+        PR_snprintf(defaultconf, sizeof(defaultconf), "%s%cclients%cdsgw%ccontext%cdefault.conf", sroot, 
           FILE_PATHSEP,FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
         create_instance_copy(dest, defaultconf, NEWFILE_MODE);
@@ -4159,9 +4155,9 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
      * install-specific config. file lines at the start of file, and then
      * copying the rest from NS-HOME/clients/orgchart/config.tmpl
      */
-    sprintf(dest, "%s%cclients%corgchart%cconfig.txt", sroot, FILE_PATHSEP,
+    PR_snprintf(dest, sizeof(dest), "%s%cclients%corgchart%cconfig.txt", sroot, FILE_PATHSEP,
         FILE_PATHSEP, FILE_PATHSEP );
-    sprintf(src, "%s%cclients%corgchart%cconfig.tmpl", sroot, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cclients%corgchart%cconfig.tmpl", sroot, FILE_PATHSEP, 
         FILE_PATHSEP, FILE_PATHSEP);
 
     /* If the config file already exists, just return success */
@@ -4229,9 +4225,9 @@ static char *gen_presence_init_script(char *sroot, server_config_s *cf,
     char dir[PATH_SIZE];
     FILE *f;
 
-    sprintf(dir, "%s%cconfig%cpresence",
+    PR_snprintf(dir, sizeof(dir), "%s%cconfig%cpresence",
             cs_path, FILE_PATHSEP, FILE_PATHSEP);
-    sprintf(fn, "%s%c%s",
+    PR_snprintf(fn, sizeof(fn), "%s%c%s",
             dir, FILE_PATHSEP, PRESENCE_LDIF);
 
     if(!(f = fopen(fn, "w")))  
@@ -4309,13 +4305,13 @@ static int init_presence(char *sroot, server_config_s *cf, char *cs_path)
     char precmd[PATH_SIZE];
 
     precmd[0] = 0;
-    sprintf(tools, "%s%cshared%cbin", sroot, FILE_PATHSEP, FILE_PATHSEP);    
+    PR_snprintf(tools, sizeof(tools), "%s%cshared%cbin", sroot, FILE_PATHSEP, FILE_PATHSEP);    
 
 #ifdef XP_UNIX
-    sprintf(precmd, "cd %s;", tools);
+    PR_snprintf(precmd, sizeof(precmd), "cd %s;", tools);
 #endif
 
-    sprintf(cmd, "%s%s%cldapmodify -q -p %d -b -D \"%s\" -w \"%s\" "
+    PR_snprintf(cmd, sizeof(cmd), "%s%s%cldapmodify -q -p %d -b -D \"%s\" -w \"%s\" "
             "-f %s%s%cconfig%cpresence%c%s%s",
             precmd,
             tools, FILE_PATHSEP,
@@ -4342,6 +4338,7 @@ static void
 ds_gen_index(FILE* f, char* belowdn)
 {
 #define MKINDEX(_name, _inst, _sys, _type1, _type2, _type3) do { \
+	char *_type2str = (_type2), *_type3str = (_type3); \
     fprintf(f, "dn: cn=%s,%s\n", (_name), (_inst)); \
     fprintf(f, "objectclass: top\n"); \
     fprintf(f, "objectclass: nsIndex\n"); \
@@ -4349,10 +4346,10 @@ ds_gen_index(FILE* f, char* belowdn)
     fprintf(f, "nssystemindex: %s\n", (_sys) ? "true" : "false"); \
 	if (_type1) \
         fprintf(f, "nsindextype: %s\n", (_type1)); \
-    if (_type2) \
-        fprintf(f, "nsindextype: %s\n", (_type2)); \
-    if (_type3) \
-        fprintf(f, "nsindextype: %s\n", (_type3)); \
+    if (_type2str) \
+        fprintf(f, "nsindextype: %s\n", _type2str); \
+    if (_type3str) \
+        fprintf(f, "nsindextype: %s\n", _type3str); \
     fprintf(f, "\n"); \
 } while (0)
 
@@ -4409,7 +4406,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     }
 #endif
     
-    sprintf(cs_path, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, cf->servid);
+    PR_snprintf(cs_path, sizeof(cs_path), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, cf->servid);
 
     /* create all <a_server>/<subdirs> */
     if ( (t = ds_cre_subdirs(sroot, cf, cs_path, pw)) )
@@ -4428,46 +4425,46 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     if ( (t = ds_gen_confs(sroot, cf, cs_path)) )
         return(t);
 
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    sprintf(dest, "%s%cldif%cExample.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cldif%cExample.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-roles.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-roles.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    sprintf(dest, "%s%cldif%cExample-roles.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cldif%cExample-roles.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-views.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-views.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    sprintf(dest, "%s%cldif%cExample-views.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cldif%cExample-views.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cEuropean.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cEuropean.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
     FILE_PATHSEP);
-    sprintf(dest, "%s%cldif%cEuropean.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cldif%cEuropean.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
     /* new code for dsml sample files */
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cExample.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cExample.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    sprintf(dest, "%s%cdsml%cExample.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cdsml%cExample.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cExample-roles.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cExample-roles.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    sprintf(dest, "%s%cdsml%cExample-roles.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cdsml%cExample-roles.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
-    sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cEuropean.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cEuropean.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    sprintf(dest, "%s%cdsml%cEuropean.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cdsml%cEuropean.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
@@ -4480,10 +4477,10 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     char msg[2*PATH_SIZE] = {0};
     int status = ds_ldif2db_backend_subtree(cf->install_ldif_file, NULL, cf->suffix);
     if (status)
-        sprintf(msg, "The file %s could not be loaded",
+        PR_snprintf(msg, sizeof(msg), "The file %s could not be loaded",
             cf->install_ldif_file);
     else
-        sprintf(msg, "The file %s was successfully loaded",
+        PR_snprintf(msg, sizeof(msg), "The file %s was successfully loaded",
             cf->install_ldif_file);
     ds_show_message(msg);
     free(cf->install_ldif_file);
@@ -4500,7 +4497,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     if(needToStartServer(cf) &&
        !(t = create_instance_checkport(cf->bindaddr, cf->servport)))
     {
-    sprintf(big_line,"SERVER_NAMES=slapd-%s",cf->servid);
+    PR_snprintf(big_line, sizeof(big_line),"SERVER_NAMES=slapd-%s",cf->servid);
     putenv(big_line);
 
     isrunning = ds_get_updown_status();
@@ -4514,10 +4511,10 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
         if (getenv("USE_DEBUGGER"))
         verbose = 0;
         /* slapd-nickname directory */
-        sprintf(instance_dir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+        PR_snprintf(instance_dir, sizeof(instance_dir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
             cf->servid);
         /* error log file */
-        sprintf(errorlog, "%s%clogs%cerrors", instance_dir, FILE_PATHSEP,
+        PR_snprintf(errorlog, sizeof(errorlog), "%s%clogs%cerrors", instance_dir, FILE_PATHSEP,
             FILE_PATHSEP);
         start_status = ds_bring_up_server_install(verbose, instance_dir, errorlog);
 
@@ -4575,7 +4572,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
         char szTmp[512];
     /*replaced errno > -1 && errno < sys_nerr ? sys_errlist[errno] :
                     "unknown" with strerror(errno)*/
-        sprintf(szTmp, "Error: Windows Sockets initialization failed errno %d (%s)<br>\n", errno,
+        PR_snprintf(szTmp, sizeof(szTmp), "Error: Windows Sockets initialization failed errno %d (%s)<br>\n", errno,
             strerror(errno), 0 );
             
         fprintf (stdout, szTmp);
@@ -4658,8 +4655,7 @@ write_ldap_info( char *slapd_server_root, server_config_s *cf)
       return -1;
     }
     
-    infoFileName = (char*)malloc(strlen(fmt) + strlen(slapd_server_root) + 1);
-    sprintf(infoFileName, fmt, slapd_server_root);
+    infoFileName = PR_smprintf(fmt, slapd_server_root);
 
     if ((fp = fopen(infoFileName, "w")) == NULL)
     {
@@ -4689,7 +4685,7 @@ write_ldap_info( char *slapd_server_root, server_config_s *cf)
         logUninstallInfo(slapd_server_root, PRODUCT_NAME, PRODUCT_NAME, infoFileName);
   
 #endif /* SOLARIS */
-    free(infoFileName);
+    PR_smprintf_free(infoFileName);
 
     return ret;
 }

@@ -77,7 +77,6 @@ static void
 issue_error(Slapi_PBlock *pb, int result, char *type, char *value)
 {
   char *moreinfop;
-  int sz;
 
   slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "%s result %d\n", type, result);
@@ -85,9 +84,7 @@ issue_error(Slapi_PBlock *pb, int result, char *type, char *value)
   if (value == NULL) {
     value = "unknown";
   }
-  sz = strlen(moreInfo) + strlen(value) + 1;
-  moreinfop = (char *)slapi_ch_malloc(sz);
-  sprintf(moreinfop, "%s%s", moreInfo, value);
+  moreinfop = slapi_ch_smprintf("%s%s", moreInfo, value);
 
   /* Send failure to the client */
   slapi_send_ldap_result(pb, result, 0, moreinfop, 0, 0);

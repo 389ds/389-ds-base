@@ -19,12 +19,9 @@
 #include "init_ds_env.h"
 
 
-static char buf[1024];
-
 int main(int argc, char *argv[])
 {
     int status = -1;
-	char *instanceName = 0;
 
     fprintf(stdout, "Content-type: text/html\n\n");
 

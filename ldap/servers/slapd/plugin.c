@@ -94,10 +94,11 @@ typedef struct entry_and_plugin {
 	struct entry_and_plugin *next;
 } entry_and_plugin_t;
 
-static entry_and_plugin_t *plugin_entries = NULL;
 static entry_and_plugin_t *dep_plugin_entries = NULL; /* for dependencies */
 
 #if 0
+static entry_and_plugin_t *plugin_entries = NULL;
+
 static void
 add_plugin_entries()
 {
@@ -184,9 +185,7 @@ slapi_register_plugin(
 	int ii = 0;
     int rc = 0;
 	Slapi_Entry *e = slapi_entry_alloc();
-	char *dn = slapi_ch_calloc(1, strlen(name) + strlen(PLUGIN_BASE_DN) + 10);
-
-	sprintf(dn, "cn=%s, %s", name, PLUGIN_BASE_DN);
+	char *dn = slapi_ch_smprintf("cn=%s, %s", name, PLUGIN_BASE_DN);
 	/* this function consumes dn */
 	slapi_entry_init(e, dn, NULL);
 
@@ -199,7 +198,7 @@ slapi_register_plugin(
 
 	for (ii = 0; argv && argv[ii]; ++ii) {
 		char argname[64];
-		sprintf(argname, "%s%d", ATTR_PLUGIN_ARG, ii);
+		PR_snprintf(argname, sizeof(argname), "%s%d", ATTR_PLUGIN_ARG, ii);
 		slapi_entry_attr_set_charptr(e, argname, argv[ii]);
 	}
 
@@ -2123,13 +2122,13 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	/* add the plugin arguments */
 	value = 0;
 	ii = 0;
-	sprintf(attrname, "%s%d", ATTR_PLUGIN_ARG, ii);
+	PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ii);
 	while ((value = slapi_entry_attr_get_charptr(plugin_entry, attrname)) != NULL)
 	{
 		charray_add(&plugin->plg_argv, value);
 		plugin->plg_argc++;
 		++ii;
-		sprintf(attrname, "%s%d", ATTR_PLUGIN_ARG, ii);
+		PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ii);
 	}
 
 	memset((char *)&pb, '\0', sizeof(pb));
@@ -2430,9 +2429,7 @@ char* plugin_get_dn (const struct slapdplugin *plugin)
 	if (plugin->plg_name == NULL)
 		return NULL;
 
-	plugindn = (char*)slapi_ch_malloc (strlen (pattern) + strlen (plugin->plg_name));
-	if (plugindn)
-		sprintf (plugindn, pattern, plugin->plg_name);
+	plugindn = slapi_ch_smprintf(pattern, plugin->plg_name);
 
 	return plugindn;
 }

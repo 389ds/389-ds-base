@@ -586,12 +586,10 @@ vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const 
     /* Create an index filename for the search */
     if(vlvIndex_createfilename(p,&filename))
     {
-        p->vlv_filename= slapi_ch_malloc(strlen(file_prefix) + strlen(filename) + strlen(file_suffix) + 1);
-        sprintf(p->vlv_filename,"%s%s%s",file_prefix,filename,file_suffix);
+        p->vlv_filename= slapi_ch_smprintf("%s%s%s",file_prefix,filename,file_suffix);
 
         /* Create an attrinfo structure */
-        p->vlv_attrinfo->ai_type= slapi_ch_malloc(strlen(file_prefix) + strlen(filename) + 1);
-        sprintf(p->vlv_attrinfo->ai_type,"%s%s",file_prefix,filename);
+        p->vlv_attrinfo->ai_type= slapi_ch_smprintf("%s%s",file_prefix,filename);
     	p->vlv_attrinfo->ai_indexmask= INDEX_VLV;
 
         /* Check if the index file actually exists */

@@ -339,7 +339,7 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 			if ((mods[i]->mod_op & LDAP_MOD_DELETE) ||
 				(mods[i]->mod_op & LDAP_MOD_ADD)) {
 				rc= LDAP_UNWILLING_TO_PERFORM;
-				sprintf(returntext, "%s attributes is not allowed",
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
 						(mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
 			} else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
 				/* send all aci modifications to the backend */
@@ -410,7 +410,7 @@ postop_modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 					continue;
 				while ( *(++p) == ' ' || *p == '\t' );
 				if ( strcasecmp (p, mods[i]->mod_type) == 0 ) {
-					sprintf(returntext,
+					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 						"The change of %s will not take effect "
 						"until the server is restarted", mods[i]->mod_type);
 					slapi_log_error (SLAPI_LOG_FATAL, NULL, "%s\n", returntext);

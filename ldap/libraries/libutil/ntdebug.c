@@ -31,7 +31,7 @@ void LDAPDebug( int level, char *fmt, ... )
 	if ( slapd_ldap_debug & level ) 
 	{ 
 		char szFormattedString[512]; 
-		_vsnprintf( szFormattedString, sizeof( szFormattedString ), fmt, arg_ptr ); 
+		PR_vsnprintf( szFormattedString, sizeof( szFormattedString ), fmt, arg_ptr ); 
 
 #if defined( LDAP_DEBUG )
 		/* Send to debug window ...*/

@@ -485,7 +485,7 @@ do_bind( Slapi_PBlock *pb )
                         break;
                     case LDAP_AUTH_SASL:
                         /* authtype = SLAPD_AUTH_SASL && saslmech: */
-                        sprintf(authtypebuf, "%s%s", SLAPD_AUTH_SASL, saslmech);
+                        PR_snprintf(authtypebuf, sizeof(authtypebuf), "%s%s", SLAPD_AUTH_SASL, saslmech);
                         authtype = authtypebuf;
                     break;
                     default: /* ??? */

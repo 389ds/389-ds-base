@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include "ldap.h"
 #include "regparms.h"
+#include "nspr.h"
+#include "plstr.h"
 
 HANDLE hSlapdEventSource;
 LPTSTR	pszServerName;
@@ -89,7 +91,7 @@ MultipleInstances()
 	if( !pszServerName )
 		return FALSE;
 
-	sprintf(szDoneEvent, "NS_%s", pszServerName);
+	PR_snprintf(szDoneEvent, sizeof(szDoneEvent), "NS_%s", pszServerName);
 
     hServDoneSemaphore = CreateSemaphore(
         NULL,   // security attributes    
@@ -102,7 +104,7 @@ MultipleInstances()
         result = GetLastError();
         if (result == ERROR_INVALID_HANDLE) {
 
-            sprintf(ErrMsg, "Netscape Server %s is already"
+            PR_snprintf(ErrMsg, sizeof(ErrMsg), "Netscape Server %s is already"
             " running. Terminating this instance.", pszServerName);
 
             MessageBox(GetDesktopWindow(), ErrMsg,
@@ -136,7 +138,7 @@ BOOL SlapdGetServerNameFromCmdline(char *szServerName, char *szCmdLine, int dirn
 	if( szCmdLine )
 	{
 		memset(szCmdCopy, 0, _MAX_PATH );
-		strcpy( szCmdCopy, szCmdLine );
+		PL_strncpyz( szCmdCopy, szCmdLine , sizeof(szCmdCopy) );
 	}
 	else
 		return(bReturn);

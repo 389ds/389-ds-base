@@ -33,9 +33,6 @@ LIBLITEKEY = $(addprefix $(LIBDIR)/, liblitekey.$(LIB_SUFFIX))
 
 all:	$(OBJDEST) $(LIBDIR) $(OBJS) $(LIBLITEKEY)
 
-$(LIBDIR):
-	$(MKDIR) $(LIBDIR)
-
 $(LIBLITEKEY): $(OBJS)
 	$(LINK_LIB)
 

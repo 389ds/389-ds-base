@@ -22,6 +22,7 @@
 #define pclose _pclose
 #endif
 #include "portable.h"
+#include "nspr.h"
 
 /*
  * Get a listing of backup directories
@@ -42,7 +43,7 @@ ds_get_bak_dirs()
         return(bak_dirs);
     }
 
-    sprintf( format_str, "%s%cbak", root, FILE_SEP );
+    PR_snprintf( format_str, PATH_MAX, "%s%cbak", root, FILE_SEP );
 	bak_dirs = ds_get_file_list( format_str );
 	if( bak_dirs )
 	{
@@ -50,7 +51,7 @@ ds_get_bak_dirs()
 		{
 			/* Prepend the filename with the install root */
 			char filename[PATH_MAX];
-			sprintf( filename, "%s%cbak%c%s", root, FILE_SEP,
+			PR_snprintf( filename, PATH_MAX, "%s%cbak%c%s", root, FILE_SEP,
 					 FILE_SEP, bak_dirs[i] );
 			free( bak_dirs[i] );
 			bak_dirs[i] = strdup( filename );
@@ -103,8 +104,8 @@ ds_bak2db(char *file)
     }
 
     tmp_dir = ds_get_tmp_dir();
-    sprintf(statfile, "%s%cbak2db.%d", tmp_dir, FILE_SEP, (int)getpid());
-    sprintf(startup_line,
+    PR_snprintf(statfile, PATH_MAX, "%s%cbak2db.%d", tmp_dir, FILE_SEP, (int)getpid());
+    PR_snprintf(startup_line, BIG_LINE,
 			"%s%cbak2db "
 			"%s%s%s > "
 			"%s%s%s 2>&1",
@@ -169,7 +170,7 @@ ds_db2bak(char *file)
         file = NULL;
 
 	tmp_dir = ds_get_tmp_dir();
-    sprintf(statfile, "%s%cdb2bak.%d", tmp_dir, FILE_SEP, (int)getpid());
+    PR_snprintf(statfile, PATH_MAX, "%s%cdb2bak.%d", tmp_dir, FILE_SEP, (int)getpid());
 	
 					
 #if defined( XP_WIN32 )
@@ -178,7 +179,7 @@ ds_db2bak(char *file)
 		file = malloc( BIG_LINE );
 
 		time( &ltime );
-		sprintf( file, "%s", ctime( &ltime ) );
+		PR_snprintf( file, BIG_LINE, "%s", ctime( &ltime ) );
 		ds_timetofname( file );
 	}
 
@@ -204,7 +205,7 @@ ds_db2bak(char *file)
  */
 
 
-    sprintf(startup_line,
+    PR_snprintf(startup_line, sizeof(startup_line),
 			"%s%cdb2bak "
 			"%s%s%s > "
 			"%s%s%s 2>&1",
@@ -321,7 +322,7 @@ ds_vlvindex(char **backendList, char **vlvList)
         return DS_NO_SERVER_ROOT;
     }
 
-    sprintf(startup_line, "%s/bin/slapd/server/%s db2index "
+    PR_snprintf(startup_line, sizeof(startup_line), "%s/bin/slapd/server/%s db2index "
 			"-D %s%s/%s "
 			"-n %s ",
 			root, SLAPD_NAME,			
@@ -332,7 +333,7 @@ ds_vlvindex(char **backendList, char **vlvList)
 	/* Create vlv TAG */
 	vlvc=vlvList;
 	while( *vlvc != NULL ) {
-		sprintf( startup_line, "%s -T %s%s%s", startup_line,"\"",*vlvc,"\"" );
+		PR_snprintf( startup_line, sizeof(startup_line), "%s -T %s%s%s", startup_line,"\"",*vlvc,"\"" );
 		vlvc++;
 	}	
    
@@ -358,7 +359,7 @@ ds_addindex(char **attrList, char *backendName)
         return DS_NO_SERVER_ROOT;
     }
 
-	sprintf(startup_line, "%s/bin/slapd/server/%s db2index "
+	PR_snprintf(startup_line, sizeof(startup_line), "%s/bin/slapd/server/%s db2index "
 			"-D %s%s%s "
 			"-n %s",
 			root, SLAPD_NAME,			
@@ -366,7 +367,7 @@ ds_addindex(char **attrList, char *backendName)
 			backendName);
 
 	while( *attrList != NULL ) {
-		sprintf( startup_line, "%s -t %s", startup_line, *attrList );
+		PR_snprintf( startup_line, sizeof(startup_line), "%s -t %s", startup_line, *attrList );
 		attrList++;
 	}
 

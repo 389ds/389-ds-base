@@ -69,7 +69,6 @@ int iii_pio_getnum (
 {
   FILE *fp;
   char buf[8192];
-  int rc = 0;
   
   fp = popen(cmd,"r");
   

@@ -166,8 +166,7 @@ slapd_get_version_value( void )
         versionstring = config_get_versionstring();
         buildnum = config_get_buildnum();
 
-        vs = slapi_ch_malloc( strlen(versionstring) + strlen( buildnum) + 3 );
-        sprintf( vs, "%s B%s", versionstring, buildnum );
+        vs = slapi_ch_smprintf("%s B%s", versionstring, buildnum );
 
         slapi_ch_free( (void **) &buildnum);
         slapi_ch_free( (void **) &versionstring);

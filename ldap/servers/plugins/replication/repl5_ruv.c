@@ -978,19 +978,14 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 		returned_bervals = (struct berval **)slapi_ch_malloc(sizeof(struct berval *) * count);
 		returned_bervals[count - 1] = NULL;
 		returned_bervals[0] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-		returned_bervals[0]->bv_val = slapi_ch_malloc(strlen(prefix_replicageneration) + strlen(ruv->replGen) + 2);
-		sprintf(returned_bervals[0]->bv_val, "%s %s",
+		returned_bervals[0]->bv_val = slapi_ch_smprintf("%s %s",
 			prefix_replicageneration, ruv->replGen);
 		returned_bervals[0]->bv_len = strlen(returned_bervals[0]->bv_val);
 		for (i = 1, replica = dl_get_first (ruv->elements, &cookie); replica;
 			 i++, replica = dl_get_next (ruv->elements, &cookie))
 		{
 			returned_bervals[i] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-			returned_bervals[i]->bv_val = slapi_ch_malloc(strlen(prefix_ruvcsn) + RIDSTR_SIZE +
-				((replica->replica_purl == NULL) ? 0 : strlen(replica->replica_purl)) +
-				((replica->min_csn == NULL) ? 0 : CSN_STRSIZE) +
-				((replica->csn == NULL) ? 0 : CSN_STRSIZE) + 5);
-			sprintf(returned_bervals[i]->bv_val, "%s%d%s%s}%s%s%s%s",
+			returned_bervals[i]->bv_val = slapi_ch_smprintf("%s%d%s%s}%s%s%s%s",
 				prefix_ruvcsn, replica->rid,
 				replica->replica_purl == NULL ? "" : " ",
 				replica->replica_purl == NULL ? "" : replica->replica_purl,

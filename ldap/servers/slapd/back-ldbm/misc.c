@@ -14,14 +14,14 @@ void ldbm_nasty(const char* str, int c, int err)
     char *msg = NULL;
     char buffer[200];
     if (err == DB_LOCK_DEADLOCK) {
-        sprintf(buffer,"%s WARNING %d",str,c);
+        PR_snprintf(buffer,200,"%s WARNING %d",str,c);
     LDAPDebug(LDAP_DEBUG_TRACE,"%s, err=%d %s\n",
           buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
    } else if (err == DB_RUNRECOVERY) {
         LDAPDebug(LDAP_DEBUG_ANY,"FATAL ERROR at %s (%d); server stopping as database recovery needed.\n", str,c,0);
     exit(1);
     } else {
-        sprintf(buffer,"%s BAD %d",str,c);
+        PR_snprintf(buffer,200,"%s BAD %d",str,c);
     LDAPDebug(LDAP_DEBUG_ANY,"%s, err=%d %s\n",
           buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
     }
@@ -97,17 +97,12 @@ ldbm_attribute_always_indexed(const char *attrtype)
 char *
 compute_entry_tombstone_dn(const char *entrydn, const char *uniqueid)
 {
-    const char *tombstone_dn_pattern = "%s=%s, %s";
     char *tombstone_dn;
 
     PR_ASSERT(NULL != entrydn);
     PR_ASSERT(NULL != uniqueid);
 
-    tombstone_dn = slapi_ch_malloc(strlen(SLAPI_ATTR_UNIQUEID) +
-        strlen(tombstone_dn_pattern) +
-        strlen(uniqueid) +
-        strlen(entrydn) + 1);
-    sprintf(tombstone_dn, tombstone_dn_pattern,
+    tombstone_dn = slapi_ch_smprintf("%s=%s, %s",
         SLAPI_ATTR_UNIQUEID,
         uniqueid,
         entrydn);
@@ -248,7 +243,7 @@ ldbm_delete_dirs(char *path)
         if (! direntry->name)
             break;
 
-        sprintf(fullpath, "%s/%s", path, direntry->name);
+        PR_snprintf(fullpath, MAXPATHLEN, "%s/%s", path, direntry->name);
         rval = PR_GetFileInfo(fullpath, &info);
         if (PR_SUCCESS == rval)
         {

@@ -107,14 +107,11 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 	Slapi_Entry *entry = NULL;
 	char *dn_template = "cn=%s,cn=encrypted attribute keys,cn=%s,cn=ldbm database,cn=plugins,cn=config";
 	char *instance_name =  li->inst_name;
-	size_t dn_string_length = 0;
 	char *dn_string = NULL;
 	Slapi_Attr *keyattr = NULL;
 	
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_keymgmt_get_key\n", 0, 0, 0);
-	dn_string_length = strlen(dn_template) + strlen(instance_name) + strlen(acs->ace->cipher_display_name);
-	dn_string = slapi_ch_malloc(dn_string_length);
-	sprintf(dn_string, dn_template, acs->ace->cipher_display_name, instance_name);
+	dn_string = slapi_ch_smprintf(dn_template, acs->ace->cipher_display_name, instance_name);
 	/* Fetch the entry */
 	getConfigEntry(dn_string, &entry);
 	/* Did we find the entry ? */
@@ -136,6 +133,7 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 	} else {
 		ret = -2; /* Means: we didn't find the entry (which happens if the key has never been generated) */	
 	}
+	slapi_ch_free_string(&dn_string);
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_keymgmt_get_key\n", 0, 0, 0);
 	return ret;
 }
@@ -162,10 +160,7 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
     			"objectclass:extensibleObject\n"
     			"cn:%s\n";
 		char *instance_name =  li->inst_name;
-		char *entry_string = NULL;
-		size_t entry_string_length = strlen(entry_template) + strlen(instance_name) + (strlen(acs->ace->cipher_display_name)*2);
-		entry_string = slapi_ch_malloc(entry_string_length);
-		sprintf(entry_string, entry_template,acs->ace->cipher_display_name,instance_name,acs->ace->cipher_display_name);
+		char *entry_string = slapi_ch_smprintf(entry_template,acs->ace->cipher_display_name,instance_name,acs->ace->cipher_display_name);
 		e = slapi_str2entry(entry_string, 0);
 		/* Add the key as a binary attribute */
 		key_as_berval.bv_val = wrapped_symmetric_key.data;

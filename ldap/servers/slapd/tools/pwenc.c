@@ -247,7 +247,7 @@ slapd_config(const char *configdir)
 	char *lastp = 0;
 	char *entrystr = 0;
 
-	sprintf(configfile, "%s/%s", configdir, CONFIG_FILENAME);
+	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, CONFIG_FILENAME);
 	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		fprintf(stderr,

@@ -23,7 +23,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <ctype.h>
-#include <nspr.h>
+
+#include "nspr.h"
+#include "plstr.h"
 
 #define COPY_BUFFER_SIZE        4096
 /* This is the separator string to use when outputting key/value pairs
@@ -98,7 +100,7 @@ ds_mkdir_p(char *dir, int mode)
         if(t) *t = '\0';
         if(stat(dir, &fi) == -1) {
             if(ds_mkdir(dir, mode) == -1) {
-                sprintf(errmsg, "mkdir %s failed (%s)", dir, ds_system_errmsg());
+                PR_snprintf(errmsg, sizeof(errmsg), "mkdir %s failed (%s)", dir, ds_system_errmsg());
                 return errmsg;
             }
         }
@@ -164,8 +166,8 @@ ds_get_file_list( char *dir )
     if( ( ret = malloc( sizeof( char * ) ) ) == NULL ) 
 		return NULL;
 
-	strcpy(szWildcardFileSpec, dir);
-	strcat(szWildcardFileSpec, "/*");
+	PL_strncpyz(szWildcardFileSpec, dir, sizeof(szWildcardFileSpec));
+	PL_strcatn(szWildcardFileSpec, sizeof(szWildcardFileSpec), "/*");
 
 	hFile = _findfirst( szWildcardFileSpec, &fileinfo);
 	if( hFile == -1 )
@@ -226,14 +228,14 @@ ds_cp_file(char *sfile, char *dfile, int mode)
     umask(022);
 
     if( (sfd = open(sfile, O_RDONLY)) == -1) {
-        sprintf(error, "Can't open file %s for reading.", sfile);
+        PR_snprintf(error, sizeof(error), "Can't open file %s for reading.", sfile);
         ds_send_error(error, 1);
 	return(0);
     }
 
     fstat(sfd, &fi);
     if (!(S_ISREG(fi.st_mode))) {
-        sprintf(error, "File %s is not a regular file.", sfile);
+        PR_snprintf(error, sizeof(error), "File %s is not a regular file.", sfile);
         ds_send_error(error, 1);
         close(sfd);
 	return(0);
@@ -241,7 +243,7 @@ ds_cp_file(char *sfile, char *dfile, int mode)
     len = fi.st_size;
 
     if( (dfd = open(dfile, O_RDWR | O_CREAT | O_TRUNC, mode)) == -1) {
-        sprintf(error, "can't write to file %s", dfile);
+        PR_snprintf(error, sizeof(error), "can't write to file %s", dfile);
         ds_send_error(error, 1);
         close(sfd);
 	return(0);
@@ -250,7 +252,7 @@ ds_cp_file(char *sfile, char *dfile, int mode)
         read_len = len>COPY_BUFFER_SIZE?COPY_BUFFER_SIZE:len;
 
         if ( (read_len = read(sfd, copy_buffer, read_len)) == -1) {
-            sprintf(error, "Error reading file %s for copy.", sfile);
+            PR_snprintf(error, sizeof(error), "Error reading file %s for copy.", sfile);
             ds_send_error(error, 1);
             close(sfd);
             close(dfd);
@@ -258,7 +260,7 @@ ds_cp_file(char *sfile, char *dfile, int mode)
         }
 
         if ( write(dfd, copy_buffer, read_len) != read_len) {
-            sprintf(error, "Error writing file %s for copy.", dfile);
+            PR_snprintf(error, sizeof(error), "Error writing file %s for copy.", dfile);
             ds_send_error(error, 1);
             close(sfd);
             close(dfd);
@@ -279,8 +281,6 @@ ds_get_tmp_dir()
 {
 	static char tmpdir[] = "/tmp";
 	static char tmp[256] = {0};
-	unsigned ilen;
-	char pch;
  	char* instanceDir = ds_get_install_root();
  	
 	if(instanceDir == NULL)
@@ -298,7 +298,7 @@ ds_get_tmp_dir()
 		#endif
 	}
 	
-	sprintf(tmp,"%s/tmp",instanceDir);
+	PR_snprintf(tmp, sizeof(tmp), "%s/tmp",instanceDir);
 	
 #if defined( XP_WIN32 )
 	for(ilen=0;ilen < strlen(tmp); ilen++)
@@ -637,7 +637,7 @@ alter_startup_line(char *startup_line)
 #if (defined Linux && !defined LINUX2_4)
         char temp_startup_line[BIG_LINE+40];
  
-        sprintf(temp_startup_line, "/bin/sh -c \"%s\"", startup_line);
+        PR_snprintf(temp_startup_line, sizeof(temp_startup_line), "/bin/sh -c \"%s\"", startup_line);
         strcpy(startup_line, temp_startup_line);
 #else
 	/* do nothing */
@@ -654,7 +654,7 @@ ds_send_error(char *errstr, int print_errno)
 
     fflush(stdout);
 
-	if (logfp = get_logfp()) {
+	if ((logfp = get_logfp())) {
 		fprintf(logfp, "error%s%s\n", SEPARATOR, errstr);
 		if (print_errno && errno)
 			fprintf(logfp, "system_errno%s%d\n", SEPARATOR, errno);
@@ -670,7 +670,7 @@ ds_send_status(char *str)
     fprintf(stdout, "[%s]: %s\n", ds_get_server_name(), str);
     fflush(stdout);
 
-	if (logfp = get_logfp()) {
+	if ((logfp = get_logfp())) {
 	    fprintf(logfp, "[%s]: %s\n", ds_get_server_name(), str);
 		fclose(logfp);
 	}
@@ -689,11 +689,11 @@ report_error(int type, char *msg, char *details, int doexit)
 
 	if (msg)
 	{
-		strcat(error, msg);
-		strcat(error, SEPARATOR);
+		PL_strcatn(error, BIG_LINE*4, msg);
+		PL_strcatn(error, BIG_LINE*4, SEPARATOR);
 	}
 	if (details)
-		strcat(error, details);
+		PL_strcatn(error, BIG_LINE*4, details);
 	ds_send_error(error, 1);
 }
 
@@ -721,7 +721,7 @@ ds_show_message(const char *message)
 	printf("%s\n", message);
 	fflush(stdout);
 
-	if (logfp = get_logfp()) {
+	if ((logfp = get_logfp())) {
 		fprintf(logfp, "%s\n", message);
 		fclose(logfp);
 	}
@@ -735,7 +735,7 @@ ds_show_key_value(char *key, char *value)
 	FILE *logfp;
 	printf("%s%s%s\n", key, SEPARATOR, value);
 
-	if (logfp = get_logfp()) {
+	if ((logfp = get_logfp())) {
 		fprintf(logfp, "%s%s%s\n", key, SEPARATOR, value);
 		fclose(logfp);
 	}
@@ -813,7 +813,7 @@ ds_system_errmsg(void)
 	msglen = strlen(lmsg);
 
 	min = msglen > BUFSIZ ? BUFSIZ : msglen;
-	strncpy(static_error, lmsg, min);
+	strncpy(static_error, lmsg, min-1);
 	static_error[min-1] = 0;
     }
 
@@ -863,7 +863,6 @@ rm_db_dirs(char *fullpath, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 {
 	FILE *fp = fopen(fullpath, "r");
 	char buf[2][MAXPATHLEN];
-	char rmbuf[MAXPATHLEN];
 	char *bufp, *nextbufp;
 	char *retp;
 	int readit = 0;
@@ -969,7 +968,6 @@ static int
 internal_rm_rf(const char *path, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 {
 	struct PRFileInfo prfi;
-	char *fullpath = NULL;
 	int retval = 0;
 
 	if (PR_GetFileInfo(path, &prfi) != PR_SUCCESS) {
@@ -990,7 +988,7 @@ internal_rm_rf(const char *path, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 			return 0;
 		}
 			
-		while (dirent = PR_ReadDir(dir, PR_SKIP_BOTH)) {
+		while ((dirent = PR_ReadDir(dir, PR_SKIP_BOTH))) {
 			char *fullpath = PR_smprintf("%s%c%s", path, FILE_PATHSEP, dirent->name);
 			if (PR_GetFileInfo(fullpath, &prfi) != PR_SUCCESS) {
 				if (!ds_rm_rf_err_func(fullpath, "reading file", arg)) {
@@ -1053,7 +1051,6 @@ default_err_func(const char *path, const char *op, void *arg)
 DS_EXPORT_SYMBOL int
 ds_rm_rf(const char *dir, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 {
-	int retval = 0;
 	struct PRFileInfo prfi;
 
 	if (!dir) {

@@ -3434,7 +3434,7 @@ ACL_InitAttr2Index(void)
 
     ACLAttr2IndexPList = PListNew(NULL);
     for (i = 1; i < ACL_ATTR_INDEX_MAX; i++) {
-        PListInitProp(ACLAttr2IndexPList, NULL, ACLAttrTable[i], (const void *)i, NULL);
+        PListInitProp(ACLAttr2IndexPList, 0, ACLAttrTable[i], (const void *)i, NULL);
     }
  
     return 0;

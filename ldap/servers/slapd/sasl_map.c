@@ -64,6 +64,7 @@ sasl_map_private *sasl_map_new_private()
 	return new_priv;
 }
 
+#if 0 /* unused for now */
 static void 
 sasl_map_free_private(sasl_map_private **priv)
 {
@@ -71,6 +72,7 @@ sasl_map_free_private(sasl_map_private **priv)
 	slapi_ch_free((void**)priv);
 	*priv = NULL;
 }
+#endif
 
 /* This function does a shallow copy on the payload data supplied, so the caller should not free it, and it needs to be allocated using slapi_ch_malloc() */
 static 
@@ -425,10 +427,7 @@ sasl_map_str_concat(char *s1, char *s2)
 	if (NULL == s2) {
 		return (slapi_ch_strdup(s1));
 	} else {
-		size_t s1len = strlen(s1);
-		size_t length = s1len +  + strlen(s2);
-		char *newstr = slapi_ch_malloc(length + 2);
-		sprintf(newstr,"%s@%s",s1,s2);
+		char *newstr = slapi_ch_smprintf("%s@%s",s1,s2);
 		return newstr;
 	}
 }

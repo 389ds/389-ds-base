@@ -164,7 +164,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
     int update_the_schedule = 0;	/* do we need to update the repl sched? */
 	Repl_Agmt *agmt = NULL;
 	LDAPMod **mods;
-    char buff [BUFSIZ];
+    char buff [SLAPI_DSE_RETURNTEXT_SIZE];
     char *errortext = returntext ? returntext : buff;
     int rc = SLAPI_DSE_CALLBACK_OK;
     Slapi_Operation *op;
@@ -225,7 +225,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			    /* Start replica initialization */
                 if (val == NULL)
                 {
-                    sprintf (errortext, "No value supplied for attr (%s)", mods[i]->mod_type);
+                    PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "No value supplied for attr (%s)", mods[i]->mod_type);
                     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n",
                                     errortext);	  
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -247,7 +247,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 }
                 else
                 {
-                    sprintf (errortext, "Invalid value (%s) value supplied for attr (%s)", 
+                    PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value (%s) value supplied for attr (%s)", 
                              val, mods[i]->mod_type);
                     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n",
                                     errortext);	

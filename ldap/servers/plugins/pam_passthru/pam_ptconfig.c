@@ -12,9 +12,6 @@
 #include "pam_passthru.h"
 
 #define PAM_PT_CONFIG_FILTER "(objectclass=*)"
-#ifndef SLAPI_DSE_RETURNTEXT_SIZE
-#define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
-#endif /* SLAPI_DSE_RETURNTEXT_SIZE */
 
 /*
  * The configuration attributes are contained in the plugin entry e.g.

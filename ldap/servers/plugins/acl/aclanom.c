@@ -352,7 +352,6 @@ aclanom_get_suffix_info(Slapi_Entry *e,
 	char     *ndn = NULL;
 	Slapi_DN    *e_sdn;
 	const char    *aci_ndn;
-	int populate = 0;
 	struct scoped_entry_anominfo *s_e_anominfo =
 			&aclpb->aclpb_scoped_entry_anominfo;
 

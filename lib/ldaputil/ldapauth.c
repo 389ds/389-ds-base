@@ -1017,7 +1017,6 @@ int ldapu_auth_uid_attrfilter (LDAP *ld, const char *uid, const char *attrfilter
  */
 int ldapu_auth_userdn_password (LDAP *ld, const char *userdn, const char *password)
 {
-    LDAPMessage *res = 0;
     int retval;
 
     DBG_PRINT2("\tuserdn:\t\"%s\"\n", userdn);

@@ -80,6 +80,7 @@ extern char *optarg;
 #include <sys/time.h>
 #include <sys/param.h>
 #include <mntent.h>
+#include <sys/sysinfo.h>
 
 #define IDDS_MNTENT mntent
 #define IDDS_MNTENT_DIRNAME mnt_dir

@@ -143,7 +143,7 @@ extern "C" {
 /* the global plugin handle */
 static volatile vattr_sp_handle *vattr_handle = NULL;
 
-static cos_cache_notify_flag = 0;
+static int cos_cache_notify_flag = 0;
 
 /* service definition cache structs */
 
@@ -1985,13 +1985,10 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 					 * only 2 lines of code -> no need to set an indirect char *
 					 * duplicate the lines of code for clearness instead
 					 */
-					char * newTmpGrade = (char*) slapi_ch_malloc(
-						strlen((pCosSpecifier->val) + 9));
-					strcpy(newTmpGrade, pCosSpecifier->val);
-					strcat(newTmpGrade, "-default");
+					char * newTmpGrade = PR_smprintf("%s-default", pCosSpecifier->val);
 					if(!slapi_utf8casecmp((unsigned char*)grade, (unsigned char*)newTmpGrade))
 						template_default = 1;
-					slapi_ch_free((void**)&newTmpGrade);
+					PR_smprintf_free(newTmpGrade);
 				}
 			}
 
@@ -2204,7 +2201,6 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 	int attr_matched_index = 0; /* for identifying the matched attribute */
 	int hit = 0;
 	cosAttributes *pDefAttr = 0;
-	Slapi_ValueSet* results = 0;
 	Slapi_Value *val;
 /*	int type_name_disposition;
 	char *actual_type_name; 
@@ -2354,7 +2350,6 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 				/* Does this entry have a correct cosSpecifier? */
 				do
 				{
-					Slapi_ValueSet *results = 0;
 					int type_name_disposition = 0;
 					char *actual_type_name = 0;
 					int free_flags = 0;
@@ -3158,7 +3153,7 @@ static int cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet *
 	cosAttrValue *pAttrVal = pAttr->pAttrValue;
 	int add_mode = 0;
 	static Slapi_Attr *attr = 0; /* allocated once, never freed */
-	static done_once = 0;
+	static int done_once = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_cos_2_slapi_attr\n",0,0,0);
 	
@@ -3240,8 +3235,6 @@ bail:
 void cos_cache_change_notify(Slapi_PBlock *pb)
 {
 	char *dn;
-	Slapi_Attr *pObjclasses = 0;
-	int index = 0;
 	int do_update = 0;
 	struct slapi_entry *e;
         Slapi_Backend *be=NULL;
@@ -3417,7 +3410,6 @@ static int cos_cache_follow_pointer( vattr_context *c, const char *dn, char *typ
 	Slapi_PBlock *pDnSearch = 0;
 	Slapi_Entry **pEntryList = 0;
 	char *attrs[2];
-	int entryIndex = 0;
 	int op = 0;
 	int type_test = 0;
 	int type_name_disposition = 0;

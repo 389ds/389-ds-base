@@ -5,6 +5,53 @@
 
 #include "acl.h"
 
+/* safer than doing strcat unprotected */
+/* news2 is optional, provided as a convenience */
+/* capacity is the capacity of the gerstr, size is the current length */
+static void
+_append_gerstr(char **gerstr, size_t *capacity, size_t *size, const char *news, const char *news2)
+{
+	size_t len;
+	size_t increment = 128;
+	size_t fornull;
+
+	if (!news) {
+		return;
+	}
+
+	/* find out how much space we need */
+	len = strlen(news);
+	fornull = 1;
+	if (news2) {
+		len += strlen(news2);
+		fornull++;
+	}
+
+	/* increase space if needed */
+	while ((*size + len + fornull) > *capacity) {
+		if ((len + fornull) > increment) {
+			*capacity += len + fornull; /* just go ahead and grow the string enough */
+		} else {
+			*capacity += increment; /* rather than having lots of small increments */
+		}
+	}
+
+	if (!*gerstr) {
+		*gerstr = slapi_ch_malloc(*capacity);
+		**gerstr = 0;
+	} else {
+		*gerstr = slapi_ch_realloc(*gerstr, *capacity);
+	}
+	strcat(*gerstr, news);
+	if (news2) {
+		strcat(*gerstr, news2);
+	}
+
+	*size += len;
+
+	return;
+}
+
 static int
 _ger_g_permission_granted ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf )
 {
@@ -203,8 +250,8 @@ _ger_new_gerpb (
 {
 	Connection *conn;
 	struct acl_cblock *geraclcb;
-	Acl_PBlock *aclpb, *geraclpb;
-	Operation *op, *gerop;
+	Acl_PBlock *geraclpb;
+	Operation *gerop;
 	int rc = LDAP_SUCCESS;
 
 	*aclcb = NULL;
@@ -282,17 +329,18 @@ _ger_get_entry_rights (
 	Slapi_PBlock *gerpb,
 	Slapi_Entry *e,
 	const char *subjectndn,
-	char *gerstr,
+	char **gerstr,
+	size_t *gerstrsize,
+	size_t *gerstrcap,
 	char **errbuf
 	)
 {
 	unsigned long entryrights = 0;
 	Slapi_RDN *rdn = NULL;
-	const char *rdnstr = NULL;
-	char *equalsign = NULL;
 	char *rdntype = NULL;
+	char *rdnvalue = NULL;
 
-	strcpy ( gerstr, "entryLevelRights: " );
+	_append_gerstr(gerstr, gerstrsize, gerstrcap, "entryLevelRights: ", NULL);
 
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_entry_rights: SLAPI_ACL_READ\n" );
@@ -300,7 +348,7 @@ _ger_get_entry_rights (
 	{
 		/* v - view e */
 		entryrights |= SLAPI_ACL_READ;
-		strcat (gerstr, "v");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "v", NULL);
 	}
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_entry_rights: SLAPI_ACL_ADD\n" );
@@ -308,7 +356,7 @@ _ger_get_entry_rights (
 	{
 		/* a - add child entry below e */
 		entryrights |= SLAPI_ACL_ADD;
-		strcat (gerstr, "a");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "a", NULL);
 	}
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_entry_rights: SLAPI_ACL_DELETE\n" );
@@ -316,7 +364,7 @@ _ger_get_entry_rights (
 	{
 		/* d - delete e */
 		entryrights |= SLAPI_ACL_DELETE;
-		strcat (gerstr, "d");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "d", NULL);
 	}
 	/*
 	 * Some limitation/simplification applied here:
@@ -327,12 +375,8 @@ _ger_get_entry_rights (
 	 *   the first rdn type only for now.
 	 */
 	rdn = slapi_rdn_new_dn ( slapi_entry_get_ndn (e) );
-	rdnstr = slapi_rdn_get_rdn ( rdn );
-	if ( NULL != (equalsign = strchr ( rdnstr, '=' )) )
-	{
-		rdntype = slapi_ch_malloc ( equalsign-rdnstr+1 );
-		strncpy ( rdntype, rdnstr, equalsign-rdnstr );
-		rdntype [ equalsign-rdnstr ] = '\0';
+	slapi_rdn_get_first(rdn, &rdntype, &rdnvalue);
+	if ( NULL != rdntype ) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 			"_ger_get_entry_rights: SLAPI_ACL_WRITE_DEL & _ADD %s\n", rdntype );
 		if (acl_access_allowed(gerpb, e, rdntype, NULL,
@@ -342,19 +386,17 @@ _ger_get_entry_rights (
 		{
 			/* n - rename e */
 			entryrights |= SLAPI_ACL_WRITE;
-			strcat (gerstr, "n");
+			_append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
 		}
-		slapi_ch_free ( (void**) &rdntype );
 	}
 	slapi_rdn_free ( &rdn );
 
-done:
 	if ( entryrights == 0 )
 	{
-		strcat (gerstr, "none");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);
 	}
 
-	strcat (gerstr, "\n");
+	_append_gerstr(gerstr, gerstrsize, gerstrcap, "\n", NULL);
 
 	return entryrights;
 }
@@ -370,25 +412,19 @@ _ger_get_attr_rights (
 	const char *subjectndn,
 	char *type,
 	char **gerstr,
-	int *gerstrsize,
+	size_t *gerstrsize,
+	size_t *gerstrcap,
 	int isfirstattr,
 	char **errbuf
 	)
 {
 	unsigned long attrrights = 0;
 
-	/* Enough space for " $type:rwoscxx" ? */
-	if ( (*gerstrsize - strlen(*gerstr)) < (strlen(type) + 16) )
-	{
-		/* slapi_ch_realloc() exits if realloc() failed */
-		*gerstrsize += 256;
-		*gerstr = slapi_ch_realloc ( *gerstr, *gerstrsize );
-	}
 	if (!isfirstattr)
 	{
-		strcat ( *gerstr, ", " );
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, ", ", NULL);
 	}
-	sprintf ( *gerstr + strlen(*gerstr), "%s:", type );
+	_append_gerstr(gerstr, gerstrsize, gerstrcap, type, ":");
 
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_attr_rights: SLAPI_ACL_READ %s\n", type );
@@ -396,7 +432,7 @@ _ger_get_attr_rights (
 	{
 		/* r - read the values of type */
 		attrrights |= SLAPI_ACL_READ;
-		strcat (*gerstr, "r");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "r", NULL);
 	}
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_attr_rights: SLAPI_ACL_SEARCH %s\n", type );
@@ -404,7 +440,7 @@ _ger_get_attr_rights (
 	{
 		/* s - search the values of type */
 		attrrights |= SLAPI_ACL_SEARCH;
-		strcat (*gerstr, "s");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "s", NULL);
 	}
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_attr_rights: SLAPI_ACL_COMPARE %s\n", type );
@@ -412,7 +448,7 @@ _ger_get_attr_rights (
 	{
 		/* c - compare the values of type */
 		attrrights |= SLAPI_ACL_COMPARE;
-		strcat (*gerstr, "c");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "c", NULL);
 	}
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_attr_rights: SLAPI_ACL_WRITE_ADD %s\n", type );
@@ -420,7 +456,7 @@ _ger_get_attr_rights (
 	{
 		/* w - add the values of type */
 		attrrights |= ACLPB_SLAPI_ACL_WRITE_ADD;
-		strcat (*gerstr, "w");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "w", NULL);
 	}
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"_ger_get_attr_rights: SLAPI_ACL_WRITE_DEL %s\n", type );
@@ -428,7 +464,7 @@ _ger_get_attr_rights (
 	{
 		/* o - delete the values of type */
 		attrrights |= ACLPB_SLAPI_ACL_WRITE_DEL;
-		strcat (*gerstr, "o");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "o", NULL);
 	}
 	/* If subjectdn has no general write right, check for self write */
 	if ( 0 == (attrrights & (ACLPB_SLAPI_ACL_WRITE_DEL | ACLPB_SLAPI_ACL_WRITE_ADD)) )
@@ -442,19 +478,19 @@ _ger_get_attr_rights (
 		{
 			/* W - add self to the attribute */
 			attrrights |= ACLPB_SLAPI_ACL_WRITE_ADD;
-			strcat (*gerstr, "W");
+			_append_gerstr(gerstr, gerstrsize, gerstrcap, "W", NULL);
 		}
 		if (acl_access_allowed(gerpb, e, type, &val, ACLPB_SLAPI_ACL_WRITE_DEL) == LDAP_SUCCESS)
 		{
 			/* O - delete self from the attribute */
 			attrrights |= ACLPB_SLAPI_ACL_WRITE_DEL;
-			strcat (*gerstr, "O");
+			_append_gerstr(gerstr, gerstrsize, gerstrcap, "O", NULL);
 		}
 	}
 
 	if ( attrrights == 0 )
 	{
-		strcat (*gerstr, "none");
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);
 	}
 
 	return attrrights;
@@ -467,21 +503,22 @@ _ger_get_attrs_rights (
 	const char *subjectndn,
 	char **attrs,
 	char **gerstr,
-	int *gerstrsize,
+	size_t *gerstrsize,
+	size_t *gerstrcap,
 	char **errbuf
 	)
 {
 	int isfirstattr = 1;
 
 	/* gerstr was initially allocated with enough space for one more line */
-	strcat ( *gerstr, "attributeLevelRights: " );
+	_append_gerstr(gerstr, gerstrsize, gerstrcap, "attributeLevelRights: ", NULL);
 
 	if (attrs && *attrs)
 	{
 		int i;
 		for ( i = 0; attrs[i]; i++ )
 		{
-			_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i], gerstr, gerstrsize, isfirstattr, errbuf );
+			_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i], gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
 			isfirstattr = 0;
 		}
 	}
@@ -495,7 +532,7 @@ _ger_get_attrs_rights (
 			if ( ! slapi_attr_flag_is_set (attr, SLAPI_ATTR_FLAG_OPATTR) )
 			{
 				slapi_attr_get_type ( attr, &type );
-				_ger_get_attr_rights ( gerpb, e, subjectndn, type, gerstr, gerstrsize, isfirstattr, errbuf );
+				_ger_get_attr_rights ( gerpb, e, subjectndn, type, gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
 				isfirstattr = 0;
 			}
 			prevattr = attr;
@@ -505,7 +542,7 @@ _ger_get_attrs_rights (
 	if ( isfirstattr )
 	{
 		/* not a single attribute was retrived or specified */
-		strcat ( *gerstr, "*:none" );
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "*:none", NULL);
 	}
 	return;
 }
@@ -587,13 +624,13 @@ acl_get_effective_rights (
 	void *aclcb = NULL;
 	char *subjectndn = NULL;
 	char *gerstr = NULL;
-	int gerstrsize = 1024;
+	size_t gerstrsize = 0;
+	size_t gerstrcap = 0;
 	unsigned long entryrights;
 	int iscritical = 1;
 	int rc;
 
 	*errbuf = '\0';
-	gerstr = slapi_ch_malloc ( gerstrsize );
 
 	/*
 	 * Get the subject
@@ -624,13 +661,13 @@ acl_get_effective_rights (
 	}
 
 	/* Get entry level effective rights */
-	entryrights = _ger_get_entry_rights ( gerpb, e, subjectndn, gerstr, errbuf );
+	entryrights = _ger_get_entry_rights ( gerpb, e, subjectndn, &gerstr, &gerstrsize, &gerstrcap, errbuf );
 
 	/*
 	 * Attribute level effective rights may not be NULL
 	 * even if entry level's is.
 	 */
-	_ger_get_attrs_rights ( gerpb, e, subjectndn, attrs, &gerstr, &gerstrsize, errbuf );
+	_ger_get_attrs_rights ( gerpb, e, subjectndn, attrs, &gerstr, &gerstrsize, &gerstrcap, errbuf );
 
 bailout:
 	/*
@@ -640,7 +677,7 @@ bailout:
 
 	if ( rc != LDAP_SUCCESS )
 	{
-		sprintf ( gerstr, "entryLevelRights: %d\nattributeLevelRights: *:%d", rc, rc );
+		gerstr = slapi_ch_smprintf("entryLevelRights: %d\nattributeLevelRights: *:%d", rc, rc );
 	}
 
 	slapi_log_error (SLAPI_LOG_ACLSUMMARY, plugin_name,

@@ -24,8 +24,7 @@ new_dataversion()
 #else
     gmtime_r (&curtime, &t);
 #endif
-    dataversion = slapi_ch_malloc(16);
-    sprintf (dataversion, "0%.4li%.2i%.2i%.2i%.2i%.2i", 1900L + t.tm_year, 1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    dataversion = slapi_ch_smprintf("0%.4li%.2i%.2i%.2i%.2i%.2i", 1900L + t.tm_year, 1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 	return dataversion;
 }
 

@@ -35,9 +35,6 @@ clientSDK: all
 
 all:	$(OBJDEST) $(LIBDIR) $(LIBAVL)
 
-$(LIBDIR):
-	$(MKDIR) $(LIBDIR)
-
 $(LIBAVL): $(OBJS)
 	$(LINK_LIB)
 

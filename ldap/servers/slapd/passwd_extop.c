@@ -173,11 +173,8 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
 	char		*errMesg = NULL;
-	char		**reqvals = NULL;
 	int             ret=0, rc=0;
 	unsigned long	tag=0, len=-1;
-	LDAPControl	**ctrlp = NULL; /* unused */
-	Slapi_Operation *operation = NULL; /* unused */
 	struct berval *extop_value = NULL;
 	BerElement	*ber = NULL;
 	Slapi_Entry *targetEntry=NULL;

@@ -83,7 +83,6 @@ static void schedule_window_state_change_event (Schedule *sch);
 static void unschedule_window_state_change_event (Schedule *sch);
 static void window_state_changed (time_t when, void *arg);
 static int schedule_in_window_now_nolock(Schedule *sch);
-static schedule_item* get_current_schedule_item (Schedule *sch);
 static time_t PRTime2time_t (PRTime tm);
 static PRTime schedule_next_nolock (Schedule *sch, PRBool start);
 static void free_schedule_list(schedule_item **schedule_list);
@@ -426,7 +425,6 @@ schedule_next_nolock (Schedule *sch, PRBool start)
 	{
 		schedule_item *si = sch->schedule_list;
 		PRTime now = PR_Now();
-        unsigned char dow = 1 << day_of_week(now);
 
 		while (NULL != si)
 		{

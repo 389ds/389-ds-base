@@ -25,9 +25,6 @@ BINS=$(addprefix $(HDRDEST)/,$(HEADERS))
 
 all: $(HDRDEST) $(BINS) 
 
-$(HDRDEST):
-	$(MKDIR) $(HDRDEST)
-
 strip:
 depend:
 

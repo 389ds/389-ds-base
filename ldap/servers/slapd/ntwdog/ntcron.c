@@ -55,7 +55,7 @@ BOOL CRON_CheckTime(LPSYSTEMTIME lpstNow, char *szTime)
 	char szCurrentTime[16];
 	char szStartTime[16];
 
-	strcpy(szStartTime, szTime);
+	strncpy(szStartTime, szTime, sizeof(szStartTime)-1);
 
 	if(szTime[1] == ':')
 		wsprintf(szStartTime, "0%s", szTime);

@@ -146,7 +146,7 @@ dotdecimal(char *ipstr, char *netmaskstr, int *ip, int *netmask)
         }
     }
 
-    return (int)NULL;
+    return 0;
 }
 
 
@@ -262,12 +262,12 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
                 return (retcode);
         }
 
-        if (LASIpAddPattern(errp, netmask, ip, treetop) != (int)NULL)
+        if (LASIpAddPattern(errp, netmask, ip, treetop) != 0)
             return LAS_EVAL_INVALID;
 
-    } while ((curptr != NULL) && (delimiter != (int)NULL));
+    } while ((curptr != NULL) && (delimiter != 0));
 
-    return (int)NULL;
+    return 0;
 }
 
 

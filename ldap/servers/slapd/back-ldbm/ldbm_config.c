@@ -54,7 +54,7 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
 
     for(x = 0; strlen(entries[x]) > 0; x++) {
         util_pb = slapi_pblock_new();
-        sprintf(entry_string, entries[x], string1, string2, string3);
+        PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
         slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, 
@@ -252,7 +252,7 @@ done:
             if (res != LDAP_SUCCESS) {
                 return res;
             }
-            sprintf(tmpbuf, "%s/db", s );
+            PR_snprintf(tmpbuf, BUFSIZ, "%s/db", s );
             val = tmpbuf;
         }
         slapi_ch_free((void **) &(li->li_new_directory));
@@ -628,7 +628,8 @@ static int ldbm_config_db_trickle_percentage_set(void *arg, void *value, char *e
     int val = (int) value;
     
     if (val < 0 || val > 100) {
-        sprintf(errorbuf, "Error: Invalid value for %s (%d). Must be between 0 and 100\n", CONFIG_DB_TRICKLE_PERCENTAGE, val);
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+					"Error: Invalid value for %s (%d). Must be between 0 and 100\n", CONFIG_DB_TRICKLE_PERCENTAGE, val);
         LDAPDebug(LDAP_DEBUG_ANY, "%s", errorbuf, 0, 0);
             return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -1039,7 +1040,6 @@ static int ldbm_config_set_use_vlv_index(void *arg, void *value, char *errorbuf,
     int val = (int) value;
         
     if (apply) {
-        int setval = 0;
         if (val) {
             li->li_use_vlv = 1;
         } else {
@@ -1197,7 +1197,7 @@ static config_info ldbm_config[] = {
 void ldbm_config_setup_default(struct ldbminfo *li) 
 {
     config_info *config;
-    char err_buf[BUFSIZ];
+    char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
     
     for (config = ldbm_config; config->config_name != NULL; config++) {
         ldbm_config_set((void *)li, config->config_name, ldbm_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */);
@@ -1212,7 +1212,7 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
     Slapi_Entry **entries = NULL;
 
     /* Construct the base dn of the subtree that holds the instance entries. */
-    sprintf(basedn, "cn=%s, cn=plugins, cn=config", backend_type);
+    PR_snprintf(basedn, BUFSIZ, "cn=%s, cn=plugins, cn=config", backend_type);
 
     /* Do a search of the subtree containing the instance entries */
     tmp_pb = slapi_pblock_new();
@@ -1246,8 +1246,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
      * cn=config, cn=ldbm database, cn=plugins, cn=config.  If the entry is
      * there, then we process the config information it stores.
      */
-    sprintf(dn, "cn=config, cn=%s, cn=plugins, cn=config", 
-            li->li_plugin->plg_name);
+    PR_snprintf(dn, BUFSIZ, "cn=config, cn=%s, cn=plugins, cn=config", 
+				li->li_plugin->plg_name);
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE, 
         "objectclass=*", NULL, 0, NULL, NULL, li->li_identity, 0);
@@ -1285,7 +1285,7 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
 
     /* setup the dse callback functions for the ldbm backend config entry */
-    sprintf(dn, "cn=config, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=config, cn=%s, cn=plugins, cn=config",
             li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
@@ -1298,14 +1298,14 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         (void *) li);
 
     /* setup the dse callback functions for the ldbm backend monitor entry */
-    sprintf(dn, "cn=monitor, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=plugins, cn=config",
             li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_search,
         (void *)li);
 
     /* And the ldbm backend database monitor entry */
-    sprintf(dn, "cn=database, cn=monitor, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=database, cn=monitor, cn=%s, cn=plugins, cn=config",
         li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_dbmonitor_search,
@@ -1313,7 +1313,7 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
 
     /* setup the dse callback functions for the ldbm backend instance
      * entries */
-    sprintf(dn, "cn=%s, cn=plugins, cn=config", li->li_plugin->plg_name);
+    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=plugins, cn=config", li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
         ldbm_instance_add_instance_entry_callback, (void *) li);
@@ -1334,6 +1334,7 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
 /* Utility function used in creating config entries.  Using the
  * config_info, this function gets info and formats in the correct
  * way.
+ * buf is char[BUFSIZ]
  */
 void ldbm_config_get(void *arg, config_info *config, char *buf)
 {
@@ -1360,7 +1361,7 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
         /* Remember the get function for strings returns memory
          * that must be freed. */
         tmp_string = (char *) config->config_get_fn(arg);
-        sprintf(buf, "%s", (char *) tmp_string);
+        PR_snprintf(buf, BUFSIZ, "%s", (char *) tmp_string);
         slapi_ch_free((void **)&tmp_string);
         break;
     case CONFIG_TYPE_ONOFF:
@@ -1455,14 +1456,14 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     config = get_config_info(config_array, attr_name);
     if (NULL == config) {
         LDAPDebug(LDAP_DEBUG_CONFIG, "Unknown config attribute %s\n", attr_name, 0, 0);
-        sprintf(err_buf, "Unknown config attribute %s\n", attr_name);
+        PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown config attribute %s\n", attr_name);
         return LDAP_SUCCESS; /* Ignore unknown attributes */
     }
 
     /* Some config attrs can't be changed while the server is running. */
     if (phase == CONFIG_PHASE_RUNNING && 
         !(config->config_flags & CONFIG_FLAG_ALLOW_RUNNING_CHANGE)) {
-        sprintf(err_buf, "%s can't be modified while the server is running.\n", attr_name);
+        PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "%s can't be modified while the server is running.\n", attr_name);
         LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
         return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -1491,19 +1492,19 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
 		llval = db_atoi(str_val, &err);
 		/* check for parsing error (e.g. not a number) */
 		if (err) {
-			sprintf(err_buf, "Error: value %s for attr %s is not a number\n",
+			PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
 					str_val, attr_name);
 			LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
 			return LDAP_UNWILLING_TO_PERFORM;
 		/* check for overflow */
 		} else if (LL_CMP(llval, >, llmaxint)) {
-			sprintf(err_buf, "Error: value %s for attr %s is greater than the maximum %d\n",
+			PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
 					str_val, attr_name, maxint);
 			LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
 			return LDAP_UNWILLING_TO_PERFORM;
 		/* check for underflow */
 		} else if (LL_CMP(llval, <, llminint)) {
-			sprintf(err_buf, "Error: value %s for attr %s is less than the minimum %d\n",
+			PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
 					str_val, attr_name, minint);
 			LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
 			return LDAP_UNWILLING_TO_PERFORM;
@@ -1530,19 +1531,19 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
 		llval = db_atoi(str_val, &err);
 		/* check for parsing error (e.g. not a number) */
 		if (err) {
-			sprintf(err_buf, "Error: value %s for attr %s is not a number\n",
+			PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
 					str_val, attr_name);
 			LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
 			return LDAP_UNWILLING_TO_PERFORM;
 		/* check for overflow */
 		} else if (LL_CMP(llval, >, llmaxint)) {
-			sprintf(err_buf, "Error: value %s for attr %s is greater than the maximum %d\n",
+			PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
 					str_val, attr_name, maxint);
 			LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
 			return LDAP_UNWILLING_TO_PERFORM;
 		/* check for underflow */
 		} else if (LL_CMP(llval, <, llminint)) {
-			sprintf(err_buf, "Error: value %s for attr %s is less than the minimum %d\n",
+			PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
 					str_val, attr_name, minint);
 			LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
 			return LDAP_UNWILLING_TO_PERFORM;
@@ -1563,13 +1564,13 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
 
         /* check for parsing error (e.g. not a number) */
         if (err == EINVAL) {
-            sprintf(err_buf, "Error: value %s for attr %s is not a number\n",
+            PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
             LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
             return LDAP_UNWILLING_TO_PERFORM;
             /* check for overflow */
         } else if (err == ERANGE) {
-            sprintf(err_buf, "Error: value %s for attr %s is outside the range of representable values\n",
+            PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is outside the range of representable values\n",
                     str_val, attr_name);
             LDAPDebug(LDAP_DEBUG_ANY, "%s", err_buf, 0, 0);
             return LDAP_UNWILLING_TO_PERFORM;
@@ -1605,7 +1606,7 @@ static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_i
         char *attr_name = NULL;
         Slapi_Value *sval = NULL;
         struct berval *bval;
-        char err_buf[BUFSIZ];
+        char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
         
         slapi_attr_get_type(attr, &attr_name);
         
@@ -1613,7 +1614,6 @@ static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_i
         if (ldbm_config_ignored_attr(attr_name)) {
             continue;
         }
-        
         slapi_attr_first_value(attr, &sval);
         bval = (struct berval *) slapi_value_get_berval(sval);
         
@@ -1663,7 +1663,7 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
             if ((mods[i]->mod_op & LDAP_MOD_DELETE) || 
                 ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)) { 
                 rc= LDAP_UNWILLING_TO_PERFORM; 
-                sprintf(returntext, "%s attributes is not allowed", 
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed", 
                         (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding"); 
             } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
                 /* This assumes there is only one bval for this mod. */
@@ -1694,7 +1694,7 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
  */
 void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
 {
-    char err_buf[BUFSIZ];
+    char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
     struct berval bval;
     
     bval.bv_val = value;

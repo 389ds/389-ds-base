@@ -34,7 +34,10 @@ int main( argc, argv, env )
 static void
 post_request()
 {
-    char	*binddn, *password, *authdesturl, *ufn, *encodeddn, *lderrtxt;
+    char	*binddn, *password, *authdesturl, *encodeddn, *lderrtxt;
+#ifdef NOTFORNOW
+	char    *ufn;
+#endif
     LDAP	*ld;
     int		rc;
 	int		password_expiring = -1;

@@ -153,10 +153,7 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 				rdnval, rdnval_len, LDIF_OPT_NOWRAP);
 		*rdnpair = '\0';
 	}	  
-	estr= slapi_ch_malloc(strlen(glue_entry) + slapi_sdn_get_ndn_len(sdn) +
-						  strlen(rdnstr) + strlen(uniqueid) +
-						  strlen(ATTR_NSDS5_REPLCONFLICT) + strlen(reason) + 1);
-	sprintf(estr, glue_entry, slapi_sdn_get_ndn(sdn), rdnstr, uniqueid, 
+	estr= slapi_ch_smprintf(glue_entry, slapi_sdn_get_ndn(sdn), rdnstr, uniqueid, 
 			ATTR_NSDS5_REPLCONFLICT, reason);
 	slapi_ch_free((void**)&rdnstr);
 	slapi_rdn_done(newrdn);
@@ -167,8 +164,8 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 	{
 		slapi_entry_set_uniqueid (e, slapi_ch_strdup(uniqueid));
 		op_result = urp_fixup_add_entry (e, NULL, NULL, opcsn, 0);
-		slapi_ch_free ( (void **) &estr ); /* XXXggood - this leaks if e == NULL */
 	}
+	slapi_ch_free_string(&estr);
 	slapi_sdn_free(&sdn);
 	return op_result;
 }

@@ -13,7 +13,6 @@
 /* prototypes                                                               */
 /****************************************************************************/
 /* Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn ); */
-static void set_reset_time ( Slapi_PBlock *pb, time_t cur_time );
 static void set_retry_cnt ( Slapi_PBlock *pb, int count);
 static void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time);
 
@@ -92,7 +91,6 @@ void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 	Slapi_Mods	smods;
 	time_t      reset_time;
 	char		*timestr;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	passwdPolicy *pwpolicy = NULL;
 
 	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
@@ -119,7 +117,6 @@ void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 	char 		*timestr;
 	time_t		unlock_time;
 	char        retry_cnt[8]; /* 1-65535 */
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	char *dn = NULL; 
 	passwdPolicy *pwpolicy = NULL;
 
@@ -162,32 +159,6 @@ void set_retry_cnt ( Slapi_PBlock *pb, int count) {
 	slapi_mods_done(&smods);
 }
 
-static
-void set_reset_time ( Slapi_PBlock *pb, time_t cur_time ) {
-	char            *dn;
-	Slapi_Mods	smods;
-	time_t          reset_time;
-	char *timestr;
-	int resetfailurecount;
-	passwdPolicy *pwpolicy = NULL;
-
-	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
-	
-	pwpolicy = new_passwdPolicy(pb, dn);
-	resetfailurecount = pwpolicy->pw_resetfailurecount;
-
-	slapi_mods_init(&smods, 0);
-
-	reset_time = time_plus_sec ( cur_time, resetfailurecount );
-
-	timestr = format_genTime ( reset_time );
-	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "retryCountResetTime", timestr);
-	slapi_ch_free((void **)&timestr);
-
-	pw_apply_mods(dn, &smods);
-	slapi_mods_done(&smods);
-	delete_passwdPolicy(&pwpolicy);
-}
 
 Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 {

@@ -60,7 +60,6 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     callback_data cb_data;
     Slapi_PBlock *pb;
     LDAPControl **ctrls;
-	PRBool replica_acquired = PR_FALSE;
 	char *hostname = NULL;
 	int portnum = 0;
 	Slapi_DN *area_sdn = NULL;

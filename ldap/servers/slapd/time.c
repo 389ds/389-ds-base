@@ -188,8 +188,7 @@ format_localTime (time_t from)
 #else
     localtime_r (&from, &t);
 #endif
-    into = slapi_ch_malloc (15);
-    sprintf (into, "%.4li%.2i%.2i%.2i%.2i%.2i",
+    into = slapi_ch_smprintf("%.4li%.2i%.2i%.2i%.2i%.2i",
              1900L + t.tm_year, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.
 tm_sec);
     return into;

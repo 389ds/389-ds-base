@@ -740,7 +740,7 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
     return 0;
 }
 
-
+#if 0
 /* Loops through search entries and sends them to the client. 
  * returns -1 on error, 0 if result packet was sent or 1 if
  * result packet wasn't sent
@@ -883,6 +883,7 @@ iterate_with_lookahead(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int
 		return 0;
     }
 }
+#endif
 
 /* Loops through search entries and sends them to the client. 
  * returns -1 on error or 1 if result packet wasn't sent.
@@ -1095,7 +1096,6 @@ static int  send_results (Slapi_PBlock *pb, int send_result, int * nentries)
 {
 	Slapi_Backend *be; 
 	int rc;
-	struct berval **urls = NULL;
 
 	slapi_pblock_get (pb, SLAPI_BACKEND, &be);
 

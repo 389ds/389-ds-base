@@ -220,6 +220,7 @@ connection_table_dump_active_connection (Connection *c)
                     c->c_mutex, c->c_next, c->c_prev);
 }
 
+#if 0 /* useful for debugging */
 static void 
 connection_table_dump_active_connections (Connection_Table *ct)
 {
@@ -237,6 +238,7 @@ connection_table_dump_active_connections (Connection_Table *ct)
     slapi_log_error(SLAPI_LOG_FATAL, "connection", "********** END DUMP ************\n");
 	PR_Unlock(ct->table_mutex);
 }
+#endif
 
 /*
  * There's a double linked list of active connections running through the array

@@ -94,7 +94,7 @@ static void testBackupRestore ()
 	char *dir;
 	int rc = -1;
 	char *baseDir;
-	char bkDir [MAXPATHLEN + 1];
+	char bkDir [MAXPATHLEN];
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "Starting backup and recovery test ...\n");	
 	
@@ -103,7 +103,7 @@ static void testBackupRestore ()
 	if (dir)
 	{
 		baseDir = getBaseDir (dir);
-		sprintf (bkDir, "%s/clbackup", baseDir);
+		PR_snprintf (bkDir, sizeof(bkDir), "%s/clbackup", baseDir);
 		slapi_ch_free ((void**)&baseDir);
 		rc = cl5Backup (bkDir, NULL);
 
@@ -394,12 +394,12 @@ static void testLDIF ()
 	char *clDir = cl5GetDir ();
 	int rc;
 	char *baseDir;
-	char ldifFile [MAXPATHLEN + 1];
+	char ldifFile [MAXPATHLEN];
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "Starting LDIF test ...\n");	
 
 	baseDir = getBaseDir (clDir);
-	sprintf (ldifFile, "%s/cl5.ldif", baseDir);
+	PR_snprintf (ldifFile, sizeof(ldifFile), "%s/cl5.ldif", baseDir);
 	slapi_ch_free ((void**)&baseDir);
 	rc = populateChangelog (ENTRY_COUNT, NULL);
 
@@ -660,7 +660,7 @@ static int  configureChangelog ()
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 	str = slapi_entry_attr_get_charptr(entries[0], INSTANCE_ATTR);
-    sprintf (cl_dir, "%s/%s", str, "cl5db");
+    PR_snprintf (cl_dir, sizeof(cl_dir), "%s/%s", str, "cl5db");
 	slapi_ch_free((void **)&str);
 	slapi_entry_add_string (e, CONFIG_CHANGELOG_DIR_ATTRIBUTE, cl_dir);
 
@@ -689,6 +689,8 @@ done:
     return rc;
 }
 
+#define DN_SIZE 1024
+
 /* Format:
     dn: cn=replica,cn="o=NetscapeRoot",cn= mapping tree,cn=config
     objectclass: top
@@ -704,10 +706,10 @@ static int  configureReplica ()
     Slapi_PBlock *pb = slapi_pblock_new ();
     Slapi_Entry  *e = slapi_entry_alloc ();
     int rc;
-    char dn [128];
+    char dn [DN_SIZE];
 
     /* set changelog dn */
-    sprintf (dn, "%s,cn=\"%s\",%s", REPLICA_RDN, REPLICA_ROOT, 
+    PR_snprintf (dn, sizeof(dn), "%s,cn=\"%s\",%s", REPLICA_RDN, REPLICA_ROOT, 
              slapi_get_mapping_tree_config_root ());
     slapi_entry_set_dn (e, slapi_ch_strdup (dn));
     
@@ -746,7 +748,7 @@ static int  populateChangelogOp ()
     Slapi_PBlock *pb = slapi_pblock_new ();
     Slapi_Entry  *e = slapi_entry_alloc ();
     int rc;
-    char dn [128], newrdn [64];
+    char dn [DN_SIZE], newrdn [64];
     LDAPMod *mods[2];
     Slapi_Mod smod;
     struct berval bv;
@@ -754,7 +756,7 @@ static int  populateChangelogOp ()
 
     /* add entry */
     cur_time = time(NULL);
-    sprintf (dn, "cn=%s,%s", ctime(&cur_time), REPLICA_ROOT);
+    PR_snprintf (dn, sizeof(dn), "cn=%s,%s", ctime(&cur_time), REPLICA_ROOT);
     slapi_entry_set_dn (e, slapi_ch_strdup (dn));
     slapi_entry_add_string(e, "objectclass", "top");
     slapi_entry_add_string(e, "objectclass", "extensibleObject");
@@ -798,7 +800,7 @@ static int  populateChangelogOp ()
     /* rename entry */
     pb = slapi_pblock_new ();
     cur_time = time (NULL);
-    sprintf (newrdn, "cn=renamed%s", ctime(&cur_time));
+    PR_snprintf (newrdn, sizeof(newrdn), "cn=renamed%s", ctime(&cur_time));
     slapi_rename_internal_set_pb (pb, dn, newrdn, NULL, 1, NULL, NULL,
 	 					          repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modrdn_internal_pb (pb);
@@ -813,7 +815,7 @@ static int  populateChangelogOp ()
 
     /* delete the entry */
     pb = slapi_pblock_new ();
-    sprintf (dn, "%s,%s", newrdn, REPLICA_ROOT);
+    PR_snprintf (dn, sizeof(dn), "%s,%s", newrdn, REPLICA_ROOT);
     slapi_delete_internal_set_pb (pb, dn, NULL,  NULL, 
 								  repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_delete_internal_pb (pb);

@@ -23,6 +23,7 @@ extern "C" {
 #ifdef AIX
 #include <strings.h>
 #endif
+#include "nspr.h"
 }
 /* Newer g++ wants the new std header forms */
 #if defined( Linux )
@@ -47,7 +48,6 @@ extern "C" {
 
 extern const char *DEFAULT_SYSUSER = "root";
 extern const char *DEFAULT_OLDROOT = "/usr/ns-home";
-static const char *DEFAULT_SLAPDCONF = "slapd.conf";
 
 const int RECONFIG_EXIT_CODE = 7;
 
@@ -56,25 +56,6 @@ const int RECONFIG_EXIT_CODE = 7;
  * This can be done by passing -S as the command line argument.
  */
 int iDSISolaris = 0;
-
-static int
-isLiteMode()
-{
-	int ret = 0;
-	InstallInfo infFile("slapd/slapd.inf");
-	InstallInfo *slapdInf = infFile.getSection("slapd");
-	if (!slapdInf || !slapdInf->get("IsDirLite"))
-	{
-		infFile.read("slapd.inf");
-		slapdInf = infFile.getSection("slapd");
-	}
-
-	const char *tmp;
-	ret = (slapdInf && (tmp = slapdInf->get("IsDirLite")) &&
-		   !strcasecmp(tmp, "true"));
-
-	return ret;
-}
 
 static char *
 my_strdup(const char *s)
@@ -183,7 +164,7 @@ SlapdPreInstall::getOptions(int argc, char **argv)
 int
 SlapdPreInstall::init()
 {
-   char errMsg[40];
+   char errMsg[256];
    struct stat fi;
    Bool shell = True;
 
@@ -203,7 +184,7 @@ SlapdPreInstall::init()
    if ((installMode() == Silent && _infoFile == (char *) NULL) || 
        (_infoFile != (char *) NULL && InstUtil::fileExists(_infoFile) == False))
    {
-      sprintf(errMsg, "ERROR: answer cache not found\n");
+      PR_snprintf(errMsg, sizeof(errMsg), "ERROR: answer cache not found\n");
       if (installMode() == Silent)
       {
          printf(errMsg);
@@ -224,7 +205,7 @@ SlapdPreInstall::init()
          // Not executing from the Shell, check if this is the server
          if (stat ("admin-serv", &fi) != 0)
          {
-            sprintf(errMsg, "ERROR: %s is not a server root\n",_serverRoot.data());
+            PR_snprintf(errMsg, sizeof(errMsg), "ERROR: %s is not a server root\n",_serverRoot.data());
             DialogAlert alert(errMsg);
             alert.execute();
             return -1;
@@ -262,10 +243,10 @@ SlapdPreInstall::init()
       if (initDefaultConfig() == -1) {
 	    const char *guess_host = InstUtil::guessHostname();
 	    if (guess_host) {
-	      sprintf(errMsg, "ERROR: %s is not an addressable hostname\n",
-		      guess_host);
+			PR_snprintf(errMsg, sizeof(errMsg), "ERROR: %s is not an addressable hostname\n",
+						guess_host);
 	    } else {
-	      sprintf(errMsg, "ERROR: cannot determine an addressable hostname\n");
+			PR_snprintf(errMsg, sizeof(errMsg), "ERROR: cannot determine an addressable hostname\n");
 	    }
             DialogAlert alert(errMsg);
             alert.execute();
@@ -275,9 +256,9 @@ SlapdPreInstall::init()
 	    const char *guess_domain = InstUtil::guessDomain();	
 
 	    if (guess_domain == NULL) {
-	      sprintf(errMsg, "ERROR: cannot determine domainname\n");
+			PR_snprintf(errMsg, sizeof(errMsg), "ERROR: cannot determine domainname\n");
 	    } else {
-	      sprintf(errMsg, "ERROR: domainname is not valid for DNS\n");
+			PR_snprintf(errMsg, sizeof(errMsg), "ERROR: domainname is not valid for DNS\n");
 	    }
             DialogAlert alert(errMsg);
             alert.execute();
@@ -432,27 +413,6 @@ SlapdPreInstall::start()
 	   &askPopulate,
 	   &askDisableSchemaChecking
    };
-   Dialog *advancedDialogLiteList[] = {
-	   &askUseExistingMC,
-	   &askMCHost,
-	   &askMCPort,
-	   &askMCDN,
-	   &askMCAdminDomain,
-	   &askUseExistingUG,
-	   &askUGHost,
-	   &askUGPort,
-	   &askUGSuffix,
-	   &askUGDN,
-	   &askSlapdPort,
-	   &askSlapdServerID,
-	   &askMCAdminID,
-	   &askSlapdSuffix,
-	   &askSlapdRootDN,
-	   &askAdminDomain,
-	   &askSample,
-	   &askPopulate,
-	   &askDisableSchemaChecking
-   };
    Dialog *advancediDSISolarisForceUGDialogList[] = {
 	   &askSlapdPort,
 	   &askSlapdServerID,
@@ -520,13 +480,11 @@ SlapdPreInstall::start()
    const int nExpressForceUGDialogs = sizeof(expressForceUGDialogList) / sizeof(expressForceUGDialogList[0]);
    const int nExpressiDSISolarisForceUGDialogs = sizeof(expressiDSISolarisForceUGDialogList) / sizeof(expressiDSISolarisForceUGDialogList[0]);
    const int nAdvancedDialogs = sizeof(advancedDialogList) / sizeof(advancedDialogList[0]);
-   const int nAdvancedLiteDialogs = sizeof(advancedDialogLiteList) / sizeof(advancedDialogLiteList[0]);
    const int nAdvancediDSISolarisForceUGDialogs = sizeof(advancediDSISolarisForceUGDialogList) / sizeof(advancediDSISolarisForceUGDialogList[0]);
    const int nReconfigDialogs = sizeof(reconfigDialogList) / sizeof(reconfigDialogList[0]);
    const int nNormalForceUGDialogs = sizeof(normalForceUGDialogList) / sizeof(normalForceUGDialogList[0]);
    const int nNormaliDSISolarisForceUGDialogs = sizeof(normaliDSISolarisForceUGDialogList) / sizeof(normaliDSISolarisForceUGDialogList[0]);
 
-   int liteMode = 0;
    int nDialogs = nNormalDialogs;
    Dialog** dialogList = normalDialogList;
    if (_reconfig)
@@ -541,16 +499,8 @@ SlapdPreInstall::start()
    }
    else if (installType() == Custom)
    {
-	   if (liteMode = isLiteMode())
-	   {
-		   nDialogs = nAdvancedLiteDialogs;
-		   dialogList = advancedDialogLiteList;
-	   }
-	   else
-	   {
-		   nDialogs = nAdvancedDialogs;
-		   dialogList = advancedDialogList;
-	   }
+	   nDialogs = nAdvancedDialogs;
+	   dialogList = advancedDialogList;
    }
    else if (!iDSISolaris && featureIsEnabled(SLAPD_KEY_USE_EXISTING_MC))
    {
@@ -1015,7 +965,7 @@ SlapdPreInstall::getDefaultSuffix() const
 	}
 	*sptr = 0;
 	if (!*suffix)
-		sprintf(suffix, "%s%s", SUF, "unknown-domain");
+		PR_snprintf(suffix, sizeof(suffix), "%s%s", SUF, "unknown-domain");
 
 	return suffix;
 }
@@ -1029,9 +979,9 @@ SlapdPreInstall::getConsumerDN() const
 	const char *suffix = 
 		getDefaultScript()->get(SLAPD_KEY_SUFFIX);
 	if (suffix)
-		sprintf(dn, "cn=Replication Consumer, %s", suffix);
+		PR_snprintf(dn, sizeof(dn), "cn=Replication Consumer, %s", suffix);
 	else
-		sprintf(dn, "cn=Replication Consumer");
+		PR_snprintf(dn, sizeof(dn), "cn=Replication Consumer");
 
 	return dn;
 }
@@ -1063,7 +1013,7 @@ SlapdPreInstall::shutdownServers()
 		return;
 
 	struct dirent* entry = 0;
-	while (entry = readdir(srootdir))
+	while ((entry = readdir(srootdir)))
 	{
 		// look for instance directories
 		if (!strncasecmp(entry->d_name, nick, len))
@@ -1138,7 +1088,7 @@ SlapdPreInstall::normalizeDNs()
 			if (dn)
 			{
 				char port[6];
-				sprintf(port, "%d", desc->lud_port);
+				PR_snprintf(port, sizeof(port), "%d", desc->lud_port);
 				NSString newurl = NSString("ldap://") + desc->lud_host +
 					":" + port + "/" + dn;
 				_installInfo->set(attr, newurl);

@@ -19,6 +19,7 @@
 #ifdef XP_UNIX
 #include <unistd.h>
 #endif
+#include "nspr.h"
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
 		FILE *f;
 		/* Now attempt to create a file there (the directory might
 		   already have existed */
-		sprintf( foo, "%s%c%s", filename, FILE_PATHSEP, "foo" );
+		PR_snprintf( foo, sizeof(foo), "%s%c%s", filename, FILE_PATHSEP, "foo" );
 		f = fopen(foo, "w");
 		if ( NULL != f ) {
 			status = 0;

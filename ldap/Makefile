@@ -83,13 +83,3 @@ endif
 	cd clients/tools; $(MAKE) $(MFLAGS) clean
 
 veryclean:	clean
-
-$(LDAP_LIBDIR):
-	$(MKDIR) $(LDAP_LIBDIR)
-
-$(LDAP_BINDIR):
-	$(MKDIR) $(LDAP_BINDIR)
-
-$(LDAP_OBJDIR):
-	$(MKDIR) $(LDAP_OBJDIR)
-

@@ -21,6 +21,7 @@
 ***********************************************************************/
 
 #include "plugin-utils.h"
+#include "nspr.h"
 
 static char *plugin_name = "utils";
 
@@ -129,17 +130,17 @@ entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
 Slapi_PBlock *
 dnHasObjectClass( const char *baseDN, const char *objectClass ) {
 	int result = 0;
+	char *filter = NULL;
 	Slapi_PBlock *spb = NULL;
 
 	BEGIN
 		Slapi_Entry **entries;
-		char filter[1024];
 		char *attrs[2];
 
 		/* Perform the search - the new pblock needs to be freed */
 		attrs[0] = "objectclass";
 		attrs[1] = NULL;
-		sprintf( filter, "objectclass=%s", objectClass );
+		filter = PR_smprintf("objectclass=%s", objectClass );
 		if ( !(spb = readPblockAndEntry( baseDN, filter, attrs) ) ) {
 			break;
 		}
@@ -161,6 +162,9 @@ dnHasObjectClass( const char *baseDN, const char *objectClass ) {
 		}
     END
 
+	if (filter) {
+		PR_smprintf_free(filter);
+	}
 	return spb;
 }
 
@@ -174,17 +178,17 @@ Slapi_PBlock *
 dnHasAttribute( const char *baseDN, const char *attrName ) {
 	int result = 0;
 	Slapi_PBlock *spb = NULL;
+	char *filter = NULL;
 
 	BEGIN
         int sres;
 		Slapi_Entry **entries;
-		char filter[1024];
 		char *attrs[2];
 
 		/* Perform the search - the new pblock needs to be freed */
 		attrs[0] = (char *)attrName;
 		attrs[1] = NULL;
-		sprintf( filter, "%s=*", attrName );
+		filter = PR_smprintf( "%s=*", attrName );
 		spb = slapi_search_internal((char *)baseDN, LDAP_SCOPE_BASE,
 									filter, NULL, attrs, 0);
 		if ( !spb ) {
@@ -217,6 +221,9 @@ dnHasAttribute( const char *baseDN, const char *attrName ) {
 		}
     END
 
+	if (filter) {
+		PR_smprintf_free(filter);
+	}
 	return spb;
 }
 

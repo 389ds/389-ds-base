@@ -129,7 +129,6 @@ static void roles_cache_wait_on_change(void * arg);
 static void roles_cache_trigger_update_suffix(void *handle, char *be_name, int old_be_state, int new_be_state);
 static void roles_cache_trigger_update_role(char *dn, Slapi_Entry *role_entry, Slapi_DN *be_dn, int operation);
 static int roles_cache_update(roles_cache_def *suffix_to_update);
-static int roles_get_roles_from_entry(Slapi_DN * suffix, Slapi_PBlock **int_search_pb);
 static int roles_cache_create_role_under(roles_cache_def** roles_cache_suffix, Slapi_Entry *entry);
 static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **result, int hint);
 static int roles_cache_determine_class(Slapi_Entry *role_entry);
@@ -955,7 +954,7 @@ static int roles_cache_add_roles_from_suffix(Slapi_DN *suffix_dn, roles_cache_de
 	roles_cache_search_roles info;
 	Slapi_PBlock *int_search_pb = NULL;
 
-    slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_get_roles_from_entry\n");
+    slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_add_roles_from_suffix\n");
 	
 	info.suffix_def = suffix_def;
 	info.rc = LDAP_NO_SUCH_OBJECT;
@@ -987,7 +986,7 @@ static int roles_cache_add_roles_from_suffix(Slapi_DN *suffix_dn, roles_cache_de
 		rc = 0;
 	}
 
-    slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_get_roles_from_entry\n");
+    slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_add_roles_from_suffix\n");
 
 	return(rc);
 }
@@ -1391,9 +1390,7 @@ static int roles_cache_object_nested_from_dn(Slapi_DN *role_dn, role_object_nest
 int roles_cache_listroles(Slapi_Entry *entry, int return_values, Slapi_ValueSet **valueset_out)
 {
     roles_cache_def *roles_cache = NULL;
-	role_object *this_role = NULL;
     int rc = 0;
-    Avlnode * tree = NULL;
 	roles_cache_build_result arg;
 	Slapi_Backend *backend = NULL;
  
@@ -1946,8 +1943,6 @@ static void roles_cache_role_def_delete(roles_cache_def *role_def)
 */
 static void roles_cache_role_def_free(roles_cache_def *role_def)
 {
-	roles_cache_def *next_def = NULL;
-
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_role_def_free\n");
 	if ( role_def == NULL )

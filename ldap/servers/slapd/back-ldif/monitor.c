@@ -47,7 +47,7 @@ ldif_back_monitor_info( Slapi_PBlock *pb, LDIF *db)
   
   /* Get the database name (be_type) */
   slapi_pblock_get( pb, SLAPI_BE_TYPE, &type);
-  sprintf( buf, "%s", type );
+  PR_snprintf( buf, sizeof(buf), "%s", type );
   val.bv_val = buf;
   val.bv_len = strlen( buf );
   slapi_entry_attr_merge( e, "database", vals );

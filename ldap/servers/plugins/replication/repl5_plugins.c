@@ -50,8 +50,6 @@ static PRBool process_operation (Slapi_PBlock *pb, const CSN *csn);
 static PRBool is_mmr_replica (Slapi_PBlock *pb);
 static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, const CSN *opcsn);
 static void strip_legacy_info (slapi_operation_parameters *op_params);
-static void close_changelog_for_replica (Object *r_obj);
-static void process_new_ruv_for_replica (Replica *r);
 
 /*
  * XXXggood - what to do if both ssl and non-ssl ports available? How
@@ -98,14 +96,7 @@ multimaster_set_local_purl()
 			}
 			else
 			{
-				int len = 0;
-				char *patt = "ldap://%s:%s";
-				len += strlen(host);
-				len += strlen(port);
-				len += strlen(patt);
-				len++; /* for \0 */
-				local_purl = slapi_ch_malloc(len);
-				sprintf(local_purl, patt, host, port);
+				local_purl = slapi_ch_smprintf("ldap://%s:%s", host, port);
 			}
 
 			/* slapi_ch_free acceptS NULL pointer */
@@ -1406,11 +1397,4 @@ multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int 
     }
 
     object_release (r_obj);
-}
-
-static void 
-close_changelog_for_replica (Object *r_obj)
-{
-    if (cl5GetState () == CL5_STATE_OPEN)
-        cl5CloseDB (r_obj);
 }

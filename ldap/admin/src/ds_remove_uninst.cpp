@@ -58,7 +58,7 @@ dsLogMessage(const char *level, const char *which,
 	char bigbuf[BIG_BUF*4];
 	va_list ap;
 	va_start(ap, format);
-	PR_vsnprintf(bigbuf, BIG_BUF*4, format, ap);
+	PR_vsnprintf(bigbuf, sizeof(bigbuf), format, ap);
 	va_end(ap);
 #ifdef _WIN32 // always output to stdout (for CGIs), and always log
 	// if a log is available
@@ -175,7 +175,6 @@ int removeInstanceLDAPEntries(const char *pszLdapHost,
 							   const char *pszInstanceHost,
 							   const char *pszServerRoot)
 {
-	LDAP *ld			= NULL;
 	char szSearchBase[] = "o=NetscapeRoot";
 
 	/* open LDAP connection */
@@ -263,26 +262,26 @@ int ds_uninst_set_cgi_env(char *pszInfoFileName)
 		serverID = ds_get_server_name();
 
 	if (serverID)
-		sprintf(szQueryString, "QUERY_STRING=InstanceName=%s",
-				serverID);
+		PR_snprintf(szQueryString, sizeof(szQueryString), "QUERY_STRING=InstanceName=%s",
+					serverID);
 
 	putenv(szQueryString);
 
 	if (instanceInfo->get(SLAPD_KEY_SERVER_ROOT))
-		sprintf(szNetsiteRoot, "NETSITE_ROOT=%s",
-				instanceInfo->get(SLAPD_KEY_SERVER_ROOT));
+		PR_snprintf(szNetsiteRoot, sizeof(szNetsiteRoot), "NETSITE_ROOT=%s",
+					instanceInfo->get(SLAPD_KEY_SERVER_ROOT));
 	putenv(szNetsiteRoot);
 
 	if (serverID)
-		sprintf(szScriptName, "SCRIPT_NAME=/%s/Tasks/Operation/Remove",
-				serverID);
+		PR_snprintf(szScriptName, sizeof(szScriptName), "SCRIPT_NAME=/%s/Tasks/Operation/Remove",
+					serverID);
 	putenv(szScriptName);
 
 	// remove SIE entry
 	const char *host = instanceInfo->get(SLAPD_KEY_K_LDAP_HOST);
 	char port[20] = {0};
 	if (instanceInfo->get(SLAPD_KEY_K_LDAP_PORT))
-		strcpy(port, instanceInfo->get(SLAPD_KEY_K_LDAP_PORT));
+		strncpy(port, instanceInfo->get(SLAPD_KEY_K_LDAP_PORT), sizeof(port)-1);
 	const char *suffix = instanceInfo->get(SLAPD_KEY_SUFFIX);
 	const char *ldapurl = instanceInfo->get(SLAPD_KEY_K_LDAP_URL);
 	LDAPURLDesc *desc = 0;
@@ -290,16 +289,16 @@ int ds_uninst_set_cgi_env(char *pszInfoFileName)
 		if (!host)
 			host = desc->lud_host;
 		if (port[0] == 0)
-			sprintf(port, "%d", desc->lud_port);
+			PR_snprintf(port, sizeof(port), "%d", desc->lud_port);
 		if (!suffix)
 			suffix = desc->lud_dn;
 	}
 
 	// get and set the log file
-	if (tmp = instanceInfo->get(SLAPD_INSTALL_LOG_FILE_NAME))
+	if ((tmp = instanceInfo->get(SLAPD_INSTALL_LOG_FILE_NAME)))
 	{
 		static char s_logfile[PATH_MAX+32];
-		PR_snprintf(s_logfile, PATH_MAX+32, "DEBUG_LOGFILE=%s", tmp);
+		PR_snprintf(s_logfile, sizeof(s_logfile), "DEBUG_LOGFILE=%s", tmp);
 		putenv(s_logfile);
 		installLog = new InstallLog(tmp);
 	}

@@ -18,7 +18,7 @@
 
 #define MSETF(_attr, _x) do { \
     char tmp_atype[37]; \
-    sprintf(tmp_atype, _attr, _x); \
+    PR_snprintf(tmp_atype, sizeof(tmp_atype), _attr, _x); \
     MSET(tmp_atype); \
 } while (0)
 
@@ -63,11 +63,11 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     vals[1] = NULL;
 
     /* database name */
-    sprintf(buf, "%s", li->li_plugin->plg_name);
+    PR_snprintf(buf, sizeof(buf), "%s", li->li_plugin->plg_name);
     MSET("database");
 
     /* read-only status */
-    sprintf( buf, "%d", inst->inst_be->be_readonly );
+    PR_snprintf( buf, sizeof(buf), "%d", inst->inst_be->be_readonly );
     MSET("readOnly");
 
     /* fetch cache statistics */
@@ -110,7 +110,6 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         int fpos = 0;
 #endif
 		char *absolute_pathname = NULL;
-		size_t absolute_pathname_size = 0;
 
         /* only print out stats on files used by this instance */
         if (strlen(mpfstat[i]->file_name) < strlen(inst->inst_dir_name))
@@ -123,11 +122,9 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 		 * for the purpose of stat() etc below...
 		 */
 		if (absolute_pathname) {
-			slapi_ch_free(&absolute_pathname);
+			slapi_ch_free_string(&absolute_pathname);
 		}
-		absolute_pathname_size = strlen(inst->inst_parent_dir_name) + strlen(mpfstat[i]->file_name) + 2;
-		absolute_pathname = slapi_ch_malloc(absolute_pathname_size);
-		sprintf(absolute_pathname, "%s%c%s" , inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name );
+		absolute_pathname = slapi_ch_smprintf("%s%c%s" , inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name );
 
 /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
 	/* Hide statistic of deleted files (mainly indexes) */
@@ -146,7 +143,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 /* end of NPCTE fix for bugid 544365 */
 
         /* Get each file's stats */
-        sprintf(buf, "%s", mpfstat[i]->file_name);
+        PR_snprintf(buf, sizeof(buf), "%s", mpfstat[i]->file_name);
 #ifdef _WIN32
         /* 
          * For NT, switch the last
@@ -172,7 +169,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         MSETF("dbFilePageOut-%d", i);
 
 		if (absolute_pathname) {
-				slapi_ch_free(&absolute_pathname);
+			slapi_ch_free_string(&absolute_pathname);
 		}
 
     }
@@ -206,7 +203,7 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
     vals[1] = NULL;
 
     /* database name */
-    sprintf(buf, "%s", li->li_plugin->plg_name);
+    PR_snprintf(buf, sizeof(buf), "%s", li->li_plugin->plg_name);
     MSET("database");
 
     /* we have to ask for file stats in order to get correct global stats */

@@ -225,10 +225,6 @@ typedef void* PASSWD;
 #endif /* __cplusplus */
 #endif /* !NSPR_BEGIN_EXTERN_C */
 
-#ifndef TCPLEN_T
-#define TCPLEN_T int
-#endif
-
 #ifndef NSAPI_PUBLIC
 #define NSAPI_PUBLIC
 #endif /* !NSAPI_PUBLIC */

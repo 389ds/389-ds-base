@@ -166,7 +166,7 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sl
         ret = SLAPI_DSE_CALLBACK_ERROR;
     }
 	if (attribute_name) {
-		slapi_ch_free(&attribute_name);
+		slapi_ch_free_string(&attribute_name);
 	}
 	return ret;
 }

@@ -45,8 +45,6 @@
 /*
  * function prototypes
  */ 
-static char **get_backend_suffixes( void );
-static int is_underneath_backend_suffix( char *normdn, char **besuffixes );
 
 /*
  * static variables

@@ -97,7 +97,7 @@ salted_sha1_pw_enc( char *pwd )
         return( NULL );
     }
 
-    if (( enc = PR_Malloc( 3 + SALTED_SHA1_NAME_LEN +
+    if (( enc = slapi_ch_malloc( 3 + SALTED_SHA1_NAME_LEN +
         LDIF_BASE64_LEN(sizeof(hash)))) == NULL ) {
         return( NULL );
     }

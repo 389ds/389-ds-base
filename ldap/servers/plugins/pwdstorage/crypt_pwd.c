@@ -79,11 +79,7 @@ crypt_pw_enc( char *pwd )
     cry = crypt( pwd, salt );
     if ( cry != NULL )
     {
-        enc = slapi_ch_malloc( 3 + CRYPT_NAME_LEN + strlen( cry ));
-        if ( enc != NULL )
-        {
-            sprintf( enc, "%c%s%c%s", PWD_HASH_PREFIX_START, CRYPT_SCHEME_NAME, PWD_HASH_PREFIX_END, cry );
-        }
+        enc = slapi_ch_smprintf("%c%s%c%s", PWD_HASH_PREFIX_START, CRYPT_SCHEME_NAME, PWD_HASH_PREFIX_END, cry );
     }    
     PR_Unlock(cryptlock);
     return( enc );

@@ -17,6 +17,8 @@
 #include "portable.h"
 #include <ctype.h>
 
+#include "nspr.h"
+
 #define CONF_FILE_NAME "config/dse.ldif"
 #define CONF_SUFFIX "cn=config"
 
@@ -49,7 +51,7 @@ ds_get_config(int type)
         return(NULL);
     }
 
-    sprintf(conffile, "%s/%s", root, CONF_FILE_NAME);
+    PR_snprintf(conffile, PATH_MAX, "%s/%s", root, CONF_FILE_NAME);
 
     if ( !(sf = fopen(conffile, "r")) )  {
         ds_send_error("could not read config file.", 1);

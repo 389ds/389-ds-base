@@ -149,7 +149,7 @@ urp_add_operation( Slapi_PBlock *pb )
 			Slapi_RDN *rdn;
 			char buf[BUFSIZ];
 
-			sprintf(buf, "%s %s", REASON_ANNOTATE_DN, basedn);
+			PR_snprintf(buf, BUFSIZ, "%s %s", REASON_ANNOTATE_DN, basedn);
 			if (slapi_entry_attr_find (addentry, ATTR_NSDS5_REPLCONFLICT, &attr) == 0)
 			{
 				/* ATTR_NSDS5_REPLCONFLICT exists */
@@ -998,8 +998,7 @@ urp_get_min_naming_conflict_entry ( Slapi_PBlock *pb, char *sessionid, CSN *opcs
 	slapi_log_error ( SLAPI_LOG_REPL, sessionid,
 		"Enter urp_get_min_naming_conflict_entry for %s\n", basedn);
 
-	filter = slapi_ch_malloc(50 + strlen(basedn));
-	sprintf(filter, "(%s=%s %s)", ATTR_NSDS5_REPLCONFLICT, REASON_ANNOTATE_DN, basedn);
+	filter = PR_smprintf("(%s=%s %s)", ATTR_NSDS5_REPLCONFLICT, REASON_ANNOTATE_DN, basedn);
 
 	/* server_ctrls will be freed when newpb is destroyed */
 	server_ctrls = (LDAPControl **)slapi_ch_calloc (2, sizeof (LDAPControl *));
@@ -1058,7 +1057,9 @@ urp_get_min_naming_conflict_entry ( Slapi_PBlock *pb, char *sessionid, CSN *opcs
 
 done:
 	slapi_ch_free((void **)&parent_dn);
-	slapi_ch_free((void **)&filter);
+	if (filter) {
+		PR_smprintf_free(filter);
+	}
 	slapi_free_search_results_internal(newpb);
 	slapi_pblock_destroy(newpb);
 	newpb = NULL;
@@ -1239,7 +1240,7 @@ mod_namingconflict_attr (const char *uniqueid, const char *entrydn, const char *
 	char buf[BUFSIZ];
 	int op_result;
 
-	sprintf (buf, "%s %s", REASON_ANNOTATE_DN, conflictdn);
+	PR_snprintf (buf, sizeof(buf), "%s %s", REASON_ANNOTATE_DN, conflictdn);
 	slapi_mods_init (&smods, 2);
 	if ( strncmp (entrydn, SLAPI_ATTR_UNIQUEID, strlen(SLAPI_ATTR_UNIQUEID)) != 0 )
 	{

@@ -25,8 +25,7 @@ lock_fopen( char *fname, char *type, FILE **lfp )
 	char	buf[MAXPATHLEN];
 
 	/* open the lock file */
-	strcpy( buf, fname );
-	strcat( buf, ".lock" );
+	PR_snprintf( buf, MAXPATHLEN, "%s%s", fname, ".lock" );
 	if ( (*lfp = fopen( buf, "w" )) == NULL ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "could not open \"%s\"\n", buf, 0, 0 );
 		return( NULL );

@@ -85,14 +85,14 @@ int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
     /* normalize */
     if (pb_excl) {
 	for (i = 0; pb_excl[i]; i++) {
-	    strcpy(subtreeDn, pb_excl[i]);
+	    PL_strncpyz(subtreeDn, pb_excl[i], BUFSIZ);
 	    normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
 	    charray_add(exclude, slapi_ch_strdup(normSubtreeDn));
 	}
     }
     if (pb_incl) {
 	for (i = 0; pb_incl[i]; i++) {
-	    strcpy(subtreeDn, pb_incl[i]);
+	    PL_strncpyz(subtreeDn, pb_incl[i], BUFSIZ);
 	    normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
 	    charray_add(include, slapi_ch_strdup(normSubtreeDn));
 	}
@@ -2049,8 +2049,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             {
                 time_t tm = time(0);    /* long */
 
-                char *tmpname = (char *)slapi_ch_malloc(strlen(dest_dir) + 32);
-                sprintf(tmpname, "%s/%d", dest_dir, tm);
+                char *tmpname = slapi_ch_smprintf("%s/%d", dest_dir, tm);
                 dest_dir = tmpname;
             }
             else    /* not a directory */

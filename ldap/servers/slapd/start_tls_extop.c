@@ -47,7 +47,10 @@ start_tls( Slapi_PBlock *pb )
 	Connection      *conn;
 	PRFileDesc      *oldsocket, *newsocket;
 	int             secure;
-	int             ns, oldnativesocket;
+	int             ns;
+#ifdef _WIN32
+	int				oldnativesocket;
+#endif
 	int             rv;
 
 	/* Get the pb ready for sending Start TLS Extended Responses back to the client. 

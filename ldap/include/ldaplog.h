@@ -70,7 +70,7 @@ extern "C" {
 #    define LDAPDebug( level, fmt, arg1, arg2, arg3 ) \
 		if ( slapd_ldap_debug & level ) { \
 			char msg[256]; \
-			sprintf( msg, fmt, arg1, arg2, arg3 ); \
+			PR_snprintf( msg, sizeof(msg), fmt, arg1, arg2, arg3 ); \
 			ber_err_print( msg ); \
 		}
 #    define LDAPDebugLevelIsSet( level )	(0 != (slapd_ldap_debug & level))

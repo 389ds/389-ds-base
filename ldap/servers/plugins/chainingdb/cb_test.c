@@ -37,8 +37,7 @@ int cb_back_test( Slapi_PBlock *pb )
         aSuffixString=slapi_sdn_get_dn(aSuffix);
         /* Remove leading white spaces */
         for (aSuffixString; *aSuffixString==' ';aSuffixString++) {}
-	theTarget=slapi_ch_calloc(1,strlen(aSuffixString)+20);
-	sprintf(theTarget,"cn=test,%s",aSuffixString);
+	theTarget=slapi_ch_smprintf("cn=test,%s",aSuffixString);
 
 	/* XXXSD make sure chaining allowed for this plugin... */
         slapi_search_internal_set_pb (apb, theTarget, LDAP_SCOPE_BASE, "objectclass=*", NULL, 0, NULL, NULL,

@@ -77,7 +77,7 @@ do_escape_string (
 
     last = str + len - 1;
     for (s = str; s <= last; ++s) {
-	if ( esc = (*special)((unsigned char)*s)) {
+	if ( (esc = (*special)((unsigned char)*s))) {
 	    const char* first = str;
 	    char* bufNext = buf;
 	    int bufSpace = BUFSIZ - 4;
@@ -445,7 +445,7 @@ void slapd_nasty(char* str, int c, int err)
 {
 	char *msg = NULL;
 	char buffer[100];
-	sprintf(buffer,"%s BAD %d",str,c);
+	PR_snprintf(buffer,sizeof(buffer), "%s BAD %d",str,c);
 	LDAPDebug(LDAP_DEBUG_ANY,"%s, err=%d %s\n",buffer,err,(msg = strerror( err )) ? msg : "");
 }
 

@@ -74,6 +74,3 @@ endif
 
 $(OBJDEST):
 	$(MKDIR) $(OBJDEST)
-
-$(LIBDIR):
-	$(MKDIR) $(LIBDIR)

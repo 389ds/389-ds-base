@@ -73,7 +73,6 @@ static int index_subsys_decoder_done(Slapi_Filter *f);
 static int index_subsys_assign_decoders(Slapi_Filter *f);
 static int index_subsys_assign_decoder(Slapi_Filter *f);
 static int index_subsys_group_decoders(Slapi_Filter *f);
-static indexEntry *index_subsys_find_decoder(Slapi_Filter *f);
 static int index_subsys_unlink_subfilter(Slapi_Filter *fcomplex, Slapi_Filter *fsub);
 static int index_subsys_index_matches_associated(indexEntry *index, Slapi_Filter *f);
 
@@ -996,7 +995,6 @@ int slapi_index_register_index(char *plugin_id, indexed_item *registration_item,
 	indexEntry *index;
 	int a_matched_index = 0;
 	Slapi_Filter *tmp_f = slapi_str2filter(registration_item->index_filter);
-	int i = 0;
 	Slapi_Backend *be;
 	
 	if(!theCache)

@@ -76,7 +76,9 @@ chaining_back_add ( Slapi_PBlock *pb )
 	if ((rc = cb_get_connection(cb->pool,&ld,&cnx,NULL,&cnxerrbuf)) != LDAP_SUCCESS) {
                 cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR,NULL,cnxerrbuf, 0, NULL);
 		ldap_mods_free(mods,1);
-		slapi_ch_free((void **)&cnxerrbuf);
+		if (cnxerrbuf) {
+		  PR_smprintf_free(cnxerrbuf);
+		}
                 /* ping the farm. If the farm is unreachable, we increment the counter */
                 cb_ping_farm(cb,NULL,0);
 

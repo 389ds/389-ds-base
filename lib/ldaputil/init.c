@@ -44,7 +44,7 @@ static int load_server_libs (const char *dir)
 	/* Dir exists */
         while( (d = PR_ReadDir(ds, PR_SKIP_BOTH)) )  {
 	    PRLibrary *lib = 0;
-            char *libname = d->name;
+		const char *libname = d->name;
 	    int len = strlen(libname);
 	    int is_lib;
 

@@ -22,8 +22,8 @@ int init_ds_env()
     char *m = getenv("REQUEST_METHOD");
     char *qs              = NULL;
 	int proceed = 0;
-    int _ai = ADMUTIL_Init();
 
+	(void)ADMUTIL_Init();
 	if ( m != NULL ) {
 		if( !strcmp(m, "GET") )  {
 			qs = GET_QUERY_STRING();
@@ -42,7 +42,7 @@ int init_ds_env()
  
 	if(!proceed) {
 		char msg[2000];
-		sprintf(msg, "ErrorString: REQUEST_METHOD=%s,"
+		PR_snprintf(msg, sizeof(msg), "ErrorString: REQUEST_METHOD=%s,"
 				"QUERY_STRING=%s\n", 
 				(m == NULL) ? "<undefined>" : m, 
 				(qs == NULL) ? "<undefined>" : qs);

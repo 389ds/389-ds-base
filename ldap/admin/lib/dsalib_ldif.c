@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "nspr.h"
 
 #ifndef XP_WIN32
 #define SCRIPT_SUFFIX "" /* shell scripts have no suffix */
@@ -163,21 +164,21 @@ importldif(char *file, int preserve, char *backend, char *subtree)
     }
 
 	if ( preserve ) {
-		sprintf(startup_line, "%s%cldif2db%s -i %s%s%s",
+		PR_snprintf(startup_line, BIG_LINE, "%s%cldif2db%s -i %s%s%s",
 				root, FILE_SEP, SCRIPT_SUFFIX,
 				ENQUOTE, file, ENQUOTE);
 	} else if (backend) {
-		sprintf(startup_line, "%s%cldif2db%s -n %s%s%s -i %s%s%s",
+		PR_snprintf(startup_line, BIG_LINE, "%s%cldif2db%s -n %s%s%s -i %s%s%s",
 				root, FILE_SEP, SCRIPT_SUFFIX,
 				ENQUOTE, backend, ENQUOTE,
 				ENQUOTE, file, ENQUOTE);
 	} else if (subtree) {
-		sprintf(startup_line, "%s%cldif2db%s -s %s%s%s -i %s%s%s",
+		PR_snprintf(startup_line, BIG_LINE, "%s%cldif2db%s -s %s%s%s -i %s%s%s",
 				root, FILE_SEP, SCRIPT_SUFFIX,
 				ENQUOTE, subtree, ENQUOTE,
 				ENQUOTE, file, ENQUOTE);
 	} else {
-		sprintf(startup_line, "%s%cldif2db%s -i %s%s%s -noconfig",
+		PR_snprintf(startup_line, BIG_LINE, "%s%cldif2db%s -i %s%s%s -noconfig",
 				root, FILE_SEP, SCRIPT_SUFFIX,
 				ENQUOTE, file, ENQUOTE);
 	}
@@ -206,13 +207,13 @@ importldif(char *file, int preserve, char *backend, char *subtree)
 			char sbuf[ BIG_LINE ];
 			char filename[ BIG_LINE ];
 			if ( strlen( db_files[ i ]) > 0 ) {
-				sprintf( filename, "%s%c%s", changelogdir,
+				PR_snprintf( filename, BIG_LINE, "%s%c%s", changelogdir,
 						 FILE_SEP, db_files[ i ]);
-				sprintf(sbuf, "Removing %s", filename);
+				PR_snprintf(sbuf, BIG_LINE, "Removing %s", filename);
 				ds_send_status( sbuf );
 				rc = unlink( filename);
 				if ( rc != 0 ) {
-					sprintf( errbuf, "Warning: some files in %s could not "
+					PR_snprintf( errbuf, BIG_LINE, "Warning: some files in %s could not "
 							 "be removed\n", changelogdir );
 					haderror++;
 				}
@@ -285,7 +286,7 @@ ds_db2ldif_subtree(char *file, char *subtree)
         file = NULL;
 
 	tmp_dir = ds_get_tmp_dir();
-	sprintf(statfile, "%s%cdb2ldif.%d", tmp_dir, FILE_SEP, (int) getpid());
+	PR_snprintf(statfile, PATH_MAX, "%s%cdb2ldif.%d", tmp_dir, FILE_SEP, (int) getpid());
 
 #if defined( XP_WIN32 )
 	if( file == NULL )
@@ -294,7 +295,7 @@ ds_db2ldif_subtree(char *file, char *subtree)
 		file = malloc( BIG_LINE );
 
 		time( &ltime );
-		sprintf( file, "%s", ctime( &ltime ) );
+		PR_snprintf( file, BIG_LINE, "%s", ctime( &ltime ) );
 		ds_timetofname( file );
 	}
 #endif
@@ -304,13 +305,13 @@ ds_db2ldif_subtree(char *file, char *subtree)
 	else
 		strcpy( outfile, file );
 
-	sprintf(scriptfile, "%s%cdb2ldif", root, FILE_SEP);
+	PR_snprintf(scriptfile, PATH_MAX, "%s%cdb2ldif", root, FILE_SEP);
 
 	PATH_FOR_PLATFORM( outfile );
 	PATH_FOR_PLATFORM( scriptfile );
 
 	if ( subtree == NULL ) {
-		sprintf(startup_line,
+		PR_snprintf(startup_line, sizeof(startup_line),
 				"%s "
 				"%s%s%s > "
 				"%s%s%s 2>&1",
@@ -318,7 +319,7 @@ ds_db2ldif_subtree(char *file, char *subtree)
 				ENQUOTE, outfile, ENQUOTE,
 				ENQUOTE, statfile, ENQUOTE);
 	} else {
-		sprintf(startup_line,
+		PR_snprintf(startup_line, sizeof(startup_line),
 				"%s "
 				"%s%s%s "
 				"-s \"%s\" > "

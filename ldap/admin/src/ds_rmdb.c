@@ -20,6 +20,7 @@
 #ifdef XP_UNIX
 #include <unistd.h>
 #endif
+#include "nspr.h"
 
 #ifndef MAXPATHLEN
 #define MAXPATHLEN	1024
@@ -29,8 +30,6 @@ int main(int argc, char *argv[], char *envp[])
 {
     char *del_file = NULL;
     char **bak_files;
-    int	file_count = 0;
-    int err = 0;
 
     fprintf(stdout, "Content-type: text/html\n\n");
 
@@ -56,7 +55,7 @@ int main(int argc, char *argv[], char *envp[])
 		int j;
 		char buf[ MAXPATHLEN ];
 		for ( j = 0; bak_files[ j ] != NULL; j++ ) {
-			sprintf( buf, "%s/%s", del_file, bak_files[ j ]);
+			PR_snprintf( buf, sizeof(buf), "%s/%s", del_file, bak_files[ j ]);
 			if (  unlink(buf) != 0 ) {
 				rpt_err( DS_CANNOT_DELETE_FILE, buf, NULL, NULL );
 				return 1;

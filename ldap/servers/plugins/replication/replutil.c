@@ -413,9 +413,9 @@ parse_changes_string(char *str)
 			if (rc != 0)
 			{
 				/* ONREPL - log warning */
-			        if ( errmsg != NULL ) {
-				        slapi_log_error( SLAPI_LOG_PARSE, repl_plugin_name, "%s", errmsg ); 
-					slapi_ch_free( (void**)&errmsg );
+				if ( errmsg != NULL ) {
+					slapi_log_error( SLAPI_LOG_PARSE, repl_plugin_name, "%s", errmsg ); 
+					PR_smprintf_free(errmsg );
 				}
 				slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, 
 						 "Failed to parse the ldif line.\n");
@@ -907,7 +907,6 @@ repl_enable_chain_on_update(Slapi_DN *suffix)
     /* Submit a Modify operation to add the distribution function to the mapping tree
 	   node for the given suffix */
     slapi_mods smods;
-	Slapi_Operation *op = NULL;
 	int operation_result;
 	Slapi_PBlock *pb= slapi_pblock_new();
 	char *mtnnodedn;
@@ -952,7 +951,6 @@ repl_disable_chain_on_update(Slapi_DN *suffix)
     /* Submit a Modify operation to remove the distribution function from the mapping tree
 	   node for the given suffix */
     slapi_mods smods;
-	Slapi_Operation *op = NULL;
 	int operation_result;
 	Slapi_PBlock *pb= slapi_pblock_new();
 	char *mtnnodedn;

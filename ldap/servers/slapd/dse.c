@@ -327,11 +327,9 @@ dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfil
     char *realconfigdir = NULL;
 
     if (configdir!=NULL) {
-		realconfigdir = slapi_ch_malloc(strlen(configdir)+1);
-		strcpy(realconfigdir, configdir);
+		realconfigdir = slapi_ch_strdup(configdir);
     } else if (id!=NULL) {
-		realconfigdir = slapi_ch_malloc(strlen(id)+strlen(config_sub_dir)+3);
-		sprintf(realconfigdir, "%s/%s", id, config_sub_dir);
+		realconfigdir = slapi_ch_smprintf("%s/%s", id, config_sub_dir);
     }
     if(realconfigdir!=NULL)
     {
@@ -342,17 +340,13 @@ dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfil
             /* Set the full path name for the config DSE entry */
 			if (!strstr(filename, realconfigdir))
 			{
-				pdse->dse_filename = slapi_ch_malloc( strlen( realconfigdir ) +
-													  strlen( filename ) + 3 );
-				sprintf( pdse->dse_filename, "%s/%s", realconfigdir, filename );
+				pdse->dse_filename = slapi_ch_smprintf("%s/%s", realconfigdir, filename );
 			}
 			else
 				pdse->dse_filename = slapi_ch_strdup(filename);
 
 			if (!strstr(tmpfilename, realconfigdir)) {
-				pdse->dse_tmpfile = slapi_ch_malloc( strlen( realconfigdir ) +
-													 strlen( tmpfilename ) + 3 );
-				sprintf( pdse->dse_tmpfile, "%s/%s", realconfigdir, tmpfilename );
+				pdse->dse_tmpfile = slapi_ch_smprintf("%s/%s", realconfigdir, tmpfilename );
 			}
 			else
 				pdse->dse_tmpfile = slapi_ch_strdup(tmpfilename);
@@ -360,9 +354,7 @@ dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfil
 			if ( backfilename != NULL )
 			{
 				if (!strstr(backfilename, realconfigdir)) {
-					pdse->dse_fileback = slapi_ch_malloc( strlen( realconfigdir ) +
-														 strlen( backfilename ) + 3 );
-					sprintf( pdse->dse_fileback, "%s/%s", realconfigdir, backfilename );
+					pdse->dse_fileback = slapi_ch_smprintf("%s/%s", realconfigdir, backfilename );
 				}
 				else
 					pdse->dse_fileback = slapi_ch_strdup(backfilename);
@@ -373,9 +365,7 @@ dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfil
 			if ( startokfilename != NULL )
 			{
 				if (!strstr(startokfilename, realconfigdir)) {
-					pdse->dse_filestartOK = slapi_ch_malloc( strlen( realconfigdir ) +
-														 strlen( startokfilename ) + 3 );
-					sprintf( pdse->dse_filestartOK, "%s/%s", realconfigdir, startokfilename );
+					pdse->dse_filestartOK = slapi_ch_smprintf("%s/%s", realconfigdir, startokfilename );
 				}
 				else
 					pdse->dse_filestartOK = slapi_ch_strdup(startokfilename);
@@ -1343,8 +1333,8 @@ dse_delete_entry(struct dse* pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
 
 	/* keep write lock for both tree deleting and file writing */
 	PR_RWLock_Wlock(pdse->dse_rwlock);
-    if (deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree,
-													 n, entry_dn_cmp))
+    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree,
+													  n, entry_dn_cmp)))
 		dse_node_delete(&deleted_node);
     dse_node_delete(&n);
 

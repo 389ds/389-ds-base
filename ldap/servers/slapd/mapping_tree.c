@@ -874,13 +874,10 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
      * Since we don't really support it, children of the root node won't
      * have a MAPPING_TREE_PARENT_ATTRIBUTE. */
     if (is_root) {
-        filter = slapi_ch_malloc(strlen(MAPPING_TREE_PARENT_ATTRIBUTE)+38);
-        sprintf(filter, "(&(objectclass=nsMappingTree)(!(%s=*)))",
+        filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(!(%s=*)))",
                  MAPPING_TREE_PARENT_ATTRIBUTE);
     } else {
-        filter = slapi_ch_malloc(strlen(slapi_sdn_get_dn(target->mtn_subtree))
-                    + strlen(MAPPING_TREE_PARENT_ATTRIBUTE) + 36);
-        sprintf(filter, "(&(objectclass=nsMappingTree)(%s=\"%s\"))",
+        filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(%s=\"%s\"))",
             MAPPING_TREE_PARENT_ATTRIBUTE, 
             slapi_sdn_get_dn(target->mtn_subtree));
     }
@@ -1097,7 +1094,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
             if ((backends == NULL) && (node->mtn_state == MTN_BACKEND))
             {
-                sprintf(returntext, "mapping tree entry need at least one nsslapd-backend\n");
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "mapping tree entry need at least one nsslapd-backend\n");
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 mtn_unlock();
                 free_get_backends_from_attr(&backends, &be_names, &be_states, &be_list_count);
@@ -1125,7 +1122,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
              */
             if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) != LDAP_MOD_REPLACE)
             {
-                sprintf(returntext, "must use replace operation to change state\n");
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "must use replace operation to change state\n");
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 slapi_sdn_free(&subtree);
                 return SLAPI_DSE_CALLBACK_ERROR;
@@ -1145,7 +1142,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             {
                 if (slapi_entry_attr_find(entryAfter, "nsslapd-backend", &attr))
                 {
-                    sprintf(returntext, "need to set nsslapd-backend before moving to backend state\n");
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "need to set nsslapd-backend before moving to backend state\n");
                     slapi_sdn_free(&subtree);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     return SLAPI_DSE_CALLBACK_ERROR;
@@ -1157,7 +1154,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             {
                 if (slapi_entry_attr_find(entryAfter, "nsslapd-referral", &attr))
                 {
-                    sprintf(returntext, "need to set nsslapd-referral before moving to referral state\n");
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "need to set nsslapd-referral before moving to referral state\n");
                     slapi_sdn_free(&subtree);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     return SLAPI_DSE_CALLBACK_ERROR;
@@ -1193,7 +1190,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 if ((node->mtn_state == MTN_REFERRAL) ||
                     (node->mtn_state == MTN_REFERRAL_ON_UPDATE))
                 {
-                    sprintf(returntext,
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                              "cannot delete referrals in this state\n");
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     mtn_unlock();
@@ -1281,7 +1278,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
             if (plugin == NULL)
             {
-                sprintf(returntext, "cannot find distribution plugin\n");
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "cannot find distribution plugin\n");
                 slapi_ch_free((void **) &plugin_fct);
                 slapi_ch_free((void **) &plugin_lib);
                 slapi_sdn_free(&subtree);
@@ -1297,7 +1294,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
         else
         {
             /* only one parameter configured -> ERROR */
-            sprintf(returntext,
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                  "must define distribution function and library\n");
             slapi_ch_free((void **) &plugin_fct);
             slapi_ch_free((void **) &plugin_lib);
@@ -1430,7 +1427,7 @@ int mapping_tree_entry_delete_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
     {
         result = SLAPI_DSE_CALLBACK_ERROR;
         *returncode = LDAP_UNWILLING_TO_PERFORM;
-        sprintf(returntext, "this node has some children");
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "this node has some children");
         goto done;
     }
 
@@ -2008,9 +2005,9 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
             (op_type != SLAPI_OPERATION_BIND) && 
             (op_type != SLAPI_OPERATION_UNBIND)) {
             ret = LDAP_UNWILLING_TO_PERFORM;
-            strcpy(errorbuf, slapi_config_get_readonly() ? 
+            PL_strncpyz(errorbuf, slapi_config_get_readonly() ? 
                     "Server is read-only" :
-                    "database is read-only");
+                    "database is read-only", BUFSIZ);
             slapi_be_Unlock(*be);
             *be = NULL;
         }
@@ -2177,7 +2174,7 @@ void slapi_mapping_tree_free_all(Slapi_Backend **be_list, Slapi_Entry **referral
     {
         Slapi_Backend * be;
     
-        while (be = be_list[index++])
+        while ((be = be_list[index++]))
         {
             slapi_log_error(SLAPI_LOG_ARGS, NULL, "mapping tree release backend : %s\n", slapi_be_get_name(be));
             slapi_be_Unlock(be);
@@ -2188,7 +2185,7 @@ void slapi_mapping_tree_free_all(Slapi_Backend **be_list, Slapi_Entry **referral
     if (referral_list[index] != NULL)
     {
         Slapi_Entry * referral;
-        while (referral = referral_list[index++])
+        while ((referral = referral_list[index++]))
         {
             slapi_entry_free(referral);
         }
@@ -2237,7 +2234,7 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     if ((*be) && ((*be != new_be) || mtn_sdn_has_child(target_sdn)))
     {
         ret = LDAP_UNWILLING_TO_PERFORM;
-        sprintf(errorbuf, "Cannot move entries accross backends\n");
+        PR_snprintf(errorbuf, BUFSIZ, "Cannot move entries accross backends\n");
         goto unlock_and_return;
     }
 
@@ -2356,10 +2353,11 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
     target_sdn = operation_get_target_spec (op);
 
     if (target_node->mtn_state == MTN_DISABLED) {
-        if (errorbuf)
-            sprintf(errorbuf,
+		if (errorbuf) {
+			PR_snprintf(errorbuf, BUFSIZ,
                 "Warning: Operation attempted on a disabled node : %s\n",
-                    slapi_sdn_get_dn(target_node->mtn_subtree));
+				slapi_sdn_get_dn(target_node->mtn_subtree));
+		}
         result = LDAP_OPERATIONS_ERROR;
         return result;
     }
@@ -2475,7 +2473,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
             (*index)++;
             if (NULL == *referral) {
                 if (errorbuf) {
-                    sprintf(errorbuf, 
+                    PR_snprintf(errorbuf, BUFSIZ,
                     "Mapping tree node for %s is set to return a referral,"
                         " but no referral is configured for it",
                         slapi_sdn_get_ndn(target_node->mtn_subtree));
@@ -2672,7 +2670,6 @@ get_mapping_tree_node_by_name(mapping_tree_node * node, char * be_name)
 char* 
 slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
 {
-    int len;
     char *dn;
 
     if(mapping_tree_freed){
@@ -2682,9 +2679,7 @@ slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
     if (root == NULL)
         return NULL;
 
-    len = strlen (slapi_sdn_get_dn(root)) + strlen (MAPPING_TREE_BASE_DN) + 7; /* cn= + " + " + , + \0 */
-    dn = (char*)slapi_ch_malloc (len);
-    sprintf (dn, "cn=\"%s\",%s", slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
+    dn = slapi_ch_smprintf("cn=\"%s\",%s", slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
 
     return dn;
 }

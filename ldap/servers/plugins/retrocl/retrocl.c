@@ -45,7 +45,6 @@ Slapi_Backend *retrocl_be_changelog = NULL;
 static Slapi_PluginDesc retrocldesc = {"retrocl", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Retrocl Plugin"};
 static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "retrocl post-operation plugin"};
 static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "retrocl internal post-operation plugin"};
-static Slapi_PluginDesc retroclbepostopdesc = {"retrocl-bepostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Retrocl bepost-operation plugin"};
 
 
 /*
@@ -165,7 +164,7 @@ static int retrocl_select_backend(void)
     Slapi_Backend *be = NULL;
     Slapi_Entry *referral = NULL;
     Slapi_Operation *op = NULL;
-    char errbuf[1024];
+    char errbuf[BUFSIZ];
 
     pb = slapi_pblock_new();
 

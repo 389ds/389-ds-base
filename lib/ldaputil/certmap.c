@@ -132,6 +132,7 @@ static long certmap_name_to_bit_pos (const char *str)
     return CERTMAP_BIT_POS_UNKNOWN;
 }
 
+#if 0 /* may need this in the future */
 static int certmap_name_to_secoid (const char *str)
 {
     if (!ldapu_strcasecmp(str, "c")) return SEC_OID_AVA_COUNTRY_NAME;
@@ -147,6 +148,7 @@ static int certmap_name_to_secoid (const char *str)
 
     return SEC_OID_AVA_UNKNOWN;	/* return invalid OID */
 }
+#endif
 
 NSAPI_PUBLIC int ldapu_list_alloc (LDAPUList_t **list)
 {
@@ -874,7 +876,7 @@ static int ldapu_cert_searchfn_default (void *cert, LDAP *ld,
 	if (rv != LDAPU_SUCCESS || !subjectDN || !*subjectDN) return rv;
 	len = strlen(certmap_info->searchAttr) + strlen(subjectDN) +
 	    strlen("=") + 1;
-	certFilter = (char *)malloc(len * sizeof(char));
+	certFilter = (char *)ldapu_malloc(len * sizeof(char));
 	if (!certFilter) return LDAPU_ERR_OUT_OF_MEMORY;
 	sprintf(certFilter, "%s=%s", certmap_info->searchAttr, subjectDN);
 	free(subjectDN);
@@ -1354,6 +1356,7 @@ NSAPI_PUBLIC CertVerifyFn_t ldapu_get_cert_verifyfn (const char *issuerDN)
     return ldapu_get_cert_verifyfn_sub(certmap_info);
 }
 
+#if 0 /* may need this in the future */
 static int ldapu_certinfo_copy (const LDAPUCertMapInfo_t *from,
 				const char *newIssuerName,
 				const char *newIssuerDN,
@@ -1374,6 +1377,7 @@ static int ldapu_certinfo_copy (const LDAPUCertMapInfo_t *from,
 
     return process_certinfo(to);
 }
+#endif
 
 NSAPI_PUBLIC int ldapu_cert_to_ldap_entry (void *cert, LDAP *ld,
 					   const char *basedn,
@@ -1387,7 +1391,6 @@ NSAPI_PUBLIC int ldapu_cert_to_ldap_entry (void *cert, LDAP *ld,
     CertMapFn_t mapfn;
     CertVerifyFn_t verifyfn;
     CertSearchFn_t searchfn;
-    void *entry_cert = 0;
     int rv,i,j;
 
     *res = 0;

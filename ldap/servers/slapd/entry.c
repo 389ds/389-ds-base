@@ -176,7 +176,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			if ( errmsg != NULL ) {
 			         LDAPDebug( LDAP_DEBUG_PARSE, "%s", errmsg, 0, 0 );
 				 /* the memory below was not allocated by the slapi_ch_ functions */
-				 slapi_ch_free( (void**)&errmsg );
+				 PR_smprintf_free(errmsg );
 			}
 			LDAPDebug( LDAP_DEBUG_TRACE,
 			    "<= str2entry_fast NULL (parse_line)\n", 0, 0, 0 );
@@ -584,7 +584,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		    if ( errmsg != NULL ) {
 		             LDAPDebug( LDAP_DEBUG_PARSE, "%s", errmsg, 0, 0 );
 			     /* the memory below was not allocated by the slapi_ch_ functions */
-			     slapi_ch_free( (void**)&errmsg );
+			     PR_smprintf_free(errmsg );
 		    }
 		    LDAPDebug( LDAP_DEBUG_TRACE,
 			    "<= slapi_str2entry NULL (parse_line)\n", 0, 0, 0 );
@@ -3018,8 +3018,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
 
     if (NULL != logging_prestr && '\0' != *logging_prestr)
     {
-        my_logging_prestr = (char *)slapi_ch_malloc(strlen(logging_prestr) + 2);
-        sprintf(my_logging_prestr, "%s ", logging_prestr);
+        my_logging_prestr = slapi_ch_smprintf("%s ", logging_prestr);
     }
 
     for (oep = old_entries; oep != NULL && *oep != NULL; )

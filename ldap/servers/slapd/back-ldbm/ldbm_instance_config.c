@@ -114,7 +114,7 @@ ldbm_instance_config_instance_dir_get(void *arg)
         int len = strlen(inst->inst_parent_dir_name) +
                   strlen(inst->inst_dir_name) + 2;
         char *full_inst_dir = (char *)slapi_ch_malloc(len);
-        sprintf(full_inst_dir, "%s%c%s",
+        PR_snprintf(full_inst_dir, len, "%s%c%s",
             inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name),
             inst->inst_dir_name);
         return full_inst_dir;
@@ -274,7 +274,7 @@ read_instance_index_entries(ldbm_instance *inst)
 
     /* Construct the base dn of the subtree that holds the index entries 
      * for this instance. */
-    sprintf(basedn, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(basedn, BUFSIZ, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, inst->inst_li->li_plugin->plg_name); 
 
     /* Set up a tmp callback that will handle the init for each index entry */
@@ -310,7 +310,7 @@ read_instance_attrcrypt_entries(ldbm_instance *inst)
 
     /* Construct the base dn of the subtree that holds the index entries 
      * for this instance. */
-    sprintf(basedn, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(basedn, BUFSIZ, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, inst->inst_li->li_plugin->plg_name); 
 
     /* Set up a tmp callback that will handle the init for each index entry */
@@ -417,7 +417,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
      * cn=instance_name, cn=ldbm database, cn=plugins, cn=config.  If the
      * entry is there, then we process the config information it stores.
      */
-    sprintf(dn, "cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE, 
@@ -451,7 +451,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
 
     /* now check for cn=monitor -- if not present, add default child entries */
     search_pb = slapi_pblock_new();
-    sprintf(dn, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE,
                                  "objectclass=*", NULL, 0, NULL, NULL,
@@ -472,7 +472,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     }
 
     /* setup the dse callback functions for the ldbm instance config entry */
-    sprintf(dn, "cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)",
@@ -489,7 +489,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     /* delete is handled by a callback set in ldbm_config.c */
 
     /* don't forget the monitor! */
-    sprintf(dn, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     /* make callback on search; deny add/modify/delete */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
@@ -504,7 +504,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     /* delete is okay */
 
     /* Callbacks to handle indexes */
-    sprintf(dn, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsIndex)",
@@ -517,7 +517,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         ldbm_instance_index_config_modify_callback, (void *) inst);
 
     /* Callbacks to handle attribute encryption */
-    sprintf(dn, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, ldbm_instance_attrcrypt_filter,
@@ -641,8 +641,8 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
                 /* naughty naughty, we don't allow this */
                 rc = LDAP_UNWILLING_TO_PERFORM;
                 if (returntext) {
-                    sprintf(returntext,
-                            "Can't change the root suffix of a backend");
+					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+								"Can't change the root suffix of a backend");
                 }
                 LDAPDebug(LDAP_DEBUG_ANY,
                           "ldbm: modify attempted to change the root suffix "
@@ -660,7 +660,7 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
             if ((mods[i]->mod_op & LDAP_MOD_DELETE) || 
                 (mods[i]->mod_op & LDAP_MOD_ADD)) { 
                 rc= LDAP_UNWILLING_TO_PERFORM; 
-                sprintf(returntext, "%s attributes is not allowed", 
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed", 
                         (mods[i]->mod_op & LDAP_MOD_DELETE) ?
                         "Deleting" : "Adding"); 
             } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
@@ -785,7 +785,7 @@ ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBe
         LDAPDebug(LDAP_DEBUG_ANY, "WARNING: ldbm instance %s already exists\n",
                   instance_name, 0, 0);
         if (returntext != NULL)
-            sprintf(returntext, "An ldbm instance with the name %s already exists\n",
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "An ldbm instance with the name %s already exists\n",
                     instance_name);
         if (returncode != NULL)
             *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -818,7 +818,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     char dn[BUFSIZ];
 
     /* tear down callbacks for the instance config entry */
-    sprintf(dn, "cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)",
@@ -834,7 +834,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
         ldbm_instance_deny_config);
 
     /* now the cn=monitor entry */
-    sprintf(dn, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_instance_search);
@@ -844,7 +844,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_instance_deny_config);
 
     /* now the cn=index entries */
-    sprintf(dn, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsIndex)",
@@ -857,7 +857,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
         ldbm_instance_index_config_modify_callback);
 
     /* now the cn=encrypted attributes entries */
-    sprintf(dn, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
+    PR_snprintf(dn, BUFSIZ, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
             inst->inst_name, li->li_plugin->plg_name);
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, ldbm_instance_attrcrypt_filter,
@@ -887,7 +887,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm: instance '%s' does not exist! (2)\n",
                   instance_name, 0, 0);
         if (returntext) {
-            sprintf(returntext, "No ldbm instance exists with the name '%s' (2)\n",
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s' (2)\n",
                     instance_name);
         }
         if (returncode) {
@@ -957,7 +957,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm: instance '%s' does not exist!\n",
                   instance_name, 0, 0);
         if (returntext) {
-            sprintf(returntext, "No ldbm instance exists with the name '%s'\n",
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s'\n",
                     instance_name);
         }
         if (returncode) {
@@ -973,7 +973,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
                   "Cancel the task or wait for it to finish, "
                   "then try again.\n", instance_name, 0, 0);
         if (returntext) {
-            sprintf(returntext, "ldbm instance '%s' is in the middle of a "
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "ldbm instance '%s' is in the middle of a "
                     "task. Cancel the task or wait for it to finish, "
                     "then try again.\n", instance_name);
         }

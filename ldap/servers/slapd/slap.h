@@ -10,8 +10,7 @@
 
  
 /* Used by SSL and DES plugin */
-#ifndef _TOK
-#define _TOK
+#ifdef NEED_TOK_DES
 static char  tokDes[34] = "Communicator Generic Crypto Svcs";
 static char ptokDes[34] = "Internal (Software) Token        ";
 #endif

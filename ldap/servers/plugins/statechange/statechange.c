@@ -330,7 +330,7 @@ static void *_statechange_unregister(char *dn, char *filter, notify_callback the
 
 	slapi_lock_mutex(buffer_lock);
 
-	if(func = statechange_find_notify(dn, filter, thefunc))
+	if((func = statechange_find_notify(dn, filter, thefunc)))
 	{
 		func->prev->next = func->next;
 		func->next->prev = func->prev;

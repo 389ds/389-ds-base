@@ -16,9 +16,6 @@ static  void	aclutil__typestr (int type , char str[]);
 static  void	aclutil__Ruletypestr (int type , char str[]);
 static char* 	__aclutil_extract_dn_component ( char **e_dns,  int position, 
 											char *attrName );
-static char*	acl_get_final_component(char *macro_prefix) ;
-static char*	acl_match_component( char *start, char *component);
-static int		aclutil_compare_components( char * comp1, char *comp2);
 static int		acl_find_comp_start(char * s, int pos );
 static PRIntn	acl_ht_free_entry_and_value(PLHashEntry *he, PRIntn i,
 																void *arg);
@@ -130,7 +127,7 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 		return;
 
 	if (val->bv_len > 0 && val->bv_val != NULL) {
-	    sprintf (str, "%.1023s", val->bv_val);
+	    PR_snprintf (str, sizeof(str), "%.1023s", val->bv_val);
 	} else {
 	    str[0] = '\0';
 	}
@@ -629,7 +626,6 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	char *tmp_ptr = NULL;
 	char *matched_val = NULL;
 	char *ndn_suffix_start = NULL;
-	char *macro_prefix_final_component = NULL;
 	char *ret_val = NULL;
 	int ndn_len = 0;
 	int macro_suffix_len = 0;
@@ -890,12 +886,7 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 int
 acl_match_prefix( char *macro_prefix, const char *ndn, int *exact_match) {
 
-	int macro_index = 0;
-	int ndn_index = 0;
 	int ret_code = -1;
-	char *curr_macro_component = NULL;
-	char *curr_ndn_component = NULL;
-	int matched = 0;
 	int macro_prefix_len = 0;
 	int ndn_len = 0;
 	int i = 0;
@@ -1288,97 +1279,6 @@ get_this_component(char *dn, int *index) {
 	}
 	
 } 
-
-/*
- * return 1 if comp1==comp2,
- * return 0 otherwise.
- *
- * the components might have *'s.
- *
- * eg: comp1: cn=*
- * 		comp2: cn=fred
- *
- *
-*/
-
-static int
-aclutil_compare_components( char * comp1, char *comp2) {
-		
-	char *tmp_str = NULL;
-	
-	tmp_str = strstr( comp1, "=*");
-	if (  tmp_str == NULL) {
-	
-		/* Just a straight cmp */
-
-		if (slapi_utf8casecmp((ACLUCHP)comp1, (ACLUCHP)comp2) == 0) {
-			return(1);
-		} else {
-			return(0);
-		}
-	} else {
-
-		char *tmp_comp1= NULL;
-		char *tmp_comp2 = NULL;
-		int ret_code = 0;
-
-		/* Here, just compare the bit before the = */
-	
-		tmp_comp1 = slapi_ch_strdup(comp1);
-		tmp_comp2 = slapi_ch_strdup(comp2);
-
-		/*
-		 * Probably need to verify it's not escaped--see code for looking for
-		 * unescaped commas.
-		*/
-
-		tmp_str = strstr(tmp_comp1, "=");
-		*tmp_str = '\0';
-	
-		tmp_str = strstr(tmp_comp2, "=");
-		if ( tmp_str == NULL) {
-			ret_code = 0;
-		} else{
-
-			*tmp_str = '\0';
-
-			if (slapi_utf8casecmp((ACLUCHP)comp1, (ACLUCHP)comp2) == 0) {
-				ret_code = 1;
-			} else {
-				ret_code = 0;
-			}
-						
-		slapi_ch_free((void **)&tmp_comp1);
-		slapi_ch_free((void **)&tmp_comp2);
-		
-		return(ret_code);
-
-		}
-								
-	}
-}
-
-/*
- * return a pointer to the final component of macro_prefix.
-*/
-
-static char *
-acl_get_final_component(char *macro_prefix) {
-
-	return(NULL);
-}
-
-/*
- * 
- * 
-*/
-
-static char *
-acl_match_component( char *start, char *component) {
-
-
-	return(NULL);
-}
 
 /* acl hash table funcs */
 

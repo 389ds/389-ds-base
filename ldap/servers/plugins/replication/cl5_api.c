@@ -303,7 +303,6 @@ static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size)
 static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size);
 
 /* replay iteration */
-static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator);
 static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consumerRuv,
 			Object *replica, Object *fileObject, CL5ReplayIterator **iterator);
 static int _cl5CheckMissingCSN (const CSN *minCsn, const RUV *supplierRUV, CL5DBFile *file);
@@ -4734,8 +4733,8 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 		if (rc != 0)
 		{
 			if ( errmsg != NULL ) {
-			        slapi_log_error(SLAPI_LOG_PARSE, repl_plugin_name_cl, "%s", errmsg); 
-				slapi_ch_free( (void**)&errmsg );
+				slapi_log_error(SLAPI_LOG_PARSE, repl_plugin_name_cl, "%s", errmsg); 
+				PR_smprintf_free(errmsg );
 			}
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 							"_cl5LDIF2Operation: warning - failed to parse ldif line\n");
@@ -5291,17 +5290,6 @@ PRBool cl5HelperEntry (const char *csnstr, CSN *csnp)
 	return retval;
 }
 
-/* Replay iteration helper functions */
-static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator)
-{
-	if (iterator == NULL || 
-		iterator->consumerRuv == NULL || iterator->supplierRuvObj == NULL || 
-        iterator->fileObj == NULL)
-		return PR_FALSE;
-
-	return PR_TRUE;
-}
-
 /* Algorithm: ONREPL!!!
  */
 struct replica_hash_entry
@@ -5811,10 +5799,7 @@ static char* _cl5Replica2FileName (Object *replica)
 
 static char* _cl5MakeFileName (const char *replName, const char *replGen)
 {
-    char *fileName;
-    fileName = slapi_ch_malloc (strlen (replName) + strlen (replGen) + 
-                                 strlen (DB_EXTENSION) + 3/* '_' + '.' + '\0' */);
-    sprintf (fileName, "%s%s%s.%s", replName, FILE_SEP, replGen, DB_EXTENSION);
+    char *fileName = slapi_ch_smprintf("%s%s%s.%s", replName, FILE_SEP, replGen, DB_EXTENSION);
 
     return fileName;
 }
@@ -6069,8 +6054,7 @@ out:
 
 	if ( semadir != NULL )
 	{
-		(*dbFile)->semaName = slapi_ch_malloc (strlen(semadir) + strlen(replName) + strlen(".sema") + 10);
-		sprintf ((*dbFile)->semaName, "%s/%s.sema", semadir, replName);
+		(*dbFile)->semaName = slapi_ch_smprintf("%s/%s.sema", semadir, replName);
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
 			"_cl5NewDBFile: semaphore %s\n", (*dbFile)->semaName);
 		(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName, PR_SEM_CREATE, 0666, s_cl5Desc.dbConfig.maxConcurrentWrites );

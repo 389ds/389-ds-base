@@ -184,7 +184,9 @@ void g_set_detached(int val)
 void g_log_init(int log_enabled)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+#if defined( XP_WIN32 )
 	char * instancedir = NULL;
+#endif
 
 	ts_time_lock = PR_NewLock();
 	if (! ts_time_lock)
@@ -208,7 +210,7 @@ void g_log_init(int log_enabled)
     if( !hSlapdEventSource  )
     {
         char szMessage[256];
-        sprintf( szMessage, "Directory Server %s is terminating. Failed "
+        PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
             "to set the EventLog source.", pszServerName);
         MessageBox(GetDesktopWindow(), szMessage, " ", 
             MB_ICONEXCLAMATION | MB_OK);
@@ -1568,7 +1570,7 @@ int error_log_openf( char *pathname, int locked)
 	loginfo.log_error_file = slapi_ch_strdup(pathname); 		
 
 	/* store the rotation info fiel path name */
-	 sprintf (buf, "%s.rotationinfo",pathname);
+	PR_snprintf (buf, sizeof(buf), "%s.rotationinfo",pathname);
 	slapi_ch_free ((void**)&loginfo.log_errorinfo_file);
 	loginfo.log_errorinfo_file = slapi_ch_strdup ( buf );
 
@@ -1607,7 +1609,7 @@ audit_log_openf( char *pathname, int locked)
 	loginfo.log_audit_file = slapi_ch_strdup ( pathname );
 
 	/* store the rotation info file path name */
-	sprintf (buf, "%s.rotationinfo",pathname);
+	PR_snprintf (buf, sizeof(buf), "%s.rotationinfo",pathname);
 	loginfo.log_auditinfo_file = slapi_ch_strdup ( buf );
 
 	/*
@@ -1795,7 +1797,7 @@ vslapd_log_error(
     else  /* stderr is always unbuffered */
 	fprintf(stderr, "%s", buffer);
 
-    free (vbuf);
+    PR_smprintf_free (vbuf);
     return( 0 );
 }
 
@@ -1962,7 +1964,7 @@ int access_log_openf(char *pathname, int locked)
 	loginfo.log_access_file = slapi_ch_strdup ( pathname );
 
 	/* store the rotation info fiel path name */
-	sprintf (buf, "%s.rotationinfo",pathname);
+	PR_snprintf (buf, sizeof(buf), "%s.rotationinfo",pathname);
 	loginfo.log_accessinfo_file = slapi_ch_strdup ( buf );
 
 	/*
@@ -2038,7 +2040,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 			log->l_size = f_size;
 
 			log_convert_time (log->l_ctime, tbuf, 1 /*short */);
-			sprintf(newfile, "%s.%s", loginfo.log_access_file, tbuf);
+			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_access_file, tbuf);
 			if (PR_Rename (loginfo.log_access_file, newfile) != PR_SUCCESS) {
 				loginfo.log_access_fdes = NULL;
     				if (!locked)  LOG_ACCESS_UNLOCK_WRITE();
@@ -2085,13 +2087,13 @@ log__open_accesslogfile(int logfile_state, int locked)
 	/* write the header in the log */
 	now = current_time();
 	log_convert_time (now, tbuf, 2 /* long */);
-	sprintf (buffer,"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
+	PR_snprintf (buffer,sizeof(buffer),"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 
 	logp = loginfo.log_access_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short*/);
-		sprintf(buffer, "LOGINFO:Previous Log File:%s.%s (%lu) (%u)\n",
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Previous Log File:%s.%s (%lu) (%u)\n",
                         loginfo.log_access_file, tbuf, logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
@@ -2265,14 +2267,14 @@ log__delete_access_logfile()
 	if (loginfo.log_access_maxnumlogs == 1) {
 		LOG_CLOSE(loginfo.log_access_fdes);
                 loginfo.log_access_fdes = NULL;
-		sprintf (buffer, "%s", loginfo.log_access_file);
+		PR_snprintf (buffer, sizeof(buffer), "%s", loginfo.log_access_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s\n", loginfo.log_access_file,0,0);
 		}
 
 		/* Delete the rotation file also. */
-		sprintf (buffer, "%s.rotationinfo", loginfo.log_access_file);
+		PR_snprintf (buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_access_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s.rotationinfo\n", loginfo.log_access_file,0,0);
@@ -2375,7 +2377,7 @@ delete_logfile:
 
 	/* Delete the access file */
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
-	sprintf (buffer, "%s.%s", loginfo.log_access_file, tbuf);
+	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s.%s\n",
@@ -2686,7 +2688,7 @@ log_get_loglist(int logtype)
 	i = 0;
 	while (logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
-		sprintf(buf, "%s.%s", file, tbuf);
+		PR_snprintf(buf, sizeof(buf), "%s.%s", file, tbuf);
 		list[i] = slapi_ch_strdup(buf);
 		i++;
 		logp = logp->l_next;
@@ -2739,14 +2741,14 @@ log__delete_error_logfile()
 	if (loginfo.log_error_maxnumlogs == 1) {
 		LOG_CLOSE(loginfo.log_error_fdes);
                 loginfo.log_error_fdes = NULL;
-		sprintf (buffer, "%s", loginfo.log_error_file);
+		PR_snprintf (buffer, sizeof(buffer), "%s", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s\n", loginfo.log_error_file,0,0);
 		}
 
 		/* Delete the rotation file also. */
-		sprintf (buffer, "%s.rotationinfo", loginfo.log_error_file);
+		PR_snprintf (buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s.rotationinfo\n", loginfo.log_error_file,0,0);
@@ -2848,7 +2850,7 @@ delete_logfile:
 
 	/* Delete the error file */
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
-	sprintf (buffer, "%s.%s", loginfo.log_error_file, tbuf);
+	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
 	PR_Delete(buffer);
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_error_logs--;
@@ -2886,14 +2888,14 @@ log__delete_audit_logfile()
 	if (loginfo.log_audit_maxnumlogs == 1) {
 		LOG_CLOSE(loginfo.log_audit_fdes);
                 loginfo.log_audit_fdes = NULL;
-		sprintf (buffer, "%s", loginfo.log_audit_file);
+		PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_audit_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s\n", loginfo.log_audit_file,0,0);
 		}
 
 		/* Delete the rotation file also. */
-		sprintf (buffer, "%s.rotationinfo", loginfo.log_audit_file);
+		PR_snprintf(buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_audit_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s.rotationinfo\n", loginfo.log_audit_file,0,0);
@@ -2995,7 +2997,7 @@ delete_logfile:
 
 	/* Delete the audit file */
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
-	sprintf (buffer, "%s.%s", loginfo.log_audit_file, tbuf );
+	PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_audit_file, tbuf );
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		LDAPDebug(LDAP_DEBUG_TRACE, 
 				"LOGINFO:Unable to remove file:%s.%s\n",
@@ -3227,7 +3229,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 			log->l_size = f_size;
 
 			log_convert_time (log->l_ctime, tbuf, 1/*short */);
-			sprintf(newfile, "%s.%s", loginfo.log_error_file, tbuf);
+			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_error_file, tbuf);
 			if (PR_Rename (loginfo.log_error_file, newfile) != PR_SUCCESS) {
 				return LOG_UNABLE_TO_OPENFILE;
 			}
@@ -3273,13 +3275,13 @@ log__open_errorlogfile(int logfile_state, int locked)
 	/* write the header in the log */
 	now = current_time();
 	log_convert_time (now, tbuf, 2 /*long */);
-	sprintf (buffer,"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
+	PR_snprintf(buffer, sizeof(buffer),"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 
 	logp = loginfo.log_error_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
-		sprintf(buffer, "LOGINFO:Previous Log File:%s.%s (%lu) (%u)\n",
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Previous Log File:%s.%s (%lu) (%u)\n",
                         loginfo.log_error_file,	tbuf, logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
@@ -3347,7 +3349,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 			log->l_size = f_size;
 
 			log_convert_time (log->l_ctime, tbuf, 1 /*short */);
-			sprintf(newfile, "%s.%s", loginfo.log_audit_file, tbuf);
+			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_audit_file, tbuf);
 			if (PR_Rename (loginfo.log_audit_file, newfile) != PR_SUCCESS) {
 				if (!locked) LOG_AUDIT_UNLOCK_WRITE();
 				return LOG_UNABLE_TO_OPENFILE;
@@ -3394,13 +3396,13 @@ log__open_auditlogfile(int logfile_state, int locked)
 	/* write the header in the log */
 	now = current_time();
 	log_convert_time (now, tbuf, 2 /*long */);	
-	sprintf (buffer,"LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
+	PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 
 	logp = loginfo.log_audit_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);	
-		sprintf(buffer, "LOGINFO:Previous Log File:%s.%s (%d) (%d)\n",
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Previous Log File:%s.%s (%d) (%d)\n",
                         loginfo.log_audit_file, tbuf, (int)logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;

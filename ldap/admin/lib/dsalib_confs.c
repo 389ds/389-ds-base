@@ -17,6 +17,7 @@
 #include <string.h>
 #include <ldif.h>
 #include <ctype.h>
+#include "nspr.h"
 #include "plstr.h"
 
 /*
@@ -32,11 +33,11 @@ ds_get_conf_from_file(FILE *conf)
     char *entry = 0;
     int lineno = 0;
 
-    while (entry = ldif_get_entry(conf, &lineno)) {
+    while ((entry = ldif_get_entry(conf, &lineno))) {
 	char *begin = entry;
 	if (!PL_strncasecmp(entry, config_entry, cfg_ent_len)) {
 	    char *line = entry;
-	    while (line = ldif_getline(&entry)) {
+	    while ((line = ldif_getline(&entry))) {
 		listsize++;
 		conf_list = (char **) realloc(conf_list, 
 					      ((listsize + 1) * sizeof(char *)));
@@ -120,6 +121,9 @@ ds_get_value(char **ds_config, char *parm, int phase, int occurance)
 			value = tmpvalue;
 		    }
 		    free(tmpline);
+			if (errmsg) {
+				PR_smprintf_free(errmsg);
+			}
 		    return value;
 		}
         }

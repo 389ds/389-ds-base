@@ -267,7 +267,7 @@ client_auth_init ()
     	*val = '\0';
     } 
 
-    strcpy(netsite_root, instancedir);
+    PL_strncpyz(netsite_root, instancedir, MAXPATHLEN);
     slapi_ch_free_string(&instancedir);
     filename = PR_smprintf("%s%s", netsite_root, client_auth_config_file);
 

@@ -128,7 +128,7 @@ write_replog_db(
     const char          *newsuperior
 )
 {
-    char		*pat, *edn;
+    char		*edn;
     struct berval	*vals[ 2 ];
     struct berval	val;
     Slapi_Entry		*e;
@@ -146,9 +146,7 @@ write_replog_db(
 	    changenum, ( dn == NULL ) ? "NULL" : dn );
 
     /* Construct the dn of this change record */
-    pat = "%s=%lu,%s";
-    edn = slapi_ch_malloc( strlen( pat ) + strlen( RETROCL_CHANGELOG_DN) + 20 );
-    sprintf( edn, pat, attr_changenumber, changenum, RETROCL_CHANGELOG_DN);
+    edn = slapi_ch_smprintf( "%s=%lu,%s", attr_changenumber, changenum, RETROCL_CHANGELOG_DN);
 
     /*
      * Create the entry struct, and fill in fields common to all types

@@ -174,8 +174,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
                 slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                 	"<== cb_get_connection error (no connection available)\n");
 		if ( errmsg ) {
-			*errmsg = slapi_ch_malloc(CB_BUFSIZE);
-			sprintf(*errmsg,error1,"no connection available");
+			*errmsg = PR_smprintf(error1, "no connection available");
 		}
 		return LDAP_CONNECT_ERROR;
         }
@@ -227,8 +226,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
   				slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
         				"cb_get_connection server %s expired.\n", hostname );
 				if ( errmsg ) {
-					*errmsg = slapi_ch_malloc(CB_BUFSIZE);
-					sprintf(*errmsg,error1,"timelimit exceeded");
+					*errmsg = PR_smprintf(error1,"timelimit exceeded");
 				}
 				rc=LDAP_TIMELIMIT_EXCEEDED;
 				conn=NULL;
@@ -299,8 +297,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
                                		"Can't contact server <%s> port <%d>.\n", hostname, port);
 				}
 				if ( errmsg ) {
-					*errmsg = slapi_ch_malloc(CB_BUFSIZE);
-					sprintf(*errmsg,error1,"unknown reason");
+					*errmsg = PR_smprintf(error1,"unknown reason");
 				}
 				rc = LDAP_CONNECT_ERROR;
 				goto unlock_and_return;
@@ -365,8 +362,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 								prerr, slapd_pr_strerror(prerr));
 					}
 					if ( errmsg ) {
-						*errmsg = slapi_ch_malloc(CB_BUFSIZE);
-						sprintf(*errmsg,error2, ldap_err2string(rc));
+						*errmsg = PR_smprintf(error2, ldap_err2string(rc));
 					}
 					rc = LDAP_CONNECT_ERROR;
 					goto unlock_and_return;
@@ -386,8 +382,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 							prerr, slapd_pr_strerror(prerr));
 					}
 					if ( errmsg ) {
-						*errmsg = slapi_ch_malloc(CB_BUFSIZE);
-						sprintf(*errmsg,error2,ldap_err2string(rc));
+						*errmsg = PR_smprintf(error2,ldap_err2string(rc));
 					}
 					rc = LDAP_CONNECT_ERROR;
 					goto unlock_and_return;
@@ -411,8 +406,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
                                         		hostname, port, ldap_err2string(parse_rc));
 						}
 						if ( errmsg ) {
-	                                                *errmsg = slapi_ch_malloc(CB_BUFSIZE);
-							sprintf(*errmsg,error2,ldap_err2string(parse_rc));
+							*errmsg = PR_smprintf(error2,ldap_err2string(parse_rc));
 						}
 						rc = parse_rc;
 						goto unlock_and_return;
@@ -425,8 +419,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
                                         		hostname, port, ldap_err2string(rc));
 						}
 						if ( errmsg ) {
-	                                                *errmsg = slapi_ch_malloc(CB_BUFSIZE);
-							sprintf(*errmsg,error2, ldap_err2string(rc));
+							*errmsg = PR_smprintf(error2, ldap_err2string(rc));
 						}
 						goto unlock_and_return;
 					}

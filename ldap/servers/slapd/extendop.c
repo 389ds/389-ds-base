@@ -72,7 +72,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
 		/* slapi_str2entry modify its dn parameter so we must copy
 		 * this string each time we call it !
 		 */
-		sprintf(dn, "dn: oid=%s,cn=features,cn=config",
+		PR_snprintf(dn, sizeof(dn), "dn: oid=%s,cn=features,cn=config",
 			EXTOP_BULK_IMPORT_START_OID);
 
 		dummyAttrs[0] = dummyAttr;

@@ -46,7 +46,8 @@ extern "C" {
 #include "dsalib.h"
 }
 
-#include "prprf.h"
+#include "nspr.h"
+#include "plstr.h"
 
 #include "setupapi.h"
 #ifdef XP_UNIX
@@ -342,7 +343,7 @@ normalizeDNs()
 			if (dn)
 			{
 				char port[6];
-				sprintf(port, "%d", desc->lud_port);
+				PR_snprintf(port, sizeof(port), "%d", desc->lud_port);
 				NSString newurl = NSString("ldap") +
 					(isSSL ? "s" : "") +
 					"://" + desc->lud_host +
@@ -366,46 +367,13 @@ featureIsEnabled(const char *s)
 	return 1; // feature is enabled
 }
 
-/*
- * The following escape LDAP URL is from ldapserver/ldap/clients/dsgw/htmlout.c
- */
-
-#define HREF_CHAR_ACCEPTABLE( c )       (( c >= '-' && c <= '9' ) ||    \
-                                         ( c >= '@' && c <= 'Z' ) ||    \
-                                         ( c == '_' ) ||                \
-                                         ( c >= 'a' && c <= 'z' ))
-static void
-escape_ldap_uri(char *s1, const char *s2)
-{
-	unsigned char *q;
-	char *p;
-	const char *hexdig = "0123456789ABCDEF";
-
-	p = s1 + strlen(s1);
-	for (q = (unsigned char *) s2; *q != '\0'; ++q)
-	{
-		if (HREF_CHAR_ACCEPTABLE(*q))
-		{
-			*p++ = *q;
-		}
-		else
-		{
-			*p++ = '%';
-			*p++ = hexdig[*q >> 4];
-			*p++ = hexdig[*q & 0x0F];
-		}
-	}
-
-	*p = '\0';
-}
-
 static LdapErrorCode
 add_sample_entries(const char *sroot, LdapEntry *ldapEntry)
 {
    char tmp[MED_BUF];
 
    if (sroot)
-	   sprintf(tmp, "%s%s%s", sroot, FILE_PATHSEP, SAMPLE_LDIF);
+	   PR_snprintf(tmp, MED_BUF, "%s%s%s", sroot, FILE_PATHSEP, SAMPLE_LDIF);
    else
 	   strcpy(tmp, "test.ldif");
    
@@ -499,12 +467,12 @@ add_org_entries(const char *sroot, LdapEntry *ldapEntry,
    {
 	   if (!initialLdifFile || !*initialLdifFile ||
 		   !strncasecmp(initialLdifFile, "suggest", strlen(initialLdifFile)))
-		   sprintf(tmp, "%s%s%s", sroot, FILE_PATHSEP, TEMPLATE_LDIF);
+		   PR_snprintf(tmp, sizeof(tmp), "%s%s%s", sroot, FILE_PATHSEP, TEMPLATE_LDIF);
 	   else
-		   strcpy(tmp, initialLdifFile);
+		   PL_strncpyz(tmp, initialLdifFile, sizeof(tmp));
    }
    else
-	   strcpy(tmp, "test.ldif");
+	   PL_strncpyz(tmp, "test.ldif", sizeof(tmp));
    
    LdifEntry ldif(tmp);
    
@@ -609,7 +577,7 @@ add_org_entries(const char *sroot, LdapEntry *ldapEntry,
 
       if (ldapError != OKAY)
       {
-         sprintf(tmp, "%d", ldapError.errorCode());
+         PR_snprintf(tmp, sizeof(tmp), "%d", ldapError.errorCode());
 		 dsLogMessage(SETUP_LOG_WARN, "Slapd", "Could not write entry %s (%s:%s)", dn, tmp, ldapError.msg());
       }
 	  delete [] dn;
@@ -1290,7 +1258,7 @@ init_from_config(server_config_s *cf)
 		const char *suffix = DEFAULT_ROOT_DN;
 		int isSSL = !strncmp(cf->config_ldap_url, "ldaps:", strlen("ldaps:"));
 		char port[6];
-		sprintf(port, "%d", desc->lud_port);
+		PR_snprintf(port, sizeof(port), "%d", desc->lud_port);
 		NSString url = NSString("ldap") +
 			(isSSL ? "s" : "") +
 			"://" + desc->lud_host +
@@ -1424,7 +1392,7 @@ extern "C" int create_config_from_inf(
 		const char *suffix = DEFAULT_ROOT_DN;
 		int isSSL = !strncmp(cf->config_ldap_url, "ldaps:", strlen("ldaps:"));
 		char port[6];
-		sprintf(port, "%d", desc->lud_port);
+		PR_snprintf(port, sizeof(port), "%d", desc->lud_port);
 		NSString url = NSString("ldap") +
 			(isSSL ? "s" : "") +
 			"://" + desc->lud_host +
@@ -1434,7 +1402,7 @@ extern "C" int create_config_from_inf(
 		ldap_free_urldesc(desc);
 	}
 
-	if (test = installInfo->get(SLAPD_KEY_USER_GROUP_LDAP_URL))
+	if ((test = installInfo->get(SLAPD_KEY_USER_GROUP_LDAP_URL)))
 		cf->user_ldap_url = my_c_strdup(test);
 	else
 		cf->user_ldap_url = my_c_strdup(cf->config_ldap_url);
@@ -1457,12 +1425,12 @@ extern "C" int create_config_from_inf(
 
 	/* we also have to setup the environment to mimic a CGI */
 	static char netsiteRoot[PATH_MAX+32];
-	PR_snprintf(netsiteRoot, PATH_MAX+32, "NETSITE_ROOT=%s", cf->sroot);
+	PR_snprintf(netsiteRoot, sizeof(netsiteRoot), "NETSITE_ROOT=%s", cf->sroot);
 	putenv(netsiteRoot);
 
 	/* set the admin SERVER_NAMES = slapd-slapdIdentifier */
 	static char serverNames[PATH_MAX+32];
-	PR_snprintf(serverNames, PATH_MAX+32, "SERVER_NAMES=slapd-%s", cf->servid);
+	PR_snprintf(serverNames, sizeof(serverNames), "SERVER_NAMES=slapd-%s", cf->servid);
 	putenv(serverNames);
 
 	/* get and set the log file */
@@ -1473,11 +1441,11 @@ extern "C" int create_config_from_inf(
 		static char s_logfile[PATH_MAX+32];
 		if (logFile)
 		{
-			PR_snprintf(s_logfile, PATH_MAX+32, "DEBUG_LOGFILE=%s", logFile);
+			PR_snprintf(s_logfile, sizeof(s_logfile), "DEBUG_LOGFILE=%s", logFile);
 		}
 		else
 		{
-			PR_snprintf(s_logfile, PATH_MAX+32, "DEBUG_LOGFILE=%s", test);
+			PR_snprintf(s_logfile, sizeof(s_logfile), "DEBUG_LOGFILE=%s", test);
 			/* also init the C++ api message log */
 			initMessageLog(test);
 		}
@@ -1560,16 +1528,16 @@ configure_instance()
 #else
 		/* stevross: figure out NT equivalent */
 #endif
-		strcpy(hn, h);
+		PL_strncpyz(hn, h, BUFSIZ);
 		installInfo->set(SLAPD_KEY_FULL_MACHINE_NAME, hn);
 	}
 	else
 	{
-		strcpy(hn,installInfo->get(SLAPD_KEY_FULL_MACHINE_NAME));
+		PL_strncpyz(hn,installInfo->get(SLAPD_KEY_FULL_MACHINE_NAME), BUFSIZ);
 	}
 
 	NSString sieDN;
-	if (status = create_ss_dir_tree(hn, sieDN))
+	if ((status = create_ss_dir_tree(hn, sieDN)))
 	{
 		dsLogMessage(SETUP_LOG_FATAL, "Slapd",
 			   "Did not add Directory Server information to Configuration Server.");
@@ -1690,7 +1658,6 @@ extern "C" int
 reconfigure_instance(int argc, char *argv[])
 {
 	char hn[BUFSIZ];
-	int status = 0;
 
 	dsLogMessage(SETUP_LOG_START, "Slapd", "Starting Slapd server reconfiguration.");
 
@@ -1733,12 +1700,12 @@ reconfigure_instance(int argc, char *argv[])
 #else
 		/* stevross: figure out NT equivalent */
 #endif
-		strcpy(hn, h);
+		PL_strncpyz(hn, h, BUFSIZ);
 		installInfo->set(SLAPD_KEY_FULL_MACHINE_NAME, hn);
 	}
 	else
 	{
-		strcpy(hn,installInfo->get(SLAPD_KEY_FULL_MACHINE_NAME));
+		PL_strncpyz(hn,installInfo->get(SLAPD_KEY_FULL_MACHINE_NAME), BUFSIZ);
 	}
 
 	// search for the app entry for the DS installation we just replaced

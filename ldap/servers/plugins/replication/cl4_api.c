@@ -401,10 +401,7 @@ static char* _cl4MakeCSNDN (const CSN* csn)
 		return NULL;
 
 	/* Construct the dn of this change record */
-    pat = "%s=%s,%s";
-    edn = slapi_ch_malloc(strlen(pat) + strlen(attr_csn) + strlen(suffix) + CSN_STRSIZE + 1);
-	if (edn)
-		sprintf(edn, pat, attr_csn, csn_as_string(csn,PR_FALSE,s), suffix);
+    edn = slapi_ch_smprintf("%s=%s,%s", attr_csn, csn_as_string(csn,PR_FALSE,s), suffix);
 	slapi_ch_free ((void **)&suffix);
 
 	return edn;
@@ -561,7 +558,7 @@ static int _cl4GetTargetEntry (Slapi_DN *sdn, const char *uniqueid, Slapi_Entry 
 	Slapi_Entry **entries = NULL;
 
 	/* read corresponding database entry based on its uniqueid */
-	sprintf (filter, "uniqueid=%s", uniqueid);	
+	PR_snprintf (filter, sizeof(filter), "uniqueid=%s", uniqueid);	
 	pb = slapi_pblock_new ();
 	slapi_search_internal_set_pb (pb, (char*)slapi_sdn_get_ndn(sdn), LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL,
 								  repl_get_plugin_identity (PLUGIN_LEGACY_REPLICATION), 0);
@@ -633,7 +630,7 @@ static int _cl4FindTargetDN (const CSN *csn, const char *uniqueid,
 	/* Look for all modifications to the target entry with csn larger than 
 	   this csn. We are only interested in rename operations, but change type
        is currently not indexed */
-	sprintf (filter, "&(uniqueid=%s)(csn>%s)", uniqueid, csn_as_string(csn,PR_FALSE,s));
+	PR_snprintf (filter, 128, "&(uniqueid=%s)(csn>%s)", uniqueid, csn_as_string(csn,PR_FALSE,s));
 	pb = slapi_pblock_new ();
 	slapi_search_internal_set_pb (pb, suffix, LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL,
 								  repl_get_plugin_identity (PLUGIN_LEGACY_REPLICATION), 0);

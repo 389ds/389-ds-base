@@ -110,7 +110,6 @@ do_add( Slapi_PBlock *pb )
 		if ( !normtype || !*normtype ) {
 			rc = LDAP_INVALID_SYNTAX;
 			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
-			ebuf[BUFSIZ-1] = '\0';
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), ebuf);
 			send_ldap_result( pb, rc, NULL, ebuf, 0, NULL );
 			free( type );

@@ -17,7 +17,6 @@ legacy_preop_bind( Slapi_PBlock *pb )
 	char *dn = NULL;
 	struct berval *cred = NULL;
 	int method;
-	int one = 1;
     
 	slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
 	slapi_pblock_get(pb, SLAPI_BIND_TARGET, &dn);

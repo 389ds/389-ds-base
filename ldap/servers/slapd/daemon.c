@@ -141,7 +141,7 @@ void *slapd_service_exit_wait()
 
 	_splitpath( module, drive, dir, fname, ext );
 
-	sprintf( exit_file_name, "%s%s%s", drive, dir, "exitnow.txt" );
+	PR_snprintf( exit_file_name, sizeof(exit_file_name), "%s%s%s", drive, dir, "exitnow.txt" );
 
     LDAPDebug( LDAP_DEBUG_ANY, "PURIFYING - Create %s to terminate the process.\n", exit_file_name, 0, 0 );
 
@@ -163,7 +163,7 @@ void *slapd_service_exit_wait()
 	DWORD dwWait;
 	char szDoneEvent[256];
 
-	sprintf(szDoneEvent, "NS_%s", pszServerName);
+	PR_snprintf(szDoneEvent, sizeof(szDoneEvent), "NS_%s", pszServerName);
 
 	hServDoneEvent = CreateEvent( NULL,			// default security attributes (LocalSystem)
 								  TRUE,			// manual reset event
@@ -242,8 +242,6 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 	int addrlen, int secure, PRFileDesc **pr_clonefd)
 {
 	int ns = 0;
-	int ioblock_timeout = config_get_ioblocktimeout();
-	int enable_nagle = config_get_nagle();
 
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
 
@@ -2529,7 +2527,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure )
 {
 	int ns = 0;
 	int reservedescriptors = config_get_reservedescriptors();
-	int ioblock_timeout = config_get_ioblocktimeout();
 	int enable_nagle = config_get_nagle();
 
 	PRSocketOptionData pr_socketoption;
@@ -2641,7 +2638,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure )
 void configure_ns_socket( int * ns )
 {
 
-	int ioblock_timeout = config_get_ioblocktimeout();
 	int enable_nagle = config_get_nagle();
         int on;
 

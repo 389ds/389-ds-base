@@ -943,7 +943,6 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 			/**********************************************/
 			int item_count = 0;
 			int iter = 0;
-			int j = 0;
 			Slapi_DN *namespace_dn;
 			Slapi_Backend *backend=0;
 			vattr_context *ctx;

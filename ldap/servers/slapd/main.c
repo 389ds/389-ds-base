@@ -216,7 +216,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
 {
   PRDir *dir;
   PRDirEntry *entry;
-  char dirname[MAXPATHLEN + 1], file[MAXPATHLEN + 1];
+  char file[MAXPATHLEN + 1];
   char *log=NULL, *ptr=NULL;
   int rc=0;
 
@@ -240,7 +240,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
     /* change the owner for each of the files in the dir */
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
-	sprintf(file,"%s/%s",log,entry->name);
+	PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
 	chown_if_not_owner( file, pw->pw_uid, -1 ); 
     }
     PR_CloseDir( dir );
@@ -255,7 +255,6 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
 static void
 fix_ownership() 
 {
-	int len, n;
 	struct passwd* pw=NULL;
 	char dirname[MAXPATHLEN + 1];
 
@@ -272,7 +271,7 @@ fix_ownership()
 
 	/* The instance directory needs to be owned by the local user */
 	chown_if_not_owner( slapdFrontendConfig->instancedir, pw->pw_uid, -1 );
-	sprintf(dirname,"%s/config",slapdFrontendConfig->instancedir);
+	PR_snprintf(dirname,sizeof(dirname),"%s/config",slapdFrontendConfig->instancedir);
 	chown_dir_files(dirname, pw, PR_FALSE); /* config directory */
 	chown_dir_files(slapdFrontendConfig->accesslog, pw, PR_TRUE); /* do access log directory */
 	chown_dir_files(slapdFrontendConfig->auditlog, pw, PR_TRUE);  /* do audit log directory */
@@ -493,7 +492,7 @@ static void ids_get_platform_solaris(char *buf)
     sbuf[0] = '\0';
     sysinfo(SI_PLATFORM,sbuf,128);
     
-    sprintf(buf,"%ssparc%s-%s-solaris",
+    PR_snprintf(buf,sizeof(buf),"%ssparc%s-%s-solaris",
 	    is_u ? "u" : "",
 	    sizeof(long) == 4 ? "" : "v9",
 	    sbuf);
@@ -867,7 +866,7 @@ main( int argc, char **argv)
 	if( !hSlapdEventSource  )
 	{
 		char szMessage[256];
-		sprintf( szMessage, "Directory Server %s is terminating. Failed "
+		PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
 			"to set the EventLog source.", pszServerName);
 		MessageBox(GetDesktopWindow(), szMessage, " ", 
 			MB_ICONEXCLAMATION | MB_OK);
@@ -1067,7 +1066,7 @@ main( int argc, char **argv)
     		else
     		{
     			char szMessage[256];
-    			sprintf( szMessage, "The Directory Server %s is terminating due to an error. Check server port specification", pszServerName);
+    			PR_snprintf( szMessage, sizeof(szMessage), "The Directory Server %s is terminating due to an error. Check server port specification", pszServerName);
     			MessageBox(GetDesktopWindow(), szMessage,	" ", MB_ICONEXCLAMATION | MB_OK);
     		}
 #endif
@@ -1645,8 +1644,7 @@ process_command_line(int argc, char **argv, char *myname,
 		case 't':	/* attribute type to index - may be repeated */
 		case 'T':	/* VLV Search to index - may be repeated */
 			if ( slapd_exemode == SLAPD_EXEMODE_DB2INDEX ) {
-                char *p= slapi_ch_malloc(strlen(optarg_ext) + 2);
-                sprintf(p,"%c%s",i,optarg_ext);
+                char *p= slapi_ch_smprintf("%c%s",i,optarg_ext);
     			charray_add( &db2index_attrs, p);
 				break;
             }
@@ -1775,15 +1773,13 @@ lookup_instance_name_by_suffix(char *suffix,
     if (pb == NULL)
         goto done;
 
-    query = slapi_ch_malloc(strlen((const char *)suffix) + 80);         /* round up */
+	if (isexact)
+    	query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=\"%s\")(cn=%s)))", suffix, suffix);
+	else
+    	query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=*%s\")(cn=*%s)))", suffix, suffix);
 
     if (query == NULL)
 		goto done;
-
-	if (isexact)
-    	sprintf(query, "(&(objectclass=nsmappingtree)(|(cn=\"%s\")(cn=%s)))", suffix, suffix);
-	else
-    	sprintf(query, "(&(objectclass=nsmappingtree)(|(cn=*%s\")(cn=*%s)))", suffix, suffix);
 
     slapi_search_internal_set_pb(pb, "cn=mapping tree,cn=config",
         LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
@@ -1858,12 +1854,11 @@ static struct slapdplugin *lookup_plugin_by_instance_name(const char *name)
     if (pb == NULL)
         return NULL;
 
-    query = slapi_ch_malloc(strlen(name) + 80);         /* round up */
+    query = slapi_ch_smprintf("(&(cn=%s)(objectclass=nsBackendInstance))", name);
     if (query == NULL) {
         slapi_pblock_destroy(pb);
         return NULL;
     }
-    sprintf(query, "(&(cn=%s)(objectclass=nsBackendInstance))", name);
 
     slapi_search_internal_set_pb(pb, "cn=plugins,cn=config",
         LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
@@ -2363,7 +2358,6 @@ static int
 slapd_exemode_db2archive()
 {
     int return_value= 0;
-	Slapi_Backend *be = NULL;
 	Slapi_PBlock pb;
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -2419,7 +2413,6 @@ static int
 slapd_exemode_archive2db()
 {
     int return_value= 0;
-	Slapi_Backend *be = NULL;
 	Slapi_PBlock pb;
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();

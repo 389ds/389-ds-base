@@ -29,10 +29,7 @@ SRCS	= dsalib_location.c dsalib_debug.c dsalib_updown.c dsalib_tailf.c \
 	dsalib_ldif.c dsalib_db.c dsalib_conf.c dsalib_html.c \
 	dsalib_filename.c dsalib_util.c dsalib_dn.c dsalib_confs.c dsalib_pw.c
 
-PWDOBJ=$(OBJDIR)/lib/libpwdstorage/ssha_pwd.o
-
-OBJS1 = $(addprefix $(OBJDEST)/, $(subst .c,.o,$(SRCS)))
-OBJS = $(OBJS1)  $(PWDOBJ)
+OBJS = $(addprefix $(OBJDEST)/, $(subst .c,.o,$(SRCS)))
 
 INCLUDES += -I$(LDAP_SRC)/admin/include
 ifdef FORTEZZA
@@ -95,13 +92,13 @@ endif
 veryclean: clean
 
 clean:
-	-$(RM) $(OBJS1)
+	-$(RM) $(OBJS)
 	-$(RM) $(LIBS)
 ifeq ($(ARCH), WINNT)
 	-$(RM) $(IMPLIB)
 endif
 
-$(OBJS1): $(OBJDEST)/%.o: %.c 
+$(OBJS): $(OBJDEST)/%.o: %.c 
 	$(CC) -c $(NONSHARED) $(CFLAGS) $(MCC_INCLUDE) $(OFFLAG)$(OBJDEST)/$*.o $*.c
 ifdef USE_LINT
 	$(LINT) $(LINTCCFLAGS) $(DEFS) $(MCC_SERVER) $(INCLUDES) $(MCC_INCLUDE) $*.c > $(OBJDEST)/$*.ln 2>&1

@@ -498,19 +498,6 @@ legacy_consumer_is_replicationpw(struct berval *pwval)
     return return_value;
 }
 
-static void 
-legacy_consumer_free_config ()
-{
-	if (NULL != legacy_consumer_replicationdn) {
-		slapi_sdn_free(&legacy_consumer_replicationdn);
-	}
-	if (NULL != legacy_consumer_replicationpw) {
-		slapi_ch_free((void **) &legacy_consumer_replicationpw);
-	}
-}
-
-
-
 static void
 legacy_consumer_encode_pw (Slapi_Entry *e)
 {
@@ -599,9 +586,7 @@ get_legacy_referral (Slapi_Entry *e, char **referral, char **state)
         }
         else
         {
-            *referral = slapi_ch_malloc (strlen (pat) + strlen (hostport));
-        
-            sprintf (*referral, pat, hostport);
+            *referral = slapi_ch_smprintf (pat, hostport);
 
             slapi_ch_free ((void**)&hostport);
         }

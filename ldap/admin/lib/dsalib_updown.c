@@ -58,7 +58,7 @@ ds_get_updown_status()
 		fprintf(stderr, "ds_get_updown_status: could not get install root\n");
         return(DS_SERVER_UNKNOWN);
 	}
-    sprintf(pid_file_name, "%s/logs/pid", root);
+    PR_snprintf(pid_file_name, BIG_LINE, "%s/logs/pid", root);
     pidfile = fopen(pid_file_name, "r");
     if ( pidfile == NULL ) {
 /*
@@ -147,9 +147,9 @@ ds_bring_up_server_install(int verbose, char *root, char *errorlog)
 
 #if !defined( XP_WIN32 )
     tmp_dir = ds_get_tmp_dir();
-    sprintf(statfile, "%s%cstartup.%d", tmp_dir, FILE_SEP, (int)getpid());
+    PR_snprintf(statfile, PATH_MAX, "%s%cstartup.%d", tmp_dir, FILE_SEP, (int)getpid());
 
-    sprintf(startup_line, "%s%c%s > %s 2>&1",
+    PR_snprintf(startup_line, BIG_LINE, "%s%c%s > %s 2>&1",
 			root, FILE_SEP, START_SCRIPT, statfile);
     alter_startup_line(startup_line);
     error = system(startup_line);
@@ -244,7 +244,7 @@ ds_bring_up_server_install(int verbose, char *root, char *errorlog)
 		}
 		if (verbose) {
 			char str[100];
-			sprintf(str, "Had to retry %d times", tries);
+			PR_snprintf(str, sizeof(str), "Had to retry %d times", tries);
 			ds_send_status(str);
 		}
     }
@@ -351,7 +351,7 @@ IsService()
 	HKEY hServerKey;
 	DWORD dwType, ValueLength, Result;
 
-	sprintf(ServerKey,"%s\\%s\0", COMPANY_KEY, PRODUCT_KEY);
+	PR_snprintf(ServerKey,sizeof(ServerKey), "%s\\%s", COMPANY_KEY, PRODUCT_KEY);
 
 	Result = RegOpenKey(HKEY_LOCAL_MACHINE, ServerKey, &hServerKey);
 	if (Result != ERROR_SUCCESS) {
@@ -384,7 +384,7 @@ IsAdminService()
 	HKEY hAdminKey;
 	DWORD dwType, ValueLength, Result;
 
-	sprintf(AdminKey,"%s\\%s\0", COMPANY_KEY, ADMIN_REGISTRY_ROOT_KEY);
+	PR_snprintf(AdminKey,sizeof(AdminKey), "%s\\%s", COMPANY_KEY, ADMIN_REGISTRY_ROOT_KEY);
 
 	Result = RegOpenKey(HKEY_LOCAL_MACHINE, AdminKey, &hAdminKey);
 	if (Result != ERROR_SUCCESS) {
@@ -421,7 +421,7 @@ StartServer()
                 NULL,                   // database (NULL == default)
                 SC_MANAGER_ALL_ACCESS   // access required
                 ))) {
-            sprintf(ErrorString, 
+			PR_snprintf(ErrorString, sizeof(ErrorString),
                 "Error: Could not open the ServiceControlManager:%d "
                 "Please restart the server %s from the Services Program Item "
                 "in the Control Panel", ds_get_server_name(), GetLastError());
@@ -449,7 +449,7 @@ StopandRestartServer()
                 NULL,                   // database (NULL == default)
                 SC_MANAGER_ALL_ACCESS   // access required
                 ))) {
-            sprintf(ErrorString, 
+            PR_snprintf(ErrorString, sizeof(ErrorString),
                 "Error: Could not restart server."
                 "Please restart the server %s from the Services Program Item "
                 "in the Control Panel", ds_get_server_name());
@@ -483,7 +483,7 @@ StopServer()
                 NULL,                   // database (NULL == default)
                 SC_MANAGER_ALL_ACCESS   // access required
                 ))) {
-            sprintf(ErrorString, 
+            PR_snprintf(ErrorString, sizeof(ErrorString),
                 "Error: Could not open the ServiceControlManager:%d "
                 "Please restart the server %s from the Services Program Item "
                 "in the Control Panel", ds_get_server_name(), GetLastError());
@@ -507,14 +507,14 @@ StartNetscapeProgram()
 	PROCESS_INFORMATION piProcInfo;
     FILE *CmdFile;
 
-    ZeroMemory(line, BIG_LINE);
+    ZeroMemory(line, sizeof(line));
 
-    sprintf(line, "%s\\startsrv.bat", tmp);
+    PR_snprintf(line, BIG_LINE, "%s\\startsrv.bat", tmp);
     
     CmdFile = fopen(line, "r");
     if (!CmdFile) 
 	{
-        sprintf(ErrorString, "Error:Tried to start Netscape server %s "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start Netscape server %s "
             ": Could not open the startup script %s :Error %d. Please "
             "run startsrv.bat from the server's root directory.",
             ds_get_server_name(), line, errno);
@@ -522,10 +522,10 @@ StartNetscapeProgram()
         return(DS_SERVER_DOWN);
     }
 
-    ZeroMemory(cmd, BIG_LINE);
+    ZeroMemory(cmd, sizeof(cmd));
     if (!fread(cmd, 1, BIG_LINE, CmdFile)) 
 	{
-        sprintf(ErrorString, "Error:Tried to start Netscape server %s "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start Netscape server %s "
             ": Could not read the startup script %s :Error %d. Please "
             "run startsrv.bat from the server's root directory.",
             ds_get_server_name(), line, errno);
@@ -542,7 +542,7 @@ StartNetscapeProgram()
 	if (!CreateProcess(NULL, cmd, NULL, NULL, FALSE,
 		0, NULL, NULL, &siStartInfo, &piProcInfo)) 
 	{
-        sprintf(ErrorString, "Error:Tried to start Netscape server %s "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start Netscape server %s "
             ": Could not start up the startup script %s :Error %d. Please "
             "run startsrv.bat from the server's root directory.",
             ds_get_server_name(), line, GetLastError());
@@ -565,7 +565,7 @@ StopNetscapeProgram()
     hEvent = CreateEvent(NULL, TRUE, FALSE, servid);  
     if(!SetEvent(hEvent)) 
 	{
-        sprintf(ErrorString, "Tried to stop existing Netscape server %s"
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to stop existing Netscape server %s"
             ": Could not signal it to stop :Error %d",
             servid, GetLastError());
         ds_send_error(ErrorString, 0);
@@ -588,7 +588,7 @@ StopNetscapeService()
  
     if (schService == NULL) 
 	{
-        PR_snprintf(ErrorString, 512, "Tried to open Netscape service"
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to open Netscape service"
             " %s: Error %d (%s). Please"
             " stop the server from the Services Item in the Control Panel",
             serviceName, GetLastError(), ds_system_errmsg());
@@ -613,7 +613,7 @@ StopNetscapeService()
     } 
     else if (Error != ERROR_SERVICE_NOT_ACTIVE) 
 	{
-        PR_snprintf(ErrorString, 512, "Tried to stop Netscape service"
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to stop Netscape service"
             " %s: Error %d (%s)."
             " Please stop the server from the Services Item in the"
             " Control Panel", serviceName, Error, ds_system_errmsg());
@@ -638,7 +638,7 @@ StartNetscapeService()
     if (schService == NULL) 
 	{
         CloseServiceHandle(schService);
-        sprintf(ErrorString, "Tried to start"
+        PR_snprintf(ErrorString, sizeof(ErrorString),"Tried to start"
             " the Netscape service %s: Error %d. Please"
             " start the server from the Services Item in the Control Panel",
             serviceName, GetLastError());
@@ -649,7 +649,7 @@ StartNetscapeService()
     if (!StartService(schService, 0, NULL)) 
 	{
         CloseServiceHandle(schService);
-        sprintf(ErrorString, "StartService:Could not start "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "StartService:Could not start "
             "the Directory service %s: Error %d. Please restart the server "
             "from the Services Item in the Control Panel",
             serviceName, GetLastError());
@@ -671,8 +671,7 @@ WaitForServertoStop()
 
 RETRY:
 
-    newServiceName = (PCHAR)malloc(strlen(serviceName) + 5);
-    sprintf(newServiceName, "NS_%s\0", serviceName);
+	newServiceName = PR_smprintf("NS_%s", serviceName);
 
     hServDoneSemaphore = CreateSemaphore(
         NULL,   // security attributes    
@@ -680,7 +679,7 @@ RETRY:
         1,      // maximum count for semaphore
         newServiceName);
 
-    free(newServiceName);
+    PR_smprintf_free(newServiceName);
 
     if ( hServDoneSemaphore == NULL) {
         result = GetLastError();

@@ -165,9 +165,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 c = *p;
                 *p = '\0';
             }
-            bakup_dir = (char *)slapi_ch_malloc(strlen(directory) + 
-                                                 sizeof("tmp") + 13);
-            sprintf(bakup_dir, "%s%ctmp_%010d", directory, c, time(0));
+            bakup_dir = slapi_ch_smprintf("%s%ctmp_%010d", directory, c, time(0));
             LDAPDebug( LDAP_DEBUG_ANY,
                       "archive2db: backup dir: %s\n", bakup_dir, 0, 0);
             *p = c;

@@ -102,31 +102,34 @@ collation_config (size_t cargc, char** cargv,
                 }
  
                 if(cargc > 7) {
-                    strcat(nameOrder,"-");
-                    strcat(nameOrder,cargv[7]);
-                    strcat(nameSubstring,"-");
-                    strcat(nameSubstring,cargv[7]);
+                    strcpy(nameOrder,"-");
+                    PL_strcatn(nameOrder,256,cargv[7]);
+                    strcpy(nameSubstring,"-");
+                    PL_strcatn(nameSubstring,256,cargv[7]);
                     slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_NAME,
                                            (void *)slapi_ch_strdup(nameOrder));
                 }
                 else {
                     if(0 != cargv[1][0]) {
-                        strcat(nameOrder,"-");
-                        strcat(nameSubstring,"-");
-                    }
-                    strcat(nameOrder,cargv[1]);
-                    strcat(nameSubstring,cargv[1]);
+                        strcpy(nameOrder,"-");
+                        strcpy(nameSubstring,"-");
+                    } else {
+						nameOrder[0] = 0;
+						nameSubstring[0] = 0;
+					}
+                    PL_strcatn(nameOrder,256,cargv[1]);
+                    PL_strcatn(nameSubstring,256,cargv[1]);
                     slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_NAME,
                                            (void *)slapi_ch_strdup(nameOrder));
                 }
-                strcpy(oidString,cargv[6]);
+                PL_strncpyz(oidString,cargv[6], 256);
                 slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_OID,
                                        (void *)slapi_ch_strdup(oidString));
                 if(0 != cargv[2][0]) {
-                    sprintf(descStr,"%s-%s",cargv[1],cargv[2]);
+                    PR_snprintf(descStr, 256, "%s-%s",cargv[1],cargv[2]);
                 }
                 else {
-                    strcpy(descStr,cargv[1]);
+                    PL_strncpyz(descStr,cargv[1], 256);
                 }
                 slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_DESC,
 						   (void *)slapi_ch_strdup(descStr));
@@ -191,7 +194,6 @@ SetUnicodeStringFromUTF_8 (UChar** U, int32_t* Ulen, int *isAlloced, const struc
 {
     size_t n;
     int32_t len = 0; /* length of non-space string */
-    int32_t needLen = 0; /* number of bytes needed for string */
     UErrorCode err = U_ZERO_ERROR;
     const char* s = bv->bv_val;
     const char* begin = NULL; /* will point to beginning of non-space in val */

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "nspr.h"
 
 /*
  * Returns the server root. Info is 
@@ -48,7 +49,7 @@ ds_get_install_root()
     if ( (ds_name = ds_get_server_name()) == NULL )
         return(NULL);
 
-    sprintf(install_root, "%s/%s", root, ds_name);
+    PR_snprintf(install_root, sizeof(install_root), "%s/%s", root, ds_name);
     return(install_root);
 }
 
@@ -67,7 +68,7 @@ ds_get_admserv_based_root()
         return(NULL);
     if ( (ds_name = ds_get_server_name()) == NULL )
         return(NULL);
-    sprintf(install_root, "%s/%s", root, ds_name);
+    PR_snprintf(install_root, sizeof(install_root), "%s/%s", root, ds_name);
     return(install_root);
 }
 
@@ -96,7 +97,7 @@ ds_get_logfile_name(int config_type)
 {
     char        *filename;
     char	**ds_config = NULL;
-    static char logfile[PATH_MAX];
+    static char logfile[PATH_MAX+1];
  
     if ( (ds_config = ds_get_config(DS_REAL_CONFIG)) == NULL ) {
 		/* For DS 4.0, no error output if file doesn't exist - that's
@@ -117,7 +118,7 @@ ds_get_logfile_name(int config_type)
 		free(filename);
         return(NULL);
     }
-    strcpy(logfile, filename);
+    strncpy(logfile, filename, PATH_MAX);
 	free(filename);
     return(logfile);
 }

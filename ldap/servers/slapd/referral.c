@@ -1089,13 +1089,11 @@ get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cfrp)
 		/* Get the basic referral */
 		bv = slapi_ch_bvdup(the_refs->ra_refs[walker]->ref_referral);
 		old_referral_string = bv->bv_val;
-		/* The longest new string will be one character longer than the old one */
-		new_referral_string = slapi_ch_malloc(bv->bv_len + 1); 
 		/* Re-write it to replace ldap with ldaps, and remove the port information */
 		/* The original string will look like this: ldap://host:port */
 		/* We need to make it look like this: ldaps://host */
 		/* Potentially the ":port" part might be missing from the original */
-		sprintf(new_referral_string, "%s%s" , LDAPS_URL_PREFIX, old_referral_string + strlen(LDAP_URL_PREFIX) );
+		new_referral_string = slapi_ch_smprintf("%s%s" , LDAPS_URL_PREFIX, old_referral_string + strlen(LDAP_URL_PREFIX) );
 		/* Go looking for the port */
 		p = new_referral_string + (strlen(LDAPS_URL_PREFIX) + 1);
 		while (*p != '\0' && *p != ':') p++;

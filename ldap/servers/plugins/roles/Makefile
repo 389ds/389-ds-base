@@ -84,9 +84,6 @@ endif
 $(OBJDEST):
 	$(MKDIR) $(OBJDEST)
 
-$(LIBDIR):
-	$(MKDIR) $(LIBDIR)
-
 # Target to push the built binary to an installed server
 #ROLES_PUSH = $(addprefix $(INSTDIR)lib/, $(notdir $(ROLES)))
 #push: $(ROLES_PUSH)

@@ -297,7 +297,6 @@ int mm_diff(stats_t *statsp)
     char        fingerprint[16];
     int stat;
     int count;
-    int firsttime = TRUE;
     int records = 0;
     int added;
     struct entryblock *block, *next;
@@ -586,7 +585,7 @@ int mm_diff(stats_t *statsp)
 
 static void usage(char *m)
 {
-    fprintf(stderr,"usage: mmldif [-c] [-D] [-o out.ldif] in1.ldif in2.ldif ...\n\n", m);
+    fprintf(stderr,"usage: %s [-c] [-D] [-o out.ldif] in1.ldif in2.ldif ...\n\n", m);
     fprintf(stderr,"-c\tWrite a change file (.delta) for each input file\n");
     fprintf(stderr,"-D\tPrint debugging information\n");
     fprintf(stderr,"-o\tWrite authoritative data to this file\n");
@@ -1217,7 +1216,6 @@ putvalue(
     int	len;
     char *	sptr;
     int	rc;
-    int	simpletxt = TRUE;
 
     lptr = line;
     if (tag != NULL) {
@@ -1314,7 +1312,7 @@ signedmemcmp(unsigned char * a, int lena, unsigned char * b, int lenb)
             return lena;
         if (!lena)
             return -1;
-        if (c=(int)*a - (int)*b)
+        if ((c=(int)*a - (int)*b))
             return c;
         lena--;
         lenb--;
@@ -1436,17 +1434,17 @@ int main(int argc, char *argv[])
 
     memset(&stats, 0, sizeof(stats));
 
-    if (rc = mm_init(argc, argv))
+    if ((rc = mm_init(argc, argv)))
         return rc;
 
     if ((mm_diff(&stats) == IDDS_MM_OK)
 	&&  (license_limit > 0)) {
         if (license_count > license_limit * 98.0 / 100)
-            fprintf(stderr, "That was over 98% of your license limit.\n");
+            fprintf(stderr, "That was over 98%% of your license limit.\n");
         else if (license_count > license_limit * 95.0 / 100)
-            fprintf(stderr, "That was over 95% of your license limit.\n");
+            fprintf(stderr, "That was over 95%% of your license limit.\n");
         else if (license_count > license_limit * 90.0 / 100)
-            fprintf(stderr, "That was over 90% of your license limit.\n");
+            fprintf(stderr, "That was over 90%% of your license limit.\n");
     }
     mm_fin_winner();
     printf("start time %s", ctime(&stats.diff_start_time));

@@ -316,16 +316,10 @@ add_aci(LDAP* ld, char* DN, char* privilege)
 	err = ldap_modify_s (ld, DN, mods);
 	if (err != LDAP_SUCCESS && err != LDAP_TYPE_OR_VALUE_EXISTS) {
 		char* exp = "can't add privilege. ";
-		char* format;
-		char* errmsg;
-		char* explanation;
-		format = "%s (%i) returned from ldap_modify_s(%s, %i). Privilege: %s";
-		errmsg = ldap_err2string (err);
-		explanation = (char*)malloc (strlen (format) + strlen (errmsg) +
-									 9 + strlen (DN) + 10 + strlen(aci[0]));
-		sprintf (explanation, format, errmsg, err, DN, LDAP_MOD_ADD, aci[0]);
+		char* explanation = PR_smprintf("%s (%i) returned from ldap_modify_s(%s, %i). Privilege: %s",
+										ldap_err2string (err), err, DN, LDAP_MOD_ADD, aci[0]);
 		ds_report_warning (DS_INCORRECT_USAGE, exp, explanation);
-		free (explanation);
+		PR_smprintf_free (explanation);
 		ret = 1;
 	}
 
@@ -342,7 +336,6 @@ int
 add_aci_v(LDAP* ld, char* DN, char* format, ...)
 {
 	char* acistring = NULL;
-	int ii = 0;
 	int len = 0;
 	int status = 0;
 	int fudge = 10; /* a little extra just to make sure */
@@ -442,7 +435,7 @@ admin_user_exists(LDAP* ld, char* base, char *userID)
 
 	struct timeval sto = { 10L, 0L };
 	LDAPMessage* pLdapResult;
-	sprintf (search_str, "uid=%s*", userID ? userID : "admin");
+	PR_snprintf (search_str, sizeof(search_str), "uid=%s*", userID ? userID : "admin");
 
 	err = ldap_search_st(ld, base, LDAP_SCOPE_SUBTREE, 
 						 search_str, NULL, 0, &sto, &pLdapResult);
@@ -497,7 +490,7 @@ getUIDFromDN(const char *userID, char *uid)
 		return;
 
 	rdnListNoTypes = ldap_explode_dn(userID, 1);
-	strcpy(uid, rdnListNoTypes[uidindex]);
+	PL_strncpyz(uid, rdnListNoTypes[uidindex], 1024);
 	ldap_value_free(rdnListNoTypes);
 
 	return;
@@ -527,21 +520,21 @@ create_ssadmin_user(LDAP* ld, char *base, char* userID, char* password)
 	getUIDFromDN(userID, realuid);
 	if (realuid[0])
 	{
-		sprintf(entrydn, userID);
+		PL_strncpyz(entrydn, userID, sizeof(entrydn));
 		if (entry_exists(ld, entrydn))
 			admin_dn = entrydn;
 	}
 	else
 	{
-		sprintf(entrydn, "%s=%s, %s", name_uid, userID, base);
+		PR_snprintf(entrydn, sizeof(entrydn), "%s=%s, %s", name_uid, userID, base);
 		admin_dn = admin_user_exists(ld, base, userID);
-		strcpy(realuid, userID);
+		PL_strncpyz(realuid, userID, sizeof(realuid));
 	}
 
 	if (admin_dn) 
 	{
 		char error[BIG_LINE];
-		sprintf(error, "A user with uid=%s \"%s\" already exists in the directory"
+		PR_snprintf(error, sizeof(error), "A user with uid=%s \"%s\" already exists in the directory"
 				" and will not be overwritten.", realuid[0] ? realuid : "admin", admin_dn);
 		ds_send_error(error, 0);
 		return admin_dn;
@@ -611,14 +604,11 @@ create_ssadmin_user(LDAP* ld, char *base, char* userID, char* password)
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create administrative user."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) +
-											   9 + strlen (entrydn));
-			sprintf (explanation, format, errmsg, err, entrydn);
+			char *explanation = PR_smprintf("Unable to create administrative user."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											ldap_err2string (err), err, entrydn);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create user", explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = NULL;
 		}
 	}
@@ -676,15 +666,12 @@ create_base_entry(
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create base entry."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) + 
-											   9 + strlen (basedn));
-			sprintf (explanation, format, errmsg, err, basedn);
+			char* explanation = PR_smprintf("Unable to create base entry."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											ldap_err2string (err), err, basedn);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create base entry",
 							   explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = 1;
 		}
 	}
@@ -794,15 +781,12 @@ create_organizational_unit(LDAP* ld, char* base, char* unit, char *description,
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create organizational unit."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) + 
-											   9 + strlen (entrydn));
-			sprintf (explanation, format, errmsg, err, entrydn);
+			char* explanation = PR_smprintf("Unable to create organizational unit."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											ldap_err2string (err), err, entrydn);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create organizational unit",
 							   explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = 1;
 		}
 	}
@@ -859,7 +843,7 @@ create_base(LDAP* ld, char* base)
 	if (!rdnList)
 	{
 		char error[BIG_LINE];
-		sprintf(error, "The given base suffix [%s] is not a valid DN", base);
+		PR_snprintf(error, sizeof(error), "The given base suffix [%s] is not a valid DN", base);
 		ds_send_error(error, 0);
 		return -1;
 	}
@@ -1000,16 +984,13 @@ create_NetscapeRoot(LDAP* ld, const char *DN)
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create %s."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) + 
-											   9 + strlen (name_netscaperoot));
-			sprintf (explanation, format, name_netscaperoot, errmsg, err,
-					 DN);
+			char* explanation = PR_smprintf("Unable to create %s."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											name_netscaperoot, ldap_err2string (err), err,
+											DN);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create NetscapeRoot",
 							   explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = 1;
 		}
 
@@ -1069,15 +1050,12 @@ create_configEntry(LDAP* ld)
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create %s."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) + 
-											   9 + strlen (name_netscaperoot));
-			sprintf (explanation, format, value_config40, errmsg, err, entrydn);
+			char* explanation = PR_smprintf("Unable to create %s."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											value_config40, ldap_err2string (err), err, entrydn);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create config40",
 							   explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = 1;
 		}
 
@@ -1135,14 +1113,11 @@ create_group(LDAP* ld, char* base, char* group)
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create group."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) +
-											   9 + strlen (entrydn));
-			sprintf (explanation, format, errmsg, err, entrydn);
+			char* explanation = PR_smprintf("Unable to create group."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											ldap_err2string (err), err, entrydn);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create group", explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = 1;
 		}
 	}
@@ -1230,14 +1205,11 @@ create_consumer_dn(LDAP* ld, char* dn, char* hashedpw)
 
 		if (err != LDAP_SUCCESS) 
 		{
-			char* format = "Unable to create consumer dn."
-				" (%s (%i) returned from ldap_add_s(%s))";
-			char* errmsg = ldap_err2string (err);
-			char* explanation = (char*)malloc (strlen (format) + strlen (errmsg) +
-											   9 + strlen (dn));
-			sprintf (explanation, format, errmsg, err, dn);
+			char* explanation = PR_smprintf("Unable to create consumer dn."
+											" (%s (%i) returned from ldap_add_s(%s))",
+											ldap_err2string (err), err, dn);
 			ds_report_warning (DS_NETWORK_ERROR, " can't create consumer dn", explanation);
-			free (explanation);
+			PR_smprintf_free (explanation);
 			ret = 1;
 		}
 	}
@@ -1277,16 +1249,10 @@ add_group_member(LDAP* ld, char* DN, char* attr, char* member)
 	err = ldap_modify_s (ld, DN, mods);
 	if (err != LDAP_SUCCESS && err != LDAP_TYPE_OR_VALUE_EXISTS) {
 		char* exp = "can't add member. ";
-		char* format;
-		char* errmsg;
-		char* explanation;
-		format = "%s (%i) returned from ldap_modify_s(%s, %i).";
-		errmsg = ldap_err2string (err);
-		explanation = (char*)malloc (strlen (format) + strlen (errmsg) +
-									 9 + strlen (DN) + 10);
-		sprintf (explanation, format, errmsg, err, DN, LDAP_MOD_ADD);
+		char* explanation = PR_smprintf("%s (%i) returned from ldap_modify_s(%s, %i).",
+										ldap_err2string (err), err, DN, LDAP_MOD_ADD);
 		ds_report_warning (DS_INCORRECT_USAGE, exp, explanation);
-		free (explanation);
+		PR_smprintf_free (explanation);
 		ret = 1;
 	}
 
@@ -1321,15 +1287,12 @@ do_bind(SLAPD_CONFIG* slapd, char* rootdn, char* rootpw)
 		char* format = " Cannot connect to server.";
 		ds_report_warning (DS_NETWORK_ERROR, format, "");
 	} else if (err != LDAP_SUCCESS) {
-		char* errmsg = ldap_err2string (err);
-		char* format = "Unable to bind to server."
-				" (%s (%i) returned from ldap_simple_bind_s(%s))";
-		char* explanation = malloc (strlen (format) + strlen (errmsg) +
-										9 + strlen (rootdn) + 1);
-		sprintf (explanation, format, errmsg, err, rootdn);
+		char* explanation = PR_smprintf("Unable to bind to server."
+										" (%s (%i) returned from ldap_simple_bind_s(%s))",
+										ldap_err2string (err), err, rootdn);
 		ds_report_warning (DS_NETWORK_ERROR, " can't bind to server",
 							   explanation);
-		free (explanation);
+		PR_smprintf_free (explanation);
 		ldap_unbind (connection);
 		connection = NULL;
 	}
@@ -1344,10 +1307,7 @@ write_ldap_info(SLAPD_CONFIG* slapd, char* base, char* admnm)
 	int ret = 0;
 
 	char* fmt = "%s/shared/config/ldap.conf";
-	char* infoFileName;
-
-	infoFileName = (char*)malloc(strlen(fmt) + strlen(slapd->slapd_server_root) + 1);
-	sprintf(infoFileName, fmt, slapd->slapd_server_root);
+	char* infoFileName = PR_smprintf(fmt, slapd->slapd_server_root);
 
 	if ((fp = fopen(infoFileName, "w")) == NULL)
 	{
@@ -1368,7 +1328,7 @@ write_ldap_info(SLAPD_CONFIG* slapd, char* base, char* admnm)
 		fclose(fp);
 	}
   
-	free(infoFileName);
+	PR_smprintf_free(infoFileName);
 
 	return ret;
 }

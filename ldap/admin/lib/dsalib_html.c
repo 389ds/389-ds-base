@@ -26,11 +26,6 @@ static char **input = 0;
 */
 static int formattedOutput = 1;
 
-/* This is the separator string to use when outputting key/value pairs
-   to be read by the non-HTML front end (Java console)
-*/
-static const char *SEPARATOR = ":"; /* from AdmTask.java */
-
 DS_EXPORT_SYMBOL int
 ds_get_formatted_output(void)
 {

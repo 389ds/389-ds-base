@@ -200,7 +200,7 @@ ldbm_back_search( Slapi_PBlock *pb )
 
                     dummyAttrs[0] = dummyAttr;
 
-                    sprintf(dn,"dn: oid=%s,cn=features,cn=config",LDAP_CONTROL_VLVREQUEST);
+                    PR_snprintf(dn,sizeof(dn),"dn: oid=%s,cn=features,cn=config",LDAP_CONTROL_VLVREQUEST);
                     feature= slapi_str2entry(dn,0);
                     r= plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
                     slapi_entry_free(feature);

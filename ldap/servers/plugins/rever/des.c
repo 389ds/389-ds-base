@@ -25,7 +25,8 @@
 #include <seccomon.h>
 #include <pk11func.h>
 
-#include "rever.h" 
+#define NEED_TOK_DES /* see slap.h - defines tokDes and ptokDes */
+#include "rever.h"
 #include <slap.h>
 #include "slapi-plugin.h"
 #include <uuid.h>
@@ -59,8 +60,6 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, unsigned char **out);
 static SVRCOREError decryptPassword(struct pk11ContextStore *store, unsigned char *cipher, char **out, int len);
 static void freeDes(struct pk11ContextStore *out);
-
-static int init = 0;
 
 void
 init_des_plugin()

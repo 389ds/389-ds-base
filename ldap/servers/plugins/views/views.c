@@ -380,7 +380,6 @@ static int views_close( Slapi_PBlock *pb )
 static int views_cache_create()
 {
 	int ret = -1;
-	static int firstTime = 1;
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_create\n");
 
@@ -704,8 +703,6 @@ static void views_cache_create_applied_filter(viewEntry *pView)
 	Slapi_Filter *pCurrentFilter = 0;
 	Slapi_Filter *pBuiltFilter = 0;
 	Slapi_Filter *pViewEntryExcludeFilter = 0;
-	char *buf = 0;
-	int len = 0;
 
 	if(pView->includeAncestorFiltersFilter)
 	{
@@ -763,17 +760,13 @@ static void views_cache_create_applied_filter(viewEntry *pView)
  */
 static void views_cache_create_exclusion_filter(viewEntry *pView)
 {
+/*
 	viewEntry *current = pView;
 	Slapi_Filter *pOrSubFilter = 0;
-	Slapi_Filter *excludeChildFiltersFilter = 0;
-	Slapi_Filter *pChildExcludeSubFilter = 0;
-	Slapi_Filter *pViewEntryExcludeFilter = 0;
 	int child_count = 0;
-	int len = 0;
+*/
+	Slapi_Filter *excludeChildFiltersFilter = 0;
 	char *buf = 0;
-	Slapi_RDN *rdn = 0;
-	char *str_rdn = 0;
-	Slapi_Filter *pCurrentFilter = 0;
 
 	/* create exclusion filter for one level searches
 	 * this requires the rdns of the grandchildren of
@@ -853,12 +846,14 @@ Slapi_Filter *views_cache_create_descendent_filter(viewEntry *ancestor, PRBool u
 	while(child_count < ancestor->child_count)
 	{
 		Slapi_Filter *pDescendentSubFilter = 0;
+/*
 		Slapi_RDN *rdn = 0;
 		char *str_rdn = 0;
+		int len = 0;
+*/
 		Slapi_Filter *pCurrentFilter = 0;
 		viewEntry *currentChild = ancestor->pChildren[child_count];
 		char *buf = 0;
-		int len = 0;
 
 		/* for each child we need to add its descendants
 		 * we do this now before processing this view
@@ -920,7 +915,9 @@ Slapi_Filter *views_cache_create_descendent_filter(viewEntry *ancestor, PRBool u
  */
 static void views_cache_create_inclusion_filter(viewEntry *pView)
 {
+#if 0
 	viewEntry *head = theCache.pCacheViews;
+#endif
 /*	viewEntry *current; */
 /*	Slapi_Filter *view_filter; */
 	char *view_filter_str;
@@ -950,7 +947,7 @@ static void views_cache_create_inclusion_filter(viewEntry *pView)
 		slapi_sdn_get_rdn(viewDN,viewRDN);
 		viewRDNstr = (char *)slapi_rdn_get_rdn(viewRDN);
 
-		buf = calloc(1, strlen(viewRDNstr) + 11 ); /* 3 for filter */
+		buf = slapi_ch_calloc(1, strlen(viewRDNstr) + 11 ); /* 3 for filter */
 		sprintf(buf, "(%s)", viewRDNstr );
 		viewSubFilter = slapi_str2filter( buf );
 		
@@ -1050,8 +1047,6 @@ static int views_cache_build_view_list(viewEntry **pViews)
 	char *attrs[2];
 	int suffixIndex = 0;
 	int valIndex = 0;
-	int cos_def_available = 0;
-	static int firstTime = 1;
 
 	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_build_view_list\n");
 
@@ -1141,7 +1136,6 @@ struct dn_views_info {
 
 static int	views_dn_views_cb (Slapi_Entry* e, void *callback_data) {
 	struct dn_views_info *info;
-	char *filter = 0;
 	char *pDn = 0;
 	struct berval **dnVals;
 	Slapi_Attr *dnAttr;

@@ -55,13 +55,6 @@ legacy_postop( Slapi_PBlock *pb, const char *caller, int operation_type)
 	return 0;
 }
 
-
-
-static char *not_replicationdn_errmsg =
-	"An operation was submitted that contained copiedFrom or "
-	"copyingFrom attributes, but the connection was not bound "
-	"as the replicationdn.";
-
 int
 legacy_preop(Slapi_PBlock *pb, const char *caller, int operation_type)
 {

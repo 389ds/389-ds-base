@@ -1256,10 +1256,9 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
     	for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
             const char *indexname = slapi_value_get_string(val);
-            char *index = (char *)slapi_ch_malloc(strlen(indexname) + 2);
+            char *index = slapi_ch_smprintf("t%s", indexname);
 
             if (index != NULL) {
-                sprintf(index, "t%s", indexname);
                 charray_add(&indexlist, index);
             }
     	}
@@ -1270,10 +1269,9 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
     	for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
             const char *indexname = slapi_value_get_string(val);
-            char *index = (char *)slapi_ch_malloc(strlen(indexname) + 2);
+            char *index = slapi_ch_smprintf("T%s", indexname);
 
             if (index != NULL) {
-                sprintf(index, "T%s", indexname);
                 charray_add(&indexlist, index);
             }
     	}
@@ -1347,7 +1345,6 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     Slapi_Backend *be = NULL;
     Slapi_Task *task = NULL;
     Slapi_PBlock mypb;
-    PRThread *thread = NULL;
     const char *archive_dir = NULL;
     const char *force = NULL;
     const char *database_type = "ldbm database";
@@ -1587,11 +1584,10 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
     int ret = -1;
     int x;
 
-    dn = slapi_ch_malloc(strlen(name) + strlen(TASK_BASE_DN) + 20);
+    dn = slapi_ch_smprintf("cn=%s, %s", name, TASK_BASE_DN);
     if (dn == NULL) {
         goto out;
     }
-    sprintf(dn, "cn=%s, %s", name, TASK_BASE_DN);
 
     pb = slapi_pblock_new();
     if (pb == NULL) {

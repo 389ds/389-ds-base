@@ -4,6 +4,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 #include "cb.h"
+#include "plstr.h"
 
 /*
 ** 1 set/get function for each parameter of a backend instance
@@ -124,7 +125,7 @@ static char *cb_skeleton_entries[] =
 static void cb_instance_config_set_default(cb_backend_instance *inst)
 {
         cb_instance_config_info *config;
-        char err_buf[CB_BUFSIZE];
+        char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
 
         for (config = cb_the_instance_config; config->config_name != NULL; config++) {
                 cb_instance_config_set((void *)inst, 
@@ -188,8 +189,7 @@ static cb_backend_instance * cb_instance_alloc(cb_backend * cb, char * name, cha
 	/* Config is now merged with the backend entry */
 	inst->configDn=slapi_ch_strdup(basedn);
 
-	inst->monitorDn=(char *) slapi_ch_calloc(1,strlen(basedn)+15);
-	sprintf(inst->monitorDn,"cn=monitor,%s",basedn); 
+	inst->monitorDn=slapi_ch_smprintf("cn=monitor,%s",basedn); 
 
 	inst->eq_ctx = NULL;
 
@@ -260,7 +260,7 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entr
 
 		/* specific processing for multi-valued attributes */
 		if ( !strcasecmp ( attr_name, CB_CONFIG_SUFFIX )) {
-                        sprintf(returntext, "suffix modification not allowed\n");
+                        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "suffix modification not allowed\n");
                         rc = LDAP_UNWILLING_TO_PERFORM;
 			continue;
 		} else
@@ -293,7 +293,7 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entr
                 if ((mods[i]->mod_op & LDAP_MOD_DELETE) ||
                         ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)) {
                         rc= LDAP_UNWILLING_TO_PERFORM;
-                        sprintf(returntext, "%s attributes is not allowed",
+                        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
                                 (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
                 } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
                         /* This assumes there is only one bval for this mod. */
@@ -428,7 +428,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 			}
 			
                         rc= LDAP_UNWILLING_TO_PERFORM;
-                        sprintf(returntext, "%s attributes is not allowed",
+                        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
                               (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
                 } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
                         /* This assumes there is only one bval for this mod. */
@@ -467,7 +467,6 @@ cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e) {
     	const struct berval 	*attrValue;
 	cb_backend_instance 	*inst=NULL;
 	char			*instname;
-	Slapi_PBlock 		*search_pb=NULL;
 	char 			retmsg[CB_BUFSIZE];
 
 	CB_ASSERT(e!=NULL);
@@ -512,7 +511,7 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
         Slapi_Value             *sval;
 	struct berval * 	 bval;
 	int 			using_def_connlifetime,i;
-        char 			err_buf[CB_BUFSIZE];
+        char 			err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
 	int 			urlfound=0;
 	char 			*rootdn;
 
@@ -672,7 +671,7 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 	int 			rc=LDAP_SUCCESS;
 
  	if (( rc = ldap_url_parse( url, &ludp )) != 0 ) {
-		strcpy(errorbuf,cb_urlparse_err2string( rc ));
+		PL_strncpyz(errorbuf,cb_urlparse_err2string( rc ), SLAPI_DSE_RETURNTEXT_SIZE);
 		if (CB_CONFIG_PHASE_INITIALIZATION == phase)
 			inst->pool->url=slapi_ch_strdup("");
 		return(LDAP_INVALID_SYNTAX);
@@ -727,22 +726,23 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 
 		{ char * aBufCopy, * aHostName;
 			char * iter = NULL;
-			aBufCopy= aBufCopy=slapi_ch_strdup(inst->pool->hostname);
+			aBufCopy=slapi_ch_strdup(inst->pool->hostname);
 
 			aHostName=ldap_utf8strtok_r(aBufCopy," ", &iter);
 			charray_free(inst->url_array);
 			inst->url_array=NULL;
 			while (aHostName) {
 			
-				char * aHostPort = slapi_ch_calloc(1,strlen(aHostName)+30);
-       	        		if ( NULL == ( ptr=strstr(aHostName,":")))
-       	                		sprintf(aHostPort,"%s://%s:%d/",
-						inst->pool->secure ? "ldaps" : "ldap", 
-						aHostName,inst->pool->port);
-				else
-       	                		sprintf(aHostPort,"%s://%s/", 
-						inst->pool->secure ? "ldaps" : "ldap",
-						aHostName);
+				char * aHostPort;
+				if ( NULL == ( ptr=strstr(aHostName,":"))) {
+					aHostPort = slapi_ch_smprintf("%s://%s:%d/",
+												  inst->pool->secure ? "ldaps" : "ldap", 
+												  aHostName,inst->pool->port);
+				} else {
+					aHostPort = slapi_ch_smprintf("%s://%s/", 
+												  inst->pool->secure ? "ldaps" : "ldap",
+												  aHostName);
+				}
 
 				charray_add(&inst->url_array,aHostPort);
 				aHostName=ldap_utf8strtok_r(NULL," ", &iter);
@@ -818,7 +818,7 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
                         !strcmp(theValueCopy,rootdn)) {	/* UTF8-aware. See cb_get_dn() */
                         rc=LDAP_UNWILLING_TO_PERFORM; 
 			if (errorbuf) {
-				sprintf(errorbuf,"value %s not allowed",rootdn);
+				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "value %s not allowed",rootdn);
 			}
                 }
                 PR_RWLock_Unlock(inst->rwl_config_lock);
@@ -1129,7 +1129,7 @@ static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int 
 	                !strcmp(inst->pool->binddn,rootdn)) {	/* UTF-8 aware */
 		  	rc=LDAP_UNWILLING_TO_PERFORM;
 			if (errorbuf)
-				sprintf(errorbuf,"Proxy mode incompatible with %s value (%s not allowed)",
+				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "Proxy mode incompatible with %s value (%s not allowed)",
 					CB_CONFIG_BINDUSER,rootdn);
 		}
                 PR_RWLock_Unlock(inst->rwl_config_lock); 
@@ -1309,8 +1309,8 @@ static cb_instance_config_info *cb_get_config_info(cb_instance_config_info *conf
 ** For now, unknown attributes are ignored
 ** Return a LDAP error code OR CB_REOPEN_CONN when the
 ** update requires to close open connections.
+** err_buf is size SLAPI_DSE_RETURNTEXT_SIZE
 */
-
 static int 
 cb_instance_config_set(void *arg, char *attr_name, cb_instance_config_info *config_array, 
 struct berval *bval, char *err_buf, int phase, int apply_mod)
@@ -1386,6 +1386,7 @@ struct berval *bval, char *err_buf, int phase, int apply_mod)
 /* Utility function used in creating config entries.  Using the
  * config_info, this function gets info and formats in the correct
  * way.
+ * buf is CB_BUFSIZE size
  */
 void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *buf)
 {
@@ -1409,7 +1410,7 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
                 /* Remember the get function for strings returns memory
                  * that must be freed. */
                 tmp_string = (char *) config->config_get_fn(arg);
-                sprintf(buf, "%s", (char *) tmp_string);
+                PR_snprintf(buf, CB_BUFSIZE, "%s", (char *) tmp_string);
                 slapi_ch_free((void **)&tmp_string);
                 break;
         case CB_CONFIG_TYPE_ONOFF:
@@ -1759,7 +1760,7 @@ int cb_create_default_backend_instance_config(cb_backend * cb) {
 	int 			rc;
 	cb_backend_instance 	*dummy;
 	Slapi_Entry 		*e=slapi_entry_alloc();
-        char            	defaultDn[CB_BUFSIZE];
+	char            	*defaultDn;
 	char 			*olddn;
         struct berval           val;
         struct berval           *vals[2];
@@ -1772,7 +1773,7 @@ int cb_create_default_backend_instance_config(cb_backend * cb) {
 
 	/* set right dn	 and objectclass */
 
-        sprintf(defaultDn,"cn=default instance config,%s",cb->pluginDN);
+	defaultDn = PR_smprintf("cn=default instance config,%s",cb->pluginDN);
 	olddn = slapi_entry_get_dn(e);
 	slapi_ch_free((void **) &olddn);
 	
@@ -1805,6 +1806,7 @@ int cb_create_default_backend_instance_config(cb_backend * cb) {
 	/* cleanup */
         cb_instance_free(dummy);
 	/* BEWARE: entry is consummed */
+		PR_smprintf_free(defaultDn);
 	return rc;
 }
 
@@ -1817,7 +1819,7 @@ int cb_build_backend_instance_config(cb_backend_instance *inst, Slapi_Entry * co
 	Slapi_Entry     **default_entries = NULL;
 	Slapi_Entry 	*default_conf=NULL;
 	int 		default_res, rc;
-	char 		defaultDn[CB_BUFSIZE];
+	char 		*defaultDn;
 	cb_backend_instance * current_inst;
 
 	rc=LDAP_SUCCESS;
@@ -1832,12 +1834,13 @@ int cb_build_backend_instance_config(cb_backend_instance *inst, Slapi_Entry * co
 
         /* 2: Overwrite values present in the default instance config */
  
-        sprintf(defaultDn,"cn=default instance config,%s",cb->pluginDN);
+        defaultDn = PR_smprintf("cn=default instance config,%s",cb->pluginDN);
  
         default_pb = slapi_pblock_new();
         slapi_search_internal_set_pb(default_pb, defaultDn, LDAP_SCOPE_BASE,
                 "objectclass=*", NULL, 0, NULL, NULL, cb->identity, 0);
         slapi_search_internal_pb (default_pb);
+		PR_smprintf_free(defaultDn);
         slapi_pblock_get(default_pb, SLAPI_PLUGIN_INTOP_RESULT, &default_res);
         if ( LDAP_SUCCESS == default_res ) {
                 slapi_pblock_get(default_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &default_entries);

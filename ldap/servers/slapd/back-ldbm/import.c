@@ -902,20 +902,14 @@ int import_make_merge_filenames(char *directory, char *indexname, int pass,
        and need to be renamed to: attributename<LDBM_FILENAME_SUFFIX>.n
        where n is the pass number.
        */
-    size_t oldname_length = strlen(directory) + 1 + strlen(indexname) + 
-    strlen(LDBM_FILENAME_SUFFIX) + 1 ;
-    /* Enough space for an 8-digit pass number */
-    size_t newname_length = oldname_length + 9;
-
-    *oldname = slapi_ch_malloc(oldname_length);
-    if (NULL == oldname)
-    return -1;
-    *newname = slapi_ch_malloc(newname_length);
-    if (NULL == newname)
-    return -1;
-    sprintf(*oldname, "%s/%s%s", directory, indexname, LDBM_FILENAME_SUFFIX);
-    sprintf(*newname, "%s/%s.%d%s", directory, indexname, pass,
+    *oldname = slapi_ch_smprintf("%s/%s%s", directory, indexname, LDBM_FILENAME_SUFFIX);
+    *newname = slapi_ch_smprintf("%s/%s.%d%s", directory, indexname, pass,
         LDBM_FILENAME_SUFFIX);
+	if (!*oldname || !*newname) {
+		slapi_ch_free_string(oldname);
+		slapi_ch_free_string(newname);
+		return -1;
+	}
     return 0;
 }
 

@@ -544,6 +544,7 @@ static void dblayer_select_ncache(size_t cachesize, int *ncachep)
    the maximum chunk size, then we should use that instead.
    For now we just guess in dblayer_pick_ncache().
  */
+#if 0
 static void dblayer_get_ncache(size_t cachesize, int *ncachep)
 {
     int myncache;
@@ -597,6 +598,7 @@ cleanup:
     slapi_ch_free((void **)&head);
     return;
 }
+#endif
 
 static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
 {
@@ -921,7 +923,7 @@ static int dblayer_grok_directory(char *directory, int flags)
         {
             break;
         }
-        sprintf(filename,"%s/%s",directory,direntry->name);
+        PR_snprintf(filename, MAXPATHLEN, "%s/%s",directory,direntry->name);
         
         /* Right now this is set up to only look at files here. 
          * With multiple instances of the backend the are now other directories
@@ -1003,7 +1005,7 @@ dblayer_inst_exists(ldbm_instance *inst, char *dbname)
         dbnamep = dbname;
     else
         dbnamep = ID2ENTRY LDBM_FILENAME_SUFFIX;
-    sprintf(id2entry_file, "%s%c%s%c%s", parent_dir, sep, inst->inst_dir_name,
+    PR_snprintf(id2entry_file, sizeof(id2entry_file), "%s%c%s%c%s", parent_dir, sep, inst->inst_dir_name,
                                          sep, dbnamep);
     prst = PR_Access(id2entry_file, PR_ACCESS_EXISTS);
     if (PR_SUCCESS == prst)
@@ -1014,7 +1016,6 @@ dblayer_inst_exists(ldbm_instance *inst, char *dbname)
 /*
  * create a new DB_ENV and fill it with the goodies from dblayer_private
  */
-#define INIT_MAX_DIRS 32
 static int 
 dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
 {
@@ -1022,7 +1023,6 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     struct dblayer_private_env *pEnv;
     char *home_dir = NULL;
     int ret;
-    int data_dirs = INIT_MAX_DIRS;
     Object *inst_obj;
     ldbm_instance *inst = NULL;
 
@@ -1753,9 +1753,7 @@ int dblayer_instance_start(backend *be, int mode)
         char *subname;
         struct dblayer_private_env *mypEnv;
 
-        id2entry_file = slapi_ch_malloc(strlen(inst->inst_dir_name) +
-                                     strlen(ID2ENTRY LDBM_FILENAME_SUFFIX) + 2);
-        sprintf(id2entry_file, "%s/%s", inst->inst_dir_name, 
+        id2entry_file = slapi_ch_smprintf("%s/%s", inst->inst_dir_name, 
                 ID2ENTRY LDBM_FILENAME_SUFFIX);
 
         open_flags = DB_CREATE | DB_THREAD;
@@ -1877,13 +1875,9 @@ int dblayer_instance_start(backend *be, int mode)
             !dblayer_inst_exists(inst, NULL))
         {
             char *abs_id2entry_file = NULL;
-            int abs_len;
             /* create a file with abs path, then try again */
 
-            abs_len = strlen(inst_dirp) +
-                      strlen(ID2ENTRY LDBM_FILENAME_SUFFIX) + 2;
-            abs_id2entry_file = (char *)slapi_ch_malloc(abs_len);
-            sprintf(abs_id2entry_file, "%s%c%s", inst_dirp, 
+            abs_id2entry_file = slapi_ch_smprintf( "%s%c%s", inst_dirp, 
                     get_sep(inst_dirp), ID2ENTRY LDBM_FILENAME_SUFFIX);
             DB_OPEN(mypEnv->dblayer_openflags,
                 dbp, NULL/* txnid */, abs_id2entry_file, subname, DB_BTREE,
@@ -2054,8 +2048,7 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
 
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
     priv->dblayer_home_directory =
-            slapi_ch_malloc(strlen(inst_dirp) + strlen("dbenv") + 2);
-    sprintf(priv->dblayer_home_directory, "%s/dbenv", inst_dirp);
+            slapi_ch_smprintf("%s/dbenv", inst_dirp);
     priv->dblayer_log_directory = slapi_ch_strdup(priv->dblayer_home_directory);
 
     prst = PR_GetFileInfo(inst_dirp, &prfinfo);
@@ -2126,9 +2119,7 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
         goto err;
     }
 
-    id2entry_file = slapi_ch_malloc(strlen(inst->inst_dir_name) +
-                                     strlen(ID2ENTRY LDBM_FILENAME_SUFFIX) + 2);
-    sprintf(id2entry_file, "%s/%s",
+    id2entry_file = slapi_ch_smprintf("%s/%s",
         inst->inst_dir_name, ID2ENTRY LDBM_FILENAME_SUFFIX);
 
     PR_ASSERT(dblayer_inst_exists(inst, NULL));
@@ -2183,16 +2174,17 @@ int dblayer_release_aux_id2entry(backend *be, DB *pDB, DB_ENV *pEnv)
 
     inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                           inst_dir, MAXPATHLEN);
-    envdir = slapi_ch_malloc(strlen(inst_dirp) + strlen("dbenv") + 2);
-    sprintf(envdir, "%s/dbenv", inst_dirp);
+    envdir = slapi_ch_smprintf("%s/dbenv", inst_dirp);
 
 done:
     if (pDB)
        pDB->close(pDB, 0);
     if (pEnv)
        pEnv->close(pEnv, 0);
-    if (envdir)
+    if (envdir) {
         ldbm_delete_dirs(envdir);
+		slapi_ch_free_string(&envdir);
+	}
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
     return 0;
@@ -2462,7 +2454,6 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
     char *rel_path = NULL;
     dblayer_private_env *pENV = 0;
     dblayer_private *priv = NULL;
-    int len;
     int return_value = 0;
     DB *dbp = NULL;
     char *subname = NULL;
@@ -2491,18 +2482,14 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
             return -1;
         }
     }
-    len = strlen(indexname) + strlen(LDBM_FILENAME_SUFFIX) + 1;
-    file_name = slapi_ch_malloc(len);
-    len += strlen(inst->inst_dir_name) + 1;
-    rel_path = slapi_ch_malloc(len);
 
     pENV = priv->dblayer_env;
     if (inst->import_env)
         pENV = inst->import_env;
 
     PR_ASSERT(NULL != pENV);
-    sprintf(file_name, "%s%s", indexname, LDBM_FILENAME_SUFFIX);
-    sprintf(rel_path, "%s/%s", inst->inst_dir_name, file_name);
+    file_name = slapi_ch_smprintf("%s%s", indexname, LDBM_FILENAME_SUFFIX);
+    rel_path = slapi_ch_smprintf("%s/%s", inst->inst_dir_name, file_name);
 
     open_flags = DB_THREAD;
     if (open_flag & DBOPEN_CREATE)
@@ -2582,13 +2569,10 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
         char inst_dir[MAXPATHLEN];
         char *inst_dirp = NULL;
         char *abs_file_name = NULL;
-        int abs_len;
         /* create a file with abs path, then try again */
 
         inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-        abs_len = strlen(inst_dirp) + strlen(file_name) + 2;
-        abs_file_name = (char *)slapi_ch_malloc(abs_len);
-        sprintf(abs_file_name, "%s%c%s",
+        abs_file_name = slapi_ch_smprintf("%s%c%s",
                 inst_dirp, get_sep(inst_dirp), file_name);
         DB_OPEN(pENV->dblayer_openflags,
                 dbp, NULL/* txnid */, abs_file_name, subname, DB_BTREE,
@@ -3476,14 +3460,14 @@ static int checkpoint_threadmain(void *param)
                 /* zap 'em ! */
                 for (listp = list; *listp != NULL; ++listp)
                 {    
-                    sprintf(filename,"%s/%s",prefix,*listp);
+                    PR_snprintf(filename,sizeof(filename),"%s/%s",prefix,*listp);
                     if (priv->dblayer_circular_logging) {
                         checkpoint_debug_message(debug_checkpointing,
                             "Deleting %s\n",filename, 0, 0);
                         unlink(filename);    
                     } else {
                         char new_filename[MAXPATHLEN];
-                        sprintf(new_filename,"%s/old.%s",
+                        PR_snprintf(new_filename,sizeof(new_filename),"%s/old.%s",
                                 prefix,*listp);
                         checkpoint_debug_message(debug_checkpointing,
                             "Renaming %s\n",filename,0, 0);
@@ -3760,7 +3744,7 @@ static int commit_good_database(dblayer_private *priv)
     int return_value = 0;
     int num_bytes;
 
-    sprintf(filename,"%s/guardian",priv->dblayer_home_directory);
+    PR_snprintf(filename,sizeof(filename), "%s/guardian",priv->dblayer_home_directory);
 
     prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
         priv->dblayer_file_mode );
@@ -3770,7 +3754,7 @@ static int commit_good_database(dblayer_private *priv)
             filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
         return -1;
     } 
-    sprintf(line,"cachesize:%lu\nncache:%d\nversion:%d\n",
+    PR_snprintf(line,sizeof(line),"cachesize:%lu\nncache:%d\nversion:%d\n",
             priv->dblayer_cachesize, priv->dblayer_ncache, 3);
     num_bytes = strlen(line);
     return_value = slapi_write_buffer(prfd, line, num_bytes);
@@ -3814,7 +3798,7 @@ static int read_metadata(struct ldbminfo *li)
     priv->dblayer_previous_cachesize = 0;
     priv->dblayer_previous_ncache = 0;
     /* Open the guard file and read stuff, then delete it */
-    sprintf(filename,"%s/guardian",priv->dblayer_home_directory);
+    PR_snprintf(filename,sizeof(filename),"%s/guardian",priv->dblayer_home_directory);
 
     memset(&prfinfo, '\0', sizeof(PRFileInfo));
     (void)PR_GetFileInfo(filename, &prfinfo);
@@ -4042,7 +4026,7 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
                                           PR_SKIP_DOT_DOT))) {
         if (! direntry->name)
             break;
-        sprintf(filename, "%s/%s", inst_dirp, direntry->name);
+        PR_snprintf(filename, MAXPATHLEN, "%s/%s", inst_dirp, direntry->name);
         if (pEnv &&
             strcmp(LDBM_FILENAME_SUFFIX , last_four_chars(direntry->name)) == 0)
         {
@@ -4153,7 +4137,7 @@ int dblayer_delete_database_ex(struct ldbminfo *li, char *instance)
         if (! direntry->name)
             break;
 
-		sprintf(filename, "%s/%s", priv->dblayer_home_directory, 
+		PR_snprintf(filename, MAXPATHLEN, "%s/%s", priv->dblayer_home_directory, 
 			direntry->name);
 
 		/* Do not call PR_Delete on the instance directories if they exist.
@@ -4244,7 +4228,7 @@ int dblayer_database_size(struct ldbminfo *li, unsigned int *size)
             {
                 break;
             }
-            sprintf(filename,"%s/%s",priv->dblayer_home_directory,direntry->name);
+            PR_snprintf(filename,MAXPATHLEN, "%s/%s",priv->dblayer_home_directory,direntry->name);
             return_value = PR_GetFileInfo(filename, &info);
             if (PR_SUCCESS == return_value)
             {
@@ -4292,9 +4276,7 @@ static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
             if (NULL == direntry->name) {
                 break;
             }
-            direntry_name = slapi_ch_malloc(strlen(directory) +
-                                            strlen(direntry->name) + 2);
-            sprintf(direntry_name, "%s/%s", directory, direntry->name);
+            direntry_name = PR_smprintf("%s/%s", directory, direntry->name);
             if ((PR_GetFileInfo(direntry_name, &info) == PR_SUCCESS) &&
                 (PR_FILE_DIRECTORY == info.type) && recurse) {
                 /* Recurse into this directory but not any further.  This is
@@ -4303,7 +4285,9 @@ static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
                  * not be any more directories in an instance directory. */
                 count_dbfiles_in_dir(direntry_name, count, 0 /* don't recurse */);
             }
-            slapi_ch_free((void**)&direntry_name);
+			if (direntry_name) {
+				PR_smprintf_free(direntry_name);
+			}
             if (strcmp( LDBM_FILENAME_SUFFIX , last_four_chars(direntry->name)) == 0) {
                 (*count)++;
             }
@@ -4481,8 +4465,7 @@ int dblayer_copy_directory(struct ldbminfo *li,
         sep = get_sep(inst_dirp);
         if (*(inst_dirp+len-1) == sep)
             sep = '\0';
-        new_src_dir = (char *)slapi_ch_malloc(strlen(src_dir) + len + 2);
-        sprintf(new_src_dir, "%s%c%s", inst_dirp, sep, src_dir);
+        new_src_dir = slapi_ch_smprintf("%s%c%s", inst_dirp, sep, src_dir);
     }
 
     dirhandle = PR_OpenDir(new_src_dir);
@@ -4529,14 +4512,11 @@ int dblayer_copy_directory(struct ldbminfo *li,
                     mysep = get_sep(prefix);
                 }
 
-                new_dest_dir = slapi_ch_malloc(strlen(dest_dir) +
-                                   strlen(relative_instance_name) + 
-                                   strlen(prefix) + 3);
                 if (mysep)
-                    sprintf(new_dest_dir, "%s%c%s%c%s",
+                    new_dest_dir = slapi_ch_smprintf("%s%c%s%c%s",
                         prefix, mysep, dest_dir, mysep, relative_instance_name);
                 else
-                    sprintf(new_dest_dir, "%s/%s",
+                    new_dest_dir = slapi_ch_smprintf("%s/%s",
                         dest_dir, relative_instance_name);
                 /* } */
                 if (PR_SUCCESS == PR_GetFileInfo(new_dest_dir, &info))
@@ -4553,12 +4533,8 @@ int dblayer_copy_directory(struct ldbminfo *li,
                 }
             }
 
-            filename1 = slapi_ch_malloc(strlen(new_src_dir) +
-                                        strlen(direntry->name) + 2);
-            sprintf(filename1, "%s/%s", new_src_dir, direntry->name);
-            filename2 = slapi_ch_malloc(strlen(new_dest_dir) +
-                                        strlen(direntry->name) + 2);
-            sprintf(filename2, "%s/%s", new_dest_dir, direntry->name);
+            filename1 = slapi_ch_smprintf("%s/%s", new_src_dir, direntry->name);
+            filename2 = slapi_ch_smprintf("%s/%s", new_dest_dir, direntry->name);
 
             if (restore) {
                 LDAPDebug(LDAP_DEBUG_ANY, "Restoring file %d (%s)\n",
@@ -4763,6 +4739,7 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             }
 
             if (ok) {
+				size_t p1len, p2len;
                 char **listptr;
                 
                 prefix = NULL;
@@ -4773,14 +4750,14 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     prefix = home_dir;
                 }
                 /* log files have the same filename len(100 is a safety net:) */
-                pathname1 = (char *)slapi_ch_malloc(strlen(prefix) +
-                    strlen(*listB) + 100);
-                pathname2 = (char *)slapi_ch_malloc(strlen(dest_dir) +
-                    strlen(*listB) + 100);
+				p1len = strlen(prefix) + strlen(*listB) + 100;
+                pathname1 = (char *)slapi_ch_malloc(p1len);
+				p2len = strlen(dest_dir) + strlen(*listB) + 100;
+                pathname2 = (char *)slapi_ch_malloc(p2len);
                 /* We copy those over */
                 for (listptr = listB; (*listptr) && ok; ++listptr) {
-                    sprintf(pathname1, "%s/%s", prefix, *listptr);
-                    sprintf(pathname2, "%s/%s", dest_dir, *listptr);
+                    PR_snprintf(pathname1, p1len, "%s/%s", prefix, *listptr);
+                    PR_snprintf(pathname2, p2len, "%s/%s", dest_dir, *listptr);
                     LDAPDebug(LDAP_DEBUG_ANY, "Backing up file %d (%s)\n",
                         cnt, pathname2, 0);
                     if (task)
@@ -4831,12 +4808,8 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     }
 
     /* now copy the version file */
-    pathname1 = (char *)slapi_ch_malloc(strlen(home_dir) +
-                                        strlen(DBVERSION_FILENAME) + 2);
-    pathname2 = (char *)slapi_ch_malloc(strlen(dest_dir) +
-                                        strlen(DBVERSION_FILENAME) + 2);
-    sprintf(pathname1, "%s/%s", home_dir, DBVERSION_FILENAME);
-    sprintf(pathname2, "%s/%s", dest_dir, DBVERSION_FILENAME);
+    pathname1 = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
+    pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
     LDAPDebug(LDAP_DEBUG_ANY, "Backing up file %d (%s)\n",
               cnt, pathname2, 0);
     if (task) {
@@ -4914,7 +4887,7 @@ int dblayer_delete_transaction_logs(const char * log_dir)
                 PR_GetError(),slapd_pr_strerror(PR_GetError()), 0);
                 break;
             }
-            sprintf(filename1, "%s/%s", log_dir, direntry->name);
+            PR_snprintf(filename1, MAXPATHLEN, "%s/%s", log_dir, direntry->name);
             pre = PR_GetFileInfo(filename1, &info);
             if (pre == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
                 continue;
@@ -4981,8 +4954,8 @@ static int dblayer_copy_dirand_contents(char* src_dir, char* dst_dir, int mode, 
       }
 
 
-       sprintf(filename1, "%s/%s", src_dir, direntry->name);
-       sprintf(filename2, "%s/%s", dst_dir, direntry->name);
+       PR_snprintf(filename1, MAXPATHLEN, "%s/%s", src_dir, direntry->name);
+       PR_snprintf(filename2, MAXPATHLEN, "%s/%s", dst_dir, direntry->name);
        LDAPDebug(LDAP_DEBUG_ANY, "Moving file %s\n",
                           filename2, 0, 0);
       /* Is this entry a directory? */
@@ -5040,7 +5013,7 @@ static int dblayer_fri_trim(char *fri_dir_path, char* bename)
 			break;
 			}
 
-			sprintf(filename, "%s/%s", fri_dir_path, direntry->name);
+			PR_snprintf(filename, MAXPATHLEN, "%s/%s", fri_dir_path, direntry->name);
 
 			/* Is this entry a directory? */
 			tmp_rval = PR_GetFileInfo(filename, &info);
@@ -5092,7 +5065,6 @@ error:
 static int dblayer_fri_restore(char *home_dir, char *src_dir, dblayer_private *priv, Slapi_Task *task, char** new_src_dir, char* bename)
 {
 		int retval = 0;
-		size_t fribak_dir_length = 0;
 		char *fribak_dir_path = NULL;
 		char *fribak_dir_name = "fribak";
 		int mode = priv->dblayer_file_mode;
@@ -5101,9 +5073,7 @@ static int dblayer_fri_restore(char *home_dir, char *src_dir, dblayer_private *p
 
 
 		/* First create the recovery directory */
-		fribak_dir_length = strlen(home_dir) + strlen(fribak_dir_name) + 4; /* 4 for the '/../' */
-		fribak_dir_path = (char *) slapi_ch_malloc(fribak_dir_length + 1); /* add one for the terminator */		
-		sprintf(fribak_dir_path,"%s/../%s",home_dir,fribak_dir_name);
+		fribak_dir_path = slapi_ch_smprintf("%s/../%s",home_dir,fribak_dir_name);
 		if((-1 == PR_MkDir(fribak_dir_path,NEWDIR_MODE)))
 		{
 		  LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: %s exists\n",fribak_dir_path, 0, 0);
@@ -5220,7 +5190,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     	while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))
 			&& direntry->name)
 		{
-            sprintf(filename1, "%s/%s", src_dir, direntry->name);
+            PR_snprintf(filename1, MAXPATHLEN, "%s/%s", src_dir, direntry->name);
 			if(!frirestore || strcmp(direntry->name,bename)==0)
 			{
                 tmp_rval = PR_GetFileInfo(filename1, &info);
@@ -5285,7 +5255,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
 
                 /* Is this entry a directory? */
-                sprintf(filename1, "%s/%s", real_src_dir, direntry->name);
+                PR_snprintf(filename1, MAXPATHLEN, "%s/%s", real_src_dir, direntry->name);
                 tmp_rval = PR_GetFileInfo(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
                     /* This is an instance directory. It contains the *.db#
@@ -5334,8 +5304,8 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
                     prefix = home_dir;
                 }
                 mkdir_p(prefix, 0700);
-                sprintf(filename1, "%s/%s", real_src_dir, direntry->name);
-                sprintf(filename2, "%s/%s", prefix, direntry->name);
+                PR_snprintf(filename1, MAXPATHLEN, "%s/%s", real_src_dir, direntry->name);
+                PR_snprintf(filename2, MAXPATHLEN, "%s/%s", prefix, direntry->name);
                 LDAPDebug(LDAP_DEBUG_ANY, "Restoring file %d (%s)\n",
                           cnt, filename2, 0);
                 if (task) {
@@ -5454,20 +5424,6 @@ error_out:
     return return_value;
 }
 
-
-static char *dblayer_make_friendly_instance_name(ldbm_instance *inst)
-{
-    char *name = slapi_ch_strdup(inst->inst_name);
-    int x;
-
-    if (name == NULL)
-        return NULL;
-    for (x = 0; name[x]; x++)
-        if (name[x] == ' ')
-            name[x] = '_';
-    return name;
-}
-
 /*
  * inst_dir_name is a relative path  (from 6.21)
  *     ==> txn log stores relative paths and becomes relocatable
@@ -5479,7 +5435,6 @@ static char *dblayer_make_friendly_instance_name(ldbm_instance *inst)
  */
 int dblayer_get_instance_data_dir(backend *be)
 {
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     char *full_namep = NULL;
     char full_name[MAXPATHLEN];
@@ -5582,9 +5537,7 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
          a = (struct attrinfo *)avl_getnext())
     {
         PRFileInfo info;
-        ofile = slapi_ch_malloc(strlen(inst_dirp) +
-                                strlen(a->ai_type) + strlen(oldext) + 2);
-        sprintf(ofile, "%s/%s%s", inst_dirp, a->ai_type, oldext);
+        ofile = slapi_ch_smprintf("%s/%s%s", inst_dirp, a->ai_type, oldext);
 
         if (PR_GetFileInfo(ofile, &info) != PR_SUCCESS)
         {
@@ -5600,9 +5553,7 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
                     rval, dblayer_strerror(rval), 0);
             goto done;
         }
-        nfile = slapi_ch_malloc(strlen(inst_dirp) +
-                                strlen(a->ai_type) + strlen(newext) + 2);
-        sprintf(nfile, "%s/%s%s", inst_dirp, a->ai_type, newext);
+        nfile = slapi_ch_smprintf("%s/%s%s", inst_dirp, a->ai_type, newext);
         LDAPDebug(LDAP_DEBUG_TRACE, "update_db_ext: rename %s -> %s\n",
             ofile, nfile, 0);
 
@@ -5628,12 +5579,8 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
                     rval, dblayer_strerror(rval), 0);
         goto done;
     }
-    ofile = slapi_ch_malloc(strlen(inst_dirp) +
-                            strlen(ID2ENTRY) + strlen(oldext) + 2);
-    nfile = slapi_ch_malloc(strlen(inst_dirp) +
-                            strlen(ID2ENTRY) + strlen(newext) + 2);
-    sprintf(ofile, "%s/%s%s", inst_dirp, ID2ENTRY, oldext);
-    sprintf(nfile, "%s/%s%s", inst_dirp, ID2ENTRY, newext);
+    ofile = slapi_ch_smprintf("%s/%s%s", inst_dirp, ID2ENTRY, oldext);
+    nfile = slapi_ch_smprintf("%s/%s%s", inst_dirp, ID2ENTRY, newext);
     LDAPDebug(LDAP_DEBUG_TRACE, "update_db_ext: rename %s -> %s\n",
             ofile, nfile, 0);
     rval = thisdb->rename(thisdb, (const char *)ofile, NULL /* subdb */,

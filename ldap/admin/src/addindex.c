@@ -15,6 +15,7 @@
 #include "dsalib.h"
 #include "init_ds_env.h"
 #include <string.h>
+#include "nspr.h"
 
 int main(int argc, char *argv[])
 {
@@ -71,7 +72,7 @@ int main(int argc, char *argv[])
 		status = 0;
 	} else {
 		char msg[BIG_LINE];
-		sprintf( msg,"[%s] %s", backendName, attributes);
+		PR_snprintf( msg, sizeof(msg), "[%s] %s", backendName, attributes);
 		rpt_err( status, msg, NULL,  NULL );
 		status = 1;
 	}

@@ -36,6 +36,8 @@
 #include <sys/stat.h>
 #include "fileurl.h"
 
+#include "nspr.h"
+
 #ifndef isascii
 #define isascii( c )	(!((c) & ~0177))
 #endif
@@ -194,32 +196,28 @@ ldif_parse_line(
 
         bv.bv_val = NULL;
         
-        if (( *errmsg = (char *)malloc( strlen(s) +  1024 )) == NULL ) {
-            return (-1);
-        }
-                
 	    /*
 	     * We only support file:// URLs for now.
 	     */
         
 	    switch( ldif_fileurl2path( s, &path )) {
 	    case LDIF_FILEURL_NOTAFILEURL:
-            sprintf(*errmsg, 
-                    "ldif_parse_line: unsupported URL \"%S\";"
+            *errmsg = PR_smprintf(
+                    "ldif_parse_line: unsupported URL \"%s\";"
                     " use a file:// URL instead.\n", s);
             rc = -1;
             break;
 
 	    case LDIF_FILEURL_MISSINGPATH:
-            sprintf(*errmsg,
-                    "ldif_parse_line: unable to process URL \"%S\" --"
+            *errmsg = PR_smprintf(
+                    "ldif_parse_line: unable to process URL \"%s\" --"
                     " missing path..\n", s);  
             rc = -1;
             break;
             
 	    case LDIF_FILEURL_NONLOCAL:
-            sprintf(*errmsg,
-                    "ldif_parse_line: unable to process URL \"%S\" --"
+            *errmsg = PR_smprintf(
+                    "ldif_parse_line: unable to process URL \"%s\" --"
                     " only local file:// URLs are supported.\n", s);  
             rc = -1;
             break;
@@ -234,11 +232,11 @@ ldif_parse_line(
                 perror( path );
                 rc = -1;
             } else if ( fstats.st_mode & S_IFDIR ) {	
-                sprintf(*errmsg,
+                *errmsg = PR_smprintf(
                         "ldif_parse_line: %s is a directory, not a file.\n", path);  
                 rc = -1;
             } else if ( ldif_fromfile( path, &bv ) < 0 ) {
-                sprintf(*errmsg,
+                *errmsg = PR_smprintf(
                         "ldif_parse_line: unable to retrieve information"
                         " from file %s.\n", path);                  
                 rc = -1;
@@ -247,8 +245,8 @@ ldif_parse_line(
             break;
             
 	    default:
-            sprintf(*errmsg,
-                    "ldif_parse_line: unable to process URL \"%S\" --"
+            *errmsg = PR_smprintf(
+                    "ldif_parse_line: unable to process URL \"%s\" --"
                     " unknown error.\n", s);  
             rc = -1;
 	    }

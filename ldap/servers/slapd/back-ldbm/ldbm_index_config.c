@@ -172,7 +172,7 @@ ldbm_index_init_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* en
     if (*returncode == LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_OK;
     } else {
-        sprintf(returntext, "Problem initializing index entry %s\n",
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Problem initializing index entry %s\n",
                 slapi_entry_get_dn(e));
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -486,7 +486,7 @@ int ldbm_instance_config_add_index_entry(
     char **attrs = NULL;
     char **indexes = NULL;
     char **matchingRules = NULL;
-    char eBuf[BUFSIZ];
+    char *eBuf;
     int i = 0;
     int j = 0;
     char *basetype = NULL;
@@ -500,13 +500,13 @@ int ldbm_instance_config_add_index_entry(
         return(-1);
     }
 
-    strcpy(tmpAttrsStr,argv[0]);
+    PL_strncpyz(tmpAttrsStr,argv[0], 256);
     attrs = str2charray( tmpAttrsStr, "," );
-    strcpy(tmpIndexesStr,argv[1]);
+    PL_strncpyz(tmpIndexesStr,argv[1], 256);
     indexes = str2charray( tmpIndexesStr, ",");
 
     if(argc > 2) {
-        strcpy(tmpMatchingRulesStr,argv[2]);
+        PL_strncpyz(tmpMatchingRulesStr,argv[2], 1024);
         matchingRules = str2charray( tmpMatchingRulesStr, ",");
     }
 
@@ -514,7 +514,7 @@ int ldbm_instance_config_add_index_entry(
     {
         if('\0' == attrs[i][0]) continue;
         basetype = slapi_attr_basetype(attrs[i], NULL, 0);
-        sprintf(eBuf,
+        eBuf = PR_smprintf(
                 "dn: cn=%s, cn=index, cn=%s, cn=%s, cn=plugins, cn=config\n"
                 "objectclass:top\n"
                 "objectclass:nsIndex\n"
@@ -525,21 +525,20 @@ int ldbm_instance_config_add_index_entry(
                 (ldbm_attribute_always_indexed(basetype)?"true":"false"));
         for(j=0; indexes[j] != NULL; j++)
         {
-            strcat(eBuf, "nsIndexType:");
-            strcat(eBuf,indexes[j]);
-            strcat(eBuf,"\n");
+			eBuf = PR_sprintf_append(eBuf, "nsIndexType:%s\n", indexes[j]);
         }
         if((argc>2)&&(argv[2]))
         {
             for(j=0; matchingRules[j] != NULL; j++)
             { 
-                strcat(eBuf,"nsMatchingRule:");
-                strcat(eBuf,matchingRules[j]);
-                strcat(eBuf,"\n");
+				eBuf = PR_sprintf_append(eBuf, "nsMatchingRule:%s\n", matchingRules[j]);
             }
         }
 
         ldbm_config_add_dse_entry(li, eBuf, flags);
+		if (eBuf) {
+			PR_smprintf_free(eBuf);
+		}
 
         slapi_ch_free((void**)&basetype);
     }
@@ -615,7 +614,7 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
     strcpy(tmpBuf,"");
 
     /* Construct the base dn of the subtree that holds the default user indexes. */
-    sprintf(basedn, "cn=default indexes, cn=config, cn=%s, cn=plugins, cn=config", 
+    PR_snprintf(basedn, BUFSIZ, "cn=default indexes, cn=config, cn=%s, cn=plugins, cn=config", 
 	li->li_plugin->plg_name);
 
     /* Do a search of the subtree containing the index entries */

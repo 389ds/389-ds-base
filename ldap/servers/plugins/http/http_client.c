@@ -133,7 +133,6 @@ int http_client_version()
 int http_client_init(Slapi_PBlock *pb)
 {
 	int status = HTTP_SUCCESS;
-	PRUint32 nssFlags = 0;
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> http_client_init -- BEGIN\n",0,0,0);
 
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,

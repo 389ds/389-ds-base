@@ -13,18 +13,18 @@ mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename
     {
         if (is_fullpath((char *)directory))
         {
-            sprintf(filename, "%s/%s", directory, DBVERSION_FILENAME);
+            PR_snprintf(filename, MAXPATHLEN*2, "%s/%s", directory, DBVERSION_FILENAME);
         }
         else
         {
             char *home_dir = dblayer_get_home_dir(li, NULL);
             /* if relpath, nsslapd-dbhome_directory should be set */
-            sprintf(filename,"%s/%s/%s", home_dir,directory,DBVERSION_FILENAME);
+            PR_snprintf(filename, MAXPATHLEN*2,"%s/%s/%s", home_dir,directory,DBVERSION_FILENAME);
         }
     }
     else
     {
-        sprintf(filename, "%s/%s", directory, DBVERSION_FILENAME);
+        PR_snprintf(filename, MAXPATHLEN*2, "%s/%s", directory, DBVERSION_FILENAME);
     }
 }
 

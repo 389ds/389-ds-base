@@ -2777,9 +2777,8 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   ** ocname-oid
   */
   if ( strcasecmp ( pOcOid, "NAME" ) == 0 ) {
-	free( pOcOid );
-	pOcOid = slapi_ch_malloc( 8 + strlen(psbOcName->buffer));
-	sprintf(pOcOid, "%s-oid", psbOcName->buffer );
+	slapi_ch_free_string( &pOcOid );
+	pOcOid = slapi_ch_smprintf("%s-oid", psbOcName->buffer );
   }
 
   if ( schema_ds4x_compat ) nextinput = input;
@@ -3194,9 +3193,8 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 	 * attrname-oid 
 	 */ 
 	if ( strcasecmp ( pOid, "NAME" ) == 0 ) { 
-		free( pOid ); 
-		pOid = slapi_ch_malloc( 8 + strlen(first_attr_name)); 
-		sprintf(pOid, "%s-oid", first_attr_name ); 
+		slapi_ch_free_string( &pOid ); 
+		pOid = slapi_ch_smprintf("%s-oid", first_attr_name ); 
 	} 
 
 	/* look for the optional DESCription */
@@ -3645,8 +3643,7 @@ schema_check_oid( const char *name, const char *oid, PRBool isAttribute,
   }
   
   /* check to see if the OID is <name>-oid */
-  namePlusOid = (char *) slapi_ch_malloc( strlen(name) + 256);
-  sprintf(namePlusOid, "%s-oid", name );
+  namePlusOid = slapi_ch_smprintf("%s-oid", name );
   rc = strcasecmp( oid, namePlusOid );
   slapi_ch_free( (void **) &namePlusOid );
 
@@ -3974,9 +3971,7 @@ init_schema_dse(const char *configdir)
 
 	slapi_sdn_init_dn_byref(&schema,"cn=schema");
 
-	schemadir = slapi_ch_calloc(1, strlen(configdir)
-					+ strlen(SCHEMA_SUBDIR_NAME) + 5);
-	sprintf(schemadir, "%s/%s", configdir, SCHEMA_SUBDIR_NAME);
+	schemadir = slapi_ch_smprintf("%s/%s", configdir, SCHEMA_SUBDIR_NAME);
 
 	filelist = get_priority_filelist(schemadir, ".*ldif$");
 	if (!filelist || !*filelist)
@@ -3992,8 +3987,7 @@ init_schema_dse(const char *configdir)
 		int ii = 0;
 		while (filelist[ii]) ++ii;
 		userschemafile = filelist[ii-1];
-		userschematmpfile = slapi_ch_calloc(1, strlen(userschemafile) + 5);
-		sprintf(userschematmpfile, "%s.tmp", userschemafile);
+		userschematmpfile = slapi_ch_smprintf("%s.tmp", userschemafile);
 	}
 
     if(rc && (pschemadse==NULL))
@@ -4477,7 +4471,7 @@ schema_create_errormsg(
 		if ( NULL != name ) {
 			rc = PR_snprintf( errorbuf, errorbufsize, prefix, name );
 		}
-		if ( rc >= 0 ) {
+		if ( (rc >= 0) && (rc < errorbufsize) ) {
 			(void)PR_vsnprintf( errorbuf + rc, errorbufsize - rc, fmt, ap );
 		}
 		va_end( ap );

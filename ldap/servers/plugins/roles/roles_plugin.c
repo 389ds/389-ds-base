@@ -186,13 +186,20 @@ int roles_sp_get_value(vattr_sp_handle *handle,
 
 int roles_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result,int flags, void *hint)
 {
-	int rc = 0;
+	int rv;
 	Slapi_DN the_dn;
 
 	/* Extract the role's DN from the value passed in */
+	/* possible problem here - slapi_value_get_string returns a pointer to the
+	   raw bv_val in the value, which is not guaranteed to be null terminated,
+	   but probably is for any value passed into this function */
 	slapi_sdn_init_dn_byref(&the_dn,slapi_value_get_string(test_this));
 
-	return (roles_check(e,&the_dn,result));
+	rv = roles_check(e,&the_dn,result);
+
+	slapi_sdn_done(&the_dn);
+
+	return rv;
 }
 
 int roles_sp_list_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags)

@@ -104,38 +104,6 @@ acl_set_args(ACLExprHandle_t *expr, char **args_list)
 }
 
 static int
-acl_set_users(ACLExprHandle_t *expr, char **user_list)
-{
-	int ii;
-	int jj;
-
-	if (expr == NULL)
-		return(-1);
-
-	for (ii = 0; ii < MAX_LIST_SIZE; ii++) {
-		if ( user_list[ii] ) {
-			if ( ACL_ExprTerm(NULL, expr, "user", CMP_OP_EQ, 
-					user_list[ii]) < 0 ) {
-				yyerror("ACL_ExprTerm() failed");
-				acl_free_args(user_list);
-				return(-1);
-			}
-		} else
-			break;
-	}
-
-	acl_free_args(user_list);
-
-	for (jj = 0; jj < ii - 1; jj++) {
-		if ( ACL_ExprOr(NULL, expr)  < 0 ) {
-			yyerror("ACL_ExprOr() failed");
-			return(-1);
-		}
-	}
-	return(0);
-}
-
-static int
 acl_set_users_or_groups(ACLExprHandle_t *expr, char **user_list)
 {
 	int ii;
@@ -424,7 +392,7 @@ auth_method_v2:
 			yyerror("Could not set authorization processing flags");
 			return(-1);
 		}
-                curr_auth_info = PListCreate(NULL, ACL_ATTR_INDEX_MAX, NULL, NULL);
+                curr_auth_info = PListCreate(NULL, ACL_ATTR_INDEX_MAX, 0, 0);
 		if ( ACL_ExprAddAuthInfo(curr_expr, curr_auth_info) < 0 ) {
 			yyerror("Could not set authorization info");
 			return(-1);
@@ -438,7 +406,7 @@ auth_method_v2:
 			yyerror("ACL_ExprNew(auth) failed");
 			return(-1);
 		}
-                curr_auth_info = PListCreate(NULL, ACL_ATTR_INDEX_MAX, NULL, NULL);
+                curr_auth_info = PListCreate(NULL, ACL_ATTR_INDEX_MAX, 0, 0);
 		if ( ACL_ExprAddAuthInfo(curr_expr, curr_auth_info) < 0 ) {
 			yyerror("Could not set authorization info");
 			return(-1);
@@ -696,7 +664,7 @@ authenticate_statement: ACL_AUTHENTICATE_TOK
 			yyerror("ACL_ExprNew(allow) failed");
 			return(-1);
 		}
-                curr_auth_info = PListCreate(NULL, ACL_ATTR_INDEX_MAX, NULL, NULL);
+                curr_auth_info = PListCreate(NULL, ACL_ATTR_INDEX_MAX, 0, 0);
 		if ( ACL_ExprAddAuthInfo(curr_expr, curr_auth_info) < 0 ) {
 			yyerror("Could not set authorization info");
 			return(-1);

@@ -20,7 +20,9 @@ include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 ifneq ($(ARCH), WINNT)
-all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views _pam_passthru
+all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views
+# richm 20050303 - do not build pam pass thru for DS 7.1
+#all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views _pam_passthru
 else
 all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views
 endif

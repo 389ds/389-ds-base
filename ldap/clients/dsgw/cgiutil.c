@@ -380,7 +380,6 @@ dsgw_convert(
     const char *mySource;
     const char *destLimit;
     const char *sourceLimit;
-    int32_t destCapacity=0;
     int destAlloc = 0; /* set to true if we allocated *dest */
 
     *pErrorCode = U_ZERO_ERROR;

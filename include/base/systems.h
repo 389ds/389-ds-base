@@ -298,8 +298,6 @@
 #define HAS_STATFS
 #define JAVA_STATIC_LINK
 #define SA_HANDLER_T(x) (void (*)(int))(x)
-#define SA_NOCLDWAIT 0 /* Linux doesn't have this */
-#define TCPLEN_T size_t
 
 #undef NEED_CRYPT_PROTO
 #define NET_SOCKETS

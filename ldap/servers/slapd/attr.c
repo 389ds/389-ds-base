@@ -245,9 +245,7 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 				char	*normalized_options;
 
 				normalized_options = attr_syntax_normalize_no_lookup( attroptions );
-				a->a_type = slapi_ch_malloc( strlen(asi->asi_name)
-						+ strlen(normalized_options) +1 );
-				sprintf( a->a_type, "%s%s", asi->asi_name, normalized_options );
+				a->a_type = slapi_ch_smprintf("%s%s", asi->asi_name, normalized_options );
 				slapi_ch_free_string( &normalized_options );
 			}
 		}

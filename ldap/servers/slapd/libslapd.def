@@ -401,7 +401,7 @@ EXPORTS
     slapi_matchingrule_get                  @398
     slapi_matchingrule_set                  @399
 	config_set_port 	@400
-; Available for reuse 	@401
+	slapi_ch_smprintf 	@401
 	config_set_secureport 	@402
 	config_set_SSLclientAuth 	@403
 	config_set_workingdir	@404

@@ -41,6 +41,7 @@ using std::ostrstream;
 #include "install_keywords.h"
 extern "C" {
 #include "dsalib.h"
+#include "nspr.h"
 }
 
 static const char *DEFAULT_SLAPDUSER = "cn=Directory Manager";
@@ -51,26 +52,12 @@ static const char *DEFAULT_SLAPDUSER = "cn=Directory Manager";
 ** Forward References
 */
 
-static DialogAction yesNoDefaultNo (const char *answer);
-static DialogAction askReconfigNext (Dialog *me);
-static DialogAction askSlapdServerNameSetup (Dialog *me);
-static DialogAction askSlapdServerNameNext(Dialog *me);
-static DialogAction askAdminPortSetup (Dialog *me);
-static DialogAction askAdminPortNext(Dialog *me);
 static DialogAction askSlapdPortSetup (Dialog *me);
 static DialogAction askSlapdPortNext(Dialog *me);
-static DialogAction askSecurityNext (Dialog *me);
-static DialogAction askSlapdSecPortSetup (Dialog *me);
-static DialogAction askSlapdSecPortNext(Dialog *me);
 static DialogAction askSlapdServerIDSetup (Dialog *me);
 static DialogAction askSlapdServerIDNext(Dialog *me);
-static DialogAction askSr2xInfoSetup(Dialog *me);
-static DialogAction askSr2xInfoNext(Dialog *me);
 static DialogAction askSlapdRootDNSetup(Dialog *me);
 static DialogAction askSlapdRootDNNext (Dialog *me);
-static DialogAction askSlapdSysUserSetup (Dialog *me);
-static DialogAction askSlapdSysUserNext (Dialog *me);
-static DialogAction askConfigForMCNext (Dialog *me);
 static DialogAction askMCAdminIDSetup (Dialog *me);
 static DialogAction askMCAdminIDNext (Dialog *me);
 static DialogAction askReconfigMCAdminPwdSetup (Dialog *me);
@@ -293,17 +280,6 @@ isValidYesNo(const char *s)
 	return 1;
 }
 
-static DialogAction
-yesNoDefaultNo(const char *answer)
-{
-   if (answer[0] == '\0' || answer[0] == '\n')
-      return DIALOG_EXIT;
-   else if (answer[0] != 'y' && answer[0] != 'Y')
-      return DIALOG_EXIT;
-   else
-      return DIALOG_NEXT;
-}
-
 static int
 dialogSetup (Dialog *me, const char *which, const char *defaultAns)
 {
@@ -363,7 +339,7 @@ askSlapdPortSetup(Dialog *me)
 		port = atoi(defPort);
 	}
 	else
-		sprintf(tmp, "%d", port);
+		PR_snprintf(tmp, sizeof(tmp), "%d", port);
 
 	// see if default port is available
 	if (InstUtil::portAvailable(port) == False)
@@ -435,17 +411,17 @@ askSlapdPortNext(Dialog *me)
 	getManager(me)->getDefaultScript()->set(SLAPD_KEY_SERVER_PORT, tmp);
 
 	port = atoi(tmp);
-	sprintf(testbuf, "%d", port);
+	PR_snprintf(testbuf, sizeof(testbuf), "%d", port);
 	if (strncmp(testbuf, tmp, 6) || port > MAXPORT || port < 1)
 	{
-		sprintf(testbuf, "OVERFLOW ERROR: Unable to bind to port %d\n"
+		PR_snprintf(testbuf, sizeof(testbuf), "OVERFLOW ERROR: Unable to bind to port %d\n"
 				"Please choose another port between 1 and %d.\n\n",
 				port, MAXPORT);
 		err = -1;
 	} 
 	else if (InstUtil::portAvailable(port) == False)
 	{
-		sprintf(testbuf, "ERROR: Unable to bind to port %d\n"
+		PR_snprintf(testbuf, sizeof(testbuf), "ERROR: Unable to bind to port %d\n"
 				"Please choose another port.\n\n", port);
 		err = -1;
 	}
@@ -484,7 +460,7 @@ askSlapdServerIDSetup(Dialog *me)
 	// extract the hostname part of the FQDN
 	const char *tmp = 0;
 	char *basehost = 0;
-	if (tmp = getManager(me)->getBaseScript()->get(SLAPD_KEY_FULL_MACHINE_NAME)) {
+	if ((tmp = getManager(me)->getBaseScript()->get(SLAPD_KEY_FULL_MACHINE_NAME))) {
 		basehost = strdup(tmp);
 	} else {
 		basehost = strdup(InstUtil::guessHostname());
@@ -547,9 +523,6 @@ askSlapdServerIDSetup(Dialog *me)
 static DialogAction
 askSlapdServerIDNext(Dialog *me)
 {
-	const char *ans =
-		getManager(me)->getDefaultScript()->get(SLAPD_KEY_SERVER_IDENTIFIER);
-
 	const char *buf = me->input();
 	const char *tmp;
 	char testbuf[1024];
@@ -567,22 +540,22 @@ askSlapdServerIDNext(Dialog *me)
 	if (!tmp)
 	{
 		err = -1;
-		sprintf(testbuf, "The name must not be empty");
+		PR_snprintf(testbuf, sizeof(testbuf), "The name must not be empty");
 	}
 	else if (!isValid(tmp))
 	{
 		err = -1;
-		sprintf(testbuf, "Please specify a valid value for the name.");
+		PR_snprintf(testbuf, sizeof(testbuf), "Please specify a valid value for the name.");
 	}
 	else if (contains8BitChars(tmp))
 	{
 		err = -1;
-		sprintf(testbuf, "The server ID must contain 7 bit ascii only.");
+		PR_snprintf(testbuf, sizeof(testbuf), "The server ID must contain 7 bit ascii only.");
 	}
 	else if (!isValidServerID(tmp))
 	{
 		err = -1;
-		sprintf(testbuf, "The server ID must be a valid filename and DN component.");
+		PR_snprintf(testbuf, sizeof(testbuf), "The server ID must be a valid filename and DN component.");
 	}
 
 	if (!err)
@@ -594,7 +567,7 @@ askSlapdServerIDNext(Dialog *me)
 			) + "/slapd-" + tmp;
 		if (InstUtil::fileExists(instanceDir))
 		{
-			sprintf(testbuf, "ERROR: a server instance named [%s] already exists."
+			PR_snprintf(testbuf, sizeof(testbuf), "ERROR: a server instance named [%s] already exists."
 					"  Please choose a unique name.\n", tmp);
 			err = -1;
 		}
@@ -1186,7 +1159,7 @@ askOrgSizeNext(Dialog *me)
    num = atoi(tmp);
    if (num != 1 && num != 2)
    {
-	   sprintf(testbuf, "Please enter a 1 or a 2\n\n");
+	   PR_snprintf(testbuf, sizeof(testbuf), "Please enter a 1 or a 2\n\n");
 	   err = -1;
    }
 
@@ -1425,7 +1398,6 @@ askCIRHostNext(Dialog *me)
 	
    const char *buf = me->input();
    const char *tmp;
-   int err = 0;
 
    if (buf[0] == 0)
    {
@@ -1510,10 +1482,10 @@ askCIRPortNext(Dialog *me)
    getManager(me)->getDefaultScript()->set(SLAPD_KEY_CIR_PORT, tmp);
 
    port = atoi(tmp);
-   sprintf(testbuf, "%d", port);
+   PR_snprintf(testbuf, sizeof(testbuf), "%d", port);
    if (strncmp(testbuf, tmp, 6) || port > MAXPORT || port < 1)
    {
-      sprintf(testbuf, "OVERFLOW ERROR: Unable to bind to port %d\n"
+      PR_snprintf(testbuf, sizeof(testbuf), "OVERFLOW ERROR: Unable to bind to port %d\n"
                  "Please choose another port between 1 and %d.\n\n",
                    port, MAXPORT);
       err = -1;
@@ -1699,13 +1671,13 @@ askCIRSuffixNext(Dialog *me)
 	}
 
 	int status;
-	if (status = getManager(me)->verifyRemoteLdap(
+	if ((status = getManager(me)->verifyRemoteLdap(
 								  SLAPD_KEY_CIR_HOST,
 								  SLAPD_KEY_CIR_PORT,
 								  SLAPD_KEY_CIR_SUFFIX,
 								  SLAPD_KEY_CIR_BINDDN,
 								  SLAPD_KEY_CIR_BINDDNPWD
-		                         )
+								  ))
 	   )
 	{
 		ostrstream msg;
@@ -1850,7 +1822,7 @@ askCIRIntervalNext(Dialog *me)
 	interval = atoi(tmp);
 	if (!isdigit((*tmp)) || interval < 0)
 	{
-		sprintf(testbuf, "Please specify an integer greater than or equal to 0");
+		PR_snprintf(testbuf, sizeof(testbuf), "Please specify an integer greater than or equal to 0");
 		err = -1;
 	} 
 	
@@ -2298,7 +2270,6 @@ askSIRHostNext(Dialog *me)
 	
    const char *buf = me->input();
    const char *tmp;
-   int err = 0;
 
    if (buf[0] == 0)
    {
@@ -2383,10 +2354,10 @@ askSIRPortNext(Dialog *me)
    getManager(me)->getDefaultScript()->set(SLAPD_KEY_SIR_PORT, tmp);
 
    port = atoi(tmp);
-   sprintf(testbuf, "%d", port);
+   PR_snprintf(testbuf, sizeof(testbuf), "%d", port);
    if (strncmp(testbuf, tmp, 6) || port > MAXPORT || port < 1)
    {
-      sprintf(testbuf, "OVERFLOW ERROR: Unable to bind to port %d\n"
+      PR_snprintf(testbuf, sizeof(testbuf), "OVERFLOW ERROR: Unable to bind to port %d\n"
                  "Please choose another port between 1 and %d.\n\n",
                    port, MAXPORT);
       err = -1;
@@ -2573,13 +2544,13 @@ askSIRSuffixNext(Dialog *me)
 	}
 
 	int status;
-	if (status = getManager(me)->verifyRemoteLdap(
+	if ((status = getManager(me)->verifyRemoteLdap(
 								  SLAPD_KEY_SIR_HOST,
 								  SLAPD_KEY_SIR_PORT,
 								  SLAPD_KEY_SIR_SUFFIX,
 								  SLAPD_KEY_SIR_BINDDN,
 								  SLAPD_KEY_SIR_BINDDNPWD
-								 )
+								  ))
 	   )
 	{
 		ostrstream msg;
@@ -3364,10 +3335,10 @@ askMCPortNext(Dialog *me)
    getManager(me)->getBaseScript()->set(SLAPD_KEY_K_LDAP_PORT, tmp);
 
    port = atoi(tmp);
-   sprintf(testbuf, "%d", port);
+   PR_snprintf(testbuf, sizeof(testbuf), "%d", port);
    if (strncmp(testbuf, tmp, 6) || port > MAXPORT || port < 1)
    {
-      sprintf(testbuf, "OVERFLOW ERROR: Unable to bind to port %d\n"
+      PR_snprintf(testbuf, sizeof(testbuf), "OVERFLOW ERROR: Unable to bind to port %d\n"
                  "Please choose another port between 1 and %d.\n\n",
                    port, MAXPORT);
       err = -1;
@@ -3480,13 +3451,13 @@ askMCDNNext(Dialog *me)
 		free(slapdPwd);
 
 		int status;
-		if (status = getManager(me)->verifyRemoteLdap(
+		if ((status = getManager(me)->verifyRemoteLdap(
 									  SLAPD_KEY_K_LDAP_HOST,
 									  SLAPD_KEY_K_LDAP_PORT,
 									  SLAPD_KEY_BASE_SUFFIX,
 									  SLAPD_KEY_SERVER_ADMIN_ID,
 									  SLAPD_KEY_SERVER_ADMIN_PWD
-			                         )
+									  ))
 		   )
 		{
 			ostrstream msg;
@@ -3685,14 +3656,14 @@ askMCAdminDomainNext(Dialog *me)
 		DialogManagerType::showAlert("A DN is not allowed here.  Please enter a valid string.");
 		return DIALOG_SAME;
 	}
-	else if (status = getManager(me)->verifyAdminDomain(
+	else if ((status = getManager(me)->verifyAdminDomain(
 									  SLAPD_KEY_K_LDAP_HOST,
 									  SLAPD_KEY_K_LDAP_PORT,
 									  SLAPD_KEY_BASE_SUFFIX,
 									  SLAPD_KEY_ADMIN_DOMAIN,
 									  SLAPD_KEY_SERVER_ADMIN_ID,
 									  SLAPD_KEY_SERVER_ADMIN_PWD
-			                         )
+									  ))
 		)
 	{
 		ostrstream msg;
@@ -4010,10 +3981,10 @@ askUGPortNext(Dialog *me)
    getManager(me)->getBaseScript()->set(SLAPD_KEY_UG_PORT, tmp);
 
    port = atoi(tmp);
-   sprintf(testbuf, "%d", port);
+   PR_snprintf(testbuf, sizeof(testbuf), "%d", port);
    if (strncmp(testbuf, tmp, 6) || port > MAXPORT || port < 1)
    {
-      sprintf(testbuf, "OVERFLOW ERROR: Unable to bind to port %d\n"
+      PR_snprintf(testbuf, sizeof(testbuf), "OVERFLOW ERROR: Unable to bind to port %d\n"
                  "Please choose another port between 1 and %d.\n\n",
                    port, MAXPORT);
       err = -1;
@@ -4121,13 +4092,13 @@ askUGDNNext(Dialog *me)
 		free(slapdPwd);
 
 		int status;
-		if (status = getManager(me)->verifyRemoteLdap(
+		if ((status = getManager(me)->verifyRemoteLdap(
 									  SLAPD_KEY_UG_HOST,
 									  SLAPD_KEY_UG_PORT,
 									  SLAPD_KEY_UG_SUFFIX,
 									  SLAPD_KEY_USER_GROUP_ADMIN_ID,
 									  SLAPD_KEY_USER_GROUP_ADMIN_PWD
-			                         )
+									  ))
 		   )
 		{
 			ostrstream msg;
@@ -4300,10 +4271,10 @@ askReconfigMCAdminPwdNext(Dialog *me)
 			else
 			{
 				int status;
-				if (status = authLdapUser(
+				if ((status = authLdapUser(
 					getManager(me)->getBaseScript()->get(SLAPD_KEY_K_LDAP_URL),
 					getManager(me)->getBaseScript()->get(SLAPD_KEY_SERVER_ADMIN_ID),
-					inp, 0, 0))
+					inp, 0, 0)))
 				{
 					ostrstream msg;
 					msg << "Could not connect to "

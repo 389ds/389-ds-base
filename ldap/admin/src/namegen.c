@@ -46,7 +46,7 @@ int main (int argc, char **argv)
 	strftime(szDate, sizeof (szDateFile), "%Y_%m_%d_%H%M%S", 
              sCurTime);
 
-    sprintf (szDateFile, "%s.bat", szDate);
+    PR_snprintf (szDateFile, sizeof(szDateFile), "%s.bat", szDate);
 
     /* create date batch file */
     fBatch = fopen (szDateFile, "w");
@@ -73,7 +73,7 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    sprintf (szCmd, "call %s", szDate);
+    PR_snprintf (szCmd, sizeof(szCmd), "call %s", szDate);
 
     rt = fwrite (szCmd, strlen (szCmd), 1, fBatch);
     if (rt != 1)
@@ -92,7 +92,7 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    sprintf (szCmd, "del %s\ndel bstart.bat\nset DATESTR=", szDateFile);
+    PR_snprintf (szCmd, sizeof(szCmd), "del %s\ndel bstart.bat\nset DATESTR=", szDateFile);
 
     rt = fwrite (szCmd, strlen(szCmd), 1, fBatch);
     if (rt != 1)

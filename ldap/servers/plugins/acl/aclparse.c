@@ -1576,7 +1576,6 @@ __acl_trim_filterstr( char * str ) {
 
 static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
 
-	int		numattr=0;
 	char	*s, *str;
 	int		len;	
 	char 	*addlistptr = NULL;

@@ -443,7 +443,7 @@ findSubtreeAndSearch(char *parentDN, const char *attrName, Slapi_Attr *attr,
 
   while (NULL != (parentDN = slapi_dn_parent(parentDN)))
   {
-        if (spb = dnHasObjectClass(parentDN, markerObjectClass))
+        if ((spb = dnHasObjectClass(parentDN, markerObjectClass)))
         {
           freePblock(spb);
           /*

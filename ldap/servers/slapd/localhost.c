@@ -226,7 +226,7 @@ get_config_DN()
 						 0, 0, 0);
 			c = slapi_ch_malloc (20);
 		}
-		sprintf (c, "cn=ldap://%s:%lu", host ? host : "", config_get_port());
+		sprintf (c, "cn=ldap://%s:%d", host ? host : "", config_get_port());
 		config_DN = c;
 	}
 

@@ -95,7 +95,7 @@ replica_new(const Slapi_DN *root)
 {
 	Replica *r = NULL;
 	Slapi_Entry *e = NULL;
-	char errorbuf[BUFSIZ];
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	char ebuf[BUFSIZ];
 	
 	PR_ASSERT (root);
@@ -135,7 +135,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
     {
         if (NULL != errortext)
 		{
-            sprintf (errortext, "NULL entry");
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "NULL entry");
 		}
         return NULL;        
     }
@@ -146,7 +146,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 	{
 		if (NULL != errortext)
 		{
-            sprintf (errortext, "failed to create replica lock");
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to create replica lock");
 		}
 		rc = -1;
 		goto done;
@@ -156,7 +156,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 	{
 		if (NULL != errortext)
 		{
-            sprintf (errortext, "failed to create replica lock");
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to create replica lock");
 		}
 		rc = -1;
 		goto done;
@@ -969,7 +969,6 @@ replica_set_referrals(Replica *r,const Slapi_ValueSet *vs)
 	{
 		Slapi_ValueSet *newvs = slapi_valueset_new();
 		const char *repl_root = slapi_sdn_get_dn(r->repl_root);
-		int rootlen = strlen(repl_root);
 		ii = slapi_valueset_first_value(r->repl_referral, &vv);
 		while (vv)
 		{
@@ -984,12 +983,9 @@ replica_set_referrals(Replica *r,const Slapi_ValueSet *vs)
 				char *tmpref = NULL;
 				int need_slash = 0;
 				if (ref[len-1] != '/') {
-					len++; /* add another one for the slash */
 					need_slash = 1;
 				}
-				len += rootlen + 2;
-				tmpref = slapi_ch_malloc(len);
-				sprintf(tmpref, "%s%s%s", ref, (need_slash ? "/" : ""),
+				tmpref = slapi_ch_smprintf("%s%s%s", ref, (need_slash ? "/" : ""),
 						repl_root);
 				newval = slapi_value_new_string(tmpref);
 				slapi_ch_free_string(&tmpref); /* sv_new_string makes a copy */
@@ -1545,7 +1541,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 	Slapi_Attr *attr;
 	char *val;
 	CSNGen *gen; 
-    char buf [BUFSIZ];
+    char buf [SLAPI_DSE_RETURNTEXT_SIZE];
     char *errormsg = errortext? errortext : buf;
 	Slapi_Attr *a = NULL;
 	char dnescape[BUFSIZ]; /* for escape_string */
@@ -1556,7 +1552,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 	val = slapi_entry_attr_get_charptr (e, attr_replicaRoot);
     if (val == NULL)
     {
-        sprintf (errormsg, "failed to retrieve %s attribute from (%s)\n", 
+        PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE, "failed to retrieve %s attribute from (%s)\n", 
                  attr_replicaRoot,
 				 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e), dnescape));
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "_replica_init_from_config: %s\n",
@@ -1621,7 +1617,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 			slapi_ch_free ((void**)&val);
 			if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID)
 			{
-				sprintf (errormsg,
+				PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
 						 "attribute %s must have a value greater than 0 "
 						 "and less than %d: entry %s",
 						 attr_replicaId, READ_ONLY_REPLICA_ID,
@@ -1639,7 +1635,8 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 		}
 		else
 		{
-			sprintf (errormsg, "failed to retrieve required %s attribute from %s",
+			PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
+						 "failed to retrieve required %s attribute from %s",
 					 attr_replicaId,
 					 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e),
 								   dnescape));
@@ -1655,7 +1652,8 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 	gen = csngen_new (r->repl_rid, attr);
 	if (gen == NULL)
 	{
-        sprintf (errormsg, "failed to create csn generator for replica (%s)",
+        PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
+					 "failed to create csn generator for replica (%s)",
 				 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e),
 							   dnescape));
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -1681,7 +1679,8 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
         rc = slapi_uniqueIDGenerateString (&r->repl_name);
         if (rc != UID_SUCCESS)
 	    {
-            sprintf (errormsg, "failed to assign replica name for replica (%s); "
+            PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
+						 "failed to assign replica name for replica (%s); "
                      "uuid generator error - %d ",
 					 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e), dnescape),
 					 rc);
@@ -1748,7 +1747,7 @@ _replica_update_entry (Replica *r, Slapi_Entry *e, char *errortext)
     rc = csngen_get_state ((CSNGen*)object_get_data (r->repl_csngen), &smod);
 	if (rc != CSN_SUCCESS)
     {
-        sprintf (errortext, "failed to get csn generator's state; csn error - %d", rc);
+        PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to get csn generator's state; csn error - %d", rc);
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 						"_replica_update_entry: %s\n", errortext);
 		return -1;    
@@ -1763,7 +1762,7 @@ _replica_update_entry (Replica *r, Slapi_Entry *e, char *errortext)
 
     if (rc != 0)
     {
-        sprintf (errortext, "failed to update replica entry");
+        PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to update replica entry");
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 						"_replica_update_entry: %s\n", errortext);
 		return -1;    
@@ -1773,7 +1772,7 @@ _replica_update_entry (Replica *r, Slapi_Entry *e, char *errortext)
     rc = slapi_entry_add_string (e, attr_replicaName, r->repl_name);
     if (rc != 0)
     {
-        sprintf (errortext, "failed to update replica entry");
+        PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to update replica entry");
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 						"_replica_update_entry: %s\n", errortext);
 		return -1;    
@@ -1790,15 +1789,10 @@ _replica_get_config_dn (const Slapi_DN *root)
 {
     char *dn;
     const char *mp_base = slapi_get_mapping_tree_config_root ();
-    int len; 
 
     PR_ASSERT (root);
 
-    len = strlen (REPLICA_RDN) + strlen (slapi_sdn_get_dn (root)) +
-          strlen (mp_base) + 8; /* 8 = , + cn= + \" + \" + , + \0 */
-
-    dn = (char*)slapi_ch_malloc (len);
-    sprintf (dn, "%s,cn=\"%s\",%s", REPLICA_RDN, slapi_sdn_get_dn (root), mp_base);
+    dn = slapi_ch_smprintf("%s,cn=\"%s\",%s", REPLICA_RDN, slapi_sdn_get_dn (root), mp_base);
 
     return dn;
 }
@@ -2622,10 +2616,7 @@ replica_create_ruv_tombstone(Replica *r)
 	char ebuf[BUFSIZ];
 	
 	PR_ASSERT(NULL != r && NULL != r->repl_root);
-	root_entry_str = slapi_ch_malloc(strlen(root_glue) +
-		slapi_sdn_get_ndn_len(r->repl_root) +
-		strlen(RUV_STORAGE_ENTRY_UNIQUEID) + 1);
-	sprintf(root_entry_str, root_glue, slapi_sdn_get_ndn(r->repl_root),
+	root_entry_str = slapi_ch_smprintf(root_glue, slapi_sdn_get_ndn(r->repl_root),
 		RUV_STORAGE_ENTRY_UNIQUEID);
 
 	e = slapi_str2entry(root_entry_str, SLAPI_STR2ENTRY_TOMBSTONE_CHECK);

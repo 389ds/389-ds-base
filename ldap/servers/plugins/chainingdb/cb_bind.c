@@ -245,7 +245,7 @@ chainingdb_bind( Slapi_PBlock *pb ) {
 	if ( LDAP_USER_CANCELLED != rc ) {
    		errmsg = ldap_err2string( rc );
 		if (rc == LDAP_TIMEOUT) {
-		  cb_ping_farm(cb,NULL,NULL);
+		  cb_ping_farm(cb,NULL,0);
 		}
             	rc = LDAP_OPERATIONS_ERROR;
 	}

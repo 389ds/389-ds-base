@@ -1691,7 +1691,7 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
     char *fstr= NULL;
     int retmalloc= 0;
 	char eggfilter[64];
-	sprintf(eggfilter,"(objectclass=%s)",EGG_OBJECT_CLASS);
+	PR_snprintf(eggfilter,sizeof(eggfilter),"(objectclass=%s)",EGG_OBJECT_CLASS);
     slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
     if(fstr!=NULL && strcasecmp(fstr,eggfilter)==0)
     {
@@ -1711,7 +1711,7 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		    if ( errmsg != NULL ) {
 		             slapi_log_error( SLAPI_LOG_PARSE, "dse", "%s", errmsg );
 			     /* the memory below was not allocated by the slapi_ch_ functions */
-			     slapi_ch_free( (void**)&errmsg );
+			     PR_smprintf_free(errmsg );
 		    }
 		    return SLAPI_DSE_CALLBACK_ERROR;
 		}
@@ -1844,8 +1844,7 @@ int fedse_create_startOK(char *filename,  char *startokfilename, const char *con
         realconfigdir = slapi_ch_malloc(strlen(configdir)+1);
         strcpy(realconfigdir, configdir);
     } else if (id!=NULL) {
-        realconfigdir = slapi_ch_malloc(strlen(id)+strlen(config_sub_dir)+3);
-        sprintf(realconfigdir, "%s/%s", id, config_sub_dir);
+        realconfigdir = slapi_ch_smprintf("%s/%s", id, config_sub_dir);
     }
 	slapi_ch_free_string(&id);
     if(realconfigdir!=NULL)
@@ -1853,17 +1852,13 @@ int fedse_create_startOK(char *filename,  char *startokfilename, const char *con
 		/* Set the full path name for the config DSE entry */
 		if (!strstr(filename, realconfigdir))
 		{
-			dse_filename = slapi_ch_malloc( strlen( realconfigdir ) +
-												  strlen( filename ) + 3 );
-			sprintf( dse_filename, "%s/%s", realconfigdir, filename );
+			dse_filename = slapi_ch_smprintf("%s/%s", realconfigdir, filename );
 		}
 		else
 			dse_filename = slapi_ch_strdup(filename);
 
 		if (!strstr(startokfilename, realconfigdir)) {
-			dse_filestartOK = slapi_ch_malloc( strlen( realconfigdir ) +
-												 strlen( startokfilename ) + 3 );
-			sprintf( dse_filestartOK, "%s/%s", realconfigdir, startokfilename );
+			dse_filestartOK = slapi_ch_smprintf("%s/%s", realconfigdir, startokfilename );
 		}
 		else
 			dse_filestartOK = slapi_ch_strdup(startokfilename);

@@ -38,7 +38,6 @@ SetUnicodeStringFromUTF_8 (UChar** U, int32_t* Ulen, int *isAlloced, const char 
        Ulen is set to the number of UChars in the array (not necessarily the number of bytes!)
     */
 {
-    size_t n;
     int32_t len = 0; /* length of non-space string */
     int32_t needLen = 0; /* number of bytes needed for string */
     UErrorCode err = U_ZERO_ERROR;
@@ -363,7 +362,7 @@ dsgw_strkeygen (int flavor, const char* s)
 	int uisAlloced = 0;
 	if (SetUnicodeStringFromUTF_8 (&u, &uLen, &uisAlloced, s) == U_ZERO_ERROR) {
 	    char keyBuffer[128]; /* try to use static space buffer to avoid malloc */
-	    int32_t keyLen = u_strlen(keyBuffer);
+	    int32_t keyLen = sizeof(keyBuffer);
 	    char* key = keyBuffer; /* but key can grow if necessary */
 	    int32_t realLen = ucol_getSortKey(collator, u, uLen, (uint8_t *)key, keyLen);
 	    if (realLen > keyLen) { /* need more space */

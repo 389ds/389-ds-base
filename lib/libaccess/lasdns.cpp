@@ -259,7 +259,7 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
 
     } while ((attr_pattern != NULL) && 
 	     (attr_pattern[0] != '\0') && 
-	     (delimiter != (int)NULL));
+	     (delimiter != 0));
 
     return 0;
 }

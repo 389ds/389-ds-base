@@ -101,18 +101,9 @@ filter_escape_filter_value_extended(struct slapi_filter *f)
 {
     char ebuf[BUFSIZ], *ptr;
     const char *estr;
-    size_t len = 9;
     
     estr  = escape_filter_value( f->f_mr_value.bv_val, f->f_mr_value.bv_len, ebuf );
-    if ( f->f_mr_type ) {
-        len += strlen( f->f_mr_type );
-    }
-    len += strlen(estr);
-    if ( f->f_mr_oid ) {
-        len += strlen( f->f_mr_oid );
-    }
-    ptr = slapi_ch_malloc( len );
-    sprintf( ptr, FILTER_EXTENDED_FMT,
+	ptr = slapi_ch_smprintf(FILTER_EXTENDED_FMT,
         f->f_mr_type ? f->f_mr_type : "",
         f->f_mr_dnAttrs ? ":dn" : "",
         f->f_mr_oid ? ":" : "",
@@ -131,8 +122,7 @@ filter_escape_filter_value(struct slapi_filter *f, const char *fmt, size_t len)
     
 	estr  = escape_filter_value( f->f_avvalue.bv_val, f->f_avvalue.bv_len, ebuf );
 	filter_compute_hash(f);
-    ptr = slapi_ch_malloc( len + strlen(f->f_avtype) + strlen( estr ));
-    sprintf( ptr, fmt, f->f_avtype, estr );
+    ptr = slapi_ch_smprintf(fmt, f->f_avtype, estr );
     return ptr;
 }
 
@@ -277,8 +267,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 			f->f_type = slapi_attr_syntax_normalize( type );
 			free( type );
 			filter_compute_hash(f);
-			*fstr = slapi_ch_malloc( 5 + strlen( f->f_type ) );
-			sprintf( *fstr, "(%s=*)", f->f_type );
+			*fstr = slapi_ch_smprintf( "(%s=*)", f->f_type );
 		}
 		break;
 
@@ -318,8 +307,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 					curdepth, subentry_dont_rewrite, has_tombstone_filter ))
 					== 0 ) {
 			filter_compute_hash(f);
-			*fstr = slapi_ch_malloc( 4 + strlen( ftmp ) );
-			sprintf( *fstr, "(&%s)", ftmp );
+			*fstr = slapi_ch_smprintf( "(&%s)", ftmp );
 			slapi_ch_free((void**)&ftmp );
 		}
 		break;
@@ -330,8 +318,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 					curdepth, subentry_dont_rewrite, has_tombstone_filter ))
 					== 0 ) {
 			filter_compute_hash(f);
-			*fstr = slapi_ch_malloc( 4 + strlen( ftmp ) );
-			sprintf( *fstr, "(|%s)", ftmp );
+			*fstr = slapi_ch_smprintf( "(|%s)", ftmp );
 			slapi_ch_free((void**)&ftmp );
 		}
 		break;
@@ -343,8 +330,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 					curdepth, subentry_dont_rewrite, has_tombstone_filter ))
 					== 0 ) {
 			filter_compute_hash(f);
-			*fstr = slapi_ch_malloc( 4 + strlen( ftmp ) );
-			sprintf( *fstr, "(!%s)", ftmp );
+			*fstr = slapi_ch_smprintf( "(!%s)", ftmp );
 			slapi_ch_free((void**)&ftmp );
 		}
 		break;
@@ -1193,7 +1179,7 @@ slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t
 			   specifier .* with the bv_len as the length to avoid reading
 			   past bv_len in bv_val */
 			sprintf( buf, "(%s%s%.*s)", f->f_ava.ava_type, operator,
-					 f->f_ava.ava_value.bv_len,
+					 (int)f->f_ava.ava_value.bv_len,
 					 f->f_ava.ava_value.bv_val );
 			*bufsize -= size;
 		}

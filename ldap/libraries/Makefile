@@ -283,10 +283,6 @@ FORCE:
 $(LDAP_OUT_DIR):
 	$(MKDIR) $(LDAP_OUT_DIR)
 
-$(LDAP_LIBDIR):
-	$(MKDIR) $(LDAP_LIBDIR)
-
-
 GENEXPORTS=$(PERL) $(LDAP_SRC)/build/genexports.pl
 # WINDEFDIR is now defined below via a recursive make.  This is a
 # bit of a hack to avoid collisions with SDK_EXPORT_DEFS (defined above).

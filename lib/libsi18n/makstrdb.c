@@ -125,7 +125,6 @@ XP_MakeStringProperties(void)
 {
     int j;
     char* LibraryName;
-    char* cptr;
     RESOURCE_TABLE* table;
     FILE *hresfile;
     char buffer[2000];
@@ -145,7 +144,7 @@ XP_MakeStringProperties(void)
     }
  
     j = 0;
-    while (table=allxpstr[j++].restable) {
+    while ((table=allxpstr[j++].restable)) {
         LibraryName = table->str;
         fprintf(hresfile, "\n");
         fprintf(hresfile, "#######################################\n");

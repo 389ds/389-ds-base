@@ -46,11 +46,9 @@ chaining_back_init( Slapi_PBlock *pb )
 	/* Initialize misc. fields */
 	cb->config.rwl_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "chaining_db");
         rc = slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, (void *) cb );
-	cb->pluginDN=slapi_ch_calloc( 1,strlen(PLUGIN_BASE_DN)+strlen(CB_PLUGIN_NAME)+5);
-	sprintf(cb->pluginDN,"cn=%s,%s",CB_PLUGIN_NAME,PLUGIN_BASE_DN);
+	cb->pluginDN=slapi_ch_smprintf("cn=%s,%s",CB_PLUGIN_NAME,PLUGIN_BASE_DN);
 
-	cb->configDN=slapi_ch_calloc( 1,strlen(cb->pluginDN)+11);
-        sprintf(cb->configDN,"cn=config,%s",cb->pluginDN);
+	cb->configDN=slapi_ch_smprintf("cn=config,%s",cb->pluginDN);
 
 	/* Set backend callback functions */
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_03 );

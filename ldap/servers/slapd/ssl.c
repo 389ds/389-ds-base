@@ -31,6 +31,7 @@
 #include <string.h>
 #include <errno.h>
 
+#define NEED_TOK_DES /* defines tokDes and ptokDes - see slap.h */
 #include "slap.h"
 
 #include "svrcore.h"
@@ -183,7 +184,7 @@ _conf_setciphers(char *ciphers)
           case '-':
             active = 0; break;
           default:
-			sprintf(err, "invalid ciphers <%s>: format is "
+			PR_snprintf(err, sizeof(err), "invalid ciphers <%s>: format is "
 					"+cipher1,-cipher2...", raw);
             return slapi_ch_strdup(err);
         }
@@ -200,7 +201,7 @@ _conf_setciphers(char *ciphers)
                 }
             }
             if(!_conf_ciphers[x].name) {
-                sprintf(err, "unknown cipher %s", ciphers);
+                PR_snprintf(err, sizeof(err), "unknown cipher %s", ciphers);
                 return slapi_ch_strdup(err);
             }
         }
@@ -211,73 +212,6 @@ _conf_setciphers(char *ciphers)
 }
 
 /* SSL Policy stuff */
-
-/*
- * Policy table
- */
-static struct policy
-{
-  long   ciphersuite;
-  int    exportPolicy;
-} policy_table[] = {
-  { SSL_EN_RC4_128_WITH_MD5,              SSL_NOT_ALLOWED },
-  { SSL_EN_RC4_128_EXPORT40_WITH_MD5,     SSL_ALLOWED },
-  { SSL_EN_RC2_128_CBC_WITH_MD5,          SSL_NOT_ALLOWED },
-  { SSL_EN_RC2_128_CBC_EXPORT40_WITH_MD5, SSL_ALLOWED },
-  { SSL_EN_IDEA_128_CBC_WITH_MD5,         SSL_NOT_ALLOWED },
-  { SSL_EN_DES_64_CBC_WITH_MD5,           SSL_NOT_ALLOWED },
-  { SSL_EN_DES_192_EDE3_CBC_WITH_MD5,     SSL_NOT_ALLOWED },
-
-  /* SSL v3 Cipher Suites */
-  { SSL_RSA_WITH_NULL_MD5,                SSL_ALLOWED },
-#if 0
-  { SSL_RSA_WITH_NULL_SHA,                SSL_ALLOWED },
-#endif
-  { SSL_RSA_EXPORT_WITH_RC4_40_MD5,       SSL_ALLOWED },
-  { SSL_RSA_WITH_RC4_128_MD5,             SSL_RESTRICTED },
-#if 0
-  { SSL_RSA_WITH_RC4_128_SHA,             SSL_NOT_ALLOWED },
-#endif
-  { SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5,   SSL_ALLOWED },
-
-#if 0
-  { SSL_RSA_WITH_IDEA_CBC_SHA,            SSL_NOT_ALLOWED },
-  { SSL_RSA_EXPORT_WITH_DES40_CBC_SHA,    SSL_ALLOWED },
-#endif
-
-  { SSL_RSA_WITH_DES_CBC_SHA,             SSL_NOT_ALLOWED },
-  { SSL_RSA_WITH_3DES_EDE_CBC_SHA,        SSL_RESTRICTED },
-
-#if 0
-  { SSL_DH_DSS_EXPORT_WITH_DES40_CBC_SHA, SSL_ALLOWED },
-  { SSL_DH_DSS_WITH_DES_CBC_SHA,          SSL_NOT_ALLOWED },
-  { SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA,     SSL_NOT_ALLOWED },
-  { SSL_DH_RSA_EXPORT_WITH_DES40_CBC_SHA, SSL_ALLOWED },
-  { SSL_DH_RSA_WITH_DES_CBC_SHA,          SSL_NOT_ALLOWED },
-  { SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA,     SSL_NOT_ALLOWED },
-
-  { SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA, SSL_ALLOWED },
-  { SSL_DHE_DSS_WITH_DES_CBC_SHA,         SSL_NOT_ALLOWED },
-  { SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA,    SSL_NOT_ALLOWED },
-  { SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA, SSL_ALLOWED },
-  { SSL_DHE_RSA_WITH_DES_CBC_SHA,         SSL_NOT_ALLOWED },
-  { SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA,    SSL_NOT_ALLOWED },
-
-  { SSL_DH_ANON_EXPORT_WITH_RC4_40_MD5,   SSL_ALLOWED },
-  { SSL_DH_ANON_WITH_RC4_128_MD5,         SSL_NOT_ALLOWED },
-  { SSL_DH_ANON_EXPORT_WITH_DES40_CBC_SHA, SSL_ALLOWED },
-  { SSL_DH_ANON_WITH_DES_CBC_SHA,         SSL_NOT_ALLOWED },
-  { SSL_DH_ANON_WITH_3DES_EDE_CBC_SHA,    SSL_NOT_ALLOWED },
-#endif
-
-  { SSL_FORTEZZA_DMS_WITH_NULL_SHA,       SSL_NOT_ALLOWED },
-  { SSL_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA, SSL_NOT_ALLOWED },
-  { SSL_FORTEZZA_DMS_WITH_RC4_128_SHA,    SSL_NOT_ALLOWED },
-
-  { SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,   SSL_RESTRICTED },
-  { SSL_RSA_FIPS_WITH_DES_CBC_SHA,        SSL_NOT_ALLOWED },
-};
-
 
 /*
  * SSLPLCY_Install
@@ -312,7 +246,7 @@ static void
 slapd_SSL_report(int degree, char *fmt, va_list args)
 {
     char buf[2048];
-    vsprintf( buf, fmt, args );
+    PR_vsnprintf( buf, sizeof(buf), fmt, args );
     LDAPDebug( LDAP_DEBUG_ANY, "SSL %s: %s\n",
 	       (degree == LOG_FAILURE) ? "failure" : "alert",
 	       buf, 0 );
@@ -335,16 +269,6 @@ slapd_SSL_warn(char *fmt, ...)
     slapd_SSL_report(LOG_WARN, fmt, args);
     va_end(args);
 }
-
-
-static void
-server_free_alias_dir(char *s)
-{
-  void *mem = s;
-
-  slapi_ch_free(&mem);
-}
-
 
 /**
  * Get a particular entry
@@ -533,7 +457,7 @@ slapd_nss_init(int init_ssl, int config_available)
 						   (keyfn ? "found" : "not found"),
 						   (certfn ? "found" : "not found"));
 		}
-		sprintf(certPref, "%s-", val);
+		PR_snprintf(certPref, sizeof(certPref), "%s-", val);
 		strcpy(keyPref, certPref);
 		strcpy(val, "alias/");
 	}
@@ -875,7 +799,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                     strcpy(cert_name, personality);
                 else
                     /* external PKCS #11 token - attach token name */
-                    sprintf(cert_name, "%s:%s", token, personality);
+                    PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
             }
             else {
                 errorCode = PR_GetError();
@@ -1210,7 +1134,7 @@ slapd_SSL_client_auth (LDAP* ld)
 						/* external PKCS #11 token - attach token name */
 						/*ssltoken was already dupped and we don't need it anymore*/
 						token = ssltoken;
-						sprintf(cert_name, "%s:%s", token, personality);
+						PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
 			  }
  			} else {
 			  errorCode = PR_GetError(); 
@@ -1236,7 +1160,7 @@ slapd_SSL_client_auth (LDAP* ld)
 				token = ssltoken; /*ssltoken was already dupped and we don't need it anymore*/
 
 				/* external PKCS #11 token - attach token name */
-				sprintf(cert_name, "%s:%s", token, personality);
+				PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
 			} else {
 			  errorCode = PR_GetError();
 			  slapd_SSL_warn("Security Initialization: Failed to get cipher "
@@ -1459,7 +1383,7 @@ char* slapd_get_tmp_dir()
 #endif
 	}
 
-	sprintf(tmp,"%s/tmp",instanceDir);
+	PR_snprintf(tmp,sizeof(tmp),"%s/tmp",instanceDir);
 
 #if defined( XP_WIN32 )
 	for(ilen=0;ilen < strlen(tmp); ilen++)

@@ -98,7 +98,7 @@ replica_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 	Replica *r = NULL;
     multimaster_mtnode_extension *mtnode_ext;	
     char *replica_root = (char*)slapi_entry_attr_get_charptr (e, attr_replicaRoot);
-	char buf [BUFSIZ];
+	char buf [SLAPI_DSE_RETURNTEXT_SIZE];
 	char *errortext = errorbuf ? errorbuf : buf;
     
 	if (errorbuf)
@@ -118,7 +118,7 @@ replica_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 
     if (mtnode_ext->replica)
     {
-        sprintf (errortext, "replica already configured for %s", replica_root);
+        PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "replica already configured for %s", replica_root);
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_add: %s\n", errortext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;    
         goto done;   
@@ -173,7 +173,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
     multimaster_mtnode_extension *mtnode_ext;	
 	Replica *r = NULL;
     char *replica_root = NULL; 
-	char buf [BUFSIZ];
+	char buf [SLAPI_DSE_RETURNTEXT_SIZE];
 	char *errortext = returntext ? returntext : buf;
     char *config_attr, *config_attr_value;
     Slapi_Operation *op;
@@ -208,7 +208,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 
     if (mtnode_ext->replica == NULL)
     {
-        sprintf (errortext, "replica does not exist for %s", replica_root);
+        PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "replica does not exist for %s", replica_root);
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n",
                         errortext);
         *returncode = LDAP_OPERATIONS_ERROR;    
@@ -248,7 +248,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 strcasecmp (config_attr, attr_state) == 0)
             {
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
-                sprintf (errortext, "modification of %s attribute is not allowed", 
+                PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "modification of %s attribute is not allowed", 
                          config_attr);                         
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", 
                                 errortext);
@@ -280,7 +280,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 else
                 {
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
-                    sprintf (errortext, "deletion of %s attribute is not allowed", config_attr);                         
+                    PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "deletion of %s attribute is not allowed", config_attr);                         
                     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", 
                                     errortext);
                 }                
@@ -372,7 +372,8 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 else
                 {
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
-                    sprintf (errortext, "modification of attribute %s is not allowed in replica entry", config_attr);
+                    PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+								 "modification of attribute %s is not allowed in replica entry", config_attr);
                     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", 
                                     errortext);
                 } 
@@ -497,7 +498,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
         type = atoi (new_type);
         if (type <= REPLICA_TYPE_UNKNOWN || type >= REPLICA_TYPE_END)
         {
-            sprintf (returntext, "invalid replica type %d", type);
+            PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "invalid replica type %d", type);
             return LDAP_OPERATIONS_ERROR;
         }
     }
@@ -505,7 +506,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
 	/* disallow changing type to itself just to permit a replica ID change */
 	if (oldtype == type)
 	{
-            sprintf (returntext, "replica type is already %d - not changing", type);
+            PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "replica type is already %d - not changing", type);
             return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -515,7 +516,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
 	}
 	else if (!new_id)
 	{
-		sprintf(returntext, "a replica ID is required when changing replica type to read-write");
+		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "a replica ID is required when changing replica type to read-write");
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 	else
@@ -523,7 +524,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
 		int temprid = atoi (new_id);
 		if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID)
 		{
-			sprintf(returntext,
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"attribute %s must have a value greater than 0 "
 					"and less than %d",
 					attr_replicaId, READ_ONLY_REPLICA_ID);
@@ -538,7 +539,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
 	/* error if old rid == new rid */
 	if (oldrid == rid)
 	{
-            sprintf (returntext, "replica ID is already %d - not changing", rid);
+            PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "replica ID is already %d - not changing", rid);
             return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -610,7 +611,8 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
 	{
 		int temprid = atoi(&(task_name[CLEANRUVLEN]));
 		if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID){
-			sprintf(returntext, "Invalid replica id for task - %s", task_name);
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+						"Invalid replica id for task - %s", task_name);
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"replica_execute_task: %s\n", returntext);
 			return LDAP_OPERATIONS_ERROR;
@@ -624,7 +626,7 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
 	}
 	else
 	{
-        sprintf (returntext, "unsupported replica task - %s", task_name);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "unsupported replica task - %s", task_name);
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                         "replica_execute_task: %s\n", returntext);        
         return LDAP_OPERATIONS_ERROR;
@@ -642,7 +644,7 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
 
     if (cl5GetState () != CL5_STATE_OPEN)
     {
-        sprintf (returntext, "changelog is not open");
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "changelog is not open");
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                         "replica_execute_cl2ldif_task: %s\n", returntext);        
         return LDAP_OPERATIONS_ERROR;
@@ -659,13 +661,13 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
     replica = (Replica*)object_get_data (r);
     PR_ASSERT (replica);
 
-    sprintf (fName, "%s/%s.ldif", clDir, replica_get_name (replica));
+    PR_snprintf (fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name (replica));
     slapi_ch_free ((void**)&clDir);
 
     rc = cl5ExportLDIF (fName, rlist);
     if (rc != CL5_SUCCESS)
     {
-        sprintf (returntext, "failed to export changelog data to file %s; "
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to export changelog data to file %s; "
                  "changelog error - %d", fName, rc);
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                         "replica_execute_cl2ldif_task: %s\n", returntext);        

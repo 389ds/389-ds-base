@@ -16,11 +16,11 @@ be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, i
     be->be_suffixlock= PR_NewLock();
     be->be_suffixcount= 0;
 	/* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
-	sprintf(text, "cn=%s,cn=%s,cn=plugins,cn=config", name, type);
+	PR_snprintf(text, sizeof(text),"cn=%s,cn=%s,cn=plugins,cn=config", name, type);
     be->be_basedn= slapi_ch_strdup(slapi_dn_normalize(text));
-	sprintf(text, "cn=config,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
+	PR_snprintf(text, sizeof(text), "cn=config,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
 	be->be_configdn= slapi_ch_strdup(slapi_dn_normalize(text));
-	sprintf(text, "cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
+	PR_snprintf(text, sizeof(text), "cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
 	be->be_monitordn= slapi_ch_strdup(slapi_dn_normalize(text));
 	be->be_sizelimit = sizelimit;
 	be->be_timelimit = timelimit;

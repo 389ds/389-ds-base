@@ -24,6 +24,7 @@ init_my_str_buf(MyStrBuf *buf, const char *s)
 		buf->str = buf->fixbuf;
 	} else {
 		buf->str = slapi_ch_strdup(s);
+		buf->fixbuf[0] = 0;
 	}
 
 	return buf->str;

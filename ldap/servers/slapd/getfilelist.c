@@ -35,15 +35,12 @@ add_file_to_list(caddr_t data, caddr_t arg)
 {
 	struct data_wrapper *dw = (struct data_wrapper *)arg;
 	if (dw) {
-		size_t size;
 		/* max is number of entries; the range of n is 0 - max-1 */
 		PR_ASSERT(dw->n <= dw->max);
 		PR_ASSERT(dw->list);
 		PR_ASSERT(data);
 		/* this strdup is free'd by free_filelist */
-		size = strlen(dw->dirname) + strlen(data) + 5;
-		dw->list[dw->n] = slapi_ch_calloc(size, 1);
-		sprintf(dw->list[dw->n++], "%s/%s", dw->dirname, data);
+		dw->list[dw->n++] = slapi_ch_smprintf("%s/%s", dw->dirname, data);
 		return 0;
 	}
 
@@ -61,10 +58,7 @@ file_is_type_x(const char *dirname, const char *filename, PRFileType x)
 {
 	struct PRFileInfo inf;
 	int status = 0;
-	size_t size = strlen(dirname) + strlen(filename) + 2; /* 1 for slash + 1 for null */
-	char *fullpath = slapi_ch_calloc(sizeof(char), size);
-
-	sprintf(fullpath, "%s/%s", dirname, filename);
+	char *fullpath = slapi_ch_smprintf("%s/%s", dirname, filename);
 	if (PR_SUCCESS == PR_GetFileInfo(fullpath, &inf) &&
 		inf.type == x)
 		status = 1;
@@ -197,14 +191,15 @@ free_filelist(char **filelist)
 /**
  * Returns a list of files in order of "priority" where priority is defined
  * as:
- * The filename must begin with the letter S.  The next two characters in
- * the filename are digits representing a number from 00 to 99.  The lower the
- * number the higher the priority.  For example, S00 is in the list before S01,
- * and S99 is the last item in the list.  The ordering of files with the same
- * priority cannot be guaranteed.  The pattern is the grep style regular expression
- * of filenames to match which is applied to the end of the string.
- * If you are a Solaris person, you may recognize this as the rules for init level
- * initialization using shell scripts under /etc/rcX.d/
+ * The first two characters in the filename are digits representing a
+ * number from 00 to 99.  The lower the number the higher the
+ * priority.  For example, 00 is in the list before 01, and 99 is the
+ * last item in the list.  The ordering of files with the same
+ * priority cannot be guaranteed.  The pattern is the grep style
+ * regular expression of filenames to match which is applied to the
+ * end of the string.  If you are a Solaris person, you may recognize
+ * this as the rules for init level initialization using shell scripts
+ * under /etc/rcX.d/
  */
 char **
 get_priority_filelist(const char *directory, const char *pattern)
@@ -212,15 +207,12 @@ get_priority_filelist(const char *directory, const char *pattern)
 	char *basepattern = "^[0-9][0-9]";
 	char *genericpattern = ".*"; /* used if pattern is null */
 	char *bigpattern = 0;
-	size_t len = 0;
 	char **retval = 0;
 
 	if (!pattern)
 		pattern = genericpattern;
 
-	len = strlen(basepattern) + strlen(pattern) + 1;
-	bigpattern = slapi_ch_calloc(sizeof(char), len);
-	sprintf(bigpattern, "%s%s", basepattern, pattern);
+	bigpattern = slapi_ch_smprintf("%s%s", basepattern, pattern);
 
 	retval = get_filelist(directory, bigpattern, 0, 0, 1);
 

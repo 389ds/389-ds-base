@@ -35,8 +35,6 @@
 #include "oneeval.h"
 #include "permhash.h"
 
-static int acl_default_result = ACL_RES_DENY;
-
 static ACLDispatchVector_t __nsacl_vector = {
 
     /* Error frame stack support */
@@ -470,10 +468,10 @@ ACLEvalBuildContext(
 		    if (PListFindValue(absauthplist, *argp, NULL, NULL) < 0)
 		    {
 			/*  Save pointer to the property list  */
-			PListInitProp(curauthplist, NULL, *argp, ace->expr_auth,
+			PListInitProp(curauthplist, 0, *argp, ace->expr_auth,
 				      ace->expr_auth);
                         if (IS_ABSOLUTE(ace->expr_flags))
-			    PListInitProp(absauthplist, NULL, *argp, NULL,
+			    PListInitProp(absauthplist, 0, *argp, NULL,
 			    NULL);
 		    }
 

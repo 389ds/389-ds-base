@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include "nspr.h"
+
 static char *
 get_month_str(int month)
 {
@@ -89,7 +91,7 @@ ds_get_file_meaning(char *file)
         return(NULL);
     if ( (sec < 0) || (sec > 60) )
         return(NULL);
-    sprintf(meaning, "%s % 2d %02d:%02d:%02d %4d", get_month_str(month), 
+    PR_snprintf(meaning, sizeof(meaning), "%s % 2d %02d:%02d:%02d %4d", get_month_str(month), 
 	day, hour, minute, sec, year);
     return(meaning);
 }

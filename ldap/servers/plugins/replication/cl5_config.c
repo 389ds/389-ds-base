@@ -15,6 +15,8 @@
 #ifdef TEST_CL5
 #include "cl5_test.h"    
 #endif
+#include "nspr.h"
+#include "plstr.h"
 
 #define CONFIG_BASE		"cn=changelog5,cn=config" /*"cn=changelog,cn=supplier,cn=replication5.0,cn=replication,cn=config"*/
 #define CONFIG_FILTER	"(objectclass=*)"
@@ -158,7 +160,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 		*returncode = 1;
 		if (returntext)
 		{
-			sprintf (returntext, "NULL changelog directory");
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "NULL changelog directory");
 		}
 
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -173,7 +175,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 		*returncode = 1;
 		if (returntext)
 		{
-			sprintf (returntext, "failed to start changelog; error - %d", rc);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to start changelog; error - %d", rc);
 		}
 
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -188,7 +190,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 		*returncode = 1;
 		if (returntext)
 		{
-			sprintf  (returntext, "failed to configure changelog trimming; error - %d", rc);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to configure changelog trimming; error - %d", rc);
 		}
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 						"changelog5_config_add: failed to configure changelog trimming\n");
@@ -366,7 +368,8 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					*returncode = LDAP_UNWILLING_TO_PERFORM;
 					if (returntext)
 					{
-						sprintf (returntext, "Unwilling to apply %s mods while the server is running", config_attr);
+						PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+									 "Unwilling to apply %s mods while the server is running", config_attr);
 					}
 					goto done;
 				}
@@ -415,7 +418,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				*returncode = 1;
 				if (returntext)
 				{
-					strcpy (returntext, "invalid changelog directory or insufficient access");
+					PL_strncpyz (returntext, "invalid changelog directory or insufficient access", SLAPI_DSE_RETURNTEXT_SIZE);
 				}
 				
 				goto done;
@@ -437,7 +440,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				*returncode = 1;
 				if (returntext)
 				{
-					sprintf (returntext, "failed to close changelog; error - %d", rc);
+					PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to close changelog; error - %d", rc);
 				}
 
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -451,7 +454,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				*returncode = 1;
 				if (returntext)
 				{
-					sprintf (returntext, "failed to remove changelog; error - %d", rc);
+					PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to remove changelog; error - %d", rc);
 				}
 
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -465,7 +468,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				*returncode = 1;
 				if (returntext)
 				{
-					sprintf (returntext, "failed to restart changelog; error - %d", rc);
+					PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to restart changelog; error - %d", rc);
 				}
 
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -490,7 +493,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			*returncode = 1;
 			if (returntext)
 			{
-				sprintf (returntext, "failed to configure changelog trimming; error - %d", rc);
+				PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to configure changelog trimming; error - %d", rc);
 			}
 
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -539,7 +542,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 		*returncode = 1;
 		if (returntext)
 		{
-			strcpy (returntext, "changelog is not configured");
+			PL_strncpyz(returntext, "changelog is not configured", SLAPI_DSE_RETURNTEXT_SIZE);
 		}
 		
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -555,7 +558,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 		*returncode = 1;
 		if (returntext)
 		{
-			strcpy (returntext, "changelog is not configured");
+			PL_strncpyz(returntext, "changelog is not configured", SLAPI_DSE_RETURNTEXT_SIZE);
 		}
 		
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -571,7 +574,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 		*returncode = 1;
 		if (returntext)
 		{
-			strcpy (returntext, "internal failure");
+			PL_strncpyz (returntext, "internal failure", SLAPI_DSE_RETURNTEXT_SIZE);
 		}
 		
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -587,7 +590,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 		*returncode = 1;
 		if (returntext)
 		{
-			sprintf (returntext, "failed to close changelog; error - %d", rc);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to close changelog; error - %d", rc);
 		}
 
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -601,7 +604,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 		*returncode = 1;
 		if (returntext)
 		{
-			sprintf (returntext, "failed to remove changelog; error - %d", rc);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to remove changelog; error - %d", rc);
 		}
 
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 

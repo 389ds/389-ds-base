@@ -342,7 +342,6 @@ static int read_db_info (FILE *fp, char *buf, DBConfDBInfo_t **db_info_out,
 			 int *eof)
 {
     char *ptr;
-    int found_directive = 0;
     DBConfDBInfo_t *db_info;
     int rv;
 
@@ -489,44 +488,13 @@ NSAPI_PUBLIC int dbconf_read_default_dbinfo (const char *file,
 }
 
 /*
- * ldapu_strncasecmp - is like strncasecmp on UNIX but also accepts null strings.
- */
-/* Not tested */
-static int ldapu_strncasecmp (const char *s1, const char *s2, size_t len)
-{
-    int ls1, ls2;		/* tolower values of chars in s1 & s2 resp. */
-
-    if (0 == len) return 0;
-    else if (!s1) return !s2 ? 0 : 0-tolower(*s2);
-    else if (!s2) return tolower(*s1);
-
-#ifdef XP_WIN32
-    while(len > 0 && *s1 && *s2 &&
-	  (ls1 = tolower(*s1)) == (ls2 = tolower(*s2)))
-    {
-	s1++; s2++; len--;
-    }
-
-    if (0 == len)
-	return 0;
-    else if (!*s1)
-	return *s2 ? 0-tolower(*s2) : 0;
-    else if (!*s2)
-	return tolower(*s1);
-    else
-	return ls1 - ls2;
-#else
-    return strncasecmp(s1, s2, len);
-#endif
-}
-
-
-/*
  * ldapu_strcasecmp - is like strcasecmp on UNIX but also accepts null strings.
  */
 int ldapu_strcasecmp (const char *s1, const char *s2)
 {
+#ifdef XP_WIN32
     int ls1, ls2;		/* tolower values of chars in s1 & s2 resp. */
+#endif
 
     if (!s1) return !s2 ? 0 : 0-tolower(*s2);
     else if (!s2) return tolower(*s1);

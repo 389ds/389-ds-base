@@ -445,7 +445,6 @@ void
 slapi_set_object_extension(int objecttype, void *object, int extensionhandle,
                            void *extension)
 {
-    void *object_extension = NULL;
     struct factory_type *ft = factory_type_store_get_factory_type(objecttype);
     if (ft != NULL) {
         char *object_base = (char *)object;

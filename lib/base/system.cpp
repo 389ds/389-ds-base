@@ -171,7 +171,6 @@ NSAPI_PUBLIC void *system_realloc_perm(void *ptr, int size)
     return realloc(ptr, size);
 #else
     int *magic, *length;
-    char *baseptr;
     char *cptr;
 
     cptr = (char *)ptr - DEBUG_MARGIN - 2 * sizeof(int);

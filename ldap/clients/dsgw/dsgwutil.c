@@ -1029,7 +1029,10 @@ dsgw_quote_emptyFrame()
 void 
 dsgw_password_expired_alert( char *dn )
 {
-    char *ufn, *encodeddn = dsgw_strdup_escaped( dn );
+#ifdef NOTFORNOW
+    char *ufn;
+#endif
+    char *encodeddn = dsgw_strdup_escaped( dn );
 
 	dsgw_send_header();
 	dsgw_emits( "<HTML>" );
@@ -1269,7 +1272,7 @@ AcceptLangList(const char* AcceptLanguage,
     cPtr = strtok(input,",");
     while (cPtr) {
       qvalue[countLang] = 1.0f;
-      if (cPtr1 = strchr(cPtr,';')) {
+      if ((cPtr1 = strchr(cPtr,';'))) {
         sscanf(cPtr1,";q=%f",&qvalue[countLang]);
         *cPtr1 = '\0';
       }
