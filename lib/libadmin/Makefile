@@ -41,9 +41,9 @@ include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 
-ifeq ($(ARCH), HPUX)
-CC=$(CCC)
-endif
+#ifeq ($(ARCH), HPUX)
+#CC=$(CCC)
+#endif
 
 $(OBJDEST):
 	mkdir -p $(OBJDEST)
