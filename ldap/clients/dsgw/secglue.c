@@ -1,9 +1,8 @@
-/**
- * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
- * license terms. Copyright © 2001 Sun Microsystems, Inc.
- * Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+/** --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- */
+  --- END COPYRIGHT BLOCK ---  */
 /*
  * secglue.c: Glue routines for the httpd.so shared object. These are 
  * necessary because on many system no garbage collection is performed for

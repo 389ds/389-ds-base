@@ -1,10 +1,8 @@
-/**
- * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
- * license terms. Copyright © 2001 Sun Microsystems, Inc.
- * Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+/** --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- */
-/* Copyright (c) 1998 Netscape Communications Corp.  All rights reserved. */
+  --- END COPYRIGHT BLOCK ---  */
 
 /* DON'T SHIP THIS PROGRAM.  It's terribly un-secure, as it
    enables an HTTP client to read the contents of any file.

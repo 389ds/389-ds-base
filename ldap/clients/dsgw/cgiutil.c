@@ -1,17 +1,13 @@
-/**
- * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
- * license terms. Copyright © 2001 Sun Microsystems, Inc.
- * Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+/** --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- */
+  --- END COPYRIGHT BLOCK ---  */
 /*
  * cgiutil.c -- CGI-related utility functions -- HTTP gateway
  *
  * Note: tihs code is derived from the extras/changepw.c code that ships
  *	with the FastTrack 2.0 server
- *
- * Copyright (c) 1996 Netscape Communications Corp.
- * All rights reserved.
  */
 
 #include "dsgw.h"

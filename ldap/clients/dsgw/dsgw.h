@@ -1,14 +1,10 @@
-/**
- * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
- * license terms. Copyright © 2001 Sun Microsystems, Inc.
- * Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+/** --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- */
+  --- END COPYRIGHT BLOCK ---  */
 /*
  * dsgw.h -- defines for HTTP gateway 
- *
- * Copyright (c) 1996 Netscape Communications Corp.
- * All rights reserved.
  */
 
 #if !defined( DSGW_NO_SSL ) && !defined( NET_SSL )
