@@ -19,10 +19,18 @@ MCOM_ROOT=../../..
 include ../../nsconfig.mk
 include ../../ldap/javarules.mk
 
-all:
+all: ldaptags online dsgw dsmlgw
+
+ldaptags:
 	cd ldaptags; $(MAKE)
+
+online:
 	cd online; $(MAKE)
-#	cd dsgw; $(MAKE)
+
+dsgw:
+	cd dsgw; $(MAKE)
+
+dsmlgw:
 	cd dsmlgw; $(MAKE)
 
 clean: 

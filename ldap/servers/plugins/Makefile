@@ -19,7 +19,7 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 include $(MCOM_ROOT)/ldapserver/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
-all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _presence _views 
+all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views 
 
 _utils:
 	cd shared; $(MAKE) $(MFLAGS) all
@@ -71,6 +71,7 @@ _retrocl:
 _http:
 	cd http; $(MAKE) $(MFLAGS) all
 
+# Note: stops building/packaging presence from 7.1
 _presence:
 	cd presence; $(MAKE) $(MFLAGS) all
 
@@ -94,8 +95,8 @@ clean:
 	cd distrib; $(MAKE) $(MFLAGS) clean
 	cd retrocl; $(MAKE) $(MFLAGS) clean
 	cd statechange; $(MAKE) $(MFLAGS) clean
-	cd presence; $(MAKE) $(MFLAGS) clean
 	cd http; $(MAKE) $(MFLAGS) clean
 	cd views; $(MAKE) $(MFLAGS) clean
+	#cd presence; $(MAKE) $(MFLAGS) clean
 
 veryclean:	clean

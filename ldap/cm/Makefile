@@ -416,7 +416,9 @@ endif
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH)
 
 # Images for IM Presence plugin
+ifdef BUILD_PRESENCE
 	$(INSTALL) -m 644 $(MCOM_DRIVE)$(MCOM_ROOT)/ldapserver/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/bin/slapd/install/presence
+endif
 
 # docs
 	if [ -d $(OBJDIR)/manual/slapd ] ; \

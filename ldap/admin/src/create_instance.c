@@ -91,8 +91,8 @@
 
 OS_TYPE NS_WINAPI INFO_GetOperatingSystem ();
 DWORD NS_WINAPI SERVICE_ReinstallNTService( LPCTSTR szServiceName, 
-										    LPCTSTR szServiceDisplayName,
-											LPCTSTR szServiceExe );
+                                            LPCTSTR szServiceDisplayName,
+                                            LPCTSTR szServiceExe );
 
 
 #endif
@@ -102,9 +102,11 @@ static char *ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int
 static char *install_ds(char *sroot, server_config_s *cf, char *param_name);
 
 static int write_ldap_info(char *slapd_server_root, server_config_s *cf);
+#if defined (BUILD_PRESENCE)
 static char *gen_presence_init_script(char *sroot, server_config_s *cf, 
-										 char *cs_path);
+                                         char *cs_path);
 static int init_presence(char *sroot, server_config_s *cf, char *cs_path);
+#endif
 
 #if defined( SOLARIS )
 /*
@@ -127,33 +129,33 @@ static char *sub_token(const char *, const char *, int, const char *, int);
  */
 static char *
 sub_token(const char *s, const char *token, int tokenlen,
-                          const char *replace, int replacelen)
+          const char *replace, int replacelen)
 {
-        char *n = 0, *d;
-        char *ptr = (char*)strstr(s, token);
-        const char *begin;
-        int len;
-        if (!ptr)
-                return n;
-
-        d = n = (char *) calloc(strlen(s) + replacelen + 1, 1);
-        if (!n)
-                return n;
-        begin = s;
-        len = (int)(ptr - begin);
-        strncpy(d, begin, len);
-        d += len;
-        begin = ptr + tokenlen;
-        len = replacelen;
-        strncpy(d, replace, len);
-        d += len;
-        for (ptr = (char *)begin; ptr && *ptr; LDAP_UTF8INC(ptr))
-        {
-                *d = *ptr;
-                LDAP_UTF8INC(d);
-        }
-        *d = 0;
+    char *n = 0, *d;
+    char *ptr = (char*)strstr(s, token);
+    const char *begin;
+    int len;
+    if (!ptr)
         return n;
+
+    d = n = (char *) calloc(strlen(s) + replacelen + 1, 1);
+    if (!n)
+        return n;
+    begin = s;
+    len = (int)(ptr - begin);
+    strncpy(d, begin, len);
+    d += len;
+    begin = ptr + tokenlen;
+    len = replacelen;
+    strncpy(d, replace, len);
+    d += len;
+    for (ptr = (char *)begin; ptr && *ptr; LDAP_UTF8INC(ptr))
+    {
+        *d = *ptr;
+        LDAP_UTF8INC(d);
+    }
+    *d = 0;
+    return n;
 }
 #endif /* SOLARIS */
 
@@ -164,7 +166,7 @@ static char *make_error(char *fmt, ...)
 
     va_start(args, fmt);
     vsprintf(errbuf, fmt, args);
-   va_end(args);
+    va_end(args);
     return errbuf;
 }
 
@@ -178,11 +180,11 @@ certain checks
 static int needToStartServer(server_config_s *cf)
 {
     if (cf && (
-	(cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1")) ||
-	(cf->start_server && !strcmp(cf->start_server, "1"))
-	))
+       (cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1")) ||
+       (cf->start_server && !strcmp(cf->start_server, "1"))
+    ))
     {
-	return 1;
+        return 1;
     }
 
     return 0;
@@ -192,7 +194,7 @@ static char *
 myStrdup(const char *s)
 {
     if (s == NULL)
-	return (char *)s;
+    return (char *)s;
 
     return strdup(s);
 }
@@ -207,33 +209,33 @@ static int getSuiteSpotUserGroup(server_config_s* cf)
     int status = 1;
 
     if (cf->servuser)
-	return 0;
+        return 0;
 
     sprintf(realFile, "%s/%s", cf->sroot, ssUsersFile);
     if (!(fp = fopen(realFile, "r")))
-	return 1;
+        return 1;
 
     while (fgets(buf, sizeof(buf), fp))
     {
-	char *p = NULL;
+        char *p = NULL;
 
-	if (buf[0] == '#' || buf[0] == '\n')
-	    continue;
+        if (buf[0] == '#' || buf[0] == '\n')
+            continue;
 
-	buf[strlen(buf) - 1] = 0;
-	if (p = strstr(buf, "SuiteSpotUser"))
-	{
-	    p += strlen("SuiteSpotUser");
-	    while (ldap_utf8isspace(p))
-		LDAP_UTF8INC(p);
-	    cf->servuser = strdup(p);
-	    status = 0;
-	    break;
-	}
+        buf[strlen(buf) - 1] = 0;
+        if (NULL != (p = strstr(buf, "SuiteSpotUser")))
+        {
+            p += strlen("SuiteSpotUser");
+            while (ldap_utf8isspace(p))
+            LDAP_UTF8INC(p);
+            cf->servuser = strdup(p);
+            status = 0;
+            break;
+        }
     }
 
     if (fp)
-	fclose(fp);
+        fclose(fp);
 
     return status;
 #else
@@ -252,12 +254,12 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
 
     if (hn)
     {
-	if( (t = strchr(hn, '.')) )
-	    *t = '\0';
-	id = (char *) malloc(strlen(hn) + 1);
-	sprintf(id, "%s", hn);
-	if(t)
-	    *t = '.';
+        if( (t = strchr(hn, '.')) )
+            *t = '\0';
+        id = (char *) malloc(strlen(hn) + 1);
+        sprintf(id, "%s", hn);
+        if(t)
+            *t = '.';
     }
 
     conf->servname = hn;
@@ -275,22 +277,22 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     conf->ntsynchport = "5009";
     conf->rootpw = "";
     conf->roothashedpw = "";
-	conf->loglevel = NULL;
-	if (getenv("DEBUG_DS_LOG_LEVEL"))
-		conf->loglevel = getenv("DEBUG_DS_LOG_LEVEL");
+    conf->loglevel = NULL;
+    if (getenv("DEBUG_DS_LOG_LEVEL"))
+        conf->loglevel = getenv("DEBUG_DS_LOG_LEVEL");
     conf->suffix = "dc=example, dc=com";
 #ifndef DONT_ALWAYS_CREATE_NETSCAPEROOT
-	conf->netscaperoot = name_netscaperootDN;
+    conf->netscaperoot = name_netscaperootDN;
 #endif /* DONT_ALWAYS_CREATE_NETSCAPEROOT */
 #define CREATE_SAMPLE_SUFFIX
 #ifdef CREATE_SAMPLE_SUFFIX
-	conf->samplesuffix = "dc=example, dc=com";
+    conf->samplesuffix = "dc=example, dc=com";
 #endif /* CREATE_SAMPLE_SUFFIX */
 #ifdef TEST_CONFIG
-	conf->netscaperoot = "cn=config40";
+    conf->netscaperoot = "cn=config40";
 #endif /* TEST_CONFIG */
 
-#define ROOT_RDN	"cn=Directory Manager"
+#define ROOT_RDN    "cn=Directory Manager"
     conf->rootdn = ROOT_RDN;
 /*    conf->rootdn = malloc(strlen(ROOT_RDN) + 2 + strlen(conf->suffix) + 1);
     sprintf(conf->rootdn, "%s, %s", ROOT_RDN, conf->suffix);*/
@@ -354,26 +356,26 @@ isAValidDN(const char *dn_to_test)
 
     if (!dn_to_test || !*dn_to_test)
     {
-	t = "No value specified for the parameter.";
+        t = "No value specified for the parameter.";
     }
     else
     {
-	char **rdnList = ldap_explode_dn(dn_to_test, 0);
-	char **rdnNoTypes = ldap_explode_dn(dn_to_test, 1);
-	if (!rdnList || !rdnList[0] || !rdnNoTypes || !rdnNoTypes[0] ||
-	    !*rdnNoTypes[0] || !PL_strcasecmp(rdnList[0], rdnNoTypes[0]))
-	{
-	    t = make_error("The given value [%s] is not a valid DN.",
-			   dn_to_test);
-	}
-	if (rdnList)
-	    ldap_value_free(rdnList);
-	if (rdnNoTypes)
-	    ldap_value_free(rdnNoTypes);
+        char **rdnList = ldap_explode_dn(dn_to_test, 0);
+        char **rdnNoTypes = ldap_explode_dn(dn_to_test, 1);
+        if (!rdnList || !rdnList[0] || !rdnNoTypes || !rdnNoTypes[0] ||
+            !*rdnNoTypes[0] || !PL_strcasecmp(rdnList[0], rdnNoTypes[0]))
+        {
+            t = make_error("The given value [%s] is not a valid DN.",
+                   dn_to_test);
+        }
+        if (rdnList)
+            ldap_value_free(rdnList);
+        if (rdnNoTypes)
+            ldap_value_free(rdnNoTypes);
     }
 
     if (t)
-	return t;
+        return t;
 
     return NULL;
 }
@@ -386,15 +388,15 @@ checkForLDAPv2Quoting(const char *dn_to_test)
 {
     if (ds_dn_uses_LDAPv2_quoting(dn_to_test))
     {
-	char *newdn = strdup(dn_to_test);
-	char *t;
-	dn_normalize_convert(newdn);
-	t = make_error(
-	    "The given value [%s] is quoted in the deprecated LDAPv2 style\n"
-	    "quoting format.  It will be automatically converted to use the\n"
-	    "LDAPv3 style escaped format [%s].", dn_to_test, newdn);
-	free(newdn);
-	ds_show_message(t);
+        char *newdn = strdup(dn_to_test);
+        char *t;
+        dn_normalize_convert(newdn);
+        t = make_error(
+            "The given value [%s] is quoted in the deprecated LDAPv2 style\n"
+            "quoting format.  It will be automatically converted to use the\n"
+            "LDAPv3 style escaped format [%s].", dn_to_test, newdn);
+        free(newdn);
+        ds_show_message(t);
     }
 
     return;
@@ -411,14 +413,14 @@ contains8BitChars(const char *s)
 
     if (s && *s)
     {
-	for (; !t && *s; ++s)
-	{
-	    if (*s & 0x80)
-	    {
-		t = make_error("The given value [%s] contains invalid 8 bit characters.",
-			       s);
-	    }
-	}
+        for (; !t && *s; ++s)
+        {
+            if (*s & 0x80)
+            {
+                t = make_error("The given value [%s] contains invalid 8 bit characters.",
+                   s);
+            }
+        }
     }
 
     return t;
@@ -430,39 +432,39 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     register int x;
 
     if (!param_name)
-	return "Parameter param_name is null";
+        return "Parameter param_name is null";
 
     /* if we don't need to start the server right away, we can skip the
-       port number checks
-       */
+    port number checks
+    */
     if (!needToStartServer(cf))
     {
         if( (t = create_instance_checkport(cf->bindaddr, cf->servport)) )
-	{
-	    strcpy(param_name, "servport");
+        {
+            strcpy(param_name, "servport");
             return t;
-	}
+        }
 
-	if ( cf->secserv && (strcmp(cf->secserv, "on") == 0) && (cf->secservport != NULL) &&
-	     (*(cf->secservport) != '\0') ) {
-	    if ( (t = create_instance_checkport(cf->bindaddr, cf->secservport)) ) {
-		strcpy(param_name, "secservport");
-		return t;
-	    }
-	}
-	if ( cf->ntsynch && (strcmp(cf->ntsynch, "on") == 0) && (cf->ntsynchport != NULL) &&
-	     (*(cf->ntsynchport) != '\0') ) {
-	    if ( (t = create_instance_checkport(cf->bindaddr, cf->ntsynchport)) ) {
-		strcpy(param_name, "ntsynchport");
-		return t;
-	    }
-	}
+        if ( cf->secserv && (strcmp(cf->secserv, "on") == 0) && (cf->secservport != NULL) &&
+         (*(cf->secservport) != '\0') ) {
+            if ( (t = create_instance_checkport(cf->bindaddr, cf->secservport)) ) {
+                strcpy(param_name, "secservport");
+                return t;
+            }
+        }
+        if ( cf->ntsynch && (strcmp(cf->ntsynch, "on") == 0) && (cf->ntsynchport != NULL) &&
+         (*(cf->ntsynchport) != '\0') ) {
+            if ( (t = create_instance_checkport(cf->bindaddr, cf->ntsynchport)) ) {
+                strcpy(param_name, "ntsynchport");
+                return t;
+            }
+        }
     }
 
     /* is the server identifier good? */
     for(x=0; cf->servid[x]; x++)  {
         if(strchr("/ &;`'\"|*!?~<>^()[]{}$\\", cf->servid[x]))  {
-	    strcpy(param_name, "servid");
+        strcpy(param_name, "servid");
             return make_error("You used a shell-specific character in "
                               "your server id (the character was %c).", 
                               cf->servid[x]);
@@ -474,19 +476,19 @@ static char *sanity_check(server_config_s *cf, char *param_name)
 
 /* Not an error to upgrade! ???
    if ( !cf->upgradingServer ) {
-   if(create_instance_exists(fn)) {
-   strcpy(param_name, "servid");
-   return make_error ("A server named '%s' already exists."
-   "\nPlease choose another server identifier.",
-   cf->servid);
-   }
+       if(create_instance_exists(fn)) {
+           strcpy(param_name, "servid");
+           return make_error ("A server named '%s' already exists."
+           "\nPlease choose another server identifier.",
+           cf->servid);
+       }
    }
    */
 
 #ifdef XP_UNIX
     if( (t = create_instance_checkuser(cf->servuser)) )
     {
-	strcpy(param_name, "servuser");
+        strcpy(param_name, "servuser");
         return t;
     }
 #endif
@@ -495,121 +497,121 @@ static char *sanity_check(server_config_s *cf, char *param_name)
 #ifdef XP_UNIX
     if((!create_instance_numbers(cf->numprocs)) || (atoi(cf->numprocs) <= 0))
     {
-	strcpy(param_name, "numprocs");
+        strcpy(param_name, "numprocs");
         return ("The number of processes must be not be zero or "
                 "negative.");
     }
 #endif
     if((!create_instance_numbers(cf->maxthreads)) || (atoi(cf->maxthreads) <= 0))
     {
-	strcpy(param_name, "maxthreads");
+        strcpy(param_name, "maxthreads");
         return ("The maximum threads must be not be zero or negative.");
     }
     if((!create_instance_numbers(cf->minthreads)) || (atoi(cf->minthreads) <= 0))
     {
-	strcpy(param_name, "minthreads");
+        strcpy(param_name, "minthreads");
         return ("The minumum threads must be not be zero or negative.");
     }
 
     if((atoi(cf->minthreads)) > (atoi(cf->maxthreads)))
     {
-	strcpy(param_name, "minthreads");
+        strcpy(param_name, "minthreads");
         return ("Minimum threads must be less than maximum threads.");
     }
 
     /* see if the DN parameters are valid DNs */
     if (!cf->use_existing_user_ds && (t = isAValidDN(cf->suffix)))
     {
-	strcpy(param_name, "suffix");
-	return t;
+        strcpy(param_name, "suffix");
+        return t;
     }
     checkForLDAPv2Quoting(cf->suffix);
 
-    if (t = isAValidDN(cf->rootdn))
+    if (NULL != (t = isAValidDN(cf->rootdn)))
     {
-	strcpy(param_name, "rootdn");
-	return t;
+        strcpy(param_name, "rootdn");
+        return t;
     }
     checkForLDAPv2Quoting(cf->rootdn);
 
     if (cf->replicationdn && *cf->replicationdn && (t = isAValidDN(cf->replicationdn)))
     {
-	strcpy(param_name, "replicationdn");
-	return t;
+        strcpy(param_name, "replicationdn");
+        return t;
     }
     checkForLDAPv2Quoting(cf->replicationdn);
 
     if (cf->consumerdn && *cf->consumerdn && (t = isAValidDN(cf->consumerdn)))
     {
-	strcpy(param_name, "consumerdn");
-	return t;
+        strcpy(param_name, "consumerdn");
+        return t;
     }
     checkForLDAPv2Quoting(cf->consumerdn);
 
     if (cf->changelogsuffix && *cf->changelogsuffix &&
-	(t = isAValidDN(cf->changelogsuffix)))
+        (t = isAValidDN(cf->changelogsuffix)))
     {
-	strcpy(param_name, "changelogsuffix");
-	return t;
+        strcpy(param_name, "changelogsuffix");
+        return t;
     }
     checkForLDAPv2Quoting(cf->changelogsuffix);
 
     if (cf->netscaperoot && *cf->netscaperoot &&
-	(t = isAValidDN(cf->netscaperoot)))
+        (t = isAValidDN(cf->netscaperoot)))
     {
-	strcpy(param_name, "netscaperoot");
-	return t;
+        strcpy(param_name, "netscaperoot");
+        return t;
     }
     checkForLDAPv2Quoting(cf->netscaperoot);
 
     if (cf->samplesuffix && *cf->samplesuffix &&
-	(t = isAValidDN(cf->samplesuffix)))
+        (t = isAValidDN(cf->samplesuffix)))
     {
-	strcpy(param_name, "samplesuffix");
-	return t;
+        strcpy(param_name, "samplesuffix");
+        return t;
     }
     checkForLDAPv2Quoting(cf->samplesuffix);
 
-    if (t = contains8BitChars(cf->rootpw))
+    if (NULL != (t = contains8BitChars(cf->rootpw)))
     {
-	strcpy(param_name, "rootpw");
-	return t;
+        strcpy(param_name, "rootpw");
+        return t;
     }
 
-    if (t = contains8BitChars(cf->cfg_sspt_uidpw))
+    if (NULL != (t = contains8BitChars(cf->cfg_sspt_uidpw)))
     {
-	strcpy(param_name, "cfg_sspt_uidpw");
-	return t;
+        strcpy(param_name, "cfg_sspt_uidpw");
+        return t;
     }
 
-    if (t = contains8BitChars(cf->replicationpw))
+    if (NULL != (t = contains8BitChars(cf->replicationpw)))
     {
-	strcpy(param_name, "replicationpw");
-	return t;
+        strcpy(param_name, "replicationpw");
+        return t;
     }
 
-    if (t = contains8BitChars(cf->consumerpw))
+    if (NULL != (t = contains8BitChars(cf->consumerpw)))
     {
-	strcpy(param_name, "consumerpw");
-	return t;
+        strcpy(param_name, "consumerpw");
+        return t;
     }
 
     if (cf->cfg_sspt_uid && *cf->cfg_sspt_uid)
     {
-	/*
-	  If it is a valid DN, ok.  Otherwise, it should be a uid, and should
-	  be checked for 8 bit chars
-	*/
-	if (t = isAValidDN(cf->cfg_sspt_uid))
-	{
-	    if (t = contains8BitChars(cf->cfg_sspt_uid))
-	    {
-		strcpy(param_name, "cfg_sspt_uid");
-		return t;
-	    }
-	}
-	else
-	    checkForLDAPv2Quoting(cf->cfg_sspt_uid);
+    /*
+      If it is a valid DN, ok.  Otherwise, it should be a uid, and should
+      be checked for 8 bit chars
+    */
+        if (NULL != (t = isAValidDN(cf->cfg_sspt_uid)))
+        {
+            if (NULL != (t = contains8BitChars(cf->cfg_sspt_uid)))
+            {
+                strcpy(param_name, "cfg_sspt_uid");
+                return t;
+            }
+        }
+        else
+            checkForLDAPv2Quoting(cf->cfg_sspt_uid);
     }
 
     return NULL;
@@ -628,13 +630,13 @@ char*
 chownfile (struct passwd* pw, char* fn)
 {
     if (pw != NULL && chown (fn, pw->pw_uid, pw->pw_gid) == -1) {
-	if (pw->pw_name != NULL) {
-	    return make_error ("Could not change owner of %s to %s.",
-			       fn, pw->pw_name);
-	} else {
-	    return make_error ("Could not change owner of %s to (UID %li, GID %li).",
-			       fn, (long)(pw->pw_uid), (long)(pw->pw_gid));
-	}
+        if (pw->pw_name != NULL) {
+            return make_error ("Could not change owner of %s to %s.",
+                   fn, pw->pw_name);
+        } else {
+            return make_error ("Could not change owner of %s to (UID %li, GID %li).",
+                   fn, (long)(pw->pw_uid), (long)(pw->pw_gid));
+        }
     }
     return NULL;
 }
@@ -645,10 +647,10 @@ char *chownlogs(char *sroot, char *user)
     char fn[PATH_SIZE];
     if(user && *user && !geteuid())  {
         if(!(pw = getpwnam(user)))
-	  return make_error("Could not find UID and GID of user '%s'.", 
-			    user);
-	sprintf(fn, "%s%clogs", sroot, FILE_PATHSEP);
-	return chownfile (pw, fn);
+            return make_error("Could not find UID and GID of user '%s'.", 
+                              user);
+        sprintf(fn, "%s%clogs", sroot, FILE_PATHSEP);
+        return chownfile (pw, fn);
     }
     return NULL;
 }
@@ -659,10 +661,10 @@ char *chownconfig(char *sroot, char *user)
     char fn[PATH_SIZE];
     if(user && *user && !geteuid())  {
         if(!(pw = getpwnam(user)))
-	  return make_error("Could not find UID and GID of user '%s'.", 
-			    user);
-	sprintf(fn, "%s%cconfig", sroot, FILE_PATHSEP);
-	return chownfile (pw, fn);
+            return make_error("Could not find UID and GID of user '%s'.", 
+                              user);
+        sprintf(fn, "%s%cconfig", sroot, FILE_PATHSEP);
+        return chownfile (pw, fn);
     }
     return NULL;
 }
@@ -690,30 +692,30 @@ char *gen_script(char *s_root, char *name, char *fmt, ...)
 #if !defined( XP_WIN32 )
 #if defined( OSF1 )
     /*
-	The standard /bin/sh has some rather strange behavior with "$@",
-	so use the posix version wherever possible.  OSF1 4.0D should
-	always have this one available.
+    The standard /bin/sh has some rather strange behavior with "$@",
+    so use the posix version wherever possible.  OSF1 4.0D should
+    always have this one available.
     */
     if (!access("/usr/bin/posix/sh", 0))
-	shell = "/usr/bin/posix/sh";
+        shell = "/usr/bin/posix/sh";
 #endif /* OSF1 */
     fprintf(f, "#!%s\n\n", shell);
-	/*
-	Neutralize shared library access.
-	
-	On HP-UX, SHLIB_PATH is the historical variable.
-	However on HP-UX 64 bit, LD_LIBRARY_PATH is also used.
-	We unset both too.
-	*/
+    /*
+    Neutralize shared library access.
+    
+    On HP-UX, SHLIB_PATH is the historical variable.
+    However on HP-UX 64 bit, LD_LIBRARY_PATH is also used.
+    We unset both too.
+    */
 #if defined( SOLARIS ) || defined( OSF1 ) || defined( LINUX2_0 )
-	fprintf(f, "unset LD_LIBRARY_PATH\n");
+    fprintf(f, "unset LD_LIBRARY_PATH\n");
 #endif
 #if defined( HPUX )
-	fprintf(f, "unset SHLIB_PATH\n");
-	fprintf(f, "unset LD_LIBRARY_PATH\n");
+    fprintf(f, "unset SHLIB_PATH\n");
+    fprintf(f, "unset LD_LIBRARY_PATH\n");
 #endif
 #if defined( AIX )
-	fprintf(f, "unset LIBPATH\n");
+    fprintf(f, "unset LIBPATH\n");
 #endif
 #endif
     vfprintf(f, fmt, args);
@@ -723,7 +725,7 @@ char *gen_script(char *s_root, char *name, char *fmt, ...)
 #endif
     fclose(f);
 #if defined( XP_WIN32 )
-	chmod( fn, NEWSCRIPT_MODE);
+    chmod( fn, NEWSCRIPT_MODE);
 #endif
     return NULL;
 }
@@ -737,8 +739,8 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
 
     sprintf(fn, "%s%c%s", cs_path, FILE_PATHSEP, name);
     sprintf(myperl, "%s%cbin%cslapd%cadmin%cbin%cperl",
-					s_root, FILE_PATHSEP, FILE_PATHSEP,
-					FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+                    s_root, FILE_PATHSEP, FILE_PATHSEP,
+                    FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     if(!(f = fopen(fn, "w")))  
         return make_error("Could not write to %s (%s).", fn, ds_system_errmsg());
     va_start(args, fmt);
@@ -752,7 +754,7 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
 #endif
     fclose(f);
 #if defined( XP_WIN32 )
-	chmod( fn, NEWSCRIPT_MODE);
+    chmod( fn, NEWSCRIPT_MODE);
 #endif
 
 #if defined( SOLARIS )
@@ -760,10 +762,10 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
      * Solaris 9+ specific installation
      * Log all non <server_root>/slapd-identifier files/directories 
      * created by the post_installer so that they can be removed 
-     * during un-install.	
+     * during un-install.    
      */
     if (iDSISolaris)
-	logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
+    logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
 #endif
 
     return NULL;
@@ -816,7 +818,7 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
      * Solaris 9+ specific installation 
      */
     if (iDSISolaris)
-	logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
+        logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
 #endif
 
     return NULL;
@@ -833,7 +835,7 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, name);
     sprintf(fn, "%s%cbin%cslapd%cadmin%cbin%c%s", s_root, FILE_PATHSEP, 
-    	    FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, name);
+            FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, name);
     sprintf(myperl, "!%s%cbin%cslapd%cadmin%cbin%cperl",
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
@@ -871,7 +873,7 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
      * Solaris 9+ specific installation 
      */
     if (iDSISolaris)
-	logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
+    logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
 #endif
 
     return NULL;
@@ -887,38 +889,38 @@ service_exists(char *servid)
     DWORD status, lasterror = 0;
     char szServiceName[MAX_PATH] = {0};
     sprintf(szServiceName,"%s-%s", SVR_ID_SERVICE, servid);
-	/* if the service already exists, error */
-	status = SERVICE_GetNTServiceStatus(szServiceName, &lasterror );
-	if ( (lasterror == ERROR_SERVICE_DOES_NOT_EXIST) || 
-		(status == SERVRET_ERROR) || (status == SERVRET_REMOVED) ) {
+    /* if the service already exists, error */
+    status = SERVICE_GetNTServiceStatus(szServiceName, &lasterror );
+    if ( (lasterror == ERROR_SERVICE_DOES_NOT_EXIST) || 
+        (status == SERVRET_ERROR) || (status == SERVRET_REMOVED) ) {
          return 0;
-	} else {	return
-			 make_error("Server %s already exists: cannot create another.  "
-						"Please choose a different name or delete the "
-						"existing server.",
-						szServiceName);
-	}
+    } else {    return
+        make_error("Server %s already exists: cannot create another.  "
+                   "Please choose a different name or delete the "
+                   "existing server.",
+                   szServiceName);
+    }
 
-	return 0;
+    return 0;
 }
 
 void setup_nteventlogging(char *szServiceId, char *szMessageFile)
 {
     HKEY hKey;
-	char szKey[MAX_PATH];
-	DWORD dwData;
+    char szKey[MAX_PATH];
+    DWORD dwData;
 
     sprintf(szKey, "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\%s", szServiceId);
 
-  	if(RegCreateKey(HKEY_LOCAL_MACHINE, szKey, &hKey) == ERROR_SUCCESS)
+    if(RegCreateKey(HKEY_LOCAL_MACHINE, szKey, &hKey) == ERROR_SUCCESS)
     {
- 	    if(RegSetValueEx(hKey, "EventMessageFile", 0, REG_SZ, (LPBYTE)szMessageFile, strlen(szMessageFile) + 1) == ERROR_SUCCESS)
+        if(RegSetValueEx(hKey, "EventMessageFile", 0, REG_SZ, (LPBYTE)szMessageFile, strlen(szMessageFile) + 1) == ERROR_SUCCESS)
         {
             dwData = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE;
             RegSetValueEx(hKey, "TypesSupported", 0, REG_DWORD, (LPBYTE) &dwData, sizeof(DWORD));
         }
-	    RegCloseKey(hKey);
-	}
+        RegCloseKey(hKey);
+    }
 }
 
     
@@ -929,24 +931,24 @@ char *add_ntservice(server_config_s *cf)
     DWORD dwLastError;
     
     sprintf ( szServiceExe, "%s/bin/%s/server/%s", cf->sroot, 
-		SVR_DIR_ROOT, SVR_EXE);
+              SVR_DIR_ROOT, SVR_EXE);
     sprintf ( szServiceName,"%s-%s", SVR_ID_SERVICE, cf->servid);
     sprintf ( szServiceDisplayName, "%s (%s)", SVR_NAME_FULL_VERSION, 
-		cf->servid);
+              cf->servid);
 
     /* install new service - if already installed, try and remove and 
-		then reinstall */
+        then reinstall */
     dwLastError = SERVICE_ReinstallNTService( szServiceName, 
-		szServiceDisplayName, szServiceExe );
+        szServiceDisplayName, szServiceExe );
     if ( dwLastError != NO_ERROR ) {
          return make_error ( "While installing %s Service, the "
                 "NT Service Manager reported error %d (%s)", 
-				szServiceDisplayName, dwLastError, ds_system_errmsg() );
+                szServiceDisplayName, dwLastError, ds_system_errmsg() );
     }
 
     // setup event logging registry keys, do this after service creation
     sprintf(szMessageFile, "%s\\bin\\%s\\server\\%s", cf->sroot, 
-		SVR_DIR_ROOT, "slapdmessages30.dll");
+        SVR_DIR_ROOT, "slapdmessages30.dll");
     setup_nteventlogging(szServiceName, szMessageFile);
 
     // TODO: add perfmon setup code -ahakim 11/22/96
@@ -957,15 +959,15 @@ char *setup_ntserver(server_config_s *cf)
 {
     char line[MAX_PATH], *sroot = cf->sroot;
     char subdir[MAX_PATH];
-	char NumValuesBuf[3];
+    char NumValuesBuf[3];
     DWORD Result;
     HKEY hServerKey;
-	DWORD NumValues;
-	DWORD iterator;
-	int value_already_exists = 0;
-	DWORD type_buffer;
-	char  value_data_buffer[MAX_PATH];
-	DWORD sizeof_value_data_buffer;
+    DWORD NumValues;
+    DWORD iterator;
+    int value_already_exists = 0;
+    DWORD type_buffer;
+    char  value_data_buffer[MAX_PATH];
+    DWORD sizeof_value_data_buffer;
 
     /* MLM - Adding ACL directories authdb and authdb/default */
     sprintf(subdir, "%s%cauthdb", sroot, FILE_PATHSEP); 
@@ -978,103 +980,103 @@ char *setup_ntserver(server_config_s *cf)
 
     /* Create DS-nickname (corresponding to ServiceID) key in registry */
     sprintf(line, "%s\\%s\\%s-%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
-		SVR_ID_SERVICE, cf->servid);
+        SVR_ID_SERVICE, cf->servid);
 
-	Result = RegCreateKey(HKEY_LOCAL_MACHINE, line, &hServerKey);
-	if (Result != ERROR_SUCCESS) {
-		return make_error("Could not create registry server key %s - error %d (%s)",
-			line, GetLastError(), ds_system_errmsg());
-	}
+    Result = RegCreateKey(HKEY_LOCAL_MACHINE, line, &hServerKey);
+    if (Result != ERROR_SUCCESS) {
+        return make_error("Could not create registry server key %s - error %d (%s)",
+            line, GetLastError(), ds_system_errmsg());
+    }
     
     // note that SVR_ID_PRODUCT is being used here, which is of the form dsX
     // as opposed to SVR_ID_SERVICE, which is of the form dsX30
     sprintf(line, "%s\\%s-%s\\config", sroot, SVR_ID_PRODUCT, cf->servid);
- 	Result = RegSetValueEx(hServerKey, VALUE_CONFIG_PATH, 0, REG_SZ, 
-		line, strlen(line) + 1);
+    Result = RegSetValueEx(hServerKey, VALUE_CONFIG_PATH, 0, REG_SZ, 
+        line, strlen(line) + 1);
 
-	RegCloseKey(hServerKey);
+    RegCloseKey(hServerKey);
 
      /* Create SNMP key in registry */
-     sprintf(line, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
-		KEY_SNMP_CURRENTVERSION);
+    sprintf(line, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, 
+        KEY_SNMP_CURRENTVERSION);
 
-	Result = RegCreateKey(HKEY_LOCAL_MACHINE, line, &hServerKey);
-	if (Result != ERROR_SUCCESS) {
-		return make_error("Could not create registry server key %s - error %d (%s)",
-			line, GetLastError(), ds_system_errmsg());
-	}
+    Result = RegCreateKey(HKEY_LOCAL_MACHINE, line, &hServerKey);
+    if (Result != ERROR_SUCCESS) {
+        return make_error("Could not create registry server key %s - error %d (%s)",
+            line, GetLastError(), ds_system_errmsg());
+    }
     
     
-	/* Create the SNMP Pathname value */
-	sprintf(line, "%s\\%s", sroot, SNMP_PATH);
- 	Result = RegSetValueEx(hServerKey, VALUE_APP_PATH, 0, REG_SZ, 
-		line, strlen(line) + 1);	
-	RegCloseKey(hServerKey);
+    /* Create the SNMP Pathname value */
+    sprintf(line, "%s\\%s", sroot, SNMP_PATH);
+    Result = RegSetValueEx(hServerKey, VALUE_APP_PATH, 0, REG_SZ, 
+        line, strlen(line) + 1);    
+    RegCloseKey(hServerKey);
 
-	/* write SNMP extension agent value to Microsoft SNMP Part of Registry)  */
-	sprintf(line, "%s\\%s", KEY_SERVICES, KEY_SNMP_SERVICE); 
-	Result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, 
-						  line,
-						  0,
-						  KEY_ALL_ACCESS,
-						  &hServerKey);
-	/* if its there set the value, otherwise go on to the next thing  */
-	if (Result == ERROR_SUCCESS) 
-	{
-	    /* extension agents should have linearly increasing value, 
-		make sure it doesn't already exist, find last one and increment 
-		value for new key */
+    /* write SNMP extension agent value to Microsoft SNMP Part of Registry)  */
+    sprintf(line, "%s\\%s", KEY_SERVICES, KEY_SNMP_SERVICE); 
+    Result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, 
+                          line,
+                          0,
+                          KEY_ALL_ACCESS,
+                          &hServerKey);
+    /* if its there set the value, otherwise go on to the next thing  */
+    if (Result == ERROR_SUCCESS) 
+    {
+        /* extension agents should have linearly increasing value, 
+        make sure it doesn't already exist, find last one and increment 
+        value for new key */
 
-		sprintf(line, "%s\\%s\\%s",	KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, KEY_SNMP_CURRENTVERSION);
+        sprintf(line, "%s\\%s\\%s",    KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT, KEY_SNMP_CURRENTVERSION);
 
         Result = RegQueryInfoKey(hServerKey, NULL, NULL, NULL, NULL, NULL,
                                  NULL, &NumValues, NULL, NULL, NULL, NULL);
       
-		if (Result == ERROR_SUCCESS){
-			for(iterator = 0; iterator <= NumValues; iterator++)
-			{
-				/* initialize to max size to avoid
-				   ERROR_MORE_DATA because size gets set
-				   to actual size of key after call 
-				   to RegQueryValueEx, previously there
-				   was a bug if last key was smaller
-				   than this one it would return ERROR_MORE_DATA
-				   and it would not find the key if it was already there
-				*/
-				sizeof_value_data_buffer=MAX_PATH;
-				sprintf(NumValuesBuf, "%d", iterator);
-				Result = RegQueryValueEx(hServerKey,
-						              NumValuesBuf,
-							          NULL,
-							          &type_buffer,
-								      value_data_buffer,
-									  &sizeof_value_data_buffer
-									 );
+        if (Result == ERROR_SUCCESS){
+            for(iterator = 0; iterator <= NumValues; iterator++)
+            {
+                /* initialize to max size to avoid
+                   ERROR_MORE_DATA because size gets set
+                   to actual size of key after call 
+                   to RegQueryValueEx, previously there
+                   was a bug if last key was smaller
+                   than this one it would return ERROR_MORE_DATA
+                   and it would not find the key if it was already there
+                */
+                sizeof_value_data_buffer=MAX_PATH;
+                sprintf(NumValuesBuf, "%d", iterator);
+                Result = RegQueryValueEx(hServerKey,
+                                      NumValuesBuf,
+                                      NULL,
+                                      &type_buffer,
+                                      value_data_buffer,
+                                      &sizeof_value_data_buffer
+                                     );
 
-				if(!strcmp(value_data_buffer, line))
-				{
-					value_already_exists = 1;
-				}
-			}				
-		}
-				
-		if(!value_already_exists)
-		{
-	  		sprintf(NumValuesBuf, "%d", NumValues + 1); 
-			Result = RegSetValueEx(hServerKey, NumValuesBuf, 0, REG_SZ,
-			  			       line, strlen(line) + 1);
+                if(!strcmp(value_data_buffer, line))
+                {
+                    value_already_exists = 1;
+                }
+            }                
+        }
+                
+        if(!value_already_exists)
+        {
+              sprintf(NumValuesBuf, "%d", NumValues + 1); 
+            Result = RegSetValueEx(hServerKey, NumValuesBuf, 0, REG_SZ,
+                                 line, strlen(line) + 1);
 
-			/* couldn't set this value, so there is a real problem */
-			if (Result != ERROR_SUCCESS)
-			{
-				return make_error("Could not set value %s (%d)",
-				line, Result);
-			}
-		}
+            /* couldn't set this value, so there is a real problem */
+            if (Result != ERROR_SUCCESS)
+            {
+                return make_error("Could not set value %s (%d)",
+                line, Result);
+            }
+        }
 
-	}
-	RegCloseKey(hServerKey);
-	    
+    }
+    RegCloseKey(hServerKey);
+        
     return NULL;
 }
 #endif
@@ -1098,16 +1100,16 @@ char *create_server(server_config_s *cf, char *param_name)
 #endif /* SOLARIS */
 
     if (param_name)
-	param_name[0] = 0; /* init to empty string */
+        param_name[0] = 0; /* init to empty string */
 
 #ifdef XP_UNIX
     if (!cf->servuser)
-	getSuiteSpotUserGroup(cf);
+        getSuiteSpotUserGroup(cf);
 #else
     /* Abort if the service exists on NT */
     if (t = service_exists(cf->servid)) {
-	strcpy(param_name, "servid");
-	return t;
+        strcpy(param_name, "servid");
+        return t;
     }
 #endif
 
@@ -1123,56 +1125,56 @@ char *create_server(server_config_s *cf, char *param_name)
      * <server_root>/.native_solaris file acts as the flag
      */
     if (!iDSISolaris) {
-    	sprintf(otherline, "%s%c.native_solaris", sroot, FILE_PATHSEP);	
-    	if (create_instance_exists(otherline)) {
-		iDSISolaris = 1;
-	}
-    }	
+        sprintf(otherline, "%s%c.native_solaris", sroot, FILE_PATHSEP);    
+        if (create_instance_exists(otherline)) {
+            iDSISolaris = 1;
+        }
+    }    
 
     if (iDSISolaris) {
-	/*
-	 * Create the slapd-nickname directory under "var"
-	 */
+    /*
+     * Create the slapd-nickname directory under "var"
+     */
         sub = sub_token(sroot,"/usr/iplanet/",13,"/var/",5);
         if (sub) {
-                sprintf(subdirvar, "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
-                free(sub);
+            sprintf(subdirvar, "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
+            free(sub);
         }
         else {
-                sprintf(subdirvar, "%s/"PRODUCT_NAME"-%s", SOLARIS_VAR_DIR, cf->servid);
+            sprintf(subdirvar, "%s/"PRODUCT_NAME"-%s", SOLARIS_VAR_DIR, cf->servid);
         }
         if( (create_instance_mkdir_p(subdirvar, NEWDIR_MODE)) )
-                return make_error("mkdir %s failed (%s)", subdirvar, ds_system_errmsg());
+            return make_error("mkdir %s failed (%s)", subdirvar, ds_system_errmsg());
 
         /*
          * Create the slapd-nickname directory under "etc"
          */
         sub = sub_token(sroot,"/usr/",5,"/etc/",5);
         if (sub) {
-                sprintf(subdiretc, "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
-                free(sub);
+            sprintf(subdiretc, "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
+            free(sub);
         }
         else {
-                sprintf(subdiretc, "%s/"PRODUCT_NAME"-%s", SOLARIS_ETC_DIR, cf->servid);
+            sprintf(subdiretc, "%s/"PRODUCT_NAME"-%s", SOLARIS_ETC_DIR, cf->servid);
         }
         if( (create_instance_mkdir_p(subdiretc, NEWDIR_MODE)) )
-                return make_error("mkdir %s failed (%s)", subdiretc, ds_system_errmsg());
+            return make_error("mkdir %s failed (%s)", subdiretc, ds_system_errmsg());
         sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP,
                  cf->servid);
         if( (create_instance_symlink(subdirvar, subdir)) )
-                return make_error("symlink %s ==> %s failed (%s)", subdir, subdirvar, ds_system_errmsg());
+            return make_error("symlink %s ==> %s failed (%s)", subdir, subdirvar, ds_system_errmsg());
     }
     else {
-    	sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+        sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
                  cf->servid);
-    	if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
-        	return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
-    }  	
+        if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
+            return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
+    }      
 #else 
-    	sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+    sprintf(subdir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
                  cf->servid);
-    	if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
-        	return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
+    if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
+        return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
 #endif /* SOLARIS */
     
     /* Create slapd-nickname/config directory */
@@ -1184,7 +1186,7 @@ char *create_server(server_config_s *cf, char *param_name)
         sprintf(line, "%s%cconfig", subdirvar, FILE_PATHSEP);
         sprintf(otherline, "%s%cconfig", subdiretc, FILE_PATHSEP);
         if( (create_instance_symlink(line, otherline)) )
-                return make_error("symlink %s ==> %s failed (%s)", otherline, line, ds_system_errmsg());
+            return make_error("symlink %s ==> %s failed (%s)", otherline, line, ds_system_errmsg());
     }
 #endif /* SOLARIS */
 
@@ -1193,10 +1195,12 @@ char *create_server(server_config_s *cf, char *param_name)
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 
+#if defined (BUILD_PRESENCE)
     /* Create slapd-nickname/config/presence directory */
     sprintf(line, "%s%cconfig%cpresence", subdir, FILE_PATHSEP, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+#endif
 
     /* Create slapd-nickname/logs directory */
     sprintf(line, "%s%clogs", subdir, FILE_PATHSEP);
@@ -1220,267 +1224,267 @@ char *create_server(server_config_s *cf, char *param_name)
     if (getenv("USE_DEBUGGER"))
 #endif /* SOLARIS */
     {
-	char *debugger = getenv("DSINST_DEBUGGER");
-	char *debugger_command = getenv("DSINST_DEBUGGER_CMD");
-	if (! debugger) {
-	    debugger = "/tools/ns/workshop/bin/dbx";
-	}
-	if (! debugger_command) {
-	    debugger_command = "echo"; /* e.g. do nothing */
-	}
+        char *debugger = getenv("DSINST_DEBUGGER");
+        char *debugger_command = getenv("DSINST_DEBUGGER_CMD");
+        if (! debugger) {
+            debugger = "/tools/ns/workshop/bin/dbx";
+        }
+        if (! debugger_command) {
+            debugger_command = "echo"; /* e.g. do nothing */
+        }
 #ifdef OSF1
-	printf("-D %s -i %s/logs/pid -d %s -z\n", subdir, subdir,
-	       cf->loglevel ? cf->loglevel : "0");
-	t = gen_script(subdir, START_SCRIPT,
-		       "\n"
-		       "# Script that starts the ns-slapd server.\n"
-		       "# Exit status can be:\n"
-		       "#       0: Server started successfully\n"
-		       "#       1: Server could not be started\n"
-		       "#       2: Server already running\n"
-		       "\n"
-		       "NETSITE_ROOT=%s\n"
-		       "export NETSITE_ROOT\n"
-		       "PIDFILE=%s/logs/pid\n"
-		       "if test -f $PIDFILE ; then\n"
-		       "    PID=`cat $PIDFILE`\n"
-		       "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-		       "        echo There is an ns-slapd process already running: $PID\n"
-		       "        exit 2;\n"
-		       "    else\n"
-		       "        rm -f $PIDFILE\n"
-		       "    fi\n"
-		       "fi\n"
-		       "cd %s/bin/%s/server; ./%s -D %s -i %s/logs/pid -d %s -z \"$@\" &\n"
-		       "loop_counter=1\n"
-		       "max_count=120\n"
-		       "while test $loop_counter -le $max_count; do\n"
-		       "    loop_counter=`expr $loop_counter + 1`\n"
-		       "    if test ! -f $PIDFILE ; then\n"
-		       "        sleep 1;\n"
-		       "    else\n"
-		       "        PID=`cat $PIDFILE`\n"
-			/* rbyrne: setupsdk takes any message here as an error:
-				"        echo Server has been started. ns-slapd process started: $PID\n"*/
-		       "        exit 0;\n"
-		       "    fi\n"
-		       "done\n"
-		       "echo Server not running!! Failed to start ns-slapd process.\n"
-		       "exit 1\n",
-		       sroot, subdir, sroot, PRODUCT_NAME, PRODUCT_BIN, subdir,
-		       subdir,
-	       cf->loglevel ? cf->loglevel : "0"
-	    );
+        printf("-D %s -i %s/logs/pid -d %s -z\n", subdir, subdir,
+               cf->loglevel ? cf->loglevel : "0");
+        t = gen_script(subdir, START_SCRIPT,
+               "\n"
+               "# Script that starts the ns-slapd server.\n"
+               "# Exit status can be:\n"
+               "#       0: Server started successfully\n"
+               "#       1: Server could not be started\n"
+               "#       2: Server already running\n"
+               "\n"
+               "NETSITE_ROOT=%s\n"
+               "export NETSITE_ROOT\n"
+               "PIDFILE=%s/logs/pid\n"
+               "if test -f $PIDFILE ; then\n"
+               "    PID=`cat $PIDFILE`\n"
+               "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
+               "        echo There is an ns-slapd process already running: $PID\n"
+               "        exit 2;\n"
+               "    else\n"
+               "        rm -f $PIDFILE\n"
+               "    fi\n"
+               "fi\n"
+               "cd %s/bin/%s/server; ./%s -D %s -i %s/logs/pid -d %s -z \"$@\" &\n"
+               "loop_counter=1\n"
+               "max_count=120\n"
+               "while test $loop_counter -le $max_count; do\n"
+               "    loop_counter=`expr $loop_counter + 1`\n"
+               "    if test ! -f $PIDFILE ; then\n"
+               "        sleep 1;\n"
+               "    else\n"
+               "        PID=`cat $PIDFILE`\n"
+            /* rbyrne: setupsdk takes any message here as an error:
+                "        echo Server has been started. ns-slapd process started: $PID\n"*/
+               "        exit 0;\n"
+               "    fi\n"
+               "done\n"
+               "echo Server not running!! Failed to start ns-slapd process.\n"
+               "exit 1\n",
+               sroot, subdir, sroot, PRODUCT_NAME, PRODUCT_BIN, subdir,
+               subdir,
+           cf->loglevel ? cf->loglevel : "0"
+        );
 /*
-	t = gen_script(subdir, START_SCRIPT,
-		       "NETSITE_ROOT=%s\n"
-		       "export NETSITE_ROOT\n"
-		       "cd %s/bin/%s/server; /usr/bin/X11/xterm -fn 10x20 -sb -sl 2000 -e /bin/ladebug "
-		       "-I /u/richm/ds50/ldapserver/ldap/servers/slapd/back-ldbm "
-		       "-I /u/richm/ds50/ldapserver/ldap/servers/slapd "
-		       "%s &\n",
-		       sroot, sroot, PRODUCT_NAME, PRODUCT_BIN
-	    );
+        t = gen_script(subdir, START_SCRIPT,
+               "NETSITE_ROOT=%s\n"
+               "export NETSITE_ROOT\n"
+               "cd %s/bin/%s/server; /usr/bin/X11/xterm -fn 10x20 -sb -sl 2000 -e /bin/ladebug "
+               "-I /u/richm/ds50/ldapserver/ldap/servers/slapd/back-ldbm "
+               "-I /u/richm/ds50/ldapserver/ldap/servers/slapd "
+               "%s &\n",
+               sroot, sroot, PRODUCT_NAME, PRODUCT_BIN
+        );
 */
 #else
-	t = gen_script(subdir, START_SCRIPT,
-		       "\n"
-		       "# Script that starts the ns-slapd server.\n"
-		       "# Exit status can be:\n"
-		       "#       0: Server started successfully\n"
-		       "#       1: Server could not be started\n"
-		       "#       2: Server already running\n"
-		       "\n"
-		       "NETSITE_ROOT=%s\n"
-		       "export NETSITE_ROOT\n"
-		       "PIDFILE=%s/logs/pid\n"
-		       "if test -f $PIDFILE ; then\n"
-		       "    PID=`cat $PIDFILE`\n"
-		       "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-		       "        echo There is an ns-slapd process already running: $PID\n"
-		       "        exit 2;\n"
-		       "    else\n"
-		       "        rm -f $PIDFILE\n"
-		       "    fi\n"
-		       "fi\n"
-		       "if [ -x /usr/local/bin/xterm ]; then\n"
-		       "  xterm=/usr/local/bin/xterm\n"
-		       "else\n"
-		       "  xterm=/usr/openwin/bin/xterm\n"
-		       "fi\n"
-		       "cd %s/bin/%s/server; $xterm -title debugger -e %s -c \"dbxenv follow_fork_mode child ; stop in main ; %s ; run -D %s -i %s/logs/pid -d %s -z $*\" %s &\n"
-		       "loop_counter=1\n"
-		       "max_count=120\n"
-		       "while test $loop_counter -le $max_count; do\n"
-		       "    loop_counter=`expr $loop_counter + 1`\n"
-		       "    if test ! -f $PIDFILE ; then\n"
-		       "        sleep 1;\n"
-		       "    else\n"
-		       "        PID=`cat $PIDFILE`\n"
-				/* rbyrne: setupsdk takes any message here as an error:
-		       "        echo Server has been started. ns-slapd process started: $PID\n"*/
-		       "        exit 0;\n"
-		       "    fi\n"
-		       "done\n"
-		       "echo Server not running!! Failed to start ns-slapd process.\n"
-		       "exit 1\n",
-		       sroot, subdir, sroot, PRODUCT_NAME, debugger, debugger_command,
-		       subdir,
-		       subdir, cf->loglevel ? cf->loglevel : "0", PRODUCT_BIN
-	    );
+        t = gen_script(subdir, START_SCRIPT,
+               "\n"
+               "# Script that starts the ns-slapd server.\n"
+               "# Exit status can be:\n"
+               "#       0: Server started successfully\n"
+               "#       1: Server could not be started\n"
+               "#       2: Server already running\n"
+               "\n"
+               "NETSITE_ROOT=%s\n"
+               "export NETSITE_ROOT\n"
+               "PIDFILE=%s/logs/pid\n"
+               "if test -f $PIDFILE ; then\n"
+               "    PID=`cat $PIDFILE`\n"
+               "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
+               "        echo There is an ns-slapd process already running: $PID\n"
+               "        exit 2;\n"
+               "    else\n"
+               "        rm -f $PIDFILE\n"
+               "    fi\n"
+               "fi\n"
+               "if [ -x /usr/local/bin/xterm ]; then\n"
+               "  xterm=/usr/local/bin/xterm\n"
+               "else\n"
+               "  xterm=/usr/openwin/bin/xterm\n"
+               "fi\n"
+               "cd %s/bin/%s/server; $xterm -title debugger -e %s -c \"dbxenv follow_fork_mode child ; stop in main ; %s ; run -D %s -i %s/logs/pid -d %s -z $*\" %s &\n"
+               "loop_counter=1\n"
+               "max_count=120\n"
+               "while test $loop_counter -le $max_count; do\n"
+               "    loop_counter=`expr $loop_counter + 1`\n"
+               "    if test ! -f $PIDFILE ; then\n"
+               "        sleep 1;\n"
+               "    else\n"
+               "        PID=`cat $PIDFILE`\n"
+                /* rbyrne: setupsdk takes any message here as an error:
+               "        echo Server has been started. ns-slapd process started: $PID\n"*/
+               "        exit 0;\n"
+               "    fi\n"
+               "done\n"
+               "echo Server not running!! Failed to start ns-slapd process.\n"
+               "exit 1\n",
+               sroot, subdir, sroot, PRODUCT_NAME, debugger, debugger_command,
+               subdir,
+               subdir, cf->loglevel ? cf->loglevel : "0", PRODUCT_BIN
+        );
 #endif
     }
     else
     {
-	t = gen_script(subdir, START_SCRIPT,
-		       "\n"
-		       "# Script that starts the ns-slapd server.\n"
-		       "# Exit status can be:\n"
-		       "#       0: Server started successfully\n"
-		       "#       1: Server could not be started\n"
-		       "#       2: Server already running\n"
-		       "\n"
-		       "NETSITE_ROOT=%s\n"
-		       "export NETSITE_ROOT\n"
-		       "PIDFILE=%s/logs/pid\n"
-		       "STARTPIDFILE=%s/logs/startpid\n"
-		       "if test -f $STARTPIDFILE ; then\n"
-		       "    PID=`cat $STARTPIDFILE`\n"
-		       "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-		       "        echo There is an ns-slapd process already running: $PID\n"
-		       "        exit 2;\n"
-		       "    else\n"
-		       "        rm -f $STARTPIDFILE\n"
-		       "    fi\n"
-		       "fi\n"
-		       "if test -f $PIDFILE ; then\n"
-		       "    PID=`cat $PIDFILE`\n"
-		       "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-		       "        echo There is an ns-slapd process already running: $PID\n"
-		       "        exit 2;\n"
-		       "    else\n"
-		       "        rm -f $PIDFILE\n"
-		       "    fi\n"
-		       "fi\n"
-		       "cd %s/bin/%s/server; ./%s -D %s -i %s/logs/pid -w $STARTPIDFILE \"$@\"\n"
-		       "if [ $? -ne 0 ]; then\n"
-		       "    exit 1\n"
-		       "fi\n"
-		       "\n"
-			"loop_counter=1\n"
-			"# wait for 10 seconds for the start pid file to appear\n"
-			"max_count=10\n"
-			"while test $loop_counter -le $max_count; do\n"
-			"    loop_counter=`expr $loop_counter + 1`\n"
-			"    if test ! -f $STARTPIDFILE ; then\n"
-			"        sleep 1;\n"
-			"    else\n"
-			"        PID=`cat $STARTPIDFILE`\n"
-			"    fi\n"
-			"done\n"
-			"if test ! -f $STARTPIDFILE ; then\n"
-			"	echo Server failed to start !!! Please check errors log for problems\n"
-			"	exit 1\n"
-			"fi\n"
-		       "loop_counter=1\n"
-		       "# wait for 10 minutes (600 times 1 seconds)\n"
-			   "max_count=600\n" /* 10 minutes */
-		       "while test $loop_counter -le $max_count; do\n"
-		       "    loop_counter=`expr $loop_counter + 1`\n"
-		       "    if test ! -f $PIDFILE ; then\n"
-			"    	if kill -0 $PID > /dev/null 2>&1 ; then\n"
-			"        	sleep 1\n"
-			"	else\n"
-			"		echo Server failed to start !!! Please check errors log for problems\n"
-			"		exit 1\n"
-			"	fi\n"
-		       "    else\n"
-		       "        PID=`cat $PIDFILE`\n"
-			/* rbyrne: setupsdk takes any message here as an error:
-		       "        echo Server has been started. ns-slapd process started: $PID\n"*/
-		       "        exit 0;\n"
-		       "    fi\n"
-		       "done\n"
-		       "echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.\n"
-		       "exit 1\n",
-		       sroot, subdir, subdir, sroot, PRODUCT_NAME, PRODUCT_BIN, subdir,
-		       subdir
-	    );
+        t = gen_script(subdir, START_SCRIPT,
+            "\n"
+            "# Script that starts the ns-slapd server.\n"
+            "# Exit status can be:\n"
+            "#       0: Server started successfully\n"
+            "#       1: Server could not be started\n"
+            "#       2: Server already running\n"
+            "\n"
+            "NETSITE_ROOT=%s\n"
+            "export NETSITE_ROOT\n"
+            "PIDFILE=%s/logs/pid\n"
+            "STARTPIDFILE=%s/logs/startpid\n"
+            "if test -f $STARTPIDFILE ; then\n"
+            "    PID=`cat $STARTPIDFILE`\n"
+            "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
+            "        echo There is an ns-slapd process already running: $PID\n"
+            "        exit 2;\n"
+            "    else\n"
+            "        rm -f $STARTPIDFILE\n"
+            "    fi\n"
+            "fi\n"
+            "if test -f $PIDFILE ; then\n"
+            "    PID=`cat $PIDFILE`\n"
+            "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
+            "        echo There is an ns-slapd process already running: $PID\n"
+            "        exit 2;\n"
+            "    else\n"
+            "        rm -f $PIDFILE\n"
+            "    fi\n"
+            "fi\n"
+            "cd %s/bin/%s/server; ./%s -D %s -i %s/logs/pid -w $STARTPIDFILE \"$@\"\n"
+            "if [ $? -ne 0 ]; then\n"
+            "    exit 1\n"
+            "fi\n"
+            "\n"
+            "loop_counter=1\n"
+            "# wait for 10 seconds for the start pid file to appear\n"
+            "max_count=10\n"
+            "while test $loop_counter -le $max_count; do\n"
+            "    loop_counter=`expr $loop_counter + 1`\n"
+            "    if test ! -f $STARTPIDFILE ; then\n"
+            "        sleep 1;\n"
+            "    else\n"
+            "        PID=`cat $STARTPIDFILE`\n"
+            "    fi\n"
+            "done\n"
+            "if test ! -f $STARTPIDFILE ; then\n"
+            "    echo Server failed to start !!! Please check errors log for problems\n"
+            "    exit 1\n"
+            "fi\n"
+            "loop_counter=1\n"
+            "# wait for 10 minutes (600 times 1 seconds)\n"
+            "max_count=600\n" /* 10 minutes */
+            "while test $loop_counter -le $max_count; do\n"
+            "    loop_counter=`expr $loop_counter + 1`\n"
+            "    if test ! -f $PIDFILE ; then\n"
+            "        if kill -0 $PID > /dev/null 2>&1 ; then\n"
+            "            sleep 1\n"
+            "    else\n"
+            "        echo Server failed to start !!! Please check errors log for problems\n"
+            "        exit 1\n"
+            "    fi\n"
+            "    else\n"
+            "        PID=`cat $PIDFILE`\n"
+            /* rbyrne: setupsdk takes any message here as an error:
+            "        echo Server has been started. ns-slapd process started: $PID\n"*/
+            "        exit 0;\n"
+            "    fi\n"
+            "done\n"
+            "echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.\n"
+            "exit 1\n",
+            sroot, subdir, subdir, sroot, PRODUCT_NAME, PRODUCT_BIN, subdir,
+            subdir
+        );
     }
     if(t) return t;
     
     t = gen_script(subdir, STOP_SCRIPT,
-		   "\n"
-		   "# Script that stops the ns-slapd server.\n"
-		   "# Exit status can be:\n"
-		   "#       0: Server stopped successfully\n"
-		   "#       1: Server could not be stopped\n"
-		   "#       2: Server was not running\n"
-		   "\n"
-		   "PIDFILE=%s/logs/pid\n"
+           "\n"
+           "# Script that stops the ns-slapd server.\n"
+           "# Exit status can be:\n"
+           "#       0: Server stopped successfully\n"
+           "#       1: Server could not be stopped\n"
+           "#       2: Server was not running\n"
+           "\n"
+           "PIDFILE=%s/logs/pid\n"
            "if test ! -f $PIDFILE ; then\n"
            "    echo No ns-slapd PID file found. Server is probably not running\n"
            "    exit 2\n"
            "fi\n"
-		   "PID=`cat $PIDFILE`\n"
-		   "# see if the server is already stopped\n"
-		   "kill -0 $PID > /dev/null 2>&1 || {\n"
-           "	echo Server not running\n"
-		   "	if test -f $PIDFILE ; then\n"
-           "		rm -f $PIDFILE\n"
-		   "	fi\n"
-		   "	exit 2\n"
-		   "}\n"
-		   "# server is running - kill it\n"
-		   "kill $PID\n"
-		   "loop_counter=1\n"
-		   "# wait for 10 minutes (600 times 1 second)\n"
-		   "max_count=600\n" /* 10 minutes */
-		   "while test $loop_counter -le $max_count; do\n"
-		   "    loop_counter=`expr $loop_counter + 1`\n"
-		   "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
+           "PID=`cat $PIDFILE`\n"
+           "# see if the server is already stopped\n"
+           "kill -0 $PID > /dev/null 2>&1 || {\n"
+           "    echo Server not running\n"
+           "    if test -f $PIDFILE ; then\n"
+           "        rm -f $PIDFILE\n"
+           "    fi\n"
+           "    exit 2\n"
+           "}\n"
+           "# server is running - kill it\n"
+           "kill $PID\n"
+           "loop_counter=1\n"
+           "# wait for 10 minutes (600 times 1 second)\n"
+           "max_count=600\n" /* 10 minutes */
+           "while test $loop_counter -le $max_count; do\n"
+           "    loop_counter=`expr $loop_counter + 1`\n"
+           "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
            "        sleep 1;\n"
-		   "    else\n"
+           "    else\n"
            "        if test -f $PIDFILE ; then\n"
            "            rm -f $PIDFILE\n"
            "        fi\n"
-			/* rbyrne: setupsdk takes any message here as an error:
-	   		"        echo Server has been stopped. ns-slapd process stopped: $PID\n"*/
+            /* rbyrne: setupsdk takes any message here as an error:
+               "        echo Server has been stopped. ns-slapd process stopped: $PID\n"*/
            "        exit 0\n"
            "    fi\n"
-		   "done\n"
-		   "if test -f $PIDFILE ; then\n"
-		   "    echo Server still running!! Failed to stop the ns-slapd process: $PID.  Please check the errors log for problems.\n"
-		   "fi\n"
-		   "exit 1\n",
-		    subdir);
+           "done\n"
+           "if test -f $PIDFILE ; then\n"
+           "    echo Server still running!! Failed to stop the ns-slapd process: $PID.  Please check the errors log for problems.\n"
+           "fi\n"
+           "exit 1\n",
+            subdir);
     if(t) return t;
 
     t = gen_script(subdir, RESTART_SCRIPT,
-		   "\n"
-		   "# Script that restarts the ns-slapd server.\n"
-		   "# Exit status can be:\n"
-		   "#       0: Server restarted successfully\n"
-		   "#       1: Server could not be started\n"
-		   "#       2: Server started successfully (was not running)\n"
-		   "#       3: Server could not be stopped\n"
-		   "\n"
-		   "server_already_stopped=0\n"
-		   "%s/stop-slapd\n"
-		   "status=$?\n"
-		   "if [ $status -eq 1 ] ; then\n"
-		   "    exit 3;\n"
-		   "else\n"
-		   "   if [ $status -eq 2 ] ; then\n"
-		   "        server_already_stopped=1\n"
-		   "   fi\n"
-		   "fi\n"
-		   "%s/start-slapd\n"
-		   "status=$?\n"
-		   "if [ $server_already_stopped -eq 1 ] && [ $status -eq 0 ] ; then\n"
-		   "    exit 2;\n"
-		   "fi\n"
-		   "exit $status\n",
+           "\n"
+           "# Script that restarts the ns-slapd server.\n"
+           "# Exit status can be:\n"
+           "#       0: Server restarted successfully\n"
+           "#       1: Server could not be started\n"
+           "#       2: Server started successfully (was not running)\n"
+           "#       3: Server could not be stopped\n"
+           "\n"
+           "server_already_stopped=0\n"
+           "%s/stop-slapd\n"
+           "status=$?\n"
+           "if [ $status -eq 1 ] ; then\n"
+           "    exit 3;\n"
+           "else\n"
+           "   if [ $status -eq 2 ] ; then\n"
+           "        server_already_stopped=1\n"
+           "   fi\n"
+           "fi\n"
+           "%s/start-slapd\n"
+           "status=$?\n"
+           "if [ $server_already_stopped -eq 1 ] && [ $status -eq 0 ] ; then\n"
+           "    exit 2;\n"
+           "fi\n"
+           "exit $status\n",
            subdir, subdir );
     if(t) return t;
 
@@ -1505,17 +1509,17 @@ char *create_server(server_config_s *cf, char *param_name)
     if( (t = setup_ntserver(cf)) )
         return t;
 
-	/* generate start script */
+    /* generate start script */
     t = gen_script(subdir, START_SCRIPT".bat", "net start slapd-%s\n", cf->servid);
     if(t) return t;
 
-	/* generate stop script */
+    /* generate stop script */
     t = gen_script(subdir, STOP_SCRIPT".bat", "net stop slapd-%s\n", cf->servid);
     if(t) return t;
 
-	/* generate restart script */
+    /* generate restart script */
     t = gen_script(subdir, RESTART_SCRIPT".bat", "net stop slapd-%s\n"
-		           "net start slapd-%s\n", cf->servid, cf->servid);
+                   "net start slapd-%s\n", cf->servid, cf->servid);
     if(t) return t;
 
 
@@ -1600,10 +1604,10 @@ char *create_instance_mkdir_p(char *dir, int mode)
             }
         }
         if(t)
-		{
-			*t = FILE_PATHSEP;
-			LDAP_UTF8INC(t);
-		}
+        {
+            *t = FILE_PATHSEP;
+            LDAP_UTF8INC(t);
+        }
         else break;
     }
     return NULL;
@@ -1612,12 +1616,12 @@ char *create_instance_mkdir_p(char *dir, int mode)
 
 int create_instance_numbers(char *target)
 {
-   	char *p;
-	for(p=target; *p; LDAP_UTF8INC(p) )
-	{
-		if(!ldap_utf8isdigit(p))
-			return 0;
-	}
+       char *p;
+    for(p=target; *p; LDAP_UTF8INC(p) )
+    {
+        if(!ldap_utf8isdigit(p))
+            return 0;
+    }
     return 1;
 }
 
@@ -1642,7 +1646,7 @@ int trybind(char *addr, int port)
 {
     int sd;
     struct sockaddr_in sa_server;
-    int one = 1, ret;
+    int ret;
 
 #ifdef XP_WIN32
     WSADATA wsd;
@@ -1655,7 +1659,7 @@ int trybind(char *addr, int port)
         goto you_lose;
 
     if (addr == NULL)
-	addr = "127.0.0.1"; /* use the local loopback address */
+        addr = "127.0.0.1"; /* use the local loopback address */
 
     memset((char *) &sa_server, 0, sizeof(sa_server));
     sa_server.sin_family=AF_INET;
@@ -1663,11 +1667,11 @@ int trybind(char *addr, int port)
     sa_server.sin_port=htons((short)port);
     ret = connect(sd, (struct sockaddr *) &sa_server,sizeof(sa_server));
     if (ret == -1)
-	ret = 0; /* could not connect, so port is not in use; that's good */
+        ret = 0; /* could not connect, so port is not in use; that's good */
     else
     {
-	ret = -1; /* connection succeeded, port in use, bad */
-	errno = EADDRINUSE;
+        ret = -1; /* connection succeeded, port in use, bad */
+        errno = EADDRINUSE;
     }
 #ifdef XP_UNIX
     close(sd);
@@ -1677,7 +1681,7 @@ int trybind(char *addr, int port)
 #endif
     return ret;
 
-  you_lose:
+you_lose:
 #ifdef XP_WIN32
     WSACleanup();
 #endif
@@ -1727,8 +1731,8 @@ char *create_instance_checkport(char *addr, char *sport)
         return ("Valid port numbers are between 1 and 65535");
     }
     if(trybind(addr, port) == -1) {
-        if(errno == EADDRINUSE)	{
-	    return make_error("Port %d is already in use", port);
+        if(errno == EADDRINUSE)    {
+            return make_error("Port %d is already in use", port);
         } 
         /* XXXrobm if admin server not running as root, you lose. */
         else if(errno == EACCES) {
@@ -1736,7 +1740,7 @@ char *create_instance_checkport(char *addr, char *sport)
                     "You must run the installation as root to install "
                     "on that port.");
         } else {
-	    ds_report_warning(DS_WARNING, "port", "That port is not available");
+            ds_report_warning(DS_WARNING, "port", "That port is not available");
         }
     }
     return NULL;
@@ -1748,12 +1752,12 @@ char *create_instance_checkuser(char *user)
     if (user && *user) switch(tryuser(user)) {
       case -1:
         return make_error ("Can't find a user named '%s'."
-			   "\nPlease select or create another user.",
-			   user);
+               "\nPlease select or create another user.",
+               user);
       case -2:
         return make_error ("Can't change a file to be owned by %s."
-			   "\nPlease select or create another user.",
-			   user);
+               "\nPlease select or create another user.",
+               user);
     }
     return NULL;
 }
@@ -1819,7 +1823,7 @@ char *create_instance_copy(char *sfile, char *dfile, int mode)
 {
     HANDLE sfd, dfd, MapHandle;
     PCHAR fp;
-	PCHAR fpBase;
+    PCHAR fpBase;
     DWORD BytesWritten = 0;
     DWORD len;
 
@@ -1865,38 +1869,40 @@ char *create_instance_copy(char *sfile, char *dfile, int mode)
 static int
 file_is_type_x(const char *dirname, const char *filename, PRFileType x)
 {
-	struct PRFileInfo inf;
-	int status = 0;
-	int size = strlen(dirname) + strlen(filename) + 2; /* 1 for slash + 1 for null */
-	char *fullpath = calloc(sizeof(char), size);
+    struct PRFileInfo inf;
+    int status = 0;
+    int size = strlen(dirname) + strlen(filename) + 2; /* 1 for slash + 1 for null */
+    char *fullpath = calloc(sizeof(char), size);
 
-	sprintf(fullpath, "%s/%s", dirname, filename);
-	if (PR_SUCCESS == PR_GetFileInfo(fullpath, &inf) &&
-		inf.type == x)
-		status = 1;
+    sprintf(fullpath, "%s/%s", dirname, filename);
+    if (PR_SUCCESS == PR_GetFileInfo(fullpath, &inf) &&
+        inf.type == x)
+        status = 1;
 
-	free(fullpath);
+    free(fullpath);
 
-	return status;
+    return status;
 }
 
 /* return true if the given path and file corresponds to a directory */
 static int
 is_a_dir(const char *dirname, const char *filename)
 {
-	return file_is_type_x(dirname, filename, PR_FILE_DIRECTORY);
+    return file_is_type_x(dirname, filename, PR_FILE_DIRECTORY);
 }
 
+#if 0 /* not being used */
 /* return true if the given path and file corresponds to a regular file */
 static int
 is_a_file(const char *dirname, const char *filename)
 {
-	return file_is_type_x(dirname, filename, PR_FILE_FILE);
+    return file_is_type_x(dirname, filename, PR_FILE_FILE);
 }
+#endif
 
 static char *
 ds_copy_group_files_using_mode(char *src_dir, char *dest_dir, 
-			       char *filter, int use_mode)
+                   char *filter, int use_mode)
 {
     char *t = 0;
     PRDir *ds = 0;
@@ -1907,29 +1913,29 @@ ds_copy_group_files_using_mode(char *src_dir, char *dest_dir,
         return make_error("Can't read directory %s (%s)", src_dir, ds_system_errmsg());
     }
     while( (d = PR_ReadDir(ds, 0)) ) {
-	if(d->name[0] != '.') {
-	    if(!filter || strstr(d->name, filter)) {
-		sprintf(fullname, "%s/%s", src_dir, d->name);
-		if(PR_SUCCESS != PR_Access(fullname, PR_ACCESS_EXISTS))
-		    continue;
-		sprintf(src_file,  "%s%c%s", src_dir,  FILE_PATHSEP, d->name);
-		sprintf(dest_file, "%s%c%s", dest_dir, FILE_PATHSEP, d->name);
-		if(is_a_dir(src_dir, d->name)) {
-		    char *sub_src_dir = strdup(src_file);
-		    char *sub_dest_dir = strdup(dest_file);
-		    if( (t = create_instance_mkdir_p(sub_dest_dir, NEWDIR_MODE)) )
-			return(t);
-		    if( (t = ds_copy_group_files_using_mode(sub_src_dir, sub_dest_dir, filter, use_mode)) )
-			return t;
-		    free(sub_src_dir);
-		    free(sub_dest_dir);
-		}
-		else {
-		    if( (t = create_instance_copy(src_file, dest_file, use_mode)) )
-			return t;
-		}
-	    }
-	}
+        if(d->name[0] != '.') {
+            if(!filter || strstr(d->name, filter)) {
+                sprintf(fullname, "%s/%s", src_dir, d->name);
+                if(PR_SUCCESS != PR_Access(fullname, PR_ACCESS_EXISTS))
+                    continue;
+                sprintf(src_file,  "%s%c%s", src_dir,  FILE_PATHSEP, d->name);
+                sprintf(dest_file, "%s%c%s", dest_dir, FILE_PATHSEP, d->name);
+                if(is_a_dir(src_dir, d->name)) {
+                    char *sub_src_dir = strdup(src_file);
+                    char *sub_dest_dir = strdup(dest_file);
+                    if( (t = create_instance_mkdir_p(sub_dest_dir, NEWDIR_MODE)) )
+                        return(t);
+                    if( (t = ds_copy_group_files_using_mode(sub_src_dir, sub_dest_dir, filter, use_mode)) )
+                        return t;
+                    free(sub_src_dir);
+                    free(sub_dest_dir);
+                }
+                else {
+                    if( (t = create_instance_copy(src_file, dest_file, use_mode)) )
+                        return t;
+                }
+            }
+        }
     }
     PR_CloseDir(ds);
     return(NULL);
@@ -1939,92 +1945,94 @@ static char *
 ds_copy_group_files(char *src_dir, char *dest_dir, char *filter)
 {
     return ds_copy_group_files_using_mode(src_dir, dest_dir, filter, 
-										  NEWFILE_MODE);
+                                          NEWFILE_MODE);
 }
 
+#if 0 /* not being used */
 static char *
 ds_copy_group_bins(char *src_dir, char *dest_dir, char *filter, 
-				   int use_mode)
+                   int use_mode)
 {
     return ds_copy_group_files_using_mode(src_dir, dest_dir, filter, 
-										  NEWSCRIPT_MODE);
+                                          NEWSCRIPT_MODE);
 }
+#endif
 
 /* this macro was copied from libldap/tmplout.c */
-#define HREF_CHAR_ACCEPTABLE( c )	(( c >= '-' && c <= '9' ) ||	\
-					 ( c >= '@' && c <= 'Z' ) ||	\
-					 ( c == '_' ) ||		\
-					 ( c >= 'a' && c <= 'z' ))
+#define HREF_CHAR_ACCEPTABLE( c )    (( c >= '-' && c <= '9' ) ||    \
+                     ( c >= '@' && c <= 'Z' ) ||    \
+                     ( c == '_' ) ||        \
+                     ( c >= 'a' && c <= 'z' ))
 
 /* this function is based on libldap/tmplout.c:strcat_escaped */
 void fputs_escaped(char *s, FILE *fp)
 {
-    char	*hexdig = "0123456789ABCDEF";
+    char    *hexdig = "0123456789ABCDEF";
     register unsigned char c;
-    for ( ; c = *(unsigned char*)s; ++s ) {
-	if ( HREF_CHAR_ACCEPTABLE( c )) {
-	    putc( c, fp );
-	} else {
-	    fprintf( fp, "%%%c%c", hexdig[ (c >> 4) & 0x0F ], hexdig[ c & 0x0F ] );
-	}
+    for ( ; (c = *(unsigned char*)s); ++s ) {
+        if ( HREF_CHAR_ACCEPTABLE( c )) {
+            putc( c, fp );
+        } else {
+            fprintf( fp, "%%%c%c", hexdig[ (c >> 4) & 0x0F ], hexdig[ c & 0x0F ] );
+        }
     }
 }
 
 /* ------------- Create config files for Directory Server -------------- */
 
 char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
-		     struct passwd* pw)
+             struct passwd* pw)
 {
     char subdir[PATH_SIZE], *t = NULL;
 
     /* create subdir <a_server>/db */
     sprintf(subdir, "%s%cdb", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-	return(t);
+        return(t);
     chownfile (pw, subdir);
 
     /* create subdir <a_server>/ldif */
     sprintf(subdir, "%s%cldif", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-	return(t);
+        return(t);
     chownfile (pw, subdir);
 
     /* create subdir <a_server>/dsml */
     sprintf(subdir, "%s%cdsml", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-	return(t);
+        return(t);
     chownfile (pw, subdir);
 
     /* create subdir <a_server>/bak */
     sprintf(subdir, "%s%cbak", cs_path, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-	return(t);
+        return(t);
     chownfile (pw, subdir);
 
     /* Create slapd-nickname/confbak directory */
     sprintf(subdir, "%s%cconfbak", cs_path, FILE_PATHSEP);
     if( (t=create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-	return(t);
+        return(t);
     chownfile (pw, subdir);
 
     /* create subdir <server_root>/dsgw/context */
     sprintf(subdir, "%s%cclients", sroot, FILE_PATHSEP);
-	if (is_a_dir(subdir, "dsgw")) { /* only create dsgw stuff if we are installing it */
-		sprintf(subdir, "%s%cclients%cdsgw%ccontext", sroot, FILE_PATHSEP,FILE_PATHSEP,FILE_PATHSEP);
-		if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-			return(t);
-	}
+    if (is_a_dir(subdir, "dsgw")) { /* only create dsgw stuff if we are installing it */
+        sprintf(subdir, "%s%cclients%cdsgw%ccontext", sroot, FILE_PATHSEP,FILE_PATHSEP,FILE_PATHSEP);
+        if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+            return(t);
+    }
 
   /* create subdir <server_root>/bin/slapd/authck */
     sprintf(subdir, "%s%cbin%cslapd%cauthck", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
-	return(t);
+        return(t);
 #if defined( SOLARIS )
     /*
      * Solaris 9+ specific installation
      */
     if (iDSISolaris)
-	logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, subdir);
+        logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, subdir);
 #endif /* SOLARIS */
 
     return (t);
@@ -2118,15 +2126,15 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
     t = gen_script(cs_path, "monitor", 
-		   "if [ \"x$1\" != \"x\" ];\nthen MDN=\"$1\";\nelse MDN=\"cn=monitor\";\n fi\n"
+           "if [ \"x$1\" != \"x\" ];\nthen MDN=\"$1\";\nelse MDN=\"cn=monitor\";\n fi\n"
 
-		   "cd %s\nPATH=%s:$PATH;export PATH\n"
-		   "ldapsearch -p %s -b \"$MDN\" -s base \"objectClass=*\"\n",
+           "cd %s\nPATH=%s:$PATH;export PATH\n"
+           "ldapsearch -p %s -b \"$MDN\" -s base \"objectClass=*\"\n",
                    tools, tools, cf->servport);
     if(t) return t;
     
     t = gen_script(cs_path, "saveconfig", 
-		"cd %s\n"
+        "cd %s\n"
         "echo saving configuration ...\n"
         "conf_ldif=%s/confbak/`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\n"
         "./ns-slapd db2ldif -N -D %s "
@@ -2136,11 +2144,11 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         "    exit 1\n"
         "fi\n"
         "exit 0\n",
-		server, cs_path, cs_path, cf->netscaperoot);
+        server, cs_path, cs_path, cf->netscaperoot);
     if(t) return t;
     
     t = gen_script(cs_path, "restoreconfig", 
-		"cd %s\n"
+        "cd %s\n"
         "conf_ldif=`ls -1t %s/confbak/*.ldif | head -1`\n"
         "if [ -z \"$conf_ldif\" ]\n"
         "then\n"
@@ -2150,87 +2158,87 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         "./ns-slapd ldif2db -D %s"
         " -i $conf_ldif -n NetscapeRoot 2>&1\n"
         "exit $?\n",
-		server, cs_path, cs_path, cs_path);
+        server, cs_path, cs_path, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "ldif2db", 
-		"cd %s\n"
-		"if [ $# -lt 4 ]\nthen\n"
-		"\techo \"Usage: ldif2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]\"\n"
-		"\techo \"               {-i ldiffile}* [-O]\"\n"
-		"\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" and \\\"-i ldiffile\\\" are required.\"\n"
-		"\texit 1\n"
-		"fi\n\n"
-		"echo importing data ...\n"
-		"./ns-slapd ldif2db -D %s \"$@\" 2>&1\n"
-		"exit $?\n",
-		server, cs_path);
+        "cd %s\n"
+        "if [ $# -lt 4 ]\nthen\n"
+        "\techo \"Usage: ldif2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]\"\n"
+        "\techo \"               {-i ldiffile}* [-O]\"\n"
+        "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" and \\\"-i ldiffile\\\" are required.\"\n"
+        "\texit 1\n"
+        "fi\n\n"
+        "echo importing data ...\n"
+        "./ns-slapd ldif2db -D %s \"$@\" 2>&1\n"
+        "exit $?\n",
+        server, cs_path);
     if(t) return t;
 
 #if defined(UPGRADEDB)
     t = gen_script(cs_path, "upgradedb", 
-		"cd %s\n"
-		"if [ \"$#\" -eq 1 ]\nthen\n"
-		"\tbak_dir=$1\nelse\n"
-		"\tbak_dir=%s/bak/upgradedb_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
-		"echo upgrade index files ...\n"
-		"./ns-slapd upgradedb -D %s -a $bak_dir\n",
-		server, cs_path, cs_path);
+        "cd %s\n"
+        "if [ \"$#\" -eq 1 ]\nthen\n"
+        "\tbak_dir=$1\nelse\n"
+        "\tbak_dir=%s/bak/upgradedb_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
+        "echo upgrade index files ...\n"
+        "./ns-slapd upgradedb -D %s -a $bak_dir\n",
+        server, cs_path, cs_path);
     if(t) return t;
 #endif
 
-	/* new code for dsml import */
-	t = gen_script(cs_path, "dsml2db", 
-		"cd %s\n"
-		"if [ $# -lt 4 ]\nthen\n"
-		"\techo \"Usage: dsml2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]\"\n"
-		"\techo \"               {-i dsmlfile}\"\n"
-		"\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" and \\\"-i dsmlfile\\\" are required.\"\n"
-		"\texit 1\n"
-		"fi\n\n"
-                "set_dsml=0\n"
-                "dsml_file=\"mydummy\"\n"                
-                "space=\" \"\n"
-                "i=0\n"
-                "for arg in \"$@\"\ndo\n"
-                "\tif [ \"$arg\" = '-i' ];\n\tthen\n"
-                "\t\tset_dsml=1\n"
-                "\telif [ $set_dsml -eq 1 ];\n\tthen\n"
-                "\t\tdsml_file=$arg\n"
-                "\t\tset_dsml=2\n"
-                "\telse\n"				
-                "\t\teval a$i=\\\"$arg\\\"\n"
-                "\t\ti=`expr $i + 1`\n"
-                "\tfi\n"
-                "done\n"
-                "max=$i; i=0;\n"
-                "shift $#\n"
-                "while [ $i -lt $max ]; do\n"
-                "\teval arg=\\$a$i\n"
-                "\tset -- \"$@\" \"$arg\"\n"
-                "\ti=`expr $i + 1`\n"
-                "done\n"
-                "\tif [ $dsml_file = \"mydummy\" ]\n\tthen\n\t"
-		"echo \"Need a DSML file as input\""
-		"\n\t\t exit 1"
-		"\n\tfi\n"
-		"\tif [ -f $dsml_file ] && [ -r $dsml_file ]\n\tthen\n"
-		"\t\t%s/bin/base/jre/bin/java -Dverify=true -classpath %s/java/jars/crimson.jar:%s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.DSML2LDIF $dsml_file\n"
-		"\t\tif [ $? = 0 ]; then\n"
-		"\t\techo importing data ...\n"
-		"\t\t%s/bin/base/jre/bin/java -classpath %s/java/jars/crimson.jar:%s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.DSML2LDIF $dsml_file | ./ns-slapd ldif2db -D %s \"$@\" -i -\n"
-		"\t\texit $?\n"
-		"\t\tfi\n"
-		"\telse\n"
-		"\t\techo \"File $dsml_file invalid. Absolute path is required.\"\n\t\texit 1\n"		
-		"\tfi\n",
-		server,sroot,sroot,sroot,sroot,sroot,sroot,sroot,sroot,cs_path);
+    /* new code for dsml import */
+    t = gen_script(cs_path, "dsml2db", 
+        "cd %s\n"
+        "if [ $# -lt 4 ]\nthen\n"
+        "\techo \"Usage: dsml2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]\"\n"
+        "\techo \"               {-i dsmlfile}\"\n"
+        "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" and \\\"-i dsmlfile\\\" are required.\"\n"
+        "\texit 1\n"
+        "fi\n\n"
+        "set_dsml=0\n"
+        "dsml_file=\"mydummy\"\n"                
+        "space=\" \"\n"
+        "i=0\n"
+        "for arg in \"$@\"\ndo\n"
+        "\tif [ \"$arg\" = '-i' ];\n\tthen\n"
+        "\t\tset_dsml=1\n"
+        "\telif [ $set_dsml -eq 1 ];\n\tthen\n"
+        "\t\tdsml_file=$arg\n"
+        "\t\tset_dsml=2\n"
+        "\telse\n"                
+        "\t\teval a$i=\\\"$arg\\\"\n"
+        "\t\ti=`expr $i + 1`\n"
+        "\tfi\n"
+        "done\n"
+        "max=$i; i=0;\n"
+        "shift $#\n"
+        "while [ $i -lt $max ]; do\n"
+        "\teval arg=\\$a$i\n"
+        "\tset -- \"$@\" \"$arg\"\n"
+        "\ti=`expr $i + 1`\n"
+        "done\n"
+        "\tif [ $dsml_file = \"mydummy\" ]\n\tthen\n\t"
+        "echo \"Need a DSML file as input\""
+        "\n\t\t exit 1"
+        "\n\tfi\n"
+        "\tif [ -f $dsml_file ] && [ -r $dsml_file ]\n\tthen\n"
+        "\t\t%s/bin/base/jre/bin/java -Dverify=true -classpath %s/java/jars/crimson.jar:%s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.DSML2LDIF $dsml_file\n"
+        "\t\tif [ $? = 0 ]; then\n"
+        "\t\techo importing data ...\n"
+        "\t\t%s/bin/base/jre/bin/java -classpath %s/java/jars/crimson.jar:%s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.DSML2LDIF $dsml_file | ./ns-slapd ldif2db -D %s \"$@\" -i -\n"
+        "\t\texit $?\n"
+        "\t\tfi\n"
+        "\telse\n"
+        "\t\techo \"File $dsml_file invalid. Absolute path is required.\"\n\t\texit 1\n"        
+        "\tfi\n",
+        server,sroot,sroot,sroot,sroot,sroot,sroot,sroot,sroot,cs_path);
     if(t) return t;
         
     t = gen_script(cs_path, "ldif2ldap", 
-		   "cd %s\n"
-		   "./ldapmodify -a -p %s -D \"$1\" -w \"$2\" -f $3\n",
-		   tools, cf->servport);
+           "cd %s\n"
+           "./ldapmodify -a -p %s -D \"$1\" -w \"$2\" -f $3\n",
+           tools, cf->servport);
     if(t) return t;
     
     t = CREATE_LDIF2DB();
@@ -2271,77 +2279,77 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = gen_script(cs_path, "getpwenc", 
-		   "cd %s\n"
-		   "PATH=%s:$PATH;export PATH\n"
-		   "if [ $# -lt 2 ]\n"
-		   "then\n"
-		   "\techo \"Usage: getpwenc scheme passwd\"\n"
-		   "\texit 1\n"
-		   "fi\n\n"
-		   "pwdhash -D %s -H -s \"$@\"\n",
-		   server, server, cs_path);
+           "cd %s\n"
+           "PATH=%s:$PATH;export PATH\n"
+           "if [ $# -lt 2 ]\n"
+           "then\n"
+           "\techo \"Usage: getpwenc scheme passwd\"\n"
+           "\texit 1\n"
+           "fi\n\n"
+           "pwdhash -D %s -H -s \"$@\"\n",
+           server, server, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "db2ldif", 
-		   "cd %s\n"
-		   "if [ \"$#\" -lt 2 ];\nthen\n"
-		   "\techo \"Usage: db2ldif {-n backend_instance}* | {-s includesuffix}*\"\n"
-		   "\techo \"               [{-x excludesuffix}*] [-a outputfile]\"\n"
-		   "\techo \"               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1]\"\n"
-		   "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" is required.\"\n"
-		   "\texit 1\n"
-		   "fi\n\n"
-		   "set_ldif=0\n"
-		   "ldif_file=\"mydummy\"\n"
-		   "for arg in \"$@\"\ndo\n"
-		   "\tif [ \"$arg\" = '-a' ];\n\tthen\n"
-		   "\t\tset_ldif=1\n"
-		   "\telif [ $set_ldif -eq 1 ];\n\tthen\n"
-		   "\t\tldif_file=$arg\n"
-		   "\t\tset_ldif=2\n"
-		   "\tfi\n"
-		   "done\n"
-		   "if [ $ldif_file = \"mydummy\" ]\nthen\n"
-		   "\tldif_file=%s/ldif/`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\nfi\n"
-		   "if [ $set_ldif -eq 2 ]\nthen\n"
-		   "./ns-slapd db2ldif -D %s \"$@\"\nelse\n"
-		   "./ns-slapd db2ldif -D %s -a $ldif_file \"$@\"\nfi\n",
-		   server, cs_path, cs_path, cs_path);
+           "cd %s\n"
+           "if [ \"$#\" -lt 2 ];\nthen\n"
+           "\techo \"Usage: db2ldif {-n backend_instance}* | {-s includesuffix}*\"\n"
+           "\techo \"               [{-x excludesuffix}*] [-a outputfile]\"\n"
+           "\techo \"               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1]\"\n"
+           "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" is required.\"\n"
+           "\texit 1\n"
+           "fi\n\n"
+           "set_ldif=0\n"
+           "ldif_file=\"mydummy\"\n"
+           "for arg in \"$@\"\ndo\n"
+           "\tif [ \"$arg\" = '-a' ];\n\tthen\n"
+           "\t\tset_ldif=1\n"
+           "\telif [ $set_ldif -eq 1 ];\n\tthen\n"
+           "\t\tldif_file=$arg\n"
+           "\t\tset_ldif=2\n"
+           "\tfi\n"
+           "done\n"
+           "if [ $ldif_file = \"mydummy\" ]\nthen\n"
+           "\tldif_file=%s/ldif/`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\nfi\n"
+           "if [ $set_ldif -eq 2 ]\nthen\n"
+           "./ns-slapd db2ldif -D %s \"$@\"\nelse\n"
+           "./ns-slapd db2ldif -D %s -a $ldif_file \"$@\"\nfi\n",
+           server, cs_path, cs_path, cs_path);
     if(t) return t;
 
-	/* new code for dsml export */
-	t = gen_script(cs_path, "db2dsml", 
-		   "cd %s\n"
-		   "if [ \"$#\" -lt 2 ];\nthen\n"
-		   "\techo \"Usage: db2dsml {-n backend_instance} | {-s includesuffix}*\"\n"
-		   "\techo \"               [{-x excludesuffix}*] [-a outputfile]\"\n"
-		   "\techo \"               [-u]\"\n"
-		   "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" is required.\"\n"
-		   "\texit 1\n"
-		   "fi\n\n"
-		   "set_dsml=0\n"
-		   "dsml_file=\"mydummy\"\n"
-		   "arg_list=\"\"\n"
-		   "space=\" \"\n"
-		   "for arg in \"$@\"\ndo\n"
-		   "\tif [ \"$arg\" = '-a' ];\n\tthen\n"
-		   "\t\tset_dsml=1\n"
-		   "\telif [ $set_dsml -eq 1 ];\n\tthen\n"
-		   "\t\tdsml_file=$arg\n"
-		   "\t\tset_dsml=2\n"
-		   "\telse\n"		   
-		   "\t\targ_list=$arg_list$space$arg\n"
-		   "\tfi\n"
-		   "done\n"		   
-		   "if [ $dsml_file = \"mydummy\" ]\nthen\n"
-		   "\tdsml_file=%s/dsml/`date +%%Y_%%m_%%d_%%H%%M%%S`.dsml\n"
-		   "\techo dsmlfile: $dsml_file\n"
-		   "fi\n"
-		   "%s/bin/base/jre/bin/java -Dverify=true -classpath %s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.LDIF2DSML -s -o $dsml_file \n"
-		   "if [ $? = 0 ]; then\n"
-		   "\t./ns-slapd db2ldif -D %s \"$@\" -a - | %s/bin/base/jre/bin/java -classpath %s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.LDIF2DSML -s -o $dsml_file \n"
-		   "fi\n",
-		    server, cs_path, sroot, sroot, sroot, cs_path, sroot, sroot, sroot);
+    /* new code for dsml export */
+    t = gen_script(cs_path, "db2dsml", 
+           "cd %s\n"
+           "if [ \"$#\" -lt 2 ];\nthen\n"
+           "\techo \"Usage: db2dsml {-n backend_instance} | {-s includesuffix}*\"\n"
+           "\techo \"               [{-x excludesuffix}*] [-a outputfile]\"\n"
+           "\techo \"               [-u]\"\n"
+           "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" is required.\"\n"
+           "\texit 1\n"
+           "fi\n\n"
+           "set_dsml=0\n"
+           "dsml_file=\"mydummy\"\n"
+           "arg_list=\"\"\n"
+           "space=\" \"\n"
+           "for arg in \"$@\"\ndo\n"
+           "\tif [ \"$arg\" = '-a' ];\n\tthen\n"
+           "\t\tset_dsml=1\n"
+           "\telif [ $set_dsml -eq 1 ];\n\tthen\n"
+           "\t\tdsml_file=$arg\n"
+           "\t\tset_dsml=2\n"
+           "\telse\n"           
+           "\t\targ_list=$arg_list$space$arg\n"
+           "\tfi\n"
+           "done\n"           
+           "if [ $dsml_file = \"mydummy\" ]\nthen\n"
+           "\tdsml_file=%s/dsml/`date +%%Y_%%m_%%d_%%H%%M%%S`.dsml\n"
+           "\techo dsmlfile: $dsml_file\n"
+           "fi\n"
+           "%s/bin/base/jre/bin/java -Dverify=true -classpath %s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.LDIF2DSML -s -o $dsml_file \n"
+           "if [ $? = 0 ]; then\n"
+           "\t./ns-slapd db2ldif -D %s \"$@\" -a - | %s/bin/base/jre/bin/java -classpath %s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.LDIF2DSML -s -o $dsml_file \n"
+           "fi\n",
+            server, cs_path, sroot, sroot, sroot, cs_path, sroot, sroot, sroot);
     if(t) return t;
 
     t = CREATE_DB2LDIF();
@@ -2366,42 +2374,42 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 #endif
 
     t = gen_script(cs_path, "vlvindex", 
-		   "cd %s\n"
-		   "if [ $# -lt 4 ]\n"
-		   "then\n"
-		   "\techo \"Usage: vlvindex -n backend_instance | {-s includesuffix}* -T attribute\"\n"
-		   "\techo Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" are required.\n"
-		   "\texit 1\n"
-		   "fi\n\n"
-		   "./ns-slapd db2index -D %s \"$@\"\n",
-		   server, cs_path);
+           "cd %s\n"
+           "if [ $# -lt 4 ]\n"
+           "then\n"
+           "\techo \"Usage: vlvindex -n backend_instance | {-s includesuffix}* -T attribute\"\n"
+           "\techo Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" are required.\n"
+           "\texit 1\n"
+           "fi\n\n"
+           "./ns-slapd db2index -D %s \"$@\"\n",
+           server, cs_path);
     if(t) return t;
 
     t = gen_script(cs_path, "db2bak", 
-		   "cd %s\n"
-		   "if [ \"$#\" -eq 1 ]\nthen\n"
-		   "\tbak_dir=$1\nelse\n"
-		   "\tbak_dir=%s/bak/`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
-		   "./ns-slapd db2archive -D %s -a $bak_dir\n",
-		   server, cs_path, cs_path);
+           "cd %s\n"
+           "if [ \"$#\" -eq 1 ]\nthen\n"
+           "\tbak_dir=$1\nelse\n"
+           "\tbak_dir=%s/bak/`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
+           "./ns-slapd db2archive -D %s -a $bak_dir\n",
+           server, cs_path, cs_path);
     if(t) return t;
 
     t = CREATE_DB2BAK();
     if(t) return t;
     
     t = gen_script(cs_path, "bak2db", 
-		   "if [ \"$#\" -ne 1 ]\nthen\n"
-		   "    echo \"Usage: bak2db archivedir\"\n"
-		   "    exit 1\nfi\n\n"
-		   "if [ 1 = `expr $1 : \"\\/\"` ]\nthen\n"
-		   "    archivedir=$1\n"
-		   "else\n"
-		   "    # relative\n"
-		   "    cwd=`pwd`\n"
-		   "    archivedir=`echo $cwd/$1`\nfi\n\n"
-		   "cd %s\n"
-		   "./ns-slapd archive2db -D %s -a $archivedir\n",
-		   server, cs_path);
+           "if [ \"$#\" -ne 1 ]\nthen\n"
+           "    echo \"Usage: bak2db archivedir\"\n"
+           "    exit 1\nfi\n\n"
+           "if [ 1 = `expr $1 : \"\\/\"` ]\nthen\n"
+           "    archivedir=$1\n"
+           "else\n"
+           "    # relative\n"
+           "    cwd=`pwd`\n"
+           "    archivedir=`echo $cwd/$1`\nfi\n\n"
+           "cd %s\n"
+           "./ns-slapd archive2db -D %s -a $archivedir\n",
+           server, cs_path);
     if(t) return t;
 
     t = CREATE_BAK2DB();
@@ -2429,20 +2437,20 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = gen_script(cs_path, "suffix2instance",
-		   "cd %s\n"
-		   "if [ $# -lt 2 ]\n"
-		   "then\n"
-		   "\techo Usage: suffix2instance {-s includesuffix}*\n"
-		   "\texit 1\n"
-		   "fi\n\n"
-		   "./ns-slapd suffix2instance -D %s \"$@\" 2>&1\n",
-		   server, cs_path);
+           "cd %s\n"
+           "if [ $# -lt 2 ]\n"
+           "then\n"
+           "\techo Usage: suffix2instance {-s includesuffix}*\n"
+           "\texit 1\n"
+           "fi\n\n"
+           "./ns-slapd suffix2instance -D %s \"$@\" 2>&1\n",
+           server, cs_path);
     if(t) return t;
 
     /*Generate the java commandline tools in bin/slapd/server*/
     for (cls = 0; cls < 7; cls++) {
-      t = gen_script(server, cl_scripts[cls], 
-		     "cd %s\n\n"
+        t = gen_script(server, cl_scripts[cls], 
+             "cd %s\n\n"
              "lang=${LANG:=en}\n"
              "while [ $# -ge 1 ]\n"
              "do\n"
@@ -2451,28 +2459,28 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
              "        shift\n"
              "        lang=$1\n"
              "    else\n"
-		     "        arg=\"$arg $1\"\n"
+             "        arg=\"$arg $1\"\n"
              "    fi\n"
              "    shift\n"
              "done\n"
-		     "./bin/base/jre/bin/jre -classpath ./bin/base/jre/lib:"
-		     "./bin/base/jre/lib/rt.jar:./bin/base/jre/lib/i18n.jar:"
-		     "./java/base.jar:./java/jars/ds40.jar:./java/jars/ds40_${lang}.jar:"
-		     "./java/swingall.jar:./java/ssl.zip:"
-		     "./java/ldapjdk.jar:./java/mcc40.jar:./java/mcc40_${lang}.jar:"
-		     "./java/nmclf40.jar:./java/nmclf40_${lang}.jar"
-		     " com.netscape.admin.dirserv.cmdln.%s $arg\n", 
-		     sroot, cl_javafiles[cls]);
-      if(t) return t;
+             "./bin/base/jre/bin/jre -classpath ./bin/base/jre/lib:"
+             "./bin/base/jre/lib/rt.jar:./bin/base/jre/lib/i18n.jar:"
+             "./java/base.jar:./java/jars/ds40.jar:./java/jars/ds40_${lang}.jar:"
+             "./java/swingall.jar:./java/ssl.zip:"
+             "./java/ldapjdk.jar:./java/mcc40.jar:./java/mcc40_${lang}.jar:"
+             "./java/nmclf40.jar:./java/nmclf40_${lang}.jar"
+             " com.netscape.admin.dirserv.cmdln.%s $arg\n", 
+             sroot, cl_javafiles[cls]);
+        if(t) return t;
 #if defined( SOLARIS )
-      /*
-       * Solaris 9+ specific installation
-       */
-      if (iDSISolaris)
-      { 
-        sprintf(fn, "%s/%s", server, cl_scripts[cls]);
-        logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, fn);
-      }
+        /*
+         * Solaris 9+ specific installation
+         */
+        if (iDSISolaris)
+        { 
+            sprintf(fn, "%s/%s", server, cl_scripts[cls]);
+            logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, fn);
+        }
 #endif /* SOLARIS */
 
     }
@@ -2534,29 +2542,29 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     ds_unixtodospath( cgics_path );
 
     t = gen_script(cs_path, "monitor.bat", 
-		   "@echo off\n"
-		   "setlocal\n"
-		   "set rc=0\n"
-		   "if %%1.==. goto noparam\n"
-		   "\"%s\\ldapsearch\" -p %s -b %%1 "
-		   "-s base \"objectClass=*\"\n"
-		   "set rc=%%errorlevel%%\n"
-		   "goto proceed\n"
-		   ":noparam\n"
-		   "\"%s\\ldapsearch\" -p %s -b \"cn=monitor\" "
-		   "-s base \"objectClass=*\"\n"
-		   "set rc=%%errorlevel%%\n"
-		   ":proceed\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
+           "@echo off\n"
+           "setlocal\n"
+           "set rc=0\n"
+           "if %%1.==. goto noparam\n"
+           "\"%s\\ldapsearch\" -p %s -b %%1 "
+           "-s base \"objectClass=*\"\n"
+           "set rc=%%errorlevel%%\n"
+           "goto proceed\n"
+           ":noparam\n"
+           "\"%s\\ldapsearch\" -p %s -b \"cn=monitor\" "
+           "-s base \"objectClass=*\"\n"
+           "set rc=%%errorlevel%%\n"
+           ":proceed\n"
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
            tools, cf->servport, tools, cf->servport);
     if(t) return t;
     
     t = gen_script(cs_path, "saveconfig.bat", 
-		   "@echo off\n"
-		   "setlocal\n"
-		   "set rc=0\n"
-		   "PATH=\"%s\";%%PATH%%\n"
+           "@echo off\n"
+           "setlocal\n"
+           "set rc=0\n"
+           "PATH=\"%s\";%%PATH%%\n"
            "namegen\n"
            "call bstart\n"
            "set config_ldif=%s\\confbak\\%%DATESTR%%.ldif\n"
@@ -2564,20 +2572,20 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "del bend.bat\n"
            "slapd db2ldif -s \"%s\" -a \"%%config_ldif%%\" -N"
            " -D \"%s\" -n NetscapeRoot 2>&1\n"
-		   "set rc=%%errorlevel%%\n"
+           "set rc=%%errorlevel%%\n"
            "if %%rc%%==0 goto done\n"
            "echo Error occurred while saving configuration\n"
         ":done\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
-		   server, cs_path, cf->netscaperoot, cs_path);
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
+           server, cs_path, cf->netscaperoot, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "restoreconfig.bat", 
-		   "@echo off\n"
-		   "setlocal\n"
-		   "set rc=0\n"
-		   "PATH=\"%s\";%%PATH%%\n"
+           "@echo off\n"
+           "setlocal\n"
+           "set rc=0\n"
+           "PATH=\"%s\";%%PATH%%\n"
            "set latestscript=%s\\latest_config.bat\n"
            "if EXIST \"%%latestscript%%\" del \"%%latestscript%%\"\n"
            "latest_file \"%s\\confbak\\*.ldif\" \"%%latestscript%%\"\n"
@@ -2586,98 +2594,98 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "del \"%%latestscript%%\"\n"
            "slapd ldif2db -D \"%s\" -i \"%%LATEST_FILE%%\""
            " -n NetscapeRoot 2>&1\n"
-		   "set rc=%%errorlevel%%\n"
+           "set rc=%%errorlevel%%\n"
            "if %%rc%%==0 goto done\n"
            "echo Error occurred while saving configuration\n"
            "goto done\n"
         ":noconfig\n"
-		   "set rc=0\n" /* no error */
+           "set rc=0\n" /* no error */
            "echo No configuration to restore in %s\\confbak\n"
         ":done\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
-		   server, cs_path, cs_path, cs_path, cs_path);
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
+           server, cs_path, cs_path, cs_path, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "ldif2db.bat", 
-				"@if not \"%%echo%%\" == \"on\" echo off\n"
-				"setlocal\n"
-				"set rc=0\n"
-		   		"PATH=\"%s\";%%PATH%%\n\n"
-				"set noconfig=0\n"
-				"if [%%2] == [] goto incorrect\n"
-				"if [%%3] == [] goto incorrect\n"
-				"if [%%4] == [] goto incorrect\n\n"
-				"set args=\n"
-				":getargs\n"
-				"if [%%1] == [] goto import\n"
-				"set args=%%args%% %%1\n"
-				"shift\n"
-				"goto getargs\n\n"
-				":incorrect\n"
-				":usage\n"
-				"echo \"Usage: ldif2db -n backend_instance | {-s \"includesuffix\"}* "
-				"{-i ldif-file}* [-O] [{-x \"excludesuffix\"}*]\"\n"
-				"set rc=1\n"
-				"goto done\n\n"
-				":import\n"
-				"echo importing data ...\n"
-		   		"slapd ldif2db -D \"%s\" %%args%% 2>&1\n\n"
-				"set rc=%%errorlevel%%\n"
-				":done\n"
-				"if defined MKSARGS exit %%rc%%\n"
-				"exit /b %%rc%%\n",
-		   		server, cs_path);
+                "@if not \"%%echo%%\" == \"on\" echo off\n"
+                "setlocal\n"
+                "set rc=0\n"
+                   "PATH=\"%s\";%%PATH%%\n\n"
+                "set noconfig=0\n"
+                "if [%%2] == [] goto incorrect\n"
+                "if [%%3] == [] goto incorrect\n"
+                "if [%%4] == [] goto incorrect\n\n"
+                "set args=\n"
+                ":getargs\n"
+                "if [%%1] == [] goto import\n"
+                "set args=%%args%% %%1\n"
+                "shift\n"
+                "goto getargs\n\n"
+                ":incorrect\n"
+                ":usage\n"
+                "echo \"Usage: ldif2db -n backend_instance | {-s \"includesuffix\"}* "
+                "{-i ldif-file}* [-O] [{-x \"excludesuffix\"}*]\"\n"
+                "set rc=1\n"
+                "goto done\n\n"
+                ":import\n"
+                "echo importing data ...\n"
+                   "slapd ldif2db -D \"%s\" %%args%% 2>&1\n\n"
+                "set rc=%%errorlevel%%\n"
+                ":done\n"
+                "if defined MKSARGS exit %%rc%%\n"
+                "exit /b %%rc%%\n",
+                   server, cs_path);
     if(t) return t;
 
-	/* new code for dsml import */
-	t = gen_script(cs_path, "dsml2db.bat", 
-				"@if not \"%%echo%%\" == \"on\" echo off\n"
-				"setlocal\n"
-				"set rc=0\n"
-		   		"PATH=\"%s\";%%PATH%%\n\n"
-				"set noconfig=0\n"
-				"if [%%2] == [] goto incorrect\n"
-				"if [%%3] == [] goto incorrect\n"
-				"if [%%4] == [] goto incorrect\n\n"
-				"set args=\n"
-				"goto getargs\n"
-				":setdsml\n"
-				"set dsmlfile=\n"
-				"set dsmlfile=%%2\n"
-				"shift\n"
-				"shift\n"
-				"goto getargs\n"
-				":getargs\n"
-				"if [%%1] == [] goto import\n"
-				"if [%%1] == [-i] goto setdsml\n"
-				"set args=%%args%% %%1\n"
-				"shift\n"
-				"goto getargs\n\n"
-				":incorrect\n"
-				":usage\n"
-				"echo \"Usage: dsml2db -n backend_instance | {-s \"includesuffix\"}* "
-				"{-i dsml-file} [{-x \"excludesuffix\"}*]\"\n"
-				"set rc=1\n"
-				"goto done\n\n"
-				":import\n"
-				"%s\\bin\\base\\jre\\bin\\java -Dverify=true -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\crimson.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.DSML2LDIF %%dsmlfile%%\n"
-				"set rc=%%errorlevel%%\n"
-				"if %%rc%%==0 goto realimport else goto done\n"
-				":realimport\n"
-				"echo importing data ...\n"
-		   		"%s\\bin\\base\\jre\\bin\\java -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\crimson.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.DSML2LDIF %%dsmlfile%% | slapd ldif2db -D \"%s\" -i - %%args%% 2>&1\n\n"
-				"set rc=%%errorlevel%%\n"
-				":done\n"
-				"if defined MKSARGS exit %%rc%%\n"
-				"exit /b %%rc%%\n",
-		   		server, sroot, sroot, sroot, sroot, sroot, sroot, sroot, sroot, cs_path);
+    /* new code for dsml import */
+    t = gen_script(cs_path, "dsml2db.bat", 
+                "@if not \"%%echo%%\" == \"on\" echo off\n"
+                "setlocal\n"
+                "set rc=0\n"
+                   "PATH=\"%s\";%%PATH%%\n\n"
+                "set noconfig=0\n"
+                "if [%%2] == [] goto incorrect\n"
+                "if [%%3] == [] goto incorrect\n"
+                "if [%%4] == [] goto incorrect\n\n"
+                "set args=\n"
+                "goto getargs\n"
+                ":setdsml\n"
+                "set dsmlfile=\n"
+                "set dsmlfile=%%2\n"
+                "shift\n"
+                "shift\n"
+                "goto getargs\n"
+                ":getargs\n"
+                "if [%%1] == [] goto import\n"
+                "if [%%1] == [-i] goto setdsml\n"
+                "set args=%%args%% %%1\n"
+                "shift\n"
+                "goto getargs\n\n"
+                ":incorrect\n"
+                ":usage\n"
+                "echo \"Usage: dsml2db -n backend_instance | {-s \"includesuffix\"}* "
+                "{-i dsml-file} [{-x \"excludesuffix\"}*]\"\n"
+                "set rc=1\n"
+                "goto done\n\n"
+                ":import\n"
+                "%s\\bin\\base\\jre\\bin\\java -Dverify=true -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\crimson.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.DSML2LDIF %%dsmlfile%%\n"
+                "set rc=%%errorlevel%%\n"
+                "if %%rc%%==0 goto realimport else goto done\n"
+                ":realimport\n"
+                "echo importing data ...\n"
+                   "%s\\bin\\base\\jre\\bin\\java -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\crimson.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.DSML2LDIF %%dsmlfile%% | slapd ldif2db -D \"%s\" -i - %%args%% 2>&1\n\n"
+                "set rc=%%errorlevel%%\n"
+                ":done\n"
+                "if defined MKSARGS exit %%rc%%\n"
+                "exit /b %%rc%%\n",
+                   server, sroot, sroot, sroot, sroot, sroot, sroot, sroot, sroot, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "ldif2ldap.bat", 
-		   "@echo off\n"
-		   "\"%s\\ldapmodify\" -a -p %s -D %%1 -w %%2 -f %%3\n",
-		   tools, cf->servport);
+           "@echo off\n"
+           "\"%s\\ldapmodify\" -a -p %s -D %%1 -w %%2 -f %%3\n",
+           tools, cf->servport);
     if(t) return t;
 
     t = CREATE_LDIF2DB();
@@ -2718,161 +2726,161 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = gen_script(cs_path, "getpwenc.bat", 
-		   "@echo off\n"
-		   "\"%s\\pwdhash\" -D \"%s\" -H -s %%1 %%2\n",
-		   server, cs_path);
+           "@echo off\n"
+           "\"%s\\pwdhash\" -D \"%s\" -H -s %%1 %%2\n",
+           server, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "db2ldif.bat", 
-			"@if not \"%%echo%%\" == \"on\" echo off\n\n"
-			"setlocal\n"
-			"set rc=0\n"
-			"PATH=\"%s\";%%PATH%%\n\n"
-			"if [%%2] == [] goto err\n\n"
-			"set arg=\n"
-			"set ldif_file=\n\n"
-			":again\n"
-			"if \"%%1\" == \"\" goto next\n"
-			"if \"%%1\" == \"-n\" goto doubletag\n"
-			"if \"%%1\" == \"-s\" goto doubletag\n"
-			"if \"%%1\" == \"-x\" goto doubletag\n"
-			"if \"%%1\" == \"-a\" goto setldif\n"
-			"if \"%%1\" == \"-N\" goto singletag\n"
-			"if \"%%1\" == \"-r\" goto singletag\n"
-			"if \"%%1\" == \"-C\" goto singletag\n"
-			"if \"%%1\" == \"-u\" goto singletag\n"
-			"if \"%%1\" == \"-m\" goto singletag\n"
-			"if \"%%1\" == \"-o\" goto singletag\n"
-			"if \"%%1\" == \"-U\" goto singletag\n"
-			"if \"%%1\" == \"-M\" goto singletag\n"
-			"if \"%%1\" == \"-E\" goto singletag\n"
-			"goto next\n\n"
-			":doubletag\n"
-			"set arg=%%1 %%2 %%arg%%\n"
-			"shift\n"
-			"shift\n"
-			"goto again\n\n"
-			":singletag\n"
-			"set arg=%%1 %%arg%%\n"
-			"shift\n"
-			"goto again\n\n"
-			":setldif\n"
-			"set ldif_file=%%2\n"
-			"shift\n"
-			"shift\n"
-			"goto again\n\n"
-			":next\n"
-			"if not \"%%ldif_file%%\" == \"\" goto givenldif\n\n"
-			"namegen\n"
-			"call bstart\n"
-			"set ldif_file=\"%s\\ldif\\%%DATESTR%%.ldif\"\n"
-			"call bend\n"
-			"del bend.bat\n\n"
-			":givenldif\n"
-			"\"%s\\slapd\" db2ldif -D \"%s\" -a %%ldif_file%% %%arg%%\n"
-			"set rc=%%errorlevel%%\n"
-			"goto done\n\n"
-			":err\n"
-			"echo \"Usage: db2ldif -n backend_instance | "
-			"{-s \"includesuffix\"}* [{-x \"excludesuffix\"}*] [-N] [-r] [-C] "
-			"[-u] [-U] [-m] [-M] [-1] [-a outputfile]\"\n\n"
-			"set rc=1\n"
-			":done\n"
-			"if defined MKSARGS exit %%rc%%\n"
-			"exit /b %%rc%%\n",
-		    	server, cs_path, server, cs_path);
+            "@if not \"%%echo%%\" == \"on\" echo off\n\n"
+            "setlocal\n"
+            "set rc=0\n"
+            "PATH=\"%s\";%%PATH%%\n\n"
+            "if [%%2] == [] goto err\n\n"
+            "set arg=\n"
+            "set ldif_file=\n\n"
+            ":again\n"
+            "if \"%%1\" == \"\" goto next\n"
+            "if \"%%1\" == \"-n\" goto doubletag\n"
+            "if \"%%1\" == \"-s\" goto doubletag\n"
+            "if \"%%1\" == \"-x\" goto doubletag\n"
+            "if \"%%1\" == \"-a\" goto setldif\n"
+            "if \"%%1\" == \"-N\" goto singletag\n"
+            "if \"%%1\" == \"-r\" goto singletag\n"
+            "if \"%%1\" == \"-C\" goto singletag\n"
+            "if \"%%1\" == \"-u\" goto singletag\n"
+            "if \"%%1\" == \"-m\" goto singletag\n"
+            "if \"%%1\" == \"-o\" goto singletag\n"
+            "if \"%%1\" == \"-U\" goto singletag\n"
+            "if \"%%1\" == \"-M\" goto singletag\n"
+            "if \"%%1\" == \"-E\" goto singletag\n"
+            "goto next\n\n"
+            ":doubletag\n"
+            "set arg=%%1 %%2 %%arg%%\n"
+            "shift\n"
+            "shift\n"
+            "goto again\n\n"
+            ":singletag\n"
+            "set arg=%%1 %%arg%%\n"
+            "shift\n"
+            "goto again\n\n"
+            ":setldif\n"
+            "set ldif_file=%%2\n"
+            "shift\n"
+            "shift\n"
+            "goto again\n\n"
+            ":next\n"
+            "if not \"%%ldif_file%%\" == \"\" goto givenldif\n\n"
+            "namegen\n"
+            "call bstart\n"
+            "set ldif_file=\"%s\\ldif\\%%DATESTR%%.ldif\"\n"
+            "call bend\n"
+            "del bend.bat\n\n"
+            ":givenldif\n"
+            "\"%s\\slapd\" db2ldif -D \"%s\" -a %%ldif_file%% %%arg%%\n"
+            "set rc=%%errorlevel%%\n"
+            "goto done\n\n"
+            ":err\n"
+            "echo \"Usage: db2ldif -n backend_instance | "
+            "{-s \"includesuffix\"}* [{-x \"excludesuffix\"}*] [-N] [-r] [-C] "
+            "[-u] [-U] [-m] [-M] [-1] [-a outputfile]\"\n\n"
+            "set rc=1\n"
+            ":done\n"
+            "if defined MKSARGS exit %%rc%%\n"
+            "exit /b %%rc%%\n",
+                server, cs_path, server, cs_path);
     if(t) return t;
 
     t = CREATE_DB2LDIF();
     if(t) return t;
 
-	/* new code for dsml export */
-	t = gen_script(cs_path, "db2dsml.bat", 
-			"@if not \"%%echo%%\" == \"on\" echo off\n\n"
-			"setlocal\n"
-			"set rc=0\n"
-			"PATH=\"%s\";%%PATH%%\n\n"
-			"if [%%2] == [] goto err\n\n"
-			"set arg=\n"
-			"set dsml_file=\n\n"
-			":again\n"
-			"if \"%%1\" == \"\" goto next\n"
-			"if \"%%1\" == \"-n\" goto doubletag\n"
-			"if \"%%1\" == \"-s\" goto doubletag\n"
-			"if \"%%1\" == \"-x\" goto doubletag\n"
-			"if \"%%1\" == \"-a\" goto setdsml\n"
-			"if \"%%1\" == \"-N\" goto singletag\n"
-			"if \"%%1\" == \"-r\" goto singletag\n"
-			"if \"%%1\" == \"-C\" goto singletag\n"
-			"if \"%%1\" == \"-u\" goto singletag\n"
-			"if \"%%1\" == \"-m\" goto singletag\n"
-			"if \"%%1\" == \"-o\" goto singletag\n"
-			"if \"%%1\" == \"-U\" goto singletag\n"
-			"if \"%%1\" == \"-M\" goto singletag\n"
-			"goto next\n\n"
-			":doubletag\n"
-			"set arg=%%1 %%2 %%arg%%\n"
-			"shift\n"
-			"shift\n"
-			"goto again\n\n"
-			":singletag\n"
-			"set arg=%%1 %%arg%%\n"
-			"shift\n"
-			"goto again\n\n"
-			":setdsml\n"
-			"set dsml_file=%%2\n"
-			"shift\n"
-			"shift\n"
-			"goto again\n\n"
-			":next\n"
-			"if not \"%%dsml_file%%\" == \"\" goto givendsml\n\n"
-			"namegen\n"
-			"call bstart\n"
-			"set dsml_file=\"%s\\dsml\\%%DATESTR%%.dsml\"\n"
-			"echo dsmlfile: %%dsml_file%%\n"
-			"call bend\n"
-			"del bend.bat\n\n"
-			":givendsml\n"
-			"%s\\bin\\base\\jre\\bin\\java -Dverify=true -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.LDIF2DSML -s -o %%dsml_file%%\n"
-			"set rc=%%errorlevel%%\n"
-			"if %%rc%%==0 goto realimport else goto done\n\n"
-			":realimport\n"
-			"\"%s\\slapd\" db2ldif -D \"%s\" -a - -1 %%arg%% | %s\\bin\\base\\jre\\bin\\java -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.LDIF2DSML -s -o %%dsml_file%%\n"
-			"set rc=%%errorlevel%%\n"
-			"goto done\n\n"
-			":err\n"
-			"echo \"Usage: db2dsml -n backend_instance | "
-			"{-s \"includesuffix\"}* [{-x \"excludesuffix\"}*]"
-			"[-u] [-a outputfile]\"\n\n"
-			"set rc=1\n"
-			":done\n"
-			"if defined MKSARGS exit %%rc%%\n"
-			"exit /b %%rc%%\n",
-				server, cs_path, sroot, sroot, sroot, server, cs_path, sroot, sroot, sroot);
+    /* new code for dsml export */
+    t = gen_script(cs_path, "db2dsml.bat", 
+            "@if not \"%%echo%%\" == \"on\" echo off\n\n"
+            "setlocal\n"
+            "set rc=0\n"
+            "PATH=\"%s\";%%PATH%%\n\n"
+            "if [%%2] == [] goto err\n\n"
+            "set arg=\n"
+            "set dsml_file=\n\n"
+            ":again\n"
+            "if \"%%1\" == \"\" goto next\n"
+            "if \"%%1\" == \"-n\" goto doubletag\n"
+            "if \"%%1\" == \"-s\" goto doubletag\n"
+            "if \"%%1\" == \"-x\" goto doubletag\n"
+            "if \"%%1\" == \"-a\" goto setdsml\n"
+            "if \"%%1\" == \"-N\" goto singletag\n"
+            "if \"%%1\" == \"-r\" goto singletag\n"
+            "if \"%%1\" == \"-C\" goto singletag\n"
+            "if \"%%1\" == \"-u\" goto singletag\n"
+            "if \"%%1\" == \"-m\" goto singletag\n"
+            "if \"%%1\" == \"-o\" goto singletag\n"
+            "if \"%%1\" == \"-U\" goto singletag\n"
+            "if \"%%1\" == \"-M\" goto singletag\n"
+            "goto next\n\n"
+            ":doubletag\n"
+            "set arg=%%1 %%2 %%arg%%\n"
+            "shift\n"
+            "shift\n"
+            "goto again\n\n"
+            ":singletag\n"
+            "set arg=%%1 %%arg%%\n"
+            "shift\n"
+            "goto again\n\n"
+            ":setdsml\n"
+            "set dsml_file=%%2\n"
+            "shift\n"
+            "shift\n"
+            "goto again\n\n"
+            ":next\n"
+            "if not \"%%dsml_file%%\" == \"\" goto givendsml\n\n"
+            "namegen\n"
+            "call bstart\n"
+            "set dsml_file=\"%s\\dsml\\%%DATESTR%%.dsml\"\n"
+            "echo dsmlfile: %%dsml_file%%\n"
+            "call bend\n"
+            "del bend.bat\n\n"
+            ":givendsml\n"
+            "%s\\bin\\base\\jre\\bin\\java -Dverify=true -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.LDIF2DSML -s -o %%dsml_file%%\n"
+            "set rc=%%errorlevel%%\n"
+            "if %%rc%%==0 goto realimport else goto done\n\n"
+            ":realimport\n"
+            "\"%s\\slapd\" db2ldif -D \"%s\" -a - -1 %%arg%% | %s\\bin\\base\\jre\\bin\\java -classpath \".;%s\\java\\ldapjdk.jar;%s\\java\\jars\\xmltools.jar\" com.netscape.xmltools.LDIF2DSML -s -o %%dsml_file%%\n"
+            "set rc=%%errorlevel%%\n"
+            "goto done\n\n"
+            ":err\n"
+            "echo \"Usage: db2dsml -n backend_instance | "
+            "{-s \"includesuffix\"}* [{-x \"excludesuffix\"}*]"
+            "[-u] [-a outputfile]\"\n\n"
+            "set rc=1\n"
+            ":done\n"
+            "if defined MKSARGS exit %%rc%%\n"
+            "exit /b %%rc%%\n",
+                server, cs_path, sroot, sroot, sroot, server, cs_path, sroot, sroot, sroot);
     if(t) return t;  
         
     t = gen_script(cs_path, "db2bak.bat", 
-		   "@echo off\n"
-		   "setlocal\n"
-		   "set rc=0\n"
-		   "PATH=\"%s\";%%PATH%%\n"
-		   "if %%1.==. goto nobak\n"
-		   "set bakdir=%%1\n"
-		   "goto backup\n"
-		   ":nobak\n"
+           "@echo off\n"
+           "setlocal\n"
+           "set rc=0\n"
+           "PATH=\"%s\";%%PATH%%\n"
+           "if %%1.==. goto nobak\n"
+           "set bakdir=%%1\n"
+           "goto backup\n"
+           ":nobak\n"
            "namegen\n"
            "call bstart\n"
            "set bakdir=\"%s\\bak\\%%DATESTR%%\"\n"
            "call bend\n"
            "del bend.bat\n"
-		   ":backup\n"
-		   "\"%s\\slapd\" db2archive -D \"%s\" -a %%bakdir%% "
-		   "%%2 %%3 %%4 %%5 %%6 %%7 %%8\n"
-		   "set rc=%%errorlevel%%\n"
-		   ":done\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
-		   server, cs_path, server, cs_path);
+           ":backup\n"
+           "\"%s\\slapd\" db2archive -D \"%s\" -a %%bakdir%% "
+           "%%2 %%3 %%4 %%5 %%6 %%7 %%8\n"
+           "set rc=%%errorlevel%%\n"
+           ":done\n"
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
+           server, cs_path, server, cs_path);
     if(t) return t;
 
     t = CREATE_DB2BAK();
@@ -2881,8 +2889,8 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 #if defined(UPGRADEDB)
     t = gen_script(cs_path, "db2index.bat", 
            "@echo off\n"
-	   "setlocal\n"
-	   "set rc=0\n"
+       "setlocal\n"
+       "set rc=0\n"
            "PATH=\"%s\";%%PATH%%\n"
            "if %%1.==. goto indexall\n\n"
            "if %%2.==. goto err\n"
@@ -2896,64 +2904,64 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "call bend\n"
            "del bend.bat\n"
            "\"%s\\slapd\" upgradedb -D \"%s\" -f -a %%bakdir%%\n"
-		   "set rc=%%errorlevel%%\n"
+           "set rc=%%errorlevel%%\n"
            "goto done\n\n"
            ":backup\n"
            "\"%s\\slapd\" db2index -D \"%s\" " 
            "%%1 %%2 %%3 %%4 %%5 %%6 %%7 %%8\n"
-		   "set rc=%%errorlevel%%\n"
+           "set rc=%%errorlevel%%\n"
            "goto done\n\n"
            ":err\n"
            "echo \"Usage: db2index [-n backend_instance | {-s instancesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]\"\n\n"
-		   "set rc=1\n"
+           "set rc=1\n"
            ":done\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
            server, cs_path, server, cs_path, server, cs_path);
     if(t) return t;
 #endif
 
     t = gen_script(cs_path, "vlvindex.bat", 
-		   "@echo off\n"
-			"setlocal\n"
-			"set rc=0\n"
-			"if [%%2] == [] goto usage\n"
-			"if [%%3] == [] goto usage\n"
-			"if [%%4] == [] goto usage\n\n"
-		   "\"%s\\slapd\" db2index -D \"%s\" \"%%@\"\n"
-		    "set rc=%%errorlevel%%\n"
-			"goto done\n\n"
-			":usage\n"
-			"echo \"Usage: vlvindex -n backend_instance | {-s includesuffix}* {-T attribute}\"\n\n"
-			"set rc=1\n"
-			":done\n"
-			"if defined MKSARGS exit %%rc%%\n"
-			"exit /b %%rc%%\n",
-		   server, cs_path);
+           "@echo off\n"
+            "setlocal\n"
+            "set rc=0\n"
+            "if [%%2] == [] goto usage\n"
+            "if [%%3] == [] goto usage\n"
+            "if [%%4] == [] goto usage\n\n"
+           "\"%s\\slapd\" db2index -D \"%s\" \"%%@\"\n"
+            "set rc=%%errorlevel%%\n"
+            "goto done\n\n"
+            ":usage\n"
+            "echo \"Usage: vlvindex -n backend_instance | {-s includesuffix}* {-T attribute}\"\n\n"
+            "set rc=1\n"
+            ":done\n"
+            "if defined MKSARGS exit %%rc%%\n"
+            "exit /b %%rc%%\n",
+           server, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "bak2db.bat", 
-		   "@echo off\n"
-			"setlocal\n\n"
-			"set rc=0\n"
-			"if [%%1] == [] goto usage\n\n"	
-		   "\"%s\\slapd\" archive2db -D \"%s\" -a %%1\n"
-		    "set rc=%%errorlevel%%\n"
-			"goto done\n\n"
-			":usage\n"
-			"echo \"Usage: bak2db -a archivedir\"\n\n"
-			"set rc=1\n"
-			":done\n"
-			"if defined MKSARGS exit %%rc%%\n"
-			"exit /b %%rc%%\n",
-		   server, cs_path);
+           "@echo off\n"
+            "setlocal\n\n"
+            "set rc=0\n"
+            "if [%%1] == [] goto usage\n\n"    
+           "\"%s\\slapd\" archive2db -D \"%s\" -a %%1\n"
+            "set rc=%%errorlevel%%\n"
+            "goto done\n\n"
+            ":usage\n"
+            "echo \"Usage: bak2db -a archivedir\"\n\n"
+            "set rc=1\n"
+            ":done\n"
+            "if defined MKSARGS exit %%rc%%\n"
+            "exit /b %%rc%%\n",
+           server, cs_path);
     if(t) return t;
 
 #if defined(UPGRADEDB)
     t = gen_script(cs_path, "upgradedb.bat", 
             "@echo off\n"
-	    "setlocal\n"
-	    "set rc=0\n"
+        "setlocal\n"
+        "set rc=0\n"
             "PATH=\"%s\";%%PATH%%\n"
             "if %%1.==. goto nobak\n"
             "set bakdir=%%1\n"
@@ -2967,10 +2975,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
             ":backup\n"
             "\"%s\\slapd\" upgradedb -D \"%s\" -a %%bakdir%% "
             "%%2 %%3 %%4 %%5 %%6 %%7 %%8\n"
-		    "set rc=%%errorlevel%%\n"
+            "set rc=%%errorlevel%%\n"
             ":done\n"
-			"if defined MKSARGS exit %%rc%%\n"
-			"exit /b %%rc%%\n",
+            "if defined MKSARGS exit %%rc%%\n"
+            "exit /b %%rc%%\n",
             server, cs_path, server, cs_path);
     if(t) return t;
 #endif
@@ -2985,33 +2993,33 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = gen_script(cs_path, "suffix2instance.bat",
-		   "@if not \"%%echo%%\" == \"on\" echo off\n\n"
-		   "setlocal\n"
-		   "set rc=0\n"
-		   "PATH=\"%s\";%%PATH%%\n\n"
-		   "if [%%2] == [] goto err\n\n"
-		   "set arg=\n\n"
-		   ":again\n"
-		   "if \"%%1\" == \"\" goto next\n"
-		   "if \"%%1\" == \"-s\" goto doubletag\n"
-		   "shift\n"
-		   "goto again\n\n"
-		   ":doubletag\n"
-		   "set arg=%%1 %%2 %%arg%%\n"
-		   "shift\n"
-		   "shift\n"
-		   "goto again\n\n"
-		   ":next\n"
-		   "\"%s\\slapd\" suffix2instance -D \"%s\" %%arg%%\n"
-		   "set rc=%%errorlevel%%\n"
-		   "goto done\n\n"
-		   ":err\n"
-		   "echo Usage: suffix2instance {-s \"suffix\"}*\n\n"
-		   "set rc=1\n"
-		   ":done\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
-		   server, server, cs_path);
+           "@if not \"%%echo%%\" == \"on\" echo off\n\n"
+           "setlocal\n"
+           "set rc=0\n"
+           "PATH=\"%s\";%%PATH%%\n\n"
+           "if [%%2] == [] goto err\n\n"
+           "set arg=\n\n"
+           ":again\n"
+           "if \"%%1\" == \"\" goto next\n"
+           "if \"%%1\" == \"-s\" goto doubletag\n"
+           "shift\n"
+           "goto again\n\n"
+           ":doubletag\n"
+           "set arg=%%1 %%2 %%arg%%\n"
+           "shift\n"
+           "shift\n"
+           "goto again\n\n"
+           ":next\n"
+           "\"%s\\slapd\" suffix2instance -D \"%s\" %%arg%%\n"
+           "set rc=%%errorlevel%%\n"
+           "goto done\n\n"
+           ":err\n"
+           "echo Usage: suffix2instance {-s \"suffix\"}*\n\n"
+           "set rc=1\n"
+           ":done\n"
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
+           server, server, cs_path);
     if(t) return t;
 
     t = CREATE_ACCOUNT_INACT("ns-inactivate.pl");
@@ -3027,14 +3035,14 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = gen_script(cs_path, "dsml-activate.bat",
-		   "@echo off\n"
-		   "setlocal\n"
-		   "PATH=%s\\bin\\slapd\\admin\\bin;%%PATH%%\n"
-		   "perl \"%s\\dsml-activate.pl\" %%*\n"
-		   "set rc=%%errorlevel%%\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
-		   sroot, cs_path);
+           "@echo off\n"
+           "setlocal\n"
+           "PATH=%s\\bin\\slapd\\admin\\bin;%%PATH%%\n"
+           "perl \"%s\\dsml-activate.pl\" %%*\n"
+           "set rc=%%errorlevel%%\n"
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
+           sroot, cs_path);
     if(t) return t;
 
 
@@ -3043,14 +3051,14 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = gen_script(cs_path, "ns-newpwpolicy.cmd",
-		   "@echo off\n"
-		   "setlocal\n"
-		   "PATH=%s\\bin\\slapd\\admin\\bin;%%PATH%%\n"
-		   "perl \"%s\\ns-newpwpolicy.pl\" %%*\n"
-		   "set rc=%%errorlevel%%\n"
-		   "if defined MKSARGS exit %%rc%%\n"
-		   "exit /b %%rc%%\n",
-		   sroot, cs_path);
+           "@echo off\n"
+           "setlocal\n"
+           "PATH=%s\\bin\\slapd\\admin\\bin;%%PATH%%\n"
+           "perl \"%s\\ns-newpwpolicy.pl\" %%*\n"
+           "set rc=%%errorlevel%%\n"
+           "if defined MKSARGS exit %%rc%%\n"
+           "exit /b %%rc%%\n",
+           sroot, cs_path);
     if(t) return t;
 
     free(mysroot);
@@ -3058,38 +3066,38 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 
     /*Generate the java commandline tools in bin/slapd/server*/
     for (cls = 0; cls < 7; cls++) {
-      t = gen_script(server, cl_scripts[cls], 
-		     "@echo off\npushd \"%s\"\n\n"
-		     "setlocal\n"
-		     "set LANG=en\n"
-		     "set arg=\n"
-		     "set rc=0\n"
-		     ":getarg\n"
-		     "if %%1.==. goto start\n"
-		     "if %%1==-l goto getlang\n"
-		     "set arg=%%arg%% %%1\n"
-		     "shift\n"
-		     "goto getarg\n"
-		     ":getlang\n"
-		     "shift\n"
-		     "set LANG=%%1\n"
-		     "shift\n"
-		     "goto getarg\n"
-		     ":start\n"
-		     ".\\bin\\base\\jre\\bin\\jre  -classpath "
-		     ".;.\\java;.\\bin\\base\\jre\\lib;"
-		     ".\\bin\\base\\jre\\lib\\rt.jar;.\\bin\\base\\jre\\lib\\i18n.jar;"
-		     ".\\java\\base.jar;.\\java\\jars\\ds40.jar;.\\java\\jars\\ds40_%%LANG%%.jar;"
-		     ".\\java\\swingall.jar;.\\java\\ssl.zip;"
-		     ".\\java\\ldapjdk.jar;.\\java\\mcc40.jar;.\\java\\mcc40_%%LANG%%.jar;"
-		     ".\\java\\nmclf40.jar;.\\java\\nmclf40_%%LANG%%.jar "
-		     "com.netscape.admin.dirserv.cmdln.%s  %%arg%%\n"
-			 "set rc=%%errorlevel%%\n"
-			 "popd\n"
-		     "if defined MKSARGS exit %%rc%%\n"
-			 "exit /b %%rc%%\n", 
-		     sroot, cl_javafiles[cls]);		     
-      if(t) return t;
+        t = gen_script(server, cl_scripts[cls], 
+             "@echo off\npushd \"%s\"\n\n"
+             "setlocal\n"
+             "set LANG=en\n"
+             "set arg=\n"
+             "set rc=0\n"
+             ":getarg\n"
+             "if %%1.==. goto start\n"
+             "if %%1==-l goto getlang\n"
+             "set arg=%%arg%% %%1\n"
+             "shift\n"
+             "goto getarg\n"
+             ":getlang\n"
+             "shift\n"
+             "set LANG=%%1\n"
+             "shift\n"
+             "goto getarg\n"
+             ":start\n"
+             ".\\bin\\base\\jre\\bin\\jre  -classpath "
+             ".;.\\java;.\\bin\\base\\jre\\lib;"
+             ".\\bin\\base\\jre\\lib\\rt.jar;.\\bin\\base\\jre\\lib\\i18n.jar;"
+             ".\\java\\base.jar;.\\java\\jars\\ds40.jar;.\\java\\jars\\ds40_%%LANG%%.jar;"
+             ".\\java\\swingall.jar;.\\java\\ssl.zip;"
+             ".\\java\\ldapjdk.jar;.\\java\\mcc40.jar;.\\java\\mcc40_%%LANG%%.jar;"
+             ".\\java\\nmclf40.jar;.\\java\\nmclf40_%%LANG%%.jar "
+             "com.netscape.admin.dirserv.cmdln.%s  %%arg%%\n"
+             "set rc=%%errorlevel%%\n"
+             "popd\n"
+             "if defined MKSARGS exit %%rc%%\n"
+             "exit /b %%rc%%\n", 
+             sroot, cl_javafiles[cls]);             
+        if(t) return t;
     }
 
 
@@ -3102,9 +3110,9 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 void
 suffix_gen_conf(FILE* f, char * suffix, char *be_name)
 {
-	int l;
-	char* belowdn;
-	
+    int l;
+    char* belowdn;
+    
     fprintf(f, "dn: cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: extensibleObject\n");
@@ -3130,66 +3138,64 @@ suffix_gen_conf(FILE* f, char * suffix, char *be_name)
     fprintf(f, "nsslapd-backend: %s\n", be_name);
     fprintf(f, "\n");
 
-	/* Parent entry for attribute encryption config entries */
+    /* Parent entry for attribute encryption config entries */
 
-	fprintf(f, "dn: cn=encrypted attributes,cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: encrypted attributes\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=encrypted attributes,cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: encrypted attributes\n");
+    fprintf(f, "\n");
 
-	/* Parent entry for attribute encryption keys */
+    /* Parent entry for attribute encryption keys */
 
-	fprintf(f, "dn: cn=encrypted attribute keys,cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: encrypted attributes keys\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=encrypted attribute keys,cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: encrypted attributes keys\n");
+    fprintf(f, "\n");
 
-	/* Indexes for the ldbm instance */
+    /* Indexes for the ldbm instance */
 
-	fprintf(f, "dn: cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: index\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config\n", be_name);
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: index\n");
+    fprintf(f, "\n");
 
-	l = strlen("cn=index,cn=") + strlen(be_name) + strlen(",cn=ldbm database,cn=plugins,cn=config");
-	belowdn = (char *)malloc(l + 1);
-	sprintf(belowdn, "cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be_name);
-	ds_gen_index(f, belowdn);
-	
-	/* done with ldbm entries */
+    l = strlen("cn=index,cn=") + strlen(be_name) + strlen(",cn=ldbm database,cn=plugins,cn=config");
+    belowdn = (char *)malloc(l + 1);
+    sprintf(belowdn, "cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be_name);
+    ds_gen_index(f, belowdn);
+    
+    /* done with ldbm entries */
 }
 
 #define MKSYNTAX(_name,_fn) do { \
-	fprintf(f, "dn: cn=%s,cn=plugins,cn=config\n", (_name)); \
-	fprintf(f, "objectclass: top\n"); \
-	fprintf(f, "objectclass: nsSlapdPlugin\n"); \
-	fprintf(f, "objectclass: extensibleObject\n"); \
-	fprintf(f, "cn: %s\n",(_name)); \
-	fprintf(f, "nsslapd-pluginpath: %s/lib/syntax-plugin%s\n", sroot, shared_lib); \
-	fprintf(f, "nsslapd-plugininitfunc: %s\n", (_fn)); \
-	fprintf(f, "nsslapd-plugintype: syntax\n"); \
-	fprintf(f, "nsslapd-pluginenabled: on\n"); \
-	fprintf(f, "\n"); \
+    fprintf(f, "dn: cn=%s,cn=plugins,cn=config\n", (_name)); \
+    fprintf(f, "objectclass: top\n"); \
+    fprintf(f, "objectclass: nsSlapdPlugin\n"); \
+    fprintf(f, "objectclass: extensibleObject\n"); \
+    fprintf(f, "cn: %s\n",(_name)); \
+    fprintf(f, "nsslapd-pluginpath: %s/lib/syntax-plugin%s\n", sroot, shared_lib); \
+    fprintf(f, "nsslapd-plugininitfunc: %s\n", (_fn)); \
+    fprintf(f, "nsslapd-plugintype: syntax\n"); \
+    fprintf(f, "nsslapd-pluginenabled: on\n"); \
+    fprintf(f, "\n"); \
   } while (0)
 
 char *ds_gen_confs(char *sroot, server_config_s *cf, 
-	char *cs_path)
+    char *cs_path)
 {
-    char *pServerName = NULL;
-    char *schemaFile = NULL;
     char* t = NULL;
     char src[PATH_SIZE], dest[PATH_SIZE];
     char fn[PATH_SIZE], line[1024];
-    FILE *f = 0, *f2 = 0, *srcf = 0;
+    FILE *f = 0, *srcf = 0;
     int  rootdse = 0;
     char *shared_lib;
 
     sprintf(fn, "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     if(!(f = fopen(fn, "w")))
-		return make_error("Can't write to %s (%s)", fn, ds_system_errmsg());
+        return make_error("Can't write to %s (%s)", fn, ds_system_errmsg());
 
 #if defined( XP_WIN32 )
     shared_lib = ".dll";
@@ -3209,535 +3215,537 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
 #endif
 #endif
 
-	fprintf(f, "dn: cn=config\n");
-	fprintf(f, "cn: config\n");
-	fprintf(f, "objectclass:top\n");
-	fprintf(f, "objectclass:extensibleObject\n");
-	fprintf(f, "objectclass:nsslapdConfig\n");
-	fprintf(f, "nsslapd-accesslog-logging-enabled: on\n");
-	fprintf(f, "nsslapd-accesslog-maxlogsperdir: 10\n");
-	fprintf(f, "nsslapd-accesslog-mode: 600\n");
-	fprintf(f, "nsslapd-accesslog-maxlogsize: 100\n");
-	fprintf(f, "nsslapd-accesslog-logrotationtime: 1\n");
-	fprintf(f, "nsslapd-accesslog-logrotationtimeunit: day\n");
-	fprintf(f, "nsslapd-accesslog-logrotationsync-enabled: off\n");
-	fprintf(f, "nsslapd-accesslog-logrotationsynchour: 0\n");
-	fprintf(f, "nsslapd-accesslog-logrotationsyncmin: 0\n");
-	fprintf(f, "nsslapd-accesslog: %s/logs/access\n", cs_path);
-	fprintf(f, "nsslapd-enquote-sup-oc: off\n");
-	fprintf(f, "nsslapd-localhost: %s\n", cf->servname);
-	fprintf(f, "nsslapd-schemacheck: %s\n",
-			(cf->disable_schema_checking && !strcmp(cf->disable_schema_checking, "1")) ? "off" : "on");
-	fprintf(f, "nsslapd-rewrite-rfc1274: off\n");
-	fprintf(f, "nsslapd-return-exact-case: on\n");
-	fprintf(f, "nsslapd-ssl-check-hostname: on\n");
-	fprintf(f, "nsslapd-port: %s\n", cf->servport);
+    fprintf(f, "dn: cn=config\n");
+    fprintf(f, "cn: config\n");
+    fprintf(f, "objectclass:top\n");
+    fprintf(f, "objectclass:extensibleObject\n");
+    fprintf(f, "objectclass:nsslapdConfig\n");
+    fprintf(f, "nsslapd-accesslog-logging-enabled: on\n");
+    fprintf(f, "nsslapd-accesslog-maxlogsperdir: 10\n");
+    fprintf(f, "nsslapd-accesslog-mode: 600\n");
+    fprintf(f, "nsslapd-accesslog-maxlogsize: 100\n");
+    fprintf(f, "nsslapd-accesslog-logrotationtime: 1\n");
+    fprintf(f, "nsslapd-accesslog-logrotationtimeunit: day\n");
+    fprintf(f, "nsslapd-accesslog-logrotationsync-enabled: off\n");
+    fprintf(f, "nsslapd-accesslog-logrotationsynchour: 0\n");
+    fprintf(f, "nsslapd-accesslog-logrotationsyncmin: 0\n");
+    fprintf(f, "nsslapd-accesslog: %s/logs/access\n", cs_path);
+    fprintf(f, "nsslapd-enquote-sup-oc: off\n");
+    fprintf(f, "nsslapd-localhost: %s\n", cf->servname);
+    fprintf(f, "nsslapd-schemacheck: %s\n",
+            (cf->disable_schema_checking && !strcmp(cf->disable_schema_checking, "1")) ? "off" : "on");
+    fprintf(f, "nsslapd-rewrite-rfc1274: off\n");
+    fprintf(f, "nsslapd-return-exact-case: on\n");
+    fprintf(f, "nsslapd-ssl-check-hostname: on\n");
+    fprintf(f, "nsslapd-port: %s\n", cf->servport);
 #if !defined( XP_WIN32 )
     if (cf->servuser && *(cf->servuser)) {
-		fprintf(f, "nsslapd-localuser: %s\n", cf->servuser);
+        fprintf(f, "nsslapd-localuser: %s\n", cf->servuser);
     }
 #endif
-	fprintf(f, "nsslapd-errorlog-logging-enabled: on\n");
-	fprintf(f, "nsslapd-errorlog-mode: 600\n");
-	fprintf(f, "nsslapd-errorlog-maxlogsperdir: 2\n");
-	fprintf(f, "nsslapd-errorlog-maxlogsize: 100\n");
-	fprintf(f, "nsslapd-errorlog-logrotationtime: 1\n");
-	fprintf(f, "nsslapd-errorlog-logrotationtimeunit: week\n");
-	fprintf(f, "nsslapd-errorlog-logrotationsync-enabled: off\n");
-	fprintf(f, "nsslapd-errorlog-logrotationsynchour: 0\n");
-	fprintf(f, "nsslapd-errorlog-logrotationsyncmin: 0\n");
-	fprintf(f, "nsslapd-errorlog: %s/logs/errors\n", cs_path);
-	if (cf->loglevel)
-		fprintf(f, "nsslapd-errorlog-level: %s\n", cf->loglevel);
-	fprintf(f, "nsslapd-auditlog: %s/logs/audit\n", cs_path);
-	fprintf(f, "nsslapd-auditlog-mode: 600\n");
-	fprintf(f, "nsslapd-auditlog-maxlogsize: 100\n");
-	fprintf(f, "nsslapd-auditlog-logrotationtime: 1\n");
-	fprintf(f, "nsslapd-auditlog-logrotationtimeunit: day\n");
-	fprintf(f, "nsslapd-rootdn: %s\n", cf->rootdn);
+    fprintf(f, "nsslapd-errorlog-logging-enabled: on\n");
+    fprintf(f, "nsslapd-errorlog-mode: 600\n");
+    fprintf(f, "nsslapd-errorlog-maxlogsperdir: 2\n");
+    fprintf(f, "nsslapd-errorlog-maxlogsize: 100\n");
+    fprintf(f, "nsslapd-errorlog-logrotationtime: 1\n");
+    fprintf(f, "nsslapd-errorlog-logrotationtimeunit: week\n");
+    fprintf(f, "nsslapd-errorlog-logrotationsync-enabled: off\n");
+    fprintf(f, "nsslapd-errorlog-logrotationsynchour: 0\n");
+    fprintf(f, "nsslapd-errorlog-logrotationsyncmin: 0\n");
+    fprintf(f, "nsslapd-errorlog: %s/logs/errors\n", cs_path);
+    if (cf->loglevel)
+        fprintf(f, "nsslapd-errorlog-level: %s\n", cf->loglevel);
+    fprintf(f, "nsslapd-auditlog: %s/logs/audit\n", cs_path);
+    fprintf(f, "nsslapd-auditlog-mode: 600\n");
+    fprintf(f, "nsslapd-auditlog-maxlogsize: 100\n");
+    fprintf(f, "nsslapd-auditlog-logrotationtime: 1\n");
+    fprintf(f, "nsslapd-auditlog-logrotationtimeunit: day\n");
+    fprintf(f, "nsslapd-rootdn: %s\n", cf->rootdn);
 #if !defined(_WIN32) && !defined(AIX)
-	{
-		unsigned int maxdescriptors = FD_SETSIZE;
-		struct rlimit rl;
-		if (getrlimit(RLIMIT_NOFILE, &rl) == 0)
-			maxdescriptors = (unsigned int)rl.rlim_max;
-		fprintf(f, "nsslapd-maxdescriptors: %d\n", maxdescriptors);
-	}
+    {
+        unsigned int maxdescriptors = FD_SETSIZE;
+        struct rlimit rl;
+        if (getrlimit(RLIMIT_NOFILE, &rl) == 0)
+            maxdescriptors = (unsigned int)rl.rlim_max;
+        fprintf(f, "nsslapd-maxdescriptors: %d\n", maxdescriptors);
+    }
 #endif
-	fprintf(f, "nsslapd-max-filter-nest-level: 40\n" );
-	fprintf(f, "nsslapd-rootpw: %s\n", cf->roothashedpw);
-	if (getenv("DEBUG_SINGLE_THREADED"))
-		fprintf(f, "nsslapd-threadnumber: 1\n");
-	fprintf(f, "\n");
+    fprintf(f, "nsslapd-max-filter-nest-level: 40\n" );
+    fprintf(f, "nsslapd-rootpw: %s\n", cf->roothashedpw);
+    if (getenv("DEBUG_SINGLE_THREADED"))
+        fprintf(f, "nsslapd-threadnumber: 1\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=plugins, cn=config\nobjectclass: top\nobjectclass: nsContainer\ncn: plugins\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=plugins, cn=config\nobjectclass: top\nobjectclass: nsContainer\ncn: plugins\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=Password Storage Schemes,cn=plugins, cn=config\n");
-	fprintf(f, "objectclass: top\nobjectclass: nsContainer\ncn: Password Storage Schemes\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=Password Storage Schemes,cn=plugins, cn=config\n");
+    fprintf(f, "objectclass: top\nobjectclass: nsContainer\ncn: Password Storage Schemes\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=SSHA,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "cn: SSHA\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: ssha_pwd_storage_scheme_init\n");
-	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=SSHA,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SSHA\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: ssha_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=SHA,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "cn: SHA\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: sha_pwd_storage_scheme_init\n");
-	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=SHA,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SHA\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: sha_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=CRYPT,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "cn: CRYPT\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: crypt_pwd_storage_scheme_init\n");
-	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=CRYPT,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: CRYPT\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: crypt_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=CLEAR,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "cn: CLEAR\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: clear_pwd_storage_scheme_init\n");
-	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=CLEAR,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: CLEAR\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: clear_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=NS-MTA-MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "cn: NS-MTA-MD5\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: ns_mta_md5_pwd_storage_scheme_init\n");
-	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=NS-MTA-MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: NS-MTA-MD5\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: ns_mta_md5_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: DES\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/des-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: des_init\n");
-	fprintf(f, "nsslapd-plugintype: reverpwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-pluginarg0: nsmultiplexorcredentials\n");
-	fprintf(f, "nsslapd-pluginarg1: nsds5ReplicaCredentials\n");
-	fprintf(f, "nsslapd-pluginid: des-storage-scheme\n");
-	fprintf(f, "\n");
-	
-	MKSYNTAX("Case Ignore String Syntax","cis_init");
-	MKSYNTAX("Case Exact String Syntax","ces_init");
-	MKSYNTAX("Space Insensitive String Syntax","sicis_init");
-	MKSYNTAX("Binary Syntax","bin_init");
-	MKSYNTAX("Octet String Syntax","octetstring_init");
-	MKSYNTAX("Boolean Syntax","boolean_init");
-	MKSYNTAX("Generalized Time Syntax","time_init");
-	MKSYNTAX("Telephone Syntax","tel_init");
-	MKSYNTAX("Integer Syntax","int_init");
-	MKSYNTAX("Distinguished Name Syntax","dn_init");
-	MKSYNTAX("OID Syntax","oid_init");
-	MKSYNTAX("URI Syntax","uri_init");
-	MKSYNTAX("JPEG Syntax","jpeg_init");
-	MKSYNTAX("Country String Syntax","country_init");
-	MKSYNTAX("Postal Address Syntax","postal_init");
+    fprintf(f, "dn: cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: DES\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/des-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: des_init\n");
+    fprintf(f, "nsslapd-plugintype: reverpwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-pluginarg0: nsmultiplexorcredentials\n");
+    fprintf(f, "nsslapd-pluginarg1: nsds5ReplicaCredentials\n");
+    fprintf(f, "nsslapd-pluginid: des-storage-scheme\n");
+    fprintf(f, "\n");
+    
+    MKSYNTAX("Case Ignore String Syntax","cis_init");
+    MKSYNTAX("Case Exact String Syntax","ces_init");
+    MKSYNTAX("Space Insensitive String Syntax","sicis_init");
+    MKSYNTAX("Binary Syntax","bin_init");
+    MKSYNTAX("Octet String Syntax","octetstring_init");
+    MKSYNTAX("Boolean Syntax","boolean_init");
+    MKSYNTAX("Generalized Time Syntax","time_init");
+    MKSYNTAX("Telephone Syntax","tel_init");
+    MKSYNTAX("Integer Syntax","int_init");
+    MKSYNTAX("Distinguished Name Syntax","dn_init");
+    MKSYNTAX("OID Syntax","oid_init");
+    MKSYNTAX("URI Syntax","uri_init");
+    MKSYNTAX("JPEG Syntax","jpeg_init");
+    MKSYNTAX("Country String Syntax","country_init");
+    MKSYNTAX("Postal Address Syntax","postal_init");
 
-	fprintf(f, "dn: cn=State Change Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: State Change Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/statechange-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: statechange_init\n");
-	fprintf(f, "nsslapd-plugintype: postoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=State Change Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: State Change Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/statechange-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: statechange_init\n");
+    fprintf(f, "nsslapd-plugintype: postoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=Roles Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Roles Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/roles-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: roles_init\n");
- 	fprintf(f, "nsslapd-plugintype: postoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: Views\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=Roles Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Roles Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/roles-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: roles_init\n");
+     fprintf(f, "nsslapd-plugintype: postoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: Views\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=ACL Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: ACL Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/acl-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: acl_init\n");
-	fprintf(f, "nsslapd-plugintype: accesscontrol\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=ACL Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: ACL Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/acl-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: acl_init\n");
+    fprintf(f, "nsslapd-plugintype: accesscontrol\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=ACL preoperation,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: ACL preoperation\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/acl-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: acl_preopInit\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=ACL preoperation,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: ACL preoperation\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/acl-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: acl_preopInit\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=Legacy Replication Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Legacy Replication Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/replication-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: replication_legacy_plugin_init\n");
-	fprintf(f, "nsslapd-plugintype: object\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: Multimaster Replication Plugin\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=Legacy Replication Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Legacy Replication Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/replication-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: replication_legacy_plugin_init\n");
+    fprintf(f, "nsslapd-plugintype: object\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: Multimaster Replication Plugin\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=Multimaster Replication Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Multimaster Replication Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/replication-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: replication_multimaster_plugin_init\n");
-	fprintf(f, "nsslapd-plugintype: object\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: ldbm database\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: DES\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=Multimaster Replication Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Multimaster Replication Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/replication-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: replication_multimaster_plugin_init\n");
+    fprintf(f, "nsslapd-plugintype: object\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: ldbm database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: DES\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=Retro Changelog Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Retro Changelog Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/retrocl-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: retrocl_plugin_init\n");
-	fprintf(f, "nsslapd-plugintype: object\n");
-	fprintf(f, "nsslapd-pluginenabled: off\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=Retro Changelog Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Retro Changelog Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/retrocl-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: retrocl_plugin_init\n");
+    fprintf(f, "nsslapd-plugintype: object\n");
+    fprintf(f, "nsslapd-pluginenabled: off\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 
 
-	/* cos needs to be placed before other same type'ed plugins (postoperation) */
-	fprintf(f, "dn: cn=Class of Service,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Class of Service\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/cos-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: cos_init\n");
-	fprintf(f, "nsslapd-plugintype: postoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: Views\n");
-	fprintf(f, "\n");
+    /* cos needs to be placed before other same type'ed plugins (postoperation) */
+    fprintf(f, "dn: cn=Class of Service,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Class of Service\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/cos-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: cos_init\n");
+    fprintf(f, "nsslapd-plugintype: postoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: Views\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=Views,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Views\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/views-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: views_init\n");
-	fprintf(f, "nsslapd-plugintype: object\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=Views,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Views\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/views-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: views_init\n");
+    fprintf(f, "nsslapd-plugintype: object\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
+    fprintf(f, "\n");
 
-	/* 
-	 * LP: Turn referential integrity plugin OFF by default 
-	 * defect 518862 
-	 */
-	fprintf(f, "dn: cn=referential integrity postoperation,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: referential integrity postoperation\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/referint-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: referint_postop_init\n");
-	fprintf(f, "nsslapd-plugintype: postoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: off\n");
-	fprintf(f, "nsslapd-pluginArg0: %d\n", REFERINT_DELAY);
-	fprintf(f, "nsslapd-pluginArg1: %s/logs/referint\n", cs_path);
-	fprintf(f, "nsslapd-pluginArg2: %d\n", REFERINT_LOG_CHANGES);
-	fprintf(f, "nsslapd-pluginArg3: member\n");
-	fprintf(f, "nsslapd-pluginArg4: uniquemember\n");
- 	fprintf(f, "nsslapd-pluginArg5: owner\n");
- 	fprintf(f, "nsslapd-pluginArg6: seeAlso\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
+    /* 
+     * LP: Turn referential integrity plugin OFF by default 
+     * defect 518862 
+     */
+    fprintf(f, "dn: cn=referential integrity postoperation,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: referential integrity postoperation\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/referint-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: referint_postop_init\n");
+    fprintf(f, "nsslapd-plugintype: postoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: off\n");
+    fprintf(f, "nsslapd-pluginArg0: %d\n", REFERINT_DELAY);
+    fprintf(f, "nsslapd-pluginArg1: %s/logs/referint\n", cs_path);
+    fprintf(f, "nsslapd-pluginArg2: %d\n", REFERINT_LOG_CHANGES);
+    fprintf(f, "nsslapd-pluginArg3: member\n");
+    fprintf(f, "nsslapd-pluginArg4: uniquemember\n");
+     fprintf(f, "nsslapd-pluginArg5: owner\n");
+     fprintf(f, "nsslapd-pluginArg6: seeAlso\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 /*
-	NT synch is dead as of 5.0
+    NT synch is dead as of 5.0
 
-	fprintf(f, "dn: cn=ntSynchService preoperation,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: ntSynchService preoperation\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/ntsynch-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: libntsynch_plugin_preop_init\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=ntSynchService preoperation,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: ntSynchService preoperation\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/ntsynch-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: libntsynch_plugin_preop_init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=ntSynchService postoperation,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: ntSynchService postoperation\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/ntsynch-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: libntsynch_plugin_postop_init\n");
-	fprintf(f, "nsslapd-plugintype: postoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=ntSynchService postoperation,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: ntSynchService postoperation\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/ntsynch-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: libntsynch_plugin_postop_init\n");
+    fprintf(f, "nsslapd-plugintype: postoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 */
     if (!cf->use_existing_user_ds) {
-		t = cf->suffix;
-	} else {
-		t = cf->netscaperoot;
-	}
-
-	/* 
-	 * LP: Turn attribute uniqueness plugin OFF by default 
-	 * defect 518862 
-	 */
-	fprintf(f, "dn: cn=attribute uniqueness,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: attribute uniqueness\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/attr-unique-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: NSUniqueAttr_Init\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: off\n");
-	fprintf(f, "nsslapd-pluginarg0: uid\n");
-	fprintf(f, "nsslapd-pluginarg1: %s\n", t);
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
-
-	fprintf(f, "dn: cn=7-bit check,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: 7-bit check\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/attr-unique-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: NS7bitAttr_Init\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-pluginarg0: uid\n");
-	fprintf(f, "nsslapd-pluginarg1: mail\n");
-	fprintf(f, "nsslapd-pluginarg2: userpassword\n");
-	fprintf(f, "nsslapd-pluginarg3: ,\n");
-	fprintf(f, "nsslapd-pluginarg4: %s\n", t);
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
-
-	t = 0;
-
-	fprintf(f, "dn: cn=Internationalization Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Internationalization Plugin\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/liblcoll%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: orderingRule_init\n");
-	fprintf(f, "nsslapd-plugintype: matchingRule\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-pluginarg0: %s/config/slapd-collations.conf\n", cs_path);
-	fprintf(f, "\n");
-
-	/* The HTTP client plugin */
-	fprintf(f, "dn: cn=HTTP Client,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: HTTP Client\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/http-client-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: http_client_init\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "\n");
-
-	/* The IM presence plugin root */
-	fprintf(f, "dn: cn=Presence,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Presence\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/presence-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: presence_init\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "nsslapd-plugin-depends-on-named: HTTP Client\n");
-	fprintf(f, "\n");
-
-	/* The AIM presence plugin */
-	fprintf(f, "dn: cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: AIM Presence\n");
-	fprintf(f, "nsim-id: nsAIMid\n");
-	fprintf(f, "nsim-urltext: http://big.oscar.aol.com/$nsaimid?on_url=http://online&off_url=http://offline\n");
-	fprintf(f, "nsim-urlgraphic: http://big.oscar.aol.com/$nsaimid?on_url=http://online&off_url=http://offline\n");
-	fprintf(f, "nsim-onvaluemaptext: http://online\n");
-	fprintf(f, "nsim-offvaluemaptext: http://offline\n");
-	fprintf(f, "nsim-urltextreturntype: TEXT\n");
-	fprintf(f, "nsim-urlgraphicreturntype: TEXT\n");
-	fprintf(f, "nsim-requestmethod: REDIRECT\n");
-	fprintf(f, "nsim-statustext: nsAIMStatusText\n");
-	fprintf(f, "nsim-statusgraphic: nsAIMStatusGraphic\n");
-	fprintf(f, "\n");
-
-	/* The ICQ presence plugin */
-	fprintf(f, "dn: cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: ICQ Presence\n");
-	fprintf(f, "nsim-id: nsICQid\n");
-	fprintf(f, "nsim-urltext: http://online.mirabilis.com/scripts/online.dll?icq=$nsicqid&img=5\n");
-	fprintf(f, "nsim-urlgraphic: http://online.mirabilis.com/scripts/online.dll?icq=$nsicqid&img=5\n");
-	fprintf(f, "nsim-onvaluemaptext: /lib/image/0,,4367,00.gif\n");
-	fprintf(f, "nsim-offvaluemaptext: /lib/image/0,,4349,00.gif\n");
-	fprintf(f, "nsim-urltextreturntype: TEXT\n");
-	fprintf(f, "nsim-urlgraphicreturntype: TEXT\n");
-	fprintf(f, "nsim-requestmethod: REDIRECT\n");
-	fprintf(f, "nsim-statustext: nsICQStatusText\n");
-	fprintf(f, "nsim-statusgraphic: nsICQStatusGraphic\n");
-	fprintf(f, "\n");
-
-	/* The Yahoo presence plugin */
-	fprintf(f, "dn: cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: Yahoo Presence\n");
-	fprintf(f, "nsim-id: nsYIMid\n");
-	fprintf(f, "nsim-urltext: http://opi.yahoo.com/online?u=$nsyimid&m=t\n");
-	fprintf(f, "nsim-urlgraphic: http://opi.yahoo.com/online?u=$nsyimid&m=g&t=0\n");
-	fprintf(f, "nsim-onvaluemaptext: $nsyimid is ONLINE\n");
-	fprintf(f, "nsim-offvaluemaptext: $nsyimid is NOT ONLINE\n");
-	fprintf(f, "nsim-urltextreturntype: TEXT\n");
-	fprintf(f, "nsim-urlgraphicreturntype: BINARY\n");
-	fprintf(f, "nsim-requestmethod: GET\n");
-	fprintf(f, "nsim-statustext: nsYIMStatusText\n");
-	fprintf(f, "nsim-statusgraphic: nsYIMStatusGraphic\n");
-	fprintf(f, "\n");
-
-        /* enable pass thru authentication */
-	if (cf->use_existing_config_ds || cf->use_existing_user_ds)
-	{
-		LDAPURLDesc *desc = 0;
-		char *url = cf->use_existing_config_ds ? cf->config_ldap_url :
-			cf->user_ldap_url;
-		if (url && !ldap_url_parse(url, &desc) && desc)
-		{
-			char *suffix = desc->lud_dn;
-			char *service = !strncmp(url, "ldaps:", strlen("ldaps:")) ?
-				"ldaps" : "ldap";
-			if (cf->use_existing_config_ds)
-			{
-				suffix = cf->netscaperoot;
-			}
-
-			suffix = ds_URL_encode(suffix);
-			fprintf(f, "dn: cn=Pass Through Authentication,cn=plugins,cn=config\n");
-			fprintf(f, "objectclass: top\n");
-			fprintf(f, "objectclass: nsSlapdPlugin\n");
-			fprintf(f, "objectclass: extensibleObject\n");
-			fprintf(f, "cn: Pass Through Authentication\n");
-			fprintf(f, "nsslapd-pluginpath: %s/lib/passthru-plugin%s\n", sroot, shared_lib);
-			fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
-			fprintf(f, "nsslapd-plugintype: preoperation\n");
-			fprintf(f, "nsslapd-pluginenabled: on\n");
-			fprintf(f, "nsslapd-pluginarg0: %s://%s:%d/%s\n", service, desc->lud_host, desc->lud_port,
-					suffix);
-			fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-			fprintf(f, "\n");
-			free(suffix);
-			ldap_free_urldesc(desc);
-		}
-	}
-
-	fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: ldbm database\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/libback-ldbm%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: ldbm_back_init\n");
-	fprintf(f, "nsslapd-plugintype: database\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: Syntax\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: matchingRule\n");
-	fprintf(f, "\n");
-
-    if (strlen(cf->suffix) == 0){
-		rootdse = 1;
+        t = cf->suffix;
+    } else {
+        t = cf->netscaperoot;
     }
 
-	/* Entries for the ldbm plugin */
-	fprintf(f, "dn: cn=config,cn=ldbm database,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: config\n");
-	fprintf(f, "nsslapd-lookthroughlimit: 5000\n");
-	fprintf(f, "nsslapd-mode: 600\n");
-	fprintf(f, "nsslapd-directory: %s/db\n", cs_path);
-	fprintf(f, "nsslapd-dbcachesize: 10485760\n");
-	/* will be default from 6.2 or 6.11... */
-	if (getenv("USE_OLD_IDL_SWITCH")) {
-		fprintf(f, "nsslapd-idl-switch: old\n");
-	}
-	fprintf(f, "\n");
+    /* 
+     * LP: Turn attribute uniqueness plugin OFF by default 
+     * defect 518862 
+     */
+    fprintf(f, "dn: cn=attribute uniqueness,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: attribute uniqueness\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/attr-unique-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: NSUniqueAttr_Init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: off\n");
+    fprintf(f, "nsslapd-pluginarg0: uid\n");
+    fprintf(f, "nsslapd-pluginarg1: %s\n", t);
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 
-	/* Placeholder for the default user-defined ldbm indexes */
-	fprintf(f, "dn: cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: default indexes\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=7-bit check,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: 7-bit check\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/attr-unique-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: NS7bitAttr_Init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-pluginarg0: uid\n");
+    fprintf(f, "nsslapd-pluginarg1: mail\n");
+    fprintf(f, "nsslapd-pluginarg2: userpassword\n");
+    fprintf(f, "nsslapd-pluginarg3: ,\n");
+    fprintf(f, "nsslapd-pluginarg4: %s\n", t);
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 
-	/* default user-defined ldbm indexes */
-	ds_gen_index(f, "cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config");
+    t = 0;
+
+    fprintf(f, "dn: cn=Internationalization Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Internationalization Plugin\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/liblcoll%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: orderingRule_init\n");
+    fprintf(f, "nsslapd-plugintype: matchingRule\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-pluginarg0: %s/config/slapd-collations.conf\n", cs_path);
+    fprintf(f, "\n");
+
+    /* The HTTP client plugin */
+    fprintf(f, "dn: cn=HTTP Client,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: HTTP Client\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/http-client-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: http_client_init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
+
+#if defined (BUILD_PRESENCE)
+    /* The IM presence plugin root */
+    fprintf(f, "dn: cn=Presence,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Presence\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/presence-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: presence_init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: HTTP Client\n");
+    fprintf(f, "\n");
+
+    /* The AIM presence plugin */
+    fprintf(f, "dn: cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: AIM Presence\n");
+    fprintf(f, "nsim-id: nsAIMid\n");
+    fprintf(f, "nsim-urltext: http://big.oscar.aol.com/$nsaimid?on_url=http://online&off_url=http://offline\n");
+    fprintf(f, "nsim-urlgraphic: http://big.oscar.aol.com/$nsaimid?on_url=http://online&off_url=http://offline\n");
+    fprintf(f, "nsim-onvaluemaptext: http://online\n");
+    fprintf(f, "nsim-offvaluemaptext: http://offline\n");
+    fprintf(f, "nsim-urltextreturntype: TEXT\n");
+    fprintf(f, "nsim-urlgraphicreturntype: TEXT\n");
+    fprintf(f, "nsim-requestmethod: REDIRECT\n");
+    fprintf(f, "nsim-statustext: nsAIMStatusText\n");
+    fprintf(f, "nsim-statusgraphic: nsAIMStatusGraphic\n");
+    fprintf(f, "\n");
+
+    /* The ICQ presence plugin */
+    fprintf(f, "dn: cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: ICQ Presence\n");
+    fprintf(f, "nsim-id: nsICQid\n");
+    fprintf(f, "nsim-urltext: http://online.mirabilis.com/scripts/online.dll?icq=$nsicqid&img=5\n");
+    fprintf(f, "nsim-urlgraphic: http://online.mirabilis.com/scripts/online.dll?icq=$nsicqid&img=5\n");
+    fprintf(f, "nsim-onvaluemaptext: /lib/image/0,,4367,00.gif\n");
+    fprintf(f, "nsim-offvaluemaptext: /lib/image/0,,4349,00.gif\n");
+    fprintf(f, "nsim-urltextreturntype: TEXT\n");
+    fprintf(f, "nsim-urlgraphicreturntype: TEXT\n");
+    fprintf(f, "nsim-requestmethod: REDIRECT\n");
+    fprintf(f, "nsim-statustext: nsICQStatusText\n");
+    fprintf(f, "nsim-statusgraphic: nsICQStatusGraphic\n");
+    fprintf(f, "\n");
+
+    /* The Yahoo presence plugin */
+    fprintf(f, "dn: cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Yahoo Presence\n");
+    fprintf(f, "nsim-id: nsYIMid\n");
+    fprintf(f, "nsim-urltext: http://opi.yahoo.com/online?u=$nsyimid&m=t\n");
+    fprintf(f, "nsim-urlgraphic: http://opi.yahoo.com/online?u=$nsyimid&m=g&t=0\n");
+    fprintf(f, "nsim-onvaluemaptext: $nsyimid is ONLINE\n");
+    fprintf(f, "nsim-offvaluemaptext: $nsyimid is NOT ONLINE\n");
+    fprintf(f, "nsim-urltextreturntype: TEXT\n");
+    fprintf(f, "nsim-urlgraphicreturntype: BINARY\n");
+    fprintf(f, "nsim-requestmethod: GET\n");
+    fprintf(f, "nsim-statustext: nsYIMStatusText\n");
+    fprintf(f, "nsim-statusgraphic: nsYIMStatusGraphic\n");
+    fprintf(f, "\n");
+#endif
+
+        /* enable pass thru authentication */
+    if (cf->use_existing_config_ds || cf->use_existing_user_ds)
+    {
+        LDAPURLDesc *desc = 0;
+        char *url = cf->use_existing_config_ds ? cf->config_ldap_url :
+            cf->user_ldap_url;
+        if (url && !ldap_url_parse(url, &desc) && desc)
+        {
+            char *suffix = desc->lud_dn;
+            char *service = !strncmp(url, "ldaps:", strlen("ldaps:")) ?
+                "ldaps" : "ldap";
+            if (cf->use_existing_config_ds)
+            {
+                suffix = cf->netscaperoot;
+            }
+
+            suffix = ds_URL_encode(suffix);
+            fprintf(f, "dn: cn=Pass Through Authentication,cn=plugins,cn=config\n");
+            fprintf(f, "objectclass: top\n");
+            fprintf(f, "objectclass: nsSlapdPlugin\n");
+            fprintf(f, "objectclass: extensibleObject\n");
+            fprintf(f, "cn: Pass Through Authentication\n");
+            fprintf(f, "nsslapd-pluginpath: %s/lib/passthru-plugin%s\n", sroot, shared_lib);
+            fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
+            fprintf(f, "nsslapd-plugintype: preoperation\n");
+            fprintf(f, "nsslapd-pluginenabled: on\n");
+            fprintf(f, "nsslapd-pluginarg0: %s://%s:%d/%s\n", service, desc->lud_host, desc->lud_port,
+                    suffix);
+            fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+            fprintf(f, "\n");
+            free(suffix);
+            ldap_free_urldesc(desc);
+        }
+    }
+
+    fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: ldbm database\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/libback-ldbm%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: ldbm_back_init\n");
+    fprintf(f, "nsslapd-plugintype: database\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: Syntax\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: matchingRule\n");
+    fprintf(f, "\n");
+
+    if (strlen(cf->suffix) == 0){
+        rootdse = 1;
+    }
+
+    /* Entries for the ldbm plugin */
+    fprintf(f, "dn: cn=config,cn=ldbm database,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: config\n");
+    fprintf(f, "nsslapd-lookthroughlimit: 5000\n");
+    fprintf(f, "nsslapd-mode: 600\n");
+    fprintf(f, "nsslapd-directory: %s/db\n", cs_path);
+    fprintf(f, "nsslapd-dbcachesize: 10485760\n");
+    /* will be default from 6.2 or 6.11... */
+    if (getenv("USE_OLD_IDL_SWITCH")) {
+        fprintf(f, "nsslapd-idl-switch: old\n");
+    }
+    fprintf(f, "\n");
+
+    /* Placeholder for the default user-defined ldbm indexes */
+    fprintf(f, "dn: cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: default indexes\n");
+    fprintf(f, "\n");
+
+    /* default user-defined ldbm indexes */
+    ds_gen_index(f, "cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config");
 
 
 
 
-	fprintf(f, "dn: cn=monitor, cn=ldbm database, cn=plugins, cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: monitor\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=monitor, cn=ldbm database, cn=plugins, cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: monitor\n");
+    fprintf(f, "\n");
 
         fprintf(f, "dn: cn=database, cn=monitor, cn=ldbm database, cn=plugins, cn=config\n");
         fprintf(f, "objectclass: top\n");
@@ -3745,204 +3753,206 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
         fprintf(f, "cn: database\n");
         fprintf(f, "\n");
 
-	/* Entries for the chaining backend plugin */
-	fprintf(f, "dn: cn=chaining database,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: chaining database\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/chainingdb-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: chaining_back_init\n");
-	fprintf(f, "nsslapd-plugintype: database\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    /* Entries for the chaining backend plugin */
+    fprintf(f, "dn: cn=chaining database,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: chaining database\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/chainingdb-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: chaining_back_init\n");
+    fprintf(f, "nsslapd-plugintype: database\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=config,cn=chaining database,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: config\n");
+    fprintf(f, "dn: cn=config,cn=chaining database,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: config\n");
         fprintf(f, "nsTransmittedControls: 2.16.840.1.113730.3.4.2\n");
         fprintf(f, "nsTransmittedControls: 2.16.840.1.113730.3.4.9\n");
         fprintf(f, "nsTransmittedControls: 1.2.840.113556.1.4.473\n");
         fprintf(f, "nsTransmittedControls: 1.3.6.1.4.1.1466.29539.12\n");
-	fprintf(f, "nsPossibleChainingComponents: cn=resource limits,cn=components,cn=config\n");
-	fprintf(f, "nsPossibleChainingComponents: cn=certificate-based authentication,cn=components,cn=config\n");
-	fprintf(f, "nsPossibleChainingComponents: cn=ACL Plugin,cn=plugins,cn=config\n");
-	fprintf(f, "nsPossibleChainingComponents: cn=old plugin,cn=plugins,cn=config\n");
-	fprintf(f, "nsPossibleChainingComponents: cn=referential integrity postoperation,cn=plugins,cn=config\n");
-	fprintf(f, "nsPossibleChainingComponents: cn=attribute uniqueness,cn=plugins,cn=config\n");
-	fprintf(f, "\n");
+    fprintf(f, "nsPossibleChainingComponents: cn=resource limits,cn=components,cn=config\n");
+    fprintf(f, "nsPossibleChainingComponents: cn=certificate-based authentication,cn=components,cn=config\n");
+    fprintf(f, "nsPossibleChainingComponents: cn=ACL Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "nsPossibleChainingComponents: cn=old plugin,cn=plugins,cn=config\n");
+    fprintf(f, "nsPossibleChainingComponents: cn=referential integrity postoperation,cn=plugins,cn=config\n");
+    fprintf(f, "nsPossibleChainingComponents: cn=attribute uniqueness,cn=plugins,cn=config\n");
+    fprintf(f, "\n");
 
-	free(t);
-	t = NULL;
+    free(t);
+    t = NULL;
 
-	/* suffix for the mapping tree */
-	fprintf(f, "dn: cn=mapping tree,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: mapping tree\n");
-	fprintf(f, "\n");
+    /* suffix for the mapping tree */
+    fprintf(f, "dn: cn=mapping tree,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: mapping tree\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=tasks,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: tasks\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=tasks,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: tasks\n");
+    fprintf(f, "\n");
 
-	/* Entries for the ldbm instances and mapping tree */
+    /* Entries for the ldbm instances and mapping tree */
     if ( cf->netscaperoot && !cf->use_existing_config_ds)
-	{
-		suffix_gen_conf(f, cf->netscaperoot, "NetscapeRoot");
-	}
+    {
+        suffix_gen_conf(f, cf->netscaperoot, "NetscapeRoot");
+    }
 
-	if (!cf->use_existing_user_ds)
-	{
-		suffix_gen_conf(f, cf->suffix, "userRoot");
-	}
+    if (!cf->use_existing_user_ds)
+    {
+        suffix_gen_conf(f, cf->suffix, "userRoot");
+    }
     
     if ( cf->samplesuffix && cf->suffix && PL_strcasecmp(cf->samplesuffix, cf->suffix))
-	{
-		suffix_gen_conf(f, cf->samplesuffix, "sampleRoot");
-	}
+    {
+        suffix_gen_conf(f, cf->samplesuffix, "sampleRoot");
+    }
 
     if ( cf->testconfig && cf->suffix && PL_strcasecmp(cf->testconfig, cf->suffix))
-	{
-		suffix_gen_conf(f, cf->testconfig, "testRoot");
-	}
+    {
+        suffix_gen_conf(f, cf->testconfig, "testRoot");
+    }
 
 
-	/* tasks */
-	fprintf(f, "dn: cn=import,cn=tasks,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: import\n");
-	fprintf(f, "\n");
+    /* tasks */
+    fprintf(f, "dn: cn=import,cn=tasks,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: import\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=export,cn=tasks,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: export\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=export,cn=tasks,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: export\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=backup,cn=tasks,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: backup\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=backup,cn=tasks,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: backup\n");
+    fprintf(f, "\n");
 
-	fprintf(f, "dn: cn=restore,cn=tasks,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: restore\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=restore,cn=tasks,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: restore\n");
+    fprintf(f, "\n");
 
 #if defined(UPGRADEDB)
-	fprintf(f, "dn: cn=upgradedb,cn=tasks,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: upgradedb\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=upgradedb,cn=tasks,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: upgradedb\n");
+    fprintf(f, "\n");
 #endif
-	/* END of tasks */
+    /* END of tasks */
 
 
-	fprintf(f, "dn: cn=replication,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "cn: replication\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=replication,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: replication\n");
+    fprintf(f, "\n");
 
     if( cf->replicationdn && *(cf->replicationdn) ) 
     {
-		fprintf(f, "dn: cn=replication4,cn=replication,cn=config\n");
-		fprintf(f, "cn: replication4\n");
-		fprintf(f, "objectclass: top\n");
-		fprintf(f, "objectclass: nsConsumer4Config\n");
-		fprintf(f, "nsslapd-updatedn: %s\n", cf->replicationdn);
-		fprintf(f, "nsslapd-updatepw: %s\n", cf->replicationhashedpw);
-		fprintf(f, "\n");
+        fprintf(f, "dn: cn=replication4,cn=replication,cn=config\n");
+        fprintf(f, "cn: replication4\n");
+        fprintf(f, "objectclass: top\n");
+        fprintf(f, "objectclass: nsConsumer4Config\n");
+        fprintf(f, "nsslapd-updatedn: %s\n", cf->replicationdn);
+        fprintf(f, "nsslapd-updatepw: %s\n", cf->replicationhashedpw);
+        fprintf(f, "\n");
     }
 
     if(cf->changelogdir && *(cf->changelogdir) )
     {
-		fprintf(f, "dn: cn=changelog4,cn=config\n");
-		fprintf(f, "cn: changelog4\n");
-		fprintf(f, "objectclass: top\n");
-		fprintf(f, "objectclass: nsChangelog4Config\n");
-		fprintf(f, "nsslapd-changelogdir: %s\n", cf->changelogdir);
-		fprintf(f, "nsslapd-changelogsuffix: %s\n", cf->changelogsuffix);
-		fprintf(f, "nsslapd-changelogmaxage: 2d\n");
-		fprintf(f, "\n");
+        fprintf(f, "dn: cn=changelog4,cn=config\n");
+        fprintf(f, "cn: changelog4\n");
+        fprintf(f, "objectclass: top\n");
+        fprintf(f, "objectclass: nsChangelog4Config\n");
+        fprintf(f, "nsslapd-changelogdir: %s\n", cf->changelogdir);
+        fprintf(f, "nsslapd-changelogsuffix: %s\n", cf->changelogsuffix);
+        fprintf(f, "nsslapd-changelogmaxage: 2d\n");
+        fprintf(f, "\n");
 
         /* create the changelog directory */
         if( (t = create_instance_mkdir_p(cf->changelogdir, NEWDIR_MODE)) )
-			return(t);
+            return(t);
     }
 
     fclose (f);
-	
+    
     sprintf(src, "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     sprintf(fn, "%s%cconfig%cdse_original.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
-	create_instance_copy(src, fn, 0600);
+    create_instance_copy(src, fn, 0600);
 
     /*
      * generate slapd-collations.conf
      */
     sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cconfig%c%s-collations.conf",
-			sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
-			FILE_PATHSEP, PRODUCT_NAME);
+            sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
+            FILE_PATHSEP, PRODUCT_NAME);
     sprintf(dest, "%s%cconfig%c%s-collations.conf", cs_path, FILE_PATHSEP,
-			FILE_PATHSEP, PRODUCT_NAME);
+            FILE_PATHSEP, PRODUCT_NAME);
     if (!(srcf = fopen(src, "r"))) {
-		return make_error("Can't read from %s (%s)", src, ds_system_errmsg());
+        return make_error("Can't read from %s (%s)", src, ds_system_errmsg());
     }
     if (!(f = fopen(dest, "w"))) {
-		return make_error("Can't write to %s (%s)", dest, ds_system_errmsg());
+        return make_error("Can't write to %s (%s)", dest, ds_system_errmsg());
     }
     while (fgets(line, sizeof(line), srcf)) {
-		if ((line[0] != '\0') && (fputs(line, f) == EOF)) {
-			make_error("Error writing to file %s from copy of %s (%s)",
-					   dest, src, ds_system_errmsg());
-		}
+        if ((line[0] != '\0') && (fputs(line, f) == EOF)) {
+            make_error("Error writing to file %s from copy of %s (%s)",
+                       dest, src, ds_system_errmsg());
+        }
     }
     if (!feof(srcf)) {
-		make_error("Error reading from file %s (%s)", src, ds_system_errmsg());
+        make_error("Error reading from file %s (%s)", src, ds_system_errmsg());
     }
     fclose(srcf);
     fclose(f);
 
-	sprintf(src, "%s/bin/slapd/install/schema", sroot);
-	sprintf(dest, "%s/config/schema", cs_path);
-	if (t = ds_copy_group_files(src, dest, 0))
-		return t;
-		
-	sprintf(src, "%s/bin/slapd/install/presence", sroot);
-	sprintf(dest, "%s/config/presence", cs_path);
-	if (t = ds_copy_group_files(src, dest, 0))
-		return t;
+    sprintf(src, "%s/bin/slapd/install/schema", sroot);
+    sprintf(dest, "%s/config/schema", cs_path);
+    if (NULL != (t = ds_copy_group_files(src, dest, 0)))
+        return t;
+        
+#if defined (BUILD_PRESENCE)
+    sprintf(src, "%s/bin/slapd/install/presence", sroot);
+    sprintf(dest, "%s/config/presence", cs_path);
+    if (t = ds_copy_group_files(src, dest, 0))
+        return t;
+#endif
 
-	/* Generate the orgchart configuration */
-	sprintf(src, "%s/clients", sroot);
-	if (is_a_dir(src, "orgchart")) {
-		if (t = ds_gen_orgchart_conf(sroot, cs_path, cf)) {
-	        return t;
-		}
-	}
-		
-	/* Generate dsgw.conf */
-	sprintf(src, "%s/clients", sroot);
-	if (is_a_dir(src, "dsgw")) {
-		if (t = ds_gen_gw_conf(sroot, cs_path, cf, GW_CONF)) {
-	        return t;
-		}
+    /* Generate the orgchart configuration */
+    sprintf(src, "%s/clients", sroot);
+    if (is_a_dir(src, "orgchart")) {
+        if (NULL != (t = ds_gen_orgchart_conf(sroot, cs_path, cf))) {
+            return t;
+        }
+    }
+        
+    /* Generate dsgw.conf */
+    sprintf(src, "%s/clients", sroot);
+    if (is_a_dir(src, "dsgw")) {
+        if (NULL != (t = ds_gen_gw_conf(sroot, cs_path, cf, GW_CONF))) {
+            return t;
+        }
 
-		/* Generate pb.conf */
-		if (t = ds_gen_gw_conf(sroot, cs_path, cf, PB_CONF)) {
-	        return t;
-		}
-	}
+        /* Generate pb.conf */
+        if (NULL != (t = ds_gen_gw_conf(sroot, cs_path, cf, PB_CONF))) {
+            return t;
+        }
+    }
 
-	return NULL; /* Everything worked fine */
+    return NULL; /* Everything worked fine */
 }
 
 /*
@@ -3968,9 +3978,9 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
     const char *ctxt;
    
     if (conf_type == GW_CONF) {
-      ctxt = "dsgw";
+        ctxt = "dsgw";
     } else {
-      ctxt = "pb";
+        ctxt = "pb";
     }
     /*
      * generate .../dsgw/context/[dsgw|pb].conf by creating the file, placing
@@ -3979,17 +3989,17 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
      */
 
     sprintf(dest, "%s%cclients%cdsgw%ccontext%c%s.conf", sroot, FILE_PATHSEP,FILE_PATHSEP,
-	    FILE_PATHSEP, FILE_PATHSEP, ctxt);
+        FILE_PATHSEP, FILE_PATHSEP, ctxt);
 
 
     /* If the config file already exists, just return success */
     if (create_instance_exists(dest)) {
-	return(NULL);
+        return(NULL);
     }
     
     /* Attempt to open that bad boy */
     if(!(f = fopen(dest, "w"))) {
-	return make_error("Can't write to %s (%s)", dest, ds_system_errmsg());
+        return make_error("Can't write to %s (%s)", dest, ds_system_errmsg());
     }
 
     /* Write out the appropriate values */
@@ -3998,9 +4008,9 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
     fputs_escaped(cf->suffix, f);
     fputs("\"\n\n",f);
     if (cf->rootdn && *(cf->rootdn)) {
-	t = ds_enquote_config_value(DS_ROOTDN, cf->rootdn);
-	fprintf(f, "dirmgr\t%s\n\n", t );
-	if (t != cf->rootdn) free(t);
+        t = ds_enquote_config_value(DS_ROOTDN, cf->rootdn);
+        fprintf(f, "dirmgr\t%s\n\n", t );
+        if (t != cf->rootdn) free(t);
     }
 
     t = ds_enquote_config_value(DS_SUFFIX, cf->suffix);
@@ -4015,26 +4025,26 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
 
     /* copy in template */
     if (conf_type == GW_CONF) {
-	sprintf(src, "%s%cclients%cdsgw%cconfig%cdsgw.tmpl",
-		sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+        sprintf(src, "%s%cclients%cdsgw%cconfig%cdsgw.tmpl",
+            sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     } else if (conf_type == PB_CONF) {
-	sprintf(src, "%s%cclients%cdsgw%cpbconfig%cpb.tmpl",
-		sroot, FILE_PATHSEP,FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+        sprintf(src, "%s%cclients%cdsgw%cpbconfig%cpb.tmpl",
+            sroot, FILE_PATHSEP,FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     } else {
-	/*This should never, ever happen if this function is called correctly*/
-	fclose(f);
-	return make_error("Unknown gateway config file requested");
+        /*This should never, ever happen if this function is called correctly*/
+        fclose(f);
+        return make_error("Unknown gateway config file requested");
     }
 
 
     /* Try to open the dsgw.conf template file (dsgw.tmpl) */
     if(!(srcf = fopen(src, "r"))) {
-	fclose(f);
-	return make_error("Can't read %s (%s)", src, ds_system_errmsg());
+        fclose(f);
+        return make_error("Can't read %s (%s)", src, ds_system_errmsg());
     }
     
     while(fgets(line, sizeof(line), srcf)) {
-	fputs(line, f);
+        fputs(line, f);
     }
 
     fclose(srcf);
@@ -4042,25 +4052,25 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
 
     /* Generate default.conf */
     if (conf_type == GW_CONF) {
-      struct passwd* pw = NULL;
-      char defaultconf[PATH_SIZE];
+        struct passwd* pw = NULL;
+        char defaultconf[PATH_SIZE];
 
 #if !defined( XP_WIN32 )
-    /* find the server's UID and GID */
-    if (cf->servuser && *(cf->servuser)) {
-	if ((pw = getpwnam (cf->servuser)) == NULL) {
-	    return make_error("Could not find UID and GID of user '%s'.", cf->servuser);
-	} else if (pw->pw_name == NULL) {
-	    pw->pw_name = cf->servuser;
-	}
-    }
+        /* find the server's UID and GID */
+        if (cf->servuser && *(cf->servuser)) {
+            if ((pw = getpwnam (cf->servuser)) == NULL) {
+                return make_error("Could not find UID and GID of user '%s'.", cf->servuser);
+            } else if (pw->pw_name == NULL) {
+                pw->pw_name = cf->servuser;
+            }
+        }
 #endif
 
-      sprintf(defaultconf, "%s%cclients%cdsgw%ccontext%cdefault.conf", sroot, 
-	      FILE_PATHSEP,FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+        sprintf(defaultconf, "%s%cclients%cdsgw%ccontext%cdefault.conf", sroot, 
+          FILE_PATHSEP,FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
-      create_instance_copy(dest, defaultconf, NEWFILE_MODE);
-      chownfile (pw, defaultconf);
+        create_instance_copy(dest, defaultconf, NEWFILE_MODE);
+        chownfile (pw, defaultconf);
     }
     unlink(src);
 
@@ -4086,7 +4096,6 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
     char line[1024];
     FILE *f = NULL;
     FILE *srcf = NULL;
-    char *t = NULL;
    
     /*
      * generate .../clients/orgchart/config.txt by creating the file, placing
@@ -4094,18 +4103,18 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
      * copying the rest from NS-HOME/clients/orgchart/config.tmpl
      */
     sprintf(dest, "%s%cclients%corgchart%cconfig.txt", sroot, FILE_PATHSEP,
-	    FILE_PATHSEP, FILE_PATHSEP );
+        FILE_PATHSEP, FILE_PATHSEP );
     sprintf(src, "%s%cclients%corgchart%cconfig.tmpl", sroot, FILE_PATHSEP, 
-	    FILE_PATHSEP, FILE_PATHSEP);
+        FILE_PATHSEP, FILE_PATHSEP);
 
     /* If the config file already exists, just return success */
     if (create_instance_exists(dest)) {
-	return(NULL);
+        return(NULL);
     }
     
     /* Attempt to open that bad boy */
     if(!(f = fopen(dest, "w"))) {
-	return make_error("Cannot write to %s (%s)", dest, ds_system_errmsg());
+        return make_error("Cannot write to %s (%s)", dest, ds_system_errmsg());
     }
 
     /* Write out the appropriate values */
@@ -4128,31 +4137,17 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
     fprintf(f, "#  supply the partial phonebook URL below, which will have each\n");
     fprintf(f, "#  given user's DN attribute value concatenated to the end.\n");
     fprintf(f, "#\n#  For example, you could specify below something close to:\n");
-    fprintf(f, "#\n#  	url-phonebook-base      http://hostname.domain.com/dsgw/bin/dosearch?context=default&hp=localhost&dn=\n#\n\n");
+    fprintf(f, "#\n#      url-phonebook-base      http://hostname.domain.com/dsgw/bin/dosearch?context=default&hp=localhost&dn=\n#\n\n");
     fprintf(f, "url-phonebook-base\thttp://%s:%s/clients/dsgw/bin/dosearch?context=pb&hp=%s:%s&dn=\n\n",cf->servname, cf->adminport ? cf->adminport : "80", cf->servname, cf->servport);
     
-    /*fputs_escaped(cf->suffix, f);*/
-    /*fprintf(f, "\n\n");*/
-    /*
-     *t = ds_enquote_config_value(DS_SUFFIX, cf->suffix);
-     *fprintf(f, "location-suffix\t%s\n\n", t);
-     *if (t != cf->suffix) free(t);
-     */
-
-    /*if (cf->rootdn && *(cf->rootdn)) {
-     *t = ds_enquote_config_value(DS_ROOTDN, cf->rootdn);
-     *fprintf(f, "dirmgr\t%s\n\n", t );
-     *if (t != cf->rootdn) free(t);
-     }*/
-
     /* Try to open the config.txt template file (config.tmpl) */
     if(!(srcf = fopen(src, "r"))) {
-	fclose(f);
-	return make_error("Can't read %s (%s)", src, ds_system_errmsg());
+        fclose(f);
+        return make_error("Can't read %s (%s)", src, ds_system_errmsg());
     }
     
     while(fgets(line, sizeof(line), srcf)) {
-	fputs(line, f);
+        fputs(line, f);
     }
 
     fclose(srcf);
@@ -4162,84 +4157,85 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
     return NULL;
 }
 
+#if defined (BUILD_PRESENCE)
 /*
  * Function: gen_presence_init
  *
  * Description: Creates a script to initialize images for use in the IM
  * Presence plugin.
  */
-#define	PRESENCE_LDIF "init_presence_images.ldif"
+#define    PRESENCE_LDIF "init_presence_images.ldif"
 static char *gen_presence_init_script(char *sroot, server_config_s *cf, 
-	char *cs_path)
+    char *cs_path)
 {
     char fn[PATH_SIZE];
     char dir[PATH_SIZE];
     FILE *f;
 
     sprintf(dir, "%s%cconfig%cpresence",
-			cs_path, FILE_PATHSEP, FILE_PATHSEP);
+            cs_path, FILE_PATHSEP, FILE_PATHSEP);
     sprintf(fn, "%s%c%s",
-			dir, FILE_PATHSEP, PRESENCE_LDIF);
+            dir, FILE_PATHSEP, PRESENCE_LDIF);
 
     if(!(f = fopen(fn, "w")))  
         return make_error("Could not write to %s (%s).", fn, ds_system_errmsg());
 
     fprintf( f,
-			 "dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-onvaluemapgraphic\n"
-			 "nsim-onvaluemapgraphic: %s%cicq-online.gif\n"
-			 "\n"
-			 "dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-offvaluemapgraphic\n"
-			 "nsim-offvaluemapgraphic: %s%cicq-offline.gif\n"
-			 "\n"
-			 "dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-disabledvaluemapgraphic\n"
-			 "nsim-disabledvaluemapgraphic: %s%cicq-disabled.gif\n"
-			 "\n"
-			 "dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-onvaluemapgraphic\n"
-			 "nsim-onvaluemapgraphic: %s%caim-online.gif\n"
-			 "\n"
-			 "dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-offvaluemapgraphic\n"
-			 "nsim-offvaluemapgraphic: %s%caim-offline.gif\n"
-			 "\n"
-			 "dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-disabledvaluemapgraphic\n"
-			 "nsim-disabledvaluemapgraphic: %s%caim-offline.gif\n"
-			 "\n"
-			 "dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-offvaluemapgraphic\n"
-			 "nsim-offvaluemapgraphic: %s%cyahoo-offline.gif\n"
-			 "\n"
-			 "dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-onvaluemapgraphic\n"
-			 "nsim-onvaluemapgraphic: %s%cyahoo-online.gif\n"
-			 "\n"
-			 "dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n"
-			 "changeType:modify\n"
-			 "replace:nsim-disabledvaluemapgraphic\n"
-			 "nsim-disabledvaluemapgraphic: %s%cyahoo-offline.gif\n",
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP,
-			 dir, FILE_PATHSEP
-		);
-	fclose(f);
+             "dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-onvaluemapgraphic\n"
+             "nsim-onvaluemapgraphic: %s%cicq-online.gif\n"
+             "\n"
+             "dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-offvaluemapgraphic\n"
+             "nsim-offvaluemapgraphic: %s%cicq-offline.gif\n"
+             "\n"
+             "dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-disabledvaluemapgraphic\n"
+             "nsim-disabledvaluemapgraphic: %s%cicq-disabled.gif\n"
+             "\n"
+             "dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-onvaluemapgraphic\n"
+             "nsim-onvaluemapgraphic: %s%caim-online.gif\n"
+             "\n"
+             "dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-offvaluemapgraphic\n"
+             "nsim-offvaluemapgraphic: %s%caim-offline.gif\n"
+             "\n"
+             "dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-disabledvaluemapgraphic\n"
+             "nsim-disabledvaluemapgraphic: %s%caim-offline.gif\n"
+             "\n"
+             "dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-offvaluemapgraphic\n"
+             "nsim-offvaluemapgraphic: %s%cyahoo-offline.gif\n"
+             "\n"
+             "dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-onvaluemapgraphic\n"
+             "nsim-onvaluemapgraphic: %s%cyahoo-online.gif\n"
+             "\n"
+             "dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config\n"
+             "changeType:modify\n"
+             "replace:nsim-disabledvaluemapgraphic\n"
+             "nsim-disabledvaluemapgraphic: %s%cyahoo-offline.gif\n",
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP,
+             dir, FILE_PATHSEP
+        );
+    fclose(f);
     return NULL;
 }
 
@@ -4253,26 +4249,27 @@ static int init_presence(char *sroot, server_config_s *cf, char *cs_path)
 {
     char cmd[PATH_SIZE];
     char tools[PATH_SIZE];
-	char precmd[PATH_SIZE];
+    char precmd[PATH_SIZE];
 
-	precmd[0] = 0;
+    precmd[0] = 0;
     sprintf(tools, "%s%cshared%cbin", sroot, FILE_PATHSEP, FILE_PATHSEP);    
 
 #ifdef XP_UNIX
-	sprintf(precmd, "cd %s;", tools);
+    sprintf(precmd, "cd %s;", tools);
 #endif
 
     sprintf(cmd, "%s%s%cldapmodify -q -p %d -b -D \"%s\" -w \"%s\" "
-			"-f %s%s%cconfig%cpresence%c%s%s",
-			precmd,
-			tools, FILE_PATHSEP,
-			atoi(cf->servport),
-			cf->rootdn,
-			cf->rootpw,
-			ENQUOTE, cs_path, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-			PRESENCE_LDIF, ENQUOTE);
-	return ds_exec_and_report( cmd );
+            "-f %s%s%cconfig%cpresence%c%s%s",
+            precmd,
+            tools, FILE_PATHSEP,
+            atoi(cf->servport),
+            cf->rootdn,
+            cf->rootpw,
+            ENQUOTE, cs_path, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
+            PRESENCE_LDIF, ENQUOTE);
+    return ds_exec_and_report( cmd );
 }
+#endif
 
 /*
  * Function: ds_gen_index
@@ -4280,8 +4277,8 @@ static int init_presence(char *sroot, server_config_s *cf, char *cs_path)
  * Description: This generates the default index list.
  * This function is passed the parent entry below which the nsIndex
  * entries must be created. This allows to use it when creating:
- *	- the default index list (ie belowdn = cn=default indexes,cn=config...)
- *	- the userRoot backend (ie belowdn = cn=index,cn=userRoot...)
+ *    - the default index list (ie belowdn = cn=default indexes,cn=config...)
+ *    - the userRoot backend (ie belowdn = cn=index,cn=userRoot...)
  *
  */
 static void
@@ -4293,7 +4290,7 @@ ds_gen_index(FILE* f, char* belowdn)
     fprintf(f, "objectclass: nsIndex\n"); \
     fprintf(f, "cn: %s\n", (_name)); \
     fprintf(f, "nssystemindex: %s\n", (_sys) ? "true" : "false"); \
-    if (_type1) \
+	if (_type1) \
         fprintf(f, "nsindextype: %s\n", (_type1)); \
     if (_type2) \
         fprintf(f, "nsindextype: %s\n", (_type2)); \
@@ -4339,31 +4336,31 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     int isrunning;
     int status = 0;
 #ifdef XP_WIN32
-    WSADATA	wsadata;
+    WSADATA    wsadata;
 #endif
 
 #if !defined( XP_WIN32 )
     /* find the server's UID and GID */
     if (cf->servuser && *(cf->servuser)) {
-	if ((pw = getpwnam (cf->servuser)) == NULL) {
-	    strcpy(param_name, "servuser");
-	    return make_error("Could not find UID and GID of user '%s'.", 
-			      cf->servuser);
-	} else if (pw->pw_name == NULL) {
-	    pw->pw_name = cf->servuser;
-	}
+        if ((pw = getpwnam (cf->servuser)) == NULL) {
+            strcpy(param_name, "servuser");
+            return make_error("Could not find UID and GID of user '%s'.", 
+                      cf->servuser);
+        } else if (pw->pw_name == NULL) {
+            pw->pw_name = cf->servuser;
+        }
     }
 #endif
-	
+    
     sprintf(cs_path, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, cf->servid);
 
     /* create all <a_server>/<subdirs> */
     if ( (t = ds_cre_subdirs(sroot, cf, cs_path, pw)) )
-	return(t);
+        return(t);
 
     /* Generate all scripts */
     if ( (t = ds_gen_scripts(sroot, cf, cs_path)) )
-	return(t);
+        return(t);
 
 #if defined( XP_WIN32 )
     ds_dostounixpath( sroot );
@@ -4372,22 +4369,22 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
 
     /* Generate all conf files */
     if ( (t = ds_gen_confs(sroot, cf, cs_path)) )
-	return(t);
+        return(t);
 
     sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
-	    FILE_PATHSEP);
+        FILE_PATHSEP);
     sprintf(dest, "%s%cldif%cExample.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
     sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-roles.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
-	    FILE_PATHSEP);
+        FILE_PATHSEP);
     sprintf(dest, "%s%cldif%cExample-roles.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
     sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-views.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
-	    FILE_PATHSEP);
+        FILE_PATHSEP);
     sprintf(dest, "%s%cldif%cExample-views.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
@@ -4398,7 +4395,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
-	/* new code for dsml sample files */
+    /* new code for dsml sample files */
     sprintf(src, "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cExample.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
     sprintf(dest, "%s%cdsml%cExample.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
@@ -4423,17 +4420,17 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     */
     if (cf->install_ldif_file && !access(cf->install_ldif_file, 0))
     {
-	char msg[2*PATH_SIZE] = {0};
-	int status = ds_ldif2db_backend_subtree(cf->install_ldif_file, NULL, cf->suffix);
-	if (status)
-	    sprintf(msg, "The file %s could not be loaded",
-		    cf->install_ldif_file);
-	else
-	    sprintf(msg, "The file %s was successfully loaded",
-		    cf->install_ldif_file);
-	ds_show_message(msg);
-	free(cf->install_ldif_file);
-	cf->install_ldif_file = NULL;
+    char msg[2*PATH_SIZE] = {0};
+    int status = ds_ldif2db_backend_subtree(cf->install_ldif_file, NULL, cf->suffix);
+    if (status)
+        sprintf(msg, "The file %s could not be loaded",
+            cf->install_ldif_file);
+    else
+        sprintf(msg, "The file %s was successfully loaded",
+            cf->install_ldif_file);
+    ds_show_message(msg);
+    free(cf->install_ldif_file);
+    cf->install_ldif_file = NULL;
     }
 
     /*
@@ -4446,143 +4443,145 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     if(needToStartServer(cf) &&
        !(t = create_instance_checkport(cf->bindaddr, cf->servport)))
     {
-	sprintf(big_line,"SERVER_NAMES=slapd-%s",cf->servid);
-	putenv(big_line);
+    sprintf(big_line,"SERVER_NAMES=slapd-%s",cf->servid);
+    putenv(big_line);
 
-	isrunning = ds_get_updown_status();
+    isrunning = ds_get_updown_status();
 
-	if (isrunning != DS_SERVER_UP)
-	{
-	    int start_status = 0;
-	    int verbose = 1;
-	    char instance_dir[PATH_SIZE], errorlog[PATH_SIZE];
+    if (isrunning != DS_SERVER_UP)
+    {
+        int start_status = 0;
+        int verbose = 1;
+        char instance_dir[PATH_SIZE], errorlog[PATH_SIZE];
 
-	    if (getenv("USE_DEBUGGER"))
-		verbose = 0;
-	    /* slapd-nickname directory */
-	    sprintf(instance_dir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
-		    cf->servid);
-	    /* error log file */
-	    sprintf(errorlog, "%s%clogs%cerrors", instance_dir, FILE_PATHSEP,
-		    FILE_PATHSEP);
-	    start_status = ds_bring_up_server_install(verbose, instance_dir, errorlog);
+        if (getenv("USE_DEBUGGER"))
+        verbose = 0;
+        /* slapd-nickname directory */
+        sprintf(instance_dir, "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+            cf->servid);
+        /* error log file */
+        sprintf(errorlog, "%s%clogs%cerrors", instance_dir, FILE_PATHSEP,
+            FILE_PATHSEP);
+        start_status = ds_bring_up_server_install(verbose, instance_dir, errorlog);
 
-	    if (start_status != DS_SERVER_UP)
-	    {
-		/*
-		  If we were going to configure the server for SuiteSpot (Mission
-		  Control), the server must be running.  Therefore, it is a very
-		  bad thing, and we want to exit with a non zero exit code so the
-		  caller will know something went wrong.
-		  Otherwise, if the user just wanted to start the server for some
-		  reason, just exit with a zero and the messages printed will
-		  let the user know the server wasn't started.
-		  */
-		char *msg;
-		if (start_status == DS_SERVER_PORT_IN_USE)
-		    msg = "The server could not be started because the port is in use.";
-		else if (start_status == DS_SERVER_MAX_SEMAPHORES)
-		    msg = "No more servers may be installed on this system.\nPlease refer to documentation for information about how to\nincrease the number of installed servers per system.";
-		else if (start_status == DS_SERVER_CORRUPTED_DB)
-		    msg = "The server could not be started because the database is corrupted.";
-		else if (start_status == DS_SERVER_NO_RESOURCES)
-		    msg = "The server could not be started because the operating system is out of resources (e.g. CPU memory).";
-		else if (start_status == DS_SERVER_COULD_NOT_START)
-		    msg = "The server could not be started due to invalid command syntax or operating system resource limits.";
-		else
-		    msg = "The server could not be started.";
+        if (start_status != DS_SERVER_UP)
+        {
+        /*
+          If we were going to configure the server for SuiteSpot (Mission
+          Control), the server must be running.  Therefore, it is a very
+          bad thing, and we want to exit with a non zero exit code so the
+          caller will know something went wrong.
+          Otherwise, if the user just wanted to start the server for some
+          reason, just exit with a zero and the messages printed will
+          let the user know the server wasn't started.
+          */
+        char *msg;
+        if (start_status == DS_SERVER_PORT_IN_USE)
+            msg = "The server could not be started because the port is in use.";
+        else if (start_status == DS_SERVER_MAX_SEMAPHORES)
+            msg = "No more servers may be installed on this system.\nPlease refer to documentation for information about how to\nincrease the number of installed servers per system.";
+        else if (start_status == DS_SERVER_CORRUPTED_DB)
+            msg = "The server could not be started because the database is corrupted.";
+        else if (start_status == DS_SERVER_NO_RESOURCES)
+            msg = "The server could not be started because the operating system is out of resources (e.g. CPU memory).";
+        else if (start_status == DS_SERVER_COULD_NOT_START)
+            msg = "The server could not be started due to invalid command syntax or operating system resource limits.";
+        else
+            msg = "The server could not be started.";
 
-		if( cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1") )
-		{
-		    ds_report_error(DS_SYSTEM_ERROR, "server", msg);
-		    return msg;
-		}
-		else
-		{
-		    ds_show_message(msg);
-		    return 0;
-		}
-	    }
-	    else
-	    {
-		ds_show_message("Your new directory server has been started.");
-	    }
-	}
+        if( cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1") )
+        {
+            ds_report_error(DS_SYSTEM_ERROR, "server", msg);
+            return msg;
+        }
+        else
+        {
+            ds_show_message(msg);
+            return 0;
+        }
+        }
+        else
+        {
+        ds_show_message("Your new directory server has been started.");
+        }
+    }
 
-	/* write ldap.conf */
-	write_ldap_info( sroot, cf );
+    /* write ldap.conf */
+    write_ldap_info( sroot, cf );
 
 #ifdef XP_UNIX
-	ds_become_localuser_name (cf->servuser);
+    ds_become_localuser_name (cf->servuser);
 #endif
 #ifdef XP_WIN32
-	if( errno = WSAStartup(0x0101, &wsadata ) != 0 )
-	{
-	    char szTmp[512];
-	/*replaced errno > -1 && errno < sys_nerr ? sys_errlist[errno] :
+    if( errno = WSAStartup(0x0101, &wsadata ) != 0 )
+    {
+        char szTmp[512];
+    /*replaced errno > -1 && errno < sys_nerr ? sys_errlist[errno] :
                     "unknown" with strerror(errno)*/
-	    sprintf(szTmp, "Error: Windows Sockets initialization failed errno %d (%s)<br>\n", errno,
-		    strerror(errno), 0 );
-			
-	    fprintf (stdout, szTmp);
-	    return 0;
-	}
+        sprintf(szTmp, "Error: Windows Sockets initialization failed errno %d (%s)<br>\n", errno,
+            strerror(errno), 0 );
+            
+        fprintf (stdout, szTmp);
+        return 0;
+    }
 #endif /* XP_WIN32 */
 
-	memset( &query_vars, 0, sizeof(query_vars) );
-	if (!cf->use_existing_user_ds)
-	    query_vars.suffix = myStrdup( cf->suffix );
-	query_vars.ssAdmID = myStrdup( cf->cfg_sspt_uid );
-	query_vars.ssAdmPW1 = myStrdup( cf->cfg_sspt_uidpw );
-	query_vars.ssAdmPW2 = myStrdup( cf->cfg_sspt_uidpw );
-	query_vars.rootDN = myStrdup( cf->rootdn ); 
-	query_vars.rootPW = myStrdup( cf->rootpw );
-	query_vars.admin_domain =
-	    myStrdup( cf->admin_domain );
-	query_vars.netscaperoot = myStrdup( cf->netscaperoot );
-	query_vars.testconfig = myStrdup( cf->testconfig );
-	query_vars.consumerDN = myStrdup(cf->consumerdn);
-	query_vars.consumerPW = myStrdup(cf->consumerhashedpw);
-	if (cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1"))
-	    query_vars.cfg_sspt = 1;
-	else
-	    query_vars.cfg_sspt = 0;
+    memset( &query_vars, 0, sizeof(query_vars) );
+    if (!cf->use_existing_user_ds)
+        query_vars.suffix = myStrdup( cf->suffix );
+    query_vars.ssAdmID = myStrdup( cf->cfg_sspt_uid );
+    query_vars.ssAdmPW1 = myStrdup( cf->cfg_sspt_uidpw );
+    query_vars.ssAdmPW2 = myStrdup( cf->cfg_sspt_uidpw );
+    query_vars.rootDN = myStrdup( cf->rootdn ); 
+    query_vars.rootPW = myStrdup( cf->rootpw );
+    query_vars.admin_domain =
+        myStrdup( cf->admin_domain );
+    query_vars.netscaperoot = myStrdup( cf->netscaperoot );
+    query_vars.testconfig = myStrdup( cf->testconfig );
+    query_vars.consumerDN = myStrdup(cf->consumerdn);
+    query_vars.consumerPW = myStrdup(cf->consumerhashedpw);
+    if (cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1"))
+        query_vars.cfg_sspt = 1;
+    else
+        query_vars.cfg_sspt = 0;
 
-	if (cf->suitespot3x_uid)
-	    query_vars.config_admin_uid = myStrdup(cf->suitespot3x_uid);
-	else
-	    query_vars.config_admin_uid = myStrdup(cf->cfg_sspt_uid);
+    if (cf->suitespot3x_uid)
+        query_vars.config_admin_uid = myStrdup(cf->suitespot3x_uid);
+    else
+        query_vars.config_admin_uid = myStrdup(cf->cfg_sspt_uid);
 
-	memset(&slapd_conf, 0, sizeof(SLAPD_CONFIG));
-	if (sroot)
-	    strcpy(slapd_conf.slapd_server_root, sroot);
-	if (cf->servport)
-	    slapd_conf.port = atoi(cf->servport);
-	if (cf->servname)
-	    strcpy(slapd_conf.host, cf->servname);
+    memset(&slapd_conf, 0, sizeof(SLAPD_CONFIG));
+    if (sroot)
+        strcpy(slapd_conf.slapd_server_root, sroot);
+    if (cf->servport)
+        slapd_conf.port = atoi(cf->servport);
+    if (cf->servname)
+        strcpy(slapd_conf.host, cf->servname);
 
-	status = config_suitespot(&slapd_conf, &query_vars);
-	if (status == -1) /* invalid or null arguments or configuration */
-	    return "Invalid arguments for server configuration.";
+    status = config_suitespot(&slapd_conf, &query_vars);
+    if (status == -1) /* invalid or null arguments or configuration */
+        return "Invalid arguments for server configuration.";
     }
     else if (t) /* just notify the user about the port conflict */
     {
-	ds_show_message(t);
+    ds_show_message(t);
     }
 
-	/* Create script for initializing IM Presence images */
-	if ((NULL == t) && (0 == status))
-	{
-		if ( (t = gen_presence_init_script(sroot, cf, cs_path)) )
-			return(t);
-		/* Initialize IM Presence images */
-		status = init_presence(sroot, cf, cs_path);
-		if (status)
-			return make_error ("ds_exec_and_report() failed (%d).", status);
-	}
+#if defined (BUILD_PRESENCE)
+    /* Create script for initializing IM Presence images */
+    if ((NULL == t) && (0 == status))
+    {
+        if ( (t = gen_presence_init_script(sroot, cf, cs_path)) )
+            return(t);
+        /* Initialize IM Presence images */
+        status = init_presence(sroot, cf, cs_path);
+        if (status)
+            return make_error ("ds_exec_and_report() failed (%d).", status);
+    }
+#endif
 
     if (status)
-	return make_error ("Could not configure server (%d).", status);
+    return make_error ("Could not configure server (%d).", status);
 
     return(NULL);
 }
@@ -4592,49 +4591,49 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
 static int
 write_ldap_info( char *slapd_server_root, server_config_s *cf)
 {
-	FILE* fp;
-	int ret = 0;
+    FILE* fp;
+    int ret = 0;
 
-	char* fmt = "%s/shared/config/ldap.conf";
-	char* infoFileName;
+    char* fmt = "%s/shared/config/ldap.conf";
+    char* infoFileName;
 
-	if (!slapd_server_root) {
-	  return -1;
-	}
-	
-	infoFileName = (char*)malloc(strlen(fmt) + strlen(slapd_server_root) + 1);
-	sprintf(infoFileName, fmt, slapd_server_root);
-
-	if ((fp = fopen(infoFileName, "w")) == NULL)
-	{
-		ret = -1;
-	}
-	else
-	{
-		fprintf(fp, "url\tldap://%s:%d/",
-				cf->servname, atoi(cf->servport));
+    if (!slapd_server_root) {
+      return -1;
+    }
     
-		if (cf->suffix)
-			fprintf(fp, "%s", cf->suffix);
+    infoFileName = (char*)malloc(strlen(fmt) + strlen(slapd_server_root) + 1);
+    sprintf(infoFileName, fmt, slapd_server_root);
 
-		fprintf(fp, "\n");
-		
-		if (cf->cfg_sspt_uid) {
-		  fprintf(fp, "admnm\t%s\n", cf->cfg_sspt_uid);
-		}
+    if ((fp = fopen(infoFileName, "w")) == NULL)
+    {
+        ret = -1;
+    }
+    else
+    {
+        fprintf(fp, "url\tldap://%s:%d/",
+                cf->servname, atoi(cf->servport));
+    
+        if (cf->suffix)
+            fprintf(fp, "%s", cf->suffix);
 
-		fclose(fp);
-	}
+        fprintf(fp, "\n");
+        
+        if (cf->cfg_sspt_uid) {
+            fprintf(fp, "admnm\t%s\n", cf->cfg_sspt_uid);
+        }
+
+        fclose(fp);
+    }
 #if defined( SOLARIS )
-	/*
-	 * Solaris 9+ specific installation
-	 */
-	if (iDSISolaris)
-		logUninstallInfo(slapd_server_root, PRODUCT_NAME, PRODUCT_NAME, infoFileName);
+    /*
+     * Solaris 9+ specific installation
+     */
+    if (iDSISolaris)
+        logUninstallInfo(slapd_server_root, PRODUCT_NAME, PRODUCT_NAME, infoFileName);
   
 #endif /* SOLARIS */
-	free(infoFileName);
+    free(infoFileName);
 
-	return ret;
+    return ret;
 }
 

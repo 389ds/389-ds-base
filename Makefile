@@ -214,9 +214,9 @@ endif
 
 buildDirectoryClients: $(ANT_DEP) java_platform_check
 ifeq ($(BUILD_JAVA_CODE),1)
-	cd ldap/clients; $(MAKE) $(MFLAGS)
+	cd ldap/clients; $(MAKE) $(MFLAGS) dsmlgw
 endif
-	cd ldap/clients/dsgw; $(MAKE) $(MFLAGS)
+	cd ldap/clients; $(MAKE) $(MFLAGS) dsgw
 
 $(OBJDIR):
 	if test ! -d $(OBJDIR); then mkdir -p $(OBJDIR); fi;
