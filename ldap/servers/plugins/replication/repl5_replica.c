@@ -2812,7 +2812,8 @@ _replica_get_purge_csn_nolock(const Replica *r)
 		purge_csn = csn_dup (csns[i-1]);
 
 		/* set purge_csn to the most recent maxcsn - purge_delay */
-		csn_set_time(purge_csn, csn_get_time(purge_csn) - r->repl_purge_delay);
+		if ((csn_get_time(purge_csn) - r->repl_purge_delay) > 0)
+			csn_set_time(purge_csn, csn_get_time(purge_csn) - r->repl_purge_delay);
 	}
 
 	if (csns)
