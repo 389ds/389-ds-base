@@ -15,7 +15,6 @@
 
 #include <libadmin/libadmin.h>
 #include <libaccess/aclproto.h>
-#include <libaccess/nsadb.h>
 #include <base/fsmutex.h>
 #include <i18n.h>
 #include <base/ereport.h>

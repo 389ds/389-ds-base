@@ -17,9 +17,10 @@
  * Rob McCool
  */
 
-#ifndef PUBLIC_BASE_UTIL_H
-#include "public/base/util.h"
-#endif /* !PUBLIC_BASE_UTIL_H */
+#ifndef PUBLIC_NSAPI_H
+#include "public/nsapi.h"
+#endif /* !PUBLIC_NSAPI_H */
+
 
 /* --- Begin common function prototypes --- */
 
@@ -68,19 +69,9 @@ NSPR_END_EXTERN_C
 #define util_strncasecmp INTutil_strncasecmp
 #define util_localtime INTutil_localtime
 
-#ifdef NEED_STRCASECMP
-#define util_strcasecmp INTutil_strcasecmp
-#define strcasecmp INTutil_strcasecmp
-#endif /* NEED_STRCASECMP */
-
 #ifdef NEED_STRINGS_H /* usually for strcasecmp */
 #include <strings.h>
 #endif
-
-#ifdef NEED_STRNCASECMP
-#define util_strncasecmp INTutil_strncasecmp
-#define strncasecmp INTutil_strncasecmp
-#endif /* NEED_STRNCASECMP */
 
 #endif /* INTNSAPI */
 

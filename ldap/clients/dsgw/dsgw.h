@@ -32,8 +32,6 @@
 #include "../../include/srchpref.h"
 
 #if defined( XP_WIN32 )
-#define util_strcasecmp strcasecomp
-#define util_strncasecmp strncasecomp
 
 #include "base/systems.h"
 #include "proto-ntutil.h"

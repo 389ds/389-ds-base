@@ -72,10 +72,6 @@
 #endif /* USE_REGEX */
 #endif /* !MCC_PROXY */
 
-#ifndef PUBLIC_BASE_SHEXP_H
-#include "public/base/shexp.h"
-#endif /* !PUBLIC_BASE_SHEXP_H */
-
 /* --- Begin function prototypes --- */
 
 #ifdef INTNSAPI

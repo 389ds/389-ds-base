@@ -41,69 +41,6 @@
 #include "base/systems.h"
 #endif /* !BASE_SYSTEMS_H */
 
-#undef MAGNUS_VERSION_STRING
-
-#ifdef MCC_PROXY
-#define MAGNUS_VERSION PROXY_VERSION_DEF
-#define MAGNUS_VERSION_STRING PROXY_VERSION_STRING
-
-#elif defined(NS_CMS)
-#define MAGNUS_VERSION CMS_VERSION_DEF
-#define MAGNUS_VERSION_STRING CMS_VERSION_STRING
-
-#elif defined(NS_DS)
-#define MAGNUS_VERSION DS_VERSION_DEF
-#define MAGNUS_VERSION_STRING DS_VERSION_STRING
-
-#elif defined(MCC_ADMSERV)
-#define MAGNUS_VERSION ADMSERV_VERSION_DEF
-#define MAGNUS_VERSION_STRING ADMSERV_VERSION_STRING
-
-#elif defined(NS_CATALOG)
-#define MAGNUS_VERSION CATALOG_VERSION_DEF
-#define MAGNUS_VERSION_STRING CATALOG_VERSION_STRING
-
-#elif defined(NS_RDS)
-#define MAGNUS_VERSION RDS_VERSION_DEF
-#define MAGNUS_VERSION_STRING RDS_VERSION_STRING
-
-#elif defined(MCC_HTTPD)
-
-#ifdef NS_PERSONAL
-#define MAGNUS_VERSION PERSONAL_VERSION_DEF
-#else
-#define MAGNUS_VERSION ENTERPRISE_VERSION_DEF
-#endif
-
-#if defined(XP_UNIX) || defined(USE_ADMSERV)
-#if defined(NS_DS)
-#define MAGNUS_VERSION_STRING DS_VERSION_STRING
-#elif defined(NS_PERSONAL)
-#define MAGNUS_VERSION_STRING PERSONAL_VERSION_STRING
-#elif defined(NS_CATALOG)
-#define MAGNUS_VERSION_STRING CATALOG_VERSION_STRING
-#elif defined(NS_RDS)
-#define MAGNUS_VERSION_STRING RDS_VERSION_STRING
-#elif defined(NS_CMS)
-#define MAGNUS_VERSION_STRING CMS_VERSION_STRING
-#else
-#define MAGNUS_VERSION_STRING ENTERPRISE_VERSION_STRING
-#endif
-#endif /* XP_UNIX */
-
-#elif defined(MCC_NEWS)
-#define MAGNUS_VERSION_STRING NEWS_VERSION_STRING
-
-#elif defined(NS_MAIL)
-#define MAGNUS_VERSION MAIL_VERSION_DEF
-#define MAGNUS_VERSION_STRING MAIL_VERSION_STRING
-
-#elif defined(MCC_BATMAN)
-#define MAGNUS_VERSION BATMAN_VERSION_DEF
-#define MAGNUS_VERSION_STRING BATMAN_VERSION_STRING
-
-#endif
-
 #ifndef VOID
 #define VOID void
 #endif
@@ -146,33 +83,6 @@ typedef int                  boolean;
 #define NS_FALSE             0
 
 NSPR_BEGIN_EXTERN_C
-
-/* -------------------------- System version on NT------------------------- */
-
-/* Encode the server version as a number to be able to provide inexpensive
- * dynamic checks on server version - this isn't added in yet. */
-
-#define ENTERPRISE_VERSION 1  
-#define PERSONAL_VERSION 2       
-#define CATALOG_VERSION 3      
-#define RDS_VERSION 4       
-#define CMS_VERSION 5
-#undef DS_VERSION
-#define DS_VERSION 6
-
-#define server_fasttrack (!strcmp(MAGNUS_VERSION_STRING, PERSONAL_VERSION_STRING))
-#define server_enterprise (!strcmp(MAGNUS_VERSION_STRING, ENTERPRISE_VERSION_STRING))
-
-/* This definition of MAGNUS_VERSION_STRING on NT should be used
- * only when building the ns-http DLL */
-
-#if defined(MCC_HTTPD) && defined(XP_WIN32) && !defined(USE_ADMSERV) && !defined(MCC_ADMSERV)
-#undef MAGNUS_VERSION_STRING
-#define MAGNUS_VERSION_STRING INTsystem_version()
-#endif /* XP_WIN32 */
-
-/* Set server's version dynamically */
-NSAPI_PUBLIC void INTsystem_version_set(char *ptr);
 
 #ifndef APSTUDIO_READONLY_SYMBOLS
 

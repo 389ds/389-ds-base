@@ -256,7 +256,6 @@
 #define NEED_SETEID_PROTO /* setegid, seteuid */
 #define NET_SOCKETS
 #define SHMEM_MMAP_FLAGS MAP_SHARED
-#define TCPLEN_T size_t
 #define USE_PIPE
 /*
  * define this if your C++ platform has separate inline functions for
@@ -449,6 +448,7 @@ typedef void* PASSWD;
 #include "public/base/systems.h"
 #endif /* PUBLIC_BASE_SYSTEMS_H */
 
+
 /* --- Begin defaults for values not defined above --- */
 
 #ifndef DAEMON_LISTEN_SIZE
@@ -463,10 +463,6 @@ typedef void* PASSWD;
 #define CONSTVALSTRCAST (char *)
 #else
 #define CONSTVALSTRCAST
-#endif
-
-#ifndef TCPLEN_T
-#define TCPLEN_T int
 #endif
 
 #ifndef THROW_HACK

@@ -18,9 +18,9 @@
 #include "nserrdef.h"
 #endif /* !PUBLIC_NSACL_NSERRDEF_H */
 
-#ifndef PUBLIC_BASE_POOL_H
-#include "../base/pool.h"
-#endif /* !PUBLIC_BASE_POOL_H */
+#ifndef PUBLIC_NSAPI_H
+#include "public/nsapi.h"
+#endif /* !PUBLIC_NSAPI_H */
 
 #ifndef PUBLIC_NSACL_PLISTDEF_H
 #include "plistdef.h"

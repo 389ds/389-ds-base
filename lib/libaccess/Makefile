@@ -40,11 +40,7 @@ $(UTESTDEST):
 OSOBJS = 
 
 OBJS=$(addprefix $(OBJDEST)/,	usi.o \
-				attrec.o \
 				nseframe.o \
-				nsdb.o \
-				nsuser.o \
-				nsgroup.o \
 				nsautherr.o \
 				symbols.o \
                                 acltools.o \
@@ -67,23 +63,9 @@ OBJS=$(addprefix $(OBJDEST)/,	usi.o \
                                 acleval.o \
 				oneeval.o \
 				access_plhash.o \
-				aclparse.o \
-				aclbuild.o \
 				aclerror.o \
-				nsadb.o  \
-				nscert.o  \
-				nsamgmt.o  \
-				nsgmgmt.o  \
-				nsdbmgmt.o  \
-				nsumgmt.o  \
                                 $(OSOBJS) \
 				)
- 
-
-#
-# AVA Mapping files. Currently not compiled in (FORTEZZA for reference only).
-#
-AVAMAPFILES = lex.yy.o y.tab.o avapfile.o avadb.o 
 
 MODULE_CFLAGS=-I$(BUILD_ROOT)/include -DACL_LIB_INTERNAL $(TESTFLAGS)
 
@@ -128,47 +110,3 @@ flex:
 	$(LEX) -i aclscan.l
 	sed -f yy-sed lex.yy.c > acl.yy.cpp
 	rm lex.yy.c
-
-#
-# more AVA mapping stuff, needs to be made to work with the other lexx/yacc
-# code added for 3.0
-#
-#ifeq ($(ARCH), WINNT)
-#$(OBJDEST)/y.tab.o:	$(OBJDEST)/y.tab.c  $(VALUES) $(OBJDEST)/y.tab.h 
-#	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) -I$(OBJDEST) -I. $< -Fo$*.o
-#else
-#$(OBJDEST)/y.tab.o:	$(OBJDEST)/y.tab.c $(OBJDEST)/y.tab.h
-#	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) -I. -o $*.o $<
-#endif
-#
-#ifeq ($(ARCH), WINNT)
-#$(OBJDEST)/y.tab.h:	wintab.h
-#	cp wintab.h $(OBJDEST)/y.tab.h
-#
-#$(OBJDEST)/y.tab.c:	winnt.y
-#	cp winnt.y $(OBJDEST)/y.tab.c
-#
-#$(OBJDEST)/values.h:	winnt.v
-#	cp winnt.v $(OBJDEST)/values.h
-#else
-#$(OBJDEST)/y.tab.h $(OBJDEST)/y.tab.c:	avaparse.y
-#	yacc -d avaparse.y
-#	mv y.tab.h $(OBJDEST)/
-#	mv y.tab.c $(OBJDEST)/
-#endif
-#
-#$(OBJDEST)/lex.yy.o:	$(OBJDEST)/lex.yy.c $(OBJDEST)/y.tab.h
-#ifeq ($(ARCH), WINNT)
-#	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) -I$(OBJDEST) -I. $< -Fo$*.o
-#else
-#	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) -I. -o $*.o $<
-#endif
-#
-#ifeq ($(ARCH), WINNT)
-#$(OBJDEST)/lex.yy.c: winnt.l
-#	cp winnt.l $(OBJDEST)/lex.yy.c
-#else
-#$(OBJDEST)/lex.yy.c: avascan.l
-#	lex avascan.l
-#	mv lex.yy.c $(OBJDEST)/
-#endif

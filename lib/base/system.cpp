@@ -15,7 +15,6 @@
 
 #ifdef XP_WIN32
 #include <windows.h>
-static char *version = "Netscape Server/2.0";
 #endif
 
 #include "base/systems.h"	/* find out if we have malloc pools */
@@ -51,29 +50,6 @@ static int thread_malloc_key = -1;
 #define DEBUG_MALLOC_CHAR '.'
 #define DEBUG_FREE_CHAR   'X'
 #endif /* DEBUG_MALLOC */
-
-
-/* On NT, the server version string is not statically encoded based
- * upon a product compile define but dynamically set by the server
- * exe at startup.
- */
-
-NSAPI_PUBLIC char *system_version()
-{
-#ifdef XP_WIN32
-    return version;
-#else /* XP_UNIX */
-    return MAGNUS_VERSION_STRING;
-#endif /* XP_UNIX */
-}
-
-NSAPI_PUBLIC void system_version_set(char *server_version)
-{
-#ifdef XP_WIN32
-    version = PERM_STRDUP(server_version);
-#endif
-}
-
 
 NSAPI_PUBLIC void *system_malloc(int size)
 {

@@ -12,6 +12,7 @@
  */
 
 #include "base/systems.h"
+#include "public/nsapi.h"
 #ifdef NSPR20
 #include "prprf.h"
 #else
@@ -41,6 +42,9 @@
 #define	aclerrinval	XP_GetAdminStr(DBT_AclerrfmtAclerrinval)
 #define aclerrfail	XP_GetAdminStr(DBT_AclerrfmtAclerrfail)
 #define aclerrio	XP_GetAdminStr(DBT_AclerrfmtAclerrio)
+
+char * NSAuth_Program = "NSAUTH";
+char * ACL_Program = "NSACL";               /* ACL facility name */
 
 /*
  * Description (aclErrorFmt)

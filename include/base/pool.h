@@ -30,10 +30,6 @@
 #include "netsite.h"
 #endif /* !NETSITE_H */
 
-#ifndef PUBLIC_BASE_POOL_H
-#include "public/base/pool.h"
-#endif /* !PUBLIC_BASE_POOL_H */
-
 /* --- Begin function prototypes --- */
 
 #ifdef INTNSAPI

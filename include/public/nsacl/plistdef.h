@@ -15,9 +15,9 @@
  *      lists are a generalization of parameter blocks (pblocks).
  */
 
-#ifndef PUBLIC_BASE_POOL_H
-#include "../base/pool.h"
-#endif /* !PUBLIC_BASE_POOL_H */
+#ifndef PUBLIC_NSAPI_H
+#include "public/nsapi.h"
+#endif /* !PUBLIC_NSAPI_H */
 
 typedef struct PListStruct_s *PList_t;
 

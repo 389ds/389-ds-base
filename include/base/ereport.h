@@ -16,10 +16,6 @@
  * Rob McCool
  */
 
-#ifndef PUBLIC_BASE_EREPORT_H
-#include "public/base/ereport.h"
-#endif /* !PUBLIC_BASE_EREPORT_H */
-
 /* --- Begin function prototypes --- */
 
 #ifdef INTNSAPI

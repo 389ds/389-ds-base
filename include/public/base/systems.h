@@ -27,9 +27,6 @@
 #define ZERO(ptr,len) memset(ptr,0,len)
 #define NEED_STRCASECMP
 #define NEED_STRNCASECMP
-#if OSVERSION > 4200
-#define TCPLEN_T size_t
-#endif /* OSVERSION > 4200 */
 
 #elif defined(BSDI)
 
@@ -168,7 +165,6 @@
 #define SEM_FLOCK
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
-#define TCPLEN_T size_t
 
 #elif defined(Linux)
 

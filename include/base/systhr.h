@@ -22,10 +22,6 @@
 
 #ifdef THREAD_ANY
 
-#ifndef PUBLIC_BASE_SYSTHR_H
-#include "public/base/systhr.h"
-#endif /* !PUBLIC_BASE_SYSTHR_H */
-
 /* --- Begin function prototypes --- */
 
 #ifdef INTNSAPI

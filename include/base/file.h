@@ -19,10 +19,6 @@
 #include "../netsite.h"
 #endif /* !NETSITE_H */
 
-#ifndef PUBLIC_BASE_FILE_H
-#include "public/base/file.h"
-#endif /* !PUBLIC_BASE_FILE_H */
-
 /* --- Begin function prototypes --- */
 
 #ifdef INTNSAPI

@@ -24,11 +24,6 @@
 #include "netsite.h"
 #endif /* !NETSITE_H */
 
-/* Define C interface */
-#ifndef PUBLIC_BASE_CRIT_H
-#include "public/base/crit.h"
-#endif /* !PUBLIC_BASE_CRIT_H */
-
 /* Define C++ interface */
 #ifdef __cplusplus
 
