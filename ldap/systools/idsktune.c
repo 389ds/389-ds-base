@@ -2048,9 +2048,11 @@ static void ndd_tests (void)
 	       ndd_tcp_time_wait_interval,
 	       ndd_tcp_time_wait_interval/1000);
 #ifdef NAME_NDD_CFG_FILE
-        printf("A line similar to the following\nshould be added to the %s file:\n", NAME_NDD_CFG_FILE);
+        printf("An entry similar to the following\nshould be added to the %s file:\n", NAME_NDD_CFG_FILE);
         if (flag_html) printf("</P><PRE>\n");
-        printf("ndd -set /dev/tcp %s %d\n\n", name_tcp_time_wait_interval, 30000);
+        printf("TRANSPORT_NAME[10]=tcp\n");
+        printf("NDD_NAME[10]=%s\n", name_tcp_time_wait_interval);
+        printf("NDD_VALUE[10]=%d\n\n", 30000);
         if (flag_html) printf("</PRE><P>\n");
 #endif
         if (flag_carrier) flag_os_bad = 1;
@@ -2140,9 +2142,11 @@ static void ndd_tests (void)
 	printf("NOTICE : The %s value is currently %d, which will limit the\nvalue of listen backlog which can be configured.  ",
 	       NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
 #ifdef NAME_NDD_CFG_FILE
-	printf("It can be raised by adding\nto %s, after any adb command, a line similar to:\n", NAME_NDD_CFG_FILE);
+	printf("It can be raised by adding\nto %s, after any adb command, an entry similar to:\n", NAME_NDD_CFG_FILE);
 	if (flag_html) printf("</P><PRE>\n");
-	printf("ndd -set /dev/tcp %s %d\n", NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q0);
+	printf("TRANSPORT_NAME[10]=tcp\n");
+	printf("NDD_NAME[10]=%s\n", NAME_TCP_CONN_REQ_MAX_Q);
+	printf("NDD_VALUE[10]=%d\n\n", ndd_tcp_conn_req_max_q0);
 	if (flag_html) printf("</PRE><P>\n");      
 #endif
 	if (tcp_max_listen == 1024) {
@@ -2204,9 +2208,11 @@ static void ndd_tests (void)
 		   ndd_tcp_keepalive_interval / 60000);
 	    if (flag_html) printf("</P><P>\n");      
 #ifdef NAME_NDD_CFG_FILE
-	    printf("A line similar to the following should be added to %s:\n", NAME_NDD_CFG_FILE);
+	    printf("An entry similar to the following should be added to %s:\n", NAME_NDD_CFG_FILE);
 	    if (flag_html) printf("</P><PRE>\n");
-	    printf("ndd -set /dev/tcp %s %d\n\n", NAME_TCP_KEEPALIVE_INTERVAL, 600000);
+	    printf("TRANSPORT_NAME[10]=tcp\n");
+	    printf("NDD_NAME[10]=%s\n", NAME_TCP_KEEPALIVE_INTERVAL);
+	    printf("NDD_VALUE[10]=%d\n\n", 600000);
 	    if (flag_html) printf("</PRE><P>\n");
 #endif
 	  } else if (flag_debug) {
@@ -2224,9 +2230,11 @@ static void ndd_tests (void)
 	} else {
 	  if (flag_html) printf("</P><P>\n");      
 #ifdef NAME_NDD_CFG_FILE
-	  printf("NOTICE : The %s is currently not set.  This could result in\neventual server congestion.  The interval can be set by adding the following\ncommand to %s:\n",NAME_TCP_KEEPALIVE_INTERVAL, NAME_NDD_CFG_FILE);
+	  printf("NOTICE : The %s is currently not set.  This could result in\neventual server congestion.  The interval can be set by adding an entry similar to the following to %s:\n",NAME_TCP_KEEPALIVE_INTERVAL, NAME_NDD_CFG_FILE);
 	  if (flag_html) printf("</P><PRE>\n");      
-	  printf("ndd -set /dev/tcp %s 60000\n",NAME_TCP_KEEPALIVE_INTERVAL);
+	  printf("TRANSPORT_NAME[10]=tcp\n");
+	  printf("NDD_NAME[10]=%s\n", NAME_TCP_KEEPALIVE_INTERVAL);
+	  printf("NDD_VALUE[10]=%d\n\n", 60000);
 	  if (flag_html) printf("</PRE><P>\n");      
 #endif
 	  printf("\n");
@@ -2247,14 +2255,16 @@ static void ndd_tests (void)
 #ifdef NAME_NDD_CFG_FILE
       if (client) {
 	printf("NOTICE : For testing on a LAN or high speed WAN, this interval can be reduced\n"
-		"by adding to %s file:\n", NAME_NDD_CFG_FILE);
+		"by adding an entry similar to the following to %s file:\n", NAME_NDD_CFG_FILE);
       } else {
 	printf("NOTICE : If the directory service is intended only for LAN or private \n"
-		"high-speed WAN environment, this interval can be reduced by adding to\n"
-		"%s file:\n", NAME_NDD_CFG_FILE);
+		"high-speed WAN environment, this interval can be reduced by adding an\n"
+		"entry similar to the following to %s file:\n", NAME_NDD_CFG_FILE);
       }
       if (flag_html) printf("</P><PRE>\n");      
-      printf("ndd -set /dev/tcp tcp_rexmit_interval_initial 500\n\n");
+      printf("TRANSPORT_NAME[10]=tcp\n");
+      printf("NDD_NAME[10]=tcp_rexmit_interval_initial\n");
+      printf("NDD_VALUE[10]=%d\n\n", 500);
       if (flag_html) printf("</PRE><P>\n");      
 #endif
     } else {
@@ -2281,10 +2291,12 @@ static void ndd_tests (void)
       if (flag_html) printf("</P><P>\n");      
 #ifdef NAME_NDD_CFG_FILE
       printf("NOTICE : If the directory service is intended only for LAN or private \n"
-	"high-speed WAN environment, this interval can be reduced by adding to\n"
-	"%s file:\n", NAME_NDD_CFG_FILE);
+	"high-speed WAN environment, this interval can be reduced by adding an entry\n"
+	"similar to the following to %s file:\n", NAME_NDD_CFG_FILE);
       if (flag_html) printf("</P><PRE>\n");      
-      printf("ndd -set /dev/tcp tcp_ip_abort_cinterval 10000\n\n");
+      printf("TRANSPORT_NAME[10]=tcp\n");
+      printf("NDD_NAME[10]=tcp_ip_abort_cinterval\n");
+      printf("NDD_VALUE[10]=%d\n\n", 10000);
       if (flag_html) printf("</PRE><P>\n");      
 #endif
     }
@@ -2297,9 +2309,11 @@ static void ndd_tests (void)
 	     ndd_tcp_ip_abort_cinterval/1000);
       if (flag_html) printf("</P><P>\n");      
 #ifdef NAME_NDD_CFG_FILE
-      printf("NOTICE : If the directory service is intended only for LAN or private \nhigh-speed WAN environment, this interval can be reduced by adding to\n%s:\n", NAME_NDD_CFG_FILE);
+      printf("NOTICE : If the directory service is intended only for LAN or private \nhigh-speed WAN environment, this interval can be reduced by adding an entry\nsimilar to the following to %s:\n", NAME_NDD_CFG_FILE);
       if (flag_html) printf("</P><PRE>\n");      
-      printf("ndd -set /dev/tcp tcp_ip_abort_interval 60000\n\n");
+      printf("TRANSPORT_NAME[10]=tcp\n");
+      printf("NDD_NAME[10]=tcp_ip_abort_interval\n");
+      printf("NDD_VALUE[10]=%d\n\n", 60000);
       if (flag_html) printf("</PRE><P>\n");      
 #endif
     }
@@ -2344,9 +2358,11 @@ static void ndd_tests (void)
 	     65536 - ndd_tcp_smallest_anon_port);
       if (flag_carrier) flag_os_bad = 1;
 #ifdef NAME_NDD_CFG_FILE
-      printf("More ports can be made available by\nadding a line to %s:\n", NAME_NDD_CFG_FILE);
+      printf("More ports can be made available by\nadding an entry similar to\nthe following to %s:\n", NAME_NDD_CFG_FILE);
       if (flag_html) printf("</P><PRE>\n");      
-      printf("ndd -set /dev/tcp tcp_smallest_anon_port 8192\n");
+      printf("TRANSPORT_NAME[10]=tcp\n");
+      printf("NDD_NAME[10]=tcp_smallest_anon_port\n");
+      printf("NDD_VALUE[10]=%d\n\n", 8192);
       if (flag_html) printf("</PRE><P>\n");      
 #endif
       printf("\n");
@@ -2417,9 +2433,11 @@ static void ndd_tests (void)
 	       ndd_tcp_deferred_ack_interval);
 	if (flag_carrier) flag_os_bad = 1;
 #ifdef NAME_NDD_CFG_FILE
-      printf("This line can be added to the %s file:\n", NAME_NDD_CFG_FILE);
+      printf("An entry similar to the following can be\nadded to the %s file:\n", NAME_NDD_CFG_FILE);
       if (flag_html) printf("</P><PRE>\n");      
-      printf("ndd -set /dev/tcp tcp_deferred_ack_interval 5\n");
+      printf("TRANSPORT_NAME[10]=tcp\n");
+      printf("NDD_NAME[10]=tcp_deferred_ack_interval\n");
+      printf("NDD_VALUE[10]=%d\n\n", 5);
       if (flag_html) printf("</PRE><P>\n");      
 #endif
       printf("\n");
