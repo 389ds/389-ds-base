@@ -439,13 +439,6 @@ endif
 	  unzip $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
 	fi
 
-ifeq ($(BUILD_MODE), int)
-	if [ -d $(DSDOC_DIR) ] ; then \
-	  cd $(RELDIR)/manual/en/slapd; \
-	  unzip $(DSDOC_DIR)/$(DSDOC_GUIDES); \
-	fi
-endif
-
 ifdef USE_PURIFY
 	-$(INSTALL) -m 755 $(DB_LIBPATH)/*.so_pure* $(RELDIR)/lib
 	-$(INSTALL) -m 755 $(NSCP_DISTDIR)/lib/*.so_pure* $(RELDIR)/lib
