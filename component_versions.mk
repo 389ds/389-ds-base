@@ -178,7 +178,7 @@ endif
 
 # jakarta/axis for DSMLGW
 ifndef AXIS_VERSION
-  AXIS_VERSION=1.2beta
+  AXIS_VERSION=1.2rc3
 endif
 
 # JSP compiler jasper
