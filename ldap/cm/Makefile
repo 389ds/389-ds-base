@@ -27,7 +27,6 @@ ADMSERV_DEPS = 1
 include $(BUILD_ROOT)/nsconfig.mk
 include $(BUILD_ROOT)/ldap/nsldap.mk
 include $(BUILD_ROOT)/ldap/javarules.mk
-include $(BUILD_ROOT)/ns_usedb.mk
 include $(BUILD_ROOT)/ns_usesh.mk
 
 NSDISTMODE = copy
@@ -279,6 +278,7 @@ endif
 	done
 
 # install the DSMLGW into the client directory
+ifeq ($(USE_DSMLGW), 1)
 	$(MKDIR) $(RELDIR)/clients/dsmlgw
 	$(CP) -R $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/
 
@@ -295,7 +295,7 @@ endif
 	$(INSTALL) -m 644 $(NSDIST)/classes/saaj.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(NSDIST)/classes/xercesImpl.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(NSDIST)/classes/xml-apis.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-
+endif # USE_DSMLGW
 
 # PACKAGE_UNDER_JAVA is defined in components.mk - these are component .jar files to install
 # with the other component files that we don't necessarily pick up from the admin server build
@@ -320,6 +320,7 @@ endif
 #	fi
 
 ### Package up the orgchart ###
+ifeq ($(USE_ORGCHART), 1)
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.gif $(RELDIR)/clients/orgchart/html
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.html $(RELDIR)/clients/orgchart/html
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/orgchart/*.css $(RELDIR)/clients/orgchart/html
@@ -335,6 +336,7 @@ else
 	chmod 755 $(RELDIR)/clients/orgchart/bin/org
 	chmod 755 $(RELDIR)/clients/orgchart/bin/myorg
 endif
+endif # USE_ORGCHART
 ### end orgchart package ###
 
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
@@ -366,8 +368,8 @@ endif
 
 # the plugin API
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin.h $(RELDIR)/plugins/slapd/slapi/include
-	$(INSTALL) -m 644 $(NSPR_BUILD_DIR)/include/*.h $(RELDIR)/plugins/slapd/slapi/include
-	$(INSTALL) -m 644 $(NSPR_BUILD_DIR)/include/obsolete/*.h $(RELDIR)/plugins/slapd/slapi/include/obsolete
+	$(INSTALL) -m 644 $(NSPR_INCDIR)/*.h $(RELDIR)/plugins/slapd/slapi/include
+	$(INSTALL) -m 644 $(NSPR_INCDIR)/obsolete/*.h $(RELDIR)/plugins/slapd/slapi/include/obsolete
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin-compat4.h $(RELDIR)/plugins/slapd/slapi/include
 #	if [ -f $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/docs/plugin/README ] ; \
 #	then $(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/docs/plugin/README $(RELDIR)/plugins/slapd ; \
@@ -406,11 +408,15 @@ endif
 
 # install the ds jar file in the <server root>/$(DS_JAR_DEST_PATH) directory
 # also install the other jar files we use
+ifeq ($(USE_CONSOLE), 1)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_JAR_DEST_PATH)
+endif
+ifeq ($(USE_JAVATOOLS), 1)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSONJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH)
+endif
 
 # Images for IM Presence plugin
 ifdef BUILD_PRESENCE

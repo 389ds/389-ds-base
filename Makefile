@@ -21,7 +21,6 @@ COMPONENT_DEPS := 1
 
 include nsdefs.mk
 include nsconfig.mk
-include ns_usedb.mk
 
 # first (default) rule: build and create a DS package
 all:	buildAndPkgDirectory
@@ -35,6 +34,20 @@ help:
 	@echo "   gmake pkgDirectory"
 	@echo "   gmake pkgDirectoryl10n"
 	@echo "   gmake pkgDirectoryPseudoL10n"
+	@echo "   gmake with no arguments will do buildAndPkgDirectory, which "
+	@echo "         is usually what you want to do"
+	@echo ""
+	@echo "   The following are optional build flags which build or pull in"
+	@echo "   optional components which are only available internally for"
+	@echo "   now.  In the future these components may be made available"
+	@echo "   externally or in an open source version."
+	@echo "   USE_ADMINSERVER=1 - bundle the Admin Server (required to run Console/webapps)"
+	@echo "   USE_CONSOLE=1     - bundle the Administration Console (requires Java)"
+	@echo "   USE_DSMLGW=1      - build/bundle the DSMLv2 Gateway (requires Java)"
+	@echo "   USE_ORGCHART=1    - build/bundle the Org Chart webapp"
+	@echo "   USE_DSGW=1        - build/bundle the Phonebook/DS Gateway webapp"
+	@echo "   USE_JAVATOOLS=1   - build/bundle the Java command line tools"
+	@echo "   USE_SETUPSDK=1    - build/bundle programs that use Setup SDK"
 
 ###### Implementation notes:
 #
@@ -84,9 +97,13 @@ help:
 #
 ###### End of implementation notes.
 
-components: $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(DBM_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
+ifeq ($(INTERNAL_BUILD), 1)
+  COMPONENT_DEPENDENCIES = $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(DBM_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
 	$(ICU_DEP) $(SETUPSDK_DEP) $(LDAPSDK_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(PEER_DEP) \
 	$(AXIS_DEP) $(DSMLJAR_DEP)
+endif
+
+components: $(COMPONENT_DEPENDENCIES)
 	-@echo "The components are up to date"
 
 ifeq ($(BUILD_JAVA_CODE),1)
@@ -202,14 +219,20 @@ cleanDirectory:
 buildDirectoryConsole: consoleComponents java_platform_check
 ifeq ($(BUILD_JAVA_CODE),1)
 #	cd ldap/admin/src/java/com/netscape/admin/dirserv; $(MAKE) $(MFLAGS) package
-	cd ldap/admin/src/java/com/netscape/xmltools; $(MAKE) $(MFLAGS) package
+    ifeq ($(USE_JAVATOOLS), 1)
+		cd ldap/admin/src/java/com/netscape/xmltools; $(MAKE) $(MFLAGS) package
+    endif
 endif
 
 buildDirectoryClients: $(ANT_DEP) java_platform_check
 ifeq ($(BUILD_JAVA_CODE),1)
-	cd ldap/clients; $(MAKE) _dsmlgw
+    ifeq ($(USE_DSMLGW), 1)
+		cd ldap/clients; $(MAKE) _dsmlgw
+    endif
 endif
+ifeq ($(USE_DSGW), 1)
 	cd ldap/clients; $(MAKE) _dsgw
+endif
 
 $(OBJDIR):
 	if test ! -d $(OBJDIR); then mkdir -p $(OBJDIR); fi;
@@ -248,7 +271,9 @@ Longduration:
 
 setupDirectory:
 	cd ldap/cm; $(MAKE) $(MFLAGS) releaseDirectory;
+ifeq ($(USE_SETUPSDK), 1)
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageDirectory;
+endif
 
 pkgDirectoryJars:
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageJars 

@@ -21,11 +21,10 @@ SCRIPTSDIR=$(LDAP_BASE_RELDIR)/admin/scripts
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-ifndef LDAP_USE_OLD_DB
-include $(BUILD_ROOT)/ns_usedb.mk
-endif
 
+ifeq ($(USE_ADMINSERVER), 1)
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
+endif
 
 INCLUDES += -I$(LDAP_SRC)/admin/include
 
@@ -36,15 +35,21 @@ EXTRALDFLAGS += $(SSLLIBFLAG)
 endif
 
 ifeq ($(BUILD_DLL), yes)
-DYNAMIC_DEPLIBS=$(LDAP_ADMLIB) $(LDAP_COMMON_LIBS_DEP) $(ADMINUTIL)
+DYNAMIC_DEPLIBS=$(LDAP_ADMLIB) $(LDAP_COMMON_LIBS_DEP)
+ifeq ($(USE_ADMINSERVER), 1)
+  DYNAMIC_DEPLIBS += $(ADMINUTIL)
+endif
 DYNAMIC_DEPLINK=$(DYNAMIC_DEPLIBS)
 else
 DYNAMIC_DEPLIBS=$(LDAP_COMMON_LIBS_DEP)
 DYNAMIC_DEPLINK=$(LDAP_ADMLIB) $(LDAP_COMMON_LIBS)
 endif
 
-EXTRA_LIBS_DEP += $(NSPR_DEP) $(LDAPSDK_DEP) $(ADMINUTIL_DEP) $(ICU_DEP)
-
+EXTRA_LIBS_DEP += $(NSPR_DEP) $(LDAPSDK_DEP)
+ifeq ($(USE_ADMINSERVER), 1)
+  EXTRA_LIBS_DEP += $(ADMINUTIL_DEP)
+endif
+EXTRA_LIBS_DEP += $(ICU_DEP)
 # we don't want to build with warnings-as-errors for the admin/ stuff, because
 # it's got crappy C++ code which is LITTERED with warnings, most of which we
 # can't fix because it comes from files in dist/, etc.
@@ -53,8 +58,15 @@ CFLAGS := $(subst -Werror,,$(CFLAGS))
 endif
 
 OLD_EXTRA_LIBS := $(EXTRA_LIBS)
-EXTRA_LIBS = $(DYNAMIC_DEPLINK) $(ADMINUTIL_LINK) $(LDAP_NOSSL_LINK) \
-	$(SECURITYLINK) $(NSPRLINK) $(SETUPSDK_S_LINK) $(ICULINK) $(OLD_EXTRA_LIBS)
+EXTRA_LIBS = $(DYNAMIC_DEPLINK) $(LDAP_NOSSL_LINK)
+ifeq ($(USE_ADMINSERVER), 1)
+  EXTRA_LIBS += $(ADMINUTIL_LINK)
+endif
+EXTRA_LIBS += $(SECURITYLINK) $(NSPRLINK)
+ifeq ($(USE_SETUPSDK), 1)
+  EXTRA_LIBS += $(SETUPSDK_S_LINK)
+endif
+EXTRA_LIBS += $(ICULINK) $(OLD_EXTRA_LIBS)
 
 # these are the libraries to use when building the installer for the open source version
 OPENSOURCE_LIBS = $(LDAP_ADMLIB) $(LDAP_NOSSL_LINK) $(SECURITYLINK) $(NSPRLINK)
@@ -146,7 +158,9 @@ SECURE_BINS=
 SECLIB=$(LIBSECURITY)
 endif
 
-ADMIN_DLLGLUEOBJ=$(BUILD_ROOT)/built/$(ARCH)-$(SECURITY)-$(DEBUG)-admin/admin-lib/dllglue.o
+ifeq ($(USE_ADMINSERVER), 1)
+  ADMIN_DLLGLUEOBJ=$(BUILD_ROOT)/built/$(ARCH)-$(SECURITY)-$(DEBUG)-admin/admin-lib/dllglue.o
+endif
 
 ifeq ($(ARCH),AIX)
 DLLGLUEOBJ=
@@ -156,29 +170,27 @@ endif
 $(OBJDEST)/key.res: key.rc
 	$(RC) $(OFFLAG)$(OBJDEST)/key.res ey.rc
 
-OLD_PROGS	= ds_pcontrol   ds_impldif    \
-	ds_backldif      ds_backdb      ds_restdb \
-	 ds_monitor ds_conf ds_rmldif  \
-	commit index   ds_acccon ds_perf ds_dbconf ds_conf_check \
-	ds_net ds_ldap ds_pwconf ds_inconf ds_grplst ds_grpcrt \
-	ds_version ds_client ds_secpref ds_secact instindex \
-	ds_reploc ds_repinit ldif2replica ds_addldif ds_ldif2ldap clpstat \
-	ds_sscfg ds_attr_manage ds_oc_view ds_oc_create ds_schema_update \
-	ds_replov ds_pw ds_snmpconf  
-
-PROGS	= start   restart  shutdown   ds_ldif2db \
+PROGS = ds_newinst
+ifeq ($(USE_ADMINSERVER), 1)
+PROGS += start   restart  shutdown   ds_ldif2db \
 	ds_db2ldif   ds_db2bak   ds_listdb  \
-	ds_bak2db ds_rmdb ds_create ds_newinst \
+	ds_bak2db ds_rmdb ds_create \
 	ds_remove ds_snmpctrl vlvindex addindex
+endif
 
 ifeq ($(ARCH), WINNT)
 SERVER_PROGS = namegen latest_file
 endif
 
+ifeq ($(USE_ADMINSERVER), 1)
 OBJECTS= init_ds_env.o
+endif
 
 ifeq ($(ARCH), WINNT)
-OBJECTS += namegen.o latest_file.o ds_remove_uninst.o
+OBJECTS += namegen.o latest_file.o
+ifeq ($(USE_SETUPSDK), 1)
+  OBJECTS += ds_remove_uninst.o
+endif
 endif
 
 ifeq ($(ARCH), WINNT)
@@ -212,9 +224,6 @@ $(SCRIPTSDIR):
 
 .PHONY: installPerlFiles
 
-#NSSetupSDK:
-#	$(MAKE) -f NSSetupSDK_Base.mk $(MFLAGS) all
-
 clean:
 	-@echo $(BINS)
 	-$(RM) $(BINS)
@@ -236,13 +245,13 @@ $(BINDIR)/ds_newinst:	$(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
     $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o
 	$(LINK_EXE_NOLIBSOBJS) $(SHARED) $(EXTRALDFLAGS) \
 	$(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
-    $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o $(OPENSOURCE_LIBS)
+    $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o $(EXTRA_LIBS)
 
 $(BINDIR)/ds_newinst.exe:	$(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
     $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o
 	$(LINK_EXE) $(NT_NOLIBS) $(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
     $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o \
-		$(LIBNT) $(OPENSOURCE_LIBS)
+		$(LIBNT) $(NSPRLINK) $(EXTRA_LIBS) $(DB_LIB)
 # linking this file causes a .exp and a .lib file to be generated which don't seem
 # to be required while running, so I get rid of them
 	$(RM) $(subst .exe,.exp,$@) $(subst .exe,.lib,$@)

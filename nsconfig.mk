@@ -26,6 +26,17 @@ MAKE=gmake $(BUILDOPT)
 # 7/12/96 Adrian - allow MAKEFLAGS to propagate
 # override MAKEFLAGS := 
 
+# all of these things are on by default for internal builds
+ifdef INTERNAL_BUILD
+	USE_ADMINSERVER:=1
+	USE_CONSOLE:=1
+	USE_DSMLGW:=1
+	USE_ORGCHART:=1
+	USE_DSGW:=1
+	USE_JAVATOOLS:=1
+	USE_SETUPSDK:=1
+endif
+
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/component_versions.mk
 
