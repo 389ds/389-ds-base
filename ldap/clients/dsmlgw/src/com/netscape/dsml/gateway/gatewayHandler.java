@@ -125,7 +125,21 @@ public class gatewayHandler  extends BasicHandler {
 		else
 		    batchProcessor.setProxy("");
                 
-                if (batchProcessor.preprocess()) {
+                boolean preprocess_successful = batchProcessor.preprocess();
+                Message request= context.getRequestMessage();
+                if (request != null)
+                {
+                    java.util.Iterator request_elements = request.getSOAPBody().getChildElements();
+                    if (request_elements != null)
+                    {
+                        if (request_elements.hasNext()){
+                            ((org.apache.axis.message.RPCElement) request_elements.next()).detachNode();
+                        }
+                    }
+                }
+              
+                
+                if (preprocess_successful) {
                     int i = -1;
                     int NumberRequests = batchProcessor.getRequestCount();
                     
