@@ -28,42 +28,8 @@
  </requestFlow>
  <handler name="Authenticate" type="java:org.apache.axis.handlers.SimpleAuthenticationHandler"/>
 
- <service name="dsmlgw" provider="java:RPC">
-<!-- this is for the javax.xml.rpc.handler's -->
-<handlerInfoChain>
-        <handlerInfo classname="com.netscape.dsml.gateway.gatewayHandler">
-                <parameter name="server" value="bison"/>
-                <parameter name="port" value="38900"/>
-                <parameter name="dn" value="ou=People,dc=mtbrook,dc=bozemanpass,dc=com"/>
-                <parameter name="foo" value="bar"/>
-                <header qname="QNAME" xmlns:ns="DSML2core"/>
-        </handlerInfo>
-        <role soapActorName="URI"/>
-</handlerInfoChain>
-
-
-  <operation name="process" returnQName="returnqname" returnType="ns1:DataHandler" xmlns:ns1="dsmlgw">
-   <parameter name="in1" type="ns1:DataHandler"/>
-  </operation>
-  <parameter name="allowedMethods" value="process batchRequest"/>
-  <parameter name="className" value="com.netscape.dsml.gateway.gatewayService"/>
-  <typeMapping deserializer="org.apache.axis.encoding.ser.JAFDataHandlerDeserializerFactory" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" qname="ns2:DataHandler" serializer="org.apache.axis.encoding.ser.JAFDataHandlerSerializerFactory" type="java:javax.activation.DataHandler" xmlns:ns2="DSMLService"/>
- </service>
-
-
- <service name="Version" provider="java:RPC">
-  <parameter name="allowedMethods" value="getVersion"/>
-  <parameter name="className" value="org.apache.axis.Version"/>
- </service>
- <service name="urn:xmltoday-delayed-quotes" provider="java:RPC">
-  <requestFlow name="checks">
-   <handler type="java:org.apache.axis.handlers.SimpleAuthenticationHandler"/>
-   <handler type="java:org.apache.axis.handlers.SimpleAuthorizationHandler"/>
-  </requestFlow>
-  <parameter name="allowedRoles" value="user1,user2"/>
-  <parameter name="allowedMethods" value="getQuote test"/>
-  <parameter name="wsdlServicePort" value="GetQuote"/>
-  <parameter name="className" value="samples.stock.StockQuoteService"/>
+ <service name="dsmlgw" provider="Handler">
+ 	<parameter name="handlerClass" value="com.netscape.dsml.gateway.gatewayHandler"/>
  </service>
 
  <transport name="http">

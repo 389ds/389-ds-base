@@ -23,6 +23,7 @@
 <property name="saaj.jar"  value="${globaldist.dir}/saaj.jar"/>
 <property name="xercesImpl.jar"  value="${globaldist.dir}/xercesImpl.jar"/>
 <property name="xmlParserAPIs.jar"  value="${globaldist.dir}/xml-apis.jar"/>
+<property name="axis.jar"        value="${globaldist.dir}/axis.jar"/>
 
 <path id="class.path">
 <pathelement location="${ldapjdk.jar}"/>
@@ -33,6 +34,7 @@
 
 <pathelement location="${xercesImpl.jar}"/> 
 <pathelement location="${xmlParserAPIs.jar}"/>
+<pathelement location="${axis.jar}"/>
 </path>
 
 <property name="build.dir"      value="${mcom.root}/built/dsmlgw"/>

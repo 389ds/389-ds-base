@@ -14,6 +14,7 @@ include $(BUILD_ROOT)/nsconfig.mk
 include $(BUILD_ROOT)/ldap/javarules.mk
 
 all: $(ANT_DEP) $(LDAPJDK_DEP)
+	cp $(CLASS_DEST)/$(AXIS_REL_DIR)/lib/axis.jar $(CLASS_DEST)
 	$(ANT) 
 
 clean: 	

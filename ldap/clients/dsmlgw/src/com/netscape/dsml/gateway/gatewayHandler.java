@@ -11,7 +11,6 @@ import javax.xml.namespace.QName;
 import javax.xml.parsers.*;
 import javax.xml.rpc.handler.Handler;
 import javax.xml.rpc.handler.HandlerInfo;
-import javax.xml.rpc.handler.MessageContext;
 import javax.xml.rpc.handler.soap.SOAPMessageContext;
 import javax.xml.soap.Name;
 import javax.xml.soap.SOAPEnvelope;
@@ -27,8 +26,12 @@ import org.w3c.dom.Document;
 import org.xml.sax.*;
 import org.w3c.dom.*;
 import javax.xml.soap.*;
+import org.apache.axis.AxisFault;
+import org.apache.axis.Message;
+import org.apache.axis.MessageContext;
+import org.apache.axis.handlers.BasicHandler;
 
-public class gatewayHandler implements Handler {
+public class gatewayHandler  extends BasicHandler {
     private HandlerInfo handlerInfo;
     static private javax.xml.soap.MessageFactory messageFactory ;
     static private javax.xml.soap.SOAPFactory sef ;
@@ -44,8 +47,18 @@ public class gatewayHandler implements Handler {
     }
     
     
+    public void invoke(MessageContext context) throws AxisFault {
+	    if (context.getPastPivot() == false) {
+	    	handleRequest(context);
+	    }
+	 }
     
-    
+    public void cleanup() {
+        super.cleanup();
+        destroy();
+    }
+
+	 
     public boolean handleRequest(MessageContext context) {
     /*
      * this section will set user, pwd, if it came via a http authentication header
@@ -82,7 +95,7 @@ public class gatewayHandler implements Handler {
             }
         }
         
-        SOAPMessage out_m = null;
+        org.apache.axis.Message out_m = null;
         SOAPEnvelope out_env = null;
         javax.xml.soap.SOAPBody out_body = null;
         javax.xml.soap.SOAPElement out_fResponse = null;
@@ -92,7 +105,7 @@ public class gatewayHandler implements Handler {
             javax.xml.soap.SOAPEnvelope se =  sp.getEnvelope();
             javax.xml.soap.SOAPBody sb = se.getBody();
             
-            out_m = messageFactory.createMessage();
+            out_m= new Message(context.getRequestMessage().getSOAPEnvelope());
             out_env = out_m.getSOAPPart().getEnvelope();
             out_body = out_env.getBody();
             out_fResponse = out_body.addBodyElement(out_env.createName("batchResponse"));
@@ -155,26 +168,12 @@ public class gatewayHandler implements Handler {
          * SOAPResponse message, it will be sent as soon as the request
          * turns the other way into a reponse.
          */
-        context.setProperty("RESPONSE",  out_m);
+        context.setResponseMessage( (Message)out_m  );
         return false;
         
     }
     
-    /**
-     * @see javax.xml.rpc.handler.Handler#handleResponse(MessageContext)
-     */
-    public boolean handleResponse(MessageContext context) {
-        SOAPMessage m;
-        m = (SOAPMessage) context.getProperty("RESPONSE");
         
-        try {
-            ((SOAPMessageContext)context).setMessage(m);
-        }
-        catch (Exception e) {
-        }
-        
-        return true;
-    }
     
     public boolean handleFault(MessageContext context) {
         return false;
@@ -202,4 +201,5 @@ public class gatewayHandler implements Handler {
         
     }
     
+ 
 }
