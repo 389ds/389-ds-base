@@ -594,7 +594,7 @@ static void usage(char *argv0)
     printf("    -i              dump as an index file\n");
     printf("    -e              dump as an entry (id2entry) file\n");
     printf("    -c              dump as a  changelog file\n");
-    printf("    -l <size>       max length of dumped id list (default %d; <= 1MB)\n",
+    printf("    -l <size>       max length of dumped id list (default %d; 40 <= size <= 1MB)\n",
            MAX_BUFFER);
     printf("    -n              display idl lengths only (not contents)\n");
     printf("    -G <n>          (when used with -n) only display index entries with\n");
