@@ -2988,8 +2988,8 @@ objectclass: nsManagedRoleDefinition
 cn: PD Managers
 description: People who can manage engineer entries
 
-dn: ou=Brandx Servers,dc=example,dc=com
+dn: ou=Fedora Servers,dc=example,dc=com
 objectclass: top
 objectclass: organizationalUnit
-ou: Brandx Servers
-description: Standard branch for Brandx Server registration
+ou: Fedora Servers
+description: Standard branch for Fedora Server registration

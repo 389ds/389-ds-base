@@ -6,6 +6,11 @@
 # END COPYRIGHT BLOCK
 ##############################################################################
 #
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
 # FILE: repl-monitor.pl
 #
 # SYNOPSIS:
@@ -28,7 +33,7 @@
 #	parameters, the server alias, and the thresholds for different colors
 #	when display the time lags between consumers and master.
 #	If the Admin Server is running on Windows, the configuration-file
-#	name may have format "D:/Netscape/replmon.conf".
+#	name may have format "D:/opt/replmon.conf".
 #
 #	The connection parameter section consists of the section name
 #	followed by one of more connection parameter entries:
@@ -135,7 +140,7 @@ use Time::Local; # to convert GMT Z strings to localtime
 #
 # Global variables
 #
-$product = "Netscape Directory Server Replication Monitor";
+$product = "Directory Server Replication Monitor";
 $version = "Version 1.0";
 #
 # ldap servers given or discovered from the replication agreements:
@@ -907,7 +912,7 @@ sub print_html_header
 	print "<table border=0 cellspacing=0 cellpadding=10 width=100% class=bgColor1>\n";
 	print "<tr><td><font class=text8>$now</font></td>\n";
 	print "<td align=center class=page-title><font color=#0099CC>";
-	print "Netscape Directory Server Replication Status</font>\n";
+	print "Directory Server Replication Status</font>\n";
 
 	if ($opt_u) {
 		print "<br><font class=text8>(This page updates every $interval seconds)</font>\n";

@@ -514,7 +514,7 @@ StartNetscapeProgram()
     CmdFile = fopen(line, "r");
     if (!CmdFile) 
 	{
-        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start Netscape server %s "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start server %s "
             ": Could not open the startup script %s :Error %d. Please "
             "run startsrv.bat from the server's root directory.",
             ds_get_server_name(), line, errno);
@@ -525,7 +525,7 @@ StartNetscapeProgram()
     ZeroMemory(cmd, sizeof(cmd));
     if (!fread(cmd, 1, BIG_LINE, CmdFile)) 
 	{
-        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start Netscape server %s "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start server %s "
             ": Could not read the startup script %s :Error %d. Please "
             "run startsrv.bat from the server's root directory.",
             ds_get_server_name(), line, errno);
@@ -542,7 +542,7 @@ StartNetscapeProgram()
 	if (!CreateProcess(NULL, cmd, NULL, NULL, FALSE,
 		0, NULL, NULL, &siStartInfo, &piProcInfo)) 
 	{
-        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start Netscape server %s "
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Error:Tried to start server %s "
             ": Could not start up the startup script %s :Error %d. Please "
             "run startsrv.bat from the server's root directory.",
             ds_get_server_name(), line, GetLastError());
@@ -565,7 +565,7 @@ StopNetscapeProgram()
     hEvent = CreateEvent(NULL, TRUE, FALSE, servid);  
     if(!SetEvent(hEvent)) 
 	{
-        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to stop existing Netscape server %s"
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to stop existing server %s"
             ": Could not signal it to stop :Error %d",
             servid, GetLastError());
         ds_send_error(ErrorString, 0);
@@ -588,7 +588,7 @@ StopNetscapeService()
  
     if (schService == NULL) 
 	{
-        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to open Netscape service"
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to open service"
             " %s: Error %d (%s). Please"
             " stop the server from the Services Item in the Control Panel",
             serviceName, GetLastError(), ds_system_errmsg());
@@ -613,7 +613,7 @@ StopNetscapeService()
     } 
     else if (Error != ERROR_SERVICE_NOT_ACTIVE) 
 	{
-        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to stop Netscape service"
+        PR_snprintf(ErrorString, sizeof(ErrorString), "Tried to stop service"
             " %s: Error %d (%s)."
             " Please stop the server from the Services Item in the"
             " Control Panel", serviceName, Error, ds_system_errmsg());
@@ -639,7 +639,7 @@ StartNetscapeService()
 	{
         CloseServiceHandle(schService);
         PR_snprintf(ErrorString, sizeof(ErrorString),"Tried to start"
-            " the Netscape service %s: Error %d. Please"
+            " the service %s: Error %d. Please"
             " start the server from the Services Item in the Control Panel",
             serviceName, GetLastError());
             ds_send_error(ErrorString, 0);

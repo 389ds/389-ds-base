@@ -26,7 +26,7 @@ NSAPI_PUBLIC int ldapu_get_cert_subject_dn (void *cert_in, char **subjectDN)
 NSAPI_PUBLIC int ldapu_get_cert_issuer_dn (void *cert, char **issuerDN)
 {
     /* TEMPORARY  -- not implemented yet*/
-    *issuerDN = strdup("o=Netscape Communications, c=US");
+    *issuerDN = strdup("o=Fedora Project, c=US");
     return *issuerDN ? LDAPU_SUCCESS : LDAPU_FAILED;
 }
 

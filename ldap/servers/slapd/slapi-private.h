@@ -658,7 +658,7 @@ struct slapi_componentid * plugin_get_default_component_id();
 #define COMPONENT_CERT_AUTH	"cn=certificate-based authentication,"COMPONENT_BASE_DN
 
 /* Component names for logging */
-#define SLAPI_COMPONENT_NAME_NSPR	"Netscape runtime"
+#define SLAPI_COMPONENT_NAME_NSPR	"Netscape Portable Runtime"
 #define SLAPI_COMPONENT_NAME_LDAPSDK	"LDAP sdk"
 
 /* return the list of attr defined in the schema matching the attr flags */

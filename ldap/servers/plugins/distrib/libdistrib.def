@@ -3,7 +3,7 @@
 ; Copyright (C) 2005 Red Hat, Inc.
 ; All rights reserved.
 ; --- END COPYRIGHT BLOCK ---
-DESCRIPTION 	'Brandx Directory Server 7 distribution logic example'
+DESCRIPTION 	'Fedora Directory Server 7 distribution logic example'
 EXPORTS
 	alpha_distribution @1
 	hash_distribution @2

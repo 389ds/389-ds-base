@@ -173,7 +173,7 @@ ifndef PRODUCT_IS_DIRECTORY_SERVER
 	echo "why are we doing this for directory server?"
 	cd $(HTTPD_DIR); $(PURIFY) $(CCC) -o ns-httpd $(OBJS) \
             $(EXTRA_OPTS) $(DEPLINK) $(EXTRA_LIBS)
-endif # Netscape Directory Server
+endif # Directory Server
 else # WINNT
 
 $(DLLS): $(OBJS) $(DEPLIBS)

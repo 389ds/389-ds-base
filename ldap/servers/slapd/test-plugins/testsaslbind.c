@@ -33,13 +33,13 @@ objectclass: top
 objectclass: nsSlapdPlugin
 objectclass: extensibleObject
 cn: test-saslbind
-nsslapd-pluginpath: /usr/brandx/servers/plugins/slapd/slapi/examples/libtest-plugin.so
+nsslapd-pluginpath: /usr/fedora/servers/plugins/slapd/slapi/examples/libtest-plugin.so
 nsslapd-plugininitfunc: testsasl_init
 nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
 nsslapd-pluginid: test-saslbind
 nsslapd-pluginversion: 5.0
-nsslapd-pluginvendor: Brandx, Inc.
+nsslapd-pluginvendor: Fedora Project
 nsslapd-plugindescription: sample SASL bind pre-operation plugin
 
 
@@ -48,7 +48,7 @@ nsslapd-plugindescription: sample SASL bind pre-operation plugin
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc saslpdesc = { "test-saslbind", "Brandx, Inc.", "7.1",
+Slapi_PluginDesc saslpdesc = { "test-saslbind", "Fedora Project", "7.1",
 	"sample SASL bind pre-operation plugin" };
 
 

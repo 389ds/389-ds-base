@@ -148,7 +148,7 @@ Severity=Success
 Facility=Startup
 SymbolicName=MSG_SERVER_STARTED
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server has successfully started.
 .
 MessageId=0x2
@@ -156,7 +156,7 @@ Severity=Success
 Facility=Slapd
 SymbolicName=MSG_SERVER_SHUTDOWN
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server has shutdown.
 .
 MessageId=0x3
@@ -164,7 +164,7 @@ Severity=Success
 Facility=Slapd
 SymbolicName=MSG_SERVER_STOPPED
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server has stopped.
 .
 MessageId=0x4
@@ -172,7 +172,7 @@ Severity=Success
 Facility=Startup
 SymbolicName=MSG_SERVER_STARTING
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server is starting.
 .
 MessageId=0x5
@@ -180,7 +180,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_SERVER_START_FAILED
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server has failed on startup. %2
 .
 MessageId=0x6
@@ -188,7 +188,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_SERVER_START_FAILED_CTRL_HANDLER
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server has failed on startup. Failed to Register with Service Control handler.
 .
 MessageId=0x7
@@ -196,7 +196,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_SERVER_PASSWORD_DIALOG_FAILED
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server failed to create the Key Database Passphrase dialog.
 .
 MessageId=0x8
@@ -204,7 +204,7 @@ Severity=Error
 Facility=Registry
 SymbolicName=MSG_WD_REGISTRY
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 Could not open registry key: %2
 .
 MessageId=0x9
@@ -212,7 +212,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_WD_BADCMDLINE
 Language=English
-Brandx Directory Server: %1
+Fedora Directory Server: %1
 Invalid command line specified: %2
 .
 MessageId=0xA
@@ -220,7 +220,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_WD_BADPASSWORD
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 Incorrect SSL password entered.
 .
 MessageId=0xB
@@ -228,7 +228,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_WD_STRING
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 %2
 .
 MessageId=0xC
@@ -236,7 +236,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_WD_STARTFAILED
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server could not be started.
 Command line used: %2
 .
@@ -245,7 +245,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_WD_RESTART
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server terminated abnormally with error code %2.
 An attempt will be made to restart it.
 .
@@ -254,7 +254,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_CRON_STARTFAILED
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The scheduled job (%2) could not be started.
 .
 MessageId=0xF
@@ -262,7 +262,7 @@ Severity=Error
 Facility=Slapd
 SymbolicName=MSG_SERVER_SHUTDOWN_STARTING
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The directory server is shutting down.
 .
 MessageId=0x10
@@ -270,7 +270,7 @@ Severity=Error
 Facility=Startup
 SymbolicName=MSG_SERVER_KEYDB_PASSPHRASE_WRONG
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 The specified key database passphrase is incorrect.
 .
 MessageId=0x11
@@ -278,6 +278,6 @@ Severity=Error
 Facility=Slapd
 SymbolicName=MSG_SERVER_FAILED_TO_WRITE_LOG
 Language=English
-Brandx Directory Server: %1.
+Fedora Directory Server: %1.
 Failed to write log: %2.
 .

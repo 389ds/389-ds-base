@@ -7,7 +7,7 @@
 
 This directory contains an example program to demonstrate
 writing plugins using the "Certificate to LDAP Mapping" API.
-Please read the "Managing Netscape Servers" manual to find out
+Please read the "Managing Servers" manual to find out
 about how certificate to ldap mapping can be configured using
 the <ServerRoot>/userdb/certmap.conf file.  Also refer to the
 "Certificate to LDAP Mapping API" documentation to find out
@@ -66,8 +66,8 @@ subject DN and the issuer DN from the certificate.
 Build Procedure
 ---------------
 On UNIX: Edit the Makefile, and set the variables ARCH & SROOT
-according to the comments in the Makefile.  Download LDAP SDK
-from the Netscape's DevEdge site and make the ldap include
+according to the comments in the Makefile.  Download LDAP C SDK
+from the mozilla.org site and make the ldap include
 files available in <SROOT>/include.  Copy the
 ../include/certmap.h file to the <SROOT>/include directory.
 Use 'gmake' to build the plugin.  A shared library plugin.so

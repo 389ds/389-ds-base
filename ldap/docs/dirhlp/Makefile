@@ -25,7 +25,7 @@ COPYRIGHTDEST=$(OBJDIR)/manual/slapd/copyright
 NOSTDSTRIP=true
 NOSTDDEPEND=true
 
-HTML= index.map index.htm netscape48.gif pixel.gif
+HTML= index.map index.htm pixel.gif
 
 NEWHTMLTOKEN=tokens.map
 NEWHTMLTOPIC=topicindex.htm
@@ -107,7 +107,6 @@ NEWHTML = account_mgmt.htm \
   helpmenu.htm \
   ix.htm \
   ldapurl.htm \
-  netscape32.gif \
   new_instance.htm \
   pixel.gif \
   property_editor.htm \
@@ -142,7 +141,7 @@ NEWBINS = $(addprefix $(NEWHTMLDEST)/,$(NEWHTML)) \
 
 COPYRIGHTBINS = $(addprefix $(COPYRIGHTDEST)/,$(COPYRIGHTFILES))
 
-all: $(HTMLDEST) $(BINS) $(NEWHTMLDEST) $(NEWBINS) $(COPYRIGHTDEST) $(COPYRIGHTBINS)
+all: $(HTMLDEST) $(BINS) $(NEWHTMLDEST) $(NEWBINS)
 
 $(HTMLDEST):
 	mkdir -p $(HTMLDEST)
@@ -159,7 +158,7 @@ depend:
 
 clean:
 
-	-$(RM) -f $(BINS) $(NEWBINS) $(COPYRIGHTBINS)
+	-$(RM) -f $(BINS) $(NEWBINS) 
 
 $(HTMLDEST)/%.js: %.js
 	-$(RM) -f $@

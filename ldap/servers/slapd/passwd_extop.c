@@ -40,7 +40,7 @@
 #define EXOP_PASSWD_OID	"1.3.6.1.4.1.4203.1.11.1"
 
 
-Slapi_PluginDesc passwdopdesc = { "passwd_modify_plugin", "Netscape", "0.1",
+Slapi_PluginDesc passwdopdesc = { "passwd_modify_plugin", "Fedora", "0.1",
 	"Password Modify extended operation plugin" };
 
 /* Check SLAPI_USERPWD_ATTR attribute of the directory entry 

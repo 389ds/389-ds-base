@@ -433,7 +433,19 @@ PACKAGE_SRC_DEST += $(wildcard $(DB_LIBPATH)/*.$(DLL_SUFFIX)) bin/slapd/server
 
 ### DB component (Berkeley DB) ############################
 
+### DOCS #################################
+# this is where the build looks for slapd docs
+DSDOC_DIR = $(ABS_ROOT)/../dist/dsdoc
+DSDOC_VERSDIR = $(DIR_NORM_VERSION)$(BUILD_MODE)
+DSDOC_RELEASE = $(COMPONENTS_DIR_DEV)/ldapserverdoc/$(DSDOC_VERSDIR)/$(DSDOC_RELDATE)
+
+DSDOC_CLIENTS = slapd_clients.zip
+DSDOC_COPYRIGHT = slapd_copyright.zip
+DSDOC_FILES = $(DSDOC_COPYRIGHT),$(DSDOC_CLIENTS)
+### DOCS END #############################
+
 # must define dependencies last because they depend on the definitions above
 ifeq ($(INTERNAL_BUILD), 1)
 include $(BUILD_ROOT)/internal_comp_deps.mk
 endif
+

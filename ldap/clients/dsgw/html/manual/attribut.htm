@@ -17,7 +17,7 @@
 This appendix includes information on attribute definitions. Most of the schema attributes used in the Directory Server are part of the standard LDAP protocol, which is in turn based on the X.500 standard. However, some of the Directory Server's attributes are extensions created by Netscape for use with its implementation of LDAP. If an attribute was created by Netscape and is not part of the standard LDAP schema, a note is made in the description of that object or attribute.<P></A>
 
 <A NAME="1071459">
-For information on what the Directory Server schema is and what it is used for, refer to the <i>Netscape Directory Server Deployment Guide</i>.<P></A>
+For information on what the Directory Server schema is and what it is used for, refer to the <i>Directory Server Deployment Guide</i>.<P></A>
 
 <A NAME="1078428">
 For information on the object classes in the schema, see <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1002619">Appendix A, "Object Classes."</a><P></A>
@@ -60,13 +60,13 @@ The possible attribute syntaxes are:<P></A>
 </A>
 </ul>
 <A NAME="1201644">
-The base OID for the Netscape Directory Server is:<P></A>
+The base OID for the Fedora Directory Server is:<P></A>
 <PRE><A NAME="1255332">
 2.16.840.1.113730.3
 </A>
 </PRE>
 <A NAME="1257527">
-All Netscape defined attributes have the base:<P></A>
+All Netscape|Red Hat defined attributes have the base:<P></A>
 <PRE><A NAME="1257537">
 2.16.840.1.113730.3.1
 </A>
@@ -120,7 +120,7 @@ OID: <code>2.16.840.1.113730.3.1.55</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004700">bin</a><P></A>
 
 <A NAME="1171297">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1032956">
 <A NAME="administratorContactInfo">
 <B>administratorContactInfo</B>
@@ -129,7 +129,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1032957">
-Provides a URL to information about the person responsible for administering the Netscape server. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a Netscape server is initially installed. For example:<P></A>
+Provides a URL to information about the person responsible for administering the server. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1032959">
 	administratorContactInfo: ldap://<I>uid=ssarette, o=Example.com</I>
 </A>
@@ -147,7 +147,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1098449">
-Provides the URL to the administration server through which you can manage the Netscape server. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a Netscape server is initially installed. For example:<P></A>
+Provides the URL to the administration server through which you can manage the server. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1033050">
 	adminUrl: http://twain.example.com:2468
 </A>
@@ -435,7 +435,7 @@ OID: <code>2.16.840.1.113730.3.1.1</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1007950">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1208746">
 <A NAME="certificateRevocationList">
 <B>certificateRevocationList</B>
@@ -501,7 +501,7 @@ Identifies the maximum age in seconds for entries in the change log. Entries are
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1171402">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1171405">
 <A NAME="changeLogMaximumSize">
 <B>changeLogMaximumSize</B>
@@ -519,7 +519,7 @@ Identifies the maximum size in bytes for the change log file. Entries are discar
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1171410">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1094798">
 <A NAME="changeNumber">
 <B>changeNumber</B>
@@ -818,13 +818,13 @@ or:<P></A>
 <A NAME="1171499">
 When in reference to the LDAPReplica or LDAPServer object classes, it identifies the converted DNS name of the server and root of the replicated directory tree into distinguished name format. For example:<P></A>
 <PRE><A NAME="1171500">
-	commonName: replicater.netscape.com:17430/o%3Dexample<br>	 %2Cc%3us
+	commonName: replicater.example.com:17430/o%3Dexample<br>	 %2Cc%3us
 </A>
 </PRE>
 <A NAME="1171501">
 or:<P></A>
 <PRE><A NAME="1171502">
-	cn: replicater.netscape.com:17430/o%3Dexample%2Cc%3us
+	cn: replicater.example.com:17430/o%3Dexample%2Cc%3us
 </A>
 </PRE>
 <A NAME="1171504">
@@ -1002,7 +1002,7 @@ OID: <code>2.16.840.1.113730.3.1.2</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1095566">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1171528">
 <A NAME="description">
 <B>description</B>
@@ -1317,7 +1317,7 @@ OID: <code>2.16.840.1.113730.3.1.3</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1008204">
-This attribute was created by Netscape for use with its LDAP implementation.<P></A>
+This attribute was created by Netscape|Red Hat for use with its LDAP implementation.<P></A>
 <A NAME="1009035">
 <A NAME="employeeType">
 <B>employeeType</B>
@@ -1338,7 +1338,7 @@ OID: <code>2.16.840.1.113730.3.1.4</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1087204">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1241288">
 <A NAME="enhancedSearchGuide">
 <B>enhancedSearchGuide</B>
@@ -1410,7 +1410,7 @@ Identifies a byte vector assigned to the server to distinguish it from any other
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004701">ces</a><P></A>
 
 <A NAME="1171661">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104309">
 <A NAME="generationQualifier">
 <B>generationQualifier</B>
@@ -1578,7 +1578,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1212073">
-Identifies the date and time in zulu format when the Netscape server was installed. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097231">netscapeServer</a> object class. Normally this attribute and this attribute value are written to the directory when a Netscape server is initially installed. For example:<P></A>
+Identifies the date and time in zulu format when the server was installed. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097231">netscapeServer</a> object class. Normally this attribute and this attribute value are written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1212075">
 	installationTimeStamp: 199703261517z
 </A>
@@ -1703,7 +1703,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 <A NAME="1202021">
 Specifies a Uniform Resource Identifier (URI) that is relevant in some way to the entry. Values placed in the attribute should consist of a URI (currently only URLs are supported) optionally followed by one or more space characters and a label. For example:<P></A>
 <PRE><A NAME="1202022">
-	labeledURI: http://home.netscape.com [Netscape corporations's <br>	 home page]
+	labeledURI: http://home.example.com 
 </A>
 </PRE>
 <A NAME="1266144">
@@ -1788,7 +1788,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024021">
-Identifies the domain or IP address from which the user can perform a POP/IMAP logon. This attribute is a Netscape extension used by the Messaging Server. For example:<P></A>
+Identifies the domain or IP address from which the user can perform a POP/IMAP logon. This attribute is a Netscape|Red Hat extension used by the Messaging Server. For example:<P></A>
 <PRE><A NAME="1024022">
 	mailAccessDomain: example.com
 </A>
@@ -1806,7 +1806,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024251">
-Identifies an alternative mail address for a mail user. This attribute is a Netscape extension used by the Messaging Server to match a mail address to a user. A mail account can have as many instances of this attribute as the user has alternate mail addresses. For example:<P></A>
+Identifies an alternative mail address for a mail user. This attribute is a Netscape|Red Hat extension used by the Messaging Server to match a mail address to a user. A mail account can have as many instances of this attribute as the user has alternate mail addresses. For example:<P></A>
 <PRE><A NAME="1024061">
 	mailAlternateAddress: Babs_Jensen@example.com<br>	mailAlternateAddress: Bjensen@example.com
 </A>
@@ -1824,7 +1824,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1027423">
-Identifies the mail auto reply mode for the mail user. This attribute is a Netscape extension used by the Messaging Server. Zero or one (0 - 1) instances of this attribute are expected per mail user account. Valid keywords for this attribute are:<P></A>
+Identifies the mail auto reply mode for the mail user. This attribute is a Netscape|Red Hat extension used by the Messaging Server. Zero or one (0 - 1) instances of this attribute are expected per mail user account. Valid keywords for this attribute are:<P></A>
 <ul><A NAME="1027425">
 <LI>vacation -- Send the vacation message. The vacation message is contained on the mailAutoReplyText attribute.<P>
 </A>
@@ -1854,7 +1854,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1027662">
-Provides auto reply text for a mail user. This attribute is a Netscape extension used by Messaging Server. When represented in LDIF format, each line should be separated by a dollar sign ($). The Messaging Server expects 0 or 1 occurrences of this attribute per mail account. For example:<P></A>
+Provides auto reply text for a mail user. This attribute is a Netscape|Red Hat extension used by Messaging Server. When represented in LDIF format, each line should be separated by a dollar sign ($). The Messaging Server expects 0 or 1 occurrences of this attribute per mail account. For example:<P></A>
 <PRE><A NAME="1027663">
 	mailAutoReplyText: On vacation$Back in the office on Monday.
 </A>
@@ -1884,7 +1884,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024296">
-Identifies the mail delivery mechanism to be used for the mail user. This attribute is a Netscape extension used by the Messaging Server. Zero to three (0 - 3) instances of this attribute are expected per mail user account. However, if no instance of this attribute exists on the mail user entry, then at least one <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1026154">mailForwardingAddress</a> attribute must exist on the entry. Valid keywords for this attribute are:<P></A>
+Identifies the mail delivery mechanism to be used for the mail user. This attribute is a Netscape|Red Hat extension used by the Messaging Server. Zero to three (0 - 3) instances of this attribute are expected per mail user account. However, if no instance of this attribute exists on the mail user entry, then at least one <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1026154">mailForwardingAddress</a> attribute must exist on the entry. Valid keywords for this attribute are:<P></A>
 <ul><A NAME="1027169">
 <LI>mailbox -- Indicates that mail is to be delivered to the user's POP/IMAP mailbox.<P>
 </A>
@@ -1914,7 +1914,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1026104">
-Netscape extension used by the Messaging Server. Reserved for future use.<P></A>
+Netscape|Red Hat extension used by the Messaging Server. Reserved for future use.<P></A>
 
 <A NAME="1026153">
 OID: <code>2.16.840.1.113730.3.1.31</code><P></A>
@@ -1929,7 +1929,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024197">
-Identifies a mail address to which mail is forwarded. This attribute is a Netscape extension used by the Messaging Server to forward incoming mail to the correct location. For example:<P></A>
+Identifies a mail address to which mail is forwarded. This attribute is a Netscape|Red Hat extension used by the Messaging Server to forward incoming mail to the correct location. For example:<P></A>
 <PRE><A NAME="1024198">
 	mailForwardingAddress: bjensen@royalairways.com
 </A>
@@ -1947,7 +1947,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024315">
-Identifies the DNS hostname of the host on which the user's mail account resides. This attribute is a Netscape extension used by the Messaging Server to route incoming mail to the correct location. The Messaging Server expects one and only one instance of this attribute per<a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#"> mail</a>Recipient entry, or zero or one instances of this attribute on a <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">mailGroup</a> entry. The value specified on this attribute must be the host's fully qualified domain name. For example:<P></A>
+Identifies the DNS hostname of the host on which the user's mail account resides. This attribute is a Netscape|Red Hat extension used by the Messaging Server to route incoming mail to the correct location. The Messaging Server expects one and only one instance of this attribute per<a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#"> mail</a>Recipient entry, or zero or one instances of this attribute on a <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">mailGroup</a> entry. The value specified on this attribute must be the host's fully qualified domain name. For example:<P></A>
 <PRE><A NAME="1024316">
 	mailHost: mars.example.com
 </A>
@@ -1965,7 +1965,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024378">
-Identifies the absolute path on the user's mail host to the location under which the user's mailbox resides. This attribute is a Netscape extension used by the Messaging Server and this attribute is applicable only if the user's<a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1024295"> mailDeliveryOption</a> is set to mailbox. The Messaging Server expects zero or one (0 or 1) instances of this attribute. If no instances of this attribute exist on the user's entry, then the default configured on the user's Messaging Server is used. For example:<P></A>
+Identifies the absolute path on the user's mail host to the location under which the user's mailbox resides. This attribute is a Netscape|Red Hat extension used by the Messaging Server and this attribute is applicable only if the user's<a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1024295"> mailDeliveryOption</a> is set to mailbox. The Messaging Server expects zero or one (0 or 1) instances of this attribute. If no instances of this attribute exist on the user's entry, then the default configured on the user's Messaging Server is used. For example:<P></A>
 <PRE><A NAME="1024379">
 	mailMessageStore: /disk2/mail
 </A>
@@ -2001,7 +2001,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024401">
-Identifies one or more commands, delimited by $, to be used for programmed mail delivery. This attribute is a Netscape extension used by the Messaging Server. The Messaging Server expect zero or one (0-1) instances of this attribute per user account. This attribute is meaningful only if all of the following conditions are true:<P></A>
+Identifies one or more commands, delimited by $, to be used for programmed mail delivery. This attribute is a Netscape|Red Hat extension used by the Messaging Server. The Messaging Server expect zero or one (0-1) instances of this attribute per user account. This attribute is meaningful only if all of the following conditions are true:<P></A>
 <ul><A NAME="1033350">
 <LI>the Messaging Server is running on Unix<P>
 </A>
@@ -2031,7 +2031,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024510">
-Identifies the maximum disk space in bytes that may be consumed by the user's mailbox. This attribute is a Netscape extension used by the Messaging Server and this attribute is applicable only if the user's <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1024295">mailDeliveryOption</a> is set to mailbox. The Messaging Server expects zero or one (0 or 1) instances of this attribute. If no instances of this attribute exist on the user's entry, then the default configured on the user's Messaging Server is used. For example:<P></A>
+Identifies the maximum disk space in bytes that may be consumed by the user's mailbox. This attribute is a Netscape|Red Hat extension used by the Messaging Server and this attribute is applicable only if the user's <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1024295">mailDeliveryOption</a> is set to mailbox. The Messaging Server expects zero or one (0 or 1) instances of this attribute. If no instances of this attribute exist on the user's entry, then the default configured on the user's Messaging Server is used. For example:<P></A>
 <PRE><A NAME="1024511">
 	mailQuota: 1000000
 </A>
@@ -2181,7 +2181,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1025146">
-Identifies mail users allowed to send messages to the mail group. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. If no instances of this attribute exist on the mailGroup entry, then there are no restrictions on who can send messages to the mail group unless the mgrpAllowedDomain attribute is used. <P></A>
+Identifies mail users allowed to send messages to the mail group. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. If no instances of this attribute exist on the mailGroup entry, then there are no restrictions on who can send messages to the mail group unless the mgrpAllowedDomain attribute is used. <P></A>
 
 <A NAME="1028370">
 The Messaging Server expects this attribute to contain either a distinguished name or an rfc822address. If a distinguished name is used, it must represent a mailable entry or entries of type group or groupOfUniqueNames. The distinguished name must be represented in the form of a LDAP URL as described in RFC1959, <em>An LDAP URL format</em>.<P></A>
@@ -2205,7 +2205,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024570">
-Identifies domains from which users are allowed to send messages to the mail group. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. If no instances of this attribute exist on the mailGroup entry, then there are no restrictions on who can send messages to the mail group unless the mgrpAllowedBroadcaster attribute is used. <P></A>
+Identifies domains from which users are allowed to send messages to the mail group. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. If no instances of this attribute exist on the mailGroup entry, then there are no restrictions on who can send messages to the mail group unless the mgrpAllowedBroadcaster attribute is used. <P></A>
 
 <A NAME="1028614">
 This is by defaulted to a wild card value. That is, a value of "example.com" will match any user sending from "*.example.com"<P></A>
@@ -2229,9 +2229,9 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1278552">
-Alternative method of specifying mail group membership. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. The Messaging Server expects this attribute to contain an LDAP URL using the format described in RFC1959, <em>An LDAP URL format</em>. Any entries returned by the resulting LDAP search are members of the mailing group. For example:<P></A>
+Alternative method of specifying mail group membership. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. The Messaging Server expects this attribute to contain an LDAP URL using the format described in RFC1959, <em>An LDAP URL format</em>. Any entries returned by the resulting LDAP search are members of the mailing group. For example:<P></A>
 <PRE><A NAME="1025433">
-	mgrpDeliverTo: ldap:///<I>ou=Accounting,o=Netscape,c=US??sub?(&amp;<br>	 (objectClass=mailRecipient)(objectClass=inetOrgPerson))</I>
+	mgrpDeliverTo: ldap:///<I>ou=Accounting,o=example,c=US??sub?(&amp;<br>	 (objectClass=mailRecipient)(objectClass=inetOrgPerson))</I>
 </A>
 </PRE>
 <A NAME="1277885">
@@ -2247,7 +2247,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1028828">
-Identifies a mailing address to send error messages to for notification of mail delivery problems, such as bounced mails or members of the mailing group that lack a mailing address. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. If no instances of this attribute exist on the mailGroup entry, then error handling is managed according to the default set in the Messaging Server. <P></A>
+Identifies a mailing address to send error messages to for notification of mail delivery problems, such as bounced mails or members of the mailing group that lack a mailing address. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. If no instances of this attribute exist on the mailGroup entry, then error handling is managed according to the default set in the Messaging Server. <P></A>
 
 <A NAME="1028829">
 The Messaging Server expects this attribute to contain either a distinguished name or a rfc822address. If a distinguished name is used, it must represent a mailable entry or entries of type group or groupOfUniqueNames. The distinguished name must be represented in the form of a LDAP URL as described in RFC1959, <em>An LDAP URL format</em>.<P></A>
@@ -2271,7 +2271,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1025706">
-Identifies a mailing address to send rejected messages to. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. This is the address that rejected mail from a mailing list is sent to. <P></A>
+Identifies a mailing address to send rejected messages to. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. This is the address that rejected mail from a mailing list is sent to. <P></A>
 
 <A NAME="1029841">
 The Messaging Server may reject mail either because it is received from an unauthorized domain (as defined by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1024569">mgrpAllowedDomain</a> attribute) or is received from an mail address that is not a member of the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1025144">mgrpAllowedBroadcaster</a> attribute. The Messaging Server will only forward mail to the address(es) identified by this attribute if the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1025035">mgrpMsgRejectAction</a> attribute includes toModerator<B>. </B>If no instances of this attribute exist on the mailGroup entry, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1025035">mgrpMsgRejectAction</a> attribute is set to toModerator, then rejected mail that is supposed to be sent to the moderator is dumped (that is, it is deleted from the mail system with no further human interaction). <P></A>
@@ -2298,7 +2298,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1025879">
-Identifies the maximum message size in bytes that is allowed to be sent to the mail group. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. The Messaging Server expects one and only one instance of this attribute to exist for every mailGroup entry. For example:<P></A>
+Identifies the maximum message size in bytes that is allowed to be sent to the mail group. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. The Messaging Server expects one and only one instance of this attribute to exist for every mailGroup entry. For example:<P></A>
 <PRE><A NAME="1025290">
 	mgrpMsgMaxSize: 2000
 </A>
@@ -2316,7 +2316,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024634">
-Identifies the action to be taken when a mail sent to a mail group is rejected. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists.<P></A>
+Identifies the action to be taken when a mail sent to a mail group is rejected. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists.<P></A>
 
 <A NAME="1029427">
 The Messaging Server may reject mail either because it is received from an unauthorized domain (as defined by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1024569">mgrpAllowedDomain</a> attribute), is received from an mail address that is not a member of the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1025144">mgrpAllowedBroadcaster</a> attribute, or is larger than the size permitted on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1025878">mgrpMsgMaxSize</a>.<P></A>
@@ -2352,7 +2352,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1025983">
-Identifies the text to be sent by the Messaging Server when mail sent to a mail group is rejected and the mgrpMsgRejectAction attribute is set to either bounce or reply. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists. <P></A>
+Identifies the text to be sent by the Messaging Server when mail sent to a mail group is rejected and the mgrpMsgRejectAction attribute is set to either bounce or reply. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists. <P></A>
 
 <A NAME="1030064">
 The Messaging Server expects from zero to one (0-1) instances of this attribute to exist per mailGroup entry. Multiline text may be delimited using $ when represented in LDIF format. If no instances of this attribute exist on the mailGroup entry, then the default text set in the Messaging Server is used for rejected mail.<P></A>
@@ -2391,7 +2391,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1024672">
-Identifies recipients of mail sent to a <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">mailGroup</a> that are not actually members of the mail group. Conceptually, these mail addresses can be thought of as "CC recipients". That is, this attribute is used to represent mail recipients that cannot be expressed as distinguished names, or who are to be sent mail from this group but who do not have the full privileges of a unique group member. This attribute is a Netscape extension used by the Messaging Server to manage mailing lists.<P></A>
+Identifies recipients of mail sent to a <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">mailGroup</a> that are not actually members of the mail group. Conceptually, these mail addresses can be thought of as "CC recipients". That is, this attribute is used to represent mail recipients that cannot be expressed as distinguished names, or who are to be sent mail from this group but who do not have the full privileges of a unique group member. This attribute is a Netscape|Red Hat extension used by the Messaging Server to manage mailing lists.<P></A>
 
 <A NAME="1030207">
 The Messaging Server expects this attribute to contain rfc822 mail addresses using the following form:<P></A>
@@ -2493,7 +2493,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1229562">
-Provides descriptive text for a mail user. This attribute is a Netscape extension used by Messaging Server. When represented in LDIF format, each line should be separated by a dollar sign ($). The Messaging Server expects 0 or 1 occurrences of this attribute per mail account. For example:<P></A>
+Provides descriptive text for a mail user. This attribute is a Netscape|Red Hat extension used by Messaging Server. When represented in LDIF format, each line should be separated by a dollar sign ($). The Messaging Server expects 0 or 1 occurrences of this attribute per mail account. For example:<P></A>
 <PRE><A NAME="1229563">
 	multiLineDescription: Account Administrator and$directory manager.
 </A>
@@ -2535,7 +2535,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1278694">
-This attribute is reserved for use by the Netscape Directory Server and is not included in the <code>slapd.at.conf</code> file. The attribute contains a replica CN and a description of the current state of a directory replication process. The states include the following:<P></A>
+This attribute is reserved for use by the Directory Server.  The attribute contains a replica CN and a description of the current state of a directory replication process. The states include the following:<P></A>
 <ul><A NAME="1278883">
 <LI><B>Idle.</B> The synchronization system is not performing work at this time.<P>
 </A>
@@ -2604,7 +2604,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1095333">
-Identifies a part of a the news group name. This attribute is a Netscape extension to the standard LDAP schema. It is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nginfo</a> entries to uniquely identify news groups. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
+Identifies a part of a the news group name. This attribute is a Netscape|Red Hat extension to the standard LDAP schema. It is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nginfo</a> entries to uniquely identify news groups. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
 
 <A NAME="1037897">
 For example, the ngcomponent attributes put in place for the comp.sys.mac newsgroup would be:<P></A>
@@ -2625,7 +2625,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1037146">
-Identifies the access for individual news group roles (for example, manager, poster, reader, etc). This attribute is a Netscape extension to the standard LDAP schema. It is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078583">nginfo</a> entries to identify access control for individual news groups. This attribute is used only on the branch point of the ngcomponent subtree. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
+Identifies the access for individual news group roles (for example, manager, poster, reader, etc). This attribute is a Netscape|Red Hat extension to the standard LDAP schema. It is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078583">nginfo</a> entries to identify access control for individual news groups. This attribute is used only on the branch point of the ngcomponent subtree. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
 
 <A NAME="1036980">
 For example:<P></A>
@@ -2661,7 +2661,7 @@ OID: <code>2.16.840.1.113730.3.1.112</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1177696">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1166044">
 <A NAME="nsCalAccessDomain">
 <B>nsCalAccessDomain</B>
@@ -2685,7 +2685,7 @@ OID: <code>2.16.840.1.113730.3.1.113</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1177866">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1104994">
 <A NAME="nsCalAdmd">
 <B>nsCalAdmd</B>
@@ -2694,7 +2694,7 @@ This attribute is a Netscape extension to the standard LDAP schema used by the C
 
 
 <A NAME="1161412">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains an X.400 Administration Management Domain Name. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains an X.400 Administration Management Domain Name. For example:<P></A>
 <PRE><A NAME="1120980">
 	nsCalAdmd: telemail
 </A>
@@ -2724,7 +2724,7 @@ OID: <code>2.16.840.1.113730.3.1.115</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1174630">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1162428">
 <A NAME="nsCalDefaultReminder">
 <B>nsCalDefaultReminder</B>
@@ -2745,7 +2745,7 @@ OID: <code>2.16.840.1.113730.3.1.116</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1175363">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1105139">
 <A NAME="nsCalDefaultTaskReminder">
 <B>nsCalDefaultTaskReminder</B>
@@ -2766,7 +2766,7 @@ OID: <code>2.16.840.1.113730.3.1.117</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1175448">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1105164">
 <A NAME="nsCalDisplayPrefs">
 <B>nsCalDisplayPrefs</B>
@@ -2787,7 +2787,7 @@ OID: <code>2.16.840.1.113730.3.1.118</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1174421">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1164493">
 <A NAME="nsCalFlags">
 <B>nsCalFlags</B>
@@ -2796,7 +2796,7 @@ This attribute is a Netscape extension to the standard LDAP schema used by the C
 
 
 <A NAME="1164494">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. Reserved for future use.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. Reserved for future use.<P></A>
 
 <A NAME="1270698">
 OID: <code>2.16.840.1.113730.3.1.119</code><P></A>
@@ -2811,7 +2811,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1157807">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the hostname or IP address of the computer hosting the Calendar server. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the hostname or IP address of the computer hosting the Calendar server. For example:<P></A>
 <PRE><A NAME="1122178">
 	nsCalHost: calserver.example.com
 </A>
@@ -2829,7 +2829,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1162674">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute defines the language in which a user, administrator, or resource prefers to receive email notification. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute defines the language in which a user, administrator, or resource prefers to receive email notification. For example:<P></A>
 <PRE><A NAME="1122193">
 	nsCalLanguageId: english
 </A>
@@ -2847,7 +2847,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1157847">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the mnemonic name of the node on which a calendar user's information is stored. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the mnemonic name of the node on which a calendar user's information is stored. For example:<P></A>
 <PRE><A NAME="1171879">
 	nsCalNodeAlias: node10000
 </A>
@@ -2877,7 +2877,7 @@ OID: <code>2.16.840.1.113730.3.1.123</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1175516">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1105631">
 <A NAME="nsCalOperatingPrefs">
 <B>nsCalOperatingPrefs</B>
@@ -2886,7 +2886,7 @@ This attribute is a Netscape extension to the standard LDAP schema used by the C
 
 
 <A NAME="1161868">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute defines the operating preferences for a user or resource. Reserved for future use.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute defines the operating preferences for a user or resource. Reserved for future use.<P></A>
 
 <A NAME="1270865">
 OID: <code>2.16.840.1.113730.3.1.124</code><P></A>
@@ -2901,7 +2901,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1161561">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Organization Unit 2 (OU2) for a user or administrator. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Organization Unit 2 (OU2) for a user or administrator. For example:<P></A>
 <PRE><A NAME="1122284">
 	nsCalOrgUnit2: marketing
 </A>
@@ -2919,7 +2919,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1161594">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Organization Unit 3 (OU3) for a user or administrator. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Organization Unit 3 (OU3) for a user or administrator. For example:<P></A>
 <PRE><A NAME="1122291">
 	nsCalOrgUnit3: sales
 </A>
@@ -2937,7 +2937,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1164929">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Organization Unit 4 (OU4) for a user or administrator. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Organization Unit 4 (OU4) for a user or administrator. For example:<P></A>
 <PRE><A NAME="1164930">
 	nsCalOrgUnit4: engineering
 </A>
@@ -2967,7 +2967,7 @@ OID: <code>2.16.840.1.113730.3.1.128</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1175590">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1105891">
 <A NAME="nsCalPrmd">
 <B>nsCalPrmd</B>
@@ -2976,7 +2976,7 @@ This attribute is a Netscape extension to the standard LDAP schema used by the C
 
 
 <A NAME="1271009">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Private Management Domain Name for a user or administrator. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the X.400 Private Management Domain Name for a user or administrator. For example:<P></A>
 <PRE><A NAME="1271010">
 	nsCalPrmd: example
 </A>
@@ -3006,7 +3006,7 @@ OID: <code>2.16.840.1.113730.3.1.130</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1173593">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server.<P></A>
 <A NAME="1105996">
 <A NAME="nsCalResourceCapacity">
 <B>nsCalResourceCapacity</B>
@@ -3015,7 +3015,7 @@ This attribute is a Netscape extension to the standard LDAP schema used by the C
 
 
 <A NAME="1163461">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute defines the capacity of a resource, for example, a conference room. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute defines the capacity of a resource, for example, a conference room. For example:<P></A>
 <PRE><A NAME="1122484">
 	nsCalResourceCapacity: 65
 </A>
@@ -3033,7 +3033,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1209244">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the resource's identification number. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the resource's identification number. For example:<P></A>
 <PRE><A NAME="1165759">
 	nsCalResourceNumber: 6725
 </A>
@@ -3051,7 +3051,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1160060">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the version number of the Calendar server hosting the calendar user's data. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the version number of the Calendar server hosting the calendar user's data. For example:<P></A>
 <PRE><A NAME="1122498">
 	nsCalServerVersion: 1.0
 </A>
@@ -3069,7 +3069,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1162650">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute specifies whether the Calendar server administrator can overwrite user, resource, and other administrator passwords. Acceptable values for this attribute are <code>1</code> and <code>0</code> where <code>1</code> means the administrator can overwrite passwords, and <code>0</code> means that the administrator cannot overwrite passwords. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute specifies whether the Calendar server administrator can overwrite user, resource, and other administrator passwords. Acceptable values for this attribute are <code>1</code> and <code>0</code> where <code>1</code> means the administrator can overwrite passwords, and <code>0</code> means that the administrator cannot overwrite passwords. For example:<P></A>
 <PRE><A NAME="1171915">
 	nsCalSysopCanWritePassword: 1
 </A>
@@ -3087,7 +3087,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1162695">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains the current timezone in which the entry is located. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains the current timezone in which the entry is located. For example:<P></A>
 <PRE><A NAME="1122560">
 	nsCalTimezone: PST
 </A>
@@ -3105,7 +3105,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1159973">
-This attribute is a Netscape extension to the standard LDAP schema used by the Calendar server. The attribute contains a unique identifier for an nsCalendarObject represented in the directory. This identification is composed of the identification number of the node on which the calendar user, administrator, or resource's data is stored, and the identification number of the calendar user, administrator, or resource. The format should be <code>NodeId,ItemId</code>. For example:<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema used by the Calendar server. The attribute contains a unique identifier for an nsCalendarObject represented in the directory. This identification is composed of the identification number of the node on which the calendar user, administrator, or resource's data is stored, and the identification number of the calendar user, administrator, or resource. The format should be <code>NodeId,ItemId</code>. For example:<P></A>
 <PRE><A NAME="1159974">
 	nsCalXItemId: 123,6547
 </A>
@@ -3123,7 +3123,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1037694">
-Identifies the creator of a news group. This attribute is a Netscape extension to the standard LDAP schema that is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078583">nginfo</a> entries to identify a news group creator's uid. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
+Identifies the creator of a news group. This attribute is a Netscape|Red Hat extension to the standard LDAP schema that is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078583">nginfo</a> entries to identify a news group creator's uid. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
 
 <A NAME="1037696">
 For example:<P></A>
@@ -3159,7 +3159,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1091848">
-Identifies the Netscape server that the user is licensed to use. The Netscape Administration Server expects each <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nsLicenseUser</a> entry to contain zero or more instances of this attribute. Valid keywords for this attribute are currently:<P></A>
+Identifies the server that the user is licensed to use. The Administration Server expects each <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nsLicenseUser</a> entry to contain zero or more instances of this attribute. Valid keywords for this attribute are currently:<P></A>
 <ul><A NAME="1091850">
 <LI>mail -- the user is a licensed client of the Messaging Server.<P>
 </A>
@@ -3222,7 +3222,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1092031">
-Identifies the access control set for individual news groups. This attribute is a Netscape extension to the standard LDAP schema. It is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nginfo</a> entries to identify access control for individual news groups. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
+Identifies the access control set for individual news groups. This attribute is a Netscape|Red Hat extension to the standard LDAP schema. It is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nginfo</a> entries to identify access control for individual news groups. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
 
 <A NAME="1092033">
 For example:<P></A>
@@ -3243,7 +3243,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1037278">
-Identifies the pretty name or display name for the news group. This attribute is a Netscape extension to the standard LDAP schema that is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nginfo</a> entries to identify individual news groups. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
+Identifies the pretty name or display name for the news group. This attribute is a Netscape|Red Hat extension to the standard LDAP schema that is used by the Collabra server on <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">nginfo</a> entries to identify individual news groups. The format and nature of the information placed on this attribute by the Collabra server is subject to change without notice.<P></A>
 
 <A NAME="1037280">
 For example:<P></A>
@@ -4013,7 +4013,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 <A NAME="1005732">
 Identifies the distinguished name (DN) of the person responsible for the entry. For example:<P></A>
 <PRE><A NAME="1005743">
-	owner: <I>cn=John Smith, o=Netscape Communications Corp., c=US</I>
+	owner: <I>cn=John Smith, o=Example, Inc., c=US</I>
 </A>
 </PRE>
 <A NAME="1267977">
@@ -4104,7 +4104,7 @@ OID: <code>2.16.840.1.113730.3.1.98</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1246156">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1103904">
 <A NAME="passwordExpirationTime">
 <B>passwordExpirationTime</B>
@@ -4125,7 +4125,7 @@ OID: <code>2.16.840.1.113730.3.1.91</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis </a><a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1251525">operational</a><P></A>
 
 <A NAME="1166110">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1293088">
 <A NAME="passwordExpWarned">
 <B>passwordExpWarned</B>
@@ -4164,7 +4164,7 @@ OID: <code>2.16.840.1.113730.3.1.96</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004700">bin </a><a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1251525">operational</a><P></A>
 
 <A NAME="1166119">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104470">
 <A NAME="passwordInHistory">
 <B>passwordInHistory</B>
@@ -4185,7 +4185,7 @@ OID: <code>2.16.840.1.113730.3.1.101</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166153">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1156663">
 <A NAME="passwordKeepHistory">
 <B>passwordKeepHistory</B>
@@ -4206,7 +4206,7 @@ OID: <code>2.16.840.1.113730.3.1.100</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166196">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1156671">
 <A NAME="passwordLockout">
 <B>passwordLockout</B>
@@ -4227,7 +4227,7 @@ OID: <code>2.16.840.1.113730.3.1.105</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166205">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104188">
 <A NAME="passwordLockoutDuration">
 <B>passwordLockoutDuration</B>
@@ -4248,7 +4248,7 @@ OID: <code>2.16.840.1.113730.3.1.109</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166333">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1166286">
 <A NAME="passwordMaxAge">
 <B>passwordMaxAge</B>
@@ -4269,7 +4269,7 @@ OID: <code>2.16.840.1.113730.3.1.97</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166368">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104715">
 <A NAME="passwordMaxFailure">
 <B>passwordMaxFailure</B>
@@ -4290,7 +4290,7 @@ OID: <code>2.16.840.1.113730.3.1.106</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166400">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104413">
 <A NAME="passwordMinLength">
 <B>passwordMinLength</B>
@@ -4311,7 +4311,7 @@ OID: <code>2.16.840.1.113730.3.1.99</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166409">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104754">
 <A NAME="passwordResetDuration">
 <B>passwordResetDuration</B>
@@ -4332,7 +4332,7 @@ OID: <code>2.16.840.1.113730.3.1.107</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166437">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1103999">
 <A NAME="passwordRetryCount">
 <B>passwordRetryCount</B>
@@ -4353,7 +4353,7 @@ OID: <code>2.16.840.1.113730.3.1.93</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis </a><a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1251525">operational</a><P></A>
 
 <A NAME="1166462">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1156969">
 <A NAME="passwordUnlock">
 <B>passwordUnlock</B>
@@ -4374,7 +4374,7 @@ OID: <code>2.16.840.1.113730.3.1.108</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166485">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1104598">
 <A NAME="passwordWarning">
 <B>passwordWarning</B>
@@ -4395,7 +4395,7 @@ OID: <code>2.16.840.1.113730.3.1.104</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1166523">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1202229">
 <A NAME="personalSignature">
 <B>personalSignature</B>
@@ -4485,7 +4485,7 @@ OID: <code>2.16.840.1.113730.3.1.138</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236180">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1111357">
 <A NAME="pipformat">
 <B>pipformat</B>
@@ -4503,7 +4503,7 @@ OID: <code>2.16.840.1.113730.3.1.144</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1246338">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1246341">
 <A NAME="pipfrequency">
 <B>pipfrequency</B>
@@ -4521,7 +4521,7 @@ OID: <code>2.16.840.1.113730.3.1.142</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236223">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1113190">
 <A NAME="pipgroup">
 <B>pipgroup</B>
@@ -4539,7 +4539,7 @@ OID: <code>2.16.840.1.113730.3.1.158</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236260">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1111369">
 <A NAME="piphour">
 <B>piphour</B>
@@ -4557,7 +4557,7 @@ OID: <code>2.16.840.1.113730.3.1.145</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236306">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1237689">
 <A NAME="pipidstcount">
 <B>pipidstcount</B>
@@ -4575,7 +4575,7 @@ OID: <code>2.16.840.1.113730.3.1.159</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236324">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1113479">
 <A NAME="pipirlist">
 <B>pipirlist</B>
@@ -4593,7 +4593,7 @@ OID: <code>2.16.840.1.113730.3.1.150</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237824">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1237828">
 <A NAME="pipiroption">
 <B>pipiroption</B>
@@ -4611,7 +4611,7 @@ OID: <code>2.16.840.1.113730.3.1.151</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236383">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1112574">
 <A NAME="piplastcount">
 <B>piplastcount</B>
@@ -4629,7 +4629,7 @@ OID: <code>2.16.840.1.113730.3.1.153</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1246647">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1246650">
 <A NAME="pipmaxhits">
 <B>pipmaxhits</B>
@@ -4647,7 +4647,7 @@ OID: <code>2.16.840.1.113730.3.1.146</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236422">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1111582">
 <A NAME="pipmedium">
 <B>pipmedium</B>
@@ -4665,7 +4665,7 @@ OID: <code>2.16.840.1.113730.3.1.143</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236583">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1236460">
 <A NAME="pipnotify">
 <B>pipnotify</B>
@@ -4683,7 +4683,7 @@ OID: <code>2.16.840.1.113730.3.1.156</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236602">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1236511">
 <A NAME="pipprivilege">
 <B>pipprivilege</B>
@@ -4701,7 +4701,7 @@ OID: <code>2.16.840.1.113730.3.1.157</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236630">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1112443">
 <A NAME="pippwp">
 <B>pippwp</B>
@@ -4719,7 +4719,7 @@ OID: <code>2.16.840.1.113730.3.1.152</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236643">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118693">
 <A NAME="pipreservedces1">
 <B>pipreservedces1</B>
@@ -4728,7 +4728,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1120046">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271719">
 OID: <code>2.16.840.1.113730.3.1.188</code><P></A>
@@ -4737,7 +4737,7 @@ OID: <code>2.16.840.1.113730.3.1.188</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004701">ces</a><P></A>
 
 <A NAME="1236680">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118699">
 <A NAME="pipreservedces2">
 <B>pipreservedces2</B>
@@ -4746,7 +4746,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238136">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271725">
 OID: <code>2.16.840.1.113730.3.1.189</code><P></A>
@@ -4755,7 +4755,7 @@ OID: <code>2.16.840.1.113730.3.1.189</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004701">ces</a><P></A>
 
 <A NAME="1236693">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118705">
 <A NAME="pipreservedces3">
 <B>pipreservedces3</B>
@@ -4764,7 +4764,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238138">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271783">
 OID: <code>2.16.840.1.113730.3.1.190</code><P></A>
@@ -4773,7 +4773,7 @@ OID: <code>2.16.840.1.113730.3.1.190</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004701">ces</a><P></A>
 
 <A NAME="1236718">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118350">
 <A NAME="pipreservedcis1">
 <B>pipreservedcis1</B>
@@ -4782,7 +4782,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238140">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271796">
 OID: <code>2.16.840.1.113730.3.1.182</code><P></A>
@@ -4791,7 +4791,7 @@ OID: <code>2.16.840.1.113730.3.1.182</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236762">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118356">
 <A NAME="pipreservedcis2">
 <B>pipreservedcis2</B>
@@ -4800,7 +4800,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238144">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271840">
 OID: <code>2.16.840.1.113730.3.1.183</code><P></A>
@@ -4809,7 +4809,7 @@ OID: <code>2.16.840.1.113730.3.1.183</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236799">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118362">
 <A NAME="pipreservedcis3">
 <B>pipreservedcis3</B>
@@ -4818,7 +4818,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238146">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271850">
 OID: <code>2.16.840.1.113730.3.1.184</code><P></A>
@@ -4827,7 +4827,7 @@ OID: <code>2.16.840.1.113730.3.1.184</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236816">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118368">
 <A NAME="pipreservedcis4">
 <B>pipreservedcis4</B>
@@ -4836,7 +4836,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238148">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271856">
 OID: <code>2.16.840.1.113730.3.1.185</code><P></A>
@@ -4845,7 +4845,7 @@ OID: <code>2.16.840.1.113730.3.1.185</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236851">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118374">
 <A NAME="pipreservedcis5">
 <B>pipreservedcis5</B>
@@ -4854,7 +4854,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238150">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271872">
 OID: <code>2.16.840.1.113730.3.1.186</code><P></A>
@@ -4863,7 +4863,7 @@ OID: <code>2.16.840.1.113730.3.1.186</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236870">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1118380">
 <A NAME="pipreservedcis6">
 <B>pipreservedcis6</B>
@@ -4872,7 +4872,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 
 
 <A NAME="1238152">
-Attribute reserved for future use for the Netscape Compass Server.<P></A>
+Attribute reserved for future use for the Red Hat Server.<P></A>
 
 <A NAME="1271882">
 OID: <code>2.16.840.1.113730.3.1.187</code><P></A>
@@ -4881,7 +4881,7 @@ OID: <code>2.16.840.1.113730.3.1.187</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236893">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1111729">
 <A NAME="pipresultset">
 <B>pipresultset</B>
@@ -4899,7 +4899,7 @@ OID: <code>2.16.840.1.113730.3.1.147</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236920">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1111947">
 <A NAME="pipsortorder">
 <B>pipsortorder</B>
@@ -4917,7 +4917,7 @@ OID: <code>2.16.840.1.113730.3.1.148</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236950">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1114647">
 <A NAME="pipstatus">
 <B>pipstatus</B>
@@ -4935,7 +4935,7 @@ OID: <code>2.16.840.1.113730.3.1.140</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1236989">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1116402">
 <A NAME="pipstcategory">
 <B>pipstcategory</B>
@@ -4953,7 +4953,7 @@ OID: <code>2.16.840.1.113730.3.1.171</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237014">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1116837">
 <A NAME="pipstformat">
 <B>pipstformat</B>
@@ -4971,7 +4971,7 @@ OID: <code>2.16.840.1.113730.3.1.174</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237031">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1116521">
 <A NAME="pipstfrequency">
 <B>pipstfrequency</B>
@@ -4989,7 +4989,7 @@ OID: <code>2.16.840.1.113730.3.1.172</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237041">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1116707">
 <A NAME="pipsthour">
 <B>pipsthour</B>
@@ -5007,7 +5007,7 @@ OID: <code>2.16.840.1.113730.3.1.175</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237070">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115462">
 <A NAME="pipstid">
 <B>pipstid</B>
@@ -5025,7 +5025,7 @@ OID: <code>2.16.840.1.113730.3.1.160</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237108">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115769">
 <A NAME="pipstinterest">
 <B>pipstinterest</B>
@@ -5043,7 +5043,7 @@ OID: <code>2.16.840.1.113730.3.1.164</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237118">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117562">
 <A NAME="pipstirlist">
 <B>pipstirlist</B>
@@ -5061,7 +5061,7 @@ OID: <code>2.16.840.1.113730.3.1.180</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237149">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117790">
 <A NAME="pipstiroption">
 <B>pipstiroption</B>
@@ -5079,7 +5079,7 @@ OID: <code>2.16.840.1.113730.3.1.181</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237182">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1237172">
 <A NAME="pipstlastcount">
 <B>pipstlastcount</B>
@@ -5097,7 +5097,7 @@ OID: <code>2.16.840.1.113730.3.1.168</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237189">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117134">
 <A NAME="pipstmaxhits">
 <B>pipstmaxhits</B>
@@ -5115,7 +5115,7 @@ OID: <code>2.16.840.1.113730.3.1.176</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237205">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117140">
 <A NAME="pipstmedium">
 <B>pipstmedium</B>
@@ -5133,7 +5133,7 @@ OID: <code>2.16.840.1.113730.3.1.173</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237235">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115468">
 <A NAME="pipstname">
 <B>pipstname</B>
@@ -5151,7 +5151,7 @@ OID: <code>2.16.840.1.113730.3.1.161</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237246">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115898">
 <A NAME="pipstprivacy">
 <B>pipstprivacy</B>
@@ -5169,7 +5169,7 @@ OID: <code>2.16.840.1.113730.3.1.166</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237266">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115474">
 <A NAME="pipstquery">
 <B>pipstquery</B>
@@ -5187,7 +5187,7 @@ OID: <code>2.16.840.1.113730.3.1.162</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237271">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117321">
 <A NAME="pipstresultset">
 <B>pipstresultset</B>
@@ -5205,7 +5205,7 @@ OID: <code>2.16.840.1.113730.3.1.177</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237300">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117327">
 <A NAME="pipstsortorder">
 <B>pipstsortorder</B>
@@ -5223,7 +5223,7 @@ OID: <code>2.16.840.1.113730.3.1.178</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237305">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1116027">
 <A NAME="pipststatus">
 <B>pipststatus</B>
@@ -5241,7 +5241,7 @@ OID: <code>2.16.840.1.113730.3.1.167</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237322">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115480">
 <A NAME="pipsttaxonomy">
 <B>pipsttaxonomy</B>
@@ -5259,7 +5259,7 @@ OID: <code>2.16.840.1.113730.3.1.163</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237358">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117445">
 <A NAME="pipsttimestamp">
 <B>pipsttimestamp</B>
@@ -5277,7 +5277,7 @@ OID: <code>2.16.840.1.113730.3.1.179</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237387">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115516">
 <A NAME="pipsttotalcount">
 <B>pipsttotalcount</B>
@@ -5295,7 +5295,7 @@ OID: <code>2.16.840.1.113730.3.1.169</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237396">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1115522">
 <A NAME="pipsttotalrun">
 <B>pipsttotalrun</B>
@@ -5313,7 +5313,7 @@ OID: <code>2.16.840.1.113730.3.1.170</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237423">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1116285">
 <A NAME="pipsttype">
 <B>pipsttype</B>
@@ -5331,7 +5331,7 @@ OID: <code>2.16.840.1.113730.3.1.165</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237434">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1117682">
 <A NAME="piptimestamp">
 <B>piptimestamp</B>
@@ -5349,7 +5349,7 @@ OID: <code>2.16.840.1.113730.3.1.149</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237497">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1237470">
 <A NAME="piptotalcount">
 <B>piptotalcount</B>
@@ -5367,7 +5367,7 @@ OID: <code>2.16.840.1.113730.3.1.154</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237516">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1112780">
 <A NAME="piptotalrun">
 <B>piptotalrun</B>
@@ -5385,7 +5385,7 @@ OID: <code>2.16.840.1.113730.3.1.155</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237538">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1110777">
 <A NAME="pipuid">
 <B>pipuid</B>
@@ -5403,7 +5403,7 @@ OID: <code>2.16.840.1.113730.3.1.137</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237569">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1107663">
 <A NAME="pipuniqueid">
 <B>pipuniqueid</B>
@@ -5421,7 +5421,7 @@ OID: <code>2.16.840.1.113730.3.1.139</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237586">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1108439">
 <A NAME="pipusertype">
 <B>pipusertype</B>
@@ -5439,7 +5439,7 @@ OID: <code>2.16.840.1.113730.3.1.141</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1237595">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1230025">
 <A NAME="postalAddress">
 <B>postalAddress</B>
@@ -5645,7 +5645,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 <A NAME="1006513">
 Identifies the DN that the server uses when communicating with a replica server. This DN can be assigned privileges. For example:<P></A>
 <PRE><A NAME="1006521">
-	replicaBinddn: <I>cn=replicator o=Netscape Communications Corp., <br></I>	<I>c=US</I>
+	replicaBinddn: <I>cn=replicator o=Example, Inc., c=US</I>
 </A>
 </PRE>
 <A NAME="1258581">
@@ -5655,7 +5655,7 @@ OID: <code>2.16.840.1.113730.3.1.58</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1100403">dn</a><P></A>
 
 <A NAME="1009992">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1006636">
 <A NAME="replicaBindMethod">
 <B>replicaBindMethod</B>
@@ -5676,7 +5676,7 @@ OID: <code>2.16.840.1.113730.3.1.53</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1009994">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1230073">
 <A NAME="replicaCredentials">
 <B>replicaCredentials</B>
@@ -5697,7 +5697,7 @@ OID: <code>2.16.840.1.113730.3.1.202</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004700">bin</a><P></A>
 
 <A NAME="1296704">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1148497">
 <A NAME="replicaEntryFilter">
 <B>replicaEntryFilter</B>
@@ -5723,7 +5723,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 <A NAME="1148446">
 Identifies the host name of the consumer server. For example:<P></A>
 <PRE><A NAME="1148447">
-	replicaHost: slave.netscape.com
+	replicaHost: slave.example.com
 </A>
 </PRE>
 <A NAME="1258218">
@@ -5751,7 +5751,7 @@ OID: <code>2.16.840.1.113730.3.1.204</code><P></A>
 Syntax:<a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702"> cis</a><P></A>
 
 <A NAME="1010001">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1007660">
 <A NAME="replicaPort">
 <B>replicaPort</B>
@@ -5772,7 +5772,7 @@ OID: <code>2.16.840.1.113730.3.1.48</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1010007">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1006384">
 <A NAME="replicaRoot">
 <B>replicaRoot</B>
@@ -5783,7 +5783,7 @@ This attribute is a Netscape extension to the standard LDAP schema.<P></A>
 <A NAME="1006394">
 Identifies the DN for the subtree that is being replicated to the consumer machine. For example:<P></A>
 <PRE><A NAME="1006401">
-	replicaRoot: <I>o=Netscape Communications Corp., c=US</I>
+	replicaRoot: <I>o=Example, Inc., c=US</I>
 </A>
 </PRE>
 <A NAME="1258564">
@@ -5793,7 +5793,7 @@ OID: <code>2.16.840.1.113730.3.1.57</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1100403">dn</a><P></A>
 
 <A NAME="1010013">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1281126">
 <A NAME="replicatedAttributeList">
 <B>replicatedAttributeList</B>
@@ -5829,7 +5829,7 @@ OID: <code>2.16.840.1.113730.3.1.49</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1010019">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1012768">
 <A NAME="replicaUpdateReplayed">
 <B>replicaUpdateReplayed</B>
@@ -5847,7 +5847,7 @@ OID: <code>2.16.840.1.113730.3.1.51</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1012758">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1006817">
 <A NAME="replicaUpdateSchedule">
 <B>replicaUpdateSchedule</B>
@@ -5886,7 +5886,7 @@ OID: <code>2.16.840.1.113730.3.1.52</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1010052">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1006741">
 <A NAME="replicaUseSSL">
 <B>replicaUseSSL</B>
@@ -5907,7 +5907,7 @@ OID: <code>2.16.840.1.113730.3.1.54</code><P></A>
 Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1004702">cis</a><P></A>
 
 <A NAME="1010064">
-This attribute is a Netscape extension to the standard LDAP schema.<P></A>
+This attribute is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 <A NAME="1152805">
 <A NAME="retryCountResetTime">
 <B>retryCountResetTime</B>
@@ -6039,7 +6039,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1093066">
-Identifies the name of the host on which the Netscape server is installed. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a Netscape server is initially installed. For example:<P></A>
+Identifies the name of the host on which the server is installed. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1032467">
 	serverHostname: twain.example.com
 </A>
@@ -6057,9 +6057,9 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1032414">
-Identifies the type of the installed Netscape server. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a Netscape server is initially installed. For example:<P></A>
+Identifies the type of the installed server. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1032416">
-	serverProductName: Netscape Enterprise Server
+	serverProductName: Fedora Directory Server
 </A>
 </PRE>
 <A NAME="1259171">
@@ -6075,7 +6075,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1032296">
-Identifies the fully qualified path to the installation directory for a Netscape server. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a Netscape server is initially installed. For example:<P></A>
+Identifies the fully qualified path to the installation directory for a server. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#">netscapeServer</a> object class. Normally this attribute and this attribute value is written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1032297">
 	serverRoot: /usr/ns-home
 </A>
@@ -6093,7 +6093,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1032441">
-Identifies the version number of the installed Netscape server. This attribute is a Netscape extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097231">netscapeServer</a> object class. Normally this attribute and this attribute value are written to the directory when a Netscape server is initially installed. For example:<P></A>
+Identifies the version number of the installed server. This attribute is a Netscape|Red Hat extension used by the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097231">netscapeServer</a> object class. Normally this attribute and this attribute value are written to the directory when a server is initially installed. For example:<P></A>
 <PRE><A NAME="1032443">
 	serverVersionNumber: 3.0
 </A>
@@ -6663,7 +6663,7 @@ Syntax: <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.
 
 
 <A NAME="1103596">
-Used by Netscape Communicator for S/MIME. For example:<P></A>
+Used by Browser for S/MIME. For example:<P></A>
 <PRE><A NAME="1252279">
 	userSMIMECertificate;binary: AAAAAA==
 </A>

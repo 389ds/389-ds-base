@@ -18,7 +18,7 @@ BEGIN_STR(base)
 	ResDef( DBT_unableToAllocateHashEntry_, 4, "unable to allocate hash entry" )/*extracted from cache.cpp*/
 	ResDef( DBT_cacheInsertUnableToCreateCacheEn_, 5, "cache_insert: unable to create cache entry" )/*extracted from cache.cpp*/
 	ResDef( DBT_http10200OkNcontentTypeTextHtmlN_, 6, "HTTP/1.0 200 OK\nContent-type: text/html\n\n" )/*extracted from cache.cpp*/
-	ResDef( DBT_H2NetscapeCacheStatusReportH2N_, 7, "<H2>Netscape cache status report</H2>\n" )/*extracted from cache.cpp*/
+	ResDef( DBT_H2NetscapeCacheStatusReportH2N_, 7, "<H2>Cache status report</H2>\n" )/*extracted from cache.cpp*/
 	ResDef( DBT_noCachesOnSystemP_, 8, "No caches on system<P>" )/*extracted from cache.cpp*/
 	ResDef( DBT_H2SCacheH2N_, 9, "<H2>%s cache</H2>\n" )/*extracted from cache.cpp*/
 	ResDef( DBT_cacheHitRatioDDFPNPN_, 10, "Cache hit ratio: %d/%d (%f)</P>\n</P>\n" )/*extracted from cache.cpp*/
@@ -52,7 +52,7 @@ BEGIN_STR(base)
 	ResDef( DBT_errorGettingProcessorInfoForProc_, 39, "error getting processor info for processor %d" )/*extracted from daemon.cpp*/
 	ResDef( DBT_errorBindingToProcessorD_, 40, "Error binding to processor %d" )/*extracted from daemon.cpp*/
 	ResDef( DBT_boundProcessDToProcessorD_, 41, "bound process %d to processor %d" )/*extracted from daemon.cpp*/
-	ResDef( DBT_netscapeServerIsNotExplicitlyBin_, 42, "Netscape server is not explicitly binding to any processors." )/*extracted from daemon.cpp*/
+	ResDef( DBT_netscapeServerIsNotExplicitlyBin_, 42, "Server is not explicitly binding to any processors." )/*extracted from daemon.cpp*/
 	ResDef( DBT_cacheMonitorExited_, 43, "cache monitor exited" )/*extracted from daemon.cpp*/
 	ResDef( DBT_cacheBatchUpdateDaemonExited_, 44, "cache batch update daemon exited" )/*extracted from daemon.cpp*/
 	ResDef( DBT_usingSingleThreadedAccepts_, 45, "Using single threaded accepts." )/*extracted from daemon.cpp*/
@@ -61,7 +61,7 @@ BEGIN_STR(base)
 	ResDef( DBT_thisMachineHasDProcessors_, 48, "This machine has %d processors." )/*extracted from daemon.cpp*/
 	ResDef( DBT_errorCallingThrSeconcurrencyDS_, 49, "Error calling thr_seconcurrency(%d)- (%s)" )/*extracted from daemon.cpp*/
 	ResDef( DBT_setConncurrencyToD_, 50, "Set conncurrency to %d." )/*extracted from daemon.cpp*/
-	ResDef( DBT_warningNetscapeExecutableAndLibr_, 51, "WARNING! netscape executable and library have different versions.\n" )/*extracted from daemon.cpp*/
+	ResDef( DBT_warningNetscapeExecutableAndLibr_, 51, "WARNING! executable and library have different versions.\n" )/*extracted from daemon.cpp*/
 	ResDef( DBT_seminitFailedSN_, 54, "seminit failed (%s)\n" )/*extracted from daemon.cpp*/
 	ResDef( DBT_thisBetaSoftwareHasExpiredN_, 55, "This beta software has expired.\n" )/*extracted from daemon.cpp*/
 	ResDef( DBT_cacheMonitorRespawned_, 56, "Cache monitor respawned" )/*extracted from daemon.cpp*/
@@ -125,7 +125,7 @@ BEGIN_STR(base)
 	ResDef( DBT_dnsCacheInsertMallocFailure_, 114, "dns-cache-insert: malloc failure" )/*extracted from dns_cache.cpp*/
 	ResDef( DBT_successfulServerStartup_, 115, "successful server startup" )/*extracted from ereport.cpp*/
 	ResDef( DBT_SBS_, 116, "%s B%s" )/*extracted from ereport.cpp*/
-	ResDef( DBT_netscapeExecutableAndSharedLibra_, 117, "Netscape executable and shared library have different versions" )/*extracted from ereport.cpp*/
+	ResDef( DBT_netscapeExecutableAndSharedLibra_, 117, "executable and shared library have different versions" )/*extracted from ereport.cpp*/
 	ResDef( DBT_executableVersionIsS_, 118, "   executable version is %s" )/*extracted from ereport.cpp*/
 	ResDef( DBT_sharedLibraryVersionIsS_, 119, "   shared library version is %s" )/*extracted from ereport.cpp*/
 	ResDef( DBT_errorReportingShuttingDown_, 120, "error reporting shutting down" )/*extracted from ereport.cpp*/

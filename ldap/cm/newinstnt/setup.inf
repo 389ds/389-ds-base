@@ -13,9 +13,9 @@
 # does note exist the setup program will ignore the component
 
 [General]
-Name         =      Brandx Server Family
-Vendor       =      Brandx, Inc.
-Description  =      Brandx Server Family
+Name         =      Fedora Server Family
+Vendor       =      Fedora Project
+Description  =      Fedora Server Family
 Version      =      %%%SERVER_VERSION%%%
 Components   =      svrcore, base, admin, slapd, dssynch, msg, mcc
 

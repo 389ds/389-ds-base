@@ -21,7 +21,7 @@ OBJDEST = $(OBJDIR)/servers/obj
 BINDIR = $(LIB_RELDIR)
 LIBDIR = $(OBJDIR)/lib
 ifndef INSTDIR
-INSTDIR = /netscape/server4/
+INSTDIR = /opt/servers/
 endif
 
 include $(BUILD_ROOT)/nsdefs.mk

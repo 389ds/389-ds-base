@@ -343,7 +343,7 @@ main(int argc, char ** argv)
   ofname = argv[3];
   of = fopen(ofname,"a");
   
-  fprintf(of,"Core analysis %s. Copyright 2001 Sun Microsystems, Inc.\nPortions copyright 1999, 2001-2003 Netscape Communications Corporation.\nAll rights reserved.\nCurrently %sOpening %s %s\n",reldate,ctime(&t),argv[1],argv[2]);
+  fprintf(of,"Core analysis %s. Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.\nCopyright (C) 2005 Red Hat, Inc.\nAll rights reserved.\nCurrently %sOpening %s %s\n",reldate,ctime(&t),argv[1],argv[2]);
 
   if ((fd2 = open(argv[1], O_RDONLY)) == -1) {
     perror(argv[1]);

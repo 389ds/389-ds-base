@@ -48,15 +48,6 @@ endif # WINNT
 
 ldapdocs:
 	if [ -d docs ]; then cd docs/dirhlp; $(MAKE) $(MFLAGS) ; fi
-	if [ -d docs ]; then cd docs/dirhlp/ag; $(MAKE) $(MFLAGS) ; fi
-	if [ -d docs ]; then cd docs/dirhlp/deploy; $(MAKE) $(MFLAGS) ; fi
-	if [ -d docs ]; then cd docs/dirhlp/cli; $(MAKE) $(MFLAGS)  ; fi
-	if [ -d docs ]; then cd docs/dirhlp/schema; $(MAKE) $(MFLAGS)  ; fi
-	if [ -d docs ]; then cd docs/dirhlp/install; $(MAKE) $(MFLAGS)  ; fi
-	if [ -d docs ]; then cd docs/dirhlp/gwcust; $(MAKE) $(MFLAGS) ; fi
-	if [ -d docs ]; then cd docs/dirhlp/plugin; $(MAKE) $(MFLAGS) ; fi
-	if [ -d docs ]; then cd docs/dirhlp/orgchart; $(MAKE) $(MFLAGS) ; fi
-	if [ -d docs ]; then cd docs/dirhlp/dsmlgw; $(MAKE) $(MFLAGS) ; fi
 
 clientSDK: $(LDAP_LIBDIR) $(LDAP_BINDIR) $(LDAP_OBJDIR) 
 	cd include; $(MAKE) $(MFLAGS) clientSDK

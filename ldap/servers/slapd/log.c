@@ -1530,7 +1530,7 @@ log_write_title (LOGFD fp)
 	int bufflen = sizeof(buff);
 
 	PR_snprintf(buff, bufflen, "\t%s B%s\n",
-				fe_cfg->versionstring ? fe_cfg->versionstring : "Netscape-Directory",
+				fe_cfg->versionstring ? fe_cfg->versionstring : "Fedora-Directory",
 				buildnum ? buildnum : "");
 	LOG_WRITE_NOW(fp, buff, strlen(buff), 0);
 

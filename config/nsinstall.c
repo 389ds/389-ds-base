@@ -4,7 +4,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /*
-** Netscape portable install command.
+** install command.
 **
 ** Brendan Eich, 7/20/95
 */

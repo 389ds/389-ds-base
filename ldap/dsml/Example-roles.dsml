@@ -6498,16 +6498,16 @@
       <dsml:value>PD Managers</dsml:value>
     </dsml:attr>
   </dsml:entry>
-  <dsml:entry dn="ou=Netscape Servers,dc=example,dc=com">
+  <dsml:entry dn="ou=Fedora Servers,dc=example,dc=com">
     <dsml:attr name="description">
-      <dsml:value>Standard branch for Netscape Server registration</dsml:value>
+      <dsml:value>Standard branch for Fedora Server registration</dsml:value>
     </dsml:attr>
     <dsml:objectclass>
       <dsml:oc-value>top</dsml:oc-value>
       <dsml:oc-value>organizationalUnit</dsml:oc-value>
     </dsml:objectclass>
     <dsml:attr name="ou">
-      <dsml:value>Netscape Servers</dsml:value>
+      <dsml:value>Fedora Servers</dsml:value>
     </dsml:attr>
   </dsml:entry>
   </dsml:directory-entries>

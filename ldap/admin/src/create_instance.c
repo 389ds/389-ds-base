@@ -3892,7 +3892,7 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
     }
 
     /* Write out the appropriate values */
-    fprintf(f, "# Used by Netscape Directory Server Gateway\n");
+    fprintf(f, "# Used by Directory Server Gateway\n");
     fprintf(f, "baseurl\t\"ldap://%s:%s/", cf->servname, cf->servport);
     fputs_escaped(cf->suffix, f);
     fputs("\"\n\n",f);
@@ -4008,7 +4008,7 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
 
     /* Write out the appropriate values */
     fprintf(f, "#############\n#\n#\n");
-    fprintf(f, "#  Configuration file for Netscape Directory Server Org Chart\n");
+    fprintf(f, "#  Configuration file for Directory Server Org Chart\n");
     fprintf(f, "#  ----------------------------------------------------------\n#\n#\n");
     fprintf(f, "#############\n\n\n#\n");
     fprintf(f, "#   Blank lines in this file, as well as lines that\n");

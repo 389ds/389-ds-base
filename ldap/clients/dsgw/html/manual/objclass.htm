@@ -17,7 +17,7 @@
 This appendix includes information on object class definitions. Most of the schema elements used in the Directory Server are part of the standard LDAP protocol, which is in turn based on the X.500 standard. However, some of the Directory Server's object classes are extensions created by Netscape for use with its implementation of LDAP. If an object class was created by Netscape and is not part of the standard LDAP schema, a note is made in the description of that object class. <P></A>
 
 <A NAME="1080540">
-For information on what the Directory Server schema is and what it is used for, refer to the <i>Netscape Directory Server Deployment Guide</i>.<P></A>
+For information on what the Directory Server schema is and what it is used for, refer to the <i>Red Hat Directory Server Deployment Guide</i>.<P></A>
 
 <A NAME="1080543">
 For information on the attributes in the schema, see <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1002619">Appendix B, "Attributes."</a><P></A>
@@ -70,13 +70,13 @@ The following types of object classes are described here:<P>
 </A>
 </ul>
 <A NAME="1108856">
-The base OID for the Netscape Directory Server is:<P></A>
+The base OID for the Fedora Directory Server is:<P></A>
 <PRE><A NAME="1108857">
 2.16.840.1.113730.3
 </A>
 </PRE>
 <A NAME="1108858">
-All Netscape defined object classes have the base:<P></A>
+All Netscape|Red Hat defined object classes have the base:<P></A>
 <PRE><A NAME="1108859">
 2.16.840.1.113730.3.2
 </A>
@@ -288,7 +288,7 @@ URL to information relevant to the group.<P></A>
 
 
 <A NAME="1100400">
-Object class used by the NT synchronization service to map the attributes of an NT group to an entry in the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the NT synchronization service to map the attributes of an NT group to an entry in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1100401">
 OID: <code>2.16.840.1.113730.3.2.9</code><P></A>
@@ -395,7 +395,7 @@ The following object classes define Directory Servers. The first object class id
 
 
 <A NAME="1100615">
-Object class used by the Netscape Directory Server for consumer initiated replication that contains all the replication information for a particular subtree of the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the Directory Server for consumer initiated replication that contains all the replication information for a particular subtree of the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1100616">
 OID: <code>2.16.840.1.113730.3.2.11</code><P></A>
@@ -541,7 +541,7 @@ Specifies which attributes should be replicated or omitted during replication.<P
 
 
 <A NAME="1105810">
-Extensible object class used by the Netscape Directory Server to facilitate replication. For more information about extensible object classes, see "Types of Object Classes" in the Netscape Directory Server Deployment Guide. Reserved. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Extensible object class used by the Directory Server to facilitate replication. For more information about extensible object classes, see "Types of Object Classes" in the Red Hat Directory Server Deployment Guide. Reserved. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1105811">
 OID: <code>2.16.840.1.113730.3.2.30</code><P></A>
@@ -556,7 +556,7 @@ OID: <code>2.16.840.1.113730.3.2.30</code><P></A>
 
 
 <A NAME="1042902">
-Identifies the local server. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Identifies the local server. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098493">
 OID: <code>2.16.840.1.113730.3.2.35</code><P></A>
@@ -646,7 +646,7 @@ URL to information relevant to the server.<P></A>
 
 
 <A NAME="1006031">
-Identifies entries in the local server that are replicated to a remote server, and identifies the remote server to which the entries are replicated. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Identifies entries in the local server that are replicated to a remote server, and identifies the remote server to which the entries are replicated. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098496">
 OID: <code>2.16.840.1.113730.3.2.36</code><P></A>
@@ -1329,7 +1329,7 @@ The following object classes describe entries representing people in the directo
 
 
 <A NAME="1089250">
-Defines entries representing people in an organization's intranet. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Defines entries representing people in an organization's intranet. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1096822">
 OID: <code>2.16.840.1.113730.3.2.2</code><P></A>
@@ -1511,7 +1511,7 @@ Contains a user's certificate in binary form.<P></A>
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1103595">userSMIMECertificate;binary</a><P></A>
 <td>
 <A NAME="1107562">
-Contains a user's certificate in binary form. Used by Netscape Communicator for S/MIME.<P></A>
+Contains a user's certificate in binary form. Used by Browser for S/MIME.<P></A>
 
 <tr><td>
 <A NAME="1095842">
@@ -1705,7 +1705,7 @@ Category of user.<P></A>
 
 
 <A NAME="1100863">
-Object class used to track licenses for Netscape servers that are licensed on a per-client basis. nsLicenseUser is intended to be used with the inetOrgPerson object class. You can manage the contents of this object class through the Users and Groups area of the Netscape Administration Server. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used to track licenses for servers that are licensed on a per-client basis. nsLicenseUser is intended to be used with the inetOrgPerson object class. You can manage the contents of this object class through the Users and Groups area of the Administration Server. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1100864">
 OID: <code>2.16.840.1.113730.3.2.7</code><P></A>
@@ -1726,7 +1726,7 @@ OID: <code>2.16.840.1.113730.3.2.7</code><P></A>
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1091847">nsLicensedFor</a><P></A>
 <td>
 <A NAME="1100875">
-Netscape server that the user is licensed to use.<P></A>
+server that the user is licensed to use.<P></A>
 
 <tr><td>
 <A NAME="1107587">
@@ -1760,7 +1760,7 @@ Reserved for future use.<P></A>
 
 
 <A NAME="1089443">
-Defines entries that are to be synchronized between the Directory Server and a Windows NT network. The attributes defined by ntUser assist in NT Synchronization. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Defines entries that are to be synchronized between the Directory Server and a Windows NT network. The attributes defined by ntUser assist in NT Synchronization. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098670">
 OID: <code>2.16.840.1.113730.3.2.8</code><P></A>
@@ -2632,7 +2632,7 @@ X.121 address of the person.<P></A>
 </A>
 
 <A NAME="1081153">
-The following object classes are used by the Netscape Calendar Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078663">netscapeCalendarServer</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097420">nsCalAdmin</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1084445">nsCalResource</a>, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078672">nsCalUser</a>.<P></A>
+The following object classes are used by the Calendar Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078663">netscapeCalendarServer</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097420">nsCalAdmin</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1084445">nsCalResource</a>, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078672">nsCalUser</a>.<P></A>
 
 
 <A NAME="1078663"> 
@@ -2644,7 +2644,7 @@ The following object classes are used by the Netscape Calendar Server. The objec
 
 
 <A NAME="1078664">
-Object class used to store information about the Netscape Calendar Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Calendar Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097056">
 OID: <code>2.16.840.1.113730.3.2.17</code><P></A>
@@ -2688,7 +2688,7 @@ OID: <code>2.16.840.1.113730.3.2.17</code><P></A>
 
 
 <A NAME="1097421">
-Object class used by the Netscape Calendar Server to store information about the calendar server administrator in the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the Calendar Server to store information about the calendar server administrator in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1097052">
 OID: <code>2.16.840.1.113730.3.2.15</code><P></A>
@@ -2904,7 +2904,7 @@ The administrator's password.<P></A>
 
 
 <A NAME="1084446">
-Object class used by the Netscape Calendar Server to store information about calendar resources, such as conference rooms, in the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the Calendar Server to store information about calendar resources, such as conference rooms, in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1097054">
 OID: <code>2.16.840.1.113730.3.2.16</code><P></A>
@@ -3120,7 +3120,7 @@ Reserved for future use.<P></A>
 
 
 <A NAME="1078673">
-Object class used by the Netscape Calendar Server to store information about calendar users in the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the Calendar Server to store information about calendar users in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1097050">
 OID: <code>2.16.840.1.113730.3.2.14</code><P></A>
@@ -3327,7 +3327,7 @@ Identification number of the node on which the calendar user's data is stored.<P
 </A>
 
 <A NAME="1080510">
-This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078501">netscapeCertificateServer</a> object class used by the Netscape Certificate Server.<P></A>
+This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078501">netscapeCertificateServer</a> object class used by the Certificate Server.<P></A>
 
 
 <A NAME="1078501"> 
@@ -3339,7 +3339,7 @@ This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&fil
 
 
 <A NAME="1078564">
-Object class used to store information about the Netscape Certificate Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Certificate Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097058">
 OID: <code>2.16.840.1.113730.3.2.18</code><P></A>
@@ -3373,12 +3373,12 @@ OID: <code>2.16.840.1.113730.3.2.18</code><P></A>
 
 <A NAME="1078576"> 
 </A>
-<A NAME="Collabra Server Extensions">
-<H2> Collabra Server Extensions</H2>
+<A NAME="News Server Extensions">
+<H2> News Server Extensions</H2>
 </A>
 
 <A NAME="1080748">
-The object classes in this section are used by the Netscape Collabra Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078579">netscapeNewsServer</a> and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078583">nginfo</a>.<P></A>
+The object classes in this section are used by the News Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078579">netscapeNewsServer</a> and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078583">nginfo</a>.<P></A>
 
 
 <A NAME="1078579"> 
@@ -3390,7 +3390,7 @@ The object classes in this section are used by the Netscape Collabra Server. The
 
 
 <A NAME="1108221">
-Object class used to store information about the Netscape Collabra Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the News Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097154">
 OID: <code>2.16.840.1.113730.3.2.27</code><P></A>
@@ -3431,7 +3431,7 @@ OID: <code>2.16.840.1.113730.3.2.27</code><P></A>
 
 
 <A NAME="1078584">
-Object class used by the Netscape Collabra Server to store discussion (news) group information. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the News Server to store discussion (news) group information. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098802">
 OID: <code>2.16.840.1.113730.3.2.26</code><P></A>
@@ -3535,7 +3535,7 @@ Reserved.<P></A>
 </A>
 
 <A NAME="1080778">
-The object classes in this section are used by the Netscape Compass Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1080497">netscapeCompassServer</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1079636">personalInterestProfile</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1080358">PIPUser</a>, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1080065">PIPUserInfo</a>.<P></A>
+The object classes in this section are used by the Compass Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1080497">netscapeCompassServer</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1079636">personalInterestProfile</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1080358">PIPUser</a>, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1080065">PIPUserInfo</a>.<P></A>
 
 
 <A NAME="1080497"> 
@@ -3547,7 +3547,7 @@ The object classes in this section are used by the Netscape Compass Server. The 
 
 
 <A NAME="1080498">
-Object class used to store information about the Netscape Compass Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Compass Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097064">
 OID: <code>2.16.840.1.113730.3.2.19</code><P></A>
@@ -3588,7 +3588,7 @@ OID: <code>2.16.840.1.113730.3.2.19</code><P></A>
 
 
 <A NAME="1082056">
-Object class used by the Netscape Compass Server to store personal interest profile information for Compass server users. For more information on personal interest profiles, see the Netscape Compass Server Administrator's Guide. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the Compass Server to store personal interest profile information for Compass server users.  This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1097066">
 OID: <code>2.16.840.1.113730.3.2.20</code><P></A>
@@ -3805,7 +3805,7 @@ Taxonomy ID of a search topic.<P></A>
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1115769">pipstinterest</a><P></A>
 <td>
 <A NAME="1099692">
-Describes the importance to the user of each individual search topic. (This attribute is used with Netscape Compass Server Professional only.)<P></A>
+Describes the importance to the user of each individual search topic. <P></A>
 
 <tr><td>
 <A NAME="1079887">
@@ -4007,7 +4007,7 @@ Reserved for future use.<P></A>
 
 
 <A NAME="1082531">
-Object class used by the Netscape Compass Server to contain information about Personal Interest Profile (PIP) users. This object class is a Netscape extension to the standard LDAP schema. For more information about PIPs, see the Netscape Compass Server Administrator's Guide. Reserved for future use.<P></A>
+Object class used by the Compass Server to contain information about Personal Interest Profile (PIP) users. This object class is a Netscape|Red Hat extension to the standard LDAP schema.  Reserved for future use.<P></A>
 
 <A NAME="1097068">
 OID: <code>2.16.840.1.113730.3.2.22</code><P></A>
@@ -4125,7 +4125,7 @@ Unique ID of the user.<P></A>
 
 
 <A NAME="1080066">
-Object class used by the Netscape Compass Server to contain information about Personal Interest Profile (PIP) users that do not have a user ID. This object class is a Netscape extension to the standard LDAP schema. For more information about PIPs, see the Netscape Compass Server Administrator's Guide. Reserved for future use.<P></A>
+Object class used by the Compass Server to contain information about Personal Interest Profile (PIP) users that do not have a user ID. This object class is a Netscape|Red Hat extension to the standard LDAP schema.  Reserved for future use.<P></A>
 
 <A NAME="1097070">
 OID: <code>2.16.840.1.113730.3.2.21</code><P></A>
@@ -4206,7 +4206,7 @@ The user's password.<P></A>
 </A>
 
 <A NAME="1077861">
-The following object classes are used by the Netscape Directory Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1077794">changeLogEntry</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1100614">cirReplicaSource</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1098555">groupOfCertificates</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1106267">residentialPerson</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078109">netscapeMachineData</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097231">netscapeServer</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1100862">nsLicenseUser</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1100399">NTGroup</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081708">passwordObject</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081724">passwordPolicy</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097669">referral</a>, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097986">subschema</a>.<P></A>
+The following object classes are used by the Directory Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1077794">changeLogEntry</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1100614">cirReplicaSource</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1098555">groupOfCertificates</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1106267">residentialPerson</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078109">netscapeMachineData</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097231">netscapeServer</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1100862">nsLicenseUser</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1100399">NTGroup</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081708">passwordObject</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081724">passwordPolicy</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097669">referral</a>, and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097986">subschema</a>.<P></A>
 
 
 <A NAME="1077794"> 
@@ -4315,7 +4315,7 @@ Name of the entry that becomes the immediate superior of the existing entry, whe
 
 
 <A NAME="1098563">
-Object class used by the Netscape Directory Server to contain information about a group of X.509 certificates. Any certificate that matches the values in <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1152959">memberCertificateDescription</a> is considered to be a member of the group. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used by the Directory Server to contain information about a group of X.509 certificates. Any certificate that matches the values in <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1152959">memberCertificateDescription</a> is considered to be a member of the group. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098564">
 OID: <code>2.16.840.1.113730.3.2.31</code><P></A>
@@ -4405,7 +4405,7 @@ URL to information relevant to the group.<P></A>
 
 
 <A NAME="1089069">
-Object class used to store information about the Netscape Directory Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Directory Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097076">
 OID: <code>2.16.840.1.113730.3.2.23</code><P></A>
@@ -4446,7 +4446,7 @@ OID: <code>2.16.840.1.113730.3.2.23</code><P></A>
 
 
 <A NAME="1097236">
-Object class used by the Netscape Directory Server to distinguish between machine data and non-machine data. Machine data is filtered out during replication. This object class is a Netscape extension to the standard LDAP schema. Reserved.<P></A>
+Object class used by the Directory Server to distinguish between machine data and non-machine data. Machine data is filtered out during replication. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved.<P></A>
 
 <A NAME="1097237">
 OID: <code>2.16.840.1.113730.3.2.32</code><P></A>
@@ -4461,7 +4461,7 @@ OID: <code>2.16.840.1.113730.3.2.32</code><P></A>
 
 
 <A NAME="1098570">
-Object class that identifies entries used by Netscape servers when they bind to the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class that identifies entries used by servers when they bind to the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098571">
 OID: <code>2.16.840.1.113730.3.2.10</code><P></A>
@@ -4489,14 +4489,14 @@ OID: <code>2.16.840.1.113730.3.2.10</code><P></A>
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1032956">administratorContactInfo</a><P></A>
 <td>
 <A NAME="1103189">
-URL to information relevant to the person responsible for administering the Netscape server.<P></A>
+URL to information relevant to the person responsible for administering the server.<P></A>
 
 <tr><td>
 <A NAME="1103192">
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1098448">adminUrl</a><P></A>
 <td>
 <A NAME="1103194">
-URL to the administration server under which the Netscape server is running.<P></A>
+URL to the administration server under which the server is running.<P></A>
 
 <tr><td>
 <A NAME="1078124">
@@ -4510,21 +4510,21 @@ Text description of the server.<P></A>
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1032705">installationTimeStamp</a><P></A>
 <td>
 <A NAME="1103207">
-Time when the Netscape server was installed.<P></A>
+Time when the server was installed.<P></A>
 
 <tr><td>
 <A NAME="1078137">
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1093065">serverHostName</a><P></A>
 <td>
 <A NAME="1078139">
-Hostname on which the Netscape server is installed.<P></A>
+Hostname on which the server is installed.<P></A>
 
 <tr><td>
 <A NAME="1078143">
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1032412">serverProductName</a><P></A>
 <td>
 <A NAME="1078145">
-Netscape server's product name.<P></A>
+Server's product name.<P></A>
 
 <tr><td>
 <A NAME="1103220">
@@ -4538,7 +4538,7 @@ Path to the server's installation root.<P></A>
 <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1032439">serverVersionNumber</a><P></A>
 <td>
 <A NAME="1108653">
-Netscape server's version number.<P></A>
+Server's version number.<P></A>
 
 <tr><td>
 <A NAME="1078148">
@@ -4565,7 +4565,7 @@ Contains a password for the server.<P></A>
 
 
 <A NAME="1098598">
-Object class that contains password information for a user in the directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class that contains password information for a user in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098599">
 OID: <code>2.16.840.1.113730.3.2.12</code><P></A>
@@ -4648,7 +4648,7 @@ Describes when the passwordRetryCount should be reset to zero (0).<P></A>
 
 
 <A NAME="1098606">
-Object class that contains the password policy for all users in the entire directory. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class that contains the password policy for all users in the entire directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1098607">
 OID: <code>2.16.840.1.113730.3.2.13</code><P></A>
@@ -4780,7 +4780,7 @@ Specifies how much time prior to password expiration to send a warning to the us
 
 
 <A NAME="1097670">
-Object class that allows smart referrals to be placed in an entry. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class that allows smart referrals to be placed in an entry. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1078339">
 OID: <code>2.16.840.1.113730.3.2.6</code><P></A>
@@ -4902,7 +4902,7 @@ Defines the object classes used in a subschema.<P></A>
 </A>
 
 <A NAME="1097095">
-This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097098">netscapeMediaServer</a> object class used by the Netscape Media Server.<P></A>
+This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1097098">netscapeMediaServer</a> object class used by the Media Server.<P></A>
 
 
 <A NAME="1097098"> 
@@ -4914,7 +4914,7 @@ This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&fil
 
 
 <A NAME="1097132">
-Object class used to store information about the Netscape Media Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Media Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097133">
 OID: <code>2.16.840.1.113730.3.2.25</code><P></A>
@@ -4953,7 +4953,7 @@ OID: <code>2.16.840.1.113730.3.2.25</code><P></A>
 </A>
 
 <A NAME="1108700">
-The following object classes are used by the Netscape Messaging Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1108716">groupOfMailEnhancedUniqueNames</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1077922">mailRecipient</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078007">mailGroup</a>,and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081545">netscapeMailServer</a>.<P></A>
+The following object classes are used by the Messaging Server. The object classes described here include <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1108716">groupOfMailEnhancedUniqueNames</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1077922">mailRecipient</a>, <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1078007">mailGroup</a>,and <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081545">netscapeMailServer</a>.<P></A>
 
 
 <A NAME="1108716"> 
@@ -4965,7 +4965,7 @@ The following object classes are used by the Netscape Messaging Server. The obje
 
 
 <A NAME="1098817">
-Netscape extension used by the Messaging Server to store information about a mail group. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Netscape|Red Hat extension used by the Messaging Server to store information about a mail group. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1098818">
 OID: <code>2.16.840.1.113730.3.2.5</code><P></A>
@@ -5062,7 +5062,7 @@ URL to information relevant to the group.<P></A>
 
 
 <A NAME="1077923">
-Object class used as an enhancement to inetOrgPerson to define a Netscape Messaging Server user. That is, mailRecipient represents a mail account. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used as an enhancement to inetOrgPerson to define a Messaging Server user. That is, mailRecipient represents a mail account. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1097030">
 OID: <code>2.16.840.1.113730.3.2.3</code><P></A>
@@ -5201,7 +5201,7 @@ Password with which the mail user can bind to the directory.<P></A>
 
 
 <A NAME="1078009">
-Object class used as an enhancement to <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1005294">groupOfUniqueNames</a> to define a group of mail recipients. That is, mailGroup is used to store Messaging Server mailing lists. This object class is a Netscape extension to the standard LDAP schema.<P></A>
+Object class used as an enhancement to <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1005294">groupOfUniqueNames</a> to define a group of mail recipients. That is, mailGroup is used to store Messaging Server mailing lists. This object class is a Netscape|Red Hat extension to the standard LDAP schema.<P></A>
 
 <A NAME="1097032">
 OID: <code>2.16.840.1.113730.3.2.4</code><P></A>
@@ -5340,7 +5340,7 @@ Distinguished name of the mail group's owner.<P></A>
 
 
 <A NAME="1081546">
-Object class used to store information about the Netscape Messaging Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Messaging Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097044">
 OID: <code>2.16.840.1.113730.3.2.24</code><P></A>
@@ -5379,7 +5379,7 @@ OID: <code>2.16.840.1.113730.3.2.24</code><P></A>
 </A>
 
 <A NAME="1086195">
-This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081588">netscapeProxyServer</a> object class used by the Netscape Proxy Server.<P></A>
+This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081588">netscapeProxyServer</a> object class used by the Proxy Server.<P></A>
 
 
 <A NAME="1081588"> 
@@ -5391,7 +5391,7 @@ This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&fil
 
 
 <A NAME="1081589">
-Object class used to store information about the Netscape Proxy Server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about the Proxy Server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1097160">
 OID: <code>2.16.840.1.113730.3.2.28</code><P></A>
@@ -5430,7 +5430,7 @@ OID: <code>2.16.840.1.113730.3.2.28</code><P></A>
 </A>
 
 <A NAME="1081611">
-This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081614">netscapeWebServer</a> object class used by Netscape's web servers.<P></A>
+This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/objclass.htm#1081614">netscapeWebServer</a> object class used by Web servers.<P></A>
 
 
 <A NAME="1081614"> 
@@ -5442,7 +5442,7 @@ This section describes the <a href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&fil
 
 
 <A NAME="1081615">
-Object class used to store information about a Netscape web server in the directory. This object class is a Netscape extension to the standard LDAP schema. Reserved for future use.<P></A>
+Object class used to store information about a web server in the directory. This object class is a Netscape|Red Hat extension to the standard LDAP schema. Reserved for future use.<P></A>
 
 <A NAME="1108796">
 OID: <code>2.16.840.1.113730.3.2.29</code><P></A>
@@ -5481,7 +5481,7 @@ OID: <code>2.16.840.1.113730.3.2.29</code><P></A>
 </A>
 
 <A NAME="1108800">
-This section describes object classes that are not defined for this release or are reserved for future use by the Netscape Directory Server.<P></A>
+This section describes object classes that are not defined for this release or are reserved for future use by the Directory Server.<P></A>
 
 
 <A NAME="1091117"> 

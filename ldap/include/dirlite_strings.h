@@ -33,7 +33,7 @@
 #define LITE_PW_EXP_ERR "Error: password policy is disabled in the " LITE_PRODUCT_NAME ", pw_exp " LITE_GENERIC_ERR
 
 /* all plugins which need to be used for Directory Lite must use this as their vendor string */
-#define PLUGIN_MAGIC_VENDOR_STR "Brandx, Inc."
+#define PLUGIN_MAGIC_VENDOR_STR "Fedora Project"
 
 /* plugins which contain this substring in their pluginid will not be aprroved in DS Lite */
 #define LITE_NTSYNCH_PLUGIN_ID_SUBSTR "nt-sync"

@@ -155,7 +155,7 @@ EOF
 		print STDERR "adding necessary entry to $file.\n";
 		print <<EOF;
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE vs SYSTEM "file:${SERVERROOT}/bin/https/dtds/nes-webapps_6_1.dtd">
+<!DOCTYPE vs SYSTEM "file:${SERVERROOT}/bin/https/dtds/nes-webapps_6_2.dtd">
 
 <vs>
  <web-app uri="/axis" dir="${SERVERROOT}{{SEP}}clients{{SEP}}dsmlgw" enable="true"/>

@@ -162,7 +162,7 @@ BUILD_DATE = $(shell date +%Y%m%d)
 SHAREDIR = $(SHARETOP)/$(BUILD_DATE)/$(NC_BUILD_FLAVOR)
 #ADM_VERSDIR = admserv40
 #ADM_RELDATE = untested/19980119
-IMPORTADMINSRV = $(IMPORTADMINSRV_BASE)/$(NSOBJDIR_NAME_32)
+#IMPORTADMINSRV = $(IMPORTADMINSRV_BASE)/$(NSOBJDIR_NAME_32)
 IMPORTADMINSRVNOTAR = $(COMPONENTS_DIR)/$(ADM_VERSDIR)/$(ADM_VERSION)/untar/$(NSOBJDIR_NAME)
 # these are files and directories in the import adminsrv directory which we don't
 # make a local copy of, we just import directly into the tar file or create a
@@ -425,34 +425,27 @@ ifdef BUILD_PRESENCE
 endif
 
 # docs
-	if [ -d $(OBJDIR)/manual/slapd ] ; \
-	then $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/cli/*.* $(RELDIR)/manual/en/slapd/cli ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/ag/*.* $(RELDIR)/manual/en/slapd/ag ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/manual/en/slapd/help ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/manual/en/slapd/ ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/manual/en/slapd/ ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/pixel.gif $(RELDIR)/manual/en/slapd/ ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/netscape48.gif $(RELDIR)/manual/en/slapd/ ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/topicindex.htm $(RELDIR)/manual/en/slapd/ ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/tokens.map $(RELDIR)/manual/en/slapd/ ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/copyright/*.* $(RELDIR)/manual/en/slapd/copyright ; \
+	-$(RM) -r $(RELDIR)/manual/en/slapd
+	-$(MKDIR) $(RELDIR)/manual/en/slapd
+	if [ -d $(DSDOC_DIR) ] ; then \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/manual/en/slapd/help ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/manual/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/manual/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/pixel.gif $(RELDIR)/manual/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/topicindex.htm $(RELDIR)/manual/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/tokens.map $(RELDIR)/manual/en/slapd/ ; \
+	  cd $(RELDIR)/manual/en/slapd; \
+	  unzip $(DSDOC_DIR)/$(DSDOC_COPYRIGHT); \
+	  unzip $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
 	fi
-	if [ -d $(OBJDIR)/manual/slapd ] ; \
-	then $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/install/*.* $(RELDIR)/manual/en/slapd/install ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/deploy/*.* $(RELDIR)/manual/en/slapd/deploy ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/dsmlgw/*.* $(RELDIR)/manual/en/slapd/dsmlgw ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/gwcust/*.* $(RELDIR)/manual/en/slapd/gwcust ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/gwcust/graphics/*.* $(RELDIR)/manual/en/slapd/gwcust/graphics ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/schema/*.* $(RELDIR)/manual/en/slapd/schema ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/ag/graphics/*.* $(RELDIR)/manual/en/slapd/ag/graphics ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/cli/graphics/*.* $(RELDIR)/manual/en/slapd/cli/graphics ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/deploy/graphics/*.* $(RELDIR)/manual/en/slapd/deploy/graphics ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/install/graphics/*.* $(RELDIR)/manual/en/slapd/install/graphics ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/plugin/*.* $(RELDIR)/manual/en/slapd/plugin ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/plugin/graphics/*.* $(RELDIR)/manual/en/slapd/plugin/graphics ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/orgchart/*.* $(RELDIR)/manual/en/slapd/orgchart ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/orgchart/graphics/*.* $(RELDIR)/manual/en/slapd/orgchart/graphics ; \
+
+ifeq ($(BUILD_MODE), int)
+	if [ -d $(DSDOC_DIR) ] ; then \
+	  cd $(RELDIR)/manual/en/slapd; \
+	  unzip $(DSDOC_DIR)/$(DSDOC_GUIDES); \
 	fi
+endif
+
 ifdef USE_PURIFY
 	-$(INSTALL) -m 755 $(DB_LIBPATH)/*.so_pure* $(RELDIR)/lib
 	-$(INSTALL) -m 755 $(NSCP_DISTDIR)/lib/*.so_pure* $(RELDIR)/lib
@@ -660,7 +653,9 @@ endif
 	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
 
 # We must remove the JRE per Red Hat.  The user will download the jre
-	rm -f $(INSTDIR)/base/nsjre.zip
+ifneq ($(ARCH), Linux)
+	rm -f $(INSTDIR)/base/nsjre.zip 
+endif
 
 # Move setup binary to dssetup
 	mv $(INSTDIR)/setup $(INSTDIR)/dssetup

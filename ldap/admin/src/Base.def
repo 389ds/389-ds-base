@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Netscape Setup SDK Dynamic perl module'
+DESCRIPTION     'Setup SDK Dynamic perl module'
 CODE            SHARED READ EXECUTE
 DATA            SHARED READ WRITE
 EXPORTS

@@ -460,12 +460,10 @@ JAVA_PROG = java	# from the ether
 ## java compiler
 # XXX - ram included from common.mn
 #JAVAC_PROG = javac	# from the ether
-#JAVAC_CLASSPATH = $(JAVA_CLASSPATH):/usr/local/netscape/java/lib/javac.zip
 #JAVAC_FLAGS = -classpath $(JAVAC_CLASSPATH) $(JAVA_OPTIMIZER)
 #JAVAC = $(JAVAC_PROG) $(JAVAC_FLAGS)
 
 PATH_SEPARATOR	= :
-JAVAC_ZIP	= /usr/local/netscape/java/lib/javac.zip
 
 #
 # The canonical classpath for building java libraries
@@ -489,26 +487,6 @@ JAVA_SOURCEPATH	= $(DEPTH)/sun-java/classsrc
 JAVADOC_PROG = $(JAVA) sun.tools.javadoc.Main
 JAVADOC_FLAGS = -classpath $(JAVAC_CLASSPATH)
 JAVADOC = $(JAVADOC_PROG) $(JAVADOC_FLAGS)
-
-######################################################################
-## javah
-
-ifndef JAVAH_IN_JAVA
-JAVAH_PROG = $(DIST)/bin/javah
-else 
-JAVAH_PROG = $(JAVA) netscape.tools.jric.Main
-endif
-JAVAH_FLAGS = -classpath $(JAVA_CLASSPATH)
-JAVAH = $(JAVAH_PROG) $(JAVAH_FLAGS)
-
-######################################################################
-## jmc
-
-JMCSRCDIR = $(XPDIST)/_jmc
-JMC_PROG = $(JAVA) netscape.tools.jmc.Main
-JMC_CLASSPATH = $(JMCSRCDIR):$(JAVAC_CLASSPATH)
-JMC_FLAGS = -classpath $(JMC_CLASSPATH) -verbose
-JMC = $(JMC_PROG) $(JMC_FLAGS)
 
 ######################################################################
 ## zip

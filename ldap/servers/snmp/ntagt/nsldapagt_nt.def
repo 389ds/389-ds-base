@@ -6,7 +6,7 @@
 ;
 LIBRARY ns-ldapagt
 
-DESCRIPTION 'Brandx Directory Server SNMP Agent'
+DESCRIPTION 'Fedora Directory Server SNMP Agent'
 
 CODE  LOADONCALL MOVEABLE DISCARDABLE
 DATA  PRELOAD    MOVEABLE SINGLE

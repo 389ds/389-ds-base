@@ -192,7 +192,7 @@ else
  NSPR_DIR=nspr
 endif
 NSPR_BASENAME=libnspr21
-PRODUCT="Brandx Directory Server"
+PRODUCT="Fedora Directory Server"
 PRODUCT_IS_DIRECTORY_SERVER=1
 INSTANCE_NAME_PREFIX="Directory Server"
 DIR=slapd
@@ -264,3 +264,4 @@ endif
 ifndef PLUGINS_OBJDIR
 PLUGINS_OBJDIR=$(BASIC_OBJDIR)-$(DIR)/plugins
 endif
+

@@ -10,7 +10,7 @@
 **   configure_instance.cpp
 **
 ** DESCRIPTION:
-**   Netscape Directory Server Configuration Program
+**   Fedora Directory Server Configuration Program
 **
 ** NOTES:
 ** Derived from the original ux-config.cc
@@ -621,7 +621,7 @@ getAdminSIEDN(const char *dsSIEDN, const char *hostname, NSString& adminSIEDN)
 		ldap_value_free(rdnList);
 
 	adminSIEDN = NSString("cn=admin-serv-") + editablehostname +
-		", cn=Netscape Administration Server, " + baseDN;
+		", cn=Fedora Administration Server, " + baseDN;
 
 	delete [] editablehostname;
 	free(baseDN);
@@ -901,14 +901,14 @@ create_roledit_extension(Ldap* ldap)
 		ldapEntry.setAttribute("objectclass", DEFAULT_GLOBAL_PREFS_OBJECT);
 		ldapEntry.setAttribute("ou", DEFAULT_GLOBAL_PREFS);
 		ldapEntry.setAttribute("aci", DEFAULT_GLOBAL_PREFS_ACI);
-		ldapEntry.setAttribute("description", "Default branch for Netscape Server Products Global Preferences");
+		ldapEntry.setAttribute("description", "Default branch for Fedora Server Products Global Preferences");
 //		dsLogMessage("Info", "Slapd", "Updating global preferences for console role editor extensions");
 		err = ldapEntry.insert(globalPref);
 	}
 	else
 	{
 		ldapEntry.setAttribute("aci", DEFAULT_GLOBAL_PREFS_ACI);
-		ldapEntry.setAttribute("description", "Default branch for Netscape Server Products Global Preferences");
+		ldapEntry.setAttribute("description", "Default branch for Fedora Server Products Global Preferences");
 //		dsLogMessage("Info", "Slapd", "Updating global preferences for console role editor extensions");
 		err = ldapEntry.replace(globalPref);
 	}
@@ -970,7 +970,7 @@ create_ss_dir_tree(const char *hostname, NSString &sieDN)
 	if (code != OKAY)
 	{
 		dsLogMessage(SETUP_LOG_FATAL, "Slapd",
-					 "ERROR: failed to register Directory server as a Netscape server (%d)",
+					 "ERROR: failed to register Directory server as a Fedora server (%d)",
 					code); 
 		return code;
 	}
@@ -1091,7 +1091,7 @@ create_console_script()
 
 	ofs << "#!/bin/sh" << endl;
 	ofs << "#" << endl;
-	ofs << "# This script will invoke the Netscape Console" << endl;
+	ofs << "# This script will invoke the Fedora Management Console" << endl;
 	ofs << "#" << endl;
 	// see if there are any other .jar or .zip files in the java directory
 	// and add them to our class path too

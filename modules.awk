@@ -22,21 +22,6 @@ NEWS=$(BUILD_ROOT)/news
 CMS=$(BUILD_ROOT)/species
 ROGUE=$(BUILD_ROOT)/lw/rogue
 
-# Ari's definitions for MCOM libraries, these should have if statements 
-# around them to make sure they only apply to the proxy
-ifeq ($(PRODUCT), "Netscape Proxy Server")
-ifeq ($(ARCH), HPUX)
-MCL_CFLAGS="-DMCC_PROXY -I../include -D_HPUX_SOURCE -Aa +DA1.0 +z"
-else
-MCL_CFLAGS="-DMCC_PROXY -I../include"
-endif
-endif
-
-# We need to customize how libnet works for the Catalog Server...
-ifeq ($(PRODUCT), "Netscape Catalog Server")
-MCL_CFLAGS="-DSEND_FROM_FEILD"
-endif
-
 # ------------------------------- Modules --------------------------------
 
 
@@ -45,18 +30,10 @@ LIBREGEX=regex
 LIBRARY regex $(NS_LIBDIR)/libregex
 endif
 
-ifeq ($(PRODUCT), "Netscape Proxy Server")
-ifneq ($(MODULE), LibBase)
-BASE=base $(LIBREGEX) $(LIBSI18N)
-BASE_SSL=base-ssl $(LIBREGEX)
-LIBRARY base $(NS_LIBDIR)/base regex
-endif
-else
 ifneq ($(MODULE), LibBase)
 BASE=base $(LIBSI18N)
 BASE_SSL=base-ssl
 LIBRARY base $(NS_LIBDIR)/base
-endif
 endif
 
 ifneq ($(MODULE), LibAccess)

@@ -9,7 +9,7 @@
 #
 # Usage  ns-keygen password_file fully_qualified_hostname
 # Example:
-#	./ns-keygen  ../password.txt myhost.brandx.com
+#	./ns-keygen  ../password.txt myhost.redhat.com
 #
 # Assumes that NSHOME is Set
 # if NSHOME is not set, it will be derived from the path of this script, which is

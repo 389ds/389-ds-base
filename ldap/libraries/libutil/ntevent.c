@@ -104,7 +104,7 @@ MultipleInstances()
         result = GetLastError();
         if (result == ERROR_INVALID_HANDLE) {
 
-            PR_snprintf(ErrMsg, sizeof(ErrMsg), "Netscape Server %s is already"
+            PR_snprintf(ErrMsg, sizeof(ErrMsg), "Server %s is already"
             " running. Terminating this instance.", pszServerName);
 
             MessageBox(GetDesktopWindow(), ErrMsg,

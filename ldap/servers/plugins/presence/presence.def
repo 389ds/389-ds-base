@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Netscape Directory Server 6.2.1 Presence Plugin'
+DESCRIPTION     'Fedora Directory Server 7 Presence Plugin'
 EXPORTS
 	presence_init        @2
 	plugin_init_debug_level	@3

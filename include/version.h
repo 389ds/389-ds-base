@@ -14,40 +14,20 @@
 
 #define DIRECTORY_VERSION_DEF "7.1"
 #define DIRECTORY_COMPATIBLE "3.0"
-#define DIRECTORY_VERSION_STRING "Brandx-DirServer/7.1"
+#define DIRECTORY_VERSION_STRING "Fedora-DirServer/7.1"
 
 #define DS_VERSION_DEF DIRECTORY_VERSION_DEF
 #define DS_VERSION_STRING DIRECTORY_VERSION_STRING
 
 #define DSS_VERSION_DEF DIRECTORY_VERSION_DEF
-#define DSS_VERSION_STRING "Brandx-DirSynchService/7.1"
+#define DSS_VERSION_STRING "Fedora-DirSynchService/7.1"
 
-#define PROXY_VERSION_DEF "2.0"
-#define PROXY_VERSION_STRING "Netscape-Proxy/2.0"
-
-#define ADMSERV_VERSION_DEF "4.0b1"
-#define ADMSERV_VERSION_STRING "Netscape-Administrator/4.0b1"
+#define ADMSERV_VERSION_DEF "7.0"
+#define ADMSERV_VERSION_STRING "Fedora-Administrator/7.0"
 /* supposedly the trunk is currently the home of 3.x development */
-
-#define PERSONAL_VERSION_DEF "3.01b1"
-#define PERSONAL_VERSION_STRING "Netscape-FastTrack/3.01b1"
-
-#define CATALOG_VERSION_DEF "1.0b2"
-#define CATALOG_VERSION_STRING "Netscape-Catalog/1.0b2"
-
-#define RDS_VERSION_DEF "1.0b2"
-#define RDS_VERSION_STRING "Netscape-RDS/1.0b2"
 
 #define ENTERPRISE_VERSION_DEF "3.01"
 #define ENTERPRISE_VERSION_STRING "Netscape-Enterprise/3.01"
 
-#define MAIL_VERSION_DEF "3.0a0"
-#define MAIL_VERSION_STRING "Netscape-Mail/3.0a0"
-
-#define NEWS_VERSION_STRING "Netscape 1.1"
-
-#define BATMAN_VERSION_DEF "1.0a1"
-#define BATMAN_VERSION_STRING "Batman/1.0a1"
-
-#define VI_COMPANYNAME "Netscape Communications Corporation\0"
-#define VI_COPYRIGHT   "Copyright 2001 Sun Microsystems, Inc.  Portions copyright 1999, 2001-2003 Netscape Communications Corporation.  All rights reserved.\0"
+#define VI_COMPANYNAME "Fedora Project\0"
+#define VI_COPYRIGHT   "Copyright (C) 2001 Sun Microsystems, Inc. Used by permission. Copyright (C) 2005 Red Hat, Inc. All rights reserved.\0"

@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Brandx Directory Server 7 Referint Plugin'
+DESCRIPTION     'Fedora Directory Server 7 Referint Plugin'
 CODE            SHARED READ EXECUTE
 DATA            SHARED READ WRITE
 EXPORTS

@@ -36,10 +36,10 @@ while (<IN>) {
 
   if ($PRINT) {
     if (/^Description/) {
-	  s/The Sun \| Netscape Alliance/Netscape/g;
-	  s/iPlanet/Netscape/g;
+	  s/The Sun \| Netscape Alliance/Fedora/g;
+	  s/iPlanet/Fedora/g;
     } elsif (/^Vendor/) {
-	  s/Sun \| Netscape Alliance/Netscape Communications Corp./g;
+	  s/The Sun \| Netscape Alliance/Fedora/g;
     }
     print OUT;
     if (/^RunPostInstall/) {

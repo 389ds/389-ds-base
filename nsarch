@@ -10,13 +10,12 @@
 # Name:         nsarch
 #
 # Description:  this file determines the system name and outputs the
-#               platform information in a format used by Netscape build
+#               platform information in a format used by build
 #               scripts and utilities; this file is based on the GNU
 #               "config.guess" utility; the GNU copyleft is provided
 #               somewhere below...
 #
-#    For each platform supported by Netscape, we need to provide the
-#    following definitions:
+#    We need to provide the following definitions:
 #
 # Variable           Description
 # --------           -----------
@@ -81,7 +80,7 @@ usage(){
    echo "Usage: $0 [ [-full {-under | -dash | -none} {-pretty} ] | -gnu ]"
    echo
    echo "    <no args>               Default to output OS name only; suitable for use"
-   echo "                            in Netscape's makefiles and compiler defines"
+   echo "                            in makefiles and compiler defines"
    echo "    -f, -full, --full)      Full output includes OS name and release number"
    echo "    -d, -dash, --dash)      use with -f to specify a dash separator"
    echo "    -u, -under, --under)    use with -f to specify a underscore separator"
@@ -164,8 +163,7 @@ ns_printf(){
 get_opt $*
 
 #--------------------------------------------------------------------------
-# everything that follows is GNU's config.guess slightly modified
-# for Netscape's use
+# everything that follows is GNU's config.guess slightly modified locally
 
 # NT doesn't have /dev/null
 #UNAME_MACHINE=`(uname -m) 2> /dev/null` || UNAME_MACHINE=unknown

@@ -19,7 +19,7 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 OBJDEST = $(OBJDIR)/servers/obj
 BINDIR = $(LDAP_SERVER_RELDIR)
 ifndef INSTDIR
-INSTDIR = /netscape/server4/
+INSTDIR = /opt/servers/
 endif
 
 include $(BUILD_ROOT)/nsdefs.mk

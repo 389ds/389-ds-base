@@ -6,13 +6,13 @@
 # END COPYRIGHT BLOCK
 #
 [General]
-Name=Brandx Directory Suite
+Name=Fedora Directory Suite
 Components=slapd,slapd-client
 Checked=TRUE
-Description=Brandx Directory Server
+Description=Fedora Directory Server
 
 [slapd]
-Name=Brandx Directory Server
+Name=Fedora Directory Server
 InstanceNamePrefix= %%%INSTANCE_NAME_PREFIX%%%
 NickName=slapd
 Version= %%%SERVER_VERSION%%%
@@ -20,8 +20,8 @@ Compatible= %%%SERVER_VERSION%%%
 BuildNumber= %%%SERVER_BUILD_NUM%%%
 Expires= %%%PUMPKIN_HOUR%%%
 Security= %%%SECURITY%%%
-Vendor=Brandx, Inc.
-Description=Brandx Directory Server
+Vendor=Fedora Project
+Description=Fedora Directory Server
 DefaultAcceptLanguage=en
 Dependencies=admin/4.5,nsperl561/1.10,perldap14/1.01
 Revision= 
@@ -48,8 +48,8 @@ NSPerlPostInstall=lib\nsPerl5.6.1\install.bat
 [slapd-client]
 NickName=slapd-client
 Dependencies=base-client/4.5
-Name=Brandx Directory Server
-Description=Brandx Directory Server
+Name=Fedora Directory Server
+Description=Fedora Directory Server
 Version= %%%SERVER_VERSION%%%
 Compatible= %%%SERVER_VERSION%%%
 BuildNumber= %%%SERVER_BUILD_NUM%%%

@@ -11,9 +11,9 @@
 $isNT = -d '\\';
 
 if ($isNT) {
-  $ServerDir = "/Brandx/Servers";
+  $ServerDir = "/Fedora/Servers";
 } else {
-  $ServerDir = "/usr/brandx/servers";
+  $ServerDir = "/opt/fedora/servers";
 }
 $ServerDirKey = "DefaultInstallDirectory";
 

@@ -9,7 +9,7 @@
 **   ux-config.cc
 **
 ** DESCRIPTION:
-**   Brandx Directory Server Pre-installation Program
+**   Fedora Directory Server Pre-installation Program
 **
 ** NOTES:
 **   This program is intended for UNIX only and is NOT thread-safe.

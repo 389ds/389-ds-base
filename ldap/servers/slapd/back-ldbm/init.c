@@ -239,7 +239,7 @@ add_ldbm_internal_attr_syntax( const char *name, const char *oid,
 	origins[1] = NULL;
 
 	rc = attr_syntax_create( oid, names, 1,
-			"Brandx defined attribute type",
+			"Fedora defined attribute type",
 			 NULL,						/* superior */
 			 mr_equality, NULL, NULL,	/* matching rules */
 			 origins, syntax,

@@ -6,7 +6,7 @@
 ;
 ;
 ;
-DESCRIPTION     'Brandx Directory Server 7.1 ACL Plugin'
+DESCRIPTION     'Fedora Directory Server 7.1 ACL Plugin'
 ;CODE		SHARED READ EXECUTE
 ;DATA		SHARED READ WRITE
 EXPORTS

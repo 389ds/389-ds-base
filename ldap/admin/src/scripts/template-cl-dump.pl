@@ -6,6 +6,11 @@
 # END COPYRIGHT BLOCK
 ################################################################################
 #
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
 # FILE: cl-dump.pl
 #
 # SYNOPSIS:
@@ -16,7 +21,7 @@
 #    cl-dump.pl -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]\n";
 #
 # DESCRIPTION:
-#    Dump and decode Netscape Directory Server replication change log
+#    Dump and decode Directory Server replication change log
 #
 # OPTIONS:
 #
@@ -74,7 +79,7 @@ use MIME::Base64;			# Decode
 
 # Global variables
 
-$version = "Netscape Directory Server Changelog Dump - Version 1.0";
+$version = "Directory Server Changelog Dump - Version 1.0";
 
 #main
 {

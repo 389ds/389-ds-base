@@ -42,7 +42,7 @@ while ($sn <= $#ARGV)
   }
   elsif ("$ARGV[$sn]" eq "-v")
   {
-    print "Netscape Access Log Analyzer v$logversion\n";;
+    print "Access Log Analyzer v$logversion\n";;
     exit (0);
   }
   elsif ("$ARGV[$sn]" eq "-V")
@@ -88,7 +88,7 @@ if ($sizeCount eq "all"){$sizeCount = "100000";}
 #                                     #
 #######################################
 
-print "\nNetscape Access Log Analyzer $logversion\n";
+print "\nAccess Log Analyzer $logversion\n";
 print "\nCommand : logconv.pl @ARGV\n\n";
 
 $dirmgr = "0";

@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Brandx Directory Server 7.1 State Change Plugin'
+DESCRIPTION     'Fedora Directory Server 7.1 State Change Plugin'
 EXPORTS
 	views_init        @2
 	plugin_init_debug_level	@3

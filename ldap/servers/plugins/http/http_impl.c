@@ -624,10 +624,10 @@ static int nssReinitializationRequired()
 	if ( err == LDAP_SUCCESS && entry!=NULL  && entry[0]!=NULL)
 	{
 		value = slapi_entry_attr_get_charptr(entry[0], "vendorVersion");
-		if (value == NULL || strncmp(value, "Netscape", strlen("Netscape")))		
+		if (value == NULL || strncmp(value, "Fedora", strlen("Fedora")))
 		{
 			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-				"nssReinitializationRequired: vendor is not Netscape \n");
+				"nssReinitializationRequired: vendor is not Fedora \n");
 			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
 				"or version is earlier than 6.0\n", value);
 			nssReinitializationRequired = 1;

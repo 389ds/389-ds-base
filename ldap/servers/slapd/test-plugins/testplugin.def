@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION		'Brandx Directory Server 7 test plugin'
+DESCRIPTION		'Fedora Directory Server 7 test plugin'
 EXPORTS
 	testentry_scramble				@2
 	testentry_unscramble				@3

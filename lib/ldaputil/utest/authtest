@@ -87,7 +87,7 @@ must_succeed ./auth 9 "o=Ace Industry, c=US" "cn=Kirsten Vaughan, ou=Human Resou
 #must_fail ./auth 9 "default" "cn=Kirsten Vaughan, o=Ace Industry, c=US"
 
 # test for encode/decode bindpw
-must_succeed ./auth 10 "cn=Foo Bar, o=Netscape Communication, c=US" "foobar"
+must_succeed ./auth 10 "cn=Foo Bar, o=Fedora Project, c=US" "foobar"
 
 # test for reading dbnames from dbswitch.conf file
 must_succeed ./auth 11 dblist.conf ignore

@@ -4,7 +4,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 ///////////////////////////////////////////////////////////////////////////////
-// dsinst.c - Brandx Directory Server Installation Plug-In 
+// dsinst.c - Fedora Directory Server Installation Plug-In 
 //
 #include <windows.h>
 #include <commctrl.h>

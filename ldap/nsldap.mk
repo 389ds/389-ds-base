@@ -6,7 +6,7 @@
 # END COPYRIGHT BLOCK
 #
 #
-# nsldap.mk: GNU Makefile for common defs used in Brandx Directory Server 
+# nsldap.mk: GNU Makefile for common defs used in Fedora Directory Server 
 #	and related tools.
 # 									
 
@@ -96,7 +96,7 @@ DEPENDENCY_DIRS = $(RELDIR) $(LDAP_SERVER_RELDIR) $(LDAP_ADMIN_BIN_RELDIR) \
 $(DEPENDENCY_DIRS):
 	$(MKDIR) $@
 
-# On AIX, include _shr in shared library names (Netscape convention).  This
+# On AIX, include _shr in shared library names.  This
 # is done because the suffix .a is used with both static and dynamic libs
 # and we need some way to distinguish the two.  You gotta love AIX....
 ifeq ($(ARCH), AIX)

@@ -90,10 +90,10 @@ endif
 # admin server
 
 ifndef ADM_RELDATE
-  ADM_RELDATE = 20041117
+  ADM_RELDATE = 20050324
 endif
 ifndef ADM_VERSDIR
-  ADM_VERSDIR = admserv62
+  ADM_VERSDIR = adminserver/70$(BUILD_MODE)
 endif
 
 # peer
@@ -103,10 +103,14 @@ endif
 
 # setup sdk
 ifndef SETUP_SDK_RELDATE
-  SETUP_SDK_RELDATE = DS7.0
+  SETUP_SDK_RELDATE = 20050317
 endif
+ifndef SETUPSDK_VER
+  SETUPSDK_VER = 70
+endif
+
 ifndef SETUPSDK_VERSDIR
-  SETUPSDK_VERSDIR = v6.2
+  SETUPSDK_VERSDIR=setupsdk$(SETUPSDK_VER)$(BUILD_MODE)
 endif
 
 # infozip utilities
@@ -121,14 +125,14 @@ endif
 
 # admin utility library
 ifndef ADMINUTIL_VER
-  ADMINUTIL_VER=62
+  ADMINUTIL_VER=70
 endif
 ifndef ADMINUTIL_RELDATE
-  ADMINUTIL_RELDATE=20041117
+  ADMINUTIL_RELDATE=20050316
 endif
 
 ifndef ADMINUTIL_VERSDIR
-  ADMINUTIL_VERSDIR=adminsdk$(ADMINUTIL_VER)
+  ADMINUTIL_VERSDIR=adminsdk$(ADMINUTIL_VER)$(BUILD_MODE)
 endif
 
 # LDAP Console
@@ -184,4 +188,9 @@ ifndef ICU_VERSDIR
 endif
 ifndef ICU_RELDATE
   ICU_RELDATE=DS7.0
+endif
+
+# DOC
+ifndef DSDOC_RELDATE
+  DSDOC_RELDATE = 20050311
 endif

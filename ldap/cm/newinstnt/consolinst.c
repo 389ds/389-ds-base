@@ -4,7 +4,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 //////////////////////////////////////////////////////////////////////////////
-// CONSOLINST.c - Brandx Directory Server Installation Plug-In 
+// CONSOLINST.c - Fedora Directory Server Installation Plug-In 
 //
 //
 #include <windows.h>

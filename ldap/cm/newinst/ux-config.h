@@ -10,12 +10,22 @@
 **   ux-config.h
 **
 ** DESCRIPTION:
-**   Brandx Directory Server Pre-installation Program
+**   Fedora Directory Server Pre-installation Program
 **
 ** NOTES:
 **
 ** HISTORY:
 ** $Log: ux-config.h,v $
+** Revision 1.4  2005/03/25 02:09:16  nhosoi
+** [Bug 146919] Directory Server rebranding
+** 1) Brandx -> Fedora
+** 2) Pick up new internal component set (Admin SDK, Setup SDK, Admin Server)
+** 3) Use JRE from the Admin Server package
+** 4) Docs
+**   a) Componentize Docs
+**   b) Rebrand Docs
+**   c) Drop packaging Administration Guide in the external version
+**
 ** Revision 1.3  2005/02/28 23:37:49  nkinder
 ** 149951 - Updated source code copyrights
 **

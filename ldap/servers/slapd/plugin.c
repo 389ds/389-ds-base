@@ -1510,7 +1510,7 @@ slapi_get_supported_extended_ops_copy( void )
  *
  * If the server is running as the Full version, all plugins are approved,
  * otherwise, if the server is running as DirectoryLite, only plugins from 
- * Netscape are approved.
+ * Red Hat are approved.
  *
  * We have a special case for the NT Synch plugin, which is disabled for DLite.
  */
