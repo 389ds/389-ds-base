@@ -86,7 +86,7 @@ help:
 
 components: $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(DBM_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
 	$(ICU_DEP) $(SETUPSDK_DEP) $(LDAPSDK_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(PEER_DEP) \
-	$(DSRK_DEP) $(AXIS_DEP) $(DSMLJAR_DEP)
+	$(AXIS_DEP) $(DSMLJAR_DEP)
 	-@echo "The components are up to date"
 
 ifeq ($(BUILD_JAVA_CODE),1)

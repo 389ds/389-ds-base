@@ -461,14 +461,7 @@ ifdef USE_QUANTIFY
 	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.quantify $(RELDIR)/bin/slapd/server/ns-slapd
 endif
 
-# Copy DSRK tools 
-	$(INSTALL) -m 755 $(DSRK_BUILD_DIR)/perl/logconv.pl $(RELDIR)/bin/slapd/server
-ifneq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(DSRK_BUILD_DIR)/bin/n$(DSRKCOMP_DIR)/dbscan $(RELDIR)/bin/slapd/server
-else
-	$(INSTALL) -m 755 $(DSRK_BUILD_DIR)/bin/n$(DSRKCOMP_DIR)/dbscan$(DOTEXE) $(RELDIR)/bin/slapd/server
-endif
-
+# Copy db tools 
 	$(INSTALL) -m 755 $(DB_BINPATH)/db_printlog* $(RELDIR)/bin/slapd/server
 	$(INSTALL) -m 755 $(DB_BINPATH)/db_verify* $(RELDIR)/bin/slapd/server
 

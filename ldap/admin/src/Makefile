@@ -180,7 +180,7 @@ BINS = $(addprefix $(BINDIR)/, $(PROGS))
 endif
 ALLOBJS = $(addprefix $(OBJDEST)/, $(OBJECTS))
 
-PERL_SCRIPTS = migrateTo4 uname.lib Cgi.pm migrateInstance getConfigInfo migrateLocalDB migratePwdFile ds_viewlog.pl upgradeServer updatedsgw
+PERL_SCRIPTS = migrateTo4 uname.lib Cgi.pm migrateInstance getConfigInfo migrateLocalDB migratePwdFile ds_viewlog.pl upgradeServer updatedsgw logconv.pl
 
 PERL_SCRIPTS_DEST = $(addprefix $(BINDIR)/, $(PERL_SCRIPTS))
 

@@ -533,36 +533,6 @@ endif
 	then echo "Error: could not get component LDAPSDK file $@" ; \
 	fi
 
-####################################################
-# DSRK
-####################################################
-ifndef DSRK_VERSION
- DSRK_VERSION = $(DSRK_RELDATE)$(SEC_SUFFIX)
-endif
-ifndef DSRK_SBC
-# DSRK_SBC = $(COMPONENTS_DIR_DEV)
-DSRK_SBC = $(COMPONENTS_DIR)
-endif
-
-DSRK_RELEASE = $(DSRK_SBC)/dsrk/$(DSRKCOMP_DIR)/$(DSRK_VERSION)/$(NSOBJDIR_NAME)
-DSRK_FILES = bin,perl
-DSRK_BUILD_DIR = $(NSCP_DISTDIR)/dsrk
-DSRK_DEP = $(DSRK_BUILD_DIR)/bin/n$(DSRKCOMP_DIR)
-
-ifndef DSRK_PULL_METHOD
-DSRK_PULL_METHOD = $(COMPONENT_PULL_METHOD)
-endif
-
-$(DSRK_DEP): $(NSCP_DISTDIR_FULL_RTL)
-ifdef COMPONENT_DEPS
-	$(FTP_PULL) -method $(DSRK_PULL_METHOD) \
-		-objdir $(DSRK_BUILD_DIR) -componentdir $(DSRK_RELEASE) \
-		-files $(DSRK_FILES)
-endif
-	-@if [ ! -d $@ ] ; \
-	then echo "Error: could not get component DSRK file $@" ; \
-	fi
-
 # apache-axis java classes #######################################
 AXIS = axis-bin-$(AXIS_VERSION).zip
 AXIS_FILES = $(AXIS)

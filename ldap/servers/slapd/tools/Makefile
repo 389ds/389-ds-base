@@ -118,7 +118,7 @@ CFLAGS+=-DLDAP_DONT_USE_SMARTHEAP
 endif
 
 
-TOOL_OBJS =  ldif.o keyupg.o pwenc.o mmldif.o migratecred.o eggencode.o
+TOOL_OBJS =  ldif.o keyupg.o pwenc.o mmldif.o migratecred.o eggencode.o dbscan.o
 ALL_OBJS = $(addprefix $(OBJDEST)/, $(TOOL_OBJS))
 
 LDIF = $(addsuffix $(EXE_SUFFIX), \
@@ -133,8 +133,10 @@ MMLDIF = $(addsuffix $(EXE_SUFFIX), \
 	$(addprefix $(BINDIR)/, mmldif))
 EGGENCODE = $(addsuffix $(EXE_SUFFIX), \
 	$(addprefix $(BINDIR)/, eggencode))
+DBSCAN = $(addsuffix $(EXE_SUFFIX), \
+	$(addprefix $(BINDIR)/, dbscan))
 
-BINS=	$(LDIF) $(PWDHASH) $(KEYUPG) $(MMLDIF) $(MIGRATECRED)
+BINS=	$(LDIF) $(PWDHASH) $(KEYUPG) $(MMLDIF) $(MIGRATECRED) $(DBSCAN)
 EXTRABINS=	$(EGGENCODE)
 
 all:	$(OBJDEST) $(BINDIR) $(LDAP_ADMIN_BIN_RELDIR) $(BINS)
@@ -158,6 +160,9 @@ $(MMLDIF):	$(OBJDEST)/mmldif.o $(EXTRA_LIBS_DEP)
 
 $(EGGENCODE):	$(OBJDEST)/eggencode.o
 	$(LINK_EXE_NOLIBSOBJS) $(OBJDEST)/eggencode.o
+
+$(DBSCAN):	$(OBJDEST)/dbscan.o
+	$(LINK_EXE) $<
 
 $(OBJDEST):
 	$(MKDIR) $(OBJDEST)
