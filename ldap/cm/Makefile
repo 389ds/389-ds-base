@@ -238,6 +238,11 @@ ifdef BUILD_RPM
 	RPM_RPMDIR = --define "_rpmdir $(ABS_TOPDIR)"
 # location of source RPM
 	RPM_SRPMDIR = --define "_srcrpmdir $(ABS_TOPDIR)"
+ifneq ($(BUILD_DEBUG), optimize)
+	RPM_FLAVOR = dbg
+else
+	RPM_FLAVOR = opt
+endif
 endif
 
 # Borland libraries are build on NT only
@@ -740,7 +745,7 @@ ifdef BUILD_RPM
 		rm $(RPM_FILE_BASE) ; \
 	fi
 # execute the RPM build
-	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec
+	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) --define "flavor $(RPM_FLAVOR)" --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec
 endif # BUILD_RPM
 
 else
