@@ -799,7 +799,7 @@ endif  # USE_64
 else
 ifeq ($(ARCH), Linux)
 ifdef BUILD_RPM
-	$(acceptdir)/accept $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm)
+	$(acceptdir)/accept $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm) &
 endif  # BUILD_RPM
 else
 	$(acceptdir)/accept $(BUILD_SHIP)/$(FTPNAMEGZ) &
