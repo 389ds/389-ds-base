@@ -586,6 +586,46 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
     }
 }
 
+static int
+is_changelog(char *filename)
+{
+    char *ptr = NULL;
+    int dashes = 0;
+    int underscore = 0;
+    if (NULL == (ptr = strrchr(filename, '/'))) {
+        if (NULL == (ptr = strrchr(filename, '\\'))) {
+            ptr = filename;
+        } else {
+            ptr++;
+        }
+    } else {
+        ptr++;
+    }
+    for (; ptr && *ptr; ptr++) {
+        if ('.' == *ptr) {
+            if (0 == strncmp(ptr, ".db", 3)) {
+                if (3 == dashes && 1 == underscore) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+        } else if ('-' == *ptr) {
+            if (underscore > 0) {
+                return 0;
+            }
+            dashes++;
+        } else if ('_' == *ptr) {
+            if (dashes < 3) {
+                return 0;
+            }
+            underscore++;
+        } else if (!isxdigit(*ptr)) {
+            return 0;
+        }
+    }
+    return 0;
+}
 
 static void usage(char *argv0)
 {
@@ -594,7 +634,8 @@ static void usage(char *argv0)
     printf("    -i              dump as an index file\n");
     printf("    -e              dump as an entry (id2entry) file\n");
     printf("    -c              dump as a  changelog file\n");
-    printf("    -l <size>       max length of dumped id list (default %d; 40 <= size <= 1MB)\n",
+    printf("    -l <size>       max length of dumped id list\n");
+    printf("                    (default %d; 40 bytes <= size <= 1048576 bytes)\n",
            MAX_BUFFER);
     printf("    -n              display idl lengths only (not contents)\n");
     printf("    -G <n>          (when used with -n) only display index entries with\n");
@@ -673,7 +714,31 @@ int main(int argc, char **argv)
     }
 
     if(filename == NULL) {
-	usage(argv[0]);
+        usage(argv[0]);
+    }
+    if (NULL != strstr(filename, "id2entry.db")) {
+        if (indexfile || changelogfile) {
+            printf("WARNING: Specified file %s is not %s file; \n", filename,
+                indexfile?"an index":(changelogfile?"a changelog":"unknown"));
+            printf("         Changing the file type to entryfile\n");
+	    indexfile = changelogfile = 0;
+        }
+	entryfile = 1;
+    } else if (is_changelog(filename)) {
+        if (indexfile || entryfile) {
+            printf("WARNING: Specified file %s is not %s file; \n", filename,
+                indexfile?"an index":(entryfile?"an entry":"unknown"));
+            printf("         Changing the file type to changelogfile\n");
+	    indexfile = entryfile = 0;
+        }
+	changelogfile = 1;
+    } else {
+        /* most likely an entry file ... */
+        if (entryfile || changelogfile) {
+            printf("WARNING: Specified file %s is not likely %s file; \n",
+                filename, indexfile?"an index":(changelogfile?"a changelog":"unknown"));
+            printf("         The output may not be accurate.\n");
+	}
     }
         
     ret = db_env_create(&env, 0);
@@ -734,7 +799,10 @@ int main(int argc, char **argv)
                    db_strerror(ret));
             exit(1);
         }
-        display_item(cursor, &key, &data);
+        do {
+            display_item(cursor, &key, &data);
+            ret = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP);
+        } while (0 == ret);
         key.size = 0;
         key.data = NULL;
     } else if (entry_id != -1) {
