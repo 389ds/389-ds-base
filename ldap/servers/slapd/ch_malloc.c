@@ -383,9 +383,14 @@ slapi_ch_smprintf(const char *fmt, ...)
 	char *p = NULL;
 	va_list ap;
 
+	if (NULL == fmt) {
+		return NULL;
+	}
+
 	va_start(ap, fmt);
 	p = PR_vsmprintf(fmt, ap);
 	va_end(ap);
+
 	return p;
 }
 

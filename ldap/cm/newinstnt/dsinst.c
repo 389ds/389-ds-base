@@ -75,6 +75,13 @@ my_snprintf(char *s, size_t size, const char *fmt, ...)
 }
 
 static void
+my_strncpy(char *dst, const char *src, size_t size)
+{
+	strncpy(dst, src, size-1);
+	dst[size-1] = (char)0;
+}
+
+static void
 storeUserDirectoryInfo()
 {
 	char *utf8UserGroupAdmin = NULL;
@@ -90,14 +97,14 @@ storeUserDirectoryInfo()
 		if(mi.m_nExistingMCC == 0)
 		{
 			/* the user is also creating a new MCC so set UG admin to MCC admin */
-			lstrcpy(mi.m_szUserGroupAdmin, mi.m_szMCCBindAs);
-			lstrcpy(mi.m_szUserGroupAdminPW, mi.m_szMCCPw);
+			my_strncpy(mi.m_szUserGroupAdmin, mi.m_szMCCBindAs, sizeof(mi.m_szUserGroupAdmin));
+			my_strncpy(mi.m_szUserGroupAdminPW, mi.m_szMCCPw, sizeof(mi.m_szUserGroupAdminPW));
 
 		}else{
 			/* user is using an existing MCC so only creating UG, make UG user same as
 			   Root DN */
-			lstrcpy(mi.m_szUserGroupAdmin, mi.m_szInstanceUnrestrictedUser);
-			lstrcpy(mi.m_szUserGroupAdminPW, mi.m_szInstancePassword);
+			my_strncpy(mi.m_szUserGroupAdmin, mi.m_szInstanceUnrestrictedUser, sizeof(mi.m_szUserGroupAdmin));
+			my_strncpy(mi.m_szUserGroupAdminPW, mi.m_szInstancePassword, sizeof(mi.m_szUserGroupAdminPW));
 
 		}
 		my_snprintf(mi.m_szUserGroupURL, sizeof(mi.m_szUserGroupURL), "ldap://%s:%d/%s", mi.m_szInstanceHostName,
@@ -420,7 +427,7 @@ int GetURLComponents(char *szURL, char *szHost, int *nPort, char *szBase)
 
 	if( NULL != ludpp->lud_host)
 	{
-	   strcpy(szHost, ludpp->lud_host);
+	   my_strncpy(szHost, ludpp->lud_host, MAX_STR_SIZE);
 	}else{
 	   strcpy(szHost, "\0");
 	}
@@ -429,7 +436,7 @@ int GetURLComponents(char *szURL, char *szHost, int *nPort, char *szBase)
 
 	if( NULL != ludpp->lud_dn)
 	{
-	   strcpy(szBase, ludpp->lud_dn);
+	   my_strncpy(szBase, ludpp->lud_dn, MAX_STR_SIZE);
 	}else{
 	   strcpy(szBase, "\0");
 	}
@@ -885,27 +892,27 @@ int set_default_ldap_settings()
     mi.m_nUseChangeLogSettings = 0;
 
 	
-	lstrcpy(mi.m_szSIRDays, DEFAULT_SIR_DAYS);
-	lstrcpy(mi.m_szSIRTimes, DEFAULT_SIR_TIMES);
+	my_strncpy(mi.m_szSIRDays, DEFAULT_SIR_DAYS, sizeof(mi.m_szSIRDays));
+	my_strncpy(mi.m_szSIRTimes, DEFAULT_SIR_TIMES, sizeof(mi.m_szSIRTimes));
 	mi.m_nSupplierPort = DEFAULT_SERVER_PORT;
 
-    lstrcpy(mi.m_szCIRDays, DEFAULT_CIR_DAYS);
-    lstrcpy(mi.m_szCIRTimes, DEFAULT_CIR_TIMES);
+    my_strncpy(mi.m_szCIRDays, DEFAULT_CIR_DAYS, sizeof(mi.m_szCIRDays));
+    my_strncpy(mi.m_szCIRTimes, DEFAULT_CIR_TIMES, sizeof(mi.m_szCIRTimes));
 	mi.m_nConsumerPort = DEFAULT_SERVER_PORT;
 
 	mi.m_nCIRInterval = DEFAULT_CIR_INTERVAL;
 
 	
 	/* default MCC settings */
-	lstrcpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT);
+	my_strncpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT, sizeof(mi.m_szMCCSuffix));
 	mi.m_nMCCPort=DEFAULT_SERVER_PORT;
 
 	mi.m_szMCCBindAs = malloc(MAX_STR_SIZE);
 	my_snprintf(mi.m_szMCCBindAs, sizeof(mi.m_szMCCBindAs), "%s", DEFAULT_SSPT_USER);
 
-	lstrcpy(mi.m_szUGSuffix, mi.m_szInstanceSuffix);
+	my_strncpy(mi.m_szUGSuffix, mi.m_szInstanceSuffix, sizeof(mi.m_szUGSuffix));
 	mi.m_nUGPort=DEFAULT_SERVER_PORT;
-	lstrcpy(mi.m_szUserGroupAdmin, DEFAULT_UNRESTRICTED_USER);
+	my_strncpy(mi.m_szUserGroupAdmin, DEFAULT_UNRESTRICTED_USER, sizeof(mi.m_szUserGroupAdmin));
 
 	mi.m_nPopulateSampleEntries = DEFAULT_POPULATE_SAMPLE_ENTRIES;
 	mi.m_nDisableSchemaChecking = DEFAULT_DISABLE_SCHEMA_CHECKING;
@@ -961,11 +968,11 @@ void set_ldap_settings()
 		/* this new instance will be MCC, but only copy over things
 			if not silent mode, in silent mode it will read correct
 			mcc stuff from the cache */
-		lstrcpy(mi.m_szMCCHost, mi.m_szInstanceHostName);
+		my_strncpy(mi.m_szMCCHost, mi.m_szInstanceHostName, sizeof(mi.m_szMCCHost));
 		mi.m_nMCCPort = mi.m_nInstanceServerPort;
-		lstrcpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT);
+		my_strncpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT, sizeof(mi.m_szMCCSuffix));
 		my_snprintf(mi.m_szMCCBindAs, sizeof(mi.m_szMCCBindAs), "%s", mi.m_szSsptUid);
-		lstrcpy(mi.m_szMCCPw, mi.m_szSsptUidPw);
+		my_strncpy(mi.m_szMCCPw, mi.m_szSsptUidPw, sizeof(mi.m_szMCCPw));
 
 	}
 
@@ -2581,7 +2588,7 @@ Server_Settings_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 	  SendDlgItemMessage(hwndDlg, IDC_SPIN_SERVER_PORT, UDM_SETBUDDY, (WPARAM)GetDlgItem(hwndDlg, IDC_EDIT_SERVER_PORT), 0);
 	  SendDlgItemMessage(hwndDlg, IDC_SPIN_SERVER_PORT, UDM_SETRANGE, 0, MAKELONG((short)UD_MAXVAL, (short)1));
 
-	  lstrcpy(szSavedSuffix, mi.m_szInstanceSuffix);
+	  my_strncpy(szSavedSuffix, mi.m_szInstanceSuffix, sizeof(szSavedSuffix));
       break;
 
 
@@ -2621,12 +2628,12 @@ Server_Settings_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
   			/* hide suffix when creating config only directory */
 			if( 0 != strlen(mi.m_szInstanceSuffix) )
 			{
-				lstrcpy(szSavedSuffix, mi.m_szInstanceSuffix);
+				my_strncpy(szSavedSuffix, mi.m_szInstanceSuffix, sizeof(szSavedSuffix));
 				memset(mi.m_szInstanceSuffix, '\0', MAX_STR_SIZE);
 			}
 			nCmdShow = SW_HIDE;
 		  }else{
-			lstrcpy(mi.m_szInstanceSuffix, szSavedSuffix);
+			my_strncpy(mi.m_szInstanceSuffix, szSavedSuffix, sizeof(mi.m_szInstanceSuffix));
 			nCmdShow = SW_SHOW;
 		  }
 
@@ -2688,7 +2695,7 @@ Server_Settings_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           // NOTE: To prevent the wizard from stepping back, return -1.
 		  SaveDialogInput_Server_Settings(hwndDlg);
 		  // save the suffix typed in by the user
-		  lstrcpy(szSavedSuffix, mi.m_szInstanceSuffix);
+		  my_strncpy(szSavedSuffix, mi.m_szInstanceSuffix, sizeof(szSavedSuffix));
           break;
 
         case PSN_WIZNEXT:
@@ -2701,7 +2708,7 @@ Server_Settings_DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           // NOTE: To prevent the wizard from stepping ahead, return -1.
    		  SaveDialogInput_Server_Settings(hwndDlg);
 		  // save the suffix typed in by the user
-		  lstrcpy(szSavedSuffix, mi.m_szInstanceSuffix);
+		  my_strncpy(szSavedSuffix, mi.m_szInstanceSuffix, sizeof(szSavedSuffix));
 		  if( TRUE == (bValueReturned =  Verify_Server_Settings()) )
 		  {
 			  /* one of the settings was invalid stay on this page */
@@ -5692,14 +5699,14 @@ DSINST_PreInstall(LPCSTR lpszInstallPath)
 						   &szAdminDomain);
 		if (szLdapURL && szAdminDomain)
 		{
-			lstrcpy(mi.m_szLdapURL, szLdapURL);
+			my_strncpy(mi.m_szLdapURL, szLdapURL, sizeof(mi.m_szLdapURL));
 			GetURLComponents(mi.m_szLdapURL, mi.m_szMCCHost, 
 							 &mi.m_nMCCPort, mi.m_szMCCSuffix);
 			if (mi.m_szMCCSuffix[0] == 0)
-				lstrcpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT);
+				my_strncpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT, sizeof(mi.m_szMCCSuffix));
 			if (szLdapUser && mi.m_szMCCBindAs)
-				lstrcpy(mi.m_szMCCBindAs, szLdapUser);
-			lstrcpy(mi.m_szAdminDomain, szAdminDomain);
+				my_strncpy(mi.m_szMCCBindAs, szLdapUser, sizeof(mi.m_szMCCBindAs));
+			my_strncpy(mi.m_szAdminDomain, szAdminDomain, sizeof(mi.m_szAdminDomain));
 			// since this server root is already configured to use
 			// an existing configuration directory server, we will
 			// not allow the user to install another one here, so
@@ -6085,14 +6092,14 @@ DSINST_WriteGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 		if(mi.m_nExistingMCC == 0)
 		{
 			/* the user is also creating a new MCC so set UG admin to MCC admin */
-			lstrcpy(mi.m_szUserGroupAdmin, mi.m_szMCCBindAs);
-			lstrcpy(mi.m_szUserGroupAdminPW, mi.m_szMCCPw);
+			my_strncpy(mi.m_szUserGroupAdmin, mi.m_szMCCBindAs, sizeof(mi.m_szUserGroupAdmin));
+			my_strncpy(mi.m_szUserGroupAdminPW, mi.m_szMCCPw, sizeof(mi.m_szUserGroupAdminPW));
 
 		}else{
 			/* user is using an existing MCC so only creating UG, make UG user same as
 				Root DN */
-			lstrcpy(mi.m_szUserGroupAdmin, mi.m_szInstanceUnrestrictedUser);
-			lstrcpy(mi.m_szUserGroupAdminPW, mi.m_szInstancePassword);
+			my_strncpy(mi.m_szUserGroupAdmin, mi.m_szInstanceUnrestrictedUser, sizeof(mi.m_szUserGroupAdmin));
+			my_strncpy(mi.m_szUserGroupAdminPW, mi.m_szInstancePassword, sizeof(mi.m_szUserGroupAdminPW));
 
 		}
 		my_snprintf(mi.m_szUserGroupURL, sizeof(mi.m_szUserGroupURL), "ldap://%s:%d/%s", mi.m_szInstanceHostName,
@@ -6390,7 +6397,7 @@ DSINST_ReadGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 		/* stevross: now that cgi can handle full DN 
 			Sspt UID is same user as MCC BindAs no matter what
 			look into removing later once get instance creatin working */
-			lstrcpy(mi.m_szSsptUid, mi.m_szMCCBindAs);
+			my_strncpy(mi.m_szSsptUid, mi.m_szMCCBindAs, sizeof(mi.m_szSsptUid));
 	}
 
     GetPrivateProfileString(lpszSectionName, GLOBAL_INF_LDAP_PASSWD, "\0", 
@@ -6403,8 +6410,8 @@ DSINST_ReadGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 	    return FALSE;
 	}else{
 		/* use password for sspt user since this is the ssptuser */
-		lstrcpy(mi.m_szSsptUidPw, mi.m_szMCCPw);
-	    lstrcpy(mi.m_szSsptUidPwAgain, mi.m_szSsptUidPw);
+		my_strncpy(mi.m_szSsptUidPw, mi.m_szMCCPw, sizeof(mi.m_szSsptUidPw));
+	    my_strncpy(mi.m_szSsptUidPwAgain, mi.m_szSsptUidPw, sizeof(mi.m_szSsptUidPwAgain));
 	}
 
     GetPrivateProfileString(lpszSectionName, SLAPD_KEY_ADMIN_DOMAIN, "\0", 
@@ -6454,7 +6461,7 @@ DSINST_ReadGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 		/* stevross: now that cgi can handle full DN 
 			Sspt UID is same user as MCC BindAs no matter what
 			look into removing later once get instance creatin working */
-			lstrcpy(mi.m_szSsptUid, mi.m_szMCCBindAs);
+			my_strncpy(mi.m_szSsptUid, mi.m_szMCCBindAs, sizeof(mi.m_szSsptUid));
 	}
 
     GetPrivateProfileString(lpszSectionName, GLOBAL_INF_LDAP_PASSWD, "\0", 
@@ -6467,8 +6474,8 @@ DSINST_ReadGlobalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 	    return FALSE;
 	}else{
 		/* use password for sspt user since this is the ssptuser */
-		lstrcpy(mi.m_szSsptUidPw, mi.m_szMCCPw);
-	    lstrcpy(mi.m_szSsptUidPwAgain, mi.m_szSsptUidPw);
+		my_strncpy(mi.m_szSsptUidPw, mi.m_szMCCPw, sizeof(mi.m_szSsptUidPw));
+	    my_strncpy(mi.m_szSsptUidPwAgain, mi.m_szSsptUidPw, sizeof(mi.m_szSsptUidPwAgain));
 	}
 
     GetPrivateProfileString(lpszSectionName, SLAPD_KEY_ADMIN_DOMAIN, "\0", 
@@ -6569,7 +6576,7 @@ DSINST_ReadLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 		                     mi.m_szInstancePassword, MAX_STR_SIZE, 
 							 lpszCacheFileName);
 
-    lstrcpy(mi.m_szInstancePasswordAgain, mi.m_szInstancePassword);
+    my_strncpy(mi.m_szInstancePasswordAgain, mi.m_szInstancePassword, sizeof(mi.m_szInstancePasswordAgain));
 
 
     GetPrivateProfileString(lpszSectionName, SLAPD_KEY_SERVER_IDENTIFIER, "\0", 
@@ -6659,7 +6666,7 @@ DSINST_ReadLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
 	    	 			   lpszCacheFileName);
 
    /* read from cache, so copy it to mi.m_szSupplierPWAgain); */
-   lstrcpy(mi.m_szSupplierPWAgain, mi.m_szSupplierPW);
+   my_strncpy(mi.m_szSupplierPWAgain, mi.m_szSupplierPW, sizeof(mi.m_szSupplierPWAgain));
    
    /* Supplier replication settings */
 
@@ -6734,7 +6741,7 @@ DSINST_ReadLocalCache(LPCSTR lpszCacheFileName, LPCSTR lpszSectionName)
                            mi.m_szConsumerPW, MAX_STR_SIZE, 
 	    	 			   lpszCacheFileName);
 
-   lstrcpy(mi.m_szConsumerPWAgain, mi.m_szConsumerPW);
+   my_strncpy(mi.m_szConsumerPWAgain, mi.m_szConsumerPW, sizeof(mi.m_szConsumerPWAgain));
    
    GetPrivateProfileString(lpszSectionName, SLAPD_KEY_INSTALL_LDIF_FILE, DEFAULT_INF_POP_LDIF_FILE, 
                            mi.m_szPopLdifFile, MAX_STR_SIZE, 
@@ -7006,15 +7013,15 @@ create_slapd_instance(const char *hostname, const char *serverroot)
 					serverroot);
 		    if (mi.m_nReInstall) 
 			{ 
-				strcat(szCGIArgs, " -r -f ");
+				PL_strcatn(szCGIArgs, sizeof(szCGIArgs), " -r -f ");
 				/* add the -r flag if reinstalling */ 
 			} else 
 			{ 
-				strcat(szCGIArgs, " -f ");
+				PL_strcatn(szCGIArgs, sizeof(szCGIArgs), " -f ");
 			}
-			strcat(szCGIArgs, "\"");
-			strcat(szCGIArgs, INFfile);
-			strcat(szCGIArgs, "\"");
+			PL_strcatn(szCGIArgs, sizeof(szCGIArgs), "\"");
+			PL_strcatn(szCGIArgs, sizeof(szCGIArgs), INFfile);
+			PL_strcatn(szCGIArgs, sizeof(szCGIArgs), "\"");
 			myLogData("create_slapd_instance: executing %s %s",
 				  PERL_EXE, szCGIArgs);
 			status = run_cgi(serverroot, PERL_EXE, szCGIArgs); 
@@ -7305,7 +7312,7 @@ updateRegistryKeys(const char *oldVersion, const char *newVersion)
 	my_snprintf(newKey, sizeof(newKey), "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
 	strcpy(oldKey, newKey);
 	if (ptr = strstr(oldKey, SVR_VERSION)) {
-		strncpy(ptr, oldVersion, strlen(oldVersion));
+		my_strncpy(ptr, oldVersion, strlen(oldVersion));
 	}
 
 	myLogData("updateRegistryKeys: copying %s to %s\n",

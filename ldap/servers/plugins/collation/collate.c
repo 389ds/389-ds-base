@@ -103,9 +103,9 @@ collation_config (size_t cargc, char** cargv,
  
                 if(cargc > 7) {
                     strcpy(nameOrder,"-");
-                    PL_strcatn(nameOrder,256,cargv[7]);
+                    PL_strcatn(nameOrder,sizeof(nameOrder),cargv[7]);
                     strcpy(nameSubstring,"-");
-                    PL_strcatn(nameSubstring,256,cargv[7]);
+                    PL_strcatn(nameSubstring,sizeof(nameSubstring),cargv[7]);
                     slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_NAME,
                                            (void *)slapi_ch_strdup(nameOrder));
                 }
@@ -117,19 +117,19 @@ collation_config (size_t cargc, char** cargv,
 						nameOrder[0] = 0;
 						nameSubstring[0] = 0;
 					}
-                    PL_strcatn(nameOrder,256,cargv[1]);
-                    PL_strcatn(nameSubstring,256,cargv[1]);
+                    PL_strcatn(nameOrder,sizeof(nameOrder),cargv[1]);
+                    PL_strcatn(nameSubstring,sizeof(nameSubstring),cargv[1]);
                     slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_NAME,
                                            (void *)slapi_ch_strdup(nameOrder));
                 }
-                PL_strncpyz(oidString,cargv[6], 256);
+                PL_strncpyz(oidString,cargv[6], sizeof(oidString));
                 slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_OID,
                                        (void *)slapi_ch_strdup(oidString));
                 if(0 != cargv[2][0]) {
-                    PR_snprintf(descStr, 256, "%s-%s",cargv[1],cargv[2]);
+                    PR_snprintf(descStr, sizeof(descStr), "%s-%s",cargv[1],cargv[2]);
                 }
                 else {
-                    PL_strncpyz(descStr,cargv[1], 256);
+                    PL_strncpyz(descStr,cargv[1], sizeof(descStr));
                 }
                 slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_DESC,
 						   (void *)slapi_ch_strdup(descStr));
@@ -144,7 +144,7 @@ collation_config (size_t cargc, char** cargv,
                 slapi_ch_free((void **)&tmpStr);
                 slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_NAME,
                                        (void *)slapi_ch_strdup(nameSubstring));
-                strcat(oidString,".6");
+                PL_strcatn(oidString,sizeof(oidString),".6");
                 slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_OID,
                                        (void *)slapi_ch_strdup(oidString));
                 slapi_matchingrule_register(mrentry);

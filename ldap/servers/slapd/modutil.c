@@ -288,6 +288,7 @@ slapi_mods_add( Slapi_Mods *smods, int modtype, const char *type, unsigned long 
 void
 slapi_mods_add_string( Slapi_Mods *smods, int modtype, const char *type, const char *val)
 {
+	PR_ASSERT(val);
 	slapi_mods_add( smods, modtype, type, strlen(val), val);
 }
 

@@ -121,8 +121,7 @@ static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
 				buf[i].TokenLength)==0) 
 			{
 			    memset(pin, '\0', MAX_PASSWORD);
-		    	    strncpy (pin, buf[i].Password,
-					buf[i].PasswordLength);
+		    	    PL_strncpyz (pin, buf[i].Password, sizeof(pin));
 	    		    slapi_ch_free ((void **) &buf);
 			    return slapi_ch_strdup(pin);
 		        }
@@ -142,10 +141,10 @@ static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     {
 	slapi_ch_free ((void **) &buf);
 	buf = (PK11_PIN *)slapi_ch_malloc(sizeof(PK11_PIN));
-	strcpy (buf[0].TokenName, tokenName);
-	buf[0].TokenLength=strlen(tokenName);
-	strcpy (buf[0].Password, password);
-	buf[0].PasswordLength=strlen(password);
+	PL_strncpyz (buf[0].TokenName, tokenName, sizeof(buf[0].TokenName));
+	buf[0].TokenLength=strlen(buf[0].TokenName);
+	PL_strncpyz (buf[0].Password, password, sizeof(buf[0].Password));
+	buf[0].PasswordLength=strlen(buf[0].Password);
 	if (i== cbRemotePassword)
     	{
 	    /* Add a new token and password to the end of the table.*/

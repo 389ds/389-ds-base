@@ -109,8 +109,9 @@ BOOL WD_GetServerConfig(char *szServerId, char *szServerRoot, LPDWORD cbServerRo
 		return(bReturn);
 
 	// query registry key to figure out config directory
-    sprintf(szSlapdKey, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
+    snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
         szServerId);
+	szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 
 	dwResult = RegOpenKey(HKEY_LOCAL_MACHINE, szSlapdKey, &hSlapdKey);
 	if(dwResult == ERROR_SUCCESS) 
@@ -139,7 +140,8 @@ BOOL WD_GetServerId(IN DWORD dwSubKey, OUT char *szServerId, IN OUT LPDWORD cbSe
 	char szSlapdKey[MAX_LINE];
 
 	if(dwSubKey == 0) {
-    	sprintf(szSlapdKey, "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
+    	snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
+		szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 		dwResult = RegOpenKey(HKEY_LOCAL_MACHINE, szSlapdKey, 
 			&hSlapdKey);
 	}
@@ -236,8 +238,9 @@ DWORD WD_GetDefaultKeyValue(char *szServerName, char *szKeyName, DWORD dwDefault
 	DWORD cbValue = sizeof(dwValue);
 
 	// query registry key to figure out config directory
-    sprintf(szSlapdKey, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
+    snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
         szServerName);
+	szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 	if(RegOpenKey(HKEY_LOCAL_MACHINE, szSlapdKey, &hSlapdKey) == ERROR_SUCCESS)
 	{
 	 	RegQueryValueEx(hSlapdKey, szKeyName, NULL, &dwValueType, 
@@ -360,7 +363,8 @@ BOOL WD_GetServerRoot(char *szServerRoot, char *szServerConfig)
 	BOOL bReturn = FALSE;
 	char *szChar = NULL;
 
-	strcpy(szTemp, szServerConfig);
+	strncpy(szTemp, szServerConfig, sizeof(szTemp));
+	szTemp[sizeof(szTemp)-1] = (char)0;
 	// szTemp should be something like c:\navgold\server\slapd-kennedy\config
 	if(szChar = strrchr(szTemp,'\\'))
 	{
@@ -370,7 +374,8 @@ BOOL WD_GetServerRoot(char *szServerRoot, char *szServerConfig)
 		{
 			*szChar = 0;
 		   // szTemp should be c:\navgold\server
-			strcpy( szServerRoot, szTemp );
+			strncpy( szServerRoot, szTemp, sizeof(gszServerRoot) );
+			szServerRoot[sizeof(gszServerRoot)-1] = (char)0;
 			wsprintf(szServerRootEnvVar, "%s=%s", SLAPD_ROOT, szTemp);
 			putenv(szServerRootEnvVar);
 			bReturn = TRUE;
@@ -395,8 +400,9 @@ BOOL WD_GetConfigFromRegistry(char *szServerConfig, char *szServerName)
 	DWORD dwResult = 0;
 
 	// query registry key to figure out config directory
-    sprintf(szSlapdKey, "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
+    snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
         szServerName);
+	szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 
 	dwResult = RegOpenKey(HKEY_LOCAL_MACHINE, szSlapdKey, &hSlapdKey);
 	if(dwResult != ERROR_SUCCESS) 
@@ -413,7 +419,8 @@ BOOL WD_GetConfigFromRegistry(char *szServerConfig, char *szServerName)
 	} 
 	else
 	{
-		strcpy(szServerConfig, szValueString);
+		strncpy(szServerConfig, szValueString, sizeof(gszServerConfig));
+		szServerConfig[sizeof(gszServerConfig)-1] = (char)0;
 		WD_UnixToDosPath(szServerConfig);
 		WD_GetServerRoot(gszServerRoot, szServerConfig);
 		bReturn = TRUE;
@@ -437,7 +444,8 @@ BOOL WD_GetConfigFromCmdline(char *szServerConfig, char *szServerName, char *szC
 		return(bReturn);
 	}
 
-	strcpy(szServerConfig, szCmdLine);
+	strncpy(szServerConfig, szCmdLine, sizeof(gszServerConfig));
+	szServerConfig[sizeof(gszServerConfig)-1] = (char)0;
 	WD_UnixToDosPath(szCmdLine);
 	WD_GetServerRoot(gszServerRoot, szCmdLine);
 
@@ -450,7 +458,8 @@ BOOL WD_GetConfigFromCmdline(char *szServerConfig, char *szServerName, char *szC
 		{
 			szChar++;
 		   // szChar should point to slapd-kennedy
-			strcpy(szServerName, szChar);
+			strncpy(szServerName, szChar, sizeof(gszServerName));
+			szServerName[sizeof(gszServerName)-1] = (char)0;
 			WD_GetConfigFromRegistry(szServerConfig, szServerName);
 			bReturn = TRUE;
 
@@ -459,7 +468,8 @@ BOOL WD_GetConfigFromCmdline(char *szServerConfig, char *szServerName, char *szC
 	else
 	{
 		// szCmdLine should be something like slapd-kennedy
-		strcpy(szServerName, szCmdLine);
+		strncpy(szServerName, szCmdLine, sizeof(gszServerName));
+		szServerName[sizeof(gszServerName)-1] = (char)0;
 		bReturn = WD_GetConfigFromRegistry(szServerConfig, szServerName);
 	}
 
@@ -486,7 +496,8 @@ BOOL WD_IsServerSecure(void)
 	char *szTemp;
 	FILE *fh = NULL;
 	
-	sprintf(szFileName, "%s\\%s", gszServerConfig, SLAPD_CONF);
+	snprintf(szFileName, sizeof(szFileName), "%s\\%s", gszServerConfig, SLAPD_CONF);
+	szFileName[sizeof(szFileName)-1] = (char)0;
 	if(fh = fopen(szFileName, "r"))
 	{
 		while(!feof(fh))
@@ -542,7 +553,8 @@ LONG APIENTRY WD_MainWndProc(HWND hWnd, UINT message, UINT wParam, LONG lParam)
 					char szShutdownEvent[MAX_LINE];
 
 					// shutdown web server, it should exit with 0, WatchDog won't restart it
-					sprintf(szShutdownEvent, "NS_%s", gszServerName);
+					snprintf(szShutdownEvent, sizeof(szShutdownEvent), "NS_%s", gszServerName);
+					szShutdownEvent[sizeof(szShutdownEvent)-1] = (char)0;
 					hevShutdown = OpenEvent(EVENT_MODIFY_STATE, FALSE, szShutdownEvent);
 					if(hevShutdown)
 					{
@@ -709,7 +721,8 @@ BOOL WD_StartServer(PROCESS_INFORMATION *pi)
        return(FALSE);
     }
 
-	strcpy(szServerPath, gszServerConfig);
+	strncpy(szServerPath, gszServerConfig, sizeof(szServerPath));
+	szServerPath[sizeof(szServerPath)-1] = (char)0;
 	WD_UnixToDosPath(szServerPath);
 
 	// szServerPath should now be something similar to
@@ -717,7 +730,8 @@ BOOL WD_StartServer(PROCESS_INFORMATION *pi)
 	if(szChar = strrchr(szServerPath, '\\'))
 	{
 		*szChar = 0;
-		strcpy (szInstancePath, szServerPath);
+		strncpy (szInstancePath, szServerPath, sizeof(szInstancePath));
+		szInstancePath[sizeof(szInstancePath)-1] = (char)0;
 		if(szChar = strrchr(szServerPath, '\\'))
 		{
 			*szChar = 0;
@@ -726,8 +740,9 @@ BOOL WD_StartServer(PROCESS_INFORMATION *pi)
 
 	// For Directory Server, service-name is defined as slapd.exe, 
 	// in ldapserver/include/nt/regpargms.h
-	sprintf( szCmdLine, "%s\\bin\\%s\\server\\%s -D \"%s\"", szServerPath, 
+	snprintf( szCmdLine, sizeof(szCmdLine), "%s\\bin\\%s\\server\\%s -D \"%s\"", szServerPath, 
 			 PRODUCT_NAME, SERVICE_EXE, szInstancePath );
+	szCmdLine[sizeof(szCmdLine)-1] = (char)0;
 	// szCmdLine ex: c:\navgold\server\bin\slapd\slapd.exe 
 	//		-f c:\navgold\server\slapd-kennedy\config
 
@@ -877,29 +892,6 @@ BOOL WD_CreateCronThread(HANDLE hevWatchDogExit)
 
 
 //--------------------------------------------------------------------------//
-// signals event create by SNMP agent for notification of server shutdown   //
-//--------------------------------------------------------------------------//
-#if 0
-BOOL WS_SendSNMPTrapSignal(void)
-{
-	BOOL bReturn = FALSE;
-	HANDLE hevShutdown = NULL;
-	char szShutdownEvent[MAX_LINE];
-
-	sprintf(szShutdownEvent, NSEV_SNMPTRAP_HTTP);
-	hevShutdown = OpenEvent(EVENT_MODIFY_STATE, FALSE, szShutdownEvent);
-	if(hevShutdown)
-	{
-		SetEvent(hevShutdown);
-		CLOSEHANDLE(hevShutdown);
-		bReturn = TRUE;
-	}
-	return(bReturn);
-}
-#endif
-
-
-//--------------------------------------------------------------------------//
 //                                                                          //
 //--------------------------------------------------------------------------//
 BOOL WD_MonitorServer(void)
@@ -932,7 +924,8 @@ BOOL WD_MonitorServer(void)
 			// shutdown web server
 			//CLOSEHANDLE(pi.hProcess);  // XXXahakim close them after TerminateProcess()
 			//CLOSEHANDLE(pi.hThread);
-			sprintf(szServerDoneEvent, "NS_%s", gszServerName);
+			snprintf(szServerDoneEvent, sizeof(szServerDoneEvent), "NS_%s", gszServerName);
+			szServerDoneEvent[sizeof(szServerDoneEvent)-1] = (char)0;
 			hevServerDone = OpenEvent(EVENT_MODIFY_STATE, FALSE, szServerDoneEvent);
 			if(hevServerDone)
 			{
@@ -1079,7 +1072,8 @@ VOID WD_ServiceMain(DWORD dwArgc, LPTSTR  *lpszArgv)
 		bOkToProceed = (gsshServiceStatus != (SERVICE_STATUS_HANDLE)NULL);
 		if(bOkToProceed)
 		{
-			strcpy(gszServerName, lpszArgv[0]);
+			strncpy(gszServerName, lpszArgv[0], sizeof(gszServerName));
+			gszServerName[sizeof(gszServerName)-1] = (char)0;
 			bOkToProceed = WD_GetConfigFromRegistry(gszServerConfig, 
 								gszServerName);
 		}

@@ -12,9 +12,6 @@
 
 /* ***** Supplier side ***** */
 
-/* JCMREPL -> PINAKIxxx  The interface to the referral stuff is not correct */
-void ref_array_dup_free(void *the_copy); /* JCMREPL - should be #included */
-
 /* supplier operation extension constructor */
 void* supplier_operation_extension_constructor (void *object, void *parent)
 {
@@ -89,7 +86,8 @@ void consumer_operation_extension_destructor (void *ext,void *object, void *pare
 		consumer_operation_extension *opext = (consumer_operation_extension *)ext;
 		if (NULL != opext->search_referrals)
 		{
-			ref_array_dup_free(opext->search_referrals); /* JCMREPL - undefined */
+			/* free them - search_referrals is currently unused, but 
+			   free them using the obverse of the allocation method */
 			opext->search_referrals = NULL;
 		}
 		slapi_ch_free((void **)&ext);	

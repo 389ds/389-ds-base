@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include "nspr.h"
+#include "plstr.h"
 
 #ifndef XP_WIN32
 #define SCRIPT_SUFFIX "" /* shell scripts have no suffix */
@@ -303,7 +304,7 @@ ds_db2ldif_subtree(char *file, char *subtree)
 	if ( file == NULL )
 		*outfile = 0;
 	else
-		strcpy( outfile, file );
+		PL_strncpyz( outfile, file, sizeof(outfile) );
 
 	PR_snprintf(scriptfile, PATH_MAX, "%s%cdb2ldif", root, FILE_SEP);
 

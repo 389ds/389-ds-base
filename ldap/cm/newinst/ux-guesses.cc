@@ -8,9 +8,12 @@
 
 
 
-/* $RCSfile: ux-guesses.cc,v $ $Revision: 1.2 $ $Date: 2005/02/28 23:37:49 $ $State: Exp $ */
+/* $RCSfile: ux-guesses.cc,v $ $Revision: 1.3 $ $Date: 2005/03/11 03:46:41 $ $State: Exp $ */
 /*
  * $Log: ux-guesses.cc,v $
+ * Revision 1.3  2005/03/11 03:46:41  rmeggins
+ * This one is mostly strcpy/strcat checking, checking for null strings before strlen, removing some dead code, other odds and ends.
+ *
  * Revision 1.2  2005/02/28 23:37:49  nkinder
  * 149951 - Updated source code copyrights
  *
@@ -99,7 +102,7 @@ int PrintGuessPreInstall::start()
 	static char test_host[BIG_BUF] = {0};
 	struct hostent *hp;
 	
-	strcpy(test_host,hno);
+	PL_strncpyz(test_host,hno,sizeof(test_host));
 	hp = gethostbyname(test_host);
 	if (hp == NULL) {
 	  printf("addressable: no\n");

@@ -3410,7 +3410,7 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
     }
     dump_indent[0] = '\0';
     for (i = 0; i < depth; i++)
-        strcat(dump_indent, "  ");
+        PL_strcatn(dump_indent, sizeof(dump_indent), "  ");
     for (current = parent->mtn_children; current;
          current = current->mtn_brother)
     {

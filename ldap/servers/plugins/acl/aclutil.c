@@ -539,8 +539,10 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 	}
 	rc = 0;		/* everything is okay*/
 	/* remove the last comma */
-	len = strlen ( buf);
-	buf[len-1] = '\0';
+	if (buf) {
+		len = strlen ( buf);
+		buf[len-1] = '\0';
+	}
 
 cleanup:
 

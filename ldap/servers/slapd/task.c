@@ -245,7 +245,7 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
     va_end(ap);
 
     len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
-    if (len > MAX_SCROLLBACK_BUFFER) {
+    if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
 		size_t i;
 		char *newbuf;
 

@@ -55,7 +55,8 @@ grab_lockfile()
        gets called by an atexit function, and NSPR is long gone by then. */
 
     /* Get the name of the lockfile */
-    sprintf(lockfile, "%s/%s", slapdFrontendConfig->instancedir, LOCK_FILE);
+    snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->instancedir, LOCK_FILE);
+	lockfile[sizeof(lockfile)-1] = (char)0;
     /* Get our pid */
     pid = getpid();
 
@@ -125,7 +126,8 @@ release_lockfile()
 
     /* This function assumes that the caller owns the lock, it doesn't check to make sure! */
 
-    sprintf(lockfile, "%s/%s", slapdFrontendConfig->instancedir, LOCK_FILE);
+    snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->instancedir, LOCK_FILE);
+	lockfile[sizeof(lockfile)-1] = (char)0;
     unlink(lockfile);
 }
 
@@ -191,7 +193,8 @@ add_this_process_to(char *dir_name)
     PRFileDesc* prfd;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    sprintf(file_name, "%s/%d", dir_name, getpid());
+    snprintf(file_name, sizeof(file_name), "%s/%d", dir_name, getpid());
+	file_name[sizeof(file_name)-1] = (char)0;
     
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0666)) == NULL) {
 	LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_WARNING, file_name, 0, 0);
@@ -317,10 +320,14 @@ remove_slapd_process()
 
     /* Create the name of the directories that hold the pids of the currently running 
      * ns-slapd processes */
-    sprintf(lock_dir, "%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR);
-    sprintf(import_dir, "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, IMPORT_DIR);
-    sprintf(export_dir, "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, EXPORT_DIR);
-    sprintf(server_dir, "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, SERVER_DIR);
+    snprintf(lock_dir, sizeof(lock_dir), "%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR);
+	lock_dir[sizeof(lock_dir)-1] = (char)0;
+    snprintf(import_dir, sizeof(import_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, IMPORT_DIR);
+	import_dir[sizeof(import_dir)-1] = (char)0;
+    snprintf(export_dir, sizeof(export_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, EXPORT_DIR);
+	export_dir[sizeof(export_dir)-1] = (char)0;
+    snprintf(server_dir, sizeof(server_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, SERVER_DIR);
+	server_dir[sizeof(server_dir)-1] = (char)0;
 
     /* Grab the lockfile */
     if (grab_lockfile() != 0) {
@@ -353,10 +360,14 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 
     /* Create the name of the directories that hold the pids of the currently running 
      * ns-slapd processes */
-    sprintf(lock_dir, "%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR);
-    sprintf(import_dir, "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, IMPORT_DIR);
-    sprintf(export_dir, "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, EXPORT_DIR);
-    sprintf(server_dir, "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, SERVER_DIR);
+    snprintf(lock_dir, sizeof(lock_dir), "%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR);
+	lock_dir[sizeof(lock_dir)-1] = (char)0;
+    snprintf(import_dir, sizeof(import_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, IMPORT_DIR);
+	import_dir[sizeof(import_dir)-1] = (char)0;
+    snprintf(export_dir, sizeof(export_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, EXPORT_DIR);
+	export_dir[sizeof(export_dir)-1] = (char)0;
+    snprintf(server_dir, sizeof(server_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, SERVER_DIR);
+	server_dir[sizeof(server_dir)-1] = (char)0;
 
     /* Grab the lockfile */
     if (grab_lockfile() != 0) {
@@ -491,8 +502,10 @@ is_slapd_running() {
   slapdFrontendConfig_t *cfg = getFrontendConfig();
   int running = 0;
   
-  sprintf(lock_dir, "%s/%s", cfg->instancedir, LOCK_DIR);
-  sprintf( server_dir, "%s/%s/%s", cfg->instancedir, LOCK_DIR, SERVER_DIR);
+  snprintf(lock_dir, sizeof(lock_dir), "%s/%s", cfg->instancedir, LOCK_DIR);
+  lock_dir[sizeof(lock_dir)-1] = (char)0;
+  snprintf( server_dir, sizeof(server_dir), "%s/%s/%s", cfg->instancedir, LOCK_DIR, SERVER_DIR);
+  server_dir[sizeof(server_dir)-1] = (char)0;
   
   /* Grab the lockfile */
   if (grab_lockfile() != 0) {
@@ -620,14 +633,14 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 	}
 
 	/* Create the names for the mutexes */
-	strcpy(mutexName, slapdFrontendConfig->instancedir);
+	PL_strncpyz(mutexName, slapdFrontendConfig->instancedir, sizeof(mutexName));
 
 	/* Make sure the name of the mutex is legal. */
 	fix_mutex_name(mutexName);
 
-	sprintf(serverMutexName, "%s/server", mutexName);
-	sprintf(importMutexName, "%s/import", mutexName);
-	sprintf(exportMutexName, "%s/export", mutexName);
+	PR_snprintf(serverMutexName, sizeof(serverMutexName), "%s/server", mutexName);
+	PR_snprintf(importMutexName, sizeof(importMutexName), "%s/import", mutexName);
+	PR_snprintf(exportMutexName, sizeof(exportMutexName), "%s/export", mutexName);
 	
 	/* Fill in the security crap for the mutex */
 	pSD = (PSECURITY_DESCRIPTOR)slapi_ch_malloc( sizeof( SECURITY_DESCRIPTOR ) );

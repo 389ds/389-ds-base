@@ -24,6 +24,7 @@ extern "C" {
 #include <strings.h>
 #endif
 #include "nspr.h"
+#include "plstr.h"
 }
 /* Newer g++ wants the new std header forms */
 #if defined( Linux )
@@ -319,7 +320,7 @@ SlapdPreInstall::initDefaultConfig()
 	static char test_host[BIG_BUF] = {0};
 	struct hostent *hp;
 	
-	strcpy(test_host,guess_host);
+	PL_strncpyz(test_host,guess_host,sizeof(test_host));
 	hp = gethostbyname(test_host);
 	if (hp == NULL) {
 	  return -1;
@@ -828,17 +829,9 @@ SlapdPreInstall::verifyRemoteLdap(
 	if (!mypwd)
 		mypwd = getBaseScript()->get(binddnpwd);
 
-	char *s = (char *)malloc(10 + strlen(myhost) + strlen(myport) +
-				 ((suffix && mysuffix) ? strlen(mysuffix):0));
-	strcpy(s, "ldap://");
-	strcat(s, myhost);
-	strcat(s, ":");
-	strcat(s, myport);
-	strcat(s, "/");
-	if (suffix && mysuffix)
-	    strcat(s, mysuffix);
+	char *s = PR_smprintf("ldap://%s:%s/%s", myhost, myport, (suffix && mysuffix) ? mysuffix : "");
 	int status = authLdapUser(s, mydn, mypwd, NULL, NULL);
-	free(s);
+	PR_smprintf_free(s);
 	return status;
 }
 
@@ -873,15 +866,7 @@ SlapdPreInstall::verifyAdminDomain(
 	if (!myadmin_domain)
 		myadmin_domain = getBaseScript()->get(admin_domain);
 
-	char *s = (char *)malloc(10 + strlen(myhost) + strlen(myport) +
-				 ((suffix && mysuffix) ? strlen(mysuffix):0));
-	strcpy(s, "ldap://");
-	strcat(s, myhost);
-	strcat(s, ":");
-	strcat(s, myport);
-	strcat(s, "/");
-	if (suffix && mysuffix)
-	    strcat(s, mysuffix);
+	char *s = PR_smprintf("ldap://%s:%s/%s", myhost, myport, (suffix && mysuffix) ? mysuffix : "");
 	LdapError ldapErr;
 	Ldap ldap(ldapErr, s, mydn, mypwd);
 	int status = ldapErr;
@@ -892,7 +877,7 @@ SlapdPreInstall::verifyAdminDomain(
 		status = ad.retrieve(dn);
 	}
 		
-	free(s);
+	PR_smprintf_free(s);
 	return status;
 }
 
@@ -927,7 +912,7 @@ SlapdPreInstall::getDNSDomain() const
 			  	return NULL;
 			}
 			
-		  	strcpy(domain, guess_domain);
+		  	PL_strncpyz(domain, guess_domain, sizeof(domain));
 			return domain;
 		} else {
 		  	return NULL;
@@ -935,7 +920,7 @@ SlapdPreInstall::getDNSDomain() const
 	}
 
 	++ptr;
-	strcpy(domain, ptr);
+	PL_strncpyz(domain, ptr, sizeof(domain));
 
 	return domain;
 }
@@ -951,13 +936,13 @@ SlapdPreInstall::getDefaultSuffix() const
 		return suffix;
 
 	char *sptr = suffix;
-	strcat(sptr, SUF);
+	PL_strcatn(sptr, sizeof(suffix), SUF);
 	sptr += SUF_LEN;
 	for (const char *ptr = getDNSDomain(); ptr && *ptr; *ptr++) {
 		if (*ptr == '.') {
-			strcat(sptr, ", ");
+			PL_strcatn(sptr, sizeof(suffix), ", ");
 			sptr += 2;
-			strcat(sptr, SUF);
+			PL_strcatn(sptr, sizeof(suffix), SUF);
 			sptr += SUF_LEN;
 		} else {
 			*sptr++ = *ptr;

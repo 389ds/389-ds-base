@@ -57,12 +57,14 @@ vlvSearch_new()
 static void
 trimspaces(char *s)
 {
-    PRUint32 i= strlen(s) - 1;
-    while(i > 0 && isascii(s[i]) && isspace(s[i]))
-    {
-        s[i]= '\0';
-        i--;
-    }
+	if (s) {
+		PRUint32 i= strlen(s) - 1;
+		while(i > 0 && isascii(s[i]) && isspace(s[i]))
+			{
+				s[i]= '\0';
+				i--;
+			}
+	}
 }
 
 /*

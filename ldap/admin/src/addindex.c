@@ -51,6 +51,11 @@ int main(int argc, char *argv[])
 	
 
 	attrs = strdup( attributes );
+	if (attrs == NULL) {
+		rpt_err(DS_MEMORY_ERROR, "Out of memory!", NULL, NULL);
+		return 1;
+	}
+
 	/* Allocate for worst possible case */
 	attrList = (char **)malloc(sizeof(*attrList) * (strlen(attrs)+1));
 	nAttrs = 0;

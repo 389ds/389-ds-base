@@ -98,7 +98,7 @@ g_set_default_referral( struct berval **ldap_url ) {
 
   /* check to see if we want to delete all referrals */
   if ( ldap_url && ldap_url[0] &&
-	   strcasecmp ( (char *)ldap_url[0]->bv_val, REFERRAL_REMOVE_CMD) == 0 ) {
+	   PL_strncasecmp ( (char *)ldap_url[0]->bv_val, REFERRAL_REMOVE_CMD, ldap_url[0]->bv_len ) == 0 ) {
 	delete_default_referral(slapdFrontendConfig->defaultreferral);
 	slapdFrontendConfig->defaultreferral = NULL;
 	return;

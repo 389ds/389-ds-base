@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "nspr.h"
+#include "plstr.h"
 
 #if defined( XP_WIN32 )
 int ldap_debug = 0;
@@ -23,8 +24,7 @@ ds_log_env(char **envp)
 	char	admin_logfile[PATH_MAX], *tmp_dir;
 	
 	tmp_dir = ds_get_tmp_dir();
-	memset( admin_logfile, 0, sizeof( admin_logfile ) );
-	strcat( admin_logfile, tmp_dir );
+	PL_strncpyz( admin_logfile, tmp_dir, sizeof(admin_logfile) );
 #if defined( XP_WIN32 )
 	if( tmp_dir )
 	{
@@ -32,7 +32,7 @@ ds_log_env(char **envp)
 		tmp_dir = NULL;
 	}
 #endif
-	strcat( admin_logfile, "/admin.log");
+	PL_strcatn( admin_logfile, sizeof(admin_logfile), "/admin.log");
 
     file = fopen(admin_logfile, "a+");
     if (file != NULL) {
@@ -55,7 +55,7 @@ ds_log_debug_message(char *msg)
 	
 	tmp_dir = ds_get_tmp_dir();
 	memset( admin_logfile, 0, sizeof( admin_logfile ) );
-	strcat( admin_logfile, tmp_dir );
+	PL_strncpyz( admin_logfile, tmp_dir, sizeof(admin_logfile) );
 #if defined( XP_WIN32 )
 	if( tmp_dir )
 	{
@@ -63,7 +63,7 @@ ds_log_debug_message(char *msg)
 		tmp_dir = NULL;
 	}
 #endif
-	strcat( admin_logfile, "/admin.log");
+	PL_strcatn( admin_logfile, sizeof(admin_logfile), "/admin.log");
  
     file = fopen(admin_logfile, "a+");
     if (file != NULL) {

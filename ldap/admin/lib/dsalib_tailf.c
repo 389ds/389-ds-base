@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include "dsalib.h"
 #include "prthread.h"
+#include "plstr.h"
 
 /*
  * Function: adjustFile
@@ -166,7 +167,7 @@ ds_display_tail(char *fileName, int timeOut, int startSeek, char *doneMsg,
 	    {
 		char *tmp;
 		if (lastLine != NULL)
-		    strcpy(lastLine, msgBuf);
+		    PL_strncpyz(lastLine, msgBuf, BIG_LINE);
 		if ( (tmp = strchr(msgBuf, ((int) '\n'))) != NULL )
 		    *tmp = '\0';	/* strip out real newlines from here */
 		ds_send_status(msgBuf);

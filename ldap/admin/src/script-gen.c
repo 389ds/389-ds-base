@@ -79,7 +79,8 @@ int generate_script(const char *inpath, const char *outpath, int mode,
                         /* not enough room, scratch it */
                         continue;
                     }
-                    strcpy(save_buffer, q+2);
+                    strncpy(save_buffer, q+2, sizeof(save_buffer)-1);
+					save_buffer[sizeof(save_buffer)-1] = (char)0;
                     strcpy(p, table[i][1]);
                     strcat(p, save_buffer);
                     q = p;

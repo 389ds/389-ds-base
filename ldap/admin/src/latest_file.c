@@ -56,7 +56,8 @@ int main (int argc, char **argv)
 	szOutput = argv[2];
 
 	/* Get directory part of path */
-	strcpy( dir, szWildcardFileSpec );
+	strncpy( dir, szWildcardFileSpec, sizeof(dir)-1 );
+	dir[sizeof(dir)-1] = (char)0;
 	dirEnd = strrchr( dir, '\\' );
 	if ( dirEnd != NULL ) {
 		*dirEnd = 0;

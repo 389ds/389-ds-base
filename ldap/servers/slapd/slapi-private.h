@@ -585,19 +585,6 @@ typedef struct index_config
 	int	 system;	  /* marks this index as system */
 }IndexConfig;
 
-int be_create_instance (const char *type,		/* for now, must be "ldbm"			  */
-						const char *name,		/* gloably unique instance name       */
-						const char *root,		/* backend root, i.e. o=mcom.com	  */
-						int cache_size,			/* cache size in bytes; 0 for default */
-						IndexConfig *indexes,	/* indexes in addition to standard	  */
-						int index_count,		/* number of elements in indexes 	  */
-						void *plugin_identity	/* identity of the calling plugin	  */
-					   );
-int be_remove_instance (const char *type,		/* for now, must be "ldbm"			  */
-						const char *name,		/* gloably unique instance name       */
-						void *plugin_identity	/* identity of the calling plugin	  */
-					   );
-
 void be_set_sizelimit(Slapi_Backend * be, int sizelimit);
 void be_set_timelimit(Slapi_Backend * be, int timelimit);
 
@@ -1123,14 +1110,8 @@ int config_get_secureport( void );
 char* get_localhost_DN( void );
 char* get_localhost_DNS( void );
 
-int ref_array_replace(const char *dn, struct berval *referral, int write, int read);
-void ref_array_moddn(const char *dn, char *newrdn, Slapi_PBlock *pb);
-int ref_register_callback(int type, char *description,
-	void (*cb)(Slapi_PBlock *, void *), void *cbData);
-int ref_remove_callback(char *description);
 /* GGOODREPL get_data_source definition should move into repl DLL */
 struct berval **get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cf_refs);
-/* Ref_Array *send_read_referrals(Slapi_PBlock *pb, int scope, char *dn, struct berval ***urls); */
 
 /* JCMREPL - IFP and CFP should be defined centrally */
 #ifndef _IFP

@@ -19,6 +19,7 @@
 #include <string.h>
 #include "dirver.h"
 #include "plugin-utils.h"
+#include "nspr.h"
 
 #if defined( LDAP_DEBUG ) && !defined( DEBUG )
 #define DEBUG
@@ -113,6 +114,8 @@ create_filter(const char *attribute, const struct berval *value)
   int attrLen;
   int valueLen;
   int filterLen;
+
+  PR_ASSERT(attribute);
 
   /* Compute the length of the required buffer */
   attrLen = strlen(attribute);

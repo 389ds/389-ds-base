@@ -85,14 +85,14 @@ int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
     /* normalize */
     if (pb_excl) {
 	for (i = 0; pb_excl[i]; i++) {
-	    PL_strncpyz(subtreeDn, pb_excl[i], BUFSIZ);
+	    PL_strncpyz(subtreeDn, pb_excl[i], sizeof(subtreeDn));
 	    normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
 	    charray_add(exclude, slapi_ch_strdup(normSubtreeDn));
 	}
     }
     if (pb_incl) {
 	for (i = 0; pb_incl[i]; i++) {
-	    PL_strncpyz(subtreeDn, pb_incl[i], BUFSIZ);
+	    PL_strncpyz(subtreeDn, pb_incl[i], sizeof(subtreeDn));
 	    normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
 	    charray_add(include, slapi_ch_strdup(normSubtreeDn));
 	}

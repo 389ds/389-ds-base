@@ -1712,11 +1712,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		if (parent_DN == NULL) {
 			new_DN = new_RDN;
 		} else {
-			new_DN = (char*) slapi_ch_malloc (strlen (new_RDN) + 3 
-						    + strlen (parent_DN));
-			strcpy (new_DN, new_RDN);
-			strcat (new_DN, ",");
-			strcat (new_DN, parent_DN);
+			new_DN = slapi_ch_smprintf("%s,%s", new_RDN, parent_DN);
 			slapi_dn_normalize (new_DN);
 		}
 

@@ -411,9 +411,9 @@ rel2abspath( char *relpath )
 #else
 	if ( abspath[ 0 ] != '\0' && abspath[ strlen( abspath ) - 1 ] != '/' ) {
 #endif
-	    strcat( abspath, "/" );
+	    PL_strcatn( abspath, sizeof(abspath), "/" );
 	}
-	strcat( abspath, relpath );
+	PL_strcatn( abspath, sizeof(abspath), relpath );
     }
     return( slapi_ch_strdup( abspath ));
 }

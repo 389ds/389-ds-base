@@ -226,11 +226,6 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	PRInt32 errcode = 0;
 	PRInt32 http_connection_time_out = 0;
 	PRInt32 sslOn;
-	PRInt32 nssStatus;
-	PRUint32 nssFlags = 0;
-	char certDir[1024];
-	char certPref[1024];
-	char keyPref[1024];
 	
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> doRequest -- BEGIN\n",0,0,0);
 
@@ -290,10 +285,16 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 			if (!httpConfig->nssInitialized) {
 				if (nssReinitializationRequired())
 				{
+					PRInt32 nssStatus;
+					PRUint32 nssFlags = 0;
+					char certDir[1024];
+					char certPref[1024];
+					char keyPref[1024];
+
 					NSS_Shutdown();
 					nssFlags &= (~NSS_INIT_READONLY);
        				val = config_get_instancedir();
-       				strcpy(certDir, val);
+       				PL_strncpyz(certDir, val, sizeof(certDir));
 					defaultprefix = strrchr(certDir, '/');
 					if (!defaultprefix)
     						defaultprefix = strrchr(certDir, '\\');
@@ -301,7 +302,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
     						goto bail; /* . . . can't do anything */
 					defaultprefix++;
 					PR_snprintf(certPref, 1024, "%s-",defaultprefix);
-					strcpy(keyPref, certPref);
+					PL_strncpyz(keyPref, certPref, sizeof(keyPref));
 					*defaultprefix= '\0';
 					PR_snprintf(certDir, 1024, "%salias", certDir);
        				nssStatus = NSS_Initialize(certDir, certPref, keyPref, "secmod.db", nssFlags);
@@ -719,7 +720,11 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 	int i = 0;
 	int body_len, buflen = 0; 
 
-	body_len = strlen(body);
+	if (body) {
+		body_len = strlen(body);
+	} else {
+		body_len = 0;
+	}
 	PR_snprintf(body_len_str, sizeof(body_len_str), "%d", body_len);
 
     buflen = (HTTP_POST_STD_LEN + strlen(path) + body_len + strlen(body_len_str));
@@ -762,7 +767,9 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 	}
 
     strcat(reqBUF, "\r\n");
-    strcat(reqBUF, body);
+	if (body) {
+		strcat(reqBUF, body);
+	}
     strcat(reqBUF, "\0");
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "---------->reqBUF is %s \n",reqBUF,0,0);

@@ -757,18 +757,6 @@ onelevel_candidates(
     return( candidates );
 }
 
-
-#define GRABSIZE2    50
-#define BUF_ALLOC_CAT( cpyfunc, s ) { \
-    int    len = 2 * strlen( s ); \
-    while ( bmax - bcur < len + 1 ) { \
-        bmax += GRABSIZE2; \
-        buf = slapi_ch_realloc( buf, bmax ); \
-    } \
-    cpyfunc( buf + bcur, s ); \
-    bcur += strlen( buf + bcur ); \
-}
-
 /*
  * We need to modify the filter to be something like this:
  *

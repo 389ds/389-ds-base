@@ -42,6 +42,7 @@ using std::ostrstream;
 extern "C" {
 #include "dsalib.h"
 #include "nspr.h"
+#include "plstr.h"
 }
 
 static const char *DEFAULT_SLAPDUSER = "cn=Directory Manager";
@@ -335,7 +336,7 @@ askSlapdPortSetup(Dialog *me)
 
 	if (defPort && *defPort && atoi(defPort) > 0)
 	{
-		strcpy(tmp, defPort);
+		PL_strncpyz(tmp, defPort, sizeof(tmp));
 		port = atoi(defPort);
 	}
 	else

@@ -72,9 +72,9 @@ static char *attrinfo2ConfMatchingRules (struct attrinfo *pai)
     if (pai->ai_index_rules) {
 	strcat (buffer, "\t");
 	for (i = 0; pai->ai_index_rules[i]; i++) {
-            strcat (buffer, pai->ai_index_rules[i]);
+            PL_strcatn (buffer, sizeof(buffer), pai->ai_index_rules[i]);
             if (pai->ai_index_rules[i+1]) {
-		strcat (buffer, ",");
+		PL_strcatn (buffer, sizeof(buffer), ",");
             }
 	}
     }
@@ -500,13 +500,13 @@ int ldbm_instance_config_add_index_entry(
         return(-1);
     }
 
-    PL_strncpyz(tmpAttrsStr,argv[0], 256);
+    PL_strncpyz(tmpAttrsStr,argv[0], sizeof(tmpAttrsStr));
     attrs = str2charray( tmpAttrsStr, "," );
-    PL_strncpyz(tmpIndexesStr,argv[1], 256);
+    PL_strncpyz(tmpIndexesStr,argv[1], sizeof(tmpIndexesStr));
     indexes = str2charray( tmpIndexesStr, ",");
 
     if(argc > 2) {
-        PL_strncpyz(tmpMatchingRulesStr,argv[2], 1024);
+        PL_strncpyz(tmpMatchingRulesStr,argv[2], sizeof(tmpMatchingRulesStr));
         matchingRules = str2charray( tmpMatchingRulesStr, ",");
     }
 

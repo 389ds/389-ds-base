@@ -440,21 +440,21 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     {
         if( (t = create_instance_checkport(cf->bindaddr, cf->servport)) )
         {
-            strcpy(param_name, "servport");
+            PL_strncpyz(param_name, "servport", BIG_LINE);
             return t;
         }
 
         if ( cf->secserv && (strcmp(cf->secserv, "on") == 0) && (cf->secservport != NULL) &&
          (*(cf->secservport) != '\0') ) {
             if ( (t = create_instance_checkport(cf->bindaddr, cf->secservport)) ) {
-                strcpy(param_name, "secservport");
+                PL_strncpyz(param_name, "secservport", BIG_LINE);
                 return t;
             }
         }
         if ( cf->ntsynch && (strcmp(cf->ntsynch, "on") == 0) && (cf->ntsynchport != NULL) &&
          (*(cf->ntsynchport) != '\0') ) {
             if ( (t = create_instance_checkport(cf->bindaddr, cf->ntsynchport)) ) {
-                strcpy(param_name, "ntsynchport");
+                PL_strncpyz(param_name, "ntsynchport", BIG_LINE);
                 return t;
             }
         }
@@ -463,7 +463,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     /* is the server identifier good? */
     for(x=0; cf->servid[x]; x++)  {
         if(strchr("/ &;`'\"|*!?~<>^()[]{}$\\", cf->servid[x]))  {
-        strcpy(param_name, "servid");
+        PL_strncpyz(param_name, "servid", BIG_LINE);
             return make_error("You used a shell-specific character in "
                               "your server id (the character was %c).", 
                               cf->servid[x]);
@@ -476,7 +476,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
 /* Not an error to upgrade! ???
    if ( !cf->upgradingServer ) {
        if(create_instance_exists(fn)) {
-           strcpy(param_name, "servid");
+           PL_strncpyz(param_name, "servid", BIG_LINE);
            return make_error ("A server named '%s' already exists."
            "\nPlease choose another server identifier.",
            cf->servid);
@@ -487,7 +487,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
 #ifdef XP_UNIX
     if( (t = create_instance_checkuser(cf->servuser)) )
     {
-        strcpy(param_name, "servuser");
+        PL_strncpyz(param_name, "servuser", BIG_LINE);
         return t;
     }
 #endif
@@ -496,53 +496,53 @@ static char *sanity_check(server_config_s *cf, char *param_name)
 #ifdef XP_UNIX
     if((!create_instance_numbers(cf->numprocs)) || (atoi(cf->numprocs) <= 0))
     {
-        strcpy(param_name, "numprocs");
+        PL_strncpyz(param_name, "numprocs", BIG_LINE);
         return ("The number of processes must be not be zero or "
                 "negative.");
     }
 #endif
     if((!create_instance_numbers(cf->maxthreads)) || (atoi(cf->maxthreads) <= 0))
     {
-        strcpy(param_name, "maxthreads");
+        PL_strncpyz(param_name, "maxthreads", BIG_LINE);
         return ("The maximum threads must be not be zero or negative.");
     }
     if((!create_instance_numbers(cf->minthreads)) || (atoi(cf->minthreads) <= 0))
     {
-        strcpy(param_name, "minthreads");
+        PL_strncpyz(param_name, "minthreads", BIG_LINE);
         return ("The minumum threads must be not be zero or negative.");
     }
 
     if((atoi(cf->minthreads)) > (atoi(cf->maxthreads)))
     {
-        strcpy(param_name, "minthreads");
+        PL_strncpyz(param_name, "minthreads", BIG_LINE);
         return ("Minimum threads must be less than maximum threads.");
     }
 
     /* see if the DN parameters are valid DNs */
     if (!cf->use_existing_user_ds && (t = isAValidDN(cf->suffix)))
     {
-        strcpy(param_name, "suffix");
+        PL_strncpyz(param_name, "suffix", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->suffix);
 
     if (NULL != (t = isAValidDN(cf->rootdn)))
     {
-        strcpy(param_name, "rootdn");
+        PL_strncpyz(param_name, "rootdn", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->rootdn);
 
     if (cf->replicationdn && *cf->replicationdn && (t = isAValidDN(cf->replicationdn)))
     {
-        strcpy(param_name, "replicationdn");
+        PL_strncpyz(param_name, "replicationdn", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->replicationdn);
 
     if (cf->consumerdn && *cf->consumerdn && (t = isAValidDN(cf->consumerdn)))
     {
-        strcpy(param_name, "consumerdn");
+        PL_strncpyz(param_name, "consumerdn", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->consumerdn);
@@ -550,7 +550,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     if (cf->changelogsuffix && *cf->changelogsuffix &&
         (t = isAValidDN(cf->changelogsuffix)))
     {
-        strcpy(param_name, "changelogsuffix");
+        PL_strncpyz(param_name, "changelogsuffix", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->changelogsuffix);
@@ -558,7 +558,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     if (cf->netscaperoot && *cf->netscaperoot &&
         (t = isAValidDN(cf->netscaperoot)))
     {
-        strcpy(param_name, "netscaperoot");
+        PL_strncpyz(param_name, "netscaperoot", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->netscaperoot);
@@ -566,32 +566,32 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     if (cf->samplesuffix && *cf->samplesuffix &&
         (t = isAValidDN(cf->samplesuffix)))
     {
-        strcpy(param_name, "samplesuffix");
+        PL_strncpyz(param_name, "samplesuffix", BIG_LINE);
         return t;
     }
     checkForLDAPv2Quoting(cf->samplesuffix);
 
     if (NULL != (t = contains8BitChars(cf->rootpw)))
     {
-        strcpy(param_name, "rootpw");
+        PL_strncpyz(param_name, "rootpw", BIG_LINE);
         return t;
     }
 
     if (NULL != (t = contains8BitChars(cf->cfg_sspt_uidpw)))
     {
-        strcpy(param_name, "cfg_sspt_uidpw");
+        PL_strncpyz(param_name, "cfg_sspt_uidpw", BIG_LINE);
         return t;
     }
 
     if (NULL != (t = contains8BitChars(cf->replicationpw)))
     {
-        strcpy(param_name, "replicationpw");
+        PL_strncpyz(param_name, "replicationpw", BIG_LINE);
         return t;
     }
 
     if (NULL != (t = contains8BitChars(cf->consumerpw)))
     {
-        strcpy(param_name, "consumerpw");
+        PL_strncpyz(param_name, "consumerpw", BIG_LINE);
         return t;
     }
 
@@ -605,7 +605,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
         {
             if (NULL != (t = contains8BitChars(cf->cfg_sspt_uid)))
             {
-                strcpy(param_name, "cfg_sspt_uid");
+                PL_strncpyz(param_name, "cfg_sspt_uid", BIG_LINE);
                 return t;
             }
         }
@@ -1107,7 +1107,7 @@ char *create_server(server_config_s *cf, char *param_name)
 #else
     /* Abort if the service exists on NT */
     if (t = service_exists(cf->servid)) {
-        strcpy(param_name, "servid");
+        PL_strncpyz(param_name, "servid", BIG_LINE);
         return t;
     }
 #endif
@@ -4397,7 +4397,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     /* find the server's UID and GID */
     if (cf->servuser && *(cf->servuser)) {
         if ((pw = getpwnam (cf->servuser)) == NULL) {
-            strcpy(param_name, "servuser");
+            PL_strncpyz(param_name, "servuser", BIG_LINE);
             return make_error("Could not find UID and GID of user '%s'.", 
                       cf->servuser);
         } else if (pw->pw_name == NULL) {
@@ -4606,11 +4606,11 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
 
     memset(&slapd_conf, 0, sizeof(SLAPD_CONFIG));
     if (sroot)
-        strcpy(slapd_conf.slapd_server_root, sroot);
+        PL_strncpyz(slapd_conf.slapd_server_root, sroot, sizeof(slapd_conf.slapd_server_root));
     if (cf->servport)
         slapd_conf.port = atoi(cf->servport);
     if (cf->servname)
-        strcpy(slapd_conf.host, cf->servname);
+        PL_strncpyz(slapd_conf.host, cf->servname, sizeof(slapd_conf.host));
 
     status = config_suitespot(&slapd_conf, &query_vars);
     if (status == -1) /* invalid or null arguments or configuration */

@@ -19,7 +19,8 @@ typedef struct my_str_buf {
 static char *
 init_my_str_buf(MyStrBuf *buf, const char *s)
 {
-	if (s && (strlen(s) < MY_STATIC_BUF_SIZE)) {
+	PR_ASSERT(buf);
+	if (s && (strlen(s) < sizeof(buf->fixbuf))) {
 		strcpy(buf->fixbuf, s);
 		buf->str = buf->fixbuf;
 	} else {

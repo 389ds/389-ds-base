@@ -1841,8 +1841,7 @@ int fedse_create_startOK(char *filename,  char *startokfilename, const char *con
 	int rc = -1;
 
     if (configdir!=NULL) {
-        realconfigdir = slapi_ch_malloc(strlen(configdir)+1);
-        strcpy(realconfigdir, configdir);
+        realconfigdir = slapi_ch_strdup(configdir);
     } else if (id!=NULL) {
         realconfigdir = slapi_ch_smprintf("%s/%s", id, config_sub_dir);
     }

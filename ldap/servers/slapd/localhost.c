@@ -130,11 +130,11 @@ find_localhost_DNS()
     if (domain == NULL) {
 	return NULL;
     }
-    strcpy (hostname, hp->h_name);
+    PL_strncpyz (hostname, hp->h_name, sizeof(hostname));
     if (domain[0] == '.') ++domain;
     if (domain[0]) {
-	strcat (hostname, ".");
-	strcat (hostname, domain);
+	PL_strcatn (hostname, sizeof(hostname), ".");
+	PL_strcatn (hostname, sizeof(hostname), domain);
     }
     LDAPDebug (LDAP_DEBUG_CONFIG, "hostname == %s\n", hostname, 0, 0);
     return slapi_ch_strdup (hostname);

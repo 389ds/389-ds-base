@@ -126,28 +126,6 @@ dn_normalize( char *dn )
 	return( dn );
 }
 
-DS_EXPORT_SYMBOL int
-dn_issuffix(
-    char	*dn,
-    char	*suffix
-)
-{
-	int	dnlen, suffixlen;
-
-	if ( dn == NULL ) {
-		return( 0 );
-	}
-
-	suffixlen = strlen( suffix );
-	dnlen = strlen( dn );
-
-	if ( suffixlen > dnlen ) {
-		return( 0 );
-	}
-
-	return( strcasecmp( dn + dnlen - suffixlen, suffix ) == 0 );
-}
-
 DS_EXPORT_SYMBOL char*
 ds_dn_expand (char* dn)
 {
@@ -159,6 +137,7 @@ ds_dn_expand (char* dn)
 
     if (dn == NULL) return NULL;
     edn = strdup (dn);
+	if (edn == NULL) return NULL;
     for (s = dn; *s != '\0'; ++s, ++i) {
 	switch (state) {
 	  case B4TYPE:

@@ -422,7 +422,7 @@ static int ids_sasl_canon_user(
     }
 
     /* TODO: canonicalize */
-    strcpy(out_user, dn);
+    PL_strncpyz(out_user, dn, out_umax);
 #ifdef CYRUS_SASL
     /* the length of out_user needs to be set for Cyrus SASL */
     *out_ulen = strlen(out_user);
@@ -433,7 +433,7 @@ static int ids_sasl_canon_user(
         /* The authid can start with dn:. In such case remove it */    
         if (strncasecmp(authid,"dn:",3) == 0 )
             offset = 3;
-        strcpy(out_authid, authid+offset);
+        PL_strncpyz(out_authid, authid+offset, out_amax);
     }
     *out_ulen = -1;
     *out_alen = -1;

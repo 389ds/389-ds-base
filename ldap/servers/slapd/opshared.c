@@ -196,6 +196,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 #define SLAPD_SEARCH_FMTSTR_BASE_INT "conn=%s op=%d SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s\n"
 
+	  PR_ASSERT(fstr);
       if ( strlen(fstr) > 1024 )
       {
           /*

@@ -3183,6 +3183,11 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 		attr_names = parse_qdescrs(psbAttrName->buffer, &num_names);
 		if ( NULL != attr_names ) {
 			first_attr_name = attr_names[0];
+		} else { /* NAME followed by nothing violates syntax */
+			schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+									input, "Missing or invalid attribute name" );
+			status = invalid_syntax_error;
+			goto done;
 		}
 	}
 
@@ -3192,7 +3197,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 	 * if the attribute ldif doesn't have an OID, we'll make the oid 
 	 * attrname-oid 
 	 */ 
-	if ( strcasecmp ( pOid, "NAME" ) == 0 ) { 
+	if ( (strcasecmp ( pOid, "NAME" ) == 0) && (first_attr_name)) { 
 		slapi_ch_free_string( &pOid ); 
 		pOid = slapi_ch_smprintf("%s-oid", first_attr_name ); 
 	} 

@@ -34,6 +34,7 @@ uniqueid2entry(
 #endif
 	if (e == NULL)	{
 		/* convert dn to entry id */
+		PR_ASSERT(uniqueid);
 		*err = 0;
 		idv.bv_val = (void*)uniqueid; 
 		idv.bv_len = strlen( idv.bv_val );

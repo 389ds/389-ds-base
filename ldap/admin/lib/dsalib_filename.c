@@ -55,10 +55,9 @@ ds_get_file_meaning(char *file)
  
     if ( file == NULL )
         return(NULL);
-    name = malloc(strlen(file) + 1);
+    name = strdup(file);
     if ( name == NULL )
         return(NULL);
-    strcpy(name, file);
     if ( (tmp = strrchr(name, '.')) != NULL )
 	*tmp = '\0';
     if ( strlen(name) == FILE_EXPECTED_SIZE1 ) {

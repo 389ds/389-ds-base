@@ -329,10 +329,6 @@ extern DS_EXPORT_SYMBOL char* dn_normalize_convert (char* DN);
 /* if dn contains an unescaped quote return true */
 extern DS_EXPORT_SYMBOL int ds_dn_uses_LDAPv2_quoting(const char *dn);
 
-/* Return != 0 iff the DN equals or ends with the given suffix.
-   Both DN and suffix must be normalized, by dn_normalize(). */
-extern DS_EXPORT_SYMBOL int dn_issuffix (char* DN, char* suffix);
-
 /* Return a copy of the DN, but with optional whitespace inserted. */
 extern DS_EXPORT_SYMBOL char* ds_dn_expand (char* DN);
 

@@ -290,9 +290,11 @@ ds_get_tmp_dir()
 	if(instanceDir == NULL)
 	{
 		#if defined( XP_WIN32 )
-			ilen = strlen(tmp);
-			GetTempPath( ilen +1, tmp );
+			ilen = sizeof(tmp);
+			GetTempPath( ilen, tmp );
+			tmp[ilen-1] = (char)0;
 			/* Remove trailing slash. */
+			ilen = strlen(tmp);
 			pch = tmp[ilen-1];
 			if( pch == '\\' || pch == '/' )
 				tmp[ilen-1] = '\0';
@@ -642,7 +644,7 @@ alter_startup_line(char *startup_line)
         char temp_startup_line[BIG_LINE+40];
  
         PR_snprintf(temp_startup_line, sizeof(temp_startup_line), "/bin/sh -c \"%s\"", startup_line);
-        strcpy(startup_line, temp_startup_line);
+        PL_strncpyz(startup_line, temp_startup_line, BIG_LINE);
 #else
 	/* do nothing */
 #endif /* Linux */

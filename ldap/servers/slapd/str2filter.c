@@ -215,6 +215,8 @@ str2simple( char *str , int unescape_filter)
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "str2simple \"%s\"\n", str, 0, 0 );
 
+	PR_ASSERT(str);
+
 	if ( (s = strchr( str, '=' )) == NULL ) {
 		return( NULL );
 	}

@@ -655,8 +655,8 @@ int mm_init(int argc, char * argv[])
         edfin[ndirectories].end = FALSE;
 
         if (emitchanges) {
-            strcpy(deltaname, *argv);
-            strcat(deltaname, ".delta");
+            PL_strncpyz(deltaname, *argv, sizeof(deltaname));
+            PL_strcatn(deltaname, sizeof(deltaname), ".delta");
             edfout[ndirectories] = fopen(deltaname, "w");
             if (edfout[ndirectories] == NULL) {
                 perror(deltaname);

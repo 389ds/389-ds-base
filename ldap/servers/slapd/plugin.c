@@ -1775,27 +1775,6 @@ set_plugin_config_from_entry(
 	return status;
 }
 
-#if 0
-static PRBool 
-plugin_matches_key (char *arg, char *key)
-{
-	PRBool haveVal = strlen (arg) > strlen (key);
-	return (haveVal && strncasecmp (arg, key, strlen (key)) == 0);
-}
-
-static char*
-plugin_get_str_val (char *arg, char *key)
-{
-	return &(arg[strlen (key)]);
-}
-
-static PRBool
-plugin_get_bool_val (char*arg, char *key, char *true_val)
-{
-	return (strcasecmp (&(arg[strlen (key)]), true_val) == 0);
-}
-#endif
-
 /* This function is called after the plugin init function has been called
    which fills in the desc part of the plugin
 */

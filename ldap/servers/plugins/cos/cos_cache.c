@@ -1970,7 +1970,7 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 			{
 				char tmpGrade[BUFSIZ];
 
-				if (strlen(pCosSpecifier->val) < (BUFSIZ - 9)) {  /* 9 for "-default" */
+				if (strlen(pCosSpecifier->val) < (sizeof(tmpGrade) - 9)) {  /* 9 for "-default" */
 					strcpy(tmpGrade, pCosSpecifier->val);
 					strcat(tmpGrade, "-default");
 					if(!slapi_utf8casecmp((unsigned char*)grade, (unsigned char*)tmpGrade))

@@ -46,6 +46,7 @@ repl_monitor_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, i
     	{
     	    port= config_get_secureport();
     	}
+		buf[0] = (char)0;
         /* ONREPL - how do we publish changenumbers now with multiple changelogs?
 		sprintf( buf, "%s:%lu %s% lu", get_localhost_DNS(), port, sdv, ldapi_get_last_changenumber());
         */

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "nspr.h"
+#include "plstr.h"
 
 /*
  * Returns the server root. Info is 
@@ -118,7 +119,7 @@ ds_get_logfile_name(int config_type)
 		free(filename);
         return(NULL);
     }
-    strncpy(logfile, filename, PATH_MAX);
+    PL_strncpyz(logfile, filename, sizeof(logfile));
 	free(filename);
     return(logfile);
 }

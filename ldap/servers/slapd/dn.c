@@ -817,10 +817,7 @@ char *
 slapi_dn_plus_rdn(const char *dn, const char *rdn)
 {
 	/* rdn + separator + dn + null */
-	char *newdn = (char *) slapi_ch_malloc( strlen( dn ) + strlen( rdn ) + 2 );
-	strcpy( newdn, rdn );
-	strcat( newdn, "," );
-	strcat( newdn, dn );
+	char *newdn = slapi_ch_smprintf("%s,%s", rdn, dn);
 	return newdn;
 }
 

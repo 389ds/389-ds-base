@@ -2215,11 +2215,16 @@ slapi_entry_attr_set_charptr( Slapi_Entry* e, const char *type, const char *valu
 {
 	struct berval bv;
 	struct berval *bvals[2];
-	bvals[0] = &bv;
-	bvals[1] = NULL;
-	bv.bv_val = (char*)value;
-	bv.bv_len = strlen( value );
-    slapi_entry_attr_replace( e, type, bvals );
+
+	if (value) {
+		bvals[0] = &bv;
+		bvals[1] = NULL;
+		bv.bv_val = (char*)value;
+		bv.bv_len = strlen( value );
+		slapi_entry_attr_replace( e, type, bvals );
+	} else {
+		slapi_entry_attr_delete( e, type );
+	}
 }
 
 void

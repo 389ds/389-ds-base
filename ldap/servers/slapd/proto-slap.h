@@ -676,9 +676,6 @@ struct slapi_componentid * pw_get_componentID();
  * referral.c
  */
 void referrals_free ();
-Ref_Array * ref_array_dup();
-void ref_array_dup_free(Ref_Array *the_copy);
-void update_global_referrals( Slapi_PBlock *pb );
 struct berval **ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refcontainerdn, int is_reference );
 /* GGOODREPL temporarily in slapi-plugin.h struct berval **get_data_source( char *dn, int orc, Ref_Array * ); */
 

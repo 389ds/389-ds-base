@@ -379,7 +379,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	}
 
 	instancedir = config_get_instancedir();
-	strcpy(path, instancedir);
+	PL_strncpyz(path, instancedir, sizeof(path));
 	slapi_ch_free_string(&instancedir);
 
 	/* make sure path does not end in the path separator character */
@@ -398,7 +398,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	if(keyfn && certfn) {
 		if (is_abspath(certfn)) {
 			/* first, initialize path from the certfn */
-			strcpy(path, certfn);
+			PL_strncpyz(path, certfn, sizeof(path));
 			/* extract path from cert db filename */
 			val = strrchr(path, '/');
 			if (!val) {
@@ -407,15 +407,15 @@ slapd_nss_init(int init_ssl, int config_available)
 			*val = 0; /* path is initialized */
 			/* next, init the cert db prefix */
 			val++;
-			strcpy(certPref, val);
+			PL_strncpyz(certPref, val, sizeof(certPref));
 		} else {
-			strcpy(val, certfn);
+			PL_strncpyz(val, certfn, sizeof(path)-(val-path));
 			val = strrchr(path, '/');
 			if (!val) {
 				val = strrchr(path, '\\');
 			}
 			val++;
-			strcpy(certPref, val);
+			PL_strncpyz(certPref, val, sizeof(certPref));
 			*val = '\0'; 
 		}
 		/* path represents now the base directory where cert, key, pin, and module db live */
@@ -437,7 +437,7 @@ slapd_nss_init(int init_ssl, int config_available)
 		} else {
 			val = keyfn;
 		}
-		strcpy(keyPref, val);
+		PL_strncpyz(keyPref, val, sizeof(keyPref));
 		/* richm - use strrstr to get the last occurance of -key in the string, in case
 		   the instance is named slapd-key - the keydb name will be slapd-key-key3.db
 		*/
@@ -458,8 +458,8 @@ slapd_nss_init(int init_ssl, int config_available)
 						   (certfn ? "found" : "not found"));
 		}
 		PR_snprintf(certPref, sizeof(certPref), "%s-", val);
-		strcpy(keyPref, certPref);
-		strcpy(val, "alias/");
+		PL_strncpyz(keyPref, certPref, sizeof(keyPref));
+		PL_strncpyz(val, "alias/", sizeof(path)-(val-path));
 	}
 
 	slapi_ch_free((void **) &certfn);
@@ -661,7 +661,7 @@ slapd_ssl_init() {
     /* Step Three.5: Set SSL cipher preferences */
     *cipher_string = 0;
     if(ciphers && (*ciphers) && strcmp(ciphers, "blank"))
-         strcpy(cipher_string, ciphers);
+         PL_strncpyz(cipher_string, ciphers, sizeof(cipher_string));
     slapi_ch_free((void **) &ciphers);
 
     if( NULL != (val = _conf_setciphers(cipher_string)) ) {
@@ -796,7 +796,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             if( token && personality ) {
                 if( !strcasecmp(token, "internal") ||
                     !strcasecmp(token, "internal (software)") )
-                    strcpy(cert_name, personality);
+                    PL_strncpyz(cert_name, personality, sizeof(cert_name));
                 else
                     /* external PKCS #11 token - attach token name */
                     PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
@@ -1128,7 +1128,7 @@ slapd_SSL_client_auth (LDAP* ld)
 			 			 * the personality for internal tokens.
 			 			 */
 						token = slapi_ch_strdup(internalTokenName);
-						strcpy(cert_name, personality);
+						PL_strncpyz(cert_name, personality, sizeof(cert_name));
 						slapi_ch_free((void **) &ssltoken);
 			  } else {
 						/* external PKCS #11 token - attach token name */
@@ -1371,8 +1371,10 @@ char* slapd_get_tmp_dir()
 			 "config_get_instancedir returns NULL Setting tmp dir to default\n");
 
 #if defined( XP_WIN32 )
+			ilen = sizeof(tmp);
+			GetTempPath( ilen, tmp );
+			tmp[ilen-1] = (char)0;
 			ilen = strlen(tmp);
-			GetTempPath( ilen+1, tmp );
 			/* Remove trailing slash. */
 			pch = tmp[ilen-1];
 			if( pch == '\\' || pch == '/' )
