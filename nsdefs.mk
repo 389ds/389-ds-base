@@ -192,7 +192,7 @@ else
  NSPR_DIR=nspr
 endif
 NSPR_BASENAME=libnspr21
-PRODUCT="Brandx Directory Server"
+PRODUCT="Red Hat Directory Server"
 PRODUCT_IS_DIRECTORY_SERVER=1
 INSTANCE_NAME_PREFIX="Directory Server"
 DIR=slapd
