@@ -1,7 +1,3 @@
-# --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2005 Red Hat, Inc.
-# All rights reserved.
-# --- END COPYRIGHT BLOCK ---
 # Microsoft Developer Studio Generated NMAKE File, Based on passsync.dsp
 !IF "$(CFG)" == ""
 CFG=passsync - Win32 Debug
@@ -169,7 +165,7 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\passsync.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=nsldapssl32v50.lib nsldap32v50.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\passsync.pdb" /debug /machine:I386 /out:"$(OUTDIR)\passsync.exe" /pdbtype:sept 
+LINK32_FLAGS=nss3.lib libplc4.lib libnspr4.lib nsldappr32v50.lib nsldapssl32v50.lib nsldap32v50.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\passsync.pdb" /debug /machine:I386 /out:"$(OUTDIR)\passsync.exe" /pdbtype:sept 
 LINK32_OBJS= \
 	"$(INTDIR)\ntservice.obj" \
 	"$(INTDIR)\passhand.obj" \

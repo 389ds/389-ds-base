@@ -1,7 +1,3 @@
-/* --- BEGIN COPYRIGHT BLOCK ---
- * Copyright (C) 2005 Red Hat, Inc.
- * All rights reserved.
- * --- END COPYRIGHT BLOCK --- */
 //
 //  Values are 32 bit values layed out as follows:
 //

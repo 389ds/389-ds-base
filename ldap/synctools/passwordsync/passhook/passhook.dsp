@@ -1,8 +1,3 @@
-# --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2005 Red Hat, Inc.
-# All rights reserved.
-# --- END COPYRIGHT BLOCK ---
-
 # Microsoft Developer Studio Project File - Name="passhook" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
@@ -70,6 +65,7 @@ LINK32=link.exe
 # PROP Use_Debug_Libraries 1
 # PROP Output_Dir "Debug"
 # PROP Intermediate_Dir "Debug"
+# PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PASSHOOK_EXPORTS" /YX /FD /GZ /c
 # ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PASSHOOK_EXPORTS" /YX /FD /GZ /c
@@ -82,7 +78,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
+# ADD LINK32 nss3.lib libnspr4.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
 
 !ENDIF 
 

@@ -1,16 +1,12 @@
 <?xml version='1.0' encoding='windows-1252'?>
-<!-- BEGIN COPYRIGHT BLOCK 
- Copyright (C) 2005 Red Hat, Inc.
- All rights reserved.
- END COPYRIGHT BLOCK -->
 <Wix xmlns='http://schemas.microsoft.com/wix/2003/01/wi'>
   <Product Name='Password Sync' Id='DB501C18-86C7-4D14-AEC0-86416A69ABDE'
     Language='1033' Codepage='1252'
-    Version='1.0.0' Manufacturer='Acme Ltd.'>
+    Version='1.0.0' Manufacturer='Brandx'>
 
     <Package Id='????????-????-????-????-????????????' Keywords='Installer'
       Description="Password Synchronization Installer"
-      Comments='Foobar is a registered trademark of Acme Ltd.' Manufacturer='Acme Ltd.'
+      Manufacturer='Brandx'
       InstallerVersion='100' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
 
     <Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
@@ -18,13 +14,52 @@
 
     <Directory Id='TARGETDIR' Name='SourceDir'>
 
-	<Directory Id='WinDir' Name='WinDir' LongName='WINDOWS'>
-	    <Directory Id='SysDir' Name='SysDir' LongName='system32'>
-		<Component Id='HelperLibrary' Guid='5C4B892B-6BE3-460D-A14F-75658D16550B'>
+
+	    <Directory Id='SystemFolder' Name='SysDir'>
+
+		<Component Id='HookLibrary' Guid='93790ACE-F522-413C-AEE3-DF05D99BAA6D'>
               <File Id='PasshookDLL' Name='passhook.dll' DiskId='1' src='passhook.dll' Vital='yes' />
             </Component>
+
+		<Component Id='NSLDAPLibrary' Guid='E3B9046B-1B9B-4E19-81F3-0A8D14CF72B2'>
+		  <File Id='NSLDAP' LongName='nsldap32v50.dll' Name='nsldap.dll' DiskId='1' src='nsldap32v50.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSLDAPSSLLibrary' Guid='794345C6-74B8-4917-A2E6-4DC9DCCFECD2'>
+		  <File Id='NSLDAPSSL' LongName='nsldapssl32v50.dll' Name='nsldapss.dll' DiskId='1' src='nsldapssl32v50.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSLDAPPRLibrary' Guid='D6ABE406-7663-4E27-81F3-482860FD6375'>
+		  <File Id='NSLDAPRP' LongName='nsldappr32v50.dll' Name='nsldappr.dll' DiskId='1' src='nsldappr32v50.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSPRLibrary' Guid='7DFF5449-F38C-4C3B-9876-E32A123F1EA5'>
+		  <File Id='NSPR' LongName='libnspr4.dll' Name='libnspr4.dll' DiskId='1' src='libnspr4.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSPRpldsLibrary' Guid='50C89341-754F-4092-8307-129DB119B42E'>
+		  <File Id='NSPRPLDS' LongName='libplds4.dll' Name='libplds4.dll' DiskId='1' src='libplds4.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSPRplcLibrary' Guid='1B8B1D78-E2C1-4F3A-A841-C79FFE26E6E0'>
+		  <File Id='NSPRPLC' LongName='libplc4.dll' Name='libplc4.dll' DiskId='1' src='libplc4.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSSLibrary' Guid='5E122346-6B77-456D-BCC5-76D7FA8AF258'>
+		  <File Id='NSS' LongName='nss3.dll' Name='nss3.dll' DiskId='1' src='nss3.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSSsslLibrary' Guid='A39CC896-F455-4701-9BF0-D1E31C116DE2'>
+		  <File Id='NSSSSL' LongName='ssl3.dll' Name='ssl3.dll' DiskId='1' src='ssl3.dll' Vital='yes' />
+            </Component>
+
+		<Component Id='NSSsoftoknLibrary' Guid='9C57A076-D52A-4E74-A46A-DDF916A7D8BD'>
+		  <File Id='NSSSOFTTOKN' LongName='softokn3.dll' Name='softokn3.dll' DiskId='1' src='softokn3.dll' Vital='yes' />
+            </Component>
+
 	    </Directory>
-	</Directory>
+
+
       <Directory Id='ProgramFilesFolder' Name='PFiles'>
 
           <Directory Id='INSTALLDIR' Name='PassSync' LongName='Password Synchronization'>
@@ -32,22 +67,24 @@
             <Component Id='MainExecutable' Guid='DCEECAA4-83F1-4F22-985B-FDB3C8ABD471'>
               <File Id='PassSyncEXE' Name='PassSync.exe' LongName='passsync.exe' DiskId='1'
                 src='passsync.exe' Vital='yes' />
-              <Shortcut Id="startmenuPassSync" Directory="ProgramMenuDir" Name="PassSync" 
+            <!--  <Shortcut Id="startmenuPassSync" Directory="ProgramMenuDir" Name="PassSync" 
                 LongName="Password Synchronization" Target="MainProgram" WorkingDirectory='INSTALLDIR'
                 Icon="PassSync.exe" IconIndex="0" />
-              <Shortcut Id="desktopPassSync" Directory="DesktopFolder" Name="PassSync"
+                <Shortcut Id="desktopPassSync" Directory="DesktopFolder" Name="PassSync"
                 LongName="Password Synchronization" Target="MainProgram" WorkingDirectory='INSTALLDIR'
                 Icon="PassSync.exe" IconIndex="0" />
+            -->
 
 		  <ServiceInstall Id='PassSyncEXE' Name='PassSync' DisplayName='Password Synchronization' Type='ownProcess' 
 		   Interactive='yes' Start='auto' Vital='yes' ErrorControl='normal'/>
 		  <ServiceControl Id='PassSyncEXE' Name='PassSync' Start='install' Stop='both' Remove='uninstall' Wait='yes'/>
 
-
+		  <Registry Id='InstPath' Root='HKLM' Key='Software\PasswordSync' Name='Install Path' Action='write' Type='string' Value='[INSTALLDIR]' />
 		  <Registry Id='HostName' Root='HKLM' Key='Software\PasswordSync' Name='Host Name' Action='write' Type='string' Value='[HOSTNAME]' />
 		  <Registry Id='PortNum' Root='HKLM' Key='Software\PasswordSync' Name='Port Number' Action='write' Type='string' Value='[PORTNUM]' />
 		  <Registry Id='UserName' Root='HKLM' Key='Software\PasswordSync' Name='User Name' Action='write' Type='string' Value='[USER]' />
 		  <Registry Id='Password' Root='HKLM' Key='Software\PasswordSync' Name='Password' Action='write' Type='string' Value='[PASSWORD]' />
+		  <Registry Id='Certtkn' Root='HKLM' Key='Software\PasswordSync' Name='Cert Token' Action='write' Type='string' Value='[CERTTOKEN]' />
 		  <Registry Id='SrchBase' Root='HKLM' Key='Software\PasswordSync' Name='Search Base' Action='write' Type='string' Value='[SRCHBASE]' />
 		  <Registry Id='UserFld' Root='HKLM' Key='Software\PasswordSync' Name='User Name Field' Action='write' Type='string' Value='ntuserdomainid' />
 		  <Registry Id='PassFld' Root='HKLM' Key='Software\PasswordSync' Name='Password Field' Action='write' Type='string' Value='ntusercomment' />
@@ -59,20 +96,30 @@
           </Directory>
       </Directory>
 
-      <Directory Id="ProgramMenuFolder" Name="PMenu" LongName="Programs">
-        <Directory Id="ProgramMenuDir" Name='Foobar10' LongName="Foobar 1.0" />
-      </Directory>
+      <!-- <Directory Id="ProgramMenuFolder" Name="PMenu" LongName="Programs">
+        <Directory Id="ProgramMenuDir" Name='PassSync' LongName="Password Synchronization Service" />
+    </Directory>
+      -->
 
       <Directory Id="DesktopFolder" Name="Desktop" />
     </Directory>
 
-    <Feature Id='Complete' Title='Foobar 1.0' Description='The complete package.'
+    <Feature Id='Complete' Title='Password Synchronization Service' Description='The complete package.'
       TypicalDefault='install' Display='expand' Level='1'
       ConfigurableDirectory='INSTALLDIR'>
       <Feature Id='MainProgram' Title='Program' Description='The main executable.'
         TypicalDefault='install' Level='1'>
         <ComponentRef Id='MainExecutable' />
-        <ComponentRef Id='HelperLibrary' />
+        <ComponentRef Id='HookLibrary' />
+	  <ComponentRef Id='NSLDAPLibrary' />
+	  <ComponentRef Id='NSLDAPSSLLibrary' />
+	  <ComponentRef Id='NSLDAPPRLibrary' />
+	  <ComponentRef Id='NSPRLibrary' />
+	  <ComponentRef Id='NSPRpldsLibrary' />
+	  <ComponentRef Id='NSPRplcLibrary' />
+	  <ComponentRef Id='NSSLibrary' />
+	  <ComponentRef Id='NSSsslLibrary' />
+	  <ComponentRef Id='NSSsoftoknLibrary' />
       </Feature>
     </Feature>
 
@@ -704,8 +751,10 @@
 	  <Control Id="UserEdit" Type="Edit" X="100" Y="125" Width="220" Height="18" Property="USER"/>
 	  <Control Id="PwdLabel" Type="Text" X="45" Y="154" Width="50" Height="15" TabSkip="no" Text="&amp;Password:"/>
 	  <Control Id="PwdEdit" Type="Edit" Password="yes" X="100" Y="152" Width="220" Height="18" Property="PASSWORD"/>
-	  <Control Id="SBLabel" Type="Text" X="45" Y="181" Width="50" Height="15" TabSkip="no" Text="&amp;Search Base:"/>
-	  <Control Id="SBEdit" Type="Edit" X="100" Y="179" Width="220" Height="18" Property="SRCHBASE"/>
+	  <Control Id="CertLabel" Type="Text" X="45" Y="181" Width="50" Height="15" TabSkip="no" Text="&amp;Cert Token:"/>
+	  <Control Id="CertEdit" Type="Edit" Password="yes" X="100" Y="179" Width="220" Height="18" Property="CERTTOKEN"/>
+	  <Control Id="SBLabel" Type="Text" X="45" Y="208" Width="50" Height="15" TabSkip="no" Text="&amp;Search Base:"/>
+	  <Control Id="SBEdit" Type="Edit" X="100" Y="206" Width="220" Height="18" Property="SRCHBASE"/>
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="[ButtonText_Back]">
           <Publish Event="NewDialog" Value="WelcomeDlg">1</Publish>
         </Control>

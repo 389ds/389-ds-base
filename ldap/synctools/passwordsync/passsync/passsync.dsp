@@ -1,9 +1,5 @@
 # Microsoft Developer Studio Project File - Name="passsync" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
-# --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2005 Red Hat, Inc.
-# All rights reserved.
-# --- END COPYRIGHT BLOCK ---
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103
@@ -77,7 +73,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 nsldapssl32v50.lib nsldap32v50.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
+# ADD LINK32 nss3.lib libplc4.lib libnspr4.lib nsldappr32v50.lib nsldapssl32v50.lib nsldap32v50.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
 
 !ENDIF 
 
@@ -95,6 +91,10 @@ SOURCE=.\ntservice.cpp
 # Begin Source File
 
 SOURCE=..\passhand.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\passsync.rc
 # End Source File
 # Begin Source File
 

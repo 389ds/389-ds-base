@@ -1,29 +1,30 @@
-// --- BEGIN COPYRIGHT BLOCK ---
-// Copyright (C) 2005 Red Hat, Inc.
-// All rights reserved.
-// --- END COPYRIGHT BLOCK ---
-
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #ifndef _PASSHAND_H_
 #define _PASSHAND_H_
 
 #include <windows.h>
-#include <ntsecapi.h>
+#include <time.h>
+#include <strstream>
 #include <fstream>
 #include <list>
+#include "nss.h"
+#include "pk11func.h"
+#include "prerror.h"
 
 #define PASSHAND_EVENT_NAME "passhand_event"
 
-#define STRSTREAM_BUF_SIZE 1024
+#define PASSHAND_BUF_SIZE 256
 
 using namespace std;
 
 struct USER_PASS_PAIR
 {
-	UNICODE_STRING username;
-	UNICODE_STRING password;
+	char* username;
+	char* password;
 };
+
+void timeStamp(fstream* outFile);
 
 class PasswordHandler
 {
@@ -31,15 +32,18 @@ public:
 	PasswordHandler();
 	~PasswordHandler();
 
-	//WritePassToStorage(PUNICODE_STRING username, PUNICODE_STRING password);
-	//ReadPassFromStorage(PUNICODE_STRING username, PUNICODE_STRING password);
 	int SaveSet(char* filename);
 	int LoadSet(char* filename);
-	int PushUserPass(PUNICODE_STRING username, PUNICODE_STRING password);
-	int PeekUserPass(PUNICODE_STRING username, PUNICODE_STRING password);
+	int PushUserPass(char* username, char* password);
+	int PeekUserPass(char* username, char* password);
 	int PopUserPass();
 private:
+	int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int cipherTextLen, int* resultTextLen);
+	int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plainTextLen, int* resultTextLen);
+
 	list<USER_PASS_PAIR> userPassPairs;
+	char* keyPath;
+	fstream outLog;
 };
 
 #endif
