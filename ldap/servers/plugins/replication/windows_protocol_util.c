@@ -521,7 +521,7 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 		UChar *unicode_password = NULL;
 		int32_t unicode_password_length = 0; /* Length in _characters_ */
 		int32_t buffer_size = 0; /* Size in _characters_ */
-		UErrorCode error = 0;
+		UErrorCode error = U_ZERO_ERROR;
 		char *quoted_password = NULL;
 		struct berval *bvals[2];
 
@@ -535,6 +535,7 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 			buffer_size = unicode_password_length;
 			unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
 			if (unicode_password) {
+				error = U_ZERO_ERROR;
 				u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
 
 				bv.bv_len = unicode_password_length * sizeof(UChar);
