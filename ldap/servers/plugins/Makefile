@@ -19,7 +19,11 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
+ifneq ($(ARCH), WINNT)
 all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views _pam_passthru
+else
+all: _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views
+endif
 
 _utils:
 	cd shared; $(MAKE) $(MFLAGS) all
@@ -41,8 +45,10 @@ _syntaxes:
 _passthru:
 	cd passthru; $(MAKE) $(MFLAGS) all
 
+ifneq ($(ARCH), WINNT)
 _pam_passthru:
 	cd pam_passthru; $(MAKE) $(MFLAGS) all
+endif
 
 _uiduniq:
 	cd uiduniq; $(MAKE) $(MFLAGS) all
@@ -87,6 +93,9 @@ clean:
 	cd collation; $(MAKE) $(MFLAGS) clean
 	cd syntaxes; $(MAKE) $(MFLAGS) clean
 	cd passthru; $(MAKE) $(MFLAGS) clean
+ifneq ($(ARCH), WINNT)
+	cd pam_passthru; $(MAKE) $(MFLAGS) clean
+endif
 	cd shared; $(MAKE) $(MFLAGS) clean
 	cd uiduniq; $(MAKE) $(MFLAGS) clean
 	cd replication; $(MAKE) $(MFLAGS) clean
