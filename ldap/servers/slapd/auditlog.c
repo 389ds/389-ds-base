@@ -31,7 +31,13 @@ write_audit_log_entry( Slapi_PBlock *pb )
 	int flag = 0;
 	int internal_op = 0;
 	Operation *op;
-	
+
+	/* if the audit log is not enabled, just skip all of
+	   this stuff */
+	if (!config_get_auditlog_logging_enabled()) {
+		return;
+	}
+
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 	internal_op = operation_is_flag_set(op, OP_FLAG_INTERNAL);
     slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );

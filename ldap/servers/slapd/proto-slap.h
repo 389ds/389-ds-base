@@ -338,6 +338,7 @@ long config_get_pw_minage();
 long config_get_pw_warning();
 int config_get_errorlog_level();
 int config_get_accesslog_level();
+int config_get_auditlog_logging_enabled();
 char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);

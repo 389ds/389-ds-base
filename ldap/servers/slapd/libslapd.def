@@ -429,7 +429,7 @@ EXPORTS
 	config_set_accesscontrol 	@426
 	config_set_result_tweak 	@427
 	config_set_pw_gracelimit	@428
-; Available for reuse 	@429
+	config_get_auditlog_logging_enabled 	@429
 	config_set_security 	@430
 	config_set_pwpolicy_local	@431
 	config_set_readonly 	@432

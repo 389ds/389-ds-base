@@ -3356,6 +3356,18 @@ config_get_accesslog_level(){
   return retVal;
 }
 
+/*  return integer -- don't worry about locking similar to config_check_referral_mode 
+    below */
+
+int
+config_get_auditlog_logging_enabled(){
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->auditlog_logging_enabled;
+
+  return retVal;
+}
 
 char *config_get_referral_mode(void)
 {
