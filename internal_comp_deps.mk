@@ -203,7 +203,7 @@ ifndef DB_VERSION
   DB_VERSION=20040130
 endif
 # define the paths to the component parts
-db_components_share=$(COMPONENTS_DIR)/$(component_name)
+db_components_share=$(COMPONENTS_DIR)/$(db_component_name)
 MY_NSOBJDIR_TAG=$(NSOBJDIR_TAG).OBJ
 db_release_config =$(db_components_share)/$(DB_VERSION)/$(NSCONFIG_NOTAG)$(NS64TAG)$(MY_NSOBJDIR_TAG)
 # add ",bin" to DB_FILES if you want the programs like db_verify, db_recover, etc.
@@ -226,7 +226,7 @@ ifdef COMPONENT_DEPS
 		-files $(DB_FILES)
 endif
 	-@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component $(component_name) file $@" ; \
+	then echo "Error: could not get component $(db_component_name) file $@" ; \
 	fi
 endif # DB_SOURCE_ROOT
 
