@@ -109,7 +109,7 @@ BOOL WD_GetServerConfig(char *szServerId, char *szServerRoot, LPDWORD cbServerRo
 		return(bReturn);
 
 	// query registry key to figure out config directory
-    snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
+    _snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
         szServerId);
 	szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 
@@ -140,7 +140,7 @@ BOOL WD_GetServerId(IN DWORD dwSubKey, OUT char *szServerId, IN OUT LPDWORD cbSe
 	char szSlapdKey[MAX_LINE];
 
 	if(dwSubKey == 0) {
-    	snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
+    	_snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT);
 		szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 		dwResult = RegOpenKey(HKEY_LOCAL_MACHINE, szSlapdKey, 
 			&hSlapdKey);
@@ -238,7 +238,7 @@ DWORD WD_GetDefaultKeyValue(char *szServerName, char *szKeyName, DWORD dwDefault
 	DWORD cbValue = sizeof(dwValue);
 
 	// query registry key to figure out config directory
-    snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
+    _snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
         szServerName);
 	szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 	if(RegOpenKey(HKEY_LOCAL_MACHINE, szSlapdKey, &hSlapdKey) == ERROR_SUCCESS)
@@ -400,7 +400,7 @@ BOOL WD_GetConfigFromRegistry(char *szServerConfig, char *szServerName)
 	DWORD dwResult = 0;
 
 	// query registry key to figure out config directory
-    snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
+    _snprintf(szSlapdKey, sizeof(szSlapdKey), "%s\\%s\\%s", KEY_SOFTWARE_NETSCAPE, SVR_KEY_ROOT,
         szServerName);
 	szSlapdKey[sizeof(szSlapdKey)-1] = (char)0;
 
@@ -496,7 +496,7 @@ BOOL WD_IsServerSecure(void)
 	char *szTemp;
 	FILE *fh = NULL;
 	
-	snprintf(szFileName, sizeof(szFileName), "%s\\%s", gszServerConfig, SLAPD_CONF);
+	_snprintf(szFileName, sizeof(szFileName), "%s\\%s", gszServerConfig, SLAPD_CONF);
 	szFileName[sizeof(szFileName)-1] = (char)0;
 	if(fh = fopen(szFileName, "r"))
 	{
@@ -553,7 +553,7 @@ LONG APIENTRY WD_MainWndProc(HWND hWnd, UINT message, UINT wParam, LONG lParam)
 					char szShutdownEvent[MAX_LINE];
 
 					// shutdown web server, it should exit with 0, WatchDog won't restart it
-					snprintf(szShutdownEvent, sizeof(szShutdownEvent), "NS_%s", gszServerName);
+					_snprintf(szShutdownEvent, sizeof(szShutdownEvent), "NS_%s", gszServerName);
 					szShutdownEvent[sizeof(szShutdownEvent)-1] = (char)0;
 					hevShutdown = OpenEvent(EVENT_MODIFY_STATE, FALSE, szShutdownEvent);
 					if(hevShutdown)
@@ -740,7 +740,7 @@ BOOL WD_StartServer(PROCESS_INFORMATION *pi)
 
 	// For Directory Server, service-name is defined as slapd.exe, 
 	// in ldapserver/include/nt/regpargms.h
-	snprintf( szCmdLine, sizeof(szCmdLine), "%s\\bin\\%s\\server\\%s -D \"%s\"", szServerPath, 
+	_snprintf( szCmdLine, sizeof(szCmdLine), "%s\\bin\\%s\\server\\%s -D \"%s\"", szServerPath, 
 			 PRODUCT_NAME, SERVICE_EXE, szInstancePath );
 	szCmdLine[sizeof(szCmdLine)-1] = (char)0;
 	// szCmdLine ex: c:\navgold\server\bin\slapd\slapd.exe 
@@ -924,7 +924,7 @@ BOOL WD_MonitorServer(void)
 			// shutdown web server
 			//CLOSEHANDLE(pi.hProcess);  // XXXahakim close them after TerminateProcess()
 			//CLOSEHANDLE(pi.hThread);
-			snprintf(szServerDoneEvent, sizeof(szServerDoneEvent), "NS_%s", gszServerName);
+			_snprintf(szServerDoneEvent, sizeof(szServerDoneEvent), "NS_%s", gszServerName);
 			szServerDoneEvent[sizeof(szServerDoneEvent)-1] = (char)0;
 			hevServerDone = OpenEvent(EVENT_MODIFY_STATE, FALSE, szServerDoneEvent);
 			if(hevServerDone)
