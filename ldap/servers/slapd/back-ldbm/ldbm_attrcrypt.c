@@ -282,7 +282,7 @@ attrcrypt_fetch_public_key(SECKEYPublicKey **public_key)
 	}else {
 		ret = -1;
 	}
-    if (cert_name != default_cert_name) {
+	if (cert_name != default_cert_name) {
 		slapi_ch_free_string(&cert_name);
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_fetch_public_key\n", 0, 0, 0);
@@ -327,7 +327,7 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
 	} else {
 		ret = -1;
 	}
-    if (cert_name != default_cert_name) {
+	if (cert_name != default_cert_name) {
 		slapi_ch_free_string(&cert_name);
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_fetch_private_key\n", 0, 0, 0);
