@@ -227,6 +227,7 @@ ifdef BUILD_RPM
 	RPM_BASE_NAME=fedora
 	RPM_VERSION=7.1
 	RPM_FILE_BASE=$(RPM_BASE_NAME)-ds-$(RPM_VERSION)
+	RPM_ARCH = $(shell uname -i)
 # root dir for RPM built and temp files
 	ABS_TOPDIR = $(shell cd $(INSTDIR)/.. ; pwd)
 	RPM_TOPDIR = --define "_topdir $(ABS_TOPDIR)"
@@ -726,7 +727,7 @@ endif
 else
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
 	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
-endif
+endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
 # $(INSTDIR) is used to build international products.
@@ -746,6 +747,10 @@ ifdef BUILD_RPM
 	fi
 # execute the RPM build
 	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) --define "flavor $(RPM_FLAVOR)" --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec
+
+ifdef BUILD_SHIP
+	cp $(ABS_TOPDIR)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm $(BUILD_SHIP)
+endif # BUILD_SHIP
 endif # BUILD_RPM
 
 else
@@ -792,7 +797,13 @@ ifeq ($(USE_64), 1)  # only run acceptance on 64-bit HPUX builds
 	$(acceptdir)/accept $(BUILD_SHIP)/$(FTPNAMEGZ) &
 endif  # USE_64
 else
+ifeq ($(ARCH), Linux)
+ifdef BUILD_RPM
+	$(acceptdir)/accept $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm)
+endif  # BUILD_RPM
+else
 	$(acceptdir)/accept $(BUILD_SHIP)/$(FTPNAMEGZ) &
+endif  # Linux
 endif  # HPUX
 endif  # optimize
 endif  # domestic
