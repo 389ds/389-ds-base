@@ -41,22 +41,24 @@ Prefix: /opt/%{name}
 # like setupsdk, adminsdk, admin server
 # BUILD_MODE=int builds the Redhat branded product
 BUILDMODE=@BUILD-MODE@
+PLATFORM=@PLATFORM@
 if [ $BUILDMODE = int ]; then
 # brandDirectory makes the product use Redhat branded text and graphics
 	make brandDirectory
 fi
-make INTERNAL_BUILD=1 BUILD_MODE=$BUILDMODE BUILD_JAVA_CODE=1 BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg
+make INTERNAL_BUILD=1 BUILD_MODE=$BUILDMODE BUILD_JAVA_CODE=1 BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg/$PLATFORM
 
 %install
 # all we do here is run setup -b to unpack the binaries
 # into the BuildRoot
+PLATFORM=@PLATFORM@
 rm -rf $RPM_BUILD_ROOT
-cd pkg
+cd pkg/$PLATFORM
 # the echo yes is for dsktune to continue
 echo yes | ./setup -b $RPM_BUILD_ROOT/%{prefix}
 # this is our setup script that sets up the initial
 # server instances after installation
-cd ..
+cd ../..
 cp ldap/cm/newinst/setup $RPM_BUILD_ROOT/%{prefix}/setup
 
 %clean
@@ -71,9 +73,22 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 echo ""
-echo "Please cd " %{prefix} " and run ./setup/setup"
+if [ -z "$RPM_INSTALL_PREFIX" ]; then
+	RPM_INSTALL_PREFIX=${prefix}
+fi
+echo "Please go to $RPM_INSTALL_PREFIX and run ./setup/setup"
+
+%preun
+if [ -z "$RPM_INSTALL_PREFIX" ]; then
+	RPM_INSTALL_PREFIX=${prefix}
+fi
+cd $RPM_INSTALL_PREFIX
+./uninstall -s -force
 
 %changelog
+* Tue Apr  5 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
+- use platform specific packaging directory; add preun to do uninstall
+
 * Fri Apr  1 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
 - use setup -q to suppress tar output
 

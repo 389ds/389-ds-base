@@ -79,6 +79,13 @@ for arg in "$@" ; do
 	fi
 done
 
+# figure out where we are and make sure we cd to the serverroot dir
+setupdir=`dirname $0`
+sroot=`dirname $setupdir`
+cd $sroot
+
+rm -f $sroot/setup/install.inf
+
 echo "INFO Begin Setup . . ." | tee -a $logfile
 # cat LICENSE.txt
 if ! [ $silent ]; then
