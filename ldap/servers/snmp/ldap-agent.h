@@ -39,11 +39,6 @@ typedef struct server_instance_s {
     int server_state;
     char *stats_file;
     char *dse_ldif;
-    char *description;
-    char *org;
-    char *location;
-    char *contact;
-    char *name;
     struct server_instance_s *next;
 } server_instance;
 

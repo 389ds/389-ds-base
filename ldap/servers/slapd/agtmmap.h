@@ -72,6 +72,11 @@ struct hdr_stats_t{
     time_t	startTime;
     time_t	updateTime;
     char        dsVersion[100];
+    char	dsName[30];
+    char	dsDescription[30];
+    char	dsOrganization[30];
+    char	dsLocation[30];
+    char	dsContact[30];
 };
 
 struct ops_stats_t{

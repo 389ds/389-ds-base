@@ -40,8 +40,6 @@ init_ldap_agent(void)
 {
     server_instance *serv_p = NULL;
     stats_table_context *new_row = NULL;
-    int err;
-    int stats_hdl = -1;
 
     /* Define and create the table */
     initialize_stats_table();
@@ -229,7 +227,6 @@ load_stats_table(netsnmp_cache *cache, void *foo)
 {
     server_instance *serv_p = NULL;
     stats_table_context *ctx = NULL;
-    netsnmp_variable_list *vars = NULL;
     time_t previous_start;
     int previous_state;
     int stats_hdl = -1;
@@ -527,14 +524,13 @@ dsEntityTable_get_value(netsnmp_request_info *request,
 {
     netsnmp_variable_list *var = request->requestvb;
     stats_table_context *context = (stats_table_context *) item;
-    server_instance *server = (server_instance *) context->entity_tbl;
                                                                                                                 
     switch (table_info->colnum) {
                                                                                                                 
     case COLUMN_DSENTITYDESCR:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (u_char *) server->description,
-                                 strlen(server->description));
+                                 (u_char *) context->hdr_tbl.dsDescription,
+                                 strlen(context->hdr_tbl.dsDescription));
         break;
                                                                                                                 
     case COLUMN_DSENTITYVERS:
@@ -545,26 +541,26 @@ dsEntityTable_get_value(netsnmp_request_info *request,
                                                                                                                 
     case COLUMN_DSENTITYORG:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (u_char *) server->org,
-                                 strlen(server->org));
+                                 (u_char *) context->hdr_tbl.dsOrganization,
+                                 strlen(context->hdr_tbl.dsOrganization));
         break;
                                                                                                                 
     case COLUMN_DSENTITYLOCATION:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (u_char *) server->location,
-                                 strlen(server->location));
+                                 (u_char *) context->hdr_tbl.dsLocation,
+                                 strlen(context->hdr_tbl.dsLocation));
         break;
                                                                                                                 
     case COLUMN_DSENTITYCONTACT:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (u_char *) server->contact,
-                                 strlen(server->contact));
+                                 (u_char *) context->hdr_tbl.dsContact,
+                                 strlen(context->hdr_tbl.dsContact));
         break;
                                                                                                                 
     case COLUMN_DSENTITYNAME:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (u_char *) server->name,
-                                 strlen(server->name));
+                                 (u_char *) context->hdr_tbl.dsName,
+                                 strlen(context->hdr_tbl.dsName));
         break;
 
     default:/* We shouldn't get here */
@@ -614,8 +610,8 @@ send_DirectoryServerDown_trap(server_instance *serv_p)
     snmp_varlist_add_variable(&var_list,
                               dsEntityDescr_oid,
                               OID_LENGTH(dsEntityDescr_oid), ASN_OCTET_STR,
-                              (u_char *) serv_p->description,
-                              strlen(serv_p->description));
+                              (u_char *) ctx->hdr_tbl.dsDescription,
+                              strlen(ctx->hdr_tbl.dsDescription));
     snmp_varlist_add_variable(&var_list,
                               dsEntityVers_oid,
                               OID_LENGTH(dsEntityVers_oid), ASN_OCTET_STR,
@@ -625,14 +621,14 @@ send_DirectoryServerDown_trap(server_instance *serv_p)
                               dsEntityLocation_oid,
                               OID_LENGTH(dsEntityLocation_oid),
                               ASN_OCTET_STR,
-                              (u_char *) serv_p->location,
-                              strlen(serv_p->location));
+                              (u_char *) ctx->hdr_tbl.dsLocation,
+                              strlen(ctx->hdr_tbl.dsLocation));
     snmp_varlist_add_variable(&var_list,
                               dsEntityContact_oid,
                               OID_LENGTH(dsEntityContact_oid),
                               ASN_OCTET_STR,
-                              (u_char *) serv_p->contact,
-                              strlen(serv_p->contact));
+                              (u_char *) ctx->hdr_tbl.dsContact,
+                              strlen(ctx->hdr_tbl.dsContact));
 
     /* Send the trap */
     send_v2trap(var_list);
@@ -679,8 +675,8 @@ send_DirectoryServerStart_trap(server_instance *serv_p)
     snmp_varlist_add_variable(&var_list,
                               dsEntityDescr_oid,
                               OID_LENGTH(dsEntityDescr_oid), ASN_OCTET_STR,
-                              (u_char *) serv_p->description,
-                              strlen(serv_p->description));
+                              (u_char *) ctx->hdr_tbl.dsDescription,
+                              strlen(ctx->hdr_tbl.dsDescription));
     snmp_varlist_add_variable(&var_list,
                               dsEntityVers_oid,
                               OID_LENGTH(dsEntityVers_oid), ASN_OCTET_STR,
@@ -690,8 +686,8 @@ send_DirectoryServerStart_trap(server_instance *serv_p)
                               dsEntityLocation_oid,
                               OID_LENGTH(dsEntityLocation_oid),
                               ASN_OCTET_STR,
-                              (u_char *) serv_p->location,
-                              strlen(serv_p->location));
+                              (u_char *) ctx->hdr_tbl.dsLocation,
+                              strlen(ctx->hdr_tbl.dsLocation));
                                                                                                                 
     /* Send the trap */
     send_v2trap(var_list);

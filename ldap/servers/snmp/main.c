@@ -111,8 +111,9 @@ main (int argc, char *argv[]) {
                 strcat((char *) log_hdl->token, LDAP_AGENT_LOGFILE);
             }
         } else {
-            /* agent-logdir not set, so write locally */
-            log_hdl->token = strdup(LDAP_AGENT_LOGFILE);
+            /* agent-logdir not set */
+            printf("ldap-agent: Error determining log directory.\n");
+            exit(1);
         } 
 
         netsnmp_enable_filelog(log_hdl, 1);
@@ -202,6 +203,13 @@ load_config(char *conf_path)
     char *p = NULL;
     char *p2 = NULL;
 
+    /* Make sure we are getting an absolute path */
+    if (*conf_path != '/') {
+        printf("ldap-agent: Error opening config file: %s\n", conf_path);
+        printf("ldap-agent: You must specify the absolute path to your config file\n");
+        exit(1);
+    }
+
     /* Open config file */
     if ((conf_file = fopen(conf_path, "r")) == NULL) {
         printf("ldap-agent: Error opening config file: %s\n", conf_path);
@@ -211,10 +219,19 @@ load_config(char *conf_path)
     /* set pidfile path */
     for (p = (conf_path + strlen(conf_path) - 1); p >= conf_path; p--) {
         if (*p == '/') {
+            /* set pidfile path */
             if ((pidfile = malloc((p - conf_path) +
                                    strlen(LDAP_AGENT_PIDFILE) + 2)) != NULL) {
                 strncpy(pidfile, conf_path, (p - conf_path + 1));
                 strcat(pidfile, LDAP_AGENT_PIDFILE);
+            } else {
+                printf("ldap-agent: malloc error processing config file\n");
+                exit(1);
+            }
+
+            /* set default logdir to location of config file */
+            if ((agent_logdir = malloc((p - conf_path) + 1)) != NULL) {
+                strncpy(agent_logdir, conf_path, (p - conf_path));
                 break;
             } else {
                 printf("ldap-agent: malloc error processing config file\n");
@@ -236,6 +253,11 @@ load_config(char *conf_path)
                     strcpy(agentx_master, p);
             }
         } else if ((p = strstr(line, "agent-logdir")) != NULL) {
+            /* free the default logdir setting */
+            if (agent_logdir != NULL) {
+                free(agent_logdir);
+            }
+
             /* load agent-logdir setting */
             p = p + 12;
             if ((p = strtok(p, " \t\n")) != NULL) {
@@ -258,65 +280,6 @@ load_config(char *conf_path)
                                      "%s/logs/slapd.stats", p);
                 if ((serv_p->dse_ldif = malloc(strlen(p) + 17)) != NULL) {
                     snprintf(serv_p->dse_ldif, strlen(p) + 17, "%s/config/dse.ldif", p);
-                }
-
-                /* second token is the name */
-                p = p2;
-                if((p2 = strchr(p, ':')) != NULL) {
-                    *p2 = '\0';
-                    ++p2;
-                    if ((serv_p->name = malloc(strlen(p) + 1)) != NULL)
-                        snprintf(serv_p->name, strlen(p) + 1, "%s", p);
-                } else {
-                    printf("ldap-agent: Invalid config file\n");
-                    exit(1);
-                }
-                
-                /* third token is the description */
-                p = p2;
-                if((p2 = strchr(p, ':')) != NULL) {
-                    *p2 = '\0';
-                    ++p2;
-                    if ((serv_p->description = malloc(strlen(p) + 1)) != NULL)
-                        snprintf(serv_p->description, strlen(p) + 1, "%s", p);
-                } else {
-                    printf("ldap-agent: Invalid config file\n");
-                    exit(1);
-                }
-
-                /* fourth token is the org */
-                p = p2;
-                if((p2 = strchr(p, ':')) != NULL) {
-                    *p2 = '\0';
-                    ++p2;
-                    if ((serv_p->org = malloc(strlen(p) + 1)) != NULL)
-                        snprintf(serv_p->org, strlen(p) + 1, "%s", p);
-                } else {
-                    printf("ldap-agent: Invalid config file\n");
-                    exit(1);
-                }
-
-                /* fifth token is the location */
-                p = p2;
-                if((p2 = strchr(p, ':')) != NULL) {
-                    *p2 = '\0';
-                    ++p2;
-                    if ((serv_p->location = malloc(strlen(p) + 1)) != NULL)
-                        snprintf(serv_p->location, strlen(p) + 1, "%s", p);
-                } else {
-                    printf("ldap-agent: Invalid config file\n");
-                    exit(1);
-                }
-
-                /* sixth token is the contact */
-                p = p2;
-                if((p2 = strchr(p, '\n')) != NULL) {
-                    *p2 = '\0';
-                    if ((serv_p->contact = malloc(strlen(p) + 1)) != NULL)
-                        snprintf(serv_p->contact, strlen(p) + 1, "%s", p);
-                } else {
-                    printf("ldap-agent: Invalid config file\n");
-                    exit(1);
                 }
             }
  

@@ -5,6 +5,18 @@
  * END COPYRIGHT BLOCK **/
 /******************************************************************************
 *
+*       defines
+*
+******************************************************************************/
+#define SNMP_CONFIG_DN    "cn=SNMP,cn=config"
+#define SNMP_NAME_ATTR    "nsSNMPName"
+#define SNMP_DESC_ATTR    "nsSNMPDescription"
+#define SNMP_ORG_ATTR     "nsSNMPOrganization"
+#define SNMP_LOC_ATTR     "nsSNMPLocation"
+#define SNMP_CONTACT_ATTR "nsSNMPContact"
+
+/******************************************************************************
+*
 *	function prototypes
 *
 ******************************************************************************/

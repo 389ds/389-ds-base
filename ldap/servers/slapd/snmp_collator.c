@@ -35,6 +35,9 @@
 char *make_ds_url(char *host, int port);
 void print_snmp_interaction_table();
 int search_interaction_table(char *dsURL, int *isnew);
+static void loadConfigStats();
+static Slapi_Entry *getConfigEntry( Slapi_Entry **e );
+static void freeConfigEntry( Slapi_Entry **e );
 
 /* snmp stats stuff */
 struct agt_stats_t *stats=NULL;
@@ -80,6 +83,9 @@ int snmp_collator_init(){
                 (sizeof(stats->hdr_stats.dsVersion)/sizeof(char)) - 1);
 	stats->hdr_stats.restarted = 0;			 
 	stats->hdr_stats.startTime = time(0);		/* This is a bit off, hope it's ok */
+
+	/* load config stats */
+	loadConfigStats();
 
 	/* point these at the mmaped data */
 	g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds		= &(stats->ops_stats.dsAnonymousBinds);
@@ -380,10 +386,11 @@ int snmp_collator_start()
 	      }
 	  }
 
-
+/* read config entry for entity table data */
+	 
 
 /* point stats struct at mmap data */
-	 stats = (struct agt_stats_t *) mmap_tbl [hdl].fp;
+	stats = (struct agt_stats_t *) mmap_tbl [hdl].fp;
 
 /* initialize stats data */
 
@@ -605,7 +612,78 @@ snmp_as_entry(Slapi_Entry *e)
 	add_counter_to_value(e,"SlaveHits",stats->entries_stats.dsSlaveHits);
 }
 
+static void
+loadConfigStats() {
+	Slapi_Entry *entry = NULL;
+	char *name = NULL;
+	char *desc = NULL;
+	char *org = NULL;
+	char *loc = NULL;
+	char *contact = NULL;
 
+	/* Read attributes from SNMP config entry */
+        getConfigEntry( &entry );
+        if ( entry != NULL ) {
+		name = slapi_entry_attr_get_charptr( entry, SNMP_NAME_ATTR );
+		desc = slapi_entry_attr_get_charptr( entry, SNMP_DESC_ATTR );
+		org = slapi_entry_attr_get_charptr( entry, SNMP_ORG_ATTR );
+		loc = slapi_entry_attr_get_charptr( entry, SNMP_LOC_ATTR );
+		contact = slapi_entry_attr_get_charptr( entry, SNMP_CONTACT_ATTR );
+		freeConfigEntry( &entry );
+        }
+
+	/* Load stats into table */
+        if ( name != NULL) {
+		strncpy(stats->hdr_stats.dsName, name,
+			(sizeof(stats->hdr_stats.dsName)/sizeof(char)) - 1);
+        }
+
+	if ( desc != NULL) {
+		strncpy(stats->hdr_stats.dsDescription, desc,
+			(sizeof(stats->hdr_stats.dsDescription)/sizeof(char)) - 1);
+	}
+
+	if ( org != NULL) {
+		strncpy(stats->hdr_stats.dsOrganization, org,
+			(sizeof(stats->hdr_stats.dsOrganization)/sizeof(char)) - 1);
+	}
+
+	if ( loc != NULL) {
+		strncpy(stats->hdr_stats.dsLocation, loc,
+			(sizeof(stats->hdr_stats.dsLocation)/sizeof(char)) - 1);
+	}
+
+	if ( contact != NULL) {
+		strncpy(stats->hdr_stats.dsContact, contact,
+			(sizeof(stats->hdr_stats.dsContact)/sizeof(char)) - 1);
+	}
+
+	/* Free strings */
+	slapi_ch_free((void **) &name);
+	slapi_ch_free((void **) &desc);
+	slapi_ch_free((void **) &org);
+	slapi_ch_free((void **) &loc);
+	slapi_ch_free((void **) &contact);
+}
+
+static Slapi_Entry *
+getConfigEntry( Slapi_Entry **e ) {
+        Slapi_DN        sdn;
+                                                                                                                          
+        slapi_sdn_init_dn_byref( &sdn, SNMP_CONFIG_DN );
+        slapi_search_internal_get_entry( &sdn, NULL, e,
+                        plugin_get_default_component_id());
+        slapi_sdn_done( &sdn );
+        return *e;
+}
+                                                                                                                          
+static void
+freeConfigEntry( Slapi_Entry **e ) {
+        if ( (e != NULL) && (*e != NULL) ) {
+                slapi_entry_free( *e );
+                *e = NULL;
+        }
+}
 
 
 
