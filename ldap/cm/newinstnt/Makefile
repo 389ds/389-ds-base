@@ -39,7 +39,7 @@ LIBS= \
 	kernel32.lib user32.lib gdi32.lib comdlg32.lib\
 	comctl32.lib advapi32.lib shell32.lib uuid.lib\
 	wsock32.lib\
-	$(SETUPSDKLINK) $(LDAP_SDK_LIBLDAP_DLL)
+	$(SETUPSDKLINK) $(LDAP_SDK_LIBLDAP_DLL) $(NSPRLINK)
 
 DSOBJS= \
 	$(OUTDIR)/dsinst_dsalib_dn.obj \

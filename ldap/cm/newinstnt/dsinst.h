@@ -15,6 +15,7 @@
 
 #include <regparms.h>
 #include "libinst.h"
+#include "plstr.h"
 
 extern __declspec(dllexport) DSINST_ReadComponentInf(LPCSTR pszCacheFile, LPCSTR pszSection);
 extern __declspec(dllexport) INT  __cdecl DSINST_AskOptions(HWND hwndParent, INT nDirection);
