@@ -279,6 +279,10 @@ ds_cp_file(char *sfile, char *dfile, int mode)
 DS_EXPORT_SYMBOL char * 
 ds_get_tmp_dir()
 {
+#if defined( XP_WIN32 )
+	size_t ilen;
+	char pch;
+#endif
 	static char tmpdir[] = "/tmp";
 	static char tmp[256] = {0};
  	char* instanceDir = ds_get_install_root();

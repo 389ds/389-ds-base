@@ -22,10 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef XP_WIN32
-#include "regparms.h"
-#endif
-
 char *ds_salted_sha1_pw_enc(char* pwd);
 
 
@@ -313,7 +309,7 @@ printInfo(int argc, char *argv[], char *envp[], FILE* fp)
 	fprintf(fp, "#####################################\n");
 }
 
-int main(int argc, char *argv[], char */*envp*/[])
+int main(int argc, char *argv[], char * /*envp*/ [])
 {
     char *rm = getenv("REQUEST_METHOD");
     int status = 0;

@@ -69,12 +69,14 @@ int main (int argc, char **argv)
 		return -1;
 	}
 
-	PR_snprintf( latest, sizeof(latest), "%s\\%s", dir, fileinfo.name );
+	_snprintf( latest, sizeof(latest), "%s\\%s", dir, fileinfo.name );
+	latest[sizeof(latest)-1] = (char)0;
 	latest_time = fileinfo.time_create;
 
 	while( _findnext( hFile, &fileinfo ) == 0 ) {
 		if ( fileinfo.time_create > latest_time ) {
-			PR_snprintf( latest, sizeof(latest)-1, "%s\\%s", dir, fileinfo.name );
+			_snprintf( latest, sizeof(latest), "%s\\%s", dir, fileinfo.name );
+			latest[sizeof(latest)-1] = (char)0;
 			latest_time = fileinfo.time_create;
 		}
 	}

@@ -121,8 +121,10 @@ endif # SOLARIS
 endif # IRIX
 endif # WINNT
 
+ifneq ($(ARCH), WINNT)
 TEMP_EXTRALDFLAGS:=$(EXTRALDFLAGS)
 EXTRALDFLAGS = -lpthread $(TEMP_EXTRALDFLAGS)
+endif
 
 ifeq ($(SECURITY),domestic)
 SECUS_BINS=

@@ -1004,8 +1004,9 @@ int MagtReadStats(MagtHdrInfo_t *hdrInfo,
    */
   if (hdrInfo != NULL)
   {
-    hdrInfo->versMajor  = pfile_stats->hdr_stats.hdrVersionMjr;
-    hdrInfo->versMinor  = pfile_stats->hdr_stats.hdrVersionMnr;
+/* versMajor and versMinor are no longer used. <03/04/05> */ 
+//	hdrInfo->versMajor  = pfile_stats->hdr_stats.hdrVersionMjr;
+//  hdrInfo->versMinor  = pfile_stats->hdr_stats.hdrVersionMnr;
     hdrInfo->restarted  = pfile_stats->hdr_stats.restarted;
     hdrInfo->startTime  = pfile_stats->hdr_stats.startTime;
     hdrInfo->updateTime = pfile_stats->hdr_stats.updateTime;

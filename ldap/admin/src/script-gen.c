@@ -13,7 +13,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "portable.h"
-
+#if defined( XP_WIN32 )
+#include <io.h>
+#endif
 
 /* reads the file on inpath, and rewrites it on outpath.
  * 'table' is a list of string-pairs (terminated by a pair of NULLs) that

@@ -20,6 +20,9 @@
 #ifdef XP_UNIX
 #include <unistd.h>
 #endif
+#ifdef XP_WIN32
+#include <direct.h>
+#endif
 #include "nspr.h"
 
 #ifndef MAXPATHLEN

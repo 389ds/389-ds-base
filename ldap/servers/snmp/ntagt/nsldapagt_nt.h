@@ -94,8 +94,9 @@ typedef struct MagtLDAPInfo
 
 typedef struct MagtHdrInfo
 {
-  int versMajor;
-  int versMinor;
+/* versMajor and versMinor are no longer used. <03/04/05> */
+//  int versMajor;
+//  int versMinor;
   int restarted;
   time_t startTime;
   time_t updateTime;

@@ -19,6 +19,9 @@
 #ifdef XP_UNIX
 #include <unistd.h>
 #endif
+#ifdef XP_WIN32
+#include <io.h>
+#endif
 
 int main(int argc, char *argv[])
 {
