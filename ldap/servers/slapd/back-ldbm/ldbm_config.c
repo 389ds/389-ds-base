@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright 2001 Sun Microsystems, Inc.
- * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /* ldbm_config.c - Handles configuration information that is global to all ldbm instances. */

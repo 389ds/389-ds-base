@@ -1,10 +1,10 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright 2001 Sun Microsystems, Inc.
- * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /***********************************************************************
-** $Id: cron_conf.h,v 1.1 2005/01/21 00:40:52 cvsadm Exp $
+** $Id: cron_conf.h,v 1.2 2005/02/28 23:38:03 nkinder Exp $
 **
 **
 ** NAME

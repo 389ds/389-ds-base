@@ -1,5 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright 2002 Netscape Communications Corporation. All rights reserved.
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
 /* The indexing subsystem

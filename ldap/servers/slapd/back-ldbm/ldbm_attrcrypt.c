@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright 1999, 2001-2004 Netscape Communications Corporation.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /* This file handles attribute encryption.

@@ -1,7 +1,7 @@
 @rem //
 @rem // BEGIN COPYRIGHT BLOCK
-@rem // Copyright 2001 Sun Microsystems, Inc.
-@rem // Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+@rem // Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+@rem // Copyright (C) 2005 Red Hat, Inc.
 @rem // All rights reserved.
 @rem // END COPYRIGHT BLOCK
 @rem //

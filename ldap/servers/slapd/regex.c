@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright 2001 Sun Microsystems, Inc.
- * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 #include "slap.h"	/* must come before regex.h */
@@ -54,8 +54,11 @@ slapd_re_unlock( void )
  * Modification history:
  *
  * $Log: regex.c,v $
- * Revision 1.1  2005/01/21 00:40:51  cvsadm
- * Initial revision
+ * Revision 1.2  2005/02/28 23:38:00  nkinder
+ * 149951 - Updated source code copyrights
+ *
+ * Revision 1.1.1.1  2005/01/21 00:40:51  cvsadm
+ * Moving NSCP Directory Server from DirectoryBranch to TRUNK, initial drop. (foxworth)
  *
  * Revision 1.3.20.1.2.11  2005/01/14 01:22:12  nhosoi
  * For the open-source project.

@@ -1,7 +1,7 @@
 #{{PERL-EXEC}}
 #
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2002-2004 Netscape Communications Corporation. 
+# Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #

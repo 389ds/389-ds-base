@@ -1,7 +1,7 @@
 #{{PERL-EXEC}}
 #
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2003-2004 AOL, Inc.
+# Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #

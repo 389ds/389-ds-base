@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Portions copyright 2004 Netscape Communications Corporation.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /* Private tructures and #defines used in the attribute encryption code. */

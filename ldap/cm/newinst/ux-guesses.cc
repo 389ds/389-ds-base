@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright 2001 Sun Microsystems, Inc.
- * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -8,11 +8,14 @@
 
 
 
-/* $RCSfile: ux-guesses.cc,v $ $Revision: 1.1 $ $Date: 2005/01/21 00:40:49 $ $State: Exp $ */
+/* $RCSfile: ux-guesses.cc,v $ $Revision: 1.2 $ $Date: 2005/02/28 23:37:49 $ $State: Exp $ */
 /*
  * $Log: ux-guesses.cc,v $
- * Revision 1.1  2005/01/21 00:40:49  cvsadm
- * Initial revision
+ * Revision 1.2  2005/02/28 23:37:49  nkinder
+ * 149951 - Updated source code copyrights
+ *
+ * Revision 1.1.1.1  2005/01/21 00:40:49  cvsadm
+ * Moving NSCP Directory Server from DirectoryBranch to TRUNK, initial drop. (foxworth)
  *
  * Revision 1.1.2.4  2004/07/14 01:39:20  dboreham
  * changes to make newer C++ compilers happy
