@@ -79,9 +79,9 @@ EXPORTS
 	slapi_acl_check_mods			@74
     dse_search @75
 	slapi_pw_find				@76
-	send_read_referrals             @77 
-	ref_array_dup                   @78 
-	ref_array_dup_free              @79 
+;	send_read_referrals             @77 
+;	ref_array_dup                   @78 
+;	ref_array_dup_free              @79 
 	slapi_dn_beparent			@80
 	slapi_ldap_init			@81
 	slapi_ldap_unbind		@82
@@ -295,7 +295,7 @@ EXPORTS
 	slapi_entry_rdn_values_present @291
     slapi_entry_attr_get_long @292
     slapi_dn_plus_rdn @293
-	ref_array_replace @294
+;	ref_array_replace @294
     slapi_setbit_uchar @295
     slapi_unsetbit_uchar @296
     slapi_isbitset_uchar @297
@@ -304,7 +304,7 @@ EXPORTS
 	referrals_free @300 
     slapi_isbitset_int @301
 	slapi_be_private @302
-	ref_array_moddn @304
+;	ref_array_moddn @304
 	g_set_current_conn_count_mutex @305
 	g_get_current_conn_count_mutex @306
 	g_get_current_conn_count @307
@@ -576,8 +576,8 @@ EXPORTS
 	charray_get_index				@571
 ; LDAPU	ENTRY POINTS 
 	ldapu_member_certificate_match	@580
-	ref_register_callback	@581
-	ref_remove_callback	@582
+;	ref_register_callback	@581
+;	ref_remove_callback	@582
     slapi_is_encoded @583
     slapi_encode @584
 ; UniqueID ENTRY POINTS
@@ -873,8 +873,8 @@ EXPORTS
 	slapi_attr_dup @906
     slapi_entry_add_value @907
 	slapi_entry_add_string @908
-	be_create_instance @909
-	be_remove_instance @910
+;	be_create_instance @909
+;	be_remove_instance @910
 	mapping_tree_init @911
 	slapi_mapping_tree_select @912
 	slapi_sdn_isgrandparent @913
