@@ -347,7 +347,7 @@ $(NETSNMP_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(NETSNMP_PULL_METHOD) \
 		-objdir $(NETSNMP_BUILD_DIR) -componentdir $(NETSNMP_RELEASE) \
-		-files lib,include
+		-files lib,include,bin
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component NETSNMP file $@" ; \

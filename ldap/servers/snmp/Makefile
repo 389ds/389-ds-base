@@ -40,18 +40,8 @@ AGTMMAP_DIR = $(LDAP_SRC)/servers/slapd
 
 ifneq ($(ARCH), WINNT)
   INCLUDES += -I. $(NETSNMP_INCLUDE) $(NSPR_INCLUDE)
-  EXTRA_LIBS += $(NETSNMP_LINK)
-  ifeq ($(ARCH), Linux)
-    EXTRA_LIBS += -ldl -lcrypto -lelf -lm
-  else
-  ifeq ($(ARCH), HPUX)
-    EXTRA_LIBS += -lelf -lm -lnm
-  else
-  ifeq ($(ARCH), SOLARIS)
-    EXTRA_LIBS += -ldl -lkvm -lkstat -lelf -lm -lnsl -lsocket -ladm
-  endif
-  endif
-  endif
+  EXTERNAL_AGENT_LIBS = $(shell $(NETSNMP_BINDIR)/net-snmp-config --external-agent-libs)
+  EXTRA_LIBS += $(NETSNMP_LINK) $(EXTERNAL_AGENT_LIBS)
 endif
 
 # the redhat-directory.mib goes in the plugins/snmp directory, and the other mib like

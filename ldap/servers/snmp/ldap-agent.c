@@ -332,121 +332,121 @@ dsOpsTable_get_value(netsnmp_request_info *request,
 
     case COLUMN_DSANONYMOUSBINDS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsAnonymousBinds,
+                                 (u_char *) &context->ops_tbl.dsAnonymousBinds,
                                  sizeof(context->ops_tbl.dsAnonymousBinds));
         break;
 
     case COLUMN_DSUNAUTHBINDS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsUnAuthBinds,
+                                 (u_char *) &context->ops_tbl.dsUnAuthBinds,
                                  sizeof(context->ops_tbl.dsUnAuthBinds));
         break;
 
     case COLUMN_DSSIMPLEAUTHBINDS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsSimpleAuthBinds,
+                                 (u_char *) &context->ops_tbl.dsSimpleAuthBinds,
                                  sizeof(context->ops_tbl.dsSimpleAuthBinds));
         break;
 
     case COLUMN_DSSTRONGAUTHBINDS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsStrongAuthBinds,
+                                 (u_char *) &context->ops_tbl.dsStrongAuthBinds,
                                  sizeof(context->ops_tbl.dsStrongAuthBinds));
         break;
 
     case COLUMN_DSBINDSECURITYERRORS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsBindSecurityErrors,
+                                 (u_char *) &context->ops_tbl.dsBindSecurityErrors,
                                  sizeof(context->ops_tbl.dsBindSecurityErrors));
         break;
 
     case COLUMN_DSINOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsInOps,
+                                 (u_char *) &context->ops_tbl.dsInOps,
                                  sizeof(context->ops_tbl.dsInOps));
         break;
 
     case COLUMN_DSREADOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsReadOps,
+                                 (u_char *) &context->ops_tbl.dsReadOps,
                                  sizeof(context->ops_tbl.dsReadOps));
         break;
 
     case COLUMN_DSCOMPAREOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsCompareOps,
+                                 (u_char *) &context->ops_tbl.dsCompareOps,
                                  sizeof(context->ops_tbl.dsCompareOps));
         break;
 
     case COLUMN_DSADDENTRYOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsAddEntryOps,
+                                 (u_char *) &context->ops_tbl.dsAddEntryOps,
                                  sizeof(context->ops_tbl.dsAddEntryOps));
         break;
 
     case COLUMN_DSREMOVEENTRYOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsRemoveEntryOps,
+                                 (u_char *) &context->ops_tbl.dsRemoveEntryOps,
                                  sizeof(context->ops_tbl.dsRemoveEntryOps));
         break;
 
     case COLUMN_DSMODIFYENTRYOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsModifyEntryOps,
+                                 (u_char *) &context->ops_tbl.dsModifyEntryOps,
                                  sizeof(context->ops_tbl.dsModifyEntryOps));
         break;
 
     case COLUMN_DSMODIFYRDNOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsModifyRDNOps,
+                                 (u_char *) &context->ops_tbl.dsModifyRDNOps,
                                  sizeof(context->ops_tbl.dsModifyRDNOps));
         break;
 
     case COLUMN_DSLISTOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsListOps,
+                                 (u_char *) &context->ops_tbl.dsListOps,
                                  sizeof(context->ops_tbl.dsListOps));
         break;
 
     case COLUMN_DSSEARCHOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsSearchOps,
+                                 (u_char *) &context->ops_tbl.dsSearchOps,
                                  sizeof(context->ops_tbl.dsSearchOps));
         break;
 
     case COLUMN_DSONELEVELSEARCHOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsOneLevelSearchOps,
+                                 (u_char *) &context->ops_tbl.dsOneLevelSearchOps,
                                  sizeof(context->ops_tbl.dsOneLevelSearchOps));
         break;
 
     case COLUMN_DSWHOLESUBTREESEARCHOPS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsWholeSubtreeSearchOps,
+                                 (u_char *) &context->ops_tbl.dsWholeSubtreeSearchOps,
                                  sizeof(context->ops_tbl.dsWholeSubtreeSearchOps));
         break;
 
     case COLUMN_DSREFERRALS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsReferrals,
+                                 (u_char *) &context->ops_tbl.dsReferrals,
                                  sizeof(context->ops_tbl.dsReferrals));
         break;
 
     case COLUMN_DSCHAININGS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsChainings,
+                                 (u_char *) &context->ops_tbl.dsChainings,
                                  sizeof(context->ops_tbl.dsChainings));
         break;
 
     case COLUMN_DSSECURITYERRORS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsSecurityErrors,
+                                 (u_char *) &context->ops_tbl.dsSecurityErrors,
                                  sizeof(context->ops_tbl.dsSecurityErrors));
         break;
 
     case COLUMN_DSERRORS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->ops_tbl.dsErrors,
+                                 (u_char *) &context->ops_tbl.dsErrors,
                                  sizeof(context->ops_tbl.dsErrors));
         break;
 
@@ -477,31 +477,31 @@ dsEntriesTable_get_value(netsnmp_request_info *request,
                                                                                                                 
     case COLUMN_DSMASTERENTRIES:
         snmp_set_var_typed_value(var, ASN_GAUGE,
-                                 (char *) &context->entries_tbl.dsMasterEntries,
+                                 (u_char *) &context->entries_tbl.dsMasterEntries,
                                  sizeof(context->entries_tbl.dsMasterEntries));
         break;
                                                                                                                 
     case COLUMN_DSCOPYENTRIES:
         snmp_set_var_typed_value(var, ASN_GAUGE,
-                                 (char *) &context->entries_tbl.dsCopyEntries,
+                                 (u_char *) &context->entries_tbl.dsCopyEntries,
                                  sizeof(context->entries_tbl.dsCopyEntries));
         break;
                                                                                                                 
     case COLUMN_DSCACHEENTRIES:
         snmp_set_var_typed_value(var, ASN_GAUGE,
-                                 (char *) &context->entries_tbl.dsCacheEntries,
+                                 (u_char *) &context->entries_tbl.dsCacheEntries,
                                  sizeof(context->entries_tbl.dsCacheEntries));
         break;
                                                                                                                 
     case COLUMN_DSCACHEHITS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->entries_tbl.dsCacheHits,
+                                 (u_char *) &context->entries_tbl.dsCacheHits,
                                  sizeof(context->entries_tbl.dsCacheHits));
         break;
                                                                                                                 
     case COLUMN_DSSLAVEHITS:
         snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (char *) &context->entries_tbl.dsSlaveHits,
+                                 (u_char *) &context->entries_tbl.dsSlaveHits,
                                  sizeof(context->entries_tbl.dsSlaveHits));
         break;
                                                                                                                 
@@ -533,37 +533,37 @@ dsEntityTable_get_value(netsnmp_request_info *request,
                                                                                                                 
     case COLUMN_DSENTITYDESCR:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (char *) server->description,
+                                 (u_char *) server->description,
                                  strlen(server->description));
         break;
                                                                                                                 
     case COLUMN_DSENTITYVERS:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (char *) context->hdr_tbl.dsVersion,
+                                 (u_char *) context->hdr_tbl.dsVersion,
                                  strlen(context->hdr_tbl.dsVersion));
         break;
                                                                                                                 
     case COLUMN_DSENTITYORG:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (char *) server->org,
+                                 (u_char *) server->org,
                                  strlen(server->org));
         break;
                                                                                                                 
     case COLUMN_DSENTITYLOCATION:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (char *) server->location,
+                                 (u_char *) server->location,
                                  strlen(server->location));
         break;
                                                                                                                 
     case COLUMN_DSENTITYCONTACT:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (char *) server->contact,
+                                 (u_char *) server->contact,
                                  strlen(server->contact));
         break;
                                                                                                                 
     case COLUMN_DSENTITYNAME:
         snmp_set_var_typed_value(var, ASN_OCTET_STR,
-                                 (char *) server->name,
+                                 (u_char *) server->name,
                                  strlen(server->name));
         break;
 
@@ -585,18 +585,19 @@ send_DirectoryServerDown_trap(server_instance *serv_p)
     netsnmp_variable_list *var_list = NULL;
     stats_table_context *ctx = NULL;
 
-    snmp_log(LOG_INFO, "Sending down trap for server: %d\n", serv_p->port);
-
     /* Define the oids for the trap */
     oid DirectoryServerDown_oid[] = { DirectoryServerDown_OID };
-    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, NULL };
+    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, 0 };
+    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, 0 };
+    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, 0 };
+    oid dsEntityContact_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYCONTACT, 0 };
+
     dsEntityDescr_oid[3] = serv_p->port;
-    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, NULL };
     dsEntityVers_oid[3] = serv_p->port;
-    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, NULL };
     dsEntityLocation_oid[3] = serv_p->port;
-    oid dsEntityContact_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYCONTACT, NULL };
     dsEntityContact_oid[3] = serv_p->port;
+
+    snmp_log(LOG_INFO, "Sending down trap for server: %d\n", serv_p->port);
 
     /* Lookup row to get version string */
     if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
@@ -613,24 +614,24 @@ send_DirectoryServerDown_trap(server_instance *serv_p)
     snmp_varlist_add_variable(&var_list,
                               dsEntityDescr_oid,
                               OID_LENGTH(dsEntityDescr_oid), ASN_OCTET_STR,
-                              (char *) serv_p->description,
+                              (u_char *) serv_p->description,
                               strlen(serv_p->description));
     snmp_varlist_add_variable(&var_list,
                               dsEntityVers_oid,
                               OID_LENGTH(dsEntityVers_oid), ASN_OCTET_STR,
-                              (char *) ctx->hdr_tbl.dsVersion,
+                              (u_char *) ctx->hdr_tbl.dsVersion,
                               strlen(ctx->hdr_tbl.dsVersion));
     snmp_varlist_add_variable(&var_list,
                               dsEntityLocation_oid,
                               OID_LENGTH(dsEntityLocation_oid),
                               ASN_OCTET_STR,
-                              (char *) serv_p->location,
+                              (u_char *) serv_p->location,
                               strlen(serv_p->location));
     snmp_varlist_add_variable(&var_list,
                               dsEntityContact_oid,
                               OID_LENGTH(dsEntityContact_oid),
                               ASN_OCTET_STR,
-                              (char *) serv_p->contact,
+                              (u_char *) serv_p->contact,
                               strlen(serv_p->contact));
 
     /* Send the trap */
@@ -651,16 +652,17 @@ send_DirectoryServerStart_trap(server_instance *serv_p)
     netsnmp_variable_list *var_list = NULL;
     stats_table_context *ctx = NULL;
 
-    snmp_log(LOG_INFO, "Sending start trap for server: %d\n", serv_p->port);
-
     /* Define the oids for the trap */
     oid DirectoryServerStart_oid[] = { DirectoryServerStart_OID };
-    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, NULL };
+    oid dsEntityDescr_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYDESCR, 0 };
+    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, 0 };
+    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, 0 };
+
     dsEntityDescr_oid[3] = serv_p->port;
-    oid dsEntityVers_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYVERS, NULL };
     dsEntityVers_oid[3] = serv_p->port;
-    oid dsEntityLocation_oid[] = { dsEntityTable_TABLE_OID, 1, COLUMN_DSENTITYLOCATION, NULL };
     dsEntityLocation_oid[3] = serv_p->port;
+
+    snmp_log(LOG_INFO, "Sending start trap for server: %d\n", serv_p->port);
 
     /* Lookup row to get version string */
     if ((ctx = stats_table_find_row(serv_p->port)) == NULL) {
@@ -677,18 +679,18 @@ send_DirectoryServerStart_trap(server_instance *serv_p)
     snmp_varlist_add_variable(&var_list,
                               dsEntityDescr_oid,
                               OID_LENGTH(dsEntityDescr_oid), ASN_OCTET_STR,
-                              (char *) serv_p->description,
+                              (u_char *) serv_p->description,
                               strlen(serv_p->description));
     snmp_varlist_add_variable(&var_list,
                               dsEntityVers_oid,
                               OID_LENGTH(dsEntityVers_oid), ASN_OCTET_STR,
-                              (char *) ctx->hdr_tbl.dsVersion,
+                              (u_char *) ctx->hdr_tbl.dsVersion,
                               strlen(ctx->hdr_tbl.dsVersion));
     snmp_varlist_add_variable(&var_list,
                               dsEntityLocation_oid,
                               OID_LENGTH(dsEntityLocation_oid),
                               ASN_OCTET_STR,
-                              (char *) serv_p->location,
+                              (u_char *) serv_p->location,
                               strlen(serv_p->location));
                                                                                                                 
     /* Send the trap */
