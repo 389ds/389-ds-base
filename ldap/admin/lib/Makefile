@@ -78,6 +78,13 @@ LINK_DLL += -z defs
 EXTRA_LIBS += -lc
 endif
 
+ifneq ($(BUILD_DEBUG), optimize)
+ifeq ($(ARCH), Linux)
+LINK_DLL += -Wl,--no-allow-shlib-undefined
+EXTRA_LIBS += -lc -lpthread -ldl /lib/ld-linux.so.2
+endif
+endif
+
 all:	$(LIBS) $(LDAP_ADMDLL_RELDLLS)
 
 $(LIBS): $(OBJDEST) $(LDAP_ADMDLLDIR) $(LDAP_ADMLIBDIR) $(OBJS) $(EXTRA_LIBS_DEP)
