@@ -4901,6 +4901,7 @@ int parse_form(server_config_s *cf)
     if (temp && !ldap_url_parse(temp, &desc) && desc)
 	{
 		char *suffix;
+                int isSSL;
 
 		if (desc->lud_dn && *desc->lud_dn) { /* use given DN for netscaperoot suffix */
 			cf->netscaperoot = strdup(desc->lud_dn);
@@ -4909,7 +4910,7 @@ int parse_form(server_config_s *cf)
 			suffix = dn_normalize_convert(strdup(cf->netscaperoot));
 		}
 		/* the config ds connection may require SSL */
-		int isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
+		isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
 		cf->config_ldap_url = PR_smprintf("ldap%s://%s:%d/%s",
 										  (isSSL ? "s" : ""), desc->lud_host,
 										  desc->lud_port, suffix);
