@@ -90,7 +90,7 @@ endif
 # admin server
 
 ifndef ADM_RELDATE
-  ADM_RELDATE = 20050401
+  ADM_RELDATE = 20050404
 endif
 ifndef ADM_VERSDIR
   ADM_VERSDIR = adminserver/70$(BUILD_MODE)
