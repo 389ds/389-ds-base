@@ -57,7 +57,7 @@ A.searchlinkspec:active {color: #CCFFFF}
 /* *********Search frame*************/
 
 body.Search {
-	background-color: #003366;
+	background-color: #000000;
 	font-family: Verdana, Arial, Helvetica, san-serif;
 	color: #ccffff;
 	font-size: 12px;
@@ -65,17 +65,17 @@ body.Search {
 
 td.appName {
 	font-family: verdana, Arial, Helvetica, sans-serif;
-	font-size: 12px;
+	font-size: 14px;
 	vertical-align : middle;
-	color: #ccffff;
+	color: #ffffff;
 	font-weight: bold;
 }
 
 .apptext {
 	font-family: verdana, Arial, Helvetica, sans-serif;
-	font-size: 12px;
+	font-size: 14px;
 	vertical-align: middle;
-	color: #ccffff;
+	color: #ffffff;
 }
 
 /* Fonts */
