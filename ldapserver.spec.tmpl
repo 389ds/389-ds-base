@@ -26,7 +26,7 @@ Prefix: /opt/%{name}
 # in the SOURCES directory - it will be unpacked
 # in the _builddir (not BuildRoot)
 %prep
-%setup
+%setup -q
 
 %build
 # This will do a regular make build and make pkg
@@ -74,10 +74,13 @@ echo ""
 echo "Please cd " %{prefix} " and run ./setup/setup"
 
 %changelog
-* Tue Mar 29 2005 Richard Megginson <rich@localhost.localdomain> 7.1-1
+* Fri Apr  1 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
+- use setup -q to suppress tar output
+
+* Tue Mar 29 2005 Richard Megginson <rmeggins@redhat.com> 7.1-1
 - use INTERNAL_BUILD=1 for internal builds - change rev to 1
 
-* Tue Mar  8 2005 Richard Megginson <rich@localhost.localdomain> 7.1-0
+* Tue Mar  8 2005 Richard Megginson <rmeggins@redhat.com> 7.1-0
 - use ${prefix} instead of /opt/ldapserver - prefix is defined as /opt/%{name}
 
 * Thu Jan 20 2005 Richard Megginson <rmeggins@redhat.com>
