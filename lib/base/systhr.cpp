@@ -10,7 +10,6 @@
  */
 
 #include "systhr.h"
-#include "ereport.h"
 
 #define USE_NSPR
 #ifdef USE_NSPR

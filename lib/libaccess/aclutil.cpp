@@ -106,7 +106,7 @@ EvalToRes(int value)
 	case LAS_EVAL_NEED_MORE_INFO:
 		return ACL_RES_DENY;
         default:
-		NS_ASSERT(1);
+		PR_ASSERT(1);
 		return ACL_RES_ERROR;
 	}
 }

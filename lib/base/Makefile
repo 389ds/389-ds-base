@@ -38,62 +38,33 @@ $(OBJDEST):
 	mkdir -p $(OBJDEST)
 
 ifeq ($(ARCH), WINNT)
-OSOBJS = nterrors.o eventlog.o eventhandler.o ntpipe.o pathnames.o
+OSOBJS = nterrors.o eventlog.o
 else
 OSOBJS = 
 endif
 
 OBJS = $(addprefix $(OBJDEST)/,	\
-				dstats.o \
-				daemon.o \
 				shexp.o \
-				regexp.o \
-				pblock.o \
 				plist.o \
-				buffer.o \
-				netbuf.o \
 				file.o \
-				net.o \
-				session.o \
-				cinfo.o \
 				util.o \
-				ereport.o \
-				sem.o \
+				net.o \
 				fsmutex.o \
 				systhr.o \
 				crit.o \
 				rwlock.o \
 				dns.o \
 				dnsdmain.o \
-				shmem.o \
-				dll.o \
-				servssl.o \
 				lexer.o \
-		                restart.o \
-				objndx.o \
-				cache.o \
 				pool.o \
-				time_cache.o \
-				dns_cache.o \
 				system.o \
-				xp.o \
 				nscperror.o \
-				language.o \
-				fasttime.o \
-				secpwd.o \
+				ereport.o \
 				$(OSOBJS) \
 				) 
 
-MODULE_CFLAGS=-I$(BUILD_ROOT)/include/base
 
-ifeq ($(PRODUCT),"Netscape Catalog Server")
-ifeq ($(ARCH), WINNT)
-MCC_INCLUDE := $(subst -I$(BUILD_ROOT)/lib/libnet,,$(MCC_INCLUDE))
-endif
-endif
-
-#$(OBJDEST)/fasttime.o : $(OBJDIR)/fasttime.o
-#	cp $< $@
+MODULE_CFLAGS=-I$(BUILD_ROOT)/include/base -I$(BUILD_ROOT)/ldap/servers/slapd
 
 $(LIBS): $(OBJS)
 	rm -f $@

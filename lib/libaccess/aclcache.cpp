@@ -4,7 +4,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
-#include <base/nsassert.h>
+#include <prlog.h>
 #include <base/crit.h>
 #include <base/ereport.h>
 #include <plhash.h>
@@ -125,20 +125,20 @@ ACL_ListHashUpdate(ACLListHandle_t **acllistp)
     NSErr_t *errp = 0;
     ACLListHandle_t *tmp_acllist;
 
-    NS_ASSERT(ACL_AssertAcllist(*acllistp));
+    PR_ASSERT(ACL_AssertAcllist(*acllistp));
 
     tmp_acllist = (ACLListHandle_t *)PR_HashTableLookup(ACLListHash, *acllistp);
     if (tmp_acllist  &&  tmp_acllist != *acllistp) {
-	NS_ASSERT(*acllistp  &&  *acllistp != ACL_LIST_NO_ACLS);
+	PR_ASSERT(*acllistp  &&  *acllistp != ACL_LIST_NO_ACLS);
 	ACL_ListDestroy(errp, *acllistp);
 	*acllistp = tmp_acllist;
-	NS_ASSERT(ACL_CritHeld());
+	PR_ASSERT(ACL_CritHeld());
         tmp_acllist->ref_count++;	/* we're gonna use it */
     } else { 			/* Wasn't in the list */
 	PR_HashTableAdd(ACLListHash, *acllistp, *acllistp);
     }
 
-    NS_ASSERT(ACL_AssertAcllist(*acllistp));
+    PR_ASSERT(ACL_AssertAcllist(*acllistp));
     return;
 }
 
@@ -156,15 +156,15 @@ ACL_ListHashEnter(ACLListHandle_t **acllistp)
 
     /*  Look for a matching ACL List and use it if we find one.  */
     if (*acllistp)  {
-	NS_ASSERT(*acllistp != ACL_LIST_NO_ACLS);
-        NS_ASSERT(ACL_AssertAcllist(*acllistp));
+	PR_ASSERT(*acllistp != ACL_LIST_NO_ACLS);
+        PR_ASSERT(ACL_AssertAcllist(*acllistp));
 	ACL_ListHashUpdate(acllistp);
     } else {
 	*acllistp = ACL_LIST_NO_ACLS;
     }
 
     ACL_CritExit();
-    NS_ASSERT(ACL_AssertAcllist(*acllistp));
+    PR_ASSERT(ACL_AssertAcllist(*acllistp));
     return;
 }
 
@@ -184,12 +184,12 @@ ACL_ListHashCheck(ACLListHandle_t **acllistp)
 
     tmp_acllist = (ACLListHandle_t *)PR_HashTableLookup(ACLListHash, *acllistp);
     if (tmp_acllist) {
-	NS_ASSERT(*acllistp  &&  *acllistp != ACL_LIST_NO_ACLS);
+	PR_ASSERT(*acllistp  &&  *acllistp != ACL_LIST_NO_ACLS);
 	*acllistp = tmp_acllist;
-	NS_ASSERT(ACL_CritHeld());
+	PR_ASSERT(ACL_CritHeld());
         tmp_acllist->ref_count++;	/* we're gonna use it */
         ACL_CritExit();
-	NS_ASSERT(ACL_AssertAcllist(*acllistp));
+	PR_ASSERT(ACL_AssertAcllist(*acllistp));
         return 1;		/* Normal path */
     } else { 			/* Wasn't in the list */
         ACL_CritExit();
@@ -280,7 +280,7 @@ int
 ACL_INTCacheCheck(int which, char *uri, ACLListHandle_t **acllistp)
 {
     PLHashTable *hash;
-    NS_ASSERT(uri && acl_uri_hash && acl_uri_get_hash);
+    PR_ASSERT(uri && acl_uri_hash && acl_uri_get_hash);
 
     /*  ACL cache:  If the ACL List is already in the cache, there's no need
      *  to go through the pathcheck directives.
@@ -300,12 +300,12 @@ ACL_INTCacheCheck(int which, char *uri, ACLListHandle_t **acllistp)
     *acllistp = (ACLListHandle_t *)PR_HashTableLookup(hash, uri);
     if (*acllistp != NULL) {
 	if (*acllistp != ACL_LIST_NO_ACLS) {
-            NS_ASSERT((*acllistp)->ref_count >= 0);
-	    NS_ASSERT(ACL_CritHeld());
+            PR_ASSERT((*acllistp)->ref_count >= 0);
+	    PR_ASSERT(ACL_CritHeld());
 	    (*acllistp)->ref_count++;
 	}
         ACL_CritExit();
-	NS_ASSERT(ACL_AssertAcllist(*acllistp));
+	PR_ASSERT(ACL_AssertAcllist(*acllistp));
         return 1;		/* Normal path */
     }
 
@@ -339,7 +339,7 @@ ACL_INTCacheEnter(int which, char *uri, ACLListHandle_t **acllistp)
     NSErr_t *errp = 0;
     PLHashTable *hash;
 
-    NS_ASSERT(uri);
+    PR_ASSERT(uri);
 
     ACL_CritEnter();
 
@@ -356,7 +356,7 @@ ACL_INTCacheEnter(int which, char *uri, ACLListHandle_t **acllistp)
     tmpacllist = (ACLListHandle_t *)PR_HashTableLookup(hash, uri);
     if (tmpacllist != NULL) {
         if (tmpacllist != ACL_LIST_NO_ACLS) {
-	    NS_ASSERT(ACL_CritHeld());
+	    PR_ASSERT(ACL_CritHeld());
             tmpacllist->ref_count++;	/* we're going to use it */
         }
 	ACL_CritExit();
@@ -364,15 +364,15 @@ ACL_INTCacheEnter(int which, char *uri, ACLListHandle_t **acllistp)
 	    ACL_ListDestroy(errp, *acllistp);
 	}
 	*acllistp = tmpacllist;
-	NS_ASSERT(ACL_AssertAcllist(*acllistp));
+	PR_ASSERT(ACL_AssertAcllist(*acllistp));
 	return;
     }
 
     /*  Didn't find another list, so put ours in.  */
     /*  Look for a matching ACL List and use it if we find one.  */
     if (*acllistp)  {
-	NS_ASSERT(*acllistp != ACL_LIST_NO_ACLS);
-        NS_ASSERT(ACL_AssertAcllist(*acllistp));
+	PR_ASSERT(*acllistp != ACL_LIST_NO_ACLS);
+        PR_ASSERT(ACL_AssertAcllist(*acllistp));
 	ACL_ListHashUpdate(acllistp);
     } else {
 	*acllistp = ACL_LIST_NO_ACLS;
@@ -380,7 +380,7 @@ ACL_INTCacheEnter(int which, char *uri, ACLListHandle_t **acllistp)
     PR_HashTableAdd(hash, pool_strdup((void **)acl_uri_hash_pool, uri), (void *)*acllistp);
 
     ACL_CritExit();
-    NS_ASSERT(ACL_AssertAcllist(*acllistp));
+    PR_ASSERT(ACL_AssertAcllist(*acllistp));
     return;
 }
 
@@ -422,13 +422,13 @@ ACL_AddAclName(char *path, ACLListHandle_t **acllistp, ACLListHandle_t
     if (!acl)
 	return;
 
-    NS_ASSERT(ACL_AssertAcl(acl));
+    PR_ASSERT(ACL_AssertAcl(acl));
 
     if (!*acllistp)
 	*acllistp = ACL_ListNew(errp);
     ACL_ListAppend(NULL, *acllistp, acl, 0);
 
-    NS_ASSERT(ACL_AssertAcllist(*acllistp));
+    PR_ASSERT(ACL_AssertAcllist(*acllistp));
     return;
 }
 
@@ -456,8 +456,8 @@ ACLListHandle_t *masterlist)
     int  prefixlen;
     char *dst;
 
-    NS_ASSERT(path);
-    NS_ASSERT(prefix);
+    PR_ASSERT(path);
+    PR_ASSERT(prefix);
 
     dst = strncpy(ppath, prefix, ACL_PATH_MAX);
     if (dst >= (ppath+ACL_PATH_MAX-1)) {
@@ -522,7 +522,7 @@ ACL_Init(void)
     ACL_InitAttr2Index();
     ACLGlobal = (ACLGlobal_p)PERM_CALLOC(sizeof(ACLGlobal_s));
     oldACLGlobal = (ACLGlobal_p)PERM_CALLOC(sizeof(ACLGlobal_s));
-    NS_ASSERT(ACLGlobal && oldACLGlobal);
+    PR_ASSERT(ACLGlobal && oldACLGlobal);
     ACL_DATABASE_POOL = pool_create();
     ACL_METHOD_POOL = pool_create();
     ACL_CritInit();

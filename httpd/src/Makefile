@@ -14,7 +14,7 @@ MODULE=httpdBinary
 ifneq ($(ARCH), WINNT)
 OLD_BUILD_ROOT := $(BUILD_ROOT)
 BUILD_ROOT := $(shell cd $(OLD_BUILD_ROOT); pwd)
-BUILDSO=mocha admin
+BUILDSO=admin
 endif
 
 HTTPD_DIR=$(OBJDIR)
@@ -25,12 +25,8 @@ include $(BUILD_ROOT)/nsconfig.mk
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 
 ifeq ($(ARCH), WINNT)
-BINS=$(HTTPD_DIR)/httpd.exe
 DLLS=$(HTTPD_DIR)/$(HTTPDLL_NAME).dll
 HTTPD_LIB=$(HTTPD_DIR)/$(HTTPDLL_NAME).lib
-NSAPI20=$(HTTPD_DIR)/ns-httpd20.dll
-LOCAL_LINK_EXE = link -OUT:"$@" /STACK:0x20000,0x2000 /MAP  $(ARCH_LINK_DEBUG) $(LCFLAGS) /NOLOGO /PDB:NONE /INCREMENTAL:NO \
-                  /SUBSYSTEM:windows $(EXTRA_LIBS)
 EXTRA_LIBS+=$(NSPRLINK)
 
 ifeq ($(BSCINFO), yes)
@@ -66,7 +62,7 @@ EXTRA_LIBS=$(GCCLIBS)
 endif
 
 ifeq ($(ARCH), WINNT)
-OS_TARGETS= admin libhttpdaemon $(DLLS)
+OS_TARGETS= admin $(DLLS)
 endif
 
 all: $(OBJDEST) $(OS_TARGETS) $(BINS) $(BSCS)
@@ -92,29 +88,19 @@ endif
 $(OBJDEST):
 	mkdir -p $(OBJDEST)
 
-HTTPD_LIBS=$(FRAME) $(HTTPDAEMON)
+HTTPD_LIBS=
 
 ifeq ($(ARCH), WINNT)
-ifeq ($(NO_MOCHA), 1)
-MOCHA =
-MCC_SERVER += -DNO_MOCHA
-else
-MOCHA=$(NSCP_DISTDIR)/lib/mocha.lib
-endif
-OSOBJS = ntmagnus.o ntnsapi.o
-HTTPD_LIBS += $(SAFS) $(LIBCRYPT)
+OSOBJS = ntnsapi.o
 FVERSION_FLAGS+=-s$(BUILD_SECURITY)
 else
-OSOBJS = main.o
+OSOBJS =
 endif
 
 ifneq ($(ARCH), WINNT)
-OBJS=$(addprefix $(OBJDEST)/, $(OSOBJS) index.o shtml.o upload.o \
-                              cookie.o nsconfig.o)
+OBJS=
 else
-EXEOBJS=$(addprefix $(OBJDEST)/, password.res ntmain.o)
-OBJS=$(addprefix $(OBJDEST)/, $(OSOBJS) index.o shtml.o upload.o \
-                               cookie.o nsconfig.o)
+OBJS=$(addprefix $(OBJDEST)/, $(OSOBJS) )
 endif
 
 MODULE_CFLAGS=
@@ -129,31 +115,21 @@ ifeq ($(ARCH), NCR)
 #OBJS+=$(HTTPD_DIR)/httpd-lib/nspr20/uxwrap.o
 endif
 
-ifdef PRODUCT_IS_DIRECTORY_SERVER
-# Primitive NT link process for nshttpd.dll requires httpdaemon
-  ifeq ($(ARCH), WINNT)
-    DAEMONLIB=$(OBJDIR)/lib/libhttpdaemon
-  else
-    DAEMONLIB=
-  endif
-else
-  DAEMONLIB=$(OBJDIR)/lib/libhttpdaemon
-endif
+DAEMONLIB=
 
 ifeq ($(ARCH), WINNT)
 # Don't define DEPLIBS for NT because standard macros like LINK_EXE
 # and LINK_DLL automatically pick up DEPLIBS which we don't always wan't.
 #                    $(LIBDIRMON) (temporily removed)
-DEPLIBS = $(addsuffix .$(LIB_SUFFIX), $(addprefix $(OBJDIR)/lib/lib, $(LIBADMIN) $(LIBLDAPU) $(LIBACCESS) $(HTTPD_LIBS))) \
- $(addsuffix .$(LIB_SUFFIX), $(OBJDIR)/lib/libmsgdisp)
+DEPLIBS = $(addsuffix .$(LIB_SUFFIX), $(addprefix $(OBJDIR)/lib/lib, $(LIBADMIN) $(LIBLDAPU) $(LIBACCESS) $(HTTPD_LIBS))) 
 DEPLIBS += $(LIBSECURITY) \
            $(LIBNSPR) \
            $(LIBLDAP) \
            $(LIBDBM) \
-		   $(ADMINUTIL_DEP)
+	   $(ADMINUTIL_DEP)
 
 DEPLINK = /LIBPATH:$(OBJDIR)/lib $(addsuffix .$(LIB_SUFFIX), $(addprefix lib, $(LIBADMIN) $(LIBLDAPU) $(LIBACCESS) $(HTTPD_LIBS))) \
-	libmsgdisp.$(LIB_SUFFIX) $(ADMINUTIL_LINK) $(LDAPLINK) $(SECURITYLINK) \
+	$(ADMINUTIL_LINK) $(LDAPLINK) $(SECURITYLINK) \
 	$(NSPRLINK) $(DBMLINK)
 else
 # unixso.mk may define DEPLIBS
@@ -164,11 +140,10 @@ DEPLIBS = $(addsuffix .$(LIB_SUFFIX), \
                     $(OBJDIR)/lib/libaccess \
                     $(OBJDIR)/lib/libbase \
                     $(OBJDIR)/lib/libsi18n \
-                    $(OBJDIR)/lib/libmsgdisp) \
                     $(LIBSSLIO)
 DEPLIBS += $(SECURITY_DEP) \
            $(NSPR_DEP) \
-		   $(ADMINUTIL_DEP)
+	   $(ADMINUTIL_DEP)
 
 DEPLINK = $(addsuffix .$(LIB_SUFFIX), \
                     $(addprefix $(OBJDIR)/lib/lib,$(HTTPD_LIBS)) \
@@ -176,11 +151,10 @@ DEPLINK = $(addsuffix .$(LIB_SUFFIX), \
                     $(OBJDIR)/lib/libaccess \
                     $(OBJDIR)/lib/libbase \
                     $(OBJDIR)/lib/libsi18n \
-                    $(OBJDIR)/lib/libmsgdisp) \
                     $(SECURITYLINK) \
                     $(NSPRLINK) \
                     $(LIBSSLIO) \
-					$(ADMINUTILLINK)
+		    $(ADMINUTILLINK)
 endif
 
 endif
@@ -202,22 +176,15 @@ ifndef PRODUCT_IS_DIRECTORY_SERVER
 endif # Netscape Directory Server
 else # WINNT
 
-$(MOCHA):
-	cd $(BUILD_ROOT)/mocha; $(MAKE) export $(NSDEFS)
-
-$(DLLS): $(OBJS) $(DEPLIBS) $(OBJDEST)/ns-httpd.res
+$(DLLS): $(OBJS) $(DEPLIBS)
 	-@echo EXTRA_LIBS = $(EXTRA_LIBS)
-	$(PURIFY) $(LINK_DLL) $(DEPLINK) $(OBJDEST)/ns-httpd.res $(OBJS) $(EXTRA_LIBS)
+	$(PURIFY) $(LINK_DLL) $(DEPLINK) $(OBJS) $(EXTRA_LIBS)
 	cp $(HTTPD_LIB) $(NSCP_DISTDIR)/lib
 	echo $(DLLS) finished
 
 $(BINS): $(OBJS) $(EXEOBJS) $(HTTPD_LIB)
 	rm -f $@
-	$(PURIFY) $(LOCAL_LINK_EXE) $(EXEOBJS) $(HTTPD_LIB)
 	echo $(BINS) finished
-
-$(NSAPI20): $(HTTPD_LIB) $(OBJDIR)/lib/frame/nsapi20.o
-	$(PURIFY) $(LINK_DLL) $(LIBNSPR) $(HTTPD_LIB) $(OBJDIR)/lib/frame/nsapi20.o $(EXTRA_LIBS)
 
 ifeq ($(BSCINFO), yes)
 $(BSCS): $(OBJS)

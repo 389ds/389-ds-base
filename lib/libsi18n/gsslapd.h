@@ -11,25 +11,16 @@
 #undef LIBRARY_NAME
 #include "base/dbtbase.h"
 #undef LIBRARY_NAME
-#include "frame/dbtframe.h"
-#undef LIBRARY_NAME
-#include "httpdaemon/dbthttpdaemon.h"
-#undef LIBRARY_NAME
 #include "libaccess/dbtlibaccess.h"
 #undef LIBRARY_NAME
 #include "libadmin/dbtlibadmin.h"
-#undef LIBRARY_NAME
-#include "libir/dbtlibir.h"
 #undef LIBRARY_NAME
 #include "../ldap/clients/dsgw/dbtdsgw.h"
 
 static RESOURCE_GLOBAL allxpstr[] = {
   base,
-  frame,
-  httpdaemon,
   libaccess,
   libadmin,
-  libir,
   dsgw,
   0
 };

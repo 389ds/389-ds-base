@@ -12,7 +12,6 @@
 
 #include <netsite.h>
 #include <base/pool.h>
-#include <base/pblock.h>
 #include <base/plist.h>
 #include <libaccess/nserror.h>
 

@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include "netsite.h"
 #include "base/eventlog.h"
-#include "frame/conf.h"
 #include <nt/regparms.h>
 #include <nt/messages.h>
 

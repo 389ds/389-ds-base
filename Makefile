@@ -138,16 +138,9 @@ httpdLib:
 	@echo
 	cd lib/base; 		$(MAKE) $(MFLAGS)
 	cd lib/ldaputil;	$(MAKE) $(MFLAGS)
-	cd lib/frame; 		$(MAKE) $(MFLAGS)
 	cd lib/libaccess; 	$(MAKE) $(MFLAGS)
 	cd lib/libadmin; 	$(MAKE) $(MFLAGS)
-	cd lib/safs; 		$(MAKE) $(MFLAGS)
-	cd lib/libcrypt; 	$(MAKE) $(MFLAGS)
-	cd lib/libmsgdisp; 	$(MAKE) $(MFLAGS)
 	cd lib/libsi18n; 	$(MAKE) $(MFLAGS)
-ifeq ($(ARCH), WINNT)
-	cd lib/httpdaemon;	$(MAKE) $(MFLAGS)
-endif
 	@echo ==== Finished Server LIBS for: $(BUILD_MODULE) ==========
 	@echo 
 
@@ -174,7 +167,7 @@ buildDirectory: buildnum pumpkin $(OBJDIR) $(DIRVER_H) $(SDKVER_H) components
 ifeq ($(ARCH), WINNT)
 	$(PERL) ntversion.pl $(BUILD_ROOT) $(MAJOR_VERSION) $(MINOR_VERSION)
 endif
-	cd httpd; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY httpd-bin
+	cd httpd/src; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY all
 	cd ldap; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY all
 	@echo ==== Finished LDAP Server ==========
 	@echo

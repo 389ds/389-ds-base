@@ -21,7 +21,7 @@ all:
 
 ABS_ROOT := $(shell cd $(BUILD_ROOT); pwd)
 ABS_ROOT_PARENT := $(shell cd $(ABS_ROOT)/..; pwd)
-MAKE=gmake $(BUILDOPT) NO_MOCHA=1
+MAKE=gmake $(BUILDOPT)
 
 # 7/12/96 Adrian - allow MAKEFLAGS to propagate
 # override MAKEFLAGS := 
@@ -266,7 +266,7 @@ endif
 NSCP_DIST	=  $(BUILD_ROOT)/../dist
 NSCP_DISTDIR          = $(BUILD_ROOT)/../dist/$(NSOBJDIR_NAME)
 
-MAKE=gmake $(BUILDOPT) NO_MOCHA=1 NO_JAVA=1
+MAKE=gmake $(BUILDOPT) NO_JAVA=1
 
 export NSPR20=1
 

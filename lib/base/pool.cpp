@@ -27,9 +27,6 @@
 #ifdef MALLOC_POOLS
 #include "base/pool.h"
 #include "base/ereport.h"
-#include "base/session.h"
-#include "frame/req.h"
-#include "frame/http.h"
 #include "base/util.h"
 #include "base/crit.h"
 
@@ -107,39 +104,10 @@ pool_internal_init()
 			known_pools_lock = crit_init();
 			freelist_lock = crit_init();
 		}
-	} else
-		ereport(LOG_INFORM, XP_GetAdminStr(DBT_poolInitMemoryPoolsDisabled_));
+	}
 
 	return 0;
 }
-
-NSAPI_PUBLIC int
-pool_init(pblock *pb, Session *sn, Request *rq)
-{
-	char *str_free_size = pblock_findval("free-size", pb);
-	char *str_pool_disable = pblock_findval("disable", pb);
-
-	if (str_free_size != NULL) {
-		if ( (freelist_max = atoi(str_free_size)) <= 0) {	
-			ereport(LOG_WARN, XP_GetAdminStr(DBT_poolInitFreeSize0UsingD_),
-				MAX_FREELIST_SIZE);
-			freelist_max = MAX_FREELIST_SIZE;
-		}
-	}
-
-	if (str_pool_disable && strcasecmp(str_pool_disable, "false") ) 
-		pool_disable = 1;
-	else
-		pool_disable = 0;
-
-	if (known_pools_lock == NULL) {
-		known_pools_lock = crit_init();
-		freelist_lock = crit_init();
-	}
-
-	return REQ_PROCEED;
-}
-
 
 static block_t *
 _create_block(int size)

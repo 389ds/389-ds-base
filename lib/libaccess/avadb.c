@@ -11,8 +11,6 @@
 #include "libaccess/avadb.h"
 #include "base/session.h"
 #include "base/pblock.h"
-#include "frame/req.h"
-#include "frame/log.h"
 
 #include "libadmin/libadmin.h"
 #include "libaccess/avapfile.h"

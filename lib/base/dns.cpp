@@ -17,8 +17,6 @@
 #include "base/systems.h"
 #endif /* XP_WIN32 */
 
-#include "net.h"    /* SYS_NETFD, various headers to do DNS */
-
 /* Under NT, these are taken care of by net.h including winsock.h */
 #ifdef XP_UNIX
 #include <arpa/inet.h>  /* inet_ntoa */
@@ -27,13 +25,8 @@
 extern "C" int gethostname (char *name, size_t namelen);
 #endif
 #endif
-#ifdef DNS_CACHE
-#include "base/dns_cache.h"
-#include "base/ereport.h"
-#endif /* DNS_CACHE */
 #include <stdio.h>
 #include <nspr.h>
-#include "frame/conf.h"
 
 /* ---------------------------- dns_find_fqdn ----------------------------- */
 
@@ -75,9 +68,6 @@ char *dns_ip2host(char *ip, int verify)
     /*    struct in_addr iaddr;  */
     PRNetAddr iaddr;
     char *hn;
-#ifdef DNS_CACHE
-    dns_cache_entry_t *dns_entry;
-#endif
     static unsigned long laddr = 0;
     static char myhostname[256];
     PRHostEnt   hent;
@@ -89,23 +79,6 @@ char *dns_ip2host(char *ip, int verify)
 
     if((iaddr.inet.ip = inet_addr(ip)) == -1)
         goto bong;
-
-#ifdef DNS_CACHE
-    if ( (dns_entry = dns_cache_lookup_ip((unsigned int)iaddr.inet.ip)) ) {
-        hn = NULL;
-        if ( dns_entry->host && 
-             /* Only use entry if the cache entry has been verified or if 
-              * verify is off...
-              */
-             (dns_entry->verified || !verify) ) {
-	  hn = STRDUP( dns_entry->host );
-	  (void)dns_cache_use_decrement(dns_entry);
-	  return hn;
-        }
-	dns_cache_delete(dns_entry);
-	dns_entry = 0;
-    }
-#endif
 
     /*
      * See if it happens to be the localhost IP address, and try
@@ -159,18 +132,7 @@ char *dns_ip2host(char *ip, int verify)
             goto bong;
     }
 
-#ifdef DNS_CACHE
-    if ( (dns_entry = dns_cache_insert(hn, (unsigned int)iaddr.inet.ip, verify)) ) {
-        (void) dns_cache_use_decrement(dns_entry);
-    } 
-#endif /* DNS_CACHE */
     return hn;
   bong:
-#ifdef DNS_CACHE
-    /* Insert the lookup failure */
-    if ( (dns_entry = dns_cache_insert(NULL, (unsigned int)iaddr.inet.ip, verify)) ) {
-        (void) dns_cache_use_decrement(dns_entry);
-    } 
-#endif /* DNS_CACHE */
     return NULL;
 }

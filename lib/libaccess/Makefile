@@ -43,14 +43,8 @@ OBJS=$(addprefix $(OBJDEST)/,	usi.o \
 				attrec.o \
 				nseframe.o \
 				nsdb.o \
-				nsdbmgmt.o \
 				nsuser.o \
-				nsumgmt.o \
 				nsgroup.o \
-				nsgmgmt.o \
-				nsadb.o \
-				nscert.o \
-				nsamgmt.o \
 				nsautherr.o \
 				symbols.o \
                                 acltools.o \
@@ -67,7 +61,6 @@ OBJS=$(addprefix $(OBJDEST)/,	usi.o \
 				usrcache.o \
 				lasgroup.o \
 				lasuser.o \
-				lasprogram.o \
                                 aclspace.o \
                                 acl.tab.o \
                                 acl.yy.o \
@@ -77,10 +70,15 @@ OBJS=$(addprefix $(OBJDEST)/,	usi.o \
 				aclparse.o \
 				aclbuild.o \
 				aclerror.o \
-				acladmin.o \
-				aclcgi.o \
+				nsadb.o  \
+				nscert.o  \
+				nsamgmt.o  \
+				nsgmgmt.o  \
+				nsdbmgmt.o  \
+				nsumgmt.o  \
                                 $(OSOBJS) \
 				)
+ 
 
 #
 # AVA Mapping files. Currently not compiled in (FORTEZZA for reference only).

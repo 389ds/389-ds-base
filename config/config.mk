@@ -376,7 +376,7 @@ DEFINES 	+= -DUNIX_LDAP
 endif
 
 #
-# Platform dependent switching off of NSPR, JAVA and MOCHA
+# Platform dependent switching off of NSPR and JAVA
 #
 ifndef NO_NSPR
 DEFINES		+= -DNSPR -DNSPR20
@@ -388,10 +388,6 @@ endif
 
 ifeq ($(LW_JAVA), 1)
 DEFINES += -DJAVA
-endif
-
-ifndef NO_MOCHA
-DEFINES		+= -DMOCHA
 endif
 
 ifdef FORTEZZA

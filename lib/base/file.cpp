@@ -13,7 +13,6 @@
 
 
 #include "base/file.h"
-#include "ereport.h"
 #ifdef BSD_RLIMIT
 #include <sys/time.h>
 #include <sys/resource.h>

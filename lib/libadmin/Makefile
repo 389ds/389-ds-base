@@ -22,14 +22,10 @@ else
 LIBS=$(OBJDIR)/lib/libadmin.a
 endif
 
-OBJS=$(addprefix $(OBJDEST)/, admconf.o form_get.o error.o  admlog.o \
-                              magconf.o ns-util.o objconf.o password.o \
-                              referer.o template.o util.o \
-                              hinstall.o admserv.o install.o nsnews.o \
-                              commit.o pcontrol.o get_msg.o \
-                              multconf.o httpcon.o authdb.o usrlists.o \
-                              dstats.o backup.o cluster.o \
-                              keyconf.o strlist.o $(OSOBJS))
+OBJS=$(addprefix $(OBJDEST)/, error.o \
+                              template.o util.o \
+                              authdb.o \
+                              strlist.o $(OSOBJS))
 
 # moved files [to libadminutil] : form_post.o strlist.o distadm.o cron_conf.o 
 # candidate for moing: admlog.o error.o admserv.o
@@ -39,8 +35,8 @@ OBJS=$(addprefix $(OBJDEST)/, admconf.o form_get.o error.o  admlog.o \
 
 all: $(OBJDEST) $(LIBS)
 
-$(LIBS): $(addprefix $(BUILD_ROOT)/include/libadmin/, \
-                     hadm_msgs.i la_msgs.i)
+#$(LIBS): $(addprefix $(BUILD_ROOT)/include/libadmin/, \
+#                     hadm_msgs.i la_msgs.i)
 
 include $(BUILD_ROOT)/nsconfig.mk
 

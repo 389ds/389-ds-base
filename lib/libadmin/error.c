@@ -10,9 +10,6 @@
  */
 
 #include "libadmin/libadmin.h"
-#if 0
-#include "cgiutils/cgi-util.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +17,7 @@
 #include <windows.h>
 #include "base/nterr.h"
 #endif
+#include <base/file.h>
 
 #define ERROR_HTML "error.html"
 
@@ -57,7 +55,7 @@ void _report_error(int type, char *info, char *details, int shouldexit)
     /* Be sure headers are terminated. */
     fputs("\n", stdout);
 
-    fprintf(stdout, "<SCRIPT LANGUAGE=\"%s\">", MOCHA_NAME);
+    fprintf(stdout, "<SCRIPT LANGUAGE=\"JavaScript\">");
     output_alert(type, info, details, 0);
     if(shouldexit)  {
         fprintf(stdout, "if(history.length>1) history.back();"); 

@@ -10,7 +10,7 @@
  */
 
 #include "netsite.h"
-#include "base/nsassert.h"
+#include "prlog.h"
 #include "base/ereport.h"
 
 #ifdef XP_WIN32
@@ -51,6 +51,7 @@ static int thread_malloc_key = -1;
 #define DEBUG_MALLOC_CHAR '.'
 #define DEBUG_FREE_CHAR   'X'
 #endif /* DEBUG_MALLOC */
+
 
 /* On NT, the server version string is not statically encoded based
  * upon a product compile define but dynamically set by the server
@@ -113,14 +114,14 @@ NSAPI_PUBLIC void system_free(void *ptr)
 #if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
     pool_free(MALLOC_KEY, ptr);
 #else
-    NS_ASSERT(ptr);
+    PR_ASSERT(ptr);
     free(ptr);
 #endif
 }
 
 NSAPI_PUBLIC char *system_strdup(const char *ptr)
 {
-    NS_ASSERT(ptr);
+    PR_ASSERT(ptr);
 #if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
     return pool_strdup(MALLOC_KEY, ptr);
 #else
@@ -202,7 +203,7 @@ NSAPI_PUBLIC void system_free_perm(void *ptr)
     char *baseptr, *cptr;
     int index;
 
-    NS_ASSERT(ptr);
+    PR_ASSERT(ptr);
 
     cptr = baseptr = ((char *)ptr) - DEBUG_MARGIN - 2*sizeof(int);
 
@@ -239,7 +240,7 @@ NSAPI_PUBLIC void system_free_perm(void *ptr)
 NSAPI_PUBLIC char *system_strdup_perm(const char *ptr)
 {
 #ifndef DEBUG_MALLOC
-    NS_ASSERT(ptr);
+    PR_ASSERT(ptr);
     return strdup(ptr);
 #else
     int len = strlen(ptr);

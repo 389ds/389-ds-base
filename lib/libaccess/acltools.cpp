@@ -3384,9 +3384,9 @@ ACL_Decompose(NSErr_t *errp, char **acl, ACLListHandle_t *acl_list)
 
 /*
  * The following routines are used to validate input parameters.  They always
- * return 1, or cause an NS_ASSERT failure.  The proper way to use them is 
- * with an NS_ASSERT in the calling function.  E.g.
- *	NS_ASSERT(ACL_AssertAcllist(acllist));
+ * return 1, or cause an PR_ASSERT failure.  The proper way to use them is 
+ * with an PR_ASSERT in the calling function.  E.g.
+ *	PR_ASSERT(ACL_AssertAcllist(acllist));
  */
 
 int
@@ -3395,18 +3395,18 @@ ACL_AssertAcllist(ACLListHandle_t *acllist)
     ACLWrapper_t *wrap;
 
     if (acllist == ACL_LIST_NO_ACLS) return 1;
-    NS_ASSERT(acllist);
-    NS_ASSERT(acllist->acl_list_head);
-    NS_ASSERT(acllist->acl_list_tail);
-    NS_ASSERT(acllist->acl_count);
-    NS_ASSERT(acllist->ref_count > 0);
+    PR_ASSERT(acllist);
+    PR_ASSERT(acllist->acl_list_head);
+    PR_ASSERT(acllist->acl_list_tail);
+    PR_ASSERT(acllist->acl_count);
+    PR_ASSERT(acllist->ref_count > 0);
 
     for (wrap=acllist->acl_list_head; wrap; wrap=wrap->wrap_next) {
-	NS_ASSERT(ACL_AssertAcl(wrap->acl));
+	PR_ASSERT(ACL_AssertAcl(wrap->acl));
     }
 
     /* Artificially limit ACL lists to 10 ACLs for now */
-    NS_ASSERT(acllist->acl_count < 10);
+    PR_ASSERT(acllist->acl_count < 10);
 
     return 1;
 }
@@ -3414,11 +3414,11 @@ ACL_AssertAcllist(ACLListHandle_t *acllist)
 int
 ACL_AssertAcl(ACLHandle_t *acl)
 {
-    NS_ASSERT(acl);
-    NS_ASSERT(acl->ref_count);
-    NS_ASSERT(acl->expr_count);
-    NS_ASSERT(acl->expr_list_head);
-    NS_ASSERT(acl->expr_list_tail);
+    PR_ASSERT(acl);
+    PR_ASSERT(acl->ref_count);
+    PR_ASSERT(acl->expr_count);
+    PR_ASSERT(acl->expr_list_head);
+    PR_ASSERT(acl->expr_list_tail);
 
     return 1;
 }

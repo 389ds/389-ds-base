@@ -19,7 +19,6 @@
 #include <netsite.h>
 #include <base/systems.h>
 #include <base/crit.h>
-#include <base/session.h>
 #include <libaccess/nserror.h>
 #include <libaccess/acl.h>
 #include "aclpriv.h"
@@ -489,7 +488,7 @@ ACLEvalBuildContext(
 		break;
 
 	    default:
-		NS_ASSERT(0);
+		PR_ASSERT(0);
 	    
 	    }	/*  switch expr_type  */
 
@@ -683,14 +682,14 @@ ACL_INTEvalTestRights(
 		    rarray_p->acelist[rarray_p->count++] = 
 		      (ACLAceNumEntry_t *)ACL_HashTableLookup_const(cache->Table, 
 		      (char *)generic_rights[g_num]);
-		    NS_ASSERT (rarray_p->count < ACL_MAX_GENERIC);
+		    PR_ASSERT (rarray_p->count < ACL_MAX_GENERIC);
 		}
             }
         }
 
         rights_cnt++;
         rights++;
-	NS_ASSERT (rights_cnt < ACL_MAX_TEST_RIGHTS);
+	PR_ASSERT (rights_cnt < ACL_MAX_TEST_RIGHTS);
     }
 
     /*    Special case - look for an entry that applies to "all" rights     */
@@ -974,10 +973,10 @@ ACL_EvalDestroy(NSErr_t *errp, pool_handle_t *pool, ACLEvalHandle_t *acleval)
 {
     if (!acleval->acllist  ||  acleval->acllist == ACL_LIST_NO_ACLS)
 	return;
-    NS_ASSERT(acleval->acllist->ref_count > 0);
+    PR_ASSERT(acleval->acllist->ref_count > 0);
 
     ACL_CritEnter();
-    NS_ASSERT(ACL_CritHeld());
+    PR_ASSERT(ACL_CritHeld());
     if (--acleval->acllist->ref_count == 0) {
 	if (ACL_LIST_IS_STALE(acleval->acllist)) {
 	    ACL_ListDestroy(errp, acleval->acllist);
@@ -1004,10 +1003,10 @@ ACL_ListDecrement(NSErr_t *errp, ACLListHandle_t *acllist)
     if (!acllist  ||  acllist == ACL_LIST_NO_ACLS)
 	return 0;
 
-    NS_ASSERT(ACL_AssertAcllist(acllist));
+    PR_ASSERT(ACL_AssertAcllist(acllist));
 
     ACL_CritEnter();
-    NS_ASSERT(ACL_CritHeld());
+    PR_ASSERT(ACL_CritHeld());
     if (--acllist->ref_count == 0) {
 	if (ACL_LIST_IS_STALE(acllist)) {
 	    ACL_ListDestroy(errp, acllist);
@@ -1021,7 +1020,7 @@ ACL_ListDecrement(NSErr_t *errp, ACLListHandle_t *acllist)
 NSAPI_PUBLIC int
 ACL_EvalSetACL(NSErr_t *errp, ACLEvalHandle_t *acleval, ACLListHandle_t *acllist)
 {
-        NS_ASSERT(ACL_AssertAcllist(acllist));
+        PR_ASSERT(ACL_AssertAcllist(acllist));
 
         acleval->acllist = acllist;
         return(0);

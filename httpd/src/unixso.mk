@@ -112,7 +112,6 @@ ifeq ($(ARCH), HPUX)
 endif
 	mkdir -p $(OBJDIR)/httpd-lib/sslio
 	mkdir -p $(OBJDIR)/httpd-lib/arlib
-	mkdir -p $(OBJDIR)/httpd-lib/mocha
 	mkdir -p $(OBJDIR)/httpd-lib/libsec
 	mkdir -p $(OBJDIR)/httpd-lib/libdbm
 	mkdir -p $(OBJDIR)/httpd-lib/xp
@@ -170,23 +169,17 @@ endif
 
 endif
 
-SERVLIBS = $(addprefix $(OBJDIR)/lib/, libadmin.a libframe.a libaccess.a \
+SERVLIBS = $(addprefix $(OBJDIR)/lib/, libadmin.a libaccess.a \
 		libldapu.a libbase.a libsi18n.a)
-SERVLIB_DIRS = $(addprefix $(OBJDIR)/lib/, libadmin frame libaccess base \
+SERVLIB_DIRS = $(addprefix $(OBJDIR)/lib/, libadmin libaccess base \
                            ldaputil libmsgdisp libsi18n)
 SERVLIB_OBJS = $(subst $(OBJDIR)/,$(BUILTDIR)/, \
-                       $(filter-out $(OBJDIR)/lib/libadmin/nsnews.o, \
-                               $(wildcard $(addsuffix /*.o, $(SERVLIB_DIRS)))))
-
-MOCHA=$(NSCP_DISTDIR)/lib/mocha.a
+                               $(wildcard $(addsuffix /*.o, $(SERVLIB_DIRS))))
 
 # Removed for ns-security integration
 #NSLIBS = $(SECLIB) $(LIBSSLIO)
 
 ADMLIB_LIBS = $(SERVLIBS) $(NSLIBS)
-
-mocha:
-	cd $(BUILD_ROOT)/mocha; $(MAKE) export $(NSDEFS)
 
 
 admobjs:
@@ -194,9 +187,6 @@ ifeq ($(ARCH), HPUX)
 	cd $(OBJDIR)/httpd-lib/nspr20; $(AR) x $(LIBNSPR)
 endif
 	cd $(OBJDIR)/httpd-lib/sslio; $(AR) x $(LIBSSLIO)
-ifndef NSPR20
-	cd $(OBJDIR)/httpd-lib/mocha; $(AR) x $(MOCHA)
-endif
 	cd $(OBJDIR)/httpd-lib/libdbm; $(AR) x $(LIBDBM)
 	cd $(OBJDIR)/httpd-lib/xp; $(AR) x $(LIBXP)
 	cd $(OBJDIR)/httpd-lib/libdbm; $(AR) x $(LIBDBM)

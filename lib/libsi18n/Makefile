@@ -49,75 +49,16 @@ ifeq ($(ARCH), SOLARIS)
   MYLDFLAG = -xarch=v9 
 endif
 endif
-ifeq ($(BUILD_MODULE), HTTP_ENTERPRISE)
-StringDatabase = ns-httpd.db
-L10N_SERVER = httpd
-DBTheaders = \
-        ../../httpd/src/dbthttpd.h \
-        ../../include/base/dbtbase.h \
-        ../../include/frame/dbtframe.h \
-        ../../include/httpdaemon/dbthttpdaemon.h \
-        ../../include/libaccess/dbtlibaccess.h \
-        ../../include/libadmin/dbtlibadmin.h \
-        ../../include/libir/dbtlibir.h \
-        gshttpd.h
-endif
 
 ifeq ($(BUILD_MODULE), DIRECTORY)
  StringDatabase = ns-slapd.properties
  DBTheaders = \
-    ../../httpd/src/dbthttpd.h \
     ../../include/base/dbtbase.h \
-    ../../include/frame/dbtframe.h \
-    ../../include/httpdaemon/dbthttpdaemon.h \
     ../../include/libaccess/dbtlibaccess.h \
     ../../include/libadmin/dbtlibadmin.h \
-    ../../include/libir/dbtlibir.h \
     ../../ldap/clients/dsgw/dbtdsgw.h \
     gsslapd.h
  endif
-
-
-ifeq ($(BUILD_MODULE), HTTP_PERSONAL)
-StringDatabase = ns-httpd.db
-L10N_SERVER = httpd
-DBTheaders = \
-        ../../httpd/src/dbthttpd.h \
-        ../../include/base/dbtbase.h \
-        ../../include/frame/dbtframe.h \
-        ../../include/httpdaemon/dbthttpdaemon.h \
-        ../../include/libaccess/dbtlibaccess.h \
-        ../../include/libadmin/dbtlibadmin.h \
-        gshttpd.h
-endif
-
-ifeq ($(BUILD_MODULE), HTTP_PROXY)
-StringDatabase = ns-proxy.db
-DBTheaders = \
-        ../../httpd/src/dbthttpd.h \
-        ../../include/base/dbtbase.h \
-        ../../include/frame/dbtframe.h \
-        ../../include/httpdaemon/dbthttpdaemon.h \
-        ../../include/libaccess/dbtlibaccess.h \
-        ../../include/libadmin/dbtlibadmin.h \
-        gsproxy.h
-endif
-
-ifeq ($(BUILD_MODULE), HTTP_ADMIN)
-StringDatabase = ns-admin.db
-L10N_SERVER = admserv
-DBTheaders = \
-        ../../admserv/src/dbtadmserv.h \
-        ../../admserv/cgi-src/dbtcgiadmin.h \
-        ../../admserv/user-forms/src/dbtuserforms.h \
-        ../../include/base/dbtbase.h \
-        ../../include/frame/dbtframe.h \
-        ../../include/httpdaemon/dbthttpdaemon.h \
-        ../../include/libaccess/dbtlibaccess.h \
-        ../../include/libadmin/dbtlibadmin.h \
-        ../../include/libir/dbtlibir.h \
-        gsadmserv.h
-endif
 
 include $(BUILD_ROOT)/nsconfig.mk
 

@@ -13,7 +13,7 @@
  */
 
 #include "netsite.h"
-#include "base/nsassert.h"
+#include "prlog.h"
 
 #include "lexer_pvt.h"
 #include "base/lexer.h"
@@ -104,7 +104,7 @@ int lex_class_create(int classc, char * classv[], void **pchtab)
     int i;				/* class index */
 
     /* Get number of bytes per bit vector */
-    NS_ASSERT(classc > 0);
+    PR_ASSERT(classc > 0);
     bvbytes = (classc + 7) >> 3;
 
     /* Allocate the character class table */
@@ -137,7 +137,7 @@ int lex_class_create(int classc, char * classv[], void **pchtab)
     }
 
     /* Return pointer to table */
-    NS_ASSERT(pchtab != NULL);
+    PR_ASSERT(pchtab != NULL);
     *pchtab = (void *)ct;
 
     return classc;
@@ -273,7 +273,7 @@ int lex_token_new(pool_handle_t * pool, int initlen, int growlen, void **token)
 
     if (growlen > 0) lt->lt_inclen = growlen;
 
-    NS_ASSERT(token != NULL);
+    PR_ASSERT(token != NULL);
     *token = (void *)lt;
 
     return 0;
@@ -533,8 +533,8 @@ int lex_token_append(void * token, int nbytes, char * src)
     int bufsize;
     int length;
 
-    NS_ASSERT(nbytes >= 0);
-    NS_ASSERT((src != NULL) || (nbytes == 0));
+    PR_ASSERT(nbytes >= 0);
+    PR_ASSERT((src != NULL) || (nbytes == 0));
 
     if (nbytes > 0) {
 

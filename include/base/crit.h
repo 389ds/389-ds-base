@@ -32,9 +32,7 @@
 /* Define C++ interface */
 #ifdef __cplusplus
 
-#ifndef BASE_NSASSERT_H
-#include "nsassert.h"
-#endif /* !BASE_NSASSERT_H */
+#include "prlog.h" /* NSPR */
 
 #ifndef prmon_h___
 #include "prmon.h"
@@ -55,7 +53,7 @@ private:
 inline CriticalSection::CriticalSection():_crtsec(0)
 {
     _crtsec = PR_NewMonitor();
-    NS_ASSERT(_crtsec);
+    PR_ASSERT(_crtsec);
 }
 
 inline CriticalSection::~CriticalSection()

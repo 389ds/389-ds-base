@@ -11,7 +11,7 @@
 #include <plhash.h>
 #include <base/systems.h>
 #include <base/util.h>
-#include <base/nsassert.h>
+#include <prlog.h>
 #include "permhash.h"
 #include <libaccess/nserror.h>
 #include <libaccess/acl.h>
@@ -48,7 +48,7 @@ ACL_LasHashInit()
 				     PR_CompareValues,
 				     &ACLPermAllocOps,
 				     NULL);
-    NS_ASSERT(ACLLasEvalHash);
+    PR_ASSERT(ACLLasEvalHash);
 
     ACLLasFlushHash = PR_NewHashTable(0,
 				     PR_HashString,
@@ -56,7 +56,7 @@ ACL_LasHashInit()
 				     PR_CompareValues,
 				     &ACLPermAllocOps,
 				     NULL);
-    NS_ASSERT(ACLLasFlushHash);
+    PR_ASSERT(ACLLasFlushHash);
 
     ACLMethodHash = PR_NewHashTable(ACL_MAX_METHOD,
 				     PR_HashCaseString,
@@ -64,7 +64,7 @@ ACL_LasHashInit()
 				     PR_CompareValues,
 				     &ACLPermAllocOps,
 				     NULL);
-    NS_ASSERT(ACLMethodHash);
+    PR_ASSERT(ACLMethodHash);
 
     ACLDbTypeHash = PR_NewHashTable(ACL_MAX_DBTYPE,
 				     PR_HashCaseString,
@@ -72,7 +72,7 @@ ACL_LasHashInit()
 				     PR_CompareValues,
 				     &ACLPermAllocOps,
 				     NULL);
-    NS_ASSERT(ACLDbTypeHash);
+    PR_ASSERT(ACLDbTypeHash);
 
     for (i = 0; i < ACL_MAX_DBTYPE; i++)
 	ACLDbParseFnTable[i] = 0;
@@ -83,7 +83,7 @@ ACL_LasHashInit()
 				     PR_CompareValues,
 				     &ACLPermAllocOps,
 				     NULL);
-    NS_ASSERT(ACLDbTypeHash);
+    PR_ASSERT(ACLDbTypeHash);
 
     ACLDbNameHash = PR_NewHashTable(0, 
 				    PR_HashCaseString,
@@ -91,7 +91,7 @@ ACL_LasHashInit()
 				    PR_CompareValues,
 				    &ACLPermAllocOps, 
 				    ACL_DATABASE_POOL);
-    NS_ASSERT(ACLDbNameHash);
+    PR_ASSERT(ACLDbNameHash);
 
     ACLUserLdbHash = PR_NewHashTable(0, 
 				     PR_HashCaseString,
@@ -99,7 +99,7 @@ ACL_LasHashInit()
 				     PR_CompareValues,
 				     &ACLPermAllocOps, 
 				     NULL);
-    NS_ASSERT(ACLUserLdbHash);
+    PR_ASSERT(ACLUserLdbHash);
 
     return;
 }
@@ -166,7 +166,7 @@ NSAPI_PUBLIC int
 ACL_LasFindEval(NSErr_t *errp, char *attr_name, LASEvalFunc_t *eval_funcp)
 {
  
-    NS_ASSERT(attr_name);
+    PR_ASSERT(attr_name);
     if (!attr_name) return -1;
  
     *eval_funcp = (LASEvalFunc_t)PR_HashTableLookup(ACLLasEvalHash, attr_name);
@@ -187,7 +187,7 @@ NSAPI_PUBLIC int
 ACL_LasFindFlush(NSErr_t *errp, char *attr_name, LASFlushFunc_t *flush_funcp)
 {
  
-    NS_ASSERT(attr_name);
+    PR_ASSERT(attr_name);
     if (!attr_name) return -1;
  
     *flush_funcp = (LASFlushFunc_t)PR_HashTableLookup(ACLLasFlushHash, attr_name);

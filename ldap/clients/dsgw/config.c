@@ -270,6 +270,7 @@ dsgw_read_config()
     read_dsgwconfig( fname, NULL, gc->gc_admserv, 0 );
     free( fname );
 
+#if 0
     /* if necessary, try to set path to certificate database */
 #ifndef DSGW_NO_SSL
     if ( gc->gc_ldapssl && gc->gc_securitypath == NULL ) {
@@ -282,6 +283,7 @@ dsgw_read_config()
 	    gc->gc_securitypath = DSGW_DEFSECURITYPATH;
 	}
     }
+#endif
 #endif
 
     if ( browser_ignores_acceptcharset() ) {

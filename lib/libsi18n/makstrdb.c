@@ -20,28 +20,8 @@
 /* Begin: Application dependent information */
 /********************************************/
 
-#ifdef MCC_ADMSERV
-#include "gsadmserv.h"
-#define GSXXX_H_INCLUDED
-#endif
-
-#ifdef NS_ENTERPRISE
-#include "gshttpd.h"
-#define GSXXX_H_INCLUDED
-#endif
-
 #ifdef NS_DS
 #include "gsslapd.h"
-#define GSXXX_H_INCLUDED
-#endif
-
-#ifdef NS_PERSONAL
-#include "gshttpd.h"
-#define GSXXX_H_INCLUDED
-#endif
-
-#ifdef MCC_PROXY
-#include "gsproxy.h"
 #define GSXXX_H_INCLUDED
 #endif
 

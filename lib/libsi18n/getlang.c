@@ -11,7 +11,6 @@
 #include <sys/stat.h>
 
 #include "libadmin/libadmin.h"
-#include "frame/conf.h"  /* get access on global language setting */
 
 
 #include "i18n.h"

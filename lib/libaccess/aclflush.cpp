@@ -7,7 +7,7 @@
  * Source file for the ACL_CacheFlush-related routines.
  */
 
-#include	<base/nsassert.h>
+#include	<prlog.h>
 #include	<base/util.h>
 #include	<libaccess/acl.h>
 #include	"aclpriv.h"
@@ -25,15 +25,15 @@ deletelists(PRHashEntry *he, PRIntn i, void *arg)
     ACLListHandle_t *acllist=(ACLListHandle_t *)he->value;
     NSErr_t *errp = 0;
 
-    NS_ASSERT(he);
-    NS_ASSERT(he->value);
+    PR_ASSERT(he);
+    PR_ASSERT(he->value);
 
     if (acllist->ref_count) {
 	//  If the list is in use, increment the counter.  Then set the 
 	//  stale flag.  The other user can't delete the list since we're
 	//  counted as well.  Finally, decrement the counter and whoever
 	//  sets it to zero will delete the ACL List.
-	NS_ASSERT(ACL_CritHeld());
+	PR_ASSERT(ACL_CritHeld());
 	acllist->ref_count++;
 	acllist->flags |= ACL_LIST_STALE;
 	if (--acllist->ref_count == 0)
@@ -54,8 +54,8 @@ restartdeletelists(PRHashEntry *he, PRIntn i, void *arg)
     //  what.
     ACLListHandle_t *acllist=(ACLListHandle_t *)he->value;
 
-    NS_ASSERT(he);
-    NS_ASSERT(he->value);
+    PR_ASSERT(he);
+    PR_ASSERT(he->value);
 
     ACL_ListDestroy(errp, acllist);
 
@@ -67,7 +67,7 @@ static AclCacheFlushFunc_t AclCacheFlushRoutine = NULL;
 NSAPI_PUBLIC int
 ACL_CacheFlushRegister(AclCacheFlushFunc_t flush_func)
 {
-    NS_ASSERT(flush_func);
+    PR_ASSERT(flush_func);
     AclCacheFlushRoutine = flush_func;
 
     return 0;
@@ -79,12 +79,12 @@ ACL_CacheFlush(void)
     ACLGlobal_p	newACLGlobal;
     NSErr_t *errp = 0;
 
-    NS_ASSERT(ACLGlobal);
-    NS_ASSERT(ACLGlobal->masterlist);
-    NS_ASSERT(ACLGlobal->listhash);
-    NS_ASSERT(ACLGlobal->urihash);
-    NS_ASSERT(ACLGlobal->urigethash);
-    NS_ASSERT(ACLGlobal->pool);
+    PR_ASSERT(ACLGlobal);
+    PR_ASSERT(ACLGlobal->masterlist);
+    PR_ASSERT(ACLGlobal->listhash);
+    PR_ASSERT(ACLGlobal->urihash);
+    PR_ASSERT(ACLGlobal->urigethash);
+    PR_ASSERT(ACLGlobal->pool);
 
     ACL_CritEnter();
 
@@ -142,12 +142,12 @@ ACL_Restart(void *clntData)
 {
     NSErr_t *errp = 0;
 
-    NS_ASSERT(ACLGlobal);
-    NS_ASSERT(ACLGlobal->masterlist);
-    NS_ASSERT(ACLGlobal->listhash);
-    NS_ASSERT(ACLGlobal->urihash);
-    NS_ASSERT(ACLGlobal->urigethash);
-    NS_ASSERT(ACLGlobal->pool);
+    PR_ASSERT(ACLGlobal);
+    PR_ASSERT(ACLGlobal->masterlist);
+    PR_ASSERT(ACLGlobal->listhash);
+    PR_ASSERT(ACLGlobal->urihash);
+    PR_ASSERT(ACLGlobal->urigethash);
+    PR_ASSERT(ACLGlobal->pool);
 
     //	Unlike ACL_CacheFlush, this routine can be much more cavalier about
     //	freeing up memory, since there's guaranteed to be no users about at

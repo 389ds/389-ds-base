@@ -17,7 +17,7 @@
 #else
 #include "nspr/prprf.h"
 #endif
-#include <base/nsassert.h>
+#include "prlog.h"
 #include "libaccess/nserror.h"
 #include "libaccess/nsautherr.h"
 #include "libaccess/aclerror.h"
@@ -110,7 +110,7 @@ void aclErrorFmt(NSErr_t * errp, char * msgbuf, int maxlen, int maxdepth)
 		    strncpy(msgbuf, efp->ef_errv[0], maxlen);
 		    break;
 		default:
-		    NS_ASSERT(0); /* don't break -- continue into case 0 */
+		    PR_ASSERT(0); /* don't break -- continue into case 0 */
 		case 0:
 	            switch (efp->ef_retcode) {
 	            case ACLERRFAIL:

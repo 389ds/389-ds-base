@@ -30,18 +30,6 @@
 #include "netsite.h"
 #endif /* !NETSITE_H */
 
-#ifndef BASE_PBLOCK_H
-#include "pblock.h"
-#endif /* !BASE_PBLOCK_H */
-
-#ifndef BASE_SESSION_H
-#include "session.h"
-#endif /* !BASE_SESSION_H */
-
-#ifndef FRAME_REQ_H
-#include "frame/req.h"
-#endif /* !FRAME_REQ_H */
-
 #ifndef PUBLIC_BASE_POOL_H
 #include "public/base/pool.h"
 #endif /* !PUBLIC_BASE_POOL_H */
@@ -53,8 +41,6 @@
 NSPR_BEGIN_EXTERN_C
 
 int pool_internal_init(void);
-
-NSAPI_PUBLIC int INTpool_init(pblock *pb, Session *sn, Request *rq);
 
 #ifdef DEBUG_CACHES
 NSAPI_PUBLIC int INTpool_service_debug(pblock *pb, Session *sn, Request *rq);
@@ -80,8 +66,6 @@ NSAPI_PUBLIC
 char *INTpool_strdup(pool_handle_t *pool_handle, const char *orig_str );
 
 NSPR_END_EXTERN_C
-
-#define pool_init INTpool_init
 
 #ifdef DEBUG_CACHES
 #define pool_service_debug INTpool_service_debug

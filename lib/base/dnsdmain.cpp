@@ -10,7 +10,6 @@
 
 
 #include "netsite.h"
-#include "base/net.h"
 #include <string.h>
 #include <stdio.h>
 #ifdef XP_UNIX
@@ -26,7 +25,6 @@
 extern "C" {
 #include <nspr.h>
 }
-#include "frame/conf.h"
 
 
 

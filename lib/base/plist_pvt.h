@@ -35,9 +35,6 @@ typedef struct PListStruct_s PListStruct_t;
  *      the property value data.
  */
 
-#ifndef PBLOCK_H
-#include "base/pblock.h"
-#endif /* PBLOCK_H */
 #include <stddef.h>
 
 struct PLValueStruct_s {

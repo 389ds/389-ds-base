@@ -18,7 +18,6 @@
 #include "netsite.h"
 #include "crit.h"
 #include "pool.h"
-#include "ereport.h"
 
 #include "base/dbtbase.h"
 
@@ -28,13 +27,6 @@
 #include "private/primpl.h"
 */
 #include "nspr.h"
-
-/* private/primpl.h is gone fromnspr21 19971028 */
-#if 0
-#ifdef XP_WIN32
-#include "private/primpl.h"
-#endif /* XP_WIN32 */
-#endif
 
 #include "prthread.h"
 #include "prlock.h"
@@ -97,12 +89,12 @@ NSAPI_PUBLIC void crit_enter(CRITICAL id)
     PRThread *me = PR_GetCurrentThread();
 
     if ( crit->owner == me) {
-        NS_ASSERT(crit->count > 0);
+        PR_ASSERT(crit->count > 0);
         crit->count++;
     } 
     else {
         PR_Lock(crit->lock);
-        NS_ASSERT(crit->count == 0);
+        PR_ASSERT(crit->count == 0);
         crit->count = 1;
         crit->owner = me;
     }
@@ -121,7 +113,7 @@ NSAPI_PUBLIC void crit_exit(CRITICAL id)
         crit->owner = 0;
         PR_Unlock(crit->lock);
     }
-    NS_ASSERT(crit->count >= 0);
+    PR_ASSERT(crit->count >= 0);
 #endif
 }
 
@@ -165,7 +157,7 @@ NSAPI_PUBLIC void condvar_wait(CONDVAR _cv)
     int saveCount = cv->lock->count;
     PRThread *saveOwner = cv->lock->owner;
 
-    NS_ASSERT(cv->lock->owner == PR_GetCurrentThread());
+    PR_ASSERT(cv->lock->owner == PR_GetCurrentThread());
     cv->lock->count = 0;
     cv->lock->owner = 0;
 
@@ -185,7 +177,7 @@ NSAPI_PUBLIC void condvar_timed_wait(CONDVAR _cv, long secs)
     int saveCount = cv->lock->count;
     PRThread *saveOwner = cv->lock->owner;
  
-    NS_ASSERT(cv->lock->owner == PR_GetCurrentThread());
+    PR_ASSERT(cv->lock->owner == PR_GetCurrentThread());
     cv->lock->count = 0;
     cv->lock->owner = 0;
     
@@ -205,7 +197,7 @@ NSAPI_PUBLIC void condvar_notify(CONDVAR _cv)
 {
 #ifdef USE_NSPR
     condvar_t *cv = (condvar_t *)_cv;
-    NS_ASSERT(cv->lock->owner == PR_GetCurrentThread());
+    PR_ASSERT(cv->lock->owner == PR_GetCurrentThread());
     PR_NotifyCondVar(cv->cvar);
 #endif
 }
@@ -214,7 +206,7 @@ NSAPI_PUBLIC void condvar_notifyAll(CONDVAR _cv)
 {
 #ifdef USE_NSPR
     condvar_t *cv = (condvar_t *)_cv;
-    NS_ASSERT(cv->lock->owner == PR_GetCurrentThread());
+    PR_ASSERT(cv->lock->owner == PR_GetCurrentThread());
     PR_NotifyAllCondVar(cv->cvar);
 #endif
 }
