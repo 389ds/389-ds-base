@@ -33,7 +33,7 @@ ldapserver is an LDAPv3 compliant server.
 # build the file structure to package under ldapserver/pkg
 # instead of MM.DD/platform
 # remove BUILD_DEBUG=optimize to build the debug version
-make BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg
+make BUILD_JAVA_CODE=1 BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg
 
 %install
 # all we do here is run setup -b to unpack the binaries
@@ -55,7 +55,7 @@ echo yes | ./setup -b $RPM_BUILD_ROOT/opt/ldapserver
 # this is our setup script that sets up the initial
 # server instances after installation
 cd ..
-cp ldap/cm/newinst/setup $RPM_BUILD_ROOT/opt/ldapserver
+cp ldap/cm/newinst/setup $RPM_BUILD_ROOT/opt/ldapserver/setup
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -69,7 +69,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 echo ""
-echo "Please cd /opt/ldapserver and run ./setup"
+echo "Please cd /opt/ldapserver and run ./setup/setup"
 
 %changelog
 * Thu Jan 20 2005 Richard Megginson <rmeggins@redhat.com>
