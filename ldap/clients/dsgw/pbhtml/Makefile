@@ -28,7 +28,7 @@ HTML=   emptyFrame.html index.html 16-conference.gif \
 	pbrd.jpg department.gif person.gif clear.gif \
 	vendor.gif style.css intro.html phone.html view_vcard.gif \
 	phone.js view_vcard_sm.gif \
-	brandblock.gif get_cert.gif \
+	rolodex.gif get_cert.gif \
 	carded.html get_cert_sm.gif pixel.gif \
 	32-office.gif 32-alert.gif 32-conference.gif 32-person.gif \
 	32-message.gif nullStringError.html tiny_cert.gif \

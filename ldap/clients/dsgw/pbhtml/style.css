@@ -65,7 +65,7 @@ body.Search {
 
 td.appName {
 	font-family: verdana, Arial, Helvetica, sans-serif;
-	font-size: 14px;
+	font-size: 16px;
 	vertical-align : middle;
 	color: #ffffff;
 	font-weight: bold;
@@ -73,9 +73,10 @@ td.appName {
 
 .apptext {
 	font-family: verdana, Arial, Helvetica, sans-serif;
-	font-size: 14px;
+	font-size: 12px;
 	vertical-align: middle;
 	color: #ffffff;
+	font-weight: bold;
 }
 
 /* Fonts */
