@@ -581,7 +581,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
  * pointers are allocated 8 bytes but lower 4 bytes are used.
  * The value 0 means use the default stacksize.
  */
-#if defined (OSF1)
+#if defined (OSF1) || defined(__LP64__) || defined (_LP64) /* 64-bit architectures need large stacks */
 #define DEFAULT_THREAD_STACKSIZE 	131072L
 #else
 #define DEFAULT_THREAD_STACKSIZE 	0
