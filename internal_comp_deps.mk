@@ -604,7 +604,7 @@ endif
 ###########################################################
 ### Perldap package #######################################
 
-PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
+PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
 PERLDAP_ZIP_FILE = perldap14.zip
 
 ###########################################################
