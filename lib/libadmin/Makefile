@@ -24,8 +24,7 @@ endif
 
 OBJS=$(addprefix $(OBJDEST)/, error.o \
                               template.o util.o \
-                              authdb.o \
-                              strlist.o $(OSOBJS))
+                              authdb.o $(OSOBJS))
 
 # moved files [to libadminutil] : form_post.o strlist.o distadm.o cron_conf.o 
 # candidate for moing: admlog.o error.o admserv.o
