@@ -116,7 +116,7 @@ endif
 
 # server core
 ifndef SVRCORE_RELDATE
-  SVRCORE_RELDATE = DS7.0
+  SVRCORE_RELDATE = SVRCORE_4_0_RTM
 endif
 
 # admin utility library
