@@ -187,6 +187,15 @@ getEntryAndAccess(int index, const char **entry, const char **access)
 	return 1;
 }
 
+static int
+is_root_user(const char *name, QUERY_VARS* query)
+{
+	if (!name || !query->rootDN) {
+		return 0;
+	}
+	return !PL_strcasecmp(name, query->rootDN);
+}
+
 /*
 ** ---------------------------------------------------------------------------
 **
@@ -1356,6 +1365,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 	char *adminGroupDN = 0;
 	char *parentDN = 0;
 	char *localDAGroupDN = 0;
+	char realuid[1024] = {0};
 
 	if (!query->rootDN || *query->rootDN == '\0') {
 		usageErrorMsg = "You must enter the distinguished name of a user with "
@@ -1379,14 +1389,30 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 						   name_topologyRDN, query->netscaperoot, 0);
 	}
 
+	if (query->config_admin_uid) {
+		getUIDFromDN(query->config_admin_uid, realuid);
+		if (realuid[0]) {
+			/* admid is already a DN */
+			configAdminDN = strdup(query->config_admin_uid);
+		} else if (parentDN) {
+			/* create a DN for admid */
+			configAdminDN = make_dn(DN_formatUID, query->config_admin_uid, parentDN, 0);
+		} else {
+			/* create one from scratch */
+			configAdminDN = make_dn("%s=%s, %s, %s, %s", name_uid, query->config_admin_uid,
+									name_administratorsRDN, name_topologyRDN,
+									name_netscaperootDN, 0);
+		}
+	}
+
 	if (query->suffix)
 	{
 		status = create_base(connection, query->suffix);
 		if (!status)
 		{
-			if (parentDN && query->config_admin_uid) {
-				add_aci_v(connection, query->suffix, ACI_user_allow_1,
-						  "all", query->config_admin_uid, parentDN, 0);
+			if (configAdminDN && !is_root_user(configAdminDN, query)) {
+				add_aci_v(connection, query->suffix, ACI_user_allow_2,
+						  "all", configAdminDN, 0);
 			}
 
 			status = create_group(connection, query->suffix, name_localDAGroup);
@@ -1400,21 +1426,6 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 
 	if (!status)
 	{
-		char realuid[1024] = {0};
-
-		if (query->config_admin_uid) {
-			getUIDFromDN(query->config_admin_uid, realuid);
-		}
-
-		if (realuid[0])
-		{
-			/* admid is already a DN */
-			configAdminDN = strdup(query->config_admin_uid);
-		} else if (query->config_admin_uid) {
-			/* create a DN for admid */
-			configAdminDN = make_dn(DN_formatUID, query->config_admin_uid, parentDN, 0);
-		}
-
 		/*
 		  Give the Configuration Admin group access to the root DSE entries
 		  */
@@ -1442,7 +1453,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 						  entryAndAccessList[ii].access,
 						  adminGroupDN, 0);
 			}
-			if (configAdminDN) {
+			if (configAdminDN && !is_root_user(configAdminDN, query)) {
 				add_aci_v(connection, entryAndAccessList[ii].entryDN,
 						  ACI_user_allow_2,
 						  entryAndAccessList[ii].access,
@@ -1527,7 +1538,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		}
 
 		/* create the ss admin user */
-		if (!status)
+		if (!status && !is_root_user(query->ssAdmID, query))
 		{
 			/* group to add the uid to */
 			char *groupdn = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
