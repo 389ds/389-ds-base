@@ -908,7 +908,7 @@ int set_default_ldap_settings()
 	mi.m_nMCCPort=DEFAULT_SERVER_PORT;
 
 	mi.m_szMCCBindAs = malloc(MAX_STR_SIZE);
-	my_snprintf(mi.m_szMCCBindAs, sizeof(mi.m_szMCCBindAs), "%s", DEFAULT_SSPT_USER);
+	my_snprintf(mi.m_szMCCBindAs, MAX_STR_SIZE, "%s", DEFAULT_SSPT_USER);
 
 	my_strncpy(mi.m_szUGSuffix, mi.m_szInstanceSuffix, sizeof(mi.m_szUGSuffix));
 	mi.m_nUGPort=DEFAULT_SERVER_PORT;
@@ -971,7 +971,7 @@ void set_ldap_settings()
 		my_strncpy(mi.m_szMCCHost, mi.m_szInstanceHostName, sizeof(mi.m_szMCCHost));
 		mi.m_nMCCPort = mi.m_nInstanceServerPort;
 		my_strncpy(mi.m_szMCCSuffix, NS_DOMAIN_ROOT, sizeof(mi.m_szMCCSuffix));
-		my_snprintf(mi.m_szMCCBindAs, sizeof(mi.m_szMCCBindAs), "%s", mi.m_szSsptUid);
+		my_snprintf(mi.m_szMCCBindAs, MAX_STR_SIZE, "%s", mi.m_szSsptUid);
 		my_strncpy(mi.m_szMCCPw, mi.m_szSsptUidPw, sizeof(mi.m_szMCCPw));
 
 	}
