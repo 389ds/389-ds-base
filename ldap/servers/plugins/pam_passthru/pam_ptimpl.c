@@ -67,7 +67,8 @@ derive_from_bind_entry(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id, char *m
 	char buf[BUFSIZ];
 	Slapi_Entry *entry = NULL;
 	Slapi_DN *sdn = slapi_sdn_new_dn_byref(binddn);
-	char *attrs[] = { map_ident_attr, NULL };
+	char *attrs[] = { NULL, NULL };
+	attrs[0] = map_ident_attr;
 	int rc = slapi_search_internal_get_entry(sdn, attrs, &entry,
 											 pam_passthruauth_get_plugin_identity());
 
@@ -154,9 +155,12 @@ pam_conv_func(int num_msg, const struct pam_message **msg, struct pam_response *
 						msg[ii]->msg);
 		/* hard to tell what prompt is for . . . */
 		/* assume prompts for password are either BINARY or ECHO_OFF */
-		if ((msg[ii]->msg_style == PAM_PROMPT_ECHO_OFF) ||
-			(msg[ii]->msg_style == PAM_BINARY_PROMPT)) {
+		if (msg[ii]->msg_style == PAM_PROMPT_ECHO_OFF) {
 			reply[ii].resp = strdupbv(creds);
+#ifdef LINUX
+		} else if (msg[ii]->msg_style == PAM_BINARY_PROMPT) {
+			reply[ii].resp = strdupbv(creds);
+#endif
 		} else if (msg[ii]->msg_style == PAM_PROMPT_ECHO_ON) { /* assume username */
 			reply[ii].resp = strdup(my_data->pam_identity);
 		} else if (msg[ii]->msg_style == PAM_ERROR_MSG) {
