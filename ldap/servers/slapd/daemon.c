@@ -1834,14 +1834,15 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		 *the commented code that follows each of the next two
 		 *blocks of code
  		 */
-		struct lber_x_ext_io_fns *func_pointers = malloc(LBER_X_EXTIO_FNS_SIZE);
-		func_pointers->lbextiofn_size = LBER_X_EXTIO_FNS_SIZE; 
-		func_pointers->lbextiofn_read = secure_read_function;
-		func_pointers->lbextiofn_write = secure_write_function;
-		func_pointers->lbextiofn_writev = NULL;
-		func_pointers->lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;
+		struct lber_x_ext_io_fns func_pointers;
+		memset(&func_pointers, 0, sizeof(func_pointers));
+		func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE; 
+		func_pointers.lbextiofn_read = secure_read_function;
+		func_pointers.lbextiofn_write = secure_write_function;
+		func_pointers.lbextiofn_writev = NULL;
+		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;
 		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_EXT_IO_FNS, func_pointers);
+			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
  
 		/* changed here by Cheston
 		ber_sockbuf_set_option( conn->c_sb,
@@ -1850,18 +1851,19 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 			LBER_SOCKBUF_OPT_WRITE_FN, (void *)secure_write_function );
 		*/
 	} else {
-		struct lber_x_ext_io_fns *func_pointers = malloc(LBER_X_EXTIO_FNS_SIZE);
-		func_pointers->lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
-		func_pointers->lbextiofn_read = read_function;
-		func_pointers->lbextiofn_write = write_function;
-		func_pointers->lbextiofn_writev = NULL;
+		struct lber_x_ext_io_fns func_pointers;
+		memset(&func_pointers, 0, sizeof(func_pointers));
+		func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
+		func_pointers.lbextiofn_read = read_function;
+		func_pointers.lbextiofn_write = write_function;
+		func_pointers.lbextiofn_writev = NULL;
 #ifdef _WIN32
-		func_pointers->lbextiofn_socket_arg = (struct lextiof_socket_private *) ns;	
+		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) ns;	
 #else
-		func_pointers->lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;	
+		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;	
 #endif
 		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_EXT_IO_FNS, func_pointers);	
+			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);	
 		/*
 		ber_sockbuf_set_option( conn->c_sb,
 			LBER_SOCKBUF_OPT_READ_FN, (void *)read_function );

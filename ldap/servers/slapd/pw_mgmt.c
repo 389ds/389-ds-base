@@ -121,7 +121,8 @@ skip:
 		 pw_exp_date != NOT_FIRST_TIME && 
 		 (diff_t = difftime ( pw_exp_date, 
 			parse_genTime ( cur_time_str ))) <= 0 ) {
-	  
+	
+		slapi_ch_free_string(&cur_time_str); /* only need this above */
 		/* password has expired. Check the value of 
 		 * passwordGraceUserTime and compare it
 		 * against the value of passwordGraceLimit */
@@ -175,7 +176,6 @@ skip:
 		/* Apply current modifications */
 		pw_apply_mods(dn, &smods);
 		slapi_mods_done(&smods);
-		slapi_ch_free((void **) &cur_time_str );
 		delete_passwdPolicy(&pwpolicy);
 		return (-1);
 	} 

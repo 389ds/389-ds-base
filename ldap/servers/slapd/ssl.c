@@ -700,6 +700,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     SECKEYPrivateKey  *key = NULL;
     char errorbuf[BUFSIZ];
     char *val = NULL;
+    char *default_val = NULL;
     int nFamilies = 0;
     SECStatus sslStatus;
     int slapd_SSLclientAuth;
@@ -888,8 +889,8 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                 CERT_DestroyCertificate(cert);
                 cert = NULL;
             }
+	    slapi_ch_free((void **) &personality);
             if (SECSuccess != rv) {
-                slapi_ch_free((void **) &personality);
                 freeConfigEntry( &e );
                 continue;
             }
@@ -973,18 +974,19 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                configDN, errorCode, slapd_pr_strerror(errorCode));
         switch( SLAPD_SSLCLIENTAUTH_DEFAULT ) {
             case SLAPD_SSLCLIENTAUTH_OFF:
-                val = "off";
+                default_val = "off";
                 break;
             case SLAPD_SSLCLIENTAUTH_ALLOWED:
-                val = "allowed";
+                default_val = "allowed";
                 break;
             case SLAPD_SSLCLIENTAUTH_REQUIRED:
-                val = "required";
+                default_val = "required";
                 break;
             default:
-                val = "allowed";
+                default_val = "allowed";
             break;
         }
+	val = default_val;
     }
     if( config_set_SSLclientAuth( "nssslclientauth", val, errorbuf,
                 CONFIG_APPLY ) != LDAP_SUCCESS ) {
@@ -994,6 +996,9 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                    "Supported values are \"off\", \"allowed\" "
                    "and \"required\". (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                    val, errorbuf, errorCode, slapd_pr_strerror(errorCode));
+    }
+    if (val != default_val) {
+	slapi_ch_free_string(&val);
     }
 
     freeConfigEntry( &e );
@@ -1386,6 +1391,7 @@ char* slapd_get_tmp_dir()
 	}
 
 	PR_snprintf(tmp,sizeof(tmp),"%s/tmp",instanceDir);
+	slapi_ch_free_string(&instanceDir);
 
 #if defined( XP_WIN32 )
 	for(ilen=0;ilen < strlen(tmp); ilen++)

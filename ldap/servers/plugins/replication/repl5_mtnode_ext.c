@@ -121,6 +121,7 @@ multimaster_mtnode_extension_destructor (void* ext, void *object, void *parent)
             object_release (mtnode_ext->replica);
             mtnode_ext->replica = NULL;
         }
+	slapi_ch_free((void **)&ext);
     }
 }
 

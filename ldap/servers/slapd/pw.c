@@ -1343,7 +1343,12 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 					}
                         
 				} /* end of for() loop */
+				if (pw_entry) {
+					slapi_entry_free(pw_entry);
+				}
 				return pwdpolicy;
+			} else if ( e ) {
+				slapi_entry_free( e );
 			}
 		}
 	}

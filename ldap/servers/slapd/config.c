@@ -304,6 +304,7 @@ slapd_bootstrap_config(const char *configdir)
 						{
 							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid\n", slapi_entry_get_dn(e), configfile, 0);
 							rc = 0;
+							slapi_sdn_done(&plug_dn);
 							goto bail;
 						}
 					}
@@ -324,6 +325,7 @@ slapd_bootstrap_config(const char *configdir)
 						{
 							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid\n", slapi_entry_get_dn(e), configfile, 0);
 							rc = 0;
+							slapi_sdn_done(&plug_dn);
 							goto bail;
 						}
 					}
@@ -454,6 +456,7 @@ slapd_bootstrap_config(const char *configdir)
 	}
 
 bail:
+	slapi_ch_free((void **)&buf);
 	return rc;
 }
 

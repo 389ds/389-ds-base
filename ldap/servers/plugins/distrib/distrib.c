@@ -74,6 +74,7 @@ int alpha_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	slapi_sdn_get_rdn(target_dn, rdn);
 	slapi_rdn_get_first(rdn, &rdn_type, &rdn_value);
 	c = rdn_value[0];
+	slapi_rdn_free(&rdn);
 	
 	if (!(((c >= 'a') && (c <= 'z')) ||
 		 ((c >= 'A') && (c <= 'Z')) ))
@@ -81,7 +82,6 @@ int alpha_distribution(Slapi_PBlock *pb, Slapi_DN * target_dn,
 		return 0;
 	}
 
-	slapi_rdn_free(&rdn);
 
 	/* for entries with rdn starting with alphabetic characters 
 	 * use the formula :  (c - 'A') * be_count/26 

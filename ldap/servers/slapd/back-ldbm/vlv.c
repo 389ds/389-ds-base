@@ -1455,6 +1455,8 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
                  */
 				Slapi_Value **csn_value = valueset_get_valuearray(&attr->a_present_values);
            		struct berval **entry_value = /* xxxPINAKI needs modification attr->a_vals */NULL;
+				PRBool needFree = PR_FALSE;
+
                 if(sort_control->mr_pb!=NULL)
                 {
 					struct berval **tmp_entry_value = NULL;
@@ -1466,6 +1468,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
 				else
 				{
 					valuearray_get_bervalarray(csn_value,&entry_value);
+					needFree = PR_TRUE; /* entry_value is a copy */
 				}
                 if(!sort_control->order)
                 {
@@ -1475,6 +1478,10 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
                 {
                     match= sort_attr_compare((struct berval**)typedown_value, entry_value, compare_fn);
                 }
+		if (needFree) {
+		    ber_bvecfree((struct berval**)entry_value);
+		    entry_value = NULL;
+		}
             }
             else
             {

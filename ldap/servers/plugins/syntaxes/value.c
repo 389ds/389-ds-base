@@ -111,7 +111,7 @@ value_normalize(
 		    np = ldap_utf8next(s);
 		    if (np == NULL || np == s) break;
 		    sz = np - s;
-		    memcpy(d,s,sz);
+		    memmove(d,s,sz);
 		    d += sz;
 		    s += sz;
 		}

@@ -40,6 +40,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 /* end of NPCTE fix for bugid 544365 */
     DB_MPOOL_FSTAT **mpfstat = NULL;
     int i,j;
+    char *absolute_pathname = NULL;
 
     /* Get the LDBM Info structure for the ldbm backend */
     if (inst->inst_be->be_database == NULL) {
@@ -109,7 +110,6 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 #ifdef _WIN32
         int fpos = 0;
 #endif
-		char *absolute_pathname = NULL;
 
         /* only print out stats on files used by this instance */
         if (strlen(mpfstat[i]->file_name) < strlen(inst->inst_dir_name))
@@ -118,13 +118,11 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
                     strlen(inst->inst_dir_name)) != 0)
             continue;
 
-		/* Since the filenames are now relative, we need to construct an absolute version
-		 * for the purpose of stat() etc below...
-		 */
-		if (absolute_pathname) {
-			slapi_ch_free_string(&absolute_pathname);
-		}
-		absolute_pathname = slapi_ch_smprintf("%s%c%s" , inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name );
+	/* Since the filenames are now relative, we need to construct an absolute version
+	 * for the purpose of stat() etc below...
+	 */
+	slapi_ch_free_string(&absolute_pathname);
+	absolute_pathname = slapi_ch_smprintf("%s%c%s" , inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name );
 
 /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
 	/* Hide statistic of deleted files (mainly indexes) */
@@ -168,11 +166,10 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         sprintf(buf, "%u", mpfstat[i]->st_page_out);
         MSETF("dbFilePageOut-%d", i);
 
-		if (absolute_pathname) {
-			slapi_ch_free_string(&absolute_pathname);
-		}
-
+	slapi_ch_free_string(&absolute_pathname);
     }
+
+    slapi_ch_free_string(&absolute_pathname);
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR + DB_VERSION_PATCH <= 3204
     /* In DB 3.2.4 and earlier, we need to free each element */

@@ -883,6 +883,11 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
                          * create an operation and include that in the pblock as well,
                          * because these two items are stored in the operation parameters.
                          */
+		        /* WARNING: memory leak here - op is only freed by a pblock_done,
+			   and this only happens below if the plugin is enabled - a short
+			   circuit goto bail may also cause a leak - however, since this
+			   only happens a few times at startup, this is not a very serious
+			   leak - just after the call to plugin_call_one */
                         Operation *op = internal_operation_new(SLAPI_OPERATION_ADD, 0);
                         slapi_pblock_set(&(config[plugin_index].pb), SLAPI_OPERATION, op);
 			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_TARGET_DN,
@@ -1164,16 +1169,16 @@ bail:
 	
 	if(config)
 	{
-		/*
 		index = 0;
 			
 		while(index < total_plugins)
 		{
+/*
 			if(config[index].depends_named_list)
 			{
 				slapi_ch_free((void**)&(config[index].depends_named_list));
 			}
-
+*/
 			if(config[index].depends_type_list)
 			{
 				i = 0;
@@ -1187,13 +1192,12 @@ bail:
 
 				slapi_ch_free((void**)&(config[index].depends_type_list));
 			}
-
+/*
 			slapi_ch_free((void**)&(config[index].name));
 			slapi_ch_free((void**)&(config[index].type));
-
+*/
 			index++;
 		}
-		*/
 		
 		slapi_ch_free((void**)&config);
 	}
