@@ -66,7 +66,7 @@ my_snprintf(char *s, size_t size, const char *fmt, ...)
 	int rc;
 	va_list ap;
 
-	va_start(ap, s);
+	va_start(ap, fmt);
 	rc = _vsnprintf(s, size, fmt, ap);
 	va_end(ap);
 	s[size-1] = (char)0;
