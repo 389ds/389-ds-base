@@ -49,11 +49,6 @@ tar cfh - $flavor-ds-$VERSION | gzip > $flavor-ds-$VERSION.tar.gz
 rm -rf $flavor-ds-$VERSION
 cd $rootdir
 
-macrosfile=/tmp/macros.$$
-trap "rm -f $macrosfile" 0 1 2 3 15
-
-echo "%_topdir	$rootdir" > $macrosfile
-
 echo "Executing rpmbuild . . ."
-rpmbuild --macros=$macrosfile -ba $flavor-ds.spec
+rpmbuild --define "_topdir $rootdir" -ba $flavor-ds.spec
 echo "Finished doing rpmbuild $flavor-ds.spec"
