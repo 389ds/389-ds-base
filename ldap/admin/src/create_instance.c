@@ -108,57 +108,6 @@ static char *gen_presence_init_script(char *sroot, server_config_s *cf,
 static int init_presence(char *sroot, server_config_s *cf, char *cs_path);
 #endif
 
-#if defined( SOLARIS )
-/*
- * Solaris 9+ specific installation
- */
-extern int iDSISolaris;
-static char *sub_token(const char *, const char *, int, const char *, int);
-/*
- * If for some reasons, sub_token fails to generate the
- * "etc" and "var" server_root from the actual "server_root",
- * then the following hard-coded pathnames will be used.
- */
-#define SOLARIS_ETC_DIR "/etc/iplanet/ds5"
-#define SOLARIS_VAR_DIR "/var/ds5"
-
-/*
- * Solaris 9+ specific installation
- * The following function replaces the first occurence
- * of "token" in the string "s" by "replace"
- */
-static char *
-sub_token(const char *s, const char *token, int tokenlen,
-          const char *replace, int replacelen)
-{
-    char *n = 0, *d;
-    char *ptr = (char*)strstr(s, token);
-    const char *begin;
-    int len;
-    if (!ptr)
-        return n;
-
-    d = n = (char *) calloc(strlen(s) + replacelen + 1, 1);
-    if (!n)
-        return n;
-    begin = s;
-    len = (int)(ptr - begin);
-    strncpy(d, begin, len);
-    d += len;
-    begin = ptr + tokenlen;
-    len = replacelen;
-    strncpy(d, replace, len);
-    d += len;
-    for (ptr = (char *)begin; ptr && *ptr; LDAP_UTF8INC(ptr))
-    {
-        *d = *ptr;
-        LDAP_UTF8INC(d);
-    }
-    *d = 0;
-    return n;
-}
-#endif /* SOLARIS */
-
 static char *make_error(char *fmt, ...)
 {
     static char errbuf[ERR_SIZE];
@@ -761,17 +710,6 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
     chmod( fn, NEWSCRIPT_MODE);
 #endif
 
-#if defined( SOLARIS )
-    /*
-     * Solaris 9+ specific installation
-     * Log all non <server_root>/slapd-identifier files/directories 
-     * created by the post_installer so that they can be removed 
-     * during un-install.    
-     */
-    if (iDSISolaris)
-    logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
-#endif
-
     return NULL;
 }
 
@@ -822,13 +760,6 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
         return make_error("Could not write %s to %s (%s).", ofn, fn,
                           ds_system_errmsg());
     }
-#if defined( SOLARIS )
-    /*
-     * Solaris 9+ specific installation 
-     */
-    if (iDSISolaris)
-        logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
-#endif
 
     return NULL;
 }
@@ -876,14 +807,6 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
         return make_error("Could not write %s to %s (%s).", ofn, fn,
                           ds_system_errmsg());
     }
-
-#if defined( SOLARIS )
-    /*
-     * Solaris 9+ specific installation 
-     */
-    if (iDSISolaris)
-    logUninstallInfo(s_root, PRODUCT_NAME, PRODUCT_NAME, fn);
-#endif
 
     return NULL;
 }
@@ -1126,78 +1049,15 @@ char *create_server(server_config_s *cf, char *param_name)
         return t;
 
     /* Create slapd-nickname directory */
-#if defined( SOLARIS )
-    /*
-     * Verify if configuration is for native solaris packages
-     * This is because if console is used to create instance
-     * then -S is not passed to ds_create.
-     * <server_root>/.native_solaris file acts as the flag
-     */
-    if (!iDSISolaris) {
-        PR_snprintf(otherline, sizeof(otherline), "%s%c.native_solaris", sroot, FILE_PATHSEP);    
-        if (create_instance_exists(otherline)) {
-            iDSISolaris = 1;
-        }
-    }    
-
-    if (iDSISolaris) {
-    /*
-     * Create the slapd-nickname directory under "var"
-     */
-        sub = sub_token(sroot,"/usr/iplanet/",13,"/var/",5);
-        if (sub) {
-            PR_snprintf(subdirvar, sizeof(subdirvar), "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
-            free(sub);
-        }
-        else {
-            PR_snprintf(subdirvar, sizeof(subdirvar), "%s/"PRODUCT_NAME"-%s", SOLARIS_VAR_DIR, cf->servid);
-        }
-        if( (create_instance_mkdir_p(subdirvar, NEWDIR_MODE)) )
-            return make_error("mkdir %s failed (%s)", subdirvar, ds_system_errmsg());
-
-        /*
-         * Create the slapd-nickname directory under "etc"
-         */
-        sub = sub_token(sroot,"/usr/",5,"/etc/",5);
-        if (sub) {
-            PR_snprintf(subdiretc, sizeof(subdiretc), "%s/"PRODUCT_NAME"-%s", sub, cf->servid);
-            free(sub);
-        }
-        else {
-            PR_snprintf(subdiretc, sizeof(subdiretc), "%s/"PRODUCT_NAME"-%s", SOLARIS_ETC_DIR, cf->servid);
-        }
-        if( (create_instance_mkdir_p(subdiretc, NEWDIR_MODE)) )
-            return make_error("mkdir %s failed (%s)", subdiretc, ds_system_errmsg());
-        PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP,
-                 cf->servid);
-        if( (create_instance_symlink(subdirvar, subdir)) )
-            return make_error("symlink %s ==> %s failed (%s)", subdir, subdirvar, ds_system_errmsg());
-    }
-    else {
-        PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
-                 cf->servid);
-        if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
-            return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
-    }      
-#else 
     PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
                  cf->servid);
     if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
-#endif /* SOLARIS */
     
     /* Create slapd-nickname/config directory */
     PR_snprintf(line, sizeof(line), "%s%cconfig", subdir, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-#if defined( SOLARIS )
-    if (iDSISolaris) {
-        PR_snprintf(line, sizeof(line), "%s%cconfig", subdirvar, FILE_PATHSEP);
-        PR_snprintf(otherline, sizeof(otherline), "%s%cconfig", subdiretc, FILE_PATHSEP);
-        if( (create_instance_symlink(line, otherline)) )
-            return make_error("symlink %s ==> %s failed (%s)", otherline, line, ds_system_errmsg());
-    }
-#endif /* SOLARIS */
 
     /* Create slapd-nickname/config/schema directory */
     PR_snprintf(line, sizeof(line), "%s%cconfig%cschema", subdir, FILE_PATHSEP, FILE_PATHSEP);
@@ -1220,18 +1080,10 @@ char *create_server(server_config_s *cf, char *param_name)
     PR_snprintf(line, sizeof(line), "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
     if( (create_instance_mkdir(line, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-#if defined( SOLARIS )
-    if (iDSISolaris)
-        logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, line);
-#endif /* SOLARIS */
 
 #ifdef XP_UNIX
     /* Start/stop/rotate/restart scripts */
-#if defined( SOLARIS )
-    if (getenv("USE_DEBUGGER") && !iDSISolaris)
-#else
     if (getenv("USE_DEBUGGER"))
-#endif /* SOLARIS */
     {
         char *debugger = getenv("DSINST_DEBUGGER");
         char *debugger_command = getenv("DSINST_DEBUGGER_CMD");
@@ -1504,14 +1356,6 @@ char *create_server(server_config_s *cf, char *param_name)
     /* config subdir owned by server user */
     if( (t = chownconfig(subdir, cf->servuser)) )
         return t;
-#if defined( SOLARIS )
-    if (iDSISolaris) {
-        /* Need to change owner of the etc link too */
-        if( (t = chownconfig(subdiretc, cf->servuser)) )
-                return t;
-    }
-#endif /* SOLARIS */
-
 
 #else  /* XP_WIN32 */
     /* Windows platforms have some extra setup */
@@ -2033,13 +1877,6 @@ char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
     PR_snprintf(subdir, sizeof(subdir), "%s%cbin%cslapd%cauthck", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
-#if defined( SOLARIS )
-    /*
-     * Solaris 9+ specific installation
-     */
-    if (iDSISolaris)
-        logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, subdir);
-#endif /* SOLARIS */
 
     return (t);
 }
@@ -2491,17 +2328,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
              " com.netscape.admin.dirserv.cmdln.%s $arg\n", 
              sroot, cl_javafiles[cls]);
         if(t) return t;
-#if defined( SOLARIS )
-        /*
-         * Solaris 9+ specific installation
-         */
-        if (iDSISolaris)
-        { 
-            PR_snprintf(fn, sizeof(fn), "%s/%s", server, cl_scripts[cls]);
-            logUninstallInfo(sroot, PRODUCT_NAME, PRODUCT_NAME, fn);
-        }
-#endif /* SOLARIS */
-
     }
 
 
@@ -4687,14 +4513,6 @@ write_ldap_info( char *slapd_server_root, server_config_s *cf)
 
         fclose(fp);
     }
-#if defined( SOLARIS )
-    /*
-     * Solaris 9+ specific installation
-     */
-    if (iDSISolaris)
-        logUninstallInfo(slapd_server_root, PRODUCT_NAME, PRODUCT_NAME, infoFileName);
-  
-#endif /* SOLARIS */
     PR_smprintf_free(infoFileName);
 
     return ret;

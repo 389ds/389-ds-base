@@ -63,6 +63,7 @@ ifeq ($(ARCH), WINNT)
 PLATFORM_INCLUDE = -I$(BUILD_ROOT)/include/nt
 SUBSYSTEM=console
 EXTRA_LIBS+=comctl32.lib $(LDAP_LIBUTIL)
+OPENSOURCE_LIBS += comctl32.lib $(LDAP_LIBUTIL)
 EXTRA_LIBS_DEP+=$(LDAP_LIBUTIL_DEP)
 
 ifeq ($(DEBUG), optimize)
@@ -80,9 +81,11 @@ ifeq ($(USE_64), 1)
 EXTRALDFLAGS += -xarch=v9
 endif
 EXTRA_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
+OPENSOURCE_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
 else
 ifeq ($(ARCH),SOLARISx86)
 EXTRA_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
+OPENSOURCE_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
 else
 ifeq ($(ARCH),HPUX)
 ifdef FORTEZZA 
