@@ -104,8 +104,20 @@ replication-wizard-schedule-help = help/replication_wizard2.htm
 replication-wizard-consumerinit-help = help/replication_wizard3.htm
 replication-wizard-summary-help = help/replication_wizard4.htm
 replication-wizard-legacyrmmrname-help = help/replication_wizard5.htm
+replication-wizard-attribute-help = help/replication_wizard6.htm
 ;replication-wizard-cirsirselect-help = help/replication_wizard6.htm
 ;replication-wizard-cirsirname-help = help/replication_wizard7.htm
+
+;WINDOWS SYNC AGREEMENT WIZARD
+sync-wizard-agreement-help = help/synchronization_wizard1.htm
+sync-wizard-content-help = help/synchronization_wizard2.htm
+; Repl and Sync share the summary page.
+;sync-wizard-summary-help = help/synchronization_wizard3.htm
+
+;WINDOWS SYNC CONFIG TABS
+configuration-sync-summary-help = help/configtab_synchronization1.htm
+configuration-sync-schedule-help = help/configtab_synchronization2.htm
+configuration-sync-connection-help = help/configtab_synchronization3.htm
 
 
 ;DIRECTORY TAB

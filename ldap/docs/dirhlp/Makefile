@@ -76,6 +76,9 @@ NEWHTML = account_mgmt.htm \
   configtab_replication6.htm \
   configtab_replication7.htm \
   configtab_replication8.htm \
+  configtab_synchronization1.htm \
+  configtab_synchronization2.htm \
+  configtab_synchronization3.htm \
   configtab_rootnode.htm \
   configtab_rootnode2.htm \
   configtab_rootnode3.htm \
@@ -120,6 +123,7 @@ NEWHTML = account_mgmt.htm \
   replication_wizard3.htm \
   replication_wizard4.htm \
   replication_wizard5.htm \
+  replication_wizard6.htm \
   statustab_general.htm \
   statustab_logs.htm \
   statustab_logs2.htm \
@@ -127,6 +131,9 @@ NEWHTML = account_mgmt.htm \
   statustab_performance.htm \
   statustab_performance2.htm \
   statustab_replication.htm \
+  synchronization_wizard1.htm \
+  synchronization_wizard2.htm \
+  synchronization_wizard3.htm \
   taskstab_bkup_restore.htm \
   taskstab_bkup_restore2.htm \
   topics.htm \
