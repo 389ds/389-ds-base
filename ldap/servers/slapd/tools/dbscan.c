@@ -75,10 +75,6 @@ void db_printfln(char *fmt, ...)
 	vfprintf(stdout, "\n", NULL);
 }
 
-#ifdef DB26
-#define db_strerror strerror
-#endif
-
 int MAX_BUFFER = 4096;
 
 
@@ -306,6 +302,10 @@ void print_ber_attr(char* attrname, char** buff)
     }
 }
 
+/*
+ *  Conversion routines between host byte order and
+ *  big-endian (which is how we store data in the db). 
+ */
 static ID id_stored_to_internal(char* b)
 {
 	ID i;
@@ -314,6 +314,18 @@ static ID id_stored_to_internal(char* b)
 	i |= (((ID)b[1]) << 16) & 0x00ff0000;
 	i |= ((ID)b[0]) << 24;
 	return i;
+}
+
+static void id_internal_to_stored(ID i,char *b)
+{
+        if ( sizeof(ID) > 4 ) {
+                memset (b+4, 0, sizeof(ID)-4);
+        }
+
+        b[0] = (char)(i >> 24);
+        b[1] = (char)(i >> 16);
+        b[2] = (char)(i >> 8);
+        b[3] = (char)i;
 }
 
 void _cl5ReadMod(char **buff)
@@ -368,7 +380,7 @@ void print_changelog(unsigned char *data, int len)
 	version = *((uint8_t *)pos);
 	if (version != 5)
 	{
-		db_printf("Invalid changelog db version %i\nWorks for version 5 only.", version);
+		db_printf("Invalid changelog db version %i\nWorks for version 5 only.\n", version);
 		exit(1);
 	}
 	pos += sizeof(version);
@@ -556,9 +568,7 @@ static void usage(char *argv0)
     printf("    -f <filename>   specify db file\n");
     printf("    -i              dump as an index file\n");
     printf("    -e              dump as an entry (id2entry) file\n");
-#ifndef DB26
     printf("    -c              dump as a  changelog file\n");
-#endif
     printf("    -l <size>       max length of dumped id list (default %d)\n",
            MAX_BUFFER);
     printf("    -n              display idl lengths only (not contents)\n");
@@ -584,11 +594,7 @@ int main(int argc, char **argv)
     uint32 entry_id = -1;
     int c;
 
-#ifndef DB26
     while ((c = getopt(argc, argv, "f:iecl:nG:srk:K:hv")) != EOF) {
-#else
-    while ((c = getopt(argc, argv, "f:iel:nG:srk:K:h")) != EOF) {
-#endif
         switch (c) {
         case 'f':
             filename = optarg;
@@ -621,7 +627,7 @@ int main(int argc, char **argv)
             find_key = optarg;
             break;
         case 'K':
-            entry_id = (uint32)atoi(optarg);
+	    id_internal_to_stored((ID)atoi(optarg), (char *)&entry_id);
             break;
         case 'h':
         default:
@@ -633,19 +639,6 @@ int main(int argc, char **argv)
 	usage(argv[0]);
     }
         
-
-#ifdef DB26
-    env = (DB_ENV *)calloc(sizeof(DB_ENV), 1);
-    if (! env) {
-        printf("Can't create dbenv: %s\n", strerror(ret));
-        exit(1);
-    }
-    ret = db_appinit(NULL, NULL, env, DB_CREATE);
-    if (ret != 0) {
-        printf("Can't init db26: %s\n", db_strerror(ret));
-        exit(1);
-    }
-#else
     ret = db_env_create(&env, 0);
     if (ret != 0) {
         printf("Can't create dbenv: %s\n", db_strerror(ret));
@@ -656,15 +649,7 @@ int main(int argc, char **argv)
         printf("Can't open dbenv: %s\n", db_strerror(ret));
         exit(1);
     }
-#endif
 
-#ifdef DB26
-    ret = db_open(filename, DB_UNKNOWN, 0, 0, env, NULL, &db);
-    if (ret != 0) {
-        printf("Can't open db2 file '%s': %s\n", filename, db_strerror(ret));
-        exit(1);
-    }
-#else
     ret = db_create(&db, env, 0);
     if (ret != 0) {
         printf("Can't create db handle: %d\n", ret);
@@ -675,7 +660,6 @@ int main(int argc, char **argv)
         printf("Can't open db file '%s': %s\n", filename, db_strerror(ret));
         exit(1);
     }
-#endif
 
     /* cursor through the db */
 
@@ -788,13 +772,12 @@ int main(int argc, char **argv)
 	}
 
     }
-#ifndef DB26
+
     ret = env->close(env, 0);
     if (ret != 0) {
         printf("Unable to shutdown libdb: %s\n", db_strerror(ret));
         exit(1);
     }
-#endif
 
     return 0;
 }
