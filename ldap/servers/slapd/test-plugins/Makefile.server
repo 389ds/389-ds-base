@@ -20,7 +20,6 @@ LIBDIR = $(LIB_RELDIR)
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-include $(BUILD_ROOT)/ns_usedb.mk
 
 ifeq ($(ARCH), WINNT)
 DEF_FILE:=./libdistrib.def

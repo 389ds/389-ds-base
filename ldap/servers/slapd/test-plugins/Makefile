@@ -24,7 +24,6 @@ include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 include $(BUILD_ROOT)/ns_usepurify.mk
-include $(BUILD_ROOT)/ns_usedb.mk
 
 
 EXTRA_INCLUDES=-I.. -I../../../include $(NSPR_INCLUDE) -I$(LDAP_INCLUDE) -I$(DB_INCLUDE) -I../../../servers/slapd -g

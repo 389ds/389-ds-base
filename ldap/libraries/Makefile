@@ -25,7 +25,6 @@ include $(LDAP_SRC)/nsldap.mk
 # the following lines are to make this work for
 # both db1.85 and db2.0
 ifndef LDAP_USE_OLD_DB
-include $(BUILD_ROOT)/ns_usedb.mk
 ldap_db_depend:=$(DB_LIB_DEP)
 CFLAGS+= -I$(DB_INCLUDE)
 else

@@ -16,9 +16,6 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-ifndef LDAP_USE_OLD_DB
-include $(BUILD_ROOT)/ns_usedb.mk
-endif
 
 BINDIR=$(LDAP_ADMIN_BIN_RELDIR)
 OBJDEST=$(LDAP_ADMOBJDIR)

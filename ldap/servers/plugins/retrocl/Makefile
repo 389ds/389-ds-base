@@ -22,7 +22,6 @@ LIBDIR = $(LIB_RELDIR)
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-include $(BUILD_ROOT)/ns_usedb.mk
 INCLUDES+=-I$(DB_INCLUDE)
 
 ifeq ($(ARCH), WINNT)

@@ -25,7 +25,6 @@ include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 ifndef LDAP_USE_OLD_DB
-include $(BUILD_ROOT)/ns_usedb.mk
 INCLUDES+=-I$(DB_INCLUDE)
 else
 CFLAGS+=-DLDAP_USE_DB185

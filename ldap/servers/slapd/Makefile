@@ -71,7 +71,6 @@ CFLAGS+=-DLDAP_DONT_USE_SMARTHEAP
 endif
 
 ifndef LDAP_USE_OLD_DB
-include $(BUILD_ROOT)/ns_usedb.mk
 _ldap_db_depend:=$(DB_LIB_DEP)
 INCLUDES+=-I$(DB_INCLUDE)
 endif

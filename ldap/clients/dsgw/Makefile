@@ -24,9 +24,6 @@ NOSTDSTRIP=true # don't let nsconfig.mak define target strip
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-ifndef LDAP_USE_OLD_DB
-include $(BUILD_ROOT)/ns_usedb.mk
-endif
 
 include dsgw_include.mk
 
