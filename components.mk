@@ -354,9 +354,9 @@ else
     GSSAPI_LIBS=-lgss
   endif
   ifeq ($(ARCH), HPUX)
-      GSSAPI_LIBS=-lgssapi_krb5
+      GSSAPI_LIBS=-lgss
       ifeq ($(USE_64),1)
-        GSSAPI_LIBS=-L/usr/lib/pa20_64/gss -lgssapi_krb5
+        GSSAPI_LIBS=-L/usr/lib/pa20_64 -lgss
       endif
   endif
 
