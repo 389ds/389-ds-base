@@ -163,12 +163,12 @@ httpdLib:
 
 brandDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Branding LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat
+	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat -s redhat-ds.spec
 	@echo ==== Finished Branding LDAP Server ==========
 
 normalizeDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Normalizing LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/normalize.dat
+	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/normalize.dat -s redhat-ds.spec
 	@echo ==== Normalizing Branding LDAP Server ==========
 
 buildAndPkgDirectory:	buildDirectory pkgDirectory
