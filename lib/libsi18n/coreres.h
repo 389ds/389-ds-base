@@ -6,7 +6,7 @@
 #ifndef CORERES_H
 #define CORERES_H
 
-#include "libadminutil/resource.h"
+#include "i18n.h"
 
 Resource* core_res_init_resource(const char* path, const char* package);
 const char *core_res_getstring(Resource *hres, char *key, ACCEPT_LANGUAGE_LIST lang); 

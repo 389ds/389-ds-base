@@ -9,10 +9,90 @@
 
 /* Make NSAPI_PUBLIC available */
 #include "base/systems.h"
-#include "libadminutil/resource.h"
+
+/* This stuff was copied from libadminutil/resource.h so we could
+   remove the dependency on adminutil which is not being open sourced
+   this first round.
+*/
+#ifndef COPIED_FROM_LIBADMINUTIL_RESOURCE_H
+/* Resource contains the name of the
+   property file w/ paht information
+*/
+typedef struct
+{
+	char *path;
+	char *package;
+    void *propset;
+} Resource;
+
+/*******************************************************************************/
+/* 
+ * this table contains library name
+ * (stored in the first string entry, with id=0),
+ * and the id/string pairs which are used by library  
+ */
+
+typedef struct res_RESOURCE_TABLE
+{
+  int id;
+  char *str;
+} res_RESOURCE_TABLE;
+
+/*******************************************************************************/
+
+/* 
+ * resource global contains resource table list which is used
+ * to generate the database.
+ * Also used for "in memory" version of XP_GetStringFromDatabase()
+ */
+
+typedef struct res_RESOURCE_GLOBAL
+{
+  res_RESOURCE_TABLE  *restable;
+} res_RESOURCE_GLOBAL;
+
+/*******************************************************************************/
+
+/*
+ * Define the ResDef macro to simplify the maintenance of strings which are to
+ * be added to the library or application header file (dbtxxx.h). This enables
+ * source code to refer to the strings by theit TokenNames, and allows the
+ * strings to be stored in the database.
+ *
+ * Usage:   ResDef(TokenName,TokenValue,String)
+ *
+ * Example: ResDef(DBT_HelloWorld_, \
+ *                 1,"Hello, World!")
+ *          ResDef(DBT_TheCowJumpedOverTheMoon_, \
+ *                 2,"The cow jumped over the moon.")
+ *          ResDef(DBT_TheValueOfPiIsAbout31415926536_, \
+ *                 3,"The value of PI is about 3.1415926536."
+ *
+ * RESOURCE_STR is used by makstrdb.c only.  It is not used by getstrdb.c or
+ * in library or application source code.
+ */
+ 
+#ifdef  RESOURCE_STR
+#define BEGIN_STR(argLibraryName) \
+                          RESOURCE_TABLE argLibraryName[] = { 0, #argLibraryName,
+#define ResDef(argToken,argID,argString) \
+                          argID, argString,
+#define END_STR(argLibraryName) \
+                          0, 0 };
+#else
+#define BEGIN_STR(argLibraryName) \
+                          enum {
+#define ResDef(argToken,argID,argString) \
+                          argToken = argID,
+#define END_STR(argLibraryName) \
+                          argLibraryName ## top };
+#endif
+
+#endif /* COPIED_FROM_LIBADMINUTIL_RESOURCE_H */
 
 typedef res_RESOURCE_TABLE RESOURCE_TABLE;
 typedef res_RESOURCE_GLOBAL RESOURCE_GLOBAL;
+
 
 /*******************************************************************************/
 
@@ -207,39 +287,6 @@ extern void XP_PrintStringDatabase(void);
                                  "en",   \
                                  DBTTokenName)
 
-/*******************************************************************************/
-
-
-/*******************************************************************************/
-
-/*
- * Define the ResDef macro to simplify the maintenance of strings which are to
- * be added to the library or application header file (dbtxxx.h). This enables
- * source code to refer to the strings by theit TokenNames, and allows the
- * strings to be stored in the database.
- *
- * Usage:   ResDef(TokenName,TokenValue,String)
- *
- * Example: ResDef(DBT_HelloWorld_, \
- *                 1,"Hello, World!")
- *          ResDef(DBT_TheCowJumpedOverTheMoon_, \
- *                 2,"The cow jumped over the moon.")
- *          ResDef(DBT_TheValueOfPiIsAbout31415926536_, \
- *                 3,"The value of PI is about 3.1415926536."
- *
- * RESOURCE_STR is used by makstrdb.c only.  It is not used by getstrdb.c or
- * in library or application source code.
- */
- 
-#if 0
-#define BEGIN_STR(argLibraryName) \
-                          enum {
-#define ResDef(argToken,argID,argString) \
-                          argToken = argID,
-#define END_STR(argLibraryName) \
-                          argLibraryName ## top };
-
-#endif
 /*******************************************************************************/
 
 #endif

@@ -173,7 +173,11 @@ struct iovec {
 #include <dirent.h>
 #include <pwd.h>                /* struct passwd */
 #endif /* XP_UNIX */
-#include "libadminutil/psetc.h"
+
+#ifndef BIG_LINE
+#define BIG_LINE 1024
+#endif
+
 
 /* --- End native platform includes --- */
 

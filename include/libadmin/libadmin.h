@@ -85,14 +85,6 @@ NSAPI_PUBLIC char *alert_word_wrap(char *str, int width, char *linefeed);
 /* util.c */
 NSAPI_PUBLIC char *get_userdb_dir(void);
 
-/* Maintain what amounts to a handle to a list of strings */
-/* strlist.c */
-/* Moved to libadminutil, use libadminutil/admutil.h instead
-NSAPI_PUBLIC char **new_strlist(int size);
-NSAPI_PUBLIC char **grow_strlist(char **strlist, int newsize);
-NSAPI_PUBLIC void free_strlist(char **strlist);
-*/
-
 NSAPI_PUBLIC char *cookieValue( char *, char * );
 
 NSPR_END_EXTERN_C

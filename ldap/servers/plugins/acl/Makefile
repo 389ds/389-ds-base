@@ -23,7 +23,7 @@ include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 # ACL plugin depends on libadminutil
-MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
+#MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 
 ifeq ($(ARCH), WINNT)
 DEF_FILE:=./libacl.def
@@ -51,8 +51,10 @@ EXTRA_LIBS += $(LIBSLAPD) $(NSPRLINK) $(LDAP_LIBAVL) $(LDAP_SDK_LIBLDAP_DLL)
 endif
 
 # ACL plugin depends on libadminutil (through libns-httpd)
-EXTRA_LIBS_DEP += $(NSHTTPD_DEP) $(ADMINUTIL_DEP) $(DBM_DEP)
-EXTRA_LIBS += $(DYN_NSHTTPD) $(ADMINUTIL_LINK) $(DBMLINK)
+#EXTRA_LIBS_DEP += $(NSHTTPD_DEP) $(ADMINUTIL_DEP) $(DBM_DEP)
+#EXTRA_LIBS += $(DYN_NSHTTPD) $(ADMINUTIL_LINK) $(DBMLINK)
+EXTRA_LIBS_DEP += $(NSHTTPD_DEP) $(DBM_DEP)
+EXTRA_LIBS += $(DYN_NSHTTPD) $(DBMLINK)
 
 ifeq ($(ARCH), WINNT)
 EXTRA_LIBS_DEP += $(LIBACCESS_DEP)

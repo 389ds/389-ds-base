@@ -50,7 +50,7 @@ FILE *fopen_l(char *path, char *mode)
     FILE *f = fopen(path, mode);
     char *lockpath;
     char *sn="admserv";
-    char *flp=FILE_LOCK_PATH;
+    char *flp=get_flock_path();
  
     if(f == NULL) return NULL;
     lockpath=(char *) MALLOC(strlen(sn)+strlen(flp)+16);

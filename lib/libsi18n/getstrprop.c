@@ -12,7 +12,6 @@
 
 #include "getstrmem.h"
 
-#include "libadminutil/resource.h"
 #include "coreres.h"
 
 Resource *hResource = NULL;

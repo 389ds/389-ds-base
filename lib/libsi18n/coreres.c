@@ -9,18 +9,9 @@
 #include <sys/stat.h>
 #include "i18n.h"
 
-#include "libadminutil/resource.h"
 #include "propset.h"
 
 #include "coreres.h"
-#if 0
-typedef struct ResourceS
-{
-	char *path;
-	char *package;
-    PropertiesSet *propset;
-} Resource;
-#endif
 
 Resource* core_res_init_resource(const char* path, const char* package)
 {

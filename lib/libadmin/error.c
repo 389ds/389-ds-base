@@ -63,7 +63,9 @@ void _report_error(int type, char *info, char *details, int shouldexit)
     fprintf(stdout, "</SCRIPT>\n");
 
     if(shouldexit)  {
+#ifdef XP_WIN32
         WSACleanup();
+#endif
         exit(0);
     }
 }
