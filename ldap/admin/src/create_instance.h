@@ -105,6 +105,10 @@ char *create_server(server_config_s *cf, char *param_name);
 int generate_script(const char *inpath, const char *outpath, int mode,
                     const char *table[][2]);
 
+/* richm - moved from instindex.cpp */
+int create_config(server_config_s *cf);
+int parse_form(server_config_s *cf);
+
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */

@@ -1,19 +1,18 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /*
- * index.c: Shows the first page you see on install
- * 
- * Rob McCool
+ * ds_newinst.c - creates a new instance of directory server, scripts,
+ * configuration, etc.  Does not create any Admin Server stuff or
+ * deal with any setupsdk stuff, but may be optionally used to create
+ * and configure the config suffix (o=NetscapeRoot)
  */
 
 #include <nss.h>
-#include <libadminutil/distadm.h>
+#include <nspr.h>
 
 #include "create_instance.h"
-#include "configure_instance.h"
 
 #include "dsalib.h"
 #include "ldap.h"
@@ -45,7 +44,7 @@ printInfo(int argc, char *argv[], char *envp[], FILE* fp)
 	fprintf(fp, "#####################################\n");
 }
 
-int main(int argc, char *argv[], char * /*envp*/ [])
+int main(int argc, char *argv[], char *envp[])
 {
     char *rm = getenv("REQUEST_METHOD");
     int status = 0;
@@ -54,8 +53,6 @@ int main(int argc, char *argv[], char * /*envp*/ [])
 	int reconfig = 0;
 	int ii = 0;
 	int cgi = 0;
-
-	(void)ADMUTIL_Init();
 	
 	/* Initialize NSS to make ds_salted_sha1_pw_enc() happy */
 	if (NSS_NoDB_Init(NULL) != SECSuccess) {
@@ -85,40 +82,13 @@ int main(int argc, char *argv[], char * /*envp*/ [])
 			reconfig = 1;
 	}
 
-    /* case 1: being called as program -f inffile */
-    if (infFileName)
-    {
-		FILE *infFile = fopen(infFileName, "r");
-		if (!infFile)
-		{
-			ds_report_error(DS_INCORRECT_USAGE, infFileName,
-				"This file could not be opened.  A valid file must be given.");
-			status = 1;
-		}
-		else
-			fclose(infFile);
-
-		if (reconfig)
-			status = reconfigure_instance(argc, argv);
-		else
-		{
-			if (!status)
-				status = create_config_from_inf(&cf, argc, argv);
-			if (!status)
-				status = create_config(&cf);
-			if (!status)
-				status = configure_instance();
-		}
-    }
-    /* case 2: being called as a CGI */
-    else if (rm)
+    /* being called as a CGI */
+    if (rm)
     {
 		cgi = 1;
         status = parse_form(&cf);
 		if (!status)
 			status = create_config(&cf);
-		if (!status)
-			status = configure_instance_with_config(&cf, 1, 0);
     }
     /* case 3: punt */
     else

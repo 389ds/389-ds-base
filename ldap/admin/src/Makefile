@@ -56,6 +56,9 @@ OLD_EXTRA_LIBS := $(EXTRA_LIBS)
 EXTRA_LIBS = $(DYNAMIC_DEPLINK) $(ADMINUTIL_LINK) $(LDAP_NOSSL_LINK) \
 	$(SECURITYLINK) $(NSPRLINK) $(SETUPSDK_S_LINK) $(ICULINK) $(OLD_EXTRA_LIBS)
 
+# these are the libraries to use when building the installer for the open source version
+OPENSOURCE_LIBS = $(LDAP_ADMLIB) $(LDAP_NOSSL_LINK) $(SECURITYLINK) $(NSPRLINK)
+
 ifeq ($(ARCH), WINNT)
 PLATFORM_INCLUDE = -I$(BUILD_ROOT)/include/nt
 SUBSYSTEM=console
@@ -162,7 +165,7 @@ OLD_PROGS	= ds_pcontrol   ds_impldif    \
 
 PROGS	= start   restart  shutdown   ds_ldif2db \
 	ds_db2ldif   ds_db2bak   ds_listdb  \
-	ds_bak2db ds_rmdb ds_create \
+	ds_bak2db ds_rmdb ds_create ds_newinst \
 	ds_remove ds_snmpctrl vlvindex addindex
 
 ifeq ($(ARCH), WINNT)
@@ -182,7 +185,7 @@ BINS = $(addprefix $(BINDIR)/, $(PROGS))
 endif
 ALLOBJS = $(addprefix $(OBJDEST)/, $(OBJECTS))
 
-PERL_SCRIPTS = migrateTo4 uname.lib Cgi.pm migrateInstance getConfigInfo migrateLocalDB migratePwdFile ds_viewlog.pl upgradeServer updatedsgw logconv.pl
+PERL_SCRIPTS = migrateTo4 uname.lib Cgi.pm migrateInstance getConfigInfo migrateLocalDB migratePwdFile ds_viewlog.pl upgradeServer updatedsgw logconv.pl ds_newinst.pl
 
 PERL_SCRIPTS_DEST = $(addprefix $(BINDIR)/, $(PERL_SCRIPTS))
 
@@ -226,6 +229,20 @@ $(SECGLUEOBJ): $(ADMIN_SECGLUEOBJ)
 	cp $(ADMIN_SECGLUEOBJ) $(SECGLUEOBJ)
 
 # Special objects
+$(BINDIR)/ds_newinst:	$(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
+    $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o
+	$(LINK_EXE_NOLIBSOBJS) $(SHARED) $(EXTRALDFLAGS) \
+	$(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
+    $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o $(OPENSOURCE_LIBS)
+
+$(BINDIR)/ds_newinst.exe:	$(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
+    $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o
+	$(LINK_EXE) $(NT_NOLIBS) $(OBJDEST)/ds_newinst.o $(OBJDEST)/cfg_sspt.o \
+    $(OBJDEST)/create_instance.o $(OBJDEST)/script-gen.o \
+		$(LIBNT) $(OPENSOURCE_LIBS)
+# linking this file causes a .exp and a .lib file to be generated which don't seem
+# to be required while running, so I get rid of them
+	$(RM) $(subst .exe,.exp,$@) $(subst .exe,.lib,$@)
 
 $(BINDIR)/ds_create:	$(OBJDEST)/instindex.o $(OBJDEST)/cfg_sspt.o \
     $(OBJDEST)/create_instance.o $(OBJDEST)/configure_instance.o \

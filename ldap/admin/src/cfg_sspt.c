@@ -1374,15 +1374,20 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		return 1;
 
 	/* parent dn of admin uid entry */
-	parentDN = make_dn("%s, %s, %s", name_administratorsRDN,
-					   name_topologyRDN, query->netscaperoot, 0);
+	if (query->netscaperoot) {
+		parentDN = make_dn("%s, %s, %s", name_administratorsRDN,
+						   name_topologyRDN, query->netscaperoot, 0);
+	}
+
 	if (query->suffix)
 	{
 		status = create_base(connection, query->suffix);
 		if (!status)
 		{
-			add_aci_v(connection, query->suffix, ACI_user_allow_1,
-					  "all", query->config_admin_uid, parentDN, 0);
+			if (parentDN && query->config_admin_uid) {
+				add_aci_v(connection, query->suffix, ACI_user_allow_1,
+						  "all", query->config_admin_uid, parentDN, 0);
+			}
 
 			status = create_group(connection, query->suffix, name_localDAGroup);
 		}
@@ -1396,14 +1401,16 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 	if (!status)
 	{
 		char realuid[1024] = {0};
-		getUIDFromDN(query->config_admin_uid, realuid);
+
+		if (query->config_admin_uid) {
+			getUIDFromDN(query->config_admin_uid, realuid);
+		}
+
 		if (realuid[0])
 		{
 			/* admid is already a DN */
 			configAdminDN = strdup(query->config_admin_uid);
-		}
-		else
-		{
+		} else if (query->config_admin_uid) {
 			/* create a DN for admid */
 			configAdminDN = make_dn(DN_formatUID, query->config_admin_uid, parentDN, 0);
 		}
@@ -1411,10 +1418,13 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		/*
 		  Give the Configuration Admin group access to the root DSE entries
 		  */
-		adminGroupDN = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
-							   name_ou, value_groupsOU,
-							   name_topologyRDN,
-							   query->netscaperoot, 0);
+		if (query->netscaperoot) {
+			adminGroupDN = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
+								   name_ou, value_groupsOU,
+								   name_topologyRDN,
+								   query->netscaperoot, 0);
+		}
+
 		if (query->suffix)
 		{
 			localDAGroupDN = make_dn("cn=%s, %s", name_localDAGroup,
@@ -1426,16 +1436,18 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		}	
         for (ii = 0; ii < entryAndAccessListSize; ++ii)
 		{
-			if (query->cfg_sspt) {
+			if (query->cfg_sspt && adminGroupDN) {
 				add_aci_v(connection, entryAndAccessList[ii].entryDN,
 						  ACI_config_admin_group_allow,
 						  entryAndAccessList[ii].access,
 						  adminGroupDN, 0);
 			}
-			add_aci_v(connection, entryAndAccessList[ii].entryDN,
-					  ACI_user_allow_2,
-					  entryAndAccessList[ii].access,
-					  configAdminDN, 0);
+			if (configAdminDN) {
+				add_aci_v(connection, entryAndAccessList[ii].entryDN,
+						  ACI_user_allow_2,
+						  entryAndAccessList[ii].access,
+						  configAdminDN, 0);
+			}
 			if (localDAGroupDN)
 			{
 				add_aci_v(connection, entryAndAccessList[ii].entryDN,

@@ -4690,3 +4690,241 @@ write_ldap_info( char *slapd_server_root, server_config_s *cf)
     return ret;
 }
 
+/* ----------- Create a new server from configuration variables ----------- */
+
+
+int create_config(server_config_s *cf)
+{
+    char *t = NULL;
+	char error_param[BIG_LINE] = {0};
+
+    t = create_server(cf, error_param);
+    if(t)
+	{
+		char *msg;
+		if (error_param[0])
+		{
+			msg = PR_smprintf("%s.error:could not create server %s - %s",
+							  error_param, cf->servid, t);
+		}
+		else
+		{
+			msg = PR_smprintf("error:could not create server %s - %s",
+							  cf->servid, t);
+		}
+		ds_show_message(msg);
+		PR_smprintf_free(msg);
+	}
+	else
+	{
+		ds_show_message("Created new Directory Server");
+		return 0;
+	}
+
+    return 1;
+}
+
+
+/* ------ check passwords are same and satisfy minimum length policy------- */
+static int check_passwords(char *pw1, char *pw2)
+{
+    if (strcmp (pw1, pw2) != 0) {
+	    ds_report_error (DS_INCORRECT_USAGE, " different passwords",
+			  "Enter the password again."
+			  "  The two passwords you entered are different.");
+		return 1;
+	}
+	
+    if ( ((int) strlen(pw1)) < 8 ) {
+	    ds_report_error (DS_INCORRECT_USAGE, " password too short",
+			  "The password must be at least 8 characters long.");
+		return 1;
+	}
+
+	return 0;
+}
+
+/* ------ Parse the results of a form and create a server from them ------- */
+
+
+int parse_form(server_config_s *cf)
+{
+    char *rm = getenv("REQUEST_METHOD");
+    char *qs = getenv("QUERY_STRING");
+    char* cfg_sspt_uid_pw1;
+    char* cfg_sspt_uid_pw2;
+    LDAPURLDesc *desc = 0;
+    char *temp = 0;
+
+    if (!(cf->sroot = getenv("NETSITE_ROOT"))) {
+		ds_report_error (DS_INCORRECT_USAGE, " NETSITE_ROOT environment variable not set.",
+						 "The environment variable NETSITE_ROOT must be set to the server root directory.");
+		return 1;
+	}
+
+    if (rm && qs && !strcmp(rm, "GET"))
+	{
+		ds_get_begin(qs);
+	}
+    else if (ds_post_begin(stdin))
+	{
+		return 1;
+	}
+
+    if (rm)
+	{
+		printf("Content-type: text/plain\n\n");
+	}
+    /* else we are being called from server installation; no output */
+
+    if (!(cf->servname = ds_a_get_cgi_var("servname", "Server Name",
+										  "Please give a hostname for your server.")))
+	{
+		return 1;
+	}
+
+	cf->bindaddr = ds_a_get_cgi_var("bindaddr", NULL, NULL);
+    if (!(cf->servport = ds_a_get_cgi_var("servport", "Server Port",
+										  "Please specify the TCP port number for this server.")))
+	{
+		return 1;
+	}
+
+    cf->cfg_sspt = ds_a_get_cgi_var("cfg_sspt", NULL, NULL);
+    cf->cfg_sspt_uid = ds_a_get_cgi_var("cfg_sspt_uid", NULL, NULL);
+    if (cf->cfg_sspt_uid && *(cf->cfg_sspt_uid) &&
+		!(cf->cfg_sspt_uidpw = ds_a_get_cgi_var("cfg_sspt_uid_pw", NULL, NULL)))
+	{
+
+		if (!(cfg_sspt_uid_pw1 = ds_a_get_cgi_var("cfg_sspt_uid_pw1", "Password",
+												  "Enter the password for the Mission Control Administrator's account.")))
+		{
+			return 1;
+		}
+
+		if (!(cfg_sspt_uid_pw2 = ds_a_get_cgi_var("cfg_sspt_uid_pw2", "Password",
+												  "Enter the password for the Mission Control Administrator account, "
+												  "twice.")))
+		{
+			return 1;
+		}
+
+		if (strcmp (cfg_sspt_uid_pw1, cfg_sspt_uid_pw2) != 0)
+		{
+			ds_report_error (DS_INCORRECT_USAGE, " different passwords",
+							 "Enter the Mission Control Administrator account password again."
+							 "  The two Mission Control Administrator account passwords "
+							 "you entered are different.");
+			return 1;
+		}
+		if ( ((int) strlen(cfg_sspt_uid_pw1)) < 1 ) {
+			ds_report_error (DS_INCORRECT_USAGE, " password too short",
+							 "The password must be at least 1 character long.");
+			return 1;
+		}
+		cf->cfg_sspt_uidpw = cfg_sspt_uid_pw1;
+	}
+
+    if (cf->cfg_sspt && *cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1") &&
+		!cf->cfg_sspt_uid)
+	{
+		ds_report_error (DS_INCORRECT_USAGE,
+						 " Userid not specified",
+						 "A Userid for Mission Control Administrator must be specified.");
+		return 1;
+	}
+    cf->start_server = ds_a_get_cgi_var("start_server", NULL, NULL);
+    cf->secserv = ds_a_get_cgi_var("secserv", NULL, NULL);
+    if (cf->secserv && strcmp(cf->secserv, "off"))
+		cf->secservport = ds_a_get_cgi_var("secservport", NULL, NULL);
+    if (!(cf->servid = ds_a_get_cgi_var("servid", "Server Identifier",
+										"Please give your server a short identifier.")))
+	{
+		return 1;
+	}
+
+#ifdef XP_UNIX
+    cf->servuser = ds_a_get_cgi_var("servuser", NULL, NULL);
+#endif
+
+    cf->suffix = dn_normalize_convert(ds_a_get_cgi_var("suffix", NULL, NULL));
+    
+    if (cf->suffix == NULL) {
+		cf->suffix = "";
+    }
+
+    cf->rootdn = dn_normalize_convert(ds_a_get_cgi_var("rootdn", NULL, NULL));
+    if (cf->rootdn && *(cf->rootdn)) {
+		if (!(cf->rootpw = ds_a_get_cgi_var("rootpw", NULL, NULL)))
+		{
+			char* pw1 = ds_a_get_cgi_var("rootpw1", "Password",
+										 "Enter the password for the unrestricted user.");
+			char* pw2 = ds_a_get_cgi_var("rootpw2", "Password",
+										 "Enter the password for the unrestricted user, twice.");
+
+			if (!pw1 || !pw2 || check_passwords(pw1, pw2))
+			{
+				return 1;
+			}
+
+			cf->rootpw = pw1;
+		}
+		/* Encode the password in SSHA by default */
+		cf->roothashedpw = (char *)ds_salted_sha1_pw_enc (cf->rootpw);
+    }
+
+    cf->admin_domain = ds_a_get_cgi_var("admin_domain", NULL, NULL);
+
+	if ((temp = ds_a_get_cgi_var("use_existing_config_ds", NULL, NULL))) {
+		cf->use_existing_config_ds = atoi(temp);
+	} else {
+		cf->use_existing_config_ds = 1; /* there must already be one */
+	}
+
+	if ((temp = ds_a_get_cgi_var("use_existing_user_ds", NULL, NULL))) {
+		cf->use_existing_config_ds = atoi(temp);
+	} else {
+		cf->use_existing_user_ds = 0; /* we are creating it */
+	}
+
+    temp = ds_a_get_cgi_var("ldap_url", NULL, NULL);
+    if (temp && !ldap_url_parse(temp, &desc) && desc)
+	{
+		char *suffix;
+
+		if (desc->lud_dn && *desc->lud_dn) { /* use given DN for netscaperoot suffix */
+			cf->netscaperoot = strdup(desc->lud_dn);
+			suffix = cf->netscaperoot;
+		} else { /* use the default */
+			suffix = dn_normalize_convert(strdup(cf->netscaperoot));
+		}
+		/* the config ds connection may require SSL */
+		int isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
+		cf->config_ldap_url = PR_smprintf("ldap%s://%s:%d/%s",
+										  (isSSL ? "s" : ""), desc->lud_host,
+										  desc->lud_port, suffix);
+		ldap_free_urldesc(desc);
+	}
+
+    /* if being called as a CGI, the user_ldap_url will be the directory
+       we're creating */
+    /* this is the directory we're creating, and we cannot create an ssl
+       directory, so we don't have to worry about ldap vs ldaps here */
+	if ((temp = ds_a_get_cgi_var("user_ldap_url", NULL, NULL))) {
+		cf->user_ldap_url = strdup(temp);
+	} else {
+		cf->user_ldap_url = PR_smprintf("ldap://%s:%s/%s", cf->servname,
+										cf->servport, cf->suffix);
+	}
+
+    cf->samplesuffix = NULL;
+
+    cf->disable_schema_checking = ds_a_get_cgi_var("disable_schema_checking",
+												   NULL, NULL);
+
+    cf->adminport = ds_a_get_cgi_var("adminport", NULL, NULL);
+
+    cf->install_ldif_file = ds_a_get_cgi_var("install_ldif_file", NULL, NULL);
+
+    return 0;
+}
