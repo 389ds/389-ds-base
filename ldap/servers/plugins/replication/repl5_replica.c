@@ -2789,7 +2789,6 @@ abort_csn_callback(const CSN *csn, void *data)
 static CSN *
 _replica_get_purge_csn_nolock(const Replica *r)
 {
-	static unsigned long a_week = 3600*24*7;
 	CSN *purge_csn = NULL;
 	CSN **csns = NULL;
 	RUV *ruv;
@@ -2799,15 +2798,6 @@ _replica_get_purge_csn_nolock(const Replica *r)
 
 	if (r->repl_purge_delay > 0)
 	{
-		/*
-		 * Don't let inactive or obsolete masters in the ruv hold back
-		 * the purge forever:
-		 * - set a graceful period of at least 7 days;
-		 * - set cutoff_time = max(maxcsns) - gracefule_period;
-		 * - the first maxcsn that was generated at or after the cutoff
-		 *   time would be the purge csn.
-		 */
-
 		/* get a sorted list of all maxcsns in ruv in ascend order */
 		object_acquire(r->repl_ruv);
 		ruv = object_get_data(r->repl_ruv);
@@ -2817,32 +2807,12 @@ _replica_get_purge_csn_nolock(const Replica *r)
 		if (csns == NULL)
 			return NULL;
 
-		/* locate the max csn in the csn list */
+		/* locate the most recent maxcsn in the csn list */
 		for (i = 0; csns[i]; i++);
-		max_time_in_csn_list = csn_get_time (csns[i-1]);
+		purge_csn = csn_dup (csns[i-1]);
 
-		if ( r->repl_purge_delay > a_week )
-		{
-			cutoff_time = max_time_in_csn_list - r->repl_purge_delay;
-		}
-		else
-		{
-			cutoff_time = max_time_in_csn_list - a_week;
-		}
-		for (i = 0; csns[i]; i++)
-		{
-			if ( csn_get_time (csns[i]) >= cutoff_time )
-			{
-				purge_csn = csn_dup (csns[i]);
-				break;
-			}
-		}
-
-		/* Subtract purge delay */
-		if (purge_csn)
-		{
-			csn_set_time(purge_csn, csn_get_time(purge_csn) - r->repl_purge_delay);
-		}
+		/* set purge_csn to the most recent maxcsn - purge_delay */
+		csn_set_time(purge_csn, csn_get_time(purge_csn) - r->repl_purge_delay);
 	}
 
 	if (csns)
