@@ -153,12 +153,12 @@ endif
 
 brandDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Branding LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i $(RELTOOLSPATH)/ldap/brandver.dat
+	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat
 	@echo ==== Finished Branding LDAP Server ==========
 
 normalizeDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Normalizing LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i $(RELTOOLSPATH)/ldap/normalize.dat
+	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/normalize.dat
 	@echo ==== Normalizing Branding LDAP Server ==========
 
 buildAndPkgDirectory:	buildDirectory pkgDirectory
