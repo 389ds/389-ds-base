@@ -24,8 +24,19 @@ static void symload_report_error( char *libpath, char *symbol, char *plugin,
 void *
 sym_load( char *libpath, char *symbol, char *plugin, int report_errors )
 {
+	return sym_load_with_flags(libpath, symbol, plugin, report_errors, PR_FALSE, PR_FALSE);
+}
+
+void *
+sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_errors, PRBool load_now, PRBool load_global )
+{
 	int	i;
 	void	*handle;
+	PRLibSpec libSpec;
+	unsigned int flags = PR_LD_LAZY; /* default PR_LoadLibrary flag */
+
+	libSpec.type = PR_LibSpec_Pathname;
+	libSpec.value.pathname = libpath;
 
 	for ( i = 0; libs != NULL && libs[i] != NULL; i++ ) {
 		if ( strcasecmp( libs[i]->dl_name, libpath ) == 0 ) {
@@ -37,7 +48,14 @@ sym_load( char *libpath, char *symbol, char *plugin, int report_errors )
 		}
 	}
 
-	if ( (handle = PR_LoadLibrary( libpath )) == NULL ) {
+	if (load_now) {
+		flags = PR_LD_NOW;
+	}
+	if (load_global) {
+		flags |= PR_LD_GLOBAL;
+	}
+
+	if ( (handle = PR_LoadLibraryWithFlags( libSpec, flags )) == NULL ) {
 		if ( report_errors ) {
 			symload_report_error( libpath, symbol, plugin, 0 /* lib not open */ );
 		}

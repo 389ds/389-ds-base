@@ -2064,6 +2064,9 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 	if (!initfunc) 
 	{
+		PRBool loadNow = PR_FALSE;
+		PRBool loadGlobal = PR_FALSE;
+
 		if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
 												   ATTR_PLUGIN_PATH)))
 		{
@@ -2079,12 +2082,15 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 			plugin->plg_libpath = value; /* plugin owns value's memory now, don't free */
 		}
 
+		loadNow = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_NOW);
+		loadGlobal = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_GLOBAL);
+
 		/*
 		 * load the plugin's init function
 		 */
-		if ((initfunc = (slapi_plugin_init_fnptr)sym_load(plugin->plg_libpath,
-				plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */
-				)) == NULL)
+		if ((initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
+				plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
+				loadNow, loadGlobal)) == NULL)
 		{
 			status = -1;
 			goto PLUGIN_CLEANUP;

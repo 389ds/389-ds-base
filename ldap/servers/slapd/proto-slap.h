@@ -406,6 +406,14 @@ int hexchar2int( char c );
  * dynalib.c
  */
 void *sym_load( char *libpath, char *symbol, char *plugin, int report_errors );
+/* same as above but
+ * load_now - use PR_LD_NOW so that all referenced symbols are loaded immediately
+ *            default is PR_LD_LAZY which only loads symbols as they are referenced
+ * load_global - use PR_LD_GLOBAL so that all loaded symbols are made available globally
+ *               to all other dynamically loaded libraries - default is PR_LD_LOCAL
+ *               which only makes symbols visible to the executable
+ */
+void *sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_errors, PRBool load_now, PRBool load_global );
 
 
 /*

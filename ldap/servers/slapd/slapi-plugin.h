@@ -13,6 +13,7 @@
 extern "C" {
 #endif
 
+#include "prtypes.h"
 #include "ldap.h"
 
 /*
@@ -211,6 +212,7 @@ int slapi_entry_attr_get_int(const Slapi_Entry* e, const char *type);
 unsigned int slapi_entry_attr_get_uint(const Slapi_Entry* e, const char *type);
 long slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type);
 unsigned long slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type);
+PRBool slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type);
 void slapi_entry_attr_set_charptr(Slapi_Entry* e, const char *type, const char *value);
 void slapi_entry_attr_set_int( Slapi_Entry* e, const char *type, int l);
 void slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l);

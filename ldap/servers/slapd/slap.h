@@ -632,6 +632,8 @@ struct matchingRuleList {
 #define ATTR_PLUGIN_TARGET_SUBTREE		"nsslapd-targetSubtree"
 #define ATTR_PLUGIN_BIND_SUBTREE		"nsslapd-bindSubtree"
 #define ATTR_PLUGIN_INVOKE_FOR_REPLOP	"nsslapd-invokeForReplOp"
+#define ATTR_PLUGIN_LOAD_NOW            "nsslapd-pluginLoadNow"
+#define ATTR_PLUGIN_LOAD_GLOBAL         "nsslapd-pluginLoadGlobal"
 
 /* plugin action states */
 enum
