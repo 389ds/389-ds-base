@@ -299,7 +299,9 @@ endif
 redhat-ds.spec: ldapserver.spec.tmpl branding/rhds/brandver.dat $(RELTOOLSPATH)/brandver.pl
 	sed -e s/@PLATFORM@/$(BUILD_ARCH)/g ldapserver.spec.tmpl > $@
 	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat $@
+	mv $@ $(OBJDIR)
 
 fedora-ds.spec: ldapserver.spec.tmpl branding/fedora/brandver.dat $(RELTOOLSPATH)/brandver.pl
 	sed -e s/@PLATFORM@/$(BUILD_ARCH)/g ldapserver.spec.tmpl > $@
 	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/brandver.dat $@
+	mv $@ $(OBJDIR)

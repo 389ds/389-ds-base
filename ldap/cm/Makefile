@@ -118,7 +118,6 @@ endif
 FTPNAME = $(shell $(RELTOOLS) -name directory $(VERSION) $(INTL) $(SEC) $(DBG) $(SUF)) 
 FTPNAMEGZ = $(shell $(RELTOOLS) -name directory $(VERSION) $(INTL) $(SEC) $(DBG) $(SUFEXE) ) 
 
-
 # regular NT 
 
 ifeq ($(ARCH), WINNT)
@@ -221,6 +220,25 @@ MAKEARCH=$(ARCH)
 endif
 
 PACKAGE_SETUP_LIBS_32=$(subst $(NS64TAG),,$(PACKAGE_SETUP_LIBS))
+
+# set the values of the macros used by rpmbuild
+ifdef BUILD_RPM
+# name and version of RPM - must correspond to the spec file - these get branded
+	RPM_BASE_NAME=fedora
+	RPM_VERSION=7.1
+	RPM_FILE_BASE=$(RPM_BASE_NAME)-ds-$(RPM_VERSION)
+# root dir for RPM built and temp files
+	ABS_TOPDIR = $(shell cd $(INSTDIR)/.. ; pwd)
+	RPM_TOPDIR = --define "_topdir $(ABS_TOPDIR)"
+# location of source tarball
+	RPM_SOURCEDIR = --define "_sourcedir $(ABS_TOPDIR)"
+# location of staging area built into RPM
+	RPM_BUILDDIR = --define "_builddir $(ABS_INSTDIR)"
+# location of final RPM file
+	RPM_RPMDIR = --define "_rpmdir $(ABS_TOPDIR)"
+# location of source RPM
+	RPM_SRPMDIR = --define "_srcrpmdir $(ABS_TOPDIR)"
+endif
 
 # Borland libraries are build on NT only
 
@@ -482,6 +500,11 @@ endif
 	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/411/*.* $(RELDIR)/bin/slapd/install/version4/411
 	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/412/*.* $(RELDIR)/bin/slapd/install/version4/412
 
+# for RPM, include the post install setup program
+ifdef BUILD_RPM
+	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/setup/setup
+endif # BUILD_RPM
+
 	find $(RELDIR) -exec chmod go-w {} \;
 # $(RELDIR)/bin/slapd/server may host a core file.
 # For security reason, it's readable only by the owner
@@ -703,6 +726,22 @@ endif
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
 # $(INSTDIR) is used to build international products.
 endif
+ifdef BUILD_RPM
+# make the .spec file - actually lives in OBJDIR
+	$(MAKE) $(MFLAGS) -C $(BUILD_ROOT) $(RPM_BASE_NAME)-ds.spec
+# create the source tarball - the name must correspond to the Source: in the spec file
+# they should correspond because the values come from the same source - branding
+	startdir=`pwd` ; cd $(BUILD_ROOT) ; builddir=`pwd` ; \
+	cd $$startdir ; cd $(INSTDIR)/.. ; \
+	if [ ! -f $(RPM_FILE_BASE).tar.gz ] ; then \
+		if [ ! -f $(RPM_FILE_BASE) ] ; then \
+			ln -s $$builddir $(RPM_FILE_BASE) ; \
+		fi ; tar cfh - --exclude \*/built/\* $(RPM_FILE_BASE) | gzip > $(RPM_FILE_BASE).tar.gz ; \
+		rm $(RPM_FILE_BASE) ; \
+	fi
+# execute the RPM build
+	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec
+endif # BUILD_RPM
 
 else
 

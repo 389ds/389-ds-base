@@ -2,6 +2,9 @@
 # Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
+%define _unpackaged_files_terminate_build 0
+# override the default build name format - we do not want the arch subdir
+%define _build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
 Summary: @COMPANY-PRODUCT-NAME@
 Name: @LCASE-COMPANY-NAME-NOSP@-ds
 Version: @GEN-VERSION@
@@ -9,8 +12,8 @@ Release: 1.@PLATFORM@
 License: GPL plus extensions
 Group: System Environment/Daemons
 URL: @COMPANY-URL@
-Source0: %{name}-%{version}.tar.gz
-BuildRoot: %{_builddir}/%{name}-root
+Source: %{name}-%{version}.tar.gz
+BuildRoot: %{_builddir}
 BuildPreReq: perl, fileutils, make
 # Without Autoreq: 0, rpmbuild finds all sorts of crazy
 # dependencies that we don't care about, and refuses to install
@@ -22,47 +25,25 @@ Prefix: /opt/%{name}
 %description
 @COMPANY-PRODUCT-NAME@ is an LDAPv3 compliant server.
 
-# prep and setup expect there to be a Source0 file
-# in the SOURCES directory - it will be unpacked
-# in the _builddir (not BuildRoot)
-%prep
-%setup -q
-
-%build
-# This will do a regular make build and make pkg
-# including grabbing the admin server, setup, etc.
-# The resultant zip files and setup program will
-# be in ldapserver/pkg
-# INSTDIR is relative to ldap/cm
-# build the file structure to package under ldapserver/pkg
-# instead of MM.DD/platform
-# remove BUILD_DEBUG=optimize to build the debug version
-# INTERNAL_BUILD=1 uses the internal, proprietary packages
-# like setupsdk, adminsdk, admin server
-# BUILD_MODE=int builds the Redhat branded product
-BUILDMODE=@BUILD-MODE@
-PLATFORM=@PLATFORM@
-if [ $BUILDMODE = int ]; then
-# brandDirectory makes the product use Redhat branded text and graphics
-	make brandDirectory
-fi
-make INTERNAL_BUILD=1 BUILD_MODE=$BUILDMODE BUILD_JAVA_CODE=1 BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg/$PLATFORM
+# wait! what's going on here?  where are the prep and build sections?
+# what kind of a .spec file is this anyway?
+# A: one that works well with the current DS build system
+# As we move towards a completely open source build
+# process, will begin doing things in the more RPM way
+# but for now, in order to make our tight deadlines and
+# support RHN distribution, this is the way we do it
 
 %install
 # all we do here is run setup -b to unpack the binaries
 # into the BuildRoot
-PLATFORM=@PLATFORM@
-rm -rf $RPM_BUILD_ROOT
-cd pkg/$PLATFORM
 # the echo yes is for dsktune to continue
 echo yes | ./setup -b $RPM_BUILD_ROOT/%{prefix}
-# this is our setup script that sets up the initial
-# server instances after installation
-cd ../..
-cp ldap/cm/newinst/setup $RPM_BUILD_ROOT/%{prefix}/setup
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+if [ -z "$RPM_INSTALL_PREFIX" ]; then
+	RPM_INSTALL_PREFIX=%{prefix}
+fi
+rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 
 %files
 # rather than listing individual files, we just package (and own)
@@ -74,18 +55,21 @@ rm -rf $RPM_BUILD_ROOT
 %post
 echo ""
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
-	RPM_INSTALL_PREFIX=${prefix}
+	RPM_INSTALL_PREFIX=%{prefix}
 fi
-echo "Please go to $RPM_INSTALL_PREFIX and run ./setup/setup"
+echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
 
 %preun
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
-	RPM_INSTALL_PREFIX=${prefix}
+	RPM_INSTALL_PREFIX=%{prefix}
 fi
 cd $RPM_INSTALL_PREFIX
 ./uninstall -s -force
 
 %changelog
+* Tue Apr  5 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
+- Removed all of the setup and build stuff - just use the regular DS build process for that
+
 * Tue Apr  5 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
 - use platform specific packaging directory; add preun to do uninstall
 
