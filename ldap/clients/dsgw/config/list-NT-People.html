@@ -1,0 +1,152 @@
+<html>
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- HEAD -->
+<LINK REL=stylesheet TYPE="text/css" HREF="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=style.css">
+<TITLE>Search for NT-People"</TITLE>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+
+function showAimIcon(aimID, aimStatusText)
+{
+if (aimStatusText == "" || aimID == "" || aimStatusText != "ONLINE") {
+  return;
+}
+
+document.write('<a href=\"aim:goim?Screenname=' + aimID.replace(/ /,"+") + '\"><IMG SRC=\"lang?<!-- GCONTEXT -->&file=aim-online.gif\" ALT=\"Click to send an AIM to this person\" BORDER=0 HSPACE=5></a>');
+}
+// End hiding -->
+</SCRIPT>
+</head>
+
+<BODY BGCOLOR="white">
+
+<!-- IF "FoundEntries" -->
+
+<table width="85%" border="0" cellpadding="0" cellspacing="0" bgcolor="#CCCCCC" align="center">
+  <tr valign="top" bgcolor="#FFFFFF">
+    <td  bgcolor="white">
+<!-- DS_SEARCHDESC -->
+      <br>&nbsp;
+    </td>                       	
+  </tr>
+  <tr>
+    <td>
+<table border="0" cellpadding="1" cellspacing="0" width="100%" bgcolor="#FFFFFF" align="center">
+  <tr align="left" bgcolor="#CCCCCC">
+    <td class="boldbig">
+        Name
+    </td>
+    <td class="boldbig">
+        NT Domain
+    </td>
+    <td class="boldbig">
+        NT Username
+    </td>
+    <td class="boldbig">
+        AIM ID
+    </td>
+    <td class="boldbig">
+        Phone
+    </td>
+  </tr>
+<!-- DS_SORTENTRIES "attr=cn" -->
+
+<!-- DS_ENTRYBEGIN -->
+  <tr valign="top" bgcolor="#FFFFFF">
+    <td >
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "hrefextra=onMouseOver=%22%0Awindow.status='Click here to view this entry in detail'; return true%22" -->
+    </td>
+    <td >
+<!-- DS_ATTRIBUTE "attr=ntuserdomainid" "syntax=ntdomain" -->      
+    </td>
+    <td>
+<!-- DS_ATTRIBUTE "attr=ntuserdomainid" "syntax=ntuserid" -->
+    </td>
+    <td>
+<!-- DS_ATTRIBUTE "attr=nsaimid" -->
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+showAimIcon(
+<!-- DS_ATTRIBUTE "attr=nsaimid" "options=quoted" -->
+,
+"" //<!-- DS_ATTRIBUTE "attr=nsaimstatustext" "options=quoted" -->
+);
+//// Uncomment the above DS_ATTRIBUTE directive and remove the double ////
+//// quotes to have aim presence in search results lists              ////
+
+// End hiding -->
+</SCRIPT>
+    </td>
+    <td>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" -->
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4"></td>
+  </tr>
+<!-- DS_ENTRYEND -->
+</table>
+
+    </td>
+  </tr>
+  <tr bgcolor="#FFFFFF">
+    <td>
+      &nbsp;<br>
+        Click on an entry's ID to bring up more information about that entry.
+    </td>
+  </tr>
+</table>
+
+<!-- ELSE -->
+<p>
+  <center>
+<TABLE width=360 height=216 border=1 bgcolor=#CCCCCC align=center>
+    <TR valign=top>
+    <TD>
+<TABLE width=356 border=0 cellpadding=18 cellspacing=0 bgcolor=#CCCCCC>
+    <TR valign=top>
+    <TD>
+      <CENTER>
+        <TABLE width=320 border=0 height=168 cellpadding=0 cellspacing=0 bgcolor=#CCCCCC>
+                    <TR valign=top>
+            <TD width=32>
+              <IMG src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=message.gif" height=32 width=32 border=0>
+            </TD>
+            <TD width=9>
+              &nbsp;
+            </TD>
+            <TD>
+              <P>
+                No match found.
+              </P>
+            </TD>
+          </TR>
+          <TR valign=top>
+            <TD colspan=2>
+            </TD>
+            <TD>
+              <P>
+                No entries match the requested search term. Please try a different search.
+              </P>
+            </TD>
+          </TR>
+        </TABLE>
+     </CENTER>
+    </TD>
+  </TR>
+</TABLE>
+    </TD>
+  </TR>
+</TABLE>
+  </center>
+</p>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->
+

@@ -1,0 +1,32 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HEAD><TITLE>Gestion des utilisateurs</TITLE></HEAD>
+<HTML><BODY bgcolor="#C0C0C0" link="#0000EE" vlink="#551A8B" alink="#FF0000">
+
+<center><table border=2 width=100%%>
+<tr><td align=center width=100%><hr size=0 width=0><FONT size=+2><b>Modifier l'utilisateur</b></FONT><hr size=0 width=0></th></tr></table></center>
+
+<form method="POST" action=dosearch name=eduserform>
+<input type=hidden name=mode value="smart">
+<input type=hidden name=type value="people">
+<input type=hidden name=editable value="true">
+<!-- PCONTEXT -->
+
+<b>Modifier l'utilisateur nomm&eacute; :</b><INPUT type="text" name="searchstring" value="" size=20>
+</pre>
+<p>
+
+<center><table border=2 width=100%>
+<tr>
+<td width=33% align=center><input type=submit value="Modifier l'utilisateur"></td>
+<td width=34% align=center><input type=reset value="Remettre &agrave; z&eacute;ro"></td>
+<td width=33% align=center><input type=button value="Aide" onclick="var hwin=window.open('', 'infowin_httpd',
+'resizable=1,width=400,height=500');if(top.helpwin==1) hwin.frames[1].location='http://ggood:2001/httpd-ggood/bin/tutor?!usradd&<!-- GCONTEXT -->';else  { hwin.location='http://ggood:2001/httpd-ggood/bin/tutor?usradd&<!-- GCONTEXT -->'; hwin.rwin=top; hwin.rwin.helpwin=1; }"></td>
+</tr></table></center>
+</form>
+
+

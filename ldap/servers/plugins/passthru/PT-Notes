@@ -1,0 +1,30 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+		Pass Through Authentication Plugin Notes
+
+Key
+    r	required feature
+    n	nice-to-have
+    ?	undecided whether this is a good idea or not
+
+Missing features:
+n    U/I for configuration.
+
+Loose ends:
+n   Resolve any remaining code that is marked with XXX.
+n   Put some thought into cases we do not handle (SASL, no DN, no passwd) and
+	make sure we do the right thing in terms of errors, letting server's
+	standard mechanism handle the bind, etc.
+?   Protect against server connecting back to itself recursively.
+
+Testing:
+r    Basic tests (all platforms: NT,Sol,IRIX,AIX,HP/UX,OSF/1).
+r    Controls (both coming (e.g., ?) and going (e.g., password policy).
+r    SSL connections to remote servers.
+r    LDAPv2/v3 compatiblity
+r    Stress tests.

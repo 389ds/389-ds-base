@@ -1,0 +1,15 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+;
+
+DESCRIPTION     'Netscape Directory Server 7.0 Retro-Changelog Plugin'
+;CODE		SHARED READ EXECUTE
+;DATA		SHARED READ WRITE
+EXPORTS
+    plugin_init_debug_level @1
+    retrocl_plugin_init @2
+

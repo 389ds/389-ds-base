@@ -1,0 +1,62 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+[General]
+Name=Netscape Directory Suite
+Components=slapd,slapd-client
+Checked=TRUE
+Description=Netscape Directory Server
+
+[slapd]
+Name=Netscape Directory Server
+InstanceNamePrefix= %%%INSTANCE_NAME_PREFIX%%%
+NickName=slapd
+Version= %%%SERVER_VERSION%%%
+Compatible= %%%SERVER_VERSION%%%
+BuildNumber= %%%SERVER_BUILD_NUM%%%
+Expires= %%%PUMPKIN_HOUR%%%
+Security= %%%SECURITY%%%
+Vendor=Netscape Communications Corp.
+Description=Netscape Directory Server
+DefaultAcceptLanguage=en
+Dependencies=admin/4.5,nsperl561/1.10,perldap14/1.01
+Revision= 
+Checked=TRUE
+IsLdap=TRUE
+IsDirLite=%%%IS_DIR_LITE%%%
+Mandatory=FALSE
+#install files for admin
+Archive=slapd.z
+PlugIn=dsinst.dll
+ReadInf=DSINST_ReadComponentInf
+PreInstall=DSINST_PreInstall
+AskOptions=DSINST_AskOptions
+GetSummary=DSINST_GetSummary
+WriteLocalCache=DSINST_WriteLocalCache
+WriteGlobalCache=DSINST_WriteGlobalCache
+ReadLocalCache=DSINST_ReadLocalCache
+ReadGlobalCache=DSINST_ReadGlobalCache
+PostInstall=DSINST_PostInstall
+PreUninstall=DSINST_PreUnInstall
+PostUninstall=DSINST_PostUnInstall
+NSPerlPostInstall=lib\nsPerl5.6.1\install.bat
+
+[slapd-client]
+NickName=slapd-client
+Dependencies=base-client/4.5
+Name=Netscape Directory Server Console
+Description=Netscape Directory Server Console
+Version= %%%SERVER_VERSION%%%
+Compatible= %%%SERVER_VERSION%%%
+BuildNumber= %%%SERVER_BUILD_NUM%%%
+Expires= %%%PUMPKIN_HOUR%%%
+IsMCC=TRUE
+IsLdap=FALSE
+Checked=TRUE
+Mandatory=FALSE
+#install files admin-client component
+Archive=dsjars.z

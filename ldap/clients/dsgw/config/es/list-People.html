@@ -1,0 +1,48 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "B&uacute;squeda de personas" -->
+<CENTER><FONT SIZE=+1>
+<!-- DS_SEARCHDESC -->
+</FONT></CENTER>
+<P>
+
+<!-- IF "FoundEntries" -->
+<TABLE BORDER=1 CELLPADDING=4 WIDTH=100%>
+<TR>
+<TH NOWRAP>Nombre<TH NOWRAP>N&uacute;mero de tel&eacute;fono<TH NOWRAP>Direcci&oacute;n electr&oacute;nica<TH NOWRAP>Cargo 
+</TR>
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "label=" -->
+ onMouseOver="window.status='Haga clic aqu&iacute; para ver esta entrada en detalle'; return true">
+<!-- DS_ATTRIBUTE "attr=cn" "numfields=0" "defaultvalue=name" "options=readonly" -->
+</A>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=title" -->
+</TR>
+
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<CENTER><FONT SIZE=+1>
+Pruebe con otra b&uacute;squeda.
+</FONT></CENTER>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->

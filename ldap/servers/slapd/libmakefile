@@ -1,0 +1,174 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# GNU Makefile for libslapd 
+#
+
+FLAG_LDAP_4SLAPD=true
+LDAP_SRC = ../..
+MCOM_ROOT = ../../../..
+
+NOSTDCLEAN=true # don't let nsconfig.mk define target clean
+NOSTDSTRIP=true # don't let nsconfig.mk define target strip
+NSPR20=true	# probably should be defined somewhere else (not sure where)
+
+OBJDEST = $(OBJDIR)/servers/obj
+BINDIR = $(LIB_RELDIR)
+LIBDIR = $(OBJDIR)/lib
+ifndef INSTDIR
+INSTDIR = /netscape/server4/
+endif
+
+include $(MCOM_ROOT)/ldapserver/nsdefs.mk
+include $(MCOM_ROOT)/ldapserver/nsconfig.mk
+include $(LDAP_SRC)/nsldap.mk
+ifndef LDAP_USE_OLD_DB
+include $(MCOM_ROOT)/ldapserver/ns_usedb.mk
+_ldap_db_depend:=$(DB_LIB_DEP)
+INCLUDES+=-I$(DB_INCLUDE)
+endif
+include $(LDAP_SRC)/nsdeps.mk
+
+INCLUDES += -I. -I$(MCOM_ROOT)/ldapserver/lib
+# uncomment the following to include support in slapd for hacky echo control
+#CFLAGS += -DSLAPD_ECHO_CONTROL
+CFLAGS+=$(SLCFLAGS)
+
+LIBSLAPD_OBJS=plugin_role.o getfilelist.o libglobs.o log.o ch_malloc.o entry.o pblock.o \
+	modutil.o schema.o attr.o value.o time.o dn.o \
+	filter.o filtercmp.o filterentry.o operation.o schemaparse.o pw.o \
+	backend.o defbackend.o ava.o charray.o regex.o \
+	str2filter.o dynalib.o plugin.o plugin_syntax.o plugin_mr.o \
+	slapi2nspr.o rwlock.o control.o plugin_internal_op.o \
+	result.o pw_retry.o agtmmap.o referral.o snmp_collator.o util.o \
+	dse.o errormap.o computed.o match.o fileio.o \
+	generation.o localhost.o ssl.o factory.o auditlog.o \
+	lenstr.o eventq.o uuid.o uniqueid.o uniqueidgen.o \
+	csngen.o utf8compare.o ntuserpin.o entrywsi.o valueset.o \
+	attrsyntax.o opshared.o add.o modify.o modrdn.o delete.o dl.o\
+	plugin_acl.o counters.o subentry.o object.o objset.o apibroker.o \
+	csn.o csnset.o slapd_plhash.o attrlist.o vattr.o bitset.o rdn.o \
+	mapping_tree.o backend_manager.o task.o resourcelimit.o \
+	bulk_import.o security_wrappers.o index_subsystem.o sasl_map.o
+
+ifeq ($(ARCH), AIX)
+ifeq ($(DEBUG), optimize)
+TEMP_CFLAGS = $(subst -O,,$(CFLAGS))
+$(OBJDEST)/vattr.o: vattr.c
+	$(CC) -o $(OBJDEST)/vattr.o -c $(TEMP_CFLAGS) $(MCC_INCLUDE) vattr.c
+endif
+endif
+ifeq ($(ARCH), WINNT)
+#find out why this isn't needed on UNIX
+DLL_LDFLAGS += $(NSPRLINK) /IMPLIB:$(LIBSLAPD)
+DLL_LDFLAGS += -def:"libslapd.def"
+LIBSLAPD_DEF = $(LDAP_SRC)/servers/slapd/libslapd.def
+SUBSYSTEM=windows
+
+LDAP_COMMON_EXTRALIBSLIST = libsi18n
+LDAP_COMMON_EXTRALIBS = $(addsuffix .$(LIB_SUFFIX), \
+	$(addprefix $(LDAP_LIBDIR)/, $(LDAP_COMMON_EXTRALIBSLIST)))
+LDAP_COMMON_LINK += libbase.$(LIB_SUFFIX)
+
+EXTRA_LIBS_DEP = $(SECURITY_DEP) $(NSPR_DEP) \
+	$(LDAP_COMMON_LIBS_DEP) $(LDAPSDK_DEP) \
+	$(LDAP_SDK_LIBSSLDAP_LIB_DEP) $(LIBLDAPU_DEP) $(_ldap_db_depend) \
+	$(SVRCORE_DEP) \
+	$(LDAP_COMMON_EXTRALIBS)
+
+EXTRA_LIBS += $(LDAPLINK) $(LIBSVRCORE) $(LIBSECURITY) $(LIBNSPR) \
+	$(LDAP_COMMON_LINK) \
+	$(LIBLDAPU) \
+	$(LDAP_COMMON_EXTRALIBS) 
+
+# JCM - Warnings as Errors!
+CFLAGS += /WX
+else
+LDFLAGS	= $(SSLLIBFLAG)
+EXTRA_LIBS_DEP	= $(SECURITY_DEP) \
+	$(NSPR_DEP) $(LDAPSDK_DEP) $(SVRCORE_DEP) \
+	$(LDAP_LIBLDBM_DEP) $(LDAP_LIBAVL_DEP) $(LDAP_LIBLDIF_DEP) \
+	$(_ldap_db_depend) $(SVRCORE_DEP)
+EXTRA_LIBS = $(LDAP_LIBLITEKEY) -lavl -lldif \
+	$(SVRCORELINK) $(LDAPLINK) \
+	$(SECURITYLINK) $(NSPRLINK) \
+	$(ALIBS) $(DYNALIBS) $(THREADSLIB)
+endif
+ifeq ($(ARCH), AIX)
+LD=ld
+EXTRA_LIBS = $(LDAPLINK) $(SVRCORELINK) $(SECURITYLINK) $(NSPRLINK) \
+	$(LDAP_COMMON_LINK) \
+	$(LIBLDAPU) \
+	$(DYNALIBS) $(THREADSLIB) \
+	$(DLL_EXTRA_LIBS) \
+	$(LDAP_LIBLITEKEY)
+endif
+
+# for Solaris, our most common unix build platform, we check for undefined
+# symbols at link time so we don't catch them at run time.  To do this, we
+# set the -z defs flag.  We also have to add explicitly link with the C and
+# C++ runtime libraries (e.g., -lc) because, even though ld and CC link
+# with them implicitly, -z defs will throw errors if we do not link with
+# them explicitly.
+ifeq ($(ARCH), SOLARIS)
+LINK_DLL += -z defs
+# removed -lcx from the following line
+EXTRA_LIBS += -lCstd -lCrun -lm -lw -lc
+# with the Forte 6 and later compilers, we must use CC to link
+LD=CC
+endif
+
+#ifeq ($(ARCH), OSF1)
+#DLL_LDFLAGS=-shared -all -error_unresolved -taso -ySVRCORE_RegisterPinObj
+#EXTRA_LIBS += -lc
+#endif
+
+OBJS = $(addprefix $(OBJDEST)/, $(LIBSLAPD_OBJS)) 
+ERRORMAP.O = $(addprefix $(OBJDEST)/, errormap.o) 
+
+all:	$(OBJDEST) $(LIBDIR) $(BINDIR) $(BUILD_DEP) $(LIBSLAPD_DLL) $(LIBSLAPD_RELDLLS)
+
+static:	$(OBJDEST) $(LIBDIR) $(LIBSLAPD)
+
+dummy:
+	echo $(LINK_DLL)
+	echo $(EXTRA_LIBS)
+
+clientSDK:	static
+
+$(LIBSLAPD_DLL): $(EXTRA_LIBS_DEP) $(OBJS) $(LIBSLAPD_DEF)
+	$(LINK_DLL) $(EXTRA_LIBS)
+
+veryclean: clean
+
+clean:
+	-$(RM) $(OBJS)
+	-$(RM) $(LIBSLAPD_DLL)
+
+# compilation dependencies:
+
+$(ERRORMAP.O):	$(DIRVERDIR)/dberrstrs.h
+
+$(DIRVERDIR)/dberrstrs.h:	$(DB_INCLUDE)/db.h
+ifeq ($(ARCH), WINNT)
+	$(PERL) mkDBErrStrs.pl -nt -i $(DB_INCLUDE) -o $(DIRVERDIR)
+else
+	$(PERL) mkDBErrStrs.pl -i $(DB_INCLUDE) -o $(DIRVERDIR)
+endif
+
+ifeq ($(ARCH), WINNT)
+$(OBJS): $(OBJDEST)/%.o : %.c
+endif
+
+# Target to push the built binary to an installed server
+LIBSLAPD_PUSH = $(addprefix $(INSTDIR)/, bin/slapd/server/libslapd.dll)
+push: $(LIBSLAPD_PUSH)
+
+$(LIBSLAPD_PUSH): $(LIBSLAPD_DLL)
+	cp $(LIBSLAPD_DLL) $(LIBSLAPD_PUSH)
+

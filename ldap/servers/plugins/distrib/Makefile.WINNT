@@ -1,0 +1,38 @@
+# Makefile for Directory Server plug-in
+#
+
+CC = cl
+LD = link
+
+
+TARGET=libdistrib
+
+OBJS=distrib.obj
+
+
+INC = ..\..\include
+CFLAGS = /nologo -I $(INC) /c
+LDFLAGS = /dll /nologo
+LIBS=/DEFAULTLIB:kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib ..\..\lib\libslapd.lib ..\..\lib\libnspr4.lib
+
+
+all:						\
+	init					\
+	$(TARGET).dll
+
+init:
+	"c:\program files\microsoft visual studio\vc98\bin\vcvars32.bat"
+
+
+$(TARGET).dll: $(OBJS)
+	$(LD) $(LDFLAGS) /def:$(TARGET).def /out:$(TARGET).dll $(LIBS) $(OBJS)
+	-rm -f $(OBJS2) *~
+
+.c.obj:
+	$(CC) $(CFLAGS) $<
+
+clean:
+	del -f $(OBJS) $(TARGET).dll *~
+
+
+

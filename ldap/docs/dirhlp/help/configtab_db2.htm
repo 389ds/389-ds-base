@@ -1,0 +1,239 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="07/14/03 13:43:25" />
+<title>Netscape Directory Server Help: Passwords Tab</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="28623"> </a>
+<a name="Passwords Tab"> </a>
+Passwords Tab
+</p>
+
+<p class="text">
+<a name="28625"> </a>
+Use this tab to set up a password policy for the directory.
+</p>
+<p class="text">
+<a name="28930"> </a>
+<b>Enable fine-grained password policy. </b>When selected, enables the fine-grained (subtree and user level) password policy.
+</p>
+<p class="text">
+<a name="28626"> </a>
+<b>User must change password after reset. </b>When selected, users must change their passwords when they first log in or after the administrator resets the passwords.
+</p>
+<p class="text">
+<a name="28627"> </a>
+<b>User may change password.</b> When selected, allows users to change their own passwords.
+</p>
+<p class="text">
+<a name="28628"> </a>
+<b>Allow changes in X day(s). </b>Defines how often users can change their password. Use this value in conjunction with "Keep password history" to discourage users from recycling old passwords.
+</p>
+<p class="text">
+<a name="28629"> </a>
+<b>Keep password history.</b> Specifies that the server keep a list of user passwords. Use this in conjunction with "Allow changes in X day(s)" to discourage users from reusing old passwords. If you select this option, enter the number of passwords users must cycle through before they can reuse a password.
+</p>
+<p class="text">
+<a name="28630"> </a>
+<b>Remember X passwords. </b>If the server is keeping a password history, this option specifies how many old passwords the server should store in the history list. The valid value range is from 2 to 24. The default value is 6.
+</p>
+<p class="text">
+<a name="28631"> </a>
+<b>Password never expires.</b> Select this if you do not require users to change their passwords periodically.
+</p>
+<p class="text">
+<a name="28980"> </a>
+<b>Password expires after X days. </b>Select this if you want users to change their passwords periodically. If you select the option, in the text box, you must enter the number of days in which the password will expire.
+</p>
+<p class="text">
+<a name="28981"> </a>
+Note that the maximum value for the password age is derived by subtracting January 18, 2038 from today's date. The value you enter must not be set to the maximum value or too close to the maximum value. If you set the value to the maximum value, Directory Server may fail to start because the number of seconds will go past the epoch date. In such an event, the error log will indicate that the password maximum age is invalid. To resolve this problem, you must correct the <code>paswordMaxAge</code> attribute value in the <code>dse.ldif</code> file.
+</p>
+<p class="text">
+<a name="28985"> </a>
+A common policy is to have passwords expire every 30 to 90 days. By default, the password maximum age is set to 8640000 seconds (100 days).
+</p>
+<p class="text">
+<a name="28633"> </a>
+<b>Send warning X day(s) before password expires.</b> Indicates the number of days before a user's password is due to expire that the user will be sent a warning message. The valid value range is from 1 to 24,855 days. The default value is 1 day.
+</p>
+<p class="text">
+<a name="28998"> </a>
+<b>Allow up to X login attempt(s) after password expires.</b> Indicates the number of grace logins permitted after a user's password has expired. Grace logins are not permitted by default.
+</p>
+<p class="text">
+<a name="28634"> </a>
+<b>Check password syntax.</b> Select this checkbox to enforce password syntax checking. Syntax checking ensures that the password strings conform to the syntax guidelines, such as minimum password length.
+</p>
+<p class="text">
+<a name="28635"> </a>
+<b>Password minimum length. </b>If syntax checking is on, this option specifies the minimum number of characters that must be used in directory server passwords. The valid value range is from 2 to 512 characters. The default value is 6.
+</p>
+<p class="text">
+<a name="28636"> </a>
+<b>Password encryption. </b>Identifies how user passwords are stored in the directory. You can specify one of the following encryption formats:
+</p>
+<ul>
+
+<li>
+Salted Secure Hashing Algorithm (SSHA). This method is recommended as the most secure. SSHA is the default encryption method.
+<a name="28637"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+UNIX crypt algorithm (CRYPT). Provided for compatibility with UNIX passwords.
+<a name="28638"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Secure Hashing Algorithm (SHA). A one-way has algorithm that is the default encryption schema in Directory Server 4.x.
+<a name="28639"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+No encryption (CLEAR). This encryption type indicates that the password will appear in plain text.
+<a name="28640"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28641"> </a>
+Passwords stored using SSHA, CRYPT, or SHA formats cannot be used for secure login through SASL Digest MD5.
+</p>
+<p class="h2">
+<a name="28642"> </a>
+<a name="See also"> </a>
+See also
+</p>
+
+
+<p class="text">
+<a name="28645"> </a>
+<a href="../en/slapd/ag/password.htm#1074672">Configuring the Password Policy</a>
+</p>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>July 14, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

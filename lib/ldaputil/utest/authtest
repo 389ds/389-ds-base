@@ -1,0 +1,106 @@
+#!/bin/ksh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# setup for test
+USERDN="cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+USER2DN="cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+
+UID="hmiller"
+U2ID="scarter"
+
+GROUPDN="cn=Directory Administrators, o=Ace Industry, c=US"
+GROUPID="Directory Administrators"
+
+ATTRFILTER="mail=hmiller@aceindustry.com"
+ATTR2FILTER="mail=scarter@aceindustry.com"
+
+function check_result {
+  echo "\nStart of test: $1 $2 \"$3\" \"$4\""
+  if ( `$1 $2 "$3" "$4"` ) then
+    if [ $5 == "fail" ]; then
+      echo "**** Test Failed ****";
+    else
+      echo "Test Succeeded";
+    fi
+  else
+    if [ $5 == "fail" ]; then
+      echo "Test Succeeded";
+    else
+      echo "**** Test Failed ****";
+    fi
+  fi
+}
+
+function must_fail {
+  check_result $1 $2 "$3" "$4" "fail";
+}
+
+function must_succeed {
+  check_result $1 $2 "$3" "$4" "success";
+}
+
+# test for <userdn> <groupdn>
+must_succeed ./auth 1 "${USERDN}" "${GROUPDN}"
+must_fail ./auth 1 "${USER2DN}" "${GROUPDN}"
+
+# test for <uid> <groupdn>
+must_succeed ./auth 2 "${UID}" "${GROUPDN}"
+must_fail ./auth 2 "${U2ID}" "${GROUPDN}"
+
+# test for <uid> <groupid>
+must_succeed ./auth 3 "${UID}" "${GROUPID}"
+must_fail ./auth 3 "${U2ID}" "${GROUPID}"
+
+# test for <userdn> <groupid>
+must_succeed ./auth 4 "${USERDN}" "${GROUPID}"
+must_fail ./auth 4 "${USER2DN}" "${GROUPID}"
+must_succeed ./auth 15 "${USERDN}" "${GROUPID}"
+must_fail ./auth 15 "${USER2DN}" "${GROUPID}"
+must_succeed ./auth 16 "{${USERDN}" "${GROUPID}"
+must_fail ./auth 16 "{${USER2DN}" "${GROUPID}"
+
+# test for <userdn> <attrFilter>
+must_succeed ./auth 5 "${USERDN}" "${ATTRFILTER}"
+must_fail ./auth 5 "${USERDN}" "${ATTR2FILTER}"
+must_fail ./auth 5 "${USER2DN}" "${ATTRFILTER}"
+
+# test for <uid> <attrFilter>
+must_succeed ./auth 6 "${UID}" "${ATTRFILTER}"
+must_fail ./auth 6 "${UID}" "${ATTR2FILTER}"
+must_fail ./auth 6 "${U2ID}" "${ATTRFILTER}"
+
+# test for <userdn> <password>
+must_succeed ./auth 7 "${USERDN}" "hillock"
+must_fail ./auth 7 "${USERDN}" "garbage"
+
+# test for <uid> <password>
+must_succeed ./auth 8 "${UID}" "hillock"
+must_fail ./auth 8 "${UID}" "garbage"
+
+#test for cert to ldap entry mapping
+must_succeed ./auth 9 "o=Ace Industry, c=US" "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
+#must_fail ./auth 9 "default" "cn=Kirsten Vaughan, o=Ace Industry, c=US"
+
+# test for encode/decode bindpw
+must_succeed ./auth 10 "cn=Foo Bar, o=Netscape Communication, c=US" "foobar"
+
+# test for reading dbnames from dbswitch.conf file
+must_succeed ./auth 11 dblist.conf ignore
+
+# test for saving certmap info
+must_succeed ./auth 12 certmap.new certmap.conf
+cat certmap.conf certmap.new 1>&2
+
+# test for delete certmap info
+must_succeed ./auth 13 certmap.new certmap.conf
+cat certmap.conf certmap.new 1>&2
+
+# test for add certmap info
+must_succeed ./auth 14 certmap.new certmap.conf
+cat certmap.conf certmap.new 1>&2
+

@@ -1,0 +1,14 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+version 3.0;
+acl	aclfile19A;
+deny (read, write, execute, create) dns!="*.mcom.com";
+allow absolute (read) ((timeofday>1700 or timeofday<0800) or dayofweek=satsunmon);
+
+acl aclfile19B;
+deny (write) dns="*.mcom.com";

@@ -1,0 +1,135 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_OBJECTCLASS "value=organizationalUnit" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+Nuevo
+<!-- ENDIF // Adding -->
+Departamento: 
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE>
+<TR>
+<TD>
+<IMG SRC="lang?<!-- GCONTEXT -->&file=orgunit.gif" ALT="Departamento" HSPACE=5>
+<TD>
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+Nuevo Departamento: 
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</FONT>
+</TABLE>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=Modificar departamento" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Guardar nuevo dpto." -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Cancelar" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_ORGUNIT" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_ORGUNIT" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Cambiar nombre dpto." "prompt=Escriba otro nombre para este departamento:" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Borrar departamento" "prompt=&#191;Desea borrar este departamento?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="organizationalUnit">
+<!-- ENDIF // Adding -->
+<!-- PCONTEXT -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<!-- DS_STD_COMPLETION_JS -->
+
+<HR>
+<!-- IF "!Displaying" -->
+<B>El asterisco (*) indica los campos obligatorios.</B><BR>
+<!-- ENDIF -->
+
+
+<TABLE>
+<TR>
+<TD>Nombre del dpto.:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=ou" "cols=>20" -->
+</B></TD><TD WIDTH="20%"></TD>
+<TD>Descripci&oacute;n:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>30" -->
+</B></TR>
+
+<TR><TD>Tel&eacute;fono:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>16" -->
+</B></TD><TD></TD>
+<TD NOWRAP>Categor&iacute;a comercial:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=businessCategory" "cols=>30" -->
+</B></TD></TR>
+
+<TR><TD>Fax:<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=facsimiletelephonenumber" "syntax=tel" "cols=>16" -->
+</B></TD><TD></TD>
+<TD>Direcci&oacute;n:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=l" "cols=>30" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Direcci&oacute;n postal:</TD>
+<TD VALIGN="TOP" COLSPAN="4" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=postalAddress" "syntax=mls" "type=TEXTAREA" "cols=>40" "rows=>4" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Ver tambi&eacute;n:</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "dncomponents=3" "cols=>50" -->
+</B></TR>
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+Esta entrada fue modificada por &uacute;ltima vez el <B>
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> por <B>
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

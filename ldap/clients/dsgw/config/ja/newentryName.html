@@ -1,0 +1,48 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright � 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright � 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!--newentryName.html-->
+</HEAD>
+<!-- DS_NEWENTRY_NAME_BODY -->
+<p>
+<!-- DS_NEWENTRY_NAME_FORM -->
+<font SIZE="+2">ステップ 2.</font>
+新規のエントリ名を入力します。
+<!-- EVALUATE "entType.fullname" -->
+.
+<p><nobr><font SIZE="+1">
+<!-- EVALUATE "entType.rdnattr" -->
+=</font>
+<input TYPE="text" NAME="entryname" SIZE="40">
+</nobr>
+<p>
+<font SIZE="+2">ステップ 3.</font>
+
+<!-- DS_NEWENTRY_LOCATION_BEGIN -->
+ポップアップメニューから Directory の場所を選択します。
+<!-- EVALUATE "entType.fullname" -->
+. [その他]を選択する場合は、このエントリの追加場所に、完全識別名を入力する必要があります。
+<p>
+<!-- DS_NEWENTRY_LOCATION_SELECT -->
+<OPTION VALUE="">[その他]</OPTION>
+</SELECT>
+<input TYPE="text" NAME="dnsuffix" SIZE="70" onFocus="parent.dnsuffixFocus(this.form)">
+<p>
+<font SIZE="+2">ステップ 4.</font>
+<!-- DS_NEWENTRY_LOCATION_END -->
+
+[次へ]をクリックしてください。このエントリの修正可能なビューが表示されます。情報の入力が終わったら、エントリを保存します。
+<p>
+<center><table BORDER="2" WIDTH="75%">
+<tr><td ALIGN="center" WIDTH="50%">
+<input TYPE="submit" VALUE="次へ">
+<td ALIGN="center" WIDTH="50%">
+
+<!-- DS_HELP_BUTTON "ADDING" -->
+</table></center></form>
+</body></HTML>

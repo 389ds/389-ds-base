@@ -1,0 +1,2022 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+
+/* repl5_ruv.c - implementation of replica update vector */
+/*
+ * The replica update vector is stored in the nsds50ruv attribute. The LDIF
+ * representation of the ruv is:
+ *  nsds50ruv: {replicageneration} <gen-id-for-this-replica>
+ *  nsds50ruv: {replica <rid>[ <url>]}[ <mincsn> <maxcsn>]
+ *  nsds50ruv: {replica <rid>[ <url>]}[ <mincsn> <maxcsn>]
+ *  ... 
+ *  nsds50ruv: {replica <rid>[ <url>]}[ <mincsn> <maxcsn>]
+ *
+ *  nsruvReplicaLastModified: {replica <rid>[ <url>]} lastModifiedTime
+ *  nsruvReplicaLastModified: {replica <rid>[ <url>]} lastModifiedTime
+ *  ... 
+ *
+ * For readability, ruv_dump appends nsruvReplicaLastModified to nsds50ruv:
+ *  nsds50ruv: {replica <rid>[ <url>]}[ <mincsn> <maxcsn> [<lastModifiedTime>]]
+ */
+
+#include <string.h>
+#include <ctype.h> /* For isdigit() */
+#include "csnpl.h"
+#include "repl5_ruv.h"
+#include "repl_shared.h"
+#include "repl5.h"
+
+#define RIDSTR_SIZE 16	/* string large enough to hold replicaid*/
+#define RUVSTR_SIZE 256	/* string large enough to hold ruv and lastmodifiedtime */
+
+/* Data Structures */
+
+/* replica */
+typedef struct ruvElement
+{
+	ReplicaId rid;		/* replica id for this element */
+	CSN *csn;	        /* largest csn that we know about that originated at the master */
+	CSN *min_csn;	    /* smallest csn that originated at the master */
+	char *replica_purl; /* Partial URL for replica */
+    CSNPL *csnpl;       /* list of operations in progress */
+	time_t last_modified;	/* timestamp the modification of csn */
+} RUVElement;
+
+/* replica update vector */
+struct _ruv 
+{
+	char	  *replGen;	    /* replicated area generation: identifies replica
+						       in space and in time */ 
+	DataList  *elements;    /* replicas */	
+	PRRWLock  *lock;	    /* concurrency control */
+};
+
+/* forward declarations */
+static int ruvInit (RUV **ruv, int initCount);
+static void ruvFreeReplica (void **data);
+static RUVElement* ruvGetReplica (const RUV *ruv, ReplicaId rid);
+static RUVElement* ruvAddReplica (RUV *ruv, const CSN *csn, const char *replica_purl);
+static RUVElement* ruvAddReplicaNoCSN (RUV *ruv, ReplicaId rid, const char *replica_purl);
+static RUVElement* ruvAddIndexReplicaNoCSN (RUV *ruv, ReplicaId rid, const char *replica_purl, int index);
+static int ruvReplicaCompare (const void *el1, const void *el2);
+static RUVElement *get_ruvelement_from_berval(const struct berval *bval);
+static char *get_replgen_from_berval(const struct berval *bval);
+
+static const char * const prefix_replicageneration = "{replicageneration}";
+static const char * const prefix_ruvcsn = "{replica "; /* intentionally missing '}' */
+
+
+/* API implementation */
+
+
+/*
+ * Allocate a new ruv and set its replica generation to the given generation.
+ */
+int
+ruv_init_new(const char *replGen, ReplicaId rid, const char *purl, RUV **ruv)
+{
+	int rc;
+    RUVElement *replica;
+
+	if (ruv == NULL || replGen == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_init_new: NULL argument\n");
+		return RUV_BAD_DATA;
+	}	
+
+	rc = ruvInit (ruv, 0);
+	if (rc != RUV_SUCCESS)
+		return rc;
+
+	(*ruv)->replGen = slapi_ch_strdup (replGen);
+
+    /* we want to add the local writable replica to the RUV before any csns are created */
+    /* this is so that it can be referred to even before it accepted any changes */ 
+    if (purl) 
+    {  
+        replica = ruvAddReplicaNoCSN (*ruv, rid, purl);
+
+        if (replica == NULL)
+            return RUV_MEMORY_ERROR;
+    }
+
+    return RUV_SUCCESS;
+}
+
+
+/*
+ * Create a new RUV and initialize its contents from the provided Slapi_Attr.
+ * Returns:
+ * RUV_BAD_DATA if the values in the attribute were malformed.
+ * RUV_SUCCESS if all went well
+ */
+int
+ruv_init_from_slapi_attr(Slapi_Attr *attr, RUV **ruv)
+{
+	ReplicaId dummy = 0;
+
+	return (ruv_init_from_slapi_attr_and_check_purl(attr, ruv, &dummy));
+}
+
+/*
+ * Create a new RUV and initialize its contents from the provided Slapi_Attr.
+ * Returns:
+ * RUV_BAD_DATA if the values in the attribute were malformed.
+ * RUV_SUCCESS if all went well
+ * contain_purl is 0 if the ruv doesn't contain the local purl
+ * contain_purl is != 0 if the ruv contains the local purl (contains the rid)
+ */
+int
+ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *contain_purl)
+{
+	int return_value;
+
+	PR_ASSERT(NULL != attr && NULL != ruv);
+
+	if (NULL == ruv || NULL == attr)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+			"ruv_init_from_slapi_attr: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		int rc;
+		int numvalues;
+		slapi_attr_get_numvalues(attr, &numvalues);
+		if ((rc = ruvInit(ruv, numvalues)) != RUV_SUCCESS)
+		{
+			return_value = rc;
+		}
+		else
+		{
+			int hint;
+			Slapi_Value *value;
+			const struct berval *bval;
+			const char *purl = NULL;
+
+			return_value = RUV_SUCCESS;
+
+			purl = multimaster_get_local_purl();
+			*contain_purl = 0;
+
+			for (hint = slapi_attr_first_value(attr, &value);
+				hint != -1; hint = slapi_attr_next_value(attr, hint, &value))
+			{
+				bval = slapi_value_get_berval(value);
+				if (NULL != bval && NULL != bval->bv_val)
+				{
+					if (strncmp(bval->bv_val, prefix_replicageneration, strlen(prefix_replicageneration)) == 0) {
+						if (NULL == (*ruv)->replGen)
+						{
+							(*ruv)->replGen = get_replgen_from_berval(bval);
+						} else {
+							/* Twice replicageneration is wrong, just log and ignore */
+							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+											"ruv_init_from_slapi_attr: %s is present more than once\n", 
+											prefix_replicageneration);
+						}
+					}
+					else
+					{
+						RUVElement *ruve = get_ruvelement_from_berval(bval);
+						if (NULL != ruve)
+						{
+							/* Is the local purl already in the ruv ? */
+							if ( (*contain_purl==0) && (strncmp(ruve->replica_purl, purl, strlen(purl))==0) )
+							{
+								*contain_purl = ruve->rid;
+							}
+							dl_add ((*ruv)->elements, ruve);
+						}
+					}
+				}
+			}
+		}
+	}
+	return return_value;
+}
+					
+
+
+/*
+ * Same as ruv_init_from_slapi_attr, but takes an array of pointers to bervals.
+ * I wish this wasn't a cut-n-paste of the above function, but I don't see a
+ * clean way to define one API in terms of the other.
+ */
+int
+ruv_init_from_bervals(struct berval **vals, RUV **ruv)
+{
+	int return_value;
+
+	PR_ASSERT(NULL != vals && NULL != ruv);
+
+	if (NULL == ruv || NULL == vals)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+			"ruv_init_from_slapi_value: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		int i, rc;
+		i = 0;
+		while (vals[i] != NULL)
+		{
+			i++;
+		}
+		if ((rc = ruvInit (ruv, i)) != RUV_SUCCESS)
+		{
+			return_value = rc;
+		}
+		else
+		{
+			return_value = RUV_SUCCESS;
+			for (i = 0; NULL != vals[i]; i++)
+			{
+				if (NULL != vals[i]->bv_val)
+				{
+					if (strncmp(vals[i]->bv_val, prefix_replicageneration, strlen(prefix_replicageneration)) == 0) {
+						if (NULL == (*ruv)->replGen)
+						{
+							(*ruv)->replGen = get_replgen_from_berval(vals[i]);
+						} else {
+							/* Twice replicageneration is wrong, just log and ignore */
+							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+											"ruv_init_from_slapi_value: %s is present more than once\n", 
+											prefix_replicageneration);
+						}
+					}
+					else
+					{
+						RUVElement *ruve = get_ruvelement_from_berval(vals[i]);
+						if (NULL != ruve)
+						{
+							dl_add ((*ruv)->elements, ruve);
+						}
+					}
+				}
+			}
+		}
+	}
+	return return_value;
+}
+
+
+
+RUV* 
+ruv_dup (const RUV *ruv)
+{
+	int rc;
+	RUVElement *replica, *dupReplica;
+	int cookie;
+	RUV *dupRUV = NULL;
+
+	if (ruv == NULL)
+		return NULL;
+
+	PR_RWLock_Rlock (ruv->lock);
+
+	rc = ruvInit (&dupRUV, dl_get_count (ruv->elements));
+	if (rc != RUV_SUCCESS || dupRUV == NULL)
+		goto done;
+
+	dupRUV->replGen = slapi_ch_strdup (ruv->replGen);
+
+	for (replica = dl_get_first (ruv->elements, &cookie); replica;
+		 replica = dl_get_next (ruv->elements, &cookie))
+	{
+		dupReplica = (RUVElement *)slapi_ch_calloc (1, sizeof (*dupReplica));
+		dupReplica->rid = replica->rid;	
+		if (replica->csn)		
+			dupReplica->csn = csn_dup (replica->csn);
+		if (replica->min_csn)		
+			dupReplica->min_csn = csn_dup (replica->min_csn);
+		if (replica->replica_purl)
+			dupReplica->replica_purl = slapi_ch_strdup (replica->replica_purl);
+		dupReplica->last_modified = replica->last_modified;
+
+		/* ONREPL - we don't make copy of the pernding list. For now
+		   we don't need it. */
+
+		dl_add (dupRUV->elements, dupReplica);
+	} 
+
+done:
+	PR_RWLock_Unlock (ruv->lock);
+	
+	return dupRUV;
+}
+
+void
+ruv_destroy (RUV **ruv)
+{
+	if (ruv != NULL && *ruv != NULL) 
+	{
+		if ((*ruv)->elements)
+		{
+			dl_cleanup ((*ruv)->elements, ruvFreeReplica);
+			dl_free (&(*ruv)->elements);
+		}
+		/* slapi_ch_free accepts NULL pointer */
+		slapi_ch_free ((void **)&((*ruv)->replGen));
+
+		if ((*ruv)->lock)
+		{
+			PR_DestroyRWLock ((*ruv)->lock);
+		}
+        
+		slapi_ch_free ((void**)ruv);
+	}
+}
+
+/*
+ * [610948]
+ * copy elements in srcruv to destruv
+ * destruv is the live wrapper, which could be referred by other threads.
+ * srcruv is cleaned up after copied.
+ */
+void
+ruv_copy_and_destroy (RUV **srcruv, RUV **destruv)
+{
+	DataList *elemp = NULL;
+	char *replgp = NULL;
+
+	if (NULL == srcruv || NULL == *srcruv || NULL == destruv)
+	{
+		return;
+	}
+
+	if (NULL == *destruv)
+	{
+		*destruv = *srcruv;
+		*srcruv = NULL;
+	}
+	else
+	{
+		PR_RWLock_Wlock((*destruv)->lock);
+		elemp = (*destruv)->elements;
+		(*destruv)->elements = (*srcruv)->elements;
+		if (elemp)
+		{
+			dl_cleanup (elemp, ruvFreeReplica);
+			dl_free (&elemp);
+		}
+
+		/* slapi_ch_free accepts NULL pointer */
+		replgp = (*destruv)->replGen;
+		(*destruv)->replGen = (*srcruv)->replGen;
+		slapi_ch_free ((void **)&replgp);
+
+		if ((*srcruv)->lock)
+		{
+			PR_DestroyRWLock ((*srcruv)->lock);
+		}
+		slapi_ch_free ((void**)srcruv);
+
+		PR_RWLock_Unlock((*destruv)->lock);
+	}
+    PR_ASSERT (*destruv != NULL && *srcruv == NULL);
+}
+
+int
+ruv_delete_replica (RUV *ruv, ReplicaId rid)
+{
+	int return_value;
+	if (ruv == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_delete_replica: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}	
+	else
+	{
+		/* check for duplicates */
+		PR_RWLock_Wlock (ruv->lock);
+		dl_delete (ruv->elements, (const void*)&rid, ruvReplicaCompare, ruvFreeReplica); 
+		PR_RWLock_Unlock (ruv->lock);
+		return_value = RUV_SUCCESS;
+	}
+	return return_value;
+}
+
+int 
+ruv_add_replica (RUV *ruv, ReplicaId rid, const char *replica_purl)
+{
+    RUVElement* replica;
+
+    PR_ASSERT (ruv && replica_purl);
+
+    PR_RWLock_Wlock (ruv->lock);
+    replica = ruvGetReplica (ruv, rid);
+    if (replica == NULL)
+    {
+        replica = ruvAddReplicaNoCSN (ruv, rid, replica_purl);
+    }
+    
+    PR_RWLock_Unlock (ruv->lock);
+
+    if (replica)
+        return RUV_SUCCESS;
+    else
+        return RUV_MEMORY_ERROR;
+}
+
+int 
+ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
+{
+    RUVElement* replica;
+	int rc = RUV_NOTFOUND;
+	
+    PR_ASSERT (ruv && replica_purl);
+
+    PR_RWLock_Wlock (ruv->lock);
+    replica = ruvGetReplica (ruv, rid);
+    if (replica != NULL)
+    {
+		slapi_ch_free((void **)&(replica->replica_purl));
+		replica->replica_purl = slapi_ch_strdup(replica_purl);
+        rc = RUV_SUCCESS;
+	}
+
+	PR_RWLock_Unlock (ruv->lock);
+	return rc;
+}
+
+int 
+ruv_add_index_replica (RUV *ruv, ReplicaId rid, const char *replica_purl, int index)
+{
+    RUVElement* replica;
+
+    PR_ASSERT (ruv && replica_purl);
+
+    PR_RWLock_Wlock (ruv->lock);
+    replica = ruvGetReplica (ruv, rid);
+    if (replica == NULL)
+    {
+        replica = ruvAddIndexReplicaNoCSN (ruv, rid, replica_purl, index);
+    }
+    
+    PR_RWLock_Unlock (ruv->lock);
+
+    if (replica)
+        return RUV_SUCCESS;
+    else
+        return RUV_MEMORY_ERROR;
+}
+
+
+PRBool 
+ruv_contains_replica (const RUV *ruv, ReplicaId rid)
+{
+    RUVElement *replica;
+
+    if (ruv == NULL)
+        return PR_FALSE;
+
+    PR_RWLock_Rlock (ruv->lock);
+	replica = ruvGetReplica (ruv, rid);
+    PR_RWLock_Unlock (ruv->lock);
+
+    return replica != NULL;
+}
+
+
+
+
+#define GET_LARGEST_CSN 231
+#define GET_SMALLEST_CSN 232
+static int
+get_csn_internal(const RUV *ruv, ReplicaId rid, CSN **csn, int whichone)
+{
+	RUVElement *replica;
+	int return_value = RUV_SUCCESS;
+
+	if (ruv == NULL || csn == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_get_largest_csn_for_replica: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		*csn = NULL;
+		/* prevent element from being destroyed while we get its data */
+		PR_RWLock_Rlock (ruv->lock);
+
+		replica = ruvGetReplica (ruv, rid);
+        /* replica without min csn is treated as a non-existent replica */
+		if (replica == NULL || replica->min_csn == NULL)
+		{
+			return_value = RUV_NOTFOUND;
+		}
+		else
+		{
+			switch (whichone)
+			{
+			case GET_LARGEST_CSN:
+				*csn = replica->csn ? csn_dup (replica->csn) : NULL;	
+				break;
+			case GET_SMALLEST_CSN:
+				*csn = replica->min_csn ? csn_dup (replica->min_csn) : NULL;	
+				break;
+			default:
+				*csn = NULL;
+			}
+		}
+		PR_RWLock_Unlock (ruv->lock);	
+	}
+	return return_value;
+}
+
+
+int
+ruv_get_largest_csn_for_replica(const RUV *ruv, ReplicaId rid, CSN **csn)
+{
+	return get_csn_internal(ruv, rid, csn, GET_LARGEST_CSN);
+}
+
+int
+ruv_get_smallest_csn_for_replica(const RUV *ruv, ReplicaId rid, CSN **csn)
+{
+	return get_csn_internal(ruv, rid, csn, GET_SMALLEST_CSN);
+}
+
+const char *
+ruv_get_purl_for_replica(const RUV *ruv, ReplicaId rid)
+{
+	RUVElement *replica;
+	const char *return_value = NULL;
+
+    PR_RWLock_Rlock (ruv->lock);
+
+	replica = ruvGetReplica (ruv, rid);
+	if (replica != NULL)
+	{
+		return_value = replica->replica_purl;
+	}
+
+    PR_RWLock_Unlock (ruv->lock);
+
+	return return_value;
+}
+
+
+static int
+set_min_csn_nolock(RUV *ruv, const CSN *min_csn, const char *replica_purl)
+{
+    int return_value;
+    ReplicaId rid = csn_get_replicaid (min_csn);
+    RUVElement *replica = ruvGetReplica (ruv, rid);
+    if (NULL == replica)
+    {
+        replica = ruvAddReplica (ruv, min_csn, replica_purl);
+        if (replica)
+            return_value = RUV_SUCCESS;
+        else
+            return_value = RUV_MEMORY_ERROR;
+    }
+    else
+    {
+        if (replica->min_csn == NULL || csn_compare (min_csn, replica->min_csn) < 0)
+        {
+		    csn_free(&replica->min_csn);
+		    replica->min_csn = csn_dup(min_csn);
+        }
+
+		return_value = RUV_SUCCESS;
+    }
+
+    return return_value;
+}
+
+static int
+set_max_csn_nolock(RUV *ruv, const CSN *max_csn, const char *replica_purl)
+{
+	int return_value;
+	ReplicaId rid = csn_get_replicaid (max_csn);
+	RUVElement *replica = ruvGetReplica (ruv, rid);
+    if (NULL == replica)
+    {
+	    replica = ruvAddReplica (ruv, max_csn, replica_purl);
+        if (replica)
+            return_value = RUV_SUCCESS;
+        else
+            return_value = RUV_MEMORY_ERROR;
+	}
+	else
+	{
+        if (replica_purl && replica->replica_purl == NULL)
+            replica->replica_purl = slapi_ch_strdup (replica_purl);    
+		csn_free(&replica->csn);
+		replica->csn = csn_dup(max_csn);
+		replica->last_modified = current_time();
+		return_value = RUV_SUCCESS;
+	}
+	return return_value;
+}
+
+int
+ruv_set_min_csn(RUV *ruv, const CSN *min_csn, const char *replica_purl)
+{
+	int return_value;
+	PR_RWLock_Wlock (ruv->lock);
+	return_value = set_min_csn_nolock(ruv, min_csn, replica_purl);
+	PR_RWLock_Unlock (ruv->lock);
+	return return_value;
+}
+
+
+int
+ruv_set_max_csn(RUV *ruv, const CSN *max_csn, const char *replica_purl)
+{
+	int return_value;
+	PR_RWLock_Wlock (ruv->lock);
+	return_value = set_max_csn_nolock(ruv, max_csn, replica_purl);
+	PR_RWLock_Unlock (ruv->lock);
+	return return_value;
+}
+
+int
+ruv_set_csns(RUV *ruv, const CSN *csn, const char *replica_purl)
+{
+	RUVElement *replica;
+	ReplicaId rid;
+	int return_value;
+	
+	if (ruv == NULL || csn == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_set_csns: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		rid = csn_get_replicaid (csn);
+
+		/* prevent element from being destroyed while we get its data */
+		PR_RWLock_Wlock (ruv->lock);
+
+		replica = ruvGetReplica (ruv, rid);
+		if (replica == NULL) /* add new replica */
+		{
+			replica = ruvAddReplica (ruv, csn, replica_purl);
+            if (replica)
+                return_value = RUV_SUCCESS;
+            else
+                return_value = RUV_MEMORY_ERROR;
+		}
+		else
+		{
+			if (csn_compare (csn, replica->csn) > 0)
+			{
+				if (replica->csn != NULL)
+				{
+					csn_init_by_csn ( replica->csn, csn );
+				}
+				else
+				{
+					replica->csn = csn_dup(csn);
+				}
+				replica->last_modified = current_time();
+				if (replica_purl && (NULL == replica->replica_purl ||
+					strcmp(replica->replica_purl, replica_purl) != 0))
+				{
+					/* slapi_ch_free accepts NULL pointer */
+					slapi_ch_free((void **)&replica->replica_purl);
+
+					replica->replica_purl = slapi_ch_strdup(replica_purl);
+				}
+			}
+			/* XXXggood only need to worry about this if real min csn not committed to changelog yet */
+			if (csn_compare (csn, replica->min_csn) < 0)
+			{
+				csn_free(&replica->min_csn);
+				replica->min_csn = csn_dup(csn);
+			}
+			return_value = RUV_SUCCESS;
+		}
+
+		PR_RWLock_Unlock (ruv->lock);
+	}
+	return return_value;
+}
+
+/* This function, for each replica keeps the smallest CSN its seen so far.
+   Used for initial setup of changelog purge vector */
+
+int 
+ruv_set_csns_keep_smallest(RUV *ruv, const CSN *csn)
+{
+    RUVElement *replica;
+	ReplicaId rid;
+	int return_value;
+	
+	if (ruv == NULL || csn == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+                        "ruv_set_csns_keep_smallest: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		rid = csn_get_replicaid (csn);
+
+		/* prevent element from being destroyed while we get its data */
+		PR_RWLock_Wlock (ruv->lock);
+
+		replica = ruvGetReplica (ruv, rid);
+		if (replica == NULL) /* add new replica */
+		{
+			replica = ruvAddReplica (ruv, csn, NULL);
+            if (replica)
+                return_value = RUV_SUCCESS;
+            else
+                return_value = RUV_MEMORY_ERROR;
+		}
+		else
+		{
+			if (csn_compare (csn, replica->csn) < 0)
+			{
+				csn_free(&replica->csn);
+				replica->csn = csn_dup(csn);
+				replica->last_modified = current_time();
+			}
+			
+			return_value = RUV_SUCCESS;
+		}
+
+		PR_RWLock_Unlock (ruv->lock);
+	}
+	return return_value;
+}
+
+
+void
+ruv_set_replica_generation(RUV *ruv, const char *csnstr)
+{
+	if (NULL != csnstr && NULL != ruv)
+	{
+        PR_RWLock_Wlock (ruv->lock);
+
+		if (NULL != ruv->replGen)
+		{
+			slapi_ch_free((void **)&ruv->replGen);
+		}
+		ruv->replGen = slapi_ch_strdup(csnstr);
+    
+        PR_RWLock_Unlock (ruv->lock);
+	}
+}
+
+
+char *
+ruv_get_replica_generation(const RUV *ruv)
+{
+	char *return_str = NULL;
+
+    PR_RWLock_Rlock (ruv->lock);
+
+	if (ruv != NULL && ruv->replGen != NULL)
+	{
+		return_str = slapi_ch_strdup(ruv->replGen);
+	}
+
+    PR_RWLock_Unlock (ruv->lock);
+
+	return return_str;
+}
+
+static PRBool
+ruv_covers_csn_internal(const RUV *ruv, const CSN *csn, PRBool strict)
+{
+	RUVElement *replica;
+	ReplicaId rid;
+	PRBool return_value;
+
+	if (ruv == NULL || csn == NULL) 
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn: NULL argument\n");
+		return_value = PR_FALSE;
+	}
+	else
+	{
+		rid = csn_get_replicaid(csn);
+		replica = ruvGetReplica (ruv, rid);
+		if (replica == NULL)
+		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn: replica for id %d not found\n", rid);
+			return_value = PR_FALSE;
+		}
+		else
+		{
+			if (strict)
+			{
+				return_value = (csn_compare (csn, replica->csn) < 0);
+			}
+			else
+			{
+				return_value = (csn_compare (csn, replica->csn) <= 0);
+			}
+		}
+	}
+	return return_value;
+}
+
+PRBool
+ruv_covers_csn(const RUV *ruv, const CSN *csn)
+{
+    PRBool rc;
+
+    PR_RWLock_Rlock (ruv->lock);
+	rc = ruv_covers_csn_internal(ruv, csn, PR_FALSE);
+    PR_RWLock_Unlock (ruv->lock);
+
+    return rc;
+}
+
+PRBool
+ruv_covers_csn_strict(const RUV *ruv, const CSN *csn)
+{
+    PRBool rc;
+
+    PR_RWLock_Rlock (ruv->lock);
+	rc = ruv_covers_csn_internal(ruv, csn, PR_TRUE);
+    PR_RWLock_Unlock (ruv->lock);
+
+    return rc;
+}
+
+
+/*
+ * The function gets min{maxcsns of all ruv elements} if get_the_max=0,
+ * or max{maxcsns of all ruv elements} if get_the_max != 0.
+ */
+static int
+ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max)
+{
+	int return_value;
+
+	if (ruv == NULL || csn == NULL) 
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_get_min_or_max_csn: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		CSN *found = NULL;
+		RUVElement *replica;
+		int cookie;
+		PR_RWLock_Rlock (ruv->lock);
+		for (replica = dl_get_first (ruv->elements, &cookie); replica;
+			 replica = dl_get_next (ruv->elements, &cookie))
+		{
+			/*
+			 * Skip replica whose maxcsn is NULL otherwise
+			 * the code will return different min_csn if
+			 * the sequence of the replicas is altered.
+			 * 
+			 * don't use READ_ONLY replicas for computing the value of
+			 * "found", as they seem to have NULL csn and min_csn 
+			 */ 
+			if (replica->csn == NULL || replica->rid == READ_ONLY_REPLICA_ID)
+			{
+				continue;
+			}
+
+			if (found == NULL || 
+				(!get_the_max && csn_compare(found, replica->csn)>0) ||
+				( get_the_max && csn_compare(found, replica->csn)<0))
+			{
+				found = replica->csn;
+			}
+		} 
+		if (found == NULL)
+		{
+			*csn = NULL;	
+		}
+		else
+		{
+			*csn = csn_dup (found);
+		}
+		PR_RWLock_Unlock (ruv->lock);
+		return_value = RUV_SUCCESS;	
+	}
+	return return_value;
+}
+
+int
+ruv_get_max_csn(const RUV *ruv, CSN **csn)
+{
+	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */);
+}
+
+int
+ruv_get_min_csn(const RUV *ruv, CSN **csn)
+{
+	return ruv_get_min_or_max_csn(ruv, csn, 0 /* get the min */);
+}
+
+int 
+ruv_enumerate_elements (const RUV *ruv, FNEnumRUV fn, void *arg)
+{
+    int cookie;
+    RUVElement *elem;
+    int rc = 0;
+    ruv_enum_data enum_data = {0};
+
+    if (ruv == NULL || fn == NULL)
+    {
+        /* ONREPL - log error */
+        return -1;
+    }
+
+    PR_RWLock_Rlock (ruv->lock);
+    for (elem = (RUVElement*)dl_get_first (ruv->elements, &cookie); elem;
+         elem = (RUVElement*)dl_get_next (ruv->elements, &cookie))
+    {
+        /* we only return elements that contains both minimal and maximal CSNs */
+        if (elem->csn && elem->min_csn)
+        {
+            enum_data.csn = elem->csn;
+            enum_data.min_csn = elem->min_csn;
+            rc = fn (&enum_data, arg);
+            if (rc != 0)
+                break;        
+        }
+    }
+    
+    PR_RWLock_Unlock (ruv->lock);
+
+    return rc;
+}
+
+/*
+ * Convert a replica update vector to a NULL-terminated array
+ * of bervals. The caller is responsible for freeing the bervals.
+ */
+int
+ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
+{
+	struct berval **returned_bervals = NULL;
+	int return_value;
+	if (ruv == NULL || bvals == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_to_bervals: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		int count;
+		int i;
+		RUVElement *replica;
+		char csnStr1 [CSN_STRSIZE];
+		char csnStr2 [CSN_STRSIZE];
+		int cookie;
+		PR_RWLock_Rlock (ruv->lock);
+		count = dl_get_count (ruv->elements) + 2;
+		returned_bervals = (struct berval **)slapi_ch_malloc(sizeof(struct berval *) * count);
+		returned_bervals[count - 1] = NULL;
+		returned_bervals[0] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+		returned_bervals[0]->bv_val = slapi_ch_malloc(strlen(prefix_replicageneration) + strlen(ruv->replGen) + 2);
+		sprintf(returned_bervals[0]->bv_val, "%s %s",
+			prefix_replicageneration, ruv->replGen);
+		returned_bervals[0]->bv_len = strlen(returned_bervals[0]->bv_val);
+		for (i = 1, replica = dl_get_first (ruv->elements, &cookie); replica;
+			 i++, replica = dl_get_next (ruv->elements, &cookie))
+		{
+			returned_bervals[i] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+			returned_bervals[i]->bv_val = slapi_ch_malloc(strlen(prefix_ruvcsn) + RIDSTR_SIZE +
+				((replica->replica_purl == NULL) ? 0 : strlen(replica->replica_purl)) +
+				((replica->min_csn == NULL) ? 0 : CSN_STRSIZE) +
+				((replica->csn == NULL) ? 0 : CSN_STRSIZE) + 5);
+			sprintf(returned_bervals[i]->bv_val, "%s%d%s%s}%s%s%s%s",
+				prefix_ruvcsn, replica->rid,
+				replica->replica_purl == NULL ? "" : " ",
+				replica->replica_purl == NULL ? "" : replica->replica_purl,
+                replica->min_csn == NULL ? "" : " ",
+				replica->min_csn == NULL ? "" : csn_as_string (replica->min_csn, PR_FALSE, csnStr1),
+                replica->csn == NULL ? "" : " ",
+				replica->csn == NULL ? "" : csn_as_string (replica->csn, PR_FALSE, csnStr2));
+			returned_bervals[i]->bv_len = strlen(returned_bervals[i]->bv_val);
+		}
+		PR_RWLock_Unlock (ruv->lock);
+		return_value = RUV_SUCCESS;
+		*bvals = returned_bervals;
+	}
+	return return_value;
+}
+
+int
+ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
+{
+	int return_value;
+
+	if (ruv == NULL || smod == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_to_smod: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		struct berval val;
+		RUVElement *replica;
+		int cookie;
+		char csnStr1 [CSN_STRSIZE];
+		char csnStr2 [CSN_STRSIZE];
+#define B_SIZ 1024
+		char buf[B_SIZ];
+		PR_RWLock_Rlock (ruv->lock);
+		slapi_mod_init (smod, dl_get_count (ruv->elements) + 1);
+		slapi_mod_set_type (smod, type_ruvElement);
+		slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+		PR_snprintf(buf, B_SIZ, "%s %s", prefix_replicageneration, ruv->replGen);
+		val.bv_val = buf;
+		val.bv_len = strlen(buf);
+		slapi_mod_add_value(smod, &val);
+		for (replica = dl_get_first (ruv->elements, &cookie); replica;
+			 replica = dl_get_next (ruv->elements, &cookie))
+		{
+
+			PR_snprintf(buf, B_SIZ, "%s%d%s%s}%s%s%s%s", prefix_ruvcsn, replica->rid,
+			    replica->replica_purl == NULL ? "" : " ",
+			    replica->replica_purl == NULL ? "" : replica->replica_purl,
+                replica->min_csn == NULL ? "" : " ",
+			    replica->min_csn == NULL ? "" : csn_as_string (replica->min_csn, PR_FALSE, csnStr1),
+                replica->csn == NULL ? "" : " ",
+			    replica->csn == NULL ? "" : csn_as_string (replica->csn, PR_FALSE, csnStr2));
+			val.bv_len = strlen(buf);
+			slapi_mod_add_value(smod, &val);
+		}
+		PR_RWLock_Unlock (ruv->lock);
+		return_value = RUV_SUCCESS;
+	}
+	return return_value;
+}
+
+int
+ruv_last_modified_to_smod(const RUV *ruv, Slapi_Mod *smod)
+{
+	int return_value;
+
+	if (ruv == NULL || smod == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_last_modified_to_smod: NULL argument\n");
+		return_value = RUV_BAD_DATA;
+	}
+	else
+	{
+		struct berval val;
+		RUVElement *replica;
+		int cookie;
+		char buf[B_SIZ];
+		PR_RWLock_Rlock (ruv->lock);
+		slapi_mod_init (smod, dl_get_count (ruv->elements));
+		slapi_mod_set_type (smod, type_ruvElementUpdatetime);
+		slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+		val.bv_val = buf;
+		for (replica = dl_get_first (ruv->elements, &cookie); replica;
+			 replica = dl_get_next (ruv->elements, &cookie))
+		{
+			PR_snprintf(buf, B_SIZ, "%s%d%s%s} %08lx", prefix_ruvcsn, replica->rid,
+			    replica->replica_purl == NULL ? "" : " ",
+			    replica->replica_purl == NULL ? "" : replica->replica_purl,
+			    replica->last_modified);
+			val.bv_len = strlen(buf);
+			slapi_mod_add_value(smod, &val);
+		}
+		PR_RWLock_Unlock (ruv->lock);
+		return_value = RUV_SUCCESS;
+	}
+	return return_value;
+}
+
+/*
+ * XXXggood do we need "ruv_covers_ruv_strict" ???? */
+PRBool
+ruv_covers_ruv(const RUV *covering_ruv, const RUV *covered_ruv)
+{
+	PRBool return_value = PR_TRUE;
+	RUVElement *replica;
+	int cookie;
+
+    /* compare replica generations first */
+    if (covering_ruv->replGen == NULL)
+    {
+        if (covered_ruv->replGen)
+            return PR_FALSE;
+    }
+    else
+    {
+        if (covered_ruv->replGen == NULL)
+            return PR_FALSE;   
+    }
+    
+    if (strcasecmp (covered_ruv->replGen, covering_ruv->replGen))
+        return PR_FALSE;
+
+    /* replica generation is the same, now compare element by element */
+	for (replica = dl_get_first (covered_ruv->elements, &cookie);
+		NULL != replica;
+		replica = dl_get_next (covered_ruv->elements, &cookie))
+	{
+		if (replica->csn &&
+			(ruv_covers_csn(covering_ruv, replica->csn) == PR_FALSE))
+		{
+			return_value = PR_FALSE;
+			/* Don't break here - may leave something referenced? */
+		}
+	}
+	return return_value;
+}
+
+PRInt32 
+ruv_replica_count (const RUV *ruv)
+{
+    if (ruv == NULL)
+        return 0;
+    else
+    {
+        int count;
+
+        PR_RWLock_Rlock (ruv->lock);
+        count = dl_get_count (ruv->elements);
+        PR_RWLock_Unlock (ruv->lock);
+        
+        return count;
+    }
+}
+
+/*
+ * Extract all the referral URL's from the RUV (but self URL),
+ * returning them in an array of strings, that
+ * the caller must free.
+ */
+char **
+ruv_get_referrals(const RUV *ruv)
+{
+	char **r= NULL;
+    int n;
+	const char *mypurl = multimaster_get_local_purl();
+	
+    PR_RWLock_Rlock (ruv->lock);
+
+	n = ruv_replica_count(ruv);
+	if(n>0)
+	{
+		RUVElement *replica;
+		int cookie;
+		int i= 0;
+		r= (char**)slapi_ch_calloc(sizeof(char*),n+1);
+		for (replica = dl_get_first (ruv->elements, &cookie); replica;
+			 replica = dl_get_next (ruv->elements, &cookie))
+		{
+			/* Add URL into referrals if doesn't match self URL */
+			if((replica->replica_purl!=NULL) &&
+			   (slapi_utf8casecmp((unsigned char *)replica->replica_purl,
+								  (unsigned char *)mypurl) != 0))
+			{
+		 		r[i]= slapi_ch_strdup(replica->replica_purl);
+				i++;
+			}
+		}
+	}
+
+    PR_RWLock_Unlock (ruv->lock);
+
+	return r; /* Caller must free this */
+}
+
+void 
+ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
+{
+    RUVElement *replica;
+	int cookie;
+	char csnstr1[CSN_STRSIZE];
+	char csnstr2[CSN_STRSIZE];
+	char buff[RUVSTR_SIZE];
+	int len = sizeof (buff);
+
+	PR_ASSERT(NULL != ruv);
+
+    PR_RWLock_Rlock (ruv->lock);
+
+	PR_snprintf (buff, len, "%s: {replicageneration} %s\n",
+				ruv_name ? ruv_name : type_ruvElement,
+				ruv->replGen == NULL ? "" : ruv->replGen);
+
+	if (prFile)
+	{
+		slapi_write_buffer (prFile, buff, strlen(buff));
+	}
+	else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, buff);
+	}
+	for (replica = dl_get_first (ruv->elements, &cookie); replica;
+		 replica = dl_get_next (ruv->elements, &cookie))
+	{
+		/* prefix_ruvcsn = "{replica " */
+		PR_snprintf (buff, len, "%s: %s%d%s%s} %s %s\n",
+					ruv_name ? ruv_name : type_ruvElement,
+					prefix_ruvcsn, replica->rid,
+					replica->replica_purl == NULL ? "" : " ",
+					replica->replica_purl == NULL ? "" : replica->replica_purl,
+					csn_as_string(replica->min_csn, PR_FALSE, csnstr1),
+					csn_as_string(replica->csn, PR_FALSE, csnstr2));
+		if (strlen (csnstr1) > 0) {
+			PR_snprintf (buff + strlen(buff) - 1, len - strlen(buff), " %08lx\n",
+					replica->last_modified);
+		}
+		if (prFile)
+		{
+			slapi_write_buffer (prFile, buff, strlen(buff));
+		}
+		else
+		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, buff);
+		}
+	}
+
+    PR_RWLock_Unlock (ruv->lock);
+}
+
+/* this function notifies the ruv that there are operations in progress so that
+   they can be added to the pending list for the appropriate client. */
+int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
+{
+    RUVElement* replica;
+    char csn_str[CSN_STRSIZE];
+    int rc = RUV_SUCCESS;
+
+    PR_ASSERT (ruv && csn);
+
+    /* locate ruvElement */
+    PR_RWLock_Wlock (ruv->lock);
+    replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
+    if (replica == NULL)
+    {
+        replica = ruvAddReplicaNoCSN (ruv, csn_get_replicaid (csn), NULL/*purl*/);
+        if (replica == NULL)
+        {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to add replica"
+                            " that created csn %s\n", csn_as_string (csn, PR_FALSE, csn_str));
+            rc = RUV_MEMORY_ERROR;
+            goto done;
+        }
+    } 
+
+    /* check first that this csn is not already covered by this RUV */
+    if (ruv_covers_csn_internal(ruv, csn, PR_FALSE))
+    {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
+                        "the csn %s has already be seen - ignoring\n",
+                        csn_as_string (csn, PR_FALSE, csn_str));
+        rc = RUV_COVERS_CSN;
+        goto done;
+    }
+
+    rc = csnplInsert (replica->csnpl, csn);
+    if (rc == 1)    /* we already seen this csn */
+    {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
+                        "the csn %s has already be seen - ignoring\n",
+                        csn_as_string (csn, PR_FALSE, csn_str));
+        rc = RUV_COVERS_CSN;    
+    }
+    else if(rc != 0)
+    {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to insert csn %s"
+                            " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
+        rc = RUV_UNKNOWN_ERROR;
+    }
+    else
+    {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: successfully inserted csn %s"
+                        " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
+        rc = RUV_SUCCESS;
+    }
+      
+done:
+    PR_RWLock_Unlock (ruv->lock);
+    return rc;
+}
+
+int ruv_cancel_csn_inprogress (RUV *ruv, const CSN *csn)
+{
+    RUVElement* replica;
+    int rc = RUV_SUCCESS;
+
+    PR_ASSERT (ruv && csn);
+
+    /* locate ruvElement */
+    PR_RWLock_Wlock (ruv->lock);
+    replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
+    if (replica == NULL)
+    {
+        /* ONREPL - log error */
+        rc = RUV_NOTFOUND;
+        goto done;
+    } 
+
+    rc = csnplRemove (replica->csnpl, csn);
+    if (rc != 0)
+        rc = RUV_NOTFOUND;
+    else
+        rc = RUV_SUCCESS;
+      
+done:
+    PR_RWLock_Unlock (ruv->lock);
+    return rc;
+}
+
+int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool isLocal)
+{
+    int rc=RUV_SUCCESS;
+    char csn_str[CSN_STRSIZE];
+    CSN *max_csn;
+    CSN *first_csn = NULL;
+    RUVElement *replica;
+    
+    PR_ASSERT (ruv && csn);
+
+    PR_RWLock_Wlock (ruv->lock);
+
+    replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
+    if (replica == NULL)
+    {
+        /* we should have a ruv element at this point because it would have
+           been added by ruv_add_inprogress function */
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: "
+			            "can't locate RUV element for replica %d\n", csn_get_replicaid (csn)); 
+        goto done;
+    } 
+
+	if (csnplCommit(replica->csnpl, csn) != 0)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "ruv_update_ruv: cannot commit csn %s\n",
+			            csn_as_string(csn, PR_FALSE, csn_str));
+        rc = RUV_CSNPL_ERROR;
+        goto done;
+	}
+    else
+    {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: "
+                "successfully committed csn %s\n", csn_as_string(csn, PR_FALSE, csn_str));
+    }
+
+	if ((max_csn = csnplRollUp(replica->csnpl, &first_csn)) != NULL)
+	{
+#ifdef DEBUG
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: rolled up to csn %s\n",
+			            csn_as_string(max_csn, PR_FALSE, csn_str)); /* XXXggood remove debugging */
+#endif
+        /* replica object sets min csn for local replica */
+		if (!isLocal && replica->min_csn == NULL) {
+		  /* bug 559223 - it seems that, under huge stress, a server might pass
+		   * through this code when more than 1 change has already been sent and commited into
+		   * the pending lists... Therefore, as we are trying to set the min_csn ever 
+		   * generated by this replica, we need to set the first_csn as the min csn in the
+		   * ruv */
+		  set_min_csn_nolock(ruv, first_csn, replica_purl);
+		} 
+		set_max_csn_nolock(ruv, max_csn, replica_purl);
+		/* It is possible that first_csn points to max_csn.
+		   We need to free it once */
+		if (max_csn != first_csn) {
+			csn_free(&first_csn); 
+		}
+		csn_free(&max_csn);
+	}
+
+done:
+    PR_RWLock_Unlock (ruv->lock);
+
+    return rc;
+}
+
+/* Helper functions */
+
+static int
+ruvInit (RUV **ruv, int initCount)
+{
+	PR_ASSERT (ruv);
+
+	/* allocate new RUV */
+	*ruv = (RUV *)slapi_ch_calloc (1, sizeof (RUV));
+	if (ruv == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"ruvInit: memory allocation failed\n");
+		return RUV_MEMORY_ERROR;
+	}
+
+	/* allocate	elements */
+	(*ruv)->elements = dl_new ();
+	if ((*ruv)->elements == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"ruvInit: memory allocation failed\n");
+		return RUV_MEMORY_ERROR;
+	}
+
+	dl_init ((*ruv)->elements, initCount);
+
+	/* create lock */
+	(*ruv)->lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "ruv_lock");
+	if ((*ruv)->lock == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"ruvInit: failed to create lock\n");
+		return RUV_NSPR_ERROR;
+	}
+
+	return RUV_SUCCESS;
+}
+
+static void
+ruvFreeReplica (void **data)
+{
+	RUVElement *element = *(RUVElement**)data;
+
+	if (NULL != element)
+	{
+		if (NULL != element->csn)
+		{
+			csn_free (&element->csn);
+		}
+		if (NULL != element->min_csn)
+		{
+			csn_free (&element->min_csn);
+		}
+		/* slapi_ch_free accepts NULL pointer */
+		slapi_ch_free((void **)&element->replica_purl);
+
+        if (element->csnpl)
+		{
+			csnplFree (&(element->csnpl));
+		}
+		slapi_ch_free ((void **)&element);
+	}
+}
+
+static RUVElement*
+ruvAddReplica (RUV *ruv, const CSN *csn, const char *replica_purl)
+{
+	RUVElement *replica;
+
+	PR_ASSERT (NULL != ruv);
+    PR_ASSERT (NULL != csn);
+	
+	replica = (RUVElement *)slapi_ch_calloc (1, sizeof (RUVElement));
+	if (replica == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"ruvAddReplica: memory allocation failed\n");
+		return NULL;
+	}
+    
+	replica->rid = csn_get_replicaid (csn);
+/* 	PR_ASSERT(replica->rid != READ_ONLY_REPLICA_ID); */
+	
+	replica->csn = csn_dup (csn);
+	replica->last_modified = current_time();
+	replica->min_csn = csn_dup (csn);
+
+	replica->replica_purl = slapi_ch_strdup(replica_purl);
+    replica->csnpl = csnplNew ();
+    
+	dl_add (ruv->elements, replica);
+
+	return replica;
+}
+
+static RUVElement* 
+ruvAddReplicaNoCSN (RUV *ruv, ReplicaId rid, const char *replica_purl)
+{
+    RUVElement *replica;
+
+	PR_ASSERT (NULL != ruv);
+/* 	PR_ASSERT(rid != READ_ONLY_REPLICA_ID); */
+	
+	replica = (RUVElement *)slapi_ch_calloc (1, sizeof (RUVElement));
+	if (replica == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"ruvAddReplicaNoCSN: memory allocation failed\n");
+		return NULL;
+	}
+
+	replica->rid = rid;
+	replica->replica_purl = slapi_ch_strdup(replica_purl);
+    replica->csnpl = csnplNew ();
+    
+	dl_add (ruv->elements, replica);
+
+	return replica;
+}
+
+static RUVElement* 
+ruvAddIndexReplicaNoCSN (RUV *ruv, ReplicaId rid, const char *replica_purl, int index)
+{
+    RUVElement *replica;
+
+	PR_ASSERT (NULL != ruv);
+/* 	PR_ASSERT(rid != READ_ONLY_REPLICA_ID); */
+	
+	replica = (RUVElement *)slapi_ch_calloc (1, sizeof (RUVElement));
+	if (replica == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"ruvAddIndexReplicaNoCSN: memory allocation failed\n");
+		return NULL;
+	}
+
+	replica->rid = rid;
+	replica->replica_purl = slapi_ch_strdup(replica_purl);
+    replica->csnpl = csnplNew ();
+    
+	dl_add_index (ruv->elements, replica, index);
+
+	return replica;
+}
+
+static RUVElement *
+ruvGetReplica (const RUV *ruv, ReplicaId rid)
+{
+	PR_ASSERT (ruv /* && rid >= 0 -- rid can't be negative */);
+
+	return (RUVElement *)dl_get (ruv->elements, (const void*)&rid, ruvReplicaCompare);
+}
+
+static int
+ruvReplicaCompare (const void *el1, const void *el2)
+{
+	RUVElement *replica = (RUVElement*)el1;
+	ReplicaId *rid1 = (ReplicaId*) el2;
+
+	if (replica == NULL || rid1 == NULL)
+		return -1;
+
+	if (*rid1 == replica->rid)
+		return 0;
+	
+	if (*rid1 < replica->rid)
+		return -1;
+	else
+		return 1;
+}
+
+
+
+/*
+ * Given a berval that points to a string of the form:
+ * "{dbgen} generation-id", return a copy of the
+ * "generation-id" part in a null-terminated string.
+ * Returns NULL if the berval is malformed.
+ */
+static char *
+get_replgen_from_berval(const struct berval *bval)
+{
+	char *ret_string = NULL;
+
+	if (NULL != bval && NULL != bval->bv_val &&
+		(bval->bv_len > strlen(prefix_replicageneration)) &&
+		strncasecmp(bval->bv_val, prefix_replicageneration,
+		strlen(prefix_replicageneration)) == 0)
+	{
+		unsigned int index = strlen(prefix_replicageneration);
+		/* Skip any whitespace */
+		while (index++ < bval->bv_len && bval->bv_val[index] == ' ');
+		if (index < bval->bv_len)
+		{
+			unsigned int ret_len = bval->bv_len - index;
+			ret_string = slapi_ch_malloc(ret_len + 1);
+			memcpy(ret_string, &bval->bv_val[index], ret_len);
+			ret_string[ret_len] = '\0';
+		}
+	}
+	return ret_string;
+}
+
+
+
+/*
+ * Given a berval that points to a string of the form:
+ * "{replica ldap[s]//host:port} <min_csn> <csn>", parse out the
+ * partial URL and the CSNs into an RUVElement, and return
+ * a pointer to the copy. Returns NULL if the berval is
+ * malformed.
+ */
+static RUVElement *
+get_ruvelement_from_berval(const struct berval *bval)
+{
+	RUVElement *ret_ruve = NULL;
+	char *purl = NULL;
+	ReplicaId rid = 0;
+	char ridbuff [RIDSTR_SIZE];
+	int i;
+
+	if (NULL != bval && NULL != bval->bv_val &&
+		bval->bv_len > strlen(prefix_ruvcsn) &&
+		strncasecmp(bval->bv_val, prefix_ruvcsn, strlen(prefix_ruvcsn)) == 0)
+	{
+		unsigned int urlbegin = strlen(prefix_ruvcsn);
+		unsigned int urlend;
+		unsigned int mincsnbegin;
+
+		/* replica id must be here */
+		i = 0;
+		while (isdigit (bval->bv_val[urlbegin]))
+		{
+			ridbuff [i] = bval->bv_val[urlbegin];
+			i++;
+			urlbegin ++;
+		}
+
+		if (i == 0)	/* replicaid is missing */
+			goto loser;
+
+		ridbuff[i] = '\0';
+		rid = atoi (ridbuff);
+
+		if (bval->bv_val[urlbegin] == '}')
+		{
+			/* No purl in this value */
+			purl = NULL;
+			mincsnbegin = urlbegin + 1;
+		}
+		else
+		{
+			while (urlbegin++ < bval->bv_len && bval->bv_val[urlbegin] == ' ');
+			urlend = urlbegin;
+			while (urlend++ < bval->bv_len && bval->bv_val[urlend] != '}');
+			purl = slapi_ch_malloc(urlend - urlbegin + 1);
+			memcpy(purl, &bval->bv_val[urlbegin], urlend - urlbegin);
+			purl[urlend - urlbegin] = '\0';
+			mincsnbegin = urlend;
+		}
+		/* Skip any whitespace before the first (minimum) CSN */
+		while (mincsnbegin++ < (bval->bv_len-1) && bval->bv_val[mincsnbegin] == ' ');
+		/* Now, mincsnbegin should contain the index of the beginning of the first csn */
+		if (mincsnbegin >= bval->bv_len)
+		{
+			/* Missing the entire content*/
+            if (purl == NULL)
+			    goto loser;
+            else    /* we have just purl - no changes from the replica has been seen */
+            {
+                ret_ruve = (RUVElement *)slapi_ch_calloc(1, sizeof(RUVElement));
+				ret_ruve->rid = rid;
+                ret_ruve->replica_purl = purl;
+            }
+		}
+		else
+		{
+			if (bval->bv_len - mincsnbegin != (_CSN_VALIDCSN_STRLEN * 2) + 1)
+			{
+				/* Malformed - incorrect length for 2 CSNs + space */
+				goto loser;
+			}
+			else
+			{
+				char mincsnstr[CSN_STRSIZE];
+				char maxcsnstr[CSN_STRSIZE];
+
+				memset(mincsnstr, '\0', CSN_STRSIZE);
+				memset(maxcsnstr, '\0', CSN_STRSIZE);
+				memcpy(mincsnstr, &bval->bv_val[mincsnbegin], _CSN_VALIDCSN_STRLEN);
+				memcpy(maxcsnstr, &bval->bv_val[mincsnbegin + _CSN_VALIDCSN_STRLEN + 1], _CSN_VALIDCSN_STRLEN);
+				ret_ruve = (RUVElement *)slapi_ch_calloc(1, sizeof(RUVElement));
+				ret_ruve->min_csn = csn_new_by_string(mincsnstr);
+				ret_ruve->csn = csn_new_by_string(maxcsnstr);
+				ret_ruve->rid = rid;
+				ret_ruve->replica_purl = purl;
+				if (NULL == ret_ruve->min_csn || NULL == ret_ruve->csn)
+				{
+					goto loser;
+				}
+			}
+		}
+	}
+
+    /* initialize csn pending list */
+    ret_ruve->csnpl = csnplNew ();
+    if (ret_ruve->csnpl == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"get_ruvelement_from_berval: failed to create csn pending list\n");
+		goto loser;
+	} 
+
+	return ret_ruve;
+
+loser:
+	/* slapi_ch_free accepts NULL pointer */
+	slapi_ch_free((void **)&purl);
+	if (NULL != ret_ruve)
+	{
+		if (NULL != ret_ruve->min_csn)
+		{
+			csn_free(&ret_ruve->min_csn);
+		}
+		if (NULL != ret_ruve->csn)
+		{
+			csn_free(&ret_ruve->csn);
+		}
+		slapi_ch_free((void **)&ret_ruve);
+	}
+	return NULL;
+}
+
+int
+ruv_move_local_supplier_to_first(RUV *ruv, ReplicaId aRid)
+{
+	RUVElement * elem = NULL;
+	int rc = RUV_NOTFOUND;
+	
+	PR_ASSERT(ruv);
+
+    PR_RWLock_Wlock (ruv->lock);
+	
+	elem = (RUVElement *)dl_delete(ruv->elements,(const void*)&aRid, ruvReplicaCompare, 0);
+	if (elem) {
+		dl_add_index(ruv->elements, elem, 1);
+		rc = RUV_SUCCESS;
+	}
+	
+	PR_RWLock_Unlock (ruv->lock);
+	
+	return rc;
+}
+
+
+int
+ruv_get_first_id_and_purl(RUV *ruv, ReplicaId *rid, char **replica_purl )
+{
+	RUVElement * first = NULL;
+	int cookie;
+	int rc;
+	
+	PR_ASSERT(ruv);
+
+    PR_RWLock_Rlock (ruv->lock);
+	first = dl_get_first(ruv->elements, &cookie);
+	if ( first == NULL )
+	{
+		rc = RUV_MEMORY_ERROR;
+	}
+	else
+	{
+		*rid = first->rid;
+		*replica_purl = first->replica_purl;
+		rc = RUV_SUCCESS;
+	}
+	PR_RWLock_Unlock (ruv->lock);
+	return rc;
+}
+
+int ruv_local_contains_supplier(RUV *ruv, ReplicaId rid)
+{
+	int cookie;
+	RUVElement *elem = NULL;
+
+	PR_ASSERT(ruv);
+
+    PR_RWLock_Rlock (ruv->lock);
+	for (elem = dl_get_first (ruv->elements, &cookie);
+		 elem;
+		 elem = dl_get_next (ruv->elements, &cookie))
+	{
+		if (elem->rid == rid){
+			PR_RWLock_Unlock (ruv->lock);
+			return 1;
+		}
+	}
+	PR_RWLock_Unlock (ruv->lock);
+	return 0;
+}
+
+PRBool ruv_has_csns(const RUV *ruv)
+{
+        PRBool retval = PR_TRUE;
+        CSN *mincsn = NULL;
+        CSN *maxcsn = NULL;
+
+        ruv_get_min_csn(ruv, &mincsn);
+        ruv_get_max_csn(ruv, &maxcsn);
+        if (mincsn) {
+                csn_free(&mincsn);
+                csn_free(&maxcsn);
+        } else if (maxcsn) {
+                csn_free(&maxcsn);
+        } else {
+                retval = PR_FALSE; /* both min and max are false */
+        }
+
+        return retval;
+}
+
+/* Check if the first ruv is newer than the second one */
+PRBool
+ruv_is_newer (Object *sruvobj, Object *cruvobj)
+{
+	RUV *sruv, *cruv;
+	RUVElement *sreplica, *creplica;
+	int scookie, ccookie;
+	int is_newer = PR_FALSE;
+
+	if ( sruvobj == NULL ) {
+		return 0;
+	}
+	if ( cruvobj == NULL ) {
+		return 1;
+	}
+	sruv = (RUV *) object_get_data ( sruvobj );
+	cruv = (RUV *) object_get_data ( cruvobj );
+
+	for (sreplica = dl_get_first (sruv->elements, &scookie); sreplica;
+		 sreplica = dl_get_next (sruv->elements, &scookie))
+	{
+		/* A hub may have a dummy ruv with rid 65535 */
+		if ( sreplica->csn == NULL ) continue;
+
+		for (creplica = dl_get_first (cruv->elements, &ccookie); creplica;
+			 creplica = dl_get_next (cruv->elements, &ccookie))
+		{
+			if ( sreplica->rid == creplica->rid ) {
+				if ( csn_compare ( sreplica->csn, creplica->csn ) > 0 ) {
+					is_newer = PR_TRUE;
+				}
+				break;
+			}
+		}
+		if ( creplica == NULL || is_newer ) {
+			is_newer = PR_TRUE;
+			break;
+		}
+	}
+
+	return is_newer;
+}
+
+#ifdef TESTING /* Some unit tests for code in this file */
+
+static void
+ruv_dump_internal(RUV *ruv)
+{
+	RUVElement *replica;
+	int cookie;
+	char csnstr1[CSN_STRSIZE];
+	char csnstr2[CSN_STRSIZE];
+
+	PR_ASSERT(NULL != ruv);
+	printf("{replicageneration} %s\n", ruv->replGen == NULL ? "NULL" : ruv->replGen);
+	for (replica = dl_get_first (ruv->elements, &cookie); replica;
+		 replica = dl_get_next (ruv->elements, &cookie))
+	{
+		printf("{replica%s%s} %s %s\n",
+			replica->replica_purl == NULL ? "" : " ",
+			replica->replica_purl == NULL ? "" : replica->replica_purl,
+			csn_as_string(replica->min_csn, PR_FALSE, csnstr1),
+			csn_as_string(replica->csn, PR_FALSE, csnstr2));
+	}
+}
+	
+void
+ruv_test()
+{
+	const struct berval *vals[5];
+	struct berval val0, val1, val2, val3;
+	RUV *ruv;
+	Slapi_Attr *attr;
+	Slapi_Value *sv0, *sv1, *sv2, *sv3;
+	int rc;
+	char csnstr[CSN_STRSIZE];
+	char *gen;
+	CSN *newcsn;
+	ReplicaId *ids;
+	int nids;
+	Slapi_Mod smods;
+	PRBool covers;
+
+	vals[0] = &val0;
+	vals[1] = &val1;
+	vals[2] = &val2;
+	vals[3] = &val3;
+	vals[4] = NULL;
+
+	val0.bv_val = "{replicageneration} 0440FDC0A33F";
+	val0.bv_len = strlen(val0.bv_val);
+
+	val1.bv_val = "{replica ldap://ggood.mcom.com:389} 12345670000000FE0000 12345671000000FE0000";
+	val1.bv_len = strlen(val1.bv_val);
+
+	val2.bv_val = "{replica ldaps://an-impossibly-long-host-name-that-drags-on-forever-and-forever.mcom.com:389} 11112110000000FF0000 11112111000000FF0000";
+	val2.bv_len = strlen(val2.bv_val);
+
+	val3.bv_val = "{replica} 12345672000000FD0000 12345673000000FD0000";
+	val3.bv_len = strlen(val3.bv_val);
+
+	rc = ruv_init_from_bervals(vals, &ruv);
+	ruv_dump_internal(ruv);
+
+	attr = slapi_attr_new();
+	attr = slapi_attr_init(attr, "ruvelement");
+	sv0 = slapi_value_new();
+	sv1 = slapi_value_new();
+	sv2 = slapi_value_new();
+	sv3 = slapi_value_new();
+	slapi_value_init_berval(sv0, &val0);
+	slapi_value_init_berval(sv1, &val1);
+	slapi_value_init_berval(sv2, &val2);
+	slapi_value_init_berval(sv3, &val3);
+	slapi_attr_add_value(attr, sv0);
+	slapi_attr_add_value(attr, sv1);
+	slapi_attr_add_value(attr, sv2);
+	slapi_attr_add_value(attr, sv3);
+	rc = ruv_init_from_slapi_attr(attr, &ruv);
+	ruv_dump_internal(ruv);
+	
+	rc = ruv_delete_replica(ruv, 0xFF);
+	/* Should delete one replica */
+	ruv_dump_internal(ruv);
+
+	rc = ruv_delete_replica(ruv, 0xAA);
+	/* No such replica - should not do anything */
+	ruv_dump_internal(ruv);
+
+	rc = ruv_get_largest_csn_for_replica(ruv, 0xFE, &newcsn);
+	if (NULL != newcsn)
+	{
+		csn_as_string(newcsn, PR_FALSE, csnstr);
+		printf("Replica 0x%X has largest csn \"%s\"\n", 0xFE, csnstr);
+	}
+	else
+	{
+		printf("BAD - can't get largest CSN for replica 0x%X\n", 0xFE);
+	}
+
+	rc = ruv_get_smallest_csn_for_replica(ruv, 0xFE, &newcsn);
+	if (NULL != newcsn)
+	{
+		csn_as_string(newcsn, PR_FALSE, csnstr);
+		printf("Replica 0x%X has smallest csn \"%s\"\n", 0xFE, csnstr);
+	}
+	else
+	{
+		printf("BAD - can't get smallest CSN for replica 0x%X\n", 0xFE);
+	}
+	rc = ruv_get_largest_csn_for_replica(ruv, 0xAA, &newcsn);
+	printf("ruv_get_largest_csn_for_replica on non-existent replica ID returns %d\n", rc);
+
+	rc = ruv_get_smallest_csn_for_replica(ruv, 0xAA, &newcsn);
+	printf("ruv_get_smallest_csn_for_replica on non-existent replica ID returns %d\n", rc);
+
+	newcsn = csn_new_by_string("12345674000000FE0000"); /* Old replica 0xFE */
+	rc = ruv_set_csns(ruv, newcsn, "ldaps://foobar.mcom.com");
+	/* Should update replica FE's CSN */
+	ruv_dump_internal(ruv);
+
+	newcsn = csn_new_by_string("12345675000000FB0000"); /* New replica 0xFB */
+	rc = ruv_set_csns(ruv, newcsn, "ldaps://foobar.mcom.com");
+	/* Should get a new replica in the list with min == max csn */
+	ruv_dump_internal(ruv);
+
+	newcsn = csn_new_by_string("12345676000000FD0000"); /* Old replica 0xFD */
+	rc = ruv_set_csns(ruv, newcsn, "ldaps://foobar.mcom.com");
+	/* Should update replica 0xFD so new CSN is newer than min CSN */
+	ruv_dump_internal(ruv);
+
+	gen = ruv_get_replica_generation(ruv);
+	printf("replica generation is \"%s\"\n", gen);
+
+	newcsn = csn_new_by_string("12345673000000FE0000"); /* Old replica 0xFE */
+	covers = ruv_covers_csn(ruv, newcsn); /* should say "true" */
+
+	newcsn = csn_new_by_string("12345675000000FE0000"); /* Old replica 0xFE */
+	covers = ruv_covers_csn(ruv, newcsn); /* Should say "false" */
+
+	newcsn = csn_new_by_string("123456700000000A0000"); /* New replica 0A */
+	rc = ruv_set_min_csn(ruv, newcsn, "ldap://repl0a.mcom.com");
+	ruv_dump_internal(ruv);
+
+	newcsn = csn_new_by_string("123456710000000A0000"); /* New replica 0A */
+	rc = ruv_set_max_csn(ruv, newcsn, "ldap://repl0a.mcom.com");
+	ruv_dump_internal(ruv);
+
+	newcsn = csn_new_by_string("123456700000000B0000"); /* New replica 0B */
+	rc = ruv_set_max_csn(ruv, newcsn, "ldap://repl0b.mcom.com");
+	ruv_dump_internal(ruv);
+
+	newcsn = csn_new_by_string("123456710000000B0000"); /* New replica 0B */
+	rc = ruv_set_min_csn(ruv, newcsn, "ldap://repl0b.mcom.com");
+	ruv_dump_internal(ruv);
+
+	/* ONREPL test ruv enumeration */
+
+	rc = ruv_to_smod(ruv, &smods);
+
+	ruv_destroy(&ruv);
+}
+#endif /* TESTING */

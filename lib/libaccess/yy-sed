@@ -1,0 +1,21 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+/#include <unistd.h>/d
+/#include <values.h>/d
+/#pragma ident/d
+s/malloc.h/netsite.h/g
+s/yyparse/acl_Parse/g
+s/yy_flex_alloc/ACL_FLEX_ALLOC/g
+s/yy_flex_realloc/ACL_FLEX_REALLOC/g
+s/yy_flex_free/ACL_FLEX_FREE/g
+s/malloc(/PERM_MALLOC(/g
+s/free(/PERM_FREE(/g
+s/realloc(/PERM_REALLOC(/g
+s/yy/acl/g
+s/YY/ACL/g
+s/lex.acl.c/acl.yy.cpp/g

@@ -1,0 +1,114 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HEAD><TITLE>User Management</TITLE>
+
+<SCRIPT language=JavaScript>
+
+function resetForm()
+{
+    document.addForm.add_cn.focus();
+}
+
+
+function submitAdd()
+{
+    var theForm = document.addForm;
+    var dn, dnSuffix, i, e, prod;
+
+    if ( theForm.add_cn.value.length == 0 ) {
+	alert( 'Please provide a name for the group' );
+	theForm.add_cn.focus();
+	return;
+    }
+
+    dn = 'cn=' + theForm.add_cn.value;
+    if ( theForm.CrLoc.type == 'hidden' ) {
+	dnSuffix = unescape( theForm.CrLoc.value );
+    } else {
+	dnSuffix = unescape(
+		theForm.CrLoc.options[ theForm.CrLoc.selectedIndex ].value );
+    }
+    if ( dnSuffix.length > 0 ) {
+	dn += ', ' + dnSuffix;
+    }
+    theForm.dn.value = escape(dn);
+
+    // execute selected product-specific default functions
+    for ( i = 0; i < theForm.elements.length; ++i ) {
+	e = theForm.elements[ i ];
+	if ( e.type == 'checkbox' &&
+		e.name.substring( 0, 17 ) == 'product_checkbox_' &&
+		e.checked ) {
+	    prod = e.name.substring( 17, e.name.length );
+	    if ( !eval( 'product_setdefaults_' + prod + '(theForm)' )) {
+		return;	// submit vetoed by product
+	    }
+	}
+    }
+
+    theForm.submit();
+}
+
+
+function submitAddandEdit()
+{
+    document.addForm.completion_javascript.value =
+	"if (dsmodify_dn.length == 0) document.location.href=\"genscreen?dscrgroup&info=\" + escape(dsmodify_info); else document.location.href=\"edit/\" + dsmodify_dn + \"?&info=\" + escape(dsmodify_info);";
+
+    submitAdd();
+}
+
+</SCRIPT>
+
+</HEAD>
+<!-- BODY "onLoad='resetForm()'" -->
+
+<CENTER><TABLE BORDER="2" CELLPADDING="10" WIDTH="100%">
+<TR><TD ALIGN="center" WIDTH="100%">
+<FONT SIZE="+2"><B>New Group</B></FONT>
+</TD></TR></TABLE></CENTER>
+
+<!-- DS_LAST_OP_INFO "prefix=<P><FONT SIZE=%22%2B1%22>The group " "suffix=</FONT><HR>" -->
+
+<FORM METHOD="POST" ACTION="domodify" NAME="addForm">
+
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="document.location.href=\'genscreen?dscrgroup&info=\' + escape(dsmodify_info)">
+
+<INPUT TYPE="hidden" NAME="changetype" VALUE="add">
+<INPUT TYPE="hidden" NAME="dn" VALUE="">
+
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="groupOfUniqueNames">
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+
+<DIV ALIGN="right"><FONT SIZE="-1">* Indicates a required field</FONT></DIV>
+
+<TABLE CELLSPACING="0" BORDER="0">
+<TR><TD ALIGN="right"><b>* Group Name:</b></TD>
+<TD><INPUT type="text" name="add_cn" value="" size=32></TD></TR>
+<TR><TD ALIGN="right"><b>Description:</b></TD>
+<TD><INPUT type="text" name="add_description" value="" size=32></TD></TR>
+<!-- INCLUDESET dscrgroup -->
+<!-- DS_LOCATIONPOPUP "name=CrLoc" "prefix=<TR><TD ALIGN=%22right%22><b>Add New Group To:</b></TD><TD>" "suffix=</TD></TR>" "rootname=the top of the directory" -->
+</TABLE>
+<P>
+
+<CENTER><TABLE BORDER="2" WIDTH="100%">
+<TR>
+<TD WIDTH="25%" ALIGN="center"><INPUT TYPE="button" VALUE=" Create Group "
+    onClick="submitAdd()"></TD>
+<TD WIDTH="25%" ALIGN="center">
+    <INPUT TYPE="button" VALUE=" Create and Edit Group "
+    onClick="submitAddandEdit()"></TD>
+<TD WIDTH=25% ALIGN=center><INPUT TYPE="reset" VALUE=" Reset "
+    onClick="resetForm()"></TD>
+<TD WIDTH=25% ALIGN=center>
+<!-- HELPBUTTON "DSCRGROUP" -->
+</TD></TR></TABLE></CENTER>
+</FORM>
+
+<!-- ENDHTML -->

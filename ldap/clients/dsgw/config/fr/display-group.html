@@ -1,0 +1,150 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_OBJECTCLASS "value=groupOfNames" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+Nouvelle
+<!-- ENDIF // Adding -->
+Entr&eacute;e de groupe
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE>
+<TR>
+<TD>
+<IMG SRC="lang?<!-- GCONTEXT -->&file=group.gif" ALT="Groupe" HSPACE=5 >
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+Nouveau groupe -
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+</TABLE>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=Modifier le groupe" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Enregistrer le nouveau groupe" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Annuler" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_GROUP" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_GROUP" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Renommer le groupe" "prompt=Entrer un nouveau nom pour ce groupe :" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Supprimer le groupe" "prompt=Supprimer ce groupe ?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="groupOfNames">
+<!-- ENDIF // Adding -->
+
+<!-- PCONTEXT -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<!-- DS_STD_COMPLETION_JS -->
+
+<HR>
+<!-- IF "!Displaying" -->
+<B>* Indique une zone d'entr&eacute;e obligatoire</B><BR>
+<!-- ENDIF -->
+
+
+<TABLE CELLSPACING="5">
+<TR>
+<TD NOWRAP>Nom :
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" "cols=>40" -->
+</B></TD><TD WIDTH="20%"></TD>
+</TR>
+
+<TR>
+<TD NOWRAP>Description :</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>40" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP VALIGN="TOP">Propri&eacute;taire :<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modifier..." "template=dnedit" "attr=owner" "desc=Propri&eacute;taire " -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=owner" "syntax=dn" "options=sort,readonly" -->
+</B></TD>
+
+<TR>
+<TD NOWRAP VALIGN="TOP">Voir &eacute;galement :<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modifier..." "template=dnedit" "attr=seeAlso" "desc=Voir &eacute;galement" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP COLSPAN="4">
+<!-- IF "!Adding" -->
+<B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "options=sort,readonly" -->
+</B>
+<!-- ELSE // !Adding -->
+<I>Vous devez enregistrer cette entr&eacute;e pour pouvoir modifier ces champs.</I>
+<!-- ENDIF // !Adding -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP VALIGN="top">Membres du groupe :<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modifier..." "template=dnedit" "attr=uniquemember" "desc=Membres du groupe :" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=uniquemember" "syntax=dn" "options=sort,readonly" -->
+</B></TD></TR>
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+La derni&egrave;re modification de cette entr&eacute;e date du 
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> par <B>
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->
+
+

@@ -1,0 +1,44 @@
+dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-onvaluemapgraphic
+nsim-onvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/icq-online.gif
+
+dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-offvaluemapgraphic
+nsim-offvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/icq-offline.gif
+
+dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-disabledvaluemapgraphic
+nsim-disabledvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/icq-disabled.gif
+
+dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-onvaluemapgraphic
+nsim-onvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/aim-online.gif
+
+dn:cn=AIM Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-offvaluemapgraphic
+nsim-offvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/aim-offline.gif
+
+dn:cn=ICQ Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-disabledvaluemapgraphic
+nsim-disabledvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/aim-offline.gif
+
+dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-offvaluemapgraphic
+nsim-offvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/yahoo-offline.gif
+
+dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-onvaluemapgraphic
+nsim-onvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/yahoo-online.gif
+
+dn:cn=Yahoo Presence,cn=Presence,cn=plugins,cn=config
+changeType:modify
+replace:nsim-disabledvaluemapgraphic
+nsim-disabledvaluemapgraphic: D:/dev/ds60cvs/ldapserver/ldap/servers/plugins/presence/yahoo-offline.gif

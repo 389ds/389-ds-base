@@ -1,0 +1,253 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+/* pw_retry.c
+*/
+
+#include <time.h>
+#include "slap.h"
+
+/****************************************************************************/
+/* prototypes                                                               */
+/****************************************************************************/
+/* Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn ); */
+static void set_reset_time ( Slapi_PBlock *pb, time_t cur_time );
+static void set_retry_cnt ( Slapi_PBlock *pb, int count);
+static void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time);
+
+/*
+ * update_pw_retry() is called when bind operation fails 
+ * with LDAP_INVALID_CREDENTIALS (in backend bind.c ). 
+ * It checks to see if the retry count can be reset,
+ * increments retry count, and then check if need to lock the acount. 
+ * To have a global password policy, these mods should be chained to the
+ * master, and not applied locally. If they are applied locally, they should
+ * not get replicated from master... 
+ */
+
+int update_pw_retry ( Slapi_PBlock *pb )
+{
+    Slapi_Entry           *e;
+	int             retry_cnt=0; 
+	time_t          reset_time; 
+	time_t          cur_time;
+	char            *cur_time_str = NULL;
+	char *retryCountResetTime;
+	int passwordRetryCount;
+
+    /* get the entry */
+    e = get_entry ( pb, NULL );
+	if ( e == NULL ) {
+		return ( 1 );
+	}
+
+    cur_time = current_time();
+
+    /* check if the retry count can be reset. */
+	retryCountResetTime= slapi_entry_attr_get_charptr(e, "retryCountResetTime");
+	if(retryCountResetTime!=NULL)
+	{
+        reset_time = parse_genTime (retryCountResetTime);
+		slapi_ch_free((void **) &retryCountResetTime );
+
+		cur_time_str = format_genTime ( cur_time );
+        if ( difftime ( parse_genTime( cur_time_str ), reset_time) >= 0 )
+        {
+            /* set passwordRetryCount to 1 */
+            /* reset retryCountResetTime */
+			set_retry_cnt_and_time ( pb, 1, cur_time );
+			slapi_ch_free((void **) &cur_time_str );
+			slapi_entry_free( e );
+            return ( 0 ); /* success */
+        } else {
+			slapi_ch_free((void **) &cur_time_str );
+		}
+    } else {
+		/* initialize passwordRetryCount and retryCountResetTime */
+		set_retry_cnt_and_time ( pb, 1, cur_time );
+		slapi_entry_free( e );
+        return ( 0 ); /* success */
+	}
+	passwordRetryCount = slapi_entry_attr_get_int(e, "passwordRetryCount"); 
+    if (passwordRetryCount >= 0)
+	{
+        retry_cnt = passwordRetryCount + 1;
+   		if ( retry_cnt == 1 ) {
+        	/* set retryCountResetTime */
+        	set_retry_cnt_and_time ( pb, retry_cnt, cur_time );
+		} else {
+			/* set passwordRetryCount to retry_cnt */
+			set_retry_cnt ( pb, retry_cnt );
+		}
+    }	
+	slapi_entry_free( e );
+	return 0; /* success */
+}
+
+static
+void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
+	char        *dn;
+	Slapi_Mods	smods;
+	time_t      reset_time;
+	char		*timestr;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	passwdPolicy *pwpolicy = NULL;
+
+	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	pwpolicy = new_passwdPolicy(pb, dn);
+
+	slapi_mods_init(&smods, 0);
+
+	reset_time = time_plus_sec ( cur_time, 
+		pwpolicy->pw_resetfailurecount );
+	
+	timestr = format_genTime ( reset_time );
+	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "retryCountResetTime", timestr);
+	slapi_ch_free((void **)&timestr);
+
+	set_retry_cnt_mods(pb, &smods, count);
+	
+	pw_apply_mods(dn, &smods);
+	slapi_mods_done(&smods);
+	delete_passwdPolicy(&pwpolicy);
+}
+
+void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
+{
+	char 		*timestr;
+	time_t		unlock_time;
+	char        retry_cnt[8]; /* 1-65535 */
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	char *dn = NULL; 
+	passwdPolicy *pwpolicy = NULL;
+
+	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	pwpolicy = new_passwdPolicy(pb, dn);
+
+	if (smods) {
+		sprintf ( retry_cnt, "%d", count );
+		slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "passwordRetryCount", retry_cnt);
+		/* lock account if reache retry limit */
+		if ( count >=  pwpolicy->pw_maxfailure ) {
+			/* Remove lock_account function to perform all mods at once */
+			/* lock_account ( pb ); */
+			/* reach the retry limit, lock the account  */
+			if ( pwpolicy->pw_unlock == 0 ) {
+				/* lock until admin reset password */
+				unlock_time = NO_TIME;
+			} else {
+				unlock_time = time_plus_sec ( current_time(),
+											  pwpolicy->pw_lockduration );
+			}
+			timestr= format_genTime ( unlock_time );
+			slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "accountUnlockTime", timestr);
+			slapi_ch_free((void **)&timestr);
+		}
+	}
+	delete_passwdPolicy(&pwpolicy);
+	return;
+}
+
+static
+void set_retry_cnt ( Slapi_PBlock *pb, int count) {
+	char        *dn;
+	Slapi_Mods	smods;
+	
+	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	slapi_mods_init(&smods, 0);
+	set_retry_cnt_mods(pb, &smods, count);
+	pw_apply_mods(dn, &smods);
+	slapi_mods_done(&smods);
+}
+
+static
+void set_reset_time ( Slapi_PBlock *pb, time_t cur_time ) {
+	char            *dn;
+	Slapi_Mods	smods;
+	time_t          reset_time;
+	char *timestr;
+	int resetfailurecount;
+	passwdPolicy *pwpolicy = NULL;
+
+	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	
+	pwpolicy = new_passwdPolicy(pb, dn);
+	resetfailurecount = pwpolicy->pw_resetfailurecount;
+
+	slapi_mods_init(&smods, 0);
+
+	reset_time = time_plus_sec ( cur_time, resetfailurecount );
+
+	timestr = format_genTime ( reset_time );
+	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "retryCountResetTime", timestr);
+	slapi_ch_free((void **)&timestr);
+
+	pw_apply_mods(dn, &smods);
+	slapi_mods_done(&smods);
+	delete_passwdPolicy(&pwpolicy);
+}
+
+Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
+{
+    int             search_result = 0;
+    Slapi_Entry     *retentry = NULL;
+	Slapi_DN		sdn;
+
+    if ( dn == NULL ) {
+    	char *t;
+        slapi_pblock_get( pb, SLAPI_TARGET_DN, &t );
+		dn= t;
+    }
+
+	slapi_sdn_init_dn_byref(&sdn, dn);
+
+	if ((search_result = slapi_search_internal_get_entry(&sdn, NULL,  &retentry, pw_get_componentID())) != LDAP_SUCCESS){
+		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' can't find entry '%s', err %d\n", dn, search_result, 0);
+	}
+	slapi_sdn_done(&sdn);
+    return retentry;
+}
+
+void pw_apply_mods(const char *dn, Slapi_Mods *mods) 
+{
+	Slapi_PBlock pb;
+	int res;
+	
+	if (mods && (slapi_mods_get_num_mods(mods) > 0)) 
+	{
+		pblock_init(&pb);
+		slapi_modify_internal_set_pb (&pb, dn, 
+									  slapi_mods_get_ldapmods_byref(mods),
+									  NULL, /* Controls */
+									  NULL, /* UniqueID */
+									  pw_get_componentID(), /* PluginID */
+									  0); /* Flags */
+		slapi_modify_internal_pb (&pb);
+		
+		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+		if (res != LDAP_SUCCESS){
+			LDAPDebug(LDAP_DEBUG_ANY, "WARNING: passwordPolicy modify error %d on entry '%s'\n",
+					  res, dn, 0);
+		}
+		
+		pblock_done(&pb);
+	}
+	
+	return;
+}
+
+/* Handle the component ID for the password policy */
+
+static struct slapi_componentid * pw_componentid = NULL;
+
+void pw_set_componentID(struct slapi_componentid *cid)
+{
+	pw_componentid = cid;
+}
+
+struct slapi_componentid * pw_get_componentID()
+{
+	return pw_componentid;
+}

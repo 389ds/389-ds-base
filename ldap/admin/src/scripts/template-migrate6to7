@@ -1,0 +1,3049 @@
+#{{PERL-EXEC}}
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2004 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# Migrate a 6.x directory server to a 7.0 directory server
+
+#######################################################################################################
+# enable the use of Perldap functions
+require DynaLoader;
+
+use Getopt::Std;
+use Mozilla::LDAP::Conn;
+use Mozilla::LDAP::Entry;
+use Mozilla::LDAP::LDIF;
+use Mozilla::LDAP::Utils qw(:all);
+use Mozilla::LDAP::API qw(:api :ssl :apiv3 :constant); # Direct access to C API
+use Time::localtime;
+use File::Basename;
+use Class::Struct ; 
+
+#######################################################################################################
+
+sub usage {
+        print(STDERR "\nUsage: $0 -D rootdn { -w password | -w - | -j filename } -p port \n");
+	print(STDERR "       -o oldInstancePath -n newInstancePath [-t tracelevel] [-L logfile]\n");
+        print(STDERR "************** parameters in brackets are optionals, others are required **************\n");
+        print(STDERR " Opts: -D rootdn              - new 7.0 Directory Manager\n");
+        print(STDERR "     : -w password            - new 7.0 Directory Manager's password\n");
+        print(STDERR "     : -w -                   - Prompt for new 7.0 Directory Manager's password\n");
+        print(STDERR "     : -j filename            - Read new 7.0 Directory Manager's password from file\n");
+        print(STDERR "     : -p port                - new 7.0 Directory Server port\n");
+        print(STDERR "     : -o oldInstancePath     - Path of the old instance to migrate \n");
+        print(STDERR "     : -n newInstancePath     - Path of the new 7.0 instance\n");
+        print(STDERR "     : [-d dataPath]          - Path to directory containing data files to import into new instance\n");
+        print(STDERR "     : [-v oldVersion]        - Version of old instance (obtained by running $slapdExecName -v\n");
+        print(STDERR "     : [-t tracelevel]        - (optional) specify the level of trace (0..3)\n");
+        print(STDERR "     : [-L logfile]           - (optional) specify the file to log the migration report \n");
+      }
+########################################################################################################
+
+BEGIN {
+  
+  require 'uname.lib' ;
+  $isNT = -d '\\';
+  $PATHSEP = $isNT ? "\\" : "/";
+  ${SEP} = $isNT ? ";" : ":" ; 
+  @INC = ( '.', '../../../admin/admin/bin');
+  grep { s@/@\\@g } @INC if $isNT;
+  $script_suffix = $isNT ? ".bat" : "";
+  $exe_suffix = $isNT ? ".exe" : "";
+  # NT needs quotes around some things unix doesn't
+  $quote = $isNT ? "\"" : "";
+
+  # If this variable is set, all file/directory creation will make sure the mode
+  # and ownership of the destination is the same as the source
+  $PRESERVE = 1 if (!$isNT);
+  $script_suffix = $isNT ? ".bat" : "";
+  $exe_suffix = $isNT ? ".exe" : "";
+    if ($isNT) {
+		$os = "WINNT";
+    } else {
+    	$os = &uname("-s");
+    }
+	if ($isNT) {
+		# we have to pass batch files directly to the NT command interpreter
+		$com_spec = $ENV{ComSpec};
+		if (!$com_spec) {
+			$com_spec = $ENV{COMSPEC};
+		}
+		if (!$com_spec || ! -f $com_spec) {
+			# find the first available command interpreter
+			foreach $drive (c..z) {
+				$com_spec = "$drive:\\winnt\\system32\\cmd.exe";
+				last if (-f $com_spec);
+				$com_spec = undef;
+			}
+			if (! $com_spec) {
+				# punt and pray
+				$com_spec = 'c:\winnt\system32\cmd.exe';
+			}
+		}
+	}
+    if ( $os eq "AIX" ) {
+		$dll_suffix = "_shr.a";
+    }	
+    elsif ( $os eq "HP-UX" ) {
+		$dll_suffix = ".sl";
+    }	
+    elsif ( $os eq "WINNT" ) {
+		$dll_suffix = ".dll";
+    }	
+    else {
+		$dll_suffix = ".so";
+    }	
+	$slapdExecName = $isNT ? 'slapd.exe' : './ns-slapd';
+	select STDERR;
+	$| = 1;
+	select STDOUT;
+	$| = 1;
+}
+
+SWITCH: {
+	    if ($os eq "AIX") {
+		$LIB_PATH = "LIBPATH" ;
+		last SWITCH ;
+	    }
+	    if ($os eq "HP-UX") {
+		$LIB_PATH = "SHLIB_PATH" ;
+		last SWITCH ;
+	    }
+	    if ($isNT) {
+                $LIB_PATH = "PATH" ;
+	        last SWITCH ;
+            }
+            else {
+                $LIB_PATH = "LD_LIBRARY_PATH" ;
+	        last SWITCH ;
+            }
+       }  
+
+  # old parameters
+  ${oldDir}         = "" ;                
+  ${oldname}        = "" ;             
+  ${oldHome}        = "" ;   
+  ${oldConfDir}     = "" ;
+  ${oldlocaluser} ;
+  ${olduid} ;
+  ${oldgid} ;
+
+  # new parameters            
+  ${root}           = "{{DS-ROOT}}" ;               
+  ${type}           = "" ;               
+  ${newname}        = "" ; 
+  ${newport}        = "" ;                                     
+  ${rootDN}         = "" ;
+  ${rootpwd}        = "" ;
+  ${localhost}      = "" ;
+  ${LogFileReport}  = "" ;
+  ${newuid} ;
+  ${localuser} ;
+  ${newgid} ;
+  $NO_INPUT_USER     = 0  ; # by default user can give inputs during the migration process
+  ${curdir}          = getCwd();
+  ${slapdExecDir}    = "${root}${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+  # in 7.0 the replica Id is setup to a static value
+  $replicaIdvalue = 65535;
+
+  # specify the level of trace
+  $TRACELEVEL=1;
+
+  $LDAP_SERVER_UNREACHABLE = 81;
+
+  # get input users
+  &getParameters() ;
+  ${oldDir}          = &normalizeDir("${oldDir}");
+  ${oldHome}         = "${oldDir}${PATHSEP}$type-$oldname" ;    
+  ${oldConfDir}      = "${oldHome}${PATHSEP}config${PATHSEP}" ;
+  ${oldSchemaDir}    = "${oldConfDir}schema${PATHSEP}";
+  ${oldDSEldif}      = "${oldConfDir}dse.ldif";        
+  ${serverHome}      = "${root}${PATHSEP}$type-$newname" ;
+  ${schemaDir}       = "$serverHome${PATHSEP}config${PATHSEP}schema${PATHSEP}";
+  ${DSEldif}         = "$serverHome${PATHSEP}config${PATHSEP}dse.ldif";
+  ${ldif_rep}        = "${oldConfDir}ldif${PATHSEP}" ; 
+  ${oldSlapdExecDir} = "${oldDir}${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+  
+  open(LOGFILE, ">> $LogFileReport");
+
+  printTrace("\noldDir: $oldDir, oldHome: $oldHome, \noldConfDir: $oldConfDir, \nldif_rep: $ldif_rep, \nrootDN: $rootDN, \nPort: $newport, \nNewname: $newname\n",3);
+  printTrace("\nLIB_PATH: $LIB_PATH",4);
+
+  if (!(-d $serverHome)) {
+    printMsg("\n$serverHome doesn't exist\n");
+    exit(1);
+  }
+  if (!(-d $oldHome)) {
+    printMsg("\n$oldHome doesn't exist\n");
+    exit(1);
+  }
+
+  if ($olddatadir && !(-d $olddatadir)) {
+    print("\n$olddatadir doesn't exist\n");
+    exit(1);
+  }
+
+
+%HashParametersName = ();
+
+# The following hash displays only general server parameters to migrate under cn=config
+%GeneralSrvParamToMigrate = (
+		       'nsslapd-accesscontrol'=> '\n',
+		       'nsslapd-errorlog-logging-enabled'=> '\n',
+		       'nsslapd-accesslog-logging-enabled'=> '\n',
+		       'nsslapd-auditlog-logging-enabled'=> '\n',
+		       'nsslapd-accesslog-level'=> '\n',
+		       'nsslapd-accesslog-logbuffering'=> '\n',
+		       'nsslapd-accesslog-logexpirationtime'=> '\n',
+		       'nsslapd-accesslog-logexpirationtimeunit'=> '\n',
+		       'nsslapd-accesslog-logmaxdiskspace'=> '\n',
+		       'nsslapd-accesslog-logminfreediskspace'=> '\n',
+		       'nsslapd-accesslog-logrotationtime'=> '\n',
+		       'nsslapd-accesslog-logrotationtimeunit'=> '\n',
+		       'nsslapd-accesslog-maxlogsize'=> '\n',
+		       'nsslapd-accesslog-maxLogsPerDir'=> '\n',
+		       'nsslapd-attribute-name-exceptions'=> '\n',
+		       'nsslapd-auditlog-logexpirationtime'=> '\n',
+		       'nsslapd-auditlog-logexpirationtimeunit'=> '\n',
+		       'nsslapd-auditlog-logmaxdiskspace'=> '\n',
+		       'nsslapd-auditlog-logminfreediskspace'=> '\n',
+		       'nsslapd-auditlog-logrotationtime'=> '\n',
+		       'nsslapd-auditlog-logrotationtimeunit'=> '\n',
+		       'nsslapd-auditlog-maxlogsize'=> '\n',
+		       'nsslapd-auditlog-maxLogsPerDir'=> '\n',
+		       'nsslapd-certmap-basedn'=> '\n',
+		       'nsslapd-ds4-compatible-schema'=> '\n',
+		       'nsslapd-enquote-sup-oc'=> '\n',
+		       'nsslapd-errorlog-level'=> '\n',
+		       'nsslapd-errorlog-logexpirationtime'=> '\n',
+		       'nsslapd-errorlog-logexpirationtimeunit'=> '\n',
+		       'nsslapd-errorlog-logmaxdiskspace'=> '\n',
+		       'nsslapd-errorlog-logminfreediskspace'=> '\n',
+		       'nsslapd-errorlog-logrotationtime'=> '\n',
+		       'nsslapd-errorlog-logrotationtimeunit'=> '\n',
+		       'nsslapd-errorlog-maxlogsize'=> '\n',
+		       'nsslapd-errorlog-maxlogsperdir'=> '\n',
+		       'nsslapd-groupevalnestlevel'=> '\n',
+		       'nsslapd-idletimeout'=> '\n',
+		       'nsslapd-ioblocktimeout'=> '\n',
+		       'nsslapd-lastmod'=> '\n',
+		       'nsslapd-listenhost'=> '\n',
+		       'nsslapd-maxdescriptors'=> '\n',
+		       'nsslapd-nagle'=> '\n',
+		       'nsslapd-readonly'=> '\n',
+		       'nsslapd-referralmode'=> '\n',
+		       'nsslapd-plugin-depends-on-name'=> '\n',
+		       'nsslapd-plugin-depends-on-type'=> '\n',
+		       'nsslapd-referral'=> '\n',
+		       'nsslapd-reservedescriptors'=> '\n',
+		       'nsslapd-rootpwstoragescheme'=> '\n',
+		       'nsslapd-schemacheck'=> '\n',
+		       'nsslapd-secureport'=> '\n',
+		       'nsslapd-security'=> '\n',
+		       'nsslapd-sizelimit'=> '\n',
+		       'nsslapd-ssl3ciphers'=> '\n',
+		       'nsslapd-timelimit'=> '\n',
+		       'passwordchange'=> '\n',
+		       'passwordchecksyntax'=> '\n',
+		       'passwordexp'=> '\n',
+		       'passwordhistory'=> '\n',
+		       'passwordinhistory'=> '\n',
+		       'passwordlockout'=> '\n',
+		       'passwordlockoutduration'=> '\n',
+		       'passwordmaxage'=> '\n',
+		       'passwordmaxfailure'=> '\n',
+		       'passwordminage'=> '\n',
+		       'passwordminlength'=> '\n',
+		       'passwordmustchange'=> '\n',
+		       'passwordresetfailurecount' => '\n',
+		       'passwordstoragescheme' => '\n',
+		       'passwordunlock' => '\n',
+		       'passwordwarning' => '\n'
+);
+
+# the following hash displays global parameters related to database stored under cn=config,cn=ldbm database,cn=plugins,cn=config
+%GlobalConfigLDBMparamToMigrate = (
+		       'nsslapd-allidsthreshold' => '\n',
+		       'nsslapd-lookthroughlimit' => '\n',
+		       'nsslapd-mode' => '\n',
+		       'nsslapd-dbcachesize' => '\n',
+		       'nsslapd-cache-autosize' => '\n',
+		       'nsslapd-cache-autosize-split' => '\n',
+		       'nsslapd-db-transaction-logging' => '\n',
+		       'nsslapd-import-cachesize' => '\n'
+);
+
+# the following hash displays specific parameters to each backends and  stored under cn=DBname,cn=ldbm database,cn=plugins,cn=config
+%LDBMparamToMigrate = (
+	           'nsslapd-cachesize' => '\n',
+		       'nsslapd-cachememsize' => '\n',
+		       'nsslapd-readonly' => '\n',
+		       'nsslapd-require-index' => '\n'
+);
+
+
+%ChainingConfigParams = (
+			 'nsactivechainingcomponents' => '\n',
+			 'nstransmittedcontrols' => '\n'
+			 );
+
+%ChainingDefaultInstanceConfigParams = (
+			 'nsabandonedsearchcheckinterval' => '\n',
+			 'nsbindconnectionslimit' => '\n',
+			 'nsbindtimeout' => '\n',
+			 'nsbindretrylimit' => '\n',
+			 'nshoplimit' => '\n',
+			 'nsmaxresponsedelay' => '\n',
+			 'nsmaxtestresponsedelay' => '\n',
+			 'nschecklocalaci' => '\n',
+			 'nsconcurrentbindlimit' => '\n',
+			 'nsconcurrentoperationslimit' => '\n',
+			 'nsconnectionlife' => '\n',
+			 'nsoperationconnectionslimit' => '\n',
+			 'nsproxiedauthorization' => '\n',
+			 'nsreferralonscopedsearch' => '\n',
+			 'nsslapd-sizelimit' => '\n',
+			 'nsslapd-timelimit' => '\n'
+);
+
+%changelog5params = (
+		     'nsslapd-changelogmaxage' => '\n',
+		     'nsslapd-changelogmaxentries' => '\n'
+		    );
+
+@SNMPparams = (
+	       'nssnmpenabled',
+	       'nssnmporganization', 
+	       'nssnmplocation',
+	       'nssnmpcontact',
+	       'nssnmpdescription',
+	       'nssnmpmasterhost',
+	       'nssnmpmasterport',
+	       'nssnmpenabled',
+	       'aci'
+	       );
+
+%stdIncludes = (
+		"."                        => "\n",
+		".."                       => "\n",
+		"30ns-common.ldif "        => "\n",
+		"50ns-mail.ldif "          => "\n",
+		"50ns-news.ldif"           => "\n",
+		"50iplanet-servicemgt.ldif"=> "\n",
+		"50netscape-servicemgt.ldif"=> "\n",
+		"50ns-mcd-browser.ldif"    => "\n",
+		"50ns-proxy.ldif"          => "\n",
+		"00core.ldif"              => "\n",
+		"50ns-admin.ldif"          => "\n",
+		"50ns-mcd-config.ldif "    => "\n",
+		"50ns-value.ldif"          => "\n",
+		"05rfc2247.ldif"           => "\n",
+		"50ns-calendar.ldif"       => "\n",
+		"50ns-mcd-li.ldif"         => "\n",
+		"50ns-wcal.ldif"           => "\n",
+		"05rfc2927.ldif"           => "\n",
+		"50ns-certificate.ldif"    => "\n", 
+		"50ns-mcd-mail.ldif"       => "\n", 
+		"50ns-web.ldif"            => "\n",
+		"10rfc2307.ldif"           => "\n",
+		"50ns-compass.ldif"        => "\n",
+		"50ns-media.ldif"          => "\n", 
+		"20subscriber.ldif"        => "\n",
+		"50ns-delegated-admin.ldif"=> "\n", 
+		"50ns-mlm.ldif"            => "\n",
+		"25java-object.ldif"       => "\n",
+		"50ns-directory.ldif"      => "\n", 
+		"50ns-msg.ldif"            => "\n",
+		"28pilot.ldif"             => "\n",
+		"50ns-legacy.ldif"         => "\n", 
+		"50ns-netshare.ldif"       => "\n"
+);
+
+
+# Backends migrated (Backend CN attribute value)
+@BACKENDS    = () ; 
+# All pairs of suffix-backend are registered in this hashtable
+%oldBackends = () ;
+
+#store the backend instances to migrate
+@LDBM_backend_instances = ();
+
+#store the mapping tree
+@Mapping_tree_entries = ();
+
+#store the suffix and the associated chaining backend
+%oldChainingBackends = ();
+
+#store the multiplexor bind entries to migrate
+%MultiplexorBindDNEntriesToMigrate = ();
+
+#store the Replica bind DN entries to migrate
+%ReplicaBindDNEntriesToMigrate = ();
+
+# list of standard plugins
+%stdPlugins = (
+	"7-bit check"                         =>        "\n",
+	"acl plugin"                          =>        "\n",
+	"acl preoperation"                    =>        "\n",
+	"binary syntax"                       =>        "\n",     
+	"case exact string syntax"            =>        "\n",
+	"case ignore string syntax"           =>        "\n",
+	"chaining database"                   =>        "\n",
+        "class of service"                    =>        "\n",
+        "country string syntax"               =>        "\n",
+	"distinguished name syntax"           =>        "\n",
+        "generalized time syntax"             =>        "\n",
+        "integer syntax"                      =>        "\n",
+        "internationalization plugin"         =>        "\n",
+        "ldbm database"                       =>        "\n",
+        "legacy replication plugin"           =>        "\n",
+        "multimaster replication plugin"      =>        "\n",
+        "octet string syntax"                 =>        "\n",
+        "clear"                               =>        "\n",
+        "crypt"                               =>        "\n",
+        "ns-mta-md5"                          =>        "\n",
+        "sha"                                 =>        "\n",
+        "ssha"                                =>        "\n",
+        "postal address syntax"               =>        "\n",
+        "referential integrity postoperation" =>        "\n",
+        "retro changelog plugin"              =>        "\n",
+        "roles plugin"                        =>        "\n",
+        "telephone syntax"                    =>        "\n",
+        "uid uniqueness"                      =>        "\n",
+        "uri syntax"                          =>        "\n"
+	      );
+
+# list of indexes that have disappeared from the new schema compared to 6.x 
+%deniedIndexes = (
+	'dncomp' => "\n"
+);
+
+@default_indexes = ();
+@indexes = ();
+
+# list of user added Plugin's. In 7.0, they 'll need to be recompiled
+@badPlugins = () ;
+
+@pluginAttrs = (	  
+	       "objectclass",
+	       "cn",
+	       "nsslapd-pluginpath",
+	       "nsslapd-plugininitfunc",
+	       "nsslapd-plugintype",
+	       "nsslapd-pluginenabled",
+	       "nsslapd-plugin-depends-on-type",
+	       "nsslapd-pluginid",
+	       "nsslapd-pluginversion",
+	       "nsslapd-pluginvendor"
+	       );
+
+@nsds5replicaAttrs = (
+		      'objectclass',
+		      'nsDS5ReplicaRoot',
+		      'nsDS5ReplicaType',
+		      'nsDS5ReplicaLegacyConsumer',
+		      'nsDS5flags',
+		      'nsDS5ReplicaId',
+		      'nsDS5ReplicaPurgeDelay',
+		      'nsDS5ReplicaBinddn',
+		      'cn',
+		      'nsDS5ReplicaReferral'
+		      );
+
+# array of replicas to migrate
+@new6replicas = ();
+
+# array of replication agreements to migrate
+@replicationAgreements = ();
+
+# compare LDIF standard config files with standard ones
+CompareStdConfigFiles() ;
+die "\n\n The version of product you want to migrate is not a 6.x Directory Server\n" unless ($oldVersion == 6) ;
+
+# Shutdown the legacy Directory instance
+printTrace("\nShutdown the legacy Directory Server instance: ${oldHome}",0);
+&stopServer($oldDir, 'slapd-'.$oldname);
+
+# get the hostname of the new LDAP server
+my $LDAPservername = &getLDAPservername();
+
+# get the uid and gid of the 7.0 slapd user
+($localuser, $newuid, $newgid)    = getuid_gid();
+# get the uid and gid of the 6.x slapd user
+($oldlocaluser, $olduid, $oldgid) = getolduid_gid();
+printTrace("\n7.0 localuser: $localuser, uid: $newuid, gid: $newgid",2);
+printTrace("\n6.x localuser: $oldlocaluser, uid: $olduid, gid: $oldgid",2);
+
+# backup 7.0 configuration files in <6server_root>/slapd-instancename/config
+printTrace("\nBackup $serverHome${PATHSEP}config on $serverHome${PATHSEP}config_backup ...",0);
+&backupConfigFiles();
+
+# migrate the schema (need to stop and start the 7.0 server)
+printTrace("\nMigrate the schema...",0);
+MigrateSchema();
+
+# start the server unless it is already started
+&startServer() unless (isDirectoryAlive());
+
+###############  Connect to the 7.0 LDAP Directory Server  ######################
+$ENV{"$LIB_PATH"} = $new_libpath;
+
+die "\n Migration aborted. Make sure your old and new Directory Server are installed on the same machine \n" if ( $LDAPservername == -1 );
+$conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+
+# Cconnection to 7.0 LDAP server is successful !
+printTrace("\nConnected to $Version.$Minor LDAP server",0) ;
+
+# Parse the main configuration file: dse.ldif
+printTrace("\n\nParse the old DSE ldif file: $oldDSEldif  *****",0, 1);
+printTrace("\nThis may take a while ...\n",0);
+&MigrateDSEldif();
+
+#migrate LDBM backend instances
+printTrace("\n\nMigrate LDBM backend instances...",0,1);
+&migrateLDBM_backend_instances();
+
+#migrate mapping tree entries
+printTrace("\n\nMigrate mapping tree...",0,1);
+&migrateMappingTree();
+
+#migrate default indexes
+printTrace("\n\nMigrate default indexes...",0,1);
+migrateDefaultIndexes();
+
+#migrate indexes
+printTrace("\n\nMigrate indexes...",0,1);
+migrateIndexes();
+
+#migrate replicas
+printTrace("\n\nMigrate replicas...",0,1);
+&MigrateNSDS5_replica();
+
+#migrate replication agreements
+printTrace("\n\nMigrate replication agreements...",0,1);
+&MigrateNSDS_replication_agreement();
+
+#migrate key/cert databases
+printTrace("\n\nMigrate key/cert databases...",0,1);
+&MigrateSSL(); 
+
+# migrate certmap.conf
+printTrace("\n\nMigrate Certmap.conf...",0,1);
+&MigrateCertmap() ;
+
+##################   Close the connection to 7.0 LDAP Server   #####################
+printTrace("\n\n***** Close the LDAP connection to the new Directory Server instance ***** ",0);
+$conn->close;
+
+
+################## stop the new instance and Export/Import the data, restart the server ##################
+if (@BACKENDS) {
+  &stopServer($root,'slapd-'.$newname);
+  if ($olddatadir) {
+	printTrace("\nData already contained in $olddatadir...\n",0,1) ;
+	$ldif_rep = "$olddatadir${PATHSEP}";
+  } else {
+	printTrace("\nData processing...\n",0,1) ;
+	# migrate data for each backend: 6.x -> LDIF files
+	&manydb2Ldif($ldif_rep);
+  }
+  
+  # migrate LDIF data to the new database: LDIF -> New
+  &manyLdif2db($ldif_rep);
+  &migrateChangelog();
+  printTrace("\n***** Migrate ReplicaBindDN entries...\n",0,1);
+  &importReplicaBindDNEntries();
+  printTrace("\n***** Migrate MultiplexorBindDN entries...\n",0,1);
+  &importMultiplexorBindDNEntries();
+  &startServer() unless (isDirectoryAlive());
+}
+else {
+  printTrace("\nINFORMATION - There are no non-standard or non-already existing suffixes to migrate\n",0);
+  &migrateChangelog();
+  printTrace("\n***** Migrate ReplicaBindDN entries...\n",0,1);
+  &importReplicaBindDNEntries();
+  printTrace("\n***** Migrate MultiplexorBindDN entries...\n",0,1);
+  &importMultiplexorBindDNEntries();
+}
+
+printMsg("\n\n  ******   End of migration   ******\n\n");
+
+close(LOGFILE);
+
+
+###########################################################################################
+# get input users
+sub getParameters {
+  my $exit = 0 ;
+  my $i    = 0;
+  my $pwdfile= "";
+
+  while ($i <= $#ARGV) {
+    if ( "$ARGV[$i]" eq "-D" ) { # directory manager
+      if (! $rootDN) {
+	$rootDN = $ARGV[++$i] ;
+      }
+      else {
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-w") { # password
+      if (! $rootpwd) {
+	$rootpwd = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-j") { # password file 
+      if (! $pwdfile) {
+	$pwdfile = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-o") { # old instance path
+       if (! $oldHome ) {
+	 $oldHome = $ARGV[++$i] ;
+	 grep { s@\\@/@g } $oldHome if $isNT ;
+	 if ($oldHome =~ /[\"]?(.*)?[\"]?/) { $oldHome = $1 ; }
+	 if ($oldHome =~ m@^(.*)/([^-/]*)-([^/]*)[/]?$@) {
+	   $oldDir  = $1 ;
+	   $type    = $2 ;
+	   $oldname = $3 ;
+	   if ($isNT) {
+	     $oldDir  = lc($oldDir)     ;
+	     $type    = lc($type)       ;
+	     $oldname = lc($oldname)    ;
+	     $oldHome = lc($oldHome)    ;
+	     grep { s@/@\\@g } $oldDir  ;
+	     grep { s@/@\\@g } $oldHome ;
+	   }
+	 }
+	 else {
+	   print("\nThe old instance path is not correct. It must be like slapd-instancename");
+	   &usage();
+	   exit(1);
+	 }
+       }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-n") { # new instance path
+       if (! $serverHome ) {
+	 $serverHome = $ARGV[++$i] ;
+	 grep { s@\\@/@g } $root if $isNT ;
+	 grep { s@\\@/@g } $serverHome if $isNT ;
+	 if ($serverHome =~ /[\"]?(.*)?[\"]?/) { $serverHome = $1 ; }
+	 if ($serverHome =~ m@^(.*?)/?([^/-]*)-([^/]*)[/]?$@) {
+	   $root    = $1 if ($1);
+	   $type    = $2 ;
+	   $newname = $3 ;
+	   if ($isNT) {
+	     $root       = lc($root)       ;
+	     $type       = lc($type)       ;
+	     $newname    = lc($newname)    ;
+	     $serverHome = lc($serverHome) ;
+	     grep { s@/@\\@g } $root       ;
+	     grep { s@/@\\@g } $serverHome ;
+	   }
+	 }
+	 else {
+	   print("\nThe new instance path is not correct. It must be like slapd-instancename");
+	   &usage();
+	   exit(1);
+	 }
+       }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-p") { # new DS port 
+      if (! $newport ) {
+	$newport = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-d") { # old instance LDIF data dir
+      if (! $olddatadir ) {
+	$olddatadir = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-v") { # old version
+      if (! $oldversionstr ) {
+	$oldversionstr = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-t") { # TRACELEVEL
+      my $value = $ARGV[++$i] ;	
+      if ($value =~ /[0-3]/) {
+	$TRACELEVEL = $value ;
+      }
+      else {
+	print("\nThe tracelevel must belong to 0..3 interval");
+        &usage();
+	exit();
+      }	
+    } elsif ("$ARGV[$i]" eq "-noinput") { # no user interventions during processing
+	$NO_INPUT_USER = 1 ;
+    } elsif ("$ARGV[$i]" eq "-L") { # migration logfile
+	$LogFileReport = $ARGV[++$i] ;
+    }
+    else {
+	print("\nThe option $ARGV[$i] is not recognized");
+	&usage() ;
+	exit(1);
+    }
+    $i++;
+  }
+  if (! $rootDN) {
+    print("\nThe rootDN is missing");
+    $exit = 1;
+  }
+  if ($pwdfile ne "") {
+    # Open file and get the password
+    unless (open (RPASS, $pwfile)) {
+      die "Error, cannot open password file $passwdfile\n";
+    }
+    $rootpwd = <RPASS>;
+    chomp($rootpwd);
+    close(RPASS);
+  } elsif ($rootpwd eq "-"){
+    # Read the password from terminal
+    die "The '-w -' option requires an extension library (Term::ReadKey) which is not\n",
+    "part of the standard perl distribution. If you want to use it, you must\n",
+    "download and install the module. You can find it at\n",
+    "http://www.perl.com/CPAN/CPAN.html\n";
+    # Remove the previous line and uncomment the following 6 lines once you have installed Term::ReadKey module.
+# use Term::ReadKey; 
+#	print "Bind Password: ";
+#	ReadMode('noecho'); 
+#	$rootpwd = ReadLine(0); 
+#	chomp($rootpwd);
+#	ReadMode('normal');
+  }
+  if (! $rootpwd) {
+    print("\nThe rootpwd is missing");
+    $exit = 1 ;
+  }
+  if (! $newport) {
+    print("\nThe port is missing");
+    $exit = 1;
+  }
+  if (! $serverHome) {
+    print("\nThe new instance path is missing");
+    $exit = 1;
+  }
+  if (! $oldHome) {
+    print("\nThe old instance path is missing");
+    $exit = 1;
+  }
+  if ((! $LogFileReport) && $serverHome) {
+    ($sec, $min, $hour, $dd, $mm, $yy) = &GetTime();
+    $LogFileReport  = "${serverHome}${PATHSEP}logs${PATHSEP}Migration_${dd}${mm}${yy}_${hour}${min}${sec}.log";
+  }
+  if ($exit) {	
+	&usage() ;
+	exit(1);
+  }
+  
+}
+
+###################################################################################################
+
+sub MigrateSchema{
+  my $FilesChanged = "";
+  my $AllDiffs     = "";
+  my $NoChanges    = "" ;
+  my $lineToBegin  = 0 ;
+  opendir(SCHEMADIR, $oldSchemaDir) or
+    die "Error: could not open migrated config dir $oldSchemaDir: $!";
+  
+  foreach $file (readdir(SCHEMADIR)) {
+      if (! exists($stdIncludes{lc($file)})) {
+	  my $newSchemaFile = $schemaDir . $file;
+	  if (-f $newSchemaFile ) {
+	      # The ldif file already exists. Make a diff and warn the user if different.
+	      if (diff($newSchemaFile, $oldSchemaDir.$file)) {
+		  &stopServer($root,'slapd-'.$newname) if (isDirectoryAlive());
+		  $AllDiffs .= "\n$file";
+		  copyBinFile("$oldSchemaDir$file", $newSchemaFile);
+	      }
+	  }
+	  else {
+	      &stopServer($root,'slapd-'.$newname) if (isDirectoryAlive());
+	      $AllDiffs .= "\n$file";
+	      copyBinFile("$oldSchemaDir$file", $newSchemaFile);
+	  }
+      }
+  }
+  closedir(SCHEMADIR);
+  if ($AllDiffs) {
+      printMsg("\n\n***********************************************************************");
+      printMsg("\nThe following LDIF files have been migrated:");
+      printMsg("$AllDiffs");
+      printMsg("\n*************************************************************************\n\n");
+  } 
+  &startServer() if (! isDirectoryAlive());
+}
+
+
+###################################################################################################
+# This subroutine is used to parse the dse.ldif file and call specific routines to act with entries
+sub MigrateDSEldif {
+  printTrace("\nMigrate DSE entries...",1);
+  my $tempoAlreadyDone = 0;
+  open( DSELDIF, "< $oldDSEldif" ) || die "Can't open $oldDSEldif: $!: ";
+  my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+   while ($entry = readOneEntry $in) {
+     $typeOfEntry = getTypeOfEntry($entry);
+     SWITCH: {
+	 if ($typeOfEntry eq "LDBM_BACKEND_INSTANCE"){
+	     parseLDBM_backend_instance($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "MAPPING_TREE"){
+	     parseMapping_tree($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "DEFAULT_INDEX"){
+	     parseDefaultIndex($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "INDEX"){
+	     parseIndex($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "STANDARD_PLUGIN"){
+	     migrateStdPlugin($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "CONFIG_NODE"){
+	     migrateConfig_Node($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "CONFIG_LDBM_DATABASE"){
+	     migrateConfig_LDBM_database($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "CHAINING_BACKEND_CONFIG"){
+	     migrateChainingBE_config($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "CHAINING_BACKEND_INSTANCE"){
+	     migrateChainingBE_instance($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "NSDS5_REPLICA"){
+	     parseNSDS5_replica($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "NSDS_REPLICATION_AGREEMENT"){
+	     parseNSDS_replication_agreement($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "CHANGELOG5"){
+	     migrateChangelog5($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "REPLICATION"){
+	     migrateReplication($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "SECURITY"){
+	     migrateSecurity($entry);
+	     last SWITCH;
+	 }
+	 if ($typeOfEntry eq "SNMP"){
+	     migrateSNMP($entry);
+	     last SWITCH;
+	 }
+     }
+
+   }
+   close(DSELDIF);
+}
+
+#############################################################################
+# returns the "type of an entry". If the entry is not to be migrated its type is "NOT_MIGRATED_TYPE"
+
+sub getTypeOfEntry{
+    my $entry = shift;
+    my $DN = $entry->getDN(1) ; # 1 is to normalize the returned DN 
+    if (($DN =~ /cn=ldbm database,cn=plugins,cn=config$/i) && (isObjectclass($entry,"nsBackendInstance"))) {
+	return "LDBM_BACKEND_INSTANCE";
+    }
+    if (($DN =~ /cn=mapping tree,cn=config$/i) && (isObjectclass($entry,"nsMappingTree"))) {
+	return "MAPPING_TREE";
+    }
+    if (($DN =~ /cn=default indexes,cn=config,cn=ldbm database,cn=plugins,cn=config$/i) && (isObjectclass($entry,"nsIndex"))) {
+        return "DEFAULT_INDEX";
+    }
+    if (isObjectclass($entry,"nsIndex")) {
+        return "INDEX";
+    }
+    if ((isObjectclass($entry,"nsSlapdPlugin")) && (isStdPlugin($entry))) {
+        return "STANDARD_PLUGIN";
+    }
+    if ($DN =~ /^cn=config$/i) {
+        return "CONFIG_NODE";
+    }
+    if ($DN =~ /^cn=config,cn=ldbm database,cn=plugins,cn=config$/i) {
+        return "CONFIG_LDBM_DATABASE";
+    }
+    if (($DN =~ /^cn=config,cn=chaining database,cn=plugins,cn=config$/i) || ($DN =~ /^cn=default instance config,cn=chaining database,cn=plugins,cn=config$/i)){
+        return "CHAINING_BACKEND_CONFIG";
+    }	   
+    if (($DN =~ /cn=chaining database,cn=plugins,cn=config$/i) && (isObjectclass($entry,"nsBackendInstance"))) {
+        return "CHAINING_BACKEND_INSTANCE";
+    } 
+    if (isObjectclass($entry,"nsDS5Replica")) {
+        return "NSDS5_REPLICA";
+    }
+    if (isObjectclass($entry,"nsDS5ReplicationAgreement")) {
+        return "NSDS_REPLICATION_AGREEMENT";
+    }
+    if ($DN =~ /^cn=changelog5,cn=config$/i) {
+        return "CHANGELOG5";
+    }
+    if (($DN =~ /cn=replication,cn=config$/i) && ($DN !~ /^cn=replication,cn=config$/i)) {
+        return "REPLICATION";
+    }
+    if ($DN =~ /cn=encryption,cn=config$/i) {
+        return "SECURITY";
+    }
+    if ($DN =~ /^cn=SNMP,cn=config$/i) {
+        return "SNMP";
+    }
+    return "NOT_MIGRATED_TYPE";
+}
+
+#############################################################################
+
+
+
+#############################################################################
+# returns 1 if the objectclass given in parameter is present in the objectclasses values of the entry 
+# given in parameter, 0 else
+
+sub isObjectclass {
+    my $entry       = shift;
+    my $objectclass = shift;
+    return ($entry->hasValue("objectclass",$objectclass,1));
+}
+
+#############################################################################
+
+sub isStdPlugin {
+    my $entry = shift;
+    my $CN    = $entry->{cn}[0];
+    if (isObjectclass($entry,"nsSlapdPlugin")) {
+	return 1 if ($stdPlugins{lc($CN)});
+    }
+    return 0;
+}
+
+
+#############################################################################
+
+sub alreadyExistsInNew{
+    my $entry     = shift;
+    my $mustExist = shift;
+    my $DN    = $entry->getDN(1); # 1 to normalize the DN
+    # We have a name change of "uid uniqueness" plugin in DS6.x
+    # to "attribute uniqueness"
+    $DN =~ s/uid\ uniqueness/attribute\ uniqueness/ if ($DN =~ /uid\ uniqueness/);
+    return searchEntry($DN, $mustExist);
+}
+
+#############################################################################
+sub searchEntry {
+    my $DN          = shift;
+    my $mustExist   = shift;
+    my $res         = $conn->search($DN, "base", "objectclass=*");
+    my $cpt         = 5;
+    if ($res) {
+	return $res;
+    }
+    else {
+	my $errorCode = $conn->getErrorCode();
+	while (($errorCode eq $LDAP_SERVER_UNREACHABLE) && cpt && (! $res)) {
+	    printMsg("\ntry to reconnect to search $DN");
+	    $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+	    $res  = $conn->search($DN, "base", "objectclass=*");
+	    $errorCode = $conn->getErrorCode();	 
+	    $cpt--;
+	}
+	if ($res){
+	    return $res ;   
+	}
+	elsif (($errorCode eq $LDAP_SERVER_UNREACHABLE) || ($mustExist)) {  
+	    my $msg = $conn->getErrorString();
+	    printMsg("\n\n*** Failed to search: $DN");
+	    printMsg("\n*** Error Msg: $msg, Error code: $errorCode");
+	}
+	return 0;
+    }
+}
+
+
+#############################################################################
+
+sub addEntryToNew{
+    my $entry          = shift;
+    my $typeOfEntry = shift;
+    my $trace          = shift;
+    my $res            = $conn->add($entry);
+    my $DN             = $entry->getDN(1);
+    my $cpt            = 5;
+    if ($res) {
+	printTrace("\n$typeOfEntry - Add successfull: $DN",$trace);
+	return 1;
+    }
+    else {
+	my $errorCode = $conn->getErrorCode();
+	while (($errorCode eq $LDAP_SERVER_UNREACHABLE) && cpt && (! $res)) {
+	    printMsg("\ntry to reconnect to add $DN");
+	    $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+	    $res  = $conn->add($entry);
+	    $errorCode = $conn->getErrorCode();	 
+	    $cpt--;
+	}
+	if ($res){
+	    printTrace("\n$typeOfEntry - Add successfull: $DN",$trace);
+	    return 1;   
+	}
+	else {  
+	    my $msg = $conn->getErrorString();
+	    printMsg("\n\n*** $typeOfEntry: Add Failed: $DN");
+	    printMsg("\n*** Error Msg: $msg, Error code: $errorCode");
+	    return 0;
+	}
+    }
+}
+
+#############################################################################
+
+sub updateEntry{
+    my $entry       = shift;
+    my $typeOfEntry = shift;
+    my $CHECK       = shift;
+    my $trace       = shift;
+    my $cpt         = 5;
+    if ($CHECK) {
+	if (! hasChanged($entry, $typeOfEntry)) {
+	    return 1;
+	}
+    }
+    my $res = $conn->update($entry);
+    my $DN  = $entry->getDN(1);
+    if ($res) {
+	printTrace("\n$typeOfEntry - Update successfull: $DN",$trace);
+	return 1 ;
+    }
+    else {
+	my $errorCode = $conn->getErrorCode();
+	while (($errorCode eq $LDAP_SERVER_UNREACHABLE) && cpt && (! $res)) {
+	    printMsg("\ntry to reconnect to update $DN");
+	    $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+	    $res  = $conn->update($entry);
+	    $errorCode = $conn->getErrorCode();	 
+	    $cpt--;
+	}
+	if ($res){
+	    printTrace("\n$typeOfEntry - Update successfull: $DN",$trace);
+	    return 1;   
+	}
+	else {  
+	    my $msg = $conn->getErrorString();
+	    printMsg("\n\n*** $typeOfEntry - Update Failed: $DN");
+	    printMsg("\n*** Error Msg: $msg, Error code: $errorCode");
+	    return 0;
+	}
+    }
+}
+	
+
+#############################################################################
+# returns 1 if the entry to migrate and the current entry are different one another
+
+sub hasChanged {
+    my $entry       = shift;
+    my $typeOfEntry = shift;
+    my $DN          = $entry->getDN(1);
+    my $newEntry  = searchEntry($DN,1);
+    return 1 if (! $newEntry); # we shoudn't be in that case ...
+    # do the stuff to check wether the entry has changed or not given its type
+    if (($typeOfEntry eq "DEFAULT_INDEX") || ($typeOfEntry eq "INDEX")){
+	my @indexTypes           = $entry->getValues("nsIndexType");
+	my @newIndexTypes      = $newEntry->getValues("nsIndexType");
+	my @nsmatchingrules      = $entry->getValues("nsmatchingrule");
+	my @newMatchingRules = $newEntry->getValues("nsmatchingrule");
+	return 1 if (Diffs(\@indexTypes, \@newIndexTypes));
+	return 1 if (Diffs(\@nsmatchingrules,\@newMatchingRules));
+	return 0;
+    }
+    if ($typeOfEntry eq "CHANGELOG5"){
+	printTrace("\nCheck wether changelog has changed or not",3);
+	my @params = keys(%changelog5params);
+	foreach $param (@params){
+	    my @values      = $entry->getValues($param);
+	    my @newValues = $newEntry->getValues($param);
+	    return 1 if (Diffs(\@values,\@newValues));   
+	}
+	return 0;
+    }
+    if ($typeOfEntry eq "SNMP"){
+	foreach $param (@SNMPparams){
+	    my @values      = $entry->getValues($param);
+	    my @newValues = $newEntry->getValues($param);
+	    return 1 if (Diffs(\@values,\@newValues));   
+	}
+	return 0;
+    }
+    # we don't know how to compare such type of entry => just return 1
+    return 1 ;
+}
+
+sub isAsystemIndex {
+    my $index = shift;
+    return ($index->hasValue("nsSystemIndex","true",1));
+}
+
+
+sub updatePathInPluginArgs {
+    my $plugin       = shift;
+    my $argNum       = 0;
+    my $argPrefix    = "nsslapd-pluginarg";
+    my $cont         = 1;
+    my $Unix_oldDir  = ${oldDir} ;
+    my $Unix_root    = ${root} ;
+    grep { s@\\@/@g } $Unix_oldDir if $isNT;
+    grep { s@\\@/@g } $Unix_root   if $isNT;
+    while ($cont) {
+	my $arg = $argPrefix . $argNum ;
+	if ($plugin->exists($arg)) {
+	    $_ = $plugin->{$arg}[0] ;
+	    s@$Unix_oldDir@$Unix_root@ig ;
+	    s/$type-$oldname/$type-$newname/ig ;
+	    $plugin->setValues($arg, $_) ;
+	}
+	else {
+	    $cont = 0 ;
+	}
+	$argNum++;
+    }
+    return $plugin;
+} 
+
+
+sub Diffs {
+    my $valuesToMigrate = shift;
+    my $currentValues   = shift;
+    return 1 if (getDiff(\@{$valuesToMigrate},\@{$currentValues}));
+    return 1 if (getDiff(\@{$currentValues},\@{$valuesToMigrate}));
+    return 0 ;
+}
+
+sub getDiff {
+    # we get references to arrays
+    my $elements = shift ; 
+    my $existing_elements = shift ;
+    my %count   = () ;
+    my %countEE = () ;
+    @diff       = () ;
+    foreach $e (@{$elements}, @{$existing_elements}) { $count{$e}++ ;}
+    foreach $e (@{existing_elements}) { $countEE{$e}++ ;}
+    foreach $e (@{$elements}) {
+	# if $e is only present in @$elements, we push it to the diff array
+	if (($count{$e} == 1) && ($countEE{$e} == 0)) {
+	    push @diff, $e ;
+	}
+    }
+    return @diff ;
+}
+
+sub registerSuffix_Backend {
+    my $ldbmDatabase      = shift;
+    my $CN                = $ldbmDatabase->{cn}[0];
+    my $suffixArg         = "nsslapd-suffix";
+    my $suffix            = $ldbmDatabase->{$suffixArg}[0];
+    $oldBackends{$suffix} = $CN;
+}
+
+
+#############################################################################
+#                                                                           #
+#                                                                           #
+#                                                                           #
+#############################################################################
+sub migrateLDBM_backend_instances {
+    foreach $entry (@LDBM_backend_instances) {
+	my $DN    = $entry->getDN(1); # 1 is to normalize the DN
+	my $CN    = $entry->{cn}[0];
+	my $expLdif;
+	my $confirm = "No";
+	my $dest = "$serverHome${PATHSEP}db_backup" ;
+	my $newSlapdExecDir = "$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server";
+
+	if ($DN =~/cn=netscaperoot,cn=ldbm database/i){
+	    printTrace("\n\n*** INFORMATION - NetscapeRoot is NOT migrated",0);
+	}
+	else {
+	    if(alreadyExistsInNew($entry)){
+		printMsg("\n\n*** LDBM_BACKEND_INSTANCE - $DN already exists");
+		printMsg("\n*** Migration will overwrite existing database");
+		printMsg("\nDo you want to continue Yes/No [No] ?") ;
+		my $answer = <STDIN> ;
+		if ($answer =~ /y|yes/i) {
+			printMsg("Do you want to export the existing data Yes/No [Yes] ?");
+			my $answer = <STDIN> ;
+			if (!($answer =~ /n|no/i)) {
+				mkdir $dest, 0700 unless (-d $dest);
+				$expLdif = "$dest${PATHSEP}$CN.ldif";
+				while (!($confirm =~ /y|yes/i)) {
+					printMsg("\nEnter the full pathname of the file [$expLdif]:") ;
+					$answer = <STDIN> ;
+					chomp($expLdif = $answer) unless ($answer eq "\n");
+					printMsg("\nExisting data will be exported under $expLdif");
+					printMsg("\nContinue Yes/No [No] ?");
+					$confirm = <STDIN>;
+				}
+				$ENV{"$LIB_PATH"}=$new_libpath;
+				chdir($newSlapdExecDir) or die "\nCould not change directory to $newSlapdExecDir: $!\n";
+				printTrace("\nNow backing up database $CN in $expLdif\n",0);
+				&stopServer($root,'slapd-'.$newname);
+				&db2Ldif($expLdif, $CN, $serverHome);
+				&startServer() unless (isDirectoryAlive());
+				}
+				push @BACKENDS, $CN;
+		} else {
+		printMsg("\n*** Migration will not update it");
+		break;
+	    }
+	    } else {
+		printTrace("\nWe should add the backend instance $DN",3);
+		my $suffixarg = "nsslapd-suffix" ;
+		my $suffixname= $entry->{$suffixarg}[0] ;
+		my $newEntry = $conn->newEntry() ;
+		$newEntry->setDN($DN);
+		$newEntry->setValues("objectclass", "top", "extensibleObject", "nsBackendInstance" );
+		$newEntry->setValues("cn", $CN );
+		$newEntry->setValues($suffixarg, $suffixname);
+		my @params = keys(%LDBMparamToMigrate);
+		foreach $param (@params) {
+		    my @values = $entry->getValues($param);
+		    $newEntry->setValues($param, @values) if (@values);
+		}
+		if (addEntryToNew($newEntry,  "LDBM_BACKEND_INSTANCE",1)) {
+		    push @BACKENDS, $CN;
+		}
+	    }
+	}       
+    }
+}
+
+sub parseLDBM_backend_instance {
+    my $entry = shift;
+    &registerSuffix_Backend($entry);
+    push @LDBM_backend_instances, $entry;
+}
+
+#############################################################################
+sub migrateMappingTree {
+    foreach $entry (@Mapping_tree_entries) {
+	my $DN    = $entry->getDN(1); # 1 si to normalize the DN
+	if ($DN =~/cn=\"o=netscaperoot\",cn=mapping tree,cn=config/i){
+	    # DO NOTHING
+	}
+	else {
+	    if(alreadyExistsInNew($entry)){
+		printMsg("\n\n*** MAPPING_TREE - $DN already exists");
+		printMsg("\n*** Migration will not add the suffix");
+	    }
+	    else {
+		addEntryToNew($entry, "MAPPING_TREE",1);
+	    }
+	}
+    }
+}
+
+	    
+sub parseMapping_tree{
+    my $entry = shift;
+    push @Mapping_tree_entries, $entry;
+}
+
+#############################################################################
+sub migrateDefaultIndexes {
+    foreach $index (@default_indexes) {
+	my $CN    = $index->{cn}[0];
+	my $newIndex ;
+	if ((! isAsystemIndex($index)) && (! $deniedIndexes{lc($CN)})) {
+	    if ($newIndex = alreadyExistsInNew($index)) {
+		if (! isAsystemIndex($newIndex)) {
+		    updateEntry($index, "DEFAULT_INDEX", 1, 2);
+		}
+	    }
+	    else {
+		addEntryToNew($index, "DEFAULT_INDEX", 2);
+	    }
+	}
+    }
+}
+
+
+sub parseDefaultIndex{
+    my $index = shift;
+    push @default_indexes, $index;
+}
+
+#############################################################################
+
+sub migrateIndexes {
+    foreach $index (@indexes) {
+	my $CN    = $index->{cn}[0];
+	my $newIndex;
+	if ((! isAsystemIndex($index)) && (! $deniedIndexes{lc($CN)}) && (DN !~ /cn=netscaperoot,cn=index/i)){
+	    if ($newIndex = alreadyExistsInNew($index)) {
+		if (! isAsystemIndex($newIndex)) {
+		    updateEntry($index, "INDEX", 1, 2);
+		}
+	    }
+	    else {
+		addEntryToNew($index, "INDEX", 2);
+	    }
+	}
+    }
+}
+
+sub parseIndex{
+    my $index = shift;
+    push @indexes, $index;
+}
+
+#############################################################################
+
+sub newLDIFplugin {
+    my $currentPlugin = shift;
+    my $DN              = $currentPlugin->getDN(1);
+    my $newPlugin     = $conn->newEntry() ;
+    $newPlugin->setDN($DN);
+    foreach $Attr (@pluginAttrs) {
+    	my @values = $currentPlugin->getValues($Attr);
+       	$newPlugin->setValues($Attr, @values) if (@values);
+    }
+    return $newPlugin;
+}
+
+sub migrateStdPlugin{
+    my $plugin           = shift;
+    my $DN               = $plugin->getDN(1);
+    my $pluginEnable     = "nsslapd-pluginEnabled";
+    my $argNum           = 0;
+    my $argPrefix        = "nsslapd-pluginarg";
+    my $currentPlugin ;
+    if ($currentPlugin = alreadyExistsInNew($plugin, 1)) {
+	$plugin                 = updatePathInPluginArgs($plugin);
+	my $pluginEnableValue   = $plugin->{$pluginEnable}[0];
+	my $cont                = 1;
+	my $pluginHasChanged    = 0;
+	my $newPlugin         = &newLDIFplugin($currentPlugin);
+	if (! $currentPlugin->hasValue($pluginEnable,$pluginEnableValue,1)){
+	    $newPlugin->setValues($pluginEnable, $pluginEnableValue);
+	    $pluginHasChanged = 1 unless ($pluginHasChanged);
+	}
+	while($cont){
+	     my $arg = $argPrefix . $argNum ;
+	     if ($plugin->exists($arg)) {
+		 my @values = $plugin->getValues($arg);
+		 my $value  = $values[0] ;
+		 $newPlugin->setValues($arg, $value) if (@values);
+		 if ($currentPlugin->exists($arg)) {
+		     if (! $currentPlugin->hasValue($arg,$value,1)) {
+			 $pluginHasChanged = 1 unless ($pluginHasChanged);
+		     }
+		 }
+		 else {
+		     $pluginHasChanged = 1 unless ($pluginHasChanged);
+		 }
+	     }
+	     else {
+		 if ($currentPlugin->exists($arg)) {
+		     # Just Warn the user. Do nothing. 
+		     printTrace("\nCompared to the old instance, the current new plugin $DN belongs this attribute: $arg",2);
+		 }
+		 else {
+		     $cont = 0 ;
+		 }
+	     }
+	     $argNum++;
+	}
+	updateEntry($newPlugin, "STANDARD_PLUGIN", 0, 1) if ($pluginHasChanged);
+    }
+}
+
+#############################################################################
+	
+sub migrateConfig_Node{
+    my $config_node = shift;
+    my @params      = keys(%GeneralSrvParamToMigrate);
+    my $hasChanged  = 0;  
+    my $newConfigNode;
+    if ($newConfigNode = alreadyExistsInNew($config_node, 1)){	
+	foreach $param (@params) {
+	    if ($config_node->exists($param)){
+		my @valuesToMigrate = $config_node->getValues($param);
+		if (@valuesToMigrate){
+		    if ($newConfigNode->exists($param)){
+			my @currentValues   = $newConfigNode->getValues($param); 
+			if (Diffs(\@valuesToMigrate, \@currentValues)) {
+			    $newConfigNode->setValues($param, @valuesToMigrate);
+			    $hasChanged = 1 unless ($hasChanged);
+			    printTrace("\nParam to update: $param with value @valuesToMigrate",3);
+			}
+		    }
+		    else {
+			$newConfigNode->setValues($param, @valuesToMigrate);
+			$hasChanged = 1 unless ($hasChanged);
+			printTrace("\nParam to update: $param with value @valuesToMigrate",3);
+		    }
+		}
+	    }
+	}
+	updateEntry($newConfigNode, "CONFIG_NODE", 0, 1) if ($hasChanged); 
+    }
+}
+
+#############################################################################
+
+sub migrateConfig_LDBM_database{
+    my $config_ldbm = shift;
+    my @params      = keys(%GlobalConfigLDBMparamToMigrate);
+    my $hasChanged  = 0;
+    my $newConfigLdbm ;
+    if ($newConfigLdbm = alreadyExistsInNew($config_ldbm, 1)) {
+	foreach $param (@params) {
+	    if ($config_ldbm->exists($param)){
+		my @valuesToMigrate = $config_ldbm->getValues($param);
+		if (@valuesToMigrate){
+		    if ($newConfigLdbm->exists($param)){
+			my @currentValues   = $newConfigLdbm->getValues($param); 
+			if (Diffs(\@valuesToMigrate, \@currentValues)) {
+			    $newConfigLdbm->setValues($param, @valuesToMigrate);
+			    $hasChanged = 1 unless ($hasChanged);
+			}
+		    }
+		    else {
+			$newConfigLdbm->setValues($param, @valuesToMigrate);
+			$hasChanged = 1 unless ($hasChanged);
+		    }
+		}
+	    }
+	}
+	updateEntry($newConfigLdbm, "CONFIG_LDBM_DATABASE", 0, 1) if ($hasChanged); 
+    }
+}
+
+#############################################################################
+
+sub migrateChainingBE_config{
+    my $chaining_config = shift;
+    my $DN              = $chaining_config->getDN(1);
+    my @params          = ();
+    my $hasChanged      = 0;
+    my $newChainingConfig;
+    if ($DN =~ /^cn=config,cn=chaining database,cn=plugins,cn=config$/i){
+	$newChainingConfig = searchEntry("cn=config,cn=chaining database,cn=plugins,cn=config");
+	@params = keys(%ChainingConfigParams);
+    }
+    if ($DN =~ /^cn=default instance config,cn=chaining database,cn=plugins,cn=config$/i){
+	$newChainingConfig = searchEntry("cn=default instance config,cn=chaining database,cn=plugins,cn=config");
+	@params = keys(%ChainingDefaultInstanceConfigParams);
+    }
+    foreach $param (@params) {
+	if ($chaining_config->exists($param)){
+	    my @valuesToMigrate = $chaining_config->getValues($param);
+	    if (@valuesToMigrate){
+		printTrace("\nParam: $param values To migrate: @valuesToMigrate",3);
+		if ($newChainingConfig->exists($param)){
+		    my @currentValues   = $newChainingConfig->getValues($param); 
+		    printTrace("\nParam: $param new current values: @currentValues",3);
+		    if (Diffs(\@valuesToMigrate, \@currentValues)) {
+			$newChainingConfig->setValues($param, @valuesToMigrate);
+			$hasChanged = 1 unless ($hasChanged);
+		    }
+		}
+		else {
+		    $newChainingConfig->setValues($param, @valuesToMigrate);
+		    $hasChanged = 1 unless ($hasChanged);
+		}
+	    }
+	}
+    }
+    updateEntry($newChainingConfig, "CHAINING_BACKEND_CONFIG", 0, 1) if ($hasChanged);
+}
+
+#############################################################################
+
+sub registerSuffix_ChainingBE {
+    my $ldbmDatabase      = shift;
+    my $CN                = $ldbmDatabase->{cn}[0];
+    my $suffixArg         = "nsslapd-suffix";
+    my $suffix            = $ldbmDatabase->{$suffixArg}[0];
+    $oldChainingBackends{$suffix} = $CN;
+}
+
+sub storeMultiplexorBindDN {
+    my $chaining_instance = shift;
+    my $DN      = $chaining_instance->getDN(1);
+    if ($chaining_instance->exists("nsMultiplexorBindDN")){
+	my $bindDN   = $chaining_instance->{nsMultiplexorBindDN}[0];
+	my $newBindDN = searchEntry($bindDN);
+	if (! $newBindDN){
+	    # the bindDN entry doesn't yet exist in new => it will have to be migrated
+	    $MultiplexorBindDNEntriesToMigrate{$bindDN}="\n" ;
+	    printTrace("\nThe bindDN: $bindDN need to be migrated",3);
+	}
+	else {
+	    # do nothing as the entry already exists in new
+	}
+    }
+    
+}
+
+sub importMultiplexorBindDNEntries {
+    # import all entries present in @MultiplexorBindDNEntriesToMigrate in new
+    my @MultiplexorBindDNs = keys (%MultiplexorBindDNEntriesToMigrate);
+    my $ldif_dir       = $ldif_rep;
+    foreach $bindDN (@MultiplexorBindDNs) {
+	printTrace("\nimportMultiplexorBindDNEntries: bindDN to migrate: $bindDN",3);
+	# get the backend in which is stored the bind DN entry
+	my $backendtoExportFrom = getBackendtoExportFrom($bindDN);
+	printTrace("\nbackendtoExportFrom is: $backendtoExportFrom",3);
+	# check wether the backend has been imported in new or not
+	if (! alreadyMigrated($backendtoExportFrom)) {
+	    if ($backendtoExportFrom ne $NULL) {
+                # if not imported => we need to import the binf DN entry
+		&startServer() unless (isDirectoryAlive());
+		$conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 	
+		&ExportAndAddEntry($bindDN, $backendtoExportFrom, $ldif_dir);
+	    }
+	    else {
+		# do nothing
+	    }
+	}
+    }
+    # remove the empty ldif directory 
+    rmdir($ldif_dir) if (-d $ldif_dir);
+    # close the LDAP connection to new
+    $conn->close if ($conn);
+}
+
+sub migrateChainingBE_instance{
+    my $chaining_instance   = shift;
+    my $DN                  = $chaining_instance->getDN(1);
+    &registerSuffix_ChainingBE($chaining_instance);
+    if (alreadyExistsInNew($chaining_instance)) {
+	# already exists
+	printMsg("\n\n*** CHAINING_BACKEND_INSTANCE - $DN already exists");
+	printMsg("\n*** Migration will not update it");
+    }
+    else {
+	&migrate_credential($chaining_instance, "nsmultiplexorcredentials");
+	addEntryToNew($chaining_instance, "CHAINING_BACKEND_INSTANCE", 1);
+	storeMultiplexorBindDN($chaining_instance);
+    }
+}
+
+#############################################################################
+	  
+# create a new LDIF representation of a new replica consumer 
+sub newLDIFreplica {
+    my $replica               = shift;
+    my $DN                    = $replica->getDN(1);
+    my $newReplica          = $conn->newEntry() ;
+    my $MASTER_OR_MULTIMASTER = "3" ;
+    $newReplica->setDN($DN);
+    foreach $Attr (@nsds5replicaAttrs) {
+    	my @values = $replica->getValues($Attr);
+       	$newReplica->setValues($Attr, @values) if (@values);
+    }
+    my $replicaType = $replica->{nsDS5ReplicaType}[0];
+    if ($replicaType eq $MASTER_OR_MULTIMASTER) {
+	my @nsState    = $replica->getValues("nsState");
+	# nsState omitted because it is incomatible between 32 and 64 bit
+	# servers. Bug 624441
+	# $newReplica->setValues("nsState", @nsState);
+    }
+    else {
+	$newReplica->setValues("nsDS5ReplicaId", $replicaIdvalue);
+    }
+    return $newReplica;
+}
+
+sub MigrateNSDS5_replica{
+    foreach $replica (@new6replicas) {
+	my $DN = $replica->getDN(1);
+	my $newReplica;
+        my @removeAttrs   = qw(nsstate nsds5replicaname nsds5replicachangecount);
+        for (@removeAttrs) {
+            $replica->remove($_);
+        }
+	if (alreadyExistsInNew($replica)) {
+	    # replica already exists
+	    printMsg("\n\n*** NSDS5_REPLICA - $DN already exists");
+	    printMsg("\n*** Migration will not update it");
+	}
+	else {
+	    $newReplica = &newLDIFreplica($replica);
+	    addEntryToNew($newReplica, "NSDS5_REPLICA", 1);
+	}
+	storeReplicaBindDN($replica);
+    }
+}
+
+sub parseNSDS5_replica{
+    my $replica               = shift;
+    push @new6replicas, $replica;
+}
+
+sub storeReplicaBindDN {
+    my $replica = shift;
+    my $DN      = $replica->getDN(1);
+    if ($replica->exists("nsDS5ReplicaBindDN")){
+	my $bindDN   = $replica->{nsDS5ReplicaBindDN}[0];
+	my $newBindDN = searchEntry($bindDN);
+	if (! $newBindDN){
+	    # the bindDN entry doesn't yet exist in new => it will have to be migrated
+	    $ReplicaBindDNEntriesToMigrate{$bindDN}="\n" ;
+	    printTrace("\nThe bindDN: $bindDN need to be migrated",3);
+	}
+	else {
+	    # do nothing as the entry already exists in new
+	}
+    }
+}
+
+
+sub importReplicaBindDNEntries {
+    # import all entries present in @ReplicaBindDNEntriesToMigrate in new
+    my @ReplicaBindDNs = keys (%ReplicaBindDNEntriesToMigrate);
+    my $ldif_dir       = $ldif_rep;
+    my $replBind_entry   = "";
+    my @bindDN_elements  = "";
+    my $bindDN_parent    = "";
+    my $parentBind_entry = "";
+    foreach $bindDN (@ReplicaBindDNs) {
+	printTrace("\nimportReplicaBindDNEntries: bindDN to migrate: $bindDN",3);
+	# get the backend in which is stored the bind DN entry
+	my $backendtoExportFrom = getBackendtoExportFrom($bindDN);
+	printTrace("\nbackendtoExportFrom is: $backendtoExportFrom",3);
+        # If backend is from config, read the entry from dse.ldif and add to new - NGK
+        if ($backendtoExportFrom eq "cn=config") {
+            my $norm_bindDN = normalizeDN($bindDN);
+            @bindDN_elements = ldap_explode_dn($norm_bindDN, 0);
+#            @bindDN_elements = split(/,/,$norm_bindDN);
+            my $junk = shift(@bindDN_elements);
+            if ($#bindDN_elements >= 1) {
+                $bindDN_parent = normalizeDN(join(",", @bindDN_elements));
+            }
+            printTrace("\nOpening DSE.ldif",3);
+            open( DSELDIF, "< $oldDSEldif" ) || die "Can't open $oldDSEldif: $!: ";
+            my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
+            while ($entry = readOneEntry $in) {
+                my $DN = $entry->getDN(1);
+                if ($DN eq $norm_bindDN) {
+                    $replBind_entry = $entry;
+                }
+                if ($bindDN_parent ne "") {
+                    if ($DN eq $bindDN_parent) {
+                        $parentBind_entry = $entry;
+                    }
+                }
+            }
+            close(DSELDIF);
+            &startServer() unless (isDirectoryAlive());
+            $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n";
+            if ($bindDN_parent ne "") {
+                addEntryToNew($parentBind_entry, BINDDN_PARENT, 0);
+            }
+            printTrace("\nAdding BindDN with addEntryToNew",3);
+            addEntryToNew($replBind_entry, BINDDN, 0);
+        } else {
+	    # check wether the backend has been imported in new or not
+	    if (! alreadyMigrated($backendtoExportFrom)) {
+	        if ($backendtoExportFrom ne $NULL) {
+                    # if not imported => we need to import the bind DN entry
+		    &startServer() unless (isDirectoryAlive());
+		    $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 	
+		    &ExportAndAddEntry($bindDN, $backendtoExportFrom, $ldif_dir);
+	        }
+	        else {
+		    # do nothing
+                }
+	    }
+	}
+    }
+    # remove the empty ldif directory 
+    rmdir($ldif_dir) if (-d $ldif_dir);
+    # close the LDAP connection to new
+    $conn->close if ($conn);
+}
+
+sub alreadyMigrated {
+    my $backendToCheck = shift;
+    foreach $backend (@BACKENDS) {
+	return 1 if ($backend eq $backendToCheck);
+    }
+    return 0 ;
+}
+
+sub belongsSuffix {
+    my $suffix = shift;
+    my $bindDN = shift;
+    return ($bindDN =~ /$suffix\s*$/i);
+}
+
+sub length {
+    my $suffix = shift;
+    my $count = 0;
+    while ($suffix =~ /./g) {
+	$count++;
+    }
+    return $count ;
+}
+
+sub getBackendtoExportFrom {
+    my $bindDN              = shift ;
+    my $sizeOfSuffix        = 0 ;
+    my $NULL                = "";
+    my @oldSuffixes         = keys(%oldBackends);
+    my @oldChainingSuffixes = keys(%oldChainingBackends);
+    my $bindDN_backend      = $NULL;
+    my $config              = "cn=config";
+
+    my $norm_bindDN = normalizeDN($bindDN);
+    # Check if bindDN exists in cn=config - NGK
+    if (belongsSuffix($config,$norm_bindDN)) {
+        $bindDN_backend = $config;
+        printTrace("\ngetBackendtoExportFrom: bindDN_backend: $bindDN_backend",3);
+    } else {
+        foreach $suffix (@oldSuffixes){
+	    printTrace("\ngetBackendtoExportFrom: suffix to compare with is: $suffix",3);
+	    if ((belongsSuffix($suffix,$norm_bindDN)) && (length($suffix) > $sizeOfSuffix)) {
+	        $sizeOfSuffix   = length($suffix);
+	        $bindDN_backend = $oldBackends{$suffix}; 
+	        printTrace("\ngetBackendtoExportFrom: bindDN_backend: $bindDN_backend, sizeOfSuffix: $sizeOfSuffix",3);
+	    }
+        }
+        foreach $suffix (@oldChainingSuffixes){
+	    printTrace("\ngetBackendtoExportFrom: suffix to compare with is a chained suffix: $suffix",3);
+	    if ((belongsSuffix($suffix,$norm_bindDN)) && (length($suffix) > $sizeOfSuffix)) {
+	        printMsg("\n\n*** Entry stored on a remote backend - $norm_bindDN");
+	        printMsg("\n*** We don't migrate it");
+	        return $NULL;
+	    }
+        }
+    }
+    return $bindDN_backend;
+}
+
+
+sub getBackendtoImportTo {
+    my $bindDN         = shift;
+    my $sizeOfSuffix   = 0;
+    my $NULL           = "";
+    my $suffixArg      = "nsslapd-suffix"; 
+    my $bindDN_backend = $NULL;
+    open( DSELDIF, "< $DSEldif" ) || die "Can't open $DSEldif: $!: ";
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+    while ($entry = readOneEntry $in) {
+	$typeOfEntry = getTypeOfEntry($entry);
+	if ($typeOfEntry eq "LDBM_BACKEND_INSTANCE"){
+	    my $suffix = $entry->{$suffixArg}[0];
+	    if ((belongsSuffix($suffix,$bindDN)) && (length($suffix) > $sizeOfSuffix)) {
+		$sizeOfSuffix   = length($suffix);
+		$bindDN_backend = $entry->{cn}[0]; 
+	    }
+	}
+    }
+    close(DSELDIF);
+    return $bindDN_backend ;
+}
+
+
+sub ExportAndAddEntry {
+    my $DN                   = shift;
+    my $backendtoExportFrom  = shift;
+    my $ldif_dir             = shift;
+    my $ldif                 = "$ldif_dir${PATHSEP}$backendtoExportFrom.ldif" ;
+    # first: export entry pointed out by the $DN to $ldif file
+    $ENV{"$LIB_PATH"}=$old_libpath;
+    if (! $ldif_dir) { $ldif_dir = $ldif_rep ;}
+    if  (!(-d $ldif_dir)) {
+	mkdir($ldif_dir,0777) or die "\ncan't create $ldif_dir to store temporary ldif files\n";
+    }
+    chdir($oldSlapdExecDir) or die "\nCould not change directory to $oldSlapdExecDir: $!\n";
+    &db2Ldif($ldif, $backendtoExportFrom, $oldHome, $DN);
+    chdir($curdir)  or die "\nCould not change directory to $curdir: $!\n";   
+
+    # then: Add it to new
+    if (! $conn) {
+	$conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+    }
+    open( BINDDNLDIF, "< $ldif" ) || die "\nCan't open $ldif: $!: \n";
+    my $in = new Mozilla::LDAP::LDIF(*BINDDNLDIF) ;
+    while ($entry = readOneEntry $in) {
+	my $entryDN = $entry->getDN(1);
+	if ($DN eq $entryDN) {
+	    addEntryToNew($entry, "nsds5ReplicaBindDN", 0);
+	}
+    }
+    close(BINDDNLDIF);
+    # remove the ldif file after the import
+    unlink($ldif) ;
+}
+
+#############################################################################
+sub MigrateNSDS_replication_agreement {
+    foreach $replicationAgreement (@replicationAgreements) {
+	my $DN = $replicationAgreement->getDN(1);
+	if (alreadyExistsInNew($replicationAgreement)){
+	    # replication agreement already exists
+	    printMsg("\n\n*** NSDS_REPLICATION_AGREEMENT - $DN already exists");
+	    printMsg("\n*** Migration will not update it");
+	}
+	else {
+		&migrate_credential($replicationAgreement, "nsDS5ReplicaCredentials");
+	    addEntryToNew($replicationAgreement, "NSDS_REPLICATION_AGREEMENT", 1);
+	}
+    }
+}
+
+
+sub parseNSDS_replication_agreement{
+    my $replicationAgreement = shift;
+    push @replicationAgreements, $replicationAgreement ;
+}
+
+#############################################################################
+	  
+sub migrateChangelog5{
+    my $changelog    = shift;
+    my $DN           = $changelog->getDN(1);
+    my $changelogdir = "nsslapd-changelogdir";
+    if (alreadyExistsInNew($changelog)){
+	# cn=changelog5,cn=config already exists in new
+	my $newChangelog   = searchEntry($DN);
+	my @newChangelogdir = $newChangelog->getValues($changelogdir);
+	$changelog->setValues($changelogdir, @newChangelogdir);
+	updateEntry($changelog, "CHANGELOG5", 0, 1);
+    }
+    else {
+	# cn=changelog5,cn=config need to be created in new. 
+	# the changelogdir value must be setup to <new_root_server>/slapd-instance/changelogdb
+	$changelog->setValues($changelogdir,"${serverHome}${PATHSEP}changelogdb");
+	addEntryToNew($changelog, "CHANGELOG5", 1);
+    }
+}
+
+
+sub migrateChangelog {
+    my $oldchangelogdir = "";
+    my $newchangelogdir = "";
+    my $changelogdir    = "nsslapd-changelogdir";
+    my $CL5DN           = "cn=changelog5,cn=config";
+    printTrace("\n\n***** Migrate Changelog...",0,1);
+    open( DSELDIF, "< $oldDSEldif" ) || die "Can't open $oldDSEldif: $!: ";
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
+    while ($entry = readOneEntry $in) {
+        $typeOfEntry = getTypeOfEntry($entry);
+        if ($typeOfEntry eq "CHANGELOG5"){
+            $oldchangelogdir = ($entry->getValues($changelogdir))[0];
+        }
+    }
+    close(DSELDIF);
+    if ($oldchangelogdir) {
+        # If using olddatadir to migrate from, the path of the changelogdb
+        # from the dse.ldif may not match the path where the old server
+        # root was archived.  We may need to modify oldchangelogdir so the
+        # copy of the changelog files succeeds.
+        unless(-e $oldchangelogdir) {
+            if($olddatadir) {
+                my @cldbpath = split(/\//,$oldchangelogdir);
+                until($cldbpath[0] =~/^slapd-/) {
+                    shift(@cldbpath);
+                }
+                my $tmpcldbpath = join(${PATHSEP}, @cldbpath);
+                $oldchangelogdir = "$oldDir${PATHSEP}$tmpcldbpath";
+            }
+            # If oldchangelogdir still looks to be wrong, prompt for the
+            # location instead of just failing on the copydir operation
+            # and bombing out of the migration.
+            unless(-e $oldchangelogdir) {
+                print("\n\nThe old changelog directory \"$oldchangelogdir\" doesn't exist.  Please enter the correct path: ");
+                $oldchangelogdir = <STDIN>;
+            }
+        }
+        &startServer() unless (isDirectoryAlive());
+        $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Unable to contact the $Version.$Minor LDAP server: $LDAPservername\n";
+        my $newChangelog   = searchEntry($CL5DN);
+        $newchangelogdir = ($newChangelog->getValues($changelogdir))[0];
+        stopServer($root,'slapd-'.$newname);
+        printTrace("\ncopying $oldchangelogdir${PATHSEP}* to $newchangelogdir",3);
+        copyDir("$oldchangelogdir","$newchangelogdir");
+
+	# We need to modify the DBVERSION file for a new verision of the db
+	open(DBVERSION,">$newchangelogdir${PATHSEP}DBVERSION") || die "Can't overwrite $newchangelogdir${PATHSEP}DBVERSION: $! ";
+	print DBVERSION "Changelog5/NSMMReplicationPlugin/3.0";
+	close(DBVERSION);
+
+        &startServer() unless (isDirectoryAlive());
+    }
+}
+
+#############################################################################
+
+sub migrateReplication{
+    my $replication   = shift;
+    my $DN            = $replication->getDN(1);
+    if (alreadyExistsInNew($replication)){
+	# replication agreement already exists
+	printMsg("\n\n*** $DN already exists");
+	printMsg("\n*** Migration will not update it");
+    }
+    else {
+	addEntryToNew($replication, "REPLICATION", 1);
+    }
+}
+
+#############################################################################
+
+sub migrateSecurity{
+    my $security   = shift;
+    if ($entry->hasValue("objectClass", "nsEncryptionConfig")) {
+        my $certfile = "alias/slapd-" . $newname . "-cert8.db";
+        my $keyfile = "alias/slapd-" . $newname. "-key3.db";
+        $entry->setValues("nsCertfile",$certfile) if ! $entry->hasValue("nsCertfile",$certfile);
+        $entry->setValues("nsKeyfile",$keyfile) if ! $entry->hasValue("nsKeyfile",$keyfile);
+    }
+    if (alreadyExistsInNew($security)){
+	# already exists in new
+	updateEntry($security, "SECURITY", 0, 1);
+    }
+    else {
+	addEntryToNew($security, "SECURITY", 1);
+    }
+}
+
+#############################################################################
+	     
+sub migrateSNMP{
+    my $snmp   = shift;
+    if (alreadyExistsInNew($snmp)){
+	# already exists in new
+	updateEntry($snmp, "SNMP", 0, 1);
+    }
+    else {
+	addEntryToNew($snmp, "SNMP", 1);
+    }
+}
+
+#############################################################################
+# printMsg print message to the user standard output.  
+
+sub printMsg {
+
+  my $TypeMsg = shift ;
+  my $Msg     = shift ;
+  my $LineNb  = shift ;
+  if ($LineNb) {
+    printTrace("Line: $LineNb, $TypeMsg, $Msg");
+  }
+  else {
+    printTrace("$TypeMsg $Msg");
+  }
+}
+
+#############################################################################
+#  print message error to the user standard output.  
+
+sub printTrace {
+
+  my $Msg     = shift ;
+  my $level   = shift ;
+  my $sep     = shift ;
+
+  if ($sep) {
+      print "\n-------------------------------------------------------------------------";
+      print LOGFILE "\n-------------------------------------------------------------------------";
+  }
+  
+  if ($level <= $TRACELEVEL) {
+    print($Msg);    
+    print LOGFILE $Msg ;
+  }
+}  
+
+#############################################################################
+# this subroutine implements a very stupid version of diff
+
+sub diff {
+	my $f1              = shift;
+	my $f2              = shift;
+	my $lineToBeginWith = shift;
+	my $NULL            = "" ;
+	my $diff_f1         = $NULL ;
+	my $diff_f2         = $NULL ;
+	my $retval          = $NULL ;
+	my $ret;
+	open(F1, "$f1") or die "Could not open file $f1";
+	open(F2, "$f2") or close(F1), die "Could not open file $f2";
+
+	while (defined($l1 = <F1>)) {
+	    if ($lineToBeginWith){
+		$lineToBeginWith -- ;
+		next ;
+	    }
+	    next if ($l1 =~ /^\#/);
+	    $ret = defined($l2 = <F2>);
+	    if ($ret) {
+		$ret = defined($l2 = <F2>) while ($ret && ($l2 =~ /^\#/)) ;
+		if ($ret) {
+		    if (!($l1 eq $l2)) {
+			
+			# ignore whitespace
+			$l1_clean = $l1 ;
+			$l2_clean = $l2 ;
+			$l1_clean =~ s/\s//g;
+			$l2_clean =~ s/\s//g;
+						  
+			if (!($l1_clean eq $l2_clean)) {
+			    $diff_f1 .= "${l1}" unless ($l1_clean eq $NULL);
+			    $diff_f2 .= "${l2}" unless ($l2_clean eq $NULL);
+			}
+		    }
+		}
+		else {
+		   next if ($l1 =~ /^\s*$/) ;
+		   $diff_f1 .= "${l1}";
+		}
+	    }
+	    else {
+		next if ($l1 =~ /^\s*$/) ;
+		$diff_f1 .= "${l1}";
+	    }
+	}
+	
+	while (defined($l2 = <F2>)) {
+	    	if (($l2 =~ /^\#/) || ($l2 =~ /^\s*$/)) { 
+		    next ;
+		}
+		else {
+		    $diff_f2 .= "${l2}" ;
+		}
+	}
+
+	close(F1);
+	close(F2);
+
+	$retval .= "- differences present in your config file but not in standard file:\n\n". "$diff_f1\n" if ($diff_f1) ;
+	$retval .= "- differences present in standard file but not in your config file:\n\n" . "$diff_f2"  if ($diff_f2) ;
+	return $retval ;
+}
+
+sub CompareStdConfigFiles {
+  # Compare each configuration file against its default version.  If it has changed,
+  # notify the user that the file has changed and will need to be checked by the
+  # user.  This should be safe to do because there should be no path information
+  # stored in these conf files, which are just schema stuff.
+  # printTrace("\nCheck if standard configuration files have changed",3);
+
+  # get the version of the DS to migrate
+  ($oldVersion, $oldMinor) = &getVersion($oldDir, $oldversionstr);
+  # get the version of the new DS
+  ($Version, $Minor) = &getVersion($root);
+
+  # get old LIB_PATH
+  $old_libpath = &getLibPath($oldDir, $oldVersion, $oldMinor);
+  # get new LIB_PATH
+  $new_libpath = &getLibPath($root, $Version, $Minor);
+
+  my $origFilePath = "$oldDir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}install${PATHSEP}schema${PATHSEP}" ;
+  my $FilesChanged = "";
+  my $AllDiffs     = "***********************************************************************";
+  my $NoChanges    = "" ;
+  my $lineToBegin  = 0 ;
+  opendir(CONFDIR, $oldSchemaDir) or
+    die "Error: could not open migrated config dir $oldConfDir: $!";
+  
+  foreach $file (readdir(CONFDIR)) {
+       $origFile   = $origFilePath . $file ;
+       $configFile = $oldSchemaDir . $file ;
+      if (( exists($stdIncludes{lc($file)})) && (-f $origFile)) {
+	  $diffs = &diff($configFile, $origFile, $lineToBegin);
+	  $lineToBegin = 0 if $lineToBegin ;
+	  if ($diffs) {
+	      $FilesChanged .= "\n$configFile";
+	      $AllDiffs     .= "\n$configFile  is different than the standard configuration file" ;
+	      $AllDiffs     .= "\nYou will need to check this file and make sure its changes are compatible ";
+	      $AllDiffs     .= "with the new directory server\nHere are the differences:\n";
+	      $AllDiffs     .= "$diffs \n\n";
+	      $AllDiffs     .= "***********************************************************************";
+	  } 
+	  else {
+  	      $NoChanges .= "\n$configFile";
+	  }
+      }
+   }
+  closedir(CONFDIR);
+
+if ($FilesChanged) {
+    printTrace("\nNo changes to old configuration files:$NoChanges",3) ;
+    printTrace("\n***********************************************************************",3) ;
+    printMsg("\nThe following standard files have been modified: $FilesChanged");
+    if ($NO_INPUT_USER) {
+	# do nothing
+    }
+    else {
+	printMsg("\nDo you want to see the differences Yes/No [No] ?") ;
+	my $answer = <STDIN> ;
+	if ($answer =~ /y|yes/i) {
+	    printMsg("$AllDiffs");
+	}
+	printMsg("\nDo you want to continue the migration Yes/No [No] ?");
+	$answer = <STDIN> ;
+	if (! ($answer =~ /y|yes/i)) {
+	    exit(1);
+	}
+    }
+  }
+}
+
+
+
+#############################################################################
+
+# this is used to run the system() call, capture exit and signal codes,
+# and die() upon badness; the first argument is a directory to change
+# dir to, if any, and the rest are passed to system()
+sub mySystem {
+    my $rc = &mySystemNoDie(@_);
+    my ($dir, @args) = @_;
+    if ($rc == 0) {
+# success
+    } elsif ($rc == 0xff00) {
+		die "Error executing @args: error code $rc: $!";
+    } elsif ($rc > 0x80) {
+        $rc >>= 8;
+		die "Error executing @args: error code $rc: $!";
+    } else {
+        if ($rc &   0x80) {
+            $rc &= ~0x80;
+        } 
+		die "Error executing @args: received signal $rc: $!";
+    }
+
+	# usually won't get return value
+	return $rc;
+}
+
+# This version does not die but just returns the error code
+sub mySystemNoDie {
+	my ($dir, @args) = @_;
+	if ($dir && ($dir ne "")) {
+		chdir($dir) or die "Could not change directory to $dir: $!";
+	}
+	my $cmd = $args[0];
+	# the system {$cmd} avoids some NT shell quoting problems if the $cmd
+	# needs to be quoted e.g. contains spaces; the map puts double quotes
+	# around the arguments on NT which are stripped by the command
+	# interpreter cmd.exe; but don't quote things which are already quoted
+	my @fixargs = map { /^[\"].*[\"]$/ ? $_ : $quote . $_ . $quote } @args;
+	my $rc = 0;
+	if ($cmd =~ /[.](bat|cmd)$/) {
+		# we have to pass batch files directly to the NT command interpreter
+		$cmd = $com_spec;
+#		print "system $cmd /c \"@fixargs\"\n";
+		$rc = 0xffff & system {$cmd} '/c', "\"@fixargs\"";
+	} else {
+#		print "system $cmd @fixargs\n";
+        $rc = 0xffff & system {$cmd} @fixargs;
+        }
+	chdir(${curdir})  or die "Could not change directory to $curdir: $!";
+	return $rc;
+}
+
+###########################################################################################
+#                                                                                         #
+#                    Export/Import of the backends in @BACKENDS                           #
+#                                                                                         #
+###########################################################################################
+
+sub manydb2Ldif {
+  my $ldif_dir = shift;  
+  $ENV{"$LIB_PATH"}=$old_libpath;
+  if (! $ldif_dir) { $ldif_dir = $ldif_rep ;}
+  if  (!(-d $ldif_dir)) {
+      mkdir($ldif_dir,0777) or die "can't create $ldif_dir to store temporary ldif files";
+  }
+  chdir($oldSlapdExecDir)  or die "Could not change directory to $oldSlapdExecDir: $!";
+  foreach $backend (@BACKENDS) {
+    my $ldif = "${ldif_dir}$backend.ldif" ;
+    &db2Ldif($ldif, $backend, $oldHome);
+  }
+  print "  Done.\n";
+  chdir($curdir)  or die "Could not change directory to $curdir: $!";   
+}
+
+sub db2Ldif {
+  my $ldif            = shift ;
+  my $backend         = shift ;
+  my $home            = shift ;
+  my $include_suffix  = shift ;
+  my $db2ldif_param ;
+  if ($include_suffix) {
+      $db2ldif_param   = "db2ldif -r -D $home -n $backend -a $ldif -s \"$include_suffix\"";
+  }
+  else {
+      $db2ldif_param   = "db2ldif -r -D $home -n $backend -a $ldif";
+  }
+  open(DB2LDIF, "${quote}${quote}$slapdExecName${quote} $db2ldif_param${quote} 2>&1 |") or die "Could not run ns-slapd program $ldif2db_exe\n";
+  sleep(1); # allow some data to accumulate in the pipe
+  my $ii = 0;
+  while (<DB2LDIF>) {
+      ++$ii;
+      if (($ii % 250) == 0) {
+	printMsg("  Processing...\n");
+      }
+      printMsg($_);
+  }
+  close(DB2LDIF);
+  # set the ownership of the ldif file; should be the same as the 6.x slapd user id
+  if ((! $isNt) && ($oldlocaluser ne $localuser)) {
+      if (-f $ldif) {
+	  chown( $newuid, $newgid, $ldif) or printMsg("\nUnable to change the ownership of $ldif to $localuser") ;
+      }
+  }   
+}
+
+sub manyLdif2db {
+  my $ldif_dir = shift;
+  $ENV{"$LIB_PATH"}=$new_libpath;
+  chdir($slapdExecDir)  or die "Could not change directory to $slapdExecDir: $!";
+  foreach $backend (@BACKENDS) {
+    my $ldif = "${ldif_dir}$backend.ldif" ;
+    &Ldif2db($ldif, $backend);
+  }
+  # remove the empty ldif directory 
+  # but not if using the data dir
+  if (!$olddatadir) {
+	rmdir($ldif_dir);
+  }
+  chdir($curdir)  or die "Could not change directory to $curdir: $!";
+}
+
+
+sub Ldif2db {
+  my $ldif    = shift ;
+  my $backend = shift ;
+  my $ldif2db_param = "ldif2db -D $serverHome -n $backend -i $ldif";
+  open(LDIF2DB, "${quote}${quote}$slapdExecName${quote} $ldif2db_param${quote} 2>&1 |") or die "Could not run ns-slapd program $ldif2db_exe\n";
+  sleep(1); # allow some data to accumulate in the pipe
+  while (<LDIF2DB>) {
+      printMsg($_);
+  }
+  close(LDIF2DB);
+  # remove the ldif file after the import
+  # but not if using the data dir
+  if (!$olddatadir) {
+	unlink($ldif) ;
+  }
+}
+
+
+###########################################################################################
+#                                                                                         #
+#                    Running/Stopping the Server                                          #
+#                                                                                         #
+###########################################################################################
+
+
+
+sub isDirectoryAlive {
+    die "\n Migration aborted. Make sure your old and new Directory Servers are installed on the same machine \n" if ( $LDAPservername == -1 );
+    my $test_conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd);
+    if ($test_conn) {
+	$test_conn->close();
+	return 1;
+    }
+    else {
+	return 0 ;
+    }
+}
+
+
+sub startServer {
+  my $instanceDir = ${serverHome} ;
+  my $errLog = $instanceDir . $PATHSEP . 'logs' . $PATHSEP . 'errors';
+  # emulate tail -f
+  # if the last line we see does not contain "slapd started", try again
+  my $done = 0;
+  my $started = 0;
+  my $code = 0;
+  my $lastLine = "";
+  my $timeout = time + 240;	# 4 minutes
+  $ENV{"$LIB_PATH"}=$new_libpath;
+
+  my $startCmd = $instanceDir . $PATHSEP . 'start' . $script_suffix;
+  if (! -f $startCmd) {
+    $startCmd = $instanceDir . $PATHSEP . 'start-slapd' . $script_suffix;
+  }
+  $code = &mySystem($instanceDir,$startCmd);
+  open(IN, $errLog) or die "Could not open error log $errLog: $!";
+  my $pos = tell(IN);
+  while (($done == 0) && (time < $timeout)) {
+    for (; ($done == 0) && ($_ = <IN>); $pos = tell(IN)) {
+      $lastLine = $_;
+      #			print;
+      # the server has already been started and shutdown once . . .
+      if (/slapd started\./) {
+	$started++;
+	if ($started == 2) {
+	  $done = 1;
+	}
+	# sometimes the server will fail to come up; in that case, restart it
+      } elsif (/Initialization Failed/) {
+	#				print "Server failed to start: $_";
+	$code = &mySystem($instanceDir, $startCmd);
+	# sometimes the server will fail to come up; in that case, restart it
+      } elsif (/exiting\./) {
+	#				print "Server failed to start: $_";
+	#$code = &mySystem($startCmd);	
+	$code = &mySystem($instanceDir, $startCmd);
+      }
+    }
+    if ($lastLine =~ /PR_Bind/) {
+      # server port conflicts with another one, just report and punt
+      print $lastLine;
+      print "This server cannot be started until the other server on this\n";
+      print "port is shutdown.\n";
+      $done = 1;
+    }
+    if ($done == 0) {
+      # rest a bit, then . . .
+      sleep(2);
+      # . . . reset the EOF status of the file desc
+      seek(IN, $pos, 0);
+    }
+  }
+  close(IN);
+  
+  sleep(5);
+  die "\nUnable to start the $Version.$Minor Directory Server\n" unless (isDirectoryAlive());
+ 
+  return 0;
+}
+
+sub stopServer {
+	my $root = shift;
+	my $name = shift;
+	$maxStopIterations = 5;
+	print "\nShutting down server $name . . .\n";
+	$ENV{"$LIB_PATH"}=$new_libpath;
+	$stopCmd = $quote . $root . $PATHSEP . $name . $PATHSEP . 'stop' . $script_suffix . $quote;
+	if (! -f $stopCmd) {
+		$stopCmd = $quote . $root . $PATHSEP . $name . $PATHSEP . 'stop-slapd' . $script_suffix . $quote;
+	}
+
+	if (! -f $stopCmd) {
+		# no stop command, probably a 1.X system; for NT, we'll try net stop
+		# for unix, we'll get the pid and kill it
+		if ($isNT) {
+			$stopCmd = 'net stop ' . $name;
+		} else {
+			# see if there is a pid file
+			$pidfile = $root . $PATHSEP . $name . $PATHSEP . 'logs' .
+				$PATHSEP . 'pid';
+			if (open(PIDFILE, $pidfile)) {
+				chomp($pid = <PIDFILE>);
+				close(PIDFILE);
+				while ($maxStopIterations-- && !$exitCode) {
+					$exitCode = kill(15, $pid);
+				}
+				$stopCmd = undef;
+			}
+		}
+	}
+
+	# keep looping until the stop cmd returns an error code, which usually
+	# means that what ever we want to stop is stopped, or some other error
+	# occurred e.g. permission, or no such service
+	$exitCode = &runAndIgnoreOutput($stopCmd);
+#	print "stopServer: exitCode=$exitCode\n";
+	while ($stopCmd && $maxStopIterations-- && $exitCode) {
+		$exitCode = &runAndIgnoreOutput($stopCmd);
+#		print "stopServer: exitCode=$exitCode\n";
+	}
+
+	if (!$maxStopIterations) {
+		print "Warning: could not shutdown the server: $!\n";
+	}
+	sleep(10) ;
+	$exitCode = 0;
+}
+
+
+sub runAndIgnoreOutput {
+	my $cmd = shift;
+	printMsg(".");
+	open(RUNCMD, "${quote}$cmd${quote} 2>&1 |") or die "Error: could not run $cmd: $!";
+	printMsg(".");
+	sleep(1); # allow pipe to fill with data
+	printMsg(".");
+	while (<RUNCMD>) {
+#		print;
+	}
+	my $code = close(RUNCMD);
+#	print "runAndIgnore: code=$code status=$?\n";
+	return $?;
+}
+
+#############################################################################
+# migrate SSL info
+
+sub MigrateSSL {
+  my $secPwd = 'bidon' ;
+  # copy the SSL directory
+  &copyDir("$oldHome${PATHSEP}ssl","$serverHome${PATHSEP}ssl") if (-d "$oldHome${PATHSEP}ssl");
+  # copy the cert db and key files
+  if ( -d "$oldDir${PATHSEP}alias") {
+    $aliasDir = "$root${PATHSEP}alias";
+    if (! -d $aliasDir) {
+      mkdir($aliasDir, 0750);
+    }
+    &stopServer($root,'slapd-'.$newname);
+    my $keydb         = "$aliasDir${PATHSEP}slapd-$newname-key3.db"  ;
+    my $certdb        = "$aliasDir${PATHSEP}slapd-$newname-cert8.db" ;
+    my $certdb7       = "$aliasDir${PATHSEP}slapd-$newname-cert7.db" ;
+    my $old_keydb     = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-key3.db" ;
+    my $old_certdb    = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-cert7.db"; 
+    my $keydb_backup  = "$aliasDir${PATHSEP}slapd-$newname-key3.db_backup"  ;
+    my $certdb_backup = "$aliasDir${PATHSEP}slapd-$newname-cert7.db_backup" ;
+    if (-f $old_keydb) {
+    	if (-f $keydb) {
+	    if ($NO_INPUT_USER) {
+		printMsg("\n$keydb already exists. backup in $keydb_backup ...");
+		&copyBinFile($keydb,$keydb_backup);
+		&copyBinFile($old_keydb,$keydb);
+	    }
+	    else {
+		print("\n\n$keydb already exists. Do you want to overwrite it ? [no]: ");
+		my $answer = <STDIN> ;
+		if ($answer =~ /^y|yes$/i) {
+		    &copyBinFile($old_keydb,$keydb);
+		}
+	    }
+	}
+	else {
+	    &copyBinFile($old_keydb,$keydb);
+	}
+    }
+    if (-f $old_certdb) {
+	$mode = (stat($old_certdb))[2] if $PRESERVE;
+	if (-f $certdb) {
+	    if ($NO_INPUT_USER) {
+		printMsg("\n$certdb already exists. backup in $certdb_backup ...");
+		&copyBinFile($certdb,$certdb_backup);
+		unlink($certdb) || print "Couldn't delete $certdb : $!\n";
+		&copyBinFile($old_certdb,$certdb7);
+	    }
+	    else {
+		print("\n\n$certdb already exists. Do you want to overwrite it ? [no]: ");
+		my $answer = <STDIN> ;
+		if ($answer =~ /^y|yes$/i) {
+		    unlink($certdb) || print "Couldn't delete $certdb : $!\n";
+		    &copyBinFile($old_certdb,$certdb7);
+		}
+	    }
+	}
+	else {
+	    &copyBinFile($old_certdb,$certdb7);
+	}
+    }
+    # copy the old password file
+    if (-f "$oldDir${PATHSEP}alias${PATHSEP}$type-$oldname-pin.txt") {
+      &copyBinFile(
+		   "$oldDir${PATHSEP}alias${PATHSEP}$type-$oldname-pin.txt",
+		   "$aliasDir${PATHSEP}$type-$newname-pin.txt"
+		  );
+    }
+    &startServer();
+    if ($PRESERVE) {
+	chown($newuid,$newgid,$certdb) || print "Failed to set uid $newuid gid $newgid on $certdb : $!\n";
+	chmod($mode,$certdb) || print "Failed to set mode $mode on $certdb : $!\n";
+    }
+  }
+
+}
+
+sub DisableSSL {
+  my $entry      = $conn->search("cn=config","base","objectclass=*");
+  my $LDAPparam =  "nsslapd-security" ;
+  my $Value     = "off" ;
+  if ($entry->{$LDAPparam}[0] ne $Value) { 
+    printTrace("\nDisable SSL...",1);
+    $entry->setValues($LDAPparam, $Value);
+  }
+  my $res = $conn->update($entry);
+  if ($res) {
+    printTrace("\nSSL disabled",2);
+  }
+  else {
+    printMsg("\nCan't disabled SSL. The server may have problems to start");
+  }
+}
+
+# enable the migration of client authentication informations
+sub MigrateCertmap {
+  # backup the old certmap.conf and replace it with the new one
+  my $oldCertmap = "$oldDir${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf";
+  my $newCertmap = "$root${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf"  ;
+  my $backupCertmap = "$root${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf_backup" ;
+  if (-f $oldCertmap) {
+      if ($NO_INPUT_USER) {
+	  printMsg("\n$newCertmap has been backup in $backupCertmap"); 
+	  &copyBinFile($newCertmap,$backupCertmap);
+	  &copyBinFile($oldCertmap,$newCertmap);
+      }
+      else {
+	  my $Ask = 1 ;  
+	  while ($Ask) {
+	      printMsg("\n\nWhere do you want to back up the file $newCertmap [$backupCertmap] ?") ;
+	      my $Answer = <STDIN> ;
+	      $backupCertmap = $Answer if ($Answer ne "\n");
+	      chomp($backupCertmap);
+	      printTrace("\nDest: .$backupCertmap.",4);
+	      if (-e $backupCertmap) {
+		  printMsg("\n\n$backupCertmap already exists. Do you want to overwrite it Yes/No [No] ?") ;
+		  if (<STDIN> =~ /yes|y/i) {
+		      $Ask = 0 ;
+		  }
+		  else {
+		      $backupCertmap = "$root${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf_backup" ;
+		  }
+	      }
+	      else {
+		  $Ask = 0 ;
+	      }
+	  }
+	  printTrace("\nBackup file: $newCertmap in $backupCertmap",4); 
+	  &copyBinFile($newCertmap,$backupCertmap);
+	  &copyBinFile($oldCertmap,$newCertmap);
+      }
+  }
+  else {
+  }
+}
+
+sub hasChangedoldCertmap {
+    my $certmapfile = shift ;
+    my @reference = ("certmap default         default",
+		     "default:DNComps",
+		     "default:FilterComps     e") ;
+    my $cpt = 0 ;
+    printTrace("\nhasChangedoldCertmap",3);
+    open(CERTMAP,"< $certmapfile");
+    while (<CERTMAP>) {
+	if ((! /^\s*#/) && (! /^\s*$/)) {
+	    my $ref = $reference[$cpt] ;
+	    printTrace("\nValue: $_, ref: $ref",4);
+	    if (! /^\s*$ref\s*$/) {
+		return 1 ;
+	    }
+	    else {
+		$cpt++ ;
+	    }
+	}
+    }
+    close (CERTMAP);
+    printTrace("\ncpt: $cpt",4);
+    if ($cpt < $#reference) {
+	return 1 ;
+    }
+    else {
+        return 0 ;
+    }	
+}
+
+
+###########################################################################################
+#                                                                                         #
+#                    Copy directory and files functions                                   #
+#                                                                                         #
+###########################################################################################
+
+
+sub copyDir {
+    my	$src = shift;
+    my	$dest = shift;
+	my  $exclude = shift;
+
+    opendir( SRC, $src ) or die "Can't open directory $src: $!: ";
+	my $mode;
+	my $uid;
+	my $gid;
+    mkdir ( $dest , 0755 ) or die "\nCan't create directory $dest. \nPlease check you have enough rights to create it and/or check that your parent directory exists.\n" if !( -e $dest );
+	if ($PRESERVE) {
+		$mode = (stat($src))[2];
+		($uid, $gid) = (stat(_))[4..5];
+		# Make sure files owned by the old user are owned by the
+		# new user
+		if ($uid == $olduid) {
+			$uid = $newuid;
+			$gid = $newgid;
+		}
+		chown $uid, $gid, $dest;
+		chmod $mode, $dest;
+	}
+    local ( @files ) = readdir ( SRC );
+    closedir( SRC );
+    for ( @files ) {
+		if ( $_ eq "." || $_ eq ".." ) {
+			next;
+		} elsif ( $exclude && /$exclude/ ) {
+			next;
+		} elsif ( $_ =~ /^__/ ) {
+		          # region files are incompatible between 32
+			  # and 64 bit servers
+			  next;
+		} elsif( -d "$src${PATHSEP}$_")  {
+			&copyDir ( "$src${PATHSEP}$_", "$dest${PATHSEP}$_" ); 
+		} else {
+			&copyBinFile ( "$src${PATHSEP}$_", "$dest${PATHSEP}$_");
+		}
+    }
+}
+
+sub copyBinFile {
+    my	$src = shift;
+    my	$dest = shift;
+    my  $buf = "";
+    my  $bufsize = 8192;
+
+    open( SRC, $src ) || die "Can't open $src: $!\n";
+	# if we are given a directory destination instead of a file, extract the
+	# filename portion of the source to use as the destination filename
+	if (-d $dest) {
+		$dest = $dest . $PATHSEP . &basename($src);
+	}
+    open( DEST, ">$dest" ) || die "Can't create $dest: $!\n";
+    binmode SRC;
+    binmode DEST;
+	if ($PRESERVE) {
+		$mode = (stat($src))[2];
+		($uid, $gid) = (stat(_))[4..5];
+		# Make sure files owned by the old user are owned by the
+		# new user
+		if ($uid == $olduid) {
+			$uid = $newuid;
+			$gid = $newgid;
+		}
+		chown $uid, $gid, $dest;
+		chmod $mode, $dest;
+	}
+    while (read(SRC, $buf, $bufsize)) {
+		print DEST $buf;
+    }
+    close( SRC );
+    close( DEST );
+}
+
+#############################################################################################################
+# backup 6.x configuration files                                                                            #
+# backup the directory <root_server5>/slapd-instance/config dans <root_server5>/slapd-instance/BackupConfig #                           #
+#                                                                                                           #
+#############################################################################################################
+
+
+sub backupConfigFiles {
+  # backup the 6.x config files
+  my $src = "$serverHome${PATHSEP}config" ;
+  my $dest = "$serverHome${PATHSEP}config_backup" ;
+  if ($NO_INPUT_USER) {
+      printMsg("\n$src has been backup in $dest"); 
+      &copyDir($src,$dest);
+  }
+  else {
+      my $Ask = 1 ;  
+      while ($Ask) {
+	  printMsg("\n\nWhere do you want to back up your configuration directory [$dest] ?") ;
+	  my $Answer = <STDIN> ;
+	  $dest = $Answer if ($Answer ne "\n");
+	  chomp($dest);
+	  printTrace("\nDest: .$dest.",4);
+	  if (-e $dest) {
+	      printMsg("\n\n$dest already exists. Do you want to overwrite it Yes/No [No] ?") ;
+	      if (<STDIN> =~ /yes|y/i) {
+		  $Ask = 0 ;
+	      }
+	      else {
+		  $dest = "$serverHome${PATHSEP}config_backup" ;
+	      }
+	  }
+	  else {
+	      $Ask = 0 ;
+	  }
+      }
+      printTrace("\nBackup Directory: $src in $dest",4); 
+      &copyDir($src,$dest);
+  }
+}
+#############################################################################
+
+sub getLDAPservername {
+    my $oldLDAPservername;
+    my $LDAPservername;
+    my $localhost = "nsslapd-localhost";
+    open(OLDDSELDIF, "< $oldDSEldif") or die "\nError: could not open old config file $oldDSEldif \n";
+    my $in = new Mozilla::LDAP::LDIF(*OLDDSELDIF) ;
+    while ($entry = readOneEntry $in) {
+        my $DN = $entry->getDN(1) ;
+	if ($DN =~ /^cn=config$/i) {
+	    my @values = $entry->getValues($localhost);
+	    if ($entry->size($localhost)) {
+		$oldLDAPservername = $values[0];
+		printTrace("\nName of the old LDAP server: $oldLDAPservername",3);
+	    }
+	    break;
+	}	
+    } 
+    close(OLDSELDIF);
+
+    open( DSELDIF, "< $DSEldif" ) || die "\nCan't open $DSEldif \n";
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+    while ($entry = readOneEntry $in) {
+        my $DN = $entry->getDN(1) ;
+	if ($DN =~ /^cn=config$/i) {
+	    my @values = $entry->getValues($localhost);
+	    if ($entry->size($localhost)) {
+		$LDAPservername = $values[0];
+		printTrace("\nName of the new LDAP server: $LDAPservername",3);
+	    }
+	    break;
+	}	
+    } 
+    close(DSELDIF);
+    # check ol and new Directory Instance are installed on the same physical machine.
+    if (lc($oldLDAPservername) ne lc($LDAPservername)) {
+ 	 # warn the user he tries to migrate a 4.x server installed on a different machine from the 6.x one
+       	 printMsg("\n\nYour old instance is on $oldLDAPservername, whereas your new instance is on $LDAPservername. Migration on different machines is not supported. Do you want to continue ? Yes/No [No]:") ;
+       	 if (! (<STDIN> =~ /yes|y/i)) {
+       	     return -1;
+       	 }
+     }
+     return $LDAPservername ;       
+}
+
+#############################################################################
+
+sub getLibPath {
+        my $myDir       = shift;
+        my $myVersion   = shift;
+        my $myMinor     = shift;
+
+	if ($isNT) {
+		return $ENV{"$LIB_PATH"};
+	}
+        if (($myVersion >= 6) && ($myMinor >= 2)) {
+                return
+                "$myDir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}lib${SEP}".
+                "$myDir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${SEP}".
+                $ENV{"$LIB_PATH"};
+        } else {
+                return  "$myDir${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+        }
+}
+
+#############################################################################
+
+sub getVersion {
+	my $dir         = shift;
+	my $versionstr  = shift;
+	my $version     = 0;
+	my $minor       = 0;
+	my $buildNumber = 0;
+	my $progDir     = "${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+	my $progDir2    = "${PATHSEP}bin${PATHSEP}slapd${PATHSEP}";
+
+	# find the slapd executable
+	if (!$versionstr) { # version not specified on cmd line - find it
+		$prog = $dir . $progDir . $slapdExecName;
+		if (! -f $prog) {
+			$prog = $dir . $progDir2 . $slapdExecName;
+			if (-f $prog && $isNT) {
+				# if slapd is in bin/slapd and we're on NT, just assume version 1;
+				# apparently, slapd.exe doesn't like the -v argument . . .
+				return ( '1', $minor );
+			}
+			else{
+				die "Could not run slapd program $prog: $!";
+			}
+		}
+		else {
+			chdir($dir . $progDir);
+		}
+	$cur_libpath=$ENV{"$LIB_PATH"};
+        $ENV{"$LIB_PATH"}=
+        	"$dir${PATHSEP}lib${SEP}".
+        	"$dir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}lib${SEP}".
+        	"$dir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${SEP}".
+        	$ENV{"$LIB_PATH"};
+		# read the old version from the old slapd program
+
+		open(F, "${quote}${quote}$prog${quote} -v${quote} 2>&1 |") or
+			die "Could not run slapd program $prog: $!";
+		sleep(1); # allow some data to accumulate in the pipe
+#	print "Output from $prog -v:\n";
+		while (<F>) {
+			if (/^Netscape-Directory/ || /^iPlanet-Directory/i) {
+				$versionstr = $_;
+				last;
+			}
+		}
+		$code = close(F);
+		#	print "$prog returned code=$code status=$?\n";
+		$ENV{"$LIB_PATH"}=$cur_libpath;
+	}
+
+	if ($versionstr =~ /^Netscape-Directory\/(\d+)\.(\d+)(?:b\d)*\s+(\S+)/) {
+		$version     = $1;
+		$minor       = $2;
+		$buildNumber = $3;
+	}
+	elsif ($versionstr =~ /^Netscape-Directory\(restrict?ed-mode\)\/(\d+)\.(\d+)\s+(\S+)/) { # we can have restricted-mode or restriced-mode ...
+        $version     = $1;
+		$minor       = $2;
+		$buildNumber = $3;
+	}
+	elsif ($versionstr =~ /^iPlanet-Directory\/(\d+)\.(\d+)\s+(\S+)/i) {
+		$version     = $1;
+		$minor       = $2;
+		$buildNumber = $3;
+	} elsif ($versionstr =~ /(\d+)\.(\d+)/) {
+		$version     = $1;
+		$minor       = $2;
+	}
+
+	if ($version == 0) {
+	    die "\nCould not determine version of the directory server in $dir: \n";
+	}
+
+	# distinguish the 4.1 and the 4.11 thanks to the buildNumber
+	if (($version == 4) && ($minor == 1)){
+	    if (! ($buildNumber =~ /^B99\.16/)) {
+		# it's not a 4.1 Netscape Directory Server => it's a 4.11
+		$minor = 11 ;
+	    }
+	}
+	chdir($curdir) or die "Could not change directory to $curdir: $!" ;
+	return ( $version, $minor );
+}
+
+###############################################################################################
+sub normalizeDir {
+    my $dir = shift ;
+    my $dir_prec = "" ;
+    while ($dir_prec ne $dir) {
+	$dir_prec = $dir ;
+	if ($isNT) {
+	    grep { s@\\\\@\\@g } $dir ;
+        }
+        else {
+	    grep { s@//@/@g } $dir ;
+        }
+    }
+    return $dir ;
+}
+
+
+###############################################################################################
+
+sub GetTime {
+    my $tm = localtime;
+    (my $sec, my $min, my $hour, my $dd, my $mm, my $yy) = ($tm->sec, $tm->min, $tm->hour, $tm->mday, ($tm->mon)+1, ($tm->year)+1900);
+    $sec  = "0$sec"  unless $sec > 9  ;
+    $min  = "0$min"  unless $min > 9  ;
+    $hour = "0$hour" unless $hour > 9 ;
+    $dd   = "0$dd"   unless $dd > 9   ;
+    $mm   = "0$mm"   unless $mm > 9   ;
+    return ($sec, $min, $hour, $dd, $mm, $yy);
+}
+
+###############################################################################################
+# get uid and group id of the 6.x slapd server.
+# The uid is done through the nsslapd-localuser attribute
+
+sub getuid_gid {
+    my $newuid ;
+    my $newgid ;
+    my $localuser ;
+    my $localuser_attr = "nsslapd-localuser" ;
+    if (! $isNT) {
+	&startServer() unless (isDirectoryAlive());
+	my $conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Can't contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+	my $entry = $conn->search("cn=config ", "base","objectclass=*", 0, ($localuser_attr)) ;
+	# Tests wether we succeed to get the entry cn=config
+	die "\nCan't get the entry cn=config \n" unless ($entry);     
+	my @values = $entry->getValues($localuser_attr);
+	$conn->close();
+	if ($#values == -1 || ($values[0] eq "") ) { # tests wether the nsslapd-localuser attribute has a value
+	    printMsg("\nNo localuser has been found in the configuration of the directory. ");
+	    if ($NO_INPUT_USER) {
+		printMsg("\nWe considered nobody as the localuser");
+		$localuser = "nobody" ;
+	    }
+	    else {
+		my $Ask = 1 ;  
+		while ($Ask) {
+		    printMsg("\nUnder what user does your $Version.$Minor directory server run [nobody] ? ") ;
+		    $localuser = <STDIN> ;
+		    chomp($localuser);
+		    $localuser = "nobody" if ($localuser eq "");
+		    ($newuid, $newgid) = (getpwnam("$localuser"))[2..3] ;
+		    if ($newuid) {
+			$Ask = 0 ;
+		    }
+		    else {
+			printMsg("\nError: $localuser is unknown from the system ");
+		    }
+		}
+	    }	
+	}
+	else {
+	    $localuser = $values[0]; # returns the first value (we should only have one localuser)
+	    my $size = $#values ;
+	}
+	($newuid, $newgid) = (getpwnam("$localuser"))[2..3] ; 
+	return ($localuser, $newuid, $newgid) ;
+    }
+    else {
+	return () ;
+    }
+}
+
+sub getolduid_gid {
+    my $oldlocaluser ;
+    my $localuserAttr = "nsslapd-localuser";
+    my $entry ;
+    if (! $isNT) {
+	open( DSELDIF, "< $oldDSEldif" ) || die "Can't open $oldDSEldif: $!: ";
+	my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+	while ($entry = readOneEntry $in) {
+	    $typeOfEntry = getTypeOfEntry($entry);
+	    if ($typeOfEntry eq "CONFIG_NODE") {
+		$oldlocaluser = $entry->{$localuserAttr}[0] if ($entry->exists($localuserAttr));
+		break ;
+	    }
+       	}
+       	close(DSE);
+	($olduid, $oldgid) = (getpwnam("$oldlocaluser"))[2..3] ; 
+	return ($oldlocaluser, $olduid, $oldgid) ; 
+    }
+    else {
+	return ();
+    } 
+}
+###############################################################################################
+# get current directory
+
+sub getCwd {
+        my $command = $isNT ? "cd" : "/bin/pwd";
+        open(PWDCMD, "$command 2>&1 |") or
+                die "Error: could not execute $command: $!";
+        # without the following sleep, reading from the pipe will
+        # return nothing; I guess it gives the pwd command time
+        # to get some data to read . . .
+        sleep(1);
+        my $currentdir;
+        while (<PWDCMD>) {
+                if (!$currentdir) {
+                        chomp($currentdir = $_);
+                }
+        }
+        my $code = close(PWDCMD);
+#       if ($code || $?) {
+#               print "$command returned code=$code status=$? dir=$curdir\n";
+#       }
+#       print "getCwd curdir=\[$curdir\]\n";
+        return $currentdir;
+}
+
+################################
+#	Need to migrate the credential.
+#	If the credential can not be migrated, leave it at it is
+################################
+sub migrate_credential{
+	my $entry_to_modify = shift;
+	my $credentials_attr = shift;
+	my @old_value = $entry_to_modify->getValues($credentials_attr); 
+	my $migratecredExecName = 'migratecred';
+	my $credOldHome = $oldHome;
+	my $credServerHome = $serverHome;
+
+	if ($isNT) {
+		# oldHome may be pointing to the archived copy of the
+		# instance dir which may be different than the path that
+		# the instance was originally installed as on Windows.  If
+		# this path is not the original install path, then the 
+		# credential will not be migrated correctly.  We should
+		# prompt the user on Windows for the correct path.
+		
+		print "\n\nThe old instance path must be the same as where it was";
+		print "\ninitially installed, not where it was archived in order";
+		print "\nfor this step to succeed.  Please verify that the path";
+		print "\nis correct.  Note that case sensitivity is important here.";
+		print "\n\nOld Instance Directory: $credOldHome";
+		print "\nIs this correct? (y/n): ";
+		chomp(my $answer = <STDIN>);
+		if (!($answer =~ /y|yes/i)) {
+			print "\nPlease enter the correct path for the old instance directory: ";
+			chomp($credOldHome = <STDIN>);	
+		}
+
+		print "\n\nThe new instance path must also be correct for this step";
+		print "\nto succeed.  Please verify that the path is correct.  Note";
+		print "\nthat case sensitivity is important here.";
+		print "\n\nNew Instance Directory: $credServerHome";
+		print "\nIs this correct? (y/n): ";
+		chomp(my $answer = <STDIN>);
+                if (!($answer =~ /y|yes/i)) {
+                        print "\nPlease enter the correct path for the new instance directory: ";
+			chomp($credServerHome = <STDIN>);
+		}
+	}
+# print "\nMigratecred command is: ${quote}$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}$migratecredExecName${quote} -o $credOldHome -n $credServerHome -c @old_value\n";
+ 
+	my @new_cred   = `${quote}$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}$migratecredExecName${quote} -o $credOldHome -n $credServerHome -c @old_value`;
+
+ 	if ( $? == 0 ) 
+	{
+ 		$entry_to_modify->setValues($credentials_attr, @new_cred);
+	}
+}
+

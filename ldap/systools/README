@@ -1,0 +1,31 @@
+How to get the list of patches:
+
+We used to just kind of guess which patches were needed.  Now, we look at the
+patches installed on the system and build our list from that.  WARNING - The
+system that you run this on must be a pretty clean system, with no extra
+software or hardware packages (e.g. compilers, software development
+environments, etc.).  We don't want to complain to our customers that they
+must install the C compiler!  So, I recommend running these scripts on a fresh
+clean QA-type system that has had the latest recommended patches or jumbo
+patch set applied.  If for some reason you need to edit the auto generated
+patch files, please put a comment in this file with the date and your ID.
+
+Solaris:
+	You will need one system for each supported OS release.  This means, for
+DS 6.2, both a Solaris 8 and a Solaris 9 system.  Log into each system as root
+and execute the getSolPatches.pl script.  By default it tries to use
+/usr/bin/perl, so if that is not available, any perl version > 5.005_03 can be
+used (older versions might work).  Redirect the output to a file
+(e.g. /tmp/patches), then copy that file over solN_patches.c, where N is the
+OS release number (e.g. 8 or 9).  Then, merge the files together into one -
+for example, mergeSolPatches.pl sol8_patches.c sol9_patches.c > sol_patches.c.
+Each patch is already tagged with what release version it came from and is applied to.
+
+HP:
+	Log into the reference machine and run getHPPatches.pl > /tmp/patches.  You
+may have to be superuser - for some reason, swlist must be run as root on some
+machines but not others.  So, if you run it and get strange error messages, try
+it as root.  Then, copy /tmp/patches over hp_patches.c.  By default, the perl
+script tries to use /tools/ns/bin/perl5.6.1, so if that does not exist, try
+another version of perl.  HP ships with a very old version of perl (v4) that
+may or may not work.

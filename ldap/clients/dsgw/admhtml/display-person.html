@@ -1,0 +1,133 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<HEAD>
+<!-- person directory entry -->
+<!-- DS_OBJECTCLASS "value=person" -->
+
+<!-- DS_ENTRYBEGIN -->
+<!-- DS_EMIT_BASE_HREF -->
+<TITLE>
+User Entry -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT><HR>" -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<FONT SIZE="+2">
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+
+<!-- DS_VIEW_SWITCHER -->
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="person">
+<!-- ENDIF // Adding -->
+
+<!-- IF "!Displaying" -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="if (dsmodify_dn.length == 0) document.location.href=\'genscreen?dslsusers&info=\' + escape(dsmodify_info); else document.location.href=\'edit/\' + dsmodify_dn + \'?&info=\' + escape(dsmodify_info);">
+<DIV ALIGN="right"><FONT SIZE="-1">* Indicates a required field</FONT></DIV>
+<!-- ENDIF -->
+
+<TABLE CELLSPACING="5">
+
+<TR>
+<TD VALIGN="top" ALIGN="Right" NOWRAP>
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+<B>Surname (Last Name):</B></TD>
+<TD VALIGN="top" NOWRAP>
+<!-- DS_ATTRIBUTE "attr=sn" "cols=>32" -->
+</TD>
+</TR>
+
+<TR>
+<TD VALIGN="top" ALIGN="right" NOWRAP>
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+<B>Full Name(s):</B>
+</TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" "numfields=+1" "cols=>32" -->
+</B></TD>
+</TR>
+ 
+<TR>
+<TD VALIGN="top" ALIGN="right" NOWRAP>
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+<B>User ID:</B>
+</TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=uid" "numfields=1" "cols=>16" "options=unique" -->
+</B></TD>
+</TR>
+
+<!-- IF "Adding" -->
+<TR><TD COLSPAN="2"><HR></TD></TR>
+<TR>
+<TD VALIGN="top" ALIGN="Right" NOWRAP><B>Password:</B></TD><TD>
+<!-- DS_NEWPASSWORD -->
+</TD>
+</TR>
+<TR>
+<TD VALIGN="top" ALIGN="Right" NOWRAP><B>Repeat password to confirm:</B></TD><TD>
+<!-- DS_CONFIRM_NEWPASSWORD -->
+</TD></TR>
+<TR><TD COLSPAN="2"><HR></TD></TR>
+<!-- ENDIF // Adding -->
+
+<TR>
+<TD VALIGN="top" ALIGN="Right" NOWRAP><B>E-Mail Address:</B></TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" "cols=>32" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="top" ALIGN="Right" NOWRAP><B>Title:</B></TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=title" "cols=>32" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="top" ALIGN="Right" NOWRAP><B>Telephone:</B></TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>16" "numfields=+1" -->
+</B></TD></TR>
+
+</TABLE>
+
+<!-- IF "AttributeHasValues" "modifyTimestamp" -->
+<TABLE BORDER=0><TR><TD><FONT SIZE="-1">
+Last modified on
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "options=readonly" -->
+ by
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "options=readonly" -->
+</FONT></TD></TR></TABLE>
+<!-- ENDIF // AttributeHasValues -->
+
+<TABLE BORDER=2 WIDTH=100%><TR><TD WIDTH=25% ALIGN="center">
+<!-- DS_SAVEBUTTON -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_RENAMEBUTTON "label=Rename User" "prompt=Please enter a new name for this user.\nNote that renaming only affects the Full Name field." -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_DELETEBUTTON "label=Delete User" "prompt=Delete this user?" -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_HELPBUTTON "topic=EDIT_ORGPERSON" -->
+</TD></TR></TABLE>
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+<!-- ENDHTML -->

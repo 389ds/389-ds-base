@@ -1,0 +1,45 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Top level Tasks branch
+#
+dn: cn=Tasks
+objectclass: top
+objectclass: nsResourceRef
+
+#
+# Operation Task Group
+#
+dn: cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstaskgroup
+nstasklabel: Operation Tasks Group
+
+dn: cn=Migrate, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: perl?migrateInstance
+
+dn: cn=Create, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: ds_create
+
+dn: cn=GetConfigInfo, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: perl?getConfigInfo
+
+dn: cn=MigrateLocalDB, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: perl?migrateLocalDB

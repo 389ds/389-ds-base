@@ -1,0 +1,196 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="04/29/03 15:35:33" />
+<title>Netscape Directory Server Help: Source and Destination</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="28757"> </a>
+<a name="Source and Destination"> </a>
+Source and Destination
+</p>
+
+<p class="text">
+<a name="28759"> </a>
+Use this dialog box to identify the consumer to which you will replicate directory entries. In addition, this dialog box allows you to define whether or not SSL is used for the connection, and the content you want replicated.
+</p>
+<p class="text">
+<a name="28760"> </a>
+<b>Supplier. </b>This field contains a static display of the name and port number of the supplier server in this agreement.
+</p>
+<p class="text">
+<a name="28761"> </a>
+<b>Consumer. </b>Select the consumer server in the replication agreement from this drop-down menu. To ensure that all servers in your deployment appear in this drop-down menu, you must bind as Administrator. If the consumer server you want still does not appear in the list, click Other to enter the host and port of the consumer. 
+</p>
+<p class="text">
+<a name="28762"> </a>
+<b>Other. </b>Click this button to manually enter the host and port of a consumer server
+</p>
+<p class="text">
+<a name="28763"> </a>
+<b>Using Encrypted SSL Connection. </b>If you want the supplier and consumer servers to use SSL for secure communication, select this checkbox. To use this option, you must have first configured your servers to use SSL.
+</p>
+<p class="text">
+<a name="28764"> </a>
+<b>SSL Client Authentication. </b>Select this option if you want the supplier and consumer servers to use certificates for secure communication. You cannot use SSL client authentication unless the "Using Encrypted SSL Connection" checkbox is selected. The "Bind As" and Password fields are unavailable with this option because the servers will use security certificates to authenticate to each other.
+</p>
+<p class="text">
+<a name="28765"> </a>
+To use this option, you must first do the following:
+</p>
+<ul>
+
+<li>
+Configure SSL for both your supplier and consumer servers.
+<a name="28766"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Configure your consumer server to recognize your supplier server's certificate as the supplier DN.
+<a name="28767"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28768"> </a>
+<b>Simple Authentication. </b>Select this option if you want the supplier and consumer servers to use simple authentication during communication. If you select the "Using Encrypted SSL Connection" checkbox and you specify this option, the simple authentication will take place over a secure channel but without certificates.
+</p>
+<p class="text">
+<a name="28769"> </a>
+<b>Bind As. </b>If you are not using SSL, or you are using SSL with simple authentication, enter the supplier bind DN defined on the consumer server in the Bind As text box.
+</p>
+<p class="text">
+<a name="28770"> </a>
+<b>Password. </b>If you are not using SSL, or you are using SSL with simple authentication, enter the Supplier DN password in the Password field.
+</p>
+<p class="text">
+<a name="28771"> </a>
+<b>Subtree. </b>Identifies the content to be replicated. 
+</p>
+<p class="text">
+<a name="28772"> </a>
+When you are creating a new replication agreement from the Replication folder, you can choose the subtree you want to replicate. If you are creating a new replication agreement from a database under the Replication folder, the subtree is the same as that contained by the database and cannot be changed.
+</p>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>April 29, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

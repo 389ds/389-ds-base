@@ -1,0 +1,142 @@
+/* ======================================================= *
+ *     Style sheet for the Directory Express application   *
+ * ======================================================= */
+
+/* All Links */
+A:link   {font-family: verdana, Arial, Helvetica, sans-serif; color: #0033cc; font-size: 11px}
+A:active {color: #0033cc; font-size: 11px;}
+A:visited {color: #0033cc; font-size: 11px;}
+
+/*All Regular Table Data--for the whole application*/
+body {
+	background-color: #FFFFFF;
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	font-size: 11px;
+}
+
+td {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	color: #000000;
+	vertical-align : middle;
+}
+
+th {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	color: #ffffff;
+	vertical-align : middle;
+	background-color: #336699;
+}
+
+
+p {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	color: #000000;
+}
+
+
+td.bold {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	vertical-align : middle;
+	color: #000000;
+	font-weight: bold;
+}
+
+td.boldbig {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+	color: #000000;
+	font-weight: bold;
+}
+
+input {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	/*color: #000000;*/
+}
+
+
+A.searchlinknorm:link {color: #CCFFFF}
+A.searchlinknorm:visited {color: #CCFFFF}
+A.searchlinknorm:active {color: #CCFFFF}
+
+A.searchlinkspec:link {color: #FF0000}
+A.searchlinkspec:visited {color: #FF0000}
+A.searchlinkspec:active {color: #CCFFFF}
+
+/* *********Search frame*************/
+
+body.Search {
+	background-color: #003366;
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	color: #ccffff;
+	font-size: 12px;
+}
+
+td.appName {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+	color: #ccffff;
+	font-weight: bold;
+}
+
+.apptext {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align: middle;
+	color: #ccffff;
+}
+
+/* Special Links */
+.linknodec {text-decoration:none; color:#000000; font-family: verdana, Arial, Helvetica, sans-serif; font-size: 11px}
+
+.link3 {color: #ccffff; font-size: 11px;}
+.link3:Link  {color: #ccffff; font-size: 11px;}
+.link3:Active  {color: #ccffff; font-size: 11px;}
+.link3:Visited  {color: #ccffff; font-size: 11px;}
+.link3:Hover  {color: #ccffff; font-size: 11px;}
+
+.link6 {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Link {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Hover {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Visited {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Active {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+
+.link7 {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Link  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Hover  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Visited  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Active  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
+
+.link14 {color: #ffffff; font-size: 11px;}
+.link14:Link {color: #ffffff; font-size: 11px;}
+.link14:Hover {color: #ffffff; font-size: 11px;}
+.link14:Visited {color: #ffffff; font-size: 11px;}
+.link14:Active {color: #ffffff; font-size: 11px;}
+
+/* Fonts */
+.text8  {color: #0099cc; font-size: 11px; font-family: Verdana, Arial, Helvetica; font-weight: bold;}
+.text15 {color: #ffffff; font-size: 12px; font-family: Verdana, Arial, Helvetica; font-weight: bold;}
+.text30 {color: #CCFFFF; font-size: 8px; font-family: Verdana, Arial, Helvetica;}
+.text31 {color: #000000; font-size: 14px; font-family: Verdana, Arial, Helvetica; font-weight: bold;}
+.text22 {color: #000000; font-size: 11px; font-family: Verdana, Arial, Helvetica;}
+
+.bgColor1  {background-color: #003366;}
+.bgColor4  {background-color: #cccccc;}
+.bgColor7  {background-color: #66ccff;}
+.bgColor9  {background-color: #336699;}
+.bgColor16  {background-color: #0033CC;}
+
+/* background colors for tabs and tab area */
+.bgAtTab  {background-color: #ccffff;}
+.bgAtTabHighlight {background-color: #ffffff;}
+.bgRegTab  {background-color: #0099cc;}
+.bgRegTabHighlight  {background-color: #66ccff;}
+.bgInsideRule  {background-color: #66ccff;}
+.bgDarkRule {background-color: #000000;}

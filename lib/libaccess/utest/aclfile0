@@ -1,0 +1,55 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+version 3.0;
+acl	aclfile0;
+deny with uri="test";
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+
+acl	aclfile0.0;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.1;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.2;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.3;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.4;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.5;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.6;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.7;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.8;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.9;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.10;
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");
+acl	aclfile0.11;
+allow (read, write, execute) (timeofday<2100);
+acl	aclfile0.12;
+authenticate (user, group) {
+	database=franco;
+	method=basic;
+};
+allow (read, write, execute) (timeofday<2100);
+allow (read, write, execute) (dayofweek!=sun or ip="255.255.255.255+*.*.*.*, 255.255.0.0+190.198.162.1");

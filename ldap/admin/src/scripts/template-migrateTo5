@@ -1,0 +1,3094 @@
+#{{PERL-EXEC}}
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2004 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# Migrate a 4.0 directory server to a 5.x directory server
+
+########################################################################################################
+# enable the use of Perldap functions
+require DynaLoader;
+
+use Getopt::Std;
+use Mozilla::LDAP::Conn;
+use Mozilla::LDAP::Entry;
+use Mozilla::LDAP::LDIF;
+use Mozilla::LDAP::Utils qw(:all);
+use Mozilla::LDAP::API qw(:api :ssl :apiv3 :constant); # Direct access to C API
+use Time::localtime;
+
+########################################################################################################
+use Class::Struct ; # load struct-building module
+
+struct S_index => {
+    names    => '@' ,
+    types    => '@' ,
+    oids     => '@' ,
+    specific => '$'    
+		  };
+
+
+struct S_plugin => {
+    name     => '$' ,
+    type     => '$' ,
+    enable   => '$' ,
+    args     => '@' 
+                  };
+#####################################################################################################
+
+sub usage {
+        print(STDERR "\nUsage: $0 -D rootdn { -w password | -w - | -j filename } -p port \n");
+	print(STDERR "       -o 4.xInstancePath -n 5.xInstancePath [-t tracelevel] [-L logfile]\n");
+        print(STDERR "************** parameters in brackets are optionals, others are required **************\n");
+        print(STDERR " Opts: -D rootdn              - 5.x Directory Manager\n");
+        print(STDERR "     : -w password            - 5.x Directory Manager's password\n");
+        print(STDERR "     : -w -                   - Prompt for 5.x Directory Manager's password\n");
+        print(STDERR "     : -j filename            - Read 5.x Directory Manager's password from file\n");
+        print(STDERR "     : -p port                - 5.x Directory Server port\n");
+        print(STDERR "     : -o 4.xInstancePath     - Path of the 4.x instance to migrate \n");
+        print(STDERR "     : -n 5.xInstancePath     - Path of the new 5.x instance\n");
+        print(STDERR "     : [-t tracelevel]        - specify the level of trace (0..3)\n");
+        print(STDERR "     : [-L logfile]           - specify the file to log the migration report \n");
+	
+       
+      }
+
+
+
+#############
+BEGIN {
+  
+  require 'uname.lib' ;
+  $isNT = -d '\\';
+  $PATHSEP = $isNT ? "\\" : "/";
+  ${SEP} = $isNT ? ";" : ":" ; 
+  @INC = ( '.', '../../../admin/admin/bin');
+  grep { s@/@\\@g } @INC if $isNT;
+  $script_suffix = $isNT ? ".bat" : "";
+  $exe_suffix = $isNT ? ".exe" : "";
+  # NT needs quotes around some things unix doesn't
+  $quote = $isNT ? "\"" : "";
+
+  # If this variable is set, all file/directory creation will make sure the mode
+  # and ownership of the destination is the same as the source
+  $PRESERVE = 1 if (!$isNT);
+  $script_suffix = $isNT ? ".bat" : "";
+  $exe_suffix = $isNT ? ".exe" : "";
+    if ($isNT) {
+		$os = "WINNT";
+    } else {
+    	$os = &uname("-s");
+    }
+	if ($isNT) {
+		# we have to pass batch files directly to the NT command interpreter
+		$com_spec = $ENV{ComSpec};
+		if (!$com_spec) {
+			$com_spec = $ENV{COMSPEC};
+		}
+		if (!$com_spec || ! -f $com_spec) {
+			# find the first available command interpreter
+			foreach $drive (c..z) {
+				$com_spec = "$drive:\\winnt\\system32\\cmd.exe";
+				last if (-f $com_spec);
+				$com_spec = undef;
+			}
+			if (! $com_spec) {
+				# punt and pray
+				$com_spec = 'c:\winnt\system32\cmd.exe';
+			}
+		}
+	}
+    if ( $os eq "AIX" ) {
+		$dll_suffix = "_shr.a";
+    }	
+    elsif ( $os eq "HP-UX" ) {
+		$dll_suffix = ".sl";
+    }	
+    elsif ( $os eq "WINNT" ) {
+		$dll_suffix = ".dll";
+    }	
+    else {
+		$dll_suffix = ".so";
+    }	
+	$slapdExecName = $isNT ? 'slapd.exe' : 'ns-slapd';
+	# if this flag is set, we will migrate the 4.x database
+	# by doing a db2ldif -> ldif2db; 
+	$convertToLDIF = 1;
+	select STDERR;
+	$| = 1;
+	select STDOUT;
+	$| = 1;
+	# if the old value for dbcachesize is less than this, make it this
+	$MIN_DBCACHESIZE = '500000';
+}
+
+SWITCH: {
+	    if ($os eq "AIX") {
+		$LIB_PATH = "LIBPATH" ;
+		last SWITCH ;
+	    }
+	    if ($os eq "HP-UX") {
+		$LIB_PATH = "SHLIB_PATH" ;
+		last SWITCH ;
+	    }
+	    if ($isNT) {
+                $LIB_PATH = "PATH" ;
+	        last SWITCH ;
+            }
+            else {
+                $LIB_PATH = "LD_LIBRARY_PATH" ;
+	        last SWITCH ;
+            }
+       }  
+
+  # 4.x parameters
+  ${oldDir}         = "" ;                
+  ${oldname}        = "" ;             
+  ${oldHome}        = "" ;   
+  ${oldConfDir}     = "" ;
+  ${oldlocaluser} ;
+  ${olduid} ;
+  ${oldgid} ;
+
+  # 5.x parameters            
+  ${root}           = "{{DS-ROOT}}" ;               
+  ${type}           = "" ;               
+  ${newname}        = "" ; 
+  ${newport}        = "" ;                                     
+  ${rootDN}         = "" ;
+  ${rootpwd}        = "" ;
+  ${localhost}      = "" ;
+  ${LogFileReport}  = "" ;
+  ${newuid} ;
+  ${localuser} ;
+  ${newgid} ;
+  $NO_INPUT_USER    = 0  ; # by default user can give inputs during the migration process
+  ${curdir}          = getCwd();
+  ${slapdExecDir}    = "${root}${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+
+  # specify the level of trace
+  $TRACELEVEL=1;
+
+  # get input users
+  &getParameters() ;
+  ${oldDir}          = &normalizeDir("${oldDir}");
+  ${oldHome}         = "${oldDir}${PATHSEP}$type-$oldname" ;    
+  ${oldConfDir}      = "${oldHome}${PATHSEP}config${PATHSEP}" ; 
+  ${oldSlapdConf}    = "${oldConfDir}slapd.conf" ;
+  ${oldDSEldif}      = "${oldConfDir}dse.ldif" ;        
+  ${serverHome}      = "${root}${PATHSEP}$type-$newname" ;
+  ${DSEldif}         = "$serverHome${PATHSEP}config${PATHSEP}dse.ldif";
+  ${ldif_rep}        = "${oldConfDir}${PATHSEP}ldif${PATHSEP}" ; 
+  ${oldSlapdExecDir} = "${oldDir}${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+  
+ 
+  
+  
+  open(LOGFILE, ">> $LogFileReport");
+
+  printTrace("\noldDir: $oldDir, oldHome: $oldHome, \noldConfDir: $oldConfDir, \noldSlapdConf: $oldSlapdConf, \nldif_rep: $ldif_rep, \nrootDN: $rootDN, \nPwd: ******, \nPort: $newport, \nNewname: $newname\n",3);
+  printTrace("\nLIB_PATH: $LIB_PATH",4);
+
+  if (!(-d $serverHome)) {
+    printMsg("\n$serverHome doesn't exist\n");
+    exit(1);
+  }
+  if (!(-d $oldHome)) {
+    printMsg("\n$oldHome doesn't exist\n");
+    exit(1);
+  }
+
+#define CONFIG_DATABASE_DIRECTIVE       "database"
+#define CONFIG_DATABASE_ATTRIBUTE       "nsslapd-database"
+#define CONFIG_PLUGIN_DIRECTIVE         "plugin"
+#define CONFIG_PLUGIN_ATTRIBUTE         "nsslapd-plugin"
+#define CONFIG_SIZELIMIT_DIRECTIVE      "sizelimit"
+#define CONFIG_SIZELIMIT_ATTRIBUTE      "nsslapd-sizelimit"
+#define CONFIG_ORCAUTO_DIRECTIVE        "orcauto"
+#define CONFIG_ORCAUTO_ATTRIBUTE        "nsslapd-orcauto"
+#define CONFIG_TIMELIMIT_DIRECTIVE      "timelimit"
+#define CONFIG_TIMELIMIT_ATTRIBUTE      "nsslapd-timelimit"
+#define CONFIG_SUFFIX_DIRECTIVE         "suffix"
+#define CONFIG_SUFFIX_ATTRIBUTE         "nsslapd-suffix"
+#define CONFIG_READONLY_DIRECTIVE       "readonly"
+#define CONFIG_READONLY_ATTRIBUTE       "nsslapd-readonly"
+#define CONFIG_REFERRAL_DIRECTIVE       "referral"
+#define CONFIG_REFERRAL_ATTRIBUTE       "nsslapd-referral"
+#define CONFIG_OBJECTCLASS_DIRECTIVE    "objectclass"
+#define CONFIG_OBJECTCLASS_ATTRIBUTE    "nsslapd-objectclass"
+#define CONFIG_ATTRIBUTE_DIRECTIVE      "attribute"
+#define CONFIG_ATTRIBUTE_ATTRIBUTE      "nsslapd-attribute"
+#define CONFIG_SCHEMACHECK_DIRECTIVE    "schemacheck"
+#define CONFIG_SCHEMACHECK_ATTRIBUTE    "nsslapd-schemacheck"
+#define CONFIG_LOGLEVEL_DIRECTIVE       "loglevel"
+#define CONFIG_LOGLEVEL_ATTRIBUTE       "nsslapd-errorlog-level"
+#define CONFIG_ACCESSLOGLEVEL_DIRECTIVE "accessloglevel"
+#define CONFIG_ACCESSLOGLEVEL_ATTRIBUTE "nsslapd-accesslog-level"
+#define CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_DIRECTIVE "accesslog-maxNumOfLogsPerDir"
+#define CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-accesslog-maxlogsperdir"
+#define CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_DIRECTIVE  "errorlog-maxNumOfLogsPerDir"
+#define CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE  "nsslapd-errorlog-maxlogsperdir"
+#define CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_DIRECTIVE  "auditlog-maxNumOfLogsPerDir"
+#define CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE  "nsslapd-auditlog-maxlogsperdir"
+#define CONFIG_ACCESSLOG_MAXLOGSIZE_DIRECTIVE "accesslog-maxlogsize"
+#define CONFIG_ACCESSLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-accesslog-maxlogsize"
+#define CONFIG_ERRORLOG_MAXLOGSIZE_DIRECTIVE "errorlog-maxlogsize"
+#define CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-errorlog-maxlogsize"
+#define CONFIG_AUDITLOG_MAXLOGSIZE_DIRECTIVE "auditlog-maxlogsize"
+#define CONFIG_AUDITLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditlog-maxlogsize"
+#define CONFIG_ACCESSLOG_LOGROTATIONTIME_DIRECTIVE "accesslog-logrotationtime"
+#define CONFIG_ACCESSLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-accesslog-logrotationtime"
+#define CONFIG_ERRORLOG_LOGROTATIONTIME_DIRECTIVE "errorlog-logrotationtime"
+#define CONFIG_ERRORLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-errorlog-logrotationtime"
+#define CONFIG_AUDITLOG_LOGROTATIONTIME_DIRECTIVE "auditlog-logrotationtime"
+#define CONFIG_AUDITLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditlog-logrotationtime"
+#define CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_DIRECTIVE "accesslog-logrotationtimeunit"
+#define CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logrotationtimeunit"
+#define CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_DIRECTIVE "errorlog-logrotationtimeunit"
+#define CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logrotationtimeunit"
+#define CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_DIRECTIVE "auditlog-logrotationtimeunit"
+#define CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logrotationtimeunit"
+#define CONFIG_ACCESSLOG_MAXLOGDISKSPACE_DIRECTIVE "accesslog-maxlogdiskspace"
+#define CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logmaxdiskspace"
+#define CONFIG_ERRORLOG_MAXLOGDISKSPACE_DIRECTIVE "errorlog-maxlogdiskspace"
+#define CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logmaxdiskspace"
+#define CONFIG_AUDITLOG_MAXLOGDISKSPACE_DIRECTIVE "auditlog-maxlogdiskspace"
+#define CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logmaxdiskspace"
+#define CONFIG_ACCESSLOG_MINFREEDISKSPACE_DIRECTIVE "accesslog-minfreediskspace"
+#define CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logminfreediskspace"
+#define CONFIG_ERRORLOG_MINFREEDISKSPACE_DIRECTIVE "errorlog-minfreediskspace"
+#define CONFIG_ERRORLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logminfreediskspace"
+#define CONFIG_AUDITLOG_MINFREEDISKSPACE_DIRECTIVE "auditlog-minfreediskspace"
+#define CONFIG_AUDITLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logminfreediskspace"
+#define CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_DIRECTIVE "accesslog-logexpirationtime"
+#define CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-accesslog-logexpirationtime"
+#define CONFIG_ERRORLOG_LOGEXPIRATIONTIME_DIRECTIVE "errorlog-logexpirationtime"
+#define CONFIG_ERRORLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-errorlog-logexpirationtime"
+#define CONFIG_AUDITLOG_LOGEXPIRATIONTIME_DIRECTIVE "auditlog-logexpirationtime"
+#define CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditlog-logexpirationtime"
+#define CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_DIRECTIVE "accesslog-logexpirationtimeunit"
+#define CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logexpirationtimeunit"
+#define CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_DIRECTIVE "errorlog-logexpirationtimeunit"
+#define CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logexpirationtimeunit"
+#define CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_DIRECTIVE "auditlog-logexpirationtimeunit"
+#define CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logexpirationtimeunit"
+#define CONFIG_ACCESSLOG_LOGGING_ENABLED_DIRECTIVE "accesslog-logging-enabled"
+#define CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-accesslog-logging-enabled"
+#define CONFIG_ERRORLOG_LOGGING_ENABLED_DIRECTIVE "errorlog-logging-enabled"
+#define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
+#define CONFIG_AUDITLOG_LOGGING_ENABLED_DIRECTIVE "auditlog-logging-enabled"
+#define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
+#define CONFIG_ROOTDN_DIRECTIVE "rootdn"
+#define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
+#define CONFIG_ROOTPW_DIRECTIVE "rootpw"
+#define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
+#define CONFIG_ROOTPWSTORAGESCHEME_DIRECTIVE "rootpwstoragescheme"
+#define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
+#define CONFIG_UPDATEDN_DIRECTIVE "updatedn"
+#define CONFIG_UPDATEDN_ATTRIBUTE "nsslapd-updatedn"
+#define CONFIG_UPDATEPW_DIRECTIVE "updatepw"
+#define CONFIG_UPDATEPW_ATTRIBUTE "nsslapd-updatepw"
+#define CONFIG_UPDATESSLCLIENT_DIRECTIVE "updateSSLclient"
+#define CONFIG_UPDATESSLCLIENT_ATTRIBUTE "nsslapd-updateSSLclient"
+#define CONFIG_AUDITFILE_DIRECTIVE "auditfile"
+#define CONFIG_AUDITFILE_ATTRIBUTE "nsslapd-auditlog"
+#define CONFIG_LASTMOD_DIRECTIVE   "lastmod"
+#define CONFIG_LASTMOD_ATTRIBUTE   "nsslapd-lastmod"
+#define CONFIG_INCLUDE_DIRECTIVE   "include"
+#define CONFIG_INCLUDE_ATTRIBUTE   "nsslapd-include"
+#define CONFIG_DYNAMICCONF_DIRECTIVE "dynamicconf"
+#define CONFIG_DYNAMICCONF_ATTRIBUTE "nsslapd-dynamicconf"
+#define CONFIG_USEROC_DIRECTIVE "useroc"
+#define CONFIG_USEROC_ATTRIBUTE "nsslapd-useroc"
+#define CONFIG_USERAT_DIRECTIVE "userat"
+#define CONFIG_USERAT_ATTRIBUTE "nsslapd-userat"
+#define CONFIG_SVRTAB_DIRECTIVE "svrtab"
+#define CONFIG_SVRTAB_ATTRIBUTE "nsslapd-svrtab"
+#ifndef _WIN32
+#define CONFIG_LOCALUSER_DIRECTIVE "localuser"
+#define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
+#endif /* !_WIN32 */
+#define CONFIG_LOCALHOST_DIRECTIVE "localhost"
+#define CONFIG_LOCALHOST_ATTRIBUTE "nsslapd-localhost"
+#define CONFIG_PORT_DIRECTIVE "port"
+#define CONFIG_PORT_ATTRIBUTE "nsslapd-port"
+#define CONFIG_LISTENHOST_DIRECTIVE "listenhost"
+#define CONFIG_LISTENHOST_ATTRIBUTE "nsslapd-listenhost"
+#define CONFIG_SECURITY_DIRECTIVE "security"
+#define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
+#define CONFIG_SSL3CIPHERS_DIRECTIVE "SSL3ciphers"
+#define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
+#define CONFIG_ACCESSLOG_DIRECTIVE "accesslog"
+#define CONFIG_ACCESSLOG_ATTRIBUTE "nsslapd-accesslog"
+#define CONFIG_ERRORLOG_DIRECTIVE "errorlog"
+#define CONFIG_ERRORLOG_ATTRIBUTE "nsslapd-errorlog"
+#define CONFIG_INSTANCEDIR_DIRECTIVE "instancedir"
+#define CONFIG_INSTANCEDIR_ATTRIBUTE "nsslapd-instancedir"
+#define CONFIG_SECUREPORT_DIRECTIVE "secure-port"
+#define CONFIG_SECUREPORT_ATTRIBUTE "nsslapd-securePort"
+#define CONFIG_SECURELISTENHOST_DIRECTIVE "secure-listenhost"
+#define CONFIG_SECURELISTENHOST_ATTRIBUTE "nsslapd-securelistenhost"
+#define CONFIG_THREADNUMBER_DIRECTIVE "threadnumber"
+#define CONFIG_THREADNUMBER_ATTRIBUTE "nsslapd-threadnumber"
+#define CONFIG_MAXTHREADSPERCONN_DIRECTIVE "maxthreadsperconn"
+#define CONFIG_MAXTHREADSPERCONN_ATTRIBUTE "nsslapd-maxthreadsperconn"
+#if !defined(_WIN32) && !defined(AIX)
+#define CONFIG_MAXDESCRIPTORS_DIRECTIVE "maxdescriptors"
+#define CONFIG_MAXDESCRIPTORS_ATTRIBUTE "nsslapd-maxdescriptors"
+#endif /* !_WIN32 && ! AIX */
+#define CONFIG_RESERVEDESCRIPTORS_DIRECTIVE "reservedescriptors"
+#define CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE "nsslapd-reservedescriptors"
+#define CONFIG_IDLETIMEOUT_DIRECTIVE "idletimeout"
+#define CONFIG_IDLETIMEOUT_ATTRIBUTE "nsslapd-idletimeout"
+#define CONFIG_IOBLOCKTIMEOUT_DIRECTIVE "ioblocktimeout"
+#define CONFIG_IOBLOCKTIMEOUT_ATTRIBUTE "nsslapd-ioblocktimeout"
+#define CONFIG_NTSYNCH_DIRECTIVE "ntsynch"
+#define CONFIG_NTSYNCH_ATTRIBUTE "nsslapd-NTSynch"
+#define CONFIG_NTSYNCHUSESSL_DIRECTIVE "ntsynchusessl"
+#define CONFIG_NTSYNCHUSESSL_ATTRIBUTE "nsslapd-NTSynch-SSL"
+#define CONFIG_NTSYNCHPORT_DIRECTIVE "ntsynch-port"
+#define CONFIG_NTSYNCHPORT_ATTRIBUTE "nsslapd-NTSynch-port"
+#define CONFIG_ACCESSCONTROL_DIRECTIVE "accesscontrol"
+#define CONFIG_ACCESSCONTROL_ATTRIBUTE "nsslapd-accesscontrol"
+#define CONFIG_GROUPEVALNESTLEVEL_DIRECTIVE "groupevalnestlevel" 
+#define CONFIG_GROUPEVALNESTLEVEL_ATTRIBUTE "nsslapd-groupevalnestlevel"
+#define CONFIG_NAGLE_DIRECTIVE "nagle"
+#define CONFIG_NAGLE_ATTRIBUTE "nsslapd-nagle"
+#define CONFIG_PW_CHANGE_DIRECTIVE "pw_change"
+#define CONFIG_PW_CHANGE_ATTRIBUTE "passwordChange"
+#define CONFIG_PW_MUSTCHANGE_DIRECTIVE "pw_must_change"
+#define CONFIG_PW_MUSTCHANGE_ATTRIBUTE "passwordMustChange"
+#define CONFIG_PW_SYNTAX_DIRECTIVE "pw_syntax"
+#define CONFIG_PW_SYNTAX_ATTRIBUTE "passwordCheckSyntax"
+#define CONFIG_PW_MINLENGTH_DIRECTIVE "pw_minlength"
+#define CONFIG_PW_MINLENGTH_ATTRIBUTE "passwordMinLength"
+#define CONFIG_PW_EXP_DIRECTIVE "pw_exp"
+#define CONFIG_PW_EXP_ATTRIBUTE "passwordExp"
+#define CONFIG_PW_MAXAGE_DIRECTIVE "pw_maxage"
+#define CONFIG_PW_MAXAGE_ATTRIBUTE "passwordMaxAge"
+#define CONFIG_PW_MINAGE_DIRECTIVE "pw_minage"
+#define CONFIG_PW_MINAGE_ATTRIBUTE "passwordMinAge"
+#define CONFIG_PW_WARNING_DIRECTIVE "pw_warning"
+#define CONFIG_PW_WARNING_ATTRIBUTE "passwordWarning"
+#define CONFIG_PW_HISTORY_DIRECTIVE "pw_history"
+#define CONFIG_PW_HISTORY_ATTRIBUTE "passwordHistory"
+#define CONFIG_PW_INHISTORY_DIRECTIVE "pw_inhistory"
+#define CONFIG_PW_INHISTORY_ATTRIBUTE "passwordInHistory"
+#define CONFIG_PW_LOCKOUT_DIRECTIVE "pw_lockout"
+#define CONFIG_PW_LOCKOUT_ATTRIBUTE "passwordLockout"
+#define CONFIG_PW_STORAGESCHEME_DIRECTIVE "pw_storagescheme"
+#define CONFIG_PW_STORAGESCHEME_ATTRIBUTE "passwordStorageScheme"
+#define CONFIG_PW_MAXFAILURE_DIRECTIVE "pw_maxfailure"
+#define CONFIG_PW_MAXFAILURE_ATTRIBUTE "passwordMaxFailure"
+#define CONFIG_PW_UNLOCK_DIRECTIVE "pw_unlock"
+#define CONFIG_PW_UNLOCK_ATTRIBUTE "passwordUnlock"
+#define CONFIG_PW_LOCKDURATION_DIRECTIVE "pw_lockduration"
+#define CONFIG_PW_LOCKDURATION_ATTRIBUTE "passwordLockoutDuration"
+#define CONFIG_PW_RESETFAILURECOUNT_DIRECTIVE "pw_resetfailurecount"
+#define CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE "passwordResetFailureCount"
+#define CONFIG_ACCESSLOG_BUFFERING_DIRECTIVE "logbuffering"
+#define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
+#define CONFIG_CHANGELOG_DIR_DIRECTIVE        "changelogdir"
+#define CONFIG_CHANGELOG_DIR_ATTRIBUTE        "nsslapd-changelogdir"
+#define CONFIG_CHANGELOG_SUFFIX_DIRECTIVE     "changelogsuffix"
+#define CONFIG_CHANGELOG_SUFFIX_ATTRIBUTE     "nsslapd-changelogsuffix"
+#define CONFIG_CHANGELOG_MAXENTRIES_DIRECTIVE "changelogmaxextries"
+#define CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE  "nsslapd-changelogmaxentries"
+#define CONFIG_CHANGELOG_MAXAGE_DIRECTIVE     "changelogmaxage"
+#define CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE     "nsslapd-changelogmaxage"
+#define CONFIG_RETURN_EXACT_CASE_DIRECTIVE "return_exact_case"
+#define CONFIG_RESULT_TWEAK_DIRECTIVE "result_tweak"
+#define CONFIG_REFERRAL_MODE_DIRECTIVE		"referralmode"
+#define CONFIG_ATTRIBUTE_NAME_EXCEPTION_DIRECTIVE "attribute_name_exceptions"
+#define CONFIG_MAXBERSIZE_DIRECTIVE "maxbersize"
+#define CONFIG_VERSIONSTRING_DIRECTIVE "versionstring"
+#define CONFIG_ENQUOTE_SUP_OC_DIRECTIVE "enquote_sup_oc"
+#define CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE "nsslapd-enquote_sup_oc"
+#define CONFIG_BASEDN_DIRECTIVE "certmap-basedn"
+#define CONFIG_BASEDN_ATTRIBUTE "nsslapd-certmap-basedn"
+
+%HashParametersName = ();
+
+# The following hash displays only general server parameters to migrate under cn=config
+%GeneralSrvParamToMigrate = (
+		       'accesscontrol'                   => 'nsslapd-accesscontrol',
+		       'errorlog-logging-enabled'        => 'nsslapd-errorlog-logging-enabled',
+		       'accesslog-logging-enabled'       => 'nsslapd-accesslog-logging-enabled',
+		       'auditlog-logging-enabled'        => 'nsslapd-auditlog-logging-enabled',
+		       'logbuffering'                    => 'nsslapd-accesslog-logbuffering',
+		       'accesslog-logexpirationtime'     => 'nsslapd-accesslog-logexpirationtime',
+		       'accesslog-logexpirationtimeunit' => 'nsslapd-accesslog-logexpirationtimeunit',
+		       'accesslog-maxlogdiskspace'       => 'nsslapd-accesslog-logmaxdiskspace',
+		       'accesslog-minfreediskspace'      => 'nsslapd-accesslog-logminfreediskspace',
+		       'accesslog-logrotationtime'       => 'nsslapd-accesslog-logrotationtime',
+		       'accesslog-logrotationtimeunit'   => 'nsslapd-accesslog-logrotationtimeunit',
+		       'accesslog-maxlogsize'            => 'nsslapd-accesslog-maxlogsize',
+		       'accesslog-maxnumoflogsperdir'    => 'nsslapd-accesslog-maxLogsPerDir',
+		       'auditlog-logexpirationtime'      => 'nsslapd-auditlog-logexpirationtime',
+		       'auditlog-logexpirationtimeunit'  => 'nsslapd-auditlog-logexpirationtimeunit',
+		       'auditlog-maxlogdiskspace'        => 'nsslapd-auditlog-logmaxdiskspace',
+		       'auditlog-minfreediskspace'       => 'nsslapd-auditlog-logminfreediskspace',
+		       'auditlog-logrotationtime'        => 'nsslapd-auditlog-logrotationtime',
+		       'auditlog-logrotationtimeunit'    => 'nsslapd-auditlog-logrotationtimeunit',
+		       'auditlog-maxlogsize'             => 'nsslapd-auditlog-maxlogsize',
+		       'auditlog-maxnumoflogsperdir'     => 'nsslapd-auditlog-maxLogsPerDir',
+		       'certmap-basedn'                  => 'nsslapd-certmap-basedn',
+		       'enquote_sup_oc'                  => 'nsslapd-enquote-sup-oc',
+		       'loglevel'                        => 'nsslapd-errorlog-level',
+		       'errorlog-logexpirationtime'      => 'nsslapd-errorlog-logexpirationtime',
+		       'errorlog-logexpirationtimeunit'  => 'nsslapd-errorlog-logexpirationtimeunit',
+		       'errorlog-maxlogdiskspace'        => 'nsslapd-errorlog-logmaxdiskspace',
+		       'errorlog-minfreediskspace'       => 'nsslapd-errorlog-logminfreediskspace',
+		       'errorlog-logrotationtime'        => 'nsslapd-errorlog-logrotationtime',
+		       'errorlog-logrotationtimeunit'    => 'nsslapd-errorlog-logrotationtimeunit',
+		       'errorlog-maxlogsize'             => 'nsslapd-errorlog-maxlogsize',
+		       'errorlog-maxnumoflogsperdir'     => 'nsslapd-errorlog-maxlogsperdir',
+		       'idletimeout'                     => 'nsslapd-idletimeout',
+		       'ioblocktimeout'                  => 'nsslapd-ioblocktimeout',
+		       'lastmod'                         => 'nsslapd-lastmod',
+		       'listenhost'                      => 'nsslapd-listenhost',
+		       'maxdescriptors'                  => 'nsslapd-maxdescriptors',
+		       'referral'                        => 'nsslapd-referral',
+		       'reservedescriptors'              => 'nsslapd-reservedescriptors',
+		       'rootpwstoragescheme'             => 'nsslapd-rootpwstoragescheme',
+		       'schemacheck'                     => 'nsslapd-schemacheck',
+		       'secure-port'                     => 'nsslapd-securePort',
+		       'security'                        => 'nsslapd-security',
+		       'sizelimit'                       => 'nsslapd-sizelimit',
+		       'SSL3ciphers'                     => 'nsslapd-SSL3ciphers',
+		       'timelimit'                       => 'nsslapd-timelimit',
+		       'pw_change'                       => 'passwordChange',
+		       'pw_syntax'                       => 'passwordCheckSyntax',
+		       'pw_exp'                          => 'passwordExp',
+		       'pw_history'                      => 'passwordHistory',
+		       'pw_inhistory'                    => 'passwordInHistory',
+		       'pw_lockout'                      => 'passwordLockout',
+		       'pw_lockduration'                 => 'passwordLockoutDuration',
+		       'pw_maxage'                       => 'passwordMaxAge',
+		       'pw_maxfailure'                   => 'passwordMaxFailure',
+		       'pw_minage'                       => 'passwordMinAge',
+		       'pw_minlength'                    => 'passwordMinLength',
+		       'pw_must_change'                  => 'passwordMustChange',
+		       'pw_resetfailurecount'            => 'passwordResetFailureCount',
+		       'pw_storagescheme'                => 'passwordStorageScheme',
+		       'pw_unlock'                       => 'passwordUnlock',
+		       'pw_warning'                      => 'passwordWarning'
+);
+
+# the following hash displays global parameters related to database stored under cn=config,cn=ldbm database,cn=plugins,cn=config
+%GlobalConfigLDBMparamToMigrate = (
+		       'allidsthreshold'                 => 'nsslapd-allidsthreshold',
+		       'lookthroughlimit'                => 'nsslapd-lookthroughlimit',
+		       'mode'                            => 'nsslapd-mode',
+		       'dbcachesize'                     => 'nsslapd-dbcachesize'
+);
+
+# the following hash displays specific parameters to each backends and  stored under cn=DBname,cn=ldbm database,cn=plugins,cn=config
+%LDBMparamToMigrate = (
+		       'cachesize'                       => 'nsslapd-cachesize',
+		       'readonly'                        => 'nsslapd-readonly'
+);
+
+%stdIncludes = (
+		"${oldConfDir}slapd.at.conf", "\n",
+		"${oldConfDir}slapd.oc.conf", "\n",
+		"${oldConfDir}java-object-schema.conf", "\n",
+		"${oldConfDir}ns-admin-schema.conf", "\n",
+		"${oldConfDir}ns-calendar-schema.conf", "\n",
+		"${oldConfDir}ns-certificate-schema.conf", "\n",
+		"${oldConfDir}ns-common-schema.conf", "\n",
+		"${oldConfDir}ns-compass-schema.conf", "\n",
+		"${oldConfDir}ns-delegated-admin-schema.conf", "\n",
+		"${oldConfDir}ns-directory-schema.conf", "\n",
+		"${oldConfDir}ns-legacy-schema.conf", "\n",
+		"${oldConfDir}ns-mail-schema.conf", "\n",
+		"${oldConfDir}ns-mcd-browser-schema.conf", "\n",
+		"${oldConfDir}ns-mcd-config-schema.conf", "\n",
+		"${oldConfDir}ns-mcd-li-schema.conf", "\n",
+		"${oldConfDir}ns-mcd-mail-schema.conf", "\n",
+		"${oldConfDir}ns-media-schema.conf", "\n",
+		"${oldConfDir}ns-mlm-schema.conf", "\n",
+		"${oldConfDir}ns-msg-schema.conf", "\n",
+		"${oldConfDir}ns-netshare-schema.conf", "\n",
+		"${oldConfDir}ns-news-schema.conf", "\n",
+		"${oldConfDir}ns-proxy-schema.conf", "\n",
+		"${oldConfDir}ns-value-schema.conf", "\n",
+		"${oldConfDir}ns-wcal-schema.conf", "\n",
+		"${oldConfDir}ns-cos-schema.conf", "\n",
+		"${oldConfDir}ns-web-schema.conf", "\n"
+);
+
+%userDefinedConfigFiles = (
+		"slapd.conf", "\n",
+                "slapd.ldbm.conf", "\n",
+                "slapd.user_at.conf", "\n",
+                "slapd.user_oc.conf", "\n",
+                "ns-schema.conf", "\n"
+		     );
+
+$CIS_SYNTAX_OID       = "1.3.6.1.4.1.1466.115.121.1.15" ;
+$TELEPHONE_SYNTAX_OID = "1.3.6.1.4.1.1466.115.121.1.50" ;
+$DN_SYNTAX_OID        = "1.3.6.1.4.1.1466.115.121.1.12" ;
+$CES_SYNTAX_OID       = "1.3.6.1.4.1.1466.115.121.1.26" ;
+$INT_SYNTAX_OID       = "1.3.6.1.4.1.1466.115.121.1.27" ;
+$BIN_SYNTAX_OID       = "1.3.6.1.4.1.1466.115.121.1.5"  ;
+
+%allowedPlugins  = (
+		    "cis", $CIS_SYNTAX_OID,
+		    "tel", $TELEPHONE_SYNTAX_OID,
+		    "dn",  $DN_SYNTAX_OID,
+		    "ces", $CES_SYNTAX_OID,
+		    "int", $INT_SYNTAX_OID,
+		    "bin", $BIN_SYNTAX_OID
+		    );
+
+%allowedModifiers = (
+		    "single", "SINGLE-VALUE"
+		    );
+# "override" is not supported anymore and "operational" cannot be used in user defined attribute.
+
+@oldSuffixes = () ; # array of 4.x suffixes (with "o=netscaperoot" if presents)
+
+# link beetwen the name of the suffix and its associated DBname
+%DBNAMES  = () ; 
+%DBDirectory = () ;
+
+%oldhash  = () ; 
+
+# list of standard plugin's in version 4
+%stdPlugins = (
+	"7-bit check"                         =>        "\n",
+	"binary syntax"                       =>        "\n",     
+	"case exact string syntax"            =>        "\n",
+	"case ignore string syntax"           =>        "\n",
+	"distinguished name syntax"           =>        "\n",
+        "integer syntax"                      =>        "\n",
+        "internationalization plugin"         =>        "\n",
+        "referential integrity postoperation" =>        "\n",
+        "telephone syntax"                    =>        "\n",
+        "uid uniqueness"                      =>        "\n"
+        
+	      );
+
+# list of standard indexes configured out of the box in version 4
+%stdIndex = (
+	'aci',                   "\n",
+	'changenumber',          "\n",
+	'copiedfrom',            "\n",
+	'dncomp',                "\n",
+	'entrydn',               "\n",
+	'numsubordinates',       "\n",  
+	'objectclass',           "\n",
+	'parentid',              "\n"
+);
+
+# list of user added Plugin's. In 5.x, they 'll need to be recompiled
+@badPlugins = () ;
+
+%newIndex = () ;
+
+%User_oc = () ;
+# push objectnames as they are encountered in config files.
+@User_oc_names = () ;
+
+%User_at = () ;
+
+
+
+#Usage parameters
+$USER_OC_FILE_MODIFIED = 0 ; # 0 if user don't want to modify LDIF objectclasses before processing, 1 else
+$USER_AT_FILE_MODIFIED = 0 ;
+$INDEX_FILE_MODIFIED = 0 ;
+
+# Shutdown the legacy Directory instance
+printTrace("\nShutdown the legacy Directory Server instance: ${oldHome}",0);
+&stopServer($oldDir, 'slapd-'.$oldname);
+
+# compare configuration files with the standard ones
+CompareStdConfigFiles() ;
+die "\n\n The version of the product you want to migrate is not a 4.x Netscape Directory Server\n" unless ($oldVersion == 4) ;
+
+FillHashParametersName() ;
+
+###############  Connect to the 5.x LDAP Directory Server  ######################
+$ENV{"$LIB_PATH"} = "$root${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"} ;
+my $LDAPservername = &getLDAPservername();
+die "\n Migration aborted. Check your 4.x and 5.x Netscape Directory Server are installed on the same machine \n" if ( $LDAPservername == -1 );
+$conn = new Mozilla::LDAP::Conn($LDAPservername,$newport,$rootDN,$rootpwd) or die "\n Can't contact the $Version.$Minor LDAP server: $LDAPservername\n"; 
+
+# continue if the connection to 5.x LDAP server is successful !
+printTrace("\nConnected to $Version.$Minor LDAP server\n",0) ;
+
+# get the uid and gid of the 5.x slapd user
+($localuser, $newuid, $newgid)    = getuid_gid();
+# get the uid and gid of the 4.x slapd user
+($oldlocaluser, $olduid, $oldgid) = getolduid_gid();
+
+# backup 5.x configuration files in <root_server5>/slapd-instancename/config
+printTrace("\nBackup $serverHome${PATHSEP}config on $serverHome${PATHSEP}config_backup ...",0);
+&backupConfigFiles();
+
+# Parse the main configuration file: slapd.conf
+printTrace("\nParse the configuration file: $oldSlapdConf...",0);
+ParseSlapdConf("< ${oldSlapdConf}");
+
+#migrate key/cert databases
+printTrace("\nMigrate key/cert databases...",0);
+&MigrateSSL(); 
+
+# Update parameters : general server parameters, global LDBM parameter, specific backend parameters
+printTrace("\nUpdate general server parameters...",0);
+AddGeneralParameters();
+printTrace("\nUpdate global LDBM parameters...",0);
+AddGeneralLDBMParameters();
+printTrace("\nUpdate specific backend parameters...",0);
+AddSpecificLDBMParameters();
+
+##### FOR TESTING PURPOSE ONLY ########
+#
+#testIndexUpdating();
+#
+#######################################
+
+# Migrate some entries contained in the old dse.ldif, and migrate certmap.conf
+&MigrateDSE() ;
+&MigrateCertmap() ;
+
+# update 5.x attribute definitions
+LDAPmodify_User_at();
+
+# update 5.x object classes definitions
+LDAPmodify_User_oc();
+
+# add new indexes to each backends
+LDAPmodify_Indexes();
+
+# migrate Plug'ins parameters (enable attribute, and arguments)
+LDAPmodify_stdPlugin();
+
+##################   Close the connection to 5.x LDAP Server   #####################
+$conn->close;
+
+
+################## stop the 5.x instance and Export/Import the data, restart the server ##################
+if (%DBNAMES) {
+  &stopServer($root,'slapd-'.$newname);
+  printTrace("\ndata processing...",0) ;
+  # migrate data for each suffix: 4.x -> LDIF files
+  &db2ldif($oldSlapdConf);
+  
+  # migrate LDIF data to the 5.x database: LDIF -> 5.x
+  &manyLdif2db();
+  &startServer();
+}
+else {
+  printTrace("\nThere no 4.x non-standard suffixes to migrate",0);
+}
+
+printMsg("\n\n  ******   End of migration   ******\n\n");
+
+close(LOGFILE);
+
+
+###########################################################################################
+# get input users
+sub getParameters {
+  my $exit = 0 ;
+  my $i    = 0;
+  my $pwdfile= "";
+  while ($i <= $#ARGV) {
+    if ( "$ARGV[$i]" eq "-D" ) { # directory manager
+      if (! $rootDN) {
+	$rootDN = $ARGV[++$i] ;
+      }
+      else {
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-w") { # password
+      if (! $rootpwd) {
+	$rootpwd = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-j") { # password file 
+      if (! $pwdfile) {
+	$pwdfile = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-o") { # 4.x instance path
+       if (! $oldHome ) {
+	 $oldHome = $ARGV[++$i] ;
+	 grep { s@\\@/@g } $oldHome if $isNT ;
+	 if ($oldHome =~ /[\"]?(.*)?[\"]?/) { $oldHome = $1 ; }
+	 if ($oldHome =~ m@^(.*)/([^-/]*)-([^/]*)[/]?$@) {
+	   $oldDir  = $1 ;
+	   $type    = $2 ;
+	   $oldname = $3 ;
+	   if ($isNT) {
+	     $oldDir  = lc($oldDir)     ;
+	     $type    = lc($type)       ;
+	     $oldname = lc($oldname)    ;
+	     $oldHome = lc($oldHome)    ;
+	     grep { s@/@\\@g } $oldDir  ;
+	     grep { s@/@\\@g } $oldHome ;
+	   }
+	 }
+	 else {
+	   print("\nThe 4.x instance path is not correct. It must be like slapd-instancename");
+	   &usage();
+	   exit(1);
+	 }
+       }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-n") { # 5.x instance path
+       if (! $serverHome ) {
+	 $serverHome = $ARGV[++$i] ;
+	 grep { s@\\@/@g } $root if $isNT ;
+	 grep { s@\\@/@g } $serverHome if $isNT ;
+	 if ($serverHome =~ /[\"]?(.*)?[\"]?/) { $serverHome = $1 ; }
+	 if ($serverHome =~ m@^(.*?)/?([^/-]*)-([^/]*)[/]?$@) {
+	   $root    = $1 if ($1);
+	   $type    = $2 ;
+	   $newname = $3 ;
+	   if ($isNT) {
+	     $root       = lc($root)       ;
+	     $type       = lc($type)       ;
+	     $newname    = lc($newname)    ;
+	     $serverHome = lc($serverHome) ;
+	     grep { s@/@\\@g } $root       ;
+	     grep { s@/@\\@g } $serverHome ;
+	   }
+	 }
+	 else {
+	   print("\nThe 5.x instance path is not correct. It must be like slapd-instancename");
+	   &usage();
+	   exit(1);
+	 }
+       }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-p") { # 5.x DS port 
+      if (! $newport ) {
+	$newport = $ARGV[++$i] ;
+      }
+      else {	
+	&usage() ;
+	exit(1);
+      }
+    } elsif ("$ARGV[$i]" eq "-t") { # TRACELEVEL
+      my $value = $ARGV[++$i] ;	
+      if ($value =~ /[0-3]/) {
+	$TRACELEVEL = $value ;
+      }
+      else {
+	print("\nThe tracelevel must belong to 0..3 interval");
+        &usage();
+	exit();
+      }	
+    } elsif ("$ARGV[$i]" eq "-noinput") { # no user interventions during processing
+	$NO_INPUT_USER = 1 ;
+    } elsif ("$ARGV[$i]" eq "-L") { # migration logfile
+	$LogFileReport = $ARGV[++$i] ;
+    }
+    else {
+	print("\nThe option $ARGV[$i] is not recognized");
+	&usage() ;
+	exit(1);
+    }
+    $i++;
+  }
+  if (! $rootDN) {
+    print("\nThe rootDN is missing");
+    $exit = 1;
+  }
+  if ($pwdfile ne "") {
+    # Open file and get the password
+    unless (open (RPASS, $pwfile)) {
+      die "Error, cannot open password file $passwdfile\n";
+    }
+    $rootpwd = <RPASS>;
+    chomp($rootpwd);
+    close(RPASS);
+  } elsif ($rootpwd eq "-"){
+    # Read the password from terminal
+    die "The '-w -' option requires an extension library (Term::ReadKey) which is not\n",
+    "part of the standard perl distribution. If you want to use it, you must\n",
+    "download and install the module. You can find it at\n",
+    "http://www.perl.com/CPAN/CPAN.html\n";
+    # Remove the previous line and uncomment the following 6 lines once you have installed Term::ReadKey module.
+# use Term::ReadKey; 
+#	print "Bind Password: ";
+#	ReadMode('noecho'); 
+#	$rootpwd = ReadLine(0); 
+#	chomp($rootpwd);
+#	ReadMode('normal');
+  }
+  if (! $rootpwd) {
+    print("\nThe rootpwd is missing");
+    $exit = 1 ;
+  }
+  if (! $newport) {
+    print("\nThe port is missing");
+    $exit = 1;
+  }
+  if (! $serverHome) {
+    print("\nThe 5.x instance path is missing");
+    $exit = 1;
+  }
+  if (! $oldHome) {
+    print("\nThe 4.x instance path is missing");
+    $exit = 1;
+  }
+  if ((! $LogFileReport) && $serverHome) {
+    ($sec, $min, $hour, $dd, $mm, $yy) = &GetTime();
+    $LogFileReport  = "${serverHome}${PATHSEP}logs${PATHSEP}Migration_${dd}${mm}${yy}_${hour}${min}${sec}.log";
+  }
+
+  if ($exit) {	
+	&usage() ;
+	exit(1);
+  }
+  
+}
+
+
+###############################################################################
+# This subroutine is used to parse the slapd.conf configuration file and migrate specific parameters contained in it 
+
+
+sub ParseSlapdConf {
+    my	$oldsrc = shift;
+    my  $NumLine = 0 ;
+	# read the old conf file into a hash table
+    open( OLDSRC, $oldsrc ) || die "Can't open $oldsrc: $!: ";
+	LINE: while ( <OLDSRC> ) {
+	        $NumLine++ ;
+	        printTrace("\nLine: $_",4) ;
+		if (/^\s*\#/) { # skip comments
+		        printTrace("\n# ",4) ;
+			next LINE;
+		}
+		if (/^\s*$/) { # skip blank lines
+		        printTrace("\nBLANK LINE",4);
+			next LINE;
+		}  elsif (/^suffix\s+/i) {
+		        chomp($_) ;
+			CheckSuffix($_);
+		} elsif (/^plugin/i) {
+		        printTrace("\nPLUGIN",4);
+			chomp($_);
+			if (! &isAStandardPlugin($_)) {
+			   push @badPlugins, $_;
+			 }
+			else {
+			  my $Plugin = $_ ;
+			  if (! &ParsePlugin($_,$NumLine)) {
+			    printMsg("\nLine $NumLine, syntax error of the plugin:\n$Plugin");
+			   }
+			}
+		} elsif (/^include\s+[\"]?(.*?)[\"]?\s*$/i) {
+			# strip leading and trailing "
+			my $include_file = $1 ;
+		        grep { s@/@\\@g } $include_file if $isNT;
+			if (! &isAStandardInclude($include_file)) {
+			   printTrace("\nFILE: $1 NOT STANDARD",4) ;
+			   &ParseConfigurationFile($include_file);
+			   printTrace("\nEXIT ParseConfigurationFile: $include_file",4) ;
+			}
+		} elsif (/^userat\s+[\"]?(.*?)[\"]?\s*$/i) {
+		        printTrace("\nuserat: $1",4);
+			my $at_file = $1 ;
+		        grep { s@/@\\@g } $at_file if $isNT;
+		        # Parse user defined attributes
+		        &ParseAttributesFile($at_file);
+		} elsif (/^useroc\s+[\"]?(.*?)[\"]?\s*$/i) {
+		        printTrace("\nuseroc: $1",4);
+			my $oc_file = $1 ;
+		        grep { s@/@\\@g } $oc_file if $isNT;
+		        # Parse user defined object classes
+		        &ParseObjectClassesFile($oc_file);
+		} elsif (/^dynamicconf\s+[\"]?(.*?)[\"]?\s*$/i){
+		        printTrace("\ndynamicconf: $1",4);
+			my $dynamiconf_file = $1 ;
+		        grep { s@/@\\@g } $dynamiconf_file if $isNT;
+		        # Parse dynamic configuration file (e-g slapd.ldbm.conf)
+		        &ParseConfigurationFile($dynamiconf_file);
+		} elsif (/^\s*(\S+)\s+[\"]?(.*?)[\"]?\s*$/) { 
+		        printTrace("\nParseParameters: $1",4);
+		        # Parse parameters and record the associated value in %oldhash
+		        &ParseParameters($1,$2,$NumLine);
+		} else {
+		        printTrace("\nUnknown format of configuration data: $_",0); }
+	}
+	close(OLDSRC);
+
+  }
+
+
+
+#############################################################################
+# return 1 if the suffix already exists, 0 else
+sub existSuffix {
+  my $suffixname = shift ;
+  my $entry = $conn->search("cn=\"$suffixname\",cn=mapping tree,cn=config ", "base","objectclass=*") ;
+  return 1 if ($entry) ;
+  return 0 ;
+}
+
+# return the name of the backend if it has been successfully created, 0 else
+sub createBackend {
+  my $suffixname = shift ;
+  my $backend = "MigratedDB_0" ;
+  my $NbRetry = 1 ;
+  my $entry =  $conn->search("cn=$backend,cn=ldbm database,cn=plugins,cn=config ", "base","objectclass=*") ;
+  while ($entry) {
+    # try to find another name for the backend
+    $backend = "MigratedDB_$NbRetry" ;
+    $entry =  $conn->search("cn=$backend,cn=ldbm database,cn=plugins,cn=config ", "base","objectclass=*") ;
+    $NbRetry++;
+  }
+  # normally I should have a unique name for the backend
+  my $suffixarg = "nsslapd-suffix" ;
+  $entry = $conn->newEntry() ;
+  $entry->setDN("cn=$backend,cn=ldbm database,cn=plugins,cn=config");
+  $entry->setValues("objectclass", "top", "extensibleObject", "nsBackendInstance" );
+  $entry->setValues("cn", $backend );
+  $entry->setValues($suffixarg, $suffixname );
+  my $res = $conn->add($entry) ;
+  if ($res) {
+    return $backend ;
+  }
+  else {
+    return 0 ;
+  }
+}
+
+# return 1, if add the new entry in the mapping tree, else 0
+sub AddEntryInMappingTree {
+  my $backend = shift ;
+  my $entry =  $conn->search("cn=$backend,cn=ldbm database,cn=plugins,cn=config ", "base","objectclass=*") ;
+  if ($entry) {
+    printTrace("\nAddEntry in progress ...",4) ;
+    my $suffixarg =  "nsslapd-suffix" ;
+    my $statearg  =  "nsslapd-state"  ;
+    my $backendarg=  "nsslapd-backend"; 
+    my $suffixname = $entry->{$suffixarg}[0];
+    $entry = $conn->newEntry() ;
+    $entry->setDN("cn=\"$suffixname\",cn=mapping tree,cn=config") ;
+    $entry->setValues("objectclass", "top", "extensibleObject", "nsMappingTree" );
+    $entry->setValues("cn", "\"$suffixname\"");
+    $entry->setValues($statearg, "backend");
+    $entry->setValues($backendarg, $backend);
+    return $conn->add($entry);
+  }
+  else {
+    printTrace("\nNo AddEntry processed for $backend",4);
+    return 0 ;
+  }
+}
+
+
+# Treat the case where the suffix is "o=NetscapeRoot"
+sub CheckSuffix {
+  my $suffix = shift ;
+  my $suffixname ;
+  if (!(/^suffix\s+\"?(.*?)\"?\s*$/i)) {
+    printMsg("Syntax error of the suffix: $suffix");
+    return 0 ;
+  }
+  else {
+    $suffixname = $1 ;
+  }
+  if (/^suffix\s+\"?\s*o=netscaperoot\s*\"?\s*$/i) {
+    printTrace("\nFor the suffix o=NetscapeRoot, we do nothing",1);
+    # treat the case where the suffix is "o=NetscapeRoot"
+  }
+  else {
+    push @oldSuffixes, $_;
+    # check if the suffix already exists in the 5.x DS target
+    if (! existSuffix($suffixname)) {
+      printTrace("\nSuffix $suffixname doesn't exist",1) ;
+      # create a new backend with the name of the suffix preceded by MigratedDB_
+      my $backend = createBackend($suffixname) ;
+      if ($backend) {
+	printTrace("\nBackend: $backend has been created !!!",1);
+	# if the creation of the backend is ok, we add a new entry in the mapping tree
+	if (AddEntryInMappingTree($backend)) {
+	  # We add the association dbname->suffix in the hash %DBNAMES
+	  $DBNAMES{$suffixname} = $backend ;
+	  # get the db filename
+	  $entry =  $conn->search("cn=$backend,cn=ldbm database,cn=plugins,cn=config ", "base","objectclass=*") ;
+	  my $dirarg = "nsslapd-directory";
+	  $DBDirectory{$backend} = $entry->{$dirarg}[0];
+	  printTrace("\nThe relation $backend->$suffixname has been added to the mapping tree",2);
+	}
+	else {
+	  printMsg("\nCOULD NOT ADD ENTRY: $backend->$suffixname IN MAPPINGTREE");
+	}
+      }
+      else {
+	  printMsg("\nCOULD NOT CREATE BACKEND: $backend");
+      }
+    }
+    else {
+      printTrace("\nSuffix: $suffixname already exists",1);
+      # the suffix already exists in the 5.x DS
+    }
+  }
+  return 1 ;
+}
+
+#############################################################################
+# Usefull to know the standard configuration
+sub isAStandardPlugin {
+	my $line = shift;
+	chomp($line);
+	printTrace("\nStdPlugin?: $line",4);
+	if ($line =~ /^plugin\s+(database|extendop|preoperation|postoperation|matchingrule|syntax)\s+(on|off)\s+\"(.*?)\"\s+\"(.*?)\"\s+(\S+)(.*)$/i) {
+	  # $1 = <type>, $2 = <on|off>, $3 = <name>, $4 = <pathname>, $5 = <init_function>, $6 = [<arg>]*
+	  printTrace("\nName: $3, pathname: $4, init_function: $5",4);
+	  
+	  my $LC_line = lc($3);
+	  my $Value = $stdPlugins{$LC_line} ;
+	  if ($Value) {
+	     printTrace("\nIS A STANDARD PLUGIN",4);
+	  }
+	  else {
+	     printTrace("\nNOT A STANDARD PLUGIN",4);
+	  }
+	  return $stdPlugins{$LC_line} ;
+	}
+	else {
+	  printTrace("\nSYNTAX ERROR PLUGIN",4);
+	  return 0 ;
+	}
+}
+
+sub isAStandardIndex {
+	my $line = shift ;
+	chomp($line);
+	if ($line =~ /^index\s+(\S+).*/i) {
+	  my $LC_line = lc($1);
+	  my $Value = $stdIndex{$LC_line} ;
+	  printTrace("\nInclude: $LC_line \nValue: $Value", 4);
+	  return $stdIndex{$LC_line};
+	}
+	else {
+	  return 0 ;
+	}
+}
+
+
+sub isAStandardInclude {
+	my $line = shift;
+
+	chomp($line);
+	if ($isNT){
+	  return $stdIncludes{lc($line)}; 
+	}
+	else {
+   	  return $stdIncludes{$line} ;
+	}
+}
+
+#############################################################################
+# 
+# Execute a Perldap command to update plugins definition in the 5.x schema 
+
+sub LDAPmodify_stdPlugin {
+  my $Filename = shift ;
+  my @pluginames = keys(%stdPlugins);
+  if (! $STDPLUGINS_FILE_MODIFIED) {
+    printTrace("\nLDAPmodify_plugin",4);
+    printTrace("\nMigrate plugin's...",1);
+    foreach $pluginame ( @pluginames ) {
+      my $update_plugin = 0 ;
+      my $ref_plugin = $stdPlugins{$pluginame};
+      if ($ref_plugin ne "\n") {
+	my $name       = $ref_plugin->name    ;
+	my $entry = $conn->search("cn=$name,cn=plugins,cn=config", "base","objectclass=nsSlapdPlugin") ;
+	if ($entry) {
+	  my $pluginenabled="nsslapd-pluginenabled" ;
+	  if (($entry->{$pluginenabled}[0]) ne $ref_plugin->enable) {
+	    $update_plugin = 1 ; 
+	    my $enable =  $ref_plugin->enable ;
+	    printTrace("\n$pluginame, plugin-enable: $enable",3) ;
+	    $entry->setValues($pluginenabled, $enable );
+	  }
+	  my $ArgNum = 0 ;
+	  foreach $ArgValue (@{$ref_plugin->args}) {
+	    my $Arg="nsslapd-pluginarg$ArgNum";
+	    printTrace("\n$Arg: $ArgValue",3) ;
+	    if ($entry->{$Arg}[0] ne $ArgValue) {
+	      printTrace("\n$pluginame, $Arg: $ArgValue",3) ;
+	      $update_plugin = 1 ; 
+	      $entry->setValues($Arg, $ArgValue) ;
+	    }
+	    $ArgNum++ ;
+	  }
+	  if ($update_plugin) {
+	    printTrace("\n$pluginame is being updated...",2);
+	    my $res = $conn->update($entry) ;
+	    if ($res) {
+	      printTrace("\nupdated !",2);
+	    }
+	    else {
+	      printMsg("\nError during update of plugin: $pluginame") ;
+	      $MigrationErrors .= "\nError during update of plugin: $pluginame";
+	    }
+	  }
+	  else {
+	    printTrace("\n$pluginame has not changed",4);
+	  }
+	}
+	else {
+	    printMsg("\ncan't access the plugin: cn=$name,cn=plugins,cn=config");
+	}
+      }
+      else {
+	printTrace("\nPLUGIN NOT RECORDED: $pluginame",4) ;
+      }
+     }
+    }
+    else {
+    # treat the case where the user wants to look at these plugins before processing
+  }
+}
+
+#############################################################################
+# Execute Perldap command to add new indexes to the migrated instances
+
+sub LDAPmodify_Indexes {   
+  my $Filename = shift ;
+  my @indexnames = keys(%newIndex);
+  my @suffixnames = keys(%DBNAMES);
+  if ((! $INDEX_FILE_MODIFIED) && (%DBNAMES)) {
+    # we update indexes only if there is at least one backend to migrate
+    printTrace("\nLDAPmodify_indexes",4);
+    printTrace("\nMigrate indexes...",1);
+    foreach $indexname ( @indexnames ) {
+      printTrace("\nIndexName: $indexname",4);
+      printTrace("\nIndexTypes: .@{$newIndex{$indexname}->types}.", 4) ;
+      printTrace("\nIndexOIDS: .@{$newIndex{$indexname}->oids}.", 4) ;
+      foreach $suffixname ( @suffixnames ) {
+	# check if the index already exists !
+	printTrace("\nsearch for cn=$indexname,cn=index,cn=$DBNAMES{$suffixname},cn=ldbm database,cn=plugins,cn=config...", 3);
+	my $entry = $conn->search("cn=$indexname,cn=index,cn=$DBNAMES{$suffixname},cn=ldbm database,cn=plugins,cn=config","base","objectclass=nsIndex");
+	if (! $entry) {
+	  # create a new index
+	  printTrace("index $indexname is being created under cn=index,cn=$DBNAMES{$suffixname},cn=ldbm database,cn=plugins,cn=config...",2);
+	  my $entry = $conn->newEntry();
+	  $entry->setDN("cn=$indexname,cn=index,cn=$DBNAMES{$suffixname},cn=ldbm database,cn=plugins,cn=config");
+	  $entry->setValues("objectclass",  "top", "nsIndex" ) ;
+	  $entry->setValues("cn", $indexname) ;
+	  $entry->setValues("nssystemindex", "false") ;
+          my @types = @{$newIndex{$indexname}->types} ;
+	  my @oids  = @{$newIndex{$indexname}->oids}  ;
+	  $entry->setValues("nsindextype", @types) if (@types) ; 
+	  $entry->setValues("nsmatchingrule", @oids ) if (@oids);
+	  my $res = $conn->add($entry) ;
+	  if ($res) {
+	    printTrace("\nAdd index successfully: $indexname for backend: $DBNAMES{$suffixname}",2);
+	  }
+	  else {
+	    printMsg("\n Failed to add the index: $indexname to backend: $DBNAMES{$suffixname}");
+	    $MigrationErrors .= "\n Failed to add the index: $indexname to backend: $DBNAMES{$suffixname}" ;
+	  }
+	}
+	elsif ($entry->{nssystemindex}[0] eq "false") {
+	  # if the index is not a system index, we update it
+	  printTrace("\nindex $indexname is being processed under cn=index,cn=$DBNAMES{$suffixname},cn=ldbm database,cn=plugins,cn=config...",2);
+          my @types          = @{$newIndex{$indexname}->types} ; printTrace("\ntypes: .@types.",2) ;
+	  my @oids           = @{$newIndex{$indexname}->oids}  ; printTrace("\noids: .@oids.",2) ;
+	  my @existing_types = $entry->getValues("nsindextype");
+	  my @existing_oids  = $entry->getValues("nsmatchingrule");
+	  # get the elements present in @types and not present in @existing_types
+	  my @typesToAdd     = &getDiff(\@types, \@existing_types);
+	  # same for matchingrules
+	  my @oidsToAdd      = &getDiff(\@oids, \@existing_oids);
+	  foreach $newtype (@typesToAdd) {
+	      $entry->addValue("nsindextype", $newtype); printTrace("\nnewtype: $newtype",2); 
+	  }
+	  foreach $newoid (@oidsToAdd) {
+	      $entry->addValue("nsmatchingrule", $newoid);  
+	  }
+	  if (@typesToAdd ||  @oidsToAdd) {
+	      my $res = $conn->update($entry) ;
+	      if ($res) {
+		  printTrace("\nUpdate index successfully: $indexname for backend: $DBNAMES{$suffixname}",2);
+	      }
+	      else {
+		  printMsg("\n Failed to update the index: $indexname to backend: $DBNAMES{$suffixname}");
+		  $MigrationErrors .= "\n Failed to update the index: $indexname to backend: $DBNAMES{$suffixname}" ;
+	      }
+	  }
+	  else {
+	      printTrace("\nNothing to update",2);
+	  }
+	}
+	else {
+	  printTrace("\nThe index: $indexname is a system index. It can't be updated",2);
+	}
+      }
+    }
+    
+  }
+  else {
+    # treat the case where the user wants to look at these indexes before processing
+  }
+        
+}
+
+#############################################################################
+# 
+# Execute a Perldap command to add all user defined object classes in the 5.x schema 
+
+sub LDAPmodify_User_oc {
+  my $Filename = shift ;
+  if (! $USER_OC_FILE_MODIFIED) {
+    printTrace("\nLDAPmodify_User_oc",4);
+    printTrace("\nMigrate objectclasses...",1);
+    foreach $objectname ( @User_oc_names ) {
+      my $entry = $conn->search("cn=schema", "base","objectclass=*") ;
+      die "\ncan't connect to object: cn=schema\n" unless ($entry);
+      printTrace("\nObjectName: $objectname\nValue: $User_oc{$objectname}",3);
+      next if ($entry->hasValue("objectclasses",$User_oc{$objectname},1)) ;
+      $entry->addValue("objectclasses",$User_oc{$objectname},"1") ;
+      my $res = $conn->update($entry) ;
+      if (! $res) { 
+	printMsg("\nCan\'t add objectclass to the schema: $User_oc{$objectname}");
+	my $msg = $conn->getErrorString();
+	printMsg("\nMsg: $msg");
+	$MigrationErrors .= "\nCan\'t add objectclass to the schema: $User_oc{$objectname}" ;
+      }
+      else {
+	printTrace("\nobjectclass: $User_oc{$objectname} added",2);
+      }
+    }
+  }
+  else {
+    # treat the case where the user wants to look at these objectclasses before processing
+  }
+}
+
+#############################################################################
+# 
+# Execute a Perldap command to add all user defined attributes in the 5.x schema 
+
+sub LDAPmodify_User_at {
+  my $Filename = shift ;
+  my @attributenames = keys(%User_at);
+  if (! $USER_AT_FILE_MODIFIED) {
+    
+    printTrace("\nLDAPmodify_User_at",4);
+    printTrace("\nMigrate attributes...",1);
+    foreach $attributename ( @attributenames ) {
+      my $entry = $conn->search("cn=schema", "base","objectclass=*") ;
+      printTrace("\nAtributeName: $attributename, Value: $User_at{$attributename}",3);
+	die "\nentry not found cn=schema\n" unless $entry ;
+      next if ($entry->hasValue("attributetypes",$User_at{$attributename},1) ) ;	
+      my $res = $entry->addValue("attributetypes",$User_at{$attributename},"1") ;
+      if (! $res) { 
+	printMsg("\nCan\'t add attribute to the schema: $User_at{$attributename}");
+	$MigrationErrors .= "\nCan\'t add attribute to the schema: $User_at{$attributename}" ;
+      }
+      my $res = $conn->update($entry) ;
+      if ($res) {
+	printTrace("\nattribute: $attributename added",2);
+      }
+      else {
+	printMsg("\nCan\'t add attribute to the schema: $User_at{$attributename}");
+	my $msg = $conn->getErrorString();
+	printMsg("\nMsg: $msg");
+	$MigrationErrors .= "\nCan\'t add attribute to the schema: $User_at{$attributename}" ;
+      }
+    }
+  }
+  else {
+    # treat the case where the user wants to look at these attributes before processing
+  }
+}
+
+#############################################################################
+# Add an object class to the user_oc hash and reset the object !!!
+sub AddObjectClass {
+  my $ObjectClass     = shift ;
+  my $ObjectName      = $ObjectClass->{'ObjectName'} ;
+  my $Object_oid      = $ObjectClass->{'Object_oid'} ;
+  my $Object_superior = $ObjectClass->{'Object_superior'} ;
+  my $Object_requires = $ObjectClass->{'Object_requires'} ;
+  my $Object_allows   = $ObjectClass->{'Object_allows'} ;  
+  my $ObjectClassDef  = "( $Object_oid NAME \'$ObjectName\' DESC \'\' SUP $Object_superior STRUCTURAL MUST ($Object_requires) MAY ($Object_allows) X-ORIGIN \'user defined\' )";
+  if ( (!($ObjectName =~ /^top$/i)) && ( ! $User_oc{$ObjectName} )) {
+      $User_oc{$ObjectName} = $ObjectClassDef ;
+      push @User_oc_names, $ObjectName ;
+      printTrace("ObjectName: $ObjectName \nObject_oid: $Object_oid \nObject_superior:$Object_superior \nObject_requires: $Object_requires \nObject_allows: $Object_allows \nObjectClassDefinition: $User_oc{$ObjectName}\n",4);
+  }
+  elsif ( ($User_oc{$ObjectName}) && ($User_oc{$ObjectName} ne $ObjectClassDef) ) {
+      printMsg("\nAttempt to redifine the objectclass: $ObjectName previously defined in your configuration file. Operation not allowed  ");
+  }
+  else {
+      printMsg("\nAttempt to redifine the objectclass: top. Operation not allowed");
+  }
+  resetObjectClass($ObjectClass);
+}
+
+#############################################################################
+# Build an LDIF attribute and add it to the user_at hash
+sub AddAttribute {
+  my $Attr                  = shift ;
+  my $AttributeName         = $Attr->{'AttributeName'};
+  my $Attribute_oid         = $Attr->{'Attribute_oid'};
+  my $Attribute_aliases     = $Attr->{'Attribute_aliases'};
+  my $Attribute_syntax      = $Attr->{'Attribute_syntax'};
+  my $Attribute_single      = $Attr->{'Attribute_single'};
+  my $AttributeDef          = "( $Attribute_oid NAME ( \'$AttributeName\' $Attribute_aliases) DESC \'User Defined Attribute\' SYNTAX $Attribute_syntax $Attribute_single X-ORIGIN 'user defined' )" ;
+  printTrace("\nAttributeDef: $AttributeDef",4);
+  $User_at{$AttributeName} = $AttributeDef ;
+}
+#############################################################################
+# add the index structure to the newIndex hash
+sub AddIndex {
+  my $ref_index = shift ;
+  my $state     = shift ;
+  printTrace("\nAddIndex, last state: $state",4) ;
+  if ($state == 1) {
+    $ref_index->specific("ALL") ;
+    return 1 ;
+  }
+  elsif ($state == 6) {
+    $ref_index->specific("NONE") ;
+    return 1 ;
+  }
+  if (($state == 1) || ($state == 3) || ($state == 5) || ($state == 6)) {
+    foreach $name (@{$ref_index->names}) {
+      $newIndex{$name} = $ref_index ; # record the ref to the index struct in the newIndex hash
+    }
+    return 1 ;
+  }
+  else {
+    return 0 ; 
+  }
+}
+
+#############################################################################
+# add the plugin structure to the stdPlugin hash
+
+sub AddPlugin {
+  my $ref_plugin = shift ;
+  printTrace("\nAddPlugin",4) ;
+  $stdPlugins{lc($ref_plugin->name)} = $ref_plugin ;
+  my $name   = $ref_plugin->name    ;
+  my $type   = $ref_plugin->type    ;
+  my $enable = $ref_plugin->enable  ;
+
+  printTrace("\nPluginName: $name",4);
+  printTrace("\nPluginType: $type",4);
+  printTrace("\nPluginEnable: $enable",4);
+  printTrace("\nPluginArgs: @{$ref_plugin->args}",4);
+  return 1 ;
+}
+
+
+#############################################################################
+# parse a plugin definition and call the addindex
+
+sub ParsePlugin {
+  my $Plugin   = shift ;
+  my $NumLine  = shift ;
+  my $state = 0 ;
+  my $ErrorMsg = "Syntax error of a plugin definition. \n line parsed:";
+  my $ref_plugin = S_plugin->new();
+  printTrace("\nParsePlugin: $_",4);
+  if (/^plugin\s+(database|extendop|preoperation|postoperation|matchingrule|syntax)\s+(on|off)\s+\"(.*?)\"\s+\"(.*?)\"\s+(\S+)(.*)$/i) {
+    # $1 = <type>, $2 = <on|off>, $3 = <name>, $4 = <pathname>, $5 = <init_function>, $6 = [<arg>]*
+    $ref_plugin->name($3);
+    $ref_plugin->type($1);
+    $ref_plugin->enable($2);
+    $_ = $6 ;
+    my $ArgNb = 0 ;
+    my $prec ;
+    my $arg ;
+    my $Unix_oldDir = $oldDir ;
+    my $Unix_root   = $root ;
+    grep { s@\\@/@g } $Unix_oldDir if $isNT;
+    grep { s@\\@/@g } $Unix_root   if $isNT;
+    while (!(/^\s*$/)) {
+      if (/^\s*\".*?\"/) {
+        s/^\s*\"(.*?)\"(.*)/$2/i ;
+        $arg = $1 ;
+      }
+      elsif (/^\s*[^\"\s]+/) {
+        s/^\s*([^\"\s]+)(.*)/$2/i ;
+        $arg = $1 ;
+      }
+      $prec = $_ ;
+      $_ = $arg ;
+      
+      s@$Unix_oldDir@$Unix_root@ig ;
+      s/$type-$oldname/$type-$newname/ig ;
+      @{$ref_plugin->args}[$ArgNb++] = $_ ;
+      $_ = $prec ;
+    }
+    if (/^\s*$/) {
+      return AddPlugin($ref_plugin);
+    }
+    else {
+      return 0 ;
+    }
+  }
+  return 0 ;
+}
+
+#############################################################################
+# parse an index definition and call the addindex
+
+sub ParseIndex {		  
+  my $index   = shift ;
+  my $NumLine = shift ;
+  my $ref_index = S_index->new() ;
+  my $Value ;
+  my $state = 0 ;
+  my $ErrorMsg  = "Syntax error of an index definition.\nline parsed:";
+  printTrace("\nParseIndex: $_",4) ;
+  s/,/, /g ;
+  s/\s+,/,/g ;
+  s/^index\s+//i ; # substitute the token index
+  while (!(/^\s*$/)) {
+    s/^\s*(\S+)(.*)$/$2/ ;
+    $Value = $1 ;
+    printTrace("\nValue: $Value",4);
+    printTrace("\nState: $state",4) ;
+    SWITCH: {
+	if ($state == 0) {
+	  if ($Value =~ /[^\.]/) {
+	    if ($Value =~ /(\S+),$/) {
+	      push @{$ref_index->names}, $1 ;
+	    }
+	    else { 
+	      $state = 1 ;
+	      push @{$ref_index->names}, $Value ;
+	    }
+	  }
+	  else { 
+	    return 0 ;
+	  }
+	  last SWITCH ;
+	}
+	if ($state == 1) {
+	  if ($Value =~ /^none$/i) {
+	    $state = 6 ; # end of the index definition
+	  }
+	  elsif ($Value =~ /^\"\"$/) {
+	    $state = 4 ; # we expect to have at least one OID
+	  }
+	  elsif ($Value =~ /(\S+),$/) {
+	      $state = 2 ;
+	      push @{$ref_index->types}, $1 ;
+	    }
+	  else { 
+	      $state = 3 ;
+	      push @{$ref_index->types}, $Value ;
+	    }
+	  last SWITCH ;
+	}
+	if ($state == 2) {
+	   if ($Value =~ /(\S+),$/) {
+	      push @{$ref_index->types}, $1 ;
+	    }
+	    else { 
+	      $state = 3 ;
+	      push @{$ref_index->types}, $Value ;
+	    }
+	  last SWITCH ;
+	}
+	if ($state == 3) {
+	   if ($Value =~ /(\S+),$/) {
+	      $state = 4 ;
+	      push @{$ref_index->oids}, $1 ;
+	    }
+	    else { 
+	      $state = 5 ;
+	      push @{$ref_index->oids}, $Value ;
+	    }
+	  last SWITCH ;
+	}
+	if ($state == 4) {
+	   if ($Value =~ /(\S+),$/) {
+	      push @{$ref_index->oids}, $1 ;
+	    }
+	    else { 
+	      $state = 5 ;
+	      push @{$ref_index->oids}, $Value ;
+	    }
+	  last SWITCH ;
+	}
+      }
+  }
+return AddIndex($ref_index,$state) ;
+  
+}
+
+#############################################################################
+
+sub ParseAttribute {
+
+
+        my $Attr      = shift ;
+	my $NumLine   = shift ;
+	my $state     = 1 ;
+	my $ErrorMsg  = "Syntax error of an attribute definition.\nline parsed:";
+	my %Attribute = (
+		       'AttributeName'         => "",
+		       'Attribute_oid'         => "",
+		       'Attribute_aliases'     => "",
+		       'Attribute_syntax'      => "",
+		       'Attribute_single'      => ""
+		      );
+	my $AttributeName = " ";
+	printTrace("\nParseAttribute",4);
+	while (!(/^\s*$/)) {
+	  s/^(.*?)(\S+)\s*$/$1/ ;
+	  printTrace("\nValue: $2",4);
+	  printTrace("\nState: $state",4) ;
+	  my $Value = $2 ;
+	  SWITCH: {
+	      if ($state == 1) { 
+		  if (isAllowedModifier($Value)) {
+		      $state               = 1 ;
+		      $modifier            = lc($Value);
+		      $AttrVar             = 'Attribute_' . $modifier ;
+		      $Attribute{$AttrVar} = &getModifierValue($Value) ;
+		  }
+		  elsif (&isAllowedPlugin($Value)) {
+		      $state                         = 2 ;
+		      $Attribute{'Attribute_syntax'} = &getSyntaxOid($Value) ;
+		  }
+		  else {
+		      return 0 ;
+		  }
+		  last SWITCH ;
+	      }
+	      if ($state == 2) {
+		if ($Value =~ /[\.]|-oid$/)  {
+		  $Attribute{'Attribute_oid'} = "$Value" ;
+		  printTrace("\nAttribute-oid: $Attribute{'Attribute_oid'}",3);
+		  $state = 3 ;
+		}
+		elsif ($Value =~ /[^\.]/) {
+		  $AttributeName = $Attribute{'AttributeName'} ;
+		  if ($AttributeName) { $Attribute{'Attribute_aliases'} .= "\'$AttributeName\' " ;}
+		  $Attribute{'AttributeName'} = $Value ;
+		  $state = 4 ;
+		}
+		else {
+		  return 0 ;
+		}
+		last SWITCH ;
+	      }
+	      if ($state == 3) {
+		if ($Value =~ /[^\.]/) {
+		  $AttributeName = $Attribute{'AttributeName'} ;
+		  if ($AttributeName) { $Attribute{'Attribute_aliases'} .= "\'$AttributeName\' " ;}
+		  $Attribute{'AttributeName'} = $Value ;
+		  $state = 4 ; }
+		else {
+		  return 0 ;
+		}
+		last SWITCH ;
+		  }
+	      if ($state == 4) {
+		if ($Value =~/^attribute$/i){
+		  $state = 5;
+		}
+		elsif ($Value =~/[^\.]/i) {
+		  $AttributeName = $Attribute{'AttributeName'} ;
+		  if ($AttributeName) {  $Attribute{'Attribute_aliases'} .= "\'$AttributeName\' " ;}
+		  $Attribute{'AttributeName'} = $Value ;
+		}
+		else {
+		  return 0 ;
+		}
+		last SWITCH ;
+	      }
+	      if ($state == 5) {
+		return 0 ;
+		last SWITCH ;
+	      }
+	    } 
+	}
+	$Attribute{'Attribute_oid'} = $Attribute{'AttributeName'} . '-oid' unless ($Attribute{'Attribute_oid'}) ;
+	return AddAttribute(\%Attribute) ;
+}
+
+
+#############################################################################
+# fill in the hash HashParametersName
+
+sub FillHashParametersName {
+  my @paramnames = ( keys(%GeneralSrvParamToMigrate), keys(%GlobalConfigLDBMparamToMigrate), keys(%LDBMparamToMigrate));
+  foreach $param (@paramnames) {
+    $HashParametersName{$param} = '\n';
+  }
+}
+
+
+# Parse parameters
+sub ParseParameters {
+  my $param    = shift ;
+  my $value    = shift ;
+  my $NumLine  = shift ;
+  my $ErrorMsg = "parameter unknown, or not to be migrated: ";
+  if ($HashParametersName{lc($param)} && ($value !~ /^\s*$/)) {
+    $HashParametersName{lc($param)} = $value ;
+    printTrace("\nParam: $param is present",4);
+  }
+  else { 
+    printTrace("\n$NumLine, $ErrorMsg,$param",4); 
+  }
+  
+}
+
+# add general server parameters 
+sub AddGeneralParameters {
+  my @paramnames = keys(%GeneralSrvParamToMigrate);
+  my $entry      = $conn->search("cn=config","base","objectclass=*");
+  die "\ncan't access to object: cn=config. \nMigration stopped\n" unless ($entry);
+  printTrace("\nAddGeneralParameters",4);
+  foreach $param (@paramnames) {
+      my $LDAPparam =  $GeneralSrvParamToMigrate{$param} ;
+      my $Value     = $HashParametersName{$param} ;
+      if (($Value ne '\n') && ($entry->{$LDAPparam}[0] ne $Value)) { 
+	  printTrace("\nLDAPparam: $LDAPparam, Value: $Value",4);
+	  $entry->setValues($LDAPparam, $Value);
+	  my $res = $conn->update($entry);
+	  if ($res) {
+	      printTrace("\nUpdate successfully $LDAPparam ",0);
+	  }
+	  else {
+	      printMsg("\nCan't update parameter: $LDAPparam");
+	  }
+      }
+  }
+}
+
+
+# add general LDBM parameters
+sub AddGeneralLDBMParameters {
+  my @paramnames = keys(%GlobalConfigLDBMparamToMigrate);
+  my $entry      = $conn->search("cn=config,cn=ldbm database,cn=plugins,cn=config","base","objectclass=*");
+  die "\ncan't access to object: cn=config,cn=ldbm database,cn=plugins,cn=config. \nMigration stopped\n" unless ($entry);
+  printTrace("\nAddGeneralLDBMParameters",4);
+  foreach $param (@paramnames) {
+    my $LDAPparam = $GlobalConfigLDBMparamToMigrate{$param} ;
+    my $Value     = $HashParametersName{$param} ;
+    if (($Value ne '\n') && ($entry->{$LDAPparam}[0] ne $Value)) { 
+      printTrace("\nLDAPparam: $LDAPparam, Value: $Value",4);
+      $entry->setValues($LDAPparam, $Value);
+      my $res = $conn->update($entry);
+      if ($res) {
+	  printTrace("\nUpdate successfully $LDAPparam ",0);
+      }
+      else {
+	  printMsg("\nCan't update parameter: $LDAPparam");
+      }
+    }
+  }
+}
+
+# add specific LDBM parameters
+sub AddSpecificLDBMParameters {
+  my @paramnames = keys(%LDBMparamToMigrate);
+  my %REV_DBNAMES = reverse %DBNAMES ;
+  my @dbnames = keys(%REV_DBNAMES);
+  printTrace("\nAddSpecificLDBMParameters",4);
+  foreach $dbname (@dbnames) {
+    my $entry = $conn->search("cn=$dbname,cn=ldbm database,cn=plugins,cn=config","base","objectclass=*");
+    die "\ncan't access to object: cn=$dbname,cn=ldbm database,cn=plugins,cn=config. \nMigration stopped\n" unless ($entry);
+    foreach $param (@paramnames) {
+      my $LDAPparam = $LDBMparamToMigrate{$param} ;
+      my $Value     = $HashParametersName{$param} ;
+      if (($Value ne '\n') && ($entry->{$LDAPparam}[0] ne $Value)) { 
+	printTrace("\nLDAPparam: $LDAPparam, Value: $Value",4);
+        $entry->setValues($LDAPparam, $Value);
+	my $res = $conn->update($entry);
+	if ($res) {
+	    printTrace("\nUpdate successfully $LDAPparam",2);
+	}
+	else {
+	    printMsg("\nCan't update parameter: $LDAPparam");
+	}
+      }
+    }
+  }
+}
+
+#############################################################################
+# Parse a configuration file potentialy tuned by the user (different from slapd.user_oc.conf and slapd.user_at.conf)
+
+sub ParseConfigurationFile {
+
+      my $FileToParse = shift;
+      my $NumLine = 0;
+      my $PARSE_OBJECTCLASSES = 0 ; # 1 if there are objectclass definitions in the file 
+      printTrace("\nParseConfigurationFile: $FileToParse",4) ;
+      printTrace("\nParse $FileToParse",2);
+      # read each line of the configuration file
+      my $CONFIGFILE = "CONFIGFILE.$FileToParse" ;
+      open( $CONFIGFILE, $FileToParse ) || die "Can't open $FileToParsec: $!: ";
+	LINE: while ( <$CONFIGFILE> ) {
+	        $NumLine++ ;
+		if (/^\s*\#/) { # skip comments
+			next LINE;
+		}
+		if (/^\s*$/) { # skip blank lines
+			next LINE;
+		} elsif (/^suffix\s+/i) {
+		        chomp($_) ;
+			CheckSuffix($_) ;
+		} elsif (/^plugin/i) {
+			chomp($_);
+			if (! &isAStandardPlugin($_)) {
+			   push @badPlugins, $_; 
+			}
+			else {
+			  my $Plugin = $_ ;
+			  if (! &ParsePlugin($_,$NumLine)) {
+			    printMsg("\nLine $NumLine, syntax error of the plugin:\n$Plugin");
+			   }
+			}
+		} elsif (/^index/i) {
+			chomp($_);
+			if (! &isAStandardIndex($_)) {
+			  my $Index = $_ ;
+			  if (! &ParseIndex($_,$NumLine)) {
+			    printMsg("\nLine $NumLine, syntax error of index:\n$Index");
+			  }
+			}
+		} elsif (/^include\s+[\"]?(.*?)[\"]?\s*$/i) {
+			# strip leading and trailing "
+			my $include_file = $1 ;
+		        grep { s@/@\\@g } $include_file if $isNT;
+			if (! &isAStandardInclude($include_file)) {
+			   &ParseConfigurationFile($include_file);
+			}	
+		} elsif (/^attribute\s+\S+/i) {
+		        chomp($_);
+			my $Attrib = $_ ;
+			if (! &ParseAttribute($_,$NumLine)) {
+			  printMsg("\nLine $NumLine, syntax error of attribute:\n$Attrib");
+			}
+		} elsif (/^objectclass\s+(\S+)\s*$/i) {
+		        # At least one objectclass is present in the file
+		        $PARSE_OBJECTCLASSES = 1;
+		} elsif (/^\s*(\S+)\s+[\"]?(.*?)[\"]?\s*$/) { 
+		        # Parse parameters and record the associated value in %Oldhash
+		        &ParseParameters($1,$2,$NumLine);
+		}
+	}
+	close($CONFIGFILE);
+        ParseObjectClassesFile($FileToParse) if ($PARSE_OBJECTCLASSES); # parse objectclass definition
+
+}
+
+#############################################################################
+# Parse the file specified in the userat attribute
+
+sub ParseAttributesFile {
+    my $userat_file=shift ;
+    my $NumLine = 0;
+    printTrace("\nParseAttributesFile: $userat_file",4);
+    printTrace("\nParse user defined attributes file: $userat_file",2);
+    # read each line of the configuration file
+    open( ATTRFILE, $userat_file ) || die "Can't open $FileToParsec: $!: ";
+	LINE: while ( <ATTRFILE> ) {
+	        $NumLine++ ;
+		if (/^\s*\#/) { # skip comments
+			next LINE;
+		}
+		if (/^\s*$/) { # skip blank lines
+			next LINE;
+		} elsif (/^attribute\s+\S+/i) {
+			chomp($_);
+			my $Attrib = $_ ;
+			if (! &ParseAttribute($_, $NumLine)) {
+			  printMsg("\nLine $NumLine, syntax error of attribute:\n$Attrib");
+			}
+		}
+	}
+	close(ATTRFILE);
+}
+
+#############################################################################
+# Parse the file specified in the useroc token
+
+sub ParseObjectClassesFile {
+    my $useroc_file = shift ;
+    my %ObjectClass = (
+		       'ObjectName'      => " ",
+		       'Object_oid'      => " ",
+		       'Object_superior' => "top",
+		       'Object_requires' => " ",
+		       'Object_allows'   => " "
+		      );
+
+    my $state    = 0;
+    my $ErrorMsg = "Syntax error of an object class definition.\nline parsed:";
+    my $LineNb   = 0 ; # Number of the current line parsed in the file
+    printTrace("ParseObjectClassesFile: $useroc_file\n",4) ;
+    # read each line of the configuration file
+    open( OBJCLASSFILE, $useroc_file ) || die "Can't open $FileToParsec: $!: ";
+    printTrace("Begin the parsing of the file: $useroc_file",4);
+	LINE: while ( <OBJCLASSFILE> ) {
+	        printTrace("Current Line: $_",4);
+	        $LineNb++ ;
+		if (/^\s*\#/) { # skip comments
+			next LINE;
+		}
+		if (/^\s*$/) { # skip blank lines
+			next LINE;
+		}
+	      SWITCH: {
+		  if ($state == 0) {  resetObjectClass(\%ObjectClass);
+		                      if (/^objectclass\s+(\S+)\s*$/i) {
+		                      $ObjectClass{'ObjectName'} = $1;
+				      $state = 1 ;}
+				    else {} # printMsg($ErrorMsg,$_,$LineNb);}
+				    last SWITCH;}
+		  if ($state == 1) {if (/^\s+oid\s+(\S+)\s*$/i) {
+		                      $ObjectClass{'Object_oid'} = $1;
+				      $state = 2 ;}
+				    elsif (/^\s+superior\s+(\S+)\s*$/i) {
+		                      $ObjectClass{'Object_superior'} = $1;
+				      $state = 3 ;
+				    }
+				    elsif (/^\s+requires\s*$/i) {
+				      $state = 4;
+				    }
+				    elsif (/^\s+allows\s*$/i) {
+				      $state = 5;
+				    }
+				    else {$state=0; printMsg($ErrorMsg,$_,$LineNb);}
+		                    last SWITCH;}
+		  if ($state == 2) {if (/^\s+superior\s+(\S+)\s*$/i) {
+		                      $ObjectClass{'Object_superior'} = $1;
+				      $state = 3 ;}
+				    elsif (/^\s+requires\s*$/i) {
+				      $state = 4;
+				    }
+				    elsif (/^\s+allows\s*$/i) {
+				      $state = 5;
+				    }
+				    else { $state=0; printMsg($ErrorMsg,$_,$LineNb);}
+		                    last SWITCH;}
+		  if ($state == 3) {if (/^\s+requires\s*$/i)
+					{ $state = 4; }
+				    elsif (/^objectclass\s+(\S+)\s*$/i) {
+				      # run an ldap add before to continue
+				      &AddObjectClass(\%ObjectClass);
+				      $ObjectClass{'ObjectName'} = $1;
+				      $state = 1 ;}
+				    elsif (/^\s+allows\s*$/i)
+					{ $state = 5; }
+				    else {$state = 0; printMsg($ErrorMsg,$_,$LineNb);}
+				    last SWITCH;}
+		  if ($state == 4) {if (/^\s+([^,\s]+),\s*$/i) {
+		                        $ObjectClass{'Object_requires'}.=$1." \$ "; }
+				    elsif (/^\s+([^,\s]+)\s*$/i) {
+                                        $ObjectClass{'Object_requires'}.=$1." ";
+				        $state = 6; }
+				    else {$state = 0;printMsg($ErrorMsg,$_,$LineNb);}
+		                    last SWITCH;}
+		  if ($state == 5) {if (/^\s+([^,\s]+),\s*$/i) {
+		                        $ObjectClass{'Object_allows'}.=$1." \$ "; }
+				    elsif (/^\s+([^,\s]+)\s*$/i) {
+                                        $ObjectClass{'Object_allows'}.=$1." ";
+					# run an ldap add before to continue
+				        &AddObjectClass(\%ObjectClass);
+				        $state = 0; }
+				    else {$state = 0; printMsg($ErrorMsg,$_,$LineNb);}
+				    last SWITCH;}
+		  if ($state == 6) {if (/^objectclass\s+(\S+)\s*$/i) {
+				      # run an ldap add before to continue
+				      &AddObjectClass(\%ObjectClass);
+				      $ObjectClass{'ObjectName'} = $1;
+				      $state = 1 ;}
+				    elsif (/^\s+allows\s*$/i) {
+				      $state = 5;}
+				    else {$state = 0; printMsg($ErrorMsg,$_,$LineNb);}
+				    last SWITCH;}
+		}
+	}
+	close(OBJCLASSFILE);
+    if (($state == 3) || ($state == 4) || ($state == 5) || ($state == 6)) {
+      &AddObjectClass(\%ObjectClass);
+    }
+    printTrace("state: $state",4);
+}
+
+#############################################################################
+# printMsg print message to the user standard output.  
+
+sub printMsg {
+
+  my $TypeMsg = shift ;
+  my $Msg     = shift ;
+  my $LineNb  = shift ;
+  if ($LineNb) {
+    printTrace("Line: $LineNb, $TypeMsg, $Msg");
+  }
+  else {
+    printTrace("$TypeMsg $Msg");
+  }
+}
+
+#############################################################################
+#  print message error to the user standard output.  
+
+sub printTrace {
+
+  my $Msg     = shift ;
+  my $level   = shift ;
+  if ($level <= $TRACELEVEL) {
+    print($Msg);    
+    print LOGFILE $Msg ;
+  }
+}  
+
+#############################################################################
+# reset an objectclass structure
+
+sub resetObjectClass {
+  my $ObjectClass = shift;
+  $ObjectClass->{'ObjectName'}      = " " ;
+  $ObjectClass->{'Object_oid'}      = " " ;
+  $ObjectClass->{'Object_superior'} = "top" ;
+  $ObjectClass->{'Object_requires'} = " " ;
+  $ObjectClass->{'Object_allows'}   = " " ;	  
+}
+
+#############################################################################
+# this subroutine implements a very stupid version of diff
+
+sub diff {
+	my $f1              = shift;
+	my $f2              = shift;
+	my $lineToBeginWith = shift;
+	my $NULL            = "" ;
+	my $diff_f1         = $NULL ;
+	my $diff_f2         = $NULL ;
+	my $retval          = $NULL ;
+	my $ret;
+	open(F1, "$f1") or die "Could not open file $f1";
+	open(F2, "$f2") or close(F1), die "Could not open file $f2";
+
+	while (defined($l1 = <F1>)) {
+	    if ($lineToBeginWith){
+		$lineToBeginWith -- ;
+		next ;
+	    }
+	    next if ($l1 =~ /^\#/);
+	    $ret = defined($l2 = <F2>);
+	    if ($ret) {
+		$ret = defined($l2 = <F2>) while ($ret && ($l2 =~ /^\#/)) ;
+		if ($ret) {
+		    if (!($l1 eq $l2)) {
+			
+			# ignore whitespace
+			$l1_clean = $l1 ;
+			$l2_clean = $l2 ;
+			$l1_clean =~ s/\s//g;
+			$l2_clean =~ s/\s//g;
+						  
+			if (!($l1_clean eq $l2_clean)) {
+			    $diff_f1 .= "${l1}" unless ($l1_clean eq $NULL);
+			    $diff_f2 .= "${l2}" unless ($l2_clean eq $NULL);
+			}
+		    }
+		}
+		else {
+		   next if ($l1 =~ /^\s*$/) ;
+		   $diff_f1 .= "${l1}";
+		}
+	    }
+	    else {
+		next if ($l1 =~ /^\s*$/) ;
+		$diff_f1 .= "${l1}";
+	    }
+	}
+	
+	while (defined($l2 = <F2>)) {
+	    	if (($l2 =~ /^\#/) || ($l2 =~ /^\s*$/)) { 
+		    next ;
+		}
+		else {
+		    $diff_f2 .= "${l2}" ;
+		}
+	}
+
+	close(F1);
+	close(F2);
+
+	$retval .= "- differences present in your config file but not in standard file:\n\n". "$diff_f1\n" if ($diff_f1) ;
+	$retval .= "- differences present in standard file but not in your config file:\n\n" . "$diff_f2"  if ($diff_f2) ;
+	return $retval ;
+}
+
+sub CompareStdConfigFiles {
+  # Compare each configuration file against its default version.  If it has changed,
+  # notify the user that the file has changed and will need to be checked by the
+  # user.  This should be safe to do because there should be no path information
+  # stored in these conf files, which are just schema stuff.
+  # printTrace("\nCheck if standard configuration files have changed",3);
+
+  # get the version of the DS to migrate
+  ($oldVersion, $oldMinor) = &getVersion($oldDir);
+  # get the version of the new DS
+  ($Version, $Minor) = &getVersion($root);
+
+  my $origFilePath = "$oldDir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}install${PATHSEP}config${PATHSEP}" ;
+  my $FilesChanged = "";
+  my $AllDiffs     = "***********************************************************************";
+  my $NoChanges    = "" ;
+  my $lineToBegin  = 0 ;
+  printTrace("\nVersion of the old directory server: $oldVersion.$oldMinor",0);
+  opendir(CONFDIR, $oldConfDir) or
+    die "Error: could not open migrated config dir $oldConfDir: $!";
+  
+  foreach $file (readdir(CONFDIR)) {
+       $origFile   = $origFilePath . $file ;
+       $configFile = $oldConfDir . $file ;
+      if ((! exists($userDefinedConfigFiles{lc($file)})) && (-f $origFile)) {
+	  my $lineToBegin = 1 if (lc($file) eq "slapd-collations.conf"); # we ignore the first line of slapd-collations 
+	  $diffs = &diff($configFile, $origFile, $lineToBegin);
+	  $lineToBegin = 0 if $lineToBegin ;
+	  if ($diffs) {
+	      $FilesChanged .= "\n$configFile";
+	      $AllDiffs     .= "\n$configFile  is different than the standard configuration file" ;
+	      $AllDiffs     .= "\nYou will need to check this file and make sure its changes are compatible ";
+	      $AllDiffs     .= "with the new directory server\nHere are the differences:\n";
+	      $AllDiffs     .= "$diffs \n\n";
+	      $AllDiffs     .= "***********************************************************************";
+	  } 
+	  else {
+  	      $NoChanges .= "\n$configFile";
+	  }
+      }
+   }
+  closedir(CONFDIR);
+
+if ($FilesChanged) {
+    printTrace("\nNo changes to old configuration files:$NoChanges",3) ;
+    printTrace("\n***********************************************************************",3) ;
+    printMsg("\nThe following standard files have been modified: $FilesChanged");
+    if ($NO_INPUT_USER) {
+	# do nothing
+    }
+    else {
+	printMsg("\nDo you want to see the differences Yes/No [No] ?") ;
+	my $answer = <STDIN> ;
+	if ($answer =~ /y|yes/i) {
+	    printMsg("$AllDiffs");
+	}
+	printMsg("\nDo you want to continue the migration Yes/No [No] ?");
+	$answer = <STDIN> ;
+	if (! ($answer =~ /y|yes/i)) {
+	    exit(1);
+	}
+    }
+  }
+}
+
+
+#############################################################################
+
+sub db2ldif {
+  my  ($conf, $ldif_dir) = @_;
+  $ENV{"$LIB_PATH"}="$oldDir${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+  if (!$conf) {
+    $conf = "$oldHome${PATHSEP}config${PATHSEP}slapd.conf";
+  }
+  if (! $ldif_dir) { $ldif_dir = $ldif_rep ;}
+  if  (!(-d $ldif_dir)) {
+    mkdir($ldif_dir,0777) or die "can't create $ldif_rep to store temporary ldif files";
+  }
+  my $dir = "$oldDir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server";
+  chdir($dir) or
+    die "Error: could not change directory to $dir: $!";
+  my @suffixnames = keys(%DBNAMES) ;
+  foreach $suffixname (@suffixnames) {
+    my $ldif_file = $ldif_dir.$DBNAMES{$suffixname}.".ldif" ;
+    # If we are on NT, ${quote} is setup to "\"", else it's setup to ""
+    # As the suffix can contain some space characters, I write the suffix parameter: "\"$suffixname\"" rather than "${quote}$suffixname${quote}"
+    my @cmd =
+      ( "${quote}$oldDir${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server" .
+	"${PATHSEP}$slapdExecName${quote}", "db2ldif", '-n', '-f',
+	"${quote}$conf${quote}", '-a', "${quote}$ldif_file${quote}",
+	'-d', '1','-s',"\"$suffixname\"" );
+    open(DB2LDIF, "${quote}@cmd${quote} 2>&1|") or
+      die "Error: could not execute @cmd: $!";
+    sleep(1);			# allow pipe to fill with data
+    $ii = 0;			# counter
+    while (<DB2LDIF>) {
+      ++$ii;
+      if (($ii % 250) == 0) {
+	printMsg("  Processing...\n");
+      }
+    }
+    close(DB2LDIF);
+    # set the ownership of the ldif file; should be the same as the 5.x slapd user id
+    if ((! $isNt) && ($oldlocaluser ne $localuser)) {
+	if (-f $ldif_file) {
+	    chown( $newuid, $newgid, $ldif_file) or printMsg("\nUnable to change the ownership of $ldif_file to $localuser") ;
+	}
+    }
+  }
+  print "  Done.\n";
+  chdir($curdir)  or die "Could not change directory to $curdir: $!";
+}
+
+#############################################################################
+
+# this is used to run the system() call, capture exit and signal codes,
+# and die() upon badness; the first argument is a directory to change
+# dir to, if any, and the rest are passed to system()
+sub mySystem {
+	my $rc = &mySystemNoDie(@_);
+	my ($dir, @args) = @_;
+    if ($rc == 0) {
+# success
+    } elsif ($rc == 0xff00) {
+		die "Error executing @args: error code $rc: $!";
+    } elsif ($rc > 0x80) {
+        $rc >>= 8;
+		die "Error executing @args: error code $rc: $!";
+    } else {
+        if ($rc &   0x80) {
+            $rc &= ~0x80;
+        } 
+		die "Error executing @args: received signal $rc: $!";
+    }
+
+	# usually won't get return value
+	return $rc;
+}
+
+# This version does not die but just returns the error code
+sub mySystemNoDie {
+	my ($dir, @args) = @_;
+	if ($dir && ($dir ne "")) {
+		chdir($dir) or die "Could not change directory to $dir: $!";
+	}
+	my $cmd = $args[0];
+	# the system {$cmd} avoids some NT shell quoting problems if the $cmd
+	# needs to be quoted e.g. contains spaces; the map puts double quotes
+	# around the arguments on NT which are stripped by the command
+	# interpreter cmd.exe; but don't quote things which are already quoted
+	my @fixargs = map { /^[\"].*[\"]$/ ? $_ : $quote . $_ . $quote } @args;
+	my $rc = 0;
+	if ($cmd =~ /[.](bat|cmd)$/) {
+		# we have to pass batch files directly to the NT command interpreter
+		$cmd = $com_spec;
+#		print "system $cmd /c \"@fixargs\"\n";
+		$rc = 0xffff & system {$cmd} '/c', "\"@fixargs\"";
+	} else {
+#		print "system $cmd @fixargs\n";
+        $rc = 0xffff & system {$cmd} @fixargs;
+        }
+	chdir(${curdir})  or die "Could not change directory to $curdir: $!";
+	return $rc;
+}
+
+#############################################################################
+sub manyLdif2db {
+  my %rev_dbnames = reverse(%DBNAMES);
+  @backends = keys(%rev_dbnames);
+  $ENV{"$LIB_PATH"}="$root${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+  chdir($slapdExecDir)  or die "Could not change directory to $slapdExecDir: $!";
+  foreach $backend (@backends) {
+    my $ldif = "${ldif_rep}$backend.ldif" ;
+    &Ldif2db($ldif, $backend);
+  }
+  # remove the empty ldif directory 
+  rmdir($ldif_rep);
+  chdir($curdir)  or die "Could not change directory to $curdir: $!";
+}
+
+
+sub Ldif2db {
+  my $ldif    = shift ;
+  my $backend = shift ;
+  my $ldif2db_param = "ldif2db -D $serverHome -n $backend -i $ldif";
+  open(LDIF2DB, "${quote}${quote}$slapdExecName${quote} $ldif2db_param${quote} 2>&1 |") or die "Could not run ns-slapd program $ldif2db_exe\n";
+  sleep(1); # allow some data to accumulate in the pipe
+  while (<LDIF2DB>) {
+      printMsg($_);
+  }
+  close(LDIF2DB);
+  # remove the ldif file after the import
+  unlink($ldif) ;
+}
+
+#############################################################################
+
+#sub copyBak {
+#    opendir( OLDBAK, "$oldHome${PATHSEP}bak" ) || 
+#		die "Can't open directory $oldHome${PATHSEP}bak: $!: ";
+#    local ( @dirs ) = readdir( OLDBAK );
+#    closedir ( OLDBAK );
+#    for ( @dirs ) {
+#		if ( $_ eq "." || $_ eq ".." ) {
+#            next;
+#        } elsif ( -d "$oldHome${PATHSEP}bak${PATHSEP}$_" ) {
+#			$srcDir = "$oldHome${PATHSEP}bak${PATHSEP}$_";
+#			$destDir = "$serverHome${PATHSEP}bak${PATHSEP}$_";
+#			$srcLDIF = "$oldHome${PATHSEP}ldif${PATHSEP}bak.ldif";
+#			$destLDIF = "$serverHome${PATHSEP}ldif${PATHSEP}bak.ldif";
+#			mkdir( $destDir , 0755 ) if !( -e $destDir);
+#			# Converting database
+#			if ( !$isNT && $newuser ) {
+#				chown($newuid, $newgid, 
+#					  "$serverHome${PATHSEP}bak", $destDir);
+#			}
+#			&other_db2ldif($srcDir, $srcLDIF);
+#			if ($needAclUpg) {
+#				&mySystem("$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server",
+#						  "$root${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server" .
+#						  "${PATHSEP}aclupg$exe_suffix", '-d', '-i',
+#						  $srcLDIF, '-o', $destLDIF);
+#			} else {
+#				&copyBinFile($srcLDIF, $destLDIF);
+#			}
+#			&other_ldif2db($destLDIF, $destDir);
+#		}
+#	}
+#}
+#############################################################################
+
+sub startServer {
+  my $instanceDir = ${serverHome} ;
+  my $errLog = $instanceDir . $PATHSEP . 'logs' . $PATHSEP . 'errors';
+  # emulate tail -f
+  # if the last line we see does not contain "slapd started", try again
+  my $done = 0;
+  my $started = 0;
+  my $code = 0;
+  my $lastLine = "";
+  my $timeout = time + 240;	# 4 minutes
+  $ENV{"$LIB_PATH"}="${root}${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+
+  my $startCmd = $instanceDir . $PATHSEP . 'start' . $script_suffix;
+  if (! -f $startCmd) {
+    $startCmd = $instanceDir . $PATHSEP . 'start-slapd' . $script_suffix;
+  }
+  printTrace("\nInstanceDir: $instanceDir\n",4);
+  $code = &mySystem($instanceDir,$startCmd);
+  open(IN, $errLog) or die "Could not open error log $errLog: $!";
+  my $pos = tell(IN);
+  while (($done == 0) && (time < $timeout)) {
+    for (; ($done == 0) && ($_ = <IN>); $pos = tell(IN)) {
+      $lastLine = $_;
+      #			print;
+      # the server has already been started and shutdown once . . .
+      if (/slapd started\./) {
+	$started++;
+	if ($started == 2) {
+	  $done = 1;
+	}
+	# sometimes the server will fail to come up; in that case, restart it
+      } elsif (/Initialization Failed/) {
+	#				print "Server failed to start: $_";
+	$code = &mySystem($instanceDir, $startCmd);
+	# sometimes the server will fail to come up; in that case, restart it
+      } elsif (/exiting\./) {
+	#				print "Server failed to start: $_";
+	#$code = &mySystem($startCmd);
+	
+	$code = &mySystem($instanceDir, $startCmd);
+      }
+    }
+    if ($lastLine =~ /PR_Bind/) {
+      # server port conflicts with another one, just report and punt
+      print $lastLine;
+      print "This server cannot be started until the other server on this\n";
+      print "port is shutdown.\n";
+      $done = 1;
+    }
+    if ($done == 0) {
+      # rest a bit, then . . .
+      sleep(2);
+      # . . . reset the EOF status of the file desc
+      seek(IN, $pos, 0);
+    }
+  }
+  close(IN);
+
+  if ($started < 2) {
+    $! = $code;
+    #		$now = time;
+    #		if ($now > $timeout) {
+    #			print "Possible timeout: timeout=$timeout now=$now\n";
+    #		}
+    die "Error: could not start server: $!";
+  }
+
+  return 0;
+}
+
+sub stopServer {
+	my $root = shift;
+	my $name = shift;
+	$maxStopIterations = 5;
+	print "\nShutting down server $name . . .\n";
+	
+	$ENV{"$LIB_PATH"}="$root${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+	$stopCmd = $quote . $root . $PATHSEP . $name . $PATHSEP . 'stop' . $script_suffix . $quote;
+	if (! -f $stopCmd) {
+		$stopCmd = $quote . $root . $PATHSEP . $name . $PATHSEP . 'stop-slapd' . $script_suffix . $quote;
+	}
+
+	if (! -f $stopCmd) {
+		# no stop command, probably a 1.X system; for NT, we'll try net stop
+		# for unix, we'll get the pid and kill it
+		if ($isNT) {
+			$stopCmd = 'net stop ' . $name;
+		} else {
+			# see if there is a pid file
+			$pidfile = $root . $PATHSEP . $name . $PATHSEP . 'logs' .
+				$PATHSEP . 'pid';
+			if (open(PIDFILE, $pidfile)) {
+				chomp($pid = <PIDFILE>);
+				close(PIDFILE);
+				while ($maxStopIterations-- && !$exitCode) {
+					$exitCode = kill(15, $pid);
+				}
+				$stopCmd = undef;
+			}
+		}
+	}
+
+	# keep looping until the stop cmd returns an error code, which usually
+	# means that what ever we want to stop is stopped, or some other error
+	# occurred e.g. permission, or no such service
+	$exitCode = &runAndIgnoreOutput($stopCmd);
+#	print "stopServer: exitCode=$exitCode\n";
+	while ($stopCmd && $maxStopIterations-- && $exitCode) {
+		$exitCode = &runAndIgnoreOutput($stopCmd);
+#		print "stopServer: exitCode=$exitCode\n";
+	}
+
+	if (!$maxStopIterations) {
+		print "Warning: could not shutdown the server: $!\n";
+	}
+
+	sleep(10) ;
+
+	$exitCode = 0;
+
+}
+
+
+sub runAndIgnoreOutput {
+	my $cmd = shift;
+	printMsg(".");
+	open(RUNCMD, "${quote}$cmd${quote} 2>&1 |") or die "Error: could not run $cmd: $!";
+	printMsg(".");
+	sleep(1); # allow pipe to fill with data
+	printMsg(".");
+	while (<RUNCMD>) {
+#		print;
+	}
+	my $code = close(RUNCMD);
+#	print "runAndIgnore: code=$code status=$?\n";
+	return $?;
+}
+#############################################################################
+# migrate some of entries present in the old DSE.ldif like 
+# cn=snmp,cn=config
+# cn=encryption,cn=config
+# all the aci's
+
+sub MigrateDSE {
+  printTrace("\nMigrate DSE entries...",1);
+  open( DSELDIF, "< $oldDSEldif" ) || die "Can't open $oldDSEldif: $!: ";
+  my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+   while ($old_entry = readOneEntry $in) {
+        my $DN = $old_entry->getDN() ;
+	SWITCH: {
+	    # migrate the entrie: cn=snmp,cn=config
+	    if ($DN =~ /^cn=SNMP,cn=config$/i) {
+	      my $entry = $conn->search("$DN","base","objectclass=nsSNMP");
+	      if ($entry) {
+		my $res = $conn->update($old_entry);
+		if ($res) {
+		  printTrace("\n$DN updated !",2);
+		}
+		else {
+		  printMsg("\nFailed to update $DN");
+		}
+	      }
+	      else {
+		printMsg("\nUnable to get info under $DN");
+	      }
+	      last SWITCH; 
+	    }
+	    # migrate the entrie: cn=encryption,cn=config
+	    if ($DN =~ /cn=encryption,cn=config$/i) {
+	      if ($conn->search("$DN","base","objectclass=*")) {
+		my $res = $conn->update($old_entry);
+		if ($res) {
+		  printTrace("\n$DN updated !",2);
+		}
+		else {
+		  printMsg("\nFailed to update $DN");
+		}
+	      }
+	      else {
+		my $res = $conn->add($old_entry);
+		if ($res) {
+		  printTrace("\n$DN added !",2);
+		}
+		else {
+		  printMsg("\nFailed to add $DN");
+		}
+	      }
+	      last SWITCH; 
+	    }
+	    if (@{$old_entry->{aci}} && (! ($DN =~ /^cn=monitor$/i)) && (! ($DN =~ /^cn=schema$/i))) {
+	      # migrate aci's
+	      my $entry = $conn->search("$DN","base","objectclass=*");
+	      if ($entry) {
+		my $res = $conn->update($old_entry);
+		if ($res) {
+		  printTrace("\n$DN updated !",2);
+		}
+		else {
+		  printMsg("\nFailed to update $DN");
+		}
+	      }
+	      else {
+		my $res = $conn->add($old_entry);
+		if ($res) {
+		  printTrace("\n$DN added !",2);
+		}
+		else {
+		  printMsg("\nFailed to add $DN");
+		}
+	      }
+	      last SWITCH; 
+	    }
+	  }
+    }
+  close(DSELDIF);
+}
+#############################################################################
+# migrate SSL info
+
+sub MigrateSSL {
+  my $secPwd = 'bidon' ;
+  # copy the SSL directory
+  &copyDir("$oldHome${PATHSEP}ssl","$serverHome${PATHSEP}ssl");
+  # copy the cert db and key files
+  if ( -d "$oldDir${PATHSEP}alias") {
+    $aliasDir = "$root${PATHSEP}alias";
+    if (! -d $aliasDir) {
+      mkdir($aliasDir, 0750);
+    }
+    my $keydb         = "$aliasDir${PATHSEP}slapd-$newname-key3.db"  ;
+    my $certdb        = "$aliasDir${PATHSEP}slapd-$newname-cert7.db" ;
+    my $old_keydb     = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-key3.db" ;
+    my $old_certdb    = "$oldDir${PATHSEP}alias${PATHSEP}slapd-$oldname-cert7.db"; 
+    my $keydb_backup  = "$aliasDir${PATHSEP}slapd-$newname-key3.db_backup"  ;
+    my $certdb_backup = "$aliasDir${PATHSEP}slapd-$newname-cert7.db_backup" ;
+    if (-f $old_keydb) {
+    	if (-f $keydb) {
+	    if ($NO_INPUT_USER) {
+		printMsg("\n$keydb already exists. backup in $keydb_backup ...");
+		&copyBinFile($keydb,$keydb_backup);
+		&copyBinFile($old_keydb,$keydb);
+	    }
+	    else {
+		print("\n\n$keydb already exists. Do you want to overwrite it ? [no]: ");
+		my $answer = <STDIN> ;
+		if ($answer =~ /^y|yes$/i) {
+		    &copyBinFile($old_keydb,$keydb);
+		}
+	    }
+	}
+	else {
+	    &copyBinFile($old_keydb,$keydb);
+	}
+    }
+    if (-f $old_certdb) {
+	if (-f $certdb) {
+	    if ($NO_INPUT_USER) {
+		printMsg("\n$certdb already exists. backup in $certdb_backup ...");
+		&copyBinFile($certdb,$certdb_backup);
+		&copyBinFile($old_certdb,$certdb);
+	    }
+	    else {
+		print("\n\n$certdb already exists. Do you want to overwrite it ? [no]: ");
+		my $answer = <STDIN> ;
+		if ($answer =~ /^y|yes$/i) {
+		    &copyBinFile($old_certdb,$certdb);
+		}
+	    }
+	}
+	else {
+	    &copyBinFile($old_certdb,$certdb);
+	}
+    }
+    # copy the old password file
+    if (-f "$oldDir${PATHSEP}alias${PATHSEP}$type-$oldname-pin.txt") {
+      &copyBinFile(
+		   "$oldDir${PATHSEP}alias${PATHSEP}$type-$oldname-pin.txt",
+		   "$aliasDir${PATHSEP}$type-$newname-pin.txt"
+		  );
+    }
+  }
+
+}
+
+sub DisableSSL {
+  my $entry      = $conn->search("cn=config","base","objectclass=*");
+  my $LDAPparam =  "nsslapd-security" ;
+  my $Value     = "off" ;
+  if ($entry->{$LDAPparam}[0] ne $Value) { 
+    printTrace("\nDisable SSL...",1);
+    $entry->setValues($LDAPparam, $Value);
+  }
+  my $res = $conn->update($entry);
+  if ($res) {
+    printTrace("\nSSL disabled",2);
+  }
+  else {
+    printMsg("\nCan't disabled SSL. The server may have problems to start");
+  }
+}
+
+# enable the migration of client authentication informations
+sub MigrateCertmap {
+  # backup the old 5.x certmap.conf and replace it with the 4.x certmap.conf file
+  my $oldCertmap = "$oldDir${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf";
+  my $newCertmap = "$root${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf"  ;
+  my $backupCertmap = "$root${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf_backup" ;
+  if (&hasChangedoldCertmap($oldCertmap)) {
+      if ($NO_INPUT_USER) {
+	  printMsg("\n$newCertmap has been backup in $backupCertmap"); 
+	  &copyBinFile($newCertmap,$backupCertmap);
+	  &copyBinFile($oldCertmap,$newCertmap);
+      }
+      else {
+	  my $Ask = 1 ;  
+	  while ($Ask) {
+	      printMsg("\n\nWhere do you want to back up the file $newCertmap [$backupCertmap] ?") ;
+	      my $Answer = <STDIN> ;
+	      $backupCertmap = $Answer if ($Answer ne "\n");
+	      chomp($backupCertmap);
+	      printTrace("\nDest: .$backupCertmap.",4);
+	      if (-e $backupCertmap) {
+		  printMsg("\n\n$backupCertmap already exists. Do you want to overwrite it Yes/No [No] ?") ;
+		  if (<STDIN> =~ /yes|y/i) {
+		      $Ask = 0 ;
+		  }
+		  else {
+		      $backupCertmap = "$root${PATHSEP}shared${PATHSEP}config${PATHSEP}certmap.conf_backup" ;
+		  }
+	      }
+	      else {
+		  $Ask = 0 ;
+	      }
+	  }
+	  printTrace("\nBackup file: $newCertmap in $backupCertmap",4); 
+	  &copyBinFile($newCertmap,$backupCertmap);
+	  &copyBinFile($oldCertmap,$newCertmap);
+      }
+  }
+  else {
+  }
+}
+
+sub hasChangedoldCertmap {
+    my $certmapfile = shift ;
+    my @reference = ("certmap default         default",
+		     "default:DNComps",
+		     "default:FilterComps     e") ;
+    my $cpt = 0 ;
+    printTrace("\nhasChangedoldCertmap",3);
+    open(CERTMAP,"< $certmapfile");
+    while (<CERTMAP>) {
+	if ((! /^\s*#/) && (! /^\s*$/)) {
+	    my $ref = $reference[$cpt] ;
+	    printTrace("\nValue: $_, ref: $ref",4);
+	    if (! /^\s*$ref\s*$/) {
+		return 1 ;
+	    }
+	    else {
+		$cpt++ ;
+	    }
+	}
+    }
+    close (CERTMAP);
+    printTrace("\ncpt: $cpt",4);
+    if ($cpt < $#reference) {
+	return 1 ;
+    }
+    else {
+        return 0 ;
+    }	
+}
+#############################################################################
+# copy a directory to another
+
+sub copyDir {
+    my	$src = shift;
+    my	$dest = shift;
+	my  $exclude = shift;
+
+    opendir( SRC, $src ) or die "Can't open directory $src: $!: ";
+	my $mode;
+	my $uid;
+	my $gid;
+    mkdir ( $dest , 0755 ) or die "\nCan't create directory $dest. \nPlease check you have enough rights to create it and/or check that your parent directory exists.\n" if !( -e $dest );
+	if ($PRESERVE) {
+		$mode = (stat($src))[2];
+		($uid, $gid) = (stat(_))[4..5];
+		# Make sure files owned by the old user are owned by the
+		# new user
+		if ($uid == $olduid) {
+			$uid = $newuid;
+			$gid = $newgid;
+		}
+		chown $uid, $gid, $dest;
+		chmod $mode, $dest;
+	}
+    local ( @files ) = readdir ( SRC );
+    closedir( SRC );
+    for ( @files ) {
+		if ( $_ eq "." || $_ eq ".." ) {
+			next;
+		} elsif ( $exclude && /$exclude/ ) {
+			next;
+		} elsif( -d "$src${PATHSEP}$_")  {
+			&copyDir ( "$src${PATHSEP}$_", "$dest${PATHSEP}$_" ); 
+		} else {
+			&copyBinFile ( "$src${PATHSEP}$_", "$dest${PATHSEP}$_");
+		}
+    }
+}
+
+sub copyBinFile {
+    my	$src = shift;
+    my	$dest = shift;
+    my  $buf = "";
+	my  $bufsize = 8192;
+
+    open( SRC, $src ) || die "Can't open $src: $!\n";
+	# if we are given a directory destination instead of a file, extract the
+	# filename portion of the source to use as the destination filename
+	if (-d $dest) {
+		$dest = $dest . $PATHSEP . &basename($src);
+	}
+    open( DEST, ">$dest" ) || die "Can't create $dest: $!\n";
+    binmode SRC;
+    binmode DEST;
+	if ($PRESERVE) {
+		$mode = (stat($src))[2];
+		($uid, $gid) = (stat(_))[4..5];
+		# Make sure files owned by the old user are owned by the
+		# new user
+		if ($uid == $olduid) {
+			$uid = $newuid;
+			$gid = $newgid;
+		}
+		chown $uid, $gid, $dest;
+		chmod $mode, $dest;
+	}
+    while (read(SRC, $buf, $bufsize)) {
+		print DEST $buf;
+    }
+    close( SRC );
+    close( DEST );
+}
+#############################################################################
+# backup 5.x configuration files
+# backup the directory <root_server5>/slapd-instance/config dans <root_server5>/slapd-instance/BackupConfig
+
+sub backupConfigFiles {
+  # backup the 5.x config files
+  my $src = "$serverHome${PATHSEP}config" ;
+  my $dest = "$serverHome${PATHSEP}config_backup" ;
+  if ($NO_INPUT_USER) {
+      printMsg("\n$src has been backup in $dest"); 
+      &copyDir($src,$dest);
+  }
+  else {
+      my $Ask = 1 ;  
+      while ($Ask) {
+	  printMsg("\n\nWhere do you want to back up your configuration directory [$dest] ?") ;
+	  my $Answer = <STDIN> ;
+	  $dest = $Answer if ($Answer ne "\n");
+	  chomp($dest);
+	  printTrace("\nDest: .$dest.",4);
+	  if (-e $dest) {
+	      printMsg("\n\n$dest already exists. Do you want to overwrite it Yes/No [No] ?") ;
+	      if (<STDIN> =~ /yes|y/i) {
+		  $Ask = 0 ;
+	      }
+	      else {
+		  $dest = "$serverHome${PATHSEP}config_backup" ;
+	      }
+	  }
+	  else {
+	      $Ask = 0 ;
+	  }
+      }
+      printTrace("\nBackup Directory: $src in $dest",4); 
+      &copyDir($src,$dest);
+  }
+}
+#############################################################################
+
+sub getLDAPservername {
+    my $oldLDAPservername;
+    my $LDAPservername;
+    open(OLDSLAPDCONF, $oldSlapdConf) or
+	die "\nError: could not open old config file $oldSlapdConf \n";
+    while(<OLDSLAPDCONF>) {
+	chop;
+	if (/^localhost\s+/i) {
+	    ($oldLDAPservername = $') =~ s/^[\"]//;;
+	    $oldLDAPservername =~ s/[\"]$//;
+	    printTrace("\nName of the old LDAP server: $oldLDAPservername",3);
+        }
+    }
+    close(OLDSLAPDCONF);
+
+    open( DSELDIF, "< $DSEldif" ) || die "\nCan't open $DSEldif \n";
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+    while ($entry = readOneEntry $in) {
+        my $DN = $entry->getDN() ;
+	if ($DN =~ /^cn=config$/i) {
+	    my $localhost = "nsslapd-localhost";
+	    my @values = $entry->getValues($localhost);
+	    if ($#values != -1) {
+		$LDAPservername = $values[0];
+	    }
+	    break;
+	}	
+    } 
+    close(DSELDIF);
+    # check 4.x and 5.x are installed on the same physical machine.
+    if (lc($oldLDAPservername) ne lc($LDAPservername)) {
+ 	 # warn the user he tries to migrate a 4.x server installed on a different machine from the 5.x one
+       	 printMsg("\n\nYour 4.x server is on $oldLDAPservername, and your 5.x server is on $LDAPservername. We don't support migration on different machines. Do you want to continue ? Yes/No [No]:") ;
+       	 if (! (<STDIN> =~ /yes|y/i)) {
+       	     return -1;
+       	 }
+     }
+     return $LDAPservername ;       
+}
+
+#############################################################################
+
+sub getVersion {
+	my $dir      = shift;
+	my $version     = 0;
+	my $minor       = 0;
+	my $buildNumber = 0;
+	my $progDir     = "${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+	my $progDir2    = "${PATHSEP}bin${PATHSEP}slapd${PATHSEP}";
+
+	# find the slapd executable
+	$prog = $dir . $progDir . $slapdExecName;
+	if (! -f $prog) {
+	    $prog = $dir . $progDir2 . $slapdExecName;
+	    if (-f $prog && $isNT) {
+	       	# if slapd is in bin/slapd and we're on NT, just assume version 1;
+	       	# apparently, slapd.exe doesn't like the -v argument . . .
+	       	return ( '1', $minor );
+	    }
+	    else{
+		die "Could not run slapd program $prog: $!";
+	    }
+	}
+	else {
+	    chdir($dir . $progDir);
+	}
+	$ENV{"$LIB_PATH"}="$dir${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+	# read the old version from the old slapd program
+
+	open(F, "${quote}${quote}$prog${quote} -v${quote} 2>&1 |") or
+		die "Could not run slapd program $prog: $!";
+	sleep(1); # allow some data to accumulate in the pipe
+#	print "Output from $prog -v:\n";
+	while (<F>) {
+		print;
+		if (/^Netscape-Directory\/(\d+)\.(\d+)\s+(\S+)/) {
+			$version     = $1;
+			$minor       = $2;
+			$buildNumber = $3;
+			last;
+		}
+		elsif (/^Netscape-Directory\(restrict?ed-mode\)\/(\d+)\.(\d+)\s+(\S+)/) { # we can have restricted-mode or restriced-mode ...
+		        $version     = $1;
+			$minor       = $2;
+			$buildNumber = $3;
+			last;
+		}
+		elsif (/^iPlanet-Directory\/(\d+)\.(\d+)\s+(\S+)/i) {
+			$version     = $1;
+			$minor       = $2;
+			$buildNumber = $3;
+			last;
+		}
+	}
+	$code = close(F);
+#	print "$prog returned code=$code status=$?\n";
+	$ENV{"$LIB_PATH"}="$root${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
+	
+	if ($version == 0) {
+	    printMsg("\nCould not determine version of the directory server in $dir: ");
+	    printMsg("\nBe careful, this script is designed to migrate only from 4.x Netscape Directory Server to 5.x. Do you want to continue ? [no]: ");
+	    my $answer = <STDIN> ;
+	    if (! ($answer =~ /y|yes/i)) {
+		exit(1);
+	    }
+	    $version = 4 ; # setup to 4 and pray ...
+	}
+
+	# distinguish the 4.1 and the 4.11 thanks to the buildNumber
+	if (($version == 4) && ($minor == 1)){
+	    if (! ($buildNumber =~ /^B99\.16/)) {
+		# it's not a 4.1 Netscape Directory Server => it's a 4.11
+		$minor = 11 ;
+	    }
+	}
+	return ( $version, $minor );
+}
+
+#############################################################################
+
+sub getDiff {
+    # we get references to arrays
+    my $elements = shift ; 
+    my $existing_elements = shift ;
+    my %count   = () ;
+    my %countEE = () ;
+    @diff       = () ;
+    foreach $e (@{$elements}, @{$existing_elements}) { $count{$e}++ ;}
+    foreach $e (@{existing_elements}) { $countEE{$e}++ ;}
+    foreach $e (@{$elements}) {
+	# if $e is only present in @$elements, we push it to the diff array
+	if (($count{$e} == 1) && ($countEE{$e} == 0)) {
+	    push @diff, $e ;
+	}
+    }
+    return @diff ;
+}
+
+###############################################################################################
+sub testIndexUpdating {
+         #my $entry = $conn->newEntry();
+	 #$entry->setDN("cn=djeattribute,cn=index,cn=MigratedDB_5,cn=ldbm database,cn=plugins,cn=config");
+         my $entry = $conn->search("cn=mail,cn=index,cn=MigratedDB_2,cn=ldbm database,cn=plugins,cn=config","base","objectclass=nsIndex");
+         my @types = ("pres", "sub", "eq") ;
+         my @existing_types = $entry->getValues("nsindextype");
+          my @typesToAdd     = &getDiff(\@types, \@existing_types);
+	  foreach $newtype (@typesToAdd) {
+	      $entry->addValue("nsindextype", $newtype); printTrace("\nnewtype: $newtype",2); 
+	  }
+	  my $res = $conn->update($entry) ;
+         if ($res) {print("\nUpdate index mail\n");}
+         else { print("\ncan't update index mail");}
+
+         $entry = $conn->search("cn=givenName,cn=index,cn=MigratedDB_2,cn=ldbm database,cn=plugins,cn=config","base","objectclass=nsIndex");
+         @types = ("pres", "sub", "eq") ;
+         @existing_types = $entry->getValues("nsindextype"); print("\ngivenName, existing_types: @existing_types");
+         @typesToAdd     = &getDiff(\@types, \@existing_types); print("\nTypesToAdd: @typesToAdd");
+	  foreach $newtype (@typesToAdd) {
+	      $entry->addValue("nsindextype", $newtype); printTrace("\nnewtype: $newtype",2); 
+	  }
+	  my $res = $conn->update($entry) ;
+         if ($res) {print("\nUpdate index givenName\n");}
+         else { print("\ncan't update index givenName");}
+     }
+
+
+###############################################################################################
+sub normalizeDir {
+    my $dir = shift ;
+    my $dir_prec = "" ;
+    while ($dir_prec ne $dir) {
+	$dir_prec = $dir ;
+	if ($isNT) {
+	    grep { s@\\\\@\\@g } $dir ;
+        }
+        else {
+	    grep { s@//@/@g } $dir ;
+        }
+    }
+    return $dir ;
+}
+
+
+###############################################################################################
+# return 1 if the value parameters is 
+sub isAllowedPlugin {
+    my $Value = lc(shift) ;
+    if ($allowedPlugins{$Value}) {
+	return 1 ;
+    }
+    else {
+	return 0 ;
+    }
+   
+}
+
+
+sub getSyntaxOid {
+    my $Value = lc(shift) ;
+    return $allowedPlugins{$Value} ;
+}
+
+###############################################################################################
+# return 1 if the value given in parameters is an allowed modifier
+sub isAllowedModifier {
+    my $Value = lc(shift) ;
+    if ($allowedModifiers{$Value}) {
+	return 1 ; 
+    }
+    else {
+	return 0 ;
+    }
+}
+
+sub getModifierValue {
+    my $Value = lc(shift) ;
+    return $allowedModifiers{$Value} ;
+}
+
+###############################################################################################
+
+sub GetTime {
+    my $tm = localtime;
+    (my $sec, my $min, my $hour, my $dd, my $mm, my $yy) = ($tm->sec, $tm->min, $tm->hour, $tm->mday, ($tm->mon)+1, ($tm->year)+1900);
+    $sec  = "0$sec"  unless $sec > 9  ;
+    $min  = "0$min"  unless $min > 9  ;
+    $hour = "0$hour" unless $hour > 9 ;
+    $dd   = "0$dd"   unless $dd > 9   ;
+    $mm   = "0$mm"   unless $mm > 9   ;
+    return ($sec, $min, $hour, $dd, $mm, $yy);
+}
+
+###############################################################################################
+# get uid and group id of the 5.x slapd server.
+# The uid is done through the nsslapd-localuser attribute
+
+sub getuid_gid {
+    my $newuid ;
+    my $newgid ;
+    my $localuser ;
+    my $localuser_attr = "nsslapd-localuser" ;
+    if (! $isNT) {
+	my $entry = $conn->search("cn=config ", "base","objectclass=*", 0, ($localuser_attr)) ;
+	# Tests wether we succeed to get the entry cn=config
+	die "\nCan't get the entry cn=config \n" unless ($entry);     
+	my @values = $entry->getValues($localuser_attr);
+	if ($#values == -1 || ($values[0] eq "") ) { # tests wether the nsslapd-localuser attribute has a value
+	    printMsg("\nNo localuser has been found in the configuration of the directory. ");
+	    if ($NO_INPUT_USER) {
+		printMsg("\nWe considered nobody as the localuser");
+		$localuser = "nobody" ;
+	    }
+	    else {
+		my $Ask = 1 ;  
+		while ($Ask) {
+		    printMsg("\nUnder what user does your $Version.$Minor directory server run [nobody] ? ") ;
+		    $localuser = <STDIN> ;
+		    chomp($localuser);
+		    $localuser = "nobody" if ($localuser eq "");
+		    ($newuid, $newgid) = (getpwnam("$localuser"))[2..3] ;
+		    if ($newuid) {
+			$Ask = 0 ;
+		    }
+		    else {
+			printMsg("\nError: $localuser is unknown from the system ");
+		    }
+		}
+	    }	
+	}
+	else {
+	    $localuser = $values[0]; # returns the first value (we should only have one localuser)
+	    my $size = $#values ;
+	}
+	($newuid, $newgid) = (getpwnam("$localuser"))[2..3] ; 
+	return ($localuser, $newuid, $newgid) ;
+    }
+    else {
+	return () ;
+    }
+}
+
+
+###############################################################################################
+# get uid and group id of the 4.x slapd server.
+
+sub getolduid_gid {
+    my $oldlocaluser ;
+    if (! $isNT) {
+       	open(CONF,  $oldSlapdConf) or die "\nError: cannot open $oldSlapdConf: $!\n";
+       	while (<CONF>) {
+       		if (/^localuser\s+/i) {
+       			chomp($oldlocaluser = $');
+       			last;
+       		}
+       	}
+       	close(CONF);
+	($olduid, $oldgid) = (getpwnam("$oldlocaluser"))[2..3] ; 
+	return ($oldlocaluser, $olduid, $oldgid) ; 
+    }
+    else {
+	return ();
+    }
+}
+
+###############################################################################################
+# get current directory
+
+sub getCwd {
+        my $command = $isNT ? "cd" : "/bin/pwd";
+        open(PWDCMD, "$command 2>&1 |") or
+                die "Error: could not execute $command: $!";
+        # without the following sleep, reading from the pipe will
+        # return nothing; I guess it gives the pwd command time
+        # to get some data to read . . .
+        sleep(1);
+        my $currentdir;
+        while (<PWDCMD>) {
+                if (!$currentdir) {
+                        chomp($currentdir = $_);
+                }
+        }
+        my $code = close(PWDCMD);
+#       if ($code || $?) {
+#               print "$command returned code=$code status=$? dir=$curdir\n";
+#       }
+#       print "getCwd curdir=\[$curdir\]\n";
+        return $currentdir;
+}

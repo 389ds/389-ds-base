@@ -1,0 +1,49 @@
+;-------------------------------------------------------------------------
+; PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+; license terms. Copyright © 2001 Sun Microsystems, Inc.
+; Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+; All rights reserved.
+;-------------------------------------------------------------------------
+; -------------------------------------------MAPPINGS
+; CGIScriptName = HTMLfile#AnchorName
+; last update, sarette 10/10
+;-------------------------------------------PROGRAMS
+;
+;
+SEARCHING	= search.htm
+SMARTSEARCH	= search.htm#Performing a Standard Search
+ASEARCH		= search.htm#Performing an Advanced Search
+
+AUTHENTICATING	= auth.htm
+AUTHHELP_ID 	= auth.htm#userauth
+AUTHHELP_PW	= auth.htm#userauth
+UNAUTH		= auth.htm#logout
+AUTHPROBLEM	= auth.htm#incorrectauth
+AUTHSUCCESS	= auth.htm#authsuccess
+AUTHEXPIRED	= auth.htm#reauth
+AUTHMULTMATCH	= auth.htm#userauth
+
+EDITING		= mod.htm
+EDIT_GROUP	= mod.htm#groups
+EDIT_NTGROUP    = mod.htm#NTgroups
+EDIT_GROUPMEM   = mod.htm#addowner
+EDIT_PERSON	= mod.htm#people
+EDIT_NTPERSON	= mod.htm#ntpeople
+EDIT_ORG	= mod.htm#o
+EDIT_ORGPERSON	= mod.htm#people
+EDIT_ORGUNIT	= mod.htm#ou
+MODIFYPASSWD	= mod.htm#changepw
+EDIT_PERSON_REF = mod.htm#addmanager
+
+ADDING		= add.htm
+ADD_NOPARENT	= add.htm#tree
+ADD_GROUP	= add.htm#group
+ADD_NTGROUP     = add.htm#NTgroup
+ADD_PERSON	= add.htm#person
+ADD_NTPERSON	= add.htm#NTperson
+ADD_ORG		= add.htm#o
+ADD_ORGPERSON	= add.htm#person
+ADD_ORGUNIT	= add.htm#ou
+ENTRYEXISTS     = add.htm#uniqueDN
+
+contents 	= contents.html

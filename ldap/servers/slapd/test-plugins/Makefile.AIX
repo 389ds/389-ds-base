@@ -1,0 +1,36 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# AIX Makefile for Directory Server plug-in examples
+
+INCLUDE_FLAGS= -I../include
+CFLAGS= $(INCLUDE_FLAGS) -D_THREAD_SAFE -qansialias -langlvl=ansi -qro -qroconst -qarch=com 
+LIBPATH=/usr/lib/threads:/usr/lpp/xlC/lib:/usr/lib:/lib:..:../../../../lib
+EXTRA_LIBS= -bI:/usr/lib/lowsys.exp -lC_r -lC -lpthreads -lc_r -lm \
+	/usr/lib/libc.a
+LDFLAGS= -bE:libtest-plugin_shr.exp -G -bnoentry -blibpath:$(LIBPATH) \
+	$(EXTRA_LIBS)
+
+OBJS = testsaslbind.o testextendedop.o testpreop.o testpostop.o testentry.o testbind.o testgetip.o testdatainterop.o testdbinterop.o
+
+all: libtest-plugin.so
+
+
+libtest-plugin.so: $(OBJS)
+	rm -f libtest-plugin_shr.exp
+	echo "#!" > libtest-plugin_shr.exp
+	nm -B -C -g $(OBJS) | \
+		awk '/ [B,T,D] / {print $$3}' | \
+		sed -e 's/^\.//' | sort -u >> libtest-plugin_shr.exp
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin.so libtest-plugin_shr.exp
+

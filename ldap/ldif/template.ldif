@@ -1,0 +1,83 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+dn: %%%SUFFIX%%%
+objectclass: top
+aci: (targetattr ="*")(version 3.0;
+ acl "Configuration Administrators Group";allow (all) (groupdn = "ldap:///
+ cn=Configuration Administrators, ou=Groups, ou=TopologyManagement, o=NetscapeRoot");)
+aci: (targetattr ="*")(version 3.0;
+ acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///
+ ou=Directory Administrators, %%%SUFFIX%%%");)
+
+dn: cn=Directory Administrators, %%%SUFFIX%%%
+objectClass: top
+objectClass: groupofuniquenames
+cn: Directory Administrators
+
+dn: ou=Groups, %%%SUFFIX%%%
+objectclass: top
+objectclass: organizationalunit
+ou: Groups
+
+dn: ou=People, %%%SUFFIX%%%
+objectclass: top
+objectclass: organizationalunit
+ou: People
+aci: (targetattr ="userpassword || te
+ lephonenumber || facsimiletelephonenumber")(version 3.0;acl "Allow self entry 
+ modification";allow (write)(userdn = "ldap:///self");)
+aci: (targetattr !="cn || sn || uid")(t
+ argetfilter ="(ou=Accounting)")(version 3.0;acl "Accounting Managers G
+ roup Permissions";allow (write)(groupdn = "ldap:///cn=Accounting Managers,ou
+ =groups,%%%SUFFIX%%%");)
+aci: (targetattr !="cn || sn || uid")(t
+ argetfilter ="(ou=Human Resources)")(version 3.0;acl "HR Group Permiss
+ ions";allow (write)(groupdn = "ldap:///cn=HR Managers,ou=groups,%%%SUFFIX%%%
+ ");)
+aci: (targetattr !="cn ||sn || uid")(t
+ argetfilter ="(ou=Product Testing)")(version 3.0;acl "QA Group Permiss
+ ions";allow (write)(groupdn = "ldap:///cn=QA Managers,ou=groups,%%%SUFFIX%%%
+ ");)
+aci: (targetattr !="cn || sn || uid")(t
+ argetfilter ="(ou=Product Development)")(version 3.0;acl "Engineering 
+ Group Permissions";allow (write)(groupdn = "ldap:///cn=PD Managers,ou=groups
+ ,%%%SUFFIX%%%");)
+
+dn: ou=Special Users,%%%SUFFIX%%%
+objectclass: top
+objectclass: organizationalUnit
+ou: Special Users
+description: Special Administrative Accounts
+
+dn: cn=Accounting Managers,ou=groups,%%%SUFFIX%%%
+objectclass: top
+objectclass: groupOfUniqueNames
+cn: Accounting Managers
+ou: groups
+description: People who can manage accounting entries
+
+dn: cn=HR Managers,ou=groups,%%%SUFFIX%%%
+objectclass: top
+objectclass: groupOfUniqueNames
+cn: HR Managers
+ou: groups
+description: People who can manage HR entries
+
+dn: cn=QA Managers,ou=groups,%%%SUFFIX%%%
+objectclass: top
+objectclass: groupOfUniqueNames
+cn: QA Managers
+ou: groups
+description: People who can manage QA entries
+
+dn: cn=PD Managers,ou=groups,%%%SUFFIX%%%
+objectclass: top
+objectclass: groupOfUniqueNames
+cn: PD Managers
+ou: groups
+description: People who can manage engineer entries

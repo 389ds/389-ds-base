@@ -1,0 +1,38 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "Search for Organizational Units" -->
+<CENTER><FONT SIZE=+1>
+<!-- DS_SEARCHDESC -->
+</FONT></CENTER>
+<P>
+
+<!-- IF "FoundEntries" -->
+<TABLE BORDER=1 CELLPADDING=4 WIDTH=100%>
+<TR><TH>Departamento <TH>Descripci&oacute;n <TH>N&uacute;mero de tel&eacute;fono
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" -->
+<TD>
+<!-- DS_ATTRIBUTE "attr=description" -->
+<TD>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" -->
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<CENTER><FONT SIZE=+1>
+Pruebe con otra b&uacute;squeda.
+</FONT></CENTER>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->

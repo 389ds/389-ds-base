@@ -1,0 +1,122 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML><HEAD>
+<SCRIPT LANGUAGE="JavaScript">
+
+function setDeleteCheckboxes(attr, checked)
+{
+    var varName = 'delete_' + attr;
+
+    for ( i = 0; i < document.modifyEntryForm.elements.length; ++i ) {
+	if ( document.modifyEntryForm.elements[i].name == varName ) {
+	    document.modifyEntryForm.elements[i].checked = checked;
+	}
+    }
+    aChg(attr);
+}
+
+</SCRIPT>
+<!-- DS_OBJECTCLASS "value=groupOfNames" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+New
+<!-- ENDIF // Adding -->
+Group Entry -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT><HR>" -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+New Group -
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="groupOfNames">
+<!-- ENDIF // Adding -->
+
+<!-- IF "!Displaying" -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="if (dsmodify_dn.length == 0) document.location.href=\'genscreen?dslsgroups&info=\' + escape(dsmodify_info); else document.location.href=\'edit/\' + dsmodify_dn + \'?&info=\' + escape(dsmodify_info);">
+<DIV ALIGN="right"><FONT SIZE="-1">* Indicates a required field</FONT></DIV>
+<!-- ENDIF -->
+
+
+<TABLE CELLSPACING="5">
+<TR>
+<TD ALIGN="right" NOWRAP>
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+<B>Name:</B>
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" "cols=>40" -->
+</B></TD><TD WIDTH="20%"></TD>
+</TR>
+
+<TR>
+<TD ALIGN="right" NOWRAP><B>Description:</B></TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>40" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP ALIGN="right" VALIGN="top"><B>Group Members:</B><BR>
+<!-- DS_DNEDITBUTTON "label=Edit..." "template=dnedit" "attr=member" "desc=Group Members" -->
+</TD><TD>
+<!-- DS_ATTRIBUTE "attr=member" "syntax=dn" "dncomponents=2" "options=readonly,sort"  -->
+</TD></TR>
+
+<TR>
+<TD VALIGN="top" ALIGN="right" NOWRAP><B>Owner:</B><BR>
+<!-- DS_DNEDITBUTTON "label=Edit..." "template=dnedit" "attr=owner" "desc=Owner" -->
+</TD><TD>
+<!-- DS_ATTRIBUTE "attr=owner" "syntax=dn" "dncomponents=2" "options=readonly" -->
+</TD>
+</TD></TR>
+
+<TR>
+<TD VALIGN="top" ALIGN="right" NOWRAP><B>See Also:</B><BR>
+<!-- DS_DNEDITBUTTON "label=Edit..." "template=dnedit" "attr=seeAlso" "desc=See Also" -->
+</TD><TD>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "dncomponents=2" "options=readonly" -->
+</TABLE></TD>
+</TD></TR>
+
+</TABLE>
+
+<!-- IF "AttributeHasValues" "modifyTimestamp" -->
+<TABLE BORDER=0><TR><TD><FONT SIZE="-1">
+Last modified on
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "options=readonly" -->
+ by
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "options=readonly" -->
+</FONT></TD></TR></TABLE>
+<!-- ENDIF // AttributeHasValues -->
+
+<TABLE BORDER=2 WIDTH=100%><TR><TD WIDTH=25% ALIGN="center">
+<!-- DS_SAVEBUTTON -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_RENAMEBUTTON "label=Rename Group" "prompt=Enter a new name for this group:" -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_DELETEBUTTON "label=Delete Group" "prompt=Delete this group?" -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_HELPBUTTON "topic=EDIT_GROUP" -->
+</TD></TR></TABLE>
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+<!-- ENDHTML -->

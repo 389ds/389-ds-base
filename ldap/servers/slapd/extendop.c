@@ -1,0 +1,297 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+/* extendedop.c - handle an LDAPv3 extended operation */
+
+#include <stdio.h>
+#include "slap.h"
+
+static const char *extended_op_oid2string( const char *oid );
+
+
+/********** this stuff should probably be moved when it's done **********/
+
+static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
+                                      struct berval *extval)
+{
+    char *suffix;
+    Slapi_DN *sdn = NULL;
+    Slapi_Backend *be = NULL;
+    struct berval bv;
+    int ret;
+
+    if (extval == NULL || extval->bv_val == NULL) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "extop_handle_import_start: no data supplied\n", 0, 0, 0);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, 
+                         "no data supplied", 0, NULL);
+        return;
+    }
+    suffix = slapi_ch_malloc(extval->bv_len+1);
+    strncpy(suffix, extval->bv_val, extval->bv_len);
+    suffix[extval->bv_len] = 0;
+
+    sdn = slapi_sdn_new_dn_byval(suffix);
+    if (!sdn) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "extop_handle_import_start: out of memory\n", 0, 0, 0);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        return;
+    }
+    /*    be = slapi_be_select(sdn); */
+    be = slapi_mapping_tree_find_backend_for_sdn(sdn);
+    slapi_sdn_free(&sdn);
+    if (be == NULL || be == defbackend_get_backend()) {
+        /* might be instance name instead of suffix */
+        be = slapi_be_select_by_instance_name(suffix);
+    }
+    if (be == NULL || be == defbackend_get_backend()) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "bulk import: invalid suffix or instance name '%s'\n",
+                  suffix, 0, 0);
+        send_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, 
+                         "invalid suffix or instance name", 0, NULL);
+        goto out;
+    }
+
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
+	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
+	
+	{
+		/* Access Control Check to see if the client is
+		 *  allowed to use task import
+		 */
+		char *dummyAttr = "dummy#attr";
+		char *dummyAttrs[2] = { NULL, NULL };
+		int rc = 0;
+		char dn[128];
+		Slapi_Entry *feature;
+
+		/* slapi_str2entry modify its dn parameter so we must copy
+		 * this string each time we call it !
+		 */
+		sprintf(dn, "dn: oid=%s,cn=features,cn=config",
+			EXTOP_BULK_IMPORT_START_OID);
+
+		dummyAttrs[0] = dummyAttr;
+		feature = slapi_str2entry(dn, 0);
+		rc = plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL,
+			 SLAPI_ACL_WRITE, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+		slapi_entry_free(feature);
+		if (rc != LDAP_SUCCESS)
+		{
+			/* Client isn't allowed to do this. */
+			send_ldap_result(pb, rc, NULL, NULL, 0, NULL);
+			goto out;
+		}
+	}
+
+    if (be->be_wire_import == NULL) {
+        /* not supported by this backend */
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "bulk import attempted on '%s' (not supported)\n",
+                  suffix, 0, 0);
+        send_ldap_result(pb, LDAP_NOT_SUPPORTED, NULL, NULL, 0, NULL);
+        goto out;
+    }
+
+    ret = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &ret);
+    ret = SLAPI_BI_STATE_START;
+    slapi_pblock_set(pb, SLAPI_BULK_IMPORT_STATE, &ret);
+    ret = (*be->be_wire_import)(pb);
+    if (ret != 0) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "extop_handle_import_start: error starting import (%d)\n",
+                  ret, 0, 0);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        goto out;
+    }
+
+    /* okay, the import is starting now -- save the backend in the
+     * connection block & mark this connection as belonging to a bulk import
+     */
+    PR_Lock(pb->pb_conn->c_mutex);
+    pb->pb_conn->c_flags |= CONN_FLAG_IMPORT;
+    pb->pb_conn->c_bi_backend = be;
+    PR_Unlock(pb->pb_conn->c_mutex);
+
+    slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, EXTOP_BULK_IMPORT_START_OID);
+    bv.bv_val = NULL;
+    bv.bv_len = 0;
+    slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, &bv);
+    send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+    LDAPDebug(LDAP_DEBUG_ANY,
+              "Bulk import: begin import on '%s'.\n", suffix, 0, 0);
+
+out:
+    slapi_ch_free((void **)&suffix);
+    return;
+}
+
+static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
+                                     struct berval *extval)
+{
+    Slapi_Backend *be;
+    struct berval bv;
+    int ret;
+
+    PR_Lock(pb->pb_conn->c_mutex);
+    pb->pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
+    be = pb->pb_conn->c_bi_backend;
+    pb->pb_conn->c_bi_backend = NULL;
+    PR_Unlock(pb->pb_conn->c_mutex);
+
+    if ((be == NULL) || (be->be_wire_import == NULL)) {
+        /* can this even happen? */
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "extop_handle_import_done: backend not supported\n",
+                  0, 0, 0);
+        send_ldap_result(pb, LDAP_NOT_SUPPORTED, NULL, NULL, 0, NULL);
+        return;
+    }
+
+    /* signal "done" to the backend */
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
+    slapi_pblock_set(pb, SLAPI_BULK_IMPORT_ENTRY, NULL);
+    ret = SLAPI_BI_STATE_DONE;
+    slapi_pblock_set(pb, SLAPI_BULK_IMPORT_STATE, &ret);
+    ret = (*be->be_wire_import)(pb);
+    if (ret != 0) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "bulk import: error ending import (%d)\n",
+                  ret, 0, 0);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        return;
+    }
+
+    /* more goofiness */
+    slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, EXTOP_BULK_IMPORT_DONE_OID);
+    bv.bv_val = NULL;
+    bv.bv_len = 0;
+    slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, &bv);
+    send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+    LDAPDebug(LDAP_DEBUG_ANY,
+              "Bulk import completed successfully.\n", 0, 0, 0);
+    return;
+}
+
+
+void
+do_extended( Slapi_PBlock *pb )
+{
+	char			*extoid = NULL,	*errmsg;
+	struct berval	extval = {0};
+	int				lderr, rc;
+	unsigned long	len, tag;
+	const char		*name;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "do_extended\n", 0, 0, 0 );
+
+	/*
+	 * Parse the extended request. It looks like this:
+	 *
+	 *	ExtendedRequest := [APPLICATION 23] SEQUENCE {
+	 *		requestName	[0]	LDAPOID,
+	 *		requestValue	[1]	OCTET STRING OPTIONAL
+	 *	}
+	 */
+
+	if ( ber_scanf( pb->pb_op->o_ber, "{a", &extoid )
+	    == LBER_ERROR ) {
+		LDAPDebug( LDAP_DEBUG_ANY,
+		    "ber_scanf failed (op=extended; params=OID)\n",
+		    0, 0, 0 );
+		op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension OID");
+		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
+		    NULL );
+		goto free_and_return;
+	}
+	tag = ber_peek_tag(pb->pb_op->o_ber, &len);
+
+	if (tag == LDAP_TAG_EXOP_REQ_VALUE) {
+		if ( ber_scanf( pb->pb_op->o_ber, "o}", &extval ) == LBER_ERROR ) {
+			op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension value");
+			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
+							  NULL );
+			goto free_and_return;
+		}
+	} else {
+		if ( ber_scanf( pb->pb_op->o_ber, "}") == LBER_ERROR ) {
+			op_shared_log_error_access (pb, "EXT", "???", "decoding error"); 
+			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
+							  NULL );
+			goto free_and_return;
+		}
+	}
+	if ( NULL == ( name = extended_op_oid2string( extoid ))) {
+		LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s)\n", extoid, 0, 0 );
+
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d EXT oid=\"%s\"\n",
+				pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
+	} else {
+		LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s-%s)\n",
+				extoid, name, 0 );
+
+		slapi_log_access( LDAP_DEBUG_STATS,
+			"conn=%d op=%d EXT oid=\"%s\" name=\"%s\"\n",
+			pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
+	}
+
+	/* during a bulk import, only BULK_IMPORT_DONE is allowed! 
+	 * (and this is the only time it's allowed)
+	 */
+	if (pb->pb_conn->c_flags & CONN_FLAG_IMPORT) {
+		if (strcmp(extoid, EXTOP_BULK_IMPORT_DONE_OID) != 0) {
+			send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+			goto free_and_return;
+		}
+		extop_handle_import_done(pb, extoid, &extval);
+		goto free_and_return;
+	}
+	
+	if (strcmp(extoid, EXTOP_BULK_IMPORT_START_OID) == 0) {
+		extop_handle_import_start(pb, extoid, &extval);
+		goto free_and_return;
+	}
+
+	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
+	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
+	rc = plugin_call_exop_plugins( pb, extoid );
+
+	if ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT != rc ) {
+		if ( SLAPI_PLUGIN_EXTENDED_NOT_HANDLED == rc ) {
+			lderr = LDAP_PROTOCOL_ERROR;	/* no plugin handled the op */
+			errmsg = "unsupported extended operation";
+		} else {
+			errmsg = NULL;
+			lderr = rc;
+		}
+		send_ldap_result( pb, lderr, NULL, errmsg, 0, NULL );
+	}
+free_and_return:
+	if (extoid)
+		slapi_ch_free((void **)&extoid);
+	if (extval.bv_val)
+		slapi_ch_free((void **)&extval.bv_val);
+	return;
+}
+
+
+static const char *
+extended_op_oid2string( const char *oid )
+{
+	const char *rval = NULL;
+
+	if ( 0 == strcmp(oid, EXTOP_BULK_IMPORT_START_OID)) {
+		rval = "Netscape Bulk Import Start";
+	} else if ( 0 == strcmp(oid, EXTOP_BULK_IMPORT_DONE_OID)) {
+		rval = "Netscape Bulk Import End";
+	} else {
+		rval = plugin_extended_op_oid2string( oid );
+	}
+
+	return( rval );
+}

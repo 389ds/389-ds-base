@@ -1,0 +1,13 @@
+;-------------------------------------------------------------------------
+; PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+; license terms. Copyright 2001 Sun Microsystems, Inc.
+; Some preexisting portions Copyright 2001 Netscape Communications Corp.
+; All rights reserved.
+;-------------------------------------------------------------------------
+DESCRIPTION     'Netscape Directory Server Http Client'
+EXPORTS
+	http_client_init        @2
+	plugin_init_debug_level	@3
+	http_client_version		@4
+
+

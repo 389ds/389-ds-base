@@ -1,0 +1,42 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema used by Netscape Administration Services
+#
+dn: cn=schema
+attributeTypes: ( nsAdminCgiWaitPid-oid NAME 'nsAdminCgiWaitPid' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminUsers-oid NAME 'nsAdminUsers' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminAccessHosts-oid NAME 'nsAdminAccessHosts' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminAccessAddresses-oid NAME 'nsAdminAccessAddresses' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminOneACLDir-oid NAME 'nsAdminOneACLDir' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminEnableDSGW-oid NAME 'nsAdminEnableDSGW' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminEnableEnduser-oid NAME 'nsAdminEnableEnduser' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminCacheLifetime-oid NAME 'nsAdminCacheLifetime' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminAccountInfo-oid NAME 'nsAdminAccountInfo' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsDeleteclassname-oid NAME 'nsDeleteclassname' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsAdminEndUserHTMLIndex-oid NAME 'nsAdminEndUserHTMLIndex' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsUniqueAttribute-oid NAME 'nsUniqueAttribute' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsUserIDFormat-oid NAME 'nsUserIDFormat' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsUserRDNComponent-oid NAME 'nsUserRDNComponent' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsGroupRDNComponent-oid NAME 'nsGroupRDNComponent' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsWellKnownJarfiles-oid NAME 'nsWellKnownJarfiles' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsNYR-oid NAME 'nsNYR' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsDefaultObjectClass-oid NAME 'nsDefaultObjectClass' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsPreference-oid NAME 'nsPreference' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsDisplayName-oid NAME 'nsDisplayName' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+attributeTypes: ( nsViewConfiguration-oid NAME 'nsViewConfiguration' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsAdminServer-oid NAME 'nsAdminServer' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsServerID ) MAY ( description ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsAdminConfig-oid NAME 'nsAdminConfig' DESC 'Netscape defined objectclass' SUP nsConfig MAY ( nsAdminCgiWaitPid $ nsAdminUsers $ nsAdminAccessHosts $ nsAdminAccessAddresses $ nsAdminOneACLDir $ nsAdminEnableDSGW $ nsAdminEnableEnduser $ nsAdminCacheLifetime ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsAdminResourceEditorExtension-oid NAME 'nsAdminResourceEditorExtension' DESC 'Netscape defined objectclass' SUP nsAdminObject MUST ( cn ) MAY ( nsAdminAccountInfo $ nsDeleteclassname ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsAdminGlobalParameters-oid NAME 'nsAdminGlobalParameters' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsAdminEndUserHTMLIndex $ nsNickname ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsGlobalParameters-oid NAME 'nsGlobalParameters' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsUniqueAttribute $ nsUserIDFormat $ nsUserRDNComponent $ nsGroupRDNComponent $ nsWellKnownJarFiles $ nsNYR ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsDefaultObjectClasses-oid NAME 'nsDefaultObjectClasses' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsDefaultObjectClass ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsAdminConsoleUser-oid NAME 'nsAdminConsoleUser' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsPreference ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsCustomView-oid NAME 'nsCustomView' DESC 'Netscape defined objectclass' SUP nsAdminObject MAY ( nsDisplayName ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsTopologyCustomView-oid NAME 'nsTopologyCustomView' DESC 'Netscape defined objectclass' SUP nsCustomView MUST ( cn ) MAY ( nsViewConfiguration ) X-ORIGIN 'Netscape Administration Services' )
+objectClasses: ( nsTopologyPlugin-oid NAME 'nsTopologyPlugin' DESC 'Netscape defined objectclass' SUP nsAdminObject X-ORIGIN 'Netscape Administration Services' )

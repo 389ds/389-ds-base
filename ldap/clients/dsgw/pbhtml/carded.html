@@ -1,0 +1,44 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<html>
+  <head>
+  <title>vCard</title>
+<LINK REL=stylesheet TYPE="text/css" HREF="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=style.css">
+  </head>
+
+<script language=javascript>
+
+function autoCloser(){
+
+var closeHTML=
+'<body bgcolor="#CCCCCC">\n' +
+'<center>\n' +
+'<form name=adios>\n' +
+'<font face="primasans bt,verdana,arial,helvetica,sans-serif" size="-1">\n' +
+'<input type=button value="Close Window" onclick="window.parent.close()">\n' +
+'</font>\n' +
+'</form>\n' +
+'</center>\n' +
+'</body></html>';
+
+self.closer.document.write(closeHTML);
+
+}
+
+
+function init(){
+autoCloser();
+}
+
+</script>
+
+<frameset rows="200,50" border="0" onload="init();">
+  <frame name="cards" src="javascript:parent.emptyFrame" scrolling="AUTO">
+  <frame name="closer" src="javascript:parent.emptyFrame" scrolling="NO">
+</frameset>
+
+</html>

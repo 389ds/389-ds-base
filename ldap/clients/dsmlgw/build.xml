@@ -1,0 +1,67 @@
+<?xml version='1.0'?>
+<!-- ANT build script for the new dsml gateway -->
+<!-- Possible to compile by hand, use 
+     cd /ldapserver/ldap/clients/dsmlgw
+     ant -Dxerces=../../../../dist/classes/jakarta-tomcat-5.0.27/common/endorsed
+ -->
+<project name="dsmlgw" default="dist" basedir=".">
+
+<!-- ******************** Adjustable Properties *********************** -->
+<property name="mcom.root"       value="../../../.."/>
+<property name="globaldist.dir"  value="${mcom.root}/dist/classes"/>
+<property name="app.name"        value="dsmlgw"/>
+<property name="taglib.name"     value="dsmlgw"/>
+
+<property name="ldapjdk.jar"     value="${globaldist.dir}/ldapjdk.jar"/>
+<property name="activation.jar"  value="${globaldist.dir}/activation.jar"/>
+<property name="jaxrpc-api.jar"  value="${globaldist.dir}/jaxrpc-api.jar"/>
+<property name="jaxrpc.jar"  value="${globaldist.dir}/jaxrpc.jar"/>
+<property name="saaj.jar"  value="${globaldist.dir}/saaj.jar"/>
+<property name="xercesImpl.jar"  value="${globaldist.dir}/xercesImpl.jar"/>
+<property name="xmlParserAPIs.jar"  value="${globaldist.dir}/xml-apis.jar"/>
+
+<path id="class.path">
+<pathelement location="${ldapjdk.jar}"/>
+<pathelement location="${activation.jar}"/>
+<pathelement location="${jaxrpc-api.jar}"/>
+<pathelement location="${jaxrpc.jar}"/> 
+<pathelement location="${saaj.jar}"/>
+
+<pathelement location="${xercesImpl.jar}"/> 
+<pathelement location="${xmlParserAPIs.jar}"/>
+</path>
+
+<property name="build.dir"      value="${mcom.root}/ldapserver/built/dsmlgw"/>
+<property name="dist.dir"       value="${mcom.root}/dist/dsmlgw"/>
+
+
+
+<target name="prepare" description="prepares the output directories">
+   <mkdir dir="${build.dir}"/>
+   <mkdir dir="${dist.dir}"/>
+</target>
+
+<target name="library" depends="classpath,prepare" description="builds it">
+<javac srcdir="." destdir="${build.dir}" classpathref="class.path" debug="on"/>
+</target>
+
+
+  <!-- Create the library distribution files -->
+<target name="dist" depends="classpath,library" description="makes the distribution">
+    <jar jarfile="${dist.dir}/dsmlgw.jar" basedir="${build.dir}"/>
+
+  </target>
+
+  <target name="clean" description="makes clean">
+    <delete dir="${build.dir}"/>
+    <delete dir="${dist.dir}"/>
+  </target>
+
+<property name="classpath" refid="class.path"/>
+  <target name="classpath">
+    <echo message="${classpath}"/>
+  </target>
+
+
+</project>
+

@@ -1,0 +1,200 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- U-M person directory entry -->
+<!-- DS_OBJECTCLASS "value=person,umichPerson" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+Nouvelle
+<!-- ENDIF // Adding -->
+entr&eacute;e de personne U-M -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE><TR><TD>
+<IMG SRC=
+<!-- DS_ATTRIBUTE "attr=jpegPhoto" "options=link" "mimetype=image/jpeg" -->
+></TD>
+<TD>
+<IMG SRC="lang?<!-- GCONTEXT -->&file=person.gif" ALT="Personne" HSPACE=5>
+</TD>
+<!-- IF "DisplayOrgChart" -->
+<TD><FONT FACE="PrimaSans BT, Verdana, Sans-Serif" SIZE="-1">
+<A HREF=
+<!-- DS_ORGCHARTLINK -->
+ >
+<IMG SRC="lang?<!-- GCONTEXT -->&file=orgicon.gif" BORDER=0 ALT="Click to display organization chart" HSPACE=5></a>
+</FONT>
+</TD>
+<!-- ENDIF -->
+<TD><FONT SIZE="+2">
+<!-- IF "Adding" -->
+Nouvel personne U-M -
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT></TD></TR></TABLE>
+
+<A HREF=
+<!-- DS_ATTRIBUTE "attr=audio" "options=link" "mimetype=audio/basic" -->
+>Lecture de clip audio</A>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=Edition de la personne" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Enregistrer la nouvelle personne" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Annuler" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_UMPERSON" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_UMPERSON" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_EDITASBUTTON "label=Modifier le mot de passe" "template=passwd" -->
+</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Renommer la personne" "prompt=Entrer un nouveau nom pour cette personne :" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Supprimer la personne" "prompt=Supprimer cette personne ?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="person">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="umichPerson">
+<!-- ENDIF // Adding -->
+<!-- PCONTEXT -->
+
+<HR>
+<!-- IF "!Displaying" -->
+<B>* Indique une zone d'entr»®e obligatoire</B><BR>
+<!-- ENDIF -->
+
+
+<TABLE CELLSPACING="5">
+<TR>
+<TD VALIGN="top" NOWRAP>Nom de famille :
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=sn" "cols=>16" -->
+</B></TD><TD WIDTH="20%"></TD>
+<TD VALIGN="top" NOWRAP>Nom complet :
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" "numfields=+1" "cols=>16" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">T&eacute;l&eacute;phone :</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>16" "numfields=+1" -->
+</B></TD><TD></TD>
+<TD VALIGN="TOP" NOWRAP>Adresse &eacute;lectronique :</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" "cols=>20" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">T&eacute;l&eacute;copie :</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=facsimiletelephonenumber" "syntax=tel" "cols=>16" -->
+</B></TD><TD></TD>
+<TD VALIGN="TOP" NOWRAP>Nom unique :</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=uid" "cols=>16" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP" NOWRAP>T&eacute;l&eacute;avertisseur :</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=pager" "syntax=tel" "cols=>16" -->
+</B></TD><TD></TD>
+<TD VALIGN="TOP" NOWRAP>T&eacute;l&eacute;phone mobile :<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=mobile" "syntax=tel" "cols=>16" -->
+</B></TD></TR>
+
+<TR><TD COLSPAN="5"><HR></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Titre :</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=title" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Adresse postale :</TD>
+<TD VALIGN="TOP" COLSPAN="4" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=postalAddress" "syntax=mls" "type=TEXTAREA" "cols=>40" "rows=>4" -->
+</B></TD></TR>
+
+<TR><TD COLSPAN="5"><HR></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Description :</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=multilineDescription" "syntax=mls" "cols=>50" -->
+</B></TR>
+
+<TR>
+<TD VALIGN="TOP">Voir &eacute;galement :<BR>
+<!-- DS_DNEDITBUTTON "label=Modifier..." "template=dnedit" "attr=seeAlso" "desc=Voir »®galement" -->
+</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "options=readonly" -->
+</B></TR>
+
+<TR>
+<TD VALIGN="TOP">URL :</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=labeledURL" "syntax=url" "cols=>50" -->
+</B></TR>
+
+<TR>
+<TD VALIGN="TOP">Boisson favorite :</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=drink" -->
+</B></TR>
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+La derni&egrave;re modification de cette entr&eacute;e date du <B>
+<!-- DS_ATTRIBUTE "attr=lastModifiedTime" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> par <B>
+<!-- DS_ATTRIBUTE "attr=lastModifiedBy" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

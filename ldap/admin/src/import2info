@@ -1,0 +1,58 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# Get information to import a 1.x Directory server's info
+
+BEGIN { @INC = ( '../../../admin/admin/bin' , '.' ); }
+
+$| = 1;
+use Cgi;
+
+$isNT = -d '\\';
+$cgiVars{'server'} =~ /-/;
+$root = $ENV{'NETSITE_ROOT'};
+$oldDir = $cgiVars{'dir'};
+$oldDir =~ s/\\/\//g;
+$oldHome = "$oldDir/$cgiVars{'server'}";
+$snmpfile = "$oldHome/config/snmp.conf";
+
+$ds30 = 0;
+if ( -e $snmpfile) {
+	open ( SRC, $snmpfile) | "Can't open $snmpfile: $!\n";
+	 while ( <SRC> ) {
+		if ($_=~/^Version/ ) {
+			$where = index ($_, "3.0");
+			if ($where > -1 ) {
+				$ds30 =1;
+			}
+		}
+	}
+} 
+
+# QUERY_STRING still set from invocation
+
+print "Content-type: text/html\n\n";
+if ($ds30) {
+   print "<HTML><HEAD><TITLE>Import 3.0 Directory Server Info</TITLE></HEAD>\n";
+   print "<BODY>\n";
+   print "<H1><center>The server you are attempting to migrate is a 3.0 directory server. There is no need to migrate a 3.0 server to 3.1 server.</center></H1>\n";
+   print "</BODY></HTML>\n";
+} else {
+   print "<HTML><HEAD><TITLE>Import 1.x Directory Server Info</TITLE></HEAD>\n";
+   print "<BODY>\n";
+   print "<H1>Import 1.x Directory Server Info</H1>\n";
+   print '<FORM action="import" method="GET">', "\n";
+   print "<INPUT type=hidden name=\"dir\" value=\"$cgiVars{'dir'}\">\n";
+   print "<INPUT type=hidden name=\"server\" value=\"$cgiVars{'server'}\">\n";
+   $cgiVars{'server'} =~ /-/;
+   print "Name: $`-<INPUT type=text name=\"name\" value=\"$'\"><P>\n";
+   print "<P><INPUT type=submit value=\"Import\">\n";
+   print "</FORM>\n</BODY></HTML>\n";
+}
+

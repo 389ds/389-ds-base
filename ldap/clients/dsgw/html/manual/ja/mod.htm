@@ -1,0 +1,670 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright � 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright � 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<TITLE>ディレクトリ エントリの追加</TITLE>
+</HEAD>
+<BODY>
+
+<H1><A NAME="editing"></A>エントリの追加</H1>
+
+Directory Server インタフェースでディレクトリ中にあるエントリを編集できます。<A HREF="search.htm">エントリを探して</A>、<A HREF="search.htm#results">表示させてから</A>、[編集]ボタンをクリックします。
+
+<P>エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。
+
+<P>以下を編集できます。
+<UL>
+<LI>
+<A HREF="mod.htm#people">ユーザ</A></LI>
+
+<LI>
+<A HREF="mod.htm#ntpeople">NT ユーザ</A></LI>
+
+<LI>
+<A HREF="mod.htm#groups">グループ</A></LI>
+
+<LI>
+<A HREF="#NTgroups">NT グループ</A></LI>
+
+<LI>
+<A HREF="mod.htm#o">組織</A></LI>
+
+<LI>
+<A HREF="mod.htm#ou">組織単位</A></LI>
+</UL>
+
+<H2>
+<A NAME="people"></A>ユーザの編集</H2>
+ユーザのエントリを編集するには、以下の操作をします。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[ユーザの編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。</LI>
+
+<LI>
+ユーザのエントリを編集するには、各フィールドに希望の値を入力します。必須フィールドにはかならず値を入力する必要があります。ユーザの必須フィールドには次のものがあります。</LI>
+
+<UL type="disc">
+<LI>
+<A HREF="attribut.htm#cn">[氏名]</A></LI>
+
+<LI>
+<A HREF="attribut.htm#sn">[姓]</A></LI>
+</UL>
+
+<LI>
+ここでオプションのフィールドに値を入力することも、後でこれらの値を変更することも可能です。ユーザのオプションのフィールドには以下のものがあります。</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A HREF="attribut.htm#givenName">[名前]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#telephoneNumber">[電話番号]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#mail">[電子メール アドレス]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#facsimileTelephoneNumber">[ファックス]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#uid">[ユーザID]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#pager">[ポケットベル]&nbsp;</A></TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#mobile">[携帯電話]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#businessCategory">[事業カテゴリ]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#title">[役職]&nbsp;</A></TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#ou">[組織単位]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#manager">[マネージャ]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#roomNumber">[部屋番号]&nbsp;</A></TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#secretary">[秘書]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#departmentNumber">[部門番号]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#employeeNumber">[社員番号]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#carLicense">[自動車ナンバープレート番号]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#postalAddress">[住所]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#description">[説明]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#seeAlso">[参照]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#labeledUri">[URL]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#userPassword">[パスワード]</A>&nbsp;</TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+対応する [編集] ボタンをクリックして、<A HREF="#addmanager">[マネージャ] や [秘書] フィールドに値を追加</A>できます。</LI>
+
+<LI>
+対応する [編集] ボタンをクリックして、<A HREF="#addowner">[参照] フィールドに値を追加</A>できます。</LI>
+
+<LI>
+フィールドの編集が終わったら、[変更保存] をクリックします。</LI>
+</OL>
+このウィンドウからは以下の操作も可能です。
+<UL>
+<LI>
+<A HREF="#rename">エントリ名の変更</A></LI>
+
+<LI>
+<A HREF="mod.htm#delete">エントリの削除</A></LI>
+
+<LI>
+<A HREF="#changepw">パスワードの変更</A></LI>
+</UL>
+
+<H3><A NAME="addmanager"></A>[マネージャ] と [秘書] フィールドへの値の追加</H3>
+
+[マネージャ] または [秘書] フィールド中の [編集] ボタンをクリックすると、該当する属性値を追加したり削除するための新しいフォームが表示されます。
+[マネージャ] や [秘書] の属性としてユーザを追加するためには、以下の手順に従ってください。
+
+<OL>
+<LI>
+テキスト ボックス中に、目的のマネージャまたは秘書のエントリを探すために使用する検索文字列を入力します。以下のうち、どれでも入力してください。</LI>
+
+<UL type="disc">
+<LI>
+名前。氏名全体または一部を入力します。その検索文字列に一致するすべてのエントリが返されます。該当するエントリが見つからない場合は、検索文字列を含むすべてのエントリが返されます。検索文字列を含むエントリが見つからない場合は、検索文字列に類似したエントリが返されます。</LI>
+
+<LI>
+ユーザ ID （ユーザ エントリを検索している場合）</LI>
+
+<LI>
+電話番号。電話番号の一部だけを入力すると、その検索番号で終わるすべての電話番号が返されます。</LI>
+
+<LI>
+電子メール アドレス。アットマーク（@）を含んでいる文字列はすべて電子メールアドレスとみなされます。完全に一致するエントリが見つからない場合は、その検索文字列で始まるすべての電子メール アドレスが検索されます。</LI>
+
+<LI>
+アスタリスク（*）を使うと、現在のディレクトリ中にあるすべてのエントリやグループを表示できます。</LI>
+
+<LI>
+任意の<A HREF="search.htm#filter">LDAP 検索フィルタ</A>。 等号 (=) を含んでいる文字列はすべて、検索フィルタとみなされます。</LI>
+</UL>
+
+<LI>
+[検索して追加]をクリックし、一致するエントリを見つけてリストに追加します。マネージャや秘書として指定したくないエントリがある場合は、[リストから削除] 欄のボックスをクリックします。削除したいエントリに一致する検索フィルタを作成してから、[検索して削除] をクリックすることもできます。</LI>
+
+<LI>
+グループ メンバーのリストが完成したら、[変更保存] をクリックします。この時点で表示されているエントリが、マネージャまたは秘書属性フィールドの値になっています。</LI>
+</OL>
+
+<H2>
+<A NAME="ntpeople"></A>NT ユーザの編集</H2>
+NT ユーザのエントリを編集するには、以下の操作を行います。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[NT ユーザの編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。</LI>
+
+<LI>
+ユーザのエントリを編集するには、各フィールドに希望の値を入力します。必須フィールドにはかならず値を入力する必要があります。NT ユーザの必須フィールドには次のものがあります。</LI>
+
+<UL type="disc">
+<LI>
+<A HREF="attribut.htm#cn">[氏名]</A></LI>
+
+<LI>
+<A HREF="attribut.htm#sn">[姓]</A></LI>
+
+<LI>
+<A HREF="attribut.htm#ntUserDomainId">[NT ドメイン名] </A></LI>
+
+<LI>
+<A HREF="attribut.htm#ntUserDomainId">[NT ユーザ ID]</A></LI>
+</UL>
+
+<LI>
+ここでオプションのフィールドに値を入力したり、後にこれらの値を変更することも可能です。NT ユーザのオプションのフィールドは次の通りです。</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A HREF="attribut.htm#givenName">[名前]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#telephoneNumber">[電話番号]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#mail">[電子メール アドレス]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#facsimileTelephoneNumber">[ファックス]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#userPassword">[Directory Server パスワード] </A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#pager">[ポケットベル]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#mobile">[携帯電話]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#businessCategory">[事業カテゴリ]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#title">[役職]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#ou">[組織単位]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#manager">[マネージャ]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#roomNumber">[部屋番号]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#secretary">[秘書]&nbsp;</A></TD>
+
+<TD><A HREF="attribut.htm#departmentNumber">[部門番号]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#employeeNumber">[社員番号]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#carLicense">[自動車ナンバープレート番号]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#postalAddress">[住所]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#description">[説明]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#seeAlso">[参照]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#labeledUri">[URL]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#uid">[ユーザ ID]</A>&nbsp;</TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+<A HREF="attribut.htm#NTUserDelete">[ユーザを削除した場合は NTアカウントを削除]</A> オプションの値を変更することもできます。</LI>
+
+<LI>
+対応する [編集] ボタンをクリックして、<A HREF="#addmanager"> [マネージャ] や [秘書] フィールドに値を追加</A>できます。</LI>
+
+<LI>
+対応する [編集] ボタンをクリックして、<A HREF="#addowner"> [参照] フィールドに値を追加</A>できます。</LI>
+
+<LI>
+フィールドの編集が終わったら、[変更保存] をクリックします。</LI>
+</OL>
+このウィンドウからは以下も実行できます。
+<UL>
+<LI>
+<A HREF="#rename">エントリ名の変更</A></LI>
+
+<LI>
+<A HREF="mod.htm#delete">エントリの削除</A></LI>
+
+<LI>
+<A HREF="#changepw">パスワードの変更</A></LI>
+</UL>
+
+<H2><A NAME="groups"></A>グループの編集</H2>
+
+グループのエントリを編集するには、以下の操作を行います。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[グループの編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。</LI>
+
+<LI>
+グループのエントリを編集するには、各フィールドに編集した値を入力します。必須フィールドである<A HREF="attribut.htm#cn"> [名前] </A>にはかならず値を入力する必要があります。
+
+<LI>
+ここでオプションのフィールドに値を入力することも、後でこれらの値を変更することも可能です。グループのオプションのフィールドには次のものがあります。</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A HREF="attribut.htm#description">[説明]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#owner">[所有者]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#member">[グループ メンバー]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#seeAlso">[参照]</A></TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+対応する [編集] ボタンをクリックして、<A HREF="#addowner"> [参照]、[所有者] および [秘書] フィールドに値を追加</A>できます。</LI>
+
+<LI>
+フィールドの編集が終わったら、[変更保存] をクリックします。</LI>
+</OL>
+このウィンドウからは以下の操作も行えます。
+<UL>
+<LI>
+<A HREF="#rename">エントリ名の変更</A></LI>
+
+<LI>
+<A HREF="mod.htm#delete">エントリの削除</A></LI>
+</UL>
+
+<H3><A NAME="addowner"></A>[所有者]、[参照] および [グループ メンバー] フィールドへの値の追加</H3>
+
+[所有者]、[参照] または [グループ メンバー] フィールドの [編集] ボタンをクリックすると、メンバーを追加したり削除するための新しいフォームが表示されます。[所有者]、[参照]、または[グループ メンバー]は個人またはグループです。つまり、[所有者]、[参照]、または[グループ メンバー]としてグループを追加する場合、グループに属するユーザはすべてリストのメンバーになります。例えば、Barbara Jensen がマーケティング マネージャ グループのメンバーで、マーケティング マネージャ グループをマーケティング人事グループのメンバーにした場合、Barbara Jensenもマーケティング人事グループのメンバーになります。[グループ メンバー]、[所有者]、または[参照]を追加するためには、以下の手順に従ってください。
+<OL>
+<LI>
+リストにユーザ エントリを追加する場合は、[ユーザ]が最初のダイアログボックスに表示されていることを確認します。グループにグループ エントリを追加する場合は、[グループ]が表示されていることを確認します。</LI>
+
+<LI>
+2番目のダイアログボックスに検索文字列を入力します。以下のうち、どれでも入力してください。</LI>
+
+<UL type="disc">
+<LI>
+名前。氏名全体または一部を入力します。その検索文字列に一致するすべてのエントリが返されます。該当するエントリが見つからない場合は、検索文字列を含むすべてのエントリが返されます。検索文字列を含むエントリが見つからない場合は、検索文字列に類似したエントリが返されます。</LI>
+
+<LI>
+ユーザ ID （ユーザ エントリを検索している場合）</LI>
+
+<LI>
+電話番号。電話番号の一部だけを入力すると、その検索番号で終わるすべての電話番号が返されます。</LI>
+
+<LI>
+電子メール アドレス。アットマーク（@）を含んでいる文字列はすべて電子メールアドレスとみなされます。完全に一致するエントリが見つからない場合は、その検索文字列で始まるすべての電子メール アドレスが検索されます。</LI>
+
+<LI>
+アスタリスク（*）を使うと、現在のディレクトリ中にあるすべてのエントリやグループを表示できます。</LI>
+
+<LI>
+任意の<A HREF="search.htm#filter">LDAP 検索フィルタ</A>。等号 (=) を含んでいる文字列はすべて、検索フィルタとみなされます。</LI>
+</UL>
+
+<LI>
+[検索して追加]をクリックし、一致するエントリを見つけてリストに追加します。リストに含めたくないエントリがある場合は、[リストから削除] 欄のボックスをクリックします。削除したいエントリに一致する検索フィルタを作成してから、[検索して削除] をクリックすることもできます。</LI>
+
+<LI>
+グループ メンバーのリストが完成したら、[変更保存] をクリックします。この時点で表示されているエントリが、リストに加えられます。</LI>
+</OL>
+
+<H2>
+<A NAME="NTgroups"></A>NT グループの編集</H2>
+NT グループのエントリを編集するには、以下の操作を行います。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[NT グループの編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。</LI>
+
+<LI>
+そのグループのエントリを編集するには、各フィールドに編集した値を入力します。必須フィールドにはかならず値を入力する必要があります。NT グループの必須フィールドには次のものがあります。</LI>
+
+<UL type="disc">
+<LI>
+<A HREF="attribut.htm#cn">[名前]</A></LI>
+
+<LI>
+<A HREF="attribut.htm#ntGroupId">[NT グループ名]</A></LI>
+
+<LI>
+<A HREF="attribut.htm#ntGroupDomainId">[NT ドメイン名]</A></LI>
+
+<LI>
+<A HREF="attribut.htm#ntGroupType">[NTグループ タイプ]</A></LI>
+
+</UL>
+
+<LI>
+ここでオプションのフィールドに値を入力することも、後でこれらの値を変更することも可能です。NT グループのオプションのフィールドには次のものがあります。</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A HREF="attribut.htm#description">[説明]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#owner">[所有者]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#l">[言語情報]</A></TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#member">[グループ メンバー]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#seeAlso">[参照]</A></TD>
+
+<TD><A HREF="attribut.htm#ou">[組織単位]</A></TD>
+</TR>
+</TABLE></CENTER>
+&nbsp;
+<LI>
+<A HREF="attribut.htm#ntGroupDeleteGroup">[グループを削除した場合は NTグループアカウントを削除]</A> オプションの値を変更することもできます。</LI>
+
+<LI>
+対応する [編集] ボタンをクリックして、<A HREF="#addmanager"> [参照]、[所有者]、および [グループ メンバー] フィールドに値を追加</A>できます。</LI>
+
+<LI>
+編集が終わったら、[変更保存] をクリックします。</LI>
+</OL>
+このウィンドウからは以下の操作も行えます。
+<UL>
+<LI>
+<A HREF="#rename">エントリ名の変更</A></LI>
+
+<LI>
+<A HREF="mod.htm#delete">エントリの削除</A></LI>
+</UL>
+
+<H2>
+<A NAME="ou"></A>組織単位の編集</H2>
+組織単位を編集するには、以下の操作を行います。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[組織単位の編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。</LI>
+
+<LI>
+組織単位のエントリを編集するには、各フィールドに編集した値を入力します。必須フィールドにはかならず値を入力する必要があります。</LI>
+
+<LI>
+組織単位の必須フィールドは、<A HREF="attribut.htm#ou">[単位名]</A>です。</LI>
+
+<LI>
+ここでオプションのフィールドに値を入力したり、後にこれらの値を変更することも可能です。組織単位のオプションのフィールドは次の通りです。</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A HREF="attribut.htm#description">[説明]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#telephoneNumber">[電話番号]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#businessCategory">[事業カテゴリ]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#facsimileTelephoneNumber">[ファックス]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#l">[場所]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#postalAddress">[住所]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#seeAlso">[参照]</A>&nbsp;</TD>
+
+<TD>&nbsp;</TD>
+
+<TD>&nbsp;</TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+編集が終わったら、[変更保存] をクリックします。</LI>
+</OL>
+このウィンドウからは以下も実行できます。
+<UL>
+<LI>
+<A HREF="#rename">エントリ名の変更</A></LI>
+
+<LI>
+<A HREF="mod.htm#delete">エントリの削除</A></LI>
+</UL>
+
+<H2>
+<A NAME="o"></A>組織の編集</H2>
+組織のエントリを編集するには、以下の操作をします。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[組織の編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの編集を試みる前に<A HREF="auth.htm#userauth">認証</A>していなかったり、認証が失効している場合は、先に進む前に認証するように求めるプロンプトが表示されます。</LI>
+
+<LI>
+組織のエントリを編集するには、各フィールドに編集した値を入力します。必須フィールドにはかならず値を入力する必要があります。</LI>
+
+<LI>
+組織の必須フィールドは、<A HREF="attribut.htm#o">[組織名]</A>です。</LI>
+
+<LI>
+ここでオプションのフィールドに値を入力することも、後でこれらの値を変更することも可能です。組織のオプションのフィールドは次の通りです。</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A HREF="attribut.htm#description">[説明]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#telephoneNumber">[電話番号]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#businessCategory">[事業カテゴリ]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#facsimileTelephoneNumber">[ファックス]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#l">[場所]</A>&nbsp;</TD>
+
+<TD><A HREF="attribut.htm#postalAddress">[住所]</A>&nbsp;</TD>
+</TR>
+
+<TR>
+<TD><A HREF="attribut.htm#seeAlso">[参照]</A>&nbsp;</TD>
+
+<TD>&nbsp;</TD>
+
+<TD>&nbsp;</TD>
+</TR>
+</TABLE></CENTER>
+&nbsp;
+<LI>
+編集が終わったら、[変更保存] をクリックします。</LI>
+</OL>
+
+<H2><A NAME="rename"></A>エントリ名の変更</H2>
+エントリ名を変更するには、以下を実行してください。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[編集] ボタンをクリックします。</LI>
+
+<LI>
+エントリの新しい一般名を入力します。</LI>
+
+<LI>
+[変更保存]をクリックします。</LI>
+</OL>
+エントリ名の変更に関する以下の規則に注意してください。
+<UL>
+<LI>
+エントリの<A HREF="add.htm#DN">識別名</A>の一番左の値に限り変更できます。これは、実質的にエントリ名に限り変更できることを意味しています。この方式を使ってディレクトリの別のブランチにエントリを移動することはできません。例えば、</LI>
+
+<PRE>uid=tandrew, ou=Accounting, o=Airius.com</PRE>
+
+の DN を持つエントリがある場合は、このエントリのユーザ ID (uid) 部分の名前に限り変更できます。しかし、Marketing のサブツリーにユーザ tandrew を移動することはできません。移動するには、Marketing のサブツリーに tandrew の新規エントリを作成してから、Accounting のツリーにある元のエントリを削除する必要があります。
+<LI>
+組織単位のツリーの下にエントリがある場合はその組織単位の名前を変更することはできません。ディレクトリ ツリーのブランチ ポイント名を変更するには、ツリー内のそのポイントの下にあるものすべてを削除してから、そのエントリ名を変更します。</LI>
+</UL>
+
+<H2>
+<A NAME="delete"></A>エントリの削除</H2>
+エントリ名を削除するには、以下を実行してください。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[編集] ボタンをクリックします。</LI>
+
+<LI>
+[削除]ボタンをクリックします。</LI>
+</OL>
+エントリに子のエントリがある場合はそのエントリを削除できないことに注意してください。特に、組織単位のツリーの下にエントリがある場合はその組織単位を削除することはできません。ディレクトリ ツリーのブランチ ポイントを削除するには、ツリー内のそのポイントの下にあるものすべてを削除してから、そのエントリを削除します。
+<H2>
+<A NAME="changepw"></A>パスワードの変更</H2>
+Directory Server インタフェースで、自分のパスワードを変更できます。また、ディレクトリ マネージャまたはパスワード属性に対する書込み特権を持つ未制限ユーザである場合は、別のユーザのパスワードも変更できます。
+
+<P>パスワードを変更するには、以下の操作をします。
+<OL>
+<LI>
+<A HREF="search.htm#standard">[標準検索]</A>
+または <A HREF="search.htm#advanced">[拡張検索]</A>を使って、目的のエントリを検索します。</LI>
+
+<LI>
+<A HREF="search.htm#results">エントリを表示させます</A>。</LI>
+
+<LI>
+[編集] ボタンをクリックします。</LI>
+
+<LI>
+[パスワード変更] ボタンをクリックします。</LI>
+
+<BR>自分のパスワードを変更する場合、変更コマンドでパスワードを変更するには古いパスワードを入力しなければなりません。 (現在のエントリ以外のユーザとして認証されている場合は、古いパスワードの入力を促されることはありません。)
+<LI>
+[パスワード変更] ボタンをクリックします。</LI>
+
+</OL>
+
+</BODY>
+</HTML>
+

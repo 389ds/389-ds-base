@@ -1,0 +1,363 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="07/15/03 12:24:17" />
+<title>Netscape Directory Server Help: Server Performance Counters</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="28905"> </a>
+<a name="Server Performance Counters"> </a>
+Server Performance Counters
+</p>
+
+<p class="text">
+<a name="28907"> </a>
+Use this tab to monitor your server's current activities. If the server is not running, this tab contains no performance monitoring information.
+</p>
+<p class="text">
+<a name="28908"> </a>
+<b>Server version. </b>Identifies the current server version.
+</p>
+<p class="text">
+<a name="28909"> </a>
+<b>Configuration DN. </b>Identifies the distinguished name you can use to obtain these results using the <code>ldapsearch</code> command-line utility.
+</p>
+<p class="text">
+<a name="28910"> </a>
+<b>Data version. </b>Provides identification information for the server's data area. The information here is relevant if your server supplies replicated data to consumer servers. The information supplied is:
+</p>
+<ul>
+
+<li>
+Server host name,
+<a name="28911"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Server port number,
+<a name="28912"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Database generation number, and
+<a name="28913"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Current change log number.
+<a name="28914"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28915"> </a>
+<b>Startup time on server. </b>Date and time the server started.
+</p>
+<p class="text">
+<a name="28916"> </a>
+<b>Current time on server. </b>Displays the current date and time on the server.
+</p>
+<p class="text">
+<a name="28917"> </a>
+<b>Refresh. </b>Click refresh to update the current display.
+</p>
+<p class="text">
+<a name="28918"> </a>
+<b>Continuous refresh. </b>Select this checkbox to continuously update the information display.
+</p>
+<p class="text">
+<a name="28919"> </a>
+<b>Resource Summary. </b>This table provides the following resource information:
+</p>
+<ul>
+
+<li>
+Connections. Gives the total number of connections to this server since startup and the average number of connections per minute since startup.
+<a name="28920"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Operations Initiated. Gives the total number of operations initiated since server startup and the average number of operations per minute since startup.
+<a name="28921"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Operations Completed. Gives the total number of operations completed by the server since startup and the average number of operations per minute since server startup.
+<a name="28922"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Entries Sent To Clients. Gives the total number of entries sent to client applications since server startup in response to search requests and the average number of entries sent to client application per minute since server startup.
+<a name="28923"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Bytes Sent To Clients. Gives the total number of bytes sent to client applications and the average number of bytes sent to client applications since server startup.
+<a name="28924"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28925"> </a>
+<b>Current Resource Usage. </b>This table provides the following resource usage information:
+</p>
+<ul>
+
+<li>
+Active Threads. Current number of active threads used for handling requests.
+<a name="28926"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Open Connections. Total number of open connections.
+<a name="28927"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Remaining Available Connections. Total number of remaining connections that the server can concurrently open.
+<a name="28928"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Threads Waiting To Read From Client. Provides the current total. This condition occurs when the server starts to receive a request from a client application and then the transmission is halted. This total generally indicates a slow network or client application.
+<a name="28929"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Database In Use. Total number of databases being used by the server. 
+<a name="28931"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28932"> </a>
+<b>Connection Status. </b>This table provides information on the amount of resources in use by each currently open connection. The table contains the following information:
+</p>
+<ul>
+
+<li>
+Time opened. Indicates when the connection was opened.
+<a name="28933"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Started. Indicates the number of operations initiated by this connection.
+<a name="28934"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Completed. Indicates the number of operations completed by the server for this connection.
+<a name="28935"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Bound As. Indicates the DN used by the client application to connect to the server.
+<a name="28936"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Read/Write. Indicates whether the server is currently blocked for read or write access by the client application.
+<a name="28937"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28938"> </a>
+<b>Global Database Cache Information.</b>
+</p>
+<ul>
+
+<li>
+Hits. Indicates the number of times the server could process a request by obtaining data from the cache rather than by going to the disk.
+<a name="28939"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Tries. The total number of requests performed on your directory since server startup.
+<a name="28940"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Hit Ratio. The ratio of cache tries to successful cache lookups. The closer this number is to 100% the better.
+<a name="28941"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Pages read in. Indicates the number of pages read from disk into the cache.
+<a name="28942"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Pages written out. Indicates the number of pages written from the cache back to disk. 
+<a name="28943"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Read-only page evicts. Indicates the number of read-only pages discarded from the cache to make room for new pages. Pages discarded from the cache have to be written to disk, possibly affecting server performance. The lower the number of page evicts the better.
+<a name="28944"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+Read-write page evicts. Indicates the number of read-write pages discarded from the cache to make room for new pages. This value differs from Pages Written Out in that these are discarded read-write pages that have not been modified.
+<a name="28945"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+  <dl>
+     <dt> <a name="28946"> </a>
+Pages discarded from the cache have to be written to disk, possibly affecting server performance. The lower the number of page evicts the better.
+<br />&nbsp;</dt>  </dl>
+</ul>
+<p class="h2">
+<a name="28947"> </a>
+<a name="See also"> </a>
+See also
+</p>
+
+
+<p class="text">
+<a name="28950"> </a>
+<a href="../en/slapd/ag/dsstats.htm#1079625">Monitoring Your Server from the Console</a>
+</p>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>July 15, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

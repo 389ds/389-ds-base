@@ -1,0 +1,472 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2004 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+
+#include "slap.h"
+#include "slapi-plugin.h"
+#include "fe.h"
+#if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
+#include "regex.h"
+#endif
+
+/*
+ * Map SASL identities to LDAP searches
+ */
+
+/* 
+ * We maintain a list of mappings to consult
+ */
+
+typedef struct sasl_map_data_ sasl_map_data;
+struct sasl_map_data_ {
+	char *name;
+	char *regular_expression;
+	char *template_base_dn;
+	char *template_search_filter;
+	sasl_map_data *next; /* For linked list */
+}; 
+
+typedef struct _sasl_map_private {
+	PRLock *lock;
+	sasl_map_data *map_data_list;
+} sasl_map_private;
+
+static char * configDN = "cn=mapping,cn=sasl,cn=config";
+
+/*
+ * DBDB: this is ugly, but right now there is _no_ server-wide
+ * dynamic structure (like a Slapi_Server * type thing). All the code
+ * that needs such a thing instead maintains a static or global variable.
+ * Until we implement the 'right thing', we'll just follow suit here :(
+ */
+
+static sasl_map_private *sasl_map_static_priv = NULL;
+
+static 
+sasl_map_private *sasl_map_get_global_priv()
+{
+	/* ASSERT(sasl_map_static_priv) */
+	return sasl_map_static_priv;
+}
+
+static 
+sasl_map_private *sasl_map_new_private()
+{
+	PRLock *new_lock = PR_NewLock();
+	sasl_map_private *new_priv = NULL;
+	if (NULL == new_lock) {
+		return NULL;
+	}
+	new_priv = (sasl_map_private *)slapi_ch_calloc(1,sizeof(sasl_map_private));
+	new_priv->lock = new_lock;
+	if (NULL == new_lock) {
+		slapi_ch_free((void**)new_priv);
+		return NULL;
+	}
+	return new_priv;
+}
+
+static void 
+sasl_map_free_private(sasl_map_private **priv)
+{
+	PR_DestroyLock((*priv)->lock);
+	slapi_ch_free((void**)priv);
+	*priv = NULL;
+}
+
+/* This function does a shallow copy on the payload data supplied, so the caller should not free it, and it needs to be allocated using slapi_ch_malloc() */
+static 
+sasl_map_data *sasl_map_new_data(char *name, char *regex, char *dntemplate, char *filtertemplate)
+{
+	sasl_map_data *new_dp = (sasl_map_data *) slapi_ch_calloc(1,sizeof(sasl_map_data));
+	new_dp->name = name;
+	new_dp->regular_expression = regex;
+	new_dp->template_base_dn = dntemplate;
+	new_dp->template_search_filter = filtertemplate;
+	return new_dp;
+}
+
+static 
+sasl_map_data *sasl_map_next(sasl_map_data *dp)
+{
+	return dp->next;
+}
+
+static void 
+sasl_map_free_data(sasl_map_data **dp)
+{
+	slapi_ch_free((void**)dp);
+}
+
+static int 
+sasl_map_remove_list_entry(sasl_map_private *priv, char *removeme)
+{
+	int ret = 0;
+	int foundit = 0;
+	sasl_map_data *current = NULL;
+	sasl_map_data *previous = NULL;
+	PR_Lock(priv->lock);
+	current = priv->map_data_list;
+	while (current) {
+		if (0 == strcmp(current->name,removeme)) {
+			foundit = 1;
+			if (previous) {
+				/* Unlink it */
+				previous->next = current->next;
+			} else {
+				/* That was the only entry, and now there are none */
+				priv->map_data_list = NULL;
+			}
+			/* Payload free */
+			sasl_map_free_data(&current);
+			/* And no need to look further */
+			break;
+		}
+		previous = current;
+		current = current->next;
+	}
+	if (!foundit) {
+		ret = -1;
+	}
+	PR_Unlock(priv->lock);
+	return ret;
+}
+
+static int 
+sasl_map_insert_list_entry(sasl_map_private *priv, sasl_map_data *dp)
+{
+	int ret = 0;
+	int ishere = 0;
+	sasl_map_data *current = NULL;
+	PR_Lock(priv->lock);
+	/* Check to see if it's here already */
+	current = priv->map_data_list;
+	while (current && current->next) {
+		current = current->next;
+	}
+	if (ishere) {
+		return -1;
+	}
+	/* current now points to the end of the list or NULL */
+	if (NULL == priv->map_data_list) {
+		priv->map_data_list = dp;
+	} else {
+		current->next = dp;
+	}
+	PR_Unlock(priv->lock);
+	return ret;
+}
+
+/*
+ * Functions to handle config operations 
+ */
+
+/**
+ * Get a list of child DNs
+ * DBDB these functions should be folded into libslapd because it's a copy of a function in ssl.c
+ */
+static char **
+getChildren( char *dn ) {
+	Slapi_PBlock    *new_pb = NULL;
+	Slapi_Entry     **e;
+	int             search_result = 1;
+	int             nEntries = 0;
+	char            **list = NULL;
+
+	new_pb = slapi_search_internal ( dn, LDAP_SCOPE_ONELEVEL,
+									 "(objectclass=nsSaslMapping)",
+									 NULL, NULL, 0);
+
+	slapi_pblock_get( new_pb, SLAPI_NENTRIES, &nEntries);
+	if ( nEntries > 0 ) {
+		slapi_pblock_get( new_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
+		slapi_pblock_get( new_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &e);
+		if ( e != NULL ) {
+			int i;
+			list = (char **)slapi_ch_malloc( sizeof(*list) * (nEntries + 1));
+			for ( i = 0; e[i] != NULL; i++ ) {
+				list[i] = slapi_ch_strdup(slapi_entry_get_dn(e[i]));
+			}
+			list[nEntries] = NULL;
+		}
+	}
+	slapi_free_search_results_internal(new_pb);
+	slapi_pblock_destroy(new_pb );
+	return list;
+}
+
+/**
+ * Free a list of child DNs
+ */
+static void
+freeChildren( char **list ) {
+	if ( list != NULL ) {
+		int i;
+		for ( i = 0; list[i] != NULL; i++ ) {
+			slapi_ch_free( (void **)(&list[i]) );
+		}
+		slapi_ch_free( (void **)(&list) );
+	}
+}
+
+
+/**
+ * Get a particular entry
+ */
+static Slapi_Entry *
+getConfigEntry( const char *dn, Slapi_Entry **e2 ) {
+	Slapi_DN	sdn;
+
+	slapi_sdn_init_dn_byref( &sdn, dn );
+	slapi_search_internal_get_entry( &sdn, NULL, e2,
+			plugin_get_default_component_id());
+	slapi_sdn_done( &sdn );
+	return *e2;
+}
+
+/**
+ * Free an entry
+ */
+static void
+freeConfigEntry( Slapi_Entry ** e ) {
+	if ( (e != NULL) && (*e != NULL) ) {
+		slapi_entry_free( *e );
+		*e = NULL;
+	}
+}
+
+static int
+sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
+{
+	int ret = 0;
+	char *regex = NULL;
+	char *basedntemplate = NULL;
+	char *filtertemplate = NULL;
+	char *map_name = NULL;
+
+	*new_dp = NULL;
+	regex = slapi_entry_attr_get_charptr( entry, "nsSaslMapRegexString" );
+	basedntemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapBaseDNTemplate" );
+	filtertemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapFilterTemplate" );
+	map_name = slapi_entry_attr_get_charptr( entry, "cn" );
+
+	if ( (NULL == regex) || (NULL == basedntemplate) || (NULL == filtertemplate) ) {
+		/* Invalid entry */
+		ret = -1;
+	} else {
+		/* Make the new dp */
+		*new_dp = sasl_map_new_data(map_name, regex, basedntemplate, filtertemplate);
+	}
+
+	if (ret) {
+		slapi_ch_free((void **) &regex);
+		slapi_ch_free((void **) &basedntemplate);
+		slapi_ch_free((void **) &filtertemplate);
+	}
+	return ret;
+}
+
+static int
+sasl_map_read_config_startup(sasl_map_private *priv)
+{
+	char **map_entry_list = NULL;
+	int ret = 0;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_read_config_startup\n", 0, 0, 0 );
+    if((map_entry_list = getChildren(configDN))) {
+		char **map_entry = NULL;
+		Slapi_Entry *entry = NULL;
+		sasl_map_data *dp = NULL;
+
+		for (map_entry = map_entry_list; *map_entry && !ret; map_entry++) {
+ 			getConfigEntry( *map_entry, &entry );
+			if ( entry == NULL ) {
+				continue;
+			}
+			ret = sasl_map_config_parse_entry(entry,&dp);
+			if (ret) {
+				    LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_read_config_startup failed to parse entry\n", 0, 0, 0 );
+			} else {
+				ret = sasl_map_insert_list_entry(priv,dp);
+				if (ret) {
+					LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_read_config_startup failed to insert entry\n", 0, 0, 0 );
+				}
+			}
+			freeConfigEntry( &entry );
+		}
+		freeChildren( map_entry_list );
+    }
+	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_read_config_startup\n", 0, 0, 0 );
+	return ret;
+}
+
+int 
+sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+{
+	int ret = 0;
+	sasl_map_data *dp = NULL;
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_config_add\n", 0, 0, 0 );
+	ret = sasl_map_config_parse_entry(entryBefore,&dp);
+	if (!ret && dp) {
+		ret = sasl_map_insert_list_entry(priv,dp);
+	}
+	if (0 == ret) {
+		ret = SLAPI_DSE_CALLBACK_OK;
+	} else {
+		returntext = "sasl map entry rejected";
+		*returncode = LDAP_UNWILLING_TO_PERFORM;
+		ret = SLAPI_DSE_CALLBACK_ERROR;
+	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_config_add\n", 0, 0, 0 );
+	return ret;
+}
+
+int
+sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+{
+	int ret = 0;
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	char *entry_name = NULL;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_config_delete\n", 0, 0, 0 );
+	entry_name = slapi_entry_attr_get_charptr( entryBefore, "cn" );
+	if (entry_name) {
+		/* remove this entry from the list */
+		ret = sasl_map_remove_list_entry(priv,entry_name);
+		slapi_ch_free((void **) &entry_name);
+	}
+	if (ret) {
+		ret = SLAPI_DSE_CALLBACK_ERROR;
+		returntext = "can't delete sasl map entry";
+		*returncode = LDAP_OPERATIONS_ERROR;
+	} else {
+		ret = SLAPI_DSE_CALLBACK_OK;
+	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_config_delete\n", 0, 0, 0 );
+	return ret;
+}
+
+/* Start and stop the sasl mapping code */
+int sasl_map_init()
+{
+	int ret = 0;
+	sasl_map_private *priv = NULL;
+	/* Make the private structure */
+	priv = sasl_map_new_private();
+	if (priv) {
+		/* Store in the static var */
+		sasl_map_static_priv = priv;
+		/* Read the config on startup */
+		ret = sasl_map_read_config_startup(priv);
+	} else {
+		ret = -1;
+	}
+	return ret;
+}
+
+int sasl_map_done()
+{
+	int ret = 0;
+	/* Free the map list */
+	/* Free the private structure */
+	return ret;
+}
+
+static sasl_map_data*
+sasl_map_first(sasl_map_private *priv)
+{
+	sasl_map_data *result = NULL;
+	PR_Lock(priv->lock);
+	result = priv->map_data_list;
+	PR_Unlock(priv->lock);
+	return result;
+}
+
+static int
+sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_base, char **ldap_search_filter)
+{
+	int ret = 0;
+	int matched = 0;
+	char *recomp_result = NULL;
+	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_check\n", 0, 0, 0 );
+	/* DBDB: currently using the rather old internal slapd regex library, which is not thread-safe */
+	/* So lock it first */
+	slapd_re_lock();
+	/* Compile the regex */
+	recomp_result = slapd_re_comp(dp->regular_expression);
+	if (recomp_result) {
+		LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_check : re_comp failed for expression (%s)\n", dp->regular_expression, 0, 0 );
+	}
+	matched = slapd_re_exec(sasl_user_and_realm);
+	LDAPDebug( LDAP_DEBUG_TRACE, "regex: %s, id: %s, %s\n", dp->regular_expression, sasl_user_and_realm, matched ? "matched" : "didn't match" );
+	if (matched) {
+		if (matched == 1) {
+			/* Allocate buffers for the returned strings */
+			/* We already computed this, so we could pass it in to speed up a little */
+			size_t userrealmlen = strlen(sasl_user_and_realm); 
+			/* These lengths could be precomputed and stored in the dp */
+			*ldap_search_base = (char *) slapi_ch_malloc(userrealmlen + strlen(dp->template_base_dn) + 1);
+			*ldap_search_filter = (char *) slapi_ch_malloc(userrealmlen + strlen(dp->template_search_filter) + 1);
+			slapd_re_subs(dp->template_base_dn,*ldap_search_base);
+			slapd_re_subs(dp->template_search_filter,*ldap_search_filter);
+			LDAPDebug( LDAP_DEBUG_TRACE, "mapped base dn: %s, filter: %s\n", ldap_search_base, ldap_search_filter, 0 );
+			ret = 1;
+		} else {
+			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_check : re_exec failed\n", 0, 0, 0 );
+		}
+	}
+	slapd_re_unlock();
+	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_check\n", 0, 0, 0 );
+	return ret;
+}
+
+static char *
+sasl_map_str_concat(char *s1, char *s2)
+{
+	if (NULL == s2) {
+		return (slapi_ch_strdup(s1));
+	} else {
+		size_t s1len = strlen(s1);
+		size_t length = s1len +  + strlen(s2);
+		char *newstr = slapi_ch_malloc(length + 2);
+		sprintf(newstr,"%s@%s",s1,s2);
+		return newstr;
+	}
+}
+
+/* Actually perform a mapping 
+ * Takes a sasl identity string, and returns an LDAP search spec to be used to find the entry
+ * returns 1 if matched, 0 otherwise
+ */
+int
+sasl_map_domap(char *sasl_user, char *sasl_realm, char **ldap_search_base, char **ldap_search_filter)
+{
+	int ret = 0;
+	sasl_map_data *this_map = NULL;
+	char *sasl_user_and_realm = NULL;
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	*ldap_search_base = NULL;
+	*ldap_search_filter = NULL;
+	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_domap\n", 0, 0, 0 );
+	sasl_user_and_realm = sasl_map_str_concat(sasl_user,sasl_realm);
+	/* Walk the list of maps */
+	this_map = sasl_map_first(priv);
+	while (this_map) {
+		int matched = 0;
+		/* If one matches, then make the search params */
+		matched = sasl_map_check(this_map, sasl_user_and_realm, ldap_search_base, ldap_search_filter);
+		if (1 == matched) {
+			ret = 1;
+			break;
+		}
+		this_map = sasl_map_next(this_map);
+	}
+	if (sasl_user_and_realm) {
+		slapi_ch_free((void**)&sasl_user_and_realm);
+	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_domap (%s)\n", (1 == ret) ? "mapped" : "not mapped", 0, 0 );
+	return ret;
+}
+

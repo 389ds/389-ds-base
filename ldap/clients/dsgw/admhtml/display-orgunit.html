@@ -1,0 +1,95 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML><HEAD>
+<!-- DS_OBJECTCLASS "value=organizationalUnit" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+New
+<!-- ENDIF // Adding -->
+Organizational Unit -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT><HR>" -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+New Organizational Unit -
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</FONT>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="organizationalUnit">
+<!-- ENDIF // Adding -->
+
+<!-- IF "!Displaying" -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="if (dsmodify_dn.length == 0) document.location.href=\'genscreen?dslsous&info=\' + escape(dsmodify_info); else document.location.href=\'edit/\' + dsmodify_dn + \'?&info=\' + escape(dsmodify_info);">
+<DIV ALIGN="right"><FONT SIZE="-1">* Indicates a required field</FONT></DIV>
+<!-- ENDIF -->
+
+
+<TABLE>
+<TR><TD>
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+<B>Unit Name:</B>
+</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=ou" "cols=>40" -->
+</B></TD></TR>
+
+<TR><TD>
+<B>Description:</B></TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>40" -->
+</B></TD></TR>
+
+<TR><TD><B>Phone:</B></TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>16" -->
+</B></TD></TR>
+
+<TR><TD><B>Fax:</B><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=facsimiletelephonenumber" "syntax=tel" "cols=>16" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP"><B>Mailing Address:</B></TD>
+<TD VALIGN="TOP" COLSPAN="4" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=postalAddress" "syntax=mls" "type=TEXTAREA" "cols=>40" "rows=>4" -->
+</B></TD></TR>
+
+</TABLE>
+
+<!-- IF "AttributeHasValues" "modifyTimestamp" -->
+<TABLE BORDER=0><TR><TD><FONT SIZE="-1">
+Last modified on
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "options=readonly" -->
+ by
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "options=readonly" -->
+</FONT></TD></TR></TABLE>
+<!-- ENDIF // AttributeHasValues -->
+
+<TABLE BORDER=2 WIDTH=100%><TR><TD WIDTH=25% ALIGN="center">
+<!-- DS_SAVEBUTTON -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_RENAMEBUTTON "label=Rename" "prompt=Enter a new name for this organizational unit:" -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_DELETEBUTTON "label=Delete" "prompt=Delete this organizational unit?" -->
+</TD><TD WIDTH=25% ALIGN="center">
+<!-- DS_HELPBUTTON "topic=EDIT_ORGUNIT" -->
+</TD></TR></TABLE>
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+<!-- ENDHTML -->

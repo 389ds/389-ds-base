@@ -1,0 +1,442 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#  This script is used to copy over files from 'install' directory
+#  to the server instance.
+
+BEGIN {
+  $isNT = -d "\\"; 
+  $PS = $isNT ? "\\" : "/";
+  $SEP = $isNT ? ";" : ":" ;
+  $slapdExecName = $isNT ? "slapd.exe" : "ns-slapd";
+  # NT needs quotes around some things unix doesn't
+  $quote = $isNT ? "\"" : "";
+}
+
+$sroot = $ARGV[0];
+$prefix = $ARGV[1];
+$installDir = sprintf("%s%s%s%s%s%s%s", $sroot, ${PS}, "bin", ${PS}, "slapd", ${PS}, "install");
+
+push @INC, "$sroot/bin/slapd/admin/bin";
+require 'uname.lib';
+
+my $os = &uname("-s");
+my $shlibsuf;
+SWITCH: {
+  if ($os eq "AIX") {
+  $LIB_PATH = "LIBPATH" ;
+  $shlibsuf = ".so";
+  last SWITCH ;
+  }
+  if ($os eq "HP-UX") {
+  $LIB_PATH = "SHLIB_PATH" ;
+  $shlibsuf = ".sl";
+  last SWITCH ;
+  }
+  if ($isNT) {
+  $LIB_PATH = "PATH" ;
+  $shlibsuf = ".dll";
+  last SWITCH ;
+  }
+  else {
+  $LIB_PATH = "LD_LIBRARY_PATH" ;
+  $shlibsuf = ".so";
+  last SWITCH ;
+  }
+}
+
+#  This subroutine takes source directory and destination directory
+#  as the arguments.
+
+sub copy_files
+{
+  my $destDir = pop(@_);
+  my $srcDir = pop(@_);
+  my $buf = "";
+  my $bufsize = 8192;
+
+  opendir(SRCDIR, $srcDir) || die "Can not open source directory $src_dir\n";
+  my @srcfiles = readdir(SRCDIR);
+  closedir(SRCDIR);
+
+  my $count = 0;
+  while ($count <= $#srcfiles) {
+    if ($srcfiles[$count] eq "." || $srcfiles[$count] eq ".." 
+      || $srcfiles[$count] eq "99user.ldif" ) {
+      $count++;
+      next;
+    }
+    my $fullpath_srcfile = sprintf("%s%s%s", $srcDir, ${PS}, $srcfiles[$count]);
+    my $fullpath_destfile = sprintf("%s%s%s", $destDir, ${PS}, $srcfiles[$count]);
+
+    open( SRC, $fullpath_srcfile ) || die "Can't open $fullpath_srcfile: $!\n";
+    open( DEST, ">$fullpath_destfile" ) || die "Can't create $fullpath_destfile: $!\n";
+    while (read(SRC, $buf, $bufsize)) {
+      print DEST $buf;
+    }
+    close( SRC );
+    close( DEST );
+
+    $count++;
+  }
+}
+
+#  Copy schema ldiffiles from <server-root>/bin/slapd/install/schema to
+#  <server-root>/<server-instance>/config/schema
+
+sub copy_schema_files
+{
+  my $schema_bakdir = sprintf("%s%s%s%s%s%s%s", $sroot, ${PS}, ${prefix}, ${PS}, "config", ${PS}, "schema-bak");
+  my $schema_srcdir = sprintf("%s%s%s", $installDir, ${PS}, "schema");
+  my $schema_destdir = sprintf("%s%s%s%s%s%s%s", $sroot, ${PS}, ${prefix}, ${PS}, "config", ${PS}, "schema");
+
+  # First, back up the original schema ldiffiles under schema-bak directory
+  unless (-d $schema_bakdir) {
+    mkdir ($schema_bakdir, 0755) ||
+    die "Cannot create directory $schema_bakdir: $!\n"; 
+  }
+  copy_files( $schema_destdir, $schema_bakdir );
+
+  # Now, copy the latest schema ldiffiles
+  copy_files( $schema_srcdir, $schema_destdir );
+}
+
+sub modify_dse_ldif
+{
+  my $dse_ldiffile = sprintf("%s%s%s%s%s%s%s", $sroot, ${PS}, ${prefix}, ${PS}, "config", ${PS}, "dse.ldif");
+  my $isOID = 0;
+  my $isJPEG = 0;
+  my $isSpInSt = 0;
+    my $reqNameChange = 0;
+
+  open( DSE, "$dse_ldiffile" ) || die "Can't open $dse_ldiffile: $!\n";  
+    my $new_filename = "$dse_ldiffile"."_new";
+  open( OUTFILE, "> $new_filename" );
+  while($line = <DSE>) {
+    $isOID = 1 if ( $line =~ /^dn:\s*cn=OID Syntax,\s*cn=plugins,\s*cn=config/i);
+    $isJPEG = 1 if ( $line =~ /^dn:\s*cn=JPEG Syntax,\s*cn=plugins,\s*cn=config/i);
+    $isSpInSt = 1 if ( $line =~ /^dn:\s*cn=Space Insensitive String Syntax,\s*cn=plugins,\s*cn=config/i);
+    if( ($line =~ s/uid uniqueness/attribute uniqueness/) ||
+      ($line =~ s/uid-plugin/attr-unique-plugin/) ){
+        # the plugin name has changed 
+        $reqNameChange = 1;
+        print OUTFILE $line;
+    } else {
+      print OUTFILE $line;
+    }
+
+  }
+  close( DSE );
+  close(OUTFILE);
+
+  if ($isOID && $isJPEG && $isSpInSt && !$reqNameChange) {
+    # nothing to be done - just return
+    unlink($new_filename);
+    return;
+  }
+
+  if($reqNameChange){
+    # if the name change is required copy the contents of the edited dse.ldif_new to the dse.ldif
+    open( DSE, ">$dse_ldiffile" ) || die "Can't open $dse_ldiffile: $!\n";  
+    open( OUTFILE, "$new_filename" ) || die "Can't open $new_filename: $!\n";
+    while($line = <OUTFILE>) {
+      print DSE $line;
+    }
+    close( DSE );
+    close(OUTFILE);
+  }
+    unlink($new_filename) or die "Cannot unlink $new_filename \n";
+
+
+  open( DSE, ">>$dse_ldiffile" ) || die "Can't open $dse_ldiffile: $!\n";  
+
+  unless ($isOID) {
+  # Add OID Syntax entry
+    print DSE "dn: cn=OID Syntax,cn=plugins,cn=config\n";
+    print DSE "objectClass: top\n";
+    print DSE "objectClass: nsSlapdPlugin\n";
+    print DSE "objectClass: extensibleObject\n";
+    print DSE "cn: OID Syntax\n";
+    print DSE "nsslapd-pluginPath: $sroot/lib/syntax-plugin$shlibsuf\n";
+    print DSE "nsslapd-pluginInitfunc: oid_init\n";
+    print DSE "nsslapd-pluginType: syntax\n";
+    print DSE "nsslapd-pluginEnabled: on\n";
+    print DSE "nsslapd-pluginId: oid-syntax\n";
+    print DSE "nsslapd-pluginVersion: 6.2.1\n";
+    print DSE "nsslapd-pluginVendor: Netscape Communications Corp.\n";
+    print DSE "nsslapd-pluginDescription: OID attribute syntax plugin\n";
+    print DSE "\n";
+  }
+
+  unless ($isJPEG) {
+  # Add JPEG Syntax entry
+    print DSE "dn: cn=JPEG Syntax,cn=plugins,cn=config\n";
+    print DSE "objectClass: top\n";
+    print DSE "objectClass: nsSlapdPlugin\n";
+    print DSE "objectClass: extensibleObject\n";
+    print DSE "cn: JPEG Syntax\n";
+    print DSE "nsslapd-pluginPath: $sroot/lib/syntax-plugin$shlibsuf\n";
+    print DSE "nsslapd-pluginInitfunc: jpeg_init\n";
+    print DSE "nsslapd-pluginType: syntax\n";
+    print DSE "nsslapd-pluginEnabled: on\n";
+    print DSE "nsslapd-pluginId: jpeg-syntax\n";
+    print DSE "nsslapd-pluginVersion: 6.2.1\n";
+    print DSE "nsslapd-pluginVendor: Netscape Communications Corp.\n";
+    print DSE "nsslapd-pluginDescription: JPEG attribute syntax plugin\n";
+    print DSE "\n";
+  }
+
+  unless ($isSpInSt) {
+    # Add Space Insensitive String Syntax entry
+    print DSE "dn: cn=Space Insensitive String Syntax,cn=plugins,cn=config\n";
+    print DSE "objectClass: top\n";
+    print DSE "objectClass: nsSlapdPlugin\n";
+    print DSE "objectClass: extensibleObject\n";
+    print DSE "cn: Space Insensitive String Syntax\n";
+    print DSE "nsslapd-pluginPath: $sroot/lib/syntax-plugin$shlibsuf\n";
+    print DSE "nsslapd-pluginInitfunc: sicis_init\n";
+    print DSE "nsslapd-pluginType: syntax\n";
+    print DSE "nsslapd-pluginEnabled: on\n";
+    print DSE "nsslapd-pluginId: spaceinsensitivestring-syntax\n";
+    print DSE "nsslapd-pluginVersion: 6.2.1\n";
+    print DSE "nsslapd-pluginVendor: Netscape Communications Corp.\n";
+    print DSE "nsslapd-pluginDescription: space insensitive string attribute syntax plugin\n";
+    print DSE "\n";
+  }
+
+  close( DSE );
+}
+
+sub get_changelog_dir {
+  my $dse_ldiffile = sprintf("%s%s%s%s%s%s%s", $sroot, ${PS}, ${prefix}, ${PS}, "config", ${PS}, "dse.ldif");
+  my $inClEntry = 0;
+  my $clDir;
+
+  # first find the changelog dir, if any
+  open( DSE, "$dse_ldiffile" ) || die "Can't open $dse_ldiffile: $!\n";  
+  while(<DSE>) {
+    if (/^dn:\s*cn=changelog5,\s*cn=config/i) {
+      $inClEntry = 1;
+      next;
+    }
+    if (/^\s*$/ && $inClEntry) {
+      $inClEntry = 0;
+      last; # not found, just abort
+    }
+    if ($inClEntry && /^nsslapd-changelogdir:\s*/i) {
+      $clDir = $';
+      chomp($clDir);
+      last;
+    }
+  }
+  close( DSE );
+  return $clDir;
+}
+
+sub fix_changelog {
+  my $clDir = shift;
+  my $newver = shift;
+
+  # look for the region files and remove them - they are the files
+  # that start with "__" - like __db.001
+  opendir CLDIR, $clDir || die "Error: can't open changelog db dir $clDir: $!";
+  while (my $ff = readdir CLDIR) {
+    unlink $clDir."/".$ff if ($ff =~ /^__/);
+  }
+  closedir CLDIR;
+
+  # change the dbversion
+  my $dbverfile = $clDir . "/DBVERSION";
+  my $tmpverfile = $clDir . "/DBVERSION.tmp";
+  open DBVER, $dbverfile or die "Error: could not read file $dbverfile: $!";
+  open TMPVER, ">$tmpverfile" or die "Error: could not write file $tmpverfile: $!";
+  while (<DBVER>) {
+    s/\d+\.\d+$/$newver/;
+    print TMPVER;
+  }
+  close TMPVER;
+  close DBVER;
+  unlink $dbverfile;
+  rename $tmpverfile, $dbverfile;    
+}
+
+# get the new (current) version from slapd itself
+# not currently used
+sub getSlapdVersion {
+  my $dir         = shift;
+  my $version     = 0; # major version of e.g. 6.1 == 6
+  my $minor       = 0; # minor version of e.g. 6.1 == 1
+  my $subminor  = 0; # subminor version of e.g. 6.1.2 == 2
+  my $buildNumber = 0;
+  my $progDir     = "${PS}bin${PS}slapd${PS}server${PS}";
+
+  # find the slapd executable
+  $prog = $dir . $progDir . $slapdExecName;
+  if (! -f $prog) {
+    die "Could not run slapd program $prog: $!";
+  }
+  else {
+      chdir($dir . $progDir);
+  }
+
+  open(F, "${quote}${quote}$prog${quote} -v${quote} 2>&1 |") or
+    die "Could not run slapd program $prog: $!";
+  sleep(1); # allow some data to accumulate in the pipe
+#  print "Output from $prog -v:\n";
+  while (<F>) {
+    if (/^Netscape-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
+      $version     = $1;
+      $minor       = $2;
+      if ($4) {
+        $subminor = $3;
+        $buildNumber = $4;
+      } else {
+        $buildNumber = $3;
+      }
+      last;
+    }
+    elsif (/^Netscape-Directory\(restrict?ed-mode\)\/(\d+)\.(\d+)(?:\.(\d+))?\s+(\S+)/) { # we can have restricted-mode or restriced-mode ...
+      # version could be X.Y or X.Y.Z
+      $version     = $1;
+      $minor       = $2;
+      if ($4) {
+        $subminor = $3;
+        $buildNumber = $4;
+      } else {
+        $buildNumber = $3;
+      }
+      last;
+    }
+    elsif (/^iPlanet-Directory\/(\d+)\.(\d+)\s+(\S+)/i) {
+      $version     = $1;
+      $minor       = $2;
+      $buildNumber = $3;
+      last;
+    }
+  }
+  my $code = close(F);
+  
+  if ($version == 0) {
+      die "\nCould not determine version of the directory server in $dir: \n";
+  }
+
+  # distinguish the 4.1 and the 4.11 thanks to the buildNumber
+  if (($version == 4) && ($minor == 1)){
+      if (! ($buildNumber =~ /^B99\.16/)) {
+    # it's not a 4.1 Netscape Directory Server => it's a 4.11
+    $minor = 11 ;
+      }
+  }
+  return ( $version, $minor, $subminor );
+}
+
+# get the old version from the $sroot/setup/slapd/slapd.inf file
+# not currently used
+sub getInfVersion {
+  my $inffile = "$sroot/setup/slapd/slapd.inf";
+  open INF, $inffile || die "Error: could not read file $inffile: $!";
+  my $inslapdsection = 0;
+  while (<INF>) {
+  if (/^\[slapd\]/) {
+    $inslapdsection = 1;
+  } elsif ($inslapdsection && /^\[/) {
+    $inslapdsection = 0;
+    last;
+  } elsif ($inslapdsection && /^\s*Version\s*=\s*(\d+)\.(\d+)(?:\.(\d+))?/) {
+    close INF;
+    return ($1, $2, $3);
+  }  
+  }
+  close INF;
+  return ('0', '0');
+}
+
+sub getChangelogVersion {
+  my $cldir = shift;
+  my $versionfile = $cldir . "/DBVERSION";
+  my $version = "0.0";
+  open DBVER, $versionfile or return '0.0';
+  while (<DBVER>) {
+  if (/(\d+\.\d+)$/) {
+    $version = $1;
+  }
+  }
+  close DBVER;
+  return $version;
+}
+
+#
+# Some scripts generated by create_instance may not
+# get generated during in-place upgrade. This function
+# is to fix it during postinstall.
+# A new template can be directly added to array @newtemplates
+# if it follows the naming convertion of "template-<target_name>",
+# and its target is $prefix/<target_name>. Otherwise
+# modify the script to include any new need.
+#
+sub instantiate_new_scripts {
+
+  @newtemplates = (
+    "$sroot/bin/slapd/admin/scripts/template-ns-newpwpolicy.pl"
+  );
+
+  $host = localhost;
+  $port = 389;
+  $rootdn = "cn=Directory Manager";
+  if ( open ( dse, "$sroot/$prefix/config/dse.ldif" )) {
+    while ( <dse> ) {
+      $host = $1 if /^nsslapd-localhost:\s*(\S+)\s*$/;
+      $port = $1 if /^nsslapd-port:\s*(\d+)\D*$/;
+      $rootdn = $1 if /^nsslapd-rootdn:\s*(\S.+)\s*$/;
+    }
+  }
+
+  foreach $src ( @newtemplates ) {
+    $dest = "$sroot/$prefix/$1" if $src =~ /.*template-(.*)$/;
+    next if -f $dest;
+    unless ( open ( template, $src )) {
+      print "Can't open $src: $!\n";
+      next;
+    }
+    unless ( open ( target, ">$dest" )) {
+      print "Can't open $dest: $!\n";
+      next;
+    }
+    while ( <template> ) {
+      s#{{PERL-EXEC}}#!$sroot/bin/slapd/admin/bin/perl#g;
+      s#{{DS-ROOT}}#$sroot#g;
+      s#{{SEP}}#${PS}#g;
+      s#{{ROOT-DN}}#$rootdn#g;
+      s#{{SERVER-PORT}}#$port#g;
+      s#{{SERVER-NAME}}#$host#g;
+      printf target;
+    }
+    close template;
+    close target;
+  }
+  return 0;
+}
+
+# copy schema is safe even if same version
+copy_schema_files;
+
+# modify only if necessary
+modify_dse_ldif;
+
+# fix changelog is safe even if same version - no op
+my $clDir = get_changelog_dir;
+if ($clDir && -d $clDir) {
+  my $oldclversion = getChangelogVersion($clDir);
+  my $clversion = "2.0"; # with DS 6.1
+
+  if ($oldclversion < $clversion) {
+  fix_changelog($clDir, $clversion);
+  }
+}
+
+instantiate_new_scripts ();

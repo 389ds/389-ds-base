@@ -1,0 +1,29 @@
+#
+# PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+# license terms. Copyright 2001 Sun Microsystems, Inc.
+# Some preexisting portions Copyright 2001 Netscape Communications Corp.
+# All rights reserved.
+# 
+# OSF1 Makefile for Directory Server plug-in examples
+
+CC = cc 
+LD = ld
+
+INCLUDE = -I../../include
+CFLAGS = $(INCLUDE) -DIS_64 -ieee_with_inexact -pthread -DOSF1
+LDFLAGS = -shared -all -expect_unresolved "*" -taso
+
+
+OBJS = distrib.o
+
+all: libtest-plugin.so
+
+libtest-plugin.so: $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin.so
+

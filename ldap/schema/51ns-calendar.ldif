@@ -1,0 +1,69 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+# 
+# Last modified March 2001
+#
+# This file contains the DS 4.x schema converted to DS5.x format using the migrateSchemaTo5
+# script.
+# 
+# THESE SCHEMA DEFINITIONS HAVE NOT BEEN CHECKED TO SEE IF THEY EXIST IN THE NEW DS 5.x DIRECTORY
+# BEFORE LOADING THIS SCHEMA YOU SHOULD CHECK THE SCHEMA IN DS 5.x FOR THE EXISTANCE OF ANY ATTRIBUTES
+# OR OBJECTCLASSES IN THIS FILE. IF THEY ALREADY EXIST THEY SHOULD BE REMOVED FROM THIS FILE.
+# 
+# In addition if this file has the X-ORIGIN setting for all attributes and objectclasses set to 'user defined'
+# these definitions will be editable via the console and could potentially be re-saved to the 99user.ldif file.
+# If you want to modify these definitions using the console or LDAP, you should cut and paste these
+# definitions into the 99user.ldif file. See the Deployment Guide for more information.
+#  
+# SCHEMA FILE 51ns-calendar.ldif Created on Wed Jan 30 17:30:35 2002
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.798 NAME ( 'icsAnonymousLogin' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.755 NAME ( 'icsStatus' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.744 NAME ( 'icsFreeBusy' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.750 NAME ( 'icsRecurrenceBound' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2029 NAME ( 'icsDWPHost' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.747 NAME ( 'icsMandatoryView' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.725 NAME ( 'icsAlias' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.757 NAME ( 'icsTimezone' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2031 NAME ( 'icsDomainNames' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.753 NAME ( 'icsSet' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.751 NAME ( 'icsRecurrenceDate' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.733 NAME ( 'icsContact' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.800 NAME ( 'icsCapacity' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.742 NAME ( 'icsExtendedUserPrefs' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.735 NAME ( 'icsDefaultSet' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.738 NAME ( 'icsExtended' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.728 NAME ( 'icsAnonymousAllowWrite' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.746 NAME ( 'icsMandatorySubscribed' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.732 NAME ( 'icsAnonymousSet' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.724 NAME ( 'icsAdminRole' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.740 NAME ( 'icsExtendedGroupPrefs' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.736 NAME ( 'icsDomainAllowed' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.729 NAME ( 'icsAnonymousCalendar' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.756 NAME ( 'icsSubscribed' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.743 NAME ( 'icsFirstDay' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.754 NAME ( 'icsSourceHtml' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.739 NAME ( 'icsExtendedDomainPrefs' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.748 NAME ( 'icsQuota' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.726 NAME ( 'icsAllowedServiceAccess' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.752 NAME ( 'icsSessionTimeout' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.727 NAME ( 'icsAllowRights' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.737 NAME ( 'icsDomainNotAllowed' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2032 NAME ( 'icsRegularExpressions' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.734 NAME ( 'icsDefaultAccess' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.741 NAME ( 'icsExtendedResourcePrefs' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2033 NAME ( 'icsPartition' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.731 NAME ( 'icsCalendar' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.730 NAME ( 'icsAnonymousDefaultSet' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.745 NAME ( 'icsGeo' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.758 NAME ( 'inetResourceStatus' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.749 NAME ( 'icsPreferredHost' ) DESC 'Netscape Calendar Server Attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.141 NAME 'icsCalendarUser' DESC 'Netscape Calendar Server Schema' SUP top STRUCTURAL MUST ( ) MAY ( cn $ givenName $ mail $ preferredlanguage $ sn $ uid $ userPassword $ icsAllowedServiceAccess $ icsCalendar $ icsDefaultSet $ icsDWPHost $ icsExtended $ icsExtendedUserPrefs $ icsFirstDay $ icsFreeBusy $ icsGeo $ icsPreferredHost $ icsQuota $ icsSet $ icsStatus $ icsSubscribed $ icsTimezone $ nswcalDisallowAccess ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.142 NAME 'inetResource' DESC 'Netscape Calendar Server Schema' SUP top STRUCTURAL MUST ( cn ) MAY ( telephoneNumber $ facsimileTelephoneNumber $ mail $ postalAddress $ inetResourceStatus ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.143 NAME 'icsCalendarResource' DESC 'Netscape Calendar Server Schema' SUP top STRUCTURAL MUST ( ) MAY ( cn $ uid $ icsAlias $ icsCalendar $ icsCapacity $ icsContact $ icsDWPHost $ icsExtended $ icsExtendedResourcePrefs $ icsGeo $ icsPreferredHost $ icsQuota $ icsStatus $ icsTimezone ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.144 NAME 'icsCalendarDomain' DESC 'Netscape Calendar Server Schema' SUP top STRUCTURAL MUST ( ) MAY ( icsAllowedServiceAccess $ icsAllowRights $ icsAnonymousAllowWrite $ icsAnonymousCalendar $ icsAnonymousDefaultSet $ icsAnonymousLogin $ icsAnonymousSet $ icsExtended $ icsExtendedDomainPrefs $ icsDefaultAccess $ icsDomainAllowed $ icsDomainNotAllowed $ icsDWPHost $ icsMandatorySubscribed $ icsMandatoryView $ icsPreferredHost $ icsQuota $ icsRecurrenceBound $ icsRecurrenceDate $ icsSessionTimeout $ icsSourceHtml $ icsStatus $ icsTimezone ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.145 NAME 'icsAdministrator' DESC 'Netscape Calendar Server Schema' SUP top STRUCTURAL MUST ( ) MAY ( icsAdminRole $ icsExtended $ icsExtendedGroupPrefs ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.306 NAME 'icsCalendarDWPServer' DESC 'Netscape Calendar Server Schema' SUP top STRUCTURAL MUST ( ) MAY ( icsDWPHost $ icsRegularExpressions $ icsExtended $ icsDomainNames ) X-ORIGIN 'Netscape Calendar Server' )

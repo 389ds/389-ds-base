@@ -1,0 +1,40 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Netscape Calendar Server schema.
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.112 NAME 'nsCalAccess' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.113 NAME 'nsCalAccessDomain' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.114 NAME 'nsCalAdmd' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.115 NAME 'nsCalDefaultNoteReminder' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.116 NAME 'nsCalDefaultReminder' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.117 NAME 'nsCalDefaultTaskReminder' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.118 NAME 'nsCalDisplayPrefs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.119 NAME 'nsCalFlags' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.120 NAME 'nsCalHost' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.121 NAME 'nsCalLanguageId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.122 NAME 'nsCalNodeAlias' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.123 NAME 'nsCalNotifMechanism' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.124 NAME 'nsCalOperatingPrefs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.125 NAME 'nsCalOrgUnit2' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.126 NAME 'nsCalOrgUnit3' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.127 NAME 'nsCalOrgUnit4' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.128 NAME 'nsCalPasswordRequired' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.129 NAME 'nsCalPrmd' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.130 NAME 'nsCalRefreshPrefs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.131 NAME 'nsCalResourceCapacity' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.132 NAME 'nsCalResourceNumber' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.133 NAME 'nsCalServerVersion' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.134 NAME 'nsCalSysopCanWritePassword' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.135 NAME 'nsCalTimezone' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.136 NAME 'nsCalXItemId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.14 NAME 'nsCalUser' DESC 'Netscape defined objectclass' SUP top MUST ( objectClass ) MAY ( c $ employeeNumber $ generationQualifier $ givenName $ initials $ mail $ o $ ou $ nsCalAccess $ nsCalAccessDomain $ nsCalAdmd $ nsCalDefaultNoteReminder $ nsCalDefaultReminder $ nsCalDefaultTaskReminder $ nsCalDisplayPrefs $ nsCalFlags $ nsCalHost $ nsCalLanguageId $ nsCalNodeAlias $ nsCalNotifMechanism $ nsCalOperatingPrefs $ nsCalOrgUnit2 $ nsCalOrgUnit3 $ nsCalOrgUnit4 $ nsCalPasswordRequired $ nsCalPrmd $ nsCalRefreshPrefs $ nsCalServerVersion $ nsCalSysopCanWritePassword $ nsCalTimezone $ nsCalXItemId ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.15 NAME 'nsCalAdmin' DESC 'Netscape defined objectclass' SUP top MUST ( objectClass ) MAY ( c $ cn $ facsimileTelephoneNumber $ generationQualifier $ givenName $ initials $ mail $ o $ ou $ postalAddress $ sn $ telephoneNumber $ userPassword $ nsCalAccess $ nsCalAccessDomain $ nsCalAdmd $ nsCalFlags $ nsCalHost $ nsCalLanguageId $ nsCalNodeAlias $ nsCalOrgUnit2 $ nsCalOrgUnit3 $ nsCalOrgUnit4 $ nsCalPasswordRequired $ nsCalPrmd $ nsCalServerVersion $ nsCalSysopCanWritePassword $ nsCalXItemId ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.16 NAME 'nsCalResource' DESC 'Netscape defined objectclass' SUP top MUST ( objectClass ) MAY ( cn $ facsimileTelephoneNumber $ givenName $ mail $ postalAddress $ sn $ telephoneNumber $ userPassword $ nsCalAccess $ nsCalAccessDomain $ nsCalDefaultNoteReminder $ nsCalDefaultReminder $ nsCalDefaultTaskReminder $ nsCalDisplayPrefs $ nsCalFlags $ nsCalHost $ nsCalLanguageId $ nsCalNodeAlias $ nsCalNotifMechanism $ nsCalOperatingPrefs $ nsCalPasswordRequired $ nsCalRefreshPrefs $ nsCalResourceCapacity $ nsCalResourceNumber $ nsCalServerVersion $ nsCalSysopCanWritePassword $ nsCalTimezone $ nsCalXItemId ) X-ORIGIN 'Netscape Calendar Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.17 NAME 'netscapeCalendarServer' DESC 'Netscape defined objectclass' SUP top MUST ( objectclass ) X-ORIGIN 'Netscape Calendar Server' )

@@ -1,0 +1,8 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# this is mapped via and NTFS Appleshare volume from //Keefer/java# this is a Macintosh Programmers Workshop File (MPW)# created by David Keefer e-mail davidk@netscape.comset location 'java:ldapserver:built:release:ldapjdk-mac:'for DosFile in `WhereIs  -d -s {location} .htm` set dave "{DosFile}" echo setting {DosFile} ...SetFile -t TEXT -c MOSS {dave}  endfor DosFile in `WhereIs  -d -s {location} .txt ` set dave "{DosFile}" echo setting {DosFile} ...SetFile -t TEXT -c ttxt {dave}  endfor ftype in .java .mf .jsb  for DosFile in `WhereIs  -d -s {location} {ftype} `   set dave "{DosFile}"   echo setting {DosFile} ...   SetFile -t TEXT -c 'R*ch' {dave}  endendfor DosFile in `WhereIs  -d -s {location} .class ` set dave "{DosFile}" echo setting {DosFile} ...SetFile -t TEXT -c Javc {dave}for DosFile in `WhereIs  -d -s {location} .gif ` set dave "{DosFile}" echo setting {DosFile} ...SetFile -t TEXT -c MOSS {dave}  end

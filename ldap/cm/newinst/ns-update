@@ -1,0 +1,135 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# This file essentially serves as a wrapper around the instance
+# creation and configuration program (index) since it must be run from
+# the directory it lives in due to run time shared library
+# dependencies
+
+sroot=`echo $0 | sed s#/bin/slapd/admin/bin/.\*##g`
+PERL=$sroot/bin/slapd/admin/bin/perl
+
+start_server()
+{
+	NETSITE_ROOT=$1
+	REQUEST_METHOD=GET 
+	export NETSITE_ROOT REQUEST_METHOD
+	QUERY_STRING="InstanceName=$2"
+	SERVER_NAMES=$2
+	export QUERY_STRING SERVER_NAMES
+	cwd=`pwd`
+	cd `dirname $0`
+	./start 2>&1 | grep -v '^Content' | grep -v '^ds_'
+	cd $cwd
+}
+
+install_nsperl()
+{
+	# the current version of nsPerl to use is defined in the slapd.inf
+	nsperlinst=`grep '^NSPerlPostInstall' setup/slapd/slapd.inf | cut -f2 -d=`
+	# run the nsperl installer
+	$nsperlinst > setup/nsperl/install.log
+	# use nsperl as our local copy of perl
+	cp `dirname $nsperlinst`/nsperl $PERL
+}
+
+wrap_security_tools()
+{
+	cwd=`pwd`
+	SECURITY_BINNAMES="certutil derdump modutil pk12util pp ssltap"
+	arch=`uname`
+	if [ $arch = HP-UX ]; then
+		env_ld_library_path=SHLIB_PATH
+	elif [ $arch = AIX ]; then
+		env_ld_library_path=LIBPATH
+	else
+		env_ld_library_path=LD_LIBRARY_PATH
+	fi
+	cd $sroot/shared/bin
+	for file in $SECURITY_BINNAMES
+	do
+		if [ -f $file -a ! -f $file-bin ]; then
+			mv $file $file-bin
+			echo "#!/bin/sh" > $file
+			echo $env_ld_library_path=$sroot/shared/lib >> $file
+			echo "export $env_ld_library_path" >> $file
+			echo "$sroot/shared/bin/$file-bin " '${1+"$@"}' >> $file
+			chmod 755 $file
+		fi
+	done
+	cd $cwd
+}
+
+# if the -r flag is present, this means we're doing a
+# reinstall or an upgrade, so restart the servers
+for arg in $* ; do
+	if [ "$arg" = "-r" ]; then
+		reconfig=1
+	fi
+	if [ "$arg" = "-S" ]; then
+                iDSISolaris=1
+        fi
+
+done
+
+extraflags=
+# For Solaris 9+ specific installation, the following 
+# method of determining reconfiguration by checking 
+# the existence of <sroot>/slapd-nickname/config
+# directory cannot be used. This is because the
+# server_root is the same for all instances. Also, it
+# uses standard Solaris supplied perl.
+if [ "$iDSISolaris" = "" ]; then 
+	# for some reason, we are not being passed the -r flag during
+	# reinstall; so, determine if there are existing server
+	# instances in this server root, and assume -r if there
+	# are
+	if [ "$reconfig" = "" ]; then
+		cd $sroot
+		for dir in slapd-* ; do
+			if [ -d $dir/config ]; then
+				reconfig=1
+				extraflags="-r"
+				break
+			fi
+		done
+	fi
+
+	install_nsperl
+fi
+
+if [ $reconfig ] ; then
+	cd $sroot
+	for dir in slapd-* ; do
+		# first, fix any old password files
+		if [ -d alias ]; then
+			cd alias
+			echo Converting $dir to new format password file . . .
+			$PERL $sroot/bin/slapd/admin/bin/migratePwdFile $sroot $dir
+			cd ..
+		fi
+		# Copy new schema ldiffiles
+		echo Copying new schema ldiffiles . . .
+		$PERL $sroot/bin/slapd/admin/bin/upgradeServer $sroot $dir
+
+		# next, start the server
+		echo Starting $dir . . .
+		start_server $sroot $dir
+		echo ""
+	done
+fi
+
+wrap_security_tools $sroot
+
+cd `dirname $0`
+
+if [ "$iDSISolaris" = "" ]; then  
+	exec ./ds_create $* $extraflags 
+else
+	exec $PERL -w Install.pl $* $extraflags
+fi

@@ -1,0 +1,215 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+
+Date			What ?
+===================================
+10/15/98		- Created the ACL plugin
+			- Created a new file aclplugin.c and split the old
+			  acl.c to acl.c & aclparse.c files.
+			- Merged changes made upt 4.0B2
+10/21/98		- Added USERATTR rule.
+
+
+02/01/99		- Cleanup needed to be done  in 5.0 to make it a real plugin
+=====================================================================================
+1. Do not use slap.h but use slapi-plugin.h. This will require 
+   some work. Work involves
+	1) Making the ACLCB an extensible object of CONN struct
+	2) Remove reference of Connection & operation struct
+	3) Need slapi plugin apis to get the IP and DNS so that
+	   we can evaluate it in the LASes.
+	4) Need new option to get values of conn , op & pb stuct like
+	   cert, authtype, 
+
+2. Make ACLPB hang from the Operation struct instead of the PBlock.
+3. Make ACLCB  an extensible object of CONN struct and remove any reference 
+   about acl private info.
+
+4. I implemented the Userattr rule before even deciding if we need in 5.0
+   or not. I think it is useful.  The documents those were based on are
+   in http://jazz/users/prasanta/acl_manage_filter
+
+5. Move acllas_dn_parent to the libslapd. This is duplicated code and is
+   BAAAD. 
+
+6. Use the new normalized dn code so that we don't have to it over and over again.
+   We have to very careful ins slapi_access_allowed() as we keep the dn around and 
+   free it later ( we can use dn by ref ).
+
+7. Merge from DS4.1 ( proxy auth) to DS 5.0.
+
+8. Miscs
+	a) can we use the SDK URL parsing code ?
+	b) Merge  teh printing routines ( it's all over ).
+
+My estimate for doing the above cleanup will require anywhere between  5 to 8 days. 
+Run the ACL tests  after all the changes -- that is a MUST.
+===============================
+04/28/99
+
+  	-- All the work descibed above is done. 
+	-- Also
+		a) Created a Pool pf ACLPB  one of which is grabed at the init time.
+		b) Created a global lockarary which takes care of the concurreny issue between 
+			aclpb & aclcb
+		c) Fixed plugin init.
+
+
+I think the userattr rule should be made generic
+
+	useAttr = "attrName#Type"
+	
+	<Type> :== DN | GROUP | ROLE | URL | <value>
+	<value> :== < any printable String>
+
+Example:
+	userAttr = "manager#DN"      --- similar to userdnattr
+	userAttr = "owner#GROUP"     --- similar to groupdnattr
+ 	userAttr = "attr#ROLE"		 --- The value of attr contains a role definition
+ 	userAttr = "myattr#URL"		 --- The value contains a URL or filter
+ 	userAttr = "OU#Directory Server"
+								 --- In this case the client's OU and the 
+									resource entry's OU must have
+									"Directory Server" value.
+
+	This way we can get rid of userdnattr and groupdnattr and accomplish a 
+	lot with a single rule.
+
+At this point, we are done with the changes and waiting for what needs to be
+done in 5.0.
+=================================
+06/01/1999
+	-- Split the code into smaller modules
+		 ( aclanom, aclgroup, aclinit, ...)
+	--- The ACLs are read and kept in a AVL tree.
+	--- Few bugs fixed in the acl_scan_match code.
+
+================================================
+07/02/99
+	
+	-- Added support for parameterized bind rules.
+	-- Added support for caching of ATTR rules using recompute.S
+
+	What's left for 5.0
+	-------------------
+	1. Support for roles
+	2. Re-architect user/group cache
+	3. startup in multiple threads ( low priority)
+	4. look at add/delete/modrdn operations.
+	5. cleanup:
+		- revist all the debug statements
+		- new tests etc.
+	6. UI work
+
+============
+commit:14/12/99 rbyrne
+
+. Added targattrfilters keyword for value based acls.
+  Required also slapi_filter_apply(), slapi_get_attribute_type()
+  and slapi_attr_syntax_normalize() in slapd (filter.c and attrsyntax.c).
+. Memory leak fix in acl.c for PListInit() call--see comments in code.
+. made access an int on it's own to give room for expansion
+  (see aci_access and aclpb_access) 
+. files: ACL-Notes, acl.c acl.h acl-ext.c aclanom.c acllas.c acllist.c aclparse.c aclutil.c slapd/attrsyntax.c slapd/slapi-plugin.h slapd/filter.c slapd/libslapd.def
+
+===
+commit: Mon 20th Dec 199
+. aclparse.c: add proxy back to acl_access2str
+. filter.c: get_filter() does not recurse anymore--get_fitler_internal(), get_filter_list()
+do the recursion...this way testing for ldapsubentry works.
+. aclinit.c: now have filter (|(aci=*)(objectclass=ldapsubentry)) in
+aclinit_search_and_insert_aci(). This means that when slapi_search_internal_callback()
+stops returning subentries by default, we will still get them as we have the correct filter.
+
+===
+commit: 12/01/2000:
+. aclplugin.c: fix for proxyauth bug in aclplugin_preop_search() and
+acl_plugin_preop_modify()--the proxy_dn and dn were swapped.
+. acl_ext.c: Also, when we PListAssignValue() on DS_ATTR_USERDN in acl_init_aclpb(),
+we should pass it a dn from aclpb_sdn, NOT the dn passed into acl_init_aclpb() which
+gets freed after the call to acl_init_acpb(). JAlso here need to be careful thatif dn contains NULL that we indicate this in aclpb_sdn by setting dn to a non-NULL empty string ("") which the code takes to be anon.
+. checked that none of the PList objects (DS_PROP_ACLPB, DS_ATTR_USERDN, DS_ATTR_ENTRY) have mem leak problems.
+. acl.c, acllas.c, aclproxy.c: removed some #ifdef 0 and comments--tidy up but
+no code changes.
+. acl_ext.c: in acl__done_aclpb() we need to PListDleteProp() on ACL_ATTR_IP
+and ACL_ATTR_DNS.  This is because if LASIpEval/ACL_GetAttribute() and
+LASDnsEval/ACL_GetAttribute() see that these properties exist, they do
+not bother calling the respective Getter() function.  So, everytime
+the aclpb is reused and ip or dns eval is required, the old value is used (
+or whatever hjappens to be in the memory.). Tested--works fine now with ip and dns keywords.  ALso tested that when the same user tries an a non-allowed machine he is not allowed by accident (as he was before).
+. in schema.c/oc_find(): normalize the objectclass name before looking for it.  Otherwise
+if there's a trailing space in the oc name, you won't dfind it.
+
+===
+commit: 
+
+. aclparse.c: fix for syntax.ksh tp6 test: if there is no "version" in an aci item, reject it.
+. acllas.c: in DS_UserDnEval() now call slapi_normalize_dn() when comparing param strings and
+			ordinary dns.
+. acl_ext.c: when seeting DS_USER_DN_ATTR, get the ndn, the normalized form. 
+
+====
+commit: 7/02/2000
+anom profile and groupdn != don't work together! Bug 381830 in 4.X
+. acl.h: new bit in aci_type to mark as below.
+. aclparse.c: mark an aci if it's like deny() groupdn != blah
+. aclanom.c: if marked like that cancel anom profile (just like userdn !=)
+==
+. removed these for the mo...
+commit:
+. acllas.c: now get the vattrs via slapi_vattr_merge_copy()  when testing the client entry.
+. vattr.c: assign i the length of the list:i = type_context.list_length; 
+. entry.c: slapi_entry_add_valueset()
+
+==
+
+commit: 03/03/2000
+. support for roledn in acis.
+===
+. acllist: in slapi_sdn_free(&aciListHead->acic_sdn); gbeelato's mem leak fix.
+commited
+
+=====
+
+committed: 17/008/00
+. support for $dn: aclutil.c, aclparse.c, acllist.c, acllas.c, acl.c, acl.h
+. acl_ext.c:Make sure aclpb_search_base is initialized to NULL in aclpb__malloc()
+. acl.c: set_result_status: wrong bit masks were being used in a_eval->attrEval_s_astatus etc.
+		acl__attr_cached_result(): in the attr==NULL case, need to test for potential 
+"recompute" case of attribute--this happens if it's a param or attr style aci.
+		
+========
+commited 
+Support for dynamic backends:
+. acllist.c, aclinit.c, libslapd.def, control.c, slapi-plugin.h:
+	acl_be_state_change_fnc(), slapi_build_control_from_berval() etc.
+. aclanom.c: logical error in aclanom_match_profile() was causing misctest4 to fail.
+. acl_ext.c:fix mem leak by calling acl_clean_aclEval_control() in acl_ext_conn_desctructor()
+. 
+===
+committed:24 Aug 2000
+now SLAPI_ACL_ALL (allow(all)) does NOT include proxy right
+
+==
+committed: 30 Aug 2000
+. acl.c: new print_access_control_Summary() routine to display final acl status. Gets the proxy
+		stuff right too.
+ 		in acl__resource_match_aci() always test the TARGET_FILTER case, the old cod ethere was wrong.
+==
+. add support for macros to userdn ldapurl keyword.
+
+
+==
+Committed:
+. Sep 07 2000: Support for $attr in macros.
+. Sep 15 2000: Support for aci macros in targetfilter keyword.
+. Sep 18 2000: improve ret code handling in __aclinit_handler--stops spurious error message.
+
+
+--eof

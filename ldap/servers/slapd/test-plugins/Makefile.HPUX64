@@ -1,0 +1,24 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# HPUX Makefile for Directory Server plug-in examples
+
+CFLAGS=$(INCLUDE_FLAGS) -D_HPUX_SOURCE -Aa +z +DA2.0W -Ae
+LDFLAGS = +k -b +s $(EXTRA_LIBS)
+
+OBJS = testsaslbind.o testpreop.o testpostop.o testextendedop.o testentry.o testbind.o testgetip.o testdatainterop.o testdbinterop.o
+ 
+all: libtest-plugin.sl
+ 
+libtest-plugin.sl: $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin.sl

@@ -1,0 +1,150 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright � 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright � 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_OBJECTCLASS "value=groupOfNames" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+New
+<!-- ENDIF // Adding -->
+Group Entry -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE>
+<TR>
+<TD>
+<IMG SRC="lang?<!-- GCONTEXT -->&file=group.gif" ALT="グループ" HSPACE=5 >
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+新規グループ -
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+</TABLE>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=グループの修正" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=新規グループの保管" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=キャンセル" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_GROUP" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_GROUP" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_RENAMEBUTTON "label=グループ名の変更" "prompt=このグループの新しい名前を入力してください:" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=グループの削除" "prompt=このグループを削除しますか?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="groupOfNames">
+<!-- ENDIF // Adding -->
+
+<!-- PCONTEXT -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<!-- DS_STD_COMPLETION_JS -->
+
+<HR>
+<!-- IF "!Displaying" -->
+<B>* は必要なフィールドを示しています。</B><BR>
+<!-- ENDIF -->
+
+
+<TABLE CELLSPACING="5">
+<TR>
+<TD NOWRAP>名前:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" "cols=>40" -->
+</B></TD><TD WIDTH="20%"></TD>
+</TR>
+
+<TR>
+<TD NOWRAP>記述:</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>40" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP VALIGN="TOP">所有者:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=修正..." "template=dnedit" "attr=owner" "desc=所有者" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=owner" "syntax=dn" "options=sort,readonly" -->
+</B></TD>
+
+<TR>
+<TD NOWRAP VALIGN="TOP">参照:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=修正..." "template=dnedit" "attr=seeAlso" "desc=参照" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP COLSPAN="4">
+<!-- IF "!Adding" -->
+<B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "options=sort,readonly" -->
+</B>
+<!-- ELSE // !Adding -->
+<I>これらのフィールドを修正する前にこのエントリを保存する必要があります。</I>
+<!-- ENDIF // !Adding -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP VALIGN="top">グループ メンバー:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=修正..." "template=dnedit" "attr=uniquemember" "desc=グループ メンバー" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=uniquemember" "syntax=dn" "options=sort,readonly" -->
+</B></TD></TR>
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+このエントリの最終変更日: <B>
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> 変更者: <B>
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

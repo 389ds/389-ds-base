@@ -1,0 +1,592 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+/* control.c - routines for dealing with LDAPMessage controls */
+
+#include <stdio.h>
+#include "slap.h"
+
+
+/*
+ * static variables used to track information about supported controls.
+ * supported_controls is a NULL-terminated array of OIDs.
+ * supported_controls_ops is an array of bitmaps that hold SLAPI_OPERATION_*
+ *    flags that specify the operation(s) for which a control is supported.
+ *    The elements in the supported_controls_ops array align with the ones
+ *    in the supported_controls array.
+ */
+static char **supported_controls = NULL;
+static unsigned long *supported_controls_ops = NULL;
+static int supported_controls_count = 0;
+static PRRWLock *supported_controls_lock = NULL;
+
+/*
+ * Register all of the LDAPv3 controls we know about "out of the box."
+ */
+void
+init_controls( void )
+{
+	supported_controls_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE,
+		"supported controls rwlock");
+	if (NULL == supported_controls_lock) {
+		/* Out of resources */
+		slapi_log_error(SLAPI_LOG_FATAL, "startup", 
+			"init_controls: failed to create lock.\n");
+		exit (1);
+	}
+
+	slapi_register_supported_control( LDAP_CONTROL_MANAGEDSAIT,
+	    SLAPI_OPERATION_SEARCH | SLAPI_OPERATION_COMPARE
+	    | SLAPI_OPERATION_ADD | SLAPI_OPERATION_DELETE
+	    | SLAPI_OPERATION_MODIFY | SLAPI_OPERATION_MODDN );
+	slapi_register_supported_control( LDAP_CONTROL_PERSISTENTSEARCH,
+	    SLAPI_OPERATION_SEARCH );
+	slapi_register_supported_control( LDAP_CONTROL_PWEXPIRED,
+	    SLAPI_OPERATION_NONE );
+	slapi_register_supported_control( LDAP_CONTROL_PWEXPIRING,
+	    SLAPI_OPERATION_NONE );
+	slapi_register_supported_control( LDAP_CONTROL_SORTREQUEST,
+	    SLAPI_OPERATION_SEARCH );
+	slapi_register_supported_control( LDAP_CONTROL_VLVREQUEST,
+	    SLAPI_OPERATION_SEARCH );
+	slapi_register_supported_control( LDAP_CONTROL_AUTH_REQUEST,
+	    SLAPI_OPERATION_BIND );
+	slapi_register_supported_control( LDAP_CONTROL_AUTH_RESPONSE,
+	    SLAPI_OPERATION_NONE );
+	slapi_register_supported_control( LDAP_CONTROL_REAL_ATTRS_ONLY,
+	    SLAPI_OPERATION_SEARCH );
+	slapi_register_supported_control( LDAP_CONTROL_VIRT_ATTRS_ONLY,
+	    SLAPI_OPERATION_SEARCH );
+	slapi_register_supported_control( LDAP_X_CONTROL_PWPOLICY_REQUEST,
+	    SLAPI_OPERATION_SEARCH | SLAPI_OPERATION_COMPARE
+	    | SLAPI_OPERATION_ADD | SLAPI_OPERATION_DELETE
+	    | SLAPI_OPERATION_MODIFY | SLAPI_OPERATION_MODDN );
+	slapi_register_supported_control( LDAP_X_CONTROL_PWPOLICY_RESPONSE,
+	    SLAPI_OPERATION_SEARCH | SLAPI_OPERATION_COMPARE
+	    | SLAPI_OPERATION_ADD | SLAPI_OPERATION_DELETE
+	    | SLAPI_OPERATION_MODIFY | SLAPI_OPERATION_MODDN );
+	slapi_register_supported_control( LDAP_CONTROL_GET_EFFECTIVE_RIGHTS,
+		SLAPI_OPERATION_SEARCH );
+}
+
+
+/*
+ * register a supported control so it can be returned as part of the root DSE.
+ */
+void
+slapi_register_supported_control( char *controloid, unsigned long controlops )
+{
+	if ( controloid != NULL ) {
+		PR_RWLock_Wlock(supported_controls_lock);
+		++supported_controls_count;
+		charray_add( &supported_controls,
+		    slapi_ch_strdup( controloid ));
+		supported_controls_ops = (unsigned long *)slapi_ch_realloc(
+		    (char *)supported_controls_ops,
+		    supported_controls_count * sizeof( unsigned long ));
+		supported_controls_ops[ supported_controls_count - 1 ] = 
+		    controlops;
+		PR_RWLock_Unlock(supported_controls_lock);
+	}
+}
+
+
+/*
+ * retrieve supported controls OID and/or operations arrays.
+ * return 0 if successful and -1 if not.
+ * This function is not MTSafe and should be deprecated.
+ * slapi_get_supported_controls_copy should be used instead.
+ */
+int
+slapi_get_supported_controls( char ***ctrloidsp, unsigned long **ctrlopsp )
+{
+	if ( ctrloidsp != NULL ) {
+		*ctrloidsp = supported_controls;
+	}
+	if ( ctrlopsp != NULL ) {
+		*ctrlopsp = supported_controls_ops;
+	}
+
+	return( 0 );
+}
+
+
+static 
+unsigned long *supported_controls_ops_dup(unsigned long *ctrlops) 
+{
+	int i;
+	unsigned long *dup_ops = (unsigned long *)slapi_ch_calloc(
+		supported_controls_count + 1, sizeof( unsigned long ));
+	if (NULL != dup_ops) {
+		for (i=0; i < supported_controls_count; i++)
+			dup_ops[i] = supported_controls_ops[i];
+	}
+	return dup_ops;
+}
+
+
+int slapi_get_supported_controls_copy( char ***ctrloidsp, unsigned long **ctrlopsp )
+{
+	PR_RWLock_Rlock(supported_controls_lock);
+	if ( ctrloidsp != NULL ) {
+		*ctrloidsp = charray_dup(supported_controls);
+	}
+	if ( ctrlopsp != NULL ) {
+		*ctrlopsp = supported_controls_ops_dup(supported_controls_ops);
+	}
+	PR_RWLock_Unlock(supported_controls_lock);
+	return (0);
+}
+
+
+int
+get_ldapmessage_controls(
+    Slapi_PBlock	*pb,
+    BerElement		*ber,
+    LDAPControl		***controlsp	/* can be NULL if no need to return */
+)
+{
+	LDAPControl		**ctrls, *new;
+	unsigned long		tag, len;
+	int			rc, maxcontrols, curcontrols;
+	char			*last;
+	int			managedsait, pwpolicy_ctrl;
+
+	/*
+	 * Each LDAPMessage can have a set of controls appended
+	 * to it. Controls are used to extend the functionality
+	 * of an LDAP operation (e.g., add an attribute size limit
+	 * to the search operation). These controls look like this:
+	 *
+	 *	Controls ::= SEQUENCE OF Control
+	 *
+	 *	Control ::= SEQUENCE {
+	 *		controlType	LDAPOID,
+	 *		criticality	BOOLEAN DEFAULT FALSE,
+	 *		controlValue	OCTET STRING
+	 *	}
+	 */
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> get_ldapmessage_controls\n", 0, 0, 0 );
+
+	ctrls = NULL;
+	slapi_pblock_set( pb, SLAPI_REQCONTROLS, ctrls );
+	if ( controlsp != NULL ) {
+		*controlsp = NULL;
+	}
+	rc = LDAP_PROTOCOL_ERROR;	/* most popular error we may return */
+
+	/*
+         * check to see if controls were included
+	 */
+	if ( ber_get_option( ber, LBER_OPT_REMAINING_BYTES, &len ) != 0 ) {
+		LDAPDebug( LDAP_DEBUG_TRACE,
+		    "<= get_ldapmessage_controls LDAP_OPERATIONS_ERROR\n",
+		    0, 0, 0 );
+		return( LDAP_OPERATIONS_ERROR );	/* unexpected error */
+	}
+	if ( len == 0 ) {
+		LDAPDebug( LDAP_DEBUG_TRACE,
+		    "<= get_ldapmessage_controls no controls\n", 0, 0, 0 );
+		return( LDAP_SUCCESS );			/* no controls */
+	}
+	if (( tag = ber_peek_tag( ber, &len )) != LDAP_TAG_CONTROLS ) {
+		if ( tag == LBER_ERROR ) {
+			LDAPDebug( LDAP_DEBUG_TRACE,
+			    "<= get_ldapmessage_controls LDAP_PROTOCOL_ERROR\n",
+			    0, 0, 0 );
+			return( LDAP_PROTOCOL_ERROR );	/* decoding error */
+		}
+		/*
+		 * We found something other than controls.  This should never
+		 * happen in LDAPv3, but we don't treat this is a hard error --
+		 * we just ignore the extra stuff.
+		 */
+		LDAPDebug( LDAP_DEBUG_TRACE,
+		    "<= get_ldapmessage_controls ignoring unrecognized data in request (tag 0x%x)\n",
+		    tag, 0, 0 );
+		return( LDAP_SUCCESS );
+	}
+
+	/*
+	 * A sequence of controls is present.  If connection is not LDAPv3
+	 * or better, return a protocol error.  Otherwise, parse the controls.
+	 */
+	if ( pb != NULL && pb->pb_conn != NULL
+			&& pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
+		slapi_log_error( SLAPI_LOG_FATAL, "connection",
+				"received control(s) on an LDAPv%d connection\n",
+				pb->pb_conn->c_ldapversion );
+		return( LDAP_PROTOCOL_ERROR );
+	}
+
+	maxcontrols = curcontrols = 0;
+	for ( tag = ber_first_element( ber, &len, &last );
+	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
+	    tag = ber_next_element( ber, &len, last ) ) {
+		if ( curcontrols >= maxcontrols - 1 ) {
+#define CONTROL_GRABSIZE	6
+			maxcontrols += CONTROL_GRABSIZE;
+			ctrls = (LDAPControl **) slapi_ch_realloc( (char *)ctrls,
+			    maxcontrols * sizeof(LDAPControl *) );
+		}
+		new = (LDAPControl *) slapi_ch_calloc( 1, sizeof(LDAPControl) );
+		ctrls[curcontrols++] = new;
+		ctrls[curcontrols] = NULL;
+
+		if ( ber_scanf( ber, "{a", &new->ldctl_oid ) == LBER_ERROR ) {
+			goto free_and_return;
+		}
+
+		/* the criticality is optional */
+		if ( ber_peek_tag( ber, &len ) == LBER_BOOLEAN ) {
+			if ( ber_scanf( ber, "b", &new->ldctl_iscritical )
+			    == LBER_ERROR ) {
+				goto free_and_return;
+			}
+		} else {
+			/* absent is synonomous with FALSE */
+			new->ldctl_iscritical = 0;
+		}
+
+		/*
+		 * return an appropriate error if this control is marked
+		 * critical and either:
+		 *   a) we do not support it at all OR
+		 *   b) it is not supported for this operation
+		 */
+		if ( new->ldctl_iscritical ) {
+		    int		i;
+
+		    PR_RWLock_Rlock(supported_controls_lock);
+		    for ( i = 0; supported_controls != NULL
+			&& supported_controls[i] != NULL; ++i ) {
+			    if ( strcmp( supported_controls[i],
+				new->ldctl_oid ) == 0 ) {
+				    break;
+			    }
+		    }
+
+		    if ( supported_controls == NULL ||
+			supported_controls[i] == NULL ||
+			( 0 == ( supported_controls_ops[i] &
+			operation_get_type(pb->pb_op) ))) {
+			    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+			    PR_RWLock_Unlock(supported_controls_lock);
+			    goto free_and_return;
+		    }
+		    PR_RWLock_Unlock(supported_controls_lock);
+		}
+
+		/* the control value is optional */
+		if ( ber_peek_tag( ber, &len ) == LBER_OCTETSTRING ) {
+			if ( ber_scanf( ber, "o", &new->ldctl_value )
+			    == LBER_ERROR ) {
+				goto free_and_return;
+			}
+		} else {
+			(new->ldctl_value).bv_val = NULL;
+			(new->ldctl_value).bv_len = 0;
+		}	
+	}
+
+	if ( tag == LBER_ERROR ) {
+		goto free_and_return;
+	}
+
+	slapi_pblock_set( pb, SLAPI_REQCONTROLS, ctrls );
+	managedsait = slapi_control_present( ctrls,
+	    LDAP_CONTROL_MANAGEDSAIT, NULL, NULL );
+	slapi_pblock_set( pb, SLAPI_MANAGEDSAIT, &managedsait );
+	pwpolicy_ctrl = slapi_control_present( ctrls,
+	    LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL );
+	slapi_pblock_set( pb, SLAPI_PWPOLICY, &pwpolicy_ctrl );
+
+	if ( controlsp != NULL ) {
+		*controlsp = ctrls;
+	}
+
+#ifdef SLAPD_ECHO_CONTROL
+	/*
+	 * XXXmcs: Start of hack: if a control with OID "1.1" was sent by
+	 * the client, echo all controls back to the client unchanged.  Note
+	 * that this is just a hack to test control handling in libldap and
+	 * should be removed once we support all interesting controls.
+	 */
+	if ( slapi_control_present( ctrls, "1.1", NULL, NULL )) {
+		int	i;
+
+		for ( i = 0; ctrls[i] != NULL; ++i ) {
+			slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL,
+			    (void *)ctrls[i] );
+		}
+	}
+#endif /* SLAPD_ECHO_CONTROL */
+
+	LDAPDebug( LDAP_DEBUG_TRACE,
+	    "<= get_ldapmessage_controls %d controls\n", curcontrols, 0, 0 );
+	return( LDAP_SUCCESS );
+
+free_and_return:;
+	ldap_controls_free( ctrls );
+	LDAPDebug( LDAP_DEBUG_TRACE,
+	    "<= get_ldapmessage_controls %i\n", rc, 0, 0 );
+	return( rc );
+}
+
+
+int
+slapi_control_present( LDAPControl **controls, char *oid, struct berval **val, int *iscritical )
+{
+	int	i;
+
+	LDAPDebug( LDAP_DEBUG_TRACE,
+	    "=> slapi_control_present (looking for %s)\n", oid, 0, 0 );
+
+	if ( val != NULL ) {
+		*val = NULL;
+	}
+
+	if ( controls == NULL ) {
+		LDAPDebug( LDAP_DEBUG_TRACE,
+		    "<= slapi_control_present 0 (NO CONTROLS)\n", 0, 0, 0 );
+		return( 0 );
+	}
+
+	for ( i = 0; controls[i] != NULL; i++ ) {
+		if ( strcmp( controls[i]->ldctl_oid, oid ) == 0 ) {
+			if ( val != NULL ) {
+				if (NULL != val) {
+					*val = &controls[i]->ldctl_value;
+				}
+				if (NULL != iscritical) {
+					*iscritical = (int) controls[i]->ldctl_iscritical;
+				}
+			}
+			LDAPDebug( LDAP_DEBUG_TRACE,
+			    "<= slapi_control_present 1 (FOUND)\n", 0, 0, 0 );
+			return( 1 );
+		}
+	}
+
+	LDAPDebug( LDAP_DEBUG_TRACE,
+	    "<= slapi_control_present 0 (NOT FOUND)\n", 0, 0, 0 );
+	return( 0 );
+}
+
+
+/*
+ * Write sequence of controls in "ctrls" to "ber".
+ * Return zero on success and -1 if an error occurs.
+ */
+int
+write_controls( BerElement *ber, LDAPControl **ctrls )
+{
+	int	i;
+	unsigned long rc;
+
+	rc= ber_start_seq( ber, LDAP_TAG_CONTROLS );
+	if ( rc == LBER_ERROR ) {
+		return( -1 );
+	}
+
+	/* if the criticality is false, it should be absent from the encoding */
+	for ( i = 0; ctrls[ i ] != NULL; ++i ) {
+		if ( ctrls[ i ]->ldctl_value.bv_val == 0 ) {
+			if ( ctrls[ i ]->ldctl_iscritical ) {
+				rc = ber_printf( ber, "{sb}", ctrls[ i ]->ldctl_oid,
+						ctrls[ i ]->ldctl_iscritical );
+			} else {
+				rc = ber_printf( ber, "{s}", ctrls[ i ]->ldctl_oid );
+			}						
+		} else {
+			if ( ctrls[ i ]->ldctl_iscritical ) {
+				rc = ber_printf( ber, "{sbo}", ctrls[ i ]->ldctl_oid,
+						ctrls[ i ]->ldctl_iscritical,
+						ctrls[ i ]->ldctl_value.bv_val,
+						ctrls[ i ]->ldctl_value.bv_len );
+			} else {
+				rc = ber_printf( ber, "{so}", ctrls[ i ]->ldctl_oid,
+						ctrls[ i ]->ldctl_value.bv_val,
+						ctrls[ i ]->ldctl_value.bv_len );
+			}						
+		}
+		if ( rc == LBER_ERROR ) {
+			return( -1 );
+		}
+	}
+
+    rc= ber_put_seq( ber );
+	if ( rc == LBER_ERROR ) {
+		return( -1 );
+	}
+
+	return( 0 );
+}
+
+
+/*
+ * duplicate "newctrl" and add it to the array of controls "*ctrlsp"
+ * note that *ctrlsp may be reset and that it is okay to pass NULL for it.
+ */
+void
+add_control( LDAPControl ***ctrlsp, LDAPControl *newctrl )
+{
+	int	count;
+
+        if ( *ctrlsp == NULL ) {
+		count = 0;
+	} else {
+		for ( count = 0; (*ctrlsp)[count] != NULL; ++count ) {
+			;
+		}
+	}
+
+        *ctrlsp = (LDAPControl **)slapi_ch_realloc( (char *)*ctrlsp,
+                ( count + 2 ) * sizeof(LDAPControl *));
+
+	(*ctrlsp)[ count ] = slapi_dup_control( newctrl );
+	(*ctrlsp)[ ++count ] = NULL;
+}
+
+
+/*
+ * return a malloc'd copy of "ctrl"
+ */
+LDAPControl *
+slapi_dup_control( LDAPControl *ctrl )
+{
+	LDAPControl	*rctrl;
+
+	rctrl = (LDAPControl *)slapi_ch_malloc( sizeof( LDAPControl ));
+
+	rctrl->ldctl_oid = slapi_ch_strdup( ctrl->ldctl_oid );
+	rctrl->ldctl_iscritical = ctrl->ldctl_iscritical;
+
+	if ( ctrl->ldctl_value.bv_val == NULL ) {		/* no value */
+		rctrl->ldctl_value.bv_len = 0;
+		rctrl->ldctl_value.bv_val = NULL;
+	} else if ( ctrl->ldctl_value.bv_len <= 0 ) {	/* zero length value */
+		rctrl->ldctl_value.bv_len = 0;
+		rctrl->ldctl_value.bv_val = slapi_ch_malloc( 1 );
+		rctrl->ldctl_value.bv_val[0] = '\0';
+	} else {										/* value with content */
+		rctrl->ldctl_value.bv_len = ctrl->ldctl_value.bv_len;
+		rctrl->ldctl_value.bv_val =
+		    slapi_ch_malloc( ctrl->ldctl_value.bv_len );
+		memcpy( rctrl->ldctl_value.bv_val, ctrl->ldctl_value.bv_val,
+		    ctrl->ldctl_value.bv_len );
+	}
+
+	return( rctrl );
+}
+
+
+int
+slapi_build_control( char *oid, BerElement *ber,
+	char iscritical, LDAPControl **ctrlp )
+{
+	int rc = 0;
+	int return_value = LDAP_SUCCESS;
+	struct berval *bvp = NULL;
+
+	PR_ASSERT( NULL != oid && NULL != ctrlp );
+
+	if ( NULL == ber ) {
+		bvp = NULL;
+	} else {
+		/* allocate struct berval with contents of the BER encoding */
+		rc = ber_flatten( ber, &bvp );
+		if ( -1 == rc ) {
+			return_value = LDAP_NO_MEMORY;
+			goto loser;
+		}
+	}
+
+	/* allocate the new control structure */
+	*ctrlp = (LDAPControl *)slapi_ch_calloc( 1, sizeof(LDAPControl));
+
+	/* fill in the fields of this new control */
+	(*ctrlp)->ldctl_iscritical = iscritical;
+	(*ctrlp)->ldctl_oid = slapi_ch_strdup( oid );
+	if ( NULL == bvp ) {
+		(*ctrlp)->ldctl_value.bv_len = 0;
+		(*ctrlp)->ldctl_value.bv_val = NULL;
+	} else {
+		(*ctrlp)->ldctl_value = *bvp;   /* struct copy */
+		ldap_memfree(bvp); /* free container, but not contents */
+		bvp = NULL;
+	}
+
+loser:
+	return return_value;
+}
+
+
+#if 0
+/*
+ * rbyrne: This is version of the above using the slapi_build_control_from_berval()
+ * I'll enable this afterwards.
+ * Build an allocated LDAPv3 control from a BerElement.
+ * Returns an LDAP error code.
+ */
+int
+slapi_build_control( char *oid, BerElement *ber,
+	char iscritical, LDAPControl **ctrlp )
+{
+	int rc = 0;
+	int return_value = LDAP_SUCCESS;
+	struct berval *bvp = NULL;
+
+	PR_ASSERT( NULL != oid && NULL != ctrlp );
+
+	if ( NULL == ber ) {
+		bvp = NULL;
+	} else {
+		/* allocate struct berval with contents of the BER encoding */
+		rc = ber_flatten( ber, &bvp );
+		if ( -1 == rc ) {
+			return_value = LDAP_NO_MEMORY;
+			goto loser;
+		}
+	}
+
+	return_value = slapi_build_control_from_berval( oid, bvp, iscritical,
+											ctrlp);
+	if ( bvp != NULL ) {
+		ldap_memfree(bvp); /* free container, but not contents */
+		bvp = NULL;
+	}
+			
+loser:
+	return return_value;
+}
+#endif
+
+/*
+ * Build an allocated LDAPv3 control from a berval. Returns an LDAP error code.
+ */
+int
+slapi_build_control_from_berval( char *oid, struct berval *bvp,
+	char iscritical, LDAPControl **ctrlp )
+{	
+	int return_value = LDAP_SUCCESS;	
+
+	/* allocate the new control structure */
+	*ctrlp = (LDAPControl *)slapi_ch_calloc( 1, sizeof(LDAPControl));
+
+	/* fill in the fields of this new control */
+	(*ctrlp)->ldctl_iscritical = iscritical;
+	(*ctrlp)->ldctl_oid = slapi_ch_strdup( oid );
+	if ( NULL == bvp ) {
+		(*ctrlp)->ldctl_value.bv_len = 0;
+		(*ctrlp)->ldctl_value.bv_val = NULL;
+	} else {
+		(*ctrlp)->ldctl_value = *bvp;   /* struct copy */
+	}
+
+	return return_value;
+}
+

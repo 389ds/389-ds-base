@@ -1,0 +1,58 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# gnu makefile for LDAP Server tools.
+#
+
+MCOM_ROOT = ../../../../../..
+LDAP_SRC = ../../../..
+
+NOSTDCLEAN=true # don't let nsconfig.mk define target clean
+NOSTDSTRIP=true # don't let nsconfig.mk define target strip
+
+OBJDEST = $(OBJDIR)/lib/replication-plugin
+BINDIR = $(OBJDIR)/bin
+
+include $(MCOM_ROOT)/netsite/nsdefs.mk
+include $(MCOM_ROOT)/netsite/nsconfig.mk
+include $(LDAP_SRC)/nsldap.mk
+
+LDFLAGS	+= $(EXLDFLAGS)
+
+ifeq ($(ARCH), WINNT)
+SUBSYSTEM=console
+endif
+
+DEPLIBS=
+
+EXTRA_LIBS_DEP = 
+
+EXTRA_LIBS =
+
+ifeq ($(ARCH), WINNT)
+EXTRA_LIBS += user32.lib
+endif
+
+DNP_SIM = $(addsuffix $(EXE_SUFFIX), \
+	$(addprefix $(BINDIR)/, dnp_sim))
+
+
+all: $(OBJDEST) $(BINDIR) $(DNP_SIM)
+
+$(DNP_SIM):	$(OBJDEST)/dnp_sim3.o $(EXTRA_LIBS_DEP)
+	$(LINK_EXE) $(OBJDEST)/dnp_sim3.o \
+		$(EXTRA_LIBS) $<
+
+
+$(OBJDEST):
+	$(MKDIR) $(OBJDEST)
+
+$(BINDIR):
+	$(MKDIR) $(BINDIR)
+
+clean:
+	-$(RM) $(ALL_OBJS)
+	-$(RM) $(BINS)

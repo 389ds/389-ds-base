@@ -1,0 +1,116 @@
+<html>
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- ---------------------------------------------------------------------------
+ |  $Id: list-Auth.html,v 1.1 2005/01/21 00:40:49 cvsadm Exp $
+ |
+ | AUTHOR: 
+ |
+ | SYNOPSIS:
+ |    Display the vendor information.
+ |
+ | HISTORY:
+ |   
+ |------------------------------------------------------------------------------ -->
+<!-- HEAD -->
+<TITLE>Authenticate as...</TITLE>
+
+<!--
+    The "authForm" form and the authSubmit() JavaScript function are
+    used to avoid the need for a separate form for each entry listed.
+    Each entry is tied to this single form through the magic of an
+    anchor that contains href=javascript:authSubmit().
+-->
+<LINK REL=stylesheet TYPE="text/css" HREF="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=style.css">
+</head>
+<body bgcolor="#FFFFFF" marginheight=0 marginwidth=0 leftmargin="0" topmargin="0" rightmargin="0">
+<table width=100% class="bgColor1" cellspacing="0" cellpadding="0" border="0">
+<tr width=100% class="bgColor1">
+<TD valign="top" class="bgColor1"><IMG src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=clear.gif" width="10" height="45" border="0"></TD>
+<TD valign="middle" align="left" class="text15" width="100%">Authenticate as...</td>
+</tr>
+</table>
+<table cellspacing="0" cellpadding="0">
+<tr>
+<td><IMG src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=clear.gif" width="1" height="10" border="0"></td>
+</tr>
+</table>
+
+<FORM NAME="authForm" METHOD=POST ACTION="/clients/dsgw/bin/auth">
+<INPUT TYPE="hidden" NAME="escapedbinddn">
+<INPUT TYPE="hidden" NAME="authdesturl"
+<!-- DS_POSTEDVALUE "name=authdesturl" "within=VALUE=%22--value--%22" -->
+>
+<!-- PCONTEXT -->
+</FORM>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+function authSubmit(encodeddn)
+{
+    document.authForm.escapedbinddn.value = encodeddn;
+    document.authForm.submit();
+}
+// End hiding -->
+</SCRIPT>
+
+<img src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=pixel.gif" height="1" width="1" hspace="20" align="left" border="0">
+
+<TABLE width="90%" border="0" cellpadding="2" cellspacing="0"  bgcolor="#FFFFFF">
+  <tr class="bgColor4">
+    <td nowrap align="right" class="boldbig">
+      <img src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=clear.gif" height="32" width="1" border="0" >
+    </td>
+    </tr>
+</TABLE>
+<P>
+
+<CENTER>
+<!-- DS_SEARCHDESC "VERBOSE" -->
+<P>
+<!-- IF "FoundEntries" -->
+Please click on the name of the entry you would like to use for authentication.
+</P>
+<P>
+
+<TABLE BORDER=1 CELLPADDING=4>
+<TR>
+<TD NOWRAP class="boldbig">Authenticate As</td>
+<TD NOWRAP class="boldbig">Title</td>
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "href=javascript:authSubmit('--value--'); onMouseOver=%22window.status='Click to authenticate'; return true;%22" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=title" -->
+
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+<!-- ELSE "FoundEntries" -->
+Please go back and try again.
+<!-- ENDIF "FoundEntries" -->
+</CENTER>
+
+<FORM>
+<img src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=pixel.gif" height="1" width="1" hspace="20" align="left" border="0">
+
+<TABLE width="90%" border="0" cellpadding="2" cellspacing="0"  bgcolor="#FFFFFF">
+  <tr class="bgColor4">
+    <td nowrap align="right" class="boldbig">
+    <INPUT TYPE="button" VALUE="Go Back" onClick="history.back();">
+<!-- DS_HELPBUTTON "topic=AUTHMULTMATCH" -->
+    </td>
+    </tr>
+</TABLE>
+
+</FORM>
+</body>
+<!-- ENDHTML -->

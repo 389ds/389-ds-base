@@ -1,0 +1,44 @@
+#
+# PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+# license terms. Copyright 2001 Sun Microsystems, Inc.
+# Some preexisting portions Copyright 2001 Netscape Communications Corp.
+# All rights reserved.
+# 
+# AIX Makefile for Directory Server plug-in examples
+# NOTE: Make sure to set the DSLIB variable to the path 
+# to the libslapd_shr.a file (for example, 
+# DSLIB = /usr/netscape/suitespot/lib/libslapd_shr.a
+
+CC = xlC_r
+LD = ld
+
+# Set this to the path to the libslapd_shr.a file
+DSLIB = 
+
+INCLUDE_FLAGS= -I../../include
+CFLAGS= $(INCLUDE_FLAGS) -qarch=com 
+LIBPATH=/usr/lib/threads:/usr/lpp/xlC/lib:/usr/lib:/lib:..:../../../../lib
+EXTRA_LIBS= -bI:/usr/lib/lowsys.exp -lC_r -lC -lpthreads -lc_r -lm \
+	/usr/lib/libc.a $(DSLIB)
+LDFLAGS= -bE:libtest-plugin_shr.exp -bM:SRE -bnoentry -blibpath:$(LIBPATH) \
+	$(EXTRA_LIBS)
+
+OBJS = distrib
+
+all: libtest-plugin_shr.a
+
+
+libtest-plugin_shr.a: $(OBJS)
+	rm -f libtest-plugin_shr.exp
+	echo "#!" > libtest-plugin_shr.exp
+	nm -B -C -g $(OBJS) | \
+		awk '/ [B,T,D] / {print $$3}' | \
+		sed -e 's/^\.//' | sort -u >> libtest-plugin_shr.exp
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin_shr.a
+

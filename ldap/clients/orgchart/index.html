@@ -1,0 +1,33 @@
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<META HTTP-EQUIV="Expires" CONTENT="Thu, 01 Feb 1996 00:00:00 GMT">
+        <TITLE>Netscape Directory Server Org Chart</TITLE>
+
+
+<SCRIPT LANGUAGE="javascript">
+
+
+        var agt = navigator.userAgent.toLowerCase();
+        var is_major = parseInt(navigator.appVersion);
+        var is_nav = ((agt.indexOf('mozilla')!=-1) && (agt.indexOf('spoofer')==-1)
+                && (agt.indexOf('compatible') == -1) && (agt.indexOf('opera')==-1)
+                && (agt.indexOf('webtv')==-1));
+
+        if (!is_nav || (is_major < 5))
+        {
+                //document.write('<BASE HREF="http://localhost/cvsorg/">');
+        }
+
+</SCRIPT>
+</HEAD>
+
+
+<frameset frameborder=no border=0 framespacing="0" ROWS="50,*">
+        <frame name="input_window" src="topframe.html" SCROLLING=NO noresize marginwidth="5" marginheight="5">
+        <frame name="output_window" src="botframe.html" marginwidth="10" marginheight="10">
+
+</frameset>
+
+
+</HTML>

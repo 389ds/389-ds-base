@@ -1,0 +1,27 @@
+#
+# PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+# license terms. Copyright 2001 Sun Microsystems, Inc.
+# Some preexisting portions Copyright 2001 Netscape Communications Corp.
+# All rights reserved.
+# 
+# HPUX Makefile for Directory Server plug-in examples
+
+CC = cc
+LD = ld
+ 
+INCLUDE = -I../../include
+CFLAGS=$(INCLUDE) -D_HPUX_SOURCE -Aa +DA1.0 +z
+LDFLAGS = -b 
+ 
+OBJS = distrib.o
+ 
+all: libtest-plugin.sl
+ 
+libtest-plugin.sl: $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin.sl

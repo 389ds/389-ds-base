@@ -1,0 +1,549 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# migrate an old server instance to a new server instance
+
+BEGIN {
+	$| = 1;
+	# print CGI header
+	print "Content-type: text/plain\n\n";
+	require 'uname.lib';
+
+	$isNT = -d '\\';
+	$PATHSEP = $isNT ? "\\" : "/";
+	# get the server root directory
+	$sroot = $ENV{'NETSITE_ROOT'};
+	$exitCode = 0;
+	@INC = ( '.', '../../../admin/admin/bin' );
+	grep { s@/@\\@g } @INC if $isNT;
+	$script_suffix = $isNT ? ".bat" : "";
+	$exe_suffix = $isNT ? ".exe" : "";
+	$slapdExecName = $isNT ? 'slapd.exe' : 'ns-slapd';
+	$nullFile = $isNT ? 'nul' : '/dev/null';
+	# NT needs quotes around some things unix doesn't
+	$quote = $isNT ? "\"" : "";
+	if ($isNT) {
+		# we have to pass batch files directly to the NT command interpreter
+		$com_spec = $ENV{ComSpec};
+		if (!$com_spec) {
+			$com_spec = $ENV{COMSPEC};
+		}
+		if (!$com_spec || ! -f $com_spec) {
+			# find the first available command interpreter
+			foreach $drive (c..z) {
+				$com_spec = "$drive:\\winnt\\system32\\cmd.exe";
+				last if (-f $com_spec);
+				$com_spec = undef;
+			}
+			if (! $com_spec) {
+				# punt and pray
+				$com_spec = 'c:\winnt\system32\cmd.exe';
+			}
+		}
+		$os = "WINNT";
+	} else {
+		$os = &uname("-s");
+	}
+ 
+	if ( ($os eq "AIX") || ($os eq "HP-UX") ) {
+		$sigChildHandler = 'sigChildHandler';
+	}
+}
+
+sub mySystem {
+	my $cmd = $_[0];
+	# the system {$cmd} avoids some NT shell quoting problems if the $cmd
+	# needs to be quoted e.g. contains spaces; the map puts double quotes
+	# around the arguments on NT which are stripped by the command
+	# interpreter cmd.exe; but don't quote things which are already quoted
+	my @fixargs = map { /^[\"].*[\"]$/ ? $_ : $quote . $_ . $quote } @_;
+	my $rc = 0;
+	if ($cmd =~ /[.](bat|cmd)$/) {
+		# we have to pass batch files directly to the NT command interpreter
+		$cmd = $com_spec;
+#		print "system $cmd /c \"@fixargs\"\n";
+		$rc = system {$cmd} '/c', "\"@fixargs\"";
+	} else {
+#		print "system $cmd \"@fixargs\"\n";
+		$rc = system {$cmd} @fixargs;
+	}
+
+	return $rc;
+}
+
+sub getNextEntry {
+	my $fh = shift;
+	my @entry = (); # an array of strings, each string is 1 attr/value pair
+	my $line = "";
+	while (($line = <$fh>) && !($line =~ /^$/)) { # entry is terminated by EOF or empty line34
+		chop $line;
+		if ($line =~ /^\s/) { # line begins with a single space char
+			$entry[@entry-1] .= $'; # add continuation to line
+		} else {
+			push @entry, $line;
+		}
+	}
+	return @entry;
+}
+
+sub runAndIgnoreOutput {
+	my $cmd = shift;
+        print "\n.";
+	open(RUNCMD, "${quote}$cmd${quote} 2>&1 |") or die "Error: could not run $cmd: $!";
+        print "\n." ;
+	sleep(1); # allow pipe to fill with data
+        print "\n." ;
+	while (<RUNCMD>) {
+#		print;
+	}
+	my $code = close(RUNCMD);
+#	print "runAndIgnore: code=$code status=$?\n";
+	return $?;
+}
+
+sub printEntry {
+	my $fh = shift;
+	foreach (@_) {
+		print $fh $_, "\n";
+	}
+	print $fh "\n";
+}
+
+sub reportAndExit {
+	my $now_time = gmtime;
+	print "END migration at ", $now_time, " GMT\n";
+	print "Exit status is ", $exitCode, "\n";
+	if ($? == 0 && $exitCode == 0) {
+		print "NMC_STATUS: 0\n";
+	} else {
+	        # not necessary to show this
+       	        print '$?=', $?+0, ' $!=', $!+0, ' $exitCode=', $exitCode, "\n";
+		print shift, "\n";
+		print "NMC_STATUS: $exitCode\n";
+	}
+
+	print "###MIGRATION FINISHED###\n";
+
+	exit($exitCode);
+}
+
+# put stderr on stdout
+open(STDERR, ">&STDOUT" );
+# use unbuffered output
+select(STDERR);
+$| = 1;
+select(STDOUT);
+$| = 1;
+$TRACELEVEL = 0 ;
+
+sub sigChildHandler {
+#	print "in sig child handler\n";
+#	print "args = @_\n";
+}
+
+$SIG{__DIE__} = 'exit';
+$SIG{'QUIT'} = 'exit';
+$SIG{'INT'} = 'exit';
+$SIG{'TERM'} = 'exit';
+# AIX needs a SIGCHILD handler for pipes
+if (defined($sigChildHandler)) {
+	$SIG{'CHLD'} = $sigChildHandler;
+	$SIG{'CLD'} = $sigChildHandler;
+}
+
+# the atexit handler
+END {
+	$! = 0;
+	$? = $exitCode;
+	if ($exitCode == 0) {
+	    # just give a report if the operation was successfull
+	    &reportAndExit; }
+}
+
+# process the CGI input
+use Cgi;
+
+if (($sroot =~ m#/$#) || ($sroot =~ m#\\$#)) {
+	chop $sroot;
+}
+
+if (($cgiVars{'oldServerRoot'} =~ m#/$#) || ($cgiVars{'oldServerRoot'} =~ m#\\$#)) {
+	chop $cgiVars{'oldServerRoot'};
+}
+
+$instanceDir = $sroot . $PATHSEP . 'slapd-' . $cgiVars{'servid'};
+
+#########################################################################################
+#         get the Directory Server version
+#         For the moment the migration works only from 4.x version to 5.0 version
+#         As for as previous versions are concerned we don't migrate neither 1.x nor 3.x
+#########################################################################################
+
+($oldVersion, $oldMinor) = &getVersion($cgiVars{'oldServerRoot'});
+print "\n\noldVersion: $oldVersion, oldMinor: $oldMinor" ;
+
+
+if ($oldVersion < 4) {
+	# migration of version under 4 is not supported
+    	# abort the use of the migration script up to 5.1
+        $exitCode = 1 ;
+        die  "\n\n\n\n\n\n\nThe migration of a $oldVersion.x directory instance is not available." .
+             "\n\nINFORMATION" .
+             "\nYou can also migrate a 4.x directory server." .
+             "\nIt must be executed manually through a command line." .
+             "\nPlease refer to the product documentation to get usage and prerequisites\n";
+} 
+else {
+	# print begin message
+	$now_time = gmtime;
+	print "BEGIN migration at: ", $now_time, " GMT\n";
+	$oldSlapdConf = $cgiVars{'oldServerRoot'} . $PATHSEP . 'slapd-' .
+		$cgiVars{'oldServerName'} . $PATHSEP . 'config' . $PATHSEP .
+		'slapd.conf';
+
+	open(OLDSLAPDCONF, $oldSlapdConf) or
+		die "Error: could not open old config file $oldSlapdConf: $!";
+	while(<OLDSLAPDCONF>) {
+		chop;
+		if (/^port\s+/i) {
+			if (! $cgiVars{'servport'}) {
+				$cgiVars{'servport'} = $';
+	                        $old_port = $' ;
+				$Cgi::CONTENT .= '&servport=' . $';
+				if ($ENV{'QUERY_STRING'}) {
+					$ENV{'QUERY_STRING'} .= '&servport=' . $';
+				}
+			}
+		} elsif (/^rootdn\s+/i) {
+			if (! $cgiVars{'rootdn'}) {
+				($value = $') =~ s/^[\"]//;
+				# remove leading "
+				$value =~ s/[\"]$//;
+				# remove trailing "
+				$cgiVars{'rootdn'} = $value;
+				$Cgi::CONTENT .= '&rootdn=' . $value;
+				if ($ENV{'QUERY_STRING'}) {
+					$ENV{'QUERY_STRING'} .= '&rootdn=' . $value;
+				}
+			}
+		}
+	}
+	close(OLDSLAPDCONF);
+
+	$testDir = $instanceDir . $PATHSEP . 'config';
+	
+	# check if it's necessary or not to stop the old server
+	if (-d $testDir) {
+	    printTrace("\ninstance already exists \n",3) ;
+	    # the instance already exists
+	    $DSEldif = $instanceDir. $PATHSEP . 'config' . $PATHSEP . 'dse.ldif';
+	    open(DSELDIF, $DSEldif) or
+		die "Error: could not open old config file $DSEldif: $!";
+	    while(<DSELDIF>) {
+		chop;
+		if (/^nsslapd-port:\s+/i) {
+			$cgiVars{'servport'} = $';
+			$Cgi::CONTENT .= '&servport=' . $';
+			if ($ENV{'QUERY_STRING'}) {
+				$ENV{'QUERY_STRING'} .= '&servport=' . $';
+			}
+		} elsif (/^nsslapd-rootdn:\s+/i) {
+			($value = $') =~ s/^[\"]//;
+			# remove leading "
+			$value =~ s/[\"]$//;
+			# remove trailing "
+			$cgiVars{'rootdn'} = $value;
+			$Cgi::CONTENT .= '&rootdn=' . $value;
+			if ($ENV{'QUERY_STRING'}) {
+				$ENV{'QUERY_STRING'} .= '&rootdn=' . $value;
+			}
+		}
+	    }
+	    close(DSELDIF);
+	    if ($old_port eq $cgiVars{'servport'}) {
+	        # need to stop the old instance
+	        if ($cgiVars{'shutdown_old_server'}) {
+	                 &stopServer($cgiVars{'oldServerRoot'}, 'slapd-' . $cgiVars{'oldServerName'});
+	        }
+	    }
+	    &startServer();
+	}
+	else {
+		# need to stop the old instance
+		if ($cgiVars{'shutdown_old_server'}) {
+	       		 &stopServer($cgiVars{'oldServerRoot'}, 'slapd-' . $cgiVars{'oldServerName'});
+		}
+	}
+	
+	@cgi = keys(%cgiVars);
+	printTrace("\ncgi: @cgi",3);
+	printTrace("\npwd: $cgiVars{'rootpw'}, rootdn: $cgiVars{'rootdn'}, port: $cgiVars{'servport'}, 
+	       old_instance -o: $cgiVars{'oldServerRoot'}$PATHSEPslapd-$cgiVars{'oldServerName'}, 
+	       new_instance -n: $sroot$PATHSEPslapd-$cgiVars{'servid'}",3) ;
+	    
+	# if the instance does not exist, create it
+	if (! -d $testDir) {
+		print "Creating the new instance . . .\n";
+	        printTrace("\nbefore instance creation\n",3) ;
+		# call the instance creation program; we should already be in the same
+			# directory; if we are being called as a CGI, index will parse the CGI
+		# parameters, otherwise, it will use the command line parameters
+		if ($isNT) {
+			$myprog = "ds_create.exe";
+		} else {
+			$myprog = "./ds_create";
+		}
+	        printTrace("\nafter instance creation\n",3) ;
+	
+		# since we already parsed stdin, we need to pass it to the instance creation
+		# CGI somehow; fortunately, we saved the old contents of stdin in the
+		# $Cgi::CONTENT, so just pipe that into our CGI
+		# print "executing $myprog @ARGV\n";
+		open(INDEX, "|$myprog @ARGV") or die "Error: system($myprog, @ARGV): $!";
+		sleep(1); # allow prog to init stdin read buffers
+		print INDEX $Cgi::CONTENT, "\n";
+		close INDEX;
+	
+		$exitCode = $?;
+		if ($exitCode != 0) {
+			die "Error: could not create new instance: $!";
+			}
+	    
+	
+	} else {
+	}
+	
+	   
+	    printTrace("\nBefore instance created test\n",3) ;
+	
+	chdir("$sroot${PATHSEP}bin${PATHSEP}slapd${PATHSEP}admin${PATHSEP}bin");
+	
+	# Now that the new instance is created, merge in the old configuration data
+	# $cgiVars{'oldServerRoot'} will contain the full path of the old server
+	# root directory
+	# $cgiVars{'oldServerName'} will contain the old instance name
+	$myscript = "migrateInstance5";
+	# print "executing $myscript $sroot $cgiVars{'oldServerRoot'} $cgiVars{'servid'} $cgiVars{'oldServerName'} $savedLdif\n";
+	
+	@args = ($, $myscript, '-p', $cgiVars{'servport'}, '-D', $cgiVars{'rootdn'}, '-w', $cgiVars{'rootpw'}, '-o', 
+		 $cgiVars{'oldServerRoot'} . $PATHSEP . 'slapd-' . $cgiVars{'oldServerName'}, '-n', 
+		 $sroot . $PATHSEP .  'slapd-' . $cgiVars{'servid'}, '-noinput');
+	$exitCode = &mySystem(@args);
+	die "Error: @args: $!" if ($exitCode != 0);
+    }
+
+
+sub startServer {
+	my $errLog = $instanceDir . $PATHSEP . 'logs' . $PATHSEP . 'errors';
+	# emulate tail -f
+	# if the last line we see does not contain "slapd started", try again
+	my $done = 0;
+	my $started = 0;
+	my $code = 0;
+	my $lastLine = "";
+	my $timeout = time + 60; # 1 minute
+	my $startCmd = $instanceDir . $PATHSEP . 'start' . $script_suffix;
+	if (! -f $startCmd) {
+		$startCmd = $instanceDir . $PATHSEP . 'start-slapd' . $script_suffix;
+	}
+	$code = &mySystem($startCmd);
+	open(IN, $errLog) or die "Could not open error log $errLog: $!";
+	my $pos = tell(IN);
+	while (($done == 0) && (time < $timeout)) {
+		for (; ($done == 0) && ($_ = <IN>); $pos = tell(IN)) {
+			$lastLine = $_;
+#			print;
+			# the server has already been started and shutdown once . . .
+			if (/slapd started\./) {
+				$started++;
+				if ($started == 2) {
+					$done = 1;
+				}
+			# sometimes the server will fail to come up; in that case, restart it
+			} elsif (/Initialization Failed/) {
+#				print "Server failed to start: $_";
+				$code = &mySystem($startCmd);
+			# sometimes the server will fail to come up; in that case, restart it
+			} elsif (/exiting\./) {
+#				print "Server failed to start: $_";
+				$code = &mySystem($startCmd);
+			}
+		}
+		if ($lastLine =~ /PR_Bind/) {
+			# server port conflicts with another one, just report and punt
+			print $lastLine;
+			print "This server cannot be started until the other server on this\n";
+			print "port is shutdown.\n";
+			$done = 1;
+		}
+		if ($done == 0) {
+			# rest a bit, then . . .
+			sleep(2);
+			# . . . reset the EOF status of the file desc
+			seek(IN, $pos, 0);
+		}
+	}
+	close(IN);
+
+	if ($started < 2) {
+		$! = $code;
+#		$now = time;
+#		if ($now > $timeout) {
+#			print "Possible timeout: timeout=$timeout now=$now\n";
+#		}
+		die "Error: could not start server: $!";
+	}
+
+	return 0;
+}
+
+sub stopServer {
+	my $root = shift;
+	my $name = shift;
+	$maxStopIterations = 60;
+	print "Shutting down server $name . . .\n";
+	$stopCmd = $quote . $root . $PATHSEP . $name . $PATHSEP . 'stop' . $script_suffix . $quote;
+	if (! -f $stopCmd) {
+		$stopCmd = $quote . $root . $PATHSEP . $name . $PATHSEP . 'stop-slapd' . $script_suffix . $quote;
+	}
+
+	if (! -f $stopCmd) {
+		# no stop command, probably a 1.X system; for NT, we'll try net stop
+		# for unix, we'll get the pid and kill it
+		if ($isNT) {
+			$stopCmd = 'net stop ' . $name;
+		} else {
+			# see if there is a pid file
+			$pidfile = $root . $PATHSEP . $name . $PATHSEP . 'logs' .
+				$PATHSEP . 'pid';
+			if (open(PIDFILE, $pidfile)) {
+				chomp($pid = <PIDFILE>);
+				close(PIDFILE);
+				while ($maxStopIterations-- && !$exitCode) {
+					$exitCode = kill(15, $pid);
+				}
+				$stopCmd = undef;
+			}
+		}
+	}
+
+	# keep looping until the stop cmd returns an error code, which usually
+	# means that what ever we want to stop is stopped, or some other error
+	# occurred e.g. permission, or no such service
+	$exitCode = &runAndIgnoreOutput($stopCmd);
+#	print "stopServer: exitCode=$exitCode\n";
+	while ($stopCmd && $maxStopIterations-- && !$exitCode) {
+		$exitCode = &runAndIgnoreOutput($stopCmd);
+#		print "stopServer: exitCode=$exitCode\n";
+	}
+
+	if (!$maxStopIterations) {
+		print "Warning: could not shutdown the old server: $!\n";
+	}
+
+	sleep(10) if ($isNT);
+
+	$exitCode = 0;
+}
+
+#############################################################################
+#  print message error to the user standard output.  
+
+sub printTrace {
+
+  my $Msg = shift ;
+  my $level     = shift ;
+  if ($level <= $TRACELEVEL) {
+    print($Msg);
+  }
+
+}  
+
+#############################################################################
+
+sub getVersion {
+	my $rootDir = shift;
+	my $version = 0;
+	my $minor = 0;
+	my $progDir = "${PATHSEP}bin${PATHSEP}slapd${PATHSEP}server${PATHSEP}";
+	my $progDir2 = "${PATHSEP}bin${PATHSEP}slapd${PATHSEP}";
+	# get the current directory so we can go back to it
+	my $curdir = &getCwd;
+
+	# find the slapd executable
+	$prog = $rootDir . $progDir . $slapdExecName;
+	if (! -f $prog) {
+		$prog = $rootDir . $progDir2 . $slapdExecName;
+		if (-f $prog && $isNT) {
+			# if slapd is in bin/slapd and we're on NT, just assume version 1;
+			# apparently, slapd.exe doesn't like the -v argument . . .
+			return ( '1', $minor );
+		}
+	}
+
+	# read the old version from the old slapd program
+	chdir($rootDir . $progDir) or
+		die "Could not chdir to $rootDir${progDir}: $!: ";
+	open(F, "${quote}${quote}$prog${quote} -v${quote} 2>&1 |") or
+		die "Could not run slapd program $prog: $!";
+	sleep(1); # allow some data to accumulate in the pipe
+#	print "Output from $prog -v:\n";
+	while (<F>) {
+		print;
+		if (/^Netscape-Directory\/(\d+)\.(\d+)/) {
+			$version = $1;
+			$minor = $2;
+			last;
+		}
+		elsif (/^Netscape-Directory\(restriced-mode\)\/(\d+)\.(\d+)/) {
+		        $version = $1;
+			$minor = $2;
+			last;
+		}
+	}
+	$code = close(F);
+#	print "$prog returned code=$code status=$?\n";
+
+	# done determining versions; go back to orig directory
+	chdir($curdir) or die "Could not chdir to $curdir: $!: ";
+
+	$version == 0 and
+		die "Could not determine version of the directory server in $rootDir: ";
+
+	return ( $version, $minor );
+}
+
+
+#############################################################################
+
+sub getCwd {
+	my $command = $isNT ? "cd" : "/bin/pwd";
+	open(PWDCMD, "$command 2>&1 |") or
+		die "Error: could not execute $command: $!";
+	# without the following sleep, reading from the pipe will
+	# return nothing; I guess it gives the pwd command time
+	# to get some data to read . . .
+	sleep(1);
+	my $curdir;
+	while (<PWDCMD>) {
+		if (!$curdir) {
+			chomp($curdir = $_);
+		}
+	}
+	my $code = close(PWDCMD);
+#	if ($code || $?) {
+#		print "$command returned code=$code status=$? dir=$curdir\n";
+#	}
+#	print "getCwd curdir=\[$curdir\]\n";
+	return $curdir;
+}
+
+#############################################################################
+#############################################################################
+#############################################################################

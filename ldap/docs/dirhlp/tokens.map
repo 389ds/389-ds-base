@@ -1,0 +1,166 @@
+;-------------------------------------------------------------------------
+; PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+; license terms. Copyright © 2001 Sun Microsystems, Inc. 
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved. 
+;
+;-------------------------------------------------------------------------
+; Last update: 10 July 2003 by Tech Pubs
+;-------------------------------------------MAPPINGS
+; UI Reference Token = help/filename.htm
+;-------------------------------------------PROGRAMS
+;
+;MENU BAR
+;
+;Help Menu from all tabs
+framework-menubar-contents = help/redir_agtoc.htm
+preferences-confirmation-help = help/helpmenu.htm
+framework-menubar-dochome = help/redir_dochome.htm
+
+;TASKS TAB
+tasks-backup-help = help/taskstab_bkup_restore.htm
+tasks-restore-help = help/taskstab_bkup_restore2.htm
+
+
+;CONFIGURATION TAB
+;Root Node
+configuration-system-settings-help = help/configtab_rootnode.htm
+configuration-system-performance-help = help/configtab_rootnode2.htm
+configuration-system-encryption-help = help/configtab_rootnode3.htm
+configuration-system-snmp-help = help/configtab_rootnode5.htm
+configuration-system-manager-help = help/configtab_rootnode6.htm
+configuration-system-sasl-help = help/configtab_rootnode7.htm
+configuration-system-sasl-add-dbox-help = help/configtab_rootnode8.htm
+configuration-system-sasl-mod-dbox-help = help/configtab_rootnode9.htm
+
+;Database Icon
+configuration-database-indexes-help = help/configtab_db.htm
+configuration-database-passwords-help = help/configtab_db2.htm
+configuration-database-accountlockout-help = help/configtab_db3.htm
+configuration-database-indexes-add-dbox-help = help/configtab_db4.htm
+configuration-database-settings-help = help/configtab_db5.htm
+configuration-database-import-ldap-dbox-help = help/configtab_db6.htm
+configuration-database-import-fastwire-dbox-help = help/configtab_db7.htm
+configuration-database-initialize-backend-dbox-help = help/configtab_db8.htm
+configuration-database-export-dbox-help = help/configtab_db9.htm
+configuration-database-export-single-dbox-help = help/configtab_db10.htm
+configuration-database-plugin-setting-help = help/configtab_db11.htm
+configuration-database-default-indexes-help = help/configtab_db12.htm
+configuration-database-attrenc-help = help/configtab_db13.htm
+configuration-database-attrenc-add-dbox-help = help/configtab_db14.htm
+configuration-database-attrenc-method-select-dbox-help = help/configtab_db15.htm
+
+;Chaining Database Icon
+configuration-new-chaining-instance-dbox-help = help/configtab_chaindb.htm
+configuration-chaining-settings-help = help/configtab_chaindb2.htm
+configuration-chaining-settings-ctrl-chooser-dbox-help = help/configtab_chaindb3.htm
+configuration-chaining-settings-comp-chooser-dbox-help = help/configtab_chaindb4.htm
+configuration-chaining-default-help = help/configtab_chaindb5.htm
+configuration-chaining-connection-help = help/configtab_chaindb6.htm
+configuration-chaining-authentication-help = help/configtab_chaindb7.htm
+
+;LDBM Database Instance Icon
+configuration-new-ldbm-instance-dbox-help =  help/configtab_ldbmdb.htm
+
+;Mapping Tree/Suffix
+configuration-mapping-setting-help = help/configtab_maptree.htm
+configuration-mapping-add-backend-dbox-help = help/configtab_maptree2.htm
+configuration-mapping-database-help = help/configtab_maptree3.htm
+configuration-mapping-referral-help = help/configtab_maptree4.htm
+configuration-new-mapping-node-dbox-help = help/configtab_maptree5.htm
+configuration-new-mapping-sub-suffix-dbox-help = help/configtab_maptree6.htm
+configuration-confirm-delete-suffix-dbox-help = help/configtab_maptree7.htm
+
+
+;Schema Icon
+configuration-schema-objclass-help = help/configtab_schema.htm
+configuration-schema-objclass-create-dbox-help = help/configtab_schema2.htm
+configuration-schema-attr-help = help/configtab_schema3.htm
+configuration-schema-attr-create-dbox-help = help/configtab_schema4.htm
+configuration-schema-mrule-help = help/configtab_schema5.htm
+
+;Replication Agreements Icon
+configuration-replication-legacyconsumersettings-help = help/configtab_replication.htm
+configuration-replication-suppliersettings-help = help/configtab_replication2.htm
+configuration-replication-replicasettings-help = help/configtab_replication3.htm
+configuration-replication-summary-help = help/configtab_replication4.htm
+configuration-replication-schedule-help = help/configtab_replication5.htm
+configuration-replication-content-help = help/configtab_replication6.htm
+configuration-replication-host-dbox-help = help/configtab_replication7.htm
+configuration-replication-export-help = help/configtab_replication8.htm
+
+;Logs Icon
+configuration-logs-access-help = help/configtab_logs.htm
+configuration-logs-error-help = help/configtab_logs2.htm
+configuration-logs-audit-help = help/configtab_logs3.htm
+
+;Plugins Icons
+configuration-plugins-help = help/configtab_plugins.htm
+
+
+;REPLICATION AGREEMENT WIZARD
+replication-wizard-content-help = help/replication_wizard.htm
+replication-wizard-schedule-help = help/replication_wizard2.htm
+replication-wizard-consumerinit-help = help/replication_wizard3.htm
+replication-wizard-summary-help = help/replication_wizard4.htm
+replication-wizard-legacyrmmrname-help = help/replication_wizard5.htm
+;replication-wizard-cirsirselect-help = help/replication_wizard6.htm
+;replication-wizard-cirsirname-help = help/replication_wizard7.htm
+
+
+;DIRECTORY TAB
+;Role Configuration
+configuration-role-member-filtered-help = help/dirtab_role.htm
+configuration-role-member-managed-help = help/dirtab_role2.htm
+configuration-role-member-nested-help = help/dirtab_role3.htm
+configuration-role-account-help = help/dirtab_role4.htm
+configuration-role-info-help = help/dirtab_role5.htm
+configuration-set-role = help/dirtab_role6.htm
+configuration-choose-role = help/dirtab_role7.htm
+
+;Fine-Grained Password Policy Configuration
+configuration-browser-passwords-help = help/dir_browser2.htm
+configuration-browser-accountlockout-help = help/dir_browser3.htm
+configuration-set-referral = help/dir_browser4.htm
+
+;CoS Configuration
+configuration-cos-attributes-help = help/dirtab_cos.htm
+configuration-cos-info-help = help/dirtab_cos2.htm
+configuration-cos-template-help = help/dirtab_cos3.htm
+
+;STATUS TAB
+;Replication Icon
+status-replication-help = help/statustab_replication.htm
+
+;Logs Icon
+status-logs-access-help = help/statustab_logs.htm
+status-logs-error-help = help/statustab_logs2.htm
+status-logs-audit-help = help/statustab_logs3.htm
+
+;Performance Counters Icon
+status-perfcounters-server-help = help/statustab_performance.htm
+status-perfcounters-database-help = help/statustab_performance2.htm
+
+;General Server Status
+status-server-general-help = help/statustab_general.htm
+
+;PROPERTY EDITOR WINDOWS
+property-main-help = help/property_editor.htm
+property-new-objectclass-dbox-help = help/property_editor2.htm
+property-new-attribute-dbox-help = help/property_editor3.htm
+property-main-create-help = help/property_editor4.htm
+
+;LDAP URL Construction Dialog
+configuration-construct-new-url-dbox-help = help/ldap_url.htm
+
+;Account Management Dialog
+configuration-user-account-help = help/account_mgmt.htm
+
+;VERY ADVANCED SEARCH DIALOG BOX
+search-dbox-veryadvanced-help = help/adv_search.htm
+
+;INSTALL
+menubar-newinstance-dbox-help = help/new_instance.htm
+
+; SUBTREE SELECTION DIALOG BOX
+subtree-selection-dbox-help = help/dir_browser.htm

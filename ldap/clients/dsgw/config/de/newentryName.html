@@ -1,0 +1,48 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!--newentryName.html-->
+</HEAD>
+<!-- DS_NEWENTRY_NAME_BODY -->
+<p>
+<!-- DS_NEWENTRY_NAME_FORM -->
+<font SIZE="+2">Schritt 2.</font>
+Geben Sie einen Namen f&uuml;r die neue
+<!-- EVALUATE "entType.fullname" -->
+.
+<p><nobr><font SIZE="+1">
+<!-- EVALUATE "entType.rdnattr" -->
+=</font>
+<input TYPE="text" NAME="entryname" SIZE="40">
+</nobr>
+<p>
+<font SIZE="+2">Schritt 3.</font>
+
+<!-- DS_NEWENTRY_LOCATION_BEGIN -->
+W&auml;hlen Sie aus der untenstehenden Liste den Verzeichnisstandort f&uuml;r diese Person.
+<!-- EVALUATE "entType.fullname" -->
+. Wenn Sie "Andere" w&auml;hlen, m&uuml;ssen Sie den gesamten unverwechselbaren Namen des Standorts eingeben, an dem dieser Eintrag hinzugef&uuml;gt werden soll.
+<p>
+<!-- DS_NEWENTRY_LOCATION_SELECT -->
+<OPTION VALUE="">Andere</OPTION>
+</SELECT>
+<input TYPE="text" NAME="dnsuffix" SIZE="70">
+<p>
+<font SIZE="+2">Schritt 4.</font>
+<!-- DS_NEWENTRY_LOCATION_END -->
+
+Klicken Sie auf "Weiter".  Es erscheint ein Formular, in dem Sie Angaben machen oder &auml;ndern k&ouml;nnen.  Wenn Sie alle Angaben gemacht haben, speichern Sie den Eintrag.
+<p>
+<center><table BORDER="2" WIDTH="75%">
+<tr><td ALIGN="center" WIDTH="50%">
+<input TYPE="submit" VALUE="Weiter">
+<td ALIGN="center" WIDTH="50%">
+
+<!-- DS_HELP_BUTTON "ADDING" -->
+</table></center></form>
+</body></HTML>

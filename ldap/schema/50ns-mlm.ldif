@@ -1,0 +1,43 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for Netscape Mailing List Manager
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.796 NAME ( 'mgmanIntroText' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( 2.16.840.1.113730.3.1.791 NAME ( 'mgmanDenySubscribe' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmemRefDN-oid NAME ( 'mgmemRefDN' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSortAttributeDirMembers-oid NAME ( 'mgmanGConfSortAttributeDirMembers' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSearchRelationship-oid NAME ( 'mgmanGConfSearchRelationship' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfKey-oid NAME ( 'mgmanGConfKey' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfGroupTemplate-oid NAME ( 'mgmanGConfGroupTemplate' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfAdmin-oid NAME ( 'mgmanGConfAdmin' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGroupKey-oid NAME ( 'mgmanGroupKey' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSearchAttribute-oid NAME ( 'mgmanGConfSearchAttribute' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmemMailUserPassword-oid NAME ( 'mgmemMailUserPassword' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmemGroupServerParam-oid NAME ( 'mgmemGroupServerParam' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSearchTreeNode-oid NAME ( 'mgmanGConfSearchTreeNode' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmemGroupMemberParam-oid NAME ( 'mgmemGroupMemberParam' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfDefaultInheritance-oid NAME ( 'mgmanGConfDefaultInheritance' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmemMemberOfGroup-oid NAME ( 'mgmemMemberOfGroup' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanJoinLocalType-oid NAME ( 'mgmanJoinLocalType' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSearchBase-oid NAME ( 'mgmanGConfSearchBase' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: (  2.16.840.1.113730.3.1.793 NAME ( 'mgmanJoinability' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( 2.16.840.1.113730.3.1.795 NAME ( 'mgmanMemberVisibility' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSortAttributeGroupMembers-oid NAME ( 'mgmanGConfSortAttributeGroupMembers' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( 2.16.840.1.113730.3.1.790 NAME ( 'mgmanAllowSubscribe' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfRemoteUserParent-oid NAME ( 'mgmanGConfRemoteUserParent' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfGroupDomains-oid NAME ( 'mgmanGConfGroupDomains' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGroupStat-oid NAME ( 'mgmanGroupStat' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( 2.16.840.1.113730.3.1.792 NAME ( 'mgmanHidden' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfNewGroupParent-oid NAME ( 'mgmanGConfNewGroupParent' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfGroupCreationUser-oid NAME ( 'mgmanGConfGroupCreationUser' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Mailing List Manager' )
+attributeTypes: ( mgmanGConfSearchGroupUser-oid NAME ( 'mgmanGConfSearchGroupUser' ) DESC 'Netscape Mailing List Manager defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Mailing List Manager' )
+objectclasses: ( mailGroupMember-oid  NAME 'mailGroupMember' DESC 'Netscape defined objectclass' SUP top AUXILIARY MUST ( objectClass $ mail ) MAY ( mgmemMemberOfGroup $ mgmemRefDN $ preferredLanguage $ userCertificate $ mgmemMailUserPassword $ mgmemGroupMemberParam $ mgmemGroupServerParam $ c $ cn $ sn $ givenName ) X-ORIGIN 'Netscape Mailing List Manager' )
+objectclasses: ( mailGroupManagement-oid  NAME 'mailGroupManagement' DESC 'Netscape defined objectclass' SUP top AUXILIARY MUST ( objectClass ) MAY ( description $ labeledURL $ mgmanAllowSubscribe $ mgmanDenySubscribe $ mgmanGroupKey $ mgmanGroupStat $ mgmanHidden $ mgmanIntroText $ mgmanJoinability $ mgmanJoinLocalType $ mgmanMemberVisibility $ multilineDescription $ userCertificate $ userPassword ) X-ORIGIN 'Netscape Mailing List Manager' )
+objectclasses: ( mailGroupManagement-GlobalConfig-oid  NAME 'mailGroupManagement-GlobalConfig' DESC 'Netscape defined objectclass' SUP top AUXILIARY MUST ( objectClass ) MAY ( cn $ mgmanGConfAdmin $ mgmanGConfDefaultInheritance $ mgmanGConfGroupCreationUser $ mgmanGConfGroupDomains $ mgmanGConfGroupTemplate $ mgmanGConfKey $ mgmanGConfNewGroupParent $ mgmanGConfRemoteUserParent $ mgmanGConfSearchAttribute $ mgmanGConfSearchBase $ mgmanGConfSearchGroupUser $ mgmanGConfSearchRelationship $ mgmanGConfSearchTreeNode $ mgmanGConfSortAttributeDirMembers $ mgmanGConfSortAttributeGroupMembers ) X-ORIGIN 'Netscape Mailing List Manager' )

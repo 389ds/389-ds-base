@@ -1,0 +1,136 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_OBJECTCLASS "value=organization" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+Neue
+<!-- ENDIF // Adding -->
+Firma -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE>
+<TR>
+<TD>
+<IMG SRC="lang?<!-- GCONTEXT -->&file=organization.gif" ALT="Firma" HSPACE=5>
+<TD>
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+Neue Firma -
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</FONT>
+</TABLE>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=Firma bearbeiten" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Neue Firma speichern" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Abbrechen" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_ORG" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_ORG" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Firma umbenennen" "prompt=Neuen Namen f&uuml;r diese Firma eingeben:" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Firma l&ouml;schen" "prompt=Diese Firma l&ouml;schen?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="organization">
+<!-- ENDIF // Adding -->
+
+<!-- PCONTEXT -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<!-- DS_STD_COMPLETION_JS -->
+
+<HR>
+<!-- IF "!Displaying" -->
+<B>* bezeichnet einen Pflichteintrag</B><BR>
+<!-- ENDIF -->
+
+<TABLE>
+<TR>
+<TD VALIGN="TOP" NOWRAP>Firmenname:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=o" "cols=>20" -->
+</B></TD><TD WIDTH="20%"></TD>
+<TD>Beschreibung:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>30" -->
+</B></TR>
+
+<TR><TD>Telefon:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>16" -->
+</B></TD><TD></TD>
+<TD NOWRAP>Branche:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=businessCategory" "cols=>30" -->
+</B></TD></TR>
+
+<TR><TD>Fax:<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=facsimiletelephonenumber" "syntax=tel" "cols=>16" -->
+</B></TD><TD></TD>
+<TD>Standort:</TD><TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=l" "cols=>30" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP" NOWRAP>Postadresse:</TD>
+<TD VALIGN="TOP" COLSPAN="4" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=postalAddress" "syntax=mls" "type=TEXTAREA" "cols=>40" "rows=>4" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Siehe auch:</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "dncomponents=3" "cols=>50" -->
+</B></TR>
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+Eintrag zuletzt ge&auml;ndert am <B>
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> von <B>
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

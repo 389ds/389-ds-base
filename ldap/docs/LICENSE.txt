@@ -1,0 +1,6 @@
+Use of this software product is governed by the license agreement provided
+by Netscape Communications Corporation. By typing "Yes" in agreement to the
+license terms or by installing or using the software, you confirm that your
+organization has agreed to be bound by the license terms and that you and your
+organization will use this product only in accordance with those license terms.
+

@@ -1,0 +1,48 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+[General]
+Name=Netscape Directory Suite
+Components=slapd, slapd-client
+
+[slapd]
+Name= %%%SERVER_NAME%%%
+InstanceNamePrefix= %%%INSTANCE_NAME_PREFIX%%%
+NickName= slapd
+Version= %%%SERVER_VERSION%%%
+Compatible= 4.0
+BuildNumber= %%%SERVER_BUILD_NUM%%%
+Expires= %%%PUMPKIN_HOUR%%%
+Security= %%%SECURITY%%%
+Vendor= Netscape Communications Corp.
+Description= %%%SERVER_NAME%%%
+Dependencies= base/4.5, svrcore/4.5, nsperl561/1.13, perldap14/1.01
+ProductName=Directory Server
+IsDirLite=%%%IS_DIR_LITE%%%
+SourcePath=slapd
+Archive= nsslapd.zip
+PrePreInstall= dsktune
+PreInstall= ns-config
+PostInstall= bin/slapd/admin/bin/ns-update
+PreUninstall= bin/slapd/admin/bin/uninstall
+PostUninstall=
+Checked=True
+Mandatory=False
+IsLdap=True
+NSPerlPostInstall=lib/nsPerl5.6.1/install
+
+[slapd-client]
+Name= Netscape Directory Server Console
+NickName= slapd-client
+Version= %%%SERVER_VERSION%%%
+Compatible= 4.0
+Checked=True
+Mandatory=False
+IsLdap=False
+SourcePath=slapd
+IsMCC=True
+Archive=slapd-client.zip

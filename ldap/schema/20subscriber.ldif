@@ -1,0 +1,32 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# Common schema elements for Netscape-Nortel subscriber interoperability
+# Last modified September 2000
+#
+# The nsManagedPerson object class is located in the Netscape Delegated
+# Administrator schema file.
+# 
+dn: cn=schema
+attributetypes: ( 1.2.840.113556.1.2.102 NAME 'memberOf' DESC 'Group that the entry belongs to' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape Delegated Administrator' )
+attributetypes: ( 2.16.840.1.113730.3.1.601 NAME 'adminRole' DESC 'Administrative role' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Delegated Administrator' )
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.41 NAME 'parentOrganization' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape' )
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.42 NAME 'preferredLocale' DESC 'preferred locale for a person' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape' )
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.43 NAME 'preferredTimeZone' DESC 'preferred time zone for a person' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape' )
+attributeTypes: ( 2.16.840.1.113730.3.1.690 NAME 'inetDomainBaseDN' DESC 'Base DN of user subtree for a DNS domain' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape subscriber interoperability' )
+attributeTypes: ( 2.16.840.1.113730.3.1.691 NAME 'inetDomainStatus' DESC '"active", "inactive", or "deleted" status of a domain' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape subscriber interoperability' )
+attributeTypes: ( 2.16.840.1.113730.3.1.692 NAME 'inetUserStatus' DESC '"active", "inactive", or "deleted" status of a user' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape subscriber interoperability' )
+attributeTypes: ( 2.16.840.1.113730.3.1.693 NAME 'inetUserHttpURL' DESC 'A users Web addresses' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN 'Netscape subscriber interoperability' )
+attributeTypes: ( 2.16.840.1.113730.3.1.694 NAME 'inetSubscriberAccountId' DESC 'A unique attribute linking the subscriber to a billing system' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape subscriber interoperability' )
+attributeTypes: ( 2.16.840.1.113730.3.1.695 NAME 'inetSubscriberChallenge' DESC 'Used to confirm subscriberIdentity.  This attribute holds the challenge phrase and is used in conjunction with the inetSubscriberResponse' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape subscriber interoperability' )
+attributeTypes: ( 2.16.840.1.113730.3.1.696 NAME 'inetSubscriberResponse' DESC 'Used to confirm subscriberIdentity.  This attribute holds the response phrase and is used in conjunction with the inetSubscriberChallenge' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape subscriber interoperability' )
+objectClasses: ( 2.16.840.1.113730.3.2.129 NAME 'inetDomain' DESC 'Auxiliary class for virtual domain nodes' SUP top AUXILIARY MAY ( inetDomainBaseDN $ inetDomainStatus ) X-ORIGIN 'Netscape subscriber interoperability' )
+objectClasses: ( 2.16.840.1.113730.3.2.130 NAME 'inetUser' DESC 'Auxiliary class which must be present in an entry for delivery of subscriber services' SUP top AUXILIARY MAY ( uid $ inetUserStatus $ inetUserHTTPURL $ userPassword $ memberOf ) X-ORIGIN 'Netscape subscriber interoperability' )
+objectClasses: ( 1.3.6.1.4.1.1466.101.120.141 NAME 'NetscapeLinkedOrganization' AUXILIARY MAY parentOrganization X-ORIGIN 'Netscape' )
+objectClasses: ( 1.3.6.1.4.1.1466.101.120.142 NAME 'NetscapePreferences' AUXILIARY MAY ( preferredLanguage $ preferredLocale $ preferredTimeZone ) X-ORIGIN 'Netscape' )
+objectClasses: ( 2.16.840.1.113730.3.2.134 NAME 'inetSubscriber' SUP top AUXILIARY MAY ( inetSubscriberAccountId $ inetSubscriberChallenge $ inetSubscriberResponse ) X-ORIGIN 'Netscape subscriber interoperability' )
+objectclasses: ( 2.16.840.1.113730.3.2.112 NAME 'inetAdmin' DESC 'Marker for an administrative group or user' SUP top AUXILIARY MUST ( objectclass )  MAY ( aci $ memberof $ adminrole ) X-ORIGIN 'Netscape Delegated Administrator' )

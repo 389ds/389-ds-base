@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# determine server root directory from $0; this script is being run
+# from server root/bin/slapd/admin/bin
+
+sroot=`echo $0 | sed 's#/bin/slapd/admin/bin/.*##g'`
+
+# check if Solaris 9+ specific un-installation
+for arg in $* ; do
+        if [ "$arg" = "-S" ]; then
+                iDSISolaris=1
+        fi
+done
+
+if [ "$iDSISolaris" = "1" ]; then
+        vardir=`echo $sroot | sed 's#/usr/iplanet/#/var/#'`
+        etcdir=`echo $sroot | sed 's#/usr/#/etc/#'`
+fi
+
+# search for all slapd-* directories
+
+cd $sroot || {
+	echo "Could not change dir to server root directory $sroot"
+	exit 1
+}
+
+NETSITE_ROOT=$sroot
+REQUEST_METHOD=GET
+export NETSITE_ROOT REQUEST_METHOD
+# for each server instance
+for dir in slapd-* ; do
+	QUERY_STRING="InstanceName=$dir"
+	SERVER_NAMES=$dir
+	export QUERY_STRING SERVER_NAMES
+	# try to remove the nice way . . .
+	cd bin/slapd/admin/bin
+	status=0
+	./ds_remove $* > /dev/null 2>&1 || status=$?
+	cd $sroot
+	# wait for that to finish
+	sleep 2
+	if [ $status -ne 0 -o -d $dir ]; then
+		# something went wrong; kill with extreme prejudice . . .
+		# Solaris 9+ specific un-installation
+        if [ -f $dir/logs/pid ]; then
+			pid=`cat $dir/logs/pid`
+			# kill the server
+			kill -9 $pid > /dev/null 2>&1
+			# wait for it to stop
+			sleep 2
+		fi
+		# remove the instance directory
+		rm -rf $dir
+	fi
+	# Solaris 9+ specific un-installation
+        if [ "$iDSISolaris" = "1" ]; then
+                rm -rf $etcdir/$dir
+                rm -rf $vardir/$dir
+        fi
+
+done
+
+# remove some other stuff which is dynamically created
+if [ "$iDSISolaris" = "" ]; then
+	rm -rf bin/slapd
+fi
+
+exit 0

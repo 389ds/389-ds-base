@@ -1,0 +1,403 @@
+<!-- BEGIN COPYRIGHT BLOCK
+ Copyright 2001 Sun Microsystems, Inc.
+ Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ All rights reserved.
+ END COPYRIGHT BLOCK -->
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="Author" CONTENT="Nitin More">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (WinNT; U) [Netscape]">
+</HEAD>
+<BODY>
+
+<CENTER>
+<H1>
+Change Log for the ldaputil library</H1></CENTER>
+
+<DT>
+Author: Nitin More</DT>
+
+<DT>
+E-mail:&nbsp; <A HREF="mailto:nitin@netscape.com">nitin@netscape.com</A></DT>
+
+<DT>
+Phone: (415) 937-4240</DT>
+
+<CENTER></CENTER>
+
+<CENTER>
+<HR WIDTH="100%"></CENTER>
+
+<CENTER></CENTER>
+
+<CENTER><B><FONT SIZE=+1>Changes since Apr 17, 1997</FONT></B></CENTER>
+
+
+<P>Last Update: Aug 25, 1997
+
+<P>All the new changes have been checked into the server3_tier_branch.&nbsp;
+The server3_branch is frozen &amp; contains the version of 'ldaputil' for
+the SuiteSpot 3.0 release.
+<H2>
+Changed:</H2>
+Several bug fixes went in since I last modified this file.&nbsp; The important
+ones are:
+<UL>
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=79373">79373</A>: Attributes
+listed multiple times in certmap.conf were turining that attribute off
+and enabling some other attribute.&nbsp; (For example, if you have "E"
+as well as "MAIL" in FilterComps, they cancelled each other).</LI>
+
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=58474">58474</A>: If nested
+group checks goes on for 30 recursions, a circular groups error is returned.</LI>
+
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=80004">80004</A>: after
+thoroughly testing the certmap utility, several (mostly minor) oddities
+were found &amp; fixed.</LI>
+</UL>
+
+<H2>
+Added:</H2>
+
+<UL>
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=79370">79370</A>: Group
+membership check is optimized now through the new function <B>ldapu_auth_userdn_groupids</B>.&nbsp;
+Use this new function to get the optimization.&nbsp; This function's algorithm
+is as follows:</LI>
+
+<BR>The first search uses the following filter (w/o the group names!):
+<OL><TT>(| (&amp; (objectclass=groupofuniquenames)</TT>
+<BR><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (uniquemember=&lt;userDN>))</TT>
+<BR><TT>&nbsp;&nbsp; (&amp; (objectclass=groupofnames)(member=&lt;userDN>)))</TT>
+<BR>&nbsp;</OL>
+This gives us all the groups the user is member of.&nbsp; We ask for only
+the "CN" attributes of the returned groups.&nbsp; We check if "CN" of any
+of the returned groups is one of the groups we have.&nbsp; If yes, we have
+succeeded.&nbsp; If there are no groups returned then we have failed.&nbsp;
+Otherwise, we continue with the nested group check.&nbsp; To perform that
+check, we need DNs of all the groups the user is member of, which we already
+have from the previous search.&nbsp; Now we repeat the search as follows:
+<OL><TT>(| (&amp; (objectclass=groupofuniquenames)</TT>
+<BR><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (| (uniquemember=&lt;grp1DN>)...
+(uniquemember=&lt;grpNDN>))</TT>
+<BR><TT>&nbsp;&nbsp; (&amp; (objectclass=groupofnames)</TT>
+<BR><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (| (member=&lt;grp1DN>)... (member=&lt;grpNDN>))</TT></OL>
+We check the list of groups returned by this search with the groups in
+the ACL and recursively continue until we succeed or no more groups are
+returned from the searches.
+
+<P>Advantages of this new function is it checks multiple groups at the
+same time.&nbsp; Previously we were performing 2 ldap lookups per group.&nbsp;
+Now we achieve this in a single ldap lookup!
+
+<P><B><BLINK>Caution</BLINK></B>: this function allows multiple groups
+with the same "CN".
+
+<P>To use this function, you need to provide a list of group names in any
+form (e.g comma separated string, a hash table, array of strings, etc.)
+and a function to compare the name returned by the ldap lookup with your
+group names.</UL>
+
+<CENTER><B><FONT SIZE=+1>Changes since Mar 22, 1997</FONT></B></CENTER>
+
+
+<P>Last Update: Apr 17, 1997
+
+<P>Now that all beta releases are out for servers using this library, I
+could do some incompatible changes to make this library more flexible.
+No more incompatible changes are planned (except for possibly one: see
+http://scopus/bugsplat/show_bug.cgi?id=58482). <B><BLINK>All 3.0 SuiteSpot
+servers supporting client auth need to upgrade to this version.</BLINK></B>
+<H2>
+Changed:</H2>
+
+<UL>
+<LI>
+<B>Exchanged certmap.h &amp; ldaputil.h: </B>ldaputil.h had public API
+but when the file was installed on the server root, it was called certmap.h.
+Since we already had a certmap.h, this was causing lot of confusion. If
+you were including "certmap.h", now include "ldaputil.h" and vice versa.</LI>
+
+<LI>
+<B>Renamed 'SearchComps' to 'FilterComps'</B>: Shouldn't affect your code
+but may affect tests and documentation.</LI>
+
+<LI>
+<B>'VerifyCert' must be either "on" or "off"</B>: VerifyCert didn't have
+a value. Now it must have a value. If it has a value of "on" then the "verification"
+step is on, otherwise it is off.</LI>
+
+<LI>
+<B>Important bug fixes</B>: One bug was causing stack corruption &amp;
+weird unpredictable results. The other important bug was to map 'E' in
+cert to 'MAIL' in LDAP.</LI>
+</UL>
+
+<H2>
+Added:</H2>
+
+<UL>
+<LI>
+<B>Settable 'search function'</B>: User defined search function can be
+set for cert to ldap mapping.</LI>
+
+<LI>
+<B>ldapu_get_cert_ava_val &amp; ldapu_free_cert_ava_val</B>: API functions
+to get &amp; free an attribute's value(s) from either the subject DN or
+the issuer DN from a cert.</LI>
+</UL>
+
+<H2>
+Open Bugs:</H2>
+
+<UL>Following bugs may not get fixed by RTM.</UL>
+
+<UL>
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=51279">51279</A>: 'uniquemember'
+bug</LI>
+
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=58474">58474</A>:&nbsp;
+'circular groups' results in infinite loop</LI>
+
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=58478">58478</A>: Don't
+allow a space as a valid delimeter for DNComps &amp; FilterComps.</LI>
+
+<LI>
+<A HREF="http://scopus/bugsplat/show_bug.cgi?id=58482">58482</A>: Make
+the 'search function' configurable.</LI>
+
+<BR>
+<HR WIDTH="100%"></UL>
+
+<CENTER>
+<H3>
+Changes since Mar 18, 1997</H3></CENTER>
+
+<DT>
+Last Update: Mar 22, 1997</DT>
+
+<DT>
+A query on how to map a verisign certificate prompted these changes.&nbsp;
+I was hoping I don't have to do any major changes when I wrote this document
+on Mar 18. These are incompatible changes -- please review them before
+you upgrade.&nbsp; I have checked in this file in CVS under "ns/netsite/lib/ldaputil/ldapu-changes.html".
+I have added all the "XYZ_branch" and "XYZ_point" tags to this file so
+that you can easily see this file in your tree.&nbsp; When I make significant
+changes to this file/library, I will retag this file for your branch to
+make it same as the server3_branch. [Let me know if I shouldn't do it for
+your branch].</DT>
+
+<H2>
+Changed:</H2>
+
+<UL>
+<LI>
+<B>ldapu_cert_to_ldap_entry</B>: The major change was to allow for the
+mapped DN to be NULL and in that case, start the search from the basedn
+of the LDAP server. This required API change so that the basedn can be
+passed to the ldapu_cert_to_ldap_entry function. This change was required
+for correctly mapping certs from verisign w/o writing plugins. The Verisign
+certs can be mapped correctly using the following setting in the &lt;ServerRoot>/userdb/certmap.conf
+file:</LI>
+
+<UL><TT><FONT SIZE=+1>certmap verisign &lt;verisign's DN></FONT></TT>
+<BR><TT><FONT SIZE=+1>verisign:dncomps</FONT></TT>
+<BR><TT><FONT SIZE=+1>verisign:searchcomps cn, e</FONT></TT></UL>
+The mapped DN will be NULL so basedn will be used.&nbsp; The filter will
+be
+<BR>(&amp; (cn="&lt;user's CN>") (mail="&lt;user's mail>")).&nbsp; The
+new signature of ldapu_cert_to_ldap_entry is as follows:
+<BR>&nbsp;&nbsp;&nbsp; int ldapu_cert_to_ldap_entry(void *cert, LDAP *ld,
+const char *basedn, LDAPMessage **res);
+<LI>
+<B>verify cert functions</B>: A major change in how verify cert functions
+work.&nbsp; This is function is now called even when multiple potential
+matches are found for the cert.&nbsp; The mapping is successful if the
+verify function can reduce the number of matches to exactly one.&nbsp;
+For example, if there are multiple "Joe Smith" entries, at most one of
+those will have the cert in it's "userCertificate" attr.&nbsp; The verify
+function will select that entry.&nbsp; The verify function is called with
+"LDAPMessage *res" containing all the potential matches.&nbsp; It should
+return a pointer to the matched entry in the new "LDAPMessage **entry"
+parameter.&nbsp; The new signature for CertVerifyFn_t is as follows:</LI>
+
+<BR>&nbsp;&nbsp;&nbsp; typedef int (*CertVerifyFn_t)(void *cert, LDAP *ld,
+LDAPMessage *res,
+<BR>&nbsp;
+
+<P>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+LDAPMessage **entry);
+<LI>
+typedef int (*<B>CertMapInitiFn_t)</B>: Renamed from CertmapInitFn_t.&nbsp;
+Now this has two extra parameters to make it easy to use it in a plugin.
+Other API functions require "issuerDN" but this function was called with
+"LDAPUCertMapInfo_t *certinfo".&nbsp; There was no public API function
+to get the issuerDN from "certinfo". The new signature for CertMapInitFn_t
+is as follows:</LI>
+
+<BR>&nbsp;&nbsp;&nbsp; typedef int (*CertMapInitFn_t)(void *certmap_info,
+const char *issuerName,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+const char *issuerDN);
+<LI>
+(ldapauth.h) <B>ldapu_auth_* functions:</B> For multiple matches, these
+functions now return LDAPU_ERR_MULTIPLE_MATCHES instead of LDAPU_FAILED.
+This change was required to make nested group membership work efficiently
+and enable the new functionality of verify cert function.</LI>
+</UL>
+
+<DT>
+
+<HR WIDTH="100%"></DT>
+
+<CENTER>
+<H3>
+Changes since Feb 1, 1997</H3></CENTER>
+
+<DT>
+Last Update: Mar 18, 1997</DT>
+
+<DT>
+There have been several changes to the netsite/lib/ldaputil recently. If
+you use this library, please start using the latest version of ldaputil
+on the server3_branch so that all the servers go out with the same API
+and behavior. Review the changes before you upgrade. If you don't plan
+to upgrade, please let me know.</DT>
+
+<H2>
+Renamed:</H2>
+Following structures and functions are renamed. But this shouldn't affect
+you unless you have written a certmap plugin.
+<DD>
+<TT><FONT SIZE=+1>struct CertMappingFunction_t ---> CertMapFn_t</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>struct CertVerifyFunction_t ---> CertVerifyFn_t</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_set_cert_mapping_function ---> ldapu_set_cert_mapfn</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_get_cert_mapping_function ---> ldapu_get_cert_mapfn</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_set_cert_verify_function ---> ldapu_set_cert_verifyfn</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_get_cert_verify_function ---> ldapu_get_cert_verifyfn</FONT></TT></DD>
+
+<H2>
+Removed: (from .h)</H2>
+Removed the following functions from .h files. They are still in the .c
+file as static functions. I don't think these should be public. If you
+think otherwise, let me know.
+<DD>
+<TT><FONT SIZE=+1>ldapu_cert_mapping_function_default</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_cert_verify_function_default</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_search_cert_dn</FONT></TT></DD>
+
+<DD>
+<TT><FONT SIZE=+1>ldapu_subject_dn_to_ldap_dn</FONT></TT></DD>
+
+<H2>
+Changed:</H2>
+The following changes may affect you. Please review them carefully before
+you upgrade to the latest version of ldaputil.
+<UL>
+<LI>
+<TT>ldapu_auth_userdn_groupdn</TT> -- added <TT>const char *base</TT> argument
+for group within group membership check</LI>
+
+<LI>
+ldap_init and bind calls using <TT>LDAPDatabase_t *ldb</TT> retry once
+if the LDAP server is/went down.</LI>
+
+<LI>
+<TT>typedef CertVerifyFn_t</TT> has different arguments.</LI>
+
+<LI>
+DNs from cert with escaped/quoted characters are correctly handled now.</LI>
+
+<LI>
+cert to ldap entry mapping is optimized by not using string comparisons
+during thruntime. A bitmask is created when the config file is read, cert
+data is mapped to bits and compared against the bitmask.</LI>
+
+<LI>
+Only the required attrs are retrieved in most <TT>ldap_search_s </TT>calls
+from ldaputil. Some new functions were added to keep older functions the
+same.</LI>
+
+<LI>
+Fixed a core dump in ldapu_free_LDAPDatabase_t when using the local db.</LI>
+
+<LI>
+ldaputil functions for initializing connection to the LDAP server and binding
+to the server are thread-safe now. This requires linking to netsite/lib/base.
+If you don't use libbase, you can turn off the thread-safe code using a
+compile time option.</LI>
+</UL>
+
+<H2>
+Added:</H2>
+
+<UL>
+<LI>
+Documentation to functions in ldaputil.h (customer API) - ldaputil.h is
+the external public API for customers to write there plugins.</LI>
+
+<LI>
+<TT>ldapu_get_cert_der</TT> - returns raw DER encoded cert data</LI>
+
+<LI>
+<TT>ldapu_cert_to_user</TT> - Similar to ldapu_cert_to_ldap_entry but only
+retrieves the 'uid' and 'userCertificate' attributes from LDAP and also
+extracts the user id.</LI>
+
+<LI>
+<TT>ldapu_find_uid_attrs</TT> and <TT>ldapu_find_group_attrs</TT> - Similar
+to ldapu_find_uid and ldapu_find_group resp., but only retrieves the specified
+attributes. Internally used during password verification and group membership
+checks.</LI>
+
+<LI>
+<TT>ldapu_certinfo_delete, ldapu_certinfo_modify and ldapu_certinfo_save</TT>
+- API for the certmap config file GUI tool which is not yet developed.
+Any volunteers?</LI>
+</UL>
+
+<H2>
+<FONT SIZE=+1>TODO/Bugs:</FONT></H2>
+
+<UL>
+<LI>
+uniquemember attribute is not handled correctly in the group membership
+check. If the user's entry has 'x500UniqueIdentifier' attribute populated,
+the group could refer to the user entry by the user's dn followed by '#'
+and an unique identifier. For example, the group entry could have:</LI>
+
+<DD>
+uniquemember: cn=Joe Smith,o=Netscape,c=US#jsmith</DD>
+
+<DT>
+where, 'jsmith' is one of the values of the 'x500UniqueIdentifier' attribute
+for the Joe Smith entry.</DT>
+
+<DT>
+</DT>
+</UL>
+
+</BODY>
+</HTML>

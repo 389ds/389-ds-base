@@ -1,0 +1,16 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+DESCRIPTION		'Netscape Directory Server 7 test plugin'
+EXPORTS
+	testentry_scramble				@2
+	testentry_unscramble				@3
+	testexop_init					@4
+	testpostop_init					@5
+	testpreop_init					@6
+	testsasl_init					@7
+	testbind_init					@8
+	nullsuffix_init					@9

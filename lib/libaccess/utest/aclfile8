@@ -1,0 +1,11 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+version 3.0;
+acl	aclfile8;
+allow (read, write, execute, create) dns="*.mcom.com";
+allow (read, write, execute, create) (timeofday>1700 or timeofday<0800);

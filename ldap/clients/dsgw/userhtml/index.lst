@@ -1,0 +1,29 @@
+;-------------------------------------------------------------------------
+; PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+; license terms. Copyright © 2001 Sun Microsystems, Inc.
+; Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+; All rights reserved.
+;-------------------------------------------------------------------------
+; Netscape admin index page master list
+;
+; Lines beginning with a ';' are comments
+; Lines beginning with '--' are dividers:
+;    '--Category:[ID,NAME]' is the title of the category of options,
+;                           with short identifier ID and text NAME
+;    '--TabIcon:[ICON]' is the name of the icon that goes on top
+;                      (assumes a suffix of '_on.gif' for on icon,
+;                       '_off.gif' for off)
+;                      (ex: for "users", would have URL "users" which points
+;                       to "users_on.gif" and "users_off.gif")
+;    '--Icon:[URL]' is the icon to associate with those options
+;    '--Option:[URL,TXT]' is the URL that the option should point to,
+;                         and the text that should be used to describe
+;                         it
+;
+; NOTE: Do NOT let a line have unterminated quotes, double slash
+;       characters, pound signs, or slash star sequences.  This file
+;       is sent through the C preprocessor and that can screw it up.
+
+--Category:general,General
+--Option:edit/?userpasswd,Password
+--Option:edit/?userpinfo,Personal Information

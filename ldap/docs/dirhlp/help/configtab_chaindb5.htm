@@ -1,0 +1,242 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="04/29/03 15:35:32" />
+<title>Netscape Directory Server Help: Default Creation Parameters</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="29141"> </a>
+<a name="Default Creation Parameters"> </a>
+Default Creation Parameters
+</p>
+
+<p class="text">
+<a name="29143"> </a>
+Use this dialog box to set the default attributes for all of your database links.
+</p>
+<p class="text">
+<a name="29144"> </a>
+<b>Control Client Return.</b> These options help you specify how the database link responds to client application requests.
+</p>
+<ul>
+
+<li>
+<b>Return referral on scoped search.</b> Select this option to return referrals to client applications in response to scoped searches. Choosing to return referrals optimizes directory server performance, as referrals are more efficient than searching for data in remote databases.
+<a name="29145"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Size limit X entries.</b> Specifies the number of entries the database link returns in response to a search request. The default size limit is 2000 entries. 
+<a name="29146"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Time limit X seconds.</b> Specifies the search time limit for the database link. The default value is 3600 seconds.
+<a name="29147"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="29148"> </a>
+<b>Cascading Chaining.</b> Use the following options to configure cascading chaining, when one database link points to another database link.
+</p>
+<ul>
+
+<li>
+<b>Check local ACI.</b> Select this checkbox to enable evaluation of local ACIs on all database links involved in a chaining operation. 
+<a name="29149"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Maximum hops.</b> Specifies the number of hops, or times one database link contacts another, allowed. When one database link connects to another, this count decrements. Each subsequent database link contacted further decrements the count. If a server receives a count of 0 it determines that a loop has been detected and notifies the client application. The range is 0 to 20.
+<a name="29150"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+  <dl>
+     <dt> <a name="29151"> </a>
+The default maximum hops value is 10.
+<br />&nbsp;</dt>  </dl>
+</ul>
+<p class="text">
+<a name="29152"> </a>
+<b>Connection Management.</b> Use these options to configure the pool of connections maintained by the database link with the remote server.
+</p>
+<ul>
+
+<li>
+<b>Maximum TCP connection(s).</b> Maximum number of TCP connections the database link establishes with the remote server. The default value is 3 connections. The range is 1 to 50.
+<a name="29153"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Bind timeout. </b>Amount of time, in seconds, before the bind attempt times out. The default value is 15 seconds. The range is 0 to 3600 seconds.
+<a name="29154"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Maximum binds per connection.</b> Maximum number of outstanding bind operations per TCP connection. The default value is 10 outstanding bind operations. The range is 0 to 25.
+<a name="29155"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Timeout before abandon.</b> The number of seconds that pass before the server checks for abandon operations. The default value is 10 second The range is 0 to 2147483647.
+<a name="29156"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Maximum LDAP connection(s).</b> Maximum number of LDAP connections the database link establishes with the remote server. The default value is 10 connections. The range is 1 to 50.
+<a name="29157"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Maximum bind retries.</b> Number of times a database link attempts to bind with the remote database. A value of zero indicates that the database link will try to bind only once. The default value is 3 attempts. The range of values is 0 to 10.
+<a name="29158"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Maximum operations per connection.</b> Maximum number of outstanding operations per connection. The default value is 10 operations per second. The range is 0 to 50.
+<a name="29159"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+<b>Connection life (sec). </b>You can keep connections between the database link and the remote database open for an unspecified time, or you can close them after a specific period. It is faster to keep the connections open, but it uses more resources. 
+<a name="29160"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+  <dl>
+     <dt> <a name="29161"> </a>
+A value of 0 indicates that there is no limit. By default, the value is set to 0. The range is 0 to 2147483647 seconds.
+<br />&nbsp;</dt>  </dl>
+</ul>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>April 29, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

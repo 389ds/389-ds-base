@@ -1,0 +1,138 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# makevlvsearch
+
+sub usage_and_exit
+{
+    print "makevlvsearch [options]\n";
+    print "\n";
+    print "May be used to create just a vlvSearch entry, or to create\n";
+    print "both a vlvSearch and vlvIndex entry.\n";
+    print "\n";
+    print "Options:\n";
+    print "-?              - help\n";
+    print "-D rootdn       - Provide a root DN.  Default= '$rootdn'\n";
+    print "-w password     - Provide a password for the root DN.\n";
+    print "-h host         - Provide a host name. Default= '$host'\n";
+    print "-p port         - Provide a port. Default= '$port'\n";
+    print "-b scope        - Provide a scope. 1 or 2. Default= '$vlvscope'\n";
+    print "-f filter       - Provide a search filter. Default= '$vlvfilter'\n";
+    print "-sn search_name - RDN of the vlvSearch parent entry.\n";
+    print "-in index_name  - RDN for the vlvIndex child entry.\n";
+    print "-s sort         - Provide a sort specification. Default='$vlvsort'\n";
+    exit;
+}
+
+# Initialise some things
+$vlvsearch_name= "";
+$vlvindex_name= "";
+$vlvscope= "2";
+$vlvfilter= "(objectclass=*)";
+$vlvsort= "";
+$rootdn= "cn=Directory Manager";
+$host= "localhost";
+$port= "389";
+
+# Process the command line arguments
+while( $arg = shift)
+{
+    if($arg eq "-?")
+    {
+        usage_and_exit();
+    }
+    elsif($arg eq "-D")
+    {
+        $rootdn= shift @ARGV;
+    }
+    elsif($arg eq "-w")
+    {
+        $rootpw= shift @ARGV;
+    }
+    elsif($arg eq "-h")
+    {
+        $host= shift @ARGV;
+    }
+    elsif($arg eq "-p")
+    {
+        $port= shift @ARGV;
+    }
+    elsif($arg eq "-b")
+    {
+        $vlvscope= shift @ARGV;
+    }
+    elsif($arg eq "-f")
+    {
+        $vlvfilter= shift @ARGV;
+    }
+    elsif($arg eq "-s")
+    {
+        $vlvsort= shift @ARGV;
+    }
+    elsif($arg eq "-sn")
+    {
+        $vlvsearch_name= shift @ARGV;
+    }
+    elsif($arg eq "-in")
+    {
+        $vlvindex_name= shift @ARGV;
+    }
+    else
+    {
+        print "$arg: Unknown command line argument.\n";
+    }
+}
+
+$ldapmodify= "ldapmodify -h $host -p $port -D \"$rootdn\" -w $rootpw";
+
+if( $vlvfilter eq "" ||
+    $vlvscope eq "" ||
+    $vlvsearch_name eq "" ||
+    $rootdn eq "" ||
+    $host eq "" ||
+    $port eq "")
+{
+    print "Error: Need command line information..\n";
+    usage_and_exit();
+}
+
+if( $rootpw eq "" )
+{
+    print "Warning: No root DN password provided.  Won't be able to add VLV Search and Index entries.\n";
+}
+
+# Tell the user what we're up to.
+print "Adding VLV Search and Index entries.\n";
+
+# Build the vlv search and index entries to be added.
+@vlvsearch= ( 
+            "dn: cn=$vlvsearch_name, cn=config, cn=ldbm\n",
+            "objectclass: top\n",
+            "objectclass: vlvSearch\n",
+            "cn: $vlvsearch_name\n",
+            "vlvbase: $dn\n",
+            "vlvfilter: $vlvfilter\n",
+            "vlvscope: $vlvscope\n\n" );
+
+@vlvindex= (
+            "dn: cn=$vlvindex_name, cn=$vlvsearch_name, cn=config, cn=ldbm\n",
+            "objectclass: top\n",
+            "objectclass: vlvIndex\n",
+            "cn: $vlvindex_name\n",
+            "vlvsort: $vlvsort\n\n" );
+
+open(FD,"| $ldapmodify -a -c");
+print FD @vlvsearch;
+if( not($vlvindex_name eq "" || $vlvsort eq ""))
+{
+    print FD @vlvindex;
+}
+close(FD);
+
+

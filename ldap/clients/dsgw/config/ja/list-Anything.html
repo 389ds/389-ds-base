@@ -1,0 +1,42 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright � 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright � 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "汎用検索" -->
+<CENTER><FONT SIZE=+1>
+<!-- DS_SEARCHDESC -->
+</FONT></CENTER>
+<P>
+
+<!-- IF "FoundEntries" -->
+<TABLE BORDER=1 CELLPADDING=4 WIDTH=100%>
+<TR>
+<TH NOWRAP>名前 <TH NOWRAP>電話番号
+<TH NOWRAP>電子メールアドレス <TH NOWRAP>記述
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=description" -->
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<CENTER><FONT SIZE=+1>
+別の検索を試みてください。
+</FONT></CENTER>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->

@@ -1,0 +1,7139 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright � 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright � 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<html>
+<!-- HEAD -->
+<title></title>
+</head>
+
+<body>
+
+<A NAME="996822">
+<H1>
+</H1>
+</A>
+<A NAME="997293">
+<P>
+</A><A NAME="1002619">
+<H1>属性
+</H1>
+</A>
+
+<A NAME="996830">
+<br>
+この付録では、属性の定義について解説しています。Directory Serverで使用されるスキーマ属性の大部分は標準LDAPプロトコルの一部であり、X.500規格に基づいています。しかし、Directory Serverの属性のなかには、 LDAPの導入に使用するためにNetscape社が作成した拡張もあります。属性がNetscape社によって作成されたもので、標準LDAPスキーマの一部でない場合は、そのオブジェクト クラスや属性の説明にその旨が示されています。<P></A>
+
+<A NAME="1071459">
+Directory Serverスキーマの内容および用途に関する詳細は、『Netscape Directoryの導入』をご覧ください。<P></A>
+
+<A NAME="1078428">
+スキーマにおけるオブジェクト クラスに関する詳細は、<a href="objclass.htm#1002619">付録 A「オブジェクト クラス」</a>をご覧ください。<P></A>
+
+
+<A NAME="1020843">&nbsp;
+</A>
+<A NAME="Attribute Definitions">
+<H2>属性の定義</H2>
+</A>
+
+<A NAME="1004519">
+以下に、ディレクトリ ツリー内のエントリの記述に使用された属性が定義されています。各オブジェクト クラスに必要でしかも許可されている属性を判定するには、<a href="objclass.htm#1002619">付録 A「オブジェクト クラス」</a>をご覧ください。<P></A>
+
+<A NAME="1004699">
+属性情報の性質を記述する構文の定義が、属性ごとに記載されています。この構文は、Directory Serverでソートやパターンマッチを実行しているときに限り重要となります。それ以外の場合、例えば、識別名を要求する属性に電話番号を入力するような場合に、入力を制限するものではありませ。<P></A>
+
+<A NAME="1067002">
+可能な属性構文:<P></A>
+<ul><A NAME="1004700">
+<LI>bin -- バイナリ<BR>
+</A>
+<A NAME="1004701">
+<LI>ces -- 大文字小文字を区別する文字列 (比較の際に大小文字が一致する必要があります。)<BR>
+</A>
+<A NAME="1004702">
+<LI>cis -- 大文字小文字を区別しない文字列 (比較の際に大小文字の区別が無視されます。)<BR>
+</A>
+<A NAME="1004703">
+<LI>tel -- 電話番号 (cisと同じですが、比較の際にブランクとダッシュ (-) が無視されます。)<BR>
+</A>
+<A NAME="1004704">
+<LI>dn -- 識別名<BR>
+</A>
+<A NAME="1243260">
+<LI>int -- 整数<BR>
+</A>
+<A NAME="1251525">
+<LI>operational -- 予約されています。検索結果には、動作属性は表示されません。<BR>
+</A>
+</ul>
+<A NAME="1072472">
+標準的な属性は、次のファイルで定義されています。<P></A>
+<A NAME="1072513">
+<PRE>	NSHOME/slapd-[server]/config/slapd.at.conf
+</PRE>
+</A>
+
+
+<A NAME="1201644">&nbsp;
+</A>
+<A NAME="abstract">
+<H3> abstract</H3>
+</A>
+
+
+
+<A NAME="1201645">
+ドキュメント エントリの概要を示します。<P></A>
+
+<A NAME="1201648">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1104078">&nbsp;
+</A>
+<A NAME="accountUnlockTime">
+<H3> accountUnlockTime</H3>
+</A>
+
+
+
+<A NAME="1154996">
+ディレクトリへのバインドに指定回数失敗した後、ユーザー アカウントのロックが解除されるまでの時間を秒数で定義します。<P></A>
+<A NAME="1154997">
+<PRE>	accountUnlockTime: 600
+</PRE>
+</A>
+
+<A NAME="1104080">
+構文: <a href="attribut.htm#1004702">cis operational</a><P></A>
+
+
+<A NAME="1171292">&nbsp;
+</A>
+<A NAME="aci">
+<H3> aci</H3>
+</A>
+
+
+
+<A NAME="1171293">
+このエントリに関するDirectory Serverのアクセス制御情報を保存します。例:<P></A>
+<A NAME="1171294">
+<PRE>	aci: (target="ldap:///<I>o=Airius.com</I>")(version 3.0;<br>
+	 acl "anonymous access"; allow (read, search, compare)<br>
+	 userdn=ldap:///self;)
+</PRE>
+</A>
+
+<A NAME="1171296">
+構文: <a href="attribut.htm#1004700">ces</a><P></A>
+
+<A NAME="1171297">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1032956">&nbsp;
+</A>
+<A NAME="administratorContactInfo">
+<H3>administratorContactInfo</H3>
+</A>
+
+
+
+<A NAME="1032957">
+Netscapeサーバーの管理責任者に関する情報への、URLを供給します。この属性はNetscape社の拡張機能で、<a href="attribut.htm#">netscapeServer</a>オブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバーを初めてインストールする際に、ディレクトリに書き込まれます。例： <P></A>
+<A NAME="1032959">
+<PRE>	administratorContactInfo: ldap://<I>uid=ssarette, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1098446">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1098448">&nbsp;
+</A>
+<A NAME="adminUrl">
+<H3>adminUrl</H3>
+</A>
+
+
+
+<A NAME="1098449">
+Netscapeサーバーを管理できるアドミニストレーション サーバーへの、URLを供給します。この属性はNetscape社の拡張機能で、<a href="attribut.htm#">netscapeServer</a>オブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバーを初めてインストールする際に、ディレクトリに書き込まれます。 例：<P></A>
+<A NAME="1033050">
+<PRE>	adminUrl: http://twain.airius.com:2468
+</PRE>
+</A>
+
+<A NAME="1033052">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201653">&nbsp;
+</A>
+<A NAME="aliasedObjectName">
+<H3> aliasedObjectName</H3>
+</A>
+
+
+
+<A NAME="1206908">
+ディレクトリにおけるエイリアス エントリを示すために、Directory Serverによって使用されます。 この属性には、エイリアスであるエントリの元のエントリの識別名が含まれます。例:<P></A>
+<A NAME="1206909">
+<PRE>	aliasedObjectName:<I> cn=jdoe, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1206911">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1243116">&nbsp;
+</A>
+<A NAME="altServer">
+<H3> altServer</H3>
+</A>
+
+
+
+<A NAME="1243117">
+未定義。<P></A>
+
+<A NAME="1243120">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1102441">&nbsp;
+</A>
+<A NAME="archiveFile">
+<H3> archiveFile</H3>
+</A>
+
+
+
+<A NAME="1102442">
+特定のメールニュース グループに送信された各メッセージのコピーが含まれているファイルのパス名が含まれます。<P></A>
+
+<A NAME="1102443">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1201668">&nbsp;
+</A>
+<A NAME="associatedDomain">
+<H3> associatedDomain</H3>
+</A>
+
+
+<a name="1219687">
+<BLOCKQUOTE>
+DITにおけるオブジェクトに関係するDNSドメインを示します。例えば、
+C=US, O=Airius Corporationという識別名を持つ DITにおけるエントリには、"AC.US. という関連ドメインがあります。rfc822の順ですべてのドメインを示す必要があることに注意してください。例:
+
+</BLOCKQUOTE>
+</a>
+<A NAME="1201670">
+<PRE>	associatedDomain: US
+</PRE>
+</A>
+
+<A NAME="1201672">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201675">&nbsp;
+</A>
+<A NAME="associatedName">
+<H3> associatedName</H3>
+</A>
+
+
+
+<A NAME="1218672">
+DNSドメインに関係する組織的DITにおけるエントリを指定します。例:<P></A>
+<A NAME="1201677">
+<PRE>	associatedName:<I> c=us
+</I></PRE>
+</A>
+
+<A NAME="1201679">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1242644">&nbsp;
+</A>
+<A NAME="attributeTypes">
+<H3> attributeTypes</H3>
+</A>
+
+
+
+<A NAME="1242645">
+未定義。<P></A>
+
+<A NAME="1242648">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201684">&nbsp;
+</A>
+<A NAME="audio">
+<H3>audio</H3>
+</A>
+
+
+
+<A NAME="1209771">
+バイナリ形式のサウンド ファイルを含みます。この属性は、u-法でコードされた音声ファイルを使用します。例:<P></A>
+
+<A NAME="1201686">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1201689">&nbsp;
+</A>
+<A NAME="authorCn">
+<H3> authorCn</H3>
+</A>
+
+
+
+<A NAME="1201690">
+ドキュメント エントリの著者の一般名が含まれます。例:<P></A>
+<A NAME="1201691">
+<PRE>	authorCn: Kacey
+</PRE>
+</A>
+
+<A NAME="1201693">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201696">&nbsp;
+</A>
+<A NAME="authorSn">
+<H3> authorSn</H3>
+</A>
+
+
+
+<A NAME="1201697">
+ドキュメント エントリの著者の苗字が含まれます。例:<P></A>
+<A NAME="1201698">
+<PRE>	authorSn: Doe
+</PRE>
+</A>
+
+<A NAME="1201700">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1207170">&nbsp;
+</A>
+<A NAME="authorityRevocationList">
+<H3>authorityRevocationList</H3>
+</A>
+
+
+
+<A NAME="1207172">
+無効になったCA証明書のテキスト コード リストを含みます。これはお薦めしません。代わりにauthorityRevocationList;binaryをご使用ください。<P></A>
+
+<A NAME="1207174">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1207178">&nbsp;
+</A>
+<A NAME="authorityRevocationList;binary">
+<H3>authorityRevocationList;binary</H3>
+</A>
+
+
+
+<A NAME="1207180">
+無効になったCertification Authority証明書のバイナリ リストを含みます。例: <P></A>
+
+<A NAME="1207182">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1201711">&nbsp;
+</A>
+<A NAME="buildingName">
+<H3> buildingName</H3>
+</A>
+
+
+
+<A NAME="1201712">
+エントリに関係するビルの名前を定義します。例:<P></A>
+<A NAME="1201713">
+<PRE>	buildingName: 14
+</PRE>
+</A>
+
+<A NAME="1201715">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1171367">&nbsp;
+</A>
+<A NAME="businessCategory">
+<H3> businessCategory</H3>
+</A>
+
+
+
+<A NAME="1171368">
+エントリが従事する事業タイプを示します。これは、企業の部門レベルで行われるような広範で一般的なものでなければなりません。<P></A>
+
+<A NAME="1171369">
+例:<P></A>
+<A NAME="1171370">
+<PRE>	businessCategory: Engineering
+</PRE>
+</A>
+
+<A NAME="1208474">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1240535">&nbsp;
+</A>
+<A NAME="c">
+<H3> c</H3>
+</A>
+
+
+
+<A NAME="1240536">
+ディレクトリにおける国名を表す、ISO定義による2文字のコードが含まれます。例えば、アイルランドの2文字コードは、次のように使用します。<P></A>
+<A NAME="1240537">
+<PRE>	countryName: IE
+</PRE>
+</A>
+
+<A NAME="1240538">
+または、<P></A>
+<A NAME="1240539">
+<PRE>	c: IE
+</PRE>
+</A>
+
+<A NAME="1240541">
+<a href="attribut.htm#">略号</a>: c<P></A>
+
+<A NAME="1240543">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1208564">&nbsp;
+</A>
+<A NAME="cACertificate">
+<H3>cACertificate</H3>
+</A>
+
+
+
+<A NAME="1208566">
+CA証明書のテキスト コード版を含みます。これはお薦めしません。代わりにcACertificate;binary をご使用ください。<P></A>
+
+<A NAME="1208568">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1208584">&nbsp;
+</A>
+<A NAME="cACertificate;binary">
+<H3> cACertificate;binary</H3>
+</A>
+
+
+
+<A NAME="1208586">
+バイナリ形式のCAの証明書が含まれます。<P></A>
+
+<A NAME="1208588">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1003044">&nbsp;
+</A>
+<A NAME="carLicense">
+<H3> carLicense</H3>
+</A>
+
+
+
+<A NAME="1003045">
+エントリの自動車ナンバープレート番号を示します。例:<P></A>
+<A NAME="1003256">
+<PRE>	carLicense: 6ABC246
+</PRE>
+</A>
+
+<A NAME="1003274">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1007950">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1208746">&nbsp;
+</A>
+<A NAME="certificateRevocationList">
+<H3>certificateRevocationList</H3>
+</A>
+
+
+
+<A NAME="1208748">
+無効になったユーザ証明書リストのテキスト コード版を含みます。これはお薦めしません。代わりにcertificateRevocationList;binaryをご使用ください。<P></A>
+
+<A NAME="1208708">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1208727">&nbsp;
+</A>
+<A NAME="certificateRevocationList;binary">
+<H3> certificateRevocationList;binary</H3>
+</A>
+
+
+
+<A NAME="1208729">
+無効になったユーザー証明書リストがバイナリ形式で含まれます。<P></A>
+
+<A NAME="1208731">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1103361">&nbsp;
+</A>
+<A NAME="changelog">
+<H3>changeLog</H3>
+</A>
+
+
+
+<A NAME="1251549">
+Directory Serverの変更ログ記録を保持するコンテナ オブジェクトの識別名を含みます。例: <P></A>
+<PRE><A NAME="1251550">
+changeLog: cn=changelog
+</A>
+</PRE>
+<A NAME="1103363">
+OID: <code>2.16.840.1.113730.3.1.35</code><P></A>
+
+<A NAME="1277486">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+<P>
+<A NAME="1171397">&nbsp;
+</A>
+<A NAME="changeLogMaximumAge">
+<H3> changeLogMaximumAge</H3>
+</A>
+
+
+
+<A NAME="1171398">
+変更ログ内のエントリの最高年齢を秒単位で示します。指定された最高年齢を越えるとエントリは破棄されます。例:<P></A>
+<A NAME="1171399">
+<PRE>	changeLogMaximumAge: 86000
+</PRE>
+</A>
+
+<A NAME="1171401">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1171402">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1171405">&nbsp;
+</A>
+<A NAME="changeLogMaximumSize">
+<H3> changeLogMaximumSize</H3>
+</A>
+
+
+
+<A NAME="1171406">
+変更ログファイルの最大容量をバイトで示します。最大容量を越えるとエントリはこのファイルから破棄されます。例:<P></A>
+<A NAME="1171407">
+<PRE>	changeLogMaximumSize: 2400000
+</PRE>
+</A>
+
+<A NAME="1171409">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1171410">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1094798">&nbsp;
+</A>
+<A NAME="changeNumber">
+<H3> changeNumber</H3>
+</A>
+
+
+
+<A NAME="1094841">
+未定義。<P></A>
+
+<A NAME="1095210">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1095277">&nbsp;
+</A>
+<A NAME="changes">
+<H3> changes</H3>
+</A>
+
+
+
+<A NAME="1095278">
+未定義。<P></A>
+
+<A NAME="1095281">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1095285">&nbsp;
+</A>
+<A NAME="changeTime">
+<H3> changeTime</H3>
+</A>
+
+
+
+<A NAME="1095286">
+未定義。<P></A>
+
+<A NAME="1095289">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1094968">&nbsp;
+</A>
+<A NAME="changeType">
+<H3> changeType</H3>
+</A>
+
+
+
+<A NAME="1094969">
+エントリに行われた変更のタイプを示します。changeTypeの値は、add、delete、modify、またはmodrdnです。例:<P></A>
+<A NAME="1094970">
+<PRE>	changeType: modify
+</PRE>
+</A>
+
+<A NAME="1094972">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1103818">&nbsp;
+</A>
+<A NAME="cirBeginORC">
+<H3> cirBeginORC</H3>
+</A>
+
+
+
+<A NAME="1149985">
+複製の前に、消費サーバーがディレクトリの内容を消去する必要があるかどうかを定義します。この属性の値が存在しない場合は、内容は消去されません。この属性には、startとstopの値が許可されています。startでディレクトリの内容が消去され、stopでこの動作が中止されます。 例:<P></A>
+<A NAME="1151379">
+<PRE>	cirBeginORC: start
+</PRE>
+</A>
+
+<A NAME="1103820">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1101818">&nbsp;
+</A>
+<A NAME="cirBindCredentials">
+<H3> cirBindCredentials</H3>
+</A>
+
+
+
+<A NAME="1101820">
+未定義。<P></A>
+
+<A NAME="1101823">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1101379">&nbsp;
+</A>
+<A NAME="cirBindDn">
+<H3> cirBindDn</H3>
+</A>
+
+
+
+<A NAME="1101380">
+未定義。 <P></A>
+
+<A NAME="1101383">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1101250">&nbsp;
+</A>
+<A NAME="cirHost">
+<H3> cirHost</H3>
+</A>
+
+
+
+<A NAME="1101251">
+未定義。 <P></A>
+
+<A NAME="1101254">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1101860">&nbsp;
+</A>
+<A NAME="cirLastUpdateApplied">
+<H3> cirLastUpdateApplied</H3>
+</A>
+
+
+
+<A NAME="1122710">
+未定義。<P></A>
+
+<A NAME="1101865">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1101283">&nbsp;
+</A>
+<A NAME="cirPort">
+<H3> cirPort</H3>
+</A>
+
+
+
+<A NAME="1101284">
+未定義。 <P></A>
+
+<A NAME="1101287">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1101135">&nbsp;
+</A>
+<A NAME="cirReplicaRoot">
+<H3> cirReplicaRoot</H3>
+</A>
+
+
+
+<A NAME="1101136">
+未定義。 <P></A>
+
+<A NAME="1101139">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1102148">&nbsp;
+</A>
+<A NAME="cirSyncInterval">
+<H3> cirSyncInterval</H3>
+</A>
+
+
+
+<A NAME="1149751">
+ディレクトリの複製部分に変更が行われたかどうかを定期的にチェックするため、消費サーバーによって供給サーバーに問合せが行われます。この属性は、消費サーバーによる供給サーバーへの問合せ間隔を秒単位で定義します。例:<P></A>
+<A NAME="1102151">
+<PRE>	cirSyncInterval: 3600
+</PRE>
+</A>
+
+<A NAME="1102153">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1102114">&nbsp;
+</A>
+<A NAME="cirUpdateFailedat">
+<H3> cirUpdateFailedat</H3>
+</A>
+
+
+
+<A NAME="1146224">
+未定義。<P></A>
+
+<A NAME="1102119">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1102001">&nbsp;
+</A>
+<A NAME="cirUpdateSchedule">
+<H3> cirUpdateSchedule</H3>
+</A>
+
+
+
+<A NAME="1102003">
+複製の発生が可能な時間帯を定義します。例:<P></A>
+<A NAME="1148927">
+<PRE>	cirUpdateSchedule: 0100-0400
+</PRE>
+</A>
+<A NAME="1148928">
+<PRE>	cirUpdateSchedule: * 06
+</PRE>
+</A>
+<A NAME="1148929">
+<PRE>	cirUpdateSchedule: 1145-1300 24
+</PRE>
+</A>
+
+<A NAME="1148930">
+これらの値の意味:<P></A>
+<A NAME="1148931">
+<PRE>	毎日、午前1時から午前4時まで
+</PRE>
+</A>
+<A NAME="1148932">
+<PRE>	土曜と日曜の終日
+</PRE>
+</A>
+<A NAME="1148933">
+<PRE>	火曜と木曜の午前11時45分から午後1時まで
+</PRE>
+</A>
+
+
+<A NAME="1101691">&nbsp;
+</A>
+<A NAME="cirUsePersistentSearch">
+<H3> cirUsePersistentSearch</H3>
+</A>
+
+
+
+<A NAME="1101693">
+未定義。 <P></A>
+
+<A NAME="1101696">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1101735">&nbsp;
+</A>
+<A NAME="cirUseSsl">
+<H3> cirUseSsl</H3>
+</A>
+
+
+
+<A NAME="1101737">
+未定義。 <P></A>
+
+<A NAME="1101740">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1171494">&nbsp;
+</A>
+<A NAME="cn">
+<H3> cn</H3>
+</A>
+
+
+
+<A NAME="1171495">
+LDAPReplicaまたはLDAPServer以外のオブジェクト クラスへの参照時に、cnでエントリの一般名または氏名が示されます。例:<P></A>
+<A NAME="1171496">
+<PRE>	commonName: Bill Anderson
+</PRE>
+</A>
+
+<A NAME="1171497">
+または、<P></A>
+<A NAME="1171498">
+<PRE>	cn: Bill Anderson
+</PRE>
+</A>
+
+<A NAME="1171499">
+LDAPReplicaまたはLDAPServer以外のオブジェクト クラスへの参照時に、複製されたディレクトリ ツリーのサーバーとルートのDNS名を識別名形式に変換したものを示します。例:<P></A>
+<A NAME="1171500">
+<PRE>	commonName: replicater.netscape.com:17430/o%3Dairius<br>
+	 %2Cc%3us
+</PRE>
+</A>
+
+<A NAME="1171501">
+または、<P></A>
+<A NAME="1171502">
+<PRE>	cn: replicater.netscape.com:17430/o%3Dairius%2Cc%3us
+</PRE>
+</A>
+
+<A NAME="1171504">
+<a href="attribut.htm#">略号</a>: cn<P></A>
+
+<A NAME="1171506">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1241971">&nbsp;
+</A>
+<A NAME="createTimestamp">
+<H3> createTimestamp</H3>
+</A>
+
+
+
+<A NAME="1241973">
+未定義。 <P></A>
+
+<A NAME="1241975">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1242331">&nbsp;
+</A>
+<A NAME="creatorsName">
+<H3> creatorsName</H3>
+</A>
+
+
+
+<A NAME="1242332">
+エントリ作成者の識別名(dn)が含まれます。例:<P></A>
+<A NAME="1242333">
+<PRE>	creatorsName: <I>cn=jdoe, o=airius.com
+</I></PRE>
+</A>
+
+<A NAME="1242335">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1208784">&nbsp;
+</A>
+<A NAME="crossCertificatePair">
+<H3>crossCertificatePair</H3>
+</A>
+
+
+
+<A NAME="1208786">
+将来の使用に予約。これはお薦めしません。代わりにcrossCertificatePair;binaryをご使用ください。<P></A>
+
+<A NAME="1208788">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1208791">&nbsp;
+</A>
+<A NAME="crossCertificatePair;binary">
+<H3> crossCertificatePair;binary</H3>
+</A>
+
+
+
+<A NAME="1208793">
+将来の使用のために予約されています。<P></A>
+
+<A NAME="1208795">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1245094">&nbsp;
+</A>
+<A NAME="dc">
+<H3> dc</H3>
+</A>
+
+
+
+<A NAME="1245095">
+DNSドメインを指定します。例:<P></A>
+<A NAME="1245096">
+<PRE>	domainComponent: uk
+</PRE>
+</A>
+<A NAME="1245097">
+<PRE>または、
+</PRE>
+</A>
+<A NAME="1245098">
+<PRE>	dc: uk
+</PRE>
+</A>
+
+<A NAME="1245100">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1095547">&nbsp;
+</A>
+<A NAME="deleteOldRdn">
+<H3> deleteOldRdn</H3>
+</A>
+
+
+
+<A NAME="1095597">
+エントリの識別属性としてエントリの古いRDNを保持するか、または削除するかを定義するフラグ。値<code>False</code>は識別属性としてRDNが保持されることを、値<code>True</code>はエントリの識別属性としてRDNが保持されないことを示します。<code>True</code>または<code>False</code>以外の値がdeleteOldRDNの属性に含まれている場合や、deleteOldRDNに複数の値が含まれている場合は、RDNが識別属性として保持されます(つまり、値が存在しなかったり、無効な値が存在する場合、<code>False</code>がデフォルトです)。<P></A>
+<A NAME="1095550">
+<PRE>	deleteOldRdn: False
+</PRE>
+</A>
+
+<A NAME="1095552">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1241799">&nbsp;
+</A>
+<A NAME="deltaRevocationList;binary">
+<H3> deltaRevocationList;binary</H3>
+</A>
+
+
+
+<A NAME="1241800">
+未定義。<P></A>
+
+<A NAME="1241803">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1095560">&nbsp;
+</A>
+<A NAME="departmentNumber">
+<H3> departmentNumber</H3>
+</A>
+
+
+
+<A NAME="1095562">
+Identifies the entryﾕs department number. 例:<P></A>
+<A NAME="1095563">
+<PRE>	departmentNumber: 2604
+</PRE>
+</A>
+
+<A NAME="1095565">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1095566">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1171528">&nbsp;
+</A>
+<A NAME="description">
+<H3> description</H3>
+</A>
+
+
+
+<A NAME="1171529">
+エントリを説明します。ユーザーや組織の場合に、その役割や作業の割当てが説明に含まれることがよくあります。例:<P></A>
+<A NAME="1171530">
+<PRE>	description: Quality control inspector for the ME2873 product line (ME2873製品ラインの品質管理検査者)
+</PRE>
+</A>
+
+<A NAME="1171532">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201824">&nbsp;
+</A>
+<A NAME="destinationIndicator">
+<H3> destinationIndicator</H3>
+</A>
+
+
+
+<A NAME="1201825">
+この属性は電報サービスによって使用されます。<P></A>
+
+<A NAME="1201828">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201831">&nbsp;
+</A>
+<A NAME="ditRedirect">
+<H3> ditRedirect</H3>
+</A>
+
+
+
+<A NAME="1211719">
+あるエントリで記述されるオブジェクトが、DIT内により新しいエントリを持つようになったことを示すのに使用します。個人の仕事場が変わったため新しい組織DNを得た場合などに、この属性を使用します。例:<P></A>
+<A NAME="1201833">
+<PRE>	ditRedirect: <I>cn=jdoe, o=airius.com
+</I></PRE>
+</A>
+
+<A NAME="1201835">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1100403">&nbsp;
+</A>
+<A NAME="dn">
+<H3> dn</H3>
+</A>
+
+
+
+<A NAME="1100404">
+エントリの識別名 (dn - distinguished name)を定義します。例:<P></A>
+<A NAME="1171552">
+<PRE>	<I>dn: cn=Jane Doe, ou=Quality Control, o=airius.com
+</I></PRE>
+</A>
+
+<A NAME="1100407">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1201841">&nbsp;
+</A>
+<A NAME="dnsRecord">
+<H3> dnsRecord</H3>
+</A>
+
+
+
+<A NAME="1218890">
+タイプA (Address)、タイプMX (Mail Exchange)、タイプNS (Name Server)、およびタイプ SOA (Start Of Authority) のリソース レコードを含むDNS リソース レコードを指定します。例:<P></A>
+<A NAME="1218996">
+<PRE>	dnsRecord: IN NS ns.uu.net.
+</PRE>
+</A>
+
+<A NAME="1201844">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1241256">&nbsp;
+</A>
+<A NAME="dnQualifier">
+<H3> dnQualifier</H3>
+</A>
+
+
+
+<A NAME="1241257">
+未定義。<P></A>
+
+<A NAME="1241260">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201847">&nbsp;
+</A>
+<A NAME="documentAuthor">
+<H3> documentAuthor</H3>
+</A>
+
+
+
+<A NAME="1201848">
+ドキュメント エントリの著者の識別名が含まれます。例:<P></A>
+<A NAME="1201849">
+<PRE>	documentAuthor: <I>cn=John Doe, o=Airius.com</I>
+</PRE>
+</A>
+
+<A NAME="1201851">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1201854">&nbsp;
+</A>
+<A NAME="documentIdentifier">
+<H3> documentIdentifier</H3>
+</A>
+
+
+
+<A NAME="1214845">
+ドキュメントの一意の識別子を示します。例:<P></A>
+<A NAME="1201856">
+<PRE>	documentIdentifier: L3204REV1
+</PRE>
+</A>
+
+<A NAME="1201858">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201861">&nbsp;
+</A>
+<A NAME="documentLocation">
+<H3> documentLocation</H3>
+</A>
+
+
+
+<A NAME="1201862">
+ドキュメント エントリの元のコピー場所を定義します。例:<P></A>
+<A NAME="1201863">
+<PRE>	documentLocation: Department Library
+</PRE>
+</A>
+
+<A NAME="1201865">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201868">&nbsp;
+</A>
+<A NAME="documentPublisher">
+<H3> documentPublisher</H3>
+</A>
+
+
+
+<A NAME="1216107">
+ドキュメントをパブリッシュしたユーザーおよび/または組織。例:<P></A>
+<A NAME="1201870">
+<PRE>	documentPublisher: Southeastern Publishing
+</PRE>
+</A>
+
+<A NAME="1201872">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201877">&nbsp;
+</A>
+<A NAME="documentStore">
+<H3> documentStore</H3>
+</A>
+
+
+
+<A NAME="1201878">
+未定義。<P></A>
+
+<A NAME="1201881">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201884">&nbsp;
+</A>
+<A NAME="documentTitle">
+<H3> documentTitle</H3>
+</A>
+
+
+
+<A NAME="1201885">
+ドキュメント エントリの題名が含まれます。例:<P></A>
+<A NAME="1201886">
+<PRE>	documentTitle: Directory Administratorﾕs Guide
+</PRE>
+</A>
+
+<A NAME="1201888">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201891">&nbsp;
+</A>
+<A NAME="documentVersion">
+<H3> documentVersion</H3>
+</A>
+
+
+
+<A NAME="1201892">
+ドキュメント エントリのバージョンを定義します。例:<P></A>
+<A NAME="1201893">
+<PRE>	documentVersion: 1.1
+</PRE>
+</A>
+
+<A NAME="1201895">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201909">&nbsp;
+</A>
+<A NAME="drink">
+<H3> drink</H3>
+</A>
+
+
+
+<A NAME="1201910">
+ユーザー エントリの好みの飲物を説明します。例:<P></A>
+<A NAME="1201911">
+<PRE>	drink: soda
+</PRE>
+</A>
+<A NAME="1201912">
+<PRE>または、
+</PRE>
+</A>
+<A NAME="1201913">
+<PRE>	favouriteDrink: soda
+</PRE>
+</A>
+
+<A NAME="1201915">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1245205">&nbsp;
+</A>
+<A NAME="dSAQuality">
+<H3> dSAQuality</H3>
+</A>
+
+
+
+<A NAME="1245207">
+未定義。 <P></A>
+
+<A NAME="1245210">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1003050">&nbsp;
+</A>
+<A NAME="employeeNumber">
+<H3> employeeNumber</H3>
+</A>
+
+
+
+<A NAME="1003051">
+エントリの社��番号を示します。例:<P></A>
+<A NAME="1003356">
+<PRE>	employeeNumber: 15300
+</PRE>
+</A>
+
+<A NAME="1003382">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1008204">
+この属性は、LDAP導入との併用のためにNetscape社が作成したものです。<P></A>
+
+
+<A NAME="1009035">&nbsp;
+</A>
+<A NAME="employeeType">
+<H3> employeeType</H3>
+</A>
+
+
+
+<A NAME="1009036">
+エントリの採用タイプを示します。例:<P></A>
+<A NAME="1009039">
+<PRE>	employeeType: Full time
+</PRE>
+</A>
+
+<A NAME="1009054">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1087204">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1241288">&nbsp;
+</A>
+<A NAME="enhancedSearchGuide">
+<H3> enhancedSearchGuide</H3>
+</A>
+
+
+
+<A NAME="1241289">
+未定義。 <P></A>
+
+<A NAME="1241292">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1171637">&nbsp;
+</A>
+<A NAME="facsimileTelephoneNumber">
+<H3> facsimileTelephoneNumber</H3>
+</A>
+
+
+
+<A NAME="1171638">
+エントリに連絡可能なファックス番号を示します。例:<P></A>
+<A NAME="1171639">
+<PRE>	facsimileTelephoneNumber: 415-555-1212
+</PRE>
+</A>
+
+<A NAME="1171640">
+または、<P></A>
+<A NAME="1171641">
+<PRE>	fax: 415-555-1212
+</PRE>
+</A>
+
+<A NAME="1171643">
+<a href="attribut.htm#">略号</a>: fax<P></A>
+
+<A NAME="1171645">
+構文: <a href="attribut.htm#1004703">tel</a><P></A>
+
+
+<A NAME="1229525">&nbsp;
+</A>
+<A NAME="co">
+<H3> co</H3>
+</A>
+
+
+
+<A NAME="1229526">
+国名が含まれます。country属性は国の2文字コードを示し、friendlyCountryName属性は実際の国名を示すのに使用します。例:<P></A>
+<A NAME="1229527">
+<PRE>	friendlyCountryName: Ireland<br>
+	countryName: IE
+</PRE>
+</A>
+
+<A NAME="1244785">
+または、<P></A>
+<A NAME="1244786">
+<PRE>	co: Ireland
+</PRE>
+</A>
+
+<A NAME="1244788">
+<a href="attribut.htm#">略号</a>: co<P></A>
+
+<A NAME="1229529">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1171657">&nbsp;
+</A>
+<A NAME="generation">
+<H3> generation</H3>
+</A>
+
+
+
+<A NAME="1171658">
+サーバーをその別の世代またはバージョンから区別するために、サーバーに割り当てるバイト ベクトルを示します。generation属性は複製同期化のみに使用します。<P></A>
+
+<A NAME="1171660">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+<A NAME="1171661">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1104309">&nbsp;
+</A>
+<A NAME="generationQualifier">
+<H3>generationQualifier</H3>
+</A>
+
+
+
+<A NAME="1161653">
+Lightweight Internet Person Schema (LIPS)のGeneration Qualifierと同じです。<P></A>
+
+<A NAME="1104311">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1229534">&nbsp;
+</A>
+<A NAME="givenName">
+<H3> givenName</H3>
+</A>
+
+
+
+<A NAME="1229535">
+エントリの名またはファーストネームを示します。例: <P></A>
+<A NAME="1229536">
+<PRE>	givenName: Bill
+</PRE>
+</A>
+
+<A NAME="1229538">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201936">&nbsp;
+</A>
+<A NAME="homePhone">
+<H3> homePhone</H3>
+</A>
+
+
+
+<A NAME="1201937">
+エントリの自宅電話番号を示します。例:<P></A>
+<A NAME="1201938">
+<PRE>	homeTelephoneNumber: 415-555-1212
+</PRE>
+</A>
+
+<A NAME="1201939">
+または、<P></A>
+<A NAME="1201940">
+<PRE>	homePhone: 415-555-1234
+</PRE>
+</A>
+
+<A NAME="1201942">
+<a href="attribut.htm#">略号</a>: homePhone<P></A>
+
+<A NAME="1201944">
+構文: <a href="attribut.htm#1004703">tel</a><P></A>
+
+
+<A NAME="1201947">&nbsp;
+</A>
+<A NAME="homePostalAddress">
+<H3> homePostalAddress</H3>
+</A>
+
+
+
+<A NAME="1201948">
+エントリの自宅郵便住所を示します。このフィールドは複数行を含むよう意図されていますが、エントリ内の各行をドル記号($)で区切る必要があります。例:<P></A>
+<A NAME="1201949">
+<PRE>	homePostalAddress: 1234 Ridgeway Drive$Santa Clara, CA$99555
+</PRE>
+</A>
+
+<A NAME="1201950">
+テキスト内での区切りとしてではなく、実際のドル記号($)またはバックスラッシュ(\)を示すには、エスケープされた16進値 \24と \5cを使用します。例えば、次のような文字列を示す場合、<P></A>
+<A NAME="1201951">
+<PRE>	The dollar ($) value can be found <br>
+	in the c:\cost file.
+</PRE>
+</A>
+
+<A NAME="1201952">
+次のようにエスケープ文字を使用します。<P></A>
+<A NAME="1201953">
+<PRE>	The dollar (\24) value can be found$in the c:\5ccost file.
+</PRE>
+</A>
+
+<A NAME="1201955">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201958">&nbsp;
+</A>
+<A NAME="host">
+<H3> host</H3>
+</A>
+
+
+
+<A NAME="1201959">
+コンピュータのホスト名を定義します。例:<P></A>
+<A NAME="1201960">
+<PRE>	host: mozilla
+</PRE>
+</A>
+
+<A NAME="1201962">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1241726">&nbsp;
+</A>
+<A NAME="houseIdentifier">
+<H3> houseIdentifier</H3>
+</A>
+
+
+
+<A NAME="1241727">
+家の識別子が含まれます。<P></A>
+
+<A NAME="1241730">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201965">&nbsp;
+</A>
+<A NAME="info">
+<H3> info</H3>
+</A>
+
+
+
+<A NAME="1211991">
+Informationの属性タイプは、オブジェクトに関係する一般的な情報を示すものです。この属性タイプでは特定の使用を避け、さらに、特定の要件が他の (または追加の)属性タイプによって満たされるようにすることをお薦めします。<P></A>
+<A NAME="1201967">
+<PRE>	info: not valid
+</PRE>
+</A>
+
+<A NAME="1201969">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1229543">&nbsp;
+</A>
+<A NAME="initials">
+<H3> initials</H3>
+</A>
+
+
+
+<A NAME="1229544">
+エントリのイニシャルを示します。例:<P></A>
+<A NAME="1229545">
+<PRE>	initials: BFA
+</PRE>
+</A>
+
+<A NAME="1229547">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1032705">&nbsp;
+</A>
+<A NAME="installationTimeStamp">
+<H3>installationTimeStamp</H3>
+</A>
+
+
+
+<A NAME="1212073">
+Netscapeサーバーがインストールされた日と時間をzulu形式で表示します。 この属性はNetscape社の拡張機能で、<a href="attribut.htm#">netscapeServer</a>オブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバを初めてインストールする際に、ディレクトリに書き込まれます。例: <P></A>
+<A NAME="1212075">
+<PRE><A NAME="1212075">
+	installationTimeStamp: 199703261517z
+</A>
+</PRE>
+<A NAME="1259193">
+OID: <code>2.16.840.1.113730.3.1.73</code><P></A>
+
+<A NAME="1032810">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1224256">&nbsp;
+</A>
+<A NAME="internationalIsdnNumber">
+<H3> internationalIsdnNumber</H3>
+</A>
+
+
+
+<A NAME="1224257">
+エントリの国際ISDN番号を定義します。<P></A>
+
+<A NAME="1224260">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1201988">&nbsp;
+</A>
+<A NAME="janetMailBox">
+<H3> janetMailBox</H3>
+</A>
+
+
+
+<A NAME="1212260">
+電子メール アドレスを示します。この属性は、rfc822メール アドレスに慣れていない英国のユーザーの便宜を図るためのものです。この属性を使用したエントリには、rfc822Mailboxの属性も含まれる必要があります。例:<P></A>
+<A NAME="1201990">
+<PRE>	janetMailBox: jdoe@airius.com
+</PRE>
+</A>
+
+<A NAME="1201992">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1201995">&nbsp;
+</A>
+<A NAME="jpegPhoto">
+<H3> jpegPhoto</H3>
+</A>
+
+
+
+<A NAME="1201996">
+エントリのJPEG写真が含まれます。<P></A>
+
+<A NAME="1201999">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1202004">&nbsp;
+</A>
+<A NAME="keyWords">
+<H3> keyWords</H3>
+</A>
+
+
+
+<A NAME="1202005">
+エントリのキーワードが含まれます。例:<P></A>
+<A NAME="1202006">
+<PRE>	keyWords: directory LDAP X.500
+</PRE>
+</A>
+
+<A NAME="1202008">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202013">&nbsp;
+</A>
+<A NAME="knowledgeInformation">
+<H3> knowledgeInformation</H3>
+</A>
+
+
+
+<A NAME="1202014">
+この属性は現在使用されていません。<P></A>
+
+
+<A NAME="1244534">&nbsp;
+</A>
+<A NAME="l">
+<H3> l</H3>
+</A>
+
+
+
+<A NAME="1244535">
+エントリが存在している、またはエントリが何らかの方法で関係する国、都市、その他の地理的領域を示します。例:<P></A>
+<A NAME="1244536">
+<PRE>	localityName: Santa Clara
+</PRE>
+</A>
+
+<A NAME="1244537">
+または、<P></A>
+<A NAME="1244538">
+<PRE>	l: Santa Clara
+</PRE>
+</A>
+
+<A NAME="1244540">
+<a href="attribut.htm#">略号</a>: l<P></A>
+
+<A NAME="1244542">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202020">&nbsp;
+</A>
+<A NAME="labeledUri">
+<H3> labeledUri</H3>
+</A>
+
+
+
+<A NAME="1202021">
+何らかの方法でエントリに関係する、Uniform Resource Identifier (URI)を示します。この属性の入力値は、URIと(現在はURLに限りサポート)、オプションとして、後続する一つ以上のスペース文字とラベル一つから構成されなければなりません。例:<P></A>
+<A NAME="1202022">
+<PRE>	labeledURI: http://home.netscape.com [Netscape社のホームページ<br>
+	 ]
+</PRE>
+</A>
+
+<A NAME="1202024">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1100733">&nbsp;
+</A>
+<A NAME="lastModifiedBy">
+<H3> lastModifiedBy</H3>
+</A>
+
+
+
+<A NAME="1212108">
+関連エントリの最終変更者の識別名を示します。例:<P></A>
+<A NAME="1202030">
+<PRE>	lastModifiedby: <I>cn=Jane Doe, ou=Quality Control, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1100642">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1202035">&nbsp;
+</A>
+<A NAME="lastModifiedTime">
+<H3> lastModifiedTime</H3>
+</A>
+
+
+
+<A NAME="1202036">
+エントリが変更された最終時刻をUTC形式で定義します。例:<P></A>
+<A NAME="1202037">
+<PRE>	lastModifiedTime: Thursday, 22-Sep-93 14:15:00 GMT
+</PRE>
+</A>
+
+<A NAME="1202039">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1243273">&nbsp;
+</A>
+<A NAME="ldap構文es">
+<H3> ldap構文es</H3>
+</A>
+
+
+
+<A NAME="1243274">
+未定義。<P></A>
+
+<A NAME="1243277">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1189404">&nbsp;
+</A>
+<A NAME="mail">
+<H3> mail</H3>
+</A>
+
+
+
+<A NAME="1189405">
+エントリの電子メール アドレスを示します。例:<P></A>
+<A NAME="1189406">
+<PRE>	mail: banderson@airius.com
+</PRE>
+</A>
+
+<A NAME="1189408">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1024020">&nbsp;
+</A>
+<A NAME="mailAccessDomain">
+<H3>mailAccessDomain</H3>
+</A>
+
+
+
+<A NAME="1024021">
+ユーザがPOP/IMAPログオンを実行するドメインまたはIPアドレスを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用します。例:<P></A>
+<A NAME="1024022">
+<PRE><A NAME="1024022">
+	mailAccessDomain: airius.com
+</A>
+</PRE>
+<A NAME="1024248">
+OID: <code>2.16.840.1.113730.3.1.12</code><P></A>
+
+<A NAME="1269362">
+構文:<a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1024250">
+<A NAME="mailAlternateAddress">
+<B>mailAlternateAddress</B>
+</a></a>
+<P>
+
+
+<A NAME="1024251">
+メール ユーザの代替メール アドレスを識別します。この属性はNetscape社の拡張機能で、メール アドレスとユーザを照合するためにMessaging Serverが使用します。メール アカウントはこの属性のインスタンスを、ユーザーの代替メール アドレスと同数持つことができます。例:<P></A>
+<A NAME="1024061">
+<PRE><A NAME="1024061">
+	mailAlternateAddress: Babs_Jensen@airius.com<br>	mailAlternateAddress: Bjensen@airius.com
+</A>
+</PRE>
+<A NAME="1269367">
+OID: <code>2.16.840.1.113730.3.1.13</code><P></A>
+
+<A NAME="1269365">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1024094">
+<A NAME="mailAutoReplyMode">
+<B>mailAutoReplyMode</B>
+</a></a>
+<P>
+
+
+<A NAME="1027423">
+メール ユーザのメール自動応答モードを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用します。各メール ユーザ アカウントにつき、この属性がゼロまたは1 (0〜1)インスタンス必要です。この属性の有効キーワードは、次のとおりです。<P></A>
+<ul><A NAME="1027425">
+<LI>vacation -- 休暇メッセージを送信します。休暇メッセージはmailAutoReplyText属性に含まれています。<BR>
+</A>
+<A NAME="1027426">
+<LI>reply --一定の応答を送信します。応答はmailAutoReplyText属性に含まれています。<BR>
+</A>
+<A NAME="1027427">
+<LI>echo -- 元のメッセージをエコーして、メッセージの元の送信者にmailAutoReplyTextを送信します。<BR>
+</A>
+</ul>
+<A NAME="1027428">
+例:<P></A>
+<PRE><A NAME="1027429">
+	mailAutoReplyMode: vacation
+</A>
+</PRE>
+<A NAME="1269369">
+OID: <code>2.16.840.1.113730.3.1.14</code><P></A>
+
+<A NAME="1024098">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1024125">
+<A NAME="mailAutoReplyText">
+<B>mailAutoReplyText</B>
+</a></a>
+<P>
+
+
+<A NAME="1027662">
+メール ユーザに自動応答テキストを提供します。この属性はNetscape社の拡張機能で、Messaging Serverが使用します。LDIF形式で表わす場合、各行をドル記号($)で区切る必要があります。Messaging Serverでは、各メール アカウントにつきこの属性が0または1回発生する必要があります。 例:<P></A>
+<PRE><A NAME="1027663">
+	mailAutoReplyText: 休暇中$月曜日に戻ります。
+</A>
+</PRE>
+<A NAME="1034577">
+テキスト内での区切りとしてではなく、実際のドル記号($)またはバックスラッシュ(\)を示すには、エスケープされた16進値\24と \5cを使用します。例えば、次のような文字列を示す場合、<P></A>
+<A NAME="1034578">
+<PRE>	The dollar ($) value can be found <br>
+	in the c:\cost file.
+</PRE>
+</A>
+
+<A NAME="1034579">
+次のようにエスケープ文字を使用します。<P></A>
+<A NAME="1034580">
+<PRE>	The dollar (\24) value can be found$in the c:\5ccost file.
+</PRE>
+</A>
+<A NAME="1269558">
+OID: <code>2.16.840.1.113730.3.1.15</code><P></A>
+
+<A NAME="1024293">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1024295">
+<A NAME="mailDeliveryOption">
+<B>mailDeliveryOption</B>
+</a></a>
+<P>
+
+
+<A NAME="1024296">
+メール ユーザが使用するメール配信機構を識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用します。各メール ユーザ アカウントにつき、この属性がゼロまたは3(0〜3)インスタンス必要です。ただし、メール ユーザー エントリにこの属性のインスタンスが無い場合は、最低一つの<a href="attribut.htm#1026154">mailForwardingAddress</a>属性がエントリに存在しなければなりません。この属性の有効キーワードは次のとおりです。<P></A>
+<ul><A NAME="1027169">
+<LI>mailbox --ユーザのPOP/IMAPメールボックスにメールが配信されるのを示します。<P>
+</A>
+<A NAME="1027175">
+<LI>native -- Unix配信が使用されているのを示します。Unixホストで実行されているMessaging Serversに限りこのオプションを利用できます。<P>
+</A>
+<A NAME="1027197">
+<LI>program -- プログラム配信が使用されているのを示します。Unixホストで実行されているMessaging Serversに限りこのオプションを利用できます。<P>
+</A>
+</ul>
+<A NAME="1027143">
+例:<P></A>
+<PRE><A NAME="1024297">
+	mailDeliveryOption: mailbox
+</A>
+</PRE>
+<A NAME="1269568">
+OID: <code>2.16.840.1.113730.3.1.16</code><P></A>
+
+<A NAME="1024169">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1026103">
+<A NAME="mailEnhancedUniqueMember">
+<B>mailEnhancedUniqueMember</B>
+</a></a>
+<P>
+
+
+<A NAME="1026104">
+Netscape社の拡張機能で、Messaging Serverが使用します。将来の使用のため予約。<P></A>
+
+<A NAME="1026153">
+OID: <code>2.16.840.1.113730.3.1.31</code><P></A>
+
+<A NAME="1278474">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+<P>
+<A NAME="1026154">
+<A NAME="mailForwardingAddress">
+<B>mailForwardingAddress</B>
+</a></a>
+<P>
+
+
+<A NAME="1024197">
+メールが転送されるメール アドレスを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、正しい場所に着信メールを転送します。例:<P></A>
+<PRE><A NAME="1024198">
+	mailForwardingAddress: bjensen@royalairways.com
+</A>
+</PRE>
+<A NAME="1269579">
+OID: <code>2.16.840.1.113730.3.1.17</code><P></A>
+
+<A NAME="1024200">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1024314">
+<A NAME="mailHost">
+<B>mailHost</B>
+</a></a>
+<P>
+
+
+<A NAME="1308000">
+ユーザのメール アカウントが存在するホストのDNSホスト名を識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、正しい場所に着信メールをルートします。Messaging Serverでは、各<a href="attribut.htm#">mail</a>Recipientエントリにつきこの属性のインスタンスが必ず一つだけ、各<a href="attribut.htm#">mailGroup</a>エントリにつきこの属性のインスタンスがゼロまたは一つ必要です。この属性の指定値は、ホストの完全修飾ドメイン名でなければなりません。例:<P></A>
+<PRE><A NAME="1024316">
+	mailHost: mars.airius.com
+</A>
+</PRE>
+<A NAME="1269581">
+OID: <code>2.16.840.1.113730.3.1.18</code><P></A>
+
+<A NAME="1024318">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1024377">
+<A NAME="mailMessageStore">
+<B>mailMessageStore</B>
+</a></a>
+<P>
+
+
+<A NAME="1024378">
+ユーザのメール ホスト上で、ユーザのメール ボックスが存在する場所への絶対パスを識別します。この属性はMessaging Serverが使用するNetscape社の拡張機能で、ユーザーの<a href="attribut.htm#1024295"> mailDeliveryOption</a>が<I>mailbox</I>に設定されている場合に限りこの属性を適用できます。Messaging Serverでは、この属性のインスタンスがゼロまたは一つ (0〜1)必要です。ユーザー エントリにこの属性のインスタンスが存在しない場合は、ユーザーのMessaging Serverで設定されているデフォルトが使用されます。例:<P></A>
+<PRE><A NAME="1024379">
+	mailMessageStore: /disk2/mail
+</A>
+</PRE>
+<A NAME="1269614">
+OID: <code>2.16.840.1.113730.3.1.19</code><P></A>
+
+<A NAME="1090714">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1202044">&nbsp;
+</A>
+<A NAME="mailPreferenceOption">
+<H3> mailPreferenceOption</H3>
+</A>
+
+
+
+<A NAME="1213101">
+メール リスト (電子または物理的)にユーザー名を含めるかどうかの環境設定を示します。この属性の3つの許容値は<code>0</code>、<code>1</code>、および<code>2</code>です。<code>0</code>の値はユーザーがメール リストへの追加を希望しないこと、<code>1</code>の値はユーザーが任意のメール リストへの追加に同意すること、<code>2</code>の値は、ユーザーの専門的な関心事であるとメール リスト提供者が見なすようなメール リストにのみ、ユーザーを追加することを意味します。属性値の指定がない場合は、属性の値が "no-list-inclusion" (リストに含まない)であと解釈されます。この属性は、ディレクトリにおいてメール リストおよびその環境設定値を取り出すユーザーのすべてが解釈できる必要があります。例:<P></A>
+<A NAME="1202046">
+<PRE>	mailPreferenceOption: 0
+</PRE>
+</A>
+
+<A NAME="1202048">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1024400">&nbsp;
+</A>
+<A NAME="mailProgramDeliveryInfo">
+<H3>mailProgramDeliveryInfo</H3>
+</A>
+
+
+
+<A NAME="1024401">
+プログラムによるメール配信で使用する、$で区切られた一つ以上のコマンドを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用します。Messaging Serverでは、各ユーザー アカウントにつきこの属性のインスタンスがゼロまたは一つ (0〜1)必要です。次の条件がすべて真である場合に限り、この属性には意味があります。<P></A>
+<ul><A NAME="1033350">
+<LI>Messaging ServerがUNIXで実行されている<P>
+</A>
+<A NAME="1033365">
+<LI>メール管理者が、Messaging Serverでプログラム配信を使用可能にしている<P>
+</A>
+<A NAME="1033405">
+<LI>ユーザの<a href="attribut.htm#1024295">mailDeliveryOption</a>が<B> </B><I>program</I>に設定されている<P>
+</A>
+</ul>
+<A NAME="1039005">
+例:<P></A>
+<PRE><A NAME="1024402">
+	mailProgramDeliveryInfo: /usr/local/bin/procmail -f-
+</A>
+</PRE>
+<A NAME="1269616">
+OID: <code>2.16.840.1.113730.3.1.20</code><P></A>
+
+<A NAME="1024440">
+<A NAME="1024440">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+<P>
+<A NAME="1024509">
+<A NAME="mailQuota">
+<B>mailQuota</B>
+</a></a>
+<P>
+
+
+<A NAME="1024510">
+ユーザのメールボックスが使用可能な最大ディスク容量をバイト数で表示します。この属性はNetscape社の拡張機能で、Messaging Serverが使用し、ユーザの<a href="attribut.htm#1024295">mailDeliveryOption</a>が<I>mailbox</I>に設定されている場合に限りこの属性を適用できます。Messaging Serverでは、この属性のインスタンスがゼロまたは一つ (0〜1)必要です。ユーザ エントリにこの属性のインスタンスが存在しない場合は、ユーザのMessaging Serverで設定されているデフォルトが使用されます。例:<P></A>
+<PRE><A NAME="1024511">
+	mailQuota: 1000000
+</A>
+</PRE>
+<A NAME="1024513">
+この属性がゼロに設定されている場合は、ディスク容量の割当てが無制限であるのに注意してください。<P></A>
+
+<A NAME="1269588">
+OID: <code>2.16.840.1.113730.3.1.21</code><P></A>
+
+<A NAME="1033421">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1241537">
+<A NAME="mailRoutingAddress">
+<B>mailRoutingAddress</B>
+</a></a>
+<P>
+
+
+<A NAME="1241538">
+未定義。 <P></A>
+
+<A NAME="1241541">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1007859">&nbsp;
+</A>
+<A NAME="manager">
+<H3> manager</H3>
+</A>
+
+
+
+<A NAME="1007872">
+エントリの上司の識別名を示します。例:<P></A>
+<A NAME="1007875">
+<PRE>	manager:<I> cn=Jane Doe, ou=Quality Control, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1007908">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1242887">&nbsp;
+</A>
+<A NAME="matchingRules">
+<H3> matchingRules</H3>
+</A>
+
+
+
+<A NAME="1242888">
+未定義。<P></A>
+
+<A NAME="1242891">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1242961">&nbsp;
+</A>
+<A NAME="matchingRuleUse">
+<H3> matchingRuleUse</H3>
+</A>
+
+
+
+<A NAME="1242962">
+未定義。<P></A>
+
+<A NAME="1242965">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1171811">&nbsp;
+</A>
+<A NAME="member">
+<H3> member</H3>
+</A>
+
+
+
+<A NAME="1171812">
+グループの各メンバーの識別名を示します。例:<P></A>
+<A NAME="1171813">
+<PRE>	member: <I>cn=John Doe, o=airius.com
+</I></PRE>
+</A>
+
+<A NAME="1171815">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1152959">&nbsp;
+</A>
+<A NAME="memberCertificateDescription">
+<H3> memberCertificateDescription</H3>
+</A>
+
+
+
+<A NAME="1152961">
+特定グループの証明書における証明書の特徴を示します。memberCertificateDescriptionの値の一つに一致する主題識別名が証明書に含まれる場合、それは、この属性が属する証明書グループのメンバーであると見なされます。<P></A>
+<A NAME="1153378">
+<PRE>	{<I>subject_dn</I>}
+</PRE>
+</A>
+
+<A NAME="1153395">
+カンマで区切ると複数の主題dnを指定できます。エントリにおいて複数の<code>ou</code>を指定できます。(<code>ou</code>でない)他の属性タイプの複数エントリを指定する場合、最後を除くすべてが無視されます。<P></A>
+
+<A NAME="1154677">
+例えば、次のmemberCertificateDescriptionを持つグループのメンバーを考慮するには、証明書には<code>o=company</code>を除き、<code>ou=x</code>、<code>ou=A</code>、および<code>o=airius</code>を含める必要があります。<P></A>
+<A NAME="1126332">
+<PRE>	memberCertificateDescription: {<I>ou=x, ou=A, o=company, o=airius</I>}
+</PRE>
+</A>
+
+<A NAME="1154571">
+グループの要件が満たされるには、証明書の主題dnに、memberCertificateDescriptionの属性で定義されているのと同じ順序でouの属性タイプが含まれている必要があります。<P></A>
+
+<A NAME="1153423">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1246271">&nbsp;
+</A>
+<A NAME="memberURL">
+<H3> memberURL</H3>
+</A>
+
+
+
+<A NAME="1246272">
+グループの各メンバーに関係するURLを示します。例:<P></A>
+<PRE><A NAME="1246273">
+	memberURL: ldap://<I>cn=jdoe, o=Airius.com</I>
+</A>
+</PRE>
+<A NAME="1263332">
+OID: <code>2.16.840.1.113730.3.1.198</code><P></A>
+
+
+<A NAME="1025144">&nbsp;
+</A>
+<A NAME="mgrpAllowedBroadcaster">
+<H3>mgrpAllowedBroadcaster</H3>
+</A>
+
+
+
+<A NAME="1025146">
+メール グループへのメッセージ送信を許されているメール ユーザを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。mailGroupエントリにこの属性のインスタンスが存在しない場合は、mgrpAllowedDomain属性を使用しない限り、メール グループにメッセージを送信できるユーザの制限は一切ありません。<P></A>
+
+<A NAME="1028370">
+Messaging Serverでは、識別名またはrfc822addressのいずれかを含む属性が必要です。識別名を使用する場合は、メール可能なエントリ、タイプgroupのエントリ、またはgroupOfUniqueNamesを識別名が表示していなければなりません。識別名は、RFC1959の<em>LDAP URLフォーマット</em>で記述されているように、LDAP URLフォーマットで表示する必要があります。<P></A>
+
+<A NAME="1028354">
+例:<P></A>
+<PRE><A NAME="1025147">
+	mgrpAllowedBroadcaster: ldap://<I>uid=bjensen, o=Airius.com<br></I>	mgrpAllowedBroadcaster: mailto:sys50@airius.com
+</A>
+</PRE>
+<A NAME="1277878">
+OID: <code>2.16.840.1.113730.3.1.22</code><P></A>
+
+<A NAME="1025149">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+<P>
+<A NAME="1024569">
+<A NAME="mgrpAllowedDomain">
+<B>mgrpAllowedDomain</B>
+</a></a>
+<P>
+
+
+<A NAME="1024570">
+ユーザがメール グループへのメッセージ送信を許されている送信元ドメインを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。mailGroupエントリにこの属性のインスタンスが存在しない場合は、mgrpAllowedBroadcaster属性を使用しない限り、メール グループにメッセージを送信できるユーザーの制限は一切ありません。 <P></A>
+
+<A NAME="1028614">
+これは、デフォルトでワイルドカード値に設定されます。つまり、値 "airius.com"は"*.airius.com"から送信しているすべてのユーザと照合します。<P></A>
+
+<A NAME="1028598">
+例:<P></A>
+<PRE><A NAME="1024571">
+	mgrpAllowedDomain: airius.com
+</A>
+</PRE>
+<A NAME="1277883">
+OID: <code>2.16.840.1.113730.3.1.23</code><P></A>
+<A NAME="1278549">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1278551">
+<A NAME="mgrpDeliverTo">
+<B>mgrpDeliverTo</B>
+</a></a>
+<P>
+
+
+<A NAME="1278552">
+メール グループのメンバーシップを指定する代替方法。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。Messaging Serverでは、この属性がRFC1959の<em>LDAP URLフォーマット</em>で記述されているフォーマットを使用したLDAP URLを含んでいる必要があります。LDAP検索が返してくるエントリは、このメール グループのメンバーです。例:<P></A>
+<PRE><A NAME="1025433">
+	mgrpDeliverTo: ldap:///<I>ou=Accounting,o=Netscape,c=US??sub?(&amp;<br>	 (objectClass=mailRecipient)(objectClass=inetOrgPerson))</I>
+</A>
+</PRE>
+<A NAME="1277885">
+OID: <code>2.16.840.1.113730.3.1.25</code><P></A>
+
+<A NAME="1025435">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+<P>
+<A NAME="1025568">
+<A NAME="mgrpErrorsTo">
+<B>mgrpErrorsTo</B>
+</a></a>
+<P>
+
+
+<A NAME="1028828">
+跳ね返されたメールや、メール アドレスのないメール グループのメンバーなど、メール配信上の問題を通知するエラー メッセージの送信メール アドレスを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。mailGroupエントリにこの属性のインスタンスが存在しない場合は、Messaging Serverで設定されているデフォルトに基づいてエラー処理が行われます。 <P></A>
+
+<A NAME="1028829">
+Messaging Serverでは、識別名またはrfc822addressのいずれかを含む属性が必要です。識別名を使用する場合は、メール可能なエントリ、タイプgroupのエントリ、またはgroupOfUniqueNamesを表示する必要があります。識別名は、RFC1959の<em>LDAP URLフォーマット</em>で記述されているようにLDAP URLフォーマットで表示しなければなりません。<P></A>
+
+<A NAME="1126241">
+例:<P></A>
+<PRE><A NAME="1126242">
+	mgrpErrorsTo: ldap://<I>uid=bjensen, o=Airius.com<br></I>	mgrpErrorsTo: mailto:sys50@airius.com
+</A>
+</PRE>
+<A NAME="1277947">
+OID: <code>2.16.840.1.113730.3.1.26</code><P></A>
+
+<A NAME="1025572">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+<P>
+<A NAME="1025705">
+<A NAME="mgrpModerator">
+<B>mgrpModerator</B>
+</a></a>
+<P>
+
+
+<A NAME="1025706">
+拒否されたメッセージの送信先メール アドレスを識別します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。これは、拒否されたメールが送られたメール リストからのアドレスです。<P></A>
+
+<A NAME="1029841">
+Messaging Serverは、（<a href="attribut.htm#1024569">mgrpAllowedDomain</a>属性で定義された) 未許可のドメインから受け取ったか、または<a href="attribut.htm#1025144">mgrpAllowedBroadcaster</a>属性のメンバーでないメール アドレスから受け取ったメールを、拒否することがあります。<a href="attribut.htm#1025035">mgrpMsgRejectAction</a>属性に<I>toModerator</I>が含まれている場合、Messaging Serverは、この属性で指定されたアドレスにのみメールを転送します<B>。</B> mailGroupエントリにこの属性のインスタンスが存在せず、さらに<a href="attribut.htm#1025035">mgrpMsgRejectAction</a>属性が<I>toModerator</I>, に設定されている場合は、moderatorに送信されるはずの拒否されたメールは破棄されます (つまり、人的介入なしにメール システムから削除されます)。<P></A>
+
+Messaging Serverでは、この属性が識別名またはrfc822addressのいずれかを含む必要があります。識別名を使用する場合は、メール可能なエントリ、タイプgroupのエントリ、またはgroupOfUniqueNamesを表示しなければなりません。識別名は、RFC1959の<em>LDAP URLフォーマット</em>で記述されているようにLDAP URLフォーマットで表示する必要があります。<P></A>
+
+<A NAME="1029358">
+例:<P></A>
+<PRE><A NAME="1029359">
+	mgrpErrorsTo: ldap://<I>uid=bjensen, o=Airius.com<br></I>	mgrpErrorsTo: mailto:sys50@airius.com
+</A>
+</PRE>
+<A NAME="1277952">
+OID: <code>2.16.840.1.113730.3.1.33</code><P></A>
+
+<A NAME="1025876">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+<P>
+<A NAME="1025878">
+<A NAME="mgrpMsgMaxSize">
+<B>mgrpMsgMaxSize</B>
+</a></a>
+<P>
+
+
+<A NAME="1025879">
+メール グループに送信が許可されている最大メッセージ サイズをバイト数で表示します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。Messaging Serverでは、各everymailGroupエントリにつき必ず一つだけ、この属性のインスタンスが存在する必要があります。例:<P></A>
+<PRE><A NAME="1025290">
+	mgrpMsgMaxSize: 2000
+</A>
+</PRE>
+<A NAME="1277962">
+OID: <code>2.16.840.1.113730.3.1.32</code><P></A>
+
+<A NAME="1025292">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1025035">
+<A NAME="mgrpMsgRejectAction">
+<B>mgrpMsgRejectAction</B>
+</a></a>
+<P>
+
+
+<A NAME="1024634">
+メール グループに送信されたメールが拒否された際の対策を示します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。<P></A>
+
+<A NAME="1029427">
+Messaging Serverは、 (<a href="attribut.htm#1024569">mgrpAllowedDomain</a>属性で定義された) 未許可のドメインから受け取ったか、<a href="attribut.htm#1025144">mgrpAllowedBroadcaster</a>属性のメンバーでないメール アドレスから受け取ったか、または<a href="attribut.htm#1025878">mgrpMsgMaxSize</a>で許可されたサイズを越えるメールであるため、メールを拒否することがあります。<P></A>
+
+<A NAME="1031346">
+Messaging Serverでは、各mailGroupエントリにつきこの属性のインスタンスがゼロから2(0〜2)必要です。ただし、mailGroupエントリにこの属性のインスタンスがまったく存在しない場合は、デフォルトの<I>reply</I>が使用されます。この属性の有効キーワードは、次のとおりです。<P></A>
+<ul><A NAME="1029629">
+<LI>reply -- 送信者に失敗通知が送信されます。失敗通知のテキストは<a href="attribut.htm#1025981">mgrpMsgRejectText </a>属性に保存されます。<P>
+</A>
+<A NAME="1029638">
+<LI>bounce -- <a href="attribut.htm#1025981">mgrpMsgRejectText</a>属性で保存された注釈を伴なうメセージが送信者に返されます。<P>
+</A>
+<A NAME="1029664">
+<LI>toModerator -- 処理のためメッセージを仲裁者に転送します。仲裁者は、<a href="attribut.htm#1025705">mgrpModerator</a>属性で指定されます。<P>
+</A>
+</ul>
+<A NAME="1029617">
+例:<P></A>
+<PRE><A NAME="1024635">
+	mgrpMsgRejectAction: bounce
+</A>
+</PRE>
+<A NAME="1278044">
+OID: <code>2.16.840.1.113730.3.1.28</code><P></A>
+
+<A NAME="1024637">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1025981">
+<A NAME="mgrpMsgRejectText">
+<B>mgrpMsgRejectText</B>
+</a></a>
+<P>
+
+
+<A NAME="1025983">
+メール グループに送信されたメールが拒否され、さらに、mgrpMsgRejectAction属性が <I>bounce</I>または<I>reply</I>のいずれかに設定されている場合に、Messaging Serverによって送信されるテキストを表示します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。<P></A>
+
+<A NAME="1030064">
+Messaging Serverでは、各mailGroupエントリにつきこの属性のインスタンスがゼロから1(0〜1)必要です。LDIF形式で示す場合は、$を使用して複数行のテキストを区切ることができます。mailGroupエントリにこの属性のインスタンスがまったく存在しない場合は、Messaging Serverで設定されたデフォルトのテキストが、拒否されたメールに対して使用されます。<P></A>
+
+<A NAME="1030130">
+例:<P></A>
+<PRE><A NAME="1025984">
+	mgrpMsgRejectText: Crazed Bikersメール リストに送信したメールは$<br>	 拒否されました。$あなたはCrazed Bikersグループの<br>	 メンバーではありません。$ Big Daddy Biker<br>	 （住所はrsweeny@airius.com）に連絡して、$crazed bikerのメンバーになる<br>	 情報を取得してください。
+</A>
+</PRE>
+<A NAME="1278050">
+OID: <code>2.16.840.1.113730.3.1.29</code><P></A>
+
+<A NAME="1025986">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+<P>
+<A NAME="1102613">
+<A NAME="mgrpPassword">
+<B>mgrpPassword</B>
+</a></a>
+<P>
+
+
+<A NAME="1102614">
+将来の使用に予約。例:<P></A>
+<PRE><A NAME="1287369">
+	mgrpPassword: AAAAAA==
+</A>
+</PRE>
+<A NAME="1102615">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+<P>
+<A NAME="1024670">
+<A NAME="mgrpRFC822MailMember">
+<B>mgrpRFC822MailMember</B>
+</a></a>
+<P>
+
+
+<A NAME="1024672">
+<a href="attribut.htm#">mailGroup</a>に送信されたメールで、メール グループの実際のメンバーでない受信者を示します。概念的には、これらのメール アドレスは「カーボン コピーの受信者」として考えられます。つまり、この属性は、識別名で表現できないメール受信者や、このグループからのメール送信先とはなるが、グループ メンバー特有の完全な特権を持たないメール受信者を示すのに使用します。この属性はNetscape社の拡張機能で、Messaging Serverが使用して、メール リストを管理します。<P></A>
+
+<A NAME="1030207">
+Messaging Serverでは、この属性が次の形式を使用したrfc822メール アドレスを含む必要があります。<P></A>
+<PRE><A NAME="1030236">
+<code>	rfc822MailAddress [ % ﾕfullﾕ name] [ %1 (group parameter #1)]<br>	 [ %2 (group parameter #2)]...</code>
+</A>
+</PRE>
+<A NAME="1030231">
+説明:<P></A>
+<ul><A NAME="1030278">
+<LI>rfc822MailAddressは、次のようなアドレスです。<P>
+</A>
+</ul><PRE><A NAME="1030338">
+	bjensen@airius.com
+</A>
+</PRE><ul><A NAME="1030343">
+<LI> full nameは、ユーザーの氏名を表示するオプションのパラメータです。このパラメータは将来の使用のために予約されています。<P>
+</A>
+<A NAME="1030396">
+<LI> groupパラメータは、将来の使用のために予約されているオプションのパラメータです。<P>
+</A>
+</ul>
+<A NAME="1030305">
+例:<P></A>
+<PRE><A NAME="1024673">
+	mgrpRFC822MailMember: bjensen@airius.com%Babs Jensen
+</A>
+</PRE>
+<A NAME="1278123">
+OID: <code>2.16.840.1.113730.3.1.30</code><P></A>
+
+<A NAME="1024675">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202056">&nbsp;
+</A>
+<A NAME="mobile">
+<H3> mobile</H3>
+</A>
+
+
+
+<A NAME="1202057">
+エントリの携帯電話番号を示します。例:<P></A>
+<A NAME="1202058">
+<PRE>	mobileTelephoneNumber: 415-555-4321
+</PRE>
+</A>
+
+<A NAME="1202059">
+または、<P></A>
+<A NAME="1202060">
+<PRE>	mobile: 415-555-4321
+</PRE>
+</A>
+
+<A NAME="1202062">
+<a href="attribut.htm#">略号</a>: mobile<P></A>
+
+<A NAME="1202064">
+構文: <a href="attribut.htm#1004703">tel</a><P></A>
+
+
+<A NAME="1242555">&nbsp;
+</A>
+<A NAME="modifiersName">
+<H3> modifiersName</H3>
+</A>
+
+
+
+<A NAME="1242556">
+エントリの最終変更者の識別名(dn - distinguished name)が含まれます。例:<P></A>
+<A NAME="1242557">
+<PRE>	modifiersName: <I>cn=jdoe, o=airius.com
+</I></PRE>
+</A>
+
+<A NAME="1242559">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1242117">&nbsp;
+</A>
+<A NAME="modifyTimestamp">
+<H3> modifyTimestamp</H3>
+</A>
+
+
+
+<A NAME="1242119">
+未定義。<P></A>
+
+<A NAME="1242126">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1229561">&nbsp;
+</A>
+<A NAME="multiLineDescription">
+<H3>multiLineDescription</H3>
+</A>
+
+
+
+<A NAME="1229562">
+メール ユーザを記述するテキストを提供します。この属性はNetscape社の拡張機能で、Messaging Serverが使用します。LDIF形式で表示する場合は、各行をドル記号($)で区切ります。Messaging Serverでは、各メール アカウントにつきこの属性が0または1回提供されることが必要です。例:<P></A>
+<PRE><A NAME="1229563">
+	multiLineDescription: アカウント管理者および$ディレクトリ マネージャ。
+</A>
+</PRE>
+<A NAME="1229565">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1243088">&nbsp;
+</A>
+<A NAME="namingContexts">
+<H3> namingContexts</H3>
+</A>
+
+
+
+<A NAME="1243089">
+未定義。<P></A>
+
+<A NAME="1243092">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1096606">&nbsp;
+</A>
+<A NAME="newRdn">
+<H3> newRdn</H3>
+</A>
+
+
+
+<A NAME="1096607">
+modRDNまたはmodDN動作のターゲットであるエントリの新規RDN (Relative Distinguished Name)が含まれます。例:<P></A>
+<A NAME="1096608">
+<PRE>	newRdn: <I>cn=Jane Doe
+</I></PRE>
+</A>
+
+<A NAME="1100958">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1126531">&nbsp;
+</A>
+<A NAME="newSuperior">
+<H3> newSuperior</H3>
+</A>
+
+
+
+<A NAME="1126532">
+modDN動作の処理の際に、現存するエントリの直ぐ上になるエントリ名を示します。例:<P></A>
+<A NAME="1126533">
+<PRE>	newSuperior: <I>cn=Jane Doe
+</I></PRE>
+</A>
+
+<A NAME="1126631">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1126633">&nbsp;
+</A>
+<A NAME="newsComponentName">
+<H3> newsComponentName</H3>
+</A>
+
+
+
+<A NAME="1126540">
+この属性には討論 (ニュース)グループ名が含まれます。この名前は、討論グループの識別名にも使用できます。例:<P></A>
+<A NAME="1126541">
+<PRE>	newsComponentName: <I>marketing
+</I></PRE>
+</A>
+
+<A NAME="1126543">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1095332">&nbsp;
+</A>
+<A NAME="ngcomponent">
+<H3>ngcomponent</H3>
+</A>
+
+
+
+<A NAME="1095333">
+ニュース グループ名の一部を識別します。この属性は、標準LDAPスキーマへのNetscape社の拡張機能です。ニュース グループを一意に識別するため、Collabra Serverが<a href="attribut.htm#">nginfo</a>エントリで使用します。Collabra Serverがこの属性に入力する情報のフォーマットと性質は、予告なしに変更されることがあります。<P></A>
+
+<A NAME="1037897">
+例えば、comp.sys.mac newsgroup用に入力されたngcomponent属性は次のようになります。<P></A>
+<PRE><A NAME="1037898">
+	dn: ngcomponent=mac, ngcomponent=sys, ngcomponent=comp,<br>	 ngcomponent=., <I>o=Airius.com<br></I>	objectclass: top<br>	objectclass: nginfo<br>	ngcomponent=mac<br>	ngcomponent=sys<br>	ngcomponent=comp<br>	ngcomponent=.
+</A>
+</PRE>
+<A NAME="1272795">
+OID: <code>2.16.840.1.113730.3.1.196</code><P></A>
+
+<A NAME="1037900">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+<P>
+<A NAME="1036977">
+<A NAME="nsaclrole">
+<B>nsaclrole</B>
+</a></a>
+<P>
+
+
+<A NAME="1037146">
+個々のニュース グループにアクセスする際の役割 (マネージャ、掲示者、読者など)を表示します。この属性は、標準LDAPスキーマへのNetscape社の拡張機能です。これは、<a href="objclass.htm#1078583">nginfo</a>エントリでCollabra Serverが使用し、個々のニュース グループのアクセスを管理します。この属性は、ngcomponent subtreeのブランチ ポイントにおいてのみ使用されます。Collabra Serverがこの属性に入力する情報のフォーマットと性質は、予告なしに変更されることがあります。<P></A>
+
+<A NAME="1036980">
+例:<P></A>
+<PRE><A NAME="1036981">
+	nsaclrole: admin:aprv
+</A>
+</PRE>
+<A NAME="1272665">
+OID: <code>2.16.840.1.113730.3.1.192</code><P></A>
+
+<A NAME="1036983">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1104932">
+<A NAME="nsCalAccess">
+<B>nsCalAccess</B>
+</a></a>
+<P>
+
+
+<A NAME="1177104">
+この属性は将来の使用のために予約されています。<P></A>
+
+<A NAME="1177105">
+Calendarユーザ、管理者、またはリソースに、Calendar Serverへのアクセスの認否を定義します。例:<P></A>
+<PRE><A NAME="1120940">
+	nsCalAccess: allow
+</A>
+</PRE>
+<A NAME="1270551">
+OID: <code>2.16.840.1.113730.3.1.112</code><P></A>
+
+<A NAME="1104935">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1177696">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+<P>
+<A NAME="1166044">
+<A NAME="nsCalAccessDomain">
+<B>nsCalAccessDomain</B>
+</a></a>
+<P>
+
+
+<A NAME="1177890">
+Calendarユーザ、管理者、またはリソースがCalendarデータへのアクセスを許可される、アクセス元のインターネット ドメインまたはIPアドレスを含みます。<P></A>
+<PRE><A NAME="1120977">
+	nsCalAccessDomain: airius.com
+</A>
+</PRE>
+<A NAME="1270575">
+OID: <code>2.16.840.1.113730.3.1.113</code><P></A>
+
+<A NAME="1104940">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1177866">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+<P>
+<A NAME="1104994">
+<A NAME="nsCalAdmd">
+<B>nsCalAdmd</B>
+</a></a>
+<P>
+
+
+<A NAME="1161412">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性には、X.400 Administration Management Domain Nameが含まれます。例:<P></A>
+<PRE><A NAME="1120980">
+	nsCalAdmd: telemail
+</A>
+</PRE>
+<A NAME="1270587">
+OID: <code>2.16.840.1.113730.3.1.114</code><P></A>
+
+<A NAME="1104995">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1105005">&nbsp;
+</A>
+<A NAME="nsCalDefaultNoteReminder">
+<H3> nsCalDefaultNoteReminder</H3>
+</A>
+
+
+
+<A NAME="1162561">
+Calendarユーザーに送信されるノート リマインダのタイプがある場合、これを定義します。リマインダ タイプはnone (0)、visual (1)、またはvisual and audible (2)です。Length of the reminder (リマインダの長さ)は、ユーザーに送信されるリマインダのノートの有効時間を分単位で定義します。構文は <code>タイプ:分</code>です。例:<P></A>
+<PRE><A NAME="1162562">
+	nsCalDefaultNoteReminder: 1:10
+</A>
+</PRE>
+<A NAME="1270589">
+OID: <code>2.16.840.1.113730.3.1.115</code><P></A>
+
+<A NAME="1105006">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1174630">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+<P>
+<A NAME="1162428">&nbsp;
+</A>
+<A NAME="nsCalDefaultReminder">
+<H3> nsCalDefaultReminder</H3>
+</A>
+
+
+
+<A NAME="1162430">
+カレンダーのイベント参加者に送信されるイベント リマインダのタイプがある場合、これを定義します。リマインダ タイプはnone (0)、visual (1)、または visual and audible (2)です。Length of the reminder (リマインダの長さ)は、イベント参加者に送信されるリマインダのイベントまでの時間を分単位で定義します。例:<P></A>
+<A NAME="1162431">
+<PRE><A NAME="1162431">
+	nsCalDefaultReminder: 1:10
+</A>
+</PRE>
+<A NAME="1270594">
+OID: <code>2.16.840.1.113730.3.1.116</code><P></A>
+
+<A NAME="1162433">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1175363">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+
+
+<A NAME="1105139">&nbsp;
+</A>
+<A NAME="nsCalDefaultTaskReminder">
+<H3> nsCalDefaultTaskReminder</H3>
+</A>
+
+
+
+<A NAME="1162515">
+Calendarユーザーに送信されるタスク リマインダのタイプがある場合、これを定義します。リマインダ タイプはnone (0)、visual (1)、または visual and audible (2)です。Length of the reminder (リマインダの長さ)は、ユーザーに送信されるリマインダのタスク締切りまでの時間を分単位で定義します。例:<P></A>
+<PRE><A NAME="1162516">
+	nsCalDefaultTaskReminder: 1:10
+</A>
+</PRE>
+<A NAME="1270608">
+OID: <code>2.16.840.1.113730.3.1.117</code><P></A>
+
+<A NAME="1162518">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1175448">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+
+
+<A NAME="1105164">
+<A NAME="nsCalDisplayPrefs">
+<B>nsCalDisplayPrefs</B>
+</a></a>
+<P>
+
+
+<A NAME="1161965">
+Calendarユーザまたはリソースの表示環境設定を含みます。この属性の構文は、次のとおりです。<code>Flags:StartDay:EndDay:WeekStart:TimeIncrement:ActiveDays:TimeFormat</code>. Flagsは現在使用されていません。StartDayは日付表示の開始時間(分)、 EndDayは日付表示の終了時間(分)、WeekStartはCalendarクライアントで表示する週の第1日目で、通常は日曜か月曜を示します。TimeIncrementでは表示する時間単位(分)を定義します。ActiveDaysでは、平日のみなど、表示する日を指定します。TimeFormatでは表示時間形式 (AM/PMまたは24時間)を示します。以下の例では、<code>4</code>はフラグを示し、フラグは使用されていません。StartDay値 (480)は午前8時、EndDay (1140)は午後7時、WeekStart (0)は日曜、TimeIncrementは15 分、ActiveDays値はすべて、TimeFormatは24時間に設定されています。<P></A>
+<A NAME="1234997">
+<PRE><A NAME="1234997">
+	nsCalDisplayPrefs: 4:480:1140:0:15:127:2
+</A>
+</PRE>
+<A NAME="1270696">
+OID: <code>2.16.840.1.113730.3.1.118</code><P></A>
+
+<A NAME="1161784">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1174421">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+
+
+<A NAME="1164493">
+<A NAME="nsCalFlags">
+<B>nsCalFlags</B>
+</a></a>
+<P>
+
+
+<A NAME="1164494">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。将来の使用に予約。<P></A>
+
+<A NAME="1270698">
+OID: <code>2.16.840.1.113730.3.1.119</code><P></A>
+
+<A NAME="1235001">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1157806">
+<A NAME="nsCalHost">
+<B>nsCalHost</B>
+</a></a>
+<P>
+
+
+<A NAME="1157807">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、Calendar Serverをホストするホスト名またはIPアドレスを含みます。例:<P></A>
+<PRE><A NAME="1122178">
+	nsCalHost: calserver.airius.com
+</A>
+</PRE>
+<A NAME="1270812">
+OID: <code>2.16.840.1.113730.3.1.120</code><P></A>
+
+<A NAME="1105325">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1105333">
+<A NAME="nsCalLanguageId">
+<B>nsCalLanguageId</B>
+</a></a>
+<P>
+
+
+<A NAME="1162674">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ユーザー、管理者、またはリソースが電子メール通知を受信する言語を定義します。例:<P></A>
+<PRE><A NAME="1122193">
+	nsCalLanguageId: english
+</A>
+</PRE>
+<A NAME="1270838">
+OID: <code>2.16.840.1.113730.3.1.121</code><P></A>
+
+<A NAME="1157843">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1157846">
+<A NAME="nsCalNodeAlias">
+<B>nsCalNodeAlias</B>
+</a></a>
+<P>
+
+
+<A NAME="1157847">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、Calendarユーザの情報が保存されているノードのニーモニック名を含みます。例:<P></A>
+<PRE><A NAME="1171879">
+	nsCalNodeAlias: node10000
+</A>
+</PRE>
+<A NAME="1270844">
+OID: <code>2.16.840.1.113730.3.1.122</code><P></A>
+
+<A NAME="1118746">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1118755">
+<A NAME="nsCalNotifMechanism">
+<B>nsCalNotifMechanism</B>
+</a></a>
+<P>
+
+
+<A NAME="1162010">
+カレンダー イベント参加者の通知(通常は電子メール)に使用される機構を指定します。この属性の許容値は<code>1</code>および<code>0</code> で、<code>1</code> は通知が使用可能で、<code>0</code>は通知が使用不能であるのを意味します。例:<P></A>
+<PRE><A NAME="1122226">
+	nsCalNotifMechanism: 0
+</A>
+</PRE>
+<A NAME="1270863">
+OID: <code>2.16.840.1.113730.3.1.123</code><P></A>
+
+<A NAME="1118757">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1175516">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+<P>
+<A NAME="1105631">
+<A NAME="nsCalOperatingPrefs">
+<B>nsCalOperatingPrefs</B>
+</a></a>
+<P>
+
+
+<A NAME="1161868">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ユーザまたはリソースのOS環境設定を定義します。将来の使用に予約。<P></A>
+
+<A NAME="1270865">
+OID: <code>2.16.840.1.113730.3.1.124</code><P></A>
+
+<A NAME="1161820">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1105739">
+<A NAME="nsCalOrgUnit2">
+<B>nsCalOrgUnit2</B>
+</a></a>
+<P>
+
+
+<A NAME="1161561">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ユーザまたは管理者のX.400 Organization Unit 2(OU2)を含みます。例:<P></A>
+<PRE><A NAME="1122284">
+	nsCalOrgUnit2: marketing
+</A>
+</PRE>
+<A NAME="1270887">
+OID: <code>2.16.840.1.113730.3.1.125</code><P></A>
+
+<A NAME="1105740">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1105752">
+<A NAME="nsCalOrgUnit3">
+<B>nsCalOrgUnit3</B>
+</a></a>
+<P>
+
+
+<A NAME="1161594">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ユーザまたは管理者のX.400 Organization Unit 3(OU3)を含みます。例:<P></A>
+<PRE><A NAME="1122291">
+	nsCalOrgUnit3: sales
+</A>
+</PRE>
+<A NAME="1270897">
+OID: <code>2.16.840.1.113730.3.1.126</code><P></A>
+
+<A NAME="1105753">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1105815">
+<A NAME="nsCalOrgUnit4">
+<B>nsCalOrgUnit4</B>
+</a></a>
+<P>
+
+
+<A NAME="1164929">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ユーザまたは管理者のX.400 Organization Unit 4(OU4)を含みます。例:<P></A>
+<PRE><A NAME="1164930">
+	nsCalOrgUnit4: engineering
+</A>
+</PRE>
+<A NAME="1270918">
+OID: <code>2.16.840.1.113730.3.1.127</code><P></A>
+
+<A NAME="1105816">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1105834">
+<A NAME="nsCalPasswordRequired">
+<B>nsCalPasswordRequired</B>
+</a></a>
+<P>
+
+
+<A NAME="1162629">
+Calendarデータにアクセスする際に、Calendarユーザがパスワードを入力する必要があるかどうかを指定します。許容値は、<code>1</code>および<code>0</code>で、<code>1</code>はパスワードが必要であり、<code>0</code>はパスワードが必要でないことを意味します。例:<P></A>
+<PRE><A NAME="1122383">
+	nsCalPasswordRequired: 1
+</A>
+</PRE>
+<A NAME="1270965">
+OID: <code>2.16.840.1.113730.3.1.128</code><P></A>
+
+<A NAME="1105835">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1175590">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+<P>
+<A NAME="1105891">
+<A NAME="nsCalPrmd">
+<B>nsCalPrmd</B>
+</a></a>
+<P>
+
+
+<A NAME="1161468">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ユーザまたは管理者のX.400 Private Management Domain Nameを含みます。例:<P></A>
+<PRE><A NAME="1271010">
+	nsCalPrmd: airius
+</A>
+</PRE>
+<A NAME="1271034">
+OID: <code>2.16.840.1.113730.3.1.129</code><P></A>
+
+<A NAME="1271012">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1105943">
+<A NAME="nsCalRefreshPrefs">
+<B>nsCalRefreshPrefs</B>
+</a></a>
+<P>
+
+
+<A NAME="1165339">
+この属性は、ユーザーの環境設定を更新するかどうか、またその更新頻度を定義します。この属性の構文は <code>オン/オフ:分</code>です。<code>オン/オフ</code>の許容値は<code>1</code>および<code>0</code>で、<code>1</code>は環境設定を更新し、<code>0</code> は環境設定を更新しないことを意味します。 <code>オン/オフ</code>の値を<code>1</code>に設定している場合、更新間隔は分で入力します。次の例では、nsCalRefreshPrefsはオフに設定されています。<P></A>
+<PRE><A NAME="1171900">
+	nsCalRefreshPrefs: 0:0
+</A>
+</PRE>
+<A NAME="1271056">
+OID: <code>2.16.840.1.113730.3.1.130</code><P></A>
+
+<A NAME="1105944">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1173593">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。<P></A>
+<P>
+<A NAME="1105996">
+<A NAME="nsCalResourceCapacity">
+<B>nsCalResourceCapacity</B>
+</a></a>
+<P>
+
+
+<A NAME="1163461">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、例えば会議室のようなリソースの容量を定義します。例:<P></A>
+<PRE><A NAME="1122484">
+	nsCalResourceCapacity: 65
+</A>
+</PRE>
+<A NAME="1271073">
+OID: <code>2.16.840.1.113730.3.1.131</code><P></A>
+
+<A NAME="1209240">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<A NAME="1209242">
+<A NAME="nsCalResourceNumber">
+<B>nsCalResourceNumber</B>
+</a></a>
+<P>
+
+
+<A NAME="1209244">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、リソースの識別番号を含みます。例:<P></A>
+<PRE><A NAME="1165759">
+	nsCalResourceNumber: 6725
+</A>
+</PRE>
+<A NAME="1271092">
+OID: <code>2.16.840.1.113730.3.1.132</code><P></A>
+
+<A NAME="1106037">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1106093">
+<A NAME="nsCalServerVersion">
+<B>nsCalServerVersion</B>
+</a></a>
+<P>
+
+
+<A NAME="1160060">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、CalendarユーザのデータをホストしているCalendar Serverのバージョン番号を含みます。例:<P></A>
+<A NAME="1122498">
+<PRE><A NAME="1122498">
+	nsCalServerVersion: 1.0
+</A>
+</PRE>
+<A NAME="1271164">
+OID: <code>2.16.840.1.113730.3.1.133</code><P></A>
+
+<A NAME="1106094">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1106115">
+<A NAME="nsCalSysopCanWritePassword">
+<B>nsCalSysopCanWritePassword</B>
+</a></a>
+<P>
+
+
+<A NAME="1162650">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、Calendar Server管理者がユーザ、リソース、および他の管理者のパスワードを上書きできるかどうかを指定します。この属性の許容値は<code>1</code>および<code>0</code>で、<code>1</code>は管理者がパスワードを上書きでき、<code>0</code>は管理者がパスワードを上書きできないことを意味します。例:<P></A>
+<PRE><A NAME="1171915">
+	nsCalSysopCanWritePassword: 1
+</A>
+</PRE>
+<A NAME="1271166">
+OID: <code>2.16.840.1.113730.3.1.134</code><P></A>
+
+<A NAME="1106116">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1106160">
+<A NAME="nsCalTimezone">
+<B>nsCalTimezone</B>
+</a></a>
+<P>
+
+
+<A NAME="1162695">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、リソースの現在の時間帯を含みます。例:<P></A>
+<PRE><A NAME="1122560">
+	nsCalTimezone: PST
+</A>
+</PRE>
+<A NAME="1271168">
+OID: <code>2.16.840.1.113730.3.1.135</code><P></A>
+
+<A NAME="1106161">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1106218">
+<A NAME="nsCalXItemId">
+<B>nsCalXItemId</B>
+</a></a>
+<P>
+
+
+<A NAME="1159973">
+この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Calendar Serverが使用します。この属性は、ディレクトリを代表するnsCalendarObjectの一意の識別子を含みます。この識別子は、Calendarユーザー、管理者、またはリソースのデータが保存されているノードの識別番号と、Calendarユーザー、管理者、またはリソースの識別番号とから構成されています。形式は<code>NodeId,ItemId</code>でなければなりません。例:<P></A>
+<PRE><A NAME="1159974">
+	nsCalXItemId: 123,6547
+</A>
+</PRE>
+<A NAME="1271216">
+OID: <code>2.16.840.1.113730.3.1.136</code><P></A>
+
+<A NAME="1106219">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1037693">
+<A NAME="nscreator">
+<B>nscreator</B>
+</a></a>
+<P>
+
+
+<A NAME="1037694">
+ニュース グループの作成者を識別します。この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Collabra Serverが使用して、<a href="objclass.htm#1078583">nginfo</a>エントリでニュース グループの作成者uidを識別します。Collabra Serverがこの属性に入力する情報のフォーマットと性質は、予告なしに変更されることがあります。<P></A>
+
+<A NAME="1037696">
+例:<P></A>
+<PRE><A NAME="1037697">
+	nscreator: admin
+</A>
+</PRE>
+<A NAME="1272746">
+OID: <code>2.16.840.1.113730.3.1.195</code><P></A>
+
+<A NAME="1037699">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1037564">
+<A NAME="nsflags">
+<B>nsflags</B>
+</a></a>
+<P>
+
+<A NAME="1037565">
+将来の使用に予約。<P></A>
+
+<A NAME="1272737">
+OID: <code>2.16.840.1.113730.3.1.194</code><P></A>
+
+<A NAME="1037567">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1091847">
+<A NAME="nsLicensedFor">
+<B>nsLicensedFor</B>
+</a></a>
+<P>
+
+
+<A NAME="1305579">
+ユーザが使用許諾契約を持つNetscapeサーバを識別します。Netscape Administration Serverでは、この属性のインスタンスが各<a href="attribut.htm#">nsLicenseUser</a>エントリについて、ゼロまたはそれ以上含まれている必要があります。現在この属性の有効キーワードは、次のとおりです。<P></A>
+<ul><A NAME="1305581">
+<LI><code>mail</code>--ユーザは、Messaging Serverのライセンス契約を持つクライアントです。<P>
+</A>
+<A NAME="1305582">
+<LI><code>news</code>--ユーザは、Collabra Serverのライセンス契約を持つクライアントです。<P>
+</A>
+<A NAME="1091852">
+<LI><code>slapd</code>--ユーザは、Directory Serverのライセンス契約を持つクライアントです。<P>
+</A>
+<A NAME="1091853">
+<LI><code>cal</code>--ユーザは、Calendar Serverのライセンス契約を持つクライアントです。<P>
+</A>
+</ul>
+<A NAME="1091854">
+例:<P></A>
+<PRE><A NAME="1091855">
+	nsLicensedFor: slapd
+</A>
+</PRE>
+<A NAME="1257889">
+OID: <code>2.16.840.1.113730.3.1.36</code><P></A>
+
+<A NAME="1091857">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1091859">
+<A NAME="nsLicenseStartTime">
+<B>nsLicenseStartTime</B>
+</a></a>
+<P>
+
+
+<A NAME="1091860">
+将来の使用に予約。<P></A>
+
+<A NAME="1257896">
+OID: <code>2.16.840.1.113730.3.1.37</code><P></A>
+
+<A NAME="1091862">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1091864">
+<A NAME="nsLicenseEndTime">
+<B>nsLicenseEndTime</B>
+</a></a>
+<P>
+
+<A NAME="1091865">
+将来の使用に予約。<P></A>
+
+<A NAME="1257974">
+OID: <code>2.16.840.1.113730.3.1.38</code><P></A>
+
+<A NAME="1091867">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1092030">
+<A NAME="nsnewsACL">
+<B>nsnewsACL</B>
+</a></a>
+<P>
+
+
+<A NAME="1092031">
+個々のニュース グループに設定されたアクセス制御を識別します。この属性は標準LDAPスキーマへのNetscape社の拡張機能です。Collabra Serverが使用して、<a href="attribut.htm#">nginfo</a>エントリで個々のニュース グループのアクセス制御を識別します。Collabra Serverがこの属性に入力する情報のフォーマットと性質は、予告なしに変更されることがあります。<P></A>
+
+<A NAME="1092033">
+例:<P></A>
+<PRE><A NAME="1092034">
+	nsnewsACL: 2:*:a:D::admin:bpolk::d:*:a:D::manager:admin::d:
+</A>
+</PRE>
+<A NAME="1272650">
+OID: <code>2.16.840.1.113730.3.1.191</code><P></A>
+
+<A NAME="1092036">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1037277">
+<A NAME="nsprettyname">
+<B>nsprettyname</B>
+</a></a>
+<P>
+
+
+<A NAME="1037278">
+ニュース グループの洒落た名前または表示名を識別します。この属性は、標準LDAPスキーマへのNetscape社の拡張機能で、Collabra Serverが使用して、<a href="attribut.htm#">nginfo</a>エントリで個々のニュース グループを識別します。Collabra Serverがこの属性に入力する情報のフォーマットと性質は、予告なしに変更されることがあります。<P></A>
+
+<A NAME="1037280">
+例:<P></A>
+<PRE><A NAME="1037281">
+	nsprettyname: MKTG FOR RACHU
+</A>
+</PRE>
+<A NAME="1272668">
+OID: <code>2.16.840.1.113730.3.1.193</code><P></A>
+
+<A NAME="1037283">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1122623">
+<A NAME="ntGroupAttributes">
+<B>ntGroupAttributes</B>
+</a></a>
+<P>
+
+
+<A NAME="1122625">
+NT同期化サービスが、NTグループの属性保存に使用するため予約。<P></A>
+
+<A NAME="1262720">
+OID: <code>1.2.840.113556.1.4.152</code><P></A>
+
+<A NAME="1251757">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+<P>
+<A NAME="1122633">
+<A NAME="ntGroupCreateNewGroup">
+<B>ntGroupCreateNewGroup</B>
+</a></a>
+<P>
+
+
+<A NAME="1122635">
+NT同期化サービスの使用に予約。<P></A>
+
+<A NAME="1258152">
+OID: <code>2.16.840.1.113730.3.1.45</code><P></A>
+
+<A NAME="1258154">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1103799">
+<A NAME="ntGroupDeleteGroup">
+<B>ntGroupDeleteGroup</B>
+</a></a>
+<P>
+
+
+<A NAME="1103800">
+NT同期化サービスの使用に予約。<P></A>
+
+<A NAME="1258186">
+OID: <code>2.16.840.1.113730.3.1.46</code><P></A>
+
+<A NAME="1258188">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1103684">
+<A NAME="ntGroupDomainId">
+<B>ntGroupDomainId</B>
+</a></a>
+<P>
+
+
+<A NAME="1103686">
+NT同期化サービスによって使用され、NT Global Groupname/Domainを保存します。<P></A>
+
+<A NAME="1258086">
+OID: <code>2.16.840.1.113730.3.1.44</code><P></A>
+
+<A NAME="1251773">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1104232">
+<A NAME="ntGroupId">
+<B>ntGroupId</B>
+</a></a>
+<P>
+
+
+<A NAME="1104233">
+未定義<P></A>
+
+<A NAME="1260150">
+OID: <code>2.16.840.1.113730.3.1.110</code><P></A>
+
+<A NAME="1104234">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+<P>
+<A NAME="1283379">
+<A NAME="ntGroupType">
+<B>ntGroupType</B>
+</a></a>
+<P>
+
+
+<A NAME="1283380">
+2つの有効値はglobalおよびlocalです。<P></A>
+
+<A NAME="1283381">
+OID: <code>2.16.840.1.113730.3.1.47</code><P></A>
+
+<A NAME="1283383">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1013839">&nbsp;
+</A>
+<A NAME="ntUserAcctExpires">
+<H3> ntUserAcctExpires</H3>
+</A>
+
+
+
+<A NAME="1013857">
+エントリのWindows NTアカウント失効日を示します。この値は、GMT形式の文字列として保存されます。例:<P></A>
+<A NAME="1013887">
+<PRE>	ntUserAcctExpires: 19961015203415Z 
+</PRE>
+</A>
+
+<A NAME="1024626">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1014052">&nbsp;
+</A>
+<A NAME="ntUserAuthFlags">
+<H3> ntUserAuthFlags</H3>
+</A>
+
+
+
+<A NAME="1014053">
+Windowsネットワークにおけるエントリの命令特権が含まれる符号なしの長整数を示します。例:<P></A>
+<A NAME="1038769">
+<PRE>	ntUserAuthFlags: AAAAAA==
+</PRE>
+</A>
+
+<A NAME="1038770">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1038772">&nbsp;
+</A>
+<A NAME="ntUserBadPwCount">
+<H3> ntUserBadPwCount</H3>
+</A>
+
+
+
+<A NAME="1014169">
+正しくないパスワードを使用してWindowsアカウントにログオンを試みた回数を示します。  0xFFFFFFFFの値は、値が不明であることを示します。例:<P></A>
+<A NAME="1014915">
+<PRE>	ntUserBadPwCount: AAAAAA==
+</PRE>
+</A>
+
+<A NAME="1038807">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1014973">&nbsp;
+</A>
+<A NAME="ntUserCodePage">
+<H3> ntUserCodePage</H3>
+</A>
+
+
+
+<A NAME="1014989">
+ユーザーの選択言語のコード ページ。例:<P></A>
+<A NAME="1015015">
+<PRE>	ntUserCodePage: AAAAAA==
+</PRE>
+</A>
+
+<A NAME="1246827">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1246829">&nbsp;
+</A>
+<A NAME="ntUsercomment">
+<H3> ntUsercomment</H3>
+</A>
+
+
+
+<A NAME="1246830">
+このエントリに関する記述または注釈を示すASCII文字列。例:<P></A>
+<A NAME="1015193">
+<PRE>	ntUserComment: Quality control inspector for the ME2873 <br>
+	 product line
+</PRE>
+</A>
+
+<A NAME="1038675">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+
+
+<A NAME="1015155">&nbsp;
+</A>
+<A NAME="ntUserCountryCode">
+<H3> ntUserCountryCode</H3>
+</A>
+
+
+
+<A NAME="1015217">
+ユーザーの選択言語の国コード。例:<P></A>
+<A NAME="1015224">
+<PRE>	ntUserCountryCode: AAAAAA==
+</PRE>
+</A>
+
+<A NAME="1038682">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+
+
+<A NAME="1015239">&nbsp;
+</A>
+<A NAME="ntUserCreateNewAccount">
+<H3> ntUserCreateNewAccount</H3>
+</A>
+
+
+
+<A NAME="1015245">
+Directory Serverの新規ユーザー エントリに対応するNTユーザー アカウントを作成する必要があるかどうかを示します。 ntUserCreateNewAccountはDirectory Serverから編集できます。ntUserCreateNewAccountが<code>True</code>に設定されており、しかも特定ユーザー名のNTアカウントが存在しない場合は、NTアカウントが作成されます。この属性が<code>False</code>に設定されており、しかもNTアカウントが存在しない場合は、エラーが記録されます。NTアカウントが存在し、属性が<code>False</code>に設定されている場合は、既存のNTアカウントが更新されます。例:<P></A>
+<PRE><A NAME="1015264">
+	ntUserCreateNewAccount: true
+</A>
+</PRE>
+<A NAME="1258018">
+OID: <code>2.16.840.1.113730.3.1.42</code><P></A>
+
+<A NAME="1258029">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1015309">
+<A NAME="NTUserDelete">
+<B>ntUserDeleteAccount</B>
+</a></a>
+<P>
+<A NAME="1015321">
+Directory Serverからエントリを削除する際にNTユーザー アカウントを削除する必要があるかどうかを示します。ntUserDeleteAccountはDirectory Serverから編集できます。この属性が<code>true</code>に設定されている場合は、Directory Serverからエントリを削除すると NTユーザー アカウントが削除されます。この属性が<code>false</code>に設定されている場合は、NTユーザー アカウントは削除されません。ntUserエントリの削除の詳細は、「NTUserエントリの削除」をご覧ください。例:<P></A>
+<A NAME="1015367">
+<PRE>	ntUserDeleteAccount: true
+</PRE>
+</A>
+
+<A NAME="1038688">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015403">
+<A NAME="ntUserDomainId">
+<B>ntUserDomainId</B>
+</a></a>
+<P>
+
+
+<A NAME="1015422">
+エントリのNTドメイン名とユーザー名をNT-domain-name:NT-usernameの形式で示します。NTUserDomainIdはDirectory Serverから編集できます。例:<P></A>
+<A NAME="1015476">
+<PRE>	ntUserDomainId: workgroup:jsmith
+</PRE>
+</A>
+
+<A NAME="1038691">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015534">
+<A NAME="ntUserFlags">
+<B>ntUserFlags</B>
+</a></a>
+<P>
+
+
+<A NAME="1015550">
+ユーザーとアカウントに関するいくつかの機能を判定する値を示します。例:<P></A>
+<A NAME="1015561">
+<PRE>	ntUserFlags: AQIBAA==
+</PRE>
+</A>
+
+<A NAME="1038821">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1015584">&nbsp;
+</A>
+<A NAME="ntUserHomeDir">
+<H3> ntUserHomeDir</H3>
+</A>
+
+
+
+<A NAME="1015596">
+ユーザーのホーム ディレクトリのパスを示すASCII文字列。文字列にはヌルを使用できます。例:<P></A>
+<A NAME="1015610">
+<PRE>	ntUserHomeDir: c:\u\d78\jsmith\
+</PRE>
+</A>
+
+<A NAME="1038694">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015624">
+<A NAME="ntUserHomeDirDrive">
+<B>ntUserHomeDirDrive</B>
+</a></a>
+<P>
+
+
+<A NAME="1015648">
+ユーザーのホーム ディレクトリに割り当てられたドライブの文字を示すASCII文字列。例:<P></A>
+<A NAME="1015659">
+<PRE>	ntUserHomeDirDrive: c:
+</PRE>
+</A>
+
+<A NAME="1038697">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015682">
+<A NAME="ntUserLastLogoff">
+<B>ntUserLastLogoff</B>
+</a></a>
+<P>
+
+
+<A NAME="1015726">
+最後のログオフ時刻を示します。この値はGMT形式の文字列として保存されます。例:<P></A>
+<A NAME="1015727">
+<PRE>	ntUserLastLogoff: 19961015203415Z 
+</PRE>
+</A>
+
+<A NAME="1019703">
+セキュリティ ログがオンになっていて、その他のユーザー エントリに変更されているものがある場合に限り、この属性が同期化の際に更新されることに注意してください。<P></A>
+
+<A NAME="1038700">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015722">
+<A NAME="ntUserLastLogon">
+<B>ntUserLastLogon</B>
+</a></a>
+<P>
+
+
+<A NAME="1015750">
+最後のログオン時刻を示します。この値はGMT形式の文字列として保存されます。例:<P></A>
+<A NAME="1015751">
+<PRE>	ntUserLastLogon: 19961015203415Z 
+</PRE>
+</A>
+
+<A NAME="1019919">
+セキュリティ ログがオンになっていて、その他のユーザー エントリに変更されているものがある場合に限り、この属性が同期化の際に更新されることに注意してください。<P></A>
+
+<A NAME="1038703">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015746">
+<A NAME="ntUserLogonHours">
+<B>ntUserLogonHours</B>
+</a></a>
+<P>
+
+
+<A NAME="1015787">
+ユーザーがログオン可能な時間帯を示します。時刻は、文字列内において曜日の時間とビットとの1対1対応で示されます。例えば、ビット 0ワード0は日曜の 0:00から0:59です。ビット1 ワード0は日曜の1:00から1:59です。例:<P></A>
+<A NAME="1015803">
+<PRE>	ntUserLogonHours: ///1000011100000101111111...
+</PRE>
+</A>
+
+<A NAME="1019921">
+セキュリティ ログがオンになっていて、その他のユーザー エントリに変更されているものがある場合に限り、この属性が同期化の際に更新されることに注意してください。<P></A>
+
+<A NAME="1038824">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1015839">&nbsp;
+</A>
+<A NAME="ntUserLogonServer">
+<H3> ntUserLogonServer</H3>
+</A>
+
+
+
+<A NAME="1015859">
+ユーザーのログオン要求が送信されたサーバー名を示すASCII文字列。サーバー名は2個のバックスラッシュ(\\)によって先行されなければなりません。\\*のサーバー名は、ログオン要求が任意のログオンサーバーによって処理可能なことを示します。ヌル文字列は、要求がドメイン コントローラに送信されることを示します。例:<P></A>
+<A NAME="1015953">
+<PRE>	ntUserLogonServer: \\firefly
+</PRE>
+</A>
+
+<A NAME="1038706">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1015984">
+<A NAME="ntUserMaxStorage">
+<B>ntUserMaxStorage</B>
+</a></a>
+<P>
+
+
+<A NAME="1015997">
+ユーザーが使用できる最大ディスク容量。例:<P></A>
+<A NAME="1016004">
+<PRE>	ntUserMaxStorage: ///////W==
+</PRE>
+</A>
+
+<A NAME="1038827">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1016030">&nbsp;
+</A>
+<A NAME="ntUserNumLogons">
+<H3> ntUserNumLogons</H3>
+</A>
+
+
+
+<A NAME="1016043">
+このアカウントに成功したログオン回数を示します。0xFFFFFFFFの値は、値が不明であることを示します。例:<P></A>
+<A NAME="1016085">
+<PRE>	ntUserNumLogons: WwAAAA==
+</PRE>
+</A>
+
+<A NAME="1038830">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1021575">&nbsp;
+</A>
+<A NAME="ntUserParms">
+<H3> ntUserParms</H3>
+</A>
+
+
+
+<A NAME="1021584">
+アプリケーションによる使用のために予約されているユニコード文字列。例:<P></A>
+<A NAME="1021587">
+<PRE>	ntUserParms: Temp date is today
+</PRE>
+</A>
+
+<A NAME="1038709">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1016157">
+<A NAME="ntUserPasswordExpired">
+<B>ntUserPasswordExpired</B>
+</a></a>
+<P>
+
+
+<A NAME="1259827">
+ユーザーのNTパスワードが失効しているかどうかを示します。パスワードが失効していない場合は値はゼロで、失効している場合は非ゼロです。例:<P></A>
+<PRE><A NAME="1259828">
+	ntUserPasswordExpired: AAAAAA==
+</A>
+</PRE>
+<A NAME="1259829">
+OID: <code>2.16.840.1.113730.3.1.68</code><P></A>
+
+<A NAME="1038833">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1016246">&nbsp;
+</A>
+<A NAME="ntUserPrimaryGroupId">
+<H3> ntUserPrimaryGroupId</H3>
+</A>
+
+
+
+<A NAME="1016259">
+ユーザーについてのPrimary Global Groupの相対ID (RID)を示します。例:<P></A>
+<A NAME="1016262">
+<PRE>	ntUserPrimaryGroupId: AQJAAA==
+</PRE>
+</A>
+
+<A NAME="1038836">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1017849">&nbsp;
+</A>
+<A NAME="ntUserPriv">
+<H3> ntUserPriv</H3>
+</A>
+
+
+
+<A NAME="1017863">
+Windowsネットワークにおけるユーザーの特権レベルを示します。例:<P></A>
+<A NAME="1017866">
+<PRE>	ntUserPriv: AgAAAA==
+</PRE>
+</A>
+
+<A NAME="1038839">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1016298">&nbsp;
+</A>
+<A NAME="ntUserProfile">
+<H3> ntUserProfile</H3>
+</A>
+
+
+
+<A NAME="1016315">
+ユーザーのプロフィールへのパスを示します。例:<P></A>
+<A NAME="1016326">
+<PRE>	ntUserProfile: c:\u\d78\jsmith\profile.txt
+</PRE>
+</A>
+
+<A NAME="1038712">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1016395">
+<A NAME="ntUserScriptPath">
+<B>ntUserScriptPath</B>
+</a></a>
+<P>
+
+
+<A NAME="1016433">
+ユーザーのログイン スクリプトへのパスを示すASCII文字列。例:<P></A>
+<A NAME="1016470">
+<PRE>	ntUserScriptPath: c:\u\d78\jsmith\lscript.bat
+</PRE>
+</A>
+
+<A NAME="1038715">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1016531">
+<A NAME="ntUserUniqueId">
+<B>ntUserUniqueId</B>
+</a></a>
+<P>
+
+
+<A NAME="1016564">
+ユーザーの相対ID (RID)を示します。RIDは、ドメイン内のSAMに対しユーザーの身分を証明するものです。例:<P></A>
+<A NAME="1016605">
+<PRE>	ntUserUniqueId: 6AMAAA==
+</PRE>
+</A>
+
+<A NAME="1038842">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1016632">&nbsp;
+</A>
+<A NAME="ntUserUnitsPerWeek">
+<H3> ntUserUnitsPerWeek</H3>
+</A>
+
+
+
+<A NAME="1016672">
+ntUserLogonHoursの長さを計算するために、週を均等の時間単位に分割する数を示します。例:<P></A>
+<A NAME="1016675">
+<PRE>	ntUserUnitsPerWeek: qAAAAA==
+</PRE>
+</A>
+
+<A NAME="1038845">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1016696">&nbsp;
+</A>
+<A NAME="ntUserusrComment">
+<H3> ntUserusrComment</H3>
+</A>
+
+
+
+<A NAME="1016715">
+このエントリに関する記述または注釈を示すASCII文字列。例:<P></A>
+<A NAME="1016716">
+<PRE>	ntUserComment: Quality control inspector for the ME2873 <br>
+	 product line
+</PRE>
+</A>
+
+<A NAME="1038718">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1016728">
+<A NAME="ntUserWorkstations">
+<B>ntUserWorkstations</B>
+</a></a>
+<P>
+
+
+<A NAME="1016750">
+ユーザーがログオンするのに使用ワークステーション名を示すASCII文字列。カンマで区切って、最高8台のワークステーションを指定できます。任意のワークステーションからログオンする場合はヌルを使用します。例:<P></A>
+<A NAME="1016869">
+<PRE>	ntUserWorkstations: firefly
+</PRE>
+</A>
+
+<A NAME="1038721">
+構文: <a href="attribut.htm#1004702">cis </a><P></A>
+<P>
+<A NAME="1281611">
+<A NAME="o">
+<B>o</B>
+</a></a>
+<P>
+
+
+<A NAME="1281612">
+組織名を指定します。例:<P></A>
+<PRE><A NAME="1281613">
+	organizationName: Airius, Inc.
+</A>
+</PRE>
+<A NAME="1281614">
+または<P></A>
+<PRE><A NAME="1281615">
+	o: Airius, Inc
+</A>
+</PRE>
+<A NAME="1281616">
+略号: o<P></A>
+
+<A NAME="1281617">
+OID: <code>2.5.4.10</code><P></A>
+
+<A NAME="1281619">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1229677">
+<A NAME="objectClass">
+<B>objectClass</B>
+</a></a>
+<P>
+
+
+<A NAME="1229678">
+ディレクトリサーバーの使用に予約。<P></A>
+
+<A NAME="1229681">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1242815">&nbsp;
+</A>
+<A NAME="objectClasses">
+<H3> objectClasses</H3>
+</A>
+
+
+
+<A NAME="1242816">
+予約されています。<P></A>
+
+<A NAME="1242819">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202192">&nbsp;
+</A>
+<A NAME="obsoletedByDocument">
+<H3> obsoletedByDocument</H3>
+</A>
+
+
+
+<A NAME="1202193">
+ドキュメント エントリを使用しなくなったドキュメントの識別名が含まれます。<P></A>
+
+<A NAME="1202196">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1202199">&nbsp;
+</A>
+<A NAME="obsoletesDocument">
+<H3> obsoletesDocument</H3>
+</A>
+
+
+
+<A NAME="1217320">
+ドキュメント エントリによって使用されなくなったドキュメントの識別名が含まれます。<P></A>
+
+<A NAME="1202203">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1202208">&nbsp;
+</A>
+<A NAME="organizationalStatus">
+<H3> organizationalStatus</H3>
+</A>
+
+
+
+<A NAME="1214388">
+組織においてユーザーが頻繁に参照されるカテゴリを示します。例:<P></A>
+<A NAME="1214389">
+<PRE>	organizationalStatus: researcher
+</PRE>
+</A>
+
+<A NAME="1240989">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202220">&nbsp;
+</A>
+<A NAME="otherMailbox">
+<H3> otherMailbox</H3>
+</A>
+
+
+
+<A NAME="1214414">
+X.400とrfc822以外の電子メールボックス タイプの値を示します。<P></A>
+
+<A NAME="1202221">
+. 例:<P></A>
+<A NAME="1202222">
+<PRE>	otherMailbox: internet $ jdoe@airius.com
+</PRE>
+</A>
+
+<A NAME="1202224">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1241174">&nbsp;
+</A>
+<A NAME="ou">
+<H3> ou</H3>
+</A>
+
+
+
+<A NAME="1241175">
+組織単位名を示します。例:<P></A>
+<A NAME="1241176">
+<PRE>	organizationUnitName: Marketing
+</PRE>
+</A>
+
+<A NAME="1241177">
+または、<P></A>
+<A NAME="1241178">
+<PRE>	ou: Marketing
+</PRE>
+</A>
+
+<A NAME="1241180">
+<a href="attribut.htm#">略号</a>: ou<P></A>
+
+<A NAME="1241182">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1005719">&nbsp;
+</A>
+<A NAME="owner">
+<H3> owner</H3>
+</A>
+
+
+
+<A NAME="1005732">
+エントリの責任者の識別名 (DN - distinguished name)を示します。例:<P></A>
+<A NAME="1005743">
+<PRE>	owner: <I>cn=John Smith, o=Netscape Communications Corp., c=US
+</I></PRE>
+</A>
+
+<A NAME="1005754">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1003070">&nbsp;
+</A>
+<A NAME="pager">
+<H3> pager</H3>
+</A>
+
+
+
+<A NAME="1003071">
+エントリのポケットベル番号を示します。例:<P></A>
+<A NAME="1003777">
+<PRE>	pagerTelephoneNumber: 415-555-6789
+</PRE>
+</A>
+
+<A NAME="1011248">
+または、<P></A>
+<A NAME="1011258">
+<PRE>	pager: 415-555-6789
+</PRE>
+</A>
+
+<A NAME="1003795">
+<a href="attribut.htm#">略号</a>: pager<P></A>
+
+<A NAME="1011303">
+構文: <a href="attribut.htm#1004703">tel</a><P></A>
+
+
+<A NAME="1157269">&nbsp;
+</A>
+<A NAME="passwordChange">
+<H3> passwordChange</H3>
+</A>
+
+
+
+<A NAME="1157270">
+ユーザーによるパスワードの変更が、必須、可能、不可能のいずれであるか定義します。有効値は、<code>must</code>、<code>may</code>、または<code>no</code>です。<code>must</code>の値は、ユーザーが指定間隔でパスワードを変更する必要があることを示意味します。<code>may</code>の値は、ユーザーがパスワードを変更できることを意味します。<code>no</code>の値は、ユーザーがパスワードを変更できないことを意味します。例:<P></A>
+<A NAME="1157271">
+<PRE>	passwordChange: <code>no
+</code></PRE>
+</A>
+
+<A NAME="1157273">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1157285">&nbsp;
+</A>
+<A NAME="passwordCheck構文">
+<H3>passwordCheck構文</H3>
+</A>
+
+
+
+<A NAME="1157402">
+パスワードの構文チェックがオン、オフのいずれであるか定義します。許容値は<code>1</code>および<code>0</code>で、<code>1</code>は構文チェックがオン、<code>0</code>は構文チェックがオフであるのを意味します。例:<P></A>
+<A NAME="1157287">
+<PRE>	passwordCheck構文: 0
+</PRE>
+</A>
+
+<A NAME="1157289">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1155167">&nbsp;
+</A>
+<A NAME="passwordExp">
+<H3>passwordExp</H3>
+</A>
+
+
+
+<A NAME="1155169">
+ユーザ パスワードが期限切れになるかどうかを定義します。許容値は<code>1</code>および<code>0</code>で、<code>1</code>はパスワードが期限切れになること、<code>0</code>はパスワードが期限切れしないことを意味します。例:<P></A>
+<A NAME="1155249">
+<PRE>	passwordExp: 0
+</PRE>
+</A>
+
+<A NAME="1155171">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1246150">&nbsp;
+</A>
+<A NAME="passwordExpWarned">
+<H3>passwordExpWarned</H3>
+</A>
+
+
+
+<A NAME="1246152">
+ユーザーに送信されるパスワード失効警告を追跡するために、Directory Serverが使用します。許容値は<code>1</code>と<code>0</code>で、<code>1</code>は警告がユーザーに送信されること、 <code>0</code>は警告がユーザーに送信されないこと意味します。例:<P></A>
+<A NAME="1246153">
+<PRE>	passwordExpWarned: 0
+</PRE>
+</A>
+
+<A NAME="1246155">
+構文: <a href="attribut.htm#1004702">cis operational</a><P></A>
+
+<A NAME="1246156">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1103904">&nbsp;
+</A>
+<A NAME="passwordExpirationTime">
+<H3>passwordExpirationTime</H3>
+</A>
+
+
+
+<A NAME="1166092">
+ユーザのパスワードが期限切れになるまでの時間を秒数で定義します。<P></A>
+<A NAME="1166093">
+<PRE>	passwordExpirationTime: 8640000
+</PRE>
+</A>
+
+<A NAME="1104141">
+構文: <a href="attribut.htm#1004702">cis operational</a><P></A>
+
+<A NAME="1166110">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+<P>
+<A NAME="1293088">
+<A NAME="passwordExpWarned">
+<B>passwordExpWarned</B>
+</a></a>
+<P>
+
+
+<A NAME="1293090">
+Directory Serverが使用して、ユーザーに送信されるパスワード失効警告を追跡します。許容値は<code>1</code>および<code>0</code>で、<code>1</code>は警告がユーザーに送信されたこと、<code>0</code>は警告がユーザーに送信されていないこと意味します。例:<P></A>
+<PRE><A NAME="1293091">
+	passwordExpWarned: 0
+</A>
+</PRE>
+<A NAME="1293092">
+OID: <code>2.16.840.1.113730.3.1.92</code><P></A>
+
+<A NAME="1293095">
+構文: <a href="attribut.htm#1004702">cis </a><a href="attribut.htm#1251525">operational</a><P></A>
+<P>
+
+<A NAME="1104144">
+<A NAME="passwordHistory">
+<B>passwordHistory</B>
+</a></a>
+<P>
+
+
+<A NAME="1155016">
+ユーザ パスワードの履歴を含みます。例：<P></A>
+
+<A NAME="1104110">
+構文: <a href="attribut.htm#1004700">bin operational</a><P></A>
+
+<A NAME="1166119">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+<P>
+<A NAME="1104470">
+<A NAME="passwordInHistory">
+<B>passwordInHistory</B>
+</a></a>
+<P>
+
+
+<A NAME="1104471">
+パスワード履歴が保存されている場合、この属性値は履歴リストに保存されるエントリの数を定義します。例:<P></A>
+<PRE><A NAME="1157501">
+	passwordInHistory: 6
+</A>
+</PRE>
+<A NAME="1260030">
+OID: <code>2.16.840.1.113730.3.1.101</code><P></A>
+
+<A NAME="1104473">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166153">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1156663">
+<A NAME="passwordKeepHistory">
+<B>passwordKeepHistory</B>
+</a></a>
+<P>
+
+
+<A NAME="1156665">
+ユーザ パスワードの履歴を保存するかどうかを定義します。許容値は<code>1</code>および<code>0</code>で、<code>1</code>は履歴を保存すること、<code>0</code>は履歴を保存しないことを意味します。例:<P></A>
+<A NAME="1156666">
+<PRE>	passwordKeepHistory: 0
+</PRE>
+</A>
+
+<A NAME="1156668">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166196">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1156671">&nbsp;
+</A>
+<A NAME="passwordLockout">
+<H3>passwordLockout</H3>
+</A>
+
+
+
+<A NAME="1156672">
+ディレクトリへのバインド失敗が連続した場合、ユーザを締め出すかどうかを定義します。許容値は<code>1</code>および<code>0</code>で、1はユーザーが締め出されること、0はユーザーが締め出されないことを意味します。例:<P></A>
+<A NAME="1156673">
+<PRE>	passwordLockout: 0
+</PRE>
+</A>
+
+<A NAME="1156675">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166205">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1104188">&nbsp;
+</A>
+<A NAME="passwordLockoutDuration">
+<H3> passwordLockoutDuration</H3>
+</A>
+
+
+
+<A NAME="1104189">
+ディレクトリからユーザーを締め出す時間を秒単位で定義します。例:<P></A>
+<A NAME="1155990">
+<PRE>	passwordLockoutDuration: 600
+</PRE>
+</A>
+
+<A NAME="1104190">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166333">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1166286">&nbsp;
+</A>
+<A NAME="passwordMaxAge">
+<H3> passwordMaxAge</H3>
+</A>
+
+
+
+<A NAME="1166287">
+パスワード失効までのパスワードの使用時間を秒単位で定義します。<P></A>
+<A NAME="1166288">
+<PRE>	passwordMaxAge: 8640000
+</PRE>
+</A>
+
+<A NAME="1104336">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166368">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1104715">&nbsp;
+</A>
+<A NAME="passwordMaxFailure">
+<H3>passwordMaxFailure</H3>
+</A>
+
+
+
+<A NAME="1104716">
+ディレクトリへのバインド失敗を指定回数繰り返したら、ユーザを締出すようサーバに指示します。例:<P></A>
+<A NAME="1155781">
+<PRE>	passwordMaxFailure: 3
+</PRE>
+</A>
+
+<A NAME="1104718">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166400">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1104413">&nbsp;
+</A>
+<A NAME="passwordMinLength">
+<H3>passwordMinLength</H3>
+</A>
+
+
+
+<A NAME="1104414">
+ユーザ パスワードに必要な最低の文字数を定義します。例:<P></A>
+<A NAME="1156233">
+<PRE>	passwordMinLength: 6
+</PRE>
+</A>
+
+<A NAME="1104416">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166409">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1104754">&nbsp;
+</A>
+<A NAME="passwordResetDuration">
+<H3> passwordResetDuration</H3>
+</A>
+
+
+
+<A NAME="1157530">
+ユーザーの締出しから、ユーザーのパスワード再入力回数をゼロに設定し直すまでの時間を秒単位で定義します。<P></A>
+<A NAME="1157650">
+<PRE>	passwordResetDuration: 600
+</PRE>
+</A>
+
+<A NAME="1104757">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166437">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1103999">&nbsp;
+</A>
+<A NAME="passwordRetryCount">
+<H3>passwordRetryCount</H3>
+</A>
+
+
+
+<A NAME="1104000">
+ユーザが間違ったパスワードを使ってディレクトリへのバインドを試みた回数を含みます。<P></A>
+<A NAME="1154824">
+<PRE>	passwordRetryCount: 3
+</PRE>
+</A>
+
+<A NAME="1104001">
+構文: <a href="attribut.htm#1004702">cis operational</a><P></A>
+
+<A NAME="1166462">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1156969">&nbsp;
+</A>
+<A NAME="passwordUnlock">
+<H3>passwordUnlock</H3>
+</A>
+
+
+
+<A NAME="1157793">
+ディレクトリへのバインドを指定回数失敗した場合、ユーザを永久に締め出すかどうかを指定します。許容値は<code>1</code>および<code>0</code>で、<code>1</code>はユーザを永久に締め出さないことを、<code>0</code>は永久に締め出すことを意味します。例:<P></A>
+<A NAME="1157794">
+<PRE>	passwordUnlock: 0
+</PRE>
+</A>
+
+<A NAME="1156973">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166485">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1104598">&nbsp;
+</A>
+<A NAME="passwordWarning">
+<H3>passwordWarning</H3>
+</A>
+
+
+
+<A NAME="1155341">
+間もなくパスワードが失効するのを、警告するメッセージの送信時期を秒数で定義します。次の例では、警告メッセージがパスワード失効の1日前にユーザーに送信されます。<P></A>
+<A NAME="1155343">
+<PRE>	passwordWarning: 86400
+</PRE>
+</A>
+
+<A NAME="1155421">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1166523">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1202229">&nbsp;
+</A>
+<A NAME="personalSignature">
+<H3> personalSignature</H3>
+</A>
+
+
+
+<A NAME="1202230">
+エントリのバイナリ形式の署名ファイル。<P></A>
+
+<A NAME="1202233">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1202238">&nbsp;
+</A>
+<A NAME="personalTitle">
+<H3> personalTitle</H3>
+</A>
+
+
+
+<A NAME="1214489">
+ユーザーの個人的な肩書きを示します。個人的な肩書きの例は、Ms、Dr、Prof、Revなどです。<P></A>
+<A NAME="1202240">
+<PRE>	personalTitle: Mr
+</PRE>
+</A>
+
+<A NAME="1202242">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202247">&nbsp;
+</A>
+<A NAME="photo">
+<H3> photo</H3>
+</A>
+
+
+
+<A NAME="1202248">
+エントリの写真がバイナリ形式で含まれます。例:<P></A>
+
+<A NAME="1202251">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1003072">&nbsp;
+</A>
+<A NAME="physicalDeliveryOfficeName">
+<H3> physicalDeliveryOfficeName</H3>
+</A>
+
+
+
+<A NAME="1003073">
+物理的な配送オフィスが所在する市町村の名前を示します。例:<P></A>
+<A NAME="1003804">
+<PRE>	physicalDeliveryOfficeName: Santa Clara
+</PRE>
+</A>
+
+<A NAME="1107471">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1246531">&nbsp;
+</A>
+<A NAME="pipcompassservers">
+<H3>pipcompassservers</H3>
+</A>
+
+
+
+<A NAME="1246532">
+未定義。<P></A>
+
+<A NAME="1271255">
+OID: <code>2.16.840.1.113730.3.1.138</code><P></A>
+
+<A NAME="1107499">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236180">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1111357">&nbsp;
+</A>
+<A NAME="pipformat">
+<H3>pipformat</H3>
+</A>
+
+
+
+<A NAME="1119006">
+Compass Serverが使用する属性で、ユーザに送信する無料のテキスト検索プロフィールの更新フォーマットを定義します。<P></A>
+
+<A NAME="1271403">
+OID: <code>2.16.840.1.113730.3.1.144</code><P></A>
+
+<A NAME="1111360">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1246338">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1246341">&nbsp;
+</A>
+<A NAME="pipfrequency">
+<H3>pipfrequency</H3>
+</A>
+
+
+
+<A NAME="1246342">
+Compass Serverが使用する属性で、My Compassニュースレターの受信頻度を記述します。<P></A>
+
+
+<A NAME="1271346">
+OID: <code>2.16.840.1.113730.3.1.142</code><P></A>
+
+<A NAME="1111364">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236223">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1113190">&nbsp;
+</A>
+<A NAME="pipgroup">
+<H3>pipgroup</H3>
+</A>
+
+
+<A NAME="1119538">
+未定義。<P></A>
+
+<A NAME="1271479">
+OID: <code>2.16.840.1.113730.3.1.158</code><P></A>
+
+<A NAME="1113191">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236260">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1111369">&nbsp;
+</A>
+<A NAME="piphour">
+<H3> piphour</H3>
+</A>
+
+
+
+<A NAME="1119581">
+ユーザーが無料テキスト検索プロフィール更新を受信する日中の時間帯を定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271454">
+OID: <code>2.16.840.1.113730.3.1.145</code><P></A>
+
+<A NAME="1111370">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236306">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1237689">&nbsp;
+</A>
+<A NAME="pipidstcount">
+<H3>pipidstcount</H3>
+</A>
+
+
+
+<A NAME="1237690">
+Compass Serverが使用する属性で、ユーザーが使用する最後の一意のIDを定義します。<P></A>
+
+<A NAME="1271485">
+OID: <code>2.16.840.1.113730.3.1.159</code><P></A>
+
+<A NAME="1113341">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236324">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1113479">&nbsp;
+</A>
+<A NAME="pipirlist">
+<H3> pipirlist</H3>
+</A>
+
+
+
+<A NAME="1119793">
+ユーザーがモニターするドメインとニュースグループを含むために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271508">
+OID: <code>2.16.840.1.113730.3.1.150</code><P></A>
+
+<A NAME="1113480">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237824">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1237828">&nbsp;
+</A>
+<A NAME="pipiroption">
+<H3> pipiroption</H3>
+</A>
+
+
+
+<A NAME="1237829">
+pipIrListのすべてのエントリを更新するか、または更新から除外するかを定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271566">
+OID: <code>2.16.840.1.113730.3.1.151</code><P></A>
+
+<A NAME="1113621">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236383">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1112574">&nbsp;
+</A>
+<A NAME="piplastcount">
+<H3>piplastcount</H3>
+</A>
+
+
+
+<A NAME="1237876">
+Compass Serverが使用する属性で、最後の更新時に発生した照合数を定義します。<P></A>
+
+<A NAME="1271585">
+OID: <code>2.16.840.1.113730.3.1.153</code><P></A>
+
+<A NAME="1112575">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1246647">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1246650">&nbsp;
+</A>
+<A NAME="pipmaxhits">
+<H3> pipmaxhits</H3>
+</A>
+
+
+
+<A NAME="1246651">
+無料テキスト検索プロフィール更新ごとに戻される最大ドキュメント数を定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271604">
+OID: <code>2.16.840.1.113730.3.1.146</code><P></A>
+
+<A NAME="1173472">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236422">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1111582">&nbsp;
+</A>
+<A NAME="pipmedium">
+<H3> pipmedium</H3>
+</A>
+
+
+
+<A NAME="1237949">
+無料テキスト検索プロフィール更新に関する情報をユーザーに送信する手段を示すために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271368">
+OID: <code>2.16.840.1.113730.3.1.143</code><P></A>
+
+<A NAME="1111583">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236583">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1236460">&nbsp;
+</A>
+<A NAME="pipnotify">
+<H3>pipnotify</H3>
+</A>
+
+
+
+<A NAME="1119923">
+未定義。<P></A>
+
+<A NAME="1271613">
+OID: <code>2.16.840.1.113730.3.1.156</code><P></A>
+
+<A NAME="1236507">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236602">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1236511">&nbsp;
+</A>
+<A NAME="pipprivilege">
+<H3>pipprivilege</H3>
+</A>
+
+
+
+<A NAME="1236512">
+未定義。<P></A>
+
+<A NAME="1271668">
+OID: <code>2.16.840.1.113730.3.1.157</code><P></A>
+
+<A NAME="1112990">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236630">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1112443">&nbsp;
+</A>
+<A NAME="pippwp">
+<H3> pippwp</H3>
+</A>
+
+
+
+<A NAME="1238042">
+Personal Web Page (PWP)データベースのアドレスを含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271682">
+OID: <code>2.16.840.1.113730.3.1.152</code><P></A>
+
+<A NAME="1112444">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236643">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118693">&nbsp;
+</A>
+<A NAME="pipreservedces1">
+<H3>pipreservedces1</H3>
+</A>
+
+
+
+<A NAME="1120046">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271719">
+OID: <code>2.16.840.1.113730.3.1.188</code><P></A>
+
+<A NAME="1118694">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+<A NAME="1236680">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118699">&nbsp;
+</A>
+<A NAME="pipreservedces2">
+<H3>pipreservedces2</H3>
+</A>
+
+
+
+<A NAME="1238136">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271725">
+OID: <code>2.16.840.1.113730.3.1.189</code><P></A>
+
+<A NAME="1118700">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+<A NAME="1236693">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118705">&nbsp;
+</A>
+<A NAME="pipreservedces3">
+<H3>pipreservedces3</H3>
+</A>
+
+
+
+<A NAME="1238138">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271783">
+OID: <code>2.16.840.1.113730.3.1.190</code><P></A>
+
+<A NAME="1118706">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+<A NAME="1236718">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118350">&nbsp;
+</A>
+<A NAME="pipreservedcis1">
+<H3>pipreservedcis1</H3>
+</A>
+
+
+
+<A NAME="1238140">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271796">
+OID: <code>2.16.840.1.113730.3.1.182</code><P></A>
+
+<A NAME="1118351">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236762">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118356">&nbsp;
+</A>
+<A NAME="pipreservedcis2">
+<H3>pipreservedcis2</H3>
+</A>
+
+
+
+<A NAME="1238144">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271840">
+OID: <code>2.16.840.1.113730.3.1.183</code><P></A>
+
+<A NAME="1118357">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236799">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118362">&nbsp;
+</A>
+<A NAME="pipreservedcis3">
+<H3>pipreservedcis3</H3>
+</A>
+
+
+
+<A NAME="1238146">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271850">
+OID: <code>2.16.840.1.113730.3.1.184</code><P></A>
+
+<A NAME="1118363">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236816">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118368">&nbsp;
+</A>
+<A NAME="pipreservedcis4">
+<H3>pipreservedcis4</H3>
+</A>
+
+
+
+<A NAME="1238148">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271856">
+OID: <code>2.16.840.1.113730.3.1.185</code><P></A>
+
+<A NAME="1118369">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236851">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118374">&nbsp;
+</A>
+<A NAME="pipreservedcis5">
+<H3>pipreservedcis5</H3>
+</A>
+
+
+
+<A NAME="1238150">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271872">
+OID: <code>2.16.840.1.113730.3.1.186</code><P></A>
+
+<A NAME="1118375">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236870">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1118380">&nbsp;
+</A>
+<A NAME="pipreservedcis6">
+<H3>pipreservedcis6</H3>
+</A>
+
+
+
+<A NAME="1238152">
+Netscape Compass Serverで将来の使用に予約された属性です。<P></A>
+
+<A NAME="1271882">
+OID: <code>2.16.840.1.113730.3.1.187</code><P></A>
+
+<A NAME="1118381">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236893">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1111729">&nbsp;
+</A>
+<A NAME="pipresultset">
+<H3> pipresultset</H3>
+</A>
+
+
+
+<A NAME="1238541">
+ユーザーが更新の受信を希望する属性のリストを含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271899">
+OID: <code>2.16.840.1.113730.3.1.147</code><P></A>
+
+<A NAME="1111730">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236920">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1111947">&nbsp;
+</A>
+<A NAME="pipsortorder">
+<H3> pipsortorder</H3>
+</A>
+
+
+
+<A NAME="1238667">
+無料テキスト検索プロフィール更新の概要レポートにおける情報の並べ替え順序を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271955">
+OID: <code>2.16.840.1.113730.3.1.148</code><P></A>
+
+<A NAME="1111948">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236950">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1114647">&nbsp;
+</A>
+<A NAME="pipstatus">
+<H3> pipstatus</H3>
+</A>
+
+
+
+<A NAME="1238753">
+Personal Interest Profile (PIP)を使用可能、使用禁止のいずれにするかを定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271286">
+OID: <code>2.16.840.1.113730.3.1.140</code><P></A>
+
+<A NAME="1114648">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1236989">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1116402">&nbsp;
+</A>
+<A NAME="pipstcategory">
+<H3> pipstcategory</H3>
+</A>
+
+
+
+<A NAME="1238824">
+ユーザーが関心を持つカテゴリまたは検索文字列を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271969">
+OID: <code>2.16.840.1.113730.3.1.171</code><P></A>
+
+<A NAME="1116403">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237014">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1116837">&nbsp;
+</A>
+<A NAME="pipstformat">
+<H3> pipstformat</H3>
+</A>
+
+
+
+<A NAME="1238895">
+ユーザーに送信されるカテゴリ検索プロフィール更新形式を示すために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272000">
+OID: <code>2.16.840.1.113730.3.1.174</code><P></A>
+
+<A NAME="1116838">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237031">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1116521">&nbsp;
+</A>
+<A NAME="pipstfrequency">
+<H3>pipstfrequency</H3>
+</A>
+
+
+
+<A NAME="1120346">
+Compass Serverが使用する属性で、ユーザが更新警告を受信する頻度を定義します。<P></A>
+
+<A NAME="1272198">
+OID: <code>2.16.840.1.113730.3.1.172</code><P></A>
+
+<A NAME="1116522">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237041">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1116707">&nbsp;
+</A>
+<A NAME="pipsthour">
+<H3> pipsthour</H3>
+</A>
+
+
+
+<A NAME="1120383">
+ユーザーが無料カテゴリ プロフィール更新を受信する日中の時間帯を定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272250">
+OID: <code>2.16.840.1.113730.3.1.175</code><P></A>
+
+<A NAME="1116708">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237070">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115462">&nbsp;
+</A>
+<A NAME="pipstid">
+<H3> pipstid</H3>
+</A>
+
+
+
+<A NAME="1120405">
+Personal Interest Profile (PIP)内の検索トピックの一意のIDを含めるために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272264">
+OID: <code>2.16.840.1.113730.3.1.160</code><P></A>
+
+<A NAME="1115463">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237108">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115769">&nbsp;
+</A>
+<A NAME="pipstinterest">
+<H3> pipstinterest</H3>
+</A>
+
+
+
+<A NAME="1120445">
+Personal Interest Profile (PIP)内の検索トピックの個々のトピックの重要性をユーザーに示すために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272273">
+OID: <code>2.16.840.1.113730.3.1.164</code><P></A>
+
+<A NAME="1115770">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237118">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117562">&nbsp;
+</A>
+<A NAME="pipstirlist">
+<H3> pipstirlist</H3>
+</A>
+
+
+
+<A NAME="1120460">
+ユーザーがモニターするドメインとニュースグループを含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272285">
+OID: <code>2.16.840.1.113730.3.1.180</code><P></A>
+
+<A NAME="1117563">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237149">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117790">&nbsp;
+</A>
+<A NAME="pipstiroption">
+<H3> pipstiroption</H3>
+</A>
+
+
+
+<A NAME="1120493">
+pipStIrListのすべてのエントリを更新するか、または更新から除外するかを定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272306">
+OID: <code>2.16.840.1.113730.3.1.181</code><P></A>
+
+<A NAME="1237168">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237182">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1237172">&nbsp;
+</A>
+<A NAME="pipstlastcount">
+<H3> pipstlastcount</H3>
+</A>
+
+
+
+<A NAME="1237173">
+Personal Interest Profile (PIP)の最後の更新時におけるカテゴリ一致数を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272312">
+OID: <code>2.16.840.1.113730.3.1.168</code><P></A>
+
+<A NAME="1116157">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237189">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117134">&nbsp;
+</A>
+<A NAME="pipstmaxhits">
+<H3> pipstmaxhits</H3>
+</A>
+
+
+
+<A NAME="1120565">
+カテゴリ検索プロフィール更新ごとに戻される最大ドキュメント数を定義するために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272354">
+OID: <code>2.16.840.1.113730.3.1.176</code><P></A>
+
+<A NAME="1117135">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237205">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117140">&nbsp;
+</A>
+<A NAME="pipstmedium">
+<H3> pipstmedium</H3>
+</A>
+
+
+
+<A NAME="1120568">
+カテゴリ検索プロフィール更新に関する情報を送信する手段を示すために、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272360">
+OID: <code>2.16.840.1.113730.3.1.173</code><P></A>
+
+<A NAME="1117141">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237235">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115468">&nbsp;
+</A>
+<A NAME="pipstname">
+<H3> pipstname</H3>
+</A>
+
+
+
+<A NAME="1120598">
+検索トピックを示すためにユーザーによって作成された任意の名前を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272404">
+OID: <code>2.16.840.1.113730.3.1.161</code><P></A>
+
+<A NAME="1115469">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237246">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115898">&nbsp;
+</A>
+<A NAME="pipstprivacy">
+<H3> pipstprivacy</H3>
+</A>
+
+
+
+<A NAME="1120637">
+このエントリの問合せを許可するか却下するかを定義する、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272410">
+OID: <code>2.16.840.1.113730.3.1.166</code><P></A>
+
+<A NAME="1115899">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237266">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115474">&nbsp;
+</A>
+<A NAME="pipstquery">
+<H3>pipstquery</H3>
+</A>
+
+
+
+<A NAME="1120668">
+未定義。<P></A>
+
+<A NAME="1272438">
+OID: <code>2.16.840.1.113730.3.1.162</code><P></A>
+
+<A NAME="1115475">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237271">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117321">&nbsp;
+</A>
+<A NAME="pipstresultset">
+<H3> pipstresultset</H3>
+</A>
+
+
+
+<A NAME="1120684">
+ユーザーが更新を受信する属性リストを含むCompass Serverによって使用される属性<P></A>
+
+<A NAME="1272625">
+OID: <code>2.16.840.1.113730.3.1.177</code><P></A>
+
+<A NAME="1117322">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237300">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117327">&nbsp;
+</A>
+<A NAME="pipstsortorder">
+<H3> pipstsortorder</H3>
+</A>
+
+
+
+<A NAME="1120687">
+カテゴリ検索プロフィール更新の概要レポートにおける情報の並べ替え順序を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272444">
+OID: <code>2.16.840.1.113730.3.1.178</code><P></A>
+
+<A NAME="1117328">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237305">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1116027">&nbsp;
+</A>
+<A NAME="pipststatus">
+<H3> pipststatus</H3>
+</A>
+
+
+
+<A NAME="1120695">
+Personal Interest Profile (PIP)の状態を定義します。Compass Serverによって使用される属性 。<P></A>
+
+<A NAME="1272485">
+OID: <code>2.16.840.1.113730.3.1.167</code><P></A>
+
+<A NAME="1116028">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237322">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115480">&nbsp;
+</A>
+<A NAME="pipsttaxonomy">
+<H3> pipsttaxonomy</H3>
+</A>
+
+
+
+<A NAME="1120736">
+分類法IDを含む、Compass Serverによって使用される属性。 <P></A>
+
+<A NAME="1272491">
+OID: <code>2.16.840.1.113730.3.1.163</code><P></A>
+
+<A NAME="1115481">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237358">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117445">&nbsp;
+</A>
+<A NAME="pipsttimestamp">
+<H3> pipsttimestamp</H3>
+</A>
+
+
+
+<A NAME="1120770">
+ユーザーのカテゴリ検索プロフィールの最終更新日を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272500">
+OID: <code>2.16.840.1.113730.3.1.179</code><P></A>
+
+<A NAME="1117446">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237387">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115516">&nbsp;
+</A>
+<A NAME="pipsttotalcount">
+<H3> pipsttotalcount</H3>
+</A>
+
+
+
+<A NAME="1120801">
+現在までのカテゴリ一致数を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272537">
+OID: <code>2.16.840.1.113730.3.1.169</code><P></A>
+
+<A NAME="1115517">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237396">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1115522">&nbsp;
+</A>
+<A NAME="pipsttotalrun">
+<H3> pipsttotalrun</H3>
+</A>
+
+
+
+<A NAME="1120812">
+現在までに実行されたカテゴリ検索更新数を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272560">
+OID: <code>2.16.840.1.113730.3.1.170</code><P></A>
+
+<A NAME="1115523">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237423">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1116285">&nbsp;
+</A>
+<A NAME="pipsttype">
+<H3> pipsttype</H3>
+</A>
+
+
+
+<A NAME="1120825">
+ 検索がカテゴリ検索または無料テキスト検索であるかを定義する、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272566">
+OID: <code>2.16.840.1.113730.3.1.165</code><P></A>
+
+<A NAME="1116286">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237434">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1117682">&nbsp;
+</A>
+<A NAME="piptimestamp">
+<H3> piptimestamp</H3>
+</A>
+
+
+
+<A NAME="1120828">
+このユーザーの無料テキスト検索プロフィールの最終更新日を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272571">
+OID: <code>2.16.840.1.113730.3.1.149</code><P></A>
+
+<A NAME="1112096">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237497">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1237470">&nbsp;
+</A>
+<A NAME="piptotalcount">
+<H3> piptotalcount</H3>
+</A>
+
+
+<A NAME="1237471">
+現在までのすべての更新中に発生した一致数を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272577">
+OID: <code>2.16.840.1.113730.3.1.154</code><P></A>
+
+<A NAME="1112775">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237516">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1112780">&nbsp;
+</A>
+<A NAME="piptotalrun">
+<H3> piptotalrun</H3>
+</A>
+
+
+
+<A NAME="1120866">
+現在までのPersonal Interest Profile (PIP)更新合計数を含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1272619">
+OID: <code>2.16.840.1.113730.3.1.155</code><P></A>
+
+<A NAME="1112781">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237538">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1110777">&nbsp;
+</A>
+<A NAME="pipuid">
+<H3> pipuid</H3>
+</A>
+
+
+
+<A NAME="1120876">
+Personal Interest Profile (PIP)の属するユーザーのユーザーIDを含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271249">
+OID: <code>2.16.840.1.113730.3.1.137</code><P></A>
+
+<A NAME="1110778">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237569">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1107663">&nbsp;
+</A>
+<A NAME="pipuniqueid">
+<H3> pipuniqueid</H3>
+</A>
+
+
+
+<A NAME="1239397">
+Compassユーザーの一意のIDを含む、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271284">
+OID: <code>2.16.840.1.113730.3.1.139</code><P></A>
+
+<A NAME="1108334">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237586">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1108439">&nbsp;
+</A>
+<A NAME="pipusertype">
+<H3> pipusertype</H3>
+</A>
+
+
+
+<A NAME="1120926">
+Compassユーザー タイプを記述する、Compass Serverによって使用される属性。<P></A>
+
+<A NAME="1271340">
+OID: <code>2.16.840.1.113730.3.1.141</code><P></A>
+
+<A NAME="1108473">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1237595">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1230025">&nbsp;
+</A>
+<A NAME="postalAddress">
+<H3> postalAddress</H3>
+</A>
+
+
+
+<A NAME="1230026">
+エントリのメーリング アドレスを示します。このフィールドは複数行が含まれるよう意図されています。LDIF形式で示す場合は、各行をドル記号($)で区切る必要があります。例:<P></A>
+<A NAME="1230027">
+<PRE>	postalAddress: 1234 Ridgeway Drive$Santa Clara, CA$99555
+</PRE>
+</A>
+
+<A NAME="1230029">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1230030">
+テキスト内での区切りとしてではなく、実際のドル記号($)またはバックスラッシュ(\)を示すには、エスケープされた16進値\24と \5cを使用します。例えば、次のような文字列を示す場合、<P></A>
+<A NAME="1230031">
+<PRE>	The dollar ($) value can be found <br>
+	in the c:\cost file.
+</PRE>
+</A>
+
+<A NAME="1230032">
+次のようにエスケープ文字を使用します。<P></A>
+<A NAME="1230033">
+<PRE>	The dollar (\24) value can be found$in the c:\5ccost file.
+</PRE>
+</A>
+
+
+<A NAME="1230036">&nbsp;
+</A>
+<A NAME="postalCode">
+<H3> postalCode</H3>
+</A>
+
+
+
+<A NAME="1230037">
+米国におけるエントリの郵便番号を示します。例:<P></A>
+<A NAME="1230038">
+<PRE>	postalCode: 95050
+</PRE>
+</A>
+
+<A NAME="1230040">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1230043">&nbsp;
+</A>
+<A NAME="postOfficeBox">
+<H3> postOfficeBox</H3>
+</A>
+
+
+
+<A NAME="1230044">
+エントリの私書箱を示します。例:<P></A>
+<A NAME="1230045">
+<PRE>	postOfficeBox: P.O. Box 1234
+</PRE>
+</A>
+
+<A NAME="1230047">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202605">&nbsp;
+</A>
+<A NAME="preferredDeliveryMethod">
+<H3> preferredDeliveryMethod</H3>
+</A>
+
+
+
+<A NAME="1202606">
+エントリが希望する連絡方法または配信方法を示します。例:<P></A>
+<A NAME="1202607">
+<PRE>	preferredDeliveryMethod: telephone
+</PRE>
+</A>
+
+<A NAME="1202609">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1103495">&nbsp;
+</A>
+<A NAME="preferredLanguage">
+<H3>preferredLanguage</H3>
+</A>
+
+
+
+<A NAME="1103496">
+ユーザーが希望する書言語または話言語を定義します。この属性値は、HTTP Accept-Languageヘッダ値の構文に準拠しなければなりません。<P></A>
+
+<A NAME="1103586">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202620">&nbsp;
+</A>
+<A NAME="presentationAddress">
+<H3> presentationAddress</H3>
+</A>
+
+
+
+<A NAME="1206932">
+エントリのOSI表示アドレスが含まれます。表示アドレスは一つのOSI Network Addressと最高3つのセレクタから構成され、移送、セッション、または表示のエンティティがこのセレクタを各一つずつ使用されます。例:<P></A>
+<A NAME="1202622">
+<PRE>	presentationAddress: TELEX+00726322+RFC-1006+02+130.59.2.1
+</PRE>
+</A>
+
+<A NAME="1202624">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1241471">&nbsp;
+</A>
+<A NAME="protocolInformation">
+<H3> protocolInformation</H3>
+</A>
+
+
+
+<A NAME="1241473">
+未定義。<P></A>
+
+<A NAME="1245387">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1245389">&nbsp;
+</A>
+<A NAME="reciprocalNamingLink">
+<H3> reciprocalNamingLink</H3>
+</A>
+
+
+
+<A NAME="1235430">
+未定義。<P></A>
+
+<A NAME="1235433">
+構文: dn<P></A>
+
+
+<A NAME="1100037">&nbsp;
+</A>
+<A NAME="ref">
+<H3> ref</H3>
+</A>
+
+
+
+<A NAME="1100061">
+スマート参照をサポートするためにLDAPv3で使用されます。LDAP URLが、ldap://サーバー名:ポート番号/dnの書式で含まれます。ポート番号はオプションです。例:<P></A>
+<A NAME="1202639">
+<PRE>	ref: ldap://mozilla/<I>cn=John Doe, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1100064">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1202644">&nbsp;
+</A>
+<A NAME="registeredAddress">
+<H3> registeredAddress</H3>
+</A>
+
+
+
+<A NAME="1206709">
+この属性には、受取人が配送を受理する必要のある電報や急送ドキュメントの受理に適切な郵便住所を入力します。<P></A>
+
+<A NAME="1202648">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1092877">&nbsp;
+</A>
+<A NAME="replicaBeginOrc">
+<H3> replicaBeginOrc</H3>
+</A>
+
+
+
+<A NAME="1092878">
+複製前に供給サーバーが消費サーバーの内容を消去すべきかどうかを定義します。この属性に値が存在しない場合は、供給サーバーによってその内容が消去されます。この属性の許容値はstartとstopの2つです。startで消費サーバーの内容が消去され、stopで供給サーバーによるこの動作が中止されます。例:<P></A>
+<A NAME="1092879">
+<PRE>	replicaBeginOrc: start
+</PRE>
+</A>
+
+<A NAME="1092881">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1006496">&nbsp;
+</A>
+<A NAME="replicaBindDn">
+<H3> replicaBindDn</H3>
+</A>
+
+
+
+<A NAME="1006513">
+複製サーバーとの通信の際にサーバーが使用するDNを示します。このDNは割り当てられた特権である場合もあります。例:<P></A>
+<A NAME="1006521">
+<PRE>	replicaBinddn: <I>cn=replicator o=Netscape Communications Corp., <br>
+</I>	<I>c=US
+</I></PRE>
+</A>
+
+<A NAME="1006538">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+<A NAME="1009992">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1006636">&nbsp;
+</A>
+<A NAME="replicaBindMethod">
+<H3> replicaBindMethod</H3>
+</A>
+
+
+
+<A NAME="1006689">
+使用する複製方法を示します。この属性は存在する必要はありません。存在する場合は<code>simple</code>に設定しなければなりません。<code>simple</code>に設定していないと、警告が印刷され、simpleとして複製が処理されます。例:<P></A>
+<A NAME="1006710">
+<PRE>	replicaBindMethod: simple
+</PRE>
+</A>
+
+<A NAME="1006720">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1009994">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1230073">&nbsp;
+</A>
+<A NAME="replicaCredentials">
+<H3> replicaCredentials</H3>
+</A>
+
+
+
+<A NAME="1230074">
+消費サーバーに送信されるreplicaBinddnとともに使用するパスワードを示します。この属性は、厳格なアクセス制御で指定することが特に推奨されます。例:<P></A>
+<A NAME="1230075">
+<PRE>	replicaCredentials: bogusPassword
+</PRE>
+</A>
+
+<A NAME="1230077">
+構文: <a href="attribut.htm#1004700">bin</a> (plain text)<P></A>
+
+<A NAME="1230078">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1148497">&nbsp;
+</A>
+<A NAME="replicaEntryFilter">
+<H3>replicaEntryFilter</H3>
+</A>
+
+
+
+<A NAME="1204405">
+将来の使用に予約。<P></A>
+
+<A NAME="1280979">
+OID: <code>2.16.840.1.113730.3.1.203</code><P></A>
+
+<A NAME="1152854">
+構文: <a href="attribut.htm#1004702">c</a>is<P></A>
+<P>
+<A NAME="1148445">
+<A NAME="replicaHost">
+<B>replicaHost</B>
+</a></a>
+<P>
+
+
+<A NAME="1148446">
+消費サーバーのホスト名を示します。例:<P></A>
+<A NAME="1148447">
+<PRE><A NAME="1148447">
+	replicaHost: slave.netscape.com
+</A>
+</PRE>
+<A NAME="1258218">
+OID: <code>2.16.840.1.113730.3.1.197</code><P></A>
+
+<A NAME="1148449">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1148453">&nbsp;
+</A>
+<A NAME="replicaNickname">
+<H3> replicaNickname</H3>
+</A>
+
+
+
+<A NAME="1148454">
+単一の供給サーバーと単一の消費サーバー間における特定の複製ルールを記述する自由形式の名前が含まれます。<P></A>
+<A NAME="1148455">
+<PRE><A NAME="1148455">
+	replicaNickName: currentset
+</A>
+</PRE>
+<A NAME="1280981">
+OID: <code>2.16.840.1.113730.3.1.204</code><P></A>
+
+<A NAME="1148552">
+構文:<a href="attribut.htm#1004702"> cis</a><P></A>
+
+<A NAME="1010001">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+<A NAME="1007660">
+<A NAME="replicaPort">
+<B>replicaPort</B>
+</a></a>
+<P>
+
+
+<A NAME="1007661">
+消費サーバーのポート番号を示します。例:<P></A>
+<PRE><A NAME="1006466">
+	replicaPort: 9872
+</A>
+</PRE>
+<A NAME="1258224">
+OID: <code>2.16.840.1.113730.3.1.48</code><P></A>
+
+<A NAME="1006484">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1010007">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1006384">&nbsp;
+</A>
+<A NAME="replicaRoot">
+<H3> replicaRoot</H3>
+</A>
+
+
+
+<A NAME="1006394">
+消費マシンに複製中のサブツリーのDNを示します。例:<P></A>
+<A NAME="1006401">
+<PRE><A NAME="1006401">
+	replicaRoot: <I>o=Netscape Communications Corp., c=US</I>
+</A>
+</PRE>
+<A NAME="1258564">
+OID: <code>2.16.840.1.113730.3.1.57</code><P></A>
+
+<A NAME="1006414">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+<A NAME="1010013">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+<A NAME="1281126">
+<A NAME="replicatedAttributeList">
+<B>replicatedAttributeList</B>
+</a></a>
+<P>
+
+
+<A NAME="1281128">
+将来の使用に予約。<P></A>
+
+<A NAME="1281133">
+OID: <code>2.16.840.1.113730.3.1.205</code><P></A>
+
+<A NAME="1281135">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+<P>
+<A NAME="1006918">&nbsp;
+</A>
+<A NAME="replicaUpdateFailedAt">
+<H3> replicaUpdateFailedAt</H3>
+</A>
+
+
+
+<A NAME="1006939">
+更新完了に失敗した日時をzulu形式で示します。すべての更新が成功した場合、replicaUpdateFailedAtは空白です。例:<P></A>
+<A NAME="1006946">
+<PRE>	replicaUpdateFailedAt: 199603261300z
+</PRE>
+</A>
+
+<A NAME="1006957">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1010019">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1012768">&nbsp;
+</A>
+<A NAME="replicaUpdateReplayed">
+<H3> replicaUpdateReplayed</H3>
+</A>
+
+
+
+<A NAME="1012770">
+消費サーバーに伝えられた最終変更の変更番号を示します。この値はサーバー間の内部でのみ使用されます。<P></A>
+
+<A NAME="1012772">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1012758">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1006817">&nbsp;
+</A>
+<A NAME="replicaUpdateSchedule">
+<H3> replicaUpdateSchedule</H3>
+</A>
+
+
+
+<A NAME="1006849">
+消費サーバーの更新スケジュールを示します。この属性が存在しない場合は、消費サーバーは直ちに更新されます。例:	<P></A>
+<A NAME="1006868">
+<PRE>	replicaUpdateSchedule: 0100-0400
+</PRE>
+</A>
+<A NAME="1007219">
+<PRE>	replicaUpdateSchedule: * 06
+</PRE>
+</A>
+<A NAME="1007229">
+<PRE>	replicaUpdateSchedule: 1145-1300 24
+</PRE>
+</A>
+
+<A NAME="1007234">
+これらの値の意味:<P></A>
+<A NAME="1007241">
+<PRE>	毎日、午前1時から午前4時まで
+</PRE>
+</A>
+<A NAME="1007247">
+<PRE>	土曜と日曜の終日
+</PRE>
+</A>
+<A NAME="1007252">
+<PRE>	火曜と木曜の午前11時45分から午後1時まで
+</PRE>
+</A>
+
+<A NAME="1006873">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1010052">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+
+
+<A NAME="1006741">&nbsp;
+</A>
+<A NAME="replicaUseSsl">
+<H3> replicaUseSsl</H3>
+</A>
+
+
+
+<A NAME="1006754">
+消費サーバーとの通信にSSLを使用するかどうかを示します。非ゼロの値があるとSSLが使用されます。例:<P></A>
+<A NAME="1006794">
+<PRE>	replicaUseSsl: 0
+</PRE>
+</A>
+
+<A NAME="1006801">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+<A NAME="1010064">
+この属性は標準LDAPスキーマへのNetscape社の拡張です。<P></A>
+<P>
+<A NAME="1152805">
+<A NAME="retryCountResetTime">
+<B>retryCountResetTime</B>
+</a></a>
+<P>
+
+
+<A NAME="1154931">
+passwordRetryCount属性がゼロ (0)にリセットされるまでの時間を秒数で定義します。<P></A>
+<A NAME="1154932">
+<PRE>	retryCountResetTime: 600
+</PRE>
+</A>
+
+<A NAME="1146199">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202666">&nbsp;
+</A>
+<A NAME="roleOccupant">
+<H3> roleOccupant</H3>
+</A>
+
+
+
+<A NAME="1202667">
+organizationalRoleエントリで定義された役割を受け持つユーザーの識別名が含まれます。例:<P></A>
+<A NAME="1204472">
+<PRE>	roleOccupant: cn=jdoe o=airius.com
+</PRE>
+</A>
+
+<A NAME="1204474">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1204477">&nbsp;
+</A>
+<A NAME="roomNumber">
+<H3> roomNumber</H3>
+</A>
+
+
+
+<A NAME="1214596">
+オブジェクトの部屋番号を示します。部屋オブジェクトの命名にcommonName属性を使用する必要があることに注意してください。例:<P></A>
+<A NAME="1202675">
+<PRE>	roomNumber: 230
+</PRE>
+</A>
+
+<A NAME="1202677">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202682">&nbsp;
+</A>
+<A NAME="searchGuide">
+<H3> searchGuide</H3>
+</A>
+
+
+
+<A NAME="1202683">
+検索動作のためにディレクトリ ツリーのベース オブジェクトとしてエントリを使用する際に、提案される検索基準に関する情報を示します。<P></A>
+
+<A NAME="1230091">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1202691">&nbsp;
+</A>
+<A NAME="secretary">
+<H3> secretary</H3>
+</A>
+
+
+
+<A NAME="1202692">
+エントリの秘書またはアシスタントを示します。例:<P></A>
+<A NAME="1202693">
+<PRE>	secretary: <I>cn=John Doe, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1202695">
+構文: <a href="attribut.htm#1004702">dn</a><P></A>
+
+
+<A NAME="1172500">&nbsp;
+</A>
+<A NAME="seeAlso">
+<H3> seeAlso</H3>
+</A>
+
+
+
+<A NAME="1172501">
+このエントリに関係する情報を含む可能性のある別のDirectory Serverのエントリを示します。 例: <P></A>
+<A NAME="1172502">
+<PRE>	seeAlso: <I>cn=Quality Control Inspectors, ou=manufacturing, o=Airius,<br>
+	c=US
+</I></PRE>
+</A>
+
+<A NAME="1172504">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1202700">&nbsp;
+</A>
+<A NAME="serialNumber">
+<H3> serialNumber</H3>
+</A>
+
+
+
+<A NAME="1202701">
+エントリのシリアル番号を定義します。例:<P></A>
+<A NAME="1202702">
+<PRE>	serialNumber: 555-1234-AZ
+</PRE>
+</A>
+
+<A NAME="1202704">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1093065">&nbsp;
+</A>
+<A NAME="serverHostName">
+<H3>serverHostName</H3>
+</A>
+
+
+
+<A NAME="1093066">
+Netscapeサーバがインストールされているホスト名を示します。この属性はNetscape社の拡張機能で、<a href="attribut.htm#">netscapeServer</a>のオブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバを初めてインストールする際に、ディレクトリに書き込まれます。例:<P></A>
+<PRE><A NAME="1032467">
+	serverHostname: twain.airius.com
+</A>
+</PRE>
+<A NAME="1259312">
+OID: <code>2.16.840.1.113730.3.1.76</code><P></A>
+
+<A NAME="1032488">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1032412">&nbsp;
+</A>
+<A NAME="serverProductName">
+<H3>serverProductName</H3>
+</A>
+
+
+
+<A NAME="1032414">
+インストールされているNetscapeサーバのタイプを識別します。この属性はNetscape社の拡張機能で、<a href="attribut.htm#">netscapeServer</a>のオブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバを初めてインストールする際に、ディレクトリに書き込まれます。例:<P></A>
+<PRE><A NAME="1032416">
+	serverProductName: Netscape Enterprise Server
+</A>
+</PRE>
+<A NAME="1259171">
+OID: <code>2.16.840.1.113730.3.1.71</code><P></A>
+
+<A NAME="1032418">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1032294">&nbsp;
+</A>
+<A NAME="serverRoot">
+<H3>serverRoot</H3>
+</A>
+
+
+
+<A NAME="1032296">
+Netscapeサーバがインストールされているディレクトリへの、完全なパスを識別します。この属性はNetscape社の拡張機能で、<a href="attribut.htm#">netscapeServer</a>のオブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバを初めてインストールする際に、ディレクトリに書き込まれます。例:<P></A>
+<PRE><A NAME="1032297">
+	serverRoot: /usr/ns-home
+</A>
+</PRE>
+<A NAME="1259165">
+OID: <code>2.16.840.1.113730.3.1.70</code><P></A>
+
+<A NAME="1032346">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1032439">&nbsp;
+</A>
+<A NAME="serverVersionNumber">
+<H3>serverVersionNumber</H3>
+</A>
+
+
+
+<A NAME="1032441">
+インストールされたNetscapeサーバのバージョン番号を識別します。この属性はNetscape社の拡張機能で、<a href="objclass.htm#1097231">netscapeServer</a>のオブジェクト クラスが使用します。通常、この属性と属性値は、Netscapeサーバを初めてインストールする際に、ディレクトリに書き込まれます。例:<P></A>
+<PRE><A NAME="1032443">
+	serverVersionNumber: 3.0
+</A>
+</PRE>
+<A NAME="1259178">
+OID: <code>2.16.840.1.113730.3.1.72</code><P></A>
+
+<A NAME="1203414">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1245426">&nbsp;
+</A>
+<A NAME="singleLevelQuality">
+<H3> singleLevelQuality</H3>
+</A>
+
+
+
+<A NAME="1245427">
+未定義。 <P></A>
+
+<A NAME="1245430">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1203417">&nbsp;
+</A>
+<A NAME="st">
+<H3> st</H3>
+</A>
+
+
+
+<A NAME="1202711">
+エントリの居住する州または都道府県を示します。例:<P></A>
+<A NAME="1202712">
+<PRE>	stateOrProvinceName: California
+</PRE>
+</A>
+
+<A NAME="1202713">
+または、<P></A>
+<A NAME="1202714">
+<PRE>	st: California
+</PRE>
+</A>
+
+<A NAME="1202716">
+<a href="attribut.htm#">略号</a>: st<P></A>
+
+<A NAME="1202718">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202721">&nbsp;
+</A>
+<A NAME="street">
+<H3> street</H3>
+</A>
+
+
+
+<A NAME="1202722">
+エントリの家の番地と街路の名前を示します。例:<P></A>
+<A NAME="1202723">
+<PRE>	streetAddress: 1234 Ridgeway Drive
+</PRE>
+</A>
+
+<A NAME="1202724">
+または、<P></A>
+<A NAME="1202725">
+<PRE>	street: 1234 Ridgeway Drive
+</PRE>
+</A>
+
+<A NAME="1202727">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202732">&nbsp;
+</A>
+<A NAME="subject">
+<H3> subject</H3>
+</A>
+
+
+
+<A NAME="1202733">
+ドキュメント エントリの主題に関する情報が含まれます。<P></A>
+
+<A NAME="1202736">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1242622">&nbsp;
+</A>
+<A NAME="subschemaSubentry">
+<H3> subschemaSubentry</H3>
+</A>
+
+
+
+<A NAME="1242623">
+未定義。<P></A>
+
+<A NAME="1242626">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1099985">&nbsp;
+</A>
+<A NAME="subtreeaci">
+<H3> subtreeaci</H3>
+</A>
+
+
+
+<A NAME="1099986">
+ newsaccessitemエントリを更新できるユーザーを示します。<P></A>
+
+<A NAME="1099989">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1245467">&nbsp;
+</A>
+<A NAME="subtreeMaximumQuality">
+<H3> subtreeMaximumQuality</H3>
+</A>
+
+
+
+<A NAME="1245469">
+未定義。 <P></A>
+
+<A NAME="1245472">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1245448">&nbsp;
+</A>
+<A NAME="subtreeMinimumQuality">
+<H3> subtreeMinimumQuality</H3>
+</A>
+
+
+
+<A NAME="1245450">
+未定義。 <P></A>
+
+<A NAME="1245453">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1241769">&nbsp;
+</A>
+<A NAME="supportedAlgorithms;binary">
+<H3> supportedAlgorithms;binary</H3>
+</A>
+
+
+
+<A NAME="1241770">
+未定義。 <P></A>
+
+<A NAME="1241967">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1202747">&nbsp;
+</A>
+<A NAME="supportedApplicationContext">
+<H3> supportedApplicationContext</H3>
+</A>
+
+
+
+<A NAME="1202748">
+この属性にはOSIアプリケーション コンテキストの識別子が含まれます。<P></A>
+
+<A NAME="1202751">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1243196">&nbsp;
+</A>
+<A NAME="supportedControl">
+<H3> supportedControl</H3>
+</A>
+
+
+
+<A NAME="1243198">
+未定義。<P></A>
+
+<A NAME="1243201">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1243163">&nbsp;
+</A>
+<A NAME="supportedExtension">
+<H3> supportedExtension</H3>
+</A>
+
+
+
+<A NAME="1243164">
+未定義。<P></A>
+
+<A NAME="1243167">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1243238">&nbsp;
+</A>
+<A NAME="supportedLDAPVersion">
+<H3> supportedLDAPVersion</H3>
+</A>
+
+
+
+<A NAME="1243240">
+未定義。<P></A>
+
+<A NAME="1243243">
+構文: <a href="attribut.htm#1243260">int</a><P></A>
+
+
+<A NAME="1243217">&nbsp;
+</A>
+<A NAME="supportedSASLMechanisms">
+<H3> supportedSASLMechanisms</H3>
+</A>
+
+
+
+<A NAME="1243219">
+未定義。<P></A>
+
+<A NAME="1243222">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1230116">&nbsp;
+</A>
+<A NAME="sn">
+<H3> sn</H3>
+</A>
+
+
+
+<A NAME="1230117">
+エントリの苗字、またはラストネームを示します。例:<P></A>
+<A NAME="1230118">
+<PRE>	surname: Anderson
+</PRE>
+</A>
+
+<A NAME="1230119">
+または、<P></A>
+<A NAME="1230120">
+<PRE>	sn: Anderson
+</PRE>
+</A>
+
+<A NAME="1230122">
+<a href="attribut.htm#">略号</a>: sn<P></A>
+
+<A NAME="1230124">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1094954">&nbsp;
+</A>
+<A NAME="targetDn">
+<H3> targetDn</H3>
+</A>
+
+
+
+<A NAME="1094956">
+供給サーバーにおいて追加、変更、または削除されたエントリの識別名を定義します。modrdn動作の場合、targetDnには、変更前のエントリの識別名が含まれます。例:<P></A>
+<A NAME="1110601">
+<PRE>	targetDn:<I> cn=Jane Doe, ou=Quality Control, o=Airius.com
+</I></PRE>
+</A>
+
+<A NAME="1094942">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1230129">&nbsp;
+</A>
+<A NAME="telephoneNumber">
+<H3> telephoneNumber</H3>
+</A>
+
+
+
+<A NAME="1230130">
+エントリの電話番号を示します。例: <P></A>
+<A NAME="1230131">
+<PRE>	telephoneNumber: 415-555-2233
+</PRE>
+</A>
+
+<A NAME="1230133">
+構文: <a href="attribut.htm#1004703">tel</a><P></A>
+
+
+<A NAME="1205004">&nbsp;
+</A>
+<A NAME="teletexTerminalIdentifier">
+<H3> teletexTerminalIdentifier</H3>
+</A>
+
+
+
+<A NAME="1205006">
+エントリのテレテックス ターミナルの識別子を示します。属性の形式は次の通りです。<P></A>
+<A NAME="1204973">
+<PRE>teletex-id = ttx-term  0*("$" ttx-param)<br>
+ttx-term   = 印刷可能文字列<br>
+ttx-param  = ttx-key ":" ttx-value<br>
+ttx-key    = "graphic" / "control" / "misc" / "page" / "private"<br>
+ttx-value  = オクテット文字列
+</PRE>
+</A>
+<a name="1204978">
+<BLOCKQUOTE>
+上記では、最初の印刷可能文字列は、暗号化されるテレテックス ターミナル識別子の最初の部分の暗号で、後の0以上のオクテット文字列はこのテレテックス ターミナル識別子の後続部分です。
+
+</BLOCKQUOTE>
+</a>
+<a name="1205117">
+<BLOCKQUOTE>
+構文: <a href="attribut.htm#1004703">tel
+</a>
+</BLOCKQUOTE>
+</a>
+
+
+<A NAME="1205120">&nbsp;
+</A>
+<A NAME="telexNumber">
+<H3> telexNumber</H3>
+</A>
+
+
+
+<A NAME="1205121">
+エントリのテレックス番号を定義します。テレックス番号の形式は以下の通りです。<P></A>
+<A NAME="1204750">
+<PRE>	actual-number "$" country "$" answerback
+</PRE>
+</A>
+
+<A NAME="1204751">
+上記では、<code>actual-number</code>は暗号化されるテレックス番号の番号部を構文的に表示したもので、<code>country</code>はテレックスの国コード、<code>answerback</code>はテレックス ターミナルの 返信コードです。<P></A>
+
+<A NAME="1202779">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202782">&nbsp;
+</A>
+<A NAME="textEncodedOrAddress">
+<H3> textEncodedOrAddress</H3>
+</A>
+
+
+
+<A NAME="1202783">
+RFC987で定義されている通りに、エントリのテキスト暗号化された発信元/受信者 (X.400)アドレスを定義します。例:<P></A>
+<A NAME="1202784">
+<PRE>	textEncodedOrAddress: /S=doe/OU=eng/O=airius/ADMD=telemail/C=us/
+</PRE>
+</A>
+
+<A NAME="1202786">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1230152">&nbsp;
+</A>
+<A NAME="title">
+<H3> title</H3>
+</A>
+
+
+
+<A NAME="1230153">
+エントリの役職を示します。例:<P></A>
+<A NAME="1230154">
+<PRE>	title: Senior QC Inspector
+</PRE>
+</A>
+
+<A NAME="1230156">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202798">&nbsp;
+</A>
+<A NAME="ttl">
+<H3> ttl</H3>
+</A>
+
+
+
+<A NAME="1230159">
+将来の使用のために予約されています。<P></A>
+
+<A NAME="1219626">
+<a href="attribut.htm#">略号</a>: ttl<P></A>
+<a name="1219607">
+<BLOCKQUOTE>
+構文: <a href="attribut.htm#1004702">cis
+</a>
+</BLOCKQUOTE>
+</a>
+
+
+<A NAME="1202809">&nbsp;
+</A>
+<A NAME="uniqueIdentifier">
+<H3> uniqueIdentifier</H3>
+</A>
+
+
+
+<A NAME="1202810">
+識別名が再使用される際に2つのエントリを区別するのに使用する特定項目を示します。この属性は、削除された識別名への参照のインスタンスを検出するためのものです。この属性はサーバーによって割り当てられます。<P></A>
+
+<A NAME="1202812">
+構文: <a href="attribut.htm#1004700">bin</a> (ビット文字列)<P></A>
+
+
+<A NAME="1172624">&nbsp;
+</A>
+<A NAME="uniqueMember">
+<H3> uniqueMember</H3>
+</A>
+
+
+
+<A NAME="1172625">
+一意性を保証するために各名前にuniqueIdentifierが与えられた、エントリと関係する名前のグループを示します。uniqueMemberの属性値はuniqueIdentifierが後に続くDNです。<P></A>
+
+<A NAME="1172627">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1202817">&nbsp;
+</A>
+<A NAME="updatedByDocument">
+<H3> updatedByDocument</H3>
+</A>
+
+
+
+<A NAME="1217372">
+ドキュメント エントリの更新バージョンであるドキュメントの識別名が含まれます。<P></A>
+
+<A NAME="1202821">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1202824">&nbsp;
+</A>
+<A NAME="updatesDocument">
+<H3> updatesDocument</H3>
+</A>
+
+
+
+<A NAME="1217396">
+更新バージョンであるこのドキュメントの元のドキュメントの識別名が含まれます。<P></A>
+
+<A NAME="1202825">
+構文: <a href="attribut.htm#1100403">dn</a><P></A>
+
+
+<A NAME="1208938">&nbsp;
+</A>
+<A NAME="userCertificate">
+<H3>userCertificate</H3>
+</A>
+
+
+
+<A NAME="1208940">
+ユーザーの証明書のテキストコード バージョンを含みます。これはお薦めしません。代わりにuserCertificate;binaryをご使用ください。<P></A>
+
+<A NAME="1208942">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1208946">&nbsp;
+</A>
+<A NAME="userCertificate;binary">
+<H3> userCertificate;binary</H3>
+</A>
+
+
+
+<A NAME="1208948">
+ユーザーの証明書がバイナリ形式で含まれます。<P></A>
+
+<A NAME="1208950">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1202840">&nbsp;
+</A>
+<A NAME="userClass">
+<H3> userClass</H3>
+</A>
+
+
+
+<A NAME="1214739">
+コンピュータ ユーザーのカテゴリを示します。この属性の意味は任意のものです。organizationalStatus属性ではコンピュータ ユーザーと他のユーザーの区別がないため、適用性が高い場合があります。例:<P></A>
+<A NAME="1202842">
+<PRE>	userClass: intern
+</PRE>
+</A>
+
+<A NAME="1202844">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1202847">&nbsp;
+</A>
+<A NAME="uid">
+<H3> uid</H3>
+</A>
+
+
+
+<A NAME="1202848">
+エントリのユーザーID(通常はログオン ID)を示します。例:<P></A>
+<A NAME="1202849">
+<PRE>	userid: banderson
+</PRE>
+</A>
+
+<A NAME="1202850">
+または、<P></A>
+<A NAME="1202851">
+<PRE>	uid: banderson
+</PRE>
+</A>
+
+<A NAME="1202853">
+<a href="attribut.htm#">略号</a>: uid<P></A>
+
+<A NAME="1202855">
+構文: <a href="attribut.htm#1004702">cis</a><P></A>
+
+
+<A NAME="1196547">&nbsp;
+</A>
+<A NAME="userPassword">
+<H3> userPassword</H3>
+</A>
+
+
+
+<A NAME="1196548">
+エントリのパスワードと暗号化方法を、{暗号化方法}暗号化パスワードの形式で示します。<P></A>
+
+<A NAME="1196550">
+例:<P></A>
+<A NAME="1196551">
+<PRE>	userPassword: {sha}FTSLQhxXpA05
+</PRE>
+</A>
+
+<A NAME="1196553">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1103595">&nbsp;
+</A>
+<A NAME="userSMIMECertificate;binary">
+<H3>userSMIMECertificate;binary</H3>
+</A>
+
+
+
+<A NAME="1103596">
+S/MIMEでNetscape Communicatorが使用します。例： <P></A>
+
+<A NAME="1235505">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+
+
+<A NAME="1202876">&nbsp;
+</A>
+<A NAME="x121Address">
+<H3> x121Address</H3>
+</A>
+
+
+
+<A NAME="1202877">
+ユーザーのX.121アドレスを定義します。<P></A>
+
+<A NAME="1202880">
+構文: <a href="attribut.htm#1004701">ces</a><P></A>
+
+
+<A NAME="1235525">&nbsp;
+</A>
+<A NAME="x500UniqueIdentifier">
+<H3> x500UniqueIdentifier</H3>
+</A>
+
+
+
+<A NAME="1235526">
+未定義。 <P></A>
+
+<A NAME="1235529">
+構文: <a href="attribut.htm#1004700">bin</a><P></A>
+<a name="1241249">
+<BLOCKQUOTE>
+
+
+</BLOCKQUOTE>
+</a>
+
+<p>
+
+<hr width="80%" size="2">
+<FONT SIZE="-2">
+<CENTER>
+Copyright 1997 Netscape Communications Corporation. All rights reserved.
+</CENTER>
+</FONT>
+
+</body>
+</html>
+

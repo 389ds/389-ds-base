@@ -1,0 +1,103 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML><HEAD>
+<!-- change a directory entry's password -->
+
+<!-- DS_ENTRYBEGIN -->
+<!-- DS_EMIT_BASE_HREF -->
+<TITLE>
+<!-- IF "BoundAsThisEntry" -->
+Set
+<!-- ELSE -->
+Change
+<!-- ENDIF -->
+Password -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE>
+</HEAD>
+
+<!-- BODY -->
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT><HR>" -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+
+function
+disableUser()
+{
+    if ( confirm( "Password-based access will be disabled by setting this " +
+	    "user's password to an invalid value.  Proceed?" )) {
+	document.modifyEntryForm.lockpasswd.value = 'true';
+	submitModify( 'modify', null );
+    }
+}
+
+// End hiding -->
+</SCRIPT>
+
+<FONT SIZE="+2">
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+
+<!-- DS_VIEW_SWITCHER -->
+
+<P>
+<TABLE>
+
+<!-- IF "BoundAsThisEntry" -->
+<TR>
+<TD ALIGN="right" NOWRAP>
+<B>Current password:</B>
+</TD><TD>
+<!-- DS_OLDPASSWORD -->
+</TD></TR>
+<!-- ENDIF //BoundAsThisEntry -->
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+<B>New password:</B>
+</TD><TD>
+<!-- DS_NEWPASSWORD -->
+</TD></TR>
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+<B>New password (again):</B>
+</TD><TD>
+<!-- DS_CONFIRM_NEWPASSWORD -->
+</TD></TR>
+</TABLE>
+
+<P>
+
+<TABLE BORDER=2 WIDTH="100%">
+<TR>
+<TD ALIGN="center" WIDTH="33%">
+<!-- IF "BoundAsThisEntry" -->
+<!-- DS_SAVEBUTTON "label=Change Password" -->
+<!-- ELSE -->
+<!-- DS_SAVEBUTTON "label=Set Password" -->
+<!-- ENDIF -->
+<TD ALIGN="center" WIDTH="34%">
+<INPUT TYPE="button" VALUE="Disable Password" onClick="disableUser()" -->
+<TD ALIGN="center" WIDTH="33%">
+<!-- DS_HELPBUTTON "topic=MODIFYPASSWD" -->
+</TABLE>
+
+
+<!-- this next hidden field is used by the "Disable Password" feature -->
+<INPUT TYPE="hidden" NAME="lockpasswd" VALUE="false">
+
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="document.location.href=\'edit/\' + dsmodify_dn + \'?passwd&info=\' + escape(dsmodify_info)">
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

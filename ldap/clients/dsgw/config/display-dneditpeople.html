@@ -1,0 +1,83 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_ENTRYBEGIN -->
+<!-- DS_EMIT_BASE_HREF -->
+<TITLE>
+Edit
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE>
+<LINK REL=stylesheet TYPE="text/css" HREF="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=style.css">
+</HEAD>
+
+<body bgcolor="#FFFFFF" "onLoad='document.searchForm.searchstring.focus();'" marginheight=0 marginwidth=0 leftmargin="0" topmargin="0" rightmargin="0">
+<table width="100%" class="bgColor1" cellspacing="0" cellpadding="0" border="0">
+<tr width="100%" class="bgColor1">
+<TD valign="top" class="bgColor1"><IMG src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=clear.gif" width="10" height="45" border="0"></TD>
+<TD valign="middle" align="left" class="text15" width="100%">
+Edit
+<!-- DS_DNDESC -->
+:
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</td>
+</tr>
+</table>
+
+<!-- DS_LAST_OP_INFO "suffix=<table width=90% class="bgColor9"><tr><td>&nbsp;</td></tr></table>" -->
+ 
+<!-- DS_BEGIN_DNSEARCHFORM -->
+<INPUT TYPE=hidden NAME=mode VALUE="smart">
+<INPUT TYPE=hidden NAME=dnlist_js VALUE="true">
+<INPUT TYPE=hidden NAME=listifone VALUE="true">
+<INPUT TYPE=hidden NAME=listtemplate VALUE="">
+<INPUT TYPE=hidden NAME=faMode VALUE="add">
+<INPUT TYPE=hidden NAME=ldapsizelimit VALUE="1000">
+<INPUT TYPE=hidden NAME=ldaptimelimit VALUE="180">
+<!-- PCONTEXT -->
+
+<CENTER>
+<TABLE CELLSPACING=0 CELLPADDING=10 border=0><TR>
+
+<TD NOWRAP>
+Find
+<SELECT NAME="type">
+<OPTION SELECTED VALUE="People">People
+</SELECT>
+</TD>
+
+<TD NOWRAP>
+matching&nbsp;
+<INPUT NAME="searchstring" SIZE=15>
+</TD>
+
+<TD>
+<!-- DS_DNADDBUTTON "VALUE= Find and Add " -->
+<BR>
+<!-- DS_DNREMOVEBUTTON "VALUE= Find and Remove " -->
+</TD>
+
+</TR>
+</TABLE>
+
+<P>
+<TABLE BORDER="2" WIDTH="100%">
+<TR>
+<TD WIDTH="33%" ALIGN="center">
+<INPUT TYPE=BUTTON VALUE="  Save Changes  " onClick="parent.saveChanges();">
+<TD WIDTH="34%" ALIGN="center">
+<INPUT TYPE=BUTTON VALUE="  Cancel  " onClick="parent.cancel();">
+<TD WIDTH=33% ALIGN=center>
+<!-- DS_HELPBUTTON "topic=EDIT_PERSON_REF" -->
+</TD></TR></TABLE></CENTER>
+
+<INPUT TYPE=hidden NAME=completion_javascript VALUE='parent.updateList(parent.controlFrame.document.searchForm.faMode.value, parent.dnlist, parent.stagingFrame.dnlist, parent.outputFrame);parent.controlFrame.document.searchForm.faMode.value="add";'>
+<!-- DS_END_DNSEARCHFORM -->
+
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

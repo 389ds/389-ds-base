@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+if [ $# -lt 1 ]
+then
+	echo >&2 "Usage: $0 targetDirectory"
+	exit 2
+fi
+mkdir -p $1
+mkdir -p $1/jars
+cp -p `dirname $0`/mcc $1
+cp -p -r `dirname $0`/jars/* $1/jars

@@ -1,0 +1,168 @@
+#!/bin/sh 
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Usage  ns-keygen password_file fully_qualified_hostname
+# Example:
+#	./ns-keygen  ../password.txt myhost.netscape.com
+#
+# Assumes that NSHOME is Set
+# if NSHOME is not set, it will be derived from the path of this script, which is
+# usually NSHOME/bin/slapd/admin/bin
+
+if [ $# -ge 2 ]
+then 
+ 	passwd_file="$1"
+	certDN="$2"
+else
+	echo "ERROR:Incorrect Usage: $0 password_file certDN"
+	exit
+fi
+
+if [ ! "$NSHOME" ]; then
+	fullpath=`pwd`
+	if echo $0 | grep \^/ > /dev/null 2>&1 ; then # is absolute
+		fullpath=`dirname $0`
+	else # is a relative path - could be ./ or ../ or something else
+		base=`basename $0`
+		if [ "$base" != $0 ]; then # e.g. ns-keygen bare from that directory
+			savedir=$fullpath
+			cd `dirname $0`
+			fullpath=`pwd`
+			cd $savedir
+		fi
+	fi
+	# is $0 relative or absolute path?
+	NSHOME=`echo $fullpath | sed -e s@/bin/slapd/admin/bin@@g`
+fi
+
+# set the LD_LIBRARY_PATH - required for the cert tools
+TOOL_PATH=$NSHOME/bin/slapd/admin/bin ; export TOOL_PATH
+# for HPUX
+SHLIB_PATH=$TOOL_PATH:$TOOL_PATH/../lib:$TOOL_PATH/../../lib:$TOOL_PATH/../../../lib:$TOOL_PATH/../../../../lib:$SHLIB_PATH ; export SHLIB_PATH
+# for other unix
+LD_LIBRARY_PATH=$TOOL_PATH:$TOOL_PATH/../lib:$TOOL_PATH/../../lib:$TOOL_PATH/../../../lib:$TOOL_PATH/../../../../lib:$LD_LIBRARY_PATH ; export LD_LIBRARY_PATH
+
+#echo password file name is: $passwd_file
+#echo certDN is: $certDN
+
+rm -f key3.db key4.db cert7.db cert8.db secmodule.db secmod.db random.dat keyid.dat
+
+# Check for  password file
+
+#
+# Set umask for best security
+#
+umask 077 
+
+#
+# Create some "random" data. 
+#
+ps -ale >>random.dat
+date >>random.dat
+netstat -a >>random.dat
+
+if [ ! -s "$passwd_file" ]
+then
+	echo "Error:Password file is missing."
+	exit 1
+fi
+
+#
+# Set the key database password
+#
+$TOOL_PATH/certutil -W -d . -f "$passwd_file"
+RC=$?
+if [ $RC != 0 ]
+then 
+	echo "Error:Unable to set the key database password."
+	exit 1
+fi
+
+#
+# Create and sign a self-signed certificate for this
+# server using the server name
+#
+$TOOL_PATH/certutil -S -s "$certDN" -x -t u,, \
+ -v 60 -d . -n Server-Cert -f "$passwd_file" -z random.dat
+RC=$?
+if [ $RC != 0 ]
+then 
+	echo "Error:Unable to create the cert."
+	exit 1
+fi
+
+hostname=`uname -n`
+
+#
+# Copy the key/cert db & password file to the correct place.
+#
+keydb=key3.db
+if [ -f key4.db ] ; then
+	keydb=key4.db
+fi
+
+if [ -f $NSHOME/alias/slapd-$hostname-$keydb ]; then
+	echo "Found existing key database - copying to $NSHOME/alias/slapd-$hostname-$keydb.bak"
+	cp $NSHOME/alias/slapd-$hostname-$keydb $NSHOME/alias/slapd-$hostname-$keydb.bak
+	if [ ! -f $NSHOME/alias/slapd-$hostname-$keydb.orig ] ; then
+		cp $NSHOME/alias/slapd-$hostname-$keydb $NSHOME/alias/slapd-$hostname-$keydb.orig
+	fi
+fi
+cp $keydb $NSHOME/alias/slapd-$hostname-$keydb
+RC=$?
+if [ $RC != 0 ]
+then 
+	echo "Error:Key Database $keydb could not be copied"
+	exit 1
+fi
+
+certdb=cert7.db
+if [ -f cert8.db ] ; then
+	certdb=cert8.db
+fi
+if [ -f $NSHOME/alias/slapd-$hostname-$certdb ]; then
+	echo "Found existing cert database - copying to $NSHOME/alias/slapd-$hostname-$certdb.bak"
+	cp $NSHOME/alias/slapd-$hostname-$certdb $NSHOME/alias/slapd-$hostname-$certdb.bak
+	if [ ! -f $NSHOME/alias/slapd-$hostname-$certdb.orig ] ; then
+		cp $NSHOME/alias/slapd-$hostname-$certdb $NSHOME/alias/slapd-$hostname-$certdb.orig
+	fi
+fi
+cp $certdb $NSHOME/alias/slapd-$hostname-$certdb
+RC=$?
+if [ $RC != 0 ]
+then 
+	echo "Error:Cert Database $certdb could not be copied"
+	exit 1
+fi
+
+# create and copy pin file
+passwd=`cat $passwd_file`
+if [ -f $NSHOME/alias/slapd-$hostname-pin.txt ]; then
+	echo "Found existing pin file - copying to $NSHOME/alias/slapd-$hostname-pin.txt.bak"
+	cp $NSHOME/alias/slapd-$hostname-pin.txt $NSHOME/alias/slapd-$hostname-pin.txt.bak
+	if [ ! -f $NSHOME/alias/slapd-$hostname-pin.txt.orig ]; then
+		cp $NSHOME/alias/slapd-$hostname-pin.txt $NSHOME/alias/slapd-$hostname-pin.txt.orig
+	fi
+fi
+echo "Internal (Software) Token:$passwd" > $NSHOME/alias/slapd-$hostname-pin.txt
+RC=$?
+if [ $RC != 0 ]
+then 
+	echo "Error:password file could not be copied"
+	exit 1
+fi
+# Test the new location for the files.
+
+#
+# Cleanup
+rm -f random.dat
+
+#
+# End
+#

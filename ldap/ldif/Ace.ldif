@@ -1,0 +1,2604 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+dn: o=Ace Industry, c=US
+objectclass: top
+objectclass: organization
+o: Ace Industry
+aci: (target ="ldap:///o=Ace Industry, c=US")(targetattr !="userPassword")(version 3.0;acl "anonymous
+  access";allow (read, search, compare)(userdn = "ldap:///anyone");)
+aci: (target="ldap:///o=Ace Industry, c = US") (targetattr = "*")(version 3.0; acl "allow 
+ self write"; allow(write) userdn = "ldap:///self";) 
+aci: (target="ldap:///o=Ace Industry, c = US") (targetattr = "*")(version 3.0; acl "Allow 
+ all admin group"; allow(all) groupdn = "ldap:///cn=Directory Administrators, o=Ace Industry, c=US";)
+
+dn: ou=Accounting, o=Ace Industry, c=US
+objectclass: top
+objectclass: organizationalunit
+ou: Accounting
+
+dn: ou=Product Development, o=Ace Industry, c=US
+objectclass: top
+objectclass: organizationalunit
+ou: Product Development
+
+dn: ou=Product Testing, o=Ace Industry, c=US
+objectclass: top
+objectclass: organizationalunit
+ou: Product Testing
+
+dn: ou=Human Resources, o=Ace Industry, c=US
+objectclass: top
+objectclass: organizationalunit
+ou: Human Resources
+
+dn: ou=Payroll, o=Ace Industry, c=US
+objectclass: top
+objectclass: organizationalunit
+ou: Payroll
+
+dn: cn=Directory Administrators, o=Ace Industry, c=US
+cn: Directory Administrators
+objectclass: top
+objectclass: groupofuniquenames
+uniquemember: cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US
+uniquemember: cn=Robert Daugherty, ou=Human Resources, o=Ace Industry, c=US
+uniquemember: cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US
+uniquemember: cn=Barbara Jablonski, ou=Human Resources, o=Ace Industry, c=US
+uniquemember: cn=Philip Hunt, ou=Human Resources, o=Ace Industry, c=US
+uniquemember: cn=Matthew Tyler, ou=Human Resources, o=Ace Industry, c=US
+
+dn: cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US
+cn: Sam Carter
+sn: Carter
+givenname: Sam
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: scarter
+mail: scarter@aceindustry.com
+telephonenumber: +1 408 555 4798
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 4612
+userpassword: sprain
+
+dn: cn=Ted Morris, ou=Accounting, o=Ace Industry, c=US
+cn: Ted Morris
+sn: Morris
+givenname: Ted
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: tmorris
+mail: tmorris@aceindustry.com
+telephonenumber: +1 408 555 9187
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 4117
+userpassword: irrefutable
+
+dn: cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US
+cn: Kirsten Vaughan
+sn: Vaughan
+givenname: Kirsten
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: kvaughan
+mail: kvaughan@aceindustry.com
+telephonenumber: +1 408 555 5625
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 2871
+userpassword: bribery
+
+dn: cn=Andy Bergin, ou=Product Testing, o=Ace Industry, c=US
+cn: Andy Bergin
+sn: Bergin
+givenname: Andy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Cupertino
+uid: abergin
+mail: abergin@aceindustry.com
+telephonenumber: +1 408 555 8585
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 3472
+userpassword: inflict
+
+dn: cn=David Miller, ou=Accounting, o=Ace Industry, c=US
+cn: David Miller
+sn: Miller
+givenname: David
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: dmiller
+mail: dmiller@aceindustry.com
+telephonenumber: +1 408 555 9423
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 4135
+userpassword: gosling
+
+dn: cn=Gern Farmer, ou=Accounting, o=Ace Industry, c=US
+cn: Gern Farmer
+sn: Farmer
+givenname: Gern
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: gfarmer
+mail: gfarmer@aceindustry.com
+telephonenumber: +1 408 555 6201
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 1269
+userpassword: ruling
+
+dn: cn=Kelly Winters, ou=Product Development, o=Ace Industry, c=US
+cn: Kelly Winters
+sn: Winters
+givenname: Kelly
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: kwinters
+mail: kwinters@aceindustry.com
+telephonenumber: +1 408 555 9069
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 4178
+userpassword: forsook
+
+dn: cn=Torrey Rigden, ou=Product Development, o=Ace Industry, c=US
+cn: Torrey Rigden
+sn: Rigden
+givenname: Torrey
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: trigden
+mail: trigden@aceindustry.com
+telephonenumber: +1 408 555 9280
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 3584
+userpassword: sensitive
+
+dn: cn=Chris Schmith, ou=Human Resources, o=Ace Industry, c=US
+cn: Chris Schmith
+sn: Schmith
+givenname: Chris
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: cschmith
+mail: cschmith@aceindustry.com
+telephonenumber: +1 408 555 8011
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 0416
+userpassword: hypotenuse
+
+dn: cn=Judy Wallace, ou=Accounting, o=Ace Industry, c=US
+cn: Judy Wallace
+sn: Wallace
+givenname: Judy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: jwallace
+mail: jwallace@aceindustry.com
+telephonenumber: +1 408 555 0319
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 1033
+userpassword: linear
+
+dn: cn=John Walker, ou=Product Testing, o=Ace Industry, c=US
+cn: John Walker
+sn: Walker
+givenname: John
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Cupertino
+uid: jwalker
+mail: jwalker@aceindustry.com
+telephonenumber: +1 408 555 1476
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 3915
+userpassword: dogleg
+
+dn: cn=Torrey Clow, ou=Human Resources, o=Ace Industry, c=US
+cn: Torrey Clow
+sn: Clow
+givenname: Torrey
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: tclow
+mail: tclow@aceindustry.com
+telephonenumber: +1 408 555 8825
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 4376
+userpassword: cardreader
+
+dn: cn=Robert Daugherty, ou=Human Resources, o=Ace Industry, c=US
+cn: Robert Daugherty
+sn: Daugherty
+givenname: Robert
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: rdaugher
+mail: rdaugher@aceindustry.com
+telephonenumber: +1 408 555 1296
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 0194
+userpassword: apples
+
+dn: cn=Jayne Reuter, ou=Product Testing, o=Ace Industry, c=US
+cn: Jayne Reuter
+sn: Reuter
+givenname: Jayne
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Cupertino
+uid: jreuter
+mail: jreuter@aceindustry.com
+telephonenumber: +1 408 555 1122
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 2942
+userpassword: destroy
+
+dn: cn=Torrey Mason, ou=Human Resources, o=Ace Industry, c=US
+cn: Torrey Mason
+sn: Mason
+givenname: Torrey
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: tmason
+mail: tmason@aceindustry.com
+telephonenumber: +1 408 555 1596
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 1124
+userpassword: squatted
+
+dn: cn=Benjamin Hall, ou=Product Development, o=Ace Industry, c=US
+cn: Benjamin Hall
+sn: Hall
+givenname: Benjamin
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: bhall
+mail: bhall@aceindustry.com
+telephonenumber: +1 408 555 6067
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 2511
+userpassword: oranges
+
+dn: cn=Brad Talbot, ou=Human Resources, o=Ace Industry, c=US
+cn: Brad Talbot
+sn: Talbot
+givenname: Brad
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: btalbot
+mail: btalbot@aceindustry.com
+telephonenumber: +1 408 555 4992
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 3532
+userpassword: trident
+
+dn: cn=Marcus Ward, ou=Accounting, o=Ace Industry, c=US
+cn: Marcus Ward
+sn: Ward
+givenname: Marcus
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: mward
+mail: mward@aceindustry.com
+telephonenumber: +1 408 555 5688
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 1707
+userpassword: normal
+
+dn: cn=Barbara Jablonski, ou=Human Resources, o=Ace Industry, c=US
+cn: Barbara Jablonski
+sn: Jablonski
+givenname: Barbara
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: bjablons
+mail: bjablons@aceindustry.com
+telephonenumber: +1 408 555 8815
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 0906
+userpassword: strawberry
+
+dn: cn=Judy McFarland, ou=Accounting, o=Ace Industry, c=US
+cn: Judy McFarland
+sn: McFarland
+givenname: Judy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: jmcFarla
+mail: jmcFarla@aceindustry.com
+telephonenumber: +1 408 555 2567
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 2359
+userpassword: walnut
+
+dn: cn=Lee Labonte, ou=Product Development, o=Ace Industry, c=US
+cn: Lee Labonte
+sn: Labonte
+givenname: Lee
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: llabonte
+mail: llabonte@aceindustry.com
+telephonenumber: +1 408 555 0957
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 2854
+userpassword: sourdough
+
+dn: cn=Jody Campaigne, ou=Product Development, o=Ace Industry, c=US
+cn: Jody Campaigne
+sn: Campaigne
+givenname: Jody
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: jcampaig
+mail: jcampaig@aceindustry.com
+telephonenumber: +1 408 555 1660
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 4385
+userpassword: grapevine
+
+dn: cn=Barbara Hall, ou=Accounting, o=Ace Industry, c=US
+cn: Barbara Hall
+sn: Hall
+givenname: Barbara
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: bhal2
+mail: bhal2@aceindustry.com
+telephonenumber: +1 408 555 4491
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 2758
+userpassword: truths
+
+dn: cn=Alexander Lutz, ou=Product Development, o=Ace Industry, c=US
+cn: Alexander Lutz
+sn: Lutz
+givenname: Alexander
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: alutz
+mail: alutz@aceindustry.com
+telephonenumber: +1 408 555 6505
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 1327
+userpassword: northward
+
+dn: cn=Bjorn Talbot, ou=Product Development, o=Ace Industry, c=US
+cn: Bjorn Talbot
+sn: Talbot
+givenname: Bjorn
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: btalbo2
+mail: btalbo2@aceindustry.com
+telephonenumber: +1 408 555 4234
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 1205
+userpassword: corduroy
+
+dn: cn=Ashley Chassin, ou=Payroll, o=Ace Industry, c=US
+cn: Ashley Chassin
+sn: Chassin
+givenname: Ashley
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: achassin
+mail: achassin@aceindustry.com
+telephonenumber: +1 408 555 9972
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 0466
+userpassword: duopolist
+
+dn: cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US
+cn: Harry Miller
+sn: Miller
+givenname: Harry
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: hmiller
+mail: hmiller@aceindustry.com
+telephonenumber: +1 408 555 9804
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 4304
+userpassword: hillock
+
+dn: cn=Jeffrey Campaigne, ou=Human Resources, o=Ace Industry, c=US
+cn: Jeffrey Campaigne
+sn: Campaigne
+givenname: Jeffrey
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: jcampai2
+mail: jcampai2@aceindustry.com
+telephonenumber: +1 408 555 7393
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 1377
+userpassword: nominee
+
+dn: cn=Lee Ulrich, ou=Product Testing, o=Ace Industry, c=US
+cn: Lee Ulrich
+sn: Ulrich
+givenname: Lee
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: lulrich
+mail: lulrich@aceindustry.com
+telephonenumber: +1 408 555 8652
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 0985
+userpassword: attribution
+
+dn: cn=Marcus Langdon, ou=Product Development, o=Ace Industry, c=US
+cn: Marcus Langdon
+sn: Langdon
+givenname: Marcus
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: mlangdon
+mail: mlangdon@aceindustry.com
+telephonenumber: +1 408 555 6249
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 4471
+userpassword: threat
+
+dn: cn=Stephen Triplett, ou=Human Resources, o=Ace Industry, c=US
+cn: Stephen Triplett
+sn: Triplett
+givenname: Stephen
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: striplet
+mail: striplet@aceindustry.com
+telephonenumber: +1 408 555 4519
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 3083
+userpassword: compactify
+
+dn: cn=Gern Triplett, ou=Accounting, o=Ace Industry, c=US
+cn: Gern Triplett
+sn: Triplett
+givenname: Gern
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: gtriplet
+mail: gtriplet@aceindustry.com
+telephonenumber: +1 408 555 2582
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 4023
+userpassword: placeable
+
+dn: cn=John Falena, ou=Human Resources, o=Ace Industry, c=US
+cn: John Falena
+sn: Falena
+givenname: John
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: jfalena
+mail: jfalena@aceindustry.com
+telephonenumber: +1 408 555 8133
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 1917
+userpassword: nightly
+
+dn: cn=Sue Peterson, ou=Product Development, o=Ace Industry, c=US
+cn: Sue Peterson
+sn: Peterson
+givenname: Sue
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: speterso
+mail: speterso@aceindustry.com
+telephonenumber: +1 408 555 3613
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 3073
+userpassword: quinine
+
+dn: cn=Emanuel Johnson, ou=Accounting, o=Ace Industry, c=US
+cn: Emanuel Johnson
+sn: Johnson
+givenname: Emanuel
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: ejohnson
+mail: ejohnson@aceindustry.com
+telephonenumber: +1 408 555 3287
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 3737
+userpassword: marketwise
+
+dn: cn=Peter Rigden, ou=Human Resources, o=Ace Industry, c=US
+cn: Peter Rigden
+sn: Rigden
+givenname: Peter
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: prigden
+mail: prigden@aceindustry.com
+telephonenumber: +1 408 555 5099
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 1271
+userpassword: epiphyseal
+
+dn: cn=Brad Walker, ou=Accounting, o=Ace Industry, c=US
+cn: Brad Walker
+sn: Walker
+givenname: Brad
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: bwalker
+mail: bwalker@aceindustry.com
+telephonenumber: +1 408 555 5476
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 3529
+userpassword: interruptible
+
+dn: cn=Kurt Jensen, ou=Product Development, o=Ace Industry, c=US
+cn: Kurt Jensen
+sn: Jensen
+givenname: Kurt
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: kjensen
+mail: kjensen@aceindustry.com
+telephonenumber: +1 408 555 6127
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 1944
+userpassword: regulatory
+
+dn: cn=Mike Lott, ou=Human Resources, o=Ace Industry, c=US
+cn: Mike Lott
+sn: Lott
+givenname: Mike
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: mlott
+mail: mlott@aceindustry.com
+telephonenumber: +1 408 555 2234
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 0498
+userpassword: cognac
+
+dn: cn=Cecil Wallace, ou=Product Development, o=Ace Industry, c=US
+cn: Cecil Wallace
+sn: Wallace
+givenname: Cecil
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: cwallace
+mail: cwallace@aceindustry.com
+telephonenumber: +1 408 555 6438
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 0349
+userpassword: quintus
+
+dn: cn=Tobias Pierce, ou=Accounting, o=Ace Industry, c=US
+cn: Tobias Pierce
+sn: Pierce
+givenname: Tobias
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: tpierce
+mail: tpierce@aceindustry.com
+telephonenumber: +1 408 555 1531
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 1383
+userpassword: rascal
+
+dn: cn=Richard Bannister, ou=Human Resources, o=Ace Industry, c=US
+cn: Richard Bannister
+sn: Bannister
+givenname: Richard
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: rbannist
+mail: rbannist@aceindustry.com
+telephonenumber: +1 408 555 1833
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 0983
+userpassword: demonstrate
+
+dn: cn=Brian Plante, ou=Human Resources, o=Ace Industry, c=US
+cn: Brian Plante
+sn: Plante
+givenname: Brian
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: bplante
+mail: bplante@aceindustry.com
+telephonenumber: +1 408 555 3550
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 4654
+userpassword: tangerine
+
+dn: cn=Randy Mills, ou=Accounting, o=Ace Industry, c=US
+cn: Randy Mills
+sn: Mills
+givenname: Randy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: rmills
+mail: rmills@aceindustry.com
+telephonenumber: +1 408 555 2072
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 3823
+userpassword: condescend
+
+dn: cn=Benjamin Schneider, ou=Product Testing, o=Ace Industry, c=US
+cn: Benjamin Schneider
+sn: Schneider
+givenname: Benjamin
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: bschneid
+mail: bschneid@aceindustry.com
+telephonenumber: +1 408 555 1012
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 4471
+userpassword: biblical
+
+dn: cn=Sue Kelleher, ou=Payroll, o=Ace Industry, c=US
+cn: Sue Kelleher
+sn: Kelleher
+givenname: Sue
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: skellehe
+mail: skellehe@aceindustry.com
+telephonenumber: +1 408 555 3480
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 1608
+userpassword: sweltering
+
+dn: cn=Bertram Rentz, ou=Product Testing, o=Ace Industry, c=US
+cn: Bertram Rentz
+sn: Rentz
+givenname: Bertram
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: brentz
+mail: brentz@aceindustry.com
+telephonenumber: +1 408 555 5526
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 0617
+userpassword: diachronic
+
+dn: cn=Daniel Smith, ou=Human Resources, o=Ace Industry, c=US
+cn: Daniel Smith
+sn: Smith
+givenname: Daniel
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: dsmith
+mail: dsmith@aceindustry.com
+telephonenumber: +1 408 555 9519
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 0368
+userpassword: quantitative
+
+dn: cn=Stephen Carter, ou=Product Development, o=Ace Industry, c=US
+cn: Stephen Carter
+sn: Carter
+givenname: Stephen
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: scarte2
+mail: scarte2@aceindustry.com
+telephonenumber: +1 408 555 6022
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 2013
+userpassword: scooter
+
+dn: cn=David Thorud, ou=Accounting, o=Ace Industry, c=US
+cn: David Thorud
+sn: Thorud
+givenname: David
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: dthorud
+mail: dthorud@aceindustry.com
+telephonenumber: +1 408 555 6185
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 1128
+userpassword: fulcrum
+
+dn: cn=Elba Kohler, ou=Accounting, o=Ace Industry, c=US
+cn: Elba Kohler
+sn: Kohler
+givenname: Elba
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: ekohler
+mail: ekohler@aceindustry.com
+telephonenumber: +1 408 555 1926
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 2721
+userpassword: guildhall
+
+dn: cn=Laurel Campbell, ou=Accounting, o=Ace Industry, c=US
+cn: Laurel Campbell
+sn: Campbell
+givenname: Laurel
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: lcampbel
+mail: lcampbel@aceindustry.com
+telephonenumber: +1 408 555 2537
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 2073
+userpassword: impress
+
+dn: cn=Tim Labonte, ou=Human Resources, o=Ace Industry, c=US
+cn: Tim Labonte
+sn: Labonte
+givenname: Tim
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: tlabonte
+mail: tlabonte@aceindustry.com
+telephonenumber: +1 408 555 0058
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 1426
+userpassword: express
+
+dn: cn=Scott Lee, ou=Human Resources, o=Ace Industry, c=US
+cn: Scott Lee
+sn: Lee
+givenname: Scott
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: slee
+mail: slee@aceindustry.com
+telephonenumber: +1 408 555 2335
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 1806
+userpassword: revertive
+
+dn: cn=Bjorn Free, ou=Human Resources, o=Ace Industry, c=US
+cn: Bjorn Free
+sn: Free
+givenname: Bjorn
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: bfree
+mail: bfree@aceindustry.com
+telephonenumber: +1 408 555 8588
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 3307
+userpassword: etiquette
+
+dn: cn=Torrey Schneider, ou=Accounting, o=Ace Industry, c=US
+cn: Torrey Schneider
+sn: Schneider
+givenname: Torrey
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: tschneid
+mail: tschneid@aceindustry.com
+telephonenumber: +1 408 555 7086
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 2292
+userpassword: chaperone
+
+dn: cn=Paula Rose, ou=Accounting, o=Ace Industry, c=US
+cn: Paula Rose
+sn: Rose
+givenname: Paula
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: prose
+mail: prose@aceindustry.com
+telephonenumber: +1 408 555 9998
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 0542
+userpassword: regatta
+
+dn: cn=Janet Hunter, ou=Product Development, o=Ace Industry, c=US
+cn: Janet Hunter
+sn: Hunter
+givenname: Janet
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: jhunter
+mail: jhunter@aceindustry.com
+telephonenumber: +1 408 555 7665
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 4856
+userpassword: nanometer
+
+dn: cn=Alexander Shelton, ou=Human Resources, o=Ace Industry, c=US
+cn: Alexander Shelton
+sn: Shelton
+givenname: Alexander
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: ashelton
+mail: ashelton@aceindustry.com
+telephonenumber: +1 408 555 1081
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 1987
+userpassword: appointe
+
+dn: cn=Marcus Mcinnis, ou=Product Development, o=Ace Industry, c=US
+cn: Marcus Mcinnis
+sn: Mcinnis
+givenname: Marcus
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: mmcinnis
+mail: mmcinnis@aceindustry.com
+telephonenumber: +1 408 555 9655
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 4818
+userpassword: calcify
+
+dn: cn=Frank Albers, ou=Accounting, o=Ace Industry, c=US
+cn: Frank Albers
+sn: Albers
+givenname: Frank
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: falbers
+mail: falbers@aceindustry.com
+telephonenumber: +1 408 555 3094
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 1439
+userpassword: degradation
+
+dn: cn=Martin Schneider, ou=Accounting, o=Ace Industry, c=US
+cn: Martin Schneider
+sn: Schneider
+givenname: Martin
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: mschneid
+mail: mschneid@aceindustry.com
+telephonenumber: +1 408 555 5017
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 3153
+userpassword: motorcycle
+
+dn: cn=Patricia Cruse, ou=Product Testing, o=Ace Industry, c=US
+cn: Patricia Cruse
+sn: Cruse
+givenname: Patricia
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: pcruse
+mail: pcruse@aceindustry.com
+telephonenumber: +1 408 555 8641
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 3967
+userpassword: pauper
+
+dn: cn=Timothy Kelly, ou=Product Development, o=Ace Industry, c=US
+cn: Timothy Kelly
+sn: Kelly
+givenname: Timothy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: tkelly
+mail: tkelly@aceindustry.com
+telephonenumber: +1 408 555 4295
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 3107
+userpassword: risible
+
+dn: cn=Andrew Hel, ou=Accounting, o=Ace Industry, c=US
+cn: Andrew Hel
+sn: Hel
+givenname: Andrew
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: ahel
+mail: ahel@aceindustry.com
+telephonenumber: +1 408 555 2666
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 0572
+userpassword: sarsaparilla
+
+dn: cn=James Burrell, ou=Human Resources, o=Ace Industry, c=US
+cn: James Burrell
+sn: Burrell
+givenname: James
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: jburrell
+mail: jburrell@aceindustry.com
+telephonenumber: +1 408 555 0751
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 4926
+userpassword: degrease
+
+dn: cn=Sue Mason, ou=Product Development, o=Ace Industry, c=US
+cn: Sue Mason
+sn: Mason
+givenname: Sue
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: smason
+mail: smason@aceindustry.com
+telephonenumber: +1 408 555 9780
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 4971
+userpassword: sensible
+
+dn: cn=Pete Tyler, ou=Accounting, o=Ace Industry, c=US
+cn: Pete Tyler
+sn: Tyler
+givenname: Pete
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: ptyler
+mail: ptyler@aceindustry.com
+telephonenumber: +1 408 555 3335
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 0327
+userpassword: vinegar
+
+dn: cn=Chris Alexander, ou=Product Development, o=Ace Industry, c=US
+cn: Chris Alexander
+sn: Alexander
+givenname: Chris
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Sunnyvale
+uid: calexand
+mail: calexand@aceindustry.com
+telephonenumber: +1 408 555 9438
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 2884
+userpassword: dauphin
+
+dn: cn=Jim Cruse, ou=Payroll, o=Ace Industry, c=US
+cn: Jim Cruse
+sn: Cruse
+givenname: Jim
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: jcruse
+mail: jcruse@aceindustry.com
+telephonenumber: +1 408 555 9482
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 0083
+userpassword: bridgework
+
+dn: cn=Karen Carter, ou=Human Resources, o=Ace Industry, c=US
+cn: Karen Carter
+sn: Carter
+givenname: Karen
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: kcarter
+mail: kcarter@aceindustry.com
+telephonenumber: +1 408 555 4675
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 2320
+userpassword: radiosonde
+
+dn: cn=Randy Fish, ou=Human Resources, o=Ace Industry, c=US
+cn: Randy Fish
+sn: Fish
+givenname: Randy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: rfish
+mail: rfish@aceindustry.com
+telephonenumber: +1 408 555 9865
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 2317
+userpassword: mailbox
+
+dn: cn=Philip Hunt, ou=Human Resources, o=Ace Industry, c=US
+cn: Philip Hunt
+sn: Hunt
+givenname: Philip
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: phunt
+mail: phunt@aceindustry.com
+telephonenumber: +1 408 555 1242
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 1183
+userpassword: wastewater
+
+dn: cn=Rachel Schneider, ou=Human Resources, o=Ace Industry, c=US
+cn: Rachel Schneider
+sn: Schneider
+givenname: Rachel
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: rschneid
+mail: rschneid@aceindustry.com
+telephonenumber: +1 408 555 9908
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 4183
+userpassword: decorous
+
+dn: cn=Barbara Jensen, ou=Product Development, o=Ace Industry, c=US
+cn: Barbara Jensen
+cn: Babs Jensen
+sn: Jensen
+givenname: Barbara
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: bjensen
+mail: bjensen@aceindustry.com
+telephonenumber: +1 408 555 1862
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 0209
+userpassword: hifalutin
+
+dn: cn=Jim Lange, ou=Product Testing, o=Ace Industry, c=US
+cn: Jim Lange
+sn: Lange
+givenname: Jim
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: jlange
+mail: jlange@aceindustry.com
+telephonenumber: +1 408 555 0488
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 3798
+userpassword: chastity
+
+dn: cn=Randy Ulrich, ou=Accounting, o=Ace Industry, c=US
+cn: Randy Ulrich
+sn: Ulrich
+givenname: Randy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: rulrich
+mail: rulrich@aceindustry.com
+telephonenumber: +1 408 555 5311
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 1282
+userpassword: twinkle
+
+dn: cn=Richard Francis, ou=Accounting, o=Ace Industry, c=US
+cn: Richard Francis
+sn: Francis
+givenname: Richard
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: rfrancis
+mail: rfrancis@aceindustry.com
+telephonenumber: +1 408 555 8157
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 3482
+userpassword: hacienda
+
+dn: cn=Morgan White, ou=Accounting, o=Ace Industry, c=US
+cn: Morgan White
+sn: White
+givenname: Morgan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: mwhite
+mail: mwhite@aceindustry.com
+telephonenumber: +1 408 555 9620
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 3088
+userpassword: staple
+
+dn: cn=Gern Jensen, ou=Human Resources, o=Ace Industry, c=US
+cn: Gern Jensen
+sn: Jensen
+givenname: Gern
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: gjensen
+mail: gjensen@aceindustry.com
+telephonenumber: +1 408 555 3299
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 4609
+userpassword: primitive
+
+dn: cn=Alan White, ou=Product Testing, o=Ace Industry, c=US
+cn: Alan White
+sn: White
+givenname: Alan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: awhite
+mail: awhite@aceindustry.com
+telephonenumber: +1 408 555 3232
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 0142
+userpassword: placeholder
+
+dn: cn=Barbara Maddox, ou=Accounting, o=Ace Industry, c=US
+cn: Barbara Maddox
+sn: Maddox
+givenname: Barbara
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: bmaddox
+mail: bmaddox@aceindustry.com
+telephonenumber: +1 408 555 7783
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 2207
+userpassword: feedback
+
+dn: cn=Martin Talbot, ou=Product Development, o=Ace Industry, c=US
+cn: Martin Talbot
+sn: Talbot
+givenname: Martin
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: mtalbot
+mail: mtalbot@aceindustry.com
+telephonenumber: +1 408 555 9228
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 1415
+userpassword: currant
+
+dn: cn=Judy Brown, ou=Payroll, o=Ace Industry, c=US
+cn: Judy Brown
+sn: Brown
+givenname: Judy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: jbrown
+mail: jbrown@aceindustry.com
+telephonenumber: +1 408 555 6885
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 4224
+userpassword: militiamen
+
+dn: cn=Jody Jensen, ou=Accounting, o=Ace Industry, c=US
+cn: Jody Jensen
+sn: Jensen
+givenname: Jody
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: jjensen
+mail: jjensen@aceindustry.com
+telephonenumber: +1 408 555 7587
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 4882
+userpassword: borderland
+
+dn: cn=Mike Carter, ou=Accounting, o=Ace Industry, c=US
+cn: Mike Carter
+sn: Carter
+givenname: Mike
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: mcarter
+mail: mcarter@aceindustry.com
+telephonenumber: +1 408 555 1846
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 3819
+userpassword: mainland
+
+dn: cn=David Akers, ou=Human Resources, o=Ace Industry, c=US
+cn: David Akers
+sn: Akers
+givenname: David
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: dakers
+mail: dakers@aceindustry.com
+telephonenumber: +1 408 555 4812
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 4944
+userpassword: integument
+
+dn: cn=Scott Farmer, ou=Product Development, o=Ace Industry, c=US
+cn: Scott Farmer
+sn: Farmer
+givenname: Scott
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: sfarmer
+mail: sfarmer@aceindustry.com
+telephonenumber: +1 408 555 4228
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 0019
+userpassword: triumphal
+
+dn: cn=Daniel Ward, ou=Product Testing, o=Ace Industry, c=US
+cn: Daniel Ward
+sn: Ward
+givenname: Daniel
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: dward
+mail: dward@aceindustry.com
+telephonenumber: +1 408 555 5322
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 3927
+userpassword: armload
+
+dn: cn=Tobias Ward, ou=Human Resources, o=Ace Industry, c=US
+cn: Tobias Ward
+sn: Ward
+givenname: Tobias
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: tward
+mail: tward@aceindustry.com
+telephonenumber: +1 408 555 7202
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 2238
+userpassword: cedilla
+
+dn: cn=Patricia Shelton, ou=Payroll, o=Ace Industry, c=US
+cn: Patricia Shelton
+sn: Shelton
+givenname: Patricia
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Cupertino
+uid: pshelton
+mail: pshelton@aceindustry.com
+telephonenumber: +1 408 555 6442
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 2918
+userpassword: nosedive
+
+dn: cn=Jody Rentz, ou=Human Resources, o=Ace Industry, c=US
+cn: Jody Rentz
+sn: Rentz
+givenname: Jody
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: jrentz
+mail: jrentz@aceindustry.com
+telephonenumber: +1 408 555 5829
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 3025
+userpassword: meander
+
+dn: cn=Peter Lorig, ou=Human Resources, o=Ace Industry, c=US
+cn: Peter Lorig
+sn: Lorig
+givenname: Peter
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: plorig
+mail: plorig@aceindustry.com
+telephonenumber: +1 408 555 0624
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 1276
+userpassword: calorimeter
+
+dn: cn=Allison Jensen, ou=Product Development, o=Ace Industry, c=US
+cn: Allison Jensen
+sn: Jensen
+givenname: Allison
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: ajensen
+mail: ajensen@aceindustry.com
+telephonenumber: +1 408 555 7892
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 0784
+userpassword: coltsfoot
+
+dn: cn=Kelly Schmith, ou=Human Resources, o=Ace Industry, c=US
+cn: Kelly Schmith
+sn: Schmith
+givenname: Kelly
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: kschmith
+mail: kschmith@aceindustry.com
+telephonenumber: +1 408 555 9749
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 2221
+userpassword: purvey
+
+dn: cn=Pete Worrell, ou=Human Resources, o=Ace Industry, c=US
+cn: Pete Worrell
+sn: Worrell
+givenname: Pete
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: pworrell
+mail: pworrell@aceindustry.com
+telephonenumber: +1 408 555 1637
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 2449
+userpassword: solicitous
+
+dn: cn=Matthew Reuter, ou=Human Resources, o=Ace Industry, c=US
+cn: Matthew Reuter
+sn: Reuter
+givenname: Matthew
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: mreuter
+mail: mreuter@aceindustry.com
+telephonenumber: +1 408 555 6879
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 1356
+userpassword: oblivious
+
+dn: cn=Gern Tyler, ou=Accounting, o=Ace Industry, c=US
+cn: Gern Tyler
+sn: Tyler
+givenname: Gern
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: gtyler
+mail: gtyler@aceindustry.com
+telephonenumber: +1 408 555 1020
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 0312
+userpassword: typology
+
+dn: cn=Tobias Schmith, ou=Human Resources, o=Ace Industry, c=US
+cn: Tobias Schmith
+sn: Schmith
+givenname: Tobias
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: tschmith
+mail: tschmith@aceindustry.com
+telephonenumber: +1 408 555 9626
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 4607
+userpassword: compost
+
+dn: cn=Bjorn Jensen, ou=Accounting, o=Ace Industry, c=US
+cn: Bjorn Jensen
+sn: Jensen
+givenname: Bjorn
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: bjense2
+mail: bjense2@aceindustry.com
+telephonenumber: +1 408 555 5655
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 4294
+userpassword: mortgage
+
+dn: cn=Dietrich Swain, ou=Payroll, o=Ace Industry, c=US
+cn: Dietrich Swain
+sn: Swain
+givenname: Dietrich
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Sunnyvale
+uid: dswain
+mail: dswain@aceindustry.com
+telephonenumber: +1 408 555 9222
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 4396
+userpassword: freedom
+
+dn: cn=Andy Hall, ou=Accounting, o=Ace Industry, c=US
+cn: Andy Hall
+sn: Hall
+givenname: Andy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: ahall
+mail: ahall@aceindustry.com
+telephonenumber: +1 408 555 6169
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 3050
+userpassword: slater
+
+dn: cn=Jeff Muffly, ou=Product Development, o=Ace Industry, c=US
+cn: Jeff Muffly
+sn: Muffly
+givenname: Jeff
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: jmuffly
+mail: jmuffly@aceindustry.com
+telephonenumber: +1 408 555 5287
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 0997
+userpassword: dictate
+
+dn: cn=Ted Jensen, ou=Accounting, o=Ace Industry, c=US
+cn: Ted Jensen
+sn: Jensen
+givenname: Ted
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: tjensen
+mail: tjensen@aceindustry.com
+telephonenumber: +1 408 555 8622
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 4717
+userpassword: ecosystem
+
+dn: cn=Allison Hunter, ou=Payroll, o=Ace Industry, c=US
+cn: Allison Hunter
+sn: Hunter
+givenname: Allison
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Sunnyvale
+uid: ahunter
+mail: ahunter@aceindustry.com
+telephonenumber: +1 408 555 7713
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 1213
+userpassword: egregious
+
+dn: cn=Jon Goldstein, ou=Human Resources, o=Ace Industry, c=US
+cn: Jon Goldstein
+sn: Goldstein
+givenname: Jon
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: jgoldste
+mail: jgoldste@aceindustry.com
+telephonenumber: +1 408 555 5769
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 1454
+userpassword: yellow
+
+dn: cn=Alan Worrell, ou=Product Development, o=Ace Industry, c=US
+cn: Alan Worrell
+sn: Worrell
+givenname: Alan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: aworrell
+mail: aworrell@aceindustry.com
+telephonenumber: +1 408 555 1591
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 3966
+userpassword: gargoyle
+
+dn: cn=Wendy Lutz, ou=Accounting, o=Ace Industry, c=US
+cn: Wendy Lutz
+sn: Lutz
+givenname: Wendy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: wlutz
+mail: wlutz@aceindustry.com
+telephonenumber: +1 408 555 3358
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 4912
+userpassword: bassinet
+
+dn: cn=Janet Lutz, ou=Human Resources, o=Ace Industry, c=US
+cn: Janet Lutz
+sn: Lutz
+givenname: Janet
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: jlutz
+mail: jlutz@aceindustry.com
+telephonenumber: +1 408 555 4902
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 2544
+userpassword: autumn
+
+dn: cn=Dan Langdon, ou=Product Development, o=Ace Industry, c=US
+cn: Dan Langdon
+sn: Langdon
+givenname: Dan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: dlangdon
+mail: dlangdon@aceindustry.com
+telephonenumber: +1 408 555 7044
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 3263
+userpassword: botulin
+
+dn: cn=Ashley Knutson, ou=Product Development, o=Ace Industry, c=US
+cn: Ashley Knutson
+sn: Knutson
+givenname: Ashley
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: aknutson
+mail: aknutson@aceindustry.com
+telephonenumber: +1 408 555 2169
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 4736
+userpassword: maltose
+
+dn: cn=Kelly Mcinnis, ou=Accounting, o=Ace Industry, c=US
+cn: Kelly Mcinnis
+sn: Mcinnis
+givenname: Kelly
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: kmcinnis
+mail: kmcinnis@aceindustry.com
+telephonenumber: +1 408 555 8596
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 4312
+userpassword: stargaze
+
+dn: cn=Trent Couzens, ou=Accounting, o=Ace Industry, c=US
+cn: Trent Couzens
+sn: Couzens
+givenname: Trent
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Sunnyvale
+uid: tcouzens
+mail: tcouzens@aceindustry.com
+telephonenumber: +1 408 555 8401
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 3994
+userpassword: tambourine
+
+dn: cn=Lee Stockton, ou=Product Testing, o=Ace Industry, c=US
+cn: Lee Stockton
+sn: Stockton
+givenname: Lee
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: lstockto
+mail: lstockto@aceindustry.com
+telephonenumber: +1 408 555 0518
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 0169
+userpassword: brooklyn
+
+dn: cn=Jon Bourke, ou=Product Development, o=Ace Industry, c=US
+cn: Jon Bourke
+sn: Bourke
+givenname: Jon
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Cupertino
+uid: jbourke
+mail: jbourke@aceindustry.com
+telephonenumber: +1 408 555 8541
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 0034
+userpassword: brainwash
+
+dn: cn=Dan Lanoway, ou=Accounting, o=Ace Industry, c=US
+cn: Dan Lanoway
+sn: Lanoway
+givenname: Dan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: dlanoway
+mail: dlanoway@aceindustry.com
+telephonenumber: +1 408 555 2017
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 3540
+userpassword: manhattan
+
+dn: cn=Karl Cope, ou=Human Resources, o=Ace Industry, c=US
+cn: Karl Cope
+sn: Cope
+givenname: Karl
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: kcope
+mail: kcope@aceindustry.com
+telephonenumber: +1 408 555 2709
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 3040
+userpassword: forfeiture
+
+dn: cn=Anne-Louise Barnes, ou=Payroll, o=Ace Industry, c=US
+cn: Anne-Louise Barnes
+sn: Barnes
+givenname: Anne-Louise
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: abarnes
+mail: abarnes@aceindustry.com
+telephonenumber: +1 408 555 9445
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 2290
+userpassword: chevron
+
+dn: cn=Richard Jensen, ou=Accounting, o=Ace Industry, c=US
+cn: Richard Jensen
+sn: Jensen
+givenname: Richard
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: rjensen
+mail: rjensen@aceindustry.com
+telephonenumber: +1 408 555 5957
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 2631
+userpassword: disciplinarian
+
+dn: cn=Pete Hunt, ou=Product Development, o=Ace Industry, c=US
+cn: Pete Hunt
+sn: Hunt
+givenname: Pete
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: phun2
+mail: phun2@aceindustry.com
+telephonenumber: +1 408 555 0342
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 0087
+userpassword: absorb
+
+dn: cn=Matthew Vaughan, ou=Product Testing, o=Ace Industry, c=US
+cn: Matthew Vaughan
+sn: Vaughan
+givenname: Matthew
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: mvaughan
+mail: mvaughan@aceindustry.com
+telephonenumber: +1 408 555 4692
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 4508
+userpassword: submitted
+
+dn: cn=James Lutz, ou=Human Resources, o=Ace Industry, c=US
+cn: James Lutz
+sn: Lutz
+givenname: James
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: jlut2
+mail: jlut2@aceindustry.com
+telephonenumber: +1 408 555 9689
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 3541
+userpassword: shrank
+
+dn: cn=Morgan Jablonski, ou=Accounting, o=Ace Industry, c=US
+cn: Morgan Jablonski
+sn: Jablonski
+givenname: Morgan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: mjablons
+mail: mjablons@aceindustry.com
+telephonenumber: +1 408 555 0813
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 3160
+userpassword: minimal
+
+dn: cn=Peter Chassin, ou=Payroll, o=Ace Industry, c=US
+cn: Peter Chassin
+sn: Chassin
+givenname: Peter
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: pchassin
+mail: pchassin@aceindustry.com
+telephonenumber: +1 408 555 2816
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 4524
+userpassword: barbital
+
+dn: cn=Dan Cope, ou=Product Development, o=Ace Industry, c=US
+cn: Dan Cope
+sn: Cope
+givenname: Dan
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Sunnyvale
+uid: dcope
+mail: dcope@aceindustry.com
+telephonenumber: +1 408 555 9813
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 1737
+userpassword: snifter
+
+dn: cn=Judy Rentz, ou=Payroll, o=Ace Industry, c=US
+cn: Judy Rentz
+sn: Rentz
+givenname: Judy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Santa Clara
+uid: jrent2
+mail: jrent2@aceindustry.com
+telephonenumber: +1 408 555 2523
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 4405
+userpassword: tachistoscope
+
+dn: cn=Tobias Cruse, ou=Human Resources, o=Ace Industry, c=US
+cn: Tobias Cruse
+sn: Cruse
+givenname: Tobias
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: tcruse
+mail: tcruse@aceindustry.com
+telephonenumber: +1 408 555 5980
+facsimiletelephonenumber: +1 408 555 4774
+roomnumber: 4191
+userpassword: flinty
+
+dn: cn=Eric Ward, ou=Human Resources, o=Ace Industry, c=US
+cn: Eric Ward
+sn: Ward
+givenname: Eric
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: eward
+mail: eward@aceindustry.com
+telephonenumber: +1 408 555 2320
+facsimiletelephonenumber: +1 408 555 7472
+roomnumber: 4874
+userpassword: episcopal
+
+dn: cn=Torrey Tully, ou=Human Resources, o=Ace Industry, c=US
+cn: Torrey Tully
+sn: Tully
+givenname: Torrey
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: ttully
+mail: ttully@aceindustry.com
+telephonenumber: +1 408 555 2274
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 3924
+userpassword: schooner
+
+dn: cn=Cecil Harvey, ou=Product Development, o=Ace Industry, c=US
+cn: Cecil Harvey
+sn: Harvey
+givenname: Cecil
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: charvey
+mail: charvey@aceindustry.com
+telephonenumber: +1 408 555 1815
+facsimiletelephonenumber: +1 408 555 3825
+roomnumber: 4583
+userpassword: journalese
+
+dn: cn=Randy Fisher, ou=Human Resources, o=Ace Industry, c=US
+cn: Randy Fisher
+sn: Fisher
+givenname: Randy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: rfisher
+mail: rfisher@aceindustry.com
+telephonenumber: +1 408 555 1506
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 1579
+userpassword: pomegranate
+
+dn: cn=Andrew Langdon, ou=Product Development, o=Ace Industry, c=US
+cn: Andrew Langdon
+sn: Langdon
+givenname: Andrew
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: alangdon
+mail: alangdon@aceindustry.com
+telephonenumber: +1 408 555 8289
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 2254
+userpassword: muzzle
+
+dn: cn=David Rose, ou=Product Testing, o=Ace Industry, c=US
+cn: David Rose
+sn: Rose
+givenname: David
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: drose
+mail: drose@aceindustry.com
+telephonenumber: +1 408 555 3963
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 4012
+userpassword: gubernatorial
+
+dn: cn=Peter Olfield, ou=Human Resources, o=Ace Industry, c=US
+cn: Peter Olfield
+sn: Olfield
+givenname: Peter
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: polfield
+mail: polfield@aceindustry.com
+telephonenumber: +1 408 555 8231
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 1376
+userpassword: monologue
+
+dn: cn=Andy Walker, ou=Accounting, o=Ace Industry, c=US
+cn: Andy Walker
+sn: Walker
+givenname: Andy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Cupertino
+uid: awalker
+mail: awalker@aceindustry.com
+telephonenumber: +1 408 555 9199
+facsimiletelephonenumber: +1 408 555 3372
+roomnumber: 0061
+userpassword: detonable
+
+dn: cn=Lex Rentz, ou=Human Resources, o=Ace Industry, c=US
+cn: Lex Rentz
+sn: Rentz
+givenname: Lex
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: lrentz
+mail: lrentz@aceindustry.com
+telephonenumber: +1 408 555 2019
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 2203
+userpassword: calcium
+
+dn: cn=Jeff Vaughan, ou=Human Resources, o=Ace Industry, c=US
+cn: Jeff Vaughan
+sn: Vaughan
+givenname: Jeff
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: jvaughan
+mail: jvaughan@aceindustry.com
+telephonenumber: +1 408 555 4543
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 1734
+userpassword: appoint
+
+dn: cn=Barbara Francis, ou=Human Resources, o=Ace Industry, c=US
+cn: Barbara Francis
+sn: Francis
+givenname: Barbara
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Santa Clara
+uid: bfrancis
+mail: bfrancis@aceindustry.com
+telephonenumber: +1 408 555 9111
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 3743
+userpassword: holystone
+
+dn: cn=Eric Walker, ou=Payroll, o=Ace Industry, c=US
+cn: Eric Walker
+sn: Walker
+givenname: Eric
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Payroll
+l: Cupertino
+uid: ewalker
+mail: ewalker@aceindustry.com
+telephonenumber: +1 408 555 6387
+facsimiletelephonenumber: +1 408 555 8721
+roomnumber: 2295
+userpassword: beguile
+
+dn: cn=Tobias James, ou=Accounting, o=Ace Industry, c=US
+cn: Tobias James
+sn: James
+givenname: Tobias
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: tjames
+mail: tjames@aceindustry.com
+telephonenumber: +1 408 555 2458
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 0730
+userpassword: turtle
+
+dn: cn=Bjorn Rigden, ou=Human Resources, o=Ace Industry, c=US
+cn: Bjorn Rigden
+sn: Rigden
+givenname: Bjorn
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Sunnyvale
+uid: brigden
+mail: brigden@aceindustry.com
+telephonenumber: +1 408 555 5263
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 1643
+userpassword: purple
+
+dn: cn=Eric Cruse, ou=Product Testing, o=Ace Industry, c=US
+cn: Eric Cruse
+sn: Cruse
+givenname: Eric
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: ecruse
+mail: ecruse@aceindustry.com
+telephonenumber: +1 408 555 0648
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 4233
+userpassword: platelet
+
+dn: cn=Randy Jensen, ou=Product Testing, o=Ace Industry, c=US
+cn: Randy Jensen
+sn: Jensen
+givenname: Randy
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Sunnyvale
+uid: rjense2
+mail: rjense2@aceindustry.com
+telephonenumber: +1 408 555 9045
+facsimiletelephonenumber: +1 408 555 1992
+roomnumber: 1984
+userpassword: transpose
+
+dn: cn=Richard Hunt, ou=Accounting, o=Ace Industry, c=US
+cn: Richard Hunt
+sn: Hunt
+givenname: Richard
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Accounting
+l: Santa Clara
+uid: rhunt
+mail: rhunt@aceindustry.com
+telephonenumber: +1 408 555 0139
+facsimiletelephonenumber: +1 408 555 8473
+roomnumber: 0718
+userpassword: becloud
+
+dn: cn=Barry Parker, ou=Product Development, o=Ace Industry, c=US
+cn: Barry Parker
+sn: Parker
+givenname: Barry
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Sunnyvale
+uid: bparker
+mail: bparker@aceindustry.com
+telephonenumber: +1 408 555 4647
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 1148
+userpassword: lenticular
+
+dn: cn=Erin Alexander, ou=Product Testing, o=Ace Industry, c=US
+cn: Erin Alexander
+sn: Alexander
+givenname: Erin
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: ealexand
+mail: ealexand@aceindustry.com
+telephonenumber: +1 408 555 5563
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 2434
+userpassword: galactose
+
+dn: cn=Matthew Tyler, ou=Human Resources, o=Ace Industry, c=US
+cn: Matthew Tyler
+sn: Tyler
+givenname: Matthew
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Human Resources
+l: Cupertino
+uid: mtyler
+mail: mtyler@aceindustry.com
+telephonenumber: +1 408 555 7907
+facsimiletelephonenumber: +1 408 555 4661
+roomnumber: 2701
+userpassword: instantiate
+
+dn: cn=Emanuel Lott, ou=Product Testing, o=Ace Industry, c=US
+cn: Emanuel Lott
+sn: Lott
+givenname: Emanuel
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Testing
+l: Santa Clara
+uid: elott
+mail: elott@aceindustry.com
+telephonenumber: +1 408 555 0932
+facsimiletelephonenumber: +1 408 555 9751
+roomnumber: 3906
+userpassword: holdout
+
+dn: cn=Christoph Newport, ou=Product Development, o=Ace Industry, c=US
+cn: Christoph Newport
+sn: Newport
+givenname: Christoph
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Sunnyvale
+uid: cnewport
+mail: cnewport@aceindustry.com
+telephonenumber: +1 408 555 0066
+facsimiletelephonenumber: +1 408 555 9332
+roomnumber: 0056
+userpassword: expertise
+
+dn: cn=Jeff Vedder, ou=Product Development, o=Ace Industry, c=US
+cn: Jeff Vedder
+sn: Vedder
+givenname: Jeff
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+ou: Product Development
+l: Santa Clara
+uid: jvedder
+mail: jvedder@aceindustry.com
+telephonenumber: +1 408 555 4668
+facsimiletelephonenumber: +1 408 555 0111
+roomnumber: 3445
+userpassword: befitting

@@ -1,0 +1,13 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+DESCRIPTION		'Directory Server 6.2.1 Local Credentials Reversible Encryption Plugin'
+EXPORTS
+	des_cmp @2
+	des_enc @3
+	des_dec @4
+	des_init @5
+	migrateCredentials @6

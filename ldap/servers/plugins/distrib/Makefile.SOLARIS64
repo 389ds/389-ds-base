@@ -1,0 +1,30 @@
+#
+# PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+# license terms. Copyright 2001 Sun Microsystems, Inc.
+# Some preexisting portions Copyright 2001 Netscape Communications Corp.
+# All rights reserved.
+# 
+# SOLARIS Makefile for Directory Server plug-in examples
+#
+
+CC = cc
+LD = ld 
+
+INCLUDE_FLAGS = -I../../include
+CFLAGS = $(INCLUDE_FLAGS) -D_REENTRANT -KPIC -xarch=v9
+LDFLAGS = -G -xarch=v9
+
+OBJS = distrib.o
+
+all: libtest-plugin.so
+
+
+libtest-plugin.so: $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin.so
+

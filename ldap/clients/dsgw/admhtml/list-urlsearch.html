@@ -1,0 +1,39 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "URL-based Search" -->
+<CENTER><FONT SIZE=+1>
+Found
+<!-- DS_SEARCHDESC -->
+</FONT></CENTER>
+<P>
+
+<!-- IF "FoundEntries" -->
+<TABLE BORDER=1 CELLPADDING=4 WIDTH=100%>
+<TR><TH>Name <TH>Phone Number <TH>E-Mail Address
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" -->
+<TD>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" -->
+<TD>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" -->
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<CENTER><FONT SIZE=+1>
+Please try a different search.
+</FONT></CENTER>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->

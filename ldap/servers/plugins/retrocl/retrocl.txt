@@ -1,0 +1,107 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+Changelog user documentation
+Last Updated October 6, 2000
+
+1. Introduction
+
+This document describes a how DS 6.0 provides a change log broadly 
+compatible with the Internet Draft draft-good-ldap-changelog-01.txt.
+
+When enabled, the change log appears in the DIT below cn=changelog. It 
+consists of a single level of entries, each of class changeLogEntry.  This
+object class allows the following attributes:
+ - changeNumber. This attribute is always present and contains a single
+   value, an integer which is unique for each change.  The value for later
+   changes is larger than those of any change which is already present.
+ - targetDN.  This attribute contains the distinguished name of the entry
+   which was added, modified or deleted.  In the case of a ModifyDN operation,
+   the targetDN attribute contains the DN of the entry before it was renamed
+   or moved.
+ - changeType. This attribute contains one of the following values: "add",
+   "delete", "modify" or "modrdn".
+ - changes.  This attribute contains the changes made to the entry, in LDIF
+   format, for a add or modify change.  
+ - newRDN.  This attribute contains the new RDN of the entry, for a modifyDN
+   change.
+ - deleteOldRDN.  This attribute contains whether the old RDN of the entry
+   was deleted, for a modifyDN change.
+ - newSuperior.  This attribute contains the newSuperior field of the entry,
+   for a modifyDN change.
+
+The change log is implemented in an LDBM database.
+
+2. Configuration
+
+To enable the change log, the following steps should be performed.  First, 
+change the nsslapd-pluginenabled attribute of the DSE cn=Retrocl Plugin, 
+cn=plugins,cn=config to "on" instead of "off", Then start or restart the 
+server.  The server will automatically create the change log database.  
+
+3. Trimming
+
+The entries in the change log may be automatically removed if they are older
+than a specified period of time.  This is done by setting the 
+changelogmaximumage attribute in the change log plugin DSE cn=Retrocl Plugin, 
+cn=plugins,cn=config and restarting the server.  If this attribute is not
+present, then changed are not trimmed.
+
+The changelogmaximumage attribute is single-valued, and its value consists of
+two parts: a number and a time units code.  The time units codes are:
+ - 's' for seconds,
+ - 'm' for minutes,
+ - 'h' for hours,
+ - 'd' for days,
+ - 'w' for weeks.
+
+For example, 
+
+changelogmaximumage: 2d
+
+The minimum value is 5 minutes.
+
+4. Access Control
+
+When the changelog backend is created, the default access control is to allow 
+anonymous read, search and compare to the changelog base entry, cn=changelog,
+by anyone.  No access is granted, except implicitly to the Directory Manager, 
+to any of the entries in the change log. 
+
+Read access to the entries in the change log should not be granted to anonymous
+users, as the changes attribute could contain modifications to sensitive 
+attribute values (such as passwords).  Only authenticated services should be
+allowed to access this information.
+
+5. Protocol interaction
+
+All search and compare operations are supported on the change log database.
+Search operations whose filter is of the form 
+(&(changenumber>=X)(changeNumber<=Y) are optimized. 
+
+Add or modify operations should not be performed on change log entries in the 
+change log database.  Change log entries can be deleted if desired.  The 
+change log base entry, cn=changelog, can be modified if desired, to vary the
+access control policy of the change log database.
+
+6. Caveats
+
+The change log does not currently record changes which are internally 
+constructed to resolve conflicts during multi-master replication.  As a 
+result, the change log should not be used in deployments which use multi-master
+replication with more than two masters or suppliers for a database.
+
+==
+
+root dse firstchangenumber and lastchangenumber  
+
+changelogdir attribute
+
+test chaining be
+if changelog db deleted  - what happens?
+cannot change trim max age without restarting the server

@@ -1,0 +1,710 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Netscape\0"
+            VALUE "FileDescription", "Directory Server 7.0\0"
+            VALUE "FileVersion", "1, 0, 0, 1\0"
+            VALUE "InternalName", "Directory Server 7.0\0"
+            VALUE "LegalCopyright", "Copyright 2001 Sun Microsystems, Inc.  Portions copyright 1999, 2002 Netscape Communications Corporation.  All rights reserved.\0"
+            VALUE "OriginalFilename", "\0"
+            VALUE "ProductName", "Netscape Server Products\0"
+            VALUE "ProductVersion", "7, 0, 0, 0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MCC_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_HOST,158,68,103,13,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_EDIT_PORT,158,86,29,13,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_EDIT_SUFFIX,158,140,103,13,ES_AUTOHSCROLL | 
+                    WS_DISABLED
+    EDITTEXT        IDC_EDIT_BIND_AS,158,104,103,13,ES_AUTOHSCROLL | 
+                    WS_DISABLED
+    EDITTEXT        IDC_EDIT_PW,158,122,103,13,ES_PASSWORD | ES_AUTOHSCROLL | 
+                    WS_DISABLED
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "Host:",IDC_STATIC_MCC_HOST,136,70,17,8
+    LTEXT           "Port:",IDC_STATIC_MCC_PORT,137,88,16,8
+    LTEXT           "Suffix:",IDC_STATIC_MCC_SUFFIX,130,142,23,8
+    LTEXT           "Bind As:",IDC_STATIC_MCC_BIND_AS,126,106,27,8
+    LTEXT           "Password:",IDC_STATIC_MCC_PW,117,124,36,8
+    GROUPBOX        "Configuration Directory Server",IDC_STATIC_SETTINGS,91,
+                    37,191,121
+    CONTROL         "This instance will be the configuration directory server",
+                    IDC_RADIO_USE_THIS_SERVER,"Button",BS_AUTORADIOBUTTON,97,
+                    47,184,10
+    CONTROL         "Use existing configuration directory server",
+                    IDC_RADIO_USE_EXISTING_SERVER,"Button",
+                    BS_AUTORADIOBUTTON,97,57,165,10
+    LTEXT           "Netscape server information is stored in the Netscape configuration directory server, which you may have already set up.  If so, you should configure this server to be managed by the configuration server.",
+                    IDC_STATIC_DESC,92,3,172,33
+END
+
+IDD_ROOTDN DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Directory Manager Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    EDITTEXT        IDC_EDIT_UNRESTRICTED_USER,168,74,112,14,ES_AUTOHSCROLL
+    LTEXT           "Directory Manager DN:",IDC_STATIC_UNRESTRICTED_USER,88,
+                    74,73,8
+    LTEXT           "Password:",IDC_STATIC_PASSWORD,88,96,34,8
+    EDITTEXT        IDC_EDIT_PASSWORD,168,96,112,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    LTEXT           "Password (again):",IDC_STATIC_PASSWORD_AGAIN,88,119,57,
+                    8
+    EDITTEXT        IDC_EDIT_PASSWORD_AGAIN,168,119,111,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    GROUPBOX        "Directory Manager Settings",
+                    IDC_STATIC_UNRESTRICTED_USER_GROUPBOX,84,58,203,84
+    LTEXT           "Certain directory server operations require an administrative user.  This user is referred to as the Directory Manager and typically has a bind Distinguished Name (DN) of cn=Directory Manager.",
+                    IDC_STATIC_DM_DESC,84,11,202,26
+    LTEXT           "The password for the Directory Manager must be at least 8 characters long.",
+                    IDC_STATIC,84,39,202,18
+END
+
+IDD_SUITESPOTID DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION 
+"Directory Server 7.0 Netscape configuration directory server administrator "
+
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    EDITTEXT        IDC_EDIT_SUITESPOT_USER,173,51,114,14,ES_AUTOHSCROLL
+    LTEXT           "Configuration Directory Administrator ID:",
+                    IDC_STATIC_SUITESPOT_USER,94,51,73,17
+    LTEXT           "Password:",IDC_STATIC_PASSWORD,94,74,34,8
+    EDITTEXT        IDC_EDIT_PASSWORD,173,74,114,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    LTEXT           "Password (again):",IDC_STATIC_PASSWORD_AGAIN,94,97,57,8
+    EDITTEXT        IDC_EDIT_PASSWORD_AGAIN,173,97,114,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    GROUPBOX        "Configuration Directory Server Administrator ",
+                    IDC_STATIC_SUITESPOT_ADMIN_GROUPBOX,88,35,204,91
+    LTEXT           "The Netscape configuration directory administrator is the ID typically used to log in to the console.",
+                    IDC_STATIC_MCA_DESC,88,10,196,18
+END
+
+IDD_SERVER_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Server Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "General Settings",IDC_STATIC_GENERAL_SETTINGS,97,33,194,
+                    68
+    EDITTEXT        IDC_EDIT_SERVER_IDENTIFIER,175,46,105,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_SERVER_PORT,175,62,35,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_SUFFIX,175,78,105,12,ES_AUTOHSCROLL
+    CONTROL         "Spin1",IDC_SPIN_SERVER_PORT,"msctls_updown32",
+                    UDS_SETBUDDYINT | UDS_ARROWKEYS | UDS_NOTHOUSANDS,209,62,
+                    10,12
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "Server Identifier:",IDC_STATIC_SERVER_IDENTIFIER,116,46,
+                    52,8
+    LTEXT           "Server Port: ",IDC_STATIC_SERVER_PORT,129,62,39,8
+    LTEXT           "Suffix: ",IDC_STATIC_SUFFIX,146,78,22,8
+    LTEXT           "Settings this directory server will use for basic operation.",
+                    IDC_STATIC_SERV_SETTINGS_DESC,103,20,180,10
+END
+
+IDD_SAMPLE_ENTRIES_ORG DIALOG DISCARDABLE  0, 0, 377, 179
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Populate Database"
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "Sample Organizational Structure",
+                    IDC_STATIC_DEFAULT_ORG_GROUP,89,5,285,50
+    CONTROL         "Install Sample Organizational Structure",
+                    IDC_CHECK_POPULATE_ORG_ENTRIES,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,104,41,146,10
+    GROUPBOX        "Populate Database",IDC_STATIC_SAMPLE_GROUP,89,64,285,95
+    CONTROL         "Don't Populate",IDC_RADIO_DONT_POPULATE,"Button",
+                    BS_AUTORADIOBUTTON | WS_GROUP,96,93,63,10
+    CONTROL         "Populate with sample database",
+                    IDC_RADIO_POPULATE_SAMPLE,"Button",BS_AUTORADIOBUTTON,96,
+                    102,114,11
+    CONTROL         "Populate with custom database",
+                    IDC_RADIO_POPULATE_CUSTOM,"Button",BS_AUTORADIOBUTTON,96,
+                    112,115,10
+    PUSHBUTTON      "Browse",IDC_BUTTON_CHOOSE_LDIF_FILE,96,130,51,14,
+                    WS_GROUP
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,176
+    LTEXT           "Populate the new directory server instance with some commonly used organizational entries, to provide some default structure to the directory.",
+                    IDC_STATIC_ORG_ENTRIES,96,15,180,26
+    LTEXT           "(must have base )",IDC_STATIC_MUST_HAVE_BASE,106,121,
+                    154,8
+    LTEXT           "File:",IDC_STATIC_FILE_NAME_COLON,96,146,15,10
+    LTEXT           "",IDC_STATIC_LDIF_FILE_NAME,96,146,188,9
+    LTEXT           "You may choose at this time to populate the database with an LDIF file or create a sample database.",
+                    IDC_STATIC,96,75,186,17
+END
+
+IDD_CONSUMER_REPLICATION_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Consumer Replication Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "In order to allow remote servers to replicate new entries to this server, the remote server must have the ability to bind to this server as some entity with permission to do so.  ",
+                    IDC_STATIC_CIR_DESCRIPTION,93,7,186,24
+    LTEXT           "Supplier Bind DN:",IDC_STATIC_SUPPLIER_DN,97,80,71,8
+    LTEXT           "Supplier Password:",IDC_STATIC_SUPPLIER_PW,97,96,61,8
+    LTEXT           "Supplier Password (again):",IDC_STATIC_SUPPLIER_PW2,97,
+                    112,86,11
+    EDITTEXT        IDC_EDIT_SUPPLIER_DN,188,80,95,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PASSWORD,188,96,95,12,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PASSWORD_AGAIN,188,112,95,12,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    GROUPBOX        "Consumer Server Replication Settings",IDC_CONSUMER,90,
+                    62,201,66
+    LTEXT           "The Supplier DN is the DN of the entity the remote server will use to connect to this server to supply updates.",
+                    IDC_STATIC_CIR_DESCRIPTION2,93,36,186,16
+END
+
+IDD_SUPPLIER_REPLICATION_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Supplier Replication Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "Settings which configure this server to send replication updates to other servers.",
+                    IDC_STATIC_SIR_DESCRIPTION,91,13,186,17
+    LTEXT           "Changelog DB Directory:",IDC_STATIC_CHANGELOG_DB_DIR,91,
+                    55,79,8
+    LTEXT           "Changelog Suffix:",IDC_STATIC_CHANGELOG_SUFFIX,91,74,56,
+                    8
+    EDITTEXT        IDC_EDIT_CHANGELOG_DB_DIR,182,55,95,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CHANGELOG_DB_SUFFIX,182,73,95,12,ES_AUTOHSCROLL
+    GROUPBOX        "Supplier Server Replication Settings",
+                    IDC_SIR_DESCRIPTION,83,40,201,55
+END
+
+IDD_CONSUMER_DN DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Consumer DN Settings "
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    EDITTEXT        IDC_EDIT_CONSUMER_DN,163,77,111,14,ES_AUTOHSCROLL
+    LTEXT           "Consumer Bind DN:",IDC_STATIC_CONSUMER_DN,90,77,67,8
+    LTEXT           "Password:",IDC_STATIC_CONSUMER_PW,90,100,36,8
+    EDITTEXT        IDC_EDIT_PASSWORD,163,100,111,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    LTEXT           "Password (again):",IDC_STATIC_PASSWORD_AGAIN,90,123,57,
+                    8
+    EDITTEXT        IDC_EDIT_PASSWORD_AGAIN,163,123,112,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    GROUPBOX        "Supplier CIR Replication Settings",
+                    IDC_STATIC_SUPPLIER_CIR,84,59,208,89
+    LTEXT           "Do you wish to create an entry which can be used by CIR Consumers to bind to this Supplier? \nNote: This user will have acess to the entire database as well as the changelog.",
+                    IDC_STATIC,84,5,206,32
+    CONTROL         "Yes",IDC_RADIO_CONFIG_CONSUMER_DN_YES,"Button",
+                    BS_AUTORADIOBUTTON,149,45,28,10
+    CONTROL         "No",IDC_RADIO_CONFIG_CONSUMER_DN_NO,"Button",
+                    BS_AUTORADIOBUTTON,181,45,25,10
+END
+
+IDD_REPLICATION_AGREEMENT DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Configure Replication Agreement"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_HOST,159,13,80,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PORT,159,30,24,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_SUFFIX,159,48,80,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_BIND_AS,159,65,80,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PW,159,82,80,13,ES_PASSWORD | ES_AUTOHSCROLL
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "Host:",IDC_STATIC_REPLICATION_HOST,137,13,18,8
+    LTEXT           "Port:",IDC_STATIC_REPLICATION_PORT,139,30,16,8
+    LTEXT           "Root of Replication:",IDC_STATIC_REPLICATION_ROOT,91,48,
+                    64,8
+    LTEXT           "Bind As:",IDC_STATIC_REPLICATION_BIND_AS,128,65,27,8
+    LTEXT           "Password:",IDC_STATIC_REPLICATION_PW,119,82,34,8
+    GROUPBOX        "Replication Agreement",IDC_STATIC_REPLICATION_AGREEMENT,
+                    84,2,207,155
+    GROUPBOX        "Replication Days",IDC_STATIC_REPL_DAYS,90,93,197,22
+    CONTROL         "Sun",IDC_CHECK_SUN,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,92,102,25,10
+    CONTROL         "Mon",IDC_CHECK_MON,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,119,102,28,10
+    CONTROL         "Tue",IDC_CHECK_TUE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,147,102,25,10
+    CONTROL         "Wed",IDC_CHECK_WED,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,173,102,27,10
+    CONTROL         "Thur",IDC_CHECK_THUR,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,201,102,27,10
+    CONTROL         "Fri",IDC_CHECK_FRI,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,229,102,25,10
+    CONTROL         "Sat",IDC_CHECK_SAT,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,254,102,25,10
+    GROUPBOX        "Replication Times",IDC_STATIC,89,117,83,37
+    LTEXT           "Start:",IDC_STATIC_REPL_START_TIME,95,126,16,8
+    EDITTEXT        IDC_EDIT_REPL_START_TIME_HH,113,126,15,12,ES_AUTOHSCROLL
+    LTEXT           "End:",IDC_STATIC_REPL_END_TIME,95,140,16,8
+    EDITTEXT        IDC_EDIT_REPL_END_TIME_HH,113,140,15,12,ES_AUTOHSCROLL
+    CONTROL         "Spin1",IDC_SPIN_REPL_START_TIME_MM,"msctls_updown32",
+                    UDS_WRAP | UDS_SETBUDDYINT | UDS_ARROWKEYS,155,126,10,12
+    EDITTEXT        IDC_EDIT_REPL_SYNC_INTERVAL,238,126,25,12,ES_AUTOHSCROLL
+    LTEXT           "Replication Sync Interval(minutes)",
+                    IDC_STATIC_REPL_SYNC,182,126,55,17
+    CONTROL         "Spin1",IDC_SPIN_REPL_SYNC_INTERVAL,"msctls_updown32",
+                    UDS_WRAP | UDS_SETBUDDYINT | UDS_ARROWKEYS,262,126,11,11
+    EDITTEXT        IDC_EDIT_REPL_START_TIME_MM,141,126,15,12,ES_AUTOHSCROLL
+    CONTROL         "Spin1",IDC_SPIN_REPL_START_TIME_HH,"msctls_updown32",
+                    UDS_WRAP | UDS_SETBUDDYINT | UDS_ARROWKEYS,128,126,11,12
+    CONTROL         "Spin1",IDC_SPIN_REPL_END_TIME_HH,"msctls_updown32",
+                    UDS_WRAP | UDS_SETBUDDYINT | UDS_ARROWKEYS,128,140,11,12
+    EDITTEXT        IDC_EDIT_REPL_END_TIME_MM,141,140,15,12,ES_AUTOHSCROLL
+    CONTROL         "Spin1",IDC_SPIN_REPL_END_TIME_MM,"msctls_updown32",
+                    UDS_WRAP | UDS_SETBUDDYINT | UDS_ARROWKEYS,155,140,11,12
+END
+
+IDD_CHOOSE_REPLICATION_SETUP DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Configure Server for Replication"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         "A Consumer that will pull updates",
+                    IDC_RADIO_CONSUMER_CIR,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,119,117,125,9
+    CONTROL         "A Consumer that will have updates",
+                    IDC_RADIO_CONSUMER_SIR,"Button",BS_AUTORADIOBUTTON,119,
+                    95,127,10
+    CONTROL         "Do not configure as a Consumer",
+                    IDC_RADIO_NO_CONSUMER_REPLICATION,"Button",
+                    BS_AUTORADIOBUTTON,119,138,113,10
+    CONTROL         "A Supplier that will have updates",
+                    IDC_RADIO_SUPPLIER_CIR,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,118,42,122,10
+    CONTROL         "A Supplier that will push updates",
+                    IDC_RADIO_SUPPLIER_SIR,"Button",BS_AUTORADIOBUTTON,118,
+                    20,121,10
+    CONTROL         "Do not configure as as Supplier",
+                    IDC_RADIO_NO_SUPPLIER_REPLICATION,"Button",
+                    BS_AUTORADIOBUTTON,118,65,113,10
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "from another server (CIR)",
+                    IDC_STATIC_CONSUMER_CIR_EXTRA,132,126,80,8
+    LTEXT           "pushed to it from another server (SIR)",
+                    IDC_STATIC_CONSUMER_SIR_EXTRA,132,105,118,8
+    LTEXT           "pulled from it by another server (CIR)",
+                    IDC_STATIC_SUPPLIER_CIR_EXTRA,131,53,115,8
+    LTEXT           "to another server (SIR)",IDC_STATIC_SUPPLIER_SIR_EXTRA,
+                    131,31,72,8
+    GROUPBOX        "Consumer Replications Settings",
+                    IDC_STATIC_CONSUMER_REPL,113,84,144,68
+    GROUPBOX        "Supplier Replication Settings",
+                    IDC_STATIC_SUPPLIER_REPLICATION,112,9,145,71
+END
+
+IDD_DISABLE_SCHEMA_CHECKING DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Disable Schema Checking"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "If you are going to import an old database immediately after or during installation, and you think you may have problems with your old schema, you may wish to turn off schema checking until after the import.",
+                    IDC_STATIC_DISABLE_SCHEMA_TXT,95,37,188,34
+    LTEXT           "If you choose to do this, schema checking will remain off until you manually turn it back on.  It is recommended that you turn it back on as soon as possible.",
+                    IDC_STATIC_DISABLE_SCHEMA_TEXT_CONT,95,76,187,28
+    GROUPBOX        "Disable Schema Checking",
+                    IDC_STATIC_DISABLE_SCHEMA_CHECKING_GROUP,90,27,198,102
+    CONTROL         "Disable Schema Checking",
+                    IDC_CHECK_DISABLE_SCHEMA_CHECKING,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,95,111,99,10
+END
+
+IDD_ADMIN_DOMAIN DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Administration Domain"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "The Administration Domain is a part of the configuration directory server used to store information about Netscape software.",
+                    IDC_STATIC_ADMIN_DOMAIN_DESC,90,8,203,16
+    EDITTEXT        IDC_EDIT_ADMIN_DOMAIN,157,113,118,14,ES_AUTOHSCROLL
+    LTEXT           "Administration Domain:",IDC_STATIC_ADMIN_DOMAIN,104,113,
+                    51,16
+    GROUPBOX        "Administration Domain Settings",
+                    IDC_STATIC_ADMIN_DOMAIN_GB,90,99,187,40
+    LTEXT           "If you are managing multiple software releases at the same time, or managing information about multiple domains, you may use the the Administration Domain to keep them separate.",
+                    IDC_STATIC_ADMIN_DOMAIN_DESC2,90,29,197,25
+    LTEXT           "If you are not using administrative domains, select the default.  Otherwise, enter a descriptive, unique name for the administration domain, such as the name of the organization responsible for managing the domain.",
+                    IDC_STATIC_ADMIN_DOMAIN_DESC3,90,58,197,33
+END
+
+IDD_REINSTALL_CONFIG DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Directory Server 7.0 Reinstall Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    LTEXT           "Setup has detected that you are reinstalling into an existing server root. ",
+                    IDC_STATIC_ADMIN_REINSTALL_DESC,90,8,203,16
+    LTEXT           "config url is displayed here",IDC_CONFIG_URL_VAL,96,52,
+                    184,8
+    LTEXT           "Bind As:",IDC_STATIC_BIND_AS,96,67,27,8
+    EDITTEXT        IDC_EDIT_BIND_AS,145,65,132,14,ES_AUTOHSCROLL
+    LTEXT           "Password:",IDC_STATIC_PW,96,88,34,8
+    EDITTEXT        IDC_EDIT_PW,145,87,132,14,ES_PASSWORD | ES_AUTOHSCROLL
+    GROUPBOX        "Configuration Directory",IDC_STATIC_CONFIG_DIR_SETTING,
+                    87,36,206,89
+END
+
+IDD_UNINSTALL_STATUS DIALOG DISCARDABLE  0, 0, 291, 72
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION
+FONT 8, "MS Sans Serif"
+BEGIN
+    CTEXT           "",IDC_STOPPING_SERVER_MESSAGE,10,29,270,13,
+                    SS_CENTERIMAGE
+END
+
+IDD_ADMIN_ID_ONLY DIALOG DISCARDABLE  0, 0, 297, 163
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION 
+"Directory Server 7.0 Netscape configuration directory server administrator "
+
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
+    EDITTEXT        IDC_EDIT_SUITESPOT_USER,173,51,114,14,ES_AUTOHSCROLL
+    LTEXT           "Configuration Directory Administrator ID:",
+                    IDC_STATIC_SUITESPOT_USER,94,51,73,17
+    LTEXT           "Password:",IDC_STATIC_PASSWORD,94,74,34,8
+    EDITTEXT        IDC_EDIT_PASSWORD,173,74,114,14,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    GROUPBOX        "Configuration Directory Server Administrator ",
+                    IDC_STATIC_SUITESPOT_ADMIN_GROUPBOX,88,35,204,61
+    LTEXT           "The Netscape configuration directory administrator is the ID typically used to log in to the console.",
+                    IDC_STATIC_MCA_DESC,88,10,196,18
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_SAMPLE_ENTRIES_ORG, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 176
+    END
+
+    IDD_REPLICATION_AGREEMENT, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 160
+    END
+
+    IDD_CHOOSE_REPLICATION_SETUP, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 160
+    END
+
+    IDD_UNINSTALL_STATUS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 284
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 65
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_WIZARD              BITMAP  DISCARDABLE     "wizard.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_NO_WINSOCK          "Cant find usable winsock DLL > 2.0"
+    ERR_NO_WINSOCK_VER      "Cant find usable winsock DLL > 2.0"
+    ERR_NO_HOST             "You must enter a Host."
+    ERR_NO_PORT             "You must enter a Port."
+    ERR_NO_SUFFIX           "You must enter a suffix."
+    ERR_NO_BIND_DN          "You must enter a Bind DN."
+    ERR_NO_PW               "You must enter a password."
+    ERR_INIT_DIALOG         "Fatal Error Initializing Dialog"
+    ERR_NO_SERVER_ID        "You must enter a Server Identifier."
+    ERR_SERVER_ID_EXISTS    "A server already exists with the identifier %s. Choose a unique identifier."
+    ERR_INVALID_PORT        "The server port %d is invalid.  Please choose another one."
+    ERR_PW_TOO_SHORT        "You must enter a password of at least %d characters."
+    ERR_NO_PW_AGAIN         "You must enter password again to confirm."
+    ERR_PW_DIFFER           "Passwords differ, try again."
+    ERR_NO_ROOT_DN          "You must enter an unrestricted user."
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_NO_SS_ADMIN         "You must enter a Configuration Administrator."
+    ERR_NO_SUPPLIER_DN      "You must enter a Supplier DN."
+    ERR_NO_CHANGELOG_DB     "You must enter a Changelog DB."
+    ERR_NO_CHANGELOG_SUFFIX "You must enter a Changelog Suffix."
+    ERR_NO_CONSUMER_DN      "You must enter a consumer bind dn."
+    ERR_READ_GLOBAL_CACHE   "Error Reading Global Cache: Invalid %s"
+    ERR_READ_LOCAL_CACHE    "Error Reading Local Cache: Invalid %s"
+    ERR_NO_FIND_INST_PROG   "Could not find program %s: %s"
+    ERR_EXEC_INST_PROG      "Error executing program %s: %s\nPlease refer to the log file %s for more information."
+    ERR_NO_STAT_TMP_FILE    "Could not stat the temp file %s: %s"
+    ERR_NO_CREATE_FILE      "Could not create file %s"
+    ERR_CREATE_MCC_BAT      "Fatal Error Creating Directory Server Mcc"
+    ERR_CREATE_DS_INSTANCE  "Fatal Error Creating Directory Server Instance"
+    ERR_REMOVE_EVLOG_KEY    "Error Removing Directory Server EventLog Key"
+    ERR_REMOVE_INSTANCE     "Error: unable to remove server instance: %s."
+    ERR_REM_INST_REG_KEYS   "Error: unable to remove registry keys for server %s."
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_SERV_RUN_ON_PORT    "You have another server running on port %d. Turn off that server before continuing with installation."
+    ERR_INVALID_HOST        "The hostname %s could not be verified.  Please enter another hostname."
+    ERR_CANT_FIND_DS        "Could not connect to ldap://%s:%d/ for bind DN %s\nPlease check your settings.  Otherwise, the remote server may be down at this time.\nThe installation cannot proceed."
+    ERR_SNMP_IS_RUNNING     "The SNMP Service is running. It will be turned off automatically and restarted when this operation is complete if you choose to continue."
+    ERR_SNMP_BAD_SHUTDOWN   "Error stopping the SNMP Service. Setup can not continue"
+    ERR_SNMP_BAD_STARTUP    "Error starting the SNMP Service"
+    ERR_SLAPD_SHUTDOWN      "Unable to shutdown the Directory Server (%s).\nWarning, all files and registry keys may not be removed.\nWould you like to continue uninstalling?"
+    ERR_UNK_INST_CREATE     "An unknown error occured while executing program %s.\nPlease refer to the log file %s for more information."
+    IDS_UG_DESC             "You may already have a directory server you want to use to store your data, such as user and group information."
+    IDS_UG_GB_DESC          "Directory to store data"
+    IDS_UG_RADIO_EXIST      "Store data in an existing directory server"
+    IDS_UG_RADIO_CREATE     "Store data in this directory server"
+    IDS_UG_DLG_CAPTION      " "
+    ERR_NO_ADMIN_DOMAIN     "You must enter an Admin Domain."
+    ERR_8BIT_PW             "Passwords must contain 7 bit characters only."
+    ERR_8BIT_SERVID         "Server identifiers must contain 7 bit characters only."
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_8BIT_PATH           "Paths must contain 7 bit characters only."
+    SUM_DS_SET_TITLE        "Directory Server Settings"
+    SUM_SERVER_IDENTIFIER   "Server Identifier"
+    SUM_SUFFIX              "Suffix"
+    SUM_PORT                "Port"
+    SUM_CONFIG_DS_TITLE     "Configuration Directory Server Settings"
+    SUM_HOST                "Host"
+    SUM_BIND_AS             "Bind As"
+    SUM_DATA_DS_TITLE       "Data Directory Server Settings"
+    SUM_CFG_ADM_ID          "Configuration Directory Administrator ID"
+    SUM_ADMIN_DOMAIN        "Administration Domain"
+    SUM_DIRECTORY_MANAGER   "Directory Manager DN"
+    SUM_SUPPLIER_REPL_TITLE "Supplier Replication Settings"
+    SUM_CHANGELOG_DB_DIR    "Changelog DB Directory"
+    SUM_CHANGELOG_SUFFIX    "Changelog Suffix"
+    SUM_REPL_AGR_TITLE      "Replication Agreement"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    SUM_REPL_ROOT           "Root of Replication"
+    SUM_REPL_DAYS           "Replication Days"
+    SUM_REPL_TIMES          "Replication Times"
+    SUM_CONSUMER_BIND_DN    "Consumer Bind DN"
+    SUM_CONSUMER_REPL_TITLE "Consumer Replication Settings"
+    SUM_SUPPLIER_DN         "Supplier Bind DN"
+    SUM_REPL_SYNC_INTERVAL  "Replication Sync Interval"
+    SUM_POP_ORG_STRUCT      "Install Sample Organizational Structure"
+    SUM_POP_DB_FILE         "Populate Database with"
+    SUM_DISABLE_SCHEMA_CHECKING "Disable Schema Checking"
+    ERR_INVALID_DN          "%s is not a valid DN."
+    SUM_REINSTALL           "Files will be updated, no configuration changes."
+    ERR_CANT_FIND_DS_REPL   "Could not connect to ldap://%s:%d/ for bind DN %s Please check your settings.  Otherwise, the remote server may be down at this time. You may need to manually start replication after installation. Would you like to continue using these settings?"
+    IDS_STARTING_SERVICE    "Starting Netscape Directory Server (%s)"
+    IDS_STOPPING_SERVICE    "Stopping Netscape Directory Server (%s)"
+    IDS_WAIT_SERVICE_START  "Waiting for Netscape Directory Server (%s) to start"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_WAIT_SERVICE_STOP   "Waiting for Netscape Directory Server (%s) to stop"
+    ERR_ADMIN_DOMAIN_DN     "A DN [%s] is not allowed here.  Please enter a valid string."
+    ERR_CANT_FIND_ADMIN_DOMAIN 
+                            "Could not find the Admin Domain %s in ldap://%s:%d/ for bind DN %s\nPlease check your settings.  You may need to install using Custom mode in order to specify the Admin domain.\nThe installation cannot proceed."
+    WARN_USING_LDAPV2_QUOTES 
+                            "The given value [%s] is quoted in the deprecated LDAPv2 style\nquoting format.  It will be automatically converted to use the\nLDAPv3 style escaped format [%s]."
+    ERR_8BIT_UID            "The UID value must contain 7 bit characters only."
+    ERR_SERVER_ID_EXISTS_TITLE "Directory Server (%s) Already Exists"
+    ERR_NO_CONFIG_URL       "The Config Directory URL could not be found."
+    WARN_USING_LDAPV2_QUOTES_TITLE "Warning: Deprecated Quoting Style [%s]"
+    ERR_INVALID_DN_TITLE    "Invalid DN: %s"
+    ERR_NO_WINSOCK_TITLE    "Could Not Find Winsock"
+    ERR_NO_WINSOCK_VER_TITLE "Invalid Winsock Version"
+    ERR_8BIT_SERVID_TITLE   "Invalid Server ID"
+    ERR_SERV_RUN_ON_PORT_TITLE "Port Is In Use"
+    ERR_INIT_DIALOG_TITLE   "Could Not Initialize Dialog"
+    ERR_NO_HOST_TITLE       "Host Required"
+    ERR_NO_PORT_TITLE       "Port Required"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_NO_SUFFIX_TITLE     "Suffix Required"
+    ERR_NO_BIND_DN_TITLE    "Bind DN Required"
+    ERR_NO_PW_TITLE         "Password Required"
+    ERR_NO_SERVER_ID_TITLE  "Server ID Required"
+    ERR_INVALID_PORT_TITLE  "Port Is Invalid"
+    ERR_PW_TOO_SHORT_TITLE  "Password Length Too Short"
+    ERR_NO_PW_AGAIN_TITLE   "Enter Password Again"
+    ERR_PW_DIFFER_TITLE     "Passwords Are Different"
+    ERR_NO_ROOT_DN_TITLE    "Root DN Required"
+    ERR_NO_SS_ADMIN_TITLE   "Configuration Administrator Required"
+    ERR_NO_SUPPLIER_DN_TITLE "Supplier DN Required"
+    ERR_NO_CHANGELOG_DB_TITLE "Changelog DB Required"
+    ERR_NO_CHANGELOG_SUFFIX_TITLE "Changelog Suffix Required"
+    ERR_NO_CONSUMER_DN_TITLE "Consumer DN Required"
+    ERR_NO_FIND_INST_PROG_TITLE "Program Not Found"
+    ERR_EXEC_INST_PROG_TITLE "Could Not Execute Program"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_NO_STAT_TMP_FILE_TITLE "File Not Found"
+    ERR_NO_CREATE_FILE_TITLE "Could Not Create File"
+    ERR_CREATE_MCC_BAT_TITLE "Could Not Create Script File"
+    ERR_CREATE_DS_INSTANCE_TITLE "Could Not Create Directory Server Instance"
+    ERR_REMOVE_EVLOG_KEY_TITLE "Could Not Remove EVLOG Key"
+    ERR_REMOVE_INSTANCE_TITLE "Could Not Remove Directory Server Instance"
+    ERR_REM_INST_REG_KEYS_TITLE "Could Not Remove Registry Keys"
+    ERR_INVALID_HOST_TITLE  "Invalid Host: %s"
+    ERR_CANT_FIND_DS_TITLE  "Could Not Contact Directory Server"
+    ERR_SNMP_IS_RUNNING_TITLE "SNMP Is Running"
+    ERR_SNMP_BAD_SHUTDOWN_TITLE "Error Shutting Down SNMP"
+    ERR_SNMP_BAD_STARTUP_TITLE "Could Not Start SNMP"
+    ERR_SLAPD_SHUTDOWN_TITLE "Error Shutting Down Directory Server (%s)"
+    ERR_NO_ADMIN_DOMAIN_TITLE "Admin Domain Required"
+    ERR_8BIT_PW_TITLE       "Invalid Password"
+    ERR_8BIT_PATH_TITLE     "Invalid Path"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ERR_CANT_FIND_DS_REPL_TITLE "Could Not Connect To Replication Server"
+    ERR_ADMIN_DOMAIN_DN_TITLE "Invalid Admin Domain %s"
+    ERR_CANT_FIND_ADMIN_DOMAIN_TITLE "Admin Domain %s Not Found"
+    ERR_8BIT_UID_TITLE      "Invalid User ID Value"
+    ERR_NO_CONFIG_URL_TITLE "Configuration Directory Information Not Found"
+    ERR_NO_USER_URL         "The information about the User Directory could not be found."
+    ERR_NO_USER_URL_TITLE   "Could Nof Find User Directory Information"
+    ERR_UNINSTALL_DS        "Could not uninstall Directory Server.  Please check the log file\n%s for problems,\ncorrect them, and uninstall again.  Exiting."
+    ERR_UNINSTALL_DS_TITLE  "Could not uninstall Directory Server"
+    ERR_REG_DEL_KEY_TITLE   "Could Not Delete Registry Key"
+    ERR_REG_DEL_KEY         "Could not delete the registry key %s - error %d (%s)."
+    ERR_REG_CREATE_KEY_TITLE "Could not Create Registry Key"
+    ERR_REG_CREATE_KEY      "Could not create the registry key %s - error %d (%s)."
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

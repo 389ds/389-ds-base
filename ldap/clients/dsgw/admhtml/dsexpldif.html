@@ -1,0 +1,76 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HEAD><TITLE>User Management</TITLE>
+
+<SCRIPT language=JavaScript>
+var didSetDefaults = 0;
+
+function submitModify()
+{
+    var theForm = document.expForm;
+
+    // verify form fields
+    if ( theForm.ldif.value.length == 0 ) {
+        alert( 'Please provide the export ldif file name.' );
+        return false;
+    }
+
+    theForm.submit();
+    return false;
+}
+
+</SCRIPT>
+
+
+</HEAD>
+<!-- BODY -->
+
+<CENTER><TABLE BORDER="2" CELLPADDING="10" WIDTH="100%">
+<TR><TD ALIGN="center" WIDTH="100%">
+<FONT SIZE="+2"><B>Export Directory Information</B></FONT>
+</TD></TR></TABLE></CENTER>
+
+<!-- DS_INLINE_POST_RESULTS -->
+
+<FORM METHOD="POST" ACTION="dsexpldif" NAME="expForm">
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%>
+<TR>
+<TD ALIGN="right" NOWRAP><B>Export database to LDIF file:</B></TD>
+<TD><INPUT TYPE="text" NAME="ldif"
+<!-- DS_LDIF_FILE -->
+SIZE=40></TD>
+</TR>
+
+<!-- IF "DirectoryIsLocalDB" -->
+<TR>
+<TD ALIGN="right" NOWRAP><B>Suffix to add:</B></TD>
+<TD><INPUT TYPE="text" NAME="suffix"
+<!-- DS_SUFFIX -->
+SIZE=40></TD>
+</TR>
+<!-- ENDIF -->
+
+</TABLE>
+<P>
+
+<CENTER><TABLE BORDER="2" WIDTH="100%">
+<TR>
+<TD WIDTH="33%" ALIGN="center"><INPUT TYPE="button" VALUE=" Begin Export "
+    onClick="submitModify()"></TD>
+<TD WIDTH=34% ALIGN=center><INPUT TYPE="reset" VALUE=" Reset "
+    ></TD>
+<TD WIDTH=33% ALIGN=center>
+<!-- HELPBUTTON "DSEXPLDIF" -->
+</TD>
+</TR></TABLE></CENTER>
+</FORM>
+
+<P ALIGN="right"><FONT SIZE="-2">
+<!-- DS_GATEWAY_VERSION -->
+</FONT></P>
+
+<!-- ENDHTML -->

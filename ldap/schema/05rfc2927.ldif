@@ -1,0 +1,19 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema from RFC 2927
+#	"MIME Directory Profile for LDAP Schema"
+#
+# DS 6.0 does not yet support the LDAP Schema Definition syntax definition
+#      ( 1.3.6.1.4.1.1466.115.121.1.56 DESC 'LDAP Schema Definition' ) 
+# so in the interim this is replaced by a unstructured string.
+#
+dn: cn=schema
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.17 NAME 'ldapSchemas'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 USAGE directoryOperation 
+  X-ORIGIN 'RFC 2927' )

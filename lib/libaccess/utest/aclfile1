@@ -1,0 +1,11 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+version 3.0;
+acl	aclfile1;
+deny (read, write, execute) (timeofday<2100);
+deny (read, write, execute) (dayofweek!=sun);

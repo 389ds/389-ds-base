@@ -1,0 +1,90 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Convert an old password.txt file into the new pin.txt format
+# This script requires a single argument which is the directory and
+# server instance prefix of the two files (e.g. /servers/alias/slapd-foo)
+#
+# ISSUES:
+#   This code sets the mode of the created file to 660 (allows suitespot
+#   group access.  Should it also set the user and group values? Where
+#   should they come from?
+#
+BEGIN {
+	$isNT = -d "\\";
+	$PS = $isNT ? "\\" : "/";
+}
+
+$sroot = $ARGV[0];
+$prefix = $ARGV[1];
+
+#
+# create the names for the old (password) and new (pin) files
+#
+$pwdfile = "${prefix}-password.txt";
+$pinfile = "${prefix}-pin.txt";
+
+if (-f $pwdfile && ! -f $pinfile) {
+    open(PWDFILE, $pwdfile) || die "Cannot open password file: $pwdfile\n";
+
+    my $count = 0;
+	my $pin;
+	while(<PWDFILE>) {
+		chomp;  # trim new line
+
+		if ($count == 0) {
+			$pin = $_; 
+		}
+
+		$count = $count+1;
+	}
+	close PWDFILE;
+
+    if ($count == 0) {
+		die "No password found in password file\n";
+	} elsif ($count != 1) {
+		print "Extra lines found in password file\n";
+    }
+
+	open(PINFILE, ">$pinfile") || die "Cannot create pin file: $pinfile\n";
+	print PINFILE "Software (Internal) Token:$pin\n";
+	close PINFILE;
+    chmod 0660, $pinfile;
+
+	# set the ownership of the file; should be the same as the slapd user id
+	if (! $isNT) {
+		$confFile = "$sroot${PS}$prefix${PS}config${PS}slapd.conf";
+		open(CONF, $confFile) or die "Error: cannot open $confFile: $!";
+		while (<CONF>) {
+			if (/^localuser\s+/i) {
+				chomp($newuser = $');
+				last;
+			}
+		}
+		close(CONF);
+		if (!$newuser) {
+			$confFile = "$sroot${PS}shared${PS}config${PS}ssusers.conf";
+			open(SSUSERS, $confFile) or
+				die "Error: could not open $confFile: $!";
+			while (<SSUSERS>) {
+				chop;
+				if (/^SuiteSpotUser\s+/i) {
+					$newuser = $';
+					last;
+				}
+			}
+			close(SSUSERS);
+		}
+		if ($newuser) {
+			chown $newuser, $pinfile;
+		}
+	}
+}
+
+exit 0;

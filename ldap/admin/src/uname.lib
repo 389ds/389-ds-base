@@ -1,0 +1,169 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+sub uname
+{
+  local (@CommandLine) = @_;
+
+  local($getall) = 0;
+  local($getproc) = 0;
+  local($getosrel) = 0;
+  local($getosname) = 0;
+  local($getosver) = 0;
+
+  while ($_ = @CommandLine[0]) {
+    PARSE_SWITCH: {
+      if (/^-a\b/i) {# show all information
+        $getall=1;
+        shift(@CommandLine);
+        last PARSE_SWITCH
+      }
+      if (/^-n\b/i) {# show node name
+        $getnodename=1;
+        shift(@CommandLine);
+        last PARSE_SWITCH
+      }
+      if (/^-p\b/i) {# show processor
+        $getproc=1;
+        shift(@CommandLine);
+        last PARSE_SWITCH
+      }
+      if (/^-r\b/i) {# show os release
+        $getosrel=1;
+        shift(@CommandLine);
+        last PARSE_SWITCH
+      }
+      if (/^-s\b/i) {# show os name
+        $getosname=1;
+        shift(@CommandLine);
+        last PARSE_SWITCH
+      }
+      if (/^-v\b/i) {# show os version
+        $getosver=1;
+        shift(@CommandLine);
+        last PARSE_SWITCH
+      }
+      print "   ERROR: Unknown parameter: $_\n";
+      shift(@CommandLine);
+    }
+  }
+
+chomp(local($os) = `uname -s`);
+local($nodename) = "";
+local($proc) = "";
+local($osrel) = "";
+local($osname) = "";
+local($osver) = "";
+local($osrel1) = "";
+local($osrel2) = "";
+local($nodename1) = "";
+local($retval) = "";
+local($ret) = "";
+
+if ($os eq "Windows_NT")
+{
+  chomp($nodename = `uname -n`); 
+  chomp($proc = `uname -m`); lc($proc);
+  if ($proc =~ /^[0-9]86.*/)
+  {
+    $proc = "i386";
+  }
+  else
+  {
+    $proc = "?";
+  }
+  chomp($osrel1 = `uname -r`);
+  chomp($osrel2 = `uname -v`);
+  $osrel = $osrel1.".".$osrel2;
+  $osname = "WINNT";
+  $osver = "???";
+}
+if ($os eq "WINNT")
+{
+  chomp($nodename = `uname -n`);
+  chomp($proc = `uname -p`); lc($proc);
+  chomp($osrel = `uname -r`);
+  $osname = "WINNT";
+  chomp($osver = `uname -v`);
+} 
+
+if ($os eq "SunOS")
+{
+  chomp($nodename = `uname -n`);
+  chomp($proc = `uname -p`);
+  chomp($osrel = `uname -r`);
+  $osname = $os;
+  chomp($osver = `uname -v`);
+}
+if ($os eq "IRIX" || $os eq "IRIX64")
+{
+  chomp($nodename = `uname -n`);
+  chomp($proc = `uname -p`);
+  chomp($osrel = `uname -r`);
+  $osname = "IRIX";
+  chomp($osver = `uname -v`);
+}
+
+if ($os eq "HP-UX")
+{
+  chomp($nodename = `uname -n`);
+#  $proc = "hppa1.1";
+  chomp($proc = `uname -m`);
+  chomp($osrel = `uname -r`);
+  $osname = $os;
+  chomp($osver = `uname -v`);
+}
+
+if ($os eq "OSF1")
+{
+  chomp($nodename1 = `uname -n`);
+  ($nodename) = ($nodename1 =~ /(\w+)\..*/);
+  chomp($proc = `uname -m`);
+  chomp($osrel = `uname -r`);
+  $osname = $os;
+  chomp($osver = `uname -v`);
+}
+
+if ($os eq "AIX")
+{
+  chomp($nodename = `uname -n`);
+  $proc = "rs6000";
+  chomp($osrel1 = `uname -v`);
+  chomp($osrel2 = `uname -r`);
+  $osrel = $osrel1.".".$osrel2;
+  $osname = $os;
+  $osver = "???";
+}
+
+if ($getall)
+{
+  $getosname = 1;
+  $getnodename = 1;
+  $getosrel = 1;
+  $getosver = 1;
+  $getproc = 1;
+}
+
+$retval = "";
+$retval = $retval.($getosname ?		$osname :		"");
+$retval = $retval.($getnodename ?	" ".$nodename :		"");
+$retval = $retval.($getosrel ?		" ".$osrel :		"");
+$retval = $retval.($getosver ?		" ".$osver :		"");
+$retval = $retval.($getproc ?		" ".$proc :		"");
+
+if ($retval eq "")
+{
+  $retval = $nodename;
+}
+
+($ret) = ($retval =~ /\s*(.*)/);
+
+return "$ret";
+}
+1

@@ -1,0 +1,342 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- inet. organizational person directory entry -->
+<!-- DS_OBJECTCLASS "value=person,inetOrgPerson" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+Nueva
+<!-- ENDIF // Adding -->
+Entrada personal: 
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+function showVCard()
+{
+<!-- DS_ATTRIBUTE "attr=_vcard" "options=link" "mimetype=text/x-vcard" "prefix=var cardurl=" "suffix=";" -->
+
+    document.location.href = cardurl;
+}
+// End hiding -->
+</SCRIPT>
+
+
+</HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE><TR><TD>
+<!-- DS_ATTRIBUTE "attr=jpegPhoto" "type=hidden" "options=typeonly" -->
+<!-- IF "AttributeHasValues" "jpegPhoto" -->
+<IMG SRC=
+<!-- DS_ATTRIBUTE "attr=jpegPhoto" "options=link" "mimetype=image/jpeg" -->
+BORDER=0></TD>
+<TD>
+<!-- ENDIF -->
+<!-- A HREF="javascript:showVCard()" -->
+<IMG SRC="lang?<!-- GCONTEXT -->&file=person.gif" ALT="Persona (haga clic para ver la tarjeta)"
+    BORDER=0 HSPACE=5>
+</A>
+</TD>
+<!-- IF "DisplayOrgChart" -->
+<TD><FONT FACE="PrimaSans BT, Verdana, Sans-Serif" SIZE="-1">
+<A HREF=
+<!-- DS_ORGCHARTLINK -->
+ >
+<IMG SRC="lang?<!-- GCONTEXT -->&file=orgicon.gif" BORDER=0 ALT="Click to display organization chart" HSPACE=5></a>
+</FONT>
+</TD>
+<!-- ENDIF -->
+<TD><FONT SIZE="+2">
+<!-- IF "Adding" -->
+Nueva persona: 
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT></TD></TR></TABLE>
+
+<!-- DS_ATTRIBUTE "attr=userCertificate;binary" "type=hidden" "options=typeonly" -->
+<!-- IF "AttributeHasValues" "userCertificate;binary" -->
+<A HREF=
+<!-- DS_ATTRIBUTE "attr=userCertificate;binary" "options=link" "mimetype=application/x-x509-ca-cert" -->
+>Recibir certificado</A>
+<!-- ENDIF -->
+
+<!-- DS_ATTRIBUTE "attr=audio" "type=hidden" "options=typeonly" -->
+<!-- IF "AttributeHasValues" "audio" -->
+&nbsp;&nbsp;
+<A HREF=
+<!-- DS_ATTRIBUTE "attr=audio" "options=link" "mimetype=audio/basic" -->
+>Reproducir fragmento de sonido</A>
+<!-- ENDIF -->
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- INPUT TYPE="button" VALUE="Ver tarjeta" onClick="showVCard()" -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_EDITBUTTON "label=Modificar persona" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Guardar nueva persona" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Cancelar" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_ORGPERSON" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_ORGPERSON" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_EDITASBUTTON "label=Cambiar contrase&ntilde;a" "template=passwd" -->
+</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Cambiar nombre de persona" "prompt=Escriba otro nombre para esta persona:" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Borrar persona" "prompt=&#191;Desea borrar los datos de esta persona?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="person">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="organizationalPerson">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="inetOrgPerson">
+<!-- ENDIF // Adding -->
+<!-- PCONTEXT -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<!-- DS_STD_COMPLETION_JS -->
+
+<!-- IF "!Displaying" -->
+<B>El asterisco (*) indica los campos obligatorios</B><BR>
+<!-- ENDIF -->
+
+<TABLE CELLSPACING="2" BORDER BGCOLOR=#f2f2f2 WIDTH=95%>
+<TR>
+<TD BGCOLOR=#006666 COLSPAN=4><FONT FACE=ARIAL,HELVETICA COLOR=WHITE>
+Informaci&oacute;n de contacto</TD>
+</TR>
+
+<TD VALIGN="top" NOWRAP>Nombre:</TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=givenName" "cols=>16" -->
+</B></TD>
+<TD VALIGN="top" NOWRAP ROWSPAN="2">Nombre y apellidos:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD VALIGN="top" NOWRAP ROWSPAN="2"><B>
+<!-- DS_ATTRIBUTE "attr=cn" "numfields=+1" "cols=>23" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="top" NOWRAP>Apellidos:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD VALIGN="top" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=sn" "cols=>16" -->
+</B></TD></TR>
+
+<!-- IF "Adding" -->
+<TR>
+<TD>Contrase&ntilde;a:</TD><TD>
+<!-- DS_NEWPASSWORD "cols=>16" -->
+</B></TD>
+<TD> Repetir la contrase&ntilde;a para confirmarla:</TD><TD>
+<!-- DS_CONFIRM_NEWPASSWORD "cols=>16" -->
+</TD></TR>
+<!-- ENDIF // Adding -->
+
+<TR>
+<TD VALIGN="TOP">Tel&eacute;fono:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>16" "numfields=+1" -->
+</B></TD>
+<TD VALIGN="TOP" NOWRAP>Direcci&oacute;n electr&oacute;nica:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" "cols=>23" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Fax:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=facsimiletelephonenumber" "syntax=tel" "cols=>16" -->
+</B></TD>
+<TD VALIGN="TOP" NOWRAP>Identificador de usuario:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=uid" "cols=>16" "options=unique" -->
+</B></TD></TR>
+<INPUT TYPE="hidden" NAME="desc_uid" VALUE="user id">
+<!-- PCONTEXT -->
+<TR>
+<TD VALIGN="TOP" NOWRAP>Buscapersonas:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=pager" "syntax=tel" "cols=>16" -->
+</B></TD>
+<TD VALIGN="TOP" NOWRAP>Tel&eacute;fono m&oacute;vil:<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=mobile" "syntax=tel" "cols=>16" -->
+</B></TD></TR>
+
+</TABLE>
+
+<TABLE CELLSPACING="2" BORDER BGCOLOR=#f2f2f2 WIDTH=95%>
+<TR>
+<TD BGCOLOR=#006666 COLSPAN=4><FONT FACE=ARIAL,HELVETICA COLOR=WHITE>
+Informaci&oacute;n sobre actividad comercial y ubicaci&oacute;n</TD>
+</TR>
+
+<TR>
+<TD VALIGN="TOP">Categor&iacute;a comercial:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=businesscategory" -->
+</B></TD>
+<TD VALIGN="TOP">Cargo:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=title" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">Departamento:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=ou" -->
+</B></TD>
+<TD VALIGN="TOP">Responsable:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modificar..." "template=dneditpeople" "attr=manager" "desc=Responsable" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<!-- IF "Adding" -->
+<TD VALIGN="TOP" ROWSPAN=2>
+<I>Tiene que guardar esta entrada para poder modificar este campo.</I>
+<!-- ELSE // !Adding -->
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=manager" "syntax=dn" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+</TD></TR>
+
+<TR>
+<TD VALIGN="TOP">N&ordm; de despacho:</TD>
+<TD VALIGN="TOP" NOWRAP"><B>
+<!-- DS_ATTRIBUTE "attr=roomNumber" "cols=>8" -->
+</B></TD>
+</B><TD VALIGN="TOP">Admin.:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modificar..." "template=dneditpeople" "attr=secretary" "desc=Admin." -->
+<!-- ENDIF // !Adding -->
+</TD>
+<!-- IF "!Adding" -->
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=secretary" "syntax=dn" "options=readonly" -->
+</B></TD>
+<!-- ENDIF // !Adding -->
+</TR>
+
+<TR>
+<TD VALIGN="TOP">N&ordm; de dpto.:</TD>
+<TD VALIGN="TOP"><B>
+<!-- DS_ATTRIBUTE "attr=departmentnumber" "cols=>8" -->
+</B></TD>
+<TD VALIGN="TOP">N&ordm; empleado:</TD>
+<TD VALIGN="TOP"><B>
+<!-- DS_ATTRIBUTE "attr=employeenumber" "cols=>6" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP">C. identidad/pasaporte:</TD>
+<TD VALIGN="TOP"><B>
+<!-- DS_ATTRIBUTE "attr=carlicense" "cols=>8" -->
+</B></TD>
+<!-- Note: need to include two cells that contain a non-breaking space
+character so table background colors, etc. are rendered correctly -->
+<TD>&nbsp;&nbsp;</TD>
+<TD>&nbsp;&nbsp;</TD>
+</TR>
+
+<TR>
+<TD VALIGN="TOP">Direcci&oacute;n postal:</TD>
+<TD VALIGN="TOP" COLSPAN="4" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=postalAddress" "syntax=mls" "type=TEXTAREA" "cols=>40" "rows=>4" -->
+</B></TD></TR>
+
+</TABLE>
+
+<TABLE CELLSPACING="2" BORDER BGCOLOR=#f2f2f2 WIDTH=95%>
+<TR>
+<TD BGCOLOR=#006666 COLSPAN=2><FONT FACE=ARIAL,HELVETICA COLOR=WHITE>
+Informaci&oacute;n adicional</TD>
+</TR>
+
+<TR>
+<TD VALIGN="TOP">Descripci&oacute;n:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>50" -->
+</B></TR>
+
+<TR>
+<TD VALIGN="TOP">Ver tambi&eacute;n:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modificar..." "template=dnedit" "attr=seeAlso" "desc=Ver tambi&eacute;n" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD VALIGN="TOP" NOWRAP>
+<!-- IF "Adding" -->
+<I>Tiene que guardar esta entrada para poder modificar este campo.</I>
+<!-- ELSE // !Adding -->
+<B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+</TD></TR>
+
+<TR>
+<TD VALIGN="TOP">P&aacute;gina web:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=labeledURI" "syntax=url" "cols=>50" "options=sort" -->
+</B></TR>
+
+<!-- The following attribute should only be uncommented if you have
+     a need to allow editing of the x500UniqueIdentifier attribute.
+     Most installations will not need this functionality.
+<TR>
+<TD VALIGN="TOP">Identificador exclusivo:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=x500uniqueidentifier" "cols=>50" -->
+</B></TR>
+-->
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+Esta entrada fue modificada por &uacute;ltima vez el <B>
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> por <B>
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

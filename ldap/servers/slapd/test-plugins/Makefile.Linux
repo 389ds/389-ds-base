@@ -1,0 +1,31 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# Linux Makefile for Directory Server plug-in examples
+#
+
+CC = gcc
+LD = ld 
+
+INCLUDE_FLAGS = -I../include
+CFLAGS = $(INCLUDE_FLAGS) -D_REENTRANT -fPIC
+LDFLAGS = -G 
+
+OBJS = testsaslbind.o testextendedop.o testpreop.o testpostop.o testentry.o testbind.o testgetip.o testdatainterop.o testdbinterop.o
+
+all: libtest-plugin.so
+
+
+libtest-plugin.so: $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) libtest-plugin.so
+

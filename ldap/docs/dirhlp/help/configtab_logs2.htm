@@ -1,0 +1,221 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="10/20/03 15:42:42" />
+<title>Netscape Directory Server Help: Error Log</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="28758"> </a>
+<a name="Error Log"> </a>
+Error Log
+</p>
+
+<p class="text">
+<a name="28760"> </a>
+Use this tab to configure the directory's error log. The error log contains detailed messages about errors and events the server experiences during normal operations.
+</p>
+<p class="text">
+<a name="28761"> </a>
+<b>Enable logging. </b>Select this checkbox to configure the server to keep an error log; clear this checkbox to disable error logging.
+</p>
+<p class="text">
+<a name="28762"> </a>
+<b>View Log. </b>Click this button to view the error log for the directory.
+</p>
+<p class="text">
+<a name="28763"> </a>
+<b>Log File. </b>Contains the full path and filename of the error log. By default, the value is:
+</p>
+<p class="code">
+<a name="29220"></a>
+<span class="variable">serverRoot</span>/slapd-</font><span class="variable">serverID</span>/logs/errors
+</font>
+</p><p class="text">
+<a name="28767"> </a>
+<b>Creation Policy. </b>These options allow you to specify how often the server archives the current error log and starts a new log file.
+</p>
+<p class="text">
+<a name="29100"> </a>
+<b>Access mode. </b>Indicates the access mode or UNIX file permissions with which log files are to be created. The default value is 600. 
+</p>
+<p class="text">
+<a name="29101"> </a>
+The valid values are any combination of 000 to 777, as they mirror <em>numbered</em> or <em>absolute</em> UNIX file permissions. That is, the value must be a combination of a 3-digit number, the digits varying from 0 through 7:
+</p>
+<p class="text">
+<a name="29102"> </a>
+0 - None<br />1 - Execute only<br />2 - Write only<br />3 - Write and execute<br />4 - Read only<br />5 - Read and execute<br />6 - Read and write<br />7 - Read, write, and execute
+</p>
+<p class="text">
+<a name="29103"> </a>
+In the 3-digit number, the first digit represents the owner's permissions, the second digit represents the group's permissions, and the third digit represents everyone's permissions. When changing the default value, keep in mind that 000 will not allow access to the logs and allowing <em>write</em> permissions to <em>everyone</em> can result in the logs being overwritten or deleted by anyone.
+</p>
+<p class="text">
+<a name="29194"> </a>
+Note that the newly configured access mode will only affect new logs that are created; the mode will be set when the log rotates to a new file.
+</p>
+<p class="text">
+<a name="28768"> </a>
+<b>Maximum number of logs. </b>The number of logs to archive per directory. The default value is 1 log, meaning that the server does not rotate the log and it grows indefinitely.
+</p>
+<p class="text">
+<a name="28769"> </a>
+<b>File size for each log. </b>The maximum file size (in MB) for active error log files. Once a file reaches the size you specify, the server archives the file and starts a new one.
+</p>
+<p class="text">
+<a name="28770"> </a>
+<b>Create a new log every. </b>How often you want the server to start a new error log. The server archives a log file if the size of the file reaches the maximum file size or the specified time limit has elapsed, whichever comes first.
+</p>
+<p class="text">
+<a name="28771"> </a>
+<b>Deletion Policy. </b>These options allow you to configure the server to delete unneeded archived error log files.
+</p>
+<p class="text">
+<a name="28772"> </a>
+<b>When total log exceeds. </b>The server will delete the oldest archived error log once the total of all the logs reaches this amount.
+</p>
+<p class="text">
+<a name="28773"> </a>
+<b>When free disk space is less than. </b>The server will delete the oldest archived error log if the available disk space is less than this amount.
+</p>
+<p class="text">
+<a name="28774"> </a>
+<b>When a file is older than. </b>The server will delete an archived error log when the file is older than the age you specify.
+</p>
+<p class="text">
+<a name="28775"> </a>
+<b>Log Level. </b>Specifies the kinds of error and event messages the server should store in the error log. By default, no options are selected. Selecting any option will cause the error log to grow very rapidly because additional information is written for every request the server receives. You should not change this option unless told to by <em>Netscape Technical Support</em>.
+</p>
+<p class="h2">
+<a name="28779"> </a>
+<a name="See also"> </a>
+See also
+</p>
+
+
+<p class="text">
+<a name="28782"> </a>
+<a href="../en/slapd/ag/dsstats.htm#1057137">Viewing and Configuring Log Files</a>
+</p>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>October 20, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

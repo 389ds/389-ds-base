@@ -1,0 +1,150 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+//Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_GETPATH DIALOG DISCARDABLE  0, 0, 293, 155
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "NETSCAPE KEY PAIR FILE GENERATION"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDE_PATH,93,110,159,13,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,39,130,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,193,129,50,14
+    LTEXT           "Welcome to the key pair file generator. With this program you can generate the public and private keys that your server uses for secure communications.Make sure that you enter the full pathname of the key file.",
+                    IDC_STATIC,17,17,253,28
+    LTEXT           "First the server needs to know where to put the new key. You should NOT overwrite an existing key pair file ! Place the new key in a separate location. Make a note of the new key's location ! You will need it later when you request a certificate.",
+                    IDC_STATIC,17,50,251,33
+    LTEXT           "Key File Location:",IDC_STATIC,17,113,63,8
+    LTEXT           "If you installed the server into the root c:\\Navgold, you can store the key file in c:\\Navgold\\Server\\<serverid>\\ssl\\key.db",
+                    IDC_STATIC,17,87,251,16
+END
+
+IDD_GETPASSWORD DIALOG DISCARDABLE  0, 0, 293, 144
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "NETSCAPE KEY PAIR FILE PASSWORD"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDE_GETPASSWORD,98,104,159,13,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,45,125,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,190,123,50,14
+    LTEXT           "Finally, enter a password which will be used to encrypt the key pair file. You will use this password when starting up and shutting down your server.",
+                    IDC_STATIC,18,24,253,20
+    LTEXT           "Note: Be sure to keep this password safe ! If you must write down the password, the physical safety of the recording is your responsibility.",
+                    IDC_STATIC,18,50,251,19
+    LTEXT           "Password",IDC_STATIC,18,105,63,8
+    LTEXT           "The password must be at least 8 characters long, and must contain at least one non-alphabetic character in it. It should not be a word in any dictionary.",
+                    IDC_STATIC,18,77,255,24
+    LTEXT           "A random seed has been successfully generated !!",
+                    IDC_STATIC,18,4,246,15
+END
+
+IDD_GETPASSWORD2 DIALOG DISCARDABLE  0, 0, 265, 116
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "NETSCAPE KEY PAIR FILE PASSWORD"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDE_GETPASSWORD2,67,50,159,13,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,67,78,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,176,78,50,14
+    LTEXT           "Password",-1,10,54,50,8
+    LTEXT           "Reenter the password for verification:",-1,10,18,255,24
+END
+
+IDD_GETCERT DIALOG DISCARDABLE  0, 0, 293, 115
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "NETSCAPE KEY CERTIFICATE GENERATION"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,125,90,50,14
+    LTEXT           "Congratulations ! Your new key is in the file:",
+                    IDC_STATIC,19,17,253,14
+    LTEXT           "The next step is to generate a certificate. Select the hyperlink ""Request or renew a certificate from the server manager.",
+                    IDC_STATIC,19,60,251,22
+    LTEXT           "Static",IDC_KEYFILE,19,38,223,8
+END
+
+IDD_GETSEED DIALOG DISCARDABLE  0, 0, 301, 156
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "NETSCAPE RANDOM NUMBER SEED GENERATION"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Next a random seed must be generated to complete the creation of your key  pair file. You have to provide mouse input for this to happen. Move your mouse continuously and randomly on the desktop to provide this input.",
+                    IDC_STATIC,15,12,250,29
+    LTEXT           "On NT3.51 systems a progress bar will appear to inform you how much more random mouse input the program needs to generate its random seed. When enough input has been obtained from you, another dialog box will notify you.",
+                    IDC_STATIC,15,48,259,25
+    LTEXT           "As you move the mouse, the location of the cursor is sampled at random intervals and this is added to a sample of a high frequency counter to generate the random seed. Click OK to begin.",
+                    IDC_STATIC,15,83,256,33
+    PUSHBUTTON      "OK",IDOK,125,137,50,14
+    LTEXT           "This process could take from 30 seconds to a minute of continuous mouse input.",
+                    IDC_STATIC,15,119,281,8
+END
+
+IDD_UPDATE DIALOG DISCARDABLE  0, 0, 185, 74
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Collecting Random User Input  ....."
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Static",IDC_UPDATE,13,8,150,59
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // APSTUDIO_INVOKED
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

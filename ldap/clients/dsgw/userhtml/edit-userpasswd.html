@@ -1,0 +1,85 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML><HEAD>
+<!-- change a user's password in the directory -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>Change Password -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE>
+
+</HEAD>
+
+<!-- COLORS "TEXT=#000000 BGCOLOR=#FFFFFF LINK=#FF0000 VLINK=#8000FF ALINK=#FF0000" -->
+
+<!-- BODY "onLoad='document.forms[0].passwd.focus()'" -->
+
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT><HR>" -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<INPUT TYPE="hidden" NAME="colors" VALUE="TEXT=#000000 BGCOLOR=#FFFFFF LINK=#FF0000 VLINK=#8000FF ALINK=#FF0000">
+
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="document.location.href=\'edit/?userpasswd&info=\' + escape(dsmodify_info);">
+
+<TABLE BORDER=2 CELLSPACING=0 CELLPADDING=10 BGCOLOR="#F0F0F0">
+<TR BGCOLOR="#F1C40E">
+<TD>
+<H3>Password for
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+<FONT COLOR="#FFFFFF"> </FONT></H3>
+</TD>
+</TR>
+
+<TR>
+<TD><I><FONT SIZE=+0>Use this form to change your system password</FONT></I>.
+</TD>
+</TR>
+
+<TR>
+<TD>
+<UL>
+<TABLE CELLSPACING=0 CELLPADDING=0 >
+<TR ALIGN=LEFT VALIGN=CENTER>
+<TD><B>1.</B> Enter your <B>current </B>password:</TD>
+<TD>
+<!-- DS_OLDPASSWORD "size=12" -->
+</TD></TR>
+
+<TR VALIGN=CENTER>
+<TD><B>2.</B> Enter your <B>new </B>password: </TD>
+<TD>
+<!-- DS_NEWPASSWORD "size=12" -->
+</TD></TR>
+
+<TR ALIGN=LEFT VALIGN=CENTER>
+<TD><B>3.</B> Enter <B>new </B>password again:</TD>
+<TD>
+<!-- DS_CONFIRM_NEWPASSWORD "size=12" -->
+</TD></TR>
+</TABLE>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD>
+<CENTER><P>
+<!-- DS_SAVEBUTTON "label=    OK     " -->
+</P></CENTER>
+</TD>
+</TR>
+</TABLE>
+
+
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="document.location.href=\'edit/\' + dsmodify_dn + \'?&info=\' + escape(dsmodify_info)">
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

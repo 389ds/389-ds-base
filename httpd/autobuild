@@ -1,0 +1,500 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+UNAME=`../nsarch`
+NSUNAME=`uname -s | sed -e 's%/%_%g'``uname -r`
+DATE="`date +%d-%h`"
+
+# OS tweaks
+
+if [ "$UNAME" = "SUNOS4" ]; then
+    PATH=/usr/local/sun4/bin:/usr/bin/X11:$PATH; export PATH
+    GTAR=/share/builds/f/gtar/bin/sunos-gtar
+    HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "SOLARIS" ]; then
+    PATH=/usr/ccs/bin:/usr/openwin/bin:$PATH; export PATH
+    OPENWINHOME=/usr/openwin; export OPENWINHOME
+    GTAR=/share/builds/f/gtar/bin/solaris-gtar
+    HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "SOLARISx86" ]; then
+    PATH=/usr/ccs/bin:/usr/openwin/bin:$PATH; export PATH
+    OPENWINHOME=/usr/openwin; export OPENWINHOME
+    HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "HPUX" ]; then
+  PATH=/usr/local/hpux/bin:/usr/bin/X11:$PATH; export PATH
+  GTAR=/share/builds/f/gtar/bin/hpux-gtar
+  HTTPDLIB=libnshttpd.sl
+
+elif [ "$UNAME" = "BSDI" ]; then
+  PATH=/usr/local/bin:/usr/X11/bin:$PATH; export PATH
+  GTAR=/share/builds/f/gtar/bin/bsdi-gtar
+
+elif [ "$UNAME" = "OSF1" ]; then
+#  NOJAVA=true
+  PATH=/usr/local/dec/bin:/usr/bin/X11:$PATH; export PATH
+  GTAR=/share/builds/f/gtar/bin/osf1-gtar
+  HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "AIX" ]; then
+  PATH=/usr/local/aix32/bin:/usr/bin/X11:$PATH; export PATH
+  GTAR=/share/builds/f/gtar/bin/aix-gtar
+  HTTPDLIB=ns-httpd.a
+
+elif [ "$UNAME" = "IRIX" ]; then
+  GTAR=/share/builds/f/gtar/bin/irix-gtar
+  HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "SONY" ]; then
+  PATH=/usr/bin/X11:$PATH; export PATH
+  HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "NECSVR4" ]; then
+  PATH=/u/malmer/nec/usr/local/bin:/usr/bin/X11:$PATH; export PATH
+  HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "ReliantUNIX" ]; then
+  PATH=/usr/local/bin:$PATH; export PATH
+  GTAR=tar
+  HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "SCO" ]; then
+  PATH=/usr/local/bin:/usr/bin/X11:$PATH; export PATH
+  GTAR=/usr/local/bin/gtar
+  HTTPDLIB=ns-httpd.so
+
+elif [ "$UNAME" = "UNIXWARE" ]; then
+  PATH=/usr/local/bin:/usr/bin/X11:$PATH; export PATH
+  GTAR=/usr/local/bin/gtar
+  HTTPDLIB=ns-httpd.so
+
+fi
+
+set -- `getopt p: $*` || {
+	echo "### `basename $0`:  ERROR:  unknown option" 1>&2
+	exit 1
+}
+
+BuildInPhases=0
+
+while [ "$1" != "--" ] ; do
+	case "$1" in
+		-p) BuildInPhases=1; shift; Phase=$1
+			;;
+	esac
+	shift
+done
+shift
+
+
+buildit() {
+
+#  Initialize some variables
+
+ADMINDIR=../built/$UNAME-$SECTYPE-admserv
+if [ "$PRODUCT" = "personal" ]; then
+  BINDIR=httpd
+  TARNAME=nshttpd.tar
+elif [ "$PRODUCT" = "catalog" ]; then
+  BINDIR=catalog
+  TARNAME=ns-catalog.tar
+elif [ "$PRODUCT" = "rds" ]; then
+  BINDIR=rds
+  TARNAME=ns-rds.tar
+elif [ "$PRODUCT" = "cms" ]; then
+  BINDIR=https
+  TARNAME=ns-cms.tar
+else
+  BINDIR=https
+  TARNAME=nshttps.tar
+fi
+SOURCEDIR=../built/$UNAME-$SECTYPE-$BINDIR
+TARGETDIR=$TYPE/$UNAME-$SECTYPE-$BINDIR
+TARGETUNTAR=$TYPE/$UNAME-$SECTYPE-$BINDIR/untarred
+
+TARGETHTBIN=$TYPE/$UNAME-$SECTYPE-$BINDIR/untarred/bin/$BINDIR
+mkdir -p $TARGETUNTAR 2> /dev/null
+
+if [ $BuildInPhases = 1 ]
+then
+	if [ "$Phase" = "server" ]
+	then
+		buildserver
+	elif [ "$Phase" = "admin" ]
+	then
+		buildadmin
+	elif [ "$Phase" = "batman" ]
+	then
+		buildbatman
+	elif [ "$Phase" = "tar" ]
+	then
+		(cd $TARGETUNTAR; tar cvf ../$TARNAME *)
+	else
+		echo "`basename $0`:  ERROR:  unknown build phase"
+		exit 1
+	fi
+else
+	buildserver
+	buildadmin
+	buildbatman
+	(cd $TARGETUNTAR; tar cvf ../$TARNAME *)
+fi
+}
+
+buildserver() {
+
+(cd ..; ./config $BOMB $PRODUCT $SECCONFIG $OPTIMIZE)
+gmake
+
+if [ $? -ne 0 ]; then
+  exit 2
+fi
+
+(cd ../mc-icons; gmake)
+if [ $? -ne 0 ]; then
+  exit 2
+fi
+
+(cd ../include; gmake)
+if [ $? -ne 0 ]; then
+  exit 2
+fi
+
+(cd nsapi; gmake)
+if [ $? -ne 0 ]; then
+  exit 2
+fi
+
+(cd extras; gmake)
+if [ $? -ne 0 ]; then
+  exit 2
+fi
+
+if [ "$NOJAVA" != "true" ]; then
+  (cd ../lib/sjava; gmake)
+  if [ $? -ne 0 ]; then
+    exit 2
+  fi
+fi
+
+# generate DBMs in admin/bin directory
+(cd $SOURCEDIR/admin/bin; ./mkdbm)
+
+# Each product has different manuals
+if [ "$BINDIR" = "catalog" -o "$BINDIR" = "rds" ]; then
+	# Batman
+	ADMINMANUALS="html/manual/ag html/manual/design html/manual/beta2"
+else
+	# Enterprise and FastTrack
+	ADMINMANUALS="html/manual/ag html/manual/pg html/manual/javascript"
+fi
+for i in icons html html/info html/manual $ADMINMANUALS bin; do
+  mkdir -p $TARGETUNTAR/bin/$BINDIR/admin/$i
+  cp $SOURCEDIR/admin/$i/* $TARGETHTBIN/admin/$i
+done
+
+/bin/rm -f $TARGETHTBIN/admin/bin/*.o
+$STRIP $TARGETHTBIN/admin/bin/*
+
+for i in misc icons html bin; do
+  mkdir -p $TARGETHTBIN/install/$i
+  cp $SOURCEDIR/install/$i/* $TARGETHTBIN/install/$i
+done
+$STRIP $TARGETHTBIN/install/bin/*
+mv $TARGETHTBIN/install/bin/ns-setup $TARGETDIR
+mv $TARGETHTBIN/install/bin/ns-config $TARGETHTBIN/ns-config
+
+
+mkdir -p $TARGETUNTAR/ns-icons
+cp $SOURCEDIR/mc-icons/* $TARGETUNTAR/ns-icons
+
+if [ -d $SOURCEDIR/nsapi -a "$UNAME" != "BSDI" ]; then
+    mkdir -p $TARGETUNTAR/nsapi
+    cp -r $SOURCEDIR/nsapi/* $TARGETUNTAR/nsapi
+fi
+
+mkdir -p $TARGETUNTAR/extras
+cp -r $SOURCEDIR/extras/* $TARGETUNTAR/extras
+$STRIP $TARGETUNTAR/extras/*/*
+
+cp $SOURCEDIR/ns-httpd $TARGETHTBIN/ns-httpd
+if [ "$HTTPDLIB" != "" ]; then
+  cp $SOURCEDIR/$HTTPDLIB $TARGETHTBIN/$HTTPDLIB
+fi
+$STRIP $TARGETHTBIN/ns-httpd
+if [ "$UNAME" != "IRIX" -a "$UNAME" != "SUNOS4" ]; then
+  $STRIP $TARGETHTBIN/$HTTPDLIB
+fi
+
+if [ "$UNAME" = "AIX" ]; then
+  cp /usr/lib/libsvld.a $TARGETHTBIN/libsvld.a
+fi
+
+
+cp README $TARGETDIR
+cp newinst/misc/license.txt $TARGETDIR
+
+mkdir -p $TARGETUNTAR/userdb
+mkdir -p $TARGETUNTAR/httpacl
+mkdir -p $TARGETUNTAR/authdb
+mkdir -p $TARGETUNTAR/authdb/default
+
+if [ "$PRODUCT" = "enterprise" ]; then
+mkdir -p $TARGETUNTAR/plugins/search/admin
+mkdir -p $TARGETUNTAR/plugins/search/tmp
+chmod a+w $TARGETUNTAR/plugins/search/tmp
+mkdir -p $TARGETUNTAR/plugins/search/collections
+chmod a+w $TARGETUNTAR/plugins/search/collections
+cp -r plugins/search $TARGETUNTAR/plugins
+(cd $TARGETUNTAR/plugins/search; rm -r `find . -name CVS -print`)
+cp $SOURCEDIR/lib/vsearch $TARGETUNTAR/plugins/search/vsearch
+cp $SOURCEDIR/admin/bin/ia* $TARGETUNTAR/plugins/search/vsearch
+$STRIP $TARGETUNTAR/plugins/search/vsearch/ia*
+cp ../lib/libsearch/searching/query.err $TARGETUNTAR/plugins/search/vsearch
+mkdir -p $TARGETUNTAR/plugins/search/ui/icons
+mkdir -p $TARGETUNTAR/plugins/search/ui/usa
+cp ../lib/libsearch/searching/ui/icons/* $TARGETUNTAR/plugins/search/ui/icons
+cp ../lib/libsearch/searching/ui/usa/* $TARGETUNTAR/plugins/search/ui/usa
+
+mkdir -p $TARGETUNTAR/plugins/snmp
+mkdir -p $TARGETUNTAR/plugins/snmp/magt
+mkdir -p $TARGETUNTAR/plugins/snmp/sagt
+if [ -d $SOURCEDIR/plugin/snmp -a -f $SOURCEDIR/plugin/snmp/httpagt ]; then
+  cp $SOURCEDIR/plugin/snmp/httpagt $TARGETUNTAR/plugins/snmp/httpagt
+fi
+cp plugins/snmp/netscape.pub $TARGETUNTAR/plugins/snmp/netscape.mib
+
+mkdir -p $TARGETUNTAR/plugins/mks/bin
+	cp $SOURCEDIR/plugins/mks/bin/*.so $TARGETUNTAR/plugins/mks/bin
+
+if [ "$UNAME" = "SUNOS4" ]; then
+  cp ../../../peer/sunos/magt/* $TARGETUNTAR/plugins/snmp/magt
+  cp ../../../peer/sunos/sagt/* $TARGETUNTAR/plugins/snmp/sagt
+elif [ "$UNAME" = "SOLARIS" ]; then
+  cp ../../../peer/solaris/magt/* $TARGETUNTAR/plugins/snmp/magt
+  cp ../../../peer/solaris/sagt/* $TARGETUNTAR/plugins/snmp/sagt
+elif [ "$UNAME" = "HPUX" ]; then
+  cp ../../../peer/hp/magt/* $TARGETUNTAR/plugins/snmp/magt
+  cp ../../../peer/hp/sagt/* $TARGETUNTAR/plugins/snmp/sagt
+elif [ "$UNAME" = "OSF1" ]; then
+  cp ../../../peer/osf/magt/* $TARGETUNTAR/plugins/snmp/magt
+  cp ../../../peer/osf/sagt/* $TARGETUNTAR/plugins/snmp/sagt
+elif [ "$UNAME" = "AIX" ]; then
+  cp ../../../peer/aix/magt/* $TARGETUNTAR/plugins/snmp/magt
+  cp ../../../peer/aix/sagt/* $TARGETUNTAR/plugins/snmp/sgat
+elif [ "$UNAME" = "IRIX" ]; then
+  cp ../../../peer/irix/magt/* $TARGETUNTAR/plugins/snmp/magt
+  cp ../../../peer/irix/sagt/* $TARGETUNTAR/plugins/snmp/sagt
+fi
+fi	#  PRODUCT = enterprise
+
+
+if [ "$NOJAVA" != "true" ]; then
+  mkdir -p $TARGETUNTAR/plugins/java/bin
+  cp $SOURCEDIR/lib/libsjava.so $TARGETUNTAR/plugins/java/bin
+
+  mkdir -p $TARGETUNTAR/plugins/java/classes
+  cp ../../sun-java/classsrc/serv2_0.zip $TARGETUNTAR/plugins/java/classes
+
+  cp plugins/java/javac $TARGETUNTAR/plugins/java
+  cp plugins/java/README $TARGETUNTAR/plugins/java
+
+  mkdir -p $TARGETUNTAR/plugins/java/applets
+  cp plugins/java/applets/* $TARGETUNTAR/plugins/java/applets
+
+#  mkdir -p $TARGETUNTAR/plugins/java/local-classes
+#  cp plugins/java/local-classes/* $TARGETUNTAR/plugins/java/local-classes
+
+# XXXrobm these docs assume that we have Sun's HTML and images
+#  mkdir -p $TARGETUNTAR/plugins/java/docs/images
+#  cp plugins/java/docs/*.html $TARGETUNTAR/plugins/java/docs
+#  cp ../../sun-java/javadoc/*.gif $TARGETUNTAR/plugins/java/docs/images
+fi
+
+mkdir $TARGETUNTAR/install
+cp ./newinst/src/upgrade $TARGETUNTAR/install
+cp ./newinst/src/ObjConf.pm $TARGETUNTAR/install
+cp ./newinst/src/Magnus.pm $TARGETUNTAR/install
+cp ./newinst/src/start $TARGETUNTAR/install
+cp ./newinst/src/stop $TARGETUNTAR/install
+cp ./newinst/src/restart $TARGETUNTAR/install
+cp ./newinst/src/rotate $TARGETUNTAR/install
+cp ./newinst/perl5/$UNAME-perl5/perl $TARGETUNTAR/install
+cp ./newinst/perl5/artistic $TARGETUNTAR/install
+if [ "$UNAME" = "IRIX" ] || [ "$UNAME" = "SOLARIS" ] || [ "$UNAME" = "OSF1" ] ; then
+  cp ./newinst/src/kernelThreads.pl $TARGETUNTAR/install/threads.pl
+fi
+cp $SOURCEDIR/extras/database/mkuser $TARGETUNTAR/install
+cp $SOURCEDIR/extras/database/ndbmdump $TARGETUNTAR/install
+cp $SOURCEDIR/extras/database/rcert11 $TARGETUNTAR/install
+cp $SOURCEDIR/extras/database/rkey11 $TARGETUNTAR/install
+$STRIP $TARGETUNTAR/install/*
+
+if [ "$DO_LIVEWIRE" = "yes" ]; then
+	if [ "$UNAME" = "IRIX" ] ; then
+		PLATSFX=sgi
+	elif [ "$UNAME" = "SOLARIS" ] ; then
+		PLATSFX=sol
+	elif [ "$UNAME" = "HPUX" ] ; then
+		PLATSFX=hpx
+	fi
+	LIVEWIRETAR=livewire_$PLATSFX.tar
+	if [ -d $TARGETUNTAR/LiveWire ]; then
+		rm -rf $TARGETUNTAR/LiveWire
+	fi
+	mkdir $TARGETUNTAR/LiveWire
+	cp ./newinst/src/$LIVEWIRETAR.gz $TARGETUNTAR/LiveWire
+	gunzip $TARGETUNTAR/LiveWire/$LIVEWIRETAR
+	(cd $TARGETUNTAR/LiveWire; tar xf livewire*.tar)
+	cp $TARGETUNTAR/LiveWire/server/* $TARGETUNTAR/bin/$BINDIR
+	cp $TARGETUNTAR/LiveWire/bin/* $TARGETUNTAR/bin/$BINDIR
+	rm -rf $TARGETUNTAR/LiveWire/server $TARGETUNTAR/LiveWire/bin
+	rm $TARGETUNTAR/LiveWire/livewire*.tar
+fi
+
+
+(cd $TARGETUNTAR; find . -name \*.o -print | xargs rm -f)
+
+}
+
+buildadmin() {
+
+# BONEHEAD
+(cd ..; ./config $BOMB admin $SECCONFIG $OPTIMIZE)
+(cd ../admserv; gmake)
+if [ $? -ne 0 ]; then
+  exit 2
+fi
+
+mkdir -p $TARGETUNTAR/admserv
+cp $ADMINDIR/ns-admin $TARGETUNTAR/admserv
+$STRIP $TARGETUNTAR/admserv/ns-admin
+
+for i in icons html html/info bin cfgstuff; do
+  mkdir -p $TARGETUNTAR/bin/admserv/$i
+  cp $ADMINDIR/cgi/$i/* $TARGETUNTAR/bin/admserv/$i
+done
+$STRIP $TARGETUNTAR/bin/admserv/bin/*
+
+}
+
+buildbatman() {
+
+# For AutoCatalog from Batman -Darren
+if [ "$DO_AUTOCATALOG" = "yes" ]; then
+	# We need to re-run config to get our own library versions, etc.
+	(cd ..; ./config $BOMB batman $SECCONFIG $OPTIMIZE)
+
+	#  This ugly hack is needed because nspr.a must be rebuilt on
+	#  SOLARIS for batman.  There are symbols required by the gcc
+	#  generated code that SparcWorks doesn't provide - nothing links.
+
+	if [ "$UNAME" = "SOLARIS" ]; then
+		NSPRDIR=../../nspr/src/${NSUNAME}_${NSTAG}.OBJ
+		mv $NSPRDIR/nspr.a $NSPRDIR/GCCnspr.a
+		if [ -f $NSPRDIR/SPARCWKnspr.a ] ; then
+			mv $NSPRDIR/SPARCWKnspr.a $NSPRDIR/nspr.a
+		else
+			rm -f $NSPRDIR/*.o
+		fi
+	fi
+	(NS_USE_NATIVE=1; export NS_USE_NATIVE; cd ../batman; gmake MINIRDS_INSTALLDIR="../../httpd/$TARGETUNTAR/plugins" NSAPIDIR="$TARGETUNTAR/nsapi" minirds)
+	if [ $? -ne 0 ]; then
+  		exit 2
+	fi
+	$STRIP $TARGETUNTAR/plugins/autocatalog/bin/*
+	$STRIP $TARGETUNTAR/plugins/autocatalog/*
+	if [ "$UNAME" = "SOLARIS" ] ; then
+		mv $NSPRDIR/nspr.a $NSPRDIR/SPARCWKnspr.a
+		mv $NSPRDIR/GCCnspr.a $NSPRDIR/nspr.a
+	fi
+fi
+
+}
+
+if [ "`echo $* | grep final`" != "" ]; then
+  TYPE=final
+  BOMB=nobomb
+
+elif [ "`echo $* | grep beta`" != "" ]; then
+  TYPE=beta
+  BOMB=bomb
+
+else
+  echo "You must choose to build either a beta or final version."
+  exit 2
+fi
+
+
+if [ "$NOJAVA" = "" -a "`echo $* | grep java`" != "" ]; then
+  NOJAVA=false
+else
+  NOJAVA=true
+fi
+
+if [ "$DO_AUTOCATALOG" = "" -a "`echo $* | grep autocatalog`" != "" ]; then
+  DO_AUTOCATALOG=yes
+else
+  DO_AUTOCATALOG=no
+fi
+# need to export DO_AUTOCATALOG so that it's passed down through all gmakes
+export DO_AUTOCATALOG
+
+if [ "$DO_LIVEWIRE" = "" ]; then
+	if [ "`echo $* | grep livewire`" != "" ]; then
+	  DO_LIVEWIRE=yes
+	else
+	  DO_LIVEWIRE=no
+	fi
+fi
+export DO_LIVEWIRE
+
+OPTIMIZE=optimize
+NSTAG=OPT
+STRIP=strip
+if [ "`echo $* | grep debug`" != "" ]; then
+  OPTIMIZE=debug
+  NSTAG=DBG
+  STRIP=echo
+fi
+
+NSDISTDIR=../../dist/${NSUNAME}_${NSTAG}.OBJ
+
+if [ "`echo $* | grep personal`" != "" ]; then
+  PRODUCT=personal
+elif [ "`echo $* | grep ns_catalog`" != "" ]; then
+  PRODUCT=catalog
+elif [ "`echo $* | grep ns_rds`" != "" ]; then
+  PRODUCT=rds
+elif [ "`echo $* | grep cms`" != "" ]; then
+  PRODUCT=cms
+else
+  PRODUCT=enterprise
+fi
+
+
+if [ "`echo $* | grep unsecure`" != "" -o "`echo $* | grep all`" != "" ]; then
+  SECTYPE=none
+  SECCONFIG=unsecure
+  buildit
+fi
+
+if [ "`echo $* | grep export`" != "" -o "`echo $* | grep all`" != "" ]; then
+  SECTYPE=export
+  SECCONFIG=export
+  buildit
+fi
+
+if [ "`echo $* | grep domestic`" != "" -o "`echo $* | grep all`" != "" ]; then
+  SECTYPE=domestic
+  SECCONFIG=domestic
+  buildit
+fi

@@ -1,0 +1,88 @@
+/* ======================================================= *
+ *     Style sheet for the Directory Express application   *
+ * ======================================================= */
+
+/* All Links */
+A:link   {  font-family: verdana, Arial, Helvetica, sans-serif; font-size: 11px}
+A:active  {	color: #FF0000;}
+
+.linknodec {text-decoration:none; color:#000000; font-family: verdana, Arial, Helvetica, sans-serif; font-size: 11px}
+
+/*All Regular Table Data--for the whole application*/
+td {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	color: #000000;
+	vertical-align : middle;
+}
+
+p {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	color: #000000;
+}
+
+
+td.bold {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	vertical-align : middle;
+	color: #000000;
+	font-weight: bold;
+}
+
+td.boldbig {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+	color: #000000;
+	font-weight: bold;
+}
+
+input {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	/*color: #000000;*/
+}
+
+
+A.searchlinknorm:link {color: #CCFFFF}
+A.searchlinknorm:visited {color: #CCFFFF}
+A.searchlinknorm:active {color: #CCFFFF}
+
+A.searchlinkspec:link {color: #FF0000}
+A.searchlinkspec:visited {color: #FF0000}
+A.searchlinkspec:active {color: #CCFFFF}
+
+/* *********Search frame*************/
+
+body.Search {
+	background-color: #003366;
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	color: #ccffff;
+	font-size: 12px;
+}
+
+td.appName {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+	color: #ccffff;
+	font-weight: bold;
+}
+
+.apptext {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align: middle;
+	color: #ccffff;
+}
+
+/* Fonts */
+.text15 {color: #ffffff; font-size: 12px; font-family: Verdana, Arial, Helvetica; font-weight: bold;}
+.text30 {color: #CCFFFF; font-size: 8px; font-family: Verdana, Arial, Helvetica;}
+.text31 {color: #000000; font-size: 14px; font-family: Verdana, Arial, Helvetica; font-weight: bold;}
+
+.bgColor1  {background-color: #003366;}
+.bgColor4  {background-color: #cccccc;}
+.bgColor7  {background-color: #66ccff;}

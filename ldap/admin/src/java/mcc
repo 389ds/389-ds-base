@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+if [ $# -lt 2 ]
+then
+	echo >&2 "Usage: $0 host port [[user] [password]"
+	exit 2
+fi
+MCC_HOST=$1
+MCC_PORT=$2
+# Has to be in the jars subdirectory
+JARDIR=./jars
+#
+DS=${JARDIR}/ds40.jar
+ADMIN=${JARDIR}/admserv.jar
+KINGPIN=${JARDIR}/kingpin.jar
+SWING=${JARDIR}/swingall.jar
+LF=${JARDIR}/nmclf.jar
+LAYOUT=${JARDIR}/layout.jar
+LDAP=${JARDIR}/ldapjdk.jar
+BASE=o=netscaperoot
+CLASSPATH=${DS}:${KINGPIN}:${ADMIN}:${SWING}:${LAYOUT}:${LF}:${LDAP};export CLASSPATH 
+cd `dirname $0`
+if [ $# -gt 3 ]
+then
+  java com.netscape.management.client.console.Console -d ${MCC_HOST} -p ${MCC_PORT} -u "$3" -w "$4" -b ${BASE}
+elif [ $# -gt 2 ]
+then
+  java com.netscape.management.client.console.Console -d ${MCC_HOST} -p ${MCC_PORT} -u "$3" -b ${BASE}
+else
+  java com.netscape.management.client.console.Console -d ${MCC_HOST} -p ${MCC_PORT} -b ${BASE}
+fi
+

@@ -1,0 +1,25 @@
+/**
+ * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+ * license terms. Copyright © 2001 Sun Microsystems, Inc.
+ * Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+ * All rights reserved.
+ */
+/*
+ * Copyright (c) 1996 Netscape Communications Corp.
+ * All rights reserved.
+ */
+
+#if defined( XP_WIN32 )
+#undef MCC_HTTPD
+#endif
+
+#include "netsite.h"			/* to get MAGNUS_VERSION_STRING */
+
+#ifdef MAGNUS_VERSION_STRING
+#define DSGW_VER_STR	MAGNUS_VERSION_STRING
+#else
+#include "dirver.h"	/* to get PRODUCTTEXT */
+#define DSGW_VER_STR	PRODUCTTEXT
+#endif
+
+char *Versionstr = "Netscape-Directory-Gateway/"DSGW_VER_STR;

@@ -1,0 +1,62 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "Search for Groups" -->
+
+<!-- IF "PostedFormValue" "goback" -->
+<FORM>
+<INPUT TYPE="button"
+<!-- DS_POSTEDVALUE "name=goback">
+onClick="history.back()">
+</FORM>
+<!-- ENDIF // PostedFormValue goback -->
+
+<FONT SIZE=+1>
+<!-- DS_SEARCHDESC -->
+</FONT>
+<P>
+
+<!-- IF "FoundEntries" -->
+<TABLE BORDER=1 CELLPADDING=4 WIDTH=100%>
+<TR>
+<TH NOWRAP>Group Name
+<TH NOWRAP>Description 
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=description" "options=readonly"-->
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<FONT SIZE=+1>
+Please try a different search.
+</FONT>
+<!-- ENDIF -->
+
+<!-- "Faceless" form which holds (initial) values for domodify -->
+<FORM NAME="modifyForm" ACTION="/admin-serv/bin/domodify" METHOD="POST">
+ 
+<INPUT TYPE="hidden" NAME="changetype" VALUE="modify">
+<INPUT TYPE="hidden" NAME="dn" VALUE="
+<!-- DS_FA_GROUPDN -->
+">
+<INPUT TYPE="hidden" NAME="add_
+<!--  DS_FA_ATTRNAME -->
+" VALUE="">
+ 
+ 
+</FORM>
+
+
+<!-- ENDHTML -->

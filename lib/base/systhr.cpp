@@ -1,0 +1,256 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+/*
+ * systhr.c: Abstracted threading mechanisms
+ * 
+ * Rob McCool
+ */
+
+#include "systhr.h"
+#include "ereport.h"
+
+#define USE_NSPR
+#ifdef USE_NSPR
+#include "nspr.h"
+#include "private/prpriv.h"
+extern "C" {
+int32 PR_GetSysfdTableMax(void);
+int32 PR_SetSysfdTableSize(int table_size);
+}
+#endif
+#include "systems.h"
+
+#ifdef THREAD_WIN32
+#include <process.h>
+
+typedef struct {
+    HANDLE hand;
+    DWORD id;
+} sys_thread_s;
+
+#endif
+
+
+
+#if defined (USE_NSPR)
+
+
+#define DEFAULT_STACKSIZE (64*1024)
+
+static unsigned long _systhr_stacksize = DEFAULT_STACKSIZE;
+
+NSAPI_PUBLIC 
+void systhread_set_default_stacksize(unsigned long size)
+{
+	_systhr_stacksize = size;
+}
+
+NSPR_BEGIN_EXTERN_C
+
+NSAPI_PUBLIC SYS_THREAD
+#ifdef UnixWare /* for ANSI C++ standard, see base/systrh.h */
+systhread_start(int prio, int stksz, ArgFn_systhread_start fn, void *arg)
+#else
+systhread_start(int prio, int stksz, void (*fn)(void *), void *arg)
+#endif
+{
+#if (defined(Linux) || defined(SNI) || defined(UnixWare)) && !defined(USE_PTHREADS)
+    prio /= 8; /* quick and dirty fix for user thread priority scale problem */
+    if (prio > 3) prio = 3;
+#endif
+
+    PRThread *ret = PR_CreateThread(PR_USER_THREAD, (void (*)(void *))fn,
+				    (void *)arg, (PRThreadPriority)prio, 
+				    PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
+                                    stksz ? stksz : _systhr_stacksize);
+    return (void *) ret;
+}
+
+NSPR_END_EXTERN_C
+
+
+NSAPI_PUBLIC SYS_THREAD systhread_current(void)
+{
+    return PR_GetCurrentThread();
+}
+
+NSAPI_PUBLIC void systhread_yield(void)
+{
+  /* PR_Yield(); */
+  PR_Sleep(PR_INTERVAL_NO_WAIT);
+}
+
+
+NSAPI_PUBLIC void systhread_timerset(int usec)
+{
+   /* This is an interesting problem.  If you ever do turn on interrupts
+    * on the server, you're in for lots of fun with NSPR Threads
+   PR_StartEvents(usec); */
+}
+
+
+NSAPI_PUBLIC 
+SYS_THREAD systhread_attach(void)
+{
+    PRThread *ret;
+    ret = PR_AttachThread(PR_USER_THREAD, PR_PRIORITY_NORMAL, NULL);
+
+    return (void *) ret;
+}
+
+NSAPI_PUBLIC
+void systhread_detach(SYS_THREAD thr)
+{
+    /* XXXMB - this is not correct! */
+    PR_DetachThread();
+}
+
+NSAPI_PUBLIC void systhread_terminate(SYS_THREAD thr)
+{
+
+    /* Should never be here. PR_DestroyThread is no 
+     * longer used. */
+    PR_ASSERT(0);
+  
+    /* PR_DestroyThread((PRThread *) thr); */
+}
+
+NSAPI_PUBLIC void systhread_sleep(int milliseconds)
+{
+    PR_Sleep(milliseconds);
+}
+
+NSAPI_PUBLIC void systhread_init(char *name)
+{
+    PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 256);
+#ifdef XP_UNIX
+    /* XXXrobm allocate all the fd's we can... */
+    PR_SetSysfdTableSize(PR_GetSysfdTableMax());
+#endif
+}
+
+
+NSAPI_PUBLIC int systhread_newkey()
+{
+    uintn newkey;
+
+    PR_NewThreadPrivateIndex(&newkey, NULL);
+    return (newkey);
+}
+
+NSAPI_PUBLIC void *systhread_getdata(int key)
+{
+    return PR_GetThreadPrivate(key);
+}
+
+NSAPI_PUBLIC void systhread_setdata(int key, void *data)
+{
+    PR_SetThreadPrivate(key, data);
+}
+
+/* 
+ * Drag in the Java code, so our dynamic library full of it works 
+ * i.e. force these symbols to load.
+ */
+NSAPI_PUBLIC void systhread_dummy(void)
+{
+
+#ifndef NSPR20
+    /* nspr/gc.c */
+    PR_InitGC(0,0);
+    /* nspr/prsystem.c */
+    PR_GetSystemInfo(PR_SI_SYSNAME, 0, 0);
+    /* nspr/linker.c */
+    PR_GetLibName(0, 0);
+    /* nspr/file.c */
+    PR_Mkdir(0, 0);
+    /* nspr/prnetdb.c */
+    PR_gethostbyname(0, 0, 0, 0, 0);
+    /* nspr/longlong.c */
+    LL_TO_S(LL_ZERO, 0, NULL, 0);
+#endif /* NSPR20 */
+}
+
+#elif defined(THREAD_WIN32)
+
+#include <nspr/prthread.h>
+#define DEFAULT_STACKSIZE 262144
+
+NSPR_BEGIN_EXTERN_C
+
+NSAPI_PUBLIC 
+SYS_THREAD systhread_start(int prio, int stksz, void (*fn)(void *), void *arg)
+{
+    sys_thread_s *ret = (sys_thread_s *) MALLOC(sizeof(sys_thread_s));
+
+    if ((ret->hand = (HANDLE)_beginthreadex(NULL, stksz, (unsigned (__stdcall *)(void *))fn, 
+	                                        arg, 0, &ret->id)) == 0) {
+        FREE(ret);
+        return NULL;
+    }
+    return (void *)ret;
+}
+
+NSPR_END_EXTERN_C
+
+NSAPI_PUBLIC SYS_THREAD systhread_current(void)
+{
+    /* XXXrobm this is busted.... */
+    return GetCurrentThread();
+}
+
+NSAPI_PUBLIC void systhread_timerset(int usec)
+{
+}
+
+NSAPI_PUBLIC SYS_THREAD systhread_attach(void)
+{
+    return NULL;
+}
+
+NSAPI_PUBLIC void systhread_yield(void)
+{
+    systhread_sleep(0);
+}
+
+NSAPI_PUBLIC void systhread_terminate(SYS_THREAD thr)
+{
+    TerminateThread(((sys_thread_s *)thr)->hand, 0);
+}
+
+
+NSAPI_PUBLIC void systhread_sleep(int milliseconds)
+{
+    /* XXXrobm there must be a better way to do this */
+    HANDLE sem = CreateSemaphore(NULL, 1, 4, "sleeper");
+    WaitForSingleObject(sem, INFINITE);
+    WaitForSingleObject(sem, milliseconds);
+    CloseHandle(sem);
+}
+
+NSAPI_PUBLIC void systhread_init(char *name)
+{
+    PR_Init(PR_USER_THREAD, 1, 0);
+}
+
+
+NSAPI_PUBLIC int systhread_newkey()
+{
+    return TlsAlloc();
+}
+
+NSAPI_PUBLIC void *systhread_getdata(int key)
+{
+    return (void *)TlsGetValue(key);
+}
+
+NSAPI_PUBLIC void systhread_setdata(int key, void *data)
+{
+    TlsSetValue(key, data);
+}
+
+#endif
+

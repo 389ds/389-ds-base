@@ -1,0 +1,78 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML><HEAD>
+<!-- change a directory entry's password -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>Change Password -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE>
+
+</HEAD>
+
+<!-- BODY -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<H2><CENTER>Change password for
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</H2></CENTER>
+
+<HR>
+
+<P>
+<TABLE>
+
+<!-- IF "BoundAsThisEntry" -->
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the old password:
+</TD><TD>
+<!-- DS_OLDPASSWORD -->
+</TD></TR>
+<!-- ELIF "!Bound" -->
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the old password:
+</TD><TD>
+<!-- DS_OLDPASSWORD -->
+</TD></TR>
+<!-- ENDIF //BoundAsThisEntry -->
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the new password:
+</TD><TD>
+<!-- DS_NEWPASSWORD -->
+</TD></TR>
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the new password again to confirm:
+</TD><TD>
+<!-- DS_CONFIRM_NEWPASSWORD -->
+</TD></TR>
+</TABLE>
+
+<P>
+
+<TABLE BORDER=2 WIDTH="100%">
+<TR>
+<TD ALIGN="center" WIDTH="50%">
+<!-- IF "BoundAsThisEntry" -->
+<!-- DS_SAVEBUTTON "label=Change Password" -->
+<!-- ELSE -->
+<!-- DS_SAVEBUTTON "label=Set Password" -->
+<!-- ENDIF -->
+<TD ALIGN="center" WIDTH="50%">
+<!-- DS_HELPBUTTON "topic=MODIFYPASSWD" -->
+</TABLE>
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

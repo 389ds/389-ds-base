@@ -1,0 +1,146 @@
+/* ======================================================================= *
+ *     Style sheet for the Netscape Directory Server Org Chart application *
+ * ======================================================================= */
+ 
+.bgColor7  {background-color: #66ccff;}
+
+/* All Links */
+
+A:link   {  font-family: verdana, Arial, Helvetica, sans-serif; font-size: 12px}
+A:active  {	color: #FF0000;}
+
+
+ 
+/*All Regular Table Data--for the whole application*/
+
+td {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+}
+
+td.bold {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+	font-weight: bold;
+}
+
+
+/* *********Start Page Text*************/
+td.startPage {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	color:#003366;
+	vertical-align : middle;
+}
+
+A.searchlinknorm:link {color: #CCFFFF}
+A.searchlinknorm:visited {color: #CCFFFF}
+A.searchlinknorm:active {color: #CCFFFF}
+
+A.searchlinkspec:link {color: #FF0000}
+A.searchlinkspec:visited {color: #FF0000}
+A.searchlinkspec:active {color: #CCFFFF}
+
+
+/* *********Search frame*************/
+
+body.Search {
+	background-color: #003366;
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	color: #ccffff;
+	font-size: 12px;
+}
+
+td.appName {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align : middle;
+	color: #ccffff;
+	font-weight: bold;
+}
+
+.apptext {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	vertical-align: middle;
+	color: #ccffff;
+}
+
+/* *********Search results frame*************/
+
+th.resultsHeader {
+ font-family: Verdana, Arial, Helvetica, san-serif;
+ color: #003366;
+ background-color: #CCCCCC;
+ font-size: 13px;
+}
+
+td.pageHeader {
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	color: #003366;
+	font-size: 14px;
+	font-weight : bold;
+}
+
+td.searchHelp {
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	color: #003366;
+	font-size: 12px;
+}
+
+/* *********Org Chart frame*************/
+
+td.hidden {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 19px;
+	vertical-align : top;
+}
+
+tr.hidden {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 19px;
+	vertical-align : top;
+}
+
+td.selected {
+/*  background-color: transparent;  */
+  color: #000000;
+  font-family: verdana, Arial, Helvetica, sans-serif; 
+  font-size: 12px;
+  font-weight : bold;
+}
+
+body.orgWindow {
+/*	background-color: transparent;  */
+	font-family: Verdana, Arial, Helvetica, san-serif;
+	color: #003366;
+	font-size: 12px;
+}
+
+.thinline {
+	font-size : 5px;
+}
+
+/* *********Preference "Customize View" Page*************/
+td.prefsPageHead {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 13px;
+	color:#003366;
+	font-weight: bold;
+	vertical-align : middle;
+	border : none;
+}
+
+td.prefsPageData {
+	font-family: verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	color:#003366;
+	vertical-align : middle;
+	border : none;
+}
+
+tr.prefs{
+	border : none;
+}

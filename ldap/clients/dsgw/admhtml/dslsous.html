@@ -1,0 +1,172 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<HEAD><TITLE>Manage Organizational Units </TITLE>
+
+<SCRIPT language=JavaScript>
+
+function doList()
+{
+    var theForm = document.listForm;
+    var	baseDesc;
+
+    theForm.base.value = baseDN();
+    baseDesc = baseDescription();
+
+    if ( theForm.searchstring.value.length == 0 ) {
+	theForm.filterpattern.value = '(ou=*)';
+	theForm.searchdesc.value = '<BR>All organizational units ' + baseDesc;
+	return( true );		// submit the form
+    }
+
+    if ( theForm.searchstring.value.length == 0 ) {
+	alert( 'Please supply a filter string.' );
+	return( false );        // cancel the submit
+    }
+
+    theForm.searchdesc.value = '<BR>Organizational units ' + baseDesc
+	    + ' whose <B>' +
+	    theForm.attr.options[ theForm.attr.selectedIndex ].text + '</B>  ' +
+	    theForm.patternSelect.options[ theForm.patternSelect.selectedIndex
+	    ].text + ' <B>' + theForm.searchstring.value + '</B>';
+
+    theForm.filterpattern.value = theForm.patternSelect.options[
+		theForm.patternSelect.selectedIndex ].value;
+	    
+    return( true );		// submit
+}
+
+function doEdit()
+{
+    var theForm = document.editForm;
+
+    if ( theForm.visiblesearchstring.value.length == 0 ) {
+	theForm.searchstring.value = '*';	// a bit of a hack
+    } else {
+	theForm.searchstring.value = theForm.visiblesearchstring.value;
+    }
+ 
+    theForm.listtemplate.value = document.listForm.listtemplate.options[
+	    document.listForm.listtemplate.selectedIndex ].value;
+    theForm.base.value = baseDN();
+ 
+    return( true );          // submit the form
+}
+
+function baseDN()
+{
+    var theForm = document.listForm;
+    var       escapedDN;
+ 
+    if ( theForm.encodedbase.type == 'hidden' ) {
+	escapedDN = theForm.encodedbase.value;
+    } else {
+	escapedDN = theForm.encodedbase.options[
+	theForm.encodedbase.selectedIndex ].value;
+    }
+
+    return( unescape( escapedDN ));
+}
+
+function baseDescription()
+{
+    var theForm = document.listForm;
+ 
+    if ( theForm.encodedbase.type == 'hidden' ) {
+	return( '' );
+    } else {
+	return( 'in ' + theForm.encodedbase.options[
+		theForm.encodedbase.selectedIndex ].text );
+    }
+}
+</SCRIPT>
+</HEAD>
+
+<!-- BODY "onLoad='document.editForm.visiblesearchstring.focus()'" -->
+
+<CENTER><TABLE BORDER="2" CELLPADDING="10" WIDTH="100%">
+<TR><TD ALIGN="center" WIDTH="100%">
+<FONT SIZE="+2"><B>Manage Organizational Units</B></FONT>
+</TD></TR></TABLE></CENTER>
+
+<!-- DS_LAST_OP_INFO "prefix=<P><FONT SIZE=%22%2B1%22>The organizational unit " "suffix=</FONT><HR>" -->
+
+<FORM method="POST" ACTION="dosearch" NAME="editForm"
+	onSubmit="return doEdit()">
+<INPUT TYPE="hidden" NAME="mode" VALUE="smart">
+<INPUT TYPE="hidden" NAME="type" VALUE="org-units">
+<INPUT TYPE="hidden" NAME="link2edit" VALUE="true">
+<INPUT TYPE="hidden" NAME="editable" VALUE="true">
+<INPUT TYPE="hidden" NAME="goback"
+	VALUE="Return To Manage Organizational Units Screen">
+<INPUT TYPE="hidden" NAME="base" VALUE="">
+<INPUT TYPE="hidden" NAME="listtemplate" VALUE="">
+<INPUT TYPE="hidden" NAME="searchstring" VALUE="">
+<B>Find organizational unit:</B><BR>
+<INPUT TYPE="text" NAME="visiblesearchstring" SIZE=25 VALUE="">
+<INPUT TYPE="submit" VALUE="  Find  ">
+</FORM>
+
+<FORM METHOD="POST" ACTION="dosearch" NAME="listForm"
+	onSubmit="return doList()">
+
+<INPUT TYPE="hidden" NAME="mode" VALUE="pattern">
+<INPUT TYPE="hidden" NAME="type" VALUE="OrgUnits">
+<INPUT TYPE="hidden" NAME="filterprefix"
+    VALUE="(&(objectclass=organizationalunit)">
+<INPUT TYPE="hidden" NAME="filtersuffix" VALUE=")">
+<INPUT TYPE="hidden" NAME="filterpattern" VALUE="">
+<INPUT TYPE="hidden" NAME="searchdesc" VALUE="">
+<INPUT TYPE="hidden" NAME="listifone" VALUE="true">
+<INPUT TYPE="hidden" NAME="link2edit" VALUE="true">
+<INPUT TYPE="hidden" NAME="goback"
+	VALUE="Return To Manage Organizational Units Screen">
+<INPUT TYPE="hidden" NAME="base" VALUE="">
+
+<B>Find all units whose:</B>
+<BR>
+
+<NOBR>
+<SELECT name="attr">
+<OPTION VALUE="ou">unit name
+<OPTION VALUE="description">description
+</SELECT>
+
+<SELECT name="patternSelect">
+<OPTION VALUE="(%a=*%v*)">contains
+<OPTION VALUE="(%a=%v)">is
+<OPTION VALUE="(!(%a=%v))">isn't
+<OPTION VALUE="(%a~=%v)">sounds like
+<OPTION VALUE="(%a=%v*)">starts with
+<OPTION VALUE="(%a=*%v)">ends with
+</SELECT>
+<INPUT TYPE="text" NAME="searchstring" VALUE="" SIZE="17">
+<INPUT TYPE="submit" VALUE="  Find  ">
+</NOBR>
+
+<SPACER TYPE=vertical SIZE=20>
+<TABLE BORDER=0>
+<!-- DS_LOCATIONPOPUP "name=encodedbase" "prefix=<TR><TD><B>Look within:</B></TD><TD>" "suffix="</TD></TR>" -->
+</TD></TR>
+<TR><TD>
+<B>Format:</B></TD><TD>
+<SELECT name="listtemplate">
+<OPTION VALUE="OrgUnits">On-Screen
+<OPTION VALUE="OrgUnits-report">Printer
+</SELECT>
+</TD></TR></TABLE>
+
+<SPACER TYPE=vertical SIZE=5>
+<TABLE BORDER="2" WIDTH="100%">
+<TR>
+<TD WIDTH="50%" ALIGN="center"><INPUT TYPE="reset" VALUE="  Reset  "></TD>
+<TD WIDTH="50%" ALIGN="center">
+<!-- HELPBUTTON "DSLSOUS" -->
+</TD></TR></TABLE>
+</FORM>
+
+<!-- ENDHTML -->

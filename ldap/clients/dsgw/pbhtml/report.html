@@ -1,0 +1,155 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+   <TITLE>Netscape Telephone Book: Reports</TITLE>
+   <META NAME="GENERATOR" CONTENT="User-Agent: Mozilla/3.01Gold-C (Macintosh; U; PPC)">
+</HEAD>
+<BODY TEXT="#0B0547" BGCOLOR="#FFFFFF" LINK="#0000FF" VLINK="#551A8B" ALINK="#0000FF">
+
+<CENTER><P><FORM method="GET" action="/clients/dsgw/bin/report.pl" TARGET="response"></P></CENTER>
+
+<CENTER><P><IMG SRC="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&pbrd.jpg" HEIGHT=46 WIDTH=491 ALIGN=ABSCENTER></P></CENTER>
+
+<CENTER><P><B><FONT SIZE=+1>Make a report that looks like this table:</FONT></B>
+</P></CENTER>
+
+<CENTER><P>
+<HR SIZE=3 WIDTH="95%"></P></CENTER>
+
+<CENTER><TABLE>
+<TR>
+<TD>
+<CENTER><P><INPUT name="num_fields" type=hidden value="7"></P></CENTER>
+</TD>
+
+<TD><SELECT name="field1" SIZE=1><OPTION SELECTED><FONT SIZE=-1>FullName
+<OPTION>LastName <OPTION>FirstName <OPTION>Initials <OPTION>Email <OPTION>Phone
+<OPTION>Fax <OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION>Group <OPTION>Title
+<OPTION>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>Car#
+</FONT></SELECT></TD>
+
+<TD><SELECT name="field2" SIZE=1><OPTION><FONT SIZE=-1>FullName <OPTION>LastName
+<OPTION>FirstName <OPTION>Initials <OPTION SELECTED>Email <OPTION>Phone
+<OPTION>Fax <OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION>Group <OPTION>Title
+<OPTION>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>BLANK
+</FONT></SELECT></TD>
+
+<TD><SELECT name="field3" SIZE=1><OPTION><FONT SIZE=-1>FullName <OPTION>LastName
+<OPTION>FirstName <OPTION>Initials <OPTION>Email <OPTION SELECTED>Phone
+<OPTION>Fax <OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION>Group <OPTION>Title
+<OPTION>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>Car#
+<OPTION>BLANK </FONT></SELECT></TD>
+
+<TD><SELECT name="field4" SIZE=1><OPTION><FONT SIZE=-1>FullName <OPTION>LastName
+<OPTION>FirstName <OPTION>Initials <OPTION>Email <OPTION>Phone <OPTION>Fax
+<OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION SELECTED>Group <OPTION>Title
+<OPTION>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>Car#
+<OPTION>BLANK </FONT></SELECT></TD>
+
+<TD><SELECT name="field5" SIZE=1><OPTION><FONT SIZE=-1>Email <OPTION>Phone
+<OPTION>Fax <OPTION>Pager <OPTION>Mobile <OPTION SELECTED>Dept# <OPTION>Group
+<OPTION>Title <OPTION>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube#
+<OPTION>Mailstop <OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr
+<OPTION>Car# <OPTION>BLANK </FONT></SELECT></TD>
+
+<TD><SELECT name="field6" SIZE=1><OPTION><FONT SIZE=-1>Email <OPTION>Phone
+<OPTION>Fax <OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION>Group <OPTION>Title
+<OPTION>Admin <OPTION SELECTED>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>Car#
+<OPTION>BLANK </FONT></SELECT></TD>
+
+<TD><SELECT name="field7" SIZE=1><OPTION><FONT SIZE=-1>Email <OPTION>Phone
+<OPTION>Fax <OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION>Group <OPTION>Title
+<OPTION SELECTED>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>Car#
+<OPTION>BLANK </FONT></SELECT></TD>
+</TR>
+</TABLE></CENTER>
+
+<CENTER><P>
+<HR SIZE=3 WIDTH="95%"></P></CENTER>
+
+<CENTER><TABLE>
+<TR>
+<TD><B>The report has entries where</B> </TD>
+
+<TD><SELECT name="searchfor" SIZE=1><OPTION SELECTED>FullName <OPTION>LastName
+<OPTION>FirstName <OPTION>Email <OPTION>Phone <OPTION>Fax <OPTION>Dept#
+<OPTION>Group <OPTION>Title <OPTION>Admin <OPTION>Location <OPTION>Floor
+<OPTION>Cube# <OPTION>Mailstop <OPTION>EmpType <OPTION>MailAddr <OPTION>MailSrvr
+<OPTION>Car# </SELECT></TD>
+
+<TD><B>includes</B> </TD>
+
+<TD><INPUT name="contains" size=20 maxsize=128 value=""></TD>
+</TR>
+</TABLE></CENTER>
+
+<CENTER><TABLE>
+<TR>
+<TD>
+<CENTER><P><INPUT name="num_sorts" type=hidden value="3"></P></CENTER>
+</TD>
+
+<TD><B>and is sorted by</B> </TD>
+
+<TD><SELECT name="sortattr1" SIZE=1><OPTION SELECTED>FullName <OPTION>LastName
+<OPTION>FirstName <OPTION>Initials <OPTION>Email <OPTION>Phone <OPTION>Fax
+<OPTION>Pager <OPTION>Mobile <OPTION>Dept# <OPTION>Group <OPTION>Title
+<OPTION>Admin <OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop
+<OPTION>EmpType <OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>BLANK
+</SELECT></TD>
+
+<TD><B>and then by</B> </TD>
+
+<TD><SELECT name="sortattr2" SIZE=1><OPTION>FullName <OPTION>LastName <OPTION>FirstName
+<OPTION>Initials <OPTION>Email <OPTION>Phone <OPTION>Fax <OPTION>Pager
+<OPTION>Mobile <OPTION>Dept# <OPTION SELECTED>Group <OPTION>Title <OPTION>Admin
+<OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>EmpType <OPTION>Mailstop
+<OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>BLANK </SELECT></TD>
+
+<TD><B>and then by</B> </TD>
+
+<TD><SELECT name="sortattr3" SIZE=1><OPTION>FullName <OPTION>LastName <OPTION>FirstName
+<OPTION>Initials <OPTION>Email <OPTION>Phone <OPTION>Fax <OPTION>Pager
+<OPTION>Mobile <OPTION SELECTED>Dept# <OPTION>Group <OPTION>Title <OPTION>Admin
+<OPTION>Location <OPTION>Floor <OPTION>Cube# <OPTION>Mailstop <OPTION>EmpType
+<OPTION>Emp# <OPTION>MailAddr <OPTION>MailSrvr <OPTION>BLANK </SELECT><B>.</B>
+</TD>
+</TR>
+</TABLE></CENTER>
+
+<CENTER><TABLE>
+<TR>
+<TD><B>Should the report have multiple smaller tables?&nbsp;</B> <INPUT type="radio" name="grouping" value="on" CHECKED>Yes
+<INPUT type="radio" name="grouping" value="off">No </TD>
+</TR>
+</TABLE></CENTER>
+
+<CENTER><P><BR>
+<BR>
+<BR>
+</P></CENTER>
+
+<CENTER><TABLE>
+<TR>
+<TD><INPUT type="reset" value="Reset"></TD>
+
+<TD><INPUT type="submit" value="Make Report"></TD>
+</TR>
+</TABLE></CENTER>
+
+<P></FORM></P>
+
+</BODY>
+</HTML>

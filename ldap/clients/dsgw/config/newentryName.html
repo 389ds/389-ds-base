@@ -1,0 +1,62 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!--newentryName.html-->
+<LINK REL=stylesheet TYPE="text/css" HREF="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=style.css">
+</HEAD>
+<!-- DS_NEWENTRY_NAME_BODY -->
+<p>
+<!-- DS_NEWENTRY_NAME_FORM -->
+<CENTER> <TABLE WIDTH="85%" CELLPADDING=3 CELLSPACING=3 BORDER=0> <TR> <TD>
+<B>Step 2.</B> Provide a name for the new
+<!-- EVALUATE "entType.fullname" -->
+.
+<BR>
+<!-- EVALUATE "entType.rdnattr" -->
+:
+
+<INPUT TYPE="text" NAME="entryname" SIZE="40">
+<P>
+
+<B>Step 3.</B>
+
+<!-- DS_NEWENTRY_LOCATION_BEGIN -->
+Select a directory location for this
+<!-- EVALUATE "entType.fullname" -->
+, or select Other and enter the complete 
+distinguished name where this entry should be added.
+<p>
+<!-- DS_NEWENTRY_LOCATION_SELECT -->
+<OPTION VALUE="">Other</OPTION>
+</SELECT>
+
+<BR>
+<!--
+<INPUT TYPE="text" NAME="dnsuffix" SIZE="70" onFocus="parent.dnsuffixFocus(this.form)">
+-->
+<TEXTAREA NAME="dnsuffix" ROWS=2 COLS=40 WRAP="soft" onFocus="parent.dnsuffixFocus(this.form)">
+</TEXTAREA>
+<P>
+
+<B>Step 4.</B>
+<!-- DS_NEWENTRY_LOCATION_END -->
+
+Click Continue.  You will be presented with an editable view 
+of the entry.  When you are done filling in information, 
+save the entry.
+<P>
+
+</TD> </TR> <TR> <TD BGCOLOR="#CCCCCC" ALIGN="middle">
+
+<INPUT TYPE="submit" VALUE="Continue" WIDTH=72>
+<!-- DS_HELP_BUTTON "ADDING" -->
+<TD> </TR>
+</TABLE> </CENTER>
+</FORM>
+</BODY>
+</HTML>

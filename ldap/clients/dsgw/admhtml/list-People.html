@@ -1,0 +1,61 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "Search for People" -->
+
+<!-- IF "PostedFormValue" "goback" -->
+<FORM>
+<INPUT TYPE="button"
+<!-- DS_POSTEDVALUE "name=goback">
+onClick="history.back()">
+</FORM>
+<!-- ENDIF // PostedFormValue goback -->
+
+<FONT SIZE=+1>
+<!-- DS_SEARCHDESC -->
+</FONT>
+<P>
+
+<!-- IF "FoundEntries" -->
+<FONT SIZE=+1>
+Click on a user's name to edit their entry.
+</FONT>
+<P>
+<TABLE BORDER=1 CELLPADDING=1 CELLSPACING=0 WIDTH=100%>
+<TR>
+<TH NOWRAP>Name<TH NOWRAP>User ID<TH NOWRAP>Title 
+</TR>
+
+<!-- DS_SORTENTRIES "attr=sn" -->
+
+<!-- Make sure attrs in lists are read-only.  If they aren't, they're rendered
+     as INPUT fields, but since we're not in a form here, they don't display
+     at all.
+-->
+
+<!-- DS_ENTRYBEGIN -->
+
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "hrefextra=onMouseOver=%22%0Awindow.status='Click here to edit this entry'; return true%22" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=uid" "options=readonly" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=title" "options=readonly" -->
+</TR>
+
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<FONT SIZE=+1>
+Please try a different search.
+</FONT>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->

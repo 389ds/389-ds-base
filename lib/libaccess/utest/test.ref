@@ -1,0 +1,234 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+Failed ACL_FileMergeFile() test.
+Method one is #1, rv=0
+Method two is #2, rv=0
+Method one repeated is #1, rv=0
+Method three is #3, rv=0
+	Method[0] = "two"
+	Method[1] = "three"
+	Method[2] = "one"
+DbType two is #2, rv=0
+DbType three is #3, rv=0
+DbType two repeated is #2, rv=0
+DbType four is #4, rv=0
+	Database[0] = "db2"
+	Database[1] = "db1"
+	Database[2] = "db3"
+position 1
+position 2
+position 3
+position 4
+aclfile0 = 0
+
+aclfile1 = 1
+
+aclfile2 = 1
+
+aclfile3 = 1
+
+aclfile4 = 0
+
+aclfile5 = 0
+
+aclfile6 = 0
+
+aclfile7 = 1
+
+aclfile8 = 0
+
+aclfile9 = 3
+
+ACL file: internal-buffer
+Syntax error at line: 1, token: >
+ACL file: internal-buffer
+Syntax error at line: 2, token: junk
+aclfile10 = 1
+
+aclfile11 = 1
+
+aclfile12 = 0
+
+aclfile13 = 0
+
+aclfile14 = 0
+
+aclfile15 = 1
+
+aclfile16 = 1
+
+aclfile17 = 0
+
+aclfile18 = 0
+
+aclfile19 = 1
+
+program = foo -1
+
+program = nomatch -2
+
+program = beer -1
+
+program = http-grog -2
+
+program = ubar -2
+
+dnsalias = *? -1
+
+dnsalias = aruba.mcom.com brain251.mcom.com? -1
+
+dns = *? -1
+
+dns != *? -2
+
+dns = aruba.mcom.com? -1
+
+dns = ai.mit.edu? -2
+
+dns = *.ai.mit.edu? -2
+
+dns = *.mit.edu? -2
+
+dns = *.edu? -2
+
+dns != *.edu? -1
+
+mistake != *.edu? -5
+
+dns > *.edu? -5
+
+ip = *? -1
+
+ip != *? -2
+
+ip = *.*.*.*? -1
+
+ip = 17.*? -1
+
+ip = 17.*.*.*? -1
+
+ip = 17.34.*? -1
+
+ip = 17.34.*.*? -1
+
+ip = 17.34.51.*? -1
+
+ip = 17.34.51.*+255.255.255.255? -1
+
+ip = 17.34.51.69+255.255.255.254, 123.45.67.89? -1
+
+ip != 17.34.51.69+255.255.255.254, 123.45.67.89? -2
+
+ip = 17.34.51.68, 17.34.51.69? -1
+
+ip = 17.34.51.68, 17.34.51.69, 123.45.67.89? -1
+
+ip != 17.34.51.68, 17.34.51.69, 123.45.67.89? -2
+
+ip = 17.34.51.68? -1
+
+ip = 17.34.51.69? -2
+
+ip = 17.34.51.69+255.255.255.254? -1
+
+ip = 17.34.50.69+255.255.254.0? -1
+
+ip = 17.35.50.69+255.254.0.0? -1
+
+ip = 16.35.50.69+254.0.0.0? -1
+
+ip = 123.45.67.89? -2
+
+ip != 123.45.67.89? -1
+
+ip > 123.45.67.89? -5
+
+ip < 123.45.67.89? -5
+
+ip >= 123.45.67.89? -5
+
+ip <= 123.45.67.89? -5
+
+mistake <= 123.45.67.89? -5
+
+time = 2120? -1
+
+time != 2120? -2
+
+time = 0700? -2
+
+time != 0700? -1
+
+time = 2400? -2
+
+time != 2400? -1
+
+time > 2120? -2
+
+time < 2120? -2
+
+time > 0700? -1
+
+time < 0700? -2
+
+time > 2400? -2
+
+time < 2400? -1
+
+time >= 2120? -1
+
+time <= 2120? -1
+
+time >= 0700? -1
+
+time <= 0700? -2
+
+time >= 2400? -2
+
+time <= 2400? -1
+
+mistake <= 2400? -5
+
+time = 0800-2200? -1
+
+time != 0800-2200? -2
+
+time = 2200-0800? -2
+
+time != 2200-0800? -1
+
+time <= 2200-0800? -5
+
+= mon? -1
+
+= tUe? -2
+
+= weD? -2
+
+= THu? -2
+
+= FrI? -2
+
+= tUe? -2
+
+= Sun? -2
+
+= mon,tuewed,thu,frisatsun? -1
+
+!= mon,tuewed,thu,frisatsun? -2
+
+> Sun? -5
+
+< Sun? -5
+
+>= Sun? -5
+
+<= Sun? -5
+
+mistake <= Sun? -5
+

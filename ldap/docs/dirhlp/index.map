@@ -1,0 +1,149 @@
+; PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+; license terms. Copyright 2001 Sun Microsystems, Inc. 
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved. 
+;
+;----------------------------------------------------------------------
+; Last update: 22 October 2001 by Tech Pubs
+;-------------------------------------------MAPPINGS
+; UI Reference Token = help/filename.htm
+;-------------------------------------------PROGRAMS
+;
+;MENU BAR
+;
+;Help Menu from all tabs
+tasks-menubar-help = ag/contents.htm
+preferences-confirmation-help = help/confirmation_preferences.htm
+
+;TASKS TAB
+tasks-backup-help = help/backup.htm
+tasks-restore-help = help/restore.htm
+
+
+;CONFIGURATION TAB
+;Root Node
+configuration-system-settings-help = help/settings.htm
+configuration-system-performance-help = help/performance.htm
+configuration-system-encryption-help = help/encryption.htm
+configuration-system-encryption-preferences-dbox-help = help/encryption_pref.htm
+configuration-system-snmp-help = help/snmp.htm
+configuration-system-manager-help = help/manager.htm
+
+;Database Icon
+configuration-database-indexes-help = help/indexes.htm
+configuration-database-passwords-help = help/passwords.htm
+configuration-database-accountlockout-help = help/account_lockout.htm
+configuration-database-indexes-add-dbox-help = help/index_attribute.htm
+configuration-database-settings-help = help/ldbm_instance_settings.htm
+configuration-database-import-ldap-dbox-help = help/import_ldap.htm
+configuration-database-import-fastwire-dbox-help = help/import_fastwire.htm
+configuration-database-initialize-backend-dbox-help = help/initialize_backend.htm
+configuration-database-export-dbox-help = help/export_general.htm
+configuration-database-export-single-dbox-help = help/export_single.htm
+configuration-database-plugin-setting-help = help/ldbm_plugin_settings.htm
+configuration-database-default-indexes-help = help/default_indexes.htm
+
+;Chaining Database Icon
+configuration-new-chaining-instance-dbox-help = help/new_chaining_be.htm
+configuration-chaining-settings-help = help/chaining_settings.htm
+configuration-chaining-settings-ctrl-chooser-dbox-help = help/chaining_controls.htm
+configuration-chaining-settings-comp-chooser-dbox-help = help/chaining_components.htm
+configuration-chaining-default-help = help/chaining_default.htm
+configuration-chaining-connection-help = help/chaining_connection.htm
+configuration-chaining-authentication-help = help/chaining_authentication.htm
+
+;LDBM Database Instance Icon
+configuration-new-ldbm-instance-dbox-help =  help/new_ldbm_instance.htm
+
+;Mapping Tree
+configuration-mapping-settings-help = help/mapping_node_settings.htm
+configuration-mapping-add-backend-dbox-help = help/mapping_backend_add.htm
+configuration-mapping-database-help = help/mapping_database.htm
+configuration-mapping-referral-help = help/mapping_referrals.htm
+configuration-new-mapping-node-dbox-help = help/new_mapping_node.htm
+
+
+;Schema Icon
+configuration-schema-objclass-help = help/object_classes.htm
+configuration-schema-objclass-create-dbox-help = help/create_objclass.htm
+configuration-schema-attr-help = help/attributes.htm
+configuration-schema-attr-create-dbox-help = help/create_attributes.htm
+configuration-schema-mrule-help = help/matching_rules.htm
+
+;Replication Agreements Icon
+configuration-replication-legacyconsumersettings-help = help/legacy_consumer_settings.htm
+configuration-replication-suppliersettings-help = help/supplier_settings.htm
+configuration-replication-replicasettings-help = help/replica_settings.htm
+configuration-replication-summary-help = help/rep_summary.htm
+configuration-replication-schedule-help = help/schedule_rep.htm
+configuration-replication-content-help = help/rep_content.htm
+configuration-replication-host-dbox-help = help/consumer_server_info.htm
+
+;Logs Icon
+configuration-logs-access-help = help/access_log.htm
+configuration-logs-error-help = help/error_log.htm
+configuration-logs-audit-help = help/audit_log.htm
+
+;Plugins Icons
+configuration-plugins-help = help/plugins.htm
+
+
+;REPLICATION AGREEMENT WIZARD
+replication-wizard-content-help = help/rep_source_destination.htm
+replication-wizard-schedule-help = help/schedule_rep_wiz.htm
+replication-wizard-consumerinit-help = help/consumer_init.htm
+replication-wizard-summary-help = help/summary_wiz.htm
+replication-wizard-legacyrmmrname-help = help/rep_agreement_name.htm
+replication-wizard-cirsirselect-help = help/rep_select_wiz.htm
+replication-wizard-cirsirname-help = help/rep_name_wiz.htm
+replication-wizard-attribute-help = help/rep_attributes_wiz.htm
+
+
+;DIRECTORY TAB
+;Role Configuration
+configuration-role-member-filtered-help = help/new_filtered_member.htm
+configuration-role-member-managed-help = help/new_managed_member.htm
+configuration-role-member-nested-help = help/new_nested_member.htm
+configuration-role-account-help = help/role_accounts.htm
+configuration-role-info-help = help/create_new_role.htm
+configuration-set-role = help/set_role.htm
+configuration-choose-role = help/role_selector.htm
+
+;CoS Configuration
+configuration-cos-attributes-help = help/cos_attributes.htm
+configuration-cos-info-help = help/cos_info.htm
+configuration-cos-template-help = help/cos_template.htm
+
+;STATUS TAB
+;Replication Icon
+status-replication-help = help/replication_status.htm
+
+;Logs Icon
+status-logs-access-help = help/access_log_status.htm
+status-logs-error-help = help/error_log_status.htm
+status-logs-audit-help = help/audit_log_status.htm
+
+;Performance Counters Icon
+status-perfcounters-server-help = help/server_performance.htm
+status-perfcounters-database-help = help/database_performance.htm
+
+
+;PROPERTY EDITOR WINDOWS
+property-main-help = help/property_editor.htm
+property-new-objectclass-dbox-help = help/add_new_objclass.htm
+property-new-attribute-dbox-help = help/add_new_attribute.htm
+
+;LDAP URL Construction Dialog
+configuration-construct-new-url-dbox-help = help/construct_ldap_url.htm
+
+;Account Inactivation in Entry Edit Dialog
+configuration-user-account-help = help/
+
+;VERY ADVANCED SEARCH DIALOG BOX
+search-dbox-veryadvanced-help = help/advanced_search.htm
+
+;INSTALL
+menubar-newinstance-dbox-help = help/new_server_instance.htm
+
+; SUBTREE SELECTION DIALOG BOX
+subtree-selection-dbox-help = help/directory_browser.htm

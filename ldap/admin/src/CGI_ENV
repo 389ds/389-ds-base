@@ -1,0 +1,36 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+The following is a debug printout which is useful for reference. It 
+is a dump of all the env vars for a real running CGI admin program.
+***********************************************************************
+HTTP_HOST=asterix.mcom.com:9616
+HTTP_ACCEPT=image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, */*
+HTTP_USER_AGENT=Mozilla/2.0 (X11; U; SunOS 5.4 sun4m)
+HTTP_CONNECTION=Keep-Alive
+ADMSERV_PID=14001
+ADMSERV_ROOT=/export/free2/ns-home/admserv
+NETSITE_ROOT=/export/free2/ns-home
+SERVER_NAMES=slapd-asterix
+CONFIG_DIR=/export/free2/ns-home/admserv/%s/
+COMMIT_LOG=/export/free2/ns-home/admserv/commit
+BACKUPS=10
+PATH=/usr/sbin:/usr/bin
+TZ=US/Pacific
+SERVER_SOFTWARE=Netscape-Administrator/2.0b3
+SERVER_PORT=9616
+SERVER_NAME=asterix.mcom.com
+SERVER_URL=http://asterix.mcom.com:9616
+REMOTE_HOST=goa.mcom.com
+REMOTE_ADDR=207.1.137.54
+REMOTE_USER=admin
+AUTH_TYPE=basic
+HTTPS=OFF
+GATEWAY_INTERFACE=CGI/1.1
+SERVER_PROTOCOL=HTTP/1.0
+REQUEST_METHOD=GET
+SCRIPT_NAME=/slapd-asterix/bin/ds_pcontrol

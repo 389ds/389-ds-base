@@ -1,0 +1,211 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="04/29/03 15:35:32" />
+<title>Netscape Directory Server Help: Matching Rules</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="28811"> </a>
+<a name="Matching Rules"> </a>
+Matching Rules
+</p>
+
+<p class="text">
+<a name="28813"> </a>
+Use the Matching Rules tab to view all the matching rules used by the directory. The table includes matching rules from plug-ins you have created.You cannot edit the standard matching rules.
+</p>
+<p class="text">
+<a name="28814"> </a>
+Matching rules provide guidelines for how the server compares strings during a search operation. In an international search, the matching rule tells the server what collation order and operator to use. For example, a matching rule in an international search might tell the server to search for attribute values that come at or after llama in the Spanish collation order.
+</p>
+<p class="text">
+<a name="28815"> </a>
+<b>Name. </b>Contains a list of all the user-defined and standard matching rules currently available to the directory. Standard matching rules are named according to the following syntax:
+</p>
+<p class="text">
+<a name="28816"> </a>
+<span class="variable">AttributeSyntax SearchType</span>-<code>Lang</code>
+</p>
+<p class="text">
+<a name="28817"> </a>
+Where <span class="variable">AttributeSyntax</span> is the type of attribute on which this matching rule may be applied, <span class="variable">SearchType</span> is the type of search for which this matching rule may be applied, and <span class="variable">Lang</span> is the abbreviated code for the locale of the matching rule. 
+</p>
+<p class="text">
+<a name="28818"> </a>
+The possible name types include:
+</p>
+<ul>
+
+<li>
+caseIgnoreOrderingMatch-(Lang)
+<a name="28819"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+caseExactOrderingMatch-(Lang)
+<a name="28820"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+caseIgnoreSubstringMatch-(Lang)
+<a name="28821"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+
+<li>
+caseExactSubstringMatch-(Lang)
+<a name="28822"> </a>
+<img src="/manual/en/slapd/help/pixel.gif" align="top" height="22" alt="" />
+</li>
+</ul>
+<p class="text">
+<a name="28823"> </a>
+<b>OID. </b>The object identifier of the matching rule's locale. Each locale supported by the directory has an associated collation order OID. 
+</p>
+<p class="text">
+<a name="28824"> </a>
+<b>Syntax. </b>Displays the syntax of the matching rule's locale. Matching rule syntax is defined as "Directory String" and is used internally by the directory.
+</p>
+<p class="text">
+<a name="28825"> </a>
+<b>Description. </b>Contains the two character language tag of the locale. If necessary to distinguish regional differences in language, the language tag may also contain a country code, which is a two-character uppercase string (as defined in ISO standard 3166). The language code and country code are separated by a hyphen. For example, the language tag used to identify the British English locale is en-GB.
+</p>
+<p class="h2">
+<a name="28826"> </a>
+<a name="See also"> </a>
+See also
+</p>
+
+
+<p class="text">
+<a name="28829"> </a>
+<a href="../en/slapd/ag/find.htm#1041100">Matching Rule Filter Syntax</a>
+</p>
+<p class="text">
+<a name="28832"> </a>
+<a href="../en/slapd/ag/i18n.htm">Internationalization Appendix</a>
+</p>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>April 29, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

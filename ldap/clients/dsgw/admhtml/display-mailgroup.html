@@ -1,0 +1,121 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML><HEAD>
+<!-- DS_OBJECTCLASS "value=rfc822mailgroup" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+New
+<!-- ENDIF // Adding -->
+Mail Group Entry -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD><BODY>
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE>
+<TR>
+<TD>
+<IMG SRC="/admin-serv/icons/group.gif" ALT="Group" HSPACE=5 >
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+New Mail Group
+<!-- ENDIF // Adding -->
+
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+</TABLE>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=Edit Group" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Save New Group" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp&nbsp</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Cancel" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp&nbsp</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_MAILGROUP" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_MAILGROUP" -->
+<!-- ENDIF // Adding -->
+
+<!-- IF "Editing" -->
+</TD><TD>&nbsp&nbsp</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Rename Group" "prompt=Enter a new name for this group:" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Delete Group" "prompt=Delete this group?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="rfc822mailgroup">
+<!-- ENDIF // Adding -->
+
+<HR>
+
+<TABLE CELLSPACING="5">
+
+<TR><TD VALIGN="TOP">Name:</TD><TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" -->
+</B></TD><TD WIDTH="20%"></TD>
+<TD VALIGN="TOP">Description:</TD><TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=multilineDescription" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR><TD VALIGN="TOP">Owner:</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=owner" "syntax=dn" "cols=>40" -->
+</B></TD></TR>
+
+<TR><TD VALIGN="TOP" NOWRAP>See Also:</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "cols=>40" -->
+</B></TD></TR>
+
+<TR><TD NOWRAP COLSPAN="2">
+<!-- DS_ATTRIBUTE "attr=joinable" "syntax=bool" "type=radio" "true=Allow Others To Join" "false=Do Not Allow Others To Join" "defaultvalue=FALSE" -->
+</TD><TD></TD><TD NOWRAP COLSPAN="2">
+<!-- DS_ATTRIBUTE "attr=suppressNoEmailError" "syntax=bool" "type=radio" "true=Suppress 'No Email Address' Errors" "false=Return 'No Email Address' Errors" "defaultvalue=FALSE" -->
+</TD></TR>
+
+<HR>
+
+<TR><TD VALIGN="TOP" NOWRAP>Group Members:</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=member" "syntax=dn" "numfields=+4" "options=sort" -->
+</B></TD></TR>
+
+<TR><TD VALIGN="TOP" NOWRAP>E-Mail Members:</TD>
+<TD VALIGN="TOP" NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=mail" "syntax=mail" "numfields=+4" "cols=>30" "options=sort" -->
+</B></TD></TR>
+
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+This entry was last modified on <B>
+<!-- DS_ATTRIBUTE "attr=lastModifiedTime" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> by <B>
+<!-- DS_ATTRIBUTE "attr=lastModifiedBy" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

@@ -1,0 +1,25 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for representing Instant Messaging presence status
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.2013 NAME 'nsAIMid' DESC 'Netscape defined attribute type' SYNTAX 2.16.840.1.113730.3.7.1 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2014 NAME 'nsICQid' DESC 'Netscape defined attribute type' SYNTAX  2.16.840.1.113730.3.7.1 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2015 NAME 'nsYIMid' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2016 NAME 'nsMSNid' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2017 NAME 'nsAIMStatusText' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2018 NAME 'nsAIMStatusGraphic' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2019 NAME 'nsYIMStatusText' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2020 NAME 'nsYIMStatusGraphic' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2021 NAME 'nsICQStatusText' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2022 NAME 'nsICQStatusGraphic' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.300 NAME 'nsAIMpresence' DESC 'Netscape defined objectclass' SUP top AUXILIARY MAY ( nsAIMid $ nsAIMStatusGraphic $ nsAIMStatusText ) X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.301 NAME 'nsICQpresence' DESC 'Netscape defined objectclass' SUP top AUXILIARY MAY ( nsICQid $ nsICQStatusGraphic $ nsICQStatusText ) X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.302 NAME 'nsYIMpresence' DESC 'Netscape defined objectclass' SUP top AUXILIARY MAY ( nsYIMid $ nsYIMStatusGraphic $ nsYIMStatusText ) X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.303 NAME 'nsMSNpresence' DESC 'Netscape defined objectclass' SUP top AUXILIARY MAY ( nsMSNid ) X-ORIGIN 'Netscape Directory Server' )

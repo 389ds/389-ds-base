@@ -1,0 +1,189 @@
+<html>
+
+
+<!--This html file is XHTML complaint, as set forth in the
+w3c recommendations except for the following:
+Lists work as they do in older versions on HTML and not as
+directed in XHTML. 
+The <a name=" "> tags have targets that use spaces. -->
+
+
+<head>
+<meta name="keywords" content="e-commerce, ecommerce, Netscape, Internet software, e-commerce applications, electronic commerce, ebusiness, e-business, enterprise software, net economy, software, ecommerce solutions, e-commerce services, AOL, America Online, netscape software, netscape solutions, marketplace, digital marketplace" />
+<meta name="description" content="Netscape, an AOL Time Warner Company, produces the world renowned
+Netscape Browser as well as top notch server software." />
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+<meta name="templatebase" content="Authored in FrameMaker. Converted to HTML  in WebWorks Publisher. manual wdt 1.6" />
+<meta name="LASTUPDATED" content="09/08/03 17:36:05" />
+<title>Netscape Directory Server Help: Edit Smart Referrals</title>
+
+
+<!--The following is a javascript which determines whether the client
+is on a Windows machine, or is on another type of operating system. Once
+the operating system is determined, either a windows or other operating
+system cascading style sheet is used. -->
+<script type="text/JavaScript" src="/manual/en/slapd/help/sniffer.js">
+
+</script>
+
+
+</head>
+
+
+
+
+<body text="#000000" link="#006666" vlink="#006666" alink="#333366" bgcolor="#FFFFFF">
+
+<!--maincontent defines everything between the body tags -->
+<!--start maincontent-->
+
+<!--navigationcontent defines the top row of links and the banner -->
+<!--start navigationcontent-->
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tr>
+<td><table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="bottom" width="67">
+<img src="/manual/en/slapd/help/netscape32.gif" height="32" width="32" border="0" alt="Netscape logo" />
+</td>
+<td valign="middle">
+<span class="product">Netscape Directory Server</span>
+<span class="booktitle">Console Help</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<hr size="1" noshade="noshade" />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+</td>
+</tr>
+</table>
+
+<!--end navigationcontent-->
+
+<!--bookcontent defines the actual content of the file, sans headers and footers -->
+<!--start bookcontent-->
+
+<blockquote>
+<br />
+<p class="h1">
+<a name="29223"> </a>
+<a name="Edit Smart Referrals"> </a>
+Edit Smart Referrals
+</p>
+
+<p class="text">
+<a name="29240"> </a>
+Use this tab to configure <em>smart</em> referrals. Smart referrals allow you to map a directory entry or directory tree to a specific LDAP URL. Using smart referrals, you can refer client applications to a specific server or a specific entry on a specific server.
+</p>
+<p class="text">
+<a name="29645"> </a>
+<b>Enable Smart Referrals. </b>Check this option to define smart referrals for the selected entry. Unchecking the option removes all smart referrals from the entry and deletes <code>objectclass: referral</code>.
+</p>
+<p class="text">
+<a name="29267"> </a>
+<b>Smart Referral List. </b>Lists the referrals currently in place for the selected entry. The entire list of referrals is returned to client applications in response to a request, when you select Referral or Referral on Update in the Suffix Settings tab. 
+</p>
+<p class="text">
+<a name="29484"> </a>
+To modify the list, click Edit to edit the selected referral or Delete to delete the selected referral.
+</p>
+<p class="text">
+<a name="29357"> </a>
+<b>Enter a new Smart Referral. </b>Enter a referral in the LDAP URL format and then click Add to add the referral to the list. The LDAP URL to which you want to refer client application requests must be in the following format:
+</p>
+<p class="text">
+<a name="29433"> </a>
+<code>ldap://</code><span class="variable">hostname</span><code>:</code><span class="variable">portnumber</span><code>/[</code><span class="variable">optional_dn</span><code>]</code>
+</p>
+<p class="text">
+<a name="29358"> </a>
+where <span class="variable">[optional_dn]</span> is the explicit DN you want the server to return to the requesting client application. For example, you might enter an LDAP URL as follows:
+</p>
+<p class="text">
+<a name="29241"> </a>
+<code>ldap://directory.example.com:389/cn=jdoe,ou=people,dc=example,dc=com</code>
+</p>
+<p class="text">
+<a name="29325"> </a>
+You may also click Construct to be guided through the process of adding a referral.
+</p>
+<p class="text">
+<a name="29495"> </a>
+To allow a referral to be followed with different authentication, click Authentication and specify the appropriate DN and password. Keep in mind that this authentication remains valid only until the console is closed; then, it's reset to the same authentication used to log into the console.
+</p>
+<p class="h2">
+<a name="29243"> </a>
+<a name="See also"> </a>
+See also
+</p>
+
+
+<p class="text">
+<a name="29705"> </a>
+<a href="../en/slapd/ag/entry_dist.htm#17763">Using Referrals</a>
+</p>
+<p class="text">
+<a name="29249"> </a>
+<a href="../en/slapd/ag/entry_dist.htm#17930">Creating and Maintaining Suffixes</a>
+</p>
+
+</blockquote>
+<!--end bookcontent-->
+<!--footercontent defines the bottom navigation and the copyright. It also includes
+the revision date-->
+<!--start footercontent-->
+
+
+<br />
+<br />
+
+
+
+
+
+
+
+
+<span class="navigation">
+<a style="text-decoration: none; color:#006666" href="/manual/en/slapd/index.htm">
+DocHome
+</a>
+</span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+        
+<hr noshade="noshade" size="1" />
+<p class="copy">&copy; 2001 Sun Microsystems, Inc. Portions copyright 1999, 2002-2003 Netscape Communications Corporation. All rights reserved.</p>
+<br />
+<p class="update">Last Updated <b>September 08, 2003</b></p>
+    
+
+<!--end footercontent-->
+<!--end maincontent-->
+</body>
+</html>

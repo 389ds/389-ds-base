@@ -1,0 +1,75 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_ENTRYBEGIN -->
+<!-- DS_EMIT_BASE_HREF -->
+<TITLE>
+Modificar
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY "onLoad='document.searchForm.searchstring.focus();'" -->
+
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT><HR>" -->
+ 
+<!-- DS_BEGIN_DNSEARCHFORM -->
+<INPUT TYPE=hidden NAME=mode VALUE="smart">
+<INPUT TYPE=hidden NAME=dnlist_js VALUE="true">
+<INPUT TYPE=hidden NAME=listifone VALUE="true">
+<INPUT TYPE=hidden NAME=listtemplate VALUE="">
+<INPUT TYPE=hidden NAME=faMode VALUE="add">
+<INPUT TYPE=hidden NAME=ldapsizelimit VALUE="1000">
+<INPUT TYPE=hidden NAME=ldaptimelimit VALUE="180">
+<!-- PCONTEXT -->
+
+<FONT SIZE="+2">
+Modificar
+<!-- DS_DNDESC -->
+:
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+
+<TABLE CELLSPACING=0 CELLPADDING=0><TR>
+
+<TD NOWRAP>
+Buscar
+<SELECT NAME="type">
+<OPTION SELECTED VALUE="People">Personas
+</SELECT>
+</TD>
+
+<TD NOWRAP>
+que concuerden con&nbsp;
+<INPUT NAME="searchstring" SIZE=15>
+</TD>
+
+<TD>
+<!-- DS_DNADDBUTTON "VALUE= Buscar y a&ntilde;adir ">
+<BR>
+<!-- DS_DNREMOVEBUTTON "VALUE= Buscar y borrar ">
+</TD>
+
+</TR>
+</TABLE>
+
+<P>
+<CENTER><TABLE BORDER="2" WIDTH="100%">
+<TR>
+<TD WIDTH="33%" ALIGN="center">
+<INPUT TYPE=BUTTON VALUE="  Guardar los cambios  " onClick="parent.saveChanges();">
+<TD WIDTH="34%" ALIGN="center">
+<INPUT TYPE=BUTTON VALUE="  Cancelar  " onClick="parent.cancel();">
+<TD WIDTH=33% ALIGN=center>
+<!-- DS_HELPBUTTON "topic=EDIT_PERSON_REF" -->
+</TD></TR></TABLE></CENTER>
+
+<INPUT TYPE=hidden NAME=completion_javascript VALUE='parent.updateList(parent.controlFrame.document.searchForm.faMode.value, parent.dnlist, parent.stagingFrame.dnlist, parent.outputFrame);parent.controlFrame.document.searchForm.faMode.value="add";'>
+<!-- DS_END_DNSEARCHFORM -->
+
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

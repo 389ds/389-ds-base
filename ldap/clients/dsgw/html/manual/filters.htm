@@ -1,0 +1,622 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Portions copyright 1999, 2002-2003 Netscape Communications Corporation.
+  All rights reserved.
+ -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+   <TITLE></TITLE>
+   <META NAME="GENERATOR" CONTENT="Mozilla/3.0Gold (WinNT; I) [Netscape]">
+</HEAD>
+<BODY>
+
+<P><A NAME="1001595"></A></P>
+
+<P><A NAME="1001596"></A></P>
+
+<P><A NAME="996824"></A></P>
+
+<H1>Search Filters </H1>
+
+<P><A NAME="997436"></A>This chapter
+describes search filters and <A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/filters.htm#1018239">how searches
+work</A>.</P>
+
+<P><A NAME="Search Filters"></A><A NAME="1018822"></A></P>
+
+<H2>Search Filters</H2>
+
+<P><A NAME="1018489"></A>To narrow a search, you can specify search filters
+directly to the <A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#1015771">Smart Search</A> field. If
+the search field contains an equal sign (=), Smart Search assumes the value
+is a search filter, and it uses this filter directly to perform the search.</P>
+
+<P><A NAME="1018092"></A>Search filters use the value of an attribute to
+select the entries to be returned for Smart Search. For example, the following
+filter specifies a search for a common name equal to Babs Jensen:</P>
+
+<P><A NAME="1018094"></A></P>
+
+<UL>
+<UL>
+<PRE>cn=babs jensen
+</PRE>
+</UL>
+</UL>
+
+<P><A NAME="Search Filter Syntax"></A><A NAME="1018095"></A></P>
+
+<H3>Search Filter Syntax</H3>
+
+<P><A NAME="1018096"></A>The basic syntax of a search filter is:</P>
+
+<P><A NAME="1018097"></A></P>
+
+<UL>
+<UL>
+<PRE><A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/filters.htm#1019127">attribute</A> <A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/filters.htm#1019138">operator</A> value
+</PRE>
+</UL>
+</UL>
+
+<P><A NAME="1019085"></A>For example: </P>
+
+<P><A NAME="1019086"></A></P>
+
+<UL>
+<UL>
+<PRE>employeenumber &gt;= 100 
+</PRE>
+</UL>
+</UL>
+
+<P><A NAME="1019090"></A>In the example above, <TT>employeenumber</TT>
+is the attribute, <TT>&gt;=</TT> is the operator, and 100 is the value.
+</P>
+
+<P><A NAME="1019104"></A>You can also define filters that use <A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/filters.htm#1018167">combinations
+of different attributes</A>. </P>
+
+<P><A NAME="Using Attributes in a Filter"></A><A NAME="1019127"></A></P>
+
+<H4>Using Attributes in a Filter</H4>
+
+<P><A NAME="1019162"></A>When searching for an entry, you can specify attributes
+associated with that type of entry. For example, when you search for entries
+about people, you can use the <TT>cn</TT> attribute to search for people
+with specific common names. </P>
+
+<P><A NAME="1019183"></A>Examples of attributes for entries about people
+might include: </P>
+
+<UL>
+<P><A NAME="1019188"></A></P>
+
+<LI><TT>cn</TT> (the person's common name) <A NAME="1019189"></A></LI>
+
+<LI><TT>telephonenumber</TT> (the person's phone number) <A NAME="1019190"></A></LI>
+
+<LI><TT>employeenumber</TT> (the person's employee number) <A NAME="1019191"></A></LI>
+
+<LI><TT>l</TT> (the person's location) </LI>
+</UL>
+
+<P><A NAME="1019184"></A>For a listing of the attributes associated with
+entries, see <A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#1002619">Appendix A, &quot;Entries
+and attribute fields&quot;</A>. Note that you need to use the internal
+attribute names in search filters. </P>
+
+<P><A NAME="Using Operators in a Filter"></A><A NAME="1019138"></A></P>
+
+<H4>Using Operators in a Filter</H4>
+
+<P><A NAME="1018153"></A>An operator defines one of the following types
+of searches: </P>
+
+<TABLE BORDER=2 >
+<CAPTION></CAPTION>
+
+<TR>
+<TH><A NAME="1018101"></A><B>Search type</B> </TH>
+
+<TH><A NAME="1018103"></A><B>Operator</B> </TH>
+
+<TH><A NAME="1018105"></A><B>Description</B> </TH>
+</TR>
+
+<TR>
+<TD><A NAME="1018107"></A>Equality </TD>
+
+<TD><A NAME="1018109"></A>= </TD>
+
+<TD><A NAME="1018111"></A>Returns entries containing attributes which match
+the specified value. For example, 
+<UL>
+<P><A NAME="1019083"></A><TT>cn=Bob Johnson</TT></P>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018113"></A>Substring </TD>
+
+<TD><A NAME="1018115"></A>=&lt;string&gt;*&lt;string&gt; </TD>
+
+<TD><A NAME="1018117"></A>Returns entries containing attributes containing
+the specified substring. For example, 
+<UL>
+<P><A NAME="1018118"></A><TT>cn=Bob*</TT></P>
+
+<P><A NAME="1018119"></A><TT>cn=*Johnson</TT></P>
+
+<P><A NAME="1018120"></A><TT>cn=*John*</TT></P>
+
+<P><A NAME="1018121"></A><TT>cn=B*John</TT></P>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018123"></A>Greater than or equal to </TD>
+
+<TD><A NAME="1018125"></A>&gt;= </TD>
+
+<TD><A NAME="1018127"></A>Returns entries containing attributes that are
+greater than or equal to the specified value. For example, 
+<UL>
+<P><A NAME="1018128"></A><TT>employeenumber &gt;= 100</TT></P>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018130"></A>Less than or equal to </TD>
+
+<TD><A NAME="1018132"></A>&lt;= </TD>
+
+<TD><A NAME="1018134"></A>Returns entries containing attributes that are
+less than or equal to the specified value. For example, 
+<UL>
+<P><A NAME="1018135"></A><TT>employeenumber &lt;= 100</TT></P>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018137"></A>Presence </TD>
+
+<TD><A NAME="1018139"></A>=* </TD>
+
+<TD><A NAME="1018141"></A>Returns entries containing the specified attribute.
+For example, 
+<UL>
+<P><A NAME="1018142"></A><TT>cn=*</TT></P>
+
+<P><A NAME="1018143"></A><TT>telephonenumber=*</TT></P>
+
+<P><A NAME="1018144"></A><TT>manager=*</TT></P>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018146"></A>Approximate </TD>
+
+<TD><A NAME="1018148"></A>~= </TD>
+
+<TD><A NAME="1018150"></A>Returns entries containing the specified attribute
+that is approximately equal to the specified value. For example, 
+<UL>
+<P><A NAME="1018151"></A><TT>cn~=surette</TT></P>
+
+<P><A NAME="1018152"></A><TT>l~=san fransico</TT></P>
+</UL>
+</TD>
+</TR>
+</TABLE>
+
+<TABLE>
+<TR>
+<TD></TD>
+</TR>
+</TABLE>
+
+<P><A NAME="1018160"></A>For more information on these types of searches,
+see &quot;<A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/filters.htm#1018239">How searching works</A>.&quot;
+</P>
+
+<P><A NAME="Using Multiple Search Filters"></A><A NAME="1018167"></A></P>
+
+<H4>Using Multiple Search Filters</H4>
+
+<P><A NAME="1018168"></A>You can combine different search filters by using
+boolean operators. Use the operators in prefix notation as follows:</P>
+
+<P><A NAME="1018169"></A></P>
+
+<UL>
+<PRE>(<I>boolean_operator</I>((<I>filter</I>)(<I>filter</I>)(<I>filter</I>)...))
+</PRE>
+</UL>
+
+<P><A NAME="1018170"></A>where <I>boolean_operator</I> is any one of the <A href="/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/filters.htm#1018173">boolean
+operators</A>. For example: </P>
+
+<P><A NAME="1019218"></A></P>
+
+<UL>
+<PRE>(&amp;(ou=Marketing)(cn=Ray*))
+</PRE>
+</UL>
+
+<P><A NAME="1019216"></A>In the example above, the combination of filters
+finds entries whose organizational unit is Marketing (<TT>ou=Marketing</TT>)
+and whose common name starts with Ray (<TT>cn=Ray*</TT>). The boolean operator
+for &quot;And&quot; (<TT>&amp;</TT>) is used in prefix notation, which
+means that it precedes the search criteria. </P>
+
+<P><A NAME="1019228"></A>In addition, you can nest boolean operators to
+form complex expressions, such as:</P>
+
+<P><A NAME="1018171"></A></P>
+
+<UL>
+<PRE>(boolean_operator(filter)((boolean_operator(filter)(filter)))
+</PRE>
+</UL>
+
+<P><A NAME="Boolean Operators"></A><A NAME="1018173"></A></P>
+
+<H4>Boolean Operators</H4>
+
+<P><A NAME="1018202"></A>The boolean operators available for use with search
+filters are: </P>
+
+<TABLE BORDER=2 >
+<CAPTION></CAPTION>
+
+<TR>
+<TH><A NAME="1018176"></A><B>Operator</B> </TH>
+
+<TH><A NAME="1018178"></A><B>Symbol</B> </TH>
+
+<TH><A NAME="1018180"></A><B>Description</B> </TH>
+</TR>
+
+<TR>
+<TD><A NAME="1018182"></A>And </TD>
+
+<TD><A NAME="1018184"></A>&amp; </TD>
+
+<TD><A NAME="1018186"></A>All specified filters must be true for the statement
+to be true. For example, 
+<UL>
+<P><A NAME="1018187"></A><TT>(&amp;(filter1)(filter2)(filter3)...)</TT></P>
+</UL>
+
+<P><A NAME="1019015"></A>Filter1, filter2, and filter3 must all be true
+for an entry to match.</P>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018189"></A>Or </TD>
+
+<TD><A NAME="1018191"></A>| </TD>
+
+<TD><A NAME="1018193"></A>At least one specified filter must be true for
+the statement to be true. For example, 
+<UL>
+<P><A NAME="1018194"></A><TT>(|(filter1)(filter2)(filter3)...)</TT></P>
+</UL>
+
+<P><A NAME="1019024"></A>If any of filter1, filter2, or filter3 match,
+the entry is returned.</P>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018196"></A>Not </TD>
+
+<TD><A NAME="1018198"></A>! </TD>
+
+<TD><A NAME="1018200"></A>The specified statement must not be true for
+the statement to be true. Note that only one filter is affected by the
+not operator. For example, 
+<UL>
+<P><A NAME="1018201"></A><TT>(!(filter))</TT></P>
+</UL>
+
+<P><A NAME="1019025"></A>Any entry not matching the filter is returned.</P>
+</TD>
+</TR>
+</TABLE>
+
+<TABLE>
+<TR>
+<TD></TD>
+</TR>
+</TABLE>
+
+<P><A NAME="Search Filter Examples"></A><A NAME="1018203"></A></P>
+
+<H4>Search Filter Examples</H4>
+
+<P><A NAME="1018204"></A>The following filter searches for entries containing
+the manager attribute. This is also known as a presence search:</P>
+
+<P><A NAME="1018205"></A></P>
+
+<PRE> manager=*
+</PRE>
+
+<P><A NAME="1018206"></A>The following filter searches for entries containing
+the common name of Ray Kultgen. This is also known as an equality search:</P>
+
+<P><A NAME="1018207"></A></P>
+
+<PRE> cn=Ray Kultgen
+</PRE>
+
+<P><A NAME="1018208"></A>The following filter returns any entries that
+do not contain the common name of Ray Kultgen:</P>
+
+<P><A NAME="1018209"></A></P>
+
+<PRE> (!(cn=Ray Kultgen))
+</PRE>
+
+<P><A NAME="1018210"></A>The following filter returns any entries that
+contain a description attribute with a substring of X.500:</P>
+
+<P><A NAME="1018211"></A></P>
+
+<PRE> description=*X.500*
+</PRE>
+
+<P><A NAME="1018212"></A>The following filter returns any entries whose
+organizational unit is Marketing and whose description field does not contain
+the substring X.500:</P>
+
+<P><A NAME="1018213"></A></P>
+
+<PRE> (&amp;(ou=Marketing)(!(description=*X.500*)))
+</PRE>
+
+<P><A NAME="1018214"></A>The following filter returns any entries whose
+organizational unit is Marketing and who have Julie Fulmer or Cindy Zwaska
+as a manager:</P>
+
+<P><A NAME="1018215"></A></P>
+
+<PRE> (&amp;(ou=Marketing)(|(manager=&quot;cn=Julie Fulmer,ou=Marketing,o=Example Corp,c=US&quot;)<br>(manager=&quot;cn=Cindy Zwaska,ou=Marketing,o=Example Corp,c=US&quot;)))
+</PRE>
+
+<P><A NAME="1018216"></A>The following filter returns any entries that
+do not represent a person:</P>
+
+<P><A NAME="1018217"></A></P>
+
+<PRE> (!(objectclass=person))
+</PRE>
+
+<P><A NAME="1018218"></A>The following filter returns any entries that
+do not represent a person and whose common name is approximately printer3b:</P>
+
+<P><A NAME="1018219"></A></P>
+
+<PRE> (&amp;(!(objectclass=person))(cn~=printer3b))
+</PRE>
+
+<P><A NAME="How Searching Works"></A><A NAME="1018239"></A></P>
+
+<H2>How Searching Works</H2>
+
+<P><A NAME="1018240"></A></P>
+
+<BLOCKQUOTE>
+<P><B>Note: </B></P>
+</BLOCKQUOTE>
+
+<P><A NAME="1019880"></A></P>
+
+<BLOCKQUOTE>
+<P>The Directory Server interface is actually a collection of forms and
+CGI programs that operate independently from the Directory Server. This
+interface acts as an LDAP client to the Directory Server. </P>
+</BLOCKQUOTE>
+
+<P><A NAME="1019775"></A>The following section explains what happens when
+you search the Directory Server:</P>
+
+<OL>
+<P><A NAME="1018241"></A></P>
+
+<LI>When you submit the form, you send a search filter to the Directory
+Server. <A NAME="1018242"></A></LI>
+
+<LI>The Directory Server examines the incoming request to verify that the
+information is in the local directory. If the information is not in the
+local directory and the Referral parameter is set for the server, the Directory
+Server returns the URL for the other Directory Server where the client
+can attempt to pursue the request. <A NAME="1018244"></A></LI>
+
+<LI>The Directory Server generates a list of entries from the directory
+tree. The Directory Server then examines each of the candidate entries
+to see if any entry matches the search criteria. Matching entries are returned
+to the Directory Server interface as each is found. <A NAME="1019576"></A>This
+process continues until the Directory Server either has examined all applicable
+entries, or until it reaches one of the following limits: </LI>
+
+<UL>
+<P><A NAME="1018252"></A></P>
+
+<LI>The maximum number of entries that can be returned in response to a
+search <A NAME="1018259"></A></LI>
+
+<LI>The maximum amount of time that can be taken for a search <A NAME="1018266"></A></LI>
+
+<LI>The maximum number of entries that can be examined during a search
+</LI>
+</UL>
+</OL>
+
+<P><A NAME="1019628"></A>Your administrator can configure these settings.
+For more detailed information on the searching algorithm, see the <I>Netscape
+Directory Server Administrator's Guide</I>. </P>
+
+<P><A NAME="1019776"></A>The rest of this section explains how approximate
+searches work and how substring searches work. </P>
+
+<P><A NAME="How Approximate ("></A><A NAME="1018301"></A></P>
+
+<H3>How Approximate (&quot;sounds like&quot;) Searches Work</H3>
+
+<P><A NAME="1018302"></A>The approximate search finds a word that &quot;sounds
+like&quot; the value you enter. In the Advanced Search interface, the approximate
+search corresponds to the &quot;sounds like&quot; search type. </P>
+
+<P><A NAME="1019677"></A>For example, an entry may include the attribute
+value cn=Robert E Lee. An approximate search allows you to find this entry
+by specifying Robert Lee, Robert, or Lee. Similarly, a search for the location
+approximately equal to San Fransico (l~=San Fransico; note the misspelling)
+would return entries including locations exactly equal to San Francisco
+(l=San Francisco).</P>
+
+<P><A NAME="1018303"></A>The Directory Server treats each value in an entry
+as a sequence of words and generates a phonetic code for each word. When
+you enter a value in an approximate search, the Directory Server also translates
+the value to a sequence of phonetic codes. An entry is considered to match
+a query if:</P>
+
+<UL>
+<P><A NAME="1018305"></A></P>
+
+<LI>All of the codes in your search criteria are present in the codes generated
+for the entry. <A NAME="1018306"></A></LI>
+
+<LI>All of the codes in your search criteria are specified in the same
+order as the codes generated for the entry. </LI>
+</UL>
+
+<P><A NAME="1018344"></A>For example: </P>
+
+<TABLE BORDER=2 >
+<CAPTION></CAPTION>
+
+<TR>
+<TH><A NAME="1018309"></A><B>Name in the directory <BR>
+(Phonetic code) </B></TH>
+
+<TH><A NAME="1018311"></A><B>Your search string <BR>
+(Phonetic code) </B></TH>
+
+<TH><A NAME="1018313"></A><B>Match comments</B> </TH>
+</TR>
+
+<TR>
+<TD><A NAME="1018315"></A>Alice B Sarette<BR>
+(ALS B SRT) </TD>
+
+<TD><A NAME="1018317"></A>Alice Sarette<BR>
+(ALS SRT) </TD>
+
+<TD><A NAME="1018319"></A>Matches. Codes are specified in the correct order.
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018321"></A></TD>
+
+<TD><A NAME="1018323"></A>Alice Sarrette<BR>
+(ALS SRT) </TD>
+
+<TD><A NAME="1018325"></A>Matches. Codes are specified in the correct order
+despite the misspelling of Sarette. </TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018327"></A></TD>
+
+<TD><A NAME="1018329"></A>Surette<BR>
+(SRT) </TD>
+
+<TD><A NAME="1018331"></A>Matches. The generated code exists in the original
+name despite the misspelling of Sarette. </TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018333"></A></TD>
+
+<TD><A NAME="1018335"></A>Bertha Sarette<BR>
+(BR0 SRT) </TD>
+
+<TD><A NAME="1018337"></A>No match. The code BR0 does not exist in the
+original name. </TD>
+</TR>
+
+<TR>
+<TD><A NAME="1018339"></A></TD>
+
+<TD><A NAME="1018341"></A>Sarette, Alice<BR>
+(SRT ALS) </TD>
+
+<TD><A NAME="1018343"></A>No match. The codes are not specified in the
+correct order. </TD>
+</TR>
+</TABLE>
+
+<TABLE>
+<TR>
+<TD></TD>
+</TR>
+</TABLE>
+
+<P><A NAME="How Substring Searches Work"></A><A NAME="1018345"></A></P>
+
+<H3>How Substring Searches Work</H3>
+
+<P><A NAME="1018346"></A>The substring search finds entries that contain
+the value you have entered. In the Advanced Search interface, the substring
+search corresponds to the &quot;starts with&quot;, &quot;contains&quot;,
+and &quot;ends with&quot; search types. </P>
+
+<P><A NAME="1018347"></A>For example, searches of the form:</P>
+
+<UL>
+<UL>
+<P><A NAME="1018348"></A><TT>cn=*derson</TT><BR>
+</P>
+</UL>
+</UL>
+
+<P><A NAME="1018349"></A>would match the common names containing strings
+such as:</P>
+
+<P><A NAME="1018350"></A></P>
+
+<UL>
+<UL>
+<PRE>Bill Anderson
+Jill Anderson
+Steve Sanderson
+</PRE>
+</UL>
+</UL>
+
+<P><A NAME="1018351"></A>and so forth. Similarly, the search for</P>
+
+<UL>
+<UL>
+<P><A NAME="1018352"></A><TT>telephonenumber= *555*</TT><BR>
+</P>
+</UL>
+</UL>
+
+<P><A NAME="1018353"></A>would return all the entries in your directory
+with telephone numbers that contain 555.</P>
+
+</BODY>
+</HTML>

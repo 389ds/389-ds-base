@@ -1,0 +1,24 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+LIBRARY ns-ldapagt
+
+DESCRIPTION 'Netscape Directory Server SNMP Agent'
+
+CODE  LOADONCALL MOVEABLE DISCARDABLE
+DATA  PRELOAD    MOVEABLE SINGLE
+
+SEGMENTS
+  _TEXT      PRELOAD
+  INIT_TEXT  PRELOAD
+
+HEAPSIZE  1024
+
+EXPORTS
+  SnmpExtensionInit
+  SnmpExtensionTrap
+  SnmpExtensionQuery
+

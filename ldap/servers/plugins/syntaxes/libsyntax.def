@@ -1,0 +1,24 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+DESCRIPTION     'Directory Server 7 syntaxes Plugin'
+EXPORTS
+	cis_init				@2
+	ces_init				@3
+	tel_init				@4
+	dn_init					@5
+	bin_init				@6
+	int_init				@7
+	plugin_init_debug_level	@8
+	octetstring_init		@9
+	boolean_init			@10
+	time_init				@11
+	uri_init				@12
+	country_init			@13
+	postal_init				@14
+	jpeg_init				@15
+	oid_init				@16
+	sicis_init				@17

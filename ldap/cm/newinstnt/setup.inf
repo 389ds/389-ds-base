@@ -1,0 +1,42 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Sample Netscape SuiteSpot Server Package Information File
+#
+# Components: lists the components to be installed as specified
+# in subsequent sections. If the section or the ComponentInfoFile
+# does note exist the setup program will ignore the component
+
+[General]
+Name         =      Netscape Server Family
+Vendor       =      Netscape Communications Corp.
+Description  =      Netscape Server Family
+Version      =      %%%SERVER_VERSION%%%
+Components   =      svrcore, base, admin, slapd, dssynch, msg, mcc
+
+# Package Contents
+[svrcore]
+ComponentInfoFile = svrcore/svrcore.inf
+
+[base]
+ComponentInfoFile = base/base.inf
+
+[admin]
+ComponentInfoFile = admin/admin.inf
+
+[slapd]
+ComponentInfoFile = slapd/slapd.inf
+
+[dssynch]
+ComponentInfoFile=dssynch\dssynch.inf
+
+[msg]
+ComponentInfoFile = msg/msg.inf
+
+[mcc]
+ComponentInfoFile = mcc/mcc.inf

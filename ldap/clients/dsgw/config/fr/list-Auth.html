@@ -1,0 +1,75 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "Authenticate as..." -->
+
+<!--
+    The "authForm" form and the authSubmit() JavaScript function are
+    used to avoid the need for a separate form for each entry listed.
+    Each entry is tied to this single form through the magic of an
+    anchor that contains href=javascript:authSubmit().
+-->
+
+<FORM NAME="authForm" METHOD=POST ACTION="auth">
+<INPUT TYPE="hidden" NAME="escapedbinddn">
+<INPUT TYPE="hidden" NAME="authdesturl">
+<!-- PCONTEXT -->
+<!-- DS_POSTEDVALUE "name=authdesturl" "within=VALUE=%22--value--%22" -->
+>
+</FORM>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+function authSubmit(encodeddn)
+{
+    document.authForm.escapedbinddn.value = encodeddn;
+    document.authForm.submit();
+}
+// End hiding -->
+</SCRIPT>
+
+<CENTER><FONT SIZE=+1>
+<!-- DS_SEARCHDESC "VERBOSE" -->
+<P>
+<!-- IF "FoundEntries" -->
+Veuillez cliquer sur le nom de l'entr&eacute;e que vous d&eacute;sirez utiliser pour l'authentification.
+</FONT>
+<P>
+
+<TABLE BORDER=1 CELLPADDING=4>
+<TR>
+<TH NOWRAP>Authentifier en tant que <TH NOWRAP>Titre
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "href=javascript:authSubmit('--value--'); onMouseOver=%22window.status='Cliquer pour authentifier'; return true;%22" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=title" -->
+
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+<!-- ELSE "FoundEntries" -->
+Veuillez revenir en arri&egrave;re et essayer de nouveau.
+<!-- ENDIF "FoundEntries" -->
+</CENTER>
+
+<FORM>
+<TABLE BORDER=2 WIDTH=100%%>
+<TR>
+<TD ALIGN=center width=50%%>
+<INPUT TYPE="button" VALUE="Pr&eacute;c&eacute;dent" onClick="history.back();">
+<TD ALIGN=center WIDTH=50%%>
+<!-- DS_HELPBUTTON "topic=AUTHMULTMATCH" -->
+</TABLE>
+</FORM>
+
+<!-- ENDHTML -->
+
+

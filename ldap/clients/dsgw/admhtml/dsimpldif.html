@@ -1,0 +1,85 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HEAD><TITLE>User Management</TITLE>
+
+<SCRIPT language=JavaScript>
+var didSetDefaults = 0;
+
+function submitModify()
+{
+    var theForm = document.impForm;
+
+    // verify form fields
+    if ( theForm.ldif.value.length == 0 ) {
+        alert( 'Please provide the import ldif file name.' );
+        return false;
+    }
+
+    theForm.submit();
+    return false;
+}
+
+</SCRIPT>
+
+
+</HEAD>
+<!-- BODY -->
+
+<CENTER><TABLE BORDER="2" CELLPADDING="10" WIDTH="100%">
+<TR><TD ALIGN="center" WIDTH="100%">
+<FONT SIZE="+2"><B>Import Directory Information</B></FONT>
+</TD></TR></TABLE></CENTER>
+
+<!-- DS_INLINE_POST_RESULTS -->
+
+<FORM METHOD="POST" ACTION="dsimpldif" NAME="impForm">
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%>
+<TR>
+<TD ALIGN="right" NOWRAP><B>Import from LDIF file:</B></TD>
+<TD><INPUT TYPE="text" NAME="ldif"
+<!-- DS_LDIF_FILE -->
+SIZE=40></TD>
+</TR>
+
+<!-- IF "DirectoryIsLocalDB" -->
+<TR>
+<TD ALIGN="right" NOWRAP>&nbsp;</TD>
+<TD>
+<INPUT TYPE="checkbox" NAME="erase" VALUE="true"
+<!-- DS_CHECKED_IF_ERASE -->
+><B>Erase existing database</B></TD>
+</TD>
+</TR>
+<!-- ENDIF -->
+
+<TR>
+<TD ALIGN="right" NOWRAP>&nbsp;</TD>
+<TD>
+<INPUT TYPE="checkbox" NAME="stop"
+VALUE="true" 
+<!-- DS_CHECKED_IF_STOP -->
+><B>Stop on errors</B>
+</TD>
+</TR>
+
+
+</TABLE>
+<P>
+
+<CENTER><TABLE BORDER="2" WIDTH="100%">
+<TR>
+<TD WIDTH="33%" ALIGN="center"><INPUT TYPE="button" VALUE=" Begin Import "
+    onClick="submitModify()"></TD>
+<TD WIDTH=34% ALIGN=center><INPUT TYPE="reset" VALUE=" Reset "
+    ></TD>
+<TD WIDTH=33% ALIGN=center>
+<!-- HELPBUTTON "DSIMPLDIF" -->
+</TD>
+</TR></TABLE></CENTER>
+</FORM>
+
+<!-- ENDHTML -->

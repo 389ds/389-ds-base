@@ -1,0 +1,1062 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright � 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright � 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+
+<!-- HEAD-->
+   <TITLE>Netscape ディレクトリ インタフェィス 検索フィルタ</TITLE>
+
+</HEAD>
+
+<BODY>
+
+
+
+<P><A NAME="1001595"></A></P>
+
+
+
+<P><A NAME="1001596"></A></P>
+
+
+
+<P><A NAME="996824"></A></P>
+
+
+
+<H1>検索フィルタ</H1>
+
+
+
+<P><A NAME="997436"></A>本章では、検索フィルタおよび<A HREF="filters.htm#1018239">検索の仕組み</A>を説明しています。</P>
+
+
+
+<P><A NAME="Search Filters"></A><A NAME="1018822"></A></P>
+
+
+
+<H2>検索フィルタ</H2>
+
+
+
+<P><A NAME="1018489"></A>検索範囲を限定するために、 <A HREF="search.htm#1015771">[標準検索]</A>フィールドに直接検索フィルタを指定できます。検索に等号記号(=)が含まれる場合は、[標準検索]では値が検索フィルタであるものと想定され、このフィルタが直接使用されて検索が実行されます。</P>
+
+
+
+<P><A NAME="1018092"></A>検索フィルタでは、[標準検索]のために戻されるエントリを選択するのに、属性の値が使用されます。例えば、次の検索フィルタでは、Babs Jensenに等しい一般名の検索が指定されます。</P>
+
+
+
+<P><A NAME="1018094"></A></P>
+
+
+
+<UL>
+
+<UL>
+
+<PRE>cn=babs jensen
+
+</PRE>
+
+</UL>
+
+</UL>
+
+
+
+<P><A NAME="Search filter syntax"></A><A NAME="1018095"></A></P>
+
+
+
+<H3>検索フィルタの構文</H3>
+
+
+
+<P><A NAME="1018096"></A>検索フィルタの基本構文:</P>
+
+
+
+<P><A NAME="1018097"></A></P>
+
+
+
+<UL>
+
+<UL>
+
+<PRE><A HREF="filters.htm#1019127">属性</A> <A HREF="filters.htm#1019138">演算子</A>値
+
+</PRE>
+
+</UL>
+
+</UL>
+
+
+
+<P><A NAME="1019085"></A>例: </P>
+
+
+
+<P><A NAME="1019086"></A></P>
+
+
+
+<UL>
+
+<UL>
+
+<PRE>employeenumber &gt;= 100 
+
+</PRE>
+
+</UL>
+
+</UL>
+
+
+
+<P><A NAME="1019090"></A>上記の例では、<TT>employeenumber</TT>は属性、<TT>&gt;=</TT> は演算子、100は値です。
+</P>
+
+
+
+<P><A NAME="1019104"></A><A HREF="filters.htm#1018167">異なった属性の組合せ</A>を使用するフィルタも定義できます。 </P>
+
+
+
+<P><A NAME="Using attributes in a filter"></A><A NAME="1019127"></A></P>
+
+
+
+<H4>フィルタにおける属性の使用</H4>
+
+
+
+<P><A NAME="1019162"></A>エントリの検索の際に、そのタイプのエントリと関係する属性を指定できます。例えば、ユーザに関するエントリを検索する場合、特定の一般名を持つユーザの検索に<TT>cn</TT>属性を使用できます。</P>
+
+
+
+<P><A NAME="1019183"></A>ユーザに関するエントリの例として次のものが含まれることがあります。</P>
+
+
+
+<UL>
+
+<P><A NAME="1019188"></A></P>
+
+
+
+<LI><TT>cn</TT> (ユーザの一般名) <A NAME="1019189"></A></LI>
+
+
+
+<LI><TT>telephonenumber</TT> (ユーザの電話番号) <A NAME="1019190"></A></LI>
+
+
+
+<LI><TT>employeenumber</TT> (ユーザの社員番号) <A NAME="1019191"></A></LI>
+
+
+
+<LI><TT>l</TT> (ユーザの場所) </LI>
+
+</UL>
+
+
+
+<P><A NAME="1019184"></A>エントリに関係する属性のリストについては、<A HREF="attribut.htm#1002619">付録A「エントリと属性のフィールド」</A>をご覧ください。 検索フィルタにおいて内部属性名を使用する必要があることに注意してください。</P>
+
+
+
+<P><A NAME="Using operators in a filter"></A><A NAME="1019138"></A></P>
+
+
+
+<H4>フィルタにおける演算子の使用</H4>
+
+
+
+<P><A NAME="1018153"></A>演算子で以下のタイプの検索を定義します。</P>
+
+
+
+<TABLE BORDER=2 >
+
+<CAPTION></CAPTION>
+
+
+
+<TR>
+
+<TH><A NAME="1018101"></A><B>検索タイプ</B> </TH>
+
+
+
+<TH><A NAME="1018103"></A><B>演算子</B> </TH>
+
+
+
+<TH><A NAME="1018105"></A><B>説明</B> </TH>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018107"></A>等号</TD>
+
+
+
+<TD><A NAME="1018109"></A>= </TD>
+
+
+
+<TD><A NAME="1018111"></A>指定値に一致する属性を含むエントリが戻されます。例:
+
+<UL>
+
+<P><A NAME="1019083"></A><TT>cn=Bob Johnson</TT></P>
+
+</UL>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018113"></A>副文字列</TD>
+
+
+
+<TD><A NAME="1018115"></A>=&lt;文字列&gt;*&lt;文字列&gt; </TD>
+
+
+
+<TD><A NAME="1018117"></A>指定副文字を持つ 列属性を含むエントリが戻されます。例:
+<UL>
+
+<P><A NAME="1018118"></A><TT>cn=Bob*</TT></P>
+
+
+
+<P><A NAME="1018119"></A><TT>cn=*Johnson</TT></P>
+
+
+
+<P><A NAME="1018120"></A><TT>cn=*John*</TT></P>
+
+
+
+<P><A NAME="1018121"></A><TT>cn=B*John</TT></P>
+
+</UL>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018123"></A>大なりまたは等価</TD>
+
+
+
+<TD><A NAME="1018125"></A>&gt;= </TD>
+
+
+
+<TD><A NAME="1018127"></A>指定値より大きいか、等しい属性を含むエントリが戻されます。例:
+
+<UL>
+
+<P><A NAME="1018128"></A><TT>employeenumber &gt;= 100</TT></P>
+
+</UL>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018130"></A>小なりまたは等価</TD>
+
+
+
+<TD><A NAME="1018132"></A>&lt;= </TD>
+
+
+
+<TD><A NAME="1018134"></A>指定値より小さいか、等しい属性を含むエントリが戻されます。例:
+<UL>
+
+<P><A NAME="1018135"></A><TT>employeenumber &lt;= 100</TT></P>
+
+</UL>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018137"></A>存在</TD>
+
+
+
+<TD><A NAME="1018139"></A>=* </TD>
+
+
+
+<TD><A NAME="1018141"></A>指定属性を含むエントリが戻されます。例:
+
+<UL>
+
+<P><A NAME="1018142"></A><TT>cn=*</TT></P>
+
+
+
+<P><A NAME="1018143"></A><TT>telephonenumber=*</TT></P>
+
+
+
+<P><A NAME="1018144"></A><TT>manager=*</TT></P>
+
+</UL>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018146"></A>近似</TD>
+
+
+
+<TD><A NAME="1018148"></A>~= </TD>
+
+
+
+<TD><A NAME="1018150"></A>指定値にほぼ等しい指定属性を含むエントリが戻されます。例:
+
+<UL>
+
+<P><A NAME="1018151"></A><TT>cn~=surette</TT></P>
+
+
+
+<P><A NAME="1018152"></A><TT>l~=san fransico</TT></P>
+
+</UL>
+
+</TD>
+
+</TR>
+
+</TABLE>
+
+
+
+<TABLE>
+
+<TR>
+
+<TD></TD>
+
+</TR>
+
+</TABLE>
+
+
+
+<P><A NAME="1018160"></A>これらの検索タイプの詳細は、<A HREF="filters.htm#1018239">「検索の仕組み」</A>をご覧ください。
+
+</P>
+
+
+
+<P><A NAME="Using multiple search filters"></A><A NAME="1018167"></A></P>
+
+
+
+<H4>複数の検索フィルタの使用</H4>
+
+
+
+<P><A NAME="1018168"></A>ブール演算子を使用して、異なった検索フィルタを組み合わせることができます。接頭辞表記に以下の演算子を使用できます。</P>
+
+
+
+<P><A NAME="1018169"></A></P>
+
+
+
+<UL>
+
+<PRE>(<I>ブール_演算子</I>((<I>フィルタ</I>)(<I>フィルタ</I>)(<I>フィルタ</I>)...))
+
+</PRE>
+
+</UL>
+
+
+
+<P><A NAME="1018170"></A>この場合、ブール_演算子は、任意の<A HREF="filters.htm#1018173">ブール演算子</A>です。例: </P>
+
+
+
+<P><A NAME="1019218"></A></P>
+
+
+
+<UL>
+
+<PRE>(&amp;(ou=Marketing)(cn=Ray*))
+
+</PRE>
+
+</UL>
+
+
+
+<P><A NAME="1019216"></A>上記の例では、フィルタの組合せによって、組織単位がMarketing (<TT>ou=Marketing</TT>)で、一般名がRay (<TT>cn=Ray*</TT>)で始まるエントリが検索されます。And(<TT>&amp;</TT>)のブール演算子は、この演算子が検索基準を先行する接頭辞表記法で使用されています。</P>
+
+
+
+<P><A NAME="1019228"></A>さらに、以下のように、複雑な式を形成するのにブール演算子を入れ子にすることもできます。</P>
+
+
+
+<P><A NAME="1018171"></A></P>
+
+
+
+<UL>
+
+<PRE>(ブール_演算子(フィルタ)((ブール_演算子(フィルタ)(フィルタ)))
+
+</PRE>
+
+</UL>
+
+
+
+<P><A NAME="Boolean operators"></A><A NAME="1018173"></A></P>
+
+
+
+<H4>ブール演算子</H4>
+
+
+
+<P><A NAME="1018202"></A>検索フィルタとともに使用できるブール演算子: </P>
+
+
+
+<TABLE BORDER=2 >
+
+<CAPTION></CAPTION>
+
+
+
+<TR>
+
+<TH><A NAME="1018176"></A><B>演算子</B> </TH>
+
+
+
+<TH><A NAME="1018178"></A><B>記号</B> </TH>
+
+
+
+<TH><A NAME="1018180"></A><B>説明</B> </TH>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018182"></A>And </TD>
+
+
+
+<TD><A NAME="1018184"></A>&amp; </TD>
+
+
+
+<TD><A NAME="1018186"></A>文が真であるためには、すべての指定フィルタが真でなければなりません。例:
+
+<UL>
+
+<P><A NAME="1018187"></A><TT>(&amp;(フィルタ1)(フィルタ2)(フィルタ3)...)</TT></P>
+
+</UL>
+
+
+
+<P><A NAME="1019015"></A>エントリが一致するためには、フィルタ1、フィルタ2、およびフィルタ3がすべて真でなければなりません。</P>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018189"></A>Or </TD>
+
+
+
+<TD><A NAME="1018191"></A>| </TD>
+
+
+
+<TD><A NAME="1018193"></A>文が真であるためには、最低一つの指定フィルタが真でなければなりません。例:
+
+<UL>
+
+<P><A NAME="1018194"></A><TT>(|(フィルタ1)(フィルタ2)(フィルタ3)...)</TT></P>
+
+</UL>
+
+
+
+<P><A NAME="1019024"></A>フィルタ1、フィルタ2、またはフィルタ3の一つでも一致すると、エントリが戻されます。</P>
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018196"></A>Not </TD>
+
+
+
+<TD><A NAME="1018198"></A>! </TD>
+
+
+
+<TD><A NAME="1018200"></A>文が真であるためには、指定された文が真であってはなりません。一つのフィルタのみがNot演算子によって影響されることに注意してください。例:
+
+
+<UL>
+
+<P><A NAME="1018201"></A><TT>(!(フィルタ))</TT></P>
+
+</UL>
+
+
+
+<P><A NAME="1019025"></A>フィルタに一致しないエントリが戻されます。</P>
+
+</TD>
+
+</TR>
+
+</TABLE>
+
+
+
+<TABLE>
+
+<TR>
+
+<TD></TD>
+
+</TR>
+
+</TABLE>
+
+
+
+<P><A NAME="Search filter examples"></A><A NAME="1018203"></A></P>
+
+
+
+<H4>検索フィルタの例</H4>
+
+
+
+<P><A NAME="1018204"></A>マネージャ属性を含むエントリが次のフィルタによって検索されます。これは存在検索とも呼ばれます。</P>
+
+
+
+<P><A NAME="1018205"></A></P>
+
+
+
+<PRE>          manager=*
+
+</PRE>
+
+
+
+<P><A NAME="1018206"></A>Ray Kultgenの一般名を含むエントリが次のフィルタによって検索されます。これは等号検索としても呼ばれます。</P>
+
+
+
+<P><A NAME="1018207"></A></P>
+
+
+
+<PRE>          cn=Ray Kultgen
+
+</PRE>
+
+
+
+<P><A NAME="1018208"></A>Ray Kultgenの一般名を含まないエントリが次のフィルタによって戻されます。</P>
+
+
+
+<P><A NAME="1018209"></A></P>
+
+
+
+<PRE>          (!(cn=Ray Kultgen))
+
+</PRE>
+
+
+
+<P><A NAME="1018210"></A>X.500の副文字列を持つ[description]属性を含むエントリが次のフィルタによって戻されます。</P>
+
+
+
+<P><A NAME="1018211"></A></P>
+
+
+
+<PRE>          description=*X.500*
+
+</PRE>
+
+
+
+<P><A NAME="1018212"></A>組織単位がMarketingで、[description]フィールドに副文字列X.500が含まれないエントリが次のフィルタによって戻されます。</P>
+
+
+
+<P><A NAME="1018213"></A></P>
+
+
+
+<PRE>          (&amp;(ou=Marketing)(!(description=*X.500*)))
+
+</PRE>
+
+
+
+<P><A NAME="1018214"></A>組織単位がMarketingで、マネージャがJulie FulmerまたはCindy Zwaskaであるエントリが次のフィルタによって戻されます。</P>
+
+
+
+<P><A NAME="1018215"></A></P>
+
+
+
+<PRE>          (&amp;(ou=Marketing)(|(manager=&quot;cn=Julie
+Fulmer,ou=Marketing,o=Airius,c=US&quot;)(manager=&quot;cn=Cindy
+Zwaska,ou=Marketing,o=Airius,
+c=US&quot;)))
+
+</PRE>
+
+
+
+<P><A NAME="1018216"></A>ユーザを示さないエントリが次のフィルタによって戻されます。</P>
+
+
+
+<P><A NAME="1018217"></A></P>
+
+
+
+<PRE>          (!(objectclass=person))
+
+</PRE>
+
+
+
+<P><A NAME="1018218"></A>ユーザ(person)を示さず、しかも一般名(cn)がプリンタ3bに類似したエントリが次のフィルタによって戻されます。</P>
+
+
+
+<P><A NAME="1018219"></A></P>
+
+
+
+<PRE>          (&amp;(!(objectclass=person))(cn~=printer3b))
+
+</PRE>
+
+
+
+<P><A NAME="How searching works"></A><A NAME="1018239"></A></P>
+
+
+
+<H2>検索の仕組み</H2>
+
+
+
+<P><A NAME="1018240"></A></P>
+
+
+
+<BLOCKQUOTE>
+
+<P><B>注: </B></P>
+
+</BLOCKQUOTE>
+
+
+
+<P><A NAME="1019880"></A></P>
+
+
+
+<BLOCKQUOTE>
+
+<P>Directory Serverインタフェースは、実際、Directory Serverから独立して動作するフォームとCGIプログラムの集まりです。このインタフェースは、Directory Serverに対してLDAPクライアントとして動作するものです。</P>
+
+</BLOCKQUOTE>
+
+
+
+<P><A NAME="1019775"></A>以下には、Directory Serverを検索する際の仕組みが説明されています。</P>
+
+
+
+<OL>
+
+<P><A NAME="1018241"></A></P>
+
+
+
+<LI>フォームを送信すると、Directory Serverに検索フィルタが送信されます。 <A NAME="1018242"></A></LI>
+
+
+
+<LI>Directory Serverでは、情報がローカル ディレクトリにあるかを確認するため着信した要求がチェックされます。その情報がローカル ディレクトリになく、[Referral]パラメータがサーバーに設定されている場合は、そのクライアントが要求の追求を試みられる他のDirectory ServerのURLが戻されます。<A NAME="1018244"></A></LI>
+
+
+
+<LI>Directory Serverによって、ディレクトリ ツリーからエントリ リストが生成されます。 検索基準に一致するエントリがあるかどうか各候補エントリがチェックされます。一致エントリが検出されるたびに、それがDirectory Serverインタフェースに戻されます。<A NAME="1019576"></A>Directory Serverによって該当するエントリがすべてチェックされるか、または以下の限度の一つに達するまで、この過程が継続されます。</LI>
+
+
+
+<UL>
+
+<P><A NAME="1018252"></A></P>
+
+
+
+<LI>検索に対して戻されることが許されている最大エントリ数<A NAME="1018259"></A></LI>
+
+
+
+<LI>許されている最高検索所要時間 <A NAME="1018266"></A></LI>
+
+
+
+<LI>検索中にチェックすることが許されている最大エントリ数
+
+</LI>
+
+</UL>
+
+</OL>
+
+
+
+<P><A NAME="1019628"></A>ディレクトリ管理者がこれらの設定を構成できます。検索アルゴリズムの詳細は、『Netscape Directory Server管理者用ガイド』をご覧ください。</P>
+
+
+
+<P><A NAME="1019776"></A>以下には、近似検索および副文字列検索の仕組みが説明されています。 </P>
+
+
+
+<P><A NAME="How approximate ("></A><A NAME="1018301"></A></P>
+
+
+
+<H3>近似(類似)検索の仕組み</H3>
+
+
+
+<P><A NAME="1018302"></A>近似検索では入力値に類似した語が検索されます。[拡張検索]インタフェースでは、近似検索はsounds like (類似)検索タイプに対応しています。</P>
+
+
+
+<P><A NAME="1019677"></A>例えば、エントリに属性値cn=Robert E Leeが含まれるとします。 近似検索では、Robert Lee、Robert、またはLeeを指定してこのエントリを検索できます。同様に、 San Fransico (l~=San Fransicoのスペル間違いに注意)にほぼ等しい場所の検索では、San Francisco
+(l=San Francisco)に完全に一致する場所を含むエントリが戻されます。</P>
+
+
+
+<P><A NAME="1018303"></A>Directory Serverでは、エントリの各値が一連の語として処理され、各語の表音コードが作成されます。また、近似検索に値を入力すると、その値が一連の表音コードに翻訳されます。以下の場合にエントリが問合せに一致すると見なされます。</P>
+
+
+
+<UL>
+
+<P><A NAME="1018305"></A></P>
+
+
+
+<LI>検索基準におけるすべてのコードが生成されたエントリのコードに存在する場合 <A NAME="1018306"></A></LI>
+
+
+
+<LI>検索基準におけるすべてのコードが生成されたエントリのコードと同じ順序で指定されている場合</LI>
+
+</UL>
+
+
+
+<P><A NAME="1018344"></A>例: </P>
+
+
+
+<TABLE BORDER=2 >
+
+<CAPTION></CAPTION>
+
+
+
+<TR>
+
+<TH><A NAME="1018309"></A><B>ディレクトリにおける名前<BR>
+
+(表音コード) </B></TH>
+
+
+
+<TH><A NAME="1018311"></A><B>検索文字列<BR>
+
+(表音コード) </B></TH>
+
+
+
+<TH><A NAME="1018313"></A><B>一致に関する注釈</B> </TH>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018315"></A>Alice B Sarette<BR>
+
+(ALS B SRT) </TD>
+
+
+
+<TD><A NAME="1018317"></A>Alice Sarette<BR>
+
+(ALS SRT) </TD>
+
+
+
+<TD><A NAME="1018319"></A>一致。コードが正しい順序で指定されています。
+
+</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018321"></A></TD>
+
+
+
+<TD><A NAME="1018323"></A>Alice Sarrette<BR>
+
+(ALS SRT) </TD>
+
+
+
+<TD><A NAME="1018325"></A>一致。Saretteのスペルが間違っているにも関わらず、コードが正しい順序で指定されています。 </TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018327"></A></TD>
+
+
+
+<TD><A NAME="1018329"></A>Surette<BR>
+
+(SRT) </TD>
+
+
+
+<TD><A NAME="1018331"></A>一致。Saretteのスペルが間違っているにも関わらず、生成されたコードには元の名前が存在します。</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018333"></A></TD>
+
+
+
+<TD><A NAME="1018335"></A>Bertha Sarette<BR>
+
+(BR0 SRT) </TD>
+
+
+
+<TD><A NAME="1018337"></A>一致なし。コードBR0は元の名前には存在しません。</TD>
+
+</TR>
+
+
+
+<TR>
+
+<TD><A NAME="1018339"></A></TD>
+
+
+
+<TD><A NAME="1018341"></A>Sarette, Alice<BR>
+
+(SRT ALS) </TD>
+
+
+
+<TD><A NAME="1018343"></A>一致なし、コードが正しい順序で指定されていません。</TD>
+
+</TR>
+
+</TABLE>
+
+
+
+<TABLE>
+
+<TR>
+
+<TD></TD>
+
+</TR>
+
+</TABLE>
+
+
+
+<P><A NAME="How substring searches work"></A><A NAME="1018345"></A></P>
+
+
+
+<H3>副文字列検索の仕組み</H3>
+
+
+
+<P><A NAME="1018346"></A>副文字列検索では、入力した値を含むエントリが検索されます。[拡張検索]インタフェースでは、副文字列検索starts with(開始文字)、contains (含有)、およびends with (終了文字)の検索に対応します。</P>
+
+
+
+<P><A NAME="1018347"></A>例えば、</P>
+
+
+
+<UL>
+
+<UL>
+
+<P><A NAME="1018348"></A><TT>cn=*derson</TT><BR>
+
+</P>
+
+</UL>
+
+</UL>
+
+
+
+<P><A NAME="1018349"></A>のフォームの検索では、以下の文字列を含む一般名に一致します。 </P>
+
+
+
+<P><A NAME="1018350"></A></P>
+
+
+
+<UL>
+
+<UL>
+
+<PRE>Bill Anderson
+
+Jill Anderson
+
+Steve Sanderson
+
+</PRE>
+
+</UL>
+
+</UL>
+
+
+
+<P><A NAME="1018351"></A>同様に、</P>
+
+
+
+<UL>
+
+<UL>
+
+<P><A NAME="1018352"></A><TT>telephonenumber= *555*</TT><BR>
+
+</P>
+
+</UL>
+
+</UL>
+
+
+
+<P><A NAME="1018353"></A>の検索では、ディレクトリにおいて555を含む電話番号を持つすべてのエントリが戻されます。</P>
+
+
+
+</BODY>
+
+</HTML>
+
+

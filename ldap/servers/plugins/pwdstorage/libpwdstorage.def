@@ -1,0 +1,24 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+DESCRIPTION		'Netscape Directory Server 7 password storage scheme Plugin'
+EXPORTS
+	sha_pwd_storage_scheme_init @2
+	ssha_pwd_storage_scheme_init @3
+	crypt_pwd_storage_scheme_init @4
+	clear_pwd_storage_scheme_init @5
+	ns_mta_md5_pwd_storage_scheme_init @6
+	clear_pw_cmp @7
+	crypt_pw_cmp @8
+	ns_mta_md5_pw_cmp @9
+	sha1_pw_cmp @10 
+	sha1_pw_enc @11
+	salted_sha1_pw_enc @12
+	crypt_pw_enc @13
+	clear_pw_enc @14
+	mta_MD5Init @15
+	mta_MD5Update @16
+	mta_MD5Final @17

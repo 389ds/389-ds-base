@@ -1,0 +1,23 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for Netscape Netshare
+#
+dn: cn=schema
+attributeTypes: ( netshareHomeURL-oid NAME 'netshareHomeURL' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netshareServerType-oid NAME 'netshareServerType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netshareHomeTheme-oid NAME 'netshareHomeTheme' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netsharePrivate-oid NAME 'netsharePrivate' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netshareMemberOf-oid NAME 'netshareMemberOf' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netshareUIConfig-oid NAME 'netshareUIConfig' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netsharePMNewProjParent-oid NAME 'netsharePMNewProjParent' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netsharePMSearchBase-oid NAME 'netsharePMSearchBase' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netsharePMProjCreationUser-oid NAME 'netsharePMProjCreationUser' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Netshare' )
+attributeTypes: ( netsharePMAdmin-oid NAME 'netsharePMAdmin' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape Netshare' )
+objectClasses: ( netshareAccount-oid NAME 'netshareAccount' DESC 'Netscape defined objectclass' SUP top MUST ( objectclass $ netshareHomeURL ) MAY ( netshareServerType $ netshareHomeTheme $ netsharePrivate $ netshareMemberOf $ netshareUIConfig ) X-ORIGIN 'Netscape Netshare' )
+objectClasses: ( netshareProjectManagementGlobalConfig-oid NAME 'netshareProjectManagementGlobalConfig' DESC 'Netscape defined objectclass' SUP top MUST ( objectclass ) MAY ( netsharePMNewProjParent $ netsharePMSearchBase $ netsharePMProjCreationUser $ netsharePMAdmin $ cn ) X-ORIGIN 'Netscape Netshare' )

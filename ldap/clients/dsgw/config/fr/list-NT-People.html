@@ -1,0 +1,50 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "Search for NT-People" -->
+<CENTER><FONT SIZE=+1>
+<!-- DS_SEARCHDESC -->
+</FONT></CENTER>
+<P>
+
+<!-- IF "FoundEntries" -->
+<TABLE BORDER=1 CELLPADDING=4 WIDTH=100%>
+<TR>
+<TH NOWRAP>Nom<TH NOWRAP>Domaine NT<TH NOWRAP>Nom d'utilisateur NT<TH NOWRAP>Num&eacute;ro de t&eacute;l&eacute;phone
+</TR>
+
+<!-- DS_SORTENTRIES "attr=cn" -->
+
+<!-- DS_ENTRYBEGIN -->
+
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "label=" -->
+ onMouseOver="window.status='Cliquez ici pour afficher cette entr&eacute;e en d&eacute;tail'; return true">
+<!-- DS_ATTRIBUTE "attr=cn" "numfields=0" "defaultvalue=name" "options=readonly" -->
+</A>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=ntuserdomainid" "syntax=ntdomain" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=ntuserdomainid" "syntax=ntuserid" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" -->
+</TR>
+
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+
+<!-- ELSE -->
+<P>
+<CENTER><FONT SIZE=+1>
+Veuillez effectuer une recherche diff&eacute;rente.
+</FONT></CENTER>
+<!-- ENDIF -->
+
+<!-- ENDHTML -->
+
+

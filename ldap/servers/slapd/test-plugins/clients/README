@@ -1,0 +1,45 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+                   ---------------------------
+                    Sample LDAP Clients That
+                    Work with Server Plug-Ins 
+                   ---------------------------
+
+This directory contains code for some sample LDAP clients intended for
+use with the sample server plug-ins.  For example, one of the server
+plug-ins handles requests for an extended operation with the OID 1.2.3.4.
+In order to test this sample plug-in, you need an LDAP v3 client that is
+capable of requesting this extended operation.
+
+    NOTE: Before you compile and run these examples, make sure 
+    to change the server name, port number, root DN, and root DN 
+    password to values applicable to your Directory Server.
+
+reqextop.c
+----------
+This is an example of an LDAP client that requests extended operations.
+The example should be used in conjunction with the testexop.c server
+plug-in, which handles the extended operation with the OID 1.2.3.4.
+
+This example requires a version of the Netscape Directory SDK that supports
+the LDAP v3 protocol.  The 3.0 Beta version of the Directory SDK for C 
+supports LDAP v3 and is available at the following location:
+
+	http://developer.netscape.com/tech/directory/
+
+ReqExtOp.java
+-------------
+This is an example of an LDAP client that requests extended operations.
+The example should be used in conjunction with the testexop.c server
+plug-in, which handles the extended operation with the OID 1.2.3.4.
+
+This example requires a version of the Netscape Directory SDK that supports
+the LDAP v3 protocol.  The Netscape Directory SDK for Java 3.0 supports
+LDAP v3 and is available at the following location:
+
+        http://developer.netscape.com/tech/directory/
+

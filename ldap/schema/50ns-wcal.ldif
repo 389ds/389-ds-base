@@ -1,0 +1,26 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for Netscape Web Calendaring
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.537 NAME 'nswcalCALID' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 2.16.840.1.113730.3.1.538 NAME 'nswcalExtendedUserPrefs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 2.16.840.1.113730.3.1.539 NAME 'nswcalDisallowAccess' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 2.16.840.1.113730.3.1.540 NAME 'nswcalHost' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 2.16.840.1.113730.3.1.541 NAME 'nswcalQuota' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.478 NAME 'calCalURI' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.479 NAME 'calFBURL' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.480 NAME 'calCAPURI' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.481 NAME 'calCalAdrURI' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.482 NAME 'calOtherCalURIs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.483 NAME 'calOtherFBURLs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.484 NAME 'calOtherCAPURIs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+attributeTypes: ( 1.2.840.113556.1.4.485 NAME 'calOtherCalAdrURIs' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Web Calendaring' )
+objectClasses: ( 2.16.840.1.113730.3.2.83 NAME 'nswcalUser' DESC 'Netscape defined objectclass' SUP top MUST ( objectClass ) MAY ( cn $ givenName $ mail $ preferredlanguage $ sn $ uid $ userPassword $ nswcalCALID $ nswcalDisallowAccess $ nswcalExtendedUserPrefs $ nslicensedfor $ nswcalHost $ nswcalQuota ) X-ORIGIN 'Netscape Web Calendaring' )
+objectClasses: ( 1.2.840.113556.1.5.87 NAME 'calEntry' DESC 'Netscape defined objectclass' SUP top MUST ( objectClass ) MAY ( calCalURI $ calFBURL $ calCAPURI $ calCalAdrURI $ calOtherCalURIs $ calOtherFBURLs $ calOtherCAPURIs $ calOtherCalAdrURIs ) X-ORIGIN 'Netscape Web Calendaring' )

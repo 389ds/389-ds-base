@@ -1,0 +1,185 @@
+#ldap-host       localhost
+#ldap-port       389
+#ldap-search-base	dc=example,dc=com
+
+#
+#   A name that has no value after it equates to "" for the value, 
+#   like the two below settings.
+#
+#   Not listing an entire name/value pair at all in this file
+#   sets its value to "" as well.
+#
+#   So the below two names therefore don't even need to be in this file
+#   (but are here to show them as possible options that can be changed).
+#
+#   Having no value below for "ldap-bind-dn" and "ldap-bind-pass"
+#   indicates that you want anonymous binding to the LDAP server.
+#
+
+ldap-bind-dn	
+ldap-bind-pass
+
+#
+#   Allowed values for below icon-related setting:
+#
+#	forefront	means show this icon next to the person's name 
+#	layer		means show this icon inside the person's floating layer
+#	no			means never show this icon anywhere, but MyOrgChart settings can override this setting.
+#	disabled	means never show this icon. Period. So MyOrgChart will not even show this icon as a setting.
+#
+
+icons-aim-visible		no
+icons-email-visible		layer
+icons-phonebook-visible		forefront
+icons-locator-visible		disabled
+
+#
+#  There is also the same concept below for a person-locator
+#  type application, to show graphically where a given employee's office is located.
+#  You also specify the partial URL, up until where the user's URL-
+#  encoded cn value will be concatenated.
+#
+#	url-locator-base        http://hostname.domain.com/submit.cgi?empfullname=
+#
+
+url-locator-base	http://maps.example.com/submit2.cgi?r_loc=
+
+
+
+#
+#  This is where you specify which specific LDAP attributes
+#  from your LDAP server that you would like used for both org chart
+#  generation as well as final display values.
+#
+#  The value of the attribute specified for "attrib-job-title" will
+#  be listed below anybody's name that is listed in their own box.
+#  If you don't specify this setting in this file, the default used
+#  will be "title".
+#
+#  For "attrib-farleft-rdn", this specifies which attribute you are
+#  using as the leftmost RDN for the DN's of your user entries.
+#
+
+attrib-job-title    title
+attrib-manager      manager
+attrib-farleft-rdn  uid
+
+#
+#  This is where you specify the maximum levels that are allowed
+#  to be generated for any given org chart, and the MyOrgChart version
+#  of this setting will never be allowed to be higher than the below.
+#
+#  A "level" is defined as a reporting level, meaning that if you 
+#  generate an org chart for a given director, all direct reports to him
+#  (whether they have people below them or not) are level 1, people below
+#  any of them are level 2, etc.
+#
+#  So a setting of 1 would list the full name of the user entered, and
+#  then just people that directly report to that person only.
+#
+#  The purpose of having this configuration setting is to give you
+#  control over users that may try to generate an org chart on the
+#  CEO of a company, and heavily tax the LDAP server to generate
+#  an org chart that may be thousands of people deep.
+#
+#  If this setting is not listed below, the default is 3.
+#
+#  The valid range of values for this setting would be a minimum of 1,
+#  with no hard-coded maximum.
+#
+
+max-levels-drawn	3
+
+#
+#  The below setting relates to whether a specific assumption should be made
+#  on all values that you currently have stored for your manager LDAP attribute. 
+#
+#  The assumption:	That all user entries are stored in LDAP on the
+#			same flat level location, at least for a given
+#			group of people that org charts will be generated for.
+#
+#  So when you enter:
+#
+#	Steve Jones
+#
+#  to generate an org chart on, which let's say equates to this DN:
+#
+#	uid=sjones, ou=People, dc=acme, dc=com
+#
+#  then should this application assume that the manager attrib value
+#  of this entry is in this same location as Steve Jones:
+#
+#	manager =  "uid=XXXXXX, ou=People, dc=acme, dc=com" 
+#
+#  or is it possible that the manager's LDAP entry is at another level?
+#
+#
+#  The below two options for this setting specifies one of two scenarios, 
+#  based on how you have configured your directory information tree:
+#
+#
+#  Either the value:
+#
+#	same		This means assume the same location (such as 
+#			"ou=People, dc=acme, dc=com" above) that the inital
+#			user entry is found at for all subsequent entries
+#			involved in drawing that given org chart.
+#
+#			In other words, this setting assumes a totally
+#			flat namespace, at least for all users that will
+#			be in a given generated org chart.
+#
+#	search		This means there is no guarantee that other entries
+#			that need to be discovered to draw the org chart
+#			are in the same area of the directory tree, so when
+#			searching the manager attribute DN values for a given
+#			exact uid, search like this instead:  
+#
+#				manager = "uid=sjones,*"
+#
+#			This will be much more expensive of a search, so
+#			if you fit this scenario, at least make sure on your LDAP
+#			server that you have the substring index created for your
+#			manager attribute, to make drawing the org chart as fast
+#			as possible.
+#
+#  Default value (if this setting is not listed in this file):  same
+#
+
+
+manager-DN-location	same
+
+
+#
+#	This setting helps you configure against users entering LDAP  
+#	queries for "A" or "MI" and then taxing the LDAP server by asking
+#	for thousands of search results back.
+#
+#	The value you specify below for "min-chars-searchstring" means
+#	that the user must enter AT LEAST this many characters for 
+#	their request to even make it to the LDAP server.  If they type
+#	less characters than this setting, they will get a message that
+#	they need to enter at least X characters to search, where X will
+#	be the below value.
+#
+#	NOTE: This setting purposely does not apply to allowing a user
+#	to search for an exact UID (to avoid search results).  The logic
+#	is that:
+#
+#	[1] Search LDAP for an equality search of (uid=XXXX), regardless
+#	of both this below setting / how many characters were entered.
+#
+#	[2] If this single LDAP entry was not found, then make sure the
+#	number of characters entered for the search are at least the below
+#	number of characters, before sending a broader search to LDAP. 
+#
+#	If this setting is not configured below (the line is absent),
+#	the default value used is 4.
+
+min-chars-searchstring		4
+
+#	Allowed characters in search filters.  If the user enters a search that
+#	contains a character not in the allowed-filter-chars list, the user
+#	will be notified the search needs to be modified.
+
+allowed-filter-chars abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-

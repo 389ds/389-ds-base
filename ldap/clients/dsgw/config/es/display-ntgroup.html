@@ -1,0 +1,215 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- DS_OBJECTCLASS "value=ntGroup" -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>
+<!-- IF "Adding" -->
+Nueva
+<!-- ENDIF // Adding -->
+Entrada de grupo NT: 
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE></HEAD>
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<TABLE>
+<TR>
+<TD>
+<IMG SRC="lang?<!-- GCONTEXT -->&file=group.gif" ALT="Grupo" HSPACE=5 >
+<FONT SIZE="+2">
+<!-- IF "Adding" -->
+Nuevo grupo NT: 
+<!-- ENDIF // Adding -->
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</FONT>
+</TABLE>
+
+<TABLE><TR><TD>
+<!-- IF "Displaying" -->
+<!-- DS_EDITBUTTON "label=Modificar grupo NT" -->
+<!-- ELIF "Adding" -->
+<!-- DS_SAVEBUTTON "label=Guardar nuevo grupo" -->
+<!-- ELIF "Editing" -->
+<!-- DS_SAVEBUTTON -->
+<!-- ENDIF // Editing -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "!Displaying" -->
+<!-- DS_CLOSEBUTTON "label=Cancelar" -->
+<!-- ENDIF // !Displaying -->
+</TD><TD>&nbsp;&nbsp;</TD><TD>
+<!-- IF "Editing" -->
+<!-- DS_HELPBUTTON "topic=EDIT_NTGROUP" -->
+<!-- ELIF "Adding" -->
+<!-- DS_HELPBUTTON "topic=ADD_NTGROUP" -->
+<!-- ENDIF // Adding -->
+</TD>
+
+<!-- IF "Editing" -->
+<TD>&nbsp;&nbsp;</TD><TD>
+<!-- DS_RENAMEBUTTON "label=Cambiar nombre de grupo NT" "prompt=Escriba otro nombre para este grupo:" -->
+</TD><TD>
+<!-- DS_DELETEBUTTON "label=Borrar grupo NT" "prompt=&#191;Desea borrar este grupo?" -->
+</TD>
+<!-- ENDIF // Editing -->
+
+</TR></TABLE>
+
+<!-- IF "Adding" -->
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="top">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="ntGroup">
+<INPUT TYPE="hidden" NAME="add_objectClass" VALUE="groupOfUniqueNames">
+<!-- ENDIF // Adding -->
+<!-- PCONTEXT -->
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<!-- DS_STD_COMPLETION_JS -->
+
+<HR>
+<!-- IF "!Displaying" -->
+<B>El asterisco (*) indica los campos obligatorios</B><BR>
+<!-- ENDIF -->
+
+
+<TABLE CELLSPACING="5">
+<TR>
+<TD NOWRAP>Nombre:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=cn" "cols=>40" -->
+</B></TD><TD WIDTH="20%"></TD>
+</TR>
+
+<TR>
+<TD NOWRAP>Nombre de grupo NT: 
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP><B>
+<!-- IF "!Adding" -->
+<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntgroupname" "cols=>16" "options=readonly" "defaultvalue=none" -->
+<!-- ELSE // Adding -->
+<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntgroupname" "cols=>16" "defaultvalue=none" -->
+<!-- ENDIF // Adding -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP>Tipo del grupo NT: 
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP><B>
+<!-- IF "!Adding" -->
+<!-- DS_ATTRIBUTE "attr=nTGroupType" "defaultvalue=Global" "options=readonly" "cols=>16" -->
+<!-- ELSE // Adding -->
+<!-- DS_ATTRIBUTE "attr=nTGroupType" "defaultvalue=Global" "cols=>16" -->
+<!-- ENDIF // Adding -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP>Dominio del grupo NT: 
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntdomain" "cols=>16" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP>Descripci&oacute;n:</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=description" "cols=>40" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP>Escenario:</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=l" "cols=>40" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP>Departamento:</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=ou" "cols=>40" "defaultvalue=none" -->
+</B></TD></TR>
+
+<TR>
+<TD NOWRAP VALIGN="TOP">Propietario:<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modificar..." "template=dnedit" "attr=owner" "desc=Propietario" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP COLSPAN="4"><B>
+<!-- DS_ATTRIBUTE "attr=owner" "syntax=dn" "options=sort,readonly" -->
+</B></TD>
+
+<TR>
+<TD NOWRAP VALIGN="TOP">Ver tambi&eacute;n<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modificar..." "template=dnedit" "attr=seeAlso" "desc=Ver tambi&eacute;n" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP COLSPAN="4">
+<!-- IF "!Adding" -->
+<B>
+<!-- DS_ATTRIBUTE "attr=seeAlso" "syntax=dn" "options=sort,readonly" -->
+</B>
+<!-- ELSE // !Adding -->
+<I>Tiene que guardar esta entrada para poder modificar el campo.</I>
+<!-- ENDIF // !Adding -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP VALIGN="top">Miembros del grupo NT<BR>
+<!-- IF "!Adding" -->
+<!-- DS_DNEDITBUTTON "label=Modificar..." "template=dnedit" "attr=uniquemember" "desc=Miembros del grupo NT" -->
+<!-- ENDIF // !Adding -->
+</TD>
+<TD NOWRAP><B>
+<!-- DS_ATTRIBUTE "attr=uniquemember" "syntax=dn" "options=sort,readonly" -->
+</B></TD></TR>
+
+<TR>
+<TD VALIGN="TOP" NOWRAP>Borrar grupo NT si el grupo borrado es:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "syntax=bool" "type=radio" "true=S&iacute;" "false=No" "defaultvalue=FALSE" "attr=nTGroupDeleteGroup" -->
+</B></TD><TD></TD>
+</B></TD></TR>
+
+<!-- IF "Adding" -->
+<TR>
+<TD VALIGN="TOP">Crear nuevo grupo NT:</TD>
+<TD VALIGN="TOP" NOWRAP><B>
+<!-- DS_ATTRIBUTE "syntax=bool" "type=radio" "true=S&iacute;" "false=No" "defaultvalue=TRUE" "attr=nTGroupCreateNewGroup" -->
+</B></TD><TD></TD></TR>
+
+<!-- ENDIF // Adding -->
+</TABLE>
+
+<!-- IF "!Adding" -->
+<HR>
+Esta entrada fue modificada por &uacute;ltima vez el <B>
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "defaultvalue=N/A" "options=readonly" -->
+</B> por <B>
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly" -->
+</B>
+<!-- ENDIF // !Adding -->
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

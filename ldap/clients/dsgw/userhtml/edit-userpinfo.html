@@ -1,0 +1,92 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<HEAD>
+<!-- DS_ENTRYBEGIN -->
+<!-- DS_EMIT_BASE_HREF -->
+</HEAD>
+
+<!-- COLORS "TEXT=#000000 BGCOLOR=#FFFFFF LINK=#FF0000 VLINK=#8000FF ALINK=#FF0000" -->
+
+<!-- BODY -->
+
+<!-- DS_LAST_OP_INFO "prefix=<FONT SIZE=%22%2B1%22>" "suffix=</FONT>" -->
+
+<!-- DS_BEGIN_ENTRYFORM -->
+
+<INPUT TYPE="hidden" NAME="quiet" VALUE="true">
+<INPUT TYPE="hidden" NAME="colors" VALUE="TEXT=#000000 BGCOLOR=#FFFFFF LINK=#FF0000 VLINK=#8000FF ALINK=#FF0000">
+<INPUT TYPE="hidden" NAME="completion_javascript" VALUE="document.location.href=\'edit/?userpinfo&info=\' + escape(dsmodify_info);">
+
+<TABLE BORDER=2 CELLSPACING=0 CELLPADDING=5 BGCOLOR="#F0F0F0" >
+<TR BGCOLOR="#F1C40E">
+<TD COLSPAN=2>
+<H3>Personal Information -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "dncomponents=2" "options=nolink" -->
+</H3>
+</TD>
+</TR>
+ 
+<TR>
+<TD COLSPAN=2><I><FONT SIZE=+0>Use this form to change your personal information
+</FONT></I>.
+</TD>
+</TR>
+
+<TR>
+<TD>First Name:</TD>
+<TD>
+<!-- DS_ATTRIBUTE "attr=givenName" "size=>20" -->
+</TD></TR>
+
+<TR>
+<TD>Last Name:</TD>
+<TD>
+<!-- DS_ATTRIBUTE "attr=sn" "size=>20" -->
+</TD></TR>
+
+<TR>
+<TD>Phone Number:</TD>
+<TD>
+<!-- DS_ATTRIBUTE "attr=telephoneNumber" "syntax=tel" "cols=>20" "numfields=+1" -->
+</TD></TR>
+
+<TR>
+<TD>Fax Number:</TD>
+<TD>
+<!-- DS_ATTRIBUTE "attr=facsimileTelephoneNumber" "syntax=tel" "cols=>20" -->
+</TD></TR>
+
+<TR>
+<TD>Title:</TD>
+<TD>
+<!-- DS_ATTRIBUTE "attr=title" "cols=>20" -->
+</TD></TR>
+ 
+<TR>
+<TD COLSPAN=2>
+<CENTER>
+<!-- DS_SAVEBUTTON "label=    OK     " -->
+</CENTER>
+
+<!-- IF "AttributeHasValues" "modifyTimestamp" -->
+<TR>
+<TD COLSPAN=2>
+<FONT SIZE="-1">
+Your directory entry was last modified
+<!-- DS_ATTRIBUTE "attr=modifyTimestamp" "syntax=time" "options=readonly" -->
+ by
+<!-- DS_ATTRIBUTE "attr=modifiersName" "syntax=dn" "defaultvalue=N/A" "options=readonly,nolink" -->
+</TD></TR>
+<!-- ENDIF // AttributeHasValues -->
+
+</TABLE>
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

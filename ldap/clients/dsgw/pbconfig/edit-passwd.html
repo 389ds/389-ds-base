@@ -1,0 +1,111 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<HTML>
+<!-- HEAD -->
+<!-- change a directory entry's password -->
+
+<!-- DS_ENTRYBEGIN -->
+<TITLE>Change Password -
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "options=nolink" -->
+</TITLE>
+<LINK REL=stylesheet TYPE="text/css" HREF="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=style.css">
+</HEAD>
+
+<body bgcolor="#FFFFFF" marginheight=0 marginwidth=0 leftmargin="0" topmargin="0" rightmargin="0"
+>
+
+<table width="100%" class="bgColor1" cellspacing="0" cellpadding="0" border="0">
+<tr width="100%" class="bgColor1">
+<TD valign="top" class="bgColor1"><IMG src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=clear.gif" width="10" height="45" border="0"></TD>
+<TD valign="middle" align="left" class="text15" width="100%">Person Entry</td>
+</tr>
+</table>
+
+<table cellspacing="0" cellpadding="0">
+<tr>
+<td><IMG src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=clear.gif" width="1" height="10" border="0"></td>
+</tr>
+</table>
+
+<img src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=pixel.gif" height="1" width="1" hspace="20" align="left" border="0">
+
+<TABLE width="90%" border="0" cellpadding="2" cellspacing="0"  bgcolor="#FFFFFF">
+  <tr class="bgColor4">
+    <td width="10" nowrap >
+      <img src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=32-person.gif" height="32" width="32" border="0" >
+    </td>
+
+    <td nowrap class="boldbig">
+        Change Password for
+<!-- DS_ATTRIBUTE "attr=cn" "syntax=cis" "options=readonly" --> 
+    </td>
+
+    </tr>
+</TABLE>
+
+<P>
+<!-- DS_BEGIN_ENTRYFORM -->
+
+
+<TABLE>
+
+<!-- IF "BoundAsThisEntry" -->
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the old password:
+</TD><TD>
+<!-- DS_OLDPASSWORD -->
+</TD></TR>
+<!-- ELIF "!Bound" -->
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the old password:
+</TD><TD>
+<!-- DS_OLDPASSWORD -->
+</TD></TR>
+<!-- ENDIF //BoundAsThisEntry -->
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the new password:
+</TD><TD>
+<!-- DS_NEWPASSWORD -->
+</TD></TR>
+
+<TR>
+<TD ALIGN="right" NOWRAP>
+Enter the new password again to confirm:
+</TD><TD>
+<!-- DS_CONFIRM_NEWPASSWORD -->
+</TD></TR>
+</TABLE>
+
+<P>
+
+<img src="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=pixel.gif" height="1" width="1" hspace="20" align="left" border="0">
+
+<TABLE width="90%" border="0" cellpadding="2" cellspacing="0"  bgcolor="#FFFFFF">
+  <tr class="bgColor4">
+    <td nowrap align="right">
+<!-- IF "BoundAsThisEntry" -->
+<!-- DS_SAVEBUTTON "label=Change Password" -->
+<!-- ELSE -->
+<!-- DS_SAVEBUTTON "label=Set Password" -->
+<!-- ENDIF -->
+
+<!-- DS_HELPBUTTON "topic=MODIFYPASSWD" -->
+    </td>
+    </tr>
+</TABLE>
+
+
+
+<!-- DS_END_ENTRYFORM -->
+<!-- DS_ENTRYEND -->
+
+<!-- ENDHTML -->

@@ -1,0 +1,134 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Top level Tasks branch
+#
+dn: cn=Tasks
+objectclass: top
+objectclass: nsResourceRef
+
+#
+# Operation Task Group
+#
+dn: cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstaskgroup
+nstasklabel: Operation Tasks Group
+
+# Define the order of tasks on the task tab
+dn: cn=task summary, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nsConfig
+description: start stop restart Backup Restore KeyCert Authenticate CompleteImport CompleteExport
+
+dn: cn=start, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.Start@ds70.jar
+nsexecref: start
+
+dn: cn=stop, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.Stop@ds70.jar
+nsexecref: shutdown
+
+dn: cn=restart, cn=Operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.Restart@ds70.jar
+nsexecref: restart
+
+dn: cn=Backup, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.Backup@ds70.jar
+nsexecref: ds_db2bak
+
+dn: cn=Restore, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.Restore@ds70.jar
+nsexecref: ds_bak2db
+
+dn: cn=KeyCert, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.KeyCert@ds70.jar
+
+dn: cn=Authenticate, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.Authenticate@ds70.jar
+
+dn: cn=CompleteImport, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.CompleteImport@ds70.jar
+
+dn: cn=CompleteExport, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsClassname: com.netscape.admin.dirserv.task.CompleteExport@ds70.jar
+
+dn: cn=Export, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: ds_db2ldif
+
+dn: cn=Import, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: ds_ldif2db
+
+dn: cn=ViewLog, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: perl?ds_viewlog.pl
+
+dn: cn=ListBackups, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: ds_listdb
+
+dn: cn=Remove, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: ds_remove
+
+dn: cn=CreateVLVIndex, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: vlvindex
+
+dn: cn=AddIndex, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: addindex
+
+dn: cn=SNMPCtrl, cn=operation, cn=Tasks
+objectclass: top
+objectclass: nstask
+objectclass: nsAdminObject
+nsexecref: ds_snmpctrl

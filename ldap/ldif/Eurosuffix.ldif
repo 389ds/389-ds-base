@@ -1,0 +1,12 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+dn: cn=config,cn=ldbm
+changetype: modify
+add: nsslapd-suffix
+nsslapd-suffix: o=Çéliné Ändrè
+

@@ -1,0 +1,149 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+                   ----------------------------
+                      Sample Server Plug-Ins
+                     for Directory Server 7
+                   ----------------------------
+
+This directory contains code for some sample server plug-ins intended for
+use with the Netscape Directory Server 7.  
+
+    NOTE: Before you compile and run these examples, make sure 
+    to change any server-specific data in the examples to  
+    values applicable to your Directory Server.
+
+testbind.c
+----------
+This is an example of a pre-operation bind plug-in function that
+handles authentication.  When processing an LDAP bind request, the
+server calls this plug-in function before calling the database bind
+function.
+
+testentry.c
+-----------
+This is an example of an entry store plug-in function and an entry fetch
+plug-in function.  You must be using the default database (not your own
+back-end database) in order for these plug-in functions to work.
+
+testextendedop.c
+----------------
+This is an example of an extended operation plug-in function that 
+handles requests for the extended operation with the OID 1.2.3.4.
+The example should be used in conjunction with the reqextop.c and
+ReqExtOp.java clients (the source code for these clients is located
+in the clients subdirectory).  These clients are capable of requesting 
+the extended operation with the OID 1.2.3.4.
+
+testpostop.c
+------------
+This contains examples of post-operation plug-in functions.  These 
+functions are called after the server processes LDAP operations. 
+The functions log changes to the directory in a change log file.  
+
+testpreop.c
+-----------
+This contains examples of pre-operation plug-in functions.  These
+functions are called before the server processes LDAP operations.
+
+testsaslbind.c
+--------------
+This is an example of a pre-operation plug-in function that 
+implements a SASL mechanism.
+
+clients
+-------
+This directory contains the C and Java source code for clients
+that you can use to test the server plug-ins.  See the README
+file in that directory for details.
+
+
+                     ----------------------------
+                            How To Create
+                           A Server Plug-In
+                     ----------------------------
+
+Text between brackets ([]) should be replaced with values specific to
+your situation.
+
+
+Creating the Plug-In Library
+----------------------------
+Server plug-ins are built as libraries available to the server.
+
+1. Include the Plug-In API. For example:
+
+   #include "[serverRoot]/plugins/slapd/slapi/include/slapi-plugin.h"
+
+2. Write your plug-in, including a top level initialization function
+   used by the server to start the plug-in. For example:
+
+   /* Plug-in functions defined here */
+
+   int my_plugin_init( Slapi_PBlock *pb ) /* initialize param. block */
+   {
+        /* Set or get the parameters in pb */
+        slapi_pblock_set();
+        slapi_pblock_get();
+
+        /* Plug-in functions registered here */
+
+        if (error)
+           {
+              slapi_log_error();
+              return error_code;
+           }
+        else return 0;
+
+   } /* my_plugin_init() */
+
+   See the Parameter Block Reference in the Netscape Directory Server
+   Plug-In Programmer's Guide for hints on plug-in types.
+
+3. Build the plug-in as a library.
+
+   We recommend you copy and adapt the Makefile in
+   [serverRoot]/plugins/slapd/slapi/examples.
+
+
+Plugging the Library Into the Server
+------------------------------------
+When started, the server loads plug-ins.
+
+1. Stop the server.
+
+   Console:      Select the server; Object > Stop Server
+   Command Line: cd [serverRoot]/slapd-[serverID] ; ./stop-slapd
+
+2. Add the entry for the server plug-in to
+   [serverRoot]/slapd-[serverID]/config/dse.ldif. For example:
+
+   dn: cn=[My Server Plugin],cn=plugins,cn=config
+   objectClass: top
+   objectClass: nsSlapdPlugin
+   objectClass: extensibleObject
+   cn: [My Server Plugin]
+   nsslapd-pluginPath: [[serverRoot]/myPlugins/myveryown-plugin.so]
+   nsslapd-pluginInitfunc: [my_plugin_init]
+   nsslapd-pluginType: [myPluginType]
+   nsslapd-pluginEnabled: on
+   nsslapd-pluginarg0: [uid]
+   nsslapd-pluginarg1: [mail]
+   nsslapd-pluginarg2: [...]
+   nsslapd-plugin-depends-on-type: [anotherPluginType]
+   nsslapd-pluginId: [MyFirstServerPlugin]
+   nsslapd-pluginVersion: [0.1]
+   nsslapd-pluginVendor: [Fictional Software Company Incorporated]
+   nsslapd-pluginDescription: [Add lots of cool functionality]
+
+   See the Parameter Block Reference in the Netscape Directory Server
+   Plug-In Programmer's Guide for hints on plug-in types.
+
+3. Restart the server.
+
+   Console:      Object > Start Server
+   Command Line: cd [serverRoot]/slapd-[serverID] ; ./restart-slapd

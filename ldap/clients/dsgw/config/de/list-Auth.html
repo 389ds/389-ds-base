@@ -1,0 +1,73 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+  All rights reserved.
+ -->
+<!-- TITLE "Authenticate as..." -->
+
+<!--
+    The "authForm" form and the authSubmit() JavaScript function are
+    used to avoid the need for a separate form for each entry listed.
+    Each entry is tied to this single form through the magic of an
+    anchor that contains href=javascript:authSubmit().
+-->
+
+<FORM NAME="authForm" METHOD=POST ACTION="auth">
+<INPUT TYPE="hidden" NAME="escapedbinddn">
+<INPUT TYPE="hidden" NAME="authdesturl"
+<!-- PCONTEXT -->
+<!-- DS_POSTEDVALUE "name=authdesturl" "within=VALUE=%22--value--%22" -->
+>
+</FORM>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Hide from non-JavaScript-capable browsers
+function authSubmit(encodeddn)
+{
+    document.authForm.escapedbinddn.value = encodeddn;
+    document.authForm.submit();
+}
+// End hiding -->
+</SCRIPT>
+
+<CENTER><FONT SIZE=+1>
+<!-- DS_SEARCHDESC "VERBOSE" -->
+<P>
+<!-- IF "FoundEntries" -->
+Klicken Sie auf den Eintrag, den Sie zur Beglaubigung verwenden m&ouml;chten.
+</FONT>
+<P>
+
+<TABLE BORDER=1 CELLPADDING=4>
+<TR>
+<TH NOWRAP>Beglaubigen als <TH NOWRAP>Titel
+
+<!-- DS_SORTENTRIES -->
+
+<!-- DS_ENTRYBEGIN -->
+<TR>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=dn" "syntax=dn" "href=javascript:authSubmit('--value--'); onMouseOver=%22window.status='Zum Beglaubigen klicken'; return true;%22" -->
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=title" -->
+
+<!-- DS_ENTRYEND -->
+
+</TABLE>
+<!-- ELSE "FoundEntries" -->
+Gehen Sie zur&uuml;ck, und versuchen Sie es neu.
+<!-- ENDIF "FoundEntries" -->
+</CENTER>
+
+<FORM>
+<TABLE BORDER=2 WIDTH=100%%>
+<TR>
+<TD ALIGN=center width=50%%>
+<INPUT TYPE="button" VALUE="Zur&uuml;ck" onClick="history.back();">
+<TD ALIGN=center WIDTH=50%%>
+<!-- DS_HELPBUTTON "topic=AUTHMULTMATCH" -->
+</TABLE>
+</FORM>
+
+<!-- ENDHTML -->

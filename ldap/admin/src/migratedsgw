@@ -1,0 +1,445 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# print begin message
+$now_time = gmtime;
+print "BEGIN DSGW migration at ", $now_time, " GMT\n";
+
+# get the commandline options
+if (!getopts('s:d:h:') || !$opt_s || !$opt_d || !$opt_h ) {
+    print "usage: dsgwmig options\n";
+    print "\noptions:\n";
+    print "    -s directory\tdirectory containing the 3.0 Gateway\n";
+    print "    -d directory\tdirectory containing the 4.1 Gateway\n";
+    print "    -h host[:port]\tthe host and port of the directory server\n";
+    print "    \t\t\tto which the migrated gateway will query\n";
+    print "\nexample:\n dsgwmig -s /usr/tmp/ds30/slapd-host/dsgw -d /usr/tmp/ds40/dsgw -h gargoyle:1974\n";
+
+    exit;
+}
+
+sub reportAndExit {
+	my $now_time = gmtime;
+	print "END DSGW migration at ", $now_time, " GMT\n";
+	print "DSGW Exit status is ", $exitCode, "\n";
+	if ($? == 0 && $exitCode == 0) {
+		print "NMC_STATUS: 0\n";
+	} else {
+		print '$?=', $?+0, ' $!=', $!+0, ' $exitCode=', $exitCode, "\n";
+		print shift, "\n";
+		print "NMC_STATUS: $exitCode\n";
+	}
+
+	print "###DSGW MIGRATION FINISHED###\n";
+
+	exit($exitCode);
+}
+
+$SIG{__DIE__} = 'exit';
+$SIG{'QUIT'} = 'exit';
+$SIG{'INT'} = 'exit';
+$SIG{'TERM'} = 'exit';
+
+# the atexit handler
+END {
+	$! = 0;
+	$? = $exitCode;
+	&reportAndExit;
+}
+
+# setup the path separator
+$isNT = -d '\\';
+$PS = $isNT ? "\\" : "/";
+
+#make sure that the target directory exists
+if (! -e $opt_d) {
+    print "$opt_d does not exist\n";
+    exit;
+}
+
+print "Migrating the config directory...\n";
+# First migrate the config directory
+migrate_html("config");
+
+print "Migrating the html directory...\n";
+# Then migrate the html directory
+migrate_html("html");
+
+print "Migrating the dsgw.conf...\n";
+# Then migrate dsgw.conf
+migrate_config();
+
+# Then copy over certain files like alert.html, confirm.html and emptyFrame from
+# the regular *4.1* DSGW to the newly migrated *4.1* gateway.
+if (! -e "$opt_d"."$PS"."html-30"."$PS"."alert.html") {
+    print "copy ", "$opt_d"."$PS"."html"."$PS"."alert.html", " $opt_d"."$PS"."html-30"."$PS"."alert.html", "\n";
+    copyFile("$opt_d"."$PS"."html"."$PS"."alert.html", "$opt_d"."$PS"."html-30"."$PS"."alert.html");
+}
+
+if (! -e "$opt_d"."$PS"."html-30"."$PS"."confirm.html") {
+    print "copy ", "$opt_d"."$PS"."html"."$PS"."confirm.html", " $opt_d"."$PS"."html-30"."$PS"."confirm.html", "\n";
+    copyFile("$opt_d"."$PS"."html"."$PS"."confirm.html", "$opt_d"."$PS"."html-30"."$PS"."confirm.html");
+}
+
+if (! -e "$opt_d"."$PS"."html-30"."$PS"."confirm.gif") {
+    copyFile("$opt_d"."$PS"."html"."$PS"."confirm.gif", "$opt_d"."$PS"."html-30"."$PS"."confirm.gif");
+}
+
+if (! -e "$opt_d"."$PS"."html-30"."$PS"."alert.gif") {
+    copyFile("$opt_d"."$PS"."html"."$PS"."alert.gif", "$opt_d"."$PS"."html-30"."$PS"."alert.gif");
+}
+
+if (! -e "$opt_d"."$PS"."html-30"."$PS"."emptyFrame.html") {
+    copyFile("$opt_d"."$PS"."html"."$PS"."emptyFrame.html", "$opt_d"."$PS"."html-30"."$PS"."emptyFrame.html");
+}
+
+print "end of migratedsgw\n";
+$exitCode = 0;
+exit $exitCode;
+
+sub migrate_html 
+{
+    my $target_dir = shift(@_);
+    my $orig_target = "$target_dir";
+    my $full_target_dir;
+    my @subdirlist;
+    my @dsgwfiles;
+
+# cd into the source directory
+    chdir "$opt_s"."$PS"."$target_dir" or die "Unable to cd to $opt_s$PS$target_dir: $!\n";
+
+# read the files 
+    opendir DSGW_OLD, "." or die "$!";
+    @dsgwfiles = grep !/^\.\.?$/, readdir DSGW_OLD;
+    closedir DSGW_OLD;
+
+# Before we go on, we need to make the directory
+# in the 4.1 space. If we're working on the config
+# or html directory, then we have to rename them.
+    $target_dir =~ s/^(config|html)/$1\-30/;
+    $full_target_dir = "$opt_d". "$PS". "$target_dir";
+	if (! -d $full_target_dir) {
+    	mkdir $full_target_dir, 0755 or
+			die "can't create $opt_d$PS$target_dir. $!\n";
+	}
+
+# foreach file in the current directory,
+# either skip it (if it's a subdir)
+# copy it to the new directory
+# copy and modify it to the new directory
+    foreach $file (@dsgwfiles){	# 
+	#Skip directories
+	if (-d $file) {
+#	    print "Skipping Directory $file\n";
+	    push @subdirlist, $file;
+	    next;
+	}
+	
+	if ($file =~ m/.*?\.html/) {
+# open the old file
+	    open(OLDFILE, "$file") or die "Cannot read $file. $!\n";
+	    
+# open the new file
+	    open(NEWFILE, ">"."$full_target_dir"."$PS"."$file") or die "Cannot write $full_target_dir$PS$file. $!\n";
+	    
+	    for ($line=<OLDFILE>; $line ; $line=<OLDFILE>) {
+		
+# replace all ACTION=/ds/cgi with ACTION=/dsgw/bin/cgi
+		$line =~ s:(?i)(action\s*=\s*("){0,1}\s*(http(s){0,1}\://.*?){0,1})/ds/(\w*):$1/dsgw/bin/$5:g; #"))
+
+# Langify the gifs, but not those that are already langified. Look for ="blah.gif"
+		$line =~ s:(?i)=\s*("){0,1}\s*([\w|\-|_]*)\.(gif|jpg|jpeg):=$1/dsgw/bin/lang?\<!-- GCONTEXT --\>\&file=$2\.$3:g; #")
+
+# And html files. Look for SRC|HREF="blah.html"
+		$line =~ s:(?i)(HREF|SRC)(\s*=\s*("){0,1}\s*)([\w|\-|_]*)\.(html):$1$2/dsgw/bin/lang?\<!-- GCONTEXT --\>\&file=$4\.$5:g; #")
+
+# Any javascript files should become /dsgw/html-30/blah.js
+		$line =~ s:(?i)=\s*("){0,1}\s*([\w|\-|_]*)\.(js):=$1/dsgw/html-30/$2\.$3:g; #")
+
+# Look for /dshtml/ to langify the .gifs and .html. This rule can't
+# precede the first langify rule. That would be bad because it looks for ="blah.gif"
+		$line =~ s:(?i)/dshtml/([\w|\-|_]*)\.(gif|jpg|jpeg|html):/dsgw/bin/lang?\<!-- GCONTEXT --\>\&file=$1\.$2:g; #")
+
+# GETs on the CGIs ....
+# auth - dn is passed either as QUERY_STRING or PATH_INFO, but not both.
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))auth(/|\?dn=)([\w|%]*):$3$4/dsgw/bin/auth?dn=$9\&\<!-- GCONTEXT --\>:g; 
+		
+# auth - by itself
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))auth:$3$4/dsgw/bin/auth\?\<!-- GCONTEXT --\>:g;
+		
+		
+# lang - The argument is always PATH_INFO and it is either a filename
+# or a file name and "info=blah". No QUERY_STRING.
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))lang/([=|\w|\&|\.|\-|_]*):$3$4/dsgw/bin/lang?\<!-- GCONTEXT --\>\&file=$8:g;
+		
+# lang could be called without an argument, although it's silly to do so.
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))lang:$3$4/dsgw/bin/lang\?\<!-- GCONTEXT --\>:g; 
+		
+# search - take one word arguments with PATH_INFO only. No QUERY_STRING
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))search/(\w*):$3$4/dsgw/bin/search?\<!-- GCONTEXT --\>\&file=$8:g;
+		
+		
+# search could exist without an argument on a GET
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))search:$3$4/dsgw/bin/search?\<!-- GCONTEXT --\>:g;
+		
+		
+# csearch - take one word arguments with PATH_INFO only. No QUERY_STRING
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))csearch/(\w*):$3$4/dsgw/bin/csearch?\<!-- GCONTEXT --\>\&file=$8:g;
+		
+		
+# csearch could exist without an argument on a GET
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))csearch:$3$4/dsgw/bin/csearch?\<!-- GCONTEXT --\>:g;
+		
+		
+# unauth - doesn't take any arguments
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))unauth:$3$4/dsgw/bin/unauth?\<!-- GCONTEXT --\>:g;
+		
+# dnedit and edit - must always have a dn specified, so /ds/dnedit will 
+# never exist by itself on a GET. If it's PATH_INFO, then it's just the dn. 
+# If it's QUERY_STRING it's a bunch of stuff. Could be both. dnedit must 
+# have a QUERY_STRING.
+		
+# PATH_INFO and QUERY_STRING
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))(dn){0,1}edit/([\w|%]*)\?([\&|=|\w|\-|_|\.]*):$3$4/dsgw/bin/$8edit?\<!-- GCONTEXT --\>\&dn=$9\&$10:g;
+		
+# PATH_INFO only
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))(dn){0,1}edit/([\w|%]*):$3$4/dsgw/bin/$8edit?\<!-- GCONTEXT --\>\&dn=$9:g;
+		
+		
+# QUERY_STRING only
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))(dn){0,1}edit\?:$3$4/dsgw/bin/$8edit\?\<!-- GCONTEXT --\>\&:g;
+		
+		
+# doauth and domodify - No GET, only POST
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))do(auth|modify):$3$4/dsgw/bin/do$8\?\<!-- GCONTEXT --\>:g;
+		
+		
+# newentry - takes PATH_INFO only or nothing. If there is a PATH_INFO,
+# then it's 1 word: type or name
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))newentry/(type|name):$3$4/dsgw/bin/newentry?\<!-- GCONTEXT --\>\&file=$8:g;
+		
+		
+# newentry - could exist on its own
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))newentry:$3$4/dsgw/bin/newentry?\<!-- GCONTEXT --\>:g;
+		
+# tutor - hasn't changed.
+		
+# dosearch -  From .../dosearch[/host[:port]][?[dn=baseDN&][LDAPquery]] Or
+#                   ../dosearch/host[:port]/[baseDN][?LDAPquery] 
+		
+# To: dosearch?context=BLAH[&hp=host[:port]][&dn=baseDN][&ldq=LDAPquery]]  
+		
+# dosearch - Everything there, except maybe the port. Rule 1
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch(/){0,1}(\w+)(\:\d+){0,1}(/|\?)((dn=){0,1}([\w|%]+))(\?|\&)(.*?)(\s|"):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&hp=$9$10&dn=$14&ldq=$16$17:g; #")
+		
+		
+# dosearch - no ldapquery
+# current version rule 2
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch/(\w+)(\:\d+){0,1}\?((dn=)([\w|%]+)):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&hp=$8$9&dn=$12:g;
+		
+# older version (always needs host specified) rule 3
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch/(\w+)(\:\d+){0,1}/([\w|%]+):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&hp=$8$9&dn=$10:g;
+		
+		
+# dosearch - no basedn
+# current version rule 4
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch/(\w+)(\:\d+){0,1}\?(.*?)(\s|"):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&hp=$8$9&ldq=$10$11:g; #")
+		
+		
+# older version (always needs host specified) rule 5
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch/(\w+)(\:\d+){0,1}/\?(.*?)(\s|"):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&hp=$8$9&ldq=$10$11:g; #")
+		
+		
+# dosearch - no host/port and ldapquery and dn rule 7
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch\?(dn=[\w|%]+\&)(.*?)(\s|"):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&$8ldq=$9$10:g; #")
+		# 
+		
+# dosearch - no host/port and no ldapquery rule 6
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch\?(dn=[\w|%]+):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&$8:g;
+		
+# dosearch - host/port nothing else rule 9
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch/(\w+)(\:\d+){0,1}(/){0,1}:$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&hp=$8$9:g;
+		
+		
+# dosearch - no host/port and no DN (current version only) rule 8
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch\?(.*?)(\s|"):$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>&ldq=$8$9:g; #")
+		
+# dosearch - Just by itself rule 10
+		$line =~ s:(?i)(((FRAME\s*SRC|HREF)(\s*=\s*("){0,1}\s*)(/ds/){0,1})|(/ds/))dosearch:$3$4/dsgw/bin/dosearch?\<!-- GCONTEXT --\>:g;
+
+# For 3.0 (not 3.1), we need to update the advanced search page
+# to use the csearch CGI instead of javascript.
+		$line =~ s:SRC\s*=\s*"\s*javascript\:parent.emptyFrame\s*"\s*NAME\s*=\s*"\s*searchTypeFrame":SRC="/dsgw/bin/csearch\?\<!-- GCONTEXT --\>\&file=type" NAME="searchTypeFrame":g;
+
+		$line =~ s:SRC\s*=\s*"\s*javascript\:parent.emptyFrame\s*"\s*NAME\s*=\s*"\s*searchAttrFrame":SRC="/dsgw/bin/csearch\?\<!-- GCONTEXT --\>\&file=attr" NAME="searchAttrFrame":g;
+
+		$line =~ s:SRC\s*=\s*"\s*javascript\:parent.emptyFrame\s*"\s*NAME\s*=\s*"\s*searchMatchFrame":SRC="/dsgw/bin/csearch\?\<!-- GCONTEXT --\>\&file=match" NAME="searchMatchFrame":g;
+
+		$line =~ s:SRC\s*=\s*"\s*javascript\:parent.emptyFrame\s*"\s*NAME\s*=\s*"\s*searchBaseFrame":SRC="/dsgw/bin/csearch\?\<!-- GCONTEXT --\>\&file=base" NAME="searchBaseFrame":g;
+
+		
+# Now for the POSTS
+# Replace all FORM directives (except the form ending ones) with
+# that same directive plus the pcontext directive on a newline
+		$line =~ s:(?i)(^\<\!\-\- DS_(AUTH|CSEARCH|BEGIN|NEWENTRY|SEARCH)[\w|_]*FORM .*?\-\-\>):$1\n\<!-- PCONTEXT --\>\n:g;
+
+# Some people might put a form-writing javascript function in their HTML.
+# This rule will keep that from getting crippled because otherwise
+# the next rule would insert a newline in the middle of a javascript string.
+		$line =~ s:(?i)\'(.*?)(\<FORM\s*.*?\>)(.*?)\':'$1$2\\n\<!-- PCONTEXT --\>\\n$3':g;
+		
+# Now replace all the explicit <FORM> tags with that same tag 
+# and the pcontext directive. But don't do it if it already
+# has been done by the previous rule
+		$line =~ s:(?i)(\<FORM\s*.*?\>)(?!\\n):$1\n\<!-- PCONTEXT --\>\n:g;#") 
+		
+
+		print NEWFILE $line;
+		
+	    }
+	    
+	    close(OLDFILE);
+	    close(NEWFILE);
+	    
+	    
+#	} elsif ( ($file =~ m/.*?\.js/) && !( -e "$opt_d"."$PS"."bin"."$PS"."$file")) {
+#	    copyFile ("$file", "$opt_d"."$PS"."bin". "$PS". "$file");
+	} else {
+#	    print "copy this file $file\n";
+	    copyFile ("$file","$full_target_dir"."$PS"."$file");
+	}
+	
+    }
+
+    
+    
+    # After we've copied over all the files in this 
+    # directory, then it's time to recurse on all the
+    # directories below.
+
+    foreach $subdir (@subdirlist) {
+#	print "recursing on $orig_target  $subdir\n";
+	migrate_html("$orig_target"."$PS"."$subdir");
+    }
+	
+}
+
+
+sub copyFile
+{
+    my	$src = shift;
+    my	$dest = shift;
+    my  $buf = "";
+    my  $bufsize = 8192;
+    
+    open( SRC, $src ) || die "Can't open $src: $!\n";
+	# if we are given a directory destination instead of a file, extract the
+	# filename portion of the source to use as the destination filename
+	if (-d $dest ) {
+		$dest = $dest . $PS . &basename($src);
+	}
+    open( DEST, ">$dest" ) || die "Can't create $dest: $!\n";
+    binmode SRC;
+    binmode DEST;
+	if ($PRESERVE) {
+		$mode = (stat($src))[2];
+		($uid, $gid) = (stat(_))[4..5];
+		chown $uid, $gid, $dest;
+		chmod $mode, $dest;
+	}
+    while (read(SRC, $buf, $bufsize)) {
+		print DEST $buf;
+    }
+    close( SRC );
+    close( DEST );
+}
+
+
+sub migrate_config
+{ 
+    #open a new dsgw-30.conf in the NS-HOME/dsgw/context directory
+    open (NEWCONF, ">"."$opt_d"."$PS"."context". "$PS". "dsgw-30.conf") or die "Can't open $opt_d${PS}context${PS}dsgw-30.conf. $!\n";
+    print NEWCONF "# Used by Netscape Directory Server Gateway\n\n";
+    print NEWCONF "# The htmldir directive tells the CGIs where to find the html files\n";
+    print NEWCONF "htmldir\t../html-30\n\n";
+    print NEWCONF "# The configdir directive tells the CGIs where to find the\n";
+    print NEWCONF "# templates/configuration files\n";
+    print NEWCONF "configdir\t../config-30\n\n";
+    print NEWCONF "# The gwnametrans directive tells the CGIs what url to output\n";
+    print NEWCONF "# for http redirection. It should be the same nameTrans set\n";
+    print NEWCONF "# in the webserver, if any is being is used.\n";
+    print NEWCONF "gwnametrans\t/dsgw/html-30/\n\n";
+
+    # now open the old dsgw.conf and start copying it over, line by line
+    # to the new config file, replacing the NLS directive and the securityPath
+    # directive with the correct values. Also replace the old host:port with the
+    # new host:port
+    open (OLDCONF, "$opt_d"."$PS"."config-30"."$PS"."dsgw.conf") or die "Can't open $opt_d${PS}config-30${PS}dsgw.conf. $!\n";;
+
+    for ($line=<OLDCONF>; $line ; $line=<OLDCONF>) {
+	$line =~ s:^NLS\s*../../../nls:NLS\t../../lib/nls:g;
+	$line =~ s:^securitypath\s*(.*?)/slapd\-.*?/dsgw/ssl:securitypath\t$1/alias/dsgw-cert.db:g;
+	$line =~ s:^baseurl\s*("){0,1}\s*ldap(s){0,1}\://.*?/:baseurl\t$1ldap$2\://$opt_h/:og;
+
+	print NEWCONF "$line";
+
+    }
+
+
+    close (NEWCONF);
+    close (OLDCONF);
+} 
+
+sub basename {
+	my @list = split(/[\\\/]/, $_[0]);
+	return $list[@list - 1];
+}
+
+sub getopts {
+    local($argumentative) = @_;
+    local(@args,$_,$first,$rest);
+    local($errs) = 0;
+    local($[) = 0;
+
+    @args = split( / */, $argumentative );
+    while(@ARGV && ($_ = $ARGV[0]) =~ /^-(.)(.*)/) {
+        ($first,$rest) = ($1,$2);
+        $pos = index($argumentative,$first);
+        if($pos >= $[) {
+            if($args[$pos+1] eq ':') {
+                shift(@ARGV);
+                if($rest eq '') {
+                    ++$errs unless @ARGV;
+                    $rest = shift(@ARGV);
+                }
+                eval "\$opt_$first = \$rest;";
+            }
+            else {
+                eval "\$opt_$first = 1";
+                if($rest eq '') {
+                    shift(@ARGV);
+                }
+                else {
+                    $ARGV[0] = "-$rest";
+                }
+            }
+        }
+        else {
+            print STDERR "Unknown option: $first\n";
+            ++$errs;
+            if($rest ne '') {
+                $ARGV[0] = "-$rest";
+            }
+            else {
+                shift(@ARGV);
+            }
+        }
+    }
+    $errs == 0;
+}

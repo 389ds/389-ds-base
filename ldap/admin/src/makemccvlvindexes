@@ -1,0 +1,211 @@
+#!perl
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# makemccvlvindexes
+
+sub usage_and_exit
+{
+    print "makemccvlvindexes usage\n";
+    print "\n";
+    print "This script analyses an LDAP directory in order to create VLV indices which\n";
+    print "could be configured to improve the performance of one-level searches.\n";
+    print "This is principally to be used to tune the directory browsing feature\n";
+    print "of the Mission Control Console.\n";
+    print "\n";
+    print "An LDAP client can only take advantage of these indices if it is itself\n";
+    print "VLV enabled. See the following specification for full details.\n";
+    print "\n";
+    print "ftp://ftp.ietf.org/internet-drafts/draft-ietf-ldapext-ldapv3-vlv-00.txt\n";
+    print "\n";
+    print "Command Line Arguments\n";
+    print "-?           - help\n";
+    print "-D rootdn    - Provide a root DN.  Default= '$rootdn'\n";
+    print "-w password  - Provide a password for the root DN.\n";
+    print "-h host      - Provide a host name. Default= '$host'\n";
+    print "-p port      - Provide a port. Default= '$port'\n";
+    print "-t threshold - Provide a container subordinate threshold. Default= $threshold\n";
+    print "-f filter    - Provide a search filter. Default= '$vlvfilter'\n";
+    print "-s sort      - Provide a sort specification. Default='$vlvsort'\n";
+    print "-n           - Do the work, but don't create the indices\n";
+    exit;
+}
+
+# Initialise some things
+$vlvfilter= "(objectclass=*)";
+$vlvsort= "sn givenname cn ou o";
+$rootdn= "cn= Directory Manager";
+$host= "localhost";
+$port= "389";
+$threshold= 1000;
+$really_do_it= "1";
+
+# Process the command line arguments
+while( $arg = shift)
+{
+    if($arg eq "-?")
+    {
+        usage_and_exit();
+    }
+    elsif($arg eq "-D")
+    {
+        $rootdn= shift @ARGV;
+    }
+    elsif($arg eq "-w")
+    {
+        $rootpw= shift @ARGV;
+    }
+    elsif($arg eq "-h")
+    {
+        $host= shift @ARGV;
+    }
+    elsif($arg eq "-p")
+    {
+        $port= shift @ARGV;
+    }
+    elsif($arg eq "-t")
+    {
+        $threshold= shift @ARGV;
+    }
+    elsif($arg eq "-f")
+    {
+        $vlvfilter= shift @ARGV;
+    }
+    elsif($arg eq "-s")
+    {
+        $vlvsort= shift @ARGV;
+    }
+    elsif($arg eq "-n")
+    {
+        $really_do_it= "0";
+    }
+    else
+    {
+        print "$arg: Unknown command line argument.\n";
+    }
+}
+
+$ldapsearch= "ldapsearch -h $host -p $port";
+$ldapmodify= "ldapmodify -h $host -p $port -D \"$rootdn\" -w $rootpw";
+
+if( $vlvfilter eq "" ||
+    $vlvsort eq "" ||
+    $rootdn eq "" ||
+    $host eq "" ||
+    $port eq "" ||
+    $threshold eq "")
+{
+    print "Error: Need command line information..\n";
+    usage_and_exit();
+}
+
+if( $rootpw eq "" )
+{
+    print "Warning: No root DN password provided.  Won't be able to add VLV Search and Index entries.\n";
+}
+
+# Tell the user what we're up to.
+print "Searching all naming contexts on '$host:$port' for containers with more than $threshold subordinate entries\n";
+
+# Read the naming contexts from the root dse
+@namingcontexts= `$ldapsearch -s base -b \"\" \"objectclass=*\" namingcontexts`;
+
+# Get rid of the first line 'dn:'
+shift @namingcontexts;
+
+# Foreach naming context...
+foreach $nc (@namingcontexts)
+{
+    # Extract the base from the naming context
+    @base= split ' ', $nc;
+    shift @base;
+
+    # Find all the containers
+    print "Searching naming context '@base' for containers.\n";
+    @containers= `$ldapsearch -s subtree -b \"@base\" \"numsubordinates=*\" numsubordinates`;
+    chop @containers;
+
+    # Foreach container
+
+    while(@containers)
+    {
+        # <dn, count, blank>
+        $dn_line= shift @containers;
+        $count_line= shift @containers;
+        shift @containers;
+
+        # Extract the count, and check it against the threshold
+        @count_array= split ' ', $count_line;
+        $count= @count_array[1];
+        $dn= substr($dn_line,4);
+        print "Found container '$dn' with $count subordinates. ";
+        if($count > $threshold)
+        {
+            # We've found a container that should be indexed.
+            # Extract the DN and RDN of the container
+            $comma_position= (index $dn, ',');
+            if($comma_position== -1)
+            {
+                $rdn= $dn
+            }
+            else
+            {
+                $rdn= substr($dn, 0, $comma_position);
+            }
+
+            # Tell the user what we're up to.
+            print "Adding VLV Search and Index entries.\n";
+
+            # Build the vlv search and index entries to be added.
+            $vlvsearch_name= "MCC $rdn";
+            @vlvsearch= ( 
+                        "dn: cn=$vlvsearch_name, cn=config, cn=ldbm\n",
+                        "objectclass: top\n",
+                        "objectclass: vlvSearch\n",
+                        "cn: $vlvsearch_name\n",
+                        "vlvbase: $dn\n",
+                        "vlvfilter: $vlvfilter\n",
+                        "vlvscope: 1\n\n" );
+
+            $vlvindex_name= "SN $vlvsearch_name";
+            @vlvindex= (
+                        "dn: cn=$vlvindex_name, cn=$vlvsearch_name, cn=config, cn=ldbm\n",
+                        "objectclass: top\n",
+                        "objectclass: vlvIndex\n",
+                        "cn: $vlvindex_name\n",
+                        "vlvsort: $vlvsort\n\n" );
+
+            @vlvnames = ( @vlvnames, "\"" . $vlvindex_name . "\"");
+
+            if($really_do_it eq "1")
+            {
+                open(FD,"| $ldapmodify -a -c");
+                print FD @vlvsearch;
+                print FD @vlvindex;
+                close(FD);
+            }
+        }
+        else
+        {
+            print "Too small.\n";
+        }
+    }
+}
+
+# Dump a script to actually create the indexes
+if($really_do_it eq "1" && $#vlvnames > 0)
+{
+    print "\n";
+    print "$#vlvnames VLV indices have been declared.  Execute the following commands to build the index files.\n";
+    print "\n";
+    print "<instance-dir>\\stop\n";
+    print "slapd db2index -f <instance-dir>\\config\\slapd.conf -V @vlvnames\n";
+    print "<instance-dir>\\start\n";
+}
+
+

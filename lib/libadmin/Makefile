@@ -1,0 +1,61 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+# The admin libraries
+
+MCOM_ROOT=../../..
+
+MODULE=LibAdmin
+MODULE_CFLAGS=-DENCRYPT_PASSWORDS -DUSE_ADMSERV
+
+include ../../nsdefs.mk
+
+OBJDEST=$(OBJDIR)/lib/libadmin
+
+ifeq ($(ARCH), WINNT)
+LIBS=$(OBJDIR)/lib/libadmin.lib
+else
+LIBS=$(OBJDIR)/lib/libadmin.a
+endif
+
+OBJS=$(addprefix $(OBJDEST)/, admconf.o form_get.o error.o  admlog.o \
+                              magconf.o ns-util.o objconf.o password.o \
+                              referer.o template.o util.o \
+                              hinstall.o admserv.o install.o nsnews.o \
+                              commit.o pcontrol.o get_msg.o \
+                              multconf.o httpcon.o authdb.o usrlists.o \
+                              dstats.o backup.o cluster.o \
+                              keyconf.o strlist.o $(OSOBJS))
+
+# moved files [to libadminutil] : form_post.o strlist.o distadm.o cron_conf.o 
+# candidate for moing: admlog.o error.o admserv.o
+# replaced files: error.o [by libadminutil/errRpt.c]
+# removed for lack of ndbm support from binary release of libdbm.... userdb.o
+#!! nsnews.o does not work anymore.
+
+all: $(OBJDEST) $(LIBS)
+
+$(LIBS): $(addprefix $(MCOM_ROOT)/ldapserver/include/libadmin/, \
+                     hadm_msgs.i la_msgs.i)
+
+include ../../nsconfig.mk
+
+MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
+
+ifeq ($(ARCH), HPUX)
+CC=$(CCC)
+endif
+
+$(OBJDEST):
+	mkdir -p $(OBJDEST)
+
+$(LIBS): $(OBJS)
+	rm -f $@
+	$(AR) $(OBJS)
+	$(RANLIB) $@
+
+include $(INCLUDE_DEPENDS)

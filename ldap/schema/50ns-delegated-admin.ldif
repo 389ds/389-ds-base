@@ -1,0 +1,37 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2002 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#############################################################
+# Delegated User Administration Attributes & Objectclasses
+#############################################################
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.556 NAME ( 'nsNumDepts' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.561 NAME ( 'nsMaxDomains' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.558 NAME ( 'nsNumMailLists' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.554 NAME ( 'nsNumUsers' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.562 NAME ( 'nsDefaultMaxDeptSize' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.557 NAME ( 'nsMaxDepts' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.563 NAME ( 'nsdaCapability' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.555 NAME ( 'nsMaxUsers' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.559 NAME ( 'nsMaxMailLists' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2028 NAME ( 'nsMaxMailListsPerUser' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.601 NAME ( 'adminRole' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.560 NAME ( 'nsNumDomains' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 1.2.840.113556.1.2.102 NAME ( 'memberOf' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.565 NAME ( 'nsdaModifiableBy' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.564 NAME ( 'nsSearchFilter' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.600 NAME ( 'nsDADomain' ) DESC 'Netscape Delegated Adminstrator defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Delegated Adminstrator' )
+attributeTypes: ( 2.16.840.1.113730.3.1.712 NAME 'mnggrpStatus' DESC 'Netscape Messaging Server defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Messaging Server' )
+objectclasses: ( 2.16.840.1.113730.3.2.85 NAME 'nsManagedISP' DESC 'Delegated Admin marker for hosted root' SUP top AUXILIARY MAY ( nsNumDomains ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.86 NAME 'nsManagedDomain' DESC 'Delegated Admin marker for managed domain' SUP top AUXILIARY MAY ( nsNumUsers $ nsMaxUsers $ nsNumDepts $ nsMaxDepts $ nsNumMailLists $ nsMaxMailLists $nsMaxMailListsPerUser $ nsNumDomains $ nsMaxDomains $ nsDefaultMaxDeptSize $ owner $ nsdaModifiableBy ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.87 NAME 'nsManagedOrgUnit' DESC 'Delegated Admin marker for managed organizationunit' SUP top AUXILIARY MAY ( owner $ nsdaModifiableBy ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.88 NAME 'nsManagedDept' DESC 'Delegated Admin marker for managed department' SUP groupOfUniqueNames AUXILIARY MAY ( nsNumUsers $ nsMaxUsers $ nsNumDepts $ nsMaxDepts $ owner $ nsdaModifiableBy ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.89 NAME 'nsManagedFamilyGroup' DESC 'Delegated Admin marker for managed familygroup' SUP top AUXILIARY MAY ( nsNumUsers $ nsMaxUsers $ owner $ nsdaModifiableBy ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.90 NAME 'nsManagedMailList' DESC 'Delegated Admin marker for managed mailing list' SUP top AUXILIARY MAY ( nsNumUsers $ nsMaxUsers $ owner $ nsdaModifiableBy ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.91 NAME 'nsManagedPerson' DESC 'Delegated Admin marker for managed person' SUP top AUXILIARY MAY ( memberOf $ nsdaDomain $ nsdaCapability $ nsSearchFilter $ owner $ nsdaModifiableBy ) X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.111 NAME 'nsManagedDeptAdminGroup' DESC 'Delegated Admin marker for managed department admin group' SUP top AUXILIARY X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.115 NAME 'nsUniquenessDomain' DESC 'Delegated Admin marker for uniqueness domain' SUP top AUXILIARY X-ORIGIN 'Netscape Delegated Adminstrator' )
+objectclasses: ( 2.16.840.1.113730.3.2.307 NAME 'nsManagedDynamicGroup' DESC 'Delegated Admin marker for dynamic administrative groups' AUXILIARY MAY ( owner $ nsdamodifiableby $ mnggrpstatus ) X-ORIGIN 'Netscape Delegated Adminstrator' )

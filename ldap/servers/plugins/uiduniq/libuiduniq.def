@@ -1,0 +1,15 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2001 Sun Microsystems, Inc.
+; Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+;
+;
+DESCRIPTION     'Netscape Directory Server 7 Unique Attribute Checking Plugin'
+;CODE		SHARED READ EXECUTE
+;DATA		SHARED READ WRITE
+EXPORTS
+	uidunique_init		@1
+	NSUniqueAttr_Init	@2
+	NS7bitAttr_Init		@3

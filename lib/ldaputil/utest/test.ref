@@ -1,0 +1,448 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+Start of test: ./auth 1 "cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US" "cn=Directory Administrators, o=Ace Industry, c=US"
+
+userdn:		"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+groupdn:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US) (member=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+Authentication succeeded.
+
+Start of test: ./auth 1 "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US" "cn=Directory Administrators, o=Ace Industry, c=US"
+
+userdn:		"cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+groupdn:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+Find parent groups of "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US)) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 2 "hmiller" "cn=Directory Administrators, o=Ace Industry, c=US"
+
+uid:		"hmiller"
+groupdn:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	base:	"o=Ace Industry, c=US"
+	filter:	"uid=hmiller"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US) (member=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+Authentication succeeded.
+
+Start of test: ./auth 2 "scarter" "cn=Directory Administrators, o=Ace Industry, c=US"
+
+uid:		"scarter"
+groupdn:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	base:	"o=Ace Industry, c=US"
+	filter:	"uid=scarter"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+Find parent groups of "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US)) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 3 "hmiller" "Directory Administrators"
+
+uid:		"hmiller"
+groupid:	"Directory Administrators"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (cn=Directory Administrators) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"o=Ace Industry, c=US"
+	filter:	"uid=hmiller"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US) (member=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+Authentication succeeded.
+
+Start of test: ./auth 3 "scarter" "Directory Administrators"
+
+uid:		"scarter"
+groupid:	"Directory Administrators"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (cn=Directory Administrators) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"o=Ace Industry, c=US"
+	filter:	"uid=scarter"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+Find parent groups of "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US)) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 4 "cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US" "Directory Administrators"
+
+userdn:		"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+groupid:	"Directory Administrators"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (cn=Directory Administrators) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US) (member=cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+Authentication succeeded.
+
+Start of test: ./auth 4 "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US" "Directory Administrators"
+
+userdn:		"cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+groupid:	"Directory Administrators"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (cn=Directory Administrators) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	base:	"cn=Directory Administrators, o=Ace Industry, c=US"
+	filter:	"(| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US))"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+Find parent groups of "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (| (uniquemember=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US) (member=cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US)) (| (objectclass=groupofuniquenames) (objectclass=groupofnames)))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 5 "cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US" "mail=hmiller@aceindustry.com"
+
+userdn:		"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+attrFilter:	"mail=hmiller@aceindustry.com"
+	base:	"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+	filter:	"mail=hmiller@aceindustry.com"
+	scope:	"LDAP_SCOPE_BASE"
+Authentication succeeded.
+
+Start of test: ./auth 5 "cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US" "mail=scarter@aceindustry.com"
+
+userdn:		"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+attrFilter:	"mail=scarter@aceindustry.com"
+	base:	"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+	filter:	"mail=scarter@aceindustry.com"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 5 "cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US" "mail=hmiller@aceindustry.com"
+
+userdn:		"cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+attrFilter:	"mail=hmiller@aceindustry.com"
+	base:	"cn=Sam Carter, ou=Accounting, o=Ace Industry, c=US"
+	filter:	"mail=hmiller@aceindustry.com"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 6 "hmiller" "mail=hmiller@aceindustry.com"
+
+uid:		"hmiller"
+attrFilter:	"mail=hmiller@aceindustry.com"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (uid=hmiller) (mail=hmiller@aceindustry.com))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+Authentication succeeded.
+
+Start of test: ./auth 6 "hmiller" "mail=scarter@aceindustry.com"
+
+uid:		"hmiller"
+attrFilter:	"mail=scarter@aceindustry.com"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (uid=hmiller) (mail=scarter@aceindustry.com))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 6 "scarter" "mail=hmiller@aceindustry.com"
+
+uid:		"scarter"
+attrFilter:	"mail=hmiller@aceindustry.com"
+	base:	"o=Ace Industry, c=US"
+	filter:	"(& (uid=scarter) (mail=hmiller@aceindustry.com))"
+	scope:	"LDAP_SCOPE_SUBTREE"
+ldap_search_s: Entry not found
+Authentication failed.
+
+Start of test: ./auth 7 "cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US" "hillock"
+
+userdn:		"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+password:	"hillock"
+	userdn:	"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+	password:	"hillock"
+Authentication succeeded.
+
+Start of test: ./auth 7 "cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US" "garbage"
+
+userdn:		"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+password:	"garbage"
+	userdn:	"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+	password:	"garbage"
+ldap_simple_bind_s: Invalid credentials
+Authentication failed.
+
+Start of test: ./auth 8 "hmiller" "hillock"
+
+uid:		"hmiller"
+password:	"hillock"
+	base:	"o=Ace Industry, c=US"
+	filter:	"uid=hmiller"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	userdn:	"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+	password:	"hillock"
+Authentication succeeded.
+
+Start of test: ./auth 8 "hmiller" "garbage"
+
+uid:		"hmiller"
+password:	"garbage"
+	base:	"o=Ace Industry, c=US"
+	filter:	"uid=hmiller"
+	scope:	"LDAP_SCOPE_SUBTREE"
+	userdn:	"cn=Harry Miller, ou=Human Resources, o=Ace Industry, c=US"
+	password:	"garbage"
+ldap_simple_bind_s: Invalid credentials
+Authentication failed.
+
+Start of test: ./auth 9 "o=Ace Industry, c=US" "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
+Cert Map issuer DN: "o=Ace Industry, c=US"
+Cert Map subject DN: "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
+plugin_init_fn called.
+plugin_init_fn called.
+plugin_mapping_fn called.
+Value of attrs from subject DN & issuer DN:
+	Cert: "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
+	subjdn: "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
+	cn: "Kirsten Vaughan"
+	ou: "Human Resources"
+	o: "Ace Industry"
+	c: "US"
+	issuerDN: "o=Ace Industry, c=US"
+	cn: *** Empty ***
+	ou: *** Empty ***
+	o: "Ace Industry"
+	c: "US"
+plugin_search_fn called.
+	base:	"ou=Human Resources, o=Ace Industry, c=US"
+	filter:	"cn=Kirsten Vaughan"
+	scope:	"LDAP_SCOPE_BASE"
+ldap_search_s: Entry not found
+	base:	"ou=Human Resources, o=Ace Industry, c=US"
+	filter:	"cn=Kirsten Vaughan"
+	scope:	"LDAP_SCOPE_SUBTREE"
+plugin_verify_fn called.
+Matched entry to cert: "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
+Authentication succeeded.
+
+Start of test: ./auth 10 "cn=Foo Bar, o=Netscape Communication, c=US" "foobar"
+Config file written: config_out.conf
+binddn from config file: "cn=Foo Bar, o=Netscape Communication, c=US"
+bindpw from config file: "foobar"
+Config file test succeeded
+Authentication succeeded.
+
+Start of test: ./auth 11 "dblist.conf" "ignore"
+	dbname[0] = "default"
+	dbname[1] = "default1"
+	dbname[2] = "default2"
+	dbname[3] = "default3"
+	dbname[4] = "default4"
+	dbname[5] = "default5"
+	dbname[6] = "default6"
+Authentication succeeded.
+
+Start of test: ./auth 12 "certmap.new" "certmap.conf"
+plugin_init_fn called.
+plugin_init_fn called.
+Authentication succeeded.
+
+# Comments before any certmap directive - line 1
+# Comments before any certmap directive - line 2
+
+# Comments before any certmap directive - line 3
+# Comments before any certmap directive - line 4
+# Comments before any certmap directive - line 5
+
+
+# Comments before any certmap directive - line 6
+
+certmap default default
+#default:DNComps o,    ou    ,c
+#default:FilterComps cn
+
+
+certmap default1 o=Netscape Communications, c=US
+default1:library ./plugin.so
+default1:InitFn plugin_init_fn
+default1:DNComps  ou o c
+default1:FilterComps l
+#default1:verifycert
+
+# Following line has trailing spaces
+certmap default2 o=Ace Industry, c=US    
+default2:InitFn plugin_init_fn
+default2:DNComps cn o ou c
+default2:FilterComps l
+default2:verifycert on
+
+# Comments before any certmap directive - line 1
+# Comments before any certmap directive - line 2
+
+# Comments before any certmap directive - line 3
+# Comments before any certmap directive - line 4
+# Comments before any certmap directive - line 5
+
+
+# Comments before any certmap directive - line 6
+
+certmap default default
+
+certmap default1 o=Netscape Communications, c=US
+default1:library ./plugin.so
+default1:InitFn plugin_init_fn
+default1:DNComps ou o c
+default1:FilterComps l
+
+certmap default2 o=Ace Industry, c=US
+default2:InitFn plugin_init_fn
+default2:DNComps cn o ou c
+default2:FilterComps l
+default2:verifycert on
+
+
+Start of test: ./auth 13 "certmap.new" "certmap.conf"
+plugin_init_fn called.
+plugin_init_fn called.
+Authentication succeeded.
+
+# Comments before any certmap directive - line 1
+# Comments before any certmap directive - line 2
+
+# Comments before any certmap directive - line 3
+# Comments before any certmap directive - line 4
+# Comments before any certmap directive - line 5
+
+
+# Comments before any certmap directive - line 6
+
+certmap default default
+#default:DNComps o,    ou    ,c
+#default:FilterComps cn
+
+
+certmap default1 o=Netscape Communications, c=US
+default1:library ./plugin.so
+default1:InitFn plugin_init_fn
+default1:DNComps  ou o c
+default1:FilterComps l
+#default1:verifycert
+
+# Following line has trailing spaces
+certmap default2 o=Ace Industry, c=US    
+default2:InitFn plugin_init_fn
+default2:DNComps cn o ou c
+default2:FilterComps l
+default2:verifycert on
+
+# Comments before any certmap directive - line 1
+# Comments before any certmap directive - line 2
+
+# Comments before any certmap directive - line 3
+# Comments before any certmap directive - line 4
+# Comments before any certmap directive - line 5
+
+
+# Comments before any certmap directive - line 6
+
+certmap default default
+
+certmap default2 o=Ace Industry, c=US
+default2:InitFn plugin_init_fn
+default2:DNComps cn o ou c
+default2:FilterComps l
+default2:verifycert on
+
+
+Start of test: ./auth 14 "certmap.new" "certmap.conf"
+plugin_init_fn called.
+plugin_init_fn called.
+Authentication succeeded.
+
+# Comments before any certmap directive - line 1
+# Comments before any certmap directive - line 2
+
+# Comments before any certmap directive - line 3
+# Comments before any certmap directive - line 4
+# Comments before any certmap directive - line 5
+
+
+# Comments before any certmap directive - line 6
+
+certmap default default
+#default:DNComps o,    ou    ,c
+#default:FilterComps cn
+
+
+certmap default1 o=Netscape Communications, c=US
+default1:library ./plugin.so
+default1:InitFn plugin_init_fn
+default1:DNComps  ou o c
+default1:FilterComps l
+#default1:verifycert
+
+# Following line has trailing spaces
+certmap default2 o=Ace Industry, c=US    
+default2:InitFn plugin_init_fn
+default2:DNComps cn o ou c
+default2:FilterComps l
+default2:verifycert on
+
+# Comments before any certmap directive - line 1
+# Comments before any certmap directive - line 2
+
+# Comments before any certmap directive - line 3
+# Comments before any certmap directive - line 4
+# Comments before any certmap directive - line 5
+
+
+# Comments before any certmap directive - line 6
+
+certmap default default
+
+certmap default1 o=Netscape Communications, c=US
+default1:library ./plugin.so
+default1:InitFn plugin_init_fn
+default1:DNComps ou o c
+default1:FilterComps l
+
+certmap default2 o=Ace Industry, c=US
+default2:InitFn plugin_init_fn
+default2:DNComps cn o ou c
+default2:FilterComps l
+default2:verifycert on
+
+certmap newmap o=Mcom Communications, c=US
+newmap:prop1 val1
+newmap:prop2 val2
+newmap:prop3 
+

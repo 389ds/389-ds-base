@@ -1,0 +1,48 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for Netscape Messaging Server  4.x.  Some attributes are also
+# used by NMS 5.x
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.16 NAME ( 'mailDeliveryOption' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.707 NAME ( 'vacationstartdate' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.18 NAME ( 'mailHost' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.33 NAME ( 'mgrpModerator' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.25 NAME ( 'mgrpDeliverTo' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( mgrpApprovePassword-oid NAME ( 'mgrpApprovePassword' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.31 NAME ( 'mailEnhancedUniqueMember' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.781 NAME ( 'mgrpAddHeader' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.22 NAME ( 'mgrpAllowedBroadcaster' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.30 NAME ( 'mgrpRFC822MailMember' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( nsmsgNumMsgQuota-oid NAME ( 'nsmsgNumMsgQuota' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.13 NAME ( 'mailAlternateAddress' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.708 NAME ( 'vacationenddate' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.20 NAME ( 'mailProgramDeliveryInfo' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.801 NAME ( 'mgrpRemoveHeader' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.12 NAME ( 'mailAccessDomain' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.14 NAME ( 'mailAutoReplyMode' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.15 NAME ( 'mailAutoReplyText' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.21 NAME ( 'mailQuota' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.788 NAME ( 'mgrpBroadcasterPolicy' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.24 NAME ( 'mailRoutingAddress' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.19 NAME ( 'mailMessageStore' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.520 NAME ( 'nswmExtendedUserPrefs' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.26 NAME ( 'mgrpErrorsTo' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.23 NAME ( 'mgrpAllowedDomain' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.28 NAME ( 'mgrpMsgRejectAction' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( nsmsgDisallowAccess-oid NAME ( 'nsmsgDisallowAccess' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.17 NAME ( 'mailForwardingAddress' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.32 NAME ( 'mgrpMsgMaxSize' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.29 NAME ( 'mgrpMsgRejectText' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26  X-ORIGIN 'Netscape Messaging Server 4.x' )
+attributeTypes: ( 2.16.840.1.113730.3.1.789 NAME ( 'mgrpNoDuplicateChecks' ) DESC 'Netscape Messaging Server 4.x defined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Messaging Server 4.x' )
+objectclasses: ( 2.16.840.1.113730.3.2.3 NAME 'mailRecipient' DESC '' SUP top AUXILIARY MUST ( objectClass ) MAY ( cn $ mail $ mailAlternateAddress $ mailHost $ mailRoutingAddress $ mailAccessDomain $ mailAutoReplyMode $ mailAutoReplyText $ mailDeliveryOption $ mailForwardingAddress $ mailMessageStore $ mailProgramDeliveryInfo $ mailQuota $ multiLineDescription $ uid $ userPassword ) X-ORIGIN 'Netscape Messaging Server 4.x' )
+objectclasses: ( 2.16.840.113730.3.2.37 NAME 'nsMessagingServerUser' DESC '' SUP top AUXILIARY MUST ( objectClass ) MAY ( cn $ mailAccessDomain $ mailAutoReplyMode $ mailAutoReplyText $ mailDeliveryOption $ mailForwardingAddress $ mailMessageStore $ mailProgramDeliveryInfo $ mailQuota $ nsmsgDisallowAccess $ nsmsgNumMsgQuota $ nswmExtendedUserPrefs $ vacationstartdate $ vacationenddate ) X-ORIGIN 'Netscape Messaging Server 4.x' )
+objectclasses: ( 2.16.840.1.113730.3.2.4 NAME 'mailGroup' DESC '' SUP top AUXILIARY MUST ( objectClass ) MAY ( cn $ mail $ mailAlternateAddress $ mailHost $ mailRoutingAddress $ mgrpAddHeader $ mgrpAllowedBroadcaster $ mgrpAllowedDomain $ mgrpApprovePassword $ mgrpBroadcasterPolicy $ mgrpDeliverTo $ mgrpErrorsTo $ mgrpModerator $ mgrpMsgMaxSize $ mgrpMsgRejectAction $ mgrpMsgRejectText $ mgrpNoDuplicateChecks $ mgrpRemoveHeader $ mgrpRFC822MailMember $ owner ) X-ORIGIN 'Netscape Messaging Server 4.x' )
+objectclasses: ( 2.16.840.1.113730.3.2.5 NAME 'groupOfMailEnhancedUniqueNames' DESC '' SUP top AUXILIARY MUST ( objectClass $ cn ) MAY ( businessCategory $ description $ mailEnhancedUniqueMember $ o $ ou $ owner $ seeAlso ) X-ORIGIN 'Netscape Messaging Server 4.x' )
+objectclasses: ( 2.16.840.1.113730.3.2.24 NAME 'netscapeMailServer' DESC '' SUP top AUXILIARY MUST ( objectClass ) X-ORIGIN 'Netscape Messaging Server 4.x' )

@@ -1,0 +1,93 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+Unique UID Checking Plugin
+--------------------------
+
+Terry Hayes, April 16, 1998
+
+
+GOALS
+
+The Unique UID Checking Plugin supports the management of user entries in the
+directory by enforcing the constraints on the value of an attribute within a
+portion of the directory.  This provides a central point for enforcing this
+constraint, which allows changes from any source to be checked (DSGW, Kingpin,
+LDAP utilities, or user application).
+
+CONFIGURATION
+
+The software operates as a preoperation plugin to the directory server.  An
+entry must be added to the slapd.conf file for the server that declares the
+plugin and provides arguments required for its operation.
+
+The plugin is declared as follows (line split for clarity):
+
+  plugin preoperation "uid uniqueness" /home/thayes/testdir/lib/uid-plugin.so
+    uidunique_init <attribute_name> <subtree_dn> ... 
+
+The first 5 values are the standard plugin declaration.  The uidunique_init
+function registers preoperation callbacks for the add, modify and modRDN
+directory operations.
+
+The next argument ("attribute_name") specifies the name of the entry attribute
+to check for uniqueness.  This attribute must be unique within each of the
+subtrees listed in the remainder of the arguments.
+
+For example:
+
+  plugin preoperation "uid uniqueness" /home/thayes/testdir/lib/uid-plugin.so
+    uidunique_init uid o=mcom.com
+
+This line specifies "uid" as the unique attribute, and lists a single subtree
+to be checked.  This line is typical of an initial installation (see below).
+
+A more complex case:
+
+  plugin preoperation "uid uniqueness" /home/thayes/testdir/lib/uid-plugin.so
+    uidunique_init uid o=Coke o=Pepsi
+  plugin preoperation "uid uniqueness" /home/thayes/testdir/lib/uid-plugin.so
+    uidunique_init mail "o=Dr. Pepper"
+
+This configuration specifies a total of three subtrees to check.  Two use the
+(standard) "uid" attribute as a unique value.  The other specifies "mail"
+as the unique attribute.
+
+INSTALLATION
+
+The standard installation of the directory server will configure this plugin
+to check the "uid" attribute on the default suffix.
+
+OPERATION
+
+The plugin responds to the following LDAP operations:
+
+  + add
+  + modify
+  + modRDN
+
+For all operations, the plugin forces the LDAP operation to return
+CONSTRAINT_VIOLATION if the operation would result in two entries with
+the same unique attribute value.
+
+For an "add" operation that includes the unique attribute, the plugin checks
+that no other entry has the same value.
+
+For a "modify" operation, the operation will fail if the new value of the
+attribute exists in any entry OTHER than the target of the modify.  If the
+value already exists, but is in the node being changed, the operation
+succeeds.  For example, if a modify operation replaces a 'uid' attribute
+with the same set of values, the plugin will find the "new" values already
+exist.  However since it is in the entry being modified, the operation is
+allowed to complete.
+
+For modRDN, the same checking as for "modify" is performed.
+
+ModRDN is coded to handle reparenting, but since the LDAP protocol to support
+this operation is not present, it cannot be exercised and has not been
+tested.
+

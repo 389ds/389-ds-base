@@ -1,0 +1,262 @@
+<!--
+  PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
+  license terms. Copyright © 2001 Sun Microsystems, Inc.
+  Portions copyright 1999, 2002-2003 Netscape Communications Corporation.
+  All rights reserved.
+ -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+   <TITLE></TITLE>
+   <META NAME="GENERATOR" CONTENT="Mozilla/3.0b6Gold (WinNT; I) [Netscape]">
+</HEAD>
+<BODY>
+
+<P><A NAME="1001595"></A></P>
+
+<P><A NAME="1001596"></A></P>
+
+<P><A NAME="996824"></A></P>
+
+<H1>Distinguished Names</H1>
+
+<P><A NAME="1017708"></A>Distinguished
+Names (DNs) are the string representation for entry names in the Directory
+Server database. You use DNs to name entries when you add entries to the
+directory, add members to groups, etc..</P>
+
+<P><A NAME="1017709"></A>A DN can consist of virtually any attributes you
+wish to use. The only caveat is that if schema checking is turned on, then
+the attributes must be recognized by the Directory Server (if you do not
+know whether schema checking is turned on in the server, contact your directory
+manager, or consult the <I>Netscape Directory Server Administrator's Guide</I>
+for more information).</P>
+
+<P><A NAME="1017710"></A>Traditionally, a DN consists of:</P>
+
+<UL>
+<P><A NAME="1017711"></A></P>
+
+<LI>A common name followed by<A NAME="1017712"></A></LI>
+
+<LI>a list of regional or organizational attributes followed by<A NAME="1017713"></A></LI>
+
+<LI>a country designation.</LI>
+</UL>
+
+<P><A NAME="1017714"></A>This string of identifying attributes uniquely
+locates the entry within your Directory Server database. If you choose,
+you can also use this naming structure to uniquely identify your entries
+within the global directory tree as defined in the X.500 standard.</P>
+
+<P><A NAME="1017715"></A>Because a DN represents a path through the directory
+tree, the DN components are order-dependent. For example, the following
+DNs do not represent the same entry:</P>
+
+<P><A NAME="1017716"></A></P>
+
+<PRE>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cn=Ralph Swenson, ou=Accounting, o=Example Corp, c=US
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cn=Ralph Swenson, o=Example Corp, ou=Accounting, c=US
+</PRE>
+
+<P><A NAME="Distinguished Name syntax"></A><A NAME="1017717"></A></P>
+
+<H2>Distinguished Name syntax</H2>
+
+<P><A NAME="1017718"></A>The traditional syntax for a DN string representation
+is as follows:</P>
+
+<P><A NAME="1017719"></A></P>
+
+<UL>
+<PRE>cn=<I>common name</I>, [street=<I>address</I>, l=<I>locality</I>, st = <I>state or province</I>,
+ou=<I>organizational unit</I>, o=<I>organization</I>], c=<I>country name</I>
+</PRE>
+</UL>
+
+<P><A NAME="1017720"></A>Generally a DN begins with a specific common name,
+and proceeds with increasingly broader areas of identification until the
+country name is specified. Note, however, that the actual DN attributes
+you use, and the order in which you choose to specify them, is up to you
+and how you want to organize your database. The only real requirement is
+that DN attributes must be separated by a comma (,) and can optionally
+use a space ( ) following the separator.</P>
+
+<P><A NAME="Distinguished Name attributes"></A><A NAME="1017721"></A></P>
+
+<H2>Distinguished Name attributes</H2>
+
+<P><A NAME="1017792"></A>The various standard attributes that comprise
+a DN are as follows:</P>
+
+<TABLE BORDER=2 >
+<CAPTION></CAPTION>
+
+<TR>
+<TH><A NAME="1017730"></A><B>Attribute</B></TH>
+
+<TH><A NAME="1017732"></A><B>Name</B></TH>
+
+<TH><A NAME="1017734"></A><B>Definition</B></TH>
+</TR>
+
+<TR>
+<TD><A NAME="1017736"></A>c</TD>
+
+<TD><A NAME="1017738"></A>country</TD>
+
+<TD><A NAME="1017740"></A>Identifies the name of the country under which
+the entry resides. For example,
+<UL>
+<P><A NAME="1017741"></A></P>
+
+<LI>c=US<A NAME="1017742"></A></LI>
+
+<LI>c=GB</LI>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1017744"></A>cn</TD>
+
+<TD><A NAME="1017746"></A>common name</TD>
+
+<TD><A NAME="1017748"></A>Required attribute that identifies the person
+or object defined by the entry. For example:
+<UL>
+<P><A NAME="1017749"></A></P>
+
+<LI>cn=Wally Henderson<A NAME="1017750"></A></LI>
+
+<LI>cn=Database Administrators<A NAME="1017751"></A></LI>
+
+<LI>cn=printer3b</LI>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1017753"></A>l</TD>
+
+<TD><A NAME="1017755"></A>locality</TD>
+
+<TD><A NAME="1017757"></A>Identifies the locality in which the entry resides.
+The locality could be a city, county, township, or other geographic region.
+For example:
+<UL>
+<P><A NAME="1017758"></A></P>
+
+<LI>l=Tucson<A NAME="1017759"></A></LI>
+
+<LI>l=Pacific Northwest<A NAME="1017760"></A></LI>
+
+<LI>l=Anoka County</LI>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1017762"></A>o</TD>
+
+<TD><A NAME="1017764"></A>organization</TD>
+
+<TD><A NAME="1017766"></A>Identifies the organization in which the entry
+resides. For example:
+<UL>
+<P><A NAME="1017767"></A></P>
+
+<LI>o=Netscape Communications Corp<A NAME="1017768"></A></LI>
+
+<LI>o=Public Power &amp; Gas</LI>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1017770"></A>ou</TD>
+
+<TD><A NAME="1017772"></A>organizational unit</TD>
+
+<TD><A NAME="1017774"></A>Identifies a unit within the organization. For
+example:
+<UL>
+<P><A NAME="1017775"></A></P>
+
+<LI>ou=Sales<A NAME="1017776"></A></LI>
+
+<LI>ou=Manufacturing</LI>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1017778"></A>st</TD>
+
+<TD><A NAME="1017780"></A>state or province name</TD>
+
+<TD><A NAME="1017782"></A>Identifies the state or province in which the
+entry resides. For example:
+<UL>
+<P><A NAME="1017783"></A></P>
+
+<LI>st=Iowa<A NAME="1017784"></A></LI>
+
+<LI>st=British Columbia</LI>
+</UL>
+</TD>
+</TR>
+
+<TR>
+<TD><A NAME="1017786"></A>street</TD>
+
+<TD><A NAME="1017788"></A>street address</TD>
+
+<TD><A NAME="1017790"></A>Identifies the street address at which the entry
+resides. For example:
+<UL>
+<P><A NAME="1017791"></A></P>
+
+<LI>street=494 Rice Creek Terrace</LI>
+</UL>
+</TD>
+</TR>
+</TABLE>
+
+<TABLE>
+<TR>
+<TD></TD>
+</TR>
+</TABLE>
+
+<P><A NAME="Distinguished Name examples"></A><A NAME="1017793"></A></P>
+
+<H2>Distinguished Name examples</H2>
+
+<P><A NAME="1017794"></A>The following are some examples of DNs:</P>
+
+<P><A NAME="1017795"></A></P>
+
+<UL>
+<PRE>cn=Wally Henderson,ou=Product Development,o=Example Corp,st=Minnesota,c=US
+</PRE>
+</UL>
+
+<P><A NAME="1017796"></A></P>
+
+<UL>
+<PRE>cn=Retch Sweeny, ou=Product Test, o=Example Corp, st=Michigan, c=US
+</PRE>
+</UL>
+
+<P><A NAME="1017797"></A></P>
+
+<UL>
+<PRE>cn=printer3b, l=room 308, o=Example Corp, c=US
+</PRE>
+</UL>
+
+<P><A NAME="997436"></A></P>
+
+</BODY>
+</HTML>

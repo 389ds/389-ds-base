@@ -1,0 +1,97 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+This directory contains an example program to demonstrate
+writing plugins using the "Certificate to LDAP Mapping" API.
+Please read the "Managing Netscape Servers" manual to find out
+about how certificate to ldap mapping can be configured using
+the <ServerRoot>/userdb/certmap.conf file.  Also refer to the
+"Certificate to LDAP Mapping API" documentation to find out
+about the various API functions and how you can write your
+plugin.
+
+This example demonstrate use of most of the API functions.  It
+defines a mapping function, a search function, and a verify
+function.  Read the API doc to learn about these functions.
+The init.c file also contains an init function which sets the
+mapping, search and verify functions.
+
+The Mapping Function 
+-------------------- 
+
+The mapping function extracts the attributes "CN", "E", "O" and
+"C" from the certificate's subject DN using the function
+ldapu_get_cert_ava_val.  If the attributes "C" doesn't exists
+then it defaults to "US".  It then gets the value of a custom
+certmap.conf property "defaultOU" using the function
+ldapu_certmap_info_attrval.  This demonstrates how you can have
+your own custom properties defined in the certmap.conf file.
+The mapping function then returns an ldapdn of the form:
+"cn=<name>, ou=<defaultOU>, o=<o>, c=<c>".
+
+If the "E" attribute has a value, it returns a filter
+"mail=<e>".  Finally, the mapping function frees the structures
+returned by some of the API functions it called.
+
+
+The Search Function
+-------------------
+
+The search function calls a dummy function to get the
+certificate's serial number.  It then does a subtree search in
+the entire directory for the filter 
+"certSerialNumber=<serial No.>".  If this fails, it calls the
+default search function.  This demonstrates how you can use the
+default functions in your custom functions.
+
+The Verify Function
+-------------------
+
+The verify function returns LDAPU_SUCCESS if only one entry was
+returned by the search function.  Otherwise, it returns
+LDAPU_CERT_VERIFY_FUNCTION_FAILED.
+
+
+Error Reporting
+---------------
+
+To report errors/warning, there is a function defined called
+plugin_ereport.  This function demonstrates how to get the
+subject DN and the issuer DN from the certificate.
+
+Build Procedure
+---------------
+On UNIX: Edit the Makefile, and set the variables ARCH & SROOT
+according to the comments in the Makefile.  Download LDAP SDK
+from the Netscape's DevEdge site and make the ldap include
+files available in <SROOT>/include.  Copy the
+../include/certmap.h file to the <SROOT>/include directory.
+Use 'gmake' to build the plugin.  A shared library plugin.so
+(plugin.sl on HP) will be created in the current directory.
+
+On NT:  Execute the following command:
+NMAKE /f "Certmap.mak" CFG="Certmap - Win32 Debug"
+Certmap.dll will be created in the Debug subdirectory.
+
+Certmap.conf Configuration
+--------------------------
+Save a copy of certmap.conf file.
+Change the certmap.conf file as follows:
+
+certmap default default
+default:defaultOU   marketing
+default:library	    <path to the shared library>
+default:InitFn	    plugin_init_fn
+
+
+After experimenting with this example, restore the old copy of
+certmap.conf file.  Or else, set the certmap.conf file as follows:
+
+certmap default default
+default:DNComps	    
+default:FilterComps	e, mail, uid
+default:VerifyCert	on

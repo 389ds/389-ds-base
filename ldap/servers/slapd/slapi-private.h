@@ -1,0 +1,1212 @@
+/** BEGIN COPYRIGHT BLOCK
+ * Copyright 2001 Sun Microsystems, Inc.
+ * Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+ * All rights reserved.
+ * END COPYRIGHT BLOCK **/
+/* slapi-private.h - external header file for some special plugins */
+
+#ifndef _SLAPISTATE
+#define _SLAPISTATE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <time.h>		/* for time_t */
+#include "nspr.h"
+#include "slapi-plugin.h"
+/*
+ * XXXmcs: we can stop including slapi-plugin-compat4.h once we stop using
+ * deprecated functions internally.
+ */
+#include "slapi-plugin-compat4.h"
+
+/*
+ * server shutdown status
+ */
+#define SLAPI_SHUTDOWN_SIGNAL   1
+#define SLAPI_SHUTDOWN_DISKFULL 2
+#define SLAPI_SHUTDOWN_EXIT     3
+
+/* filter */
+#define SLAPI_FILTER_LDAPSUBENTRY 1
+#define SLAPI_FILTER_TOMBSTONE 2
+#define SLAPI_ENTRY_LDAPSUBENTRY 2
+
+/*
+    Optimized filter path. For example the following code was lifted from int.c (syntaxes plugin):
+
+    if(ftype == LDAP_FILTER_EQUALITY_FAST) {
+        tmp=(char *)slapi_ch_calloc(1,(sizeof(Slapi_Value)+sizeof(struct berval)+len+1)); 
+        tmpval=(Slapi_Value *)tmp;
+        tmpbv=(struct berval *)(tmp + sizeof(Slapi_Value));
+        tmpbv->bv_val=(char *)tmp + sizeof(Slapi_Value) + (sizeof(struct berval));
+        tmpbv->bv_len=len;
+        tmpval->bvp=tmpbv;
+        b = (unsigned char *)&num;
+        memcpy(tmpbv->bv_val,b,len);
+        (*ivals)=(Slapi_Value **)tmpval;
+    }
+
+    The following diagram helps explain the strategy.
+
+    +---------------------------------------------------------------+
+    |             Single contiguous allocated block                 |
+    +------------------------+------------------------+-------------+
+    | Slapi_Value            | struct berval          | octetstring |
+    +----------------+-------+------------------------+-------------+
+    | struct berval* |  ...  |  ...    | char *bv_val |  <value>    |
+    |       v        |       |         |      v       |             |
+    +-------+--------+-------+---------+------+-------+-------------+
+            |                 ^               |        ^
+            |_________________|               |________|
+
+    The goal is to malloc one large chunk of memory up front and then manipulate the pointers to point
+    into this chunk. We then can free the whole block at once by calling a single slapi_ch_free (see filterindex.c).
+
+ */
+#define LDAP_FILTER_EQUALITY_FAST 0xaaL
+/*
+ * Slapi_Mods and Slapi_Mod base structures.
+ * Ideally, these would be moved to modutil.c and the structures would be
+ * completely opaque to users of the slapi_mods_...() API.  But today some
+ * plugins such as replication use these directly for efficiency reasons.
+ */
+typedef struct slapi_mods
+{
+    LDAPMod **mods;
+	int num_elements;
+	int num_mods;
+	int iterator;
+	int free_mods; /* flag to indicate that the mods were dynamically allocated and needs to be freed */
+}slapi_mods;
+
+typedef struct slapi_mod
+{
+    LDAPMod *mod;
+	int num_elements;
+	int num_values;
+	int iterator;
+	int free_mod; /* flag to inidicate that the mod was dynamically allocated and needs to be freed */
+}slapi_mod;
+
+void slapi_ch_free_ref(void *ptr);
+
+/*
+ * file I/O
+ */
+PRInt32 slapi_read_buffer( PRFileDesc *fd, void *buf, PRInt32 amount );
+PRInt32 slapi_write_buffer( PRFileDesc *fd, void *buf, PRInt32 amount );
+/* rename a file, overwriting the destfilename if it exists */
+int slapi_destructive_rename( const char *srcfilename,
+	const char *destfilename );
+/* make a copy of a file */
+int slapi_copy( const char *srcfilename, const char *destfile );
+
+/* CSN */
+
+typedef struct csn CSN;
+typedef unsigned char CSNType;
+typedef struct csnset_node CSNSet;
+
+#define _CSN_TSTAMP_STRSIZE 8
+#define _CSN_SEQNUM_STRSIZE 4
+#define _CSN_REPLID_STRSIZE 4
+#define _CSN_SUBSEQNUM_STRSIZE 4
+#define _CSN_VALIDCSN_STRLEN (_CSN_TSTAMP_STRSIZE + _CSN_SEQNUM_STRSIZE + \
+                             _CSN_REPLID_STRSIZE + _CSN_SUBSEQNUM_STRSIZE)
+#define CSN_STRSIZE (_CSN_VALIDCSN_STRLEN + 1)
+
+#define CSN_TYPE_UNKNOWN 0x00
+#define CSN_TYPE_NONE 0x01
+#define CSN_TYPE_ATTRIBUTE_DELETED 0x03
+#define CSN_TYPE_VALUE_UPDATED 0x04
+#define CSN_TYPE_VALUE_DELETED 0x05
+#define CSN_TYPE_VALUE_DISTINGUISHED 0x06
+
+#define VALUE_NOTFOUND 1
+#define VALUE_PRESENT 2
+#define VALUE_DELETED 3
+
+#define ATTRIBUTE_NOTFOUND 1
+#define ATTRIBUTE_PRESENT 2
+#define ATTRIBUTE_DELETED 3
+
+/*
+ * csn.c
+ */
+typedef PRUint16 ReplicaId;
+/* max 2 byte unsigned int value */
+#define MAX_REPLICA_ID 65535
+/* we will use this value for the replica ID of read only replicas */
+#define READ_ONLY_REPLICA_ID MAX_REPLICA_ID
+CSN *csn_new();
+CSN *csn_new_by_string(const char *s);
+void csn_init_by_csn(CSN *csn1,const CSN *csn2);
+void csn_init_by_string(CSN *csn, const char *s);
+CSN *csn_dup(const CSN *csn);
+void csn_free(CSN **csn);
+void csn_set_replicaid(CSN *csn, ReplicaId rid);
+void csn_set_time(CSN *csn, time_t csntime);
+void csn_set_seqnum(CSN *csn, PRUint16 seqnum);
+ReplicaId csn_get_replicaid(const CSN *csn);
+time_t csn_get_time(const CSN *csn);
+PRUint16 csn_get_seqnum(const CSN *csn);
+char *csn_as_string(const CSN *csn, PRBool replicaIdOrder, char *ss); /* WARNING: ss must be CSN_STRSIZE bytes, or NULL. */
+int csn_compare(const CSN *csn1, const CSN *csn2);
+time_t csn_time_difference(const CSN *csn1, const CSN *csn2);
+size_t csn_string_size();
+char *csn_as_attr_option_string(CSNType t,const CSN *csn,char *ss);
+const CSN *csn_max(const CSN *csn1,const CSN *csn2);
+/* this function allows to expand a csn into a set of csns. 
+   The sequence is derived by adding a sequence number to the base csn
+   passed to it. This is useful when a single client operation needs to be
+   expanded into multiple operations. For instance, subtree move operation
+   is split into a sequence of adds and deletes with each add and delete assigned
+   a csn from the set.*/
+int csn_increment_subsequence (CSN *csn);
+
+/*
+ * csnset.c
+ */
+void csnset_add_csn(CSNSet **csnset, CSNType t, const CSN *csn);
+void csnset_insert_csn(CSNSet **csnset, CSNType t, const CSN *csn);
+void csnset_update_csn(CSNSet **csnset, CSNType t, const CSN *csn);
+void csnset_free(CSNSet **csnset);
+const CSN *csnset_get_csn_of_type(const CSNSet *csnset, CSNType t);
+void csnset_purge(CSNSet **csnset, const CSN *csnUpTo);
+size_t csnset_string_size(CSNSet *csnset);
+size_t csnset_size(CSNSet *csnset);
+CSNSet *csnset_dup(const CSNSet *csnset);
+void csnset_as_string(const CSNSet *csnset,char *s);
+void csnset_remove_csn(CSNSet **csnset, CSNType t);
+const CSN *csnset_get_last_csn(const CSNSet *csnset);
+int csnset_contains(const CSNSet *csnset, const CSN *csn);
+const CSN *csnset_get_previous_csn(const CSNSet *csnset, const CSN *csn);
+void* csnset_get_first_csn (const CSNSet *csnset, CSN **csn, CSNType *t);
+void* csnset_get_next_csn (const CSNSet *csnset, void *cookie, CSN **csn, CSNType *t);
+
+/*
+ * csngen.c
+ */
+
+/* error codes returned from CSN generation routines */
+enum { 
+    CSN_SUCCESS = 0, 
+    CSN_MEMORY_ERROR,		/* memory allocation failed */
+    CSN_LIMIT_EXCEEDED,		/* timestamp is way out of sync */ 
+    CSN_INVALID_PARAMETER, 	/* invalid function argument */
+	CSN_INVALID_FORMAT,		/* invalid state format */
+    CSN_LDAP_ERROR,			/* LDAP operation failed */
+    CSN_NSPR_ERROR			/* NSPR API failure */
+}; 
+
+typedef struct csngen CSNGen;
+
+/* allocates new csn generator */
+CSNGen *csngen_new (ReplicaId rid, Slapi_Attr *state);
+/* frees csn generator data structure */
+void csngen_free (CSNGen **gen);
+/* generates new csn. If notify is non-zero, the generator calls
+   "generate" functions registered through csngen_register_callbacks call */
+int csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify);
+/* this function should be called for csns generated with non-zero notify
+   that were unused because the corresponding operation was aborted.
+   The function calls "abort" functions registered through
+   csngen_register_callbacks call */
+void csngen_abort_csn (CSNGen *gen, const CSN *csn);
+/* this function should be called when a remote CSN for the same part of
+   the dit becomes known to the server (for instance, as part of RUV during
+   replication session. In response, the generator would adjust its notion
+   of time so that it does not generate smaller csns */
+int csngen_adjust_time (CSNGen *gen, const CSN* csn);
+/* returns PR_TRUE if the csn was generated by this generator and 
+   PR_FALSE otherwise. */
+PRBool csngen_is_local_csn(const CSNGen *gen, const CSN *csn);
+
+/* returns current state of the generator so that it can be saved in the DIT */
+int csngen_get_state (const CSNGen *gen, Slapi_Mod *state);
+
+typedef void (*GenCSNFn)(const CSN *newCsn, void *cbData);
+typedef void (*AbortCSNFn)(const CSN *delCsn, void *cbData);
+/* registers callbacks to be called when csn is created or aborted */
+void* csngen_register_callbacks(CSNGen *gen, GenCSNFn genFn, void *genArg, 
+						        AbortCSNFn abortFn, void *abortArg);
+/* unregisters callbacks registered via call to csngenRegisterCallbacks */
+void csngen_unregister_callbacks(CSNGen *gen, void *cookie);
+
+/* this functions is periodically called from daemon.c to
+   update time used by all generators */
+void csngen_update_time ();
+
+/* debugging function */
+void csngen_dump_state (const CSNGen *gen);
+
+/* this function tests csn generator */
+void csngen_test ();
+
+/*
+ * State storage management routines
+ *
+ *
+ */
+
+/*
+ * attr_value_find_wsi looks for a particular value (rather, the berval
+ * part of the slapi_value v) and returns it in "value". The function
+ * returns VALUE_PRESENT, VALUE_DELETED, or VALUE_NOTFOUND.
+ */
+int attr_value_find_wsi(Slapi_Attr *a, const struct berval *bval, Slapi_Value **value);
+
+/*
+ * entry_attr_find_wsi takes an entry and a type and looks for the
+ * attribute. If the attribute is found on the list of existing attributes,
+ * it is returned in "a" and the function returns ATTRIBUTE_PRESENT. If the attribute is
+ * found on the deleted list, "a" is set and the function returns ATTRIBUTE_DELETED.
+ * If the attribute is not found on either list, the function returns ATTRIBUTE_NOTFOUND.
+ */
+int entry_attr_find_wsi(Slapi_Entry *e, const char *type, Slapi_Attr **a);
+
+/*
+ * entry_add_present_attribute_wsi adds an attribute to the entry.
+ */
+int entry_add_present_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a);
+
+/*
+ * entry_add_deleted_attribute_wsi adds a deleted attribute to the entry.
+ */
+int entry_add_deleted_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a);
+
+/*
+ * slapi_entry_apply_mods_wsi is similar to slapi_entry_apply_mods. It also
+ * handles the state storage information. "csn" is the CSN associated with
+ * this modify operation.
+ */
+int entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp);
+int entry_first_deleted_attribute( const Slapi_Entry *e, Slapi_Attr **a);
+int entry_next_deleted_attribute( const Slapi_Entry *e, Slapi_Attr **a);
+
+/* entry.c */
+int entry_apply_mods( Slapi_Entry *e, LDAPMod **mods );
+
+int slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **new_entries, int testall, const char *logging_prestr, const int force_update, void *plg_id);
+
+/* entrywsi.c */
+CSN* entry_assign_operation_csn ( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parententry );
+const CSN *entry_get_maxcsn ( const Slapi_Entry *entry );
+void entry_set_maxcsn ( Slapi_Entry *entry, const CSN *csn );
+const CSN *entry_get_dncsn(const Slapi_Entry *entry);
+const CSNSet *entry_get_dncsnset(const Slapi_Entry *entry);
+int entry_add_dncsn(Slapi_Entry *entry, const CSN *csn);
+int entry_set_csn(Slapi_Entry *entry, const CSN *csn);
+void entry_purge_state_information(Slapi_Entry *entry, const CSN *csnUpto);
+void entry_add_rdn_csn(Slapi_Entry *e, const CSN *csn);
+/* this adds a csn to the entry's e_dncsnset but makes sure the set is in increasing csn order */
+#define ENTRY_DNCSN_INCREASING 0x1 /* for flags below */
+int entry_add_dncsn_ext(Slapi_Entry *entry, const CSN *csn, PRUint32 flags);
+
+/* attr.c */
+Slapi_Attr *slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock, PRBool ref_count);
+int attr_set_csn( Slapi_Attr *a, const CSN *csn);
+int attr_set_deletion_csn( Slapi_Attr *a, const CSN *csn);
+const CSN *attr_get_deletion_csn(const Slapi_Attr *a);
+int attr_first_deleted_value( Slapi_Attr *a, Slapi_Value **v );
+int attr_next_deleted_value( Slapi_Attr *a, int hint, Slapi_Value **v);
+void attr_purge_state_information(Slapi_Entry *entry, Slapi_Attr *attr, const CSN *csnUpto);
+Slapi_Value **attr_get_present_values(const Slapi_Attr *a);
+int attr_add_deleted_value(Slapi_Attr *a, const Slapi_Value *v);
+
+/* value.c */
+Slapi_Value *value_new(const struct berval *bval, CSNType t, const CSN *csn);
+Slapi_Value *value_init(Slapi_Value *v, const struct berval *bval, CSNType t, const CSN *csn);
+void value_done(Slapi_Value *v);
+Slapi_Value *value_update_csn( Slapi_Value *value, CSNType t, const CSN *csn);
+Slapi_Value *value_add_csn( Slapi_Value *value, CSNType t, const CSN *csn);
+const CSN *value_get_csn( const Slapi_Value *value, CSNType t );
+const CSNSet *value_get_csnset ( const Slapi_Value *value);
+Slapi_Value *value_remove_csn( Slapi_Value *value, CSNType t);
+int value_contains_csn( const Slapi_Value *value, CSN *csn);
+
+/* dn.c */
+/* this functions should only be used for dns allocated on the stack */
+Slapi_DN *slapi_sdn_init(Slapi_DN *sdn);
+Slapi_DN *slapi_sdn_init_dn_byref(Slapi_DN *sdn,const char *dn);
+Slapi_DN *slapi_sdn_init_dn_byval(Slapi_DN *sdn,const char *dn);
+Slapi_DN *slapi_sdn_init_dn_passin(Slapi_DN *sdn,const char *dn);
+Slapi_DN *slapi_sdn_init_ndn_byref(Slapi_DN *sdn,const char *dn);
+Slapi_DN *slapi_sdn_init_ndn_byval(Slapi_DN *sdn,const char *dn);
+Slapi_DN *slapi_sdn_init_dn_ndn_byref(Slapi_DN *sdn,const char *dn);
+
+/* filter.c */
+int filter_flag_is_set(const Slapi_Filter *f,unsigned char flag);
+char *slapi_filter_to_string(const Slapi_Filter *f, char *buffer, size_t bufsize);
+
+/* operation.c */
+
+#define	OP_FLAG_PS			        	0x0001
+#define	OP_FLAG_PS_CHANGESONLY			0x0002
+#define OP_FLAG_GET_EFFECTIVE_RIGHTS   	0x0004  
+#define OP_FLAG_REPLICATED          	0x0008  /* A Replicated Operation */
+#define OP_FLAG_REPL_FIXUP          	0x0010  /* A Fixup Operation, generated as a consequence of a Replicated Operation. */
+#define OP_FLAG_INTERNAL            	0x0020  /* An operation generated by the core server or a plugin. */ 
+#define OP_FLAG_ACTION_LOG_ACCESS		0x0040
+#define OP_FLAG_ACTION_LOG_AUDIT		0x0080
+#define OP_FLAG_ACTION_SCHEMA_CHECK		0x0100
+#define OP_FLAG_ACTION_LOG_CHANGES		0x0200
+#define OP_FLAG_ACTION_INVOKE_FOR_REPLOP 	0x0400
+#define OP_FLAG_NEVER_CHAIN 			SLAPI_OP_FLAG_NEVER_CHAIN  /* 0x0800 */
+#define OP_FLAG_TOMBSTONE_ENTRY          0x1000
+#define OP_FLAG_RESURECT_ENTRY           0x2000
+#define OP_FLAG_LEGACY_REPLICATION_DN    0x4000 /* Operation done by legacy replication DN */
+#define OP_FLAG_ACTION_NOLOG			 0x8000 /* Do not log the entry in audit log or change log */
+
+CSN *operation_get_csn(Slapi_Operation *op);
+void operation_set_csn(Slapi_Operation *op,CSN *csn);
+void operation_set_flag(Slapi_Operation *op,int flag);
+void operation_clear_flag(Slapi_Operation *op,int flag);
+int operation_is_flag_set(Slapi_Operation *op,int flag);
+unsigned long operation_get_type(Slapi_Operation *op);
+
+/* 
+ * From ldap.h
+ * #define LDAP_MOD_ADD            0x00
+ * #define LDAP_MOD_DELETE         0x01
+ * #define LDAP_MOD_REPLACE        0x02
+ */
+#define LDAP_MOD_IGNORE 0x09
+
+
+/* dl.c */
+typedef struct datalist DataList;
+
+typedef int (*CMPFN) (const void *el1, const void *el2);
+typedef void (*FREEFN) (void **);
+DataList* dl_new ();
+void dl_free (DataList **dl);
+void dl_init (DataList *dl, int init_alloc);
+void dl_cleanup (DataList *dl, FREEFN freefn);
+void dl_add (DataList *dl, void *element);
+void dl_add_index(DataList *dl, void *element, int index);
+void *dl_replace(const DataList *dl, const void *elementOld, void *elementNew, CMPFN cmpfn, FREEFN freefn);
+void *dl_get_first (const DataList *dl, int *cookie);
+void *dl_get_next (const DataList *dl, int *cookie);
+void *dl_get (const DataList *dl, const void *element, CMPFN cmpfn);
+void *dl_delete (DataList *dl, const void *element, CMPFN cmpfn, FREEFN freefn);
+int  dl_get_count (const DataList *dl);
+
+struct ava {
+	char		*ava_type;
+	struct berval	ava_value; /* JCM SLAPI_VALUE! */
+	void		*ava_private;	/* data private to syntax handler */
+};
+
+typedef enum{
+	FILTER_TYPE_SUBSTRING,
+	FILTER_TYPE_AVA,
+	FILTER_TYPE_PRES	
+}filter_type_t;
+
+/*
+ * vattr entry routines.
+ * vattrcache private (for the moment)
+ */
+#define SLAPI_ENTRY_VATTR_NOT_RESOLVED -1
+#define SLAPI_ENTRY_VATTR_RESOLVED_ABSENT -2
+#define SLAPI_ENTRY_VATTR_RESOLVED_EXISTS 0
+
+int slapi_entry_vattrcache_merge_sv(Slapi_Entry *e, const char *type, Slapi_ValueSet *vals);
+int slapi_entry_vattrcache_find_values_and_type_ex( const Slapi_Entry *e,
+											const char *type,
+											Slapi_ValueSet ***results,
+											char ***actual_type_name);
+SLAPI_DEPRECATED int
+slapi_entry_vattrcache_find_values_and_type( const Slapi_Entry *e,
+											const char *type,
+											Slapi_ValueSet **results,
+											char **actual_type_name);
+int slapi_entry_vattrcache_findAndTest(const Slapi_Entry *e, const char *type,
+										Slapi_Filter *f,
+										filter_type_t filter_type,
+										int *rc);
+
+int slapi_vattrcache_iscacheable( const char * type );
+void slapi_vattrcache_cache_all();
+void slapi_vattrcache_cache_none();
+
+int vattr_test_filter(/* Entry we're interested in */ Slapi_Entry *e,						
+						Slapi_Filter *f,
+						filter_type_t filter_type,
+						char *type);
+
+/* filter routines */
+
+int test_substring_filter( Slapi_PBlock *pb, Slapi_Entry *e,
+						struct slapi_filter *f,
+						int verify_access,int only_check_access, int *access_check_done);
+int test_ava_filter( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Attr *a,
+						struct ava *ava, int ftype, int verify_access,
+						int only_check_access, int *access_check_done);
+int test_presence_filter( Slapi_PBlock *pb, Slapi_Entry *e, char *type,
+						int verify_access, int only_check_access, int *access_check_done);
+
+/* this structure allows to address entry by dn or uniqueid */
+typedef struct entry_address
+{
+	char *dn;
+	char *udn; /* unnormalized dn */	
+	char *uniqueid;	
+}entry_address;
+
+/*
+ * LDAP Operation input parameters.
+ */
+typedef struct slapi_operation_parameters
+{
+	unsigned long operation_type;	/* SLAPI_OPERATION_ADD, SLAPI_OPERATION_MODIFY ... */
+	entry_address target_address;	/* address of target entry */
+	CSN *csn;						/* The Change Sequence Number assigned to this operation. */
+
+	LDAPControl	**request_controls;/* array v3 LDAPMessage controls  */
+
+	union
+	{
+		struct add_parameters
+		{
+			struct slapi_entry *target_entry;
+			char *parentuniqueid;
+		} p_add;
+
+		struct bind_parameters
+		{
+			int bind_method;
+			struct berval *bind_creds;
+			char *bind_saslmechanism;	/* v3 sasl mechanism name */
+			struct berval *bind_ret_saslcreds;	/* v3 serverSaslCreds */
+		} p_bind;
+
+		struct compare_parameters
+		{
+			struct ava compare_ava;
+		} p_compare;
+
+		struct modify_parameters
+		{
+			LDAPMod **modify_mods;
+		} p_modify;
+
+		struct modrdn_parameters
+		{
+			char *modrdn_newrdn;
+			int modrdn_deloldrdn;
+			entry_address modrdn_newsuperior_address;	/* address of the superior entry */
+			LDAPMod **modrdn_mods;			/* modifiers name and timestamp */
+		} p_modrdn;
+
+		struct search_parameters
+		{
+			int	search_scope;
+			int	search_deref;
+			int	search_sizelimit;
+			int	search_timelimit;
+			struct slapi_filter	*search_filter;
+			char *search_strfilter;
+			char **search_attrs;
+			int search_attrsonly;
+			int search_is_and;
+		} p_search;
+
+		struct abandon_parameters
+		{
+			int abandon_targetmsgid;
+		} p_abandon;
+
+		struct extended_parameters
+		{
+			char *exop_oid;
+			struct berval *exop_value;
+		} p_extended;
+	} p;
+} slapi_operation_parameters;
+
+struct slapi_operation_parameters *operation_parameters_new();
+struct slapi_operation_parameters *operation_parameters_dup(struct slapi_operation_parameters *sop);
+void operation_parameters_done(struct slapi_operation_parameters *sop);
+void operation_parameters_free(struct slapi_operation_parameters **sop);
+
+
+/*
+ * errormap.c
+ */
+char *slapd_pr_strerror( const PRErrorCode prerrno );
+const char *slapd_system_strerror( const int syserrno );
+const char *slapd_versatile_strerror( const PRErrorCode prerrno );
+
+
+/*
+ * localhost.c
+ */
+char* get_localhost_DNS();
+/* Return the fully-qualified DNS name of this machine.
+   The caller should _not_ free this pointer. */
+char* get_localhost_DN();
+
+/*
+ * Reference-counted objects
+ */
+typedef void (*FNFree) (void **);
+typedef struct object Object;
+Object *object_new(void *user_data, FNFree destructor);
+void object_acquire(Object *o);
+void object_release(Object *o);
+void *object_get_data(Object *o);
+
+/* Sets of reference-counted objects */
+#define OBJSET_SUCCESS 0
+#define OBJSET_ALREADY_EXISTS 1
+#define OBJSET_NO_SUCH_OBJECT 2
+typedef int (*CMPFn) (Object *set, const void *name);
+typedef struct objset Objset;
+Objset *objset_new(FNFree objset_destructor);
+void objset_delete(Objset **set);
+int objset_add_obj(Objset *set, Object *object);
+Object *objset_find(Objset *set, CMPFn compare_fn, const void *name);
+int objset_remove_obj(Objset *set, Object *object);
+Object *objset_first_obj(Objset *set);
+Object *objset_next_obj(Objset *set, Object *previous);
+int objset_is_empty(Objset *set);
+int objset_size(Objset *set);
+
+/* backend management */
+typedef struct index_config
+{
+	char *attr_name;  /* attr name: dn, cn, etc. */
+	char *index_type; /* space terminated list of indexes;
+						 possible types: "eq" "sub" "pres" "approx" */
+	int	 system;	  /* marks this index as system */
+}IndexConfig;
+
+int be_create_instance (const char *type,		/* for now, must be "ldbm"			  */
+						const char *name,		/* gloably unique instance name       */
+						const char *root,		/* backend root, i.e. o=mcom.com	  */
+						int cache_size,			/* cache size in bytes; 0 for default */
+						IndexConfig *indexes,	/* indexes in addition to standard	  */
+						int index_count,		/* number of elements in indexes 	  */
+						void *plugin_identity	/* identity of the calling plugin	  */
+					   );
+int be_remove_instance (const char *type,		/* for now, must be "ldbm"			  */
+						const char *name,		/* gloably unique instance name       */
+						void *plugin_identity	/* identity of the calling plugin	  */
+					   );
+
+void be_set_sizelimit(Slapi_Backend * be, int sizelimit);
+void be_set_timelimit(Slapi_Backend * be, int timelimit);
+
+/* used by mapping tree to delay sending of result code when several 
+ * backend are parsed 
+ */
+void slapi_set_ldap_result( Slapi_PBlock *pb, int err, char *matched,
+   char *text, int nentries, struct berval **urls );
+void slapi_send_ldap_result_from_pb( Slapi_PBlock *pb);
+
+/* mapping tree utility functions */
+typedef struct mt_node mapping_tree_node;
+mapping_tree_node *slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn);
+char* slapi_get_mapping_tree_node_configdn(const Slapi_DN *root);
+const Slapi_DN* slapi_get_mapping_tree_node_root(const mapping_tree_node *node);
+const char* slapi_get_mapping_tree_config_root ();
+Slapi_Backend *slapi_mapping_tree_find_backend_for_sdn(Slapi_DN *sdn);
+/* possible flags to check for */
+#define SLAPI_MTN_LOCAL     0x1
+#define SLAPI_MTN_PRIVATE   0x2
+#define SLAPI_MTN_READONLY  0x4
+PRBool slapi_mapping_tree_node_is_set (const mapping_tree_node *node,
+	PRUint32 flag); 
+Slapi_DN* slapi_mtn_get_dn(mapping_tree_node *node);
+int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn,
+	Slapi_Backend **be, Slapi_Entry **referral, char *errorbuf);
+int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
+	Slapi_Entry **referral_list, char *errorbuf);
+void slapi_mapping_tree_free_all(Slapi_Backend **be_list,
+	Slapi_Entry **referral_list);
+
+/* Mapping Tree */
+int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **referral, char *error_string);
+char ** slapi_mtn_get_referral(const Slapi_DN *sdn);
+int slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral);
+int slapi_mtn_set_state(const Slapi_DN *sdn, char *state);
+char * slapi_mtn_get_state(const Slapi_DN *sdn);
+void slapi_mtn_be_set_readonly(Slapi_Backend *be, int readonly);
+void slapi_mtn_be_stopping(Slapi_Backend *be);
+void slapi_mtn_be_started(Slapi_Backend *be);
+void slapi_mtn_be_disable(Slapi_Backend *be);
+void slapi_mtn_be_enable(Slapi_Backend *be);
+const char *slapi_mtn_get_backend_name(const Slapi_DN *sdn);
+
+void slapi_be_stopping (Slapi_Backend *be);
+void slapi_be_free (Slapi_Backend **be);
+void slapi_be_Rlock (Slapi_Backend *be);
+void slapi_be_Wlock (Slapi_Backend *be);
+void slapi_be_Unlock (Slapi_Backend *be);
+
+/* components */
+struct slapi_componentid {
+        char                            * sci_magic;
+        const struct slapdplugin        * sci_plugin;
+        char                            * sci_component_name;
+};
+ 
+struct slapi_componentid *
+generate_componentid ( struct slapdplugin * pp , char * name );
+void release_componentid ( struct slapi_componentid * id );
+struct slapi_componentid * plugin_get_default_component_id();
+
+/* interface for component mgmt */
+/* Well-known components DNs    */
+/* Should be documented somehow for the chaining backend */
+
+#define COMPONENT_BASE_DN	"cn=components,cn=config"
+#define COMPONENT_ROLES		"cn=roles,"COMPONENT_BASE_DN
+#define COMPONENT_RESLIMIT	"cn=resource limits,"COMPONENT_BASE_DN
+#define COMPONENT_PWPOLICY	"cn=password policy,"COMPONENT_BASE_DN
+#define COMPONENT_CERT_AUTH	"cn=certificate-based authentication,"COMPONENT_BASE_DN
+
+/* Component names for logging */
+#define SLAPI_COMPONENT_NAME_NSPR	"Netscape runtime"
+#define SLAPI_COMPONENT_NAME_LDAPSDK	"LDAP sdk"
+
+/* return the list of attr defined in the schema matching the attr flags */
+char ** slapi_schema_list_attribute_names(unsigned long flag);
+CSN *dup_global_schema_csn();
+
+/* misc function for the chaining backend */
+char * slapi_get_rootdn();	/* return the directory manager dn in use */
+
+/* plugin interface to bulk import */
+/* This function initiates bulk import. The pblock must contain 
+   SLAPI_LDIF2DB_GENERATE_UNIQUEID -- currently always set to TIME_BASED 
+   SLAPI_CONNECTION -- connection over which bulk import is coming
+   SLAPI_BACKEND -- the backend being imported 
+   or 
+   SLAPI_TARGET_DN that contains root of the imported area.   
+   The function returns LDAP_SUCCESS or LDAP error code 
+*/
+int slapi_start_bulk_import (Slapi_PBlock *pb);
+
+/* This function adds an entry to the bulk import. The pblock must contain
+   SLAPI_CONNECTION -- connection over which bulk import is coming
+   SLAPI_BACKEND -- optional backend pointer; if missing computed based on entry dn 
+   The function returns LDAP_SUCCESS or LDAP error code 
+*/
+int slapi_import_entry (Slapi_PBlock *pb, Slapi_Entry *e); 
+ 
+/* This function stops bulk import. The pblock must contain
+   SLAPI_CONNECTION -- connection over which bulk import is coming
+   SLAPI_BACKEND -- the backend being imported 
+   or 
+   SLAPI_TARGET_DN that contains root of the imported area.   
+   The function returns LDAP_SUCCESS or LDAP error code 
+*/
+int slapi_stop_bulk_import (Slapi_PBlock *pb); 
+
+/* allows plugins to close inbound connection */
+void slapi_disconnect_server(Slapi_Connection *conn);
+
+/* functions to look up instance names by suffixes (backend_manager.c) */
+int slapi_lookup_instance_name_by_suffixes(char **included,
+										   char **excluded, char ***instances);
+int slapi_lookup_instance_name_by_suffix(char *suffix,
+							char ***suffixes, char ***instances, int isexact);
+
+/* begin and end the task subsystem */
+void task_init(void);
+void task_shutdown(void);
+
+/* for reversible encyrption */
+#define SLAPI_MB_CREDENTIALS    "nsmultiplexorcredentials"
+#define SLAPI_REP_CREDENTIALS   "nsds5ReplicaCredentials"
+int pw_rever_encode(Slapi_Value **vals, char * attr_name);
+int pw_rever_decode(char *cipher, char **plain, const char * attr_name);
+
+/* config routines */
+
+int slapi_config_get_readonly();
+
+/*
+ * charray.c
+ */
+void charray_add( char ***a, char *s );
+void charray_merge( char ***a, char **s, int copy_strs );
+void charray_free( char **array );
+int charray_inlist( char **a, char *s );
+int charray_utf8_inlist( char **a, char *s );
+char ** charray_dup( char **a );
+char ** str2charray( char *str, char *brkstr );
+int charray_remove(char **a,const char *s);
+char ** cool_charray_dup( char **a );
+void cool_charray_free( char **array );
+void charray_subtract( char **a, char **b, char ***c );
+int charray_get_index(char **array, char *s);
+
+
+/******************************************************************************
+ * value array routines.
+ *
+ * It is unclear if these should ever be public, but today they are used by
+ * some plugins.  They would need to be renamed to have a slapi_ prefix at
+ * the very least before we make them public.
+ */
+void valuearray_add_value(Slapi_Value ***vals, const Slapi_Value *addval);
+void valuearray_add_value_fast(Slapi_Value ***vals, Slapi_Value *addval, int nvals, int *maxvals, int exact, int passin);
+void valuearray_add_valuearray( Slapi_Value ***vals, Slapi_Value **addvals, PRUint32 flags );
+void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals, int nvals, int naddvals, int *maxvals, int exact, int passin );
+
+
+/******************************************************************************
+ * Database plugin interface.
+ *
+ * Prior to the 5.0 release, this was a public interface that lived in
+ * slapi-plugin.h, so it is still a good idea to avoid making changes to it
+ * that are not backwards compatible.
+ */
+
+/* plugin type */
+#define SLAPI_PLUGIN_DATABASE			1
+
+/* database plugin functions */
+#define SLAPI_PLUGIN_DB_BIND_FN			200
+#define SLAPI_PLUGIN_DB_UNBIND_FN		201
+#define SLAPI_PLUGIN_DB_SEARCH_FN		202
+#define SLAPI_PLUGIN_DB_COMPARE_FN		203
+#define SLAPI_PLUGIN_DB_MODIFY_FN		204
+#define SLAPI_PLUGIN_DB_MODRDN_FN		205
+#define SLAPI_PLUGIN_DB_ADD_FN			206
+#define SLAPI_PLUGIN_DB_DELETE_FN		207
+#define SLAPI_PLUGIN_DB_ABANDON_FN		208
+#define SLAPI_PLUGIN_DB_CONFIG_FN		209
+#define SLAPI_PLUGIN_DB_FLUSH_FN		211
+#define SLAPI_PLUGIN_DB_SEQ_FN			213
+#define SLAPI_PLUGIN_DB_ENTRY_FN		214
+#define SLAPI_PLUGIN_DB_REFERRAL_FN		215
+#define SLAPI_PLUGIN_DB_RESULT_FN		216
+#define SLAPI_PLUGIN_DB_LDIF2DB_FN		217
+#define SLAPI_PLUGIN_DB_DB2LDIF_FN		218
+#define SLAPI_PLUGIN_DB_BEGIN_FN		219
+#define SLAPI_PLUGIN_DB_COMMIT_FN		220
+#define SLAPI_PLUGIN_DB_ABORT_FN		221
+#define SLAPI_PLUGIN_DB_ARCHIVE2DB_FN		222
+#define SLAPI_PLUGIN_DB_DB2ARCHIVE_FN		223
+#define SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN	224
+#define SLAPI_PLUGIN_DB_FREE_RESULT_SET_FN	225
+#define	SLAPI_PLUGIN_DB_SIZE_FN			226
+#define	SLAPI_PLUGIN_DB_TEST_FN			227
+#define SLAPI_PLUGIN_DB_DB2INDEX_FN		228
+#define SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN	229
+#define SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN	230
+#define SLAPI_PLUGIN_DB_INIT_INSTANCE_FN        231
+#define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN          234
+#if defined(UPGRADEDB)
+#define SLAPI_PLUGIN_DB_UPGRADEDB_FN		235
+#endif
+/* database plugin-specific parameters */
+#define SLAPI_PLUGIN_DB_NO_ACL        		250
+#define SLAPI_PLUGIN_DB_RMDB_FN         	280
+
+/**** End of database plugin interface. **************************************/
+
+
+/******************************************************************************
+ * Interface to the UniqueID generator (uniqueid.c)
+ *
+ * This could be made public someday, although it is a large interface and
+ * not all of the elements follow the SLAPI_ naming convention.
+ */
+ /* error codes */
+#define UID_UPDATE_SHUTDOWN	-1	   /* update state information only during server shutdown */
+#define UID_UPDATE_INTERVAL 600000 /* 10 minutes */
+
+enum {UID_SUCCESS,      /* operation was successfull              */
+      UID_ERROR_BASE=10,/* start of the error codes               */
+      UID_BADDATA,      /* invalid parameter passed to a function */
+      UID_MEMORY_ERROR, /* memory allocation failed               */
+      UID_SYSTEM_ERROR,	/* I/O failed (currently, further details 
+					       can be obtained using PR_GetError      */
+      UID_TIME_ERROR,	/* UUID can't be generated because system
+						   time has not been update               */
+      UID_ERROR_END     /* end of the error codes                 */
+     };
+
+/* Function:	slapi_uniqueIDNew
+   Description: allocates new id
+   Paramters:   none
+   Return:		pointer to the newly allocated id if successful
+				NULL if the system is out of memory
+ */
+Slapi_UniqueID* slapi_uniqueIDNew( void );
+
+/* Function:	slapi_uniqueIDDestroy
+   Description:	destroys UniqueID object and sets its pointer to NULL
+   Parameters:	uId - id to destroy
+   Return:		none
+ */
+void slapi_uniqueIDDestroy(Slapi_UniqueID **uId);
+
+/* Function:    slapi_uniqueIDCompare
+   Description: this function compares two ids (byte by byte).
+   Parameters:  uId1, uId2 - ids to compare
+   Return:      -1 if uId1 <  uId2
+                0  if uId2 == uId2
+                1  if uId2 >  uId2
+                UID_BADDATA if invalid pointer passed to the function
+*/
+int slapi_uniqueIDCompare(const Slapi_UniqueID *uId1, const Slapi_UniqueID *uId2);
+
+int slapi_uniqueIDCompareString(const char *uuid1, const char *uuid2);
+
+/*  Function:    slapi_uniqueIDFormat
+    Description: this function converts entryId to its string representation.
+                 The id format is HH-HHHHHHHH-HHHHHHHH-HHHHHHHH-HHHHHHHH
+				 where H is a hex digit.
+    Parameters:  uId  - unique id
+                 buff - buffer in which id is returned;
+    Return:      UID_SUCCESS - function was successfull
+                 UID_BADDATA - invalid parameter passed to the function
+*/
+int slapi_uniqueIDFormat(const Slapi_UniqueID *uId, char **buff);
+
+/*  Function:    slapi_uniqueIDScan
+    Description: this function converts a string buffer into uniqueID.
+				 Currently, it only supports 
+				 HH-HHHHHHHH-HHHHHHHH-HHHHHHHH-HHHHHHHH data format.
+    Parameters:  uId  - unique id to be returned
+                 buff - buffer with uniqueID.
+    Return:      UID_SUCCESS - function was successfull
+                 UID_BADDATA - null parameter(s) or bad format
+*/
+int slapi_uniqueIDScan(Slapi_UniqueID *uId, const char *buff);
+
+
+/* Function:     slapi_uniqueIDIsUUID
+   Description:  tests if given entry id is of UUID type
+   Parameters:   uId - unique id to test
+   Return        UID_SUCCESS - function was successfull
+                 UID_BADDATA - invalid data passed to the function
+ */
+int slapi_uniqueIDIsUUID(const Slapi_UniqueID *uId);
+
+/* Name:		slapi_uniqueIDSize
+   Description:	returns size of the string version of uniqueID in bytes
+   Parameters:  none
+   Return:		size of the string version of uniqueID in bytes
+ */
+int slapi_uniqueIDSize( void );
+
+/* Name:		slapi_uniqueIDDup
+   Description:	duplicates an UniqueID object
+   Parameters:	uId - id to duplicate
+   Return:		duplicate of the Id
+ */
+Slapi_UniqueID* slapi_uniqueIDDup(Slapi_UniqueID *uId);
+
+/*
+ * interface to UniqueID generator - uniqueidgen.c
+ */
+
+/* Function:    slapi_uniqueIDGenerate    
+   Description: this function generates uniqueid in a singlethreaded
+                environment.
+   Parameters:  uId - buffer to receive the ID.
+   Return:      UID_SUCCESS if function succeeds;
+                UID_BADDATA if invalid pointer passed to the function;
+                UID_SYSTEM_ERROR update to persistent storage failed. 
+*/
+
+int slapi_uniqueIDGenerate(Slapi_UniqueID *uId);
+
+/* Function:    slapi_uniqueIDGenerateString    
+   Description: this function generates uniqueid an returns it as a string
+                in a singlethreaded environment. This function returns the
+				data in the format generated by slapi_uniqueIDFormat.
+   Parameters:  uId - buffer to receive the ID.	Caller is responsible for
+				freeing uId buffer.
+   Return:      UID_SUCCESS if function succeeds;
+                UID_BADDATA if invalid pointer passed to the function;
+				UID_MEMORY_ERROR if malloc fails;
+                UID_SYSTEM_ERROR update to persistent storage failed. 
+*/
+
+int slapi_uniqueIDGenerateString(char **uId);
+
+/* Function:    slapi_uniqueIDGenerateMT    
+   Description: this function generates entry id in a multithreaded
+                environment. Used in conjunction with 
+                uniqueIDUpdateState function.
+   Parameters:  uId - structure in which new id will be returned. 
+   Return:      UID_SUCCESS if function succeeds;
+                UID_BADDATA if invalid pointer passed to the function;
+                UID_TIME_ERROR uniqueIDUpdateState must be called
+                before the id can be generated.
+*/
+
+int slapi_uniqueIDGenerateMT(Slapi_UniqueID *uId);
+
+/* Function:    slapi_uniqueIDGenerateMTString    
+   Description: this function generates  uniqueid and returns it as a
+                string in a multithreaded environment. Used in conjunction
+				with uniqueIDUpdateState function. 
+   Parameters:  uId - buffer in which new id will be returned. Caller is 
+				responsible for freeing uId buffer.
+   Return:      UID_SUCCESS if function succeeds;
+                UID_BADDATA if invalid pointer passed to the function;
+				UID_MEMORY_ERROR if malloc fails;
+                UID_TIME_ERROR uniqueIDUpdateState must be called
+                before the id can be generated.
+*/
+
+int slapi_uniqueIDGenerateMTString(char **uId);
+
+/* Function:	slapi_uniqueIDGenerateFromName
+   Description:	this function generates an id from a name. See uuid
+				draft for more details. This function can be used in
+				both a singlethreaded and a multithreaded environments.
+   Parameters:	uId		- generated id
+				uIDBase - uid used for generation to distinguish among 
+				different name spaces
+				name - buffer containing name from which to generate the id
+				namelen - length of the name buffer
+   Return:		UID_SUCCESS if function succeeds
+				UID_BADDATA if invalid argument is passed to the
+				function.
+*/
+
+int slapi_uniqueIDGenerateFromName(Slapi_UniqueID *uId, 
+									const Slapi_UniqueID *uIdBase, 
+									const void *name, int namelen);
+
+/* Function:	slapi_uniqueIDGenerateFromName
+   Description:	this function generates an id from a name and returns
+                it in the string format. See uuid draft for more
+				details. This function can be used in both a
+				singlethreaded and a multithreaded environments.
+   Parameters:	uId		- generated id in string form
+				uIDBase - uid used for generation to distinguish among 
+				different name spaces in string form. NULL means to use
+				empty id as the base.
+				name - buffer containing name from which to generate the id
+				namelen - length of the name buffer
+   Return:		UID_SUCCESS if function succeeds
+				UID_BADDATA if invalid argument is passed to the
+				function.
+*/
+
+int slapi_uniqueIDGenerateFromNameString(char **uId, 
+										  const char *uIdBase, 
+										  const void *name, int namelen);
+
+/**** End of UniqueID generator interface. ***********************************/
+
+
+/*****************************************************************************
+ * JCMREPL - Added for the replication plugin.
+ */
+ 
+/* Front end configuration */
+
+typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *, 
+                             int *, char*, void *);
+
+/*
+ * Note: DSE callback functions MUST return one of these three values:
+ *
+ *   SLAPI_DSE_CALLBACK_OK           -- no errors occurred; apply changes.
+ *   SLAPI_DSE_CALLBACK_ERROR        -- an error occurred; don't apply changes.
+ *   SLAPI_DSE_CALLBACK_DO_NOT_APPLY -- no error, but do not apply changes.
+ *
+ * SLAPI_DSE_CALLBACK_DO_NOT_APPLY should only be returned by modify
+ * callbacks (i.e., those registered with operation==SLAPI_OPERATION_MODIFY).
+ * A return value of SLAPI_DSE_CALLBACK_DO_NOT_APPLY is treated the same as
+ * SLAPI_DSE_CALLBACK_ERROR for all other operations.
+ */
+#define SLAPI_DSE_CALLBACK_OK			(1)
+#define SLAPI_DSE_CALLBACK_ERROR		(-1)
+#define SLAPI_DSE_CALLBACK_DO_NOT_APPLY	(0)
+
+/*
+ * Flags for slapi_config_register_callback() and
+ *		slapi_config_remove_callback()
+ */
+#define DSE_FLAG_PREOP          0x0001
+#define DSE_FLAG_POSTOP         0x0002
+
+int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
+int slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn);
+int config_is_slapd_lite( void );
+
+#define SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY 0
+#define SLAPI_RTN_BIT_FETCH_PARENT_ENTRY 1
+#define SLAPI_RTN_BIT_FETCH_NEWPARENT_ENTRY 2
+#define SLAPI_RTN_BIT_FETCH_TARGET_ENTRY 3
+#define SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY 4
+
+/* Attribute use to mark entries that had a replication conflict on the DN */
+#define ATTR_NSDS5_REPLCONFLICT "nsds5ReplConflict"
+
+/* Time */
+#include <time.h> /* difftime, localtime_r, mktime */
+/* Duplicated: time_t read_localTime (struct berval* from); */
+time_t time_plus_sec(time_t l, long r);
+char* format_localTime(time_t from);
+time_t read_localTime(struct berval* from);
+time_t parse_localTime(char* from);
+void write_localTime(time_t from, struct berval* into);
+time_t current_time( void );
+char* format_genTime(time_t from);
+void write_genTime(time_t from, struct berval* into);
+time_t read_genTime(struct berval* from);
+time_t parse_genTime(char* from);
+
+/* Client SSL code */
+int slapd_SSL_client_init( void );
+int slapd_security_library_is_initialized( void );
+int slapd_SSL_client_bind_s(LDAP* ld, char* DN, char* pw, int use_SSL, int LDAPv);
+int slapd_sasl_ext_client_bind(LDAP* ld, int **msgid);
+int slapd_Client_auth(LDAP* ld);
+char* slapd_get_tmp_dir( void );
+
+/* Misc crrrrrrap */
+#include <stdio.h> /* GGOODREPL - For BUFSIZ, below, gak */
+const char* escape_string (const char* str, char buf[BUFSIZ]);
+const char* escape_string_with_punctuation(const char* str, char buf[BUFSIZ]);
+const char* escape_filter_value(const char* str, int len, char buf[BUFSIZ]);
+void charray_add( char ***a, char *s );
+void charray_free(char **array);
+int charray_remove(char **a,const char *s);
+int charray_inlist( char **a, char *s );
+
+char *slapi_berval_get_string_copy(const struct berval *bval);
+
+/* lenstr stuff */
+
+typedef struct _lenstr {
+    char *ls_buf;
+    size_t ls_len;
+    size_t ls_maxlen;
+} lenstr;
+#define LS_INCRSIZE     256
+
+void addlenstr( lenstr *l, const char *str );
+void lenstr_free( lenstr ** );
+lenstr *lenstr_new(void);
+
+/* event queue routines and data types */
+typedef void* Slapi_Eq_Context;
+typedef void (*slapi_eq_fn_t)(time_t when, void *arg);
+Slapi_Eq_Context slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when);
+Slapi_Eq_Context slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval);
+int slapi_eq_cancel(Slapi_Eq_Context ctx);
+void *slapi_eq_get_arg (Slapi_Eq_Context ctx);
+
+/* config DN */
+char *get_config_DN(void);
+
+/* Data Version */
+const char *get_server_dataversion( void );
+
+/* Configuration Parameters */
+int config_get_port( void );
+int config_get_secureport( void );
+
+/* Local host information */
+char* get_localhost_DN( void );
+char* get_localhost_DNS( void );
+
+int ref_array_replace(const char *dn, struct berval *referral, int write, int read);
+void ref_array_moddn(const char *dn, char *newrdn, Slapi_PBlock *pb);
+int ref_register_callback(int type, char *description,
+	void (*cb)(Slapi_PBlock *, void *), void *cbData);
+int ref_remove_callback(char *description);
+/* GGOODREPL get_data_source definition should move into repl DLL */
+struct berval **get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cf_refs);
+/* Ref_Array *send_read_referrals(Slapi_PBlock *pb, int scope, char *dn, struct berval ***urls); */
+
+/* JCMREPL - IFP and CFP should be defined centrally */
+#ifndef _IFP
+#define _IFP
+typedef int	(*IFP)();
+#endif
+
+#ifndef _CFP
+#define _CFP
+typedef char*(*CFP)();
+#endif
+
+void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *addval, int nvals, int *maxvals);
+
+int re_exec( char *lp );
+char *re_comp( char *pat );
+void re_lock( void );
+int re_unlock( void );
+
+
+/* this is the root configuration entry beneath which all plugin
+   configuration entries will be found */
+#define PLUGIN_BASE_DN "cn=plugins,cn=config"
+
+/***** End of items added for the replication plugin. ***********************/
+
+
+/******************************************************************************
+ * Online tasks interface (to support import, export, etc)
+ * After some cleanup, we could consider making these public.
+ */
+typedef struct _slapi_task Slapi_Task;
+typedef int (*TaskCallbackFn)(Slapi_Task *task);
+
+/* task states */
+#define SLAPI_TASK_SETUP        0
+#define SLAPI_TASK_RUNNING      1
+#define SLAPI_TASK_FINISHED     2
+#define SLAPI_TASK_CANCELLED    3
+
+/* task flags (set by the task-control code) */
+#define SLAPI_TASK_DESTROYING   0x01    /* queued event for destruction */
+
+struct _slapi_task {
+    struct _slapi_task *next;
+    char *task_dn;
+    int task_exitcode;          /* for the end user */
+    int task_state;             /* (see above) */
+    int task_progress;          /* number between 0 and task_work */
+    int task_work;              /* "units" of work to be done */
+    int task_flags;             /* (see above) */
+
+    /* it is the task's responsibility to allocate this memory & free it: */
+    char *task_status;          /* transient status info */
+    char *task_log;             /* appended warnings, etc */
+
+    void *task_private;         /* for use by backends */
+    TaskCallbackFn cancel;      /* task has been cancelled by user */
+    TaskCallbackFn destructor;  /* task entry is being destroyed */
+	int task_refcount;
+};
+
+int slapi_task_register_handler(const char *name, dseCallbackFn func);
+void slapi_task_status_changed(Slapi_Task *task);
+void slapi_task_log_status(Slapi_Task *task, char *format, ...);
+void slapi_task_log_notice(Slapi_Task *task, char *format, ...);
+
+/* End of interface to support online tasks **********************************/
+
+
+void    DS_Sleep(PRIntervalTime ticks);
+
+#if defined(UPGRADEDB)
+/* macro to specify the behavior of upgradedb */
+#define SLAPI_UPGRADEDB_FORCE    0x1 /* reindex all (no check w/ idl switch) */
+#define SLAPI_UPGRADEDB_SKIPINIT 0x2 /* call upgradedb as part of other op */
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

@@ -1,0 +1,14 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2001 Sun Microsystems, Inc.
+# Portions copyright 1999, 2001-2003 Netscape Communications Corporation.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for Netscape Web Server
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.812 NAME 'netscapeReversiblePassword' DESC 'password for HTTP Digest/MD5 authentication' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 X-ORIGIN 'Netscape Web Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.29 NAME 'netscapeWebServer' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsServerID ) MAY ( description $ nsServerPort ) X-ORIGIN 'Netscape Web Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.154 NAME 'netscapeReversiblePasswordObject' DESC 'object that contains an netscapeReversiblePassword' AUXILIARY MAY netscapeReversiblePassword X-ORIGIN 'Netscape Web Server' )
