@@ -1447,7 +1447,7 @@ static void gen_tests (void)
     struct sysinfo linux_si;
 
     if (sysinfo(&linux_si) == 0) {
-      swap_mb = linux_si.totalswap / 1048576;
+      swap_mb = linux_si.totalswap * (linux_si.mem_unit / 1024) / 1024;
     }
   }
 #endif
