@@ -1270,12 +1270,9 @@ include $(BUILD_ROOT)/nscore.mk
 FVERSION=$(MAJOR_VERSION).$(MINOR_VERSION)
 FVERSION_FLAGS=-v$(FVERSION)
 
-$(BUILD_ROOT)/fversion.exe: $(BUILD_ROOT)/dategen/fversion.c
-	cl $< user32.lib -link -out:$@
-
 ifeq ($(ARCH), WINNT)
-$(OBJDEST)/%.res: %.rc $(BUILD_ROOT)/fversion.exe
-	$(RC) $(shell $(BUILD_ROOT)/fversion.exe $(FVERSION_FLAGS)) -Fo$@ $*.rc
+$(OBJDEST)/%.res: %.rc 
+	$(RC) -I$(DIRVERDIR) -Fo$@ $*.rc
 endif
 
 ifdef USE_LINT
