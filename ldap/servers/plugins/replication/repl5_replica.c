@@ -2339,6 +2339,7 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 	/* this is a pointer into the actual value in the Replica object - so that
 	   if the value is set in the replica, we will know about it immediately */
 	PRBool *tombstone_reap_stop = ((reap_callback_data *)cb_data)->tombstone_reap_stop;
+	const CSN *deletion_csn = NULL;
 
 	/* abort reaping if we've been told to stop or we're shutting down */
 	if (*tombstone_reap_stop || g_get_shutdown()) {
@@ -2352,7 +2353,7 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 	   objectclass attribute values - if we need more attributes returned by the
 	   search in the future, see _replica_reap_tombstones below and add more to the
 	   attrs array */
-	const CSN *deletion_csn = _get_deletion_csn(entry);
+	deletion_csn = _get_deletion_csn(entry);
 
 	if ((NULL == deletion_csn || csn_compare(deletion_csn, purge_csn) < 0) &&
 		(!is_ruv_tombstone_entry(entry))) {
