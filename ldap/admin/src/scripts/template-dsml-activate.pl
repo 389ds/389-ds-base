@@ -193,6 +193,30 @@ EOF
 	    }
 
 	    if ( $file eq "jvm12.conf" ) {
+		if ($^O eq "linux") {
+		    # if setting Xbootclasspath, make sure crimson.jar is in it.
+		    $fulljvm12 = "${SERVERROOT}${PATH}${file}";
+		    $fulljvm12tmp = $fulljvm12 . ".tmp";
+		    $crimsonpath = "${SERVERROOT}/bin/https/jar/crimson.jar";
+		    $ibmpath = "${SERVERROOT}/bin/base/jre/lib/ibmpkcs.jar";
+		    open JVM, "${fulljvm12}";
+		    open JVMTMP, "> ${fulljvm12tmp}";
+		    for ($line=<JVM>; $line; $line=<JVM>) {
+			if ($line =~ /Xbootclasspath/) {
+			    if (!($line =~ /${crimsonpath}/)) {
+				$line =~ s/Xbootclasspath/Xbootclasspath:${crimsonpath}/;
+			    }
+			    if (!($line =~ /${ibmpath}/)) {
+				$line =~ s/Xbootclasspath/Xbootclasspath:${ibmpath}/;
+			    }
+			}
+			print JVMTMP $line;
+		    }
+		    close JVMTMP;
+		    close JVM;
+		    unlink("${fulljvm12}");
+		    rename("${fulljvm12tmp}", "${fulljvm12}");
+		}
 		open JVM, ">>  ${SERVERROOT}${PATH}${file}";
 		select JVM;
 		print STDERR "adding necessary entry to $file.\n";
