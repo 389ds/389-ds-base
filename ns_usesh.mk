@@ -85,10 +85,10 @@ endif
 # external variable names---go home early today !
 # if we wanted to get really smart ass, we could use computed
 # variable names. Hmm...
-component_name:=smartheap6
+sh_component_name:=smartheap6
 # define the paths to the component parts
-sh_path_root:=$(NSCP_DISTDIR)/$(component_name)
-sh_components_share=/share/builds/components/$(component_name)
+sh_path_root:=$(NSCP_DISTDIR)/$(sh_component_name)
+sh_components_share=/share/builds/components/$(sh_component_name)
 sh_release_config:=$(sh_components_share)/$(SH_VERSION)/$(NSCONFIG)$(NS64TAG)$(NSOBJDIR_TAG)
 SH_INCLUDE:=$(sh_path_root)/include
 SH_LIBPATH:=$(sh_path_root)/lib
@@ -134,5 +134,5 @@ $(SH_LIB_DEP): $(NSCP_DISTDIR)
 		-objdir $(sh_path_root) -componentdir $(sh_release_config) \
 		-files $(SH_FILES)
 	-@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component $(component_name) file $@" ; \
+	then echo "Error: could not get component $(sh_component_name) file $@" ; \
 	fi
