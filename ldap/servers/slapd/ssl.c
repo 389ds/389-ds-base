@@ -342,6 +342,65 @@ freeChildren( char **list ) {
 	}
 }
 
+static void
+warn_if_no_cert_file(const char *filename)
+{
+	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
+	if (PR_SUCCESS != status) {
+		/* if file ends in -cert7.db and the corresponding -cert8.db exists, just
+		   warn */
+		char *cert8 = slapi_ch_strdup(filename);
+		char *ptr;
+		if ((ptr = PL_strrstr(cert8, "-cert7.db"))) {
+			strcpy(ptr, "-cert8.db");
+			status = PR_Access(cert8, PR_ACCESS_READ_OK);
+			if (PR_SUCCESS == status) {
+				slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+								"Notice: certificate DB file %s does not exist but %s does - suggest updating nscertfile\n",
+								filename, cert8);
+			}
+		}
+		slapi_ch_free_string(&cert8);
+
+		if (PR_SUCCESS != status) {
+			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+							"Warning: certificate DB file %s does not exist - SSL initialization will likely fail\n",
+							filename);
+		}
+	}
+}
+
+static void
+warn_if_no_key_file(const char *path, const char *name)
+{
+	char last = path[strlen(path)-1];
+	char *filename = slapi_ch_smprintf("%s%s%s", path, ((last == '/' || last == '\\') ? "" : "/"), name);
+	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
+	if (PR_SUCCESS != status) {
+		/* if file ends in -key3.db and the corresponding -key4.db exists, just
+		   warn */
+		char *key4 = slapi_ch_strdup(filename);
+		char *ptr;
+		if ((ptr = PL_strrstr(key4, "-key3.db"))) {
+			strcpy(ptr, "-key4.db");
+			status = PR_Access(key4, PR_ACCESS_READ_OK);
+			if (PR_SUCCESS == status) {
+				slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+								"Notice: key DB file %s does not exist but %s does - suggest updating nskeyfile\n",
+								filename, key4);
+			}
+		}
+		slapi_ch_free_string(&key4);
+
+		if (PR_SUCCESS != status) {
+			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+							"Warning: key DB file %s does not exist - SSL initialization will likely fail\n",
+							filename);
+		}
+	}
+
+	slapi_ch_free_string(&filename);
+}
 
 /*
  * slapd_nss_init() is always called from main(), even if we do not
@@ -397,6 +456,7 @@ slapd_nss_init(int init_ssl, int config_available)
 
 	if(keyfn && certfn) {
 		if (is_abspath(certfn)) {
+			warn_if_no_cert_file(certfn);
 			/* first, initialize path from the certfn */
 			PL_strncpyz(path, certfn, sizeof(path));
 			/* extract path from cert db filename */
@@ -410,6 +470,7 @@ slapd_nss_init(int init_ssl, int config_available)
 			PL_strncpyz(certPref, val, sizeof(certPref));
 		} else {
 			PL_strncpyz(val, certfn, sizeof(path)-(val-path));
+			warn_if_no_cert_file(path); /* assumes certfn is relative to server root */
 			val = strrchr(path, '/');
 			if (!val) {
 				val = strrchr(path, '\\');
@@ -438,6 +499,7 @@ slapd_nss_init(int init_ssl, int config_available)
 			val = keyfn;
 		}
 		PL_strncpyz(keyPref, val, sizeof(keyPref));
+		warn_if_no_key_file(path, keyPref);
 		/* richm - use strrstr to get the last occurance of -key in the string, in case
 		   the instance is named slapd-key - the keydb name will be slapd-key-key3.db
 		*/
