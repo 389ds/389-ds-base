@@ -90,16 +90,14 @@ do_modify( Slapi_PBlock *pb )
 	int					err;
 	int					pw_change = 0; 	/* 0= no password change */
 	int					ignored_some_mods = 0;
+	int                 has_password_mod = 0; /* number of password mods */
 	char				*old_pw = NULL;	/* remember the old password */
 	char				*dn;
-	LDAPControl		**ctrlp = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
-
-	slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrlp);
 
 	/* count the modify request */
 	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
@@ -217,32 +215,57 @@ do_modify( Slapi_PBlock *pb )
 		/* check for password change */
 		if ( mod->mod_bvalues != NULL && 
 			 strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ){
-			if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 ) {
-				op_shared_log_error_access (pb, "MOD", dn, "failed to decode LDAP controls");
-				send_ldap_result( pb, err, NULL, NULL, 0, NULL );
-				goto free_and_return;
-			}
-			pw_change = op_shared_allow_pw_change (pb, mod, &old_pw);
-			if (pw_change == -1)
-			{
-				ber_bvecfree(mod->mod_bvalues);
-				slapi_ch_free((void **)&(mod->mod_type));
-				slapi_ch_free((void **)&mod);
-				goto free_and_return;
-			}
+			has_password_mod++;
 		}
 
 		mod->mod_op |= LDAP_MOD_BVALUES;
 		slapi_mods_add_ldapmod (&smods, mod);
 	}
 
-	if ( tag == LBER_ERROR && !ctrlp )
+	/* check for decoding error */
+	if ( tag == LBER_ERROR )
 	{
 		op_shared_log_error_access (pb, "MOD", dn, "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL );
 		goto free_and_return;
 	} 
 
+	/* decode the optional controls - put them in the pblock */
+	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 )
+	{
+		op_shared_log_error_access (pb, "MOD", dn, "failed to decode LDAP controls");
+		send_ldap_result( pb, err, NULL, NULL, 0, NULL );
+		goto free_and_return;
+	}
+
+	/* if there are any password mods, see if they are allowed */
+	if (has_password_mod) {
+		/* iterate through the mods looking for password mods */
+		for (mod = slapi_mods_get_first_mod(&smods);
+			 mod;
+			 mod = slapi_mods_get_next_mod(&smods)) {
+			if ( mod->mod_bvalues != NULL && 
+				 strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ) {
+				/* assumes controls have already been decoded and placed
+				   in the pblock */
+				pw_change = op_shared_allow_pw_change (pb, mod, &old_pw);
+				if (pw_change == -1) {
+					goto free_and_return;
+				}
+			}
+		}
+	}
+
+	if (!pb->pb_conn->c_isreplication_session &&
+		pb->pb_conn->c_needpw && pw_change == 0 )
+	{
+		(void)add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+		op_shared_log_error_access (pb, "MOD", dn, "need new password");
+		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
+		goto free_and_return;
+	}
+
+	/* see if there were actually any mods to perform */
 	if ( slapi_mods_get_num_mods (&smods) == 0 )
 	{
 		int		lderr;
@@ -258,29 +281,6 @@ do_modify( Slapi_PBlock *pb )
 		op_shared_log_error_access (pb, "MOD", dn, emsg);
 		send_ldap_result( pb, lderr, NULL, emsg, 0, NULL );
 		goto free_and_return;
-	}
-
-	if (!pb->pb_conn->c_isreplication_session &&
-		pb->pb_conn->c_needpw && pw_change == 0 )
-	{
-		(void)add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
-		op_shared_log_error_access (pb, "MOD", dn, "need new password");
-		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
-		goto free_and_return;
-	}
-
-	/*
-	 * in LDAPv3 there can be optional control extensions on
-	 * the end of an LDAPMessage. we need to read them in and
-	 * pass them to the backend.
-	 */
-	if ( !ctrlp ) { 
-	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 )
-	{
-		op_shared_log_error_access (pb, "MOD", dn, "failed to decode LDAP controls");
-		send_ldap_result( pb, err, NULL, NULL, 0, NULL );
-		goto free_and_return;
-	}
 	}
 
 #ifdef LDAP_DEBUG
@@ -441,8 +441,7 @@ static int modify_internal_pb (Slapi_PBlock *pb)
 			pw_change = op_shared_allow_pw_change (pb, *mod, &old_pw);
 			if (pw_change == -1)
 			{
-				opresult = LDAP_PARAM_ERROR;
-				slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+				/* The internal result code will already have been set by op_shared_allow_pw_change() */
 				return 0;
 			}
 		}

@@ -88,7 +88,7 @@ REGULAR_SLAPD_OBJS=	abandon.o bind.o  \
 	configdse.o pw_mgmt.o auth.o \
 	psearch.o conntable.o \
     stubs.o protect_db.o fileio.o lite_entries.o \
-	getopt_ext.o start_tls_extop.o
+	getopt_ext.o start_tls_extop.o passwd_extop.o
 FEDSE_OBJ= fedse.o
 FEDSE_SRC= fedse.c
 SLAPD_OBJS=	$(REGULAR_SLAPD_OBJS) $(FEDSE_OBJ)

@@ -1015,12 +1015,17 @@ main( int argc, char **argv)
 		/* --ugaston: register the start-tls plugin */
 #ifndef _WIN32		
 		if ( slapd_security_library_is_initialized() != 0 ) {
+	
+		
 		         start_tls_register_plugin();
 			 LDAPDebug( LDAP_DEBUG_PLUGIN, 
 				    "Start TLS plugin registered.\n",
 				    0, 0, 0 );
 		} 
 #endif
+	    passwd_modify_register_plugin();
+	    LDAPDebug( LDAP_DEBUG_PLUGIN, 
+				    "Password Modify plugin registered.\n", 0, 0, 0 );
 
 	    plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
@@ -1246,12 +1251,13 @@ process_command_line(int argc, char **argv, char *myname,
 		{"encrypt",ArgOptional,'E'},
 		{0,0,0}};
 
-	char *opts_archive2db = "vd:i:a:SD:";
+	char *opts_archive2db = "vd:i:a:n:SD:";
 	struct opt_ext long_options_archive2db[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
 		{"pidfile",ArgRequired,'i'},
 		{"archive",ArgRequired,'a'},
+		{"backEndInstName",ArgRequired,'n'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
 		{"instanceDir",ArgRequired,'D'},
 		{0,0,0}};
@@ -1486,10 +1492,11 @@ process_command_line(int argc, char **argv, char *myname,
 		case 'w':	/* set startup pid file */
 			start_pid_file = rel2abspath( optarg_ext );
 			break;
-		case 'n':	/* which backend to do ldif2db for */
+		case 'n':	/* which backend to do ldif2db/bak2db for */
 			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
 				slapd_exemode == SLAPD_EXEMODE_DBTEST ||
-				slapd_exemode == SLAPD_EXEMODE_DB2INDEX) {
+				slapd_exemode == SLAPD_EXEMODE_DB2INDEX ||
+				slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
 				/* The -n argument will give the name of a backend instance. */
 				cmd_line_instance_name = optarg_ext;
 			} else if (slapd_exemode == SLAPD_EXEMODE_DB2LDIF) {
