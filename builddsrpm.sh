@@ -1,4 +1,4 @@
-#!/bin/sh -v
+#!/bin/sh -vx
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
@@ -14,31 +14,46 @@ mkdirs() {
 	done
 }
 
-if [ ! -f $HOME/.rpmmacros ]; then
-	echo "This script assumes you want to build as a non-root"
-	echo "user and in a non-default place (e.g. your home dir)"
-	echo "You must have a $HOME/.rpmmacros file that redefines"
-	echo "_topdir e.g."
-	echo "%_topdir	/home/rmeggins/ds71"
-	echo "Please create that file with the above contents and"
-	echo "rerun this script."
+flavor=$1
+
+rootdir=`pwd`
+
+if [ ! $flavor ] ; then
+	echo "Error: $0 <flavor>"
+	echo "flavor is either redhat or fedora"
+	echo "use redhat to create a redhat branded DS or use fedora"
+	echo "for the fedora branded DS"
 	exit 1
 fi
 
-NAME=ldapserver
-VERSION=7.1
+mkdirs SOURCES BUILD SRPMS RPMS
+cd SOURCES
+
+# check out files from this CVS repo
+CVSNAME=ldapserver
 # change HEAD to a real static tag when available
 CVSTAG=HEAD
 
-mkdirs SOURCES BUILD SRPMS RPMS
-cd SOURCES
-rm -rf $NAME-$VERSION $NAME-$VERSION.tar.gz
 echo "Checking out source code . . ."
-cvs export -r $CVSTAG -d $NAME-$VERSION $NAME > /dev/null 2>&1
+cvs export -r $CVSTAG $CVSNAME > /dev/null 2>&1
+
+echo "Creating the spec file $flavor-ds.spec . . ."
+cd $CVSNAME ; make $flavor-ds.spec ; cp $flavor-ds.spec $rootdir ; cd $rootdir/SOURCES
+
+echo "Get version from spec file . . ."
+VERSION=`grep \^Version $rootdir/$flavor-ds.spec | awk '{print $2}'`
+
 echo "Building tarball . . ."
-tar cf - $NAME-$VERSION | gzip > $NAME-$VERSION.tar.gz
-rm -rf $NAME-$VERSION
-cd ..
+mv $CVSNAME $flavor-ds-$VERSION
+tar cfh - $flavor-ds-$VERSION | gzip > $flavor-ds-$VERSION.tar.gz
+rm -rf $flavor-ds-$VERSION
+cd $rootdir
+
+macrosfile=/tmp/macros.$$
+trap "rm -f $macrosfile" 0 1 2 3 15
+
+echo "%_topdir	$rootdir" > $macrosfile
+
 echo "Executing rpmbuild . . ."
-rpmbuild -ba $NAME.spec
-echo "Finished doing rpmbuild $NAME.spec"
+rpmbuild --macros=$macrosfile -ba $flavor-ds.spec
+echo "Finished doing rpmbuild $flavor-ds.spec"

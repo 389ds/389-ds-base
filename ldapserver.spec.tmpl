@@ -2,13 +2,13 @@
 # Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
-Summary: Directory Server
-Name: ldapserver
-Version: 7.1
-Release: 0
-License: GPL
+Summary: @COMPANY-PRODUCT-NAME@
+Name: @LCASE-COMPANY-NAME-NOSP@-ds
+Version: @GEN-VERSION@
+Release: 1.@PLATFORM@
+License: GPL plus extensions
 Group: System Environment/Daemons
-URL: http://www.redhat.com
+URL: @COMPANY-URL@
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_builddir}/%{name}-root
 BuildPreReq: perl, fileutils, make
@@ -20,7 +20,7 @@ Requires: perl
 Prefix: /opt/%{name}
 
 %description
-ldapserver is an LDAPv3 compliant server.
+@COMPANY-PRODUCT-NAME@ is an LDAPv3 compliant server.
 
 # prep and setup expect there to be a Source0 file
 # in the SOURCES directory - it will be unpacked
@@ -37,24 +37,22 @@ ldapserver is an LDAPv3 compliant server.
 # build the file structure to package under ldapserver/pkg
 # instead of MM.DD/platform
 # remove BUILD_DEBUG=optimize to build the debug version
-make BUILD_JAVA_CODE=1 BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg
+# INTERNAL_BUILD=1 uses the internal, proprietary packages
+# like setupsdk, adminsdk, admin server
+# BUILD_MODE=int builds the Redhat branded product
+BUILDMODE=@BUILD-MODE@
+if [ $BUILDMODE = int ]; then
+# brandDirectory makes the product use Redhat branded text and graphics
+	make brandDirectory
+fi
+make INTERNAL_BUILD=1 BUILD_MODE=$BUILDMODE BUILD_JAVA_CODE=1 BUILD_DEBUG=optimize NO_INSTALLER_TAR_FILES=1 INSTDIR=../../pkg
 
 %install
 # all we do here is run setup -b to unpack the binaries
 # into the BuildRoot
 rm -rf $RPM_BUILD_ROOT
 cd pkg
-# hack hack hack
-# hack for unbundled jre - please fix!!!!!!
-export NSJRE=/share/builds/components/jdk/1.4.2/Linux/jre
-mkdir tmp
-cd tmp
-mkdir -p bin/base/jre
-cp -r $NSJRE/bin bin/base/jre
-cp -r $NSJRE/lib bin/base/jre
-zip -q -r ../base/nsjre.zip bin
-cd ..
-rm -rf tmp
+# the echo yes is for dsktune to continue
 echo yes | ./setup -b $RPM_BUILD_ROOT/%{prefix}
 # this is our setup script that sets up the initial
 # server instances after installation
@@ -76,6 +74,9 @@ echo ""
 echo "Please cd " %{prefix} " and run ./setup/setup"
 
 %changelog
+* Tue Mar 29 2005 Richard Megginson <rich@localhost.localdomain> 7.1-1
+- use INTERNAL_BUILD=1 for internal builds - change rev to 1
+
 * Tue Mar  8 2005 Richard Megginson <rich@localhost.localdomain> 7.1-0
 - use ${prefix} instead of /opt/ldapserver - prefix is defined as /opt/%{name}
 
