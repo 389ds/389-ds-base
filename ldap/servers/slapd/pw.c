@@ -35,6 +35,35 @@ static int pw_boolean_str2value (const char *str);
 /* static LDAPMod* pw_malloc_mod (char* name, char* value, int mod_op); */
 
 
+/*  
+ * We want to be able to return errors to internal operations (which
+ * can come from the password change extended operation). So we have
+ * a special result function that does the right thing for an internal op.
+ */
+
+static void
+pw_send_ldap_result(
+    Slapi_PBlock	*pb,
+    int			err,
+    char		*matched,
+    char		*text,
+    int			nentries,
+    struct berval	**urls
+)
+{
+	int internal_op = 0;
+	Slapi_Operation *operation = NULL;
+	
+	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
+
+	if (internal_op) {
+		slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &err);
+	} else {
+		send_ldap_result(pb, err, matched, text, nentries, urls);
+	}
+}
+
 /*
  * Like slapi_value_find, except for passwords.
  * returns 0 if password "v" is found in "vals"; non-zero otherwise
@@ -634,7 +663,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
 					pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOYOUNG );
 				}
-				send_ldap_result ( pb,
+				pw_send_ldap_result ( pb,
                         LDAP_CONSTRAINT_VIOLATION, NULL,
                         "within password minimum age", 0, NULL );
 				slapi_entry_free( e );
@@ -673,7 +702,7 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 					pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOSHORT );
 				}
-				send_ldap_result ( pb, 
+				pw_send_ldap_result ( pb, 
 					LDAP_CONSTRAINT_VIOLATION, NULL,
 					"invalid password syntax", 0, NULL );
 				delete_passwdPolicy(&pwpolicy);
@@ -703,7 +732,7 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 						pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDINHISTORY );
 					}
-					send_ldap_result ( pb, 
+					pw_send_ldap_result ( pb, 
 						LDAP_CONSTRAINT_VIOLATION, NULL,
 						"password in history", 0, NULL );
 					slapi_entry_free( e ); 
@@ -721,7 +750,7 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				{
 					if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[0])) == 0 )
 					{
-						send_ldap_result ( pb, 
+						pw_send_ldap_result ( pb, 
 										   LDAP_CONSTRAINT_VIOLATION ,NULL,
 										   "password in history", 0, NULL);
 						slapi_entry_free( e ); 
@@ -732,7 +761,7 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				{
 					if ( slapi_pw_find_sv ( va, vals[0] ) == 0 )
 					{
-						send_ldap_result ( pb, 
+						pw_send_ldap_result ( pb, 
 										   LDAP_CONSTRAINT_VIOLATION ,NULL,
 										   "password in history", 0, NULL);
 						slapi_entry_free( e ); 
@@ -1082,7 +1111,7 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 					pwpolicy_make_response_control ( pb, -1, -1,
 						LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 				}
-				send_ldap_result ( pb, 
+				pw_send_ldap_result ( pb, 
 					LDAP_CONSTRAINT_VIOLATION, NULL,
 					"Password failed triviality check."
 					" Please choose a different password.", 
