@@ -4,11 +4,15 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#undef CYRUS_SASL
+
 #include <slap.h>
 #include <fe.h>
 #include <sasl.h>
 #include <saslplug.h>
+#ifndef CYRUS_SASL
 #include <saslmod.h>
+#endif
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -82,9 +86,9 @@ static int ids_sasl_getopt(
     } else if (strcasecmp(option, "has_plain_passwords") == 0) {
         *result = "yes";
     } else if (strcasecmp(option, "LOG_LEVEL") == 0) {
-		if (LDAPDebugLevelIsSet(LDAP_DEBUG_TRACE)) {
-			*result = "6"; /* SASL_LOG_TRACE */
-		}
+        if (LDAPDebugLevelIsSet(LDAP_DEBUG_TRACE)) {
+            *result = "6"; /* SASL_LOG_TRACE */
+        }
     }
 
     if (*result) *len = strlen(*result);
@@ -100,8 +104,8 @@ static int ids_sasl_log(
 {
     switch (level) {
     case SASL_LOG_ERR:          /* log unusual errors (default) */
-	slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s", message);
-	break;
+    slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s", message);
+    break;
 
     case SASL_LOG_FAIL:         /* log all authentication failures */
     case SASL_LOG_WARN:         /* log non-fatal warnings */
@@ -109,7 +113,7 @@ static int ids_sasl_log(
     case SASL_LOG_DEBUG:        /* more verbose than LOG_NOTE */
     case SASL_LOG_TRACE:        /* traces of internal protocols */
     case SASL_LOG_PASS:         /* traces of internal protocols, including
-				 * passwords */
+                                 * passwords */
         LDAPDebug(LDAP_DEBUG_ANY, "sasl(%d): %s", level, message, 0);
         break;
 
@@ -129,22 +133,22 @@ static int ids_sasl_proxy_policy(
     struct propctx *propctx
 )
 {
-	int retVal = SASL_OK;
+    int retVal = SASL_OK;
     /* do not permit sasl proxy authorization */
-	/* if the auth_identity is null or empty string, allow the sasl request to go thru */	
-	if ( (auth_identity != NULL ) && ( strlen(auth_identity) > 0 ) ) {
-		Slapi_DN authId , reqUser;
-		slapi_sdn_init_dn_byref(&authId,auth_identity);
-		slapi_sdn_init_dn_byref(&reqUser,requested_user);
-		if (slapi_sdn_compare((const Slapi_DN *)&reqUser,(const Slapi_DN *) &authId) != 0) {
-        	LDAPDebug(LDAP_DEBUG_TRACE, 
+    /* if the auth_identity is null or empty string, allow the sasl request to go thru */    
+    if ( (auth_identity != NULL ) && ( strlen(auth_identity) > 0 ) ) {
+        Slapi_DN authId , reqUser;
+        slapi_sdn_init_dn_byref(&authId,auth_identity);
+        slapi_sdn_init_dn_byref(&reqUser,requested_user);
+        if (slapi_sdn_compare((const Slapi_DN *)&reqUser,(const Slapi_DN *) &authId) != 0) {
+            LDAPDebug(LDAP_DEBUG_TRACE, 
                   "sasl proxy auth not permitted authid=%s user=%s\n",
                   auth_identity, requested_user, 0);
-        	retVal =  SASL_NOAUTHZ;
-    	}
-		slapi_sdn_done(&authId);
-		slapi_sdn_done(&reqUser); 
-	}
+            retVal =  SASL_NOAUTHZ;
+        }
+        slapi_sdn_done(&authId);
+        slapi_sdn_done(&reqUser); 
+    }
     return retVal;
 }
 
@@ -221,9 +225,9 @@ static Slapi_Entry *ids_sasl_user_to_entry(
     char **attrs = NULL;
     char *userattr = "uid", *realmattr = NULL, *ufilter = NULL;
     void *node;
-	int regexmatch = 0;
-	char *regex_ldap_search_base = NULL;
-	char *regex_ldap_search_filter = NULL;
+    int regexmatch = 0;
+    char *regex_ldap_search_base = NULL;
+    char *regex_ldap_search_filter = NULL;
 
     /* TODO: userattr & realmattr should be configurable */
 
@@ -237,79 +241,79 @@ static Slapi_Entry *ids_sasl_user_to_entry(
                              ctrls, attrs, attrsonly,
                              &entry, &found);
     } else {
-		int offset = 0; 
-		if (strncasecmp(user,"u:",2) == 0 )
-			offset = 2;
+        int offset = 0; 
+        if (strncasecmp(user,"u:",2) == 0 )
+            offset = 2;
         /* TODO: quote the filter values */
 
-		/* New regex-based identity mapping : we call it here before the old code.
-		 * If there's a match, we skip the old way, otherwise we plow ahead for backwards compatibility reasons
-		 */
-
-		regexmatch = sasl_map_domap((char*)user, (char*)user_realm, &regex_ldap_search_base, &regex_ldap_search_filter);
-		if (regexmatch) {
-
-            		ids_sasl_user_search(regex_ldap_search_base, scope, regex_ldap_search_filter, 
-                                 ctrls, attrs, attrsonly,
-                                 &entry, &found);
-
-			/* Free the filter etc */
-			slapi_ch_free((void**)&regex_ldap_search_base);
-			slapi_ch_free((void**)&regex_ldap_search_filter);
-		} else {
-
-        /* Ensure no buffer overflow. */
-        /* We don't know what the upper limits on username and
-         * realm lengths are. There don't seem to be any defined
-         * in the relevant standards. We may find in the future
-         * that a 1K buffer is insufficient for some mechanism,
-         * but it seems unlikely given that the values are exposed 
-         * to the end user.
+        /* New regex-based identity mapping : we call it here before the old code.
+         * If there's a match, we skip the old way, otherwise we plow ahead for backwards compatibility reasons
          */
-        ulen = strlen(user+offset);
-        fsize += strlen(userattr) + ulen;
-        if (realmattr && user_realm) {
-            rlen = strlen(user_realm);
-            fsize += strlen(realmattr) + rlen;
-        }
-        if (ufilter) fsize += strlen(ufilter);
-        fsize += 100;            /* includes a good safety margin */
-        if (fsize > 1024) {
-            LDAPDebug(LDAP_DEBUG_ANY, "sasl user name and/or realm too long"
-                      " (ulen=%u, rlen=%u)\n", ulen, rlen, 0);
-            return NULL;
-        }
 
-        /* now we can safely write the filter */
-        sprintf(fptr, "(&(%s=%s)", userattr, user+offset);
-        fptr += strlen(fptr);
-        if (realmattr && user_realm) {
-            sprintf(fptr, "(%s=%s)", realmattr, user_realm);
-            fptr += strlen(fptr);
-        }
-        if (ufilter) {
-            if (*ufilter == '(') {
-                sprintf(fptr, "%s", ufilter);
-            } else {
-                sprintf(fptr, "(%s)", ufilter);
-            }
-            fptr += strlen(fptr);
-        }
-        sprintf(fptr, ")");
+        regexmatch = sasl_map_domap((char*)user, (char*)user_realm, &regex_ldap_search_base, &regex_ldap_search_filter);
+        if (regexmatch) {
 
-        /* iterate through the naming contexts */
-        for (sdn = slapi_get_first_suffix(&node, 0); sdn != NULL;
-             sdn = slapi_get_next_suffix(&node, 0)) {
-
-            ids_sasl_user_search((char*)slapi_sdn_get_dn(sdn), scope, filter, 
+            ids_sasl_user_search(regex_ldap_search_base, scope, regex_ldap_search_filter, 
                                  ctrls, attrs, attrsonly,
                                  &entry, &found);
+
+            /* Free the filter etc */
+            slapi_ch_free((void**)&regex_ldap_search_base);
+            slapi_ch_free((void**)&regex_ldap_search_filter);
+            } else {
+    
+            /* Ensure no buffer overflow. */
+            /* We don't know what the upper limits on username and
+             * realm lengths are. There don't seem to be any defined
+             * in the relevant standards. We may find in the future
+             * that a 1K buffer is insufficient for some mechanism,
+             * but it seems unlikely given that the values are exposed 
+             * to the end user.
+             */
+            ulen = strlen(user+offset);
+            fsize += strlen(userattr) + ulen;
+            if (realmattr && user_realm) {
+                rlen = strlen(user_realm);
+                fsize += strlen(realmattr) + rlen;
+            }
+            if (ufilter) fsize += strlen(ufilter);
+            fsize += 100;            /* includes a good safety margin */
+            if (fsize > 1024) {
+                LDAPDebug(LDAP_DEBUG_ANY, "sasl user name and/or realm too long"
+                          " (ulen=%u, rlen=%u)\n", ulen, rlen, 0);
+                return NULL;
+            }
+    
+            /* now we can safely write the filter */
+            sprintf(fptr, "(&(%s=%s)", userattr, user+offset);
+            fptr += strlen(fptr);
+            if (realmattr && user_realm) {
+                sprintf(fptr, "(%s=%s)", realmattr, user_realm);
+                fptr += strlen(fptr);
+            }
+            if (ufilter) {
+                if (*ufilter == '(') {
+                    sprintf(fptr, "%s", ufilter);
+                } else {
+                    sprintf(fptr, "(%s)", ufilter);
+                }
+                fptr += strlen(fptr);
+            }
+            sprintf(fptr, ")");
+    
+            /* iterate through the naming contexts */
+            for (sdn = slapi_get_first_suffix(&node, 0); sdn != NULL;
+                 sdn = slapi_get_next_suffix(&node, 0)) {
+    
+                ids_sasl_user_search((char*)slapi_sdn_get_dn(sdn), scope, filter, 
+                                     ctrls, attrs, attrsonly,
+                                     &entry, &found);
+            }
         }
-		}
     }
 
     if (found == 1) {
-		LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, matching filter=%s\n", entry->e_sdn.dn, filter, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, matching filter=%s\n", entry->e_sdn.dn, filter, 0);
         return entry;
     }
 
@@ -339,10 +343,14 @@ static int ids_sasl_canon_user(
     sasl_conn_t *conn,
     void *context,
     const char *userbuf, unsigned ulen,
+#ifndef CYRUS_SASL
     const char *authidbuf, unsigned alen,
+#endif
     unsigned flags, const char *user_realm,
-    char *out_user, unsigned out_umax, unsigned *out_ulen,
-    char *out_authid, unsigned out_amax, unsigned *out_alen
+    char *out_user, unsigned out_umax, unsigned *out_ulen
+#ifndef CYRUS_SASL
+    ,char *out_authid, unsigned out_amax, unsigned *out_alen
+#endif
 )
 {
     struct propctx *propctx = sasl_auxprop_getctx(conn);
@@ -350,20 +358,29 @@ static int ids_sasl_canon_user(
     Slapi_DN *sdn = NULL;
     char *pw = NULL;
     char *user = NULL;
+#ifndef CYRUS_SASL
     char *authid = NULL;
+#endif
     const char *dn;
     int isroot = 0;
-	char *clear = NULL;
+    char *clear = NULL;
+    int returnvalue = SASL_FAIL;
 
     user = buf2str(userbuf, ulen);
     if (user == NULL) {
         goto fail;
     } 
+#ifdef CYRUS_SASL
+    LDAPDebug(LDAP_DEBUG_TRACE, 
+              "ids_sasl_canon_user(user=%s, realm=%s)\n", 
+              user, user_realm ? user_realm : "", 0);
+#else
     authid = buf2str(authidbuf, alen);
 
     LDAPDebug(LDAP_DEBUG_TRACE, 
               "ids_sasl_canon_user(user=%s, authzid=%s, realm=%s)\n", 
               user, authid, user_realm ? user_realm : "");
+#endif
 
     if (strncasecmp(user, "dn:", 3) == 0) {
         sdn = slapi_sdn_new();
@@ -379,6 +396,11 @@ static int ids_sasl_canon_user(
         /* map the sasl username into an entry */
         entry = ids_sasl_user_to_entry(conn, context, user, user_realm);
         if (entry == NULL) {
+#ifdef CYRUS_SASL
+            /* Specific return value is supposed to be set instead of 
+               an generic error (SASL_FAIL) for Cyrus SASL */
+            returnvalue = SASL_NOAUTHZ;
+#endif
             goto fail;
         }
         dn = slapi_entry_get_ndn(entry);
@@ -392,29 +414,34 @@ static int ids_sasl_canon_user(
 
     clear = pw;
     if (clear) {
-    	if (prop_set(propctx, "userpassword", clear, -1) != 0) {
-    		/* Failure is benign here because some mechanisms don't support this property */
-        	/*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
-        	goto fail */ ;
-    	}
+        if (prop_set(propctx, "userpassword", clear, -1) != 0) {
+            /* Failure is benign here because some mechanisms don't support this property */
+            /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
+            goto fail */ ;
+        }
     }
 
     /* TODO: canonicalize */
     strcpy(out_user, dn);
-	if (authid )
-	{
-		int offset = 0;
-		/* The authid can start with dn:. In such case remove it */	
-		if (strncasecmp(authid,"dn:",3) == 0 )
-			offset = 3;
-    	strcpy(out_authid, authid+offset);
-	}
+#ifdef CYRUS_SASL
+    /* the length of out_user needs to be set for Cyrus SASL */
+    *out_ulen = strlen(out_user);
+#else
+    if (authid )
+    {
+        int offset = 0;
+        /* The authid can start with dn:. In such case remove it */    
+        if (strncasecmp(authid,"dn:",3) == 0 )
+            offset = 3;
+        strcpy(out_authid, authid+offset);
+    }
     *out_ulen = -1;
     *out_alen = -1;
+    slapi_ch_free((void**)&authid);
+#endif
 
     slapi_entry_free(entry);
     slapi_ch_free((void**)&user);
-    slapi_ch_free((void**)&authid);
     slapi_ch_free((void**)&pw);
     slapi_sdn_free(&sdn);
 
@@ -423,30 +450,46 @@ static int ids_sasl_canon_user(
  fail:
     slapi_entry_free(entry);
     slapi_ch_free((void**)&user);
+#ifndef CYRUS_SASL
     slapi_ch_free((void**)&authid);
+#endif
     slapi_ch_free((void**)&pw);
     slapi_sdn_free(&sdn);
 
-    return SASL_FAIL;
+    return returnvalue;
 }
 
 static sasl_callback_t ids_sasl_callbacks[5] =
 {
-    SASL_CB_GETOPT,
-    (IFP) ids_sasl_getopt,
-    NULL,
-    SASL_CB_LOG,
-    (IFP) ids_sasl_log,
-    NULL,
-    SASL_CB_PROXY_POLICY,
-    (IFP) ids_sasl_proxy_policy,
-    NULL,
-    SASL_CB_SERVER_CANON_USER,
-    (IFP) ids_sasl_canon_user,
-    NULL,
-    SASL_CB_LIST_END,
-    (IFP) NULL,
-    NULL
+    {
+      SASL_CB_GETOPT,
+      (IFP) ids_sasl_getopt,
+      NULL
+    },
+    {
+      SASL_CB_LOG,
+      (IFP) ids_sasl_log,
+      NULL
+    },
+    {
+      SASL_CB_PROXY_POLICY,
+      (IFP) ids_sasl_proxy_policy,
+      NULL
+    },
+    {
+#ifdef CYRUS_SASL
+      SASL_CB_CANON_USER,
+#else
+      SASL_CB_SERVER_CANON_USER,
+#endif
+      (IFP) ids_sasl_canon_user,
+      NULL
+    },
+    {
+      SASL_CB_LIST_END,
+      (IFP) NULL,
+      NULL
+    }
 };
 
 static const char *dn_propnames[] = { "dn", 0 };
@@ -466,7 +509,7 @@ int ids_sasl_init(void)
 
     serverfqdn = get_localhost_DNS();
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "sasl service fqdn is: %s\n", 
+    LDAPDebug(LDAP_DEBUG_TRACE, "sasl service fqdn is: %s\n", 
                   serverfqdn, 0, 0);
 
     result = sasl_server_init(ids_sasl_callbacks, "iDS");
@@ -477,12 +520,13 @@ int ids_sasl_init(void)
         return result;
     }
 
+#ifndef CYRUS_SASL
     result = sasl_server_add_plugin("USERDB", sasl_userdb_init);
 
     if (result != SASL_OK) {
         LDAPDebug(LDAP_DEBUG_TRACE, "failed to add LDAP sasl plugin\n",
                   0, 0, 0);
-	return result;
+        return result;
     }
 
 #if defined(BUILD_GSSAPI)
@@ -492,6 +536,7 @@ int ids_sasl_init(void)
         LDAPDebug(LDAP_DEBUG_TRACE, "failed to add LDAP gssapi plugin\n",
                   0, 0, 0);
     }
+#endif
 #endif
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= ids_sasl_init\n", 0, 0, 0 );
@@ -611,9 +656,9 @@ ids_sasl_mech_supported(Slapi_PBlock *pb, sasl_conn_t *sasl_conn, const char *me
   /* sasl_listmech is not thread-safe, so we lock here */
   PR_Lock(pb->pb_conn->c_mutex);
   sasl_result = sasl_listmech(sasl_conn, 
-		    NULL,     /* username */
-		    "", ",", "",
-		    &str, NULL, NULL);
+                    NULL,     /* username */
+                    "", ",", "",
+                    &str, NULL, NULL);
   PR_Unlock(pb->pb_conn->c_mutex);
   if (sasl_result != SASL_OK) {
     return 0;
@@ -758,17 +803,17 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         isroot = slapi_dn_isroot(dn);
 
         if (!isroot )
-		{
-			/* check if the account is locked */
-			bind_target_entry = get_entry(pb,  dn);
-			if ( bind_target_entry == NULL )
-			{
-				break;
-			} 
-			if ( check_account_lock(pb, bind_target_entry, pwresponse_requested) == 1) {
-				slapi_entry_free(bind_target_entry);
-				break;
-			}
+        {
+            /* check if the account is locked */
+            bind_target_entry = get_entry(pb,  dn);
+            if ( bind_target_entry == NULL )
+            {
+                break;
+            } 
+            if ( check_account_lock(pb, bind_target_entry, pwresponse_requested) == 1) {
+                slapi_entry_free(bind_target_entry);
+                break;
+            }
         }
 
         /* see if we negotiated a security layer */
@@ -781,16 +826,16 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
                                  "sasl encryption not supported over ssl", 
                                  0, NULL);
                 if ( bind_target_entry != NULL )
-				    slapi_entry_free(bind_target_entry);
+                    slapi_entry_free(bind_target_entry);
                 break;
             } else {
-				/* Enable SASL I/O on the connection now */
-				/* Note that this doesn't go into effect until the next _read_ operation is done */
-				if (0 != sasl_io_enable(pb->pb_conn) ) {
-					send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+                /* Enable SASL I/O on the connection now */
+                /* Note that this doesn't go into effect until the next _read_ operation is done */
+                if (0 != sasl_io_enable(pb->pb_conn) ) {
+                    send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
                                  "failed to enable sasl i/o",
-                                 0, NULL);	
-				}
+                                 0, NULL);
+                }
             }
         }
 
@@ -825,14 +870,14 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
         /* check password expiry */
         if (!isroot) {
-			int		pwrc;
+            int pwrc;
 
-			pwrc = need_new_pw (pb, &t, bind_target_entry, pwresponse_requested);
-			if ( bind_target_entry != NULL ) {
-				slapi_entry_free(bind_target_entry);
-				bind_target_entry = NULL;
-			}
-			
+            pwrc = need_new_pw(pb, &t, bind_target_entry, pwresponse_requested);
+            if ( bind_target_entry != NULL ) {
+                slapi_entry_free(bind_target_entry);
+                bind_target_entry = NULL;
+            }
+            
             switch (pwrc) {
             case 1:
                 slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
@@ -895,13 +940,13 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         break;
     }
 
-	out:
-		if (referral)
-			slapi_entry_free(referral);
-		if (be)
-			slapi_be_Unlock(be);
+    out:
+        if (referral)
+            slapi_entry_free(referral);
+        if (be)
+            slapi_be_Unlock(be);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> ids_sasl_check_bind\n", 0, 0, 0 );
+    LDAPDebug( LDAP_DEBUG_TRACE, "=> ids_sasl_check_bind\n", 0, 0, 0 );
 
     return;
 }
