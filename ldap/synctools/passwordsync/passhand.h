@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #ifndef _PASSHAND_H_
@@ -18,32 +23,22 @@
 
 using namespace std;
 
-struct USER_PASS_PAIR
+struct PASS_INFO
 {
 	char* username;
 	char* password;
 };
 
+typedef list<PASS_INFO> PASS_INFO_LIST;
+typedef list<PASS_INFO>::iterator PASS_INFO_LIST_ITERATOR;
+
 void timeStamp(fstream* outFile);
 
-class PasswordHandler
-{
-public:
-	PasswordHandler();
-	~PasswordHandler();
+int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int cipherTextLen, int* resultTextLen);
+int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plainTextLen, int* resultTextLen);
 
-	int SaveSet(char* filename);
-	int LoadSet(char* filename);
-	int PushUserPass(char* username, char* password);
-	int PeekUserPass(char* username, char* password);
-	int PopUserPass();
-private:
-	int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int cipherTextLen, int* resultTextLen);
-	int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plainTextLen, int* resultTextLen);
-
-	list<USER_PASS_PAIR> userPassPairs;
-	char* keyPath;
-	fstream outLog;
-};
+int saveSet(PASS_INFO_LIST* passInfoList, char* filename);
+int loadSet(PASS_INFO_LIST* passInfoList, char* filename);
+int clearSet(PASS_INFO_LIST* passInfoList);
 
 #endif

@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #include "passhand.h"
@@ -19,21 +24,11 @@ void timeStamp(fstream* outFile)
 	}
 }
 
-PasswordHandler::PasswordHandler()
-{
-	outLog.open("./passhand.log", ios::out | ios::app);
-}
-
-PasswordHandler::~PasswordHandler()
-{
-	outLog.close();
-}
-
-int PasswordHandler::SaveSet(char* filename)
+int saveSet(PASS_INFO_LIST* passInfoList, char* filename)
 {
 	int result = 0;
 	fstream outFile;
-	list<USER_PASS_PAIR>::iterator currentPair;
+	PASS_INFO_LIST_ITERATOR currentPair;
 	strstream plainTextStream;
 	char* cipherTextBuf;
 	int usernameLen;
@@ -41,17 +36,11 @@ int PasswordHandler::SaveSet(char* filename)
 	int plainTextLen;
 	int cipherTextLen;
 	int resultTextLen = 0;
-	int pairCount = userPassPairs.size();
-
-	if(outLog.is_open())
-	{
-		timeStamp(&outLog);
-		outLog << "SaveSet: saving " << userPassPairs.size() << " entries to file" << endl;
-	}
+	int pairCount = passInfoList->size();
 
 	// Write usernames and passwords to a strstream
 	plainTextStream.write((char*)&pairCount, sizeof(pairCount));
-	for(currentPair = userPassPairs.begin(); currentPair != userPassPairs.end(); currentPair++)
+	for(currentPair = passInfoList->begin(); currentPair != passInfoList->end(); currentPair++)
 	{
 		// Usernames
 		usernameLen = strlen(currentPair->username) + 1;
@@ -87,20 +76,16 @@ int PasswordHandler::SaveSet(char* filename)
 	outFile.write(cipherTextBuf, resultTextLen);
 	outFile.close();
 
-	// ToDo: zero out memory
-
-	userPassPairs.clear();
-
 exit:
 	return result;
 }
 
-int PasswordHandler::LoadSet(char* filename)
+int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 {
 	int result = 0;
 	int i;
 	fstream inFile;
-	USER_PASS_PAIR newPair;
+	PASS_INFO newPair;
 	strstream* plainTextStream;
 	char* cipherTextBuf;
 	char* plainTextBuf;
@@ -154,84 +139,25 @@ int PasswordHandler::LoadSet(char* filename)
 		newPair.password = (char*)malloc(passwordLen);
 		plainTextStream->read((char*)newPair.password, passwordLen);
 
-		userPassPairs.push_back(newPair);
+		passInfoList->push_back(newPair);
 	}
 
 	delete plainTextStream;
 
-	if(outLog.is_open())
-	{
-		timeStamp(&outLog);
-		outLog << "LoadSet: "<< userPassPairs.size() << " entries loaded from file" << endl;
-	}
-
 exit:
 	return result;
 }
 
-int PasswordHandler::PushUserPass(char* username, char* password)
+int clearSet(PASS_INFO_LIST* passInfoList)
 {
-	USER_PASS_PAIR newPair;
+	// ToDo: zero out memory
 
-	newPair.username = (char*)malloc(strlen(username) + 1);
-	strcpy(newPair.username, username);
+	passInfoList->clear();
 
-	newPair.password = (char*)malloc(strlen(password) + 1);
-	strcpy(newPair.password, password);
-
-	userPassPairs.push_back(newPair);
-
-	if(outLog.is_open())
-	{
-		timeStamp(&outLog);
-		outLog << "PushUserPass: pushed user password pair, new length " << userPassPairs.size() << endl;
-	}
-
-	return 0;
+	return -1;
 }
 
-int PasswordHandler::PeekUserPass(char* username, char* password)
-{
-	int result = 0;
-	list<USER_PASS_PAIR>::iterator currentPair;
-
-	if(userPassPairs.size() < 1)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	currentPair = userPassPairs.begin();
-	strcpy(username, currentPair->username);
-	strcpy(password, currentPair->password);
-
-	if(outLog.is_open())
-	{
-		timeStamp(&outLog);
-		outLog << "PeekUserPass: current length " << userPassPairs.size() << endl;
-	}
-
-exit:
-	return result;
-}
-
-int PasswordHandler::PopUserPass()
-{
-	// ToDo: zero out memory.
-
-	userPassPairs.pop_front();
-
-	if(outLog.is_open())
-	{
-		timeStamp(&outLog);
-		outLog << "PopUserPass: popped user password pair, new length " << userPassPairs.size() << endl;
-	}
-
-	return 0;
-}
-
-
-int PasswordHandler::encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int cipherTextLen, int* resultTextLen)
+int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int cipherTextLen, int* resultTextLen)
 {
 	int result = 0;
 	SECStatus rv1, rv2, rv3;
@@ -311,24 +237,10 @@ int PasswordHandler::encrypt(char* plainTextBuf, int plainTextLen, char* cipherT
 	}
 
 exit:
-	if(outLog.is_open())
-	{
-		if(result == 0)
-		{
-			timeStamp(&outLog);
-			outLog << "encrypt: success" << endl;
-		}
-		else
-		{
-			timeStamp(&outLog);
-			outLog << "encrypt: failure" << endl;
-		}
-	}
-
 	return result;
 }
 
-int PasswordHandler::decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plainTextLen, int* resultTextLen)
+int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plainTextLen, int* resultTextLen)
 {
 	int result = 0;
 	SECStatus rv1, rv2, rv3;
@@ -408,19 +320,5 @@ int PasswordHandler::decrypt(char* cipherTextBuf, int cipherTextLen, char* plain
 	}
 
 exit:
-	if(outLog.is_open())
-	{
-		if(result == 0)
-		{
-			timeStamp(&outLog);
-			outLog << "decrypt: success" << endl;
-		}
-		else
-		{
-			timeStamp(&outLog);
-			outLog << "decrypt: failure" << endl;
-		}
-	}
-
 	return result;
 }

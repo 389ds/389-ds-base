@@ -1,4 +1,8 @@
 <?xml version='1.0' encoding='windows-1252'?>
+<!-- BEGIN COPYRIGHT BLOCK
+ Copyright (C) 2005 Red Hat, Inc.
+ All rights reserved.
+ END COPYRIGHT BLOCK -->
 <Wix xmlns='http://schemas.microsoft.com/wix/2003/01/wi'>
   <Product Name='Password Sync' Id='DB501C18-86C7-4D14-AEC0-86416A69ABDE'
     Language='1033' Codepage='1252'
@@ -87,7 +91,7 @@
 		  <Registry Id='Certtkn' Root='HKLM' Key='Software\PasswordSync' Name='Cert Token' Action='write' Type='string' Value='[CERTTOKEN]' />
 		  <Registry Id='SrchBase' Root='HKLM' Key='Software\PasswordSync' Name='Search Base' Action='write' Type='string' Value='[SRCHBASE]' />
 		  <Registry Id='UserFld' Root='HKLM' Key='Software\PasswordSync' Name='User Name Field' Action='write' Type='string' Value='ntuserdomainid' />
-		  <Registry Id='PassFld' Root='HKLM' Key='Software\PasswordSync' Name='Password Field' Action='write' Type='string' Value='ntusercomment' />
+		  <Registry Id='PassFld' Root='HKLM' Key='Software\PasswordSync' Name='Password Field' Action='write' Type='string' Value='userpassword' />
 		  <Registry Id='NotPkgs' Root='HKLM' Key='SYSTEM\ControlSet001\Control\Lsa' Name='Notification Packages' Action='append'
 		   Type='multiString' Value='passhook'/>
 

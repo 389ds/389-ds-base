@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #include "syncserv.h"
@@ -5,6 +10,9 @@
 #include "prerror.h"
 static char* certdbh;
 
+// ****************************************************************
+// passwdcb
+// ****************************************************************
 char* passwdcb(PK11SlotInfo* info, PRBool retry, void* arg)
 {
 	char* result = NULL;
@@ -24,6 +32,9 @@ char* passwdcb(PK11SlotInfo* info, PRBool retry, void* arg)
 	return result;
 }
 
+// ****************************************************************
+// PassSyncService::PassSyncService
+// ****************************************************************
 PassSyncService::PassSyncService(const TCHAR *serviceName) : CNTService(serviceName)
 {
 	char sysPath[SYNCSERV_BUF_SIZE];
@@ -33,7 +44,7 @@ PassSyncService::PassSyncService(const TCHAR *serviceName) : CNTService(serviceN
 
 	passhookEventHandle = CreateEvent(NULL, FALSE, FALSE, PASSHAND_EVENT_NAME);
 
-	pLdapConnection = NULL;
+	mainLdapConnection = NULL;
 	results = NULL;
 	currentResult = NULL;
 	lastLdapError = LDAP_SUCCESS;
@@ -76,6 +87,9 @@ PassSyncService::PassSyncService(const TCHAR *serviceName) : CNTService(serviceN
 	PK11_SetPasswordFunc(passwdcb);
 }
 
+// ****************************************************************
+// PassSyncService::~PassSyncService
+// ****************************************************************
 PassSyncService::~PassSyncService()
 {
 	if(outLog.is_open())
@@ -86,87 +100,144 @@ PassSyncService::~PassSyncService()
 	outLog.close();
 }
 
+// ****************************************************************
+// PassSyncService::SyncPasswords
+// ****************************************************************
 int PassSyncService::SyncPasswords()
 {
 	int result = 0;
-	char username[PASSHAND_BUF_SIZE];
-	char password[PASSHAND_BUF_SIZE];
+	PASS_INFO_LIST_ITERATOR currentPassInfo;
+	PASS_INFO_LIST_ITERATOR tempPassInfo;
 	char* dn;
 
-	if(Connect() < 0)
+	if(Connect(&mainLdapConnection, ldapAuthUsername, ldapAuthPassword) < 0)
 	{
-		// ToDo: generate event connection failure.
+		// log connection failure.
 		if(outLog.is_open())
 		{
 			timeStamp(&outLog);
 			outLog << "can not connect to ldap server in SyncPasswords" << endl;
 		}
-		result = -1;
+
 		goto exit;
 	}
 
-	ourPasswordHandler.LoadSet(dataFilename);
-
-	while(ourPasswordHandler.PeekUserPass(username, password) == 0)
+	if(loadSet(&passInfoList, dataFilename) == 0)
 	{
-		if(QueryUsername(username) != 0)
+		if(outLog.is_open())
 		{
-			// ToDo: generate event search failure.			
-			if(outLog.is_open())
-			{
-				timeStamp(&outLog);
-				outLog << "search for " << username << " failed in SyncPasswords" << endl;
-			}
+			timeStamp(&outLog);
+			outLog << passInfoList.size() << " entries loaded from file" << endl;
 		}
-		else
+	}
+	else
+	{
+		if(outLog.is_open())
 		{
-			while((dn = GetDN()) != NULL)
-			{
-				if(ModifyPassword(dn, password) != 0)
-				{
-					// ToDo: generate event modify failure.					
-					if(outLog.is_open())
-					{
-						timeStamp(&outLog);
-						outLog << "modify password for " << username << " failed in SyncPasswords" << endl;
-					}
-				}
-				else
-				{
-					if(outLog.is_open())
-					{
-						timeStamp(&outLog);
-						outLog << "password for " << username << " modified" << endl;
-						outLog << "\t" << dn << endl;
-					}
-				}
-			}
+			timeStamp(&outLog);
+			outLog << "failed to load entries from file" << endl;
 		}
-		// ToDo: zero out buffers
-
-		ourPasswordHandler.PopUserPass();
 	}
 
-	ourPasswordHandler.SaveSet(dataFilename);
+	while(passInfoList.size() > 0)
+	{
+		currentPassInfo = passInfoList.begin();
 
-	Disconnect();
+		while(currentPassInfo != passInfoList.end())
+		{
+			if(QueryUsername(currentPassInfo->username) != 0)
+			{
+				// log search failure.			
+				if(outLog.is_open())
+				{
+					timeStamp(&outLog);
+					outLog << "search for " << currentPassInfo->username << " failed in SyncPasswords" << endl;
+				}
+			}
+			else
+			{
+				while((dn = GetDN()) != NULL)
+				{
+					if(CanBind(dn, currentPassInfo->password))
+					{
+						if(outLog.is_open())
+						{
+							timeStamp(&outLog);
+							outLog << "password match, no modify preformed: " << currentPassInfo->username << endl;
+						}
+					}
+					else if(ModifyPassword(dn, currentPassInfo->password) != 0)
+					{
+						// log modify failure.
+						if(outLog.is_open())
+						{
+							timeStamp(&outLog);
+							outLog << "modify password for " << currentPassInfo->username << " failed in SyncPasswords" << endl;
+						}
+					}
+					else
+					{
+						if(outLog.is_open())
+						{
+							timeStamp(&outLog);
+							outLog << "password for " << currentPassInfo->username << " modified" << endl;
+							outLog << "\t" << dn << endl;
+						}
+					}
+				} // end while((dn = GetDN()) != NULL)
+			}
+
+			tempPassInfo = currentPassInfo;
+			currentPassInfo++;
+			passInfoList.erase(tempPassInfo);
+		} // end while(currentPassInfo != passInfoList.end())
+	} // end while(passInfoList.size() > 0)
+
+	if(saveSet(&passInfoList, dataFilename) == 0)
+	{
+		if(outLog.is_open())
+		{
+			timeStamp(&outLog);
+			outLog << passInfoList.size() << " entries saved to file" << endl;
+		}
+	}
+	else
+	{
+		if(outLog.is_open())
+		{
+			timeStamp(&outLog);
+			outLog << "failed to save entries to file" << endl;
+		}
+	}
+
+	clearSet(&passInfoList);
+	Disconnect(&mainLdapConnection);
 
 exit:
 	return result;
 }
 
+// ****************************************************************
+// 
+// ****************************************************************
 void PassSyncService::OnStop()
 {
 	isRunning = false;
 	SetEvent(passhookEventHandle);
 }
 
+// ****************************************************************
+// 
+// ****************************************************************
 void PassSyncService::OnShutdown()
 {
 	isRunning = false;
 	SetEvent(passhookEventHandle);
 }
 
+// ****************************************************************
+// PassSyncService::Run
+// ****************************************************************
 void PassSyncService::Run()
 {
 	isRunning = true;
@@ -178,9 +249,14 @@ void PassSyncService::Run()
 		SyncPasswords();
 		ResetEvent(passhookEventHandle);
 	}
+
+	CloseHandle(passhookEventHandle);
 }
 
-int PassSyncService::Connect()
+// ****************************************************************
+// PassSyncService::Connect
+// ****************************************************************
+int PassSyncService::Connect(LDAP** connection, char* dn, char* auth)
 {
 	int result = 0;
 
@@ -192,7 +268,7 @@ int PassSyncService::Connect()
 		{
 			timeStamp(&outLog);
 			outLog << "ldapssl_client_init failed in Connect" << endl;
-			outLog << "\t" << result << ": " <<  ldapssl_err2string(result) << endl;
+			outLog << "\t" << result << ": " << ldap_err2string(result) << endl;
 		}
 
 		result = GetLastError();
@@ -201,9 +277,9 @@ int PassSyncService::Connect()
 		goto exit;
 	}
 
-	pLdapConnection = ldapssl_init(ldapHostName, atoi(ldapHostPort), 1);
+	*connection = ldapssl_init(ldapHostName, atoi(ldapHostPort), 1);
 
-	if(pLdapConnection == NULL)
+	if(*connection == NULL)
 	{
 		if(outLog.is_open())
 		{
@@ -215,34 +291,45 @@ int PassSyncService::Connect()
 		goto exit;
 	}
 
-	lastLdapError = ldap_simple_bind_s(pLdapConnection, ldapAuthUsername, ldapAuthPassword);
+	ResetBackoff();
+	while(((lastLdapError = ldap_simple_bind_s(*connection, dn, auth)) != LDAP_SUCCESS) && Backoff())
+	{
+		// empty
+	}
 
 	if(lastLdapError != LDAP_SUCCESS)
 	{
-		// ToDo: log reason for bind failure.
+		// log reason for bind failure.
 		if(outLog.is_open())
 		{
 			timeStamp(&outLog);
 			outLog << "ldap error in Connect" << endl;
-			outLog << "\t" << lastLdapError << ": " << ldapssl_err2string(lastLdapError) << endl;
+			outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
 		}
 
 		result = -1;
 		goto exit;
 	}
+
 exit:
 	return result;
 }
 
-int PassSyncService::Disconnect()
+// ****************************************************************
+// PassSyncService::Disconnect
+// ****************************************************************
+int PassSyncService::Disconnect(LDAP** connection)
 {
-	ldap_unbind(pLdapConnection);
+	ldap_unbind(*connection);
 
-	pLdapConnection = NULL;
+	connection = NULL;
 
 	return 0;
 }
 
+// ****************************************************************
+// PassSyncService::QueryUsername
+// ****************************************************************
 int PassSyncService::QueryUsername(char* username)
 {
 	int result = 0;
@@ -252,83 +339,96 @@ int PassSyncService::QueryUsername(char* username)
 
 	_snprintf(searchFilter, SYNCSERV_BUF_SIZE, "(%s=%s)", ldapUsernameField, username);
 
-	lastLdapError = ldap_search_ext_s(
-		pLdapConnection,
-		ldapSearchBase,
-		LDAP_SCOPE_ONELEVEL,
-		searchFilter,
-		NULL,
-		0,
-		NULL,
-		NULL,
-		NULL,
-		-1,
-		&results);
-
-	if(lastLdapError != LDAP_SUCCESS)
+	ResetBackoff();
+	while(Backoff())
 	{
-		// ToDo: log reason for search failure.
-		if(outLog.is_open())
+		lastLdapError = ldap_search_ext_s(mainLdapConnection, ldapSearchBase, LDAP_SCOPE_ONELEVEL, searchFilter, NULL, 0, NULL, NULL, NULL, -1, &results);
+
+		if(lastLdapError != LDAP_SUCCESS)
 		{
-			timeStamp(&outLog);
-			outLog << "ldap error in QueryUsername" << endl;
-			outLog << "\t" << lastLdapError << ": " << ldapssl_err2string(lastLdapError) << endl;
+			// log reason for search failure.
+			if(outLog.is_open())
+			{
+				timeStamp(&outLog);
+				outLog << "ldap error in QueryUsername" << endl;
+				outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
+			}
+			result = -1;
+			EndBackoff();
 		}
-		result = -1;
-		goto exit;
+		else if(ldap_first_entry(mainLdapConnection, results) == NULL)
+		{
+			if(outLog.is_open())
+			{
+				timeStamp(&outLog);
+				outLog << "there are no entries that match: " << username << endl;
+			}
+			result = -1;
+		}
+		else if(ldap_next_entry(mainLdapConnection, ldap_first_entry(mainLdapConnection, results)) != NULL)
+		{
+			if(outLog.is_open())
+			{
+				timeStamp(&outLog);
+				outLog << "there are multiple entries that match: " << username << endl;
+			}
+
+			if(!SYNCSERV_ALLOW_MULTI_MOD)
+			{
+				result = -1;
+				EndBackoff();
+			}
+		}
 	}
 
-exit:
 	return result;
 }
 
+// ****************************************************************
+// PassSyncService::GetDN
+// ****************************************************************
 char* PassSyncService::GetDN()
 {
 	char* result = NULL;
 
-	if(multipleModify)
+	if(currentResult == NULL)
 	{
-		if(currentResult == NULL)
-		{
-			currentResult = ldap_first_entry(pLdapConnection, results);
-		}
-		else
-		{
-			currentResult = ldap_next_entry(pLdapConnection, currentResult);
-		}
-
-		result = ldap_get_dn(pLdapConnection, currentResult);
+		currentResult = ldap_first_entry(mainLdapConnection, results);
 	}
 	else
 	{
-		if(currentResult == NULL)
-		{
-			currentResult = ldap_first_entry(pLdapConnection, results);
-			if(ldap_next_entry(pLdapConnection, currentResult) != NULLMSG)
-			{
-				// Too many results
-				if(outLog.is_open())
-				{
-					timeStamp(&outLog);
-					outLog << "too many results in GetDN" << endl;
-				}
-				currentResult = NULL;
-				goto exit;
-			}
-
-			result = ldap_get_dn(pLdapConnection, currentResult);
-		}
-		else
-		{
-			currentResult = NULL;
-			goto exit;
-		}
+		currentResult = ldap_next_entry(mainLdapConnection, currentResult);
 	}
 
-exit:
+	result = ldap_get_dn(mainLdapConnection, currentResult);
+
 	return result;
 }
 
+// ****************************************************************
+// PassSyncService::CanBind
+// ****************************************************************
+bool PassSyncService::CanBind(char* dn, char* password)
+{
+	bool result;
+	LDAP* tempConnection = NULL;
+
+	if(Connect(&tempConnection, dn, password) == 0)
+	{
+		Disconnect(&tempConnection);
+		result = true;
+	}
+	else
+	{
+		result = false;
+	}
+	
+	return result;
+}
+
+// ****************************************************************
+// PassSyncService::ModifyPassword
+// ****************************************************************
 int PassSyncService::ModifyPassword(char* dn, char* password)
 {
 	int result = 0;
@@ -340,18 +440,59 @@ int PassSyncService::ModifyPassword(char* dn, char* password)
 	passMod.mod_op = LDAP_MOD_REPLACE;
 	passMod.mod_values = modValues;
 
-	lastLdapError = ldap_modify_ext_s(pLdapConnection, dn, mods, NULL, NULL);
+	lastLdapError = ldap_modify_ext_s(mainLdapConnection, dn, mods, NULL, NULL);
 	if(lastLdapError != LDAP_SUCCESS)
 	{
-		// ToDo: log the reason for the modify failure.
+		// log reason for modify failure.
 		if(outLog.is_open())
 		{
 			timeStamp(&outLog);
 			outLog << "ldap error in ModifyPassword" << endl;
-			outLog << "\t" << lastLdapError << ": " << ldapssl_err2string(lastLdapError) << endl;
+			outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
 		}
 		result = -1;
 	}
 
+	return result;
+}
+
+// ****************************************************************
+// PassSyncService::ResetBackoff
+// ****************************************************************
+void PassSyncService::ResetBackoff()
+{
+	backoffCount = 0;
+}
+
+// ****************************************************************
+// PassSyncService::EndBackoff
+// ****************************************************************
+void PassSyncService::EndBackoff()
+{
+	backoffCount = SYNCSERV_MAX_BACKOFF_COUNT;
+}
+
+// ****************************************************************
+// PassSyncService::Backoff
+// ****************************************************************
+bool PassSyncService::Backoff()
+{
+	bool result;
+
+	if(backoffCount == 0)
+	{
+		result = true;
+	}
+	else if(backoffCount < SYNCSERV_MAX_BACKOFF_COUNT)
+	{
+		Sleep((2 ^ backoffCount) * SYNCSERV_BASE_BACKOFF_LEN);
+		result = true;
+	}
+	else
+	{
+		result = false;
+	}
+
+	backoffCount++;
 	return result;
 }

@@ -1,3 +1,9 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
 # Microsoft Developer Studio Generated NMAKE File, Based on passhook.dsp
 !IF "$(CFG)" == ""
 CFG=passhook - Win32 Debug

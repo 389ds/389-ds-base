@@ -1,3 +1,9 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
 1. Download Wix (http://sourceforge.net/projects/wix/) and unzip it into the Wix folder.
    (steps 2 and 3 can be skipped if ldapserver has been built)
 2. Add the location of the Mozilla LDAP C SDK header files to your INCLUDE path.

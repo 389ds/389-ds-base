@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #ifndef _SYNCSERV_H_
@@ -13,6 +18,8 @@
 #define SYNCSERV_BUF_SIZE 256
 #define SYNCSERV_TIMEOUT 10000
 #define SYNCSERV_ALLOW_MULTI_MOD false
+#define SYNCSERV_MAX_BACKOFF_COUNT 4
+#define SYNCSERV_BASE_BACKOFF_LEN 1000
 
 class PassSyncService : public CNTService
 {
@@ -27,17 +34,22 @@ public:
 	int SyncPasswords();
 
 private:
-	int Connect();
-	int Disconnect();
+	int Connect(LDAP** connection, char* dn, char* auth);
+	int Disconnect(LDAP** connection);
 	int QueryUsername(char* username);
 	char* GetDN();
+	bool CanBind(char* dn, char* password);
 	int ModifyPassword(char* dn, char* password);
 
-	PasswordHandler ourPasswordHandler;
+	void ResetBackoff();
+	void EndBackoff();
+	bool Backoff();
+
+	PASS_INFO_LIST passInfoList;
 	HANDLE passhookEventHandle;
 
 	// LDAP variables
-	LDAP* pLdapConnection;
+	LDAP* mainLdapConnection;
 	LDAPMessage* results;
 	LDAPMessage* currentResult;
 	int lastLdapError;
@@ -56,6 +68,7 @@ private:
 	char ldapPasswordField[SYNCSERV_BUF_SIZE];
 	bool multipleModify;
 	bool isRunning;
+	int backoffCount;
 	fstream outLog;
 };
 

@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
 // Used by passsync.rc

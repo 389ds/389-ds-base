@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #include <windows.h>
@@ -16,7 +21,8 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 	char singleByteUsername[PASSHAND_BUF_SIZE];
 	char singleBytePassword[PASSHAND_BUF_SIZE];
 	HANDLE passhookEventHandle = OpenEvent(EVENT_MODIFY_STATE, FALSE, PASSHAND_EVENT_NAME);
-	PasswordHandler ourPasswordHandler;
+	PASS_INFO newPassInfo;
+	PASS_INFO_LIST passInfoList;
 	fstream outLog;
 
 	outLog.open("passhook.log", ios::out | ios::app);
@@ -29,16 +35,49 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 	if(outLog.is_open())
 	{
 		timeStamp(&outLog);
-		outLog << "user " << singleByteUsername << "(" << UserName->Length / 2 << ") " << "password changed" << endl;
+		outLog << "user " << singleByteUsername << " password changed" << endl;
 	}
 
-	ourPasswordHandler.LoadSet("passhook.dat");
-	ourPasswordHandler.PushUserPass(singleByteUsername, singleBytePassword);
-	ourPasswordHandler.SaveSet("passhook.dat");
+	if(loadSet(&passInfoList, "passhook.dat") == 0)
+	{
+		if(outLog.is_open())
+		{
+			timeStamp(&outLog);
+			outLog << passInfoList.size() << " entries loaded from file" << endl;
+		}
+	}
+	else
+	{
+		if(outLog.is_open())
+		{
+			timeStamp(&outLog);
+			outLog << "failed to load entries from file" << endl;
+		}
+	}
+
+	newPassInfo.username = singleByteUsername;
+	newPassInfo.password = singleBytePassword;
+	passInfoList.push_back(newPassInfo);
+
+	if(saveSet(&passInfoList, "passhook.dat") == 0)
+	{
+		if(outLog.is_open())
+		{
+			timeStamp(&outLog);
+			outLog << passInfoList.size() << " entries saved to file" << endl;
+		}
+	}
+	else
+	{
+		if(outLog.is_open())
+		{
+			timeStamp(&outLog);
+			outLog << "failed to save entries to file" << endl;
+		}
+	}
 
 	if(passhookEventHandle == NULL)
 	{
-		// ToDo: generate event sync service not running.
 		if(outLog.is_open())
 		{
 			timeStamp(&outLog);
