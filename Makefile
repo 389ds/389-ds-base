@@ -90,7 +90,7 @@ components: $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(DBM_DEP) $(SECURITY_DEP)
 	-@echo "The components are up to date"
 
 ifeq ($(BUILD_JAVA_CODE),1)
-DS_CONSOLE_COMPONENT_DEP  = $(LDAPJDK_DEP) $(SWING_DEP) $(MCC_DEP)
+DS_CONSOLE_COMPONENT_DEP  = $(LDAPJDK_DEP) $(SWING_DEP) $(MCC_DEP) $(LDAPCONSOLE_DEP)
 DS_CONSOLE_COMPONENT_DEP += $(JAVASSL_DEP) $(JSS_DEP) $(CRIMSONJAR_DEP)
 java_platform_check:
 
@@ -201,7 +201,7 @@ cleanDirectory:
 
 buildDirectoryConsole: consoleComponents java_platform_check
 ifeq ($(BUILD_JAVA_CODE),1)
-	cd ldap/admin/src/java/com/netscape/admin/dirserv; $(MAKE) $(MFLAGS) package
+#	cd ldap/admin/src/java/com/netscape/admin/dirserv; $(MAKE) $(MFLAGS) package
 	cd ldap/admin/src/java/com/netscape/xmltools; $(MAKE) $(MFLAGS) package
 endif
 

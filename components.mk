@@ -761,6 +761,29 @@ endif
 	fi
 
 ###########################################################
+# LDAP Console java classes
+###########################################################
+LDAPCONSOLEJAR = ds$(LDAPCONSOLE_REL).jar
+LDAPCONSOLEJAR_EN = ds$(LDAPCONSOLE_REL)_en.jar
+                                                                                                                            
+LDAPCONSOLE_RELEASE=$(COMPONENTS_DIR_DEV)
+LDAPCONSOLE_JARDIR = $(LDAPCONSOLE_RELEASE)/$(LDAPCONSOLE_COMP)ext/$(LDAPCONSOLE_RELDATE)/jars
+LDAPCONSOLE_DEP = $(CLASS_DEST)/$(LDAPCONSOLEJAR)
+LDAPCONSOLE_FILES=$(LDAPCONSOLEJAR),$(LDAPCONSOLEJAR_EN)
+
+ifndef LDAPCONSOLE_PULL_METHOD
+LDAPCONSOLE_PULL_METHOD = $(COMPONENT_PULL_METHOD)
+endif
+                                                                                                                            
+$(LDAPCONSOLE_DEP): $(CLASS_DEST)
+ifdef COMPONENT_DEPS
+	$(FTP_PULL) -method $(LDAPCONSOLE_PULL_METHOD) \
+		-objdir $(CLASS_DEST) -componentdir $(LDAPCONSOLE_JARDIR) \
+		-files $(LDAPCONSOLE_FILES)
+endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component LDAPCONSOLE file $@" ; \
+	fi
 
 ###########################################################
 ### Perldap package #######################################

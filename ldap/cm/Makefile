@@ -203,8 +203,6 @@ NSDIST = $(BUILD_ROOT)/../dist
 
 DS_JAR_SRC_PATH = $(NSDIST)/$(BUILD_DEBUG)
 DS_JAR_DEST_PATH = java/jars
-DS_JAR_FILE = ds71.jar
-DS_JAR_LANG_FILE = ds71_en.jar
 XMLTOOLS_JAR_FILE = xmltools.jar
 
 UNZIP=unzip -o
@@ -408,8 +406,8 @@ endif
 
 # install the ds jar file in the <server root>/$(DS_JAR_DEST_PATH) directory
 # also install the other jar files we use
-	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(DS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(DS_JAR_LANG_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(NSDIST)/classes/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(NSDIST)/classes/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSONJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH)
