@@ -368,35 +368,24 @@ slapi_ch_free_string(char **s)
   scope, better to just use PR_smprintf and PR_smprintf_free instead
   because it is likely faster.
 */
+/*
+  This implementation is the same as PR_smprintf.  
+  The above comment does not apply to this function for now.
+  see [150809] for more details.
+  WARNING - with this fix, this means we are now mixing PR_Malloc with
+  slapi_ch_free.  Which is ok for now - they both use malloc/free from
+  the operating system.  But if this changes in the future, this
+  function will have to change as well.
+*/
 char *
 slapi_ch_smprintf(const char *fmt, ...)
 {
-	int ret;
-	int size = 100; /* plus strlen fmt */
-	int incr = 100; /* increment to add each time through */
 	char *p = NULL;
-
 	va_list ap;
-	size += strlen(fmt); /* need at least strlen(fmt) bytes */
-	if ((p = slapi_ch_malloc(size)) == NULL) {
-		return NULL;
-	}
-	while (1) {
-		/* Try to print in the allocated space. */
-		va_start(ap, fmt);
-		ret = PR_vsnprintf(p, size, fmt, ap);
-		va_end(ap);
-		/* If that worked, return the string. */
-		if (ret > -1 && ret < size) {
-			break; /* return p */
-		} else { /* try again with more space */
-			size += incr;
-			if ((p = slapi_ch_realloc(p, size)) == NULL) {
-				break;
-			}
-		}
-	}
 
+	va_start(ap, fmt);
+	p = PR_vsmprintf(fmt, ap);
+	va_end(ap);
 	return p;
 }
 
