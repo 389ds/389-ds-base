@@ -58,6 +58,24 @@ endif
 NSOS_RELEASE      := $(shell uname -r)
 NSOS_RELEASE_NOTAG = $(NSOS_RELEASE)
 
+# Check if we're on RHEL
+ifeq ($(NSOS_ARCH), Linux)
+  NSOS_TEST := $(shell cat /etc/redhat-release)
+  ifeq ($(findstring Taroon, $(NSOS_TEST)),Taroon)
+    NSOS_ARCH := RHEL
+    NSOS_RELEASE := 3
+    # Always use gcc on RHEL
+    GCC_VERSION := gcc$(word 1, $(shell gcc --version | sed 's/gcc.*GCC.\s//' | sed 's/\..*//'))
+  else
+  ifeq ( $(findstring Nahant, $(NSOS_TEST)),Nahant)
+      NSOS_ARCH := RHEL
+      NSOS_RELEASE := 4
+      # Always use gcc on RHEL
+      GCC_VERSION := gcc$(word 1, $(shell gcc --version | sed 's/gcc.*GCC.\s//' | sed 's/\..*//'))
+  endif
+  endif
+endif
+
 ifeq ($(NSOS_ARCH), AIX)
  NSOS_TEST        := $(shell uname -v)
  ifeq ($(NSOS_TEST),3)
@@ -206,12 +224,20 @@ ifeq ($(NSOS_ARCH),Linux)
   NSCONFIG        = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)$(LIBC_VERSION)$(PTHREAD_TAG)
   NSCONFIG_NOTAG  = $(NSCONFIG)
 else
-  ifeq ($(NSOS_TEST1),i86pc)
-     NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)
-     NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)_$(NSOS_TEST1)
+  ifeq ($(NSOS_ARCH),RHEL)
+    ifeq (86,$(findstring 86,$(NSOS_TEST1)))
+      NSOS_TEST1    = x86
+    endif
+    NSCONFIG        = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)_$(GCC_VERSION)
+    NSCONFIG_NOTAG  = $(NSCONFIG)
   else
-     NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)
-     NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)
+    ifeq ($(NSOS_TEST1),i86pc)
+      NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)
+      NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)_$(NSOS_TEST1)
+    else
+      NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)
+      NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)
+    endif
   endif
 endif
 
@@ -547,6 +573,7 @@ LINK_DLL=$(CCC) $(DLL_LDFLAGS) -o $@
 PEER_ARCH=irix
 
 export NO_DB2=1
+
 else 
 ifeq ($(ARCH), Linux)
 OSVERSION	:= $(basename $(shell uname -r))

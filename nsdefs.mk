@@ -51,6 +51,18 @@ ifdef USE_64
   NS64TAG=_64
 endif
 
+# Check if we're on RHEL
+ifeq ($(BUILD_ARCH), Linux)
+  ARCH_TEST := $(shell cat /etc/redhat-release)
+  ifeq ($(findstring Taroon, $(ARCH_TEST)),Taroon)
+    BUILD_ARCH = RHEL3
+  else
+  ifeq ($(findstring Nahant,  $(ARCH_TEST)),Nahant)
+    BUILD_ARCH = RHEL4
+  endif
+  endif
+endif
+
 # Should we build Java code on this platform?
 ifndef BUILD_JAVA_CODE
 ifeq ($(BUILD_ARCH),SOLARIS)
@@ -140,7 +152,11 @@ endef
 #
 # Set up these names because most of the makefiles use them now.
 #
-ARCH=$(BUILD_ARCH)
+ifeq ($(findstring RHEL, $(BUILD_ARCH)), RHEL)
+  ARCH = Linux
+else
+  ARCH=$(BUILD_ARCH)
+endif
 SECURITY=$(BUILD_SECURITY)
 DEBUG=$(BUILD_DEBUG)
 B_FORTEZZA=$(BUILD_FORTEZZA)
@@ -185,7 +201,12 @@ ARCHPROCESSOR=$(ARCH)
 ifdef INCLUDE_SSL
 SSL_PREFIX=-ssl
 endif
-NS_BUILD_FLAVOR = $(ARCH)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
+ifeq ($(findstring RHEL, $(BUILD_ARCH)), RHEL)
+    NS_BUILD_FLAVOR = $(BUILD_ARCH)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
+    ARCHPROCESSOR = $(BUILD_ARCH)
+else
+  NS_BUILD_FLAVOR = $(ARCH)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
+endif
 NC_BUILD_FLAVOR = $(NSCONFIG)$(NSOBJDIR_TAG).OBJ
 ifeq ($(ARCH), WINNT)
 ifeq ($(PROCESSOR), ALPHA)
