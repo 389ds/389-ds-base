@@ -1,0 +1,183 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2005 Red Hat Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+###########################
+#
+# This shell script provides a way to set up a new installation after
+# the binaries have already been extracted.  This is typically after
+# using native packaging support to install the package e.g. RPM,
+# pkgadd, depot, etc.  This script will show the license, readme,
+# dsktune, then run the usual setup pre and post installers.  This
+# script should be run from the server root directory since it uses
+# pwd to get the server root directory.
+#
+##########################
+
+# get command line arguments
+
+# see if silent mode
+
+counter=0
+doMktmp() {
+	tmpfile=`mktemp /tmp/${1}XXXXXX 2> /dev/null`
+	if ! [ $tmpfile ] ; then
+		tmpfile=/tmp/$1.$counter.$$
+		counter=`expr $counter + 1`
+	fi
+	echo $tmpfile
+}
+
+doExit() {
+	echo "ERROR Exiting . . ." | tee -a $logfile
+	if [ $tmpinffile ]; then
+		rm -f $inffile
+	fi
+	echo "Log file is $logfile"
+	exit 1
+}
+
+askYN() {
+	prompt="$1"
+	finished=
+	while ! [ $finished ]; do
+		echo ""
+		echo -n "$prompt (yes/no) " | tee -a $logfile
+		read ans
+		echo $ans >> $logfile
+		case "$ans" in
+		y*|Y*) finished=1 ;;
+		n*|N*) exit 1 ;;
+		*) echo "Please answer yes or no" | tee -a $logfile ;;
+		esac
+	done
+}
+
+logfile=`doMktmp log`
+myargs=
+silent=
+inffile=
+tmpinffile=
+nextisinffile=
+keepinffile=
+for arg in "$@" ; do
+	if [ "$arg" = "-s" ]; then
+		silent=1
+	elif [ "$arg" = "-k" ]; then
+		keepinffile=1
+	elif [ "$arg" = "-f" ]; then
+		nextisinffile=1
+	elif [ $nextisinffile ]; then
+		inffile="$arg"
+		nextisinffile=
+	else
+		myargs="$myargs $arg"
+	fi
+done
+
+echo "INFO Begin Setup . . ." | tee -a $logfile
+# cat LICENSE.txt
+if ! [ $silent ]; then
+	echo "" | tee -a $logfile
+	echo "" | tee -a $logfile
+	echo "" | tee -a $logfile
+	cat LICENSE.txt | tee -a $logfile
+	askYN "Do you accept the license terms?"
+fi
+
+# cat README.txt
+if ! [ $silent ]; then
+	cat README.txt | tee -a $logfile
+	askYN "Continue?"
+fi
+
+# dsktune
+if ! [ $silent ]; then
+	bin/slapd/server/dsktune | tee -a $logfile
+	askYN "Continue?"
+fi
+
+# if silent mode, do not run the pre-installer programs
+# otherwise, create a temp file for their use
+if ! [ $silent ]; then
+	inffile=`doMktmp setup`
+	tmpinffile=1
+
+	# put some common answers in the file
+	hostname=`hostname`
+	echo "" | tee -a $logfile
+	echo -n "Hostname to use (default: $hostname) " | tee -a $logfile
+	read ans
+	echo $ans >> $logfile
+	if [ "$ans" ]; then
+		hostname="$ans"
+	fi
+
+	user=nobody
+	group=nobody
+	echo ""
+	echo -n "Server user ID to use (default: $user) " | tee -a $logfile
+	read ans
+	echo $ans >> $logfile
+	if [ "$ans" ]; then
+		user="$ans"
+	fi
+	echo ""
+	echo -n "Server group ID to use (default: $group) " | tee -a $logfile
+	read ans
+	echo $ans >> $logfile
+	if [ "$ans" ]; then
+		group="$ans"
+	fi
+
+	echo '[General]' >> $inffile
+	echo "FullMachineName = $hostname" >> $inffile
+	echo "SuiteSpotUserID = $user" >> $inffile
+	echo "SuiteSpotGroup = $group" >> $inffile
+	echo ServerRoot = `pwd` >> $inffile
+
+	# first, run ds
+	cd bin/slapd/admin/bin
+	./ns-config -f $inffile -l $logfile || doExit
+	cd ../../../..
+
+	# next, run admin
+	cd bin/admin
+	./ns-config -f $inffile -l $logfile || doExit
+	cd ../..
+fi
+
+# do the post installers
+silentarg=""
+if ! [ $silent ] ; then
+	silentarg="-s"
+fi
+
+`pwd`/bin/slapd/admin/bin/ns-update $silentarg $myargs -f $inffile | tee -a $logfile || doExit
+
+`pwd`/bin/admin/ns-update $silentarg $myargs -f $inffile | tee -a $logfile || doExit
+
+echo "INFO Finished with setup, logfile is setup/setup.log" | tee -a $logfile
+if [ -f setup/setup.log ] ; then
+	cat $logfile >> setup/setup.log
+else
+	cp $logfile setup/setup.log
+fi
+rm -f $logfile
+
+if [ $tmpinffile ]; then
+	if [ $keepinffile ]; then
+		if [ -f setup/install.inf ]; then
+			cat $inffile >> setup/install.inf
+		else
+			cp $inffile setup/install.inf
+		fi
+		chmod 600 setup/install.inf
+	fi
+	rm -f $inffile
+fi
+exit 0
