@@ -54,6 +54,7 @@ endif
 
 ifeq ($(ARCH), WINNT)
 DLL_LDFLAGS += -def:"./libuiduniq.def"
+EXTRA_LIBS += $(NSPRLINK)
 endif # WINNT
 
 ifeq ($(ARCH), AIX)

@@ -4471,7 +4471,8 @@ schema_create_errormsg(
 		if ( NULL != name ) {
 			rc = PR_snprintf( errorbuf, errorbufsize, prefix, name );
 		}
-		if ( (rc >= 0) && (rc < errorbufsize) ) {
+		/* ok to cast here because rc is positive */
+		if ( (rc >= 0) && ((size_t)rc < errorbufsize) ) {
 			(void)PR_vsnprintf( errorbuf + rc, errorbufsize - rc, fmt, ap );
 		}
 		va_end( ap );
