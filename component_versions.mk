@@ -170,10 +170,10 @@ ifndef JSS_JAR_VERSION
 endif
 
 ifndef SASL_VERSDIR
-  SASL_VERSDIR=sasl_1_0
+  SASL_VERSDIR=cyrus
 endif
 ifndef SASL_RELDATE
-  SASL_RELDATE=20041130
+  SASL_RELDATE=v2.1.20
 endif
 
 # jakarta/axis for DSMLGW

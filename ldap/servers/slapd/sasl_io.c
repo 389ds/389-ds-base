@@ -3,7 +3,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
-#undef CYRUS_SASL
+#define CYRUS_SASL 1
 
 #include "slap.h"
 #include "slapi-plugin.h"

@@ -345,6 +345,7 @@ endif # USE_ORGCHART
 # libdb for windows special and smartheap
 ifeq ($(ARCH), WINNT)
 	$(INSTALL) -m 755 $(DB_LIBPATH)/$(DB_LIBNAME).$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
 #Install smartheap dll in the server binary directory
 ifeq ($(DEBUG), optimize)
 	$(INSTALL) -m 755 $(SH_LIBPATH)/shsmp.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
@@ -440,7 +441,6 @@ endif
 	then $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/install/*.* $(RELDIR)/manual/en/slapd/install ; \
 	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/deploy/*.* $(RELDIR)/manual/en/slapd/deploy ; \
 	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/dsmlgw/*.* $(RELDIR)/manual/en/slapd/dsmlgw ; \
-	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/dsmlgw/graphics/*.* $(RELDIR)/manual/en/slapd/dsmlgw/graphics ; \
 	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/gwcust/*.* $(RELDIR)/manual/en/slapd/gwcust ; \
 	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/gwcust/graphics/*.* $(RELDIR)/manual/en/slapd/gwcust/graphics ; \
 	$(INSTALL) -m 644 $(OBJDIR)/manual/slapd/schema/*.* $(RELDIR)/manual/en/slapd/schema ; \

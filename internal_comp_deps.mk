@@ -162,8 +162,8 @@ endif
 endif # LDAPSDK_SOURCE_ROOT
 
 ifndef SASL_SOURCE_ROOT
-#SASL_RELEASE = $(COMPONENTS_DIR_DEV)/sasl/$(SASL_VERSDIR)/$(SASL_RELDATE)/$(NSOBJDIR_NAME)
-SASL_RELEASE = $(COMPONENTS_DIR)/sasl/$(SASL_VERSDIR)/$(SASL_RELDATE)/$(NSOBJDIR_NAME)
+SASL_RELEASE = $(COMPONENTS_DIR_DEV)/sasl/$(SASL_VERSDIR)/$(SASL_RELDATE)/$(NSOBJDIR_NAME)
+#SASL_RELEASE = $(COMPONENTS_DIR)/sasl/$(SASL_VERSDIR)/$(SASL_RELDATE)/$(NSOBJDIR_NAME)
 SASL_DEP = $(SASL_INCLUDE)/sasl.h
 ifndef SASL_PULL_METHOD
 SASL_PULL_METHOD = $(COMPONENT_PULL_METHOD)
@@ -173,8 +173,10 @@ $(SASL_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
 		-objdir $(SASL_BUILD_DIR) -componentdir $(SASL_RELEASE) \
-		-files lib,include
-
+		-files include
+	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
+		-objdir $(SASL_BUILD_DIR)/lib -componentdir $(SASL_RELEASE)/lib \
+		-files $(SASL_LIBS)
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component SASL file $@" ; \

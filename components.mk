@@ -338,26 +338,30 @@ else
   SASL_INCDIR = $(SASL_BUILD_DIR)/include
 endif
 SASL_INCLUDE = $(SASL_INCDIR)
-SASL_LIB_ROOT_NAME = sasl
-# for cyrus it's sasl2
-#SASL_LIB_ROOT_NAME = sasl2
 
 ifeq ($(ARCH), WINNT)
-  SASL_LINK = /LIBPATH:$(SASL_LIBPATH) $(SASL_LIB_ROOT_NAME).lib
+  SASL_LIB_ROOT_NAME = sasl
+  SASL_LINK = /LIBPATH:$(SASL_LIBPATH) lib$(SASL_LIB_ROOT_NAME).lib
+  SASL_LIBS = lib$(SASL_LIB_ROOT_NAME).lib,lib$(SASL_LIB_ROOT_NAME).dll,saslDIGESTMD5.dll
 else
-  ifeq ($(ARCH), SOLARIS)
-    GSSAPI_LIBS=-lgss
-  endif
-#ifeq ($(ARCH), HPUX)
-  GSSAPI_LIBS=-lgss
-#endif
+  # for cyrus it's sasl2
+  SASL_LIB_ROOT_NAME = sasl2
+  SASL_LIBS = lib$(SASL_LIB_ROOT_NAME).a
   ifeq ($(ARCH), Linux)
     GSSAPI_LIBS=-L/usr/kerberos/lib -lgssapi_krb5
   endif
-  SASL_LINK = -L$(SASL_LIBPATH) -l$(SASL_LIB_ROOT_NAME) $(GSSAPI_LIBS)
-#SASL_LINK = -L$(SASL_LIBPATH) -l$(SASL_LIB_ROOT_NAME)
-endif
+  ifeq ($(ARCH), SOLARIS)
+    GSSAPI_LIBS=-lgss
+  endif
+  ifeq ($(ARCH), HPUX)
+      GSSAPI_LIBS=-lgssapi_krb5
+      ifeq ($(USE_64),1)
+        GSSAPI_LIBS=-L/usr/lib/pa20_64/gss -lgssapi_krb5
+      endif
+  endif
 
+  SASL_LINK = -L$(SASL_LIBPATH) -l$(SASL_LIB_ROOT_NAME) $(GSSAPI_LIBS)
+endif
 ###########################################################
 
 ### ICU package ##########################################
