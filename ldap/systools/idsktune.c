@@ -7,7 +7,7 @@
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *    Don't forget to update build_date when the patch sets are updated. 
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-static char *build_date = "19-MARCH-2004";
+static char *build_date = "04-APRIL-2005";
 
 #if defined(__FreeBSD__) || defined(__bsdi)
 #define IDDS_BSD_INCLUDE 1
