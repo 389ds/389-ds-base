@@ -173,8 +173,8 @@ if ($cgiargs{cfg_sspt} ||
 }
 
 #
-if ($table{slapd}->{UserDirectoryLdapURL}) {
-	$cgiargs{user_ldap_url} = $table{slapd}->{UserDirectoryLdapURL};
+if ($table{General}->{UserDirectoryLdapURL}) {
+	$cgiargs{user_ldap_url} = $table{General}->{UserDirectoryLdapURL};
 } else {
 	$cgiargs{user_ldap_url} = $cgiargs{ldap_url};
 }
