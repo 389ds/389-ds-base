@@ -83,6 +83,19 @@ done
 setupdir=`dirname $0`
 sroot=`dirname $setupdir`
 cd $sroot
+currentdir=`pwd`
+
+if [ "$currentdir" != "$sroot" ]; then
+	# running setup using a relative path
+	bname=`basename $setupdir`
+	if [ "$bname" = "." ]; then
+		setupdir=$currentdir
+	else
+		setupdir=`echo $currentdir/$bname`
+	fi
+	sroot=`dirname $setupdir`
+	cd $sroot
+fi
 
 rm -f $sroot/setup/install.inf
 
@@ -115,7 +128,7 @@ if ! [ $silent ]; then
 	tmpinffile=1
 
 	# put some common answers in the file
-	hostname=`hostname`
+	hostname=`hostname -f`
 	tryhost=`host $hostname | grep -v "not found" | awk '{print $1}'`
 	if [ "$tryhost" ] ; then
 		hostname=$tryhost
