@@ -1,12 +1,9 @@
-/**
- * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
- * license terms. Copyright © 2001 Sun Microsystems, Inc.
- * Some preexisting portions Copyright © 2001 Netscape Communications Corp.
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- */
+ * --- END COPYRIGHT BLOCK --- */
+
 /***********************************************************************
-**
-** Copyright 1996 - Netscape Communications Corporation
 **
 ** NAME
 **  DSSynch.h

@@ -1,5 +1,8 @@
 #!./tools/perl
-# Author: Nathan Kinder
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# --- END COPYRIGHT BLOCK ---
 #
 # This program will package a downloaded JRE into a nsjre.zip
 # file suitable for a DS install.

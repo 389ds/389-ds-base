@@ -1,10 +1,7 @@
-/***********************************************************************
-** Copyright 1996 - Netscape Communications Corporation
-**
-** Contact:	Fred Cox <flc@netscape.com>
-**
-** Name: perl.c
-***********************************************************************/
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
 
 /***********************************************************************
 ** Includes

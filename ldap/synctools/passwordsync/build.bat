@@ -1,3 +1,8 @@
+@rem // --- BEGIN COPYRIGHT BLOCK ---
+@rem // Copyright (C) 2005 Red Hat, Inc.
+@rem // All rights reserved.
+@rem // --- END COPYRIGHT BLOCK ---
+
 @echo off
 cd passsync
 nmake passsync.mak

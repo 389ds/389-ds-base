@@ -1,4 +1,8 @@
 #!/bin/sh
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# --- END COPYRIGHT BLOCK ---
 
 # Configure nsPerl
 if [ ! -f "./tools/perl" ]; then

@@ -1,5 +1,12 @@
 #!../../../bin/slapd/admin/bin/perl
 #
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+#
 #set ts=4
 
 # ------------

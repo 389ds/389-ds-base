@@ -1,19 +1,8 @@
-/**
- * PROPRIETARY/CONFIDENTIAL. Use of this product is subject to
- * license terms. Copyright 2001 Sun Microsystems, Inc.
- * Some preexisting portions Copyright 2001 Netscape Communications Corp.
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- */
-/*
- * Copyright (C) 2000 Sun Microsystems Inc.
- *
- * Use of this Source Code is subject to the terms of the applicable license
- * agreement from Sun Microsystems Inc. 
- *
- * The copyright notice(s) in this Source Code does not indicate actual or
- * intended publication of this Source Code. 
- */
- 
+ * --- END COPYRIGHT BLOCK --- */ 
  /*
  * Microsoft Windows specifics 
  */

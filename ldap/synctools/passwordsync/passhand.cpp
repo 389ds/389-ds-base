@@ -1,3 +1,8 @@
+// --- BEGIN COPYRIGHT BLOCK ---
+// Copyright (C) 2005 Red Hat, Inc.
+// All rights reserved.
+// --- END COPYRIGHT BLOCK ---
+
 // Created: 2-8-2005
 // Author(s): Scott Bridges
 #include "passhand.h"

@@ -1,3 +1,8 @@
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+
 NOSTDCLEAN=true
 NO_BUILD_NUM=true
 COMPONENT_DEPS=true

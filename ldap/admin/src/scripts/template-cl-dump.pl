@@ -1,9 +1,10 @@
 #{{PERL-EXEC}}
-
-################################################################################
-#
-# Copyright (C) 2002-2004 Netscape Communications Corporation. 
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+# Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
+# END COPYRIGHT BLOCK
+################################################################################
 #
 # FILE: cl-dump.pl
 #

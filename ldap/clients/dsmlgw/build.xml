@@ -1,4 +1,8 @@
 <?xml version='1.0'?>
+<!-- BEGIN COPYRIGHT BLOCK
+ Copyright (C) 2005 Red Hat, Inc.
+ All rights reserved.
+ END COPYRIGHT BLOCK -->
 <!-- ANT build script for the new dsml gateway -->
 <!-- Possible to compile by hand, use 
      cd /ldapserver/ldap/clients/dsmlgw

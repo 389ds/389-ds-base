@@ -1,11 +1,7 @@
-/*
- * SOAPClient.java
- *
- * Created on June 24, 2004, 3:00 PM
- */
-
-
-
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
 package com.netscape.dsml.test;
 
 

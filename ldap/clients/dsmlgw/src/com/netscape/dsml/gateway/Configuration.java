@@ -1,10 +1,7 @@
-/*
- * Copyright 2004 Netscape Communications Corporation.
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- *
- * 
- *
- */
+ * --- END COPYRIGHT BLOCK --- */
 package com.netscape.dsml.gateway;
 
 import java.io.*;

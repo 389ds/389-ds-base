@@ -1,3 +1,9 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# --- END COPYRIGHT BLOCK ---
+#
 # The script is used to load the config mapping tree node for the null suffix
 # and to load the test sample plugin node into the Directory Server used to
 # demonstrate the Data Interoperability feature for Verisign. 

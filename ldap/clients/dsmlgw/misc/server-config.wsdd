@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- BEGIN COPYRIGHT BLOCK
+ Copyright (C) 2005 Red Hat, Inc.
+ All rights reserved.
+ END COPYRIGHT BLOCK -->
 <deployment xmlns="http://xml.apache.org/axis/wsdd/" xmlns:java="http://xml.apache.org/axis/wsdd/providers/java">
  <globalConfiguration>
   <parameter name="adminPassword" value="admin"/>

@@ -1,3 +1,9 @@
+// --- BEGIN COPYRIGHT BLOCK ---
+// Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+// Copyright (C) 2005 Red Hat, Inc.
+// All rights reserved.
+// --- END COPYRIGHT BLOCK ---
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
 // Used by dsinst.rc

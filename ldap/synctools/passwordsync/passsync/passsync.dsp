@@ -1,5 +1,9 @@
 # Microsoft Developer Studio Project File - Name="passsync" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# --- END COPYRIGHT BLOCK ---
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103

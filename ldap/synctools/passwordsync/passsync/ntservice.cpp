@@ -1,6 +1,9 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 /***********************************************************************
-**
-** Copyright 1996 - Netscape Communications Corporation
 **
 ** NAME
 **  NTService.cpp

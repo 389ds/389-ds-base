@@ -1,3 +1,7 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
 package com.netscape.dsml.test;
 
 import javax.xml.parsers.*;
