@@ -358,6 +358,24 @@ else
 endif
 ###########################################################
 
+### Net-SNMP package ######################################
+ifdef NETSNMP_SOURCE_ROOT
+  NETSNMP_LIBPATH = $(NETSNMP_SOURCE_ROOT)/lib
+  NETSNMP_INCDIR = $(NETSNMP_SOURCE_ROOT)/include
+else
+  NETSNMP_LIBPATH = $(NETSNMP_BUILD_DIR)/lib
+  NETSNMP_INCDIR = $(NETSNMP_BUILD_DIR)/include
+endif
+
+NETSNMP_INCLUDE = -I$(NETSNMP_INCDIR)
+NETSNMP_LIBNAMES = netsnmp netsnmpagent netsnmpmibs netsnmphelpers
+NETSNMP_LINK = -L$(NETSNMP_LIBPATH) $(addprefix -l, $(NETSNMP_LIBNAMES))
+ifneq ($(ARCH), WINNT)
+  NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+  LIBS_TO_PKG += $(addprefix $(NETSNMP_LIBPATH)/,$(NETSNMP_SOLIBS))
+endif
+###########################################################
+
 ### ICU package ##########################################
 
 ICU_LIB_VERSION = 24

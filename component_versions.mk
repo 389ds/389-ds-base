@@ -96,9 +96,9 @@ ifndef ADM_VERSDIR
   ADM_VERSDIR = adminserver/70$(BUILD_MODE)
 endif
 
-# peer
-ifndef PEER_RELDATE
-  PEER_RELDATE = DS7.0
+# Net-SNMP
+ifndef NETSNMP_VER
+  NETSNMP_VER = v5.2.1
 endif
 
 # setup sdk

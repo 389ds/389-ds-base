@@ -48,9 +48,7 @@ _plugins:
 	cd plugins; $(MAKE) $(MFLAGS) all
 
 _snmp:
-ifdef still_waiting_for_net_snmp
 	cd snmp; $(MAKE) $(MFLAGS) all
-endif
 
 _slapdtools:
 	cd slapd/tools; $(MAKE) $(MFLAGS) all

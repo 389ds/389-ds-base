@@ -334,36 +334,25 @@ endif
 	fi
 
 ###########################################################
-# Peer
+# Net-SNMP
 
-PEER_BUILD_DIR = $(NSCP_DISTDIR)/peer
-ifeq ($(ARCH), WINNT)
-# PEER_RELEASE = $(COMPONENTS_DIR)/peer/$(PEER_RELDATE)
-# PEER_FILES = include
-else
-PEER_RELEASE = $(COMPONENTS_DIR)/peer/$(PEER_RELDATE)/$(NSOBJDIR_NAME)
-PEER_FILES = obj
-PEER_DEP = $(PEER_OBJPATH)/ns-ldapagt
+ifndef NETSNMP_SOURCE_ROOT
+NETSNMP_RELEASE = $(COMPONENTS_DIR_DEV)/net-snmp/$(NETSNMP_VER)/$(NSOBJDIR_NAME)
+NETSNMP_DEP = $(NETSNMP_INCDIR)/net-snmp/net-snmp-includes.h
+ifndef NETSNMP_PULL_METHOD
+NETSNMP_PULL_METHOD = $(COMPONENT_PULL_METHOD)
 endif
-# PEER_MGMTPATH = $(PEER_BUILD_DIR)/dev
-# PEER_INCDIR = $(PEER_BUILD_DIR)/include
-# PEER_BINPATH = $(PEER_BUILD_DIR)/dev
-PEER_OBJPATH = $(PEER_BUILD_DIR)/obj
-# PEER_INCLUDE = -I$(PEER_INCDIR)
-
-ifndef PEER_PULL_METHOD
-PEER_PULL_METHOD = $(COMPONENT_PULL_METHOD)
-endif
-
-$(PEER_DEP): $(NSCP_DISTDIR)
+                                                                                                                          
+$(NETSNMP_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
-	$(FTP_PULL) -method $(PEER_PULL_METHOD) \
-		-objdir $(PEER_BUILD_DIR) -componentdir $(PEER_RELEASE) \
-		-files $(PEER_FILES)
-	-@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component PEER file $@" ; \
-	fi
+	$(FTP_PULL) -method $(NETSNMP_PULL_METHOD) \
+		-objdir $(NETSNMP_BUILD_DIR) -componentdir $(NETSNMP_RELEASE) \
+		-files lib,include
 endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component NETSNMP file $@" ; \
+	fi
+endif # NETSNMP_SOURCE_ROOT
 
 ###########################################################
 

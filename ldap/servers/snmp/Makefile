@@ -22,29 +22,32 @@ NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
-OBJDEST = $(OBJDIR)/ns-ldapagt/obj
-INCLDEST = $(OBJDIR)/ns-ldapagt/include
+OBJDEST = $(OBJDIR)/ldap-agent
 BINDIR = $(LDAP_SERVER_RELDIR)
-EXTDEST = $(BINDIR)
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-
-MCC_SERVER=
 
 ARCH := $(shell uname -s)
 ifneq ($(ARCH), WINNT)
 ARCH := $(shell $(BUILD_ROOT)/nsarch)
 endif
 
+SNMP_OBJS = main.o ldap-agent.o agtmmap.o
+OBJS = $(addprefix $(OBJDEST)/, $(SNMP_OBJS))
+SNMPMODULE  = ldap-agent
+AGTMMAP_DIR = $(LDAP_SRC)/servers/slapd
 
-SNMPMODULE  =   ns-ldapagt
+ifneq ($(ARCH), WINNT)
+INCLUDES += -I. $(NETSNMP_INCLUDE) $(NSPR_INCLUDE)
+EXTRA_LIBS += $(NETSNMP_LINK) -ldl -lcrypto -lelf -lm
+endif
 
-# the netscape-ldap.mib goes in the plugins/snmp directory, and the other mib like
+# the redhat-directory.mib goes in the plugins/snmp directory, and the other mib like
 # files go in the plugins/snmp/mibs directory
-NSMIB_DEST_DIR = $(RELDIR)/plugins/snmp
-NSMIB_SRC_FILES = netscape-ldap.mib
-MIBS_DEST_DIR = $(NSMIB_DEST_DIR)/mibs
+MIB_DEST_DIR = $(RELDIR)/plugins/snmp
+MIB_SRC_FILES =redhat-directory.mib
+MIBS_DEST_DIR = $(MIB_DEST_DIR)/mibs
 MIBS_SRC_FILES = NETWORK-SERVICES-MIB.txt \
 	RFC1155-SMI.txt	\
 	RFC-1215.txt \
@@ -52,31 +55,33 @@ MIBS_SRC_FILES = NETWORK-SERVICES-MIB.txt \
 	SNMPv2-SMI.txt \
 	SNMPv2-TC.txt
 MIB_DEST_FILES = $(addprefix $(MIBS_DEST_DIR)/,$(notdir $(MIBS_SRC_FILES))) \
-	$(addprefix $(NSMIB_DEST_DIR)/,$(NSMIB_SRC_FILES))
+	$(addprefix $(MIB_DEST_DIR)/,$(MIB_SRC_FILES))
 
 default: all
 
 ifneq ($(ARCH), WINNT)
-all: $(EXTDEST)/$(SNMPMODULE) $(NSMIB_DEST_DIR)/$(NSMIB_SRC_FILES) $(MIB_DEST_FILES)
+all: $(OBJDEST) $(BINDIR)/$(SNMPMODULE) $(MIB_DEST_DIR)/$(MIB_SRC_FILES) $(MIB_DEST_FILES)
 else
 OBJ_SUFFIX=obj
 all: $(MIB_DEST_FILES)
 	cd ntagt; $(MAKE) $(MFLAGS) all
 endif
 
+# Rule to make agtmmap
+$(OBJDEST)/agtmmap.o: $(AGTMMAP_DIR)/agtmmap.c
+	$(CC) $(CFLAGS) -g -o $@ -c $<
+
 # Rule to create destination directories
-$(MIBS_DEST_DIR) $(NSMIB_DEST_DIR):
+$(MIBS_DEST_DIR) $(MIB_DEST_DIR) $(OBJDEST):
 	$(MKDIR) $@
 
-# Rule to copy subagent binary to release area
-$(EXTDEST)/$(SNMPMODULE): $(EXTDEST)
-ifneq ($(ARCH), WINNT)
-	$(CP) $(NSCP_DISTDIR)/peer/obj/$(SNMPMODULE) $(EXTDEST)/$(SNMPMODULE)
-endif
+# Rule to build subagent binary
+$(BINDIR)/$(SNMPMODULE): $(OBJS)
+	$(LINK_EXE)
 
 # this rule is for mib files in the local directory that go in the nsmib directory
-$(NSMIB_DEST_DIR)/$(NSMIB_SRC_FILES): $(NSMIB_DEST_DIR)
-	$(CP) ./$(NSMIB_SRC_FILES) $@
+$(MIB_DEST_DIR)/$(MIB_SRC_FILES): $(MIB_DEST_DIR)
+	$(CP) ./$(MIB_SRC_FILES) $@
 
 # this rule is for mib files which go in the mibs subdir
 $(MIBS_DEST_DIR)/%: % $(MIBS_DEST_DIR)
