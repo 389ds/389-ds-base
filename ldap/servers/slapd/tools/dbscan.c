@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
 #include "db.h"
 
 #ifdef _WIN32
@@ -368,9 +369,12 @@ void _cl5ReadMod(char **buff)
    *** Copied from cl5_api:cl5DBData2Entry ***
    Data in db format:
    ------------------
-   <1 byte version><1 byte change_type><sizeof time_t time><null terminated dbid>
+   <1 byte version><1 byte change_type><sizeof uint32 time><null terminated dbid>
    <null terminated csn><null terminated uniqueid><null terminated targetdn>
    [<null terminated newrdn><1 byte deleteoldrdn>][<4 byte mod count><mod1><mod2>....]
+
+Note: the length of time is set uint32 instead of time_t. Regardless of the
+width of long (32-bit or 64-bit), it's stored using 4bytes by the server [153306].
 
    mod format:
    -----------
@@ -382,6 +386,7 @@ void print_changelog(unsigned char *data, int len)
 	uint8_t version;
 	unsigned long operation_type;
 	char *pos = (char *)data;
+	uint32 thetime32;
 	time_t thetime;
 	uint32 replgen;
 
@@ -400,10 +405,12 @@ void print_changelog(unsigned char *data, int len)
 	
 	/* need to do the copy first, to skirt around alignment problems on
 	   certain architectures */
-	memcpy((char *)&thetime, pos, sizeof(thetime));
-	replgen = ntohl((uint32)(thetime));
-	pos += sizeof (time_t);
-	db_printf("\treplgen: %ld %s", replgen, ctime((time_t *)&replgen));
+	memcpy((char *)&thetime32, pos, sizeof(thetime32));
+
+	replgen = ntohl(thetime32);
+	pos += sizeof(uint32);
+	thetime = (time_t)replgen;
+	db_printf("\treplgen: %ld %s", replgen, ctime((time_t *)&thetime));
 
 	/* read csn */
 	print_attr("csn", &pos);
@@ -657,7 +664,7 @@ int main(int argc, char **argv)
     DBT key = {0}, data = {0};
     int ret;
     char *find_key = NULL;
-    uint32 entry_id = -1;
+    uint32 entry_id = 0xffffffff;
     int c;
 
     while ((c = getopt(argc, argv, "f:iecl:nG:srk:K:hv")) != EOF) {
