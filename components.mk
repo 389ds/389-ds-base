@@ -566,9 +566,9 @@ endif
 # apache-axis java classes #######################################
 AXIS = axis-bin-$(AXIS_VERSION).zip
 AXIS_FILES = $(AXIS)
-AXIS_RELEASE = $(COMPONENTS_DIR)
+AXIS_RELEASE = $(COMPONENTS_DIR)/axis
 #AXISJAR_DIR = $(AXISJAR_RELEASE)/$(AXISJAR_COMP)/$(AXISJAR_VERSION)
-AXIS_DIR = $(AXIS_RELEASE)/axis
+AXIS_DIR = $(AXIS_RELEASE)/$(AXIS_VERSION)
 AXIS_FILE = $(CLASS_DEST)/$(AXIS)
 AXIS_DEP = $(AXIS_FILE) 
 AXIS_REL_DIR=$(subst -bin,,$(subst .zip,,$(AXIS)))

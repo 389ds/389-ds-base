@@ -8,7 +8,7 @@ MCOM_ROOT=../../../..
 include ../../../nsconfig.mk
 include ../../../ldap/javarules.mk
 
-all: $(TOMCAT_DEP) $(ANT_DEP) $(LDAPJDK_DEP)
+all: $(ANT_DEP) $(LDAPJDK_DEP)
 	$(ANT) 
 
 clean: 	

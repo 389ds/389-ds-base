@@ -174,11 +174,8 @@ ifndef SASL_RELDATE
 endif
 
 # jakarta/axis for DSMLGW
-ifndef TOMCAT_VERSION
-  TOMCAT_VERSION=5.0.27
-endif
 ifndef AXIS_VERSION
-  AXIS_VERSION=1_2beta
+  AXIS_VERSION=1.2beta
 endif
 
 # JSP compiler jasper
