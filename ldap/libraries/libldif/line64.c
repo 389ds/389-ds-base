@@ -1,3 +1,8 @@
+/* --- BEGIN COPYRIGHT BLOCK ---
+ * Copyright (C) 2005 Red Hat, Inc.
+ * All rights reserved.
+ * --- END COPYRIGHT BLOCK --- */
+
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
  * The contents of this file are subject to the Netscape Public License
