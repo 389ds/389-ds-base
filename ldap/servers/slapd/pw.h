@@ -11,17 +11,6 @@
 #define PWD_HASH_PREFIX_START	'{'
 #define PWD_HASH_PREFIX_END	'}'
 
-/* Password Policy Response Control stuff */
-#define LDAP_PWPOLICY_PWDEXPIRED		0
-#define LDAP_PWPOLICY_ACCTLOCKED		1
-#define LDAP_PWPOLICY_CHGAFTERRESET		2
-#define LDAP_PWPOLICY_PWDMODNOTALLOWED		3
-#define LDAP_PWPOLICY_MUSTSUPPLYOLDPWD		4
-#define LDAP_PWPOLICY_INVALIDPWDSYNTAX		5
-#define LDAP_PWPOLICY_PWDTOOSHORT		6
-#define LDAP_PWPOLICY_PWDTOOYOUNG		7
-#define LDAP_PWPOLICY_PWDINHISTORY		8
-
 /*
  * 
  * structure for holding password scheme info.
@@ -53,7 +42,6 @@ int pw_encodevals( Slapi_Value **vals );
 int checkPrefix(char *cipher, char *schemaName, char **encrypt);
 struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, char *dn );
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);
-int pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int error);
 
 /* function for checking the values of fine grained password policy attributes */
 int check_pw_minage_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );

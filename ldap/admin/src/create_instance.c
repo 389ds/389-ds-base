@@ -3727,6 +3727,30 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
         }
     }
 
+	/* PAM Pass Through Auth plugin - off by default */
+	fprintf(f, "dn: cn=PAM Pass Through Auth,cn=plugins,cn=config\n");
+	fprintf(f, "objectclass: top\n");
+	fprintf(f, "objectclass: nsSlapdPlugin\n");
+	fprintf(f, "objectclass: extensibleObject\n");
+	fprintf(f, "objectclass: pamConfig\n");
+	fprintf(f, "cn: PAM Pass Through Auth\n");
+	fprintf(f, "nsslapd-pluginpath: %s/lib/pam-passthru-plugin%s\n", sroot, shared_lib);
+	fprintf(f, "nsslapd-plugininitfunc: pam_passthruauth_init\n");
+	fprintf(f, "nsslapd-plugintype: preoperation\n");
+	fprintf(f, "nsslapd-pluginenabled: off\n");
+	fprintf(f, "nsslapd-pluginLoadGlobal: true\n");
+	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+	fprintf(f, "pamMissingSuffix: ALLOW\n");
+	if (cf->netscaperoot) {
+		fprintf(f, "pamExcludeSuffix: %s\n", cf->netscaperoot);
+	}
+	fprintf(f, "pamExcludeSuffix: cn=config\n");
+	fprintf(f, "pamMapMethod: RDN\n");
+	fprintf(f, "pamFallback: FALSE\n");
+	fprintf(f, "pamSecure: TRUE\n");
+	fprintf(f, "pamService: ldapserver\n");
+	fprintf(f, "\n");
+
     fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");

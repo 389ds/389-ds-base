@@ -785,6 +785,19 @@ char **slapi_get_supported_extended_ops_copy( void );
  */
 void slapi_register_supported_saslmechanism( char *mechanism );
 char ** slapi_get_supported_saslmechanisms_copy( void );
+void slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn );
+int slapi_add_pwd_control( Slapi_PBlock *pb, char *arg, long time );
+int slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int error);
+/* Password Policy Response Control stuff - the error argument above */
+#define LDAP_PWPOLICY_PWDEXPIRED		0
+#define LDAP_PWPOLICY_ACCTLOCKED		1
+#define LDAP_PWPOLICY_CHGAFTERRESET		2
+#define LDAP_PWPOLICY_PWDMODNOTALLOWED		3
+#define LDAP_PWPOLICY_MUSTSUPPLYOLDPWD		4
+#define LDAP_PWPOLICY_INVALIDPWDSYNTAX		5
+#define LDAP_PWPOLICY_PWDTOOSHORT		6
+#define LDAP_PWPOLICY_PWDTOOYOUNG		7
+#define LDAP_PWPOLICY_PWDINHISTORY		8
 
 /*
  * routine for freeing the ch_arrays returned by the slapi_get*_copy functions above

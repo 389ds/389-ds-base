@@ -105,9 +105,9 @@ skip:
 		/* check for "changeafterreset" condition */
 		if (pb->pb_conn->c_needpw == 1) {
 			if (pwresponse_req) {
-				pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_CHGAFTERRESET );
+				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_CHGAFTERRESET );
 			} 
-			add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+			slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		}
 		pw_apply_mods(dn, &smods);
 		slapi_mods_done(&smods);
@@ -136,18 +136,18 @@ skip:
 			if (pwresponse_req) {
 				/* check for "changeafterreset" condition */
 				if (pb->pb_conn->c_needpw == 1) {
-					pwpolicy_make_response_control( pb, -1, 
+					slapi_pwpolicy_make_response_control( pb, -1, 
 						((pwpolicy->pw_gracelimit) - pwdGraceUserTime),
 						LDAP_PWPOLICY_CHGAFTERRESET);
 				} else {
-					pwpolicy_make_response_control( pb, -1, 
+					slapi_pwpolicy_make_response_control( pb, -1, 
 						((pwpolicy->pw_gracelimit) - pwdGraceUserTime),
 						-1);
 				}
 			}
 			
 			if (pb->pb_conn->c_needpw == 1) {
-				add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+				slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 			}
 			delete_passwdPolicy(&pwpolicy);
 			return ( 0 );
@@ -155,9 +155,9 @@ skip:
 
 		/* password expired and user exceeded limit of grace attemps.
 		 * Send result and also the control */
-		add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		if (pwresponse_req) {
-			pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDEXPIRED );
+			slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDEXPIRED );
 		}
 		slapi_send_ldap_result ( pb, LDAP_INVALID_CREDENTIALS, NULL,
 			"password expired!", 0, NULL );
@@ -226,16 +226,16 @@ skip:
 		if (pwresponse_req) {
 			/* check for "changeafterreset" condition */
 			if (pb->pb_conn->c_needpw == 1) {
-					pwpolicy_make_response_control( pb, *t, -1,
+					slapi_pwpolicy_make_response_control( pb, *t, -1,
 						LDAP_PWPOLICY_CHGAFTERRESET);
 				} else {
-					pwpolicy_make_response_control( pb, *t, -1,
+					slapi_pwpolicy_make_response_control( pb, *t, -1,
 						-1);
 				}
 		}
 
 		if (pb->pb_conn->c_needpw == 1) {
-			add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+			slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		}
 		delete_passwdPolicy(&pwpolicy);
 		return (2);
@@ -245,7 +245,7 @@ skip:
 	slapi_mods_done(&smods);
 	/* Leftover from "changeafterreset" condition */
 	if (pb->pb_conn->c_needpw == 1) {
-		add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 	}
 	delete_passwdPolicy(&pwpolicy);
 	/* passes checking, return 0 */
@@ -298,7 +298,7 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 			{
 				/* account inactivated */
 				if (pwresponse_req) {
-					pwpolicy_make_response_control ( pb, -1, -1,
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_ACCTLOCKED );
 				}
 				send_ldap_result ( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -348,7 +348,7 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 
 	        /* account is locked forever. contact admin to reset */
 			if (pwresponse_req) {
-				pwpolicy_make_response_control ( pb, -1, -1,
+				slapi_pwpolicy_make_response_control ( pb, -1, -1,
 						LDAP_PWPOLICY_ACCTLOCKED );
 			}
 	        send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL,
@@ -363,7 +363,7 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 
 			/* account is locked, cannot do anything */	
 			if (pwresponse_req) {
-				pwpolicy_make_response_control ( pb, -1, -1,
+				slapi_pwpolicy_make_response_control ( pb, -1, -1,
 						LDAP_PWPOLICY_ACCTLOCKED );
 			}
 			send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL,

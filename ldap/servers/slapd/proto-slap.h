@@ -661,7 +661,6 @@ int check_pw_syntax( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char **old_pw, Slapi_Entry *e, int mod_op );
 int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req);
 int check_pw_minage( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals) ;
-int add_pwd_control( Slapi_PBlock *pb, char *arg, long time );
 void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );
 void mod_allowchange_aci(char *val);
 void pw_mod_allowchange_aci(int pw_prohibit_change);
@@ -1139,11 +1138,6 @@ int connection_acquire_nolock (Connection *conn);
 int connection_release_nolock (Connection *conn);
 int connection_is_free (Connection *conn);
 int connection_is_active_nolock (Connection *conn);
-
-/*
- * bind.c
- */
-void add_auth_response_control( Slapi_PBlock *pb, const char *binddn );
 
 /*
  * saslbind.c

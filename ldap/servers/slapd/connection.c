@@ -404,7 +404,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 		op->o_tag != LDAP_REQ_BIND && op->o_tag != LDAP_REQ_UNBIND && 
 		op->o_tag != LDAP_REQ_ABANDON )
 	{
-		add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
+		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d %s\n",
            	pb->pb_conn->c_connid, pb->pb_op->o_opid, 
 			"need new password" );

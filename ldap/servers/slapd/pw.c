@@ -660,7 +660,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
 							parse_genTime ( cur_time_str )) > 0 )
 			{
 				if ( pwresponse_req == 1 ) {
-					pwpolicy_make_response_control ( pb, -1, -1,
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOYOUNG );
 				}
 				pw_send_ldap_result ( pb,
@@ -699,7 +699,7 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			if ( pwpolicy->pw_minlength
 				> (int)slapi_value_get_length(vals[ i ]) ) { /* jcm: had to cast unsigned int to signed int */
 				if ( pwresponse_req == 1 ) {
-					pwpolicy_make_response_control ( pb, -1, -1,
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOSHORT );
 				}
 				pw_send_ldap_result ( pb, 
@@ -729,7 +729,7 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				Slapi_Value **va= attr_get_present_values(attr);
 				if ( pw_in_history( va, vals[0] ) == 0 ) {
 					if ( pwresponse_req == 1 ) {
-						pwpolicy_make_response_control ( pb, -1, -1,
+						slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDINHISTORY );
 					}
 					pw_send_ldap_result ( pb, 
@@ -954,11 +954,11 @@ int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 }
 
 int
-add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
+slapi_add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
 	LDAPControl	new_ctrl;
 	char		buf[12];
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> add_pwd_control\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_add_pwd_control\n", 0, 0, 0 );
 	
 	sprintf( buf, "%ld", time );
 	new_ctrl.ldctl_oid = arg;
@@ -1108,7 +1108,7 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 			if( strcasecmp( slapi_value_get_string(va[i]),  slapi_value_get_string(vals[0])) == 0) /* JCM Innards */
 			{
 				if ( pwresponse_req == 1 ) {
-					pwpolicy_make_response_control ( pb, -1, -1,
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 						LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 				}
 				pw_send_ldap_result ( pb, 
@@ -1378,7 +1378,7 @@ delete_passwdPolicy( passwdPolicy **pwpolicy)
  *   operationsError (1),
  */
 int
-pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int error)
+slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int error)
 {
 	BerElement *ber= NULL;    
 	struct berval *bvp = NULL;
@@ -1401,7 +1401,7 @@ pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int e
 			passwordInHistory     (8) } }
 	*/
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> pwpolicy_make_response_control", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_pwpolicy_make_response_control", 0, 0, 0 );
 	if ( ( ber = ber_alloc()) == NULL )
 	{
 		return rc;
@@ -1442,7 +1442,7 @@ pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int e
 		ber_bvfree(bvp);
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= pwpolicy_make_response_control", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_pwpolicy_make_response_control", 0, 0, 0 );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }

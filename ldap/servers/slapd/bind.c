@@ -344,7 +344,7 @@ do_bind( Slapi_PBlock *pb )
                                   pb->pb_conn->c_external_dn,
                                   NULL, NULL, NULL , NULL);
             if ( auth_response_requested ) {
-                add_auth_response_control( pb, pb->pb_conn->c_external_dn );
+                slapi_add_auth_response_control( pb, pb->pb_conn->c_external_dn );
             }
             send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
             goto free_and_return;
@@ -362,7 +362,7 @@ do_bind( Slapi_PBlock *pb )
             /* call preop plugins */
             if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0){
                 if ( auth_response_requested ) {
-                    add_auth_response_control( pb, "" );
+                    slapi_add_auth_response_control( pb, "" );
                 }
                 send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 
@@ -411,7 +411,7 @@ do_bind( Slapi_PBlock *pb )
         /* call preop plugin */
         if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0){
             if ( auth_response_requested ) {
-                add_auth_response_control( pb,
+                slapi_add_auth_response_control( pb,
                                            ( cred.bv_len == 0 ) ? "" :
                                            slapi_sdn_get_ndn(&sdn));
             }
@@ -498,12 +498,12 @@ do_bind( Slapi_PBlock *pb )
                                                   slapi_sdn_get_ndn(&sdn)),
                                               NULL, NULL, NULL, bind_target_entry );
                         if ( auth_response_requested ) {
-                            add_auth_response_control( pb,
+                            slapi_add_auth_response_control( pb,
                                                        slapi_sdn_get_ndn(&sdn));
                         }
                     } else {	/* anonymous */
                         if ( auth_response_requested ) {
-                            add_auth_response_control( pb,
+                            slapi_add_auth_response_control( pb,
                                                        "" );
                         }
                     }
@@ -517,12 +517,12 @@ do_bind( Slapi_PBlock *pb )
                     switch ( need_new_pw (pb, &t, bind_target_entry, pw_response_requested )) {
 						
                     case 1:
-                        (void)add_pwd_control ( pb, 
+                        (void)slapi_add_pwd_control ( pb, 
                                                 LDAP_CONTROL_PWEXPIRED, 0);
                         break;
 						
                     case 2:
-                        (void)add_pwd_control ( pb, 
+                        (void)slapi_add_pwd_control ( pb, 
                                                 LDAP_CONTROL_PWEXPIRING, t);
                         break;
                     case -1: 
@@ -635,7 +635,7 @@ log_bind_access (
 
 
 void
-add_auth_response_control( Slapi_PBlock *pb, const char *binddn )
+slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn )
 {
     LDAPControl		arctrl;
 	char			dnbuf_fixedsize[ 512 ], *dnbuf, *dnbuf_dynamic = NULL;

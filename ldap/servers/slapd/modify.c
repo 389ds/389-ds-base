@@ -259,7 +259,7 @@ do_modify( Slapi_PBlock *pb )
 	if (!pb->pb_conn->c_isreplication_session &&
 		pb->pb_conn->c_needpw && pw_change == 0 )
 	{
-		(void)add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+		(void)slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		op_shared_log_error_access (pb, "MOD", dn, "need new password");
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
 		goto free_and_return;
@@ -871,7 +871,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 			!pb->pb_conn->c_needpw && !pwpolicy->pw_change)
 		{
 			if ( pwresponse_req == 1 ) {
-				pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
+				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
 			}
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 							 "user is not allowed to change password", 0, NULL);

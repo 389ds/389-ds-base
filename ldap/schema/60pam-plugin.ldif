@@ -1,0 +1,19 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2005 Red Hat Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for representing PAM plugin configuration
+#
+dn: cn=schema
+attributeTypes: ( 2.16.840.1.113730.3.1.2067 NAME 'pamIncludeSuffix' DESC 'Suffixes to include for PAM authentication' SYNTAX  1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2068 NAME 'pamExcludeSuffix' DESC 'Suffixes to exclude from PAM authentication' SYNTAX  1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2069 NAME 'pamMissingSuffix' DESC 'How to handle missing include or exclude suffixes' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2070 NAME 'pamMapMethod' DESC 'How to map BIND DN to PAM identity' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2071 NAME 'pamIDAttr' DESC 'Name of attribute holding PAM ID' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2072 NAME 'pamFallback' DESC 'Fallback to regular LDAP BIND if PAM auth fails' SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 SINGLE-VALUE X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2073 NAME 'pamSecure' DESC 'Require secure (TLS/SSL) connection for PAM auth' SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 SINGLE-VALUE X-ORIGIN 'Red Hat Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2074 NAME 'pamService' DESC 'Service name to pass to pam_start' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN 'Red Hat Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.318 NAME 'pamConfig' DESC 'PAM plugin configuration' SUP top AUXILIARY MAY ( pamMissingSuffix $ pamExcludeSuffix $ pamIncludeSuffix $ pamIDAttr $ pamMapMethod $ pamFallback $ pamSecure $ pamService ) X-ORIGIN 'Red Hat Directory Server' )

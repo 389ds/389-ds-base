@@ -803,7 +803,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrls);
         if (slapi_control_present(ctrls, LDAP_CONTROL_AUTH_REQUEST, 
                                   NULL, NULL)) {
-            add_auth_response_control(pb, dn);
+            slapi_add_auth_response_control(pb, dn);
         }
 
         if (slapi_mapping_tree_select(pb, &be, &referral, errorbuf) != LDAP_SUCCESS) {
@@ -835,10 +835,10 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 			
             switch (pwrc) {
             case 1:
-                add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
+                slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
                 break;
             case 2:
-                add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
+                slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
                 break;
             case -1:
                 goto out;
