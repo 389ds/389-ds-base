@@ -35,7 +35,11 @@ extern int XP_GetError();
 extern int acl_usr_cache_init();
 extern int acl_usr_cache_set_group();
 extern int acl_usr_cache_group_check();
-extern int sema_destroy();
+extern int acl_usr_cache_group_len_check();
+extern int acl_usr_cache_enabled();
+extern int get_userdn_ldap (NSErr_t *errp, PList_t subject,
+                     PList_t resource, PList_t auth_info,
+                     PList_t global_auth, void *unused);
 extern char *ldapu_err2string(int err);
 extern int ACL_CacheFlush(void);
 NSPR_END_EXTERN_C
@@ -54,11 +58,6 @@ void init_ldb_rwlock ()
 {
 }
 
-sema_destroy()
-{
-	return 0;
-}
-
 #ifdef notdef
 char *system_errmsg()
 {
@@ -75,27 +74,44 @@ ACL_CacheFlushRegister(AclCacheFlushFunc_t flush_func)
     return 0;
 }
 
-acl_usr_cache_init()
+int acl_usr_cache_init()
 {
 	return 0;
 }
 
-acl_usr_cache_group_check()
+int acl_usr_cache_group_check()
 {
 	return 0;
 }
 
-acl_usr_cache_set_group()
+int acl_usr_cache_set_group()
 {
 	return 0;
 }
 
-XP_SetError()
+int acl_usr_cache_group_len_check()
 {
 	return 0;
 }
 
-XP_GetError()
+int acl_usr_cache_enabled()
+{
+	return 0;
+}
+
+int get_userdn_ldap (NSErr_t *errp, PList_t subject,
+                     PList_t resource, PList_t auth_info,
+                     PList_t global_auth, void *unused)
+{
+	return LAS_EVAL_TRUE;
+}
+
+int XP_SetError()
+{
+	return 0;
+}
+
+int XP_GetError()
 {
 	return 0;
 }
@@ -129,7 +145,7 @@ int crit_owner_is_me(CRITICAL id)
     return 1;
 }
 
-symTableFindSym()
+int symTableFindSym()
 {
 	return 0;
 }
@@ -171,11 +187,13 @@ LASUserGetUser()
 	return "hmiller";
 }
 
+int 
 LASIpGetIp()
 {
 	return(0x11223344);
 }
 
+int 
 LASDnsGetDns(char **dnsv)
 {
 	*dnsv = "aruba.mcom.com";
@@ -188,11 +206,13 @@ ACL_DestroyList()
 return(0);
 }
 
+int
 aclCheckHosts()
 {
 return(0);
 }
 
+int
 aclCheckUsers()
 {
 return(0);

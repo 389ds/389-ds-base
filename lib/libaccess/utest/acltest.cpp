@@ -5,8 +5,6 @@
  * END COPYRIGHT BLOCK **/
 #include	<stdio.h>
 #include	<netsite.h>
-#include	<base/session.h>
-#include	<base/daemon.h>
 #include	<base/systhr.h>
 #include	<libaccess/nserror.h>
 #include	<libaccess/acl.h>
@@ -42,7 +40,7 @@ static int parse_dburl (NSErr_t *errp, ACLDbType_t dbtype,
 }
 
 
-main()
+int main(int argc, char **argv)
 {
 	ACLListHandle_t	*acl_list;
 	int		result;
@@ -232,6 +230,7 @@ main()
 
 	eval.subject = NULL;
 	eval.resource = NULL;
+        eval.default_result = ACL_RES_DENY;
 
 	for (i=0; i<10; i++) {
 		sprintf(filename, "aclfile%d", i);
@@ -436,44 +435,6 @@ skip_test:
 		ACL_ListDestroy(NULL, eval.acllist);
 		printf("%s = %d\n\n", filename, result);
 	}
-
-	/*
-	 *	Program LAS Unit Tests
-	 */
-	char *groups[32] = {
-		"http-foo",
-		"http-bar",
-		"http-grog",
-		NULL
-	};
-	char *programs[32] = {
-		"foo, fubar, frobozz",
-		"bar, shoo, fly",
-		"grog, beer",
-		NULL
-	};
-	struct program_groups program_groups;
-	program_groups.groups = groups;
-	program_groups.programs = programs;
-
-	result = LASProgramEval(NULL, "program", CMP_OP_EQ, "http-foo, http-bar,http-grog", &cachable, &las_cookie, (PList_t)"foo", (PList_t)&program_groups, NULL, NULL);
-	printf("program = foo %d\n\n", result);
-
-
-	result = LASProgramEval(NULL, "program", CMP_OP_EQ, "http-foo, http-bar,http-grog", &cachable, &las_cookie, (PList_t)"nomatch", (PList_t)&program_groups, NULL, NULL);
-	printf("program = nomatch %d\n\n", result);
-
-
-	result = LASProgramEval(NULL, "program", CMP_OP_EQ, "http-foo, http-bar,http-grog", &cachable, &las_cookie, (PList_t)"beer", (PList_t)&program_groups, NULL, NULL);
-	printf("program = beer %d\n\n", result);
-
-
-	result = LASProgramEval(NULL, "program", CMP_OP_EQ, "http-foo, http-bar, http-grog", &cachable, &las_cookie, (PList_t)"http-grog", (PList_t)&program_groups, NULL, NULL);
-	printf("program = http-grog %d\n\n", result);
-
-	result = LASProgramEval(NULL, "program", CMP_OP_EQ, "http-foo", &cachable, &las_cookie, (PList_t)"ubar", (PList_t)&program_groups, NULL, NULL);
-	printf("program = ubar %d\n\n", result);
-
 
 	/*	
 	 *	DNS LAS Unit Tests

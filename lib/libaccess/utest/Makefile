@@ -39,12 +39,12 @@ XSRC = \
 	../aclspace.cpp \
 	../lasgroup.cpp \
 	../lasuser.cpp \
-	../lasprogram.cpp \
 	../nseframe.cpp \
 	../aclcache.cpp \
 	../register.cpp \
 	../symbols.cpp \
 	../method.cpp \
+	../access_plhash.cpp \
 	../authdb.cpp 
 
 COBJ = $(CSRC:%.cpp=%.o)
@@ -68,7 +68,6 @@ XLIBS+=	$(OBJDIR)/lib/base/plist.o \
 	$(OBJDIR)/lib/base/ereport.o \
 	$(OBJDIR)/lib/base/system.o \
 	$(OBJDIR)/lib/base/shexp.o \
-	$(OBJDIR)/lib/base/pblock.o \
 	$(OBJDIR)/lib/base/file.o \
 	$(OBJDIR)/lib/base/systhr.o \
 	$(OBJDIR)/lib/base/nscperror.o \
@@ -79,7 +78,7 @@ all: $(COBJ) $(TSRC) acltest
 	./acltest > test.out
 	diff test.ref test.out
 	@echo
-	@echo "The unit test is passed if there is no diff output, and the"
+	@echo "The unit test has passed if there is no diff output and the"
 	@echo "Purify window shows no errors and 0 bytes leaked."
 	@echo
 	@echo "Run - gmake coverage - manually to get code coverage analysis."
