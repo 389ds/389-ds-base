@@ -75,6 +75,9 @@ void consumer_connection_extension_destructor (void *ext, void *object, void *pa
 						"of replicated area.\n");
 				}
 				slapi_pblock_destroy(pb);
+
+				/* allow reaping again */
+				replica_set_tombstone_reap_stop(r, PR_FALSE);
 			}
 			replica_relinquish_exclusive_access(r, connid, -1);
             object_release ((Object*)connext->replica_acquired);

@@ -776,6 +776,10 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		char *mtnstate = slapi_mtn_get_state(repl_root_sdn);
 		char **mtnreferral = slapi_mtn_get_referral(repl_root_sdn);
 
+		/* richm 20041118 - we do not want to reap tombstones while there is
+		   a total update in progress, so shut it down */
+		replica_set_tombstone_reap_stop(replica, PR_TRUE);
+
 		/* richm 20010831 - set the mapping tree to the referral state *before*
 		   we invoke slapi_start_bulk_import - see bug 556992 -
 		   slapi_start_bulk_import sets the database offline, if an operation comes
@@ -839,6 +843,9 @@ send_response:
 			connid, opid,
 			(replica ? slapi_sdn_get_dn(replica_get_root(replica)) : "unknown"),
 			protocol_response2string (response), purlstr);
+
+		/* enable tombstone reap again since the total update failed */
+		replica_set_tombstone_reap_stop(replica, PR_FALSE);
     }
 	/* Send the response */
 	if ((resp_bere = der_alloc()) == NULL)
@@ -1043,6 +1050,10 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			    /* ONREPL code that dealt with new RUV, etc was moved into the code
                    that enables replication when a backend comes back online. This
                    code is called once the bulk import is finished */
+
+				/* allow reaping again */
+				replica_set_tombstone_reap_stop(r, PR_FALSE);
+
 			}
 			else if (connext->repl_protocol_version == REPL_PROTOCOL_50_INCREMENTAL)
 			{

@@ -429,6 +429,7 @@ void replica_write_ruv (Replica *r);
 #define REPLICA_AGREEMENTS_DISABLED 8 /* Replica is offline */
 PRBool replica_is_state_flag_set(Replica *r, PRInt32 flag);
 void replica_set_state_flag (Replica *r, PRUint32 flag, PRBool clear); 
+void replica_set_tombstone_reap_stop(Replica *r, PRBool val);
 void replica_enable_replication (Replica *r);
 void replica_disable_replication (Replica *r, Object *r_obj);
 int replica_start_agreement(Replica *r, Repl_Agmt *ra);

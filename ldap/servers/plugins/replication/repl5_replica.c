@@ -17,7 +17,6 @@ int g_get_shutdown();
 
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
 #define START_UPDATE_DELAY 2 /* 2 second */
-#define START_REAP_DELAY 3600 /* 1 hour */
 
 #define REPLICA_RDN				 "cn=replica"
 #define CHANGELOG_RDN            "cn=legacy changelog"
@@ -214,7 +213,9 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 		 * This will allow the server to fully start before consuming resources.
 		 */
 		repl_name = slapi_ch_strdup (r->repl_name);
-		r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, repl_name, current_time() + START_REAP_DELAY, 1000 * r->tombstone_reap_interval);
+		r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, repl_name,
+										   current_time() + r->tombstone_reap_interval,
+										   1000 * r->tombstone_reap_interval);
 	}
 
     if (r->legacy_consumer)
@@ -2335,7 +2336,18 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 	unsigned long *num_entriesp = &((reap_callback_data *)cb_data)->num_entries;
 	unsigned long *num_purged_entriesp = &((reap_callback_data *)cb_data)->num_purged_entries;
 	CSN *purge_csn = ((reap_callback_data *)cb_data)->purge_csn;
+	/* this is a pointer into the actual value in the Replica object - so that
+	   if the value is set in the replica, we will know about it immediately */
 	PRBool *tombstone_reap_stop = ((reap_callback_data *)cb_data)->tombstone_reap_stop;
+
+	/* abort reaping if we've been told to stop or we're shutting down */
+	if (*tombstone_reap_stop || g_get_shutdown()) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"_replica_reap_tombstones: the tombstone reap process "
+						" has been stopped\n");
+		return -1;
+	}
+
 	/* we only ask for the objectclass in the search - the deletion csn is in the 
 	   objectclass attribute values - if we need more attributes returned by the
 	   search in the future, see _replica_reap_tombstones below and add more to the
@@ -2361,9 +2373,6 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 		"%s\n", escape_string(slapi_entry_get_dn(entry),ebuf));
 	}
 	(*num_entriesp)++;
-	if (*tombstone_reap_stop || g_get_shutdown()) { 
-		return -1;
-	}
 
 	return 0;
 }
@@ -2453,6 +2462,9 @@ _replica_reap_tombstones(void *arg)
 		cb_data.num_entries = 0UL;
 		cb_data.num_purged_entries = 0UL;
 		cb_data.purge_csn = purge_csn;
+		/* set the cb data pointer to point to the actual memory address in
+		   the actual Replica object - so that when the value in the Replica
+		   is set, the reap process will know about it immediately */
 		cb_data.tombstone_reap_stop = &(replica->tombstone_reap_stop);
 
 		slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
@@ -2489,11 +2501,11 @@ _replica_reap_tombstones(void *arg)
 						replica_name ? replica_name : "(null)");
 	}
 
+done:
 	PR_Lock(replica->repl_lock);
 	replica->tombstone_reap_active = PR_FALSE;
 	PR_Unlock(replica->repl_lock);
 
-done:
 	if (NULL != purge_csn)
 	{
 		csn_free(&purge_csn);
@@ -2978,7 +2990,9 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 	if ( interval > 0 && r->repl_eqcxt_tr == NULL )
 	{
 		repl_name = slapi_ch_strdup (r->repl_name);
-		r->repl_eqcxt_tr = slapi_eq_repeat (eq_cb_reap_tombstones, repl_name, current_time() + START_REAP_DELAY, 1000 * r->tombstone_reap_interval);
+		r->repl_eqcxt_tr = slapi_eq_repeat (eq_cb_reap_tombstones, repl_name,
+											current_time() + r->tombstone_reap_interval,
+											1000 * r->tombstone_reap_interval);
 		slapi_log_error (SLAPI_LOG_REPL, NULL,
 			"tombstone_reap event (interval=%d) was %s\n",
 			r->tombstone_reap_interval, (r->repl_eqcxt_tr ? "scheduled" : "not scheduled successfully"));
@@ -3120,6 +3134,22 @@ replica_set_state_flag (Replica *r, PRUint32 flag, PRBool clear)
         r->repl_state_flags |= flag;
     }
 
+	PR_Unlock(r->repl_lock);
+}
+
+/**
+ * Use this to tell the tombstone reap process to stop.  This will
+ * typically be used when we (consumer) get a request to do a
+ * total update.
+ */
+void
+replica_set_tombstone_reap_stop(Replica *r, PRBool val)
+{
+    if (r == NULL)
+        return;
+
+	PR_Lock(r->repl_lock);
+	r->tombstone_reap_stop = val;
 	PR_Unlock(r->repl_lock);
 }
 
