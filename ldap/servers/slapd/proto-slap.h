@@ -843,6 +843,9 @@ int start_tls_graceful_closure( Connection *conn, Slapi_PBlock *pb, int is_initi
 int start_tls_register_plugin();
 int start_tls_init( Slapi_PBlock *pb );
 
+/* passwd_extop.c */
+int passwd_modify_register_plugin();
+
 /*
  * slapi_str2filter.c
  */
