@@ -34,7 +34,7 @@ sub usage {
 	    } else {
 	open DSMLCFG, ">$SERVERROOT{{SEP}}clients{{SEP}}dsmlgw{{SEP}}dsmlgw.cfg";
 	select DSMLCFG;
-	print "\#properties file for the Netscape DSMLGW\n\nServerHost=${SERVERNAME}\nServerPort={{SERVER-PORT}}\nBindDN=\nBindPW=\n\n";
+	print "\#properties file for the DSMLGW\n\nServerHost=${SERVERNAME}\nServerPort={{SERVER-PORT}}\nBindDN=\nBindPW=\n\n";
 	print "MinLoginPool=1\nMaxLoginPool=2\nMinPool=3\nMaxPool=15\n";
 	close DSMLCFG;
     }
@@ -150,7 +150,8 @@ EOF
 		print STDERR "adding necessary entry to $file.\n";
 		print <<EOF;
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE vs  PUBLIC "-//Netscape Communications Corp.; Netscape//DTD Virtual Server Web Applications 6.1//EN" "http://developer.netscape.com/products/servers/enterprise/dtds/nes-webapps_6_1.dtd">
+<!DOCTYPE vs SYSTEM "file:${SERVERROOT}/bin/https/dtds/nes-webapps_6_1.dtd">
+
 <vs>
  <web-app uri="/axis" dir="${SERVERROOT}{{SEP}}clients{{SEP}}dsmlgw" enable="true"/>
 </vs>
