@@ -89,6 +89,13 @@ else # unix - windows has no lib name prefix, except for nspr
 LIB_PREFIX = lib
 endif
 
+# work around vsftpd -L problem
+ifeq ($(COMPONENT_PULL_METHOD), FTP)
+ifdef USING_VSFTPD
+VSFTPD_HACK=1
+endif
+endif
+
 # ADMINUTIL library #######################################
 ADMINUTIL_VERSION=$(ADMINUTIL_RELDATE)$(SEC_SUFFIX)
 ADMINUTIL_BASE=$(ADMINUTIL_VERSDIR)/${ADMINUTIL_VERSION}
@@ -344,7 +351,11 @@ BINS_TO_PKG_SHARED += $(SECURITY_TOOLS_FULLPATH)
 #  SECURITYLINK += $(OSF1SECURITYHACKOBJ)
 #endif
 
+ifdef VSFTPD_HACK
+SECURITY_FILES=lib,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
+else
 SECURITY_FILES=lib,include,bin/$(subst $(SPACE),$(COMMA)bin/,$(SECURITY_TOOLS))
+endif
 
 ifndef SECURITY_PULL_METHOD
 SECURITY_PULL_METHOD = $(COMPONENT_PULL_METHOD)
@@ -356,6 +367,12 @@ ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(SECURITY_BUILD_DIR) -componentdir $(SECURITY_IMPORT) \
 		-files $(SECURITY_FILES)
+ifdef VSFTPD_HACK
+# work around vsftpd -L problem
+	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
+		-objdir $(SECURITY_BUILD_DIR) -componentdir $(COMPONENTS_DIR)/nss/$(SECURITY_RELDATE) \
+		-files include
+endif
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component NSS file $@" ; \
@@ -778,9 +795,18 @@ endif
 
 $(JSS_DEP): $(CLASS_DEST)
 ifdef COMPONENT_DEPS
+ifdef VSFTPD_HACK
+# work around vsftpd -L problem
+	$(FTP_PULL) -method $(JSS_PULL_METHOD) \
+		-objdir $(CLASS_DEST)/jss -componentdir $(JSS_RELEASE) \
+        -files xpclass.jar
+	mv $(CLASS_DEST)/jss/xpclass.jar $(CLASS_DEST)/$(JSSJAR)
+	rm -rf $(CLASS_DEST)/jss
+else
 	$(FTP_PULL) -method $(JSS_PULL_METHOD) \
 		-objdir $(CLASS_DEST) -componentdir $(JSS_RELEASE) \
 		-files $(JSSJAR)
+endif
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component JSS file $@" ; \
@@ -871,9 +897,19 @@ endif
 
 $(SASL_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
+ifdef VSFTPD_HACK
+	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
+		-objdir $(SASL_BUILD_DIR) -componentdir $(SASL_RELEASE) \
+		-files lib
+	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
+		-objdir $(SASL_INCLUDE) -componentdir $(SASL_RELEASE)/../public \
+		-files .\*.h
+else
 	$(FTP_PULL) -method $(SASL_PULL_METHOD) \
 		-objdir $(SASL_BUILD_DIR) -componentdir $(SASL_RELEASE) \
 		-files lib,include
+
+endif
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component SASL file $@" ; \
