@@ -1,0 +1,184 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# Copyright 2005 Red Hat
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+PAM pass through authentication plugin for Directory Server
+
+Introduction
+
+Many organizations have authentication mechanisms
+already in place. They may not want to have the LDAP server be the
+central repository for authentication credentials and the
+authentication mechanism. The typical deployment would use PAM as the
+gateway to authentication. They do want to have many apps use the LDAP
+server for authentication and for authorization, user information,
+etc., just not as the authoritative data source for
+credentials. GSS/SASL is typically used for this e.g. for Kerberos,
+you can use your ticket to authenticate to the DS - the DS "passes
+through" the authentication to Kerberos. But many apps cannot (or will
+not) use SASL as their authentication mechanism - they must use simple
+cleartext password BINDs. For these applications, it would be very
+useful to have the DS pass through the auth creds to PAM.
+
+BIND Preoperation Plugin for PAM
+
+The PAM BIND Preoperation Plugin intercepts the BIND request and uses
+the PAM API to authenticate the user.
+
+If PAM supports password expiration or creation, how to handle that
+with LDAP? Use standard LDAP mechanisms for password expiration
+handling? Should probably make this configurable - ignore and error
+out vs. sending back an appropriate control or error code.
+
+Configuration
+
+The administrator must be able to configure the following options in
+the plugin. These are the attributes of the objectclass pamConfig
+which is one of the objectclasses of the plugin entry:
+
+* subtrees (list of DNs) - suffixes and/or subtrees to which this applies
+      o pamExcludeSuffix - suffixes to be excluded from checking
+      o pamIncludeSuffix - suffixes to be included in checking and exclude all others
+      o excludes "win" in case of duplicates
+      o default is to apply to all suffixes if no includes or excludes are specified 
+* pamMissingSuffix (string)
+      o ERROR: error and abort if excluded or included suffix does not exist
+      o ALLOW (default): warn if exclude or include is missing, but continue
+      o IGNORE: allow missing suffixes and don't log error 
+* pamFallback (boolean) - if false, if PAM auth fails, the BIND
+	operation fails. If true, if PAM auth fails, the DS will attempt other
+	BIND mechanisms e.g. userPassword.
+* pamSecure (boolean) - if true, a secure connection is required
+* pamIDAttr (string) - The value of this attribute, present in the
+	user's entry, holds the PAM identity of the user - it maps the LDAP
+	identity to the PAM identity
+* pamMapMethod (string)
+      o RDN (default) - uses the value from the leftmost RDN in the BIND DN
+      o ENTRY - gets the value of the PAM identity attribute from the BIND DN entry
+      o DN - uses the full DN string
+      o NOTE: if ENTRY is specified as the method, pamIDAttr must
+		be set in the plugin config entry, and user entries should have the
+		named attribute
+* pamService (string) - the service argument to pam_start()
+* others to keep statistics - TBD 
+
+Design
+
+BIND -> this plugin -> get config -> make sure arguments and state
+conform to config settings -> pam_start() -> pam handshakes -> get
+auth status -> pam_end() -> report BIND status back to LDAP client
+
+The big problem is - how to map the BIND DN to the user name given to
+pam_start(). There are a couple of different ways to do this. One way
+is to just use the value part of the leftmost RDN in the BIND DN
+e.g. if you bound as uid=richm,ou=people,dc=redhat,dc=com, you would
+pass "richm" to PAM. Another way is to specify some attribute that
+must exist in the user's entry and use that value e.g. if my entry
+looks like this:
+
+dn: uid=richm,ou=people,dc=redhat,dc=com
+...
+objectclass: inetOrgPerson
+objectclass: redHatOrgPerson # has the extra attr
+...
+rhuid: rmeggins
+...
+
+"rhuid" would be specified in the PAM plugin config. When I bind as
+uid=richm, the plugin would look up my entry, get the value of the
+"rhuid" attribute, and use that value for PAM.
+
+The password is the same password passed in as the BIND credentials.
+
+We do not need to worry about PAM sessions - all we want to do is use
+PAM to verify the auth creds. However, we could implement sessions -
+we could do a pam_open_session() upon bind success and a
+pam_close_session() upon rebind, unbind, closure, or
+shutdown. However, this adds considerable complexity - must persist
+the pam_handle_t throughout the connection (probably in a connection
+extension), must ensure thread safe access to connection extension
+resources, must ensure clean up in a variety of situations. So, best
+to avoid it if possible.
+
+We may have to worry about different PAM policy in different subtrees
+e.g. maybe for dc=coke,dc=com you want to use the ENTRY map method,
+but for dc=pepsi,dc=com you want to use the RDN method. We could
+probably do this by having the pamMapMethod attr be multivalued, and
+have it's value like this:
+
+pamMapMethod: RDN dc=coke,dc=com
+pamMapMethod: RDN dc=sprite,dc=com
+pamMapMethod: ENTRY dc=pepsi,dc=com
+pamMapMethod: DN (the default for all other suffixes)
+
+The suffix that uses that map method would follow the map method used.
+
+We need to worry about account expiration or lockout e.g. the user's
+credentials are valid but the user has been locked out of his/her
+account, or the password has expired, or something like that. Some of
+this can be handled by LDAP e.g. returning password policy control
+values when the password has expired. So we need to call
+pam_acct_mgmt() somewhere during the pam handshakes and before
+pam_end() to get this information. We also try to return an
+appropriate LDAP error code.
+PAM Error Code			LDAP Error Code				Meaning
+PAM_USER_UNKNOWN		LDAP_NO_SUCH_OBJECT			User ID does not exist
+PAM_AUTH_ERROR			LDAP_INVALID_CREDENTIALS	Password is not correct
+PAM_ACCT_EXPIRED		LDAP_INVALID_CREDENTIALS	User's password is expired
+PAM_PERM_DENIED			LDAP_UNWILLING_TO_PERFORM	User's account is locked out
+PAM_NEW_AUTHTOK_REQD	LDAP_INVALID_CREDENTIALS	User's password has expired and must be renewed
+PAM_MAXTRIES			LDAP_CONSTRAINT_VIOLATION	Max retry count has been exceeded
+Other codes				LDAP_OPERATIONS_ERROR		PAM config is incorrect, machine problem, etc.
+There are three controls we might possibly add to the response:
+* the auth response control - returned upon success - contains the BIND DN (u: not currently supported)
+* LDAP_CONTROL_PWEXPIRED - returned when PAM reports ACCT_EXPIRED or NEW_AUTHTOK_REQD
+* the new password policy control - returned when PAM reports
+	ACCT_EXPIRED, NEW_AUTHTOK_REQD, PERM_DENIED, MAXTRIES The controls can
+	be used to get more information in the case of error (password
+	incorrect or expired?).
+
+The latter two must be requested by the client.
+
+The plugin should report status in attributes of the plugin entry
+e.g. successfuls auth attempts, failed attempts, last pam error code
+and message, etc. We could also do this in an entry under
+cn=monitor. TBD.
+
+Configuration
+
+1. Shutdown the server
+2. Make sure the slapd-instance/config/schema contains the 60pam-config.ldif file
+3. Make sure serverroot/lib/pam-passthru-plugin.so exists
+4. Make sure /etc/pam.d/ldapserver exists and is configured correctly
+5. If the configuration is not already in dse.ldif, append the following to slapd-instance/config/dse.ldif
+
+dn: cn=PAM Pass Through Auth,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: pamConfig
+cn: PAM Pass Through Auth
+nsslapd-pluginpath: /opt/ldapserver/lib/pam-passthru-plugin.so
+nsslapd-plugininitfunc: pam_passthruauth_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-pluginLoadGlobal: true
+nsslapd-plugin-depends-on-type: database
+pamMissingSuffix: ALLOW
+pamExcludeSuffix: o=NetscapeRoot
+pamExcludeSuffix: cn=config
+pamMapMethod: RDN
+pamFallback: FALSE
+pamSecure: TRUE
+pamService: ldapserver
+
+Make sure there is a blank line at the end. The line with
+o=NetscapeRoot may be omitted if this is not a configuration DS. Then
+restart slapd.
+
+See Also
+PAM API for Linux http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam_appl.html
+PAM API for Solaris Writing PAM Applications and Services from the Solaris Security for Developers Guide http://docs.sun.com/app/docs/doc/816-4863/6mb20lvfh?a=view
+PAM API for HP-UX http://docs.hp.com/en/B2355-60103/pam.3.html

@@ -1,0 +1,13 @@
+; BEGIN COPYRIGHT BLOCK
+; Copyright 2005 Red Hat
+; All rights reserved.
+; END COPYRIGHT BLOCK
+;
+;
+;
+DESCRIPTION     'Directory Server Pass Through Authentication Plugin'
+;CODE		SHARED READ EXECUTE
+;DATA		SHARED READ WRITE
+EXPORTS
+	passthruauth_init		@1
+	plugin_init_debug_level		@2
