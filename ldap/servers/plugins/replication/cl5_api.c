@@ -2387,9 +2387,9 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 	char *rawDN = NULL;
 	char s[CSN_STRSIZE];		
 
-	PR_ASSERT (entry && entry->op && data && len && op->target_address.uniqueid);
-
+	PR_ASSERT (entry && entry->op && data && len);
 	op = entry->op;
+	PR_ASSERT (op->target_address.uniqueid);
 
 	/* compute size of the buffer needed to hold the data */
 	size += CSN_STRSIZE;
