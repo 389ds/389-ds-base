@@ -20,12 +20,12 @@
 # naming scheme.
 # NSPR
 ifndef NSPR_RELDATE
-  NSPR_RELDATE = DS7.0
+  NSPR_RELDATE = v4.4.1
 endif
 
 # SECURITY (NSS) LIBRARY
 ifndef SECURITY_RELDATE
-  SECURITY_RELDATE = DS7.0
+  SECURITY_RELDATE = NSS_3_9_3_RTM
 endif
 
 # LIBDB
@@ -39,7 +39,7 @@ endif
 
 # DBM Library
 ifndef DBM_RELDATE
-  DBM_RELDATE = DS7.0
+  DBM_RELDATE = DBM_1_61_RTM
 endif
 
 # SMARTHEAP
@@ -151,11 +151,11 @@ ifndef JSS_COMP
 endif
 
 ifndef JSS_VERSION
-  JSS_VERSION=DS7.0
+  JSS_VERSION=JSS_3_5_1_RTM
 endif
 
 ifndef JSS_JAR_VERSION
-  JSS_JAR_VERSION=3
+  JSS_JAR_VERSION=351
 endif
 
 ifndef SASL_VERSDIR
