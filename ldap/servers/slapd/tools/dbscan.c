@@ -43,6 +43,8 @@ typedef unsigned char uint8_t;
 #define SLAPI_OPERATION_ANY		0xFFFFFFFFUL
 #define SLAPI_OPERATION_NONE		0x00000000UL
 
+#define ONEMEG (1024*1024)
+
 #if defined(linux)
 #include <getopt.h>
 #endif
@@ -77,6 +79,7 @@ void db_printfln(char *fmt, ...)
 }
 
 int MAX_BUFFER = 4096;
+int MIN_BUFFER = 20;
 
 
 static IDL *idl_make(DBT *data)
@@ -171,11 +174,11 @@ static char *format_entry(unsigned char *s, int len)
     return format_raw(s, len, FMT_LF_OK | FMT_SP_OK);
 }
 
-static char *idl_format(IDL *idl)
+static char *idl_format(IDL *idl, int *done)
 {
     static char *buf = NULL;
-    uint32 i;
-
+    static uint32 i = 0;
+    
     if (buf == NULL) {
         buf = (char *)malloc(MAX_BUFFER);
         if (buf == NULL)
@@ -183,14 +186,15 @@ static char *idl_format(IDL *idl)
     }
 
     buf[0] = 0;
-    for (i = 0; i < idl->used; i++) {
+    for (; i < idl->used; i++) {
         sprintf((char *)buf + strlen(buf), "%d ", idl->id[i]);
 
-        if (strlen(buf) > (size_t)MAX_BUFFER-20) {
-            strcat(buf, "...");
+        if (strlen(buf) > (size_t)MAX_BUFFER-MIN_BUFFER) {
+            done = 0;
             return (char *)buf;
         }
     }
+    *done = 1;
     return (char *)buf;
 }
 
@@ -488,9 +492,9 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
 
         if (idl->max == 0) {
             /* allids */
-			if ( allids_cnt == 0 && show_cnt) {
-				printf("The following index keys reached allids:\n");
-			}
+            if ( allids_cnt == 0 && show_cnt) {
+                printf("The following index keys reached allids:\n");
+            }
             printf("%-40s(allids)\n", format(key->data, key->size));
             allids_cnt++;
         } else {
@@ -499,8 +503,24 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
                     printf("%-40s%d\n",
                            format(key->data, key->size), idl->used);
             } else if (!show_cnt) {
+                char *formatted_idl = NULL;
+                int done = 0;
+                int isfirsttime = 1;
                 printf("%s\n", format(key->data, key->size));
-                printf("\t%s\n", idl_format(idl));
+                while (0 == done) {
+                    formatted_idl = idl_format(idl, &done);
+                    if (NULL == formatted_idl) {
+                        done = 1; /* no more idl */
+                    } else {
+                        if (1 == isfirsttime) {
+                            printf("\t%s", formatted_idl);
+                            isfirsttime = 0;
+                        } else {
+                            printf("%s", formatted_idl);
+                        }
+                    }
+                }
+                printf("\n");
             }
         } 
 
@@ -570,7 +590,7 @@ static void usage(char *argv0)
     printf("    -i              dump as an index file\n");
     printf("    -e              dump as an entry (id2entry) file\n");
     printf("    -c              dump as a  changelog file\n");
-    printf("    -l <size>       max length of dumped id list (default %d)\n",
+    printf("    -l <size>       max length of dumped id list (default %d; <= 1MB)\n",
            MAX_BUFFER);
     printf("    -n              display idl lengths only (not contents)\n");
     printf("    -G <n>          (when used with -n) only display index entries with\n");
@@ -610,8 +630,20 @@ int main(int argc, char **argv)
             changelogfile = 1;
             break;
         case 'l':
-            MAX_BUFFER = atoi(optarg);
+        {
+            uint32 tmpmaxbufsz = atoi(optarg);
+            if (tmpmaxbufsz > ONEMEG) {
+                tmpmaxbufsz = ONEMEG;
+                printf("WARNING: max length of dumped id list too long, "
+                       "reduced to %d\n", tmpmaxbufsz);
+            } else if (tmpmaxbufsz < MIN_BUFFER * 2) {
+                tmpmaxbufsz = MIN_BUFFER * 2;
+                printf("WARNING: max length of dumped id list too short, "
+                       "increased to %d\n", tmpmaxbufsz);
+            }
+            MAX_BUFFER = tmpmaxbufsz;
             break;
+        }
         case 'n':
             lengths_only = 1;
             break;
