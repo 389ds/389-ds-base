@@ -4,7 +4,7 @@
 # END COPYRIGHT BLOCK
 %define _unpackaged_files_terminate_build 0
 # override the default build name format - we do not want the arch subdir
-%define _build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
+%define _build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.%{flavor}.rpm
 Summary: @COMPANY-PRODUCT-NAME@
 Name: @LCASE-COMPANY-NAME-NOSP@-ds
 Version: @GEN-VERSION@
@@ -67,6 +67,9 @@ cd $RPM_INSTALL_PREFIX
 ./uninstall -s -force
 
 %changelog
+* Tue Apr  5 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
+- make rpm name .flavor.rpm - flavor must be defined in rpmbuild
+
 * Tue Apr  5 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
 - Removed all of the setup and build stuff - just use the regular DS build process for that
 
