@@ -1,5 +1,5 @@
 /* ======================================================================= *
- *     Style sheet for the Netscape Directory Server Org Chart application *
+ *     Style sheet for the Directory Server Org Chart application          *
  * ======================================================================= */
  
 .bgColor7  {background-color: #66ccff;}
@@ -7,7 +7,7 @@
 /* All Links */
 
 A:link   {  font-family: verdana, Arial, Helvetica, sans-serif; font-size: 12px}
-A:active  {	color: #FF0000;}
+A:active  {	color: #000000;}
 
 
  
@@ -31,13 +31,13 @@ td.bold {
 td.startPage {
 	font-family: verdana, Arial, Helvetica, sans-serif;
 	font-size: 12px;
-	color:#003366;
+	color:#000000;
 	vertical-align : middle;
 }
 
-A.searchlinknorm:link {color: #CCFFFF}
-A.searchlinknorm:visited {color: #CCFFFF}
-A.searchlinknorm:active {color: #CCFFFF}
+A.searchlinknorm:link {color: #FFFFFF}
+A.searchlinknorm:visited {color: #FFFFFF}
+A.searchlinknorm:active {color: #FFFFFF}
 
 A.searchlinkspec:link {color: #FF0000}
 A.searchlinkspec:visited {color: #FF0000}
@@ -47,7 +47,7 @@ A.searchlinkspec:active {color: #CCFFFF}
 /* *********Search frame*************/
 
 body.Search {
-	background-color: #003366;
+	background-color: #000000;
 	font-family: Verdana, Arial, Helvetica, san-serif;
 	color: #ccffff;
 	font-size: 12px;
@@ -55,9 +55,9 @@ body.Search {
 
 td.appName {
 	font-family: verdana, Arial, Helvetica, sans-serif;
-	font-size: 12px;
+	font-size: 16px;
 	vertical-align : middle;
-	color: #ccffff;
+	color: #ffffff;
 	font-weight: bold;
 }
 
@@ -65,7 +65,8 @@ td.appName {
 	font-family: verdana, Arial, Helvetica, sans-serif;
 	font-size: 12px;
 	vertical-align: middle;
-	color: #ccffff;
+	color: #ffffff;
+	font-weight: bold;
 }
 
 /* *********Search results frame*************/
@@ -79,7 +80,7 @@ th.resultsHeader {
 
 td.pageHeader {
 	font-family: Verdana, Arial, Helvetica, san-serif;
-	color: #003366;
+	color: #000000;
 	font-size: 14px;
 	font-weight : bold;
 }
@@ -127,7 +128,7 @@ body.orgWindow {
 td.prefsPageHead {
 	font-family: verdana, Arial, Helvetica, sans-serif;
 	font-size: 13px;
-	color:#003366;
+	color:#000000;
 	font-weight: bold;
 	vertical-align : middle;
 	border : none;
@@ -136,7 +137,7 @@ td.prefsPageHead {
 td.prefsPageData {
 	font-family: verdana, Arial, Helvetica, sans-serif;
 	font-size: 12px;
-	color:#003366;
+	color:#000000;
 	vertical-align : middle;
 	border : none;
 }

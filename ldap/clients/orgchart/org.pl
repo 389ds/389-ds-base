@@ -786,7 +786,7 @@ function showLayer(cn,title,mail,dn,locator,aimid)
 	clearTimeout(timer);
 	hideLayer();
 
-	finalhtml  =  '<TABLE border=1 CELLPADDING=15 BGCOLOR=\"#CBCBFD\"><TR><TD><TABLE BORDER=0>';
+	finalhtml  =  '<TABLE border=1 CELLPADDING=15 BGCOLOR=\"#CCCCCC\"><TR><TD><TABLE BORDER=0>';
 	finalhtml +=  '<TR><TD COLSPAN=2 NOWRAP>$fontstring<B>' + unescape(cn) + '</B></font></TD></TR>';
 	finalhtml +=  '<TR><TD COLSPAN=2 NOWRAP>$fontstring' + title + '</font></TD></TR>';
 	finalhtml +=  '<TR><TD COLSPAN=2 NOWRAP>';
@@ -1983,7 +1983,7 @@ sub output_html_header()
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n";
 	print "<HTML>\n";
 	print "<HEAD>\n";
-	print "     <title>Brandx Directory Server Org Chart</title>\n";
+	print "     <title>Directory Server Org Chart</title>\n";
 
 	if ( $js_output ne "with-javascript" )
 	{
