@@ -508,7 +508,7 @@ endif
 
 # for RPM, include the post install setup program
 ifdef BUILD_RPM
-	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/setup/setup
+	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/setup
 endif # BUILD_RPM
 
 	find $(RELDIR) -exec chmod go-w {} \;
