@@ -22,9 +22,6 @@
 #include "prio.h"
 #include "slap.h"
 #include "avl.h"
-#if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
-#include "regex.h"
-#endif
 
 struct data_wrapper {
 	char **list;

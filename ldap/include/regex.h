@@ -38,21 +38,21 @@ extern "C" {
 #endif
 
 #ifdef NEEDPROTOS
-int slapd_re_init( void );
-void slapd_re_lock( void );
-int slapd_re_unlock( void );
-char * LDAP_CALL slapd_re_comp( char *pat );
-int LDAP_CALL slapd_re_exec( char *lp );
-void LDAP_CALL slapd_re_modw( char *s );
-int LDAP_CALL slapd_re_subs( char *src, char *dst );
+int re_init( void );
+void re_lock( void );
+int re_unlock( void );
+char * LDAP_CALL re_comp( char *pat );
+int LDAP_CALL re_exec( char *lp );
+void LDAP_CALL re_modw( char *s );
+int LDAP_CALL re_subs( char *src, char *dst );
 #else /* NEEDPROTOS */
-int slapd_re_init();
-void slapd_re_lock();
-int slapd_re_unlock();
-char * LDAP_CALL slapd_re_comp();
-int LDAP_CALL slapd_re_exec();
-void LDAP_CALL slapd_re_modw();
-int LDAP_CALL slapd_re_subs();
+int re_init();
+void re_lock();
+int re_unlock();
+char * LDAP_CALL re_comp();
+int LDAP_CALL re_exec();
+void LDAP_CALL re_modw();
+int LDAP_CALL re_subs();
 #endif /* NEEDPROTOS */
 
 #define re_fail( m, p )

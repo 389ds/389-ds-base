@@ -12,9 +12,6 @@
 #if defined(IRIX)
 #include <unistd.h>
 #endif
-#if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
-#include "regex.h"
-#endif
 
 static int string_filter_approx( struct berval *bvfilter,
 	Slapi_Value **bvals, Slapi_Value **retVal );

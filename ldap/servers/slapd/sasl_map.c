@@ -6,9 +6,6 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"
-#if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
-#include "regex.h"
-#endif
 
 /*
  * Map SASL identities to LDAP searches
