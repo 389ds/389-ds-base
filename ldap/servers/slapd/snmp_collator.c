@@ -634,28 +634,23 @@ loadConfigStats() {
 
 	/* Load stats into table */
         if ( name != NULL) {
-		strncpy(stats->hdr_stats.dsName, name,
-			(sizeof(stats->hdr_stats.dsName)/sizeof(char)) - 1);
+		PL_strncpyz(stats->hdr_stats.dsName, name, SNMP_FIELD_LENGTH);
         }
 
 	if ( desc != NULL) {
-		strncpy(stats->hdr_stats.dsDescription, desc,
-			(sizeof(stats->hdr_stats.dsDescription)/sizeof(char)) - 1);
+		PL_strncpyz(stats->hdr_stats.dsDescription, desc, SNMP_FIELD_LENGTH);
 	}
 
 	if ( org != NULL) {
-		strncpy(stats->hdr_stats.dsOrganization, org,
-			(sizeof(stats->hdr_stats.dsOrganization)/sizeof(char)) - 1);
+		PL_strncpyz(stats->hdr_stats.dsOrganization, org, SNMP_FIELD_LENGTH);
 	}
 
 	if ( loc != NULL) {
-		strncpy(stats->hdr_stats.dsLocation, loc,
-			(sizeof(stats->hdr_stats.dsLocation)/sizeof(char)) - 1);
+		PL_strncpyz(stats->hdr_stats.dsLocation, loc, SNMP_FIELD_LENGTH);
 	}
 
 	if ( contact != NULL) {
-		strncpy(stats->hdr_stats.dsContact, contact,
-			(sizeof(stats->hdr_stats.dsContact)/sizeof(char)) - 1);
+		PL_strncpyz(stats->hdr_stats.dsContact, contact, SNMP_FIELD_LENGTH);
 	}
 
 	/* Free strings */

@@ -33,6 +33,8 @@ extern "C" {
 
 
 #define NUM_SNMP_INT_TBL_ROWS 5
+#define SNMP_FIELD_LENGTH 100
+
 #ifndef  _WIN32
 extern int			errno;
 #endif
@@ -71,12 +73,12 @@ struct hdr_stats_t{
     int		restarted; /* 1/0 = Yes/No */
     time_t	startTime;
     time_t	updateTime;
-    char        dsVersion[100];
-    char	dsName[30];
-    char	dsDescription[30];
-    char	dsOrganization[30];
-    char	dsLocation[30];
-    char	dsContact[30];
+    char        dsVersion[SNMP_FIELD_LENGTH];
+    char	dsName[SNMP_FIELD_LENGTH];
+    char	dsDescription[SNMP_FIELD_LENGTH];
+    char	dsOrganization[SNMP_FIELD_LENGTH];
+    char	dsLocation[SNMP_FIELD_LENGTH];
+    char	dsContact[SNMP_FIELD_LENGTH];
 };
 
 struct ops_stats_t{
@@ -129,14 +131,14 @@ struct int_stats_t
      *   Interaction Table Attributes
      */
     PRUint32 dsIntIndex;
-    char     dsName[100];
+    char     dsName[SNMP_FIELD_LENGTH];
     time_t   dsTimeOfCreation;         
     time_t   dsTimeOfLastAttempt;      
     time_t   dsTimeOfLastSuccess;      
     PRUint32 dsFailuresSinceLastSuccess;
     PRUint32 dsFailures;
     PRUint32 dsSuccesses;
-    char     dsURL[100];
+    char     dsURL[SNMP_FIELD_LENGTH];
 };
 
 struct agt_stats_t

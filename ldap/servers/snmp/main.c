@@ -39,7 +39,7 @@ main (int argc, char *argv[]) {
 
     /* Load options */
     while ((--argc > 0) && ((*++argv)[0] == '-')) {
-        while (c = *++argv[0]) {
+        while ((c = *++argv[0])) {
             switch (c) {
             case 'D':
                 log_level = LOG_DEBUG;
@@ -109,6 +109,7 @@ main (int argc, char *argv[]) {
                 if (*(agent_logdir + strlen(agent_logdir)) != '/')
                     strcat((char *) log_hdl->token, "/");
                 strcat((char *) log_hdl->token, LDAP_AGENT_LOGFILE);
+                ((char*)log_hdl->token)[(strlen(agent_logdir) + strlen(LDAP_AGENT_LOGFILE) + 1)] = (char)0;
             }
         } else {
             /* agent-logdir not set */
@@ -134,7 +135,7 @@ main (int argc, char *argv[]) {
     /* run as a daemon */
     if (netsnmp_daemonize(0, 0)) {
         /* sleep to allow pidfile to be created by child */
-        sleep(3);
+        sleep(5);
         if((pid_fp = fopen(pidfile,"r")) == NULL) {
             printf("ldap-agent: Not started!  Check log file for details.\n");
             exit(1);
@@ -224,6 +225,7 @@ load_config(char *conf_path)
                                    strlen(LDAP_AGENT_PIDFILE) + 2)) != NULL) {
                 strncpy(pidfile, conf_path, (p - conf_path + 1));
                 strcat(pidfile, LDAP_AGENT_PIDFILE);
+                pidfile[((p - conf_path) + strlen(LDAP_AGENT_PIDFILE) + 1)] = (char)0;
             } else {
                 printf("ldap-agent: malloc error processing config file\n");
                 exit(1);
@@ -232,6 +234,7 @@ load_config(char *conf_path)
             /* set default logdir to location of config file */
             if ((agent_logdir = malloc((p - conf_path) + 1)) != NULL) {
                 strncpy(agent_logdir, conf_path, (p - conf_path));
+                agent_logdir[(p - conf_path)] = (char)0;
                 break;
             } else {
                 printf("ldap-agent: malloc error processing config file\n");
@@ -278,8 +281,10 @@ load_config(char *conf_path)
                 if ((serv_p->stats_file = malloc(strlen(p) + 18)) != NULL)
                     snprintf(serv_p->stats_file, strlen(p) + 18,
                                      "%s/logs/slapd.stats", p);
+                    serv_p->stats_file[(strlen(p) + 17)] = (char)0;
                 if ((serv_p->dse_ldif = malloc(strlen(p) + 17)) != NULL) {
                     snprintf(serv_p->dse_ldif, strlen(p) + 17, "%s/config/dse.ldif", p);
+                    serv_p->dse_ldif[(strlen(p) + 16)] = (char)0;
                 }
             }
  

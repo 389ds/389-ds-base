@@ -356,17 +356,23 @@ agt_mread_stats (int hdl, struct hdr_stats_t *pHdrInfo, struct ops_stats_t *pDsO
         pHdrInfo->startTime                = pfile_stats->hdr_stats.startTime;
         pHdrInfo->updateTime               = pfile_stats->hdr_stats.updateTime;
         strncpy(pHdrInfo->dsVersion, pfile_stats->hdr_stats.dsVersion,
-               (sizeof(pHdrInfo->dsVersion)/sizeof(char)) - 1);
+               SNMP_FIELD_LENGTH - 1);
+        pHdrInfo->dsVersion[SNMP_FIELD_LENGTH - 1] = (char)0;
         strncpy(pHdrInfo->dsName, pfile_stats->hdr_stats.dsName,
-               (sizeof(pHdrInfo->dsName)/sizeof(char)) - 1);
+               SNMP_FIELD_LENGTH - 1);
+        pHdrInfo->dsName[SNMP_FIELD_LENGTH - 1] = (char)0;
         strncpy(pHdrInfo->dsDescription, pfile_stats->hdr_stats.dsDescription,
-               (sizeof(pHdrInfo->dsDescription)/sizeof(char)) - 1);
+               SNMP_FIELD_LENGTH - 1);
+        pHdrInfo->dsDescription[SNMP_FIELD_LENGTH - 1] = (char)0;
         strncpy(pHdrInfo->dsOrganization, pfile_stats->hdr_stats.dsOrganization,
-               (sizeof(pHdrInfo->dsOrganization)/sizeof(char)) - 1);
+               SNMP_FIELD_LENGTH - 1);
+        pHdrInfo->dsOrganization[SNMP_FIELD_LENGTH - 1] = (char)0;
         strncpy(pHdrInfo->dsLocation, pfile_stats->hdr_stats.dsLocation,
-               (sizeof(pHdrInfo->dsLocation)/sizeof(char)) - 1);
+               SNMP_FIELD_LENGTH - 1);
+        pHdrInfo->dsLocation[SNMP_FIELD_LENGTH - 1] = (char)0;
         strncpy(pHdrInfo->dsContact, pfile_stats->hdr_stats.dsContact,
-               (sizeof(pHdrInfo->dsContact)/sizeof(char)) - 1);
+               SNMP_FIELD_LENGTH - 1);
+        pHdrInfo->dsContact[SNMP_FIELD_LENGTH - 1] = (char)0;
     }
 
     if (pDsOpsTbl != NULL) {
