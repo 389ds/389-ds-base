@@ -5,7 +5,7 @@
 # All rights reserved.
 # END COPYRIGHT BLOCK
 # 
-# Top-level gmake Makefile for Directory Server builds.
+# Top-level gmake Makefile for LDAP Server builds.
 #
 # Execute the command:
 #
@@ -38,7 +38,7 @@ help:
 
 ###### Implementation notes:
 #
-# We use ../../reltools/ftp_puller_new.pl to pull and maintain dependencies
+# We use ../reltools/ftp_puller_new.pl to pull and maintain dependencies
 # for the components (binary and header files) we use for the build.  The
 # dependencies are maintained in the file ../components.OS, where OS is
 # the operating system.  These files do not exist in CVS; they are created
@@ -151,13 +151,22 @@ endif
 	@echo ==== Finished Server LIBS for: $(BUILD_MODULE) ==========
 	@echo 
 
+brandDirectory:
+	@echo ==== Branding LDAP Server ==========
+	$(RELTOOLSPATH)/brandver.pl -i $(RELTOOLSPATH)/ldap/brandver.dat
+	@echo ==== Finished Branding LDAP Server ==========
+
+normalizeDirectory:
+	@echo ==== Normalizing LDAP Server ==========
+	$(RELTOOLSPATH)/brandver.pl -i $(RELTOOLSPATH)/ldap/normalize.dat
+	@echo ==== Normalizing Branding LDAP Server ==========
+
 buildAndPkgDirectory:	buildDirectory pkgDirectory
 
-buildDirectory: buildnum pumpkin $(OBJDIR) $(DIRVER_H) $(SDKVER_H) components
+buildDirectory: buildnum pumpkin $(OBJDIR) $(DIRVER_H) $(SDKVER_H) components 
 	@echo 
 	@echo 
-	@echo 
-	@echo ==== Starting Netscape Directory Server ==========
+	@echo ==== Starting LDAP Server ==========
 	@echo
 	$(MAKE) $(MFLAGS) nsCommon
 	cd config;           $(MAKE) $(MFLAGS) install $(NSDEFS)
@@ -167,25 +176,25 @@ ifeq ($(ARCH), WINNT)
 endif
 	cd httpd; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY httpd-bin
 	cd ldap; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY all
-	@echo ==== Finished Netscape Directory Server ==========
+	@echo ==== Finished LDAP Server ==========
 	@echo
-	@echo ==== Starting Netscape Directory Server Console ==========
+	@echo ==== Starting LDAP Server Console ==========
 	@echo
 	$(MAKE) $(MFLAGS) buildDirectoryConsole
 	@echo
-	@echo ==== Finished Netscape Directory Server Console ==========
+	@echo ==== Finished LDAP Server Console ==========
 	@echo
-	@echo ==== Starting Netscape Directory Clients ==========
+	@echo ==== Starting LDAP Server Clients ==========
 	@echo
 	$(MAKE) $(MFLAGS) buildDirectoryClients
 	@echo
-	@echo ==== Finished Netscape Directory Clients ==========
+	@echo ==== Finished LDAP Server Clients ==========
 	@echo
 
 cleanDirectory:
 	@echo
 	@echo
-	@echo ==== Cleaning Netscape Directory Server on $(ARCH) ====
+	@echo ==== Cleaning LDAP Server on $(ARCH) ====
 	@echo
 	rm -rf $(ARCH)
 	rm -rf built/$(NS_BUILD_FLAVOR)
@@ -210,7 +219,7 @@ endif
 	cd ldap/clients/dsgw; $(MAKE) $(MFLAGS)
 
 $(OBJDIR):
-	if test ! -d $(OBJDIR); then mkdir $(OBJDIR); fi;
+	if test ! -d $(OBJDIR); then mkdir -p $(OBJDIR); fi;
 
 $(SDKVER_H):
 	if test ! -d $(DIRVERDIR); then mkdir $(DIRVERDIR); fi;
@@ -233,7 +242,7 @@ setupLdapSDK:
 
 pkgDirectory:	setupDirectory
 	@echo
-	@echo =========== Finished - Directory Server Package Build ============
+	@echo =========== Finished - LDAP Server Package Build ============
 
 Acceptance:
 	cd ldap/cm; $(MAKE) Acceptance $(MFLAGS)
@@ -249,12 +258,12 @@ pkgDirectoryJars:
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageJars 
 
 pkgDirectoryl10n:
-	@echo =========== Starting - Directory Server International Package Build ============
+	@echo =========== Starting - LDAP Server International Package Build ============
 	cd ldap/cm; $(MAKE) $(MFLAGS) l10nRePackage
-	@echo =========== Finished - Directory Server International Package Build ============
+	@echo =========== Finished - LDAP Server International Package Build ============
 
 pkgDirectoryPseudoL10n:
-	@echo =========== Starting - Directory Server L10N Package Build ============
+	@echo =========== Starting - LDAP Server L10N Package Build ============
 ifeq ($(BUILD_SECURITY),export)
 ifeq ($(BUILD_DEBUG),optimize)
 	cd i18npkg/apollo; $(MAKE) $(MFLAGS)
@@ -264,5 +273,5 @@ endif
 else
 	@echo skipping pkgDirectoryPseudoL10n
 endif
-	@echo =========== Finished - Directory Server L10N Package Build ============
+	@echo =========== Finished - LDAP Server L10N Package Build ============
 
