@@ -478,7 +478,7 @@ void retrocl_init_trimming (void)
     
     retrocl_trim_ctx = slapi_eq_repeat(retrocl_housekeeping,
 				       NULL,(time_t)0,
-				       CHANGELOGDB_TRIM_INTERVAL);
+				       CHANGELOGDB_TRIM_INTERVAL * 1000);
 
 }
 
