@@ -47,8 +47,8 @@ endif
 
 # It looks like most of the latest versions of Unix that we ship on
 # have a good enough heap implementations that they don't need 
-# SmartHeap.  We still need it on NT, Solaris and HPUX.
-# Solaris 8 has mtmalloc but we still build on and support Solaris 2.6.
+# SmartHeap.  We still need it on NT and HPUX.
+# Solaris 8 and later has mtmalloc
 # By contract HPUX must be aligned with Solaris.
 ifneq ($(ARCH), SOLARIS)
 ifneq ($(ARCH), WINNT)
@@ -181,8 +181,12 @@ LDFLAGS+= -xarch=v9
 endif
 endif
 
-ifeq ($(ARCH), SOLARISx86)
+ifeq ($(ARCH), SOLARIS)
   SH_LIB = -lmtmalloc
+endif
+
+ifeq ($(ARCH), SOLARISx86)
+  SH_LIB= -lmtmalloc
 endif
 
 OBJS = $(addprefix $(OBJDEST)/, $(SLAPD_OBJS)) 

@@ -30,12 +30,7 @@ CFLAGS = -G $(SLCFLAGS)
 
 # link libmtmalloc.so when built on 5.8 or 5.9
 ifeq ($(ARCH), SOLARIS)
-  ifeq ($(NSOS_RELEASE), 5.8)
-	LINKFLAGS = -lmtmalloc
-  endif
-  ifeq ($(NSOS_RELEASE), 5.9)
-	LINKFLAGS = -lmtmalloc
-  endif
+  LINKFLAGS = -lmtmalloc
   LIBSH_STUB = libsh_stub
 else
   # do nothing on non-SOLARIS platforms

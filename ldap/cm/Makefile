@@ -351,14 +351,13 @@ ifeq ($(DEBUG), optimize)
 	$(INSTALL) -m 755 $(SH_LIBPATH)/shsmp.$(DLL_SUFFIX)  $(RELDIR)/lib
 endif
 endif
+
 ifeq ($(ARCH), SOLARIS)
-ifeq ($(DEBUG), optimize)
 ifndef LDAP_DONT_USE_SMARTHEAP
 	$(INSTALL) -m 755 $(SH_LIBPATH)/libsh.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
-	$(INSTALL) -m 755 $(OBJDIR)/lib/libsh_stub/libsh_stub.so  $(RELDIR)/bin/slapd/server
 endif
 endif
-endif
+
 ifeq ($(ARCH), HPUX)
 ifeq ($(DEBUG), optimize)
 ifndef LDAP_DONT_USE_SMARTHEAP

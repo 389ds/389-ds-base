@@ -1406,9 +1406,8 @@ endif
 # 
 
 ifeq ($(ARCH), SOLARIS)
-ifeq ($(USE_64), 1)
+# richm 20050309 - only use mtmalloc on Solaris from now on
 LDAP_DONT_USE_SMARTHEAP=1
-endif
 ifdef TNF_DEBUG
 CFLAGS += -DTNF_DEBUG
 endif
