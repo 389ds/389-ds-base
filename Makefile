@@ -151,12 +151,12 @@ endif
 	@echo ==== Finished Server LIBS for: $(BUILD_MODULE) ==========
 	@echo 
 
-brandDirectory:
+brandDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Branding LDAP Server ==========
 	$(RELTOOLSPATH)/brandver.pl -i $(RELTOOLSPATH)/ldap/brandver.dat
 	@echo ==== Finished Branding LDAP Server ==========
 
-normalizeDirectory:
+normalizeDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Normalizing LDAP Server ==========
 	$(RELTOOLSPATH)/brandver.pl -i $(RELTOOLSPATH)/ldap/normalize.dat
 	@echo ==== Normalizing Branding LDAP Server ==========
@@ -220,6 +220,9 @@ endif
 
 $(OBJDIR):
 	if test ! -d $(OBJDIR); then mkdir -p $(OBJDIR); fi;
+
+$(RELTOOLSPATH)/brandver.pl:
+	cd $(ABS_ROOT) ; cvs co RelToolsLite
 
 $(SDKVER_H):
 	if test ! -d $(DIRVERDIR); then mkdir $(DIRVERDIR); fi;
