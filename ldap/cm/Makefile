@@ -184,17 +184,17 @@ RELJDK = $(BUILD_DRIVE)$(RELTOP)/ldapjdk
 FIX_SETUP_INF = $(BUILD_ROOT)/ldap/cm/fixSetupInf.pl
 FIX_BASE_INF = $(BUILD_ROOT)/ldap/cm/fixBaseInf.pl
 
+# This is the directory where we put what we're making: the files which go on the CD.
 ifndef INSTDIR
 ifeq ($(ARCH), WINNT)
-INSTDIR = $(TREE_ROOT)/../$(MMDD)
+INSTDIR = $(TREE_ROOT)/../$(MMDD)/$(NS_BUILD_FLAVOR)
 else
-INSTDIR = $(BUILD_DRIVE)$(BUILD_ROOT)/../$(MMDD)
-ABS_INSTDIR = $(ABS_ROOT_PARENT)/$(MMDD)
+INSTDIR = $(BUILD_DRIVE)$(BUILD_ROOT)/../$(MMDD)/$(NS_BUILD_FLAVOR)
+ABS_INSTDIR = $(ABS_ROOT_PARENT)/$(MMDD)/$(NS_BUILD_FLAVOR)
 endif
 endif
-# This is the directory where we put what we're making: the files which go on the CD.
-INST_TARGET=$(INSTDIR)/$(NS_BUILD_FLAVOR)
-INST_TARGET_RESKIT=$(INSTDIR)/$(NS_BUILD_FLAVOR)/reskit
+
+INST_TARGET_RESKIT=$(INSTDIR)/reskit
 INST_TARGET_INTL=./$(PRODUCT_MARKET)dir
 
 LDAPDIR = $(BUILD_ROOT)/ldap
@@ -510,7 +510,7 @@ ifndef INFOZIP_PULL_METHOD
 INFOZIP_PULL_METHOD = FTP
 endif
 
-$(INSTDIR)/$(NS_BUILD_FLAVOR)/tools/infozip.zip:
+$(INSTDIR)/tools/infozip.zip:
 	$(RM) $@
 	$(FTP_PULL) -method $(INFOZIP_PULL_METHOD) \
 		-objdir $(dir $@) \
@@ -526,7 +526,7 @@ ifndef PERLDAP_PULL_METHOD
 PERLDAP_PULL_METHOD = FTP
 endif
 
-$(INSTDIR)/$(NS_BUILD_FLAVOR)/perldap/$(PERLDAP_ZIP_FILE):
+$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE):
 	$(RM) $@
 	$(FTP_PULL) -method $(PERLDAP_PULL_METHOD) \
 		-objdir $(dir $@) \
@@ -543,7 +543,7 @@ ifndef NSPERL_PULL_METHOD
 NSPERL_PULL_METHOD = FTP
 endif
 
-$(INSTDIR)/$(NS_BUILD_FLAVOR)/nsperl/$(NSPERL_ZIP_FILE):
+$(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE):
 	$(RM) $@
 	$(FTP_PULL) -method $(NSPERL_PULL_METHOD) \
 		-objdir $(dir $@) \
@@ -559,7 +559,7 @@ $(INSTDIR)/$(NS_BUILD_FLAVOR)/nsperl/$(NSPERL_ZIP_FILE):
 # SITEHACK is defined in nsperl.mk
 #	$(ZIP) -d $(dir $@)/$(NSPERL_ZIP_FILE) lib/nsPerl5.6.1/$(SITEHACK)/Mozilla/LDAP/LDIF.pm
 
-$(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd:
+$(INSTDIR)/slapd:
 	$(MKDIR) -p $@
 
 # Packaging for UNIX is totally different than NT, so we conditionally execute here
@@ -567,18 +567,18 @@ $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd:
 ifneq ($(ARCH), WINNT)
 
 # ---THE UNIX PACKAGE---
-packageDirectory: $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd \
-	$(INSTDIR)/$(NS_BUILD_FLAVOR)/nsperl/$(NSPERL_ZIP_FILE) \
-	$(INSTDIR)/$(NS_BUILD_FLAVOR)/perldap/$(PERLDAP_ZIP_FILE) \
-	$(INSTDIR)/$(NS_BUILD_FLAVOR)/tools/infozip.zip \
+packageDirectory: $(INSTDIR)/slapd \
+	$(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
+	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE) \
+	$(INSTDIR)/tools/infozip.zip \
 	$(ADMSERV_DEP)
 
 # copy over the setup sdk stuff
 # hack - remove once admin server bundles setupsdk 6.02
-#	cp -R $(SETUP_SDK_BUILD_DIR)/bin/* $(INSTDIR)/$(NS_BUILD_FLAVOR)
+#	cp -R $(SETUP_SDK_BUILD_DIR)/bin/* $(INSTDIR)
 
 # copy in our product .inf files
-	$(INSTALL) -m 755 $(OBJDIR_32)/*.inf $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd
+	$(INSTALL) -m 755 $(OBJDIR_32)/*.inf $(INSTDIR)/slapd
 
 # strip the executables in the optimized build
 ifeq ($(DEBUG), optimize)
@@ -599,56 +599,56 @@ endif
 endif
 # create the slapd-client.zip file, which only has the ds jar file for the console and
 # the ldap client utility programs
-	rm -f $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/slapd-client.zip
+	rm -f $(INSTDIR)/slapd/slapd-client.zip
 ifdef RSH_ZIP_HOST
 # Workaround for problems with ZIP and some SunOS5.6 nfs servers
 # Usage : RSH_ZIP_HOST=remote host for zipping RSH_ZIP_PATH=full path on remote host for zip binary
-	$(RSH) $(RSH_ZIP_HOST) "cd $(TMP_CM_PWD)/$(RELDIR); $(RSH_ZIP_PATH)/$(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/slapd-client.zip ./java"
+	$(RSH) $(RSH_ZIP_HOST) "cd $(TMP_CM_PWD)/$(RELDIR); $(RSH_ZIP_PATH)/$(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/slapd/slapd-client.zip ./java"
 else
 # Normal way to ZIP the bits
-	cd $(RELDIR); $(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/slapd-client.zip ./java
+	cd $(RELDIR); $(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/slapd/slapd-client.zip ./java
 endif
 
 #; for file in $(LDAPSDK_IMPORTS) ; \
-#	do $(ZIP) $(ZIP_FLAGS) -g $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/slapd-client.zip bin/slapd/server/$$file$(DOTEXE) ; \
+#	do $(ZIP) $(ZIP_FLAGS) -g $(INSTDIR)/slapd/slapd-client.zip bin/slapd/server/$$file$(DOTEXE) ; \
 #	done
 
 # create the slapd zip file
-	rm -f $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/ns$(DIR).zip
+	rm -f $(INSTDIR)/slapd/ns$(DIR).zip
 # create installable package
 ifdef RSH_ZIP_HOST
 # Workaround for problems with ZIP and some SunOS5.6 nfs servers (see above)
-	rsh $(RSH_ZIP_HOST) "cd $(TMP_CM_PWD)/$(RELDIR); $(RSH_ZIP_PATH)/$(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/ns$(DIR).zip * $(EXCLUDED_FILES) "
+	rsh $(RSH_ZIP_HOST) "cd $(TMP_CM_PWD)/$(RELDIR); $(RSH_ZIP_PATH)/$(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/slapd/ns$(DIR).zip * $(EXCLUDED_FILES) "
 else
 # Normal way to ZIP the bits
-	cd $(RELDIR); $(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/ns$(DIR).zip * $(EXCLUDED_FILES)
+	cd $(RELDIR); $(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/slapd/ns$(DIR).zip * $(EXCLUDED_FILES)
 endif
 
 # do one last check for aix. aix zip doesn't like -r -T 
-	$(ZIP) -T  $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd/ns$(DIR).zip
+	$(ZIP) -T  $(INSTDIR)/slapd/ns$(DIR).zip
 # install the ns-config file into the slapd package directory
-	$(INSTALL) -m 755 $(RELDIR_32)/bin/slapd/admin/bin/ns-config $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd
+	$(INSTALL) -m 755 $(RELDIR_32)/bin/slapd/admin/bin/ns-config $(INSTDIR)/slapd
 
 # if we are packaging our own version of the components, we need them during setup too
 	-@for file in $(PACKAGE_SETUP_LIBS_32) ; \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd ; \
+	then $(INSTALL) -m 755 $$file $(INSTDIR)/slapd ; \
 	fi ; \
 	done
 
 # if the untar directory is there, hooray; otherwise, we will have to unpack the
 # binaries ourselves . . .
-	@curdir=`pwd`; cd $(INSTDIR)/$(NS_BUILD_FLAVOR) ; \
+	@curdir=`pwd`; cd $(INSTDIR) ; \
 	if [ ! -d $(IMPORTADMINSRVNOTAR) ] ; \
 		then for file in $(ADMIN_IMPORTS_TARGZ) ; \
 			do rm -rf $$file ; \
 			$(GUNZIP) -c $(ADMSERV_DIR)/$$file | $(TAR) xvf - ; \
 		done ; \
 		cd $$curdir ; \
-		$(PERL) -w $(FIX_SETUP_INF) $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.inf \
-			$(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.inf.tmp ; \
-		mv $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.inf.tmp \
-			$(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.inf ; \
+		$(PERL) -w $(FIX_SETUP_INF) $(INSTDIR)/setup.inf \
+			$(INSTDIR)/setup.inf.tmp ; \
+		mv $(INSTDIR)/setup.inf.tmp \
+			$(INSTDIR)/setup.inf ; \
 	else \
 		for file in $(ADMIN_IMPORTS) ; \
 			do rm -rf $$file ; \
@@ -658,66 +658,66 @@ endif
 	fi
 
 # we must remove the nsbase.zip file - we package those files now
-	rm -f $(INSTDIR)/$(NS_BUILD_FLAVOR)/base/nsbase.zip
+	rm -f $(INSTDIR)/base/nsbase.zip
 # we also need to remove the Archive directive from the [base] section of the
 # base.inf file
-	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/$(NS_BUILD_FLAVOR)/base/base.inf
+	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
 
 # We must remove the JRE per Red Hat.  The user will download the jre
-	rm -f $(INSTDIR)/$(NS_BUILD_FLAVOR)/base/nsjre.zip
+	rm -f $(INSTDIR)/base/nsjre.zip
 
 # Move setup binary to dssetup
-	mv $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup $(INSTDIR)/$(NS_BUILD_FLAVOR)/dssetup
+	mv $(INSTDIR)/setup $(INSTDIR)/dssetup
 # Move the new setup wrappers into place
-	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup.pl
-	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.sh $(INSTDIR)/$(NS_BUILD_FLAVOR)/setup
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INSTDIR)/setup.pl
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.sh $(INSTDIR)/setup
 
 # We need to package perl for the new setup wrapper to run
-	mkdir $(INSTDIR)/$(NS_BUILD_FLAVOR)/tmp
-	$(UNZIP) $(INST_TARGET)/nsperl/$(NSPERL_ZIP_FILE) \
-	lib/nsPerl5.6.1/\* -d $(INSTDIR)/$(NS_BUILD_FLAVOR)/tmp
-	cp -R $(INSTDIR)/$(NS_BUILD_FLAVOR)/tmp/lib/nsPerl5.6.1 \
-	$(INSTDIR)/$(NS_BUILD_FLAVOR)/tools
-	rm -rf $(INSTDIR)/$(NS_BUILD_FLAVOR)/tmp
+	mkdir $(INSTDIR)/tmp
+	$(UNZIP) $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
+	lib/nsPerl5.6.1/\* -d $(INSTDIR)/tmp
+	cp -R $(INSTDIR)/tmp/lib/nsPerl5.6.1 \
+	$(INSTDIR)/tools
+	rm -rf $(INSTDIR)/tmp
 
 # We also need to package the infozip utilities
-	$(UNZIP) -j $(INSTDIR)/$(NS_BUILD_FLAVOR)/tools/infozip.zip \
-	-d $(INSTDIR)/$(NS_BUILD_FLAVOR)/tools
-	rm -f $(INSTDIR)/$(NS_BUILD_FLAVOR)/tools/infozip.zip
+	$(UNZIP) -j $(INSTDIR)/tools/infozip.zip \
+	-d $(INSTDIR)/tools
+	rm -f $(INSTDIR)/tools/infozip.zip
 
 # Install LDAP Readme and License files at root of Installation (dated pre-packaging) directory.
 # And, replace the License.txt file that is packaged in nssvrcore.zip.
 	if [ -d $(LDAPDIR)/docs ] ; then \
-		rm -rf $(INSTDIR)/$(NS_BUILD_FLAVOR)/LICENSE.txt $(INSTDIR)/$(NS_BUILD_FLAVOR)/README.txt; \
-		$(INSTALL) -m 755 $(LDAPDIR)/docs/README.txt $(LDAPDIR)/docs/LICENSE.txt $(INSTDIR)/$(NS_BUILD_FLAVOR); \
+		rm -rf $(INSTDIR)/LICENSE.txt $(INSTDIR)/README.txt; \
+		$(INSTALL) -m 755 $(LDAPDIR)/docs/README.txt $(LDAPDIR)/docs/LICENSE.txt $(INSTDIR); \
 	fi
 
 # Install dsktune at root of Installation
-	cp $(RELDIR)/bin/slapd/server/dsktune $(INSTDIR)/$(NS_BUILD_FLAVOR)
+	cp $(RELDIR)/bin/slapd/server/dsktune $(INSTDIR)
 
 # copy the sample silent.inf from setup
-	if [ ! -f $(INSTDIR)/$(NS_BUILD_FLAVOR)/silent.inf ] ; \
-	then cp $(SETUPSDK_BINPATH)/silent.inf $(INSTDIR)/$(NS_BUILD_FLAVOR) ; \
+	if [ ! -f $(INSTDIR)/silent.inf ] ; \
+	then cp $(SETUPSDK_BINPATH)/silent.inf $(INSTDIR) ; \
 	fi
 
 ifndef NO_INSTALLER_TAR_FILES
 # build the slapd package tar file
-	cd $(INSTDIR)/$(NS_BUILD_FLAVOR); $(TAR) cvf - slapd \
+	cd $(INSTDIR); $(TAR) cvf - slapd \
 	| gzip -f > ../$(NS_BUILD_FLAVOR).tar.gz
 # build the combined packages tar file; use h flag to follow symlinks
 ifdef BUILD_SHIP
-	cd $(INSTDIR)/$(NS_BUILD_FLAVOR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
+	cd $(INSTDIR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
 	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
 else
-	cd $(INSTDIR)/$(NS_BUILD_FLAVOR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
+	cd $(INSTDIR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
 	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 endif
-#cp $(INSTDIR)/$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
+#cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
-# $(INSTDIR)/$(NS_BUILD_FLAVOR) is used to build international products.
+# $(INSTDIR) is used to build international products.
 endif
 
 else
@@ -729,20 +729,17 @@ $(PACKAGE_STAGE_DIR):
 $(INSTDIR):
 	mkdir -p $@
 
-$(INST_TARGET): $(INSTDIR)
-	mkdir -p $@
-
 ###self-extracting EXE using EXEBUILD and MAKE the INI file on the fly ##
 # and rename OBJDIR_BASE directroy to temp since EXEBUILDER chokes on LFNS 
 # when building across NFS, then rename it back. davidk
 
 make_zip:
 	if [ -d $(LDAPDIR)/docs ] ; then \
-		rm -rf $(INSTDIR)/$(NS_BUILD_FLAVOR)/license-nt.txt $(INSTDIR)/$(NS_BUILD_FLAVOR)/slapd.txt $(INSTDIR)/$(NS_BUILD_FLAVOR)/README.txt $(INSTDIR)/$(NS_BUILD_FLAVOR)/LICENSE.txt; \
-		cd $(LDAPDIR)/docs; $(INSTALL) -m 755 README.txt LICENSE.txt $(INSTDIR)/$(NS_BUILD_FLAVOR); \
+		rm -rf $(INSTDIR)/license-nt.txt $(INSTDIR)/slapd.txt $(INSTDIR)/README.txt $(INSTDIR)/LICENSE.txt; \
+		cd $(LDAPDIR)/docs; $(INSTALL) -m 755 README.txt LICENSE.txt $(INSTDIR); \
 	fi
 ifdef BUILD_SHIP
-	cd $(INST_TARGET); zip -r $(BUILD_SHIP)/$(FTPNAME) * 
+	cd $(INSTDIR); zip -r $(BUILD_SHIP)/$(FTPNAME) * 
 endif
 
 endif
@@ -821,28 +818,28 @@ ifeq ($(ARCH), WINNT)
 
 SLAPD_DIR=slapd
 
-_perl: $(INSTDIR)/$(NS_BUILD_FLAVOR)/nsperl/$(NSPERL_ZIP_FILE) \
-	$(INSTDIR)/$(NS_BUILD_FLAVOR)/perldap/$(PERLDAP_ZIP_FILE)
+_perl: $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
+	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE)
 
 # ------------------------- all below this line is packageDirectory --------------------------
 
-packageDirectory: $(INST_TARGET)/$(SLAPD_DIR) _admserv_files _perl _slapd_files _setup_files make_zip
+packageDirectory: $(INSTDIR)/$(SLAPD_DIR) _admserv_files _perl _slapd_files _setup_files make_zip
 
 #--------------------------  admserv rules ----------------------------------------------------
-_admserv_files: $(INST_TARGET) $(ADMSERV_DEP)
+_admserv_files: $(INSTDIR) $(ADMSERV_DEP)
 # we don't want to copy the tarball with the other setup files . . .
 	mv $(ADMSERV_DIR)/$(ADMIN_SERVER_TARGZ) $(ADMSERV_DIR)/..
 # copy in the setup.exe, setup.inf, dlls, etc.
-	cp $(ADMSERV_DIR)/*.* $(INST_TARGET)
+	cp $(ADMSERV_DIR)/*.* $(INSTDIR)
 # move the tarball back after the copy
 	mv $(ADMSERV_DIR)/../$(ADMIN_SERVER_TARGZ) $(ADMSERV_DIR)
 # make sure our packages are in the setup.inf file
-	$(PERL) -w $(FIX_SETUP_INF) $(ADMSERV_DIR)/setup.inf $(INST_TARGET)/setup.inf
+	$(PERL) -w $(FIX_SETUP_INF) $(ADMSERV_DIR)/setup.inf $(INSTDIR)/setup.inf
 # move setup.exe to dssetup.exe
-	mv $(INST_TARGET)/setup.exe $(INST_TARGET)/dssetup.exe
+	mv $(INSTDIR)/setup.exe $(INSTDIR)/dssetup.exe
 # copy in the new setup wrapper script
-	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INST_TARGET)
-	cp $(BUILD_ROOT)/ldap/cm/newinstnt/setup.bat $(INST_TARGET)
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INSTDIR)
+	cp $(BUILD_ROOT)/ldap/cm/newinstnt/setup.bat $(INSTDIR)
 
 
 #----------------------------  slapd rules --------------------------------------------------
@@ -853,15 +850,15 @@ DSJARS_ZIPFILE=$(ABS_ROOT_PARENT)/$(MMDD)/$(NS_BUILD_FLAVOR)/$(SLAPD_DIR)/dsjars
 
 .PHONY: _slapd_files
 
-_slapd_files: $(INST_TARGET)/$(SLAPD_DIR)  \
-			   $(INST_TARGET)/$(SLAPD_DIR)/slapd.z \
-			   $(INST_TARGET)/$(SLAPD_DIR)/dsjars.z
+_slapd_files: $(INSTDIR)/$(SLAPD_DIR)  \
+			   $(INSTDIR)/$(SLAPD_DIR)/slapd.z \
+			   $(INSTDIR)/$(SLAPD_DIR)/dsjars.z
 
-$(INST_TARGET)/$(SLAPD_DIR)/dsjars.z: $(DS_JAR_SRC_PATH)/$(DS_JAR_FILE) \
+$(INSTDIR)/$(SLAPD_DIR)/dsjars.z: $(DS_JAR_SRC_PATH)/$(DS_JAR_FILE) \
 	$(DS_JAR_SRC_PATH)/$(DS_JAR_LANG_FILE)  $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE)
 	rm -f $(DSJARS_ZIPFILE); cd $(RELDIR); zip -r $(DSJARS_ZIPFILE) java
 
-$(INST_TARGET)/$(SLAPD_DIR)/slapd.z: 
+$(INSTDIR)/$(SLAPD_DIR)/slapd.z: 
 # see components.mk for a description of LIBS_TO_PKG
 	-@for file in $(LIBS_TO_PKG) ; \
 	do if [ -f $$file ] ; \
@@ -887,47 +884,47 @@ $(INST_TARGET)/$(SLAPD_DIR)/slapd.z:
 
 #----------------------------- setup rules ---------------------------------------------------
 
-_setup_files: $(INST_TARGET)/$(SLAPD_DIR)/dsinst.dll \
-			  $(INST_TARGET)/$(SLAPD_DIR)/slapd.inf \
-			  $(INST_TARGET)/admin $(INST_TARGET)/base \
-			  $(INST_TARGET)/svrcore $(INST_TARGET)/tools
+_setup_files: $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll \
+			  $(INSTDIR)/$(SLAPD_DIR)/slapd.inf \
+			  $(INSTDIR)/admin $(INSTDIR)/base \
+			  $(INSTDIR)/svrcore $(INSTDIR)/tools
 # see components.mk for a description of PACKAGE_SETUP_LIBS
 	-@for file in $(PACKAGE_SETUP_LIBS) ; \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(INST_TARGET) ; \
+	then $(INSTALL) -m 755 $$file $(INSTDIR) ; \
 	fi ; \
 	done
 
-$(INST_TARGET)/$(SLAPD_DIR)/dsinst.dll: $(OBJDIR)/setup/dsinst.dll
+$(INSTDIR)/$(SLAPD_DIR)/dsinst.dll: $(OBJDIR)/setup/dsinst.dll
 	cp $< $@
 
-$(INST_TARGET)/$(SLAPD_DIR)/slapd.inf: $(OBJDIR)/setup/slapd.inf
+$(INSTDIR)/$(SLAPD_DIR)/slapd.inf: $(OBJDIR)/setup/slapd.inf
 	cp $< $@
 
-$(INST_TARGET)/admin: $(ADMSERV_DIR)/admin
+$(INSTDIR)/admin: $(ADMSERV_DIR)/admin
 	cp -R $< $@
 
-$(INST_TARGET)/base: $(ADMSERV_DIR)/base
+$(INSTDIR)/base: $(ADMSERV_DIR)/base
 	cp -R $< $@
 	rm -f $@/base.z
 	rm -f $@/basesys.z
 # we need to remove the jre per Red Hat.  Users will download their own jre
-	rm -f $(INST_TARGET)/base/jre.z
+	rm -f $(INSTDIR)/base/jre.z
 # we also need to remove the Archive directive from the [base] section of the
 # base.inf file
 	$(PERL) -w $(FIX_BASE_INF) $@/base.inf
 
-$(INST_TARGET)/svrcore: $(ADMSERV_DIR)/svrcore
+$(INSTDIR)/svrcore: $(ADMSERV_DIR)/svrcore
 	cp -R $< $@
 
-$(INST_TARGET)/tools: $(INSTDIR)/$(NS_BUILD_FLAVOR)/tools/infozip.zip
-	$(UNZIP) -j $(INST_TARGET)/nsperl/$(NSPERL_ZIP_FILE) \
+$(INSTDIR)/tools: $(INSTDIR)/tools/infozip.zip
+	$(UNZIP) -j $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
 	lib/nsPerl5.6.1/bin/perl$(DOTEXE) -d $@
-	$(UNZIP) -j $(INST_TARGET)/nsperl/$(NSPERL_ZIP_FILE) \
+	$(UNZIP) -j $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
 	lib/nsPerl5.6.1/bin/perl56.dll -d $@
 # We need to pull out the perl lib directory for perl to work 
 	mkdir $@/tmp
-	$(UNZIP) $(INST_TARGET)/nsperl/$(NSPERL_ZIP_FILE) \
+	$(UNZIP) $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
 	lib/nsPerl5.6.1/lib/\* -d $@/tmp
 	cp -R $@/tmp/lib/nsPerl5.6.1/lib $@
 	rm -rf $@/tmp
