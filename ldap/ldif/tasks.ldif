@@ -30,60 +30,60 @@ dn: cn=start, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Start@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.Start@ds71.jar
 nsexecref: start
 
 dn: cn=stop, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Stop@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.Stop@ds71.jar
 nsexecref: shutdown
 
 dn: cn=restart, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Restart@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.Restart@ds71.jar
 nsexecref: restart
 
 dn: cn=Backup, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Backup@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.Backup@ds71.jar
 nsexecref: ds_db2bak
 
 dn: cn=Restore, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Restore@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.Restore@ds71.jar
 nsexecref: ds_bak2db
 
 dn: cn=KeyCert, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.KeyCert@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.KeyCert@ds71.jar
 
 dn: cn=Authenticate, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Authenticate@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.Authenticate@ds71.jar
 
 dn: cn=CompleteImport, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.CompleteImport@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.CompleteImport@ds71.jar
 
 dn: cn=CompleteExport, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.CompleteExport@ds70.jar
+nsClassname: com.netscape.admin.dirserv.task.CompleteExport@ds71.jar
 
 dn: cn=Export, cn=operation, cn=Tasks
 objectclass: top

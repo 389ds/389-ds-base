@@ -9,7 +9,7 @@
 **   ux-config.cc
 **
 ** DESCRIPTION:
-**   Netscape Directory Server Pre-installation Program
+**   Brandx Directory Server Pre-installation Program
 **
 ** NOTES:
 **   This program is intended for UNIX only and is NOT thread-safe.

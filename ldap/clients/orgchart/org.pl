@@ -1983,7 +1983,7 @@ sub output_html_header()
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n";
 	print "<HTML>\n";
 	print "<HEAD>\n";
-	print "     <title>Netscape Directory Server Org Chart</title>\n";
+	print "     <title>Brandx Directory Server Org Chart</title>\n";
 
 	if ( $js_output ne "with-javascript" )
 	{

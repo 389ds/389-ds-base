@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Netscape Directory Server 7 Collation Plugin'
+DESCRIPTION     'Brandx Directory Server 7 Collation Plugin'
 EXPORTS
 	orderingRule_init	@2
 	plugin_init_debug_level	@3

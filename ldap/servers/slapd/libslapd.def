@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Directory Server 7 Utility Library'
+DESCRIPTION     'Brandx Directory Server 7 Utility Library'
 EXPORTS
 	slapd_log_error_proc		@2
 	slapd_log_audit_proc		@3

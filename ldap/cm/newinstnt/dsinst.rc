@@ -44,14 +44,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Netscape\0"
-            VALUE "FileDescription", "Directory Server 7.0\0"
+            VALUE "CompanyName", "Brandx\0"
+            VALUE "FileDescription", "Directory Server 7.1\0"
             VALUE "FileVersion", "1, 0, 0, 1\0"
-            VALUE "InternalName", "Directory Server 7.0\0"
+            VALUE "InternalName", "Directory Server 7.1\0"
             VALUE "LegalCopyright", "Copyright 2001 Sun Microsystems, Inc.  Portions copyright 1999, 2002 Netscape Communications Corporation.  All rights reserved.\0"
             VALUE "OriginalFilename", "\0"
-            VALUE "ProductName", "Netscape Server Products\0"
-            VALUE "ProductVersion", "7, 0, 0, 0\0"
+            VALUE "ProductName", "Brandx Server Products\0"
+            VALUE "ProductVersion", "7, 1, 0, 0\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -96,7 +96,7 @@ END
 
 IDD_MCC_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0"
+CAPTION "Directory Server 7.1"
 FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_EDIT_HOST,158,68,103,13,ES_AUTOHSCROLL | WS_DISABLED
@@ -121,13 +121,13 @@ BEGIN
     CONTROL         "Use existing configuration directory server",
                     IDC_RADIO_USE_EXISTING_SERVER,"Button",
                     BS_AUTORADIOBUTTON,97,57,165,10
-    LTEXT           "Netscape server information is stored in the Netscape configuration directory server, which you may have already set up.  If so, you should configure this server to be managed by the configuration server.",
+    LTEXT           "Brandx server information is stored in the Brandx configuration directory server, which you may have already set up.  If so, you should configure this server to be managed by the configuration server.",
                     IDC_STATIC_DESC,92,3,172,33
 END
 
 IDD_ROOTDN DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Directory Manager Settings"
+CAPTION "Directory Server 7.1 Directory Manager Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -152,7 +152,7 @@ END
 IDD_SUITESPOTID DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION 
-"Directory Server 7.0 Netscape configuration directory server administrator "
+"Directory Server 7.0 Brandx configuration directory server administrator "
 
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -168,13 +168,13 @@ BEGIN
                     ES_AUTOHSCROLL
     GROUPBOX        "Configuration Directory Server Administrator ",
                     IDC_STATIC_SUITESPOT_ADMIN_GROUPBOX,88,35,204,91
-    LTEXT           "The Netscape configuration directory administrator is the ID typically used to log in to the console.",
+    LTEXT           "The Brandx configuration directory administrator is the ID typically used to log in to the console.",
                     IDC_STATIC_MCA_DESC,88,10,196,18
 END
 
 IDD_SERVER_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Server Settings"
+CAPTION "Directory Server 7.1 Server Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     GROUPBOX        "General Settings",IDC_STATIC_GENERAL_SETTINGS,97,33,194,
@@ -196,7 +196,7 @@ END
 
 IDD_SAMPLE_ENTRIES_ORG DIALOG DISCARDABLE  0, 0, 377, 179
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Populate Database"
+CAPTION "Directory Server 7.1 Populate Database"
 FONT 8, "MS Sans Serif"
 BEGIN
     GROUPBOX        "Sample Organizational Structure",
@@ -228,7 +228,7 @@ END
 
 IDD_CONSUMER_REPLICATION_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Consumer Replication Settings"
+CAPTION "Directory Server 7.1 Consumer Replication Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -251,7 +251,7 @@ END
 
 IDD_SUPPLIER_REPLICATION_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Supplier Replication Settings"
+CAPTION "Directory Server 7.1 Supplier Replication Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -269,7 +269,7 @@ END
 
 IDD_CONSUMER_DN DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Consumer DN Settings "
+CAPTION "Directory Server 7.1 Consumer DN Settings "
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -294,7 +294,7 @@ END
 
 IDD_REPLICATION_AGREEMENT DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Configure Replication Agreement"
+CAPTION "Directory Server 7.1 Configure Replication Agreement"
 FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_EDIT_HOST,159,13,80,13,ES_AUTOHSCROLL
@@ -350,7 +350,7 @@ END
 
 IDD_CHOOSE_REPLICATION_SETUP DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Configure Server for Replication"
+CAPTION "Directory Server 7.1 Configure Server for Replication"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "A Consumer that will pull updates",
@@ -388,7 +388,7 @@ END
 
 IDD_DISABLE_SCHEMA_CHECKING DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Disable Schema Checking"
+CAPTION "Directory Server 7.1 Disable Schema Checking"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -405,11 +405,11 @@ END
 
 IDD_ADMIN_DOMAIN DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Administration Domain"
+CAPTION "Directory Server 7.1 Administration Domain"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
-    LTEXT           "The Administration Domain is a part of the configuration directory server used to store information about Netscape software.",
+    LTEXT           "The Administration Domain is a part of the configuration directory server used to store information about Brandx software.",
                     IDC_STATIC_ADMIN_DOMAIN_DESC,90,8,203,16
     EDITTEXT        IDC_EDIT_ADMIN_DOMAIN,157,113,118,14,ES_AUTOHSCROLL
     LTEXT           "Administration Domain:",IDC_STATIC_ADMIN_DOMAIN,104,113,
@@ -424,7 +424,7 @@ END
 
 IDD_REINSTALL_CONFIG DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.0 Reinstall Settings"
+CAPTION "Directory Server 7.1 Reinstall Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -451,7 +451,7 @@ END
 IDD_ADMIN_ID_ONLY DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION 
-"Directory Server 7.0 Netscape configuration directory server administrator "
+"Directory Server 7.0 Brandx configuration directory server administrator "
 
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -464,7 +464,7 @@ BEGIN
                     ES_AUTOHSCROLL
     GROUPBOX        "Configuration Directory Server Administrator ",
                     IDC_STATIC_SUITESPOT_ADMIN_GROUPBOX,88,35,204,61
-    LTEXT           "The Netscape configuration directory administrator is the ID typically used to log in to the console.",
+    LTEXT           "The Brandx configuration directory administrator is the ID typically used to log in to the console.",
                     IDC_STATIC_MCA_DESC,88,10,196,18
 END
 
@@ -609,14 +609,14 @@ BEGIN
     ERR_INVALID_DN          "%s is not a valid DN."
     SUM_REINSTALL           "Files will be updated, no configuration changes."
     ERR_CANT_FIND_DS_REPL   "Could not connect to ldap://%s:%d/ for bind DN %s Please check your settings.  Otherwise, the remote server may be down at this time. You may need to manually start replication after installation. Would you like to continue using these settings?"
-    IDS_STARTING_SERVICE    "Starting Netscape Directory Server (%s)"
-    IDS_STOPPING_SERVICE    "Stopping Netscape Directory Server (%s)"
-    IDS_WAIT_SERVICE_START  "Waiting for Netscape Directory Server (%s) to start"
+    IDS_STARTING_SERVICE    "Starting Brandx Directory Server (%s)"
+    IDS_STOPPING_SERVICE    "Stopping Brandx Directory Server (%s)"
+    IDS_WAIT_SERVICE_START  "Waiting for Brandx Directory Server (%s) to start"
 END
 
 STRINGTABLE DISCARDABLE 
 BEGIN
-    IDS_WAIT_SERVICE_STOP   "Waiting for Netscape Directory Server (%s) to stop"
+    IDS_WAIT_SERVICE_STOP   "Waiting for Brandx Directory Server (%s) to stop"
     ERR_ADMIN_DOMAIN_DN     "A DN [%s] is not allowed here.  Please enter a valid string."
     ERR_CANT_FIND_ADMIN_DOMAIN 
                             "Could not find the Admin Domain %s in ldap://%s:%d/ for bind DN %s\nPlease check your settings.  You may need to install using Custom mode in order to specify the Admin domain.\nThe installation cannot proceed."

@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION		'Netscape Directory Server 7 test plugin'
+DESCRIPTION		'Brandx Directory Server 7 test plugin'
 EXPORTS
 	testentry_scramble				@2
 	testentry_unscramble				@3

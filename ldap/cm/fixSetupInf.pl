@@ -11,9 +11,9 @@
 $isNT = -d '\\';
 
 if ($isNT) {
-  $ServerDir = "/Netscape/Servers";
+  $ServerDir = "/Brandx/Servers";
 } else {
-  $ServerDir = "/usr/netscape/servers";
+  $ServerDir = "/usr/brandx/servers";
 }
 $ServerDirKey = "DefaultInstallDirectory";
 

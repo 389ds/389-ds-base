@@ -18,7 +18,7 @@ if (!$nshome ) {
     if (!getopts('h:i:d:e:s:t:n:') || !$opt_n || !$opt_h ) {
 	print "usage: " . $0 . " -n nshome -h current_slapd_host:current_slapd_port [options]\n";
 	print "\nrequired:\n";
-	print "    -n directory\tthe directory where 7.0 is installed (NS-HOME)\n";
+	print "    -n directory\tthe directory where 7.1 is installed (NS-HOME)\n";
 	print "    -h host[:port]\tthe current host and port of the directory server\n";
 	print "                  \tto which the gateway connects.\n";
 	print "\noptions:\n";
@@ -27,7 +27,7 @@ if (!$nshome ) {
 	print "    -t suffix\t\tthe new ESCAPED suffix of the directory server\n";
 	print "    -d dirmgrdn\t\tthe old manager dn of the directory server\n";
 	print "    -e dirmgrdn\t\tthe new manager dn of the directory server\n";
-	print "\nexample:\n " . $0 . "  -n /home/servers/ds70/ -h gargoyle:1974 -i brooklyn -s \"dc=example,dc=com\" -t \"o%3Dmcom.com\" -d \"cn=directory manager\" -e \"cn=directory guru\"\n";
+	print "\nexample:\n " . $0 . "  -n /home/servers/ds71/ -h gargoyle:1974 -i brooklyn -s \"dc=example,dc=com\" -t \"o%3Dbrandx.com\" -d \"cn=directory manager\" -e \"cn=directory guru\"\n";
 	
 	exit;
     }

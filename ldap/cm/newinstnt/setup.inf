@@ -13,9 +13,9 @@
 # does note exist the setup program will ignore the component
 
 [General]
-Name         =      Netscape Server Family
-Vendor       =      Netscape Communications Corp.
-Description  =      Netscape Server Family
+Name         =      Brandx Server Family
+Vendor       =      Brandx, Inc.
+Description  =      Brandx Server Family
 Version      =      %%%SERVER_VERSION%%%
 Components   =      svrcore, base, admin, slapd, dssynch, msg, mcc
 

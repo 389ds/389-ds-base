@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Directory Server 7 syntaxes Plugin'
+DESCRIPTION     'Brandx Directory Server 7 syntaxes Plugin'
 EXPORTS
 	cis_init				@2
 	ces_init				@3

@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Netscape Directory Server 7.0 State Change Plugin'
+DESCRIPTION     'Brandx Directory Server 7.1 State Change Plugin'
 EXPORTS
 	views_init        @2
 	plugin_init_debug_level	@3

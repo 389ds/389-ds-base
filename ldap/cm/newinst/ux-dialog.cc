@@ -613,11 +613,11 @@ askSlapdServerIDNext(Dialog *me)
 }
 
 DialogInput askMCAdminID(
-"Please enter the administrator ID for the Netscape configuration\n"
+"Please enter the administrator ID for the Brandx configuration\n"
 "directory server.  This is the ID typically used to log in to the\n"
 "console.  You will also be prompted for the password.\n",
 
-"Netscape configuration directory server\nadministrator ID",
+"Brandx configuration directory server\nadministrator ID",
 
 "admin",
 
@@ -3150,21 +3150,21 @@ askSIRTimesNext(Dialog *me)
 }
 
 DialogYesNo askUseExistingMC(
-"Netscape server information is stored in the Netscape configuration\n"
+"Brandx server information is stored in the Brandx configuration\n"
 "directory server, which you may have already set up.  If so, you\n"
 "should configure this server to be managed by the configuration\n"
 "server.  To do so, the following information about the configuration\n"
 "server is required: the fully qualified host name of the form\n"
 "<hostname>.<domainname>(e.g. hostname.domain.com), the port number,\n"
 "the suffix, and the DN and password of a user having permission to\n"
-"write the configuration information, usually the Netscape\n"
+"write the configuration information, usually the Brandx\n"
 "configuration directory administrator.\n\n"
 "If you want to install this software as a standalone server, or if you\n"
-"want this instance to serve as your Netscape configuration directory\n"
+"want this instance to serve as your Brandx configuration directory\n"
 "server, press Enter.\n",
 
 "Do you want to register this software with an existing\n"
-"Netscape configuration directory server?",
+"Brandx configuration directory server?",
 
 "No",
 
@@ -3247,11 +3247,11 @@ askUseExistingMCNext(Dialog *me)
 }
 
 DialogInput askMCHost(
-"Enter the fully qualified domain name of the Netscape configuration\n"
+"Enter the fully qualified domain name of the Brandx configuration\n"
 "directory server host in the form <hostname>.<domainname>\n"
 "(e.g. hostname.domain.com).\n",
 
-"Netscape configuration directory server\nhost name",
+"Brandx configuration directory server\nhost name",
 
 0,
 
@@ -3312,10 +3312,10 @@ askMCHostNext(Dialog *me)
 }
 
 DialogInput askMCPort(
-"Please specify the port number on which the Netscape configuration\n"
+"Please specify the port number on which the Brandx configuration\n"
 "directory server listens.\n",
 
-"Netscape configuration directory server\nport number",
+"Brandx configuration directory server\nport number",
 
 "389",
 
@@ -3383,13 +3383,13 @@ askMCPortNext(Dialog *me)
 }
 
 DialogInput askMCDN(
-"To write configuration information into the Netscape configuration\n"
+"To write configuration information into the Brandx configuration\n"
 "directory, you must bind to the server as an entity with the\n"
-"appropriate permissions.  Usually, the Netscape configuration\n"
+"appropriate permissions.  Usually, the Brandx configuration\n"
 "directory administrator is used for this purpose, although you can\n"
 "give other directory accounts the proper access.\n",
 
-"Netscape configuration directory server\nadministrator ID",
+"Brandx configuration directory server\nadministrator ID",
 
 0,
 
@@ -3556,7 +3556,7 @@ DialogYesNo askDisableSchemaChecking(
 "installation, and you think you may have problems with your old\n"
 "schema, you may want to turn off schema checking until after the\n"
 "import.  If you choose to do this, schema checking will remain off\n"
-"until you manually turn it back on.  Netscape recommends that you turn\n"
+"until you manually turn it back on.  Brandx recommends that you turn\n"
 "it back on as soon as possible.\n",
 
 "Do you want to disable schema checking?",
@@ -3601,7 +3601,7 @@ askDisableSchemaCheckingNext(Dialog *me)
 
 DialogInput askMCAdminDomain(
 "The Administration Domain is a part of the configuration directory\n"
-"server used to store information about Netscape software.  If you are\n"
+"server used to store information about Brandx software.  If you are\n"
 "managing multiple software releases at the same time, or managing\n"
 "information about multiple domains, you may use the Administration\n"
 "Domain to keep them separate.\n\n"
@@ -3723,7 +3723,7 @@ askMCAdminDomainNext(Dialog *me)
 
 DialogInput askAdminDomain(
 "The Administration Domain is a part of the configuration directory\n"
-"server used to store information about Netscape software.  If you are\n"
+"server used to store information about Brandx software.  If you are\n"
 "managing multiple software releases at the same time, or managing\n"
 "information about multiple domains, you may use the Administration\n"
 "Domain to keep them separate.\n\n"
@@ -4220,7 +4220,7 @@ askUGSuffixNext(Dialog *me)
 
 DialogInput askReconfigMCAdminPwd(
 (const char*)0,
-"Netscape configuration directory server\nadministrator ID",
+"Brandx configuration directory server\nadministrator ID",
 
 (const char*)0,
 

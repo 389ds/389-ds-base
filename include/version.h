@@ -12,15 +12,15 @@
    exist, the PRODUCT_VERSION define has _DEF appended.
  */
 
-#define DIRECTORY_VERSION_DEF "7.0"
+#define DIRECTORY_VERSION_DEF "7.1"
 #define DIRECTORY_COMPATIBLE "3.0"
-#define DIRECTORY_VERSION_STRING "Netscape-DirServer/7.0"
+#define DIRECTORY_VERSION_STRING "Brandx-DirServer/7.1"
 
 #define DS_VERSION_DEF DIRECTORY_VERSION_DEF
 #define DS_VERSION_STRING DIRECTORY_VERSION_STRING
 
 #define DSS_VERSION_DEF DIRECTORY_VERSION_DEF
-#define DSS_VERSION_STRING "Netscape-DirSynchService/7.0"
+#define DSS_VERSION_STRING "Brandx-DirSynchService/7.1"
 
 #define PROXY_VERSION_DEF "2.0"
 #define PROXY_VERSION_STRING "Netscape-Proxy/2.0"

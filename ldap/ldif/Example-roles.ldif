@@ -2988,8 +2988,8 @@ objectclass: nsManagedRoleDefinition
 cn: PD Managers
 description: People who can manage engineer entries
 
-dn: ou=Netscape Servers,dc=example,dc=com
+dn: ou=Brandx Servers,dc=example,dc=com
 objectclass: top
 objectclass: organizationalUnit
-ou: Netscape Servers
-description: Standard branch for Netscape Server registration
+ou: Brandx Servers
+description: Standard branch for Brandx Server registration

@@ -222,7 +222,7 @@ $(OBJDIR):
 	if test ! -d $(OBJDIR); then mkdir -p $(OBJDIR); fi;
 
 $(RELTOOLSPATH)/brandver.pl:
-	cd $(ABS_ROOT) ; cvs co RelToolsLite
+	cd $(ABS_ROOT)/.. ; cvs co RelToolsLite
 
 $(SDKVER_H):
 	if test ! -d $(DIRVERDIR); then mkdir -p $(DIRVERDIR); fi;

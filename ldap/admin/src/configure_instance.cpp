@@ -100,7 +100,7 @@ extern "C" {
 // name of script file to generate relative to slapd instance directory
 #define SCRIPT_FILE_NAME "start-console"
 
-#define DS_JAR_FILE_NAME "ds70.jar"
+#define DS_JAR_FILE_NAME "ds71.jar"
 #define DS_CONSOLE_CLASS_NAME "com.netscape.admin.dirserv.DSAdmin"
 
 #ifdef XP_WIN32

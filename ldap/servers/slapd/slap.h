@@ -156,8 +156,8 @@ typedef struct symbol_t {
 #define LDAP_CONTROL_GET_EFFECTIVE_RIGHTS "1.3.6.1.4.1.42.2.27.9.5.2"
 #endif
 
-#define SLAPD_VENDOR_NAME	"Netscape Communications Corp."
-#define SLAPD_VERSION_STR	"Netscape-Directory/" PRODUCTTEXT
+#define SLAPD_VENDOR_NAME	"Brandx, Inc."
+#define SLAPD_VERSION_STR	"Brandx-Directory/" PRODUCTTEXT
 #define SLAPD_SHORT_VERSION_STR	PRODUCTTEXT
 
 typedef void	(*VFP)(void *);

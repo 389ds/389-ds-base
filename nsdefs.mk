@@ -99,9 +99,9 @@ endif
 endif
 
 MAJOR_VERSION:="7"
-MINOR_VERSION:="0"
+MINOR_VERSION:="1"
 MAJOR_VERSION_NOQUOTES:=7
-MINOR_VERSION_NOQUOTES:=0
+MINOR_VERSION_NOQUOTES:=1
 
 # the LINK version is the one used for -l linking e.g. -l$(LINK_HTTPDLL_NAME)
 ifeq ($(BUILD_ARCH), WINNT)
@@ -176,7 +176,7 @@ else
  NSPR_DIR=nspr
 endif
 NSPR_BASENAME=libnspr21
-PRODUCT="Netscape Directory Server"
+PRODUCT="Brandx Directory Server"
 PRODUCT_IS_DIRECTORY_SERVER=1
 INSTANCE_NAME_PREFIX="Directory Server"
 DIR=slapd
@@ -197,8 +197,8 @@ COMMON_OBJDIR_32=$(BUILD_ROOT)/built/$(ARCHPROCESSOR)-$(SECURITY)$(SSL_PREFIX)-$
 OBJDIR=$(COMMON_OBJDIR)
 OBJDIR_32=$(COMMON_OBJDIR_32)
 DO_SEARCH=no
-DIR_VERSION:=7.0
-DIR_NORM_VERSION:=7.0
+DIR_VERSION:=7.1
+DIR_NORM_VERSION:=7.1
 # When you change DIRSDK_VERSION or DIRSDK_VERSION_DLL_SUFFIX, you must
 # update all of the .exp and .def files by executing the following command:
 #	cd ldap/libraries; gmake exportfiles

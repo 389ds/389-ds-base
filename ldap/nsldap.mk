@@ -6,7 +6,7 @@
 # END COPYRIGHT BLOCK
 #
 #
-# nsldap.mk: GNU Makefile for common defs used in Netscape Directory Server 
+# nsldap.mk: GNU Makefile for common defs used in Brandx Directory Server 
 #	and related tools.
 # 									
 

@@ -75,9 +75,9 @@ endif
 endif
 
 ifdef USE_64
-VERSION=-ver 7.0-64bit
+VERSION=-ver 7.1-64bit
 else
-VERSION=-ver 7.0
+VERSION=-ver 7.1
 endif
 
 ifeq ($(ARCH), HPUX)
@@ -203,8 +203,8 @@ NSDIST = $(BUILD_ROOT)/../dist
 
 DS_JAR_SRC_PATH = $(NSDIST)/$(BUILD_DEBUG)
 DS_JAR_DEST_PATH = java/jars
-DS_JAR_FILE = ds70.jar
-DS_JAR_LANG_FILE = ds70_en.jar
+DS_JAR_FILE = ds71.jar
+DS_JAR_LANG_FILE = ds71_en.jar
 XMLTOOLS_JAR_FILE = xmltools.jar
 
 UNZIP=unzip -o

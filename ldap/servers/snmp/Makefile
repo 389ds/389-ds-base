@@ -6,7 +6,7 @@
 # END COPYRIGHT BLOCK
 #
 #
-# 	Make file SNMP subagent for Netscape Directory Server
+# 	Make file SNMP subagent for Brandx Directory Server
 #
 #
 # 	Revision History:

@@ -609,7 +609,7 @@ int sun_check_kern_arch(char *a,char *b)
     if (flag_debug) printf("DEBUG  : Kernel architecture: sun4u\n");
   } else {
     if (flag_html) printf("<P>\n");
-    printf("%s: The kernel architecture is %s.  Netscape products are optimized\nfor the UltraSPARC architecture and will exhibit poorer performance on earlier\nmachines.\n\n","WARNING",b);
+    printf("%s: The kernel architecture is %s.  Brandx products are optimized\nfor the UltraSPARC architecture and will exhibit poorer performance on earlier\nmachines.\n\n","WARNING",b);
     if (flag_html) printf("</P>\n");
     flag_arch_bad = 1;
   }
@@ -2756,8 +2756,8 @@ static void disk_tests(void)
 #if defined(_WIN32)
     /* TBD */
 #else
-    if (access("/usr/netscape",X_OK) == 0) {
-      sprintf(install_dir,"/usr/netscape");      
+    if (access("/usr/brandx",X_OK) == 0) {
+      sprintf(install_dir,"/usr/brandx");      
     } else {
       sprintf(install_dir,"/opt");
     }
@@ -3235,7 +3235,7 @@ int main(int argc,char *argv[])
     char sysbuf[BUFSIZ];
     int nproc;
     if (flag_html) printf("<P>\n");
-    printf("Netscape Directory Server system tuning analysis version %s.\n\n", build_date);
+    printf("Brandx Directory Server system tuning analysis version %s.\n\n", build_date);
     ids_get_platform(sysbuf);
     nproc = count_processors();
     if (nproc == 1) {

@@ -749,7 +749,7 @@ int MagtLoadStaticInfo(MagtStaticInfo_t *staticInfo, char *pszRootDir, int *SNMP
  
   staticInfo->ApplIndex = 0;
  
-  REPLACE(staticInfo->entityDescr.val, "Netscape Directory Server");
+  REPLACE(staticInfo->entityDescr.val, "Brandx Directory Server");
   staticInfo->entityDescr.len = strlen(staticInfo->entityDescr.val);
  
   REPLACE(staticInfo->entityVers.val, "7");

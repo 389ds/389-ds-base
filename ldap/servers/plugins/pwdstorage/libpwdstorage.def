@@ -4,7 +4,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION		'Netscape Directory Server 7 password storage scheme Plugin'
+DESCRIPTION		'Brandx Directory Server 7 password storage scheme Plugin'
 EXPORTS
 	sha_pwd_storage_scheme_init @2
 	ssha_pwd_storage_scheme_init @3

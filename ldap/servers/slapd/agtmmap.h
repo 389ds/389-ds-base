@@ -7,7 +7,7 @@
 /********************************************************************
  *
  *      agtmmap.h: Memory Map interface for SNMP sub-agent for 
- *                 Netscape Directory Server stats (for UNIX environment).
+ *                 Brandx Directory Server stats (for UNIX environment).
  *
  *      Revision History:
  *      07/22/97        Created                 Steve Ross

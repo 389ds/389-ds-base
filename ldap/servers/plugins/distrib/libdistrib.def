@@ -4,7 +4,7 @@
 ; Some preexisting portions Copyright 2001 Netscape Communications Corp.
 ; All rights reserved.
 ;-------------------------------------------------------------------------
-DESCRIPTION 	'Netscape Directory Server 7 distribution logic example'
+DESCRIPTION 	'Brandx Directory Server 7 distribution logic example'
 EXPORTS
 	alpha_distribution @1
 	hash_distribution @2

@@ -6,7 +6,7 @@
 # END COPYRIGHT BLOCK
 #
 [General]
-Name=Netscape Directory Suite
+Name=Brandx Directory Suite
 Components=slapd, slapd-client
 
 [slapd]
@@ -18,7 +18,7 @@ Compatible= 4.0
 BuildNumber= %%%SERVER_BUILD_NUM%%%
 Expires= %%%PUMPKIN_HOUR%%%
 Security= %%%SECURITY%%%
-Vendor= Netscape Communications Corp.
+Vendor= Brandx, Inc.
 Description= %%%SERVER_NAME%%%
 Dependencies= base/4.5, svrcore/4.5, nsperl561/1.13, perldap14/1.01
 ProductName=Directory Server
@@ -36,7 +36,7 @@ IsLdap=True
 NSPerlPostInstall=lib/nsPerl5.6.1/install
 
 [slapd-client]
-Name= Netscape Directory Server Console
+Name= Brandx Directory Server Console
 NickName= slapd-client
 Version= %%%SERVER_VERSION%%%
 Compatible= 4.0

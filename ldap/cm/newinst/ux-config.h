@@ -10,14 +10,17 @@
 **   ux-config.h
 **
 ** DESCRIPTION:
-**   Netscape Directory Server Pre-installation Program
+**   Brandx Directory Server Pre-installation Program
 **
 ** NOTES:
 **
 ** HISTORY:
 ** $Log: ux-config.h,v $
-** Revision 1.1  2005/01/21 00:40:49  cvsadm
-** Initial revision
+** Revision 1.2  2005/02/02 19:35:43  nhosoi
+** [146919] De-brand the Directory Server as "brandx"
+**
+** Revision 1.1.1.1  2005/01/21 00:40:49  cvsadm
+** Moving NSCP Directory Server from DirectoryBranch to TRUNK, initial drop. (foxworth)
 **
 ** Revision 1.1.2.6.8.9  2005/01/14 01:22:10  nhosoi
 ** For the open-source project.

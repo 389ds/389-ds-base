@@ -16,7 +16,7 @@ print "
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">
 <html>
 <head>
-<title>Customize: Netscape Directory Server Org Chart</title>
+<title>Customize: Brandx Directory Server Org Chart</title>
 <LINK REL=stylesheet TYPE=\"text/css\" HREF=\"../html/styles.css\">
 ";
 #-------------------------------------
