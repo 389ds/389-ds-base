@@ -16,11 +16,13 @@ sub usage {
 	print(STDERR "     : -j filename - Read Directory Manager's password from file\n");
 	print(STDERR "     : -a dirname  - backup directory\n");
 	print(STDERR "     : -t dbtype   - database type (default: ldbm database)\n");
+	print(STDERR "     : -n backend  - name of backend instance to restore\n");
 	print(STDERR "     : -v          - verbose\n");
 }
 $taskname = "";
 $archivedir = "";
 $dbtype = "ldbm database";
+$instance = "";
 $dsroot = "{{DS-ROOT}}";
 $mydsroot = "{{MY-DS-ROOT}}";
 $verbose = 0;
@@ -39,6 +41,8 @@ while ($i <= $#ARGV) {
 		$i++; $passwdfile = $ARGV[$i];
 	} elsif ("$ARGV[$i]" eq "-t") {	# database type
 		$i++; $dbtype = $ARGV[$i];
+	} elsif ("$ARGV[$i]" eq "-n") {	# backend instance name
+		$i++; $instance = $ARGV[$i];
 	} elsif ("$ARGV[$i]" eq "-v") {	# verbose
 		$verbose = 1;
 	} else {
@@ -75,12 +79,20 @@ $taskname = "restore_${yr}_${mn}_${dy}_${h}_${m}_${s}";
 if ($archivedir eq "") {
 	&usage; exit(1);
 }
+use File::Spec;
+$isabs = File::Spec->file_name_is_absolute( $archivedir );
+if (!$isabs) {
+    $archivedir = File::Spec->rel2abs( $archivedir );
+}
 $dn = "dn: cn=$taskname, cn=restore, cn=tasks, cn=config\n";
 $misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";
 $cn = "cn: $taskname\n";
+if ($instance ne "") {
+	$nsinstance = "nsInstance: ${instance}\n";
+}
 $nsarchivedir = "nsArchiveDir: $archivedir\n";
 $nsdbtype = "nsDatabaseType: $dbtype\n";
-$entry = "${dn}${misc}${cn}${nsarchivedir}${nsdbtype}";
+$entry = "${dn}${misc}${cn}${nsinstance}${nsarchivedir}${nsdbtype}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
 chdir("$dsroot{{SEP}}shared{{SEP}}bin");

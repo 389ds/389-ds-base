@@ -93,11 +93,11 @@ int dblayer_memp_stat(struct ldbminfo *li, DB_MPOOL_STAT **gsp,DB_MPOOL_FSTAT **
 int dblayer_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp, DB_MPOOL_FSTAT ***fsp);
 int dblayer_backup(struct ldbminfo *li, char *destination_directory,
                    Slapi_Task *task);
-int dblayer_restore(struct ldbminfo *li, char* source_directory, Slapi_Task *task);
+int dblayer_restore(struct ldbminfo *li, char* source_directory, Slapi_Task *task, char *bename);
 int dblayer_copy_directory(struct ldbminfo *li, Slapi_Task *task,
                            char *instance_dir, char *destination_dir,
                            int restore, int *cnt, int instance_dir_flag,
-                           int indexonly);
+                           int indexonly, int resetlsns);
 int dblayer_copyfile(char* source, char * destination, int overwrite, int mode);
 int dblayer_delete_instance_dir(backend *be);
 int dblayer_delete_database(struct ldbminfo *li);
@@ -570,7 +570,7 @@ int ldbm_ancestorid_move_subtree(
  * import-threads.c
  */
 int dse_conf_backup(struct ldbminfo *li, char *destination_directory);
-int dse_conf_verify(struct ldbminfo *li, char *src_dir);
+int dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename);
 
 /*
  * ldbm_attrcrypt.c

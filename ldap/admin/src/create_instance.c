@@ -2398,18 +2398,31 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
     
     t = gen_script(cs_path, "bak2db", 
-           "if [ \"$#\" -ne 1 ]\nthen\n"
-           "    echo \"Usage: bak2db archivedir\"\n"
-           "    exit 1\nfi\n\n"
-           "if [ 1 = `expr $1 : \"\\/\"` ]\nthen\n"
-           "    archivedir=$1\n"
+           "if [ $# -lt 1 ] || [ $# -gt 3 ]\nthen\n"
+           "    echo \"Usage: bak2db archivedir [-n backendname]\"\n"
+           "    exit 1\n"
+           "else\n"
+           "	archivedir=$1\n"
+           "	shift\n"
+           "fi\n"
+           "while getopts \"n:\" flag\ndo\n"
+           "	case $flag in\n"
+           "		n) bename=$OPTARG;;\n"
+           "		*) echo \"Usage: bak2db archivedir [-n backendname]\"; exit 2;;\n"
+           "	esac\n"
+           "done\n\n"
+           "if [ 1 = `expr $archivedir : \"\\/\"` ]\nthen\n"
+           "    archivedir=$archivedir\n"
            "else\n"
            "    # relative\n"
-           "    cwd=`pwd`\n"
-           "    archivedir=`echo $cwd/$1`\nfi\n\n"
+           "    archivedir=`pwd`/$archivedir\nfi\n\n"
            "cd %s\n"
-           "./ns-slapd archive2db -D %s -a $archivedir\n",
-           server, cs_path);
+           "if [ \"$#\" -eq 2 ]\nthen\n"
+           "    ./ns-slapd archive2db -D %s -a $archivedir -n $bename\n"
+           "else\n"
+           "    ./ns-slapd archive2db -D %s -a $archivedir\n"		   
+           "fi\n",
+           server, cs_path, cs_path);
     if(t) return t;
 
     t = CREATE_BAK2DB();
@@ -2941,20 +2954,38 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
     
     t = gen_script(cs_path, "bak2db.bat", 
-           "@echo off\n"
-            "setlocal\n\n"
-            "set rc=0\n"
-            "if [%%1] == [] goto usage\n\n"    
-           "\"%s\\slapd\" archive2db -D \"%s\" -a %%1\n"
-            "set rc=%%errorlevel%%\n"
-            "goto done\n\n"
+            "@echo off\n"
+            "pushd & setlocal\n\n"
+            "if [%%1] == [] (goto :usage)\n"
+            "if not [%%4] == [] (goto :usage)\n\n"
+            "set archivedir=%%1\n"
+            "set rc=0\n\n"
+            ":getopts\n"
+            "shift\n"
+            "if [%%1]==[] (goto :main)\n"
+            "if [%%1]==[-n] (if not [%%2]==[] (set bename=%%2) else (goto :usage)) else (goto :getopts)\n\n"
+            ":main\n"
+            "call :relative %%archivedir%%\n"
+            "if defined bename (\n"
+            "\"%s\\slapd\" archive2db -D \"%s\" -a %%archivedir%% -n %%bename%%\n"
+            ") else (\n"
+            "\"%s\\slapd\" archive2db -D \"%s\" -a %%archivedir%%\n"
+            ")\n"
+            "set rc=%%ERRORLEVEL%%\n"
+            "popd\n"
+            "goto :done\n\n"
+            "goto :EOF\n"
             ":usage\n"
-            "echo \"Usage: bak2db -a archivedir\"\n\n"
-            "set rc=1\n"
+            "echo %%0 archivedir [-n backendname]\n"
+            "goto :done\n\n"
+            "goto :EOF\n"
+            ":relative\n"
+            "set archivedir=%%~f1\n\n"
+            "goto :EOF\n"
             ":done\n"
             "if defined MKSARGS exit %%rc%%\n"
             "exit /b %%rc%%\n",
-           server, cs_path);
+            server, cs_path, server, cs_path);
     if(t) return t;
 
 #if defined(UPGRADEDB)

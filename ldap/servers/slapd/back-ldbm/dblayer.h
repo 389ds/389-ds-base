@@ -133,8 +133,26 @@ struct dblayer_private
     int dblayer_lock_config;
 };
 
+void dblayer_log_print(const char* prefix, char *buffer);
+
 int dblayer_db_remove(dblayer_private_env * env, char const path[], char const dbName[]);
 
 int dblayer_delete_indices(ldbm_instance *inst);
+
+/* Helper functions in dbhelp.c */
+
+/* Make an environment to be used for isolated recovery (e.g. during a partial restore operation) */
+int dblayer_make_private_recovery_env(char *db_home_dir, dblayer_private *priv, DB_ENV **env);
+/* Make an environment to be used for simple non-transacted database operations, e.g. fixup during upgrade */
+int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env);
+/* Copy a database file, preserving all its contents (used to reset the LSNs in the file in order to move 
+ * it from one transacted environment to another.
+ */
+int dblayer_copy_file_resetlsns(char *home_dir, char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv);
+/* Turn on the various logging and debug options for DB */
+void dblayer_set_env_debugging(DB_ENV *pEnv, dblayer_private *priv);
+
+/* Return the last four characters of a string; used for comparing extensions. */
+char* last_four_chars(const char* s);
 
 #endif /* _DBLAYER_H_ */

@@ -1070,7 +1070,8 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
 							Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Backend *be = NULL;
-    const char *cn;
+    const char *cn = NULL;
+    const char *instance_name = NULL;
     const char *archive_dir = NULL;
     const char *my_database_type = NULL;
     const char *database_type = "ldbm database";
@@ -1098,6 +1099,8 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     my_database_type = fetch_attr(e, "nsDatabaseType", NULL);
     if (NULL != my_database_type)
         database_type = my_database_type;
+
+    instance_name = fetch_attr(e, "nsInstance", NULL);
 
     /* get backend that has archive2db and the database type matches.  */
     cookie = NULL;
@@ -1148,6 +1151,8 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
     mypb->pb_seq_val = slapi_ch_strdup(archive_dir);
     mypb->pb_plugin = be->be_database;
+    if (NULL != instance_name)
+        mypb->pb_instance_name = slapi_ch_strdup(instance_name);
     mypb->pb_task = task;
     mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
 

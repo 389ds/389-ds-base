@@ -131,6 +131,9 @@
 #endif
 #endif
 
+#define NEWDIR_MODE 0755
+
+
 static int perf_threadmain(void *param);
 static int checkpoint_threadmain(void *param);
 static int trickle_threadmain(void *param);
@@ -142,6 +145,7 @@ static int dblayer_override_libdb_functions(DB_ENV *pEnv, dblayer_private *priv)
 static int dblayer_force_checkpoint(struct ldbminfo *li);
 static int log_flush_threadmain(void *param);
 static int dblayer_delete_transaction_logs(const char * log_dir);
+static int dblayer_is_logfilename(const char* path);
 
 static int dblayer_start_log_flush_thread(dblayer_private *priv);
 static int dblayer_start_deadlock_thread(struct ldbminfo *li);
@@ -152,7 +156,6 @@ static int trans_batch_count=1;
 static int trans_batch_limit=0;
 static PRBool log_flush_thread=PR_FALSE;
 static int dblayer_db_remove_ex(dblayer_private_env *env, char const path[], char const dbName[], PRBool use_lock);
-static char* last_four_chars(const char* s);
 
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
@@ -285,7 +288,7 @@ static void dblayer_reset_env(struct ldbminfo *li)
 }
 
 /* Callback function for libdb to spit error info into our log */
-static void dblayer_log_print(const char* prefix, char *buffer)
+void dblayer_log_print(const char* prefix, char *buffer)
 {
     /* We ignore the prefix since we know who we are anyway */
     LDAPDebug(LDAP_DEBUG_ANY,"libdb: %s\n", buffer, 0, 0);    
@@ -605,21 +608,13 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
     dblayer_select_ncache(mysize, &myncache); 
     priv->dblayer_ncache = myncache;
 
-    pEnv->set_errpfx(pEnv, "ns-slapd");
+    dblayer_set_env_debugging(pEnv,priv);
+
     pEnv->set_lg_max(pEnv, priv->dblayer_logfile_size);
     pEnv->set_cachesize(pEnv, mysize / GIGABYTE, mysize % GIGABYTE, myncache);
     pEnv->set_lk_max_locks(pEnv, priv->dblayer_lock_config);
     pEnv->set_lk_max_objects(pEnv, priv->dblayer_lock_config);
     pEnv->set_lk_max_lockers(pEnv, priv->dblayer_lock_config); 
-    if (priv->dblayer_verbose) {
-        pEnv->set_verbose(pEnv, DB_VERB_CHKPOINT, 1);    /* 1 means on */
-        pEnv->set_verbose(pEnv, DB_VERB_DEADLOCK, 1);    /* 1 means on */
-        pEnv->set_verbose(pEnv, DB_VERB_RECOVERY, 1);    /* 1 means on */
-        pEnv->set_verbose(pEnv, DB_VERB_WAITSFOR, 1);    /* 1 means on */
-    }
-    if (priv->dblayer_debug) {
-        pEnv->set_errcall(pEnv, dblayer_log_print);
-    }
 
     /* shm_key required for named_regions (DB_SYSTEM_MEM) */
     pEnv->set_shm_key(pEnv, priv->dblayer_shm_key);
@@ -3972,8 +3967,12 @@ static int dblayer_force_checkpoint(struct ldbminfo *li)
   return ret;
 }
 
-
-static int _dblayer_delete_instance_dir(ldbm_instance *inst)
+/* TEL:  Added startdb flag.  If set (1), the DB environment will be started so
+ * that dblayer_db_remove_ex will be used to remove the database files instead
+ * of simply deleting them.  That is important when doing a selective restoration
+ * of a single backend (FRI).  If not set (0), the traditional remove is used.
+ */
+static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -3987,6 +3986,16 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst)
 
     if (NULL != li)
     {
+		if (startdb)
+		{
+			rval = dblayer_start(li, DBLAYER_NORMAL_MODE);
+			if (rval)
+			{
+				LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_start failed! %s (%d)\n",
+					dblayer_strerror(rval), rval, 0);
+				goto done;
+			}
+		}
         priv = (dblayer_private*)li->li_dblayer_private;
         if (NULL != priv)
         {
@@ -4045,6 +4054,15 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst)
         }
     }
     PR_CloseDir(dirhandle);
+	if (pEnv && startdb)
+	{
+		rval = dblayer_close(li, DBLAYER_NORMAL_MODE);
+		if (rval)
+		{
+			LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_close failed! %s (%d)\n",
+				dblayer_strerror(rval), rval, 0);
+		}
+	}
 done:
     /* remove the directory itself too */
     if (0 == rval)
@@ -4067,20 +4085,23 @@ int dblayer_delete_instance_dir(backend *be)
     return ret;
   } else {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    return _dblayer_delete_instance_dir(inst);
+    return _dblayer_delete_instance_dir(inst, 0);
   }
 }
 
-/* delete an entire db/ directory, including all instances under it!
+
+/* delete an entire db/ directory, including either all instances, or
+ * just a single instance (leaving the others intact), if the instance param is non-NULL !
  * this is used mostly for restores.
  * dblayer is assumed to be closed.
  */
-int dblayer_delete_database(struct ldbminfo *li)
+int dblayer_delete_database_ex(struct ldbminfo *li, char *instance)
 {
     dblayer_private *priv = NULL;
     Object *inst_obj;
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
+	PRFileInfo fileinfo;
     char filename[MAXPATHLEN];
     char *log_dir;
     int ret;
@@ -4095,13 +4116,25 @@ int dblayer_delete_database(struct ldbminfo *li)
         ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
 
         if (inst->inst_be->be_instance_info != NULL) {
-            ret = _dblayer_delete_instance_dir(inst);
-            if (ret != 0)
-            {
-                LDAPDebug(LDAP_DEBUG_ANY,
-                "dblayer_delete_database: WARNING _dblayer_delete_instance_dir failed (%d)\n", ret, 0, 0);
-                return ret;
-            }
+			if ((NULL != instance) && (strcmp(inst->inst_name,instance) != 0)) 
+			{
+				LDAPDebug(LDAP_DEBUG_ANY,
+					"dblayer_delete_database: skipping instance %s\n",inst->inst_name , 0, 0);	
+			} else 
+			{
+				if (NULL == instance)
+				{
+					ret = _dblayer_delete_instance_dir(inst, 0 /* Do not start DB environment: traditional */);
+				} else {
+					ret = _dblayer_delete_instance_dir(inst, 1 /* Start DB environment: for FRI */);
+				}
+				if (ret != 0)
+				{
+					LDAPDebug(LDAP_DEBUG_ANY,
+					"dblayer_delete_database: WARNING _dblayer_delete_instance_dir failed (%d)\n", ret, 0, 0);
+					return ret;
+				}	
+			}
         }
     }
 
@@ -4116,11 +4149,26 @@ int dblayer_delete_database(struct ldbminfo *li)
     }
     while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT |
                                           PR_SKIP_DOT_DOT))) {
+		int rval_tmp = 0;
         if (! direntry->name)
             break;
-        sprintf(filename, "%s/%s", priv->dblayer_home_directory,
-                direntry->name);
-        PR_Delete(filename);
+
+		sprintf(filename, "%s/%s", priv->dblayer_home_directory, 
+			direntry->name);
+
+		/* Do not call PR_Delete on the instance directories if they exist.
+		 * It would not work, but we still should not do it. */
+        rval_tmp = PR_GetFileInfo(filename, &fileinfo);
+        if (rval_tmp == PR_SUCCESS && fileinfo.type != PR_FILE_DIRECTORY)
+		{
+			/* Skip deleting log files; that should be handled below.
+			 * (Note, we don't want to use "filename," because that is qualified and would
+			 * not be compatibile with what dblayer_is_logfilename expects.) */
+			if (!dblayer_is_logfilename(direntry->name))
+			{       
+				PR_Delete(filename);
+			}
+		}
     }
 
     PR_CloseDir(dirhandle);
@@ -4134,14 +4182,26 @@ int dblayer_delete_database(struct ldbminfo *li)
     {
         log_dir = dblayer_get_home_dir(li, NULL);
     }
-    ret = dblayer_delete_transaction_logs(log_dir);
-    if(ret) {
-      LDAPDebug(LDAP_DEBUG_ANY,
-      "dblayer_delete_database: dblayer_delete_transaction_logs failed (%d)\n",
-      ret, 0, 0);
-      return -1;
-    }
+	if (instance == NULL)
+	{
+		ret = dblayer_delete_transaction_logs(log_dir);
+		if(ret) {
+		  LDAPDebug(LDAP_DEBUG_ANY,
+		  "dblayer_delete_database: dblayer_delete_transaction_logs failed (%d)\n",
+		  ret, 0, 0);
+		  return -1;
+		}
+	}
     return 0;
+}
+
+/* delete an entire db/ directory, including all instances under it!
+ * this is used mostly for restores.
+ * dblayer is assumed to be closed.
+ */
+int dblayer_delete_database(struct ldbminfo *li)
+{
+	return dblayer_delete_database_ex(li, NULL);
 }
 
 
@@ -4207,11 +4267,6 @@ int dblayer_database_size(struct ldbminfo *li, unsigned int *size)
     return return_value;
 }
 
-static char* last_four_chars(const char* s)
-{
-    size_t l = strlen(s);
-    return ((char*)s + (l - 4));
-}
 
 static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
 {
@@ -4365,6 +4420,8 @@ error:
  * The argument cnt is used to count the number of files that were copied.
  *
  * This function is used during db2bak and bak2db.
+ * DBDB added resetlsns arg which is used in partial restore (because the LSNs need to be reset to avoid
+ * confusing transaction logging code).
  */
 int dblayer_copy_directory(struct ldbminfo *li,
                            Slapi_Task *task,
@@ -4373,7 +4430,8 @@ int dblayer_copy_directory(struct ldbminfo *li,
                            int restore,
                            int *cnt,
                            int instance_dir_flag,
-                           int indexonly)
+                           int indexonly,
+						   int resetlsns)
 {
     dblayer_private *priv = NULL;
     char            *new_src_dir = NULL;
@@ -4523,8 +4581,14 @@ int dblayer_copy_directory(struct ldbminfo *li,
             }
 
             /* copy filename1 to filename2 */
-            return_value = dblayer_copyfile(filename1, filename2,
+			/* If the file is a database file, and resetlsns is set, then we need to do a key by key copy */
+			if (strcmp(LDBM_FILENAME_SUFFIX, last_four_chars(filename1)) == 0 && resetlsns) {
+				return_value = dblayer_copy_file_resetlsns(src_dir, filename1, filename2,
+                                            0, priv);
+			} else {
+				return_value = dblayer_copyfile(filename1, filename2,
                                             0, priv->dblayer_file_mode);
+			}
             slapi_ch_free((void**)&filename1);
             slapi_ch_free((void**)&filename2);
             if (0 > return_value)
@@ -4640,7 +4704,7 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                                     inst_dir, MAXPATHLEN);
             return_value = dblayer_copy_directory(li, task, inst_dirp,
-                                        dest_dir, 0 /* backup */, &cnt, 0, 0);
+                                        dest_dir, 0 /* backup */, &cnt, 0, 0, 0);
             if (return_value != 0) {
                 LDAPDebug(LDAP_DEBUG_ANY,
                     "ERROR: error copying directory (%s -> %s): err=%d\n",
@@ -4895,9 +4959,198 @@ static int doskip(const char *filename)
     return 0;
 }
 
+static int dblayer_copy_dirand_contents(char* src_dir, char* dst_dir, int mode, Slapi_Task *task)
+{
+  int return_value  = 0;
+  int tmp_rval;
+  char filename1[MAXPATHLEN];
+  char filename2[MAXPATHLEN];
+  PRDir *dirhandle = NULL;
+  PRDirEntry *direntry = NULL;
+  PRFileInfo info;
+
+  dirhandle = PR_OpenDir(src_dir);
+  if (NULL != dirhandle) 
+  {
+
+	while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) 
+	{
+      if (NULL == direntry->name) {
+         /* NSPR doesn't behave like the docs say it should */
+        break;
+      }
+
+
+       sprintf(filename1, "%s/%s", src_dir, direntry->name);
+       sprintf(filename2, "%s/%s", dst_dir, direntry->name);
+       LDAPDebug(LDAP_DEBUG_ANY, "Moving file %s\n",
+                          filename2, 0, 0);
+      /* Is this entry a directory? */
+      tmp_rval = PR_GetFileInfo(filename1, &info);
+      if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) 
+	  {
+		 PR_MkDir(filename2,NEWDIR_MODE);
+		   return_value = dblayer_copy_dirand_contents(filename1, filename2,
+                                               mode,task);
+			if (return_value) 
+			{
+				if (task) 
+				{
+					slapi_task_log_notice(task,
+					"Failed to copy directory %s", filename1);
+				}
+				break;
+			}
+	   } else {
+			if (task) 
+			{
+				slapi_task_log_notice(task, "Moving file %s",
+                                          filename2);
+				slapi_task_log_status(task, "Moving file %s",
+                                          filename2);
+			}
+			return_value = dblayer_copyfile(filename1, filename2, 0,
+                                               mode);
+	   }
+       if (0 > return_value)
+         break;
+                
+    }
+  }
+  return return_value;
+}
+
+static int dblayer_fri_trim(char *fri_dir_path, char* bename)
+{
+	int retval = 0;
+	int tmp_rval;
+	char filename[MAXPATHLEN];
+	PRDir *dirhandle = NULL;
+	PRDirEntry *direntry = NULL;
+	PRFileInfo info;
+
+	dirhandle = PR_OpenDir(fri_dir_path);
+	if (NULL != dirhandle) 
+	{
+
+		while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) 
+		{
+			if (NULL == direntry->name) {
+			/* NSPR doesn't behave like the docs say it should */
+			break;
+			}
+
+			sprintf(filename, "%s/%s", fri_dir_path, direntry->name);
+
+			/* Is this entry a directory? */
+			tmp_rval = PR_GetFileInfo(filename, &info);
+			if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type)
+			{
+				if(strcmp(direntry->name,bename)!=0)
+				{
+					LDAPDebug(LDAP_DEBUG_ANY, "Removing file %s from staging area\n",
+                         filename, 0, 0);
+					ldbm_delete_dirs(filename);
+				}
+				continue;
+			}
+
+			if ((strcmp(direntry->name,"DBVERSION") == 0)||
+				    (strncmp(direntry->name,"__",2) == 0)||
+					(strncmp(direntry->name,"log",3) == 0)){
+				LDAPDebug(LDAP_DEBUG_ANY, "Removing file %s from staging area\n",
+                         filename, 0, 0);
+				PR_Delete(filename);
+			}
+
+		}
+	}
+	PR_CloseDir(dirhandle);
+	return retval;
+}
+
+/* Recover a stand-alone environment , used in filesystem replica intialization restore */
+static int dblayer_recover_environment_path(char *dbhome_dir, dblayer_private *priv)
+{
+	int retval = 0;
+	DB_ENV *env = NULL;
+	/* Make an environment for recovery */
+	retval = dblayer_make_private_recovery_env(dbhome_dir, priv, &env);
+	if (retval) {
+		goto error;
+	}
+	if (env) {
+		retval = env->close(env,0);
+		if (retval) {
+		}
+	}
+error:
+	return retval;
+}
+
+
+static int dblayer_fri_restore(char *home_dir, char *src_dir, dblayer_private *priv, Slapi_Task *task, char** new_src_dir, char* bename)
+{
+		int retval = 0;
+		size_t fribak_dir_length = 0;
+		char *fribak_dir_path = NULL;
+		char *fribak_dir_name = "fribak";
+		int mode = priv->dblayer_file_mode;
+
+		*new_src_dir = NULL;
+
+
+		/* First create the recovery directory */
+		fribak_dir_length = strlen(home_dir) + strlen(fribak_dir_name) + 4; /* 4 for the '/../' */
+		fribak_dir_path = (char *) slapi_ch_malloc(fribak_dir_length + 1); /* add one for the terminator */		
+		sprintf(fribak_dir_path,"%s/../%s",home_dir,fribak_dir_name);
+		if((-1 == PR_MkDir(fribak_dir_path,NEWDIR_MODE)))
+		{
+		  LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: %s exists\n",fribak_dir_path, 0, 0);
+		  LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: Removing %s.\n",fribak_dir_path, 0, 0);
+		  retval = ldbm_delete_dirs(fribak_dir_path);
+		  if (retval)
+		  {
+			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: Removal of %s failed!\n", fribak_dir_path, 0, 0);
+			goto error;
+		  }
+		  PR_MkDir(fribak_dir_path,NEWDIR_MODE);
+		  if (retval != PR_SUCCESS)
+		  {
+			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: Creation of %s failed!\n", fribak_dir_path, 0, 0);
+			goto error;
+		  }
+		}
+		/* Next copy over the entire backup file set to the recovery directory */
+		/* We do this because we want to run recovery there, and we need all the files for that */
+		retval = dblayer_copy_dirand_contents(src_dir, fribak_dir_path, mode, task);
+		if (retval) 
+		{
+			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: Copy contents to %s failed!\n", fribak_dir_path, 0, 0);
+			goto error;
+		}
+		/* Next, run recovery on the files */
+		retval = dblayer_recover_environment_path(fribak_dir_path, priv);
+		if (retval) 
+		{
+			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: Recovery failed!\n", 0, 0, 0);
+			goto error;
+		}
+		/* Files nicely recovered, next we stip out what we don't need from the backup set */
+		retval = dblayer_fri_trim(fribak_dir_path,bename);
+		if (retval) 
+		{
+			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_fri_restore: Trim failed!\n", 0, 0, 0);
+			goto error;
+		}
+		*new_src_dir = fribak_dir_path;
+	error:
+		return retval;
+}
+
 /* Destination Directory is an absolute pathname */
 
-int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
+int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bename)
 {
     dblayer_private *priv = NULL;
     int return_value  = 0;
@@ -4913,6 +5166,8 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     int dbmode;
     int action = 0;
     char *home_dir = NULL;
+	char *real_src_dir = NULL;
+	int frirestore = 0; /* Is a an FRI/single instance restore. 0 for no, 1 for yes */
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -4927,6 +5182,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     PR_Unlock(li->li_config_mutex);
 
     home_dir = dblayer_get_home_dir(li, NULL);
+	
     if (NULL == home_dir)
     {
         LDAPDebug(LDAP_DEBUG_ANY, 
@@ -4949,6 +5205,10 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         }
     }
 
+	/* If this is a FRI restore, the bename will be non-NULL */
+	if (bename != NULL)
+		frirestore = 1;
+
 	/*
 	 * Check if the target is a superset of the backup.
 	 * If not don't restore any db at all, otherwise
@@ -4961,19 +5221,22 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 			&& direntry->name)
 		{
             sprintf(filename1, "%s/%s", src_dir, direntry->name);
-            tmp_rval = PR_GetFileInfo(filename1, &info);
-            if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
-				inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
-				if ( inst == NULL)
-				{
-					LDAPDebug(LDAP_DEBUG_ANY,
-						"ERROR: target server has no %s configured\n", direntry->name, 0, 0);
-        			if (task) {
-			            slapi_task_log_notice(task,
-						"ERROR: target server has no %s configured\n", direntry->name);
-        			}
-    				PR_CloseDir(dirhandle);
-					return LDAP_UNWILLING_TO_PERFORM;
+			if(!frirestore || strcmp(direntry->name,bename)==0)
+			{
+                tmp_rval = PR_GetFileInfo(filename1, &info);
+                if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
+					inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
+					if ( inst == NULL)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY,
+						 "ERROR: target server has no %s configured\n", direntry->name, 0, 0);
+        				if (task) {
+							slapi_task_log_notice(task,
+							"ERROR: target server has no %s configured\n", direntry->name);
+        				}
+    					PR_CloseDir(dirhandle);
+						return LDAP_UNWILLING_TO_PERFORM;
+					}
 				}
 			}
 		}
@@ -4981,17 +5244,33 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 	}
 
     /* We delete the existing database */
-    return_value = dblayer_delete_database(li);  
+
+    return_value = dblayer_delete_database_ex(li, bename);  
     if (return_value) {
         return return_value;
     }
+
+	if (frirestore) /*if we are restoring a single backend*/
+	{
+		char *new_src_dir = NULL;
+		return_value = dblayer_fri_restore(home_dir,src_dir,priv,task,&new_src_dir,bename);
+		if (return_value) {
+			return return_value;
+		}
+		/* Now modify the src_dir to point to our recovery area and carry on as if nothing had happened... */
+		real_src_dir = new_src_dir;
+	} else 
+	{
+		/* Otherwise use the src_dir from the caller */
+		real_src_dir = src_dir;
+	}
 
     /* We copy the files over from the staging area */
     /* We want to treat the logfiles specially: if there's
      * a log file directory configured, copy the logfiles there
      * rather than to the db dirctory */
     if (0 == return_value) {
-        dirhandle = PR_OpenDir(src_dir);
+        dirhandle = PR_OpenDir(real_src_dir);
         if (NULL != dirhandle) {
             char *restore_dir;
             char *prefix = NULL;
@@ -5004,8 +5283,9 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                     break;
                 }
 
+
                 /* Is this entry a directory? */
-                sprintf(filename1, "%s/%s", src_dir, direntry->name);
+                sprintf(filename1, "%s/%s", real_src_dir, direntry->name);
                 tmp_rval = PR_GetFileInfo(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
                     /* This is an instance directory. It contains the *.db#
@@ -5019,9 +5299,9 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 						continue;
 
                     restore_dir = inst->inst_parent_dir_name;
-
+					/* If we're doing a partial restore, we need to reset the LSNs on the data files */
                     if (dblayer_copy_directory(li, task, filename1,
-                            restore_dir, 1 /* restore */, &cnt, 0, 0) == 0)
+						restore_dir, 1 /* restore */, &cnt, 0, 0, (bename) ? 1 : 0) == 0)
                         continue;
                     else
                     {
@@ -5054,7 +5334,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                     prefix = home_dir;
                 }
                 mkdir_p(prefix, 0700);
-                sprintf(filename1, "%s/%s", src_dir, direntry->name);
+                sprintf(filename1, "%s/%s", real_src_dir, direntry->name);
                 sprintf(filename2, "%s/%s", prefix, direntry->name);
                 LDAPDebug(LDAP_DEBUG_ANY, "Restoring file %d (%s)\n",
                           cnt, filename2, 0);
@@ -5130,12 +5410,13 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         if (task) {
             slapi_task_log_notice(task, "Failed to init database");
         }
-        return tmp_rval;
+        return_value = tmp_rval;
+		goto error_out;
     }
 
     if (0 == return_value) { /* only when the copyfile succeeded */
         /* check the DSE_* files, if any */
-        tmp_rval = dse_conf_verify(li, src_dir);
+        tmp_rval = dse_conf_verify(li, real_src_dir, bename);
         if (0 != tmp_rval)
             LDAPDebug(LDAP_DEBUG_ANY,
                 "Warning: Unable to verify the index configuration\n", 0, 0, 0);
@@ -5154,6 +5435,22 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 
     return_value = tmp_rval?tmp_rval:return_value;
 
+error_out:
+	/* Free the restore src dir, but only if we allocated it above */
+	if (real_src_dir != src_dir) {
+		/* If this was an FRI restore and the staging area exists, go ahead and remove it */
+		if (frirestore && PR_Access(real_src_dir, PR_ACCESS_EXISTS) == PR_SUCCESS)
+		{
+			int ret1 = 0;
+			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_restore: Removing staging area %s.\n",real_src_dir, 0, 0);
+			ret1 = ldbm_delete_dirs(real_src_dir);
+			if (ret1)
+			{
+				LDAPDebug(LDAP_DEBUG_ANY, "dblayer_restore: Removal of staging area %s failed!\n", real_src_dir, 0, 0);
+			}
+		}
+		slapi_ch_free((void**)&real_src_dir);
+	}
     return return_value;
 }
 
@@ -5393,3 +5690,4 @@ void dblayer_set_recovery_required(struct ldbminfo *li)
     }
     li->li_dblayer_private->dblayer_recovery_required = 1;
 }
+

@@ -43,7 +43,11 @@ dbversion_write(struct ldbminfo *li, const char *directory,
     PRFileDesc *prfd;
     int rc = 0;
 
-    PR_ASSERT(is_fullpath((char *)directory));
+    if (!is_fullpath((char *)directory)) {
+        rc = -1;
+        return rc;
+    }
+        
     mk_dbversion_fullpath(li, directory, filename);
   
     /* Open the file */
@@ -115,7 +119,11 @@ dbversion_read(struct ldbminfo *li, const char *directory,
     int rc = -1;
     char * iter = NULL;
 
-    PR_ASSERT(is_fullpath((char *)directory));
+    if (!is_fullpath((char *)directory)) {
+        rc = -1;
+        return rc;
+    }
+
     mk_dbversion_fullpath(li, directory, filename);
     
     ldbmversion[0]= '\0';
@@ -167,7 +175,6 @@ dbversion_exists(struct ldbminfo *li, const char *directory)
     char filename[ MAXPATHLEN*2 ];
     PRFileDesc *prfd;
 
-    PR_ASSERT(is_fullpath((char *)directory));
     mk_dbversion_fullpath(li, directory, filename);
 
     if (( prfd = PR_Open( filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE )) ==

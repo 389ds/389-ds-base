@@ -11,6 +11,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 {
     struct ldbminfo    *li;
     char *directory = NULL;
+	char *backendname = NULL;
     int return_value = -1;
     int task_flags = 0;
     int run_from_cmdline = 0;
@@ -19,6 +20,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
     slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );
+	slapi_pblock_get( pb, SLAPI_BACKEND_INSTANCE_NAME, &backendname);
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
     li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
@@ -122,7 +124,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     }
 
     /* tell the database to restore */
-    return_value = dblayer_restore(li, directory, task);
+    return_value = dblayer_restore(li, directory, task, backendname);
     if (0 != return_value) {
         LDAPDebug( LDAP_DEBUG_ANY,
                   "archive2db: Failed to read backup file set. "

@@ -55,7 +55,8 @@ LIBBACK_LDBM_OBJS=	idl.o idl_shim.o idl_new.o idl_common.o cache.o dn2entry.o \
 	ldbm_bind.o \
 	ldbm_unbind.o \
 	ancestorid.o \
-	ldbm_attrcrypt.o
+	ldbm_attrcrypt.o \
+	dbhelp.o
 
 OBJS = $(addprefix $(OBJDEST)/, $(LIBBACK_LDBM_OBJS))
 

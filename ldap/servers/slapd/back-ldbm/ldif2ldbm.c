@@ -2066,7 +2066,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                                                   inst_dir, MAXPATHLEN);
             backup_rval = dblayer_copy_directory(li, NULL /* task */,
                                               inst_dirp, dest_dir, 0/*backup*/,
-                                              &cnt, 0, 1);
+                                              &cnt, 0, 1, 0);
             if (inst_dirp != inst_dir)
                 slapi_ch_free_string(&inst_dirp);
             if (backup_rval < 0)
@@ -2210,7 +2210,7 @@ fail1:
                 backup_rval = dblayer_copy_directory(li, NULL /* task */,
                                                      inst->inst_dir_name,
                                                      dest_dir, 1/*restore*/,
-                                                     &cnt, 0, 1);
+                                                     &cnt, 0, 1, 0);
                 if (inst_dirp != inst_dir)
                     slapi_ch_free_string(&inst_dirp);
                 if (backup_rval < 0)

@@ -1881,7 +1881,7 @@ dse_conf_backup(struct ldbminfo *li, char *dest_dir)
  * [547427] index config must not change between backup and restore
  */
 int
-dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str)
+dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str, char *entry_filter)
 {
     char *filename = NULL;
     int rval = 0;
@@ -1890,6 +1890,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     int curr_lineno = 0;
     int finished = 0;
     int backup_entry_len = 256;
+	char *search_scope = NULL;
     Slapi_Entry **backup_entries = NULL;
     Slapi_Entry **bep = NULL;
     Slapi_Entry **curr_entries = NULL;
@@ -1928,6 +1929,12 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
         if (!estr)
             break;
+		
+		if (entry_filter != NULL) /* Single instance restoration */
+		{
+			if (!(int)strstr(estr, entry_filter))
+				continue;
+		}
 
         e = slapi_str2entry(estr, 0);
         slapi_ch_free_string(&estr);
@@ -1951,10 +1958,22 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
        *bep = NULL;
 
     pblock_init(&srch_pb);
-    slapi_search_internal_set_pb(&srch_pb, li->li_plugin->plg_dn,
+
+	if (entry_filter != NULL)
+	{ /* Single instance restoration */
+		int mylen = 0;
+		mylen = strlen(entry_filter) + strlen(li->li_plugin->plg_dn) + 2;
+        search_scope = slapi_ch_malloc(mylen);
+		sprintf(search_scope, "%s,%s", entry_filter, li->li_plugin->plg_dn);
+	} else { /* Normal restoration */
+        search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
+	}
+
+    slapi_search_internal_set_pb(&srch_pb, search_scope,
         LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL, li->li_identity, 0);
     slapi_search_internal_pb(&srch_pb);
     slapi_pblock_get(&srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &curr_entries);
+
 
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, 1 /* force_update */, li->li_identity))
@@ -1974,6 +1993,10 @@ out:
 
     slapi_ch_free_string(&filename);
 
+	if (search_scope)
+		slapi_ch_free(&search_scope);
+
+
     if (fd > 0)
         close(fd);
 
@@ -1981,12 +2004,39 @@ out:
 }
 
 int
-dse_conf_verify(struct ldbminfo *li, char *src_dir)
+dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename)
 {
     int rval;
-    rval  = dse_conf_verify_core(li, src_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER,
-                "Instance Config");
+	char *entry_filter = NULL;
+	char *instance_entry_filter = NULL;
+	
+	if (bename != NULL) /* This was a restore of a single backend */
+	{
+		int mylen = 0;
+		/* Entry filter string */
+		mylen = strlen(bename) + strlen("cn=") + 2;
+        entry_filter = slapi_ch_malloc(mylen);
+		sprintf(entry_filter, "cn=%s", bename);
+
+		mylen = 0;
+		/* Instance search filter */
+		mylen = strlen(DSE_INSTANCE_FILTER) + strlen(bename) + strlen("(&(cn=))") + 2;
+        instance_entry_filter = slapi_ch_malloc(mylen);
+		sprintf(instance_entry_filter, "(&%s(cn=%s))", DSE_INSTANCE_FILTER, bename);
+	} else {
+	    instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
+	}
+
+	rval  = dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
+                "Instance Config", entry_filter);
     rval += dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
-                "Index Config");
+                "Index Config", entry_filter);
+
+	if (entry_filter)
+		slapi_ch_free(&entry_filter);
+	if (instance_entry_filter)
+		slapi_ch_free(&instance_entry_filter);
+
     return rval;
 }
+
