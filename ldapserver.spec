@@ -1,7 +1,7 @@
 Summary: Directory Server
 Name: ldapserver
 Version: 7.1
-Release: 1
+Release: 0
 License: GPL
 Group: System Environment/Daemons
 URL: http://www.redhat.com
@@ -13,7 +13,7 @@ BuildPreReq: perl, fileutils, make
 Autoreq: 0
 # Without Requires: something, rpmbuild will abort!
 Requires: perl
-Prefix: /opt/ldapserver
+Prefix: /opt/%{name}
 
 %description
 ldapserver is an LDAPv3 compliant server.
@@ -51,11 +51,11 @@ cp -r $NSJRE/lib bin/base/jre
 zip -q -r ../base/nsjre.zip bin
 cd ..
 rm -rf tmp
-echo yes | ./setup -b $RPM_BUILD_ROOT/opt/ldapserver
+echo yes | ./setup -b $RPM_BUILD_ROOT/%{prefix}
 # this is our setup script that sets up the initial
 # server instances after installation
 cd ..
-cp ldap/cm/newinst/setup $RPM_BUILD_ROOT/opt/ldapserver/setup
+cp ldap/cm/newinst/setup $RPM_BUILD_ROOT/%{prefix}/setup
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -63,15 +63,18 @@ rm -rf $RPM_BUILD_ROOT
 %files
 # rather than listing individual files, we just package (and own)
 # the entire ldapserver directory - if we change this to put
-# files in different places, we don't be able to do this anymore
+# files in different places, we won't be able to do this anymore
 %defattr(-,root,root,-)
-/opt/ldapserver
+%{prefix}
 
 %post
 echo ""
-echo "Please cd /opt/ldapserver and run ./setup/setup"
+echo "Please cd " %{prefix} " and run ./setup/setup"
 
 %changelog
+* Tue Mar  8 2005 Richard Megginson <rich@localhost.localdomain> 7.1-0
+- use ${prefix} instead of /opt/ldapserver - prefix is defined as /opt/%{name}
+
 * Thu Jan 20 2005 Richard Megginson <rmeggins@redhat.com>
 - Initial build.
 
