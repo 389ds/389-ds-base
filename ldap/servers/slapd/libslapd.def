@@ -355,7 +355,7 @@ EXPORTS
 	defbackend_init				@352
 	defbackend_get_backend			@353
 	log_set_logging				@354
-	pwpolicy_make_response_control		@355
+	slapi_pwpolicy_make_response_control		@355
 	delete_passwdPolicy			@356
 	g_get_user_backend			@357
 	new_passwdPolicy			@358
@@ -769,7 +769,7 @@ EXPORTS
     slapi_search_internal_callback_pb @780
     plugin_build_operation_action_bitmap @781	
     plugin_get_server_plg @782
-    add_pwd_control @783
+    slapi_add_pwd_control @783
     pw_mod_allowchange_aci @784
     do_add @785
     do_modify @786
