@@ -736,6 +736,11 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
     FILE *f;
     va_list args;
 
+	if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
+		printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
+		return NULL;
+	}
+
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
     PR_snprintf(myperl, sizeof(myperl), "%s%cbin%cslapd%cadmin%cbin%cperl",
                     s_root, FILE_PATHSEP, FILE_PATHSEP,
@@ -776,6 +781,11 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
     char myperl[PATH_SIZE];
     char fn[PATH_SIZE], ofn[PATH_SIZE];
     const char *table[10][2];
+
+	if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
+		printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
+		return NULL;
+	}
 
     PR_snprintf(ofn, sizeof(ofn), "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s", s_root,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
