@@ -56,7 +56,7 @@ TMP_CM_PWD := $(shell pwd)
 LDAP_CM_ABS_PATH := $(TMP_CM_PWD:/tmp_mnt/%=/%) # AIX prefixes /tmp_mnt to path.
 
 ifneq ($(ARCH), WINNT)
-RELTOOLS=$(MCOM_ROOT)/../reltools/ftpname_new.pl
+RELTOOLS=$(MCOM_ROOT)/reltools/ftpname_new.pl
 SUF=-suf .tar
 SUFEXE=-suf .tar.gz
 BACKGROUND=&
