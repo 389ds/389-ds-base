@@ -72,13 +72,13 @@ NSOS_RELEASE_NOTAG = $(NSOS_RELEASE)
 # Check if we're on RHEL
 ifeq ($(NSOS_ARCH), Linux)
   NSOS_TEST := $(shell cat /etc/redhat-release)
-  ifeq ($(findstring Taroon, $(NSOS_TEST)),Taroon)
+  ifeq ($(findstring Taroon,$(NSOS_TEST)),Taroon)
     NSOS_ARCH := RHEL
     NSOS_RELEASE := 3
     # Always use gcc on RHEL
     GCC_VERSION := gcc$(word 1, $(shell gcc --version | sed 's/gcc.*GCC.\s//' | sed 's/\..*//'))
   else
-  ifeq ( $(findstring Nahant, $(NSOS_TEST)),Nahant)
+  ifeq ($(findstring Nahant,$(NSOS_TEST)),Nahant)
       NSOS_ARCH := RHEL
       NSOS_RELEASE := 4
       # Always use gcc on RHEL
