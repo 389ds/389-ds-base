@@ -27,7 +27,7 @@ th {
 	font-weight: bold;
 	color: #ffffff;
 	vertical-align : middle;
-	background-color: #336699;
+	background-color: #666666;
 }
 
 
@@ -80,9 +80,9 @@ body.Search {
 
 td.appName {
 	font-family: verdana, Arial, Helvetica, sans-serif;
-	font-size: 12px;
+	font-size: 16px;
 	vertical-align : middle;
-	color: #ccffff;
+	color: #ffffff;
 	font-weight: bold;
 }
 
@@ -102,17 +102,17 @@ td.appName {
 .link3:Visited  {color: #ccffff; font-size: 11px;}
 .link3:Hover  {color: #ccffff; font-size: 11px;}
 
-.link6 {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link6:Link {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link6:Hover {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link6:Visited {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link6:Active {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6 {color: #dddddd; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Link {color: #dddddd; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Hover {color: #dddddd; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Visited {color: #dddddd; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link6:Active {color: #dddddd; font-size: 12px; font-weight: bold; text-decoration: none;}
 
-.link7 {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link7:Link  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link7:Hover  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link7:Visited  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
-.link7:Active  {color: #003366; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7 {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Link  {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Hover  {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Visited  {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
+.link7:Active  {color: #ffffff; font-size: 12px; font-weight: bold; text-decoration: none;}
 
 .link14 {color: #ffffff; font-size: 11px;}
 .link14:Link {color: #ffffff; font-size: 11px;}
@@ -127,16 +127,16 @@ td.appName {
 .text31 {color: #000000; font-size: 14px; font-family: Verdana, Arial, Helvetica; font-weight: bold;}
 .text22 {color: #000000; font-size: 11px; font-family: Verdana, Arial, Helvetica;}
 
-.bgColor1  {background-color: #003366;}
+.bgColor1  {background-color: #000000;}
 .bgColor4  {background-color: #cccccc;}
 .bgColor7  {background-color: #66ccff;}
-.bgColor9  {background-color: #336699;}
+.bgColor9  {background-color: #666666;}
 .bgColor16  {background-color: #0033CC;}
 
 /* background colors for tabs and tab area */
-.bgAtTab  {background-color: #ccffff;}
+.bgAtTab  {background-color: #999999;}
 .bgAtTabHighlight {background-color: #ffffff;}
-.bgRegTab  {background-color: #0099cc;}
-.bgRegTabHighlight  {background-color: #66ccff;}
+.bgRegTab  {background-color: #666666;}
+.bgRegTabHighlight  {background-color: #999999;}
 .bgInsideRule  {background-color: #66ccff;}
 .bgDarkRule {background-color: #000000;}

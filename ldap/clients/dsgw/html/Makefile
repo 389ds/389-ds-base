@@ -25,7 +25,7 @@ HTMLDEST   = $(DSGW_HTML_RELDIR)
 HTML= auth.html authroot.html authtitle.html csearchtitle.html \
 	emptyFrame.html greeting.html index.html maintitle.html \
 	newentrytitle.html searchtitle.html style.css \
-	transparent.gif back1.gif content1.gif netscape.gif \
+	transparent.gif back1.gif content1.gif rolodex.gif \
 	country.gif exit1.gif forward1.gif group.gif index1.gif \
         left_bottom.gif left_on.gif right_off.gif \
         left_off.gif right_bottom.gif right_on.gif \
