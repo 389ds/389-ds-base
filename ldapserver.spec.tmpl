@@ -2,9 +2,14 @@
 # Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
+# The way we do packaging seems to leave unpackaged files in the builddir;
+# however, we really don't want them
 %define _unpackaged_files_terminate_build 0
 # override the default build name format - we do not want the arch subdir
 %define _build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.%{flavor}.rpm
+# don't bother stripping - we already do this for optimized, and we definitely
+# want the symbols in the debug builds
+%define __os_install_post %{nil}
 Summary: @COMPANY-PRODUCT-NAME@
 Name: @LCASE-COMPANY-NAME-NOSP@-ds
 Version: @GEN-VERSION@
