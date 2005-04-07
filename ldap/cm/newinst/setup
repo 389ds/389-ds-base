@@ -57,6 +57,28 @@ askYN() {
 	done
 }
 
+ask123() {
+ 	prompt=$2
+ 	default=$1
+ 	finished=
+ 	ans=
+ 	while ! [ $finished ]; do
+		echo -n ""
+		echo ""
+		echo -n $prompt "" | tee -a $logfile
+		read ans
+		echo $ans >> $logfile
+		if ! [ $ans ]; then
+			return $default
+		fi
+		case "$ans" in
+		1|2|3) finished=1 ;;
+		*) echo "Please answer 1, 2, or 3" | tee -a $logfile ;;
+		esac
+	done
+	return $ans
+}
+
 logfile=`doMktmp log`
 myargs=
 silent=
@@ -121,6 +143,18 @@ if ! [ $silent ]; then
 	askYN "Continue?"
 fi
 
+# install mode
+if ! [ $silent ]; then
+	echo ""
+	echo "Please select the install mode:"
+	echo "  1 - Express - minimal questions"
+	echo "  2 - Typical - some customization (default)"
+	echo "  3 - Custom - lots of customization"
+	
+	ask123 "2" "Please select 1, 2, or 3 (default: 2) "
+	installmode=$?
+fi
+
 # if silent mode, do not run the pre-installer programs
 # otherwise, create a temp file for their use
 if ! [ $silent ]; then
@@ -169,12 +203,12 @@ if ! [ $silent ]; then
 
 	# first, run ds
 	cd bin/slapd/admin/bin
-	./ns-config -f $inffile -l $logfile || doExit
+	./ns-config -f $inffile -l $logfile -m $installmode || doExit
 	cd ../../../..
 
 	# next, run admin
 	cd bin/admin
-	./ns-config -f $inffile -l $logfile || doExit
+	./ns-config -f $inffile -l $logfile -m $installmode || doExit
 	cd ../..
 fi
 
