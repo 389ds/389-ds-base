@@ -65,13 +65,19 @@ fi
 echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
 
 %preun
-if [ -z "$RPM_INSTALL_PREFIX" ]; then
-	RPM_INSTALL_PREFIX=%{prefix}
+# only run uninstall if this is the last version of the package
+if [ "$1" = 0 ] ; then
+	if [ -z "$RPM_INSTALL_PREFIX" ]; then
+		RPM_INSTALL_PREFIX=%{prefix}
+	fi
+	cd $RPM_INSTALL_PREFIX
+	./uninstall -s -force
 fi
-cd $RPM_INSTALL_PREFIX
-./uninstall -s -force
 
 %changelog
+* Fri Apr  8 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
+- check for last version removal in preun
+
 * Tue Apr  5 2005 Rich Megginson <rmeggins@redhat.com> 7.1-1
 - make rpm name .flavor.rpm - flavor must be defined in rpmbuild
 
