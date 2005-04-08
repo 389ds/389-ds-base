@@ -18,7 +18,7 @@ delete $ENV{LD_LIBRARY_PATH};
 # Set required JRE version
 if ($^O eq "hpux") {
     $jdkVersion = "HP's 32-bit HP-UX";
-    $reqVersion = "1.4.2.04";
+    $reqVersion = "1.4.2.07";
     delete $ENV{SHLIB_PATH};
 } elsif ($^O eq "MSWin32") {
     $jdkVersion = "Sun's 32-bit MS Windows";
