@@ -79,4 +79,7 @@ DB_MAJOR_MINOR := db-4.2
 # internal builds rename this to be db42
 #DB_MAJOR_MINOR := db42
 #component_name:=$(DB_MAJOR_MINOR)
-#db_path_config:=$(BUILD_ROOT)/../$(component_name)
+#db_path_config:=$(BUILD_ROOT)/../$(db_component_name)
+
+NETSNMP_SOURCE_ROOT = $(BUILD_ROOT)/../net-snmp-5.2.1
+#NETSNMP_BUILD_DIR = $(BUILD_ROOT)/../net-snmp

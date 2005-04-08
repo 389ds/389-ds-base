@@ -451,7 +451,7 @@ endif
 # docs
 	-$(RM) -r $(RELDIR)/manual/en/slapd
 	-$(MKDIR) $(RELDIR)/manual/en/slapd
-	if [ -d $(DSDOC_DIR) ] ; then \
+	if [ $(DSDOC_DIR) -a -d $(DSDOC_DIR) ] ; then \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/manual/en/slapd/help ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/manual/en/slapd/ ; \
