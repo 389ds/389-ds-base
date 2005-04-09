@@ -29,6 +29,18 @@ typedef unsigned char uint8_t;
 #include <inttypes.h>
 #endif
 
+/* file type */
+#define ENTRYTYPE     0x1
+#define INDEXTYPE     0x2
+#define VLVINDEXTYPE  0x4
+#define CHANGELOGTYPE 0x8
+
+/* display mode */
+#define RAWDATA   0x1
+#define SHOWCOUNT 0x2
+#define SHOWDATA  0x4
+#define SHOWSUMMARY 0x8
+
 /* stolen from slapi-plugin.h */
 #define SLAPI_OPERATION_BIND		0x00000001UL
 #define SLAPI_OPERATION_UNBIND		0x00000002UL
@@ -455,11 +467,9 @@ void print_changelog(unsigned char *data, int len)
 	}
 }
 
-int indexfile = 0, entryfile = 0, changelogfile = 0;
-int lengths_only = 0;
+uint32 file_type = 0;
 uint32 min_display = 0;
-int show_recno = 0;
-int show_cnt = 0;
+uint32 display_mode = 0;
 int verbose = 0;
 long pres_cnt = 0;
 long eq_cnt = 0;
@@ -471,126 +481,148 @@ long allids_cnt = 0;
 long other_cnt = 0;
 
 
-static void display_item(DBC *cursor, DBT *key, DBT *data)
+static void display_index_item(DBC *cursor, DBT *key, DBT *data)
 {
-    IDL *idl;
+    IDL *idl = NULL;
     int ret = 0;
 
-    if (indexfile) {
-        idl = idl_make(data);
-        if (idl == NULL) {
-            printf("\t(illegal idl)\n");
-            return;
-        }
-        if (show_recno) {
-            cursor->c_get(cursor, key, data, DB_GET_RECNO);
-            printf("[%5d] ", *(db_recno_t *)(data->data));
-        }
+    idl = idl_make(data);
+    if (idl == NULL) {
+        printf("\t(illegal idl)\n");
+        return;
+    }
 
-        /* fetch all other id's too */
-        while (ret == 0) {
-            ret = cursor->c_get(cursor, key, data, DB_NEXT_DUP);
-            if (ret == 0)
-                idl = idl_append(idl, *(uint32 *)(data->data));
-        }
-        if (ret == DB_NOTFOUND)
-            ret = 0;
-        if (ret != 0) {
-            printf("Failure while looping dupes: %s\n",
-                   db_strerror(ret));
-            exit(1);
-        }
-
-        if (idl->max == 0) {
-            /* allids */
-            if ( allids_cnt == 0 && show_cnt) {
-                printf("The following index keys reached allids:\n");
+    if (file_type & VLVINDEXTYPE) {  /* vlv index file */
+        if (1 > min_display) { /* recno is always 1 */
+            if (display_mode & SHOWCOUNT) {  /* key  size=1 */
+                printf("%-40s	 1\n", format(key->data, key->size));
+            } else {
+                printf("%-40s\n", format(key->data, key->size));
             }
-            printf("%-40s(allids)\n", format(key->data, key->size));
-            allids_cnt++;
-        } else {
-            if (lengths_only) {
-                if (idl->used >= min_display)
-                    printf("%-40s%d\n",
-                           format(key->data, key->size), idl->used);
-            } else if (!show_cnt) {
-                char *formatted_idl = NULL;
-                int done = 0;
-                int isfirsttime = 1;
-                printf("%s\n", format(key->data, key->size));
-                while (0 == done) {
-                    formatted_idl = idl_format(idl, isfirsttime, &done);
-                    if (NULL == formatted_idl) {
-                        done = 1; /* no more idl */
+            if (display_mode & SHOWDATA) {
+                cursor->c_get(cursor, key, data, DB_GET_RECNO);
+                printf("\t%5d\n", *(db_recno_t *)(data->data));
+            }
+        }
+        goto index_done;
+    }
+
+    /* ordinary index file */
+    /* fetch all other id's too */
+    while (ret == 0) {
+        ret = cursor->c_get(cursor, key, data, DB_NEXT_DUP);
+        if (ret == 0)
+            idl = idl_append(idl, *(uint32 *)(data->data));
+    }
+    if (ret == DB_NOTFOUND)
+        ret = 0;
+    if (ret != 0) {
+        printf("Failure while looping dupes: %s\n", db_strerror(ret));
+        exit(1);
+    }
+
+    if (idl && idl->max == 0) {
+        /* allids; should not exist in the new idl world */
+        if ( allids_cnt == 0 && (display_mode & SHOWSUMMARY)) {
+            printf("The following index keys reached allids:\n");
+        }
+        printf("%-40s(allids)\n", format(key->data, key->size));
+        allids_cnt++;
+    } else {
+        if (idl->used < min_display) {
+            goto index_done;  /* less than minimum display count */
+        } else if (display_mode & SHOWCOUNT) {  /* key  size */
+            printf("%-40s%d\n", format(key->data, key->size), idl->used);
+        } else if (!(display_mode & SHOWSUMMARY) || (display_mode & SHOWDATA)) {
+            /* show keys only if show summary is not set or 
+			 * even if it's set, but with show data */
+            printf("%-40s\n", format(key->data, key->size));
+        }
+        if (display_mode & SHOWDATA) {
+            char *formatted_idl = NULL;
+            int done = 0;
+            int isfirsttime = 1;
+            while (0 == done) {
+                formatted_idl = idl_format(idl, isfirsttime, &done);
+                if (NULL == formatted_idl) {
+                    done = 1; /* no more idl */
+                } else {
+                    if (1 == isfirsttime) {
+                        printf("\t%s", formatted_idl);
+                        isfirsttime = 0;
                     } else {
-                        if (1 == isfirsttime) {
-                            printf("\t%s", formatted_idl);
-                            isfirsttime = 0;
-                        } else {
-                            printf("%s", formatted_idl);
-                        }
+                        printf("%s", formatted_idl);
                     }
                 }
-                printf("\n");
             }
-        } 
-
-        if ( show_cnt ) {
-            char firstchar;
-
-            firstchar = ((char*)key->data)[0];
-
-            switch ( firstchar ) {
-                case '+':
-                    pres_cnt += idl->used;
-                    break;
-
-                case '=':
-                    eq_cnt += idl->used;
-                    break;
-
-                case '~':
-                    app_cnt += idl->used;
-                    break;
-
-                case '*':
-                    sub_cnt += idl->used;
-                    break;
-                
-                case ':':
-                    match_cnt += idl->used;
-                    break;
-
-                case '\\':
-                    ind_cnt += idl->used;
-                    break;
-
-                default:
-                    other_cnt += idl->used;
-                    break;
-            }
+            printf("\n");
         }
-        idl_free(idl);
-        return;
-    }
+    } 
+index_done:
+    if ( display_mode & SHOWSUMMARY ) {
+        char firstchar;
 
-    if (changelogfile) {
-	/* changelog db file */
-        printf("\ndbid: %s\n", format(key->data, key->size));
-        print_changelog(data->data, data->size);
-        return;
-    }
+        firstchar = ((char*)key->data)[0];
 
-    if (entryfile) {
-        /* id2entry file */
-        ID entry_id = id_stored_to_internal(key->data);
-        printf("id %d\n", entry_id);
-        printf("\t%s\n", format_entry(data->data, data->size));
-    } else {
-        /* user didn't tell us what kind of file, dump it raw */
+        switch ( firstchar ) {
+            case '+':
+                pres_cnt += idl->used;
+                break;
+
+            case '=':
+                eq_cnt += idl->used;
+                break;
+
+            case '~':
+                app_cnt += idl->used;
+                break;
+
+            case '*':
+                sub_cnt += idl->used;
+                break;
+            
+            case ':':
+                match_cnt += idl->used;
+                break;
+
+            case '\\':
+                ind_cnt += idl->used;
+                break;
+
+            default:
+                other_cnt += idl->used;
+                break;
+        }
+    }
+    idl_free(idl);
+    return;
+}
+
+static void display_item(DBC *cursor, DBT *key, DBT *data)
+{
+    if (display_mode & RAWDATA) {
         printf("%s\n", format(key->data, key->size));
         printf("\t%s\n", format(data->data, data->size));
+    } else {
+        if (file_type & INDEXTYPE) {
+            display_index_item(cursor, key, data);
+        } else if (file_type & CHANGELOGTYPE) {
+    	/* changelog db file */
+            printf("\ndbid: %s\n", format(key->data, key->size));
+            print_changelog(data->data, data->size);
+            return;
+        } else if (file_type & ENTRYTYPE) {
+            /* id2entry file */
+            ID entry_id = id_stored_to_internal(key->data);
+            printf("id %d\n", entry_id);
+            printf("\t%s\n", format_entry(data->data, data->size));
+        } else {
+            /* user didn't tell us what kind of file, dump it raw */
+            printf("%s\n", format(key->data, key->size));
+            printf("\t%s\n", format(data->data, data->size));
+        }
     }
+    return;
 }
 
 static int
@@ -637,20 +669,32 @@ is_changelog(char *filename)
 static void usage(char *argv0)
 {
     printf("\n%s - scan a db file and dump the contents\n", argv0);
+    printf("  common options:\n");
     printf("    -f <filename>   specify db file\n");
-    printf("    -i              dump as an index file\n");
-    printf("    -e              dump as an entry (id2entry) file\n");
-    printf("    -c              dump as a  changelog file\n");
+    printf("    -R              dump as raw data\n");
+    printf("  entry file options:\n");
+    printf("    -K <entry_id>   lookup only a specific entry id\n");
+    printf("  index file options:\n");
+    printf("    -k <key>        lookup only a specific key\n");
     printf("    -l <size>       max length of dumped id list\n");
     printf("                    (default %d; 40 bytes <= size <= 1048576 bytes)\n",
            MAX_BUFFER);
-    printf("    -n              display idl lengths only (not contents)\n");
-    printf("    -G <n>          (when used with -n) only display index entries with\n");
-    printf("                        more than <n> ids\n");
-    printf("    -r              show libdb record numbers, too\n");
-    printf("    -k <key>        lookup only a specific key\n");
-    printf("    -K <entry_id>   lookup only a specific entry id\n");
+    printf("    -G <n>          only display index entries with more than <n> ids\n");
+    printf("    -n              display idl lengths\n");
+    printf("    -r              display the conents of idl\n");
     printf("    -s              Summary of index counts\n");
+    printf("  sample usages:\n");
+    printf("    # set <serverroot>/bin/slapd/server:<serverroot>/shared/lib in the library path\n");
+    printf("    # dump the entry file\n");
+    printf("    %s -f id2entry.db\n", argv0);
+    printf("    # display index keys in cn.db4\n");
+    printf("    %s -f cn.db4\n", argv0);
+    printf("    # display index keys and the count of entries having the key in mail.db4\n");
+    printf("    %s -r -f mail.db4\n", argv0);
+    printf("    # display index keys and the IDs having more than 20 IDs in sn.db4\n");
+    printf("    %s -r -G 20 -f sn.db4\n", argv0);
+    printf("    # display summary of objectclass.db4\n");
+    printf("    %s -f objectclass.db4\n", argv0);
     printf("\n");
     exit(1);
 }
@@ -667,19 +711,13 @@ int main(int argc, char **argv)
     uint32 entry_id = 0xffffffff;
     int c;
 
-    while ((c = getopt(argc, argv, "f:iecl:nG:srk:K:hv")) != EOF) {
+    while ((c = getopt(argc, argv, "f:Rl:nG:srk:K:hv")) != EOF) {
         switch (c) {
         case 'f':
             filename = optarg;
             break;
-        case 'i':
-            indexfile = 1;
-            break;
-        case 'e':
-            entryfile = 1;
-            break;
-        case 'c':
-            changelogfile = 1;
+        case 'R':
+            display_mode |= RAWDATA;
             break;
         case 'l':
         {
@@ -697,16 +735,16 @@ int main(int argc, char **argv)
             break;
         }
         case 'n':
-            lengths_only = 1;
+            display_mode |= SHOWCOUNT;
             break;
         case 'G':
             min_display = atoi(optarg)+1;
             break;
         case 'r':
-            show_recno = 1;
+            display_mode |= SHOWDATA;
             break;
         case 's':
-            show_cnt = 1;
+            display_mode |= SHOWSUMMARY;
             break;
         case 'k':
             find_key = optarg;
@@ -724,28 +762,14 @@ int main(int argc, char **argv)
         usage(argv[0]);
     }
     if (NULL != strstr(filename, "id2entry.db")) {
-        if (indexfile || changelogfile) {
-            printf("WARNING: Specified file %s is not %s file; \n", filename,
-                indexfile?"an index":(changelogfile?"a changelog":"unknown"));
-            printf("         Changing the file type to entryfile\n");
-	    indexfile = changelogfile = 0;
-        }
-	entryfile = 1;
+        file_type |= ENTRYTYPE;
     } else if (is_changelog(filename)) {
-        if (indexfile || entryfile) {
-            printf("WARNING: Specified file %s is not %s file; \n", filename,
-                indexfile?"an index":(entryfile?"an entry":"unknown"));
-            printf("         Changing the file type to changelogfile\n");
-	    indexfile = entryfile = 0;
-        }
-	changelogfile = 1;
+        file_type |= CHANGELOGTYPE;
     } else {
-        /* most likely an entry file ... */
-        if (entryfile || changelogfile) {
-            printf("WARNING: Specified file %s is not likely %s file; \n",
-                filename, indexfile?"an index":(changelogfile?"a changelog":"unknown"));
-            printf("         The output may not be accurate.\n");
-	}
+        file_type |= INDEXTYPE;
+        if (0 == strncmp(filename, "vlv#", 4)) {
+            file_type |= VLVINDEXTYPE;
+    	} 
     }
         
     ret = db_env_create(&env, 0);
@@ -849,7 +873,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if ( show_cnt ) {
+    if ( display_mode & SHOWSUMMARY) {
 
 	if ( allids_cnt > 0 ) {
 		printf("Index keys that reached ALLIDs threshold: %ld\n", allids_cnt);
