@@ -45,7 +45,7 @@ class OperationSearch extends GenericOperation {
     
     public javax.xml.soap.SOAPElement getResponse(gatewayContext ctx) {
         
-        ldapConn = ctx.getLdapConnection();
+      
         root = ctx.getRootNode();
         
         
@@ -206,6 +206,7 @@ class OperationSearch extends GenericOperation {
                 
             }
             
+            ldapConn = ctx.getLdapConnection();
             
             if (ctx.getConstraints() != null)
                 results = ldapConn.search(dn, scope, filterString,  attributeList, false, ctx.getConstraints() );

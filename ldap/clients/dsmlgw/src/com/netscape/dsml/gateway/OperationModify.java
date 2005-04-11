@@ -25,7 +25,7 @@ public class OperationModify extends GenericOperation {
     
     public javax.xml.soap.SOAPElement getResponse(gatewayContext ctx) {
         
-        ldapConn = ctx.getLdapConnection();
+     
         root = ctx.getRootNode();
         
         
@@ -59,7 +59,7 @@ public class OperationModify extends GenericOperation {
                         for (int j=0; j< Values.getLength(); j++) {
                             if (Values.item(j).getNodeType() == Node.ELEMENT_NODE &&
                             Values.item(j).getLocalName().equals("value")) {
-                                attr.addValue(Values.item(j).getFirstChild().getNodeValue());
+                                attr.addValue( ParseValue.parseValueFromNode(Values.item(j)) );
                                 
                             }
                             
@@ -96,7 +96,7 @@ public class OperationModify extends GenericOperation {
         
         javax.xml.soap.SOAPElement output = null;
         
-        
+           ldapConn = ctx.getLdapConnection();
         
         try {
             if (ctx.getConstraints() != null)
@@ -108,6 +108,9 @@ public class OperationModify extends GenericOperation {
         } catch (LDAPException E) {
             resultCode = E.getLDAPResultCode();
             errorMessage = E.getLDAPErrorMessage() ;
+	        if (! ldapConn.isConnected()) {
+	        	errorMessage = "GATEWAY NOT CONNECTED";
+	        }
         }
         javax.xml.soap.SOAPBodyElement sbe = null;
         try {

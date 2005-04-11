@@ -55,7 +55,6 @@ public class gatewayHandler  extends BasicHandler {
     
     public void cleanup() {
         super.cleanup();
-        destroy();
     }
 
 	 

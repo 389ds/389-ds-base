@@ -66,6 +66,11 @@ public class dsmlClient {
                     if (node.getNodeName().equals("resultCode")) {
                         int result = Integer.parseInt(node.getAttributes().getNamedItem("code").getNodeValue());
                         System.exit(result);
+                    } else if (node.getNodeName().equals("errorResponse ")) {
+                        int result = Integer.parseInt(node.getAttributes().getNamedItem("code").getNodeValue());
+                        System.exit(result);
+                    } else if (node.getNodeName().equals("faultcode")) {
+                          System.exit(253);
                     }
                 }
                 

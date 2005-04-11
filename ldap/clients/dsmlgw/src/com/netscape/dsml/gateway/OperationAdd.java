@@ -34,10 +34,11 @@ public class OperationAdd extends GenericOperation {
                     String attrName = nl.item(i).getAttributes().getNamedItem("name").getNodeValue();
                     String attrValue;
                     
-                    if (attr.getNodeType() == Node.ELEMENT_NODE)
-                        attrValue=attr.getFirstChild().getNodeValue();
+                    if (nl.item(i).getFirstChild().getNodeType() == Node.ELEMENT_NODE)
+                        attrValue = ParseValue.parseValueFromNode( nl.item(i).getFirstChild()  );
                     else
-                        attrValue=attr.getNextSibling().getFirstChild().getNodeValue();
+                        attrValue = ParseValue.parseValueFromNode(  nl.item(i).getFirstChild().getNextSibling() );
+                        
                     
                     LDAPAttribute ldapAttr = new LDAPAttribute( attrName, attrValue);
     

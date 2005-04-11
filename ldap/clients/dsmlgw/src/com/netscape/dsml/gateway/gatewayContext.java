@@ -35,6 +35,20 @@ public class gatewayContext {
      * @return Value of property ldapConnection.
      */
     public LDAPConnection getLdapConnection() {
+        
+        if (this.ldapConnection  == null || this.ldapConnection.isConnected() == false ) {
+            
+            IConnectionManager ldap_pool = null;
+            try {
+                ProxyConnMgrFactory pmc = new ProxyConnMgrFactory();
+                ldap_pool = pmc.getInstance();
+            }
+            catch (Exception e) {
+                
+            }
+            this.ldapConnection = ldap_pool.getConnection();
+        }
+        
         return this.ldapConnection;
     }
     
@@ -43,7 +57,7 @@ public class gatewayContext {
      * @param ldapConnection New value of property ldapConnection.
      */
     public void setLdapConnection(LDAPConnection ldapConnection) {
-        this.ldapConnection = ldapConnection;
+        // this.ldapConnection = ldapConnection;
     }
     
     /**
