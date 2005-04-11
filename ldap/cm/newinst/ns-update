@@ -41,7 +41,7 @@ install_nsperl()
 wrap_security_tools()
 {
 	cwd=`pwd`
-	SECURITY_BINNAMES="certutil derdump modutil pk12util pp ssltap"
+	SECURITY_BINNAMES="certutil derdump modutil pk12util pp ssltap shlibsign"
 	arch=`uname`
 	if [ $arch = HP-UX ]; then
 		env_ld_library_path=SHLIB_PATH
@@ -62,6 +62,21 @@ wrap_security_tools()
 			chmod 755 $file
 		fi
 	done
+
+	if [ -d $sroot/shared32/bin ] ; then
+		cd $sroot/shared32/bin
+		for file in modutil
+		do
+			if [ -f $file -a ! -f $file-bin ]; then
+				mv $file $file-bin
+				echo "#!/bin/sh" > $file
+				echo $env_ld_library_path=$sroot/shared32/lib >> $file
+				echo "export $env_ld_library_path" >> $file
+				echo "$sroot/shared32/bin/$file-bin " '${1+"$@"}' >> $file
+				chmod 755 $file
+			fi
+		done
+	fi
 	cd $cwd
 }
 

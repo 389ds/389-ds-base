@@ -97,7 +97,8 @@ ifeq ($(USE_64), 1)
 # all other files go under shared32/bin or /lib
   PACKAGE_SRC_DEST += $(SHARED32_BUILD_DIR)/bin/modutil shared32/bin
 
-  NSS32_NSPR32_SRC_LIBS =$(wildcard $(SHARED32_BUILD_DIR)/lib/*)
+# do not need redundant copy of nssckbi
+  NSS32_NSPR32_SRC_LIBS = $(filter-out $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI32_FILE),$(wildcard $(SHARED32_BUILD_DIR)/lib/*))
   PACKAGE_SRC_DEST += $(addsuffix $(SPACE)shared32/lib,$(NSS32_NSPR32_SRC_LIBS))
 endif # USE_64
 
