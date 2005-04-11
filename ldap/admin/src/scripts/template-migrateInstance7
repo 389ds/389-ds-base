@@ -487,7 +487,7 @@ sub getVersion {
 		sleep(1); # allow some data to accumulate in the pipe
 #	print "Output from $prog -v:\n";
 		while (<F>) {
-			if (/^Netscape-Directory/ || /^iPlanet-Directory/i) {
+			if (/^Red Hat-Directory/ || /^Netscape-Directory/ || /^iPlanet-Directory/i) {
 				$versionstr = $_;
 				last;
 			}
@@ -497,7 +497,12 @@ sub getVersion {
 		$ENV{"$LIB_PATH"}="$root${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"};
 	}
 
-	if ($versionstr =~ /^Netscape-Directory\/(\d+)\.(\d+)(?:b\d)*\s+(\S+)/) {
+	if ($versionstr =~ /^Red Hat-Directory\/(\d+)\.(\d+)(?:b\d)*\s+(\S+)/) {
+		$version     = $1;
+		$minor       = $2;
+		$buildNumber = $3;
+	}
+	elsif ($versionstr =~ /^Netscape-Directory\/(\d+)\.(\d+)(?:b\d)*\s+(\S+)/) {
 		$version     = $1;
 		$minor       = $2;
 		$buildNumber = $3;
