@@ -96,23 +96,36 @@ Legacy Consumer Settings
 
 <p class="text">
 <a name="28711"> </a>
-Use this tab only when you are using replication agreements established on a 4.0, 4.1, or 4.1x version of Directory Server. 
+The replication model used in Directory Server 4.1x and the current
+replication model are different. The former replication model is termed Legacy
+Replication.  Only use this tab if you wish to accept replication updates from
+a  4.1x Directory Server using legacy replication.
 </p>
 <p class="text">
 <a name="28720"> </a>
-<b>Enable Legacy Consumer. </b>Select this checkbox if you want this (6.2) Directory Server to act as a legacy consumer. This means that this server can accept updates from a 4.0, 4.1, or 4.1x supplier server. You must check this checkbox to activate the other fields in this window.
+<b>Enable Legacy Consumer. </b>
+Select this checkbox if you want this current
+Directory Server, to act as a legacy consumer. This means that this server can
+accept updates from a 4.1x supplier server. You must check this checkbox to
+activate the other fields in this window.
 </p>
 <p class="text">
 <a name="28722"> </a>
-<b>Supplier DN.</b> Use this field to specify the distinguished name that any supplier server must use to bind to this consumer server to send replication updates. The supplier DN must correspond to an entry that is stored on the consumer server. This entry must not be part of the replicated database.
+<b>Supplier DN.</b>
+Use this field to specify the distinguished name that any
+supplier server must use to bind to this consumer server to send replication
+updates. The supplier DN must correspond to an entry that is stored on the
+consumer server. This entry must not be part of the replicated database.
 </p>
 <p class="text">
 <a name="28723"> </a>
-<b>New supplier password. </b>If a password is specified, the supplier server uses this password to bind to the consumer server.
+<b>New supplier password. </b>
+If a password is specified, the supplier server uses this password to bind to the consumer server.
 </p>
 <p class="text">
 <a name="28724"> </a>
-<b>Confirm new supplier password. </b>Confirms that the password entered in the "New supplier password" field is correct.
+<b>Confirm new supplier password. </b>
+Confirms that the password entered in the "New supplier password" field is correct.
 </p>
 <!-- BEGIN DOC CONTROLLER --
 <p class="h2">
