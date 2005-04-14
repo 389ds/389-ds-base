@@ -14,8 +14,8 @@ public class ParseValue {
     public ParseValue() {
     }
     
-    public static String parseValueFromNode(org.w3c.dom.Node n) {
-        String ret = null;
+    public static byte[] parseValueFromNode(org.w3c.dom.Node n) {
+        byte[] ret = null;
         // <xsd:union memberTypes="xsd:string xsd:base64Binary xsd:anyURI"/>
         
         org.w3c.dom.Node type = n.getAttributes().getNamedItem("xsi:type");
@@ -23,9 +23,10 @@ public class ParseValue {
             // This value is encoded in base64. decode it.
             sun.misc.BASE64Decoder bd = new sun.misc.BASE64Decoder();
             try {
-                ret = new String( bd.decodeBuffer( n.getFirstChild().getNodeValue() ) ) ; 
+                ret = bd.decodeBuffer( n.getFirstChild().getNodeValue() )  ; 
             } 
             catch (org.w3c.dom.DOMException de) {
+                ret = "".getBytes();
             }
             catch (Exception e) {
                 // couldn't decode auth info
@@ -33,7 +34,7 @@ public class ParseValue {
             
         } else {
             // anyURI is unsupported.
-            ret = new String(n.getFirstChild().getNodeValue());
+            ret = new String(n.getFirstChild().getNodeValue()).getBytes();
             
         }
         return ret;

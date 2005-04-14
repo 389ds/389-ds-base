@@ -32,7 +32,7 @@ public class OperationAdd extends GenericOperation {
                         attr = attr.getNextSibling();
                       
                     String attrName = nl.item(i).getAttributes().getNamedItem("name").getNodeValue();
-                    String attrValue;
+                    byte[] attrValue;
                     
                     if (nl.item(i).getFirstChild().getNodeType() == Node.ELEMENT_NODE)
                         attrValue = ParseValue.parseValueFromNode( nl.item(i).getFirstChild()  );
