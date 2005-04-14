@@ -27,6 +27,7 @@ struct windowsprivate {
   PRBool create_users_from_dirsync;
   PRBool create_groups_from_dirsync;
   char *windows_domain;
+  int isnt4;
 };
 
 void
@@ -64,6 +65,18 @@ windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e)
 	}
 }
 
+const char* windows_private_get_purl(const Repl_Agmt *ra)
+{
+	const char* windows_purl;
+	char *hostname;
+
+	hostname = agmt_get_hostname(ra);
+	windows_purl = slapi_ch_smprintf("ldap://%s:%d", hostname, agmt_get_port(ra));
+	slapi_ch_free_string(&hostname);
+
+	return windows_purl;
+}
+
 Dirsync_Private* windows_private_new()
 {
 	Dirsync_Private *dp;
@@ -94,6 +107,38 @@ void windows_agreement_delete(Repl_Agmt *ra)
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_delete\n", 0, 0, 0 );
 
+}
+
+int windows_private_get_isnt4(const Repl_Agmt *ra)
+{
+		Dirsync_Private *dp;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_isnt4\n", 0, 0, 0 );
+
+        PR_ASSERT(ra);
+
+		dp = (Dirsync_Private *) agmt_get_priv(ra);
+		PR_ASSERT (dp);
+		
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_isnt4\n", 0, 0, 0 );
+	
+		return dp->isnt4;	
+}
+
+void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
+{
+		Dirsync_Private *dp;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_isnt4\n", 0, 0, 0 );
+
+        PR_ASSERT(ra);
+
+		dp = (Dirsync_Private *) agmt_get_priv(ra);
+		PR_ASSERT (dp);
+
+		dp->isnt4 = isit;
+		
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_isnt4\n", 0, 0, 0 );
 }
 
 

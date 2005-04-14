@@ -32,12 +32,13 @@ static int is_subject_of_agreemeent_local(const Slapi_Entry *local_entry,const R
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
-static int map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry);
+static int map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
 static char* extract_ntuserdomainid_from_entry(Slapi_Entry *e);
 static int windows_get_remote_entry (Private_Repl_Protocol *prp, Slapi_DN* remote_dn,Slapi_Entry **remote_entry);
 static const char* op2string (int op);
 static int is_subject_of_agreemeent_remote(Slapi_Entry *e, const Repl_Agmt *ra);
 static int map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra);
+static int windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry);
 
 
 /* Controls the direction of flow for mapped attributes */
@@ -73,6 +74,7 @@ typedef struct _windows_attribute_map
 /* List of attributes that are common to AD and LDAP, so we simply copy them over in both directions */
 static char* windows_user_matching_attributes[] = 
 {
+	"description",
 	"destinationIndicator",
 	"facsimileTelephoneNumber",
 	"givenName",
@@ -81,7 +83,6 @@ static char* windows_user_matching_attributes[] =
 	"initials",
 	"l",
 	"mail",
-	"manager",
 	"mobile",
 	"o",
 	"ou",
@@ -90,7 +91,6 @@ static char* windows_user_matching_attributes[] =
 	"postOfficeBox",
 	"postalAddress",
 	"postalCode",
-	"preferredDeliveryMethod",
 	"registeredAddress",
 	"seeAlso",
 	"sn",
@@ -144,8 +144,15 @@ static windows_attribute_map user_attribute_map[] =
 {
 	{ "homeDirectory", "ntUserHomeDir", bidirectional, always, normal},
 	{ "scriptPath", "ntUserScriptPath", bidirectional, always, normal},
-	{ "lastLogon", "ntUserLastLogon", bidirectional, always, normal},
-	{ "lastLogoff", "ntUserLastLogoff", bidirectional, always, normal},
+	{ "lastLogon", "ntUserLastLogon", fromwindowsonly, always, normal},
+	{ "lastLogoff", "ntUserLastLogoff", fromwindowsonly, always, normal},
+	{ "accountExpires", "ntUserAcctExpires", bidirectional, always, normal},
+	{ "codePage", "ntUserCodePage", bidirectional, always, normal},
+	{ "logonHours", "ntUserLogonHours", bidirectional, always, normal},
+	{ "maxStorage", "ntUserMaxStorage", bidirectional, always, normal},
+	{ "profilePath", "ntUserParms", bidirectional, always, normal},
+	{ "userParameters", "ntUserProfile", bidirectional, always, normal},
+	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
     { "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
 	/* cn is a naming attribute in AD, so we don't want to change it after entry creation */
     { "cn", "cn", towindowsonly, createonly, normal},
@@ -153,16 +160,30 @@ static windows_attribute_map user_attribute_map[] =
     { "name", "cn", fromwindowsonly, always, normal},
     { "manager", "manager", bidirectional, always, dnmap},
     { "secretary", "secretary", bidirectional, always, dnmap},
+    { "seealso", "seealso", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
 
 static windows_attribute_map group_attribute_map[] = 
 {
-	{ "ntGroupType", "groupType",  bidirectional, createonly, normal},
+	{ "groupType", "ntGroupType",  bidirectional, createonly, normal},
 	{ "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
     { "member", "uniquemember", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
+
+/* 
+ * Notes on differences for NT4:
+ * 1. NT4 returns the SID value in the objectGUID attribute value.
+ *    The SID has variable length and does not match the length of a GUID.
+ * 2. NT4 currently never generates tombstones. If it did, we'd need to parse the 
+ *    different form of the GUID in the tombstone DNs.
+ * 3. NT4 Does not implement the dirsync control. We always get all users and groups.
+ * 4. NT4 generates and expects DNs with samaccountname as the RDN, not cn.
+ * 5. NT4 handles the DN=<GUID> (remember that the '<' '>' characters are included!) DN form 
+ *    for modifies and deletes, provided we use the value it gave us in the objectGUID attribute (which is actually the SID).
+ * 6. NT4 has less and different schema from AD. For example users in NT4 have no firstname/lastname, only an optional 'description'.
+ */
 
 static const char*
 op2string(int op)
@@ -185,17 +206,19 @@ op2string(int op)
 	return "unknown";
 }
 
-
 static void 
 windows_dump_entry(const char *string, Slapi_Entry *e)
 {
 	int length = 0;
 	char *buffer = NULL;
-	buffer = slapi_entry2str(e,&length);
-	slapi_log_error(SLAPI_LOG_REPL, NULL, "Windows sync entry: %s %s\n", string, buffer);
-	if (buffer)
+	if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
 	{
-		slapi_ch_free((void**)&buffer);
+		buffer = slapi_entry2str(e,&length);
+		slapi_log_error(SLAPI_LOG_REPL, NULL, "Windows sync entry: %s %s\n", string, buffer);
+		if (buffer)
+		{
+			slapi_ch_free((void**)&buffer);
+		}
 	}
 }
 
@@ -234,7 +257,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 				is_ours = is_subject_of_agreemeent_local(local_entry,prp->agmt);
 				if (is_ours)
 				{
-					map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry);
+					map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 0 /* don't want GUID form here */);
 					if (remote_dn)
 					{
 						if (!missing_entry)
@@ -682,11 +705,6 @@ delete_remote_entry_allowed(Slapi_Entry *e)
 }
 
 static void
-windows_make_mods_for_add_retry(Slapi_Entry *local_entry, Slapi_Entry *remote_entry, LDAPMod ***result_mods, int is_user)
-{
-}
-
-static void
 windows_log_add_entry_remote(const Slapi_DN *local_dn,const Slapi_DN *remote_dn)
 {
 	const char* local_dn_string = slapi_sdn_get_dn(local_dn);
@@ -743,27 +761,16 @@ process_replay_add(Private_Repl_Protocol *prp, slapi_operation_parameters *op, S
 		}
 	} else 
 	{
-		/* Need to re-play this as a mod */
-		LDAPMod **mapped_mods = NULL;
+
 		Slapi_Entry *remote_entry = NULL;
 
 		/* Fetch the remote entry */
 		rc = windows_get_remote_entry(prp, remote_dn,&remote_entry);
 		if (0 == rc && remote_entry) {
-			windows_make_mods_for_add_retry(op->p.p_add.target_entry, remote_entry, &mapped_mods, is_user);
-			/* It's possible that the mapping process results in an empty mod list, in which case we don't bother with the replay */
-			if ( mapped_mods == NULL || *(mapped_mods)== NULL )
-			{
-				return_value = CONN_OPERATION_SUCCESS;
-			} else 
-			{
-				return_value = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(remote_dn),mapped_mods, NULL,NULL);
-			}
-			if (mapped_mods)
-			{
-				ldap_mods_free(mapped_mods,1);
-				mapped_mods = NULL;
-			}
+			return_value = windows_update_remote_entry(prp,remote_entry,local_entry);
+		}
+		if (remote_entry)
+		{
 			slapi_entry_free(remote_entry);
 		}
 	}
@@ -811,7 +818,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	windows_is_local_entry_user_or_group(local_entry,&is_user,&is_group);
 
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-		"%s: windows_replay_update: Looking at %s operation dn=\"%s\" (%s,%s,%s)\n",
+		"%s: windows_replay_update: Looking at %s operation local dn=\"%s\" (%s,%s,%s)\n",
 		agmt_get_long_name(prp->agmt),
 		op2string(op->operation_type), op->target_address.dn, is_ours ? "ours" : "not ours", 
 		is_user ? "user" : "not user", is_group ? "group" : "not group");
@@ -819,7 +826,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	if (is_ours && (is_user || is_group) ) {
 		int missing_entry = 0;
 		/* Make the entry's DN */
-		rc = map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry);
+		rc = map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 1);
 		if (rc || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -828,6 +835,10 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				op2string(op->operation_type), op->target_address.dn);
 			goto error;
 		}
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"%s: windows_replay_update: Processing %s operation local dn=\"%s\" remote dn=\"%s\"\n",
+			agmt_get_long_name(prp->agmt),
+			op2string(op->operation_type), op->target_address.dn, slapi_sdn_get_dn(remote_dn));
 		switch (op->operation_type) {
 		/* For an ADD operation, we map the entry and then send the operation, which may fail if the peer entry already existed */
 		case SLAPI_OPERATION_ADD:
@@ -988,7 +999,8 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 	Slapi_Entry *new_entry = NULL;
 	Slapi_PBlock* pb = NULL;
 	int rc = 0;
-	int is_user = 1; /* DBDB need to add code to test for group here */
+	int is_user = 0; 
+	int is_group = 0;
 	Slapi_Attr *attr = NULL;
 	char *username = NULL;
 	const char *dn_string = NULL;
@@ -1012,7 +1024,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_create_remote_entry\n", 0, 0, 0 );
 
-	remote_entry_template = is_user ? remote_user_entry_template : remote_group_entry_template;
+	windows_is_local_entry_user_or_group(original_entry,&is_user,&is_group);
 
 	/* Create a new entry */
 	/* Give it its DN and samaccountname */
@@ -1023,7 +1035,13 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 	}
 	fqusername = PR_smprintf("%s@%s",username,domain_name);
 	dn_string = slapi_sdn_get_dn(remote_sdn);
-	entry_string = slapi_ch_smprintf(remote_entry_template, dn_string, fqusername);
+	if (is_user)
+	{
+		entry_string = slapi_ch_smprintf(remote_user_entry_template, dn_string, fqusername);
+	} else
+	{
+		entry_string = slapi_ch_smprintf(remote_group_entry_template, dn_string);
+	}
 	PR_smprintf_free(fqusername);
 	if (NULL == entry_string) 
 	{
@@ -1102,7 +1120,10 @@ error:
 	{
 		slapi_ch_free((void**)&username);
 	}
-	windows_dump_entry("Created new remote entry:\n",new_entry);
+	if (new_entry) 
+	{
+		windows_dump_entry("Created new remote entry:\n",new_entry);
+	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_create_remote_entry: %d\n", retval, 0, 0 );
 	return retval;
 }
@@ -1526,7 +1547,7 @@ convert_to_hex(Slapi_Value *val)
 }
 
 static char*
-extract_guid_from_entry(Slapi_Entry *e)
+extract_guid_from_entry(Slapi_Entry *e, int is_nt4)
 {
 	char *guid = NULL;
 	Slapi_Value *val = NULL;
@@ -1537,7 +1558,13 @@ extract_guid_from_entry(Slapi_Entry *e)
 	{
 		slapi_attr_first_value(attr, &val);
 		if (val) {
-			guid = convert_to_hex(val);
+			if (is_nt4)
+			{
+				guid = slapi_ch_strdup(slapi_value_get_string(val));
+			} else
+			{
+				guid = convert_to_hex(val);
+			}
 		}
 	}
 	return guid;
@@ -1575,14 +1602,20 @@ extract_ntuserdomainid_from_entry(Slapi_Entry *e)
 	return uid;
 }
 
-static Slapi_DN *make_dn_from_guid(char *guid)
+static Slapi_DN *make_dn_from_guid(char *guid, int is_nt4, const char* suffix)
 {
 	Slapi_DN *new_dn = NULL;
 	char *dn_string = NULL;
 	if (guid)
 	{
 		new_dn = slapi_sdn_new();
-		dn_string = PR_smprintf("<GUID=%s>",guid);
+		if (is_nt4)
+		{
+			dn_string = PR_smprintf("GUID=%s,%s",guid,suffix);
+		} else
+		{
+			dn_string = PR_smprintf("<GUID=%s>",guid);
+		}
 		slapi_sdn_init_dn_byval(new_dn,dn_string);
 		PR_smprintf_free(dn_string);
 	}
@@ -1592,11 +1625,13 @@ static Slapi_DN *make_dn_from_guid(char *guid)
 
 /* Given a non-tombstone entry, return the DN of its peer in AD (whether present or not) */
 static int 
-map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry)
+map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int guid_form)
 {
 	int retval = 0;
 	char *guid = NULL;
 	Slapi_DN *new_dn = NULL;
+	int is_nt4 = windows_private_get_isnt4(prp->agmt);
+	const char *suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
 	/* To find the DN of the peer entry we first look for an ntUniqueId attribute
 	 * on the local entry. If that's present, we generate a GUID-form DN.
 	 * If there's no GUID, then we look for an ntUserDomainId attribute
@@ -1610,9 +1645,9 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 	*missing_entry = 0;
 
 	guid = slapi_entry_attr_get_charptr(e,"ntUniqueId");
-	if (guid) 
+	if (guid && guid_form) 
 	{
-		new_dn = make_dn_from_guid(guid);
+		new_dn = make_dn_from_guid(guid, is_nt4, suffix);
 		slapi_ch_free((void**)&guid);
 	} else 
 	{
@@ -1629,7 +1664,6 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 			} else {
 				if (0 == retval)
 				{
-					const char *suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
 					char *new_dn_string = NULL;
 					char *cn_string = NULL;
 
@@ -1647,7 +1681,11 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 					}
 					if (cn_string) 
 					{
-						new_dn_string = PR_smprintf("cn=%s,%s",cn_string,suffix);
+						char *rdnstr = NULL;
+						
+						rdnstr = is_nt4 ? "samaccountname=%s,%s" : "cn=%s,%s";
+
+						new_dn_string = PR_smprintf(rdnstr,cn_string,suffix);
 						if (new_dn_string)
 						{
 							new_dn = slapi_sdn_new_dn_byval(new_dn_string);
@@ -1748,6 +1786,7 @@ map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra)
 	Slapi_Entry *matching_entry = NULL;
 	int is_user = 0;
 	int is_group = 0;
+	int is_nt4 = windows_private_get_isnt4(ra);
 
 	/* To map a non-tombstone's DN we need to first try to look it up by GUID.
 	 * If we do not find it, then we need to generate the DN that it would have if added as a new entry.
@@ -1756,7 +1795,7 @@ map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra)
 
 	windows_is_remote_entry_user_or_group(e,&is_user,&is_group);
 
-	guid = extract_guid_from_entry(e);
+	guid = extract_guid_from_entry(e, is_nt4);
 	if (guid) 
 	{
 		retval = find_entry_by_guid(guid,&matching_entry,ra);
@@ -1935,14 +1974,27 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	int is_user = 0; 
 	int is_group = 0;
 	char *local_entry_template = NULL;
+	char *user_entry_template = NULL;
 	char *username = extract_username_from_entry(remote_entry);
 	Slapi_Attr *attr = NULL;
 	int rc = 0;
 	char *guid_str = NULL;
+	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 
 	char *local_user_entry_template = 
 		"dn: %s\n"
 		"objectclass:top\n"
+   		"objectclass:person\n"
+   		"objectclass:organizationalperson\n"
+   		"objectclass:inetOrgPerson\n"
+   		"objectclass:ntUser\n"
+		"ntUserDeleteAccount:true\n"
+   		"uid:%s\n";
+
+	char *local_nt4_user_entry_template = 
+		"dn: %s\n"
+		"objectclass:top\n"
+   		"objectclass:person\n"
    		"objectclass:organizationalperson\n"
    		"objectclass:inetOrgPerson\n"
    		"objectclass:ntUser\n"
@@ -1961,7 +2013,8 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_create_local_entry\n", 0, 0, 0 );
 
 	windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
-	local_entry_template = is_user ? local_user_entry_template : local_group_entry_template;
+	user_entry_template = is_nt4 ? local_nt4_user_entry_template : local_user_entry_template;
+	local_entry_template = is_user ? user_entry_template : local_group_entry_template;
 	/* Create a new entry */
 	/* Give it its DN and username */
 	entry_string = slapi_ch_smprintf(local_entry_template,slapi_sdn_get_dn(local_sdn),username, username);
@@ -2022,7 +2075,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		}
 	}
 	/* Copy over the GUID */
-	guid_str = extract_guid_from_entry(remote_entry);
+	guid_str = extract_guid_from_entry(remote_entry, is_nt4);
 	if (guid_str) 
 	{
 		slapi_entry_add_string(local_entry,"ntUniqueId",guid_str);
@@ -2032,6 +2085,11 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			"extract_guid_from_entry entry %s failed to extract the guid\n", slapi_sdn_get_dn(local_sdn));
 		/* Fatal error : need the guid */
 		goto error;
+	}
+	/* Hack for NT4, which has no surname */
+	if (is_nt4)
+	{
+		slapi_entry_add_string(local_entry,"sn",username);
 	}
 	/* Store it */
 	windows_dump_entry("Adding new local entry",local_entry);
@@ -2058,22 +2116,26 @@ error:
 }
 
 static int
-windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry)
+windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry, int to_windows, Slapi_Mods *smods, int *do_modify)
 {
 	int retval = 0;
-    Slapi_Mods smods = {0};
 	Slapi_Attr *attr = NULL;
-	int do_modify = 0;
 	int is_user = 0;
 	int is_group = 0;
 	int rc = 0;
-	Slapi_PBlock *pb = NULL;
+	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_update_local_entry\n", 0, 0, 0 );
 
-	windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
+	*do_modify = 0;
+	if (to_windows)
+	{
+		windows_is_local_entry_user_or_group(remote_entry,&is_user,&is_group);
+	} else
+	{
+		windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
+	}
 
-    slapi_mods_init (&smods, 0);
     for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
 			rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
 	{
@@ -2092,7 +2154,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 
 		/* First determine what we will do with this attr */
 		/* If it's a GUID, we need to take special action */
-		if (0 == slapi_attr_type_cmp(type,"objectGuid",SLAPI_TYPE_CMP_SUBTYPE)) 
+		if (0 == slapi_attr_type_cmp(type,"objectGuid",SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) 
 		{
 			is_guid = 1;
 			local_type = slapi_ch_strdup("ntUniqueId");
@@ -2101,7 +2163,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			if ( is_straight_mapped_attr(type,is_user) ) {
 				local_type = slapi_ch_strdup(type);
 			} else {
-				windows_map_attr_name(type , 0 /* from windows */, is_user, 0 /* not create */, &local_type, &mapdn);
+				windows_map_attr_name(type , to_windows, is_user, 0 /* not create */, &local_type, &mapdn);
 			}
 			is_guid = 0;
 		}
@@ -2127,18 +2189,18 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 				if (mapdn)
 				{
 					Slapi_ValueSet *mapped_values = NULL;
-					map_dn_values(prp,vs,&mapped_values, 1 /* to windows */);
+					map_dn_values(prp,vs,&mapped_values, to_windows);
 					if (mapped_values) 
 					{
-						slapi_mods_add_mod_values(&smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(mapped_values));
+						slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(mapped_values));
 						slapi_valueset_free(mapped_values);
 						mapped_values = NULL;
 					}
 				} else
 				{
-					slapi_mods_add_mod_values(&smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(vs));
+					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(vs));
 				}
-				do_modify = 1;
+				*do_modify = 1;
 			} else
 			{
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -2152,17 +2214,31 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 				if (is_guid)
 				{
 					/* Translate the guid value */
-					char *guid = extract_guid_from_entry(remote_entry);
+					char *guid = extract_guid_from_entry(remote_entry, is_nt4);
 					if (guid)
 					{
-						slapi_mods_add_string(&smods,LDAP_MOD_ADD,local_type,guid);
+						slapi_mods_add_string(smods,LDAP_MOD_ADD,local_type,guid);
 						slapi_ch_free((void**)&guid);
 					}
 				} else
 				{
-					slapi_mods_add_mod_values(&smods,LDAP_MOD_ADD,local_type,valueset_get_valuearray(vs));
+					/* Handle DN valued attributes here */
+					if (mapdn)
+					{
+						Slapi_ValueSet *mapped_values = NULL;
+						map_dn_values(prp,vs,&mapped_values, to_windows);
+						if (mapped_values) 
+						{
+							slapi_mods_add_mod_values(smods,LDAP_MOD_ADD,local_type,valueset_get_valuearray(mapped_values));
+							slapi_valueset_free(mapped_values);
+							mapped_values = NULL;
+						}
+					} else
+					{
+						slapi_mods_add_mod_values(smods,LDAP_MOD_ADD,local_type,valueset_get_valuearray(vs));
+					}
 				}
-				do_modify = 1;
+				*do_modify = 1;
 			}
 		}
 		if (vs) 
@@ -2176,8 +2252,49 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			local_type = NULL;
 		}
 	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_update_local_entry: %d\n", retval, 0, 0 );
+	return retval;
+}
+
+static int
+windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry)
+{
+    Slapi_Mods smods = {0};
+	int retval = 0;
+	int do_modify = 0;
+
+    slapi_mods_init (&smods, 0);
+	retval = windows_generate_update_mods(prp,local_entry,remote_entry,1,&smods,&do_modify);
 	/* Now perform the modify if we need to */
-	if (do_modify)
+	if (0 == retval && do_modify)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			"windows_update_remote_entry: modifying entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
+
+		retval = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)),slapi_mods_get_ldapmods_byref(&smods), NULL,NULL);
+	} else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			"no mods generated for entry: %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
+	}
+    slapi_mods_done(&smods);
+	return retval;
+}
+
+static int
+windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry)
+{
+    Slapi_Mods smods = {0};
+	int retval = 0;
+	int rc = 0;
+	Slapi_PBlock *pb = NULL;
+	int do_modify = 0;
+
+    slapi_mods_init (&smods, 0);
+
+	retval = windows_generate_update_mods(prp,remote_entry,local_entry,0,&smods,&do_modify);
+	/* Now perform the modify if we need to */
+	if (0 == retval && do_modify)
 	{
 		int rc = 0;
 		pb = slapi_pblock_new();
@@ -2207,12 +2324,11 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			"no mods generated for entry: %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
 	}
     slapi_mods_done(&smods);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_update_local_entry: %d\n", retval, 0, 0 );
 	return retval;
 }
 
 static int
-windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* remote_dn)
+windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* remote_dn, int missing_entry)
 {
 	int retval = 0;
 	LDAPMod **entryattrs = NULL;
@@ -2221,6 +2337,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 	const Slapi_DN* local_dn = NULL;
 	/* First map the entry */
 	local_dn = slapi_entry_get_sdn_const(e);
+	if (missing_entry)
 	retval = windows_create_remote_entry(prp, e, remote_dn, &mapped_entry, &password);
 	/* Convert entry to mods */
 	if (0 == retval && mapped_entry) 
@@ -2245,7 +2362,21 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			ldap_mods_free(entryattrs, 1);
 			entryattrs = NULL;
 		}
-	} 
+	} else
+	{
+		/* Entry already exists, need to mod it instead */
+		Slapi_Entry *remote_entry = NULL;
+		/* Get the remote entry */
+		retval = windows_get_remote_entry(prp, remote_dn,&remote_entry);
+		if (0 == retval && remote_entry) 
+		{
+			retval = windows_update_remote_entry(prp,remote_entry,e);
+		}
+		if (remote_entry)
+		{
+			slapi_entry_free(remote_entry);
+		}
+	}
 	return retval;
 }
 
@@ -2276,7 +2407,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 		agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), is_ours ? "ours" : "not ours");
 	if (is_ours) 
 	{
-		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry);
+		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,1 /* want GUID */);
 		if (retval || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -2290,7 +2421,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 			retval = windows_process_total_delete(prp,e,remote_dn);
 		} else
 		{
-			retval = windows_process_total_add(prp,e,remote_dn);
+			retval = windows_process_total_add(prp,e,remote_dn,missing_entry);
 		}
 	}
 	if (remote_dn)
@@ -2391,7 +2522,7 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 			slapi_sdn_free(&local_sdn);
 		} else
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map tombstone dn.\n",agmt_get_long_name(prp->agmt));
+			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map tombstone dn.\n",agmt_get_long_name(prp->agmt));
 		}
 	} else 
 	{

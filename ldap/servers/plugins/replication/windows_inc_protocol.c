@@ -468,7 +468,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				object_acquire(prp->replica_object);
 				replica = object_get_data(prp->replica_object);
 						
-				rc = windows_acquire_replica(prp, &ruv , 1 /* yes, check the consumer RUV for incremental */);
+				rc = windows_acquire_replica(prp, &ruv , (run_dirsync == 0) /* yes, check the consumer RUV for incremental, but not if we're going to dirsync afterwards */);
 
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 						"windows_acquire_replica returned %s (%d)\n",
@@ -1295,7 +1295,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 0 /*replayed*/);
 
 					/* bring the consumers (AD) RUV up to date */
-					/* DBDB removed because it breaks server startup ruv_set_max_csn(remote_update_vector,entry.op->csn, NULL ); */
+					force_csn_update(remote_update_vector, entry.op->csn);
 				}
 				break;
 			case CL5_BAD_DATA:

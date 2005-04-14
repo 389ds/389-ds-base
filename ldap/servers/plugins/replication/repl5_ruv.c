@@ -1876,6 +1876,25 @@ ruv_is_newer (Object *sruvobj, Object *cruvobj)
 	return is_newer;
 }
 
+void
+force_csn_update (RUV *ruv, CSN *csn)
+{
+	CSN *max;
+	
+	if (ruv != NULL)
+	{
+		
+		ruv_get_max_csn(ruv, &max);
+
+		if (csn_compare(max, csn))
+			ruv_set_max_csn(ruv, csn, NULL);
+	
+		csn_free(&max);
+	}	
+
+	
+}
+
 #ifdef TESTING /* Some unit tests for code in this file */
 
 static void

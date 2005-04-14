@@ -81,6 +81,7 @@ int ruv_local_contains_supplier(RUV *ruv, ReplicaId rid);
    whether or not an RUV is empty */
 PRBool ruv_has_csns(const RUV *ruv);
 PRBool ruv_is_newer (Object *sruv, Object *cruv);
+void force_csn_update (RUV *ruv, CSN *csn);
 #ifdef __cplusplus
 }
 #endif

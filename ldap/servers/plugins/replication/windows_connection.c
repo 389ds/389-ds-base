@@ -1149,8 +1149,20 @@ windows_conn_connect(Repl_Connection *conn)
 		conn->state = STATE_CONNECTED;
 		return_value = CONN_OPERATION_SUCCESS;
 	}
-		
-	windows_conn_replica_supports_dirsync(conn);
+	
+	{
+		ConnResult supports = 0;
+		supports = windows_conn_replica_supports_dirsync(conn);
+		if (CONN_DOES_NOT_SUPPORT_DIRSYNC == supports)
+		{
+			/* We assume that a server that doesn't support dirsync is our NT4 LDAP service */
+			windows_private_set_isnt4(conn->agmt,1);
+			LDAPDebug( LDAP_DEBUG_REPL, "windows_conn_connect : detected NT4 peer\n", 0, 0, 0 );
+		} else 
+		{
+			windows_private_set_isnt4(conn->agmt,0);
+		}
+	}
 
 	ber_bvfree(creds);
 	creds = NULL;
