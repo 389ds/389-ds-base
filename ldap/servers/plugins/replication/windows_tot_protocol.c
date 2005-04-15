@@ -78,13 +78,6 @@ static void get_result (int rc, void *cb_data);
 static int send_entry (Slapi_Entry *e, void *callback_data);
 static void windows_tot_delete(Private_Repl_Protocol **prp);
 
-#if 0
-		/* DBDB: this is all wrong. Need to fix this */
-
-		object_release ( replica_get_ruv ( replica ) );
-		cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);
-#endif
-
 /*
  * Completely refresh a replica. The basic protocol interaction goes
  * like this:
