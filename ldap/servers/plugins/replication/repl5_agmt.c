@@ -1465,7 +1465,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 						for (j = 0; !affects_fractional_attribute && NULL != mods[j]; j++)
 						{
 							if (slapi_attr_types_equivalent(agmt->frac_attrs[i],
-								mods[i]->mod_type))
+								mods[j]->mod_type))
 							{
 								affects_fractional_attribute = 1;
 							}
