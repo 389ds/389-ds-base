@@ -199,7 +199,7 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 						if (NULL != ruve)
 						{
 							/* Is the local purl already in the ruv ? */
-							if ( (*contain_purl==0) && (strncmp(ruve->replica_purl, purl, strlen(purl))==0) )
+							if ( (*contain_purl==0) && ruve->replica_purl && purl && (strncmp(ruve->replica_purl, purl, strlen(purl))==0) )
 							{
 								*contain_purl = ruve->rid;
 							}
@@ -1877,22 +1877,19 @@ ruv_is_newer (Object *sruvobj, Object *cruvobj)
 }
 
 void
-force_csn_update (RUV *ruv, CSN *csn)
+ruv_force_csn_update (RUV *ruv, CSN *csn)
 {
-	CSN *max;
+	CSN *max = NULL;
 	
 	if (ruv != NULL)
 	{
-		
 		ruv_get_max_csn(ruv, &max);
-
 		if (csn_compare(max, csn))
+		{
 			ruv_set_max_csn(ruv, csn, NULL);
-	
+		}
 		csn_free(&max);
 	}	
-
-	
 }
 
 #ifdef TESTING /* Some unit tests for code in this file */

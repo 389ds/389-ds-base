@@ -326,6 +326,37 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 	}
 }
 
+static void
+windows_dump_ruvs(Object *supl_ruv_obj, Object *cons_ruv_obj)
+{
+	if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
+	{
+		slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, supplier RUV:\n");
+		if (supl_ruv_obj) {
+			RUV* sup = NULL;
+			object_acquire(supl_ruv_obj);
+			sup = (RUV*)  object_get_data ( supl_ruv_obj );
+			ruv_dump (sup, "supplier", NULL);
+			object_release(supl_ruv_obj);
+		} else
+		{
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, supplier RUV = null\n");
+		}
+		slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, consumer RUV:\n");
+
+		if (cons_ruv_obj) 
+		{
+			RUV* con = NULL;
+			object_acquire(cons_ruv_obj);
+			con =  (RUV*) object_get_data ( cons_ruv_obj );
+			ruv_dump (con,"consumer", NULL);
+			object_release( cons_ruv_obj );
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, consumer RUV = null\n");
+		}
+	}
+}
+
 /*
  * Acquire exclusive access to a replica. Send a start replication extended
  * operation to the replica. The response will contain a success code, and
@@ -347,8 +378,12 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 {
   
 	int return_value = ACQUIRE_SUCCESS;
-	ConnResult crc;
-	Repl_Connection *conn;
+	ConnResult crc = 0;
+	Repl_Connection *conn = NULL;
+	Replica *replica = NULL;
+	Object *supl_ruv_obj, *cons_ruv_obj = NULL;
+	PRBool is_newer = PR_FALSE;
+	RUV *r = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_acquire_replica\n", 0, 0, 0 );
 
@@ -364,79 +399,44 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         return ACQUIRE_SUCCESS;
     }
 
+	if (NULL != ruv)
 	{
-		Replica *replica;
-		Object *supl_ruv_obj, *cons_ruv_obj;
-		PRBool is_newer = PR_FALSE;
-		RUV *r;
-
-	
-		if (prp->agmt)
-		{		
-			cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);
-		}
-
-
-
-
-
-		object_acquire(prp->replica_object);
-		replica = object_get_data(prp->replica_object);
-		supl_ruv_obj = replica_get_ruv ( replica );
-
-		/* make a copy of the existing RUV as a starting point 
-		   XXX this is probably a not-so-elegant hack */
-
-		slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, supplier RUV:\n");
-		if (supl_ruv_obj) {
-		object_acquire(supl_ruv_obj);
-			ruv_dump ((RUV*)  object_get_data ( supl_ruv_obj ), "supplier", NULL);
-			object_release(supl_ruv_obj);
-		}else
-				slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, supplier RUV = null\n");
-		
-		slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, consumer RUV:\n");
-
-		if (cons_ruv_obj) 
-		{
-			RUV* con;
-			object_acquire(cons_ruv_obj);
-			con =  (RUV*) object_get_data ( cons_ruv_obj );
-			ruv_dump (con,"consumer", NULL);
-			object_release( cons_ruv_obj );
-		} else {
-			slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, consumer RUV = null\n");
-		}
-
-		is_newer = ruv_is_newer ( supl_ruv_obj, cons_ruv_obj );
-		
-		/* This follows ruv_is_newer, since it's always newer if it's null */
-		if (cons_ruv_obj == NULL) 
-		{
-			RUV *s;
-			s = (RUV*)  object_get_data ( replica_get_ruv ( replica ) );
-			
-			agmt_set_consumer_ruv(prp->agmt, s );
-			object_release ( replica_get_ruv ( replica ) );
-			cons_ruv_obj =  agmt_get_consumer_ruv(prp->agmt);		
-		}
-
-		r = (RUV*)  object_get_data ( cons_ruv_obj); 
-		*ruv = r;
-		
-
-
-		if ( supl_ruv_obj ) object_release ( supl_ruv_obj );
-		if ( cons_ruv_obj ) object_release ( cons_ruv_obj );
-		object_release (prp->replica_object);
-		replica = NULL;
-
- 		if (is_newer == PR_FALSE && check_ruv) { 
- 			prp->last_acquire_response_code = NSDS50_REPL_UPTODATE;
-			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica - ACQUIRE_CONSUMER_WAS_UPTODATE\n", 0, 0, 0 );
- 			return ACQUIRE_CONSUMER_WAS_UPTODATE; 
- 		} 
+		ruv_destroy ( ruv );
 	}
+
+	object_acquire(prp->replica_object);
+	replica = object_get_data(prp->replica_object);
+	supl_ruv_obj = replica_get_ruv ( replica );
+	cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);
+
+	windows_dump_ruvs(supl_ruv_obj,cons_ruv_obj);
+	is_newer = ruv_is_newer ( supl_ruv_obj, cons_ruv_obj );
+	
+	/* Handle the pristine case */
+	if (cons_ruv_obj == NULL) 
+	{
+		/* DBDB: this is all wrong. Need to fix this */
+		RUV *s = NULL;
+		s = (RUV*)  object_get_data ( replica_get_ruv ( replica ) );
+		
+		agmt_set_consumer_ruv(prp->agmt, s );
+		object_release ( replica_get_ruv ( replica ) );
+		cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);		
+	}
+	r = (RUV*)  object_get_data(cons_ruv_obj); 
+	*ruv = ruv_dup(r);
+
+	if ( supl_ruv_obj ) object_release ( supl_ruv_obj );
+	if ( cons_ruv_obj ) object_release ( cons_ruv_obj );
+	object_release (prp->replica_object);
+	replica = NULL;
+
+	/* Once we get here we have a valid ruv */
+ 	if (is_newer == PR_FALSE && check_ruv) { 
+ 		prp->last_acquire_response_code = NSDS50_REPL_UPTODATE;
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica - ACQUIRE_CONSUMER_WAS_UPTODATE\n", 0, 0, 0 );
+ 		return ACQUIRE_CONSUMER_WAS_UPTODATE; 
+ 	} 
 
 	prp->last_acquire_response_code = NSDS50_REPL_REPLICA_NO_RESPONSE;
 

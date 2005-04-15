@@ -218,6 +218,11 @@ w_set_pause_and_busy_time(long *pausetime, long *busywaittime)
  *                  schedule_change                        START
  */
 
+/* 
+ * DBDB: what follows is quite possibly the worst code I have ever seen.
+ * Unfortunately we chose not to re-write it when we did the windows sync version.
+ */
+
 /*
  * Main state machine for the incremental protocol. This routine will,
  * under normal circumstances, not return until the protocol is shut
@@ -1088,6 +1093,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	int return_value;
 	int rc;
 	CL5ReplayIterator *changelog_iterator = NULL;
+	RUV *current_ruv = ruv_dup(remote_update_vector);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_updates\n", 0, 0, 0 );
 
@@ -1293,9 +1299,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					/* Positive response received */
 					(*num_changes_sent)++;
 					agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 0 /*replayed*/);
-
 					/* bring the consumers (AD) RUV up to date */
-					force_csn_update(remote_update_vector, entry.op->csn);
+					ruv_force_csn_update(current_ruv, entry.op->csn);
 				}
 				break;
 			case CL5_BAD_DATA:
@@ -1351,6 +1356,12 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		} while (!finished);
 		w_cl5_operation_parameters_done ( entry.op );
 		cl5DestroyReplayIterator(&changelog_iterator);
+	}
+	/* Save the RUV that we successfully replayed, this ensures that next time we start off at the next changelog record */
+	if (current_ruv)
+	{
+		agmt_set_consumer_ruv(prp->agmt,current_ruv);
+		ruv_destroy(&current_ruv);
 	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_updates\n", 0, 0, 0 );
 	return return_value;
