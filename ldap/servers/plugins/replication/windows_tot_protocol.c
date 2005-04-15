@@ -78,6 +78,13 @@ static void get_result (int rc, void *cb_data);
 static int send_entry (Slapi_Entry *e, void *callback_data);
 static void windows_tot_delete(Private_Repl_Protocol **prp);
 
+#if 0
+		/* DBDB: this is all wrong. Need to fix this */
+
+		object_release ( replica_get_ruv ( replica ) );
+		cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);
+#endif
+
 /*
  * Completely refresh a replica. The basic protocol interaction goes
  * like this:
@@ -96,7 +103,10 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	CSN *remote_schema_csn = NULL;
 	PRBool cookie_has_more = PR_TRUE;
 	RUV *ruv = NULL;
-
+	RUV *starting_ruv = NULL;
+	Replica *replica = NULL;
+	Object *local_ruv_obj = NULL;
+	
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_run\n", 0, 0, 0 );
 	
 	PR_ASSERT(NULL != prp);
@@ -131,7 +141,14 @@ windows_tot_run(Private_Repl_Protocol *prp)
         prp->stopped = 1;
 		goto done;    
     }
-	
+
+	/* Get the current replica RUV.
+	 * If the total update succeeds, we will set the consumer RUV to this value.
+	 */
+	replica = object_get_data(prp->replica_object);
+	local_ruv_obj = replica_get_ruv (replica);
+	starting_ruv = ruv_dup((RUV*)  object_get_data ( local_ruv_obj ));
+	object_release (local_ruv_obj);
 	
 	agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
 	remote_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
@@ -184,9 +201,17 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Finished total update of replica "
 						"\"%s\". Sent %d entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
+		/* Now update our consumer RUV for this agreement.
+		 * This ensures that future incrememental updates work.
+		 */
+		agmt_set_consumer_ruv(prp->agmt, starting_ruv );
 	}
 
 done:
+	if (starting_ruv)
+	{
+		ruv_destroy(&starting_ruv);
+	}
 	
 	prp->stopped = 1;
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_tot_run\n", 0, 0, 0 );

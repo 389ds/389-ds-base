@@ -445,16 +445,12 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 	/* Handle the pristine case */
 	if (cons_ruv_obj == NULL) 
 	{
-		/* DBDB: this is all wrong. Need to fix this */
-		RUV *s = NULL;
-		s = (RUV*)  object_get_data ( replica_get_ruv ( replica ) );
-		
-		agmt_set_consumer_ruv(prp->agmt, s );
-		object_release ( replica_get_ruv ( replica ) );
-		cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);		
+		*ruv = NULL;		
+	} else 
+	{
+		r = (RUV*)  object_get_data(cons_ruv_obj); 
+		*ruv = ruv_dup(r);
 	}
-	r = (RUV*)  object_get_data(cons_ruv_obj); 
-	*ruv = ruv_dup(r);
 
 	if ( supl_ruv_obj ) object_release ( supl_ruv_obj );
 	if ( cons_ruv_obj ) object_release ( cons_ruv_obj );
@@ -612,6 +608,21 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 		}
 
 		return pw_return;
+}
+
+static int
+send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp)
+{
+	ConnResult mod_return = 0;
+	Slapi_Mods smods = {0};
+
+    slapi_mods_init (&smods, 0);
+	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "userAccountControl", "512");
+
+	mod_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL );
+
+    slapi_mods_done(&smods);
+	return mod_return;
 }
 
 static int
@@ -927,6 +938,14 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			{
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: windows_replay_update: update password returned %d\n",
 					agmt_get_long_name(prp->agmt), return_value );
+			} else {
+				/* If we successfully added an entry, and then subsequently changed its password, THEN we need to change its status in AD 
+				 * in order that it can be used (otherwise the user is marked as disabled). To do this we set this attribute and value:
+				 * userAccountControl: 512 */
+				if (op->operation_type == SLAPI_OPERATION_ADD && missing_entry)
+				{
+					return_value = send_accountcontrol_modify(remote_dn, prp);
+				}
 			}
 		}
 	} else {
@@ -1044,8 +1063,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
    		"objectclass:person\n"
 		"objectclass:organizationalperson\n"
 		"objectclass:user\n"
-		"userPrincipalName:%s\n"
-		"userAccountControl:512\n";
+		"userPrincipalName:%s\n";
 
 	char *remote_group_entry_template = 
 		"dn: %s\n"
