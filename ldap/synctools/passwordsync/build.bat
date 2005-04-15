@@ -9,12 +9,10 @@
 
 pushd
 
-if NOT [%BUILD_DEBUG%] == [] (
-    if [%BUILD_DEBUG%] == [optimize] (
-        set LIBROOT=..\..\..\..\dist\WINNT5.0_OPT.OBJ
-    ) else (
-        set LIBROOT=..\..\..\..\dist\WINNT5.0_DBG.OBJ
-    )
+if [%BUILD_DEBUG%] == [optimize] (
+    set LIBROOT=..\..\..\..\dist\WINNT5.0_OPT.OBJ
+) else (
+    set LIBROOT=..\..\..\..\dist\WINNT5.0_DBG.OBJ
 )
 
 echo %LIBROOT%

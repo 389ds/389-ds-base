@@ -27,6 +27,8 @@ struct PASS_INFO
 {
 	char* username;
 	char* password;
+	int backoffCount;
+	time_t atTime;
 };
 
 typedef list<PASS_INFO> PASS_INFO_LIST;

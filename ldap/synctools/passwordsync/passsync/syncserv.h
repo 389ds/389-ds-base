@@ -9,6 +9,7 @@
 #define _SYNCSERV_H_
 
 #include <stdio.h>
+#include <math.h>
 #include "ldap.h"
 #include "ldap_ssl.h"
 #include "ldappr.h"
@@ -18,7 +19,6 @@
 #define SYNCSERV_BUF_SIZE 256
 #define SYNCSERV_TIMEOUT 10000
 #define SYNCSERV_ALLOW_MULTI_MOD false
-#define SYNCSERV_MAX_BACKOFF_COUNT 4
 #define SYNCSERV_BASE_BACKOFF_LEN 1000
 
 class PassSyncService : public CNTService
@@ -38,12 +38,15 @@ private:
 	int Disconnect(LDAP** connection);
 	int QueryUsername(char* username);
 	char* GetDN();
-	bool CanBind(char* dn, char* password);
 	int ModifyPassword(char* dn, char* password);
 
-	void ResetBackoff();
-	void EndBackoff();
-	bool Backoff();
+	bool FutureOccurrence(PASS_INFO_LIST_ITERATOR startingPassInfo);
+	bool MultipleResults();
+	bool CanBind(char* dn, char* password);
+
+	unsigned long BackoffTime(int backoff);
+	void UpdateBackoff();
+	int GetMinBackoff();
 
 	PASS_INFO_LIST passInfoList;
 	HANDLE passhookEventHandle;
@@ -66,9 +69,9 @@ private:
 	char ldapSearchBase[SYNCSERV_BUF_SIZE];
 	char ldapUsernameField[SYNCSERV_BUF_SIZE];
 	char ldapPasswordField[SYNCSERV_BUF_SIZE];
-	bool multipleModify;
+	unsigned long maxBackoffTime;
+	int logLevel;
 	bool isRunning;
-	int backoffCount;
 	fstream outLog;
 };
 

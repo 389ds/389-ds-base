@@ -139,6 +139,12 @@ int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 		newPair.password = (char*)malloc(passwordLen);
 		plainTextStream->read((char*)newPair.password, passwordLen);
 
+		// Backoff
+		newPair.backoffCount = 0;
+
+		// Load time
+		time(&newPair.atTime);
+
 		passInfoList->push_back(newPair);
 	}
 

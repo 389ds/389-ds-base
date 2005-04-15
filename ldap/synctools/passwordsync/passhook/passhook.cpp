@@ -23,9 +23,28 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 	HANDLE passhookEventHandle = OpenEvent(EVENT_MODIFY_STATE, FALSE, PASSHAND_EVENT_NAME);
 	PASS_INFO newPassInfo;
 	PASS_INFO_LIST passInfoList;
+	HKEY regKey;
+	DWORD type;
+	unsigned long buffSize;
+	char regBuff[PASSHAND_BUF_SIZE];
+	unsigned long logLevel;
 	fstream outLog;
 
-	outLog.open("passhook.log", ios::out | ios::app);
+	RegOpenKey(HKEY_LOCAL_MACHINE, "SOFTWARE\\PasswordSync", &regKey);
+	buffSize = PASSHAND_BUF_SIZE;
+	if(RegQueryValueEx(regKey, "Log Level", NULL, &type, (unsigned char*)regBuff, &buffSize) == ERROR_SUCCESS)
+	{
+		logLevel = (unsigned long)atoi(regBuff);
+	}
+	else
+	{
+		logLevel = 0;
+	}
+	if(logLevel > 0)
+	{
+		outLog.open("passhook.log", ios::out | ios::app);
+	}
+	RegCloseKey(regKey);
 
 	_snprintf(singleByteUsername, PASSHAND_BUF_SIZE, "%S", UserName->Buffer);
 	singleByteUsername[UserName->Length / 2] = '\0';
@@ -36,6 +55,7 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 	{
 		timeStamp(&outLog);
 		outLog << "user " << singleByteUsername << " password changed" << endl;
+		//outLog << "user " << singleByteUsername << " password changed to " << singleBytePassword << endl;
 	}
 
 	if(loadSet(&passInfoList, "passhook.dat") == 0)

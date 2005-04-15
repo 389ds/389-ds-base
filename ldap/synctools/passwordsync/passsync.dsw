@@ -1,15 +1,9 @@
-#
-# BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2005 Red Hat, Inc.
-# All rights reserved.
-# END COPYRIGHT BLOCK
-#
 Microsoft Developer Studio Workspace File, Format Version 6.00
 # WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
 
 ###############################################################################
 
-Project: "passhook"=".\passhook\passhook.dsp" - Package Owner=<4>
+Project: "passhook"=.\passhook\passhook.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -21,7 +15,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "passsync"=".\passsync\passsync.dsp" - Package Owner=<4>
+Project: "passsync"=.\passsync\passsync.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
