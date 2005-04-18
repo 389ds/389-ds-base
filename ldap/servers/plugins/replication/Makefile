@@ -121,7 +121,6 @@ LOCAL_OBJS= \
 	repl5_updatedn_list.o\
 	windows_inc_protocol.o \
 	windows_tot_protocol.o \
-	windows_total.o \
 	windows_protocol_util.o \
 	windows_private.o \
 	windows_connection.o
