@@ -66,8 +66,11 @@ typedef struct {
 
 #if defined (USE_NSPR)
 
-
+#if defined(__hpux) && defined(__ia64)
+#define DEFAULT_STACKSIZE (256*1024)
+#else
 #define DEFAULT_STACKSIZE (64*1024)
+#endif
 
 static unsigned long _systhr_stacksize = DEFAULT_STACKSIZE;
 

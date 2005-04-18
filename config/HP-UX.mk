@@ -95,6 +95,10 @@ DSO_LDFLAGS		=
 DSO_CFLAGS		= +z
 
 ifdef SERVER_BUILD
+ifeq ($(OS_RELEASE),B.11.23)
+SERVER_CFLAGS           = +DD32 -Wl,-E,-N
+else
 SERVER_CFLAGS		= +DA1.0 -Wl,-E,-N
+endif
 STATIC_JAVA		= yes
 endif

@@ -49,7 +49,7 @@ static char *build_date = "04-APRIL-2005";
 #define IDDS_LINUX_SYSCTL 1
 #endif
 
-#if defined(__sun) || defined(__sun__) || defined(_AIX) || defined(__hppa) || defined(_nec_ews_svr4) || defined(__osf__) || defined(__sgi) || defined(sgi)
+#if defined(__sun) || defined(__sun__) || defined(_AIX) || defined(__hpux) || defined(_nec_ews_svr4) || defined(__osf__) || defined(__sgi) || defined(sgi)
 #define IDDS_SYSV_INCLUDE 1
 #endif
 
@@ -68,7 +68,7 @@ static char *build_date = "04-APRIL-2005";
 #include <errno.h>
 #include <ctype.h>
 #if !defined(_WIN32) && !defined(__VMS) && !defined(IDDS_LINUX_INCLUDE) && !defined(IDDS_BSD_INCLUDE)
-#if defined(__hppa) && defined(f_type)
+#if defined(__hpux) && defined(f_type)
 #undef f_type
 #endif
 #include <sys/statvfs.h>
@@ -118,7 +118,7 @@ extern char *optarg;
 #define IDDS_MNTENT_MNTTAB "/etc/mtab"
 #endif
 
-#if defined(__hppa)
+#if defined(__hpux)
 #include <sys/pstat.h>
 #include <mntent.h>
 
@@ -235,7 +235,7 @@ int mem_rec = 1024;
 #define NAME_TCP_SMALLEST_ANON_PORT	"tcp_smallest_anon_port"
 #endif
 
-#if defined(__hppa)
+#if defined(__hpux)
 #define NAME_NDD_CFG_FILE			"/etc/rc.config.d/nddconf"
 #define NAME_TCP_TIME_WAIT_INTERVAL	"tcp_time_wait_interval"
 #define NAME_TCP_CONN_REQ_MAX_Q		"tcp_conn_request_max"
@@ -251,7 +251,7 @@ int mem_rec = 1024;
 #define NAME_TCP_SMALLEST_ANON_PORT	"net.inet.ip.portrange.hifirst"
 #endif
 
-#if defined(__sun) || defined(__hppa) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
 
 long ndd_tcp_conn_req_max_q = 0; 
 long ndd_tcp_conn_req_max_q0 = 0; 
@@ -300,7 +300,7 @@ struct iii_pinfo {
 
 #endif
 
-#if defined(__hppa)
+#if defined(__hpux)
 struct pst_dynamic pst_dyn;
 struct pst_static pst_stt;
 struct pst_vminfo pst_vmm;
@@ -1403,7 +1403,7 @@ static void gen_tests (void)
     phys_mb = (l * pk) / 1024;
   }
 #else
-#if defined(__hppa)
+#if defined(__hpux)
   hp_check_qpk();
   if (pstat_getdynamic(&pst_dyn,sizeof(pst_dyn),1,0) == -1 ||
       pstat_getstatic(&pst_stt,sizeof(pst_stt),1,0) == -1 ||
@@ -1490,7 +1490,7 @@ static void gen_tests (void)
     if (flag_html) printf("</P>\n");
     
   } else if (client == 0 && swap_mb && swap_mb < phys_mb) {
-#if defined(_AIX) || defined(__hppa) || defined(__sun)
+#if defined(_AIX) || defined(__hpux) || defined(__sun)
 #else
     if (flag_html) printf("<P>\n");
     printf("%s: There is %dMB of physical memory but only %dMB of swap space.\n\n",
@@ -1545,7 +1545,7 @@ static void gen_tests (void)
 
 
 
-#if defined(__sun) || defined(__hppa) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
 
 static int ndd_get_tcp (char *a,long *vPtr)
 {
@@ -1554,7 +1554,7 @@ static int ndd_get_tcp (char *a,long *vPtr)
 #if defined(__sun)
   sprintf(buf,"/usr/sbin/ndd /dev/tcp %s",a);
 #else
-#if defined(__hppa)
+#if defined(__hpux)
   sprintf(buf,"/usr/bin/ndd /dev/tcp %s",a);
 #else
 #if defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
@@ -1791,7 +1791,7 @@ static void sysconfig_tests (void)
 }
 #endif
 
-#if defined(__hppa)
+#if defined(__hpux)
 
 #include <dirent.h>
 #define HP_PATCH_DIR "/var/adm/sw/products"
@@ -2045,7 +2045,7 @@ static void sun_check_network_device(void)
 }
 #endif
 
-#if defined(__sun) || defined(__hppa) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
 
 static void ndd_tests (void)
 {
@@ -2454,7 +2454,7 @@ static void ndd_tests (void)
   }
 #endif
 
-#if defined(__sun) || defined(__hppa)
+#if defined(__sun) || defined(__hpux)
   if (1) {
     if (ndd_get_tcp("tcp_deferred_ack_interval",&ndd_tcp_deferred_ack_interval) == 0) {
       if (ndd_tcp_deferred_ack_interval > 5) {
@@ -2668,7 +2668,7 @@ static int check_fs_options(char *reqdir,char mntbuf[MAXPATHLEN])
     mep = &m;
     if (getmntent(fp,mep) != 0) break;
 #else
-#if defined(__hppa) || defined(IDDS_LINUX_INCLUDE)
+#if defined(__hpux) || defined(IDDS_LINUX_INCLUDE)
     mep = getmntent(fp);
     if (mep == NULL) break;
 #else
@@ -2708,7 +2708,7 @@ static int check_fs_options(char *reqdir,char mntbuf[MAXPATHLEN])
 
   if (fp) fclose (fp);
   
-#if defined(__hppa)
+#if defined(__hpux)
   if (found == 0) {
     int largefile_missing = 0;
 
@@ -2904,7 +2904,7 @@ static void check_mem_size(int ro,char *rn)
   }
 
   if (m_change_needed) {
-#if defined(__hppa)
+#if defined(__hpux)
     printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change the maxdsiz\nand maxdsiz_64bit parameters.\n");
 #endif
     printf("\n");
@@ -2937,7 +2937,7 @@ static void limits_tests(void)
     printf("set rlim_fd_max=4096\n");
     if (flag_html) printf("</PRE><P>\n");
 #else
-#if defined(__hppa)
+#if defined(__hpux)
 	printf("Additional file descriptors,\nup to 60000, are available by editing /stand/system and regenerating the kernel.\n");
 	if (flag_html) printf("</P><PRE>\n");
 	printf("maxfiles_lim 4096\n");
@@ -2965,7 +2965,7 @@ static void limits_tests(void)
       printf("WARNING: There are only %ld file descriptors (soft limit) available, which\nlimit the number of simultaneous connections.  ",r.rlim_cur);
     }
 
-#if defined(__sun) || defined(__hppa)
+#if defined(__sun) || defined(__hpux)
     printf("Additional file descriptors,\nup to %ld (hard limit), are available by issuing \'ulimit\' (\'limit\' for tcsh)\ncommand with proper arguments.\n", r.rlim_max);
     if (flag_html) printf("</P><PRE>\n");
     printf("ulimit -n 4096\n");
@@ -3004,7 +3004,7 @@ static void limits_tests(void)
 
 static void ids_get_platform(char *buf)
 {
-#if defined(IDDS_LINUX_INCLUDE) || defined(__osf__) || defined(_AIX) || defined(__hppa) || defined(IDDS_BSD_INCLUDE)
+#if defined(IDDS_LINUX_INCLUDE) || defined(__osf__) || defined(_AIX) || defined(__hpux) || defined(IDDS_BSD_INCLUDE)
   	struct utsname u;
 #endif
 #if defined(_WIN32)
@@ -3013,13 +3013,13 @@ static void ids_get_platform(char *buf)
 	char osbuf[128];
 
 #endif
-#if defined(__hppa) || defined(_AIX)
+#if defined(__hpux) || defined(_AIX)
 	char model[128];
 	char procstr[128];
 	char oslevel[128];
 #endif
 
-#if defined(__hppa)
+#if defined(__hpux)
 	long cpuvers, cputype;
 #endif
 
@@ -3106,7 +3106,7 @@ static void ids_get_platform(char *buf)
 	sprintf(buf,"%s-unknown-%s%s",
 		u.machine,u.sysname,u.release);
 #else
-#if defined(__hppa)
+#if defined(__hpux)
 	uname(&u);
 	confstr(_CS_MACHINE_MODEL,model,128);
 	cpuvers = sysconf(_SC_CPU_VERSION);
@@ -3126,6 +3126,11 @@ static void ids_get_platform(char *buf)
 	case CPU_PA_RISC2_0:
 	  sprintf(procstr,"hppa2.0/%d",cputype);
 	  break;
+#if defined(__ia64)
+	case CPU_IA64_ARCHREV_0:
+	  sprintf(procstr,"hpia0/%d",cputype);
+	  break;
+#endif
 	default:
 	  sprintf(procstr,"hppa_0x%x/%d",cpuvers,cputype);
 	  break;
@@ -3299,11 +3304,11 @@ int main(int argc,char *argv[])
 
   gen_tests();
 
-#if defined(__sun) || defined(__hppa) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
   ndd_tests();
 #endif
 
-#if defined(__hppa)
+#if defined(__hpux)
   hp_pthreads_tests();
 #endif
 

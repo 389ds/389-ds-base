@@ -62,7 +62,12 @@ elif [ "$UNAME" = "SOLARISx86" ]; then
 elif [ "$UNAME" = "HPUX" ]; then
   PATH=/usr/local/hpux/bin:/usr/bin/X11:$PATH; export PATH
   GTAR=/share/builds/f/gtar/bin/hpux-gtar
-  HTTPDLIB=libnshttpd.sl
+  ARCH=`uname -m`
+  if [ "$ARCH" = "ia64" ]; then
+    HTTPDLIB=libnshttpd.so
+  else
+    HTTPDLIB=libnshttpd.sl
+  fi
 
 elif [ "$UNAME" = "BSDI" ]; then
   PATH=/usr/local/bin:/usr/X11/bin:$PATH; export PATH

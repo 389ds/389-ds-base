@@ -152,7 +152,11 @@ main( int argc, char **argv)
 	shared_lib = ".dll";
 #else
 #ifdef HPUX
+#ifdef __ia64
+	shared_lib = ".so";
+#else
 	shared_lib = ".sl";
+#endif
 #else
 #ifdef AIX
 #if OSVERSION >= 4200

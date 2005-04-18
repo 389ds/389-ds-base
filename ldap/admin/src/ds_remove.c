@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     char	*installroot;
     int		isRunning;
 #ifndef __LP64__  
-#ifdef hpux
+#if defined(__hpux) && !defined(__ia64)
     _main();
 #endif
 #endif

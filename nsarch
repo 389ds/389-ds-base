@@ -467,6 +467,15 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
         NS_RELEASE="${HPUX_REV}"
         ns_printf
 	exit 0 ;;
+    ia64:HP-UX:*:*)
+	HP_ARCH=hpia
+	HPUX_REV=`echo ${UNAME_RELEASE}|sed -e 's/[^.]*.[0B]*//'`
+	GNU_NAME="${HP_ARCH}-hp-hpux${HPUX_REV}"
+	NS_NAME="HPUX"
+	NS_PRETTY_NAME="HP-UX"
+	NS_RELEASE="${HPUX_REV}"
+	ns_printf
+	exit 0 ;;
     3050*:HI-UX:*:*)
 	sed 's/^	//' << EOF >dummy.c
 	#include <unistd.h>

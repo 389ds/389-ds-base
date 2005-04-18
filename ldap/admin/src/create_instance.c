@@ -99,7 +99,11 @@
 #include <netinet/in.h>  /* sockaddr_in */
 #include <arpa/inet.h>   /* inet_addr */
 #ifdef HPUX
+#ifdef __ia64
+#define SHLIB_EXT "so"
+#else
 #define SHLIB_EXT "sl"
+#endif
 #else
 #define SHLIB_EXT "so"
 #endif
@@ -3092,7 +3096,11 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     shared_lib = ".dll";
 #else
 #ifdef HPUX
+#ifdef __ia64
+    shared_lib = ".so";
+#else
     shared_lib = ".sl";
+#endif
 #else
 #ifdef AIX
 #if OSVERSION >= 4200

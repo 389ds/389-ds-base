@@ -272,12 +272,23 @@ else
     NSCONFIG        = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)_$(GCC_VERSION)
     NSCONFIG_NOTAG  = $(NSCONFIG)
   else
+    ifeq ($(NSOS_ARCH),HP-UX)
+      NSOS_TEST1       := $(shell uname -m)
+      ifeq ($(NSOS_TEST1), ia64)
+        NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)
+        NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)_$(NSOS_TEST1)
+      else
+        NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)
+        NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)
+      endif
+    else
     ifeq ($(NSOS_TEST1),i86pc)
       NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)
       NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)_$(NSOS_TEST1)
     else
       NSCONFIG         = $(NSOS_ARCH)$(NSOS_RELEASE)
       NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)
+    endif
     endif
   endif
 endif
@@ -508,22 +519,49 @@ PEER_ARCH=bsdi
 
 else 
 ifeq ($(ARCH), HPUX)
+ifeq ($(NSOS_TEST1), ia64)
+DLL_SUFFIX=so
+else
 DLL_SUFFIX=sl
+endif
 #-D_POSIX_C_SOURCE=199506L turns kernel threads on for HPUX11
 CC=cc -Ae -D_POSIX_C_SOURCE=199506L
 ifeq ($(BUILD_MODULE), HTTP_ADMIN)
-CXX=aCC -DHPUX_ACC -D__STDC_EXT__ -D_POSIX_C_SOURCE=199506L -ext
+ifeq ($(NSOS_RELEASE),B.11.23)
+CXX=aCC -AP -DHPUX_ACC -D__STDC_EXT__ -D_POSIX_C_SOURCE=199506L -ext
 else
 CXX=aCC -DHPUX_ACC -D__STDC_EXT__ -D_POSIX_C_SOURCE=199506L -ext
 endif
+else
+ifeq ($(NSOS_RELEASE),B.11.23)
+CXX=aCC -AP -DHPUX_ACC -D__STDC_EXT__ -D_POSIX_C_SOURCE=199506L -ext
+else
+CXX=aCC -DHPUX_ACC -D__STDC_EXT__ -D_POSIX_C_SOURCE=199506L -ext
+endif
+endif
 CCC=$(CXX)
 ARCH_DEBUG=-g
+ifeq ($(NSOS_RELEASE),B.11.23)
+# optimization level changes actually is due to the aCC changes,
+# it is applicable to 11i v1 also, but conditional compile here
+# anyway.
+ARCH_OPT=+O3
+else
 ARCH_OPT=-O
+endif
 # Compile everything pos-independent in case we need to put it in shared lib
+ifeq ($(NSOS_RELEASE),B.11.23)
+ifdef USE_64
+  ARCH_CFLAGS=-D_HPUX_SOURCE +DD64 +DSblended +Z
+else
+  ARCH_CFLAGS=-D_HPUX_SOURCE +DD32 +DSblended +Z
+endif
+else
 ifdef USE_64
   ARCH_CFLAGS=-D_HPUX_SOURCE +DA2.0W +DS2.0 +Z
 else
   ARCH_CFLAGS=-D_HPUX_SOURCE +DAportable +DS1.1 +Z
+endif
 endif
 # NSPR uses fpsetmask which I'm told is in the math lib
 EXTRA_LIBS= -ldld -lm
@@ -543,11 +581,18 @@ ifeq ($(NSOS_RELEASE), B.11.11)
 	MODERNHP=1
 endif
 
+ifeq ($(NSOS_RELEASE), B.11.23)
+	MODERNHP=1
+endif
+
 ifeq ($(MODERNHP), 1)
 ifeq ($(NSOS_RELEASE), B.11.00)
 	ARCH_CFLAGS+=-DHPUX11 -DHPUX11_00
 endif
 ifeq ($(NSOS_RELEASE), B.11.11)
+	ARCH_CFLAGS+=-DHPUX11 -DHPUX11_11
+endif
+ifeq ($(NSOS_RELEASE), B.11.23)
 	ARCH_CFLAGS+=-DHPUX11 -DHPUX11_11
 endif
 # Debug with HPUX "dde" - makes the server single process - avoids fork()ing.

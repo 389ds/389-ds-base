@@ -77,7 +77,11 @@ typedef struct _cnumRet {
  */
 #define	CHANGELOGDB_TRIM_INTERVAL	300*1000 /* 5 minutes */
 
+#if defined(__hpux) && defined(__ia64)
+#define RETROCL_DLL_DEFAULT_THREAD_STACKSIZE 524288L
+#else
 #define RETROCL_DLL_DEFAULT_THREAD_STACKSIZE 131072L
+#endif
 #define RETROCL_BE_CACHEMEMSIZE  "2097152"
 #define RETROCL_BE_CACHESIZE "-1"
 #define RETROCL_PLUGIN_NAME "DSRetroclPlugin"

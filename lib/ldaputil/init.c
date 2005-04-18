@@ -56,7 +56,11 @@
 #define FILE_PATHSEP '/'
 #endif
 #ifdef HPUX
+#ifdef __ia64
+#define DLL_SUFFIX ".so"
+#else
 #define DLL_SUFFIX ".sl"
+#endif
 #else
 #define DLL_SUFFIX ".so"
 #endif

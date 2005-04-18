@@ -65,7 +65,12 @@ SWITCH: {
   }
   if ($os eq "HP-UX") {
   $LIB_PATH = "SHLIB_PATH" ;
-  $shlibsuf = ".sl";
+  my $arch = &uname("-p");
+  if ($arch eq "ia64") {
+    $shlibsuf = ".so";
+  } else {
+    $shlibsuf = ".sl";
+  }
   last SWITCH ;
   }
   if ($isNT) {

@@ -136,6 +136,10 @@ ifeq ($(NSOS_RELEASE),B.11.11)
 	MODERNHP=1
 endif
 
+ifeq ($(NSOS_RELEASE),B.11.23)
+	MODERNHP=1
+endif
+
 ifeq ($(MODERNHP),1)
 CURSES=-lHcurses
 else

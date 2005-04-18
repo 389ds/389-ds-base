@@ -343,7 +343,11 @@ prot_start(Repl_Protocol *rp)
 	if (NULL != rp)
 	{
 		if (PR_CreateThread(PR_USER_THREAD, prot_thread_main, (void *)rp,
+#if defined(__hpux) && defined(__ia64)
+			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, 524288L ) == NULL)
+#else
 			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL)
+#endif
         {
             PRErrorCode prerr = PR_GetError();
 

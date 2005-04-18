@@ -75,7 +75,11 @@ printInfo(int argc, char *argv[], char *envp[], FILE* fp)
 	fprintf(fp, "#####################################\n");
 }
 
+#if defined (__hpux) && defined (__ia64)
+int main(int argc, char *argv[], char *envp[])
+#else
 int main(int argc, char *argv[], char * /*envp*/ [])
+#endif
 {
     char *rm = getenv("REQUEST_METHOD");
     int status = 0;

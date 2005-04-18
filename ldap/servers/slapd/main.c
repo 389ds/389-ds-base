@@ -647,7 +647,7 @@ main( int argc, char **argv)
    	Slapi_Backend *be = NULL;
 	int init_ssl;
 #ifndef __LP64__ 
-#if defined(__hpux)
+#if defined(__hpux) && !defined(__ia64)
 	/* for static constructors */
 	_main();
 #endif

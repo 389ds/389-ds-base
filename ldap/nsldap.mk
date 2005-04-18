@@ -600,7 +600,11 @@ CB_DLL = chainingdb-plugin$(DLL_PRESUFFIX)
 # Admin server dynamic library location.
 #
 ifeq ($(ARCH), HPUX)
+ifeq ($(OS_TEST), ia64)
+ADMSONAME=ns-admin.so
+else
 ADMSONAME=ns-admin.sl
+endif
 else 
 ifeq ($(ARCH), SOLARIS)
 ADMSONAME=ns-admin.$(DLL_SUFFIX)
@@ -823,7 +827,11 @@ endif
 # Passed to every compile (cc or gcc).  This is where you put -O or -g, etc.
 ifneq ($(ARCH), WINNT)
 ifdef BUILD_OPT
+ifeq ($(ARCH) $(NSOS_RELEASE), HPUX B.11.23)
+EXTRACFLAGS=+O3
+else
 EXTRACFLAGS=-O
+endif
 else
 EXTRACFLAGS=-g
 endif
@@ -1183,7 +1191,14 @@ ifeq ($(ARCH), HPUX)
 # HP-UX platform-specifics
 #
 
+ifeq ($(NSOS_RELEASE), B.11.23)
+# -Ae is removed from PLATFORMCFLAGS, because CC and CXX share
+# same CFLAGS, -AP is added to CXX, and -Ae can not coexist with
+# -AP, so add -Ae to the front of CC
+CC=cc -Ae
+else
 CC=cc
+endif
 PLATFORM=hpux
 
 # ranlib not needed under HP-UX
@@ -1217,7 +1232,12 @@ SONAMEFLAG_PREFIX=-Wl,+h
 
 # -Ae means 'enforce ansi BUT allow the use of long-long'.  we need this
 # for 64-bit file support.
+ifneq ($(NSOS_RELEASE),B.11.23)
 PLATFORMCFLAGS= -Dhpux -D$(PLATFORM) -D_HPUX_SOURCE -D_REENTRANT -Ae
+else
+PLATFORMCFLAGS= -Dhpux -D$(PLATFORM) -D_HPUX_SOURCE -D_REENTRANT
+THREADSLIB=-lpthread
+endif
 
 #aCC doesn't recognize -Ae so this will be used with aCC
 ACC_PLATFORMCFLAGS= -Dhpux -D$(PLATFORM) -D_HPUX_SOURCE -D_REENTRANT

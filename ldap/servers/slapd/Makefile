@@ -88,6 +88,15 @@ endif
 endif
 endif
 
+ifeq ($(ARCH), HPUX)
+ifeq ($(OS_TEST),ia64)
+LDAP_DONT_USE_SMARTHEAP=1
+ifeq ($(DEBUG), optimize)
+CFLAGS+=+O3
+endif
+endif
+endif
+
 # Don't use smartheap for debug builds
 ifeq ($(DEBUG), full)
 LDAP_DONT_USE_SMARTHEAP=1
@@ -189,10 +198,14 @@ LDFLAGS+=$(ARCH_CFLAGS)
 ifeq ($(DEBUG), full)
 ifeq ($(USE_64), 1)
 EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
+ifneq ($(OS_TEST), ia64)
 EXTRA_LIBS += /opt/langtools/lib/pa20_64/end.o
+endif
 else
 EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
+ifneq ($(OS_TEST), ia64)
 EXTRA_LIBS += /opt/langtools/lib/end.o
+endif
 endif #USE_64
 endif #DEBUG
 # Always put libpthread at the beginning of the library list, otherwise NSPR gets upset (very)

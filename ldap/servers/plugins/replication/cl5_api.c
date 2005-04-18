@@ -156,7 +156,11 @@
  * The value 0 means use the default stacksize.
  */
 #if defined (OSF1) || defined (__LP64__) || defined (_LP64) /* 64-bit architectures need bigger stacks */
+#if defined(__hpux) && defined(__ia64)
+#define DEFAULT_THREAD_STACKSIZE        524288L
+#else
 #define DEFAULT_THREAD_STACKSIZE 	131072L
+#endif
 #else
 #define DEFAULT_THREAD_STACKSIZE 	0
 #endif

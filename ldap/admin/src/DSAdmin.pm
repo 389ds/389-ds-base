@@ -88,7 +88,12 @@ BEGIN {
 		$dll_suffix = "_shr.a";
     }	
     elsif ( $os eq "HP-UX" ) {
+	$arch = &uname("-p");
+	if ( $arch eq "ia64" ) {
+		$dll_suffix = ".so";
+	} else {
 		$dll_suffix = ".sl";
+        }
     }	
     elsif ( $os eq "WINNT" ) {
 		$dll_suffix = ".dll";

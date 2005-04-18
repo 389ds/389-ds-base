@@ -57,8 +57,10 @@ int main( argc, argv, env )
     char       *ldapquery = NULL;
 #ifndef __LP64__	
 #ifdef HPUX
+#ifndef __ia64
 	/* call the static constructors in libnls */
 	_main();
+#endif
 #endif
 #endif
     /* 
