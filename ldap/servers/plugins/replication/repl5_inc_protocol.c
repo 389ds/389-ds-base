@@ -450,7 +450,7 @@ repl5_inc_waitfor_async_results(result_data *rd)
 		/* Lock the structure to force memory barrier */
 		PR_Lock(rd->lock);
 		/* Are we caught up ? */
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_REPL, NULL,
 					"repl5_inc_waitfor_async_results: %d %d\n",
 					rd->last_message_id_received, rd->last_message_id_sent, 0);
 		if (rd->last_message_id_received >= rd->last_message_id_sent) 

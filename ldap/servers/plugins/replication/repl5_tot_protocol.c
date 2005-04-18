@@ -187,7 +187,7 @@ static void repl5_tot_result_threadmain(void *param)
 		}
 		conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
 		
-		if (connection_error)
+		if (connection_error && connection_error != LDAP_TIMEOUT)
 		{
 			repl5_tot_log_operation_failure(connection_error,ldap_error_string,agmt_get_long_name(cb->prp->agmt));
 		}
@@ -277,8 +277,8 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 		/* Lock the structure to force memory barrier */
 		PR_Lock(cb_data->lock);
 		/* Are we caught up ? */
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
-					"repl5_inc_waitfor_async_results: %d %d\n",
+		slapi_log_error(SLAPI_LOG_REPL, NULL,
+					"repl5_tot_waitfor_async_results: %d %d\n",
 					cb_data->last_message_id_received, cb_data->last_message_id_sent, 0);
 		if (cb_data->last_message_id_received >= cb_data->last_message_id_sent) 
 		{
