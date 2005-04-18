@@ -1,0 +1,16 @@
+This file describes the limits of the Exception under which you are
+allowed to distribute Non-GPL in linked combination with the Directory
+Server.  For the full text of the license, please see one of the
+header files included with the source distribution or the file LICENSE
+found in the top level directory of the source.
+
+Permitted interfaces include:
+
+* ldap/servers/slapd/slapi-plugin.h
+
+This header file defines a set of interfaces that allow you to build
+shared libraries that the Directory Server can load at run time.  As
+long as those plugins only link to the Directory Server code via those
+interfaces listed in slapi-plugin.h, and any header files that are
+part of the header file dependency chain for slapi-plugin.h, your code
+falls under the Exception defined in the Directory Server License.
