@@ -170,6 +170,19 @@ static char* windows_group_matching_attributes[] =
 	NULL
 };
 
+/* List of attributes that are common to AD and LDAP, so we simply copy them over in both directions */
+static char* nt4_user_matching_attributes[] = 
+{
+	"description",
+	NULL
+};
+
+static char* nt4_group_matching_attributes[] = 
+{
+	"description",
+	NULL
+};
+
 static windows_attribute_map user_attribute_map[] = 
 {
 	{ "homeDirectory", "ntUserHomeDir", bidirectional, always, normal},
@@ -968,12 +981,12 @@ error:
 }
 
 static int
-is_straight_mapped_attr(const char *type, int is_user /* or group */)
+is_straight_mapped_attr(const char *type, int is_user /* or group */, int is_nt4)
 {
 	int found = 0;
 	size_t offset = 0;
 	char *this_attr = NULL;
-	char **list = is_user ? windows_user_matching_attributes : windows_group_matching_attributes;
+	char **list = is_user ? (is_nt4 ? nt4_user_matching_attributes : windows_user_matching_attributes) : (is_nt4 ? nt4_group_matching_attributes : windows_group_matching_attributes);
 	/* Look for the type in the list of straight mapped attrs for the appropriate object type */
 	while (this_attr = list[offset])
 	{
@@ -1056,6 +1069,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 	char *remote_entry_template = NULL;
 	char *fqusername = NULL;
 	const char *domain_name = windows_private_get_windows_domain(prp->agmt); 
+	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 
 	char *remote_user_entry_template = 
 		"dn: %s\n"
@@ -1114,7 +1128,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 		slapi_attr_get_type( attr, &type );
 		slapi_attr_get_valueset(attr,&vs);
 
-		if ( is_straight_mapped_attr(type,is_user) )
+		if ( is_straight_mapped_attr(type,is_user,is_nt4) )
 		{
 			/* copy over the attr values */
 			slapi_entry_add_valueset(new_entry,type,vs);
@@ -1234,6 +1248,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 	Slapi_Mods mapped_smods = {0};
 	LDAPMod *mod = NULL;
 	int i=0; 
+	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
 
@@ -1248,7 +1263,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 		int mapdn = 0;
 
 		/* Check to see if this attribute is passed through */
-		if (is_straight_mapped_attr(attr_type,is_user)) {
+		if (is_straight_mapped_attr(attr_type,is_user,is_nt4)) {
 			/* If so then just copy over the mod */
 			slapi_mods_add_modbvps(&mapped_smods,mod->mod_op,attr_type,mod->mod_bvalues);
 		} else 
@@ -2088,7 +2103,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		slapi_attr_get_type( attr, &type );
 		slapi_attr_get_valueset(attr,&vs);
 
-		if ( is_straight_mapped_attr(type,is_user) )
+		if ( is_straight_mapped_attr(type,is_user,is_nt4) )
 		{
 			/* copy over the attr values */
 			slapi_entry_add_valueset(local_entry,type,vs);
@@ -2135,7 +2150,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		goto error;
 	}
 	/* Hack for NT4, which has no surname */
-	if (is_nt4)
+	if (is_nt4 && is_user)
 	{
 		slapi_entry_add_string(local_entry,"sn",username);
 	}
@@ -2208,7 +2223,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			local_type = slapi_ch_strdup("ntUniqueId");
 		} else 
 		{
-			if ( is_straight_mapped_attr(type,is_user) ) {
+			if ( is_straight_mapped_attr(type,is_user,is_nt4) ) {
 				local_type = slapi_ch_strdup(type);
 			} else {
 				windows_map_attr_name(type , to_windows, is_user, 0 /* not create */, &local_type, &mapdn);
