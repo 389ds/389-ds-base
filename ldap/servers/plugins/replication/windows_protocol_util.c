@@ -122,7 +122,6 @@ static char* windows_user_matching_attributes[] =
 	"postalAddress",
 	"postalCode",
 	"registeredAddress",
-	"seeAlso",
 	"sn",
 	"st",
 	"street",
@@ -157,7 +156,6 @@ static char* windows_group_matching_attributes[] =
 	"postalCode",
 	"preferredDeliveryMethod",
 	"registeredAddress",
-	"seeAlso",
 	"sn",
 	"st",
 	"street",
@@ -202,7 +200,6 @@ static windows_attribute_map user_attribute_map[] =
 	/* However, it isn't a naming attribute in DS (we use uid) so it's safe to accept changes inbound */
     { "name", "cn", fromwindowsonly, always, normal},
     { "manager", "manager", bidirectional, always, dnmap},
-    { "secretary", "secretary", bidirectional, always, dnmap},
     { "seealso", "seealso", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
