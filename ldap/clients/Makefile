@@ -49,13 +49,7 @@ BUILD_ROOT=../..
 include $(BUILD_ROOT)/nsconfig.mk
 include $(BUILD_ROOT)/ldap/javarules.mk
 
-all: _ldaptags _online _dsgw _dsmlgw
-
-_ldaptags:
-	cd ldaptags; $(MAKE)
-
-_online:
-	cd online; $(MAKE)
+all: _dsgw _dsmlgw
 
 _dsgw:
 	cd dsgw; $(MAKE)

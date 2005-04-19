@@ -362,16 +362,6 @@ endif # USE_DSMLGW
 
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/dsml/*.dsml $(RELDIR)/bin/slapd/install/dsml
-# Package online and ldaptags only if they exist: they are only built on 
-# Solaris and NT but packaged on all platforms
-	if [ -d $(BUILD_DRIVE)$(BUILD_ROOT)/../dist/online ] ; then \
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/../dist/online/*.war $(RELDIR)/clients/slapd ; \
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/online/doc/*.html $(RELDIR)/clients/slapd ; \
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/online/ldif/*.ldif $(RELDIR)/clients/slapd ; \
-	fi
-#	if [ -d $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/ldaptags ] ; then \
-#	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/ldaptags/doc/*.html $(RELDIR)/clients/slapd ; \
-#	fi
 
 ### Package up the orgchart ###
 ifeq ($(USE_ORGCHART), 1)
