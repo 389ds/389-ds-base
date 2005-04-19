@@ -26,7 +26,9 @@
  * in conjunction with the Program except the Non-GPL Code covered by this
  * exception. If you modify this file, you may extend this exception to your
  * version of the file, but you are not obligated to do so. If you do not wish to
- * do so, delete this exception statement from your version. 
+ * provide this exception without modification, you must delete this exception
+ * statement from your version and license this file solely under the GPL without
+ * exception. 
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
@@ -84,6 +86,9 @@ slapd_re_unlock( void )
  * Modification history:
  *
  * $Log: regex.c,v $
+ * Revision 1.4  2005/04/19 22:07:37  nkinder
+ * Fixed licensing typo
+ *
  * Revision 1.3  2005/04/15 22:40:35  nkinder
  * 155068 - Added license to source files
  *

@@ -27,7 +27,9 @@
 @rem // in conjunction with the Program except the Non-GPL Code covered by this
 @rem // exception. If you modify this file, you may extend this exception to your
 @rem // version of the file, but you are not obligated to do so. If you do not wish to
-@rem // do so, delete this exception statement from your version. 
+@rem // provide this exception without modification, you must delete this exception
+@rem // statement from your version and license this file solely under the GPL without
+@rem // exception. 
 @rem // 
 @rem // 
 @rem // Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
