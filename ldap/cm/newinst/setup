@@ -109,6 +109,25 @@ ask123() {
 	return $ans
 }
 
+getFQDN() {
+	max=0
+	maxhost=
+	defhost=`hostname`
+	echo "getFQDN: hostname = $defhost" >> $logfile
+	hosthost=`host $defhost | grep -v "not found" | awk '{print $1}'`
+	echo "getFQDN: host $defhost = $hosthost" >> $logfile
+	for host in $defhost $hosthost `hostname -f` `hostname -a` ; do
+		len=`echo $host | wc -c`
+		echo "getFQDN: host $host has length $len" >> $logfile
+		if [ $len -gt $max ]; then
+			max=$len
+			maxhost=$host
+			echo "getFQDN: new max host $host has length $max" >> $logfile
+		fi
+	done
+	echo $maxhost
+}
+
 logfile=`doMktmp log`
 myargs=
 silent=
@@ -192,11 +211,7 @@ if ! [ $silent ]; then
 	tmpinffile=1
 
 	# put some common answers in the file
-	hostname=`hostname -f`
-	tryhost=`host $hostname | grep -v "not found" | awk '{print $1}'`
-	if [ "$tryhost" ] ; then
-		hostname=$tryhost
-	fi
+	hostname=`getFQDN`
 	if ! [ $hostname ] ; then
 		hostname=localhost.localdomain
 	fi
