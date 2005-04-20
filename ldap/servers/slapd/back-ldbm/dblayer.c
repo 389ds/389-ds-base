@@ -1972,6 +1972,10 @@ out:
 
     if (mode & DBLAYER_NORMAL_MODE) {
         dbversion_write(li, inst_dirp, NULL);
+		/* richm - not sure if need to acquire the be lock first? */
+		/* need to set state back to started - set to stopped in
+		   dblayer_instance_close */
+		be->be_state = BE_STATE_STARTED;
     }
 
     /*
