@@ -66,9 +66,11 @@ char * sha1_pw_enc( char *pwd );
 char * salted_sha1_pw_enc( char *pwd );
 int clear_pw_cmp( char *userpwd, char *dbpwd );
 char *clear_pw_enc( char *pwd );
+#ifndef _WIN32
 void crypt_init();
 int crypt_pw_cmp( char *userpwd, char *dbpwd );
 char *crypt_pw_enc( char *pwd );
+#endif
 int ns_mta_md5_pw_cmp( char *userpwd, char *dbpwd );
 
 

@@ -65,11 +65,14 @@ INCLUDES += -I$(LDAP_SRC)/servers/slapd
 PWD_OBJS= \
 	pwd_init.o \
 	clear_pwd.o \
-	crypt_pwd.o \
 	ns-mta-md5_pwd.o \
 	sha_pwd.o \
 	ssha_pwd.o \
 	md5c.o
+
+ifneq ($(ARCH), WINNT)
+PWD_OBJS += crypt_pwd.o
+endif
 
 
 OBJS = $(addprefix $(OBJDEST)/, $(PWD_OBJS)) 

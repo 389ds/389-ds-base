@@ -3204,6 +3204,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "\n");
 
+#if !defined(_WIN32)
     fprintf(f, "dn: cn=CRYPT,cn=Password Storage Schemes,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
@@ -3213,6 +3214,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "\n");
+#endif
 
     fprintf(f, "dn: cn=CLEAR,cn=Password Storage Schemes,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");

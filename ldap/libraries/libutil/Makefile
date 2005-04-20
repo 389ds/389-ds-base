@@ -61,10 +61,6 @@ include $(LDAP_SRC)/nsldap.mk
 LIBUTIL_OBJS=	getopt.o ntevent.o \
 	ntreg.o ntstubs.o
 
-ifeq ($(ARCH), WINNT)
-LIBUTIL_OBJS += crypt.o
-endif
-
 OBJS = $(addprefix $(OBJDEST)/, $(LIBUTIL_OBJS)) 
 
 LIBUTIL=	$(addprefix $(LIBDIR)/, libutil.$(LIB_SUFFIX))
