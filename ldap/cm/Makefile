@@ -842,7 +842,7 @@ endif  # USE_64
 else
 ifeq ($(ARCH), Linux)
 ifdef BUILD_RPM
-        $(longdir)/longduration $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm) &
+	$(longdir)/longduration $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm) &
 endif  # BUILD_RPM
 else
 	$(longdir)/longduration $(BUILD_SHIP)/$(FTPNAMEGZ) &
