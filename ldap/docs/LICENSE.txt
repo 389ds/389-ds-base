@@ -1,6 +1,132 @@
-Use of this software product is governed by the license agreement provided
-by Netscape Communications Corporation. By typing "Yes" in agreement to the
-license terms or by installing or using the software, you confirm that your
-organization has agreed to be bound by the license terms and that you and your
-organization will use this product only in accordance with those license terms.
+LICENSE AGREEMENT AND LIMITED PRODUCT WARRANTY
+FEDORA(TM) DIRECTORY SERVER
 
+This agreement governs the use of Fedora Directory Server,
+Administration Server and Management Console (collectively, the
+"SOFTWARE") and any updates to the Software, regardless of the
+delivery mechanism.
+
+1.  FEDORA DIRECTORY SERVER
+
+1.1 LICENSE GRANT.  Fedora Directory Server ("FDS") is a modular
+application consisting of hundreds of software components and is a
+collective work under U.S. Copyright Law.  Subject to the following
+terms, Red Hat, Inc. ("RED HAT") grants to the user ("LICENSEE") a
+license to this collective work pursuant to the GNU General Public
+License.  Please note that Administration Server and Management
+Console, which are binary-only code used to configure and administer
+FDS, are subject to the license terms in Section 2.  The end user
+license agreement for each component of FDS is located in the
+component's source code. The license terms for the components
+permit LICENSEE to copy, modify, and redistribute the component, in
+both source code and binary code forms.  This agreement does not limit
+LICENSEE's rights under, or grant LICENSEE rights that supersede, the
+license terms of any particular component.
+
+1.2 LICENSE EXCEPTION.  In addition, as a special exception, Red Hat
+gives LICENSEE the additional right to link the code of FDS with code
+not covered under the GNU General Public License ("NON-GPL CODE") and
+to distribute linked combinations including the two, subject to the
+limitations in this paragraph. Non-GPL Code permitted under this
+exception must only link to the code of FDS through those well defined
+interfaces identified in that file named EXCEPTION in the source code
+files for FDS (the "APPROVED INTERFACES"). The files of Non-GPL Code
+may instantiate templates or use macros or inline functions from the
+Approved Interfaces without causing the resulting work to be covered
+by the GNU General Public License. Only Red Hat may make changes or
+additions to the list of Approved Interfaces.  LICENSEE must comply
+with the GNU General Public License in all respects for all of the FDS
+code and other code used in conjunction with FDS except the Non-GPL
+Code covered by this exception. If LICENSEE modifies FDS, LICENSEE may
+extend this exception to its version of FDS, but LICENSEE is not
+obligated to do so. If LICENSEE does not wish to provide this
+exception without modification, LICENSEE must delete this exception
+statement from LICENSEE's version of FDS and license FDS solely under
+the GPL without exception.
+
+1.3 INTELLECTUAL PROPERTY RIGHTS.  FDS and each of its components,
+including the source code, documentation, appearance, structure and
+organization are owned by Red Hat and others and are protected under
+copyright and other laws.  Title to FDS and any component, or to any
+copy, modification, or merged portion shall remain with the
+aforementioned, subject to the applicable license.
+
+2.  ADMINISTRATION SERVER, AND MANAGEMENT CONSOLE
+
+2.1 LICENSE GRANT.  Subject to the provisions of this Section 2.1, Red
+Hat hereby grants LICENSEE a non-exclusive, non-transferable,
+worldwide, perpetual, fully paid right (without the right to
+sublicense) to use, reproduce and distribute Administration Server
+("ADMIN SERVER"), and Management Console ("CONSOLE") in executable,
+machine-readable form.  LICENSEE must reproduce all copyright and
+other proprietary notices on such copies.  LICENSEE may only reproduce
+and distribute Admin Server or Console to another party if the other
+party agrees in writing to be obligated by the terms and conditions of
+this Section 2.1.  Except as provided in this Section 2.1, LICENSEE
+may not modify, copy, transfer or otherwise use Admin Server, or
+Console, and all licenses granted in this Section 2 are automatically
+terminated if LICENSEE does so.
+
+2.2 CHANGE IN LICENSING.  It is Red Hat's intent to change the terms
+of the license granted in this Section 2 to that of an open source
+license.  If such change is generally announced to the public,
+LICENSEE will have the option to elect to have Admin Server and
+Console governed by the terms of such open source license.  If
+LICENSEE does not make such election, the terms of this Agreement will
+continue to govern LICENSEE's use of Admin Server and Console.
+
+3.  LIMITED WARRANTY.  Except as specifically stated in this Section 3
+or a license for a particular component, TO THE MAXIMUM EXTENT
+PERMITTED UNDER APPLICABLE LAW, THE SOFTWARE AND THE COMPONENTS ARE
+PROVIDED AND LICENSED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESSED
+OR IMPLIED, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY,
+NON-INFRINGEMENT OR FITNESS FOR A PARTICULAR PURPOSE.  Red Hat does
+not warrant that the functions contained in the Software will meet
+LICENSEE's requirements or that the operation of the Software will be
+entirely error free or appear precisely as described in the
+accompanying documentation.
+
+4.  LIMITATION OF REMEDIES AND LIABILITY. TO THE MAXIMUM EXTENT
+PERMITTED BY APPLICABLE LAW, RED HAT WILL NOT BE LIABLE TO LICENSEE
+FOR ANY INCIDENTAL OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS OR
+LOST SAVINGS ARISING OUT OF THE USE OR INABILITY TO USE THE SOFTWARE,
+EVEN IF RED HAT HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+5.  EXPORT CONTROL.  As required by U.S. law, LICENSEE represents and
+warrants that it: (a) understands that the Software is subject to
+export controls under the U.S. Commerce Department's Export
+Administration Regulations ("EAR"); (b) is not located in a prohibited
+destination country under the EAR or U.S. sanctions regulations
+(currently Cuba, Iran, Iraq, Libya, North Korea, Sudan and Syria); (c)
+will not export, re-export, or transfer the Software to any prohibited
+destination, entity, or individual without the necessary export
+license(s) or authorizations(s) from the U.S.  Government; (d) will
+not use or transfer the Software for use in any sensitive nuclear,
+chemical or biological weapons, or missile technology end-uses unless
+authorized by the U.S. Government by regulation or specific license;
+(e) understands and agrees that if it is in the United States and
+exports or transfers the Software to eligible end users, it will, as
+required by EAR Section 740.17(e), submit semi-annual reports to the
+Commerce Department's Bureau of Industry & Security (BIS), which
+include the name and address (including country) of each transferee;
+and (f) understands that countries other than the United States may
+restrict the import, use, or export of encryption products and that it
+shall be solely responsible for compliance with any such import, use,
+or export restrictions.
+
+6.  THIRD PARTY PROGRAMS. Red Hat may distribute third party software
+programs with the Software that are not part of the Software.  These
+third party programs are subject to their own license terms.  The
+license terms either accompany the programs or can be viewed at
+http://www.redhat.com/licenses/.  If LICENSEE does not agree to abide
+by the applicable license terms for such programs, then LICENSEE may
+not install them.  If LICENSEE wishes to install the programs on more
+than one system or transfer the programs to another party, then
+LICENSEE must contact the licensor of the programs.
+
+7.  GENERAL.  If any provision of this agreement is held to be
+unenforceable, that shall not affect the enforceability of the
+remaining provisions.  This agreement shall be governed by the laws of
+the State of North Carolina and of the United States, without regard
+to any conflict of laws provisions, except that the United Nations
+Convention on the International Sale of Goods shall not apply.
