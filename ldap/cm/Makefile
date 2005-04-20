@@ -840,7 +840,13 @@ ifeq ($(USE_64), 1)  # only run long duration on 64-bit HPUX builds
 	$(longdir)/longduration $(BUILD_SHIP)/$(FTPNAMEGZ) &
 endif  # USE_64
 else
+ifeq ($(ARCH), Linux)
+ifdef BUILD_RPM
+        $(longdir)/longduration $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm) &
+endif  # BUILD_RPM
+else
 	$(longdir)/longduration $(BUILD_SHIP)/$(FTPNAMEGZ) &
+endif  # Linux
 endif  # HPUX
 endif  # optimize
 endif  # domestic
