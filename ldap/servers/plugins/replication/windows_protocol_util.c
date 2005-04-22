@@ -66,7 +66,7 @@ static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
 static int map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
 static char* extract_ntuserdomainid_from_entry(Slapi_Entry *e);
-static int windows_get_remote_entry (Private_Repl_Protocol *prp, Slapi_DN* remote_dn,Slapi_Entry **remote_entry);
+static int windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,Slapi_Entry **remote_entry);
 static const char* op2string (int op);
 static int is_subject_of_agreemeent_remote(Slapi_Entry *e, const Repl_Agmt *ra);
 static int map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra);
@@ -193,8 +193,8 @@ static windows_attribute_map user_attribute_map[] =
 	{ "codePage", "ntUserCodePage", bidirectional, always, normal},
 	{ "logonHours", "ntUserLogonHours", bidirectional, always, normal},
 	{ "maxStorage", "ntUserMaxStorage", bidirectional, always, normal},
-	{ "profilePath", "ntUserParms", bidirectional, always, normal},
-	{ "userParameters", "ntUserProfile", bidirectional, always, normal},
+	{ "profilePath", "ntUserProfile", bidirectional, always, normal},
+	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
     { "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
 	/* cn is a naming attribute in AD, so we don't want to change it after entry creation */
@@ -260,12 +260,12 @@ windows_dump_entry(const char *string, Slapi_Entry *e)
 		if (buffer)
 		{
 			slapi_ch_free((void**)&buffer);
-		}
+		} 
 	}
 }
 
 static void
-map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_ValueSet **mapped_values, int to_windows)
+map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_ValueSet **mapped_values, int to_windows, int return_originals)
 {
 	Slapi_ValueSet *new_vs = NULL;
 	Slapi_Value *original_value = NULL;
@@ -305,7 +305,13 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 						if (!missing_entry)
 						{
 							/* Success */
-							new_dn_string = slapi_ch_strdup(slapi_sdn_get_dn(remote_dn));
+							if (return_originals)
+							{
+								new_dn_string = slapi_ch_strdup(slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)));
+							} else 
+							{
+								new_dn_string = slapi_ch_strdup(slapi_sdn_get_dn(remote_dn));
+							}
 						}
 						slapi_sdn_free(&remote_dn);
 					}
@@ -324,18 +330,30 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 			Slapi_DN *local_dn = NULL;
 			/* Try to get the remote entry */
 			retval = windows_get_remote_entry(prp,original_dn,&remote_entry);
-			is_ours = is_subject_of_agreemeent_remote(remote_entry,prp->agmt);
-			if (is_ours)
+			if (remote_entry && 0 == retval)
 			{
-				retval = map_entry_dn_inbound(remote_entry,&local_dn,prp->agmt);	
-				if (0 == retval && local_dn)
+				is_ours = is_subject_of_agreemeent_remote(remote_entry,prp->agmt);
+				if (is_ours)
 				{
-					new_dn_string = slapi_ch_strdup(slapi_sdn_get_dn(local_dn));
-					slapi_sdn_free(&local_dn);
-				} else
-				{
-					slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no remote entry found for %s\n", original_dn_string);
+					retval = map_entry_dn_inbound(remote_entry,&local_dn,prp->agmt);	
+					if (0 == retval && local_dn)
+					{
+						if (return_originals)
+						{
+							new_dn_string = slapi_ch_strdup(slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
+						} else
+						{
+							new_dn_string = slapi_ch_strdup(slapi_sdn_get_dn(local_dn));
+						}
+						slapi_sdn_free(&local_dn);
+					} else
+					{
+						slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no local dn found for %s\n", original_dn_string);
+					}
 				}
+			} else
+			{
+				slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no remote entry found for %s\n", original_dn_string);
 			}
 			if (remote_entry)
 			{
@@ -453,6 +471,10 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 
 	windows_dump_ruvs(supl_ruv_obj,cons_ruv_obj);
 	is_newer = ruv_is_newer ( supl_ruv_obj, cons_ruv_obj );
+	if (is_newer)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, NULL, "acquire_replica, supplier RUV is newer\n");
+	}
 	
 	/* Handle the pristine case */
 	if (cons_ruv_obj == NULL) 
@@ -641,32 +663,30 @@ static int
 windows_entry_has_attr_and_value(Slapi_Entry *e, const char *attrname, char *value)
 {
 	int retval = 0;
-	Slapi_Attr *attr = 0;
-	if (!e || !attrname)
+	Slapi_Attr *attr = NULL;
+	if (NULL == e || NULL == attrname)
+	{
 		return retval;
-
+	}
 	/* see if the entry has the specified attribute name */
-	if (!slapi_entry_attr_find(e, attrname, &attr) && attr)
+	if (0 == slapi_entry_attr_find(e, attrname, &attr) && attr)
 	{
 		/* if value is not null, see if the attribute has that
 		   value */
-		if (!value)
+		if (value)
 		{
-			retval = 1;
-		}
-		else
-		{
-			Slapi_Value *v = 0;
+			Slapi_Value *v = NULL;
 			int index = 0;
 			for (index = slapi_attr_first_value(attr, &v);
 				 v && (index != -1);
 				 index = slapi_attr_next_value(attr, index, &v))
 			{
 				const char *s = slapi_value_get_string(v);
-				if (!s)
+				if (NULL == s)
+				{
 					continue;
-
-				if (!strcasecmp(s, value))
+				}
+				if (0 == strcasecmp(s, value))
 				{
 					retval = 1;
 					break;
@@ -739,12 +759,12 @@ delete_remote_entry_allowed(Slapi_Entry *e)
 	if (!is_user && !is_group)
 	{
 		/* Neither fish nor foul.. */
-		return -1;
+		return 0;
 	}
 	if (is_user && is_group) 
 	{
 		/* Now that's just really strange... */
-		return -1;
+		return 0;
 	}
 	if (is_user) 
 	{
@@ -1141,7 +1161,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 				if (mapdn)
 				{
 					Slapi_ValueSet *mapped_values = NULL;
-					map_dn_values(prp,vs,&mapped_values, 1 /* to windows */);
+					map_dn_values(prp,vs,&mapped_values, 1 /* to windows */,0);
 					if (mapped_values) 
 					{
 						slapi_entry_add_valueset(new_entry,new_type,mapped_values);
@@ -1282,7 +1302,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 					vs = slapi_valueset_new();
 					slapi_mod_init_byref(&smod,mod);
 					slapi_valueset_set_from_smod(vs, &smod);
-					map_dn_values(prp,vs,&mapped_values, 1 /* to windows */);
+					map_dn_values(prp,vs,&mapped_values, 1 /* to windows */,0);
 					if (mapped_values) 
 					{
 						slapi_mods_add_mod_values(&mapped_smods,mod->mod_op,mapped_type,valueset_get_valuearray(mapped_values));
@@ -1413,7 +1433,7 @@ find_entry_by_attr_value_remote(const char *attribute, const char *value, Slapi_
 
 /* Search for an entry in AD by DN */
 static int
-windows_get_remote_entry (Private_Repl_Protocol *prp, Slapi_DN* remote_dn,Slapi_Entry **remote_entry)
+windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,Slapi_Entry **remote_entry)
 {
 	int retval = 0;
 	ConnResult cres = 0;
@@ -2116,7 +2136,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 				if (mapdn)
 				{
 					Slapi_ValueSet *mapped_values = NULL;
-					map_dn_values(prp,vs,&mapped_values, 0 /* from windows */);
+					map_dn_values(prp,vs,&mapped_values, 0 /* from windows */,0);
 					if (mapped_values) 
 					{
 						slapi_entry_add_valueset(local_entry,new_type,mapped_values);
@@ -2175,6 +2195,48 @@ error:
 	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_create_local_entry\n", 0, 0, 0 );
 	return retval;
+}
+
+/* Function to generate the correct mods to bring 'local' attribute values into consistency with given 'remote' values */
+/* 'local' and 'remote' in quotes because we actually use this function in both directions */
+/* This function expects the value sets to have been already pruned to exclude values that are not
+ * subject to the agreement and present in the peer. */
+static int
+windows_generate_dn_value_mods(char *local_type, const Slapi_Attr *attr, Slapi_Mods *smods, Slapi_ValueSet *remote_values, Slapi_ValueSet *local_values, int *do_modify)
+{
+	int ret = 0;
+	int i = 0;
+	Slapi_Value *rv = NULL;
+	Slapi_Value *lv = NULL;
+	/* We need to generate an ADD mod for each entry that is in the remote values but not in the local values */
+	/* Iterate over the remote values */
+	i = slapi_valueset_first_value(remote_values,&rv);
+	while (NULL != rv)
+	{
+		const char *remote_dn = slapi_value_get_string(rv);
+		int value_present_in_local_values = (NULL != slapi_valueset_find(attr, local_values, rv));
+		if (!value_present_in_local_values)
+		{
+			slapi_mods_add_string(smods,LDAP_MOD_ADD,local_type,remote_dn);
+			*do_modify = 1;
+		}
+		i = slapi_valueset_next_value(remote_values,i,&rv);
+	}
+	/* We need to generate a DEL mod for each entry that is in the local values but not in the remote values */
+	/* Iterate over the local values */
+	i = slapi_valueset_first_value(local_values,&lv);
+	while (NULL != lv)
+	{
+		const char *local_dn = slapi_value_get_string(lv);
+		int value_present_in_remote_values = (NULL != slapi_valueset_find(attr, remote_values, lv));
+		if (!value_present_in_remote_values)
+		{
+			slapi_mods_add_string(smods,LDAP_MOD_DELETE,local_type,local_dn);
+			*do_modify = 1;
+		}
+		i = slapi_valueset_next_value(local_values,i,&lv);
+	}
+	return ret;
 }
 
 static int
@@ -2244,29 +2306,46 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		/* Is the attribute present on the local entry ? */
 		if (is_present_local && !is_guid)
 		{
-			int values_equal = attr_compare_equal(attr,local_attr);
-			/* If it is then we need to replace the local values with the remote values if they are different */
-			if (!values_equal)
+			if (!mapdn)
 			{
-				if (mapdn)
-				{
-					Slapi_ValueSet *mapped_values = NULL;
-					map_dn_values(prp,vs,&mapped_values, to_windows);
-					if (mapped_values) 
-					{
-						slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(mapped_values));
-						slapi_valueset_free(mapped_values);
-						mapped_values = NULL;
-					}
-				} else
+				int values_equal = attr_compare_equal(attr,local_attr);
+				/* If it is then we need to replace the local values with the remote values if they are different */
+				if (!values_equal)
 				{
 					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(vs));
+					*do_modify = 1;
+				} else
+				{
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"windows_update_local_entry: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 				}
-				*do_modify = 1;
-			} else
-			{
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-				"windows_update_local_entry: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+			} else {
+				/* A dn-valued attribute : need to take special steps */
+				Slapi_ValueSet *mapped_remote_values = NULL;
+				/* First map all the DNs to that they're in a consistent domain */
+				map_dn_values(prp,vs,&mapped_remote_values, to_windows,0);
+				if (mapped_remote_values) 
+				{
+					Slapi_ValueSet *local_values = NULL;
+					Slapi_ValueSet *restricted_local_values = NULL;
+					/* Now do a compare on the values, generating mods to bring them into consistency (if any) */
+					/* We ignore any DNs that are outside the scope of the agreement (on both sides) */
+					slapi_attr_get_valueset(local_attr,&local_values);
+					map_dn_values(prp,local_values,&restricted_local_values,!to_windows,1);
+					if (restricted_local_values)
+					{
+						windows_generate_dn_value_mods(local_type,local_attr,smods,mapped_remote_values,restricted_local_values,do_modify);
+						slapi_valueset_free(restricted_local_values);
+						restricted_local_values = NULL;
+					}
+					slapi_valueset_free(mapped_remote_values);
+					mapped_remote_values = NULL;
+					if (local_values) 
+					{
+						slapi_valueset_free(local_values);
+						local_values = NULL;
+					}
+				}
 			}
 		} else
 		{
@@ -2288,7 +2367,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 					if (mapdn)
 					{
 						Slapi_ValueSet *mapped_values = NULL;
-						map_dn_values(prp,vs,&mapped_values, to_windows);
+						map_dn_values(prp,vs,&mapped_values, to_windows,0);
 						if (mapped_values) 
 						{
 							slapi_mods_add_mod_values(smods,LDAP_MOD_ADD,local_type,valueset_get_valuearray(mapped_values));
@@ -2313,6 +2392,10 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			slapi_ch_free((void**)&local_type);
 			local_type = NULL;
 		}
+	}
+	if (slapi_is_loglevel_set(SLAPI_LOG_REPL) && *do_modify)
+	{
+		slapi_mods_dump(smods,"windows sync");
 	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_update_local_entry: %d\n", retval, 0, 0 );
 	return retval;
@@ -2601,7 +2684,20 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 				if ((0 == rc) && local_entry) 
 				{
 					/* Since the entry exists we should now make it match the entry we received from AD */
-					rc = windows_update_local_entry(prp, e, local_entry);
+					/* Actually we are better off simply fetching the entire entry from AD and using that 
+					 * because otherwise we don't get all the attributes we need to make sense of it such as
+					 * objectclass */
+					Slapi_Entry *remote_entry = NULL;
+					windows_get_remote_entry(prp,slapi_entry_get_sdn_const(e),&remote_entry);
+					if (remote_entry)
+					{
+						rc = windows_update_local_entry(prp, remote_entry, local_entry);
+						slapi_entry_free(remote_entry);
+						remote_entry = NULL;
+					} else 
+					{
+						slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to fetch inbound entry.\n",agmt_get_long_name(prp->agmt));
+					}
 					slapi_entry_free(local_entry);
 					if (rc) {
 						/* Something bad happened */
