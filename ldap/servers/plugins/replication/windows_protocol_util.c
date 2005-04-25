@@ -126,7 +126,6 @@ static char* windows_user_matching_attributes[] =
 	"registeredAddress",
 	"sn",
 	"st",
-	"street",
 	"telephoneNumber",
 	"teletexTerminalIdentifier",
 	"telexNumber",
@@ -160,7 +159,6 @@ static char* windows_group_matching_attributes[] =
 	"registeredAddress",
 	"sn",
 	"st",
-	"street",
 	"telephoneNumber",
 	"teletexTerminalIdentifier",
 	"telexNumber",
@@ -194,6 +192,7 @@ static windows_attribute_map user_attribute_map[] =
 	{ "logonHours", "ntUserLogonHours", bidirectional, always, normal},
 	{ "maxStorage", "ntUserMaxStorage", bidirectional, always, normal},
 	{ "profilePath", "ntUserProfile", bidirectional, always, normal},
+	{ "streetAddress", "street", bidirectional, always, normal},
 	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
     { "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
@@ -210,6 +209,7 @@ static windows_attribute_map group_attribute_map[] =
 {
 	{ "groupType", "ntGroupType",  bidirectional, createonly, normal},
 	{ "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
+	{ "streetAddress", "street", bidirectional, always, normal},
     { "member", "uniquemember", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
