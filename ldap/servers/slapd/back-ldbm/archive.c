@@ -322,7 +322,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 
     /* start the database code up, do not attempt to perform recovery */
     if (run_from_cmdline &&
-        0 != dblayer_start(li,DBLAYER_ARCHIVE_MODE|DBLAYER_CMDLINE_MODE)) {
+        0 != dblayer_start(li,DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE)) {
         LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to init database\n",
                   0, 0, 0);
         if (task) {
@@ -336,7 +336,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 
     /* close the database down again */
     if (run_from_cmdline &&
-        0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE|DBLAYER_CMDLINE_MODE)) {
+        0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE)) {
         LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to close database\n",
                   0, 0, 0);
         if (task) {
