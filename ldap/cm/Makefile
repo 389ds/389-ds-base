@@ -764,7 +764,7 @@ ifdef BUILD_RPM
 	if [ ! -f $(RPM_FILE_BASE).tar.gz ] ; then \
 		if [ ! -f $(RPM_FILE_BASE) ] ; then \
 			ln -s $$builddir $(RPM_FILE_BASE) ; \
-		fi ; tar cfh - --exclude \*/built/\* $(RPM_FILE_BASE) | gzip > $(RPM_FILE_BASE).tar.gz ; \
+		fi ; tar cfh - --exclude \*/built --exclude \*/CVS $(RPM_FILE_BASE) --exclude \*/branding --exclude \*/RHEL* | gzip > $(RPM_FILE_BASE).tar.gz ; \
 		rm $(RPM_FILE_BASE) ; \
 	fi
 # execute the RPM build
