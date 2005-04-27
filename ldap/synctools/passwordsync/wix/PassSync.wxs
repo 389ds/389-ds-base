@@ -36,7 +36,7 @@
  All rights reserved.
  END COPYRIGHT BLOCK -->
 <Wix xmlns='http://schemas.microsoft.com/wix/2003/01/wi'>
-  <Product Name='Password Sync' Id='DB501C18-86C7-4D14-AEC0-86416A69ABDE'
+  <Product Name='Password Sync' Id='C1842CD5-4659-4E7C-A53C-37083B0CB59F'
     Language='1033' Codepage='1252'
     Version='1.0.0' Manufacturer='Brandx'>
 
