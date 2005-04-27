@@ -75,7 +75,7 @@ $(APACHEDSSOURCE)/core/target: $(JAVA_DEST_DIR)/ntds/jnetman.jar
 $(USERSYNCJAR): $(APACHEDSSOURCE)/core/target 
 	( cd  $(APACHEDSSOURCE)/core/target/schema && pwd && jar cf  usersync.jar org)
 	$(MV) $(APACHEDSSOURCE)/core/target/schema/usersync.jar $(USERSYNCJAR) 
+	$(RM) $(APACHEDSSOURCE)/core/target
 
 clean:
-	$(RM) $(APACHEDSSOURCE)/core/target
 	$(RM) $(USERSYNCJAR) 

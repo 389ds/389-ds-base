@@ -170,6 +170,9 @@ public:
 	char* GetAccountName();
 	char* GetSIDHexStr();
 
+	char* GetComment();
+	int SetComment(char* comment);
+
 	int AddUser(char* username);
 	int RemoveUser(char* username);
 	int LoadUsers();
@@ -224,6 +227,9 @@ public:
 	int StoreLocalGroup();
 	char* GetAccountName();
 	char* GetSIDHexStr();
+
+	char* GetComment();
+	int SetComment(char* comment);
 
 	int AddUser(char* username);
 	int RemoveUser(char* username);

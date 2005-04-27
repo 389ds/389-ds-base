@@ -78,7 +78,7 @@ import org.bpi.jnetman.*;
 public class NetAPIPartition implements ContextPartition {
 
     static {
-        System.loadLibrary("jnetman");
+    	System.loadLibrary("jnetman");
         System.out.println("dll loaded");
     }
 	
@@ -208,7 +208,7 @@ public class NetAPIPartition implements ContextPartition {
         }
 
         if(normName.toString().compareToIgnoreCase(suffix) == 0) {
-        	// Gets us past the CoreContestFactory.startUpAppPartitions
+        	// Gets us past the CoreContextFactory.startUpAppPartitions
         }
         else if((normName.toString().toLowerCase().endsWith(container + "," + suffix)) &&
         		(normName.toString().toLowerCase().startsWith(new String("sAMAccountName").toLowerCase()))) {
@@ -223,6 +223,10 @@ public class NetAPIPartition implements ContextPartition {
             }
             else if(attribute.contains("group")) {
             	attribute = entry.get("groupType");
+            	if(attribute == null) {
+            		throw new NamingException("Missing groupType");
+            	}
+            	
             	if(((new Integer((String)attribute.get())).intValue() & GLOBAL_FLAG) == GLOBAL_FLAG) {
             		group.NewGroup(rdn);
                     modNTGroupAttributes(group, modItems);
@@ -633,7 +637,7 @@ public class NetAPIPartition implements ContextPartition {
             result = true;
         }
         
-        // Ae exception raised in searchAccounts is treated as a false hasEntry result
+        // An exception raised in searchAccounts is treated as a false hasEntry result
         try {
         	if(searchAccounts(name, new Properties(), new PresenceNode(null), new SearchControls(), new BasicAttribute(null)) > 0) {
             	result = true;
@@ -1172,6 +1176,10 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(GLOBAL_FLAG).toString());
         attributes.put(attribute);
         
+        attribute = new BasicAttribute("description");
+        attribute.add(group.GetComment());
+        attributes.put(attribute);
+        
         attribute = new BasicAttribute("member");
         result = group.LoadUsers();
         if(result != 0) {
@@ -1222,6 +1230,10 @@ public class NetAPIPartition implements ContextPartition {
         
         attribute = new BasicAttribute("groupType");
         attribute.add(new Long(DOMAINLOCAL_FLAG).toString());
+        attributes.put(attribute);
+        
+        attribute = new BasicAttribute("description");
+        attribute.add(localGroup.GetComment());
         attributes.put(attribute);
         
         attribute = new BasicAttribute("member");
@@ -1469,13 +1481,24 @@ public class NetAPIPartition implements ContextPartition {
     
     private void modNTGroupAttributes(NTGroup group, ModificationItem[] mods) throws NamingException {
     	for(int i = 0; i < mods.length; i++) {
-	    	if(mods[i].getAttribute().getID().compareToIgnoreCase("member") == 0) {	
+        	if(mods[i].getAttribute().getID().compareToIgnoreCase("description") == 0) {
+        		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
+        			group.SetComment((String)mods[i].getAttribute().get());
+        		}
+        		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
+        			group.SetComment("");
+        		}
+        		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
+        			group.SetComment((String)mods[i].getAttribute().get());
+        		}
+        	}
+	    	else if(mods[i].getAttribute().getID().compareToIgnoreCase("member") == 0) {	
 	    		String tempName;
 	    		
 	    		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
 	    			for(int j = 0; j < mods[i].getAttribute().size(); j++) {
 	    				tempName = getRDN((String)mods[i].getAttribute().get(j));
-	    				group.AddUser((String)mods[i].getAttribute().get(j));
+	    				group.AddUser(tempName);
 	        		}
 	    		}
 	    		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
@@ -1515,13 +1538,24 @@ public class NetAPIPartition implements ContextPartition {
     
     private void modNTLocalGroupAttributes(NTLocalGroup localGroup, ModificationItem[] mods) throws NamingException {
     	for(int i = 0; i < mods.length; i++) {
-    		if(mods[i].getAttribute().getID().compareToIgnoreCase("member") == 0) {	
+        	if(mods[i].getAttribute().getID().compareToIgnoreCase("description") == 0) {
+        		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
+        			localGroup.SetComment((String)mods[i].getAttribute().get());
+        		}
+        		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
+        			localGroup.SetComment("");
+        		}
+        		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
+        			localGroup.SetComment((String)mods[i].getAttribute().get());
+        		}
+        	}
+    		else if(mods[i].getAttribute().getID().compareToIgnoreCase("member") == 0) {	
 	    		String tempName;
 	    		
 	    		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
 	    			for(int j = 0; j < mods[i].getAttribute().size(); j++) {
 	    				tempName = getRDN((String)mods[i].getAttribute().get(j));
-	    				localGroup.AddUser((String)mods[i].getAttribute().get(j));
+	    				localGroup.AddUser(tempName);
 	        		}
 	    		}
 	    		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {

@@ -1436,6 +1436,40 @@ char* NTGroup::GetSIDHexStr()
 }
 
 // ****************************************************************
+// NTGroup::GetComment
+// ****************************************************************
+char* NTGroup::GetComment()
+{
+	char* result = NULL;
+
+	if(groupInfo != NULL)
+	{
+		result = UTF16ToUTF8(groupInfo->grpi2_comment);
+	}
+
+	return result;
+}
+
+// ****************************************************************
+// NTGroup::SetComment
+// ****************************************************************
+int NTGroup::SetComment(char* comment)
+{
+	int result = 0;
+
+	if(groupInfo != NULL)
+	{
+		groupInfo->grpi2_comment = UTF8ToUTF16(comment);
+	}
+	else
+	{
+		result = -1;
+	}
+
+	return result;
+}
+
+// ****************************************************************
 // NTGroup::AddUser
 // ****************************************************************
 int NTGroup::AddUser(char* userName)
@@ -1761,6 +1795,40 @@ char* NTLocalGroup::GetSIDHexStr()
 	if(localGroupInfo != NULL)
 	{
 		GetSIDHexStrByAccountName(UTF16ToUTF8(localGroupInfo->lgrpi1_name), &result);
+	}
+
+	return result;
+}
+
+// ****************************************************************
+// NTLocalGroup::GetComment
+// ****************************************************************
+char* NTLocalGroup::GetComment()
+{
+	char* result = NULL;
+
+	if(localGroupInfo != NULL)
+	{
+		result = UTF16ToUTF8(localGroupInfo->lgrpi1_comment);
+	}
+
+	return result;
+}
+
+// ****************************************************************
+// NTLocalGroup::SetComment
+// ****************************************************************
+int NTLocalGroup::SetComment(char* comment)
+{
+	int result = 0;
+
+	if(localGroupInfo != NULL)
+	{
+		localGroupInfo->lgrpi1_comment = UTF8ToUTF16(comment);
+	}
+	else
+	{
+		result = -1;
 	}
 
 	return result;
