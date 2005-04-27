@@ -309,17 +309,19 @@ ifneq ($(ARCH), WINNT)
 	fi ; \
 	done
 # these are libs to copy to clients/lib on unix to support dsgw & pb
+ifdef USE_DSGW
 	for file in $(LIBS_TO_PKG_CLIENTS); \
 	do if [ -f $$file ] ; \
 	then $(INSTALL) -m 755 $$file $(RELDIR)/clients/lib ; \
 	fi ; \
 	done
 endif
+endif
 
 # PACKAGE_SRC_DEST is defined in components.mk - these are component files and directories to install
 # with the other component files that we don't necessarily pick up from the admin server build
 # these can go in any directory
-	-@for dest in $(PACKAGE_SRC_DEST) ; \
+	for dest in $(PACKAGE_SRC_DEST) ; \
 	do if [ "$$src" ] ; \
 	then if [ ! -d $(RELDIR)/$$dest ] ; then mkdir -p $(RELDIR)/$$dest ; fi ; \
 		if [ -d $$src ] ; \
@@ -356,11 +358,13 @@ endif # USE_DSMLGW
 # PACKAGE_UNDER_JAVA is defined in components.mk - these are component .jar files to install
 # with the other component files that we don't necessarily pick up from the admin server build
 # these go in the java/ directory
-	-@for file in $(PACKAGE_UNDER_JAVA) ; \
-	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
+ifdef PACKAGE_UNDER_JAVA
+	for file in $(PACKAGE_UNDER_JAVA) ; \
+		do if [ -f $$file ] ; \
+		then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
 	fi ; \
 	done
+endif
 
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/dsml/*.dsml $(RELDIR)/bin/slapd/install/dsml
@@ -473,7 +477,7 @@ endif
 # docs
 	-$(RM) -r $(RELDIR)/manual/en/slapd
 	-$(MKDIR) $(RELDIR)/manual/en/slapd
-	if [ $(DSDOC_DIR) -a -d $(DSDOC_DIR) ] ; then \
+	if [ "$(DSDOC_DIR)" -a -d "$(DSDOC_DIR)" ] ; then \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/manual/en/slapd/help ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/manual/en/slapd/ ; \
