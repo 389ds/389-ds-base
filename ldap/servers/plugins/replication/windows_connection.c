@@ -488,9 +488,9 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 static Slapi_Entry * 
 windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 
-	Slapi_Entry * e = slapi_entry_alloc();
-	char * a=NULL;
-	BerElement * ber=NULL;
+	Slapi_Entry *e = slapi_entry_alloc();
+	char *a = NULL;
+	BerElement * ber = NULL;
 
 	if ( e == NULL ) return NULL;
 	if (msg == NULL) {
@@ -503,24 +503,37 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 	 * attribute type and values ARE allocated
 	 */
 
-        slapi_entry_set_dn( e, ldap_get_dn( ld, msg ) );
+	slapi_entry_set_dn( e, ldap_get_dn( ld, msg ) );
  
-        for ( a = ldap_first_attribute( ld, msg, &ber ); a!=NULL; 
-              a=ldap_next_attribute( ld, msg, ber ) ) {
-            if(attrsonly) {
-                slapi_entry_add_value(e, a, (Slapi_Value *)NULL);
-		ldap_memfree(a);
-            } else {
-                struct  berval ** aVal = ldap_get_values_len( ld, msg, a);
-                slapi_entry_add_values( e, a, aVal);
+	for ( a = ldap_first_attribute( ld, msg, &ber ); a!=NULL; a=ldap_next_attribute( ld, msg, ber ) ) 
+	{
+		if (0 == strcasecmp(a,"dnsRecord") || 0 == strcasecmp(a,"dnsproperty"))
+		{
+			/* AD returns us entries with these attributes that we are not interested in, 
+			 * but they break the entry attribute code (I think it is looking at null-terminated
+			 * string values, but the values are binary here). So we skip those attributes as a workaround.
+			 */
+			;
+		} else
+		{
+			if (attrsonly) 
+			{
+				slapi_entry_add_value(e, a, (Slapi_Value *)NULL);
+				ldap_memfree(a);
+			} else 
+			{
+				struct  berval ** aVal = ldap_get_values_len( ld, msg, a);
+				slapi_entry_add_values( e, a, aVal);
                 
-                ldap_memfree(a);
-                ldap_value_free_len(aVal);
-            }
-        }
+				ldap_memfree(a);
+				ldap_value_free_len(aVal);
+			}
+		}
+	}
     if ( NULL != ber )
+	{
         ldap_ber_free( ber, 0 );
-
+	}
     return e;
 }
 
