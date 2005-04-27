@@ -192,7 +192,9 @@ static windows_attribute_map user_attribute_map[] =
 	{ "logonHours", "ntUserLogonHours", bidirectional, always, normal},
 	{ "maxStorage", "ntUserMaxStorage", bidirectional, always, normal},
 	{ "profilePath", "ntUserProfile", bidirectional, always, normal},
-	{ "streetAddress", "street", bidirectional, always, normal},
+	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
+	{ "street", "street", fromwindowsonly, always, normal},
+	{ "streetAddress", "street", towindowsonly, always, normal},
 	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
     { "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
@@ -208,8 +210,10 @@ static windows_attribute_map user_attribute_map[] =
 static windows_attribute_map group_attribute_map[] = 
 {
 	{ "groupType", "ntGroupType",  bidirectional, createonly, normal},
-	{ "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
-	{ "streetAddress", "street", bidirectional, always, normal},
+	{ "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
+	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
+	{ "street", "street", fromwindowsonly, always, normal},
+	{ "streetAddress", "street", towindowsonly, always, normal},
     { "member", "uniquemember", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
@@ -2552,7 +2556,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 		agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), is_ours ? "ours" : "not ours");
 	if (is_ours) 
 	{
-		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,1 /* want GUID */);
+		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,0 /* we don't want the GUID */);
 		if (retval || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
