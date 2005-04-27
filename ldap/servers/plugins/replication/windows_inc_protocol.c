@@ -1244,6 +1244,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		memset ( (void*)&op, 0, sizeof (op) );
 		entry.op = &op;
 		do {
+			int mark_record_done = 0;
 			w_cl5_operation_parameters_done ( entry.op );
 			memset ( (void*)entry.op, 0, sizeof (op) );
 			rc = cl5GetNextOperationToReplay(changelog_iterator, &entry);
@@ -1278,6 +1279,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						else
 						{
 							agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
+							mark_record_done = 1;
 						}
 						slapi_log_error(finished ? SLAPI_LOG_FATAL : slapi_log_urp, windows_repl_plugin_name,
 							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s. %s.\n",
@@ -1331,6 +1333,10 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					/* Positive response received */
 					(*num_changes_sent)++;
 					agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 0 /*replayed*/);
+					mark_record_done = 1;
+				}
+				if (mark_record_done)
+				{
 					/* bring the consumers (AD) RUV up to date */
 					ruv_force_csn_update(current_ruv, entry.op->csn);
 				}
