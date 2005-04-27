@@ -932,6 +932,15 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					return_value = CONN_OPERATION_SUCCESS;
 				} else 
 				{
+					if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
+					{
+						int i = 0;
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,"dump mods for replay update:");
+						for(i=0;mapped_mods[i];i++)
+						{
+							slapi_mod_dump(mapped_mods[i],i);
+						}
+					}
 					return_value = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(remote_dn), mapped_mods, update_control,NULL /* returned controls */);
 				}
 				if (mapped_mods)
@@ -1709,6 +1718,52 @@ static Slapi_DN *make_dn_from_guid(char *guid, int is_nt4, const char* suffix)
 	return new_dn;
 }
 
+static char*
+extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn)
+{
+	char *result = NULL;
+	/* First do a scope test to make sure that we weren't passed bogus arguments */
+	if (slapi_sdn_scope_test(entry_dn,suffix_dn,LDAP_SCOPE_SUBTREE))
+	{
+		Slapi_DN parent;
+		slapi_sdn_init(&parent);
+
+		/* Find the portion of the entry_dn between the RDN and the suffix */
+		/* Start with the parent of the entry DN */
+		slapi_sdn_get_parent(entry_dn, &parent);
+		/* Iterate finding the parent again until we have the suffix */
+		while (0 != slapi_sdn_compare(&parent,suffix_dn))
+		{
+			Slapi_DN child;
+			Slapi_RDN *rdn = slapi_rdn_new();
+			char *rdn_type = NULL;
+			char *rdn_str = NULL;
+			/* Append the current RDN to the new container string */
+			slapi_sdn_get_rdn(&parent,rdn);
+			slapi_rdn_get_first(rdn, &rdn_type, &rdn_str);
+			if (rdn_str)
+			{
+				result = PR_sprintf_append(result, "%s=%s,", rdn_type,rdn_str );	
+			}
+			/* Don't free this until _after_ we've used the rdn_str */
+			slapi_rdn_free(&rdn);
+			/* Move to the next successive parent */
+			slapi_sdn_init(&child);
+			slapi_sdn_copy(&parent,&child);
+			slapi_sdn_done(&parent);
+			slapi_sdn_get_parent(&child, &parent);
+			slapi_sdn_done(&child);
+		}
+		slapi_sdn_done(&parent);
+	} 
+	/* Always return something */
+	if (NULL == result)
+	{
+		result = slapi_ch_strdup("");
+	}
+	return result;
+}
+
 /* Given a non-tombstone entry, return the DN of its peer in AD (whether present or not) */
 static int 
 map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int guid_form)
@@ -1768,16 +1823,20 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 					if (cn_string) 
 					{
 						char *rdnstr = NULL;
+						char *container_str = NULL;
+					
+						container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_directory_subtree(prp->agmt));
 						
-						rdnstr = is_nt4 ? "samaccountname=%s,%s" : "cn=%s,%s";
+						rdnstr = is_nt4 ? "samaccountname=%s,%s%s" : "cn=%s,%s%s";
 
-						new_dn_string = PR_smprintf(rdnstr,cn_string,suffix);
+						new_dn_string = PR_smprintf(rdnstr,cn_string,container_str,suffix);
 						if (new_dn_string)
 						{
 							new_dn = slapi_sdn_new_dn_byval(new_dn_string);
 							PR_smprintf_free(new_dn_string);
 						}
 						slapi_ch_free((void**)&cn_string);
+						slapi_ch_free((void**)&container_str);
 					}
 				} else 
 				{
@@ -1946,16 +2005,20 @@ map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra)
 		if (username) 
 		{
 			const char *suffix = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
+			char *container_str = NULL;
+
+			container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_windows_subtree(ra));
 			/* Local DNs for users and groups are different */
 			if (is_user)
 			{
-				new_dn_string = PR_smprintf("uid=%s,%s",username,suffix);
+				new_dn_string = PR_smprintf("uid=%s,%s%s",username,container_str,suffix);
 			} else
 			{
-				new_dn_string = PR_smprintf("cn=%s,%s",username,suffix);
+				new_dn_string = PR_smprintf("cn=%s,%s%s",username,container_str,suffix);
 			}
 			new_dn = slapi_sdn_new_dn_byval(new_dn_string);
 			PR_smprintf_free(new_dn_string);
+			slapi_ch_free((void**)&container_str);
 			/* Clear any earlier error */
 			retval = 0;
 		} else 
