@@ -279,7 +279,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	PRBool use_busy_backoff_timer = PR_FALSE;
 	long pausetime = 0;
 	long busywaittime = 0;
-	// Some operations should only be done the first time STATE_START is true.
+	/* Some operations should only be done the first time STATE_START is true. */
 	static PRBool is_first_start = PR_TRUE;
  
 	PRBool run_dirsync = PR_FALSE;
