@@ -485,8 +485,8 @@ endif
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/topicindex.htm $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/tokens.map $(RELDIR)/manual/en/slapd/ ; \
 	  cd $(RELDIR)/manual/en/slapd; \
-	  unzip $(DSDOC_DIR)/$(DSDOC_COPYRIGHT); \
-	  unzip $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
+	  $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT); \
+	  $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
 	fi
 
 ifdef USE_PURIFY
