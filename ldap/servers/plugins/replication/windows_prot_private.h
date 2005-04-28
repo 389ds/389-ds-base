@@ -101,4 +101,6 @@ void windows_dirsync_inc_run(Private_Repl_Protocol *prp);
 ConnResult windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op);
 int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e);
 
+PRBool windows_ignore_error_and_keep_going(int error);
+
 #endif /* _REPL5_PROT_PRIVATE_H_ */

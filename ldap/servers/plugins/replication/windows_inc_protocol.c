@@ -142,7 +142,6 @@ static void protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration);
 static int send_updates(Private_Repl_Protocol *prp, RUV *ruv, PRUint32 *num_changes_sent);
 static void windows_inc_backoff_expired(time_t timer_fire_time, void *arg);
 static int windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *ruv);
-static PRBool ignore_error_and_keep_going(int error);
 static const char* state2name (int state);
 static const char* event2name (int event);
 static const char* acquire2name (int code);
@@ -1271,7 +1270,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					if (CONN_OPERATION_FAILED == replay_crc)
 					{
 						/* Map ldap error code to return value */
-						if (!ignore_error_and_keep_going(error))
+						if (!windows_ignore_error_and_keep_going(error))
 						{
 							return_value = UPDATE_TRANSIENT_ERROR;
 							finished = 1;
@@ -1642,101 +1641,6 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 	return return_value;
 }
 
-
-/* 
- * When we get an error from an LDAP operation, we call this
- * function to decide if we should just keep replaying
- * updates, or if we should stop, back off, and try again
- * later.
- * Returns PR_TRUE if we shoould keep going, PR_FALSE if
- * we should back off and try again later.
- *
- * In general, we keep going if the return code is consistent
- * with some sort of bug in URP that causes the consumer to
- * emit an error code that it shouldn't have, e.g. LDAP_ALREADY_EXISTS.
- * 
- * We stop if there's some indication that the server just completely
- * failed to process the operation, e.g. LDAP_OPERATIONS_ERROR.
- */
-static PRBool
-ignore_error_and_keep_going(int error)
-{
-	int return_value;
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> ignore_error_and_keep_going\n", 0, 0, 0 );
-
-	switch (error)
-	{
-	/* Cases where we keep going */
-	case LDAP_SUCCESS:
-	case LDAP_NO_SUCH_ATTRIBUTE:
-	case LDAP_UNDEFINED_TYPE:
-	case LDAP_CONSTRAINT_VIOLATION:
-	case LDAP_TYPE_OR_VALUE_EXISTS:
-	case LDAP_INVALID_SYNTAX:
-	case LDAP_NO_SUCH_OBJECT:
-	case LDAP_INVALID_DN_SYNTAX:
-	case LDAP_IS_LEAF:
-	case LDAP_INSUFFICIENT_ACCESS:
-	case LDAP_NAMING_VIOLATION:
-	case LDAP_OBJECT_CLASS_VIOLATION:
-	case LDAP_NOT_ALLOWED_ON_NONLEAF:
-	case LDAP_NOT_ALLOWED_ON_RDN:
-	case LDAP_ALREADY_EXISTS:
-	case LDAP_NO_OBJECT_CLASS_MODS:
-		return_value = PR_TRUE;
-		break;
-
-	/* Cases where we stop and retry */
-	case LDAP_OPERATIONS_ERROR:
-	case LDAP_PROTOCOL_ERROR:
-	case LDAP_TIMELIMIT_EXCEEDED:
-	case LDAP_SIZELIMIT_EXCEEDED:
-	case LDAP_STRONG_AUTH_NOT_SUPPORTED:
-	case LDAP_STRONG_AUTH_REQUIRED:
-	case LDAP_PARTIAL_RESULTS:
-	case LDAP_REFERRAL:
-	case LDAP_ADMINLIMIT_EXCEEDED:
-	case LDAP_UNAVAILABLE_CRITICAL_EXTENSION:
-	case LDAP_CONFIDENTIALITY_REQUIRED:
-	case LDAP_SASL_BIND_IN_PROGRESS:
-	case LDAP_INAPPROPRIATE_MATCHING:
-	case LDAP_ALIAS_PROBLEM:
-	case LDAP_ALIAS_DEREF_PROBLEM:
-	case LDAP_INAPPROPRIATE_AUTH:
-	case LDAP_INVALID_CREDENTIALS:
-	case LDAP_BUSY:
-	case LDAP_UNAVAILABLE:
-	case LDAP_UNWILLING_TO_PERFORM:
-	case LDAP_LOOP_DETECT:
-	case LDAP_SORT_CONTROL_MISSING:
-	case LDAP_INDEX_RANGE_ERROR:
-	case LDAP_RESULTS_TOO_LARGE:
-	case LDAP_AFFECTS_MULTIPLE_DSAS:
-	case LDAP_OTHER:
-	case LDAP_SERVER_DOWN:
-	case LDAP_LOCAL_ERROR:
-	case LDAP_ENCODING_ERROR:
-	case LDAP_DECODING_ERROR:
-	case LDAP_TIMEOUT:
-	case LDAP_AUTH_UNKNOWN:
-	case LDAP_FILTER_ERROR:
-	case LDAP_USER_CANCELLED:
-	case LDAP_PARAM_ERROR:
-	case LDAP_NO_MEMORY:
-	case LDAP_CONNECT_ERROR:
-	case LDAP_NOT_SUPPORTED:
-	case LDAP_CONTROL_NOT_FOUND:
-	case LDAP_NO_RESULTS_RETURNED:
-	case LDAP_MORE_RESULTS_TO_RETURN:
-	case LDAP_CLIENT_LOOP:
-	case LDAP_REFERRAL_LIMIT_EXCEEDED:
-		return_value = PR_FALSE;
-		break;
-	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= ignore_error_and_keep_going\n", 0, 0, 0 );
-	return return_value;
-}
 
 /* this function converts an aquisition code to a string - for debug output */
 static const char* 

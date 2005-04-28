@@ -197,7 +197,7 @@ static windows_attribute_map user_attribute_map[] =
 	{ "streetAddress", "street", towindowsonly, always, normal},
 	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
-    { "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
+    { "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
 	/* cn is a naming attribute in AD, so we don't want to change it after entry creation */
     { "cn", "cn", towindowsonly, createonly, normal},
 	/* However, it isn't a naming attribute in DS (we use uid) so it's safe to accept changes inbound */
@@ -230,6 +230,101 @@ static windows_attribute_map group_attribute_map[] =
  *    for modifies and deletes, provided we use the value it gave us in the objectGUID attribute (which is actually the SID).
  * 6. NT4 has less and different schema from AD. For example users in NT4 have no firstname/lastname, only an optional 'description'.
  */
+
+/* 
+ * When we get an error from an LDAP operation, we call this
+ * function to decide if we should just keep replaying
+ * updates, or if we should stop, back off, and try again
+ * later.
+ * Returns PR_TRUE if we shoould keep going, PR_FALSE if
+ * we should back off and try again later.
+ *
+ * In general, we keep going if the return code is consistent
+ * with some sort of bug in URP that causes the consumer to
+ * emit an error code that it shouldn't have, e.g. LDAP_ALREADY_EXISTS.
+ * 
+ * We stop if there's some indication that the server just completely
+ * failed to process the operation, e.g. LDAP_OPERATIONS_ERROR.
+ */
+PRBool
+windows_ignore_error_and_keep_going(int error)
+{
+	int return_value;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_ignore_error_and_keep_going\n", 0, 0, 0 );
+
+	switch (error)
+	{
+	/* Cases where we keep going */
+	case LDAP_SUCCESS:
+	case LDAP_NO_SUCH_ATTRIBUTE:
+	case LDAP_UNDEFINED_TYPE:
+	case LDAP_CONSTRAINT_VIOLATION:
+	case LDAP_TYPE_OR_VALUE_EXISTS:
+	case LDAP_INVALID_SYNTAX:
+	case LDAP_NO_SUCH_OBJECT:
+	case LDAP_INVALID_DN_SYNTAX:
+	case LDAP_IS_LEAF:
+	case LDAP_INSUFFICIENT_ACCESS:
+	case LDAP_NAMING_VIOLATION:
+	case LDAP_OBJECT_CLASS_VIOLATION:
+	case LDAP_NOT_ALLOWED_ON_NONLEAF:
+	case LDAP_NOT_ALLOWED_ON_RDN:
+	case LDAP_ALREADY_EXISTS:
+	case LDAP_NO_OBJECT_CLASS_MODS:
+		return_value = PR_TRUE;
+		break;
+
+	/* Cases where we stop and retry */
+	case LDAP_OPERATIONS_ERROR:
+	case LDAP_PROTOCOL_ERROR:
+	case LDAP_TIMELIMIT_EXCEEDED:
+	case LDAP_SIZELIMIT_EXCEEDED:
+	case LDAP_STRONG_AUTH_NOT_SUPPORTED:
+	case LDAP_STRONG_AUTH_REQUIRED:
+	case LDAP_PARTIAL_RESULTS:
+	case LDAP_REFERRAL:
+	case LDAP_ADMINLIMIT_EXCEEDED:
+	case LDAP_UNAVAILABLE_CRITICAL_EXTENSION:
+	case LDAP_CONFIDENTIALITY_REQUIRED:
+	case LDAP_SASL_BIND_IN_PROGRESS:
+	case LDAP_INAPPROPRIATE_MATCHING:
+	case LDAP_ALIAS_PROBLEM:
+	case LDAP_ALIAS_DEREF_PROBLEM:
+	case LDAP_INAPPROPRIATE_AUTH:
+	case LDAP_INVALID_CREDENTIALS:
+	case LDAP_BUSY:
+	case LDAP_UNAVAILABLE:
+	case LDAP_UNWILLING_TO_PERFORM:
+	case LDAP_LOOP_DETECT:
+	case LDAP_SORT_CONTROL_MISSING:
+	case LDAP_INDEX_RANGE_ERROR:
+	case LDAP_RESULTS_TOO_LARGE:
+	case LDAP_AFFECTS_MULTIPLE_DSAS:
+	case LDAP_OTHER:
+	case LDAP_SERVER_DOWN:
+	case LDAP_LOCAL_ERROR:
+	case LDAP_ENCODING_ERROR:
+	case LDAP_DECODING_ERROR:
+	case LDAP_TIMEOUT:
+	case LDAP_AUTH_UNKNOWN:
+	case LDAP_FILTER_ERROR:
+	case LDAP_USER_CANCELLED:
+	case LDAP_PARAM_ERROR:
+	case LDAP_NO_MEMORY:
+	case LDAP_CONNECT_ERROR:
+	case LDAP_NOT_SUPPORTED:
+	case LDAP_CONTROL_NOT_FOUND:
+	case LDAP_NO_RESULTS_RETURNED:
+	case LDAP_MORE_RESULTS_TO_RETURN:
+	case LDAP_CLIENT_LOOP:
+	case LDAP_REFERRAL_LIMIT_EXCEEDED:
+		return_value = PR_FALSE;
+		break;
+	}
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_ignore_error_and_keep_going\n", 0, 0, 0 );
+	return return_value;
+}
 
 static const char*
 op2string(int op)
@@ -318,7 +413,13 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 							}
 						}
 						slapi_sdn_free(&remote_dn);
+					} else
+					{
+						slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no remote dn found for %s\n", original_dn_string);					
 					}
+				} else
+				{
+					slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: this entry is not ours %s\n", original_dn_string);
 				}
 			} else {
 				slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no local entry found for %s\n", original_dn_string);
@@ -354,6 +455,9 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 					{
 						slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no local dn found for %s\n", original_dn_string);
 					}
+				} else
+				{
+					slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: this entry is not ours %s\n", original_dn_string);
 				}
 			} else
 			{
@@ -2316,7 +2420,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	int rc = 0;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_update_local_entry\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
 
 	*do_modify = 0;
 	if (to_windows)
@@ -2379,12 +2483,14 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				/* If it is then we need to replace the local values with the remote values if they are different */
 				if (!values_equal)
 				{
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"windows_generate_update_mods: %s, %s : values are different\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(vs));
 					*do_modify = 1;
 				} else
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_update_local_entry: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+					"windows_generate_update_mods: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 				}
 			} else {
 				/* A dn-valued attribute : need to take special steps */
@@ -2418,6 +2524,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		{
 			if (!is_present_local)
 			{
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"windows_generate_update_mods: %s, %s : values not present on peer entry\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 				/* If it is currently absent, then we add the value from the remote entry */
 				if (is_guid)
 				{
@@ -2464,7 +2572,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	{
 		slapi_mods_dump(smods,"windows sync");
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_update_local_entry: %d\n", retval, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_generate_update_mods: %d\n", retval, 0, 0 );
 	return retval;
 }
 
@@ -2583,6 +2691,18 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		if (0 == retval && remote_entry) 
 		{
 			retval = windows_update_remote_entry(prp,remote_entry,e);
+			/* Detect the case where the error is benign */
+			if (retval)
+			{
+				int operation = 0;
+				int error = 0;
+				
+				conn_get_error(prp->conn, &operation, &error);
+				if (windows_ignore_error_and_keep_going(error))
+				{
+					retval = CONN_OPERATION_SUCCESS;
+				}
+			}
 		}
 		if (remote_entry)
 		{
