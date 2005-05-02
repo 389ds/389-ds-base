@@ -336,6 +336,18 @@ static void repl5_inc_result_threadmain(void *param)
 			}
 
 			conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
+			/* Back out of harmless errors here */
+			if (ignore_error_and_keep_going(connection_error))
+			{
+				char *op_string = slapi_op_type_to_string(operation_code);
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: Ignoring error %d: %s for %s operation\n",
+					agmt_get_long_name(rd->prp->agmt),
+					connection_error, ldap_error_string ? ldap_error_string : "NULL",
+					op_string ? op_string : "NULL");
+				connection_error = 0;
+				conres = 0;
+			}
 			if (connection_error)
 			{
 				repl5_inc_log_operation_failure(op ? op->operation_type : 0, connection_error, ldap_error_string, agmt_get_long_name(rd->prp->agmt));
