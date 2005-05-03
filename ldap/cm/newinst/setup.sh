@@ -36,6 +36,9 @@
 # All rights reserved.
 # --- END COPYRIGHT BLOCK ---
 
+setupdir=`dirname $0`
+cd ${setupdir}
+
 # Configure nsPerl
 if [ ! -f "./tools/perl" ]; then
     ./tools/nsPerl5.6.1/install > /dev/null
