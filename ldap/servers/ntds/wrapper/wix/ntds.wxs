@@ -36,21 +36,21 @@
  All rights reserved.
  END COPYRIGHT BLOCK -->
 <Wix xmlns='http://schemas.microsoft.com/wix/2003/01/wi'>
-  <Product Name='NT User Synchronization' Id='9FABDEC3-CAA0-40D5-871F-A0E1759C38C1'
+  <Product Name='Fedora Directory Synchronization' Id='9FABDEC3-CAA0-40D5-871F-A0E1759C38C1'
     Language='1033' Codepage='1252'
-    Version='1.0.0' Manufacturer='Brandx'>
+    Version='1.0.0' Manufacturer='Fedora'>
 
     <Package Id='????????-????-????-????-????????????' Keywords='Installer'
-      Description="User Synchronization Installer"
-      Manufacturer='Brandx'
+      Description="Fedora Directory Synchronization Installer"
+      Manufacturer='Fedora'
       InstallerVersion='100' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
 
     <Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
-    <Property Id='DiskPrompt' Value="User Sync Installation [1]" />
+    <Property Id='DiskPrompt' Value="Fedora Directory Synchronization Installation [1]" />
 
 <Directory Id='ProgramFilesFolder' Name='PFiles'>
 
-<Directory Id='INSTALLDIR' Name='UserSync' LongName='NT User Synchronization'>
+<Directory Id='INSTALLDIR' Name='UserSync' LongName='Fedora Directory Synchronization'>
 
 <Directory Id='bin' Name='bin'>
 <Component Id='bin'>
@@ -92,7 +92,7 @@
 </Directory>
 </Directory>
 
-<Feature Id='All' Title='NT User Synchronization' Description='The complete package.'
+<Feature Id='All' Title='Fedora Directory Synchronization' Description='The complete package.'
   TypicalDefault='install' Display='expand' Level='1'
   ConfigurableDirectory='INSTALLDIR'>
   <ComponentRef Id='bin'/>
