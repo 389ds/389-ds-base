@@ -98,6 +98,7 @@ typedef struct result_data
 	int stop_result_thread; /* Flag used to tell the result thread to exit */
 	int last_message_id_sent;
 	int last_message_id_received;
+	int result; /* The UPDATE_TRANSIENT_ERROR etc */
 } result_data;
 
 /* Various states the incremental protocol can pass through */
@@ -263,6 +264,7 @@ static void repl5_inc_result_threadmain(void *param)
 	int finished = 0;
 	int message_id = 0;
 
+	slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain starting\n");
 	while (!finished) 
 	{
 		repl5_inc_operation *op = NULL;
@@ -336,25 +338,11 @@ static void repl5_inc_result_threadmain(void *param)
 			}
 
 			conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
-			/* Back out of harmless errors here */
-			if (ignore_error_and_keep_going(connection_error))
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: result %d, %d, %d, %s\n", operation_code,connection_error,conres,ldap_error_string);
+			rd->result = repl5_inc_update_from_op_result(rd->prp, conres, connection_error, csn_str, uniqueid, replica_id, &finished, &(rd->num_changes_sent));
+			if (rd->result)
 			{
-				char *op_string = slapi_op_type_to_string(operation_code);
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-					"%s: Ignoring error %d: %s for %s operation\n",
-					agmt_get_long_name(rd->prp->agmt),
-					connection_error, ldap_error_string ? ldap_error_string : "NULL",
-					op_string ? op_string : "NULL");
-				connection_error = 0;
-				conres = 0;
-			}
-			if (connection_error)
-			{
-				repl5_inc_log_operation_failure(op ? op->operation_type : 0, connection_error, ldap_error_string, agmt_get_long_name(rd->prp->agmt));
-			}
-			res = repl5_inc_update_from_op_result(rd->prp, conres, connection_error, csn_str, uniqueid, replica_id, &finished, &(rd->num_changes_sent));
-			if (0 != conres)
-			{
+				slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: got op result %d\n", rd->result);
 				/* If so then we need to take steps to abort the update process */
 				PR_Lock(rd->lock);
 				rd->abort = 1;
@@ -374,6 +362,7 @@ static void repl5_inc_result_threadmain(void *param)
 			repl5_inc_op_free(op);
 		}
 	}
+	slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain exiting\n");
 }
 
 static result_data *
@@ -1912,6 +1901,12 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			if (*num_changes_sent >= MAX_CHANGES_PER_SESSION)
 			{
 				return_value = UPDATE_YIELD;
+				finished = 1;
+			}
+			/* See if the result thread has hit a problem */
+			if (!finished && rd->abort)
+			{
+				return_value = rd->result;
 				finished = 1;
 			}
 		} while (!finished);
