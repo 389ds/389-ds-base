@@ -79,9 +79,25 @@ public class NetAPIPartition implements ContextPartition {
 
     static {
     	System.loadLibrary("jnetman");
-        System.out.println("dll loaded");
+        //System.out.println("dll loaded");
     }
+
+	public static byte[] HexStringToByteArray(String hexString) {
+		byte[] byteArray = new byte[hexString.length() / 2]; 
+		for(int i = 0; i < hexString.length() / 2; i++) {
+			byteArray[i] = (byte)Integer.parseInt(hexString.substring(i * 2, (i * 2) + 2), 16);
+		}
+		return byteArray;
+	}
 	
+	public static String ByteArrayToHexString(byte[] byteArray) {
+		String hexString = "";
+		for(int i = 0; i < byteArray.length; i++) {
+			hexString = hexString.concat(Integer.toHexString(byteArray[i] & 0xff));
+		}
+		return hexString;
+	}
+    
     //private LdapName suffix;
     private String suffix;
     private static final String container = new String("cn=users").toLowerCase();
@@ -99,12 +115,12 @@ public class NetAPIPartition implements ContextPartition {
         }
         
         try {
-        	outLog.write(new Date() + ": reached NetAPIPartition");
+        	outLog.write(new Date() + ": reached NetAPIPartition" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition");
+        //System.out.println("reached NetAPIPartition");
         suffix = normSuffix.toString();
     }
 
@@ -118,12 +134,12 @@ public class NetAPIPartition implements ContextPartition {
      */ 
     public void delete( Name name ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.delete: " + name);
+        	outLog.write(new Date() + ": reached NetAPIPartition.delete: " + name + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.delete: " + name);
+        //System.out.println("reached NetAPIPartition.delete: " + name);
         
         String rdn = getRDN(name.toString());
         boolean deletedSomthing = false;
@@ -186,12 +202,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public void add( String upName, Name normName, Attributes entry ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.add: " + normName);
+        	outLog.write(new Date() + ": reached NetAPIPartition.add: " + normName + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.add: " + normName);
+        //System.out.println("reached NetAPIPartition.add: " + normName);
         
         String rdn = getRDN(normName.toString());
         Attribute attribute = entry.get("objectClass");
@@ -272,12 +288,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public void modify( Name name, int modOp, Attributes mods ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.modify1: " + name);
+        	outLog.write(new Date() + ": reached NetAPIPartition.modify1: " + name + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.modify1: " + name);
+        //System.out.println("reached NetAPIPartition.modify1: " + name);
         
         ModificationItem[] modItems = new ModificationItem[mods.size()];
         NamingEnumeration modAttributes = mods.getAll();
@@ -300,12 +316,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public void modify( Name name, ModificationItem [] mods ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.modify2: " + name);
+        	outLog.write(new Date() + ": reached NetAPIPartition.modify2: " + name + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.modify2: " + name);
+        //System.out.println("reached NetAPIPartition.modify2: " + name);
 
         String rdn = getRDN(name.toString());
         boolean modifiedSomething = false;
@@ -389,12 +405,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public NamingEnumeration list( Name base ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.list");
+        	outLog.write(new Date() + ": reached NetAPIPartition.list" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.list");
+        //System.out.println("reached NetAPIPartition.list");
 
         return new BasicAttribute(base.toString()).getAll();
     }
@@ -419,12 +435,12 @@ public class NetAPIPartition implements ContextPartition {
     public NamingEnumeration search( Name base, Map env, ExprNode filter,
         SearchControls searchCtls ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.search: " + base);
+        	outLog.write(new Date() + ": reached NetAPIPartition.search: " + base + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.search: " + base + " " + filter);
+        //System.out.println("reached NetAPIPartition.search: " + base + " " + filter);
         
         BasicAttribute results = new BasicAttribute(null);
         SearchResult result;
@@ -536,12 +552,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public Attributes lookup( Name name ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.lookup1: " + name);
+        	outLog.write(new Date() + ": reached NetAPIPartition.lookup1: " + name + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.lookup1: " + name);
+        //System.out.println("reached NetAPIPartition.lookup1: " + name);
         
         BasicAttributes attributes = null;
         BasicAttribute attribute;
@@ -597,12 +613,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public Attributes lookup( Name dn, String [] attrIds ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.lookup2: " + dn);
+        	outLog.write(new Date() + ": reached NetAPIPartition.lookup2: " + dn + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.lookup2: " + dn);
+        //System.out.println("reached NetAPIPartition.lookup2: " + dn);
         
         return lookup(dn);
     }
@@ -617,12 +633,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public boolean hasEntry( Name name ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.hasEntry: " + name);
+        	outLog.write(new Date() + ": reached NetAPIPartition.hasEntry: " + name + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.hasEntry: " + name);
+        //System.out.println("reached NetAPIPartition.hasEntry: " + name);
 
         boolean result = false;
         String rdn = getRDN(name.toString());
@@ -658,12 +674,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public boolean isSuffix( Name name ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.isSuffix");
+        	outLog.write(new Date() + ": reached NetAPIPartition.isSuffix" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.isSuffix");
+        //System.out.println("reached NetAPIPartition.isSuffix");
 
         return false;
     }
@@ -684,12 +700,12 @@ public class NetAPIPartition implements ContextPartition {
     public void modifyRn( Name name, String newRn, boolean deleteOldRn )
         throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.modifyRn");
+        	outLog.write(new Date() + ": reached NetAPIPartition.modifyRn" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.modifyRn");
+        //System.out.println("reached NetAPIPartition.modifyRn");
 
     }
 
@@ -705,12 +721,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public void move( Name oriChildName, Name newParentName ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.move1");
+        	outLog.write(new Date() + ": reached NetAPIPartition.move1" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.move1");
+        //System.out.println("reached NetAPIPartition.move1");
 
     }
 
@@ -734,12 +750,12 @@ public class NetAPIPartition implements ContextPartition {
     public void move( Name oriChildName, Name newParentName, String newRn,
                boolean deleteOldRn ) throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.move2");
+        	outLog.write(new Date() + ": reached NetAPIPartition.move2" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.move2");
+        //System.out.println("reached NetAPIPartition.move2");
 
     }
 
@@ -759,12 +775,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public void close() throws NamingException {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.close");
+        	outLog.write(new Date() + ": reached NetAPIPartition.close" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.close");
+        //System.out.println("reached NetAPIPartition.close");
 
     }
 
@@ -776,12 +792,12 @@ public class NetAPIPartition implements ContextPartition {
      */
     public boolean isClosed() {
     	try {
-        	outLog.write(new Date() + ": reached NetAPIPartition.isClosed");
+        	outLog.write(new Date() + ": reached NetAPIPartition.isClosed" + "\n");
         	outLog.flush();
         }
         catch(Exception e) {
         }
-        System.out.println("reached NetAPIPartition.isClosed");
+        //System.out.println("reached NetAPIPartition.isClosed");
 
         return true;
     }
@@ -1051,9 +1067,11 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(user.GetCodePage()).toString());
         attributes.put(attribute);
 
-        attribute = new BasicAttribute("description");
-        attribute.add(user.GetComment());
-        attributes.put(attribute);
+        if(!user.GetComment().equals("")) {
+        	attribute = new BasicAttribute("description");
+        	attribute.add(user.GetComment());
+        	attributes.put(attribute);
+        }
 
         attribute = new BasicAttribute("countryCode");
         attribute.add(new Long(user.GetCountryCode()).toString());
@@ -1063,13 +1081,17 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(user.GetFlags()).toString());
         attributes.put(attribute);
         
-        attribute = new BasicAttribute("homeDirectory");
-        attribute.add(user.GetHomeDir());
-        attributes.put(attribute);
+        if(!user.GetHomeDir().equals("")) {
+        	attribute = new BasicAttribute("homeDirectory");
+        	attribute.add(user.GetHomeDir());
+        	attributes.put(attribute);
+        }
         
-        attribute = new BasicAttribute("homeDrive");
-        attribute.add(user.GetHomeDirDrive());
-        attributes.put(attribute);
+        if(!user.GetHomeDirDrive().equals("")) {
+        	attribute = new BasicAttribute("homeDrive");
+        	attribute.add(user.GetHomeDirDrive());
+        	attributes.put(attribute);
+        }
 
         attribute = new BasicAttribute("lastLogoff");
         attribute.add(new Long(user.GetLastLogoff()).toString());
@@ -1080,7 +1102,7 @@ public class NetAPIPartition implements ContextPartition {
         attributes.put(attribute);
 
         attribute = new BasicAttribute("logonHours");
-        attribute.add(user.GetLogonHours());
+        attribute.add(HexStringToByteArray(user.GetLogonHours()));
         attributes.put(attribute);
 
         attribute = new BasicAttribute("maxStorage");
@@ -1091,29 +1113,39 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(user.GetNumLogons()).toString());
         attributes.put(attribute);
         
-        attribute = new BasicAttribute("profilePath");
-        attribute.add(user.GetProfile());
-        attributes.put(attribute);
+        if(!user.GetProfile().equals("")) {
+        	attribute = new BasicAttribute("profilePath");
+        	attribute.add(user.GetProfile());
+        	attributes.put(attribute);
+        }
         
-        attribute = new BasicAttribute("scriptPath");
-        attribute.add(user.GetScriptPath());
-        attributes.put(attribute);
+        if(!user.GetScriptPath().equals("")) {
+        	attribute = new BasicAttribute("scriptPath");
+        	attribute.add(user.GetScriptPath());
+        	attributes.put(attribute);
+        }
         
         attribute = new BasicAttribute("sAMAccountName");
         attribute.add(username);
         attributes.put(attribute);
 
-        attribute = new BasicAttribute("userWorkstations");
-        attribute.add(user.GetWorkstations());
-        attributes.put(attribute);
+        if(!user.GetWorkstations().equals("")) {
+        	attribute = new BasicAttribute("userWorkstations");
+        	attribute.add(user.GetWorkstations());
+        	attributes.put(attribute);
+        }
         
-        attribute = new BasicAttribute("cn");
-        attribute.add(username);
-        attributes.put(attribute);
+        if(!user.GetFullname().equals("")) {
+        	attribute = new BasicAttribute("cn");
+        	attribute.add(user.GetFullname());
+        	attributes.put(attribute);
+        }
         
-        attribute = new BasicAttribute("name");
-        attribute.add(user.GetFullname());
-        attributes.put(attribute);
+        if(!user.GetFullname().equals("")) {
+        	attribute = new BasicAttribute("name");
+        	attribute.add(user.GetFullname());
+        	attributes.put(attribute);
+        }
         
         attribute = new BasicAttribute("memberOf");
         result = user.LoadGroups();
@@ -1175,10 +1207,12 @@ public class NetAPIPartition implements ContextPartition {
         attribute = new BasicAttribute("groupType");
         attribute.add(new Long(GLOBAL_FLAG).toString());
         attributes.put(attribute);
-        
-        attribute = new BasicAttribute("description");
-        attribute.add(group.GetComment());
-        attributes.put(attribute);
+
+        if(!group.GetComment().equals("")) {
+        	attribute = new BasicAttribute("description");
+        	attribute.add(group.GetComment());
+        	attributes.put(attribute);
+        }
         
         attribute = new BasicAttribute("member");
         result = group.LoadUsers();
@@ -1232,9 +1266,11 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(DOMAINLOCAL_FLAG).toString());
         attributes.put(attribute);
         
-        attribute = new BasicAttribute("description");
-        attribute.add(localGroup.GetComment());
-        attributes.put(attribute);
+        if(!localGroup.GetComment().equals("")) {
+        	attribute = new BasicAttribute("description");
+        	attribute.add(localGroup.GetComment());
+        	attributes.put(attribute);
+        }
         
         attribute = new BasicAttribute("member");
         result = localGroup.LoadUsers();
@@ -1333,15 +1369,15 @@ public class NetAPIPartition implements ContextPartition {
         			user.SetHomeDirDrive((String)mods[i].getAttribute().get());
         		}
         	}
-        	else if(mods[i].getAttribute().getID().compareToIgnoreCase("logonHours") == 0) {
+        	else if(mods[i].getAttribute().getID().compareToIgnoreCase("logonHours") == 0) {        		
         		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
-        			user.SetLogonHours((String)mods[i].getAttribute().get());
+        			user.SetLogonHours(ByteArrayToHexString((byte[])mods[i].getAttribute().get()));
         		}
         		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
-        			user.SetLogonHours("");
+        			user.SetLogonHours("ffffffffffffffffffffffffffffffffffffffffff");
         		}
         		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
-        			user.SetLogonHours((String)mods[i].getAttribute().get());
+        			user.SetLogonHours(ByteArrayToHexString((byte[])mods[i].getAttribute().get()));
         		}
         	}
         	else if(mods[i].getAttribute().getID().compareToIgnoreCase("maxStorage") == 0) {
@@ -1502,8 +1538,20 @@ public class NetAPIPartition implements ContextPartition {
 	        		}
 	    		}
 	    		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
-	    			tempName = getRDN((String)mods[i].getAttribute().get());
-	    			group.RemoveUser(tempName);
+	    			tempName = (String)mods[i].getAttribute().get();
+					if(tempName != null) {
+	    			  tempName = getRDN((String)mods[i].getAttribute().get());
+	    			  group.RemoveUser(tempName);
+					}
+					else {
+						group.LoadUsers();
+						while(group.HasMoreUsers()) {
+		    				tempName = group.NextUserName();
+							if(!tempName.endsWith("$")) {
+								group.RemoveUser(tempName);
+							}
+		    			}
+					}
 	    		}
 	    		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
 	    			HashSet users = new HashSet();
@@ -1559,8 +1607,20 @@ public class NetAPIPartition implements ContextPartition {
 	        		}
 	    		}
 	    		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
-	    			tempName = getRDN((String)mods[i].getAttribute().get());
-	    			localGroup.RemoveUser(tempName);
+	    			tempName = (String)mods[i].getAttribute().get();
+					if(tempName != null) {
+	    			  tempName = getRDN((String)mods[i].getAttribute().get());
+	    			  localGroup.RemoveUser(tempName);
+					}
+					else {
+						localGroup.LoadUsers();
+						while(localGroup.HasMoreUsers()) {
+		    				tempName = localGroup.NextUserName();
+							if(!tempName.endsWith("$")) {
+								localGroup.RemoveUser(tempName);
+							}
+		    			}
+					}
 	    		}
 	    		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
 	    			HashSet users = new HashSet();
