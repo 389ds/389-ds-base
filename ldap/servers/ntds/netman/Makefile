@@ -76,10 +76,10 @@ $(JAVA_DEST_DIR)/ntds/jnetman.jar:	$(OBJDEST)/jnetman_wrap.cxx
 $(OBJDEST)/jnetman.dll:  $(OBJDEST)/netman.obj $(OBJDEST)/jnetman_wrap.obj
 	$(LINK_DLL) /out:$(OBJDEST)/jnetman.dll    $(EXTRA_LIBS) netapi32.lib  $(OBJDEST)/netman.obj $(OBJDEST)/jnetman_wrap.obj
 
-$(OBJDEST)/netman.obj:
+$(OBJDEST)/netman.obj: netman.cpp netman.h
 	$(CC) -c netman.cpp $(CFLAGS)   $(MCC_INCLUDE) -Fo$(OBJDEST)/ $(CBSCFLAGS)
 
-$(OBJDEST)/jnetman_wrap.obj:
+$(OBJDEST)/jnetman_wrap.obj: $(OBJDEST)/jnetman_wrap.cxx
 	$(CC) -c  $(OBJDEST)/jnetman_wrap.cxx $(CFLAGS)   $(MCC_INCLUDE) -Fo$(OBJDEST)/ $(CBSCFLAGS) /I$(JAVA_HOME)/include /I$(JAVA_HOME)/include/win32 /I.
 
 veryclean: clean

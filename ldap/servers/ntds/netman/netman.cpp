@@ -71,36 +71,36 @@ unsigned short* UTF8ToUTF16(char* inString)
 }
 
 // ****************************************************************
-// SIDToHexStr
+// BinToHexStr
 // ****************************************************************
-int SIDToHexStr(char* sid, unsigned long sidLen, char** hexStr)
+int BinToHexStr(char* bin, unsigned long binLen, char** hexStr)
 {
-	int hexStrLen = sidLen * 2 + 1;
+	int hexStrLen = binLen * 2 + 1;
 
 	*hexStr = (char*)calloc(hexStrLen, sizeof(char));
 
-	for(unsigned long i = 0; i < sidLen; i++)
+	for(unsigned long i = 0; i < binLen; i++)
 	{
-		sprintf(&(*hexStr)[i * 2], "%02X", (unsigned char)sid[i]);
+		sprintf(&(*hexStr)[i * 2], "%02X", (unsigned char)bin[i]);
 	}
 
 	return 0;
 }
 
 // ****************************************************************
-// HexStrToSID
+// HexStrToBin
 // ****************************************************************
-int HexStrToSID(char* hexStr, char** sid, unsigned long* sidLen)
+int HexStrToBin(char* hexStr, char** bin, unsigned long* binLen)
 {
 	int temp;
-	*sidLen = strlen(hexStr) / 2;
+	*binLen = strlen(hexStr) / 2;
 
-	*sid = (char*)malloc(*sidLen);
+	*bin = (char*)malloc(*binLen);
 
-	for(unsigned long i = 0; i < *sidLen; i++)
+	for(unsigned long i = 0; i < *binLen; i++)
 	{
 		sscanf(&hexStr[i * 2], "%02X", &temp);
-		(*sid)[i] = (unsigned char)temp;
+		(*bin)[i] = (unsigned char)temp;
 	}
 
 	return 0;
@@ -200,7 +200,7 @@ int GetSIDHexStrByAccountName(char* accountName, char** sidHexStr)
 	}
 
 
-	SIDToHexStr(sid, sidLen, sidHexStr);
+	BinToHexStr(sid, sidLen, sidHexStr);
 
 	return result;
 }
@@ -219,7 +219,7 @@ int GetAccountNameBySIDHexStr(char* sidHexStr, char** accountName)
 
 	unsigned long accountNameLen = 0;
 
-	HexStrToSID(sidHexStr, &sid, &sidLen);
+	HexStrToBin(sidHexStr, &sid, &sidLen);
 
 	if(LookupAccountSid(NULL, sid, NULL, &accountNameLen, NULL, &domainLen, &testType) == 0)
 	{
@@ -292,7 +292,7 @@ void NTUser::NewUser(char* username)
 		userInfo = NULL;
 	}
 
-	userInfo = (USER_INFO_3*)malloc(sizeof(USER_INFO_3));
+	NetApiBufferAllocate(sizeof(USER_INFO_3),(LPVOID*)&userInfo);
 	memset(userInfo, 0, sizeof(USER_INFO_3));
 	userInfo->usri3_name = UTF8ToUTF16(username);
 
@@ -746,7 +746,7 @@ char* NTUser::GetLogonHours()
 
 	if(userInfo != NULL)
 	{
-		result = (char*)userInfo->usri3_logon_hours;
+		BinToHexStr((char*)userInfo->usri3_logon_hours, 21, &result);
 	}
 
 	return result;
@@ -758,10 +758,13 @@ char* NTUser::GetLogonHours()
 int NTUser::SetLogonHours(char* logonHours)
 {
 	int result = 0;
+	char* binValue;
+	unsigned long binLen = 0;
 
 	if(userInfo != NULL)
 	{
-		userInfo->usri3_logon_hours = (unsigned char*)logonHours;
+		HexStrToBin(logonHours, &binValue, &binLen);
+		userInfo->usri3_logon_hours = (unsigned char*)binValue;
 	}
 	else
 	{
@@ -1215,6 +1218,8 @@ char* NTUser::NextLocalGroupName()
 // ****************************************************************
 NTUserList::NTUserList()
 {
+	entriesRead = 0;
+	totalEntries = 0;
 	bufptr = NULL;
 	currentEntry = 0;
 	resumeHandle = 0;
@@ -1287,6 +1292,10 @@ char* NTUserList::nextUsername()
 NTGroup::NTGroup()
 {
 	groupInfo = NULL;
+	usersInfo = NULL;
+	currentUserEntry = 0;
+	userEntriesRead = 0;
+	userEntriesTotal = 0;
 }
 
 // ****************************************************************
@@ -1298,6 +1307,11 @@ NTGroup::~NTGroup()
 	{
 		NetApiBufferFree(groupInfo);
 		groupInfo = NULL;
+	}
+	if(usersInfo != NULL)
+	{
+		NetApiBufferFree(usersInfo);
+		usersInfo = NULL;
 	}
 }
 
@@ -1312,7 +1326,7 @@ void NTGroup::NewGroup(char* groupName)
 		groupInfo = NULL;
 	}
 
-	groupInfo = (GROUP_INFO_2*)malloc(sizeof(GROUP_INFO_2));
+	NetApiBufferAllocate(sizeof(GROUP_INFO_2),(LPVOID*)&groupInfo);
 	memset(groupInfo, 0, sizeof(GROUP_INFO_2));
 	groupInfo->grpi2_name = UTF8ToUTF16(groupName);
 }
@@ -1576,6 +1590,8 @@ char* NTGroup::NextUserName()
 // ****************************************************************
 NTGroupList::NTGroupList()
 {
+	entriesRead = 0;
+	totalEntries = 0;
 	bufptr = NULL;
 	currentEntry = 0;
 	resumeHandle = 0;
@@ -1648,6 +1664,10 @@ char* NTGroupList::nextGroupName()
 NTLocalGroup::NTLocalGroup()
 {
 	localGroupInfo = NULL;
+	usersInfo = NULL;
+	currentUserEntry = 0;
+	userEntriesRead = 0;
+	userEntriesTotal = 0;
 }
 
 // ****************************************************************
@@ -1659,6 +1679,11 @@ NTLocalGroup::~NTLocalGroup()
 	{
 		NetApiBufferFree(localGroupInfo);
 		localGroupInfo = NULL;
+	}
+	if(usersInfo != NULL)
+	{
+		NetApiBufferFree(usersInfo);
+		usersInfo = NULL;
 	}
 }
 
@@ -1673,7 +1698,7 @@ void NTLocalGroup::NewLocalGroup(char* localGroupName)
 		localGroupInfo = NULL;
 	}
 
-	localGroupInfo = (LOCALGROUP_INFO_1*)malloc(sizeof(LOCALGROUP_INFO_1));
+	NetApiBufferAllocate(sizeof(LOCALGROUP_INFO_1),(LPVOID*)&localGroupInfo);
 	memset(localGroupInfo, 0, sizeof(LOCALGROUP_INFO_1));
 	localGroupInfo->lgrpi1_name = UTF8ToUTF16(localGroupName);
 }
@@ -1947,6 +1972,8 @@ char* NTLocalGroup::NextUserName()
 // ****************************************************************
 NTLocalGroupList::NTLocalGroupList()
 {
+	entriesRead = 0;
+	totalEntries = 0;
 	bufptr = NULL;
 	currentEntry = 0;
 	resumeHandle = 0;
