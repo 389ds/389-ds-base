@@ -54,6 +54,8 @@ int windows_private_save_dirsync_cookie(const Repl_Agmt *ra);
 int windows_private_load_dirsync_cookie(const Repl_Agmt *ra);
 void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value);
 PRBool windows_private_create_users(const Repl_Agmt *ra);
+void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value);
+PRBool windows_private_create_groups(const Repl_Agmt *ra);
 const char *windows_private_get_windows_domain(const Repl_Agmt *ra);
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
 int windows_private_get_isnt4(const Repl_Agmt *ra);

@@ -852,6 +852,27 @@ add_remote_entry_allowed(Slapi_Entry *e)
 	return windows_entry_has_attr_and_value(e,delete_attr,"true");
 }
 
+/* Tells us if we're allowed to add this (remote) entry locally */
+static int
+add_local_entry_allowed(Private_Repl_Protocol *prp, Slapi_Entry *e)
+{
+	int is_user = 0;
+	int is_group = 0;
+
+	windows_is_remote_entry_user_or_group(e,&is_user,&is_group);	
+
+	if (is_user)
+	{
+		return windows_private_create_users(prp->agmt);
+	} 
+	if (is_group)
+	{
+		return windows_private_create_groups(prp->agmt);
+	}
+	/* Default to 'no' */
+	return 0;
+}
+
 static int
 delete_remote_entry_allowed(Slapi_Entry *e)
 {
@@ -1425,6 +1446,13 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 						slapi_mods_add_mod_values(&mapped_smods,mod->mod_op,mapped_type,valueset_get_valuearray(mapped_values));
 						slapi_valueset_free(mapped_values);
 						mapped_values = NULL;
+					} else 
+					{
+						/* this might be a del: mod, in which case there are no values */
+						if (mod->mod_op & LDAP_MOD_DELETE)
+						{
+							slapi_mods_add_mod_values(&mapped_smods, LDAP_MOD_DELETE, mapped_type, NULL);
+						}
 					}
 					slapi_mod_done(&smod);
 					slapi_valueset_free(vs);
@@ -1884,7 +1912,7 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 	 * that samaccountName attribute value in AD. If we don't find any matching
 	 * entry we generate a new DN using the entry's cn. If later, we find that
 	 * this entry already exists, we handle that problem at the time. We don't
-	 * check here.
+	 * check here. Note: for NT4 we always use ntUserDomainId for the samaccountname rdn, never cn.
 	 */
 	
 	*missing_entry = 0;
@@ -1919,10 +1947,16 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 						cn=<cn from local entry>, ... in the case that the local entry has a cn, OR
 						cn=<ntuserdomainid attribute value>, ... in the case that the local entry doesn't have a CN
 					 */
-					cn_string = slapi_entry_attr_get_charptr(e,"cn");
-					if (!cn_string) 
+					if (is_nt4)
 					{
 						cn_string = slapi_entry_attr_get_charptr(e,"ntuserdomainid");
+					} else
+					{
+						cn_string = slapi_entry_attr_get_charptr(e,"cn");
+						if (!cn_string) 
+						{
+							cn_string = slapi_entry_attr_get_charptr(e,"ntuserdomainid");
+						}
 					}
 					if (cn_string) 
 					{
@@ -2888,18 +2922,27 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 					slapi_entry_free(local_entry);
 					if (rc) {
 						/* Something bad happened */
-						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to update inbound entry.\n",agmt_get_long_name(prp->agmt));
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to update inbound entry for %s.\n",agmt_get_long_name(prp->agmt),
+							slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
 					}
 				} else 
 				{
 					/* If it doesn't exist, try to make it */
-					windows_create_local_entry(prp,e,local_sdn);
+					if (add_local_entry_allowed(prp,e))
+					{
+						windows_create_local_entry(prp,e,local_sdn);
+					} else
+					{
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: not allowed to add entry %s.\n",agmt_get_long_name(prp->agmt)
+							, slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
+					}
 				}
 				slapi_sdn_free(&local_sdn);
 			} else 
 			{
 				/* We should have been able to map the DN, so this is an error */
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map inbound entry.\n",agmt_get_long_name(prp->agmt));
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map inbound entry %s.\n",agmt_get_long_name(prp->agmt)
+					, slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
 			}
 		} /* subject of agreement */
 	} /* is tombstone */
@@ -2911,20 +2954,12 @@ windows_dirsync_inc_run(Private_Repl_Protocol *prp)
 	{ 
 	
 	int rc = 0;
-	int msgid=0;
-    Slapi_PBlock *pb = NULL;
-	Slapi_Filter *filter_user = NULL;
-	Slapi_Filter *filter_user_deleted = NULL;
-	Slapi_Filter *filter_group = NULL;
-	Slapi_Filter *filter_group_deleted = NULL;
 	int done = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_dirsync_inc_run\n", 0, 0, 0 );
 	while (!done) {
 
 		Slapi_Entry *e = NULL;
-		int filter_ret = 0;
-		PRBool create_users_from_dirsync = windows_private_create_users(prp->agmt);
 
 		rc = send_dirsync_search(prp->conn);
 		if (rc != CONN_OPERATION_SUCCESS)

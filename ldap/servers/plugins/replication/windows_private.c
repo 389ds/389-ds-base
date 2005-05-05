@@ -62,6 +62,19 @@ struct windowsprivate {
   int isnt4;
 };
 
+static int
+true_value_from_string(char *val)
+{
+	if (strcasecmp (val, "on") == 0 || strcasecmp (val, "yes") == 0 ||
+		strcasecmp (val, "true") == 0 || strcasecmp (val, "1") == 0)
+	{
+		return 1;
+	} else 
+	{
+		return 0;
+	}
+}
+
 void
 windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e)
 {
@@ -81,7 +94,7 @@ windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e)
 	}
 
 	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewUsers); 
-	if (NULL != tmpstr)
+	if (NULL != tmpstr && true_value_from_string(tmpstr))
 	{
 		windows_private_set_create_users(ra, PR_TRUE);
 		slapi_ch_free((void**)&tmpstr);
@@ -89,6 +102,16 @@ windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e)
 	else
 	{
 		windows_private_set_create_users(ra, PR_FALSE);
+	}
+	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewGroups); 
+	if (NULL != tmpstr && true_value_from_string(tmpstr))
+	{
+		windows_private_set_create_groups(ra, PR_TRUE);
+		slapi_ch_free((void**)&tmpstr);
+	}
+	else
+	{
+		windows_private_set_create_groups(ra, PR_FALSE);
 	}
 	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsDomain); 
 	if (NULL != tmpstr)
@@ -118,7 +141,6 @@ Dirsync_Private* windows_private_new()
 	dp = (Dirsync_Private *)slapi_ch_calloc(sizeof(Dirsync_Private),1);
 
 	dp->dirsync_maxattributecount = -1;
-	dp->create_users_from_dirsync = PR_TRUE;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_new\n", 0, 0, 0 );
 	return dp;
@@ -310,6 +332,39 @@ void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value)
 	dp->create_users_from_dirsync = value;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_create_users\n", 0, 0, 0 );
+
+}
+
+PRBool windows_private_create_groups(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_create_groups\n", 0, 0, 0 );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_create_groups\n", 0, 0, 0 );
+
+	return dp->create_groups_from_dirsync;
+
+}
+
+
+void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
+{
+	Dirsync_Private *dp;
+	
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_create_groups\n", 0, 0, 0 );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	dp->create_groups_from_dirsync = value;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_create_groups\n", 0, 0, 0 );
 
 }
 
