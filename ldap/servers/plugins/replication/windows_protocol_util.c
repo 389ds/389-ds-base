@@ -700,6 +700,19 @@ windows_release_replica(Private_Repl_Protocol *prp)
 
 }
 
+static void
+to_little_endian_double_bytes(UChar *unicode_password, int32_t unicode_password_length)
+{
+	int32_t i = 0;
+	for (i = 0 ; i < unicode_password_length; i++) 
+	{
+		UChar c = unicode_password[i];
+		char *byte_ptr = (char*)&(unicode_password[i]);
+		byte_ptr[0] = (char)(c & 0xff);
+		byte_ptr[1] = (char)(c >> 8);
+	}
+}
+
 /* this entry had a password, handle it seperately */
 /* http://support.microsoft.com/?kbid=269190 */
 static int
@@ -728,6 +741,9 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 			if (unicode_password) {
 				error = U_ZERO_ERROR;
 				u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+
+				/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
+				to_little_endian_double_bytes(unicode_password, unicode_password_length);
 
 				bv.bv_len = unicode_password_length * sizeof(UChar);
 				bv.bv_val = (char*)unicode_password;
