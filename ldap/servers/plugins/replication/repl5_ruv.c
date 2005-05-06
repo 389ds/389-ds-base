@@ -1857,6 +1857,27 @@ PRBool ruv_has_csns(const RUV *ruv)
         return retval;
 }
 
+PRBool ruv_has_both_csns(const RUV *ruv)
+{
+        PRBool retval = PR_TRUE;
+        CSN *mincsn = NULL;
+        CSN *maxcsn = NULL;
+
+        ruv_get_min_csn(ruv, &mincsn);
+        ruv_get_max_csn(ruv, &maxcsn);
+        if (mincsn) {
+                csn_free(&mincsn);
+                csn_free(&maxcsn);
+        } else if (maxcsn) {
+                csn_free(&maxcsn);
+                retval = PR_FALSE; /* it has a maxcsn but no mincsn */
+        } else {
+                retval = PR_FALSE; /* both min and max are false */
+        }
+
+        return retval;
+}
+
 /* Check if the first ruv is newer than the second one */
 PRBool
 ruv_is_newer (Object *sruvobj, Object *cruvobj)

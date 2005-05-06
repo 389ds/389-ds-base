@@ -1632,7 +1632,14 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 		}
 		else
 		{
-			return_value = EXAMINE_RUV_OK;
+			/* Check for the case where part of the RUV remote is missing */
+			if (ruv_has_both_csns(remote_ruv))
+			{
+				return_value = EXAMINE_RUV_OK;
+			} else 
+			{
+				return_value = EXAMINE_RUV_PRISTINE_REPLICA;
+			}
 		}
 		slapi_ch_free((void**)&remote_gen);
 		slapi_ch_free((void**)&local_gen);

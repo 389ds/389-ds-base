@@ -112,6 +112,7 @@ int ruv_local_contains_supplier(RUV *ruv, ReplicaId rid);
 /* returns true if the ruv has any csns, false otherwise - used for testing
    whether or not an RUV is empty */
 PRBool ruv_has_csns(const RUV *ruv);
+PRBool ruv_has_both_csns(const RUV *ruv);
 PRBool ruv_is_newer (Object *sruv, Object *cruv);
 void ruv_force_csn_update (RUV *ruv, CSN *csn);
 #ifdef __cplusplus
