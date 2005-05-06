@@ -433,7 +433,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             /* ignore modifier's name and timestamp attributes and the description. */
             continue;
         }
-        else
+        else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                             "modification of %s attribute is not allowed\n", mods[i]->mod_type);

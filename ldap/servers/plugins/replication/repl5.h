@@ -565,6 +565,7 @@ ReplicaId agmt_get_consumerRID(Repl_Agmt *ra);
 
 
 void windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
+int windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry *e);
 void windows_agreement_delete(Repl_Agmt *ra);
 Repl_Connection *windows_conn_new(Repl_Agmt *agmt);
 

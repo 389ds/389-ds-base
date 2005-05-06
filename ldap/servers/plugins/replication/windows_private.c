@@ -75,49 +75,93 @@ true_value_from_string(char *val)
 	}
 }
 
+static int
+windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
+{
+	char *tmpstr = NULL;
+	int retval = 0;
+	
+	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7WindowsReplicaArea))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsReplicaArea);
+		if (NULL != tmpstr)
+		{
+			windows_private_set_windows_subtree(ra, slapi_sdn_new_dn_passin(tmpstr) );
+		}
+		retval = 1;
+		slapi_ch_free((void**)&tmpstr);
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7DirectoryReplicaArea))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7DirectoryReplicaArea); 
+		if (NULL != tmpstr)
+		{
+			windows_private_set_directory_subtree(ra, slapi_sdn_new_dn_passin(tmpstr) );
+		}
+		retval = 1;
+		slapi_ch_free((void**)&tmpstr);
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7CreateNewUsers))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewUsers); 
+		if (NULL != tmpstr && true_value_from_string(tmpstr))
+		{
+			windows_private_set_create_users(ra, PR_TRUE);
+		}
+		else
+		{
+			windows_private_set_create_users(ra, PR_FALSE);
+		}
+		retval = 1;
+		slapi_ch_free((void**)&tmpstr);
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7CreateNewGroups))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewGroups); 
+		if (NULL != tmpstr && true_value_from_string(tmpstr))
+		{
+			windows_private_set_create_groups(ra, PR_TRUE);
+		}
+		else
+		{
+			windows_private_set_create_groups(ra, PR_FALSE);
+		}
+		retval = 1;
+		slapi_ch_free((void**)&tmpstr);
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7WindowsDomain))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsDomain); 
+		if (NULL != tmpstr)
+		{
+			windows_private_set_windows_domain(ra,tmpstr);
+		}
+		retval = 1;
+		slapi_ch_free((void**)&tmpstr);
+	}
+	return retval;
+}
+
+/* Returns non-zero if the modify was ok, zero if not */
+int
+windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
+{
+	/* Is this a Windows agreement ? */
+	if (get_agmt_agreement_type(ra) == REPLICA_TYPE_WINDOWS)
+	{
+		return windows_parse_config_entry(ra,type,e);
+	} else
+	{
+		return 0;
+	}
+}
+
 void
 windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e)
 {
-	char *tmpstr = NULL;
 	agmt_set_priv(ra,windows_private_new());
-	
-	/* DN of entry at root of replicated area */
-	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsReplicaArea);
-	if (NULL != tmpstr)
-	{
-		windows_private_set_windows_subtree(ra, slapi_sdn_new_dn_passin(tmpstr) );
-	}
-	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7DirectoryReplicaArea); 
-	if (NULL != tmpstr)
-	{
-		windows_private_set_directory_subtree(ra, slapi_sdn_new_dn_passin(tmpstr) );
-	}
 
-	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewUsers); 
-	if (NULL != tmpstr && true_value_from_string(tmpstr))
-	{
-		windows_private_set_create_users(ra, PR_TRUE);
-		slapi_ch_free((void**)&tmpstr);
-	}
-	else
-	{
-		windows_private_set_create_users(ra, PR_FALSE);
-	}
-	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewGroups); 
-	if (NULL != tmpstr && true_value_from_string(tmpstr))
-	{
-		windows_private_set_create_groups(ra, PR_TRUE);
-		slapi_ch_free((void**)&tmpstr);
-	}
-	else
-	{
-		windows_private_set_create_groups(ra, PR_FALSE);
-	}
-	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsDomain); 
-	if (NULL != tmpstr)
-	{
-		windows_private_set_windows_domain(ra,tmpstr);
-	}
+	windows_parse_config_entry(ra,NULL,e);
 }
 
 const char* windows_private_get_purl(const Repl_Agmt *ra)
