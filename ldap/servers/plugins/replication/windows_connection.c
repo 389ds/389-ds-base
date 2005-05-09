@@ -523,7 +523,16 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 			} else 
 			{
 				struct  berval ** aVal = ldap_get_values_len( ld, msg, a);
-				slapi_entry_add_values( e, a, aVal);
+				char *type_to_use = NULL;
+				/* Work around the fact that we alias street and streetaddress, while Microsoft do not */
+				if (0 == strcasecmp(a,"streetaddress")) 
+				{
+					type_to_use = FAKE_STREET_ATTR_NAME;
+				} else
+				{
+					type_to_use = a;
+				}
+				slapi_entry_add_values( e, type_to_use, aVal);
                 
 				ldap_memfree(a);
 				ldap_value_free_len(aVal);

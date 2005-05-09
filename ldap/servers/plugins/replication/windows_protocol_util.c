@@ -193,8 +193,8 @@ static windows_attribute_map user_attribute_map[] =
 	{ "maxStorage", "ntUserMaxStorage", bidirectional, always, normal},
 	{ "profilePath", "ntUserProfile", bidirectional, always, normal},
 	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
-	{ "street", "street", fromwindowsonly, always, normal},
 	{ "streetAddress", "street", towindowsonly, always, normal},
+	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
 	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
     { "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
@@ -212,8 +212,8 @@ static windows_attribute_map group_attribute_map[] =
 	{ "groupType", "ntGroupType",  bidirectional, createonly, normal},
 	{ "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
 	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
-	{ "street", "street", fromwindowsonly, always, normal},
 	{ "streetAddress", "street", towindowsonly, always, normal},
+	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
     { "member", "uniquemember", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
