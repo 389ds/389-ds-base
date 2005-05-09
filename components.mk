@@ -488,3 +488,140 @@ ifeq ($(INTERNAL_BUILD), 1)
 include $(BUILD_ROOT)/internal_comp_deps.mk
 endif
 
+#################################################
+# User Sync Components
+#################################################
+# java service wrapper for Password Sync #####################
+WRAPPER = wrapper_win32_$(WRAPPER_VERSION).zip
+WRAPPER_DEST = $(NSCP_DISTDIR_FULL_RTL)/wrapper
+WRAPPER_FILE = $(WRAPPER_DEST)/$(WRAPPER)
+WRAPPER_FILES = $(WRAPPER)
+WRAPPER_RELEASE = $(COMPONENTS_DIR_DEV)/wrapper
+WRAPPER_DIR = $(WRAPPER_RELEASE)/$(WRAPPER_VERSION)
+WRAPPER_DEP = $(WRAPPER_FILE)
+WRAPPER_REL_DIR=$(subst -bin,,$(subst .zip,,$(WRAPPER)))
+
+ifndef WRAPPER_PULL_METHOD
+WRAPPER_PULL_METHOD = $(COMPONENT_PULL_METHOD)
+endif
+
+$(WRAPPER_DEP): $(NSCP_DISTDIR_FULL_RTL) 
+ifeq ($(ARCH), WINNT)
+ifdef COMPONENT_DEPS
+	echo "Inside ftppull"
+	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
+		-objdir $(WRAPPER_DEST) -componentdir $(WRAPPER_DIR) \
+		-files $(WRAPPER_FILES) -unzip $(WRAPPER_DEST)
+endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component WRAPPER files $@" ; \
+	fi
+else
+	-@echo "WRAPPER is not required except on Windows."
+endif #WINNT
+
+
+# swig for Password Sync #####################
+SWIG = swigwin-$(SWIG_VERSION).zip
+SWIG_DEST = $(NSCP_DISTDIR_FULL_RTL)/swig
+SWIG_FILE = $(SWIG_DEST)/$(SWIG)
+SWIG_FILES = $(SWIG)
+SWIG_RELEASE = $(COMPONENTS_DIR_DEV)/swig
+SWIG_DIR = $(SWIG_RELEASE)/$(SWIG_VERSION)
+SWIG_DEP = $(SWIG_FILE)
+SWIG_REL_DIR=$(subst -bin,,$(subst .zip,,$(SWIG)))
+SWIG_EXE = $(SWIG_DEST)/SWIG-$(SWIG_VERSION)/swig.exe
+
+ifndef SWIG_PULL_METHOD
+SWIG_PULL_METHOD = $(COMPONENT_PULL_METHOD)
+endif
+
+$(SWIG_DEP): $(NSCP_DISTDIR_FULL_RTL) 
+ifeq ($(ARCH), WINNT)
+ifdef COMPONENT_DEPS
+	echo "Inside ftppull"
+	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
+		-objdir $(SWIG_DEST) -componentdir $(SWIG_DIR) \
+		-files $(SWIG_FILES) -unzip $(SWIG_DEST)
+
+endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component SWIG files $@" ; \
+	fi
+else
+	-@echo "SWIG is not required except on Windows."
+endif #WINNT
+
+# apache ds for Password Sync #####################
+APACHEDS = apacheds-main-$(APACHEDS_VERSION).jar
+APACHEDSSRC = apacheds-$(APACHEDS_VERSION)-src.zip
+APACHEDS_DEST = $(NSCP_DISTDIR_FULL_RTL)/apacheds
+APACHEDS_FILE = $(APACHEDS_DEST)/$(APACHEDS)
+APACHEDS_FILES = $(APACHEDS)
+APACHEDSSRC_FILES = $(APACHEDSSRC)
+APACHEDS_RELEASE = $(COMPONENTS_DIR_DEV)/apacheds
+APACHEDS_DIR = $(APACHEDS_RELEASE)/$(APACHEDS_VERSION)
+APACHEDS_DEP = $(APACHEDS_FILE)
+APACHEDS_REL_DIR=$(subst -bin,,$(subst .jar,,$(APACHEDS)))
+APACHEDSSOURCE = $(NSCP_DISTDIR_FULL_RTL)/apacheds/apacheds-$(APACHEDS_VERSION)
+
+
+ifndef APACHEDS_PULL_METHOD
+APACHEDS_PULL_METHOD = $(COMPONENT_PULL_METHOD)
+endif
+
+$(APACHEDS_DEP) : $(NSCP_DISTDIR_FULL_RTL) 
+ifeq ($(ARCH), WINNT)
+ifdef COMPONENT_DEPS
+	echo "Inside ftppull"
+	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
+		-objdir $(APACHEDS_DEST) -componentdir $(APACHEDS_DIR) \
+		-files $(APACHEDS_FILES)
+	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
+		-objdir $(APACHEDS_DEST) -componentdir $(APACHEDS_DIR) \
+		-files $(APACHEDSSRC_FILES) -unzip $(APACHEDS_DEST)
+endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component APACHEDS files $@" ; \
+	fi
+
+
+else
+	-@echo "APACHEDS is not required except on Windows."
+endif #WINNT
+
+
+# MAVEN for Password Sync #####################
+MAVEN = maven-$(MAVEN_VERSION).zip
+MAVEN_DEST = $(NSCP_DISTDIR_FULL_RTL)/maven
+MAVEN_FILE = $(MAVEN_DEST)/$(MAVEN)
+MAVEN_FILES = $(MAVEN)
+MAVEN_RELEASE = $(COMPONENTS_DIR_DEV)/maven
+MAVEN_DIR = $(MAVEN_RELEASE)/$(MAVEN_VERSION)
+MAVEN_DEP = $(MAVEN_FILE)
+MAVEN_REL_DIR=$(subst -bin,,$(subst .zip,,$(MAVEN)))
+
+#MAVEN_EXE=$(NSCP_DISTDIR_FULL_RTL)/maven/$(MAVEN_REL_DIR)/bin/maven
+MAVEN_EXE=..\\..\\..\\..\\..\\dist\\WINNT5.0_DBG.OBJ\\maven\\maven-1.0.2\\bin\\maven.bat
+#MAVEN_HOME=..\\..\\..\\..\\..\\dist\\WINNT5.0_DBG.OBJ\\maven\\maven-1.0.2
+MAVEN_HOME=$(NSCP_DISTDIR_FULL_RTL)/maven/$(MAVEN_REL_DIR)
+
+ifndef MAVEN_PULL_METHOD
+MAVEN_PULL_METHOD = $(COMPONENT_PULL_METHOD)
+endif
+
+$(MAVEN_DEP): $(NSCP_DISTDIR_FULL_RTL) 
+ifeq ($(ARCH), WINNT)
+ifdef COMPONENT_DEPS
+	echo "Inside ftppull"
+	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
+		-objdir $(MAVEN_DEST) -componentdir $(MAVEN_DIR) \
+		-files $(MAVEN_FILES) -unzip $(MAVEN_DEST)
+endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component MAVEN files $@" ; \
+	fi
+else
+	-@echo "MAVEN is not required except on Windows."
+endif #WINNT
+

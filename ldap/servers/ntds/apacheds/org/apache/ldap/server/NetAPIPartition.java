@@ -231,10 +231,13 @@ public class NetAPIPartition implements ContextPartition {
         	
             if(attribute.contains("user")) {
                 user.NewUser(rdn);
-                modNTUserAttributes(user, modItems);
                 result = user.AddUser();
                 if(result != 0) {
                 	throw new NamingException("Failed to add new user: " + normName + " (" + result + ")");
+                }
+                modNTUserAttributes(user, modItems);
+                if(user.StoreUser() != 0) {
+                	throw new NamingException("Failed to commit modified user information: " + normName);
                 }
             }
             else if(attribute.contains("group")) {
@@ -245,9 +248,12 @@ public class NetAPIPartition implements ContextPartition {
             	
             	if(((new Integer((String)attribute.get())).intValue() & GLOBAL_FLAG) == GLOBAL_FLAG) {
             		group.NewGroup(rdn);
-                    modNTGroupAttributes(group, modItems);
                     if(group.AddGroup() != 0) {
                     	throw new NamingException("Failed to add new group: " + normName);
+                    }
+                    modNTGroupAttributes(group, modItems);
+                    if(group.StoreGroup() != 0) {
+                    	throw new NamingException("Failed to commit modified user information: " + normName);
                     }
             	}
             	else if(((new Integer((String)attribute.get())).intValue() & DOMAINLOCAL_FLAG) == DOMAINLOCAL_FLAG) {
@@ -255,6 +261,10 @@ public class NetAPIPartition implements ContextPartition {
                     modNTLocalGroupAttributes(localGroup, modItems);
                     if(localGroup.AddLocalGroup() != 0) {
                     	throw new NamingException("Failed add new local group: " + normName);
+                    }
+                    modNTLocalGroupAttributes(localGroup, modItems);
+                    if(localGroup.StoreLocalGroup() != 0) {
+                    	throw new NamingException("Failed to commit modified user information: " + normName);
                     }
             	}
             	else {

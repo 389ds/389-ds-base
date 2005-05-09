@@ -226,3 +226,25 @@ endif
 ifndef DSDOC_RELDATE
   DSDOC_RELDATE = 20050311
 endif
+
+# WIX
+ifndef WIX_VERSION
+	WIX_VERSION=2.0.2613.0
+endif
+
+### apacheds, etc ###
+ifndef WRAPPER_VERSION
+	WRAPPER_VERSION=3.1.2
+endif
+
+ifndef APACHEDS_VERSION
+	APACHEDS_VERSION=0.9
+endif
+
+ifndef SWIG_VERSION
+	SWIG_VERSION=1.3.24
+endif
+
+ifndef MAVEN_VERSION
+	MAVEN_VERSION=1.0.2
+endif
