@@ -149,9 +149,14 @@ endif
 ifeq ($(ARCH), SOLARIS)
 LINK_DLL += -z defs
 # removed -lcx from the following line
-EXTRA_LIBS += -lCstd -lCrun -lm -lw -lc
+EXTRA_LIBS += -lm -lw -lc
+ifdef NS_USE_NATIVE
+EXTRA_LIBS += -lCstd -lCrun
+endif
 # with the Forte 6 and later compilers, we must use CC to link
+ifdef NS_USE_NATIVE
 LD=CC
+endif
 endif
 
 #ifeq ($(ARCH), OSF1)

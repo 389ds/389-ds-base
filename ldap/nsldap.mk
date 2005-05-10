@@ -955,8 +955,10 @@ PLATFORM=sunos5
 # ranlib not needed under SunOS5
 RANLIB	= true
 
+ifdef NS_USE_NATIVE
 # be explicit about which CC to use
 CC=cc -v
+endif
 
 # gie full path to hostname since it may not be in user's path
 HOSTNAME=/usr/ucb/hostname
@@ -966,7 +968,11 @@ INSTALL=$(LDAP_SRC)/build/install.sh
 
 # Flags required to cause compiler to generate code suitable for use in
 # a shared library.
+ifdef NS_USE_NATIVE
 SLCFLAGS= -KPIC
+else
+SLCFLAGS= -fPIC
+endif
 
 # Extra linker options needed when creating shared libraries
 DYNALIBS=
@@ -981,7 +987,9 @@ LDRPATHFLAG_PREFIX=-R
 
 # flag to pass to ld to set a shared library's "internal name"
 # this is used like this, for example: $(SONAMEFLAG_PREFIX)libldap.so
+ifdef NS_USE_NATIVE
 SONAMEFLAG_PREFIX=-h
+endif
 
 THREADS= -DTHREAD_SUNOS5_LWP
 PLAT_ADMCFLAGS=	-DSVR4 -DSOLARIS

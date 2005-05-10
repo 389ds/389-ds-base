@@ -62,8 +62,12 @@ SOLINK2=$(SOLINK)
 endif
 
 ifeq ($(ARCH), SOLARIS)
+ifdef NS_USE_NATIVE
 DLL_LDFLAGS += -h $(SONAME)
 EXTRA_LIBS += -R .:../../lib:../../bin/https:../../plugins/java/bin:../wai/lib
+else
+EXTRA_LIBS += -Wl,-R,.:../../lib:../../bin/https:../../plugins/java/bin:../wai/lib
+endif
 ADM_EXTRA = $(GCCLIB)
 endif
 
