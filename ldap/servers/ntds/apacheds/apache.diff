@@ -1,0 +1,393 @@
+Index: apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/ServerContextFactory.java
+===================================================================
+--- apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/ServerContextFactory.java	(revision 169374)
++++ apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/ServerContextFactory.java	(working copy)
+@@ -28,16 +28,17 @@
+ import javax.naming.ldap.InitialLdapContext;
+ import javax.naming.ldap.Control;
+ 
+ import org.apache.ldap.common.exception.LdapConfigurationException;
+ import org.apache.ldap.common.name.LdapName;
+ import org.apache.ldap.common.util.PropertiesUtils;
+ import org.apache.ldap.server.protocol.LdapProtocolProvider;
+ import org.apache.mina.common.TransportType;
++import org.apache.mina.io.filter.SSLFilter;
+ import org.apache.mina.registry.Service;
+ import org.apache.mina.registry.ServiceRegistry;
+ import org.apache.mina.registry.SimpleServiceRegistry;
+ import org.apache.kerberos.service.KdcConfiguration;
+ import org.apache.kerberos.protocol.KerberosProtocolProvider;
+ import org.apache.kerberos.store.PrincipalStore;
+ import org.apache.kerberos.store.JndiPrincipalStoreImpl;
+ 
+@@ -49,17 +50,17 @@
+  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
+  * @version $Rev$
+  * @see javax.naming.spi.InitialContextFactory
+  */
+ public class ServerContextFactory extends CoreContextFactory
+ {
+     /** the default LDAP port to use */
+     private static final int LDAP_PORT = 389;
+-
++    private static final int LDAPS_PORT = 636;
+     private static final ServiceRegistry DEFAULT_MINA_REGISTRY;
+     
+     private static Service ldapService;
+ 
+     private static Service kerberosService;
+ 
+     private static ServiceRegistry minaRegistry;
+ 
+@@ -263,24 +264,61 @@
+ 
+     /**
+      * Starts up the LDAP protocol provider to service LDAP requests
+      *
+      * @throws NamingException if there are problems starting the LDAP provider
+      */
+     private void startLdapProtocol() throws NamingException
+     {
+-        int port = PropertiesUtils.get( initialEnv, EnvKeys.LDAP_PORT, LDAP_PORT );
++        int port = 0;
++        
++        boolean useSSL = false;
++        if (initialEnv.containsKey(EnvKeys.LDAPS_ENABLE)) {
++            useSSL = (Boolean.valueOf((String) initialEnv.get(EnvKeys.LDAPS_ENABLE))).booleanValue();
++        }
++
++        if (useSSL)
++        {
++        	port = PropertiesUtils.get( initialEnv, EnvKeys.LDAPS_PORT, LDAPS_PORT );
++        } 
++        else 
++        {
++        	port = PropertiesUtils.get( initialEnv, EnvKeys.LDAP_PORT, LDAP_PORT );  
++        }
++
+ 
+         Service service = new Service( "ldap", TransportType.SOCKET, new InetSocketAddress( port ) );
+ 
+         try
+         {
+             minaRegistry.bind( service, new LdapProtocolProvider( ( Hashtable ) initialEnv.clone() ) );
+ 
++
++            if ( useSSL) 
++			{
++                SSLContextFactory.setKeystore( (String) initialEnv.get(EnvKeys.LDAPS_KEYSTORE_LOCATION) );
++                if (initialEnv.containsKey( EnvKeys.LDAPS_KEYSTORE_PASSWORD ) && 
++                    initialEnv.get( EnvKeys.LDAPS_KEYSTORE_PASSWORD ) != null)
++			{
++                        String pw = (String)initialEnv.get( EnvKeys.LDAPS_KEYSTORE_PASSWORD );
++                        SSLContextFactory.setKeystorePassword( pw );
++			}
++                try 
++                {
++                   SSLFilter sslFilter = new SSLFilter (org.apache.ldap.server.jndi.SSLContextFactory.getInstance(true));
++                   minaRegistry.getIoAcceptor(TransportType.SOCKET).getFilterChain().addLast("sslFilter", sslFilter);
++
++                } catch (java.security.GeneralSecurityException ge) 
++                {
++			throw new NamingException("can't invoke ssl filter");  
++                } 
++            }
++
++
+             ldapService = service;
+         }
+         catch ( IOException e )
+         {
+             String msg = "Failed to bind the LDAP protocol service to the service registry: " + service;
+ 
+             LdapConfigurationException lce = new LdapConfigurationException( msg );
+ 
+Index: apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/TrustManagerFactory.java
+===================================================================
+--- apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/TrustManagerFactory.java	(revision 0)
++++ apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/TrustManagerFactory.java	(revision 0)
+@@ -0,0 +1,73 @@
++/*
++ *   Copyright 2004 The Apache Software Foundation
++ *
++ *   Licensed under the Apache License, Version 2.0 (the "License");
++ *   you may not use this file except in compliance with the License.
++ *   You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *   Unless required by applicable law or agreed to in writing, software
++ *   distributed under the License is distributed on an "AS IS" BASIS,
++ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *   See the License for the specific language governing permissions and
++ *   limitations under the License.
++ *
++ */
++package org.apache.ldap.server.jndi;
++
++import java.security.InvalidAlgorithmParameterException;
++import java.security.KeyStore;
++import java.security.KeyStoreException;
++import java.security.cert.CertificateException;
++import java.security.cert.X509Certificate;
++
++import javax.net.ssl.ManagerFactoryParameters;
++import javax.net.ssl.TrustManager;
++import javax.net.ssl.TrustManagerFactorySpi;
++import javax.net.ssl.X509TrustManager;
++
++class TrustManagerFactory extends TrustManagerFactorySpi
++{
++
++    static final X509TrustManager X509 = new X509TrustManager()
++    {
++        public void checkClientTrusted( X509Certificate[] x509Certificates,
++                                       String s ) throws CertificateException
++        {
++        }
++
++        public void checkServerTrusted( X509Certificate[] x509Certificates,
++                                       String s ) throws CertificateException
++        {
++        }
++
++        public X509Certificate[] getAcceptedIssuers()
++        {
++            return new X509Certificate[ 0 ];
++        }
++    };
++
++    static final TrustManager[] X509_MANAGERS = new TrustManager[] { X509 };
++
++    public TrustManagerFactory()
++    {
++    }
++
++    protected TrustManager[] engineGetTrustManagers()
++    {
++        return X509_MANAGERS;
++    }
++
++    protected void engineInit( KeyStore keystore ) throws KeyStoreException
++    {
++        // noop
++    }
++
++    protected void engineInit(
++                              ManagerFactoryParameters managerFactoryParameters )
++            throws InvalidAlgorithmParameterException
++    {
++        // noop
++    }
++}
+Index: apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/SSLContextFactory.java
+===================================================================
+--- apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/SSLContextFactory.java	(revision 0)
++++ apacheds/trunk/main/src/main/java/org/apache/ldap/server/jndi/SSLContextFactory.java	(revision 0)
+@@ -0,0 +1,146 @@
++/*
++ *   Copyright 2004 The Apache Software Foundation
++ *
++ *   Licensed under the Apache License, Version 2.0 (the "License");
++ *   you may not use this file except in compliance with the License.
++ *   You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *   Unless required by applicable law or agreed to in writing, software
++ *   distributed under the License is distributed on an "AS IS" BASIS,
++ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *   See the License for the specific language governing permissions and
++ *   limitations under the License.
++ *
++ */
++package org.apache.ldap.server.jndi;
++
++import java.io.IOException;
++import java.io.InputStream;
++import java.security.GeneralSecurityException;
++import java.security.KeyStore;
++import java.security.SecureRandom; 
++import java.security.Security; 
++import javax.net.ssl.KeyManagerFactory;
++import javax.net.ssl.SSLContext;
++
++class SSLContextFactory
++{
++    /**
++     * Protocol to use.
++     */
++    private static final String PROTOCOL = "TLS";
++    private static String keystore = ""; 
++    private static String keystorepassword = null;
++
++    private static SSLContext serverInstance = null;
++    private static SSLContext clientInstance = null;
++    
++    private static String[] supported = null;
++
++     static void setKeystore(String kstore)
++    {
++        keystore = kstore;
++    }
++    
++     static void setKeystorePassword(String pw)
++    {
++        keystorepassword = pw;
++    }
++    
++    /**
++     * Get SSLContext singleton.
++     *
++     * @return SSLContext
++     * @throws java.security.GeneralSecurityException
++     *
++     */
++    public static SSLContext getInstance( boolean server )
++            throws GeneralSecurityException
++    {
++        SSLContext retInstance = null;
++        if( server )
++        {
++            if( serverInstance == null )
++            {
++                synchronized( SSLContextFactory.class )
++                {
++                    if( serverInstance == null )
++                    {
++                        try
++                        {
++                            Security.addProvider(new com.sun.net.ssl.internal.ssl.Provider());
++                            Security.addProvider(new com.sun.crypto.provider.SunJCE()); 
++                            serverInstance = createServerSSLContext();
++                        }
++                        catch( Exception ioe )
++                        {
++                            throw new GeneralSecurityException(
++                                    "Can't create Server SSLContext:" + ioe );
++                        }
++                    }
++                }
++            }
++            retInstance = serverInstance;
++        }
++        else
++        {
++            if( clientInstance == null )
++            {
++                synchronized( SSLContextFactory.class )
++                {
++                    if( clientInstance == null )
++                    {
++                      //  clientInstance = createClientSSLContext();
++                    }
++                }
++            }
++            retInstance = clientInstance;
++        }
++        return retInstance;
++    }
++
++    private static SSLContext createServerSSLContext()
++            throws GeneralSecurityException, IOException
++    {
++        // Create keystore
++        KeyStore ks = KeyStore.getInstance( "JKS" );
++        java.io.FileInputStream in = null;
++      
++        try
++        {
++            in = new java.io.FileInputStream(keystore);
++            ks.load( in, keystorepassword.toCharArray() );
++           
++        }
++        catch (java.io.IOException e) {
++            throw new IOException("unable to load keystore: " + keystore);
++        }
++        finally
++        {
++            if( in != null )
++            {
++                try
++                {
++                    in.close();
++                }
++                catch( IOException ignored )
++                {
++                }
++            }
++        }
++
++        // Set up key manager factory to use our key store
++        KeyManagerFactory kmf = KeyManagerFactory.getInstance( "SunX509" );
++        kmf.init( ks, keystorepassword.toCharArray() );
++
++        // Initialize the SSLContext to work with our key managers. */
++        SSLContext sslContext = SSLContext.getInstance( PROTOCOL );
++        
++        sslContext.init( kmf.getKeyManagers(), TrustManagerFactory.X509_MANAGERS,  SecureRandom.getInstance("SHA1PRNG") );
++        
++        return sslContext;
++    }
++
++}
+Index: apacheds/trunk/core/src/main/java/org/apache/ldap/server/jndi/EnvKeys.java
+===================================================================
+--- apacheds/trunk/core/src/main/java/org/apache/ldap/server/jndi/EnvKeys.java	(revision 169377)
++++ apacheds/trunk/core/src/main/java/org/apache/ldap/server/jndi/EnvKeys.java	(working copy)
+@@ -90,17 +90,22 @@
+     /** key used to disable the networking layer (wire protocol) */
+     public static final String DISABLE_PROTOCOL = "server.net.disable.protocol";
+     /** key used to hold the MINA registry instance to use rather than creating one */
+     public static final String PASSTHRU = "server.net.passthru";
+     /** key for port setting for ldap requests beside default 389 */
+     public static final String LDAP_PORT = "server.net.ldap.port";
+     /** key for port setting for secure ldap requests besides default 636 */
+     public static final String LDAPS_PORT = "server.net.ldaps.port";
+-
++    /** key used to enable secure ldap */
++    public static final String LDAPS_ENABLE = "server.net.ldaps.enable";
++    /** key for location of keystore used */
++    public static final String LDAPS_KEYSTORE_LOCATION = "javax.net.ssl.keyStore";
++    /** key for password of keystore used (if any) */
++    public static final String LDAPS_KEYSTORE_PASSWORD = "javax.net.ssl.keyStorePassword";
+     // ------------------------------------------------------------------------
+     // Properties for partition configuration
+     // ------------------------------------------------------------------------
+ 
+     /** a comma separated list of partition names */
+     public static final String PARTITIONS = "server.db.partitions";
+     /** the envprop key base to the suffix of a partition */
+     public static final String SUFFIX = "server.db.partition.suffix.";
+Index: apacheds/trunk/core/src/main/java/org/apache/ldap/server/jndi/CoreContextFactory.java
+===================================================================
+--- apacheds/trunk/core/src/main/java/org/apache/ldap/server/jndi/CoreContextFactory.java	(revision 169377)
++++ apacheds/trunk/core/src/main/java/org/apache/ldap/server/jndi/CoreContextFactory.java	(working copy)
+@@ -373,18 +373,25 @@
+ 
+             attributes.put( "objectClass", "person" );
+ 
+             attributes.put( "objectClass", "organizationalPerson" );
+ 
+             attributes.put( "objectClass", "inetOrgPerson" );
+ 
+             attributes.put( "uid", SystemPartition.ADMIN_UID );
+-
+-            attributes.put( "userPassword", SystemPartition.ADMIN_PW );
++            
++            if (initialEnv.containsKey( "server.net.admin.password" )) 
++            {
++                 attributes.put( "userPassword", (String) initialEnv.get( "server.net.admin.password" ) );
++            }
++            else 
++            {
++                throw new NamingException("ERROR: Admin password not set. Server not starting for security reasons. ");
++            }
+ 
+             attributes.put( "displayName", "Directory Superuser" );
+ 
+             attributes.put( "creatorsName", ADMIN );
+ 
+             attributes.put( "createTimestamp", DateUtils.getGeneralizedTime() );
+ 
+             attributes.put( "displayName", "Directory Superuser" );

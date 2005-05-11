@@ -149,17 +149,17 @@ public class NetAPIPartition implements ContextPartition {
         
         if(name.toString().toLowerCase().startsWith(new String("sAMAccountName").toLowerCase())) {
         	if(user.RetriveUserByAccountName(rdn) == 0) {
-        		if(user.DeleteUser(user.GetAccountName()) == 0) {
+        		if(user.DeleteUser() == 0) {
         			deletedSomthing = true;
         		}
         	}
         	if(group.RetriveGroupByAccountName(rdn) == 0) {
-        		if(group.DeleteGroup(group.GetAccountName()) == 0) {
+        		if(group.DeleteGroup() == 0) {
         			deletedSomthing = true;
         		}
         	}
         	if(localGroup.RetriveLocalGroupByAccountName(rdn) == 0) {
-        		if(localGroup.DeleteLocalGroup(localGroup.GetAccountName()) == 0) {
+        		if(localGroup.DeleteLocalGroup() == 0) {
         			deletedSomthing = true;
         		}
         	}
@@ -168,17 +168,17 @@ public class NetAPIPartition implements ContextPartition {
         		(name.toString().toLowerCase().startsWith(new String("GUID").toLowerCase()))) {
         	
         	if(user.RetriveUserBySIDHexStr(rdn) == 0) {
-        		if(user.DeleteUser(user.GetAccountName()) == 0) {
+        		if(user.DeleteUser() == 0) {
         			deletedSomthing = true;
         		}
         	}
         	if(group.RetriveGroupBySIDHexStr(rdn) == 0) {
-        		if(group.DeleteGroup(group.GetAccountName()) == 0) {
+        		if(group.DeleteGroup() == 0) {
         			deletedSomthing = true;
         		}
         	}
         	if(localGroup.RetriveLocalGroupBySIDHexStr(rdn) == 0) {
-        		if(localGroup.DeleteLocalGroup(localGroup.GetAccountName()) == 0) {
+        		if(localGroup.DeleteLocalGroup() == 0) {
         			deletedSomthing = true;
         		}
         	}
@@ -230,15 +230,10 @@ public class NetAPIPartition implements ContextPartition {
         		(normName.toString().toLowerCase().startsWith(new String("sAMAccountName").toLowerCase()))) {
         	
             if(attribute.contains("user")) {
-                user.NewUser(rdn);
-                result = user.AddUser();
-                if(result != 0) {
-                	throw new NamingException("Failed to add new user: " + normName + " (" + result + ")");
+                if(user.NewUser(rdn) != 0) {
+                	throw new NamingException("Failed to add new user: " + normName);
                 }
                 modNTUserAttributes(user, modItems);
-                if(user.StoreUser() != 0) {
-                	throw new NamingException("Failed to commit modified user information: " + normName);
-                }
             }
             else if(attribute.contains("group")) {
             	attribute = entry.get("groupType");
@@ -247,25 +242,16 @@ public class NetAPIPartition implements ContextPartition {
             	}
             	
             	if(((new Integer((String)attribute.get())).intValue() & GLOBAL_FLAG) == GLOBAL_FLAG) {
-            		group.NewGroup(rdn);
-                    if(group.AddGroup() != 0) {
+                    if(group.NewGroup(rdn) != 0) {
                     	throw new NamingException("Failed to add new group: " + normName);
                     }
                     modNTGroupAttributes(group, modItems);
-                    if(group.StoreGroup() != 0) {
-                    	throw new NamingException("Failed to commit modified user information: " + normName);
-                    }
             	}
             	else if(((new Integer((String)attribute.get())).intValue() & DOMAINLOCAL_FLAG) == DOMAINLOCAL_FLAG) {
-                    localGroup.NewLocalGroup(rdn);
-                    modNTLocalGroupAttributes(localGroup, modItems);
-                    if(localGroup.AddLocalGroup() != 0) {
+                    if(localGroup.NewLocalGroup(rdn) != 0) {
                     	throw new NamingException("Failed add new local group: " + normName);
                     }
                     modNTLocalGroupAttributes(localGroup, modItems);
-                    if(localGroup.StoreLocalGroup() != 0) {
-                    	throw new NamingException("Failed to commit modified user information: " + normName);
-                    }
             	}
             	else {
             		throw new NamingException("Unknown group type: " + (Integer)attribute.get());
@@ -342,25 +328,16 @@ public class NetAPIPartition implements ContextPartition {
         if(name.toString().toLowerCase().startsWith(new String("sAMAccountName").toLowerCase())) {
             if(user.RetriveUserByAccountName(rdn) == 0) {
                 modNTUserAttributes(user, mods);
-                if(user.StoreUser() != 0) {
-                	throw new NamingException("Failed to commit modified user information: " + name);
-                }
                 
                 modifiedSomething = true;
             }
             else if(group.RetriveGroupByAccountName(rdn) == 0) {
                 modNTGroupAttributes(group, mods);
-                if(group.StoreGroup() != 0) {
-                	throw new NamingException("Failed to commit modified group information: " + name);
-                }
                 
                 modifiedSomething = true;
             }
             else if(localGroup.RetriveLocalGroupByAccountName(rdn) == 0) {
                 modNTLocalGroupAttributes(localGroup, mods);
-                if(localGroup.StoreLocalGroup() != 0) {
-                	throw new NamingException("Failed to commit modified local group information: " + name);
-                }
                 
                 modifiedSomething = true;
             }
@@ -370,25 +347,16 @@ public class NetAPIPartition implements ContextPartition {
         	
         	if(user.RetriveUserBySIDHexStr(rdn) == 0) {
                 modNTUserAttributes(user, mods);
-                if(user.StoreUser() != 0) {
-                	throw new NamingException("Failed to commit modified user information: " + name);
-                }
                 
                 modifiedSomething = true;
             }
             else if(group.RetriveGroupBySIDHexStr(rdn) == 0) {
                 modNTGroupAttributes(group, mods);
-                if(group.StoreGroup() != 0) {
-                	throw new NamingException("Failed to commit modified group information: " + name);
-                }
                 
                 modifiedSomething = true;
             }
             else if(localGroup.RetriveLocalGroupBySIDHexStr(rdn) == 0) {
                 modNTLocalGroupAttributes(localGroup, mods);
-                if(localGroup.StoreLocalGroup() != 0) {
-                	throw new NamingException("Failed to commit modified local group information: " + name);
-                }
                 
                 modifiedSomething = true;
             }
@@ -1111,9 +1079,11 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(user.GetLastLogon()).toString());
         attributes.put(attribute);
 
+        /*
         attribute = new BasicAttribute("logonHours");
         attribute.add(HexStringToByteArray(user.GetLogonHours()));
         attributes.put(attribute);
+        */
 
         attribute = new BasicAttribute("maxStorage");
         attribute.add(new Long(user.GetMaxStorage()).toString());
@@ -1379,6 +1349,7 @@ public class NetAPIPartition implements ContextPartition {
         			user.SetHomeDirDrive((String)mods[i].getAttribute().get());
         		}
         	}
+        	/*
         	else if(mods[i].getAttribute().getID().compareToIgnoreCase("logonHours") == 0) {        		
         		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
         			user.SetLogonHours(ByteArrayToHexString((byte[])mods[i].getAttribute().get()));
@@ -1390,6 +1361,7 @@ public class NetAPIPartition implements ContextPartition {
         			user.SetLogonHours(ByteArrayToHexString((byte[])mods[i].getAttribute().get()));
         		}
         	}
+        	*/
         	else if(mods[i].getAttribute().getID().compareToIgnoreCase("maxStorage") == 0) {
         		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
         			user.SetMaxStorage(new Long((String)mods[i].getAttribute().get()).longValue());
