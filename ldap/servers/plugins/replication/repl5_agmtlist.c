@@ -147,7 +147,7 @@ add_new_agreement(Slapi_Entry *e)
     Object *repl_obj = NULL;
     Object *ro = NULL;
 
-    if (ra == NULL) return 0;
+    if (ra == NULL) return 1; /* tell search result handler callback this entry was not sent */
 
     ro = object_new((void *)ra, agmt_delete);
     objset_add_obj(agmt_set, ro);
