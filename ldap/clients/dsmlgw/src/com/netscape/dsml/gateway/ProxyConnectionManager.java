@@ -205,7 +205,7 @@ class ProxyConnectionManager implements IConnectionManager {
             return;
         
         // reset the original constraints
-        conn.setSearchConstraints(_defaultSearchConstraints);
+        //conn.setSearchConstraints(_defaultSearchConstraints);
         
         // A soft close on the connection.
         // Returns the connection to the pool and make it available.
