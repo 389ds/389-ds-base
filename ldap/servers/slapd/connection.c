@@ -64,6 +64,7 @@ static void op_copy_identity(Connection *conn, Operation *op);
 static int is_ber_too_big(const Connection *conn,unsigned long ber_len);
 static void log_ber_too_big_error(const Connection *conn,
 				unsigned long ber_len, unsigned long maxbersize);
+static int add_to_select_set(Connection *conn);
 
 /*
  * We maintain a global work queue of Slapi_PBlock's that have not yet
@@ -765,7 +766,12 @@ static int handle_read_data(Connection *conn,Operation **op,
 		if (replication_session) {
 			/* Initiate any deferred I/O here */
 			if (defer_io) {
-				return_value2 = issue_new_read(conn);
+				if (conn->c_flags & CONN_FLAG_SSL) {
+					add_to_select_set(conn);
+					return_value2 = 0;
+				} else {
+					return_value2 = issue_new_read(conn);
+				}
 			}
 			if (defer_pushback) {
 				return_value2 = queue_pushed_back_data(conn);
@@ -1152,7 +1158,11 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 		priv->c_current_op = NULL;
 		priv->c_flags = 0;
 		return_value = 0;
-		add_to_select_set(conn);
+		if (!conn->c_isreplication_session) {
+			add_to_select_set(conn);
+		} else {
+			*defer_io = 1;
+		}
 	}
 
 	return return_value;
