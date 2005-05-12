@@ -719,50 +719,66 @@ static int
 send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 {
 		ConnResult pw_return = 0;
-		LDAPMod *pw_mods[2];
-		LDAPMod pw_mod;
-		struct berval bv = {0};
-		UChar *unicode_password = NULL;
-		int32_t unicode_password_length = 0; /* Length in _characters_ */
-		int32_t buffer_size = 0; /* Size in _characters_ */
-		UErrorCode error = U_ZERO_ERROR;
-		char *quoted_password = NULL;
-		struct berval *bvals[2];
+		int is_nt4 = windows_private_get_isnt4(prp->agmt);
 
-		/* AD wants the password in quotes ! */
-		quoted_password = PR_smprintf("\"%s\"",password);
-		if (quoted_password)
+		if (is_nt4)
 		{
-			/* Need to UNICODE encode the password here */
-			/* It's one of those 'ask me first and I will tell you the buffer size' functions */
-			u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
-			buffer_size = unicode_password_length;
-			unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
-			if (unicode_password) {
-				error = U_ZERO_ERROR;
-				u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+			/* NT4 just wants a plaintext password */
+			Slapi_Mods smods = {0};
 
-				/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
-				to_little_endian_double_bytes(unicode_password, unicode_password_length);
+			slapi_mods_init (&smods, 0);
+			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "UnicodePwd", password);
 
-				bv.bv_len = unicode_password_length * sizeof(UChar);
-				bv.bv_val = (char*)unicode_password;
-			
-				bvals[0] = &bv; 
-				bvals[1] = NULL;
-					
-				pw_mod.mod_type = "UnicodePwd";
-				pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
-				pw_mod.mod_bvalues = bvals;
+			pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL );
+
+			slapi_mods_done(&smods);
+
+		} else
+		{
+			char *quoted_password = NULL;
+			/* AD wants the password in quotes ! */
+			quoted_password = PR_smprintf("\"%s\"",password);
+			if (quoted_password)
+			{
+				LDAPMod *pw_mods[2];
+				LDAPMod pw_mod;
+				struct berval bv = {0};
+				UChar *unicode_password = NULL;
+				int32_t unicode_password_length = 0; /* Length in _characters_ */
+				int32_t buffer_size = 0; /* Size in _characters_ */
+				UErrorCode error = U_ZERO_ERROR;
+				struct berval *bvals[2];
+				/* Need to UNICODE encode the password here */
+				/* It's one of those 'ask me first and I will tell you the buffer size' functions */
+				u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+				buffer_size = unicode_password_length;
+				unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
+				if (unicode_password) {
+					error = U_ZERO_ERROR;
+					u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+
+					/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
+					to_little_endian_double_bytes(unicode_password, unicode_password_length);
+
+					bv.bv_len = unicode_password_length * sizeof(UChar);
+					bv.bv_val = (char*)unicode_password;
 				
-				pw_mods[0] = &pw_mod;
-				pw_mods[1] = NULL;
+					bvals[0] = &bv; 
+					bvals[1] = NULL;
+						
+					pw_mod.mod_type = "UnicodePwd";
+					pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+					pw_mod.mod_bvalues = bvals;
+					
+					pw_mods[0] = &pw_mod;
+					pw_mods[1] = NULL;
 
-				pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
+					pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
 
-				slapi_ch_free((void**)&unicode_password);
+					slapi_ch_free((void**)&unicode_password);
+				}
+				PR_smprintf_free(quoted_password);
 			}
-			PR_smprintf_free(quoted_password);
 		}
 
 		return pw_return;
