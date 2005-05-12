@@ -53,7 +53,7 @@
 <Directory Id='INSTALLDIR' Name='UserSync' LongName='Fedora Directory Synchronization'>
 
 <Directory Id='bin' Name='bin'>
-<Component Id='bin'>
+<Component Id='bin' Guid='2354cddf-a2e1-4c80-836b-0ed9302d8a2a'>
 <File Id='apachejar' Name='apache~1.jar' LongName='apacheds-main.jar' DiskId='1' src='bin\apacheds-main.jar' Vital='yes' />
 <File Id='install' Name='instal~1.bat' LongName='installuseresync.bat' DiskId='1' src='bin\installusersync.bat' Vital='yes' />
 <File Id='jnetmanjar' Name='jnetman.jar' DiskId='1' src='bin\jnetman.jar' Vital='yes' />
@@ -65,14 +65,14 @@
 </Directory>
 
 <Directory Id='conf' Name='conf'>
-<Component Id='conf'>
+<Component Id='conf' Guid='c3de9b1d-d818-4998-aa61-b494f96068be'>
 <File Id='usersyncconf' Name='usersy~1.con' LongName='usersync.conf' DiskId='1' src='conf\usersync.conf' Vital='yes' />
 <File Id='wrapperconf' Name='wrappe~1.con' LongName='wrapper.conf' DiskId='1' src='conf\wrapper.conf' Vital='yes' />
 </Component>
 </Directory>
 
 <Directory Id='lib' Name='lib'>
-<Component Id='lib'>
+<Component Id='lib' Guid='abad968e-3799-419f-9ffb-ce5387c563cd'>
 <File Id='netmandll' Name='jnetman.dll' DiskId='1' src='lib\jnetman.dll' Vital='yes' />
 <File Id='wrapperlib' Name='wrapper.dll' DiskId='1' src='lib\wrapper.dll' Vital='yes' />
 <File Id='wrapperjar' Name='wrapper.jar' DiskId='1' src='lib\wrapper.jar' Vital='yes' />
@@ -81,7 +81,7 @@
 
 
 <Directory Id='logs' Name='logs'>
-<Component Id='logs' SharedDllRefCount='no' KeyPath='no' NeverOverwrite='no' Permanent='no' Transitive='no'
+<Component Id='logs' SharedDllRefCount='no' KeyPath='no' NeverOverwrite='no' Permanent='no' Transitive='no' Guid='2ee0e998-e326-4310-888e-a0470d266112'
         Win64='no' Location='either'>
 <CreateFolder/>
 </Component>
