@@ -115,7 +115,10 @@ public:
 	char* NextLocalGroupName();
 
 private:
+	int LoadUserInfo();
+
 	unsigned short* currentAccountName;
+	PUSER_INFO_3 userInfo;
 
 	GROUP_USERS_INFO_0* groupsInfo;
 	DWORD currentGroupEntry;
@@ -179,7 +182,10 @@ public:
 	char* NextUserName();
 
 private:
+	int LoadGroupInfo();
+
 	unsigned short* currentAccountName;
+	PGROUP_INFO_2 groupInfo;
 
 	LOCALGROUP_USERS_INFO_0* usersInfo;
 	DWORD currentUserEntry;
@@ -238,7 +244,10 @@ public:
 	char* NextUserName();
 
 private:
+	int LoadLocalGroupInfo();
+
 	unsigned short* currentAccountName;
+	PLOCALGROUP_INFO_1 localGroupInfo;
 
 	LOCALGROUP_MEMBERS_INFO_0* usersInfo;
 	DWORD currentUserEntry;

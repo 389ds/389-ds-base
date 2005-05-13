@@ -255,6 +255,7 @@ exit:
 NTUser::NTUser()
 {
 	currentAccountName = NULL;
+	userInfo = NULL;
 
 	groupsInfo = NULL;
 	currentGroupEntry = 0;
@@ -275,6 +276,11 @@ NTUser::NTUser()
 NTUser::~NTUser()
 {
 	quickFree((char**)&currentAccountName);
+	if(userInfo != NULL)
+	{
+		NetApiBufferFree(userInfo);
+		userInfo = NULL;
+	}
 	if(groupsInfo != NULL)
 	{
 		NetApiBufferFree(groupsInfo);
@@ -286,6 +292,34 @@ NTUser::~NTUser()
 		localGroupsInfo = NULL;
 	}
 	quickFree((char**)&resultBuf);
+}
+
+// ****************************************************************
+// NTUser::LoadUserInfo
+// ****************************************************************
+int NTUser::LoadUserInfo()
+{
+	int result = 0;
+
+	if(currentAccountName == NULL)
+	{
+		result = -1;
+		goto exit;
+	}
+
+	if(userInfo != NULL)
+	{
+		NetApiBufferFree(userInfo);
+		userInfo = NULL;
+	}
+
+	if(NetUserGetInfo(NULL, currentAccountName, USER_INFO_LEVEL, (unsigned char**)&userInfo) != NERR_Success)
+	{
+		result = -1;
+	}
+
+exit:
+	return result;
 }
 
 // ****************************************************************
@@ -320,6 +354,9 @@ int NTUser::NewUser(char* username)
 	// Free buffers
 	quickFree((char**)&info);
 
+	// Load info for quick retrevial
+	LoadUserInfo();
+
 	return result;
 }
 
@@ -330,14 +367,14 @@ int NTUser::RetriveUserByAccountName(char* username)
 {
 	int result;
 	unsigned long length = 0;
-	PUSER_INFO_3 info;
+	PUSER_INFO_3 info = NULL;
 
 	quickFree((char**)&currentAccountName);
 	UTF8ToUTF16(username, NULL, &length);
 	currentAccountName = (unsigned short*)malloc(length);
 	UTF8ToUTF16(username, currentAccountName, &length);
 
-	result = NetUserGetInfo(NULL, currentAccountName, USER_INFO_LEVEL, (unsigned char**)&info);
+	result = LoadUserInfo();
 
 	return result;
 }
@@ -395,6 +432,12 @@ int NTUser::DeleteUser()
 	result = NetUserDel(NULL, currentAccountName);
 
 	quickFree((char**)&currentAccountName);
+
+	if(userInfo != NULL)
+	{
+		NetApiBufferFree(userInfo);
+		userInfo = NULL;
+	}
 
 exit:
 	return result;
@@ -472,25 +515,16 @@ exit:
 unsigned long NTUser::GetAccountExpires()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if((result = NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info)) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_acct_expires;
+	result = userInfo->usri3_acct_expires;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -510,6 +544,7 @@ int NTUser::SetAccountExpires(unsigned long accountExpires)
 
 	info.usri1017_acct_expires = accountExpires;
 	result = NetUserSetInfo(NULL, currentAccountName, 1017, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	return result;
@@ -521,25 +556,16 @@ exit:
 unsigned long NTUser::GetBadPasswordCount()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_bad_pw_count;
+	result = userInfo->usri3_bad_pw_count;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -549,25 +575,16 @@ exit:
 unsigned long NTUser::GetCodePage()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_code_page;
+	result = userInfo->usri3_code_page;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -587,6 +604,7 @@ int NTUser::SetCodePage(unsigned long codePage)
 
 	info.usri1025_code_page = codePage;
 	result = NetUserSetInfo(NULL, currentAccountName, 1025, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	return result;
@@ -599,29 +617,20 @@ char* NTUser::GetComment()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_comment, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_comment, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_comment, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_comment, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -647,6 +656,7 @@ int NTUser::SetComment(char* comment)
 
 	info.usri1007_comment = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1007, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -660,25 +670,16 @@ exit:
 unsigned long NTUser::GetCountryCode()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_country_code;
+	result = userInfo->usri3_country_code;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -698,6 +699,7 @@ int NTUser::SetCountryCode(unsigned long countryCode)
 
 	info.usri1024_country_code = countryCode;
 	result = NetUserSetInfo(NULL, currentAccountName, 1024, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	return result;
@@ -709,25 +711,16 @@ exit:
 unsigned long NTUser::GetFlags()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_flags;
+	result = userInfo->usri3_flags;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -747,6 +740,7 @@ int NTUser::SetFlags(unsigned long flags)
 
 	info.usri1008_flags = flags;
 	result = NetUserSetInfo(NULL, currentAccountName, 1008, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	return result;
@@ -759,29 +753,20 @@ char* NTUser::GetHomeDir()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_home_dir, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_home_dir, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_home_dir, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_home_dir, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -807,6 +792,7 @@ int NTUser::SetHomeDir(char* path)
 
 	info.usri1006_home_dir = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1006, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -821,29 +807,20 @@ char* NTUser::GetHomeDirDrive()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_home_dir_drive, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_home_dir_drive, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_home_dir_drive, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_home_dir_drive, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -869,6 +846,7 @@ int NTUser::SetHomeDirDrive(char* path)
 
 	info.usri1053_home_dir_drive = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1053, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -882,25 +860,16 @@ exit:
 unsigned long NTUser::GetLastLogoff()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_last_logoff;
+	result = userInfo->usri3_last_logoff;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -910,25 +879,16 @@ exit:
 unsigned long NTUser::GetLastLogon()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_last_logon;
+	result = userInfo->usri3_last_logon;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -939,29 +899,20 @@ char* NTUser::GetLogonHours()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	BinToHexStr((char*)info->usri3_logon_hours, 21, NULL, &length);
+	BinToHexStr((char*)userInfo->usri3_logon_hours, 21, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	BinToHexStr((char*)info->usri3_script_path, 21, resultBuf, &length);
+	BinToHexStr((char*)userInfo->usri3_script_path, 21, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -987,6 +938,7 @@ int NTUser::SetLogonHours(char* logonHours)
 
 	info.usri1020_logon_hours = (unsigned char*)bin;
 	result = NetUserSetInfo(NULL, currentAccountName, 1020, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree(&bin);
@@ -1000,25 +952,16 @@ exit:
 unsigned long NTUser::GetMaxStorage()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_max_storage;
+	result = userInfo->usri3_max_storage;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1038,6 +981,7 @@ int NTUser::SetMaxStorage(unsigned long maxStorage)
 
 	info.usri1018_max_storage = maxStorage;
 	result = NetUserSetInfo(NULL, currentAccountName, 1018, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	return result;
@@ -1049,25 +993,16 @@ exit:
 unsigned long NTUser::GetNumLogons()
 {
 	unsigned long result = 0;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = 0;
 		goto exit;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
-	{
-		result = 0;
-		goto exit;
-	}
-
-	result = info->usri3_num_logons;
+	result = userInfo->usri3_num_logons;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1078,29 +1013,20 @@ char* NTUser::GetProfile()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_profile, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_profile, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_profile, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_profile, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1126,6 +1052,7 @@ int NTUser::SetProfile(char* path)
 
 	info.usri1052_profile = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1052, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -1140,29 +1067,20 @@ char* NTUser::GetScriptPath()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_script_path, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_script_path, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_script_path, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_script_path, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1188,6 +1106,7 @@ int NTUser::SetScriptPath(char* path)
 
 	info.usri1009_script_path = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1009, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -1202,29 +1121,20 @@ char* NTUser::GetWorkstations()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_workstations, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_workstations, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_workstations, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_workstations, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1250,6 +1160,7 @@ int NTUser::SetWorkstations(char* workstations)
 
 	info.usri1014_workstations = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1014, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -1264,29 +1175,20 @@ char* NTUser::GetFullname()
 {
 	char* result = NULL;
 	unsigned long length;
-	PUSER_INFO_3 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetUserGetInfo(NULL, currentAccountName, 3, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || userInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->usri3_full_name, NULL, &length);
+	UTF16ToUTF8(userInfo->usri3_full_name, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->usri3_full_name, resultBuf, &length);
+	UTF16ToUTF8(userInfo->usri3_full_name, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1312,6 +1214,7 @@ int NTUser::SetFullname(char* fullname)
 
 	info.usri1011_full_name = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1011, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -1341,6 +1244,7 @@ int NTUser::SetPassword(char* password)
 
 	info.usri1003_password = wideStr;
 	result = NetUserSetInfo(NULL, currentAccountName, 1003, (unsigned char*)&info, NULL);
+	LoadUserInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -1707,6 +1611,7 @@ char* NTUserList::nextUsername()
 NTGroup::NTGroup()
 {
 	currentAccountName = NULL;
+	groupInfo = NULL;
 	usersInfo = NULL;
 	currentUserEntry = 0;
 	userEntriesRead = 0;
@@ -1720,12 +1625,45 @@ NTGroup::NTGroup()
 NTGroup::~NTGroup()
 {
 	quickFree((char**)&currentAccountName);
+	if(groupInfo != NULL)
+	{
+		NetApiBufferFree(groupInfo);
+		groupInfo = NULL;
+	}
 	if(usersInfo != NULL)
 	{
 		NetApiBufferFree(usersInfo);
 		usersInfo = NULL;
 	}
 	quickFree(&resultBuf);
+}
+
+// ****************************************************************
+// NTGroup::LoadGroupInfo
+// ****************************************************************
+int NTGroup::LoadGroupInfo()
+{
+	int result = 0;
+
+	if(currentAccountName == NULL)
+	{
+		result = -1;
+		goto exit;
+	}
+
+	if(groupInfo != NULL)
+	{
+		NetApiBufferFree(groupInfo);
+		groupInfo = NULL;
+	}
+
+	if(NetGroupGetInfo(NULL, currentAccountName, GROUP_INFO_LEVEL, (unsigned char**)&groupInfo) != NERR_Success)
+	{
+		result = -1;
+	}
+
+exit:
+	return result;
 }
 
 // ****************************************************************
@@ -1754,6 +1692,9 @@ int NTGroup::NewGroup(char* groupName)
 	// Free buffers
 	quickFree((char**)&info);
 
+	// Load info for quick retrevial
+	LoadGroupInfo();
+
 	return result;
 }
 
@@ -1771,7 +1712,7 @@ int NTGroup::RetriveGroupByAccountName(char* groupName)
 	currentAccountName = (unsigned short*)malloc(length);
 	UTF8ToUTF16(groupName, currentAccountName, &length);
 
-	result = NetGroupGetInfo(NULL, currentAccountName, GROUP_INFO_LEVEL, (unsigned char**)&info);
+	result = LoadGroupInfo();
 
 	return result;
 }
@@ -1829,6 +1770,12 @@ int NTGroup::DeleteGroup()
 	result = NetGroupDel(NULL, currentAccountName);
 
 	quickFree((char**)&currentAccountName);
+	
+	if(groupInfo != NULL)
+	{
+		NetApiBufferFree(groupInfo);
+		groupInfo = NULL;
+	}
 
 exit:
 	return result;
@@ -1907,29 +1854,20 @@ char* NTGroup::GetComment()
 {
 	char* result = NULL;
 	unsigned long length;
-	PGROUP_INFO_2 info;
 
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	if(NetGroupGetInfo(NULL, currentAccountName, 2, (unsigned char**)&info) != NERR_Success)
+	if(currentAccountName == NULL || groupInfo == NULL)
 	{
 		result = NULL;
 		goto exit;
 	}
 
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->grpi2_comment, NULL, &length);
+	UTF16ToUTF8(groupInfo->grpi2_comment, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->grpi2_comment, resultBuf, &length);
+	UTF16ToUTF8(groupInfo->grpi2_comment, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
-
 	return result;
 }
 
@@ -1955,6 +1893,8 @@ int NTGroup::SetComment(char* comment)
 
 	info.grpi1002_comment = wideStr;
 	result = NetGroupSetInfo(NULL, currentAccountName, 1002, (unsigned char*)&info, NULL);
+
+	LoadGroupInfo();
 
 exit:
 	quickFree((char**)&wideStr);
@@ -2167,6 +2107,7 @@ char* NTGroupList::nextGroupName()
 NTLocalGroup::NTLocalGroup()
 {
 	currentAccountName = NULL;
+	localGroupInfo = NULL;
 	usersInfo = NULL;
 	currentUserEntry = 0;
 	userEntriesRead = 0;
@@ -2180,12 +2121,45 @@ NTLocalGroup::NTLocalGroup()
 NTLocalGroup::~NTLocalGroup()
 {
 	quickFree((char**)&currentAccountName);
+	if(localGroupInfo != NULL)
+	{
+		NetApiBufferFree(localGroupInfo);
+		localGroupInfo = NULL;
+	}
 	if(usersInfo != NULL)
 	{
 		NetApiBufferFree(usersInfo);
 		usersInfo = NULL;
 	}
 	quickFree(&resultBuf);
+}
+
+// ****************************************************************
+// NTLocalGroup::LoadLocalGroupInfo
+// ****************************************************************
+int NTLocalGroup::LoadLocalGroupInfo()
+{
+	int result = 0;
+
+	if(currentAccountName == NULL)
+	{
+		result = -1;
+		goto exit;
+	}
+
+	if(localGroupInfo != NULL)
+	{
+		NetApiBufferFree(localGroupInfo);
+		localGroupInfo = NULL;
+	}
+
+	if(NetLocalGroupGetInfo(NULL, currentAccountName, LOCALGROUP_INFO_LEVEL, (unsigned char**)&localGroupInfo) != NERR_Success)
+	{
+		result = -1;
+	}
+
+exit:
+	return result;
 }
 
 // ****************************************************************
@@ -2214,6 +2188,9 @@ int NTLocalGroup::NewLocalGroup(char* localGroupName)
 	// Free buffers
 	quickFree((char**)&info);
 
+	// Load info for quick retrevial
+	LoadLocalGroupInfo();
+
 	return result;
 }
 
@@ -2231,7 +2208,7 @@ int NTLocalGroup::RetriveLocalGroupByAccountName(char* localGroupName)
 	currentAccountName = (unsigned short*)malloc(length);
 	UTF8ToUTF16(localGroupName, currentAccountName, &length);
 
-	result = NetLocalGroupGetInfo(NULL, currentAccountName, LOCALGROUP_INFO_LEVEL, (unsigned char**)&info);
+	result = LoadLocalGroupInfo();
 
 	return result;
 }
@@ -2289,6 +2266,12 @@ int NTLocalGroup::DeleteLocalGroup()
 	result = NetLocalGroupDel(NULL, currentAccountName);
 
 	quickFree((char**)&currentAccountName);
+
+	if(localGroupInfo != NULL)
+	{
+		NetApiBufferFree(localGroupInfo);
+		localGroupInfo = NULL;
+	}
 
 exit:
 	return result;
@@ -2367,7 +2350,6 @@ char* NTLocalGroup::GetComment()
 {
 	char* result = NULL;
 	unsigned long length;
-	PLOCALGROUP_INFO_1 info;
 
 	if(currentAccountName == NULL)
 	{
@@ -2375,20 +2357,13 @@ char* NTLocalGroup::GetComment()
 		goto exit;
 	}
 
-	if(NetLocalGroupGetInfo(NULL, currentAccountName, 1, (unsigned char**)&info) != NERR_Success)
-	{
-		result = NULL;
-		goto exit;
-	}
-
 	quickFree(&resultBuf);
-	UTF16ToUTF8(info->lgrpi1_comment, NULL, &length);
+	UTF16ToUTF8(localGroupInfo->lgrpi1_comment, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(info->lgrpi1_comment, resultBuf, &length);
+	UTF16ToUTF8(localGroupInfo->lgrpi1_comment, resultBuf, &length);
 	result = resultBuf;
 
 exit:
-	NetApiBufferFree((void*)info);
 
 	return result;
 }
@@ -2415,6 +2390,8 @@ int NTLocalGroup::SetComment(char* comment)
 
 	info.lgrpi1002_comment = wideStr;
 	result = NetLocalGroupSetInfo(NULL, currentAccountName, 1002, (unsigned char*)&info, NULL);
+
+	LoadLocalGroupInfo();
 
 exit:
 	quickFree((char**)&wideStr);
