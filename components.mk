@@ -601,9 +601,9 @@ MAVEN_DIR = $(MAVEN_RELEASE)/$(MAVEN_VERSION)
 MAVEN_DEP = $(MAVEN_FILE)
 MAVEN_REL_DIR=$(subst -bin,,$(subst .zip,,$(MAVEN)))
 
-#MAVEN_EXE=$(NSCP_DISTDIR_FULL_RTL)/maven/$(MAVEN_REL_DIR)/bin/maven
-MAVEN_EXE=..\\..\\..\\..\\..\\dist\\WINNT5.0_DBG.OBJ\\maven\\maven-1.0.2\\bin\\maven.bat
-#MAVEN_HOME=..\\..\\..\\..\\..\\dist\\WINNT5.0_DBG.OBJ\\maven\\maven-1.0.2
+# CMD does not like the '/' in NSCP_DISTDIR_FULL_RTL, therefore the
+# slashes need swapped to '\\'
+MAVEN_EXE=cmd /c `echo $(NSCP_DISTDIR_FULL_RTL) | sed 's/\//\\\\/g'`\\maven\\$(MAVEN_REL_DIR)\\bin\\maven.bat
 MAVEN_HOME=$(NSCP_DISTDIR_FULL_RTL)/maven/$(MAVEN_REL_DIR)
 
 ifndef MAVEN_PULL_METHOD
