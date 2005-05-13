@@ -491,6 +491,36 @@ endif
 #################################################
 # User Sync Components
 #################################################
+
+# WIX MSI Tool kit #####################
+WIX = wix-$(WIX_VERSION).zip
+WIX_DEST = $(NSCP_DISTDIR_FULL_RTL)/wix
+WIX_FILE = $(WIX_DEST)/$(WIX)
+WIX_FILES = $(WIX)
+WIX_RELEASE = $(COMPONENTS_DIR)/wix
+WIX_DIR = $(WIX_RELEASE)/$(WIX_VERSION)
+WIX_DEP = $(WIX_FILE)
+WIX_REL_DIR=$(subst -bin,,$(subst .zip,,$(WIX)))
+
+ifndef WIX_PULL_METHOD
+WIX_PULL_METHOD = $(COMPONENT_PULL_METHOD)
+endif
+
+$(WIX_DEP): $(NSCP_DISTDIR_FULL_RTL) 
+ifeq ($(ARCH), WINNT)
+ifdef COMPONENT_DEPS
+	echo "Inside ftppull"
+	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
+		-objdir $(WIX_DEST) -componentdir $(WIX_DIR) \
+		-files $(WIX_FILES) -unzip $(WIX_DEST)
+endif
+	-@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component WIX files $@" ; \
+	fi
+else
+	-@echo "WIX is not required except on Windows."
+endif #WINNT
+
 # java service wrapper for Password Sync #####################
 WRAPPER = wrapper_win32_$(WRAPPER_VERSION).zip
 WRAPPER_DEST = $(NSCP_DISTDIR_FULL_RTL)/wrapper
