@@ -136,8 +136,9 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 		{
 			windows_private_set_windows_domain(ra,tmpstr);
 		}
+		/* No need to free tmpstr because it was aliased by the call above */
+		tmpstr = NULL;
 		retval = 1;
-		slapi_ch_free((void**)&tmpstr);
 	}
 	return retval;
 }
