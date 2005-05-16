@@ -1,0 +1,120 @@
+Index: trunk/src/java/org/apache/mina/common/ByteBuffer.java
+===================================================================
+--- trunk/src/java/org/apache/mina/common/ByteBuffer.java	(revision 168349)
++++ trunk/src/java/org/apache/mina/common/ByteBuffer.java	(working copy)
+@@ -114,29 +114,14 @@
+ {
+     private static final int MINIMUM_CAPACITY = 1;
+ 
+-    private static final Stack containerStack = new Stack();
+-
+-    private static final Stack[] heapBufferStacks = new Stack[] {
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(), };
+-    
+-    private static final Stack[] directBufferStacks = new Stack[] {
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(),
+-            new Stack(), new Stack(), new Stack(), new Stack(), };
+-    
+     /**
++     * This class leaked great amounts of memory when doing dymanic 
++     * ByteBuffer'ing. This part was removed and replaced with traditonal 
++     * new()'s. This patch will no longer need to be applied when this class
++     * is operates without leaks in the future.
++     **/
++    
++     /**
+      * Returns the direct or heap buffer which is capable of the specified
+      * size.  This method tries to allocate direct buffer first, and then
+      * tries heap buffer if direct buffer memory is exhausted.  Please use
+@@ -157,7 +142,7 @@
+             return allocate( capacity, false );
+         }
+     }
+-    
++        
+     /**
+      * Returns the buffer which is capable of the specified size.
+      * 
+@@ -169,38 +154,18 @@
+     {
+         java.nio.ByteBuffer nioBuffer = allocate0( capacity, direct );
+         DefaultByteBuffer buf;
+-        
+-        synchronized( containerStack )
+-        {
+-            buf = ( DefaultByteBuffer ) containerStack.pop();
+-        }
+-        
+-        if( buf == null )
+-        {
+-            buf = new DefaultByteBuffer();
+-        }
+ 
++        buf = new DefaultByteBuffer();
++
+         buf.init( nioBuffer );
+         return buf;
+     }
+     
+     private static java.nio.ByteBuffer allocate0( int capacity, boolean direct )
+     {
+-        Stack[] bufferStacks = direct? directBufferStacks : heapBufferStacks;
+-        int idx = getBufferStackIndex( bufferStacks, capacity );
+-        Stack stack = bufferStacks[ idx ];
+-
+-        java.nio.ByteBuffer buf;
+-        synchronized( stack )
+-        {
+-            buf = ( java.nio.ByteBuffer ) stack.pop();
+-        }
+-
+-        if( buf == null )
+-        {
+-            buf = direct ? java.nio.ByteBuffer.allocateDirect( MINIMUM_CAPACITY << idx ) :
+-                           java.nio.ByteBuffer.allocate( MINIMUM_CAPACITY << idx );
+-        }
++         java.nio.ByteBuffer buf;
++         buf = direct ? java.nio.ByteBuffer.allocateDirect( capacity ) :
++                        java.nio.ByteBuffer.allocate( capacity  );
+         
+         buf.clear();
+         buf.order( ByteOrder.BIG_ENDIAN );
+@@ -209,13 +174,7 @@
+     
+     private static void release0( java.nio.ByteBuffer buf )
+     {
+-        Stack[] bufferStacks = buf.isDirect()? directBufferStacks : heapBufferStacks;
+-        Stack stack = bufferStacks[ getBufferStackIndex( bufferStacks, buf.capacity() ) ];
+-        synchronized( stack )
+-        {
+-            // push back
+-            stack.push( buf );
+-        }
++       buf = null;
+     }
+     
+     /**
+@@ -567,10 +526,6 @@
+             }
+ 
+             release0( buf );
+-            synchronized( containerStack )
+-            {
+-                containerStack.push( this );
+-            }
+         }
+ 
+         public java.nio.ByteBuffer buf()

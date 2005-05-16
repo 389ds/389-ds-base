@@ -3,7 +3,7 @@ basic instructions for our apacheds:
 for our jar component
 # svn co http://svn.apache.org/repos/asf/directory
 # cd directory/apacheds/trunk/
-# apply the patch
+# apply the patches
 # maven -D maven.test.skip=true multiproject:install
 # cd main/target
 # copy apacheds-main-${VER}.jar into component directory

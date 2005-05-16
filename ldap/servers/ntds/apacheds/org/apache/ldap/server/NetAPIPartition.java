@@ -1033,8 +1033,14 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(user.GetSIDHexStr());
         attributes.put(attribute);
         
+        // Convert from NT4 format to AD format
+        Long accountExpires = new Long(user.GetAccountExpires());
+        // First convert epoch from 1970 to 1601
+        accountExpires = new Long(accountExpires.longValue() + ((long)134774 * (long)86400));
+        // Then convert from seconds to tenths of micro seconds 
+        accountExpires = new Long(accountExpires.longValue() * (long)10000000);
         attribute = new BasicAttribute("accountExpires");
-        attribute.add(new Long(user.GetAccountExpires()).toString());
+        attribute.add(accountExpires.toString());
         attributes.put(attribute);
 
         attribute = new BasicAttribute("badPwdCount");
@@ -1079,11 +1085,9 @@ public class NetAPIPartition implements ContextPartition {
         attribute.add(new Long(user.GetLastLogon()).toString());
         attributes.put(attribute);
 
-        /*
         attribute = new BasicAttribute("logonHours");
         attribute.add(HexStringToByteArray(user.GetLogonHours()));
         attributes.put(attribute);
-        */
 
         attribute = new BasicAttribute("maxStorage");
         attribute.add(new Long(user.GetMaxStorage()).toString());
@@ -1273,14 +1277,20 @@ public class NetAPIPartition implements ContextPartition {
         for(int i = 0; i < mods.length; i++) {
         	
         	if(mods[i].getAttribute().getID().compareToIgnoreCase("accountExpires") == 0) {
+                // Convert from AD format to NT4 format
+        		Long accountExpires = new Long((String)mods[i].getAttribute().get());
+                // First convert from tenths of micro seconds to seconds 
+                accountExpires = new Long(accountExpires.longValue() / (long)10000000);
+                // Then convert epoch from 1601 to 1970
+                accountExpires = new Long(accountExpires.longValue() - ((long)134774 * (long)86400));                
         		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
-        			user.SetAccountExpires(new Long((String)mods[i].getAttribute().get()).longValue());
+        			user.SetAccountExpires(accountExpires.longValue());
         		}
         		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
         			user.SetAccountExpires(new Long(-1).longValue());
         		}
         		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
-        			user.SetAccountExpires(new Long((String)mods[i].getAttribute().get()).longValue());
+        			user.SetAccountExpires(accountExpires.longValue());
         		}
         	}
         	else if(mods[i].getAttribute().getID().compareToIgnoreCase("codePage") == 0) {
@@ -1349,19 +1359,17 @@ public class NetAPIPartition implements ContextPartition {
         			user.SetHomeDirDrive((String)mods[i].getAttribute().get());
         		}
         	}
-        	/*
-        	else if(mods[i].getAttribute().getID().compareToIgnoreCase("logonHours") == 0) {        		
+        	else if(mods[i].getAttribute().getID().compareToIgnoreCase("logonHours") == 0) {
         		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
-        			user.SetLogonHours(ByteArrayToHexString((byte[])mods[i].getAttribute().get()));
+        			user.SetLogonHours(ByteArrayToHexString(mods[i].getAttribute().get().toString().getBytes()));
         		}
         		else if(mods[i].getModificationOp() == DirContext.REMOVE_ATTRIBUTE) {
         			user.SetLogonHours("ffffffffffffffffffffffffffffffffffffffffff");
         		}
         		else if(mods[i].getModificationOp() == DirContext.REPLACE_ATTRIBUTE) {
-        			user.SetLogonHours(ByteArrayToHexString((byte[])mods[i].getAttribute().get()));
+        			user.SetLogonHours(ByteArrayToHexString(mods[i].getAttribute().get().toString().getBytes()));
         		}
         	}
-        	*/
         	else if(mods[i].getAttribute().getID().compareToIgnoreCase("maxStorage") == 0) {
         		if(mods[i].getModificationOp() == DirContext.ADD_ATTRIBUTE) {
         			user.SetMaxStorage(new Long((String)mods[i].getAttribute().get()).longValue());
