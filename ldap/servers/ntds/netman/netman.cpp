@@ -909,7 +909,7 @@ char* NTUser::GetLogonHours()
 	quickFree(&resultBuf);
 	BinToHexStr((char*)userInfo->usri3_logon_hours, 21, NULL, &length);
 	resultBuf = (char*)malloc(length);
-	BinToHexStr((char*)userInfo->usri3_script_path, 21, resultBuf, &length);
+	BinToHexStr((char*)userInfo->usri3_logon_hours, 21, resultBuf, &length);
 	result = resultBuf;
 
 exit:
@@ -936,6 +936,7 @@ int NTUser::SetLogonHours(char* logonHours)
 	bin = (char*)malloc(length);
 	HexStrToBin(logonHours, bin, &length);
 
+	info.usri1020_units_per_week = UNITS_PER_WEEK;
 	info.usri1020_logon_hours = (unsigned char*)bin;
 	result = NetUserSetInfo(NULL, currentAccountName, 1020, (unsigned char*)&info, NULL);
 	LoadUserInfo();
