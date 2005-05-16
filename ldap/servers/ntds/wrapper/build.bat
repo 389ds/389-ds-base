@@ -22,6 +22,7 @@ set PATH=%PATH%;%CD%\%LIBROOT%\wix
 set WXSLOC=%CD%\wix
 echo %WXSLOC%
 
+call :relative %OBJDEST%
 cd %OBJDEST%
 
 set OK=0
@@ -32,7 +33,13 @@ set /a OK=%OK% + %ERRORLEVEL%
 light ntds.wixobj
 set /a OK=%OK% + %ERRORLEVEL%
 
+
 :END
 popd
 if %OK% GTR 1 (set OK=1)
 exit %OK%
+
+goto :EOF
+:relative
+set OBJDEST=%~f1
+goto :EOF
