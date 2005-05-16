@@ -65,10 +65,10 @@ NULL=nul
 
 !IF  "$(CFG)" == "passhook - Win32 Release"
 
-OUTDIR=.\Release
-INTDIR=.\Release
+OUTDIR=$(OBJDEST)\passhook
+INTDIR=$(OBJDEST)\passhook
 # Begin Custom Macros
-OutDir=.\Release
+OutDir=$(OBJDEST)\passhook
 # End Custom Macros
 
 ALL : "$(OUTDIR)\passhook.dll"
@@ -140,10 +140,10 @@ LINK32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "passhook - Win32 Debug"
 
-OUTDIR=.\Debug
-INTDIR=.\Debug
+OUTDIR=$(OBJDEST)\passhook
+INTDIR=$(OBJDEST)\passhook
 # Begin Custom Macros
-OutDir=.\Debug
+OutDir=$(OBJDEST)\passhook
 # End Custom Macros
 
 ALL : "$(OUTDIR)\passhook.dll"

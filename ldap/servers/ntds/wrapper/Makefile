@@ -80,9 +80,9 @@ layout: $(OBJDEST)
 
 
 $(PRODUCT).msi:	layout
-	$(CP) $(OBJDEST)/* wix
+	$(CP) wix/Binary $(OBJDEST)/
 	# Do not allow MAKEFLAGS or other environment variables to influence nmake.
-	env -i PATH="${PATH}" LIB="${LIB}" INCLUDE="${INCLUDE}" BUILD_DEBUG=${BUILD_DEBUG} build.bat
+	env -i PATH="${PATH}" LIB="${LIB}" INCLUDE="${INCLUDE}" BUILD_DEBUG=${BUILD_DEBUG} OBJDEST=${OBJDEST} build.bat
 	
 clean:
 	$(RM) wix/$(PRODUCT)*.msi wix/ntds.wixobj

@@ -19,18 +19,18 @@ if NOT [%BUILD_DEBUG%] == [] (
 
 set PATH=%PATH%;%CD%\%LIBROOT%\wix
 
-set OK=0
-cd wix
+set WXSLOC=%CD%\wix
+echo %WXSLOC%
 
-candle ntds.wxs
+cd %OBJDEST%
+
+set OK=0
+
+candle %WXSLOC%\ntds.wxs
 set /a OK=%OK% + %ERRORLEVEL%
 
 light ntds.wixobj
 set /a OK=%OK% + %ERRORLEVEL%
-
-if NOT [%BUILD_DEBUG%] == [] (
-    if EXIST ntds.msi (move /Y ntds.msi ntds-%BUILD_DEBUG%.msi)
-)
 
 :END
 popd

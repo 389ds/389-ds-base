@@ -44,10 +44,12 @@ BUILD_ROOT = ../../
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
 
+OBJDEST=../$(OBJDIR)/passsync
+
 all: passsync
 
 passsync:
 ifeq ($(ARCH), WINNT)
 	# Do not allow MAKEFLAGS or other environment variables to influence nmake.
-	cd passwordsync; env -i PATH="${PATH}" LIB="${LIB}" INCLUDE="${INCLUDE}" BUILD_DEBUG=${BUILD_DEBUG} build.bat
+	cd passwordsync; env -i PATH="${PATH}" LIB="${LIB}" INCLUDE="${INCLUDE}" BUILD_DEBUG=${BUILD_DEBUG} OBJDEST=`echo ${OBJDEST} | sed 's/\//\\\\/g'` build.bat
 endif
