@@ -199,22 +199,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 				char *retoid = NULL;
 				Slapi_DN *replarea_sdn;
 
-				/* Check if this is a fractional agreement, we need to
-				 * verify that the consumer is read-only */
-				if (agmt_is_fractional(prp->agmt)) {
-					crc = conn_replica_is_readonly(conn);
-					if (CONN_IS_NOT_READONLY == crc) {
-						/* This is a fatal error */
-						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-										"%s: Unable to acquire replica: "
-										"the agreement is fractional but the replica is not read-only. Fractional agreements must specify a read-only replica "
-										"Replication is aborting.\n",
-										agmt_get_long_name(prp->agmt));
-						return_value = ACQUIRE_FATAL_ERROR;
-						goto error;
-					}
-				}
-
 				/* Good to go. Start the protocol. */
 
 				/* Obtain a current CSN */
@@ -374,6 +358,25 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 								break;
 							default:
 								return_value = ACQUIRE_FATAL_ERROR;
+							}
+							/* Now check for fractional compatibility with the replica 
+							 * We need to do the check now because prior to acquiring the
+							 * replica we do not have sufficient access rights to read the replica id 
+							 */
+							/* Check if this is a fractional agreement, we need to
+							 * verify that the consumer is read-only */
+							if (agmt_is_fractional(prp->agmt)) {
+								crc = conn_replica_is_readonly(conn);
+								if (CONN_IS_NOT_READONLY == crc) {
+									/* This is a fatal error */
+									slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+													"%s: Unable to acquire replica: "
+													"the agreement is fractional but the replica is not read-only. Fractional agreements must specify a read-only replica "
+													"Replication is aborting.\n",
+													agmt_get_long_name(prp->agmt));
+									return_value = ACQUIRE_FATAL_ERROR;
+									goto error;
+								}
 							}
 						}
 						else
