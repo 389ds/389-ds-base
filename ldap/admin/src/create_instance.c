@@ -4253,6 +4253,8 @@ ds_gen_index(FILE* f, char* belowdn)
     MKINDEX("sn", belowdn, 0, "pres", "eq", "sub");
     MKINDEX("telephoneNumber", belowdn, 0, "pres", "eq", "sub");
     MKINDEX("uid", belowdn, 0, "eq", NULL, NULL);
+    MKINDEX("ntUniqueId", belowdn, 0, "eq", NULL, NULL);
+    MKINDEX("ntUserDomainId", belowdn, 0, "eq", NULL, NULL);
     MKINDEX("uniquemember", belowdn, 0, "eq", NULL, NULL);
 }
 
