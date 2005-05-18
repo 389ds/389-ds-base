@@ -365,7 +365,8 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							 */
 							/* Check if this is a fractional agreement, we need to
 							 * verify that the consumer is read-only */
-							if (agmt_is_fractional(prp->agmt)) {
+							if ((return_value == ACQUIRE_SUCCESS) &&
+								agmt_is_fractional(prp->agmt)) {
 								crc = conn_replica_is_readonly(conn);
 								if (CONN_IS_NOT_READONLY == crc) {
 									/* This is a fatal error */
