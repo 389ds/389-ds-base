@@ -1,3 +1,6 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
 <!-- --- BEGIN COPYRIGHT BLOCK ---
  This Program is free software; you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -35,678 +38,751 @@
  Copyright (C) 2005 Red Hat, Inc.
  All rights reserved.
   --- END COPYRIGHT BLOCK ---  -->
-<HTML>
-<HEAD>
-<TITLE>Adding Directory Entries
-</TITLE></HEAD>
-<BODY>
-
-<H1>
-<A NAME="adding"></A>Adding Entries</H1>
+  <title>Adding Directory Entries</title>
+</head>
+<body>
+<h1>
+<a name="adding"></a>Adding Entries</h1>
 You can add new entries to the directory
 using the Directory Server interface. To add
-entries, your Directory Server administrator must have granted you the right
-to do so. Before you can add an entry, you must <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A>
+entries, your Directory Server administrator must have granted you the
+right
+to do so. Before you can add an entry, you must <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
 to the Directory Server.
-
-<P>Using the Directory Server interface you can add:
-<UL>
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#person">a person</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#NTperson">an NT person</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#group">a group</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#NTgroup">an NT group</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#ou">an organizational unit</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#dc">a domain</A></LI>
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#o">an organization</A></LI>
-</UL>
-Before you add an entry for the first time, read the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#guidelines">New
-Entry Guidelines</A> section for important information about the directory
+<p>Using the Directory Server interface you can add:
+</p>
+<ul>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#person">a
+person</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#NTperson">an
+NT person</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#group">a
+group</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#NTgroup">an
+NT group</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#ou">an
+organizational unit</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#dc">a
+domain</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#o">an
+organization</a></li>
+</ul>
+Before you add an entry for the first time, read the <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#guidelines">New
+Entry Guidelines</a> section for important information about the
+directory
 tree structure and naming conventions.
-<H2>
-<A NAME="guidelines"></A>New Entry Guidelines</H2>
-Before you begin adding entries to the directory, make sure that you understand
+<h2><a name="guidelines"></a>New Entry Guidelines</h2>
+Before you begin adding entries to the directory, make sure that you
+understand
 the following directory concepts:
-<UL>
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#tree">directory tree structure</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#DN">distinguished name syntax</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#uniqueDN">unique distinguished names</A></LI>
-</UL>
-
-<H3>
-<A NAME="tree"></A>Directory Tree Structure</H3>
-Data in the directory is arranged in a tree hierarchy. The top of the tree
+<ul>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#tree">directory
+tree structure</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#DN">distinguished
+name syntax</a></li>
+  <li>
+    <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#uniqueDN">unique
+distinguished names</a></li>
+</ul>
+<h3>
+<a name="tree"></a>Directory Tree Structure</h3>
+Data in the directory is arranged in a tree hierarchy. The top of the
+tree
 is known as the root or suffix. The root entry usually represents the
 organization entry for the directory.
-
-<BLOCKQUOTE><B>Note:</B>
-<P>
-
-Although your directory may contain more than one suffix, the directory
-server interface only allows you to search for, add, and edit entries in
-a single suffix. Make sure that you know which suffix your Directory Server
+<blockquote><b>Note:</b>
+  <p>Although your directory may contain more than one suffix, the
+directory
+server interface only allows you to search for, add, and edit entries
+in
+a single suffix. Make sure that you know which suffix your Directory
+Server
 interface is supporting before adding new entries.
-</BLOCKQUOTE>
-
-
-<P>Below the root are branches of the tree, which usually represent organizational
+  </p>
+</blockquote>
+<p>Below the root are branches of the tree, which usually represent
+organizational
 units such as marketing or accounting. Entries for people and resources
-within your organization are usually contained below these organizational
+within your organization are usually contained below these
+organizational
 unit branches within the directory tree structure.
-
-<P>When you add an entry, make sure that an entry representing a branch
+</p>
+<p>When you add an entry, make sure that an entry representing a branch
 point is created before new entries are created under that branch. For
 example, if you want to place entries in a Marketing subtree and in an
-Accounting subtree, then create the branch point for those subtrees before
+Accounting subtree, then create the branch point for those subtrees
+before
 creating entries within the subtrees:
-
-<PRE>          o=Example.com
-          ou=Marketing, o=Example.com
-          ...
-          <I>Marketing subtree entries</I>
-          ...
-          ou=Accounting, o=Example.com
-          ...
-          <I>Accounting subtree entries</I>
-</PRE>
-
-<H3>
-<A NAME="DN"></A>Distinguished Name Syntax</H3>
+</p>
+<pre>&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; o=Example.com<br>&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; ou=Marketing, o=Example.com<br>&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; ...<br>&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; <i>Marketing subtree entries</i>
+&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; ...
+&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; ou=Accounting, o=Example.com
+&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; ...
+&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp;&Acirc;&nbsp; <i>Accounting subtree entries</i>
+</pre>
+<h3>
+<a name="DN"></a>Distinguished Name Syntax</h3>
 An entry is uniquely identified within the Directory Server through the
 use of a distinguished name (DN). A DN identifies the entry by using a
-series of comma-separated attributes and attribute values. The left-most
+series of comma-separated attributes and attribute values. The
+left-most
 value in the DN represents the entry's name, with each subsequent
 attribute representing a branch point above the entry. For example:
-
-<PRE>uid=bjensen, ou=people, o=example.com</PRE>
-
-This DN represents the entry named <I>bjensen</I> in the subdirectory named
-<I>people</I> in the directory named <I>example.com</I>.
-
-<P>When you add a new entry to the Directory Server, you are prompted
+<pre>uid=bjensen, ou=people, o=example.com</pre>
+This DN represents the entry named <i>bjensen</i> in the subdirectory
+named
+<i>people</i> in the directory named <i>example.com</i>.
+<p>When you add a new entry to the Directory Server, you are prompted
 to enter the complete distinguished name.
-<H3><A NAME="uniqueDN"></A>Unique Distinguished Names</H3>
-
+</p>
+<h3><a name="uniqueDN"></a>Unique Distinguished Names</h3>
 The Directory Server interface does not allow you to create a duplicate
 entry. To avoid naming duplications, use distinguished names that begin
-with the person's user ID (uid) rather than the person's common name (CN).
+with the person's user ID (uid) rather than the person's common name
+(CN).
 Choose user IDs that are readable; that is,
 do not use a random collection of letters and numbers for
-user IDs. If your enterprise already has an email system, one possibility
-would be to use the left-most value of each person's email address as that
+user IDs. If your enterprise already has an email system, one
+possibility
+would be to use the left-most value of each person's email address as
+that
 person's user ID. For example, if a person has the email address:
-
-<P>bjensen@example.com
-
-<P>then give that person's directory entry the following DN:
-
-<P>uid=bjensen, o=example.com
-
-<H2><A NAME="person"></A>Adding a Person</H2>
-
+<p>bjensen@example.com
+</p>
+<p>then give that person's directory entry the following DN:
+</p>
+<p>uid=bjensen, o=example.com
+</p>
+<h2><a name="person"></a>Adding a Person</h2>
 To add a new person entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the Back button in your browser window.</LI>
-
-<LI>
+the Back button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
 When you add a person to the directory, a form that
-allows you to edit that person's data is displayed. This form is displayed in
-a new web browser window. You must supply values for the required fields.
-The required fields for a person are:</LI>
-
-<UL type="disc">
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#cn">Full Name</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#surname">Last Name</A></LI>
-</UL>
-
-<LI>
+allows you to edit that person's data is displayed. This form is
+displayed in
+a new web browser window. You must supply values for the required
+fields.
+The required fields for a person are:</li>
+  <ul type="disc">
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#cn">Full
+Name</a></li>
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#surname">Last
+Name</a></li>
+  </ul>
+  <li>
 You can provide values for the optional fields now, or add them later.
-The optional fields for a person are:</LI>
- 
-<P>
-<CENTER><TABLE BORDER=2 >
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#givenName">First Name</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mail">Email Address</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#facsimileTelephoneNumber">Fax</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#uid">User ID</A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#pager">Pager</A></TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mobile">Mobile Phone</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#title">Title</A></TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ou">Organizational Unit</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#manager">Manager</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#roomNumber">Room Number </A></TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#secretary">Admin </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#departmentNumber">Dept# </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#employeeNumber">Emp#</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#carLicnese">Car License# </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#labeledUri">URL </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userPassword">Password</A> </TD>
-</TR>
-</TABLE>
-</CENTER>
-<BLOCKQUOTE><B>Note:</B>
-<P>
-You cannot enter values into the Manager, Admin,
-or See Also fields until you have saved the entry. Furthermore, changing uid in the New Entry screen will result in a multi-valued uid with the value selected in the first screen as the naming component.</BLOCKQUOTE>
-
-<LI>
+The optional fields for a person are:</li>
+&Acirc;&nbsp;
+  <p></p>
+  <center>
+  <table border="2">
+    <tbody>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#givenName">First
+Name</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mail">Email
+Address</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#facsimileTelephoneNumber">Fax</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#uid">User
+ID</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#pager">Pager</a></td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mobile">Mobile
+Phone</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
+Category</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#title">Title</a></td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ou">Organizational
+Unit</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#manager">Manager</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#roomNumber">Room
+Number&Acirc;&nbsp;</a></td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#secretary">Admin&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#departmentNumber">Dept#&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#employeeNumber">Emp#</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#carLicnese">Car
+License#&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
+Address&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
+Also&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#labeledUri">URL&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userPassword">Password</a>&Acirc;&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
+  </center>
+  <blockquote><b>Note:</b>
+    <p>You cannot enter values into the Manager, Admin,
+or See Also fields until you have saved the entry. Furthermore,
+changing uid in the New Entry screen will result in a multi-valued uid
+with the value selected in the first screen as the naming component.</p>
+  </blockquote>
+  <li>
 To cancel the entry creation, close the web browser window containing
 the form. When you are done filling in the form, click the Save New
-Person button at the top of the form.</LI>
-
-<LI>
-After saving the entry, you can <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addmanager">add values
-to the Manager and Admin fields</A> or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add
-a See Also value</A>.</LI>
-</OL>
-
-<H2>
-<A NAME="NTperson"></A>Adding an NT Person</H2>
+Person button at the top of the form.</li>
+  <li>
+After saving the entry, you can <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addmanager">add
+values
+to the Manager and Admin fields</a> or <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
+a See Also value</a>.</li>
+</ol>
+<h2>
+<a name="NTperson"></a>Adding an NT Person</h2>
 When creating an NT-person entry, make sure that the subtree
-in which you place the entry is the same subtree that the synchronization service
-uses to synchronize entries. If you place an NT-person entry into another
+in which you place the entry is the same subtree that the
+synchronization service
+uses to synchronize entries. If you place an NT-person entry into
+another
 location, it is not synchronized with the Windows network.
-
-<P>To add a new NT-person entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<p>To add a new NT-person entry, do the following:
+</p>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the Back button in your browser window.</LI>
-
-<LI>
+the Back button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
 When you add an NT-person to the directory, a form that allows you to
 edit that person's data is displayed. This form is displayed
-in a new web browser window. You must supply values for the required fields.
-The required fields for an NT-person are:</LI>
-
-<UL type="disc">
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#commonName">Full Name</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#surname">Last Name</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntUserDomainId">NT Domain Name</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#uid">NT User ID</A></LI>
-</UL>
-
-<LI>
+in a new web browser window. You must supply values for the required
+fields.
+The required fields for an NT-person are:</li>
+  <ul type="disc">
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#commonName">Full
+Name</a></li>
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#surname">Last
+Name</a></li>
+    <li><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#uid">NT
+User ID</a></li>
+  </ul>
+  <li>
 You can provide values for the optional fields now, or add them later.
-The optional fields for a person are:</LI>
-
-<P>
-<CENTER><TABLE BORDER=2>
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#givenName">First Name</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mail">Email Address</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userPassword">Directory Server Password</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#pager">Pager</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mobile">Mobile Phone</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#title">Title</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationalUnitName">Organizational Unit</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#manager">Manager</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#roomNumber">Room Number</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#secretary">Admin </A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#departmentNumber">Dept#</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#employeeNumber">Emp#</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#carLicnese">Car License#</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#labeledURI">URL</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userid">User Id</A></TD>
-</TR>
-</TABLE></CENTER>
-<BLOCKQUOTE><B>Note:</B>
-<P>
-You cannot enter values into the Manager, Admin,
+The optional fields for a person are:</li>
+  <p>
+  </p>
+  <center>
+  <table border="2">
+    <tbody>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#givenName">First
+Name</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mail">Email
+Address</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userPassword">Directory
+Server Password</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#pager">Pager</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mobile">Mobile
+Phone</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
+Category</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#title">Title</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#organizationalUnitName">Organizational
+Unit</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#manager">Manager</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#roomNumber">Room
+Number</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#secretary">Admin&Acirc;&nbsp;</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#departmentNumber">Dept#</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#employeeNumber">Emp#</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#carLicnese">Car
+License#</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
+Address</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
+Also</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#labeledURI">URL</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userid">User
+Id</a></td>
+      </tr>
+    </tbody>
+  </table>
+  </center>
+  <blockquote><b>Note:</b>
+    <p>You cannot enter values into the Manager, Admin,
 or See Also fields until you have saved the entry.
-</BLOCKQUOTE>
-
-<LI>
-You can also change the value for the following two options:</LI>
-
-<UL type="disc">
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#NTUserDelete">Delete NT Account if Person deleted</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#NTUserCreateNewAccount">Create New NT Account</A></LI>
-</UL>
+    </p>
+  </blockquote>
+  <li>
+You can also change the value for the following two options:</li>
+  <ul type="disc">
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#NTUserDelete">Delete
+NT Account if Person deleted</a></li>
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#NTUserCreateNewAccount">Create
+New NT Account</a></li>
+  </ul>
 The default value is shown. If you do not change the value,
 the default value is used.
-<LI>
-When you are done filling in the form, click the Save New NT Person
+  <li>When you are done filling in the form, click the Save New NT
+Person
 button at the top of the form. To cancel the entry creation,
-close the web browser window containing the form.</LI>
-
-<LI>
-After saving the entry, you can <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addmanager">add values
-to the Manager and Admin fields</A> or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add
-a "See Also" value</A>.</LI>
-</OL>
-
-<H2>
-<A NAME="group"></A>Adding a Group</H2>
+close the web browser window containing the form.</li>
+  <li>
+After saving the entry, you can <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addmanager">add
+values
+to the Manager and Admin fields</a> or <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
+a "See Also" value</a>.</li>
+</ol>
+<h2>
+<a name="group"></a>Adding a Group</h2>
 To add a new group entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the Back button in your browser window.</LI>
-
-<LI>
+the Back button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
 When you add a group to the directory, a form that
-allows you to edit that group's data is displayed. This form is displayed in
-a new web browser window. You must supply a value for the required field 
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#cn">Name</A>.</LI>
-
-<LI>
-You can provide a value for the optional <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A>
-field now, or add it later.</LI>
-
-<BLOCKQUOTE><B>Note:</B>
-<P>
-You cannot enter values into the Owner, Group Members,
-or See Also fields until you have saved the entry.</BLOCKQUOTE>
-
-<LI>
+allows you to edit that group's data is displayed. This form is
+displayed in
+a new web browser window. You must supply a value for the required
+field <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#cn">Name</a>.</li>
+  <li>
+You can provide a value for the optional <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>
+field now, or add it later.</li>
+  <blockquote><b>Note:</b>
+    <p>You cannot enter values into the Owner, Group Members,
+or See Also fields until you have saved the entry.</p>
+  </blockquote>
+  <li>
 When you are done filling in the form, click the Save New Group button
-at the top of the form.</LI>
-
-<BR>To cancel the entry creation, close the web browser window containing
+at the top of the form.</li>
+  <br>
+To cancel the entry creation, close the web browser window containing
 the form.
-<LI>
-After you have saved the entry, you can <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add
-values for the Owner, Group Member, and See Also fields</A>.</LI>
-</OL>
-
-<H2>
-<A NAME="NTgroup"></A>Adding an NT Group</H2>
+  <li>After you have saved the entry, you can <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
+values for the Owner, Group Member, and See Also fields</a>.</li>
+</ol>
+<h2>
+<a name="NTgroup"></a>Adding an NT Group</h2>
 To add a new NT group entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the Back button in your browser window.</LI>
-
-<LI>
+the Back button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
 When you add an NT-group to the directory, a form
-that allows you to edit that group's data is displayed. This form is contained
-in a new web browser window. You must supply a value for the required fields.
-The required fields for an NT-group are:</LI>
-
-<UL type="disc">
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#cn">Name</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupId">NT Group Name</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupType">NT Group Type</A></LI>
-
-<LI>
-<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupDomainId">NT Group Domain</A></LI>
-</UL>
-
-<LI>
+that allows you to edit that group's data is displayed. This form is
+contained
+in a new web browser window. You must supply a value for the required
+fields.
+The required fields for an NT-group are:</li>
+  <ul type="disc">
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#cn">Name</a></li>
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ntGroupId">NT
+Group Name</a></li>
+    <li>
+      <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ntGroupType">NT
+Group Type</a></li>
+  </ul>
+  <li>
 You can provide values for the optional fields now, or add them later.
-The optional fields for an NT group are:</LI>
-<P>
-<CENTER><TABLE BORDER=2>
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#owner">Owner</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#l">Locale</A></TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#uniqueMember">NT Group Members</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A></TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ou">Organizational Unit</A></TD>
-</TR>
-</TABLE>
-</CENTER>
-<P>
-<BLOCKQUOTE><B>Note:</B>
-<P>
-You cannot enter values into the Owner, NT Group Members,
-or See Also fields until you have saved the entry.</BLOCKQUOTE>
-
-<LI>
-You may also change the value for the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#NTGroupDelete">Delete NT Group if Group Deleted</A> option.</LI>
-
-<LI>
+The optional fields for an NT group are:</li>
+  <p>
+  </p>
+  <center>
+  <table border="2">
+    <tbody>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#owner">Owner</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#l">Locale</a></td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#uniqueMember">NT
+Group Members</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
+Also</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ou">Organizational
+Unit</a></td>
+      </tr>
+    </tbody>
+  </table>
+  </center>
+  <p>
+  </p>
+  <blockquote><b>Note:</b>
+    <p>You cannot enter values into the Owner, NT Group Members,
+or See Also fields until you have saved the entry.</p>
+  </blockquote>
+  <li>
+You may also change the value for the <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#NTGroupDelete">Delete
+NT Group if Group Deleted</a> option.</li>
+  <li>
 When you are done filling in the form, click the Save New Group button
-at the top of the form.</LI>
-
-<BR>To cancel the entry creation, close the web browser window containing
+at the top of the form.</li>
+  <br>
+To cancel the entry creation, close the web browser window containing
 the form.
-<LI>
-After you save the entry, you can <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add values
-for the NT Group Members, Owner, and See Also fields</A>.</LI>
-</OL>
-
-<H2>
-<A NAME="ou"></A>Adding an Organizational Unit</H2>
+  <li>After you save the entry, you can <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
+values
+for the NT Group Members, Owner, and See Also fields</a>.</li>
+</ol>
+<h2>
+<a name="ou"></a>Adding an Organizational Unit</h2>
 To add a new organizational unit entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the "Back" button in your browser window.</LI>
-
-<LI>
+the "Back" button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
 When you add an organizational unit to the directory, a form that
 allows you to edit that organization's data is displayed. This
 form is displayed in a new web browser window. You must supply
-a value for the required field, <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ou">Unit Name</A>.</LI>
-
-<LI>
+a value for the required field, <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ou">Unit
+Name</a>.</li>
+  <li>
 You can provide values for the optional fields now, or add them later.
-The optional fields for an organizational unit are:</LI>
-<P>
-<CENTER><TABLE BORDER=2 >
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#localityName">Location</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A> </TD>
-
-<TD> </TD>
-
-<TD> </TD>
-</TR>
-</TABLE></CENTER>
-<P>
-<LI>
-When you are done filling in the form, click the Save New Org. Unit
+The optional fields for an organizational unit are:</li>
+  <p>
+  </p>
+  <center>
+  <table border="2">
+    <tbody>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
+Category</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#localityName">Location</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
+Address</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
+Also</a>&Acirc;&nbsp;</td>
+        <td>&Acirc;&nbsp;</td>
+        <td>&Acirc;&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
+  </center>
+  <p>
+  </p>
+  <li>When you are done filling in the form, click the Save New Org.
+Unit
 button at the top of the form. To cancel the entry creation, close
-the web browser window containing the form.</LI>
-</OL>
-
-<H2><A NAME="dc"></A>Adding a Domain Component</H2>
-
+the web browser window containing the form.</li>
+</ol>
+<h2><a name="dc"></a>Adding a Domain Component</h2>
 To add a new domain entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the Back button in your browser window.</LI>
-
-<LI>
+the Back button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
-You must supply a value for the required field, <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#dc">dc</A>.</LI>
-
-<LI>
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
+You must supply a value for the required field, <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#dc">dc</a>.</li>
+  <li>
 You can provide values for the optional fields now, or add them later.
-The optional fields for a domain are:</LI>
-<P>
-<CENTER><TABLE BORDER=2>
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A></TD>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A></TD>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A></TD></TR>
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A></TD>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#localityName">Location</A></TD>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A></TD></TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A></TD>
-<TD>&nbsp;</TD>
-<TD>&nbsp;</TD></TR>
-</TABLE>
-</CENTER>
-<P>
-<LI>
-When you are done filling in the form, click the Save New dc button
+The optional fields for a domain are:</li>
+  <p>
+  </p>
+  <center>
+  <table border="2">
+    <tbody>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
+Category</a></td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#localityName">Location</a></td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
+Address</a></td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
+Also</a></td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
+  </center>
+  <p>
+  </p>
+  <li>When you are done filling in the form, click the Save New dc
+button
 at the top of the form. To cancel the entry creation, close the
-web browser window containing the form.</LI>
-</OL>
-
-<H2><A NAME="o"></A>Adding an Organization</H2>
-
+web browser window containing the form.</li>
+</ol>
+<h2><a name="o"></a>Adding an Organization</h2>
 To add a new organization entry, do the following:
-<OL>
-<LI>
-Click the New Entry tab.</LI>
-
-<LI>
+<ol>
+  <li>
+Click the New Entry tab.</li>
+  <li>
 Follow the steps outlined in the New Entry form. When you are done
 filling in this form, click Continue. To cancel the operation click
-the Back button in your browser window.</LI>
-
-<LI>
+the Back button in your browser window.</li>
+  <li>
 If you have not authenticated before you attempt to add a new entry, or
 if your authentication has expired, the Directory Server prompts you
-to <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
-
-<LI>
-Adding an organization is supported only when you initially populate your
+to <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
+before continuing.</li>
+  <li>
+Adding an organization is supported only when you initially populate
+your
 directory tree. The organization you add must match the organization
 you specified in the Database Subtree field when you installed your
-Directory Server. For example, if you specified a value of:</LI>
-
-<PRE>o=Example.com</PRE>
-
+Directory Server. For example, if you specified a value of:</li>
+  <pre>o=Example.com</pre>
 to the Database Subtree field, then you must specify a value of:
-
-<PRE>o=Example.com</PRE>
-
-when you add the organization. The Directory Server checks the add operation to ensure that the directory entry can
+  <pre>o=Example.com</pre>
+when you add the organization. The Directory Server checks the add
+operation to ensure that the directory entry can
 exist with the database subtree. Any value other than:
-
-<PRE>o=Example.com</PRE>
-
+  <pre>o=Example.com</pre>
 clearly cannot reside under:
-
-<PRE>o=Example.com</PRE>
-
+  <pre>o=Example.com</pre>
 As a result, the Directory Server rejects the operation.
-<LI>
-You must supply a value for the required field, <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationName">Organization Name</A>.</LI>
-
-<LI>
+  <li>You must supply a value for the required field, <a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#organizationName">Organization
+Name</a>.</li>
+  <li>
 You can provide values for the optional fields now, or add them later.
-The optional fields for an organization are:</LI>
-<P>
-<CENTER><TABLE BORDER=2>
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#localityName">Location</A> </TD>
-
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A> </TD>
-</TR>
-
-<TR>
-<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A> </TD>
-
-<TD> </TD>
-
-<TD> </TD>
-</TR>
-</TABLE>
-</CENTER>
-<P>
-<LI>
-When you are done filling in the form, click the Save New Org. button
+The optional fields for an organization are:</li>
+  <p>
+  </p>
+  <center>
+  <table border="2">
+    <tbody>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
+Category</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#localityName">Location</a>&Acirc;&nbsp;</td>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
+Address</a>&Acirc;&nbsp;</td>
+      </tr>
+      <tr>
+        <td><a
+ href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
+Also</a>&Acirc;&nbsp;</td>
+        <td>&Acirc;&nbsp;</td>
+        <td>&Acirc;&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
+  </center>
+  <p>
+  </p>
+  <li>When you are done filling in the form, click the Save New Org.
+button
 at the top of the form. To cancel the entry creation, close the
-web browser window containing the form.</LI>
-</OL>
-
-</BODY>
-</HTML>
+web browser window containing the form.</li>
+</ol>
+</body>
+</html>
