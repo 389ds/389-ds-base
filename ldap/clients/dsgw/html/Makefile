@@ -62,7 +62,7 @@ HTML= auth.html authroot.html authtitle.html csearchtitle.html \
         left_bottom.gif left_on.gif right_off.gif \
         left_off.gif right_bottom.gif right_on.gif \
 	organization.gif orgunit.gif person.gif clear.gif message.gif \
-	alert.html alert.gif confirm.html confirm.gif orgicon.gif aim-online.gif
+	alert.html alert.gif confirm.html confirm.gif orgicon.gif aim-online.gif dc.gif
 
 BINS=$(addprefix $(HTMLDEST)/,$(HTML))
 
