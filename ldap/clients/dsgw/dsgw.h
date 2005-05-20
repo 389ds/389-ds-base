@@ -172,8 +172,6 @@ extern char            *countri; /* The language chosen by libsi18n. */
 
 #define DSGW_OC_NTUSER			"ntuser"
 
-#define DSGW_ATTRTYPE_NTGROUPDOMAINID	"nTGroupDomainId"
-#define DSGW_ATTRTYPE_NTGROUPNAME	"nTGroupName"
 #define DSGW_ATTRTYPE_AIMSTATUSTEXT     "nsaimstatustext"
 
 #if defined( XP_WIN32 )

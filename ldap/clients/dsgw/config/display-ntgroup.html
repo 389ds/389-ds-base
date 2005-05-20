@@ -156,9 +156,9 @@ New NT Group -
 </TD>
 <TD NOWRAP>
 <!-- IF "!Adding" -->
-<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntgroupname" "cols=>16" "options=readonly" "defaultvalue=none" -->
+<!-- DS_ATTRIBUTE "attr=ntUserDomainId" "syntax=ntgroupname" "cols=>16" "options=readonly" "defaultvalue=none" -->
 <!-- ELSE // Adding -->
-<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntgroupname" "cols=>16" -->
+<!-- DS_ATTRIBUTE "attr=ntUserDomainId" "syntax=ntgroupname" "cols=>16" -->
 <!-- ENDIF // Adding -->
 </TD></TR>
 
@@ -178,20 +178,6 @@ New NT Group -
 <!-- ELSE // Adding -->
 <!-- DS_ATTRIBUTE "attr=nTGroupType" "defaultvalue=Global" "cols=>16" -->
 <!-- ENDIF // Adding -->
-</TD></TR>
-
-<TR>
-<TD NOWRAP
-<!-- IF "Displaying" -->
-    class="bold"
-<!-- ENDIF -->
->NT Group Domain: 
-<!-- IF "!Displaying" -->
-<B>*</B>
-<!-- ENDIF -->
-</TD>
-<TD NOWRAP>
-<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntdomain" "cols=>16" -->
 </TD></TR>
 
 <TR>
