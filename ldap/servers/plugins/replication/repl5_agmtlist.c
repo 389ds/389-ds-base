@@ -409,6 +409,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			if (denied_attrs)
 			{
 				/* Report the error to the client */
+				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attempt to exclude an illegal attribute in a fractional agreement");
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                             "attempt to exclude an illegal attribute in a fractional agreement\n");
 

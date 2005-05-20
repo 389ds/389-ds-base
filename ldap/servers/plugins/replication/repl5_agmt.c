@@ -1166,6 +1166,7 @@ agmt_validate_replicated_attributes(Repl_Agmt *ra)
 		"nsuniqueid",
 		"modifiersname",
 		"lastmodifiedtime",
+		"dc", "o", "ou", "cn", "objectclass",
 		NULL
 	};
 
