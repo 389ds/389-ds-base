@@ -330,7 +330,7 @@ showAimIcon();
 
 <TABLE CELLSPACING="2" BGCOLOR=#FFFFFF WIDTH=95%>
 <TR>
-<TH COLSPAN=2 align=left>
+<TH COLSPAN=4 align=left>
 Windows NT Account Information</TH>
 </TR>
 
@@ -344,24 +344,35 @@ Windows NT Account Information</TH>
 <B>*</B>
 <!-- ENDIF -->
 </TD>
-<TD VALIGN="TOP" ALIGN="LEFT" NOWRAP>
+<TD VALIGN="TOP" NOWRAP>
 <!-- IF "!Adding" -->
 <!-- DS_ATTRIBUTE "attr=nTUserDomainId" "syntax=ntuserid" "cols=>16" "options=readonly" -->
 <!-- ENDIF // Adding -->
 <!-- IF "Adding" -->
 <!-- DS_ATTRIBUTE "attr=nTUserDomainId" "syntax=ntuserid" "cols=>16" -->
 <!-- ENDIF // Adding -->
+</TD>
+<TD VALIGN="TOP" NOWRAP
+<!-- IF "Displaying" -->
+    class="bold"
+<!-- ENDIF -->
+>NT Domain Name:
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD><TD VALIGN="TOP" NOWRAP>
+<!-- DS_ATTRIBUTE "attr=nTUserDomainId" "syntax=ntdomain" "cols=>16" -->
 </TD></TR>
 <INPUT TYPE="hidden" NAME="desc_uid" VALUE="user id">
 <!-- PCONTEXT -->
 
 <TR>
-<TD VALIGN="TOP" NOWRAP
+<TD VALIGN="TOP" COLSPAN=2 NOWRAP
 <!-- IF "Displaying" -->
     class="bold"
 <!-- ENDIF -->
 >Delete NT Account if Person deleted:</TD>
-<TD VALIGN="TOP" ALIGN="LEFT" NOWRAP>
+<TD VALIGN="TOP" COLSPAN=2 NOWRAP>
 <!-- DS_ATTRIBUTE "syntax=bool" "type=radio" "true=Yes" "false=No" "defaultvalue=FALSE" "attr=nTUserDeleteAccount" -->
 </TD></TR>
 

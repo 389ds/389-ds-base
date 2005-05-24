@@ -144,7 +144,7 @@ int cb_update_controls( Slapi_PBlock * pb,
     cb_backend           * cbb;
     Slapi_Backend        * be;
     int rc=LDAP_SUCCESS;
-    long hops=0;
+    int hops=0;
     int useloop=0;
     int addauth = (ctrl_flags & CB_UPDATE_CONTROLS_ADDAUTH);
     int isabandon = (ctrl_flags & CB_UPDATE_CONTROLS_ISABANDON);
