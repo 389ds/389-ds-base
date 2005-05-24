@@ -176,7 +176,7 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
 			/* Decode control data 			*/
 			/* hop           INTEGER (0 .. maxInt) 	*/
 
-			int 		hops = 0;
+			long 		hops = 0;
 			int 		rc;
 			BerElement 	*ber = NULL;
 
