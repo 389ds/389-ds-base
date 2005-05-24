@@ -54,8 +54,6 @@ int windows_private_save_dirsync_cookie(const Repl_Agmt *ra);
 int windows_private_load_dirsync_cookie(const Repl_Agmt *ra);
 void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value);
 PRBool windows_private_create_users(const Repl_Agmt *ra);
-void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value);
-PRBool windows_private_create_groups(const Repl_Agmt *ra);
 const char *windows_private_get_windows_domain(const Repl_Agmt *ra);
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
 int windows_private_get_isnt4(const Repl_Agmt *ra);
@@ -89,7 +87,4 @@ ConnResult windows_conn_read_entry_attribute(Repl_Connection *conn, const char *
 ConnResult windows_conn_push_schema(Repl_Connection *conn, CSN **remotecsn);
 void windows_conn_set_timeout(Repl_Connection *conn, long timeout);
 void windows_conn_set_agmt_changed(Repl_Connection *conn);
-
-/* Used to work around a schema incompatibility between Microsoft and the IETF */
-#define FAKE_STREET_ATTR_NAME "in#place#of#streetaddress"
 

@@ -41,170 +41,98 @@
 #include "netman.h"
 
 // ****************************************************************
-// quickFree
-// ****************************************************************
-void quickFree(char** buf)
-{
-	if(*buf != NULL)
-	{
-		free(*buf);
-		*buf = NULL;
-	}
-}
-
-// ****************************************************************
 // UTF16ToUTF8
 // ****************************************************************
-int UTF16ToUTF8(unsigned short* inStr, char* outStr, unsigned long* outStrBufLen)
+char* UTF16ToUTF8(unsigned short* inString)
 {
-	int result = 0;
-	unsigned long length = WideCharToMultiByte(CP_ACP, 0, inStr, -1, 0, 0, 0, 0);
+	int length = WideCharToMultiByte(CP_ACP, 0, inString, -1, 0, 0, 0, 0);
+	char* outString = NULL;
 
-	if(outStr == NULL)
-	{
-		result = 0;
-		goto exit;
-	}
-	if(*outStrBufLen < length)
-	{
-		result = -1;
-		goto exit;
-	}
+	outString =	(char*)malloc(length);
 
-	WideCharToMultiByte(CP_ACP, 0, inStr, -1, outStr, length, 0, 0);
+	WideCharToMultiByte(CP_ACP, 0, inString, -1, outString, length, 0, 0);
 
-exit:
-	*outStrBufLen = length;
-
-	return result;
+	return outString;
 }
 
 // ****************************************************************
 // UTF8ToUTF16
 // ****************************************************************
-int UTF8ToUTF16(char* inStr, unsigned short* outStr, unsigned long* outStrBufLen)
+unsigned short* UTF8ToUTF16(char* inString)
 {
-	int result = 0;
-	unsigned long length = MultiByteToWideChar(CP_ACP, 0, inStr, -1, 0, 0) * 2;
+	unsigned short* outString = NULL;
+	int length = MultiByteToWideChar(CP_ACP, 0, inString, -1, 0, 0);
 
-	if(outStr == NULL)
-	{
-		result = 0;
-		goto exit;
-	}
-	if(*outStrBufLen < length)
-	{
-		result = -1;
-		goto exit;
-	}
+	outString =	(unsigned short*)malloc(length * 2);
 
-	MultiByteToWideChar(CP_ACP, 0, inStr, -1, outStr, length);
+	MultiByteToWideChar(CP_ACP, 0, inString, -1, outString, length);
 
-exit:
-	*outStrBufLen = length;
-
-	return result;
+	return outString;
 }
 
 // ****************************************************************
-// BinToHexStr
+// SIDToHexStr
 // ****************************************************************
-int BinToHexStr(char* bin, unsigned long binLen, char* hexStr, unsigned long* hexStrBufLen)
+int SIDToHexStr(char* sid, unsigned long sidLen, char** hexStr)
 {
-	int result = 0;
-	unsigned long length = binLen * 2 + 1;
-	unsigned long i;
+	int hexStrLen = sidLen * 2 + 1;
 
-	if(hexStr == NULL)
+	*hexStr = (char*)calloc(hexStrLen, sizeof(char));
+
+	for(unsigned long i = 0; i < sidLen; i++)
 	{
-		result = 0;
-		goto exit;
-	}
-	if(*hexStrBufLen < length)
-	{
-		result = -1;
-		goto exit;
+		sprintf(&(*hexStr)[i * 2], "%02X", (unsigned char)sid[i]);
 	}
 
-	for(i = 0; i < binLen; i++)
-	{
-		sprintf(&hexStr[i * 2], "%02X", (unsigned char)bin[i]);
-	}
-
-exit:
-	*hexStrBufLen = length;
-
-	return result;
+	return 0;
 }
 
 // ****************************************************************
-// HexStrToBin
+// HexStrToSID
 // ****************************************************************
-int HexStrToBin(char* hexStr, char* bin, unsigned long* binBufLen)
+int HexStrToSID(char* hexStr, char** sid, unsigned long* sidLen)
 {
-	int result = 0;
-	unsigned long length = strlen(hexStr) / 2;
-	unsigned long i;
 	int temp;
+	*sidLen = strlen(hexStr) / 2;
 
-	if(bin == NULL)
-	{
-		result = 0;
-		goto exit;
-	}
-	if(*binBufLen < length)
-	{
-		result = -1;
-		goto exit;
-	}
+	*sid = (char*)malloc(*sidLen);
 
-	for(i = 0; i < length; i++)
+	for(unsigned long i = 0; i < *sidLen; i++)
 	{
 		sscanf(&hexStr[i * 2], "%02X", &temp);
-		bin[i] = (unsigned char)temp;
+		(*sid)[i] = (unsigned char)temp;
 	}
 
-exit:
-	*binBufLen = length;
-
-	return result;
+	return 0;
 }
 
 // ****************************************************************
 // GetSIDByAccountName
 // ****************************************************************
-int GetSIDByAccountName(char* accountName, char* sid, unsigned long* sidBufLen)
+int GetSIDByAccountName(char* accountName, char** sid)
 {
 	int result = 0;
 	unsigned long sidLen = 0;
+	char* domain;
 	unsigned long domainLen = 0;
-	char* domain = NULL;
 	SID_NAME_USE testType;
 
-	LookupAccountName(NULL, accountName, NULL, &sidLen, NULL, &domainLen, &testType);
-
-	if(sid == NULL)
-	{
-		result = 0;
-		goto exit;
-	}
-	if(*sidBufLen < sidLen)
-	{
-		result = -1;
-		goto exit;
-	}
-	domain = (char*)malloc(domainLen);
-
-	if(LookupAccountName(NULL, accountName, (void*)sid, &sidLen, domain, &domainLen, &testType) == 0)
+	if(LookupAccountName(NULL, accountName, NULL, &sidLen, NULL, &domainLen, &testType) == 0)
 	{
 		result = GetLastError();
-		goto exit;
 	}
 
-exit:
-	*sidBufLen = sidLen;
+	*sid = (char*)malloc(sidLen);
+	domain = (char*)malloc(domainLen);
 
-	quickFree(&domain);
+	if(LookupAccountName(NULL, accountName, *sid, &sidLen, domain, &domainLen, &testType) == 0)
+	{
+		result = GetLastError();
+	}
+	else
+	{
+		result = 0;
+	}
 
 	return result;
 }
@@ -212,39 +140,103 @@ exit:
 // ****************************************************************
 // GetAccountNameBySID
 // ****************************************************************
-int GetAccountNameBySID(char* sid, char* accountName, unsigned long* accountNameBufLen)
+int GetAccountNameBySID(char* sid, char** accountName)
 {
 	int result = 0;
-	unsigned long accountNameLen = 0;
+	unsigned long sidLen = 0;
+	char* domain;
 	unsigned long domainLen = 0;
-	char* domain = NULL;
 	SID_NAME_USE testType;
 
-	LookupAccountSid(NULL, sid, NULL, &accountNameLen, NULL, &domainLen, &testType);
+	unsigned long accountNameLen = 0;
 
-
-	if(accountName == NULL)
-	{
-		result = 0;
-		goto exit;
-	}
-	if(*accountNameBufLen < accountNameLen)
-	{
-		result = -1;
-		goto exit;
-	}
-	domain = (char*)malloc(domainLen);
-
-	if(LookupAccountSid(NULL, sid, accountName, &accountNameLen, domain, &domainLen, &testType) == 0)
+	if(LookupAccountSid(NULL, sid, NULL, &accountNameLen, NULL, &domainLen, &testType) == 0)
 	{
 		result = GetLastError();
-		goto exit;
 	}
 
-exit:
-	*accountNameBufLen = accountNameLen;
+	domain = (char*)malloc(domainLen);
+	*accountName = (char*)calloc(accountNameLen, sizeof(char));
 
-	quickFree(&domain);
+	if(LookupAccountSid(NULL, sid, *accountName, &accountNameLen, domain, &domainLen, &testType) == 0)
+	{
+		result = GetLastError();
+	}
+	else
+	{
+		result = 0;
+	}
+
+	return result;
+}
+
+// ****************************************************************
+// GetSIDHexStrByAccountName
+// ****************************************************************
+int GetSIDHexStrByAccountName(char* accountName, char** sidHexStr)
+{
+	int result = 0;
+	char* sid;
+	unsigned long sidLen = 0;
+	char* domain;
+	unsigned long domainLen = 0;
+	SID_NAME_USE testType;
+
+	if(LookupAccountName(NULL, accountName, NULL, &sidLen, NULL, &domainLen, &testType) == 0)
+	{
+		result = GetLastError();
+	}
+
+	sid = (char*)malloc(sidLen);
+	domain = (char*)malloc(domainLen);
+
+	if(LookupAccountName(NULL, accountName, sid, &sidLen, domain, &domainLen, &testType) == 0)
+	{
+		result = GetLastError();
+	}
+	else
+	{
+		result = 0;
+	}
+
+
+	SIDToHexStr(sid, sidLen, sidHexStr);
+
+	return result;
+}
+
+// ****************************************************************
+// GetAccountNameBySIDHexStr
+// ****************************************************************
+int GetAccountNameBySIDHexStr(char* sidHexStr, char** accountName)
+{
+	int result = 0;
+	char* sid;
+	unsigned long sidLen = 0;
+	char* domain;
+	unsigned long domainLen = 0;
+	SID_NAME_USE testType;
+
+	unsigned long accountNameLen = 0;
+
+	HexStrToSID(sidHexStr, &sid, &sidLen);
+
+	if(LookupAccountSid(NULL, sid, NULL, &accountNameLen, NULL, &domainLen, &testType) == 0)
+	{
+		result = GetLastError();
+	}
+
+	domain = (char*)malloc(domainLen);
+	*accountName = (char*)calloc(accountNameLen, sizeof(char));
+
+	if(LookupAccountSid(NULL, sid, *accountName, &accountNameLen, domain, &domainLen, &testType) == 0)
+	{
+		result = GetLastError();
+	}
+	else
+	{
+		result = 0;
+	}
 
 	return result;
 }
@@ -254,7 +246,6 @@ exit:
 // ****************************************************************
 NTUser::NTUser()
 {
-	currentAccountName = NULL;
 	userInfo = NULL;
 
 	groupsInfo = NULL;
@@ -266,8 +257,6 @@ NTUser::NTUser()
 	currentLocalGroupEntry = 0;
 	localGroupEntriesRead = 0;
 	localGroupEntriesTotal = 0;
-
-	resultBuf = NULL;
 }
 
 // ****************************************************************
@@ -275,7 +264,6 @@ NTUser::NTUser()
 // ****************************************************************
 NTUser::~NTUser()
 {
-	quickFree((char**)&currentAccountName);
 	if(userInfo != NULL)
 	{
 		NetApiBufferFree(userInfo);
@@ -291,73 +279,35 @@ NTUser::~NTUser()
 		NetApiBufferFree(localGroupsInfo);
 		localGroupsInfo = NULL;
 	}
-	quickFree((char**)&resultBuf);
 }
 
 // ****************************************************************
-// NTUser::LoadUserInfo
+// NTUser::NewUser
 // ****************************************************************
-int NTUser::LoadUserInfo()
+void NTUser::NewUser(char* username)
 {
-	int result = 0;
-
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
 	if(userInfo != NULL)
 	{
 		NetApiBufferFree(userInfo);
 		userInfo = NULL;
 	}
 
-	if(NetUserGetInfo(NULL, currentAccountName, USER_INFO_LEVEL, (unsigned char**)&userInfo) != NERR_Success)
-	{
-		result = -1;
-	}
+	userInfo = (USER_INFO_3*)malloc(sizeof(USER_INFO_3));
+	memset(userInfo, 0, sizeof(USER_INFO_3));
+	userInfo->usri3_name = UTF8ToUTF16(username);
 
-exit:
-	return result;
-}
-
-// ****************************************************************
-// NTUser::NewUser
-// ****************************************************************
-int NTUser::NewUser(char* username)
-{
-	int result = 0;
-	unsigned long length;
-	PUSER_INFO_3 info = NULL;
-	DWORD badParam = 0;
-
-	quickFree((char**)&currentAccountName);
-	UTF8ToUTF16(username, NULL, &length);
-	currentAccountName = (unsigned short*)malloc(length);
-	UTF8ToUTF16(username, currentAccountName, &length);
-
-	info = (USER_INFO_3*)malloc(sizeof(USER_INFO_3));
-	memset(info, 0, sizeof(USER_INFO_3));
-	info->usri3_name = currentAccountName;
+	// Possible required inits for AddUser
+	//userInfo->usri3_priv = USER_PRIV_USER;
+	//userInfo->usri3_home_dir = NULL;
+	//userInfo->usri3_comment = NULL;
+	//userInfo->usri3_script_path = NULL;
 
 	// NT4 required inits for AddUser
-	info->usri3_flags = UF_SCRIPT;
-	info->usri3_primary_group_id = DOMAIN_GROUP_RID_USERS;
+	userInfo->usri3_flags = UF_SCRIPT;
+	userInfo->usri3_primary_group_id = DOMAIN_GROUP_RID_USERS;
 
 	// Other inits
-	info->usri3_acct_expires = (unsigned long)-1;
-
-	// Add user
-	result = NetUserAdd(NULL, USER_INFO_LEVEL, (unsigned char*)info, &badParam);
-
-	// Free buffers
-	quickFree((char**)&info);
-
-	// Load info for quick retrevial
-	LoadUserInfo();
-
-	return result;
+	userInfo->usri3_acct_expires = (unsigned long)-1;
 }
 
 // ****************************************************************
@@ -366,15 +316,14 @@ int NTUser::NewUser(char* username)
 int NTUser::RetriveUserByAccountName(char* username)
 {
 	int result;
-	unsigned long length = 0;
-	PUSER_INFO_3 info = NULL;
 
-	quickFree((char**)&currentAccountName);
-	UTF8ToUTF16(username, NULL, &length);
-	currentAccountName = (unsigned short*)malloc(length);
-	UTF8ToUTF16(username, currentAccountName, &length);
+	if(userInfo != NULL)
+	{
+		NetApiBufferFree(userInfo);
+		userInfo = NULL;
+	}
 
-	result = LoadUserInfo();
+	result = NetUserGetInfo(NULL, UTF8ToUTF16(username), USER_INFO_LEVEL, (unsigned char**)&userInfo);
 
 	return result;
 }
@@ -385,23 +334,19 @@ int NTUser::RetriveUserByAccountName(char* username)
 int NTUser::RetriveUserBySIDHexStr(char* sidHexStr)
 {
 	int result = 0;
-	unsigned long length = 0;
 	char* username;
-	char* sid;
 
-	quickFree((char**)&currentAccountName);
+	if(userInfo != NULL)
+	{
+		NetApiBufferFree(userInfo);
+		userInfo = NULL;
+	}
 
-	HexStrToBin(sidHexStr, NULL, &length);
-	sid = (char*)malloc(length);
-	HexStrToBin(sidHexStr, sid, &length);
-
-	if(GetAccountNameBySID(sid, NULL, &length) != 0)
+	if(GetAccountNameBySIDHexStr(sidHexStr, &username) != 0)
 	{
 		result = -1;
 		goto exit;
 	}
-	username = (char*)malloc(length);
-	GetAccountNameBySID(sid, username, &length);
 
 	if(RetriveUserByAccountName(username) != 0)
 	{
@@ -410,8 +355,37 @@ int NTUser::RetriveUserBySIDHexStr(char* sidHexStr)
 	}
 
 exit:
-	quickFree(&sid);
-	quickFree(&username);
+	return result;
+}
+
+// ****************************************************************
+// NTUser::StoreUser
+// ****************************************************************
+int NTUser::StoreUser()
+{
+	int result = 0;
+
+	if(userInfo != NULL)
+	{
+		result = NetUserSetInfo(NULL, userInfo->usri3_name, USER_INFO_LEVEL, (unsigned char*)userInfo, NULL);
+	}
+	else
+	{
+		result = -1;
+	}
+
+	return result;
+}
+
+// ****************************************************************
+// NTUser::AddUser
+// ****************************************************************
+int NTUser::AddUser()
+{
+	int result;
+	DWORD badParam = 0;
+
+	result = NetUserAdd(NULL, USER_INFO_LEVEL, (unsigned char*)userInfo, &badParam);
 
 	return result;
 }
@@ -419,27 +393,34 @@ exit:
 // ****************************************************************
 // NTUser::DeleteUser
 // ****************************************************************
-int NTUser::DeleteUser()
+int NTUser::DeleteUser(char* username)
 {
 	int result;
 
-	if(currentAccountName == NULL)
+	result = NetUserDel(NULL, UTF8ToUTF16(username));
+
+	return result;
+}
+
+// ****************************************************************
+// NTUser::ChangeUsername
+// ****************************************************************
+int NTUser::ChangeUsername(char* oldUsername, char* newUsername)
+{
+	int result;
+
+	if((result = RetriveUserByAccountName(oldUsername)) == 0)
 	{
-		result = -1;
-		goto exit;
+		userInfo->usri3_name = UTF8ToUTF16(newUsername);
+		if((result = AddUser()) == 0)
+		{
+			if((result = DeleteUser(oldUsername)) != 0)
+			{
+				DeleteUser(newUsername);
+			}
+		}
 	}
 
-	result = NetUserDel(NULL, currentAccountName);
-
-	quickFree((char**)&currentAccountName);
-
-	if(userInfo != NULL)
-	{
-		NetApiBufferFree(userInfo);
-		userInfo = NULL;
-	}
-
-exit:
 	return result;
 }
 
@@ -449,21 +430,12 @@ exit:
 char* NTUser::GetAccountName()
 {
 	char* result = NULL;
-	unsigned long length = 0;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
 	{
-		goto exit;
-		result = NULL;
+		result = UTF16ToUTF8(userInfo->usri3_name);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(currentAccountName, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(currentAccountName, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -473,38 +445,11 @@ exit:
 char* NTUser::GetSIDHexStr()
 {
 	char* result = NULL;
-	unsigned long length = 0;
-	unsigned long binLength = 0;
-	char* username = NULL;
-	char* sid = NULL;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		GetSIDHexStrByAccountName(UTF16ToUTF8(userInfo->usri3_name), &result);
 	}
-
-	UTF16ToUTF8(currentAccountName, NULL, &length);
-	username = (char*)malloc(length);
-	UTF16ToUTF8(currentAccountName, username, &length);
-
-	if(GetSIDByAccountName(username, NULL, &binLength) != 0)
-	{
-		result = NULL;
-		goto exit;
-	}
-	sid = (char*)malloc(binLength);
-	GetSIDByAccountName(username, sid, &binLength);
-
-	quickFree(&resultBuf);
-	BinToHexStr(sid, binLength, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	BinToHexStr(sid, binLength, resultBuf, &length);
-	result = resultBuf;
-
-exit:
-	quickFree(&username);
-	quickFree(&sid);
 
 	return result;
 }
@@ -516,15 +461,11 @@ unsigned long NTUser::GetAccountExpires()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_acct_expires;
 	}
 
-	result = userInfo->usri3_acct_expires;
-
-exit:
 	return result;
 }
 
@@ -534,19 +475,16 @@ exit:
 int NTUser::SetAccountExpires(unsigned long accountExpires)
 {
 	int result = 0;
-	USER_INFO_1017 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_acct_expires = accountExpires;
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	info.usri1017_acct_expires = accountExpires;
-	result = NetUserSetInfo(NULL, currentAccountName, 1017, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
+	
 	return result;
 }
 
@@ -557,15 +495,11 @@ unsigned long NTUser::GetBadPasswordCount()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_bad_pw_count;
 	}
 
-	result = userInfo->usri3_bad_pw_count;
-
-exit:
 	return result;
 }
 
@@ -576,15 +510,11 @@ unsigned long NTUser::GetCodePage()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_code_page;
 	}
 
-	result = userInfo->usri3_code_page;
-
-exit:
 	return result;
 }
 
@@ -594,19 +524,16 @@ exit:
 int NTUser::SetCodePage(unsigned long codePage)
 {
 	int result = 0;
-	USER_INFO_1025 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_code_page = codePage;
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	info.usri1025_code_page = codePage;
-	result = NetUserSetInfo(NULL, currentAccountName, 1025, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
 	return result;
 }
 
@@ -616,21 +543,12 @@ exit:
 char* NTUser::GetComment()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result =  UTF16ToUTF8(userInfo->usri3_comment);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_comment, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_comment, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -640,26 +558,15 @@ exit:
 int NTUser::SetComment(char* comment)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1007 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_comment = UTF8ToUTF16(comment);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(comment, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(comment, wideStr, &length);
-
-	info.usri1007_comment = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1007, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -671,15 +578,11 @@ unsigned long NTUser::GetCountryCode()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_country_code;
 	}
 
-	result = userInfo->usri3_country_code;
-
-exit:
 	return result;
 }
 
@@ -689,19 +592,16 @@ exit:
 int NTUser::SetCountryCode(unsigned long countryCode)
 {
 	int result = 0;
-	USER_INFO_1024 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_country_code = countryCode;
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	info.usri1024_country_code = countryCode;
-	result = NetUserSetInfo(NULL, currentAccountName, 1024, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
 	return result;
 }
 
@@ -712,15 +612,11 @@ unsigned long NTUser::GetFlags()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_flags;
 	}
 
-	result = userInfo->usri3_flags;
-
-exit:
 	return result;
 }
 
@@ -730,19 +626,16 @@ exit:
 int NTUser::SetFlags(unsigned long flags)
 {
 	int result = 0;
-	USER_INFO_1008 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_flags = flags;
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	info.usri1008_flags = flags;
-	result = NetUserSetInfo(NULL, currentAccountName, 1008, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
+	
 	return result;
 }
 
@@ -752,21 +645,12 @@ exit:
 char* NTUser::GetHomeDir()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = UTF16ToUTF8(userInfo->usri3_home_dir);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_home_dir, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_home_dir, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -776,26 +660,15 @@ exit:
 int NTUser::SetHomeDir(char* path)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1006 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_home_dir = UTF8ToUTF16(path);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(path, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(path, wideStr, &length);
-
-	info.usri1006_home_dir = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1006, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -806,21 +679,12 @@ exit:
 char* NTUser::GetHomeDirDrive()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = UTF16ToUTF8(userInfo->usri3_home_dir_drive);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_home_dir_drive, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_home_dir_drive, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -830,26 +694,15 @@ exit:
 int NTUser::SetHomeDirDrive(char* path)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1053 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_home_dir_drive = UTF8ToUTF16(path);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(path, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(path, wideStr, &length);
-
-	info.usri1053_home_dir_drive = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1053, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -861,15 +714,11 @@ unsigned long NTUser::GetLastLogoff()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_last_logoff;
 	}
 
-	result = userInfo->usri3_last_logoff;
-
-exit:
 	return result;
 }
 
@@ -880,15 +729,11 @@ unsigned long NTUser::GetLastLogon()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_last_logon;
 	}
 
-	result = userInfo->usri3_last_logon;
-
-exit:
 	return result;
 }
 
@@ -898,21 +743,12 @@ exit:
 char* NTUser::GetLogonHours()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = (char*)userInfo->usri3_logon_hours;
 	}
 
-	quickFree(&resultBuf);
-	BinToHexStr((char*)userInfo->usri3_logon_hours, 21, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	BinToHexStr((char*)userInfo->usri3_logon_hours, 21, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -922,27 +758,15 @@ exit:
 int NTUser::SetLogonHours(char* logonHours)
 {
 	int result = 0;
-	unsigned long length;
-	char* bin = NULL;
-	USER_INFO_1020 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_logon_hours = (unsigned char*)logonHours;
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	HexStrToBin(logonHours, NULL, &length);
-	bin = (char*)malloc(length);
-	HexStrToBin(logonHours, bin, &length);
-
-	info.usri1020_units_per_week = UNITS_PER_WEEK;
-	info.usri1020_logon_hours = (unsigned char*)bin;
-	result = NetUserSetInfo(NULL, currentAccountName, 1020, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree(&bin);
 
 	return result;
 }
@@ -954,15 +778,11 @@ unsigned long NTUser::GetMaxStorage()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_max_storage;
 	}
 
-	result = userInfo->usri3_max_storage;
-
-exit:
 	return result;
 }
 
@@ -972,19 +792,16 @@ exit:
 int NTUser::SetMaxStorage(unsigned long maxStorage)
 {
 	int result = 0;
-	USER_INFO_1018 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_max_storage = maxStorage;
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	info.usri1018_max_storage = maxStorage;
-	result = NetUserSetInfo(NULL, currentAccountName, 1018, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
 	return result;
 }
 
@@ -995,15 +812,11 @@ unsigned long NTUser::GetNumLogons()
 {
 	unsigned long result = 0;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = 0;
-		goto exit;
+		result = userInfo->usri3_num_logons;
 	}
 
-	result = userInfo->usri3_num_logons;
-
-exit:
 	return result;
 }
 
@@ -1013,21 +826,12 @@ exit:
 char* NTUser::GetProfile()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = UTF16ToUTF8(userInfo->usri3_profile);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_profile, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_profile, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -1037,26 +841,15 @@ exit:
 int NTUser::SetProfile(char* path)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1052 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_profile = UTF8ToUTF16(path);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(path, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(path, wideStr, &length);
-
-	info.usri1052_profile = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1052, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1067,21 +860,12 @@ exit:
 char* NTUser::GetScriptPath()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = UTF16ToUTF8(userInfo->usri3_script_path);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_script_path, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_script_path, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -1091,26 +875,15 @@ exit:
 int NTUser::SetScriptPath(char* path)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1009 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_script_path = UTF8ToUTF16(path);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(path, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(path, wideStr, &length);
-
-	info.usri1009_script_path = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1009, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1121,21 +894,12 @@ exit:
 char* NTUser::GetWorkstations()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = UTF16ToUTF8(userInfo->usri3_workstations);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_workstations, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_workstations, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -1145,26 +909,15 @@ exit:
 int NTUser::SetWorkstations(char* workstations)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1014 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_workstations = UTF8ToUTF16(workstations);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(workstations, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(workstations, wideStr, &length);
-
-	info.usri1014_workstations = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1014, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1175,21 +928,12 @@ exit:
 char* NTUser::GetFullname()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || userInfo == NULL)
+	if(userInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		result = UTF16ToUTF8(userInfo->usri3_full_name);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(userInfo->usri3_full_name, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(userInfo->usri3_full_name, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -1199,26 +943,15 @@ exit:
 int NTUser::SetFullname(char* fullname)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1011 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_full_name = UTF8ToUTF16(fullname);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(fullname, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(fullname, wideStr, &length);
-
-	info.usri1011_full_name = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1011, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1229,26 +962,15 @@ exit:
 int NTUser::SetPassword(char* password)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	USER_INFO_1003 info;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		userInfo->usri3_password = UTF8ToUTF16(password);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(password, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(password, wideStr, &length);
-
-	info.usri1003_password = wideStr;
-	result = NetUserSetInfo(NULL, currentAccountName, 1003, (unsigned char*)&info, NULL);
-	LoadUserInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1259,23 +981,15 @@ exit:
 int NTUser::AddToGroup(char* groupName)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		result = NetGroupAddUser(NULL, UTF8ToUTF16(groupName), userInfo->usri3_name);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(groupName, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(groupName, wideStr, &length);
-
-	result = NetGroupAddUser(NULL, wideStr, currentAccountName);
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1286,23 +1000,15 @@ exit:
 int NTUser::RemoveFromGroup(char* groupName)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		result = NetGroupDelUser(NULL, UTF8ToUTF16(groupName), userInfo->usri3_name);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(groupName, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(groupName, wideStr, &length);
-
-	result = NetGroupDelUser(NULL, wideStr, currentAccountName);
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1314,24 +1020,23 @@ int NTUser::LoadGroups()
 {
 	int result = 0;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		if(groupsInfo != NULL)
+		{
+			NetApiBufferFree(groupsInfo);
+			groupsInfo = NULL;
+			currentGroupEntry = 0;
+			groupEntriesRead = 0;
+			groupEntriesTotal = 0;
+		}
+		result = NetUserGetGroups(NULL, userInfo->usri3_name, USER_GROUPS_INFO_LEVEL, (unsigned char**)&groupsInfo, MAX_PREFERRED_LENGTH, &groupEntriesRead, &groupEntriesTotal);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	if(groupsInfo != NULL)
-	{
-		NetApiBufferFree(groupsInfo);
-		groupsInfo = NULL;
-		currentGroupEntry = 0;
-		groupEntriesRead = 0;
-		groupEntriesTotal = 0;
-	}
-
-	result = NetUserGetGroups(NULL, currentAccountName, USER_GROUPS_INFO_LEVEL, (unsigned char**)&groupsInfo, MAX_PREFERRED_LENGTH, &groupEntriesRead, &groupEntriesTotal);
-
-exit:
 	return result;
 }
 
@@ -1359,21 +1064,17 @@ bool NTUser::HasMoreGroups()
 // ****************************************************************
 char* NTUser::NextGroupName()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* groupName = NULL;
+	GROUP_USERS_INFO_0* thisEntry;
 
 	if(currentGroupEntry < groupEntriesRead)
 	{
-		quickFree(&resultBuf);
-		UTF16ToUTF8(groupsInfo[currentGroupEntry].grui0_name, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		UTF16ToUTF8(groupsInfo[currentGroupEntry].grui0_name, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(groupsInfo[currentGroupEntry]);
+		groupName = UTF16ToUTF8(thisEntry->grui0_name);
 		currentGroupEntry++;
 	}
 
-	return result;
+	return groupName;
 }
 
 // ****************************************************************
@@ -1382,8 +1083,6 @@ char* NTUser::NextGroupName()
 int NTUser::AddToLocalGroup(char* localGroupName)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr;
 	char userSID[256];
 	wchar_t domain[256];
 	DWORD SIDLen = sizeof(userSID);
@@ -1394,26 +1093,20 @@ int NTUser::AddToLocalGroup(char* localGroupName)
 	memset(&domain, 0, sizeof(domain));
 	memset(&userSID, 0, sizeof(userSID));
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		result = LookupAccountName(NULL, UTF16ToUTF8(userInfo->usri3_name), &userSID, &SIDLen, (LPTSTR)&domain, &domainLen, &SIDUseIndicator);
+
+		if(result != 0)
+		{
+			membersbuf[0].lgrmi0_sid = &userSID;
+			result = NetLocalGroupAddMembers(NULL, UTF8ToUTF16(localGroupName), 0, (LPBYTE)&membersbuf, 1);
+		}
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	result = LookupAccountName(NULL, GetAccountName(), &userSID, &SIDLen, (LPTSTR)&domain, &domainLen, &SIDUseIndicator);
-
-	if(result != 0)
-	{
-		membersbuf[0].lgrmi0_sid = &userSID;
-
-		UTF8ToUTF16(localGroupName, NULL, &length);
-		wideStr = (unsigned short*)malloc(length);
-		UTF8ToUTF16(localGroupName, wideStr, &length);
-		result = NetLocalGroupAddMembers(NULL, wideStr, 0, (LPBYTE)&membersbuf, 1);
-	}
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1424,8 +1117,6 @@ exit:
 int NTUser::RemoveFromLocalGroup(char* localGroupName)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr;
 	char userSID[256];
 	wchar_t domain[256];
 	DWORD SIDLen = sizeof(userSID);
@@ -1436,26 +1127,20 @@ int NTUser::RemoveFromLocalGroup(char* localGroupName)
 	memset(&domain, 0, sizeof(domain));
 	memset(&userSID, 0, sizeof(userSID));
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		result = LookupAccountName(NULL, UTF16ToUTF8(userInfo->usri3_name), &userSID, &SIDLen, (LPTSTR)&domain, &domainLen, &SIDUseIndicator);
+
+		if(result != 0)
+		{
+			membersbuf[0].lgrmi0_sid = &userSID;
+			result = NetLocalGroupDelMembers(NULL, UTF8ToUTF16(localGroupName), 0, (LPBYTE)&membersbuf, 1);
+		}
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	result = LookupAccountName(NULL, GetAccountName(), &userSID, &SIDLen, (LPTSTR)&domain, &domainLen, &SIDUseIndicator);
-
-	if(result != 0)
-	{
-		membersbuf[0].lgrmi0_sid = &userSID;
-
-		UTF8ToUTF16(localGroupName, NULL, &length);
-		wideStr = (unsigned short*)malloc(length);
-		UTF8ToUTF16(localGroupName, wideStr, &length);
-		result = NetLocalGroupDelMembers(NULL, wideStr, 0, (LPBYTE)&membersbuf, 1);
-	}
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1467,24 +1152,24 @@ int NTUser::LoadLocalGroups()
 {
 	int result = 0;
 
-	if(currentAccountName == NULL)
+	if(userInfo != NULL)
+	{
+		if(localGroupsInfo != NULL)
+		{
+			NetApiBufferFree(localGroupsInfo);
+			localGroupsInfo = NULL;
+			currentLocalGroupEntry = 0;
+			localGroupEntriesRead = 0;
+			localGroupEntriesTotal = 0;
+		}
+
+		result = NetUserGetLocalGroups(NULL, userInfo->usri3_name, 0, USER_LOCALGROUPS_INFO_LEVEL, (unsigned char**)&localGroupsInfo, MAX_PREFERRED_LENGTH, &localGroupEntriesRead, &localGroupEntriesTotal);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	if(localGroupsInfo != NULL)
-	{
-		NetApiBufferFree(localGroupsInfo);
-		localGroupsInfo = NULL;
-		currentLocalGroupEntry = 0;
-		localGroupEntriesRead = 0;
-		localGroupEntriesTotal = 0;
-	}
-
-	result = NetUserGetLocalGroups(NULL, currentAccountName, 0, USER_LOCALGROUPS_INFO_LEVEL, (unsigned char**)&localGroupsInfo, MAX_PREFERRED_LENGTH, &localGroupEntriesRead, &localGroupEntriesTotal);
-
-exit:
 	return result;
 }
 
@@ -1512,21 +1197,17 @@ bool NTUser::HasMoreLocalGroups()
 // ****************************************************************
 char* NTUser::NextLocalGroupName()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* localGroupName = NULL;
+	LOCALGROUP_USERS_INFO_0* thisEntry;
 
 	if(currentLocalGroupEntry < localGroupEntriesRead)
 	{
-		quickFree(&resultBuf);
-		UTF16ToUTF8(localGroupsInfo[currentLocalGroupEntry].lgrui0_name, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		UTF16ToUTF8(localGroupsInfo[currentLocalGroupEntry].lgrui0_name, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(localGroupsInfo[currentLocalGroupEntry]);
+		localGroupName = UTF16ToUTF8(thisEntry->lgrui0_name);
 		currentLocalGroupEntry++;
 	}
 
-	return result;
+	return localGroupName;
 }
 
 // ****************************************************************
@@ -1537,7 +1218,6 @@ NTUserList::NTUserList()
 	bufptr = NULL;
 	currentEntry = 0;
 	resumeHandle = 0;
-	resultBuf = NULL;
 }
 
 // ****************************************************************
@@ -1550,7 +1230,6 @@ NTUserList::~NTUserList()
 		NetApiBufferFree(bufptr);
 		bufptr = NULL;
 	}
-	quickFree(&resultBuf);
 }
 
 // ****************************************************************
@@ -1589,21 +1268,17 @@ bool NTUserList::hasMore()
 // ****************************************************************
 char* NTUserList::nextUsername()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* username = NULL;
+	USER_INFO_3* thisEntry;
 
 	if(currentEntry < entriesRead)
 	{
-		quickFree(&resultBuf);
-		UTF16ToUTF8(bufptr[currentEntry].usri3_name, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		UTF16ToUTF8(bufptr[currentEntry].usri3_name, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(bufptr[currentEntry]);
+		username = UTF16ToUTF8(thisEntry->usri3_name);
 		currentEntry++;
 	}
 
-	return result;
+	return username;
 }
 
 // ****************************************************************
@@ -1611,13 +1286,7 @@ char* NTUserList::nextUsername()
 // ****************************************************************
 NTGroup::NTGroup()
 {
-	currentAccountName = NULL;
 	groupInfo = NULL;
-	usersInfo = NULL;
-	currentUserEntry = 0;
-	userEntriesRead = 0;
-	userEntriesTotal = 0;
-	resultBuf = NULL;
 }
 
 // ****************************************************************
@@ -1625,95 +1294,55 @@ NTGroup::NTGroup()
 // ****************************************************************
 NTGroup::~NTGroup()
 {
-	quickFree((char**)&currentAccountName);
 	if(groupInfo != NULL)
 	{
 		NetApiBufferFree(groupInfo);
 		groupInfo = NULL;
 	}
-	if(usersInfo != NULL)
-	{
-		NetApiBufferFree(usersInfo);
-		usersInfo = NULL;
-	}
-	quickFree(&resultBuf);
-}
-
-// ****************************************************************
-// NTGroup::LoadGroupInfo
-// ****************************************************************
-int NTGroup::LoadGroupInfo()
-{
-	int result = 0;
-
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	if(groupInfo != NULL)
-	{
-		NetApiBufferFree(groupInfo);
-		groupInfo = NULL;
-	}
-
-	if(NetGroupGetInfo(NULL, currentAccountName, GROUP_INFO_LEVEL, (unsigned char**)&groupInfo) != NERR_Success)
-	{
-		result = -1;
-	}
-
-exit:
-	return result;
 }
 
 // ****************************************************************
 // NTGroup::NewGroup
 // ****************************************************************
-int NTGroup::NewGroup(char* groupName)
+void NTGroup::NewGroup(char* groupName)
 {
-	int result = 0;
-	unsigned long length;
-	PGROUP_INFO_2 info = NULL;
-	DWORD badParam = 0;
+	if(groupInfo != NULL)
+	{
+		NetApiBufferFree(groupInfo);
+		groupInfo = NULL;
+	}
 
-	quickFree((char**)&currentAccountName);
+	groupInfo = (GROUP_INFO_2*)malloc(sizeof(GROUP_INFO_2));
+	memset(groupInfo, 0, sizeof(GROUP_INFO_2));
+	groupInfo->grpi2_name = UTF8ToUTF16(groupName);
+}
 
-	UTF8ToUTF16(groupName, NULL, &length);
-	currentAccountName = (unsigned short*)malloc(length);
-	UTF8ToUTF16(groupName, currentAccountName, &length);
+// ****************************************************************
+// NTGroup::DeleteGroup
+// ****************************************************************
+int NTGroup::DeleteGroup(char* groupName)
+{
+	int result;
 
-	info = (PGROUP_INFO_2)malloc(sizeof(GROUP_INFO_2));
-	memset(info, 0, sizeof(GROUP_INFO_2));
-	info->grpi2_name = currentAccountName;
-
-	// Add group
-	result = NetGroupAdd(NULL, GROUP_INFO_LEVEL, (unsigned char*)info, &badParam);
-
-	// Free buffers
-	quickFree((char**)&info);
-
-	// Load info for quick retrevial
-	LoadGroupInfo();
+	result = NetGroupDel(NULL, UTF8ToUTF16(groupName));
 
 	return result;
 }
 
 // ****************************************************************
-// NTGroup::RetriveGroupByAccountName
+// NTGroup::RetriveGroup
 // ****************************************************************
 int NTGroup::RetriveGroupByAccountName(char* groupName)
 {
 	int result;
-	unsigned long length;
-	PGROUP_INFO_2 info = NULL;
 
-	quickFree((char**)&currentAccountName);
-	UTF8ToUTF16(groupName, NULL, &length);
-	currentAccountName = (unsigned short*)malloc(length);
-	UTF8ToUTF16(groupName, currentAccountName, &length);
+	if(groupInfo != NULL)
+	{
+		NetApiBufferFree(groupInfo);
+		groupInfo = NULL;
+	}
 
-	result = LoadGroupInfo();
+	result = NetGroupGetInfo(NULL, UTF8ToUTF16(groupName), GROUP_INFO_LEVEL, (unsigned char**)&groupInfo);
 
 	return result;
 }
@@ -1724,23 +1353,19 @@ int NTGroup::RetriveGroupByAccountName(char* groupName)
 int NTGroup::RetriveGroupBySIDHexStr(char* sidHexStr)
 {
 	int result = 0;
-	unsigned long length;
 	char* groupName;
-	char* sid;
 
-	quickFree((char**)&currentAccountName);
+	if(groupInfo != NULL)
+	{
+		NetApiBufferFree(groupInfo);
+		groupInfo = NULL;
+	}
 
-	HexStrToBin(sidHexStr, NULL, &length);
-	sid = (char*)malloc(length);
-	HexStrToBin(sidHexStr, sid, &length);
-
-	if(GetAccountNameBySID(sid, NULL, &length) != 0)
+	if(GetAccountNameBySIDHexStr(sidHexStr, &groupName) != 0)
 	{
 		result = -1;
 		goto exit;
 	}
-	groupName = (char*)malloc(length);
-	GetAccountNameBySID(sid, groupName, &length);
 
 	if(RetriveGroupByAccountName(groupName) != 0)
 	{
@@ -1749,36 +1374,34 @@ int NTGroup::RetriveGroupBySIDHexStr(char* sidHexStr)
 	}
 
 exit:
-	quickFree(&sid);
-	quickFree(&groupName);
+	return result;
+}
+
+// ****************************************************************
+// NTGroup::AddGroup
+// ****************************************************************
+int NTGroup::AddGroup()
+{
+	int result;
+	DWORD badParam = 0;
+
+	result = NetGroupAdd(NULL, GROUP_INFO_LEVEL, (unsigned char*)groupInfo, &badParam);
 
 	return result;
 }
 
 // ****************************************************************
-// NTGroup::DeleteGroup
+// NTGroup::StoreGroup
 // ****************************************************************
-int NTGroup::DeleteGroup()
+int NTGroup::StoreGroup()
 {
-	int result;
+	int result = -1;
 
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	result = NetGroupDel(NULL, currentAccountName);
-
-	quickFree((char**)&currentAccountName);
-	
 	if(groupInfo != NULL)
 	{
-		NetApiBufferFree(groupInfo);
-		groupInfo = NULL;
+		result = NetGroupSetInfo(NULL, groupInfo->grpi2_name, GROUP_INFO_LEVEL, (unsigned char*)groupInfo, NULL);
 	}
 
-exit:
 	return result;
 }
 
@@ -1788,21 +1411,12 @@ exit:
 char* NTGroup::GetAccountName()
 {
 	char* result = NULL;
-	unsigned long length = 0;
 
-	if(currentAccountName == NULL)
+	if(groupInfo != NULL)
 	{
-		goto exit;
-		result = NULL;
+		result = UTF16ToUTF8(groupInfo->grpi2_name);
 	}
 
-	quickFree(&resultBuf);
-	UTF16ToUTF8(currentAccountName, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(currentAccountName, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -1810,95 +1424,13 @@ exit:
 // NTGroup::GetSIDHexStr
 // ****************************************************************
 char* NTGroup::GetSIDHexStr()
-{	
-	char* result = NULL;
-	unsigned long length = 0;
-	unsigned long binLength = 0;
-	char* groupName = NULL;
-	char* sid = NULL;
-
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	UTF16ToUTF8(currentAccountName, NULL, &length);
-	groupName = (char*)malloc(length);
-	UTF16ToUTF8(currentAccountName, groupName, &length);
-
-	if(GetSIDByAccountName(groupName, NULL, &binLength) != 0)
-	{
-		result = NULL;
-		goto exit;
-	}
-	sid = (char*)malloc(binLength);
-	GetSIDByAccountName(groupName, sid, &binLength);
-
-	quickFree(&resultBuf);
-	BinToHexStr(sid, binLength, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	BinToHexStr(sid, binLength, resultBuf, &length);
-	result = resultBuf;
-
-exit:
-	quickFree(&groupName);
-	quickFree(&sid);
-
-	return result;
-}
-
-// ****************************************************************
-// NTGroup::GetComment
-// ****************************************************************
-char* NTGroup::GetComment()
 {
 	char* result = NULL;
-	unsigned long length;
 
-	if(currentAccountName == NULL || groupInfo == NULL)
+	if(groupInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		GetSIDHexStrByAccountName(UTF16ToUTF8(groupInfo->grpi2_name), &result);
 	}
-
-	quickFree(&resultBuf);
-	UTF16ToUTF8(groupInfo->grpi2_comment, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(groupInfo->grpi2_comment, resultBuf, &length);
-	result = resultBuf;
-
-exit:
-	return result;
-}
-
-// ****************************************************************
-// NTGroup::SetComment
-// ****************************************************************
-int NTGroup::SetComment(char* comment)
-{
-	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	GROUP_INFO_1002 info;
-
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	UTF8ToUTF16(comment, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(comment, wideStr, &length);
-
-	info.grpi1002_comment = wideStr;
-	result = NetGroupSetInfo(NULL, currentAccountName, 1002, (unsigned char*)&info, NULL);
-
-	LoadGroupInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1909,23 +1441,15 @@ exit:
 int NTGroup::AddUser(char* userName)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
 
-	if(currentAccountName == NULL)
+	if(groupInfo != NULL)
+	{
+		result = NetGroupAddUser(NULL, groupInfo->grpi2_name, UTF8ToUTF16(userName));
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(userName, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(userName, wideStr, &length);
-
-	result = NetGroupAddUser(NULL, currentAccountName, wideStr);
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1936,23 +1460,15 @@ exit:
 int NTGroup::RemoveUser(char* userName)
 {
 	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
 
-	if(currentAccountName == NULL)
+	if(groupInfo != NULL)
+	{
+		result = NetGroupDelUser(NULL, groupInfo->grpi2_name, UTF8ToUTF16(userName));
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	UTF8ToUTF16(userName, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(userName, wideStr, &length);
-
-	result = NetGroupDelUser(NULL, currentAccountName, wideStr);
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -1964,23 +1480,23 @@ int NTGroup::LoadUsers()
 {
 	int result = 0;
 
-	if(currentAccountName == NULL)
+	if(groupInfo != NULL)
+	{
+		if(usersInfo != NULL)
+		{
+			NetApiBufferFree(usersInfo);
+			usersInfo = NULL;
+			currentUserEntry = 0;
+			userEntriesRead = 0;
+			userEntriesTotal = 0;
+		}
+		result = NetGroupGetUsers(NULL, groupInfo->grpi2_name, GROUP_USERS_INFO_LEVEL, (unsigned char**)&usersInfo, MAX_PREFERRED_LENGTH, &userEntriesRead, &userEntriesTotal, NULL);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	if(usersInfo != NULL)
-	{
-		NetApiBufferFree(usersInfo);
-		usersInfo = NULL;
-		currentUserEntry = 0;
-		userEntriesRead = 0;
-		userEntriesTotal = 0;
-	}
-	result = NetGroupGetUsers(NULL, currentAccountName, GROUP_USERS_INFO_LEVEL, (unsigned char**)&usersInfo, MAX_PREFERRED_LENGTH, &userEntriesRead, &userEntriesTotal, NULL);
-
-exit:
 	return result;
 }
 
@@ -2008,21 +1524,17 @@ bool NTGroup::HasMoreUsers()
 // ****************************************************************
 char* NTGroup::NextUserName()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* userName = NULL;
+	LOCALGROUP_USERS_INFO_0* thisEntry;
 
 	if(currentUserEntry < userEntriesRead)
 	{
-		quickFree(&resultBuf);
-		UTF16ToUTF8(usersInfo[currentUserEntry].lgrui0_name, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		UTF16ToUTF8(usersInfo[currentUserEntry].lgrui0_name, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(usersInfo[currentUserEntry]);
+		userName = UTF16ToUTF8(thisEntry->lgrui0_name);
 		currentUserEntry++;
 	}
 
-	return result;
+	return userName;
 }
 
 // ****************************************************************
@@ -2033,7 +1545,6 @@ NTGroupList::NTGroupList()
 	bufptr = NULL;
 	currentEntry = 0;
 	resumeHandle = 0;
-	resultBuf = NULL;
 }
 
 // ****************************************************************
@@ -2046,7 +1557,6 @@ NTGroupList::~NTGroupList()
 		NetApiBufferFree(bufptr);
 		bufptr = NULL;
 	}
-	quickFree(&resultBuf);
 }
 
 // ****************************************************************
@@ -2085,21 +1595,17 @@ bool NTGroupList::hasMore()
 // ****************************************************************
 char* NTGroupList::nextGroupName()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* groupName = NULL;
+	GROUP_INFO_2* thisEntry;
 
 	if(currentEntry < entriesRead)
 	{
-		quickFree(&resultBuf);
-		UTF16ToUTF8(bufptr[currentEntry].grpi2_name, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		UTF16ToUTF8(bufptr[currentEntry].grpi2_name, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(bufptr[currentEntry]);
+		groupName = UTF16ToUTF8(thisEntry->grpi2_name);
 		currentEntry++;
 	}
 
-	return result;
+	return groupName;
 }
 
 // ****************************************************************
@@ -2107,13 +1613,7 @@ char* NTGroupList::nextGroupName()
 // ****************************************************************
 NTLocalGroup::NTLocalGroup()
 {
-	currentAccountName = NULL;
 	localGroupInfo = NULL;
-	usersInfo = NULL;
-	currentUserEntry = 0;
-	userEntriesRead = 0;
-	userEntriesTotal = 0;
-	resultBuf = NULL;
 }
 
 // ****************************************************************
@@ -2121,95 +1621,55 @@ NTLocalGroup::NTLocalGroup()
 // ****************************************************************
 NTLocalGroup::~NTLocalGroup()
 {
-	quickFree((char**)&currentAccountName);
 	if(localGroupInfo != NULL)
 	{
 		NetApiBufferFree(localGroupInfo);
 		localGroupInfo = NULL;
 	}
-	if(usersInfo != NULL)
-	{
-		NetApiBufferFree(usersInfo);
-		usersInfo = NULL;
-	}
-	quickFree(&resultBuf);
-}
-
-// ****************************************************************
-// NTLocalGroup::LoadLocalGroupInfo
-// ****************************************************************
-int NTLocalGroup::LoadLocalGroupInfo()
-{
-	int result = 0;
-
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	if(localGroupInfo != NULL)
-	{
-		NetApiBufferFree(localGroupInfo);
-		localGroupInfo = NULL;
-	}
-
-	if(NetLocalGroupGetInfo(NULL, currentAccountName, LOCALGROUP_INFO_LEVEL, (unsigned char**)&localGroupInfo) != NERR_Success)
-	{
-		result = -1;
-	}
-
-exit:
-	return result;
 }
 
 // ****************************************************************
 // NTLocalGroup::NewLocalGroup
 // ****************************************************************
-int NTLocalGroup::NewLocalGroup(char* localGroupName)
+void NTLocalGroup::NewLocalGroup(char* localGroupName)
 {
+	if(localGroupInfo != NULL)
+	{
+		NetApiBufferFree(localGroupInfo);
+		localGroupInfo = NULL;
+	}
 
-	int result = 0;
-	unsigned long length;
-	PLOCALGROUP_INFO_1 info = NULL;
-	DWORD badParam = 0;
+	localGroupInfo = (LOCALGROUP_INFO_1*)malloc(sizeof(LOCALGROUP_INFO_1));
+	memset(localGroupInfo, 0, sizeof(LOCALGROUP_INFO_1));
+	localGroupInfo->lgrpi1_name = UTF8ToUTF16(localGroupName);
+}
 
-	quickFree((char**)&currentAccountName);
-	UTF8ToUTF16(localGroupName, NULL, &length);
-	currentAccountName = (unsigned short*)malloc(length);
-	UTF8ToUTF16(localGroupName, currentAccountName, &length);
+// ****************************************************************
+// NTLocalGroup::DeleteLocalGroup
+// ****************************************************************
+int NTLocalGroup::DeleteLocalGroup(char* localGroupName)
+{
+	int result;
 
-	info = (PLOCALGROUP_INFO_1)malloc(sizeof(LOCALGROUP_INFO_1));
-	memset(info, 0, sizeof(LOCALGROUP_INFO_1));
-	info->lgrpi1_name = currentAccountName;
-
-	// Add group
-	result = NetLocalGroupAdd(NULL, LOCALGROUP_INFO_LEVEL, (unsigned char*)info, &badParam);
-
-	// Free buffers
-	quickFree((char**)&info);
-
-	// Load info for quick retrevial
-	LoadLocalGroupInfo();
+	result = NetLocalGroupDel(NULL, UTF8ToUTF16(localGroupName));
 
 	return result;
 }
 
 // ****************************************************************
-// NTLocalGroup::RetriveLocalGroupByAccountName
+// NTLocalGroup::RetriveLocalGroup
 // ****************************************************************
 int NTLocalGroup::RetriveLocalGroupByAccountName(char* localGroupName)
 {
 	int result;
-	unsigned long length;
-	PLOCALGROUP_INFO_1 info = NULL;
 
-	quickFree((char**)&currentAccountName);
-	UTF8ToUTF16(localGroupName, NULL, &length);
-	currentAccountName = (unsigned short*)malloc(length);
-	UTF8ToUTF16(localGroupName, currentAccountName, &length);
+	if(localGroupInfo != NULL)
+	{
+		NetApiBufferFree(localGroupInfo);
+		localGroupInfo = NULL;
+	}
 
-	result = LoadLocalGroupInfo();
+	result = NetLocalGroupGetInfo(NULL, UTF8ToUTF16(localGroupName), LOCALGROUP_INFO_LEVEL, (unsigned char**)&localGroupInfo);
 
 	return result;
 }
@@ -2220,23 +1680,19 @@ int NTLocalGroup::RetriveLocalGroupByAccountName(char* localGroupName)
 int NTLocalGroup::RetriveLocalGroupBySIDHexStr(char* sidHexStr)
 {
 	int result = 0;
-	unsigned long length;
 	char* localGroupName;
-	char* sid;
 
-	quickFree((char**)&currentAccountName);
+	if(localGroupInfo != NULL)
+	{
+		NetApiBufferFree(localGroupInfo);
+		localGroupInfo = NULL;
+	}
 
-	HexStrToBin(sidHexStr, NULL, &length);
-	sid = (char*)malloc(length);
-	HexStrToBin(sidHexStr, sid, &length);
-
-	if(GetAccountNameBySID(sid, NULL, &length) != 0)
+	if(GetAccountNameBySIDHexStr(sidHexStr, &localGroupName) != 0)
 	{
 		result = -1;
 		goto exit;
 	}
-	localGroupName = (char*)malloc(length);
-	GetAccountNameBySID(sid, localGroupName, &length);
 
 	if(RetriveLocalGroupByAccountName(localGroupName) != 0)
 	{
@@ -2245,36 +1701,38 @@ int NTLocalGroup::RetriveLocalGroupBySIDHexStr(char* sidHexStr)
 	}
 
 exit:
-	quickFree(&sid);
-	quickFree(&localGroupName);
+	return result;
+}
+
+// ****************************************************************
+// NTLocalGroup::AddLocalGroup
+// ****************************************************************
+int NTLocalGroup::AddLocalGroup()
+{
+	int result;
+	DWORD badParam = 0;
+
+	result = NetLocalGroupAdd(NULL, LOCALGROUP_INFO_LEVEL, (unsigned char*)localGroupInfo, &badParam);
 
 	return result;
 }
 
 // ****************************************************************
-// NTLocalGroup::DeleteLocalGroup
+// NTLocalGroup::StoreLocalGroup
 // ****************************************************************
-int NTLocalGroup::DeleteLocalGroup()
+int NTLocalGroup::StoreLocalGroup()
 {
-	int result;
-
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	result = NetLocalGroupDel(NULL, currentAccountName);
-
-	quickFree((char**)&currentAccountName);
+	int result = 0;
 
 	if(localGroupInfo != NULL)
 	{
-		NetApiBufferFree(localGroupInfo);
-		localGroupInfo = NULL;
+		result = NetLocalGroupSetInfo(NULL, localGroupInfo->lgrpi1_name, LOCALGROUP_INFO_LEVEL, (unsigned char*)localGroupInfo, NULL);
+	}
+	else
+	{
+		result = -1;
 	}
 
-exit:
 	return result;
 }
 
@@ -2284,21 +1742,12 @@ exit:
 char* NTLocalGroup::GetAccountName()
 {
 	char* result = NULL;
-	unsigned long length = 0;
 
-	if(currentAccountName == NULL)
+	if(localGroupInfo != NULL)
 	{
-		goto exit;
-		result = NULL;
+		result = UTF16ToUTF8(localGroupInfo->lgrpi1_name);
 	}
 
-	quickFree((char**)&resultBuf);
-	UTF16ToUTF8(currentAccountName, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(currentAccountName, resultBuf, &length);
-	result = resultBuf;
-
-exit:
 	return result;
 }
 
@@ -2308,94 +1757,11 @@ exit:
 char* NTLocalGroup::GetSIDHexStr()
 {
 	char* result = NULL;
-	unsigned long length = 0;
-	unsigned long binLength = 0;
-	char* localGroupName = NULL;
-	char* sid = NULL;
 
-	if(currentAccountName == NULL)
+	if(localGroupInfo != NULL)
 	{
-		result = NULL;
-		goto exit;
+		GetSIDHexStrByAccountName(UTF16ToUTF8(localGroupInfo->lgrpi1_name), &result);
 	}
-
-	UTF16ToUTF8(currentAccountName, NULL, &length);
-	localGroupName = (char*)malloc(length);
-	UTF16ToUTF8(currentAccountName, localGroupName, &length);
-
-	if(GetSIDByAccountName(localGroupName, NULL, &binLength) != 0)
-	{
-		result = NULL;
-		goto exit;
-	}
-	sid = (char*)malloc(binLength);
-	GetSIDByAccountName(localGroupName, sid, &binLength);
-
-	quickFree(&resultBuf);
-	BinToHexStr(sid, binLength, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	BinToHexStr(sid, binLength, resultBuf, &length);
-	result = resultBuf;
-
-exit:
-	quickFree(&localGroupName);
-	quickFree(&sid);
-
-	return result;
-}
-
-// ****************************************************************
-// NTLocalGroup::GetComment
-// ****************************************************************
-char* NTLocalGroup::GetComment()
-{
-	char* result = NULL;
-	unsigned long length;
-
-	if(currentAccountName == NULL)
-	{
-		result = NULL;
-		goto exit;
-	}
-
-	quickFree(&resultBuf);
-	UTF16ToUTF8(localGroupInfo->lgrpi1_comment, NULL, &length);
-	resultBuf = (char*)malloc(length);
-	UTF16ToUTF8(localGroupInfo->lgrpi1_comment, resultBuf, &length);
-	result = resultBuf;
-
-exit:
-
-	return result;
-}
-
-// ****************************************************************
-// NTLocalGroup::SetComment
-// ****************************************************************
-int NTLocalGroup::SetComment(char* comment)
-{
-	int result = 0;
-	unsigned long length;
-	unsigned short* wideStr = NULL;
-	LOCALGROUP_INFO_1002 info;
-
-	if(currentAccountName == NULL)
-	{
-		result = -1;
-		goto exit;
-	}
-
-	UTF8ToUTF16(comment, NULL, &length);
-	wideStr = (unsigned short*)malloc(length);
-	UTF8ToUTF16(comment, wideStr, &length);
-
-	info.lgrpi1002_comment = wideStr;
-	result = NetLocalGroupSetInfo(NULL, currentAccountName, 1002, (unsigned char*)&info, NULL);
-
-	LoadLocalGroupInfo();
-
-exit:
-	quickFree((char**)&wideStr);
 
 	return result;
 }
@@ -2406,25 +1772,18 @@ exit:
 int NTLocalGroup::AddUser(char* username)
 {
 	int result = 0;
-	unsigned long length;
-	char* sid;
 	LOCALGROUP_MEMBERS_INFO_0 members[1];
 
-	if(currentAccountName == NULL)
+	if(localGroupInfo != NULL)
+	{
+		GetSIDByAccountName(username, (char**)&members[0].lgrmi0_sid);
+		result = NetLocalGroupAddMembers(NULL, localGroupInfo->lgrpi1_name, 0, (unsigned char*)&members, 1);
+		free(members[0].lgrmi0_sid);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	GetSIDByAccountName(username, NULL, &length);
-	sid = (char*)malloc(length);
-	GetSIDByAccountName(username, sid, &length);
-	members[0].lgrmi0_sid = sid;
-
-	result = NetLocalGroupAddMembers(NULL, currentAccountName, 0, (unsigned char*)&members, 1);
-
-exit:
-	quickFree(&sid);
 
 	return result;
 }
@@ -2435,25 +1794,18 @@ exit:
 int NTLocalGroup::RemoveUser(char* username)
 {
 	int result = 0;
-	unsigned long length;
-	char* sid;
 	LOCALGROUP_MEMBERS_INFO_0 members[1];
 
-	if(currentAccountName == NULL)
+	if(localGroupInfo != NULL)
+	{
+		GetSIDByAccountName(username, (char**)&members[0].lgrmi0_sid);
+		result = NetLocalGroupDelMembers(NULL, localGroupInfo->lgrpi1_name, 0, (unsigned char*)&members, 1);
+		free(members[0].lgrmi0_sid);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
-
-	GetSIDByAccountName(username, NULL, &length);
-	sid = (char*)malloc(length);
-	GetSIDByAccountName(username, sid, &length);
-	members[0].lgrmi0_sid = sid;
-
-	result = NetLocalGroupDelMembers(NULL, currentAccountName, 0, (unsigned char*)&members, 1);
-
-exit:
-	quickFree(&sid);
 
 	return result;
 }
@@ -2465,23 +1817,23 @@ int NTLocalGroup::LoadUsers()
 {
 	int result = 0;
 
-	if(currentAccountName == NULL)
+	if(localGroupInfo != NULL)
+	{
+		if(usersInfo != NULL)
+		{
+			NetApiBufferFree(usersInfo);
+			usersInfo = NULL;
+			currentUserEntry = 0;
+			userEntriesRead = 0;
+			userEntriesTotal = 0;
+		}
+		result = NetLocalGroupGetMembers(NULL, localGroupInfo->lgrpi1_name, LOCALGROUP_USERS_INFO_LEVEL, (unsigned char**)&usersInfo, MAX_PREFERRED_LENGTH, &userEntriesRead, &userEntriesTotal, NULL);
+	}
+	else
 	{
 		result = -1;
-		goto exit;
 	}
 
-	if(usersInfo != NULL)
-	{
-		NetApiBufferFree(usersInfo);
-		usersInfo = NULL;
-		currentUserEntry = 0;
-		userEntriesRead = 0;
-		userEntriesTotal = 0;
-	}
-	result = NetLocalGroupGetMembers(NULL, currentAccountName, LOCALGROUP_USERS_INFO_LEVEL, (unsigned char**)&usersInfo, MAX_PREFERRED_LENGTH, &userEntriesRead, &userEntriesTotal, NULL);
-
-exit:
 	return result;
 }
 
@@ -2509,21 +1861,17 @@ bool NTLocalGroup::HasMoreUsers()
 // ****************************************************************
 char* NTLocalGroup::NextUserName()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* username = NULL;
+	LOCALGROUP_MEMBERS_INFO_0* thisEntry;
 
 	if(currentUserEntry < userEntriesRead)
 	{
-		quickFree(&resultBuf);
-		GetAccountNameBySID((char*)usersInfo[currentUserEntry].lgrmi0_sid, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		GetAccountNameBySID((char*)usersInfo[currentUserEntry].lgrmi0_sid, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(usersInfo[currentUserEntry]);
+		GetAccountNameBySID((char*)thisEntry->lgrmi0_sid, &username);
 		currentUserEntry++;
 	}
 
-	return result;
+	return username;
 }
 
 // ****************************************************************
@@ -2534,7 +1882,6 @@ NTLocalGroupList::NTLocalGroupList()
 	bufptr = NULL;
 	currentEntry = 0;
 	resumeHandle = 0;
-	resultBuf = NULL;
 }
 
 // ****************************************************************
@@ -2547,7 +1894,6 @@ NTLocalGroupList::~NTLocalGroupList()
 		NetApiBufferFree(bufptr);
 		bufptr = NULL;
 	}
-	quickFree(&resultBuf);
 }
 
 // ****************************************************************
@@ -2586,19 +1932,15 @@ bool NTLocalGroupList::hasMore()
 // ****************************************************************
 char* NTLocalGroupList::nextLocalGroupName()
 {
-	char* result = NULL;
-	unsigned long length;
+	char* localGroupName = NULL;
+	LOCALGROUP_INFO_1* thisEntry;
 
 	if(currentEntry < entriesRead)
 	{
-		quickFree(&resultBuf);
-		UTF16ToUTF8(bufptr[currentEntry].lgrpi1_name, NULL, &length);
-		resultBuf = (char*)malloc(length);
-		UTF16ToUTF8(bufptr[currentEntry].lgrpi1_name, resultBuf, &length);
-		result = resultBuf;
-
+		thisEntry = &(bufptr[currentEntry]);
+		localGroupName = UTF16ToUTF8(thisEntry->lgrpi1_name);
 		currentEntry++;
 	}
 
-	return result;
+	return localGroupName;
 }

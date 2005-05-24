@@ -153,6 +153,8 @@
 #define INVALID_WILDPAT -2              /* exp is an invalid pattern */
 #define VALID_WILDPAT   1               /* exp is a valid pattern */
 
+//#endif /* USE_REGEX */
+
 /* Define return codes from regexp_valid and shexp_valid */
 #define NON_SXP         NON_WILDPAT     /* exp is an ordinary string */
 #define INVALID_SXP     INVALID_WILDPAT /* exp is an invalid shell exp */

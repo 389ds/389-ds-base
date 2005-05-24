@@ -89,11 +89,6 @@ public class gatewayHandler  extends BasicHandler {
         super.cleanup();
     }
 
-        
-    protected void finalize() {
-        new ProxyConnMgrFactory().getInstance().shutdown();
-    }
-    
 	 
     public boolean handleRequest(MessageContext context) {
     /*

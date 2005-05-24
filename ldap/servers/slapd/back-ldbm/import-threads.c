@@ -1991,7 +1991,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         *bep = e;
         bep++;
     }
-    /* 623986: terminate the list if we reallocated backup_entries */
+    // 623986: terminate the list if we reallocated backup_entries
     if (backup_entry_len > 256)
        *bep = NULL;
 
