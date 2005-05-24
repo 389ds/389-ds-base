@@ -365,8 +365,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							 */
 							/* Check if this is a fractional agreement, we need to
 							 * verify that the consumer is read-only */
-							if ((return_value == ACQUIRE_SUCCESS) &&
-								agmt_is_fractional(prp->agmt)) {
+							if (agmt_is_fractional(prp->agmt)) {
 								crc = conn_replica_is_readonly(conn);
 								if (CONN_IS_NOT_READONLY == crc) {
 									/* This is a fatal error */
@@ -375,7 +374,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 													"the agreement is fractional but the replica is not read-only. Fractional agreements must specify a read-only replica "
 													"Replication is aborting.\n",
 													agmt_get_long_name(prp->agmt));
-									prp->last_acquire_response_code = NSDS50_REPL_INTERNAL_ERROR;
 									return_value = ACQUIRE_FATAL_ERROR;
 									goto error;
 								}
