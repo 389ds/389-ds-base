@@ -199,11 +199,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		/* Now update our consumer RUV for this agreement.
 		 * This ensures that future incrememental updates work.
 		 */
-		if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
-		{
-			slapi_log_error(SLAPI_LOG_REPL, NULL, "total update setting consumer RUV:\n");
-			ruv_dump (starting_ruv, "consumer", NULL);
-		}
 		agmt_set_consumer_ruv(prp->agmt, starting_ruv );
 	}
 

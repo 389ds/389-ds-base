@@ -2909,12 +2909,13 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
                 if (0 != slapi_attr_value_find(e2_attr,
                                                slapi_value_get_berval(e1_val)))
                 {
-                    /* attr-value e1_val not found in e2_attr; add it */
+                    /* attr-value e1_val not found in e2_attr; replace it */
+                    /* XXX: does not support multi-value here */
                     LDAPDebug(LDAP_DEBUG_TRACE,
                         "slapi_entry_diff: attr-val of %s is not in e2; "
-                        "add it\n",
+                        "replace it\n",
                         e1_attr_name, 0, 0);
-                    slapi_mods_add(smods, LDAP_MOD_ADD, e1_attr_name,
+                    slapi_mods_add(smods, LDAP_MOD_REPLACE, e1_attr_name,
                                    e1_val->bv.bv_len, e1_val->bv.bv_val);
                 }
             }
@@ -2930,7 +2931,6 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
                                       attr_get_present_values(e1_attr));
         }
     }
-    /* if the attribute is multi-valued, the untouched values should be put */
 
     for (slapi_entry_first_attr(e2, &e2_attr); e2_attr;
          slapi_entry_next_attr(e2, e2_attr, &e2_attr)) {
@@ -2941,31 +2941,7 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
 
         slapi_attr_get_type(e2_attr, &e2_attr_name);
         rval = slapi_entry_attr_find(e1, e2_attr_name, &e1_attr);
-        if (0 == rval)
-        {
-            int i;
-            Slapi_Value *e2_val;
-            /* attr e2_attr_names is shared with e1 */
-            /* XXX: not very efficient.
-             *      needs to be rewritten for the schema w/ lots of attributes
-             */
-            for (i = slapi_attr_first_value(e2_attr, &e2_val); i != -1;
-                 i = slapi_attr_next_value(e2_attr, i, &e2_val))
-            {
-                if (0 != slapi_attr_value_find(e1_attr,
-                                               slapi_value_get_berval(e2_val)))
-                {
-                    /* attr-value e2_val not found in e1_attr; delete it */
-                    LDAPDebug(LDAP_DEBUG_TRACE,
-                        "slapi_entry_diff: attr-val of %s is not in e1; "
-                        "delete it\n",
-                        e2_attr_name, 0, 0);
-                    slapi_mods_add(smods, LDAP_MOD_DELETE, e2_attr_name,
-                                   e2_val->bv.bv_len, e2_val->bv.bv_val);
-                }
-            }
-        }
-        else
+        if (0 != rval)
         {
             /* attr e2_attr_names not in e1 */
             LDAPDebug(LDAP_DEBUG_TRACE,

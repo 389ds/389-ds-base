@@ -137,10 +137,23 @@ public class BatchProcessor {
         
         
     }
-
+    
+    protected void finalize() {
+        try { ldap_pool.shutdown(); }
+        catch (Exception e) {  }
+    }
+    
     void process(int index) {
-    	
-            /* This is a hack:
+        netscape.ldap.LDAPConnection  ldc = null;
+        
+        ldc = ldap_pool.getConnection("");
+        
+        if (ldc == null) {
+            requests.set(index,null);
+        }
+        else {
+            
+           /* This is a hack:
             * This code is required because of Axis' incomplete
             * implementation. Without these, whenever getNodeValue() and friends are
             * called, exceptions are deliberately thrown. When Axis is fully
@@ -162,6 +175,7 @@ public class BatchProcessor {
             Node res = null;
             if (proxyAuth != null)
                 context.setConstraints( proxyAuth);
+            context.setLdapConnection(ldc);
             context.setRootNode(myRequest.cloneNode(true));
             
             logger.log(Level.INFO, "Processing: starting {0}", RequestType);
@@ -222,7 +236,9 @@ public class BatchProcessor {
             requests.set(index,res);
             logger.log(Level.INFO, "Processing: finished {0}", RequestType);
             FirstRequest = false;
-            ldap_pool.releaseConnection( context.getLdapConnection() );
+            
+            ldap_pool.releaseConnection("",  ldc);
+        }
     }
     
     

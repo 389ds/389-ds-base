@@ -1083,27 +1083,15 @@ ifeq ($(ARCH), SOLARIS)
 #		   Therefore no need to separate from catalog server
 #
 OSVERSION := $(shell uname -r | sed "y/./0/")
-ifndef NS_USE_GCC
 NS_USE_NATIVE=1
-else
-CC=gcc
-CXX=g++
-CCC=$(CXX)
-endif
-ifdef NS_USE_NATIVE
 CC=cc -v
 CXX=CC +w
 CCC=$(CXX)
 LD=$(CC)
-endif
 ARCH_OPT=-xO2
 ARCH_CFLAGS=-DSVR4 -D__svr4 -D__svr4__ -D_SVID_GETTOD -DOSVERSION=$(OSVERSION)
 ifdef USE_64
-ifdef NS_USE_NATIVE
   ARCH_CFLAGS += -xarch=v9
-else
-  ARCH_CFLAGS += -m64
-endif
 endif
 ARCH_DEBUG=-g
 RANLIB=true
@@ -1120,9 +1108,6 @@ NLIST=-lelf
 VERITY_ARCH=_solaris
 NSPR_DEFINES += -DNSPR20 -D_PR_NTHREAD -D_REENTRANT
 PEER_ARCH=solaris
-ifndef NS_USE_NATIVE
-NSPR_DEFINES += -DSOLARIS_GCC
-endif
 
 # XXXrobm BARF
 # ifeq ($(NSOS_RELEASE), 5.3)

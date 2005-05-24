@@ -1166,7 +1166,6 @@ agmt_validate_replicated_attributes(Repl_Agmt *ra)
 		"nsuniqueid",
 		"modifiersname",
 		"lastmodifiedtime",
-		"dc", "o", "ou", "cn", "objectclass",
 		NULL
 	};
 
@@ -1484,7 +1483,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 				 * attributes.
 				 */
 				int optype;
-				int affects_non_fractional_attribute = 0;
+				int affects_fractional_attribute = 0;
 
 				slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);
 				if (SLAPI_OPERATION_MODIFY == optype)
@@ -1493,14 +1492,14 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 					int i, j;
 
 					slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-					for (i = 0; !affects_non_fractional_attribute && NULL != agmt->frac_attrs[i]; i++)
+					for (i = 0; !affects_fractional_attribute && NULL != agmt->frac_attrs[i]; i++)
 					{
-						for (j = 0; !affects_non_fractional_attribute && NULL != mods[j]; j++)
+						for (j = 0; !affects_fractional_attribute && NULL != mods[j]; j++)
 						{
-							if (!slapi_attr_types_equivalent(agmt->frac_attrs[i],
+							if (slapi_attr_types_equivalent(agmt->frac_attrs[i],
 								mods[j]->mod_type))
 							{
-								affects_non_fractional_attribute = 1;
+								affects_fractional_attribute = 1;
 							}
 						}
 					}
@@ -1511,9 +1510,9 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 					 * Add, delete, and modrdn always cause some sort of
 					 * operation replay, even if agreement is fractional.
 					 */
-					affects_non_fractional_attribute = 1;
+					affects_fractional_attribute = 1;
 				}
-				if (affects_non_fractional_attribute)
+				if (affects_fractional_attribute)
 				{
 					change_is_relevant = 1;
 				}

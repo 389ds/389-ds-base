@@ -516,18 +516,18 @@ dsgw_convert(
 	     * the outer while loop will break because !U_SUCCESS
 	     */
 	}
-    } while(U_SUCCESS(*pErrorCode) && mySource != sourceLimit);
+    } while(U_SUCCESS(*pErrorCode) && source != sourceLimit);
 
     *nSource = mySource - source; /* n chars read from source */
     *nDest = myDest - *dest; /* n chars written to dest */
 
-    if (U_SUCCESS(*pErrorCode) && mySource == sourceLimit) {
+    if (U_SUCCESS(*pErrorCode) && source == sourceLimit) {
 	/* reset internal converter */
 	ucnv_reset(utf8Converter);
 	return 1; /* converted entire string */
     }
 
-    if (mySource != sourceLimit) {
+    if (source != sourceLimit) {
 	/* not done with conversion yet */
 	/* no reset here - preserve state for next call */
 	return 0;

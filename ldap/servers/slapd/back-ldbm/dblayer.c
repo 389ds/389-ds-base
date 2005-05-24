@@ -1388,12 +1388,12 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
         case DBLAYER_RESTORE_MODE:
             open_flags |= DB_RECOVER_FATAL;
             open_flags &= ~DB_RECOVER;    /* shouldn't set both */
-            if (!(dbmode & DBLAYER_NO_DBTHREADS_MODE))
+            if (!(dbmode & DBLAYER_CMDLINE_MODE))
                 dbmode = DBLAYER_NORMAL_MODE; /* to restart helper threads */
             break;
         case DBLAYER_RESTORE_NO_RECOVERY_MODE:
             open_flags &= ~(DB_RECOVER | DB_RECOVER_FATAL);
-            if (!(dbmode & DBLAYER_NO_DBTHREADS_MODE))
+            if (!(dbmode & DBLAYER_CMDLINE_MODE))
                 dbmode = DBLAYER_NORMAL_MODE; /* to restart helper threads */
         }
     }
@@ -1547,9 +1547,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
 
 
         /* Now attempt to start up the checkpoint and deadlock threads */
-        /* note: need to be '==', not '&' to omit DBLAYER_NO_DBTHREADS_MODE */
-        if ( (DBLAYER_NORMAL_MODE == dbmode ) && 
-             (0 == return_value)) {
+        if ( (DBLAYER_NORMAL_MODE & dbmode ) && (0 == return_value)) {
             /* update the dbversion file */
             dbversion_write(li, region_dir, NULL);
 
@@ -3936,12 +3934,15 @@ static int dblayer_force_checkpoint(struct ldbminfo *li)
   dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
   struct dblayer_private_env *pEnv;
   
-  if (NULL == priv || NULL == priv->dblayer_env){
-    /* already terminated.  nothing to do */  
+  if (NULL == priv){
+  /* already terminated.  nothing to do */  
     return -1;
   }
    
   pEnv= priv->dblayer_env;
+  
+  
+  PR_ASSERT(pEnv != NULL);
   
   if (priv->dblayer_enable_transactions) {
     
@@ -4007,8 +4008,7 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
     {
 		if (startdb)
 		{
-			/* close immediately; no need to run db threads */
-			rval = dblayer_start(li, DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
+			rval = dblayer_start(li, DBLAYER_NORMAL_MODE);
 			if (rval)
 			{
 				LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_start failed! %s (%d)\n",
@@ -5402,8 +5402,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
     if (li->li_flags & TASK_RUNNING_FROM_COMMANDLINE)
     {
-        /* command line mode; no need to run db threads */
-        dbmode |= DBLAYER_NO_DBTHREADS_MODE;
+        dbmode |= DBLAYER_CMDLINE_MODE;
     }
     else /* on-line mode */
     {

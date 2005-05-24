@@ -147,7 +147,7 @@ add_new_agreement(Slapi_Entry *e)
     Object *repl_obj = NULL;
     Object *ro = NULL;
 
-    if (ra == NULL) return 1; /* tell search result handler callback this entry was not sent */
+    if (ra == NULL) return 0;
 
     ro = object_new((void *)ra, agmt_delete);
     objset_add_obj(agmt_set, ro);
@@ -409,7 +409,6 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			if (denied_attrs)
 			{
 				/* Report the error to the client */
-				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attempt to exclude an illegal attribute in a fractional agreement");
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                             "attempt to exclude an illegal attribute in a fractional agreement\n");
 
@@ -434,7 +433,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             /* ignore modifier's name and timestamp attributes and the description. */
             continue;
         }
-        else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
+        else
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                             "modification of %s attribute is not allowed\n", mods[i]->mod_type);

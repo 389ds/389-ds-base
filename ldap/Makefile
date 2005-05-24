@@ -77,9 +77,6 @@ ifeq ($(USE_SETUPSDK), 1)
 endif # USE_SETUPSDK
 endif # WINNT
 	cd admin; $(MAKE) $(MFLAGS) all
-ifeq ($(ARCH), WINNT) 
-	cd synctools; $(MAKE) all
-endif
 
 ldapdocs:
 	if [ -d docs ]; then cd docs/dirhlp; $(MAKE) $(MFLAGS) ; fi

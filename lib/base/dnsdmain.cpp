@@ -70,7 +70,7 @@ extern int getdomainname(char *, size_t);
 #else 
 extern int getdomainname(char *, int);
 #endif /* Linux */
-#if defined(HPUX) || defined (UnixWare) || defined(Linux) || defined(IRIX6_5) || defined(SOLARIS_GCC)
+#if defined(HPUX) || defined (UnixWare) || defined(Linux) || defined(IRIX6_5)
 extern int gethostname (char *name, size_t namelen);
 #else
 #ifndef AIX

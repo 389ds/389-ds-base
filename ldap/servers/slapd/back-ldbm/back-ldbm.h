@@ -214,7 +214,7 @@ extern int ldbm_warn_if_no_db;
 #define DBLAYER_INDEX_MODE                  0x80
 #define DBLAYER_CLEAN_RECOVER_MODE          0x100
 
-#define DBLAYER_NO_DBTHREADS_MODE           0x1000
+#define DBLAYER_CMDLINE_MODE                0x1000
 
 #define DBLAYER_RESTORE_MASK                (DBLAYER_RESTORE_MODE|DBLAYER_RESTORE_NO_RECOVERY_MODE)
 

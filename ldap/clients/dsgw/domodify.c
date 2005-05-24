@@ -62,7 +62,10 @@ static int starts_with( char *s, char *startswith );
 static char **post2multilinevals( char *postedval );
 static char **post2vals( char *postedval );
 static int require_oldpasswd( char *modifydn );
+static char *dsgw_processdomainid( LDAP *ld, char *dn, char *attr, char *val, int len);
 static int value_is_unique( LDAP *ld, char *dn, char *attr, char *value );
+static LDAPDomainIdStatus
+dsgw_checkdomain_uniqueness( LDAP *ld, char *attr, char *val, int len);
 static int	verbose = 0;
 static int	quiet = 0;
 static int	display_results_inline = 0;
@@ -414,14 +417,20 @@ entry_modify_or_add( LDAP *ld, char *dn, int add, int *pwdchangedp )
 {
     int		lderr, i, j, opoffset, modop, mls, unique, unchanged_count;
     char	*varname, *varvalue, *retval, *attr, *p, **vals, **unchanged_attrs;
-    char	*ntuserid = NULL;
+	char	*userid = NULL, *oc_ntuser = NULL;
+	char	userdomainid[512];
+
+    char	*groupname = NULL;
+    char	groupdomainid[512];
 
     LDAPMod	**pmods;
 
 	int		msgid;
 	LDAPMessage	*res = NULL;
 	char	*errmsg = NULL;
-	int     isNtUser = 0;
+
+    memset( userdomainid, 0, sizeof( userdomainid ));
+    memset( groupdomainid, 0, sizeof( groupdomainid ));
 
     pmods = NULL;
     unchanged_attrs = NULL;
@@ -467,14 +476,26 @@ entry_modify_or_add( LDAP *ld, char *dn, int add, int *pwdchangedp )
 	if ( starts_with( varname, "add_" )) {
 	    modop = LDAP_MOD_ADD;
 	    opoffset = 4;
-	    attr = varname + opoffset;
-	    if (!isNtUser && (strcasecmp(DSGW_OC_NTUSER, attr) == 0)) {
-		isNtUser = 1;
-	    }
 	} else if ( starts_with( varname, "replace_" )) {
 	    modop = LDAP_MOD_REPLACE;
 	    opoffset = 8;
 		attr = varname + opoffset;
+		if( strcasecmp( DSGW_ATTRTYPE_NTUSERDOMAINID, attr) == 0) {
+                    if( varvalue) {
+				if( !userid  )
+					userid = strdup( varvalue );
+				else
+					strcpy( userdomainid, varvalue ); 
+                    }
+                }
+		if( strcasecmp( DSGW_ATTRTYPE_NTGROUPDOMAINID, attr) == 0) {
+                    if( varvalue) {
+				if( !groupname ) 
+					groupname = strdup( varvalue );
+				else
+					strcpy( groupdomainid, varvalue ); 
+                    }
+                }
 	} else if ( starts_with( varname, "delete_" )) {
 	    modop = LDAP_MOD_DELETE;
 	    opoffset = 7;
@@ -495,6 +516,22 @@ entry_modify_or_add( LDAP *ld, char *dn, int add, int *pwdchangedp )
 		    remove_modifyops( pmods, attr );
 		}
 	    }
+	} else if ( starts_with( varname, "replace_" )) {
+	    modop = LDAP_MOD_REPLACE;
+	    opoffset = 8;
+		attr = varname + opoffset;
+		if( strcasecmp( DSGW_ATTRTYPE_USERID, attr) == 0)
+			if( varvalue) 
+				userid = strdup( varvalue );
+		if( strcasecmp( DSGW_ATTRTYPE_NTUSERDOMAINID, attr) == 0) 
+			if( varvalue) 
+				strcpy( userdomainid, varvalue ); 
+		if( strcasecmp( DSGW_ATTRTYPE_NTGROUPNAME, attr) == 0)
+			if( varvalue) 
+				groupname = strdup( varvalue );
+		if( strcasecmp( DSGW_ATTRTYPE_NTGROUPDOMAINID, attr) == 0) 
+			if( varvalue) 
+				strcpy( groupdomainid, varvalue ); 
 	}
 
 	if ( opoffset >= 0 ) {
@@ -539,12 +576,72 @@ entry_modify_or_add( LDAP *ld, char *dn, int add, int *pwdchangedp )
 				   LDAP_SUCCESS ) {
 			       return( lderr );
 			    }
-				
-			    if( isNtUser && (strcasecmp( DSGW_ATTRTYPE_NTUSERDOMAINID, attr) == 0)) {
-				if( !ntuserid  ) {
-				    ntuserid = strdup( vals[ j ] );
+				if( strcasecmp( DSGW_OC_NTUSER, varvalue) == 0 && 
+					modop == LDAP_MOD_ADD ) {
+					oc_ntuser = strdup( vals[ j ] );
 				}
-			    }
+
+				if( strcasecmp( DSGW_ATTRTYPE_NTUSERDOMAINID, attr) == 0) {
+					if( modop == LDAP_MOD_ADD ) {
+						if( userid == NULL ) {
+							userid = strdup( vals[ j ] );
+							break;
+						} else {
+    						memset( userdomainid, 0, sizeof( userdomainid ));
+							PR_snprintf( userdomainid, 512, "%s%c%s", 
+									   vals[ j ], DSGW_NTDOMAINID_SEP, userid );
+							if( dsgw_checkdomain_uniqueness( ld, attr, 
+								userdomainid, strlen( userdomainid ) ) != 
+										LDAPDomainIdStatus_Unique) {
+								dsgw_error( DSGW_ERR_DOMAINID_NOTUNIQUE, 
+											NULL, 0, 0, NULL );
+								return(LDAP_PARAM_ERROR);
+							} else {
+								/* don't free here because this is freed elsewhere */
+								/*
+								free( vals[ j ] );
+								*/
+								vals[ j ] = strdup( userdomainid ); 
+							}
+						}
+					} else {
+						if(( retval = dsgw_processdomainid( ld, dn, attr, 
+								vals[ j ], strlen( vals[ j ] ))) != 0) {
+							vals[ j ] = retval;
+						}
+					}
+				}
+				
+				if( strcasecmp( DSGW_ATTRTYPE_NTGROUPDOMAINID, attr) == 0) {
+					if( modop == LDAP_MOD_ADD ) {
+						if( groupname == NULL ) {
+							groupname = strdup( vals[ j ] );
+							break;
+						} else {
+    						memset( groupdomainid, 0, sizeof( groupdomainid ));
+							PR_snprintf( groupdomainid, 512, "%s%c%s", 
+									   vals[ j ], DSGW_NTDOMAINID_SEP, groupname );
+							if( dsgw_checkdomain_uniqueness( ld, attr, 
+								groupdomainid, strlen( groupdomainid ) ) != 
+										LDAPDomainIdStatus_Unique) {
+								dsgw_error( DSGW_ERR_DOMAINID_NOTUNIQUE, 
+											NULL, 0, 0, NULL );
+								return(LDAP_PARAM_ERROR);
+							} else {
+								/* don't free here because this is freed elsewhere */
+								/*  
+								free( vals[ j ] );
+								*/
+								vals[ j ] = strdup( groupdomainid ); 
+							}
+						}
+					} else {
+						if(( retval = dsgw_processdomainid( ld, dn, attr, 
+								vals[ j ], strlen( vals[ j ] ))) != 0) {
+							vals[ j ] = retval;
+						}
+					}
+				}
 				addmodifyop( &pmods, modop, attr, vals[ j ],
 					strlen( vals[ j ] ));
 		    }
@@ -559,14 +656,19 @@ entry_modify_or_add( LDAP *ld, char *dn, int add, int *pwdchangedp )
 	free( varname );
     }
 
-    /* if the admin is adding an NT person, there must be an ntuserid */
-    if( (isNtUser) && (ntuserid == NULL) ) {
+    if( oc_ntuser != NULL &&
+	    ((strlen( userdomainid ) == 0) || userid == NULL )) {
+	dsgw_error( DSGW_ERR_USERID_DOMAINID_REQUIRED, NULL, 0, 0, NULL );
+	return(LDAP_PARAM_ERROR);
+    }
+
+    if( strlen( userdomainid ) > 0 && userid == NULL ) {
 	dsgw_error( DSGW_ERR_USERID_REQUIRED, NULL, 0, 0, NULL );
 	return(LDAP_PARAM_ERROR);
     }
 
-    /* if an ntuserid is being added, it must be the correct length */
-    if( (isNtUser) && ntuserid && (strlen( ntuserid ) > MAX_NTUSERID_LEN)) {
+    if( strlen( userdomainid ) > 0 && userid &&
+	    strlen( userid ) > MAX_NTUSERID_LEN) {
 	dsgw_error( DSGW_ERR_USERID_MAXLEN_EXCEEDED, NULL, 0, 0, NULL );
 	return(LDAP_PARAM_ERROR);
     }
@@ -1066,3 +1168,115 @@ value_is_unique( LDAP *ld, char *dn, char *attr, char *value )
 
     return( rc );
 }
+	 
+
+/* 
+ * Check that the domain:userid is unique in the directory.
+ */
+static LDAPDomainIdStatus
+dsgw_checkdomain_uniqueness( LDAP *ld, char *attr, char *val, int len)
+{
+    int rc, count;
+    LDAPMessage *msgp = NULL;
+    char filter[256];
+
+    if( val == NULL )
+        return LDAPDomainIdStatus_NullId;
+
+    if( strcasecmp( attr, DSGW_ATTRTYPE_NTUSERDOMAINID ) == 0 ) {
+	PR_snprintf( filter, 256, "%s=%s", DSGW_ATTRTYPE_NTUSERDOMAINID, val );
+    } else if ( strcasecmp( attr, DSGW_ATTRTYPE_NTGROUPDOMAINID ) == 0 ) {
+	PR_snprintf( filter, 256, "%s=%s", DSGW_ATTRTYPE_NTGROUPDOMAINID, val );
+    } else {
+	return LDAPDomainIdStatus_NullAttr;
+    }
+
+    if (( rc = ldap_search_s( ld, gc->gc_ldapsearchbase, LDAP_SCOPE_SUBTREE, 
+	    filter, NULL, 0, &msgp )) == LDAP_SUCCESS) {
+	count = (msgp == NULL) ? 0 : ldap_count_entries( ld, msgp );
+	if ( count > 0 ) {
+	    return LDAPDomainIdStatus_Nonunique;
+	} else {
+	    return LDAPDomainIdStatus_Unique;
+	}
+    } else {
+	    return LDAPDomainIdStatus_Nonunique;
+    }
+}
+
+
+/* 
+ * Add the current value of uid in the entry to the ntdomain id before 
+ * further processing of the domain id.
+ */
+static char *
+dsgw_processdomainid( LDAP *ld, char *dn, char *attr, char *val, int len)
+{
+    int rc, count;
+    LDAPMessage *msgp = NULL;
+    LDAPMessage *entry;
+    char **attrlist, *attrs[ 2 ];
+    char *value, *newval;
+	char *pch, **vals;
+
+    if( strcasecmp( attr, DSGW_ATTRTYPE_NTUSERDOMAINID ) != 0 &&
+	strcasecmp( attr, DSGW_ATTRTYPE_NTGROUPDOMAINID ) != 0 )
+        return( NULL );
+
+    attrs[ 0 ] = NULL; 
+    attrs[ 1 ] = NULL;
+    attrlist = attrs;
+
+    if(( rc = ldap_search_s( ld, dn, LDAP_SCOPE_BASE, "(objectclass=*)", attrlist,
+   	     0, &msgp )) != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) 
+	{
+	    return( NULL );
+    }
+
+    count = (msgp == NULL) ? 0 : ldap_count_entries( ld, msgp );
+
+    if( count > 0 ) 
+	{
+        entry = ldap_first_entry( ld, msgp );
+        if( entry ) 
+		{
+
+	        if(( vals = ldap_get_values( ld, entry, 
+		    strcasecmp( attr, DSGW_ATTRTYPE_NTUSERDOMAINID )? 
+		    DSGW_ATTRTYPE_NTGROUPDOMAINID : 
+		    DSGW_ATTRTYPE_NTUSERDOMAINID )) != NULL)
+			{
+				if( vals[0] != NULL )
+				{
+					value = dsgw_ch_strdup( vals[0] );
+					newval = dsgw_ch_malloc( len + strlen( value ) +1 );
+					strcpy( newval, val );
+					pch = strchr( value, DSGW_NTDOMAINID_SEP );
+					if( pch )  
+					{
+						strcat( newval, pch );
+						return( newval );
+					}
+				}
+			}
+        }
+    }
+    return NULL;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
