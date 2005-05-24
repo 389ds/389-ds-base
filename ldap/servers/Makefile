@@ -54,9 +54,6 @@ include $(LDAP_SRC)/nsldap.mk
 ifeq ($(ARCH), WINNT)
 PRE_SLAPD_EXTRAS=_ntmsgdll
 POST_SLAPD_EXTRAS=_ntwdog _ntperfdll
-ifeq ($(BUILD_NTDS),1)
-PRE_SLAPD_EXTRAS+=_ntds
-endif
 endif
 
 all:	$(PRE_SLAPD_EXTRAS) _slapd $(POST_SLAPD_EXTRAS) _backends _plugins _snmp _slapdtools
@@ -89,9 +86,6 @@ _slapdtools:
 	cd slapd/tools; $(MAKE) $(MFLAGS) all
 
 ifeq ($(ARCH), WINNT)
-_ntds:
-	cd ntds; $(MAKE) $(MFLAGS) all
-
 _ntmsgdll:
 	cd slapd/ntmsgdll; $(MAKE) $(MFLAGS) all
 
@@ -113,12 +107,3 @@ endif
 	cd slapd/back-ldif; $(MAKE) $(MFLAGS) clean
 	cd plugins; $(MAKE) $(MFLAGS) clean
 	cd slapd/tools; $(MAKE) $(MFLAGS) clean
-
-ifeq ($(ARCH), WINNT)
-	cd ntds; $(MAKE) $(MFLAGS) clean
-else
-	echo NTDS not built on non-windows
-endif
-
-
-

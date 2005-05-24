@@ -27,10 +27,10 @@ NULL=nul
 
 !IF  "$(CFG)" == "passsync - Win32 Release"
 
-OUTDIR=$(OBJDEST)\passsync
-INTDIR=$(OBJDEST)\passsync
+OUTDIR=.\Release
+INTDIR=.\Release
 # Begin Custom Macros
-OutDir=$(OBJDEST)\passsync
+OutDir=.\Release
 # End Custom Macros
 
 ALL : "$(OUTDIR)\passsync.exe"
@@ -102,10 +102,10 @@ LINK32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "passsync - Win32 Debug"
 
-OUTDIR=$(OBJDEST)\passsync
-INTDIR=$(OBJDEST)\passsync
+OUTDIR=.\Debug
+INTDIR=.\Debug
 # Begin Custom Macros
-OutDir=$(OBJDEST)\passsync
+OutDir=.\Debug
 # End Custom Macros
 
 ALL : "$(OUTDIR)\passsync.exe"

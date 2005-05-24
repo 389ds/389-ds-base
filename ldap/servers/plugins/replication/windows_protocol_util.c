@@ -192,12 +192,10 @@ static windows_attribute_map user_attribute_map[] =
 	{ "logonHours", "ntUserLogonHours", bidirectional, always, normal},
 	{ "maxStorage", "ntUserMaxStorage", bidirectional, always, normal},
 	{ "profilePath", "ntUserProfile", bidirectional, always, normal},
-	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
-	{ "streetAddress", "street", towindowsonly, always, normal},
-	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
+	{ "streetAddress", "street", bidirectional, always, normal},
 	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
-    { "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
+    { "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
 	/* cn is a naming attribute in AD, so we don't want to change it after entry creation */
     { "cn", "cn", towindowsonly, createonly, normal},
 	/* However, it isn't a naming attribute in DS (we use uid) so it's safe to accept changes inbound */
@@ -210,10 +208,8 @@ static windows_attribute_map user_attribute_map[] =
 static windows_attribute_map group_attribute_map[] = 
 {
 	{ "groupType", "ntGroupType",  bidirectional, createonly, normal},
-	{ "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
-	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
-	{ "streetAddress", "street", towindowsonly, always, normal},
-	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
+	{ "sAMAccountName", "ntUserDomainId", bidirectional, createonly, normal},
+	{ "streetAddress", "street", bidirectional, always, normal},
     { "member", "uniquemember", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
@@ -230,101 +226,6 @@ static windows_attribute_map group_attribute_map[] =
  *    for modifies and deletes, provided we use the value it gave us in the objectGUID attribute (which is actually the SID).
  * 6. NT4 has less and different schema from AD. For example users in NT4 have no firstname/lastname, only an optional 'description'.
  */
-
-/* 
- * When we get an error from an LDAP operation, we call this
- * function to decide if we should just keep replaying
- * updates, or if we should stop, back off, and try again
- * later.
- * Returns PR_TRUE if we shoould keep going, PR_FALSE if
- * we should back off and try again later.
- *
- * In general, we keep going if the return code is consistent
- * with some sort of bug in URP that causes the consumer to
- * emit an error code that it shouldn't have, e.g. LDAP_ALREADY_EXISTS.
- * 
- * We stop if there's some indication that the server just completely
- * failed to process the operation, e.g. LDAP_OPERATIONS_ERROR.
- */
-PRBool
-windows_ignore_error_and_keep_going(int error)
-{
-	int return_value;
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_ignore_error_and_keep_going\n", 0, 0, 0 );
-
-	switch (error)
-	{
-	/* Cases where we keep going */
-	case LDAP_SUCCESS:
-	case LDAP_NO_SUCH_ATTRIBUTE:
-	case LDAP_UNDEFINED_TYPE:
-	case LDAP_CONSTRAINT_VIOLATION:
-	case LDAP_TYPE_OR_VALUE_EXISTS:
-	case LDAP_INVALID_SYNTAX:
-	case LDAP_NO_SUCH_OBJECT:
-	case LDAP_INVALID_DN_SYNTAX:
-	case LDAP_IS_LEAF:
-	case LDAP_INSUFFICIENT_ACCESS:
-	case LDAP_NAMING_VIOLATION:
-	case LDAP_OBJECT_CLASS_VIOLATION:
-	case LDAP_NOT_ALLOWED_ON_NONLEAF:
-	case LDAP_NOT_ALLOWED_ON_RDN:
-	case LDAP_ALREADY_EXISTS:
-	case LDAP_NO_OBJECT_CLASS_MODS:
-		return_value = PR_TRUE;
-		break;
-
-	/* Cases where we stop and retry */
-	case LDAP_OPERATIONS_ERROR:
-	case LDAP_PROTOCOL_ERROR:
-	case LDAP_TIMELIMIT_EXCEEDED:
-	case LDAP_SIZELIMIT_EXCEEDED:
-	case LDAP_STRONG_AUTH_NOT_SUPPORTED:
-	case LDAP_STRONG_AUTH_REQUIRED:
-	case LDAP_PARTIAL_RESULTS:
-	case LDAP_REFERRAL:
-	case LDAP_ADMINLIMIT_EXCEEDED:
-	case LDAP_UNAVAILABLE_CRITICAL_EXTENSION:
-	case LDAP_CONFIDENTIALITY_REQUIRED:
-	case LDAP_SASL_BIND_IN_PROGRESS:
-	case LDAP_INAPPROPRIATE_MATCHING:
-	case LDAP_ALIAS_PROBLEM:
-	case LDAP_ALIAS_DEREF_PROBLEM:
-	case LDAP_INAPPROPRIATE_AUTH:
-	case LDAP_INVALID_CREDENTIALS:
-	case LDAP_BUSY:
-	case LDAP_UNAVAILABLE:
-	case LDAP_UNWILLING_TO_PERFORM:
-	case LDAP_LOOP_DETECT:
-	case LDAP_SORT_CONTROL_MISSING:
-	case LDAP_INDEX_RANGE_ERROR:
-	case LDAP_RESULTS_TOO_LARGE:
-	case LDAP_AFFECTS_MULTIPLE_DSAS:
-	case LDAP_OTHER:
-	case LDAP_SERVER_DOWN:
-	case LDAP_LOCAL_ERROR:
-	case LDAP_ENCODING_ERROR:
-	case LDAP_DECODING_ERROR:
-	case LDAP_TIMEOUT:
-	case LDAP_AUTH_UNKNOWN:
-	case LDAP_FILTER_ERROR:
-	case LDAP_USER_CANCELLED:
-	case LDAP_PARAM_ERROR:
-	case LDAP_NO_MEMORY:
-	case LDAP_CONNECT_ERROR:
-	case LDAP_NOT_SUPPORTED:
-	case LDAP_CONTROL_NOT_FOUND:
-	case LDAP_NO_RESULTS_RETURNED:
-	case LDAP_MORE_RESULTS_TO_RETURN:
-	case LDAP_CLIENT_LOOP:
-	case LDAP_REFERRAL_LIMIT_EXCEEDED:
-		return_value = PR_FALSE;
-		break;
-	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_ignore_error_and_keep_going\n", 0, 0, 0 );
-	return return_value;
-}
 
 static const char*
 op2string(int op)
@@ -413,13 +314,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 							}
 						}
 						slapi_sdn_free(&remote_dn);
-					} else
-					{
-						slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no remote dn found for %s\n", original_dn_string);					
 					}
-				} else
-				{
-					slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: this entry is not ours %s\n", original_dn_string);
 				}
 			} else {
 				slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no local entry found for %s\n", original_dn_string);
@@ -455,9 +350,6 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 					{
 						slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: no local dn found for %s\n", original_dn_string);
 					}
-				} else
-				{
-					slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: this entry is not ours %s\n", original_dn_string);
 				}
 			} else
 			{
@@ -700,85 +592,53 @@ windows_release_replica(Private_Repl_Protocol *prp)
 
 }
 
-static void
-to_little_endian_double_bytes(UChar *unicode_password, int32_t unicode_password_length)
-{
-	int32_t i = 0;
-	for (i = 0 ; i < unicode_password_length; i++) 
-	{
-		UChar c = unicode_password[i];
-		char *byte_ptr = (char*)&(unicode_password[i]);
-		byte_ptr[0] = (char)(c & 0xff);
-		byte_ptr[1] = (char)(c >> 8);
-	}
-}
-
 /* this entry had a password, handle it seperately */
 /* http://support.microsoft.com/?kbid=269190 */
 static int
 send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 {
 		ConnResult pw_return = 0;
-		int is_nt4 = windows_private_get_isnt4(prp->agmt);
+		LDAPMod *pw_mods[2];
+		LDAPMod pw_mod;
+		struct berval bv = {0};
+		UChar *unicode_password = NULL;
+		int32_t unicode_password_length = 0; /* Length in _characters_ */
+		int32_t buffer_size = 0; /* Size in _characters_ */
+		UErrorCode error = U_ZERO_ERROR;
+		char *quoted_password = NULL;
+		struct berval *bvals[2];
 
-		if (is_nt4)
+		/* AD wants the password in quotes ! */
+		quoted_password = PR_smprintf("\"%s\"",password);
+		if (quoted_password)
 		{
-			/* NT4 just wants a plaintext password */
-			Slapi_Mods smods = {0};
+			/* Need to UNICODE encode the password here */
+			/* It's one of those 'ask me first and I will tell you the buffer size' functions */
+			u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+			buffer_size = unicode_password_length;
+			unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
+			if (unicode_password) {
+				error = U_ZERO_ERROR;
+				u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
 
-			slapi_mods_init (&smods, 0);
-			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "UnicodePwd", password);
-
-			pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL );
-
-			slapi_mods_done(&smods);
-
-		} else
-		{
-			char *quoted_password = NULL;
-			/* AD wants the password in quotes ! */
-			quoted_password = PR_smprintf("\"%s\"",password);
-			if (quoted_password)
-			{
-				LDAPMod *pw_mods[2];
-				LDAPMod pw_mod;
-				struct berval bv = {0};
-				UChar *unicode_password = NULL;
-				int32_t unicode_password_length = 0; /* Length in _characters_ */
-				int32_t buffer_size = 0; /* Size in _characters_ */
-				UErrorCode error = U_ZERO_ERROR;
-				struct berval *bvals[2];
-				/* Need to UNICODE encode the password here */
-				/* It's one of those 'ask me first and I will tell you the buffer size' functions */
-				u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
-				buffer_size = unicode_password_length;
-				unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
-				if (unicode_password) {
-					error = U_ZERO_ERROR;
-					u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
-
-					/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
-					to_little_endian_double_bytes(unicode_password, unicode_password_length);
-
-					bv.bv_len = unicode_password_length * sizeof(UChar);
-					bv.bv_val = (char*)unicode_password;
-				
-					bvals[0] = &bv; 
-					bvals[1] = NULL;
-						
-					pw_mod.mod_type = "UnicodePwd";
-					pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
-					pw_mod.mod_bvalues = bvals;
+				bv.bv_len = unicode_password_length * sizeof(UChar);
+				bv.bv_val = (char*)unicode_password;
+			
+				bvals[0] = &bv; 
+				bvals[1] = NULL;
 					
-					pw_mods[0] = &pw_mod;
-					pw_mods[1] = NULL;
+				pw_mod.mod_type = "UnicodePwd";
+				pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+				pw_mod.mod_bvalues = bvals;
+				
+				pw_mods[0] = &pw_mod;
+				pw_mods[1] = NULL;
 
-					pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
+				pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
 
-					slapi_ch_free((void**)&unicode_password);
-				}
-				PR_smprintf_free(quoted_password);
+				slapi_ch_free((void**)&unicode_password);
 			}
+			PR_smprintf_free(quoted_password);
 		}
 
 		return pw_return;
@@ -882,27 +742,6 @@ add_remote_entry_allowed(Slapi_Entry *e)
 	}
 	/* Now test if the attribute value is set */
 	return windows_entry_has_attr_and_value(e,delete_attr,"true");
-}
-
-/* Tells us if we're allowed to add this (remote) entry locally */
-static int
-add_local_entry_allowed(Private_Repl_Protocol *prp, Slapi_Entry *e)
-{
-	int is_user = 0;
-	int is_group = 0;
-
-	windows_is_remote_entry_user_or_group(e,&is_user,&is_group);	
-
-	if (is_user)
-	{
-		return windows_private_create_users(prp->agmt);
-	} 
-	if (is_group)
-	{
-		return windows_private_create_groups(prp->agmt);
-	}
-	/* Default to 'no' */
-	return 0;
 }
 
 static int
@@ -1089,15 +928,6 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					return_value = CONN_OPERATION_SUCCESS;
 				} else 
 				{
-					if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
-					{
-						int i = 0;
-						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,"dump mods for replay update:");
-						for(i=0;mapped_mods[i];i++)
-						{
-							slapi_mod_dump(mapped_mods[i],i);
-						}
-					}
 					return_value = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(remote_dn), mapped_mods, update_control,NULL /* returned controls */);
 				}
 				if (mapped_mods)
@@ -1478,13 +1308,6 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 						slapi_mods_add_mod_values(&mapped_smods,mod->mod_op,mapped_type,valueset_get_valuearray(mapped_values));
 						slapi_valueset_free(mapped_values);
 						mapped_values = NULL;
-					} else 
-					{
-						/* this might be a del: mod, in which case there are no values */
-						if (mod->mod_op & LDAP_MOD_DELETE)
-						{
-							slapi_mods_add_mod_values(&mapped_smods, LDAP_MOD_DELETE, mapped_type, NULL);
-						}
 					}
 					slapi_mod_done(&smod);
 					slapi_valueset_free(vs);
@@ -1882,52 +1705,6 @@ static Slapi_DN *make_dn_from_guid(char *guid, int is_nt4, const char* suffix)
 	return new_dn;
 }
 
-static char*
-extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn)
-{
-	char *result = NULL;
-	/* First do a scope test to make sure that we weren't passed bogus arguments */
-	if (slapi_sdn_scope_test(entry_dn,suffix_dn,LDAP_SCOPE_SUBTREE))
-	{
-		Slapi_DN parent;
-		slapi_sdn_init(&parent);
-
-		/* Find the portion of the entry_dn between the RDN and the suffix */
-		/* Start with the parent of the entry DN */
-		slapi_sdn_get_parent(entry_dn, &parent);
-		/* Iterate finding the parent again until we have the suffix */
-		while (0 != slapi_sdn_compare(&parent,suffix_dn))
-		{
-			Slapi_DN child;
-			Slapi_RDN *rdn = slapi_rdn_new();
-			char *rdn_type = NULL;
-			char *rdn_str = NULL;
-			/* Append the current RDN to the new container string */
-			slapi_sdn_get_rdn(&parent,rdn);
-			slapi_rdn_get_first(rdn, &rdn_type, &rdn_str);
-			if (rdn_str)
-			{
-				result = PR_sprintf_append(result, "%s=%s,", rdn_type,rdn_str );	
-			}
-			/* Don't free this until _after_ we've used the rdn_str */
-			slapi_rdn_free(&rdn);
-			/* Move to the next successive parent */
-			slapi_sdn_init(&child);
-			slapi_sdn_copy(&parent,&child);
-			slapi_sdn_done(&parent);
-			slapi_sdn_get_parent(&child, &parent);
-			slapi_sdn_done(&child);
-		}
-		slapi_sdn_done(&parent);
-	} 
-	/* Always return something */
-	if (NULL == result)
-	{
-		result = slapi_ch_strdup("");
-	}
-	return result;
-}
-
 /* Given a non-tombstone entry, return the DN of its peer in AD (whether present or not) */
 static int 
 map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int guid_form)
@@ -1944,7 +1721,7 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 	 * that samaccountName attribute value in AD. If we don't find any matching
 	 * entry we generate a new DN using the entry's cn. If later, we find that
 	 * this entry already exists, we handle that problem at the time. We don't
-	 * check here. Note: for NT4 we always use ntUserDomainId for the samaccountname rdn, never cn.
+	 * check here.
 	 */
 	
 	*missing_entry = 0;
@@ -1979,34 +1756,24 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 						cn=<cn from local entry>, ... in the case that the local entry has a cn, OR
 						cn=<ntuserdomainid attribute value>, ... in the case that the local entry doesn't have a CN
 					 */
-					if (is_nt4)
+					cn_string = slapi_entry_attr_get_charptr(e,"cn");
+					if (!cn_string) 
 					{
 						cn_string = slapi_entry_attr_get_charptr(e,"ntuserdomainid");
-					} else
-					{
-						cn_string = slapi_entry_attr_get_charptr(e,"cn");
-						if (!cn_string) 
-						{
-							cn_string = slapi_entry_attr_get_charptr(e,"ntuserdomainid");
-						}
 					}
 					if (cn_string) 
 					{
 						char *rdnstr = NULL;
-						char *container_str = NULL;
-					
-						container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_directory_subtree(prp->agmt));
 						
-						rdnstr = is_nt4 ? "samaccountname=%s,%s%s" : "cn=%s,%s%s";
+						rdnstr = is_nt4 ? "samaccountname=%s,%s" : "cn=%s,%s";
 
-						new_dn_string = PR_smprintf(rdnstr,cn_string,container_str,suffix);
+						new_dn_string = PR_smprintf(rdnstr,cn_string,suffix);
 						if (new_dn_string)
 						{
 							new_dn = slapi_sdn_new_dn_byval(new_dn_string);
 							PR_smprintf_free(new_dn_string);
 						}
 						slapi_ch_free((void**)&cn_string);
-						slapi_ch_free((void**)&container_str);
 					}
 				} else 
 				{
@@ -2175,20 +1942,16 @@ map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra)
 		if (username) 
 		{
 			const char *suffix = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
-			char *container_str = NULL;
-
-			container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_windows_subtree(ra));
 			/* Local DNs for users and groups are different */
 			if (is_user)
 			{
-				new_dn_string = PR_smprintf("uid=%s,%s%s",username,container_str,suffix);
+				new_dn_string = PR_smprintf("uid=%s,%s",username,suffix);
 			} else
 			{
-				new_dn_string = PR_smprintf("cn=%s,%s%s",username,container_str,suffix);
+				new_dn_string = PR_smprintf("cn=%s,%s",username,suffix);
 			}
 			new_dn = slapi_sdn_new_dn_byval(new_dn_string);
 			PR_smprintf_free(new_dn_string);
-			slapi_ch_free((void**)&container_str);
 			/* Clear any earlier error */
 			retval = 0;
 		} else 
@@ -2486,7 +2249,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	int rc = 0;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_update_local_entry\n", 0, 0, 0 );
 
 	*do_modify = 0;
 	if (to_windows)
@@ -2549,14 +2312,12 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				/* If it is then we need to replace the local values with the remote values if they are different */
 				if (!values_equal)
 				{
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are different\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(vs));
 					*do_modify = 1;
 				} else
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+					"windows_update_local_entry: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 				}
 			} else {
 				/* A dn-valued attribute : need to take special steps */
@@ -2590,8 +2351,6 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		{
 			if (!is_present_local)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values not present on peer entry\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 				/* If it is currently absent, then we add the value from the remote entry */
 				if (is_guid)
 				{
@@ -2638,7 +2397,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	{
 		slapi_mods_dump(smods,"windows sync");
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_generate_update_mods: %d\n", retval, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_update_local_entry: %d\n", retval, 0, 0 );
 	return retval;
 }
 
@@ -2757,18 +2516,6 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		if (0 == retval && remote_entry) 
 		{
 			retval = windows_update_remote_entry(prp,remote_entry,e);
-			/* Detect the case where the error is benign */
-			if (retval)
-			{
-				int operation = 0;
-				int error = 0;
-				
-				conn_get_error(prp->conn, &operation, &error);
-				if (windows_ignore_error_and_keep_going(error))
-				{
-					retval = CONN_OPERATION_SUCCESS;
-				}
-			}
 		}
 		if (remote_entry)
 		{
@@ -2805,7 +2552,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 		agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), is_ours ? "ours" : "not ours");
 	if (is_ours) 
 	{
-		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,0 /* we don't want the GUID */);
+		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,1 /* want GUID */);
 		if (retval || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -2954,27 +2701,18 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 					slapi_entry_free(local_entry);
 					if (rc) {
 						/* Something bad happened */
-						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to update inbound entry for %s.\n",agmt_get_long_name(prp->agmt),
-							slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to update inbound entry.\n",agmt_get_long_name(prp->agmt));
 					}
 				} else 
 				{
 					/* If it doesn't exist, try to make it */
-					if (add_local_entry_allowed(prp,e))
-					{
-						windows_create_local_entry(prp,e,local_sdn);
-					} else
-					{
-						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: not allowed to add entry %s.\n",agmt_get_long_name(prp->agmt)
-							, slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
-					}
+					windows_create_local_entry(prp,e,local_sdn);
 				}
 				slapi_sdn_free(&local_sdn);
 			} else 
 			{
 				/* We should have been able to map the DN, so this is an error */
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map inbound entry %s.\n",agmt_get_long_name(prp->agmt)
-					, slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map inbound entry.\n",agmt_get_long_name(prp->agmt));
 			}
 		} /* subject of agreement */
 	} /* is tombstone */
@@ -2986,12 +2724,20 @@ windows_dirsync_inc_run(Private_Repl_Protocol *prp)
 	{ 
 	
 	int rc = 0;
+	int msgid=0;
+    Slapi_PBlock *pb = NULL;
+	Slapi_Filter *filter_user = NULL;
+	Slapi_Filter *filter_user_deleted = NULL;
+	Slapi_Filter *filter_group = NULL;
+	Slapi_Filter *filter_group_deleted = NULL;
 	int done = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_dirsync_inc_run\n", 0, 0, 0 );
 	while (!done) {
 
 		Slapi_Entry *e = NULL;
+		int filter_ret = 0;
+		PRBool create_users_from_dirsync = windows_private_create_users(prp->agmt);
 
 		rc = send_dirsync_search(prp->conn);
 		if (rc != CONN_OPERATION_SUCCESS)

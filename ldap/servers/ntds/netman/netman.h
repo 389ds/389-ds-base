@@ -63,10 +63,13 @@ public:
 	NTUser();
 	~NTUser();
 
-	int NewUser(char* username);
+	void NewUser(char* username);
 	int RetriveUserByAccountName(char* username);
 	int RetriveUserBySIDHexStr(char* sidHexStr);
-	int DeleteUser();
+	int StoreUser();
+	int AddUser();
+	int DeleteUser(char* username);
+	int ChangeUsername(char* oldUsername, char* newUsername);
 	char* GetAccountName();
 	char* GetSIDHexStr();
 
@@ -115,10 +118,7 @@ public:
 	char* NextLocalGroupName();
 
 private:
-	int LoadUserInfo();
-
-	unsigned short* currentAccountName;
-	PUSER_INFO_3 userInfo;
+	USER_INFO_3* userInfo;
 
 	GROUP_USERS_INFO_0* groupsInfo;
 	DWORD currentGroupEntry;
@@ -129,8 +129,6 @@ private:
 	DWORD currentLocalGroupEntry;
 	DWORD localGroupEntriesRead;
 	DWORD localGroupEntriesTotal;
-
-	char* resultBuf;
 };
 
 // ****************************************************************
@@ -152,8 +150,6 @@ private:
 	DWORD totalEntries;
 	DWORD resumeHandle;
 	DWORD currentEntry;
-
-	char* resultBuf;
 };
 
 // ****************************************************************
@@ -165,15 +161,14 @@ public:
 	NTGroup();
 	~NTGroup();
 
-	int NewGroup(char* groupName);
+	void NewGroup(char* groupName);
+	int DeleteGroup(char* groupName);
 	int RetriveGroupByAccountName(char* groupName);
 	int RetriveGroupBySIDHexStr(char* sidHexStr);
-	int DeleteGroup();
+	int AddGroup();
+	int StoreGroup();
 	char* GetAccountName();
 	char* GetSIDHexStr();
-
-	char* GetComment();
-	int SetComment(char* comment);
 
 	int AddUser(char* username);
 	int RemoveUser(char* username);
@@ -182,17 +177,13 @@ public:
 	char* NextUserName();
 
 private:
-	int LoadGroupInfo();
-
-	unsigned short* currentAccountName;
-	PGROUP_INFO_2 groupInfo;
+	GROUP_INFO_2* groupInfo;
 
 	LOCALGROUP_USERS_INFO_0* usersInfo;
 	DWORD currentUserEntry;
 	DWORD userEntriesRead;
 	DWORD userEntriesTotal;
 
-	char* resultBuf;
 };
 
 // ****************************************************************
@@ -214,8 +205,6 @@ private:
 	DWORD totalEntries;
 	DWORD resumeHandle;
 	DWORD currentEntry;
-
-	char* resultBuf;
 };
 
 // ****************************************************************
@@ -227,15 +216,14 @@ public:
 	NTLocalGroup();
 	~NTLocalGroup();
 
-	int NewLocalGroup(char* localGroupName);
+	void NewLocalGroup(char* localGroupName);
+	int DeleteLocalGroup(char* localGroupName);
 	int RetriveLocalGroupByAccountName(char* localGroupName);
 	int RetriveLocalGroupBySIDHexStr(char* sidHexStr);
-	int DeleteLocalGroup();
+	int AddLocalGroup();
+	int StoreLocalGroup();
 	char* GetAccountName();
 	char* GetSIDHexStr();
-
-	char* GetComment();
-	int SetComment(char* comment);
 
 	int AddUser(char* username);
 	int RemoveUser(char* username);
@@ -244,17 +232,12 @@ public:
 	char* NextUserName();
 
 private:
-	int LoadLocalGroupInfo();
-
-	unsigned short* currentAccountName;
-	PLOCALGROUP_INFO_1 localGroupInfo;
+	LOCALGROUP_INFO_1* localGroupInfo;
 
 	LOCALGROUP_MEMBERS_INFO_0* usersInfo;
 	DWORD currentUserEntry;
 	DWORD userEntriesRead;
 	DWORD userEntriesTotal;
-
-	char* resultBuf;
 };
 
 // ****************************************************************
@@ -276,6 +259,4 @@ private:
 	DWORD totalEntries;
 	DWORD resumeHandle;
 	DWORD currentEntry;
-
-	char* resultBuf;
 };

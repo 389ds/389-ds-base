@@ -212,7 +212,7 @@ attributetype ( 1.2.840.113556.1.4.169
 
 attributetype ( 1.2.840.113556.1.4.90
         NAME 'unicodePwd'
-        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
         SINGLE-VALUE )
 
 attributetype ( 1.2.840.113556.1.4.62
@@ -237,12 +237,6 @@ attributetype ( 1.2.840.113556.1.2.120
 
 attributetype ( 1.2.840.113556.1.4.2
         NAME 'objectGUID'
-        SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
-        SINGLE-VALUE )
-
-# added for usersync
-attributetype ( 1.2.840.113556.1.4.3
-        NAME 'GUID'
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
         SINGLE-VALUE )
 
@@ -466,7 +460,6 @@ objectclass ( 1.3.6.1.4.1.7114.2.2.10
         ntPwdHistory $
         objectCategory $
         objectGUID $
-        GUID $ # added for usersync
         operatorCount $
         otherLoginWorkstations $
         preferredOU $
@@ -527,7 +520,6 @@ objectclass ( 1.3.6.1.4.1.7114.2.2.12
         systemFlags $
         objectCategory $
         objectGUID $
-        GUID $ # added for usersync
         objectSid $
         sAMAccountName $
         sAMAccountType $
