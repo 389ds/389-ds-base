@@ -156,10 +156,42 @@ New NT Group -
 </TD>
 <TD NOWRAP>
 <!-- IF "!Adding" -->
-<!-- DS_ATTRIBUTE "attr=ntUserDomainId" "syntax=ntgroupname" "cols=>16" "options=readonly" "defaultvalue=none" -->
+<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntgroupname" "cols=>16" "options=readonly" "defaultvalue=none" -->
 <!-- ELSE // Adding -->
-<!-- DS_ATTRIBUTE "attr=ntUserDomainId" "syntax=ntgroupname" "cols=>16" -->
+<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntgroupname" "cols=>16" -->
 <!-- ENDIF // Adding -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP
+<!-- IF "Displaying" -->
+    class="bold"
+<!-- ENDIF -->
+>NT Group Type: 
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP>
+<!-- IF "!Adding" -->
+<!-- DS_ATTRIBUTE "attr=nTGroupType" "defaultvalue=Global" "options=readonly" "cols=>16" -->
+<!-- ELSE // Adding -->
+<!-- DS_ATTRIBUTE "attr=nTGroupType" "defaultvalue=Global" "cols=>16" -->
+<!-- ENDIF // Adding -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP
+<!-- IF "Displaying" -->
+    class="bold"
+<!-- ENDIF -->
+>NT Group Domain: 
+<!-- IF "!Displaying" -->
+<B>*</B>
+<!-- ENDIF -->
+</TD>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=ntGroupDomainId" "syntax=ntdomain" "cols=>16" -->
 </TD></TR>
 
 <TR>
@@ -170,6 +202,26 @@ New NT Group -
 >Description:</TD>
 <TD NOWRAP>
 <!-- DS_ATTRIBUTE "attr=description" "cols=>40" "defaultvalue=none" -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP
+<!-- IF "Displaying" -->
+    class="bold"
+<!-- ENDIF -->
+>Locale:</TD>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=l" "cols=>40" "defaultvalue=none" -->
+</TD></TR>
+
+<TR>
+<TD NOWRAP
+<!-- IF "Displaying" -->
+    class="bold"
+<!-- ENDIF -->
+>Organizational Unit:</TD>
+<TD NOWRAP>
+<!-- DS_ATTRIBUTE "attr=ou" "cols=>40" "defaultvalue=none" -->
 </TD></TR>
 
 <TR>

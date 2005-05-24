@@ -1,6 +1,3 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head>
 <!-- --- BEGIN COPYRIGHT BLOCK ---
  This Program is free software; you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -38,860 +35,825 @@
  Copyright (C) 2005 Red Hat, Inc.
  All rights reserved.
   --- END COPYRIGHT BLOCK ---  -->
-  <title>Editing Directory Entries</title>
-</head>
-<body>
-<h1><a name="editing"></a>Editing Entries</h1>
+<HTML>
+<HEAD>
+<TITLE>Editing Directory Entries</TITLE>
+</HEAD>
+<BODY>
+
+<H1><A NAME="editing"></A>Editing Entries</H1>
+
 You can modify existing entries in
 the directory using the Directory Server interface. Modify an entry
-by <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm">searching
-for the entry</a>, <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">viewing
-it</a>, and then clicking the edit button.
-<p>If you have not <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticated</a>
-before
-you attempt to edit an entry, or if your authentication has expired,
-the
+by <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm">searching for the entry</A>, <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">viewing
+it</A>, and then clicking the edit button.
+
+<P>If you have not <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticated</A> before
+you attempt to edit an entry, or if your authentication has expired, the
 Directory Server prompts you to authenticate before continuing.
-</p>
-<p>You can edit:
-</p>
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#people">people</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#ntpeople">NT
-people</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#groups">groups</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#NTgroups">NT
-groups</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#o">organizations</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#dc">domains</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#ou">organizational
-units</a></li>
-</ul>
-<h2>
-<a name="people"></a>Editing People</h2>
+
+<P>You can edit:
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#people">people</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#ntpeople">NT people</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#groups">groups</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#NTgroups">NT groups</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#o">organizations</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#dc">domains</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#ou">organizational units</A></LI>
+</UL>
+
+<H2>
+<A NAME="people"></A>Editing People</H2>
 To edit a person's entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit Person button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the person's entry, type the value you desire for each
-field. You must supply values for the required fields. The required
-fields
-for a person are:</li>
-  <ul type="disc">
-    <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#commonName">Full
-Name</a></li>
-    <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#surname">Last
-Name</a></li>
-  </ul>
-  <li>You can provide values for the optional fields now, or edit them
-later.
-The optional fields for a person are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#givenName">First
-Name</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mail">Email
-Address</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userid">User
-ID&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#pager">Pager&Acirc;&nbsp;</a></td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mobile">Mobile
-Phone</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
-Category</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#title">Title&Acirc;&nbsp;</a></td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#organizationalUnitName">Organizational
-Unit</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#manager">Manager</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#roomNumber">Room
-Number&Acirc;&nbsp;</a></td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#secretary">Admin&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#departmentNumber">Dept#&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#employeeNumber">Emp#</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#carLicnese">Car
-License#&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
-Address&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#labeledURI">URL&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userPassword">Password</a>&Acirc;&nbsp;</td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-  <p> </p>
-  <li>You may <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addmanager">add
-values to the Manager and Admin
-fields</a> by clicking the corresponding Edit button.</li>
-  <li>You may <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
-values to the See Also field</a>
-by clicking the corresponding Edit button.</li>
-  <li>When you are done editing the fields, click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit Person button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the person's entry, type the value you desire for each
+field. You must supply values for the required fields. The required fields
+for a person are:</LI>
+
+<UL type="disc">
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#commonName">Full Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#surname">Last Name</A></LI>
+</UL>
+
+<LI>
+You can provide values for the optional fields now, or edit them later.
+The optional fields for a person are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#givenName">First Name</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mail">Email Address</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userid">User ID </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#pager">Pager </A></TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mobile">Mobile Phone</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#title">Title </A></TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationalUnitName">Organizational Unit</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#manager">Manager</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#roomNumber">Room Number </A></TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#secretary">Admin </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#departmentNumber">Dept# </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#employeeNumber">Emp#</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#carLicnese">Car License# </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#labeledURI">URL </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userPassword">Password</A> </TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+You may <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addmanager">add values to the Manager and Admin
+fields</A> by clicking the corresponding Edit button.</LI>
+
+<LI>
+You may <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add values to the See Also field</A>
+by clicking the corresponding Edit button.</LI>
+
+<LI>
+When you are done editing the fields, click Save Changes.</LI>
+</OL>
 From this window you can also:
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#rename">Rename
-an entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#delete">Delete
-an entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#changepw">Change
-a password</a></li>
-</ul>
-<h3><a name="addmanager"></a>Adding Values to the Manager and Admin
-Fields</h3>
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#rename">Rename an entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#delete">Delete an entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#changepw">Change a password</A></LI>
+</UL>
+
+<H3><A NAME="addmanager"></A>Adding Values to the Manager and Admin Fields</H3>
+
 When you click the Edit button in the Manager or Admin field,
 a new form that allows you to add or delete the corresponding
-attribute value is displayed. To add an individual to the Manager or
-Admin attribute,
+attribute value is displayed. To add an individual to the Manager or Admin attribute,
 do the following:
-<ol>
-  <li>In the text box, enter a search string to be used to locate the
-entry
-of
-the person who is the manager or admin. Enter any of the following:</li>
-  <ul type="disc">
-    <li>A name. Enter a full name or a partial name. All entries that
-equally
-match
-the search string are returned. If no such entries are found, all
-entries
-that contain the search string are returned. If no such entries are
-found,
-any entries that sound like the search string are returned.</li>
-    <li>A user ID (if you are searching for user entries).</li>
-    <li>A telephone number. If you enter only a partial number, any
-entries
-that
-have telephone numbers ending in the search number are returned.</li>
-    <li>An email address. Any search string containing an at (@) symbol
-is
-assumed
-to be an email address. If an exact match cannot be found, then a
-search
-is performed to find all email addresses that begin with the search
-string.</li>
-    <li>An asterisk (*) to see all of the entries or groups currently
-residing
-in your directory.</li>
-    <li>Any <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#filter">LDAP
-search filter</a>. Any string that
-contains an equal sign (=) is considered to be a search filter.</li>
-  </ul>
-  <li>Click "Find and Add" to find the matching entry and add it to the
+<OL>
+<LI>
+In the text box, enter a search string to be used to locate the entry of
+the person who is the manager or admin. Enter any of the following:</LI>
+
+<UL type="disc">
+<LI>
+A name. Enter a full name or a partial name. All entries that equally match
+the search string are returned. If no such entries are found, all entries
+that contain the search string are returned. If no such entries are found,
+any entries that sound like the search string are returned.</LI>
+
+<LI>
+A user ID (if you are searching for user entries).</LI>
+
+<LI>
+A telephone number. If you enter only a partial number, any entries that
+have telephone numbers ending in the search number are returned.</LI>
+
+<LI>
+An email address. Any search string containing an at (@) symbol is assumed
+to be an email address. If an exact match cannot be found, then a search
+is performed to find all email addresses that begin with the search string.</LI>
+
+<LI>
+An asterisk (*) to see all of the entries or groups currently residing
+in your directory.</LI>
+
+<LI>
+Any <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#filter">LDAP search filter</A>. Any string that
+contains an equal sign (=) is considered to be a search filter.</LI>
+</UL>
+
+<LI>
+Click "Find and Add" to find the matching entry and add it to the
 list. If any entries that you do not want to designate as manager
-or admin are listed, click the box in the "Remove from list" column.
-You can
-also construct a search filter to match the entries you want removed
-and
-then click "Find and Remove."</li>
-  <li>When the list of group members is complete, click Save Changes.
+or admin are listed, click the box in the "Remove from list" column. You can
+also construct a search filter to match the entries you want removed and
+then click "Find and Remove."</LI>
+
+<LI>
+When the list of group members is complete, click Save Changes.
 The currently displayed entry is now the value for the manager or admin
-attribute field.</li>
-</ol>
-<h2>
-<a name="ntpeople"></a>Editing NT People</h2>
+attribute field.</LI>
+</OL>
+
+<H2>
+<A NAME="ntpeople"></A>Editing NT People</H2>
 To edit an NT person's entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit NT Person button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the person's entry, type in the new value for each
-field. You must supply values for the required fields. The required
-fields
-for an NT person are:</li>
-  <ul type="disc">
-    <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#commonName">Full
-Name</a></li>
-    <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#surname">Last
-Name</a></li>
-    <li><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#uid">NT
-User ID</a></li>
-  </ul>
-  <li>You can provide values for the optional fields now, or add them
-later.
-The optional fields for an NT person are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#givenName">First
-Name</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mail">Email
-Address</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userPassword">Directory
-Server Password</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#pager">Pager</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#mobile">Mobile
-Phone</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
-Category</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#title">Title</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#organizationalUnitName">Organizational
-Unit</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#manager">Manager</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#roomNumber">Room
-Number</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#secretary">Admin&Acirc;&nbsp;</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#departmentNumber">Dept#</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#employeeNumber">Emp#</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#carLicnese">Car
-License#</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
-Address</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#labeledURI">URL</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#userid">User
-Id</a>&Acirc;&nbsp;</td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-  <p> </p>
-  <li>You can also change the value for the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ntUserDeleteAccount">Delete
-NT Account if Person deleted</a> option.</li>
-  <li>To <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addmanager">add
-values to the Manager and Admin
-fields</a>, click the corresponding Edit button.</li>
-  <li>To <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
-values to the See Also field</a>,
-click the corresponding Edit button.</li>
-  <li>When you are done editing the fields, click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit NT Person button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the person's entry, type in the new value for each
+field. You must supply values for the required fields. The required fields
+for an NT person are:</LI>
+
+<UL type="disc">
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#commonName">Full Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#surname">Last Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntUserDomainId">NT Domain Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#uid">NT User ID</A></LI>
+</UL>
+
+<LI>
+You can provide values for the optional fields now, or add them later.
+The optional fields for an NT person are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#givenName">First Name</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mail">Email Address</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userPassword">Directory Server Password</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#pager">Pager</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#mobile">Mobile Phone</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#title">Title</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationalUnitName">Organizational Unit</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#manager">Manager</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#roomNumber">Room Number</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#secretary">Admin </A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#departmentNumber">Dept#</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#employeeNumber">Emp#</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#carLicnese">Car License#</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#labeledURI">URL</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#userid">User Id</A> </TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+You can also change the value for the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntUserDeleteAccount">Delete
+NT Account if Person deleted</A> option.</LI>
+
+<LI>
+To <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addmanager">add values to the Manager and Admin
+fields</A>, click the corresponding Edit button.</LI>
+
+<LI>
+To <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add values to the See Also field</A>,
+click the corresponding Edit button.</LI>
+
+<LI>
+When you are done editing the fields, click Save Changes.</LI>
+</OL>
 From this window you can also:
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#rename">Rename
-the entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#delete">Delete
-an entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#changepw">Change
-the password</a></li>
-</ul>
-<h2><a name="groups"></a>Editing Groups</h2>
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#rename">Rename the entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#delete">Delete an entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#changepw">Change the password</A></LI>
+</UL>
+
+<H2><A NAME="groups"></A>Editing Groups</H2>
+
 To edit a group entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit Group button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the group's entry, type the new value for each
-field. You must supply values for the required field, <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#name">Name</a>.
-  </li>
-  <li>You can provide values for the optional fields now, or edit them
-later.
-The optional fields for a group are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#owner">Owner</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#member">Group
-Members</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also</a></td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-  <p> </p>
-  <li>To <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
-values to the See Also, Owners, and Group
-Members fields</a> click the corresponding Edit button.</li>
-  <li>When you are done editing the fields, click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit Group button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the group's entry, type the new value for each
+field. You must supply values for the required field,
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#name">Name</A>.
+
+<LI>
+You can provide values for the optional fields now, or edit them later.
+The optional fields for a group are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#owner">Owner</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#member">Group Members</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A></TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+To <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add values to the See Also, Owners, and Group
+Members fields</A> click the corresponding Edit button.</LI>
+
+<LI>
+When you are done editing the fields, click Save Changes.</LI>
+</OL>
 From this window you can also:
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#rename">Rename
-the entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#delete">Delete
-an entry</a></li>
-</ul>
-<h3><a name="addowner"></a>Adding Values to the Owner, See Also, and
-Group Member Fields</h3>
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#rename">Rename the entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#delete">Delete an entry</A></LI>
+</UL>
+
+<H3><A NAME="addowner"></A>Adding Values to the Owner, See Also, and
+Group Member Fields</H3>
+
 When you click the Edit button for Owner, See Also, or Group
-Members, a new form that allows you to add or delete members is
-displayed.
-An owner, see also, or group member can be either an individual or a
-group.
-That is, if you add a group as an owner, see also, or group member,
-anyone
+Members, a new form that allows you to add or delete members is displayed.
+An owner, see also, or group member can be either an individual or a group.
+That is, if you add a group as an owner, see also, or group member, anyone
 belonging to the group becomes a member of the list. For example,
-if Barbara Jensen is a member of the Marketing Managers group, and you
-make
+if Barbara Jensen is a member of the Marketing Managers group, and you make
 the Marketing Managers group a member of the Marketing Personnel group,
-then Barbara Jensen is also a member of the Marketing Personnel group.
-To add
+then Barbara Jensen is also a member of the Marketing Personnel group. To add
 members, owners, or see alsos, do the following:
-<ol>
-  <li>If you want to add user entries to the list, make sure People is
-shown
+<OL>
+<LI>
+If you want to add user entries to the list, make sure People is shown
 in the first dialog box. If you want to add group entries to the group,
-make sure Group is shown.</li>
-  <li>In the second dialog box, enter a search string. Enter any of the
-following:</li>
-  <ul type="disc">
-    <li>A name. Enter a full name or a partial name. All entries that
-equally
-match
-the search string are returned. If no such entries are found, all
-entries
+make sure Group is shown.</LI>
+
+<LI>
+In the second dialog box, enter a search string. Enter any of the following:</LI>
+
+<UL type="disc">
+<LI>
+A name. Enter a full name or a partial name. All entries that equally match
+the search string are returned. If no such entries are found, all entries
 that contain the search string are found. If no such entries are found,
-any entries that sounds like the search string are returned.</li>
-    <li>A user ID, (if you are searching for user entries).</li>
-    <li>A telephone number. If you enter only a partial number, any
-entries
-that
-have telephone numbers ending in the search number are returned.</li>
-    <li>An email address. Any search string containing an at (@) symbol
-is
-assumed
-to be an email address. If an exact match cannot be found, then a
-search
-is performed to find all email addresses that begin with the search
-string.</li>
-    <li>An asterisk (*) to see all of the entries or groups currently
-residing
-in your directory.</li>
-    <li>Any <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#filter">LDAP
-search filter</a>. Any string that
-contains an equal sign (=) is considered to be a search filter.</li>
-  </ul>
-  <li>Click "Find and Add" to find all the matching entries and add
-them
-to the list. If any entries are shown that you do not want to include
-in
+any entries that sounds like the search string are returned.</LI>
+
+<LI>
+A user ID, (if you are searching for user entries).</LI>
+
+<LI>
+A telephone number. If you enter only a partial number, any entries that
+have telephone numbers ending in the search number are returned.</LI>
+
+<LI>
+An email address. Any search string containing an at (@) symbol is assumed
+to be an email address. If an exact match cannot be found, then a search
+is performed to find all email addresses that begin with the search string.</LI>
+
+<LI>
+An asterisk (*) to see all of the entries or groups currently residing
+in your directory.</LI>
+
+<LI>
+Any <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#filter">LDAP search filter</A>. Any string that
+contains an equal sign (=) is considered to be a search filter.</LI>
+</UL>
+
+<LI>
+Click "Find and Add" to find all the matching entries and add them
+to the list. If any entries are shown that you do not want to include in
 the list, click the box in the "Remove from list" column. You
-can also construct a search filter to match the entries you want
-removed
-and then click "Find and Remove."</li>
-  <li>When the list of group members is complete, click Save Changes.
-The currently displayed entries now belong to the list.</li>
-</ol>
-<h2>
-<a name="NTgroups"></a>Editing NT Groups</h2>
+can also construct a search filter to match the entries you want removed
+and then click "Find and Remove."</LI>
+
+<LI>
+When the list of group members is complete, click Save Changes.
+The currently displayed entries now belong to the list.</LI>
+</OL>
+
+<H2>
+<A NAME="NTgroups"></A>Editing NT Groups</H2>
 To edit an NT group entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit NT Group button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the group's entry, type in the value for each
-field. You must supply values for the required fields. The required
-fields
-for an NT group are:</li>
-  <ul type="disc">
-    <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#cn">Name</a></li>
-    <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ntGroupId">NT
-Group Name</a></li>
-  </ul>
-  <li>You can provide values for the optional fields now, or add them
-later.
-The optional fields for an NT group are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#owner">Owner</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#uniqueMember">Group
-Members</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also</a></td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-&Acirc;&nbsp; <li>You can also change the value for the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#ntGroupDeleteGroup">Delete
-NT Group if Group Deleted</a> option.</li>
-  <li>You can <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#addowner">add
-values to the See Also, Owners, and Group
-Members fields</a> by clicking the corresponding "Edit" button.</li>
-  <li>When you are done editing, click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit NT Group button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the group's entry, type in the value for each
+field. You must supply values for the required fields. The required fields
+for an NT group are:</LI>
+
+<UL type="disc">
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#cn">Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupId">NT Group Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupDomainId">NT Domain Name</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupType">NT Group Type</A></LI>
+
+</UL>
+
+<LI>
+You can provide values for the optional fields now, or add them later.
+The optional fields for an NT group are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#owner">Owner</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#l">Locale</A></TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#uniqueMember">Group Members</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A></TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationalUnitName">Organizational Unit</A></TD>
+</TR>
+</TABLE></CENTER>
+ 
+<LI>
+You can also change the value for the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#ntGroupDeleteGroup">Delete NT Group if Group Deleted</A> option.</LI>
+
+<LI>
+You can <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#addowner">add values to the See Also, Owners, and Group
+Members fields</A> by clicking the corresponding "Edit" button.</LI>
+
+<LI>
+When you are done editing, click Save Changes.</LI>
+</OL>
 From this window you can also:
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#rename">Rename
-an entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#delete">Delete
-an entry</a></li>
-</ul>
-<h2>
-<a name="ou"></a>Editing Organizational Units</h2>
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#rename">Rename an entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#delete">Delete an entry</A></LI>
+</UL>
+
+<H2>
+<A NAME="ou"></A>Editing Organizational Units</H2>
 To edit an organizational unit, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit Organizational Unit button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the organizational unit's entry, type in the value for
-each
-field. You must supply values for the required fields.</li>
-  <li>The required field for an organizational unit is <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#organizationalUnitName">Unit
-Name</a>.</li>
-  <li>You can provide values for the optional fields now, or add them
-later.
-The optional fields for an organizational unit are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
-Category</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#localityName">Location</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
-Address</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also</a>&Acirc;&nbsp;</td>
-        <td>&Acirc;&nbsp;</td>
-        <td>&Acirc;&nbsp;</td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-  <p> </p>
-  <li>When you are done editing, click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit Organizational Unit button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the organizational unit's entry, type in the value 
+for each field. You must supply values for the required fields.</LI>
+
+<LI>
+The required field for an organizational unit is <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationalUnitName">Unit Name</A>.</LI>
+
+<LI>
+You can provide values for the optional fields now, or add them later.
+The optional fields for an organizational unit are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#localityName">Location</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A> </TD>
+
+<TD> </TD>
+
+<TD> </TD>
+</TR>
+</TABLE></CENTER>
+<P>
+<LI>
+When you are done editing, click Save Changes.</LI>
+</OL>
 From this window you can also:
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#rename">Rename
-an entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#delete">Delete
-an entry</a></li>
-</ul>
-<h2>
-<a name="dc"></a>Editing Domain Components</h2>
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#rename">Rename an entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#delete">Delete an entry</A></LI>
+</UL>
+
+<H2>
+<A NAME="dc"></A>Editing Domain Components</H2>
 To edit a domain, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit Domaincomponent button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the domain's entry, type in the value for each field. You
-must
-supply values for the required fields.</li>
-  <li>The required field for a domain is <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#name">Domaincomponent
-Name</a>.</li>
-  <li>You can provide values for the optional fields now, or add them
-later.
-The optional fields for a domain are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
-Category</a></td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#localityName">Location</a></td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
-Address</a></td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also</a></td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-  <p> </p>
-  <li>When you are done editing, click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit Domaincomponent button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the domain's entry, type in the value 
+for each field. You must supply values for the required fields.</LI>
+
+<LI>
+The required field for a domain is <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#name">Domaincomponent Name</A>.</LI>
+
+<LI>
+You can provide values for the optional fields now, or add them later.
+The optional fields for a domain are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A></TD>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A></TD>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A></TD></TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A></TD>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#localityName">Location</A></TD>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A></TD></TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A></TD>
+<TD>&nbsp;</TD>
+<TD>&nbsp;</TD></TR>
+</TABLE></CENTER>
+<P>
+<LI>
+When you are done editing, click Save Changes.</LI>
+</OL>
 From this window you can also:
-<ul>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#rename">Rename
-an entry</a></li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/mod.htm#delete">Delete
-an entry</a></li>
-</ul>
-<h2>
-<a name="o"></a>Editing Organizations</h2>
+<UL>
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#rename">Rename an entry</A></LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/mod.htm#delete">Delete an entry</A></LI>
+</UL>
+
+<H2>
+<A NAME="o"></A>Editing Organizations</H2>
 To edit an organization entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit Organization button.</li>
-  <li>If you have not authenticated before you attempt to edit an
-entry, or
-if
-your authentication has expired, the Directory Server prompts you to <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/auth.htm#userauth">authenticate</a>
-before continuing.</li>
-  <li>To edit the organizational unit's entry, type in the value for
-each
-field. You must supply values for the required fields.</li>
-  <li>The required fields for an organization is <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#organizationName">Organization
-Name</a>.</li>
-  <li>You may provide values for the optional fields now, or edit them
-later.
-The optional fields for an organization are:</li>
-  <p> </p>
-  <center>
-  <table border="2">
-    <tbody>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#description">Description</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#telephoneNumber">Phone</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#businessCategory">Business
-Category</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#fax">Fax</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#l">Location</a>&Acirc;&nbsp;</td>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#postalAddress">Mailing
-Address</a>&Acirc;&nbsp;</td>
-      </tr>
-      <tr>
-        <td><a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/attribut.htm#seeAlso">See
-Also</a>&Acirc;&nbsp;</td>
-        <td>&Acirc;&nbsp;</td>
-        <td>&Acirc;&nbsp;</td>
-      </tr>
-    </tbody>
-  </table>
-  </center>
-&Acirc;&nbsp; <li>When you are done editing, click Save Changes.</li>
-</ol>
-<h2><a name="rename"></a>Renaming Entries</h2>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit Organization button.</LI>
+
+<LI>
+If you have not authenticated before you attempt to edit an entry, or if
+your authentication has expired, the Directory Server prompts you to
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/auth.htm#userauth">authenticate</A> before continuing.</LI>
+
+<LI>
+To edit the organizational unit's entry, type in the value 
+for each field. You must supply values for the required fields.</LI>
+
+<LI>
+The required fields for an organization is <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#organizationName">Organization Name</A>.</LI>
+
+<LI>
+You may provide values for the optional fields now, or edit them later.
+The optional fields for an organization are:</LI>
+
+<P>
+<CENTER><TABLE BORDER=2>
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#description">Description</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#telephoneNumber">Phone</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#businessCategory">Business Category</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#fax">Fax</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#l">Location</A> </TD>
+
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#postalAddress">Mailing Address</A> </TD>
+</TR>
+
+<TR>
+<TD><A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/attribut.htm#seeAlso">See Also</A> </TD>
+
+<TD> </TD>
+
+<TD> </TD>
+</TR>
+</TABLE></CENTER>
+ 
+<LI>
+When you are done editing, click Save Changes.</LI>
+</OL>
+
+<H2><A NAME="rename"></A>Renaming Entries</H2>
 To rename an entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit button.</li>
-  <li>Enter the new common name for the entry.</li>
-  <li>Click Save Changes.</li>
-</ol>
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit button.</LI>
+
+<LI>
+Enter the new common name for the entry.</LI>
+
+<LI>
+Click Save Changes.</LI>
+</OL>
 Note the following rules about renaming an entry:
-<ul>
-  <li>You can change only the left-most value in an entry's <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/add.htm#DN">distinguished
-name</a>. This effectively means you can only change the entry's name;
-you cannot move the entry to another branch in the directory through
-this
-mechanism. For example, if you have an entry that has a DN of:</li>
-  <pre>uid=tandrew, ou=Accounting, o=Example.com</pre>
-you can rename only the user ID (uid) part of this entry. You cannot,
-however,
+<UL>
+<LI>
+You can change only the left-most value in an entry's <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/add.htm#DN">distinguished
+name</A>. This effectively means you can only change the entry's name;
+you cannot move the entry to another branch in the directory through this
+mechanism. For example, if you have an entry that has a DN of:</LI>
+
+<PRE>uid=tandrew, ou=Accounting, o=Example.com</PRE>
+
+you can rename only the user ID (uid) part of this entry. You cannot, however,
 move user tandrew to the Marketing subtree. To do that, you must create
-a new entry for tandrew in the Marketing subtree, and then delete his
-old
-entry in the Accounting tree. <li>You cannot rename an organizational
-unit if it has any entries
-below it
-in the tree. To rename a branch point in the directory tree, you must
-first
-delete everything below that point in the tree, and then rename the
-entry.</li>
-</ul>
-<h2>
-<a name="delete"></a>Deleting Entries</h2>
+a new entry for tandrew in the Marketing subtree, and then delete his old
+entry in the Accounting tree.
+<LI>
+You cannot rename an organizational unit if it has any entries below it
+in the tree. To rename a branch point in the directory tree, you must first
+delete everything below that point in the tree, and then rename the entry.</LI>
+</UL>
+
+<H2>
+<A NAME="delete"></A>Deleting Entries</H2>
 To delete an entry, do the following:
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit button.</li>
-  <li>Click the Delete button.</li>
-</ol>
-Note that you cannot delete an entry if it has any child entries.
-Specifically,
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit button.</LI>
+
+<LI>
+Click the Delete button.</LI>
+</OL>
+Note that you cannot delete an entry if it has any child entries. Specifically,
 you cannot delete an organizational unit if it has any entries below it
-in the tree. To delete a branch point in the directory tree, you must
-first
-delete everything below that point in the tree, and then delete the
-entry.
-<h2><a name="changepw"></a>Changing Passwords</h2>
-In the Directory Server interface, you can change your own password.
-You
-can also change another person's password if you are the directory
-manager
-or an unrestricted user with write privileges to the password
-attribute.
-<p>To change a password, do the following:
-</p>
-<ol>
-  <li>Search for the entry using the <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#standard">Standard
-Search</a>
-or <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#advanced">Advanced
-Search</a> mechanism.</li>
-  <li> <a
- href="/clients/dsgw/bin/lang?%3C%21--%20GCONTEXT%20--%3E&amp;file=.MANUAL/search.htm#results">View
-the entry</a>.</li>
-  <li>Click the Edit button.</li>
-  <li>Click the Change Password button.</li>
-  <br>
-If you are changing your own password, you must enter the old password
+in the tree. To delete a branch point in the directory tree, you must first
+delete everything below that point in the tree, and then delete the entry.
+<H2>
+<A NAME="changepw"></A>Changing Passwords</H2>
+In the Directory Server interface, you can change your own password. You
+can also change another person's password if you are the directory manager
+or an unrestricted user with write privileges to the password attribute.
+
+<P>To change a password, do the following:
+<OL>
+<LI>
+Search for the entry using the <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#standard">Standard Search</A>
+or <A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#advanced">Advanced Search</A> mechanism.</LI>
+
+<LI>
+<A href="/clients/dsgw/bin/lang?<!-- GCONTEXT -->&file=.MANUAL/search.htm#results">View the entry</A>.</LI>
+
+<LI>
+Click the Edit button.</LI>
+
+<LI>
+Click the Change Password button.</LI>
+
+<BR>If you are changing your own password, you must enter the old password
 for the change command to succeed. (If you are authenticated as
 anyone besides the current entry, you are not prompted to enter the
-old password.) <li>Click the Change Password button.</li>
-</ol>
-</body>
-</html>
+old password.)
+<LI>
+Click the Change Password button.</LI>
+
+</OL>
+
+</BODY>
+</HTML>

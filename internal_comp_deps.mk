@@ -777,7 +777,7 @@ $(DSDOC_DEP): $(NSCP_DISTDIR)
 
 
 # Windows sync component for Active Directory
-ADSYNC = PassSync.msi
+ADSYNC = PassSync-$(BUILD_DEBUG).msi
 ADSYNC_DEST = $(NSCP_DISTDIR_FULL_RTL)/winsync
 ADSYNC_FILE = $(ADSYNC_DEST)/$(ADSYNC)
 ADSYNC_FILES = $(ADSYNC)
@@ -810,7 +810,7 @@ endif
 # Windows sync component for Active Directory
 
 # Windows sync component for NT4
-NT4SYNC = ntds.msi
+NT4SYNC = ntds-$(BUILD_DEBUG).msi
 NT4SYNC_DEST = $(NSCP_DISTDIR_FULL_RTL)/winsync
 NT4SYNC_FILE = $(NT4SYNC_DEST)/$(NT4SYNC)
 NT4SYNC_FILES = $(NT4SYNC)

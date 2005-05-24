@@ -273,6 +273,7 @@ struct attr_handler attrhandlers[] = {
     { "ces",	str_display,	str_edit,	CASE_EXACT       	},
     { "bool",	bool_display,	bool_edit,	CASE_INSENSITIVE	},
     { "time",	time_display,	str_edit,	CASE_INSENSITIVE	},
+    { "ntdomain", ntdomain_display, str_edit,	CASE_INSENSITIVE	},
     { "ntuserid", ntuserid_display, str_edit,	CASE_INSENSITIVE	},
     { "ntgroupname", ntuserid_display, str_edit,	CASE_INSENSITIVE	},
     { "binvalue", binvalue_display, str_edit, CASE_INSENSITIVE	},
@@ -1380,9 +1381,22 @@ output_text_elements( int argc, char **argv, char *attr, char **vals,
 	valcount = 0;
     } else {
 	for ( valcount = 0; vals[ valcount ] != NULL; ++valcount ) {
-		/* just count vals  */
+            char *syntax = get_arg_by_name( DSGW_ATTRARG_SYNTAX, argc, argv );
+            if ( syntax && 0 == strcasecmp( syntax, "ntdomain" )) {
+                 char *pch = (char *)strchr( vals[ valcount ], DSGW_NTDOMAINID_SEP );
+                 if( pch )
+                     *pch = (char )NULL;
+	    }
+            if ( syntax && ( 0 == strcasecmp( syntax, "ntuserid" ) || 0 == strcasecmp( syntax, "ntgroupname") ) ) {
+                 char *pch = (char *)strchr( vals[ valcount ], DSGW_NTDOMAINID_SEP );
+                 if( pch )
+				 {
+                     pch++;
+					 vals[ valcount] = pch;
+				 }
+	    }
 	}
-	}
+    }
 
     fields = numfields( argc, argv, valcount );
     element_sizes( argc, argv, vals, valcount, NULL, &cols );
@@ -1718,11 +1732,13 @@ ntuserid_display( struct dsgw_attrdispinfo *adip )
 {
     int		i;
 
+    /* Write values with a break (<BR>) separating them, after ":" */
     for ( i = 0; adip->adi_vals[ i ] != NULL; ++i ) {
 	if ( !did_output_as_special( adip->adi_argc, adip->adi_argv, 
 		  adip->adi_vals[ i ], adip->adi_vals[ i ] )) {
-            char *pch = adip->adi_vals[ i ];
+            char *pch = strchr( adip->adi_vals[ i ], DSGW_NTDOMAINID_SEP );
             if( pch ) {
+		pch++;
 
 		if ((adip->adi_opts & DSGW_ATTROPT_QUOTED ) != 0 ) {
 		    dsgw_emits( "\"" );
