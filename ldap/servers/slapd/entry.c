@@ -3086,8 +3086,21 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
     {
         for (cep = curr_entries; cep != NULL && *cep != NULL; )
         {
-            int dncmp = slapi_sdn_compare(slapi_entry_get_sdn_const(*oep),
+            int dncmp;
+			if ((*oep != NULL) && (*cep !=NULL)) {
+				dncmp = slapi_sdn_compare(slapi_entry_get_sdn_const(*oep),
                                           slapi_entry_get_sdn_const(*cep));
+			} 
+			else if (*oep==NULL) {
+				dncmp=-1; // OEP is empty, it does not have the entry.
+			}
+			else if (*cep==NULL) {
+				dncmp=1; // CEP is empty, it does not have the entry.
+			}
+			else {
+				continue; // Not sure what happened, but cannot proceed.
+			}
+
             if (force_update)
             {
                 pblock_init(&pb);
@@ -3159,7 +3172,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                 slapi_mods_free(&smods);
                 oep++; cep++;
             }
-            else if (dncmp > 0)    /* old_entries does not have cep */
+            else if (dncmp < 0)    /* old_entries does not have cep */
             {
                 rval = 1;
                           
@@ -3177,7 +3190,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                 }
                 cep++;
             }
-            else /* if (dncmp < 0)    curr_entries does not have oep */
+            else /* if (dncmp > 0)    curr_entries does not have oep */
             {
                 rval = 1;
                 LDAPDebug(LDAP_DEBUG_ANY, "Add %sEntry %s\n", 
