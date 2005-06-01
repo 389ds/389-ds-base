@@ -411,7 +411,7 @@ int PassSyncService::QueryUsername(char* username)
 
 	_snprintf(searchFilter, SYNCSERV_BUF_SIZE, "(%s=%s)", ldapUsernameField, username);
 
-	lastLdapError = ldap_search_ext_s(mainLdapConnection, ldapSearchBase, LDAP_SCOPE_ONELEVEL, searchFilter, NULL, 0, NULL, NULL, NULL, -1, &results);
+	lastLdapError = ldap_search_ext_s(mainLdapConnection, ldapSearchBase, LDAP_SCOPE_SUBTREE, searchFilter, NULL, 0, NULL, NULL, NULL, -1, &results);
 
 	if(lastLdapError != LDAP_SUCCESS)
 	{
