@@ -65,7 +65,7 @@ objectclass: top
 objectclass: nsSlapdPlugin
 objectclass: extensibleObject
 cn: test-saslbind
-nsslapd-pluginpath: /usr/fedora/servers/plugins/slapd/slapi/examples/libtest-plugin.so
+nsslapd-pluginpath: <serverroot>/plugins/slapd/slapi/examples/libtest-plugin.so
 nsslapd-plugininitfunc: testsasl_init
 nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on

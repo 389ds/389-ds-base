@@ -88,8 +88,8 @@
  nsslapd-pluginType: preoperation
  nsslapd-pluginEnabled: on
  nsslapd-pluginId: nullsuffix-preop
- nsslapd-pluginVersion: 6.2
- nsslapd-pluginVendor: Netscape
+ nsslapd-pluginVersion: 7.1
+ nsslapd-pluginVendor: Fedora Project
  nsslapd-pluginDescription: sample pre-operation null suffix plugin
 
  ******************************************/
@@ -113,7 +113,7 @@
 /*
  * Static variables.
  */
-static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, "Netscape", "0.5",
+static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, "Fedora Project", "7.1",
 	"sample pre-operation null suffix plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;
