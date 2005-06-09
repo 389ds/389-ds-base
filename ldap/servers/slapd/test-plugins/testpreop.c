@@ -45,6 +45,7 @@
 
  * testpreop_bind (called before an LDAP bind operation)
  * testpreop_add (called before an LDAP add operation)
+ * testpreop_search (called before an LDAP search operation)
  * testpreop_abandon (called before an LDAP abandon operation)
 
  testpreop_bind logs information about the LDAP bind operation
@@ -78,7 +79,7 @@
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc preoppdesc = { "test-preop", "Netscape", "0.5",
+Slapi_PluginDesc preoppdesc = { "test-preop", "Fedora Project", "7.1",
 	"sample pre-operation plugin" };
 
 /* Pre-operation plug-in function */
@@ -159,6 +160,24 @@ testpreop_add( Slapi_PBlock *pb )
 	return( 0 );	/* allow the operation to continue */
 }
 
+/* Pre-operation plug-in function */
+int
+testpreop_search( Slapi_PBlock *pb )
+{
+  char *base;
+  /* Log a message to indicate when the plug-in function starts */
+  slapi_log_error( SLAPI_LOG_FATAL, "testpreop_search",
+    "*** PREOPERATION SEARCH PLUGIN ***\n");
+  /* Get and log the base DN of the search criteria */
+  if ( slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &base ) == 0 )
+    slapi_log_error( SLAPI_LOG_FATAL, "SLAPI_SEARCH_TARGET",
+      "%s\n", base );
+  /* Get and log the original base DN */
+  if ( slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET_DN, &base ) == 0 )
+    slapi_log_error( SLAPI_LOG_FATAL, "SLAPI_ORIGINAL_TARGET_DN",
+      "%s\n", base );
+}
+
 
 /* Pre-operation plug-in function */
 int
@@ -236,9 +255,11 @@ testpreop_init( Slapi_PBlock *pb )
 	    (void *) testpreop_bind ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ADD_FN,
 	    (void *) testpreop_add ) != 0 ||
+	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_SEARCH_FN,
+	    (void *) testpreop_search ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ABANDON_FN,
 	    (void *) testpreop_abandon ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "testpreop_init",
+		slapi_log_error( SLAPI_LOG_FATAL, "testpreop_init",
 			"Failed to set version and function\n" );
 		return( -1 );
 	}
