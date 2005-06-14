@@ -59,6 +59,8 @@
 #define NS_MTA_MD5_NAME_LEN 10
 #define CLEARTEXT_SCHEME_NAME "clear"
 #define CLEARTEXT_NAME_LEN  5
+#define MD5_SCHEME_NAME "MD5"
+#define MD5_NAME_LEN 3
 
 SECStatus sha1_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt);
 int sha1_pw_cmp( char *userpwd, char *dbpwd );
@@ -72,6 +74,8 @@ int crypt_pw_cmp( char *userpwd, char *dbpwd );
 char *crypt_pw_enc( char *pwd );
 #endif
 int ns_mta_md5_pw_cmp( char *userpwd, char *dbpwd );
+int md5_pw_cmp( char *userpwd, char *dbpwd );
+char *md5_pw_enc( char *pwd );
 
 
 #if !defined(NET_SSL)

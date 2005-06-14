@@ -3216,6 +3216,16 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "\n");
 #endif
 
+	fprintf(f, "dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+	fprintf(f, "objectclass: top\n");
+	fprintf(f, "objectclass: nsSlapdPlugin\n");
+	fprintf(f, "cn: MD5\n");
+	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+	fprintf(f, "nsslapd-plugininitfunc: md5_pwd_storage_scheme_init\n");
+	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+	fprintf(f, "nsslapd-pluginenabled: on\n");
+	fprintf(f, "\n");
+ 
     fprintf(f, "dn: cn=CLEAR,cn=Password Storage Schemes,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");

@@ -68,7 +68,8 @@ PWD_OBJS= \
 	ns-mta-md5_pwd.o \
 	sha_pwd.o \
 	ssha_pwd.o \
-	md5c.o
+	md5c.o \
+	md5_pwd.o
 
 ifneq ($(ARCH), WINNT)
 PWD_OBJS += crypt_pwd.o
