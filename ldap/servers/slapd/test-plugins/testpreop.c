@@ -176,6 +176,8 @@ testpreop_search( Slapi_PBlock *pb )
   if ( slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET_DN, &base ) == 0 )
     slapi_log_error( SLAPI_LOG_FATAL, "SLAPI_ORIGINAL_TARGET_DN",
       "%s\n", base );
+
+  return( 0 );	/* allow the operation to continue */
 }
 
 
