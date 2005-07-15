@@ -131,6 +131,7 @@ int pam_passthru_check_suffix(Pam_PassthruConfig *cfg, char *binddn);
 /*
  * pam_ptimpl.c
  */
+int pam_passthru_pam_init( void );
 int pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg);
 
 #endif	/* _PAM_PASSTHRU_H_ */
