@@ -383,8 +383,14 @@ searchAllSubtrees(int argc, char *argv[], const char *attrName,
    */
   for(;argc > 0;argc--,argv++)
   {
-    result = search(*argv, attrName, attr, values, dn);
-        if (result) break;
+    /*
+     * The DN should already be normalized, so we don't have to
+     * worry about that here.
+     */
+    if (slapi_dn_issuffix(dn, *argv)) {
+      result = search(*argv, attrName, attr, values, dn);
+      if (result) break;
+    }
   }
   return result;
 }
