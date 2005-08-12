@@ -550,10 +550,12 @@ index_add_mods(
             }
 
             /* We need to first remove the old values from the 
-             * index. */
+             * index, if any. */
+            if (deleted_valueArray) {
                 index_addordel_values_sv( be, mods[i]->mod_type,
                                           deleted_valueArray, evals, id, 
                                           flags, txn );
+            }
 
             /* Free valuearray */
             slapi_valueset_free(mod_vals);
