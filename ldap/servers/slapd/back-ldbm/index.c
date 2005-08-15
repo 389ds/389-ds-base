@@ -639,8 +639,12 @@ index_add_mods(
 		 * removed.
 		 */
 		slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr);
-		if ( valuearray_find(curr_attr, evals, mods_valueArray[i]) == -1 ) {
-		    flags |= BE_INDEX_EQUALITY;
+                for (j = 0; mods_valueArray[j] != NULL; j++ ) {
+		    if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) == -1 ) {
+                        if (!(flags & BE_INDEX_EQUALITY)) {
+		            flags |= BE_INDEX_EQUALITY;
+                        }
+                    }
 		}
 
                 rc = index_addordel_values_sv( be, basetype,
