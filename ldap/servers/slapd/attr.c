@@ -710,19 +710,12 @@ attr_add_deleted_value(Slapi_Attr *a, const Slapi_Value *v)
 }
 
 /*
- * If we are adding or deleting SLAPD_MODUTIL_TREE_THRESHHOLD or more
- * entries, we use an AVL tree to speed up searching for duplicates or
- * values we are trying to delete.  This threshhold is somewhat arbitrary;
- * we should really take some measurements to determine an optimal number.
- */
-#define SLAPD_MODUTIL_TREE_THRESHHOLD	5
-
-/*
- * Add a value array to an attribute. If SLAPD_MODUTIL_TREE_THRESHHOLD or
- * more values are being added, we build an AVL tree of any existing
+ * Add a value array to an attribute. 
+ * If more than one values are being added, we build an AVL tree of any existing
  * values and then update that in parallel with the existing values.  This
- * is done so that we do not waste a lot of CPU time searching for duplicate
- * values.  The AVL tree is created and destroyed all within this function.
+ * AVL tree is used to detect the duplicates not only between the existing 
+ * values and to-be-added values but also among the to-be-added values.
+ * The AVL tree is created and destroyed all within this function.
  *
  * Returns
  * LDAP_SUCCESS - OK
@@ -733,28 +726,28 @@ int
 attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
 {
     int i = 0;
-	int duplicate_index = -1;
-	int was_present_null = 0;
-	int rc = LDAP_SUCCESS;
+    int numofvals = 0;
+    int duplicate_index = -1;
+    int was_present_null = 0;
+    int rc = LDAP_SUCCESS;
 
     if (valuearray_isempty(vals)) {
         /*
          * No values to add (unexpected but acceptable).
          */
         return rc;
-	}
+    }
 
     /*
      * determine whether we should use an AVL tree of values or not
      */
-    while ( i < SLAPD_MODUTIL_TREE_THRESHHOLD - 1 && vals[i] != NULL ) {
-		i++;
-	}
+    for ( i = 0; vals[i] != NULL; i++ ) ;
+    numofvals = i;
 
     /*
      * detect duplicate values
      */
-    if ( i >= SLAPD_MODUTIL_TREE_THRESHHOLD - 1 ) {
+    if ( numofvals > 1 ) {
         /*
          * Several values to add: use an AVL tree to detect duplicates.
          */
@@ -763,82 +756,85 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
                    "detect duplicate values\n", 0, 0, 0 );
 
         if (valueset_isempty(&a->a_present_values)) {
-			/* if the attribute contains no values yet, just check the
-			 * input vals array for duplicates
-			 */
+            /* if the attribute contains no values yet, just check the
+             * input vals array for duplicates
+             */
             Avlnode *vtree = NULL;
             rc= valuetree_add_valuearray(a->a_type, a->a_plugin, vals, &vtree, &duplicate_index);
             valuetree_free(&vtree);
-			was_present_null = 1;
+            was_present_null = 1;
         } else {
-			/* the attr and vals both contain values, check intersection */
+            /* the attr and vals both contain values, check intersection */
             rc= valueset_intersectswith_valuearray(&a->a_present_values, a, vals, &duplicate_index);
         }
 
     } else if ( !valueset_isempty(&a->a_present_values) ) {
         /*
-         * Small number of values to add: don't bother constructing
+         * One or no value to add: don't bother constructing
          * an AVL tree, etc. since it probably isn't worth the time.
          */
         for ( i = 0; vals[i] != NULL; ++i ) {
             if ( slapi_attr_value_find( a, slapi_value_get_berval(vals[i]) ) == 0 ) {
-				duplicate_index = i;
-	            rc = LDAP_TYPE_OR_VALUE_EXISTS;
-				break;
+                duplicate_index = i;
+                rc = LDAP_TYPE_OR_VALUE_EXISTS;
+                break;
             }
-    	}
+        }
     }
 
-	/*
-	 * add values if no duplicates detected
-	 */
+    /*
+     * add values if no duplicates detected
+     */
     if(rc==LDAP_SUCCESS) {
-		valueset_add_valuearray( &a->a_present_values, vals );
-	}
+        valueset_add_valuearray( &a->a_present_values, vals );
+    }
 
-	/* In the case of duplicate value, rc == LDAP_TYPE_OR_VALUE_EXISTS or
-	 * LDAP_OPERATIONS_ERROR
-	 */
-	else if ( duplicate_index >= 0 ) {
-		char avdbuf[BUFSIZ];
-		char bvvalcopy[BUFSIZ];
-		char *duplicate_string = "null or non-ASCII";
+    /* In the case of duplicate value, rc == LDAP_TYPE_OR_VALUE_EXISTS or
+     * LDAP_OPERATIONS_ERROR
+     */
+    else if ( duplicate_index >= 0 ) {
+        char avdbuf[BUFSIZ];
+        char bvvalcopy[BUFSIZ];
+        char *duplicate_string = "null or non-ASCII";
 
-		i = 0;
-		while ( (unsigned int)i < vals[duplicate_index]->bv.bv_len &&
-				i < BUFSIZ - 1 &&
-				vals[duplicate_index]->bv.bv_val[i] &&
-				isascii ( vals[duplicate_index]->bv.bv_val[i] )) {
-			i++;
-		}
+        i = 0;
+        while ( (unsigned int)i < vals[duplicate_index]->bv.bv_len &&
+                i < BUFSIZ - 1 &&
+                vals[duplicate_index]->bv.bv_val[i] &&
+                isascii ( vals[duplicate_index]->bv.bv_val[i] )) {
+            i++;
+        }
 
-		if ( i ) {
-			if ( vals[duplicate_index]->bv.bv_val[i] == 0 ) {
-				duplicate_string = vals[duplicate_index]->bv.bv_val;
-			}
-			else {
-				strncpy ( &bvvalcopy[0], vals[duplicate_index]->bv.bv_val, i );
-				bvvalcopy[i] = '\0';
-				duplicate_string = bvvalcopy;
-			}
-		}
+        if ( i ) {
+            if ( vals[duplicate_index]->bv.bv_val[i] == 0 ) {
+                duplicate_string = vals[duplicate_index]->bv.bv_val;
+            }
+            else {
+                strncpy ( &bvvalcopy[0], vals[duplicate_index]->bv.bv_val, i );
+                bvvalcopy[i] = '\0';
+                duplicate_string = bvvalcopy;
+            }
+        }
 
-		slapi_log_error( SLAPI_LOG_FATAL, NULL, "add value \"%s\" to "
-					"attribute type \"%s\" in entry \"%s\" failed: %s\n", 
-					duplicate_string,
-					a->a_type,
-					dn ? escape_string(dn,avdbuf) : "<null>", 
-					(was_present_null ? "duplicate new value" : "value exists"));
-	}
+        slapi_log_error( SLAPI_LOG_FATAL, NULL, "add value \"%s\" to "
+                "attribute type \"%s\" in entry \"%s\" failed: %s\n", 
+                duplicate_string,
+                a->a_type,
+                dn ? escape_string(dn,avdbuf) : "<null>", 
+                (was_present_null ? "duplicate new value" : "value exists"));
+    }
     return( rc );
 }
 
 /* quickly toss an attribute's values and replace them with new ones
  * (used by attrlist_replace_fast)
+ * Returns
+ * LDAP_SUCCESS - OK
+ * LDAP_OPERATIONS_ERROR - Existing duplicates in attribute.
  */
-void attr_replace(Slapi_Attr *a, Slapi_Value **vals)
+int attr_replace(Slapi_Attr *a, Slapi_Value **vals)
 {
-    valueset_replace(&a->a_present_values, vals);
+    return valueset_replace(a, &a->a_present_values, vals);
 }
 
 int 
