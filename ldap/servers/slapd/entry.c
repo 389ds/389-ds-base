@@ -2792,8 +2792,7 @@ entry_replace_values(
     struct berval	**vals
 )
 {
-        attrlist_replace( &e->e_attrs, type, vals );
-        return 0;
+    return attrlist_replace( &e->e_attrs, type, vals );
 }
 
 int

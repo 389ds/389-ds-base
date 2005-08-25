@@ -1015,13 +1015,6 @@ valueset_update_csn(Slapi_ValueSet *vs, CSNType t, const CSN *csn)
 }
 
 /*
- * If we are adding or deleting SLAPD_MODUTIL_TREE_THRESHHOLD or more
- * entries, we use an AVL tree to speed up searching for duplicates or
- * values we are trying to delete.  This threshhold is somewhat arbitrary;
- * we should really take some measurements to determine an optimal number.
- */
-#define SLAPD_MODUTIL_TREE_THRESHHOLD	5
-/*
  * Remove an array of values from a value set.
  * The removed values are passed back in an array.
  *
@@ -1044,9 +1037,10 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 		}
 
 		/*
-		 * determine whether we should use an AVL tree of values or not
+		 * If there are more then one values, build an AVL tree to check
+		 * the duplicated values.
 		 */
-		if ( numberofvaluestodelete >= SLAPD_MODUTIL_TREE_THRESHHOLD)
+		if ( numberofvaluestodelete > 1 )
 		{
 			/*
 			 * Several values to delete: first build an AVL tree that
@@ -1132,7 +1126,7 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 		}
 		else
 		{
-			/* We don't have to delete very many values, so we use brute force. */
+			/* We delete one or no value, so we use brute force. */
 			int i;
 			for ( i = 0; rc==LDAP_SUCCESS && valuestodelete[i] != NULL; ++i )
 			{
@@ -1210,7 +1204,7 @@ valueset_intersectswith_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 		{
 			/* No intersection */
 		}
-		else if ( numberofvalues >= SLAPD_MODUTIL_TREE_THRESHHOLD)
+		else if ( numberofvalues > 1 )
 		{
 			/*
 			 * Several values to add: use an AVL tree to detect duplicates.
@@ -1234,7 +1228,7 @@ valueset_intersectswith_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 		else
 		{
 			/*
-			 * Small number of values to add: don't bother constructing
+			 * One value to add: don't bother constructing
 			 * an AVL tree, etc. since it probably isn't worth the time.
 			 *
 			 * JCM - This is actually quite slow because the comparison function is looked up many times.
@@ -1267,15 +1261,39 @@ valueset_dup(const Slapi_ValueSet *dupee)
 
 /* quickly throw away any old contents of this valueset, and stick in the
  * new ones.
+ *
+ * return value: LDAP_SUCCESS - OK
+ *             : LDAP_OPERATIONS_ERROR - duplicated values given
  */
-void 
-valueset_replace(Slapi_ValueSet *vs, Slapi_Value **vals)
+int
+valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace)
 {
+    int rc = LDAP_SUCCESS;
+    int numberofvalstoreplace= valuearray_count(valstoreplace);
     if(!valuearray_isempty(vs->va))
-	{
+    {
         slapi_valueset_done(vs);
-	}
-    vs->va = vals;
+    }
+    /* verify the given values are not duplicated.
+       if replacing with one value, no need to check.  just replace it.
+     */
+    if (numberofvalstoreplace > 1)
+    {
+        Avlnode *vtree = NULL;
+        rc = valuetree_add_valuearray( a->a_type, a->a_plugin, valstoreplace, &vtree, NULL );
+        valuetree_free(&vtree);
+        if ( LDAP_SUCCESS != rc )
+        {
+            /* There were already duplicate values in the value set */
+            rc = LDAP_OPERATIONS_ERROR;
+        }
+    }
+
+    if ( rc == LDAP_SUCCESS )
+    {
+        vs->va = valstoreplace;
+    }
+    return rc;
 }
 
 /*
@@ -1296,7 +1314,7 @@ valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 		struct valuearrayfast vaf_valuesupdated;
 		int numberofvaluestoupdate= valuearray_count(valuestoupdate);
 		valuearrayfast_init(&vaf_valuesupdated,*valuesupdated);
-		if (numberofvaluestoupdate>=SLAPD_MODUTIL_TREE_THRESHHOLD)
+		if (numberofvaluestoupdate > 1) /* multiple values to update */
 		{
 			int i;
 			Avlnode	*vtree = NULL;
