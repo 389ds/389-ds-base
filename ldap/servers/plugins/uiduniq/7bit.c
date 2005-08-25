@@ -344,7 +344,7 @@ addMod(LDAPMod ***modary, int *capacity, int *nmods, LDAPMod *toadd)
       *modary = (LDAPMod **)slapi_ch_malloc(*capacity * sizeof(LDAPMod *));
     }
   }
-  *modary[*nmods] = toadd;
+  (*modary)[*nmods] = toadd;
   (*nmods)++;
 }
 
