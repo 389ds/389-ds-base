@@ -637,6 +637,7 @@ typedef struct _back_search_result_set
 #define BE_INDEX_PRESENCE	4	/* (w/DEL) remove the presence index */
 #define BE_INDEX_TOMBSTONE	8   /* Index entry as a tombstone */
 #define BE_INDEX_DONT_ENCRYPT	16   /* Disable any encryption if this flag is set */
+#define BE_INDEX_EQUALITY	32  /* (w/DEL) remove the equality index */
 
 /* Name of attribute type used for binder-based look through limit */
 #define LDBM_LOOKTHROUGHLIMIT_AT	"nsLookThroughLimit"
