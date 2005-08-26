@@ -4672,6 +4672,7 @@ int parse_form(server_config_s *cf)
 		return 1;
 	}
 
+    cf->suitespot3x_uid = ds_a_get_cgi_var("suitespot3x_uid", NULL, NULL);
     cf->cfg_sspt = ds_a_get_cgi_var("cfg_sspt", NULL, NULL);
     cf->cfg_sspt_uid = ds_a_get_cgi_var("cfg_sspt_uid", NULL, NULL);
     if (cf->cfg_sspt_uid && *(cf->cfg_sspt_uid) &&
