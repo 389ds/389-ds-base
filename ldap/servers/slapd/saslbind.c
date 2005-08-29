@@ -136,7 +136,7 @@ static int ids_sasl_log(
 {
     switch (level) {
     case SASL_LOG_ERR:          /* log unusual errors (default) */
-    slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s", message);
+    slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s\n", message);
     break;
 
     case SASL_LOG_FAIL:         /* log all authentication failures */
@@ -146,7 +146,7 @@ static int ids_sasl_log(
     case SASL_LOG_TRACE:        /* traces of internal protocols */
     case SASL_LOG_PASS:         /* traces of internal protocols, including
                                  * passwords */
-        LDAPDebug(LDAP_DEBUG_ANY, "sasl(%d): %s", level, message, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, "sasl(%d): %s\n", level, message, 0);
         break;
 
     case SASL_LOG_NONE:         /* don't log anything */
@@ -446,7 +446,12 @@ static int ids_sasl_canon_user(
 
     clear = pw;
     if (clear) {
-        if (prop_set(propctx, "userpassword", clear, -1) != 0) {
+        if (prop_set(propctx, SASL_AUX_PASSWORD_PROP, clear, -1) != 0) {
+            /* Failure is benign here because some mechanisms don't support this property */
+            /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
+            goto fail */ ;
+        }
+        if (prop_set(propctx, SASL_AUX_PASSWORD, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */ ;
