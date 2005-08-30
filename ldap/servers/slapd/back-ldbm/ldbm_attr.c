@@ -632,7 +632,7 @@ ldbm_compute_rewriter(Slapi_PBlock *pb)
 	if ( NULL != fstr ) {
 		char *lc_fstr = (char *)slapi_utf8StrToLower( (unsigned char *)fstr );
 
-		if (string_find(lc_fstr,"subordinates")) {
+		if (lc_fstr && string_find(lc_fstr,"subordinates")) {
 			Slapi_Filter	*f = NULL;
 			/* Look for special filters we want to leave alone */
 			if (0 == strcmp(lc_fstr, "(&(numsubordinates=*)(numsubordinates>=1))" )) {
