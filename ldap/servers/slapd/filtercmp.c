@@ -64,7 +64,8 @@ static PRUint32 addhash_casestr(PRUint32 hash, char *data)
     unsigned char *normstr;
 
     normstr = slapi_utf8StrToLower((unsigned char *)data);
-    hash = addhash(hash, normstr, strlen((char *)normstr));
+    hash = addhash(hash, normstr,
+                   normstr ? strlen((char *)normstr) : 0);
     if ((char *)normstr != data)
 	slapi_ch_free((void **)&normstr);
     return hash;
