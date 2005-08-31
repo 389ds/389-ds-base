@@ -117,7 +117,7 @@ $(OUTDIR)/%.obj: %.c
 	$(CC) $(CFLAGS) $<
 
 $(OUTDIR)/%.inf: %.inf
-	$(PERL) $(FIXINF) $(BUILD_MODULE) $(DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat $< $(SECURITY) "DoesntOnNT" $(IS_DIR_LITE) '$(INSTANCE_NAME_PREFIX)' $@ $(BUILD_BOMB)
+	$(PERL) $(FIXINF) $(BUILD_MODULE) $(NOSP_DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat $< $(SECURITY) "DoesntOnNT" $(IS_DIR_LITE) '$(INSTANCE_NAME_PREFIX)' $@ $(BUILD_BOMB)
 
 $(OUTDIR)/%.res: %.rc
 	$(RC) $(RCFLAGS) /fo"$@" $<

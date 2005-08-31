@@ -8,4 +8,4 @@ license agreement file called LICENSE.txt.
 Late-breaking news and information on the Fedora Directory Server is
 available at the following location:
 
-    http://fedora.redhat.com/
+    http://www.redhat.com/docs/manuals/

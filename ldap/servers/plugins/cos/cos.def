@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Fedora Directory Server 7 Class Of Service Plugin'
+DESCRIPTION     'Fedora Directory Server 7.1 Class Of Service Plugin'
 EXPORTS
 	cos_init        @2
 	plugin_init_debug_level	@3
