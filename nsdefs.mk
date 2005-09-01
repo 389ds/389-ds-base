@@ -265,6 +265,7 @@ OBJDIR=$(COMMON_OBJDIR)
 OBJDIR_32=$(COMMON_OBJDIR_32)
 DO_SEARCH=no
 DIR_VERSION:=7.1
+NOSP_DIR_VERSION:=7.1
 DIR_NORM_VERSION:=7.1
 # When you change DIRSDK_VERSION or DIRSDK_VERSION_DLL_SUFFIX, you must
 # update all of the .exp and .def files by executing the following command:
