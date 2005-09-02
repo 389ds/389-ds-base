@@ -248,9 +248,20 @@ if ! [ $silent ]; then
 	echo "SuiteSpotGroup = $group" >> $inffile
 	echo ServerRoot = `pwd` >> $inffile
 
+	# check if ds instance directory exists or not
+	# if it does, run ns-config with the reconfigure option
+	doreconfig=""
+	for x in `ls -d slapd-*`
+	do
+		if [ -d $x ]; then
+			doreconfig="-r"
+			break
+		fi
+	done
+
 	# first, run ds
 	cd bin/slapd/admin/bin
-	./ns-config -f $inffile -l $logfile -m $installmode || doExit
+	./ns-config -f $inffile -l $logfile -m $installmode $doreconfig || doExit
 	cd ../../../..
 
 	# next, run admin
