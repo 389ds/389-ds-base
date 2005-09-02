@@ -61,7 +61,7 @@ ldapprogs:
 ifneq ($(ARCH), WINNT) 
 	cd systools; $(MAKE) $(MFLAGS) all
 	# new unix installer
-ifeq ($(USE_SETUPSDK), 1)
+ifeq ($(USE_SETUPUTIL), 1)
 	cd cm/newinst; $(MAKE) $(MFLAGS) all
 ifeq ($(USE_64),1)
 	# In 64-bit builds, we build the installer 32-bit, which has the side-effect that the uninstaller and ns-update scripts
@@ -70,11 +70,11 @@ ifeq ($(USE_64),1)
 	$(CP) $(RELDIR_32)/bin/slapd/admin/bin/ns-update $(LDAP_ADMIN_BIN_RELDIR)
 	$(CP) $(RELDIR_32)/bin/slapd/admin/bin/uninstall $(LDAP_ADMIN_BIN_RELDIR)
 endif # USE_64
-endif # USE_SETUPSDK
+endif # USE_SETUPUTIL
 else # not WINNT
-ifeq ($(USE_SETUPSDK), 1)
+ifeq ($(USE_SETUPUTIL), 1)
 	cd cm/newinstnt; $(MAKE) $(MFLAGS) all
-endif # USE_SETUPSDK
+endif # USE_SETUPUTIL
 endif # WINNT
 	cd admin; $(MAKE) $(MFLAGS) all
 ifeq ($(ARCH), WINNT) 

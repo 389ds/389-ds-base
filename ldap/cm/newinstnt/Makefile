@@ -54,7 +54,7 @@ include $(LDAP_SRC)/nsldap.mk
 
 OUTDIR=$(OBJDIR)/setup
 
-CFLAGS=/nologo /MD /W3 /Gm /GX /Zi /Od $(SETUPSDK_INCLUDE) $(LDAPSDK_INCLUDE) \
+CFLAGS=/nologo /MD /W3 /Gm /GX /Zi /Od $(SETUPUTIL_INCLUDE) $(LDAPSDK_INCLUDE) \
  /I "$(LDAP_SRC)/admin/include" /I "$(LDAP_SRC)/admin/lib" \
  /I "$(LDAP_SRC)/admin/src" /D \
  "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"$(OUTDIR)/dsinst.pch" /YX \
@@ -71,7 +71,7 @@ LIBS= \
 	kernel32.lib user32.lib gdi32.lib comdlg32.lib\
 	comctl32.lib advapi32.lib shell32.lib uuid.lib\
 	wsock32.lib\
-	$(SETUPSDKLINK) $(LDAP_SDK_LIBLDAP_DLL) $(NSPRLINK)
+	$(SETUPUTILLINK) $(LDAP_SDK_LIBLDAP_DLL) $(NSPRLINK)
 
 DSOBJS= \
 	$(OUTDIR)/dsinst_dsalib_dn.obj \
@@ -92,7 +92,7 @@ RC=rc.exe
 RM=erase /F /Q
 FIXINF= ../newinst/fixINF.pl
 
-all: $(SETUPSDK_DEP) $(LDAPSDK_DEP) $(NSPR_DEP) $(ADMINUTIL_DEP) $(OUTDIR)/dsinst.dll $(OUTDIR)/slapd.inf
+all: $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(NSPR_DEP) $(ADMINUTIL_DEP) $(OUTDIR)/dsinst.dll $(OUTDIR)/slapd.inf
 
 clean:
 	-rm -rf "$(OUTDIR)"

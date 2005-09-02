@@ -37,7 +37,7 @@
  * END COPYRIGHT BLOCK **/
 // ds_remove_uninst.cpp
 //
-// ds_remove routines that use c++ calls in adminsdk
+// ds_remove routines that use c++ calls in adminutil
 //
 #include <iostream.h>
 #include <fstream.h>

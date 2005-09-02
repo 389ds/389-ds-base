@@ -7455,7 +7455,7 @@ NSPERLINST_PostInstall(VOID)
     return FALSE;
   }
 
-  // hack to work around potential bug in setupsdk . . .
+  // hack to work around potential bug in setuputil . . .
   SetCurrentDirectory("../slapd");
   my_snprintf(infFile, sizeof(infFile), "slapd.inf");
   GetProductInfoStringWithTok(NSPERL_POST_INSTALL_PROG, "=", nsPerlPostInstall,

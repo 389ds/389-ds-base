@@ -66,7 +66,7 @@ ifdef INTERNAL_BUILD
 	USE_ORGCHART:=1
 	USE_DSGW:=1
 	USE_JAVATOOLS:=1
-	USE_SETUPSDK:=1
+	USE_SETUPUTIL:=1
 endif
 
 include $(BUILD_ROOT)/nsdefs.mk
@@ -373,14 +373,15 @@ ifndef COMPONENTS_DIR_DEV
 COMPONENTS_DIR_DEV = /share/builds/sbsintegration
 endif
 
+# internal repository for all pre-built RTM components, including Red Hat branded ones
 ifndef COMPONENTS_DIR
 COMPONENTS_DIR = /share/builds/components
 endif
 
-# For now, we need to pick up a private build of the LDAP SDK
-#ifndef LDAP_SBC
-#LDAP_SBC = /share/builds/sbsintegration/ds/ds70-bozeman
-#endif
+# internal repository for pre-built RTM Fedora branded components
+ifndef FED_COMPONENTS_DIR
+FED_COMPONENTS_DIR = /fedora/components
+endif
 
 ###########################################################
 
@@ -1303,7 +1304,7 @@ NSCP_DISTDIR_FULL_RTL = $(NSCP_DISTDIR)
 NSCP_ABS_DISTDIR_FULL_RTL = $(ABS_ROOT_PARENT)/dist/$(FULL_RTL_OBJDIR)
 
 # these components may have additional RTL debugging support built in on NT
-# adminsdk (adminutil), dbm, ldapsdk, NLS, NSPR, NSS (security)
+# adminutil, dbm, ldapsdk, NLS, NSPR, NSS (security)
 # we cannot simply redefine NSOBJDIR_NAME and NSCP_DISTDIR because other
 # components do not have this RTL support stuff and the .OBJD directory
 # does not exist

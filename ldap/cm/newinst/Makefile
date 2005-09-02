@@ -57,8 +57,8 @@ include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
 test:
-	echo $(SETUPSDK_VERSION)
-	echo $(SETUPSDK_RELEASE)
+	echo $(SETUPUTIL_VERSION)
+	echo $(SETUPUTIL_RELEASE)
 
 # MODULE_CFLAGS = -DUSE_ADMSERV
 
@@ -98,12 +98,12 @@ endif
 INFO= $(OBJDIR)/$(DIR)
 
 # Source for staged installation utilities
-INCDIR=$(SETUPSDK_INCLUDE) -I$(LDAP_SRC)/admin/include -I$(LDAP_SRC)/admin/lib -I$(LDAP_SRC)/admin/src
+INCDIR=$(SETUPUTIL_INCLUDE) -I$(LDAP_SRC)/admin/include -I$(LDAP_SRC)/admin/lib -I$(LDAP_SRC)/admin/src
 
 # ADM_VERSDIR = admserv40
 # ADM_RELDATE = 19980112
 
-all: $(OBJDEST) $(BINDEST) $(SETUPSDK_DEP) $(LDAPSDK_DEP) $(SECURITY_DEP)  $(NSPR_DEP) $(OSOBJS) $(OBJS1) $(OBJS2) $(BINS) $(INFO) $(BINDEST)/ns-update $(BINDEST)/uninstall
+all: $(OBJDEST) $(BINDEST) $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(SECURITY_DEP)  $(NSPR_DEP) $(OSOBJS) $(OBJS1) $(OBJS2) $(BINS) $(INFO) $(BINDEST)/ns-update $(BINDEST)/uninstall
 # removed ns-keygen from build - it was only used for Dir Lite
 # $(BINDEST)/ns-keygen 
 ifeq ($(ARCH), BSDI)
@@ -172,7 +172,7 @@ $(BINDEST)/uninstall: uninstall
 
 $(BINDEST)/ns-config: $(OBJS1) $(OBJS2)
 	$(PURIFY) $(CXX) $(SHARED_FLAG) $(CFLAGS) $(MCC_INCLUDE) $(INCDIR) \
-		-o $(BINDEST)/ns-config $(RPATHFLAG_PREFIX)$(RPATHFLAG)$(RPATHFLAG_EXTRAS) $(OBJS1) $(OBJS2) $(SETUPSDKLINK) $(LDAPLINK) $(SECURITYLINK) $(NSPRLINK) \
+		-o $(BINDEST)/ns-config $(RPATHFLAG_PREFIX)$(RPATHFLAG)$(RPATHFLAG_EXTRAS) $(OBJS1) $(OBJS2) $(SETUPUTILLINK) $(LDAPLINK) $(SECURITYLINK) $(NSPRLINK) \
 	       $(EXTRA_LIBS) $(CURSES)
 
 ifeq ($(ARCH), WINNT)
@@ -191,5 +191,5 @@ $(OBJDEST)/%.o: %.cc
 
 ns-config-gt: $(OBJS1GT)
 	$(PURIFY) $(CXX) $(NONSHARED) $(CFLAGS) $(MCC_INCLUDE) $(INCDIR) \
-		-o ns-config-gt $(OBJS1GT) $(SETUPSDKLINK) $(LIBLDAP) \
+		-o ns-config-gt $(OBJS1GT) $(SETUPUTILLINK) $(LIBLDAP) \
 		$(EXTRA_LIBS) $(CURSES)

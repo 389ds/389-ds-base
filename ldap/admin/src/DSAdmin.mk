@@ -62,7 +62,7 @@ ifneq ($(ARCH), WINNT)
 EXTRALDFLAGS += $(SSLLIBFLAG)
 endif
 
-EXTRA_LIBS += $(LIBPERL_A) $(SETUPSDK_S_LINK) $(LDAP_ADMLIB) \
+EXTRA_LIBS += $(LIBPERL_A) $(SETUPUTIL_S_LINK) $(LDAP_ADMLIB) \
         $(LDAPLINK) $(DEPLINK) $(ADMINUTIL_LINK) \
         $(NSPRLINK) $(NLSLINK) \
         $(NLSLINK_CONV_STATIC)
@@ -102,7 +102,7 @@ DSADMIN_BASENAME = DSAdmin$(DLL_PRESUFFIX).$(DLL_SUFFIX)
 OBJS= $(addprefix $(OBJDEST)/, $(DSADMIN_OBJS)) 
 DSADMIN_SO = $(addprefix $(BINDIR)/, $(DSADMIN_BASENAME))
 
-EXTRA_LIBS_DEP = $(SETUPSDK_DEP)
+EXTRA_LIBS_DEP = $(SETUPUTIL_DEP)
 
 # for Solaris, our most common unix build platform, we check for undefined
 # symbols at link time so we don't catch them at run time.  To do this, we

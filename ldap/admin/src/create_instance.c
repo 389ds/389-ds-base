@@ -1161,7 +1161,7 @@ char *create_server(server_config_s *cf, char *param_name)
                "        sleep 1;\n"
                "    else\n"
                "        PID=`cat $PIDFILE`\n"
-            /* rbyrne: setupsdk takes any message here as an error:
+            /* rbyrne: setuputil takes any message here as an error:
                 "        echo Server has been started. ns-slapd process started: $PID\n"*/
                "        exit 0;\n"
                "    fi\n"
@@ -1218,7 +1218,7 @@ char *create_server(server_config_s *cf, char *param_name)
                "        sleep 1;\n"
                "    else\n"
                "        PID=`cat $PIDFILE`\n"
-                /* rbyrne: setupsdk takes any message here as an error:
+                /* rbyrne: setuputil takes any message here as an error:
                "        echo Server has been started. ns-slapd process started: $PID\n"*/
                "        exit 0;\n"
                "    fi\n"
@@ -1297,7 +1297,7 @@ char *create_server(server_config_s *cf, char *param_name)
             "    fi\n"
             "    else\n"
             "        PID=`cat $PIDFILE`\n"
-            /* rbyrne: setupsdk takes any message here as an error:
+            /* rbyrne: setuputil takes any message here as an error:
             "        echo Server has been started. ns-slapd process started: $PID\n"*/
             "        exit 0;\n"
             "    fi\n"
@@ -1345,7 +1345,7 @@ char *create_server(server_config_s *cf, char *param_name)
            "        if test -f $PIDFILE ; then\n"
            "            rm -f $PIDFILE\n"
            "        fi\n"
-            /* rbyrne: setupsdk takes any message here as an error:
+            /* rbyrne: setuputil takes any message here as an error:
                "        echo Server has been stopped. ns-slapd process stopped: $PID\n"*/
            "        exit 0\n"
            "    fi\n"

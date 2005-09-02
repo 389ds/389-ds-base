@@ -37,7 +37,7 @@
 /*
  * ds_newinst.c - creates a new instance of directory server, scripts,
  * configuration, etc.  Does not create any Admin Server stuff or
- * deal with any setupsdk stuff, but may be optionally used to create
+ * deal with any setuputil stuff, but may be optionally used to create
  * and configure the config suffix (o=NetscapeRoot)
  */
 

@@ -194,12 +194,12 @@ SHAREDIR = $(SHARETOP)/$(BUILD_DATE)/$(NC_BUILD_FLAVOR)
 #ADM_VERSDIR = admserv40
 #ADM_RELDATE = untested/19980119
 #IMPORTADMINSRV = $(IMPORTADMINSRV_BASE)/$(NSOBJDIR_NAME_32)
-IMPORTADMINSRVNOTAR = $(COMPONENTS_DIR)/$(ADM_VERSDIR)/$(ADM_VERSION)/untar/$(NSOBJDIR_NAME)
+IMPORTADMINSRVNOTARBASE = $(COMPONENTS_DIR_DEV)/$(ADM_VERSDIR)/$(ADM_VERSION)/$(NSOBJDIR_NAME)
 # these are files and directories in the import adminsrv directory which we don't
 # make a local copy of, we just import directly into the tar file or create a
 # symlink to
-ADMIN_IMPORTS=setup base admin svrcore silent.inf LICENSE.txt README.txt
-ADMIN_SERVER_TARGZ=admserv.tar.gz
+ADMIN_IMPORTS=base admin
+ADMIN_SERVER_TARGZ=adminserver.tar.gz
 ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
 
 # Release directory for ldapsdk
@@ -610,9 +610,11 @@ packageDirectory: $(INSTDIR)/slapd \
 	$(INSTDIR)/tools/infozip.zip \
 	$(ADMSERV_DEP)
 
-# copy over the setup sdk stuff
-# hack - remove once admin server bundles setupsdk 6.02
-#	cp -R $(SETUP_SDK_BUILD_DIR)/bin/* $(INSTDIR)
+# this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
+ifeq ($(USE_SETUPUTIL),1)
+	cp -R $(SETUPUTIL_BINPATH)/* $(INSTDIR)
+	$(PERL) -w $(FIX_SETUP_INF) $(SETUPUTIL_BINPATH)/setup.inf $(INSTDIR)/setup.inf
+endif
 
 # copy in our product .inf files
 	$(INSTALL) -m 755 $(OBJDIR_32)/*.inf $(INSTDIR)/slapd
@@ -675,23 +677,17 @@ endif
 
 # if the untar directory is there, hooray; otherwise, we will have to unpack the
 # binaries ourselves . . .
-	@curdir=`pwd`; cd $(INSTDIR) ; \
-	if [ ! -d $(IMPORTADMINSRVNOTAR) ] ; \
+	curdir=`pwd`; cd $(INSTDIR) ; \
+	if [ ! -d $(IMPORTADMINSRVNOTARBASE)/admin ] ; \
 		then for file in $(ADMIN_IMPORTS_TARGZ) ; \
 			do rm -rf $$file ; \
 			$(GUNZIP) -c $(ADMSERV_DIR)/$$file | $(TAR) xvf - ; \
 		done ; \
-		cd $$curdir ; \
-		$(PERL) -w $(FIX_SETUP_INF) $(INSTDIR)/setup.inf \
-			$(INSTDIR)/setup.inf.tmp ; \
-		mv $(INSTDIR)/setup.inf.tmp \
-			$(INSTDIR)/setup.inf ; \
 	else \
 		for file in $(ADMIN_IMPORTS) ; \
 			do rm -rf $$file ; \
-			ln -s $(IMPORTADMINSRVNOTAR)/$$file $$file ; \
+			cp -r $(IMPORTADMINSRVNOTARBASE)/$$file $$file ; \
 		done ; \
-		$(PERL) -w $(FIX_SETUP_INF) $(IMPORTADMINSRVNOTAR)/setup.inf setup.inf ; \
 	fi
 
 # we must remove the nsbase.zip file - we package those files now
@@ -699,11 +695,6 @@ endif
 # we also need to remove the Archive directive from the [base] section of the
 # base.inf file
 	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
-
-# We must remove the JRE per Red Hat.  The user will download the jre
-ifneq ($(ARCH), Linux)
-	rm -f $(INSTDIR)/base/nsjre.zip 
-endif
 
 # Move setup binary to dssetup
 	mv $(INSTDIR)/setup $(INSTDIR)/dssetup
@@ -733,11 +724,6 @@ endif
 
 # Install dsktune at root of Installation
 	cp $(RELDIR)/bin/slapd/server/dsktune $(INSTDIR)
-
-# copy the sample silent.inf from setup
-	if [ ! -f $(INSTDIR)/silent.inf ] ; \
-	then cp $(SETUPSDK_BINPATH)/silent.inf $(INSTDIR) ; \
-	fi
 
 ifndef NO_INSTALLER_TAR_FILES
 # build the slapd package tar file

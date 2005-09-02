@@ -152,7 +152,7 @@ NSPR_LIBS_TO_PKG = $(addsuffix .$(DLL_SUFFIX),$(addprefix $(NSPR_LIBPATH)/lib,$(
 
 LIBS_TO_PKG += $(NSPR_LIBS_TO_PKG)
 LIBS_TO_PKG_SHARED += $(NSPR_LIBS_TO_PKG) # needed for cmd line tools
-ifeq ($(USE_SETUPSDK), 1)
+ifeq ($(USE_SETUPUTIL), 1)
   PACKAGE_SETUP_LIBS += $(NSPR_LIBS_TO_PKG)
 endif
 ifeq ($(USE_DSGW), 1)
@@ -237,7 +237,7 @@ SECURITY_LIBS_TO_PKG = $(addsuffix .$(DLL_SUFFIX),$(addprefix $(SECURITY_LIBPATH
 SECURITY_LIBS_TO_PKG += $(addsuffix .chk,$(addprefix $(SECURITY_LIBPATH)/$(LIB_PREFIX),$(SECURITY_NEED_CHK)))
 LIBS_TO_PKG += $(SECURITY_LIBS_TO_PKG)
 LIBS_TO_PKG_SHARED += $(SECURITY_LIBS_TO_PKG) # for cmd line tools
-ifeq ($(USE_SETUPSDK), 1)
+ifeq ($(USE_SETUPUTIL), 1)
   PACKAGE_SETUP_LIBS += $(SECURITY_LIBS_TO_PKG)
 endif
 ifeq ($(USE_DSGW), 1)
@@ -318,7 +318,7 @@ ifeq ($(ARCH), WINNT)
 
   LIBS_TO_PKG += $(addsuffix .$(DLL_SUFFIX),$(addprefix $(LDAPSDK_LIBPATH)/,$(LDAPDLL_NAME)))
   LIBS_TO_PKG_SHARED += $(addsuffix .$(DLL_SUFFIX),$(addprefix $(LDAPSDK_LIBPATH)/,$(LDAPDLL_NAME)))
-  ifeq ($(USE_SETUPSDK), 1)
+  ifeq ($(USE_SETUPUTIL), 1)
     PACKAGE_SETUP_LIBS += $(addsuffix .$(DLL_SUFFIX),$(addprefix $(LDAPSDK_LIBPATH)/,$(LDAPDLL_NAME)))
   endif
   ifeq ($(USE_DSGW), 1)
@@ -339,7 +339,7 @@ else # not WINNT
 
   LIBS_TO_PKG += $(addprefix $(LDAPSDK_LIBPATH)/,$(LDAP_SOLIBS))
   LIBS_TO_PKG_SHARED += $(addprefix $(LDAPSDK_LIBPATH)/,$(LDAP_SOLIBS))
-  ifeq ($(USE_SETUPSDK), 1)
+  ifeq ($(USE_SETUPUTIL), 1)
     PACKAGE_SETUP_LIBS += $(addprefix $(LDAPSDK_LIBPATH)/,$(LDAP_SOLIBS))
   endif
   ifeq ($(USE_DSGW), 1)
