@@ -47,6 +47,18 @@ static Slapi_PluginDesc sha_pdesc = { "sha-password-storage-scheme", PLUGIN_MAGI
 
 static Slapi_PluginDesc ssha_pdesc = { "ssha-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Salted Secure Hashing Algorithm (SSHA)" };
 
+static Slapi_PluginDesc sha256_pdesc = { "sha256-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Secure Hashing Algorithm (SHA256)" };
+
+static Slapi_PluginDesc ssha256_pdesc = { "ssha256-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Salted Secure Hashing Algorithm (SSHA256)" };
+
+static Slapi_PluginDesc sha384_pdesc = { "sha384-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Secure Hashing Algorithm (SHA384)" };
+
+static Slapi_PluginDesc ssha384_pdesc = { "ssha384-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Salted Secure Hashing Algorithm (SSHA384)" };
+
+static Slapi_PluginDesc sha512_pdesc = { "sha512-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Secure Hashing Algorithm (SHA512)" };
+
+static Slapi_PluginDesc ssha512_pdesc = { "ssha512-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Salted Secure Hashing Algorithm (SSHA512)" };
+
 #ifndef _WIN32
 static Slapi_PluginDesc crypt_pdesc = { "crypt-password-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Unix crypt algorithm (CRYPT)" };
 #endif
@@ -106,6 +118,153 @@ ssha_pwd_storage_scheme_init( Slapi_PBlock *pb )
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
+}
+
+int
+sha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+        int     rc;
+        char *name;
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha256_pwd_storage_scheme_init\n" );
+
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+            (void *) SLAPI_PLUGIN_VERSION_01 );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+            (void *)&sha256_pdesc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+            (void *) sha256_pw_enc);
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+            (void *) sha256_pw_cmp );
+        name = slapi_ch_strdup("SHA256");
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+            name );
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha256_pwd_storage_scheme_init %d\n\n", rc );
+
+        return( rc );
+}
+
+int
+ssha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+        int     rc;
+        char *name;
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha256_pwd_storage_scheme_init\n" );
+
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+            (void *) SLAPI_PLUGIN_VERSION_01 );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+            (void *)&ssha256_pdesc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+            (void *) salted_sha256_pw_enc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+            (void *) sha256_pw_cmp );
+        name = slapi_ch_strdup("SSHA256");
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+            name );
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha256_pwd_storage_scheme_init %d\n\n", rc );
+        return( rc );
+}
+
+int
+sha384_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+        int     rc;
+        char *name;
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha384_pwd_storage_scheme_init\n" );
+
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+            (void *) SLAPI_PLUGIN_VERSION_01 );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+            (void *)&sha384_pdesc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+            (void *) sha384_pw_enc);
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+            (void *) sha384_pw_cmp );
+        name = slapi_ch_strdup("SHA384");
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+            name );
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha384_pwd_storage_scheme_init %d\n\n", rc );
+
+        return( rc );
+}
+
+int
+ssha384_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+        int     rc;
+        char *name;
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha384_pwd_storage_scheme_init\n" );
+
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+            (void *) SLAPI_PLUGIN_VERSION_01 );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+            (void *)&ssha384_pdesc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+            (void *) salted_sha384_pw_enc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+            (void *) sha384_pw_cmp );
+        name = slapi_ch_strdup("SSHA384");
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+            name );
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha384_pwd_storage_scheme_init %d\n\n", rc );
+        return( rc );
+}
+
+int
+sha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+        int     rc;
+        char *name;
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha512_pwd_storage_scheme_init\n" );
+
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+            (void *) SLAPI_PLUGIN_VERSION_01 );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+            (void *)&sha512_pdesc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+            (void *) sha512_pw_enc);
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+            (void *) sha512_pw_cmp );
+        name = slapi_ch_strdup("SHA512");
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+            name );
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha512_pwd_storage_scheme_init %d\n\n", rc );
+
+        return( rc );
+}
+
+int
+ssha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+        int     rc;
+        char *name;
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha512_pwd_storage_scheme_init\n" );
+
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+            (void *) SLAPI_PLUGIN_VERSION_01 );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+            (void *)&ssha512_pdesc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+            (void *) salted_sha512_pw_enc );
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+            (void *) sha512_pw_cmp );
+        name = slapi_ch_strdup("SSHA512");
+        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+            name );
+
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha512_pwd_storage_scheme_init %d\n\n", rc );
+        return( rc );
 }
 
 #ifndef _WIN32

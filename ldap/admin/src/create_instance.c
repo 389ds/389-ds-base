@@ -3194,12 +3194,72 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "\n");
 
+    fprintf(f, "dn: cn=SSHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SSHA256\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: ssha256_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=SSHA384,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SSHA384\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: ssha384_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=SSHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SSHA512\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: ssha512_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
+
     fprintf(f, "dn: cn=SHA,cn=Password Storage Schemes,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SHA\n");
     fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: sha_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SHA256\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: sha256_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=SHA384,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SHA384\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: sha384_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: SHA512\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: sha512_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "\n");
