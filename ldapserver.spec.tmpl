@@ -55,6 +55,8 @@ BuildPreReq: perl, fileutils, make
 # Without Autoreq: 0, rpmbuild finds all sorts of crazy
 # dependencies that we don't care about, and refuses to install
 Autoreq: 0
+# Don't automatically generate provides list
+AutoProv: 0
 # Without Requires: something, rpmbuild will abort!
 Requires: perl
 Prefix: /opt/%{name}
