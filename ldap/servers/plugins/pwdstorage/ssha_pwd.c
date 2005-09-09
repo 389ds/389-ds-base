@@ -53,7 +53,7 @@
 #include <pk11pqg.h>
 #endif /* NET_SSL */
 
-#define SHA1_SALT_LENGTH    8   /* number of bytes of data in salt */
+#define SHA_SALT_LENGTH    8   /* number of bytes of data in salt */
 
 static void ssha_rand_array(void *randx, size_t len);
 
@@ -70,75 +70,146 @@ ssha_rand_array(void *randx, size_t len)
     PK11_GenerateRandom((unsigned char *)randx, (int)len);
 }
 
-/*
- * A salted SHA1 hash
- * if salt is null, no salt is used (this is for backward compatibility)
-*/
 SECStatus
-sha1_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt)
+sha_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt, unsigned int secOID)
 {
     PK11Context *ctx;
     unsigned int outLen;
+    unsigned int shaLen;
     SECStatus rc;
+                                                                                                                            
+    switch (secOID) {
+        case SEC_OID_SHA1:
+            shaLen = SHA1_LENGTH;
+            break;
+        case SEC_OID_SHA256:
+            shaLen = SHA256_LENGTH;
+            break;
+        case SEC_OID_SHA384:
+            shaLen = SHA384_LENGTH;
+            break;
+        case SEC_OID_SHA512:
+            shaLen = SHA512_LENGTH;
+            break;
+        default:
+            /* An unknown secOID was passed in.  We shouldn't get here. */
+            rc = SECFailure;
+            return rc;
+    }
 
     if (salt && salt->bv_len) {
-        ctx = PK11_CreateDigestContext(SEC_OID_SHA1);
-		if (ctx == NULL) {
-			rc = SECFailure;
-		}
-		else {
-        	PK11_DigestBegin(ctx);
-        	PK11_DigestOp(ctx, (unsigned char*)pwd, strlen(pwd));
-        	PK11_DigestOp(ctx, (unsigned char*)(salt->bv_val), salt->bv_len);
-        	PK11_DigestFinal(ctx, hash_out, &outLen, SHA1_LENGTH);
-        	PK11_DestroyContext(ctx, 1);
-        	if (outLen == SHA1_LENGTH)
-            	rc = SECSuccess;
-        	else
-            	rc = SECFailure;
-		}
+        ctx = PK11_CreateDigestContext(secOID);
+        if (ctx == NULL) {
+            rc = SECFailure;
+        } else {
+            PK11_DigestBegin(ctx);
+            PK11_DigestOp(ctx, (unsigned char*)pwd, strlen(pwd));
+            PK11_DigestOp(ctx, (unsigned char*)(salt->bv_val), salt->bv_len);
+            PK11_DigestFinal(ctx, hash_out, &outLen, shaLen);
+            PK11_DestroyContext(ctx, 1);
+            if (outLen == shaLen)
+                rc = SECSuccess;
+            else
+                rc = SECFailure;
+        }
     }
     else {
         /*backward compatibility*/
-        rc = PK11_HashBuf(SEC_OID_SHA1, hash_out, (unsigned char *)pwd, strlen(pwd));
+        rc = PK11_HashBuf(secOID, hash_out, (unsigned char *)pwd, strlen(pwd));
     }
-
+                                                                                                                            
     return rc;
 }
 
 char *
-salted_sha1_pw_enc( char *pwd )
+salted_sha_pw_enc( char *pwd, unsigned int shaLen )
 {
-    unsigned char hash[ SHA1_LENGTH + SHA1_SALT_LENGTH ];
-    unsigned char *salt = hash + SHA1_LENGTH;
+    unsigned char hash[ MAX_SHA_HASH_SIZE + SHA_SALT_LENGTH ];
+    unsigned char *salt = hash + shaLen;
     struct berval saltval;
     char *enc;
-
+    char *schemeName;
+    unsigned int schemeNameLen;
+    unsigned int secOID;
+                                                                                                                            
+    /* Determine which algorithm we're using */
+    switch (shaLen) {
+        case SHA1_LENGTH:
+            schemeName = SALTED_SHA1_SCHEME_NAME;
+            schemeNameLen = SALTED_SHA1_NAME_LEN;
+            secOID = SEC_OID_SHA1;
+            break;
+        case SHA256_LENGTH:
+            schemeName = SALTED_SHA256_SCHEME_NAME;
+            schemeNameLen = SALTED_SHA256_NAME_LEN;
+            secOID = SEC_OID_SHA256;
+            break;
+        case SHA384_LENGTH:
+            schemeName = SALTED_SHA384_SCHEME_NAME;
+            schemeNameLen = SALTED_SHA384_NAME_LEN;
+            secOID = SEC_OID_SHA384;
+            break;
+        case SHA512_LENGTH:
+            schemeName = SALTED_SHA512_SCHEME_NAME;
+            schemeNameLen = SALTED_SHA512_NAME_LEN;
+            secOID = SEC_OID_SHA512;
+            break;
+        default:
+            /* An unknown shaLen was passed in.  We shouldn't get here. */
+            return( NULL );
+    }
+                                                                                                                            
     saltval.bv_val = (void*)salt;
-    saltval.bv_len = SHA1_SALT_LENGTH;
-
+    saltval.bv_len = SHA_SALT_LENGTH;
+                                                                                                                            
     /* generate a new random salt */
-	/* Note: the uninitialized salt array provides a little extra entropy
-	 * to the random array generation, but it is not really needed since
-	 * PK11_GenerateRandom takes care of seeding. In any case, it doesn't
-	 * hurt. */
-	ssha_rand_array( salt, SHA1_SALT_LENGTH );
-
-    /* SHA1 hash the user's key */
-    if ( sha1_salted_hash( hash, pwd, &saltval ) != SECSuccess ) {
+        /* Note: the uninitialized salt array provides a little extra entropy
+         * to the random array generation, but it is not really needed since
+         * PK11_GenerateRandom takes care of seeding. In any case, it doesn't
+         * hurt. */
+        ssha_rand_array( salt, SHA_SALT_LENGTH );
+                                                                                                                            
+    /* hash the user's key */
+    if ( sha_salted_hash( hash, pwd, &saltval, secOID ) != SECSuccess ) {
         return( NULL );
     }
-
-    if (( enc = slapi_ch_malloc( 3 + SALTED_SHA1_NAME_LEN +
+                                                                                                                            
+    if (( enc = slapi_ch_malloc( 3 + schemeNameLen +
         LDIF_BASE64_LEN(sizeof(hash)))) == NULL ) {
         return( NULL );
     }
-
-    sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, SALTED_SHA1_SCHEME_NAME,
+                                                                                                                            
+    sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName,
         PWD_HASH_PREFIX_END );
-    (void)ldif_base64_encode( hash, enc + 2 + SALTED_SHA1_NAME_LEN,
+    (void)ldif_base64_encode( hash, enc + 2 + schemeNameLen,
         sizeof(hash), -1 );
-
+                                                                                                                            
     return( enc );
 }
 
+/*
+ * Wrapper functions for password encoding
+ */
+char *
+salted_sha1_pw_enc( char *pwd )
+{
+    return salted_sha_pw_enc( pwd, SHA1_LENGTH );
+}
+
+char *
+salted_sha256_pw_enc( char *pwd )
+{
+    return salted_sha_pw_enc( pwd, SHA256_LENGTH );
+}
+
+char *
+salted_sha384_pw_enc( char *pwd )
+{
+    return salted_sha_pw_enc( pwd, SHA384_LENGTH );
+}
+
+char *
+salted_sha512_pw_enc( char *pwd )
+{
+    return salted_sha_pw_enc( pwd, SHA512_LENGTH );
+}

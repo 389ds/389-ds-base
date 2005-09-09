@@ -39,6 +39,11 @@
 
 #include "pam_passthru.h"
 
+/*
+ * PAM is not thread safe.  We have to execute any PAM API calls in
+ * a critical section.  This is the lock that protects that code.
+ */
+static Slapi_Mutex *PAMLock;
 
 /* Utility struct to wrap strings to avoid mallocs if possible - use
    stack allocated string space */
@@ -271,6 +276,8 @@ do_one_pam_auth(
 	my_data.pb = pb;
 	my_data.pam_identity = pam_id.str;
 	my_pam_conv.appdata_ptr = &my_data;
+	slapi_lock_mutex(PAMLock);
+	/* from this point on we are in the critical section */
 	rc = pam_start(pam_service, pam_id.str, &my_pam_conv, &pam_handle);
 	report_pam_error("during pam_start", rc, pam_handle);
 
@@ -351,6 +358,8 @@ do_one_pam_auth(
 
 	rc = pam_end(pam_handle, rc);
 	report_pam_error("during pam_end", rc, pam_handle);
+	slapi_unlock_mutex(PAMLock);
+	/* not in critical section any more */
 
 	delete_my_str_buf(&pam_id);
 
@@ -373,6 +382,20 @@ do_one_pam_auth(
 	}
 
 	return retcode;
+}
+
+/*
+ * Perform any PAM subsystem initialization that must be done at startup time.
+ * For now, this means only the PAM mutex since PAM is not thread safe.
+ */
+int
+pam_passthru_pam_init( void )
+{
+	if (!(PAMLock = slapi_new_mutex())) {
+		return LDAP_LOCAL_ERROR;
+	}
+
+	return 0;
 }
 
 /*

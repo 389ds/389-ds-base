@@ -419,7 +419,7 @@ sub getChangelogVersion {
 sub instantiate_new_scripts {
 
   @newtemplates = (
-    "$sroot/bin/slapd/admin/scripts/template-ns-newpwpolicy.pl"
+    "$sroot/bin/slapd/admin/scripts/template-db2index.pl"
   );
 
   $host = localhost;
@@ -435,7 +435,6 @@ sub instantiate_new_scripts {
 
   foreach $src ( @newtemplates ) {
     $dest = "$sroot/$prefix/$1" if $src =~ /.*template-(.*)$/;
-    next if -f $dest;
     unless ( open ( template, $src )) {
       print "Can't open $src: $!\n";
       next;
@@ -451,6 +450,7 @@ sub instantiate_new_scripts {
       s#{{ROOT-DN}}#$rootdn#g;
       s#{{SERVER-PORT}}#$port#g;
       s#{{SERVER-NAME}}#$host#g;
+      s#{{MY-DS-ROOT}}#$sroot/$prefix#g;
       printf target;
     }
     close template;

@@ -79,7 +79,7 @@ help:
 	@echo "   USE_ORGCHART=1    - build/bundle the Org Chart webapp"
 	@echo "   USE_DSGW=1        - build/bundle the Phonebook/DS Gateway webapp"
 	@echo "   USE_JAVATOOLS=1   - build/bundle the Java command line tools"
-	@echo "   USE_SETUPSDK=1    - build/bundle programs that use Setup SDK"
+	@echo "   USE_SETUPUTIL=1    - build/bundle programs that use Setuputil"
 
 ###### Implementation notes:
 #
@@ -131,7 +131,7 @@ help:
 
 ifeq ($(INTERNAL_BUILD), 1)
   COMPONENT_DEPENDENCIES = $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(DBM_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
-	$(ICU_DEP) $(SETUPSDK_DEP) $(LDAPSDK_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(NETSNMP_DEP) \
+	$(ICU_DEP) $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(NETSNMP_DEP) \
 	$(AXIS_DEP) $(DSMLJAR_DEP) $(DSDOC_DEP) $(ADSYNC_DEP) $(NT4SYNC_DEP)
 endif
 
@@ -206,9 +206,14 @@ brandDirectory: $(RELTOOLSPATH)/brandver.pl
 	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat -s redhat-ds.spec
 	@echo ==== Finished Branding LDAP Server ==========
 
+debrandDirectory: $(RELTOOLSPATH)/brandver.pl
+	@echo ==== Debranding LDAP Server ==========
+	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/brandver.dat -s fedora-ds.spec
+	@echo ==== Finished Debranding LDAP Server ==========
+
 normalizeDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Normalizing LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/normalize.dat -s redhat-ds.spec
+	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/normalize.dat -s redhat-ds.spec
 	@echo ==== Normalizing Branding LDAP Server ==========
 
 buildAndPkgDirectory:	buildDirectory pkgDirectory
@@ -311,7 +316,7 @@ Longduration:
 
 setupDirectory:
 	cd ldap/cm; $(MAKE) $(MFLAGS) releaseDirectory;
-ifeq ($(USE_SETUPSDK), 1)
+ifeq ($(USE_SETUPUTIL), 1)
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageDirectory;
 endif
 

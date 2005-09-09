@@ -268,18 +268,24 @@ attrlist_delete(Slapi_Attr **attrs, const char *type)
 
 /*
  * attrlist_replace - replace the attribute value(s) with this value(s)
+ *
+ * Returns
+ * LDAP_SUCCESS - OK (including the attr not found)
+ * LDAP_OPERATIONS_ERROR - Existing duplicates in attribute.
  */
-void attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals)
+int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals)
 {
     Slapi_Attr **a = NULL;
     Slapi_Value **values = NULL;
+    int rc = LDAP_SUCCESS;
 
     if (vals == NULL || vals[0] == NULL) {
         (void)attrlist_delete(alist, type);
     } else {
         attrlist_find_or_create(alist, type, &a);
         valuearray_init_bervalarray(vals, &values);
-        attr_replace(*a, values);
+        rc = attr_replace(*a, values);
     }
+    return rc;
 }
 

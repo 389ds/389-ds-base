@@ -206,11 +206,6 @@ SlapdPreInstall::init()
 
    if (installMode() != Silent)
    {
-/* richm 20011005 - we can't do this until we get setupsdk46 - if ever
-      if (iDSISolaris)
-         Dialog::initDisplay("Directory", (const char *) NULL, "Configuration");
-      else
-*/
 	 Dialog::initDisplay("Directory");
    }
 

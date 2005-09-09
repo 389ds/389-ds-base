@@ -190,7 +190,7 @@ END
 IDD_SUITESPOTID DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION 
-"Directory Server 7.0 Fedora configuration directory server administrator "
+"Directory Server 7.1 Fedora configuration directory server administrator "
 
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -489,7 +489,7 @@ END
 IDD_ADMIN_ID_ONLY DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION 
-"Directory Server 7.0 Fedora configuration directory server administrator "
+"Directory Server 7.1 Fedora configuration directory server administrator "
 
 FONT 8, "MS Sans Serif"
 BEGIN

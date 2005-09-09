@@ -49,21 +49,49 @@
 #define PWD_HASH_PREFIX_START   '{'
 #define PWD_HASH_PREFIX_END '}'
 
+#define MAX_SHA_HASH_SIZE  64
+
 #define SHA1_SCHEME_NAME    "SHA"
 #define SHA1_NAME_LEN       3
 #define SALTED_SHA1_SCHEME_NAME "SSHA"
 #define SALTED_SHA1_NAME_LEN        4
+#define SHA256_SCHEME_NAME        "SHA256"
+#define SHA256_NAME_LEN           6
+#define SALTED_SHA256_SCHEME_NAME "SSHA256"
+#define SALTED_SHA256_NAME_LEN    7
+#define SHA384_SCHEME_NAME        "SHA384"
+#define SHA384_NAME_LEN           6
+#define SALTED_SHA384_SCHEME_NAME "SSHA384"
+#define SALTED_SHA384_NAME_LEN    7
+#define SHA512_SCHEME_NAME        "SHA512"
+#define SHA512_NAME_LEN           6
+#define SALTED_SHA512_SCHEME_NAME "SSHA512"
+#define SALTED_SHA512_NAME_LEN    7
 #define CRYPT_SCHEME_NAME   "crypt"
 #define CRYPT_NAME_LEN      5
 #define NS_MTA_MD5_SCHEME_NAME  "NS-MTA-MD5"
 #define NS_MTA_MD5_NAME_LEN 10
 #define CLEARTEXT_SCHEME_NAME "clear"
 #define CLEARTEXT_NAME_LEN  5
+#define MD5_SCHEME_NAME "MD5"
+#define MD5_NAME_LEN 3
 
-SECStatus sha1_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt);
+SECStatus sha_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt, unsigned int secOID);
+int sha_pw_cmp( char *userpwd, char *dbpwd, unsigned int shaLen );
+char * sha_pw_enc( char *pwd, unsigned int shaLen );
+char * salted_sha_pw_enc( char *pwd, unsigned int shaLen );
 int sha1_pw_cmp( char *userpwd, char *dbpwd );
 char * sha1_pw_enc( char *pwd );
 char * salted_sha1_pw_enc( char *pwd );
+int sha256_pw_cmp( char *userpwd, char *dbpwd );
+char * sha256_pw_enc( char *pwd );
+char * salted_sha256_pw_enc( char *pwd );
+int sha384_pw_cmp( char *userpwd, char *dbpwd );
+char * sha384_pw_enc( char *pwd );
+char * salted_sha384_pw_enc( char *pwd );
+int sha512_pw_cmp( char *userpwd, char *dbpwd );
+char * sha512_pw_enc( char *pwd );
+char * salted_sha512_pw_enc( char *pwd );
 int clear_pw_cmp( char *userpwd, char *dbpwd );
 char *clear_pw_enc( char *pwd );
 #ifndef _WIN32
@@ -72,6 +100,8 @@ int crypt_pw_cmp( char *userpwd, char *dbpwd );
 char *crypt_pw_enc( char *pwd );
 #endif
 int ns_mta_md5_pw_cmp( char *userpwd, char *dbpwd );
+int md5_pw_cmp( char *userpwd, char *dbpwd );
+char *md5_pw_enc( char *pwd );
 
 
 #if !defined(NET_SSL)
@@ -117,6 +147,9 @@ typedef enum DSStatusEnum {
  * Number of bytes each hash algorithm produces
  */
 #define SHA1_LENGTH     20
+#define SHA256_LENGTH   32
+#define SHA384_LENGTH   48
+#define SHA512_LENGTH   64
  
 /******************************************/
 /*

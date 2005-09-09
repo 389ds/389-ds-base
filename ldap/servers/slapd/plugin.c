@@ -463,8 +463,11 @@ plugin_get_pwd_storage_scheme(char *name, int len, int index)
 	struct slapdplugin *p;
 
 	for ( p = global_plugin_list[index]; p != NULL; p = p->plg_next ) {
-		if (strncasecmp(p->plg_pwdstorageschemename, name, len) == 0) 
-			return( p );
+		if (strlen(p->plg_pwdstorageschemename) == len) {
+			if (strncasecmp(p->plg_pwdstorageschemename, name, len) == 0) {
+				return( p );
+			}
+		}
 	}
 	return( NULL );
 }

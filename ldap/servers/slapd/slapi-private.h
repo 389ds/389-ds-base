@@ -778,6 +778,7 @@ void valuearray_add_value(Slapi_Value ***vals, const Slapi_Value *addval);
 void valuearray_add_value_fast(Slapi_Value ***vals, Slapi_Value *addval, int nvals, int *maxvals, int exact, int passin);
 void valuearray_add_valuearray( Slapi_Value ***vals, Slapi_Value **addvals, PRUint32 flags );
 void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals, int nvals, int naddvals, int *maxvals, int exact, int passin );
+int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
 
 
 /******************************************************************************

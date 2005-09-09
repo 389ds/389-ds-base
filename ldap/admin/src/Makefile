@@ -95,8 +95,8 @@ ifeq ($(USE_ADMINSERVER), 1)
   EXTRA_LIBS += $(ADMINUTIL_LINK)
 endif
 EXTRA_LIBS += $(SECURITYLINK) $(NSPRLINK)
-ifeq ($(USE_SETUPSDK), 1)
-  EXTRA_LIBS += $(SETUPSDK_S_LINK)
+ifeq ($(USE_SETUPUTIL), 1)
+  EXTRA_LIBS += $(SETUPUTIL_S_LINK)
 endif
 EXTRA_LIBS += $(ICULINK) $(OLD_EXTRA_LIBS)
 
@@ -220,7 +220,7 @@ endif
 
 ifeq ($(ARCH), WINNT)
 OBJECTS += namegen.o latest_file.o
-ifeq ($(USE_SETUPSDK), 1)
+ifeq ($(USE_SETUPUTIL), 1)
   OBJECTS += ds_remove_uninst.o
 endif
 endif
@@ -308,7 +308,7 @@ $(BINDIR)/ds_create.exe:	$(OBJDEST)/instindex.o $(OBJDEST)/cfg_sspt.o \
 	$(LINK_EXE) $(NT_NOLIBS) $(OBJDEST)/instindex.o \
 		$(OBJDEST)/create_instance.o $(OBJDEST)/cfg_sspt.o \
 		$(OBJDEST)/configure_instance.o $(OBJDEST)/script-gen.o \
-		$(SETUPSDK_S_LINK) $(LDAP_SDK_LIBS) $(LIBNT) \
+		$(SETUPUTIL_S_LINK) $(LDAP_SDK_LIBS) $(LIBNT) \
 		$(NSPRLINK) $(EXTRA_LIBS) $(DB_LIB)
 # linking this file causes a .exp and a .lib file to be generated which don't seem
 # to be required while running, so I get rid of them
@@ -317,10 +317,10 @@ $(BINDIR)/ds_create.exe:	$(OBJDEST)/instindex.o $(OBJDEST)/cfg_sspt.o \
 $(BINDIR)/ds_remove:  $(OBJDEST)/ds_remove.o $(OBJDEST)/ds_remove_uninst.o $(DEPLIBS) $(EXTRA_LIBS_DEP)
 	$(LINK_EXE_NOLIBSOBJS)  $(SHARED) $(EXTRALDFLAGS) \
 		$(OBJDEST)/ds_remove.o $(OBJDEST)/ds_remove_uninst.o $(OBJDEST)/init_ds_env.o \
-		$(SETUPSDK_S_LINK) $(GLUEOBJ) $(EXTRA_LIBS)
+		$(SETUPUTIL_S_LINK) $(GLUEOBJ) $(EXTRA_LIBS)
 
 $(BINDIR)/ds_remove.exe:  $(OBJDEST)/ds_remove.o $(OBJDEST)/ds_remove_uninst.o $(DEPLIBS) $(EXTRA_LIBS_DEP)
-	$(LINK_EXE) $(OBJDEST)/ds_remove_uninst.o $(OBJDEST)/ds_remove.o $(OBJDEST)/init_ds_env.o $(LDAP_SDK_LIBS) $(NSPRLINK) $(SETUPSDK_S_LINK) $(NT_NOLIBS)
+	$(LINK_EXE) $(OBJDEST)/ds_remove_uninst.o $(OBJDEST)/ds_remove.o $(OBJDEST)/init_ds_env.o $(LDAP_SDK_LIBS) $(NSPRLINK) $(SETUPUTIL_S_LINK) $(NT_NOLIBS)
 # linking this file causes a .exp and a .lib file to be generated which don't seem
 # to be required while running, so I get rid of them
 	$(RM) $(subst .exe,.exp,$@) $(subst .exe,.lib,$@)
@@ -330,9 +330,9 @@ $(OBJDEST)/%.o: %.c
 
 $(OBJDEST)/%.o: %.cpp
 ifeq ($(ARCH), WINNT)
-	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) $(SETUPSDK_INCLUDE) $< $(OFFLAG)$@
+	$(CC) -c $(CFLAGS) $(MCC_INCLUDE) $(SETUPUTIL_INCLUDE) $< $(OFFLAG)$@
 else
-	$(CXX) $(EXCEPTIONS) -c $(CFLAGS) $(MCC_INCLUDE) $(SETUPSDK_INCLUDE) $< $(OFFLAG)$@
+	$(CXX) $(EXCEPTIONS) -c $(CFLAGS) $(MCC_INCLUDE) $(SETUPUTIL_INCLUDE) $< $(OFFLAG)$@
 endif
 
 ifneq ($(ARCH), WINNT)

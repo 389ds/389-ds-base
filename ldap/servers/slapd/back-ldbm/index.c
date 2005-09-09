@@ -453,35 +453,120 @@ index_add_mods(
 )
 {
     int rc = 0;
-    int i;
-    Slapi_Attr *attr;
+    int i, j;
     ID 	id = olde->ep_id;
-    Slapi_Value **svals = NULL;
+    int flags = 0;
+    char buf[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
+    char *basetype = NULL;
+    char *tmp = NULL;
+    Slapi_Attr *curr_attr = NULL;
+    Slapi_ValueSet *all_vals = NULL;
+    Slapi_ValueSet *mod_vals = NULL;
+    Slapi_Value **evals = NULL;               /* values that still exist after a
+                                               * delete.
+                                               */
+    Slapi_Value **mods_valueArray = NULL;     /* values that are specified in this
+                                               * operation.
+                                               */
+    Slapi_Value **deleted_valueArray = NULL;  /* values whose index entries
+                                               * should be deleted.
+                                               */
 
     for ( i = 0; mods[i] != NULL; i++ ) {
+        /* Get base attribute type */
+        basetype = buf;
+        tmp = slapi_attr_basetype(mods[i]->mod_type, buf, sizeof(buf));
+        if(tmp != NULL) {
+            basetype = tmp; /* basetype was malloc'd */
+        }
+
+        /* Get a list of all remaining values for the base type
+         * and any present subtypes.
+         */
+        all_vals = slapi_valueset_new();
+
+        for (curr_attr = newe->ep_entry->e_attrs; curr_attr != NULL; curr_attr = curr_attr->a_next) {
+            if (slapi_attr_type_cmp( basetype, curr_attr->a_type, SLAPI_TYPE_CMP_BASE ) == 0) {
+                valueset_add_valuearray(all_vals, attr_get_present_values(curr_attr));
+            }
+        }
+ 
+        evals = valueset_get_valuearray(all_vals);
+
+        /* Get a list of all values specified in the operation.
+         */
+        if ( mods[i]->mod_bvalues != NULL ) {
+            valuearray_init_bervalarray(mods[i]->mod_bvalues,
+                                        &mods_valueArray);
+        }
+
         switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) {
         case LDAP_MOD_REPLACE:
-            /* We need to first remove the old values from the 
-             * index. */
-            if ( slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &attr ) == 0 &&
-                 (svals = attr_get_present_values(attr)) != NULL ) {
-                index_addordel_values_sv( be, mods[i]->mod_type,
-                                          svals, NULL, id, 
-                                          BE_INDEX_DEL|BE_INDEX_PRESENCE,
-                                          txn );
+            flags = BE_INDEX_DEL;
+            /* Get a list of all values being deleted.
+             */
+            mod_vals = slapi_valueset_new();
+
+            for (curr_attr = olde->ep_entry->e_attrs; curr_attr != NULL; curr_attr = curr_attr->a_next) {
+                if (slapi_attr_type_cmp( mods[i]->mod_type, curr_attr->a_type, SLAPI_TYPE_CMP_EXACT ) == 0) {
+                    valueset_add_valuearray(mod_vals, attr_get_present_values(curr_attr));
+                }
             }
+                                                                                                                            
+            deleted_valueArray = valueset_get_valuearray(mod_vals);
+
+            /* If subtypes exist, don't remove the presence
+             * index.
+             */
+            if ( evals != NULL && deleted_valueArray != NULL) {
+                /* evals will contain the new value that is being
+                 * added as part of the replace operation if one
+                 * was specified.  We must remove this value from
+                 * evals to know if any subtypes are present.
+                 */
+                slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr );
+                if ( mods_valueArray != NULL ) {
+                    for ( j = 0; mods_valueArray[j] != NULL; j++ ) {
+                        valuearray_remove_value(curr_attr, evals, mods_valueArray[j]);
+                    }
+                }
+
+                /* Search evals for the values being deleted.  If
+                 * they don't exist, delete the equality index.
+                 */
+                for ( j = 0; deleted_valueArray[j] != NULL; j++ ) {
+                    if (valuearray_find(curr_attr, evals, deleted_valueArray[j]) == -1) {
+                        if (!(flags & BE_INDEX_EQUALITY)) {
+                            flags |= BE_INDEX_EQUALITY;
+                        }
+                    } else {
+                        /* Remove duplicate value from deleted value array */
+                        valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                        j--;
+                    }
+                }
+            } else {
+                flags |= BE_INDEX_PRESENCE|BE_INDEX_EQUALITY;
+            }
+
+            /* We need to first remove the old values from the 
+             * index, if any. */
+            if (deleted_valueArray) {
+                index_addordel_values_sv( be, mods[i]->mod_type,
+                                          deleted_valueArray, evals, id, 
+                                          flags, txn );
+            }
+
+            /* Free valuearray */
+            slapi_valueset_free(mod_vals);
         case LDAP_MOD_ADD:
-            if ( mods[i]->mod_bvalues == NULL ) {
+            if ( mods_valueArray == NULL ) {
                 rc = 0;
             } else {
-				Slapi_Value **mods_valueArray = NULL;
-				valuearray_init_bervalarray(mods[i]->mod_bvalues,
-					 	&mods_valueArray);
                 rc = index_addordel_values_sv( be,
                                             mods[i]->mod_type, 
                                             mods_valueArray, NULL,
                                             id, BE_INDEX_ADD, txn );
-				valuearray_free(&mods_valueArray);
             }
             break;
 
@@ -489,43 +574,91 @@ index_add_mods(
             if ( (mods[i]->mod_bvalues == NULL) ||
 					 (mods[i]->mod_bvalues[0] == NULL) ) {
                 rc = 0;
-                /* if no value are specified all the values will
-                 * be suppressed -> remove the presence index
+                flags = BE_INDEX_DEL;
+
+                /* Get a list of all values that are being
+                 * deleted.
                  */
-                if ( slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &attr ) == 0 &&
-                     (svals = attr_get_present_values(attr)) != NULL ) {
-                    index_addordel_values_sv( be, mods[i]->mod_type,
-                                              svals, NULL, id, BE_INDEX_DEL|BE_INDEX_PRESENCE, txn);
+                mod_vals = slapi_valueset_new();
+
+                for (curr_attr = olde->ep_entry->e_attrs; curr_attr != NULL; curr_attr = curr_attr->a_next) {
+                        if (slapi_attr_type_cmp( mods[i]->mod_type, curr_attr->a_type, SLAPI_TYPE_CMP_EXACT ) == 0) {
+                            valueset_add_valuearray(mod_vals, attr_get_present_values(curr_attr));
+                        }
                 }
+
+                deleted_valueArray = valueset_get_valuearray(mod_vals);
+
+                /* If subtypes exist, don't remove the
+                 * presence index.
+                 */
+                if (evals != NULL) {
+                    for (curr_attr = newe->ep_entry->e_attrs; (curr_attr != NULL);
+                         curr_attr = curr_attr->a_next) {
+                        if (slapi_attr_type_cmp( basetype, curr_attr->a_type, SLAPI_TYPE_CMP_BASE ) == 0) {
+                            /* Check if the any values being deleted
+                             * also exist in a subtype.
+                             */
+                            for ( j=0; deleted_valueArray[j] != NULL; j++) {
+                                if ( valuearray_find(curr_attr, evals, deleted_valueArray[j]) == -1 ) {
+                                    /* If the equality flag isn't already set, set it */
+                                    if (!(flags & BE_INDEX_EQUALITY)) {
+                                        flags |= BE_INDEX_EQUALITY;
+                                    }
+                                } else {
+                                    /* Remove duplicate value from the mod list */
+                                    valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                                    j--;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    flags = BE_INDEX_DEL|BE_INDEX_PRESENCE|BE_INDEX_EQUALITY;
+                }
+
+		/* Update the index */
+                index_addordel_values_sv( be, mods[i]->mod_type,
+                                              deleted_valueArray, evals, id, flags, txn);
+
+                slapi_valueset_free(mod_vals);
             } else {
+
                 /* determine if the presence key should be
                  * removed (are we removing the last value
                  * for this attribute?)
                  */
-                int flags = BE_INDEX_DEL;
-                Slapi_Value ** svals = NULL;
-                Slapi_Value **mods_valueArray = NULL;
-
-                valuearray_init_bervalarray(mods[i]->mod_bvalues,
-                                            &mods_valueArray);
-
-                if (slapi_entry_attr_find(newe->ep_entry,
-                                          mods[i]->mod_type, &attr) == 0) {
-                    svals = attr_get_present_values(attr);
+                if (evals == NULL || evals[0] == NULL) {
+                    flags = BE_INDEX_DEL|BE_INDEX_PRESENCE;
+                } else {
+                    flags = BE_INDEX_DEL;
                 }
 
-                if (svals == NULL || svals[0] == NULL) {
-                    flags |= BE_INDEX_PRESENCE;
-                }
+		/* If the same value doesn't exist in a subtype, set
+		 * BE_INDEX_EQUALITY flag so the equality index is
+		 * removed.
+		 */
+		slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr);
+                for (j = 0; mods_valueArray[j] != NULL; j++ ) {
+		    if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) == -1 ) {
+                        if (!(flags & BE_INDEX_EQUALITY)) {
+		            flags |= BE_INDEX_EQUALITY;
+                        }
+                    }
+		}
 
-                rc = index_addordel_values_sv( be, mods[i]->mod_type,
+                rc = index_addordel_values_sv( be, basetype,
                                                mods_valueArray,
-                                               svals, id, flags, txn );
-                valuearray_free(&mods_valueArray);
+                                               evals, id, flags, txn );
             }
             rc = 0;
             break;
         }
+
+        /* free memory */
+        slapi_ch_free((void **)&tmp);
+        valuearray_free(&mods_valueArray);
+        slapi_valueset_free(all_vals);
 
         if ( rc != 0 ) {
             ldbm_nasty(errmsg, 1040, rc);
@@ -1595,7 +1728,11 @@ index_addordel_values_ext_sv(
     /*
      * equality index entry
      */
-    if ( ai->ai_indexmask & INDEX_EQUALITY ) {
+    if (( ai->ai_indexmask & INDEX_EQUALITY ) &&
+        (flags & (BE_INDEX_ADD|BE_INDEX_EQUALITY))) {
+        /* on delete, only remove the equality index if the
+         * BE_INDEX_EQUALITY flag is set.
+         */
         slapi_call_syntax_values2keys_sv( ai->ai_plugin, vals, &ivals, 
                                           LDAP_FILTER_EQUALITY );
 

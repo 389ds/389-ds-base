@@ -128,6 +128,12 @@ pam_passthru_bindpreop_start( Slapi_PBlock *pb )
 		return( -1 );
     }
 
+    if (( rc = pam_passthru_pam_init()) != LDAP_SUCCESS ) {
+		slapi_log_error( SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						 "could not initialize PAM subsystem (%d)\n", rc);
+		return( -1 );
+    }
+
     return( 0 );
 }
 

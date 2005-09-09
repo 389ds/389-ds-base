@@ -61,7 +61,7 @@ void do_add( Slapi_PBlock *pb );
  */
 void attr_done(Slapi_Attr *a);
 int attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn);
-void attr_replace(Slapi_Attr *a, Slapi_Value **vals);
+int attr_replace(Slapi_Attr *a, Slapi_Value **vals);
 int attr_check_onoff ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 int attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 
@@ -80,7 +80,7 @@ Slapi_Attr *attrlist_remove(Slapi_Attr **attrs, const char *type);
 void attrlist_add(Slapi_Attr **attrs, Slapi_Attr *a);
 int attrlist_count_subtypes(Slapi_Attr *a, const char *type);
 Slapi_Attr *attrlist_find_ex( Slapi_Attr *a, const char *type, int *type_name_disposition, char** actual_type_name, void **hint );
-void attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals);
+int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals);
 
 /*
  * attrsyntax.c
@@ -158,7 +158,7 @@ void valueset_add_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
 int valueset_intersectswith_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **values, int *duplicate_index);
 Slapi_ValueSet *valueset_dup(const Slapi_ValueSet *dupee);
 void valueset_remove_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s);
-void valueset_replace(Slapi_ValueSet *vs, Slapi_Value **vals);
+int valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **vals);
 void valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated);
 void valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals);
 void valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals);

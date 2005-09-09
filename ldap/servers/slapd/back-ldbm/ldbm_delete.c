@@ -401,7 +401,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 		}
 		/* delete from attribute indexes */
-		addordel_flags = BE_INDEX_DEL|BE_INDEX_PRESENCE;
+		addordel_flags = BE_INDEX_DEL|BE_INDEX_PRESENCE|BE_INDEX_EQUALITY;
 		if (delete_tombstone_entry)
 		{
 			addordel_flags |= BE_INDEX_TOMBSTONE; /* tell index code we are deleting a tombstone */

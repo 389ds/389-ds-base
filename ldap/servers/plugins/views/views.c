@@ -1529,7 +1529,7 @@ static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Sla
 				theView->parentid = 0;
 
 			/* add view to the cache */
-			views_cache_add_ll_entry((void**)theCache.pCacheViews, (void *)theView);
+			views_cache_add_ll_entry((void**)&theCache.pCacheViews, (void *)theView);
 
 			views_cache_discover_parent(theView);
 			if(theView->pParent)
