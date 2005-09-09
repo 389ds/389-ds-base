@@ -172,6 +172,10 @@ fi
 
 rm -f $sroot/setup/install.inf
 
+# Fix for "[160589] IBM JVM breaks on some machines/kernels : 
+#                   admin server fails to start
+JAVA_COMPILER=NONE; export JAVA_COMPILER
+
 echo "INFO Begin Setup . . ." | tee -a $logfile
 # cat LICENSE.txt
 if ! [ $silent ]; then
@@ -251,13 +255,10 @@ if ! [ $silent ]; then
 	# check if ds instance directory exists or not
 	# if it does, run ns-config with the reconfigure option
 	doreconfig=""
-	for x in `ls -d slapd-*`
-	do
-		if [ -d $x ]; then
-			doreconfig="-r"
-			break
-		fi
-	done
+	ls -d slapd-* > /dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		doreconfig="-r"
+	fi
 
 	# first, run ds
 	cd bin/slapd/admin/bin
@@ -266,7 +267,7 @@ if ! [ $silent ]; then
 
 	# next, run admin
 	cd bin/admin
-	./ns-config -f $inffile -l $logfile -m $installmode || doExit
+	./ns-config -f $inffile -l $logfile -m $installmode $doreconfig || doExit
 	cd ../..
 fi
 
@@ -278,7 +279,12 @@ fi
 
 `pwd`/bin/slapd/admin/bin/ns-update $silentarg $myargs -f $inffile | tee -a $logfile || doExit
 
-`pwd`/bin/admin/ns-update $silentarg $myargs -f $inffile | tee -a $logfile || doExit
+`pwd`/bin/admin/ns-update $doreconfig $silentarg $myargs -f $inffile | tee -a $logfile || doExit
+
+# Fix for "[160589] IBM JVM breaks on some machines/kernels : 
+#                   admin server fails to start
+sed -e "s/jvm.option=\(.*\)/jvm.option=\1 -Djava.compiler=NONE/" admin-serv/config/jvm12.conf > admin-serv/config/jvm12.tmp
+mv admin-serv/config/jvm12.tmp admin-serv/config/jvm12.conf
 
 echo "INFO Finished with setup, logfile is setup/setup.log" | tee -a $logfile
 if [ -f setup/setup.log ] ; then
