@@ -773,10 +773,10 @@ EXPORTS
 	slapi_mod_done @752
 	slapi_mods_done @753
 	operation_set_csn @754
-;	entry_update_deleted_attribute @755
+	valueset_add_valuearray @755
 	entry_first_deleted_attribute @756
 	entry_next_deleted_attribute @757
-;	config_get_storestateinfo @758
+	valuearray_remove_value @758
 ;	config_set_storestateinfo @759
     slapi_value_set_string @760
 	slapi_is_loglevel_set @761
