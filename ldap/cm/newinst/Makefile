@@ -181,6 +181,9 @@ $(INFO):
 else
 $(INFO):
 	$(PERL) fixINF.pl $(BUILD_MODULE) $(NOSP_DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat slapd.inf $(SECURITY) $(PRODUCT) $(IS_DIR_LITE) $(INSTANCE_NAME_PREFIX) $@.inf $(BUILD_BOMB) "$(addprefix lib/,$(LDAP_SOLIBS)) bin/admin/libnsslapd.sl bin/slapd/bin/ns-slapd bin/slapd/bin/ns-slapd.so bin/slapd/bin/libnsslapd_shr.a"
+ifdef BUILD_PATCH
+	$(PERL) fixINF.pl $(BUILD_MODULE) $(NOSP_DIR_VERSION) $(BUILD_ROOT)/$(BUILD_ARCH)/buildnum.dat slapd-patch.inf $(SECURITY) $(PRODUCT_NAME) $(IS_DIR_LITE) $(INSTANCE_NAME_PREFIX) $@-patch.inf $(BUILD_BOMB) "$(addprefix lib/,$(LDAP_SOLIBS)) bin/admin/libnsslapd.sl bin/slapd/bin/ns-slapd bin/slapd/bin/ns-slapd.so bin/slapd/bin/libnsslapd_shr.a"
+endif
 endif
 
 $(OBJDEST)/%.o: %.c

@@ -238,7 +238,8 @@ else
  NSPR_DIR=nspr
 endif
 NSPR_BASENAME=libnspr21
-PRODUCT="Fedora Directory Server"
+PRODUCTCORE=Fedora Directory Server
+PRODUCT="$(PRODUCTCORE)"
 PRODUCT_IS_DIRECTORY_SERVER=1
 INSTANCE_NAME_PREFIX="Directory Server"
 DIR=slapd
@@ -267,6 +268,7 @@ DO_SEARCH=no
 DIR_VERSION:=7.1 SP1
 NOSP_DIR_VERSION:=7.1SP1
 DIR_NORM_VERSION:=7.1
+PRODUCT_NAME="$(PRODUCTCORE) $(DIR_VERSION)"
 # When you change DIRSDK_VERSION or DIRSDK_VERSION_DLL_SUFFIX, you must
 # update all of the .exp and .def files by executing the following command:
 #	cd ldap/libraries; gmake exportfiles

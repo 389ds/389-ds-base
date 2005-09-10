@@ -214,6 +214,13 @@ RELJDK = $(BUILD_DRIVE)$(RELTOP)/ldapjdk
 FIX_SETUP_INF = $(BUILD_ROOT)/ldap/cm/fixSetupInf.pl
 FIX_BASE_INF = $(BUILD_ROOT)/ldap/cm/fixBaseInf.pl
 
+ABSBUILD_ROOT = $(shell cd $(BUILD_ROOT); pwd)
+ABSRELDIR = $(ABSBUILD_ROOT)/built/release
+GENRPMPATCH = $(ABSBUILD_ROOT)/ldap/cm/genRpmPatch.pl
+PATCHINF = $(ABSBUILD_ROOT)/ldap/cm/fedora-patch.inf
+DATETIME = $(shell date +%Y%m%d-%H%M%S)
+SPEXT = .SP.$(DATETIME)
+
 # This is the directory where we put what we're making: the files which go on the CD.
 ifndef INSTDIR
 ifeq ($(ARCH), WINNT)
@@ -223,6 +230,13 @@ INSTDIR = $(BUILD_DRIVE)$(BUILD_ROOT)/../$(MMDD)/$(NS_BUILD_FLAVOR)
 endif
 endif
 ABS_INSTDIR = $(shell cd $(INSTDIR); pwd)
+
+ifdef BUILD_PATCH
+ifndef BUILD_RPM
+PATCHINSTDIR = $(ABS_INSTDIR)-SP
+SLAPDSP = slapd-71sp1
+endif
+endif
 
 INST_TARGET_RESKIT=$(INSTDIR)/reskit
 INST_TARGET_INTL=./$(PRODUCT_MARKET)dir
@@ -610,6 +624,15 @@ packageDirectory: $(INSTDIR)/slapd \
 	$(INSTDIR)/tools/infozip.zip \
 	$(ADMSERV_DEP)
 
+ifdef BUILD_PATCH
+ifdef BUILD_RPM
+# create a patch
+	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
+	mv $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR).original
+	ln -s $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)
+endif
+endif
+
 # copy over the setup sdk stuff
 # hack - remove once admin server bundles setupsdk 6.02
 #	cp -R $(SETUP_SDK_BUILD_DIR)/bin/* $(INSTDIR)
@@ -778,6 +801,29 @@ ifdef BUILD_SHIP
 	cp $(ABS_TOPDIR)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm $(BUILD_SHIP)
 endif # BUILD_SHIP
 endif # BUILD_RPM
+
+ifdef BUILD_PATCH
+ifndef BUILD_RPM
+	mkdir -p $(PATCHINSTDIR)/$(SLAPDSP)
+	cp $(INSTDIR)/dssetup $(PATCHINSTDIR)
+	cp $(INSTDIR)/LICENSE.txt $(PATCHINSTDIR)
+	cp $(INSTDIR)/README.txt $(PATCHINSTDIR)
+# prepare the main inf file: setup.inf pointing inf file $(SLAPDS)/$(SLAPD).inf
+	sed -e "s/Components.*=/Components = $(SLAPDSP)/" $(INSTDIR)/setup.inf > $(PATCHINSTDIR)/setup.inf
+	echo "" >> $(PATCHINSTDIR)/setup.inf
+	echo "[$(SLAPDSP)]" >> $(PATCHINSTDIR)/setup.inf
+	echo "ComponentInfoFile = $(SLAPDSP)/$(SLAPDSP).inf" >> $(PATCHINSTDIR)/setup.inf
+# create a zip file based upon the $(PATCHINF) file
+	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `egrep file: $(PATCHINF) | awk -F: '{print $$3}'`
+# create patch inf file: $(SLAPD).inf
+	cp $(OBJDIR)/slapd-patch.inf $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
+	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `egrep file: $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
+	echo `cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp` | sed -e "s/ /,/g" > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
+	echo "BackupFiles="`cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2`>> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
+	rm -f $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
+	cd $(PATCHINSTDIR); $(TAR) cvf - * | gzip -f > ../$(NS_BUILD_FLAVOR)-SP.tar.gz
+endif
+endif
 
 else
 

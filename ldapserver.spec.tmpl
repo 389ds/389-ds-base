@@ -91,10 +91,44 @@ rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 %defattr(-,root,root,-)
 %{prefix}
 
+%pre
+# in case upgrade, need to shutdown the servers before the installation
+ls $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-* > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  for instance in `ls -d $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-*`
+  do
+    if [ -f $instance/logs/pid ]; then
+      pid=`cat $instance/logs/pid`
+      psval=`ps -ef | egrep $pid`
+      if [ "$psval" != "" ]; then
+        $instance/stop-slapd
+      fi
+    fi
+  done
+fi
+if [ -f $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/admin-serv/logs/pid ]; then
+  pid=`cat $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/admin-serv/logs/pid`
+  psval=`ps -ef | egrep $pid`
+  if [ "$psval" != "" ]; then
+    $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/stop-admin
+  fi
+fi
+
 %post
+# in case upgrade, need to start the servers before running setup
+ls $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-* > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  for instance in `ls -d $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-*`
+  do
+    $instance/start-slapd
+  done
+fi
+if [ -f $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/start-admin ]; then
+  $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/start-admin
+fi
 echo ""
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
-	RPM_INSTALL_PREFIX=%{prefix}
+    RPM_INSTALL_PREFIX=%{prefix}
 fi
 echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
 
