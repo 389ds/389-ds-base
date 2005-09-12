@@ -56,6 +56,6 @@ file: 167478,160589: setup/setup
 file: 156120,159037: winsync/PassSync.msi
 file: 156120,159037: winsync/ntds.msi
 file: 167761: java/jars/ds71.jar
-file: bin/slapd/README.txt
-file: README.txt
+file: xxxxxx: bin/slapd/README.txt
+file: xxxxxx: README.txt
 
