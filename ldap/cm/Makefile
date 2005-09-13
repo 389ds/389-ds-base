@@ -285,6 +285,12 @@ ifdef BUILD_RPM
 	RPM_RPMDIR = --define "_rpmdir $(ABS_TOPDIR)"
 # location of source RPM
 	RPM_SRPMDIR = --define "_srcrpmdir $(ABS_TOPDIR)"
+# required packages
+ifeq ($(NSOS_ARCH)$(NSOS_RELEASE), RHEL4)
+        RPM_REQUIRES = --define "_requireslist perl,xorg-x11-deprecated-libs"
+else
+        RPM_REQUIRES = --define "_requireslist perl"
+endif
 ifneq ($(BUILD_DEBUG), optimize)
 	RPM_FLAVOR = dbg
 else
@@ -795,7 +801,7 @@ ifdef BUILD_RPM
 		rm $(RPM_FILE_BASE) ; \
 	fi
 # execute the RPM build
-	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) --define "flavor $(RPM_FLAVOR)" --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec
+	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) $(RPM_REQUIRES) --define "flavor $(RPM_FLAVOR)" --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec
 
 ifdef BUILD_SHIP
 	cp $(ABS_TOPDIR)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm $(BUILD_SHIP)

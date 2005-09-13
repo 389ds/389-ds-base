@@ -58,7 +58,7 @@ Autoreq: 0
 # Don't automatically generate provides list
 AutoProv: 0
 # Without Requires: something, rpmbuild will abort!
-Requires: perl
+Requires: %{_requireslist}
 Prefix: /opt/%{name}
 
 %description
@@ -143,6 +143,9 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
+* Tue Sep 13 2005 Nathan Kinder <nkinder@redhat.com> 7.1-3
+- use a macro for require list that is passed in via rpmbuild
+
 * Tue May 10 2005 Richard Megginson <rmeggins@redhat.com> 7.1-2
 - Change release to 2
 
