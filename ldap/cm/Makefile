@@ -1009,6 +1009,9 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.z:
 
 _setup_files: $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll \
 			  $(INSTDIR)/$(SLAPD_DIR)/slapd.inf \
+ifdef BUILD_PATCH
+			  $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf \
+endif
 			  $(INSTDIR)/admin $(INSTDIR)/base \
 			  $(INSTDIR)/svrcore $(INSTDIR)/tools
 # see components.mk for a description of PACKAGE_SETUP_LIBS
@@ -1023,6 +1026,11 @@ $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll: $(OBJDIR)/setup/dsinst.dll
 
 $(INSTDIR)/$(SLAPD_DIR)/slapd.inf: $(OBJDIR)/setup/slapd.inf
 	cp $< $@
+
+ifdef BUILD_PATCH
+$(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf: $(OBJDIR)/setup/slapd-patch.inf
+	cp $< $@
+endif
 
 $(INSTDIR)/admin: $(ADMSERV_DIR)/admin
 	cp -R $< $@
