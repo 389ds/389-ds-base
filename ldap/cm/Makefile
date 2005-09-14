@@ -821,8 +821,7 @@ ifndef BUILD_RPM
 	echo "ComponentInfoFile = $(SLAPDSP)/$(SLAPDSP).inf" >> $(PATCHINSTDIR)/setup.inf
 # create a zip file based upon the $(PATCHINF) file
 	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `egrep file: $(PATCHINF) | awk -F: '{print $$3}'`
-# create patch inf file: $(SLAPD).inf
-	cp $(OBJDIR)/slapd-patch.inf $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
+# create patch inf file: $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPD).inf
 	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `egrep file: $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
 	echo `cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp` | sed -e "s/ /,/g" > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
 	echo "BackupFiles="`cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2`>> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
@@ -1010,7 +1009,9 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.z:
 _setup_files: $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll \
 			  $(INSTDIR)/$(SLAPD_DIR)/slapd.inf \
 ifdef BUILD_PATCH
+ifndef BUILD_RPM
 			  $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf \
+endif
 endif
 			  $(INSTDIR)/admin $(INSTDIR)/base \
 			  $(INSTDIR)/svrcore $(INSTDIR)/tools
@@ -1028,8 +1029,10 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.inf: $(OBJDIR)/setup/slapd.inf
 	cp $< $@
 
 ifdef BUILD_PATCH
+ifndef BUILD_RPM
 $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf: $(OBJDIR)/setup/slapd-patch.inf
 	cp $< $@
+endif
 endif
 
 $(INSTDIR)/admin: $(ADMSERV_DIR)/admin
