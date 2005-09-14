@@ -175,14 +175,14 @@ salted_sha_pw_enc( char *pwd, unsigned int shaLen )
     }
                                                                                                                             
     if (( enc = slapi_ch_malloc( 3 + schemeNameLen +
-        LDIF_BASE64_LEN(sizeof(hash)))) == NULL ) {
+        LDIF_BASE64_LEN(shaLen + SHA_SALT_LENGTH))) == NULL ) {
         return( NULL );
     }
                                                                                                                             
     sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName,
         PWD_HASH_PREFIX_END );
     (void)ldif_base64_encode( hash, enc + 2 + schemeNameLen,
-        sizeof(hash), -1 );
+        (shaLen + SHA_SALT_LENGTH), -1 );
                                                                                                                             
     return( enc );
 }
