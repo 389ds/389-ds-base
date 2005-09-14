@@ -163,7 +163,7 @@ if ($builtdirname =~ /RHEL3/) {
 $optordbg = "";
 if ($builtdirname =~ /full/) {
     $optordbg = "dbg";
-} elsif ($builtdirname =~ /optimized/) {
+} elsif ($builtdirname =~ /optimize/) {
     $optordbg = "opt";
 } else {
     print(STDERR "ERROR: $builtdirname has no opt/debug info\n");
