@@ -696,25 +696,6 @@ endif
 # base.inf file
 	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
 
-# Move setup binary to dssetup
-	mv $(INSTDIR)/setup $(INSTDIR)/dssetup
-# Move the new setup wrappers into place
-	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INSTDIR)/setup.pl
-	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.sh $(INSTDIR)/setup
-
-# We need to package perl for the new setup wrapper to run
-	mkdir $(INSTDIR)/tmp
-	$(UNZIP) $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
-	lib/nsPerl5.6.1/\* -d $(INSTDIR)/tmp
-	cp -R $(INSTDIR)/tmp/lib/nsPerl5.6.1 \
-	$(INSTDIR)/tools
-	rm -rf $(INSTDIR)/tmp
-
-# We also need to package the infozip utilities
-	$(UNZIP) -j $(INSTDIR)/tools/infozip.zip \
-	-d $(INSTDIR)/tools
-	rm -f $(INSTDIR)/tools/infozip.zip
-
 # Install LDAP Readme and License files at root of Installation (dated pre-packaging) directory.
 # And, replace the License.txt file that is packaged in nssvrcore.zip.
 	if [ -d $(LDAPDIR)/docs ] ; then \
@@ -731,13 +712,13 @@ ifndef NO_INSTALLER_TAR_FILES
 	| gzip -f > ../$(NS_BUILD_FLAVOR).tar.gz
 # build the combined packages tar file; use h flag to follow symlinks
 ifdef BUILD_SHIP
-	cd $(INSTDIR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
+	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd nsperl \
 	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
 else
-	cd $(INSTDIR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
+	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd nsperl \
 	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
@@ -892,11 +873,6 @@ _admserv_files: $(INSTDIR) $(ADMSERV_DEP)
 	mv $(ADMSERV_DIR)/../$(ADMIN_SERVER_TARGZ) $(ADMSERV_DIR)
 # make sure our packages are in the setup.inf file
 	$(PERL) -w $(FIX_SETUP_INF) $(ADMSERV_DIR)/setup.inf $(INSTDIR)/setup.inf
-# move setup.exe to dssetup.exe
-	mv $(INSTDIR)/setup.exe $(INSTDIR)/dssetup.exe
-# copy in the new setup wrapper script
-	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.pl $(INSTDIR)
-	cp $(BUILD_ROOT)/ldap/cm/newinstnt/setup.bat $(INSTDIR)
 
 
 #----------------------------  slapd rules --------------------------------------------------

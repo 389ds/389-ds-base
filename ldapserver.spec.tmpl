@@ -58,7 +58,7 @@ Autoreq: 0
 # Don't automatically generate provides list
 AutoProv: 0
 # Without Requires: something, rpmbuild will abort!
-Requires: perl
+Requires: perl,java-1.4.2-ibm
 Prefix: /opt/%{name}
 
 %description
@@ -109,6 +109,9 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
+* Wed Sep 14 2005 Nathan Kinder <nkinder@redhat.com> 7.1-2
+- Added a dependency on the java-1.4.2-ibm package
+
 * Tue May 10 2005 Richard Megginson <rmeggins@redhat.com> 7.1-2
 - Change release to 2
 
