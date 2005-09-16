@@ -62,7 +62,9 @@ ifneq ($(ARCH), WINNT)
 	cd systools; $(MAKE) $(MFLAGS) all
 	# new unix installer
 ifeq ($(USE_SETUPSDK), 1)
-	cd cm/newinst; $(MAKE) $(MFLAGS) all
+	# passing $(OBJDIR) as ORIGINAL_OBJDIR since USE_64 info is cleaned up
+	# and lost in cm/newinst
+	cd cm/newinst; $(MAKE) $(MFLAGS) ORIGINAL_OBJDIR=$(ABS_OBJDIR) all
 ifeq ($(USE_64),1)
 	# In 64-bit builds, we build the installer 32-bit, which has the side-effect that the uninstaller and ns-update scripts
 	# get copied into the 32-bit output directory by the makefile above. However, we later want to package them and expect
