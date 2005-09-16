@@ -42,11 +42,17 @@ Components=slapd-71sp1
 
 [slapd-71sp1]
 Name= %%%SERVER_NAME%%%
+InstanceNamePrefix= %%%INSTANCE_NAME_PREFIX%%%
 Description= %%%SERVER_NAME%%%
 NickName= slapd-71sp1
 Version= %%%SERVER_VERSION%%%
 BuildNumber= %%%SERVER_BUILD_NUM%%%
 Archive= nsslapd-71sp1.zip
 SourcePath=slapd-71sp1
+PreInstall= ns-config -r
+PostInstall= bin/slapd/admin/bin/ns-update
+PreUninstall= bin/slapd/admin/bin/uninstall
+PostUninstall=
 Checked=True
 Mandatory=False
+IsLdap=True
