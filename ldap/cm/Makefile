@@ -232,10 +232,8 @@ endif
 ABS_INSTDIR = $(shell cd $(INSTDIR); pwd)
 
 ifdef BUILD_PATCH
-ifndef BUILD_RPM
 PATCHINSTDIR = $(ABS_INSTDIR)-SP
 SLAPDSP = slapd-71sp1
-endif
 endif
 
 INST_TARGET_RESKIT=$(INSTDIR)/reskit
@@ -774,8 +772,10 @@ ifndef NO_INSTALLER_TAR_FILES
 	| gzip -f > ../$(NS_BUILD_FLAVOR).tar.gz
 # build the combined packages tar file; use h flag to follow symlinks
 ifdef BUILD_SHIP
+ifndef BUILD_PATCH
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf dssetup setup.pl slapd nsperl \
 	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
+endif
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
@@ -809,7 +809,6 @@ endif # BUILD_SHIP
 endif # BUILD_RPM
 
 ifdef BUILD_PATCH
-ifndef BUILD_RPM
 	mkdir -p $(PATCHINSTDIR)/$(SLAPDSP)
 	cp $(INSTDIR)/dssetup $(PATCHINSTDIR)
 	cp $(INSTDIR)/LICENSE.txt $(PATCHINSTDIR)
@@ -821,12 +820,16 @@ ifndef BUILD_RPM
 	echo "ComponentInfoFile = $(SLAPDSP)/$(SLAPDSP).inf" >> $(PATCHINSTDIR)/setup.inf
 # create a zip file based upon the $(PATCHINF) file
 	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `egrep file: $(PATCHINF) | awk -F: '{print $$3}'`
-# create patch inf file: $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPD).inf
+# create patch inf file: $(SLAPD).inf
+	cp $(OBJDIR)/slapd-patch.inf $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
 	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `egrep file: $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
 	echo `cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp` | sed -e "s/ /,/g" > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
 	echo "BackupFiles="`cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2`>> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
 	rm -f $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
-	cd $(PATCHINSTDIR); $(TAR) cvf - * | gzip -f > ../$(NS_BUILD_FLAVOR)-SP.tar.gz
+ifdef BUILD_SHIP
+	cd $(PATCHINSTDIR); $(TAR) cvfh - * | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
+else
+	cd $(PATCHINSTDIR); $(TAR) cvfh - * | gzip -f > ../$(NS_BUILD_FLAVOR)-SP.tar.gz
 endif
 endif
 
@@ -1008,11 +1011,6 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.z:
 
 _setup_files: $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll \
 			  $(INSTDIR)/$(SLAPD_DIR)/slapd.inf \
-ifdef BUILD_PATCH
-ifndef BUILD_RPM
-			  $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf \
-endif
-endif
 			  $(INSTDIR)/admin $(INSTDIR)/base \
 			  $(INSTDIR)/svrcore $(INSTDIR)/tools
 # see components.mk for a description of PACKAGE_SETUP_LIBS
@@ -1027,13 +1025,6 @@ $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll: $(OBJDIR)/setup/dsinst.dll
 
 $(INSTDIR)/$(SLAPD_DIR)/slapd.inf: $(OBJDIR)/setup/slapd.inf
 	cp $< $@
-
-ifdef BUILD_PATCH
-ifndef BUILD_RPM
-$(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf: $(OBJDIR)/setup/slapd-patch.inf
-	cp $< $@
-endif
-endif
 
 $(INSTDIR)/admin: $(ADMSERV_DIR)/admin
 	cp -R $< $@
