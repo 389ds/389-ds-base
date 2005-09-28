@@ -1532,7 +1532,7 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
 		slapi_attr_first_value(a, &va);
 		slapi_attr_first_value(b, &vb);
 
-		if (va->bv.bv_len == va->bv.bv_len) 
+		if (va->bv.bv_len == vb->bv.bv_len) 
 		{
 			if (0 != memcmp(va->bv.bv_val,vb->bv.bv_val,va->bv.bv_len))
 			{
