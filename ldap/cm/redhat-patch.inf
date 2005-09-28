@@ -38,7 +38,7 @@
 #
 # Info file to generate DS7.1 SP1 patch
 # base: <builddir> containing the base package -- DS7.1
-# file: <patchfile>
+# file: bug#: <patchfile>
 #
 base: /share/dev4/ds/ds71/ships/20050524.1
 
@@ -56,5 +56,6 @@ file: 167478,160589: setup/setup
 file: 156120,159037: winsync/PassSync.msi
 file: 156120,159037: winsync/ntds.msi
 file: 167761: java/jars/ds71.jar
+file: 169388: lib/replication-plugin.*
 file: xxxxxx: bin/slapd/README.txt
 file: xxxxxx: README.txt

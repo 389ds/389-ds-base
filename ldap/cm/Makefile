@@ -813,13 +813,14 @@ ifdef BUILD_PATCH
 	cp $(INSTDIR)/dssetup $(PATCHINSTDIR)
 	cp $(INSTDIR)/LICENSE.txt $(PATCHINSTDIR)
 	cp $(INSTDIR)/README.txt $(PATCHINSTDIR)
+	cp $(BUILD_ROOT)/ldap/cm/newinst/setup.patch $(PATCHINSTDIR)/setup
 # prepare the main inf file: setup.inf pointing inf file $(SLAPDS)/$(SLAPD).inf
 	sed -e "s/Components.*=/Components = $(SLAPDSP)/" $(INSTDIR)/setup.inf > $(PATCHINSTDIR)/setup.inf
 	echo "" >> $(PATCHINSTDIR)/setup.inf
 	echo "[$(SLAPDSP)]" >> $(PATCHINSTDIR)/setup.inf
 	echo "ComponentInfoFile = $(SLAPDSP)/$(SLAPDSP).inf" >> $(PATCHINSTDIR)/setup.inf
 # create a zip file based upon the $(PATCHINF) file
-	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `egrep file: $(PATCHINF) | awk -F: '{print $$3}'`
+	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `egrep "^file:" $(PATCHINF) | awk -F: '{print $$3}'`
 # put ns-config and needed libs in the $(PATCHINSTDIR)/$(SLAPDSP) directory
 	$(INSTALL) -m 755 $(RELDIR_32)/bin/slapd/admin/bin/ns-config $(PATCHINSTDIR)/$(SLAPDSP)
 	-@for file in $(PACKAGE_SETUP_LIBS_32) ; \
@@ -829,7 +830,7 @@ ifdef BUILD_PATCH
 	done
 # create patch inf file: $(SLAPD).inf
 	cp $(OBJDIR)/slapd-patch.inf $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
-	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `egrep file: $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
+	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `egrep "^file:" $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
 	echo `cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp` | sed -e "s/ /,/g" > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
 	echo "BackupFiles="`cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2`>> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
 	rm -f $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2

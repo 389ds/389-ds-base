@@ -130,6 +130,13 @@ getFQDN() {
 	echo $maxhost
 }
 
+getValFromAdminConf() {
+	cattr=$1
+	cfile=$2
+	rval=`grep -i $cattr $sroot/admin-serv/config/$cfile | awk '{print $2}'`
+	echo $rval
+}
+
 logfile=`doMktmp log`
 myargs=
 silent=
@@ -190,6 +197,61 @@ fi
 if ! [ $silent ]; then
 	cat README.txt | tee -a $logfile
 	askYN "Continue?"
+fi
+
+# check whether it is an in-place installation
+if [ -f $sroot/admin-serv/config/adm.conf ]; then
+	dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
+	if [ -f $sroot/$dsinst/config/dse.ldif ]; then
+		# it is an in=place installation
+		ldaphost=`getValFromAdminConf "ldapHost:" "adm.conf"`
+		ldapport=`getValFromAdminConf "ldapPort:" "adm.conf"`
+		adminport=`getValFromAdminConf "\<port:" "adm.conf"`
+		siepid=`getValFromAdminConf "siepid:" "adm.conf"`
+		sysuser=`getValFromAdminConf "nsSuiteSpotUser:" "local.conf"`
+		suitespotuser=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $3}'`
+		suitespotgroup=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $4}'`
+		admindomain=`echo $ldaphost | awk -F. '{print $5 ? $2 "." $3 "." $4 "." $5: $4 ? $2 "." $3 "." $4 : $3 ? $2 "." $3 : $2 ? $2 : ""}'`
+		if [ "$admindomain" = "" ]; then
+    		admindomain=`domainname`
+		fi
+
+		echo "In order to reconfigure your installation, the Configuration Directory"
+		echo "Administrator password is required.  Here is your current information:"
+		echo ""
+		echo "Configuration Directory: ldap://$ldaphost:$ldapport/o=NetscapeRoot"
+		echo "Configuration Administrator ID: $siepid"
+		echo ""
+		echo "At the prompt, please enter the password for the Configuration Administrator."
+		echo ""
+		echo "administrator ID: $siepid"
+		siepasswd=""
+		while [ "$siepasswd" = "" ]; do
+    		printf "Password: "
+    		read siepasswd
+		done
+
+		inffile=$sroot/setup/myinstall.inf
+		echo "[General]" > $inffile
+		echo "FullMachineName=   $ldaphost" >> $inffile
+		echo "SuiteSpotUserID=   $suitespotuser" >> $inffile
+		echo "SuitespotGroup=   $suitespotgroup" >> $inffile
+		echo "ServerRoot=   $sroot" >> $inffile
+		echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/o=NetscapeRoot" >> $inffile
+		echo "ConfigDirectoryAdminID=   $siepid" >> $inffile
+		echo "AdminDomain=   $admindomain" >> $inffile
+		echo "ConfigDirectoryAdminPwd=   $siepasswd" >> $inffile
+		echo "" >> $inffile
+		echo "[admin]" >> $inffile
+		echo "ServerAdminID=   $siepid" >> $inffile
+		echo "ServerAdminPwd=   $siepasswd" >> $inffile
+		echo "SysUser=   $sysuser" >> $inffile
+		echo "Port=   $adminport" >> $inffile
+		echo "ServerIpAddress=" >> $inffile
+
+		# set silent mode
+		silent=1
+	fi
 fi
 
 # dsktune

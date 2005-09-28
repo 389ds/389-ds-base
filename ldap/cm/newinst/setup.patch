@@ -1,0 +1,155 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+#
+# This script is a wrapper for dssetup used for inplace upgrade / patch 
+# installation.
+#
+clear
+
+echo "                                Fedora Project"
+echo "              Fedora Server Products Installation/Uninstallation"
+echo "-------------------------------------------------------------------------------"
+echo ""
+echo ""
+echo "BY INSTALLING THIS SOFTWARE YOU ARE CONSENTING TO BE BOUND BY"
+echo "AND ARE BECOMING A PARTY TO THE AGREEMENT FOUND IN THE"
+echo "LICENSE.TXT FILE. IF YOU DO NOT AGREE TO ALL OF THE TERMS"
+echo "OF THIS AGREEMENT, PLEASE DO NOT INSTALL OR USE THIS SOFTWARE."
+echo ""
+printf "Do you agree to the license terms? [No]: "
+read ans
+
+if [ "$ans" != "Y" -a "$ans" != "YES" -a "$ans" != "Yes" -a "$ans" != "y" -a "$ans" != "yes" ]; then
+    exit 1;
+fi
+
+clear
+
+echo "                                Fedora Project"
+echo "              Fedora Server Products Installation/Uninstallation"
+echo "-------------------------------------------------------------------------------"
+echo ""
+echo ""
+echo "This program will extract the patch files and install them"
+echo "into a directory where the Directory Server is already installed."
+echo ""
+echo "To accept the default shown in brackets, press the Enter key."
+echo ""
+printf "Install location [/opt/fedora/servers]: "
+read serverroot
+
+if [ ! -d $serverroot ]; then
+    echo ""
+    echo "Directory $serverroot does not exist."
+    exit 1
+fi
+
+if [ ! -f $serverroot/admin-serv/config/adm.conf ]; then
+    echo ""
+    echo "Administration Server's configuration file $serverroot/admin-serv/config/adm.conf does not exist."
+    exit 1
+fi
+
+getValFromAdminConf() {
+    cattr=$1
+    cfile=$2
+    rval=`grep -i $cattr $serverroot/admin-serv/config/$cfile | awk '{print $2}'`
+	echo $rval
+}
+
+dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
+dsconffile=$serverroot/$dsinst/config/dse.ldif
+if [ ! -f $dsconffile ]; then
+    echo ""
+    echo "Directory Server's configuration file $dsconffile does not exist."
+    exit 1
+fi
+
+clear
+
+ldaphost=`getValFromAdminConf "ldapHost:" "adm.conf"`
+ldapport=`getValFromAdminConf "ldapPort:" "adm.conf"`
+siepid=`getValFromAdminConf "siepid:" "adm.conf"`
+suitespotuser=`ls -l $dsconffile | awk '{print $3}'`
+suitespotgroup=`ls -l $dsconffile | awk '{print $4}'`
+admindomain=`echo $ldaphost | awk -F. '{print $5 ? $2 "." $3 "." $4 "." $5: $4 ? $2 "." $3 "." $4 : $3 ? $2 "." $3 : $2 ? $2 : ""}'`
+if [ "$admindomain" = "" ]; then
+    admindomain=`domainname`
+fi
+
+echo "                                Fedora Project"
+echo "                     Directory Installation/Uninstallation"
+echo "-------------------------------------------------------------------------------"
+echo ""
+echo "In order to reconfigure your installation, the Configuration Directory"
+echo "Administrator password is required.  Here is your current information:"
+echo ""
+echo "Configuration Directory: ldap://$ldaphost:$ldapport/o=NetscapeRoot"
+echo "Configuration Administrator ID: $siepid"
+echo ""
+echo "At the prompt, please enter the password for the Configuration Administrator."
+echo ""
+echo "administrator ID: $siepid"
+siepasswd=""
+while [ "$siepasswd" = "" ]; do
+    printf "Password: "
+    read siepasswd
+done
+
+inffile=./myinstall.inf
+
+echo "[General]" > $inffile
+echo "FullMachineName=   $ldaphost" >> $inffile
+echo "SuiteSpotUserID=   $suitespotuser" >> $inffile
+echo "SuitespotGroup=   $suitespotgroup" >> $inffile
+echo "ServerRoot=   $serverroot" >> $inffile
+echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/" >> $inffile
+echo "ConfigDirectoryAdminID=   $siepid" >> $inffile
+echo "AdminDomain=   $admindomain" >> $inffile
+echo "ConfigDirectoryAdminPwd=   $siepasswd" >> $inffile
+echo "Components=   slapd-71sp1" >> $inffile
+echo "" >> $inffile
+echo "[slapd-71sp1]" >> $inffile
+echo "Components=   slapd-71sp1" >> $inffile
+
+clear
+
+./dssetup -s -f $inffile
