@@ -254,15 +254,6 @@ endif
 #DISTLIB libsec-$(WHICHA) $(MCOM_LIBDIR)/libsec libnspr libdbm libxp
 #endif
 
-ifdef FORTEZZA
-ifeq ($(ARCH), WINNT)
-LIBSEC += $(MCOM_LIBDIR)/../dist/$(NSOBJDIR_NAME)/lib/tssp32.lib
-else
-FORTEZZA_DRIVER = $(MCOM_LIBDIR)/../dist/$(NSOBJDIR_NAME)/lib/libci.a
-endif
-LIBSEC += $(FORTEZZA_DRIVER)
-endif
-
 ifneq ($(MODULE), LibNet)
 LIBNET=$(MCOM_LIBDIR)/libnet/$(NSOBJDIR_NAME)/libnet.$(LIB_SUFFIX)
 DISTLIB libnet.$(LIB_SUFFIX) $(MCOM_LIBDIR)/libnet

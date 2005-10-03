@@ -68,9 +68,9 @@ RELTOP=$(BUILD_ROOT)/built/release
 OBJDIR_BASE = $(notdir $(OBJDIR))
 OBJDIR_BASE_32 = $(notdir $(OBJDIR_32))
 # Release directory for Directory Server
-RELDIR = $(BUILD_DRIVE)$(RELTOP)/$(DIR)/$(OBJDIR_BASE)
-RELDIR_32 = $(BUILD_DRIVE)$(RELTOP)/$(DIR)/$(OBJDIR_BASE_32)
-RELDIR_UNSTRIP = $(BUILD_DRIVE)$(RELTOP)/$(DIR)/$(ARCHPROCESSOR)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-unstripped-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
+RELDIR = $(BUILD_DRIVE)$(RELTOP)/$(OBJDIR_BASE)
+RELDIR_32 = $(BUILD_DRIVE)$(RELTOP)/$(OBJDIR_BASE_32)
+RELDIR_UNSTRIP = $(RELDIR)-unstripped
 
 # this is the place libraries and plugins go which are used by other
 # components i.e. not specific to slapd and its programs
@@ -384,9 +384,6 @@ endif
 #
 LIBSEC_DEP = $(NSCP_DISTDIR)/lib/libsec-$(SECURITY_EXTN).$(LIB_SUFFIX)
 LIBSEC = $(NSCP_DISTDIR)/lib/libsec-$(SECURITY_EXTN).$(LIB_SUFFIX)
-ifdef FORTEZZA
-LIBSEC += $(FORTEZZA_DRIVER)
-endif
 
 #
 # Libdb

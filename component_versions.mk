@@ -103,14 +103,6 @@ ifndef ANT_COMP
   ANT_COMP = ant
 endif
 
-# Servlet SDK
-ifndef SERVLET_VERSION
-  SERVLET_VERSION = 2.3
-endif
-ifndef SERVLET_COMP
-  SERVLET_COMP = javax/servlet
-endif
-
 # LDAP JDK
 ifndef LDAPJDK_RELDATE
   LDAPJDK_RELDATE = v4.17
@@ -206,14 +198,6 @@ endif
 # jakarta/axis for DSMLGW
 ifndef AXIS_VERSION
   AXIS_VERSION=1.2rc3
-endif
-
-# JSP compiler jasper
-ifndef JSPC_VERSION
-  JSPC_VERSION = 4.0.3
-endif
-ifndef JSPC_COMP
-  JSPC_COMP = javax/jasper
 endif
 
 # ICU

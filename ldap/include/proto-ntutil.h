@@ -96,9 +96,6 @@ extern BOOL SlapdGetServerNameFromCmdline(char *szServerName, char *szCmdLine, i
  */
 #ifdef NET_SSL
 extern char *Slapd_GetPassword();
-#ifdef FORTEZZA
-extern char *Slapd_GetFortezzaPIN();
-#endif
 extern void CenterDialog(HWND hwndParent, HWND hwndDialog);
 #endif /* NET_SSL */
 

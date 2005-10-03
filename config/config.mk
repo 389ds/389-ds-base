@@ -422,10 +422,6 @@ ifeq ($(LW_JAVA), 1)
 DEFINES += -DJAVA
 endif
 
-ifdef FORTEZZA
-DEFINES		+= -DFORTEZZA
-endif
-
 ######################################################################
 
 GARBAGE		= $(DEPENDENCIES) core

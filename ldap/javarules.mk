@@ -116,10 +116,7 @@ else
   endif
 endif
 
-CLASSPATH := $(JAVA_SRC_DIR)$(PATH_SEP)$(NMCLFJARFILE)$(PATH_SEP)$(LDAPJARFILE)$(PATH_SEP)$(MCCJARFILE)$(PATH_SEP)$(JAVASSLJARFILE)$(PATH_SEP)$(BASEJARFILE)$(PATH_SEP)$(JSSJARFILE)
-#CLASSPATH := $(JAVA_SRC_DIR)$(PATH_SEP)$(SWINGJARFILE)$(PATH_SEP)$(NMCLFJARFILE)$(PATH_SEP)$(LDAPJARFILE)$(PATH_SEP)$(MCCJARFILE)$(PATH_SEP)$(JAVASSLJARFILE)$(PATH_SEP)$(BASEJARFILE)
-
-RUNCLASSPATH:=$(JAVA_BUILD_DIR) $(PACKAGE_UNDER_JAVA)
+CLASSPATH := $(JAVA_SRC_DIR)$(PATH_SEP)$(LDAPJARFILE)
 
 ifndef JAVA
   ifdef JAVABINDIR
@@ -145,6 +142,10 @@ ifndef JAVADOC
 endif
 
 # How to run ant (the Java "make" system)
+ifdef GET_ANT_FROM_PATH
+ANT = ant
+else
 ANT = $(JAVA) -Dant.home=$(ANT_HOME) -classpath "$(ANT_CP)$(PATH_SEP)$(JDKLIB)" org.apache.tools.ant.Main
+endif
 
 ##########################################################

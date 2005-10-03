@@ -44,9 +44,9 @@ BUILD_ROOT=../..
 MODULE=LibAdmin
 MODULE_CFLAGS=-DENCRYPT_PASSWORDS -DUSE_ADMSERV
 
-include $(BUILD_ROOT)/nsdefs.mk
-
 OBJDEST=$(OBJDIR)/lib/libadmin
+
+include $(BUILD_ROOT)/nsconfig.mk
 
 ifeq ($(ARCH), WINNT)
 LIBS=$(OBJDIR)/lib/libadmin.lib
@@ -68,8 +68,6 @@ all: $(OBJDEST) $(LIBS)
 
 #$(LIBS): $(addprefix $(BUILD_ROOT)/include/libadmin/, \
 #                     hadm_msgs.i la_msgs.i)
-
-include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 

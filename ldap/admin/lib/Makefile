@@ -64,9 +64,6 @@ SRCS	= dsalib_location.c dsalib_debug.c dsalib_updown.c dsalib_tailf.c \
 OBJS = $(addprefix $(OBJDEST)/, $(subst .c,.o,$(SRCS)))
 
 INCLUDES += -I$(LDAP_SRC)/admin/include
-ifdef FORTEZZA
-INCLUDES += -I$(BUILD_ROOT)/lib
-endif
 
 EXTRA_LIBS += $(LDAP_COMMON_LIBS) $(SECURITYLINK) $(NSPRLINK)
 
@@ -77,15 +74,6 @@ MAPFILE= /MAP:$(LDAP_ADMLIBDIR)/libds_admin.map
 EXTRA_LIBS_DEP += $(LDAP_COMMON_LIBS_DEP) $(LDAP_LIBLDIF_DEP) 
 #EXTRA_LIBS += $(LDAP_COMMON_LIBS) $(LDAP_LIBLDIF) $(LDAP_SDK_LIBLDAP_DLL) \
 #	$(ADMINUTIL_LINK) $(SECURITYLINK) $(NSPRLINK)
-else # WINNT
-ifdef FORTEZZA
-# libci.a needs to be recompiled with the -Z option on HPUX, until then, 
-# we'll link libci.a with the executables which need it -atom
-ifneq ($(ARCH), HPUX)
-EXTRA_LIBS_DEP += $(FORTEZZA_DRIVER)
-EXTRA_LIBS += $(FORTEZZA_DRIVER)
-endif # !HPUX
-endif # FORTEZZA
 endif # WINNT
 
 ifeq ($(ARCH), Linux)

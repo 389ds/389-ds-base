@@ -67,22 +67,23 @@ ifdef INTERNAL_BUILD
 	USE_DSGW:=1
 	USE_JAVATOOLS:=1
 	USE_SETUPUTIL:=1
+else
+	USE_ADMINSERVER:=1
+	USE_CONSOLE:=1
+	USE_DSMLGW:=1
+	USE_ORGCHART:=1
+	USE_DSGW:=1
+	USE_JAVATOOLS:=1
+	USE_SETUPUTIL:=1
 endif
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/component_versions.mk
 
-# SEC_SUFFIX is the suffix to be applied to the reldate macro which specifies
-# the security of the specified release, either E for export, D for domestic,
-# or F for Fortezza
-ifdef FORTEZZA
-  SEC_SUFFIX = F
+ifeq ($(SECURITY), domestic)
+  SEC_SUFFIX = D
 else
-  ifeq ($(SECURITY), domestic)
-    SEC_SUFFIX = D
-  else
-    SEC_SUFFIX = E
-  endif
+  SEC_SUFFIX = E
 endif
 
 PRETTY_ARCH := $(shell uname -s)
@@ -408,10 +409,6 @@ ifdef PRODUCT_IS_DIRECTORY_SERVER
   ifeq ($(LDAP_NO_LIBLCACHE),1)
     MODULE_CFLAGS+=-DNO_LIBLCACHE
   endif
-endif
-
-ifdef FORTEZZA
-  MCC_SERVER += -DFORTEZZA -DCLIENT_AUTH
 endif
 
 MCC_SERVER += -DSPAPI20 -DBUILD_NUM=$(GET_BUILD_NUM)
@@ -1360,22 +1357,10 @@ endif # IRIX
 
 # XXXrobm The Sun MD stuff #includes stuff in the nspr dir without a prefix
 # Otherwise the second NSCP_DISTDIR/include/nspr would not be necessary
-ifdef NSPR20
 MCC_INCLUDE=-I$(BUILD_ROOT)/include \
-                        -I$(BUILD_ROOT)/include \
+            -I$(BUILD_ROOT)/include \
             $(NSPR_INCLUDE) $(DBM_INCLUDE) $(SECURITY_INCLUDE) \
-            $(SVRCORE_INCLUDE) \
-                        -I$(BUILD_ROOT)/nspr20/lib
-
-#            $(SVRCORE_INCLUDE) $(NLS_INCLUDE) \
-
-else
-MCC_INCLUDE=-I$(BUILD_ROOT)/include \
-            -I$(NSCP_DISTDIR)/include -I$(NSCP_DISTDIR)/include/nspr
-endif
-
-MCC_INCLUDE += -I$(LDAP_INCLUDE)
-MCC_INCLUDE += -I$(SASL_INCLUDE)
+            $(SVRCORE_INCLUDE) -I$(LDAP_INCLUDE) -I$(SASL_INCLUDE)
 
 ifeq ($(ARCH), WINNT)
 XP_FLAG=-DXP_WIN32  -DXP_WIN -D_WINDOWS -DXP_PC -DXP_WINNT

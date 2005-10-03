@@ -107,9 +107,6 @@ SOLINK=-L. -L../../lib -lns-dshttpd$(DLL_PRESUF)
 #NSPRLINK = -L. -lnspr$(DLL_PRESUF)
 #NSPRLINK = -L. -ldsnspr$(DLL_PRESUF)
 ADM_EXTRA := -L. -L../../lib $(LDAPLINK) $(NSPRLINK) $(EXTRA_LIBS) 
-ifdef FORTEZZA
-ADM_EXTRA += $(NSCP_DISTDIR)/lib/libci.$(LIB_SUFFIX)
-endif
 DEF_LIBPATH := .:../../lib:$(DEF_LIBPATH)
 endif
 
@@ -160,22 +157,10 @@ else
 LIBSEC1=$(LIBSECOBJS)
 endif
 
-ifdef PRODUCT_IS_DIRECTORY_SERVER
-  DAEMONLIB=
-else
-  DAEMONLIB=$(OBJDIR)/lib/libhttpdaemon.a
-endif
+DEPLIBS = $(OBJDIR)/lib/libsi18n.a $(ADMLIB) $(LDAPSDK_DEP)
 
-DEPLIBS = ${DAEMONLIB} $(OBJDIR)/lib/libsi18n.a $(ADMLIB) $(LDAPSDK_DEP)
-
-ifdef FORTEZZA
-LIBSEC1 += $(NSCP_DISTDIR)/lib/libci.$(LIB_SUFFIX)
-endif
-
-DEPLINK = ${DAEMONLIB} $(OBJDIR)/lib/libsi18n.a
-ifneq ($(BUILD_MODULE), HTTP_PERSONAL)
+DEPLINK = $(OBJDIR)/lib/libsi18n.a
 DEPLINK +=	$(OBJDIR)/lib/libmsgdisp.a
-endif
 DEPLINK +=	$(SOLINK) $(LDAPLINK) $(NSPRLINK) $(SOLINK2)
 
 # Relative to the directory that contains the .so

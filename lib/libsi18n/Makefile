@@ -42,11 +42,11 @@
 
 BUILD_ROOT=../..
 MODULE=LibsI18N
-include $(BUILD_ROOT)/nsdefs.mk
+OBJDEST=$(OBJDIR)/lib/libsi18n
+
+include $(BUILD_ROOT)/nsconfig.mk
 
 NSDEFS_PRODUCT = $(NS_PRODUCT)
-
-OBJDEST=$(OBJDIR)/lib/libsi18n
 
 L10NDIR = $(BUILD_ROOT)/l10n
 
@@ -91,8 +91,6 @@ ifeq ($(BUILD_MODULE), DIRECTORY)
     ../../ldap/clients/dsgw/dbtdsgw.h \
     gsslapd.h
  endif
-
-include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 

@@ -132,12 +132,6 @@ EXTRA_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
 OPENSOURCE_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
 else
 ifeq ($(ARCH),HPUX)
-ifdef FORTEZZA 
-# link with libci.a for FORTEZZA builds. On other platforms, libci.a is
-# linked into libds_admin.so, but not on HPUX
-EXTRA_LIBS_DEP += $(FORTEZZA_DRIVER)
-EXTRA_LIBS += $(FORTEZZA_DRIVER)
-endif
 ifeq ($(USE_64), 1)
 EXTRALDFLAGS += +DA2.0W +DS2.0 +Z
 endif
@@ -349,11 +343,7 @@ $(LDAP_SERVER_RELDIR)/namegen.exe:  $(OBJDEST)/namegen.o
 $(LDAP_SERVER_RELDIR)/latest_file.exe:  $(OBJDEST)/latest_file.o
 	$(LINK_EXE_NOLIBSOBJS) $^
 
-installPerlFiles:  $(BINDIR) $(BINDIR)/Install.pl
-
-$(BINDIR)/Install.pl: CreateInstall.pl $(PERL_SCRIPTS_DEST)
-	-@$(RM) $@
-	$(CP) $< $@
+installPerlFiles:  $(BINDIR) $(PERL_SCRIPTS_DEST)
 
 $(BINDIR)/%: %
 	-@$(RM) $@

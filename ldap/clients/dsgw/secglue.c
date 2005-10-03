@@ -147,13 +147,6 @@ FUNC(CERT_GetStateName)
 FUNC(CERT_IsExportVersion)
 FUNC(CERT_PublicModulusLen)
 
-#ifdef FORTEZZA
-FUNC(SSL_EnableGroup)
-FUNC(SEC_OpenVolatileCertDB)
-FUNC(FortezzaConfigureServer)
-FUNC(SSL_IsEnabledGroup)
-#endif /* FORTEZZA */
-
 /* DSGW pkennedy added, for HCL integration */
 FUNC(BTOA_DataToAscii)
 FUNC(ATOB_AsciiToData)
@@ -162,7 +155,6 @@ FUNC(PK11_FindKeyByAnyCert)
 FUNC(PK11_GetTokenName)
 FUNC(PK11_SetPasswordFunc)
 FUNC(PK11_FindCertFromNickname)
-FUNC(PK11_FortezzaHasKEA)
 FUNC(PK11_ConfigurePKCS11)
 FUNC(SSL_SetPolicy)
 FUNC(CERT_VerifyCertNow)

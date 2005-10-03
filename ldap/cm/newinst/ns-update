@@ -63,11 +63,13 @@ start_server()
 install_nsperl()
 {
 	# the current version of nsPerl to use is defined in the slapd.inf
-	nsperlinst=`grep '^NSPerlPostInstall' setup/slapd/slapd.inf | cut -f2 -d=`
-	# run the nsperl installer
-	$nsperlinst > setup/nsperl/install.log
-	# use nsperl as our local copy of perl
-	cp `dirname $nsperlinst`/nsperl $PERL
+	nsperlinst=`grep '^NSPerlPostInstall' setup/slapd/slapd.inf | cut -f2 -d= 2> /dev/null`
+	if [ "$nsperlinst" ]; then
+		# run the nsperl installer
+		$nsperlinst > setup/nsperl/install.log
+		# use nsperl as our local copy of perl
+		cp `dirname $nsperlinst`/nsperl $PERL
+	fi
 }
 
 wrap_security_tools()
@@ -176,13 +178,8 @@ wrap_security_tools $sroot
 cd `dirname $0`
 
 rc=0
-if [ "$iDSISolaris" = "" ]; then  
-	./ds_create $* $extraflags
-	rc=$?
-else
-	$PERL -w Install.pl $* $extraflags
-	rc=$?
-fi
+./ds_create $* $extraflags
+rc=$?
 
 if [ -f fix_secmod_db_64 ]; then
     ./fix_secmod_db_64 $sroot/alias $sroot/shared32/bin

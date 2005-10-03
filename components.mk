@@ -483,6 +483,92 @@ PACKAGE_SRC_DEST += $(wildcard $(DB_LIBPATH)/*.$(DLL_SUFFIX)) bin/slapd/server
 
 ### DB component (Berkeley DB) ############################
 
+
+###########################################
+# SETUPUTIL
+##########################################
+
+ifdef SETUPUTIL_SOURCE_ROOT
+  SETUPUTIL_LIBPATH = $(SETUPUTIL_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)/lib
+  SETUPUTIL_INCDIR = $(SETUPUTIL_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)/include
+  SETUPUTIL_BINPATH = $(SETUPUTIL_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)/bin
+else
+  SETUPUTIL_LIBPATH = $(SETUPUTIL_BUILD_DIR)/lib
+  SETUPUTIL_INCDIR = $(SETUPUTIL_BUILD_DIR)/include
+  SETUPUTIL_BINPATH = $(SETUPUTIL_BUILD_DIR)/bin
+endif
+SETUPUTIL_INCLUDE = -I$(SETUPUTIL_INCDIR)
+
+ifeq ($(ARCH), WINNT)
+SETUPUTILLINK = /LIBPATH:$(SETUPUTIL_LIBPATH) nssetup32.$(LIB_SUFFIX)
+SETUPUTIL_S_LINK = /LIBPATH:$(SETUPUTIL_LIBPATH) nssetup32_s.$(LIB_SUFFIX)
+else
+SETUPUTILLINK = -L$(SETUPUTIL_LIBPATH) -linstall
+SETUPUTIL_S_LINK = $(SETUPUTILLINK)
+endif
+
+# this is the base directory under which the component's files will be found
+# during the build process
+ifdef ADMINUTIL_SOURCE_ROOT
+  ADMINUTIL_LIBPATH = $(ADMINUTIL_SOURCE_ROOT)/built/adminutil/$(COMPONENT_OBJDIR)/lib
+  ADMINUTIL_INCPATH = $(ADMINUTIL_SOURCE_ROOT)/built/adminutil/$(COMPONENT_OBJDIR)/include
+else
+  ADMINUTIL_LIBPATH = $(ADMINUTIL_BUILD_DIR)/lib
+  ADMINUTIL_INCPATH = $(ADMINUTIL_BUILD_DIR)/include
+endif
+
+PACKAGE_SRC_DEST += $(ADMINUTIL_LIBPATH)/property bin/slapd/lib
+LIBS_TO_PKG += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
+LIBS_TO_PKG_CLIENTS += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
+
+ifeq ($(ARCH),WINNT)
+ADMINUTIL_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil$(ADMINUTIL_VER).$(LIB_SUFFIX)
+ADMINUTIL_S_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil_s$(ADMINUTIL_VER).$(LIB_SUFFIX)
+LIBADMINUTILDLL_NAMES = $(ADMINUTIL_LIBPATH)/libadminutil$(ADMINUTIL_VER).$(DLL_SUFFIX)
+else
+ADMINUTIL_LINK=-L$(ADMINUTIL_LIBPATH) -ladminutil$(ADMINUTIL_VER)
+endif
+ADMINUTIL_INCLUDE=-I$(ADMINUTIL_INCPATH) -I$(ADMINUTIL_INCPATH)/libadminutil \
+	-I$(ADMINUTIL_INCPATH)/libadmsslutil
+
+#########################################
+# LDAPJDK
+#########################################
+
+LDAPJDK = ldapjdk.jar
+ifdef LDAPJDK_SOURCE_DIR
+  LDAPJDK_DIR = $(LDAPJDK_SOURCE_DIR)/directory/java-sdk/dist/packages
+else
+  LDAPJDK_DIR = $(CLASS_DEST)
+endif
+LDAPJARFILE=$(LDAPJDK_DIR)/ldapjdk.jar
+
+AXIS = axis-$(AXIS_VERSION).zip
+AXIS_FILES = $(AXIS)
+AXIS_FILE = $(CLASS_DEST)/$(AXIS)
+
+DSMLJAR = activation.jar,jaxrpc-api.jar,jaxrpc.jar,saaj.jar,xercesImpl.jar,xml-apis.jar
+DSMLJAR_FILE = $(CLASS_DEST)
+
+CRIMSON_LICENSE = LICENSE.crimson
+CRIMSONJAR = crimson.jar
+CRIMSONJAR_FILE = $(CLASS_DEST)/$(CRIMSONJAR)
+
+ifdef ADMINSERVER_SOURCE_ROOT
+  ADMSERV_DIR = $(ADMINSERVER_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)
+# else set in internal_buildpaths.mk
+endif
+# these are the only two subcomponents we use from the adminserver package
+ADMINSERVER_SUBCOMPS=admin base
+
+ifdef LDAPCONSOLE_SOURCE_ROOT
+  LDAPCONSOLE_DIR = $(LDAPCONSOLE_SOURCE_ROOT)/built/package
+else
+  LDAPCONSOLE_DIR = $(CLASS_DEST)
+endif
+LDAPCONSOLEJAR = ds$(LDAPCONSOLE_REL).jar
+LDAPCONSOLEJAR_EN = ds$(LDAPCONSOLE_REL)_en.jar
+
 # must define dependencies last because they depend on the definitions above
 ifeq ($(INTERNAL_BUILD), 1)
 include $(BUILD_ROOT)/internal_comp_deps.mk

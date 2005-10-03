@@ -115,3 +115,23 @@ DB_MAJOR_MINOR := db-4.2
 
 NETSNMP_SOURCE_ROOT = $(BUILD_ROOT)/../net-snmp-5.2.1
 #NETSNMP_BUILD_DIR = $(BUILD_ROOT)/../net-snmp
+
+ADMINUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../adminutil
+#ADMINUTIL_BUILD_DIR = $(NSCP_DISTDIR_FULL_RTL)/adminutil
+
+SETUPUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../setuputil
+#SETUPUTIL_BUILD_DIR = $(NSCP_DISTDIR_FULL_RTL)/setuputil
+
+LDAPJDK_SOURCE_DIR = $(MOZILLA_SOURCE_ROOT)
+
+ADMINSERVER_SOURCE_ROOT = $(BUILD_ROOT)/../adminserver
+
+LDAPCONSOLE_SOURCE_ROOT = $(BUILD_ROOT)/../directoryconsole
+
+# these are the files needed to build the java components - xmltools and dsmlgw -
+# and where to get them
+# Axis - axis.jar - http://ws.apache.org/axis/index.html - also jaxrpc.jar,saaj.jar
+# Xerces-J - xercesImpl.jar, xml-apis.jar http://xml.apache.org/xerces2-j/download.cgi
+# JAF - activation.jar - http://java.sun.com/products/javabeans/glasgow/jaf.html
+# JWSDP - jaxrpc-api.jar,jaxrpc.jar,saaj.jar - http://java.sun.com/webservices/downloads/webservicespack.html
+# Crimson - crimson.jar - http://xml.apache.org/crimson/

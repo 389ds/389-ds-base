@@ -45,9 +45,9 @@
 BUILD_ROOT=../..
 MODULE=LibBase
 
-include $(BUILD_ROOT)/nsdefs.mk
-
 OBJDEST=$(OBJDIR)/lib/base
+
+include $(BUILD_ROOT)/nsconfig.mk
 
 ifeq ($(ARCH), WINNT)
 LIBS=$(OBJDIR)/lib/libbase.lib
@@ -57,8 +57,6 @@ endif
 else
 LIBS=$(OBJDIR)/lib/libbase.a
 endif
-
-include $(BUILD_ROOT)/nsconfig.mk
 
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
 

@@ -44,7 +44,7 @@
 #
 # BUILD_BOMB=[-DPUMPKIN_HOUR=xxxxxxx or just leave it empty]
 # BUILD_DEBUG=[full, optimize, purify, quantify]
-# BUILD_MODULE=[HTTP_ADMIN, HTTP_PERSONAL, HTTP_ENTERPRISE, ...]
+# BUILD_MODULE=[HTTP_ADMIN, ...]
 # BUILD_SECURITY=[none, export, domestic]
 
 TMP_ARCH := $(shell uname -s)
@@ -125,22 +125,7 @@ endif # !BUILD_JAVA_CODE
 NSPR_SUF=20
 LDAP_SUF=50
 
-# We can't have lite fortezza ( I don't think it makes sense ).
-ifdef FORTEZZA
-BUILD_FORTEZZA=fortezza
-else
-ifdef LITE
-BUILD_FORTEZZA=lite
-else
-BUILD_FORTEZZA=normal
-endif
-endif
-
-ifdef LITE
-IS_DIR_LITE=true
-else
 IS_DIR_LITE=false
-endif
 
 # Foreign language support
 WEBSERVER_LANGS = ja fr de
@@ -185,7 +170,6 @@ echo BUILD_ARCH=$(BUILD_ARCH)
 echo BUILD_MODULE=$(BUILD_MODULE)
 echo BUILD_SECURITY=$(BUILD_SECURITY)
 echo BUILD_DEBUG=$(BUILD_DEBUG)
-echo BUILD_FORTEZZA=$(BUILD_FORTEZZA)
 echo BUILD_NSPR_THREADS=$(BUILD_NSPR_THREADS)
 echo BUILD_BOMB=$(BUILD_BOMB)
 echo BUILD_DLL_VERSION=$(BUILD_DLL_VERSION)
@@ -205,7 +189,6 @@ else
 endif
 SECURITY=$(BUILD_SECURITY)
 DEBUG=$(BUILD_DEBUG)
-B_FORTEZZA=$(BUILD_FORTEZZA)
 BOMB=$(BUILD_BOMB)
 NSPR_THREADS=$(BUILD_NSPR_THREADS)
 BUILD_DLL=$(BUILD_DLL_VERSION)
@@ -225,13 +208,8 @@ RTSUFFIX=-d
 endif
 endif
 endif
-BASIC_OBJDIR=$(BUILD_ROOT)/built/$(ARCH)$(NSOS_TEST1_TAG)$(NS64TAG)-$(SECURITY)-$(DEBUG)$(RTSUFFIX)-$(B_FORTEZZA)
+BASIC_OBJDIR=$(BUILD_ROOT)/built/$(FULL_RTL_OBJDIR)
 
-#
-# -- Directory Server Section -----------------------------------------------
-#
-
-ifeq ($(BUILD_MODULE), DIRECTORY)
 ifdef NSPR20
  NSPR_DIR=nspr20
 else
@@ -244,24 +222,13 @@ PRODUCT_IS_DIRECTORY_SERVER=1
 INSTANCE_NAME_PREFIX="Directory Server"
 DIR=slapd
 NS_PRODUCT=DIRECTORY_SERVER
-ARCHPROCESSOR=$(ARCH)
 ifdef INCLUDE_SSL
 SSL_PREFIX=-ssl
 endif
-ifeq ($(findstring RHEL, $(BUILD_ARCH)), RHEL)
-    NS_BUILD_FLAVOR = $(BUILD_ARCH)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
-    ARCHPROCESSOR = $(BUILD_ARCH)
-else
-  NS_BUILD_FLAVOR = $(ARCH)$(NSOS_TEST1_TAG)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
-endif
-NC_BUILD_FLAVOR = $(NSCONFIG)$(NSOBJDIR_TAG).OBJ
-ifeq ($(ARCH), WINNT)
-ifeq ($(PROCESSOR), ALPHA)
-ARCHPROCESSOR=$(ARCH)$(PROCESSOR)
-endif
-endif
-COMMON_OBJDIR=$(BUILD_ROOT)/built/$(ARCHPROCESSOR)$(NSOS_TEST1_TAG)$(NS64TAG)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
-COMMON_OBJDIR_32=$(BUILD_ROOT)/built/$(ARCHPROCESSOR)-$(SECURITY)$(SSL_PREFIX)-$(DEBUG)$(RTSUFFIX)-$(BUILD_FORTEZZA)$(BUILD_PTHREADS)-$(DIR)
+NS_BUILD_FLAVOR = $(FULL_RTL_OBJDIR)
+NC_BUILD_FLAVOR = $(FULL_RTL_OBJDIR)
+COMMON_OBJDIR=$(BUILD_ROOT)/built/$(FULL_RTL_OBJDIR)
+COMMON_OBJDIR_32= $(subst $(NS64TAG),,$(COMMON_OBJDIR))
 OBJDIR=$(COMMON_OBJDIR)
 OBJDIR_32=$(COMMON_OBJDIR_32)
 DO_SEARCH=no
@@ -281,36 +248,6 @@ LDAP_NO_LIBLCACHE:=1
 DIRVERDIR=$(COMMON_OBJDIR)/include
 DIRVER_H=$(DIRVERDIR)/dirver.h
 SDKVER_H=$(DIRVERDIR)/sdkver.h
-endif
 
-#
-# -- Default Section --------------------------------------------------------
-#
-# Some of the _OBJDIR is maintained for backward compatibility until they
-# are all cleaned up.  Most of them heavily dependent on value of $(DIR)
-#
-
-ifndef AMDSERV_OBJDIR
-ADMSERV_OBJDIR=$(BASIC_OBJDIR)-admin
-endif
-
-ifndef COMMON_OBJDIR
-COMMON_OBJDIR=$(BASIC_OBJDIR)-$(DIR)
-endif
-
-ifndef HTTPD_OBJDIR
-HTTPD_OBJDIR=$(BASIC_OBJDIR)-$(DIR)
-endif
-
-ifndef MC_ICONS_OBJDIR
-MC_ICONS_OBJDIR=$(BASIC_OBJDIR)-$(DIR)
-endif
-
-ifndef OBJDIR
-OBJDIR=$(BASIC_OBJDIR)-$(DIR)
-endif
-
-ifndef PLUGINS_OBJDIR
-PLUGINS_OBJDIR=$(BASIC_OBJDIR)-$(DIR)/plugins
-endif
-
+# this is the one that adminutil, setuputil, and adminserver uses
+COMPONENT_OBJDIR=$(FULL_RTL_OBJDIR)

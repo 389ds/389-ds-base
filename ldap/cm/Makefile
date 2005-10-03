@@ -134,9 +134,6 @@ endif
 
 ifeq ($(BUILD_SECURITY), domestic)
 SEC=-sec domestic
-ifdef FORTEZZA
-SEC=-sec fortezza
-endif 
 else
 SEC=-sec export 
 endif 
@@ -188,23 +185,12 @@ DOTEXE = .exe
 PACKAGE_STAGE_DIR=$(OBJDIR)/package
 endif
 
-SHARETOP = $(COMPONENTS_DIR)/ldapsdk
-BUILD_DATE = $(shell date +%Y%m%d)
-SHAREDIR = $(SHARETOP)/$(BUILD_DATE)/$(NC_BUILD_FLAVOR)
-#ADM_VERSDIR = admserv40
-#ADM_RELDATE = untested/19980119
-#IMPORTADMINSRV = $(IMPORTADMINSRV_BASE)/$(NSOBJDIR_NAME_32)
-IMPORTADMINSRVNOTARBASE = $(COMPONENTS_DIR_DEV)/$(ADM_VERSDIR)/$(ADM_VERSION)/$(NSOBJDIR_NAME)
 # these are files and directories in the import adminsrv directory which we don't
 # make a local copy of, we just import directly into the tar file or create a
 # symlink to
-ADMIN_IMPORTS=base admin
+ADMIN_IMPORTS=$(ADMINSERVER_SUBCOMPS)
 ADMIN_SERVER_TARGZ=adminserver.tar.gz
 ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
-
-# Release directory for ldapsdk
-RELSDK = $(BUILD_DRIVE)$(RELTOP)/ldapsdk/$(OBJDIR_BASE)
-RELJDK = $(BUILD_DRIVE)$(RELTOP)/ldapjdk
 
 # these are files we need to put in the command line/console only package
 #LDAPSDK_IMPORTS=ldapsearch ldapdelete ldapmodify
@@ -290,8 +276,6 @@ else
 endif
 endif
 
-# Borland libraries are build on NT only
-
 dummy:
 	-@echo SITEHACK = $(SITEHACK)
 	-@echo PACKAGE_SRC_DEST = $(PACKAGE_SRC_DEST)
@@ -350,17 +334,23 @@ endif
 # install the DSMLGW into the client directory
 ifeq ($(USE_DSMLGW), 1)
 	$(MKDIR) $(RELDIR)/clients/dsmlgw
-	$(CP) -R $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/
+	if [ -d $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis ] ; then \
+		$(CP) -R $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/ ; \
+	fi
 
 	$(INSTALL) -m 644 $(NSDIST)/dsmlgw/dsmlgw.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/server-config.wsdd $(RELDIR)/clients/dsmlgw/WEB-INF
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(RELDIR)/clients/dsmlgw/
 
-
 # now time to move the necessary jars in place
 	$(INSTALL) -m 644 $(NSDIST)/classes/ldapjdk.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(NSDIST)/classes/activation.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(NSDIST)/classes/jaxrpc-api.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
+# if you use the jaxrpc.jar from the axis distribution, you don't need the api file
+# or perhaps you need the jaxrpc.jar for building, and jaxrpc-api.jar at runtime, or vice versa
+# if so, I'm not sure where to get the implementation
+	if [ -f $(NSDIST)/classes/jaxrpc-api.jar ] ; then \
+		$(INSTALL) -m 644 $(NSDIST)/classes/jaxrpc-api.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+	fi
 	$(INSTALL) -m 644 $(NSDIST)/classes/jaxrpc.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(NSDIST)/classes/saaj.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(NSDIST)/classes/xercesImpl.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
@@ -472,13 +462,15 @@ endif
 # install the ds jar file in the <server root>/$(DS_JAR_DEST_PATH) directory
 # also install the other jar files we use
 ifeq ($(USE_CONSOLE), 1)
-	$(INSTALL) -m 644 $(NSDIST)/classes/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(NSDIST)/classes/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_JAR_DEST_PATH)
 endif
 ifeq ($(USE_JAVATOOLS), 1)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSONJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	if [ -f $(NSDIST)/classes/$(CRIMSON_LICENSE) ] ; then \
+		$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
+	fi
 endif
 
 # Images for IM Presence plugin
@@ -513,8 +505,8 @@ ifdef USE_QUANTIFY
 endif
 
 # Copy db tools 
-	$(INSTALL) -m 755 $(DB_BINPATH)/db_printlog* $(RELDIR)/bin/slapd/server
-	$(INSTALL) -m 755 $(DB_BINPATH)/db_verify* $(RELDIR)/bin/slapd/server
+	$(INSTALL) -m 755 $(DB_BINPATH)/db_printlog$(EXE_SUFFIX) $(RELDIR)/bin/slapd/server
+	$(INSTALL) -m 755 $(DB_BINPATH)/db_verify$(EXE_SUFFIX) $(RELDIR)/bin/slapd/server
 
 	$(INSTALL) -m 755 $(OBJDIR)/lib/libsi18n/ns-slapd.properties $(RELDIR)/bin/slapd/property;
 
@@ -554,28 +546,13 @@ endif # BUILD_RPM
 # For security reason, it's readable only by the owner
 	chmod 700 $(RELDIR)/bin/slapd/server
 
-# this is the rule to pull the Infozip utilities
-ifndef INFOZIP_PULL_METHOD
-INFOZIP_PULL_METHOD = FTP
-endif
-
-$(INSTDIR)/tools/infozip.zip:
-	$(RM) $@
-	$(FTP_PULL) -method $(INFOZIP_PULL_METHOD) \
-		-objdir $(dir $@) \
-		-componentdir $(COMPONENTS_DIR)/infozip/$(INFOZIP_RELDATE)/$(NSOBJDIR_NAME_32) \
-		-files infozip.zip
-	@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component INFOZIP file $@" ; \
-	exit 1 ; \
-	fi
-
 # this is the rule to pull PerLDAP
 ifndef PERLDAP_PULL_METHOD
 PERLDAP_PULL_METHOD = FTP
 endif
 
 $(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE):
+ifdef INTERNAL_BUILD
 	$(RM) $@
 	$(FTP_PULL) -method $(PERLDAP_PULL_METHOD) \
 		-objdir $(dir $@) \
@@ -586,6 +563,7 @@ $(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE):
 	exit 1 ; \
 	fi
 	$(PERL) -w fixPerlDAPInf.pl $(dir $@)/perldap.inf
+endif
 
 # this is the rule to pull nsPerl
 ifndef NSPERL_PULL_METHOD
@@ -593,6 +571,7 @@ NSPERL_PULL_METHOD = FTP
 endif
 
 $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE):
+ifdef INTERNAL_BUILD
 	$(RM) $@
 	$(FTP_PULL) -method $(NSPERL_PULL_METHOD) \
 		-objdir $(dir $@) \
@@ -607,6 +586,7 @@ $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE):
 # conflicts with the one in perldap - bug 600138
 # SITEHACK is defined in nsperl.mk
 #	$(ZIP) -d $(dir $@)/$(NSPERL_ZIP_FILE) lib/nsPerl5.6.1/$(SITEHACK)/Mozilla/LDAP/LDIF.pm
+endif
 
 $(INSTDIR)/slapd:
 	$(MKDIR) -p $@
@@ -619,7 +599,6 @@ ifneq ($(ARCH), WINNT)
 packageDirectory: $(INSTDIR)/slapd \
 	$(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
 	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE) \
-	$(INSTDIR)/tools/infozip.zip \
 	$(ADMSERV_DEP)
 
 ifdef BUILD_PATCH
@@ -657,6 +636,7 @@ endif
 endif
 endif
 endif
+ifeq ($(USE_CONSOLE),1)
 # create the slapd-client.zip file, which only has the ds jar file for the console and
 # the ldap client utility programs
 	rm -f $(INSTDIR)/slapd/slapd-client.zip
@@ -668,7 +648,7 @@ else
 # Normal way to ZIP the bits
 	cd $(RELDIR); $(ZIP) $(ZIP_FLAGS) $(ABS_INSTDIR)/slapd/slapd-client.zip ./java
 endif
-
+endif # USE_CONSOLE
 #; for file in $(LDAPSDK_IMPORTS) ; \
 #	do $(ZIP) $(ZIP_FLAGS) -g $(INSTDIR)/slapd/slapd-client.zip bin/slapd/server/$$file$(DOTEXE) ; \
 #	done
@@ -698,16 +678,14 @@ endif
 
 # if the untar directory is there, hooray; otherwise, we will have to unpack the
 # binaries ourselves . . .
-	curdir=`pwd`; cd $(INSTDIR) ; \
-	if [ ! -d $(IMPORTADMINSRVNOTARBASE)/admin ] ; \
-		then for file in $(ADMIN_IMPORTS_TARGZ) ; \
-			do rm -rf $$file ; \
-			$(GUNZIP) -c $(ADMSERV_DIR)/$$file | $(TAR) xvf - ; \
-		done ; \
+	if [ ! -d $(ADMSERV_DIR)/admin ] ; \
+	then \
+		rm -rf $(addprefix $(INSTDIR)/,$(ADMINSERVER_SUBCOMPS)) ; \
+		$(GUNZIP) -c $(ADMSERV_DIR)/$(ADMIN_SERVER_TARGZ) | (cd $(INSTDIR) ; $(TAR) xvf - $(ADMINSERVER_SUBCOMPS)) ; \
 	else \
-		for file in $(ADMIN_IMPORTS) ; \
-			do rm -rf $$file ; \
-			cp -r $(IMPORTADMINSRVNOTARBASE)/$$file $$file ; \
+		for file in $(ADMINSERVER_SUBCOMPS) ; \
+			do rm -rf $(INSTDIR)/$$file ; \
+			cp -r $(ADMSERV_DIR)/$$file $(INSTDIR)/$$file ; \
 		done ; \
 	fi
 
@@ -715,7 +693,7 @@ endif
 	rm -f $(INSTDIR)/base/nsbase.zip
 # we also need to remove the Archive directive from the [base] section of the
 # base.inf file
-	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
+#	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
 
 # Install LDAP Readme and License files at root of Installation (dated pre-packaging) directory.
 # And, replace the License.txt file that is packaged in nssvrcore.zip.
@@ -735,14 +713,14 @@ ifndef NO_INSTALLER_TAR_FILES
 ifdef BUILD_SHIP
 ifndef BUILD_PATCH
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd nsperl \
-	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
+	perldap dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 endif
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
 else
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd nsperl \
-	perldap dsktune tools $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	perldap dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
@@ -941,8 +919,8 @@ _slapd_files: $(INSTDIR)/$(SLAPD_DIR)  \
 			   $(INSTDIR)/$(SLAPD_DIR)/slapd.z \
 			   $(INSTDIR)/$(SLAPD_DIR)/dsjars.z
 
-$(INSTDIR)/$(SLAPD_DIR)/dsjars.z: $(CLASS_DEST)/$(LDAPCONSOLEJAR) \
-	$(CLASS_DEST)/$(LDAPCONSOLEJAR_EN)  $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE)
+$(INSTDIR)/$(SLAPD_DIR)/dsjars.z: $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR) \
+	$(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR_EN)  $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE)
 	rm -f $(DSJARS_ZIPFILE); cd $(RELDIR); zip -r $(DSJARS_ZIPFILE) java
 
 $(INSTDIR)/$(SLAPD_DIR)/slapd.z: 
@@ -974,7 +952,7 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.z:
 _setup_files: $(INSTDIR)/$(SLAPD_DIR)/dsinst.dll \
 			  $(INSTDIR)/$(SLAPD_DIR)/slapd.inf \
 			  $(INSTDIR)/admin $(INSTDIR)/base \
-			  $(INSTDIR)/svrcore $(INSTDIR)/tools
+			  $(INSTDIR)/svrcore
 # see components.mk for a description of PACKAGE_SETUP_LIBS
 	-@for file in $(PACKAGE_SETUP_LIBS) ; \
 	do if [ -f $$file ] ; \
@@ -1003,20 +981,6 @@ $(INSTDIR)/base: $(ADMSERV_DIR)/base
 
 $(INSTDIR)/svrcore: $(ADMSERV_DIR)/svrcore
 	cp -R $< $@
-
-$(INSTDIR)/tools: $(INSTDIR)/tools/infozip.zip
-	$(UNZIP) -j $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
-	lib/nsPerl5.6.1/bin/perl$(DOTEXE) -d $@
-	$(UNZIP) -j $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
-	lib/nsPerl5.6.1/bin/perl56.dll -d $@
-# We need to pull out the perl lib directory for perl to work 
-	mkdir $@/tmp
-	$(UNZIP) $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
-	lib/nsPerl5.6.1/lib/\* -d $@/tmp
-	cp -R $@/tmp/lib/nsPerl5.6.1/lib $@
-	rm -rf $@/tmp
-	$(UNZIP) -j $< -d $@
-	rm -f $<
 
 endif
 
