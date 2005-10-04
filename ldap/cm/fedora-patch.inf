@@ -43,5 +43,5 @@
 base: /share/dev4/fedora-ds/fds71/ships/20050526.1
 
 file: 000001: README.txt
-file: 000002: COPYRIGHT.txt
+file: 000002: lib/libback-ldbm.*
 
