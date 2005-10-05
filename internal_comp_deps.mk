@@ -432,7 +432,7 @@ ifdef COMPONENT_DEPS
 	$(FTP_PULL) -method $(COMPONENT_PULL_METHOD) \
 		-objdir $(CLASS_DEST) -componentdir $(AXIS_DIR) \
 		-files $(AXIS_FILES) -unzip $(CLASS_DEST)
-endifldap/
+endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component AXIS files $@" ; \
 	fi
