@@ -553,6 +553,9 @@ windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slap
 	int ldap_rc = 0;
 	LDAPMessage *res = NULL;
 	int not_unique = 0;
+	int nummessages = 0;
+	int numentries = 0;
+	int numreferences = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_search_entry\n", 0, 0, 0 );
 
@@ -566,8 +569,14 @@ windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slap
 			&conn->timeout, 0 /* sizelimit */, &res);
 		if (LDAP_SUCCESS == ldap_rc)
 		{
+			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+				nummessages = ldap_count_messages(conn->ld, res);
+				numentries = ldap_count_entries(conn->ld, res);
+				numreferences = ldap_count_references(conn->ld, res);
+				LDAPDebug( LDAP_DEBUG_REPL, "windows_search_entry: recieved %d messages, %d entries, %d references\n",
+                                   nummessages, numentries, numreferences );
+			}
 			LDAPMessage *message = ldap_first_entry(conn->ld, res);
-			LDAPMessage *next_entry = NULL;
 			if (NULL != entry)
 			{
 				*entry = windows_LDAPMessage2Entry(conn->ld,message,0);
@@ -575,7 +584,7 @@ windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slap
 			/* See if there are any more entries : if so then that's an error
 			 * but we still need to get them to avoid gumming up the connection
 			 */
-			while (NULL != ( next_entry = ldap_next_entry(conn->ld,res))) 
+			while (NULL != ( message = ldap_next_entry(conn->ld,message))) 
 			{
 				not_unique = 1;
 			}
