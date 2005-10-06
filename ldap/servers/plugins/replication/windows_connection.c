@@ -569,6 +569,8 @@ windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slap
 			&conn->timeout, 0 /* sizelimit */, &res);
 		if (LDAP_SUCCESS == ldap_rc)
 		{
+			LDAPMessage *message = ldap_first_entry(conn->ld, res);
+
 			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 				nummessages = ldap_count_messages(conn->ld, res);
 				numentries = ldap_count_entries(conn->ld, res);
@@ -576,7 +578,7 @@ windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slap
 				LDAPDebug( LDAP_DEBUG_REPL, "windows_search_entry: recieved %d messages, %d entries, %d references\n",
                                    nummessages, numentries, numreferences );
 			}
-			LDAPMessage *message = ldap_first_entry(conn->ld, res);
+
 			if (NULL != entry)
 			{
 				*entry = windows_LDAPMessage2Entry(conn->ld,message,0);
