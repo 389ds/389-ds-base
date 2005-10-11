@@ -38,7 +38,7 @@
 <Wix xmlns='http://schemas.microsoft.com/wix/2003/01/wi'>
   <Product Name='Fedora Directory Synchronization' Id='9FABDEC3-CAA0-40D5-871F-A0E1759C38C1'
     Language='1033' Codepage='1252'
-    Version='1.0.0' Manufacturer='Fedora Project'>
+    Version='1.0.1' Manufacturer='Fedora Project'>
 
     <Package Id='????????-????-????-????-????????????' Keywords='Installer'
       Description="Fedora Directory Synchronization Installer"

@@ -38,11 +38,11 @@
 <Wix xmlns='http://schemas.microsoft.com/wix/2003/01/wi'>
   <Product Name='Fedora Directory Password Sync' Id='C1842CD5-4659-4E7C-A53C-37083B0CB59F'
     Language='1033' Codepage='1252'
-    Version='1.0.0' Manufacturer='Fedora'>
+    Version='1.0.1' Manufacturer='Fedora Project'>
 
     <Package Id='????????-????-????-????-????????????' Keywords='Installer'
       Description="Fedora Directory Password Synchronization Installer"
-      Manufacturer='Fedora'
+      Manufacturer='Fedora Project'
       InstallerVersion='100' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
 
     <Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
