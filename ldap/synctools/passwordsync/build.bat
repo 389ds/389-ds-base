@@ -108,6 +108,15 @@ if EXIST ..\%LIBROOT%\nss\lib\ssl3.dll (
 if EXIST ..\%LIBROOT%\nss\lib\softokn3.dll (
     copy /Y ..\%LIBROOT%\nss\lib\softokn3.dll %OBJDEST%\
 )
+if EXIST ..\%LIBROOT%\nss\lib\smime3.dll (
+    copy /Y ..\%LIBROOT%\nss\lib\smime3.dll %OBJDEST%\
+)
+if EXIST ..\%LIBROOT%\nss\bin\certutil.exe (
+    copy /Y ..\%LIBROOT%\nss\bin\certutil.exe %OBJDEST%\
+)
+if EXIST ..\%LIBROOT%\nss\bin\pk12util.exe (
+    copy /Y ..\%LIBROOT%\nss\bin\pk12util.exe %OBJDEST%\
+)
 
 xcopy /E /Y /I %WXSDIR%\Binary %OBJDEST%\Binary 
 
