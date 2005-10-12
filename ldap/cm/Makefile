@@ -218,8 +218,8 @@ ABSBUILD_ROOT = $(shell cd $(BUILD_ROOT); pwd)
 ABSRELDIR = $(ABSBUILD_ROOT)/built/release
 GENRPMPATCH = $(ABSBUILD_ROOT)/ldap/cm/genRpmPatch.pl
 PATCHINF = $(ABSBUILD_ROOT)/ldap/cm/fedora-patch.inf
-DATETIME = $(shell date +%Y%m%d-%H%M%S)
-SPEXT = .SP.$(DATETIME)
+DATETIME := $(shell date +%Y%m%d-%H%M%S)
+SPEXT := .SP.$(DATETIME)
 
 # This is the directory where we put what we're making: the files which go on the CD.
 ifndef INSTDIR
