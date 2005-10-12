@@ -47,6 +47,30 @@
 
     <Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
     <Property Id='DiskPrompt' Value="Password Sync Installation [1]" />
+    <Property Id="HOSTNAME">
+      <RegistrySearch Id="HostName" Root="HKLM" Key="Software\PasswordSync"
+                      Name="Host Name" Type="registry" />
+    </Property>
+    <Property Id="PORTNUM">
+      <RegistrySearch Id="PortNum" Root="HKLM" Key="Software\PasswordSync"
+                      Name="Port Number" Type="registry" />
+    </Property>
+    <Property Id="USER">
+      <RegistrySearch Id="UserName" Root="HKLM" Key="Software\PasswordSync"
+                      Name="User Name" Type="registry" />
+    </Property>
+    <Property Id="PASSWORD">
+      <RegistrySearch Id="Password" Root="HKLM" Key="Software\PasswordSync"
+                      Name="Password" Type="registry" />
+    </Property>
+    <Property Id="CERTTOKEN">
+      <RegistrySearch Id="Certtkn" Root="HKLM" Key="Software\PasswordSync"
+                      Name="Cert Token" Type="registry" />
+    </Property>
+    <Property Id="SRCHBASE">
+      <RegistrySearch Id="SrchBase" Root="HKLM" Key="Software\PasswordSync"
+                      Name="Search Base" Type="registry" />
+    </Property>
 
     <Directory Id='TARGETDIR' Name='SourceDir'>
 
@@ -124,6 +148,7 @@
 		  <Registry Id='SrchBase' Root='HKLM' Key='Software\PasswordSync' Name='Search Base' Action='write' Type='string' Value='[SRCHBASE]' />
 		  <Registry Id='UserFld' Root='HKLM' Key='Software\PasswordSync' Name='User Name Field' Action='write' Type='string' Value='ntuserdomainid' />
 		  <Registry Id='PassFld' Root='HKLM' Key='Software\PasswordSync' Name='Password Field' Action='write' Type='string' Value='userpassword' />
+                  <Registry Id='LogLevel' Root='HKLM' Key='Software\PasswordSync' Name='Log Level' Action='write' Type='string' Value='0' />
 		  <Registry Id='NotPkgs' Root='HKLM' Key='SYSTEM\ControlSet001\Control\Lsa' Name='Notification Packages' Action='append'
 		   Type='multiString' Value='passhook'/>
 
@@ -814,6 +839,7 @@
 
       <Dialog Id="VerifyReadyDlg" Width="370" Height="270" Title="[ProductName] [Setup]" NoMinimize="yes" TrackDiskSpace="yes">
         <Control Id="Install" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="[ButtonText_Install]">
+          <Publish Event="Reinstall" Value="ALL"><![CDATA[InstallMode = "Change"]]></Publish>
           <Publish Event="EndDialog" Value="Return"><![CDATA[OutOfDiskSpace <> 1]]></Publish>
           <Publish Event="SpawnDialog" Value="OutOfRbDiskDlg"><![CDATA[OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST="P" OR NOT PROMPTROLLBACKCOST)]]></Publish>
           <Publish Event="EndDialog" Value="Return"><![CDATA[OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST="D"]]></Publish>
