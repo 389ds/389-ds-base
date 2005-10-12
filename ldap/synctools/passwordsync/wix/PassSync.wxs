@@ -74,51 +74,51 @@
 
     <Directory Id='TARGETDIR' Name='SourceDir'>
 
+      <Directory Id='SystemFolder' Name='SysDir'>
+        <Component Id='HookLibrary' Guid='93790ACE-F522-413C-AEE3-DF05D99BAA6D'>
+          <File Id='PasshookDLL' Name='passhook.dll' DiskId='1' src='passhook.dll' Vital='yes' />
+        </Component>
 
-	    <Directory Id='SystemFolder' Name='SysDir'>
+        <Component Id='NSLDAPLibrary' Guid='E3B9046B-1B9B-4E19-81F3-0A8D14CF72B2'>
+          <File Id='NSLDAP' LongName='nsldap32v50.dll' Name='nsldap.dll' DiskId='1' src='nsldap32v50.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='HookLibrary' Guid='93790ACE-F522-413C-AEE3-DF05D99BAA6D'>
-              <File Id='PasshookDLL' Name='passhook.dll' DiskId='1' src='passhook.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSLDAPSSLLibrary' Guid='794345C6-74B8-4917-A2E6-4DC9DCCFECD2'>
+          <File Id='NSLDAPSSL' LongName='nsldapssl32v50.dll' Name='nsldapss.dll' DiskId='1' src='nsldapssl32v50.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSLDAPLibrary' Guid='E3B9046B-1B9B-4E19-81F3-0A8D14CF72B2'>
-		  <File Id='NSLDAP' LongName='nsldap32v50.dll' Name='nsldap.dll' DiskId='1' src='nsldap32v50.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSLDAPPRLibrary' Guid='D6ABE406-7663-4E27-81F3-482860FD6375'>
+          <File Id='NSLDAPRP' LongName='nsldappr32v50.dll' Name='nsldappr.dll' DiskId='1' src='nsldappr32v50.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSLDAPSSLLibrary' Guid='794345C6-74B8-4917-A2E6-4DC9DCCFECD2'>
-		  <File Id='NSLDAPSSL' LongName='nsldapssl32v50.dll' Name='nsldapss.dll' DiskId='1' src='nsldapssl32v50.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSPRLibrary' Guid='7DFF5449-F38C-4C3B-9876-E32A123F1EA5'>
+          <File Id='NSPR' LongName='libnspr4.dll' Name='libnspr4.dll' DiskId='1' src='libnspr4.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSLDAPPRLibrary' Guid='D6ABE406-7663-4E27-81F3-482860FD6375'>
-		  <File Id='NSLDAPRP' LongName='nsldappr32v50.dll' Name='nsldappr.dll' DiskId='1' src='nsldappr32v50.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSPRpldsLibrary' Guid='50C89341-754F-4092-8307-129DB119B42E'>
+          <File Id='NSPRPLDS' LongName='libplds4.dll' Name='libplds4.dll' DiskId='1' src='libplds4.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSPRLibrary' Guid='7DFF5449-F38C-4C3B-9876-E32A123F1EA5'>
-		  <File Id='NSPR' LongName='libnspr4.dll' Name='libnspr4.dll' DiskId='1' src='libnspr4.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSPRplcLibrary' Guid='1B8B1D78-E2C1-4F3A-A841-C79FFE26E6E0'>
+          <File Id='NSPRPLC' LongName='libplc4.dll' Name='libplc4.dll' DiskId='1' src='libplc4.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSPRpldsLibrary' Guid='50C89341-754F-4092-8307-129DB119B42E'>
-		  <File Id='NSPRPLDS' LongName='libplds4.dll' Name='libplds4.dll' DiskId='1' src='libplds4.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSSLibrary' Guid='5E122346-6B77-456D-BCC5-76D7FA8AF258'>
+          <File Id='NSS' LongName='nss3.dll' Name='nss3.dll' DiskId='1' src='nss3.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSPRplcLibrary' Guid='1B8B1D78-E2C1-4F3A-A841-C79FFE26E6E0'>
-		  <File Id='NSPRPLC' LongName='libplc4.dll' Name='libplc4.dll' DiskId='1' src='libplc4.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSSsslLibrary' Guid='A39CC896-F455-4701-9BF0-D1E31C116DE2'>
+          <File Id='NSSSSL' LongName='ssl3.dll' Name='ssl3.dll' DiskId='1' src='ssl3.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSSLibrary' Guid='5E122346-6B77-456D-BCC5-76D7FA8AF258'>
-		  <File Id='NSS' LongName='nss3.dll' Name='nss3.dll' DiskId='1' src='nss3.dll' Vital='yes' />
-            </Component>
+        <Component Id='NSSsoftoknLibrary' Guid='9C57A076-D52A-4E74-A46A-DDF916A7D8BD'>
+          <File Id='NSSSOFTTOKN' LongName='softokn3.dll' Name='softokn3.dll' DiskId='1' src='softokn3.dll' Vital='yes' />
+        </Component>
 
-		<Component Id='NSSsslLibrary' Guid='A39CC896-F455-4701-9BF0-D1E31C116DE2'>
-		  <File Id='NSSSSL' LongName='ssl3.dll' Name='ssl3.dll' DiskId='1' src='ssl3.dll' Vital='yes' />
-            </Component>
-
-		<Component Id='NSSsoftoknLibrary' Guid='9C57A076-D52A-4E74-A46A-DDF916A7D8BD'>
-		  <File Id='NSSSOFTTOKN' LongName='softokn3.dll' Name='softokn3.dll' DiskId='1' src='softokn3.dll' Vital='yes' />
-            </Component>
-
-	    </Directory>
-
+        <Component Id='NSSsmimeLibrary' Guid='E1030203-0A43-4767-BF5F-C7A51C687040'>
+          <File Id='NSSSMIME' LongName='smime3.dll' Name='smime3.dll' DiskId='1' src='smime3.dll' Vital='yes' />
+        </Component>
+      </Directory>
 
       <Directory Id='ProgramFilesFolder' Name='PFiles'>
 
@@ -151,8 +151,15 @@
                   <Registry Id='LogLevel' Root='HKLM' Key='Software\PasswordSync' Name='Log Level' Action='write' Type='string' Value='0' />
 		  <Registry Id='NotPkgs' Root='HKLM' Key='SYSTEM\ControlSet001\Control\Lsa' Name='Notification Packages' Action='append'
 		   Type='multiString' Value='passhook'/>
+            </Component>
 
-		</Component>
+            <Component Id='NSScertutil' Guid='EE2FB62B-E104-4049-8A6D-B96D4524FC29'>
+              <File Id='NSSCERTUTIL' LongName='certutil.exe' Name='certutil.exe' DiskId='1' src='certutil.exe' Vital='yes' />
+            </Component>
+
+            <Component Id='NSSpk12util' Guid='13393BA9-550A-4330-85B9-76F14225A6D7'>
+              <File Id='NSSPK12UTIL' LongName='pk12util.exe' Name='pk12util.exe' DiskId='1' src='pk12util.exe' Vital='yes' />
+            </Component>
 
           </Directory>
       </Directory>
@@ -181,6 +188,9 @@
 	  <ComponentRef Id='NSSLibrary' />
 	  <ComponentRef Id='NSSsslLibrary' />
 	  <ComponentRef Id='NSSsoftoknLibrary' />
+	  <ComponentRef Id='NSSsmimeLibrary' />
+	  <ComponentRef Id='NSScertutil' />
+	  <ComponentRef Id='NSSpk12util' />
       </Feature>
     </Feature>
 
