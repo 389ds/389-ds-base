@@ -127,14 +127,12 @@ PassSyncService::PassSyncService(const TCHAR *serviceName) : CNTService(serviceN
 	_snprintf(logPath, SYNCSERV_BUF_SIZE, "%spasssync.log", installPath);
 	_snprintf(dataFilename, SYNCSERV_BUF_SIZE, "%s\\system32\\passhook.dat", sysPath);
 
-	if(logLevel > 0)
-	{
-		outLog.open(logPath, ios::out | ios::app);
-	}
+	outLog.open(logPath, ios::out | ios::app);
+
 	if(outLog.is_open())
 	{
 		timeStamp(&outLog);
-		outLog << "begin log" << endl;
+		outLog << "PassSync service started" << endl;
 	}
 
 	PK11_SetPasswordFunc(passwdcb);
@@ -150,7 +148,7 @@ PassSyncService::~PassSyncService()
 	if(outLog.is_open())
 	{
 		timeStamp(&outLog);
-		outLog << "end log" << endl;
+		outLog << "PassSync service stopped" << endl;
 	}
 	outLog.close();
 }
@@ -185,11 +183,27 @@ void PassSyncService::Run()
 	{
 		if(passInfoList.empty())
 		{
+			if(logLevel > 0) {
+				timeStamp(&outLog);
+				outLog << "Password list is empty.  Waiting for passhook event" << endl;
+			}
 			WaitForSingleObject(passhookEventHandle, INFINITE);
+			if(logLevel > 0) {
+				timeStamp(&outLog);
+				outLog << "Received passhook event.  Attempting sync" << endl;
+			}
 		}
 		else
 		{
+			if(logLevel > 0) {
+				timeStamp(&outLog);
+				outLog << "Backing off for " << BackoffTime(GetMinBackoff()) << "ms" << endl;
+			}
 			WaitForSingleObject(passhookEventHandle, BackoffTime(GetMinBackoff()));
+			if(logLevel > 0) {
+				timeStamp(&outLog);
+				outLog << "Backoff time expired.  Attempting sync" << endl;
+			}
 		}
 
 		SyncPasswords();
@@ -198,20 +212,20 @@ void PassSyncService::Run()
 		ResetEvent(passhookEventHandle);
 	}
 
-	if(saveSet(&passInfoList, dataFilename) == 0)
+	if(passInfoList.size() > 0)
 	{
-		if(outLog.is_open())
+		if(saveSet(&passInfoList, dataFilename) == 0)
 		{
-			timeStamp(&outLog);
-			outLog << passInfoList.size() << " entries saved to file" << endl;
+			if(logLevel > 0)
+			{
+				timeStamp(&outLog);
+				outLog << passInfoList.size() << " entries saved to data file" << endl;
+			}
 		}
-	}
-	else
-	{
-		if(outLog.is_open())
+		else
 		{
 			timeStamp(&outLog);
-			outLog << "failed to save entries to file" << endl;
+			outLog << "Failed to save entries to data file" << endl;
 		}
 	}
 
@@ -233,89 +247,117 @@ int PassSyncService::SyncPasswords()
 	if(Connect(&mainLdapConnection, ldapAuthUsername, ldapAuthPassword) < 0)
 	{
 		// log connection failure.
-		if(outLog.is_open())
-		{
-			timeStamp(&outLog);
-			outLog << "can not connect to ldap server in SyncPasswords" << endl;
-		}
+		timeStamp(&outLog);
+		outLog << "Can not connect to ldap server in SyncPasswords" << endl;
 
 		goto exit;
 	}
 
 	if(loadSet(&passInfoList, dataFilename) == 0)
 	{
-		if(outLog.is_open())
+		if((passInfoList.size() - tempSize) > 0)
 		{
-			timeStamp(&outLog);
-			outLog << passInfoList.size() - tempSize << " new entries loaded from file" << endl;
+			if(logLevel > 0)
+			{
+				timeStamp(&outLog);
+				outLog << passInfoList.size() - tempSize << " new entries loaded from data file" << endl;
+			}
+
+			if(saveSet(&emptyPassInfoList, dataFilename) == 0)
+			{
+				if(logLevel > 0)
+				{
+					timeStamp(&outLog);
+					outLog << "Cleared contents of data file" << endl;
+				}
+			}
+			else
+			{
+				timeStamp(&outLog);
+				outLog << "Failed to clear contents of data file" << endl;
+			}
 		}
-		saveSet(&emptyPassInfoList, dataFilename);
 	}
 	else
 	{
-		if(outLog.is_open())
+		timeStamp(&outLog);
+		outLog << "Failed to load entries from file" << endl;
+	}
+
+	if(passInfoList.size() > 0)
+	{
+		if(logLevel > 0)
 		{
 			timeStamp(&outLog);
-			outLog << "failed to load entries from file" << endl;
+			outLog << "Password list has " << passInfoList.size() << " entries" << endl;
 		}
 	}
 
 	currentPassInfo = passInfoList.begin();
 	while(currentPassInfo != passInfoList.end())
 	{
+		if(logLevel > 0)
+		{
+			timeStamp(&outLog);
+			outLog << "Attempting to sync password for " << currentPassInfo->username << endl;
+		}
+
 		if(QueryUsername(currentPassInfo->username) == 0)
 		{
 			while((dn = GetDN()) != NULL)
 			{
 				if(FutureOccurrence(currentPassInfo))
 				{
-					if(outLog.is_open())
+					if(logLevel > 0)
 					{
 						timeStamp(&outLog);
-						outLog << "newer modifies exist: " << currentPassInfo->username << endl;
+						outLog << "Newer password changes for " << currentPassInfo->username << " exist" << endl;
 					}
 				}
 				else if(MultipleResults() && !SYNCSERV_ALLOW_MULTI_MOD)
 				{
-					if(outLog.is_open())
-					{
-						timeStamp(&outLog);
-						outLog << "multiple results not allowed: " << currentPassInfo->username << endl;
-					}
+					timeStamp(&outLog);
+					outLog << "Multiple results not allowed: " << currentPassInfo->username << endl;
 				}
 				else if(CanBind(dn, currentPassInfo->password))
 				{
-					if(outLog.is_open())
+					if(logLevel > 0)
 					{
 						timeStamp(&outLog);
-						outLog << "password match, no modify preformed: " << currentPassInfo->username << endl;
+						outLog << "Password match, no modify performed: " << currentPassInfo->username << endl;
 					}
 				}
 				else if(ModifyPassword(dn, currentPassInfo->password) != 0)
 				{
 					// log modify failure.
-					if(outLog.is_open())
-					{
-						timeStamp(&outLog);
-						outLog << "modify password for " << currentPassInfo->username << " failed in SyncPasswords" << endl;
-					}
+					timeStamp(&outLog);
+					outLog << "Modify password failed for remote entry: " << dn << endl;
 				}
 				else
 				{
-					if(outLog.is_open())
+					if(logLevel > 0)
 					{
 						timeStamp(&outLog);
-						outLog << "password for " << currentPassInfo->username << " modified" << endl;
-						outLog << "\t" << dn << endl;
+						outLog << "Password modified for remote entry: " << dn << endl;
 					}
 				}
 				tempPassInfo = currentPassInfo;
 				currentPassInfo++;
+				if(logLevel > 0)
+				{
+					timeStamp(&outLog);
+					outLog << "Removing password change from list" << endl;
+				}
 				passInfoList.erase(tempPassInfo);
 			}
 		}
 		else
 		{
+			if(logLevel > 0)
+			{
+				timeStamp(&outLog);
+				outLog << "Deferring password change for " << currentPassInfo->username << endl;
+			}
 			currentPassInfo++;
 		}
 	}
@@ -340,12 +382,9 @@ int PassSyncService::Connect(LDAP** connection, char* dn, char* auth)
 	{
 		result = PR_GetError();
 
-		if(outLog.is_open())
-		{
-			//timeStamp(&outLog);
-			//outLog << "ldapssl_client_init failed in Connect" << endl;
-			//outLog << "\t" << result << ": " << ldap_err2string(result) << endl;
-		}
+		timeStamp(&outLog);
+		outLog << "ldapssl_client_init failed in Connect" << endl;
+		outLog << "\t" << result << ": " << ldap_err2string(result) << endl;
 
 		result = GetLastError();
 
@@ -357,11 +396,8 @@ int PassSyncService::Connect(LDAP** connection, char* dn, char* auth)
 
 	if(*connection == NULL)
 	{
-		if(outLog.is_open())
-		{
-			//timeStamp(&outLog);
-			//outLog << "ldapssl_init failed in Connect" << endl;
-		}
+		timeStamp(&outLog);
+		outLog << "ldapssl_init failed in Connect" << endl;
 
 		result = -1;
 		goto exit;
@@ -371,12 +407,12 @@ int PassSyncService::Connect(LDAP** connection, char* dn, char* auth)
 
 	if(lastLdapError != LDAP_SUCCESS)
 	{
-		// log reason for bind failure.
-		if(outLog.is_open())
+		// Log error if we're binding as ldapAuthUsername
+		if(strcmp(dn, ldapAuthUsername) == 0)
 		{
-			//timeStamp(&outLog);
-			//outLog << "ldap error in Connect" << endl;
-			//outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
+			timeStamp(&outLog);
+			outLog << "Ldap bind error in Connect" << endl;
+			outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
 		}
 
 		result = -1;
@@ -411,27 +447,30 @@ int PassSyncService::QueryUsername(char* username)
 
 	_snprintf(searchFilter, SYNCSERV_BUF_SIZE, "(%s=%s)", ldapUsernameField, username);
 
+	if(logLevel > 0)
+	{
+		timeStamp(&outLog);
+		outLog << "Searching for (" << ldapUsernameField << "=" << username << ")" << endl;
+	}
+
 	lastLdapError = ldap_search_ext_s(mainLdapConnection, ldapSearchBase, LDAP_SCOPE_SUBTREE, searchFilter, NULL, 0, NULL, NULL, NULL, -1, &results);
 
 	if(lastLdapError != LDAP_SUCCESS)
 	{
 		// log reason for search failure.
-		if(outLog.is_open())
-		{
-			timeStamp(&outLog);
-			outLog << "ldap error in QueryUsername" << endl;
-			outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
-		}
+		timeStamp(&outLog);
+		outLog << "Ldap error in QueryUsername" << endl;
+		outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
 		result = -1;
 		goto exit;
 	}
 
 	if(ldap_first_entry(mainLdapConnection, results) == NULL)
 	{
-		if(outLog.is_open())
+		if(logLevel > 0)
 		{
 			timeStamp(&outLog);
-			outLog << "there are no entries that match: " << username << endl;
+			outLog << "There are no entries that match: " << username << endl;
 		}
 		result = -1;
 		goto exit;
@@ -480,12 +519,9 @@ int PassSyncService::ModifyPassword(char* dn, char* password)
 	if(lastLdapError != LDAP_SUCCESS)
 	{
 		// log reason for modify failure.
-		if(outLog.is_open())
-		{
-			timeStamp(&outLog);
-			outLog << "ldap error in ModifyPassword" << endl;
-			outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
-		}
+		timeStamp(&outLog);
+		outLog << "Ldap error in ModifyPassword" << endl;
+		outLog << "\t" << lastLdapError << ": " << ldap_err2string(lastLdapError) << endl;
 		result = -1;
 	}
 
@@ -595,11 +631,8 @@ void PassSyncService::UpdateBackoff()
 
 		if((currentTime - currentPassInfo->atTime) > (maxBackoffTime / 1000))
 		{
-			if(outLog.is_open())
-			{
-				timeStamp(&outLog);
-				outLog << "abandoning password change for " << currentPassInfo->username << ", backoff expired" << endl;
-			}
+			timeStamp(&outLog);
+			outLog << "Abandoning password change for " << currentPassInfo->username << ", backoff expired" << endl;
 
 			tempPassInfo = currentPassInfo;
 			currentPassInfo++;
