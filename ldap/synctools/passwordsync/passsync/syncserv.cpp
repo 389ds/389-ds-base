@@ -101,7 +101,7 @@ PassSyncService::PassSyncService(const TCHAR *serviceName) : CNTService(serviceN
 	}
 	else
 	{
-		maxBackoffTime = pow(2, 12) * SYNCSERV_BASE_BACKOFF_LEN;
+		maxBackoffTime = (1 << 12) * SYNCSERV_BASE_BACKOFF_LEN;
 	}
 
 	size = SYNCSERV_BUF_SIZE;
@@ -177,6 +177,18 @@ void PassSyncService::OnShutdown()
 void PassSyncService::Run()
 {
 	isRunning = true;
+
+	// Initialize NSS
+	if(ldapssl_client_init(certPath, &certdbh) != 0)
+	{
+		timeStamp(&outLog);
+		outLog << "Error initializing SSL: err=" << PR_GetError() << endl;
+		timeStamp(&outLog);
+		outLog << "Ensure that your SSL is setup correctly" << endl;
+
+		goto exit;
+	}
+
 	SyncPasswords();
 
 	while(isRunning)
@@ -229,6 +241,7 @@ void PassSyncService::Run()
 		}
 	}
 
+exit:
 	CloseHandle(passhookEventHandle);
 }
 
@@ -243,15 +256,6 @@ int PassSyncService::SyncPasswords()
 	PASS_INFO_LIST_ITERATOR tempPassInfo;
 	char* dn;
 	int tempSize = passInfoList.size();
-
-	if(Connect(&mainLdapConnection, ldapAuthUsername, ldapAuthPassword) < 0)
-	{
-		// log connection failure.
-		timeStamp(&outLog);
-		outLog << "Can not connect to ldap server in SyncPasswords" << endl;
-
-		goto exit;
-	}
 
 	if(loadSet(&passInfoList, dataFilename) == 0)
 	{
@@ -291,6 +295,15 @@ int PassSyncService::SyncPasswords()
 			timeStamp(&outLog);
 			outLog << "Password list has " << passInfoList.size() << " entries" << endl;
 		}
+	}
+
+	if(Connect(&mainLdapConnection, ldapAuthUsername, ldapAuthPassword) < 0)
+	{
+		// log connection failure.
+		timeStamp(&outLog);
+		outLog << "Can not connect to ldap server in SyncPasswords" << endl;
+
+		goto exit;
 	}
 
 	currentPassInfo = passInfoList.begin();
@@ -377,20 +390,6 @@ exit:
 int PassSyncService::Connect(LDAP** connection, char* dn, char* auth)
 {
 	int result = 0;
-
-	if(ldapssl_client_init(certPath, &certdbh) != 0)
-	{
-		result = PR_GetError();
-
-		timeStamp(&outLog);
-		outLog << "ldapssl_client_init failed in Connect" << endl;
-		outLog << "\t" << result << ": " << ldap_err2string(result) << endl;
-
-		result = GetLastError();
-
-		result = -1;
-		goto exit;
-	}
 
 	*connection = ldapssl_init(ldapHostName, atoi(ldapHostPort), 1);
 
@@ -604,7 +603,7 @@ unsigned long PassSyncService::BackoffTime(int backoff)
 
 	if(backoff > 0)
 	{
-		backoffTime = pow(2, backoff) * SYNCSERV_BASE_BACKOFF_LEN;
+		backoffTime = (1 << backoff) * SYNCSERV_BASE_BACKOFF_LEN;
 	}
 
 	return backoffTime;
@@ -624,12 +623,12 @@ void PassSyncService::UpdateBackoff()
 	currentPassInfo = passInfoList.begin();
 	while(currentPassInfo != passInfoList.end())
 	{
-		if((currentPassInfo->atTime + (BackoffTime(currentPassInfo->backoffCount) / 1000)) <= currentTime)
+		if(((unsigned long)currentPassInfo->atTime + (BackoffTime(currentPassInfo->backoffCount) / 1000)) <= (unsigned long)currentTime)
 		{
 			currentPassInfo->backoffCount++;
 		}
 
-		if((currentTime - currentPassInfo->atTime) > (maxBackoffTime / 1000))
+		if(((unsigned long)currentTime - (unsigned long)currentPassInfo->atTime) > (maxBackoffTime / 1000))
 		{
 			timeStamp(&outLog);
 			outLog << "Abandoning password change for " << currentPassInfo->username << ", backoff expired" << endl;
@@ -656,7 +655,7 @@ int PassSyncService::GetMinBackoff()
 
 	for(currentPassInfo = passInfoList.begin(); currentPassInfo != passInfoList.end(); currentPassInfo++)
 	{
-		if(currentPassInfo->backoffCount < minBackoff)
+		if((unsigned long)currentPassInfo->backoffCount < minBackoff)
 		{
 			minBackoff = currentPassInfo->backoffCount;
 		}
