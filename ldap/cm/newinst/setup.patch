@@ -92,7 +92,7 @@ getValFromAdminConf() {
     cattr=$1
     cfile=$2
     rval=`grep -i $cattr $serverroot/admin-serv/config/$cfile | awk '{print $2}'`
-	echo $rval
+    echo $rval
 }
 
 dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
@@ -105,6 +105,97 @@ fi
 
 clear
 
+isadminsslon=0
+sslparams=""
+
+adminSSLOff() {
+    conffile=$1
+    confparam=$2
+    tmpfile=$3
+    if [ -f $conffile ]; then
+        security=`grep -i "^$confparam" $conffile | awk '{print $1}'`
+        issecure=`grep -i "^$confparam" $conffile | awk '{print $2}'`
+        if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" ]
+        if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
+        then
+            if [ $isadminsslon -eq 0 ]; then
+                $serverroot/stop-admin
+                isadminsslon=1
+            fi
+            echo $conffile=$security >> $tmpfile
+            cat $conffile | sed -e "s/^\($security\) .*/\1 off/g" > $conffile.0
+            mv $conffile.0 $conffile
+            echo "$conffile: SSL off ..."
+        fi
+    fi
+}
+
+adminXmlSSLOff() {
+    conffile=$1
+    confparam=$2
+    tmpfile=$3
+    if [ -f $conffile ]; then
+        grep -i "\<security=\"on\"" $conffile > /dev/null 2>&1
+        rval=$?
+        if [ $rval -eq 0 ]
+        then
+            if [ $isadminsslon -eq 0 ]; then
+                $serverroot/stop-admin
+                isadminsslon=1
+            fi
+            echo $conffile=$confparam >> $tmpfile
+            cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"off\"/g" > $conffile.0
+            mv $conffile.0 $conffile
+            echo "$conffile: SSL off ..."
+        fi
+        sslparams0=`grep -i "<.*SSLPARAMS " $conffile`
+        rval=$?
+        if [ $rval -eq 0 ]
+        then
+            if [ $isadminsslon -eq 0 ]; then
+                $serverroot/stop-admin
+                isadminsslon=1
+            fi
+            sslparams1=`echo $sslparams0 | sed -e 's/\//\\\\\//g'`
+            sslparams=`echo $sslparams1 | sed -e 's/\"/\\\\\"/g'`
+            cat $conffile | sed -e "s/\($sslparams\)/\<\!-- \1 --\>/g" > $conffile.0
+            mv $conffile.0 $conffile
+            echo "$conffile: SSL off ..."
+        fi
+    fi
+}
+
+rm -f dssecure.txt assecure.txt > /dev/null 2>&1
+touch dssecure.txt
+touch assecure.txt
+
+for dir in $serverroot/slapd-* ; do
+    if [ -f $dir/config/dse.ldif ]; then
+        security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+        issecure=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $2}'`
+        if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
+        then
+            echo $dir >> dssecure.txt
+            $dir/stop-slapd
+            cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 off/g" > $dir/config/dse.ldif.0
+            mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+            echo "$dir/config/dse.ldif: SSL off ..."
+            $dir/start-slapd
+        fi
+    fi
+done
+
+if [ -d $serverroot/admin-serv/config ]; then
+    adminSSLOff $serverroot/admin-serv/config/adm.conf security: assecure.txt
+    adminSSLOff $serverroot/admin-serv/config/local.conf configuration.nsServerSecurity: assecure.txt
+    adminSSLOff $serverroot/admin-serv/config/magnus.conf Security assecure.txt
+    adminXmlSSLOff $serverroot/admin-serv/config/server.xml security assecure.txt
+
+    if [ $isadminsslon -ne 0 ]; then
+        $serverroot/start-admin
+    fi
+fi
+
 ldaphost=`getValFromAdminConf "ldapHost:" "adm.conf"`
 ldapport=`getValFromAdminConf "ldapPort:" "adm.conf"`
 siepid=`getValFromAdminConf "siepid:" "adm.conf"`
@@ -114,6 +205,8 @@ admindomain=`echo $ldaphost | awk -F. '{if ($5) {print $2 "." $3 "." $4 "." $5} 
 if [ "$admindomain" = "" ]; then
     admindomain=`domainname`
 fi
+
+clear
 
 echo "                                Fedora Project"
 echo "                     Directory Installation/Uninstallation"
@@ -153,3 +246,63 @@ echo "Components=   slapd-71sp1" >> $inffile
 clear
 
 ./dssetup -s -f $inffile
+
+adminSSLOn() {
+    conffile=$1
+    confparam=$2
+    if [ -f $conffile ]; then
+        cat $conffile | sed -e "s/^\($confparam\) .*/\1 on/g" > $conffile.0
+        mv $conffile.0 $conffile
+        echo "$conffile $confparam: SSL on ..."
+    fi
+}
+
+adminXmlSSLOn() {
+    conffile=$1
+    if [ -f $conffile ]; then
+        cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"on\"/g" > $conffile.0
+        mv $conffile.0 $conffile
+    fi
+    grep -i "<.*SSLPARAMS " $conffile > /dev/null 2>&1
+    rval=$?
+    if [ $rval -eq 0 ]
+    then
+        cat $conffile | sed -e "s/<\!-- *$sslparams *-->/$sslparams/g" > $conffile.0
+        mv $conffile.0 $conffile
+    fi
+    echo "$conffile: SSL on ..."
+}
+
+for dir in `cat dssecure.txt` ; do
+    clear
+    if [ -f $dir/config/dse.ldif ]; then
+        security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+        $dir/stop-slapd
+        cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
+        mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+        echo "$dir/config/dse.ldif: SSL on ..."
+        echo "Restarting Directory Server: $dir/start-slapd"
+        $dir/start-slapd
+    fi
+done
+
+if [ $isadminsslon -ne 0 ]; then
+    $serverroot/stop-admin
+fi
+for confline in `cat assecure.txt` ; do
+    conffile=`echo $confline | awk -F= '{print $1}'`
+    confparam=`echo $confline | awk -F= '{print $2}'`
+    echo $conffile | grep "\.xml$" > /dev/null 2>&1
+    rval=$?
+    if [ $rval -eq 0 ]; then
+        adminXmlSSLOn $conffile $confparam
+    else
+        adminSSLOn $conffile $confparam
+    fi
+done
+if [ $isadminsslon -ne 0 ]; then
+    echo "Restarting Administration Server: $serverroot/start-admin"
+    $serverroot/start-admin
+fi
+
+rm -f dssecure.txt assecuire.txt

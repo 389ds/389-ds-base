@@ -180,7 +180,7 @@ fi
 rm -f $sroot/setup/install.inf
 
 # Fix for "[160589] IBM JVM breaks on some machines/kernels : 
-#                   admin server fails to start
+#				   admin server fails to start
 JAVA_COMPILER=NONE; export JAVA_COMPILER
 
 echo "INFO Begin Setup . . ." | tee -a $logfile
@@ -199,8 +199,162 @@ if ! [ $silent ]; then
 	askYN "Continue?"
 fi
 
+isadminsslon=0
+sslparams=""
+
+adminSSLOff() {
+	conffile=$1
+	confparam=$2
+	tmpfile=$3
+	if [ -f $conffile ]; then
+		security=`grep -i "^$confparam" $conffile | awk '{print $1}'`
+		issecure=`grep -i "^$confparam" $conffile | awk '{print $2}'`
+		if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
+		then
+			if [ $isadminsslon -eq 0 ]; then
+				$sroot/stop-admin
+				isadminsslon=1
+			fi
+			echo $conffile=$security >> $tmpfile
+			cat $conffile | sed -e "s/^\($security\) .*/\1 off/g" > $conffile.01
+			mv $conffile.01 $conffile
+			echo "$conffile: SSL off ..."
+		fi
+	fi
+}
+
+adminXmlSSLOff() {
+	conffile=$1
+	confparam=$2
+	tmpfile=$3
+	if [ -f $conffile ]; then
+		grep -i "\<security=\"on\"" $conffile > /dev/null 2>&1
+		rval=$?
+		if [ $rval -eq 0 ]
+		then
+			if [ $isadminsslon -eq 0 ]; then
+				$sroot/stop-admin
+				isadminsslon=1
+			fi
+			echo $conffile=$confparam >> $tmpfile
+			cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"off\"/g" > $conffile.0
+			mv $conffile.0 $conffile
+			echo "$conffile: SSL off ..."
+		fi
+		sslparams0=`grep -i "<.*SSLPARAMS " $conffile`
+		rval=$?
+		if [ $rval -eq 0 ]
+		then
+			if [ $isadminsslon -eq 0 ]; then
+				$sroot/stop-admin
+				isadminsslon=1
+			fi
+echo adminXmlSSLOff: SSLPARAMS off
+			sslparams1=`echo $sslparams0 | sed -e 's/\//\\\\\//g'`
+			sslparams=`echo $sslparams1 | sed -e 's/\"/\\\\\"/g'`
+			cat $conffile | sed -e "s/\($sslparams\)/\<\!-- \1 --\>/g" > $conffile.1
+			mv $conffile.1 $conffile
+		fi
+	fi
+}
+
+SSLOff() {
+	rm -f dssecure.txt assecure.txt > /dev/null 2>&1
+	touch dssecure.txt
+	touch assecure.txt
+
+	for dir in $sroot/slapd-* ; do
+		if [ -f $dir/config/dse.ldif ]; then
+			security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+			issecure=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $2}'`
+			if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
+			then
+				echo $dir >> dssecure.txt
+				$dir/stop-slapd
+				cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 off/g" > $dir/config/dse.ldif.0
+				mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+				echo "$dir/config/dse.ldif: SSL off ..."
+			fi
+			$dir/start-slapd
+		fi
+	done
+	if [ -d $sroot/admin-serv/config ]; then
+		adminSSLOff $sroot/admin-serv/config/adm.conf security: assecure.txt
+		adminSSLOff $sroot/admin-serv/config/local.conf configuration.nsServerSecurity: assecure.txt
+		adminSSLOff $sroot/admin-serv/config/magnus.conf Security assecure.txt
+		adminXmlSSLOff $sroot/admin-serv/config/server.xml security assecure.txt
+
+		if [ $isadminsslon -ne 0 ]; then
+			$sroot/start-admin
+		fi
+	fi
+}
+
+adminSSLOn() {
+	conffile=$1
+	confparam=$2
+	if [ -f $conffile ]; then
+		cat $conffile | sed -e "s/^\($confparam\) .*/\1 on/g" > $conffile.00
+		mv $conffile.00 $conffile
+		echo "$conffile $confparam: SSL on ..."
+	fi
+}
+
+adminXmlSSLOn() {
+	conffile=$1
+	if [ -f $conffile ]; then
+		cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"on\"/g" > $conffile.2
+		mv $conffile.2 $conffile
+	fi
+	grep -i "<.*SSLPARAMS " $conffile > /dev/null 2>&1
+	rval=$?
+	if [ $rval -eq 0 ]
+	then
+		cat $conffile | sed -e "s/<\!-- *$sslparams *-->/$sslparams/g" > $conffile.3
+		mv $conffile.3 $conffile
+	fi
+	echo "$conffile: SSL on ..."
+}
+
+SSLOn() {
+	for dir in `cat dssecure.txt` ; do
+		if [ -f $dir/config/dse.ldif ]; then
+			security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+			$dir/stop-slapd
+			cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
+			mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+			echo "$dir/config/dse.ldif: SSL on ..."
+			echo "Restarting Directory Server: $dir/start-slapd"
+			$dir/start-slapd
+		fi
+	done
+
+	if [ $isadminsslon -ne 0 ]; then
+		$sroot/stop-admin
+	fi
+	for confline in `cat assecure.txt` ; do
+		conffile=`echo $confline | awk -F= '{print $1}'`
+		confparam=`echo $confline | awk -F= '{print $2}'`
+		echo $conffile | grep "\.xml$" > /dev/null 2>&1
+		rval=$?
+		if [ $rval -eq 0 ]; then
+			adminXmlSSLOn $conffile $confparam
+		else
+			adminSSLOn $conffile $confparam
+		fi
+	done
+	if [ $isadminsslon -ne 0 ]; then
+		echo "Restarting Administration Server: $sroot/start-admin"
+		$sroot/start-admin
+	fi
+
+	rm -f dssecure.txt assecure.txt > /dev/null 2>&1
+}
+
 # check whether it is an in-place installation
 if [ -f $sroot/admin-serv/config/adm.conf ]; then
+	SSLOff
+
 	dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
 	if [ -f $sroot/$dsinst/config/dse.ldif ]; then
 		# it is an in=place installation
@@ -213,7 +367,7 @@ if [ -f $sroot/admin-serv/config/adm.conf ]; then
 		suitespotgroup=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $4}'`
 		admindomain=`echo $ldaphost | awk -F. '{print $5 ? $2 "." $3 "." $4 "." $5: $4 ? $2 "." $3 "." $4 : $3 ? $2 "." $3 : $2 ? $2 : ""}'`
 		if [ "$admindomain" = "" ]; then
-    		admindomain=`domainname`
+			admindomain=`domainname`
 		fi
 
 		echo "In order to reconfigure your installation, the Configuration Directory"
@@ -227,8 +381,8 @@ if [ -f $sroot/admin-serv/config/adm.conf ]; then
 		echo "administrator ID: $siepid"
 		siepasswd=""
 		while [ "$siepasswd" = "" ]; do
-    		printf "Password: "
-    		read siepasswd
+			printf "Password: "
+			read siepasswd
 		done
 
 		inffile=$sroot/setup/myinstall.inf
@@ -343,8 +497,10 @@ fi
 
 `pwd`/bin/admin/ns-update $doreconfig $silentarg $myargs -f $inffile | tee -a $logfile || doExit
 
+SSLOn
+
 # Fix for "[160589] IBM JVM breaks on some machines/kernels : 
-#                   admin server fails to start
+#				   admin server fails to start
 sed -e "s/jvm.option=\(.*\)/jvm.option=\1 -Djava.compiler=NONE/" admin-serv/config/jvm12.conf > admin-serv/config/jvm12.tmp
 mv admin-serv/config/jvm12.tmp admin-serv/config/jvm12.conf
 

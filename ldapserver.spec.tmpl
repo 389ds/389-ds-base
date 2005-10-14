@@ -80,7 +80,7 @@ echo yes | ./setup -b $RPM_BUILD_ROOT/%{prefix}
 
 %clean
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
-	RPM_INSTALL_PREFIX=%{prefix}
+    RPM_INSTALL_PREFIX=%{prefix}
 fi
 rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 
@@ -93,9 +93,9 @@ rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 
 %pre
 # in case upgrade, need to shutdown the servers before the installation
-ls $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-* > /dev/null 2>&1
+ls $RPM_INSTALL_PREFIX/slapd-* > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-  for instance in `ls -d $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-*`
+  for instance in `ls -d $RPM_INSTALL_PREFIX/slapd-*`
   do
     if [ -f $instance/logs/pid ]; then
       pid=`cat $instance/logs/pid`
@@ -106,27 +106,31 @@ if [ $? -eq 0 ]; then
     fi
   done
 fi
-if [ -f $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/admin-serv/logs/pid ]; then
-  pid=`cat $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/admin-serv/logs/pid`
+if [ -f $RPM_INSTALL_PREFIX/admin-serv/logs/pid ]; then
+  pid=`cat $RPM_INSTALL_PREFIX/admin-serv/logs/pid`
   psval=`ps -ef | egrep $pid`
   if [ "$psval" != "" ]; then
-    $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/stop-admin
+    $RPM_INSTALL_PREFIX/stop-admin
   fi
+fi
+if [ -d $RPM_INSTALL_PREFIX/admin-serv/config ]; then
+  if [ -d $RPM_INSTALL_PREFIX/admin-serv/config.backup ]; then
+    rm -rf $RPM_INSTALL_PREFIX/admin-serv/config.backup
+  fi
+  cp -r $RPM_INSTALL_PREFIX/admin-serv/config $RPM_INSTALL_PREFIX/admin-serv/config.backup
 fi
 
 %post
-# in case upgrade, need to start the servers before running setup
-ls $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-* > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-  for instance in `ls -d $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/slapd-*`
-  do
-    $instance/start-slapd
-  done
-fi
-if [ -f $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/start-admin ]; then
-  $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX/start-admin
-fi
 echo ""
+if [ -d $RPM_INSTALL_PREFIX/admin-serv/config.backup ]; then
+  if [ -d $RPM_INSTALL_PREFIX/admin-serv/config ]; then
+    if [ -d $RPM_INSTALL_PREFIX/admin-serv/config.generated ]; then
+      rm -rf $RPM_INSTALL_PREFIX/admin-serv/config.generated
+    fi
+    mv $RPM_INSTALL_PREFIX/admin-serv/config $RPM_INSTALL_PREFIX/admin-serv/config.generated
+  fi
+  mv $RPM_INSTALL_PREFIX/admin-serv/config.backup $RPM_INSTALL_PREFIX/admin-serv/config
+fi
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
     RPM_INSTALL_PREFIX=%{prefix}
 fi
@@ -135,11 +139,11 @@ echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up th
 %preun
 # only run uninstall if this is the last version of the package
 if [ "$1" = 0 ] ; then
-	if [ -z "$RPM_INSTALL_PREFIX" ]; then
-		RPM_INSTALL_PREFIX=%{prefix}
-	fi
-	cd $RPM_INSTALL_PREFIX
-	./uninstall -s -force
+    if [ -z "$RPM_INSTALL_PREFIX" ]; then
+        RPM_INSTALL_PREFIX=%{prefix}
+    fi
+    cd $RPM_INSTALL_PREFIX
+    ./uninstall -s -force
 fi
 
 %changelog
