@@ -137,7 +137,7 @@
 
 		  <ServiceInstall Id='PassSyncEXE' Name='PassSync' DisplayName='Password Synchronization' Type='ownProcess' 
 		   Interactive='yes' Start='auto' Vital='yes' ErrorControl='normal'/>
-		  <ServiceControl Id='PassSyncEXE' Name='PassSync' Start='install' Stop='both' Remove='uninstall' Wait='yes'/>
+		  <ServiceControl Id='PassSyncEXE' Name='PassSync' Start='install' Stop='both' Remove='uninstall' Wait='no'/>
 
 		  <Registry Id='InstPath' Root='HKLM' Key='Software\PasswordSync' Name='Install Path' Action='write' Type='string' Value='[INSTALLDIR]' />
 		  <Registry Id='HostName' Root='HKLM' Key='Software\PasswordSync' Name='Host Name' Action='write' Type='string' Value='[HOSTNAME]' />
