@@ -345,6 +345,11 @@ int PassSyncService::SyncPasswords()
 					// log modify failure.
 					timeStamp(&outLog);
 					outLog << "Modify password failed for remote entry: " << dn << endl;
+					// defer this change for later
+					timeStamp(&outLog);
+					outLog << "Deferring password change for " << currentPassInfo->username << endl;
+					currentPassInfo++;
+					continue;
 				}
 				else
 				{
