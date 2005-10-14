@@ -90,6 +90,9 @@ rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 # files in different places, we won't be able to do this anymore
 %defattr(-,root,root,-)
 %{prefix}
+# don't update admin server configuration files.
+# note: if there's somes change b/w 2 versions, new file is put with .rpmnew
+%config %{prefix}/admin-serv/config/*
 
 %pre
 # in case upgrade, need to shutdown the servers before the installation
@@ -113,24 +116,9 @@ if [ -f $RPM_INSTALL_PREFIX/admin-serv/logs/pid ]; then
     $RPM_INSTALL_PREFIX/stop-admin
   fi
 fi
-if [ -d $RPM_INSTALL_PREFIX/admin-serv/config ]; then
-  if [ -d $RPM_INSTALL_PREFIX/admin-serv/config.backup ]; then
-    rm -rf $RPM_INSTALL_PREFIX/admin-serv/config.backup
-  fi
-  cp -r $RPM_INSTALL_PREFIX/admin-serv/config $RPM_INSTALL_PREFIX/admin-serv/config.backup
-fi
 
 %post
 echo ""
-if [ -d $RPM_INSTALL_PREFIX/admin-serv/config.backup ]; then
-  if [ -d $RPM_INSTALL_PREFIX/admin-serv/config ]; then
-    if [ -d $RPM_INSTALL_PREFIX/admin-serv/config.generated ]; then
-      rm -rf $RPM_INSTALL_PREFIX/admin-serv/config.generated
-    fi
-    mv $RPM_INSTALL_PREFIX/admin-serv/config $RPM_INSTALL_PREFIX/admin-serv/config.generated
-  fi
-  mv $RPM_INSTALL_PREFIX/admin-serv/config.backup $RPM_INSTALL_PREFIX/admin-serv/config
-fi
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
     RPM_INSTALL_PREFIX=%{prefix}
 fi
