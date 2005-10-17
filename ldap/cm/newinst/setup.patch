@@ -115,7 +115,6 @@ adminSSLOff() {
     if [ -f $conffile ]; then
         security=`grep -i "^$confparam" $conffile | awk '{print $1}'`
         issecure=`grep -i "^$confparam" $conffile | awk '{print $2}'`
-        if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" ]
         if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
         then
             if [ $isadminsslon -eq 0 ]; then
