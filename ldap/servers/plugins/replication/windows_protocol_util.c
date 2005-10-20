@@ -1362,6 +1362,19 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 			vs = NULL;
 		}
 	}
+	/* NT4 must have the groupType attribute set for groups.  If it is not present, we will
+	 * add it here with a value of 2 (global group).
+	 */
+	if (is_nt4 && is_group)
+	{
+		Slapi_Attr *ap = NULL;
+		if(slapi_entry_attr_find(new_entry, "groupType", &ap))
+		{
+			/* groupType attribute wasn't found, so we'll add it */
+			slapi_entry_attr_set_int(new_entry, "groupType", 2 /* global group */);
+		}
+	}
+
 	if (remote_entry) 
 	{
 		*remote_entry = new_entry;
