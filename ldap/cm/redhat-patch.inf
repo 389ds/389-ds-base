@@ -54,7 +54,6 @@ file: 164836,165600: lib/attr-unique-plugin.*
 file: 165640: lib/views-plugin.*
 file: 167478,160589: setup/setup
 file: 156120,159037: winsync/PassSync.msi
-file: 156120,159037: winsync/ntds.msi
 file: 167761: java/jars/ds71.jar
 file: 169388: lib/replication-plugin.*
 file: xxxxxx: bin/slapd/README.txt
