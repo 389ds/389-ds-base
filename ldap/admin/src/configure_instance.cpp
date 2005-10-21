@@ -1964,5 +1964,60 @@ reconfigure_instance(int argc, char *argv[])
 	}
 	while (ldapent.next() == OKAY);				
 
+	// we no longer use nsperl - any CGIs which we used to invoke via perl?perlscript
+	// are now invoked directly by making the perl script executable - we need to
+	// search for all nsexecref: perl?perlscript and replace them with
+	// nsexecref: perlscript
+	filter = NSString("(nsexecref=perl*)");
+	scope = LDAP_SCOPE_SUBTREE;
+	baseDN = name_netscaperootDN;
+
+	ldapent.clear();
+	le = ldapent.retrieve(filter, scope, baseDN);
+	if (le != OKAY)
+	{
+		if (le == NOT_FOUND) {
+			dsLogMessage(SETUP_LOG_INFO, "Slapd",
+						 "No old nsperl references found");
+		} else {
+			dsLogMessage(SETUP_LOG_FATAL, "Slapd",
+						 "ERROR: Could not find old nsperl references\n"
+						 "URL %s user id %s DN %s (%d:%s)",
+						 installInfo->get(SLAPD_KEY_K_LDAP_URL),
+						 installInfo->get(SLAPD_KEY_SERVER_ADMIN_ID),
+						 (const char *)baseDN,
+						 le.errorCode(), le.msg()); 
+			return le.errorCode();
+		}
+	} else {
+		do
+		{
+			LdapEntry repEntry(ldapent.ldap());
+			repEntry.retrieve(ldapent.entryDN());
+			char *val = repEntry.getAttribute("nsexecref");
+			const char *ptr = 0;
+			if (val && *val && (ptr = strstr(val, "perl?"))) {
+				ptr = strchr(ptr, '?');
+				ptr++;
+				NSString newscript = NSString(ptr);
+				repEntry.setAttribute("nsexecref", newscript);
+			}
+			
+			le = repEntry.replace(repEntry.entryDN());
+			if (le != OKAY)
+			{
+				dsLogMessage(SETUP_LOG_FATAL, "Slapd",
+							 "ERROR: Could not fix old nsperl reference\n"
+							 "URL %s user id %s DN %s (%d:%s)" ,
+							 installInfo->get(SLAPD_KEY_K_LDAP_URL),
+							 installInfo->get(SLAPD_KEY_SERVER_ADMIN_ID),
+							 (const char *)repEntry.entryDN(),
+							 le.errorCode(), le.msg()); 
+				return le.errorCode();
+			}
+		}
+		while (ldapent.next() == OKAY);
+	}
+
 	return 0;
 }

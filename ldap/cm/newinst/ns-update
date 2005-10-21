@@ -44,7 +44,7 @@
 # dependencies
 
 sroot=`echo $0 | sed s#/bin/slapd/admin/bin/.\*##g`
-PERL=$sroot/bin/slapd/admin/bin/perl
+PERL=perl # just use perl from PATH
 
 start_server()
 {
@@ -58,18 +58,6 @@ start_server()
 	cd `dirname $0`
 	./start 2>&1 | grep -v '^Content' | grep -v '^ds_'
 	cd $cwd
-}
-
-install_nsperl()
-{
-	# the current version of nsPerl to use is defined in the slapd.inf
-	nsperlinst=`grep '^NSPerlPostInstall' setup/slapd/slapd.inf | cut -f2 -d= 2> /dev/null`
-	if [ "$nsperlinst" ]; then
-		# run the nsperl installer
-		$nsperlinst > setup/nsperl/install.log
-		# use nsperl as our local copy of perl
-		cp `dirname $nsperlinst`/nsperl $PERL
-	fi
 }
 
 wrap_security_tools()
@@ -148,8 +136,6 @@ if [ "$iDSISolaris" = "" ]; then
 			fi
 		done
 	fi
-
-	install_nsperl
 fi
 
 if [ $reconfig ] ; then
@@ -171,6 +157,8 @@ if [ $reconfig ] ; then
 		start_server $sroot $dir
 		echo ""
 	done
+	# fix any non-instance specific files - omit server instance argument
+	$PERL $sroot/bin/slapd/admin/bin/upgradeServer $sroot
 fi
 
 wrap_security_tools $sroot

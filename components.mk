@@ -741,3 +741,15 @@ else
 	-@echo "MAVEN is not required except on Windows."
 endif #WINNT
 
+########### PerLDAP #############
+ifdef PERLDAP_SOURCE_ROOT
+  PERLDAP_BUILT_DIR = $(PERLDAP_SOURCE_ROOT)/directory/perldap/blib
+  PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
+  PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
+  PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
+# under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
+  PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
+# else we're using the pre-built zip file - see ldap/cm/Makefile
+endif

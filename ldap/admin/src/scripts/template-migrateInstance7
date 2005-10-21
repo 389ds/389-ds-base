@@ -144,16 +144,6 @@ if ($olddatadir && !(-d $olddatadir)) {
     exit(1);
   }
 $ENV{"$LIB_PATH"} = "$root${PATHSEP}lib${SEP}".$ENV{"$LIB_PATH"} ;
-if ($isSolaris9) {
-	$ENV{"$LIB_PATH"} = "$root${PATHSEP}lib${PATHSEP}nsPerl5.6.1${PATHSEP}lib${PATHSEP}sun4-solaris${PATHSEP}CORE${SEP}".$ENV{"$LIB_PATH"} ;
-}
-
-if ($isNT) {
-  $ENV{"PERL5LIB"}        = "$root${PATHSEP}lib${PATHSEP}nsPerl5.6.1${PATHSEP}site${PATHSEP}lib${SEP}".$ENV{"PERL5LIB"} ;
-}
-else {
-  $ENV{"PERL5LIB"}        = "$root${PATHSEP}lib${PATHSEP}nsPerl5.6.1${PATHSEP}lib${PATHSEP}site${SEP}".$ENV{"PERL5LIB"} ;
-}
 
 # get the version of the DS to migrate
 ($oldVersion, $oldMinor) = &getVersion($oldDir, $oldversionstr);

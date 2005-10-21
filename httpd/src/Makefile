@@ -147,8 +147,6 @@ ifeq ($(ARCH), NCR)
 #OBJS+=$(HTTPD_DIR)/httpd-lib/nspr20/uxwrap.o
 endif
 
-DAEMONLIB=
-
 ifeq ($(ARCH), WINNT)
 # Don't define DEPLIBS for NT because standard macros like LINK_EXE
 # and LINK_DLL automatically pick up DEPLIBS which we don't always wan't.
@@ -168,7 +166,6 @@ else
 ifndef DEPLIBS
 DEPLIBS = $(addsuffix .$(LIB_SUFFIX), \
                     $(addprefix $(OBJDIR)/lib/lib,$(HTTPD_LIBS)) \
-                    $(DAEMONLIB) \
                     $(OBJDIR)/lib/libaccess \
                     $(OBJDIR)/lib/libbase \
                     $(OBJDIR)/lib/libsi18n \
@@ -179,7 +176,6 @@ DEPLIBS += $(SECURITY_DEP) \
 
 DEPLINK = $(addsuffix .$(LIB_SUFFIX), \
                     $(addprefix $(OBJDIR)/lib/lib,$(HTTPD_LIBS)) \
-                    $(DAEMONLIB) \
                     $(OBJDIR)/lib/libaccess \
                     $(OBJDIR)/lib/libbase \
                     $(OBJDIR)/lib/libsi18n \

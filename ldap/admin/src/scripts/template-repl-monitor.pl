@@ -146,16 +146,36 @@
 #	<DSHOME>/bin/slapd/admin/bin/perl repl-monitor.pl
 #
 #    3. Set environment variable PERL5LIB to your Perl lib dirs where
-#	Mozilla::LDAP module can be located.
+#	Mozilla::LDAP module can be located.  This should be under serverroot/lib/perl
+#   e.g. PERL5LIB="serverroot/lib/perl/arch:serverroot/lib/perl"
 #
-#    4. Invoke the script as follows if <MYPERLDIR>/lib/site contains
+#    4. Set LD_LIBRARY_PATH (or SHLIB_PATH) to point to the location of our
+#   bundled shared libraries e.g. LD_LIBRARY_PATH="serverroot/shared/lib"
+#
+#    5. Invoke the script as follows if <MYPERLDIR> (serverroot/lib/perl) contains
 #	Mozilla/LDAP:
-#	<MYPERLDIR>/bin/perl -I <MYPERLDIR>/lib/site repl-monitor.pl
-#
-#    If you get error "Can't load ...", try to set environment variable
-#    for library path to <DSHOME>/lib:<DSHOME>/lib/nsPerl5.005_03/lib
+#	<MYPERLDIR>/bin/perl -I <MYPERLDIR>/arch -I <MYPERLDIR> repl-monitor.pl
 #
 #############################################################################
+# enable the use of our bundled perldap with our bundled ldapsdk libraries
+# all of this nonsense can be omitted if the mozldapsdk and perldap are
+# installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
+# this script is always invoked by repl-monitor-cgi.pl, which sets all of these
+# If using this script standalone, be sure to set the shared lib path and
+# the path to the perldap modules.
+# BEGIN {
+# 	my $sroot = "{{DS-ROOT}}";
+# 	push @INC, "$sroot/lib/perl/arch", "$sroot/lib/perl";
+# 	if ($ENV{LD_LIBRARY_PATH}) {
+# 		$ENV{LD_LIBRARY_PATH} .= ":";
+# 	}
+# 	$ENV{LD_LIBRARY_PATH} .= "$sroot/shared/lib";
+# 	# this is only needed for HP/ux PA-RISC, but it doesn't hurt other platforms
+# 	if ($ENV{SHLIB_PATH}) {
+# 		$ENV{SHLIB_PATH} .= ":";
+# 	}
+# 	$ENV{SHLIB_PATH} .= "$sroot/shared/lib";
+# }
 $usage = "\nusage: $0 -f configuration-file [-h host] [-p port] [-r] [-u refresh-url] [-t refresh-interval]\n\nor   : $0 -v\n"; 
 
 use Getopt::Std;		# parse command line arguments

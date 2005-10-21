@@ -1,4 +1,4 @@
-# perl script
+#!/usr/bin/env perl
 #
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
@@ -39,6 +39,28 @@
 # END COPYRIGHT BLOCK
 #
 
+# enable the use of our bundled perldap with our bundled ldapsdk libraries
+# all of this nonsense can be omitted if the mozldapsdk and perldap are
+# installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
+BEGIN {
+	my $savedir = `pwd`;
+	my $dirname = `dirname $0`;
+	chdir $dirname;
+	my $sroot = `pwd`;
+	$sroot =~ s@/slapd-.*@@;
+	chomp($sroot);
+	chdir $savedir;
+	push @INC, "$sroot/lib/perl/arch", "$sroot/lib/perl";
+	if ($ENV{LD_LIBRARY_PATH}) {
+		$ENV{LD_LIBRARY_PATH} .= ":";
+	}
+	$ENV{LD_LIBRARY_PATH} .= "$sroot/shared/lib";
+	# this is only needed for HP/ux PA-RISC, but it doesn't hurt other platforms
+	if ($ENV{SHLIB_PATH}) {
+		$ENV{SHLIB_PATH} .= ":";
+	}
+	$ENV{SHLIB_PATH} .= "$sroot/shared/lib";
+}
 # Add new password policy specific entries
 
 #############################################################################

@@ -52,7 +52,7 @@ Expires= %%%PUMPKIN_HOUR%%%
 Security= %%%SECURITY%%%
 Vendor= Fedora Project
 Description= %%%SERVER_NAME%%%
-Dependencies= base/4.5, svrcore/4.5, nsperl561/1.13, perldap14/1.01
+Dependencies= base/4.5, svrcore/4.5
 ProductName=Directory Server
 IsDirLite=%%%IS_DIR_LITE%%%
 SourcePath=slapd
@@ -65,7 +65,6 @@ PostUninstall=
 Checked=True
 Mandatory=False
 IsLdap=True
-NSPerlPostInstall=lib/nsPerl5.6.1/install
 
 [slapd-client]
 Name= Fedora Directory Server Console

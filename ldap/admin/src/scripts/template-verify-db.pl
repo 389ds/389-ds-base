@@ -95,6 +95,13 @@ sub getLastLogfile
     return \$logfile;
 }
 
+$isWin = -d '\\';
+if ($isWin) {
+	$NULL = "nul";
+} else {
+	$NULL = "/dev/null";
+}
+
 print("*****************************************************************\n");
 print("verify-db: This tool should only be run if recovery start fails\n" .
       "and the server is down.  If you run this tool while the server is\n" .
@@ -109,7 +116,7 @@ for (my $i = 0; $i < @$dbdirs; $i++)
 {
     # run ../bin/slapd/server/db_printlog -h <dbdir> for each <dbdir>
     print "Verify log files in $$dbdirs[$i] ... ";
-    open(PRINTLOG, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_printlog -h $$dbdirs[$i] 2>&1 1> nul |");
+    open(PRINTLOG, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_printlog -h $$dbdirs[$i] 2>&1 1> $NULL |");
     sleep 1;
     my $haserr = 0;
     while ($l = <PRINTLOG>)
@@ -147,7 +154,7 @@ for (my $i = 0; $i < @$dbdirs; $i++)
         {
             my $thisdb = $$dbdirs[$i] . "{{SEP}}" . $db;
             print "Verify $thisdb ... ";
-            open(DBVERIFY, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_verify $thisdb 2>&1 1> nul |");
+            open(DBVERIFY, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_verify $thisdb 2>&1 1> $NULL |");
             sleep 1;
             my $haserr = 0;
             while ($l = <DBVERIFY>)
@@ -188,7 +195,7 @@ for (my $i = 0; $i < @$dbdirs; $i++)
             {
                 my $thisdb = $$instdirs[$j] . "{{SEP}}" . $db;
                 print "Verify $thisdb ... ";
-                open(DBVERIFY, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_verify $thisdb 2>&1 1> null |");
+                open(DBVERIFY, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_verify $thisdb 2>&1 1> $NULL |");
                 sleep 1;
                 my $haserr = 0;
                 while ($l = <DBVERIFY>)

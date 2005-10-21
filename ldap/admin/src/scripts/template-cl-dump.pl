@@ -96,6 +96,23 @@
 #    DSHOME/bin/slapd/admin/scripts
 #
 ################################################################################
+# enable the use of our bundled perldap with our bundled ldapsdk libraries
+# all of this nonsense can be omitted if the mozldapsdk and perldap are
+# installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
+BEGIN {
+	my $sroot = "{{DS-ROOT}}";
+	push @INC, "$sroot/lib/perl/arch", "$sroot/lib/perl";
+	if ($ENV{LD_LIBRARY_PATH}) {
+		$ENV{LD_LIBRARY_PATH} .= ":";
+	}
+	$ENV{LD_LIBRARY_PATH} .= "$sroot/shared/lib";
+	# this is only needed for HP/ux PA-RISC, but it doesn't hurt other platforms
+	if ($ENV{SHLIB_PATH}) {
+		$ENV{SHLIB_PATH} .= ":";
+	}
+	$ENV{SHLIB_PATH} .= "$sroot/shared/lib";
+}
+
 $usage="Usage: $0 [-h host] [-p port] [-D bind-dn] [-w bind-password | -P bind-cert] [-r replica-roots] [-o output-file] [-c] [-v]\n\n       $0 -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]";
 
 use Getopt::Std;			# Parse command line arguments

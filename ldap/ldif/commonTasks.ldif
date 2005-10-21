@@ -56,7 +56,7 @@ dn: cn=Migrate, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsexecref: perl?migrateInstance
+nsexecref: migrateInstance
 
 dn: cn=Create, cn=Operation, cn=Tasks
 objectclass: top
@@ -68,10 +68,10 @@ dn: cn=GetConfigInfo, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsexecref: perl?getConfigInfo
+nsexecref: getConfigInfo
 
 dn: cn=MigrateLocalDB, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsexecref: perl?migrateLocalDB
+nsexecref: migrateLocalDB

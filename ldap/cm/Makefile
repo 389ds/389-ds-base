@@ -185,6 +185,10 @@ DOTEXE = .exe
 PACKAGE_STAGE_DIR=$(OBJDIR)/package
 endif
 
+ifdef INTERNAL_BUILD
+	PERLDAP := perldap
+endif
+
 # these are files and directories in the import adminsrv directory which we don't
 # make a local copy of, we just import directly into the tar file or create a
 # symlink to
@@ -565,29 +569,6 @@ ifdef INTERNAL_BUILD
 	$(PERL) -w fixPerlDAPInf.pl $(dir $@)/perldap.inf
 endif
 
-# this is the rule to pull nsPerl
-ifndef NSPERL_PULL_METHOD
-NSPERL_PULL_METHOD = FTP
-endif
-
-$(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE):
-ifdef INTERNAL_BUILD
-	$(RM) $@
-	$(FTP_PULL) -method $(NSPERL_PULL_METHOD) \
-		-objdir $(dir $@) \
-		-componentdir $(NSPERL_COMPONENT_DIR) \
-		-files $(notdir $@),nsperl.inf
-	@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component NSPERL file $@" ; \
-	exit 1 ; \
-	fi
-	$(PERL) -w fixNSPerlInf.pl $(dir $@)/nsperl.inf nsperl561
-# one more hack to nsperl - we must remove LDIF.pm because it
-# conflicts with the one in perldap - bug 600138
-# SITEHACK is defined in nsperl.mk
-#	$(ZIP) -d $(dir $@)/$(NSPERL_ZIP_FILE) lib/nsPerl5.6.1/$(SITEHACK)/Mozilla/LDAP/LDIF.pm
-endif
-
 $(INSTDIR)/slapd:
 	$(MKDIR) -p $@
 
@@ -597,7 +578,6 @@ ifneq ($(ARCH), WINNT)
 
 # ---THE UNIX PACKAGE---
 packageDirectory: $(INSTDIR)/slapd \
-	$(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
 	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE) \
 	$(ADMSERV_DEP)
 
@@ -712,15 +692,15 @@ ifndef NO_INSTALLER_TAR_FILES
 # build the combined packages tar file; use h flag to follow symlinks
 ifdef BUILD_SHIP
 ifndef BUILD_PATCH
-	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd nsperl \
-	perldap dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
+	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd \
+	$(PERLDAP) dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 endif
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
 else
-	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd nsperl \
-	perldap dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd  \
+	$(PERLDAP) dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
@@ -891,8 +871,7 @@ ifeq ($(ARCH), WINNT)
 
 SLAPD_DIR=slapd
 
-_perl: $(INSTDIR)/nsperl/$(NSPERL_ZIP_FILE) \
-	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE)
+_perl: $(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE)
 
 # ------------------------- all below this line is packageDirectory --------------------------
 

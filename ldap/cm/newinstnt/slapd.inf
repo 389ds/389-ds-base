@@ -55,7 +55,7 @@ Security= %%%SECURITY%%%
 Vendor=Fedora Project
 Description=Fedora Directory Server
 DefaultAcceptLanguage=en
-Dependencies=admin/4.5,nsperl561/1.10,perldap14/1.01
+Dependencies=admin/4.5
 Revision= 
 Checked=TRUE
 IsLdap=TRUE
@@ -75,7 +75,6 @@ ReadGlobalCache=DSINST_ReadGlobalCache
 PostInstall=DSINST_PostInstall
 PreUninstall=DSINST_PreUnInstall
 PostUninstall=DSINST_PostUnInstall
-NSPerlPostInstall=lib\nsPerl5.6.1\install.bat
 
 [slapd-client]
 NickName=slapd-client

@@ -765,9 +765,13 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, name);
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
+#ifdef USE_NSPERL
     PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+#else
+	strcpy(myperl, "!/usr/bin/env perl");
+#endif
 
     table[0][0] = "DS-ROOT";
     table[0][1] = s_root;
@@ -812,9 +816,13 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
             FILE_PATHSEP, name);
     PR_snprintf(fn, sizeof(fn), "%s%cbin%cslapd%cadmin%cbin%c%s", s_root, FILE_PATHSEP, 
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, name);
+#ifdef USE_NSPERL
     PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
+#else
+	strcpy(myperl, "!/usr/bin/env perl");
+#endif
 
     table[0][0] = "DS-ROOT";
     table[0][1] = s_root;

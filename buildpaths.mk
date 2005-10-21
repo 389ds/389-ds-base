@@ -135,3 +135,5 @@ LDAPCONSOLE_SOURCE_ROOT = $(BUILD_ROOT)/../directoryconsole
 # JAF - activation.jar - http://java.sun.com/products/javabeans/glasgow/jaf.html
 # JWSDP - jaxrpc-api.jar,jaxrpc.jar,saaj.jar - http://java.sun.com/webservices/downloads/webservicespack.html
 # Crimson - crimson.jar - http://xml.apache.org/crimson/
+
+PERLDAP_SOURCE_ROOT = $(MOZILLA_SOURCE_ROOT)

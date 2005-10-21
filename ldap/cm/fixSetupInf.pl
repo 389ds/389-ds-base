@@ -65,10 +65,6 @@ while ( <FILE> ) {
 			$_ .= ", slapd";
 			$addedSlapd = 1;
 		}
-		if (! /nsperl/) {
-			$_ .= ", nsperl";
-			$addedNSperl = 1;
-		}
 		if (! /perldap/) {
 			$_ .= ", perldap";
 			$addedPerLDAP = 1;
@@ -97,11 +93,6 @@ close ( FILE );
 if ($addedSlapd) {
 	print OUT "\n[slapd]\n";
 	print OUT "ComponentInfoFile = slapd/slapd.inf\n";
-}
-
-if ($addedNSperl) {
-	print OUT "\n[nsperl]\n";
-	print OUT "ComponentInfoFile = nsperl/nsperl.inf\n";
 }
 
 if ($addedPerLDAP) {

@@ -56,8 +56,8 @@ if ($cgiVars{'admurl'}) {
 	$params .= " -u \"$admurl\"";
 }
 $siteroot = $cgiVars{'siteroot'};
-$perl = "$siteroot/bin/slapd/admin/bin/perl";
-$ENV{'LD_LIBRARY_PATH'} = "$siteroot/lib:$siteroot/lib/nsPerl5.005_03/lib";
+$ENV{'LD_LIBRARY_PATH'} = "$siteroot/shared/lib";
+$ENV{'SHLIB_PATH'} = "$siteroot/shared/lib";
 
 # Save user-specified parameters as cookies in monreplication.properties.
 # Sync up with the property file so that monreplication2 is interval, and
@@ -65,8 +65,8 @@ $ENV{'LD_LIBRARY_PATH'} = "$siteroot/lib:$siteroot/lib/nsPerl5.005_03/lib";
 $propertyfile = "$siteroot/bin/admin/admin/bin/property/monreplication.properties";
 $edit1 = "s#monreplication2=.*#monreplication2=$cgiVars{'refreshinterval'}#;";
 $edit2 = "s#^monreplication3=.*#monreplication3=$cgiVars{'configfile'}#;";
-system("$perl -p -i.bak -e \"$edit1\" -e \"$edit2\" $propertyfile");
+system("perl -p -i.bak -e \"$edit1\" -e \"$edit2\" $propertyfile");
 
 # Now the real work
 $replmon = "$siteroot/bin/slapd/admin/scripts/template-repl-monitor.pl";
-system("$perl $replmon $params");
+system("perl -I$siteroot/lib/perl/arch -I$siteroot/lib/perl $replmon $params");

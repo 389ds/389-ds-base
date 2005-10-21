@@ -1,4 +1,4 @@
-#!perl
+#!/usr/bin/env perl
 #
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under

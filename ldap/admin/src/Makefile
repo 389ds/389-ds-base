@@ -348,10 +348,12 @@ installPerlFiles:  $(BINDIR) $(PERL_SCRIPTS_DEST)
 $(BINDIR)/%: %
 	-@$(RM) $@
 	$(CP) $< $@
+	chmod +x $@
 
 $(LDAP_SERVER_RELDIR)/%: % $(LDAP_SERVER_RELDIR)
 	-@$(RM) $@
 	$(CP) $< $@
+	chmod +x $@
 
 $(INST_INCLUDES): install_keywords.h
 	-@$(RM) $@
@@ -360,3 +362,4 @@ $(INST_INCLUDES): install_keywords.h
 $(SCRIPTSDIR)/template-%: scripts/template-% $(SCRIPTSDIR)
 	-@$(RM) $@
 	$(CP) $< $@
+	chmod +x $@

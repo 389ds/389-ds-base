@@ -133,7 +133,7 @@ dn: cn=ViewLog, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsexecref: perl?ds_viewlog.pl
+nsexecref: ds_viewlog.pl
 
 dn: cn=ListBackups, cn=operation, cn=Tasks
 objectclass: top
