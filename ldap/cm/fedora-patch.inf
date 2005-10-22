@@ -39,6 +39,8 @@
 # Info file to generate DS7.1 SP1 patch
 # base: <builddir> containing the base package -- DS7.1
 # file: bug#: <patchfile>
+# compfile: bug#: <patch_zipfile>:<patchfile> 
+#                 %DISTDIR% points <buildroot>/dist/<platform>
 #
 base: /share/dev4/fedora-ds/fds71/ships/20050526.1
 
@@ -53,9 +55,10 @@ file: 160003: bin/slapd/admin/bin/upgradeServer
 file: 164836,165600: lib/attr-unique-plugin.*
 file: 165640: lib/views-plugin.*
 file: 167478,160589: setup/setup
-file: 156120,159037: winsync/PassSync.msi
+file: 156120,159037,170321,170328,170556,170558,170816: winsync/PassSync.msi
 file: 167761: java/jars/ds71.jar
-file: 169388: lib/replication-plugin.*
+file: 169388,169954,170071,170350: lib/replication-plugin.*
 file: xxxxxx: bin/slapd/README.txt
 file: xxxxxx: README.txt
 
+compfile: 171306: %DISTDIR%/admserv/admin/nsadmin.zip:manual/help/help

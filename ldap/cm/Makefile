@@ -230,6 +230,8 @@ INSTDIR = $(BUILD_DRIVE)$(BUILD_ROOT)/../$(MMDD)/$(NS_BUILD_FLAVOR)
 endif
 endif
 ABS_INSTDIR = $(shell cd $(INSTDIR); pwd)
+ABS_DISTDIR = $(ABSBUILD_ROOT)/../dist
+ESCAPED_ABS_DISTDIR = $(shell echo $(ABS_DISTDIR) | sed -e 's/\//\\\//g')
 
 ifdef BUILD_PATCH
 PATCHINSTDIR = $(ABS_INSTDIR)-SP
@@ -628,15 +630,6 @@ packageDirectory: $(INSTDIR)/slapd \
 	$(INSTDIR)/tools/infozip.zip \
 	$(ADMSERV_DEP)
 
-ifdef BUILD_PATCH
-ifdef BUILD_RPM
-# create a patch
-	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
-	mv $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR).original
-	ln -s $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)
-endif
-endif
-
 # copy over the setup sdk stuff
 # hack - remove once admin server bundles setupsdk 6.02
 #	cp -R $(SETUP_SDK_BUILD_DIR)/bin/* $(INSTDIR)
@@ -661,6 +654,22 @@ endif
 endif
 endif
 endif
+
+ifdef BUILD_PATCH
+# take care of files in components (e.g., a file in nsadmin.zip)
+	-@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
+	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NC_BUILD_FLAVOR)/"` ; \
+	  afile=`echo $$pair | awk -F: '{print $$2}'` ; \
+	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); $(UNZIP) -o $$zipfile $$afile ; \
+	done
+ifdef BUILD_RPM
+# create a patch
+	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
+	mv $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR).original
+	ln -s $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)
+endif
+endif
+
 # create the slapd-client.zip file, which only has the ds jar file for the console and
 # the ldap client utility programs
 	rm -f $(INSTDIR)/slapd/slapd-client.zip
@@ -821,6 +830,7 @@ ifdef BUILD_PATCH
 	echo "ComponentInfoFile = $(SLAPDSP)/$(SLAPDSP).inf" >> $(PATCHINSTDIR)/setup.inf
 # create a zip file based upon the $(PATCHINF) file
 	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `grep "^file:" $(PATCHINF) | awk -F: '{print $$3}'`
+	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip -u `grep "^compfile:" $(PATCHINF) | awk -F: '{print $$4}'`
 # put ns-config and needed libs in the $(PATCHINSTDIR)/$(SLAPDSP) directory
 	$(INSTALL) -m 755 $(RELDIR_32)/bin/slapd/admin/bin/ns-config $(PATCHINSTDIR)/$(SLAPDSP)
 	-@for file in $(PACKAGE_SETUP_LIBS_32) ; \
@@ -831,6 +841,7 @@ ifdef BUILD_PATCH
 # create patch inf file: $(SLAPD).inf
 	cp $(OBJDIR)/slapd-patch.inf $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
 	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `grep "^file:" $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
+	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `grep "^compfile:" $(PATCHINF) | awk -F: '{print $$4}'` >> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
 	echo `cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp` | sed -e "s/ /,/g" > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
 	echo "BackupFiles="`cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2`>> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
 	rm -f $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2

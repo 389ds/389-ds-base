@@ -129,7 +129,13 @@ while ($l = <INFFILE>) {
         $pos = rindex($l, ":", $pos);
         $pos++;
         $file = substr($l, $pos);
-        $file =~ s/[     ]//g;
+        $file =~ s/[ 	]//g;
+        push(@newfiles, ($file));
+    } elsif ($l =~ /^compfile: /) {
+        $pos = rindex($l, ":", $pos);
+        $pos++;
+        $file = substr($l, $pos);
+        $file =~ s/[ 	]//g;
         push(@newfiles, ($file));
     }
 }
