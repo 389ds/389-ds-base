@@ -658,7 +658,7 @@ endif
 ifdef BUILD_PATCH
 # take care of files in components (e.g., a file in nsadmin.zip)
 	-@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
-	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NC_BUILD_FLAVOR)/"` ; \
+	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
 	  afile=`echo $$pair | awk -F: '{print $$2}'` ; \
 	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); $(UNZIP) -o $$zipfile $$afile ; \
 	done
@@ -931,7 +931,7 @@ endif  # BUILD_SHIP
 
 cleanDirectory:
 	cd $(LDAPDIR); $(MAKE) clean
-	rm -rf $(BUILD_ROOT)/../dist/$(NC_BUILD_FLAVOR)
+	rm -rf $(BUILD_ROOT)/../dist/$(NSOBJDIR_NAME)
 	rm -rf $(BUILD_ROOT)/built/$(NS_BUILD_FLAVOR)
 
 
