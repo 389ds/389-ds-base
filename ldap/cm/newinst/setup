@@ -275,7 +275,6 @@ SSLOff() {
 				mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
 				echo "$dir/config/dse.ldif: SSL off ..."
 			fi
-			$dir/start-slapd
 		fi
 	done
 	if [ -d $sroot/admin-serv/config ]; then
