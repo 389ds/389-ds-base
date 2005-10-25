@@ -208,8 +208,8 @@ ABSBUILD_ROOT = $(shell cd $(BUILD_ROOT); pwd)
 ABSRELDIR = $(ABSBUILD_ROOT)/built/release
 GENRPMPATCH = $(ABSBUILD_ROOT)/ldap/cm/genRpmPatch.pl
 PATCHINF = $(ABSBUILD_ROOT)/ldap/cm/fedora-patch.inf
-DATETIME = $(shell date +%Y%m%d-%H%M%S)
-SPEXT = .SP.$(DATETIME)
+DATETIME := $(shell date +%Y%m%d-%H%M%S)
+SPEXT := .SP.$(DATETIME)
 
 # This is the directory where we put what we're making: the files which go on the CD.
 ifndef INSTDIR
@@ -220,6 +220,8 @@ INSTDIR = $(BUILD_DRIVE)$(BUILD_ROOT)/../$(MMDD)/$(NS_BUILD_FLAVOR)
 endif
 endif
 ABS_INSTDIR = $(shell cd $(INSTDIR); pwd)
+ABS_DISTDIR = $(ABSBUILD_ROOT)/../dist
+ESCAPED_ABS_DISTDIR = $(shell echo $(ABS_DISTDIR) | sed -e 's/\//\\\//g')
 
 ifdef BUILD_PATCH
 PATCHINSTDIR = $(ABS_INSTDIR)-SP
@@ -581,15 +583,6 @@ packageDirectory: $(INSTDIR)/slapd \
 	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE) \
 	$(ADMSERV_DEP)
 
-ifdef BUILD_PATCH
-ifdef BUILD_RPM
-# create a patch
-	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
-	mv $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR).original
-	ln -s $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)
-endif
-endif
-
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
 ifeq ($(USE_SETUPUTIL),1)
 	cp -R $(SETUPUTIL_BINPATH)/* $(INSTDIR)
@@ -616,6 +609,22 @@ endif
 endif
 endif
 endif
+
+ifdef BUILD_PATCH
+# take care of files in components (e.g., a file in nsadmin.zip)
+	-@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
+	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
+	  afile=`echo $$pair | awk -F: '{print $$2}'` ; \
+	  cd $(ABSRELDIR)/$(NS_BUILD_FLAVOR); $(UNZIP) -o $$zipfile $$afile ; \
+	done
+ifdef BUILD_RPM
+# create a patch
+	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
+	mv $(ABSRELDIR)/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/$(NS_BUILD_FLAVOR).original
+	ln -s $(ABSRELDIR)/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/$(NS_BUILD_FLAVOR)
+endif
+endif
+
 ifeq ($(USE_CONSOLE),1)
 # create the slapd-client.zip file, which only has the ds jar file for the console and
 # the ldap client utility programs
@@ -740,7 +749,8 @@ ifdef BUILD_PATCH
 	echo "[$(SLAPDSP)]" >> $(PATCHINSTDIR)/setup.inf
 	echo "ComponentInfoFile = $(SLAPDSP)/$(SLAPDSP).inf" >> $(PATCHINSTDIR)/setup.inf
 # create a zip file based upon the $(PATCHINF) file
-	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `egrep "^file:" $(PATCHINF) | awk -F: '{print $$3}'`
+	cd $(ABSRELDIR)/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip `grep "^file:" $(PATCHINF) | awk -F: '{print $$3}'`
+	cd $(ABSRELDIR)/$(NS_BUILD_FLAVOR); zip -r $(PATCHINSTDIR)/$(SLAPDSP)/ns$(SLAPDSP).zip -u `grep "^compfile:" $(PATCHINF) | awk -F: '{print $$4}'`
 # put ns-config and needed libs in the $(PATCHINSTDIR)/$(SLAPDSP) directory
 	$(INSTALL) -m 755 $(RELDIR_32)/bin/slapd/admin/bin/ns-config $(PATCHINSTDIR)/$(SLAPDSP)
 	-@for file in $(PACKAGE_SETUP_LIBS_32) ; \
@@ -750,7 +760,8 @@ ifdef BUILD_PATCH
 	done
 # create patch inf file: $(SLAPD).inf
 	cp $(OBJDIR)/slapd-patch.inf $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
-	cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); ls `egrep "^file:" $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
+	cd $(ABSRELDIR)/$(NS_BUILD_FLAVOR); ls `grep "^file:" $(PATCHINF) | egrep -v "setup/setup" | awk -F: '{print $$3}'` > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
+	cd $(ABSRELDIR)/$(NS_BUILD_FLAVOR); ls `grep "^compfile:" $(PATCHINF) | awk -F: '{print $$4}'` >> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp
 	echo `cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp` | sed -e "s/ /,/g" > $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
 	echo "BackupFiles="`cat $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2`>> $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf
 	rm -f $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp $(PATCHINSTDIR)/$(SLAPDSP)/$(SLAPDSP).inf.tmp2
@@ -840,7 +851,7 @@ endif  # BUILD_SHIP
 
 cleanDirectory:
 	cd $(LDAPDIR); $(MAKE) clean
-	rm -rf $(BUILD_ROOT)/../dist/$(NC_BUILD_FLAVOR)
+	rm -rf $(BUILD_ROOT)/../dist/$(NSOBJDIR_NAME)
 	rm -rf $(BUILD_ROOT)/built/$(NS_BUILD_FLAVOR)
 
 

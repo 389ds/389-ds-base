@@ -1,0 +1,307 @@
+#!/bin/sh
+#
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2005 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+#
+# This script is a wrapper for dssetup used for inplace upgrade / patch 
+# installation.
+#
+clear
+
+echo "                                Fedora Project"
+echo "              Fedora Server Products Installation/Uninstallation"
+echo "-------------------------------------------------------------------------------"
+echo ""
+echo ""
+echo "BY INSTALLING THIS SOFTWARE YOU ARE CONSENTING TO BE BOUND BY"
+echo "AND ARE BECOMING A PARTY TO THE AGREEMENT FOUND IN THE"
+echo "LICENSE.TXT FILE. IF YOU DO NOT AGREE TO ALL OF THE TERMS"
+echo "OF THIS AGREEMENT, PLEASE DO NOT INSTALL OR USE THIS SOFTWARE."
+echo ""
+printf "Do you agree to the license terms? [No]: "
+read ans
+
+if [ "$ans" != "Y" -a "$ans" != "YES" -a "$ans" != "Yes" -a "$ans" != "y" -a "$ans" != "yes" ]; then
+    exit 1;
+fi
+
+clear
+
+echo "                                Fedora Project"
+echo "              Fedora Server Products Installation/Uninstallation"
+echo "-------------------------------------------------------------------------------"
+echo ""
+echo ""
+echo "This program will extract the patch files and install them"
+echo "into a directory where the Directory Server is already installed."
+echo ""
+echo "To accept the default shown in brackets, press the Enter key."
+echo ""
+printf "Install location [/opt/fedora/servers]: "
+read serverroot
+
+if [ ! -d $serverroot ]; then
+    echo ""
+    echo "Directory $serverroot does not exist."
+    exit 1
+fi
+
+if [ ! -f $serverroot/admin-serv/config/adm.conf ]; then
+    echo ""
+    echo "Administration Server's configuration file $serverroot/admin-serv/config/adm.conf does not exist."
+    exit 1
+fi
+
+getValFromAdminConf() {
+    cattr=$1
+    cfile=$2
+    rval=`grep -i $cattr $serverroot/admin-serv/config/$cfile | awk '{print $2}'`
+    echo $rval
+}
+
+dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
+dsconffile=$serverroot/$dsinst/config/dse.ldif
+if [ ! -f $dsconffile ]; then
+    echo ""
+    echo "Directory Server's configuration file $dsconffile does not exist."
+    exit 1
+fi
+
+clear
+
+isadminsslon=0
+sslparams=""
+
+adminSSLOff() {
+    conffile=$1
+    confparam=$2
+    tmpfile=$3
+    if [ -f $conffile ]; then
+        security=`grep -i "^$confparam" $conffile | awk '{print $1}'`
+        issecure=`grep -i "^$confparam" $conffile | awk '{print $2}'`
+        if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
+        then
+            if [ $isadminsslon -eq 0 ]; then
+                $serverroot/stop-admin
+                isadminsslon=1
+            fi
+            echo $conffile=$security >> $tmpfile
+            cat $conffile | sed -e "s/^\($security\) .*/\1 off/g" > $conffile.0
+            mv $conffile.0 $conffile
+            echo "$conffile: SSL off ..."
+        fi
+    fi
+}
+
+adminXmlSSLOff() {
+    conffile=$1
+    confparam=$2
+    tmpfile=$3
+    if [ -f $conffile ]; then
+        grep -i "\<security=\"on\"" $conffile > /dev/null 2>&1
+        rval=$?
+        if [ $rval -eq 0 ]
+        then
+            if [ $isadminsslon -eq 0 ]; then
+                $serverroot/stop-admin
+                isadminsslon=1
+            fi
+            echo $conffile=$confparam >> $tmpfile
+            cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"off\"/g" > $conffile.0
+            mv $conffile.0 $conffile
+            echo "$conffile: SSL off ..."
+        fi
+        sslparams0=`grep -i "<.*SSLPARAMS " $conffile`
+        rval=$?
+        if [ $rval -eq 0 ]
+        then
+            if [ $isadminsslon -eq 0 ]; then
+                $serverroot/stop-admin
+                isadminsslon=1
+            fi
+            sslparams1=`echo $sslparams0 | sed -e 's/\//\\\\\//g'`
+            sslparams=`echo $sslparams1 | sed -e 's/\"/\\\\\"/g'`
+            cat $conffile | sed -e "s/\($sslparams\)/\<\!-- \1 --\>/g" > $conffile.0
+            mv $conffile.0 $conffile
+            echo "$conffile: SSL off ..."
+        fi
+    fi
+}
+
+rm -f dssecure.txt assecure.txt > /dev/null 2>&1
+touch dssecure.txt
+touch assecure.txt
+
+for dir in $serverroot/slapd-* ; do
+    if [ -f $dir/config/dse.ldif ]; then
+        security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+        issecure=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $2}'`
+        if [ "$issecure" = "on" -o "$issecure" = "ON" -o "$issecure" = "On" -o "$issecure" = "oN" ]
+        then
+            echo $dir >> dssecure.txt
+            $dir/stop-slapd
+            cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 off/g" > $dir/config/dse.ldif.0
+            mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+            echo "$dir/config/dse.ldif: SSL off ..."
+            $dir/start-slapd
+        fi
+    fi
+done
+
+if [ -d $serverroot/admin-serv/config ]; then
+    adminSSLOff $serverroot/admin-serv/config/adm.conf security: assecure.txt
+    adminSSLOff $serverroot/admin-serv/config/local.conf configuration.nsServerSecurity: assecure.txt
+    adminSSLOff $serverroot/admin-serv/config/magnus.conf Security assecure.txt
+    adminXmlSSLOff $serverroot/admin-serv/config/server.xml security assecure.txt
+
+    if [ $isadminsslon -ne 0 ]; then
+        $serverroot/start-admin
+    fi
+fi
+
+ldaphost=`getValFromAdminConf "ldapHost:" "adm.conf"`
+ldapport=`getValFromAdminConf "ldapPort:" "adm.conf"`
+siepid=`getValFromAdminConf "siepid:" "adm.conf"`
+suitespotuser=`ls -l $dsconffile | awk '{print $3}'`
+suitespotgroup=`ls -l $dsconffile | awk '{print $4}'`
+admindomain=`echo $ldaphost | awk -F. '{if ($5) {print $2 "." $3 "." $4 "." $5} else if ($4) {print $2 "." $3 "." $4} else if ($3) {print $2 "." $3} else if ($2) {print $2} else {print ""}}'`
+if [ "$admindomain" = "" ]; then
+    admindomain=`domainname`
+fi
+
+clear
+
+echo "                                Fedora Project"
+echo "                     Directory Installation/Uninstallation"
+echo "-------------------------------------------------------------------------------"
+echo ""
+echo "In order to reconfigure your installation, the Configuration Directory"
+echo "Administrator password is required.  Here is your current information:"
+echo ""
+echo "Configuration Directory: ldap://$ldaphost:$ldapport/o=NetscapeRoot"
+echo "Configuration Administrator ID: $siepid"
+echo ""
+echo "At the prompt, please enter the password for the Configuration Administrator."
+echo ""
+echo "administrator ID: $siepid"
+siepasswd=""
+while [ "$siepasswd" = "" ]; do
+    printf "Password: "
+    read siepasswd
+done
+
+inffile=./myinstall.inf
+
+echo "[General]" > $inffile
+echo "FullMachineName=   $ldaphost" >> $inffile
+echo "SuiteSpotUserID=   $suitespotuser" >> $inffile
+echo "SuitespotGroup=   $suitespotgroup" >> $inffile
+echo "ServerRoot=   $serverroot" >> $inffile
+echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/" >> $inffile
+echo "ConfigDirectoryAdminID=   $siepid" >> $inffile
+echo "AdminDomain=   $admindomain" >> $inffile
+echo "ConfigDirectoryAdminPwd=   $siepasswd" >> $inffile
+echo "Components=   slapd-71sp1" >> $inffile
+echo "" >> $inffile
+echo "[slapd-71sp1]" >> $inffile
+echo "Components=   slapd-71sp1" >> $inffile
+
+clear
+
+./dssetup -s -f $inffile
+
+adminSSLOn() {
+    conffile=$1
+    confparam=$2
+    if [ -f $conffile ]; then
+        cat $conffile | sed -e "s/^\($confparam\) .*/\1 on/g" > $conffile.0
+        mv $conffile.0 $conffile
+        echo "$conffile $confparam: SSL on ..."
+    fi
+}
+
+adminXmlSSLOn() {
+    conffile=$1
+    if [ -f $conffile ]; then
+        cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"on\"/g" > $conffile.0
+        mv $conffile.0 $conffile
+    fi
+    grep -i "<.*SSLPARAMS " $conffile > /dev/null 2>&1
+    rval=$?
+    if [ $rval -eq 0 ]
+    then
+        cat $conffile | sed -e "s/<\!-- *$sslparams *-->/$sslparams/g" > $conffile.0
+        mv $conffile.0 $conffile
+    fi
+    echo "$conffile: SSL on ..."
+}
+
+for dir in `cat dssecure.txt` ; do
+    clear
+    if [ -f $dir/config/dse.ldif ]; then
+        security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+        $dir/stop-slapd
+        cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
+        mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+        echo "$dir/config/dse.ldif: SSL on ..."
+        echo "Restarting Directory Server: $dir/start-slapd"
+        $dir/start-slapd
+    fi
+done
+
+if [ $isadminsslon -ne 0 ]; then
+    $serverroot/stop-admin
+fi
+for confline in `cat assecure.txt` ; do
+    conffile=`echo $confline | awk -F= '{print $1}'`
+    confparam=`echo $confline | awk -F= '{print $2}'`
+    echo $conffile | grep "\.xml$" > /dev/null 2>&1
+    rval=$?
+    if [ $rval -eq 0 ]; then
+        adminXmlSSLOn $conffile $confparam
+    else
+        adminSSLOn $conffile $confparam
+    fi
+done
+if [ $isadminsslon -ne 0 ]; then
+    echo "Restarting Administration Server: $serverroot/start-admin"
+    $serverroot/start-admin
+fi
+
+rm -f dssecure.txt assecuire.txt

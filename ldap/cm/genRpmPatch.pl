@@ -129,7 +129,13 @@ while ($l = <INFFILE>) {
         $pos = rindex($l, ":", $pos);
         $pos++;
         $file = substr($l, $pos);
-        $file =~ s/[     ]//g;
+        $file =~ s/[ 	]//g;
+        push(@newfiles, ($file));
+    } elsif ($l =~ /^compfile: /) {
+        $pos = rindex($l, ":", $pos);
+        $pos++;
+        $file = substr($l, $pos);
+        $file =~ s/[ 	]//g;
         push(@newfiles, ($file));
     }
 }
@@ -161,9 +167,9 @@ if ($builtdirname =~ /RHEL3/) {
 }
 
 $optordbg = "";
-if ($builtdirname =~ /full/) {
+if ($builtdirname =~ /_DBG/) {
     $optordbg = "dbg";
-} elsif ($builtdirname =~ /optimize/) {
+} elsif ($builtdirname =~ /_OPT/) {
     $optordbg = "opt";
 } else {
     print(STDERR "ERROR: $builtdirname has no opt/debug info\n");
@@ -205,7 +211,7 @@ if (1 == $verbose) {
 }
 
 # Expand the RPM file to the $releasedir
-$workdir = $releasedir . "/slapd/" . $builtdirname . $extension;
+$workdir = $releasedir . "/" . $builtdirname . $extension;
 mkdir($workdir, 0700);
 chdir($workdir);
 if (1 == $verbose) {
@@ -216,7 +222,7 @@ close(RPM2CPIO);
 
 # Copy new files onto the expanded files
 foreach $afile (@newfiles) {
-    $srcfile = $releasedir . "/slapd/" . $builtdirname . "/" . $afile;
+    $srcfile = $releasedir . "/" . $builtdirname . "/" . $afile;
     $destfile = $workdir . "/opt/" . $iddir . "/" . $afile;
     $destdir = substr($destfile, 0, rindex($destfile, "/", length($destfile)));
     if (!(-d $destdir)) {

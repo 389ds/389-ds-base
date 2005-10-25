@@ -39,9 +39,12 @@
 # Sample Info file to generate service pack
 # base: <builddir> containing the base package -- e.g., DS7.1
 # file: <bugzilla number>: <patchfile>
+# compfile: bug#: <patch_zipfile>:<patchfile> 
+#                 %DISTDIR% points <buildroot>/dist/<platform>
 #
 base: /share/dev4/fedora-ds/fds71/ships/20050526.1
 
 file: 000001: README.txt
 file: 000002: lib/libback-ldbm.*
 
+compfile: 000003: %DISTDIR%/adminserver/admin/nsadmin.zip:manual/help/help
