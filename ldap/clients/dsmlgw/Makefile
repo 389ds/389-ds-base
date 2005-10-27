@@ -49,7 +49,7 @@ all: $(ANT_DEP) $(LDAPJDK_DEP)
 	@if [ ! -f $(CLASS_DEST)/axis.jar ]; then \
 		cp $(CLASS_DEST)/$(AXIS_REL_DIR)/lib/axis.jar $(CLASS_DEST) ; \
 	fi
-	$(ANT) 
+	$(ANT) -Dglobaldist.dir=$(DSMLGWJARS_BUILD_DIR)
 
 clean: 	
 	$(ANT) clean
