@@ -272,36 +272,41 @@ adminXmlSSLOn() {
     echo "$conffile: SSL on ..."
 }
 
-for dir in `cat dssecure.txt` ; do
-    clear
-    if [ -f $dir/config/dse.ldif ]; then
-        security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
-        $dir/stop-slapd
-        cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
-        mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
-        echo "$dir/config/dse.ldif: SSL on ..."
-        echo "Restarting Directory Server: $dir/start-slapd"
-        $dir/start-slapd
-    fi
-done
+if [ -f dssecure.txt ]; then
+    for dir in `cat dssecure.txt` ; do
+        clear
+        if [ -f $dir/config/dse.ldif ]; then
+            security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+            $dir/stop-slapd
+            cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
+            mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+            echo "$dir/config/dse.ldif: SSL on ..."
+            echo "Restarting Directory Server: $dir/start-slapd"
+            $dir/start-slapd
+        fi
+    done
+    rm -f dssecure.txt
+fi
 
 if [ $isadminsslon -ne 0 ]; then
     $serverroot/stop-admin
 fi
-for confline in `cat assecure.txt` ; do
-    conffile=`echo $confline | awk -F= '{print $1}'`
-    confparam=`echo $confline | awk -F= '{print $2}'`
-    echo $conffile | grep "\.xml$" > /dev/null 2>&1
-    rval=$?
-    if [ $rval -eq 0 ]; then
-        adminXmlSSLOn $conffile $confparam
-    else
-        adminSSLOn $conffile $confparam
-    fi
-done
+if [ -f assecure.txt ]; then
+    for confline in `cat assecure.txt` ; do
+        conffile=`echo $confline | awk -F= '{print $1}'`
+        confparam=`echo $confline | awk -F= '{print $2}'`
+        echo $conffile | grep "\.xml$" > /dev/null 2>&1
+        rval=$?
+        if [ $rval -eq 0 ]; then
+            adminXmlSSLOn $conffile $confparam
+        else
+            adminSSLOn $conffile $confparam
+        fi
+    done
+    rm -f assecuire.txt
+fi
 if [ $isadminsslon -ne 0 ]; then
     echo "Restarting Administration Server: $serverroot/start-admin"
     $serverroot/start-admin
 fi
 
-rm -f dssecure.txt assecuire.txt
