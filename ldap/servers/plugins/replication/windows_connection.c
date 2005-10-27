@@ -529,11 +529,14 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
  
 	for ( a = ldap_first_attribute( ld, msg, &ber ); a!=NULL; a=ldap_next_attribute( ld, msg, ber ) ) 
 	{
-		if (0 == strcasecmp(a,"dnsRecord") || 0 == strcasecmp(a,"dnsproperty"))
+		if (0 == strcasecmp(a,"dnsRecord") || 0 == strcasecmp(a,"dnsproperty") ||
+		    0 == strcasecmp(a,"dscorepropagationdata"))
 		{
 			/* AD returns us entries with these attributes that we are not interested in, 
 			 * but they break the entry attribute code (I think it is looking at null-terminated
-			 * string values, but the values are binary here). So we skip those attributes as a workaround.
+			 * string values, but the values are binary here). It appears that AD has some problems
+			 * with allowing duplicate values for system-only multi-valued attributes. So we skip
+			 * those attributes as a workaround.
 			 */
 			;
 		} else
