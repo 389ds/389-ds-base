@@ -106,9 +106,9 @@ endif
 endif
 
 ifdef USE_64
-VERSION=-ver 7.1-64bit
+VERSION=-ver 1.0-64bit
 else
-VERSION=-ver 7.1
+VERSION=-ver 1.0
 endif
 
 ifeq ($(ARCH), HPUX)
@@ -185,10 +185,6 @@ DOTEXE = .exe
 PACKAGE_STAGE_DIR=$(OBJDIR)/package
 endif
 
-ifdef INTERNAL_BUILD
-	PERLDAP := perldap
-endif
-
 # these are files and directories in the import adminsrv directory which we don't
 # make a local copy of, we just import directly into the tar file or create a
 # symlink to
@@ -225,7 +221,7 @@ ESCAPED_ABS_DISTDIR = $(shell echo $(ABS_DISTDIR) | sed -e 's/\//\\\//g')
 
 ifdef BUILD_PATCH
 PATCHINSTDIR = $(ABS_INSTDIR)-SP
-SLAPDSP = slapd-71
+SLAPDSP = slapd-10
 endif
 
 INST_TARGET_RESKIT=$(INSTDIR)/reskit
@@ -261,7 +257,7 @@ PACKAGE_SETUP_LIBS_32=$(subst $(NS64TAG),,$(PACKAGE_SETUP_LIBS))
 ifdef BUILD_RPM
 # name and version of RPM - must correspond to the spec file - these get branded
 	RPM_BASE_NAME=fedora
-	RPM_VERSION=7.1
+	RPM_VERSION=1.0
 	RPM_FILE_BASE=$(RPM_BASE_NAME)-ds-$(RPM_VERSION)
 	RPM_ARCH = $(shell uname -i)
 # root dir for RPM built and temp files
@@ -340,8 +336,8 @@ endif
 # install the DSMLGW into the client directory
 ifeq ($(USE_DSMLGW), 1)
 	$(MKDIR) $(RELDIR)/clients/dsmlgw
-	if [ -d $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis ] ; then \
-		$(CP) -R $(NSDIST)/classes/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/ ; \
+	if [ -d $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis ] ; then \
+		$(CP) -R $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/ ; \
 	fi
 
 	$(INSTALL) -m 644 $(NSDIST)/dsmlgw/dsmlgw.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
@@ -349,7 +345,7 @@ ifeq ($(USE_DSMLGW), 1)
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(RELDIR)/clients/dsmlgw/
 
 # now time to move the necessary jars in place
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/ldapjdk.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(LDAPJARFILE)  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 # if you use the jaxrpc.jar from the axis distribution, you don't need the api file
 # or perhaps you need the jaxrpc.jar for building, and jaxrpc-api.jar at runtime, or vice versa
@@ -473,9 +469,9 @@ ifeq ($(USE_CONSOLE), 1)
 endif
 ifeq ($(USE_JAVATOOLS), 1)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSONJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	if [ -f $(NSDIST)/classes/$(CRIMSON_LICENSE) ] ; then \
-		$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
+	$(INSTALL) -m 644 $(CRIMSONJAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	if [ -f $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) ] ; then \
+		$(INSTALL) -m 644 $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
 	fi
 endif
 
@@ -552,25 +548,6 @@ endif # BUILD_RPM
 # For security reason, it's readable only by the owner
 	chmod 700 $(RELDIR)/bin/slapd/server
 
-# this is the rule to pull PerLDAP
-ifndef PERLDAP_PULL_METHOD
-PERLDAP_PULL_METHOD = FTP
-endif
-
-$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE):
-ifdef INTERNAL_BUILD
-	$(RM) $@
-	$(FTP_PULL) -method $(PERLDAP_PULL_METHOD) \
-		-objdir $(dir $@) \
-		-componentdir $(PERLDAP_COMPONENT_DIR) \
-		-files $(notdir $@),perldap.inf
-	@if [ ! -f $@ ] ; \
-	then echo "Error: could not get component PERLDAP file $@" ; \
-	exit 1 ; \
-	fi
-	$(PERL) -w fixPerlDAPInf.pl $(dir $@)/perldap.inf
-endif
-
 $(INSTDIR)/slapd:
 	$(MKDIR) -p $@
 
@@ -580,7 +557,6 @@ ifneq ($(ARCH), WINNT)
 
 # ---THE UNIX PACKAGE---
 packageDirectory: $(INSTDIR)/slapd \
-	$(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE) \
 	$(ADMSERV_DEP)
 
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
@@ -675,6 +651,7 @@ endif
 		for file in $(ADMINSERVER_SUBCOMPS) ; \
 			do rm -rf $(INSTDIR)/$$file ; \
 			cp -r $(ADMSERV_DIR)/$$file $(INSTDIR)/$$file ; \
+			rm -rf $(INSTDIR)/$$file/unzipped ; \
 		done ; \
 	fi
 
@@ -702,14 +679,14 @@ ifndef NO_INSTALLER_TAR_FILES
 ifdef BUILD_SHIP
 ifndef BUILD_PATCH
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd \
-	$(PERLDAP) dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
+	dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 endif
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
 else
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd  \
-	$(PERLDAP) dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
@@ -882,11 +859,9 @@ ifeq ($(ARCH), WINNT)
 
 SLAPD_DIR=slapd
 
-_perl: $(INSTDIR)/perldap/$(PERLDAP_ZIP_FILE)
-
 # ------------------------- all below this line is packageDirectory --------------------------
 
-packageDirectory: $(INSTDIR)/$(SLAPD_DIR) _admserv_files _perl _slapd_files _setup_files make_zip
+packageDirectory: $(INSTDIR)/$(SLAPD_DIR) _admserv_files _slapd_files _setup_files make_zip
 
 #--------------------------  admserv rules ----------------------------------------------------
 _admserv_files: $(INSTDIR) $(ADMSERV_DEP)

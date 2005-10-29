@@ -46,10 +46,10 @@ include $(BUILD_ROOT)/nsconfig.mk
 include $(BUILD_ROOT)/ldap/javarules.mk
 
 all: $(ANT_DEP) $(LDAPJDK_DEP)
-	@if [ ! -f $(CLASS_DEST)/axis.jar ]; then \
+	@if [ ! -f $(DSMLGWJARS_BUILD_DIR)/axis.jar ]; then \
 		cp $(CLASS_DEST)/$(AXIS_REL_DIR)/lib/axis.jar $(CLASS_DEST) ; \
 	fi
-	$(ANT) -Dglobaldist.dir=$(DSMLGWJARS_BUILD_DIR)
+	$(ANT) -Dglobaldist.dir=$(DSMLGWJARS_BUILD_DIR) -Dldapdist.dir=$(LDAPJDK_DIR)
 
 clean: 	
 	$(ANT) clean

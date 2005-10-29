@@ -538,7 +538,8 @@ ADMINUTIL_INCLUDE=-I$(ADMINUTIL_INCPATH) -I$(ADMINUTIL_INCPATH)/libadminutil \
 LDAPJDK = ldapjdk.jar
 ifdef LDAPJDK_SOURCE_DIR
   LDAPJDK_DIR = $(LDAPJDK_SOURCE_DIR)/directory/java-sdk/dist/packages
-else
+endif
+ifndef LDAPJDK_DIR
   LDAPJDK_DIR = $(CLASS_DEST)
 endif
 LDAPJARFILE=$(LDAPJDK_DIR)/ldapjdk.jar
@@ -552,7 +553,13 @@ DSMLJAR_FILE = $(CLASS_DEST)
 
 CRIMSON_LICENSE = LICENSE.crimson
 CRIMSONJAR = crimson.jar
-CRIMSONJAR_FILE = $(CLASS_DEST)/$(CRIMSONJAR)
+ifdef CRIMSON_SOURCE_DIR
+  CRIMSONJAR_BUILD_DIR = $(CRIMSON_SOURCE_DIR)
+endif
+ifndef CRIMSONJAR_BUILD_DIR
+  CRIMSONJAR_BUILD_DIR = $(CLASS_DEST)
+endif
+CRIMSONJAR_FILE = $(CRIMSONJAR_BUILD_DIR)/$(CRIMSONJAR)
 
 ifdef ADMINSERVER_SOURCE_ROOT
   ADMSERV_DIR = $(ADMINSERVER_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)
@@ -744,12 +751,13 @@ endif #WINNT
 ########### PerLDAP #############
 ifdef PERLDAP_SOURCE_ROOT
   PERLDAP_BUILT_DIR = $(PERLDAP_SOURCE_ROOT)/directory/perldap/blib
-  PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
-  PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
-  PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
-# under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
-  PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
-  PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
-  PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
-# else we're using the pre-built zip file - see ldap/cm/Makefile
+# else set in internal_buildpaths.mk and pulled in internal_comp_deps.mk
 endif
+
+PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
+PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
+PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
+# under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
+PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
+PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
+PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl

@@ -45,10 +45,11 @@
 <!-- ******************** Adjustable Properties *********************** -->
 <property name="mcom.root"       value="../../.."/>
 <property name="globaldist.dir"  value="${mcom.root}/../dist/classes"/>
+<property name="ldapdist.dir"    value="${mcom.root}/../dist/classes"/>
 <property name="app.name"        value="dsmlgw"/>
 <property name="taglib.name"     value="dsmlgw"/>
 
-<property name="ldapjdk.jar"     value="${globaldist.dir}/ldapjdk.jar"/>
+<property name="ldapjdk.jar"     value="${ldapdist.dir}/ldapjdk.jar"/>
 <property name="activation.jar"  value="${globaldist.dir}/activation.jar"/>
 <property name="jaxrpc-api.jar"  value="${globaldist.dir}/jaxrpc-api.jar"/>
 <property name="jaxrpc.jar"  value="${globaldist.dir}/jaxrpc.jar"/>

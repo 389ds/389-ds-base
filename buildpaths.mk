@@ -122,7 +122,10 @@ ADMINUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../adminutil
 SETUPUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../setuputil
 #SETUPUTIL_BUILD_DIR = $(NSCP_DISTDIR_FULL_RTL)/setuputil
 
-LDAPJDK_SOURCE_DIR = $(MOZILLA_SOURCE_ROOT)
+# it's customary and easier to use the pre-built jars
+#LDAPJDK_SOURCE_DIR = $(MOZILLA_SOURCE_ROOT)
+# Crimson - crimson.jar - http://xml.apache.org/crimson/
+#CRIMSON_SOURCE_DIR = $(BUILD_ROOT)/../crimson
 
 ADMINSERVER_SOURCE_ROOT = $(BUILD_ROOT)/../adminserver
 
@@ -134,9 +137,7 @@ LDAPCONSOLE_SOURCE_ROOT = $(BUILD_ROOT)/../directoryconsole
 # Xerces-J - xercesImpl.jar, xml-apis.jar http://xml.apache.org/xerces2-j/download.cgi
 # JAF - activation.jar - http://java.sun.com/products/javabeans/glasgow/jaf.html
 # JWSDP - jaxrpc-api.jar,jaxrpc.jar,saaj.jar - http://java.sun.com/webservices/downloads/webservicespack.html
-# Crimson - crimson.jar - http://xml.apache.org/crimson/
-# Also the ldapjdk.jar
-# all of these files need to be in the following directory
+# all of these files need to be in the following directory:
 DSMLGWJARS_BUILD_DIR = $(BUILD_ROOT)/../dsmlgwjars
 
 PERLDAP_SOURCE_ROOT = $(MOZILLA_SOURCE_ROOT)
