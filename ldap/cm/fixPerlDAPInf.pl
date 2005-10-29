@@ -53,7 +53,7 @@ while (<IN>) {
 	s/The Sun \| Netscape Alliance/Fedora/g;
   }
   print OUT;
-  if (/^Archive=perldap14.zip/) {
+  if (/^Archive=perldap.*\.zip/) {
     print OUT "Visible=FALSE\n";
   }
 }

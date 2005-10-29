@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION		'Fedora Directory Server 7 password storage scheme Plugin'
+DESCRIPTION		'Fedora Directory Server 1.0 password storage scheme Plugin'
 EXPORTS
 	sha_pwd_storage_scheme_init @2
 	ssha_pwd_storage_scheme_init @3

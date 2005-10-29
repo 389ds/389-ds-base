@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Fedora Directory Server 7.1 Roles Plugin'
+DESCRIPTION     'Fedora Directory Server 1.0 Roles Plugin'
 EXPORTS
 	roles_init        @2
 	plugin_init_debug_level	@3

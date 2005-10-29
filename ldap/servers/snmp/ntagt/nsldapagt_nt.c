@@ -784,7 +784,7 @@ int MagtLoadStaticInfo(MagtStaticInfo_t *staticInfo, char *pszRootDir, int *SNMP
   REPLACE(staticInfo->entityDescr.val, "Fedora Directory Server");
   staticInfo->entityDescr.len = strlen(staticInfo->entityDescr.val);
  
-  REPLACE(staticInfo->entityVers.val, "7");
+  REPLACE(staticInfo->entityVers.val, "1");
   staticInfo->entityVers.len = strlen(staticInfo->entityVers.val);
  
   REPLACE(staticInfo->entityOrg.val, "Not Available");

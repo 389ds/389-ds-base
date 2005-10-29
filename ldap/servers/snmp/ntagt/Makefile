@@ -107,7 +107,7 @@ $(AGTMMAP): $(SLAPD_ROOT)/$(AGTMMAP).c $(SLAPD_ROOT)/$(AGTMMAP).h
 $(SNMP_OBJS): $(SNMP_SRCS) $(SNMP_INCS)
 
 $(BINDIR)/$(SNMP_LIB): $(SNMP_OBJS) $(SNMP_RES) Makefile
-	$(LINK_DLL) $(LD_EXTRAS) /DEF:"nsldapagt_nt.def" /VERSION:"7" \
+	$(LINK_DLL) $(LD_EXTRAS) /DEF:"nsldapagt_nt.def" /VERSION:"1" \
 	$(SNMP_OBJS) $(EXTRA_LIBS)
 
 $(LIBDEST)/%.$(OBJ_SUFFIX): %.cxx

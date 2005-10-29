@@ -83,13 +83,13 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Fedora\0"
-            VALUE "FileDescription", "Directory Server 7.1\0"
+            VALUE "FileDescription", "Directory Server 1.0\0"
             VALUE "FileVersion", "1, 0, 0, 1\0"
-            VALUE "InternalName", "Directory Server 7.1\0"
+            VALUE "InternalName", "Directory Server 1.0\0"
             VALUE "LegalCopyright", "Copyright 2001 Sun Microsystems, Inc.  Portions copyright 1999, 2002 Netscape Communications Corporation.  All rights reserved.\0"
             VALUE "OriginalFilename", "\0"
             VALUE "ProductName", "Fedora Server Products\0"
-            VALUE "ProductVersion", "7, 1, 0, 0\0"
+            VALUE "ProductVersion", "1, 0, 0, 0\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -134,7 +134,7 @@ END
 
 IDD_MCC_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1"
+CAPTION "Directory Server 1.0"
 FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_EDIT_HOST,158,68,103,13,ES_AUTOHSCROLL | WS_DISABLED
@@ -165,7 +165,7 @@ END
 
 IDD_ROOTDN DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Directory Manager Settings"
+CAPTION "Directory Server 1.0 Directory Manager Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -190,7 +190,7 @@ END
 IDD_SUITESPOTID DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION 
-"Directory Server 7.1 Fedora configuration directory server administrator "
+"Directory Server 1.0 Fedora configuration directory server administrator "
 
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -212,7 +212,7 @@ END
 
 IDD_SERVER_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Server Settings"
+CAPTION "Directory Server 1.0 Server Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     GROUPBOX        "General Settings",IDC_STATIC_GENERAL_SETTINGS,97,33,194,
@@ -234,7 +234,7 @@ END
 
 IDD_SAMPLE_ENTRIES_ORG DIALOG DISCARDABLE  0, 0, 377, 179
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Populate Database"
+CAPTION "Directory Server 1.0 Populate Database"
 FONT 8, "MS Sans Serif"
 BEGIN
     GROUPBOX        "Sample Organizational Structure",
@@ -266,7 +266,7 @@ END
 
 IDD_CONSUMER_REPLICATION_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Consumer Replication Settings"
+CAPTION "Directory Server 1.0 Consumer Replication Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -289,7 +289,7 @@ END
 
 IDD_SUPPLIER_REPLICATION_SETTINGS DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Supplier Replication Settings"
+CAPTION "Directory Server 1.0 Supplier Replication Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -307,7 +307,7 @@ END
 
 IDD_CONSUMER_DN DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Consumer DN Settings "
+CAPTION "Directory Server 1.0 Consumer DN Settings "
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -332,7 +332,7 @@ END
 
 IDD_REPLICATION_AGREEMENT DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Configure Replication Agreement"
+CAPTION "Directory Server 1.0 Configure Replication Agreement"
 FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_EDIT_HOST,159,13,80,13,ES_AUTOHSCROLL
@@ -388,7 +388,7 @@ END
 
 IDD_CHOOSE_REPLICATION_SETUP DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Configure Server for Replication"
+CAPTION "Directory Server 1.0 Configure Server for Replication"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "A Consumer that will pull updates",
@@ -426,7 +426,7 @@ END
 
 IDD_DISABLE_SCHEMA_CHECKING DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Disable Schema Checking"
+CAPTION "Directory Server 1.0 Disable Schema Checking"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -443,7 +443,7 @@ END
 
 IDD_ADMIN_DOMAIN DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Administration Domain"
+CAPTION "Directory Server 1.0 Administration Domain"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -462,7 +462,7 @@ END
 
 IDD_REINSTALL_CONFIG DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "Directory Server 7.1 Reinstall Settings"
+CAPTION "Directory Server 1.0 Reinstall Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         102,IDC_STATIC,"Static",SS_BITMAP | SS_SUNKEN,0,0,85,160
@@ -489,7 +489,7 @@ END
 IDD_ADMIN_ID_ONLY DIALOG DISCARDABLE  0, 0, 297, 163
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION 
-"Directory Server 7.1 Fedora configuration directory server administrator "
+"Directory Server 1.0 Fedora configuration directory server administrator "
 
 FONT 8, "MS Sans Serif"
 BEGIN

@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Fedora Directory Server 7 syntaxes Plugin'
+DESCRIPTION     'Fedora Directory Server 1.0 syntaxes Plugin'
 EXPORTS
 	cis_init				@2
 	ces_init				@3

@@ -574,7 +574,26 @@ endif
 
 #PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
 PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
-PERLDAP_ZIP_FILE = perldap14.zip
+PERLDAP_FILES=lib,arch
+PERLDAP_DEP = $(PERLDAP_BUILT_DIR)/lib
+
+# this is the rule to pull PerLDAP
+ifndef PERLDAP_PULL_METHOD
+PERLDAP_PULL_METHOD = FTP
+endif
+
+$(PERLDAP_DEP):
+ifdef INTERNAL_BUILD
+	$(RM) $@
+	$(FTP_PULL) -method $(PERLDAP_PULL_METHOD) \
+		-objdir $(dir $@) \
+		-componentdir $(PERLDAP_COMPONENT_DIR) \
+		-files $(PERLDAP_FILES)
+	@if [ ! -f $@ ] ; \
+	then echo "Error: could not get component PERLDAP file $@" ; \
+	exit 1 ; \
+	fi
+endif
 
 ###########################################################
 ### Admin Server package ##################################

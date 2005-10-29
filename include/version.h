@@ -44,18 +44,18 @@
    exist, the PRODUCT_VERSION define has _DEF appended.
  */
 
-#define DIRECTORY_VERSION_DEF "7.1"
+#define DIRECTORY_VERSION_DEF "1.0"
 #define DIRECTORY_COMPATIBLE "3.0"
-#define DIRECTORY_VERSION_STRING "Fedora-DirServer/7.1"
+#define DIRECTORY_VERSION_STRING "Fedora-DirServer/1.0"
 
 #define DS_VERSION_DEF DIRECTORY_VERSION_DEF
 #define DS_VERSION_STRING DIRECTORY_VERSION_STRING
 
 #define DSS_VERSION_DEF DIRECTORY_VERSION_DEF
-#define DSS_VERSION_STRING "Fedora-DirSynchService/7.1"
+#define DSS_VERSION_STRING "Fedora-DirSynchService/1.0"
 
-#define ADMSERV_VERSION_DEF "7.0"
-#define ADMSERV_VERSION_STRING "Fedora-Administrator/7.0"
+#define ADMSERV_VERSION_DEF "1.0"
+#define ADMSERV_VERSION_STRING "Fedora-Administrator/1.0"
 /* supposedly the trunk is currently the home of 3.x development */
 
 #define ENTERPRISE_VERSION_DEF "3.01"

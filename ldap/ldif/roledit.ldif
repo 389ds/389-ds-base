@@ -44,39 +44,39 @@ objectclass: extensibleObject
 ou: admin
 nsmerge: ADD_IF_EMPTY
 
-dn: ou=4.0, ou=Admin, ou=Global Preferences
+dn: ou=1.0, ou=Admin, ou=Global Preferences
 objectclass: top
 objectclass: organizationalunit
 objectclass: extensibleObject
-ou: 4.0
+ou: 1.0
 nsmerge: ADD_IF_EMPTY
 
-dn: cn=ResourceEditorExtension, ou=4.0, ou=Admin, ou=Global Preferences
+dn: cn=ResourceEditorExtension, ou=1.0, ou=Admin, ou=Global Preferences
 objectclass: top
 objectclass: nsResourceRef
 objectclass: extensibleObject
 cn: ResourceEditorExtension
 nsmerge: ADD_IF_EMPTY
 
-dn: cn=nsroledefinition, cn=ResourceEditorExtension, ou=4.0, ou=Admin, ou=Global Preferences
+dn: cn=nsroledefinition, cn=ResourceEditorExtension, ou=1.0, ou=Admin, ou=Global Preferences
 cn: nsroledefinition
 objectclass: top
 objectclass: extensibleObject
 objectclass: nsResourceRef
 objectclass: nsAdminResourceEditorExtension
-nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleInfo@ds71.jar
-nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleMembers@ds71.jar
-nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleAccountPage@ds71.jar
+nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleInfo@ds10.jar
+nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleMembers@ds10.jar
+nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleAccountPage@ds10.jar
 nsmerge: {nsclassname}MULTI_MERGE
 
-dn: cn=cossuperdefinition, cn=ResourceEditorExtension, ou=4.0, ou=Admin, ou=Global Preferences
+dn: cn=cossuperdefinition, cn=ResourceEditorExtension, ou=1.0, ou=Admin, ou=Global Preferences
 cn: cossuperdefinition
 objectclass: top
 objectclass: extensibleObject
 objectclass: nsResourceRef
 objectclass: nsAdminResourceEditorExtension
-nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosInfo@ds71.jar
-nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosAttributes@ds71.jar
-nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosTemplate@ds71.jar
+nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosInfo@ds10.jar
+nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosAttributes@ds10.jar
+nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosTemplate@ds10.jar
 nsmerge: {nsclassname}MULTI_MERGE
 

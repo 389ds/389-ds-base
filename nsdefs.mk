@@ -141,10 +141,10 @@ RPATHFLAG=../bin/slapd/lib:.:../lib:../../lib:../../../lib:../../../../lib
 endif
 endif
 
-MAJOR_VERSION:="7"
-MINOR_VERSION:="1"
-MAJOR_VERSION_NOQUOTES:=7
-MINOR_VERSION_NOQUOTES:=1
+MAJOR_VERSION:="1"
+MINOR_VERSION:="0"
+MAJOR_VERSION_NOQUOTES:=1
+MINOR_VERSION_NOQUOTES:=0
 
 # the LINK version is the one used for -l linking e.g. -l$(LINK_HTTPDLL_NAME)
 ifeq ($(BUILD_ARCH), WINNT)
@@ -232,9 +232,9 @@ COMMON_OBJDIR_32= $(subst $(NS64TAG),,$(COMMON_OBJDIR))
 OBJDIR=$(COMMON_OBJDIR)
 OBJDIR_32=$(COMMON_OBJDIR_32)
 DO_SEARCH=no
-DIR_VERSION:=7.1
-NOSP_DIR_VERSION:=7.1
-DIR_NORM_VERSION:=7.1
+DIR_VERSION:=1.0
+NOSP_DIR_VERSION:=1.0
+DIR_NORM_VERSION:=1.0
 PRODUCT_NAME="$(PRODUCTCORE) $(DIR_VERSION)"
 # When you change DIRSDK_VERSION or DIRSDK_VERSION_DLL_SUFFIX, you must
 # update all of the .exp and .def files by executing the following command:

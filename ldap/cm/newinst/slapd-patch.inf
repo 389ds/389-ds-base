@@ -38,17 +38,17 @@
 #
 [General]
 Name= %%%SERVER_NAME%%%
-Components=slapd-71
+Components=slapd-10
 
-[slapd-71]
+[slapd-10]
 Name= %%%SERVER_NAME%%%
 InstanceNamePrefix= %%%INSTANCE_NAME_PREFIX%%%
 Description= %%%SERVER_NAME%%%
-NickName= slapd-71
+NickName= slapd-10
 Version= %%%SERVER_VERSION%%%
 BuildNumber= %%%SERVER_BUILD_NUM%%%
-Archive= nsslapd-71.zip
-SourcePath=slapd-71
+Archive= nsslapd-10.zip
+SourcePath=slapd-10
 PreInstall= ns-config -r
 PostInstall= bin/slapd/admin/bin/ns-update
 PreUninstall= bin/slapd/admin/bin/uninstall

@@ -42,7 +42,7 @@
                    ----------------------------
 
 This directory contains code for some sample server plug-ins intended for
-use with the Fedora Directory Server 7.  
+use with the Fedora Directory Server 1.  
 
     NOTE: Before you compile and run these examples, make sure 
     to change any server-specific data in the examples to  
