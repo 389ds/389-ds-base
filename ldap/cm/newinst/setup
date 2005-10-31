@@ -312,38 +312,43 @@ adminXmlSSLOn() {
 }
 
 SSLOn() {
-	for dir in `cat dssecure.txt` ; do
-		if [ -f $dir/config/dse.ldif ]; then
-			security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
-			$dir/stop-slapd
-			cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
-			mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
-			echo "$dir/config/dse.ldif: SSL on ..."
-			echo "Restarting Directory Server: $dir/start-slapd"
-			$dir/start-slapd
-		fi
-	done
+	if [ -f dssecure.txt ]; then
+		for dir in `cat dssecure.txt` ; do
+			if [ -f $dir/config/dse.ldif ]; then
+				security=`grep -i "^nsslapd-security:" $dir/config/dse.ldif | awk '{print $1}'`
+				$dir/stop-slapd
+				cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
+				mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+				echo "$dir/config/dse.ldif: SSL on ..."
+				echo "Restarting Directory Server: $dir/start-slapd"
+				$dir/start-slapd
+			fi
+		done
+		rm -f dssecure.txt > /dev/null 2>&1
+	fi
 
 	if [ $isadminsslon -ne 0 ]; then
 		$sroot/stop-admin
 	fi
-	for confline in `cat assecure.txt` ; do
-		conffile=`echo $confline | awk -F= '{print $1}'`
-		confparam=`echo $confline | awk -F= '{print $2}'`
-		echo $conffile | grep "\.xml$" > /dev/null 2>&1
-		rval=$?
-		if [ $rval -eq 0 ]; then
-			adminXmlSSLOn $conffile $confparam
-		else
-			adminSSLOn $conffile $confparam
-		fi
-	done
+	if [ -f assecure.txt ]; then
+		for confline in `cat assecure.txt` ; do
+			conffile=`echo $confline | awk -F= '{print $1}'`
+			confparam=`echo $confline | awk -F= '{print $2}'`
+			echo $conffile | grep "\.xml$" > /dev/null 2>&1
+			rval=$?
+			if [ $rval -eq 0 ]; then
+				adminXmlSSLOn $conffile $confparam
+			else
+				adminSSLOn $conffile $confparam
+			fi
+		done
+		rm -f assecure.txt > /dev/null 2>&1
+	fi
 	if [ $isadminsslon -ne 0 ]; then
 		echo "Restarting Administration Server: $sroot/start-admin"
 		$sroot/start-admin
 	fi
 
-	rm -f dssecure.txt assecure.txt > /dev/null 2>&1
 }
 
 # check whether it is an in-place installation
@@ -362,7 +367,7 @@ if [ -f $sroot/admin-serv/config/adm.conf ]; then
 		suitespotgroup=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $4}'`
 		admindomain=`echo $ldaphost | awk -F. '{print $5 ? $2 "." $3 "." $4 "." $5: $4 ? $2 "." $3 "." $4 : $3 ? $2 "." $3 : $2 ? $2 : ""}'`
 		if [ "$admindomain" = "" ]; then
-    		admindomain=`domainname`
+			admindomain=`domainname`
 		fi
 
 		echo "In order to reconfigure your installation, the Configuration Directory"
@@ -376,8 +381,8 @@ if [ -f $sroot/admin-serv/config/adm.conf ]; then
 		echo "administrator ID: $siepid"
 		siepasswd=""
 		while [ "$siepasswd" = "" ]; do
-    		printf "Password: "
-    		read siepasswd
+			printf "Password: "
+			read siepasswd
 		done
 
 		inffile=$sroot/setup/myinstall.inf

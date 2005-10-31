@@ -70,6 +70,8 @@ endif
 
 MMDD = $(shell date +%m.%d)
 
+TMPLIST := $(shell echo /tmp/build.$$$$)
+
 # we don't want to build with warnings-as-errors for the cm/ stuff, because
 # it's crappy C++ code which is LITTERED with warnings, most of which we
 # can't fix because it comes from files in dist/, etc.
@@ -483,16 +485,24 @@ endif
 # docs
 	-$(RM) -r $(RELDIR)/manual/en/slapd
 	-$(MKDIR) $(RELDIR)/manual/en/slapd
-	if [ "$(DSDOC_DIR)" -a -d "$(DSDOC_DIR)" ] ; then \
+# copy over the manual files built in our build tree
+	if [ -d "$(OBJDIR)/manual/slapd" ] ; then \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/manual/en/slapd/help ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/pixel.gif $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/topicindex.htm $(RELDIR)/manual/en/slapd/ ; \
 	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/tokens.map $(RELDIR)/manual/en/slapd/ ; \
+    fi
+# copy the manual files from the zip files or checked out directory
+	if [ "$(DSDOC_DIR)" -a -d "$(DSDOC_DIR)" ] ; then \
 	  cd $(RELDIR)/manual/en/slapd; \
-	  $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT); \
-	  $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
+      if [ -f $(DSDOC_DIR)/$(DSDOC_COPYRIGHT) ] ; then \
+	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT); \
+	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
+      else \
+        cp -r $(DSDOC_DIR) . ; \
+      fi ; \
 	fi
 
 ifdef USE_PURIFY
@@ -651,7 +661,6 @@ endif
 		for file in $(ADMINSERVER_SUBCOMPS) ; \
 			do rm -rf $(INSTDIR)/$$file ; \
 			cp -r $(ADMSERV_DIR)/$$file $(INSTDIR)/$$file ; \
-			rm -rf $(INSTDIR)/$$file/unzipped ; \
 		done ; \
 	fi
 
@@ -685,8 +694,11 @@ ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
 endif
 else
+	echo base/unzipped > $(TMPLIST)
+	echo admin/unzipped >> $(TMPLIST)
 	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd  \
-	dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	dsktune $(ADMIN_IMPORTS) -X $(TMPLIST) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	rm -f $(TMPLIST)
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)

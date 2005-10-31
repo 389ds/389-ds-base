@@ -576,6 +576,29 @@ endif
 LDAPCONSOLEJAR = ds$(LDAPCONSOLE_REL).jar
 LDAPCONSOLEJAR_EN = ds$(LDAPCONSOLE_REL)_en.jar
 
+#### online help docs ######
+ifndef ONLINEHELP_SOURCE_ROOT
+  DSDOC_DIR = $(ABS_ROOT)/../dist/dsdoc
+else
+  DSDOC_DIR = $(ONLINEHELP_SOURCE_ROOT)
+endif
+DSDOC_CLIENTS = slapd_clients.zip
+DSDOC_COPYRIGHT = slapd_copyright.zip
+
+########### PerLDAP #############
+ifdef PERLDAP_SOURCE_ROOT
+  PERLDAP_BUILT_DIR = $(PERLDAP_SOURCE_ROOT)/directory/perldap/blib
+# else set in internal_buildpaths.mk and pulled in internal_comp_deps.mk
+endif
+
+PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
+PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
+PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
+# under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
+PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
+PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
+PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
+
 # must define dependencies last because they depend on the definitions above
 ifeq ($(INTERNAL_BUILD), 1)
 include $(BUILD_ROOT)/internal_comp_deps.mk
@@ -747,17 +770,3 @@ endif
 else
 	-@echo "MAVEN is not required except on Windows."
 endif #WINNT
-
-########### PerLDAP #############
-ifdef PERLDAP_SOURCE_ROOT
-  PERLDAP_BUILT_DIR = $(PERLDAP_SOURCE_ROOT)/directory/perldap/blib
-# else set in internal_buildpaths.mk and pulled in internal_comp_deps.mk
-endif
-
-PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
-PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
-PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
-# under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
-PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
-PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
-PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
