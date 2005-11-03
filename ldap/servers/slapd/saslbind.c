@@ -95,6 +95,56 @@ void sasl_mutex_free(void *mutex)
  * sasl library callbacks
  */
 
+/*
+ * We've added this auxprop stuff as a workaround for RHDS bug 166229
+ * and FDS bug 166081.  The problem is that sasldb is configured and
+ * enabled by default, but we don't want or need to use it.  What
+ * happens after canon_user is that sasl looks up any auxiliary
+ * properties of that user.  If you don't tell sasl which auxprop
+ * plug-in to use, it tries all of them, including sasldb.  In order
+ * to avoid this, we create a "dummy" auxprop plug-in with the name
+ * "iDS" and tell sasl to use this plug-in for auxprop lookups.
+ * The reason we don't need auxprops is because when we grab the user's
+ * entry from the internal database, at the same time we get any other
+ * properties we need - it's more efficient that way.
+ */
+static void ids_auxprop_lookup(void *glob_context __attribute__((unused)),
+				  sasl_server_params_t *sparams __attribute__((unused)),
+				  unsigned flags __attribute__((unused)),
+				  const char *user __attribute__((unused)),
+				  unsigned ulen __attribute__((unused))) 
+{
+    /* do nothing - we don't need auxprops - we just do this to avoid
+       sasldb_auxprop_lookup */
+}
+
+static sasl_auxprop_plug_t ids_auxprop_plugin = {
+    0,           		/* Features */
+    0,           		/* spare */
+    NULL,        		/* glob_context */
+    NULL,        		/* auxprop_free */
+    ids_auxprop_lookup,	/* auxprop_lookup */
+    "iDS",			/* name */
+    NULL	/* auxprop_store */
+};
+
+int ids_auxprop_plug_init(const sasl_utils_t *utils __attribute__((unused)),
+                          int max_version,
+                          int *out_version,
+                          sasl_auxprop_plug_t **plug,
+                          const char *plugname __attribute__((unused))) 
+{
+    if(!out_version || !plug) return SASL_BADPARAM;
+
+    if(max_version < SASL_AUXPROP_PLUG_VERSION) return SASL_BADVERS;
+    
+    *out_version = SASL_AUXPROP_PLUG_VERSION;
+
+    *plug = &ids_auxprop_plugin;
+
+    return SASL_OK;
+}
+
 static int ids_sasl_getopt(
     void *context, 
     const char *plugin_name,
@@ -121,6 +171,8 @@ static int ids_sasl_getopt(
         if (LDAPDebugLevelIsSet(LDAP_DEBUG_TRACE)) {
             *result = "6"; /* SASL_LOG_TRACE */
         }
+    } else if (strcasecmp(option, "auxprop_plugin") == 0) {
+        *result = "iDS";
     }
 
     if (*result) *len = strlen(*result);
@@ -575,6 +627,8 @@ int ids_sasl_init(void)
     }
 #endif
 #endif
+
+    result = sasl_auxprop_add_plugin("iDS", ids_auxprop_plug_init);
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= ids_sasl_init\n", 0, 0, 0 );
 
