@@ -90,9 +90,6 @@ rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 # files in different places, we won't be able to do this anymore
 %defattr(-,root,root,-)
 %{prefix}
-# don't update admin server configuration files.
-# note: if there's somes change b/w 2 versions, on-disk file is put w/ .rpmsave
-%config %{prefix}/admin-serv/config/*
 
 %pre
 # in case upgrade, need to shutdown the servers before the installation
