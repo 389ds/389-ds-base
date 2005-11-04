@@ -58,7 +58,7 @@ Autoreq: 0
 # Don't automatically generate provides list
 AutoProv: 0
 # Without Requires: something, rpmbuild will abort!
-Requires: perl,java-1.4.2-ibm
+Requires: perl,java-1.4.2-ibm,cyrus-sasl >= 2.1.19
 Prefix: /opt/%{name}
 
 %description
@@ -90,6 +90,32 @@ rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 # files in different places, we won't be able to do this anymore
 %defattr(-,root,root,-)
 %{prefix}
+# don't update admin server configuration files.
+# note: if there's somes change b/w 2 versions, on-disk file is put w/ .rpmsave
+%config %{prefix}/admin-serv/config/*
+
+%pre
+# in case upgrade, need to shutdown the servers before the installation
+ls $RPM_INSTALL_PREFIX/slapd-* > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  for instance in `ls -d $RPM_INSTALL_PREFIX/slapd-*`
+  do
+    if [ -f $instance/logs/pid ]; then
+      pid=`cat $instance/logs/pid`
+      psval=`ps -ef | egrep $pid`
+      if [ "$psval" != "" ]; then
+        $instance/stop-slapd
+      fi
+    fi
+  done
+fi
+if [ -f $RPM_INSTALL_PREFIX/admin-serv/logs/pid ]; then
+  pid=`cat $RPM_INSTALL_PREFIX/admin-serv/logs/pid`
+  psval=`ps -ef | egrep $pid`
+  if [ "$psval" != "" ]; then
+    $RPM_INSTALL_PREFIX/stop-admin
+  fi
+fi
 
 %post
 echo ""
@@ -109,6 +135,9 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
+* Fri Nov 04 2005 Noriko Hosoi <nhosoi@redhat.com> 7.1-2
+- Added a dependency: cyrus-sasl >= 2.1.19
+
 * Wed Sep 14 2005 Nathan Kinder <nkinder@redhat.com> 7.1-2
 - Added a dependency on the java-1.4.2-ibm package
 
