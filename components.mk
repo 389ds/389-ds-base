@@ -354,14 +354,17 @@ LIBLDAP = $(addprefix $(LDAP_LIBPATH)/, $(LDAPOBJNAME))
 
 ### SASL package ##########################################
 
-ifdef SASL_SOURCE_ROOT
-  SASL_LIBPATH = $(SASL_SOURCE_ROOT)/lib
-  SASL_BINPATH = $(SASL_SOURCE_ROOT)/bin
-  SASL_INCDIR = $(SASL_SOURCE_ROOT)/include
+ifeq ($(ARCH), Linux)
+  SASL_LIBPATH = /usr/lib
+  SASL_INCDIR = /usr/include/sasl
 else
-  SASL_LIBPATH = $(SASL_BUILD_DIR)/lib
-  SASL_BINPATH = $(SASL_BUILD_DIR)/bin
-  SASL_INCDIR = $(SASL_BUILD_DIR)/include
+  ifdef SASL_SOURCE_ROOT
+    SASL_LIBPATH = $(SASL_SOURCE_ROOT)/lib
+    SASL_INCDIR = $(SASL_SOURCE_ROOT)/include
+  else
+    SASL_LIBPATH = $(SASL_BUILD_DIR)/lib
+    SASL_INCDIR = $(SASL_BUILD_DIR)/include
+  endif
 endif
 SASL_INCLUDE = $(SASL_INCDIR)
 
@@ -374,7 +377,7 @@ else
   SASL_LIB_ROOT_NAME = sasl2
   SASL_LIBS = lib$(SASL_LIB_ROOT_NAME).a
   ifeq ($(ARCH), Linux)
-    GSSAPI_LIBS=-L/usr/kerberos/lib -lgssapi_krb5
+    GSSAPI_LIBS=-lgssapi_krb5
   endif
   ifeq ($(ARCH), SOLARIS)
     GSSAPI_LIBS=-lgss
