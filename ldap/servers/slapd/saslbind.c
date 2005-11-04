@@ -108,11 +108,11 @@ void sasl_mutex_free(void *mutex)
  * entry from the internal database, at the same time we get any other
  * properties we need - it's more efficient that way.
  */
-static void ids_auxprop_lookup(void *glob_context __attribute__((unused)),
-				  sasl_server_params_t *sparams __attribute__((unused)),
-				  unsigned flags __attribute__((unused)),
-				  const char *user __attribute__((unused)),
-				  unsigned ulen __attribute__((unused))) 
+static void ids_auxprop_lookup(void *glob_context,
+				  sasl_server_params_t *sparams,
+				  unsigned flags,
+				  const char *user,
+				  unsigned ulen) 
 {
     /* do nothing - we don't need auxprops - we just do this to avoid
        sasldb_auxprop_lookup */
@@ -128,11 +128,11 @@ static sasl_auxprop_plug_t ids_auxprop_plugin = {
     NULL	/* auxprop_store */
 };
 
-int ids_auxprop_plug_init(const sasl_utils_t *utils __attribute__((unused)),
+int ids_auxprop_plug_init(const sasl_utils_t *utils,
                           int max_version,
                           int *out_version,
                           sasl_auxprop_plug_t **plug,
-                          const char *plugname __attribute__((unused))) 
+                          const char *plugname) 
 {
     if(!out_version || !plug) return SASL_BADPARAM;
 
