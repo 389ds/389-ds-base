@@ -498,11 +498,14 @@ static int ids_sasl_canon_user(
 
     clear = pw;
     if (clear) {
+/* older versions of sasl do not have SASL_AUX_PASSWORD_PROP, so omit it */
+#ifdef SASL_AUX_PASSWORD_PROP
         if (prop_set(propctx, SASL_AUX_PASSWORD_PROP, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */ ;
         }
+#endif /* SASL_AUX_PASSWORD_PROP */
         if (prop_set(propctx, SASL_AUX_PASSWORD, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
             /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);

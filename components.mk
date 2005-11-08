@@ -355,7 +355,11 @@ LIBLDAP = $(addprefix $(LDAP_LIBPATH)/, $(LDAPOBJNAME))
 ### SASL package ##########################################
 
 ifeq ($(ARCH), Linux)
-  SASL_LIBPATH = /usr/lib
+  ifeq ($(BUILD_ARCH), RHEL3)
+    SASL_LIBPATH = /usr/kerberos/lib
+  else
+    SASL_LIBPATH = /usr/lib
+  endif
   SASL_INCDIR = /usr/include/sasl
 else
   ifdef SASL_SOURCE_ROOT
