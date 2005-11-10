@@ -712,10 +712,12 @@ ifdef BUILD_RPM
 	startdir=`pwd` ; cd $(BUILD_ROOT) ; builddir=`pwd` ; \
 	cd $$startdir ; cd $(INSTDIR)/.. ; \
 	if [ ! -f $(RPM_FILE_BASE).tar.gz ] ; then \
-		if [ ! -f $(RPM_FILE_BASE) ] ; then \
+		if [ ! -d $(RPM_FILE_BASE) -a ! -f $(RPM_FILE_BASE) ] ; then \
 			ln -s $$builddir $(RPM_FILE_BASE) ; \
-		fi ; tar cfh - --exclude \*/built --exclude \*/CVS $(RPM_FILE_BASE) --exclude \*/branding --exclude \*/RHEL* | gzip > $(RPM_FILE_BASE).tar.gz ; \
-		rm $(RPM_FILE_BASE) ; \
+		fi ; tar cfh - --exclude \*/built --exclude \*/CVS --exclude \*/branding --exclude \*/RHEL* $(RPM_FILE_BASE) | gzip > $(RPM_FILE_BASE).tar.gz ; \
+		if [ -h $(RPM_FILE_BASE) ] ; then \
+			rm $(RPM_FILE_BASE) ; \
+		fi ; \
 	fi
 # execute the RPM build
 	rpmbuild $(RPM_TOPDIR) $(RPM_SOURCEDIR) $(RPM_BUILDDIR) $(RPM_RPMDIR) $(RPM_SRPMDIR) $(RPM_REQUIRES) --define "flavor $(RPM_FLAVOR)" --clean --nodeps -ba $(OBJDIR)/$(RPM_BASE_NAME)-ds.spec

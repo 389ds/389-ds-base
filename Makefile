@@ -346,7 +346,18 @@ redhat-ds.spec: ldapserver.spec.tmpl branding/rhds/brandver.dat $(RELTOOLSPATH)/
 	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat $@
 	mv $@ $(OBJDIR)
 
+ifdef INTERNAL_BUILD
 fedora-ds.spec: ldapserver.spec.tmpl branding/fedora/brandver.dat $(RELTOOLSPATH)/brandver.pl
 	sed -e s/@PLATFORM@/$(BUILD_ARCH)/g ldapserver.spec.tmpl > $@
 	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/brandver.dat $@
 	mv $@ $(OBJDIR)
+else
+fedora-ds.spec: ldapserver.spec.tmpl
+	sed -e s/@PLATFORM@/$(BUILD_ARCH)/g \
+	-e 's/@COMPANY-PRODUCT-NAME@/Fedora Directory Server/g' \
+	-e 's/@LCASE-COMPANY-NAME-NOSP@/fedora/g' \
+	-e 's/@GEN-VERSION@/1.0/g' \
+	-e 's+@COMPANY-URL@+http://directory.fedora.redhat.com/+g' \
+	ldapserver.spec.tmpl > $@
+	mv $@ $(OBJDIR)
+endif # INTERNAL_BUILD

@@ -76,7 +76,8 @@ Prefix: /opt/%{name}
 # all we do here is run setup -b to unpack the binaries
 # into the BuildRoot
 # the echo yes is for dsktune to continue
-echo yes | ./setup -b $RPM_BUILD_ROOT/%{prefix}
+# the second echo yes is for some platforms that need it
+(echo yes ; echo yes) | ./setup -b $RPM_BUILD_ROOT/%{prefix}
 
 %clean
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
