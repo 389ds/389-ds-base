@@ -423,6 +423,14 @@ endif
 endif
 endif
 
+# if not Linux, we need package sasl library and supported plugins
+ifneq ($(ARCH), Linux)
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)* $(RELDIR)/lib
+	-mkdir $(RELDIR)/lib/sasl2
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libdigestmd5.$(DLL_SUFFIX)* $(RELDIR)/lib/sasl2
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libgssapiv2.$(DLL_SUFFIX)* $(RELDIR)/lib/sasl2
+endif
+
 # the plugin API
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin.h $(RELDIR)/plugins/slapd/slapi/include
 	$(INSTALL) -m 644 $(NSPR_INCDIR)/*.h $(RELDIR)/plugins/slapd/slapi/include

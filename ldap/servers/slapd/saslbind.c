@@ -551,7 +551,18 @@ static int ids_sasl_canon_user(
     return returnvalue;
 }
 
-static sasl_callback_t ids_sasl_callbacks[5] =
+#ifdef CYRUS_SASL
+#if !defined(LINUX)
+static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
+{
+    static char *pluginpath = "../../../lib/sasl2";
+    *path = pluginpath;
+    return SASL_OK;
+}
+#endif
+#endif
+
+static sasl_callback_t ids_sasl_callbacks[] =
 {
     {
       SASL_CB_GETOPT,
@@ -577,6 +588,19 @@ static sasl_callback_t ids_sasl_callbacks[5] =
       (IFP) ids_sasl_canon_user,
       NULL
     },
+#ifdef CYRUS_SASL
+    /* On Linux: we use system sasl and plugins are found in the default path
+     * /usr/lib/sasl2
+     * On other platforms: we need to tell cyrus sasl where they are localted.
+     */
+#if !defined(LINUX)
+    {
+      SASL_CB_GETPATH,
+      (IFP) ids_sasl_getpluginpath,
+      NULL
+    },
+#endif
+#endif
     {
       SASL_CB_LIST_END,
       (IFP) NULL,
