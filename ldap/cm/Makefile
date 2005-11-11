@@ -234,6 +234,11 @@ LDAPDIR = $(BUILD_ROOT)/ldap
 NSDIST = $(BUILD_ROOT)/../dist
 
 DS_JAR_SRC_PATH = $(NSDIST)/$(BUILD_DEBUG)
+# this is the directory into which we place those java files and associated
+# web services files that are Apache or Java licensed - we cannot put them
+# in the same rpm/tarball as the directory server, so we create a separate
+# package for them, using the below macro as the staging area
+EXT_JAVA_RELDIR = $(BUILD_ROOT)/built/release/extjava
 DS_JAR_DEST_PATH = java/jars
 XMLTOOLS_JAR_FILE = xmltools.jar
 
@@ -336,29 +341,33 @@ endif
 	done
 
 # install the DSMLGW into the client directory
+# the following DSML files must be packaged separately:
+# web-app_2_3.dtd, activation.jar, saaj.jar - due to Sun license
+# jaxrpc-api.jar, jaxrpc.jar, xercesImpl.jar, xml-apis.jar, crimson.jar - due to Apache license
 ifeq ($(USE_DSMLGW), 1)
 	$(MKDIR) $(RELDIR)/clients/dsmlgw
+	$(MKDIR) $(EXT_JAVA_RELDIR)/clients/dsmlgw
 	if [ -d $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis ] ; then \
-		$(CP) -R $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/clients/dsmlgw/ ; \
+		$(CP) -R $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis/*  $(EXT_JAVA_RELDIR)/clients/dsmlgw/ ; \
 	fi
 
 	$(INSTALL) -m 644 $(NSDIST)/dsmlgw/dsmlgw.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/server-config.wsdd $(RELDIR)/clients/dsmlgw/WEB-INF
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(RELDIR)/clients/dsmlgw/
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(EXT_JAVA_RELDIR)/clients/dsmlgw/
 
 # now time to move the necessary jars in place
 	$(INSTALL) -m 644 $(LDAPJARFILE)  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
 # if you use the jaxrpc.jar from the axis distribution, you don't need the api file
 # or perhaps you need the jaxrpc.jar for building, and jaxrpc-api.jar at runtime, or vice versa
 # if so, I'm not sure where to get the implementation
 	if [ -f $(DSMLGWJARS_BUILD_DIR)/jaxrpc-api.jar ] ; then \
-		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc-api.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc-api.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
 	fi
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/saaj.jar  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xercesImpl.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xml-apis.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/saaj.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xercesImpl.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xml-apis.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
 endif # USE_DSMLGW
 
 # PACKAGE_UNDER_JAVA is defined in components.mk - these are component .jar files to install
@@ -479,9 +488,9 @@ ifeq ($(USE_CONSOLE), 1)
 endif
 ifeq ($(USE_JAVATOOLS), 1)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(CRIMSONJAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(CRIMSONJAR_FILE) $(EXT_JAVA_RELDIR)/$(DS_JAR_DEST_PATH)
 	if [ -f $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) ] ; then \
-		$(INSTALL) -m 644 $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
+		$(INSTALL) -m 644 $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) $(EXT_JAVA_RELDIR)/$(DS_JAR_DEST_PATH) ; \
 	fi
 endif
 
@@ -617,6 +626,10 @@ ifdef BUILD_RPM
 	mv $(ABSRELDIR)/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/$(NS_BUILD_FLAVOR).original
 	ln -s $(ABSRELDIR)/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/$(NS_BUILD_FLAVOR)
 endif
+endif
+
+ifeq ($(USE_DSMLGW), 1)
+	cd $(EXT_JAVA_RELDIR) ; tar cf - * | gzip > $(ABS_INSTDIR)/extjava.tar.gz
 endif
 
 ifeq ($(USE_CONSOLE),1)
