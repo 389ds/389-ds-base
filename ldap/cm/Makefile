@@ -238,7 +238,9 @@ DS_JAR_SRC_PATH = $(NSDIST)/$(BUILD_DEBUG)
 # web services files that are Apache or Java licensed - we cannot put them
 # in the same rpm/tarball as the directory server, so we create a separate
 # package for them, using the below macro as the staging area
-EXT_JAVA_RELDIR = $(BUILD_ROOT)/built/release/extjava
+#EXT_JAVA_RELDIR = $(BUILD_ROOT)/built/release/extjava
+# actually, we can - GPL is compatible with APL in this situation
+EXT_JAVA_RELDIR = $(RELDIR)
 DS_JAR_DEST_PATH = java/jars
 XMLTOOLS_JAR_FILE = xmltools.jar
 
@@ -629,7 +631,7 @@ endif
 endif
 
 ifeq ($(USE_DSMLGW), 1)
-	cd $(EXT_JAVA_RELDIR) ; tar cf - * | gzip > $(ABS_INSTDIR)/extjava.tar.gz
+#	cd $(EXT_JAVA_RELDIR) ; tar cf - * | gzip > $(ABS_INSTDIR)/extjava.tar.gz
 endif
 
 ifeq ($(USE_CONSOLE),1)
