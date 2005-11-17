@@ -95,6 +95,12 @@ getValFromAdminConf() {
     echo $rval
 }
 
+getValFromAdmpw() {
+    cfile=$1
+    rval=`head -1 $serverroot/admin-serv/config/$cfile | awk -F\: '{print $1}'`
+    echo $rval
+}
+
 dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
 dsconffile=$serverroot/$dsinst/config/dse.ldif
 if [ ! -f $dsconffile ]; then
@@ -197,7 +203,7 @@ fi
 
 ldaphost=`getValFromAdminConf "ldapHost:" "adm.conf"`
 ldapport=`getValFromAdminConf "ldapPort:" "adm.conf"`
-siepid=`getValFromAdminConf "siepid:" "adm.conf"`
+adminid=`getValFromAdmpw "admpw"`
 suitespotuser=`ls -l $dsconffile | awk '{print $3}'`
 suitespotgroup=`ls -l $dsconffile | awk '{print $4}'`
 admindomain=`echo $ldaphost | awk -F. '{if ($5) {print $2 "." $3 "." $4 "." $5} else if ($4) {print $2 "." $3 "." $4} else if ($3) {print $2 "." $3} else if ($2) {print $2} else {print ""}}'`
@@ -215,11 +221,11 @@ echo "In order to reconfigure your installation, the Configuration Directory"
 echo "Administrator password is required.  Here is your current information:"
 echo ""
 echo "Configuration Directory: ldap://$ldaphost:$ldapport/o=NetscapeRoot"
-echo "Configuration Administrator ID: $siepid"
+echo "Configuration Administrator ID: $adminid"
 echo ""
 echo "At the prompt, please enter the password for the Configuration Administrator."
 echo ""
-echo "administrator ID: $siepid"
+echo "administrator ID: $adminid"
 siepasswd=""
 while [ "$siepasswd" = "" ]; do
     printf "Password: "
@@ -234,7 +240,7 @@ echo "SuiteSpotUserID=   $suitespotuser" >> $inffile
 echo "SuitespotGroup=   $suitespotgroup" >> $inffile
 echo "ServerRoot=   $serverroot" >> $inffile
 echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/" >> $inffile
-echo "ConfigDirectoryAdminID=   $siepid" >> $inffile
+echo "ConfigDirectoryAdminID=   $adminid" >> $inffile
 echo "AdminDomain=   $admindomain" >> $inffile
 echo "ConfigDirectoryAdminPwd=   $siepasswd" >> $inffile
 echo "Components=   slapd-71sp1" >> $inffile
