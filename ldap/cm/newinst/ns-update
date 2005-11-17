@@ -165,6 +165,33 @@ wrap_security_tools $sroot
 
 cd `dirname $0`
 
+# we need to make sure the alias directory is owned by the server user/group
+# in order for the server to be able to create the initial key/cert db files
+
+# get the inf file name
+seenfarg=
+inffile=
+for arg in "$@" ; do
+	if [ $seenfarg ] ; then
+		inffile=$arg
+		break
+	fi
+	if [ "$arg" = "-f" ] ; then
+		seenfarg=1
+	fi
+done
+
+if [ ! -f "$inffile" ] ; then
+	echo "WARNING: Could not read the setup info file $inffile"
+else
+# grab the ssuser and ssgrp
+	ssuser=`grep SuiteSpotUserID $inffile | sed -e 's/SuiteSpotUserID[ 	]*=[ 	]*//'`
+	ssgrp=`grep SuiteSpotGroup $inffile | sed -e 's/SuiteSpotGroup[ 	]*=[ 	]*//'`
+#	echo "user = $ssuser group = $ssgrp"
+# chown the alias directory
+	chown $ssuser:$ssgrp $sroot/alias
+fi
+
 rc=0
 ./ds_create $* $extraflags
 rc=$?
