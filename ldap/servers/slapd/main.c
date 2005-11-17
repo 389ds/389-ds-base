@@ -818,35 +818,6 @@ main( int argc, char **argv)
 	set_entry_points();
 
 	/*
-	 * Initialise NSS once for the whole slapd process, whether SSL
-	 * is enabled or not. We use NSS for random number generation and
-	 * other things even if we are not going to accept SSL connections.
-	 * We also need NSS for attribute encryption/decryption on import and export.
-	 */
-	init_ssl = ( (slapd_exemode == SLAPD_EXEMODE_SLAPD) || importexport_encrypt) 
-				&& config_get_security()
-				&& (0 != s_port) && (s_port <= LDAP_PORT_MAX);
-	/* As of DS 6.1, always do a full initialization so that other
-	 * modules can assume NSS is available
-     */
-	if ( slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
-			(slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
-		 LDAPDebug(LDAP_DEBUG_ANY,
-					"ERROR: NSS Initialization Failed.\n", 0, 0, 0);
-		 exit (1);
-	}
-
-	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
-		client_auth_init();
-	}
-
-	if ( init_ssl && ( 0 != slapd_ssl_init())) {
-		LDAPDebug(LDAP_DEBUG_ANY,
-					"ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
-		exit( 1 );
-	}
-
-	/*
 	 * if we were called upon to do special database stuff, do it and be
 	 * done.
 	 */
@@ -1006,6 +977,34 @@ main( int argc, char **argv)
 	}
 #endif
 
+	/*
+	 * Initialise NSS once for the whole slapd process, whether SSL
+	 * is enabled or not. We use NSS for random number generation and
+	 * other things even if we are not going to accept SSL connections.
+	 * We also need NSS for attribute encryption/decryption on import and export.
+	 */
+	init_ssl = ( (slapd_exemode == SLAPD_EXEMODE_SLAPD) || importexport_encrypt) 
+				&& config_get_security()
+				&& (0 != s_port) && (s_port <= LDAP_PORT_MAX);
+	/* As of DS 6.1, always do a full initialization so that other
+	 * modules can assume NSS is available
+     */
+	if ( slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
+			(slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
+		 LDAPDebug(LDAP_DEBUG_ANY,
+					"ERROR: NSS Initialization Failed.\n", 0, 0, 0);
+		 exit (1);
+	}
+
+	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
+		client_auth_init();
+	}
+
+	if ( init_ssl && ( 0 != slapd_ssl_init())) {
+		LDAPDebug(LDAP_DEBUG_ANY,
+					"ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
+		exit( 1 );
+	}
 
 	/* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
 
