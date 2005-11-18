@@ -645,7 +645,7 @@ main( int argc, char **argv)
 {
 	int return_value = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	daemon_ports_t arg = {0};
+	daemon_ports_t ports_info = {0};
    	Slapi_Backend *be = NULL;
 	int init_ssl;
 #ifndef __LP64__ 
@@ -882,54 +882,6 @@ main( int argc, char **argv)
 #endif
 
 	/*
-	 * Detach ourselves from the terminal (unless running in debug mode).
-	 * We must detach before we start any threads since detach forks() on
-	 * UNIX.
-	 */
-	detach();
-
-  /*
-   * Now write our PID to the startup PID file.
-   * This is used by the start up script to determine our PID quickly
-   * after we fork, without needing to wait for the 'real' pid file to be
-   * written. That could take minutes. And the start script will wait
-   * that long looking for it. With this new 'early pid' file, it can avoid
-   * doing that, by detecting the pid and watching for the process exiting.
-   * This removes the blank stares all round from start-slapd when the server
-   * fails to start for some reason
-   */
-   write_start_pid_file();
-		
-	/* Make sure we aren't going to run slapd in 
-	 * a mode that is going to conflict with other
- 	 * slapd processes that are currently running
- 	 */
-	if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
-	    ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-				    skip_db_protect_check) == -1 ))  {
- 		LDAPDebug( LDAP_DEBUG_ANY, 
-				"Shutting down due to possible conflicts with other slapd processes\n",
-				0, 0, 0 );
-		exit(1);
-	}
-
-
-	/*
-	 * Now it is safe to log our first startup message.  If we were to
-	 * log anything earlier than now it would appear on the admin startup
-	 * screen twice because before we detach everything is sent to both
-	 * stderr and our error log.  Yuck.
-	 */
-	if (1) {
-	  char *versionstring = config_get_versionstring();
-	  char *buildnum = config_get_buildnum();
-	  LDAPDebug( LDAP_DEBUG_ANY, "%s B%s starting up\n",
-		     versionstring, buildnum, 0 );
-	  slapi_ch_free((void **)&buildnum);
-	  slapi_ch_free((void **)&versionstring);
-	}
-
-	/*
 	 * After we read the config file we should make
 	 * sure that everything we needed to read in has 
 	 * been read in and we'll start whatever threads, 
@@ -946,19 +898,19 @@ main( int argc, char **argv)
 	 */
 
 	{
-		arg.n_port = (unsigned short)n_port;
+		ports_info.n_port = (unsigned short)n_port;
 		if ( slapd_listenhost2addr( config_get_listenhost(),
-				&arg.n_listenaddr ) != 0 ) {
+				&ports_info.n_listenaddr ) != 0 ) {
 			return(1);
 		}
 
-		arg.s_port = (unsigned short)s_port;
+		ports_info.s_port = (unsigned short)s_port;
 		if ( slapd_listenhost2addr( config_get_securelistenhost(),
-				&arg.s_listenaddr ) != 0 ) {
+				&ports_info.s_listenaddr ) != 0 ) {
 			return(1);
 		}
 
-		return_value = daemon_pre_setuid_init(&arg);
+		return_value = daemon_pre_setuid_init(&ports_info);
 		if (0 != return_value) {
 		    LDAPDebug( LDAP_DEBUG_ANY, "Failed to init daemon\n",
 			       0, 0, 0 );
@@ -1004,6 +956,62 @@ main( int argc, char **argv)
 		LDAPDebug(LDAP_DEBUG_ANY,
 					"ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
 		exit( 1 );
+	}
+
+    if ( init_ssl && ( 0 != slapd_ssl_init2(&ports_info.s_socket, 0) ) ) {
+		LDAPDebug(LDAP_DEBUG_ANY,
+					"ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
+		exit( 1 );
+    }
+
+	/*
+	 * Detach ourselves from the terminal (unless running in debug mode).
+	 * We must detach before we start any threads since detach forks() on
+	 * UNIX.
+     * Have to detach after ssl_init - the user may be prompted for the PIN
+     * on the terminal, so it must be open.
+	 */
+	detach();
+
+  /*
+   * Now write our PID to the startup PID file.
+   * This is used by the start up script to determine our PID quickly
+   * after we fork, without needing to wait for the 'real' pid file to be
+   * written. That could take minutes. And the start script will wait
+   * that long looking for it. With this new 'early pid' file, it can avoid
+   * doing that, by detecting the pid and watching for the process exiting.
+   * This removes the blank stares all round from start-slapd when the server
+   * fails to start for some reason
+   */
+   write_start_pid_file();
+		
+	/* Make sure we aren't going to run slapd in 
+	 * a mode that is going to conflict with other
+ 	 * slapd processes that are currently running
+ 	 */
+	if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
+	    ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
+				    skip_db_protect_check) == -1 ))  {
+ 		LDAPDebug( LDAP_DEBUG_ANY, 
+				"Shutting down due to possible conflicts with other slapd processes\n",
+				0, 0, 0 );
+		exit(1);
+	}
+
+
+	/*
+	 * Now it is safe to log our first startup message.  If we were to
+	 * log anything earlier than now it would appear on the admin startup
+	 * screen twice because before we detach everything is sent to both
+	 * stderr and our error log.  Yuck.
+	 */
+	if (1) {
+	  char *versionstring = config_get_versionstring();
+	  char *buildnum = config_get_buildnum();
+	  LDAPDebug( LDAP_DEBUG_ANY, "%s B%s starting up\n",
+		     versionstring, buildnum, 0 );
+	  slapi_ch_free((void **)&buildnum);
+	  slapi_ch_free((void **)&versionstring);
 	}
 
 	/* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
@@ -1143,7 +1151,7 @@ main( int argc, char **argv)
 	{
 		time( &starttime );
 
-		slapd_daemon(&arg);
+		slapd_daemon(&ports_info);
 	}
  	LDAPDebug( LDAP_DEBUG_ANY, "slapd stopped.\n", 0, 0, 0 );
 	reslimit_cleanup();
