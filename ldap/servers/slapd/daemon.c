@@ -406,8 +406,6 @@ int daemon_pre_setuid_init(daemon_ports_t *ports)
 #ifdef XP_WIN32
 		ports->s_socket_native = PR_FileDesc2NativeHandle(ports->s_socket);
 #endif
-		/* check if ports->s_socket != -1 ? */
-		rc = slapd_ssl_init2 ( &ports->s_socket, 0 );
 	} else {
 	    ports->s_socket = SLAPD_INVALID_SOCKET;
 #ifdef XP_WIN32
