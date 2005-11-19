@@ -515,12 +515,11 @@ endif
     fi
 # copy the manual files from the zip files or checked out directory
 	if [ "$(DSDOC_DIR)" -a -d "$(DSDOC_DIR)" ] ; then \
-	  cd $(RELDIR)/manual/en/slapd; \
       if [ -f $(DSDOC_DIR)/$(DSDOC_COPYRIGHT) ] ; then \
-	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT); \
-	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS); \
+	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT) -d $(RELDIR)/manual/en/slapd ; \
+	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS) -d $(RELDIR)/manual/en/slapd ; \
       else \
-        cp -r $(DSDOC_DIR) . ; \
+        cp -r $(DSDOC_DIR) $(RELDIR)/manual/en/slapd ; \
       fi ; \
 	fi
 
