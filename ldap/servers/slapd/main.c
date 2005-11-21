@@ -817,68 +817,23 @@ main( int argc, char **argv)
 	/* Set entry points in libslapd */
 	set_entry_points();
 
-	/*
-	 * if we were called upon to do special database stuff, do it and be
-	 * done.
-	 */
-	switch ( slapd_exemode ) {
-	case SLAPD_EXEMODE_LDIF2DB:
-	    return slapd_exemode_ldif2db();
-
-	case SLAPD_EXEMODE_DB2LDIF:
-	    return slapd_exemode_db2ldif(argc,argv);
-
-	case SLAPD_EXEMODE_DB2INDEX:
-	    return slapd_exemode_db2index();
-
-	case SLAPD_EXEMODE_ARCHIVE2DB:
-	    return slapd_exemode_archive2db();
-
-	case SLAPD_EXEMODE_DB2ARCHIVE:
-	    return slapd_exemode_db2archive();
-
-	case SLAPD_EXEMODE_DBTEST:
-	    return slapd_exemode_dbtest();
-		
-	case SLAPD_EXEMODE_REFERRAL:
-		/* check that all the necessary info was given, then go on */
-        if (! config_check_referral_mode()) {
-		    LDAPDebug(LDAP_DEBUG_ANY,
-			      "ERROR: No referral URL supplied\n", 0, 0, 0);
-			usage( myname, extraname );
-		    exit(1);
-		}
-		break;
-
-	case SLAPD_EXEMODE_SUFFIX2INSTANCE:
-	    return slapd_exemode_suffix2instance();
-
-#if defined(UPGRADEDB)
-	case SLAPD_EXEMODE_UPGRADEDB:
-	    return slapd_exemode_upgradedb();
-#endif
-
-	case SLAPD_EXEMODE_PRINTVERSION:
-	    slapd_print_version(1);
-	    exit(1);
-	}
-
 #if defined( XP_WIN32 )
-	/* Register with the NT EventLog */
-    hSlapdEventSource = RegisterEventSource(NULL, pszServerName );
-	if( !hSlapdEventSource  )
-	{
-		char szMessage[256];
-		PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
-			"to set the EventLog source.", pszServerName);
-		MessageBox(GetDesktopWindow(), szMessage, " ", 
-			MB_ICONEXCLAMATION | MB_OK);
-		exit( 1 );
-	}
+    if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
+        /* Register with the NT EventLog */
+        hSlapdEventSource = RegisterEventSource(NULL, pszServerName );
+        if( !hSlapdEventSource  ) {
+            char szMessage[256];
+            PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
+                         "to set the EventLog source.", pszServerName);
+            MessageBox(GetDesktopWindow(), szMessage, " ", 
+                       MB_ICONEXCLAMATION | MB_OK);
+            exit( 1 );
+        }
 
-	/* Check to ensure there isn't a copy of this server already running. */
-	if( MultipleInstances() ) 
-		exit( 1 );
+        /* Check to ensure there isn't a copy of this server already running. */
+        if( MultipleInstances() ) 
+            exit( 1 );
+    }
 #endif
 
 	/*
@@ -897,7 +852,8 @@ main( int argc, char **argv)
 	 * we need to be root in order to open them. 
 	 */
 
-	{
+    if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+        (slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
 		ports_info.n_port = (unsigned short)n_port;
 		if ( slapd_listenhost2addr( config_get_listenhost(),
 				&ports_info.n_listenaddr ) != 0 ) {
@@ -958,11 +914,60 @@ main( int argc, char **argv)
 		exit( 1 );
 	}
 
-    if ( init_ssl && ( 0 != slapd_ssl_init2(&ports_info.s_socket, 0) ) ) {
-		LDAPDebug(LDAP_DEBUG_ANY,
-					"ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
-		exit( 1 );
+    if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+        (slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
+        if ( init_ssl && ( 0 != slapd_ssl_init2(&ports_info.s_socket, 0) ) ) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                      "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
+            exit( 1 );
+        }
     }
+
+	/*
+	 * if we were called upon to do special database stuff, do it and be
+	 * done.
+	 */
+	switch ( slapd_exemode ) {
+	case SLAPD_EXEMODE_LDIF2DB:
+	    return slapd_exemode_ldif2db();
+
+	case SLAPD_EXEMODE_DB2LDIF:
+	    return slapd_exemode_db2ldif(argc,argv);
+
+	case SLAPD_EXEMODE_DB2INDEX:
+	    return slapd_exemode_db2index();
+
+	case SLAPD_EXEMODE_ARCHIVE2DB:
+	    return slapd_exemode_archive2db();
+
+	case SLAPD_EXEMODE_DB2ARCHIVE:
+	    return slapd_exemode_db2archive();
+
+	case SLAPD_EXEMODE_DBTEST:
+	    return slapd_exemode_dbtest();
+		
+	case SLAPD_EXEMODE_REFERRAL:
+		/* check that all the necessary info was given, then go on */
+        if (! config_check_referral_mode()) {
+		    LDAPDebug(LDAP_DEBUG_ANY,
+			      "ERROR: No referral URL supplied\n", 0, 0, 0);
+			usage( myname, extraname );
+		    exit(1);
+		}
+		break;
+
+	case SLAPD_EXEMODE_SUFFIX2INSTANCE:
+	    return slapd_exemode_suffix2instance();
+
+#if defined(UPGRADEDB)
+	case SLAPD_EXEMODE_UPGRADEDB:
+	    return slapd_exemode_upgradedb();
+#endif
+
+	case SLAPD_EXEMODE_PRINTVERSION:
+	    slapd_print_version(1);
+	    exit(1);
+	}
 
 	/*
 	 * Detach ourselves from the terminal (unless running in debug mode).
