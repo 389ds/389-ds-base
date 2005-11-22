@@ -735,6 +735,7 @@ static void views_cache_create_applied_filter(viewEntry *pView)
 	Slapi_Filter *pCurrentFilter = 0;
 	Slapi_Filter *pBuiltFilter = 0;
 	Slapi_Filter *pViewEntryExcludeFilter = 0;
+    char *excludeFilter;
 
 	if(pView->includeAncestorFiltersFilter)
 	{
@@ -769,7 +770,11 @@ static void views_cache_create_applied_filter(viewEntry *pView)
 	}
 
 	/* filter for removing view entries from search */
-	pViewEntryExcludeFilter = slapi_str2filter( "(!(objectclass=" VIEW_OBJECTCLASS "))" );
+    /* richm - slapi_str2filter _writes_ to it's argument, so we have to pass in 
+       some writeable memory, or core dump, do not pass go */
+    excludeFilter = slapi_ch_strdup("(!(objectclass=" VIEW_OBJECTCLASS "))");
+	pViewEntryExcludeFilter = slapi_str2filter( excludeFilter );
+    slapi_ch_free_string(&excludeFilter);
 
 	if(pBuiltFilter)
 		pView->includeAncestorFiltersFilter = slapi_filter_join_ex( LDAP_FILTER_AND, pBuiltFilter, pViewEntryExcludeFilter, 0 );

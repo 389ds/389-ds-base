@@ -1570,11 +1570,12 @@ is_tombstone(Slapi_Entry *e)
 {
 	int retval = 0;
 
-	char *string_deleted = "(isdeleted=*)";
+	char *string_deleted = slapi_ch_strdup("(isdeleted=*)");
 
 	/* DBDB: we should allocate these filters once and keep them around for better performance */
 	Slapi_Filter *filter_deleted = slapi_str2filter( string_deleted );
 	
+    slapi_ch_free_string(&string_deleted);
 	/* DBDB: this should be one filter, the code originally tested separately and hasn't been fixed yet */
 	if ( (slapi_filter_test_simple( e, filter_deleted ) == 0) )
 	{
@@ -2251,9 +2252,10 @@ is_subject_of_agreemeent_local(const Slapi_Entry *local_entry, const Repl_Agmt *
 		/* Next test for the correct kind of entry */
 		if (local_entry) {
 			/* DBDB: we should allocate these filters once and keep them around for better performance */
-			char *string_filter = "(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*))";
+			char *string_filter = slapi_ch_strdup("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*))");
 			Slapi_Filter *filter = slapi_str2filter( string_filter );
 			
+            slapi_ch_free_string(&string_filter);
 			if (slapi_filter_test_simple( (Slapi_Entry*)local_entry, filter ) == 0)
 			{
 				retval = 1;
