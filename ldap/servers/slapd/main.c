@@ -207,32 +207,6 @@ extern void collation_init();
 
 #ifndef WIN32
 
-/* Changes the ownership of the given file/directory iff not
-   already the owner
-   Returns 0 upon success or non-zero otherwise, usually -1 if
-   some system error occurred
-*/
-static int
-chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
-{
-	struct stat statbuf;
-	int result = 1;
-	if (!filename)
-		return result;
-
-	memset(&statbuf, '\0', sizeof(statbuf));
-	if (!(result = stat(filename, &statbuf)))
-	{
-		if (((uid != -1) && (uid != statbuf.st_uid)) ||
-			((gid != -1) && (gid != statbuf.st_gid)))
-		{
-			result = chown(filename, uid, gid);
-		}
-	}
-
-	return result;
-}
-
 /* 
    Four cases:
     - change ownership of all files in directory (strip_fn=PR_FALSE)
@@ -258,7 +232,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
     if((ptr=strrchr(log,'/'))==NULL)
     {
       LDAPDebug(LDAP_DEBUG_ANY, "Caution changing ownership of ./%s \n",name,0,0);
-      chown_if_not_owner(log, pw->pw_uid, -1 ); 
+      slapd_chown_if_not_owner(log, pw->pw_uid, -1 ); 
       rc=1;
     } else if(log==ptr) {
       LDAPDebug(LDAP_DEBUG_ANY, "Caution changing ownership of / directory and its contents to %s\n",pw->pw_name,0,0);
@@ -273,7 +247,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
 	PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
-	chown_if_not_owner( file, pw->pw_uid, -1 ); 
+	slapd_chown_if_not_owner( file, pw->pw_uid, -1 ); 
     }
     PR_CloseDir( dir );
   }
@@ -302,7 +276,7 @@ fix_ownership()
 	}
 
 	/* The instance directory needs to be owned by the local user */
-	chown_if_not_owner( slapdFrontendConfig->instancedir, pw->pw_uid, -1 );
+	slapd_chown_if_not_owner( slapdFrontendConfig->instancedir, pw->pw_uid, -1 );
 	PR_snprintf(dirname,sizeof(dirname),"%s/config",slapdFrontendConfig->instancedir);
 	chown_dir_files(dirname, pw, PR_FALSE); /* config directory */
 	chown_dir_files(slapdFrontendConfig->accesslog, pw, PR_TRUE); /* do access log directory */
