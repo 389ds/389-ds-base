@@ -48,6 +48,7 @@
 
 #include "log.h"
 #include "fe.h"
+#include <pwd.h> /* getpwnam */
 
 #if defined( XP_WIN32 )
 #include <fcntl.h>
@@ -3225,6 +3226,17 @@ log__open_errorlogfile(int logfile_state, int locked)
 	char			tbuf[TBUFSIZE];
 	struct logfileinfo	*logp;
 	char			buffer[BUFSIZ];
+	struct passwd	*pw = NULL;
+
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	if ( slapdFrontendConfig->localuser != NULL )  {
+		if ( (pw = getpwnam( slapdFrontendConfig->localuser )) == NULL )
+			return LOG_UNABLE_TO_OPENFILE;
+	}
+	else {
+		return LOG_UNABLE_TO_OPENFILE;
+	}
 
 	if (!locked) LOG_ERROR_LOCK_WRITE( );
 
@@ -3286,6 +3298,12 @@ log__open_errorlogfile(int logfile_state, int locked)
 		*/
 		return LOG_UNABLE_TO_OPENFILE;
 	}
+
+	/* make sure the logfile is owned by the localuser.  If one of the
+	 * alternate ns-slapd modes, such as db2bak, tries to log an error
+	 * at startup, it will create the logfile as root! 
+	 */
+	slapd_chown_if_not_owner(loginfo.log_error_file, pw->pw_uid, -1);
 
 	loginfo.log_error_fdes = fp;
 	if (logfile_state == LOGFILE_REOPENED) {
