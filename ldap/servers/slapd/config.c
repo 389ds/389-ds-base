@@ -222,12 +222,14 @@ slapd_bootstrap_config(const char *configdir)
 			char loglevel[BUFSIZ];
 			char maxdescriptors[BUFSIZ];
 			char val[BUFSIZ];
+			char _localuser[BUFSIZ];
 			char logenabled[BUFSIZ];
 			char schemacheck[BUFSIZ];
 			Slapi_DN plug_dn;
 
 			errorlog[0] = loglevel[0] = maxdescriptors[0] = '\0';
 			val[0] = logenabled[0] = schemacheck[0] = '\0';
+			_localuser[0] = '\0';
 
 			/* Convert LDIF to entry structures */
 			slapi_sdn_init_dn_byref(&plug_dn, PLUGIN_BASE_DN);
@@ -282,6 +284,21 @@ slapd_bootstrap_config(const char *configdir)
 								  CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, errorbuf);
 					}
 				}
+
+#ifndef _WIN32
+				/* set the local user name; needed to set up error log */
+				if (!_localuser[0] &&
+					entry_has_attr_and_value(e, CONFIG_LOCALUSER_ATTRIBUTE,
+								_localuser, sizeof(_localuser)))
+				{
+					if (config_set_localuser(CONFIG_LOCALUSER_ATTRIBUTE,
+						_localuser, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+								  CONFIG_LOCALUSER_ATTRIBUTE, errorbuf);
+					}
+				}
+#endif
 
 				/* set the log file name */
 				if (!errorlog[0] &&
