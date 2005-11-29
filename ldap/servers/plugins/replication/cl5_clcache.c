@@ -920,7 +920,7 @@ clcache_cursor_get ( DBC *cursor, CLC_Buffer *buf, int flag )
 
 		case ENOMEM:
 			slapi_log_error ( SLAPI_LOG_FATAL, buf->buf_agmt_name,
-					"clcache_cursor_get: cann't allocate %u bytes\n", buf->buf_data.ulen );
+					"clcache_cursor_get: can't allocate %u bytes\n", buf->buf_data.ulen );
 			break;
 
 		default:
