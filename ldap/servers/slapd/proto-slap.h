@@ -588,7 +588,7 @@ void g_set_accesslog_level(int val);
  */
 void slapd_nasty(char* str, int c, int err);
 int strarray2str( char **a, char *buf, size_t buflen, int include_quotes );
-int slapd_slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
+int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
 
 /*
  * modify.c

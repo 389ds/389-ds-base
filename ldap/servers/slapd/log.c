@@ -56,6 +56,9 @@
 #include "proto-ntutil.h"
 extern HANDLE hSlapdEventSource;
 extern LPTSTR pszServerName;
+#define _PSEP '\\'
+#else
+#define _PSEP '/'
 #endif
 /**************************************************************************
  * GLOBALS, defines, and ...
@@ -112,12 +115,14 @@ static int 	log__access_rotationinfof(char *pathname);
 static int 	log__error_rotationinfof(char *pathname);
 static int 	log__audit_rotationinfof(char *pathname);
 static int 	log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size);
+static int	log__check_prevlogs (FILE *fp, char *filename);
 static int 	log__getfilesize(LOGFD fp);
 static int 	log__enough_freespace(char  *path);
 
 static int 	vslapd_log_error(LOGFD fp, char *subsystem, char *fmt, va_list ap );
 static int 	vslapd_log_access(char *fmt, va_list ap );
 static void	log_convert_time (time_t ctime, char *tbuf, int type);
+static time_t	log_reverse_convert_time (char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
 static void	log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
 static void	log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now);
@@ -2126,8 +2131,8 @@ log__open_accesslogfile(int logfile_state, int locked)
 	logp = loginfo.log_access_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short*/);
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Previous Log File:%s.%s (%lu) (%u)\n",
-                        loginfo.log_access_file, tbuf, logp->l_ctime, logp->l_size);
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%u)\n",
+			PREVLOGFILE, loginfo.log_access_file, tbuf, logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -2427,6 +2432,130 @@ delete_logfile:
     
 	return 1;
 }
+
+#define ERRORSLOG 1
+#define ACCESSLOG 2
+#define AUDITLOG  3
+
+static int
+log__fix_rotationinfof(char *pathname)
+{
+	char		*logsdir = NULL;
+	time_t		now;
+	PRDir		*dirptr = NULL;
+	PRDirEntry	*dirent = NULL;
+	PRDirFlags	dirflags = PR_SKIP_BOTH & PR_SKIP_HIDDEN;
+	char		*log_type = NULL;
+	int			log_type_id;
+	int			rval = LOG_ERROR;
+	char		*p;
+
+	/* rotation info file is broken; can't trust the contents */
+	time (&now);
+	loginfo.log_error_ctime = now;
+	logsdir = slapi_ch_strdup(pathname);
+	p = strrchr(logsdir, _PSEP);
+	if (NULL == p) /* pathname is not path/filename.rotationinfo; do nothing */
+		goto done;
+
+	*p = '\0';
+	log_type = ++p;
+	p = strchr(log_type, '.');
+	if (NULL == p) /* file is not rotationinfo; do nothing */
+		goto done;
+	*p = '\0';
+
+	if (0 == strcmp(log_type, "errors"))
+		log_type_id = ERRORSLOG;
+	else if (0 == strcmp(log_type, "access"))
+		log_type_id = ACCESSLOG;
+	else if (0 == strcmp(log_type, "audit"))
+		log_type_id = AUDITLOG;
+	else 
+		goto done; /* file is not errors nor access nor audit; do nothing */
+
+	if (!(dirptr = PR_OpenDir(logsdir)))
+		goto done;
+
+	switch (log_type_id) {
+	case ERRORSLOG:
+		loginfo.log_numof_error_logs = 0;
+		loginfo.log_error_logchain = NULL;
+		break;
+	case ACCESSLOG:
+		loginfo.log_numof_access_logs = 0;
+		loginfo.log_access_logchain = NULL;
+		break;
+	case AUDITLOG:
+		loginfo.log_numof_audit_logs = 0;
+		loginfo.log_audit_logchain = NULL;
+		break;
+	}
+	/* read the directory entries into an ascii sorted avl tree */
+	for (dirent = PR_ReadDir(dirptr, dirflags); dirent ;
+		dirent = PR_ReadDir(dirptr, dirflags)) {
+		if (0 == strcmp(log_type, dirent->name)) {
+			switch (log_type_id) {
+			case ERRORSLOG:
+				loginfo.log_numof_error_logs++;
+				break;
+			case ACCESSLOG:
+				loginfo.log_numof_access_logs++;
+				break;
+			case AUDITLOG:
+				loginfo.log_numof_audit_logs++;
+				break;
+			}
+		} else if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
+			(p = strrchr(dirent->name, '.')) != NULL &&
+			15 == strlen(++p) &&
+			NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
+			struct	logfileinfo	*logp;
+			char *q;
+			int ignoreit = 0;
+
+			for (q = p; q && *q; q++) {
+				if (*q != '-' && !isdigit(*q))
+					ignoreit = 1;
+			}
+			if (ignoreit)
+				continue;
+
+			logp = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
+			logp->l_ctime = log_reverse_convert_time(p);
+			switch (log_type_id) {
+			case ERRORSLOG:
+				logp->l_size = loginfo.log_error_maxlogsize; /* dummy */
+				logp->l_next = loginfo.log_error_logchain;
+				loginfo.log_error_logchain = logp;
+				loginfo.log_numof_error_logs++;
+				break;
+			case ACCESSLOG:
+				logp->l_size = loginfo.log_access_maxlogsize;
+				logp->l_next = loginfo.log_access_logchain;
+				loginfo.log_access_logchain = logp;
+				loginfo.log_numof_access_logs++;
+				break;
+			case AUDITLOG:
+				logp->l_size =loginfo.log_audit_maxlogsize; 
+				logp->l_next = loginfo.log_audit_logchain;
+				loginfo.log_audit_logchain = logp;
+				loginfo.log_numof_audit_logs++;
+				break;
+			}
+		}
+	}
+	rval = LOG_SUCCESS;
+done:
+	if (NULL != dirptr)
+		PR_CloseDir(dirptr);
+	slapi_ch_free_string(&logsdir);
+	return rval;
+}
+#undef ERRORSLOG
+#undef ACCESSLOG
+#undef AUDITLOG
+
 /******************************************************************************
 * log__access_rotationinfof
 *
@@ -2436,14 +2565,14 @@ delete_logfile:
 *	Assumption: Lock has been acquired already
 ******************************************************************************/ 
 static int
-log__access_rotationinfof( char *pathname)
+log__access_rotationinfof(char *pathname)
 {
-	long		f_ctime;
+	long	f_ctime;
 	int		f_size;
 	int		main_log = 1;
-	time_t		now;
-	FILE		*fp;
-
+	time_t	now;
+	FILE	*fp;
+	int		rval, logfile_type = LOGFILE_REOPENED;
 	
 	/*
 	** Okay -- I confess, we want to use NSPR calls but I want to
@@ -2462,7 +2591,7 @@ log__access_rotationinfof( char *pathname)
 	** We have reopened the log access file. Now we need to read the
 	** log file info and update the values.
 	*/
-	while (log__extract_logheader(fp, &f_ctime, &f_size) == LOG_CONTINUE) {
+	while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
 		/* first we would get the main log info */
 		if (f_ctime == 0 && f_size == 0)
 			continue;
@@ -2479,15 +2608,15 @@ log__access_rotationinfof( char *pathname)
 			struct	logfileinfo	*logp;
 
 			logp = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
-                	if (f_ctime > 0L)
+			if (f_ctime > 0L)
 				logp->l_ctime = f_ctime;
 			else
 				logp->l_ctime = now;
 			if (f_size > 0)
-                		logp->l_size = f_size;
+				logp->l_size = f_size;
 			else  {
 				/* make it the max log size */
-                		logp->l_size = loginfo.log_access_maxlogsize;
+				logp->l_size = loginfo.log_access_maxlogsize;
 			}
 
 			logp->l_next = loginfo.log_access_logchain;
@@ -2495,6 +2624,13 @@ log__access_rotationinfof( char *pathname)
 		}
 		loginfo.log_numof_access_logs++;
 	}
+	if (LOG_DONE == rval)
+		rval = log__check_prevlogs(fp, pathname);
+	fclose (fp);
+
+	if (LOG_ERROR == rval)
+		if (LOG_SUCCESS == log__fix_rotationinfof(pathname))
+			logfile_type = LOGFILE_NEW;
 
 	/* Check if there is a rotation overdue */
 	if (loginfo.log_access_rotationsync_enabled &&
@@ -2503,8 +2639,79 @@ log__access_rotationinfof( char *pathname)
 		loginfo.log_access_ctime < loginfo.log_access_rotationsyncclock - loginfo.log_access_rotationtime_secs) {
 		loginfo.log_access_rotationsyncclock -= loginfo.log_access_rotationtime_secs;
 	}
-	fclose (fp);
-	return LOGFILE_REOPENED;
+	return logfile_type;
+}
+
+/*
+* log__check_prevlogs
+* 
+* check if a given prev log file (e.g., /opt/fedora-ds/slapd-fe/logs/errors.20051201-101347)
+* is found in the rotationinfo file.
+*/
+static int
+log__check_prevlogs (FILE *fp, char *pathname)
+{
+	char		buf[BUFSIZ], *p;
+	char		*logsdir = NULL;
+	int			rval = LOG_CONTINUE;
+	char		*log_type = NULL;
+	PRDir		*dirptr = NULL;
+	PRDirEntry	*dirent = NULL;
+	PRDirFlags	dirflags = PR_SKIP_BOTH & PR_SKIP_HIDDEN;
+
+	logsdir = slapi_ch_strdup(pathname);
+	p = strrchr(logsdir, _PSEP);
+	if (NULL == p) /* pathname is not path/filename.rotationinfo; do nothing */
+		goto done;
+
+	*p = '\0';
+	log_type = ++p;
+	p = strchr(log_type, '.');
+	if (NULL == p) /* file is not rotationinfo; do nothing */
+		goto done;
+	*p = '\0';
+
+	if (0 != strcmp(log_type, "errors") &&
+		0 != strcmp(log_type, "access") &&
+		0 != strcmp(log_type, "audit"))
+		goto done; /* file is not errors nor access nor audit; do nothing */
+
+	if (!(dirptr = PR_OpenDir(logsdir)))
+		goto done;
+
+	for (dirent = PR_ReadDir(dirptr, dirflags); dirent ;
+		dirent = PR_ReadDir(dirptr, dirflags)) {
+		if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
+			(p = strrchr(dirent->name, '.')) != NULL &&
+			15 == strlen(++p) &&
+			NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
+			char *q;
+			int ignoreit = 0;
+
+			for (q = p; q && *q; q++) {
+				if (*q != '-' && !isdigit(*q))
+					ignoreit = 1;
+			}
+			if (ignoreit)
+				continue;
+
+			fseek(fp, 0 ,SEEK_SET);
+			buf[BUFSIZ-1] = '\0';
+			while (fgets(buf, BUFSIZ - 1, fp)) {
+				if (strstr(buf, dirent->name)) {
+					rval = LOG_CONTINUE;	/* found in .rotationinfo */
+					continue;
+				}	
+			}
+			rval = LOG_ERROR;	/* not found in .rotationinfo */
+			break;
+		}
+	}
+done:
+	if (NULL != dirptr)
+		PR_CloseDir(dirptr);
+	slapi_ch_free_string(&logsdir);
+	return rval;
 }
 
 /******************************************************************************
@@ -2526,8 +2733,9 @@ log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size)
 	if ( fp == NULL)
 		return LOG_ERROR;
 
-	if (fgets(buf, BUFSIZ, fp) == NULL) {
-		return LOG_ERROR;
+	buf[BUFSIZ-1] = '\0'; /* for safety */
+	if (fgets(buf, BUFSIZ - 1, fp) == NULL) {
+		return LOG_DONE;
 	}
 
 	if ((p=strstr(buf, "LOGINFO")) == NULL) {
@@ -2565,6 +2773,23 @@ log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size)
 	
 	/* Now p must hold the size value */
 	*f_size = atoi(p);
+
+	/* check if the Previous Log file really exists */
+	if ((p = strstr(buf, PREVLOGFILE)) != NULL) {
+		p += strlen(PREVLOGFILE);
+		s = strchr(p, ' ');
+		if (NULL == s) {
+			s = strchr(p, '(');
+			if (NULL != s) {
+				*s = '\0';
+			}
+		} else {
+			*s = '\0';
+		}
+		if (PR_SUCCESS != PR_Access(p, PR_ACCESS_EXISTS)) {
+			return LOG_ERROR;
+		}
+	}
 
 	return LOG_CONTINUE;
 	
@@ -2717,13 +2942,17 @@ log_get_loglist(int logtype)
 	   default:
 		return NULL;
 	}
-	list = (char **) slapi_ch_calloc(1, num * sizeof(char *));
+	list = (char **) slapi_ch_calloc(1, (num + 1) * sizeof(char *));
 	i = 0;
 	while (logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
 		PR_snprintf(buf, sizeof(buf), "%s.%s", file, tbuf);
 		list[i] = slapi_ch_strdup(buf);
 		i++;
+		if (i == num) { /* mismatch b/w num and logchain;
+						   cut the chain and save the process */
+			break;
+		}
 		logp = logp->l_next;
 	}
 	list[i] = NULL;
@@ -3059,12 +3288,12 @@ delete_logfile:
 static int
 log__error_rotationinfof( char *pathname)
 {
-	long		f_ctime;
+	long	f_ctime;
 	int		f_size;
 	int		main_log = 1;
-	time_t		now;
-	FILE		*fp;
-
+	time_t	now;
+	FILE	*fp;
+	int		rval, logfile_type = LOGFILE_REOPENED;
 	
 	/*
 	** Okay -- I confess, we want to use NSPR calls but I want to
@@ -3083,7 +3312,7 @@ log__error_rotationinfof( char *pathname)
 	** We have reopened the log error file. Now we need to read the
 	** log file info and update the values.
 	*/
-	while (log__extract_logheader(fp, &f_ctime, &f_size) == LOG_CONTINUE) {
+	while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
 		/* first we would get the main log info */
 		if (f_ctime == 0 && f_size == 0)
 			continue;
@@ -3100,15 +3329,15 @@ log__error_rotationinfof( char *pathname)
 			struct	logfileinfo	*logp;
 
 			logp = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
-                	if (f_ctime > 0L)
+			if (f_ctime > 0L)
 				logp->l_ctime = f_ctime;
 			else
 				logp->l_ctime = now;
 			if (f_size > 0)
-                		logp->l_size = f_size;
+				logp->l_size = f_size;
 			else  {
 				/* make it the max log size */
-                		logp->l_size = loginfo.log_error_maxlogsize;
+				logp->l_size = loginfo.log_error_maxlogsize;
 			}
 
 			logp->l_next = loginfo.log_error_logchain;
@@ -3116,6 +3345,13 @@ log__error_rotationinfof( char *pathname)
 		}
 		loginfo.log_numof_error_logs++;
 	}
+	if (LOG_DONE == rval)
+		rval = log__check_prevlogs(fp, pathname);
+	fclose (fp);
+
+	if (LOG_ERROR == rval)
+		if (LOG_SUCCESS == log__fix_rotationinfof(pathname))
+			logfile_type = LOGFILE_NEW;
 
 	/* Check if there is a rotation overdue */
 	if (loginfo.log_error_rotationsync_enabled &&
@@ -3125,8 +3361,7 @@ log__error_rotationinfof( char *pathname)
 		loginfo.log_error_rotationsyncclock -= loginfo.log_error_rotationtime_secs;
 	}
 
-	fclose (fp);
-	return LOGFILE_REOPENED;
+	return logfile_type;
 }
 
 /******************************************************************************
@@ -3140,12 +3375,12 @@ log__error_rotationinfof( char *pathname)
 static int
 log__audit_rotationinfof( char *pathname)
 {
-	long		f_ctime;
+	long	f_ctime;
 	int		f_size;
 	int		main_log = 1;
-	time_t		now;
-	FILE		*fp;
-
+	time_t	now;
+	FILE	*fp;
+	int		rval, logfile_type = LOGFILE_REOPENED;
 	
 	/*
 	** Okay -- I confess, we want to use NSPR calls but I want to
@@ -3164,7 +3399,7 @@ log__audit_rotationinfof( char *pathname)
 	** We have reopened the log audit file. Now we need to read the
 	** log file info and update the values.
 	*/
-	while (log__extract_logheader(fp, &f_ctime, &f_size) == LOG_CONTINUE) {
+	while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
 		/* first we would get the main log info */
 		if (f_ctime == 0 && f_size == 0)
 			continue;
@@ -3181,15 +3416,15 @@ log__audit_rotationinfof( char *pathname)
 			struct	logfileinfo	*logp;
 
 			logp = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
-                	if (f_ctime > 0L)
+			if (f_ctime > 0L)
 				logp->l_ctime = f_ctime;
 			else
 				logp->l_ctime = now;
 			if (f_size > 0)
-                		logp->l_size = f_size;
+				logp->l_size = f_size;
 			else  {
 				/* make it the max log size */
-                		logp->l_size = loginfo.log_audit_maxlogsize;
+				logp->l_size = loginfo.log_audit_maxlogsize;
 			}
 
 			logp->l_next = loginfo.log_audit_logchain;
@@ -3197,6 +3432,13 @@ log__audit_rotationinfof( char *pathname)
 		}
 		loginfo.log_numof_audit_logs++;
 	}
+	if (LOG_DONE == rval)
+		rval = log__check_prevlogs(fp, pathname);
+	fclose (fp);
+
+	if (LOG_ERROR == rval)
+		if (LOG_SUCCESS == log__fix_rotationinfof(pathname))
+			logfile_type = LOGFILE_NEW;
 
 	/* Check if there is a rotation overdue */
 	if (loginfo.log_audit_rotationsync_enabled &&
@@ -3206,8 +3448,7 @@ log__audit_rotationinfof( char *pathname)
 		loginfo.log_audit_rotationsyncclock -= loginfo.log_audit_rotationtime_secs;
 	}
 
-	fclose (fp);
-	return LOGFILE_REOPENED;
+	return logfile_type;
 }
 
 /******************************************************************************
@@ -3331,8 +3572,8 @@ log__open_errorlogfile(int logfile_state, int locked)
 	logp = loginfo.log_error_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Previous Log File:%s.%s (%lu) (%u)\n",
-                        loginfo.log_error_file,	tbuf, logp->l_ctime, logp->l_size);
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%u)\n",
+			PREVLOGFILE, loginfo.log_error_file, tbuf, logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -3452,8 +3693,8 @@ log__open_auditlogfile(int logfile_state, int locked)
 	logp = loginfo.log_audit_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);	
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Previous Log File:%s.%s (%d) (%d)\n",
-                        loginfo.log_audit_file, tbuf, (int)logp->l_ctime, logp->l_size);
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%d) (%d)\n",
+			PREVLOGFILE, loginfo.log_audit_file, tbuf, (int)logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -3624,15 +3865,14 @@ void log_access_flush()
 static void
 log_convert_time (time_t ctime, char *tbuf, int type)
 {
-
 	struct tm               *tmsp, tms;
 
 #ifdef _WIN32
-        {
-            struct tm *pt = localtime( &ctime );
-            tmsp = &tms;
-            memcpy(&tms, pt, sizeof(struct tm) );
-        }
+	{
+		struct tm *pt = localtime( &ctime );
+		tmsp = &tms;
+		memcpy(&tms, pt, sizeof(struct tm) );
+	}
 #else
 	(void)localtime_r( &ctime, &tms );
 	tmsp = &tms;
@@ -3641,7 +3881,27 @@ log_convert_time (time_t ctime, char *tbuf, int type)
 		(void) strftime (tbuf, (size_t) TBUFSIZE, "%Y%m%d-%H%M%S",tmsp);
 	else	/* wants the long form */
 		(void) strftime (tbuf, (size_t) TBUFSIZE, "%d/%b/%Y:%H:%M:%S",tmsp);
+}
 
+/*
+ * log_reverse_convert_time
+ *	convert the given string formatted time (output from log_convert_time)
+ *  into time_t
+ */
+static time_t
+log_reverse_convert_time(char *tbuf)
+{
+	struct tm tm;
+
+	if (strchr(tbuf, '-')) { /* short format */
+		strptime(tbuf, "%Y%m%d-%H%M%S", &tm);
+	} else if (strchr(tbuf, '/') && strchr(tbuf, ':')) { /* long format */
+		strptime(tbuf, "%d/%b/%Y:%H:%M:%S", &tm);
+	} else {
+		return 0;
+	}
+
+	return mktime(&tm);
 }
 
 int
