@@ -2491,7 +2491,7 @@ log__fix_rotationinfof(char *pathname)
 		loginfo.log_audit_logchain = NULL;
 		break;
 	}
-	/* read the directory entries into an ascii sorted avl tree */
+	/* read the directory entries into a linked list */
 	for (dirent = PR_ReadDir(dirptr, dirflags); dirent ;
 		dirent = PR_ReadDir(dirptr, dirflags)) {
 		if (0 == strcmp(log_type, dirent->name)) {
