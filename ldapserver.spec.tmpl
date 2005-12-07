@@ -44,8 +44,8 @@
 %define __os_install_post %{nil}
 Summary: @COMPANY-PRODUCT-NAME@
 Name: @LCASE-COMPANY-NAME-NOSP@-ds
-Version: @GEN-VERSION@
-Release: 2.@PLATFORM@
+Version: @NOSP-VERSION@
+Release: 1.@PLATFORM@
 License: GPL plus extensions
 Group: System Environment/Daemons
 URL: @COMPANY-URL@
@@ -78,6 +78,8 @@ Prefix: /opt/%{name}
 # the echo yes is for dsktune to continue
 # the second echo yes is for some platforms that need it
 (echo yes ; echo yes) | ./setup -b $RPM_BUILD_ROOT/%{prefix}
+# remove the setup log files so they aren't packaged
+rm -f $RPM_BUILD_ROOT/%{prefix}/setup/*/*.log
 
 %clean
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
@@ -120,7 +122,37 @@ echo ""
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
 	RPM_INSTALL_PREFIX=%{prefix}
 fi
-echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
+if [ "$1" -ge 1 ] ; then
+# patch file to upgrade admin server from 1.0 to 1.0.1
+    if [ -f $RPM_INSTALL_PREFIX/setup/adminserver10to101.patch ] ; then
+        patch -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver10to101.patch
+    fi
+# patch file to fix start-admin on Fedora Core 2
+    if [ -f $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch ] ; then
+        patch -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch
+    fi
+# fix up file permissions
+    testfile=$RPM_INSTALL_PREFIX/admin-serv/config/nss.conf
+    if [ ! -f $testfile ] ; then
+        testfile=$RPM_INSTALL_PREFIX/admin-serv/config/adm.conf
+    fi
+    if [ -f $testfile ] ; then
+        usergroup=`ls -l $testfile | awk '{print $3":"$4}'`
+        if [ -d $RPM_INSTALL_PREFIX/admin-serv/config ] ; then
+            chown $usergroup $RPM_INSTALL_PREFIX/admin-serv/config
+        fi
+        if [ -d $RPM_INSTALL_PREFIX/bin/slapd/authck ] ; then
+            chown $usergroup $RPM_INSTALL_PREFIX/bin/slapd/authck
+        fi
+        if [ -d $RPM_INSTALL_PREFIX/alias ] ; then
+            chown $usergroup $RPM_INSTALL_PREFIX/alias
+        fi
+    fi
+    echo "Install finished.  Please restart your directory servers first,"
+    echo "then the admin server.  Do not run setup."
+else
+    echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
+fi
 
 %preun
 # only run uninstall if this is the last version of the package
@@ -133,6 +165,11 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
+* Tue Dec  6 2005 Rich Megginson <rmeggins@redhat.com> - 1.0.1-1
+- Use nosp version instead of gen version to get patch version numbers
+- Patch the admin server in the post install section
+- Remove the unnecessary log files after setup so they aren't packaged
+
 * Wed Nov 09 2005 Nathan Kinder <nkinder@redhat.com> 7.1-2
 - Changed cyrus-sasl dependency to >= 2.1.15 for RHEL3 compatibility
 

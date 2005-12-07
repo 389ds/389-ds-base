@@ -200,4 +200,13 @@ if [ -f fix_secmod_db_64 ]; then
     ./fix_secmod_db_64 $sroot/alias $sroot/shared32/bin
 fi
 
+# chown the cookie directory - bug 175098
+if [ "$ssuser" ] ; then
+    if [ "$ssgrp" ] ; then
+        chown $ssuser:$ssgrp $sroot/bin/slapd/authck
+    else
+        chown $ssuser $sroot/bin/slapd/authck
+    fi
+fi
+
 exit $rc

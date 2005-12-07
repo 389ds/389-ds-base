@@ -1921,6 +1921,7 @@ char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
     PR_snprintf(subdir, sizeof(subdir), "%s%cbin%cslapd%cauthck", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
     if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
         return(t);
+    chownfile (pw, subdir);
 
     return (t);
 }
