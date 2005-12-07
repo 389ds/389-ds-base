@@ -161,10 +161,6 @@ endif
 
 consoleComponents: $(DS_CONSOLE_COMPONENT_DEP)
 
-pumpkin:
-	@echo NSOS_RELEASE is: $(NSOS_RELEASE)
-	$(PERL) pumpkin.pl $(PUMPKIN_AGE) pumpkin.dat
-
 buildnum:
 	if test ! -d $(BUILD_ARCH); then mkdir $(BUILD_ARCH); fi;
 	$(PERL) buildnum.pl -p $(BUILD_ARCH)
@@ -218,7 +214,7 @@ normalizeDirectory: $(RELTOOLSPATH)/brandver.pl
 
 buildAndPkgDirectory:	buildDirectory pkgDirectory
 
-buildDirectory: buildnum pumpkin $(OBJDIR) $(DIRVER_H) $(SDKVER_H) components 
+buildDirectory: buildnum $(PUMPKIN_TARGET) $(OBJDIR) $(DIRVER_H) $(SDKVER_H) components 
 	@echo 
 	@echo 
 	@echo ==== Starting LDAP Server ==========
@@ -357,6 +353,7 @@ fedora-ds.spec: ldapserver.spec.tmpl
 	-e 's/@COMPANY-PRODUCT-NAME@/Fedora Directory Server/g' \
 	-e 's/@LCASE-COMPANY-NAME-NOSP@/fedora/g' \
 	-e 's/@GEN-VERSION@/1.0/g' \
+	-e 's/@NOSP-VERSION@/1.0.1/g' \
 	-e 's+@COMPANY-URL@+http://directory.fedora.redhat.com/+g' \
 	ldapserver.spec.tmpl > $@
 	mv $@ $(OBJDIR)

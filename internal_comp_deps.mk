@@ -45,6 +45,13 @@
 
 BUILD_MODE = ext
 
+ifdef BUILD_PUMPKIN
+PUMPKIN_AGE := 120
+#BUILD_BOMB=
+BUILD_BOMB=-DPUMPKIN_HOUR=$(shell cat $(BUILD_ROOT)/pumpkin.dat)
+BOMB=$(BUILD_BOMB)
+endif # BUILD_PUMPKIN
+
 ifndef NSPR_SOURCE_ROOT
 NSPR_IMPORT = $(COMPONENTS_DIR)/nspr20/$(NSPR_RELDATE)/$(FULL_RTL_OBJDIR)
 NSPR_DEP = $(NSPR_LIBPATH)/libnspr4.$(LIB_SUFFIX)
@@ -732,3 +739,11 @@ endif
 	then echo "Error: could not get component NT4SYNC files $@" ; \
 	fi
 # Windows sync component for NT4
+
+# BUILD_BOMB stuff
+PUMPKIN_TARGET = pumpkin
+$(PUMPKIN_TARGET):
+ifdef BUILD_PUMPKIN
+	@echo NSOS_RELEASE is: $(NSOS_RELEASE)
+	$(PERL) pumpkin.pl $(PUMPKIN_AGE) pumpkin.dat
+endif # BUILD_PUMPKIN
