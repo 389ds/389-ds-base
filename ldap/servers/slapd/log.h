@@ -43,10 +43,6 @@
  *
  *************************************************************************/
 #include <stdio.h>
-#ifdef LINUX
-#define _XOPEN_SOURCE /* glibc2 needs this */
-#define __USE_XOPEN
-#endif
 #include <time.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -73,7 +69,6 @@
 #define LOG_EXCEEDED 		2		/*err: > max logs allowed */
 #define LOG_ROTATE		3		/*ok; go to the next log */
 #define LOG_UNABLE_TO_OPENFILE  4
-#define LOG_DONE		5
 
 #define LOG_UNIT_UNKNOWN	0
 #define LOG_UNIT_MONTHS 	1
@@ -95,8 +90,6 @@
 #define LOG_UNIT_TYPE_MINUTES	"minute"
 
 #define LOG_BUFFER_MAXSIZE          512 * 1024
-
-#define PREVLOGFILE	"Previous Log File:"
 
 /* see log.c for why this is done */
 #ifdef XP_WIN32

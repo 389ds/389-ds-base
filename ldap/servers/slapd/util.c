@@ -631,30 +631,3 @@ strarray2str( char **a, char *buf, size_t buflen, int include_quotes )
 	return( rc );
 }
 /*****************************************************************************/
-
-/* Changes the ownership of the given file/directory if not
-   already the owner
-   Returns 0 upon success or non-zero otherwise, usually -1 if
-   some system error occurred
-*/
-int
-slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
-{
-        struct stat statbuf;
-        int result = 1;
-        if (!filename)
-                return result;
-
-        memset(&statbuf, '\0', sizeof(statbuf));
-        if (!(result = stat(filename, &statbuf)))
-        {
-                if (((uid != -1) && (uid != statbuf.st_uid)) ||
-                        ((gid != -1) && (gid != statbuf.st_gid)))
-                {
-                        result = chown(filename, uid, gid);
-                }
-        }
-
-        return result;
-}
-
