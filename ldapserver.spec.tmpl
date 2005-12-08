@@ -131,6 +131,10 @@ if [ "$1" -ge 1 ] ; then
     if [ -f $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch ] ; then
         patch -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch
     fi
+# patch file to fix startconsole ld libpath
+    if [ -f $RPM_INSTALL_PREFIX/setup/console-ld-libpath.patch ] ; then
+        patch -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/console-ld-libpath.patch
+    fi
 # fix up file permissions
     testfile=$RPM_INSTALL_PREFIX/admin-serv/config/nss.conf
     if [ ! -f $testfile ] ; then
