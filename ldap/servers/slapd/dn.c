@@ -188,8 +188,7 @@ substr_dn_normalize( char *dn, char *end )
 		case INVALUE:
 			if ( gotesc ) {
 			    if ( SEPARATOR( *s ) ) {
-				if ( value_separator ) value_separator = dn;
-				else value_separator = d;
+				value_separator = d;
 			    } else if ( ! NEEDSESCAPE( *s ) ) {
 				--d; /* eliminate the \ */
 			    }
