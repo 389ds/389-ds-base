@@ -640,7 +640,8 @@ list_candidates(
     {
         is_bounded_range = 0;
     }
-    if (NULL == fpairs[0] || NULL == fpairs[1])
+    if (NULL == fpairs[0] || NULL == fpairs[1] ||
+        0 != strcmp(tpairs[0], tpairs[1]) /* avoid "&(cn<=A)(sn>=B)" type */ )
     {
         fpairs[0] = fpairs[1] = NULL;
         slapi_ch_free_string(&tpairs[0]);
