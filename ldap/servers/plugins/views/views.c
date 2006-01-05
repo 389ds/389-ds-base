@@ -899,10 +899,12 @@ Slapi_Filter *views_cache_create_descendent_filter(viewEntry *ancestor, PRBool u
 		 */
 		pDescendentSubFilter = views_cache_create_descendent_filter(currentChild, useEntryID);
 		if(pDescendentSubFilter)
+		{
 			if(pOrSubFilter)
 				pOrSubFilter = slapi_filter_join_ex( LDAP_FILTER_OR, pOrSubFilter, pDescendentSubFilter, 0 );
 			else
 				pOrSubFilter = pDescendentSubFilter;
+		}
 
 		if(useEntryID)
 		{
@@ -1016,7 +1018,7 @@ static void views_cache_create_inclusion_filter(viewEntry *pView)
 	pView->includeChildViewsFilter = views_cache_create_descendent_filter(pView, PR_TRUE);
 
 	/* add this view */
-	view_filter_str = PR_smprintf("(parentid=%lu)", pView->entryid);
+	view_filter_str = PR_smprintf("(|(parentid=%lu)(entryid=%lu))", pView->entryid, pView->entryid);
 
 	if(pView->includeChildViewsFilter)
 	{
@@ -1674,7 +1676,7 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb)
 	theView = views_cache_find_view(base);
 
 	/* if the view is disabled (we service subtree searches in this case) */
-	if(!theView || !theView->viewfilter && scope == LDAP_SCOPE_ONELEVEL)
+	if(!theView || (!theView->viewfilter && scope == LDAP_SCOPE_ONELEVEL))
 	{
 		/* unlock the cache */
 		views_unlock();
@@ -1696,8 +1698,10 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb)
 #endif
 
 	}
-
-	includeChildViewsFilter = slapi_filter_dup(theView->includeChildViewsFilter); 
+	else
+	{
+		includeChildViewsFilter = slapi_filter_dup(theView->includeChildViewsFilter); 
+	}
 
 #ifdef _VIEW_DEBUG_FILTERS
 	slapi_filter_to_string(includeChildViewsFilter, includeChildViewsFilter_str, sizeof(includeChildViewsFilter_str));
@@ -1727,28 +1731,38 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb)
 #ifdef _VIEW_DEBUG_FILTERS
 	slapi_filter_to_string(clientFilter, clientFilter_str, sizeof(clientFilter_str));
 #endif
+	/* There are two major clauses in a views filter, one looks
+	   for entries that match the view filters themselves plus
+	   the presented client filter, and the other looks for entries
+	   that exist in the view hierarchy that also match the client
+	   presented filter
+	*/
 
-	/* client supplied filter AND inclusion filter - make sure we can see views */
+	/* client supplied filter AND views inclusion filter
+	   - make sure we can see entries in the view tree */
 	if(scope == LDAP_SCOPE_ONELEVEL)
 	{
-		Slapi_Filter *clientSeeViewsFilter = 0; /* view filter to see views */
-
-		clientSeeViewsFilter = slapi_filter_dup(clientFilter);
+		/* this filter is to lock our view to the onelevel search */
 		if(excludeGrandChildViewsFilter)
-			seeViewsFilter = slapi_filter_join_ex( LDAP_FILTER_AND, excludeGrandChildViewsFilter, clientSeeViewsFilter, 0 );
-		else
-			seeViewsFilter = clientSeeViewsFilter;
+		{
+			seeViewsFilter = excludeGrandChildViewsFilter;
+		}
 	}
-
-	/* this filter is to lock our view to the subtree at hand */
-	if(seeViewsFilter && includeChildViewsFilter)
-		seeViewsFilter = slapi_filter_join_ex( LDAP_FILTER_AND, includeChildViewsFilter, seeViewsFilter, 0 );
 	else
 	{
+		/* this filter is to lock our view to the subtree search */
 		if(includeChildViewsFilter)
+		{
 			seeViewsFilter = includeChildViewsFilter; 
+		}
 	}
-	
+
+	/* but only view tree entries that match the client filter */
+	if(seeViewsFilter)
+	{
+		seeViewsFilter = slapi_filter_join_ex( LDAP_FILTER_AND, slapi_filter_dup(clientFilter), seeViewsFilter, 0 );
+	}
+
 	/* create target filter */
 	if(includeAncestorFiltersFilter)
 		outFilter = slapi_filter_join_ex( LDAP_FILTER_AND, includeAncestorFiltersFilter, clientFilter, 0 );
