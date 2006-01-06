@@ -41,26 +41,23 @@
 # gnu makefile for LDAP Server tools.
 #
 
-LDAP_SRC = ../../..
-BUILD_ROOT = ../../../..
+LDAP_SRC = ../../../..
+BUILD_ROOT = ../../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/servers/tools/obj
-BINDIR = $(LDAP_SERVER_RELDIR)
+BINDIR = $(RELDIR)/shared/bin
+DATDIR = $(RELDIR)/shared/data
 
 SLAPD_OBJDIR = $(LDAP_OBJDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-ifndef LDAP_USE_OLD_DB
 INCLUDES+=-I$(DB_INCLUDE)
-else
-CFLAGS+=-DLDAP_USE_DB185
-endif
 
 SLAPDHDIR = ../
 
@@ -74,17 +71,6 @@ endif # OSF1
 INCLUDES += $(SSLINCLUDE)
 DEFS += $(SSL)
 
-OBJS1 += $(OBJDEST)/pwenc.o 
-
-ifeq ($(USE_64), 1)
-ifeq ($(ARCH), HPUX)
-LDFLAGS += -lpthread +DA2.0W +DS2.0 +Z
-endif
-ifeq ($(ARCH), SOLARIS)
-LDFLAGS += -xarch=v9 
-endif
-endif
-
 CFLAGS += $(ARCH_CFLAGS)
 
 INCLUDES += -I$(SLAPDHDIR) -I$(LDAP_ADMINCDIR)
@@ -92,41 +78,21 @@ INCLUDES += -I$(ACLINC)
 INCLUDES +=  -I ../../plugins/rever
 LDFLAGS	+= $(EXLDFLAGS) $(SSLLIBFLAG)
 
-ifeq ($(ARCH), WINNT)
-SUBSYSTEM=console
-endif
-
 DEPLIBS=
 
-EXTRA_LIBS_DEP = $(LDAPSDK_DEP) \
-	$(LDAP_LIBLDIF_DEP) \
-	$(LDAP_SLIBLCACHE_DEP) $(DB_LIB_DEP) $(LIBSLAPD_DEP) \
-	$(LDAP_COMMON_LIBS_DEP)
+EXTRA_LIBS_DEP = $(LDAPSDK_DEP) $(DB_LIB_DEP) $(LDAP_COMMON_LIBS_DEP)
 
-EXTRA_LIBS += $(LDAPLINK) \
-	$(LDAP_SLIBLCACHE) $(DB_LIB) \
-	$(PLATFORM_SPECIFIC_EXTRA_LIBRARY) $(LIBSLAPD) $(LDAP_LIBLITEKEY) \
-	$(ALIBS) \
-	$(SECURITYLINK) $(DBMLINK) \
-	$(THREADSLIB) $(LDAP_COMMON_LIBS) $(NSPRLINK) $(SVRCORELINK)
+EXTRA_LIBS += $(LDAPLINK) $(DB_LIB) \
+	$(PLATFORM_SPECIFIC_EXTRA_LIBRARY) \
+	$(ALIBS) $(NSPRLINK) $(SECURITYLINK) \
+	$(THREADSLIB) $(LDAP_COMMON_LIBS) 
 
 ifeq ($(ARCH), Linux)
 EXTRA_LIBS += -lcrypt
 endif
 
-
 KEYUPG_LIBS_DEP=
 KEYUPG_LIBS=$(LDAP_LIBLITEKEY)
-
-ifeq ($(ARCH), WINNT)
-KEYUPG_LIBS_DEP=$(LDAP_LIBUTIL_DEP)
-KEYUPG_LIBS += $(LDAP_LIBUTIL)
-endif
-
-ifdef HEAPAGENT
-CFLAGS+=-DPURIFYING
-LDAP_DONT_USE_SMARTHEAP=1
-endif
 
 # It looks like all of the latest versions of Unix that we ship on
 # have a good enough heap implementations that they don't need
@@ -149,61 +115,62 @@ else
 CFLAGS+=-DLDAP_DONT_USE_SMARTHEAP
 endif
 
+RSEARCHSRC := nametable.c sdattable.c searchthread.c rsearch.c
+	
+INFADDSRC := nametable.c addthread.c infadd.c
 
-TOOL_OBJS =  ldif.o keyupg.o pwenc.o mmldif.o migratecred.o eggencode.o dbscan.o
-ALL_OBJS = $(addprefix $(OBJDEST)/, $(TOOL_OBJS))
+DATAFILES := scripts/dbgen-GivenNames scripts/dbgen-FamilyNames scripts/dbgen-OrgUnits
 
-LDIF = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, ldif))
-PWDHASH = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, pwdhash))
-MIGRATECRED = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, migratecred))
-KEYUPG = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, keyupg))
-MMLDIF = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, mmldif))
-EGGENCODE = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, eggencode))
-DBSCAN = $(addsuffix $(EXE_SUFFIX), \
-	$(addprefix $(BINDIR)/, dbscan))
+DBGEN := scripts/dbgen.pl 
 
-BINS=	$(LDIF) $(PWDHASH) $(KEYUPG) $(MMLDIF) $(MIGRATECRED) $(DBSCAN)
-EXTRABINS=	$(EGGENCODE)
+ifeq ($(OS_ARCH), WINNT)
+OBJEXT :=.obj
+else
+OBJEXT :=.o
+endif
 
-all:	$(OBJDEST) $(BINDIR) $(LDAP_ADMIN_BIN_RELDIR) $(BINS) buildRsearch
-		
-extras:	$(OBJDEST) $(BINDIR) $(EGGENCODE)
+RSEARCHOBJS	= $(addprefix $(OBJDEST)/, $(RSEARCHSRC:.c=$(OBJEXT)))
+INFADDOBJS	= $(addprefix $(OBJDEST)/, $(INFADDSRC:.c=$(OBJEXT)))
+HDIR		= $(LDAP_SRC)/include
 
-$(LDIF):	$(OBJDEST)/ldif.o $(LDAP_LIBLDIF_DEP)
-	$(LINK_EXE) $< $(LDAP_LIBLDIF)
+ALL_OBJS = $(RSEARCHOBJS) $(INFADDOBJS)
 
-$(PWDHASH):	$(OBJS1) $(EXTRA_LIBS_DEP)
-	$(LINK_EXE) $(OBJS1) $(EXTRA_LIBS) 
+RSEARCH = $(addsuffix $(EXE_SUFFIX), $(addprefix $(BINDIR)/, rsearch))
+INFADD = $(addsuffix $(EXE_SUFFIX), $(addprefix $(BINDIR)/, infadd))
+DBGEN = $(addsuffix $(EXE_SUFFIX), $(addprefix $(BINDIR)/, dbgen.pl))
 
-$(MIGRATECRED):	$(OBJDEST)/migratecred.o $(EXTRA_LIBS_DEP)
-	$(LINK_EXE) $(OBJDEST)/migratecred.o $(EXTRA_LIBS) 
+BINS=	$(RSEARCH) $(INFADD) $(DBGEN)
 
-$(KEYUPG):      $(OBJDEST)/keyupg.o  $(KEYUPG_LIBS_DEP)
-	$(LINK_EXE_NOLIBSOBJS) $<  $(KEYUPG_LIBS)
+all:	$(OBJDEST) $(BINDIR) $(BINS) $(DATDIR)
 
-$(MMLDIF):	$(OBJDEST)/mmldif.o $(EXTRA_LIBS_DEP)
-	$(LINK_EXE_NOLIBSOBJS) $(OBJDEST)/mmldif.o $(EXTRA_LIBS) 
+$(RSEARCH):	$(RSEARCHOBJS) $(BINDIR)
+	$(LINK_EXE) $(RSEARCHOBJS) $(LDAP_LIBLDIF)
+	-chmod 755 $(RSEARCH)
 
-$(EGGENCODE):	$(OBJDEST)/eggencode.o
-	$(LINK_EXE_NOLIBSOBJS) $(OBJDEST)/eggencode.o
+$(INFADD):	$(INFADDOBJS) $(BINDIR)
+	$(LINK_EXE) $(INFADDOBJS) $(LDAP_LIBLDIF)
+	-chmod 755 $(INFADD)
 
-$(DBSCAN):	$(OBJDEST)/dbscan.o
-	$(LINK_EXE) $<
+$(DBGEN): scripts/dbgen.pl $(BINDIR)
+	cp scripts/dbgen.pl $(BINDIR)
+	-chmod 755 $(DBGEN)
 
 $(OBJDEST):
-	$(MKDIR) $(OBJDEST)
+	if [ ! -d $(OBJDEST) ]; then \
+	  $(MKDIR) $(OBJDEST); \
+	fi
 
-buildRsearch:
-	cd rsearch; $(MAKE)
+$(BINDIR):
+	if [ ! -d $(BINDIR) ]; then \
+	  $(MKDIR) $(BINDIR); \
+	fi
+
+$(DATDIR):
+	-$(RM) -r $(DATDIR)
+	-$(MKDIR) $(DATDIR)
+	cp scripts/dbgen-* $(DATDIR)
 
 clean:
 	-$(RM) $(ALL_OBJS)
-	-$(RM) $(BINS) $(EXTRABINS)
-	cd rsearch; $(MAKE) clean
+	-$(RM) -r $(BINS) $(DATDIR)
 
