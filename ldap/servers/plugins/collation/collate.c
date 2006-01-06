@@ -132,19 +132,34 @@ collation_config (size_t cargc, char** cargv,
                     strcpy(nameOrder,"caseExactOrderingMatch");
                     strcpy(nameSubstring,"caseExactSubstringMatch");
                 }
- 
+
+		/* PAR: this looks broken
+                   the "extra" text based oids that are actually used
+                   to form the name and description are always derived
+                   from the language and country fields so there should
+                   be no need to have two separate code paths to
+                   set the name and description fields of the schema
+                   as language is always available, and if country is
+                   not, it is not in the name anyway.
+
+                   Is it safe to assume all matching rules will follow
+                   this convention?  The answer, or lack of it, probably
+                   explains the reasoning for doing things the way they
+                   are currently.
+                */ 
+                    
                 if(cargc > 7) {
-                    strcpy(nameOrder,"-");
+                    PL_strcatn(nameOrder,sizeof(nameOrder),"-");
                     PL_strcatn(nameOrder,sizeof(nameOrder),cargv[7]);
-                    strcpy(nameSubstring,"-");
+                    PL_strcatn(nameSubstring,sizeof(nameSubstring),"-");
                     PL_strcatn(nameSubstring,sizeof(nameSubstring),cargv[7]);
                     slapi_matchingrule_set(mrentry,SLAPI_MATCHINGRULE_NAME,
                                            (void *)slapi_ch_strdup(nameOrder));
                 }
-                else {
+                else  {
                     if(0 != cargv[1][0]) {
-                        strcpy(nameOrder,"-");
-                        strcpy(nameSubstring,"-");
+                        PL_strcatn(nameOrder,sizeof(nameOrder),"-");
+                        PL_strcatn(nameSubstring,sizeof(nameSubstring),"-");
                     } else {
 						nameOrder[0] = 0;
 						nameSubstring[0] = 0;
