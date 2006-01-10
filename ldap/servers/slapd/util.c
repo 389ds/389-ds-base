@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #endif
+#include <libgen.h>
 #include <pk11func.h>
 #include "slap.h"
 #include "prtime.h"
@@ -52,6 +53,14 @@
 #define UTIL_ESCAPE_NONE      0
 #define UTIL_ESCAPE_HEX       1
 #define UTIL_ESCAPE_BACKSLASH 2
+
+#if defined( _WIN32 )
+#define _PSEP "\\"
+#define _CSEP '\\'
+#else
+#define _PSEP "/"
+#define _CSEP '/'
+#endif
 
 static int special_np(unsigned char c)
 {
@@ -383,6 +392,60 @@ is_abspath(const char *path)
 	return 0; /* not an abs path */
 }
 
+static void
+clean_path(char **norm_path)
+{
+	char **np;
+
+	for (np = norm_path; np && *np; np++)
+		slapi_ch_free((void **)np);
+	slapi_ch_free((void  **)&norm_path);
+}
+
+static char **
+normalize_path(char *path)
+{
+    char *dname = slapi_ch_strdup(path);
+    char *dnamep = dname;
+    char *bnamep = NULL;
+    char **dirs = (char **)slapi_ch_calloc(strlen(path), 1);
+    char **rdirs = (char **)slapi_ch_calloc(strlen(path), 1);
+    char **dp = dirs;
+    char **rdp;
+    do {
+        bnamep = basename(dnamep);
+        if (0 != strcmp(bnamep, ".")) {
+            *dp++ = slapi_ch_strdup(bnamep);    /* remove "/./" in the path */
+        }
+        dnamep = dirname(dnamep);
+    } while (strcmp(dnamep, _PSEP) &&
+            !(0 == strcmp(dnamep, ".") && 0 == strcmp(bnamep, ".")));    
+
+    /* remove "xxx/.." in the path */
+    for (dp = dirs, rdp = rdirs; dp && *dp; dp++) {
+        while (*dp && 0 == strcmp(*dp, "..")) {
+            dp++; 
+            if (rdp > rdirs)
+                rdp--;
+        }
+        if (*dp)
+            *rdp++ = slapi_ch_strdup(*dp);
+    }
+    for (--dp, rdp = rdirs; dp >= dirs; dp--) {
+        while (*dp && 0 == strcmp(*dp, "..")) {
+            dp--; 
+            if (rdp > rdirs)
+                rdp--;
+        }
+        if (*dp)
+            *rdp++ = slapi_ch_strdup(*dp);
+    }
+
+    clean_path(dirs);
+    slapi_ch_free_string(&dname);
+
+    return rdirs;
+}
 
 /*
  * Take "relpath" and prepend the current working directory to it
@@ -399,13 +462,10 @@ rel2abspath( char *relpath )
    CHAR szDir[_MAX_DIR];
    CHAR szFname[_MAX_FNAME];
    CHAR szExt[_MAX_EXT];
-#define _PSEP "\\"
-#else
-#define _PSEP "/"
 #endif
 
     if ( relpath == NULL ) {
-	return NULL;
+        return NULL;
     }
 
 #if defined( _WIN32 )
@@ -413,41 +473,51 @@ rel2abspath( char *relpath )
     memset (&szDir, 0, sizeof (szDir));
     memset (&szFname, 0, sizeof (szFname));
     memset (&szExt, 0, sizeof (szExt));
-	_splitpath( relpath, szDrive, szDir, szFname, szExt );
-	if( szDrive[0] && szDir[0] )
-		return( slapi_ch_strdup( relpath ));
-    if ( relpath[ 0 ] == '/' || relpath[ 0 ] == '\\' ) {
-	return( slapi_ch_strdup( relpath ));
-#else
-    if ( relpath[ 0 ] == '/' ) {
-	return( slapi_ch_strdup( relpath ));
-    }
+    _splitpath( relpath, szDrive, szDir, szFname, szExt );
+    if( szDrive[0] && szDir[0] )
+        return( slapi_ch_strdup( relpath ));
 #endif
-
-    if ( getcwd( abspath, MAXPATHLEN ) == NULL ) {
-	perror( "getcwd" );
-	LDAPDebug( LDAP_DEBUG_ANY, "Cannot determine current directory\n",
-		0, 0, 0 );
-	exit( 1 );
+    if ( relpath[ 0 ] == _CSEP ) {     /* absolute path */
+        PR_snprintf(abspath, sizeof(abspath), "%s", relpath);
+    } else {                        /* relative path */
+        if ( getcwd( abspath, MAXPATHLEN ) == NULL ) {
+            perror( "getcwd" );
+            LDAPDebug( LDAP_DEBUG_ANY, "Cannot determine current directory\n",
+                    0, 0, 0 );
+            exit( 1 );
+        }
+    
+        if ( strlen( relpath ) + strlen( abspath ) + 1  > MAXPATHLEN ) {
+            LDAPDebug( LDAP_DEBUG_ANY, "Pathname \"%s" _PSEP "%s\" too long\n",
+                    abspath, relpath, 0 );
+            exit( 1 );
+        }
+    
+        if ( strcmp( relpath, "." )) {
+            if ( abspath[ 0 ] != '\0' &&
+                 abspath[ strlen( abspath ) - 1 ] != _CSEP )
+            {
+                PL_strcatn( abspath, sizeof(abspath), "/" );
+            }
+            PL_strcatn( abspath, sizeof(abspath), relpath );
+        }
     }
-
-    if ( strlen( relpath ) + strlen( abspath ) + 1  > MAXPATHLEN ) {
-	LDAPDebug( LDAP_DEBUG_ANY, "Pathname \"%s" _PSEP "%s\" too long\n",
-		abspath, relpath, 0 );
-	exit( 1 );
+    {
+        char **norm_path = normalize_path(abspath);
+        char *retpath = slapi_ch_strdup(abspath); /* size is long enough */
+        char **np, *rp;
+        int pathlen = strlen(abspath) + 1;
+        int usedlen = 0;
+        for (np = norm_path, rp = retpath; np && *np; np++) {
+            int thislen = strlen(*np) + 1;
+            if (0 != strcmp(*np, _PSEP))
+                PR_snprintf(rp, pathlen - usedlen, "%c%s", _CSEP, *np);
+            rp += thislen;
+            usedlen += thislen;
+        }
+        clean_path(norm_path);
+        return retpath;
     }
-
-    if ( strcmp( relpath, "." )) {
-#if defined( _WIN32 )
-	if ( abspath[ 0 ] != '\0' && abspath[ strlen( abspath ) - 1 ] != '/' && abspath[ strlen( abspath ) - 1 ] != '\\' )
-#else
-	if ( abspath[ 0 ] != '\0' && abspath[ strlen( abspath ) - 1 ] != '/' ) {
-#endif
-	    PL_strcatn( abspath, sizeof(abspath), "/" );
-	}
-	PL_strcatn( abspath, sizeof(abspath), relpath );
-    }
-    return( slapi_ch_strdup( abspath ));
 }
 
 
@@ -658,3 +728,20 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
         return result;
 }
 
+/*
+ * Compare 2 pathes
+ * Paths could contain ".", "..", "//" in the path, thus normalize them first.
+ * One or two of the paths could be a relative path.
+ */
+int
+slapd_comp_path(char *p0, char *p1)
+{
+	int rval = 0;
+	char *norm_p0 = rel2abspath(p0);
+	char *norm_p1 = rel2abspath(p1);
+
+	rval = strcmp(norm_p0, norm_p1);
+	slapi_ch_free_string(&norm_p0);
+	slapi_ch_free_string(&norm_p1);
+	return rval;
+}
