@@ -33,7 +33,7 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2006 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
@@ -52,14 +52,9 @@ OBJDEST = $(OBJDIR)/servers/tools/obj
 BINDIR = $(RELDIR)/shared/bin
 DATDIR = $(RELDIR)/shared/data
 
-SLAPD_OBJDIR = $(LDAP_OBJDIR)
-
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
-INCLUDES+=-I$(DB_INCLUDE)
-
-SLAPDHDIR = ../
 
 ifeq ($(ARCH), OSF1)
 PLATFORM_SPECIFIC_EXTRA_LIBRARY = -lcxx
@@ -67,18 +62,6 @@ else # OSF1
 # oems might need to edit this for their platform
 PLATFORM_SPECIFIC_EXTRA_LIBRARY =
 endif # OSF1
-
-INCLUDES += $(SSLINCLUDE)
-DEFS += $(SSL)
-
-CFLAGS += $(ARCH_CFLAGS)
-
-INCLUDES += -I$(SLAPDHDIR) -I$(LDAP_ADMINCDIR)
-INCLUDES += -I$(ACLINC)
-INCLUDES +=  -I ../../plugins/rever
-LDFLAGS	+= $(EXLDFLAGS) $(SSLLIBFLAG)
-
-DEPLIBS=
 
 EXTRA_LIBS_DEP = $(LDAPSDK_DEP) $(DB_LIB_DEP) $(LDAP_COMMON_LIBS_DEP)
 
@@ -90,9 +73,6 @@ EXTRA_LIBS += $(LDAPLINK) $(DB_LIB) \
 ifeq ($(ARCH), Linux)
 EXTRA_LIBS += -lcrypt
 endif
-
-KEYUPG_LIBS_DEP=
-KEYUPG_LIBS=$(LDAP_LIBLITEKEY)
 
 # It looks like all of the latest versions of Unix that we ship on
 # have a good enough heap implementations that they don't need
