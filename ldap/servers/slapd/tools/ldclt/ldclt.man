@@ -1,0 +1,754 @@
+#ident "ldclt @(#)ldclt.man	1.56 01/05/04"
+
+ldclt(1)                        SUNQAldap                ldclt(1)
+
+NAME
+        ldclt - ldap client for stress and reliability testing.
+
+SYNOPSIS
+        ldclt [-qQvV] [-e <execParams>] [-t <timeout>]
+              [-b <base DN>] [-h <host>] [-p <port>]
+              [-D <bind DN>] [-w <passwd>]
+              [-n <nb threads>] [-i <nb times>] [-N <nb samples>]
+              [-r <low> -R <high>]
+              [-a <max pending>] [-E <max errors>]
+              [-I <ignored error>] [-T <total>]
+              [-f <filter>] [-s <scope>]
+	      [-S <slave>] [-P<master port>]
+	      [-W <waitsec>] [-Z <certfile>]
+
+AVAILABILITY
+        SUNQAldap
+
+DESCRIPTION
+        ldclt is a multi-threaded test tool targetted to stress a
+        ldap server with multiple simultaneous requests.
+
+        The  tool  automatically set its ulimit parameters to fit
+        with the options.
+
+        The tool uses a minimum of 16Mo of memory, and maybe more
+        depending on the operations requested.
+
+        A  summary  of global statistics regarding the operations
+        performed,  and the errors that occurs, is printed at the
+        exit of the tool, as well as every 90 loops (15 minutes).
+
+	http://www-icnc.france/~jls/icnc_qa_lab_faq_05.html#ldclt
+
+	Mailing list : ldclt@france.sun.com
+
+    Referrals
+	By default, ldclt will let the ldap library try to follow
+	referrals as anonymous.  The  option  "-e referral=value"
+	allows to change this behaviour :
+	  on     : (default) follow as anonymous.
+	  off    : do not follow.
+	  rebind : try to rebind with the same binDN and passwd.
+
+    Search operation
+	The option  -e attrsonly=value  is used to request or not
+	the  attributes  values.  It  is recommanded to use ldclt
+	with the the default value (== 0) of this option.
+	Extract from the C-SDK documentation :
+	  0 : both  attribute  types  and  attribute  values  are
+	      returned.
+	  1 : only attribute types are returned.
+
+	The options -e attrlist=name:name:name and similar option
+	-e randomattrlist=name:name:name  allows to specify which
+	attributes are retrieved from the server.
+
+    Error decoding
+	The tool try to decode the error as much as possible, but
+	sometimes  not  enough  information  is  send back to the
+	client.  This  happen  if chaining the backend feature of
+	DS 5.0  or more is used,  when one of the farm servers is
+	stopped. The error returned is "Operations error" without
+	any more information in synchronous mode  (except for the
+	search).
+
+	This  is  a problem resides in the libldap implementation
+	of Solaris.
+
+	Implementation note : This improvement is to retrieve the
+	additional  error  string that is returned by the server.
+	This  is implemented for the  asynchronous operations and
+	for  the  synchronous search only,  because for the other
+	synchronous ops we should use ldap_get_lderrno()  that is
+	not implement in Solaris's libldap.
+
+    Missing nodes
+	The  tool  automatically create the missing nodes.  These
+	nodes are created using the DN and passwd given in  argu-
+	ments to ldclt, and thus it may be possible that the tool
+	cannot  initiate an empty database if it is not cn=admin,
+	because only cn=admin may create the root entry.
+
+	Note  that  when  it  occurs,  the  tool doesn't retry to
+	create the original entry IF running *asynchronously*.
+
+	Special  consideration  about rename entries  :  from the
+	c-sdk function description, if the parent node of the new
+	dn doesn't exist,  the error returned LDAP_PROTOCOL_ERROR
+	may report as well three other problems :
+	 - BER problem, unlike to happen
+	 - newrdn is invalid, also unlike to happen
+	 - ldclt is not running ldap v3 - ok, we could leave with
+	   this issue.
+	 - the newparent is invalid.  I thing  that we could take
+	   this for "doesn't exist"...
+
+	The  current version of this tool recognize the following
+	naming attributes:
+		cn	organizationalRole
+		o	organization
+		ou	organizationalUnit
+
+    Close(fd) vs ldap_unbind(ld)
+        The  option  "-e bindeach"  made  the tool to release the
+        connection  to  the  server  after  each  operation being
+        processed.  This  is  intended  to  simulate many clients
+        doing quick operations.
+
+        Without  any  other  option,  the  connection is properly
+        released  with  a ldap_unbind(ld),  but if the additional
+        option "-e close" is used,  the socket with the server is
+        close() simulating a suddent exit of the client process.
+
+    Random
+        This feature is activated by the option "-e random". When
+        used with filters,  the  tool will seek the given filters
+        for  the  first sequence of 'X' and will take this as the
+        place where the random numbers should be put. The span of
+        the  random numbers  generated is given by the options -r
+        and -R.
+
+        For example, if the tool is called with the options:
+
+                -f mail=a0000XXXXXX@sympatico.ca -e random -r0 \
+                -R 9000000
+
+        the following filters will be generated:
+
+                mail=a0000492027@sympatico.ca
+                mail=a0000001941@sympatico.ca
+                mail=a0000075117@sympatico.ca
+                mail=a0000589623@sympatico.ca
+                mail=a0000283543@sympatico.ca
+                mail=a0000051688@sympatico.ca
+                etc...
+
+	The  same  feature may be applied to the base DN,  and is
+	activated     by     the    options    "-e   randombase",
+	"-e randombaselow=value" and "-e randombasehigh=value".
+
+	The  same  feature may be applied to the bind DN,  and is
+	activated    by    the    options    "-e   randombinddn",
+	"-e randombinddnlow=value", "-e randombinddnhigh=value".
+
+    Incremental
+        This feature is activated by the option "-e incr", and is
+        similar to the "Random" feature described above.  It will
+        replace  the 'X'  partern by incremental numbers starting
+        by  the value of "-r" and ending with "-R".  When the top
+        value is reached, return back to the lower value.
+
+	The  option  "-e noloop"  will prevent ldclt from looping
+	the numbers:  when  the  -R  value is reached, the thread
+	dies.
+
+	The  option  "-e commoncounter" will made all the threads
+	use  the  same counter rather than each thread having its
+	own private counter. This may be used for example to have
+	many threads adding entries without "collisions".
+
+    String
+	This feature is activated by the option "-e string",  and
+	will  make this tool generates random strings for the 'X'
+	partern rather than random numbers.
+
+	This option is only valid with the mode "-e random",  and
+	will be applied as well to the base DN if "-e randombase"
+	is  set,  and  to  the  bind  DN and bind password if the
+	option "-e randombinddn" is set.
+
+	The option  "-e ascii"  will produce characters less than
+	0x7f, otherwise UTF-8 will be produced.
+
+    Signals
+        The signal SIGINT (^C or kill -2) is trapped to perform a
+        smooth exit of the tool, with statistics report.
+
+        The signal SIGQUIT (^\ or kill -3) is  trapped  to  issue
+        the  current  statistics numbers, but without exiting the
+        tool.
+
+    Entry generator
+	If  you  do not want to use the hard-coded object classes
+	person/emailPerson/inetOrgPerson (see below), you may use
+	the option  "-e object=filename" to give ldclt a template
+	to build the entries.
+
+	The same syntax may be used for the option "-e rdn=value"
+	including variables.  The  RDN is build first and you may
+	retrieve the variables you defined in it for the object.
+
+	You could use the option  -e commoncounter with the entry
+	generator.  When  used,  all  the variants INCRNNOLOOP or
+	INCRN will share the same counter (if you are using three
+	times  one  of  these variants,  three different counters
+	will be used).
+
+	The option  -e commoncounter  is also compatible with the
+	variants INCRFROMFILE and INCRFROMFILENOLOOP.
+
+	File grammar :
+
+	    # Comment start with a '#'
+	    #
+	    LINE           = ATTRIBUTE_NAME: FIELD+
+	    ATTRIBUTE_NAME = constant_string
+	    FIELD          = constant_string | VARIANT
+	    VARIANT        = [VAR=VDEF] | [VAR] | [VDEF]
+	    VAR            = letter A to H
+	    VDEF           = see below
+
+	The keywords and associated args are listed below.  Note
+	that the separator is ';' and not ','.
+
+	    INCRFROMFILE(file_name)
+		Will select each entry of file_name in sequence.
+		After the last entry,  will  reset the index for
+		to process again the first entry.
+	    INCRFROMFILENOLOOP(file_name)
+		Will select each entry of file_name in sequence.
+		After the last entry, the thread will exit.
+	    INCRN(low;hign;nb)
+		Increment  a  counter  that  will go from low to
+		high,  and  will loop to restart with low.  This
+		counter is VARIANT-specific.
+		Similar to "-e incr".
+	    INCRNNOLOOP(low;high;nb)
+		Same as INCRN,  except that the thread will exit
+		when  reaching  the value high (after processing
+		of this value).
+		Similar to "-e incr,noloop".
+	    RNDFROMFILE(file_name)
+		Select a random string from the file.  One entry
+		per line is expected.
+	    RNDN(low;high;length)
+		Build  a  random number of length digits,  value
+		selected from low to high.
+	    RNDS(lenght)
+		Build a random string.
+
+	Here is an example of template file :
+
+	    # Example.
+	    #
+	    objectclass: person
+	    sn: mr [RNDS(12)] final
+	    description: blob [RNDN(1,5,6)] blib
+
+	Resulting entries :
+
+	    dn: cn=mr00000,ou=object,o=test.com
+	    cn: mr00000
+	    objectclass: person
+	    sn: mr 2[kK-:9)_(qv final
+	    description: blob 000005 blib
+
+	    dn: cn=mr00001,ou=object,o=test.com
+	    cn: mr00001
+	    objectclass: person
+	    sn: mr Jwf01XrZs.mt final
+	    description: blob 000002 blib
+
+    Person
+        Activated  by "-e person" and valid only for the "-e add"
+        feature,  the new  entries are of the  objectclass=person
+        as described here:
+
+    EmailPerson
+        Activated by "-e emailPerson" and valid only for the "-e
+	add" feature,  the  new  entries are of the objectclass=
+	emailPerson  as described here.  These entries contain a
+	jpegPhoto attribute, and thus are very big entries.  The
+	jpeg  image  itself  is randomly (in fact: sequencially)
+	selected from /opt/SUNQA/ldap/lib/images/*.jpg or in the
+	directory specified by -e imagesdir=path.
+
+    InetOrgPerson
+	Activated  by  "-e inetOrgPerson",  it  is  the Netscape 
+	version of emailPerson.
+
+    Scalab01 scenario
+	This scenario is activated by the  "-e scalab01"  and is
+	a  special  evolution  of  ldclt  for the purpose of the
+	system tests "scalab01". This scenario simulates a modem
+	pool that uses LDAP to store information about users, as
+	well as to autheticate them by binding.
+
+	The associated options are :
+	  -e scalab01
+		Activate this scenario.
+
+	  -e scalab01_cnxduration
+		Specifies  the  maximum cnx duration in seconds.
+		Default value is 3600 seconds.
+
+	  -e scalab01_maxcnxnb
+		Modem pool size. Default size if 5000.
+
+	  -e scalab01_wait
+		Sleep() in seconds while to attempts to connect.
+		Default value is 10 seconds.
+
+OPTIONS
+        The valid options are:
+
+        -a <number>
+                Asynchronous mode. When used, the tool will issue
+                asynchronous  requests,  with a maximum number of
+                pending requests (aka results non-read). There is
+                a  threshold   at  "max pending / 2"  giving  the
+                minimum  number  of  pending operations needed to
+                read the answers from the server.
+
+                Each thread will process with the same algorythm,
+                each having the same thresholds.
+
+        -b <DN> Specify the base DN to use. Default "o=sun,c=us".
+
+        -D <DN> Bind DN.  See -w for the password. You could use
+		the  option  "-e randombinddn"  to randomize the
+		bind  DN.   Read  below  in  -e  options for the
+		details.
+
+        -e <parm1,parm2,etc...>
+                Execution  parameters.   This  option is used to
+                select the kind of tests that should be run.  It
+                is possible to specify more than one value  (see
+                example below). The valid values are:
+
+                  add
+			Add entries.
+
+		  append
+			Append new entries to genldif file.
+			See also -e genldif.
+
+		  ascii
+			Ascii 7-bits strings.
+
+		  attreplace=name:mask
+			Will replace the attribute "name" with a
+			random string value build using the mask
+			i.e. :
+			  attreplace=sn:"mr XXXX Jr"
+			Note :  You DO NOT need to use -e random
+			nor -e string with this option.
+
+		  attrlist=name:name:name
+			Specify   the   list  of  attributes  to
+			retrieve.
+			See also -e randomattrlist.
+
+		  attrsonly=0|1
+			This ldap_search() parameter means  :  0
+			specifies  that both attribute types and
+			attribute  values  are  returned  and  1
+			specifies that  only attribute types are
+			returned.
+			Default value : 0
+
+                  bindeach
+			Bind for each operation.
+
+		  bindonly
+			ldclt  will only perform ldap_bind() and
+			ldap_unbind()  or  close()  depending on
+			the options.
+			See also -e close.
+
+                  close
+			Will  disconnect  from  the  server by a
+			close()  on  the  fd,  rather  than by a
+			ldap_unbind().
+
+		  cltcertname=certificate_name
+			Use  certificate_name   for  SSL  client
+			authentication. The certificate database
+			is specified with the -Z option.
+			SSL client  authentication  requires the
+			option -Z  and  cltcertname,  keydbfile,
+			keydbpin  execution   parameters  to  be
+			specified.
+
+		  commoncounter
+			Valid  only  with  -e incr or -e object.
+			All   the  threads  will  use  the  same
+			counter, i.e. T000 will process entry n,
+			T001 entry n+1, etc...
+			When  used with an object (-e object) or
+			within a rdn (-e rdn),  a common counter
+			will  be  used  for  each  variant field
+			INCRN  or  INCRNNOLOOP.  Each field will
+			have its own common counter.
+
+		  counteach
+			To  count  each operation,  and not only
+			the  ones  that  succeed.  Without  this
+			option,   an  add  request  with  result
+			68==LDAP_ALREADY_EXISTS  is not counted,
+			that  may  mislead  the statistics about
+			the thread's activity.
+			The  changes are that we will count as a
+			valid request :
+			 - add    ==> LDAP_ALREADY_EXISTS
+			 - delete ==> LDAP_NO_SUCH_OBJECT
+			 - rename ==> LDAP_ALREADY_EXISTS
+			              LDAP_NO_SUCH_OBJECT
+			              LDAP_PROTOCOL_ERROR
+			 - search ==> LDAP_NO_SUCH_OBJECT
+
+                  delete
+			ldap_delete() entries.
+
+		  dontsleeponserverdown
+			By  default,  ldclt  sleep  1 second when
+			occurs  an  error  like  81 or  91  (i.e.
+			server  down).  This  should  avoid ldclt
+			looping when server is down, otherwise it
+			may  take 100% of all 10 CPUs of a E6000.
+			Basically,  the client machine is down if
+			this happen.
+
+		  emailPerson
+			The    new    entries   objectclass   is
+			emailPerson.    See   details  above  in
+			DESCRIPTION.
+
+                  esearch
+			Exact  search.  No wildcards expected in
+			the filter.
+
+		  genldif=filename
+			Create  a  ldif  file  using ldclt entry
+			generator.
+			See also -e append.
+
+		  imagesdir=<path>
+			The images are taken from the given path
+			rather than from the default directory :
+				/opt/SUNQA/ldap/lib/images
+
+                  incr
+			Incremental values, from -r to -R values
+			When -R is reached, go back to -r.
+			See also -e commoncounter.
+
+		  inetOrgPerson
+			The    new    entries    objectclass  is
+			inetOrgPerson.   See  details  above  in
+			DESCRIPTION.
+
+		  keydbfile=key_DB_filename
+			The file name of the key database.
+			SSL client  authentication  requires the
+			option -Z  and  cltcertname,  keydbfile,
+			keydbpin  execution   parameters  to  be
+			specified.
+
+		  keydbpin=key_DB_password
+			Password required  for accessing the key
+			database    specified    in    keydbfile
+			execution parameter.
+			SSL client  authentication  requires the
+			option -Z  and  cltcertname,  keydbfile,
+			keydbpin  execution   parameters  to  be
+			specified.
+
+		  noglobalstats
+			Don't  print the periodical global stats
+			(by default : every 90 loops).
+
+		  noloop
+			Does not loop the numbers. Cf the option
+			"-e incr".
+
+		  object=filename
+			Entries  will  be created using template
+			from the given file.  See  details above
+			in DESCRIPTION.
+			See "-e rdn=attrname:value".
+
+                  person
+			The  new  entries objectclass is person.
+			See details in DESCRIPTION.
+
+                  random
+			Random filters, etc...  generation.  See
+			details above in this tool description.
+
+		  randomattrlist=name:name:name
+			Specify  the  list  of  attributes  from
+			which  ldclt will randomly select one to
+			be retrieved.
+			See also -e attrlist.
+
+		  randombase
+			Random base DN generation.
+
+		  randombaselow=<number>
+			Low value range for random base DN.
+
+		  randombasehigh=<number>
+			High value range for random base DN.
+
+		  randombinddn
+			Random   bind   DN   and  bind  password
+			generation.  When used, this option will
+			produce a random value that will be used
+			to  randomize  the  bind DN and password
+			with the same random value. e.g. cn=m123
+			and passwd123 will be generated.
+			If  you  want to have fix password  (the
+			same password) for each bind DN, just no
+			'X' in the password.
+
+		  randombinddnfromfile=filename
+			A bind DN and its corresponding password
+			will be randomly selected from the given
+			file. Each line must contain the bind DN
+			and  password,  separated by one or more
+			tabs.  Leading & trailing spaces are not
+			ignored.
+			Exclusive with -e randombinddn and with
+			-D / -w.
+
+		  randombinddnlow=<number>
+			Low value range for random bind DN.
+
+		  randombinddnhigh=<number>
+			High value range for random bind DN.
+
+		  rdn=attrname:value
+			Similar  to the option  "-f filterspec",
+			this feature allow to use the full power
+			of the entry generator (see DESCRIPTION)
+			to  build the rdn of the entry that will
+			be processed.
+			Requires "-e object=".
+			Exclusive with -f.
+
+		  referral=value
+			Change referral  behaviour.  See details
+			above in the DESCRIPTION section.
+
+		  rename
+			Rename  entries  (aka modrdn).  See also
+			-e withnewparent.
+
+		  scalab01
+			Activates the scalab01 scenario.  Please
+			read the corresponding section above for
+			the   other   associated   options   and
+			behaviour.
+
+		  string
+			Will generate random strings rather than
+			numbers. See details above in the string
+			sub-section.
+
+		  v2
+			Ldap v2 mode.
+
+		  withnewparent
+			The ldap_rename()  will be called with a
+			newparent argument. By default, only the
+			new  rdn  is  specified.  This option is
+			valid only with -e rename.
+
+        -E <number>
+                Specify  the  maximum  number of times one error
+                may occur. It is usefull to detect a big problem
+                on  the server side,  and to exit the tool.  The
+                default value is 1000.
+
+        -f <filter>
+                Filter  for searches.  The syntax is the same as
+                specified in ldap's RFCs.
+		See option "-e rdn=attrname:value".
+
+        -h <hostname>
+                Host to connect. Default "localhost".
+
+        -i <number of 10 seconds>
+                Number  of  times  inactivity allowed.  The tool
+                ensure that no thread is starving,  i.e.  expect
+                that all the threads should perform at least one
+                operation every 10 seconds. This parameter gives
+                the  number  of  times  a thread may be starving
+                before  releasing an alert message.  The default
+                value is 3 (30 seconds).
+
+        -I <error number>
+                The tool will ignore the errors the same  number
+                as the ones specified with -I.  These errors may
+                be for example:
+                   32 : No such object  - when -e random,delete
+                   68 : Already exists  - when -e random,add
+
+		When  used,  this option will configure ldclt to
+		ignore/support these errors during the ldap_bind
+		to the server.  Otherwise, any error that happen
+		during  the  connection is a fatal error for the
+		thread where it occurs.
+
+		Note that although ldclt support a certain level
+		of  errors  during  connection,  any  error that
+		happen  while  creating missing nodes is a fatal
+		error.
+
+        -n <number>
+                Number  of threads. Each thread is a ldap client
+                for  the  ldap  server  under test.  The maximum
+                number of threads is system-dependand, and is of
+                1000 threads. The default number is 10 threads.
+
+        -N <number>
+                Number  of samples (10 seconds each).  It is the
+                time  the tool should run.  A value of 360 means
+                360 samples of 10 seconds,  i.e. 3600 seconds of
+                testing (one hour). Default infinite.
+
+        -p <port number>
+                Server port. Default port 389.
+
+	-P <master port number>
+		This  is  the  port used to communicate with the
+		slaves in order to check the replication.
+
+        -q      Quiet mode. When used, the errors of the option
+                -I are not printed.  The messages "Intermediate
+		nodes created for xxx" are not printed either.
+
+        -Q      Super  quiet  mode.  In  addition  to  -q,  the
+                following messages are not printed:
+                   Max pending request hit.
+                   No activity for %d seconds.
+                   Restart sending.
+
+        -r <number>
+                Range's low value.
+
+        -R <number>
+                Range's high value.
+
+	-s <scope>
+		Valid only for searches.  May be base,  subtree
+		or one. The default value is subtree.
+
+	-S <slave>
+		The  slave host given in argument will be under
+		monitoring   to   ensure  that  the  operations
+		performed  on  the  server are well realized on
+		the given  slave.  This option may be used more
+		than one time to indicate more than one slave.
+
+        -t <seconds>
+                LDAP operations timeout. Default 30 seconds.
+
+	-T <total>
+		Total number of operations requested per thread
+		before exit.  When used,  this  parameter  will
+		cause each thread to exit when this  number  of
+		operations is reached.
+
+        -v      Verbose.
+
+        -V      Very verbose.
+
+        -w <password>
+                Bind passwd. See option -D.
+
+	-W <wait seconds>
+		Wait between two operations. Default=0 seconds.
+
+	-Z <certfile>
+		Establish secure  communication with the server
+		over  SSL  using  certfile  as the  certificate
+		database.
+
+EXIT STATUS
+
+	ldclt exit status may be :
+
+	   0 : no problem during execution.
+	   1 : please report this to me - shouldn't happen !!
+	   2 : error in parameters.
+	   3 : max errors reached.
+	   4 : cannot bind.
+	   5 : cannot load libssl.
+	   6 : mutex error.
+	   7 : initialization problem.
+	   8 : ressource limitation (malloc, etc...).
+	  99 : other kind of error - please report to me.
+
+EXAMPLES
+        jls@chronos$ ldclt -v \
+                -h aegir -e esearch,random \
+                -r0 -R900000 \
+                -bo=Sympatico,c=CA \
+                -fmail=a0000XXXXXX@sympatico.ca \
+                -ebindeach -n230 -i6
+        Host to connect    = aegir
+        Port number        = 389
+        Bind DN            = NULL
+        Passwd             = NULL
+        Base DN            = o=Sympatico,c=CA
+        Filter             = mail=a0000XXXXXX@sympatico.ca
+        Max times inactive = 6
+        Number of samples  = 20
+        Number of threads  = 5
+        Running mode       = 0x0000001d
+        Sampling interval  = 10 sec
+        Random range       = [0 , 900000]
+        Filter's head      = mail=a0000
+        Filter's tail      = @sympatico.ca
+        Average rate:    9.98/thr  (229.50/sec), total:   2295
+        Average rate:   10.13/thr  (233.00/sec), total:   2330
+        Average rate:   10.05/thr  (231.10/sec), total:   2311
+        Average rate:   10.17/thr  (233.80/sec), total:   2338
+        Average rate:    9.99/thr  (229.80/sec), total:   2298
+        ^CCatch SIGINT - exit...
+        jls@chronos$
+
+NOTES
+	This tool doesn't retry to create the original entry when
+	the creation of the missing nodes is activated. This is a
+	known missing feature of the asynchronous mode.
+
+	Please  read  the file "History" delivered with this tool
+	for more information about new features, todo list, etc.
+
+	IMPORTANT NOTE : you may specify a filter that return lot
+	of  entries  (e.g. : -f "cn=*")  but you should then know
+	that  such  filters  leads to retrieve a lot of data from
+	the server.  These data  are malloc() and free() by ldclt
+	and the ldap C library,  but as you may have many threads
+	running  at  the  same time in ldclt,  you will have many
+	times these data allocated, leading to a *very) big ldclt
+	process, even more than 1Gb.  It is not a memory leak but
+	rather allocation of lot of data.  If you want the server
+	to  retrieve  a lot of data from its database and however
+	limit  the  ressources required by ldclt,  use the option
+	"-e attrsonly=1".
+
+AUTHORS
+        Jean-Luc Schwing
+	Fabio Pistolesi : replication check.
+	Bertold Kolics  : SSL.
+

@@ -1,0 +1,12 @@
+#ident "ldclt @(#)ofile	1.1 01/04/11"
+#
+objectclass: person
+sn: mr [A=RNDS(12)] final [RNDN(1;5;6)]
+description: blob [RNDN(1;5;6)] blib
+description: [A]
+description: [A=RNDFROMFILE(../../../data/ldclt/names/Firstname.txt)].[B=RNDFROMFILE(../../../data/ldclt/names/Lastname.txt)]
+description: A = [A]
+description: B = [B]
+description: C = [C]
+description: D = [D]
+description: E = [E]

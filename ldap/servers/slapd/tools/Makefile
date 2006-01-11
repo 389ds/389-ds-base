@@ -171,7 +171,7 @@ DBSCAN = $(addsuffix $(EXE_SUFFIX), \
 BINS=	$(LDIF) $(PWDHASH) $(KEYUPG) $(MMLDIF) $(MIGRATECRED) $(DBSCAN)
 EXTRABINS=	$(EGGENCODE)
 
-all:	$(OBJDEST) $(BINDIR) $(LDAP_ADMIN_BIN_RELDIR) $(BINS) buildRsearch
+all:	$(OBJDEST) $(BINDIR) $(LDAP_ADMIN_BIN_RELDIR) $(BINS) buildRsearch buildLdclt
 		
 extras:	$(OBJDEST) $(BINDIR) $(EGGENCODE)
 
@@ -201,6 +201,9 @@ $(OBJDEST):
 
 buildRsearch:
 	cd rsearch; $(MAKE)
+
+buildLdclt:
+	cd ldclt; $(MAKE)
 
 clean:
 	-$(RM) $(ALL_OBJS)

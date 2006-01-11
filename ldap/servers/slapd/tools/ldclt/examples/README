@@ -1,0 +1,52 @@
+#ident "ldclt @(#)README	1.1 01/04/11"
+
+			ldclt examples README
+
+Introduction
+
+	The examples provided in this directory are delivered "as it" and
+	may not be 100% accurate from the last releases of ldclt. They have 
+	been tested when added to the package, but are not meant to be
+	maintained.
+
+	Compatibility or stability of the examples from one version to another
+	is not a target : examples may be removed or changed in any way at any
+	time.
+
+	To know when they were introduced or updated, please read the release
+	notes in the file ../History
+
+	Please report any comment, suggestion, error, new example, whatever
+	to ldclt@france.sun.com.
+
+001
+	This one is a very basic example of use of ldclt. It is based for
+	the configuration part, on iPlanet DS 5.0 but should work with any
+	kind of ldap server.
+
+	- env.ksh	Environment and parameters.
+	- config.ksh	Configure the server (create user and aci).
+	- add.ksh	Add random entries.
+	- add_incr.ksh	Add sequentialy numbered entries.
+	- delete.ksh	Delete random entries.
+	- search.ksh	Search random entries.
+
+002
+	Using the advanced feature of ldclt allowing to specify very complex
+	objects, we will generate ldif files or add/search complex objects.
+	* Use the name files delivered with ldclt.
+
+	- env.ksh	Environment and parameters.
+	- config.ksh	Configure the server (create user and aci, modify
+			schema).
+	- ofile		Description of the object that will be created.
+	- ldif01.ksh	Create ldif file with incremental strings from file,
+			one entry per line in the file Lastname.txt
+	- ldif02.ksh	Create ldif file with incremental strings from file,
+			150k entries in total.
+	- ldif03.ksh	Create ldif file with random strings from file,
+			150k entries in total.
+	- add.ksh	Add 500 entries with random strings from file.
+
+
+# End of file
