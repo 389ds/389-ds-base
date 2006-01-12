@@ -455,6 +455,12 @@ normalize_path(char *path)
 char *
 rel2abspath( char *relpath )
 {
+    return rel2abspath_ext( relpath, NULL );
+}
+
+char *
+rel2abspath_ext( char *relpath, char *cwd )
+{
     char abspath[ MAXPATHLEN + 1 ];
 
 #if defined( _WIN32 )
@@ -480,11 +486,15 @@ rel2abspath( char *relpath )
     if ( relpath[ 0 ] == _CSEP ) {     /* absolute path */
         PR_snprintf(abspath, sizeof(abspath), "%s", relpath);
     } else {                        /* relative path */
-        if ( getcwd( abspath, MAXPATHLEN ) == NULL ) {
-            perror( "getcwd" );
-            LDAPDebug( LDAP_DEBUG_ANY, "Cannot determine current directory\n",
-                    0, 0, 0 );
-            exit( 1 );
+        if ( NULL == cwd ) {
+            if ( getcwd( abspath, MAXPATHLEN ) == NULL ) {
+                perror( "getcwd" );
+                LDAPDebug( LDAP_DEBUG_ANY, "Cannot determine current directory\n",
+                        0, 0, 0 );
+                exit( 1 );
+            }
+        } else {
+            PR_snprintf(abspath, sizeof(abspath), "%s", cwd);
         }
     
         if ( strlen( relpath ) + strlen( abspath ) + 1  > MAXPATHLEN ) {

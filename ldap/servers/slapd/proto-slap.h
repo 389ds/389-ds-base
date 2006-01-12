@@ -390,6 +390,7 @@ int config_get_outbound_ldap_io_timeout(void);
 int config_get_csnlogging();
 int is_abspath(const char *);
 char* rel2abspath( char * );
+char* rel2abspath_ext( char *, char * );
 
 /*
  * configdse.c
