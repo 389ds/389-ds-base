@@ -2411,6 +2411,7 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         }
     }
 #endif
+    commit_good_database(priv);
 
     return return_value;
 }
