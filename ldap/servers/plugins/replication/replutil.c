@@ -827,9 +827,19 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	PRBool local_online = PR_FALSE; /* true if the local db is online */
 	PRBool chain_online = PR_FALSE; /* true if the chain db is online */
 	int ii;
-	int opid, connid;
+	int opid;
+#ifdef DEBUG_CHAIN_ON_UPDATE
+	int connid;
+#endif
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+#ifdef DEBUG_CHAIN_ON_UPDATE
+	if (operation_is_flag_set(op, OP_FLAG_INTERNAL)) {
+		connid=-1;  /* -1: internal op in a log msg */
+	} else {
+		slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
+	}
+#endif
 
-	slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 	slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
 	/* first, we have to decide which backend is the local backend
 	 * and which is the chaining one
@@ -854,21 +864,19 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 				local_online = PR_TRUE;
 			}
 		}
-/*
+#ifdef DEBUG_CHAIN_ON_UPDATE
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d be "
-						"%s is the %s backend and is %s\n",
-						connid, opid,
-						mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
-						(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
-*/
+			"%s is the %s backend and is %s\n",
+			connid, opid,
+			mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
+			(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
+#endif
 	}
 
 	/* if no chaining backends are defined, just use the local one */
 	if (chaining_backend == -1) {
 		return local_backend;
 	}
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
 	/* All internal operations go to the local backend */
 	if (operation_is_flag_set(op, OP_FLAG_INTERNAL)) {
@@ -884,11 +892,11 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	    (op_type == SLAPI_OPERATION_BIND) ||
 	    (op_type == SLAPI_OPERATION_UNBIND) ||
 	    (op_type == SLAPI_OPERATION_COMPARE))) {
-/*
+#ifdef DEBUG_CHAIN_ON_UPDATE
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d op is "
 						"%d: using local backend\n",
 						connid, opid, op_type);
-*/
+#endif
 		return local_backend;
 	}
 
@@ -903,10 +911,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 */
 	slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestor_dn);
 	if (slapi_dn_isroot(requestor_dn)) {
-/*
+#ifdef DEBUG_CHAIN_ON_UPDATE
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d requestor "
 						"is root: using local backend\n", connid, opid);
-*/
+#endif
 		return local_backend;
 	}
 
@@ -915,10 +923,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 */
 	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 	if (repl_op) {
-/*
+#ifdef DEBUG_CHAIN_ON_UPDATE
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d op is "
 						"replicated: using local backend\n", connid, opid);
-*/
+#endif
 		return local_backend;
 	}
 
@@ -926,10 +934,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 * or any normal non replicated client operation while local is disabled (import) :
 	 * use the chaining backend 
 	 */
-/*
+#ifdef DEBUG_CHAIN_ON_UPDATE
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d using "
 					"chaining backend\n", connid, opid);
-*/
+#endif
 	return chaining_backend;
 }
 
