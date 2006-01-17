@@ -103,7 +103,7 @@ ldbm_back_start( Slapi_PBlock *pb )
           Object *inst_obj;
           ldbm_instance *inst;   
           /* autosizing dbCache and entryCache */
-          if (li->li_cache_autosize) {
+          if (li->li_cache_autosize > 0) {
               zone_pages = (li->li_cache_autosize * pages) / 100;
               /* now split it according to user prefs */
               db_pages = (li->li_cache_autosize_split * zone_pages) / 100;
@@ -135,7 +135,7 @@ ldbm_back_start( Slapi_PBlock *pb )
               }
           }    
           /* autosizing importCache */
-          if (li->li_import_cache_autosize) {
+          if (li->li_import_cache_autosize > 0) {
 			  /* For some reason, -1 means 50 ... */
 			  if (li->li_import_cache_autosize == -1) {
 					li->li_import_cache_autosize = 50;
@@ -181,7 +181,18 @@ ldbm_back_start( Slapi_PBlock *pb )
       LDAPDebug( LDAP_DEBUG_ANY, "start: Failed to start databases, err=%d %s\n",
          retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
       if (LDBM_OS_ERR_IS_DISKFULL(retval)) return return_on_disk_full(li);
-      else return SLAPI_FAIL_GENERAL;
+      else {
+        if ((li->li_cache_autosize > 0) && (li->li_cache_autosize <= 100)) {
+          LDAPDebug( LDAP_DEBUG_ANY, "Failed to allocate %d byte dbcache.  "
+                   "Please reduce the value of %s and restart the server.\n",
+                   li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE, 0);
+		} else {
+          LDAPDebug( LDAP_DEBUG_ANY, "Failed to allocate %d byte dbcache.  "
+                   "Please reduce %s and Restart the server.\n",
+                   li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE, 0);
+        }
+        return SLAPI_FAIL_GENERAL;
+	  }
   }
 
   /* write DBVERSION file if one does not exist */
