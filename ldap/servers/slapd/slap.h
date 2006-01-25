@@ -1661,6 +1661,15 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PW_MUSTCHANGE_ATTRIBUTE "passwordMustChange"
 #define CONFIG_PW_SYNTAX_ATTRIBUTE "passwordCheckSyntax"
 #define CONFIG_PW_MINLENGTH_ATTRIBUTE "passwordMinLength"
+#define CONFIG_PW_MINDIGITS_ATTRIBUTE "passwordMinDigits"
+#define CONFIG_PW_MINALPHAS_ATTRIBUTE "passwordMinAlphas"
+#define CONFIG_PW_MINUPPERS_ATTRIBUTE "passwordMinUppers"
+#define CONFIG_PW_MINLOWERS_ATTRIBUTE "passwordMinLowers"
+#define CONFIG_PW_MINSPECIALS_ATTRIBUTE "passwordMinSpecials"
+#define CONFIG_PW_MIN8BIT_ATTRIBUTE "passwordMin8Bit"
+#define CONFIG_PW_MAXREPEATS_ATTRIBUTE "passwordMaxRepeats"
+#define CONFIG_PW_MINCATEGORIES_ATTRIBUTE "passwordMinCategories"
+#define CONFIG_PW_MINTOKENLENGTH_ATTRIBUTE "passwordMinTokenLength"
 #define CONFIG_PW_EXP_ATTRIBUTE "passwordExp"
 #define CONFIG_PW_MAXAGE_ATTRIBUTE "passwordMaxAge"
 #define CONFIG_PW_MINAGE_ATTRIBUTE "passwordMinAge"
@@ -1715,6 +1724,15 @@ typedef struct passwordpolicyarray {
   int pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
   int pw_syntax;
   int pw_minlength;
+  int pw_mindigits;
+  int pw_minalphas;
+  int pw_minuppers;
+  int pw_minlowers;
+  int pw_minspecials;
+  int pw_min8bit;
+  int pw_maxrepeats;
+  int pw_mincategories;
+  int pw_mintokenlength;
   int pw_exp;
   long pw_maxage;
   long pw_minage;

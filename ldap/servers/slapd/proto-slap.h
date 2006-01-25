@@ -268,6 +268,15 @@ int config_set_pw_must_change(const char *attrname,  char *value, char *errorbuf
 int config_set_pwpolicy_local(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_syntax(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_minlength(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_mindigits(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_minalphas(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_minuppers(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_minlowers(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_minspecials(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_min8bit(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_maxrepeats(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_mincategories(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_mintokenlength(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_exp(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_maxage(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_minage(const char *attrname,  char *value, char *errorbuf, int apply );
@@ -322,6 +331,15 @@ int config_get_pw_history();
 int config_get_pw_must_change();
 int config_get_pw_syntax();
 int config_get_pw_minlength();
+int config_get_pw_mindigits();
+int config_get_pw_minalphas();
+int config_get_pw_minuppers();
+int config_get_pw_minlowers();
+int config_get_pw_minspecials();
+int config_get_pw_min8bit();
+int config_get_pw_maxrepeats();
+int config_get_pw_mincategories();
+int config_get_pw_mintokenlength();
 int config_get_pw_maxfailure();
 int config_get_pw_inhistory();
 long config_get_pw_lockduration();
@@ -694,6 +712,8 @@ int need_new_pw( Slapi_PBlock *pb, long *t,  Slapi_Entry *e, int pwresponse_req 
 int update_pw_info( Slapi_PBlock *pb , char *old_pw );
 int check_pw_syntax( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, 
 	char **old_pw, Slapi_Entry *e, int mod_op );
+int check_pw_syntax_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
+	char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods );
 int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req);
 int check_pw_minage( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals) ;
 void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );

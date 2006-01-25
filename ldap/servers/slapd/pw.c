@@ -62,7 +62,8 @@
 
 static int pw_in_history(Slapi_Value **history_vals, const Slapi_Value *pw_val);
 static int update_pw_history( Slapi_PBlock *pb, char *dn, char *old_pw );
-static int check_trivial_words (Slapi_PBlock *, Slapi_Entry *, Slapi_Value **, char *attrtype );
+static int check_trivial_words (Slapi_PBlock *, Slapi_Entry *, Slapi_Value **,
+		char *attrtype, int toklen, Slapi_Mods *smods );
 static int pw_boolean_str2value (const char *str);
 /* static LDAPMod* pw_malloc_mod (char* name, char* value, int mod_op); */
 
@@ -715,19 +716,39 @@ int
 check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, 
 			char **old_pw, Slapi_Entry *e, int mod_op)
 {
+	return ( check_pw_syntax_ext(pb, sdn, vals, old_pw, e, mod_op, NULL) );
+}
+
+int
+check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
+			char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods)
+{
    	Slapi_Attr* 	attr;
-	int 			i, pwresponse_req = 0;
+	int 		i, pwresponse_req = 0;
 	char *dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
+	char *pwd = NULL;
+	char *p = NULL;
 	passwdPolicy *pwpolicy = NULL;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
 
 	if ( pwpolicy->pw_syntax == 1 ) {
-		/* check for the minimum password lenght */	
 		for ( i = 0; vals[ i ] != NULL; ++i ) {
-			if ( pwpolicy->pw_minlength
-				> (int)slapi_value_get_length(vals[ i ]) ) { /* jcm: had to cast unsigned int to signed int */
+			int num_digits = 0;
+			int num_alphas = 0;
+			int num_uppers = 0;
+			int num_lowers = 0;
+			int num_specials = 0;
+			int num_8bit = 0;
+			int num_repeated = 0;
+			int max_repeated = 0;
+			int num_categories = 0;
+
+			/* check for the minimum password length */
+			if ( pwpolicy->pw_minlength >
+				ldap_utf8characters((char *)slapi_value_get_string( vals[i] )) )
+			{
 				if ( pwresponse_req == 1 ) {
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOSHORT );
@@ -738,10 +759,95 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				delete_passwdPolicy(&pwpolicy);
 				return ( 1 );
 			}
+
+			/* check character types */
+			pwd = (char *)slapi_value_get_string( vals[i] );
+			p = pwd;
+			/*
+			pwdlen = slapi_value_get_length( vals[i] );
+			for ( j = 0; j < pwdlen; j++ ) {
+			*/
+			while ( p && *p )
+			{
+				if ( ldap_utf8isdigit( p ) ) {
+					num_digits++;
+				} else if ( ldap_utf8isalpha( p ) ) {
+					num_alphas++;
+					if ( slapi_utf8isLower( p ) ) {
+						num_lowers++;
+					} else {
+						num_uppers++;
+					}
+				} else {
+					/* check if this is an 8-bit char */
+					if ( *p & 128 ) {
+						num_8bit++;
+					} else {
+						num_specials++;
+					}
+				}
+
+				/* check for repeating characters. If this is the
+				   first char of the password, no need to check */
+				if ( pwd != p ) {
+					int len = ldap_utf8len( p );
+					char *prev_p = ldap_utf8prev( p );
+
+					if ( len == ldap_utf8len( prev_p ) )
+					{
+						if ( memcmp( p, prev_p, len ) == 0 )
+                                        	{
+							num_repeated++;
+							if ( max_repeated < num_repeated ) {
+								max_repeated = num_repeated;
+							}
+						} else {
+							num_repeated = 0;
+						}
+					} else {
+						num_repeated = 0;
+					}
+				}
+
+				p = ldap_utf8next( p );
+			}
+
+			/* tally up the number of character categories */
+			if ( num_digits > 0 )
+				++num_categories;
+			if ( num_uppers > 0 )
+				++num_categories;
+			if ( num_lowers > 0 )
+				++num_categories;
+			if ( num_specials > 0 )
+				++num_categories;
+			if ( num_8bit > 0 )
+				++num_categories;
+
+			/* check for character based syntax limits */
+			if ( ( pwpolicy->pw_mindigits > num_digits ) ||
+				( pwpolicy->pw_minalphas > num_alphas ) ||
+				( pwpolicy->pw_minuppers > num_uppers ) ||
+				( pwpolicy->pw_minlowers > num_lowers ) ||
+				( pwpolicy->pw_minspecials > num_specials ) ||
+				( pwpolicy->pw_min8bit > num_8bit ) ||
+				( (pwpolicy->pw_maxrepeats != 0) && (pwpolicy->pw_maxrepeats < (max_repeated + 1)) ) ||
+				( pwpolicy->pw_mincategories > num_categories ) )
+			{
+                                if ( pwresponse_req == 1 ) {
+                                        slapi_pwpolicy_make_response_control ( pb, -1, -1,
+                                                        LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+                                }
+                                pw_send_ldap_result ( pb,
+                                        LDAP_CONSTRAINT_VIOLATION, NULL,
+                                        "invalid password syntax", 0, NULL );
+                                delete_passwdPolicy(&pwpolicy);
+                                return ( 1 );
+			}
 		}
 	}
 
-	/* get the entry and check for the password history and syntax if this 	   is called by a modify operation */
+	/* get the entry and check for the password history if this is called by a modify operation */
 	if ( mod_op ) { 
 		/* retrieve the entry */
 		e = get_entry ( pb, dn );
@@ -808,19 +914,24 @@ check_pw_syntax ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				*old_pw = NULL;
 			}
 		}
+	}
 
-		if ( pwpolicy->pw_syntax == 1 ) {
-			/* check for trivial words */
-			if ( check_trivial_words ( pb, e, vals, "uid" ) == 1 ||
-			   check_trivial_words ( pb, e, vals, "cn" ) == 1 ||
-			   check_trivial_words ( pb, e, vals, "sn" ) == 1 ||
-			   check_trivial_words ( pb, e, vals, "givenname" ) == 1 ||
-			   check_trivial_words ( pb, e, vals, "ou" ) == 1 ||
-			   check_trivial_words ( pb, e, vals, "mail" ) == 1) {
-			   slapi_entry_free( e ); 
-			   delete_passwdPolicy(&pwpolicy);
-			   return 1;
+	/* check for trivial words if syntax checking is enabled */
+	if ( pwpolicy->pw_syntax == 1 ) {
+		/* e is null if this is an add operation*/
+		if ( check_trivial_words ( pb, e, vals, "uid", pwpolicy->pw_mintokenlength, smods ) == 1 ||
+			check_trivial_words ( pb, e, vals, "cn", pwpolicy->pw_mintokenlength, smods ) == 1 ||
+			check_trivial_words ( pb, e, vals, "sn", pwpolicy->pw_mintokenlength, smods ) == 1 ||
+			check_trivial_words ( pb, e, vals, "givenname", pwpolicy->pw_mintokenlength, smods ) == 1 ||
+			check_trivial_words ( pb, e, vals, "ou", pwpolicy->pw_mintokenlength, smods ) == 1 ||
+			check_trivial_words ( pb, e, vals, "mail", pwpolicy->pw_mintokenlength, smods ) == 1)
+		{
+			if ( mod_op ) {
+				slapi_entry_free( e );
 			}
+
+			delete_passwdPolicy(&pwpolicy);
+			return 1;
 		}
 	}
 
@@ -1122,33 +1233,91 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 }
 
 static int
-check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *attrtype  )
+check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *attrtype,
+	int toklen, Slapi_Mods *smods )
 {
-	Slapi_Attr 	*attr;
-	int     i, pwresponse_req = 0;
+	Slapi_Attr     *attr = NULL;
+	Slapi_Mod      *smodp = NULL, *smod = NULL;
+	Slapi_ValueSet *vs = NULL;
+	Slapi_Value    *valp = NULL;
+	struct berval  *bvp = NULL;
+	int            i, pwresponse_req = 0;
+
+	vs = slapi_valueset_new();
 
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
-	attr = attrlist_find(e->e_attrs, attrtype);
-	if (attr && !valueset_isempty(&attr->a_present_values))
+
+        /* Get a list of present values for attrtype in the existing entry, if there is one */
+	if (e != NULL )
 	{
-		Slapi_Value **va= attr_get_present_values(attr);
-		for ( i = 0; va[i] != NULL; i++ )
+		if ( (attr = attrlist_find(e->e_attrs, attrtype)) &&
+			(!valueset_isempty(&attr->a_present_values)) )
 		{
-			if( strcasecmp( slapi_value_get_string(va[i]),  slapi_value_get_string(vals[0])) == 0) /* JCM Innards */
+			/* Add present values to valueset */
+			slapi_attr_get_valueset( attr, &vs );
+		}
+	}
+
+	/* Get a list of new values for attrtype from the operation */
+	if ( (smod = slapi_mod_new()) && smods )
+	{
+		for (smodp = slapi_mods_get_first_smod(smods, smod);
+			smodp != NULL; smodp = slapi_mods_get_next_smod(smods, smod) )
+		{
+			/* Operation has new values for attrtype */
+			if ( PL_strcasecmp(attrtype, slapi_mod_get_type(smodp)) == 0 )
 			{
-				if ( pwresponse_req == 1 ) {
+				/* iterate through smodp values and add them if they don't exist */
+				for ( bvp = slapi_mod_get_first_value( smodp );  bvp != NULL;
+					bvp = slapi_mod_get_next_value( smodp ) )
+				{
+					/* Add new value to valueset */
+					valp = slapi_value_new_berval( bvp );
+                                        slapi_valueset_add_value_ext( vs, valp, SLAPI_VALUE_FLAG_PASSIN );
+					valp = NULL;
+				}
+			}
+		}
+		/* Free smod */
+        	slapi_mod_free(&smod);
+		smod = NULL;
+		smodp = NULL;
+	}
+
+	/* If valueset isn't empty, we need to check if the password contains the values */
+	if ( slapi_valueset_count(vs) != 0 )
+	{
+		for ( i = slapi_valueset_first_value( vs, &valp);
+			(i != -1) && (valp != NULL);
+			i = slapi_valueset_next_value( vs, i, &valp) )
+		{
+			/* If the value is smaller than the max token length,
+			 * we don't need to check the password */
+			if ( ldap_utf8characters(slapi_value_get_string( valp )) < toklen )
+				continue;
+
+			/* See if the password contains the value */
+			if ( PL_strcasestr( slapi_value_get_string( vals[0] ),
+				slapi_value_get_string( valp ) ) )
+			{
+				if ( pwresponse_req == 1 )
+				{
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 						LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 				}
 				pw_send_ldap_result ( pb, 
 					LDAP_CONSTRAINT_VIOLATION, NULL,
-					"Password failed triviality check."
-					" Please choose a different password.", 
-					0, NULL );
-              	return ( 1 );
+					"invalid password syntax", 0, NULL );
+
+				/* Free valueset */
+				slapi_valueset_free( vs );
+				return ( 1 );
 			}
-        }
+		}
 	}
+
+	/* Free valueset */
+	slapi_valueset_free( vs );
 	return ( 0 );
 }
 
@@ -1360,6 +1529,60 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 							pwdpolicy->pw_minlength = slapi_value_get_int(*sval);
 						}
 					}
+					else
+                                        if (!strcasecmp(attr_name, "passwordmindigits")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_mindigits = slapi_value_get_int(*sval);
+                                                }
+                                        }
+					else
+					if (!strcasecmp(attr_name, "passwordminalphas")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_minalphas = slapi_value_get_int(*sval);
+                                                }
+                                        }
+					else
+                                        if (!strcasecmp(attr_name, "passwordminuppers")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_minuppers = slapi_value_get_int(*sval);
+                                                }
+                                        }
+					else
+                                        if (!strcasecmp(attr_name, "passwordminlowers")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_minlowers = slapi_value_get_int(*sval);
+                                                }
+                                        }
+                                        else
+                                        if (!strcasecmp(attr_name, "passwordminspecials")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_minspecials = slapi_value_get_int(*sval);
+                                                }
+                                        }
+					else
+					if (!strcasecmp(attr_name, "passwordmin8bit")) {
+						if ((sval = attr_get_present_values(attr))) {
+							pwdpolicy->pw_min8bit = slapi_value_get_int(*sval);
+						}
+					}
+					else
+					if (!strcasecmp(attr_name, "passwordmaxrepeats")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_maxrepeats = slapi_value_get_int(*sval);
+                                                }
+                                        }
+                                        else
+                                        if (!strcasecmp(attr_name, "passwordmincategories")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_mincategories = slapi_value_get_int(*sval);
+                                                }
+                                        }
+                                        else
+                                        if (!strcasecmp(attr_name, "passwordmintokenlength")) {
+                                                if ((sval = attr_get_present_values(attr))) {
+                                                        pwdpolicy->pw_mintokenlength = slapi_value_get_int(*sval);
+                                                }
+                                        }
 					else
 					if (!strcasecmp(attr_name, "passwordexp")) {
 						if ((sval = attr_get_present_values(attr))) {

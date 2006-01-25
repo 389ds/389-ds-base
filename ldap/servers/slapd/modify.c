@@ -65,7 +65,7 @@
 static int modify_internal_pb (Slapi_PBlock *pb);
 static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw);
 static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed);
-static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw);
+static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods);
 
 #ifdef LDAP_DEBUG
 static const char*
@@ -279,7 +279,7 @@ do_modify( Slapi_PBlock *pb )
 				 strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ) {
 				/* assumes controls have already been decoded and placed
 				   in the pblock */
-				pw_change = op_shared_allow_pw_change (pb, mod, &old_pw);
+				pw_change = op_shared_allow_pw_change (pb, mod, &old_pw, &smods);
 				if (pw_change == -1) {
 					goto free_and_return;
 				}
@@ -432,7 +432,8 @@ static int modify_internal_pb (Slapi_PBlock *pb)
     int             opresult = 0;
 	LDAPMod         **normalized_mods = NULL;
 	LDAPMod	        **mods;
-	LDAPMod			**mod;
+	LDAPMod	        **mod;
+	Slapi_Mods      smods;
 	int				pw_change = 0;
 	char			*old_pw = NULL;
 
@@ -469,7 +470,8 @@ static int modify_internal_pb (Slapi_PBlock *pb)
 	{
 		if ((*mod)->mod_bvalues != NULL && strcasecmp((*mod)->mod_type, SLAPI_USERPWD_ATTR) == 0)
 		{
-			pw_change = op_shared_allow_pw_change (pb, *mod, &old_pw);
+			slapi_mods_init_passin(&smods, mods);
+			pw_change = op_shared_allow_pw_change (pb, *mod, &old_pw, &smods);
 			if (pw_change == -1)
 			{
 				/* The internal result code will already have been set by op_shared_allow_pw_change() */
@@ -865,7 +867,7 @@ static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_un
 	}
 }
 
-static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw)
+static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods)
 {
 	int isroot, internal_op, repl_op, pwresponse_req = 0;
 	char *dn;
@@ -953,7 +955,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	/* check password syntax; remember the old password;
 	   error sent directly from check_pw_syntax function */
 	valuearray_init_bervalarray(mod->mod_bvalues, &values);
-	switch (check_pw_syntax (pb, &sdn, values, old_pw, NULL, 1)) 
+	switch (check_pw_syntax_ext (pb, &sdn, values, old_pw, NULL, 1, smods)) 
 	{
 		case 0: /* success */
 				rc = 1;

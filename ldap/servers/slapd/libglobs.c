@@ -277,6 +277,33 @@ static struct config_get_and_set {
 	{CONFIG_PW_MINLENGTH_ATTRIBUTE, config_set_pw_minlength,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlength, CONFIG_INT, NULL},
+	{CONFIG_PW_MINDIGITS_ATTRIBUTE, config_set_pw_mindigits,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_mindigits, CONFIG_INT, NULL},
+	{CONFIG_PW_MINALPHAS_ATTRIBUTE, config_set_pw_minalphas,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minalphas, CONFIG_INT, NULL},
+	{CONFIG_PW_MINUPPERS_ATTRIBUTE, config_set_pw_minuppers,
+		NULL, 0,
+                (void**)&global_slapdFrontendConfig.pw_policy.pw_minuppers, CONFIG_INT, NULL},
+	{CONFIG_PW_MINLOWERS_ATTRIBUTE, config_set_pw_minlowers,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlowers, CONFIG_INT, NULL},
+        {CONFIG_PW_MINSPECIALS_ATTRIBUTE, config_set_pw_minspecials,
+                NULL, 0,
+                (void**)&global_slapdFrontendConfig.pw_policy.pw_minspecials, CONFIG_INT, NULL},
+	{CONFIG_PW_MIN8BIT_ATTRIBUTE, config_set_pw_min8bit,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_min8bit, CONFIG_INT, NULL},
+	{CONFIG_PW_MAXREPEATS_ATTRIBUTE, config_set_pw_maxrepeats,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxrepeats, CONFIG_INT, NULL},
+        {CONFIG_PW_MINCATEGORIES_ATTRIBUTE, config_set_pw_mincategories,
+                NULL, 0,
+                (void**)&global_slapdFrontendConfig.pw_policy.pw_mincategories, CONFIG_INT, NULL},
+	{CONFIG_PW_MINTOKENLENGTH_ATTRIBUTE, config_set_pw_mintokenlength,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_mintokenlength, CONFIG_INT, NULL},
 	{CONFIG_ERRORLOG_ATTRIBUTE, config_set_errorlog,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.errorlog, CONFIG_STRING_OR_EMPTY, NULL},
@@ -751,7 +778,16 @@ FrontendConfig_init () {
   cfg->pw_policy.pw_must_change = LDAP_OFF;
   cfg->pw_policy.pw_syntax = LDAP_OFF;
   cfg->pw_policy.pw_exp = LDAP_OFF;
-  cfg->pw_policy.pw_minlength = 6;
+  cfg->pw_policy.pw_minlength = 8;
+  cfg->pw_policy.pw_mindigits = 0;
+  cfg->pw_policy.pw_minalphas = 0;
+  cfg->pw_policy.pw_minuppers = 0;
+  cfg->pw_policy.pw_minlowers = 0;
+  cfg->pw_policy.pw_minspecials = 0;
+  cfg->pw_policy.pw_min8bit = 0;
+  cfg->pw_policy.pw_maxrepeats = 0;
+  cfg->pw_policy.pw_mincategories = 3;
+  cfg->pw_policy.pw_mintokenlength = 3;
   cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
   cfg->pw_policy.pw_minage = 0;
   cfg->pw_policy.pw_warning = 86400; /* 1 day        */
@@ -1336,6 +1372,276 @@ config_set_pw_minlength( const char *attrname, char *value, char *errorbuf, int 
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   
+  return retVal;
+}
+
+int
+config_set_pw_mindigits( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minDigits = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minDigits = atoi(value);
+  if ( minDigits < 0 || minDigits > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of digits \"%s\" is invalid. "
+                          "The minimum number of digits must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_mindigits = minDigits;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_minalphas( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minAlphas = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minAlphas = atoi(value);
+  if ( minAlphas < 0 || minAlphas > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of alphas \"%s\" is invalid. "
+                          "The minimum number of alphas must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_minalphas = minAlphas;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_minuppers( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minUppers = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minUppers = atoi(value);
+  if ( minUppers < 0 || minUppers > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of uppercase characters \"%s\" is invalid. "
+                          "The minimum number of uppercase characters must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_minuppers = minUppers;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_minlowers( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minLowers = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minLowers = atoi(value);
+  if ( minLowers < 0 || minLowers > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of lowercase characters \"%s\" is invalid. "
+                          "The minimum number of lowercase characters must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_minlowers = minLowers;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_minspecials( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minSpecials = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minSpecials = atoi(value);
+  if ( minSpecials < 0 || minSpecials > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of special characters \"%s\" is invalid. "
+                          "The minimum number of special characters must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_minspecials = minSpecials;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_min8bit( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, min8bit = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  min8bit = atoi(value);
+  if ( min8bit < 0 || min8bit > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of 8-bit characters \"%s\" is invalid. "
+                          "The minimum number of 8-bit characters must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_min8bit = min8bit;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_maxrepeats( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, maxRepeats = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  maxRepeats = atoi(value);
+  if ( maxRepeats < 0 || maxRepeats > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password maximum number of repeated characters \"%s\" is invalid. "
+                          "The maximum number of repeated characters must range from 0 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_maxrepeats = maxRepeats;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_mincategories( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minCategories = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minCategories = atoi(value);
+  if ( minCategories < 1 || minCategories > 5 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum number of categories \"%s\" is invalid. "
+                          "The minimum number of categories must range from 1 to 5.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_mincategories = minCategories;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_set_pw_mintokenlength( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS, minTokenLength = 0;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minTokenLength = atoi(value);
+  if ( minTokenLength < 1 || minTokenLength > 64 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "password minimum token length \"%s\" is invalid. "
+                          "The minimum token length must range from 1 to 64.",
+                          value );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+  }
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapdFrontendConfig->pw_policy.pw_mintokenlength = minTokenLength;
+
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
   return retVal;
 }
 
@@ -2788,6 +3094,114 @@ config_get_pw_minlength() {
 
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = slapdFrontendConfig->pw_policy.pw_minlength;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_mindigits() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_mindigits;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_minalphas() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_minalphas;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_minuppers() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_minuppers;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_minlowers() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_minlowers;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_minspecials() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_minspecials;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_min8bit() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_min8bit;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_maxrepeats() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_maxrepeats;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_mincategories() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_mincategories;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_pw_mintokenlength() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pw_policy.pw_mintokenlength;
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal;

@@ -1179,3 +1179,22 @@ EXPORTS
 	sasl_map_done @1179
 	slapd_SECITEM_FreeItem @1180
 	slapi_op_type_to_string @1181
+; password syntax functions
+        config_set_pw_mindigits @1190
+        config_set_pw_minalphas @1191
+        config_set_pw_minuppers @1192
+        config_set_pw_minlowers @1193
+        config_set_pw_minspecials @1194
+	config_set_pw_min8bit @1195
+        config_set_pw_maxrepeats @1196
+	config_set_pw_mincategories @1197
+	config_set_pw_mintokenlength @1198
+        config_get_pw_mindigits @1199
+        config_get_pw_minalphas @1200
+        config_get_pw_minuppers @1201
+        config_get_pw_minlowers @1202
+        config_get_pw_minspecials @1203
+	config_get_pw_min8bit @1204
+        config_get_pw_maxrepeats @1205
+	config_get_pw_mincategories @1206
+	config_get_pw_mintokenlength @1207
