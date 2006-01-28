@@ -77,12 +77,16 @@ DEFS += $(SSL)
 OBJS1 += $(OBJDEST)/pwenc.o 
 
 ifeq ($(USE_64), 1)
-ifeq ($(ARCH), HPUX)
-LDFLAGS += -lpthread +DA2.0W +DS2.0 +Z
-endif
-ifeq ($(ARCH), SOLARIS)
-LDFLAGS += -xarch=v9 
-endif
+ ifeq ($(ARCH), HPUX)
+  ifeq ($(NSOS_RELEASE),B.11.23)
+   LDFLAGS += -lpthread +DD64
+  else
+   LDFLAGS += -lpthread +DA2.0W +DS2.0 +Z
+  endif
+ endif
+ ifeq ($(ARCH), SOLARIS)
+  LDFLAGS += -xarch=v9 
+ endif
 endif
 
 CFLAGS += $(ARCH_CFLAGS)
@@ -200,10 +204,10 @@ $(OBJDEST):
 	$(MKDIR) $(OBJDEST)
 
 buildRsearch:
-	cd rsearch; $(MAKE)
+	cd rsearch; $(MAKE) LDFLAGS="$(LDFLAGS)"
 
 buildLdclt:
-	cd ldclt; $(MAKE)
+	cd ldclt; $(MAKE) LDFLAGS="$(LDFLAGS)"
 
 clean:
 	-$(RM) $(ALL_OBJS)
