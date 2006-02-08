@@ -889,7 +889,6 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	op_type = slapi_op_get_type(op);
 	if (local_online &&
 		((op_type == SLAPI_OPERATION_SEARCH) ||
-	    (op_type == SLAPI_OPERATION_BIND) ||
 	    (op_type == SLAPI_OPERATION_UNBIND) ||
 	    (op_type == SLAPI_OPERATION_COMPARE))) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
@@ -929,6 +928,19 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 #endif
 		return local_backend;
 	}
+
+    /* if using global password policy, chain the bind request so that the 
+       master can update and replicate the password policy op attrs */
+	if (op_type == SLAPI_OPERATION_BIND) {
+        extern int config_get_pw_is_global_policy();
+        if (!config_get_pw_is_global_policy()) {
+#ifdef DEBUG_CHAIN_ON_UPDATE
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d using "
+                            "local backend for local password policy\n", connid, opid);
+#endif
+            return local_backend;
+        }
+    }
 
 	/* all other case (update while not directory manager) :
 	 * or any normal non replicated client operation while local is disabled (import) :
