@@ -253,7 +253,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
 	 * Send a result to our client.
 	 */
 	if ( resctrls != NULL ) {
-	    (void)slapi_pblock_set( pb, SLAPI_RESCONTROLS, &resctrls );
+	    (void)slapi_pblock_set( pb, SLAPI_RESCONTROLS, resctrls );
 	}
 	slapi_send_ldap_result( pb, rc, matcheddn, errmsg, 0, urls );
     }
