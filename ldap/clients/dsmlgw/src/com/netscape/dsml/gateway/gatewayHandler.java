@@ -62,6 +62,7 @@ import org.apache.axis.AxisFault;
 import org.apache.axis.Message;
 import org.apache.axis.MessageContext;
 import org.apache.axis.handlers.BasicHandler;
+import org.apache.commons.codec.binary.Base64;
 
 public class gatewayHandler  extends BasicHandler {
     private HandlerInfo handlerInfo;
@@ -110,9 +111,9 @@ public class gatewayHandler  extends BasicHandler {
         if ( tmp != null && tmp.startsWith("Basic ") ) {
             
             int  i ;
-            sun.misc.BASE64Decoder bd = new sun.misc.BASE64Decoder();
+            Base64 bd = new Base64();
             try {
-                tmp = new String( (bd.decodeBuffer(tmp.substring(6)  )));
+                tmp = new String( (bd.decode(tmp.substring(6).getBytes()  )));
             }
             catch (Exception e) {
                 // couldn't decode auth info

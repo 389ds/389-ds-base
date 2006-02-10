@@ -122,9 +122,13 @@ ADMINUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../adminutil
 SETUPUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../setuputil
 #SETUPUTIL_BUILD_DIR = $(NSCP_DISTDIR_FULL_RTL)/setuputil
 
-# it's customary and easier to use the pre-built jars
+# it's customary and easier to use the pre-built jar
+# you can get this from www.jpackage.org as well
+# we usually get this from the admin server package which
+# gets it from the console package
 #LDAPJDK_SOURCE_DIR = $(MOZILLA_SOURCE_ROOT)
 # Crimson - crimson.jar - http://xml.apache.org/crimson/
+# you can get this from www.jpackage.org as well
 #CRIMSON_SOURCE_DIR = $(BUILD_ROOT)/../crimson
 
 ADMINSERVER_SOURCE_ROOT = $(BUILD_ROOT)/../adminserver
@@ -133,9 +137,16 @@ LDAPCONSOLE_SOURCE_ROOT = $(BUILD_ROOT)/../directoryconsole
 
 # these are the files needed to build the java components - xmltools and dsmlgw -
 # and where to get them
+# NOTE: www.jpackage.org has almost all of these, and you can configure yum or apt
+# or up2date or whatever your package manager is to pull them, which is nice because it will
+# also take care of the dependencies - http://www.jpackage.org/repos.php
 # Axis - axis.jar - http://ws.apache.org/axis/index.html - also jaxrpc.jar,saaj.jar
 # Xerces-J - xercesImpl.jar, xml-apis.jar http://xml.apache.org/xerces2-j/download.cgi
 # JAF - activation.jar - http://java.sun.com/products/javabeans/glasgow/jaf.html
+# OR
+# JAF - activation.jar or jaf.jar - http://www.jpackage.org
+# NOTE - classpathx-jaf may also work
+# Codec - jakarta-commons-codec.jar - http://jakarta.apache.org/commons/codec/
 # JWSDP - jaxrpc-api.jar,jaxrpc.jar,saaj.jar - http://java.sun.com/webservices/downloads/webservicespack.html
 # all of these files need to be in the following directory:
 DSMLGWJARS_BUILD_DIR = $(BUILD_ROOT)/../dsmlgwjars

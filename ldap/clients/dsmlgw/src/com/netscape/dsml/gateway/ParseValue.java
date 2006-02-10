@@ -36,6 +36,8 @@
  * --- END COPYRIGHT BLOCK --- */
 package com.netscape.dsml.gateway;
 
+import org.apache.commons.codec.binary.Base64;
+
 /**
  *
  * @author  elliot
@@ -53,9 +55,9 @@ public class ParseValue {
         org.w3c.dom.Node type = n.getAttributes().getNamedItem("xsi:type");
         if (type != null && type.getNodeValue().equalsIgnoreCase("xsd:base64Binary") ) {
             // This value is encoded in base64. decode it.
-            sun.misc.BASE64Decoder bd = new sun.misc.BASE64Decoder();
+            Base64 bd = new Base64();
             try {
-                ret = bd.decodeBuffer( n.getFirstChild().getNodeValue() )  ; 
+                ret = bd.decode( n.getFirstChild().getNodeValue().getBytes() )  ; 
             } 
             catch (org.w3c.dom.DOMException de) {
                 ret = "".getBytes();

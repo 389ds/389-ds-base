@@ -359,7 +359,11 @@ ifeq ($(USE_DSMLGW), 1)
 
 # now time to move the necessary jars in place
 	$(INSTALL) -m 644 $(LDAPJARFILE)  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	if [ -f $(DSMLGWJARS_BUILD_DIR)/jaf.jar ] ; then \
+		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaf.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+	else \
+		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+	fi
 # if you use the jaxrpc.jar from the axis distribution, you don't need the api file
 # or perhaps you need the jaxrpc.jar for building, and jaxrpc-api.jar at runtime, or vice versa
 # if so, I'm not sure where to get the implementation
@@ -370,6 +374,7 @@ ifeq ($(USE_DSMLGW), 1)
 	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/saaj.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xercesImpl.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
 	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xml-apis.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jakarta-commons-codec.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
 endif # USE_DSMLGW
 
 # PACKAGE_UNDER_JAVA is defined in components.mk - these are component .jar files to install

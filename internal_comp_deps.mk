@@ -450,7 +450,7 @@ DSMLJAR_FILES = $(DSMLJAR)
 DSMLJAR_RELEASE = $(COMPONENTS_DIR)
 #DSMLJARJAR_DIR = $(DSMLJARJAR_RELEASE)/$(DSMLJARJAR_COMP)/$(DSMLJARJAR_VERSION)
 DSMLJAR_DIR = $(DSMLJAR_RELEASE)/dsmljars
-DSMLJAR_DEP = $(CLASS_DEST)/activation.jar $(CLASS_DEST)/jaxrpc-api.jar $(CLASS_DEST)/jaxrpc.jar $(CLASS_DEST)/saaj.jar $(CLASS_DEST)/xercesImpl.jar $(CLASS_DEST)/xml-apis.jar
+DSMLJAR_DEP = $(CLASS_DEST)/activation.jar $(CLASS_DEST)/jaxrpc-api.jar $(CLASS_DEST)/jaxrpc.jar $(CLASS_DEST)/saaj.jar $(CLASS_DEST)/xercesImpl.jar $(CLASS_DEST)/xml-apis.jar $(CLASS_DEST)/jakarta-commons-codec.jar
 
 ifndef DSMLJAR_PULL_METHOD
 DSMLJAR_PULL_METHOD = $(COMPONENT_PULL_METHOD)

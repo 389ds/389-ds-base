@@ -51,16 +51,20 @@
 
 <property name="ldapjdk.jar"     value="${ldapdist.dir}/ldapjdk.jar"/>
 <property name="activation.jar"  value="${globaldist.dir}/activation.jar"/>
+<property name="jaf.jar"  value="${globaldist.dir}/jaf.jar"/>
 <property name="jaxrpc-api.jar"  value="${globaldist.dir}/jaxrpc-api.jar"/>
 <property name="jaxrpc.jar"  value="${globaldist.dir}/jaxrpc.jar"/>
 <property name="saaj.jar"  value="${globaldist.dir}/saaj.jar"/>
 <property name="xercesImpl.jar"  value="${globaldist.dir}/xercesImpl.jar"/>
 <property name="xmlParserAPIs.jar"  value="${globaldist.dir}/xml-apis.jar"/>
 <property name="axis.jar"        value="${globaldist.dir}/axis.jar"/>
+<property name="codec.jar"        value="${globaldist.dir}/jakarta-commons-codec.jar"/>
+<property environment="env"/>
 
 <path id="class.path">
 <pathelement location="${ldapjdk.jar}"/>
 <pathelement location="${activation.jar}"/>
+<pathelement location="${jaf.jar}"/>
 <pathelement location="${jaxrpc-api.jar}"/>
 <pathelement location="${jaxrpc.jar}"/> 
 <pathelement location="${saaj.jar}"/>
@@ -68,6 +72,7 @@
 <pathelement location="${xercesImpl.jar}"/> 
 <pathelement location="${xmlParserAPIs.jar}"/>
 <pathelement location="${axis.jar}"/>
+<pathelement location="${codec.jar}"/>
 </path>
 
 <property name="build.dir"      value="${mcom.root}/built/dsmlgw"/>

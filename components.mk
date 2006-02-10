@@ -555,7 +555,7 @@ AXIS = axis-$(AXIS_VERSION).zip
 AXIS_FILES = $(AXIS)
 AXIS_FILE = $(CLASS_DEST)/$(AXIS)
 
-DSMLJAR = activation.jar,jaxrpc-api.jar,jaxrpc.jar,saaj.jar,xercesImpl.jar,xml-apis.jar
+DSMLJAR = activation.jar,jaxrpc-api.jar,jaxrpc.jar,saaj.jar,xercesImpl.jar,xml-apis.jar,jakarta-commons-codec.jar
 DSMLJAR_FILE = $(CLASS_DEST)
 
 CRIMSON_LICENSE = LICENSE.crimson
