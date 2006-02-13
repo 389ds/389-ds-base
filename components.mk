@@ -210,23 +210,30 @@ endif
 SECURITY_INCLUDE = -I$(SECURITY_INCDIR)
 # add crlutil and ocspclnt when we support CRL and OCSP cert checking in DS
 SECURITY_BINNAMES = certutil derdump pp pk12util ssltap modutil shlibsign
-SECURITY_LIBNAMES = ssl3 nss3 softokn3
+# as of NSS 3.11, no longer need to link with softokn3
+SECURITY_LIBNAMES = ssl3 nss3
 # these libs have a corresponding .chk file
-SECURITY_NEED_CHK = softokn3
+# freebl is new for NSS 3.11
+SECURITY_NEED_CHK = softokn3 freebl3
 
-SECURITY_LIBNAMES.pkg = $(SECURITY_LIBNAMES) smime3
+SECURITY_LIBNAMES.pkg = $(SECURITY_LIBNAMES) smime3 softokn3 freebl3
 
-# these are only needed on 32 bit Solaris and HP-UX
 ifneq ($(USE_64), 1)
 ifeq ($(ARCH), SOLARIS)
-SECURITY_LIBNAMES.pkg += freebl_hybrid_3 freebl_pure32_3
+SECURITY_LIBNAMES.pkg += freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
 # these libs have a corresponding .chk file
-SECURITY_NEED_CHK += freebl_hybrid_3 freebl_pure32_3
-endif
+SECURITY_NEED_CHK += freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
+endif # SOLARIS
 ifeq ($(ARCH), HPUX)
-SECURITY_LIBNAMES.pkg += freebl_hybrid_3 freebl_pure32_3
+SECURITY_LIBNAMES.pkg += freebl_32fpu_3 freebl_32int_3
 # these libs have a corresponding .chk file
-SECURITY_NEED_CHK += freebl_hybrid_3 freebl_pure32_3
+SECURITY_NEED_CHK += freebl_32fpu_3 freebl_32int_3
+endif # HPUX
+else  # USE_64
+ifeq ($(ARCH), SOLARIS)
+SECURITY_LIBNAMES.pkg += freebl_64fpu_3 freebl_64int_3
+# these libs have a corresponding .chk file
+SECURITY_NEED_CHK += freebl_64fpu_3 freebl_64int_3
 endif
 endif # USE_64
 
@@ -238,7 +245,7 @@ SECURITY_LIBS_TO_PKG += $(addsuffix .chk,$(addprefix $(SECURITY_LIBPATH)/$(LIB_P
 LIBS_TO_PKG += $(SECURITY_LIBS_TO_PKG)
 LIBS_TO_PKG_SHARED += $(SECURITY_LIBS_TO_PKG) # for cmd line tools
 ifeq ($(USE_SETUPUTIL), 1)
-  PACKAGE_SETUP_LIBS += $(SECURITY_LIBS_TO_PKG)
+  PACKAGE_SETUP_LIBS += $(SECURITY_LIBS_TO_PKG) # for the setup programs
 endif
 ifeq ($(USE_DSGW), 1)
   LIBS_TO_PKG_CLIENTS += $(SECURITY_LIBS_TO_PKG) # for dsgw
@@ -423,7 +430,7 @@ endif
 
 ### ICU package ##########################################
 
-ICU_LIB_VERSION = 24
+ICU_LIB_VERSION = 34
 ifdef ICU_SOURCE_ROOT
   ICU_LIBPATH = $(ICU_SOURCE_ROOT)/built/lib
   ICU_BINPATH = $(ICU_SOURCE_ROOT)/built/bin
@@ -518,10 +525,10 @@ endif
 # during the build process
 ifdef ADMINUTIL_SOURCE_ROOT
   ADMINUTIL_LIBPATH = $(ADMINUTIL_SOURCE_ROOT)/built/adminutil/$(COMPONENT_OBJDIR)/lib
-  ADMINUTIL_INCPATH = $(ADMINUTIL_SOURCE_ROOT)/built/adminutil/$(COMPONENT_OBJDIR)/include
+  ADMINUTIL_INCPATH = $(ADMINUTIL_SOURCE_ROOT)/built/adminutil/$(COMPONENT_OBJDIR)/include/adminutil-$(ADMINUTIL_DOT_VER)
 else
   ADMINUTIL_LIBPATH = $(ADMINUTIL_BUILD_DIR)/lib
-  ADMINUTIL_INCPATH = $(ADMINUTIL_BUILD_DIR)/include
+  ADMINUTIL_INCPATH = $(ADMINUTIL_BUILD_DIR)/include/adminutil-$(ADMINUTIL_DOT_VER)
 endif
 
 PACKAGE_SRC_DEST += $(ADMINUTIL_LIBPATH)/property bin/slapd/lib
@@ -529,11 +536,11 @@ LIBS_TO_PKG += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
 LIBS_TO_PKG_CLIENTS += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
 
 ifeq ($(ARCH),WINNT)
-ADMINUTIL_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil$(ADMINUTIL_VER).$(LIB_SUFFIX)
-ADMINUTIL_S_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil_s$(ADMINUTIL_VER).$(LIB_SUFFIX)
-LIBADMINUTILDLL_NAMES = $(ADMINUTIL_LIBPATH)/libadminutil$(ADMINUTIL_VER).$(DLL_SUFFIX)
+ADMINUTIL_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil.$(LIB_SUFFIX)
+ADMINUTIL_S_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil_s.$(LIB_SUFFIX)
+LIBADMINUTILDLL_NAMES = $(ADMINUTIL_LIBPATH)/libadminutil.$(DLL_SUFFIX)
 else
-ADMINUTIL_LINK=-L$(ADMINUTIL_LIBPATH) -ladminutil$(ADMINUTIL_VER)
+ADMINUTIL_LINK=-L$(ADMINUTIL_LIBPATH) -ladminutil
 endif
 ADMINUTIL_INCLUDE=-I$(ADMINUTIL_INCPATH) -I$(ADMINUTIL_INCPATH)/libadminutil \
 	-I$(ADMINUTIL_INCPATH)/libadmsslutil
@@ -572,8 +579,8 @@ ifdef ADMINSERVER_SOURCE_ROOT
   ADMSERV_DIR = $(ADMINSERVER_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)
 # else set in internal_buildpaths.mk
 endif
-# these are the only two subcomponents we use from the adminserver package
-ADMINSERVER_SUBCOMPS=admin base
+# these are the subcomponents we use from the adminserver package
+ADMINSERVER_SUBCOMPS=admin base setup.inf
 
 ifdef LDAPCONSOLE_SOURCE_ROOT
   LDAPCONSOLE_DIR = $(LDAPCONSOLE_SOURCE_ROOT)/built/package

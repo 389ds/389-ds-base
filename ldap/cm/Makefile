@@ -595,7 +595,6 @@ packageDirectory: $(INSTDIR)/slapd \
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
 ifeq ($(USE_SETUPUTIL),1)
 	cp -R $(SETUPUTIL_BINPATH)/* $(INSTDIR)
-	$(PERL) -w $(FIX_SETUP_INF) $(SETUPUTIL_BINPATH)/setup.inf $(INSTDIR)/setup.inf
 endif
 
 # copy in our product .inf files
@@ -691,6 +690,13 @@ endif
 		done ; \
 	fi
 
+# make sure setup.inf has everything we need
+ifeq ($(USE_SETUPUTIL),1)
+	cp $(INSTDIR)/setup.inf $(INSTDIR)/setup.inf.tmp
+	$(PERL) -w $(FIX_SETUP_INF) $(INSTDIR)/setup.inf.tmp $(INSTDIR)/setup.inf $(USE_ADMINSERVER)
+	rm -f $(INSTDIR)/setup.inf.tmp
+endif
+
 # we must remove the nsbase.zip file - we package those files now
 	rm -f $(INSTDIR)/base/nsbase.zip
 # we also need to remove the Archive directive from the [base] section of the
@@ -714,7 +720,7 @@ ifndef NO_INSTALLER_TAR_FILES
 # build the combined packages tar file; use h flag to follow symlinks
 ifdef BUILD_SHIP
 ifndef BUILD_PATCH
-	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd \
+	cd $(INSTDIR); $(TAR) cvfh - setup slapd \
 	dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 endif
 ifeq ($(DEBUG), optimize)
@@ -723,7 +729,7 @@ endif
 else
 	echo base/unzipped > $(TMPLIST)
 	echo admin/unzipped >> $(TMPLIST)
-	cd $(INSTDIR); $(TAR) cvfh - setup.inf setup slapd  \
+	cd $(INSTDIR); $(TAR) cvfh - setup slapd  \
 	dsktune $(ADMIN_IMPORTS) -X $(TMPLIST) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 	rm -f $(TMPLIST)
 endif # BUILD_SHIP
@@ -913,7 +919,7 @@ _admserv_files: $(INSTDIR) $(ADMSERV_DEP)
 # move the tarball back after the copy
 	mv $(ADMSERV_DIR)/../$(ADMIN_SERVER_TARGZ) $(ADMSERV_DIR)
 # make sure our packages are in the setup.inf file
-	$(PERL) -w $(FIX_SETUP_INF) $(ADMSERV_DIR)/setup.inf $(INSTDIR)/setup.inf
+	$(PERL) -w $(FIX_SETUP_INF) $(ADMSERV_DIR)/setup.inf $(INSTDIR)/setup.inf $(USE_ADMINSERVER)
 
 
 #----------------------------  slapd rules --------------------------------------------------

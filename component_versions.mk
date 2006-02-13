@@ -52,12 +52,12 @@
 # naming scheme.
 # NSPR
 ifndef NSPR_RELDATE
-  NSPR_RELDATE = v4.4.1
+  NSPR_RELDATE = v4.6.1
 endif
 
 # SECURITY (NSS) LIBRARY
 ifndef SECURITY_RELDATE
-  SECURITY_RELDATE = NSS_3_9_3_RTM
+  SECURITY_RELDATE = NSS_3_11_RTM
 endif
 
 # LIBDB
@@ -97,7 +97,7 @@ endif
 
 # ANT 
 ifndef ANT_VERSION
-  ANT_VERSION = 1.4.1
+  ANT_VERSION = 1.6.2
 endif
 ifndef ANT_COMP
   ANT_COMP = ant
@@ -140,7 +140,7 @@ endif
 
 # server core
 ifndef SVRCORE_RELDATE
-  SVRCORE_RELDATE = SVRCORE_4_0_RTM
+  SVRCORE_RELDATE = SVRCORE_4_0_1_RTM
 endif
 
 # admin utility library

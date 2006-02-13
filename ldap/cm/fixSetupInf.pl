@@ -51,6 +51,8 @@ $ServerDirKey = "DefaultInstallDirectory";
 
 $input = shift;
 $output = shift;
+$use_adminserver = shift;
+
 die "cannot open input file $input" unless open( FILE, $input );
 die "cannot open output file $output" unless open( OUT, ">$output" );
 $inGeneralSection = 0;
@@ -65,6 +67,10 @@ while ( <FILE> ) {
 			$_ .= ", slapd";
 			$addedSlapd = 1;
 		}
+        if (! /admin/ && $use_adminserver) {
+			$_ .= ", admin";
+			$addedAdmin = 1;
+        }
 		if (! /perldap/) {
 			$_ .= ", perldap";
 			$addedPerLDAP = 1;
@@ -93,6 +99,11 @@ close ( FILE );
 if ($addedSlapd) {
 	print OUT "\n[slapd]\n";
 	print OUT "ComponentInfoFile = slapd/slapd.inf\n";
+}
+
+if ($addedAdmin) {
+	print OUT "\n[admin]\n";
+	print OUT "ComponentInfoFile = admin/admin.inf\n";
 }
 
 if ($addedPerLDAP) {
