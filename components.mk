@@ -213,29 +213,29 @@ SECURITY_BINNAMES = certutil derdump pp pk12util ssltap modutil shlibsign
 # as of NSS 3.11, no longer need to link with softokn3
 SECURITY_LIBNAMES = ssl3 nss3
 # these libs have a corresponding .chk file
-# freebl is new for NSS 3.11
-SECURITY_NEED_CHK = softokn3 freebl3
+SECURITY_NEED_CHK = softokn3
 
-SECURITY_LIBNAMES.pkg = $(SECURITY_LIBNAMES) smime3 softokn3 freebl3
+# these are the libs we need at runtime
+SECURITY_LIBNAMES.pkg = $(SECURITY_LIBNAMES) smime3 softokn3
 
-ifneq ($(USE_64), 1)
+# freebl for all platforms is new for NSS 3.11
+# there are some platform specific versions as well
+FREEBL_LIBS = freebl3
+ifeq ($(USE_64), 1)
 ifeq ($(ARCH), SOLARIS)
-SECURITY_LIBNAMES.pkg += freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
-# these libs have a corresponding .chk file
-SECURITY_NEED_CHK += freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
-endif # SOLARIS
-ifeq ($(ARCH), HPUX)
-SECURITY_LIBNAMES.pkg += freebl_32fpu_3 freebl_32int_3
-# these libs have a corresponding .chk file
-SECURITY_NEED_CHK += freebl_32fpu_3 freebl_32int_3
-endif # HPUX
+FREEBL_LIBS = freebl_64fpu_3 freebl_64int_3
+endif
 else  # USE_64
 ifeq ($(ARCH), SOLARIS)
-SECURITY_LIBNAMES.pkg += freebl_64fpu_3 freebl_64int_3
-# these libs have a corresponding .chk file
-SECURITY_NEED_CHK += freebl_64fpu_3 freebl_64int_3
-endif
+FREEBL_LIBS = freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
+endif # SOLARIS
+ifeq ($(ARCH), HPUX)
+FREEBL_LIBS = freebl_32fpu_3 freebl_32int_3
+endif # HPUX
 endif # USE_64
+
+SECURITY_LIBNAMES.pkg += $(FREEBL_LIBS)
+SECURITY_NEED_CHK += $(FREEBL_LIBS)
 
 SECURITY_TOOLS = $(addsuffix $(EXE_SUFFIX),$(SECURITY_BINNAMES))
 SECURITY_TOOLS_FULLPATH = $(addprefix $(SECURITY_BINPATH)/, $(SECURITY_TOOLS))
