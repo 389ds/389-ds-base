@@ -201,6 +201,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 {
 	char		*oid = NULL;
 	char 		*bindDN = NULL;
+    char        *authmethod = NULL;
 	char		*dn = NULL;
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
@@ -297,6 +298,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &dn) == LBER_ERROR )
     		{
+    		slapi_ch_free_string(&dn);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at userID parse.\n";
@@ -313,6 +315,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &oldPasswd ) == LBER_ERROR )
     		{
+    		slapi_ch_free_string(&oldPasswd);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at oldPasswd parse.\n";
@@ -320,10 +323,6 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		goto free_and_return;
     		}
 		tag = ber_peek_tag( ber, &len);
-	} else {
-		errMesg = "Current passwd must be supplied by the user.\n";
-		rc = LDAP_PARAM_ERROR;
-		goto free_and_return;
 	}
 	
 	/* identify newPasswd field by tags */
@@ -331,6 +330,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &newPasswd ) == LBER_ERROR )
     		{
+    		slapi_ch_free_string(&newPasswd);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at newPasswd parse.\n";
@@ -348,11 +348,26 @@ passwd_modify_extop( Slapi_PBlock *pb )
 					 dn, oldPasswd, newPasswd); */
 
 	 
-	 if (oldPasswd == NULL || *oldPasswd == '\0') {
-	 /* Refuse to handle this operation because current password is not provided */
-		errMesg = "Current passwd must be supplied by the user.\n";
-		rc = LDAP_PARAM_ERROR;
+	 /* Get Bind DN */
+	 slapi_pblock_get( pb, SLAPI_CONN_DN, &bindDN );
+
+	 /* If the connection is bound anonymously, we must refuse to process this operation. */
+	 if (bindDN == NULL || *bindDN == '\0') {
+	 	/* Refuse the operation because they're bound anonymously */
+		errMesg = "Anonymous Binds are not allowed.\n";
+		rc = LDAP_INSUFFICIENT_ACCESS;
 		goto free_and_return;
+	 }
+
+	 if (oldPasswd == NULL || *oldPasswd == '\0') {
+     /* If user is authenticated, they already gave their password during
+        the bind operation (or used sasl or client cert auth) */
+        slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
+        if (!authmethod || !strcmp(authmethod, SLAPD_AUTH_NONE)) {
+            errMesg = "User must be authenticated to the directory server.\n";
+            rc = LDAP_INSUFFICIENT_ACCESS;
+            goto free_and_return;
+        }
 	 }
 	 
 	 /* We don't implement password generation, so if the request implies 
@@ -364,22 +379,12 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		goto free_and_return;
 	 }
 	 
-	 /* Get Bind DN */
-	slapi_pblock_get( pb, SLAPI_CONN_DN, &bindDN );
-
-	/* If the connection is bound anonymously, we must refuse to process this operation. */
-	 if (bindDN == NULL || *bindDN == '\0') {
-	 	/* Refuse the operation because they're bound anonymously */
-		errMesg = "Anonymous Binds are not allowed.\n";
-		rc = LDAP_INSUFFICIENT_ACCESS;
-		goto free_and_return;
-	 }
 	 
 	 /* Determine the target DN for this operation */
 	 /* Did they give us a DN ? */
 	 if (dn == NULL || *dn == '\0') {
 	 	/* Get the DN from the bind identity on this connection */
-		dn = bindDN;
+        dn = slapi_ch_strdup(bindDN);
 		LDAPDebug( LDAP_DEBUG_ANY,
     		    "Missing userIdentity in request, using the bind DN instead.\n",
 		     0, 0, 0 );
@@ -433,13 +438,15 @@ passwd_modify_extop( Slapi_PBlock *pb )
  	 * They gave us a password (old), check it against the target entry
 	 * Is the old password valid ?
 	 */
-	ret = passwd_check_pwd(targetEntry, oldPasswd);
-	if (ret) {
-		/* No, then we fail this operation */
-		errMesg = "Invalid oldPasswd value.\n";
-		rc = ret;
-		goto free_and_return;
-	}
+    if (oldPasswd && *oldPasswd) {
+        ret = passwd_check_pwd(targetEntry, oldPasswd);
+        if (ret) {
+            /* No, then we fail this operation */
+            errMesg = "Invalid oldPasswd value.\n";
+            rc = ret;
+            goto free_and_return;
+        }
+    }
 	
 
 	/* Now we're ready to make actual password change */
@@ -455,7 +462,17 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	
 	/* Free anything that we allocated above */
 	free_and_return:
-	
+
+    slapi_ch_free_string(&oldPasswd);
+    slapi_ch_free_string(&newPasswd);
+    /* Either this is the same pointer that we allocated and set above,
+       or whoever used it should have freed it and allocated a new
+       value that we need to free here */
+	slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET, &dn );
+    slapi_ch_free_string(&dn);
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
+    slapi_ch_free_string(&authmethod);
+
 	if ( targetEntry != NULL ){
 		slapi_entry_free (targetEntry); 
 	}
@@ -465,9 +482,8 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		ber = NULL;
 	}
 	
-	
 	slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
-				 errMesg );
+                     errMesg ? errMesg : "success" );
 	send_ldap_result( pb, rc, NULL, errMesg, 0, NULL );
 	
 
