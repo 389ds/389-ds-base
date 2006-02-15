@@ -73,8 +73,12 @@ echo "into a directory where the Directory Server is already installed."
 echo ""
 echo "To accept the default shown in brackets, press the Enter key."
 echo ""
-printf "Install location [/opt/fedora/servers]: "
+defaultserverroot=/opt/fedora-ds
+printf "Install location [$defaultserverroot]: "
 read serverroot
+if [ "$serverroot" = "" ]; then
+    serverroot=$defaultserverroot
+fi
 
 if [ ! -d $serverroot ]; then
     echo ""
@@ -243,10 +247,10 @@ echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/" >> $inffile
 echo "ConfigDirectoryAdminID=   $adminid" >> $inffile
 echo "AdminDomain=   $admindomain" >> $inffile
 echo "ConfigDirectoryAdminPwd=   $siepasswd" >> $inffile
-echo "Components=   slapd-71sp1" >> $inffile
+echo "Components=   slapd-71sp2" >> $inffile
 echo "" >> $inffile
-echo "[slapd-71sp1]" >> $inffile
-echo "Components=   slapd-71sp1" >> $inffile
+echo "[slapd-71sp2]" >> $inffile
+echo "Components=   slapd-71sp2" >> $inffile
 
 clear
 

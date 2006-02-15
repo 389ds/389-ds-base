@@ -236,7 +236,7 @@ ifdef COMPONENT_DEPS
 	mkdir -p $(LDAP_LIBPATH)
 	$(FTP_PULL) -method $(LDAPSDK_PULL_METHOD) \
 		-objdir $(LDAP_ROOT) -componentdir $(LDAP_RELEASE) \
-		-files include,$(LDAPSDK_PULL_LIBS),tools
+		-files include,$(LDAPSDK_PULL_LIBS),bin
 endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component LDAPSDK file $@" ; \

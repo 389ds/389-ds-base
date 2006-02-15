@@ -80,7 +80,7 @@ nsslapd-plugindescription: sample SASL bind pre-operation plugin
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc saslpdesc = { "test-saslbind", "Fedora Project", "7.1 SP1",
+Slapi_PluginDesc saslpdesc = { "test-saslbind", "Fedora Project", "7.1 SP2",
 	"sample SASL bind pre-operation plugin" };
 
 

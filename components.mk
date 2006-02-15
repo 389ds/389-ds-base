@@ -296,13 +296,15 @@ ifdef LDAPSDK_SOURCE_ROOT
 else
   LDAPSDK_LIBPATH = $(LDAP_ROOT)/lib
   LDAPSDK_INCDIR = $(LDAP_ROOT)/include
-  LDAPSDK_BINPATH = $(LDAP_ROOT)/tools
+  LDAPSDK_BINPATH = $(LDAP_ROOT)/bin
 endif
 LDAPSDK_INCLUDE = -I$(LDAPSDK_INCDIR)
 
 # package the command line programs
-LDAPSDK_TOOLS = $(wildcard $(LDAPSDK_BINPATH)/ldap*$(EXE_SUFFIX))
-BINS_TO_PKG_SHARED += $(LDAPSDK_TOOLS)
+LDAPSDK_BINNAMES = ldapcmp ldapcompare ldapdelete ldapmodify ldapsearch
+LDAPSDK_TOOLS = $(addsuffix $(EXE_SUFFIX),$(LDAPSDK_BINNAMES))
+LDAPSDK_TOOLS_FULLPATH = $(addprefix $(LDAPSDK_BINPATH)/, $(LDAPSDK_TOOLS))
+BINS_TO_PKG_SHARED += $(LDAPSDK_TOOLS_FULLPATH)
 # package the include files - needed for the plugin API
 LDAPSDK_INCLUDE_FILES = $(wildcard $(LDAPSDK_INCDIR)/*.h)
 PACKAGE_SRC_DEST += $(subst $(SPACE),$(SPACE)plugins/slapd/slapi/include$(SPACE),$(LDAPSDK_INCLUDE_FILES))

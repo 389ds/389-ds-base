@@ -81,7 +81,7 @@ endif
 
 # LDAP SDK
 ifndef LDAP_RELDATE
-  LDAP_RELDATE = v5.16
+  LDAP_RELDATE = v5.17
 endif
 ifndef LDAPCOMP_DIR
   LDAPCOMP_DIR=ldapsdk50
