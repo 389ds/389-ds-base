@@ -607,6 +607,16 @@ EOF
 	  fi
           ns_printf
           exit 0
+	elif echo "$ld_help_string" | grep >/dev/null 2>&1 "supported emulations: elf_x86_64"; then
+	  #echo "${UNAME_MACHINE}-unknown-linux" ; exit 0
+	  GNU_NAME="${UNAME_MACHINE}-unknown-linux"
+          NS_NAME="${UNAME_SYSTEM}"
+          NS_RELEASE="${UNAME_RELEASE}"
+	  if echo "$NS_RELEASE" | grep >/dev/null 2>&1 "2.0."; then
+		NS_RELEASE="2.0"
+	  fi
+          ns_printf
+          exit 0
 	elif echo "$ld_help_string" | grep >/dev/null 2>&1 "supported emulations: i[345]86linux"; then
 	  #echo "${UNAME_MACHINE}-unknown-linuxaout" ; exit 0
 	  GNU_NAME="${UNAME_MACHINE}-unknown-linuxaout"

@@ -1490,7 +1490,7 @@ ifeq ($(ARCH), Linux)
 #
 
 # compiler to use, e.g. CC=cc or CC=gcc
-CC=/usr/bin/gcc -fwritable-strings
+CC=/usr/bin/gcc
 
 # give full path to hostname since it may not be in user's path
 HOSTNAME=/bin/hostname

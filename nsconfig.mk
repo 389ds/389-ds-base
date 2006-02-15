@@ -256,8 +256,10 @@ endif
 
 NSOS_TEST1       := $(shell uname -m)
 ifeq ($(NSOS_ARCH),Linux)
-  ifeq (86,$(findstring 86,$(NSOS_TEST1)))
-    NSOS_TEST1    = x86
+  ifneq (x86_64, $(NSOS_TEST1))
+    ifeq (86,$(findstring 86,$(NSOS_TEST1)))
+      NSOS_TEST1    = x86
+    endif
   endif
 
   ifeq ($(USE_LIBC),1)
@@ -273,8 +275,10 @@ ifeq ($(NSOS_ARCH),Linux)
   NSCONFIG_NOTAG  = $(NSCONFIG)
 else
   ifeq ($(NSOS_ARCH),RHEL)
-    ifeq (86,$(findstring 86,$(NSOS_TEST1)))
-      NSOS_TEST1    = x86
+    ifneq (x86_64, $(NSOS_TEST1))
+      ifeq (86,$(findstring 86,$(NSOS_TEST1)))
+        NSOS_TEST1    = x86
+      endif
     endif
     NSCONFIG        = $(NSOS_ARCH)$(NSOS_RELEASE)_$(NSOS_TEST1)_$(GCC_VERSION)
     NSCONFIG_NOTAG  = $(NSCONFIG)
@@ -297,6 +301,8 @@ else
       NSCONFIG_NOTAG   = $(NSOS_ARCH)$(NSOS_RELEASE_NOTAG)
     endif
     endif
+    NSCONFIG += $(NS64TAG)
+    NSCONFIG_NOTAG += $(NS64TAG)
   endif
 endif
 
@@ -337,13 +343,9 @@ ifeq ($(NSOS_ARCH),WINNT)
     NSOBJDIR_NAME_32     = $(NSCONFIG)$(NSOBJDIR_TAG).OBJ
   endif
 else
-  NSOBJDIR_NAME     = $(NSCONFIG)$(NS64TAG)$(NSOBJDIR_TAG).OBJ
-  NSOBJDIR_NAME_32  = $(NSCONFIG)$(NSOBJDIR_TAG).OBJ
-  NSOBJDIR_NAME1    = $(NSCONFIG)$(NS64TAG)$(NSOBJDIR_TAG).OBJ
-  NSOBJDIR_NAMEeh   = $(NSCONFIG)_eh$(NS64TAG)$(NSOBJDIR_TAG).OBJ
-  NSOBJDIR_NAMEaCC   = $(NSCONFIG)$(NS64TAG)$(NSOBJDIR_TAG).OBJ
-  NSOBJDIR_NAME_NOTAG = $(NSCONFIG_NOTAG)$(NS64TAG)$(NSOBJDIR_TAG).OBJ
-  NSOBJDIR_NAME1_NOTAG = $(NSCONFIG_NOTAG)$(NS64TAG)$(NSOBJDIR_TAG).OBJ
+  NSOBJDIR_NAME     = $(NSCONFIG)$(NSOBJDIR_TAG).OBJ
+  NSOBJDIR_NAME_32  = $(subst $(NS64TAG),,$(NSOBJDIR_NAME))
+  NSOBJDIR_NAME1    = $(NSOBJDIR_NAME)
 endif
 
 
@@ -667,8 +669,8 @@ export NO_DB2=1
 else 
 ifeq ($(ARCH), Linux)
 OSVERSION	:= $(basename $(shell uname -r))
-CC=/usr/bin/gcc -fwritable-strings
-CXX=/usr/bin/g++ -fwritable-strings
+CC=/usr/bin/gcc
+CXX=/usr/bin/g++
 CCC=$(CXX)
 LD=$(CXX)
 ARCH_DEBUG=-g

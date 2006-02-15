@@ -254,10 +254,14 @@ ifeq ($(ARCH), Linux)
 ZIP_FLAGS=-r -T -n .gif
 endif
 
+ifeq ($(ARCH), Linux)
+MAKEARCH=$(ARCH)
+else
 ifeq ($(USE_64), 1)
 MAKEARCH=$(ARCH)64
 else
 MAKEARCH=$(ARCH)
+endif
 endif
 
 PACKAGE_SETUP_LIBS_32=$(subst $(NS64TAG),,$(PACKAGE_SETUP_LIBS))
@@ -598,7 +602,7 @@ ifeq ($(USE_SETUPUTIL),1)
 endif
 
 # copy in our product .inf files
-	$(INSTALL) -m 755 $(OBJDIR_32)/*.inf $(INSTDIR)/slapd
+	$(INSTALL) -m 755 $(OBJDIR)/*.inf $(INSTDIR)/slapd
 
 # strip the executables in the optimized build
 ifeq ($(DEBUG), optimize)
@@ -668,10 +672,10 @@ endif
 # do one last check for aix. aix zip doesn't like -r -T 
 	$(ZIP) -T  $(INSTDIR)/slapd/ns$(DIR).zip
 # install the ns-config file into the slapd package directory
-	$(INSTALL) -m 755 $(RELDIR_32)/bin/slapd/admin/bin/ns-config $(INSTDIR)/slapd
+	$(INSTALL) -m 755 $(RELDIR)/bin/slapd/admin/bin/ns-config $(INSTDIR)/slapd
 
 # if we are packaging our own version of the components, we need them during setup too
-	-@for file in $(PACKAGE_SETUP_LIBS_32) ; \
+	-@for file in $(PACKAGE_SETUP_LIBS) ; \
 	do if [ -f $$file ] ; \
 	then $(INSTALL) -m 755 $$file $(INSTDIR)/slapd ; \
 	fi ; \

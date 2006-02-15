@@ -41,12 +41,6 @@
 
 .SUFFIXES: .cc
 
-# We do this to force a 32-bit build of this stuff, even in a 64-bit build 
-# (because we want to avoid various complexities inherenet in having a 64-bit
-# installer rubbing shoulders with other 32-bit stuff at install time).
-COMPONENT_DEPS := 1
-override USE_64=
-
 BUILD_ROOT = ../../..
 LDAP_SRC = ../..
 
@@ -96,7 +90,7 @@ else
 BINS=$(addprefix $(BINDEST)/, $(PROGS))
 endif
 INFO= $(OBJDIR)/$(DIR)
-PATCHINFO= $(ORIGINAL_OBJDIR)/$(DIR)
+PATCHINFO= $(ABS_OBJDIR)/$(DIR)
 
 # Source for staged installation utilities
 INCDIR=$(SETUPUTIL_INCLUDE) -I$(LDAP_SRC)/admin/include -I$(LDAP_SRC)/admin/lib -I$(LDAP_SRC)/admin/src

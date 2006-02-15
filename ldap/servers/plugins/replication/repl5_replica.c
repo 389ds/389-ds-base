@@ -108,9 +108,9 @@ static void _replica_update_state (time_t when, void *arg);
 static char * _replica_get_config_dn (const Slapi_DN *root);
 static char * _replica_type_as_string (const Replica *r);
 /* DBDB, I think this is probably bogus : */
-int replica_create_ruv_tombstone(Replica *r);
-void assign_csn_callback(const CSN *csn, void *data);
-void abort_csn_callback(const CSN *csn, void *data);
+static int replica_create_ruv_tombstone(Replica *r);
+static void assign_csn_callback(const CSN *csn, void *data);
+static void abort_csn_callback(const CSN *csn, void *data);
 static void eq_cb_reap_tombstones(time_t when, void *arg);
 static CSN *_replica_get_purge_csn_nolock (const Replica *r);
 static void replica_get_referrals_nolock (const Replica *r, char ***referrals);
