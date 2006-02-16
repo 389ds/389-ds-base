@@ -54,6 +54,8 @@
 
 #define TEST_CONFIG /* for testing cn=config40 dummy entry instead of real one */
 
+char* const NULLSTR = 0;
+
 char* const class_top                    = "top";
 char* const class_organization           = "organization";
 char* const class_organizationalUnit     = "organizationalunit";
@@ -754,7 +756,7 @@ create_organizational_unit(LDAP* ld, char* base, char* unit, char *description,
 	if (!base)
 		entrydn = strdup(unit);
 	else
-		entrydn = make_dn("%s=%s, %s", name_ou, unit, base, 0);
+		entrydn = make_dn("%s=%s, %s", name_ou, unit, base, NULLSTR);
 
 	if (!entry_exists(ld, entrydn))
 	{
@@ -1062,7 +1064,7 @@ create_configEntry(LDAP* ld)
 		return -1;
 	}
 
-	entrydn = make_dn("%s=%s", name_cn, value_config40, 0);
+	entrydn = make_dn("%s=%s", name_cn, value_config40, NULLSTR);
 	if (!entry_exists(ld, entrydn))
 	{
 		LDAPMod* attrs[3];
@@ -1130,7 +1132,7 @@ create_group(LDAP* ld, char* base, char* group)
 		return -1;
 	}
 
-	entrydn = make_dn("%s=%s, %s", name_cn, group, base, 0);
+	entrydn = make_dn("%s=%s, %s", name_cn, group, base, NULLSTR);
 
 	if (!entry_exists(ld, entrydn)) 
 	{
@@ -1379,7 +1381,7 @@ config_configEntry(LDAP* connection, QUERY_VARS* query)
 {
 	/* initial ACIs for o=NetscapeRoot */
 
-	int ret = add_aci_v (connection, value_config40DN, ACI_self_allow, 0);
+	int ret = add_aci_v (connection, value_config40DN, ACI_self_allow, NULLSTR);
 	return ret;
 }
 
@@ -1418,7 +1420,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 	/* parent dn of admin uid entry */
 	if (query->netscaperoot) {
 		parentDN = make_dn("%s, %s, %s", name_administratorsRDN,
-						   name_topologyRDN, query->netscaperoot, 0);
+						   name_topologyRDN, query->netscaperoot, NULLSTR);
 	}
 
 	if (query->config_admin_uid) {
@@ -1428,12 +1430,12 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 			configAdminDN = strdup(query->config_admin_uid);
 		} else if (parentDN) {
 			/* create a DN for admid */
-			configAdminDN = make_dn(DN_formatUID, query->config_admin_uid, parentDN, 0);
+			configAdminDN = make_dn(DN_formatUID, query->config_admin_uid, parentDN, NULLSTR);
 		} else {
 			/* create one from scratch */
 			configAdminDN = make_dn("%s=%s, %s, %s, %s", name_uid, query->config_admin_uid,
 									name_administratorsRDN, name_topologyRDN,
-									name_netscaperootDN, 0);
+									name_netscaperootDN, NULLSTR);
 		}
 	}
 
@@ -1444,7 +1446,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		{
 			if (configAdminDN && !is_root_user(configAdminDN, query)) {
 				add_aci_v(connection, query->suffix, ACI_user_allow_2,
-						  "all", configAdminDN, 0);
+						  "all", configAdminDN, NULLSTR);
 			}
 
 			status = create_group(connection, query->suffix, name_localDAGroup);
@@ -1465,13 +1467,13 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 			adminGroupDN = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
 								   name_ou, value_groupsOU,
 								   name_topologyRDN,
-								   query->netscaperoot, 0);
+								   query->netscaperoot, NULLSTR);
 		}
 
 		if (query->suffix)
 		{
 			localDAGroupDN = make_dn("cn=%s, %s", name_localDAGroup,
- 							   query->suffix, 0);
+ 							   query->suffix, NULLSTR);
 		}
 		else 
 		{
@@ -1483,20 +1485,20 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 				add_aci_v(connection, entryAndAccessList[ii].entryDN,
 						  ACI_config_admin_group_allow,
 						  entryAndAccessList[ii].access,
-						  adminGroupDN, 0);
+						  adminGroupDN, NULLSTR);
 			}
 			if (configAdminDN && !is_root_user(configAdminDN, query)) {
 				add_aci_v(connection, entryAndAccessList[ii].entryDN,
 						  ACI_user_allow_2,
 						  entryAndAccessList[ii].access,
-						  configAdminDN, 0);
+						  configAdminDN, NULLSTR);
 			}
 			if (localDAGroupDN)
 			{
 				add_aci_v(connection, entryAndAccessList[ii].entryDN,
 						  ACI_local_DA_allow,
 						  entryAndAccessList[ii].access,
-						  localDAGroupDN, 0);
+						  localDAGroupDN, NULLSTR);
 			}
 		}
 	}
@@ -1512,22 +1514,22 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 							   ACI_config_admin_group_allow_all,
 							   value_configAdminGroupRDN,
 							   name_ou, value_groupsOU, name_topologyRDN,
-							   query->netscaperoot, 0);
+							   query->netscaperoot, NULLSTR);
 
 		if (!status)
 			status = add_aci_v(connection, query->netscaperoot,
 							   ACI_anonymous_allow_with_filter,
-							   query->netscaperoot, 0);
+							   query->netscaperoot, NULLSTR);
 
 		if (!status)
 			status = add_aci_v(connection, query->netscaperoot, ACI_group_expansion,
-							   query->netscaperoot, 0);
+							   query->netscaperoot, NULLSTR);
 
 		/* create "topologyOU, netscaperoot" entry and set ACIs */
 		if (!status)
 		{
 			char *dn = make_dn("%s, %s", name_topologyRDN,
-							   query->netscaperoot, 0);
+							   query->netscaperoot, NULLSTR);
 			status = create_organizational_unit(connection, NULL, dn,
 												value_topologyDESC,
 												0, 0, 0);
@@ -1542,7 +1544,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		if (!status)
 		{
 			char *dn = make_dn("%s=%s, %s, %s", name_ou, value_groupsOU,
-							   name_topologyRDN, query->netscaperoot, 0);
+							   name_topologyRDN, query->netscaperoot, NULLSTR);
 			status = create_organizational_unit (connection, NULL, dn,
 												 value_groupsDesc, 0, 0, 0);
 			free(dn);
@@ -1552,7 +1554,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		if (!status)
 		{
 			char *dn = make_dn("%s, %s, %s", name_administratorsRDN,
-							   name_topologyRDN, query->netscaperoot, 0);
+							   name_topologyRDN, query->netscaperoot, NULLSTR);
 			status = create_organizational_unit (connection, NULL, dn,
 												 value_administratorsDESC,
 												 0, 0, 0);
@@ -1564,7 +1566,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		{
 			char *dn = make_dn("%s=%s, %s, %s", name_ou, value_groupsOU,
 							   name_topologyRDN,
-							   query->netscaperoot, 0);
+							   query->netscaperoot, NULLSTR);
 			status = create_group (connection, dn, value_configAdminGroupCN);
 			free(dn);
 		}
@@ -1575,7 +1577,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 			/* group to add the uid to */
 			char *groupdn = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
 									name_ou, value_groupsOU, name_topologyRDN,
-									query->netscaperoot, 0);
+									query->netscaperoot, NULLSTR);
 			create_ssadmin_user(connection, parentDN,
 								query->ssAdmID, query->ssAdmPW1);
 
@@ -1585,7 +1587,7 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		}
 
 		admin_domainDN = make_dn("%s=%s, %s", name_ou, query->admin_domain,
-								 query->netscaperoot, 0);
+								 query->netscaperoot, NULLSTR);
 
 		if (!status)
 			status = create_organizational_unit (connection, 0,

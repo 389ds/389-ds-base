@@ -408,8 +408,8 @@ normalize_path(char *path)
     char *dname = slapi_ch_strdup(path);
     char *dnamep = dname;
     char *bnamep = NULL;
-    char **dirs = (char **)slapi_ch_calloc(strlen(path), 1);
-    char **rdirs = (char **)slapi_ch_calloc(strlen(path), 1);
+    char **dirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
+    char **rdirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
     char **dp = dirs;
     char **rdp;
     do {
