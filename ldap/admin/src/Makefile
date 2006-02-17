@@ -235,8 +235,20 @@ INST_INCLUDES = $(OBJDIR)/install_keywords.h
 TEMPLATE_SCRIPTS_SRC = $(wildcard scripts/template-*)
 TEMPLATE_SCRIPTS_DEST = $(subst scripts/,$(SCRIPTSDIR)/,$(TEMPLATE_SCRIPTS_SRC))
 
+# We only need to do this if we have to ship 32 bit binaries in our 64 bit packages
+# Right now, on rhel/linux, we ship all native 64 bit apps so we don't have to do
+# this.  We still may need to do this on solaris/hpux, but hopefully not for very
+# much longer
 ifeq ($(USE_64), 1)
-  FIX_SECMOD_DEP = $(BINDIR)/fix_secmod_db_64
+  ifeq ($(ARCH), RHEL)
+    FIX_SECMOD_DEP =
+  else
+  ifeq ($(ARCH), Linux)
+    FIX_SECMOD_DEP =
+  else
+    FIX_SECMOD_DEP = $(BINDIR)/fix_secmod_db_64
+  endif
+  endif
 endif
 
 # gmake 3.74 will remove "intermediate" files if generated via a pattern match rule
