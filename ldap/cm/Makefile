@@ -713,7 +713,14 @@ endif
 	fi
 
 ifdef BUILD_PATCH
-# copying a file from the component area
+# take care of files in components (e.g., a file in nsadmin.zip)
+   -@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
+     zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
+     afile=`echo $$pair | awk -F: '{print $$2}'` ; \
+     cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); $(UNZIP) -o $$zipfile $$afile ; \
+   done
+
+# copying files from the component area
 	-@for pair in `grep "^copyfile:" $(PATCHINF) | awk '{print $$3}'`; do \
 	  zipfile=`echo $$pair | awk -F: '{print $$1}'` ; \
 	  sfile=`echo $$pair | awk -F: '{print $$2}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
