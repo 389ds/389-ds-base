@@ -581,9 +581,12 @@ ifdef BUILD_RPM
 endif # BUILD_RPM
 
 	find $(RELDIR) -exec chmod go-w {} \;
-# $(RELDIR)/bin/slapd/server may host a core file.
-# For security reason, it's readable only by the owner
-	chmod 700 $(RELDIR)/bin/slapd/server
+# $(RELDIR)/bin/slapd/server may host a core file if the server crashes
+# shortly after startup (otherwise, cores go in slapd-instance/logs)
+# For security reasons, it's readable only by the owner
+# but it needs to be executable (11) so that it can
+# load in shared libs from slapd/lib after the setuid
+	chmod 711 $(RELDIR)/bin/slapd/server
 
 $(INSTDIR)/slapd:
 	$(MKDIR) -p $@
