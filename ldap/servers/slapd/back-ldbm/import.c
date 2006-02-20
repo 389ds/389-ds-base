@@ -91,7 +91,7 @@ static int import_fifo_init(ImportJob *job)
     return 0;
 }
 
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
+FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker, int shift)
 {
     int idx = id % job->fifo.size;
     FifoItem *fi;
@@ -102,7 +102,7 @@ FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
     return NULL;
     }
     if (fi->entry) {
-        if (id != fi->entry->ep_id)
+        if (id != fi->entry->ep_id - shift)
             fi = NULL;
         else if (worker) {
             if (fi->bad) return NULL;

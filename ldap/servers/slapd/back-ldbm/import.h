@@ -201,7 +201,7 @@ struct _import_worker_info {
 
 
 /* import.c */
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
+FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker, int shift);
 void import_free_job(ImportJob *job);
 void import_log_notice(ImportJob *job, char *format, ...);
 void import_abort_all(ImportJob *job, int wait_for_them);

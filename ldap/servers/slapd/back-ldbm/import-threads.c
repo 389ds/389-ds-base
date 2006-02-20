@@ -986,6 +986,7 @@ void import_foreman(void *param)
     int ret = 0;
     struct attrinfo *parentid_ai;
     Slapi_PBlock *pb = slapi_pblock_new();
+    int shift = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -1027,10 +1028,11 @@ void import_foreman(void *param)
         info->state = RUNNING;
 
         /* Read that entry from the cache */
-        fi = import_fifo_fetch(job, id, 0);
+        fi = import_fifo_fetch(job, id, 0, shift);
         if (! fi) {
-            import_log_notice(job, "ERROR: foreman fifo error");
-            goto error;
+            import_log_notice(job, "WARNING: entry id %d is missing");
+            shift++;
+            continue;
         }
 
         /* first, fill in any operational attributes */
@@ -1268,7 +1270,7 @@ void import_worker(void *param)
             info->state = RUNNING;
 
             /* Read that entry from the cache */
-            fi = import_fifo_fetch(job, id, 1);
+            fi = import_fifo_fetch(job, id, 1, 0);
             ep = fi ? fi->entry : NULL;
             if (!ep) {
                 /* skipping an entry that turned out to be bad */
