@@ -557,7 +557,19 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 				{
 					type_to_use = a;
 				}
-				slapi_entry_add_values( e, type_to_use, aVal);
+
+				/* If the list of attribute values is null, we need to delete this attribute
+				 * from the local entry.
+                                 */
+				if (aVal == NULL) {
+					/* Windows will send us an attribute with no values if it was deleted
+					 * on the AD side.  Add this attribute to the deleted attributes list */
+					Slapi_Attr *attr = slapi_attr_new();
+					slapi_attr_init(attr, type_to_use);
+					entry_add_deleted_attribute_wsi(e, attr);
+				} else { 
+					slapi_entry_add_values( e, type_to_use, aVal);
+				} 
                 
 				ldap_memfree(a);
 				ldap_value_free_len(aVal);
