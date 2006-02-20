@@ -2496,6 +2496,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 {
 	int retval = 0;
 	Slapi_Attr *attr = NULL;
+	Slapi_Attr *del_attr = NULL;
 	int is_user = 0;
 	int is_group = 0;
 	int rc = 0;
@@ -2638,17 +2639,48 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				*do_modify = 1;
 			}
 		}
+
 		if (vs) 
 		{
 			slapi_valueset_free(vs);
 			vs = NULL;
 		}
-		if (local_type)
-		{
-			slapi_ch_free((void**)&local_type);
-			local_type = NULL;
-		}
+
+		slapi_ch_free_string(&local_type);
 	}
+
+        /* Check if any attributes were deleted from the remote entry */
+        entry_first_deleted_attribute(remote_entry, &del_attr);
+        while (del_attr != NULL) {
+                Slapi_Attr *local_attr = NULL;
+                char *type = NULL;
+                char *local_type = NULL;
+                int mapdn = 0;
+
+                /* Map remote type to local type */
+		slapi_attr_get_type(del_attr, &type);
+                if ( is_straight_mapped_attr(type,is_user,is_nt4) ) {
+                        local_type = slapi_ch_strdup(type);
+                } else {
+                        windows_map_attr_name(type , to_windows, is_user, 0 /* not create */, &local_type, &mapdn);
+                }
+
+                /* Check if this attr exists in the local entry */
+                if (local_type) {
+                        slapi_entry_attr_find(local_entry, local_type, &local_attr);
+                        if (local_attr) {
+                                slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+                                        "windows_generate_update_mods: deleting %s attribute from local entry\n", local_type);
+                                /* Delete this attr from the local entry */
+                                slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, local_type, NULL);
+				*do_modify = 1;
+                        }
+                }
+
+                entry_next_deleted_attribute(remote_entry, &del_attr);
+		slapi_ch_free_string(&local_type);
+        }
+
 	if (slapi_is_loglevel_set(SLAPI_LOG_REPL) && *do_modify)
 	{
 		slapi_mods_dump(smods,"windows sync");
@@ -2669,14 +2701,18 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 	/* Now perform the modify if we need to */
 	if (0 == retval && do_modify)
 	{
+		char dnbuf[BUFSIZ];
+		char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry));
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-			"windows_update_remote_entry: modifying entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
+			"windows_update_remote_entry: modifying entry %s\n", escape_string(dn, dnbuf));
 
 		retval = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)),slapi_mods_get_ldapmods_byref(&smods), NULL,NULL);
 	} else
 	{
+		char dnbuf[BUFSIZ];
+		char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry));
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-			"no mods generated for entry: %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
+			"no mods generated for remote entry: %s\n", escape_string(dn, dnbuf));
 	}
     slapi_mods_done(&smods);
 	return retval;
@@ -2701,8 +2737,10 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		pb = slapi_pblock_new();
 		if (pb)
 		{
+			char dnbuf[BUFSIZ];
+			char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
 			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-				"modifying entry: %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)));
+				"modifying entry: %s\n", escape_string(dn, dnbuf));
 			slapi_modify_internal_set_pb (pb, slapi_entry_get_ndn(local_entry), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL,
 					repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
 			slapi_modify_internal_pb (pb);		
@@ -2710,7 +2748,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			if (rc) 
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-					"windows_update_local_entry: failed to modify entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)));
+					"windows_update_local_entry: failed to modify entry %s\n", escape_string(dn, dnbuf));
 			}
 			slapi_pblock_destroy(pb);
 		} else 
@@ -2721,8 +2759,10 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 
 	} else
 	{
+		char dnbuf[BUFSIZ];
+		char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-			"no mods generated for entry: %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)));
+			"no mods generated for local entry: %s\n", escape_string(dn, dnbuf));
 	}
     slapi_mods_done(&smods);
 	return retval;
@@ -2959,6 +2999,22 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 					windows_get_remote_entry(prp,slapi_entry_get_sdn_const(e),&remote_entry);
 					if (remote_entry)
 					{
+						/* We need to check for any deleted attrs from the dirsync entry
+						 * and pass them into the newly fetched remote entry. */
+						Slapi_Attr *attr = NULL;
+						Slapi_Attr *rem_attr = NULL;
+						entry_first_deleted_attribute(e, &attr);
+						while (attr != NULL) {
+							/* We need to dup the attr and add it to the remote entry.
+							 * rem_attr is now owned by remote_entry, so don't free it */
+							rem_attr = slapi_attr_dup(attr);
+							if (rem_attr) {
+								entry_add_deleted_attribute_wsi(remote_entry, rem_attr);
+								rem_attr = NULL;
+							}
+							entry_next_deleted_attribute(e, &attr);
+						}
+
 						rc = windows_update_local_entry(prp, remote_entry, local_entry);
 						slapi_entry_free(remote_entry);
 						remote_entry = NULL;
