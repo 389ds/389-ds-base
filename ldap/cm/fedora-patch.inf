@@ -45,11 +45,11 @@
 base: ...
 
 file: 147585: plugins/slapd/slapi/examples/testpreop.c
-file: 164834,165641,166229,173687: bin/slapd/server/ns-slapd
-file: 155276,164834,164843,165641,166229,173687: bin/slapd/server/libslapd.*
+file: 164834,165641,166229,173687,175063: bin/slapd/server/ns-slapd
+file: 155276,164834,164843,165641,166229,173687,175063,179135,179137: bin/slapd/server/libslapd.*
 file: 151678: bin/slapd/admin/bin/ds_newinst
 file: 151678: bin/slapd/admin/bin/ds_create
-file: 155276,164843,165641,165827,165862,166012: lib/libback-ldbm.*
+file: 155276,164843,165641,165827,165862,166012,175063,175897,179135,179137,179810: lib/libback-ldbm.*
 file: 160003: bin/slapd/admin/scripts/template-db2index.pl
 file: 160003: bin/slapd/admin/bin/upgradeServer
 file: 164836,165600: lib/attr-unique-plugin.*
@@ -57,29 +57,29 @@ file: 165640: lib/views-plugin.*
 file: 167478,160589: setup/setup
 file: 156120,159037,170321,170328,170556,170558,170816: winsync/PassSync.msi
 file: 167761: java/jars/ds71.jar
-file: 169388,169954,170071,170350: lib/replication-plugin.*
+file: 169388,169954,170071,170350,181827,179135,179137: lib/replication-plugin.*
 file: xxxxxx: bin/slapd/README.txt
 file: xxxxxx: README.txt
 file: M324525,M324529: shared/lib/libldap50.so
 file: M324525,M324529: shared/lib/libprldap50.so
 file: M324525,M324529: shared/lib/libssldap50.so
+file: M324525,M324529: shared/bin/ldapcmp
+file: M324525,M324529: shared/bin/ldapcompare
+file: M324525,M324529: shared/bin/ldapdelete
+file: M324525,M324529: shared/bin/ldapmodify
+file: M324525,M324529: shared/bin/ldapsearch
 file: M324525,M324529: bin/slapd/lib/libldap50.so
 file: M324525,M324529: bin/slapd/lib/libprldap50.so
 file: M324525,M324529: bin/slapd/lib/libssldap50.so
 file: M324525,M324529: clients/lib/libldap50.so
 file: M324525,M324529: clients/lib/libprldap50.so
 file: M324525,M324529: clients/lib/libssldap50.so
-file: M324525,M324529: shared/bin/ldapcmp
-file: M324525,M324529: shared/bin/ldapcompare
-file: M324525,M324529: shared/bin/ldapdelete
-file: M324525,M324529: shared/bin/ldapmodify
-file: M324525,M324529: shared/bin/ldapsearch
 
-copyfile: M324525,M324529: %DISTDIR%/ldapsdk/lib/libldap50.so:bin/https/lib/libldap50.so
-copyfile: M324525,M324529: %DISTDIR%/ldapsdk/lib/libprldap50.so:bin/https/lib/libprldap50.so
-copyfile: M324525,M324529: %DISTDIR%/ldapsdk/lib/libssldap50.so:bin/https/lib/libssldap50.so
-copyfile: M324525,M324529: %DISTDIR%/ldapsdk/lib/libldap50.so:bin/admin/lib/libldap50.so
-copyfile: M324525,M324529: %DISTDIR%/ldapsdk/lib/libprldap50.so:bin/admin/lib/libprldap50.so
-copyfile: M324525,M324529: %DISTDIR%/ldapsdk/lib/libssldap50.so:bin/admin/lib/libssldap50.so
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libldap50.so:bin/https/lib/libldap50.so
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libprldap50.so:bin/https/lib/libprldap50.so
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libssldap50.so:bin/https/lib/libssldap50.so
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libldap50.so:bin/admin/lib/libldap50.so
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libprldap50.so:bin/admin/lib/libprldap50.so
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libssldap50.so:bin/admin/lib/libssldap50.so
 
 compfile: 171306: %DISTDIR%/admserv/admin/nsadmin.zip:manual/help/help
