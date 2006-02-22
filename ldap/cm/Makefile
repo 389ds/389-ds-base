@@ -726,7 +726,7 @@ ifdef BUILD_PATCH
 	  sfile=`echo $$pair | awk -F: '{print $$2}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
 	  dfile=`echo $$pair | awk -F: '{print $$3}'` ; \
 	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); \
-	  mkdir -p `dirname $$dfile`; cp $$sfile $$dfile ; \
+	  mkdir -p `dirname $$dfile`; cp $$sfile `dirname $$dfile` ; \
 	  echo $(ZIP) $(ABS_INSTDIR)/$$zipfile $$dfile ; \
 	  $(ZIP) $(ABS_INSTDIR)/$$zipfile $$dfile ; \
 	done
