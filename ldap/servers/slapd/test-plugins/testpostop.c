@@ -93,7 +93,7 @@ static char changelogfile[MAX_PATH+1];
 static char *changelogfile = "/tmp/changelog";
 #endif
 
-Slapi_PluginDesc postoppdesc = { "test-postop", "Fedora Project", "1.0.1",
+Slapi_PluginDesc postoppdesc = { "test-postop", "Fedora Project", "1.0.2",
 	"sample post-operation plugin" };
 
 static void write_changelog( int optype, char *dn, void *change, int flag );

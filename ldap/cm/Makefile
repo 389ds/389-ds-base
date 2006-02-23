@@ -108,9 +108,9 @@ endif
 endif
 
 ifdef USE_64
-VERSION=-ver 1.0.1-64bit
+VERSION=-ver 1.0.2-64bit
 else
-VERSION=-ver 1.0.1
+VERSION=-ver 1.0.2
 endif
 
 ifeq ($(ARCH), HPUX)
@@ -270,7 +270,7 @@ PACKAGE_SETUP_LIBS_32=$(subst $(NS64TAG),,$(PACKAGE_SETUP_LIBS))
 ifdef BUILD_RPM
 # name and version of RPM - must correspond to the spec file - these get branded
 	RPM_BASE_NAME=fedora
-	RPM_VERSION=1.0.1
+	RPM_VERSION=1.0.2
 	RPM_FILE_BASE=$(RPM_BASE_NAME)-ds-$(RPM_VERSION)
 	RPM_ARCH = $(shell uname -i)
 # root dir for RPM built and temp files
