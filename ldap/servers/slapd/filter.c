@@ -175,7 +175,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
     unsigned long	len;
     int		err;
     struct slapi_filter	*f;
-    char		*ftmp, *type;
+    char		*ftmp, *type = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_filter_internal\n", 0, 0, 0 );
 
@@ -293,6 +293,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 	case LDAP_FILTER_PRESENT:
 		LDAPDebug( LDAP_DEBUG_FILTER, "PRESENT\n", 0, 0, 0 );
 		if ( ber_scanf( ber, "a", &type ) == LBER_ERROR ) {
+            slapi_ch_free_string(&type);
 			err = LDAP_PROTOCOL_ERROR;
 		} else {
 			err = LDAP_SUCCESS;
@@ -440,12 +441,13 @@ get_substring_filter(
 )
 {
 	unsigned long	tag, len, rc;
-	char		*val, *last, *type;
+	char		*val, *last, *type = NULL;
 	char		ebuf[BUFSIZ];
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_substring_filter\n", 0, 0, 0 );
 
 	if ( ber_scanf( ber, "{a", &type ) == LBER_ERROR ) {
+        slapi_ch_free_string(&type);
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	f->f_sub_type = slapi_attr_syntax_normalize( type );
@@ -460,8 +462,10 @@ get_substring_filter(
 	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
 	    tag = ber_next_element( ber, &len, last ) )
 	{
+        val = NULL;
 		rc = ber_scanf( ber, "a", &val );
 		if ( rc == LBER_ERROR ) {
+            slapi_ch_free_string(&val);
 			return( LDAP_PROTOCOL_ERROR );
 		}
 		if ( val == NULL || *val == '\0' ) {
@@ -573,8 +577,9 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 				}
 			}
 			{
-			    char* type;
+			    char* type = NULL;
 			    if (ber_scanf( ber, "a", &type ) == LBER_ERROR) {
+				slapi_ch_free_string (&type);
 				rc = LDAP_PROTOCOL_ERROR;
 			    } else {
 				mrf->mrf_type = slapi_attr_syntax_normalize(type);

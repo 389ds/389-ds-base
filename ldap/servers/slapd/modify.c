@@ -114,7 +114,7 @@ do_modify( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation;
 	BerElement			*ber;
-	char				*last, *type;
+	char				*last, *type = NULL;
 	unsigned long		tag, len;
 	LDAPMod				*mod;
 	LDAPMod			    **mods;
@@ -124,7 +124,7 @@ do_modify( Slapi_PBlock *pb )
 	int					ignored_some_mods = 0;
 	int                 has_password_mod = 0; /* number of password mods */
 	char				*old_pw = NULL;	/* remember the old password */
-	char				*dn;
+	char				*dn = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
 
@@ -161,6 +161,7 @@ do_modify( Slapi_PBlock *pb )
 			op_shared_log_error_access (pb, "MOD", "???", "decoding error");
     		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
     		    NULL );
+    		slapi_ch_free_string(&dn);
     		return;
     	}
 	}
@@ -186,7 +187,9 @@ do_modify( Slapi_PBlock *pb )
 			op_shared_log_error_access (pb, "MOD", dn, "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 							  "decoding error", 0, NULL );
+			ber_bvecfree(mod->mod_bvalues);
 			slapi_ch_free((void **)&mod);
+			slapi_ch_free_string(&type);
 			goto free_and_return;
 		}
 		mod->mod_op = long_mod_op;

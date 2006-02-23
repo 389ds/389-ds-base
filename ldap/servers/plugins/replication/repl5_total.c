@@ -585,7 +585,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
     char *lasti;
     unsigned long len;
 	unsigned long tag;
-    char *str;
+    char *str = NULL;
     int rc;
     Slapi_Value *value;
 
@@ -684,6 +684,9 @@ loser:
         slapi_attr_free (attr);
     if (value)
         slapi_value_free (&value);
+
+    slapi_ch_free_string(&attrtype);
+    slapi_ch_free_string(&str);
 
     return -1;    
 }

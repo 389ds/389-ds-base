@@ -384,7 +384,8 @@ free_and_return:
 		/* slapi_ch_free accepts NULL pointer */
 		slapi_ch_free ((void**)protocol_oid);
 		slapi_ch_free ((void**)repl_root);
-		slapi_ch_free ((void **)extra_referrals);
+		slapi_ch_array_free (*extra_referrals);
+        *extra_referrals = NULL;
 		slapi_ch_free ((void**)csnstr);
 
 		if (*supplier_ruv)

@@ -66,10 +66,10 @@ do_modrdn( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation;
 	BerElement	*ber;
-	char		*dn, *newsuperior = NULL;
+	char		*dn = NULL, *newsuperior = NULL;
 	char        *newrdn = NULL;
-	int			err, deloldrdn;
-	unsigned long	len;
+	int			err = 0, deloldrdn = 0;
+	unsigned long	len = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
 
@@ -99,7 +99,7 @@ do_modrdn( Slapi_PBlock *pb )
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 		    "unable to decode DN, newRDN, or deleteOldRDN parameters",
 		    0, NULL );
-		return;
+        goto free_and_return;
 	}
 
 	if ( ber_peek_tag( ber, &len ) == LDAP_TAG_NEWSUPERIOR ) {

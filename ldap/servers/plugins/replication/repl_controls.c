@@ -349,15 +349,15 @@ add_repl_control_mods( Slapi_PBlock *pb, Slapi_Mods *smods )
         		      emtag != LBER_ERROR && emtag != LBER_END_OF_SEQORSET;
         		      emtag = ber_next_element( ember, &emlen, emlast ))
 			    {
-        		    struct berval **embvals;
-        		    if ( ber_scanf( ember, "{i{a[V]}}", &op, &type, &embvals ) == LBER_ERROR )
+        		    struct berval **embvals = NULL;
+        		    type = NULL;
+        		    if ( ber_scanf( ember, "{i{a[V]}}", &op, &type, &embvals ) != LBER_ERROR )
 					{
-            			continue;
+        				slapi_mods_add_modbvps( smods, op, type, embvals);
 					/* GGOODREPL I suspect this will cause two sets of lastmods attr values
 						to end up in the entry. We need to remove the old ones.
 					*/
         		    }
-                    slapi_mods_add_modbvps( smods, op, type, embvals);
         		    free( type );
         		    ber_bvecfree( embvals );
         		}

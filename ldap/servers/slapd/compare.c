@@ -60,19 +60,22 @@ void
 do_compare( Slapi_PBlock *pb )
 {
 	BerElement	*ber = pb->pb_op->o_ber;
-	char		*dn;
-	struct ava	ava;
+	char		*dn = NULL;
+	struct ava	ava = {0};
 	Slapi_Backend		*be = NULL;
 	int		err;
 	char		ebuf[ BUFSIZ ];
 	Slapi_DN sdn;
-	Slapi_Entry *referral;
+	Slapi_Entry *referral = NULL;
 	char errorbuf[BUFSIZ];
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_compare\n", 0, 0, 0 );
 
 	/* count the compare request */
 	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
+
+    /* have to init this here so we can "done" it below if we short circuit */
+    slapi_sdn_init(&sdn);
 
 	/*
 	 * Parse the compare request.  It looks like this:
@@ -86,7 +89,6 @@ do_compare( Slapi_PBlock *pb )
 	 *	}
 	 */
 
-
 	if ( ber_scanf( ber, "{a{ao}}", &dn, &ava.ava_type,
 	    &ava.ava_value ) == LBER_ERROR ) {
 		LDAPDebug( LDAP_DEBUG_ANY,
@@ -94,7 +96,7 @@ do_compare( Slapi_PBlock *pb )
 		    0, 0, 0 );
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
 		    NULL );
-		return;
+		goto free_and_return;
 	}
 	/*
 	 * in LDAPv3 there can be optional control extensions on
@@ -106,6 +108,7 @@ do_compare( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 	slapi_sdn_init_dn_passin(&sdn,dn);
+    dn = NULL; /* do not free - sdn owns it now */
 
 	/* target spec is used to decide which plugins are applicable for the operation */
 	operation_set_target_spec (pb->pb_op, &sdn);
@@ -181,5 +184,6 @@ free_and_return:;
 	if (be)
 		slapi_be_Unlock(be);
 	slapi_sdn_done(&sdn);
+    slapi_ch_free_string(&dn);
 	ava_done( &ava );
 }

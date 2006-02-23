@@ -102,8 +102,9 @@ do_add( Slapi_PBlock *pb )
 	 */
 	/* get the name */
 	{
-    	char *dn;
+    	char *dn = NULL;
     	if ( ber_scanf( ber, "{a", &dn ) == LBER_ERROR ) {
+            slapi_ch_free_string(&dn);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed (op=Add; params=DN)\n", 0, 0, 0 );
 			op_shared_log_error_access (pb, "ADD", "???", "decoding error");
@@ -121,11 +122,13 @@ do_add( Slapi_PBlock *pb )
 	      tag != LBER_DEFAULT && tag != LBER_END_OF_SEQORSET;
 	      tag = ber_next_element( ber, &len, last ) ) {
 		char *type = NULL, *normtype = NULL;
-		struct berval	**vals;
+		struct berval	**vals = NULL;
 		if ( ber_scanf( ber, "{a{V}}", &type, &vals ) == LBER_ERROR ) {
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 			    "decoding error", 0, NULL );
+            slapi_ch_free_string(&type);
+            ber_bvecfree( vals );
 			goto free_and_return;
 		}
 
@@ -134,7 +137,7 @@ do_add( Slapi_PBlock *pb )
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), "null value");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL,
 			    0, NULL );
-			free( type );			
+            slapi_ch_free_string(&type);
 			goto free_and_return;
 		}
 
@@ -144,7 +147,7 @@ do_add( Slapi_PBlock *pb )
 			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), ebuf);
 			send_ldap_result( pb, rc, NULL, ebuf, 0, NULL );
-			free( type );
+            slapi_ch_free_string(&type);
 			slapi_ch_free( (void**)&normtype );
 			ber_bvecfree( vals );
 			goto free_and_return;

@@ -111,7 +111,7 @@ do_bind( Slapi_PBlock *pb )
     long ber_version = -1;
     int		auth_response_requested = 0;
     int		pw_response_requested = 0;
-    char		*dn, *saslmech = NULL;
+    char		*dn = NULL, *saslmech = NULL;
     struct berval	cred = {0};
     Slapi_Backend		*be = NULL;
     unsigned long rc;
@@ -154,6 +154,7 @@ do_bind( Slapi_PBlock *pb )
         log_bind_access (pb, "???", method, version, saslmech, "decoding error");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                           "decoding error", 0, NULL );
+        slapi_ch_free_string(&dn);
         return;
     }
 
