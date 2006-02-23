@@ -112,6 +112,14 @@ PACKAGE_UNDER_JAVA =
 # separate the src from the dest with a single space
 PACKAGE_SRC_DEST =
 
+# this macro contains a list of pairs of source and dest files, not directories
+# the source is where to find the item in the build tree, and the dest is
+# the place in the release to put the item, relative to the server root e.g.
+# nls locale files are in libnls31/locale, but for packaging they need to
+# go into lib/nls, not just lib; the destination should be a file name;
+# separate the src from the dest with a single space
+PACKAGE_SRC_DESTFILE =
+
 # these defs are useful for doing pattern search/replace
 COMMA := ,
 NULLSTRING :=
@@ -264,8 +272,10 @@ endif
 # we need to package the root cert file in the alias directory
 PACKAGE_SRC_DEST += $(SECURITY_LIBPATH)/$(LIB_PREFIX)nssckbi.$(DLL_SUFFIX) alias
 
-# need to package the sec tools in shared/bin
-BINS_TO_PKG_SHARED += $(SECURITY_TOOLS_FULLPATH)
+# the security tools are wrapped with shell scripts so that the correct ld libpath can be set
+# so, when we package them, we rename them with a -bin extension e.g. certutil -> shared/bin/certutil-bin
+# the actual certutil will be an executable shell script that points to certutil-bin
+PACKAGE_SRC_DESTFILE += $(foreach prog,$(SECURITY_TOOLS),$(SECURITY_BINPATH)/$(prog)$(SPACE)shared/bin/$(prog)-bin)
 
 ### SECURITY END #############################
 
@@ -531,7 +541,7 @@ else
   ADMINUTIL_INCPATH = $(ADMINUTIL_BUILD_DIR)/include/adminutil-$(ADMINUTIL_DOT_VER)
 endif
 
-PACKAGE_SRC_DEST += $(ADMINUTIL_LIBPATH)/property bin/slapd/lib
+PACKAGE_SRC_DEST += $(ADMINUTIL_LIBPATH)/adminutil-properties bin/slapd/lib
 LIBS_TO_PKG += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
 LIBS_TO_PKG_CLIENTS += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
 

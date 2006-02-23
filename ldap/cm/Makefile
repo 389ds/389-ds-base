@@ -346,6 +346,20 @@ endif
 	fi ; \
 	done
 
+# PACKAGE_SRC_DESTFILE is defined in components.mk - these are component files and directories to install
+# with the other component files that we don't necessarily pick up from the admin server build
+# these can go in any directory - this differs from PACKAGE_SRC_DEST above in that in this case, the
+# destination is a _file_, not a directory, and src must be a filename, not a directory
+	for destfile in $(PACKAGE_SRC_DESTFILE) ; \
+	do if [ "$$src" ] ; \
+	then destdir=`dirname $$destfile` ; \
+		if [ ! -d $(RELDIR)/$$destdir ] ; then mkdir -p $(RELDIR)/$$destdir ; fi ; \
+		$(CP) $$src $(RELDIR)/$$destfile ; \
+		src= ; \
+	else src=$$destfile ; \
+	fi ; \
+	done
+
 # install the DSMLGW into the client directory
 # the following DSML files must be packaged separately:
 # web-app_2_3.dtd, activation.jar, saaj.jar - due to Sun license

@@ -60,48 +60,6 @@ start_server()
 	cd $cwd
 }
 
-wrap_security_tools()
-{
-	cwd=`pwd`
-	SECURITY_BINNAMES="certutil derdump modutil pk12util pp ssltap shlibsign"
-	arch=`uname`
-	if [ $arch = HP-UX ]; then
-		env_ld_library_path=SHLIB_PATH
-	elif [ $arch = AIX ]; then
-		env_ld_library_path=LIBPATH
-	else
-		env_ld_library_path=LD_LIBRARY_PATH
-	fi
-	cd $sroot/shared/bin
-	for file in $SECURITY_BINNAMES
-	do
-		if [ -f $file -a ! -f $file-bin ]; then
-			mv $file $file-bin
-			echo "#!/bin/sh" > $file
-			echo $env_ld_library_path=$sroot/shared/lib >> $file
-			echo "export $env_ld_library_path" >> $file
-			echo "$sroot/shared/bin/$file-bin " '${1+"$@"}' >> $file
-			chmod 755 $file
-		fi
-	done
-
-	if [ -d $sroot/shared32/bin ] ; then
-		cd $sroot/shared32/bin
-		for file in modutil
-		do
-			if [ -f $file -a ! -f $file-bin ]; then
-				mv $file $file-bin
-				echo "#!/bin/sh" > $file
-				echo $env_ld_library_path=$sroot/shared32/lib >> $file
-				echo "export $env_ld_library_path" >> $file
-				echo "$sroot/shared32/bin/$file-bin " '${1+"$@"}' >> $file
-				chmod 755 $file
-			fi
-		done
-	fi
-	cd $cwd
-}
-
 # if the -r flag is present, this means we're doing a
 # reinstall or an upgrade, so restart the servers
 for arg in $* ; do
@@ -161,8 +119,6 @@ if [ $reconfig ] ; then
 	$PERL $sroot/bin/slapd/admin/bin/upgradeServer $sroot
 fi
 
-wrap_security_tools $sroot
-
 cd `dirname $0`
 
 # we need to make sure the alias directory is owned by the server user/group
@@ -195,10 +151,6 @@ fi
 rc=0
 ./ds_create $* $extraflags
 rc=$?
-
-if [ -f fix_secmod_db_64 ]; then
-    ./fix_secmod_db_64 $sroot/alias $sroot/shared32/bin
-fi
 
 # chown the cookie directory - bug 175098
 if [ "$ssuser" ] ; then

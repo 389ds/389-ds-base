@@ -326,7 +326,29 @@ sub getSlapdVersion {
   sleep(1); # allow some data to accumulate in the pipe
 #  print "Output from $prog -v:\n";
   while (<F>) {
-    if (/^Netscape-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
+    if (/^Red Hat-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
+      $version     = $1;
+      $minor       = $2;
+      if ($4) {
+        $subminor = $3;
+        $buildNumber = $4;
+      } else {
+        $buildNumber = $3;
+      }
+      last;
+    }
+    elsif (/^Fedora-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
+      $version     = $1;
+      $minor       = $2;
+      if ($4) {
+        $subminor = $3;
+        $buildNumber = $4;
+      } else {
+        $buildNumber = $3;
+      }
+      last;
+    }
+    elsif (/^Netscape-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
       $version     = $1;
       $minor       = $2;
       if ($4) {
@@ -414,7 +436,6 @@ sub instantiate_new_package_scripts {
     "$sroot/bin/slapd/admin/scripts/template-migrate5to7",
     "$sroot/bin/slapd/admin/scripts/template-migrate6to7",
     "$sroot/bin/slapd/admin/scripts/template-migrateInstance7",
-    "$sroot/bin/slapd/admin/scripts/template-migrateTo4",
     "$sroot/bin/slapd/admin/scripts/template-migrateTo7",
     "$sroot/bin/slapd/admin/scripts/template-repl-monitor-cgi.pl",
   );

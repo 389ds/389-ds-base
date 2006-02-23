@@ -289,8 +289,12 @@ SSLOff() {
 	if [ -d $sroot/admin-serv/config ]; then
 		adminSSLOff $sroot/admin-serv/config/adm.conf security: assecure.txt
 		adminSSLOff $sroot/admin-serv/config/local.conf configuration.nsServerSecurity: assecure.txt
-		adminSSLOff $sroot/admin-serv/config/magnus.conf Security assecure.txt
-		adminXmlSSLOff $sroot/admin-serv/config/server.xml security assecure.txt
+        if [ -f $sroot/admin-serv/config/magnus.conf ] ; then
+            adminSSLOff $sroot/admin-serv/config/magnus.conf Security assecure.txt
+        fi
+        if [ -f $sroot/admin-serv/config/server.xml ] ; then
+            adminXmlSSLOff $sroot/admin-serv/config/server.xml security assecure.txt
+        fi
 
 		if [ $isadminsslon -ne 0 ]; then
 			$sroot/start-admin

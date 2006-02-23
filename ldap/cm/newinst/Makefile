@@ -95,10 +95,13 @@ PATCHINFO= $(ABS_OBJDIR)/$(DIR)
 # Source for staged installation utilities
 INCDIR=$(SETUPUTIL_INCLUDE) -I$(LDAP_SRC)/admin/include -I$(LDAP_SRC)/admin/lib -I$(LDAP_SRC)/admin/src
 
+# we wrap the security tools with a shell script wrapper for their ld libpath
+PACKAGE_SEC_T0OLS = $(addprefix $(RELDIR)/shared/bin/,$(SECURITY_TOOLS))
+
 # ADM_VERSDIR = admserv40
 # ADM_RELDATE = 19980112
 
-all: $(OBJDEST) $(BINDEST) $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(SECURITY_DEP)  $(NSPR_DEP) $(OSOBJS) $(OBJS1) $(OBJS2) $(BINS) $(INFO) $(BINDEST)/ns-update $(BINDEST)/uninstall
+all: $(OBJDEST) $(BINDEST) $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(SECURITY_DEP)  $(NSPR_DEP) $(OSOBJS) $(OBJS1) $(OBJS2) $(BINS) $(INFO) $(BINDEST)/ns-update $(BINDEST)/uninstall $(PACKAGE_SEC_T0OLS)
 # removed ns-keygen from build - it was only used for Dir Lite
 # $(BINDEST)/ns-keygen 
 ifeq ($(ARCH), BSDI)
@@ -169,6 +172,11 @@ $(BINDEST)/ns-config: $(OBJS1) $(OBJS2)
 	$(PURIFY) $(CXX) $(SHARED_FLAG) $(CFLAGS) $(MCC_INCLUDE) $(INCDIR) \
 		-o $(BINDEST)/ns-config $(RPATHFLAG_PREFIX)$(RPATHFLAG)$(RPATHFLAG_EXTRAS) $(OBJS1) $(OBJS2) $(SETUPUTILLINK) $(LDAPLINK) $(SECURITYLINK) $(NSPRLINK) \
 	       $(EXTRA_LIBS) $(CURSES)
+
+$(RELDIR)/shared/bin/%: sec_tools_wrapper $(RELDIR)/shared/bin
+	-@$(RM) $@
+	$(CP) $< $@
+	chmod +x $@
 
 ifeq ($(ARCH), WINNT)
 $(INFO):

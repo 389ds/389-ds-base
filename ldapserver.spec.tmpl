@@ -156,13 +156,10 @@ if [ "$1" -gt 1 ] ; then
             chown $usergroup $RPM_INSTALL_PREFIX/alias
         fi
     fi
-    for instance in `ls -d $RPM_INSTALL_PREFIX/slapd-*`
-    do
-      cp $RPM_INSTALL_PREFIX/bin/slapd/install/schema/00core.ldif $instance/config/schema
-    done
-    echo "Upgrade complete.  Please restart slapd then admin."
+    echo "Upgrade finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to complete the upgrade." 
+else
+    echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to complete installation and set up the servers."
 fi
-echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
 
 %preun
 # only run uninstall if this is the last version of the package
