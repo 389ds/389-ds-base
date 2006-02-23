@@ -593,8 +593,26 @@ slapi_dn_beparent(
 	return r;
 }
 
-char*
-slapi_dn_parent( const char *dn )
+/*
+ * This function is used for speed.  Instead of returning a newly allocated
+ * dn string that contains the parent, this function just returns a pointer
+ * to the address _within_ the given string where the parent dn of the
+ * given dn starts e.g. if you call this with "dc=example,dc=com", the
+ * function will return "dc=com" - that is, the char* returned will be the
+ * address of the 'd' after the ',' in "dc=example,dc=com".  This function
+ * also checks for bogus things like consecutive ocurrances of unquoted
+ * separators e.g. DNs like cn=foo,,,,,,,,,,,cn=bar,,,,,,,
+ * This function is useful for "interating" over a DN returning the ancestors
+ * of the given dn e.g.
+ *
+ * const char *dn = somedn;
+ * while (dn = slapi_dn_find_parent(dn)) {
+ *   see if parent exists
+ *   etc.
+ * }
+ */
+const char*
+slapi_dn_find_parent( const char *dn )
 {
 	const char *s;
 	int	inquote;
@@ -621,12 +639,32 @@ slapi_dn_parent( const char *dn )
 		} else {
 			if ( *s == '"' )
 				inquote = 1;
-			else if ( DNSEPARATOR( *s ) )
-				return( slapi_ch_strdup( s + 1 ) );
+			else {
+                if ( DNSEPARATOR( *s ) ) {
+                    while ( *s && DNSEPARATOR( *s ) ) {
+                        ++s;
+                    }
+                    if (*s) {
+                        return( s );
+                    }
+                }
+            }
 		}
 	}
 
 	return( NULL );
+}
+
+char*
+slapi_dn_parent( const char *dn )
+{
+	const char *s = slapi_dn_find_parent(dn);
+
+	if ( s == NULL || *s == '\0' ) {
+		return( NULL );
+	}
+
+    return( slapi_ch_strdup( s ) );
 }
 
 /*

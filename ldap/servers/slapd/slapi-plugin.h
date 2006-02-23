@@ -362,6 +362,7 @@ char *slapi_dn_normalize_to_end( char *dn, char *end );
 char *slapi_dn_ignore_case( char *dn );
 char *slapi_dn_normalize_case( char *dn );
 char *slapi_dn_beparent( Slapi_PBlock *pb, const char *dn );
+const char *slapi_dn_find_parent( const char *dn );
 char *slapi_dn_parent( const char *dn );
 int slapi_dn_issuffix( const char *dn, const char *suffix );
 int slapi_dn_isparent( const char *parentdn, const char *childdn );
