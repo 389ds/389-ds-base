@@ -122,18 +122,22 @@ echo ""
 if [ -z "$RPM_INSTALL_PREFIX" ]; then
 	RPM_INSTALL_PREFIX=%{prefix}
 fi
+# patch file to fix console ld libpath
+if [ -f $RPM_INSTALL_PREFIX/setup/console-ld-libpath.patch ] ; then
+    patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/console-ld-libpath.patch > /dev/null 2>&1
+fi
 if [ "$1" -gt 1 ] ; then
 # patch file to upgrade admin server from 1.0 to 1.0.1
     if [ -f $RPM_INSTALL_PREFIX/setup/adminserver10to101.patch ] ; then
-        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver10to101.patch
+        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver10to101.patch > /dev/null 2>&1
     fi
 # patch file to fix start-admin on Fedora Core 2
     if [ -f $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch ] ; then
-        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch
+        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-start-admin.patch > /dev/null 2>&1
     fi
 # patch file to fix module load order
     if [ -f $RPM_INSTALL_PREFIX/setup/adminserver-httpd-moduleorder.patch ] ; then
-        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-httpd-moduleorder.patch
+        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-httpd-moduleorder.patch > /dev/null 2>&1
     fi
 # fix up file permissions
     testfile=$RPM_INSTALL_PREFIX/admin-serv/config/nss.conf
@@ -156,6 +160,7 @@ if [ "$1" -gt 1 ] ; then
     do
       cp $RPM_INSTALL_PREFIX/bin/slapd/install/schema/00core.ldif $instance/config/schema
     done
+    echo "Upgrade complete.  Please restart slapd then admin."
 fi
 echo "Install finished.  Please run $RPM_INSTALL_PREFIX/setup/setup to set up the servers."
 
@@ -171,9 +176,9 @@ fi
 
 %changelog
 * Wed Feb 22 2006 Rich Megginson <rmeggins@redhat.com> - 1.0.2-1
-- Remove startconsole patch; add patch to fix admin server httpd
-- module load order; you must now run setup after an upgrade; copy
-- in the new 00core.ldif schema file to the server instances
+- Add patch to fix admin server httpd module load order; you
+- must now run setup after an upgrade; copy in the new 00core.ldif
+- schema file to the server instances
 
 * Tue Dec  6 2005 Rich Megginson <rmeggins@redhat.com> - 1.0.1-1
 - Use nosp version instead of gen version to get patch version numbers
