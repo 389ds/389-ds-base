@@ -91,6 +91,9 @@ void *dlsym(void *a, char *b);
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#if defined(SOLARIS)
+#include <limits.h> /* for LONG_MAX */
+#endif
 
 /* there's a bug in the dbm code we import (from where?) -- FIXME */
 #ifdef LINUX
