@@ -501,7 +501,7 @@ endif
 ifeq ($(BUILD_JAVA_CODE),1)
 ifndef GET_ANT_FROM_PATH
 #  (we use ant for building some Java code)
-ANTJAR = ant.jar
+ANTJAR = ant.jar ant-launcher.jar
 #JAXPJAR = jaxp.jar # ???
 ANT_FILES = $(ANTJAR) $(JAXPJAR)
 ANT_RELEASE = $(COMPONENTS_DIR)
