@@ -47,10 +47,18 @@
 #ifdef USE_NSPR
 #include "nspr.h"
 #include "private/prpriv.h"
+#ifdef LINUX
+#    include <sys/time.h>
+#    include <sys/resource.h>
+#else
+/* This declaration should be removed when NSPR newer than v4.6 is picked up,
+   which should have the fix for bug 326110
+ */
 extern "C" {
 int32 PR_GetSysfdTableMax(void);
 int32 PR_SetSysfdTableSize(int table_size);
 }
+#endif
 #endif
 #include "systems.h"
 
@@ -161,8 +169,24 @@ NSAPI_PUBLIC void systhread_init(char *name)
 {
     PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 256);
 #ifdef XP_UNIX
-    /* XXXrobm allocate all the fd's we can... */
+#ifdef LINUX
+    /*
+     * NSPR 4.6 does not export PR_SetSysfdTableSize
+     * and PR_GetSysfdTableMax by mistake (NSPR Bugzilla
+     * bug 326110) on platforms that use GCC with symbol
+     * visibility, so we have to call the system calls
+     * directly.
+     */
+    {
+        struct rlimit rlim;
+        if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
+            return;
+        rlim.rlim_cur = rlim.rlim_max;
+        (void) setrlimit(RLIMIT_NOFILE, &rlim);
+    }
+#else 
     PR_SetSysfdTableSize(PR_GetSysfdTableMax());
+#endif
 #endif
 }
 

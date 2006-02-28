@@ -439,7 +439,7 @@ endif
 
 ### ICU package ##########################################
 
-ICU_LIB_VERSION = 34
+ICU_LIB_VERSION = 24
 ifdef ICU_SOURCE_ROOT
   ICU_LIBPATH = $(ICU_SOURCE_ROOT)/built/lib
   ICU_BINPATH = $(ICU_SOURCE_ROOT)/built/bin
@@ -589,7 +589,7 @@ ifdef ADMINSERVER_SOURCE_ROOT
 # else set in internal_buildpaths.mk
 endif
 # these are the subcomponents we use from the adminserver package
-ADMINSERVER_SUBCOMPS=admin base setup.inf
+ADMINSERVER_SUBCOMPS=admin base
 
 ifdef LDAPCONSOLE_SOURCE_ROOT
   LDAPCONSOLE_DIR = $(LDAPCONSOLE_SOURCE_ROOT)/built/package

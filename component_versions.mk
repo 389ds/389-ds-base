@@ -52,7 +52,7 @@
 # naming scheme.
 # NSPR
 ifndef NSPR_RELDATE
-  NSPR_RELDATE = v4.6.1
+  NSPR_RELDATE = v4.6
 endif
 
 # SECURITY (NSS) LIBRARY
@@ -205,7 +205,7 @@ endif
 
 # DOC
 ifndef DSDOC_RELDATE
-  DSDOC_RELDATE = 20051028
+  DSDOC_RELDATE = 20050311
 endif
 
 # WIX
