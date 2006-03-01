@@ -139,6 +139,14 @@ if [ "$1" -gt 1 ] ; then
     if [ -f $RPM_INSTALL_PREFIX/setup/adminserver-httpd-moduleorder.patch ] ; then
         patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/adminserver-httpd-moduleorder.patch > /dev/null 2>&1
     fi
+# patch file to fix use of admpw for basic auth in the template file
+    if [ -f $RPM_INSTALL_PREFIX/setup/admserv-conf-tmpl.patch ] ; then
+        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/admserv-conf-tmpl.patch > /dev/null 2>&1
+    fi
+# patch file to fix use of admpw for basic auth in the real config file
+    if [ -f $RPM_INSTALL_PREFIX/setup/admserv-conf-admpw.patch ] ; then
+        patch -s -f -d $RPM_INSTALL_PREFIX -p0 < $RPM_INSTALL_PREFIX/setup/admserv-conf-admpw.patch > /dev/null 2>&1
+    fi
 # fix up file permissions
     testfile=$RPM_INSTALL_PREFIX/admin-serv/config/nss.conf
     if [ ! -f $testfile ] ; then
@@ -172,6 +180,9 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
+* Wed Mar  1 2006 Rich Megginson <rmeggins@redhat.com> - 1.0.2-1
+- Added admserv-conf-tmpl.patch and admserv-conf-admpw.patch to fix the use of admpw for basic auth
+
 * Wed Feb 22 2006 Rich Megginson <rmeggins@redhat.com> - 1.0.2-1
 - Add patch to fix admin server httpd module load order; you
 - must now run setup after an upgrade; copy in the new 00core.ldif
