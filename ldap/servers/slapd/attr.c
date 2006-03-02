@@ -112,7 +112,7 @@ slapi_attr_type_cmp( const char *a1, const char *a2, int opt )
 
     switch ( opt ) {
     case SLAPI_TYPE_CMP_EXACT: /* compare base name + options as given */
-        rc = strcmp( a1, a2 );
+        rc = strcasecmp( a1, a2 );
 		break;
 
     case SLAPI_TYPE_CMP_BASE: /* ignore options on both names - compare base names only */

@@ -384,6 +384,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 
 		return_value = ber_scanf(ber,"a",&rtype);
 		if (LBER_ERROR == return_value) {
+			slapi_ch_free_string(&rtype);
 			rc = LDAP_PROTOCOL_ERROR;
                         goto err;
 		}

@@ -109,58 +109,12 @@ dn2entry(
 }
 
 /*
- * dn2entry_or_ancestor - look up dn in the cache/indexes and return the
- * corresponding entry. If the entry is not found, this function returns NULL
- * and sets ancestordn to the DN of highest entry in the tree matched.
- *
- * ancestordn should be initialized before calling this function.
- * 
- * When the caller is finished with the entry returned, it should return it
- * to the cache:
- *  e = dn2entry_or_ancestor( ... );
- *  if ( NULL != e ) {
- *		cache_return( &inst->inst_cache, &e );
- *	}
- */
-struct backentry *
-dn2entry_or_ancestor(
-    Slapi_Backend	*be,
-    const Slapi_DN	*sdn,
-    Slapi_DN 	*ancestordn,
-    back_txn		*txn,
-    int			*err
-)
-{
-	struct backentry *e;
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2entry_or_ancestor \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
-
-	/*
-	 * Fetch the entry asked for.
-	 */
-
-	e= dn2entry(be,sdn,txn,err);
-
-	if(e==NULL)
-	{
-		/*
-		 * could not find the entry named. crawl back up the dn and
-		 * stop at the first ancestor that does exist, or when we get
-		 * to the suffix.
-		 */
-		e= dn2ancestor(be,sdn,ancestordn,txn,err);
-	}
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dn2entry_or_ancestor %p\n", e, 0, 0 );
-	return( e );
-}
-
-/*
  * Use the DN to fetch the parent of the entry.
  * If the parent entry doesn't exist, keep working
  * up the DN until we hit "" or an backend suffix.
  *
- * ancestordn should be initialized before calling this function.
+ * ancestordn should be initialized before calling this function, and
+ * should be empty
  *
  * Returns NULL for no entry found.
  *
@@ -184,18 +138,64 @@ dn2ancestor(
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2ancestor \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
 
-	/* stop when we get to "", or a backend suffix point */
-	slapi_sdn_done(ancestordn);	/* free any previous contents */
-    slapi_sdn_get_backend_parent(sdn,ancestordn,be);
-	if ( !slapi_sdn_isempty(ancestordn) )
-	{
-		Slapi_DN *newsdn = slapi_sdn_dup(ancestordn);
-		e = dn2entry_or_ancestor( be, newsdn, ancestordn, txn, err );
-		slapi_sdn_free(&newsdn);
-	}
+    /* first, check to see if the given sdn is empty or a root suffix of the
+       given backend - if so, it has no parent */
+    if (!slapi_sdn_isempty(sdn) && !slapi_be_issuffix( be, sdn )) {
+        Slapi_DN ancestorndn;
+        const char *ptr;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dn2ancestor %p\n", e, 0, 0 );
-	return( e );
+        /* assign ancestordn to the parent of the given dn - ancestordn will contain
+           the "raw" unnormalized DN from the caller, so we can give back the DN
+           in the same format as we received it */
+        ptr = slapi_dn_find_parent(slapi_sdn_get_dn(sdn));
+        /* assign the ancestordn dn pointer to the parent of dn from sdn - sdn "owns"
+           the memory, but ancestordn points to it */
+        slapi_sdn_set_dn_byref(ancestordn, ptr); /* free any previous contents */
+        /* now, do the same for the normalized version */
+        /* ancestorndn holds the normalized version for iteration purposes and
+           because dn2entry needs the normalized dn */
+        ptr = slapi_dn_find_parent(slapi_sdn_get_ndn(sdn));
+        slapi_sdn_init_ndn_byref(&ancestorndn, ptr);
+
+        /*
+          At this point you may be wondering why I need both ancestorndn and
+          ancestordn.  Because, with the slapi_sdn interface, you cannot set both
+          the dn and ndn byref at the same time.  Whenever you call set_dn or set_ndn,
+          it calls slapi_sdn_done which wipes out the previous contents.  I suppose I
+          could have added another API to allow you to pass them both in.  Also, using
+          slapi_sdn_get_ndn(ancestordn) every time would result in making a copy then
+          normalizing the copy every time - not efficient.
+          So, why not just use a char* for the ancestorndn?  Because dn2entry requires
+          a Slapi_DN with the normalized dn.
+        */
+
+        /* stop when we get to "", or a backend suffix point */
+        while (!e && !slapi_sdn_isempty(&ancestorndn) && !slapi_be_issuffix( be, &ancestorndn )) {
+            /* find the entry - it uses the ndn, so no further conversion is necessary */
+            e= dn2entry(be,&ancestorndn,txn,err);
+            if (!e) {
+                /* not found, so set ancestordn to its parent and try again */
+                ptr = slapi_dn_find_parent(slapi_sdn_get_ndn(&ancestorndn));
+                /* keep in mind that ptr points to the raw ndn pointer inside
+                   ancestorndn which is still the ndn string "owned" by sdn, the
+                   original dn we started with - we are careful not to touch
+                   or change it */
+                slapi_sdn_set_ndn_byref(&ancestorndn, ptr); /* wipe out the previous contents */
+                /* now do the same for the unnormalized one */
+                ptr = slapi_dn_find_parent(slapi_sdn_get_dn(ancestordn));
+                slapi_sdn_set_dn_byref(ancestordn, ptr); /* wipe out the previous contents */
+            }
+        }
+
+        slapi_sdn_done(&ancestorndn);
+    }
+
+    /* post conditions:
+       e is the entry of the ancestor of sdn OR e is the suffix entry
+       OR e is NULL
+       ancestordn contains the unnormalized DN of e or is empty */
+    LDAPDebug( LDAP_DEBUG_TRACE, "<= dn2ancestor %p\n", e, 0, 0 );
+    return( e );
 }
 
 /*

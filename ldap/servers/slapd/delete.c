@@ -66,7 +66,7 @@ do_delete( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation;
 	BerElement	*ber;
-	char	    *dn;
+	char	    *dn = NULL;
 	int			err;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_delete\n", 0, 0, 0 );
@@ -89,7 +89,7 @@ do_delete( Slapi_PBlock *pb )
 		op_shared_log_error_access (pb, "DEL", "???", "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
 		    NULL );
-		return;
+		goto free_and_return;
 	}
 
 	/*

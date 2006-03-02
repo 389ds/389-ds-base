@@ -986,7 +986,7 @@ void import_foreman(void *param)
     int ret = 0;
     struct attrinfo *parentid_ai;
     Slapi_PBlock *pb = slapi_pblock_new();
-    int shift = 0;
+	int shift = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -1030,8 +1030,8 @@ void import_foreman(void *param)
         /* Read that entry from the cache */
         fi = import_fifo_fetch(job, id, 0, shift);
         if (! fi) {
-            import_log_notice(job, "WARNING: entry id %d is missing");
-            shift++;
+            import_log_notice(job, "WARNING: entry id %d is missing", id);
+			shift++;
             continue;
         }
 
@@ -1052,7 +1052,7 @@ void import_foreman(void *param)
              */
              if (job->flags & FLAG_ABORT) {       
                  goto error;
-                 }
+             }
 
             if (parent_status == IMPORT_ADD_OP_ATTRS_NO_PARENT) {
                 /* If this entry is a suffix entry, this is not a problem */

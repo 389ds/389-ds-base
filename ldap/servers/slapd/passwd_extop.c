@@ -201,6 +201,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 {
 	char		*oid = NULL;
 	char 		*bindDN = NULL;
+    char        *authmethod = NULL;
 	char		*dn = NULL;
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
@@ -297,6 +298,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &dn) == LBER_ERROR )
     		{
+    		slapi_ch_free_string(&dn);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at userID parse.\n";
@@ -313,6 +315,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &oldPasswd ) == LBER_ERROR )
     		{
+    		slapi_ch_free_string(&oldPasswd);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at oldPasswd parse.\n";
@@ -331,6 +334,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &newPasswd ) == LBER_ERROR )
     		{
+    		slapi_ch_free_string(&newPasswd);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at newPasswd parse.\n";
@@ -379,7 +383,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	 /* Did they give us a DN ? */
 	 if (dn == NULL || *dn == '\0') {
 	 	/* Get the DN from the bind identity on this connection */
-		dn = bindDN;
+        dn = slapi_ch_strdup(bindDN);
 		LDAPDebug( LDAP_DEBUG_ANY,
     		    "Missing userIdentity in request, using the bind DN instead.\n",
 		     0, 0, 0 );
@@ -455,7 +459,17 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	
 	/* Free anything that we allocated above */
 	free_and_return:
-	
+
+    slapi_ch_free_string(&oldPasswd);
+    slapi_ch_free_string(&newPasswd);
+    /* Either this is the same pointer that we allocated and set above,
+       or whoever used it should have freed it and allocated a new
+       value that we need to free here */
+	slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET, &dn );
+    slapi_ch_free_string(&dn);
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
+    slapi_ch_free_string(&authmethod);
+
 	if ( targetEntry != NULL ){
 		slapi_entry_free (targetEntry); 
 	}
@@ -467,7 +481,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	
 	
 	slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
-				 errMesg );
+                     errMesg ? errMesg : "success" );
 	send_ldap_result( pb, rc, NULL, errMesg, 0, NULL );
 	
 

@@ -53,10 +53,12 @@ get_ava(
     struct ava	*ava
 )
 {
-	char	*type;
+	char	*type = NULL;
 
 	if ( ber_scanf( ber, "{ao}", &type, &ava->ava_value )
 	    == LBER_ERROR ) {
+        slapi_ch_free_string(&type);
+        ava_done(ava);
 		LDAPDebug( LDAP_DEBUG_ANY, "  get_ava ber_scanf\n", 0, 0, 0 );
 		return( LDAP_PROTOCOL_ERROR );
 	}
