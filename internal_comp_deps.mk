@@ -132,6 +132,12 @@ ifeq ($(USE_64), 1)
 # do not need redundant copy of nssckbi
   NSS32_NSPR32_SRC_LIBS = $(filter-out $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI32_FILE),$(wildcard $(SHARED32_BUILD_DIR)/lib/*))
   PACKAGE_SRC_DEST += $(addsuffix $(SPACE)shared32/lib,$(NSS32_NSPR32_SRC_LIBS))
+
+ifdef BUILD_PATCH
+# need 32-bit LDAP C SDK libs for SP2
+  LDAPSDK32_IMPORT = $(subst $(NS64TAG),,$(LDAP_RELEASE))
+  LDAPSDK32_PULLFILES = lib/$(LIB_PREFIX)$(subst $(SPACE),$(COMMA)lib/$(LIB_PREFIX),$(addsuffix .$(DLL_SUFFIX),$(LDAP_SOLIB_NAMES)))
+endif # BUILD_PATCH
 endif # USE_64
 
 ifdef VSFTPD_HACK
@@ -168,7 +174,12 @@ ifeq ($(USE_64), 1)
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(SHARED32_BUILD_DIR) -componentdir $(NSS32_IMPORT) \
 		-files $(subst $(SPACE),$(COMMA),$(NSS32_PULLFILES))
-	mv $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI_FILE) $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI32_FILE)
+ifdef BUILD_PATCH
+	$(FTP_PULL) -method $(LDAPSDK_PULL_METHOD) \
+		-objdir $(SHARED32_BUILD_DIR) -componentdir $(LDAPSDK32_IMPORT) \
+		-files $(subst $(SPACE),$(COMMA),$(LDAPSDK32_PULLFILES))
+endif
+	mv -f $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI_FILE) $(SHARED32_BUILD_DIR)/lib/$(NSSCKBI32_FILE)
 endif # USE_64
 endif # COMPONENT_DEPS
 	-@if [ ! -f $@ ] ; \

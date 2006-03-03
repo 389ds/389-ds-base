@@ -41,6 +41,7 @@
 # file: bug#: <patchfile>
 # compfile: bug#: <patch_zipfile>:<patchfile> 
 #                 %DISTDIR% points <buildroot>/dist/<platform>
+#                 %DISTDIR32% points <buildroot>/dist/<platform>/shared32
 #
 base: /share/builds/products/server/directry/7.1
 
@@ -75,11 +76,11 @@ file: M324525,M324529: clients/lib/libldap50.*
 file: M324525,M324529: clients/lib/libprldap50.*
 file: M324525,M324529: clients/lib/libssldap50.*
 
-copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libldap50.*:bin/https/lib/libldap50.*
-copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libprldap50.*:bin/https/lib/libprldap50.*
-copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libssldap50.*:bin/https/lib/libssldap50.*
-copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libldap50.*:bin/admin/lib/libldap50.*
-copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libprldap50.*:bin/admin/lib/libprldap50.*
-copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR%/ldapsdk/lib/libssldap50.*:bin/admin/lib/libssldap50.*
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/lib/libldap50.*:bin/https/lib/libldap50.*
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/lib/libprldap50.*:bin/https/lib/libprldap50.*
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/lib/libssldap50.*:bin/https/lib/libssldap50.*
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/lib/libldap50.*:bin/admin/lib/libldap50.*
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/lib/libprldap50.*:bin/admin/lib/libprldap50.*
+copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/lib/libssldap50.*:bin/admin/lib/libssldap50.*
 
 compfile: 171306: %DISTDIR%/admserv/admin/nsadmin.zip:manual/help/help

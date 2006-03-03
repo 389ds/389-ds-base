@@ -715,7 +715,7 @@ endif
 ifdef BUILD_PATCH
 # take care of files in components (e.g., a file in nsadmin.zip)
 	-@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
-	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
+	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR32%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)\/shared32/" | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
 	  afile=`echo $$pair | awk -F: '{print $$2}'` ; \
 	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); $(UNZIP) -o $$zipfile $$afile ; \
 	done
@@ -723,7 +723,7 @@ ifdef BUILD_PATCH
 # copying files from the component area
 	-@for pair in `grep "^copyfile:" $(PATCHINF) | awk '{print $$3}'`; do \
 	  zipfile=`echo $$pair | awk -F: '{print $$1}'` ; \
-	  sfile=`echo $$pair | awk -F: '{print $$2}' | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
+	  sfile=`echo $$pair | awk -F: '{print $$2}' | sed -e "s/%DISTDIR32%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)\/shared32/" | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
 	  dfile=`echo $$pair | awk -F: '{print $$3}'` ; \
 	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); \
 	  mkdir -p `dirname $$dfile`; cp $$sfile `dirname $$dfile` ; \
