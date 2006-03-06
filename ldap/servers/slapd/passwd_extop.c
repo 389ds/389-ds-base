@@ -135,7 +135,6 @@ passwd_modify_getEntry( const char *dn, Slapi_Entry **e2 ) {
 static int passwd_apply_mods(const char *dn, Slapi_Mods *mods) 
 {
 	Slapi_PBlock pb;
-	Slapi_Operation *operation= NULL;
 	int ret=0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_apply_mods\n", 0, 0, 0 );
@@ -149,9 +148,6 @@ static int passwd_apply_mods(const char *dn, Slapi_Mods *mods)
 		  NULL, /* UniqueID */
 		  pw_get_componentID(), /* PluginID */
 		  0); /* Flags */ 
-
-	 /* Plugin operations are INTERNAL by default, bypass it to enforce ACL checks */
-	 slapi_pblock_get (&pb, SLAPI_OPERATION, &operation);
 
 	 ret =slapi_modify_internal_pb (&pb);
   

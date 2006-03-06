@@ -647,8 +647,10 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 
 	pw_apply_mods(dn, &smods);
 	slapi_mods_done(&smods);
-	/* reset c_needpw to 0 */
-	pb->pb_conn->c_needpw = 0;
+    if (pb->pb_conn) { /* no conn for internal op */
+        /* reset c_needpw to 0 */
+        pb->pb_conn->c_needpw = 0;
+    }
     return 0;
 }
 
