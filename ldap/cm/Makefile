@@ -233,6 +233,14 @@ ESCAPED_ABS_DISTDIR = $(shell echo $(ABS_DISTDIR) | sed -e 's/\//\\\//g')
 ifdef BUILD_PATCH
 PATCHINSTDIR = $(ABS_INSTDIR)-SP
 SLAPDSP = slapd-71sp2
+PATCH_DISTDIR=$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)
+ifeq ($(USE_64), 1)
+  PATCH_DISTDIR32=$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)\/shared32
+  PATCH_LDAPSDK=
+else
+  PATCH_DISTDIR32=$(PATCH_DISTDIR)
+  PATCH_LDAPSDK=ldapsdk
+endif
 endif
 
 INST_TARGET_RESKIT=$(INSTDIR)/reskit
@@ -714,16 +722,18 @@ endif
 
 ifdef BUILD_PATCH
 # take care of files in components (e.g., a file in nsadmin.zip)
+	@echo compfile...
 	-@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
-	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR32%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)\/shared32/" | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
+	  zipfile=`echo $$pair | awk -F: '{print $$1}' | sed -e "s/%DISTDIR32%/$(PATCH_DISTDIR32)/" | sed -e "s/%DISTDIR%/$(PATCH_DISTDIR)/"` ; \
 	  afile=`echo $$pair | awk -F: '{print $$2}'` ; \
 	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); $(UNZIP) -o $$zipfile $$afile ; \
 	done
 
 # copying files from the component area
+	@echo copyfile...
 	-@for pair in `grep "^copyfile:" $(PATCHINF) | awk '{print $$3}'`; do \
 	  zipfile=`echo $$pair | awk -F: '{print $$1}'` ; \
-	  sfile=`echo $$pair | awk -F: '{print $$2}' | sed -e "s/%DISTDIR32%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)\/shared32/" | sed -e "s/%DISTDIR%/$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)/"` ; \
+	  sfile=`echo $$pair | awk -F: '{print $$2}' | sed -e "s/%DISTDIR32%/$(PATCH_DISTDIR32)/" | sed -e "s/%LDAPSDK%/$(PATCH_LDAPSDK)/" | sed -e "s/%DISTDIR%/$(PATCH_DISTDIR)/"` ; \
 	  dfile=`echo $$pair | awk -F: '{print $$3}'` ; \
 	  cd $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR); \
 	  mkdir -p `dirname $$dfile`; cp $$sfile `dirname $$dfile` ; \
