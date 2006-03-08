@@ -72,6 +72,7 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
     backend *be = inst->inst_be;
     
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
+    /* vlvSearchList is modified; need Wlock */
     PR_RWLock_Wlock(be->vlvSearchList_lock);
     vlvSearch_addtolist(newVlvSearch, (struct vlvSearch **)&be->vlvSearchList);
     PR_RWLock_Unlock(be->vlvSearchList_lock);
@@ -89,7 +90,8 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
 	slapi_sdn_init(&parentdn);
 	slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
     {
-		PR_RWLock_Wlock(be->vlvSearchList_lock);
+        /* vlvIndex list is modified; need Wlock */
+        PR_RWLock_Wlock(be->vlvSearchList_lock);
         parent= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
         if(parent!=NULL)
         {
@@ -109,10 +111,11 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
 int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
     struct vlvSearch* p=NULL;
-	backend *be= ((ldbm_instance*)arg)->inst_be;
+    backend *be= ((ldbm_instance*)arg)->inst_be;
 	
-	PR_RWLock_Wlock(be->vlvSearchList_lock);
-	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
+    /* vlvSearchList is modified; need Wlock */
+    PR_RWLock_Wlock(be->vlvSearchList_lock);
+    p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {	
 		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
@@ -269,7 +272,7 @@ void vlv_grok_new_import_entry(const struct backentry *e, backend *be)
     int any_not_done = 0;
 
 
-	PR_RWLock_Wlock(be->vlvSearchList_lock); 
+    PR_RWLock_Wlock(be->vlvSearchList_lock); 
     if (seen_them_all) {
 		PR_RWLock_Unlock(be->vlvSearchList_lock);
         return;
@@ -320,6 +323,7 @@ vlv_init(ldbm_instance *inst)
     {
         struct vlvSearch *t = NULL;
         struct vlvSearch *nt = NULL;
+        /* vlvSearchList is modified; need Wlock */
         PR_RWLock_Wlock(be->vlvSearchList_lock);
         for (t = (struct vlvSearch *)be->vlvSearchList; NULL != t; )
         {
@@ -762,8 +766,8 @@ vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_P
  *
  * JCM: If only non-sorted attributes are changed, then the indexes don't need updating.
  * JCM: Detecting this fact, given multi-valued atribibutes, might be tricky...
- *  Added write lock
-*/
+ * Read lock (traverse vlvSearchList; no change on vlvSearchList/vlvIndex lists)
+ */
 
 int
 vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry)
@@ -772,7 +776,7 @@ vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct back
     struct vlvSearch* ps=NULL;
 	struct ldbminfo *li = ((ldbm_instance *)be->be_instance_info)->inst_li;
 	
-	PR_RWLock_Wlock(be->vlvSearchList_lock);
+	PR_RWLock_Rlock(be->vlvSearchList_lock);
 	ps = (struct vlvSearch *)be->vlvSearchList;
     for(;ps!=NULL;ps= ps->vlv_next)
     {
@@ -1927,10 +1931,11 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	tag1=create_vlv_search_tag(dn);
 	buf=slapi_ch_smprintf("%s%s%s%s%s","cn=MCC ",tag1,", cn=",inst->inst_name,LDBM_PLUGIN_ROOT);
 	newdn=slapi_sdn_new_dn_byval(buf);
+	/* vlvSearchList is modified; need Wlock */
 	PR_RWLock_Wlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
-    if(p!=NULL)
-    {	
+	if(p!=NULL)
+	{	
 		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
 		tag2=create_vlv_search_tag(dn);
 		buf2=slapi_ch_smprintf("%s%s,%s",TAG,tag2,buf);
