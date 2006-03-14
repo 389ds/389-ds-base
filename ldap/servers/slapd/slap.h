@@ -1268,6 +1268,10 @@ typedef struct conn {
 				  * Start TLS request operation. 
 				  */
 
+#define CONN_FLAG_SASL_COMPLETE 32  /* Flag set when a sasl bind has been
+                                     * successfully completed.
+                                     */
+
 
 
 #define START_TLS_OID    "1.3.6.1.4.1.1466.20037"
