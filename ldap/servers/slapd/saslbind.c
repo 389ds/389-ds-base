@@ -887,11 +887,11 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
      * mechanism changed in the middle of the SASL authentication
      * process. */
     if ((pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
-        /* Lock the connection mutex */
-        PR_Lock(pb->pb_conn->c_mutex);
-
         /* reset flag */
         pb->pb_conn->c_flags &= ~CONN_FLAG_SASL_COMPLETE;
+
+        /* Lock the connection mutex */
+        PR_Lock(pb->pb_conn->c_mutex);
 
         /* remove any SASL I/O from the connection */
         sasl_io_cleanup(pb->pb_conn);
