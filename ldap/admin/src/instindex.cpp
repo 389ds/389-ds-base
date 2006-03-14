@@ -134,12 +134,16 @@ int main(int argc, char *argv[], char * /*envp*/ [])
 		else
 			fclose(infFile);
 
+		if (!status)
+			status = create_config_from_inf(&cf, argc, argv);
 		if (reconfig)
-			status = reconfigure_instance(argc, argv);
+		{
+			status = update_server(&cf);
+			if (!status)
+				status = reconfigure_instance(argc, argv);
+		}
 		else
 		{
-			if (!status)
-				status = create_config_from_inf(&cf, argc, argv);
 			if (!status)
 				status = create_config(&cf);
 			if (!status)

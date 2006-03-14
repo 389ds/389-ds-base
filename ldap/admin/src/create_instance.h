@@ -132,6 +132,10 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf);
    additional detail
  */
 char *create_server(server_config_s *cf, char *param_name);
+/*
+   Update script files in the instance directory
+*/
+int update_server(server_config_s *cf);
 
 /* from script-gen.c */
 int generate_script(const char *inpath, const char *outpath, int mode,

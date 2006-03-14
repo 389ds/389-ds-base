@@ -1057,74 +1057,15 @@ char *setup_ntserver(server_config_s *cf)
 }
 #endif
 
-/* ---------------------- Create configuration files ---------------------- */
-
-
-char *create_server(server_config_s *cf, char *param_name)
+static char *
+create_scripts(server_config_s *cf, char *param_name)
 {
-    char line[PATH_SIZE], *t, *sroot = cf->sroot;
+    char *t, *sroot = cf->sroot;
     char subdir[PATH_SIZE];
-
-#if defined( SOLARIS )
-    /*
-     * Solaris 9+ specific installation 
-     */
-    char otherline[PATH_SIZE];
-    char subdirvar[PATH_SIZE];
-    char subdiretc[PATH_SIZE];
-    char *sub;
-#endif /* SOLARIS */
-
-    if (param_name)
-        param_name[0] = 0; /* init to empty string */
-
-#ifdef XP_UNIX
-    if (!cf->servuser)
-        getSuiteSpotUserGroup(cf);
-#else
-    /* Abort if the service exists on NT */
-    if (t = service_exists(cf->servid)) {
-        PL_strncpyz(param_name, "servid", BIG_LINE);
-        return t;
-    }
-#endif
-
-    if( (t = sanity_check(cf, param_name)) )
-        return t;
 
     /* Create slapd-nickname directory */
     PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
                  cf->servid);
-    if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
-        return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
-    
-    /* Create slapd-nickname/config directory */
-    PR_snprintf(line, sizeof(line), "%s%cconfig", subdir, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-
-    /* Create slapd-nickname/config/schema directory */
-    PR_snprintf(line, sizeof(line), "%s%cconfig%cschema", subdir, FILE_PATHSEP, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-
-#if defined (BUILD_PRESENCE)
-    /* Create slapd-nickname/config/presence directory */
-    PR_snprintf(line, sizeof(line), "%s%cconfig%cpresence", subdir, FILE_PATHSEP, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-#endif
-
-    /* Create slapd-nickname/logs directory */
-    PR_snprintf(line, sizeof(line), "%s%clogs", subdir, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWSECDIR_MODE)) )
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-
-    /* Create httpacl directory */
-    PR_snprintf(line, sizeof(line), "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) )
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-
 #ifdef XP_UNIX
     /* Start/stop/rotate/restart scripts */
     if (getenv("USE_DEBUGGER"))
@@ -1180,17 +1121,6 @@ char *create_server(server_config_s *cf, char *param_name)
                subdir,
            cf->loglevel ? cf->loglevel : "0"
         );
-/*
-        t = gen_script(subdir, START_SCRIPT,
-               "NETSITE_ROOT=%s\n"
-               "export NETSITE_ROOT\n"
-               "cd %s/bin/%s/server; /usr/bin/X11/xterm -fn 10x20 -sb -sl 2000 -e /bin/ladebug "
-               "-I /u/richm/ds50/ldapserver/ldap/servers/slapd/back-ldbm "
-               "-I /u/richm/ds50/ldapserver/ldap/servers/slapd "
-               "%s &\n",
-               sroot, sroot, PRODUCT_NAME, PRODUCT_BIN
-        );
-*/
 #else
         t = gen_script(subdir, START_SCRIPT,
                "\n"
@@ -1418,12 +1348,137 @@ char *create_server(server_config_s *cf, char *param_name)
     t = gen_script(subdir, RESTART_SCRIPT".bat", "net stop slapd-%s\n"
                    "net start slapd-%s\n", cf->servid, cf->servid);
     if(t) return t;
+#endif  /* XP_WIN32 */
+}
 
+/* ---------------------- Update server script files ---------------------- */
+int update_server(server_config_s *cf)
+{
+    char line[PATH_SIZE], *t, *sroot = cf->sroot;
+    char subdir[PATH_SIZE];
+	char error_param[BIG_LINE] = {0};
 
-#endif /* XP_WIN32 */
+#if defined( SOLARIS )
+    /*
+     * Solaris 9+ specific installation 
+     */
+    char otherline[PATH_SIZE];
+    char subdirvar[PATH_SIZE];
+    char subdiretc[PATH_SIZE];
+    char *sub;
+#endif /* SOLARIS */
+
+    error_param[0] = 0; /* init to empty string */
+
+#ifdef XP_UNIX
+    if (!cf->servuser)
+        getSuiteSpotUserGroup(cf);
+#else
+    /* Abort if the service exists on NT */
+    if (t = service_exists(cf->servid)) {
+        PL_strncpyz(error_param, "servid", BIG_LINE);
+        goto out;
+    }
+#endif
+
+    if( (t = sanity_check(cf, error_param)) )
+        goto out;
+
+    t = create_scripts(cf, error_param);
+    if(t) goto out;
+
+out:
+    if(t)
+	{
+		char *msg;
+		if (error_param[0])
+		{
+			msg = PR_smprintf("%s.error:could not update server %s - %s",
+							  error_param, cf->servid, t);
+		}
+		else
+		{
+			msg = PR_smprintf("error:could not update server %s - %s",
+							  cf->servid, t);
+		}
+		ds_show_message(msg);
+		PR_smprintf_free(msg);
+		return 1;
+	}
+	else
+		return 0;
+}
+
+/* ---------------------- Create configuration files ---------------------- */
+char *create_server(server_config_s *cf, char *param_name)
+{
+    char line[PATH_SIZE], *t, *sroot = cf->sroot;
+    char subdir[PATH_SIZE];
+
+#if defined( SOLARIS )
+    /*
+     * Solaris 9+ specific installation 
+     */
+    char otherline[PATH_SIZE];
+    char subdirvar[PATH_SIZE];
+    char subdiretc[PATH_SIZE];
+    char *sub;
+#endif /* SOLARIS */
+
+    if (param_name)
+        param_name[0] = 0; /* init to empty string */
+
+#ifdef XP_UNIX
+    if (!cf->servuser)
+        getSuiteSpotUserGroup(cf);
+#else
+    /* Abort if the service exists on NT */
+    if (t = service_exists(cf->servid)) {
+        PL_strncpyz(param_name, "servid", BIG_LINE);
+        return t;
+    }
+#endif
+
+    if( (t = sanity_check(cf, param_name)) )
+        return t;
+
+    /* Create slapd-nickname directory */
+    PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
+                 cf->servid);
+    if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
+        return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
+    
+    /* Create slapd-nickname/config directory */
+    PR_snprintf(line, sizeof(line), "%s%cconfig", subdir, FILE_PATHSEP);
+    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
+        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+
+    /* Create slapd-nickname/config/schema directory */
+    PR_snprintf(line, sizeof(line), "%s%cconfig%cschema", subdir, FILE_PATHSEP, FILE_PATHSEP);
+    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
+        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+
+#if defined (BUILD_PRESENCE)
+    /* Create slapd-nickname/config/presence directory */
+    PR_snprintf(line, sizeof(line), "%s%cconfig%cpresence", subdir, FILE_PATHSEP, FILE_PATHSEP);
+    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
+        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+#endif
+
+    /* Create slapd-nickname/logs directory */
+    PR_snprintf(line, sizeof(line), "%s%clogs", subdir, FILE_PATHSEP);
+    if( (create_instance_mkdir(line, NEWSECDIR_MODE)) )
+        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+
+    /* Create httpacl directory */
+    PR_snprintf(line, sizeof(line), "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
+    if( (create_instance_mkdir(line, NEWDIR_MODE)) )
+        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+
+    t = create_scripts(cf, param_name);
+    if(t) return t;
 
 #ifdef XP_WIN32
-
     if ( INFO_GetOperatingSystem () == OS_WINNT ) {
 
         if( (t =  add_ntservice(cf)) )
