@@ -881,6 +881,36 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
  sasl_start:
 
+    /* Check if we are already authenticated via sasl.  If so,
+     * dispose of the current sasl_conn and create a new one
+     * using the new mechanism.  We also need to do this if the
+     * mechanism changed in the middle of the SASL authentication
+     * process. */
+    if ((pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
+        /* Lock the connection mutex */
+        PR_Lock(pb->pb_conn->c_mutex);
+
+        /* reset flag */
+        pb->pb_conn->c_flags &= ~CONN_FLAG_SASL_COMPLETE;
+
+        /* remove any SASL I/O from the connection */
+        sasl_io_cleanup(pb->pb_conn);
+
+        /* dispose of sasl_conn and create a new sasl_conn */
+        sasl_dispose(&sasl_conn);
+        ids_sasl_server_new(pb->pb_conn);
+        sasl_conn = (sasl_conn_t*)pb->pb_conn->c_sasl_conn;
+
+        /* Unlock the connection mutex */
+        PR_Unlock(pb->pb_conn->c_mutex);
+
+        if (sasl_conn == NULL) {
+            send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
+                          "sasl library unavailable", 0, NULL );
+            return;
+        }
+    }
+
     rc = sasl_server_start(sasl_conn, mech, 
                            cred->bv_val, cred->bv_len, 
                            &sdata, &slen);
@@ -889,6 +919,8 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
     switch (rc) {
     case SASL_OK:               /* complete */
+        /* Set a flag to signify that sasl bind is complete */
+        pb->pb_conn->c_flags |= CONN_FLAG_SASL_COMPLETE;
 
         /* retrieve the authenticated username */
         if (sasl_getprop(sasl_conn, SASL_USERNAME,
