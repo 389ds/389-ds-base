@@ -244,9 +244,7 @@ IDList * idl_new_fetch(
     ret = cursor->c_get(cursor,&key,&data,DB_SET);
 #endif
     if (0 != ret) {
-        if (DB_NOTFOUND == ret) {
-            ret = 0;
-        } else {
+        if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
             if (ret == ENOMEM) {
                 LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
