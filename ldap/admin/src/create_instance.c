@@ -1060,7 +1060,7 @@ char *setup_ntserver(server_config_s *cf)
 static char *
 create_scripts(server_config_s *cf, char *param_name)
 {
-    char *t, *sroot = cf->sroot;
+    char *t = NULL, *sroot = cf->sroot;
     char subdir[PATH_SIZE];
 
     /* Create slapd-nickname directory */
@@ -1349,6 +1349,8 @@ create_scripts(server_config_s *cf, char *param_name)
                    "net start slapd-%s\n", cf->servid, cf->servid);
     if(t) return t;
 #endif  /* XP_WIN32 */
+
+    return t; /* should be NULL */
 }
 
 /* ---------------------- Update server script files ---------------------- */
