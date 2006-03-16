@@ -222,15 +222,15 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
 				&err )) != NULL ) {
 	    pid = idl_firstid( idl );
 	    idl_free( idl );
-	} else if ( 0 != err ) {
-	    if (DB_NOTFOUND != err ) {
+	} else {
+	    /* empty idl */
+	    if ( 0 != err && DB_NOTFOUND != err ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "database error %d\n", err, 0, 0 );
 		slapi_ch_free( (void**)&pdn );
 		return( -1 );
-	    } else {
-		if (NULL != status) {
-		    *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
-		}
+	    }
+	    if (NULL != status) {
+	        *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
 	    }
 	}
 	slapi_ch_free( (void**)&pdn );
