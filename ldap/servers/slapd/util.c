@@ -717,6 +717,7 @@ strarray2str( char **a, char *buf, size_t buflen, int include_quotes )
    Returns 0 upon success or non-zero otherwise, usually -1 if
    some system error occurred
 */
+#ifndef _WIN32
 int
 slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 {
@@ -737,6 +738,7 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 
         return result;
 }
+#endif
 
 /*
  * Compare 2 pathes
