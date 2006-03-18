@@ -59,7 +59,7 @@ file: 160003: bin/slapd/admin/bin/upgradeServer
 file: 164836,165600: lib/attr-unique-plugin.*
 file: 165640: lib/views-plugin.*
 file: 167478,160589: setup/setup
-file: 156120,159037,170321,170328,170556,170558,170816: winsync/PassSync.msi
+file: 156120,159037,170321,170328,170556,170558,170816,185765: winsync/PassSync.msi
 file: 167761: java/jars/ds71.jar
 file: 169388,169954,170071,170350,181827,179135,179137: lib/replication-plugin.*
 file: xxxxxx: bin/slapd/README.txt
