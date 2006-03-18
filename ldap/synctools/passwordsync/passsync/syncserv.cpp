@@ -242,6 +242,7 @@ void PassSyncService::Run()
 	}
 
 exit:
+	clearSet(&passInfoList);
 	CloseHandle(passhookEventHandle);
 }
 
@@ -254,7 +255,7 @@ int PassSyncService::SyncPasswords()
 	PASS_INFO_LIST emptyPassInfoList;
 	PASS_INFO_LIST_ITERATOR currentPassInfo;
 	PASS_INFO_LIST_ITERATOR tempPassInfo;
-	char* dn;
+	char* dn = NULL;
 	int tempSize = passInfoList.size();
 
 	if(loadSet(&passInfoList, dataFilename) == 0)
@@ -349,6 +350,9 @@ int PassSyncService::SyncPasswords()
 					timeStamp(&outLog);
 					outLog << "Deferring password change for " << currentPassInfo->username << endl;
 					currentPassInfo++;
+					// free dn
+					ldap_memfree(dn);
+					dn = NULL;
 					continue;
 				}
 				else
@@ -366,6 +370,16 @@ int PassSyncService::SyncPasswords()
 					timeStamp(&outLog);
 					outLog << "Removing password change from list" << endl;
 				}
+
+				// free the dn
+				ldap_memfree(dn);
+				dn = NULL;
+
+				// free the username and password
+				free(tempPassInfo->username);
+				free(tempPassInfo->password);
+
+				// remove the completed change from the list
 				passInfoList.erase(tempPassInfo);
 			}
 		}
@@ -447,7 +461,10 @@ int PassSyncService::QueryUsername(char* username)
 	int result = 0;
 	char searchFilter[SYNCSERV_BUF_SIZE];
 
-	results = NULL;
+	if (results != NULL) {
+		ldap_msgfree(results);
+		results = NULL;
+	}
 
 	_snprintf(searchFilter, SYNCSERV_BUF_SIZE, "(%s=%s)", ldapUsernameField, username);
 
@@ -640,6 +657,12 @@ void PassSyncService::UpdateBackoff()
 
 			tempPassInfo = currentPassInfo;
 			currentPassInfo++;
+
+			// free the username and password
+			free(tempPassInfo->username);
+			free(tempPassInfo->password);
+
+			// remove the change from the list
 			passInfoList.erase(tempPassInfo);
 		}
 		else

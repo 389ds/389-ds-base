@@ -65,6 +65,6 @@
 #define DS_SERVICE_NAME_UNI L"Netscape Directory Synchronization Service"
 #define DS_EVENT_NAME TEXT("Netscape DirSynch")
 #define DSS_TERM_EVENT TEXT("NS_DSSYNCH")
-#define SYNCH_VERSION "1.0.1"
+#define SYNCH_VERSION "1.0.2"
 
 #endif // _DSSYNCH_H_

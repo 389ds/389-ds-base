@@ -62,7 +62,7 @@ int saveSet(PASS_INFO_LIST* passInfoList, char* filename)
 	fstream outFile;
 	PASS_INFO_LIST_ITERATOR currentPair;
 	strstream plainTextStream;
-	char* cipherTextBuf;
+	char* cipherTextBuf = NULL;
 	int usernameLen;
 	int passwordLen;
 	int plainTextLen;
@@ -90,7 +90,10 @@ int saveSet(PASS_INFO_LIST* passInfoList, char* filename)
 	// cipherTextBuf length must be at least plainTextLen + 8
 	cipherTextLen = plainTextLen + 8;
 
-	cipherTextBuf = (char*)malloc(cipherTextLen);
+	if ((cipherTextBuf = (char*)malloc(cipherTextLen)) == NULL) {
+		result = -1;
+		goto exit;
+	}
 
 	if(encrypt(plainTextStream.str(), plainTextLen, cipherTextBuf, cipherTextLen, &resultTextLen) != 0)
 	{
@@ -109,6 +112,7 @@ int saveSet(PASS_INFO_LIST* passInfoList, char* filename)
 	outFile.close();
 
 exit:
+	free(cipherTextBuf);
 	return result;
 }
 
@@ -119,8 +123,8 @@ int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 	fstream inFile;
 	PASS_INFO newPair;
 	strstream* plainTextStream;
-	char* cipherTextBuf;
-	char* plainTextBuf;
+	char* cipherTextBuf = NULL;
+	char* plainTextBuf = NULL;
 	int usernameLen;
 	int passwordLen;
 	int plainTextLen;
@@ -144,6 +148,12 @@ int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 
 	cipherTextBuf = (char*)malloc(cipherTextLen);
 	plainTextBuf = (char*)malloc(plainTextLen);
+
+	if ((cipherTextBuf == NULL) || (plainTextBuf == NULL)) {
+		result = -1;
+		inFile.close();
+		goto exit;
+	}
 
 	inFile.read(cipherTextBuf, cipherTextLen);
 	inFile.close();
@@ -183,6 +193,8 @@ int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 	delete plainTextStream;
 
 exit:
+	free(cipherTextBuf);
+	free(plainTextBuf);
 	return result;
 }
 
@@ -205,7 +217,6 @@ int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int ciphe
 	PK11Context* EncContext = NULL;
 	unsigned char gKey[] = KEY;
 	unsigned char gIV[] = IV;
-	PK11SymKey* key = NULL;
 	SECItem keyItem;
 	SECItem	ivItem;
 	CK_MECHANISM_TYPE cipherMech = CKM_DES_CBC_PAD;
@@ -234,6 +245,7 @@ int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int ciphe
 	SymKey = PK11_ImportSymKey(slot, cipherMech, PK11_OriginUnwrap, CKA_ENCRYPT, &keyItem, NULL);
 	if(SymKey == NULL)
 	{
+		PK11_FreeSlot(slot);
 		result = PR_GetError();
 		goto exit;
 	}
@@ -247,6 +259,7 @@ int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int ciphe
 		if(SymKey != NULL)
 		{
 			PK11_FreeSymKey(SymKey);
+			PK11_FreeSlot(slot);
 		}
 		result = PR_GetError();
 		goto exit;
@@ -266,6 +279,7 @@ int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int ciphe
 	// Clean up
 	PK11_DestroyContext(EncContext, PR_TRUE);
 	PK11_FreeSymKey(SymKey);
+	PK11_FreeSlot(slot);
 	SECITEM_FreeItem(SecParam, PR_TRUE);
 
 	if((rv2 != SECSuccess) || (rv2 != SECSuccess))
@@ -288,7 +302,6 @@ int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plai
 	PK11Context* EncContext = NULL;
 	unsigned char gKey[] = KEY;
 	unsigned char gIV[] = IV;
-	PK11SymKey* key = NULL;
 	SECItem keyItem;
 	SECItem	ivItem;
 	CK_MECHANISM_TYPE cipherMech = CKM_DES_CBC_PAD;
@@ -317,6 +330,7 @@ int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plai
 	SymKey = PK11_ImportSymKey(slot, cipherMech, PK11_OriginUnwrap, CKA_ENCRYPT, &keyItem, NULL);
 	if(SymKey == NULL)
 	{
+		PK11_FreeSlot(slot);
 		result = PR_GetError();
 		goto exit;
 	}
@@ -330,6 +344,7 @@ int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plai
 		if(SymKey != NULL)
 		{
 			PK11_FreeSymKey(SymKey);
+			PK11_FreeSlot(slot);
 		}
 		result = PR_GetError();
 		goto exit;
@@ -349,6 +364,7 @@ int decrypt(char* cipherTextBuf, int cipherTextLen, char* plainTextBuf, int plai
 	// Clean up
 	PK11_DestroyContext(EncContext, PR_TRUE);
 	PK11_FreeSymKey(SymKey);
+	PK11_FreeSlot(slot);
 	SECITEM_FreeItem(SecParam, PR_TRUE);
 
 	if((rv2 != SECSuccess) || (rv2 != SECSuccess))
