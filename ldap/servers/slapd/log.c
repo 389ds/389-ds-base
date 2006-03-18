@@ -3298,12 +3298,13 @@ log__open_errorlogfile(int logfile_state, int locked)
 		*/
 		return LOG_UNABLE_TO_OPENFILE;
 	}
-
+#ifndef _WIN32
 	/* make sure the logfile is owned by the localuser.  If one of the
 	 * alternate ns-slapd modes, such as db2bak, tries to log an error
 	 * at startup, it will create the logfile as root! 
 	 */
 	slapd_chown_if_not_owner(loginfo.log_error_file, pw->pw_uid, -1);
+#endif
 
 	loginfo.log_error_fdes = fp;
 	if (logfile_state == LOGFILE_REOPENED) {
