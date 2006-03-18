@@ -48,7 +48,9 @@
 
 #include "log.h"
 #include "fe.h"
+#ifndef _WIN32
 #include <pwd.h> /* getpwnam */
+#endif
 
 #if defined( XP_WIN32 )
 #include <fcntl.h>
