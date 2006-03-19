@@ -114,6 +114,7 @@ EXPORTS
 ;	send_read_referrals             @77 
 ;	ref_array_dup                   @78 
 ;	ref_array_dup_free              @79 
+	slapi_dn_find_parent		@79
 	slapi_dn_beparent			@80
 	slapi_ldap_init			@81
 	slapi_ldap_unbind		@82
