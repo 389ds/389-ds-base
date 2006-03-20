@@ -2702,7 +2702,7 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 	if (0 == retval && do_modify)
 	{
 		char dnbuf[BUFSIZ];
-		char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry));
+		const char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry));
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"windows_update_remote_entry: modifying entry %s\n", escape_string(dn, dnbuf));
 
@@ -2710,7 +2710,7 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 	} else
 	{
 		char dnbuf[BUFSIZ];
-		char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry));
+		const char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry));
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"no mods generated for remote entry: %s\n", escape_string(dn, dnbuf));
 	}
@@ -2738,7 +2738,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		if (pb)
 		{
 			char dnbuf[BUFSIZ];
-			char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
+			const char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
 			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 				"modifying entry: %s\n", escape_string(dn, dnbuf));
 			slapi_modify_internal_set_pb (pb, slapi_entry_get_ndn(local_entry), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL,
@@ -2760,7 +2760,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	} else
 	{
 		char dnbuf[BUFSIZ];
-		char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
+		const char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"no mods generated for local entry: %s\n", escape_string(dn, dnbuf));
 	}
