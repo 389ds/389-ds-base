@@ -50,8 +50,6 @@
 
 NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, PUNICODE_STRING Password)
 {
-	char singleByteUsername[PASSHAND_BUF_SIZE];
-	char singleBytePassword[PASSHAND_BUF_SIZE];
 	HANDLE passhookEventHandle = OpenEvent(EVENT_MODIFY_STATE, FALSE, PASSHAND_EVENT_NAME);
 	PASS_INFO newPassInfo;
 	PASS_INFO_LIST passInfoList;
@@ -78,18 +76,34 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 	}
 	RegCloseKey(regKey);
 
-	_snprintf(singleByteUsername, PASSHAND_BUF_SIZE, "%S", UserName->Buffer);
-	singleByteUsername[UserName->Length / 2] = '\0';
-	_snprintf(singleBytePassword, PASSHAND_BUF_SIZE, "%S", Password->Buffer);
-	singleBytePassword[Password->Length / 2] = '\0';
+	// This memory will be free'd by calling clearSet below
+	newPassInfo.username = (char*)malloc((UserName->Length / 2) + 1);
+	newPassInfo.password = (char*)malloc((Password->Length / 2) + 1);
+
+	if (newPassInfo.username && newPassInfo.password) {
+		_snprintf(newPassInfo.username, (UserName->Length / 2), "%S", UserName->Buffer);
+		_snprintf(newPassInfo.password, (Password->Length / 2), "%S", Password->Buffer);
+		newPassInfo.username[UserName->Length / 2] = '\0';
+		newPassInfo.password[Password->Length / 2] = '\0';
+	} else {
+		if(outLog.is_open()) {
+			timeStamp(&outLog);
+			outLog << "failed to allocate memory for username and password" << endl;
+		}
+		free(newPassInfo.username);
+		free(newPassInfo.password);
+		goto exit;
+	}
 
 	if(outLog.is_open())
 	{
 		timeStamp(&outLog);
-		outLog << "user " << singleByteUsername << " password changed" << endl;
-		//outLog << "user " << singleByteUsername << " password changed to " << singleBytePassword << endl;
+		outLog << "user " << newPassInfo.username << " password changed" << endl;
+		//outLog << "user " << newPassInfo.username << " password changed to " << newPassInfo.password << endl;
 	}
 
+	// loadSet allocates memory for the usernames and password.  We need to be
+	// sure to free it by calling clearSet.
 	if(loadSet(&passInfoList, "passhook.dat") == 0)
 	{
 		if(outLog.is_open())
@@ -107,10 +121,10 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 		}
 	}
 
-	newPassInfo.username = singleByteUsername;
-	newPassInfo.password = singleBytePassword;
+	// Add the new change to the list
 	passInfoList.push_back(newPassInfo);
 
+	// Save the list to disk
 	if(saveSet(&passInfoList, "passhook.dat") == 0)
 	{
 		if(outLog.is_open())
@@ -128,6 +142,10 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 		}
 	}
 
+	// We need to call clearSet so memory gets free'd
+	clearSet(&passInfoList);
+
+exit:
 	if(passhookEventHandle == NULL)
 	{
 		if(outLog.is_open())
@@ -140,6 +158,7 @@ NTSTATUS NTAPI PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId, 
 	else
 	{
 		SetEvent(passhookEventHandle);
+		CloseHandle(passhookEventHandle);
 	}
 
 	outLog.close();

@@ -375,6 +375,9 @@ int PassSyncService::SyncPasswords()
 				ldap_memfree(dn);
 				dn = NULL;
 
+				// zero out memory used for password
+				SecureZeroMemory(tempPassInfo->password, strlen(tempPassInfo->password));
+
 				// free the username and password
 				free(tempPassInfo->username);
 				free(tempPassInfo->password);
@@ -657,6 +660,9 @@ void PassSyncService::UpdateBackoff()
 
 			tempPassInfo = currentPassInfo;
 			currentPassInfo++;
+
+			// zero out memory used for password
+			SecureZeroMemory(tempPassInfo->password, strlen(tempPassInfo->password));
 
 			// free the username and password
 			free(tempPassInfo->username);

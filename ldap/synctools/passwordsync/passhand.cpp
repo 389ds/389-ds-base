@@ -200,11 +200,17 @@ exit:
 
 int clearSet(PASS_INFO_LIST* passInfoList)
 {
-	// ToDo: zero out memory
+	while (!passInfoList->empty()) {
+		PASS_INFO& pi = passInfoList->back();
+		SecureZeroMemory(pi.password, strlen(pi.password));
+		free(pi.password);
+		free(pi.username);
+		passInfoList->pop_back();
+	}
 
 	passInfoList->clear();
 
-	return -1;
+	return 0;
 }
 
 int encrypt(char* plainTextBuf, int plainTextLen, char* cipherTextBuf, int cipherTextLen, int* resultTextLen)
