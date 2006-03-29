@@ -598,16 +598,10 @@ CB_DLL = chainingdb-plugin$(DLL_PRESUFFIX)
 #
 # Admin server dynamic library location.
 #
-ifeq ($(ARCH), HPUX)
-ifeq ($(OS_TEST), ia64)
-ADMSONAME=ns-admin.so
-else
-ADMSONAME=ns-admin.sl
+ifeq ($(BUILD_MODULE), HTTP_ADMIN)
+ADMININCLUDEDIR = $(BUILD_ROOT)/include
 endif
-else 
-ifeq ($(ARCH), SOLARIS)
-ADMSONAME=ns-admin.$(DLL_SUFFIX)
-else
+
 ifeq ($(ARCH), AIX)
 ADMSONAME=ns-admin$(DLL_PRESUFFIX).$(DLL_SUFFIX)
 else
@@ -615,15 +609,9 @@ ifeq ($(ARCH), WINNT)
 ADMSONAME=ns-admin.$(LIB_SUFFIX)
 endif # WINNT
 endif # AIX
-endif # SOLARIS
-endif # HPUX
-
-ifeq ($(BUILD_MODULE), HTTP_ADMIN)
-ADMININCLUDEDIR = $(BUILD_ROOT)/include
-endif
 
 ifndef ADMSONAME
-ADMSONAME=ns-admin.so
+ADMSONAME=ns-admin.$(DLL_SUFFIX)
 endif
 
 ifndef ADMSOLIB
@@ -1566,8 +1554,7 @@ ACFLAGS		= $(EXTRACFLAGS) $(UNPROTOCFLAGS)
 # ALDFLAGS are always placed near the beginning of all linker (cc -o) commands
 ifneq ($(ARCH), WINNT)
 # Passed to every link (ld).  Include -g here if you did in EXTRACFLAGS.
-EXTRALDFLAGS=-$(LIBPATH)$(LDAP_LIBDIR)
-#EXTRALDFLAGS=-$(LIBPATH)$(LDAP_LIBDIR) -$(LIBPATH)$(LDAP_LIBPATH)
+  EXTRALDFLAGS=-$(LIBPATH)$(LDAP_LIBDIR)
 endif
 
 ifeq ($(ARCH), IRIX)

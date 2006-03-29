@@ -66,12 +66,16 @@ ARCH := $(shell $(BUILD_ROOT)/nsarch)
 endif
 
 ifeq ($(USE_64), 1)
-ifeq ($(ARCH), HPUX)
-LDFLAGS += -lpthread +DA2.0W +DS2.0 +Z
-endif
-ifeq ($(ARCH), SOLARIS)
-LDFLAGS += -xarch=v9
-endif
+ ifeq ($(ARCH), HPUX)
+  ifeq ($(NSOS_RELEASE), B.11.23)
+    LDFLAGS += -lpthread +DD64 +Z
+  else
+    LDFLAGS += -lpthread +DA2.0W +DS2.0 +Z
+  endif
+ endif
+ ifeq ($(ARCH), SOLARIS)
+  LDFLAGS += -xarch=v9
+ endif
 endif
 
 SNMP_OBJS = main.o ldap-agent.o agtmmap.o

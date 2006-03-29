@@ -71,9 +71,15 @@ ifeq ($(ARCH), HPUX)
 # Use C++ compiler when linking on HP to pick up
 # exception-handling flag (+eh). We need this because
 # we link with other objs compiled with +eh
-ifeq ($(USE_64), 1)
-ALDFLAGS += +DA2.0W +DS2.0 +Z -lpthread
-endif
+  ifeq ($(NSOS_RELEASE),B.11.23)
+    ifeq ($(USE_64), 1)
+      ALDFLAGS += +DD64 -lpthread
+    endif
+  else
+    ifeq ($(USE_64), 1)
+      ALDFLAGS += +DA2.0W +DS2.0 +Z -lpthread
+    endif
+  endif
 
 DSGW_LINK=$(CXX)
 else

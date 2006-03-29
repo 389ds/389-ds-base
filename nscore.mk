@@ -74,7 +74,12 @@ endif
 
 # HP-UX
 ifeq ($(ARCH), HPUX)
-  CFLAGS += -DCPU_hppa -DOS_hpux
+  HPUX_ARCH := $(shell uname -m)
+  ifeq ($(HPUX_ARCH), ia64)
+    CFLAGS += -DCPU_ia64 -DOS_hpux
+  else
+    CFLAGS += -DCPU_hppa -DOS_hpux
+  endif
   CFLAGS += -D_NO_THREADS_
 endif
 # AIX

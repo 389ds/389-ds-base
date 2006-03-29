@@ -206,7 +206,7 @@ SlapdPreInstall::init()
 
    if (installMode() != Silent)
    {
-	 Dialog::initDisplay("Directory");
+	 Dialog::initDisplay("Directory", "Fedora Project");
    }
 
    if ((installMode() == Silent && _infoFile == (char *) NULL) || 

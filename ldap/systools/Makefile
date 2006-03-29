@@ -66,12 +66,16 @@ endif # OSF1
 
 
 ifeq ($(USE_64), 1)
-ifeq ($(ARCH), HPUX)
-LDFLAGS += +DA2.0W +DS2.0 +Z
-endif
-ifeq ($(ARCH), SOLARIS)
-LDFLAGS += -xarch=v9
-endif
+ ifeq ($(ARCH), HPUX)
+  ifeq ($(NSOS_RELEASE),B.11.23)
+   LDFLAGS += +DD64
+  else
+   LDFLAGS += +DA2.0W +DS2.0 +Z
+  endif
+ endif
+ ifeq ($(ARCH), SOLARIS)
+  LDFLAGS += -xarch=v9
+ endif
 endif
 
 LDFLAGS	+= $(EXLDFLAGS)

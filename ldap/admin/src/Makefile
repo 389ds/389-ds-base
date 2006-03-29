@@ -132,9 +132,15 @@ EXTRA_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
 OPENSOURCE_LIBS += -lsocket -lnsl -lgen -lm -lposix4 -lthread
 else
 ifeq ($(ARCH),HPUX)
-ifeq ($(USE_64), 1)
-EXTRALDFLAGS += +DA2.0W +DS2.0 +Z
-endif
+  ifeq ($(NSOS_RELEASE),B.11.23)
+    ifeq ($(USE_64), 1)
+      EXTRALDFLAGS += +DD64
+    endif
+  else
+    ifeq ($(USE_64), 1)
+      EXTRALDFLAGS += +DA2.0W +DS2.0 +Z
+    endif
+  endif
 else
 ifeq ($(ARCH),OSF1)
 #CC += -E

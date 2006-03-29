@@ -74,12 +74,16 @@ else
 endif
 
 ifeq ($(USE_64), 1)
-ifeq ($(ARCH), HPUX)
-  MYLDFLAG = +DA2.0W
-endif
-ifeq ($(ARCH), SOLARIS)
+ ifeq ($(ARCH), HPUX)
+  ifeq ($(NSOS_RELEASE),B.11.23)
+   MYLDFLAG += +DD64
+  else
+   MYLDFLAG = +DA2.0W
+  endif
+ endif
+ ifeq ($(ARCH), SOLARIS)
   MYLDFLAG = -xarch=v9 
-endif
+ endif
 endif
 
 ifeq ($(BUILD_MODULE), DIRECTORY)

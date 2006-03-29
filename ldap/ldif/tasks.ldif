@@ -62,60 +62,60 @@ dn: cn=start, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Start@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.Start@fedora-ds-1.0.jar
 nsexecref: start
 
 dn: cn=stop, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Stop@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.Stop@fedora-ds-1.0.jar
 nsexecref: shutdown
 
 dn: cn=restart, cn=Operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Restart@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.Restart@fedora-ds-1.0.jar
 nsexecref: restart
 
 dn: cn=Backup, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Backup@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.Backup@fedora-ds-1.0.jar
 nsexecref: ds_db2bak
 
 dn: cn=Restore, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Restore@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.Restore@fedora-ds-1.0.jar
 nsexecref: ds_bak2db
 
 dn: cn=KeyCert, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.KeyCert@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.KeyCert@fedora-ds-1.0.jar
 
 dn: cn=Authenticate, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.Authenticate@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.Authenticate@fedora-ds-1.0.jar
 
 dn: cn=CompleteImport, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.CompleteImport@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.CompleteImport@fedora-ds-1.0.jar
 
 dn: cn=CompleteExport, cn=operation, cn=Tasks
 objectclass: top
 objectclass: nstask
 objectclass: nsAdminObject
-nsClassname: com.netscape.admin.dirserv.task.CompleteExport@ds10.jar
+nsClassname: com.netscape.admin.dirserv.task.CompleteExport@fedora-ds-1.0.jar
 
 dn: cn=Export, cn=operation, cn=Tasks
 objectclass: top

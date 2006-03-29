@@ -124,6 +124,7 @@ PACKAGE_SRC_DESTFILE =
 COMMA := ,
 NULLSTRING :=
 SPACE := $(NULLSTRING) # the space is between the ) and the #
+DS_BRAND := fedora
 
 ifeq ($(ARCH), WINNT)
 EXE_SUFFIX = .exe
@@ -179,31 +180,6 @@ else
   LIBNSPR = $(addprefix $(NSPR_LIBPATH)/, $(NSPR_SOLIBS))
   NSPRLINK = -L$(NSPR_LIBPATH) $(addprefix -l, $(NSPR_LIBNAMES))
 endif
-
-### DBM #############################
-
-ifdef DBM_SOURCE_ROOT
-  DBM_LIBPATH = $(DBM_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME)/lib
-  DBM_INCDIR = $(DBM_SOURCE_ROOT)/dist/public/dbm
-else
-  DBM_LIBPATH = $(DBM_BUILD_DIR)/lib
-  DBM_INCDIR = $(DBM_BUILD_DIR)/include
-endif
-DBM_INCLUDE = -I$(DBM_INCDIR)
-DBM_LIBNAMES = dbm
-
-ifeq ($(ARCH), WINNT)
-  DBMOBJNAME = $(addsuffix .lib, $(DBM_LIBNAMES))
-  LIBDBM = $(addprefix $(DBM_LIBPATH)/, $(DBMOBJNAME))
-  DBMLINK = /LIBPATH:$(DBM_LIBPATH) $(DBMOBJNAME)
-else
-  DBM_SOLIBS = $(addsuffix .$(DLL_SUFFIX),  $(addprefix $(LIB_PREFIX), $(DBM_LIBNAMES)))
-  DBMROBJNAME = $(addsuffix .a, $(addprefix $(LIB_PREFIX), $(DBM_LIBNAMES)))
-  LIBDBM = $(addprefix $(DBM_LIBPATH)/, $(DBMROBJNAME))
-  DBMLINK = -L$(DBM_LIBPATH) $(addprefix -l, $(DBM_LIBNAMES))
-endif
-
-### DBM END #############################
 
 ### SECURITY #############################
 ifdef SECURITY_SOURCE_ROOT
@@ -312,7 +288,7 @@ ifdef LDAPSDK_SOURCE_ROOT
 else
   LDAPSDK_LIBPATH = $(LDAP_ROOT)/lib
   LDAPSDK_INCDIR = $(LDAP_ROOT)/include
-  LDAPSDK_BINPATH = $(LDAP_ROOT)/tools
+  LDAPSDK_BINPATH = $(LDAP_ROOT)/bin
 endif
 LDAPSDK_INCLUDE = -I$(LDAPSDK_INCDIR)
 
@@ -380,7 +356,7 @@ ifeq ($(ARCH), Linux)
 else
   ifdef SASL_SOURCE_ROOT
     SASL_LIBPATH = $(SASL_SOURCE_ROOT)/lib
-    SASL_INCDIR = $(SASL_SOURCE_ROOT)/include
+    SASL_INCDIR = $(SASL_SOURCE_ROOT)/include/sasl
   else
     SASL_LIBPATH = $(SASL_BUILD_DIR)/lib
     SASL_INCDIR = $(SASL_BUILD_DIR)/include
@@ -405,7 +381,7 @@ else
   ifeq ($(ARCH), HPUX)
       GSSAPI_LIBS=-lgss
       ifeq ($(USE_64),1)
-        GSSAPI_LIBS=-L/usr/lib/pa20_64 -lgss
+        GSSAPI_LIBS=-lgss
       endif
   endif
 
@@ -439,7 +415,7 @@ endif
 
 ### ICU package ##########################################
 
-ICU_LIB_VERSION = 24
+ICU_LIB_VERSION = 34
 ifdef ICU_SOURCE_ROOT
   ICU_LIBPATH = $(ICU_SOURCE_ROOT)/built/lib
   ICU_BINPATH = $(ICU_SOURCE_ROOT)/built/bin
@@ -588,16 +564,19 @@ ifdef ADMINSERVER_SOURCE_ROOT
   ADMSERV_DIR = $(ADMINSERVER_SOURCE_ROOT)/built/package/$(COMPONENT_OBJDIR)
 # else set in internal_buildpaths.mk
 endif
+ADMINSERVER_PKG:=admserv.tar.gz
 # these are the subcomponents we use from the adminserver package
-ADMINSERVER_SUBCOMPS=admin base
+ADMINSERVER_SUBCOMPS:=admin base
 
 ifdef LDAPCONSOLE_SOURCE_ROOT
-  LDAPCONSOLE_DIR = $(LDAPCONSOLE_SOURCE_ROOT)/built/package
+  LDAPCONSOLE_DIR = $(ABS_ROOT)/../built/package
 else
   LDAPCONSOLE_DIR = $(CLASS_DEST)
 endif
-LDAPCONSOLEJAR = ds$(LDAPCONSOLE_REL).jar
-LDAPCONSOLEJAR_EN = ds$(LDAPCONSOLE_REL)_en.jar
+LDAPCONSOLEJAR = $(DS_BRAND)-ds-$(LDAPCONSOLE_REL).jar
+LDAPCONSOLEJAR_EN = $(DS_BRAND)-ds-$(LDAPCONSOLE_REL)_en.jar
+LDAPCONSOLEGENJAR = $(DS_BRAND)-ds-$(LDAPCONSOLE_GENREL).jar
+LDAPCONSOLEGENJAR_EN = $(DS_BRAND)-ds-$(LDAPCONSOLE_GENREL)_en.jar
 
 #### online help docs ######
 ifndef ONLINEHELP_SOURCE_ROOT

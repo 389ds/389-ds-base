@@ -68,7 +68,7 @@ ifneq ($(ARCH), WINNT)
 TAR=tar
 endif
 
-MMDD = $(shell date +%m.%d)
+MMDD := $(shell date +%m.%d)
 
 TMPLIST := $(shell echo /tmp/build.$$$$)
 
@@ -191,7 +191,7 @@ endif
 # make a local copy of, we just import directly into the tar file or create a
 # symlink to
 ADMIN_IMPORTS=$(ADMINSERVER_SUBCOMPS)
-ADMIN_SERVER_TARGZ=adminserver.tar.gz
+ADMIN_SERVER_TARGZ=$(ADMINSERVER_PKG)
 ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
 
 # these are files we need to put in the command line/console only package
@@ -510,6 +510,10 @@ endif
 ifeq ($(USE_CONSOLE), 1)
 	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_JAR_DEST_PATH)
+  ifneq ($(ARCH), WINNT)
+	-(cd $(RELDIR)/$(DS_JAR_DEST_PATH); ln -s $(LDAPCONSOLEJAR_EN) $(LDAPCONSOLEGENJAR_EN))
+	-(cd $(RELDIR)/$(DS_JAR_DEST_PATH); ln -s $(LDAPCONSOLEJAR) $(LDAPCONSOLEGENJAR))
+  endif
 endif
 ifeq ($(USE_JAVATOOLS), 1)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
@@ -614,8 +618,14 @@ packageDirectory: $(INSTDIR)/slapd \
 	$(ADMSERV_DEP)
 
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
-ifeq ($(USE_SETUPUTIL),1)
+ifeq ($(USE_SETUPUTIL), 1)
 	cp -R $(SETUPUTIL_BINPATH)/* $(INSTDIR)
+ifeq ($(DS_BRAND), redhat)
+	cd $(INSTDIR); \
+	$(RELTOOLSPATH)/brandver.pl -i $(ABS_ROOT)/branding/rhds/setup.dat; \
+	cat setup.inf | sed -e "s/^#Resource/Resource/" > setup.inf.tmp; \
+	mv setup.inf.tmp setup.inf
+endif
 endif
 
 # copy in our product .inf files
@@ -750,8 +760,8 @@ endif
 else
 	echo base/unzipped > $(TMPLIST)
 	echo admin/unzipped >> $(TMPLIST)
-	cd $(INSTDIR); $(TAR) cvfh - setup slapd  \
-	dsktune $(ADMIN_IMPORTS) -X $(TMPLIST) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	cd $(INSTDIR); $(TAR) cvfh - -X $(TMPLIST) setup slapd  \
+	dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 	rm -f $(TMPLIST)
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)

@@ -130,7 +130,7 @@ help:
 ###### End of implementation notes.
 
 ifeq ($(INTERNAL_BUILD), 1)
-  COMPONENT_DEPENDENCIES = $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(DBM_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
+  COMPONENT_DEPENDENCIES = $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
 	$(ICU_DEP) $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(NETSNMP_DEP) \
 	$(AXIS_DEP) $(DSMLJAR_DEP) $(DSDOC_DEP) $(ADSYNC_DEP) $(NT4SYNC_DEP) $(PERLDAP_DEP)
 endif
@@ -202,7 +202,7 @@ brandDirectory: $(RELTOOLSPATH)/brandver.pl
 	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat -s redhat-ds.spec
 	@echo ==== Finished Branding LDAP Server ==========
 
-debrandDirectory: $(RELTOOLSPATH)/brandver.pl
+versionDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Debranding LDAP Server ==========
 	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/brandver.dat -s fedora-ds.spec
 	@echo ==== Finished Debranding LDAP Server ==========

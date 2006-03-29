@@ -194,25 +194,25 @@ endif
 # In order for debugging to work properly with shared libraries on HP/UX,
 # we need to link with end.o.
 ifeq ($(ARCH), HPUX)
-# need to add arch flags :maybe
-LDFLAGS+=$(ARCH_CFLAGS)
-# HPUX linker voodoo
-ifeq ($(DEBUG), full)
-ifeq ($(USE_64), 1)
-EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
-ifneq ($(OS_TEST), ia64)
-EXTRA_LIBS += /opt/langtools/lib/pa20_64/end.o
-endif
-else
-EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
-ifneq ($(OS_TEST), ia64)
-EXTRA_LIBS += /opt/langtools/lib/end.o
-endif
-endif #USE_64
-endif #DEBUG
-# Always put libpthread at the beginning of the library list, otherwise NSPR gets upset (very)
-EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
-EXTRA_LIBS = -lpthread $(EXTRA_LIBS_TEMP) 
+  # need to add arch flags :maybe
+  LDFLAGS+=$(ARCH_CFLAGS)
+  # HPUX linker voodoo
+  ifeq ($(DEBUG), full)
+    ifeq ($(USE_64), 1)
+      EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
+      ifneq ($(OS_TEST), ia64)
+        EXTRA_LIBS += /opt/langtools/lib/pa20_64/end.o
+      endif
+    else
+      EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
+      ifneq ($(OS_TEST), ia64)
+        EXTRA_LIBS += /opt/langtools/lib/end.o
+      endif
+    endif #USE_64
+  endif #DEBUG
+  # Always put libpthread at the beginning of the library list, otherwise NSPR gets upset (very)
+  EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
+  EXTRA_LIBS =-lpthread $(EXTRA_LIBS_TEMP) 
 endif #HPUX
 
 #Put SmartHeap at the beginning of the linker library list

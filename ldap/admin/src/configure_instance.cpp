@@ -133,7 +133,7 @@ extern "C" {
 // name of script file to generate relative to slapd instance directory
 #define SCRIPT_FILE_NAME "start-console"
 
-#define DS_JAR_FILE_NAME "ds10.jar"
+#define DS_JAR_FILE_NAME "fedora-ds-1.0.jar"
 #define DS_CONSOLE_CLASS_NAME "com.netscape.admin.dirserv.DSAdmin"
 
 #ifdef XP_WIN32
@@ -711,6 +711,7 @@ static LdapError
 create_sie_and_isie(LdapEntry *sieEntry, LdapEntry *appEntry, NSString& sieDN)
 {
 	LdapError ldapError; // return value
+	const char *adminBrand = "Fedora";
 
 	// Prepare sieEntry
 	sieEntry->clear();
@@ -758,7 +759,7 @@ create_sie_and_isie(LdapEntry *sieEntry, LdapEntry *appEntry, NSString& sieDN)
 
 	LdapErrorCode code = createSIE(sieEntry, appEntry, fqdn,
 								   installInfo->get(SLAPD_KEY_SERVER_ROOT),
-								   ssDN);
+								   ssDN, adminBrand);
 	delete [] fqdn;
 
 	if (code != OKAY)

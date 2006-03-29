@@ -65,6 +65,8 @@ OBJS = $(addprefix $(OBJDEST)/, $(subst .c,.o,$(SRCS)))
 
 INCLUDES += -I$(LDAP_SRC)/admin/include
 
+SECURITYLINK += -lsoftokn3
+
 EXTRA_LIBS += $(LDAP_COMMON_LIBS) $(SECURITYLINK) $(NSPRLINK)
 
 LIBS= $(LDAP_ADMDLLDIR)/libds_admin$(DLL_PRESUF).$(DLL_SUFFIX)

@@ -64,9 +64,9 @@ objectclass: top
 objectclass: extensibleObject
 objectclass: nsResourceRef
 objectclass: nsAdminResourceEditorExtension
-nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleInfo@ds10.jar
-nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleMembers@ds10.jar
-nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleAccountPage@ds10.jar
+nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleInfo@fedora-ds-1.0.jar
+nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleMembers@fedora-ds-1.0.jar
+nsclassname: com.netscape.admin.dirserv.roledit.ResEditorRoleAccountPage@fedora-ds-1.0.jar
 nsmerge: {nsclassname}MULTI_MERGE
 
 dn: cn=cossuperdefinition, cn=ResourceEditorExtension, ou=1.0, ou=Admin, ou=Global Preferences
@@ -75,8 +75,8 @@ objectclass: top
 objectclass: extensibleObject
 objectclass: nsResourceRef
 objectclass: nsAdminResourceEditorExtension
-nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosInfo@ds10.jar
-nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosAttributes@ds10.jar
-nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosTemplate@ds10.jar
+nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosInfo@fedora-ds-1.0.jar
+nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosAttributes@fedora-ds-1.0.jar
+nsclassname: com.netscape.admin.dirserv.cosedit.ResEditorCosTemplate@fedora-ds-1.0.jar
 nsmerge: {nsclassname}MULTI_MERGE
 
