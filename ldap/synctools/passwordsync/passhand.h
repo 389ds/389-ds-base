@@ -50,7 +50,9 @@
 #include "prerror.h"
 
 #define PASSHAND_EVENT_NAME "passhand_event"
+#define PASSHOOK_MUTEX_NAME "passhook_mutex"
 
+#define PASSHOOK_TIMEOUT 30000
 #define PASSHAND_BUF_SIZE 256
 
 using namespace std;

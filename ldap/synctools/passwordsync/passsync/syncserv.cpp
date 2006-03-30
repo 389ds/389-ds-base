@@ -76,6 +76,7 @@ PassSyncService::PassSyncService(const TCHAR *serviceName) : CNTService(serviceN
 	unsigned long size;
 
 	passhookEventHandle = CreateEvent(NULL, FALSE, FALSE, PASSHAND_EVENT_NAME);
+	passhookMutexHandle = CreateMutex(NULL, FALSE, PASSHOOK_MUTEX_NAME);
 	mainLdapConnection = NULL;
 	results = NULL;
 	currentResult = NULL;
@@ -211,10 +212,14 @@ void PassSyncService::Run()
 				timeStamp(&outLog);
 				outLog << "Backing off for " << BackoffTime(GetMinBackoff()) << "ms" << endl;
 			}
-			WaitForSingleObject(passhookEventHandle, BackoffTime(GetMinBackoff()));
+			waitRes = WaitForSingleObject(passhookEventHandle, BackoffTime(GetMinBackoff()));
 			if(logLevel > 0) {
 				timeStamp(&outLog);
-				outLog << "Backoff time expired.  Attempting sync" << endl;
+				if (waitRes == WAIT_TIMEOUT) {
+					outLog << "Backoff time expired.  Attempting sync" << endl;
+				} else {
+					outLog << "Received passhook event.  Attempting sync" << endl;
+				}
 			}
 		}
 
@@ -226,24 +231,38 @@ void PassSyncService::Run()
 
 	if(passInfoList.size() > 0)
 	{
-		if(saveSet(&passInfoList, dataFilename) == 0)
+		// Get mutex for passhook.dat
+		WaitForSingleObject(passhookMutexHandle, INFINITE);
+
+		// Need to loadSet here so we don't overwrite entries that passhook recently added
+		if(loadSet(&passInfoList, dataFilename) == 0)
 		{
-			if(logLevel > 0)
+			if(saveSet(&passInfoList, dataFilename) == 0)
+			{
+				if(logLevel > 0)
+				{
+					timeStamp(&outLog);
+					outLog << passInfoList.size() << " entries saved to data file" << endl;
+				}
+			}
+			else
 			{
 				timeStamp(&outLog);
-				outLog << passInfoList.size() << " entries saved to data file" << endl;
+				outLog << "Failed to save entries to data file" << endl;
 			}
-		}
-		else
-		{
+		} else {
 			timeStamp(&outLog);
-			outLog << "Failed to save entries to data file" << endl;
+			outLog << "Failed to load entries from file" << endl;
 		}
+
+		// Release mutex for passhook.dat
+		ReleaseMutex(passhookMutexHandle);
 	}
 
 exit:
 	clearSet(&passInfoList);
 	CloseHandle(passhookEventHandle);
+	CloseHandle(passhookMutexHandle);
 }
 
 // ****************************************************************
@@ -257,6 +276,9 @@ int PassSyncService::SyncPasswords()
 	PASS_INFO_LIST_ITERATOR tempPassInfo;
 	char* dn = NULL;
 	int tempSize = passInfoList.size();
+
+	// Get mutex for passhook.dat
+	WaitForSingleObject(passhookMutexHandle, INFINITE);
 
 	if(loadSet(&passInfoList, dataFilename) == 0)
 	{
@@ -288,6 +310,9 @@ int PassSyncService::SyncPasswords()
 		timeStamp(&outLog);
 		outLog << "Failed to load entries from file" << endl;
 	}
+
+	// Release mutex for passhook.dat
+	ReleaseMutex(passhookMutexHandle);
 
 	if(passInfoList.size() > 0)
 	{

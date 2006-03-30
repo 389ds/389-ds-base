@@ -82,6 +82,7 @@ private:
 
 	PASS_INFO_LIST passInfoList;
 	HANDLE passhookEventHandle;
+	HANDLE passhookMutexHandle;
 
 	// LDAP variables
 	LDAP* mainLdapConnection;
@@ -104,6 +105,7 @@ private:
 	unsigned long maxBackoffTime;
 	int logLevel;
 	bool isRunning;
+	DWORD waitRes;
 	fstream outLog;
 };
 

@@ -112,6 +112,8 @@ int saveSet(PASS_INFO_LIST* passInfoList, char* filename)
 	outFile.close();
 
 exit:
+	// We need to unfreeze plainTextStream so memory gets freed by the destructor
+	plainTextStream.rdbuf()->freeze(false);
 	free(cipherTextBuf);
 	return result;
 }
@@ -119,18 +121,18 @@ exit:
 int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 {
 	int result = 0;
-	int i;
+	int i = 0;
 	fstream inFile;
 	PASS_INFO newPair;
 	strstream* plainTextStream;
 	char* cipherTextBuf = NULL;
 	char* plainTextBuf = NULL;
-	int usernameLen;
-	int passwordLen;
-	int plainTextLen;
-	int cipherTextLen;
+	int usernameLen = 0;
+	int passwordLen = 0;
+	int plainTextLen = 0;
+	int cipherTextLen = 0;
 	int resultTextLen = 0;
-	int pairCount;
+	int pairCount = 0;
 
 	// Read in cipher text from file
 	inFile.open(filename, ios::in | ios::binary);
@@ -160,6 +162,12 @@ int loadSet(PASS_INFO_LIST* passInfoList, char* filename)
 
 	if(decrypt(cipherTextBuf, cipherTextLen, plainTextBuf, plainTextLen, &resultTextLen) != 0)
 	{
+		result = -1;
+		goto exit;
+	}
+
+	// Check to see if plainTextbuf contains anything
+	if (resultTextLen <= 0) {
 		result = -1;
 		goto exit;
 	}
