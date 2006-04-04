@@ -194,6 +194,12 @@ ADMIN_IMPORTS=$(ADMINSERVER_SUBCOMPS)
 ADMIN_SERVER_TARGZ=$(ADMINSERVER_PKG)
 ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
 
+ifeq ($(USE_SETUPUTIL), 1)
+  LDAP_PACKAGE_FILES:=setup setup.inf setup.res slient.inf unzip_wrapper.pl dsktune LICENSE.txt README.txt slapd
+else
+  LDAP_PACKAGE_FILES:=setup dsktune slapd
+endif
+
 # these are files we need to put in the command line/console only package
 #LDAPSDK_IMPORTS=ldapsearch ldapdelete ldapmodify
 
@@ -751,8 +757,8 @@ ifndef NO_INSTALLER_TAR_FILES
 # build the combined packages tar file; use h flag to follow symlinks
 ifdef BUILD_SHIP
 ifndef BUILD_PATCH
-	cd $(INSTDIR); $(TAR) cvfh - setup slapd \
-	dsktune $(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
+	cd $(INSTDIR); $(TAR) cvfh - $(LDAP_PACKAGE_FILES) \
+	$(ADMIN_IMPORTS) | gzip -f > $(BUILD_SHIP)/$(FTPNAMEGZ)
 endif
 ifeq ($(DEBUG), optimize)
 #	$(REMSH) "/u/svbld/bin/preRtm $(BUILD_SHIP) $(FTPNAMEGZ) svbld"
@@ -760,8 +766,8 @@ endif
 else
 	echo base/unzipped > $(TMPLIST)
 	echo admin/unzipped >> $(TMPLIST)
-	cd $(INSTDIR); $(TAR) cvfh - -X $(TMPLIST) setup slapd  \
-	dsktune $(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
+	cd $(INSTDIR); $(TAR) cvfh - -X $(TMPLIST) $(LDAP_PACKAGE_FILES) \
+	$(ADMIN_IMPORTS) | gzip -f > ../all$(NS_BUILD_FLAVOR).tar.gz
 	rm -f $(TMPLIST)
 endif # BUILD_SHIP
 #cp $(INSTDIR).tar.gz  $(BUILD_SHIP)
