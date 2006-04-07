@@ -86,6 +86,33 @@ endif
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/component_versions.mk
 
+# It looks like most of the latest versions of Unix that we ship on
+# have a good enough heap implementations that they don't need 
+# SmartHeap.  We still need it on NT and HPUX.
+# Solaris 8 and later has mtmalloc
+# By contract HPUX must be aligned with Solaris.
+ifneq ($(ARCH), SOLARIS)
+ifneq ($(ARCH), WINNT)
+ifneq ($(ARCH), HPUX)
+LDAP_DONT_USE_SMARTHEAP=1
+endif
+endif
+endif
+
+ifeq ($(ARCH), HPUX)
+  ifeq ($(NSOS_TEST1),ia64)
+    LDAP_DONT_USE_SMARTHEAP=1
+    ifeq ($(DEBUG), optimize)
+      CFLAGS+=+O3
+    endif
+  endif
+endif
+
+# Don't use smartheap for debug builds
+ifeq ($(DEBUG), full)
+LDAP_DONT_USE_SMARTHEAP=1
+endif
+
 ifeq ($(SECURITY), domestic)
   SEC_SUFFIX = D
 else
