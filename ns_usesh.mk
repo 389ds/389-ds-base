@@ -121,7 +121,7 @@ sh_component_name:=smartheap6
 # define the paths to the component parts
 sh_path_root:=$(NSCP_DISTDIR)/$(sh_component_name)
 sh_components_share=/share/builds/components/$(sh_component_name)
-sh_release_config:=$(sh_components_share)/$(SH_VERSION)/$(NSCONFIG)$(NS64TAG)$(NSOBJDIR_TAG)
+sh_release_config:=$(sh_components_share)/$(SH_VERSION)/$(NSCONFIG)$(NSOBJDIR_TAG)
 SH_INCLUDE:=$(sh_path_root)/include
 SH_LIBPATH:=$(sh_path_root)/lib
 # hack below because I couldn't find this defined anywhere in the nsxxx.mk headers
