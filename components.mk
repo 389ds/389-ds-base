@@ -194,8 +194,7 @@ endif
 SECURITY_INCLUDE = -I$(SECURITY_INCDIR)
 # add crlutil and ocspclnt when we support CRL and OCSP cert checking in DS
 SECURITY_BINNAMES = certutil derdump pp pk12util ssltap modutil shlibsign
-# as of NSS 3.11, no longer need to link with softokn3
-SECURITY_LIBNAMES = ssl3 nss3 
+SECURITY_LIBNAMES = ssl3 nss3 softokn3
 # these libs have a corresponding .chk file
 SECURITY_NEED_CHK = softokn3
 
