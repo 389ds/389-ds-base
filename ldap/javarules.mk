@@ -82,8 +82,8 @@ ifeq ($(INTERNAL_BUILD), 1)
     ifeq ($(ARCH), HPUX)
       JDK_VERSION:=1.4.2_09
       JDK_VERSDIR:=hpjdk/$(JDK_VERSION)
-    else
-      JDK_VERSION:=1.4.2_10 # Solaris
+    else # Solaris
+      JDK_VERSION:=1.4.2_10
       JDK_VERSDIR:=jdk/$(JDK_VERSION)/$(NSOBJDIR_NAME)
     endif
   endif	
