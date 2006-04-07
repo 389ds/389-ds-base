@@ -91,12 +91,12 @@ endif
 endif
 
 ifeq ($(ARCH), HPUX)
-ifeq ($(OS_TEST),ia64)
-LDAP_DONT_USE_SMARTHEAP=1
-ifeq ($(DEBUG), optimize)
-CFLAGS+=+O3
-endif
-endif
+  ifeq ($(NSOS_TEST1),ia64)
+    LDAP_DONT_USE_SMARTHEAP=1
+    ifeq ($(DEBUG), optimize)
+      CFLAGS+=+O3
+    endif
+  endif
 endif
 
 # Don't use smartheap for debug builds
@@ -200,12 +200,12 @@ ifeq ($(ARCH), HPUX)
   ifeq ($(DEBUG), full)
     ifeq ($(USE_64), 1)
       EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
-      ifneq ($(OS_TEST), ia64)
+      ifneq ($(NSOS_TEST1), ia64)
         EXTRA_LIBS += /opt/langtools/lib/pa20_64/end.o
       endif
     else
       EXTRA_LIBS_TEMP:=$(EXTRA_LIBS)
-      ifneq ($(OS_TEST), ia64)
+      ifneq ($(NSOS_TEST1), ia64)
         EXTRA_LIBS += /opt/langtools/lib/end.o
       endif
     endif #USE_64

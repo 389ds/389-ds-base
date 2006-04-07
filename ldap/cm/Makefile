@@ -195,7 +195,7 @@ ADMIN_SERVER_TARGZ=$(ADMINSERVER_PKG)
 ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
 
 ifeq ($(USE_SETUPUTIL), 1)
-  LDAP_PACKAGE_FILES:=setup setup.inf setup.res slient.inf unzip_wrapper.pl dsktune LICENSE.txt README.txt slapd
+  LDAP_PACKAGE_FILES:=setup setup.inf setup.res silent.inf unzip_wrapper.pl svrcore dsktune LICENSE.txt README.txt slapd
 else
   LDAP_PACKAGE_FILES:=setup dsktune slapd
 endif
@@ -626,12 +626,24 @@ packageDirectory: $(INSTDIR)/slapd \
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
 ifeq ($(USE_SETUPUTIL), 1)
 	cp -R $(SETUPUTIL_BINPATH)/* $(INSTDIR)
+	@echo "removing unzipped dir"
+	@dirs=`ls $(INSTDIR)`; for adir in $$dirs ; do \
+	  if [ -d $(INSTDIR)/$$adir/unzipped ] ; then \
+	    rm -rf $(INSTDIR)/$$adir/unzipped; \
+	  fi; \
+	done
 ifeq ($(DS_BRAND), redhat)
-	cd $(INSTDIR); \
-	$(RELTOOLSPATH)/brandver.pl -i $(ABS_ROOT)/branding/rhds/setup.dat; \
+	@(cd $(INSTDIR); \
+	$(PERL) $(RELTOOLSPATH)/brandver.pl -i $(ABS_ROOT)/branding/rhds/setup.dat; \
 	cat setup.inf | sed -e "s/^#Resource/Resource/" > setup.inf.tmp; \
-	mv setup.inf.tmp setup.inf
+	mv setup.inf.tmp setup.inf)
 endif
+endif
+
+ifeq ($(USE_PERLDAP), 1)
+	mkdir $(INSTDIR)/perldap
+	cp -R $(PERLDAP_BUILT_DIR)/* $(INSTDIR)/perldap
+	$(PERL) genPerlDAPInf.pl $(INSTDIR)/perldap/perldap.inf 1.5 "Fedora Project"
 endif
 
 # copy in our product .inf files

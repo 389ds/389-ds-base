@@ -49,17 +49,20 @@
 **
 *********************************************************************/
 
-#include <errno.h>
-#include <iostream.h>
-#include <fstream.h>
-/* Newer g++ wants the new std header forms */
-#if defined( Linux )
+#if !defined(HPUX) || defined(_HP_NAMESPACE_STD)
+#include <iostream>
 #include <strstream>
+#include <fstream>
+using namespace std;
 using std::ostrstream;
-/* But some platforms won't accept those (specifically HP-UX aCC */
 #else
+/* older HP-UX compiler, using libstd 1 (no -AA) */
+#include <iostream.h> /* use old name on older systems */
 #include <strstream.h>
+#include <fstream.h>
 #endif
+
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <ctype.h>

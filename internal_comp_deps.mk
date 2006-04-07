@@ -176,7 +176,7 @@ endif # LDAPSDK_SOURCE_ROOT
 
 ifndef SASL_SOURCE_ROOT
 ifneq ($(ARCH), Linux)
-SASL_RELEASE = $(COMPONENTS_DIR)/sasl/$(SASL_VERSDIR)/$(SASL_RELDATE)/$(NSOBJDIR_NAME)
+SASL_RELEASE = $(COMPONENTS_DIR_DEV)/sasl/$(SASL_VERSDIR)/$(SASL_RELDATE)/$(NSOBJDIR_NAME)
 SASL_DEP = $(SASL_INCLUDE)/sasl.h
 ifndef SASL_PULL_METHOD
 SASL_PULL_METHOD = $(COMPONENT_PULL_METHOD)
@@ -216,10 +216,11 @@ endif # ICU_SOURCE_ROOT
 ifndef DB_SOURCE_ROOT
 #if no version specified, we'll use the latest one
 ifndef DB_VERSION
-  DB_VERSION=20040130
+  DB_VERSION=20060308
 endif
 # define the paths to the component parts
-db_components_share=$(COMPONENTS_DIR)/$(db_component_name)
+#db_components_share=$(COMPONENTS_DIR)/$(db_component_name)
+db_components_share=$(COMPONENTS_DIR_DEV)/$(db_component_name)
 MY_NSOBJDIR_TAG=$(NSOBJDIR_TAG).OBJ
 db_release_config =$(db_components_share)/$(DB_VERSION)/$(NSCONFIG_NOTAG)$(MY_NSOBJDIR_TAG)
 # add ",bin" to DB_FILES if you want the programs like db_verify, db_recover, etc.
@@ -508,7 +509,18 @@ endif
 
 #PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
 ifeq ($(BUILD_MODE), int)
-PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
+  PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
+  ifeq ($(BUILD_ARCH), RHEL4)
+    # use 64-bit perl on 64-bit RHEL4; 32-bit on 32-bit RHEL4
+    PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME)
+  endif
+  ifeq ($(BUILD_ARCH), HPUX)
+    HPUX_ARCH := $(shell uname -m)
+    ifeq ($(HPUX_ARCH), ia64)
+      # use 64-bit perl on 64-bit IPF HP-UX
+      PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME)
+    endif
+  endif
 else
 PERLDAP_COMPONENT_DIR = $(FED_COMPONENTS_DIR)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
 endif

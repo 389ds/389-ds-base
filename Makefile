@@ -199,17 +199,17 @@ httpdLib:
 
 brandDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Branding LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat -s redhat-ds.spec
+	$(PERL) $(RELTOOLSPATH)/brandver.pl -i branding/rhds/brandver.dat -s redhat-ds.spec
 	@echo ==== Finished Branding LDAP Server ==========
 
 versionDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Debranding LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/brandver.dat -s fedora-ds.spec
+	$(PERL) $(RELTOOLSPATH)/brandver.pl -i branding/fedora/brandver.dat -s fedora-ds.spec
 	@echo ==== Finished Debranding LDAP Server ==========
 
 normalizeDirectory: $(RELTOOLSPATH)/brandver.pl
 	@echo ==== Normalizing LDAP Server ==========
-	$(RELTOOLSPATH)/brandver.pl -i branding/fedora/normalize.dat -s redhat-ds.spec
+	$(PERL) $(RELTOOLSPATH)/brandver.pl -i branding/fedora/normalize.dat -s redhat-ds.spec
 	@echo ==== Normalizing Branding LDAP Server ==========
 
 buildAndPkgDirectory:	buildDirectory pkgDirectory

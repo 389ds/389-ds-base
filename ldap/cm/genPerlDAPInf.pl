@@ -33,23 +33,46 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2006 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
 
-NSPERL_RELDATE := 20020626
-# default; will be redefined below for specific platform
-#PERL=$(NSPERL_COMPONENT_DIR)/lib/$(NSPERL_VERSION)/nsperl
-PERL=perl
-ifeq ($(BUILD_ARCH), WINNT)
-PERL=nsperl
-endif
+# Usage: genPerlDAPInf.pl <full_path_to_perldap.inf> <version> <Vendor>
 
-ifdef USE_OLD_NTPERL
-PERL=perl
-endif
+$vendor = "Red Hat, Inc.";
+if ($#ARGV < 1) {
+    print "Usage: genPerlDAPInf.pl <full_path_to_perldap.inf> <version> [<Vendora>]\n";
+    exit 1;
+}
+$outfile = $ARGV[0];
+$version = $ARGV[1];
+if ($#ARGV >= 2) {
+    $vendor = $ARGV[2];
+}
 
-ifdef USE_PERL_FROM_PATH
-PERL = $(shell perl -e 'print "$$\n"')
-endif
+print "outfile: $outfile, version: $version, vendor: $vendor\n";
+
+($nodot_version = $version) =~ tr/\.//d;
+$component = "perldap" . $nodot_version;
+
+open(OUT, ">$outfile") or die "Error: could not write file $outfile: $!";
+print OUT "[General]\n";
+print OUT "Name=PerLDAP\n";
+print OUT "Description=This is mozilla.org PerLDAP.\n";
+print OUT "Components=$component\n\n";
+print OUT "[$component]\n";
+print OUT "Description=The mozilla.org PerLDAP $version\n";
+print OUT "NickName=$component\n";
+print OUT "Name=PerLDAP $version\n";
+print OUT "SourcePath=perldap\n";
+print OUT "Vendor=$vendor\n";
+print OUT "Security=none\n";
+print OUT "Version=$version\n";
+print OUT "Compatible=$version\n";
+print OUT "Archive=perldap-$version.zip\n";
+print OUT "Visible=FALSE\n";
+print OUT "Checked=TRUE\n";
+close OUT;
+
+exit 0;

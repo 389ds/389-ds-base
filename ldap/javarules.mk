@@ -68,54 +68,34 @@ endif
 
 PATH_SEP := :
 ifeq ($(OS), Windows_NT)
-	GET_JAVA_FROM_PATH := 1
-	PATH_SEP := ;
-	EXE_SUFFIX := .exe
+  GET_JAVA_FROM_PATH := 1
+  PATH_SEP := ;
+  EXE_SUFFIX := .exe
 endif
 
-# For NT, assume a locally installed JDK
-ifdef GET_JAVA_FROM_PATH
+ifeq ($(INTERNAL_BUILD), 1)
+  # For UNIX, use JDK and JAR files over NFS
+  ifeq ($(ARCH), Linux)
+    JDK_VERSION:=1.4.2_SR3
+    JDK_VERSDIR:=ibmjdk/$(JDK_VERSION)/$(NSOBJDIR_NAME)
+  else
+    ifeq ($(ARCH), HPUX)
+      JDK_VERSION:=1.4.2_09
+      JDK_VERSDIR:=hpjdk/$(JDK_VERSION)
+    else
+      JDK_VERSION:=1.4.2_10 # Solaris
+      JDK_VERSDIR:=jdk/$(JDK_VERSION)/$(NSOBJDIR_NAME)
+    endif
+  endif	
+  JDKLIB:=$(COMPONENTS_DIR)/$(JDK_VERSDIR)/lib/tools.jar
+  JAVABINDIR:=$(COMPONENTS_DIR)/$(JDK_VERSDIR)/bin
+else # INTERNAL_BUILD
   # Figure out where the java lib .jar files are, from where javac is
   JDKCOMP := $(shell which javac)
   JDKPRELIB := $(subst bin/javac$(EXE_SUFFIX),lib,$(JDKCOMP))
   JDKLIB := $(addprefix $(JDKPRELIB)/,tools.jar)
-else
-
-# For UNIX, use JDK and JAR files over NFS
-# Use NT classes.zip; doesn't matter that it was compiled on NT
-#
-# Version 1.4.0_01 of the JDK does not seem to run well on RHEL 3.0
-  ifeq ($(ARCH), Linux)
-  	JDK_VERSION=1.4.2
-  else
-	ifeq ($(ARCH), HPUX)
-		JDK_VERSION=1.4.1_05
-	else
-  		JDK_VERSION=1.4.0_01
-	endif
-  endif	
+endif 
 	
-  JDK_VERSDIR=jdk$(JDK_VERSION)
-  JDKLIB=/share/builds/components/jdk/$(JDK_VERSION)/$(PRETTY_ARCH)/lib/tools.jar
-  ifeq ($(NSOS_ARCH), IRIX)
-# Get IRIX compiler from tools directory, currently 1.1.3
-    JAVABINDIR=/tools/ns/bin
-  else
-	ifeq ($(ARCH), AIX)
-# Get AIX compiler from tools directory, currently 1.1.2
-      JAVABINDIR=/tools/ns/bin
-	else
-	  ifeq ($(ARCH), OSF1)
-		JAVABINDIR=/share/builds/components/jdk/1.1.6beta/OSF1/bin
-	  else
-# Solaris, Linux, HP/UX and any others:
-        JDK_DIR=$(COMPONENTS_DIR)/jdk
-        JAVABINDIR=$(JDK_DIR)/$(JDK_VERSION)/$(PRETTY_ARCH)/bin
-	  endif
-	endif
-  endif
-endif
-
 CLASSPATH := $(JAVA_SRC_DIR)$(PATH_SEP)$(LDAPJARFILE)
 
 ifndef JAVA

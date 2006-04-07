@@ -33,23 +33,11 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2006 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
-
-NSPERL_RELDATE := 20020626
-# default; will be redefined below for specific platform
-#PERL=$(NSPERL_COMPONENT_DIR)/lib/$(NSPERL_VERSION)/nsperl
-PERL=perl
-ifeq ($(BUILD_ARCH), WINNT)
-PERL=nsperl
-endif
-
-ifdef USE_OLD_NTPERL
-PERL=perl
-endif
-
-ifdef USE_PERL_FROM_PATH
-PERL = $(shell perl -e 'print "$$\n"')
-endif
+#
+# Config stuff for HP-UX.11.23
+#
+include $(DEPTH)/config/HP-UX.mk

@@ -194,7 +194,8 @@ endif
 SECURITY_INCLUDE = -I$(SECURITY_INCDIR)
 # add crlutil and ocspclnt when we support CRL and OCSP cert checking in DS
 SECURITY_BINNAMES = certutil derdump pp pk12util ssltap modutil shlibsign
-SECURITY_LIBNAMES = ssl3 nss3 softokn3
+# as of NSS 3.11, no longer need to link with softokn3
+SECURITY_LIBNAMES = ssl3 nss3 
 # these libs have a corresponding .chk file
 SECURITY_NEED_CHK = softokn3
 
@@ -359,7 +360,7 @@ else
     SASL_INCDIR = $(SASL_SOURCE_ROOT)/include/sasl
   else
     SASL_LIBPATH = $(SASL_BUILD_DIR)/lib
-    SASL_INCDIR = $(SASL_BUILD_DIR)/include
+    SASL_INCDIR = $(SASL_BUILD_DIR)/include/sasl
   endif
 endif
 SASL_INCLUDE = $(SASL_INCDIR)

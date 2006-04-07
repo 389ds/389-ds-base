@@ -118,11 +118,10 @@ endif # ICU_SOURCE_ROOT
 
 #DB_SOURCE_ROOT = $(BUILD_ROOT)/../db-4.2.52.NC
 # DB_MAJOR_MINOR is the root name for the db shared library
-# source builds use db-4.2 - uncomment this if using source
-#DB_MAJOR_MINOR := db-4.2
+DB_MAJOR_MINOR := db-4.2
 ifndef DB_SOURCE_ROOT
-DB_MAJOR_MINOR := db42
-db_component_name=$(DB_MAJOR_MINOR)
+# db_component_name is the dir name in /s/b/c
+db_component_name=db42
 db_path_config :=$(NSCP_DISTDIR)/$(db_component_name)
 endif # DB_SOURCE_ROOT
 
