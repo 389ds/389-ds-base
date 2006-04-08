@@ -139,7 +139,7 @@ SETUPUTIL_SOURCE_ROOT = $(BUILD_ROOT)/../setuputil
 
 ADMINSERVER_SOURCE_ROOT = $(BUILD_ROOT)/../adminserver
 
-LDAPCONSOLE_SOURCE_ROOT = $(BUILD_ROOT)/../directoryconsole
+LDAPCONSOLE_SOURCE_ROOT = $(BUILD_ROOT)/..
 
 # these are the files needed to build the java components - xmltools and dsmlgw -
 # and where to get them
