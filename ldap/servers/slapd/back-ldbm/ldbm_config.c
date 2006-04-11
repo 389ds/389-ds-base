@@ -1371,6 +1371,7 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
 void ldbm_config_get(void *arg, config_info *config, char *buf)
 {
     char *tmp_string;
+	size_t val = 0;
     
     if (config == NULL) {
         buf[0] = '\0';
@@ -1387,7 +1388,8 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
         sprintf(buf, "%ld", (long) config->config_get_fn(arg));
         break;
     case CONFIG_TYPE_SIZE_T:
-        sprintf(buf, "%lu", (size_t) config->config_get_fn(arg));
+		val = (size_t) config->config_get_fn(arg);
+        sprintf(buf, "%lu", val);
         break;
     case CONFIG_TYPE_STRING:
         /* Remember the get function for strings returns memory

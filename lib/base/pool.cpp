@@ -195,7 +195,7 @@ _free_block(block_t *block)
 	memset(block->data, 0xa, block->end-block->data);
 #endif /* POOL_ZERO_DEBUG */
 
-	if ((freelist_size + block->end - block->data) > freelist_max) {
+	if ((unsigned long)(freelist_size + block->end - block->data) > freelist_max) {
 		/* Just have to delete the whole block! */
 
 		crit_enter(freelist_lock);
@@ -452,7 +452,7 @@ pool_realloc(pool_handle_t *pool_handle, void *ptr, size_t size)
 	pool_t *pool = (pool_t *)pool_handle;
 	void *newptr;
 	block_t *block_ptr;
-	int oldsize;
+	size_t oldsize;
 
 	if (pool_handle == NULL || pool_disable)
 		return PERM_REALLOC(ptr, size);

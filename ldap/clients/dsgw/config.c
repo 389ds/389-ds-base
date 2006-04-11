@@ -298,22 +298,6 @@ dsgw_read_config()
     read_dsgwconfig( fname, NULL, gc->gc_admserv, 0 );
     free( fname );
 
-#if 0
-    /* if necessary, try to set path to certificate database */
-#ifndef DSGW_NO_SSL
-    if ( gc->gc_ldapssl && gc->gc_securitypath == NULL ) {
-	if ( gc->gc_admserv ) {
-	    if (( p = get_nsadm_var( "CertFile" )) != NULL ) {
-		gc->gc_securitypath = dsgw_ch_malloc( strlen( p ) + 4 );
-		sprintf( gc->gc_securitypath, "%s.db", p );
-	    }
-	} else {
-	    gc->gc_securitypath = DSGW_DEFSECURITYPATH;
-	}
-    }
-#endif
-#endif
-
     if ( browser_ignores_acceptcharset() ) {
 	set_dsgwcharset();
     } else {
@@ -379,7 +363,7 @@ read_dsgwconfig( char *filename, char *locsuffix, int templatesonly, int binddnf
 	if ( strstr( filename, "dsgw-l10n.conf" ) != NULL ) {
 	    return;	/* ignore if it's dsgw-l10n.conf */
 	}
-	PR_snprintf( buf, MAXPATHLEN + 100,
+	PR_snprintf( buf, sizeof(buf),
 		XP_GetClientStr(DBT_cannotOpenConfigFileSN_), filename );
 	dsgw_error( DSGW_ERR_BADCONFIG, buf, DSGW_ERROPT_EXIT, 0, NULL );
     }
@@ -978,7 +962,7 @@ app_suffix (char *ldif, char *suffix)
         return;
     }
 
-    PR_snprintf( tmpldif, 128, "%s.tmp", ldif);
+    PR_snprintf( tmpldif, sizeof(tmpldif), "%s.tmp", ldif);
     if ( (newfp = fopen( tmpldif, "w" )) == NULL ) {
         dsgw_emitf (XP_GetClientStr(DBT_AppSuffixCouldNotOpenTmpFileSN_),
             ldif);
@@ -1199,7 +1183,7 @@ dsgw_update_dbswitch( dsgwconfig *cfgp, char *dbhandle, int erropts )
     }
 
     /* read old dbswitch.conf contents */
-    PR_snprintf( oldfname, MAXPATHLEN, "%s/%s", userdb_path,
+    PR_snprintf( oldfname, sizeof(oldfname), "%s/%s", userdb_path,
 		DSGW_DBSWITCH_FILE );
     if (( rc = dbconf_read_config_file( oldfname, &cip )) != LDAPU_SUCCESS ) {
 	report_ldapu_error( rc, DSGW_ERR_BADCONFIG, erropts );
@@ -1207,10 +1191,10 @@ dsgw_update_dbswitch( dsgwconfig *cfgp, char *dbhandle, int erropts )
     }
 
     /* write db info to new file, replacing information for "dbhandle" */
-    PR_snprintf( newfname, MAXPATHLEN, "%s/%s", userdb_path,
+    PR_snprintf( newfname, sizeof(newfname), "%s/%s", userdb_path,
 		DSGW_DBSWITCH_TMPFILE );
     if (( newfp = fopen( newfname, "w" )) == NULL ) {
-	PR_snprintf( buf, MAXPATHLEN + 100,
+	PR_snprintf( buf, sizeof(buf),
 	    XP_GetClientStr(DBT_cannotOpenConfigFileSForWritingN_), newfname );
 	dsgw_error( DSGW_ERR_UPDATE_DBSWITCH, buf, erropts, 0, NULL );
 	return( -1 );
@@ -1693,7 +1677,7 @@ fp_parse_line(
 	for ( token = strtok_quote( line, " \t" ); token != NULL;
 	    token = strtok_quote( NULL, " \t" ) ) {
 		if ( *argcp == MAXARGS ) {
-			PR_snprintf( buf, 20,
+			PR_snprintf( buf, sizeof(buf),
 				XP_GetClientStr(DBT_maxD_), MAXARGS );
 			dsgw_error( DSGW_ERR_CONFIGTOOMANYARGS, buf,
 				DSGW_ERROPT_EXIT, 0, NULL );

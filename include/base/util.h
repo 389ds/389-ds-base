@@ -67,12 +67,22 @@ NSAPI_PUBLIC int INTutil_itoa(int i, char *a);
 NSAPI_PUBLIC
 int INTutil_vsprintf(char *s, register const char *fmt, va_list args);
 
-NSAPI_PUBLIC int INTutil_sprintf(char *s, const char *fmt, ...);
+NSAPI_PUBLIC int INTutil_sprintf(char *s, const char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
 
 NSAPI_PUBLIC int INTutil_vsnprintf(char *s, int n, register const char *fmt, 
                                   va_list args);
 
-NSAPI_PUBLIC int INTutil_snprintf(char *s, int n, const char *fmt, ...);
+NSAPI_PUBLIC int INTutil_snprintf(char *s, int n, const char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
 
 NSAPI_PUBLIC int INTutil_strftime(char *s, const char *format, const struct tm *t);
 

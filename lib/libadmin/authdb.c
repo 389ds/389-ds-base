@@ -60,11 +60,13 @@ NSAPI_PUBLIC char *get_userdb_dir(void)
 #ifdef USE_ADMSERV
     char *tmp = getenv("NETSITE_ROOT");
     
-    sprintf(line, "%s%cuserdb", tmp, FILE_PATHSEP);
+    snprintf(line, sizeof(line), "%s%cuserdb", tmp, FILE_PATHSEP);
+	line[sizeof(line)-1] = 0;
 #else
     char *tmp = get_mag_var("#ServerRoot");
     
-    sprintf(line, "%s%cadmin%cuserdb", tmp, FILE_PATHSEP, FILE_PATHSEP);
+    snprintf(line, sizeof(line), "%s%cadmin%cuserdb", tmp, FILE_PATHSEP, FILE_PATHSEP);
+	line[sizeof(line)-1] = 0;
 #endif
     userdb = STRDUP(line);
     return userdb;

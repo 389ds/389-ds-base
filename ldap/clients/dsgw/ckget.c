@@ -55,9 +55,15 @@ main()
     printf( "Retrieve an entry from the cookie database\n" );
 
     printf( "cookie: " );
-    gets( cookie );
+    fgets( cookie, sizeof(cookie), stdin );
+	if (p = strchr(cookie, '\n')) {
+		*p = 0;
+	}
     printf( "dn: " );
-    gets( dn );
+    fgets( dn, sizeof(dn), stdin );
+	if (p = strchr(dn, '\n')) {
+		*p = 0;
+	}
 
     rc = dsgw_ckdn2passwd( cookie, dn, &pw );
     if ( rc == 0 ) {

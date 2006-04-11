@@ -1307,7 +1307,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     if (NULL == inst) {
         if (task) {
             slapi_task_log_notice(task, "Unknown ldbm instance %s",
-                                  instance_name, 0, 0);
+                                  instance_name);
         }
         LDAPDebug(LDAP_DEBUG_ANY, "Unknown ldbm instance %s\n",
                   instance_name, 0, 0);
@@ -2081,7 +2081,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             {
                 time_t tm = time(0);    /* long */
 
-                char *tmpname = slapi_ch_smprintf("%s/%d", dest_dir, tm);
+                char *tmpname = slapi_ch_smprintf("%s/%ld", dest_dir, tm);
                 dest_dir = tmpname;
             }
             else    /* not a directory */

@@ -132,7 +132,7 @@ LASDnsMatch(char *token, LASDnsContext_t *context)
 int
 LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int aliasflg)
 {
-    int		delimiter;    	/* length of valid token	*/
+    size_t	delimiter;    	/* length of valid token	*/
     char	token[256];    	/* max length dns name		*/
     int		i;
     int		ipcnt;
@@ -162,9 +162,13 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
     }
 
     do {
+		size_t maxsize = sizeof(token);
 	/*  Get a single hostname from the pattern string	*/
         delimiter    = strcspn(attr_pattern, ", \t");
-        strncpy(token, attr_pattern, delimiter);
+		if (delimiter >= maxsize) {
+			delimiter = maxsize-1;
+		}
+        PL_strncpyz(token, attr_pattern, delimiter);
         token[delimiter] = '\0';
 
         /*  Skip any white space after the token 		*/

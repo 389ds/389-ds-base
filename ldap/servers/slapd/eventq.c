@@ -143,7 +143,7 @@ slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when)
 		/* scheduling. Too bad			 */
 
 		slapi_log_error(SLAPI_LOG_HOUSE, NULL,
-				"added one-time event id 0x%x at time %u\n",
+				"added one-time event id %p at time %ld\n",
 				id, when);
 		return(id);
 	}
@@ -175,7 +175,7 @@ slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval
 		tmp = eq_new(fn, arg, when, interval);
 		eq_enqueue(tmp);
 		slapi_log_error(SLAPI_LOG_HOUSE, NULL,
-				"added repeating event id 0x%x at time %u, interval %u\n",
+				"added repeating event id %p at time %ld, interval %lu\n",
 				tmp->ec_id, when, interval);
 		return(tmp->ec_id);
 	}
@@ -212,7 +212,7 @@ slapi_eq_cancel(Slapi_Eq_Context ctx)
 		PR_Unlock(eq->eq_lock);
 	}
 	slapi_log_error(SLAPI_LOG_HOUSE, NULL,
-			"cancellation of event id 0x%x requested: %s\n",
+			"cancellation of event id %p requested: %s\n",
 			ctx, found ? "cancellation succeeded" : "event not found");
 	return found;
 }
@@ -306,7 +306,7 @@ eq_call_all()
 		/* Call the scheduled function */
 		p->ec_fn(p->ec_when, p->ec_arg);
 		slapi_log_error(SLAPI_LOG_HOUSE, NULL,
-				"Event id 0x%x called at %u (scheduled for %u)\n",
+				"Event id %p called at %ld (scheduled for %ld)\n",
 				p->ec_id, current_time(), p->ec_when);
 		if (0UL != p->ec_interval) {
 			/* This is a repeating event. Requeue it. */

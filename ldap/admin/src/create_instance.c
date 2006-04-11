@@ -145,6 +145,13 @@ static int init_presence(char *sroot, server_config_s *cf, char *cs_path);
 #endif
 
 static char *make_error(char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 1, 2)));
+#else
+        ;
+#endif
+
+static char *make_error(char *fmt, ...)
 {
     static char errbuf[ERR_SIZE];
     va_list args;
@@ -661,6 +668,12 @@ char *chownconfig(char *sroot, char *user)
 #define chownsearch(a, b) 
 
 #endif
+char *gen_script(char *s_root, char *name, char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
 
 char *gen_script(char *s_root, char *name, char *fmt, ...)
 {
@@ -714,6 +727,12 @@ char *gen_script(char *s_root, char *name, char *fmt, ...)
     return NULL;
 }
 
+char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 4, 5)));
+#else
+        ;
+#endif
 char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
 {
     char myperl[PATH_SIZE];
@@ -1356,8 +1375,7 @@ create_scripts(server_config_s *cf, char *param_name)
 /* ---------------------- Update server script files ---------------------- */
 int update_server(server_config_s *cf)
 {
-    char line[PATH_SIZE], *t, *sroot = cf->sroot;
-    char subdir[PATH_SIZE];
+    char *t;
 	char error_param[BIG_LINE] = {0};
 
 #if defined( SOLARIS )

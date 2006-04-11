@@ -314,8 +314,11 @@ main(int argc, char**argv)
   * Ignore SIGPIPE during write()
   */
   sigset(SIGPIPE,SIG_IGN);
-  while(gets(logline))
+  while(fgets(logline, sizeof(logline), stdin))
   {
+	if (p = strchr(logline, '\n')) {
+	  *p = 0;
+	}
 	if(log)
 		puts(logline);
 	for(tmp=ldap_ops,i=0;tmp[i];i++)

@@ -1436,10 +1436,11 @@ dump_eval_info (char *caller, struct eval_info *info, int idx)
 	if ( idx < 0 )
 	{
 		sprintf ( buf, "\nuserDN=\"%s\"\nmember=", info->userDN);
-		if (info->member)
+		if (info->member && *info->member)
 		{
 			len = strlen (buf);
-			sprintf ( &(buf[len]), "\"%s\"", info->member );
+			/* member is a char ** */
+			sprintf ( &(buf[len]), "\"%s\"", *info->member );
 		}
 		len = strlen (buf);
 		sprintf ( &(buf[len]), "\nmemberinfo[%d]-[%d]:", info->c_idx, info->lu_idx );

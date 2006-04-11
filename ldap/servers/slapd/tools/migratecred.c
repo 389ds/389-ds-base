@@ -172,7 +172,8 @@ main( int argc, char **argv)
 #endif
 #endif
 
-	sprintf(libpath, "%s/../lib/des-plugin%s", newpath, shared_lib);
+	snprintf(libpath, sizeof(libpath), "%s/../lib/des-plugin%s", newpath, shared_lib);
+	libpath[sizeof(libpath)-1] = 0;
 
 	fct = (migrate_fn_type)sym_load(libpath, "migrateCredentials",
 			"DES Plugin", 1 /* report errors */ );

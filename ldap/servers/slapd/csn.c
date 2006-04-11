@@ -372,11 +372,12 @@ csn_max(const CSN *csn1,const CSN *csn2)
 
 int csn_increment_subsequence (CSN *csn)
 {
+	PRUint16 maxsubseq = (PRUint16)0xFFFFFFFF;
 	if (csn == NULL)
 	{
 		return -1;
 	}
-	else if (csn->subseqnum == 0xFFFFFFFF)
+	else if (csn->subseqnum == maxsubseq)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
 						"csn_increment_subsequence: subsequence overflow\n");

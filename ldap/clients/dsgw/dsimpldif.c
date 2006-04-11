@@ -148,17 +148,17 @@ handle_post()
 
     if (gc->gc_localdbconf == NULL) {
 	/* remote */
-	PR_snprintf (cmd, BIG_LINE, "./%s -a %s -h %s -p %d -f %s > %s 2>&1", 
+	PR_snprintf (cmd, sizeof(cmd), "./%s -a %s -h %s -p %d -f %s > %s 2>&1", 
 		DSGW_LDAPMODIFY, stop?"":"-c",gc->gc_ldapserver, 
 		gc->gc_ldapport, ldiffile, DSGW_NULL_DEVICE);
     }
     else {
 	/* local database */
-    	PR_snprintf (cmd, BIG_LINE, "./%s -a %s -C %s -f %s > %s 2>&1",
+    	PR_snprintf (cmd, sizeof(cmd), "./%s -a %s -C %s -f %s > %s 2>&1",
 		DSGW_LDAPMODIFY, stop?"":"-c", gc->gc_localdbconf, ldiffile,
 		DSGW_NULL_DEVICE);
     }
-    PR_snprintf (path, BIG_LINE, "%s%s", userdb_path, DSGW_TOOLSDIR);
+    PR_snprintf (path, sizeof(path), "%s%s", userdb_path, DSGW_TOOLSDIR);
     chdir ( path );
     fflush (stdout);
     if (system (cmd) == 0) { 

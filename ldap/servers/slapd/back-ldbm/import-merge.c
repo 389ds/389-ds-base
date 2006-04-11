@@ -654,8 +654,7 @@ int import_mega_merge(ImportJob *job)
     int passes = job->current_pass;
 
     if (1 == job->number_indexers) {
-	import_log_notice(job, "Beginning %d-way merge of one file...", passes,
-			  job->number_indexers);
+	import_log_notice(job, "Beginning %d-way merge of one file...", passes);
     } else {
 	import_log_notice(job, "Beginning %d-way merge of up to %lu files...",
 			  passes, job->number_indexers);

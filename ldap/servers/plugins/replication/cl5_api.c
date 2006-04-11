@@ -51,6 +51,7 @@
 
 #include "cl5_api.h"
 #include "plhash.h" 
+#include "plstr.h"
 
 #include "db.h"
 #include "cl5_clcache.h" /* To use the Changelog Cache */
@@ -2124,7 +2125,7 @@ int cl5CreateDirIfNeeded (const char *dirName)
     }
 
 	/* directory does not exist - try to create */
-	strncpy (buff, dirName, MAXPATHLEN);
+	PL_strncpyz (buff, dirName, sizeof(buff)-1);
 	t = strchr (buff, '/'); 
 
 	/* skip first slash */

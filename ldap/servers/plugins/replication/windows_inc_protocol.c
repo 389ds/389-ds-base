@@ -386,7 +386,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					/* just ignore it and go to sleep */
 					protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
 				  }
-				else if (e1 = event_occurred(prp, EVENT_WINDOW_CLOSED) ||
+				else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
 					 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
 				  {
 					/* this events - should not occur - log a warning and go to sleep */
@@ -458,7 +458,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					next_state = STATE_READY_TO_ACQUIRE;
 					wait_change_timer_set = 0;
 				  }
-				else if (e1 = event_occurred(prp, EVENT_WINDOW_OPENED) ||
+				else if ((e1 = event_occurred(prp, EVENT_WINDOW_OPENED)) ||
 					 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
 				  {
 					/* this events - should not occur - log a warning and clear the event */
@@ -570,7 +570,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				  {
 					/* consume and ignore */
 				  }
-				else if (e1 = event_occurred (prp, EVENT_WINDOW_OPENED) || 
+				else if ((e1 = event_occurred (prp, EVENT_WINDOW_OPENED)) || 
 					 event_occurred (prp, EVENT_BACKOFF_EXPIRED))
 				  {
 					/* This should never happen */

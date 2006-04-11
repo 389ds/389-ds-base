@@ -463,5 +463,6 @@ BEGIN_STR(dsgw)
 	ResDef( DBT_missingArgumentForOrgChartURLDirectiv_, 412, "Missing argument for \"url-orgchart-base\" directive\n" )/*extracted from config.c*/
 	ResDef( DBT_missingArgumentForOrgChartSearchAttr_ , 413, "Missing argument for \"orgchart-attrib-farleft-rdn\" directive\n" )/*extracted from config.c*/
 	ResDef( DBT_theCharsetIsNotSupported , 414, "The charset is not supported\n" )
+	ResDef( DBT_invalidTemplateVarLen, 415, "The string length %d of template variable \"%s\" is too long\n" )
 END_STR(dsgw)
 

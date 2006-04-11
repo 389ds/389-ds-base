@@ -61,10 +61,9 @@ typedef struct schedule_item
 } schedule_item;
 
 /* XXXggood - copied from slap.h - bad */
-#if defined( XP_WIN32 )
+/* XXXrichm - copied to match definition in slap.h - 20060406 */
+#ifndef NO_TIME
 #define NO_TIME (time_t)0 /* cannot be -1, NT's localtime( -1 ) returns NULL */
-#else
-#define NO_TIME (time_t)-1 /* a value that time() does not return */
 #endif
 
 /*

@@ -1211,8 +1211,19 @@ struct _slapi_task {
 
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
 void slapi_task_status_changed(Slapi_Task *task);
-void slapi_task_log_status(Slapi_Task *task, char *format, ...);
-void slapi_task_log_notice(Slapi_Task *task, char *format, ...);
+void slapi_task_log_status(Slapi_Task *task, char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+
+void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
 
 /* End of interface to support online tasks **********************************/
 

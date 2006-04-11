@@ -109,7 +109,9 @@ char *dns_ip2host(char *ip, int verify)
 
     err = PR_InitializeNetAddr(PR_IpAddrNull, 0, &iaddr);
 
-    if((iaddr.inet.ip = inet_addr(ip)) == -1)
+	/* richm: ipv6 cleanup - use inet_aton or other more appropriate function
+	   instead of inet_addr */
+    if((iaddr.inet.ip = inet_addr(ip)) == (in_addr_t)-1)
         goto bong;
 
     /*

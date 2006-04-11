@@ -338,8 +338,8 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 	    	else /* remote_offset > CSN_MAX_TIME_ADJUST */
 			{
 				slapi_log_error (SLAPI_LOG_FATAL, NULL, "csngen_adjust_time: "
-                            "adjustment limit exceeded; value - %d, limit - %d\n",
-                             remote_offset, CSN_MAX_TIME_ADJUST);
+                            "adjustment limit exceeded; value - %ld, limit - %ld\n",
+                             remote_offset, (long)CSN_MAX_TIME_ADJUST);
 				PR_RWLock_Unlock (gen->lock);
 				return CSN_LIMIT_EXCEEDED;
 			}
@@ -427,9 +427,9 @@ void csngen_dump_state (const CSNGen *gen)
         PR_RWLock_Rlock (gen->lock);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "CSN generator's state:\n");
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\treplica id: %d\n", gen->state.rid);
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tsampled time: %d\n", gen->state.sampled_time);
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tlocal offset: %d\n", gen->state.local_offset);
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tremote offset: %d\n", gen->state.remote_offset);
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tsampled time: %ld\n", gen->state.sampled_time);
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tlocal offset: %ld\n", gen->state.local_offset);
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tremote offset: %ld\n", gen->state.remote_offset);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tsequence number: %d\n", gen->state.seq_num);
         PR_RWLock_Unlock (gen->lock);
     }

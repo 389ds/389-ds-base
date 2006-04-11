@@ -825,7 +825,12 @@ void dsgw_remove_leading_and_trailing_spaces( char **sp );
 int dsgw_parse_cookie( char *cookie, char **rndstr, char **dn );
 char *dsgw_getvp( int cginum );
 #ifdef DSGW_DEBUG
-void dsgw_log( char *fmt, ... );
+void dsgw_log( char *fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 1, 2)));
+#else
+        ;
+#endif
 void dsgw_logstringarray( char *arrayname, char **strs );
 void dsgw_log_out (const char* s, size_t n);
 #else
@@ -875,16 +880,36 @@ void dsgw_html_href( char *urlprefix, char *url, char *label, char *value,
 void dsgw_strcat_escaped( char *s1, const char *s2 );
 char *dsgw_strdup_escaped( const char *s );
 void dsgw_substitute_and_output( char *s, char *tag, char *value, int escape );
-void dsgw_form_begin( const char* name, const char* format, ... );
+void dsgw_form_begin( const char* name, const char* format, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
 char *dsgw_strdup_with_entities( char *s, int *madecopyp );
 void dsgw_HTML_emits( char * );
 void dsgw_emit_cgi_var( int argc, char **argv );
-void dsgw_emit_button( int argc, char **argv, const char* format, ... );
+void dsgw_emit_button( int argc, char **argv, const char* format, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
 void dsgw_emit_alertForm();
-void dsgw_emit_alert( const char* frame, const char* windowOptions, const char* fmt, ... );
+void dsgw_emit_alert( const char* frame, const char* windowOptions, const char* fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
 void dsgw_emit_confirmForm();
 void dsgw_emit_confirm( const char* frame, const char* yes, const char* no,
-		        const char* windowOptions, int enquote, const char* fmt, ... );
+		        const char* windowOptions, int enquote, const char* fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 6, 7)));
+#else
+        ;
+#endif
 
 /*
  * in htmlparse.c:
@@ -983,7 +1008,12 @@ void dsgw_emit_auth_dest( char *binddn, char* authdesturl );
  * in emitf.c
  */
 int dsgw_emits (const char* s); /* like fputs(s, stdout) */
-int dsgw_emitf (const char* format, ...); /* like printf */
+int dsgw_emitf (const char* format, ...) /* like printf */
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 1, 2)));
+#else
+        ;
+#endif
 int dsgw_emitfv (const char* format, va_list argl);
 char* dsgw_emit_converts_to (char* charset);
 int is_UTF_8 (const char* charset);
@@ -995,7 +1025,12 @@ size_t dsgw_fputn (FILE*, const char* buf, size_t len);
 void dsgw_quotation_begin (int kind);
 void dsgw_quotation_end();
 int dsgw_quote_emits (int kind, const char* s);
-int dsgw_quote_emitf (int kind, const char* format, ...);
+int dsgw_quote_emitf (int kind, const char* format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
 
 /*
  * in collate.c

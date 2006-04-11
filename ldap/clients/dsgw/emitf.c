@@ -188,12 +188,12 @@ dsgw_vxprintf (dsgw_producer produce, void* parm,
 
     char deffmt[DEFFMTC];
     char* fmt = deffmt;
-    size_t fmtc = DEFFMTC;
+    size_t fmtc = sizeof(deffmt);
 
     const char* next;
     const char* f;
 
-    char buf [1024];
+    char buf [1024] = {0};
     int i;
 
     i = count_slots (format);
@@ -396,33 +396,33 @@ dsgw_vxprintf (dsgw_producer produce, void* parm,
 	}
 	/* produce a single argument */
 	switch (islot->type) {
-	  case TYPE_I:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].i); break;
-	  case TYPE_U:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].u); break;
-	  case TYPE_F:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].f); break;
-	  case TYPE_LI: PR_snprintf (buf, 1024, fmt, argv[islot->arg].li); break;
-	  case TYPE_LU: PR_snprintf (buf, 1024, fmt, argv[islot->arg].lu); break;
-	  case TYPE_LF: PR_snprintf (buf, 1024, fmt, argv[islot->arg].lf); break;
-	  case TYPE_P:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].p); break;
+	  case TYPE_I:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].i); break;
+	  case TYPE_U:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].u); break;
+	  case TYPE_F:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].f); break;
+	  case TYPE_LI: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].li); break;
+	  case TYPE_LU: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].lu); break;
+	  case TYPE_LF: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].lf); break;
+	  case TYPE_P:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].p); break;
 	  case TYPE_WIDTH:
 	  case TYPE_PRECISION:
 	    switch ((++islot)->type) {
-	      case TYPE_I:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].i); break;
-	      case TYPE_U:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].u); break;
-	      case TYPE_F:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].f); break;
-	      case TYPE_LI: PR_snprintf (buf, 1024, fmt, argv[islot->arg].li); break;
-	      case TYPE_LU: PR_snprintf (buf, 1024, fmt, argv[islot->arg].lu); break;
-	      case TYPE_LF: PR_snprintf (buf, 1024, fmt, argv[islot->arg].lf); break;
-	      case TYPE_P:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].p); break;
+	      case TYPE_I:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].i); break;
+	      case TYPE_U:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].u); break;
+	      case TYPE_F:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].f); break;
+	      case TYPE_LI: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].li); break;
+	      case TYPE_LU: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].lu); break;
+	      case TYPE_LF: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].lf); break;
+	      case TYPE_P:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].p); break;
 	      case TYPE_WIDTH:
 	      case TYPE_PRECISION:
 		switch ((++islot)->type) {
-		  case TYPE_I:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].i); break;
-		  case TYPE_U:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].u); break;
-		  case TYPE_F:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].f); break;
-		  case TYPE_LI: PR_snprintf (buf, 1024, fmt, argv[islot->arg].li); break;
-		  case TYPE_LU: PR_snprintf (buf, 1024, fmt, argv[islot->arg].lu); break;
-		  case TYPE_LF: PR_snprintf (buf, 1024, fmt, argv[islot->arg].lf); break;
-		  case TYPE_P:  PR_snprintf (buf, 1024, fmt, argv[islot->arg].p); break;
+		  case TYPE_I:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].i); break;
+		  case TYPE_U:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].u); break;
+		  case TYPE_F:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].f); break;
+		  case TYPE_LI: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].li); break;
+		  case TYPE_LU: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].lu); break;
+		  case TYPE_LF: PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].lf); break;
+		  case TYPE_P:  PR_snprintf (buf, sizeof(buf), fmt, argv[islot->arg].p); break;
 		  case TYPE_WIDTH:
 		  case TYPE_PRECISION: goto bail; /* how did this happen? */
 		  case TYPE_PERCENT:
@@ -647,7 +647,7 @@ dsgw_emitn (void* parm, const char* s, size_t n)
 	    s += slen; /* advance pointer to next unconverted chars */
 	    /* convert as many chars from s as will fit in buf */
 	    result = dsgw_convert(DSGW_FROM_UTF8, emit_converter,
-				  &bufptr, CONVERT_BUFSIZE, &len,
+				  &bufptr, sizeof(buf), &len,
 				  s, n, &slen, &err);
 	    /* write the converted chars to the output */
 	    n = dsgw_emitq ((FILE*)parm, buf, len);
@@ -660,34 +660,6 @@ dsgw_emitn (void* parm, const char* s, size_t n)
     }
     return parm;
 }
-
-#if 0
-static void
-dsgw_convert (void* parm, const char* s, size_t n)
-     /* Transform the output, in a visually distinctive way.
-        This function is intended for testing, only.
-     */
-{
-    while (parm && n > 0) {
-	const size_t len = LDAP_UTF8LEN(s);
-	if (len == 1 && *s >= '!' && *s <= '~') { /* ASCII */
-	    /* output the double-width variant of this character */
-	    unsigned c = (unsigned)*s - '!' + 0xFF01;
-	    unsigned char buf[3];
-	    buf[2] = 0x80 | (c & 0x3F); c >>= 6;
-	    buf[1] = 0x80 | (c & 0x3F); c >>= 6;
-	    buf[0] = 0xE0 | (c & 0x0F);
-	    parm = dsgw_emitn (parm, (char*)buf, 3);
-	} else {
-	    parm = dsgw_emitn (parm, s, len);
-	}
-	if (parm) {
-	    n -= len;
-	    s += len;
-	}
-    }
-}
-#endif
 
 int
 dsgw_emits (const char* s)

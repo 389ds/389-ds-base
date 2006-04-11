@@ -124,14 +124,14 @@ handle_post()
 
     if (gc->gc_localdbconf == NULL) {
         /* remote */
-        PR_snprintf (cmd, BIG_LINE, 
+        PR_snprintf (cmd, sizeof(cmd), 
 	    "./%s -b \"%s\" -h %s -p %d \"objectclass=*\" > %s 2> %s", 
 	    DSGW_LDAPSEARCH, gc->gc_ldapsearchbase, gc->gc_ldapserver, 
 	    gc->gc_ldapport, ldiffile, DSGW_NULL_DEVICE);
     }
     else {
         /* local database */
-        PR_snprintf (cmd, BIG_LINE, 
+        PR_snprintf (cmd, sizeof(cmd), 
 	    "./%s -b \"\" -C %s \"objectclass=*\" > %s 2> %s",
             DSGW_LDAPSEARCH, gc->gc_localdbconf, ldiffile, DSGW_NULL_DEVICE);
     }

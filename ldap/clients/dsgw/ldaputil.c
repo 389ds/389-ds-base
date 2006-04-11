@@ -50,6 +50,7 @@
 #include <io.h>
 #include <fcntl.h>
 #endif
+#include "libadminutil/distadm.h"
 
 static dsgwtmplinfo *init_listdisplay( char *tmplname, unsigned long options );
 static int do_search( dsgwtmplinfo *tip, LDAP *ld, char *base, int scope,
@@ -1305,7 +1306,7 @@ uid2dn( LDAP *ld, char *uid, char *base, int *ldaprc, char **lderrtxtp,
 	*errsp = XP_GetClientStr(DBT_invalidUserIdOrNullLdapHandle_);
 	return NULL;
     }
-    PR_snprintf( filtbuf, 85, "uid=%s", uid );
+    PR_snprintf( filtbuf, sizeof(filtbuf), "uid=%s", uid );
 
     if (( rc = ldap_search_s( ld, base, LDAP_SCOPE_SUBTREE, filtbuf,
 	    attrs, 1, &result )) != LDAP_SUCCESS ) {
@@ -1423,10 +1424,10 @@ dsgw_emit_location_popup( LDAP *ld, int argc, char **argv, int erropts )
     }
 
     if ( count > 1 ) {
-	util_snprintf( line, BIG_LINE, "%s\n<SELECT NAME=\"%s\">\n",
+	util_snprintf( line, sizeof(line), "%s\n<SELECT NAME=\"%s\">\n",
 		prefix, varname );
     } else {
-	util_snprintf( line, BIG_LINE, "<INPUT TYPE=\"hidden\" NAME=\"%s\" ",
+	util_snprintf( line, sizeof(line), "<INPUT TYPE=\"hidden\" NAME=\"%s\" ",
 		varname );
     }
     dsgw_emits( line );
@@ -1463,7 +1464,7 @@ dsgw_emit_location_popup( LDAP *ld, int argc, char **argv, int erropts )
     }
 
     if ( count > 1 ) {
-	util_snprintf( line, BIG_LINE, "</SELECT>\n%s\n", suffix );
+	util_snprintf( line, sizeof(line), "</SELECT>\n%s\n", suffix );
 	dsgw_emits( line );
     }
 
@@ -1500,7 +1501,7 @@ emit_one_loc_dn( char *dn, char *friendlyname, char *rootname, int only_one )
 	}
     }
 
-    util_snprintf( line, BIG_LINE, " VALUE=\"%s\">%s\n", escapeddn,
+    util_snprintf( line, sizeof(line), " VALUE=\"%s\">%s\n", escapeddn,
 	    only_one ? "" : friendlyname );
     free( escapeddn );
     if ( rdns != NULL ) {

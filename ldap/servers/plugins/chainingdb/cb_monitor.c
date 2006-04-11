@@ -76,9 +76,9 @@ cb_search_monitor_callback(Slapi_PBlock * pb, Slapi_Entry * e, Slapi_Entry * ent
 	char          		buf[CB_BUFSIZE];
 	struct berval 		val;
   	struct berval 		*vals[2];
-	int 			deletecount,addcount,modifycount,modrdncount,searchbasecount,searchonelevelcount;
-	int 			searchsubtreecount,abandoncount,bindcount,unbindcount,comparecount;
-	int 			outgoingconn, outgoingbindconn;
+	unsigned long		deletecount,addcount,modifycount,modrdncount,searchbasecount,searchonelevelcount;
+	unsigned long		searchsubtreecount,abandoncount,bindcount,unbindcount,comparecount;
+	unsigned int 		outgoingconn, outgoingbindconn;
 	cb_backend_instance	*inst = (cb_backend_instance *)arg;
 
 	/* First make sure the backend instance is configured */
@@ -178,12 +178,12 @@ cb_search_monitor_callback(Slapi_PBlock * pb, Slapi_Entry * e, Slapi_Entry * ent
   	val.bv_len = strlen( buf );
   	slapi_entry_attr_replace( e, CB_MONITOR_COMPARECOUNT, ( struct berval **)vals );
 
-  	sprintf( buf, "%d", outgoingconn );
+  	sprintf( buf, "%u", outgoingconn );
   	val.bv_val = buf;
   	val.bv_len = strlen( buf );
   	slapi_entry_attr_replace( e, CB_MONITOR_OUTGOINGCONN, ( struct berval **)vals );
 
-  	sprintf( buf, "%d", outgoingbindconn );
+  	sprintf( buf, "%u", outgoingbindconn );
   	val.bv_val = buf;
   	val.bv_len = strlen( buf );
   	slapi_entry_attr_replace( e, CB_MONITOR_OUTGOINGBINDCOUNT, ( struct berval **)vals );

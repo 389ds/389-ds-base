@@ -62,7 +62,7 @@
 #define PATH_MAX 512
 #endif
 
-char *get_perl_file(char *);
+char *get_perl_file(char *, size_t);
 
 
 /*
@@ -77,7 +77,7 @@ main( int argc, char **argv )
 
   printf("Content-type:text/html;charset=UTF-8\n\n<html>Hi\n");
 
-  get_perl_file(script);
+  get_perl_file(script, sizeof(script)-1);
   
   if (strchr(script, '/') != NULL || strchr(script, '\\') != NULL) {
     printf("Paths not allowed. Filenames only.\n");
@@ -94,10 +94,11 @@ main( int argc, char **argv )
 }
 
 char *
-get_perl_file(char *script) {
+get_perl_file(char *script, size_t scriptsize) {
   char *qs = getenv("QUERY_STRING");
   char *p1 = NULL;
   char *p2 = NULL;
+  size_t maxsize;
   
   if (qs == NULL || *qs == '\0') {
     printf("No QUERY_STRING found\n");
@@ -113,6 +114,8 @@ get_perl_file(char *script) {
 
   for (p2 = p1; *p2 != '\0' && *p2 != '&'; p2++);
 
-  strncpy(script, p1, p2-p1);
-  script[p2-p1] = '\0';
+  maxsize = (scriptsize < (p2-p1)) ? scriptsize : (p2-p1);
+
+  PL_strncpyz(script, p1, maxsize);
+  script[maxsize] = '\0';
 }

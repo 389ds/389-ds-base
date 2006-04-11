@@ -158,7 +158,7 @@ do_abandon( Slapi_PBlock *pb )
 			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
 	} else {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d ABANDON"
-			" targetop=%d msgid=%d nentries=%d etime=%d\n",
+			" targetop=%d msgid=%d nentries=%d etime=%ld\n",
 			pb->pb_conn->c_connid, pb->pb_op->o_opid, o->o_opid, id,
 			o->o_results.r.r_search.nentries, current_time() - o->o_time );
 

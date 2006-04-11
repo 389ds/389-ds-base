@@ -44,11 +44,6 @@
 
 main()
 {
-    char *p;
-    time_t expires;
-    char dn[ 512 ];
-    char pw[ 512 ];
-    char expsec[ 512 ];
     int np = 0;
     time_t last;
     FILE *fp;

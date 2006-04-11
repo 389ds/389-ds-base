@@ -59,17 +59,18 @@ main( int argc, char **argv)
     SEC_RNGInit();
     SEC_SystemInfoForRNG();
 
+	dn[0] = pw[0] = lifesec[0] = 0;
     if ( argc > 1 ) {
 	while (( c = getopt( argc, argv, "d:l:p:" )) != EOF ) {
 	    switch ( c ) {
 	    case 'd':
-		strcpy( dn, optarg );
+		PL_strncpyz( dn, optarg, sizeof(dn) );
 		break;
 	    case 'l':
-		strcpy( lifesec, optarg );
+		PL_strncpyz( lifesec, optarg, sizeof(lifesec) );
 		break;
 	    case 'p':
-		strcpy( pw, optarg );
+		PL_strncpyz( pw, optarg, sizeof(pw) );
 		break;
 	    }
 	}
@@ -77,11 +78,20 @@ main( int argc, char **argv)
 
     if ( strlen( dn ) == 0 || strlen( pw ) == 0 || strlen( lifesec ) == 0 ) {
 	printf( "dn: " );
-	gets( dn );
+	fgets( dn, sizeof(dn), stdin );
+	if (p = strchr(dn, '\n')) {
+		*p = 0;
+	}
 	printf( "passwd: " );
-	gets( pw );
+	fgets( pw, sizeof(pw), stdin );
+	if (p = strchr(pw, '\n')) {
+		*p = 0;
+	}
 	printf( "expires in how many seconds? " );
-	gets( lifesec );
+	fgets( lifesec, sizeof(lifesec), stdin );
+	if (p = strchr(lifesec, '\n')) {
+		*p = 0;
+	}
     }
 
     lifetime = atol( lifesec );

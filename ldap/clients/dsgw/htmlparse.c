@@ -202,14 +202,14 @@ void *condarg
              } else if ( parse_status != DSGW_PARSE_STATUS_NO_OUTPUT && 
 			 !strcmp(templates[ index ].name + 1, "CONTEXT ")) {
 		 char line[ BIG_LINE ];
-                 PR_snprintf( line, BIG_LINE, templates[ index ].format, context);
+                 PR_snprintf( line, sizeof(line), templates[ index ].format, context);
                  dsgw_emits( line );
 
 	     } else if ( parse_status != DSGW_PARSE_STATUS_NO_OUTPUT ) { 
                  /* I just can't believe there's no easy way to create 
                   * a va_list. */
                  char line[ BIG_LINE ];
-                 PR_snprintf( line, BIG_LINE, templates[ index ].format, 
+                 PR_snprintf( line, sizeof(line), templates[ index ].format, 
                          ( *argc > 0 && vars[ 0 ] != NULL ) ? vars[ 0 ]: "",
                          ( *argc > 1 && vars[ 1 ] != NULL ) ? vars[ 1 ]: "",
                          ( *argc > 2 && vars[ 2 ] != NULL ) ? vars[ 2 ]: "",
@@ -377,14 +377,14 @@ dsgw_pageheader(int argc, char **argv)
 
     dsgw_emits("<center><table border=2 width=100%%>\n");
 
-    util_snprintf(line, BIG_LINE, "<tr>");
+    util_snprintf(line, sizeof(line), "<tr>");
     dsgw_emits(line);
 
-    util_snprintf(line, BIG_LINE, "<td align=center width=100%%>");
+    util_snprintf(line, sizeof(line), "<td align=center width=100%%>");
     dsgw_emits(line);
-    util_snprintf(line, BIG_LINE, "<hr size=0 width=0>");
+    util_snprintf(line, sizeof(line), "<hr size=0 width=0>");
     dsgw_emits(line);
-    util_snprintf(line, BIG_LINE, "<FONT size=+2><b>%s</b></FONT>"
+    util_snprintf(line, sizeof(line), "<FONT size=+2><b>%s</b></FONT>"
                                   "<hr size=0 width=0>"
                                   "</th>", ( argc > 0 ) ? argv[0] : "" );
     dsgw_emits(line);
@@ -399,7 +399,7 @@ dsgw_title( int argc, char **argv)
     char line[BIG_LINE];
     dsgw_emits("<HTML>");
     dsgw_head_begin();
-    util_snprintf(line, BIG_LINE, "\n<TITLE>%s</TITLE></HEAD>\n"
+    util_snprintf(line, sizeof(line), "\n<TITLE>%s</TITLE></HEAD>\n"
 	    "<BODY %s>\n", ( argc > 0 ) ? argv[0] : "", dsgw_html_body_colors );
     dsgw_emits(line);
 }
@@ -411,10 +411,10 @@ dsgw_body( int argc, char **argv)
     char line[BIG_LINE];
 
     if ( argc > 0 ) {
-	util_snprintf(line, BIG_LINE, "<BODY %s %s>\n", dsgw_html_body_colors,
+	util_snprintf(line, sizeof(line), "<BODY %s %s>\n", dsgw_html_body_colors,
 		( argc > 0 ) ? argv[0] : "" );
     } else {
-	util_snprintf(line, BIG_LINE, "<BODY %s>\n", dsgw_html_body_colors );
+	util_snprintf(line, sizeof(line), "<BODY %s>\n", dsgw_html_body_colors );
     }
 
     dsgw_emits(line);
@@ -451,14 +451,14 @@ dsgw_submit(int verify, char **vars)
 
     if(!verify)  {
         char outstr[256];
-        PR_snprintf(outstr, 256, "<td width=50%% align=center>"
+        PR_snprintf(outstr, sizeof(outstr), "<td width=50%% align=center>"
                "<input type=submit value=\"%s\">"
                "</td>\n",
                XP_GetClientStr(DBT_ok_1));
         dsgw_emits(outstr);
     }  else  {
         char outstr[256];
-        PR_snprintf(outstr, 256, "<td width=50%% align=center>"
+        PR_snprintf(outstr, sizeof(outstr), "<td width=50%% align=center>"
                "<input type=button value=\"%s\" "
                "onclick=\"verify(this.form)\">"
                "</td>\n",
@@ -467,7 +467,7 @@ dsgw_submit(int verify, char **vars)
     }
     {
         char outstr[256];
-        PR_snprintf(outstr, 256, "<td width=50%% align=center>"
+        PR_snprintf(outstr, sizeof(outstr), "<td width=50%% align=center>"
                "<input type=reset value=\"%s\"></td>\n",
                XP_GetClientStr(DBT_reset_));
         dsgw_emits(outstr);
@@ -489,12 +489,12 @@ dsgw_dialogsubmit(void)
 
     dsgw_emits("<center><table border=2 width=100%%><tr>");
 
-    PR_snprintf(outstr, 256, "<td width=50%% align=center>"
+    PR_snprintf(outstr, sizeof(outstr), "<td width=50%% align=center>"
            "<input type=submit value=\"%s\">"
            "</td>\n",
            XP_GetClientStr(DBT_done_));
     dsgw_emits(outstr);
-    PR_snprintf(outstr, 256, "<td width=50%% align=center>"
+    PR_snprintf(outstr, sizeof(outstr), "<td width=50%% align=center>"
            "<input type=button value=\"%s\" "
            "onClick=\"top.close()\"></td>\n",
            XP_GetClientStr(DBT_cancel_2));
@@ -707,8 +707,19 @@ int *argc
 	    }
         } else {
             if ( isvar != -1 )  {
-		isvar += LDAP_UTF8COPY(scratch + isvar, string);
-                scratch[ isvar ] = '\0';
+		/* check for scratch overflow */
+		if ((strlen(string) + isvar) < sizeof(scratch)) {
+		    isvar += LDAP_UTF8COPY(scratch + isvar, string);
+		    scratch[ isvar ] = '\0';
+		} else {
+		    char msg[BUFSIZ];
+		    /* error - buffer overflow */
+		    PR_snprintf(msg, sizeof(msg), XP_GetClientStr(DBT_invalidTemplateVarLen),
+				strlen(string), string);
+		    template_error(msg);
+		    *argc = 0;
+		    return NULL;
+		}
             } else {
                 if ( *string == DIRECTIVE_END ) {
                     break;

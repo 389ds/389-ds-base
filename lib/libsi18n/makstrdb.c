@@ -119,7 +119,6 @@ XP_MakeStringDatabase(void)
   char* cptr;
   RESOURCE_TABLE* table;
   NSRESHANDLE hresdb;
-  char DBTlibraryName[128];
   
   /* Creating database */
   hresdb = NSResCreateTable(DATABASE_NAME, NULL);
@@ -189,7 +188,7 @@ XP_MakeStringProperties(void)
              */
             src = table->str;
             dest = buffer;
-            while (*src) {
+            while (*src && (sizeof(buffer) > (dest-buffer))) {
                 if (*src < 0x20) {
                     strcpy(dest,"\\u00");
                     dest += 4;

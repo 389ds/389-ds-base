@@ -199,7 +199,7 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
 		key_as_berval.bv_len = wrapped_symmetric_key.len;
 		key_value = slapi_value_new_berval(&key_as_berval);
 		/* key_value is now a copy of key_as_berval - free wrapped_symmetric_key */
-		slapi_ch_free(&wrapped_symmetric_key.data);
+		slapi_ch_free_string((char **)&wrapped_symmetric_key.data);
 		slapi_entry_add_value(e, KEY_ATTRIBUTE_NAME, key_value);
 		slapi_value_free(&key_value);
 		/* Store the entry */

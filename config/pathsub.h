@@ -61,7 +61,12 @@
 
 extern char *program;
 
-extern void fail(char *format, ...);
+extern void fail(char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 1, 2)));
+#else
+        ;
+#endif
 extern char *getcomponent(char *path, char *name);
 extern char *ino2name(ino_t ino, char *dir);
 extern void *xmalloc(size_t size);

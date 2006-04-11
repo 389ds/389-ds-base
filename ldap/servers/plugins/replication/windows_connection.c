@@ -665,8 +665,6 @@ send_dirsync_search(Repl_Connection *conn)
 
 	const char* old_dn = NULL;
 	char* dn = NULL;
-	int i=0;
-	int num_comp=0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_dirsync_search\n", 0, 0, 0 );
 	
@@ -810,13 +808,10 @@ windows_conn_send_rename(Repl_Connection *conn, const char *dn,
 Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 {
 	int rc=0;
-	int matches=0;
 	LDAPMessage *res = NULL;
 	Slapi_Entry *e = NULL;
 	LDAPMessage *lm = NULL;
-	char *a = "";
 	char *dn = "";
-	BerElement  *ber = NULL;
 	
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_get_search_result\n", 0, 0, 0 );
 

@@ -445,7 +445,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 			!= SECSuccess) {
 		PRErrorCode errorCode = PR_GetError();
 		slapi_log_access (LDAP_DEBUG_STATS,
-			"conn=%d SSL failed to obtain cipher info; ",
+			"conn=%d SSL failed to obtain cipher info; "
 			SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
 			conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
 		return;

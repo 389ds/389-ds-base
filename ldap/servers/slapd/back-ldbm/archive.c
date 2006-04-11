@@ -207,7 +207,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 c = *p;
                 *p = '\0';
             }
-            bakup_dir = slapi_ch_smprintf("%s%ctmp_%010d", directory, c, time(0));
+            bakup_dir = slapi_ch_smprintf("%s%ctmp_%010ld", directory, c, time(0));
             LDAPDebug( LDAP_DEBUG_ANY,
                       "archive2db: backup dir: %s\n", bakup_dir, 0, 0);
             *p = c;
@@ -315,10 +315,10 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
             if (task) {
                 slapi_task_log_notice(task,
                             "Failed to rename \"%s\" to \"%s\".",
-                            directory, dir_bak, 0);
+                            directory, dir_bak);
                 slapi_task_log_notice(task,
                             SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
-                            prerr, slapd_pr_strerror(prerr), 0);
+                            prerr, slapd_pr_strerror(prerr));
             }
             return_value = -1;
             goto out;

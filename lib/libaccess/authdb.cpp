@@ -167,10 +167,10 @@ static int acl_url_to_dbtype (const char *url, ACLDbType_t *dbtype_out)
     else {
 	/* treat prefix in the url as dbtype if it has been registered.
 	 */
-	int prefix_len = strcspn(url, ":");
+	size_t prefix_len = strcspn(url, ":");
 	char dbtypestr[BIG_LINE];
 
-	if (prefix_len) {
+	if (prefix_len && (prefix_len < sizeof(dbtypestr))) {
 	    strncpy(dbtypestr, url, prefix_len);
 	    dbtypestr[prefix_len] = 0;
 

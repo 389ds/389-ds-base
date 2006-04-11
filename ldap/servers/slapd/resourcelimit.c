@@ -474,7 +474,7 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 				if ( slapi_valueset_next_value( vs, index, &v ) != -1 ) {
 					char ebuf[ BUFSIZ ];
 					slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
-							"%s: ignoring multiple values for %s in entry \n",
+							"%s: ignoring multiple values for %s in entry %s\n",
 							fnname, reslimit_map[ i ].rlmap_at,
 							escape_string( slapi_entry_get_dn_const( e ),
 							ebuf ));

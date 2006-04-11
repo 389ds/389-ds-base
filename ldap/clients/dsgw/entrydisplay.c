@@ -239,7 +239,9 @@ static void dsgw_value_free( void **ldvals, int binary ) ;
 static char *dsgw_time(time_t secs_since_1970);
 
 /* attribute syntax handler routines */
+#if NEEDED_FOR_DEBUGGING
 static void ntdomain_display( struct dsgw_attrdispinfo *adip );
+#endif
 static void ntuserid_display( struct dsgw_attrdispinfo *adip );
 static void str_display( struct dsgw_attrdispinfo *adip );
 static void str_edit( struct dsgw_attrdispinfo *adip );
@@ -1623,10 +1625,10 @@ binvalue_display( struct dsgw_attrdispinfo *adip )
 				memcpy( &iValue, bin_data.bv_val, sizeof( iValue ) );
 
 				if(( adip->adi_opts & DSGW_ATTROPT_DECIMAL ) != 0 ) 
-					PR_snprintf( szFormat, 512, "%%lu" );
+					PR_snprintf( szFormat, sizeof(szFormat), "%%lu" );
 				else
-					PR_snprintf( szFormat, 512, "%%#0%lu.%lux", bin_data.bv_len*2, bin_data.bv_len*2 );
-				PR_snprintf( szFlags, 512, szFormat, iValue );
+					PR_snprintf( szFormat, sizeof(szFormat), "%%#0%lu.%lux", bin_data.bv_len*2, bin_data.bv_len*2 );
+				PR_snprintf( szFlags, sizeof(szFlags), szFormat, iValue );
 
 				fputs( szFlags, stdout );
 
@@ -1639,6 +1641,7 @@ binvalue_display( struct dsgw_attrdispinfo *adip )
 	}
 }
 
+#if NEEDED_FOR_DEBUGGING
 /*
  * display handler for NT Domain Identifier string
  */
@@ -1671,7 +1674,7 @@ ntdomain_display( struct dsgw_attrdispinfo *adip )
     }
 
 }
-
+#endif
 
 
 /*
@@ -3222,7 +3225,7 @@ dsgw_time(time_t secs_since_1970)
   }
 
   /* convert to utf8 */
-  u_strToUTF8(obuf, BSIZ, NULL, dstr0, myStrlen, &err);
+  u_strToUTF8(obuf, sizeof(obuf), NULL, dstr0, myStrlen, &err);
 
   if (err != U_ZERO_ERROR) {
     dsgw_error( DSGW_ERR_LDAPGENERAL, NULL, DSGW_ERROPT_EXIT, err, NULL );

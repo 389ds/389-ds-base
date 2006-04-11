@@ -46,6 +46,8 @@
 */
 #include <plstr.h>
 #include <prlink.h>
+#include <prprf.h>
+
 #include <key.h>
 #include <cert.h>
 #include <ldaputil/certmap.h>
@@ -388,7 +390,7 @@ static int PresentInComps (long comps_bitmask, int tag)
 
 static void print_oid_bitmask (long bitmask)
 {
-    fprintf(stderr, "%x: ", bitmask);
+    fprintf(stderr, "%lx: ", bitmask);
 
     if (PresentInComps(bitmask, SEC_OID_AVA_COUNTRY_NAME))
 	fprintf(stderr, " C");
@@ -1812,7 +1814,7 @@ int ldapu_certmap_init (const char *config_file,
 
     *certmap_list = 0;
     *certmap_default = 0;
-    sprintf(this_dllname, "%s", dllname);
+    PR_snprintf(this_dllname, sizeof(this_dllname), "%s", dllname);
 
     if (!certmap_listinfo) return LDAPU_ERR_OUT_OF_MEMORY;
 

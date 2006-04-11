@@ -472,6 +472,7 @@ char *acltext;
 #ifdef XP_WIN32
 #include <io.h>
 #endif
+#include "plstr.h"
 
 #include "parse.h"
 #include "aclscan.h"
@@ -1944,7 +1945,7 @@ acl_InitScanner(NSErr_t *errp, char *filename, char *buffer)
 	acl_lineno = 1;
 	acl_use_buffer = (filename == NULL) ? 1 : 0 ;
 	if ( filename != NULL ) {
-		strcpy(acl_filename, filename);
+		PL_strncpyz(acl_filename, filename, sizeof(acl_filename));
 #ifdef UTEST
 		aclin = fopen(filename, "r");
 		if ( aclin == NULL ) {

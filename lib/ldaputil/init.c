@@ -39,6 +39,7 @@
 #include <string.h>
 #include <prlink.h>
 #include <prio.h>
+#include <prprf.h>
 
 /*#include "base/file.h"*/
 #include "ldaputil/certmap.h"
@@ -90,7 +91,7 @@ static int load_server_libs (const char *dir)
             if(is_lib) {
 		char path[1024];
 
-		sprintf(path, "%s%c%s", dir, FILE_PATHSEP, libname);
+		PR_snprintf(path, sizeof(path), "%s%c%s", dir, FILE_PATHSEP, libname);
 		lib = PR_LoadLibrary(path);
 		if (!lib) rv = LDAPU_ERR_UNABLE_TO_LOAD_PLUGIN;
 	    }
@@ -123,7 +124,7 @@ NSAPI_PUBLIC int ldaputil_init (const char *config_file,
 
 	if (serv_root && *serv_root) {
 	    /* Load common libraries */
-	    sprintf(dir, "%s%clib%c%s", serv_root, FILE_PATHSEP,
+	    PR_snprintf(dir, sizeof(dir), "%s%clib%c%s", serv_root, FILE_PATHSEP,
 		    FILE_PATHSEP, "common");
 	    rv = load_server_libs(dir);
 

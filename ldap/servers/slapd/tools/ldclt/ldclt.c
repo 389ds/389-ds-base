@@ -3060,6 +3060,8 @@ main (
     ldcltExit (EXIT_OTHER);					/*JLS 25-08-00*/
 
   ldcltExit (mctx.exitStatus);					/*JLS 25-08-00*/
+
+  return mctx.exitStatus;
 }
 
 

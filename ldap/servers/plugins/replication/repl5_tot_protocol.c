@@ -125,7 +125,6 @@ repl5_tot_log_operation_failure(int ldap_error, char* ldap_error_string, const c
 static void repl5_tot_result_threadmain(void *param) 
 {
 	callback_data *cb = (callback_data*) param;
-	int res = 0;
 	ConnResult conres = 0;
 	Repl_Connection *conn = cb->prp->conn;
 	int finished = 0;

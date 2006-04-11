@@ -177,7 +177,7 @@ extern "C" NSAPI_PUBLIC char *dns_guess_domain(char * hname)
 
     if (domain != 0) {
 	hnlen = strlen(hname);
-	if ((hnlen + dnlen + 2) <= sizeof(line)) {
+	if ((size_t)(hnlen + dnlen + 2) <= sizeof(line)) {
 	    strcpy(line, hname);
 	    line[hnlen] = '.';
 	    strcpy(&line[hnlen+1], domain);

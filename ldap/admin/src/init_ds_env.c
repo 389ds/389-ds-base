@@ -48,6 +48,7 @@
 #include "libadminutil/distadm.h"
 #include "init_ds_env.h"
 #include "dsalib.h"
+#include "prprf.h"
 
 int init_ds_env()
 {

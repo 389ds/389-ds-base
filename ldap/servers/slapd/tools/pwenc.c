@@ -129,7 +129,7 @@ main( argc, argv )
     struct pw_scheme	*pwsp, *cmppwsp;
     extern int		optind;
     char 		*cpwd = NULL;	/* candidate password for comparison */
-	char errorbuf[BUFSIZ];
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	slapdFrontendConfig_t *slapdFrontendConfig =  NULL;
 
 	char *opts = "Hs:c:D:";

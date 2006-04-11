@@ -46,6 +46,7 @@
 #include <stdio.h>		/* for BUFSIZ */
 #include <string.h>		/* for strncpy, strcat */
 #include <ldap.h>
+#include <prprf.h>
 
 #include <ldaputil/certmap.h>
 #include <ldaputil/errors.h>
@@ -274,7 +275,7 @@ int ldapu_find_uid_attrs (LDAP *ld, const char *uid, const char *base,
     int		retval;
 
     /* setup filter as (uid=<uid>) */
-    sprintf(filter, ldapu_strings[LDAPU_STR_FILTER_USER], uid);
+    PR_snprintf(filter, sizeof(filter), ldapu_strings[LDAPU_STR_FILTER_USER], uid);
 
     retval = ldapu_find(ld, base, scope, filter, attrs, attrsonly, res);
 
@@ -384,7 +385,7 @@ int ldapu_find_group_attrs (LDAP *ld, const char *groupid,
     int		retval;
 
     /* setup the filter */
-    sprintf(filter,
+    PR_snprintf(filter, sizeof(filter),
 	    ldapu_strings[LDAPU_STR_FILTER_GROUP],
 	    groupid);
 
@@ -497,7 +498,7 @@ int ldapu_auth_udn_gdn_recurse (LDAP *ld, const char *userdn,
 	return LDAPU_ERR_CIRCULAR_GROUPS;
 
     /* setup the filter */
-    sprintf(member_filter, ldapu_strings[LDAPU_STR_FILTER_MEMBER], userdn, userdn);
+    PR_snprintf(member_filter, sizeof(member_filter), ldapu_strings[LDAPU_STR_FILTER_MEMBER], userdn, userdn);
 
     retval = ldapu_find(ld, groupdn, LDAP_SCOPE_BASE, member_filter, attrs,
 			attrsonly, &res);
@@ -510,7 +511,7 @@ int ldapu_auth_udn_gdn_recurse (LDAP *ld, const char *userdn,
 	DBG_PRINT2("Find parent groups of \"%s\"\n", userdn);
 
 	/* Modify the filter to include the objectclass check */
-	sprintf(filter, ldapu_strings[LDAPU_STR_FILTER_MEMBER_RECURSE],
+	PR_snprintf(filter, sizeof(filter), ldapu_strings[LDAPU_STR_FILTER_MEMBER_RECURSE],
 		member_filter);
 	retval = ldapu_find(ld, base, LDAP_SCOPE_SUBTREE, filter,
 			    attrs, attrsonly, &res);
@@ -1020,9 +1021,9 @@ int ldapu_auth_uid_attrfilter (LDAP *ld, const char *uid, const char *attrfilter
 
     /* setup filter as (& (uid=<uid>) (attrfilter)) */
     if (*attrfilter == '(') 
-	sprintf(filter, "(& (uid=%s) %s)", uid, attrfilter);
+	PR_snprintf(filter, sizeof(filter), "(& (uid=%s) %s)", uid, attrfilter);
     else
-	sprintf(filter, "(& (uid=%s) (%s))", uid, attrfilter);
+	PR_snprintf(filter, sizeof(filter), "(& (uid=%s) (%s))", uid, attrfilter);
 
     retval = ldapu_find(ld, base, scope, filter, attrs, attrsonly, &res);
 

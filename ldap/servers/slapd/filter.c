@@ -100,14 +100,14 @@ get_filter( Connection *conn, BerElement *ber, int scope,
 		logbuf = slapi_ch_malloc(logbufsize);
 		*logbuf = '\0';
 		slapi_log_error( SLAPI_LOG_FATAL, "get_filter", "before optimize: %s\n",
-				slapi_filter_to_string(*filt, logbuf, logbufsize), 0, 0 );
+				slapi_filter_to_string(*filt, logbuf, logbufsize));
 	}
 
 	filter_optimize(*filt);
 
 	if (NULL != logbuf) {
 		slapi_log_error( SLAPI_LOG_FATAL, "get_filter", " after optimize: %s\n",
-				slapi_filter_to_string(*filt, logbuf, logbufsize), 0, 0 );
+				slapi_filter_to_string(*filt, logbuf, logbufsize));
 		slapi_ch_free_string( &logbuf );
 	}
 

@@ -144,8 +144,8 @@ dsgw_mkrndstr()
     PK11_ConfigurePKCS11(NULL, NULL, tokDes, ptokDes, NULL, NULL, NULL, NULL, 0, 0 );	
     /*NSS_NoDB_Init(NULL);*/
     dsgw_initNSS();
-    PK11_GenerateRandom(buf, RNDBUFLEN);
-    return( buf2str( buf, RNDBUFLEN ));
+    PK11_GenerateRandom(buf, sizeof(buf));
+    return( buf2str( buf, sizeof(buf) ));
 }
 
 
@@ -162,7 +162,7 @@ dsgw_opencookiedb()
 #define F_OK 0
 #endif
 #endif
-    sprintf(cdb, "%s.%s", DSGW_COOKIEDB_FNAME, context);
+    PR_snprintf(cdb, sizeof(cdb), "%s.%s", DSGW_COOKIEDB_FNAME, context);
 
     if ( access( cdb, F_OK ) == 0 ) {
 	fp = fopen( cdb, "r+" );
@@ -253,7 +253,7 @@ dsgw_ckdn2passwd( char *rndstr, char *dn, char **ret_pw )
     }
 
     for (;;) {
-	if ( fgets( buf, CKBUFSIZ, fp ) == NULL ) {
+	if ( fgets( buf, sizeof(buf), fp ) == NULL ) {
 	    dsgw_closecookiedb( fp );
 #ifdef DSGW_DEBUG
 	    dsgw_log( "dsgw_ckdn2passwd: cookie <%s> not found in db\n",
@@ -433,14 +433,14 @@ dsgw_delcookie( char *cookie )
     if (( fp = dsgw_opencookiedb()) == NULL ) {
         return -1;
     }
-    fgets( buf, CKBUFSIZ, fp );
+    fgets( buf, sizeof(buf), fp );
     if ( strncmp( buf, "lastpurge:", 10 )) {
 	dsgw_closecookiedb( fp );
 	return -1;
     }
     rc = DSGW_CKDB_KEY_NOT_PRESENT;
     for (;;) {
-	if ( fgets( buf, CKBUFSIZ, fp ) == NULL ) {
+	if ( fgets( buf, sizeof(buf), fp ) == NULL ) {
 	    break;
 	}
 	if ( strncmp( buf, rndstr, CKLEN )) {
@@ -513,7 +513,7 @@ dsgw_getlastpurged( FILE *fp )
     pos = ftell( fp );
     fseek( fp, 0L, SEEK_SET );
 
-    fgets( buf, CKBUFSIZ, fp );
+    fgets( buf, sizeof(buf), fp );
     if ( strncmp( buf, "lastpurge:", 10 )) {
 	ret = (time_t) 0L;
     } else {
@@ -553,7 +553,7 @@ dsgw_purgedatabase( char *dn )
     size_t csize;	/* current size of file */
     char cdb[MAXPATHLEN]; /*DSGW_COOKIEDB_FNAME + context*/
     
-    sprintf(cdb, "%s.%s", DSGW_COOKIEDB_FNAME, context);
+    PR_snprintf(cdb, sizeof(cdb), "%s.%s", DSGW_COOKIEDB_FNAME, context);
 
     if (( fp = dsgw_opencookiedb()) == NULL ) {
 	return -1;
@@ -576,10 +576,11 @@ dsgw_purgedatabase( char *dn )
 	char *p;
 	char *dbdn;
 	int nukeit;
+	size_t maxlen = sizeof(expbuf);
 
 	nukeit = 0;
 
-	if ( fgets( buf, CKBUFSIZ, fp ) == NULL ) {
+	if ( fgets( buf, sizeof(buf), fp ) == NULL ) {
 	    break;
 	}
 	if ( strncmp( buf, "lastpurge:", 10 ) == 0 ) {
@@ -596,8 +597,13 @@ dsgw_purgedatabase( char *dn )
 	    dsgw_closecookiedb( fp );
 	    return -1;
 	}
-	strncpy( expbuf, exp, p - exp );
-	expbuf[ p - exp ] = '\0';
+	if ((p - exp) < maxlen) {
+		maxlen = p - exp;
+	} else {
+		maxlen--; /* need a length, not a count */
+	}
+	strncpy( expbuf, exp, maxlen );
+	expbuf[ maxlen ] = '\0';
 	time( &now );
 
 	/* Get the entry's DN */
@@ -678,7 +684,7 @@ dsgw_traverse_db()
 	return;
     }
 
-    if ( fgets( buf, CKBUFSIZ, fp ) == NULL ) {
+    if ( fgets( buf, sizeof(buf), fp ) == NULL ) {
 	dsgw_closecookiedb( fp );
 	printf( "Cookie database is empty (no lastpurge line)\n" );
 	return;
@@ -686,8 +692,9 @@ dsgw_traverse_db()
     puts( buf );
 
     for (;;) {
+	size_t maxlen = sizeof(expbuf);
 	char *p;
-	if ( fgets( buf, CKBUFSIZ, fp ) == NULL ) {
+	if ( fgets( buf, sizeof(buf), fp ) == NULL ) {
 	    dsgw_closecookiedb( fp );
 	    printf( "%d entries, %d expired\n", total, expired );
 	    return;
@@ -702,8 +709,13 @@ dsgw_traverse_db()
 	    return;
 	}
 	printf( "%s", buf );
-	strncpy( expbuf, exp, p - exp + 1 );
-	expbuf[ p - exp + 1 ] = '\0';
+	if ((p - exp + 1) < maxlen) {
+	    maxlen = p - exp + 1;
+	} else {
+	    maxlen--; /* need a length, not a count */
+	}
+	strncpy( expbuf, exp, maxlen );
+	expbuf[ maxlen ] = '\0';
 	time( &now );
 	total++;
 	if ( now > atol( expbuf )) {
@@ -752,6 +764,7 @@ dsgw_mkcookie( char *dn, char *password, time_t lifetime, int *err )
 	return NULL;
     }
 
+    /* richm: replace with PR_smprintf */
     ckbuf = dsgw_ch_malloc( strlen( DSGW_CKHDR ) + strlen( r ) +
 	    strlen( edn ) + strlen( DSGW_AUTHCKNAME ) + 2 + 20 );
     ckbuf[ 0 ] = '\0';
@@ -768,26 +781,6 @@ dsgw_mkcookie( char *dn, char *password, time_t lifetime, int *err )
     return ckbuf;
 }
 
-
-
-#if 0
-/*
- * Given a time_t, return a GMTString representation of that time.
- */
-char *
-dsgw_t2gmts( time_t cktime )
-{
-    time_t	tnl;
-    struct tm	*pt;
-#define	TBUFSIZE 40
-    char	tbuf[ TBUFSIZE ];
-
-    tnl = time( NULL );
-    pt = gmtime( &tnl );
-    (void)strftime( tbuf, (size_t)TBUFSIZE, "%A, %d-%b-%y %T GMT", pt);
-    return( dsgw_ch_strdup( tbuf ));
-}
-#endif
 
 
 /*

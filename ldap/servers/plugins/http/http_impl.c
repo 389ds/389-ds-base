@@ -62,6 +62,7 @@
 /*** from proto-slap.h ***/
 
 int slapd_log_error_proc( char *subsystem, char *fmt, ... );
+
 char *config_get_instancedir();
 
 /*** from ldaplog.h ***/
@@ -965,11 +966,11 @@ static PRStatus parseAtPath(const char *url, char **path)
 {
 	PRStatus status = PR_SUCCESS;
 	char *dir = "%s%s"; 
-	*path = (char *)PR_Calloc(1, (strlen(dir) + 1024));
+	*path = (char *)PR_Calloc(1, strlen(dir) + strlen(url) + 2);
 
     /* Just write the path and check for a starting / */
     if ('/' != *url) {
-		PR_sscanf(*path, dir, "/", url);
+		sprintf(*path, dir, "/", url);
 	} else {
 		strcpy(*path, url);
 	}

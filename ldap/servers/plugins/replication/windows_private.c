@@ -423,7 +423,6 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 {
 
 	LDAPControl *control = NULL;
-	LDAPControl **lc = &control ;
 	BerElement *ber;
 	Dirsync_Private *dp;
 
@@ -498,7 +497,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 			goto choke;
 		}
 
-		slapi_ch_free(&dp->dirsync_cookie);
+		slapi_ch_free_string(&dp->dirsync_cookie);
 		dp->dirsync_cookie = ( char* ) slapi_ch_malloc(serverCookie->bv_len + 1);
 
 		memcpy(dp->dirsync_cookie, serverCookie->bv_val, serverCookie->bv_len);
@@ -548,7 +547,7 @@ void windows_private_null_dirsync_cookie(const Repl_Agmt *ra)
 	PR_ASSERT (dp);
 
 	dp->dirsync_cookie_len = 0;
-	slapi_ch_free(&dp->dirsync_cookie);
+	slapi_ch_free_string(&dp->dirsync_cookie);
 	dp->dirsync_cookie = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_null_dirsync_control\n", 0, 0, 0 );
@@ -630,7 +629,6 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 	Slapi_DN* sdn = NULL;
 	int rc = 0;
 	Slapi_Entry *entry = NULL;
-	char* cookie = NULL;
 	Slapi_Attr *attr = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_load_dirsync_cookie\n", 0, 0, 0 );
@@ -658,7 +656,7 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 			if (vals)
 			{
 				dp->dirsync_cookie_len = (int)  (vals[0])->bv_len;
-				slapi_ch_free(&dp->dirsync_cookie);
+				slapi_ch_free_string(&dp->dirsync_cookie);
 
 				dp->dirsync_cookie = ( char* ) slapi_ch_malloc(dp->dirsync_cookie_len + 1);
 				memcpy(dp->dirsync_cookie,(vals[0]->bv_val), (vals[0])->bv_len+1);

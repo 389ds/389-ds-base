@@ -111,6 +111,7 @@ main(int argc, char**argv)
  char **tmp;
  struct hostent *serveraddr;
  struct sockaddr_in srvsaddr;
+ char *p;
 
  while((i=getopt(argc,argv,"p:"))!=EOF){
 	switch(i){
@@ -125,7 +126,10 @@ main(int argc, char**argv)
  maxop=npend=0;
  pendops=(Optype*)malloc(sizeof(Optype)*20);
  sigset(SIGPIPE,SIG_IGN);
- while(gets(logline)){
+ while(fgets(logline, sizeof(logline), stdin)){
+	 if (p = strchr(logline, '\n')) {
+		 *p = 0;
+	 }
 	 if(!connected){
 		if((sockfd=socket(AF_INET,SOCK_STREAM,0))==-1){
 			perror(argv[0]);

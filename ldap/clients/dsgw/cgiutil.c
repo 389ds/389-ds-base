@@ -236,7 +236,7 @@ dsgw_get_cgi_var(char *varname, int required)
 
     if ( required == DSGW_CGIVAR_REQUIRED && ans == NULL ) {
 	char errbuf[ 256 ];
-	PR_snprintf( errbuf, 256,
+	PR_snprintf( errbuf, sizeof(errbuf),
 		XP_GetClientStr(DBT_missingFormDataElement100s_), varname );
 	dsgw_error( DSGW_ERR_BADFORMDATA, errbuf, DSGW_ERROPT_EXIT, 0, NULL );
     }
@@ -325,21 +325,24 @@ dsgw_string_to_vec(char *in)
             vars++;
     
     ans = (char **) dsgw_ch_malloc((sizeof(char *)) * (vars+1));
-  
-    x=0;
-    /* strtok() is not MT safe, but it is okay to call here because it is used in monothreaded env */
-    tmp = strtok(in, "&");
-    ans[x]=dsgw_ch_strdup(tmp);
-    dsgw_form_unescape(ans[x++]);
+	if (ans) {
+		x=0;
+		/* strtok() is not MT safe, but it is okay to call here because it is used in monothreaded env */
+		tmp = strtok(in, "&");
+		if (tmp && *tmp && strchr(tmp, '=')) {
+			ans[x]=dsgw_ch_strdup(tmp);
+			dsgw_form_unescape(ans[x++]);
 
-    while((tmp = strtok(NULL, "&")))  {
-	if ( strchr( tmp, '=' ) == NULL ) {
-	    break;
+			while((x <= vars) && (tmp = strtok(NULL, "&")))  {
+				if ( strchr( tmp, '=' ) == NULL ) {
+					break;
+				}
+				ans[x] = dsgw_ch_strdup(tmp);
+				dsgw_form_unescape(ans[x++]);
+			}
+		}
+		ans[x] = NULL;
 	}
-        ans[x] = dsgw_ch_strdup(tmp);
-        dsgw_form_unescape(ans[x++]);
-    }
-    ans[x] = NULL;
 
     return(ans);
 }

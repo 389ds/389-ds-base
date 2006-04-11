@@ -80,6 +80,13 @@ extern "C" {
 #include "setupapi.h"
 
 #define MAX_STR_SIZE 512
+static void dsLogMessage(const char *level, const char *which,
+			 const char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
 
 static InstallLog *installLog = NULL;
 

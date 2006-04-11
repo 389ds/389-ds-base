@@ -239,6 +239,12 @@ is_root_user(const char *name, QUERY_VARS* query)
 
 #ifdef CGI_DEBUG
 #include <stdarg.h>
+static void debug_log (const char* file, const char* format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
 
 static void
 debug_log (const char* file, const char* format, ...)
@@ -375,6 +381,12 @@ add_aci(LDAP* ld, char* DN, char* privilege)
   list of strings to substitute in the format; basically just constructs
   the correct aci string and passes it to add_aci
 */
+int add_aci_v(LDAP* ld, char* DN, char* format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
 int
 add_aci_v(LDAP* ld, char* DN, char* format, ...)
 {

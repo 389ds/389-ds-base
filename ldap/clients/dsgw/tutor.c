@@ -124,7 +124,7 @@ void _my_return_html_file(char *filename, char *base)  {
         *tmp='\0';
         dsgw_emitf("<BASE href=\"%s%s/%s\">\n", surl, sn, base);
     }
-    while( fgets(line, BIG_LINE, html))  {
+    while( fgets(line, sizeof(line), html))  {
 	dsgw_emits( line );
     }
 }
@@ -210,7 +210,7 @@ main(
             map=fopen(man_index, "r");
             if(!map) 
                 goto ohwell;
-            while(fgets(line, BIG_LINE, map))  {
+            while(fgets(line, sizeof(line), map))  {
                 if(line[0]==';')  
                     continue;
                 else if(ldap_utf8isspace(line))

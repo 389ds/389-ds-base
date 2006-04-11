@@ -95,6 +95,14 @@ dotdecimal(char *ipstr, char *netmaskstr, int *ip, int *netmask)
     if (strcspn(ipstr, "0123456789.*"))
         return LAS_EVAL_INVALID;
 
+	if (strlen(netmaskstr) >= sizeof(token)) {
+        return LAS_EVAL_INVALID;
+	}
+
+	if (strlen(ipstr) >= sizeof(token)) {
+        return LAS_EVAL_INVALID;
+	}
+
     *netmask = *ip = 0;    /* Start with "don't care"    */
 
     for (i=0; i<4; i++) {
@@ -263,6 +271,10 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
         delimiter    = strcspn(curptr, ", \t");
         delimiter    = (delimiter <= strlen(curptr)) ? delimiter : strlen(curptr);
         strncpy(token, curptr, delimiter);
+		if (delimiter >= sizeof(token)) {
+            return LAS_EVAL_INVALID;
+		}
+			
         token[delimiter] = '\0';
         /* skip all the white space after the token */
         curptr = strpbrk((curptr+delimiter), "1234567890+.*");
@@ -275,6 +287,9 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
                 curptr = strpbrk((++curptr), "1234567890.*");
                 delimiter    = strcspn(curptr, ", \t");
                 delimiter    = (delimiter <= strlen(curptr)) ? delimiter : strlen(curptr);
+				if (delimiter >= sizeof(token2)) {
+					return LAS_EVAL_INVALID;
+				}
                 strncpy(token2, curptr, delimiter);
                 token2[delimiter] = '\0';
                 retcode = dotdecimal(token, token2, &ip, &netmask);
@@ -512,7 +527,7 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
     /* Cannot reach here.  Even a 32 bit mismatch has a conclusion in 
      * the pattern tree.
      */
-    sprintf(ip_str, "%x", ip);
+    sprintf(ip_str, "%x", (unsigned int)ip);
     nserrGenerate(errp, ACLERRINTERNAL, ACLERR5240, ACL_Program, 2, XP_GetAdminStr(DBT_lasipevalReach32BitsWithoutConcl_), ip_str);
     return LAS_EVAL_INVALID;
 }

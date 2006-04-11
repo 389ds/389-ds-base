@@ -2269,7 +2269,7 @@ log_rotate:
     			   "LOGINFO:End of Log because size exceeded(Max:%d bytes) (Is:%d bytes)\n", maxlogsize, f_size, 0);
     	} else  if ( type == LOG_EXPIRED) {
     		LDAPDebug(LDAP_DEBUG_TRACE,
-    			   "LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%d secs)\n",
+    			   "LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%ld secs)\n",
     				rotationtime_secs, curr_time - log_createtime,0);
     	}
     }

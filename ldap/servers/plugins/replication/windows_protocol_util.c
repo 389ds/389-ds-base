@@ -64,12 +64,12 @@ static int is_subject_of_agreemeent_local(const Slapi_Entry *local_entry,const R
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
-static int map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
+static int map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
 static char* extract_ntuserdomainid_from_entry(Slapi_Entry *e);
 static int windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,Slapi_Entry **remote_entry);
 static const char* op2string (int op);
 static int is_subject_of_agreemeent_remote(Slapi_Entry *e, const Repl_Agmt *ra);
-static int map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra);
+static int map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra);
 static int windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry);
 
 
@@ -678,12 +678,6 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 void
 windows_release_replica(Private_Repl_Protocol *prp)
 {
-
-  struct berval *retdata = NULL;
-  char *retoid = NULL;
-  struct berval *payload = NULL;
-  Slapi_DN *replarea_sdn = NULL;
-
   LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_release_replica\n", 0, 0, 0 );
 
   PR_ASSERT(NULL != prp);
@@ -1248,14 +1242,12 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 	int retval = 0;
 	char *entry_string = NULL;
 	Slapi_Entry *new_entry = NULL;
-	Slapi_PBlock* pb = NULL;
 	int rc = 0;
 	int is_user = 0; 
 	int is_group = 0;
 	Slapi_Attr *attr = NULL;
 	char *username = NULL;
 	const char *dn_string = NULL;
-	char *remote_entry_template = NULL;
 	char *fqusername = NULL;
 	const char *domain_name = windows_private_get_windows_domain(prp->agmt); 
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
@@ -1309,7 +1301,6 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
     for (rc = slapi_entry_first_attr(original_entry, &attr); rc == 0;
 			rc = slapi_entry_next_attr(original_entry, attr, &attr)) 
 	{
-		Slapi_Value	*value = NULL;
 		char *type = NULL;
 		Slapi_ValueSet *vs = NULL;
 		int mapdn = 0;
@@ -1449,7 +1440,6 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 	Slapi_Mods smods = {0};
 	Slapi_Mods mapped_smods = {0};
 	LDAPMod *mod = NULL;
-	int i=0; 
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
@@ -1944,7 +1934,7 @@ extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn)
 
 /* Given a non-tombstone entry, return the DN of its peer in AD (whether present or not) */
 static int 
-map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int guid_form)
+map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int guid_form)
 {
 	int retval = 0;
 	char *guid = NULL;
@@ -2048,7 +2038,7 @@ map_entry_dn_outbound(Slapi_Entry *e, const Slapi_DN **dn, Private_Repl_Protocol
 
 /* Given a tombstone entry, return the DN of its peer in this server (if present) */
 static int 
-map_tombstone_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra)
+map_tombstone_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 {
 	int retval = 0;
 	Slapi_DN *new_dn = NULL;
@@ -2106,7 +2096,7 @@ map_tombstone_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *r
 
 /* Given a non-tombstone entry, return the DN of its peer in this server (whether present or not) */
 static int 
-map_entry_dn_inbound(Slapi_Entry *e, const Slapi_DN **dn, const Repl_Agmt *ra)
+map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 {
 	int retval = 0;
 	Slapi_DN *new_dn = NULL;
@@ -2366,7 +2356,6 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
     for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
 			rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
 	{
-		Slapi_Value	*value = NULL;
 		char *type = NULL;
 		Slapi_ValueSet *vs = NULL;
 		int mapdn = 0;
@@ -2517,7 +2506,6 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
 	{
 		int is_present_local = 0;
-		Slapi_Value	*value = NULL;
 		char *type = NULL;
 		Slapi_ValueSet *vs = NULL;
 		char *local_type = NULL;
@@ -2723,7 +2711,6 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 {
     Slapi_Mods smods = {0};
 	int retval = 0;
-	int rc = 0;
 	Slapi_PBlock *pb = NULL;
 	int do_modify = 0;
 

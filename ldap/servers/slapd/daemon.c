@@ -2588,7 +2588,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure )
 			if ( NULL == nspr_layer_fd ) {
 				slapi_log_error( SLAPI_LOG_FATAL, "configure_pr_socket",
 						"Unable to move socket file descriptor %d above %d:"
-						" PR_GetIdentitiesLayer( 0x%x, PR_NSPR_IO_LAYER )"
+						" PR_GetIdentitiesLayer( %p, PR_NSPR_IO_LAYER )"
 						" failed\n", ns, reservedescriptors, *pr_socket );
 				close( newfd );	/* can't fix things up in NSPR -- close copy */
 			} else {

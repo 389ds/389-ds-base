@@ -927,7 +927,7 @@ dsgw_get_tmp_log_dir()
 #endif
 	install_dir = getenv("NETSITE_ROOT");
 	if (install_dir != NULL) {
-		 sprintf(tmp_log, "%s/tmp/dsgw", install_dir);
+		 PR_snprintf(tmp_log, sizeof(tmp_log), "%s/tmp/dsgw", install_dir);
 #if defined( XP_WIN32 )
 		 for(ilen=0; ilen < strlen(tmp_log); ilen++)
 		 {
@@ -937,15 +937,15 @@ dsgw_get_tmp_log_dir()
 #endif /* XP_WIN32 */
 	} else {
 #if defined( XP_WIN32 )
-		ilen = strlen(tmp_dir); 
 		GetTempPath( ilen+1, tmp_dir ); 
+		ilen = strlen(tmp_dir); 
 		/* Remove trailing slash. */ 
 		pch = tmp_dir[ilen-1]; 
 		if( pch == '\\' || pch == '/' ) 
 			tmp_dir[ilen-1] = '\0';
-		sprintf(tmp_log, "%s\\DSGW", tmp_dir);
+		PR_snprintf(tmp_log, sizeof(tmp_log), "%s\\DSGW", tmp_dir);
 #else
-		sprintf(tmp_log, "/tmp/dsgw");		
+		PR_snprintf(tmp_log, sizeof(tmp_log), "/tmp/dsgw");		
 #endif
 	}
 	return tmp_log;
@@ -964,7 +964,7 @@ dsgw_log_out (const char* s, size_t n)
 #else
 	  "%s/%.50s.out";
 #endif
-	PR_snprintf( fname, 256, format, dsgw_get_tmp_log_dir(), progname );
+	PR_snprintf( fname, sizeof(fname), format, dsgw_get_tmp_log_dir(), progname );
 	log_out_fp = fopen( fname, "w" );
     }
     if (log_out_fp != NULL) {
@@ -996,14 +996,14 @@ dsgw_log( char *fmt, ... )
 #else
 	  "%s/%.50s";
 #endif
-	PR_snprintf( fname, 256, format, dsgw_get_tmp_log_dir(), progname );
+	PR_snprintf( fname, sizeof(fname), format, dsgw_get_tmp_log_dir(), progname );
 	if (( logfp = fopen( fname, "a+" )) == NULL ) {
 	    return;
 	}
     }
 
-    memcpy( timebuf, ctime( &t ), 19 );
-    timebuf[ 19 ] = '\0';
+    memcpy( timebuf, ctime( &t ), sizeof(timebuf)-1 );
+    timebuf[ sizeof(timebuf)-1 ] = '\0';
     fprintf( logfp, "%s %s: ", timebuf, progname );
 
     va_start( ap, fmt );
@@ -1327,7 +1327,7 @@ AcceptLangList(const char* AcceptLanguage,
       }
     }
     for ( i=0 ; i<countLang ; i++ ) {
-      strcpy(AcceptLanguageList[i],ptrLanguage[i]);
+      PL_strncpyz(AcceptLanguageList[i],ptrLanguage[i],sizeof(AcceptLanguageList[i]));
     }
 
   } else {
@@ -1336,7 +1336,7 @@ AcceptLangList(const char* AcceptLanguage,
     cPtr = strtok(input,",");
     while (cPtr) {
       if (strlen(cPtr)<MAX_ACCEPT_LENGTH) {        /* ignore if too long */
-        strcpy(AcceptLanguageList[countLang++],cPtr);
+        PL_strncpyz(AcceptLanguageList[countLang++],cPtr,sizeof(AcceptLanguageList[i]));
         if (countLang>=MAX_ACCEPT_LANGUAGE) break; /* quit if too many */
       }
       cPtr = strtok(NULL,",");

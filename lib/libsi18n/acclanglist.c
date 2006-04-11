@@ -200,6 +200,7 @@ XP_AccLangList(char* AcceptLanguage,
         /* Add current language for future appending.,make sure it's not on list */
         if ((strlen(curLanguageList[i]) > 2) && (curLanguageList[i][2] == '_')) {
 		    strncpy(lang, curLanguageList[i], 2);
+			lang[sizeof(lang)-1] = 0;
 	        for (k = 0; (k < index) && strcmp(AcceptLanguageList[k], lang); k++);
 
 	        if (k != index)   lang[0] = '\0';

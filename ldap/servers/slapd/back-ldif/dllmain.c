@@ -140,6 +140,7 @@ void LDAPDebug( int level, char* fmt, ... )
 		va_list ap;
 		va_start (ap, fmt);
 		_snprintf (debugBuf, sizeof(debugBuf), fmt, ap);
+		debugBuf[sizeof(debugBuf)-1] = 0;
 		va_end (ap);
 
 		OutputDebugString (debugBuf);

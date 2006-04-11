@@ -61,7 +61,13 @@
 
 /*** from proto-slap.h ***/
 
-int slapd_log_error_proc( char *subsystem, char *fmt, ... );
+int slapd_log_error_proc( char *subsystem, char *fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+
 
 /*** from ldaplog.h ***/
 

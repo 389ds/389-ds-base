@@ -543,23 +543,6 @@ static char errmsg[ERRMSG_SIZE];
 
 #include "util.h"
 
-static char *_errmsg_new(int code)
-{
-    char *ret;
-#ifdef THREAD_ANY
-    if(!(ret = (char *) systhread_getdata(errmsg_key))) {
-        ret = (char *) PERM_MALLOC(256);
-        systhread_setdata(errmsg_key, (void *)ret);
-    }
-#else
-    ret = errmsg;
-#endif
-    util_snprintf(ret, ERRMSG_SIZE, "libsec code %d", code);
-#ifndef MCC_BATMAN
-    PR_SetError(0,0);
-#endif
-    return ret;
-}
 #endif
 
 
@@ -611,7 +594,7 @@ NSAPI_PUBLIC int system_errmsg_fn(char **buff, size_t maxlen)
             PR_SetError(0, 0);
             lmsg = nscp_error_msg;
         } else {
-            util_snprintf(static_error, ERRMSG_SIZE, "unknown error %d", nscp_error);
+            util_snprintf(static_error, sizeof(static_error), "unknown error %d", nscp_error);
             lmsg = static_error;
         }
     } else {

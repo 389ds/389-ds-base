@@ -153,7 +153,7 @@ post_request()
     }
 
     if ( !quiet ) {
-	PR_snprintf( buf, 256,
+	PR_snprintf( buf, sizeof(buf),
 		XP_GetClientStr(DBT_SDirectoryEntry_), changedesc );
 	dsgw_html_begin( buf, 1 );
     } else {
@@ -413,7 +413,7 @@ static int
 entry_modify_or_add( LDAP *ld, char *dn, int add, int *pwdchangedp )
 {
     int		lderr, i, j, opoffset, modop, mls, unique, unchanged_count;
-    char	*varname, *varvalue, *retval, *attr, *p, **vals, **unchanged_attrs;
+    char	*varname, *varvalue, *attr, *p, **vals, **unchanged_attrs;
     char	*ntuserid = NULL;
 
     LDAPMod	**pmods;

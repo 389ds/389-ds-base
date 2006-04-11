@@ -45,12 +45,16 @@
 main( int argc, char **argv)
 {
     char cookie[ 512 ];
+	char *ptr;
     int rc;
     
     printf( "Remove an entry to the cookie database\n" );
 
     printf( "cookie: " );
-    gets( cookie );
+    fgets( cookie, sizeof(cookie), stdin );
+	if (ptr = strchr(cookie, '\n')) {
+		*ptr = 0;
+	}
 
     rc = dsgw_delcookie( cookie );
     if ( rc == 0 ) {

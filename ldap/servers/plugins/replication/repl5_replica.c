@@ -1539,7 +1539,7 @@ _replica_check_validity (const Replica *r)
     PR_ASSERT (r);
 
     if (r->repl_root == NULL || r->repl_type == 0 || r->repl_rid == 0 ||
-        r->repl_rid > MAX_REPLICA_ID || r->repl_csngen == NULL || r->repl_name == NULL)
+        r->repl_csngen == NULL || r->repl_name == NULL)
 	{
         return -1;    
 	}

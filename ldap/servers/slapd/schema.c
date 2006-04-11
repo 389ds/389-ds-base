@@ -151,7 +151,13 @@ static int schema_strcmp_array( char **sa1, char **sa2,
 		const char *ignorestr );
 static PRBool schema_type_is_interesting( const char *type );
 static void schema_create_errormsg( char *errorbuf, size_t errorbufsize,
-		const char *prefix, const char *name, const char *fmt, ... );
+		const char *prefix, const char *name, const char *fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 5, 6)));
+#else
+        ;
+#endif
+
 
 /* Some utility functions for dealing with a dynamic buffer */
 
@@ -4066,7 +4072,7 @@ init_schema_dse(const char *configdir)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, "schema", "Could not add"
 				" attribute type \"objectClass\" to the schema: %s\n",
-				errorbuf, 0, 0);
+				errorbuf);
 		}
 
 		rc = dse_read_file(pschemadse, &pb);

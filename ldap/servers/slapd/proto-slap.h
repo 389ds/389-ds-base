@@ -557,7 +557,13 @@ int lock_fclose( FILE *fp, FILE *lfp );
  * log.c
  */
 int slapd_log_error_proc( char *subsystem, char *fmt, ... );
-int slapi_log_access( int level, char *fmt, ... );
+
+int slapi_log_access( int level, char *fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
 int slapd_log_audit_proc(char *buffer, int buf_len);
 void log_access_flush();
 

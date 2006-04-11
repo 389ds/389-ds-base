@@ -44,12 +44,6 @@
 
 main()
 {
-    char *p;
-    time_t expires;
-    char dn[ 512 ];
-    char pw[ 512 ];
-    char expsec[ 512 ];
-    
 #ifdef notdef /* this was some testing code... */
 {
     char *ck, *r, *d, *p;

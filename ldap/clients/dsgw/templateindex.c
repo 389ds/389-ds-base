@@ -63,11 +63,11 @@ char **ds_get_file_list( char *dir )
 	if( ( dir == NULL ) || (strlen( dir ) == 0) )
 		return NULL;
 
-	if( ( ret = malloc( sizeof( char * ) ) ) == NULL ) 
+	if( ( ret = malloc( sizeof( char * ) * 2 ) ) == NULL ) 
 		return NULL;
 
-	strcpy(szWildcardFileSpec, dir);
-	strcat(szWildcardFileSpec, "/*");
+	PL_strncpyz(szWildcardFileSpec, dir, sizeof(szWildcardFileSpec));
+	PL_strcatn(szWildcardFileSpec, sizeof(szWildcardFileSpec), "/*");
 	
 	hFile = _findfirst( szWildcardFileSpec, &fileinfo);
 	if( hFile == -1 )

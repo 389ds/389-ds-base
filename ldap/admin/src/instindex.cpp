@@ -55,7 +55,7 @@
 #include <string.h>
 
 /* --------------------------------- main --------------------------------- */
-
+#if NEEDED_FOR_DEBUGGING
 static void
 printInfo(int argc, char *argv[], char *envp[], FILE* fp)
 {
@@ -76,6 +76,7 @@ printInfo(int argc, char *argv[], char *envp[], FILE* fp)
 
 	fprintf(fp, "#####################################\n");
 }
+#endif
 
 #if defined (__hpux) && defined (__ia64)
 int main(int argc, char *argv[], char *envp[])

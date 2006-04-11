@@ -51,7 +51,7 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 	DB *source_file = NULL;
 	DB *destination_file = NULL;
 	DBC *source_cursor = NULL;
-	int dbtype = 0;
+	DBTYPE dbtype = 0;
 	int dbflags = 0;
 	int dbpagesize = 0;
 	int cursor_flag = 0;

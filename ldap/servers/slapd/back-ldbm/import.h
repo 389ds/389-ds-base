@@ -203,7 +203,13 @@ struct _import_worker_info {
 /* import.c */
 FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker, int shift);
 void import_free_job(ImportJob *job);
-void import_log_notice(ImportJob *job, char *format, ...);
+void import_log_notice(ImportJob *job, char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+
 void import_abort_all(ImportJob *job, int wait_for_them);
 int import_entry_belongs_here(Slapi_Entry *e, backend *be);
 int import_make_merge_filenames(char *directory, char *indexname, int pass,

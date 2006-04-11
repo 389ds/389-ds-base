@@ -50,6 +50,7 @@
 #include "aclutil.h"
 #include <libaccess/dbtlibaccess.h>
 #include <libaccess/aclerror.h>
+#include "plstr.h"
 
 /*	Day of the week LAS driver
  *	Note that everything is case-insensitive.
@@ -97,7 +98,7 @@ LASDayOfWeekEval(NSErr_t *errp, char *attr, CmpOp_t comparator, char *pattern,
 	strftime(daystr, 4, "%a", localtime(&t));
 #endif
 	makelower(daystr);
-	strcpy(lcl_pattern, pattern);
+	PL_strncpyz(lcl_pattern, pattern, sizeof(lcl_pattern));
 	makelower(lcl_pattern);
 
 	/* 	Compare the value to the pattern	*/
@@ -163,10 +164,18 @@ LASTimeOfDayEval(NSErr_t *errp, char *attr, CmpOp_t comparator, char *pattern,
 			return LAS_EVAL_INVALID;
 		}
 
+		if ((size_t)(dash-pattern) >= sizeof(start)) {
+			nserrGenerate(errp, ACLERRINVAL, ACLERR5610, ACL_Program, 2,  XP_GetAdminStr(DBT_illegalComparatorForTimeOfDayDN_), comparator_string(comparator));
+			return LAS_EVAL_INVALID;
+		}
 		strncpy(start, pattern, dash-pattern);
 		start[dash-pattern]='\0';
 		intstart = atoi(start);
 
+		if (strlen(dash+1) >= sizeof(end)) {
+			nserrGenerate(errp, ACLERRINVAL, ACLERR5610, ACL_Program, 2,  XP_GetAdminStr(DBT_illegalComparatorForTimeOfDayDN_), comparator_string(comparator));
+			return LAS_EVAL_INVALID;
+		}
 		strcpy(end, dash+1);
 		intend = atoi(end);
 

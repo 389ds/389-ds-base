@@ -242,6 +242,7 @@ repl5_inc_get_next_result(result_data *rd)
 	return conres;
 }
 
+#if NEEDED_FOR_DEBUGGING
 static void 
 repl5_inc_log_operation_failure(int operation_code, int ldap_error, char* ldap_error_string, const char *agreement_name)
 {
@@ -253,12 +254,12 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char* ldap_e
 		ldap_error, ldap_error_string ? ldap_error_string : "NULL",
 		op_string ? op_string : "NULL");
 }
+#endif
 
 /* Thread that collects results from async operations sent to the consumer */
 static void repl5_inc_result_threadmain(void *param) 
 {
 	result_data *rd = (result_data*) param;
-	int res = 0;
 	ConnResult conres = 0;
 	Repl_Connection *conn = rd->prp->conn;
 	int finished = 0;
@@ -384,7 +385,6 @@ repl5_inc_rd_new(Private_Repl_Protocol *prp)
 static void 
 repl5_inc_rd_list_destroy(repl5_inc_operation *op)
 {
-	repl5_inc_operation *cur = op;
 	while (op) {
 		repl5_inc_operation *next = op->next;
 		repl5_inc_op_free(op);
@@ -689,7 +689,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 	    /* just ignore it and go to sleep */
 	    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
 	  }
-	else if (e1 = event_occurred(prp, EVENT_WINDOW_CLOSED) ||
+	else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
 		 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
 	  {
 	    /* this events - should not occur - log a warning and go to sleep */
@@ -748,7 +748,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 	    next_state = STATE_READY_TO_ACQUIRE;
 	    wait_change_timer_set = 0;
 	  }
-	else if (e1 = event_occurred(prp, EVENT_WINDOW_OPENED) ||
+	else if ((e1 = event_occurred(prp, EVENT_WINDOW_OPENED)) ||
 		 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
 	  {
 	    /* this events - should not occur - log a warning and clear the event */
@@ -849,7 +849,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 	  {
 	    /* consume and ignore */
 	  }
-	else if (e1 = event_occurred (prp, EVENT_WINDOW_OPENED) || 
+	else if ((e1 = event_occurred (prp, EVENT_WINDOW_OPENED)) || 
 		 event_occurred (prp, EVENT_BACKOFF_EXPIRED))
 	  {
 	    /* This should never happen */
