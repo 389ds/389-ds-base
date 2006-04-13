@@ -152,12 +152,16 @@ NSPR_LIBNAMES += nspr4
 ifdef NSPR_SOURCE_ROOT
   NSPR_LIBPATH = $(NSPR_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME)/lib
   NSPR_INCDIR = $(NSPR_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME)/include
+  NSPR_LIBPATH_32 = $(NSPR_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME_32)/lib
+  NSPR_INCDIR_32 = $(NSPR_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME_32)/include
 else
   NSPR_LIBPATH = $(NSPR_BUILD_DIR)/lib
   NSPR_INCDIR = $(NSPR_BUILD_DIR)/include
+  NSPR_LIBPATH_32 = $(NSPR_BUILD_DIR_32)/lib
+  NSPR_INCDIR_32 = $(NSPR_BUILD_DIR_32)/include
 endif
 NSPR_INCLUDE = -I$(NSPR_INCDIR)
-NSPR_LIBS_TO_PKG = $(addsuffix .$(DLL_SUFFIX),$(addprefix $(NSPR_LIBPATH)/lib,$(NSPR_LIBNAMES)))
+NSPR_LIBS_TO_PKG = $(addsuffix .$(DLL_SUFFIX),$(addprefix $(NSPR_LIBPATH)/$(LIB_PREFIX),$(NSPR_LIBNAMES)))
 
 LIBS_TO_PKG += $(NSPR_LIBS_TO_PKG)
 LIBS_TO_PKG_SHARED += $(NSPR_LIBS_TO_PKG) # needed for cmd line tools
@@ -186,10 +190,14 @@ ifdef SECURITY_SOURCE_ROOT
   SECURITY_LIBPATH = $(SECURITY_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME)/lib
   SECURITY_BINPATH = $(SECURITY_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME)/bin
   SECURITY_INCDIR = $(SECURITY_SOURCE_ROOT)/dist/public/nss
+  SECURITY_LIBPATH_32 = $(SECURITY_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME_32)/lib
+  SECURITY_BINPATH_32 = $(SECURITY_SOURCE_ROOT)/dist/$(MOZ_OBJDIR_NAME_32)/bin
 else
   SECURITY_LIBPATH = $(SECURITY_BUILD_DIR)/lib
   SECURITY_BINPATH = $(SECURITY_BUILD_DIR)/bin
   SECURITY_INCDIR = $(SECURITY_BUILD_DIR)/include
+  SECURITY_LIBPATH_32 = $(SECURITY_BUILD_DIR_32)/lib
+  SECURITY_BINPATH_32 = $(SECURITY_BUILD_DIR_32)/bin
 endif
 SECURITY_INCLUDE = -I$(SECURITY_INCDIR)
 # add crlutil and ocspclnt when we support CRL and OCSP cert checking in DS
@@ -227,6 +235,7 @@ SECURITY_LIBS_TO_PKG = $(addsuffix .$(DLL_SUFFIX),$(addprefix $(SECURITY_LIBPATH
 SECURITY_LIBS_TO_PKG += $(addsuffix .chk,$(addprefix $(SECURITY_LIBPATH)/$(LIB_PREFIX),$(SECURITY_NEED_CHK)))
 LIBS_TO_PKG += $(SECURITY_LIBS_TO_PKG)
 LIBS_TO_PKG_SHARED += $(SECURITY_LIBS_TO_PKG) # for cmd line tools
+
 ifeq ($(USE_SETUPUTIL), 1)
   PACKAGE_SETUP_LIBS += $(SECURITY_LIBS_TO_PKG) # for the setup programs
 endif
@@ -285,10 +294,17 @@ ifdef LDAPSDK_SOURCE_ROOT
   LDAPSDK_LIBPATH = $(LDAPSDK_SOURCE_ROOT)/dist/lib
   LDAPSDK_INCDIR = $(LDAPSDK_SOURCE_ROOT)/dist/public/ldap
   LDAPSDK_BINPATH = $(LDAPSDK_SOURCE_ROOT)/dist/bin
+# need to build in another source root ...
+  LDAPSDK_LIBPATH_32 = $(LDAPSDK_SOURCE_ROOT_32)/dist/lib
+  LDAPSDK_INCDIR_32 = $(LDAPSDK_SOURCE_ROOT_32)/dist/public/ldap
+  LDAPSDK_BINPATH_32 = $(LDAPSDK_SOURCE_ROOT_32)/dist/bin
 else
   LDAPSDK_LIBPATH = $(LDAP_ROOT)/lib
   LDAPSDK_INCDIR = $(LDAP_ROOT)/include
   LDAPSDK_BINPATH = $(LDAP_ROOT)/bin
+  LDAPSDK_LIBPATH_32 = $(LDAP_ROOT_32)/lib
+  LDAPSDK_INCDIR_32 = $(LDAP_ROOT_32)/include
+  LDAPSDK_BINPATH_32 = $(LDAP_ROOT_32)/bin
 endif
 LDAPSDK_INCLUDE = -I$(LDAPSDK_INCDIR)
 
@@ -601,10 +617,47 @@ PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
 PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
 PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
 
+# 32-bit perldap is packaged in 64-bit DS on Solaris and HP-UX PA-RISC.
+# It requires 32-bit LDAPSDK, NSPR, NSS.
+ifeq ($(USE_64), 1)
+  ifeq ($(BUILD_ARCH), SOLARIS)
+    PACKAGE_LIB32:=1
+  endif
+  ifeq ($(BUILD_ARCH), HPUX)
+    HPUX_ARCH := $(shell uname -m)
+    ifneq ($(HPUX_ARCH), ia64)
+      PACKAGE_LIB32:=1
+    endif
+  endif
+endif
+
+
 # must define dependencies last because they depend on the definitions above
 ifeq ($(INTERNAL_BUILD), 1)
 include $(BUILD_ROOT)/internal_comp_deps.mk
 endif
+
+ifeq ($(PACKAGE_LIB32), 1)
+  NSS32_LIBNAMES = $(SECURITY_LIBNAMES) smime3
+  NSS32_NEED_CHK = softokn3
+  ifeq ($(ARCH), SOLARIS)
+    NSS32_LIBNAMES += freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
+# these libs have a corresponding .chk file
+    NSS32_NEED_CHK += freebl_32fpu_3 freebl_32int64_3 freebl_32int_3
+  endif
+  ifeq ($(ARCH), HPUX)
+    NSS32_LIBNAMES += freebl_32fpu_3 freebl_32int_3
+# these libs have a corresponding .chk file
+    NSS32_NEED_CHK += freebl_32fpu_3 freebl_32int_3
+  endif
+  NSSCKBI_FILE = $(LIB_PREFIX)nssckbi.$(DLL_SUFFIX)
+  NSSCKBI32_FILE = $(LIB_PREFIX)nssckbi32.$(DLL_SUFFIX)
+  SECURITY_FILES_32_TMP = $(NSSCKBI_FILE) $(addprefix $(LIB_PREFIX),$(addsuffix .$(DLL_SUFFIX),$(NSS32_LIBNAMES))) $(addprefix $(LIB_PREFIX),$(addsuffix .chk,$(NSS32_NEED_CHK)))
+
+  LIBS_TO_PKG_SHARED_32 = $(addprefix $(SECURITY_LIBPATH_32)/,$(SECURITY_FILES_32_TMP))
+  LIBS_TO_PKG_SHARED_32 += $(addsuffix .$(DLL_SUFFIX),$(addprefix $(NSPR_LIBPATH_32)/$(LIB_PREFIX),$(NSPR_LIBNAMES)))
+  LIBS_TO_PKG_SHARED_32 += $(addprefix $(LDAPSDK_LIBPATH_32)/,$(LDAP_SOLIBS))
+endif # PACKAGE_LIB32
 
 #################################################
 # User Sync Components

@@ -53,7 +53,7 @@ BOMB=$(BUILD_BOMB)
 endif # BUILD_PUMPKIN
 
 ifndef NSPR_SOURCE_ROOT
-NSPR_IMPORT = $(COMPONENTS_DIR)/nspr20/$(NSPR_RELDATE)/$(FULL_RTL_OBJDIR)
+NSPR_IMPORT = $(COMPONENTS_DIR)/nspr/$(NSPR_RELDATE)/$(FULL_RTL_OBJDIR)
 NSPR_DEP = $(NSPR_LIBPATH)/libnspr4.$(LIB_SUFFIX)
 
 ifndef NSPR_PULL_METHOD
@@ -158,6 +158,15 @@ else
   LDAPSDK_PULL_LIBS = lib/libssldap$(LDAP_SUF)$(LDAP_DLL_PRESUF).$(LDAP_DLL_SUFFIX),lib/libldap$(LDAP_SUF)$(LDAP_DLL_PRESUF).$(LDAP_DLL_SUFFIX),lib/libprldap$(LDAP_SUF)$(LDAP_DLL_PRESUF).$(LDAP_DLL_SUFFIX)
 endif
 
+# Solaris and HP-UX PA-RISC only #########################################
+# if building 64 bit version, also need the 32 bit version of NSS and NSPR
+ifeq ($(PACKAGE_LIB32), 1)
+  NSPR_IMPORT_32 = $(COMPONENTS_DIR)/nspr/$(NSPR_RELDATE)/$(FULL_RTL_OBJDIR_32)
+  SECURITY_IMPORT_32 = $(COMPONENTS_DIR)/nss/$(SECURITY_RELDATE)/$(FULL_RTL_OBJDIR_32)
+  LDAP_RELEASE_32 = $(LDAP_SBC)/$(LDAPCOMP_DIR)/$(LDAP_VERSION)/$(FULL_RTL_OBJDIR_32)
+  SECURITY_FILES_32 = $(subst $(SPACE),$(COMMA),$(SECURITY_FILES_32_TMP))
+endif
+
 ifndef LDAPSDK_PULL_METHOD
 LDAPSDK_PULL_METHOD = $(COMPONENT_PULL_METHOD)
 endif
@@ -172,6 +181,21 @@ endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component LDAPSDK file $@" ; \
 	fi
+
+ifeq ($(PACKAGE_LIB32), 1)
+	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
+		-objdir $(NSPR_BUILD_DIR_32) -componentdir $(NSPR_IMPORT_32) \
+		-files lib
+	mkdir -p $(SECURITY_BUILD_DIR_32)/lib
+	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
+		-objdir $(SECURITY_BUILD_DIR_32)/lib -componentdir $(SECURITY_IMPORT_32)/lib \
+		-files $(SECURITY_FILES_32)
+	$(FTP_PULL) -method $(LDAPSDK_PULL_METHOD) \
+		-objdir $(LDAP_ROOT_32) -componentdir $(LDAP_RELEASE_32) \
+		-files lib
+	mv -f $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI_FILE) $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI32_FILE)
+endif # PACKAGE_LIB32
+##
 endif # LDAPSDK_SOURCE_ROOT
 
 ifndef SASL_SOURCE_ROOT

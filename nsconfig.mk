@@ -1335,6 +1335,10 @@ FULL_RTL_OBJDIR = $(NSOBJDIR_NAME)
 NSCP_DISTDIR_FULL_RTL = $(NSCP_DISTDIR)
 NSCP_ABS_DISTDIR_FULL_RTL = $(ABS_ROOT_PARENT)/dist/$(FULL_RTL_OBJDIR)
 
+FULL_RTL_OBJDIR_32 = $(NSOBJDIR_NAME_32)
+NSCP_DISTDIR_FULL_RTL_32 = $(BUILD_ROOT)/../dist/$(NSOBJDIR_NAME_32)
+NSCP_ABS_DISTDIR_FULL_RTL_32 = $(ABS_ROOT_PARENT)/dist/$(FULL_RTL_OBJDIR_32)
+
 # these components may have additional RTL debugging support built in on NT
 # adminutil, dbm, ldapsdk, NLS, NSPR, NSS (security)
 # we cannot simply redefine NSOBJDIR_NAME and NSCP_DISTDIR because other

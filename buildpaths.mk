@@ -73,14 +73,18 @@ ifdef MOZILLA_SOURCE_ROOT
     # ours - we need to map ours to theirs
     ifneq (,$(findstring RHEL3,$(NSOBJDIR_NAME)))
       MOZ_OBJDIR_NAME = $(subst _gcc3_,_glibc_PTH$(NS64TAG)_,$(subst RHEL3,Linux2.4,$(NSOBJDIR_NAME)))
+      MOZ_OBJDIR_NAME_32 = $(subst _gcc3_,_glibc_PTH_,$(subst RHEL3,Linux2.4,$(NSOBJDIR_NAME)))
     else
     ifneq (,$(findstring RHEL4,$(NSOBJDIR_NAME)))
       MOZ_OBJDIR_NAME = $(subst _gcc3_,_glibc_PTH$(NS64TAG)_,$(subst RHEL4,Linux2.6,$(NSOBJDIR_NAME)))
+      MOZ_OBJDIR_NAME_32 = $(subst _gcc3_,_glibc_PTH_,$(subst RHEL4,Linux2.6,$(NSOBJDIR_NAME)))
     else
     ifneq (,$(findstring Linux,$(NSOBJDIR_NAME)))
       MOZ_OBJDIR_NAME = $(subst _glibc_PTH_,_glibc_PTH$(NS64TAG)_,$(NSOBJDIR_NAME))
+      MOZ_OBJDIR_NAME_32 = $(subst _glibc_PTH_,_glibc_PTH_,$(NSOBJDIR_NAME))
     else
       MOZ_OBJDIR_NAME = $(NSOBJDIR_NAME)
+      MOZ_OBJDIR_NAME_32 = $(NSOBJDIR_NAME_32)
     endif
     endif
     endif

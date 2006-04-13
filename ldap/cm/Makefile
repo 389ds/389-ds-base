@@ -333,6 +333,14 @@ ifdef USE_DSGW
 	fi ; \
 	done
 endif
+ifeq ($(PACKAGE_LIB32), 1)
+# these are files to copy to the shared32/lib directory - nspr, nss, ldapsdk lib
+	for file in $(LIBS_TO_PKG_SHARED_32); \
+	do if [ -f $$file ] ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/shared32/lib ; \
+	fi ; \
+	done
+endif
 endif
 
 # PACKAGE_SRC_DEST is defined in components.mk - these are component files and directories to install
@@ -641,6 +649,7 @@ endif
 endif
 
 ifeq ($(USE_PERLDAP), 1)
+	-@rm -rf $(INSTDIR)/perldap
 	mkdir $(INSTDIR)/perldap
 	cp -R $(PERLDAP_BUILT_DIR)/* $(INSTDIR)/perldap
 	$(PERL) genPerlDAPInf.pl $(INSTDIR)/perldap/perldap.inf 1.5 "Fedora Project"
