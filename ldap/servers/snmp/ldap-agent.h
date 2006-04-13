@@ -90,6 +90,7 @@ typedef struct stats_table_context_s {
     void        init_ldap_agent(void);
     void        initialize_stats_table(void);
     int         load_stats_table(netsnmp_cache *, void *);
+    void        free_stats_table(netsnmp_cache *, void *);
     stats_table_context *stats_table_create_row(unsigned long);
     stats_table_context *stats_table_find_row(unsigned long);
     int         dsOpsTable_get_value(netsnmp_request_info *,

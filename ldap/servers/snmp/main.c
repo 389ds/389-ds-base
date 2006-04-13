@@ -53,9 +53,9 @@ static int keep_running;
 RETSIGTYPE
 stop_server(int signum) {
     if (signum == SIGUSR1) {
-        snmp_log(LOG_INFO, "Detected attempt to start ldap-agent again.\n");
+        snmp_log(LOG_WARNING, "Detected attempt to start ldap-agent again.\n");
     } else {
-        snmp_log(LOG_INFO, "Received stop signal.  Stopping ldap-agent...\n");
+        snmp_log(LOG_WARNING, "Received stop signal.  Stopping ldap-agent...\n");
         keep_running = 0;
     }
 }
@@ -64,7 +64,7 @@ int
 main (int argc, char *argv[]) {
     char                *config_file = NULL;
     netsnmp_log_handler *log_hdl = NULL;
-    int                 c, log_level = LOG_INFO;
+    int                 c, log_level = LOG_WARNING;
     struct stat         logdir_s;
     pid_t               child_pid;
     FILE                *pid_fp;
@@ -149,13 +149,13 @@ main (int argc, char *argv[]) {
             exit(1);
         } 
 
-        netsnmp_enable_filelog(log_hdl, 1);
+        snmp_enable_filelog((char*)log_hdl->token, 1);
     } else {
         printf("Error starting logging.");
         exit(1);
     }
 
-    snmp_log(LOG_INFO, "Starting ldap-agent...\n");
+    snmp_log(LOG_WARNING, "Starting ldap-agent...\n");
 
     /* setup agentx master */
     netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID,
@@ -204,7 +204,7 @@ main (int argc, char *argv[]) {
     }
 
     /* we're up and running! */
-    snmp_log(LOG_INFO, "Started ldap-agent as pid %d\n", child_pid);
+    snmp_log(LOG_WARNING, "Started ldap-agent as pid %d\n", child_pid);
 
     /* loop here until asked to stop */
     while(keep_running) {
@@ -213,7 +213,7 @@ main (int argc, char *argv[]) {
 
     /* say goodbye */
     snmp_shutdown("ldap-agent");
-    snmp_log(LOG_INFO, "ldap-agent stopped.\n");
+    snmp_log(LOG_WARNING, "ldap-agent stopped.\n");
 
     /* remove pidfile */ 
     remove(pidfile);

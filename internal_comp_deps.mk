@@ -311,6 +311,7 @@ endif
 # Net-SNMP
 
 ifndef NETSNMP_SOURCE_ROOT
+ifneq ($(ARCH), Linux)
 #NETSNMP_RELEASE = $(COMPONENTS_DIR_DEV)/net-snmp/$(NETSNMP_VER)/$(NSOBJDIR_NAME)
 NETSNMP_RELEASE = $(COMPONENTS_DIR)/net-snmp/$(NETSNMP_VER)/$(NSOBJDIR_NAME)
 NETSNMP_DEP = $(NETSNMP_INCDIR)/net-snmp/net-snmp-includes.h
@@ -329,6 +330,7 @@ endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component NETSNMP file $@" ; \
 	fi
+endif # Linux
 endif # NETSNMP_SOURCE_ROOT
 
 ###########################################################

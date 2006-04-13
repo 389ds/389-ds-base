@@ -115,7 +115,10 @@ initialize_stats_table(void)
     netsnmp_table_registration_info *ops_table_info = NULL;
     netsnmp_table_registration_info *entries_table_info = NULL;
     netsnmp_table_registration_info *entity_table_info = NULL;
+    /* This is a hacky way of figuring out if we are on Net-SNMP 5.2 or later */
+#ifdef NETSNMP_CACHE_AUTO_RELOAD
     netsnmp_cache *stats_table_cache = NULL;
+#endif
 
     if (ops_handler || entries_handler || entity_handler) {
         snmp_log(LOG_ERR, "initialize_stats_table called more than once.\n");
@@ -188,12 +191,19 @@ initialize_stats_table(void)
                                      entity_cb.container, 1);
 
     /* Setup cache for auto reloading of stats */
+#ifdef NETSNMP_CACHE_AUTO_RELOAD
+    /* This is new api as of Net-SNMP 5.2 */
     stats_table_cache = netsnmp_cache_create(CACHE_REFRESH_INTERVAL, load_stats_table,
                                             NULL, dsOpsTable_oid, dsOpsTable_oid_len);
     stats_table_cache->flags |= NETSNMP_CACHE_DONT_FREE_EXPIRED;
     stats_table_cache->flags |= NETSNMP_CACHE_DONT_AUTO_RELEASE;
     stats_table_cache->flags |= NETSNMP_CACHE_AUTO_RELOAD;
     netsnmp_inject_handler(ops_handler, netsnmp_cache_handler_get(stats_table_cache));
+#else
+    /* Do things the old way.  This is only needed for Net-SNMP 5.1 and earlier. */
+    netsnmp_inject_handler(ops_handler, netsnmp_get_cache_handler(CACHE_REFRESH_INTERVAL, load_stats_table,
+                                            free_stats_table, dsOpsTable_oid, dsOpsTable_oid_len));
+#endif
 }
 
 /************************************************************
@@ -264,7 +274,7 @@ load_stats_table(netsnmp_cache *cache, void *foo)
     int stats_hdl = -1;
     int err;
 
-    snmp_log(LOG_DEBUG, "Reloading stats.\n");
+    snmp_log(LOG_INFO, "Reloading stats.\n");
 
     /* Initialize data for each server in conf file */
     for (serv_p = server_head; serv_p != NULL; serv_p = serv_p->next) {
@@ -274,7 +284,7 @@ load_stats_table(netsnmp_cache *cache, void *foo)
             previous_state = serv_p->server_state;
             previous_start = ctx->hdr_tbl.startTime;
 
-            snmp_log(LOG_DEBUG, "Opening stats file (%s) for server: %d\n",
+            snmp_log(LOG_INFO, "Opening stats file (%s) for server: %d\n",
                      serv_p->stats_file, serv_p->port);
 
             /* Open the stats file */
@@ -339,6 +349,20 @@ load_stats_table(netsnmp_cache *cache, void *foo)
         }
     }
     return 0;
+}
+
+/************************************************************
+ * free_stats_table
+ *
+ * This function doesn't need to free anything since the
+ * load_stats_table function doesn't allocate any memory
+ * itself.  The cache handler requires us to have a callback
+ * function for freeing the cache, so here it is.
+ */
+void
+free_stats_table(netsnmp_cache *cache, void *foo)
+{
+    return;
 }
 
 /************************************************************

@@ -406,27 +406,39 @@ endif
 ###########################################################
 
 ### Net-SNMP package ######################################
-ifdef NETSNMP_SOURCE_ROOT
-  NETSNMP_LIBPATH = $(NETSNMP_SOURCE_ROOT)/built/lib
-  NETSNMP_INCDIR = $(NETSNMP_SOURCE_ROOT)/built/include
-  NETSNMP_BINDIR = $(NETSNMP_SOURCE_ROOT)/built/bin
+ifeq ($(ARCH), Linux)
+  ifeq ($(USE_64), 1)
+    NETSNMP_LIBPATH = /usr/lib64
+  else
+    NETSNMP_LIBPATH = /usr/lib
+  endif
+  NETSNMP_INCDIR = /usr/include/net-snmp
+  NETSNMP_BINDIR = /usr/bin
 else
-  NETSNMP_LIBPATH = $(NETSNMP_BUILD_DIR)/lib
-  NETSNMP_INCDIR = $(NETSNMP_BUILD_DIR)/include
-  NETSNMP_BINDIR = $(NETSNMP_BUILD_DIR)/bin
-endif
+  ifdef NETSNMP_SOURCE_ROOT
+    NETSNMP_LIBPATH = $(NETSNMP_SOURCE_ROOT)/built/lib
+    NETSNMP_INCDIR = $(NETSNMP_SOURCE_ROOT)/built/include
+    NETSNMP_BINDIR = $(NETSNMP_SOURCE_ROOT)/built/bin
+  else
+    NETSNMP_LIBPATH = $(NETSNMP_BUILD_DIR)/lib
+    NETSNMP_INCDIR = $(NETSNMP_BUILD_DIR)/include
+    NETSNMP_BINDIR = $(NETSNMP_BUILD_DIR)/bin
+  endif
+endif # Linux
 
 NETSNMP_INCLUDE = -I$(NETSNMP_INCDIR)
 NETSNMP_LIBNAMES = netsnmp netsnmpagent netsnmpmibs netsnmphelpers
 NETSNMP_LINK = -L$(NETSNMP_LIBPATH) $(addprefix -l, $(NETSNMP_LIBNAMES))
 ifneq ($(ARCH), WINNT)
-  ifeq ($(ARCH), HPUX)
-    NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).7, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
-  else
-    NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
-  endif
-  LIBS_TO_PKG += $(addprefix $(NETSNMP_LIBPATH)/,$(NETSNMP_SOLIBS))
-endif
+  ifneq ($(ARCH), Linux)
+    ifeq ($(ARCH), HPUX)
+      NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).7, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+    else
+      NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+    endif
+    LIBS_TO_PKG += $(addprefix $(NETSNMP_LIBPATH)/,$(NETSNMP_SOLIBS))
+  endif # Linux
+endif # WINNT
 ###########################################################
 
 ### ICU package ##########################################
