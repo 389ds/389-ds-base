@@ -91,6 +91,7 @@ endif
 
 $(SECURITY_DEP): $(NSCP_DISTDIR_FULL_RTL)
 ifdef COMPONENT_DEPS
+	$(RM) -rf $(SECURITY_BINPATH)
 	mkdir -p $(SECURITY_BINPATH)
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(SECURITY_BUILD_DIR) -componentdir $(SECURITY_IMPORT) \
@@ -186,6 +187,7 @@ ifeq ($(PACKAGE_LIB32), 1)
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(NSPR_BUILD_DIR_32) -componentdir $(NSPR_IMPORT_32) \
 		-files lib
+	$(RM) -rf $(SECURITY_BUILD_DIR_32)/lib
 	mkdir -p $(SECURITY_BUILD_DIR_32)/lib
 	$(FTP_PULL) -method $(SECURITY_PULL_METHOD) \
 		-objdir $(SECURITY_BUILD_DIR_32)/lib -componentdir $(SECURITY_IMPORT_32)/lib \
@@ -193,7 +195,9 @@ ifeq ($(PACKAGE_LIB32), 1)
 	$(FTP_PULL) -method $(LDAPSDK_PULL_METHOD) \
 		-objdir $(LDAP_ROOT_32) -componentdir $(LDAP_RELEASE_32) \
 		-files lib
-	mv -f $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI_FILE) $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI32_FILE)
+	-@if [ -f $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI_FILE) ] ; then \
+		mv -f $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI_FILE) $(SECURITY_BUILD_DIR_32)/lib/$(NSSCKBI32_FILE) ; \
+	fi
 endif # PACKAGE_LIB32
 ##
 endif # LDAPSDK_SOURCE_ROOT
