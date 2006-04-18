@@ -44,7 +44,7 @@ aci: (targetattr ="*")(version 3.0;
  cn=Configuration Administrators, ou=Groups, ou=TopologyManagement, o=NetscapeRoot");)
 aci: (targetattr ="*")(version 3.0;
  acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///
- ou=Directory Administrators, %%%SUFFIX%%%");)
+ cn=Directory Administrators, %%%SUFFIX%%%");)
 
 dn: cn=Directory Administrators, %%%SUFFIX%%%
 objectClass: top
