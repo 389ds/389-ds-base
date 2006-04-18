@@ -3830,6 +3830,10 @@ static int read_metadata(struct ldbminfo *li)
     int number = 0;
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
+    /* dblayer_recovery_required is initialized in dblayer_init;
+     * and might be set 1 in check_db_version;
+     * we don't want to override it
+     * priv->dblayer_recovery_required = 0; */
     priv->dblayer_previous_cachesize = 0;
     priv->dblayer_previous_ncache = 0;
     /* Open the guard file and read stuff, then delete it */
@@ -3838,12 +3842,10 @@ static int read_metadata(struct ldbminfo *li)
     memset(&prfinfo, '\0', sizeof(PRFileInfo));
     (void)PR_GetFileInfo(filename, &prfinfo);
 
-    priv->dblayer_recovery_required = 0;
     prfd = PR_Open(filename,PR_RDONLY,priv->dblayer_file_mode);
     if (NULL == prfd || 0 == prfinfo.size) {
         /* file empty or not present--means the database needs recovered */
         int count = 0;
-        priv->dblayer_recovery_required = 0;
         for (dirp = priv->dblayer_data_directories; dirp && *dirp; dirp++)
         {
             count_dbfiles_in_dir(*dirp, &count, 1 /* recurse */);
@@ -3877,10 +3879,6 @@ static int read_metadata(struct ldbminfo *li)
         }
         return 0; /* no files found; no need to run recover start */
     }
-    /* dblayer_recovery_required is initialized in dblayer_init;
-     * and might be set 1 in check_db_version;
-     * we don't want to override it
-     * priv->dblayer_recovery_required = 0; */
     /* So, we opened the file, now let's read the cache size and version stuff
      */
     buf = slapi_ch_calloc(1, prfinfo.size + 1);
