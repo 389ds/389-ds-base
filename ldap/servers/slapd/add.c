@@ -476,7 +476,20 @@ static void op_shared_add (Slapi_PBlock *pb)
 		{
 			Slapi_Value **present_values;
 			present_values= attr_get_present_values(attr);
-			
+
+			/* Set the backend in the pblock.  The slapi_access_allowed function
+                         * needs this set to work properly. */
+                        slapi_pblock_set( pb, SLAPI_BACKEND, slapi_be_select( slapi_entry_get_sdn_const(e) ) );
+
+			/* Check ACI before checking password syntax */
+			if ( (err = slapi_access_allowed(pb, e, SLAPI_USERPWD_ATTR, NULL,
+                                     SLAPI_ACL_WRITE)) != LDAP_SUCCESS) {
+                                send_ldap_result(pb, err, NULL,
+                                              "Insufficient 'write' privilege to the "
+                                              "'userPassword' attribute", 0, NULL);
+                                goto done;
+			}
+
 			/* check password syntax */
 			if (check_pw_syntax(pb, slapi_entry_get_sdn_const(e), present_values, NULL, e, 0) == 0)
 			{

@@ -873,8 +873,11 @@ static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_un
 static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods)
 {
 	int isroot, internal_op, repl_op, pwresponse_req = 0;
+	int res = 0;
 	char *dn;
+	char *errtxt = NULL;
 	Slapi_DN sdn;
+	Slapi_Entry *e = NULL;
 	passwdPolicy *pwpolicy;
 	int rc = 0;
 	char ebuf[BUFSIZ];
@@ -902,7 +905,35 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	/* internal operation has root permisions for subtrees it is allowed to access */
 	if (!internal_op) 
 	{	                        
-		/* Check first if password policy allows users to change their passwords.*/
+		/* slapi_acl_check_mods needs an array of LDAPMods, but
+		 * we're really only interested in the one password mod. */
+		LDAPMod *mods[2] = { mod, NULL };
+
+		/* Create a bogus entry with just the target dn.  This will
+		 * only be used for checking the ACIs. */
+		e = slapi_entry_alloc();
+		slapi_entry_init( e, NULL, NULL );
+		slapi_sdn_set_dn_byref(slapi_entry_get_sdn(e), dn);
+
+		/* Set the backend in the pblock.  The slapi_access_allowed function
+		 * needs this set to work properly. */
+		slapi_pblock_set( pb, SLAPI_BACKEND, slapi_be_select( &sdn ) );
+
+		/* Check if ACIs allow password to be changed */
+		if ( (res = slapi_acl_check_mods(pb, e, mods, &errtxt)) != LDAP_SUCCESS) {
+			/* Write access is denied to userPassword by ACIs */
+			if ( pwresponse_req == 1 ) {
+                               	slapi_pwpolicy_make_response_control ( pb, -1, -1,
+						LDAP_PWPOLICY_PWDMODNOTALLOWED );
+                       	}
+
+                       	send_ldap_result(pb, res, NULL, errtxt, 0, NULL);
+			slapi_ch_free_string(&errtxt);
+			rc = -1;
+			goto done;
+		}
+
+		/* Check if password policy allows users to change their passwords.*/
 		if (!pb->pb_op->o_isroot && slapi_sdn_compare(&sdn, &pb->pb_op->o_sdn)==0 &&
 			!pb->pb_conn->c_needpw && !pwpolicy->pw_change)
 		{
@@ -995,6 +1026,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	valuearray_free(&values);
 
 done:
+	slapi_entry_free( e );
 	slapi_sdn_done (&sdn);
 	delete_passwdPolicy(&pwpolicy);
 	return rc;
