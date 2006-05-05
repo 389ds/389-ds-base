@@ -907,7 +907,9 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	{	                        
 		/* slapi_acl_check_mods needs an array of LDAPMods, but
 		 * we're really only interested in the one password mod. */
-		LDAPMod *mods[2] = { mod, NULL };
+		LDAPMod *mods[2];
+		mods[0] = mod;
+		mods[1] = NULL;
 
 		/* Create a bogus entry with just the target dn.  This will
 		 * only be used for checking the ACIs. */
