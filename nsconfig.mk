@@ -1138,6 +1138,11 @@ else
   ARCH_CFLAGS += -m64
 endif
 endif
+ifdef NS_USE_NATIVE
+  ARCH_CFLAGS += -KPIC
+else
+  ARCH_CFLAGS += -fPIC
+endif
 ARCH_DEBUG=-g
 RANLIB=true
 
