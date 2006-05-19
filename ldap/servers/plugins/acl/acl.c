@@ -418,8 +418,8 @@ acl_access_allowed(
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op);
 	if ( operation_is_flag_set(op, OP_FLAG_PS) ||
 		 (aclpb->aclpb_curr_entry_sdn == NULL) ||
-			(slapi_sdn_compare ( aclpb->aclpb_curr_entry_sdn, e_sdn) != 0)) {
-		
+		 (slapi_sdn_compare ( aclpb->aclpb_curr_entry_sdn, e_sdn) != 0) ||
+		 (aclpb->aclpb_curr_entry != e) /* cannot trust the cached entry */ ) {
 		TNF_PROBE_0_DEBUG(acl_entry_first_touch_start,"ACL","");
 
 		slapi_log_error(loglevel, plugin_name,
