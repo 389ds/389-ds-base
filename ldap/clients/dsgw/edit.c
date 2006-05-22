@@ -43,7 +43,7 @@
 #include "dbtdsgw.h"
 
 static void get_request(char *dn, char *tmplname, 
-			char *parent, unsigned long options);
+			unsigned long options);
 
 
 int main( argc, argv, env )
@@ -55,7 +55,7 @@ int main( argc, argv, env )
 {
 
 
-    char		*dn, *tmplname, *p, *parent;
+    char		*dn, *tmplname, *p;
     unsigned long	options;
 
     /*
@@ -156,14 +156,14 @@ int main( argc, argv, env )
    dsgw_logstringarray( "env", env ); 
 #endif
 
-    get_request(dn, tmplname, parent, options);
+    get_request(dn, tmplname, options);
 
     exit( 0 );
 }
 
 
 static void
-get_request(char *dn, char *tmplname, char *parent, unsigned long options)
+get_request(char *dn, char *tmplname, unsigned long options)
 {
     LDAP		*ld;
 
@@ -226,6 +226,7 @@ get_request(char *dn, char *tmplname, char *parent, unsigned long options)
 	    dsgw_html_end();
 	} else if ( !dsgw_is_dnparent( matched, dn ) &&
 		!dsgw_dn_cmp( dn, gc->gc_ldapsearchbase )) {
+            char *parent = NULL;
 	    /*
 	     * The parent entry does not exist, and the dn being added is not
 	     * the same as the suffix for which the gateway is configured.

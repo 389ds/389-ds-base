@@ -186,9 +186,6 @@ else
 NEED_SECGLUE_BINS = $(addprefix $(BINDIR)/, $(addsuffix .exe, $(NEED_SECGLUE)))
 endif
 
-NOTSHIPPINGPROGS= browse browsesrch templateindex
-NOTSHIPPINGBINS= $(addprefix $(BINDIR)/, $(NOTSHIPPINGPROGS))
-
 CKUTILPROGS= ckput ckget ckdump ckpurge ckdel
 CKUTILBINS= $(addprefix $(BINDIR)/, $(CKUTILPROGS))
 
@@ -212,10 +209,10 @@ NOSSLCOMMONOBJSREL=$(addprefix ../obj/, $(NOSSLCMNOBJS))
 SCGLOBJS= secglue.o
 SECGLUEOBJS=$(addprefix $(OBJDEST)/, $(SCGLOBJS))
 
-ALLOBJS	= dosearch.o search.o csearch.o browse.o browsesrch.o templateindex.o \
+ALLOBJS	= dosearch.o search.o csearch.o \
 	  auth.o doauth.o unauth.o ckput.o ckget.o ckdump.o ckpurge.o ckdel.o \
-	  edit.o domodify.o newentry.o genscreen.o tutor.o dnedit.o \
-	  dsconfig.o dsimpldif.o dsexpldif.o lang.o utf8compare.o \
+	  edit.o domodify.o newentry.o tutor.o dnedit.o \
+	  lang.o utf8compare.o \
 	  $(COMMONOBJS) $(SECGLUEOBJS)
 
 INCLUDES= -I$(SDKHDIR) -I$(NSCP_DISTDIR)/include $(ICU_INCLUDE) -I$(ADMINUTIL_INCPATH)
@@ -231,15 +228,13 @@ CFLAGS	+= $(INCLUDES) $(DEFINES) $(ACFLAGS)
 
 ifeq ($(ARCH), WINNT)
 PROGBINS = $(addsuffix .exe, $(BINS))
-NOTSHIPPINGPROGBINS = $(addsuffix .exe, $(NOTSHIPPINGBINS))
 CKUTILPROGBINS = $(addsuffix .exe, $(CKUTILBINS))
 else
 PROGBINS = $(BINS)
-NOTSHIPPINGPROGBINS = $(NOTSHIPPINGBINS)
 CKUTILPROGBINS = $(CKUTILBINS)
 endif
 
-ALLBINS= $(PROGBINS) $(NOTSHIPPINGPROGBINS) $(CKUTILPROGBINS)
+ALLBINS= $(PROGBINS) $(CKUTILPROGBINS)
 
 ## make sure there's prog.exe and prog for NT. Weak, but ES 
 ## only works with prog, and AS needs both.
@@ -281,8 +276,6 @@ all-config:
 	cd pbconfig; $(MAKE) $(MFLAGS) all
 
 ckutils:	$(CKUTILPROGBINS)
-
-notshipping: $(NOTSHIPPINGPROGBINS)
 
 $(LDAP_LIBLDBM_DEP):
 	cd $(LDAP_SRC)/libraries; $(MAKE) $(MFLAGS) clientSDK

@@ -232,13 +232,28 @@ main( int argc, char *argv[]
     }
     
     if (manual_file) {
+        /* check filename */
+        char *mandocname = dsgw_ch_strdup(docname + DSGW_MANUALSHORTCUT_LEN);
+        if (*mandocname == '/') {
+            if (!dsgw_valid_docname(mandocname+1)) {
+                dsgw_error( DSGW_ERR_BADFILEPATH, mandocname, 
+                            DSGW_ERROPT_EXIT, 0, NULL );
+            }
+        } else {
+            if (!dsgw_valid_docname(mandocname)) {
+                dsgw_error( DSGW_ERR_BADFILEPATH, mandocname, 
+                            DSGW_ERROPT_EXIT, 0, NULL );
+            }
+        }
+
 	helpdir = dsgw_file2path ( DSGW_MANROOT, "slapd/gw/manual/" );
 	tfname = (char *)dsgw_ch_malloc( strlen( helpdir ) +
-				strlen( docname + DSGW_MANUALSHORTCUT_LEN ) +
+				strlen( mandocname ) +
 				1 );
         sprintf( tfname, "%s%s",
-			 helpdir, docname + DSGW_MANUALSHORTCUT_LEN);
+			 helpdir, mandocname);
 	free( helpdir );
+        free( mandocname );
 
     } else {
 	tfname = dsgw_file2path (docdir, docname);

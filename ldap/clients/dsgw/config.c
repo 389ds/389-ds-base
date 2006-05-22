@@ -78,7 +78,6 @@ static void add_l10nset( dsgwsubst **l10np, char **argv );
 static void read_dsgwconfig( char *filename, char *locsuffix,
 	int templatesonly, int binddnfile );
 static void get_dbconf_properties( char *filename );
-static int write_dbswitch_info( FILE *fp, dsgwconfig *cfgp, char *dbhandle );
 static int ldapdb_url_parse( char *url, LDAPDBURLDesc **ldbudpp );
 static int dsgw_valid_context();
 static int browser_is_msie40();
@@ -863,144 +862,6 @@ read_dsgwconfig( char *filename, char *locsuffix, int templatesonly, int binddnf
     }
 }
 
-int
-erase_db() {
-
-    FILE    *fp;
-    int     rc, lineno;
-    char    *line;
-    char    *cargv[ MAXARGS ];
-    int     cargc;
-    char    cmd[ BIG_LINE ];
-
-    if ( (fp = fopen( gc->gc_localdbconf, "r" )) == NULL ) {
-        dsgw_emitf (XP_GetClientStr(DBT_EraseDbCouldNotOpenLcacheConfFil_),
-            gc->gc_localdbconf);
-        return( -1 );
-    }
-    fp_getline_init( &lineno );
-
-    while ( (line = fp_getline( fp, &lineno )) != NULL ) {
-        fp_parse_line( line, &cargc, cargv );
-        if ( strcasecmp( cargv[0], "directory" ) == 0) {
-#ifdef XP_WIN32
-	    dsgw_unix2dospath( cargv[1] );
-#endif
-            PR_snprintf (cmd, BIG_LINE, "%s %s%c* > %s 2>&1", DSGW_DELETE_CMD, cargv[1],
-		    DSGW_PATHSEP_CHAR, DSGW_NULL_DEVICE);
-            fflush (0);
-            if (system (cmd) == 0) {
-                /*
-                 * success: display status message
-                 */
-		dsgw_emits( XP_GetClientStr(DBT_FontSize1NPTheDatabaseHasBeenDel_) );
-		rc = 0;
-            }
-            else {
-		dsgw_emits( XP_GetClientStr(DBT_FontSize1NPTheDatabaseCouldNotBe_) );
-		rc = -1;
-            }
-
-            dsgw_emits( "<HR>\n" );
-            fclose( fp );
-	    return( rc );
-        }
-    }
-    return -1;
-}
-
-void
-app_suffix (char *ldif, char *suffix)
-{
-    FILE    *oldfp, *newfp;
-    char    *orig_line;
-    char    *p;
-    char    buf[BUFSIZ];
-    int     i, cargc;
-    char    *cargv[ 100 ];
-    char    tmpldif[ 128 ];
-    char    *dns[] = { "aliasedobjectname:",
-                        "aliasedobjectname:",
-                        "associatedname:",
-                        "dependentupon:",
-                        "ditredirect:",
-                        "dn:",
-                        "documentauthor:",
-                        "documentauthor:",
-                        "documentavailable:",
-                        "errorsto:",
-                        "errorsto:",
-                        "imagefiles:",
-                        "lastmodifiedby:",
-                        "manager:",
-                        "member:",
-                        "memberofgroup:",
-                        "naminglink:",
-                        "naminglink:",
-                        "obsoletedbydocument:",
-                        "obsoletesdocument:",
-                        "owner:",
-                        "proxy:",
-                        "reciprocalnaminglink:",
-                        "reciprocalnaminglink:",
-                        "replicaroot:",
-                        "replicabinddn:",
-                        "requeststo:",
-                        "roleoccupant:",
-                        "secretary:",
-                        "seealso:",
-                        "uniqueMember:",
-                        "updatedbydocument:",
-                        "updatesdocument:",
-                        NULL
-                     };
-
-
-    if ( (oldfp = fopen( ldif, "r" )) == NULL ) {
-        dsgw_emitf (XP_GetClientStr(DBT_AppSuffixCouldNotOpenLdifFileSN_),
-            ldif);
-        return;
-    }
-
-    PR_snprintf( tmpldif, sizeof(tmpldif), "%s.tmp", ldif);
-    if ( (newfp = fopen( tmpldif, "w" )) == NULL ) {
-        dsgw_emitf (XP_GetClientStr(DBT_AppSuffixCouldNotOpenTmpFileSN_),
-            ldif);
-        return;
-    }
-    while ( fgets( buf, sizeof(buf), oldfp ) != NULL ) {
-        /* skip comments and blank lines */
-        if ( buf[0] == '#' || buf[0] == '\0' || buf[0] == '\n') {
-            fputs( buf, newfp );
-            continue;
-        }
-        orig_line = dsgw_ch_strdup( buf );
-
-        fp_parse_line( buf, &cargc, cargv );
-        for (i=0; dns[i]!=NULL; i++) {
-            if ( strcasecmp( cargv[0], dns[i] ) == 0 ) {
-                if ( (p = strchr( orig_line, '\n' )) != NULL ) {
-                    *p = '\0';
-                }
-                fprintf ( newfp, "%s, %s\n", orig_line, suffix );
-                break;
-            }
-        }
-
-        if ( dns[i] == NULL ) {
-            fputs( orig_line, newfp );
-        }
-        free (orig_line);
-    }
-    fclose(newfp);
-    fclose(oldfp);
-    unlink( ldif );
-    if ( rename( tmpldif, ldif ) != 0 ) {
-        dsgw_emitf (XP_GetClientStr(DBT_unableToRenameSToS_), tmpldif, ldif );
-        return;
-    }
-}
-
 /*
  * Running under admserv - traverse the list of property/value pairs
  * returned by dbconf_read_default_dbinfo().
@@ -1129,190 +990,6 @@ get_dbconf_properties( char *filename )
     }
     return;
 }
-
-
-/*
- * Update the dbswitch.conf file (used under admin. server) to reflect
- * the local/remote directory information contained in "cfgp".  Our basic
- * strategy is to read the existing dbswitch.conf file, replacing and adding
- * lines that look like this:
- *	directory <dbhandle> ...
- *	<dbhandle>:binddn ...
- *      <dbhandle>:encoded bindpw ...
- * as necessary.  We write a new, temporary config file (copying all other
- * lines over unchanged) and then replace the old file with our new one.
- *
- * If cfgp is configured for localdb mode, we only write a directory line.
- *
- * We return zero if all goes well and non-zero if not.
- *
- * Note that all reading and writing of the dbswitch.conf file is now done
- * using the dbconf...() functions that are part of the ldaputil library, so
- * any comments, blank lines, or unrecognized config file lines will be lost.
- * Also, all "bindpw" property values will be encoded when re-written.
- *
- * Only these members of the cfgp structure are used in this function:
- *	gc_localdbconf		(NULL if using remote LDAP server)
- *	gc_ldapsearchbase
- *	gc_ldapserver
- *	gc_ldapport
- *	gc_ldapssl
- *	gc_binddn
- *	gc_bindpw
- * Actually, if gc_localdbconf is not NULL, only it and gc_ldapsearchbase are
- * used.
- */	
-int
-dsgw_update_dbswitch( dsgwconfig *cfgp, char *dbhandle, int erropts )
-{
-    char		oldfname[ MAXPATHLEN ], newfname[ MAXPATHLEN ];
-    char		*userdb_path, buf[ MAXPATHLEN + 100 ];
-    int			rc, wrote_dbinfo;
-    FILE		*newfp;
-    DBConfInfo_t	*cip;
-    DBConfDBInfo_t	*dbip;
-    DBPropVal_t		*pvp;
-
-    if ( dbhandle == NULL ) {
-	dbhandle = "default";
-    }
-
-    if (( userdb_path = get_userdb_dir()) == NULL ) {
-	dsgw_error( DSGW_ERR_USERDB_PATH, NULL, erropts, 0, NULL );
-	return( -1 );
-    }
-
-    /* read old dbswitch.conf contents */
-    PR_snprintf( oldfname, sizeof(oldfname), "%s/%s", userdb_path,
-		DSGW_DBSWITCH_FILE );
-    if (( rc = dbconf_read_config_file( oldfname, &cip )) != LDAPU_SUCCESS ) {
-	report_ldapu_error( rc, DSGW_ERR_BADCONFIG, erropts );
-	return( -1 );
-    }
-
-    /* write db info to new file, replacing information for "dbhandle" */
-    PR_snprintf( newfname, sizeof(newfname), "%s/%s", userdb_path,
-		DSGW_DBSWITCH_TMPFILE );
-    if (( newfp = fopen( newfname, "w" )) == NULL ) {
-	PR_snprintf( buf, sizeof(buf),
-	    XP_GetClientStr(DBT_cannotOpenConfigFileSForWritingN_), newfname );
-	dsgw_error( DSGW_ERR_UPDATE_DBSWITCH, buf, erropts, 0, NULL );
-	return( -1 );
-    }
-
-    wrote_dbinfo = 0;
-    for ( dbip = cip->firstdb; dbip != NULL; dbip = dbip->next ) {
-	if ( strcasecmp( dbip->dbname, dbhandle ) == 0 ) {
-	    /*
-	     * found db name to be replaced:  replace with updated information 
-	     */
-	    if (( rc = write_dbswitch_info( newfp, cfgp, dbhandle )) !=
-		    LDAPU_SUCCESS ) {
-		report_ldapu_error( rc, DSGW_ERR_UPDATE_DBSWITCH, erropts );
-		return( -1 );
-	    }
-
-	    wrote_dbinfo = 1;
-
-	} else {
-	    /*
-	     * re-write existing db conf information without changes
-	     */
-	    if (( rc = dbconf_output_db_directive( newfp, dbip->dbname,
-		    dbip->url )) != LDAPU_SUCCESS ) {
-		report_ldapu_error( rc, DSGW_ERR_UPDATE_DBSWITCH, erropts );
-		return( -1 );
-	    }
-
-	    for ( pvp = dbip->firstprop; pvp != NULL; pvp = pvp->next ) {
-		if (( rc = dbconf_output_propval( newfp, dbip->dbname,
-			pvp->prop, pvp->val,
-			strcasecmp( pvp->prop, "bindpw" ) == 0 ))
-			!= LDAPU_SUCCESS ) {
-		    report_ldapu_error( rc, DSGW_ERR_UPDATE_DBSWITCH, erropts );
-		    return( -1 );
-		}
-	    }
-	}
-    }
-
-    if ( !wrote_dbinfo ) {
-	if (( rc = write_dbswitch_info( newfp, cfgp, dbhandle )) !=
-		LDAPU_SUCCESS ) {
-	    report_ldapu_error( rc, DSGW_ERR_UPDATE_DBSWITCH, erropts );
-	    return( -1 );
-	}
-    }
-
-    dbconf_free_confinfo( cip );
-    fclose( newfp );
-
-    /* replace old file with new one */
-#ifdef _WIN32
-    if ( !MoveFileEx( newfname, oldfname, MOVEFILE_REPLACE_EXISTING )) {
-#else
-    if ( rename( newfname, oldfname ) != 0 ) {
-#endif
-	PR_snprintf( buf, MAXPATHLEN + 100,
-		XP_GetClientStr(DBT_unableToRenameSToS_1), newfname, oldfname );
-	dsgw_error( DSGW_ERR_UPDATE_DBSWITCH, buf, erropts, 0, NULL );
-	return( -1 );
-    }
-
-    return( 0 );
-}
-
-
-static int
-write_dbswitch_info( FILE *fp, dsgwconfig *cfgp, char *dbhandle )
-{
-    char	*escapeddn, *url;
-    int		rc;
-
-    escapeddn = dsgw_strdup_escaped( cfgp->gc_ldapsearchbase );
-
-    if ( cfgp->gc_localdbconf == NULL ) { /* remote server: write ldap:// URL */
-	url = dsgw_ch_malloc( 21 + strlen( cfgp->gc_ldapserver )
-		+ strlen( escapeddn ));	/* room for "ldaps://HOST:PORT/DN" */
-	sprintf( url, "ldap%s://%s:%d/%s",
-#ifdef DSGW_NO_SSL
-		"",
-#else
-		cfgp->gc_ldapssl ? "s" : "",
-#endif
-		cfgp->gc_ldapserver, cfgp->gc_ldapport, escapeddn );
-    } else {				  /* local db: write ldapdb:// URL */
-	url = dsgw_ch_malloc( 11 + strlen( cfgp->gc_localdbconf )
-		+ strlen( escapeddn ));	/* room for "ldapdb://PATH/DN" */
-	sprintf( url, "ldapdb://%s/%s\n", cfgp->gc_localdbconf, escapeddn );
-    }
-
-    rc = dbconf_output_db_directive( fp, dbhandle, url );
-
-    free( url );
-    free( escapeddn );
-
-    if ( rc != LDAPU_SUCCESS ) {
-	return( rc );
-    }
-
-    if ( cfgp->gc_localdbconf == NULL ) { /* using directory server */
-	if ( cfgp->gc_binddn != NULL &&
-		( rc = dbconf_output_propval( fp, dbhandle, "binddn",
-		cfgp->gc_binddn, 0 ) != LDAPU_SUCCESS )) {
-	    return( rc );
-	}
-
-	if ( cfgp->gc_bindpw != NULL &&
-		( rc = dbconf_output_propval( fp, dbhandle, "bindpw",
-		cfgp->gc_bindpw, 1 ) != LDAPU_SUCCESS )) {
-	    return( rc );
-	}
-    }
-
-    return( LDAPU_SUCCESS );
-}
-
 
 /* pass 0 for lineno if it is unknown or not applicable */
 static void
@@ -1858,11 +1535,17 @@ dsgw_valid_docname(char *filename)
 	if (!ldap_utf8isalnum(local_filename)) {
 
 	    /*If it's a dot, and there haven't been any other dots...*/
-	    if (*local_filename == '.' && dots == 0) {
-		/*Then increment the dot count and continue...*/
-		dots ++;
-		continue;
-	    }
+            /* ... but disallow a dot as the first char */
+            if (*local_filename == '.') {
+                if (local_filename == filename) {
+                    return (0); /* illegal - filename begins with . */
+                }
+                if (dots == 0) {
+                    /*Then increment the dot count and continue...*/
+                    dots ++; /* contains a . somewhere e.g. foo.html */
+                    continue;
+                }
+            }
 
 	    /*Allow dashes and underscores*/
 	    if (*local_filename == '-' || *local_filename == '_') {

@@ -130,19 +130,6 @@ post_request()
 
     quiet = dsgw_get_boolean_var( "quiet", DSGW_CGIVAR_OPTIONAL, 0 );
 
-#if 0
-    /*
-     * If the "genscreen" form variable is set, it is the name of a
-     * genscreen-compatible HTML template to display the domodify results
-     * within.  We replace the "DS_LAST_OP_INFO" directive with our own
-     * "domodify" output.  Presence of "genscreen" also turns on quiet mode.
-     */
-    if (( s = dsgw_get_cgi_var( "genscreen", DSGW_CGIVAR_OPTIONAL )) != NULL &&
-	    dsgw_genscreen_begin( s, &genfp, DRCT_DS_LAST_OP_INFO, 0 ) == 0 ) {
-	quiet = display_results_inline = 1;
-    }
-#endif
-
     verbose = dsgw_get_boolean_var( "verbose", DSGW_CGIVAR_OPTIONAL, 0 );
     if ( verbose ) {
 	quiet = 0;	/* verbose overrides quiet */
@@ -392,18 +379,9 @@ post_request()
 	dsgw_emits( "\n</TABLE></CENTER></FORM>\n" );
     }
 
-#if 0
-    if ( display_results_inline && genfp != NULL ) {
-	dsgw_emits( "<HR>\n" );
-	dsgw_genscreen_continue( &genfp, NULL, 0 );
-    } else if ( !quiet ) {
-	dsgw_html_end();
-    }
-#else
     if ( !quiet ) {
 	dsgw_html_end();
     }
-#endif
     ldap_unbind( ld );
     if (old_dn != dn) free ( old_dn );
     free( dn );

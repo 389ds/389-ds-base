@@ -340,6 +340,12 @@ dsgw_display_init( int tmpltype, char *template, unsigned long options )
     char		**argv, *attr, *filename, line[ BIG_LINE ];
     unsigned long	aopts;
 
+    /* template is passed in from the user - make sure it looks like a valid name */
+    if (!dsgw_valid_docname(template)) {
+        dsgw_error( DSGW_ERR_BADFILEPATH, template, 
+                    DSGW_ERROPT_EXIT, 0, NULL );
+    }
+
     tip = (dsgwtmplinfo *)dsgw_ch_malloc( sizeof( dsgwtmplinfo ));
     memset( tip, 0, sizeof( dsgwtmplinfo ));
     tip->dsti_type = tmpltype;

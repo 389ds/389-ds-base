@@ -51,7 +51,7 @@
 extern char *Versionstr;	/* from Versiongw.c */
 
 /* global variables */
-char *dsgw_last_op_info;	/* set in edit.c and genscreen.c */
+char *dsgw_last_op_info;	/* set in edit.c */
 char *dsgw_dnattr;		/* set in edit.c */
 char *dsgw_dndesc;		/* set in edit.c */
 

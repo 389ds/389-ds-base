@@ -152,15 +152,6 @@ dsgw_init( int argc, char **argv, int methods_handled )
 	context = dsgw_ch_strdup("default");
     }
 
-    /*  If this is a LIte installation: dsgw is not enabled */
-/* this assumes the current dir is <server root>/dsgw/bin; under http servers
-other than admin server, we have to rely on relative paths to find the
-key file */
-
-    if ( is_directory_lite (SERVER_ROOT_PATH)) {
-	dsgw_error( DSGW_ERR_BADCONFIG, XP_GetClientStr(DBT_NotWillingToExecute_),
-		DSGW_ERROPT_EXIT, 0, NULL );
-    }
     gc = dsgw_read_config();
 
     gc->gc_charset = dsgw_emit_converts_to (gc->gc_charset);
