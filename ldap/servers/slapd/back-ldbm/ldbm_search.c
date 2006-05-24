@@ -670,7 +670,7 @@ build_candidate_list( Slapi_PBlock *pb, backend *be, struct backentry *e,
      * above already for subtree searches.
      */
     if ( NULL != lookup_returned_allidsp ) {
-        if ( 0 == err ) {
+        if ( 0 == err || DB_NOTFOUND == err ) {
             if ( !(*lookup_returned_allidsp) && LDAP_SCOPE_SUBTREE != scope ) {
                 *lookup_returned_allidsp =
                         ( NULL != *candidates && ALLIDS( *candidates ));
