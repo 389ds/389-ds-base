@@ -448,8 +448,8 @@ pam_passthru_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
 	char *new_service = NULL;
 	char *pam_ident_attr = NULL;
 	char *map_method = NULL;
-	int fallback;
-	int secure;
+	PRBool fallback;
+	PRBool secure;
 
 	*returncode = LDAP_SUCCESS;
 
@@ -458,8 +458,8 @@ pam_passthru_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
 	new_service = slapi_entry_attr_get_charptr(e, PAMPT_SERVICE_ATTR);
 	excludes = slapi_entry_attr_get_charray(e, PAMPT_EXCLUDES_ATTR);
 	includes = slapi_entry_attr_get_charray(e, PAMPT_INCLUDES_ATTR);
-	fallback = slapi_entry_attr_get_int(e, PAMPT_FALLBACK_ATTR);
-	secure = slapi_entry_attr_get_int(e, PAMPT_SECURE_ATTR);
+	fallback = slapi_entry_attr_get_bool(e, PAMPT_FALLBACK_ATTR);
+	secure = slapi_entry_attr_get_bool(e, PAMPT_SECURE_ATTR);
 
 	/* lock config here */
 	slapi_lock_mutex(theConfig.lock);
