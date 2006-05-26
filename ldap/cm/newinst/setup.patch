@@ -247,10 +247,10 @@ echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/" >> $inffile
 echo "ConfigDirectoryAdminID=   $adminid" >> $inffile
 echo "AdminDomain=   $admindomain" >> $inffile
 echo "ConfigDirectoryAdminPwd=   $siepasswd" >> $inffile
-echo "Components=   slapd-71sp2" >> $inffile
+echo "Components=   slapd-71sp3" >> $inffile
 echo "" >> $inffile
-echo "[slapd-71sp2]" >> $inffile
-echo "Components=   slapd-71sp2" >> $inffile
+echo "[slapd-71sp3]" >> $inffile
+echo "Components=   slapd-71sp3" >> $inffile
 
 clear
 

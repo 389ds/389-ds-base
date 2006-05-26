@@ -69,7 +69,7 @@
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc bindpdesc = { "test-bind", "Fedora Project", "7.1 SP2",
+Slapi_PluginDesc bindpdesc = { "test-bind", "Fedora Project", "7.1 SP3",
 	"sample bind pre-operation plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;

@@ -1,5 +1,5 @@
 ======================================================================= 
-                       Fedora Directory Server 7.1 SP2
+                       Fedora Directory Server 7.1 SP3
 =======================================================================
 
 The Fedora Directory Server is subject to the terms detailed in the

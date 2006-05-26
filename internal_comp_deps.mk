@@ -134,7 +134,7 @@ ifeq ($(USE_64), 1)
   PACKAGE_SRC_DEST += $(addsuffix $(SPACE)shared32/lib,$(NSS32_NSPR32_SRC_LIBS))
 
 ifdef BUILD_PATCH
-# need 32-bit LDAP C SDK libs for SP2
+# need 32-bit LDAP C SDK libs for SP
   LDAPSDK32_IMPORT = $(subst $(NS64TAG),,$(LDAP_RELEASE))
   LDAPSDK32_PULLFILES = lib/$(LIB_PREFIX)$(subst $(SPACE),$(COMMA)lib/$(LIB_PREFIX),$(addsuffix .$(DLL_SUFFIX),$(LDAP_SOLIB_NAMES)))
 endif # BUILD_PATCH

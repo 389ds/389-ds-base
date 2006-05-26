@@ -106,9 +106,9 @@ endif
 endif
 
 ifdef USE_64
-VERSION=-ver 7.1SP2-64bit
+VERSION=-ver 7.1SP3-64bit
 else
-VERSION=-ver 7.1SP2
+VERSION=-ver 7.1SP3
 endif
 
 ifeq ($(ARCH), HPUX)
@@ -232,7 +232,7 @@ ESCAPED_ABS_DISTDIR = $(shell echo $(ABS_DISTDIR) | sed -e 's/\//\\\//g')
 
 ifdef BUILD_PATCH
 PATCHINSTDIR = $(ABS_INSTDIR)-SP
-SLAPDSP = slapd-71sp2
+SLAPDSP = slapd-71sp3
 PATCH_DISTDIR=$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)
 ifeq ($(USE_64), 1)
   PATCH_DISTDIR32=$(ESCAPED_ABS_DISTDIR)\/$(NSOBJDIR_NAME)\/shared32
@@ -276,7 +276,7 @@ PACKAGE_SETUP_LIBS_32=$(subst $(NS64TAG),,$(PACKAGE_SETUP_LIBS))
 ifdef BUILD_RPM
 # name and version of RPM - must correspond to the spec file - these get branded
 	RPM_BASE_NAME=fedora
-	RPM_VERSION=7.1SP2
+	RPM_VERSION=7.1SP3
 	RPM_FILE_BASE=$(RPM_BASE_NAME)-ds-$(RPM_VERSION)
 	RPM_ARCH = $(shell uname -i)
 # root dir for RPM built and temp files
