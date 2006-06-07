@@ -721,6 +721,13 @@ endif
 	fi
 
 ifdef BUILD_PATCH
+ifdef BUILD_RPM
+# create a patch
+	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
+	mv $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR).original
+	ln -s $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)
+endif #BUILD_RPM
+
 # take care of files in components (e.g., a file in nsadmin.zip)
 	@echo compfile...
 	-@for pair in `grep "^compfile:" $(PATCHINF) | awk '{print $$3}'`; do \
@@ -741,12 +748,6 @@ ifdef BUILD_PATCH
 	  $(ZIP) $(ABS_INSTDIR)/$$zipfile $$dfile ; \
 	done
 
-ifdef BUILD_RPM
-# create a patch
-	$(GENRPMPATCH) -i $(RPM_BASE_NAME) -o $(NS_BUILD_FLAVOR) -r $(ABSRELDIR) -e $(SPEXT) -f $(PATCHINF) -v
-	mv $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR) $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR).original
-	ln -s $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)$(SPEXT)/opt/$(RPM_BASE_NAME)-ds $(ABSRELDIR)/slapd/$(NS_BUILD_FLAVOR)
-endif #BUILD_RPM
 endif #BUILD_PATCH
 
 # we must remove the nsbase.zip file - we package those files now
