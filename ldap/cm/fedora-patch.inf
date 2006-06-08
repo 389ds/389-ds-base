@@ -87,6 +87,6 @@ copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/%LDAPSDK%/lib/libprldap
 copyfile: M324525,M324529: admin/nsadmin.zip:%DISTDIR32%/%LDAPSDK%/lib/libssldap50.*:bin/admin/lib/libssldap50.*
 
 compfile: 171306: %DISTDIR%/admserv/admin/nsadmin.zip:manual/help/help
-compfile: 191240: %DISTDIR%/admserv/admin/nsadmin.zip:bin/https/lib/libAdmservPlugin.so
+compfile: 191240: %DISTDIR%/admserv/admin/nsadmin.zip:bin/https/lib/libAdmservPlugin.*
 compfile: 191240: %DISTDIR%/admserv/admin/nsclient.zip:java/jars/admserv70_en.jar
 compfile: 191240: %DISTDIR%/admserv/admin/nsclient.zip:java/jars/admserv70.jar
