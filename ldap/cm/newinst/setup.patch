@@ -315,8 +315,12 @@ if [ -f assecure.txt ]; then
     done
     rm -f assecuire.txt
 fi
+
 if [ $isadminsslon -ne 0 ]; then
     echo "Restarting Administration Server: $serverroot/start-admin"
     $serverroot/start-admin
+else
+    echo "Restarting Administration Server: $serverroot/restart-admin"
+    $serverroot/restart-admin
 fi
 
