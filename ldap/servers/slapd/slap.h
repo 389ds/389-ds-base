@@ -1252,6 +1252,7 @@ typedef struct conn {
     sasl_io_private *c_sasl_io_private; /* Private data for SASL I/O Layer */
     int				c_enable_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
     int				c_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
+    int				c_sasl_ssf; /* flag to tell us the SASL SSF */
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 

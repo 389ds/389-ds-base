@@ -1294,6 +1294,7 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 #define SLAPI_CONN_IS_SSL_SESSION 	747
 #define SLAPI_CONN_CERT				743
 #define SLAPI_CONN_AUTHMETHOD			746
+#define SLAPI_CONN_SASL_SSF			748
 
 /* 
  * Types of authentication for SLAPI_CONN_AUTHMETHOD

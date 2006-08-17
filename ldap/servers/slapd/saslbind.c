@@ -705,6 +705,7 @@ void ids_sasl_server_new(Connection *conn)
     }
     
     conn->c_sasl_conn = sasl_conn;
+    conn->c_sasl_ssf = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= ids_sasl_server_new\n", 0, 0, 0 );
 
@@ -986,6 +987,8 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
                                  "failed to enable sasl i/o",
                                  0, NULL);
                 }
+	        /* Set the SSF in the connection */
+	        pb->pb_conn->c_sasl_ssf = (unsigned)*ssfp;
             }
         }
 

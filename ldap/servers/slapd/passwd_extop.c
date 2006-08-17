@@ -197,12 +197,12 @@ passwd_modify_extop( Slapi_PBlock *pb )
 {
 	char		*oid = NULL;
 	char 		*bindDN = NULL;
-    char        *authmethod = NULL;
+	char		*authmethod = NULL;
 	char		*dn = NULL;
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
 	char		*errMesg = NULL;
-	int             ret=0, rc=0;
+	int             ret=0, rc=0, sasl_ssf=0;
 	unsigned long	tag=0, len=-1;
 	struct berval *extop_value = NULL;
 	BerElement	*ber = NULL;
@@ -248,9 +248,19 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	/* Now , at least we know that the request was indeed a Password Modify one. */
 
 #ifdef LDAP_EXTOP_PASSMOD_CONN_SECURE
-	/* Allow password modify only for SSL/TLS established connections */
+	/* Allow password modify only for SSL/TLS established connections and
+	 * connections using SASL privacy layers */
 	conn = pb->pb_conn;
-	if ( (conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) {
+	if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
+		errMesg = "Could not get SASL SSF from connection\n";
+		rc = LDAP_OPERATIONS_ERROR;
+		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+				 errMesg );
+		goto free_and_return;
+	}
+
+	if ( ((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
+	      (sasl_ssf <= 1) ) {
 		errMesg = "Operation requires a secure connection.\n";
 		rc = LDAP_CONFIDENTIALITY_REQUIRED;
 		goto free_and_return;

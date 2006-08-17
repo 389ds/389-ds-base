@@ -149,6 +149,7 @@ sasl_io_cleanup(Connection *c)
         c->c_sasl_io_private = NULL;
         c->c_enable_sasl_io = 0;
         c->c_sasl_io = 0;
+        c->c_sasl_ssf = 0;
     }
     return ret;
 }
