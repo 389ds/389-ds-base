@@ -68,6 +68,12 @@
 #define LDAP_EXTOP_PASSMOD_TAG_OLDPWD	0x81U
 #define LDAP_EXTOP_PASSMOD_TAG_NEWPWD	0x82U
 
+/* ber tags for the PasswdModifyResponseValue sequence */
+#define LDAP_EXTOP_PASSMOD_TAG_GENPWD	0x80U
+
+/* number of bytes used for random password generation */
+#define LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN 8
+
 /* OID of the extended operation handled by this plug-in */
 #define EXOP_PASSWD_OID	"1.3.6.1.4.1.4203.1.11.1"
 
@@ -191,6 +197,34 @@ static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newP
 	return ret;
 }
 
+/* Generate a new random password */
+static int passwd_modify_generate_passwd(char **genpasswd)
+{
+	unsigned char data[ LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN ];
+	char enc[ 1 + LDIF_BASE64_LEN( LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN) ];
+
+	if (genpasswd == NULL) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	/* get 8 random bytes from NSS */
+	PK11_GenerateRandom( data, LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN );
+
+	/* b64 encode the 8 bytes to get a password made up of
+	 * printable characters. ldif_base64_encode() will
+	 * zero-terminate the string */
+	(void)ldif_base64_encode( data, enc, LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN, -1 );
+
+	/* This will get freed by the caller */
+	*genpasswd = slapi_ch_malloc( 1 + LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN);
+
+	/* trim the password to the proper length. */
+	PL_strncpyz( *genpasswd, enc, 1 + LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN );
+
+	return LDAP_SUCCESS;
+}
+
+
 /* Password Modify Extended operation plugin function */
 int
 passwd_modify_extop( Slapi_PBlock *pb )
@@ -205,22 +239,14 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	int             ret=0, rc=0, sasl_ssf=0;
 	unsigned long	tag=0, len=-1;
 	struct berval *extop_value = NULL;
+	struct berval *gen_passwd = NULL;
 	BerElement	*ber = NULL;
+	BerElement	*response_ber = NULL;
 	Slapi_Entry *targetEntry=NULL;
 	Connection      *conn = NULL;
 	/* Slapi_DN sdn; */
 
     	LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_modify_extop\n", 0, 0, 0 );
-	/* Get the pb ready for sending Password Modify Extended Responses back to the client. 
-	 * The only requirement is to set the LDAP OID of the extended response to the EXOP_PASSWD_OID. */
-
-	if ( slapi_pblock_set( pb, SLAPI_EXT_OP_RET_OID, EXOP_PASSWD_OID ) != 0 ) {
-		errMesg = "Could not set extended response oid.\n";
-		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
-				 errMesg );
-		goto free_and_return;
-	}
 
 	/* Before going any further, we'll make sure that the right extended operation plugin
 	 * has been called: i.e., the OID shipped whithin the extended operation request must 
@@ -278,22 +304,25 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	}
 
 	/* Format of request to parse
-	*
-   	* PasswdModifyRequestValue ::= SEQUENCE {
-     	* userIdentity    [0]  OCTET STRING OPTIONAL
-     	* oldPasswd       [1]  OCTET STRING OPTIONAL
-     	* newPasswd       [2]  OCTET STRING OPTIONAL }
-	*/
-	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
+	 *
+   	 * PasswdModifyRequestValue ::= SEQUENCE {
+     	 * userIdentity    [0]  OCTET STRING OPTIONAL
+     	 * oldPasswd       [1]  OCTET STRING OPTIONAL
+     	 * newPasswd       [2]  OCTET STRING OPTIONAL }
+	 *
+	 * The request value field is optional. If it is
+	 * provided, at least one field must be filled in.
+	 */
 
 	/* ber parse code */
 	if ( ber_scanf( ber, "{") == LBER_ERROR )
     	{
-    		LDAPDebug( LDAP_DEBUG_ANY,
-    		    "ber_scanf failed :{\n", 0, 0, 0 );
-    		errMesg = "ber_scanf failed\n";
-		rc = LDAP_PROTOCOL_ERROR;
-		goto free_and_return;
+		/* The request field wasn't provided.  We'll
+		 * now try to determine the userid and verify
+		 * knowledge of the old password via other
+		 * means.
+		 */
+		goto parse_req_done;
     	} else {
 		tag = ber_peek_tag( ber, &len);
 	}
@@ -343,12 +372,9 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		rc = LDAP_PROTOCOL_ERROR;
 		goto free_and_return;
     		}
-	} else {
-		errMesg = "New passwd must be supplied by the user.\n";
-		rc = LDAP_PARAM_ERROR;
-		goto free_and_return;
 	}
-	
+
+parse_req_done:	
 	/* Uncomment for debugging, otherwise we don't want to leak the password values into the log... */
 	/* LDAPDebug( LDAP_DEBUG_ARGS, "passwd: dn (%s), oldPasswd (%s) ,newPasswd (%s)\n",
 					 dn, oldPasswd, newPasswd); */
@@ -376,13 +402,60 @@ passwd_modify_extop( Slapi_PBlock *pb )
         }
 	 }
 	 
-	 /* We don't implement password generation, so if the request implies 
-	  * that they asked us to do that, we must refuse to process it  */
-	 if (newPasswd == NULL || *newPasswd == '\0') {
-	 /* Refuse to handle this operation because we don't allow password generation */
-		errMesg = "New passwd must be supplied by the user.\n";
-		rc = LDAP_PARAM_ERROR;
-		goto free_and_return;
+	/* A new password was not supplied in the request, so we need to generate
+	 * a random one and return it to the user in a response.
+	 */
+	if (newPasswd == NULL || *newPasswd == '\0') {
+		/* Do a free of newPasswd here to be safe, otherwise we may leak 1 byte */
+		slapi_ch_free_string( &newPasswd );
+
+		/* Generate a new password */ 
+		if (passwd_modify_generate_passwd( &newPasswd ) != LDAP_SUCCESS) {
+			errMesg = "Error generating new password.\n";
+			rc = LDAP_OPERATIONS_ERROR;
+			goto free_and_return;
+		}
+
+		/* Make sure a passwd was actually generated */
+		if (newPasswd == NULL || *newPasswd == '\0') {
+			errMesg = "Error generating new password.\n";
+			rc = LDAP_OPERATIONS_ERROR;
+			goto free_and_return;
+		}
+
+		/*
+		 * Create the response message since we generated a new password.
+		 *
+		 * PasswdModifyResponseValue ::= SEQUENCE {
+		 *     genPasswd       [0]     OCTET STRING OPTIONAL }
+		 */
+		if ( (response_ber = ber_alloc()) == NULL ) {
+                        rc = LDAP_NO_MEMORY;
+			goto free_and_return;
+                }
+
+		if ( LBER_ERROR == ( ber_printf( response_ber, "{" ) ) ) {
+			ber_free( response_ber, 1 );
+			rc = LDAP_ENCODING_ERROR;
+			goto free_and_return;
+                }
+
+		if ( LBER_ERROR == ( ber_printf( response_ber, "ts", LDAP_EXTOP_PASSMOD_TAG_GENPWD,
+				newPasswd ) ) ) {
+			ber_free( response_ber, 1 );
+			rc = LDAP_ENCODING_ERROR;
+			goto free_and_return;
+		}
+
+		if ( LBER_ERROR == ( ber_printf( response_ber, "}" ) ) ) {
+			ber_free( response_ber, 1 );
+			rc = LDAP_ENCODING_ERROR;
+		}
+
+		ber_flatten(response_ber, &gen_passwd);
+
+		/* We're done with response_ber now, so free it */
+		ber_free( response_ber, 1 );
 	 }
 	 
 	 
@@ -463,21 +536,25 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		rc = ret;
 		goto free_and_return;
 	}
+
+	if (gen_passwd && (gen_passwd->bv_val != '\0')) {
+		/* Set the reponse to let the user know the generated password */
+		slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, gen_passwd);
+	}
 	
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= passwd_modify_extop: %d\n", rc, 0, 0 );
 	
 	/* Free anything that we allocated above */
 	free_and_return:
-
-    slapi_ch_free_string(&oldPasswd);
-    slapi_ch_free_string(&newPasswd);
-    /* Either this is the same pointer that we allocated and set above,
-       or whoever used it should have freed it and allocated a new
-       value that we need to free here */
+	slapi_ch_free_string(&oldPasswd);
+	slapi_ch_free_string(&newPasswd);
+	/* Either this is the same pointer that we allocated and set above,
+	 * or whoever used it should have freed it and allocated a new
+	 * value that we need to free here */
 	slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET, &dn );
-    slapi_ch_free_string(&dn);
+	slapi_ch_free_string(&dn);
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
-    slapi_ch_free_string(&authmethod);
+	slapi_ch_free_string(&authmethod);
 
 	if ( targetEntry != NULL ){
 		slapi_entry_free (targetEntry); 
@@ -492,6 +569,9 @@ passwd_modify_extop( Slapi_PBlock *pb )
                      errMesg ? errMesg : "success" );
 	send_ldap_result( pb, rc, NULL, errMesg, 0, NULL );
 	
+
+	/* We can free the generated password bval now */
+	ber_bvfree(gen_passwd);
 
 	return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 
