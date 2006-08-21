@@ -74,6 +74,9 @@
 /* number of bytes used for random password generation */
 #define LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN 8
 
+/* number of random bytes needed to generate password */
+#define LDAP_EXTOP_PASSMOD_RANDOM_BYTES	6
+
 /* OID of the extended operation handled by this plug-in */
 #define EXOP_PASSWD_OID	"1.3.6.1.4.1.4203.1.11.1"
 
@@ -200,20 +203,20 @@ static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newP
 /* Generate a new random password */
 static int passwd_modify_generate_passwd(char **genpasswd)
 {
-	unsigned char data[ LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN ];
-	char enc[ 1 + LDIF_BASE64_LEN( LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN) ];
+	unsigned char data[ LDAP_EXTOP_PASSMOD_RANDOM_BYTES ];
+	char enc[ 1 + LDIF_BASE64_LEN( LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN ) ];
 
 	if (genpasswd == NULL) {
 		return LDAP_OPERATIONS_ERROR;
 	}
 
-	/* get 8 random bytes from NSS */
-	PK11_GenerateRandom( data, LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN );
+	/* get random bytes from NSS */
+	PK11_GenerateRandom( data, LDAP_EXTOP_PASSMOD_RANDOM_BYTES );
 
-	/* b64 encode the 8 bytes to get a password made up of
-	 * printable characters. ldif_base64_encode() will
+	/* b64 encode the random bytes to get a password made up
+         * of printable characters. ldif_base64_encode() will
 	 * zero-terminate the string */
-	(void)ldif_base64_encode( data, enc, LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN, -1 );
+	(void)ldif_base64_encode( data, enc, LDAP_EXTOP_PASSMOD_RANDOM_BYTES, -1 );
 
 	/* This will get freed by the caller */
 	*genpasswd = slapi_ch_malloc( 1 + LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN);
@@ -409,7 +412,7 @@ parse_req_done:
 		/* Do a free of newPasswd here to be safe, otherwise we may leak 1 byte */
 		slapi_ch_free_string( &newPasswd );
 
-		/* Generate a new password */ 
+		/* Generate a new password */
 		if (passwd_modify_generate_passwd( &newPasswd ) != LDAP_SUCCESS) {
 			errMesg = "Error generating new password.\n";
 			rc = LDAP_OPERATIONS_ERROR;
@@ -434,23 +437,12 @@ parse_req_done:
 			goto free_and_return;
                 }
 
-		if ( LBER_ERROR == ( ber_printf( response_ber, "{" ) ) ) {
+		if ( LBER_ERROR == ( ber_printf( response_ber, "{ts}",
+				LDAP_EXTOP_PASSMOD_TAG_GENPWD, newPasswd ) ) ) {
 			ber_free( response_ber, 1 );
 			rc = LDAP_ENCODING_ERROR;
 			goto free_and_return;
                 }
-
-		if ( LBER_ERROR == ( ber_printf( response_ber, "ts", LDAP_EXTOP_PASSMOD_TAG_GENPWD,
-				newPasswd ) ) ) {
-			ber_free( response_ber, 1 );
-			rc = LDAP_ENCODING_ERROR;
-			goto free_and_return;
-		}
-
-		if ( LBER_ERROR == ( ber_printf( response_ber, "}" ) ) ) {
-			ber_free( response_ber, 1 );
-			rc = LDAP_ENCODING_ERROR;
-		}
 
 		ber_flatten(response_ber, &gen_passwd);
 
