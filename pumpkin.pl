@@ -37,7 +37,6 @@
 # Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
-#
 
 # NT doesn't reliably do perl -e, so we have to do this.
 die "Usage: $0 <days> <file>\n" unless $#ARGV == 1;
