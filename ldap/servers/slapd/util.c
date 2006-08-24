@@ -413,13 +413,18 @@ normalize_path(char *path)
     char **dp = dirs;
     char **rdp;
     do {
-        bnamep = basename(dnamep);
+        bnamep = strrchr(dnamep, _CSEP);
+        if (NULL == bnamep) {
+            bnamep = dnamep;
+        } else {
+           *bnamep = '\0';
+           bnamep++;
+       }
         if (0 != strcmp(bnamep, ".")) {
             *dp++ = slapi_ch_strdup(bnamep);    /* remove "/./" in the path */
         }
-        dnamep = dirname(dnamep);
-    } while (strcmp(dnamep, _PSEP) &&
-            !(0 == strcmp(dnamep, ".") && 0 == strcmp(bnamep, ".")));    
+    } while (NULL != dnamep && '\0' != *dnamep && /* done or relative path */
+             !(0 == strcmp(dnamep, ".") && 0 == strcmp(bnamep, ".")));
 
     /* remove "xxx/.." in the path */
     for (dp = dirs, rdp = rdirs; dp && *dp; dp++) {
@@ -462,6 +467,7 @@ char *
 rel2abspath_ext( char *relpath, char *cwd )
 {
     char abspath[ MAXPATHLEN + 1 ];
+    char *retpath = NULL;
 
 #if defined( _WIN32 )
    CHAR szDrive[_MAX_DRIVE];
@@ -512,9 +518,11 @@ rel2abspath_ext( char *relpath, char *cwd )
             PL_strcatn( abspath, sizeof(abspath), relpath );
         }
     }
+    retpath = slapi_ch_strdup(abspath);
+    /* if there's no '.', no need to call normalize_path */
+    if (NULL != strchr(abspath, '.'))
     {
         char **norm_path = normalize_path(abspath);
-        char *retpath = slapi_ch_strdup(abspath); /* size is long enough */
         char **np, *rp;
         int pathlen = strlen(abspath) + 1;
         int usedlen = 0;
@@ -526,8 +534,8 @@ rel2abspath_ext( char *relpath, char *cwd )
             usedlen += thislen;
         }
         clean_path(norm_path);
-        return retpath;
     }
+    return retpath;
 }
 
 
