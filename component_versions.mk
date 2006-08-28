@@ -52,7 +52,7 @@
 # naming scheme.
 # NSPR
 ifndef NSPR_RELDATE
-  NSPR_RELDATE = v4.6.2
+  NSPR_RELDATE = v4.6.2-dstest
 endif
 
 # SECURITY (NSS) LIBRARY
@@ -76,10 +76,10 @@ endif
 
 # LDAP SDK
 ifndef LDAP_RELDATE
-  LDAP_RELDATE = v5.17
+  LDAP_RELDATE = v5.17-sun-merge
 endif
 ifndef LDAPCOMP_DIR
-  LDAPCOMP_DIR=ldapsdk50
+  LDAPCOMP_DIR=ldapcsdk
 endif
 
 # CRIMSONJAR 
@@ -185,7 +185,7 @@ ifndef SASL_VERSDIR
   SASL_VERSDIR=cyrus
 endif
 ifndef SASL_RELDATE
-  SASL_RELDATE=v2.1.20.1
+  SASL_RELDATE=v2.1.20.2
 endif
 
 # jakarta/axis for DSMLGW

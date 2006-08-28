@@ -171,7 +171,7 @@ $(BINDEST)/uninstall: uninstall
 $(BINDEST)/ns-config: $(OBJS1) $(OBJS2)
 	$(PURIFY) $(CXX) $(SHARED_FLAG) $(CFLAGS) $(MCC_INCLUDE) $(INCDIR) \
 		-o $(BINDEST)/ns-config $(RPATHFLAG_PREFIX)$(RPATHFLAG)$(RPATHFLAG_EXTRAS) $(OBJS1) $(OBJS2) $(SETUPUTILLINK) $(LDAPLINK) $(SECURITYLINK) $(NSPRLINK) \
-	       $(EXTRA_LIBS) $(CURSES)
+	       $(SASL_LINK) $(EXTRA_LIBS) $(CURSES)
 
 $(RELDIR)/shared/bin/%: sec_tools_wrapper $(RELDIR)/shared/bin
 	-@$(RM) $@
