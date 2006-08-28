@@ -135,14 +135,6 @@ ifeq ($(INTERNAL_BUILD), 1)
 	$(AXIS_DEP) $(DSMLJAR_DEP) $(DSDOC_DEP) $(ADSYNC_DEP) $(NT4SYNC_DEP) $(PERLDAP_DEP)
 endif
 
-# Pull WiX MSI toolkit on Windows.
-ifeq ($(ARCH), WINNT)
-COMPONENT_DEPENDENCIES += $(WIX_DEP)
-## Only fetch the necessary components for ApacheDS when requested
-ifeq ($(BUILD_NTDS),1)
-COMPONENT_DEPENDENCIES += $(WRAPPER_DEP) $(SWIG_DEP) $(MAVEN_DEP) $(APACHEDS_DEP) 
-endif
-endif
 components: $(COMPONENT_DEPENDENCIES)
 	-@echo "The components are up to date"
 
