@@ -134,7 +134,8 @@ EXTRA_LIBS += \
 	$(LDAP_LIBLDIF) \
 	$(LDAP_LIBAVL) \
 	$(DLL_EXTRA_LIBS) -lc
-LINK_DLL += -z defs
+# All the dependent libraries may not be linked with. (e.g., Cyrus SASL)
+# LINK_DLL += -z defs
 endif
 
 ifeq ($(ARCH), HPUX)

@@ -140,14 +140,19 @@ EXTRA_LIBS = $(LDAPLINK) $(SVRCORELINK) $(SECURITYLINK) $(NSPRLINK) \
 	$(LDAP_LIBLITEKEY)
 endif
 
-# for Solaris, our most common unix build platform, we check for undefined
-# symbols at link time so we don't catch them at run time.  To do this, we
-# set the -z defs flag.  We also have to add explicitly link with the C and
-# C++ runtime libraries (e.g., -lc) because, even though ld and CC link
-# with them implicitly, -z defs will throw errors if we do not link with
-# them explicitly.
+# Comment for the following comment:
+# Updating LDAP C SDK to V6.0 has introduced a new dependent library
+# (Cyrus SASL).  Instead of adding the library to EXTRA_LIBS list,
+# comment out "-z defs".  If check is needed, uncomment "-z defs" and
+# append necessary libraries to EXTRA_LIBS.
+## for Solaris, our most common unix build platform, we check for undefined
+## symbols at link time so we don't catch them at run time.  To do this, we
+## set the -z defs flag.  We also have to add explicitly link with the C and
+## C++ runtime libraries (e.g., -lc) because, even though ld and CC link
+## with them implicitly, -z defs will throw errors if we do not link with
+## them explicitly.
 ifeq ($(ARCH), SOLARIS)
-LINK_DLL += -z defs
+# LINK_DLL += -z defs
 # removed -lcx from the following line
 EXTRA_LIBS += -lm -lw -lc
 ifdef NS_USE_NATIVE
