@@ -115,14 +115,15 @@ do_modify( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement			*ber;
 	char				*last, *type = NULL;
-	unsigned long		tag, len;
+	ber_tag_t			tag;
+	ber_len_t			len;
 	LDAPMod				*mod;
-	LDAPMod			    **mods;
+	LDAPMod				**mods;
 	Slapi_Mods			smods;
-	int					err;
-	int					pw_change = 0; 	/* 0= no password change */
-	int					ignored_some_mods = 0;
-	int                 has_password_mod = 0; /* number of password mods */
+	int				err;
+	int				pw_change = 0; 	/* 0= no password change */
+	int				ignored_some_mods = 0;
+	int				has_password_mod = 0; /* number of password mods */
 	char				*old_pw = NULL;	/* remember the old password */
 	char				*dn = NULL;
 
@@ -177,11 +178,11 @@ do_modify( Slapi_PBlock *pb )
 	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
 	    tag = ber_next_element( ber, &len, last ) )
 	{
-		long long_mod_op;
+		ber_int_t mod_op;
 		mod = (LDAPMod *) slapi_ch_malloc( sizeof(LDAPMod) );
 		mod->mod_bvalues = NULL;
 
-		if ( ber_scanf( ber, "{i{a[V]}}", &long_mod_op, &type,
+		if ( ber_scanf( ber, "{i{a[V]}}", &mod_op, &type,
 		    &mod->mod_bvalues ) == LBER_ERROR )
 		{
 			op_shared_log_error_access (pb, "MOD", dn, "decoding error");
@@ -192,7 +193,7 @@ do_modify( Slapi_PBlock *pb )
 			slapi_ch_free_string(&type);
 			goto free_and_return;
 		}
-		mod->mod_op = long_mod_op;
+		mod->mod_op = mod_op;
 		mod->mod_type = slapi_attr_syntax_normalize(type);
 		if ( !mod->mod_type || !*mod->mod_type ) {
 			char ebuf[BUFSIZ];

@@ -187,7 +187,8 @@ get_ldapmessage_controls(
 )
 {
 	LDAPControl		**ctrls, *new;
-	unsigned long		tag, len;
+	ber_tag_t		tag;
+	ber_len_t		len;
 	int			rc, maxcontrols, curcontrols;
 	char			*last;
 	int			managedsait, pwpolicy_ctrl;

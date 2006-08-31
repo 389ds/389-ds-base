@@ -69,7 +69,7 @@ static int flush_ber( Slapi_PBlock *pb, Connection *conn,
 	Operation *op, BerElement *ber, int type );
 static char *notes2str( unsigned int notes, char *buf, size_t buflen );
 static void log_result( Slapi_PBlock *pb, Operation *op, int err,
-	unsigned long tag, int nentries );
+	ber_tag_t tag, int nentries );
 static void log_entry( Operation *op, Slapi_Entry *e );
 static void log_referral( Operation *op );
 
@@ -229,7 +229,7 @@ send_ldap_result(
 
 
 static int
-check_and_send_extended_result(Slapi_PBlock *pb, unsigned long tag, BerElement *ber)
+check_and_send_extended_result(Slapi_PBlock *pb, ber_tag_t tag, BerElement *ber)
 {
 	/*
 	 * if this is an LDAPv3 ExtendedResponse to an ExtendedRequest,
@@ -257,7 +257,7 @@ check_and_send_extended_result(Slapi_PBlock *pb, unsigned long tag, BerElement *
 }
 
 static int
-check_and_send_SASL_response(Slapi_PBlock *pb, unsigned long tag, BerElement *ber, Connection *conn)
+check_and_send_SASL_response(Slapi_PBlock *pb, ber_tag_t tag, BerElement *ber, Connection *conn)
 {
 	/*
 	 * if this is an LDAPv3 BindResponse, check to see if the
@@ -296,7 +296,7 @@ send_ldap_result_ext(
 {
 	Connection	*conn = pb->pb_conn;
 	int		i, rc, logit = 0;
-	unsigned long	tag;
+	ber_tag_t	tag;
 	int             flush_ber_element = 1;
   	Slapi_Operation *operation;
 	char *dn;
@@ -1421,7 +1421,7 @@ log_and_return:
 	    log_entry( op, e );
 
 	    if (send_result) {
-		unsigned long	tag;
+		ber_tag_t	tag;
 
 		switch ( op->o_tag ) {
 		case LBER_DEFAULT:
@@ -1472,7 +1472,7 @@ flush_ber(
     int		type
 )
 {
-	unsigned long	bytes;
+	ber_len_t	bytes;
 	int		rc = 0;
 
 	switch ( type ) {
@@ -1529,7 +1529,7 @@ flush_ber(
 		} else {
 			PRUint64 b;
 			LDAPDebug( LDAP_DEBUG_BER,
-				"flush_ber() wrote %lu bytes to socket %d\n",
+				"flush_ber() wrote %u bytes to socket %d\n",
 				bytes, conn->c_sd, 0 );
 			LL_I2L ( b, bytes ) ;
 			LL_ADD ( num_bytes_sent, num_bytes_sent, b);
@@ -1647,7 +1647,7 @@ notes2str( unsigned int notes, char *buf, size_t buflen )
 #define ETIME_BUFSIZ 16         /* room for 99999999.999999 */
 
 static void
-log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
+log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 	int nentries )
 {
 	char	*notes_str, notes_buf[ 256 ];
@@ -1696,7 +1696,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%d op=%d RESULT err=%d"
-								  " tag=%lu nentries=%d etime=%s%s%s"
+								  " tag=%u nentries=%d etime=%s%s%s"
 								  ", SASL bind in progress\n",
 								  op->o_connid, 
 								  op->o_opid,
@@ -1708,7 +1708,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%lu nentries=%d etime=%s%s%s"
+								  " tag=%u nentries=%d etime=%s%s%s"
 								  ", SASL bind in progress\n",
 									LOG_INTERNAL_OP_CON_ID,
 									LOG_INTERNAL_OP_OP_ID,
@@ -1728,7 +1728,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%d op=%d RESULT err=%d"
-								  " tag=%lu nentries=%d etime=%s%s%s"
+								  " tag=%u nentries=%d etime=%s%s%s"
 								  " dn=\"%s\"\n",
 								  op->o_connid, 
 								  op->o_opid,
@@ -1740,7 +1740,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%lu nentries=%d etime=%s%s%s"
+								  " tag=%u nentries=%d etime=%s%s%s"
 								  " dn=\"%s\"\n",
 									LOG_INTERNAL_OP_CON_ID,
 									LOG_INTERNAL_OP_OP_ID,	
@@ -1754,7 +1754,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%d op=%d RESULT err=%d"
-								  " tag=%lu nentries=%d etime=%s%s%s\n",
+								  " tag=%u nentries=%d etime=%s%s%s\n",
 								  op->o_connid, 
 								  op->o_opid,
 								  err, tag, nentries, 
@@ -1765,7 +1765,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, unsigned long tag,
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%lu nentries=%d etime=%s%s%s\n",
+								  " tag=%u nentries=%d etime=%s%s%s\n",
 									LOG_INTERNAL_OP_CON_ID,
 									LOG_INTERNAL_OP_OP_ID,
 								  err, tag, nentries, 

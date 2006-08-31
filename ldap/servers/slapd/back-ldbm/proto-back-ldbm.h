@@ -458,19 +458,19 @@ int ldbm_back_dbmonitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
  */
 struct vlv_request
 {
-    unsigned long beforeCount;
-    unsigned long afterCount;
-    unsigned long tag;
-    unsigned long index;
-    unsigned long contentCount;
+    ber_uint_t beforeCount;
+    ber_uint_t afterCount;
+    ber_tag_t tag;
+    ber_uint_t index;
+    ber_uint_t contentCount;
     struct berval value;
 };
 
 struct vlv_response
 {
-    unsigned long targetPosition;
-    unsigned long contentCount;
-    unsigned long result;
+    ber_uint_t targetPosition;
+    ber_uint_t contentCount;
+    ber_uint_t result;
 };
 
 int vlv_init(ldbm_instance *inst);

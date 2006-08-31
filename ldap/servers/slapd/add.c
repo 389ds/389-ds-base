@@ -74,10 +74,11 @@ do_add( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement		*ber;
 	char			*last;
-	unsigned long	len, tag;
+	ber_len_t		len;
+	ber_tag_t		tag;
 	Slapi_Entry		*e = NULL;
-	int				err;
-	int				rc;
+	int			err;
+	int			rc;
 	char			ebuf[ BUFSIZ ];
 	PRBool  searchsubentry=PR_TRUE;
 

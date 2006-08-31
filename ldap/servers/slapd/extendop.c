@@ -214,11 +214,12 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
 void
 do_extended( Slapi_PBlock *pb )
 {
-	char			*extoid = NULL,	*errmsg;
+	char		*extoid = NULL,	*errmsg;
 	struct berval	extval = {0};
-	int				lderr, rc;
-	unsigned long	len, tag;
-	const char		*name;
+	int		lderr, rc;
+	ber_len_t	len;
+	ber_tag_t	tag;
+	const char	*name;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_extended\n", 0, 0, 0 );
 

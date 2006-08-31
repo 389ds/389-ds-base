@@ -176,7 +176,7 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
 			/* Decode control data 			*/
 			/* hop           INTEGER (0 .. maxInt) 	*/
 
-			long 		hops = 0;
+			ber_int_t	hops = 0;
 			int 		rc;
 			BerElement 	*ber = NULL;
 
@@ -193,7 +193,7 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
 				return LDAP_LOOP_DETECT;
 			}
 				
-			if (hops <=0) {
+			if (hops <= 0) {
        				slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 					"Max hop count exceeded. Loop detected.\n");
         			ber_free(ber,1);

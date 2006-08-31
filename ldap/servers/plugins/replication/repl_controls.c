@@ -205,7 +205,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 	BerElement *tmp_bere = NULL;
 	Slapi_Mods modrdn_smods;
 	PRBool got_modrdn_mods = PR_FALSE;
-	unsigned long len;
+	ber_len_t len;
 
 	slapi_mods_init(&modrdn_smods, 4);
 	if (slapi_control_present(controlsp, REPL_NSDS50_UPDATE_INFO_CONTROL_OID,
@@ -216,7 +216,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 			rc = -1;
 			goto loser;
 		}
-		if (ber_scanf(tmp_bere, "{oo", &uuid_val, &csn_val) == -1)
+		if (ber_scanf(tmp_bere, "{oo", &uuid_val, &csn_val) == LBER_ERROR)
 		{
 			rc = -1;
 			goto loser;
@@ -232,7 +232,8 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 		}
 		if (ber_peek_tag(tmp_bere, &len) == LBER_SEQUENCE)
 		{
-			unsigned long emtag, emlen;
+			ber_tag_t emtag;
+			ber_len_t emlen;
 			char *emlast;
 
 			for ( emtag = ber_first_element( tmp_bere, &emlen, &emlast );
@@ -240,7 +241,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 				  emtag = ber_next_element( tmp_bere, &emlen, emlast ))
 			{
 				struct berval **embvals;
-				long op;
+				ber_int_t op;
 				char *type;
 				if ( ber_scanf( tmp_bere, "{i{a[V]}}", &op, &type, &embvals ) == LBER_ERROR )
 				{
@@ -253,7 +254,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 			}
 			got_modrdn_mods = PR_TRUE;
 		}
-		if (ber_scanf(tmp_bere, "}") == -1)
+		if (ber_scanf(tmp_bere, "}") == LBER_ERROR)
 		{
 			rc = -1;
 			goto loser;
@@ -337,10 +338,10 @@ add_repl_control_mods( Slapi_PBlock *pb, Slapi_Mods *smods )
     	if ( embvp != NULL && embvp->bv_len > 0 && embvp->bv_val != NULL )
     	{
     	    /* Parse the extramods stuff */
-    	    long op;
+    	    ber_int_t op;
     	    char *type;
-    	    unsigned long emlen;
-    	    unsigned long emtag;
+    	    ber_len_t emlen;
+    	    ber_tag_t emtag;
     	    char *emlast;
     	    BerElement *ember = ber_init( embvp );
     	    if ( ember != NULL )

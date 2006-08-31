@@ -4103,10 +4103,10 @@ config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int ap
   return retVal;
 }
 
-unsigned long
+ber_len_t
 config_get_maxbersize()
 {
-    unsigned long maxbersize;
+    ber_len_t maxbersize;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     maxbersize = slapdFrontendConfig->maxbersize;

@@ -392,7 +392,7 @@ int config_get_auditlog_logging_enabled();
 char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);
-unsigned long config_get_maxbersize();
+ber_len_t config_get_maxbersize();
 char *config_get_versionstring();
 char *config_get_buildnum(void);
 int config_get_enquote_sup_oc();
@@ -985,11 +985,11 @@ int modify_root_dse( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, 
  */
 void ps_init_psearch_system();
 void ps_stop_psearch_system();
-void ps_add( Slapi_PBlock *pb, int changetypes, int send_entchg_controls );
+void ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls );
 void ps_wakeup_all();
 void ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, int chgtype,
 	int chgnum );
-int ps_parse_control_value( struct berval *psbvp, int *changetypesp,
+int ps_parse_control_value( struct berval *psbvp, ber_int_t *changetypesp,
     int *changesonlyp, int *returnecsp );
 
 /*

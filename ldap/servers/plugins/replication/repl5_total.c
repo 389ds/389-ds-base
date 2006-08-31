@@ -468,16 +468,16 @@ static int
 my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 {
 	struct berval *attrval = NULL;
-	unsigned long len;
-    unsigned long tag;
-    CSN *csn = NULL;
-    char csnstring[CSN_STRSIZE + 1];
+	ber_len_t len;
+	ber_tag_t tag;
+	CSN *csn = NULL;
+	char csnstring[CSN_STRSIZE + 1];
 	CSNType csntype;
-    char *lasti;
+	char *lasti;
 
 	PR_ASSERT(ber && value && deleted);
 
-    *value = NULL;
+	*value = NULL;
 
 	if (NULL == ber && NULL == value)
 	{
@@ -486,7 +486,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 	}
 
 	/* Each value is a sequence */
-	if (ber_scanf(ber, "{O", &attrval) == -1)
+	if (ber_scanf(ber, "{O", &attrval) == LBER_ERROR)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "my_ber_scanf_value BAD 2\n");
 		goto loser;
@@ -501,7 +501,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
     /* check if this is a deleted value */
     if (ber_peek_tag(ber, &len) == LBER_BOOLEAN)
     {
-        if (ber_scanf(ber, "b", deleted) == -1)
+        if (ber_scanf(ber, "b", deleted) == LBER_ERROR)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "my_ber_scanf_value BAD 4\n");
 			goto loser;
@@ -518,10 +518,10 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 		tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
 		tag = ber_next_element(ber, &len, lasti))
 	{
-		long csntype_tmp;
+		ber_int_t csntype_tmp;
 		/* Each CSN is in a sequence that includes a csntype and CSN */
 		len = CSN_STRSIZE;
-		if (ber_scanf(ber, "{es}", &csntype_tmp, csnstring, &len) == -1)
+		if (ber_scanf(ber, "{es}", &csntype_tmp, csnstring, &len) == LBER_ERROR)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "my_ber_scanf_value BAD 7 - bval is %s\n", attrval->bv_val);
 			goto loser;
@@ -552,7 +552,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
         csn_free (&csn);
 	}
 
-	if (ber_scanf(ber, "}") == -1) /* End of annotated attribute value seq */
+	if (ber_scanf(ber, "}") == LBER_ERROR) /* End of annotated attribute value seq */
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "my_ber_scanf_value BAD 10\n");
 		goto loser;
@@ -580,11 +580,11 @@ static int
 my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
 {
     char *attrtype = NULL;
-	CSN *attr_deletion_csn = NULL;
+    CSN *attr_deletion_csn = NULL;
     PRBool val_deleted;
     char *lasti;
-    unsigned long len;
-	unsigned long tag;
+    ber_len_t len;
+    ber_tag_t tag;
     char *str = NULL;
     int rc;
     Slapi_Value *value;
@@ -598,7 +598,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
         goto loser;
     }
 
-	if (ber_scanf(ber, "{a", &attrtype) == -1) /* Begin sequence for this attr */
+	if (ber_scanf(ber, "{a", &attrtype) == LBER_ERROR) /* Begin sequence for this attr */
 	{
 		goto loser;
 	}
@@ -610,7 +610,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
 	/* The attribute deletion CSN is next and is optional? */
     if (ber_peek_tag(ber, &len) == LBER_OCTETSTRING)
     {
-	    if (ber_scanf(ber, "a", &str) == -1)
+	    if (ber_scanf(ber, "a", &str) == LBER_ERROR)
 	    {
 		    goto loser;
 	    }
@@ -673,7 +673,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
 			slapi_value_free(&value);
 	}	
 
-	if (ber_scanf(ber, "}") == -1) /* End sequence for this attribute */
+	if (ber_scanf(ber, "}") == LBER_ERROR) /* End sequence for this attribute */
 	{
 		goto loser;
 	}
@@ -701,16 +701,16 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 {
 	BerElement *tmp_bere = NULL;
 	Slapi_Entry *e = NULL;
-    Slapi_Attr *attr = NULL;
+	Slapi_Attr *attr = NULL;
 	char *str = NULL;
 	CSN *dn_csn = NULL;
 	struct berval *extop_value = NULL;
 	char *extop_oid = NULL;
-	unsigned long len;
+	ber_len_t len;
 	char *lasto;
-	unsigned long tag;
+	ber_tag_t tag;
 	int rc;
-    PRBool deleted;
+	PRBool deleted;
 	
 	PR_ASSERT(NULL != pb);
 	PR_ASSERT(NULL != ep);
@@ -737,13 +737,13 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 		goto loser;
 	}
 
-	if (ber_scanf(tmp_bere, "{") == -1) /* Begin outer sequence */
+	if (ber_scanf(tmp_bere, "{") == LBER_ERROR) /* Begin outer sequence */
 	{
 		goto loser;
 	}
 
 	/* The entry's uniqueid is first */
-	if (ber_scanf(tmp_bere, "a", &str) == -1)
+	if (ber_scanf(tmp_bere, "a", &str) == LBER_ERROR)
 	{
 		goto loser;
 	}
@@ -751,7 +751,7 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 	str = NULL;	/* Slapi_Entry now owns the uniqueid */
 
 	/* The entry's DN is next */
-	if (ber_scanf(tmp_bere, "a", &str) == -1)
+	if (ber_scanf(tmp_bere, "a", &str) == LBER_ERROR)
 	{
 		goto loser;
 	}
@@ -777,7 +777,7 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
         attr = NULL;
 	}
 
-    if (ber_scanf(tmp_bere, "}") == -1) /* End sequence for this entry */
+    if (ber_scanf(tmp_bere, "}") == LBER_ERROR) /* End sequence for this entry */
 	{
 		goto loser;
 	}

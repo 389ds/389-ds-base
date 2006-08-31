@@ -259,7 +259,7 @@ static int st_bind(SearchThread *st)
         l.l_linger = 0;
         if (setsockopt(st->soc, SOL_SOCKET, SO_LINGER, (char *)&l, val) < 0) {
             fprintf(stderr, "T%d: failed in setsockopt 2, errno %d (%d)\n",
-                    st->id, errno, st->soc);
+                    st->id, errno, (int)st->soc);
             st->soc = -1;
             return 0;
         }

@@ -61,9 +61,9 @@ static Slapi_PBlock *get_pb( void );
 static void connection_add_operation(Connection* conn, Operation *op);
 static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
-static int is_ber_too_big(const Connection *conn,unsigned long ber_len);
+static int is_ber_too_big(const Connection *conn, ber_len_t ber_len);
 static void log_ber_too_big_error(const Connection *conn,
-				unsigned long ber_len, unsigned long maxbersize);
+				ber_len_t ber_len, ber_len_t maxbersize);
 static int add_to_select_set(Connection *conn);
 
 /*
@@ -792,10 +792,11 @@ static int handle_read_data(Connection *conn,Operation **op,
 static int process_operation(Connection *conn, Operation *op)
 {
 	Slapi_PBlock	*pb = NULL;
-	unsigned long	len, tag;
-	long		msgid;
+	ber_len_t	len;
+	ber_tag_t	tag;
+	ber_int_t	msgid;
 	int return_value = 0;
-    int destroy_content = 1;
+	int destroy_content = 1;
 
 
 	pb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) );
@@ -1008,10 +1009,10 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 	Operation *op = NULL;
 	DWORD Bytes_Read = 0;
 	char *Buffer = NULL;
-	int tag = 0;
+	ber_tag_t tag = 0;
 	int return_value = -1;
-	unsigned long ber_len = 0;
-	unsigned long Bytes_Scanned = 0;
+	ber_len_t ber_len = 0;
+	ber_len_t Bytes_Scanned = 0;
 
 	*defer_io = 0;
 	*defer_pushback = 0;
@@ -1583,12 +1584,12 @@ void connection_make_new_pb(Slapi_PBlock	**ppb, Connection	*conn)
  * small wrapper on top of libldap's ber_get_next_buffer_ext().
  */
 static int
-get_next_from_buffer( void *buffer, size_t buffer_size, unsigned long *lenp,
-    unsigned long *tagp, BerElement *ber, Connection *conn )
+get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
+    ber_tag_t *tagp, BerElement *ber, Connection *conn )
 {
 	PRErrorCode		err = 0;
 	PRInt32			syserr = 0;
-	unsigned long	bytes_scanned = 0;
+	ber_len_t		bytes_scanned = 0;
 
 	*lenp = 0;
 	*tagp = ber_get_next_buffer_ext( buffer, buffer_size, lenp, ber,
@@ -1645,12 +1646,12 @@ connection_read_ldap_data(Connection *conn, PRInt32 *err)
    by buffering the data and setting the 'remaining_data' flag.
 
  */
-int connection_read_operation(Connection *conn, Operation *op, unsigned long *tag, int *remaining_data)
+int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *remaining_data)
 {
-	unsigned long	len = 0;
-	int ret = 0;
-	int waits_done = 0;
-	long		msgid;
+	ber_len_t	len = 0;
+	int		ret = 0;
+	int		waits_done = 0;
+	ber_int_t	msgid;
 	int new_operation = 1; /* Are we doing the first I/O read for a new operation ? */
 	char *buffer = conn->c_private->c_buffer;
 	PRErrorCode err = 0;
@@ -1968,7 +1969,7 @@ connection_threadmain()
 	PRIntervalTime	interval = PR_SecondsToInterval(10);
 	Connection	*conn = NULL;
 	Operation	*op;
-	unsigned long	tag = 0;
+	ber_tag_t	tag = 0;
 	int need_wakeup;
 	int thread_turbo_flag = 0;
 	int ret = 0;
@@ -2342,7 +2343,7 @@ connection_remove_operation( Connection *conn, Operation *op )
 	if ( *tmp == NULL )
 	{
 		LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: can't find op %d for conn %d\n",
-		    op->o_msgid, conn->c_connid, 0 );
+		    (int)op->o_msgid, conn->c_connid, 0 );
 	}
 	else
 	{
@@ -2426,10 +2427,10 @@ op_copy_identity(Connection *conn, Operation *op)
 
 
 static int
-is_ber_too_big(const Connection *conn,unsigned long ber_len)
+is_ber_too_big(const Connection *conn, ber_len_t ber_len)
 {
-    unsigned long maxbersize= config_get_maxbersize();
-    if(ber_len>maxbersize)
+    ber_len_t maxbersize= config_get_maxbersize();
+    if(ber_len > maxbersize)
 	{
 		log_ber_too_big_error(conn, ber_len, maxbersize);
 		return 1;
@@ -2444,8 +2445,8 @@ is_ber_too_big(const Connection *conn,unsigned long ber_len)
  * logged.
  */
 static void
-log_ber_too_big_error(const Connection *conn, unsigned long ber_len,
-		unsigned long maxbersize)
+log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
+		ber_len_t maxbersize)
 {
 	if (0 == maxbersize) {
 		maxbersize= config_get_maxbersize();
@@ -2453,13 +2454,13 @@ log_ber_too_big_error(const Connection *conn, unsigned long ber_len,
 	if (0 == ber_len) {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
 			"conn=%d fd=%d Incoming BER Element was too long, max allowable"
-			" is %ld bytes. Change the nsslapd-maxbersize attribute in"
+			" is %u bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, maxbersize );
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
-			"conn=%d fd=%d Incoming BER Element was %ld bytes, max allowable"
-			" is %ld bytes. Change the nsslapd-maxbersize attribute in"
+			"conn=%d fd=%d Incoming BER Element was %u bytes, max allowable"
+			" is %u bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, ber_len, maxbersize );
 	}

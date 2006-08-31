@@ -821,13 +821,13 @@ determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 i
             *pstart= index - vlv_request_control->beforeCount;
         }
         /* Make sure we don't run off the end */
-        if(ULONG_MAX - index > vlv_request_control->afterCount)
+        if(UINT_MAX - index > vlv_request_control->afterCount)
         {
             *pstop= index + vlv_request_control->afterCount;
         }
         else
         {
-            *pstop= ULONG_MAX;
+            *pstop= UINT_MAX;
         }
         /* Client tried to index off the end */
         if (0 == length) /* 609377: index size could be 0 */
@@ -1403,7 +1403,7 @@ vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_reque
             }
             else
             {
-                /* The three components of this expression are (PRUint32) and may well have a value up to ULONG_MAX */
+                /* The three components of this expression are (PRUint32) and may well have a value up to UINT_MAX */
                 /* SelectedIndex = ActualContentCount * ( ClientIndex / ClientContentCount ) */
                 si= ((PRUint32)((double)length * (double)(vlv_request_control->index / (double)vlv_request_control->contentCount )));
             }
@@ -1633,7 +1633,7 @@ vlv_make_response_control (Slapi_PBlock *pb, const struct vlv_response* vlvp)
         ber_bvfree(bvp);
     }
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_make_response_control: Index=%lu Size=%lu Result=%lu\n", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_make_response_control: Index=%u Size=%u Result=%u\n", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }
@@ -1655,7 +1655,7 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 	p+= sprintf(p,"VLV ");
 	if (0 == vlvi->tag) {
 		/* By Index case */
-		p+= sprintf(p,"%ld:%ld:%ld:%ld",
+		p+= sprintf(p,"%u:%u:%u:%u",
 			vlvi->beforeCount ,
 			vlvi->afterCount ,
 			vlvi->index ,
@@ -1672,7 +1672,7 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 		}
         strncpy(string,vlvi->value.bv_val,vlvi->value.bv_len);
         string[vlvi->value.bv_len] = '\0';
-		p += sprintf(p,"%ld:%ld:%s",
+		p += sprintf(p,"%u:%u:%s",
 			vlvi->beforeCount ,
 			vlvi->afterCount ,
 			string
@@ -1682,7 +1682,7 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 		}
 	}
 	/* Now the response info */
-	p += sprintf(p," %ld:%ld (%ld)",
+	p += sprintf(p," %u:%u (%u)",
 		vlvo->targetPosition ,
 		vlvo->contentCount,
 		vlvo->result
@@ -1720,81 +1720,76 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
                      contentCount    INTEGER (0 .. maxInt) }
                      greaterThanOrEqual [1] assertionValue }
    	*/
-	BerElement *ber = NULL;
-	int return_value = LDAP_SUCCESS;
-	PRUint32 rc= 0;
-	long long_beforeCount;
-	long long_afterCount;
-	long long_index;
-	long long_contentCount;
+    BerElement *ber = NULL;
+    int return_value = LDAP_SUCCESS;
 	
-	vlvp->value.bv_len = 0;
-	vlvp->value.bv_val = NULL;
+    vlvp->value.bv_len = 0;
+    vlvp->value.bv_val = NULL;
 
-	ber = ber_init(vlv_spec_ber);
-	rc = ber_scanf(ber,"{ii",&long_beforeCount,&long_afterCount);
-	vlvp->beforeCount = long_beforeCount;
-	vlvp->afterCount = long_afterCount;
-	if (LBER_ERROR == rc)
-	{
+    ber = ber_init(vlv_spec_ber);
+    if (ber_scanf(ber, "{ii", &vlvp->beforeCount, &vlvp->afterCount) == LBER_ERROR)
+    {
         return_value= LDAP_OPERATIONS_ERROR;
     }
     else
     {
-        LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Before=%lu After=%lu\n", vlvp->beforeCount, vlvp->afterCount, 0 );
-           rc = ber_scanf(ber,"t",&vlvp->tag);
-        switch(vlvp->tag)
+        LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Before=%u After=%u\n",
+                   vlvp->beforeCount, vlvp->afterCount, 0 );
+        if (ber_scanf(ber,"t",&vlvp->tag) == LBER_ERROR)
         {
-        case LDAP_TAG_VLV_BY_INDEX:
-            /* byIndex */
-            vlvp->tag= 0;
-            rc = ber_scanf(ber,"{ii}}",&long_index,&long_contentCount);
-            vlvp->index = long_index;
-            vlvp->contentCount = long_contentCount;
-            if (LBER_ERROR == rc)
+            return_value= LDAP_OPERATIONS_ERROR;
+        }
+        else
+        {
+            switch(vlvp->tag)
             {
-                if (ISLEGACY(be)) {
-                    return_value = LDAP_OPERATIONS_ERROR;
-                } else {
-                    return_value = LDAP_VIRTUAL_LIST_VIEW_ERROR;
-                }
-            }
-            else
-            {
-                /* Client Counts from 1. */
-                if(vlvp->index!=0)
+            case LDAP_TAG_VLV_BY_INDEX:
+                /* byIndex */
+                vlvp->tag= 0;
+                if (ber_scanf(ber, "{ii}}", &vlvp->index, &vlvp->contentCount) == LBER_ERROR)
                 {
-                    vlvp->index--;
+                    if (ISLEGACY(be)) {
+                        return_value = LDAP_OPERATIONS_ERROR;
+                    } else {
+                        return_value = LDAP_VIRTUAL_LIST_VIEW_ERROR;
+                    }
                 }
-                LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Index=%lu Content=%lu\n", vlvp->index, vlvp->contentCount, 0 );
-            }
-            break;
-        case LDAP_TAG_VLV_BY_VALUE:
-            /* byValue */
-            vlvp->tag= 1;
-            rc = ber_scanf(ber,"o}",&vlvp->value);
-            if (LBER_ERROR == rc)
-            {
+                else
+                {
+                    /* Client Counts from 1. */
+                    if(vlvp->index!=0)
+                    {
+                        vlvp->index--;
+                    }
+                    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Index=%lu Content=%lu\n", vlvp->index, vlvp->contentCount, 0 );
+                }
+                break;
+            case LDAP_TAG_VLV_BY_VALUE:
+                /* byValue */
+                vlvp->tag= 1;
+                if (ber_scanf(ber,"o}",&vlvp->value) == LBER_ERROR)
+                {
+                    if (ISLEGACY(be)) {
+                        return_value = LDAP_OPERATIONS_ERROR;
+                    } else {
+                        return_value = LDAP_VIRTUAL_LIST_VIEW_ERROR;
+                    }
+                }
+                {
+                    /* jcm: isn't there a utility fn to do this? */
+                    char *p= slapi_ch_malloc(vlvp->value.bv_len+1);
+                    strncpy(p,vlvp->value.bv_val,vlvp->value.bv_len);
+                    p[vlvp->value.bv_len]= '\0';
+                    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Value=%s\n", p, 0, 0 );
+                    slapi_ch_free( (void**)&p);
+                }
+                break;
+            default:
                 if (ISLEGACY(be)) {
                     return_value = LDAP_OPERATIONS_ERROR;
                 } else {
                     return_value = LDAP_VIRTUAL_LIST_VIEW_ERROR;
                 }
-            }
-            {
-            /* jcm: isn't there a utility fn to do this? */
-            char *p= slapi_ch_malloc(vlvp->value.bv_len+1);
-            strncpy(p,vlvp->value.bv_val,vlvp->value.bv_len);
-            p[vlvp->value.bv_len]= '\0';
-               LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Value=%s\n", p, 0, 0 );
-            slapi_ch_free( (void**)&p);
-            }
-            break;
-        default:
-            if (ISLEGACY(be)) {
-                return_value = LDAP_OPERATIONS_ERROR;
-            } else {
-                return_value = LDAP_VIRTUAL_LIST_VIEW_ERROR;
             }
         }
     }

@@ -85,7 +85,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 
 
   BEGIN
-    unsigned long tag;
+    ber_tag_t tag;
 
 	if ( version != 1 && version != 2 ) {
 		break;

@@ -1160,8 +1160,8 @@ typedef struct slapi_operation_results
  */
 typedef struct op {
 	BerElement	*o_ber;		/* ber of the request		  */
-	long		o_msgid;	/* msgid of the request		  */
-	unsigned long	o_tag;		/* tag of the request		  */
+	ber_int_t	o_msgid;	/* msgid of the request		  */
+	ber_tag_t	o_tag;		/* tag of the request		  */
 	time_t		o_time;		/* time op was initiated	  */
 	PRIntervalTime	o_interval;	/* precise time op was initiated  */
 	int		o_isroot;	/* requestor is manager		  */
@@ -1873,7 +1873,7 @@ typedef struct _slapdFrontendConfig {
   int refer_mode;       /* for quick test */
   int	slapd_type;		/* Directory type; Full or Lite */
   
-  unsigned long maxbersize; /* Maximum BER element size we'll accept */
+  ber_len_t maxbersize; /* Maximum BER element size we'll accept */
   int max_filter_nest_level;/* deepest nested filter we will accept */
   int enquote_sup_oc;  /* put single quotes around an oc's 
 						  superior oc in cn=schema */

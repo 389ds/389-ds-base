@@ -172,7 +172,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 	struct slapi_filter **filt, char **fstr, int maxdepth, int curdepth,
 	int *subentry_dont_rewrite, int *has_tombstone_filter )
 {
-    unsigned long	len;
+    ber_len_t	len;
     int		err;
     struct slapi_filter	*f;
     char		*ftmp, *type = NULL;
@@ -393,7 +393,8 @@ get_filter_list( Connection *conn, BerElement *ber,
 {
 	struct slapi_filter	**new;
 	int		err;
-	unsigned long	tag, len;
+	ber_tag_t	tag;
+	ber_len_t	len;
 	char		*last;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_filter_list\n", 0, 0, 0 );
@@ -440,7 +441,8 @@ get_substring_filter(
     char		**fstr
 )
 {
-	unsigned long	tag, len, rc;
+	ber_tag_t	tag, rc;
+	ber_len_t	len;
 	char		*val, *last, *type = NULL;
 	char		ebuf[BUFSIZ];
 
@@ -543,9 +545,10 @@ static int
 get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 {
 	int		gotelem, gotoid, gotvalue;
-	unsigned long	tag, len;
+	ber_tag_t	tag;
+	ber_len_t	len;
 	char		*last;
-	int		rc = LDAP_PROTOCOL_ERROR;
+	int		rc = LDAP_SUCCESS;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_extensible_filter\n", 0, 0, 0 );
 	memset (mrf, 0, sizeof (mr_filter_t));
@@ -566,7 +569,9 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 			if ( gotelem != 0 ) {
 				goto parsing_error;
 			}
-			rc = ber_scanf( ber, "a", &mrf->mrf_oid );
+			if (ber_scanf( ber, "a", &mrf->mrf_oid ) == LBER_ERROR) {
+				rc = LDAP_PROTOCOL_ERROR;
+			}
 			gotoid = 1;
 			gotelem++;
 			break;
@@ -592,7 +597,9 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 			if ( gotelem != 1 && gotelem != 2 ) {
 				goto parsing_error;
 			}
-			rc = ber_scanf( ber, "o", &mrf->mrf_value );
+			if (ber_scanf( ber, "o", &mrf->mrf_value ) == LBER_ERROR) {
+				rc = LDAP_PROTOCOL_ERROR;
+			}
 			gotvalue = 1;
 			gotelem++;
 			break;
@@ -600,16 +607,17 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 			if ( gotvalue != 1 ) {
 				goto parsing_error;
 			}
-			rc = ber_scanf( ber, "b", &mrf->mrf_dnAttrs );
+			if (ber_scanf( ber, "b", &mrf->mrf_dnAttrs ) == LBER_ERROR) {
+				 rc = LDAP_PROTOCOL_ERROR;
+			}
 			gotelem++;
 			break;
 		default:
 			goto parsing_error;
 		}
-		if ( rc == -1 ) {
+		if ( rc != LDAP_SUCCESS ) {
 			goto parsing_error;
 		}
-		rc = LDAP_SUCCESS;
 	}
 
 	if ( tag == LBER_ERROR ) {

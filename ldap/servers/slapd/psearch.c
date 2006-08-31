@@ -72,7 +72,7 @@ typedef struct _psearch {
     PSEQNode		*ps_eq_head;
     PSEQNode		*ps_eq_tail;
     time_t		ps_lasttime;
-    int			ps_changetypes;
+    ber_int_t		ps_changetypes;
     int			ps_send_entchg_controls;
     struct _psearch	*ps_next;
 } PSearch;
@@ -175,7 +175,7 @@ ps_stop_psearch_system()
  * are dispatched by add, modify, and modrdn operations.
  */
 void
-ps_add( Slapi_PBlock *pb, int changetypes, int send_entchg_controls )
+ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
 {
     PSearch	*ps;
 
@@ -658,10 +658,9 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, int chgtype,
  * the PS subsystem.
  */
 int
-ps_parse_control_value( struct berval *psbvp, int *changetypesp, int *changesonlyp, int *returnecsp )
+ps_parse_control_value( struct berval *psbvp, ber_int_t *changetypesp, int *changesonlyp, int *returnecsp )
 {
     int rc= LDAP_SUCCESS;
-    long long_changetypesp;
 
     if ( psbvp->bv_len == 0 || psbvp->bv_val == NULL )
     {
@@ -676,11 +675,10 @@ ps_parse_control_value( struct berval *psbvp, int *changetypesp, int *changesonl
         }
         else
         {
-            if ( ber_scanf( ber, "{ibb}", &long_changetypesp, changesonlyp, returnecsp ) == LBER_ERROR )
+            if ( ber_scanf( ber, "{ibb}", changetypesp, changesonlyp, returnecsp ) == LBER_ERROR )
             {
             	rc= LDAP_PROTOCOL_ERROR;
             }
-            *changetypesp = (int) long_changetypesp;
         	/* the ber encoding is no longer needed */
         	ber_free(ber,1);
         }

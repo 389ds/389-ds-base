@@ -106,15 +106,15 @@ void
 do_bind( Slapi_PBlock *pb )
 {
     BerElement	*ber = pb->pb_op->o_ber;
-    int		err, version = -1, method = -1, isroot;
-    long 	long_method = -1;
-    long ber_version = -1;
+    int		err, isroot;
+    ber_tag_t 	method = LBER_DEFAULT;
+    ber_int_t	version = -1;
     int		auth_response_requested = 0;
     int		pw_response_requested = 0;
     char		*dn = NULL, *saslmech = NULL;
     struct berval	cred = {0};
     Slapi_Backend		*be = NULL;
-    unsigned long rc;
+    ber_tag_t rc;
     Slapi_DN sdn;
     Slapi_Entry *referral;
     char errorbuf[BUFSIZ];
@@ -144,9 +144,7 @@ do_bind( Slapi_PBlock *pb )
      *	}
      */
 
-    rc = ber_scanf( ber, "{iat", &ber_version, &dn, &long_method );
-    method = long_method;
-    version = ber_version;
+    rc = ber_scanf( ber, "{iat", &version, &dn, &method );
     if ( rc == LBER_ERROR ) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "ber_scanf failed (op=Bind; params=Version,DN,Method)\n",
@@ -182,7 +180,7 @@ do_bind( Slapi_PBlock *pb )
         /* Get the (optional) SASL credentials */
         if ( rc != LBER_ERROR ) {
             /* Credentials are optional in SASL bind */
-            unsigned long clen;
+            ber_len_t clen;
             if (( ber_peek_tag( ber, &clen )) == LBER_OCTETSTRING ) {
                 rc = ber_scanf( ber, "o}}", &cred );
             } else {

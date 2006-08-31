@@ -67,9 +67,9 @@ do_modrdn( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement	*ber;
 	char		*dn = NULL, *newsuperior = NULL;
-	char        *newrdn = NULL;
-	int			err = 0, deloldrdn = 0;
-	unsigned long	len = 0;
+	char		*newrdn = NULL;
+	int		err = 0, deloldrdn = 0;
+	ber_len_t	len = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
 

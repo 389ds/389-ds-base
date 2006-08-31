@@ -290,7 +290,7 @@ make_sort_response_control ( Slapi_PBlock *pb, int code, char *error_type) {
 }
 /* End fix for bug #394184 */
 
-static int term_tag(unsigned long tag)
+static int term_tag(ber_tag_t tag)
 {
 	return ( (LBER_END_OF_SEQORSET == tag) || (LBER_ERROR == tag) );
 }
@@ -353,8 +353,8 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 	*/
 	BerElement *ber = NULL;
 	sort_spec_thing *listhead = NULL;
-	unsigned long tag = 0;
-	unsigned long len = 0;
+	ber_tag_t tag = 0;
+	ber_len_t len = 0;
 	char *last = NULL;
 	sort_spec_thing *listpointer = NULL;
 	char *type = NULL;
@@ -374,9 +374,9 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 		char *inner_last = NULL;
 		char *rtype = NULL;
 		int reverse = 0;
-		unsigned long next_tag = 0;
+		ber_tag_t next_tag = 0;
 		sort_spec_thing *s = NULL;
-    	unsigned long return_value;
+		ber_tag_t return_value;
 
 		next_tag = ber_first_element( ber, &len, &inner_last );
 

@@ -59,8 +59,8 @@
 void
 do_abandon( Slapi_PBlock *pb )
 {
-	int			id, err, suppressed_by_plugin = 0;
-	long			long_id;
+	int		err, suppressed_by_plugin = 0;
+	ber_int_t	id;
 	Operation	*o;
 	BerElement	*ber = pb->pb_op->o_ber;
 
@@ -72,13 +72,12 @@ do_abandon( Slapi_PBlock *pb )
 	 *	AbandonRequest := MessageID
 	 */
 
-	if ( ber_scanf( ber, "i", &long_id ) == LBER_ERROR ) {
+	if ( ber_scanf( ber, "i", &id ) == LBER_ERROR ) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ber_scanf failed (op=Abandon; params=ID)\n",
 		    0, 0 ,0 );
 		return;
 	}
-	id=long_id;
 
 	slapi_pblock_set( pb, SLAPI_ABANDON_MSGID, &id );
 

@@ -61,16 +61,14 @@ do_search( Slapi_PBlock *pb )
 {
 	Slapi_Operation *operation;
     BerElement	*ber;
-    int			i, err;
-    int			scope, deref, attrsonly;
-    int			sizelimit, timelimit;
-    long		long_scope,long_deref,long_sizelimit,long_timelimit;
+    int			i, err, attrsonly;
+    ber_int_t		scope, deref, sizelimit, timelimit;
     char		*base = NULL, *fstr = NULL;
     struct slapi_filter	*filter = NULL;
     char		**attrs = NULL;
     int			psearch = 0;
     struct berval	*psbvp;
-	int			changetypes;
+    ber_int_t		changetypes;
 	int			send_entchg_controls;
 	int			changesonly = 0;
 	int			rc = -1;
@@ -110,16 +108,12 @@ do_search( Slapi_PBlock *pb )
      */
 
     /* baseObject, scope, derefAliases, sizelimit, timelimit, attrsOnly */
-    if ( ber_scanf( ber, "{aiiiib", &base, &long_scope, &long_deref, &long_sizelimit, &long_timelimit, &attrsonly ) == LBER_ERROR ){
+    if ( ber_scanf( ber, "{aiiiib", &base, &scope, &deref, &sizelimit, &timelimit, &attrsonly ) == LBER_ERROR ){
         slapi_ch_free((void**)&base );
         log_search_access (pb, "???", -1, "???", "decoding error");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL );
         return;
     }
-    scope = long_scope;
-    deref = long_deref;
-    sizelimit = long_sizelimit;
-    timelimit = long_timelimit;
 
     /*
      * ignore negative time and size limits since they make no sense
