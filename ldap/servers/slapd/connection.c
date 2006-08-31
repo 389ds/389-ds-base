@@ -1037,35 +1037,37 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 		/* We need to read the data into the BER buffer */
 		/* This can return a tag pr LBER_DEFAULT, indicating some error condition */
 		tag = ber_get_next_buffer_ext( Buffer, Bytes_Read, &ber_len, op->o_ber, &Bytes_Scanned, conn->c_sb );
-        if(LBER_DEFAULT == tag)
+		if (LBER_DEFAULT == tag || LBER_OVERFLOW == tag)
 		{
-    		if (0 == Bytes_Scanned)
-    		{
-    			/* Means we encountered an error---eg the client sent us pure crap---
-    			a bunch of bytes which we took to be a tag, length, then we ran off the
-    			end of the buffer. The next time we get here, we'll be returned LBER_DEFAULT
-    			This means that everything we've seen up till now is useless because it wasn't
-    			an LDAP message. 
-    			So, we toss it away ! */
-			if (errno == EMSGSIZE) {
-				log_ber_too_big_error(conn, ber_len, 0);
+			if (0 == Bytes_Scanned)
+			{
+				/* Means we encountered an error---eg the client sent us pure crap---
+				a bunch of bytes which we took to be a tag, length, then we ran off the
+				end of the buffer. The next time we get here, we'll be returned LBER_DEFAULT
+				This means that everything we've seen up till now is useless because it wasn't
+				an LDAP message. 
+				So, we toss it away ! */
+				if (LBER_OVERFLOW == tag) {
+					slapi_log_error( SLAPI_LOG_FATAL, "connection",
+						"conn=%d fd=%d The length of BER Element was too long.\n",
+						conn->c_connid, conn->c_sd );
+				}
+				PR_Lock( conn->c_mutex );
+				connection_remove_operation( conn, op );
+				operation_free(&op, conn);
+				priv->c_current_op = NULL;
+				PR_Unlock( conn->c_mutex );
+				return -1; /* Abandon Connection */
 			}
+		}
+		if (is_ber_too_big(conn,ber_len))
+		{
 			PR_Lock( conn->c_mutex );
 			connection_remove_operation( conn, op );
 			operation_free(&op, conn);
 			priv->c_current_op = NULL;
 			PR_Unlock( conn->c_mutex );
-    			return -1; /* Abandon Connection */
-    		}
-		}
-		if (is_ber_too_big(conn,ber_len))
-		{
-	        PR_Lock( conn->c_mutex );
-		    connection_remove_operation( conn, op );
-	     	    operation_free(&op, conn);
-		    priv->c_current_op = NULL;
-		   PR_Unlock( conn->c_mutex );
-		    return -1; /* Abandon Connection */
+			return -1; /* Abandon Connection */
 		}
 
 		/* We set the flag to indicate that we'er in the middle of an op */
@@ -1582,6 +1584,19 @@ void connection_make_new_pb(Slapi_PBlock	**ppb, Connection	*conn)
 /*
  * Utility function called by  connection_read_operation(). This is a
  * small wrapper on top of libldap's ber_get_next_buffer_ext().
+ *
+ * Return value:
+ *   0: Success
+ *      case 1) If there was not enough data in the buffer to complete the 
+ *      message, go to the next cycle. In this case, bytes_scanned is set 
+ *      to a positive number and *tagp is set to LBER_DEFAULT.
+ *      case 2) Complete.  *tagp == (tag of the message) and bytes_scanned is
+ *      set to a positive number.
+ *  -1: Failure
+ *      case 1) *tagp == LBER_OVERFLOW: the length is either bigger than 
+ *      ber_uint_t type or the value preset via 
+ *      LBER_SOCKBUF_OPT_MAX_INCOMING_SIZE option
+ *      case 2) *tagp == LBER_DEFAULT: memory error or tag mismatch
  */
 static int
 get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
@@ -1594,16 +1609,20 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 	*lenp = 0;
 	*tagp = ber_get_next_buffer_ext( buffer, buffer_size, lenp, ber,
 			&bytes_scanned, conn->c_sb );
-	if (LBER_DEFAULT == *tagp && 0 == bytes_scanned) {
-		if (errno == EMSGSIZE) {
-			log_ber_too_big_error(conn, *lenp, 0);
+	if ((LBER_OVERFLOW == *tagp || LBER_DEFAULT == *tagp) && 0 == bytes_scanned)
+	{
+		if (LBER_OVERFLOW == *tagp)
+		{
 			err = SLAPD_DISCONNECT_BER_TOO_BIG;
-		} else {
-			syserr = errno;
 		}
+		else
+		{
+			err = SLAPD_DISCONNECT_BAD_BER_TAG;
+		}
+		syserr = errno;
 		/* Bad stuff happened, like the client sent us some junk */
 		LDAPDebug( LDAP_DEBUG_CONNS,
-				"ber_get_next failed for connection %d\n", conn->c_connid, 0, 0 );
+			"ber_get_next failed for connection %d\n", conn->c_connid, 0, 0 );
 		/* reset private buffer */
 		conn->c_private->c_buffer_bytes = conn->c_private->c_buffer_offset = 0;
 
@@ -1697,7 +1716,6 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		/* We should never get here with data remaining in the buffer */
 		PR_ASSERT( !new_operation || 0 == (conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset) );
 		/* We make a non-blocking read call */
-		/* ret = PR_Recv(conn->c_prfd,conn->c_private->c_buffer,conn->c_private->c_buffer_size,0,PR_INTERVAL_NO_WAIT);  */
 		ret = connection_read_ldap_data(conn,&err);
 		if (ret <= 0) {
 			if (0 == ret) {
