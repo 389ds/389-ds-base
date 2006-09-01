@@ -987,8 +987,8 @@ void ps_init_psearch_system();
 void ps_stop_psearch_system();
 void ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls );
 void ps_wakeup_all();
-void ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, int chgtype,
-	int chgnum );
+void ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype,
+	ber_int_t chgnum );
 int ps_parse_control_value( struct berval *psbvp, ber_int_t *changetypesp,
     int *changesonlyp, int *returnecsp );
 
@@ -1136,7 +1136,7 @@ PRBool allow_operation (Slapi_PBlock *pb);
 void set_config_params (Slapi_PBlock *pb);
 /* set parameters common for all internal operations */
 void set_common_params (Slapi_PBlock *pb);
-void do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, int chgtype, int chgnum);
+void do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t chgnum);
 void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
 
 /*

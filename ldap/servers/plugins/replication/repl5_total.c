@@ -251,9 +251,8 @@ static int
 my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
 {
 	char csn_str[CSN_STRSIZE];
-	unsigned long len;
 	int rc = -1;
-	int csn_type_as_ber = -1;
+	ber_int_t csn_type_as_ber = -1;
 
 	switch (t)
 	{
@@ -284,7 +283,6 @@ my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
 	}
     else
     {
-		len = CSN_STRSIZE;
     	rc = ber_printf(ber, "{es}", csn_type_as_ber, csn_str);
 		BER_DEBUG("{e(csn type)s(csn)}");
     }

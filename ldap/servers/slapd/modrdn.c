@@ -487,7 +487,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 				slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
 				slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
 				/* GGOODREPL persistent search system needs the changenumber, oops. */
-				do_ps_service(pse, ecopy, LDAP_CHANGETYPE_MODDN, 0UL);
+				do_ps_service(pse, ecopy, LDAP_CHANGETYPE_MODDN, 0);
 			}
 		}
 		else

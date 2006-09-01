@@ -1637,7 +1637,7 @@ delete_passwdPolicy( passwdPolicy **pwpolicy)
  *   operationsError (1),
  */
 int
-slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, int error)
+slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins, ber_int_t error)
 {
 	BerElement *ber= NULL;    
 	struct berval *bvp = NULL;

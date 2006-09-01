@@ -1362,7 +1362,7 @@ static PRUint32
 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control)
 {
     PRUint32 si= 0; /* The Selected Index */
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> vlv_trim_candidates_byindex: length=%lu index=%lu size=%lu\n",length, vlv_request_control->index, vlv_request_control->contentCount );
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> vlv_trim_candidates_byindex: length=%u index=%d size=%d\n",length, vlv_request_control->index, vlv_request_control->contentCount );
     if(vlv_request_control->index==0)
     {
         /* Always select the first entry in the list */
@@ -1633,7 +1633,7 @@ vlv_make_response_control (Slapi_PBlock *pb, const struct vlv_response* vlvp)
         ber_bvfree(bvp);
     }
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_make_response_control: Index=%u Size=%u Result=%u\n", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_make_response_control: Index=%d Size=%d Result=%d\n", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }
@@ -1655,7 +1655,7 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 	p+= sprintf(p,"VLV ");
 	if (0 == vlvi->tag) {
 		/* By Index case */
-		p+= sprintf(p,"%u:%u:%u:%u",
+		p+= sprintf(p,"%d:%d:%d:%d",
 			vlvi->beforeCount ,
 			vlvi->afterCount ,
 			vlvi->index ,
@@ -1672,7 +1672,7 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 		}
         strncpy(string,vlvi->value.bv_val,vlvi->value.bv_len);
         string[vlvi->value.bv_len] = '\0';
-		p += sprintf(p,"%u:%u:%s",
+		p += sprintf(p,"%d:%d:%s",
 			vlvi->beforeCount ,
 			vlvi->afterCount ,
 			string
@@ -1682,7 +1682,7 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 		}
 	}
 	/* Now the response info */
-	p += sprintf(p," %u:%u (%u)",
+	p += sprintf(p," %d:%d (%d)",
 		vlvo->targetPosition ,
 		vlvo->contentCount,
 		vlvo->result
@@ -1733,7 +1733,7 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
     }
     else
     {
-        LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Before=%u After=%u\n",
+        LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Before=%d After=%d\n",
                    vlvp->beforeCount, vlvp->afterCount, 0 );
         if (ber_scanf(ber,"t",&vlvp->tag) == LBER_ERROR)
         {
@@ -1761,7 +1761,7 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
                     {
                         vlvp->index--;
                     }
-                    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Index=%lu Content=%lu\n", vlvp->index, vlvp->contentCount, 0 );
+                    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Index=%d Content=%d\n", vlvp->index, vlvp->contentCount, 0 );
                 }
                 break;
             case LDAP_TAG_VLV_BY_VALUE:

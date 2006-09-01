@@ -51,8 +51,8 @@ struct windowsprivate {
                                 /* this simplifies the mapping as it's simply
 								   from the former to the latter container, or
 								   vice versa */
-  int dirsync_flags;		
-  int dirsync_maxattributecount;
+  ber_int_t dirsync_flags;		
+  ber_int_t dirsync_maxattributecount;
   char *dirsync_cookie; 
   int dirsync_cookie_len;
   PRBool dirsync_cookie_has_more;

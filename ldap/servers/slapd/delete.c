@@ -322,7 +322,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 					write_audit_log_entry(pb); /* Record the operation in the audit log */
 
 				slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
-				do_ps_service(ecopy, NULL, LDAP_CHANGETYPE_DELETE, 0UL);
+				do_ps_service(ecopy, NULL, LDAP_CHANGETYPE_DELETE, 0);
 			}
 			else
 			{

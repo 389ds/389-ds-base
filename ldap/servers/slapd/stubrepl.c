@@ -42,7 +42,7 @@
 int connection_type = -1;
 
 void
-ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, int chgtype, int chgnum )
+ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t chgnum )
 {
 }
 

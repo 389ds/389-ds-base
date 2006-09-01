@@ -225,7 +225,7 @@ make_sort_response_control ( Slapi_PBlock *pb, int code, char *error_type) {
     BerElement		*ber= NULL;    
 	struct berval	*bvp = NULL;
 	int rc = -1;
-	int control_code = code;
+	ber_int_t control_code = code;
 
 	/*
 	     SortResult ::= SEQUENCE {

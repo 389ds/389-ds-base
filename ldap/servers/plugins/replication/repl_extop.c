@@ -535,7 +535,7 @@ int
 multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 {
 	int return_value = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
-	int response = 0;
+	ber_int_t response = 0;
 	int rc = 0;
 	BerElement *resp_bere = NULL;
 	struct berval *resp_bval = NULL;
@@ -1026,7 +1026,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	char *repl_root = NULL;
 	BerElement *resp_bere = NULL;
 	struct berval *resp_bval = NULL;
-	int response;
+	ber_int_t response;
 	void *conn;
 	consumer_connection_extension *connext = NULL;
 	int rc;

@@ -93,7 +93,7 @@ cb_unregister_supported_control( cb_backend * cb, char *controloid, unsigned lon
 }
 
 int cb_create_loop_control (
-     const int hops,
+     const ber_int_t hops,
      LDAPControl **ctrlp)
 
 {

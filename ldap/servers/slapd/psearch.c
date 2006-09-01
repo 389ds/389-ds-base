@@ -111,7 +111,7 @@ static PSearch *psearch_alloc();
 static void ps_add_ps( PSearch *ps );
 static void ps_remove( PSearch *dps );
 static void pe_ch_free( PSEQNode **pe );
-static int create_entrychange_control( int chgtype, int chgnum,
+static int create_entrychange_control( ber_int_t chgtype, ber_int_t chgnum,
 	const char *prevdn, LDAPControl **ctrlp );
 
 
@@ -515,8 +515,8 @@ ps_wakeup_all()
  * client in the EntryChangeNotification control.
  */
 void
-ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, int chgtype,
-	int chgnum )
+ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype,
+	ber_int_t chgnum )
 {
 	LDAPControl *ctrl = NULL;
     PSearch	*ps = NULL;
@@ -707,7 +707,7 @@ ps_parse_control_value( struct berval *psbvp, ber_int_t *changetypesp, int *chan
  * If chgnum is 0 we omit it from the control.
  */
 static int
-create_entrychange_control( int chgtype, int chgnum, const char *dn,
+create_entrychange_control( ber_int_t chgtype, ber_int_t chgnum, const char *dn,
 	LDAPControl **ctrlp )
 {
     int			rc;
