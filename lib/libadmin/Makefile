@@ -69,8 +69,6 @@ all: $(OBJDEST) $(LIBS)
 #$(LIBS): $(addprefix $(BUILD_ROOT)/include/libadmin/, \
 #                     hadm_msgs.i la_msgs.i)
 
-MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
-
 #ifeq ($(ARCH), HPUX)
 #CC=$(CCC)
 #endif

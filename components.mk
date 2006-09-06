@@ -544,9 +544,11 @@ else
   ADMINUTIL_INCPATH = $(ADMINUTIL_BUILD_DIR)/include/adminutil-$(ADMINUTIL_DOT_VER)
 endif
 
+ifeq ($(USE_ADMINSERVER), 1)
 PACKAGE_SRC_DEST += $(ADMINUTIL_LIBPATH)/adminutil-properties bin/slapd/lib
 LIBS_TO_PKG += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
 LIBS_TO_PKG_CLIENTS += $(wildcard $(ADMINUTIL_LIBPATH)/*.$(DLL_SUFFIX))
+endif
 
 ifeq ($(ARCH),WINNT)
 ADMINUTIL_LINK = /LIBPATH:$(ADMINUTIL_LIBPATH) libadminutil.$(LIB_SUFFIX)

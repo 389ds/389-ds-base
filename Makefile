@@ -130,9 +130,23 @@ help:
 ###### End of implementation notes.
 
 ifeq ($(INTERNAL_BUILD), 1)
-  COMPONENT_DEPENDENCIES = $(ADMINUTIL_DEP) $(NSPR_DEP) $(ARLIB_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) \
-	$(ICU_DEP) $(SETUPUTIL_DEP) $(LDAPSDK_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(NETSNMP_DEP) \
-	$(AXIS_DEP) $(DSMLJAR_DEP) $(DSDOC_DEP) $(ADSYNC_DEP) $(NT4SYNC_DEP) $(PERLDAP_DEP)
+# first list core dependencies
+  COMPONENT_DEPENDENCIES = $(NSPR_DEP) $(SECURITY_DEP) $(SVRCORE_DEP) $(LDAPSDK_DEP) \
+	$(ICU_DEP) $(DB_LIB_DEP) $(SASL_DEP) $(NETSNMP_DEP)
+# these are only for packaging
+  COMPONENT_DEPENDENCIES += $(ADSYNC_DEP) $(NT4SYNC_DEP)
+ifeq ($(USE_PERLDAP), 1)
+  COMPONENT_DEPENDENCIES += $(PERLDAP_DEP)
+endif
+ifeq ($(USE_ADMINSERVER), 1)
+  COMPONENT_DEPENDENCIES += $(ADMINUTIL_DEP) $(DSDOC_DEP)
+endif
+ifeq ($(USE_SETUPUTIL), 1)
+  COMPONENT_DEPENDENCIES += $(SETUPUTIL_DEP)
+endif
+ifeq ($(USE_DSMLGW), 1)
+  COMPONENT_DEPENDENCIES += $(AXIS_DEP) $(DSMLJAR_DEP)
+endif
 endif
 
 components: $(COMPONENT_DEPENDENCIES)
@@ -221,17 +235,17 @@ endif
 	cd ldap; $(MAKE) $(MFLAGS) LDAP_NO_LIBLCACHE=1 BUILD_MODULE=DIRECTORY all
 	@echo ==== Finished LDAP Server ==========
 	@echo
-	@echo ==== Starting LDAP Server Console ==========
-	@echo
-	$(MAKE) $(MFLAGS) buildDirectoryConsole
-	@echo
-	@echo ==== Finished LDAP Server Console ==========
-	@echo
 	@echo ==== Starting LDAP Server Clients ==========
 	@echo
 	$(MAKE) $(MFLAGS) buildDirectoryClients
 	@echo
 	@echo ==== Finished LDAP Server Clients ==========
+	@echo
+	@echo ==== Starting LDAP Server Console ==========
+	@echo
+	$(MAKE) $(MFLAGS) buildDirectoryConsole
+	@echo
+	@echo ==== Finished LDAP Server Console ==========
 	@echo
 
 cleanDirectory:
@@ -258,13 +272,13 @@ ifeq ($(BUILD_JAVA_CODE),1)
 endif
 
 buildDirectoryClients: $(ANT_DEP) java_platform_check
+ifeq ($(USE_DSGW), 1)
+	cd ldap/clients; $(MAKE) _dsgw
+endif
 ifeq ($(BUILD_JAVA_CODE),1)
     ifeq ($(USE_DSMLGW), 1)
 		cd ldap/clients; $(MAKE) _dsmlgw
     endif
-endif
-ifeq ($(USE_DSGW), 1)
-	cd ldap/clients; $(MAKE) _dsgw
 endif
 
 $(OBJDIR):
@@ -304,9 +318,7 @@ Longduration:
 
 setupDirectory:
 	cd ldap/cm; $(MAKE) $(MFLAGS) releaseDirectory;
-ifeq ($(USE_SETUPUTIL), 1)
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageDirectory;
-endif
 
 pkgDirectoryJars:
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageJars 

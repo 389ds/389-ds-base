@@ -54,8 +54,6 @@ OBJDEST=$(HTTPD_DIR)/obj
 
 include $(BUILD_ROOT)/nsconfig.mk
 
-MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
-
 ifeq ($(ARCH), WINNT)
 DLLS=$(HTTPD_DIR)/$(HTTPDLL_NAME).dll
 HTTPD_LIB=$(HTTPD_DIR)/$(HTTPDLL_NAME).lib
@@ -154,13 +152,11 @@ ifeq ($(ARCH), WINNT)
 DEPLIBS = $(addsuffix .$(LIB_SUFFIX), $(addprefix $(OBJDIR)/lib/lib, $(LIBADMIN) $(LIBLDAPU) $(LIBACCESS) $(HTTPD_LIBS))) 
 DEPLIBS += $(LIBSECURITY) \
            $(LIBNSPR) \
-           $(LIBLDAP) \
-           $(LIBDBM) \
-	   $(ADMINUTIL_DEP)
+           $(LIBLDAP)
 
 DEPLINK = /LIBPATH:$(OBJDIR)/lib $(addsuffix .$(LIB_SUFFIX), $(addprefix lib, $(LIBADMIN) $(LIBLDAPU) $(LIBACCESS) $(HTTPD_LIBS))) \
-	$(ADMINUTIL_LINK) $(LDAPLINK) $(SECURITYLINK) \
-	$(NSPRLINK) $(DBMLINK)
+	$(LDAPLINK) $(SECURITYLINK) \
+	$(NSPRLINK)
 else
 # unixso.mk may define DEPLIBS
 ifndef DEPLIBS
@@ -171,8 +167,7 @@ DEPLIBS = $(addsuffix .$(LIB_SUFFIX), \
                     $(OBJDIR)/lib/libsi18n \
                     $(LIBSSLIO)
 DEPLIBS += $(SECURITY_DEP) \
-           $(NSPR_DEP) \
-	   $(ADMINUTIL_DEP)
+           $(NSPR_DEP)
 
 DEPLINK = $(addsuffix .$(LIB_SUFFIX), \
                     $(addprefix $(OBJDIR)/lib/lib,$(HTTPD_LIBS)) \
@@ -181,8 +176,7 @@ DEPLINK = $(addsuffix .$(LIB_SUFFIX), \
                     $(OBJDIR)/lib/libsi18n \
                     $(SECURITYLINK) \
                     $(NSPRLINK) \
-                    $(LIBSSLIO) \
-		    $(ADMINUTILLINK)
+                    $(LIBSSLIO)
 endif
 
 endif

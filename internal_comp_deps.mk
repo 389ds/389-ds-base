@@ -577,7 +577,7 @@ endif
 
 ###########################################################
 ### Admin Server package ##################################
-
+ifeq ($(USE_ADMINSERVER), 1)
 ADMIN_REL = $(ADM_VERSDIR)
 ADMIN_REL_DATE = $(ADM_VERSION)
 ADMIN_FILE := $(ADMINSERVER_PKG)
@@ -610,6 +610,7 @@ endif
 	then echo "Error: could not get component ADMINSERV file $@" ; \
 	exit 1 ; \
 	fi
+endif # USE_ADMINSERVER
 ### Admin Server END ######################################
 
 ### DOCS #################################

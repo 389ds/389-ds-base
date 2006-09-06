@@ -50,8 +50,6 @@ LEX=flex
 
 include $(BUILD_ROOT)/nsconfig.mk
 
-MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
-
 ifeq ($(ARCH), WINNT)
 LIBS=$(OBJDIR)/lib/libaccess.lib
 CC=cl -nologo -MT

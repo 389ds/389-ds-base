@@ -54,9 +54,6 @@ LIBDIR = $(LIB_RELDIR)
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
-# ACL plugin depends on libadminutil
-#MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
-
 ifeq ($(ARCH), WINNT)
 DEF_FILE:=./libacl.def
 endif

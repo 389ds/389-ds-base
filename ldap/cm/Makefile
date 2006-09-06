@@ -54,7 +54,9 @@ BUILD_ROOT=../..
 TREE_ROOT=$(BUILD_ROOT)
 
 # make sure we pull the admin server component here
+ifeq ($(USE_ADMINSERVER), 1)
 ADMSERV_DEPS = 1
+endif
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(BUILD_ROOT)/ldap/nsldap.mk
@@ -197,7 +199,7 @@ ADMIN_IMPORTS_TARGZ=$(ADMIN_SERVER_TARGZ)
 ifeq ($(USE_SETUPUTIL), 1)
   LDAP_PACKAGE_FILES:=setup setup.inf setup.res silent.inf unzip_wrapper.pl svrcore dsktune LICENSE.txt README.txt slapd
 else
-  LDAP_PACKAGE_FILES:=setup dsktune slapd
+  LDAP_PACKAGE_FILES:=dsktune slapd
 endif
 
 # these are files we need to put in the command line/console only package
@@ -254,7 +256,7 @@ UNZIP=unzip -o
 UNZIPNOPATHS=$(UNZIP) -j
 ZIP=zip
 ZIP_FLAGS=-r -T
-EXCLUDED_FILES=-x lib/aolsnauth-plugin.*
+EXCLUDED_FILES=
 # Linux Zip has problems zipping gif file over NFS (??)
 ifeq ($(ARCH), Linux)
 ZIP_FLAGS=-r -T -n .gif
@@ -620,15 +622,20 @@ endif # BUILD_RPM
 # load in shared libs from slapd/lib after the setuid
 	chmod 711 $(RELDIR)/bin/slapd/server
 
-$(INSTDIR)/slapd:
+$(INSTDIR):
 	$(MKDIR) -p $@
+
+$(INSTDIR)/slapd:
+ifeq ($(USE_SETUPUTIL), 1)
+	$(MKDIR) -p $@
+endif
 
 # Packaging for UNIX is totally different than NT, so we conditionally execute here
 
 ifneq ($(ARCH), WINNT)
 
 # ---THE UNIX PACKAGE---
-packageDirectory: $(INSTDIR)/slapd \
+packageDirectory: $(INSTDIR) $(INSTDIR)/slapd \
 	$(ADMSERV_DEP)
 
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
@@ -648,15 +655,10 @@ ifeq ($(DS_BRAND), redhat)
 endif
 endif
 
-ifeq ($(USE_PERLDAP), 1)
-	-@rm -rf $(INSTDIR)/perldap
-	mkdir $(INSTDIR)/perldap
-	cp -R $(PERLDAP_BUILT_DIR)/* $(INSTDIR)/perldap
-	$(PERL) genPerlDAPInf.pl $(INSTDIR)/perldap/perldap.inf 1.5 "Fedora Project"
-endif
-
+ifeq ($(USE_SETUPUTIL), 1)
 # copy in our product .inf files
 	$(INSTALL) -m 755 $(OBJDIR)/*.inf $(INSTDIR)/slapd
+endif
 
 # strip the executables in the optimized build
 ifeq ($(DEBUG), optimize)
@@ -712,6 +714,7 @@ endif # USE_CONSOLE
 #	do $(ZIP) $(ZIP_FLAGS) -g $(INSTDIR)/slapd/slapd-client.zip bin/slapd/server/$$file$(DOTEXE) ; \
 #	done
 
+ifeq ($(USE_SETUPUTIL), 1)
 # create the slapd zip file
 	rm -f $(INSTDIR)/slapd/ns$(DIR).zip
 # create installable package
@@ -734,7 +737,11 @@ endif
 	then $(INSTALL) -m 755 $$file $(INSTDIR)/slapd ; \
 	fi ; \
 	done
+else # !USE_SETUPUTIL
+	cd $(RELDIR); $(TAR) cf - * | gzip > $(ABS_INSTDIR)/slapd.tar.gz
+endif # USE_SETUPUTIL
 
+ifeq ($(USE_ADMINSERVER), 1)
 # if the untar directory is there, hooray; otherwise, we will have to unpack the
 # binaries ourselves . . .
 	if [ ! -d $(ADMSERV_DIR)/admin ] ; \
@@ -747,19 +754,20 @@ endif
 			cp -r $(ADMSERV_DIR)/$$file $(INSTDIR)/$$file ; \
 		done ; \
 	fi
+endif # USE_ADMINSERVER
 
 # make sure setup.inf has everything we need
 ifeq ($(USE_SETUPUTIL),1)
 	cp $(INSTDIR)/setup.inf $(INSTDIR)/setup.inf.tmp
 	$(PERL) -w $(FIX_SETUP_INF) $(INSTDIR)/setup.inf.tmp $(INSTDIR)/setup.inf $(USE_ADMINSERVER)
 	rm -f $(INSTDIR)/setup.inf.tmp
-endif
 
 # we must remove the nsbase.zip file - we package those files now
 	rm -f $(INSTDIR)/base/nsbase.zip
 # we also need to remove the Archive directive from the [base] section of the
 # base.inf file
 #	$(PERL) -w $(FIX_BASE_INF) $(INSTDIR)/base/base.inf
+endif
 
 # Install LDAP Readme and License files at root of Installation (dated pre-packaging) directory.
 # And, replace the License.txt file that is packaged in nssvrcore.zip.
@@ -771,6 +779,7 @@ endif
 # Install dsktune at root of Installation
 	cp $(RELDIR)/bin/slapd/server/dsktune $(INSTDIR)
 
+ifeq ($(USE_SETUPUTIL), 1)
 ifndef NO_INSTALLER_TAR_FILES
 # build the slapd package tar file
 	cd $(INSTDIR); $(TAR) cvf - slapd \
@@ -795,6 +804,8 @@ endif # BUILD_SHIP
 #cp $(INSTDIR)/all$(NS_BUILD_FLAVOR).tar.gz  $(BUILD_SHIP)
 # $(INSTDIR) is used to build international products.
 endif
+endif # USE_SETUPUTIL
+
 ifdef BUILD_RPM
 # make the .spec file - actually lives in OBJDIR
 	$(MAKE) $(MFLAGS) -C $(BUILD_ROOT) $(RPM_BASE_NAME)-ds.spec
