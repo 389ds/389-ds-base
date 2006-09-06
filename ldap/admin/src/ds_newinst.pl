@@ -37,7 +37,7 @@
 # END COPYRIGHT BLOCK
 use IPC::Open2;
 use Symbol;
-use URI::Escape;
+use CGI::Util qw(escape);
 use Cwd;
 use File::Basename;
 
@@ -50,7 +50,6 @@ sub usage {
 
 sub getCgiContentAndLength {
   my $args = shift;
-  my $escapechars = "^a-zA-Z0-9"; # escape all non alphanum chars
   my $content = "";
   my $firsttime = 1;
   while (my ($kk, $vv) = each %{$args}) {
@@ -59,7 +58,7 @@ sub getCgiContentAndLength {
 	} else {
 	  $content = $content . "&";
 	}
-	$content = $content . $kk . "=" . uri_escape($vv, $escapechars);
+	$content = $content . $kk . "=" . escape($vv);
   }
   my $length = length($content);
 

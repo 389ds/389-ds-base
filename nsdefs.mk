@@ -109,10 +109,10 @@ endif
 # Should we build Java code on this platform?
 ifndef BUILD_JAVA_CODE
 ifeq ($(BUILD_ARCH),SOLARIS)
-BUILD_JAVA_CODE=1
+BUILD_JAVA_CODE=0
 else
 ifeq ($(BUILD_ARCH),WINNT)
-BUILD_JAVA_CODE=1
+BUILD_JAVA_CODE=0
 else
 BUILD_JAVA_CODE=0
 endif # WINNT

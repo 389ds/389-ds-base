@@ -328,7 +328,7 @@ ifneq ($(ARCH), WINNT)
 	fi ; \
 	done
 # these are libs to copy to clients/lib on unix to support dsgw & pb
-ifdef USE_DSGW
+ifeq ($(USE_DSGW), 1)
 	for file in $(LIBS_TO_PKG_CLIENTS); \
 	do if [ -f $$file ] ; \
 	then $(INSTALL) -m 755 $$file $(RELDIR)/clients/lib ; \
