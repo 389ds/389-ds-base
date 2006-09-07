@@ -738,7 +738,11 @@ endif
 	fi ; \
 	done
 else # !USE_SETUPUTIL
+  ifdef BUILD_SHIP
+	cd $(RELDIR); $(TAR) cf - * | gzip > $(BUILD_SHIP)/$(FTPNAMEGZ)
+  else
 	cd $(RELDIR); $(TAR) cf - * | gzip > $(ABS_INSTDIR)/slapd.tar.gz
+  endif
 endif # USE_SETUPUTIL
 
 ifeq ($(USE_ADMINSERVER), 1)
@@ -912,6 +916,8 @@ else
 ifeq ($(ARCH), Linux)
 ifdef BUILD_RPM
 	$(acceptdir)/accept $(shell echo $(BUILD_SHIP)/$(RPM_FILE_BASE)*$(NSOS_ARCH)$(NSOS_RELEASE).$(RPM_ARCH).$(RPM_FLAVOR).rpm) &
+else # !BUILD_RPM
+	$(acceptdir)/accept $(BUILD_SHIP)/$(FTPNAMEGZ) &
 endif  # BUILD_RPM
 else
 	$(acceptdir)/accept $(BUILD_SHIP)/$(FTPNAMEGZ) &
