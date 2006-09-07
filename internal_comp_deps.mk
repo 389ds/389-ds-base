@@ -533,7 +533,6 @@ endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component LDAPCONSOLE file $@" ; \
 	fi
-endif # BUILD_JAVA_CODE
 
 ###########################################################
 ### Perldap package #######################################
