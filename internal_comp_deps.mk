@@ -533,27 +533,12 @@ endif
 	-@if [ ! -f $@ ] ; \
 	then echo "Error: could not get component LDAPCONSOLE file $@" ; \
 	fi
+endif # BUILD_JAVA_CODE
 
 ###########################################################
 ### Perldap package #######################################
 
-#PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
-ifeq ($(BUILD_MODE), int)
-  PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
-  ifeq ($(BUILD_ARCH), RHEL4)
-    # use 64-bit perl on 64-bit RHEL4; 32-bit on 32-bit RHEL4
-    PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME)
-  endif
-  ifeq ($(BUILD_ARCH), HPUX)
-    HPUX_ARCH := $(shell uname -m)
-    ifeq ($(HPUX_ARCH), ia64)
-      # use 64-bit perl on 64-bit IPF HP-UX
-      PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME)
-    endif
-  endif
-else
-PERLDAP_COMPONENT_DIR = $(FED_COMPONENTS_DIR)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME_32)
-endif
+PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME)
 PERLDAP_FILES=lib,arch
 PERLDAP_DEP = $(PERLDAP_BUILT_DIR)/lib
 
@@ -614,6 +599,8 @@ endif # USE_ADMINSERVER
 ### Admin Server END ######################################
 
 ### DOCS #################################
+# only pull docs with admin server
+ifeq ($(USE_ADMINSERVER), 1)
 # this is where the build looks for slapd docs
 DSDOC_VERSDIR = $(DIR_NORM_VERSION)
 ifeq ($(BUILD_MODE), int)
@@ -638,6 +625,7 @@ $(DSDOC_DEP): $(NSCP_DISTDIR)
 	then echo "Error: could not get component DSDOC file $@" ; \
 	exit 1 ; \
 	fi
+endif # USE_ADMINSERVER
 ### DOCS END #############################
 
 # Windows sync component for Active Directory
