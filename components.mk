@@ -645,6 +645,10 @@ ifeq ($(USE_64), 1)
   endif
 endif
 
+# must package certmap.conf ourselves if not using admin server
+ifneq ($(USE_ADMINSERVER), 1)
+  PACKAGE_SRC_DEST += $(BUILD_ROOT)/lib/ldaputil/certmap.conf shared/config
+endif
 
 # must define dependencies last because they depend on the definitions above
 ifeq ($(INTERNAL_BUILD), 1)

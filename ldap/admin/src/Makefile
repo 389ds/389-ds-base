@@ -241,6 +241,9 @@ INST_INCLUDES = $(OBJDIR)/install_keywords.h
 TEMPLATE_SCRIPTS_SRC = $(wildcard scripts/template-*)
 TEMPLATE_SCRIPTS_DEST = $(subst scripts/,$(SCRIPTSDIR)/,$(TEMPLATE_SCRIPTS_SRC))
 
+# we wrap the security tools with a shell script wrapper for their ld libpath
+PACKAGE_SEC_TOOLS = $(addprefix $(RELDIR)/shared/bin/,$(SECURITY_TOOLS))
+
 # We only need to do this if we have to ship 32 bit binaries in our 64 bit packages
 # Right now, on rhel/linux, we ship all native 64 bit apps so we don't have to do
 # this.  We still may need to do this on solaris/hpux, but hopefully not for very
@@ -266,7 +269,7 @@ endif
 
 all: $(BINDIR) $(OBJDEST) $(INST_INCLUDES) $(ALLOBJS) $(BINS) \
 	installPerlFiles $(SCRIPTSDIR) $(TEMPLATE_SCRIPTS_DEST) \
-	$(FIX_SECMOD_DEP)
+	$(FIX_SECMOD_DEP) $(PACKAGE_SEC_TOOLS)
 
 $(SCRIPTSDIR):
 	$(MKDIR) $@
@@ -381,3 +384,9 @@ $(SCRIPTSDIR)/template-%: scripts/template-% $(SCRIPTSDIR)
 	-@$(RM) $@
 	$(CP) $< $@
 	chmod +x $@
+
+$(RELDIR)/shared/bin/%: sec_tools_wrapper $(RELDIR)/shared/bin
+	-@$(RM) $@
+	$(CP) $< $@
+	chmod +x $@
+
