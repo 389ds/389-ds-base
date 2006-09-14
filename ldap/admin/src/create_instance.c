@@ -3751,6 +3751,18 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
             free(suffix);
             ldap_free_urldesc(desc);
         }
+    } else { /* just add the config, disabled */
+            fprintf(f, "dn: cn=Pass Through Authentication,cn=plugins,cn=config\n");
+            fprintf(f, "objectclass: top\n");
+            fprintf(f, "objectclass: nsSlapdPlugin\n");
+            fprintf(f, "objectclass: extensibleObject\n");
+            fprintf(f, "cn: Pass Through Authentication\n");
+            fprintf(f, "nsslapd-pluginpath: %s/lib/passthru-plugin%s\n", sroot, shared_lib);
+            fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
+            fprintf(f, "nsslapd-plugintype: preoperation\n");
+            fprintf(f, "nsslapd-pluginenabled: off\n");
+            fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+            fprintf(f, "\n");
     }
 
 #ifdef BUILD_PAM_PASSTHRU
