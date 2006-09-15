@@ -43,7 +43,6 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #endif
-#define TCPLEN_T	int
 #include <signal.h>
 #include "slap.h"
 #include "prcvar.h"
@@ -64,7 +63,6 @@ static void op_copy_identity(Connection *conn, Operation *op);
 static int is_ber_too_big(const Connection *conn, ber_len_t ber_len);
 static void log_ber_too_big_error(const Connection *conn,
 				ber_len_t ber_len, ber_len_t maxbersize);
-static int add_to_select_set(Connection *conn);
 
 /*
  * We maintain a global work queue of Slapi_PBlock's that have not yet
@@ -206,11 +204,10 @@ void
 connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is_SSL)
 {
     char *		pTmp = is_SSL ? "SSL " : "";
-    TCPLEN_T		addrlen, destaddrlen;
-    struct sockaddr_in	addr, destaddr;
-    char		*str_ip, *str_destip, buf_ip[ 256 ], buf_destip[ 256 ];
+    char		*str_ip = NULL, *str_destip;
+    char		buf_ip[ 256 ], buf_destip[ 256 ];
     char		*str_unknown = "unknown";
-	int			in_referral_mode = config_check_referral_mode();
+    int			in_referral_mode = config_check_referral_mode();
 
     LDAPDebug( LDAP_DEBUG_CONNS, "new %sconnection on %d\n", pTmp, conn->c_sd, 0 );
 
@@ -220,120 +217,127 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     PR_Unlock( num_conns_mutex );
 
     if (! in_referral_mode) {
-		PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
-		PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
+	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
     }
 
-    /* get peer address (IP address of this client) */
-    addrlen = sizeof( addr );
-    memset( &addr, 0, addrlen );
-
-    if ( ((from->ipv6.ip.pr_s6_addr32[0] != 0) || 
+    /* 
+     * get peer address (IP address of this client)
+     */
+    slapi_ch_free( (void**)&conn->cin_addr ); /* just to be conservative */
+    if ( ((from->ipv6.ip.pr_s6_addr32[0] != 0) || /* from contains non zeros */
 	  (from->ipv6.ip.pr_s6_addr32[1] != 0) || 
 	  (from->ipv6.ip.pr_s6_addr32[2] != 0) || 
 	  (from->ipv6.ip.pr_s6_addr32[3] != 0)) || 
 	 ((conn->c_prfd != NULL) && (PR_GetPeerName( conn->c_prfd, from ) == 0)) ) {
-                conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
-		memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
+	conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
+	memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
 		
-		if ( PR_IsNetAddrType( conn->cin_addr, PR_IpAddrV4Mapped ) ) {
-		     PRNetAddr v4addr;
-		     memset( &v4addr, 0, sizeof( v4addr ) );
-		     v4addr.inet.family = PR_AF_INET;
-		     v4addr.inet.ip = conn->cin_addr->ipv6.ip.pr_s6_addr32[3];
-		     PR_NetAddrToString( &v4addr, buf_ip, sizeof( buf_ip ) );
-		} else {
-		     PR_NetAddrToString( conn->cin_addr, buf_ip, sizeof( buf_ip ) );
-		}
-		buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
-		str_ip = buf_ip;		        
+	if ( PR_IsNetAddrType( conn->cin_addr, PR_IpAddrV4Mapped ) ) {
+	     PRNetAddr v4addr;
+	     memset( &v4addr, 0, sizeof( v4addr ) );
+	     v4addr.inet.family = PR_AF_INET;
+	     v4addr.inet.ip = conn->cin_addr->ipv6.ip.pr_s6_addr32[3];
+	     PR_NetAddrToString( &v4addr, buf_ip, sizeof( buf_ip ) );
+	} else {
+	     PR_NetAddrToString( conn->cin_addr, buf_ip, sizeof( buf_ip ) );
+	}
+	buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
+	str_ip = buf_ip;		        
 		
-    } else if ( (conn->c_prfd == NULL) && 
-		(getpeername( conn->c_sd, (struct sockaddr*)&addr, &addrlen ) == 0) ) {
-                conn->cin_addr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ) );
-		
-		if ( PR_SetNetAddr(PR_IpAddrNull, PR_AF_INET6, addr.sin_port, conn->cin_addr)
-		     != PR_SUCCESS ) {
-		        int oserr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY, "PR_SetNetAddr() failed, "
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					oserr, slapd_pr_strerror(oserr), 0 );
-		} else {
-		        PR_ConvertIPv4AddrToIPv6(addr.sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
-		}
-
-                /* copy string equivalent of address into a buffer to use for
-                 * logging since each call to inet_ntoa() returns a pointer to a
-                 * single thread-specific buffer (which prevents us from calling
-                 * inet_ntoa() twice in one call to slapi_log_access()).
-                 */
-                str_ip = inet_ntoa( addr.sin_addr );
-                strncpy( buf_ip, str_ip, sizeof( buf_ip ) - 1 );
-                buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
-                str_ip = buf_ip;
-
     } else {
-                str_ip = str_unknown;
-    }      
+	/* try syscall since "from" was not given and PR_GetPeerName failed */
+	/* a corner case */
+	struct sockaddr_in addr; /* assuming IPv4 */
+	socklen_t          addrlen;
 
+	addrlen = sizeof( addr );
+	memset( &addr, 0, addrlen );
+
+	if ( (conn->c_prfd == NULL) && 
+	     (getpeername( conn->c_sd, (struct sockaddr *)&addr, &addrlen )
+	      == 0) ) {
+	    conn->cin_addr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
+	    memset( conn->cin_addr, 0, sizeof( PRNetAddr ) );
+	    PR_NetAddrFamily( conn->cin_addr ) = AF_INET6;
+	    /* note: IPv4-mapped IPv6 addr does not work on Windows */
+	    PR_ConvertIPv4AddrToIPv6(addr.sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
+	    PRLDAP_SET_PORT(conn->cin_addr, addr.sin_port);
+
+	    /* copy string equivalent of address into a buffer to use for
+	     * logging since each call to inet_ntoa() returns a pointer to a
+	     * single thread-specific buffer (which prevents us from calling
+	     * inet_ntoa() twice in one call to slapi_log_access()).
+	     */
+	    str_ip = inet_ntoa( addr.sin_addr );
+	    strncpy( buf_ip, str_ip, sizeof( buf_ip ) - 1 );
+	    buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
+	    str_ip = buf_ip;
+	} else {
+	    str_ip = str_unknown;
+	}
+    }
 
     /*
      * get destination address (server IP address this client connected to)
      */
-    destaddrlen = sizeof( destaddr );
-    memset( &destaddr, 0, destaddrlen );
-			    
-
+    slapi_ch_free( (void**)&conn->cin_addr ); /* just to be conservative */
     if ( conn->c_prfd != NULL ) {
-                conn->cin_destaddr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
-		if (PR_GetSockName( conn->c_prfd, conn->cin_destaddr ) == 0) {
-		        if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
-			     PRNetAddr v4destaddr;
-			     memset( &v4destaddr, 0, sizeof( v4destaddr ) );
-			     v4destaddr.inet.family = PR_AF_INET;
-			     v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
-			     PR_NetAddrToString( &v4destaddr, buf_destip, sizeof( buf_destip ) );
-			} else {
-			     PR_NetAddrToString( conn->cin_destaddr, buf_destip, sizeof( buf_destip ) );
-			}
-			buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
-			str_destip = buf_destip;		        
-		} else {
-		        str_destip = str_unknown;
-		}
-    } else if ( (conn->c_prfd == NULL) && 
-		(getsockname( conn->c_sd, (struct sockaddr*)&destaddr, &destaddrlen ) == 0) ) {
-                conn->cin_destaddr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ) );
-		
-		if ( PR_SetNetAddr(PR_IpAddrNull, PR_AF_INET6, destaddr.sin_port, conn->cin_destaddr)
-		     != PR_SUCCESS ) {
-		        int oserr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY, "PR_SetNetAddr() failed, "
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					oserr, slapd_pr_strerror(oserr), 0 );
-		} else {
-		        PR_ConvertIPv4AddrToIPv6(destaddr.sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
-		}
-
-                /* copy string equivalent of address into a buffer to use for
-                 * logging since each call to inet_ntoa() returns a pointer to a
-                 * single thread-specific buffer (which prevents us from calling
-                 * inet_ntoa() twice in one call to slapi_log_access()).
-                 */
-                str_destip = inet_ntoa( destaddr.sin_addr );
-                strncpy( buf_destip, str_destip, sizeof( buf_destip ) - 1 );
-                buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
-                str_destip = buf_destip;
-     
-    } else {
-                str_destip = str_unknown;
-    }      
-
-
-	if ( !in_referral_mode ) {
-		/* create a sasl connection */
-		ids_sasl_server_new(conn);
+	conn->cin_destaddr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
+	memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
+	if (PR_GetSockName( conn->c_prfd, conn->cin_destaddr ) == 0) {
+	    if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
+		PRNetAddr v4destaddr;
+		memset( &v4destaddr, 0, sizeof( v4destaddr ) );
+		v4destaddr.inet.family = PR_AF_INET;
+		v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
+		PR_NetAddrToString( &v4destaddr, buf_destip, sizeof( buf_destip ) );
+	    } else {
+		PR_NetAddrToString( conn->cin_destaddr, buf_destip, sizeof( buf_destip ) );
+	    }
+	    buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
+	    str_destip = buf_destip;		        
+	} else {
+	    str_destip = str_unknown;
 	}
+    } else {
+	/* try syscall since c_prfd == NULL */
+	/* a corner case */
+	struct sockaddr_in	destaddr; /* assuming IPv4 */
+	socklen_t		destaddrlen;
+
+	destaddrlen = sizeof( destaddr );
+	memset( &destaddr, 0, destaddrlen );
+	if ( (getsockname( conn->c_sd, (struct sockaddr *)&destaddr,
+					&destaddrlen ) == 0) ) {
+	    conn->cin_destaddr =
+		    (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
+	    memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
+	    PR_NetAddrFamily( conn->cin_destaddr ) = AF_INET6;
+	    PRLDAP_SET_PORT( conn->cin_destaddr, destaddr.sin_port );
+	    /* note: IPv4-mapped IPv6 addr does not work on Windows */
+	    PR_ConvertIPv4AddrToIPv6(destaddr.sin_addr.s_addr,
+				     &(conn->cin_destaddr->ipv6.ip));
+
+	    /* copy string equivalent of address into a buffer to use for
+	     * logging since each call to inet_ntoa() returns a pointer to a
+	     * single thread-specific buffer (which prevents us from calling
+	     * inet_ntoa() twice in one call to slapi_log_access()).
+	     */
+	    str_destip = inet_ntoa( destaddr.sin_addr );
+	    strncpy( buf_destip, str_destip, sizeof( buf_destip ) - 1 );
+	    buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
+	    str_destip = buf_destip;
+	} else {
+	    str_destip = str_unknown;
+	}      
+    }
+
+
+    if ( !in_referral_mode ) {
+	/* create a sasl connection */
+	ids_sasl_server_new(conn);
+    }
 
     /* log useful stuff to our access log */
     slapi_log_access( LDAP_DEBUG_STATS,
@@ -343,7 +347,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
     conn->c_starttime = current_time();
-	conn->c_idlesince = conn->c_starttime;
+    conn->c_idlesince = conn->c_starttime;
     conn->c_flags = is_SSL ? CONN_FLAG_SSL : 0;
     conn->c_authtype = slapi_ch_strdup(SLAPD_AUTH_NONE);
 }
@@ -624,6 +628,7 @@ Operation *get_current_op(Connection *conn);
 static int handle_read_data(Connection *conn,Operation **op,
 	 int * connection_referenced);
 int queue_pushed_back_data(Connection *conn);
+static int add_to_select_set(Connection *conn);
 
 static void inc_op_count(Connection* conn)
 {

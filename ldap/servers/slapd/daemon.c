@@ -277,7 +277,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
 
-#if !defined( XP_WIN32 )
+#if !defined( XP_WIN32 ) /* UNIX */
 	(*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
 	if( !(*pr_clonefd) ) {
 		PRErrorCode prerr = PR_GetError();
@@ -289,7 +289,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 
 	ns = configure_pr_socket( pr_clonefd, secure );
 
-#else
+#else /* Windows */
 	if( secure ) {
 		(*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
 		if( !(*pr_clonefd) ) {
@@ -315,10 +315,10 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 
 		ns = configure_pr_socket( pr_clonefd, secure );
 
-	} else { 
-	        struct sockaddr *addr;
+	} else { /* !secure */
+		struct sockaddr *addr; /* NOT IPv6 enabled */
 
-			addr = (struct sockaddr *) slapi_ch_malloc( sizeof(struct sockaddr) );
+		addr = (struct sockaddr *) slapi_ch_malloc( sizeof(struct sockaddr) );
 		ns = accept (s, addr, (TCPLEN_T *)&addrlen);
 
 		if (ns == SLAPD_INVALID_SOCKET) {
@@ -329,24 +329,17 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 				   s, oserr, slapd_system_strerror(oserr));
 		}
 
-        else if (syn_scan (ns))
-        {
-            /* this is a work around for accept problem with SYN scan on NT.
-            See bug 391414 for more details */
-            LDAPDebug(LDAP_DEBUG_ANY, "syn-scan request is received - ignored\n", 0, 0, 0);			    
-            closesocket (ns);
-            ns = SLAPD_INVALID_SOCKET;
-        }
-
-		if ( PR_SetNetAddr(PR_IpAddrNull, PR_AF_INET6, ((struct sockaddr_in *)addr)->sin_port, pr_netaddr)
-		     != PR_SUCCESS ) {
-			int oserr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY, "PR_SetNetAddr() failed, "
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					oserr, slapd_pr_strerror(oserr), 0 );
-		} else {
-		        PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)addr)->sin_addr.s_addr, &(pr_netaddr->ipv6.ip));
+		else if (syn_scan (ns))
+		{
+			/* this is a work around for accept problem with SYN scan on NT.
+			See bug 391414 for more details */
+			LDAPDebug(LDAP_DEBUG_ANY, "syn-scan request is received - ignored\n", 0, 0, 0);				
+			closesocket (ns);
+			ns = SLAPD_INVALID_SOCKET;
 		}
+
+		PRLDAP_SET_PORT( pr_netaddr, ((struct sockaddr_in *)addr)->sin_port );
+		PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)addr)->sin_addr.s_addr, &(pr_netaddr->ipv6.ip));
 
 		(*pr_clonefd) = NULL;
 
@@ -2278,7 +2271,7 @@ suppressed:
 
 
 static PRFileDesc *
-createprlistensocket(unsigned short port, const PRNetAddr *listenaddr,
+createprlistensocket(PRUint16 port, const PRNetAddr *listenaddr,
 		int secure)
 {
 	PRFileDesc			*sock;
@@ -2313,15 +2306,7 @@ createprlistensocket(unsigned short port, const PRNetAddr *listenaddr,
 
 	/* set up listener address, including port */
 	memcpy(&sa_server, listenaddr, sizeof(sa_server));
-	if ( PR_SetNetAddr(PR_IpAddrNull, PR_AF_INET6, port, &sa_server)
-				!= PR_SUCCESS ) {
-		prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, logname,
-				"PR_SetNetAddr() failed: %s error %d (%s)\n",
-				SLAPI_COMPONENT_NAME_NSPR,
-				prerr, slapd_pr_strerror(prerr));
-		goto failed;
-	}
+	PRLDAP_SET_PORT( &sa_server, port );
 
 	if ( PR_Bind(sock, &sa_server) == PR_FAILURE) {
 		prerr = PR_GetError();
@@ -2354,8 +2339,7 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr *addr)
 {
 	char			*logname = "slapd_listenhost2addr";
 	PRErrorCode		prerr = 0;
-	PRHostEnt		hent;
-	char			hbuf[ PR_NETDB_BUF_SIZE ];
+	int				rval = 0;
 
 	PR_ASSERT( addr != NULL );
 
@@ -2366,37 +2350,33 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr *addr)
 			slapi_log_error( SLAPI_LOG_FATAL, logname,
 					"PR_SetNetAddr(PR_IpAddrAny) failed - %s error %d (%s)\n",
 					SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
-			goto failed;
+			rval = -1;
 		}
 	} else if (PR_SUCCESS == PR_StringToNetAddr(listenhost, addr)) {
-		if (PR_AF_INET == PR_NetAddrFamily(addr)) {
-			PRUint32	ipv4ip = addr->inet.ip;
-			memset(addr, 0, sizeof(PRNetAddr));
-			PR_ConvertIPv4AddrToIPv6(ipv4ip, &addr->ipv6.ip);
-			addr->ipv6.family = PR_AF_INET6;
-		}
-	} else if (PR_SUCCESS == PR_GetIPNodeByName(listenhost,
-				PR_AF_INET6, PR_AI_DEFAULT | PR_AI_ALL,
-				hbuf, sizeof(hbuf), &hent )) {
-		/* just use the first IP address returned */
-		if (PR_EnumerateHostEnt(0, &hent, 0, addr) < 0) {
+		/* PR_StringNetAddr newer than NSPR v4.6.2 supports both IPv4&v6 */; 
+	} else {
+		PRAddrInfo *infop = PR_GetAddrInfoByName( listenhost,
+						PR_AF_UNSPEC, (PR_AI_ADDRCONFIG|PR_AI_NOCANONNAME) );
+		if ( NULL != infop ) {
+			memset( addr, 0, sizeof( PRNetAddr ));
+			if ( NULL == PR_EnumerateAddrInfo( NULL, infop, 0, addr )) {
+				slapi_log_error( SLAPI_LOG_FATAL, logname,
+					"PR_EnumerateAddrInfo for %s failed - %s error %d (%s)\n",
+					listenhost, SLAPI_COMPONENT_NAME_NSPR, prerr,
+					slapd_pr_strerror(prerr));
+				rval = -1;
+			}
+			PR_FreeAddrInfo( infop );
+		} else {
 			slapi_log_error( SLAPI_LOG_FATAL, logname,
-					"PR_EnumerateHostEnt() failed - %s error %d (%s)\n",
-					SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
-			goto failed;
+					"PR_GetAddrInfoByName(%s) failed - %s error %d (%s)\n",
+					listenhost, SLAPI_COMPONENT_NAME_NSPR, prerr,
+					slapd_pr_strerror(prerr));
+			rval = -1;
 		}
-	} else {	/* failure */
-		slapi_log_error( SLAPI_LOG_FATAL, logname,
-				"PR_GetIPNodeByName(%s) failed - %s error %d (%s)\n",
-				listenhost, SLAPI_COMPONENT_NAME_NSPR, prerr,
-				slapd_pr_strerror(prerr));
-		goto failed;
 	}
 
-	return( 0 );
-
-failed:
-	return( -1 );
+	return rval;
 }
 
 

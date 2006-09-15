@@ -1236,6 +1236,22 @@ void    DS_Sleep(PRIntervalTime ticks);
 #define SLAPI_UPGRADEDB_SKIPINIT 0x2 /* call upgradedb as part of other op */
 #endif
 
+/*
+ * Macro to set port to the 'port' field of a NSPR PRNetAddr union.
+ ** INPUTS:
+ ** PRNetAddr *myaddr   A network address.
+ ** PRUint16   myport   port to set to the 'port' field of 'addr'.
+ ** RETURN: none
+ *
+ * Note: Copy from ldappr-int.h in
+ *   ldapcsdk:mozilla/directory/c-sdk/ldap/libraries/libprldap
+ * Introduced to avoid calling PR_SetNetAddr w/ PR_IpAddrNull just to set port.
+ * Once NSPR starts providing better function/macro to do the same job,
+ * this macro should be replaced with it. (newer than NSPR v4.6.2)
+ */
+#define PRLDAP_SET_PORT(myaddr,myport) \
+    ((myaddr)->raw.family == PR_AF_INET6 ? ((myaddr)->ipv6.port = PR_htons(myport)) : ((myaddr)->inet.port = PR_htons(myport)))
+
 #ifdef __cplusplus
 }
 #endif
