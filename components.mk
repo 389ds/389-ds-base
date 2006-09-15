@@ -623,15 +623,15 @@ DSDOC_COPYRIGHT = slapd_copyright.zip
 ifdef PERLDAP_SOURCE_ROOT
   PERLDAP_BUILT_DIR = $(PERLDAP_SOURCE_ROOT)/directory/perldap/blib
 # else set in internal_buildpaths.mk and pulled in internal_comp_deps.mk
+  PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
+  PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
+  PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
+  # under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
+  PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
 endif
 
-PERLDAP_ARCHLIB_DIR = $(PERLDAP_BUILT_DIR)/arch
-PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
-PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
-# under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
-PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
-PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
-PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
 
 # 32-bit perldap is packaged in 64-bit DS on Solaris and HP-UX PA-RISC.
 # It requires 32-bit LDAPSDK, NSPR, NSS.

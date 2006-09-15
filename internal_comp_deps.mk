@@ -538,8 +538,9 @@ endif
 ### Perldap package #######################################
 
 PERLDAP_COMPONENT_DIR = $(COMPONENTS_DIR_DEV)/perldap/$(PERLDAP_VERSION)/$(NSOBJDIR_NAME)
-PERLDAP_FILES=lib,arch
-PERLDAP_DEP = $(PERLDAP_BUILT_DIR)/lib
+PERLDAP_FILES=lib
+PERLDAP_DEP = $(PERLDAP_BUILT_DIR)/lib/perl
+PACKAGE_SRC_DEST += $(PERLDAP_DEP) lib
 
 # this is the rule to pull PerLDAP
 ifndef PERLDAP_PULL_METHOD

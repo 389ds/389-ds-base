@@ -60,9 +60,7 @@ MCC_INCLUDE=-I$(BUILD_ROOT)/include \
 			 $(DBM_INCLUDE) $(LDAPSDK_INCLUDE) \
 			 $(SECURITY_INCLUDE) $(NSPR_INCLUDE) 
 
-CERTMAP_CONF = $(RELDIR)/shared/config/certmap.conf
-
-all: $(OBJDEST) $(LOCAL_DEPS) $(LIBS) $(CERTMAP_CONF)
+all: $(OBJDEST) $(LOCAL_DEPS) $(LIBS)
 
 $(OBJDEST):
 	mkdir -p $(OBJDEST)
@@ -93,13 +91,6 @@ $(LIBS):  $(OBJS)
 	rm -f $@
 	$(AR) $(OBJS)
 	$(RANLIB) $@
-
-$(CERTMAP_CONF): certmap.conf
-	rm -f $@
-	if [ ! -d $(dir $@) ] ; then \
-		mkdir -p $(dir $@) ; \
-	fi
-	cp $< $(dir $@)
 
 include $(INCLUDE_DEPENDS)
 
