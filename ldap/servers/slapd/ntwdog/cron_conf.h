@@ -36,7 +36,7 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 /***********************************************************************
-** $Id: cron_conf.h,v 1.4 2005/04/19 22:07:40 nkinder Exp $
+** $Id: cron_conf.h,v 1.5 2006/09/15 16:26:44 rmeggins Exp $
 **
 **
 ** NAME
@@ -111,7 +111,6 @@ void cron_conf_write();
 /* free all cron conf data structures */
 void cron_conf_free();
 
-#define MAGNUS_CONF "magnus.conf"
 #define ADMCONFDIR "../config/"
 
 
