@@ -86,7 +86,7 @@ which is one of the objectclasses of the plugin entry:
 * pamIDAttr (string) - The value of this attribute, present in the
 	user's entry, holds the PAM identity of the user - it maps the LDAP
 	identity to the PAM identity
-* pamMapMethod (string)
+* pamIDMapMethod (string)
       o RDN (default) - uses the value from the leftmost RDN in the BIND DN
       o ENTRY - gets the value of the PAM identity attribute from the BIND DN entry
       o DN - uses the full DN string
@@ -137,13 +137,13 @@ to avoid it if possible.
 We may have to worry about different PAM policy in different subtrees
 e.g. maybe for dc=coke,dc=com you want to use the ENTRY map method,
 but for dc=pepsi,dc=com you want to use the RDN method. We could
-probably do this by having the pamMapMethod attr be multivalued, and
+probably do this by having the pamIDMapMethod attr be multivalued, and
 have it's value like this:
 
-pamMapMethod: RDN dc=coke,dc=com
-pamMapMethod: RDN dc=sprite,dc=com
-pamMapMethod: ENTRY dc=pepsi,dc=com
-pamMapMethod: DN (the default for all other suffixes)
+pamIDMapMethod: RDN dc=coke,dc=com
+pamIDMapMethod: RDN dc=sprite,dc=com
+pamIDMapMethod: ENTRY dc=pepsi,dc=com
+pamIDMapMethod: DN (the default for all other suffixes)
 
 The suffix that uses that map method would follow the map method used.
 
@@ -201,7 +201,7 @@ nsslapd-plugin-depends-on-type: database
 pamMissingSuffix: ALLOW
 pamExcludeSuffix: o=NetscapeRoot
 pamExcludeSuffix: cn=config
-pamMapMethod: RDN
+pamIDMapMethod: RDN
 pamFallback: FALSE
 pamSecure: TRUE
 pamService: ldapserver

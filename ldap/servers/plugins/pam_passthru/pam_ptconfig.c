@@ -188,11 +188,11 @@ meth_to_int(char **map_method, int *err)
 {
 	char *end;
 	int len;
-	int ret;
+	int ret = PAMPT_MAP_METHOD_NONE;
 
 	*err = 0;
 	if (!map_method || !*map_method) {
-		return PAMPT_MAP_METHOD_NONE;
+		return ret;
 	}
 
 	end = strchr(*map_method, ' ');
@@ -211,7 +211,7 @@ meth_to_int(char **map_method, int *err)
 		*err = 1;
 	}
 
-	if (!err) {
+	if (!*err) {
 		if (end && *end) {
 			*map_method = end + 1;
 		} else {
@@ -225,36 +225,37 @@ meth_to_int(char **map_method, int *err)
 static int
 parse_map_method(char *map_method, int *one, int *two, int *three, char *returntext)
 {
-	int err = 0;
+	int err = LDAP_SUCCESS;
 	int extra;
+	char **ptr = &map_method;
 
 	*one = *two = *three = PAMPT_MAP_METHOD_NONE;
-	*one = meth_to_int(&map_method, &err);
+	*one = meth_to_int(ptr, &err);
 	if (err) {
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"The map method in the string [%s] is invalid: must be "
 					"one of %s", map_method, get_map_method_values());
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
-	*two = meth_to_int(&map_method, &err);
+	*two = meth_to_int(ptr, &err);
 	if (err) {
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"The map method in the string [%s] is invalid: must be "
 					"one of %s", map_method, get_map_method_values());
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
-	*three = meth_to_int(&map_method, &err);
+	*three = meth_to_int(ptr, &err);
 	if (err) {
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"The map method in the string [%s] is invalid: must be "
 					"one of %s", map_method, get_map_method_values());
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
-	if (((extra = meth_to_int(&map_method, &err)) != PAMPT_MAP_METHOD_NONE) ||
+	if (((extra = meth_to_int(ptr, &err)) != PAMPT_MAP_METHOD_NONE) ||
 		err) {
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"Invalid extra text [%s] after last map method",
-					map_method);
+					((ptr && *ptr) ? *ptr : "(null)"));
 		return LDAP_UNWILLING_TO_PERFORM;		
 	}
 
@@ -341,7 +342,10 @@ pam_passthru_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_
 	map_method = slapi_entry_attr_get_charptr(e, PAMPT_MAP_METHOD_ATTR);
 	if (map_method) {
 		int one, two, three;
-		*returncode = parse_map_method(map_method, &one, &two, &three, returntext);
+		if (LDAP_SUCCESS !=
+			(*returncode = parse_map_method(map_method, &one, &two, &three, returntext))) {
+			goto done; /* returntext set already */
+		}
 		if (!pam_ident_attr &&
 			((one == PAMPT_MAP_METHOD_ENTRY) || (two == PAMPT_MAP_METHOD_ENTRY) ||
 			 (three == PAMPT_MAP_METHOD_ENTRY))) {
@@ -351,7 +355,8 @@ pam_passthru_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_
 			*returncode = LDAP_UNWILLING_TO_PERFORM;
 			goto done;
 		}
-		if (one == two == three == PAMPT_MAP_METHOD_NONE) {
+		if ((one == PAMPT_MAP_METHOD_NONE) && (two == PAMPT_MAP_METHOD_NONE) &&
+			(three == PAMPT_MAP_METHOD_NONE)) {
 			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Error: no method(s)"
 						" specified for %s, should be one or more of %s",
 						PAMPT_MAP_METHOD_ATTR, get_map_method_values());
