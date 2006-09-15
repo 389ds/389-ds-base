@@ -389,7 +389,9 @@ else
   SASL_LIB_ROOT_NAME = sasl2
   SASL_LIBS = lib$(SASL_LIB_ROOT_NAME).a
   ifeq ($(ARCH), Linux)
-    GSSAPI_LIBS=-lgssapi_krb5
+# I don't think we need this anymore
+    GSSAPI_LIBS=
+#    GSSAPI_LIBS=-lgssapi_krb5
   endif
   ifeq ($(ARCH), SOLARIS)
     GSSAPI_LIBS=-lgss
@@ -643,11 +645,6 @@ ifeq ($(USE_64), 1)
       PACKAGE_LIB32:=1
     endif
   endif
-endif
-
-# must package certmap.conf ourselves if not using admin server
-ifneq ($(USE_ADMINSERVER), 1)
-  PACKAGE_SRC_DEST += $(BUILD_ROOT)/lib/ldaputil/certmap.conf shared/config
 endif
 
 # must define dependencies last because they depend on the definitions above

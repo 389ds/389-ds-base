@@ -306,6 +306,88 @@ dummy:
 importAdmin:
 
 releaseDirectory:
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/slapd-collations.conf $(RELDIR)/bin/slapd/install/config
+
+# the httpd library
+ifneq ($(ARCH), WINNT)
+	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/bin/slapd/lib
+endif
+
+# Images for IM Presence plugin
+ifdef BUILD_PRESENCE
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/bin/slapd/install/presence
+endif
+
+ifdef USE_PURIFY
+	-$(INSTALL) -m 755 $(DB_LIBPATH)/*.so_pure* $(RELDIR)/lib
+	-$(INSTALL) -m 755 $(NSCP_DISTDIR)/lib/*.so_pure* $(RELDIR)/lib
+	rm -f $(RELDIR)/bin/slapd/server/ns-slapd
+	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.pure $(RELDIR)/bin/slapd/server/ns-slapd
+endif
+ifdef USE_QUANTIFY
+	rm -f $(RELDIR)/bin/slapd/server/ns-slapd
+	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.quantify $(RELDIR)/bin/slapd/server/ns-slapd
+endif
+
+	$(INSTALL) -m 755 $(OBJDIR)/lib/libsi18n/ns-slapd.properties $(RELDIR)/bin/slapd/property;
+
+# Install LDAP Readme and License files at root of SLAPD Release sub-directory.
+ifeq ($(ARCH), WINNT)
+	if [ -d $(LDAPDIR)/docs ] ; then \
+		cd $(LDAPDIR)/docs; \
+		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR)/bin/slapd; \
+		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR); \
+		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR)/bin/slapd; \
+		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR); \
+	fi
+else
+	if [ -d $(LDAPDIR)/docs ] ; then \
+		cd $(LDAPDIR)/docs; \
+		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR)/bin/slapd; \
+		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR); \
+	fi
+endif
+
+# include the old configuration files in the package so we can use them
+# for comparison purposes during migration
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v1confs/*.* $(RELDIR)/bin/slapd/install/version1
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v3confs/*.* $(RELDIR)/bin/slapd/install/version3
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/40/*.*  $(RELDIR)/bin/slapd/install/version4/40
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/41/*.*  $(RELDIR)/bin/slapd/install/version4/41
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/411/*.* $(RELDIR)/bin/slapd/install/version4/411
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/412/*.* $(RELDIR)/bin/slapd/install/version4/412
+
+# for RPM, include the post install setup program
+ifdef BUILD_RPM
+	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/setup
+endif # BUILD_RPM
+
+	find $(RELDIR) -exec chmod go-w {} \;
+# $(RELDIR)/bin/slapd/server may host a core file if the server crashes
+# shortly after startup (otherwise, cores go in slapd-instance/logs)
+# For security reasons, it's readable only by the owner
+# but it needs to be executable (11) so that it can
+# load in shared libs from slapd/lib after the setuid
+	chmod 711 $(RELDIR)/bin/slapd/server
+
+$(INSTDIR):
+	$(MKDIR) -p $@
+
+$(INSTDIR)/slapd:
+ifeq ($(USE_SETUPUTIL), 1)
+	$(MKDIR) -p $@
+endif
+
+# Packaging for UNIX is totally different than NT, so we conditionally execute here
+
+ifneq ($(ARCH), WINNT)
+
+# ---THE UNIX PACKAGE---
+packageDirectory: $(INSTDIR) $(INSTDIR)/slapd \
+	$(ADMSERV_DEP)
+
 # LIBS_TO_PKG is defined in components.mk - these are component files (not directories) to install
 # with the other component files that we don't necessarily pick up from the admin server build
 # see below for windows packaging
@@ -422,7 +504,6 @@ ifdef PACKAGE_UNDER_JAVA
 	done
 endif
 
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/dsml/*.dsml $(RELDIR)/bin/slapd/install/dsml
 
 ### Package up the orgchart ###
@@ -444,9 +525,6 @@ else
 endif
 endif # USE_ORGCHART
 ### end orgchart package ###
-
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/slapd-collations.conf $(RELDIR)/bin/slapd/install/config
 
 # libdb for windows special and smartheap
 ifeq ($(ARCH), WINNT)
@@ -515,12 +593,6 @@ ifeq ($(ARCH), WINNT)
 	$(INSTALL) -m 755 $(DB_LIBPATH)/$(DB_LIBNAME).lib $(RELDIR)/plugins/slapd/slapi/examples/lib
 endif
 
-# the httpd library
-ifneq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/bin/slapd/lib
-	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/clients/lib
-endif
-
 # install the ds jar file in the <server root>/$(DS_JAR_DEST_PATH) directory
 # also install the other jar files we use
 ifeq ($(USE_CONSOLE), 1)
@@ -537,11 +609,6 @@ ifeq ($(USE_JAVATOOLS), 1)
 	if [ -f $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) ] ; then \
 		$(INSTALL) -m 644 $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) $(EXT_JAVA_RELDIR)/$(DS_JAR_DEST_PATH) ; \
 	fi
-endif
-
-# Images for IM Presence plugin
-ifdef BUILD_PRESENCE
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/bin/slapd/install/presence
 endif
 
 # docs
@@ -566,77 +633,9 @@ endif
       fi ; \
 	fi
 
-ifdef USE_PURIFY
-	-$(INSTALL) -m 755 $(DB_LIBPATH)/*.so_pure* $(RELDIR)/lib
-	-$(INSTALL) -m 755 $(NSCP_DISTDIR)/lib/*.so_pure* $(RELDIR)/lib
-	rm -f $(RELDIR)/bin/slapd/server/ns-slapd
-	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.pure $(RELDIR)/bin/slapd/server/ns-slapd
-endif
-ifdef USE_QUANTIFY
-	rm -f $(RELDIR)/bin/slapd/server/ns-slapd
-	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.quantify $(RELDIR)/bin/slapd/server/ns-slapd
-endif
-
 # Copy db tools 
 	$(INSTALL) -m 755 $(DB_BINPATH)/db_printlog$(EXE_SUFFIX) $(RELDIR)/bin/slapd/server
 	$(INSTALL) -m 755 $(DB_BINPATH)/db_verify$(EXE_SUFFIX) $(RELDIR)/bin/slapd/server
-
-	$(INSTALL) -m 755 $(OBJDIR)/lib/libsi18n/ns-slapd.properties $(RELDIR)/bin/slapd/property;
-
-# Install LDAP Readme and License files at root of SLAPD Release sub-directory.
-ifeq ($(ARCH), WINNT)
-	if [ -d $(LDAPDIR)/docs ] ; then \
-		cd $(LDAPDIR)/docs; \
-		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR)/bin/slapd; \
-		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR); \
-		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR)/bin/slapd; \
-		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR); \
-	fi
-else
-	if [ -d $(LDAPDIR)/docs ] ; then \
-		cd $(LDAPDIR)/docs; \
-		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR)/bin/slapd; \
-		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR); \
-	fi
-endif
-
-# include the old configuration files in the package so we can use them
-# for comparison purposes during migration
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v1confs/*.* $(RELDIR)/bin/slapd/install/version1
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v3confs/*.* $(RELDIR)/bin/slapd/install/version3
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/40/*.*  $(RELDIR)/bin/slapd/install/version4/40
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/41/*.*  $(RELDIR)/bin/slapd/install/version4/41
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/411/*.* $(RELDIR)/bin/slapd/install/version4/411
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/412/*.* $(RELDIR)/bin/slapd/install/version4/412
-
-# for RPM, include the post install setup program
-ifdef BUILD_RPM
-	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/setup
-endif # BUILD_RPM
-
-	find $(RELDIR) -exec chmod go-w {} \;
-# $(RELDIR)/bin/slapd/server may host a core file if the server crashes
-# shortly after startup (otherwise, cores go in slapd-instance/logs)
-# For security reasons, it's readable only by the owner
-# but it needs to be executable (11) so that it can
-# load in shared libs from slapd/lib after the setuid
-	chmod 711 $(RELDIR)/bin/slapd/server
-
-$(INSTDIR):
-	$(MKDIR) -p $@
-
-$(INSTDIR)/slapd:
-ifeq ($(USE_SETUPUTIL), 1)
-	$(MKDIR) -p $@
-endif
-
-# Packaging for UNIX is totally different than NT, so we conditionally execute here
-
-ifneq ($(ARCH), WINNT)
-
-# ---THE UNIX PACKAGE---
-packageDirectory: $(INSTDIR) $(INSTDIR)/slapd \
-	$(ADMSERV_DEP)
 
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
 ifeq ($(USE_SETUPUTIL), 1)

@@ -316,6 +316,9 @@ Acceptance:
 Longduration:
 	cd ldap/cm; $(MAKE) Longduration $(MFLAGS)
 
+releaseDirectory:
+	cd ldap/cm; $(MAKE) $(MFLAGS) releaseDirectory
+
 setupDirectory:
 	cd ldap/cm; $(MAKE) $(MFLAGS) releaseDirectory;
 	cd ldap/cm; $(MAKE) $(MFLAGS) packageDirectory;

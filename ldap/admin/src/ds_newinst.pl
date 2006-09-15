@@ -183,7 +183,9 @@ $cgiargs{adminport} = $table{admin}->{Port};
 
 # If this is set, the new DS instance will be set up for use as
 # a Configuration DS (e.g. o=NetscapeRoot)
-$cgiargs{cfg_sspt} = $table{slapd}->{SlapdConfigForMC};
+if ($table{slapd}->{SlapdConfigForMC} =~ /yes/i) {
+    $cgiargs{cfg_sspt} = "1";
+}
 # set this to 1 to register this DS with an existing Configuration DS
 # or 0 to create this DS as a new Configuration DS
 $cgiargs{use_existing_config_ds} = $table{slapd}->{UseExistingMC};
