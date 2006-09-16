@@ -551,7 +551,7 @@ $(PERLDAP_DEP):
 ifdef INTERNAL_BUILD
 	$(RM) -rf $@
 	$(FTP_PULL) -method $(PERLDAP_PULL_METHOD) \
-		-objdir $(dir $@) \
+		-objdir $(PERLDAP_BUILT_DIR) \
 		-componentdir $(PERLDAP_COMPONENT_DIR) \
 		-files $(PERLDAP_FILES)
 	@if [ ! -d $@ ] ; \
