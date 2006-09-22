@@ -52,7 +52,7 @@
 # naming scheme.
 # NSPR
 ifndef NSPR_RELDATE
-  NSPR_RELDATE = v4.6.2-dstest
+  NSPR_RELDATE = v4.6.3-dstest
 endif
 
 # SECURITY (NSS) LIBRARY
