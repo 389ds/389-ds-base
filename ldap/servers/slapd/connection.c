@@ -281,7 +281,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     /*
      * get destination address (server IP address this client connected to)
      */
-    slapi_ch_free( (void**)&conn->cin_addr ); /* just to be conservative */
+    slapi_ch_free( (void**)&conn->cin_destaddr ); /* just to be conservative */
     if ( conn->c_prfd != NULL ) {
 	conn->cin_destaddr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
 	memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
