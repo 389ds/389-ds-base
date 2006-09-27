@@ -52,7 +52,7 @@
 
 /*#define CGI_DEBUG 1*/
 
-#define TEST_CONFIG /* for testing cn=config40 dummy entry instead of real one */
+#undef TEST_CONFIG /* for testing cn=config40 dummy entry instead of real one */
 
 char* const NULLSTR = 0;
 
@@ -1054,6 +1054,7 @@ create_NetscapeRoot(LDAP* ld, const char *DN)
 	return ret;
 }
 
+#ifdef TEST_CONFIG
 static int
 create_configEntry(LDAP* ld)
 {
@@ -1121,6 +1122,7 @@ create_configEntry(LDAP* ld)
 
 	return ret;
 }
+#endif
 
 int
 create_group(LDAP* ld, char* base, char* group)
@@ -1388,6 +1390,7 @@ write_ldap_info(SLAPD_CONFIG* slapd, char* base, char* admnm)
 	return ret;
 }
 
+#ifdef TEST_CONFIG
 int
 config_configEntry(LDAP* connection, QUERY_VARS* query)
 {
@@ -1396,6 +1399,7 @@ config_configEntry(LDAP* connection, QUERY_VARS* query)
 	int ret = add_aci_v (connection, value_config40DN, ACI_self_allow, NULLSTR);
 	return ret;
 }
+#endif
 
 int
 config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
@@ -1629,11 +1633,13 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 		write_ldap_info(slapd, query->suffix, query->ssAdmID);
 	}
 
+#ifdef TEST_CONFIG
 	if (!status && query->testconfig)
 		status = create_configEntry(connection);
 
 	if (!status && query->testconfig)
 		status = config_configEntry(connection, query);
+#endif
 
 	if (connection)
 		ldap_unbind (connection);

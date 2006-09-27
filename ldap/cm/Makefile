@@ -310,7 +310,7 @@ releaseDirectory:
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/slapd-collations.conf $(RELDIR)/bin/slapd/install/config
 
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/lib/ldaputil/certmap.conf $(RELDIR)/shared/config
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/lib/ldaputil/certmap.conf $(RELDIR)/bin/slapd/install/config
 
 # the httpd library
 ifneq ($(ARCH), WINNT)

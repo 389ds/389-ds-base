@@ -4014,7 +4014,11 @@ init_schema_dse(const char *configdir)
 
 	slapi_sdn_init_dn_byref(&schema,"cn=schema");
 
-	schemadir = slapi_ch_smprintf("%s/%s", configdir, SCHEMA_SUBDIR_NAME);
+	schemadir = config_get_schemadir();
+	if (NULL == schemadir) {
+		/* schemadir info is not configured, let's use the default place */
+		schemadir = slapi_ch_smprintf("%s/%s", configdir, SCHEMA_SUBDIR_NAME);
+	}
 
 	filelist = get_priority_filelist(schemadir, ".*ldif$");
 	if (!filelist || !*filelist)

@@ -82,18 +82,22 @@
 #include <regparms.h>
 #include <nt/ntos.h>
 #define SHLIB_EXT "dll"
-#else
+
+#else /* !XP_WIN32 */
+
 #define NOT_ABSOLUTE_PATH(str) (str[0] != '/')
 #include <errno.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <pwd.h>
 
-#if !defined(HPUX) && !defined(LINUX2_0)
+#if !defined(HPUX)
 #include <sys/select.h>  /* FD_SETSIZE */
 #else
 #include <sys/types.h>   /* FD_SETSIZE is in types.h on HPUX */
 #endif
 
-#if !defined(_WIN32) && !defined(AIX)
+#if !defined(AIX)
 #include <sys/resource.h> /* get/setrlimit stuff */
 #endif
 
@@ -110,7 +114,7 @@
 #define SHLIB_EXT "so"
 #endif
 
-#endif
+#endif /* !XP_WIN32 */
 
 /* 
    NT doesn't strictly need these, but the libadmin API which is emulated
@@ -124,14 +128,12 @@
 #include <stdarg.h>
 
 #ifdef XP_WIN32
-
 OS_TYPE NS_WINAPI INFO_GetOperatingSystem ();
 DWORD NS_WINAPI SERVICE_ReinstallNTService( LPCTSTR szServiceName, 
                                             LPCTSTR szServiceDisplayName,
                                             LPCTSTR szServiceExe );
-
-
 #endif
+
 static void ds_gen_index(FILE* f, char* belowdn);
 static char *ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf);
 static char *ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type);
@@ -180,15 +182,6 @@ static int needToStartServer(server_config_s *cf)
     }
 
     return 0;
-}
-
-static char *
-myStrdup(const char *s)
-{
-    if (s == NULL)
-    return (char *)s;
-
-    return strdup(s);
 }
 
 static int getSuiteSpotUserGroup(server_config_s* cf)
@@ -248,7 +241,7 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     {
         if( (t = strchr(hn, '.')) )
             *t = '\0';
-		id = PR_smprintf("%s", hn);
+        id = PR_smprintf("%s", hn);
         if(t)
             *t = '.';
     }
@@ -314,20 +307,31 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     conf->consumerdn = NULL;
     conf->disable_schema_checking = NULL;
     conf->install_ldif_file = NULL;
+
+    conf->sysconfdir = NULL;
+    conf->datadir = NULL;
+    conf->docdir = NULL;
+    conf->inst_dir = NULL;
+    conf->config_dir = NULL;
+    conf->schema_dir = NULL;
+    conf->lock_dir = NULL;
+    conf->log_dir = NULL;
+    conf->run_dir = NULL;
+    conf->db_dir = NULL;
+    conf->bak_dir = NULL;
+    conf->ldif_dir = NULL;
 }
 
-
 /* ----------------- Sanity check a server configuration ------------------ */
-
 
 char *create_instance_checkport(char *, char *);
 char *create_instance_checkuser(char *);
 int create_instance_numbers(char *);
-int create_instance_exists(char *fn);
+int create_instance_exists(char *fn, int type);
 char *create_instance_copy(char *, char *, int);
 char *create_instance_concatenate(char *, char *, int);
 int create_instance_mkdir(char *, int);
-char *create_instance_mkdir_p(char *, int);
+char *create_instance_mkdir_p(char *, char *, int, struct passwd *);
 
 #if defined( SOLARIS )
 /*
@@ -419,8 +423,11 @@ contains8BitChars(const char *s)
 
 static char *sanity_check(server_config_s *cf, char *param_name)
 {
-    char *t, fn[PATH_SIZE];
+    char *t;
     register int x;
+#if 0
+    char fn[PATH_SIZE];
+#endif
 
     if (!param_name)
         return "Parameter param_name is null";
@@ -461,6 +468,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
                               cf->servid[x]);
         }
     }
+#if 0
     /* has that identifier already been used? */
     PR_snprintf(fn, sizeof(fn), "%s%c%s-%s", cf->sroot, FILE_PATHSEP, 
             PRODUCT_NAME, cf->servid);
@@ -475,6 +483,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
        }
    }
    */
+#endif
 
 #ifdef XP_UNIX
     if( (t = create_instance_checkuser(cf->servuser)) )
@@ -614,10 +623,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
 
 #ifdef XP_UNIX
 
-#include <unistd.h>
-#include <pwd.h>
-
-char*
+static char*
 chownfile (struct passwd* pw, char* fn)
 {
     if (pw != NULL && chown (fn, pw->pw_uid, pw->pw_gid) == -1) {
@@ -632,30 +638,14 @@ chownfile (struct passwd* pw, char* fn)
     return NULL;
 }
 
-char *chownlogs(char *sroot, char *user)
+static char *
+chowndir(char *dir, char *user)
 {
     struct passwd *pw;
-    char fn[PATH_SIZE];
-    if(user && *user && !geteuid())  {
+    if (dir && *dir && user && *user && !geteuid())  {
         if(!(pw = getpwnam(user)))
-            return make_error("Could not find UID and GID of user '%s'.", 
-                              user);
-        PR_snprintf(fn, sizeof(fn), "%s%clogs", sroot, FILE_PATHSEP);
-        return chownfile (pw, fn);
-    }
-    return NULL;
-}
-
-char *chownconfig(char *sroot, char *user)
-{
-    struct passwd *pw;
-    char fn[PATH_SIZE];
-    if(user && *user && !geteuid())  {
-        if(!(pw = getpwnam(user)))
-            return make_error("Could not find UID and GID of user '%s'.", 
-                              user);
-        PR_snprintf(fn, sizeof(fn), "%s%cconfig", sroot, FILE_PATHSEP);
-        return chownfile (pw, fn);
+            return make_error("Could not find UID and GID of user '%s'.", user);
+        return chownfile (pw, dir);
     }
     return NULL;
 }
@@ -663,8 +653,7 @@ char *chownconfig(char *sroot, char *user)
 #else
 
 #define chownfile(a, b) 
-#define chownlogs(a, b) 
-#define chownconfig(a, b) 
+#define chowndir(a, b) 
 #define chownsearch(a, b) 
 
 #endif
@@ -740,10 +729,10 @@ char *gen_perl_script(char *s_root, char *cs_path, char *name, char *fmt, ...)
     FILE *f;
     va_list args;
 
-	if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
-		printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
-		return NULL;
-	}
+    if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
+        printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
+        return NULL;
+    }
 
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
     PR_snprintf(myperl, sizeof(myperl), "%s%cbin%cslapd%cadmin%cbin%cperl",
@@ -775,10 +764,10 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
     char fn[PATH_SIZE], ofn[PATH_SIZE];
     const char *table[10][2];
 
-	if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
-		printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
-		return NULL;
-	}
+    if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
+        printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
+        return NULL;
+    }
 
     PR_snprintf(ofn, sizeof(ofn), "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s", s_root,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
@@ -789,7 +778,7 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 #else
-	strcpy(myperl, "!/usr/bin/env perl");
+    strcpy(myperl, "!/usr/bin/env perl");
 #endif
 
     table[0][0] = "DS-ROOT";
@@ -840,7 +829,7 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
             s_root, FILE_PATHSEP, FILE_PATHSEP,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 #else
-	strcpy(myperl, "!/usr/bin/env perl");
+    strcpy(myperl, "!/usr/bin/env perl");
 #endif
 
     table[0][0] = "DS-ROOT";
@@ -1083,8 +1072,8 @@ create_scripts(server_config_s *cf, char *param_name)
     char subdir[PATH_SIZE];
 
     /* Create slapd-nickname directory */
-    PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
-                 cf->servid);
+    PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s",
+                    sroot, FILE_PATHSEP, cf->servid);
 #ifdef XP_UNIX
     /* Start/stop/rotate/restart scripts */
     if (getenv("USE_DEBUGGER"))
@@ -1092,17 +1081,17 @@ create_scripts(server_config_s *cf, char *param_name)
         char *debugger = getenv("DSINST_DEBUGGER");
         char *debugger_command = getenv("DSINST_DEBUGGER_CMD");
         if (! debugger) {
-            debugger = "/tools/ns/workshop/bin/dbx";
+            debugger = "gdb";
         }
         if (! debugger_command) {
             debugger_command = "echo"; /* e.g. do nothing */
         }
 #ifdef OSF1
-        printf("-D %s -i %s/logs/pid -d %s -z\n", subdir, subdir,
+        printf("-D %s -i %s/pid -d %s -z\n", cf->config_dir, cf->run_dir, 
                cf->loglevel ? cf->loglevel : "0");
-        t = gen_script(subdir, START_SCRIPT,
+        t = gen_script(cf->inst_dir, START_SCRIPT,
                "\n"
-               "# Script that starts the ns-slapd server.\n"
+               "# Script that starts the %s.\n"
                "# Exit status can be:\n"
                "#       0: Server started successfully\n"
                "#       1: Server could not be started\n"
@@ -1110,17 +1099,19 @@ create_scripts(server_config_s *cf, char *param_name)
                "\n"
                "NETSITE_ROOT=%s\n"
                "export NETSITE_ROOT\n"
-               "PIDFILE=%s/logs/pid\n"
+               "%s=%s\n"
+               "export %s\n"
+               "PIDFILE=%s/pid\n"
                "if test -f $PIDFILE ; then\n"
                "    PID=`cat $PIDFILE`\n"
                "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-               "        echo There is an ns-slapd process already running: $PID\n"
+               "        echo There is an %s process already running: $PID\n"
                "        exit 2;\n"
                "    else\n"
                "        rm -f $PIDFILE\n"
                "    fi\n"
                "fi\n"
-               "cd %s/bin/%s/server; ./%s -D %s -i %s/logs/pid -d %s -z \"$@\" &\n"
+               "cd %s; ./%s -D %s -i %s/pid -d %s -z \"$@\" &\n"
                "loop_counter=1\n"
                "max_count=120\n"
                "while test $loop_counter -le $max_count; do\n"
@@ -1129,19 +1120,21 @@ create_scripts(server_config_s *cf, char *param_name)
                "        sleep 1;\n"
                "    else\n"
                "        PID=`cat $PIDFILE`\n"
-            /* rbyrne: setuputil takes any message here as an error:
-                "        echo Server has been started. ns-slapd process started: $PID\n"*/
+               /* rbyrne: setuputil takes any message here as an error:
+               "  echo Server has been started. ns-slapd process started: $PID\n"*/
                "        exit 0;\n"
                "    fi\n"
                "done\n"
                "echo Server not running!! Failed to start ns-slapd process.\n"
                "exit 1\n",
-               sroot, subdir, sroot, PRODUCT_NAME, PRODUCT_BIN, subdir,
-               subdir,
-           cf->loglevel ? cf->loglevel : "0"
+               PRODUCT_BIN,
+               sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
+               PRODUCT_BIN,
+               sroot, PRODUCT_BIN, cf->config_dir, cf->run_dir,
+               cf->loglevel ? cf->loglevel : "0"
         );
 #else
-        t = gen_script(subdir, START_SCRIPT,
+        t = gen_script(cf->inst_dir, START_SCRIPT,
                "\n"
                "# Script that starts the ns-slapd server.\n"
                "# Exit status can be:\n"
@@ -1151,7 +1144,9 @@ create_scripts(server_config_s *cf, char *param_name)
                "\n"
                "NETSITE_ROOT=%s\n"
                "export NETSITE_ROOT\n"
-               "PIDFILE=%s/logs/pid\n"
+               "%s=%s\n"
+               "export %s\n"
+               "PIDFILE=%s/pid\n"
                "if test -f $PIDFILE ; then\n"
                "    PID=`cat $PIDFILE`\n"
                "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
@@ -1161,12 +1156,12 @@ create_scripts(server_config_s *cf, char *param_name)
                "        rm -f $PIDFILE\n"
                "    fi\n"
                "fi\n"
-               "if [ -x /usr/local/bin/xterm ]; then\n"
-               "  xterm=/usr/local/bin/xterm\n"
+               "if [ -x /usr/bin/xterm ]; then\n"
+               "  xterm=/usr/bin/xterm\n"
                "else\n"
                "  xterm=/usr/openwin/bin/xterm\n"
                "fi\n"
-               "cd %s/bin/%s/server; $xterm -title debugger -e %s -c \"dbxenv follow_fork_mode child ; stop in main ; %s ; run -D %s -i %s/logs/pid -d %s -z $*\" %s &\n"
+               "cd %s; $xterm -title debugger -e %s -c \"dbxenv follow_fork_mode child ; break main ; %s ; run -D %s -i %s/pid -d %s -z $*\" %s &\n"
                "loop_counter=1\n"
                "max_count=120\n"
                "while test $loop_counter -le $max_count; do\n"
@@ -1182,15 +1177,15 @@ create_scripts(server_config_s *cf, char *param_name)
                "done\n"
                "echo Server not running!! Failed to start ns-slapd process.\n"
                "exit 1\n",
-               sroot, subdir, sroot, PRODUCT_NAME, debugger, debugger_command,
-               subdir,
-               subdir, cf->loglevel ? cf->loglevel : "0", PRODUCT_BIN
+               sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
+               sroot, debugger, debugger_command, cf->config_dir, cf->run_dir,
+               cf->loglevel ? cf->loglevel : "0", PRODUCT_BIN
         );
 #endif
     }
     else
     {
-        t = gen_script(subdir, START_SCRIPT,
+        t = gen_script(cf->inst_dir, START_SCRIPT,
             "\n"
             "# Script that starts the ns-slapd server.\n"
             "# Exit status can be:\n"
@@ -1200,12 +1195,14 @@ create_scripts(server_config_s *cf, char *param_name)
             "\n"
             "NETSITE_ROOT=%s\n"
             "export NETSITE_ROOT\n"
-            "PIDFILE=%s/logs/pid\n"
-            "STARTPIDFILE=%s/logs/startpid\n"
+            "%s=%s\n"
+            "export %s\n"
+            "PIDFILE=%s/pid\n"
+            "STARTPIDFILE=%s/startpid\n"
             "if test -f $STARTPIDFILE ; then\n"
             "    PID=`cat $STARTPIDFILE`\n"
             "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-            "        echo There is an ns-slapd process already running: $PID\n"
+            "        echo There is an %s process already running: $PID\n"
             "        exit 2;\n"
             "    else\n"
             "        rm -f $STARTPIDFILE\n"
@@ -1214,13 +1211,17 @@ create_scripts(server_config_s *cf, char *param_name)
             "if test -f $PIDFILE ; then\n"
             "    PID=`cat $PIDFILE`\n"
             "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-            "        echo There is an ns-slapd process already running: $PID\n"
+            "        echo There is an %s running: $PID\n"
             "        exit 2;\n"
             "    else\n"
             "        rm -f $PIDFILE\n"
             "    fi\n"
             "fi\n"
-            "cd %s/bin/%s/server; ./%s -D %s -i %s/logs/pid -w $STARTPIDFILE \"$@\"\n"
+#if 0
+            "cd %s; ./%s -D %s -i %s/pid -w $STARTPIDFILE \"$@\"\n"
+#else /* will go away */
+            "cd %s/bin/slapd/server; ./%s -D %s -i %s/pid -w $STARTPIDFILE \"$@\"\n"
+#endif
             "if [ $? -ne 0 ]; then\n"
             "    exit 1\n"
             "fi\n"
@@ -1261,13 +1262,14 @@ create_scripts(server_config_s *cf, char *param_name)
             "done\n"
             "echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.\n"
             "exit 1\n",
-            sroot, subdir, subdir, sroot, PRODUCT_NAME, PRODUCT_BIN, subdir,
-            subdir
+            sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
+            cf->run_dir, PRODUCT_BIN, PRODUCT_BIN,
+            sroot, PRODUCT_BIN, cf->config_dir, cf->run_dir
         );
     }
     if(t) return t;
     
-    t = gen_script(subdir, STOP_SCRIPT,
+    t = gen_script(cf->inst_dir, STOP_SCRIPT,
            "\n"
            "# Script that stops the ns-slapd server.\n"
            "# Exit status can be:\n"
@@ -1275,7 +1277,7 @@ create_scripts(server_config_s *cf, char *param_name)
            "#       1: Server could not be stopped\n"
            "#       2: Server was not running\n"
            "\n"
-           "PIDFILE=%s/logs/pid\n"
+           "PIDFILE=%s/pid\n"
            "if test ! -f $PIDFILE ; then\n"
            "    echo No ns-slapd PID file found. Server is probably not running\n"
            "    exit 2\n"
@@ -1302,8 +1304,8 @@ create_scripts(server_config_s *cf, char *param_name)
            "        if test -f $PIDFILE ; then\n"
            "            rm -f $PIDFILE\n"
            "        fi\n"
-            /* rbyrne: setuputil takes any message here as an error:
-               "        echo Server has been stopped. ns-slapd process stopped: $PID\n"*/
+         /* rbyrne: setuputil takes any message here as an error:
+           " echo Server has been stopped. ns-slapd process stopped: $PID\n"*/
            "        exit 0\n"
            "    fi\n"
            "done\n"
@@ -1311,10 +1313,10 @@ create_scripts(server_config_s *cf, char *param_name)
            "    echo Server still running!! Failed to stop the ns-slapd process: $PID.  Please check the errors log for problems.\n"
            "fi\n"
            "exit 1\n",
-            subdir);
+            cf->run_dir);
     if(t) return t;
 
-    t = gen_script(subdir, RESTART_SCRIPT,
+    t = gen_script(cf->inst_dir, RESTART_SCRIPT,
            "\n"
            "# Script that restarts the ns-slapd server.\n"
            "# Exit status can be:\n"
@@ -1339,16 +1341,8 @@ create_scripts(server_config_s *cf, char *param_name)
            "    exit 2;\n"
            "fi\n"
            "exit $status\n",
-           subdir, subdir );
+           cf->inst_dir, cf->inst_dir );
     if(t) return t;
-
-    /* logs subdir owned by server user */
-    if( (t = chownlogs(subdir, cf->servuser)) )
-        return t;
-
-    /* config subdir owned by server user */
-    if( (t = chownconfig(subdir, cf->servuser)) )
-        return t;
 
 #else  /* XP_WIN32 */
     /* Windows platforms have some extra setup */
@@ -1376,7 +1370,7 @@ create_scripts(server_config_s *cf, char *param_name)
 int update_server(server_config_s *cf)
 {
     char *t;
-	char error_param[BIG_LINE] = {0};
+    char error_param[BIG_LINE] = {0};
 
 #if defined( SOLARIS )
     /*
@@ -1409,31 +1403,35 @@ int update_server(server_config_s *cf)
 
 out:
     if(t)
-	{
-		char *msg;
-		if (error_param[0])
-		{
-			msg = PR_smprintf("%s.error:could not update server %s - %s",
-							  error_param, cf->servid, t);
-		}
-		else
-		{
-			msg = PR_smprintf("error:could not update server %s - %s",
-							  cf->servid, t);
-		}
-		ds_show_message(msg);
-		PR_smprintf_free(msg);
-		return 1;
-	}
-	else
-		return 0;
+    {
+        char *msg;
+        if (error_param[0])
+        {
+            msg = PR_smprintf("%s.error:could not update server %s - %s",
+                              error_param, cf->servid, t);
+        }
+        else
+        {
+            msg = PR_smprintf("error:could not update server %s - %s",
+                              cf->servid, t);
+        }
+        ds_show_message(msg);
+        PR_smprintf_free(msg);
+        return 1;
+    }
+    else
+        return 0;
 }
 
 /* ---------------------- Create configuration files ---------------------- */
 char *create_server(server_config_s *cf, char *param_name)
 {
-    char line[PATH_SIZE], *t, *sroot = cf->sroot;
+#if 0
+    char line[PATH_SIZE]
     char subdir[PATH_SIZE];
+#endif
+    char *t, *sroot = cf->sroot;
+    struct passwd *pw = getpwnam(cf->servuser);
 
 #if defined( SOLARIS )
     /*
@@ -1462,39 +1460,49 @@ char *create_server(server_config_s *cf, char *param_name)
     if( (t = sanity_check(cf, param_name)) )
         return t;
 
-    /* Create slapd-nickname directory */
-    PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
-                 cf->servid);
-    if( (create_instance_mkdir(subdir, NEWDIR_MODE)) )
-        return make_error("mkdir %s failed (%s)", subdir, ds_system_errmsg());
+    /* Create slapd-nickname directory (instance directory) */
+    if( (create_instance_mkdir_p("inst dir", cf->inst_dir, NEWDIR_MODE, pw)) )
+        return make_error("make inst dir %s failed (%s)",
+                          cf->inst_dir, ds_system_errmsg());
     
-    /* Create slapd-nickname/config directory */
-    PR_snprintf(line, sizeof(line), "%s%cconfig", subdir, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+    /* Create config directory */
+    if( (create_instance_mkdir_p("config dir", cf->config_dir, NEWDIR_MODE, pw)) ) 
+        return make_error("make config dir %s failed (%s)",
+                          cf->config_dir, ds_system_errmsg());
 
-    /* Create slapd-nickname/config/schema directory */
-    PR_snprintf(line, sizeof(line), "%s%cconfig%cschema", subdir, FILE_PATHSEP, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+    /* Create config_dir/schema directory */
+    if( (create_instance_mkdir_p("schema dir", cf->schema_dir, NEWDIR_MODE, pw)) ) 
+        return make_error("make schema dir %s failed (%s)",
+                          cf->schema_dir, ds_system_errmsg());
 
 #if defined (BUILD_PRESENCE)
-    /* Create slapd-nickname/config/presence directory */
-    PR_snprintf(line, sizeof(line), "%s%cconfig%cpresence", subdir, FILE_PATHSEP, FILE_PATHSEP);
+    /* Create config_dir/presence directory */
+    PR_snprintf(line, sizeof(line), "%s%cpresence",
+                                    cf->config_dir, FILE_PATHSEP);
     if( (create_instance_mkdir(line, NEWDIR_MODE)) ) 
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
 #endif
 
-    /* Create slapd-nickname/logs directory */
-    PR_snprintf(line, sizeof(line), "%s%clogs", subdir, FILE_PATHSEP);
-    if( (create_instance_mkdir(line, NEWSECDIR_MODE)) )
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
+    /* Create log directory */
+    if( (create_instance_mkdir_p("log dir", cf->log_dir, NEWSECDIR_MODE, pw)) )
+        return make_error("make log dir %s failed (%s)",
+                          cf->log_dir, ds_system_errmsg());
 
+    /* Create lock directory */
+    if( (create_instance_mkdir_p("lock dir", cf->lock_dir, NEWSECDIR_MODE, pw)) )
+        return make_error("make lock dir %s failed (%s)",
+                          cf->lock_dir, ds_system_errmsg());
+
+    /* Create run directory */
+    if( (create_instance_mkdir_p("run dir", cf->run_dir, NEWSECDIR_MODE, pw)) )
+        return make_error("make run dir %s failed (%s)",
+                          cf->run_dir, ds_system_errmsg());
+# if 0
     /* Create httpacl directory */
     PR_snprintf(line, sizeof(line), "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
     if( (create_instance_mkdir(line, NEWDIR_MODE)) )
         return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-
+#endif
     t = create_scripts(cf, param_name);
     if(t) return t;
 
@@ -1514,11 +1522,7 @@ char *create_server(server_config_s *cf, char *param_name)
     return NULL;
 }
 
-
-
-
 /* ------------------------- Copied from libadmin ------------------------- */
-
 
 /*
    These replace the versions in libadmin to allow error returns. 
@@ -1528,20 +1532,53 @@ char *create_server(server_config_s *cf, char *param_name)
  */
 
 
-int create_instance_exists(char *fn)
+/*
+ * input:
+ * fn: file/dir name
+ * type: 
+ *   if you don't care of the file type, 0
+ *   if file, PR_FILE_FILE
+ *   if directory, PR_FILE_DIRECTORY 
+ *   else, PR_FILE_OTHER
+ * 
+ * return value:
+ * 0: does not exist
+ * 1: exists
+ * -1: exists, but unexpected type
+ */
+int
+create_instance_exists(char *fn, int type)
 {
-    struct stat finfo;
+    PRFileInfo finfo;
 
-    if(stat(fn, &finfo) < 0)
-        return 0;
-    else
-        return 1;
+    if(PR_GetFileInfo(fn, &finfo) == PR_FAILURE)
+        return 0; /* does not exist */
+    else {
+        if (type > 0) {
+            if (type == finfo.type) {
+                return 1;
+            } else {
+                return -1;
+            }
+        } else {
+            return 1;
+        }
+    }
 }
 
 
-int create_instance_mkdir(char *dir, int mode)
+int
+create_instance_mkdir(char *dir, int mode)
 {
-    if(!create_instance_exists(dir)) {
+    int rv = 0;
+    if (NULL == dir)
+        return -1;
+    rv = create_instance_exists(dir, PR_FILE_DIRECTORY);
+    if (rv < 0) { /* not a directory */
+        PR_Delete(dir);
+        rv = 0;
+    }
+    if(0 == rv) { /* dir does not exist */
 #ifdef XP_UNIX
         if(mkdir(dir, mode) == -1)
 #else  /* XP_WIN32 */
@@ -1553,11 +1590,17 @@ int create_instance_mkdir(char *dir, int mode)
 }
 
 
-char *create_instance_mkdir_p(char *dir, int mode)
+char *create_instance_mkdir_p(char *str, char *dir, int mode, struct passwd *pw)
 {
     static char errmsg[ERR_SIZE];
     struct stat fi;
     char *t;
+
+    if (NULL == dir) {
+        PR_snprintf(errmsg, sizeof(errmsg), "NULL is passed to make \"%s\"",
+                        str?str:"unknown");
+        return errmsg;
+    }
 
 #ifdef XP_UNIX
     t = dir + 1;
@@ -1571,9 +1614,11 @@ char *create_instance_mkdir_p(char *dir, int mode)
         if(t) *t = '\0';
         if(stat(dir, &fi) == -1) {
             if(create_instance_mkdir(dir, mode) == -1) {
-                PR_snprintf(errmsg, sizeof(errmsg), "mkdir %s failed (%s)", dir, ds_system_errmsg());
+                PR_snprintf(errmsg, sizeof(errmsg), "mkdir %s for \"%s\" failed (%s)", dir, str, ds_system_errmsg());
                 return errmsg;
             }
+            if (pw)
+                chownfile(pw, dir);
         }
         if(t)
         {
@@ -1892,7 +1937,7 @@ ds_copy_group_files_using_mode(char *src_dir, char *dest_dir,
                 if(is_a_dir(src_dir, d->name)) {
                     char *sub_src_dir = strdup(src_file);
                     char *sub_dest_dir = strdup(dest_file);
-                    if( (t = create_instance_mkdir_p(sub_dest_dir, NEWDIR_MODE)) )
+                    if( (t = create_instance_mkdir_p(sub_dest_dir, sub_dest_dir, NEWDIR_MODE, NULL)) )
                         return(t);
                     if( (t = ds_copy_group_files_using_mode(sub_src_dir, sub_dest_dir, filter, use_mode)) )
                         return t;
@@ -1949,54 +1994,49 @@ void fputs_escaped(char *s, FILE *fp)
 
 /* ------------- Create config files for Directory Server -------------- */
 
-char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
-             struct passwd* pw)
+static char *
+ds_cre_subdirs(server_config_s *cf, struct passwd* pw)
 {
     char subdir[PATH_SIZE], *t = NULL;
 
-    /* create subdir <a_server>/db */
-    PR_snprintf(subdir, sizeof(subdir), "%s%cdb", cs_path, FILE_PATHSEP);
-    if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+    /* create db dir */
+    if( (t = create_instance_mkdir_p("db dir", cf->db_dir, NEWDIR_MODE, pw)) )
         return(t);
-    chownfile (pw, subdir);
 
-    /* create subdir <a_server>/ldif */
-    PR_snprintf(subdir, sizeof(subdir), "%s%cldif", cs_path, FILE_PATHSEP);
-    if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+    /* create ldif dir */
+    if( (t = create_instance_mkdir_p("ldif dir", cf->ldif_dir, NEWDIR_MODE, pw)) )
         return(t);
-    chownfile (pw, subdir);
 
+#ifdef DSML
     /* create subdir <a_server>/dsml */
     PR_snprintf(subdir, sizeof(subdir), "%s%cdsml", cs_path, FILE_PATHSEP);
-    if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+    if( (t = create_instance_mkdir_p("dsml dir", subdir, NEWDIR_MODE, pw)) )
         return(t);
-    chownfile (pw, subdir);
-
-    /* create subdir <a_server>/bak */
-    PR_snprintf(subdir, sizeof(subdir), "%s%cbak", cs_path, FILE_PATHSEP);
-    if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+#endif
+    /* create bak dir */
+    if( (t = create_instance_mkdir_p("backup dir", cf->bak_dir, NEWDIR_MODE, pw)) )
         return(t);
-    chownfile (pw, subdir);
 
     /* Create slapd-nickname/confbak directory */
-    PR_snprintf(subdir, sizeof(subdir), "%s%cconfbak", cs_path, FILE_PATHSEP);
-    if( (t=create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+    PR_snprintf(subdir, sizeof(subdir), "%s%cconfbak", cf->config_dir, FILE_PATHSEP);
+    if( (t=create_instance_mkdir_p("config bak dir", subdir, NEWDIR_MODE, pw)) )
         return(t);
-    chownfile (pw, subdir);
 
+#ifdef DSGW
     /* create subdir <server_root>/dsgw/context */
     PR_snprintf(subdir, sizeof(subdir), "%s%cclients", sroot, FILE_PATHSEP);
     if (is_a_dir(subdir, "dsgw")) { /* only create dsgw stuff if we are installing it */
         PR_snprintf(subdir, sizeof(subdir), "%s%cclients%cdsgw%ccontext", sroot, FILE_PATHSEP,FILE_PATHSEP,FILE_PATHSEP);
-        if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+        if( (t = create_instance_mkdir_p("dsgw context dir", subdir, NEWDIR_MODE, pw)) )
             return(t);
     }
 
   /* create subdir <server_root>/bin/slapd/authck */
+  /* dsgw cookie dir */
     PR_snprintf(subdir, sizeof(subdir), "%s%cbin%cslapd%cauthck", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
-    if( (t = create_instance_mkdir_p(subdir, NEWDIR_MODE)) )
+    if( (t = create_instance_mkdir_p("authck dir", subdir, NEWDIR_MODE, pw)) )
         return(t);
-    chownfile (pw, subdir);
+#endif
 
     return (t);
 }
@@ -2019,8 +2059,9 @@ char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
 #define CREATE_VERIFYDB() \
     gen_perl_script_auto(mysroot, mycs_path, "verify-db.pl", cf)
 
+/* tentatively moved to mycs_path */
 #define CREATE_REPL_MONITOR_CGI() \
-    gen_perl_script_auto(mysroot, cgics_path, "repl-monitor-cgi.pl", cf)
+    gen_perl_script_auto(mysroot, mycs_path, "repl-monitor-cgi.pl", cf)
 
 #define CREATE_ACCOUNT_INACT(_commandName) \
     gen_perl_script_auto(mysroot, cs_path, _commandName, cf)
@@ -2065,7 +2106,15 @@ char *ds_cre_subdirs(char *sroot, server_config_s *cf, char *cs_path,
 char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 {
     char *t = NULL;
-    char server[PATH_SIZE], admin[PATH_SIZE], tools[PATH_SIZE];
+#if 0
+    char *server = sroot;
+    char *admin = sroot;
+    char *tools = cf->bindir;
+#else
+    char server[PATH_SIZE];
+    char admin[PATH_SIZE];
+    char tools[PATH_SIZE];
+#endif
     char cgics_path[PATH_SIZE];
     char *cl_scripts[7] = {"dsstop", "dsstart", "dsrestart", "dsrestore", "dsbackup", "dsimport", "dsexport"};
     char *cl_javafiles[7] = {"DSStop", "DSStart", "DSRestart", "DSRestore", "DSBackup", "DSImport", "DSExport"};
@@ -2082,12 +2131,16 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     mysroot = sroot;
     mycs_path = cs_path;
 
-    PR_snprintf(server, sizeof(server), "%s/bin/"PRODUCT_NAME"/server", sroot);    
-    PR_snprintf(admin, sizeof(admin), "%s/bin/"PRODUCT_NAME"/admin/bin", sroot);    
-    PR_snprintf(tools, sizeof(tools), "%s/shared/bin", sroot);    
+#if 0
+    /* nothing to do for server, admin, tools */
     PR_snprintf(cgics_path, sizeof(cgics_path), "%s%cbin%cadmin%cadmin%cbin", sroot,
             FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
 
+#else /* will go away */
+    PR_snprintf(server, sizeof(server), "%s/bin/"PRODUCT_NAME"/server", sroot); 
+    PR_snprintf(admin, sizeof(admin), "%s/bin/"PRODUCT_NAME"/admin/bin", sroot);
+    PR_snprintf(tools, sizeof(tools), "%s/shared/bin", sroot);    
+#endif
     t = gen_script(cs_path, "monitor", 
            "if [ \"x$1\" != \"x\" ];\nthen MDN=\"$1\";\nelse MDN=\"cn=monitor\";\n fi\n"
 
@@ -2100,14 +2153,14 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         "cd %s\n"
         "echo saving configuration ...\n"
         "conf_ldif=%s/confbak/`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\n"
-        "./ns-slapd db2ldif -N -D %s "
+        "./%s db2ldif -N -D %s "
         "-s \"%s\" -a $conf_ldif -n NetscapeRoot 2>&1\n"
         "if [ \"$?\" -ge 1 ] \nthen\n"
         "    echo Error occurred while saving configuration\n"
         "    exit 1\n"
         "fi\n"
         "exit 0\n",
-        server, cs_path, cs_path, cf->netscaperoot);
+        server, cf->config_dir, PRODUCT_BIN, cf->config_dir, cf->netscaperoot);
     if(t) return t;
     
     t = gen_script(cs_path, "restoreconfig", 
@@ -2118,10 +2171,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         "    echo No configuration to restore in %s/confbak ; exit 1\n"
         "fi\n"
         "echo Restoring $conf_ldif\n"
-        "./ns-slapd ldif2db -D %s"
+        "./%s ldif2db -D %s"
         " -i $conf_ldif -n NetscapeRoot 2>&1\n"
         "exit $?\n",
-        server, cs_path, cs_path, cs_path);
+        server, cf->config_dir, cf->config_dir, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
     
     t = gen_script(cs_path, "ldif2db", 
@@ -2133,9 +2186,9 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         "\texit 1\n"
         "fi\n\n"
         "echo importing data ...\n"
-        "./ns-slapd ldif2db -D %s \"$@\" 2>&1\n"
+        "./%s ldif2db -D %s \"$@\" 2>&1\n"
         "exit $?\n",
-        server, cs_path);
+        server, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
 #if defined(UPGRADEDB)
@@ -2143,14 +2196,15 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         "cd %s\n"
         "if [ \"$#\" -eq 1 ]\nthen\n"
         "\tbak_dir=$1\nelse\n"
-        "\tbak_dir=%s/bak/upgradedb_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
+        "\tbak_dir=%s/upgradedb_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
         "echo upgrade index files ...\n"
-        "./ns-slapd upgradedb -D %s -a $bak_dir\n",
-        server, cs_path, cs_path);
+        "./%s upgradedb -D %s -a $bak_dir\n",
+        server, cf->bak_dir, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 #endif
 
     /* new code for dsml import */
+    /* OBSOLETE??? */
     t = gen_script(cs_path, "dsml2db", 
         "cd %s\n"
         "if [ $# -lt 4 ]\nthen\n"
@@ -2250,7 +2304,7 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "\texit 1\n"
            "fi\n\n"
            "pwdhash -D %s -H -s \"$@\"\n",
-           server, server, cs_path);
+           server, cf->config_dir, cs_path);
     if(t) return t;
     
     t = gen_script(cs_path, "db2ldif", 
@@ -2275,9 +2329,11 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "if [ $ldif_file = \"mydummy\" ]\nthen\n"
            "\tldif_file=%s/ldif/`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\nfi\n"
            "if [ $set_ldif -eq 2 ]\nthen\n"
-           "./ns-slapd db2ldif -D %s \"$@\"\nelse\n"
-           "./ns-slapd db2ldif -D %s -a $ldif_file \"$@\"\nfi\n",
-           server, cs_path, cs_path, cs_path);
+           "./%s db2ldif -D %s \"$@\"\nelse\n"
+           "./%s db2ldif -D %s -a $ldif_file \"$@\"\nfi\n",
+           server, cf->ldif_dir,
+           PRODUCT_BIN, cf->config_dir,
+           PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
     /* new code for dsml export */
@@ -2324,15 +2380,17 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "if [ $# -eq 0 ]\n"
            "then\n"
            "\tbak_dir=%s/bak/reindex_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\n"
-           "\t./ns-slapd upgradedb -D %s -f -a \"$bak_dir\"\n"
+           "\t./%s upgradedb -D %s -f -a \"$bak_dir\"\n"
            "elif [ $# -lt 4 ]\n"
            "then\n"
            "\techo \"Usage: db2index [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]\"\n"
            "\texit 1\n"
            "else\n"
-           "\t./ns-slapd db2index -D %s \"$@\"\n"
+           "\t./%s db2index -D %s \"$@\"\n"
            "fi\n\n",
-           server, cs_path, cs_path, cs_path);
+           server, cf->ldif_dir, 
+           PRODUCT_BIN, cf->config_dir, 
+           PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 #endif
 
@@ -2344,17 +2402,17 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "\techo Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" are required.\n"
            "\texit 1\n"
            "fi\n\n"
-           "./ns-slapd db2index -D %s \"$@\"\n",
-           server, cs_path);
+           "./%s db2index -D %s \"$@\"\n",
+           server, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
     t = gen_script(cs_path, "db2bak", 
            "cd %s\n"
            "if [ \"$#\" -eq 1 ]\nthen\n"
            "\tbak_dir=$1\nelse\n"
-           "\tbak_dir=%s/bak/`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
-           "./ns-slapd db2archive -D %s -a $bak_dir\n",
-           server, cs_path, cs_path);
+           "\tbak_dir=%s/`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
+           "./%s db2archive -D %s -a $bak_dir\n",
+           server, cf->bak_dir, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
     t = CREATE_DB2BAK();
@@ -2365,14 +2423,14 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "    echo \"Usage: bak2db archivedir [-n backendname]\"\n"
            "    exit 1\n"
            "else\n"
-           "	archivedir=$1\n"
-           "	shift\n"
+           "    archivedir=$1\n"
+           "    shift\n"
            "fi\n"
            "while getopts \"n:\" flag\ndo\n"
-           "	case $flag in\n"
-           "		n) bename=$OPTARG;;\n"
-           "		*) echo \"Usage: bak2db archivedir [-n backendname]\"; exit 2;;\n"
-           "	esac\n"
+           "    case $flag in\n"
+           "        n) bename=$OPTARG;;\n"
+           "        *) echo \"Usage: bak2db archivedir [-n backendname]\"; exit 2;;\n"
+           "    esac\n"
            "done\n\n"
            "if [ 1 = `expr $archivedir : \"\\/\"` ]\nthen\n"
            "    archivedir=$archivedir\n"
@@ -2381,11 +2439,11 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "    archivedir=`pwd`/$archivedir\nfi\n\n"
            "cd %s\n"
            "if [ \"$#\" -eq 2 ]\nthen\n"
-           "    ./ns-slapd archive2db -D %s -a $archivedir -n $bename\n"
+           "    ./%s archive2db -D %s -a $archivedir -n $bename\n"
            "else\n"
-           "    ./ns-slapd archive2db -D %s -a $archivedir\n"		   
+           "    ./%s archive2db -D %s -a $archivedir\n"           
            "fi\n",
-           server, cs_path, cs_path);
+           server, PRODUCT_BIN, cf->config_dir, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
     t = CREATE_BAK2DB();
@@ -2419,8 +2477,8 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "\techo Usage: suffix2instance {-s includesuffix}*\n"
            "\texit 1\n"
            "fi\n\n"
-           "./ns-slapd suffix2instance -D %s \"$@\" 2>&1\n",
-           server, cs_path);
+           "./%s suffix2instance -D %s \"$@\" 2>&1\n",
+           server, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
     /*Generate the java commandline tools in bin/slapd/server*/
@@ -2450,11 +2508,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
         if(t) return t;
     }
 
-
-
     return (t);
 }
 #else
+/* Windows; haven't updated */
 char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 {
     char *t = NULL;
@@ -3146,7 +3203,7 @@ suffix_gen_conf(FILE* f, char * suffix, char *be_name)
 
     belowdn = PR_smprintf("cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be_name);
     ds_gen_index(f, belowdn);
-	PR_smprintf_free(belowdn);
+    PR_smprintf_free(belowdn);
     
     /* done with ldbm entries */
 }
@@ -3164,8 +3221,7 @@ suffix_gen_conf(FILE* f, char * suffix, char *be_name)
     fprintf(f, "\n"); \
   } while (0)
 
-char *ds_gen_confs(char *sroot, server_config_s *cf, 
-    char *cs_path)
+char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
 {
     char* t = NULL;
     char src[PATH_SIZE], dest[PATH_SIZE];
@@ -3173,10 +3229,13 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     FILE *f = 0, *srcf = 0;
     int  rootdse = 0;
     char *shared_lib;
+    struct passwd *pw = getpwnam(cf->servuser);
 
-    PR_snprintf(fn, sizeof(fn), "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(fn, sizeof(fn), "%s%c%s",
+                    cf->config_dir, FILE_PATHSEP, DS_CONFIG_FILE);
     if(!(f = fopen(fn, "w")))
-        return make_error("Can't write to %s (%s)", fn, ds_system_errmsg());
+        return make_error("Can't write to %s (%s)",
+                        cf->config_dir, ds_system_errmsg());
 
 #if defined( XP_WIN32 )
     shared_lib = ".dll";
@@ -3205,6 +3264,9 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "objectclass:top\n");
     fprintf(f, "objectclass:extensibleObject\n");
     fprintf(f, "objectclass:nsslapdConfig\n");
+    fprintf(f, "nsslapd-instancedir: %s\n", cf->inst_dir);
+    fprintf(f, "nsslapd-schemadir: %s\n", cf->schema_dir);
+    fprintf(f, "nsslapd-ldifdir: %s\n", cf->ldif_dir);
     fprintf(f, "nsslapd-accesslog-logging-enabled: on\n");
     fprintf(f, "nsslapd-accesslog-maxlogsperdir: 10\n");
     fprintf(f, "nsslapd-accesslog-mode: 600\n");
@@ -3214,7 +3276,11 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "nsslapd-accesslog-logrotationsync-enabled: off\n");
     fprintf(f, "nsslapd-accesslog-logrotationsynchour: 0\n");
     fprintf(f, "nsslapd-accesslog-logrotationsyncmin: 0\n");
+#if 0
+    fprintf(f, "nsslapd-accesslog: %s/access\n", cf->log_dir);
+#else /* will go away */
     fprintf(f, "nsslapd-accesslog: %s/logs/access\n", cs_path);
+#endif
     fprintf(f, "nsslapd-enquote-sup-oc: off\n");
     fprintf(f, "nsslapd-localhost: %s\n", cf->servname);
     fprintf(f, "nsslapd-schemacheck: %s\n",
@@ -3237,10 +3303,18 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "nsslapd-errorlog-logrotationsync-enabled: off\n");
     fprintf(f, "nsslapd-errorlog-logrotationsynchour: 0\n");
     fprintf(f, "nsslapd-errorlog-logrotationsyncmin: 0\n");
+#if 0
+    fprintf(f, "nsslapd-errorlog: %s/errors\n", cf->log_dir);
+#else /* will go away */
     fprintf(f, "nsslapd-errorlog: %s/logs/errors\n", cs_path);
+#endif
     if (cf->loglevel)
         fprintf(f, "nsslapd-errorlog-level: %s\n", cf->loglevel);
+#if 0
+    fprintf(f, "nsslapd-auditlog: %s/audit\n", cf->log_dir);
+#else /* will go away */
     fprintf(f, "nsslapd-auditlog: %s/logs/audit\n", cs_path);
+#endif
     fprintf(f, "nsslapd-auditlog-mode: 600\n");
     fprintf(f, "nsslapd-auditlog-maxlogsize: 100\n");
     fprintf(f, "nsslapd-auditlog-logrotationtime: 1\n");
@@ -3360,15 +3434,15 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "\n");
 #endif
 
-	fprintf(f, "dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "cn: MD5\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: md5_pwd_storage_scheme_init\n");
-	fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
-	fprintf(f, "nsslapd-pluginenabled: on\n");
-	fprintf(f, "\n");
+    fprintf(f, "dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "cn: MD5\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: md5_pwd_storage_scheme_init\n");
+    fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
+    fprintf(f, "nsslapd-pluginenabled: on\n");
+    fprintf(f, "\n");
  
     fprintf(f, "dn: cn=CLEAR,cn=Password Storage Schemes,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");
@@ -3635,7 +3709,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "nsslapd-plugininitfunc: orderingRule_init\n");
     fprintf(f, "nsslapd-plugintype: matchingRule\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
-    fprintf(f, "nsslapd-pluginarg0: %s/config/slapd-collations.conf\n", cs_path);
+    fprintf(f, "nsslapd-pluginarg0: %s/slapd-collations.conf\n", cf->config_dir);
     fprintf(f, "\n");
 
     /* The HTTP client plugin */
@@ -3767,29 +3841,29 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
 
 #ifdef BUILD_PAM_PASSTHRU
 #if !defined( XP_WIN32 )
-	/* PAM Pass Through Auth plugin - off by default */
-	fprintf(f, "dn: cn=PAM Pass Through Auth,cn=plugins,cn=config\n");
-	fprintf(f, "objectclass: top\n");
-	fprintf(f, "objectclass: nsSlapdPlugin\n");
-	fprintf(f, "objectclass: extensibleObject\n");
-	fprintf(f, "objectclass: pamConfig\n");
-	fprintf(f, "cn: PAM Pass Through Auth\n");
-	fprintf(f, "nsslapd-pluginpath: %s/lib/pam-passthru-plugin%s\n", sroot, shared_lib);
-	fprintf(f, "nsslapd-plugininitfunc: pam_passthruauth_init\n");
-	fprintf(f, "nsslapd-plugintype: preoperation\n");
-	fprintf(f, "nsslapd-pluginenabled: off\n");
-	fprintf(f, "nsslapd-pluginLoadGlobal: true\n");
-	fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-	fprintf(f, "pamMissingSuffix: ALLOW\n");
-	if (cf->netscaperoot) {
-		fprintf(f, "pamExcludeSuffix: %s\n", cf->netscaperoot);
-	}
-	fprintf(f, "pamExcludeSuffix: cn=config\n");
-	fprintf(f, "pamMapMethod: RDN\n");
-	fprintf(f, "pamFallback: FALSE\n");
-	fprintf(f, "pamSecure: TRUE\n");
-	fprintf(f, "pamService: ldapserver\n");
-	fprintf(f, "\n");
+    /* PAM Pass Through Auth plugin - off by default */
+    fprintf(f, "dn: cn=PAM Pass Through Auth,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "objectclass: pamConfig\n");
+    fprintf(f, "cn: PAM Pass Through Auth\n");
+    fprintf(f, "nsslapd-pluginpath: %s/lib/pam-passthru-plugin%s\n", sroot, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: pam_passthruauth_init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: off\n");
+    fprintf(f, "nsslapd-pluginLoadGlobal: true\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "pamMissingSuffix: ALLOW\n");
+    if (cf->netscaperoot) {
+        fprintf(f, "pamExcludeSuffix: %s\n", cf->netscaperoot);
+    }
+    fprintf(f, "pamExcludeSuffix: cn=config\n");
+    fprintf(f, "pamMapMethod: RDN\n");
+    fprintf(f, "pamFallback: FALSE\n");
+    fprintf(f, "pamSecure: TRUE\n");
+    fprintf(f, "pamService: ldapserver\n");
+    fprintf(f, "\n");
 #endif /* NO PAM FOR WINDOWS */
 #endif /* BUILD_PAM_PASSTHRU */
 
@@ -3980,24 +4054,28 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
         fprintf(f, "\n");
 
         /* create the changelog directory */
-        if( (t = create_instance_mkdir_p(cf->changelogdir, NEWDIR_MODE)) )
+        if( (t = create_instance_mkdir_p("changelog dir", cf->changelogdir, NEWDIR_MODE, pw)) )
             return(t);
     }
 
     fclose (f);
     
-    PR_snprintf(src, sizeof(src), "%s%cconfig%cdse.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
-    PR_snprintf(fn, sizeof(fn), "%s%cconfig%cdse_original.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
-    create_instance_copy(src, fn, 0600);
+    PR_snprintf(src, sizeof(src), "%s%cdse.ldif", cf->config_dir, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cdse_original.ldif", cf->config_dir, FILE_PATHSEP);
+    create_instance_copy(src, dest, 0600);
 
-    /*
-     * generate slapd-collations.conf
-     */
-    PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cconfig%c%s-collations.conf",
-            sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
-            FILE_PATHSEP, PRODUCT_NAME);
-    PR_snprintf(dest, sizeof(dest), "%s%cconfig%c%s-collations.conf", cs_path, FILE_PATHSEP,
-            FILE_PATHSEP, PRODUCT_NAME);
+    /* install certmap.conf at <sysconfig>/BRAND_DS */
+    PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/config/certmap.conf",
+                cf->sroot);
+    PR_snprintf(dest, sizeof(dest), "%s/certmap.conf", cf->config_dir);
+    create_instance_copy(src, dest, 0600);
+
+    /* generate <sysconfdir>/BRAND_DS/slapd-collations.conf */
+    PR_snprintf(src, sizeof(src),
+                "%s/bin/slapd/install/config/%s-collations.conf",
+                cf->sroot, PRODUCT_NAME);
+    PR_snprintf(dest, sizeof(dest), "%s%c%s-collations.conf",
+            cf->config_dir, FILE_PATHSEP, PRODUCT_NAME);
     if (!(srcf = fopen(src, "r"))) {
         return make_error("Can't read from %s (%s)", src, ds_system_errmsg());
     }
@@ -4016,9 +4094,16 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fclose(srcf);
     fclose(f);
 
+    /*
+     * <sysconfdir>/BRAND_DS/schema to schema_dir
+     */
+#if 0 /* going to be 1 !! */
+    PR_snprintf(src, sizeof(src), "%s%c%s%cschema",
+                    cf->sysconfdir, FILE_PATHSEP, BRAND_DS, FILE_PATHSEP);
+#else
     PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/schema", sroot);
-    PR_snprintf(dest, sizeof(dest), "%s/config/schema", cs_path);
-    if (NULL != (t = ds_copy_group_files(src, dest, 0)))
+#endif
+    if (NULL != (t = ds_copy_group_files(src, cf->schema_dir, 0)))
         return t;
         
 #if defined (BUILD_PRESENCE)
@@ -4028,6 +4113,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
         return t;
 #endif
 
+#if defined (ORGCHART)
     /* Generate the orgchart configuration */
     PR_snprintf(src, sizeof(src), "%s/clients", sroot);
     if (is_a_dir(src, "orgchart")) {
@@ -4035,7 +4121,9 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
             return t;
         }
     }
+#endif
         
+#if defined (DSGW)
     /* Generate dsgw.conf */
     PR_snprintf(src, sizeof(src), "%s/clients", sroot);
     if (is_a_dir(src, "dsgw")) {
@@ -4048,6 +4136,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
             return t;
         }
     }
+#endif
 
     return NULL; /* Everything worked fine */
 }
@@ -4088,9 +4177,8 @@ ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type)
     PR_snprintf(dest, sizeof(dest), "%s%cclients%cdsgw%ccontext%c%s.conf", sroot, FILE_PATHSEP,FILE_PATHSEP,
         FILE_PATHSEP, FILE_PATHSEP, ctxt);
 
-
     /* If the config file already exists, just return success */
-    if (create_instance_exists(dest)) {
+    if (create_instance_exists(dest, PR_FILE_FILE)) {
         return(NULL);
     }
     
@@ -4205,7 +4293,7 @@ ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *cf)
         FILE_PATHSEP, FILE_PATHSEP);
 
     /* If the config file already exists, just return success */
-    if (create_instance_exists(dest)) {
+    if (create_instance_exists(dest, PR_FILE_FILE)) {
         return(NULL);
     }
     
@@ -4382,13 +4470,13 @@ static void
 ds_gen_index(FILE* f, char* belowdn)
 {
 #define MKINDEX(_name, _inst, _sys, _type1, _type2, _type3) do { \
-	char *_type2str = (_type2), *_type3str = (_type3); \
+    char *_type2str = (_type2), *_type3str = (_type3); \
     fprintf(f, "dn: cn=%s,%s\n", (_name), (_inst)); \
     fprintf(f, "objectclass: top\n"); \
     fprintf(f, "objectclass: nsIndex\n"); \
     fprintf(f, "cn: %s\n", (_name)); \
     fprintf(f, "nssystemindex: %s\n", (_sys) ? "true" : "false"); \
-	if (_type1) \
+    if (_type1) \
         fprintf(f, "nsindextype: %s\n", (_type1)); \
     if (_type2str) \
         fprintf(f, "nsindextype: %s\n", _type2str); \
@@ -4455,7 +4543,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     PR_snprintf(cs_path, sizeof(cs_path), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, cf->servid);
 
     /* create all <a_server>/<subdirs> */
-    if ( (t = ds_cre_subdirs(sroot, cf, cs_path, pw)) )
+    if ( (t = ds_cre_subdirs(cf, pw)) )
         return(t);
 
     /* Generate all scripts */
@@ -4473,28 +4561,29 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
 
     PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cldif%cExample.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cExample.ldif", cf->ldif_dir, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
     PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-roles.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cldif%cExample-roles.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cExample-roles.ldif", cf->ldif_dir, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
     PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-views.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cldif%cExample-views.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cExample-views.ldif", cf->ldif_dir, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
     PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cEuropean.ldif", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
     FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cldif%cEuropean.ldif", cs_path, FILE_PATHSEP, FILE_PATHSEP);
+    PR_snprintf(dest, sizeof(dest), "%s%cEuropean.ldif", cf->ldif_dir, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
 
+#ifdef DSML
     /* new code for dsml sample files */
     PR_snprintf(src, sizeof(src), "%s%cbin%c"PRODUCT_NAME"%cinstall%cdsml%cExample.dsml", sroot, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, 
         FILE_PATHSEP);
@@ -4513,6 +4602,7 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     PR_snprintf(dest, sizeof(dest), "%s%cdsml%cEuropean.dsml", cs_path, FILE_PATHSEP, FILE_PATHSEP);
     create_instance_copy(src, dest, NEWFILE_MODE);
     chownfile (pw, dest);
+#endif
 
     /*
       If the user has specified an LDIF file to use to initialize the database,
@@ -4552,17 +4642,17 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     {
         int start_status = 0;
         int verbose = 1;
-        char instance_dir[PATH_SIZE], errorlog[PATH_SIZE];
+        char errorlog[PATH_SIZE];
 
         if (getenv("USE_DEBUGGER"))
         verbose = 0;
-        /* slapd-nickname directory */
-        PR_snprintf(instance_dir, sizeof(instance_dir), "%s%c"PRODUCT_NAME"-%s", sroot, FILE_PATHSEP, 
-            cf->servid);
         /* error log file */
-        PR_snprintf(errorlog, sizeof(errorlog), "%s%clogs%cerrors", instance_dir, FILE_PATHSEP,
-            FILE_PATHSEP);
-        start_status = ds_bring_up_server_install(verbose, instance_dir, errorlog);
+#if 0
+        PR_snprintf(errorlog, sizeof(errorlog), "%s%cerrors", cf->log_dir, FILE_PATHSEP,
+#else /* will go away */
+        PR_snprintf(errorlog, sizeof(errorlog), "%s%clogs%cerrors", cf->inst_dir, FILE_PATHSEP, FILE_PATHSEP);
+#endif
+        start_status = ds_bring_up_server_install(verbose, cf->inst_dir, errorlog);
 
         if (start_status != DS_SERVER_UP)
         {
@@ -4628,27 +4718,23 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
 
     memset( &query_vars, 0, sizeof(query_vars) );
     if (!cf->use_existing_user_ds)
-        query_vars.suffix = myStrdup( cf->suffix );
-    query_vars.ssAdmID = myStrdup( cf->cfg_sspt_uid );
-    query_vars.ssAdmPW1 = myStrdup( cf->cfg_sspt_uidpw );
-    query_vars.ssAdmPW2 = myStrdup( cf->cfg_sspt_uidpw );
-    query_vars.rootDN = myStrdup( cf->rootdn ); 
-    query_vars.rootPW = myStrdup( cf->rootpw );
-    query_vars.admin_domain =
-        myStrdup( cf->admin_domain );
-    query_vars.netscaperoot = myStrdup( cf->netscaperoot );
-    query_vars.testconfig = myStrdup( cf->testconfig );
-    query_vars.consumerDN = myStrdup(cf->consumerdn);
-    query_vars.consumerPW = myStrdup(cf->consumerhashedpw);
+        query_vars.suffix = PL_strdup( cf->suffix );
+    query_vars.ssAdmID = PL_strdup( cf->cfg_sspt_uid );
+    query_vars.ssAdmPW1 = PL_strdup( cf->cfg_sspt_uidpw );
+    query_vars.ssAdmPW2 = PL_strdup( cf->cfg_sspt_uidpw );
+    query_vars.rootDN = PL_strdup( cf->rootdn ); 
+    query_vars.rootPW = PL_strdup( cf->rootpw );
+    query_vars.admin_domain = PL_strdup( cf->admin_domain );
+    query_vars.netscaperoot = PL_strdup( cf->netscaperoot );
+    query_vars.testconfig = PL_strdup( cf->testconfig );
+    query_vars.consumerDN = PL_strdup(cf->consumerdn);
+    query_vars.consumerPW = PL_strdup(cf->consumerhashedpw);
     if (cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1"))
         query_vars.cfg_sspt = 1;
     else
         query_vars.cfg_sspt = 0;
 
-    if (cf->suitespot3x_uid)
-        query_vars.config_admin_uid = myStrdup(cf->suitespot3x_uid);
-    else
-        query_vars.config_admin_uid = myStrdup(cf->cfg_sspt_uid);
+    query_vars.config_admin_uid = PL_strdup(cf->cfg_sspt_uid);
 
     memset(&slapd_conf, 0, sizeof(SLAPD_CONFIG));
     if (sroot)
@@ -4734,30 +4820,30 @@ write_ldap_info( char *slapd_server_root, server_config_s *cf)
 int create_config(server_config_s *cf)
 {
     char *t = NULL;
-	char error_param[BIG_LINE] = {0};
+    char error_param[BIG_LINE] = {0};
 
     t = create_server(cf, error_param);
     if(t)
-	{
-		char *msg;
-		if (error_param[0])
-		{
-			msg = PR_smprintf("%s.error:could not create server %s - %s",
-							  error_param, cf->servid, t);
-		}
-		else
-		{
-			msg = PR_smprintf("error:could not create server %s - %s",
-							  cf->servid, t);
-		}
-		ds_show_message(msg);
-		PR_smprintf_free(msg);
-	}
-	else
-	{
-		ds_show_message("Created new Directory Server");
-		return 0;
-	}
+    {
+        char *msg;
+        if (error_param[0])
+        {
+            msg = PR_smprintf("%s.error:could not create server %s - %s",
+                              error_param, cf->servid, t);
+        }
+        else
+        {
+            msg = PR_smprintf("error:could not create server %s - %s",
+                              cf->servid, t);
+        }
+        ds_show_message(msg);
+        PR_smprintf_free(msg);
+    }
+    else
+    {
+        ds_show_message("Created new Directory Server");
+        return 0;
+    }
 
     return 1;
 }
@@ -4767,23 +4853,59 @@ int create_config(server_config_s *cf)
 static int check_passwords(char *pw1, char *pw2)
 {
     if (strcmp (pw1, pw2) != 0) {
-	    ds_report_error (DS_INCORRECT_USAGE, " different passwords",
-			  "Enter the password again."
-			  "  The two passwords you entered are different.");
-		return 1;
-	}
-	
+        ds_report_error (DS_INCORRECT_USAGE, " different passwords",
+              "Enter the password again."
+              "  The two passwords you entered are different.");
+        return 1;
+    }
+    
     if ( ((int) strlen(pw1)) < 8 ) {
-	    ds_report_error (DS_INCORRECT_USAGE, " password too short",
-			  "The password must be at least 8 characters long.");
-		return 1;
-	}
+        ds_report_error (DS_INCORRECT_USAGE, " password too short",
+              "The password must be at least 8 characters long.");
+        return 1;
+    }
 
-	return 0;
+    return 0;
+}
+
+static char *
+set_path_attribute(char *attr, char *defaultval, char *prefix)
+{
+    char *temp = ds_a_get_cgi_var(attr, NULL, NULL);
+    char *rstr = NULL;
+    if (prefix) {
+        if (NULL == temp || '\0' == *temp) {
+            rstr = PR_smprintf("%s%c%s", prefix, FILE_PATHSEP, defaultval);
+        } else {
+            rstr = PR_smprintf("%s%c%s", prefix, FILE_PATHSEP, temp);
+        }
+    } else {
+        if (NULL == temp || '\0' == *temp) {
+            rstr = defaultval;
+        } else {
+            rstr = PL_strdup(temp);
+        }
+    }
+    return rstr;
 }
 
 /* ------ Parse the results of a form and create a server from them ------- */
-
+/*
+ * FHS description
+ * cf->prefix: %{_prefix}
+ * cf->sroot: %{_libdir}/BRAND_DS 
+ * cf->localstatedir: %{_localstatedir}
+ * cf->sysconfdir: %{_sysconfdir}
+ * cf->bindir: %{_bindir}
+ * cf->datadir: %{_datadir}
+ * cf->docdir: %{_docdir}
+ * cf->inst_dir: <sroot>/slapd-<servid>
+ * cf->config_dir: <localstatedir>/lib/slapd-<servid>
+ * cf->schema_dir: <localstatedir>/lib/slapd-<servid>/schema
+ * cf->lock_dir: <localstatedir>/lock/slapd-<servid>
+ * cf->log_dir: <localstatedir>/log/slapd-<servid>
+ * cf->run_dir: <localstatedir>/run/slapd-<servid>
+ */
 
 int parse_form(server_config_s *cf)
 {
@@ -4793,94 +4915,103 @@ int parse_form(server_config_s *cf)
     char* cfg_sspt_uid_pw2;
     LDAPURLDesc *desc = 0;
     char *temp = 0;
+    char *prefix = NULL;
 
-    if (!(cf->sroot = getenv("NETSITE_ROOT"))) {
-		ds_report_error (DS_INCORRECT_USAGE, " NETSITE_ROOT environment variable not set.",
-						 "The environment variable NETSITE_ROOT must be set to the server root directory.");
-		return 1;
-	}
+    cf->brand_ds = BRAND_DS;
+    temp = getenv("NETSITE_ROOT");
+    if (NULL == temp) {
+        ds_report_error (DS_INCORRECT_USAGE,
+            " NETSITE_ROOT environment variable not set.",
+            "The environment variable NETSITE_ROOT must be set to the server root directory.");
+        return 1;
+    }
+    cf->sroot = PL_strdup(temp);
 
     if (rm && qs && !strcmp(rm, "GET"))
-	{
-		ds_get_begin(qs);
-	}
+    {
+        ds_get_begin(qs);
+    }
     else if (ds_post_begin(stdin))
-	{
-		return 1;
-	}
+    {
+        return 1;
+    }
 
     if (rm)
-	{
-		printf("Content-type: text/plain\n\n");
-	}
+    {
+        printf("Content-type: text/plain\n\n");
+    }
     /* else we are being called from server installation; no output */
 
+    temp = ds_a_get_cgi_var("prefix", NULL, NULL);
+    if (NULL != temp) {
+        prefix = cf->prefix = PL_strdup(temp);
+    }
+
     if (!(cf->servname = ds_a_get_cgi_var("servname", "Server Name",
-										  "Please give a hostname for your server.")))
-	{
-		return 1;
-	}
+                                          "Please give a hostname for your server.")))
+    {
+        return 1;
+    }
 
-	cf->bindaddr = ds_a_get_cgi_var("bindaddr", NULL, NULL);
+    cf->bindaddr = ds_a_get_cgi_var("bindaddr", NULL, NULL);
     if (!(cf->servport = ds_a_get_cgi_var("servport", "Server Port",
-										  "Please specify the TCP port number for this server.")))
-	{
-		return 1;
-	}
+                                          "Please specify the TCP port number for this server.")))
+    {
+        return 1;
+    }
 
-    cf->suitespot3x_uid = ds_a_get_cgi_var("suitespot3x_uid", NULL, NULL);
     cf->cfg_sspt = ds_a_get_cgi_var("cfg_sspt", NULL, NULL);
     cf->cfg_sspt_uid = ds_a_get_cgi_var("cfg_sspt_uid", NULL, NULL);
     if (cf->cfg_sspt_uid && *(cf->cfg_sspt_uid) &&
-		!(cf->cfg_sspt_uidpw = ds_a_get_cgi_var("cfg_sspt_uid_pw", NULL, NULL)))
-	{
+        !(cf->cfg_sspt_uidpw = ds_a_get_cgi_var("cfg_sspt_uid_pw", NULL, NULL)))
+    {
 
-		if (!(cfg_sspt_uid_pw1 = ds_a_get_cgi_var("cfg_sspt_uid_pw1", "Password",
-												  "Enter the password for the Mission Control Administrator's account.")))
-		{
-			return 1;
-		}
+        if (!(cfg_sspt_uid_pw1 = ds_a_get_cgi_var("cfg_sspt_uid_pw1", "Password",
+                                                  "Enter the password for the Mission Control Administrator's account.")))
+        {
+            return 1;
+        }
 
-		if (!(cfg_sspt_uid_pw2 = ds_a_get_cgi_var("cfg_sspt_uid_pw2", "Password",
-												  "Enter the password for the Mission Control Administrator account, "
-												  "twice.")))
-		{
-			return 1;
-		}
+        if (!(cfg_sspt_uid_pw2 = ds_a_get_cgi_var("cfg_sspt_uid_pw2", "Password",
+                                                  "Enter the password for the Mission Control Administrator account, "
+                                                  "twice.")))
+        {
+            return 1;
+        }
 
-		if (strcmp (cfg_sspt_uid_pw1, cfg_sspt_uid_pw2) != 0)
-		{
-			ds_report_error (DS_INCORRECT_USAGE, " different passwords",
-							 "Enter the Mission Control Administrator account password again."
-							 "  The two Mission Control Administrator account passwords "
-							 "you entered are different.");
-			return 1;
-		}
-		if ( ((int) strlen(cfg_sspt_uid_pw1)) < 1 ) {
-			ds_report_error (DS_INCORRECT_USAGE, " password too short",
-							 "The password must be at least 1 character long.");
-			return 1;
-		}
-		cf->cfg_sspt_uidpw = cfg_sspt_uid_pw1;
-	}
+        if (strcmp (cfg_sspt_uid_pw1, cfg_sspt_uid_pw2) != 0)
+        {
+            ds_report_error (DS_INCORRECT_USAGE, " different passwords",
+                             "Enter the Mission Control Administrator account password again."
+                             "  The two Mission Control Administrator account passwords "
+                             "you entered are different.");
+            return 1;
+        }
+        if ( ((int) strlen(cfg_sspt_uid_pw1)) < 1 ) {
+            ds_report_error (DS_INCORRECT_USAGE, " password too short",
+                             "The password must be at least 1 character long.");
+            return 1;
+        }
+        cf->cfg_sspt_uidpw = cfg_sspt_uid_pw1;
+    }
 
     if (cf->cfg_sspt && *cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1") &&
-		!cf->cfg_sspt_uid)
-	{
-		ds_report_error (DS_INCORRECT_USAGE,
-						 " Userid not specified",
-						 "A Userid for Mission Control Administrator must be specified.");
-		return 1;
-	}
+        !cf->cfg_sspt_uid)
+    {
+        ds_report_error (DS_INCORRECT_USAGE,
+                         " Userid not specified",
+                         "A Userid for Mission Control Administrator must be specified.");
+        return 1;
+    }
     cf->start_server = ds_a_get_cgi_var("start_server", NULL, NULL);
     cf->secserv = ds_a_get_cgi_var("secserv", NULL, NULL);
     if (cf->secserv && strcmp(cf->secserv, "off"))
-		cf->secservport = ds_a_get_cgi_var("secservport", NULL, NULL);
+        cf->secservport = ds_a_get_cgi_var("secservport", NULL, NULL);
     if (!(cf->servid = ds_a_get_cgi_var("servid", "Server Identifier",
-										"Please give your server a short identifier.")))
-	{
-		return 1;
-	}
+                                        "Please give your server a short identifier.")))
+    {
+        return 1;
+    }
 
 #ifdef XP_UNIX
     cf->servuser = ds_a_get_cgi_var("servuser", NULL, NULL);
@@ -4889,82 +5020,177 @@ int parse_form(server_config_s *cf)
     cf->suffix = dn_normalize_convert(ds_a_get_cgi_var("suffix", NULL, NULL));
     
     if (cf->suffix == NULL) {
-		cf->suffix = "";
+        cf->suffix = "";
     }
 
     cf->rootdn = dn_normalize_convert(ds_a_get_cgi_var("rootdn", NULL, NULL));
     if (cf->rootdn && *(cf->rootdn)) {
-		if (!(cf->rootpw = ds_a_get_cgi_var("rootpw", NULL, NULL)))
-		{
-			char* pw1 = ds_a_get_cgi_var("rootpw1", "Password",
-										 "Enter the password for the unrestricted user.");
-			char* pw2 = ds_a_get_cgi_var("rootpw2", "Password",
-										 "Enter the password for the unrestricted user, twice.");
+        if (!(cf->rootpw = ds_a_get_cgi_var("rootpw", NULL, NULL)))
+        {
+            char* pw1 = ds_a_get_cgi_var("rootpw1", "Password",
+                                         "Enter the password for the unrestricted user.");
+            char* pw2 = ds_a_get_cgi_var("rootpw2", "Password",
+                                         "Enter the password for the unrestricted user, twice.");
 
-			if (!pw1 || !pw2 || check_passwords(pw1, pw2))
-			{
-				return 1;
-			}
+            if (!pw1 || !pw2 || check_passwords(pw1, pw2))
+            {
+                return 1;
+            }
 
-			cf->rootpw = pw1;
-		}
-		/* Encode the password in SSHA by default */
-		cf->roothashedpw = (char *)ds_salted_sha1_pw_enc (cf->rootpw);
+            cf->rootpw = pw1;
+        }
+        /* Encode the password in SSHA by default */
+        cf->roothashedpw = (char *)ds_salted_sha1_pw_enc (cf->rootpw);
     }
 
     cf->admin_domain = ds_a_get_cgi_var("admin_domain", NULL, NULL);
 
-	if ((temp = ds_a_get_cgi_var("use_existing_config_ds", NULL, NULL))) {
-		cf->use_existing_config_ds = atoi(temp);
-	} else {
-		cf->use_existing_config_ds = 1; /* there must already be one */
-	}
+    if ((temp = ds_a_get_cgi_var("use_existing_config_ds", NULL, NULL))) {
+        cf->use_existing_config_ds = atoi(temp);
+    } else {
+        cf->use_existing_config_ds = 1; /* there must already be one */
+    }
 
-	if ((temp = ds_a_get_cgi_var("use_existing_user_ds", NULL, NULL))) {
-		cf->use_existing_config_ds = atoi(temp);
-	} else {
-		cf->use_existing_user_ds = 0; /* we are creating it */
-	}
+    if ((temp = ds_a_get_cgi_var("use_existing_user_ds", NULL, NULL))) {
+        cf->use_existing_config_ds = atoi(temp);
+    } else {
+        cf->use_existing_user_ds = 0; /* we are creating it */
+    }
 
     temp = ds_a_get_cgi_var("ldap_url", NULL, NULL);
     if (temp && !ldap_url_parse(temp, &desc) && desc)
-	{
-		char *suffix;
-                int isSSL;
+    {
+        char *suffix;
+        int isSSL;
 
-		if (desc->lud_dn && *desc->lud_dn) { /* use given DN for netscaperoot suffix */
-			cf->netscaperoot = strdup(desc->lud_dn);
-			suffix = cf->netscaperoot;
-		} else { /* use the default */
-			suffix = dn_normalize_convert(strdup(cf->netscaperoot));
-		}
-		/* the config ds connection may require SSL */
-		isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
-		cf->config_ldap_url = PR_smprintf("ldap%s://%s:%d/%s",
-										  (isSSL ? "s" : ""), desc->lud_host,
-										  desc->lud_port, suffix);
-		ldap_free_urldesc(desc);
-	}
+        if (desc->lud_dn && *desc->lud_dn) { /* use given DN for netscaperoot suffix */
+            cf->netscaperoot = strdup(desc->lud_dn);
+            suffix = cf->netscaperoot;
+        } else { /* use the default */
+            suffix = dn_normalize_convert(strdup(cf->netscaperoot));
+        }
+        /* the config ds connection may require SSL */
+        isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
+        cf->config_ldap_url = PR_smprintf("ldap%s://%s:%d/%s",
+                                          (isSSL ? "s" : ""), desc->lud_host,
+                                          desc->lud_port, suffix);
+        ldap_free_urldesc(desc);
+    }
 
     /* if being called as a CGI, the user_ldap_url will be the directory
        we're creating */
     /* this is the directory we're creating, and we cannot create an ssl
        directory, so we don't have to worry about ldap vs ldaps here */
-	if ((temp = ds_a_get_cgi_var("user_ldap_url", NULL, NULL))) {
-		cf->user_ldap_url = strdup(temp);
-	} else {
-		cf->user_ldap_url = PR_smprintf("ldap://%s:%s/%s", cf->servname,
-										cf->servport, cf->suffix);
-	}
+    if ((temp = ds_a_get_cgi_var("user_ldap_url", NULL, NULL))) {
+        cf->user_ldap_url = strdup(temp);
+    } else {
+        cf->user_ldap_url = PR_smprintf("ldap://%s:%s/%s", cf->servname,
+                                        cf->servport, cf->suffix);
+    }
 
     cf->samplesuffix = NULL;
 
     cf->disable_schema_checking = ds_a_get_cgi_var("disable_schema_checking",
-												   NULL, NULL);
+                                                   NULL, NULL);
 
     cf->adminport = ds_a_get_cgi_var("adminport", NULL, NULL);
 
     cf->install_ldif_file = ds_a_get_cgi_var("install_ldif_file", NULL, NULL);
+
+    cf->localstatedir = set_path_attribute("localstatedir", LOCALSTATEDIR, prefix);
+    cf->sysconfdir = set_path_attribute("sysconfdir", SYSCONFDIR, prefix);
+    cf->bindir = set_path_attribute("bindir", BINDIR, prefix);
+    cf->datadir = set_path_attribute("datadir", DATADIR, prefix);
+    cf->docdir = set_path_attribute("docdir", DOCDIR, prefix);
+
+    temp = ds_a_get_cgi_var("inst_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->inst_dir = PR_smprintf("%s%c%s-%s",
+                            cf->sroot, FILE_PATHSEP, PRODUCT_NAME, cf->servid);
+    } else {
+        cf->inst_dir = PL_strdup(temp);
+    }
+
+    temp = ds_a_get_cgi_var("config_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->config_dir = PR_smprintf("%s%clib%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
+    } else {
+        cf->config_dir = PL_strdup(temp);
+    }
+    /* set config dir to the environment variable DS_CONFIG_DIR */
+    ds_set_config_dir(cf->config_dir);
+
+    cf->schema_dir = ds_a_get_cgi_var("schema_dir", NULL, NULL);
+    temp = ds_a_get_cgi_var("schema_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->schema_dir = PR_smprintf("%s%clib%c%s-%s%cschema",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+    } else {
+        cf->schema_dir = PL_strdup(temp);
+    }
+
+    temp = ds_a_get_cgi_var("lock_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->lock_dir = PR_smprintf("%s%clock%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
+    } else {
+        cf->lock_dir = PL_strdup(temp);
+    }
+
+    temp = ds_a_get_cgi_var("log_dir", NULL, NULL);
+    if (NULL == temp) {
+#if 0
+        cf->log_dir = PR_smprintf("%s%clog%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
+#else /* will go away */
+        cf->log_dir = PR_smprintf("%s%clogs",
+                            cf->inst_dir, FILE_PATHSEP);
+#endif
+    } else {
+        cf->log_dir = PL_strdup(temp);
+    }
+
+    temp = ds_a_get_cgi_var("run_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->run_dir = PR_smprintf("%s%crun%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
+    } else {
+        cf->run_dir = PL_strdup(temp);
+    }
+    /* set run dir to the environment variable DS_RUN_DIR */
+    ds_set_run_dir(cf->run_dir);
+
+    temp = ds_a_get_cgi_var("db_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->db_dir = PR_smprintf("%s%clib%c%s-%s%cdb",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+    } else {
+        cf->db_dir = PL_strdup(temp);
+    }
+
+    temp = ds_a_get_cgi_var("bak_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->bak_dir = PR_smprintf("%s%clib%c%s-%s%cbak",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+    } else {
+        cf->bak_dir = PL_strdup(temp);
+    }
+
+    temp = ds_a_get_cgi_var("ldif_dir", NULL, NULL);
+    if (NULL == temp) {
+        cf->ldif_dir = PR_smprintf("%s%c%s%cldif",
+                            cf->datadir, FILE_PATHSEP, BRAND_DS, FILE_PATHSEP);
+    } else {
+        cf->ldif_dir = PL_strdup(temp);
+    }
 
     return 0;
 }

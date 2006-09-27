@@ -38,10 +38,9 @@
 /*
  * dse.c - DSE (DSA-Specific Entry) persistent storage.
  *
- * The DSE store is an LDIF file contained in the file
- * INSTANCEDIR/config/XXX.ldif, where INSTANCEDIR is
- * the directory of the server instance, and XXX is
- * dfined by the caller of dse_new.
+ * The DSE store is an LDIF file contained in the file dse.ldif.
+ * The file is located in the directory specified with '-D' 
+ * when staring the server.
  *
  * In core, the DSEs are stored in an AVL tree, keyed on
  * DN.  Whenever a modification is made to a DSE, the
@@ -354,14 +353,15 @@ struct dse *
 dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfilename, const char *configdir)
 {
     struct dse *pdse= NULL;
-    const char *config_sub_dir = "config";
-    char *id = 	config_get_instancedir();
     char *realconfigdir = NULL;
 
-    if (configdir!=NULL) {
-		realconfigdir = slapi_ch_strdup(configdir);
-    } else if (id!=NULL) {
-		realconfigdir = slapi_ch_smprintf("%s/%s", id, config_sub_dir);
+    if (configdir!=NULL)
+    {
+        realconfigdir = slapi_ch_strdup(configdir);
+    }
+    else
+    {
+        realconfigdir = config_get_configdir();
     }
     if(realconfigdir!=NULL)
     {
@@ -412,7 +412,6 @@ dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfil
         }
 		slapi_ch_free( (void **) &realconfigdir );
     }
-    slapi_ch_free( (void **) &id );
     return pdse;
 }
 

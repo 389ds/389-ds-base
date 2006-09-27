@@ -49,7 +49,7 @@
  as the root DN.
 
  To test this plug-in function, stop the server, edit the dse.ldif file
- (in the <server_root>/slapd-<server_id>/config directory)
+ (in the config directory)
  and add the following lines before restarting the server :
 
  dn: cn=Test Bind,cn=plugins,cn=config

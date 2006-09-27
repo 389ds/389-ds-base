@@ -145,6 +145,7 @@ int main(int argc, char *argv[], char *envp[])
 
 #if defined( hpux )
     _exit(status);
+#else
+    exit(status);
 #endif
-    return status;
 }
