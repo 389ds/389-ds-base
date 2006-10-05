@@ -348,7 +348,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(int *)value) = pblock->pb_op->o_params.operation_type;
 		break;
 	case SLAPI_OPINITIATED_TIME:
-		(*(int *)value) = pblock->pb_op->o_time;
+		(*(time_t *)value) = pblock->pb_op->o_time;
 		break;
 	case SLAPI_REQUESTOR_ISROOT:
 		(*(int *)value) = pblock->pb_requestor_isroot;
