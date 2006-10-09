@@ -459,7 +459,7 @@ BEGIN_STR(dsgw)
         ResDef( DBT_missingArgumentForBindpwDirectiv_, 408, "Missing argument for \"bindpw\" directive\n" )
         ResDef( DBT_badFilenameForBinddnfileDirecti_, 409, "The binddn file must be specified with a full path and cannot exist under the dsgw directory\n" )
         ResDef (DBT_wrongPlaceForBinddnDirectiv_, 410, "The bind information should not be in the main configuration file. Please put it in a separate file outside of the dsgw directory\n")
-	ResDef( DBT_NotWillingToExecute_,  411, "The directory server gateway is not available for the restricted installation. To use the gateway upgrade to the full version of the Netscape Directory Server.\n" )
+	ResDef( DBT_NotWillingToExecute_,  411, "The directory server gateway is not available for the restricted installation. To use the gateway upgrade to the full version of the Fedora Directory Server.\n" )
 	ResDef( DBT_missingArgumentForOrgChartURLDirectiv_, 412, "Missing argument for \"url-orgchart-base\" directive\n" )/*extracted from config.c*/
 	ResDef( DBT_missingArgumentForOrgChartSearchAttr_ , 413, "Missing argument for \"orgchart-attrib-farleft-rdn\" directive\n" )/*extracted from config.c*/
 	ResDef( DBT_theCharsetIsNotSupported , 414, "The charset is not supported\n" )

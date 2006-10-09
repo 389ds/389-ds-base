@@ -49,4 +49,4 @@
 #define DSGW_VER_STR	PRODUCTTEXT
 #endif
 
-char *Versionstr = "Netscape-Directory-Gateway/"DSGW_VER_STR;
+char *Versionstr = "Fedora-Directory-Gateway/"DSGW_VER_STR;
