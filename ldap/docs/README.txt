@@ -1,5 +1,5 @@
 ======================================================================= 
-                       Fedora Directory Server 1.0.2
+                       Fedora Directory Server 1.0.3
 =======================================================================
 
 The Fedora Directory Server is subject to the terms detailed in the

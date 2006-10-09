@@ -360,7 +360,7 @@ fedora-ds.spec: ldapserver.spec.tmpl
 	-e 's/@COMPANY-PRODUCT-NAME@/Fedora Directory Server/g' \
 	-e 's/@LCASE-COMPANY-NAME-NOSP@/fedora/g' \
 	-e 's/@GEN-VERSION@/1.0/g' \
-	-e 's/@NOSP-VERSION@/1.0.2/g' \
+	-e 's/@NOSP-VERSION@/1.0.3/g' \
 	-e 's+@COMPANY-URL@+http://directory.fedora.redhat.com/+g' \
 	ldapserver.spec.tmpl > $@
 	mv $@ $(OBJDIR)
