@@ -115,7 +115,10 @@ sha_pw_cmp (char *userpwd, char *dbpwd, unsigned int shaLen )
         if ( dbhash == NULL ) goto loser;
     }
     hash_len = ldif_base64_decode( dbpwd, dbhash );
-    if ( hash_len >= shaLen ) {
+    if (hash_len < 0) {
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
+        goto loser;
+    } else if ( hash_len >= shaLen ) {
         salt.bv_val = (void*)(dbhash + shaLen);
         salt.bv_len = hash_len - shaLen;
     } else if ( hash_len == DS40B1_SALTED_SHA_LENGTH ) {
