@@ -272,6 +272,13 @@ do_one_pam_auth(
 		init_my_str_buf(&pam_id, binddn);
 	}
 
+	if (!pam_id.str) {
+		errmsg = PR_smprintf("Bind DN [%s] is invalid or not found",
+							 escape_string(binddn, buf));
+		retcode = LDAP_NO_SUCH_OBJECT; /* user unknown */
+		goto done; /* skip the pam stuff */
+	}
+
 	/* do the pam stuff */
 	my_data.pb = pb;
 	my_data.pam_identity = pam_id.str;
@@ -361,6 +368,7 @@ do_one_pam_auth(
 	slapi_unlock_mutex(PAMLock);
 	/* not in critical section any more */
 
+done:
 	delete_my_str_buf(&pam_id);
 
 	if ((retcode == LDAP_SUCCESS) && (rc != PAM_SUCCESS)) {
