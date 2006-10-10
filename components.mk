@@ -408,8 +408,15 @@ endif
 ###########################################################
 
 ### Net-SNMP package ######################################
+# given source root overrides other settings
+# otherwise, on linux, use 
+ifdef NETSNMP_SOURCE_ROOT
+  NETSNMP_LIBPATH = $(NETSNMP_SOURCE_ROOT)/built/lib
+  NETSNMP_INCDIR = $(NETSNMP_SOURCE_ROOT)/built/include
+  NETSNMP_BINDIR = $(NETSNMP_SOURCE_ROOT)/built/bin
+else
 ifeq ($(ARCH), Linux)
-  ifeq ($(USE_64), 1)
+ ifeq ($(USE_64), 1)
     NETSNMP_LIBPATH = /usr/lib64
   else
     NETSNMP_LIBPATH = /usr/lib
@@ -417,16 +424,11 @@ ifeq ($(ARCH), Linux)
   NETSNMP_INCDIR = /usr/include/net-snmp
   NETSNMP_BINDIR = /usr/bin
 else
-  ifdef NETSNMP_SOURCE_ROOT
-    NETSNMP_LIBPATH = $(NETSNMP_SOURCE_ROOT)/built/lib
-    NETSNMP_INCDIR = $(NETSNMP_SOURCE_ROOT)/built/include
-    NETSNMP_BINDIR = $(NETSNMP_SOURCE_ROOT)/built/bin
-  else
-    NETSNMP_LIBPATH = $(NETSNMP_BUILD_DIR)/lib
-    NETSNMP_INCDIR = $(NETSNMP_BUILD_DIR)/include
-    NETSNMP_BINDIR = $(NETSNMP_BUILD_DIR)/bin
-  endif
-endif # Linux
+  NETSNMP_LIBPATH = $(NETSNMP_BUILD_DIR)/lib
+  NETSNMP_INCDIR = $(NETSNMP_BUILD_DIR)/include
+  NETSNMP_BINDIR = $(NETSNMP_BUILD_DIR)/bin
+endif
+endif
 
 NETSNMP_INCLUDE = -I$(NETSNMP_INCDIR)
 NETSNMP_LIBNAMES = netsnmp netsnmpagent netsnmpmibs netsnmphelpers
@@ -439,6 +441,11 @@ ifneq ($(ARCH), WINNT)
       NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
     endif
     LIBS_TO_PKG += $(addprefix $(NETSNMP_LIBPATH)/,$(NETSNMP_SOLIBS))
+  else # Linux
+    ifdef NETSNMP_SOURCE_ROOT
+      NETSNMP_SOLIBS = $(addsuffix .$(DLL_SUFFIX).5.2.1, $(addprefix $(LIB_PREFIX), $(NETSNMP_LIBNAMES)))
+	  LIBS_TO_PKG += $(addprefix $(NETSNMP_LIBPATH)/,$(NETSNMP_SOLIBS))
+    endif # NETSNMP_SOURCE_ROOT
   endif # Linux
 endif # WINNT
 ###########################################################
