@@ -1760,5 +1760,6 @@ void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
         		   slapi_mods_get_ldapmods_byref(&smods),
         		   NULL, NULL, li->li_identity, 0);
     slapi_modify_internal_pb(&pb);
+    slapi_mods_done(&smods);
     pblock_done(&pb);
 }
