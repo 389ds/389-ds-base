@@ -46,6 +46,42 @@
 sroot=`echo $0 | sed s#/bin/slapd/admin/bin/.\*##g`
 PERL=perl # just use perl from PATH
 
+#        run_ds_create "$sroot" "$dir" "$inffile"
+run_ds_create()
+{
+    sroot="$1"
+    shift
+    dir="$1"
+    shift
+    inffile="$1"
+
+    # the inffile is incomplete - it needs the instance specific stuff
+    dseldif=$sroot/$dir/config/dse.ldif
+    port=`grep \^nsslapd-port: $dseldif | sed -e s/\^nsslapd-port:[\ \	]*//`
+    rootdn=`grep \^nsslapd-rootdn: $dseldif | sed -e s/\^nsslapd-rootdn:[\ \	]*//`
+    id=`echo $dir | sed -e s/^slapd-//`
+    suffix="o=NetscapeRoot"
+
+    realfile=/tmp/fds$$.inf
+    cp $inffile $realfile
+    echo "" >> $realfile
+    echo "[slapd]" >> $realfile
+    echo "ServerIdentifier= $id" >> $realfile
+    echo "ServerPort= $port" >> $realfile
+    echo "RootDN= $rootdn" >> $realfile
+    # dummy password
+    echo "RootDNPwd= password" >> $realfile
+    echo "Suffix= $suffix" >> $realfile
+
+    cwd=`pwd`
+    cd `dirname $0`
+
+    ./ds_create -r -f $realfile
+
+    rm -f $realfile
+	cd $cwd
+}
+
 start_server()
 {
 	NETSITE_ROOT=$1
@@ -60,16 +96,26 @@ start_server()
 	cd $cwd
 }
 
+# get the inf file name
+seenfarg=
+inffile=
+
 # if the -r flag is present, this means we're doing a
 # reinstall or an upgrade, so restart the servers
-for arg in $* ; do
+for arg in "$@" ; do
 	if [ "$arg" = "-r" ]; then
 		reconfig=1
 	fi
 	if [ "$arg" = "-S" ]; then
                 iDSISolaris=1
         fi
-
+    if [ $seenfarg ]; then
+        inffile="$arg"
+        seenfarg=
+    fi
+    if [ "$arg" = "-f" ]; then
+        seenfarg=1
+    fi
 done
 
 extraflags=
@@ -114,6 +160,10 @@ if [ $reconfig ] ; then
 		echo Starting $dir . . .
 		start_server $sroot $dir
 		echo ""
+
+        # more reconfiguration
+        run_ds_create "$sroot" "$dir" "$inffile" "$extraflags" "$@"
+
 	done
 	# fix any non-instance specific files - omit server instance argument
 	$PERL $sroot/bin/slapd/admin/bin/upgradeServer $sroot
@@ -123,19 +173,6 @@ cd `dirname $0`
 
 # we need to make sure the alias directory is owned by the server user/group
 # in order for the server to be able to create the initial key/cert db files
-
-# get the inf file name
-seenfarg=
-inffile=
-for arg in "$@" ; do
-	if [ $seenfarg ] ; then
-		inffile=$arg
-		break
-	fi
-	if [ "$arg" = "-f" ] ; then
-		seenfarg=1
-	fi
-done
 
 if [ ! -f "$inffile" ] ; then
 	echo "WARNING: Could not read the setup info file $inffile"
@@ -149,7 +186,10 @@ else
 fi
 
 rc=0
-./ds_create $* $extraflags
+# not reconfig - run ds_create as usual
+if test -z "$reconfig" ; then
+    ./ds_create $* $extraflags
+fi
 rc=$?
 
 # chown the cookie directory - bug 175098
