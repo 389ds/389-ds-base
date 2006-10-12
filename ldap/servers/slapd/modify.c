@@ -202,6 +202,7 @@ do_modify( Slapi_PBlock *pb )
 			send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, ebuf, 0, NULL );
 			slapi_ch_free((void **)&type);
 			ber_bvecfree(mod->mod_bvalues);
+			slapi_ch_free_string(&mod->mod_type);
 			slapi_ch_free((void **)&mod);
 			goto free_and_return;
 		}
