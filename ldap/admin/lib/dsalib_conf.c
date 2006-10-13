@@ -51,7 +51,6 @@
 
 #include "nspr.h"
 
-#define CONF_FILE_NAME "dse.ldif"
 #define CONF_SUFFIX "cn=config"
 
 DS_EXPORT_SYMBOL char *
@@ -83,7 +82,7 @@ ds_get_config(int type)
         return(NULL);
     }
 
-    PR_snprintf(conffile, PATH_MAX, "%s/%s", configdir, CONF_FILE_NAME);
+    PR_snprintf(conffile, PATH_MAX, "%s/%s", configdir, DS_CONFIG_FILE);
 
     if ( !(sf = fopen(conffile, "r")) )  {
         ds_send_error("could not read config file.", 1);

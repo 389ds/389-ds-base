@@ -42,9 +42,7 @@
 int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 {
     struct ldbminfo    *li;
-    char *instancedir = NULL;
-    char *orig_dir = NULL;
-    char *directory = NULL;
+    char *directory = NULL;    /* -a <directory> */
     char *backendname = NULL;
     int return_value = -1;
     int task_flags = 0;
@@ -53,19 +51,17 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     int is_old_to_new = 0;
 
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &orig_dir );
+    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );
     slapi_pblock_get( pb, SLAPI_BACKEND_INSTANCE_NAME, &backendname);
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
     li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
 
-    if ( !orig_dir || !*orig_dir ) {
+    if ( !directory || !*directory ) {
         LDAPDebug( LDAP_DEBUG_ANY, "archive2db: no archive name\n",
                    0, 0, 0 );
         return( -1 );
     }
-    instancedir = config_get_instancedir();
-    directory = rel2abspath_ext(orig_dir, instancedir);
 
     /* check the current idl format vs backup DB version */
     if (idl_get_idl_new())
@@ -248,17 +244,14 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         }
     }
 out:
-    slapi_ch_free_string(&directory);
     return return_value;
 }
 
 int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 {
     struct ldbminfo    *li;
-    char *orig_dir = NULL;
-    char *directory = NULL;
+    char *directory = NULL;   /* -a <directory> */
     char *dir_bak = NULL;
-    char *instancedir = NULL;
     int return_value = -1;
     int task_flags = 0;
     int run_from_cmdline = 0;
@@ -266,19 +259,17 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
     struct stat sbuf;
 
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &orig_dir );
+    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
     li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
 
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
 
-    if ( !orig_dir || !*orig_dir ) {
+    if ( !directory || !*directory ) {
         LDAPDebug( LDAP_DEBUG_ANY, "db2archive: no archive name\n",
                    0, 0, 0 );
         return( -1 );
     }
-    instancedir = config_get_instancedir();
-    directory = rel2abspath_ext(orig_dir, instancedir);
     if (stat(directory, &sbuf) == 0) {
         int baklen = strlen(directory) + 5; /* ".bak\0" */
         dir_bak = slapi_ch_malloc(baklen);
@@ -446,6 +437,5 @@ err:
     }
 out:
     slapi_ch_free_string(&dir_bak);
-    slapi_ch_free_string(&directory);
     return return_value;
 }

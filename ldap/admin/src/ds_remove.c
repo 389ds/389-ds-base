@@ -189,8 +189,8 @@ int main(int argc, char *argv[])
 	}
 
 	/*
- 	 * Get the server pathto delete.
-	 * serevrpath = /export/serevrs/dirserv/slapd-talac
+ 	 * Get the server path to delete.
+	 * serverpath = /<server_root>/slapd-<id>
 	 */
 	if (!(servername = ds_get_cgi_var("InstanceName")))
 		servername = ds_get_server_name();

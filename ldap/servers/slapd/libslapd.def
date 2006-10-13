@@ -473,7 +473,7 @@ EXPORTS
 	slapi_build_control @437
 	slapi_entry_get_ndn		@438
 	dse_unset_dont_ever_write_dse_files		@439
-	config_set_instancedir 	@440
+;	config_set_instancedir 	@440
 	config_set_encryptionalias 	@441
 	config_set_threadnumber 	@442
 	config_set_maxthreadsperconn 	@443
@@ -537,7 +537,7 @@ EXPORTS
     slapi_entry_set_sdn @501
     slapi_sdn_copy @502
 	config_set_basedn	@503
-	config_get_instancedir	@504
+;	config_get_instancedir	@504
 	config_get_encryptionalias	@505
 	config_get_threadnumber	@506
 	config_get_maxthreadsperconn	@507
@@ -570,7 +570,7 @@ EXPORTS
 	attr_set_deletion_csn @534
     slapi_mod_dump @535
 	config_is_slapd_lite		@536
-	config_set_slapd_type		@537
+;	config_set_slapd_type		@537
 	config_get_versionstring	@538
 	slapi_is_rootdse			@539
 	slapi_find_matching_paren		@540

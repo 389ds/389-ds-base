@@ -47,21 +47,21 @@
 #endif
 
 /* error types */
-#define DS_FILE_ERROR 0
-#define DS_MEMORY_ERROR 1
-#define DS_SYSTEM_ERROR 2
-#define DS_INCORRECT_USAGE 3
-#define DS_ELEM_MISSING 4
+#define DS_FILE_ERROR              0
+#define DS_MEMORY_ERROR            1
+#define DS_SYSTEM_ERROR            2
+#define DS_INCORRECT_USAGE         3
+#define DS_ELEM_MISSING            4
 #define DS_REGISTRY_DATABASE_ERROR 5
-#define DS_NETWORK_ERROR 6
-#define DS_GENERAL_FAILURE 7
-#define DS_WARNING 8
+#define DS_NETWORK_ERROR           6
+#define DS_GENERAL_FAILURE         7
+#define DS_WARNING                 8
 
 /* The upper bound on error types */
-#define DS_MAX_ERROR 9
+#define DS_MAX_ERROR               9
 
 /* The default error type (in case something goes wrong */
-#define DS_DEFAULT_ERROR 3
+#define DS_DEFAULT_ERROR           3
 
 #ifndef BIG_LINE
 #define	BIG_LINE	1024
@@ -80,18 +80,27 @@
 #define CONTENT_NAME "content"
 #endif
 
+/* config file/path info */
+#define DS_CONFIG_DIR      "DS_CONFIG_DIR"
+#define DS_CONFIG_FILE     "dse.ldif"
+#define DS_ORIGCONFIG_FILE "dse_original.ldif"
+#define PIDFILE            "PIDFILE"
+
+#define DS_CONFIG_LOCKDIR  "nsslapd-lockdir:"
+#define DS_CONFIG_ERRLOG   "nsslapd-errorlog:"
+
 #ifdef XP_UNIX
 
-#define FILE_PATHSEP '/'
+#define FILE_PATHSEP  '/'
 #define FILE_PATHSEPP "/"
-#define FILE_PARENT "../"
+#define FILE_PARENT   "../"
 #define WSACleanup()
 
 #elif defined(XP_WIN32)
 
-#define FILE_PATHSEP '/'
+#define FILE_PATHSEP  '/'
 #define FILE_PATHSEPP "\\\\"
-#define FILE_PARENT "..\\"
+#define FILE_PARENT   "..\\"
 
 #endif /* XP_WIN32 */
 
@@ -303,7 +312,6 @@ extern DS_EXPORT_SYMBOL void ds_print_server_status(int isrunning);
 extern DS_EXPORT_SYMBOL int ds_get_file_size(char *fileName);
 extern DS_EXPORT_SYMBOL void ds_display_tail(char *fileName, int timeOut, 
     int startSeek, char *doneMsg, char *lastLine);
-extern DS_EXPORT_SYMBOL char **ds_get_ldif_files();
 extern DS_EXPORT_SYMBOL int ds_ldif2db_preserve(char *file);
 extern DS_EXPORT_SYMBOL int ds_ldif2db(char *file);
 extern DS_EXPORT_SYMBOL int ds_ldif2db_backend_subtree(char *file, char *backend, char *subtree);
@@ -322,6 +330,8 @@ extern DS_EXPORT_SYMBOL char *ds_get_config_dir();
 extern DS_EXPORT_SYMBOL void ds_set_config_dir(char *config_dir);
 extern DS_EXPORT_SYMBOL char *ds_get_run_dir();
 extern DS_EXPORT_SYMBOL void ds_set_run_dir(char *run_dir);
+extern DS_EXPORT_SYMBOL char *ds_get_bak_dir();
+extern DS_EXPORT_SYMBOL void ds_set_bak_dir(char *bak_dir);
 extern DS_EXPORT_SYMBOL char *ds_get_pwenc(char *passwd_hash, char *password);
 extern DS_EXPORT_SYMBOL int ds_check_config(int type);
 extern DS_EXPORT_SYMBOL int ds_check_pw(char *pwhash, char *pwclear);
@@ -415,7 +425,7 @@ extern DS_EXPORT_SYMBOL char* ds_become_original();
 
 extern DS_EXPORT_SYMBOL char* ds_makeshort(char *filepath);
 
-extern DS_EXPORT_SYMBOL int ds_search_file(char *filename, char *searchstring);
+extern DS_EXPORT_SYMBOL int ds_search_file(char *filename, char *searchstring, char **returnstring);
 
 /* Begin parsing a POST in a CGI context */
 extern DS_EXPORT_SYMBOL int ds_post_begin(FILE *input);

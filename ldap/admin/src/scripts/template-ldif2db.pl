@@ -93,7 +93,7 @@ $mergechunksiz = 0;
 $genuniqid = "time";
 $uniqidname = "";
 $taskname = "";
-$dsroot = "{{DS-ROOT}}";
+$prefix = "{{DS-ROOT}}";
 $mydsroot = "{{MY-DS-ROOT}}";
 $verbose = 0;
 $rootdn = "";
@@ -219,7 +219,7 @@ if ($uniqidname ne "") { $nsuniqidname = "nsUniqueIdGeneratorNamespace: ${uniqid
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-chdir("$dsroot{{SEP}}shared{{SEP}}bin");
-open(FOO, "| $dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+chdir("$prefix{{SEP}}shared{{SEP}}bin");
+open(FOO, "| $prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

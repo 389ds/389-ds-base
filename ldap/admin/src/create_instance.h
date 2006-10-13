@@ -50,8 +50,6 @@ extern "C" {            /* Assume C declarations for C++ */
 #endif  /* __cplusplus */
 
 #define BRAND_DS        "fedora-ds"
-#define DS_CONFIG_DIR   "DS_CONFIG_DIR"
-#define DS_CONFIG_FILE  "dse.ldif"
 
 #ifdef XP_UNIX
 #define PRODUCT_NAME    "slapd"
@@ -131,6 +129,8 @@ typedef struct {
     char *db_dir;
     char *bak_dir;
     char *ldif_dir;
+    char *tmp_dir;
+    char *cert_dir;
     char *prefix;
 } server_config_s;
 

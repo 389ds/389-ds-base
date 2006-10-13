@@ -65,8 +65,7 @@ $attribute_arg = "";
 $vlvattribute_arg = "";
 $verbose = 0;
 
-$dsroot = "{{DS-ROOT}}";
-$mydsroot = "{{MY-DS-ROOT}}";
+$prefix = "{{DS-ROOT}}";
 
 $i = 0;
 while ($i <= $#ARGV) 
@@ -163,11 +162,11 @@ $attribute="";
 $indexes_list="";
 $vlvattribute="";
 $vlvindexes_list="";
-chdir("$dsroot{{SEP}}shared{{SEP}}bin");
+chdir("$prefix{{SEP}}shared{{SEP}}bin");
 if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
 {
     # Get the list of indexes from the entry
-    $indexes_list="$dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapsearch $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s one " .
+    $indexes_list="$prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapsearch $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s one " .
     "-b \"cn=index,cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"(&(objectclass=*)(nsSystemIndex=false))\" cn";
 
     # build the values of the attribute nsIndexAttribute
@@ -187,7 +186,7 @@ if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
     }
 
     # Get the list of indexes from the entry
-    $vlvindexes_list="$dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapsearch $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s sub -b \"cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"objectclass=vlvIndex\" cn";
+    $vlvindexes_list="$prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapsearch $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s sub -b \"cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"objectclass=vlvIndex\" cn";
 
     # build the values of the attribute nsIndexVlvAttribute
     open(LDAP1, "$vlvindexes_list |");
@@ -220,6 +219,6 @@ $cn =  "cn: $taskname\n";
 $nsinstance = "nsInstance: ${instance}\n";
 
 $entry = "${dn}${misc}${cn}${nsinstance}${attribute}${vlvattribute}";
-open(FOO, "| $dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+open(FOO, "| $prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

@@ -326,7 +326,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 
 					NSS_Shutdown();
 					nssFlags &= (~NSS_INIT_READONLY);
-       				val = config_get_instancedir();
+       				val = config_get_certdir();
        				PL_strncpyz(certDir, val, sizeof(certDir));
 					defaultprefix = strrchr(certDir, '/');
 					if (!defaultprefix)
@@ -336,8 +336,6 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 					defaultprefix++;
 					PR_snprintf(certPref, 1024, "%s-",defaultprefix);
 					PL_strncpyz(keyPref, certPref, sizeof(keyPref));
-					*defaultprefix= '\0';
-					PR_snprintf(certDir, 1024, "%salias", certDir);
        				nssStatus = NSS_Initialize(certDir, certPref, keyPref, "secmod.db", nssFlags);
 					slapi_ch_free((void **)&val);
 		

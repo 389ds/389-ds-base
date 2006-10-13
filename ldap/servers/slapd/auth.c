@@ -271,7 +271,6 @@ slapu_value_free_len( LDAP* ld, struct berval **values )
 void
 client_auth_init ()
 {
-    char *instancedir;
     int err;
     if (client_auth_config_file == NULL) {
 	char *confdir = config_get_configdir();

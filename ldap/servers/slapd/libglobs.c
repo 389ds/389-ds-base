@@ -513,16 +513,22 @@ static struct config_get_and_set {
 		CONFIG_CONSTANT_STRING, NULL},
 	{CONFIG_HASH_FILTERS_ATTRIBUTE, config_set_hash_filters,
 		NULL, 0, NULL, CONFIG_ON_OFF, (ConfigGetFunc)config_get_hash_filters},
-	{CONFIG_INSTANCEDIR_ATTRIBUTE, config_set_instancedir,
-		NULL, 0,
-		(void**)&global_slapdFrontendConfig.instancedir, CONFIG_STRING, NULL},
 	/* parameterizing schema dir */
 	{CONFIG_SCHEMADIR_ATTRIBUTE, config_set_schemadir,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.schemadir, CONFIG_STRING, NULL},
-	/* parameterizing ldif dir */
-	{CONFIG_LDIFDIR_ATTRIBUTE, config_set_ldifdir,
-		NULL, 0, NULL, CONFIG_STRING, NULL},
+	/* parameterizing lock dir */
+	{CONFIG_LOCKDIR_ATTRIBUTE, config_set_lockdir,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.lockdir, CONFIG_STRING, config_get_lockdir},
+	/* parameterizing tmp dir */
+	{CONFIG_TMPDIR_ATTRIBUTE, config_set_tmpdir,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.tmpdir, CONFIG_STRING, config_get_tmpdir},
+	/* parameterizing cert dir */
+	{CONFIG_CERTDIR_ATTRIBUTE, config_set_certdir,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.certdir, CONFIG_STRING, config_get_certdir},
 	{CONFIG_REWRITE_RFC1274_ATTRIBUTE, config_set_rewrite_rfc1274,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.rewrite_rfc1274, CONFIG_ON_OFF, NULL},
@@ -2325,44 +2331,6 @@ config_set_workingdir( const char *attrname, char *value, char *errorbuf, int ap
   return retVal;
 }
 
-int 
-config_set_instancedir( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-	return LDAP_OPERATIONS_ERROR;
-  }
-	
-  if ( PR_Access ( value, PR_ACCESS_READ_OK ) != 0 ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Directory \"%s\" is not accessible.", value );
-	retVal = LDAP_OPERATIONS_ERROR;
-	return retVal;
-  }
-
-  if ( apply) {
-	CFG_LOCK_WRITE(slapdFrontendConfig);
-	slapdFrontendConfig->instancedir = slapi_ch_strdup ( value );
-#ifdef _WIN32
-	dostounixpath(slapdFrontendConfig->instancedir);
-#endif /* _WIN32 */
-	CFG_UNLOCK_WRITE(slapdFrontendConfig);
-
-	/* Set the slapd type also */
-	config_set_slapd_type ();
-
-	/* Set the configdir if not set (it must be set since 7.2) */
-	if (!slapdFrontendConfig->configdir)
-	{
-		char newdir[MAXPATHLEN+1];
-		PR_snprintf ( newdir, sizeof(newdir), "%s/%s",
-				slapdFrontendConfig->instancedir, CONFIG_SUBDIR_NAME);
-		retVal = config_set_configdir(attrname, newdir, errorbuf, apply);
-	}
-  }
-  return retVal;
-}
-
 /* alias of encryption key and certificate files is now retrieved through */
 /* calls to psetFullCreate() and psetGetAttrSingleValue(). See ssl.c, */
 /* where this function is still used to set the global variable */
@@ -3715,19 +3683,6 @@ config_get_localuser() {
 }
 
 #endif /* _WIN32 */
-
-char *
-config_get_instancedir() {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  char *retVal;
-  
-  CFG_LOCK_READ(slapdFrontendConfig);
-  retVal = config_copy_strval( slapdFrontendConfig->instancedir );
-  CFG_UNLOCK_READ(slapdFrontendConfig);
-
-  return retVal;
-}
-
 /* alias of encryption key and certificate files is now retrieved through */
 /* calls to psetFullCreate() and psetGetAttrSingleValue(). See ssl.c, */
 /* where this function is still used to set the global variable */
@@ -4067,27 +4022,6 @@ config_is_slapd_lite ()
 	return ( SLAPD_FULL );
 }
 
-/* This function is called once at the startup time and no more */
-void
-config_set_slapd_type( )
-{
-	char	*root = NULL;
-	char	*s_root = NULL;
-  	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-	CFG_LOCK_WRITE(slapdFrontendConfig);
-	if ( slapdFrontendConfig->instancedir )
-		s_root = root = slapi_ch_strdup ( slapdFrontendConfig->instancedir );
-
-	if ( (root = strrchr( root, '/' )) != NULL ) {
-		*root = '\0';
-        }
-	slapdFrontendConfig->slapd_type = 0;
-	slapdFrontendConfig->versionstring = SLAPD_VERSION_STR;
-	CFG_UNLOCK_WRITE(slapdFrontendConfig);
-	slapi_ch_free ( (void **) &s_root );
-}
-
 int
 config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int apply )
 {
@@ -4263,11 +4197,112 @@ config_set_schemadir(const char *attrname, char *value, char *errorbuf, int appl
 	return retVal;
 }
 
-int
-config_set_ldifdir(const char *attrname, char *value, char *errorbuf, int apply)
+char *
+config_get_lockdir()
 {
-	/* noop */
-	return LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	char *retVal;
+
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = config_copy_strval(slapdFrontendConfig->lockdir);
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal; 
+}
+
+int
+config_set_lockdir(const char *attrname, char *value, char *errorbuf, int apply)
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+  
+	if (!apply) {
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	slapi_ch_free((void **)&slapdFrontendConfig->lockdir);
+
+	slapdFrontendConfig->lockdir = slapi_ch_strdup(value);
+  
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	return retVal;
+}
+
+char *
+config_get_tmpdir()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	char *retVal;
+
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = config_copy_strval(slapdFrontendConfig->tmpdir);
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal; 
+}
+
+int
+config_set_tmpdir(const char *attrname, char *value, char *errorbuf, int apply)
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+  
+	if (!apply) {
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	slapi_ch_free((void **)&slapdFrontendConfig->tmpdir);
+
+	slapdFrontendConfig->tmpdir = slapi_ch_strdup(value);
+  
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	return retVal;
+}
+
+char *
+config_get_certdir()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	char *retVal;
+
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = config_copy_strval(slapdFrontendConfig->certdir);
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal; 
+}
+
+int
+config_set_certdir(const char *attrname, char *value, char *errorbuf, int apply)
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+  
+	if (!apply) {
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	slapi_ch_free((void **)&slapdFrontendConfig->certdir);
+
+	slapdFrontendConfig->certdir = slapi_ch_strdup(value);
+  
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	return retVal;
 }
 
 char **

@@ -214,7 +214,7 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	CK_MECHANISM pbeMech;
 	CK_MECHANISM cryptoMech;
 
-	char *instancedir = NULL;
+	char *configdir = NULL;
 	char *iv = NULL;
 
 	store = (struct pk11ContextStore*)slapi_ch_malloc(sizeof(*store));
@@ -243,22 +243,22 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	/* Generate a unique id, used as salt for the key generation */
 	if ( path == NULL )
 	{
-		instancedir = config_get_instancedir();
-		if ( instancedir == NULL )
+		configdir = config_get_configdir();
+		if ( configdir == NULL )
 		{
 		  return (err = SVRCORE_System_Error);
 		}
 	}
 	else
 	{
-		instancedir = slapi_ch_strdup(path);
+		configdir = slapi_ch_strdup(path);
 	}
-	if ( slapi_uniqueIDGenerateFromNameString (&iv, NULL, instancedir, strlen(instancedir)) != UID_SUCCESS )
+	if ( slapi_uniqueIDGenerateFromNameString (&iv, NULL, configdir, strlen(configdir)) != UID_SUCCESS )
 	{
-	  slapi_ch_free((void**)&instancedir);
+	  slapi_ch_free((void**)&configdir);
 	  return (err = SVRCORE_System_Error);
 	}
-	slapi_ch_free((void**)&instancedir);
+	slapi_ch_free((void**)&configdir);
 
 	pwitem = (SECItem *) PORT_Alloc(sizeof(SECItem));
 	if (pwitem == NULL)

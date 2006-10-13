@@ -307,51 +307,6 @@ ds_cp_file(char *sfile, char *dfile, int mode)
 #endif
 }
 
-/* Returns a directory path used for tmp files. */
-DS_EXPORT_SYMBOL char * 
-ds_get_tmp_dir()
-{
-#if defined( XP_WIN32 )
-	size_t ilen;
-	char pch;
-#endif
-	static char tmpdir[] = "/tmp";
-	static char tmp[256] = {0};
- 	char* instanceDir = ds_get_install_root();
- 	
-	if(instanceDir == NULL)
-	{
-		#if defined( XP_WIN32 )
-			ilen = sizeof(tmp);
-			GetTempPath( ilen, tmp );
-			tmp[ilen-1] = (char)0;
-			/* Remove trailing slash. */
-			ilen = strlen(tmp);
-			pch = tmp[ilen-1];
-			if( pch == '\\' || pch == '/' )
-				tmp[ilen-1] = '\0';
-			return tmp;
-		#else
-			return( tmpdir );
-		#endif
-	}
-	
-	PR_snprintf(tmp, sizeof(tmp), "%s/tmp",instanceDir);
-	
-#if defined( XP_WIN32 )
-	for(ilen=0;ilen < strlen(tmp); ilen++)
-	{
-		if(tmp[ilen]=='/')
-			tmp[ilen]='\\';
-	}
-#endif
-
-	if(!ds_file_exists(tmp))
-		ds_mkdir_p(tmp,00770);
-		
-	return ( tmp );
-}
-
 DS_EXPORT_SYMBOL void 
 ds_unixtodospath(char *szText)
 {
@@ -630,8 +585,10 @@ ds_makeshort( char * filepath )
 }
 
 /* returns 1 if string "searchstring" found in file "filename" */
+/* if found, returnstring is allocated and filled with the line */
+/* caller should release the memory */
 DS_EXPORT_SYMBOL int 
-ds_search_file(char *filename, char *searchstring)
+ds_search_file(char *filename, char *searchstring, char **returnstring)
 {
     struct stat finfo;
 	FILE * sf;
@@ -648,6 +605,10 @@ ds_search_file(char *filename, char *searchstring)
 
 	while ( fgets(big_line, BIG_LINE, sf) ) {
 		if( strstr( big_line, searchstring ) != NULL ) {
+			*returnstring = (char *)malloc(strlen(big_line) + 1);
+			if (NULL != *returnstring) {
+				strcpy(*returnstring, big_line);
+			}
 		    fclose(sf);
 			return 1;
 		}
@@ -864,8 +825,6 @@ ds_system_errmsg(void)
     return static_error;
 }
 
-/* get db path dir info from dse.ldif and remove it if it's not under path
-*/
 #ifndef MAXPATHLEN
 #define MAXPATHLEN  1024
 #endif
@@ -907,7 +866,7 @@ rm_db_dirs(char *fullpath, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 
 	if (fp == NULL)
 	{
-		ds_rm_rf_err_func(fullpath, "opening dse.ldif", arg);
+		ds_rm_rf_err_func(fullpath, "opening the config file", arg);
 		return;
 	}
 
@@ -990,6 +949,43 @@ rm_db_dirs(char *fullpath, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 	fclose(fp);
 }
 
+static char *
+get_dir_from_startslapd(char *loc, char *keyword)
+{
+	char *returnstr = NULL; 
+	char *ptr = NULL;
+	char *confdir = NULL;
+if (ds_search_file(loc, keyword, &returnstr) > 0 && returnstr) {
+		ptr = strchr(returnstr, '=');
+		if (NULL != ptr) {
+			confdir = strdup(++ptr);
+		}
+		free(returnstr);
+	}
+	return confdir;
+}
+
+static char *
+get_dir_from_config(char *config_dir, char *config_attr)
+{
+    char *configfile = NULL;
+	char *returnstr = NULL; 
+	char *ptr = NULL;
+	char *dir = NULL;
+	configfile = PR_smprintf("%s%c%s", config_dir, FILE_PATHSEP, DS_CONFIG_FILE);
+	if (configfile && ds_search_file(configfile, config_attr, &returnstr) > 0
+		&& returnstr) {
+		ptr = strchr(returnstr, ':');
+		if (NULL != ptr) {
+			while (' ' == *ptr || '\t' == *ptr) ptr++;
+			dir = strdup(ptr);
+		}
+		free(returnstr);
+		PR_smprintf_free(configfile);
+	}
+	return dir;
+}
+
 /* this function will recursively remove a directory hierarchy from the file
    system, like "rm -rf"
    In order to handle errors, the user supplies a callback function.  When an
@@ -1041,9 +1037,61 @@ internal_rm_rf(const char *path, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 					break;
 				}
 			} else {
-				/* if dse.ldif, check db dir is under the instance dir or not */
-				if (0 == strcmp(dirent->name, "dse.ldif"))
+				/* FHS changes the directory structure.
+				 * Config dir is no longer in the instance dir.
+				 * The info should be found in start-slapd,
+				 * therefore get the path from the file here.
+				 */
+				if (0 == strcmp(dirent->name, "start-slapd")) {
+				    char *config_dir = ds_get_config_dir();
+					char *run_dir = ds_get_run_dir();
+					if (NULL == config_dir || '\0' == *config_dir) {
+						config_dir = get_dir_from_startslapd(fullpath, DS_CONFIG_DIR);
+					}
+					if (NULL == run_dir || '\0' == *run_dir) {
+						char *ptr = NULL;
+						run_dir = get_dir_from_startslapd(fullpath, PIDFILE);
+						ptr = strrchr(run_dir, FILE_PATHSEP);
+						if (NULL != ptr) {
+							*ptr = '\0';	/* equiv to dirname */
+						}
+					}
+					if (NULL != run_dir) {
+						internal_rm_rf(run_dir, ds_rm_rf_err_func, NULL);
+						free(run_dir);
+					}
+					if (NULL != config_dir) {
+						char *lock_dir = get_dir_from_config(config_dir, DS_CONFIG_LOCKDIR);
+						char *err_log = get_dir_from_config(config_dir, DS_CONFIG_ERRLOG);
+
+						if (NULL != lock_dir) {
+							internal_rm_rf(lock_dir, ds_rm_rf_err_func, NULL);
+							free(lock_dir);
+						}
+						if (NULL != err_log) {
+							char *ptr = strrchr(err_log, FILE_PATHSEP);
+							if (NULL != ptr) {
+								*ptr = '\0'; /* equiv to 'dirname' */
+								internal_rm_rf(err_log, ds_rm_rf_err_func, NULL);
+							}
+							free(err_log);
+						}
+						/* removing db dirs */
+						rm_db_dirs(config_dir, ds_rm_rf_err_func, arg);
+
+						/* removing config dir */
+						internal_rm_rf(config_dir, ds_rm_rf_err_func, NULL);
+					}
+				}
+				/* 
+				 * When the file is the config file, 
+				 * check if db dir is in the instance dir or not.
+				 * If db dir exists in the instance dir, it's an old structure.
+				 * Let's clean the old db here, as well.
+				 */
+				if (0 == strcmp(dirent->name, DS_CONFIG_FILE)) {
 					rm_db_dirs(fullpath, ds_rm_rf_err_func, arg);
+				}
 
 				if (PR_Delete(fullpath) != PR_SUCCESS) {
 					if (!ds_rm_rf_err_func(fullpath, "deleting file", arg)) {
@@ -1086,6 +1134,7 @@ default_err_func(const char *path, const char *op, void *arg)
 	return 1; /* just continue */	
 }
 
+/* dir: instance dir, e.g.,  "$NETSITE_ROOT/slapd-<id>" */
 DS_EXPORT_SYMBOL int
 ds_rm_rf(const char *dir, DS_RM_RF_ERR_FUNC ds_rm_rf_err_func, void *arg)
 {

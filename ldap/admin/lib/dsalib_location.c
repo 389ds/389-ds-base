@@ -133,6 +133,52 @@ ds_set_run_dir(char *run_dir)
 }
 
 /*
+ * Returns the bakup dir of the server, where db backup files are put.
+ * Info is returned in a static area. The caller must copy it 
+ * for reuse if needed.
+ */
+DS_EXPORT_SYMBOL char *
+ds_get_bak_dir()
+{
+    return getenv("DS_BAK_DIR");
+}
+
+/*
+ * set bak_dir to environment variable DS_BAK_DIR
+ * to retrieve the value using ds_get_bak_dir later.
+ */
+DS_EXPORT_SYMBOL void
+ds_set_bak_dir(char *bak_dir)
+{
+    static char env[PATH_MAX];
+    PR_snprintf(env, sizeof(env), "DS_BAK_DIR=%s", bak_dir);
+    putenv(env);
+}
+
+/*
+ * Returns the tmp dir of the server, where tmp files are put.
+ * Info is returned in a static area. The caller must copy it 
+ * for reuse if needed.
+ */
+DS_EXPORT_SYMBOL char *
+ds_get_tmp_dir()
+{
+    return getenv("DS_TMP_DIR");
+}
+
+/*
+ * set bak_dir to environment variable DS_TMP_DIR
+ * to retrieve the value using ds_get_tmp_dir later.
+ */
+DS_EXPORT_SYMBOL void
+ds_set_tmp_dir(char *tmp_dir)
+{
+    static char env[PATH_MAX];
+    PR_snprintf(env, sizeof(env), "DS_TMP_DIR=%s", tmp_dir);
+    putenv(env);
+}
+
+/*
  * Returns the install location of the server under the admserv
  * directory.
  */

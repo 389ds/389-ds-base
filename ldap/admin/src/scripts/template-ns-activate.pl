@@ -356,7 +356,7 @@ sub checkScope
 ###############################
 
 # Generated variable
-$dsroot="{{DS-ROOT}}";
+$prefix="{{DS-ROOT}}";
 
 # Determine which command we are running
 if ( $0 =~ /ns-inactivate(.pl)?$/ )
@@ -392,7 +392,7 @@ else
 
 debug("Running ** $cmd ** $operation\n");
 
-$dsbinroot="$dsroot{{SEP}}shared{{SEP}}bin";
+$dsbinroot="$prefix{{SEP}}shared{{SEP}}bin";
 $ldapsearch="$dsbinroot{{SEP}}ldapsearch -1";
 $ldapmodify="$dsbinroot{{SEP}}ldapmodify";
  

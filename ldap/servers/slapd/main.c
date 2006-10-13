@@ -274,13 +274,7 @@ fix_ownership()
 	else {
 		return;
 	}
-
-	/* The instance directory needs to be owned by the local user */
-	if (slapdFrontendConfig->instancedir) {
-		slapd_chown_if_not_owner(slapdFrontendConfig->instancedir,
-								 pw->pw_uid, -1);
-	}
-	/* config directory */
+	/* config directory needs to be owned by the local user */
 	if (slapdFrontendConfig->configdir) {
 		chown_dir_files(slapdFrontendConfig->configdir, pw, PR_FALSE);
 	}
@@ -698,8 +692,7 @@ main( int argc, char **argv)
 
 	process_command_line(argc,argv,myname,&extraname);
 
-	if (!slapdFrontendConfig->instancedir &&
-		!slapdFrontendConfig->configdir) {
+	if (NULL == slapdFrontendConfig->configdir) {
 		usage( myname, extraname );
 		exit( 1 );
 	}

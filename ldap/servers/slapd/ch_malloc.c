@@ -624,11 +624,12 @@ BOOL InitialiseImageHelp()
 {
 	if (!SymInitialized)
 	{
+		/* OBSOLETE: we don't have this directory structure any longer */
 		/*
 		 * searchpath= <instancedir>\bin\slapd\server;<instancedir>\lib
 		 */
 		char *searchpath= NULL;
-		char *id= config_get_instancedir();
+		/* char *id= config_get_instancedir(); eliminated */
 		if(id!=NULL)
 		{
 			char *p= id;

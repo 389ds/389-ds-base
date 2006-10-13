@@ -225,7 +225,8 @@ void g_log_init(int log_enabled)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 #if defined( XP_WIN32 )
-	char * instancedir = NULL;
+	/* char * instancedir = NULL; obsolete. */
+	/* To port to Windows, need to support FHS. */
 #endif
 
 	ts_time_lock = PR_NewLock();
@@ -234,7 +235,7 @@ void g_log_init(int log_enabled)
 
 #if defined( XP_WIN32 )
 	pszServerName = slapi_ch_malloc( MAX_SERVICE_NAME );
-	instancedir = config_get_instancedir();
+	/* instancedir = config_get_instancedir(); eliminated */
 	unixtodospath(instancedir);
 	if( !SlapdGetServerNameFromCmdline(pszServerName, instancedir, 1) )
 	{
@@ -1578,14 +1579,14 @@ log_write_title (LOGFD fp)
 		PR_snprintf(buff, bufflen, "\t%s:%d (%s)\n\n",
 				fe_cfg->localhost,
 				fe_cfg->security ? fe_cfg->secureport : fe_cfg->port,
-				fe_cfg->instancedir ? fe_cfg->instancedir : "");
+				fe_cfg->configdir ? fe_cfg->configdir : "");
 	}
 	else {
 		/* If fe_cfg->localhost is not set, ignore fe_cfg->port since
 		 * it is the default and might be misleading.
 		 */
 		PR_snprintf(buff, bufflen, "\t<host>:<port> (%s)\n\n",
-				fe_cfg->instancedir ? fe_cfg->instancedir : "");
+				fe_cfg->configdir ? fe_cfg->configdir : "");
 	}
 	LOG_WRITE_NOW(fp, buff, strlen(buff), 0);
 	slapi_ch_free((void **)&buildnum);

@@ -160,7 +160,6 @@ slapd_bootstrap_config(const char *configdir)
 	char *buf = 0;
 	char *lastp = 0;
 	char *entrystr = 0;
-	char *instancedir = NULL;
 
 	if (NULL == configdir) {
 		slapi_log_error(SLAPI_LOG_FATAL,
@@ -261,29 +260,6 @@ slapd_bootstrap_config(const char *configdir)
 								entrystr, configfile, 0);
 					continue;
 				}
-
-				/* if instancedir is not set, set it first */
-				{
-					instancedir = config_get_instancedir();
-					if (NULL == instancedir) {
-						workpath[0] = '\0';
-						if (entry_has_attr_and_value(e,
-												CONFIG_INSTANCEDIR_ATTRIBUTE,
-												workpath, sizeof(workpath))) {
-							if (config_set_instancedir(
-											CONFIG_INSTANCEDIR_ATTRIBUTE,
-											workpath, errorbuf, CONFIG_APPLY)
-								!= LDAP_SUCCESS) {
-								LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n",
-									configfile, CONFIG_INSTANCEDIR_ATTRIBUTE,
-									errorbuf);
-							}
-						}
-					} else {
-						slapi_ch_free((void **)&instancedir);
-					}
-				}
-
 				/* increase file descriptors */
 #if !defined(_WIN32) && !defined(AIX)
 				if (!maxdescriptors[0] &&
@@ -369,6 +345,19 @@ slapd_bootstrap_config(const char *configdir)
 					}
 				}
 
+				/* set the cert dir; needed in slapd_nss_init */
+				workpath[0] = '\0';
+				if (entry_has_attr_and_value(e, CONFIG_CERTDIR_ATTRIBUTE,
+						workpath, sizeof(workpath)))
+				{
+					if (config_set_certdir(CONFIG_CERTDIR_ATTRIBUTE,
+							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+									  CONFIG_CERTDIR_ATTRIBUTE, errorbuf);
+					}
+				}
+
 				/* see if the entry is a child of the plugin base dn */
 				if (slapi_sdn_isparent(&plug_dn,
 									   slapi_entry_get_sdn_const(e)))
@@ -390,6 +379,7 @@ slapd_bootstrap_config(const char *configdir)
 						}
 					}
 				}
+
 				/* see if the entry is a grand child of the plugin base dn */
 				if (slapi_sdn_isgrandparent(&plug_dn,
 											slapi_entry_get_sdn_const(e)))
@@ -517,19 +507,6 @@ slapd_bootstrap_config(const char *configdir)
 				if (e)
 					slapi_entry_free(e);
 			}
-
-			/* 
-			 * check if the instance dir is set.
-			 */
-			if ( NULL == ( instancedir = config_get_instancedir() )) {
-				slapi_log_error(SLAPI_LOG_FATAL, "startup",
-								"Instance directory is not specifiled in the file %s. It is mandatory.\n",
-								configfile);
-				exit (1);
-			} else {
-				slapi_ch_free((void **)&instancedir);
-			}
-			
 			/* kexcoff: initialize rootpwstoragescheme and pw_storagescheme
 			 *			if not explicilty set in the config file
 			 */

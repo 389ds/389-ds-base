@@ -1648,7 +1648,6 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
 #define CONFIG_ACCESSLOG_ATTRIBUTE "nsslapd-accesslog"
 #define CONFIG_ERRORLOG_ATTRIBUTE "nsslapd-errorlog"
-#define CONFIG_INSTANCEDIR_ATTRIBUTE "nsslapd-instancedir"
 #define CONFIG_SECUREPORT_ATTRIBUTE "nsslapd-securePort"
 #define CONFIG_SECURELISTENHOST_ATTRIBUTE "nsslapd-securelistenhost"
 #define CONFIG_THREADNUMBER_ATTRIBUTE "nsslapd-threadnumber"
@@ -1709,7 +1708,9 @@ typedef struct _slapdEntryPoints {
 
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
-#define CONFIG_LDIFDIR_ATTRIBUTE "nsslapd-ldifdir"
+#define CONFIG_LOCKDIR_ATTRIBUTE "nsslapd-lockdir"
+#define CONFIG_TMPDIR_ATTRIBUTE "nsslapd-tmpdir"
+#define CONFIG_CERTDIR_ATTRIBUTE "nsslapd-certdir"
 #define CONFIG_SSLCLIENTAUTH_ATTRIBUTE "nsslapd-SSLclientAuth"
 #define CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE "nsslapd-ssl-check-hostname"
 #define CONFIG_HASH_FILTERS_ATTRIBUTE "nsslapd-hash-filters"
@@ -1794,7 +1795,6 @@ typedef struct _slapdFrontendConfig {
   char *encryptionalias;
   char *errorlog;
   char *listenhost;
-  char *instancedir;
 #ifndef _WIN32
   char *localuser;
 #endif /* _WIN32 */
@@ -1877,15 +1877,18 @@ typedef struct _slapdFrontendConfig {
   
   ber_len_t maxbersize; /* Maximum BER element size we'll accept */
   int max_filter_nest_level;/* deepest nested filter we will accept */
-  int enquote_sup_oc;  /* put single quotes around an oc's 
-						  superior oc in cn=schema */
+  int enquote_sup_oc;       /* put single quotes around an oc's 
+                               superior oc in cn=schema */
 
-  char *certmap_basedn;			/* Default Base DN for certmap */
+  char *certmap_basedn;	    /* Default Base DN for certmap */
 
   char *workingdir;	/* full path of directory before detach */
-  char *configdir; /* full path name of directory containing configuration files */
-  char *schemadir; /* full path name of directory containing schema files */
-  int attrname_exceptions; /* if true, allow questionable attribute names */
+  char *configdir;  /* full path name of directory containing configuration files */
+  char *schemadir;  /* full path name of directory containing schema files */
+  char *lockdir;    /* full path name of directory containing lock files */
+  char *tmpdir;     /* full path name of directory containing tmp files */
+  char *certdir;    /* full path name of directory containing cert files */
+  int attrname_exceptions;  /* if true, allow questionable attribute names */
   int rewrite_rfc1274;		/* return attrs for both v2 and v3 names */
   char *schemareplace;		/* see CONFIG_SCHEMAREPLACE_* #defines below */
 } slapdFrontendConfig_t;

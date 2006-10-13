@@ -100,8 +100,9 @@ $printkey = 1;
 $taskname = "";
 $ldiffile = "";
 $doreplica = 0;
-$dsroot = "{{DS-ROOT}}";
-$mydsroot = "{{MY-DS-ROOT}}";
+$prefix = "{{DS-ROOT}}";
+$ldifdir = "{{LDIF-DIR}}";
+$servid = "{{SERV-ID}}";
 $verbose = 0;
 $rootdn = "";
 $passwd = "";
@@ -195,7 +196,7 @@ if (($instances[0] eq "" && $included[0] eq "") || $rootdn eq "" || $passwd eq "
 $mn++; $yr += 1900;
 $taskname = "export_${yr}_${mn}_${dy}_${h}_${m}_${s}";
 if ($ldiffile eq "") {
-	$ldiffile = "${mydsroot}{{SEP}}ldif{{SEP}}${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
+	$ldiffile = "${ldifdir}{{SEP}}${servid}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
 }
 $dn = "dn: cn=$taskname, cn=export, cn=tasks, cn=config\n";
 $misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";
@@ -241,7 +242,7 @@ $nsldiffile = "nsFilename: ${ldiffile}\n";
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsreplica}${nsnobase64}${nsnowrap}${nsnoversion}${nsnouniqueid}${nsuseid2entry}${nsonefile}${nsexportdecrypt}${nsprintkey}${nsldiffile}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-chdir("$dsroot{{SEP}}shared{{SEP}}bin");
-open(FOO, "| $dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+chdir("$prefix{{SEP}}shared{{SEP}}bin");
+open(FOO, "| $prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

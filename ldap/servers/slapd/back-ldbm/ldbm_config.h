@@ -144,6 +144,8 @@ struct config_info {
 
 #define CONFIG_USE_LEGACY_ERRORCODE     "nsslapd-do-not-use-vlv-error"
 
+#define CONFIG_LDBM_DN "cn=config,cn=ldbm database,cn=plugins,cn=config"
+
 #define LDBM_INSTANCE_CONFIG_DONT_WRITE 1
 
 /* Some fuctions in ldbm_config.c used by ldbm_instance_config.c */

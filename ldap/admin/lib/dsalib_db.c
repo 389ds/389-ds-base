@@ -64,35 +64,42 @@
 DS_EXPORT_SYMBOL char **
 ds_get_bak_dirs()
 {
-    char	format_str[PATH_MAX];
+    char    format_str[PATH_MAX];
     char    *root;
-    int		i = 0;
-    char	**bak_dirs = NULL;
+    int        i = 0;
+    char    **bak_dirs = NULL;
+    char    *bakdir = NULL;
 
     if ( (root = ds_get_install_root()) == NULL ) 
-	{
+    {
         ds_send_error("Cannot find server root directory.", 0);
         return(bak_dirs);
     }
 
-    PR_snprintf( format_str, PATH_MAX, "%s%cbak", root, FILE_SEP );
-	bak_dirs = ds_get_file_list( format_str );
-	if( bak_dirs )
-	{
-		while( bak_dirs[i] != NULL )
-		{
-			/* Prepend the filename with the install root */
-			char filename[PATH_MAX];
-			PR_snprintf( filename, PATH_MAX, "%s%cbak%c%s", root, FILE_SEP,
-					 FILE_SEP, bak_dirs[i] );
-			free( bak_dirs[i] );
-			bak_dirs[i] = strdup( filename );
+    if ( (bakdir = ds_get_bak_dir()) == NULL )
+    {
+        ds_send_error("Cannot find backup directory.", 0);
+        return(bak_dirs);
+    }
+
+    PR_snprintf( format_str, PATH_MAX, "%s", bakdir );
+    bak_dirs = ds_get_file_list( format_str );
+    if( bak_dirs )
+    {
+        while( bak_dirs[i] != NULL )
+        {
+            /* Prepend the filename with the install root */
+            char filename[PATH_MAX];
+            PR_snprintf( filename, PATH_MAX, "%s%c%s",
+                            bakdir, FILE_SEP, bak_dirs[i] );
+            free( bak_dirs[i] );
+            bak_dirs[i] = strdup( filename );
 #if defined( XP_WIN32 )
-			ds_dostounixpath( bak_dirs[i] );
+            ds_dostounixpath( bak_dirs[i] );
 #endif
-			i++;
-		}
-	}
+            i++;
+        }
+    }
 
     return(bak_dirs);
 }
@@ -113,7 +120,7 @@ ds_bak2db(char *file)
     int         error = -1;
     int         status;
     FILE        *sf = NULL;
-	struct stat	fstats;
+    struct stat    fstats;
 
     if ( file == NULL ) {
         return DS_NULL_PARAMETER;
@@ -126,8 +133,8 @@ ds_bak2db(char *file)
         return DS_NO_SERVER_ROOT;
     }
 
-    if ( file[strlen(file) - 1] == '\n' )	/* strip out returns */
-		file[strlen(file) - 1] = '\0';
+    if ( file[strlen(file) - 1] == '\n' )    /* strip out returns */
+        file[strlen(file) - 1] = '\0';
 
     if( stat( file, &fstats ) == -1 && errno == ENOENT ) {
         return DS_CANNOT_OPEN_BACKUP_FILE;
@@ -138,12 +145,12 @@ ds_bak2db(char *file)
     tmp_dir = ds_get_tmp_dir();
     PR_snprintf(statfile, PATH_MAX, "%s%cbak2db.%d", tmp_dir, FILE_SEP, (int)getpid());
     PR_snprintf(startup_line, BIG_LINE,
-			"%s%cbak2db "
-			"%s%s%s > "
-			"%s%s%s 2>&1",
-			root, FILE_SEP, 
-			ENQUOTE, file, ENQUOTE, 
-			ENQUOTE, statfile, ENQUOTE );
+            "%s%cbak2db "
+            "%s%s%s > "
+            "%s%s%s 2>&1",
+            root, FILE_SEP, 
+            ENQUOTE, file, ENQUOTE, 
+            ENQUOTE, statfile, ENQUOTE );
     alter_startup_line(startup_line);
     fflush(0);
     error = system(startup_line);
@@ -151,19 +158,19 @@ ds_bak2db(char *file)
     if ( error == -1 ) {
         return DS_CANNOT_EXEC;
     }
-	fflush(0);
+    fflush(0);
     if( !(sf = fopen(statfile, "r")) )  {
         return DS_CANNOT_OPEN_STAT_FILE;
     }
 
     while ( fgets(startup_line, BIG_LINE, sf) ) {
-		if ((strstr(startup_line, "- Restoring file")) || 
-			(strstr(startup_line, "- Checkpointing"))) {
-			ds_show_message(startup_line);
-		} else {
-			haderror = 1;
-			ds_send_error(startup_line, 0);
-		}
+        if ((strstr(startup_line, "- Restoring file")) || 
+            (strstr(startup_line, "- Checkpointing"))) {
+            ds_show_message(startup_line);
+        } else {
+            haderror = 1;
+            ds_send_error(startup_line, 0);
+        }
     }
 
     fclose(sf);
@@ -189,9 +196,9 @@ ds_db2bak(char *file)
     int         haderror = 0;
     int         error = -1;
     FILE        *sf = NULL;
-    int		lite = 0;
+    int        lite = 0;
 #ifdef XP_WIN32
-    time_t	ltime;
+    time_t    ltime;
 #endif
 
     if ( (root = ds_get_install_root()) == NULL ) {
@@ -201,29 +208,29 @@ ds_db2bak(char *file)
     if ( (file == NULL) || (strlen(file) == 0) )
         file = NULL;
 
-	tmp_dir = ds_get_tmp_dir();
+    tmp_dir = ds_get_tmp_dir();
     PR_snprintf(statfile, PATH_MAX, "%s%cdb2bak.%d", tmp_dir, FILE_SEP, (int)getpid());
-	
-					
+    
+                    
 #if defined( XP_WIN32 )
-	if( file == NULL )
-	{
-		file = malloc( BIG_LINE );
+    if( file == NULL )
+    {
+        file = malloc( BIG_LINE );
 
-		time( &ltime );
-		PR_snprintf( file, BIG_LINE, "%s", ctime( &ltime ) );
-		ds_timetofname( file );
-	}
+        time( &ltime );
+        PR_snprintf( file, BIG_LINE, "%s", ctime( &ltime ) );
+        ds_timetofname( file );
+    }
 
-	/* Check if the directory exists or can be created */
-	if ( !ds_file_exists( file ) ) {
-		char *errmsg = ds_mkdir_p( file, NEWDIR_MODE );
-		if( errmsg != NULL ) {
-/*			ds_send_error(errmsg, 10);
+    /* Check if the directory exists or can be created */
+    if ( !ds_file_exists( file ) ) {
+        char *errmsg = ds_mkdir_p( file, NEWDIR_MODE );
+        if( errmsg != NULL ) {
+/*            ds_send_error(errmsg, 10);
  */
-			return DS_CANNOT_CREATE_DIRECTORY;
-		}
-	}
+            return DS_CANNOT_CREATE_DIRECTORY;
+        }
+    }
 #endif
 
 /* DBDB: note on the following line. 
@@ -238,16 +245,16 @@ ds_db2bak(char *file)
 
 
     PR_snprintf(startup_line, sizeof(startup_line),
-			"%s%cdb2bak "
-			"%s%s%s > "
-			"%s%s%s 2>&1",
-			root, FILE_SEP,
-			ENQUOTE,
-			(file == NULL) ? "" : file,
-			ENQUOTE,
-			ENQUOTE, statfile, ENQUOTE);
+            "%s%cdb2bak "
+            "%s%s%s > "
+            "%s%s%s 2>&1",
+            root, FILE_SEP,
+            ENQUOTE,
+            (file == NULL) ? "" : file,
+            ENQUOTE,
+            ENQUOTE, statfile, ENQUOTE);
 
-	PATH_FOR_PLATFORM( startup_line );
+    PATH_FOR_PLATFORM( startup_line );
     alter_startup_line(startup_line);
     fflush(0);
     error = system(startup_line);
@@ -274,7 +281,7 @@ ds_db2bak(char *file)
     unlink(statfile);
 
     if ( lite && haderror )
-	return DS_HAS_TOBE_READONLY_MODE;
+    return DS_HAS_TOBE_READONLY_MODE;
 
     if ( haderror )
         return DS_UNKNOWN_ERROR;
@@ -284,52 +291,52 @@ ds_db2bak(char *file)
 static void
 process_and_report( char *line, int line_size, FILE *cmd )
 {
-	while(fgets(line, line_size, cmd))  {
-		/* Strip off line feeds */
-		int ind = strlen( line ) - 1;
-		while ( (ind >= 0) &&
-				((line[ind] == '\n') ||
-				 (line[ind] == '\r')) ) {
-			line[ind] = 0;
-			ind--;
-		}
-		if ( ind < 1 ) {
-			continue;
-		}
-		ds_send_status(line);
-	}
+    while(fgets(line, line_size, cmd))  {
+        /* Strip off line feeds */
+        int ind = strlen( line ) - 1;
+        while ( (ind >= 0) &&
+                ((line[ind] == '\n') ||
+                 (line[ind] == '\r')) ) {
+            line[ind] = 0;
+            ind--;
+        }
+        if ( ind < 1 ) {
+            continue;
+        }
+        ds_send_status(line);
+    }
 }
 
 static int exec_and_report( char *startup_line )
 {
-	FILE        *cmd = NULL;
+    FILE        *cmd = NULL;
     char        line[BIG_LINE];
     int         haderror = 0;
 
-	PATH_FOR_PLATFORM( startup_line );
+    PATH_FOR_PLATFORM( startup_line );
     alter_startup_line(startup_line);
 
-	/*
-	  fprintf( stdout, "Launching <%s>\n", startup_line );
-	*/
+    /*
+      fprintf( stdout, "Launching <%s>\n", startup_line );
+    */
 
     fflush(0);
-	cmd = popen(startup_line, "r");
-	if(!cmd) {
+    cmd = popen(startup_line, "r");
+    if(!cmd) {
         return DS_CANNOT_EXEC;
     }
-	process_and_report( line, sizeof(line), cmd );
-	pclose(cmd);
+    process_and_report( line, sizeof(line), cmd );
+    pclose(cmd);
 
     /*
     ** The VLV indexing code prints OK,
     ** if the index was successfully created.
     */
-	if (strcmp(line,"OK")==0) {
-		haderror = 0;
-	} else {
-		haderror = DS_UNKNOWN_ERROR;
-	}
+    if (strcmp(line,"OK")==0) {
+        haderror = 0;
+    } else {
+        haderror = DS_UNKNOWN_ERROR;
+    }
 
     return haderror;
 }
@@ -345,8 +352,8 @@ ds_vlvindex(char **backendList, char **vlvList)
     char        startup_line[BIG_LINE];
     char        *root;
     char        *instroot;
-	char		**vlvc = NULL;
-			
+    char        **vlvc = NULL;
+            
 
     root = ds_get_server_root();
     instroot = ds_get_install_root();
@@ -355,21 +362,21 @@ ds_vlvindex(char **backendList, char **vlvList)
     }
 
     PR_snprintf(startup_line, sizeof(startup_line), "%s/bin/slapd/server/%s db2index "
-			"-D %s%s/%s "
-			"-n %s ",
-			root, SLAPD_NAME,			
-			ENQUOTE, instroot, ENQUOTE,
-			backendList[0]);
+            "-D %s%s/%s "
+            "-n %s ",
+            root, SLAPD_NAME,            
+            ENQUOTE, instroot, ENQUOTE,
+            backendList[0]);
 
 
-	/* Create vlv TAG */
-	vlvc=vlvList;
-	while( *vlvc != NULL ) {
-		PR_snprintf( startup_line, sizeof(startup_line), "%s -T %s%s%s", startup_line,"\"",*vlvc,"\"" );
-		vlvc++;
-	}	
+    /* Create vlv TAG */
+    vlvc=vlvList;
+    while( *vlvc != NULL ) {
+        PR_snprintf( startup_line, sizeof(startup_line), "%s -T %s%s%s", startup_line,"\"",*vlvc,"\"" );
+        vlvc++;
+    }    
    
-	return exec_and_report( startup_line );
+    return exec_and_report( startup_line );
 }
 
 /*
@@ -391,17 +398,17 @@ ds_addindex(char **attrList, char *backendName)
         return DS_NO_SERVER_ROOT;
     }
 
-	PR_snprintf(startup_line, sizeof(startup_line), "%s/bin/slapd/server/%s db2index "
-			"-D %s%s%s "
-			"-n %s",
-			root, SLAPD_NAME,			
-			ENQUOTE, instroot, ENQUOTE,
-			backendName);
+    PR_snprintf(startup_line, sizeof(startup_line), "%s/bin/slapd/server/%s db2index "
+            "-D %s%s%s "
+            "-n %s",
+            root, SLAPD_NAME,            
+            ENQUOTE, instroot, ENQUOTE,
+            backendName);
 
-	while( *attrList != NULL ) {
-		PR_snprintf( startup_line, sizeof(startup_line), "%s -t %s", startup_line, *attrList );
-		attrList++;
-	}
+    while( *attrList != NULL ) {
+        PR_snprintf( startup_line, sizeof(startup_line), "%s -t %s", startup_line, *attrList );
+        attrList++;
+    }
 
-	return exec_and_report( startup_line );
+    return exec_and_report( startup_line );
 }

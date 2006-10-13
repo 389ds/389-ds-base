@@ -246,7 +246,6 @@ int config_set_rootdn( const char *attrname, char *value, char *errorbuf, int ap
 int config_set_rootpw( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_rootpwstoragescheme( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_workingdir( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_instancedir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_encryptionalias( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_threadnumber( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_maxthreadsperconn( const char *attrname, char *value, char *errorbuf, int apply );
@@ -302,7 +301,9 @@ int config_set_enquote_sup_oc(const char *attrname,  char *value, char *errorbuf
 int config_set_basedn( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_configdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_schemadir( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_ldifdir( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_lockdir( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_tmpdir( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_certdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_attrname_exceptions( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_hash_filters( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_rewrite_rfc1274( const char *attrname, char *value, char *errorbuf, int apply );
@@ -366,7 +367,6 @@ char *config_get_rootpwstoragescheme();
 char *config_get_localuser();
 #endif /* _WIN32 */
 char *config_get_workingdir();
-char *config_get_instancedir();
 char *config_get_encryptionalias();
 int config_get_threadnumber();
 int config_get_maxthreadsperconn();
@@ -401,6 +401,9 @@ int config_get_enquote_sup_oc();
 char *config_get_basedn();
 char *config_get_configdir();
 char *config_get_schemadir();
+char *config_get_lockdir();
+char *config_get_tmpdir();
+char *config_get_certdir();
 char **config_get_errorlog_list();
 char **config_get_accesslog_list();
 char **config_get_auditlog_list();
@@ -966,7 +969,6 @@ int	  g_get_global_lastmod();
 struct snmp_vars_t * g_get_global_snmp_vars();
 void FrontendConfig_init();
 int g_get_slapd_security_on();
-void config_set_slapd_type ();
 char *config_get_versionstring();
 
 void libldap_init_debug_level(int *);

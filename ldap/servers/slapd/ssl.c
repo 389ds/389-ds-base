@@ -51,10 +51,7 @@
 #include <io.h>
 #endif
 
-#ifdef LINUX
 #include <sys/param.h>
-#endif
-
 #include <ssl.h>
 #include <nss.h>
 #include <key.h>
@@ -456,7 +453,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	int len = 0;
     PRUint32 nssFlags = 0;
 	Slapi_Entry *ec = NULL;
-	char *instancedir;
+	char *certdir;
 
 	if (config_available) {
 		getConfigEntry( configDN, &ec );
@@ -469,9 +466,11 @@ slapd_nss_init(int init_ssl, int config_available)
 		ec = NULL;
 	}
 
-	instancedir = config_get_instancedir();
-	PL_strncpyz(path, instancedir, sizeof(path));
-	slapi_ch_free_string(&instancedir);
+	/* set in slapd_bootstrap_config,
+	   thus certdir is available even if config_available is false */
+	certdir = config_get_certdir();
+	PL_strncpyz(path, certdir, sizeof(path));
+	slapi_ch_free_string(&certdir);
 
 	/* make sure path does not end in the path separator character */
 	len = strlen(path);
@@ -479,14 +478,15 @@ slapd_nss_init(int init_ssl, int config_available)
 		path[len-1] = '\0';
 	}
 
-	/* get the server root from the path */
+	/* get the server instance dir name from path:
+	   <sysconfig>/BRAND_DS/slapd-<id> */
 	val = strrchr(path, '/');
 	if (!val) {
 		val = strrchr(path, '\\');
 	}
 	val++;
 
-	if(keyfn && certfn) {
+	if (keyfn && certfn) {
 		if (is_abspath(certfn)) {
 			warn_if_no_cert_file(certfn);
 			/* first, initialize path from the certfn */
@@ -553,7 +553,6 @@ slapd_nss_init(int init_ssl, int config_available)
 		}
 		PR_snprintf(certPref, sizeof(certPref), "%s-", val);
 		PL_strncpyz(keyPref, certPref, sizeof(keyPref));
-		PL_strncpyz(val, "alias/", sizeof(path)-(val-path));
 	}
 
 	slapi_ch_free((void **) &certfn);
@@ -580,10 +579,6 @@ slapd_nss_init(int init_ssl, int config_available)
 
     return rv;
 }
-
-
-
-
 
 /*
  * slapd_ssl_init() is called from main() if we plan to listen
@@ -1004,12 +999,11 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     tmpDir = slapd_get_tmp_dir();
 
-    slapi_log_error(
-        SLAPI_LOG_TRACE,
-        "slapd_ssl_init2",
-         "tmp dir = %s\n", tmpDir);
+    slapi_log_error(SLAPI_LOG_TRACE,
+                    "slapd_ssl_init2", "tmp dir = %s\n", tmpDir);
 
     rv = SSL_ConfigServerSessionIDCache(0, stimeout, stimeout, tmpDir);
+	slapi_ch_free(&tmpDir);
     if (rv) {
       errorCode = PR_GetError();
       if (errorCode == ENOSPC) {
@@ -1448,12 +1442,11 @@ slapd_ssl_listener_is_initialized()
 	return _ssl_listener_initialized;
 }
 
-
+/* memory to store tmpdir is allocated and returned; caller should free it. */
 char* slapd_get_tmp_dir()
 {
-	static char tmpdir[] = "/tmp";
-	static char tmp[256];
-	char* instanceDir;
+	static char tmp[MAXPATHLEN];
+	char* tmpdir = NULL;;
 #if defined( XP_WIN32 )
 	unsigned ilen;
 	char pch;
@@ -1462,64 +1455,61 @@ char* slapd_get_tmp_dir()
 
 	tmp[0] = '\0';
 
-	if((instanceDir = config_get_instancedir()) == NULL)
+	if((tmpdir = config_get_tmpdir()) == NULL)
 	{
 		slapi_log_error(
 			 SLAPI_LOG_FATAL,
 			 "slapd_get_tmp_dir",
-			 "config_get_instancedir returns NULL Setting tmp dir to default\n");
+			 "config_get_tmpdir returns NULL Setting tmp dir to default\n");
 
 #if defined( XP_WIN32 )
-			ilen = sizeof(tmp);
-			GetTempPath( ilen, tmp );
-			tmp[ilen-1] = (char)0;
-			ilen = strlen(tmp);
-			/* Remove trailing slash. */
-			pch = tmp[ilen-1];
-			if( pch == '\\' || pch == '/' )
-				tmp[ilen-1] = '\0';
-			return tmp;
+		ilen = sizeof(tmp);
+		GetTempPath( ilen, tmp );
+		tmp[ilen-1] = (char)0;
+		ilen = strlen(tmp);
+		/* Remove trailing slash. */
+		pch = tmp[ilen-1];
+		if( pch == '\\' || pch == '/' )
+			tmp[ilen-1] = '\0';
 #else
-			return( tmpdir );
+		strcpy(tmp, "/tmp");
 #endif
+		return slapi_ch_strdup(tmp);
 	}
 
-	PR_snprintf(tmp,sizeof(tmp),"%s/tmp",instanceDir);
-	slapi_ch_free_string(&instanceDir);
-
 #if defined( XP_WIN32 )
-	for(ilen=0;ilen < strlen(tmp); ilen++)
 	{
-		if(tmp[ilen]=='/')
-			tmp[ilen]='\\';
+		char *ptr = NULL;
+		char *endptr = tmpdir + strlen(tmpdir);
+		for(ptr = tmpdir; ptr < endptr; ptr++)
+		{
+			if('/' == *ptr)
+				*ptr = '\\';
+		}
 	}
 #endif
 
-	if(stat(tmp,&ffinfo) == -1)
+	if(stat(tmpdir, &ffinfo) == -1)
 #if defined( XP_WIN32 )
-		if(CreateDirectory(tmp, NULL) == 0)
+		if(CreateDirectory(tmpdir, NULL) == 0)
 		{
 			slapi_log_error(
 			 SLAPI_LOG_FATAL,
 			 "slapd_get_tmp_dir",
 			 "CreateDirectory(%s, NULL) Error: %s\n",
-			 tmp, strerror(errno));	
-			return ( tmpdir );
+			 tmpdir, strerror(errno));	
 		}
 #else
-		if(mkdir(tmp, 00770) == -1)
+		if(mkdir(tmpdir, 00770) == -1)
 		{
 			slapi_log_error(
 			 SLAPI_LOG_FATAL,
 			 "slapd_get_tmp_dir",
 			 "mkdir(%s, 00770) Error: %s\n",
-			 tmp, strerror(errno));	
-			return ( tmpdir );
+			 tmpdir, strerror(errno));	
 		}
 #endif
-
-	return ( tmp );
-
+	return ( tmpdir );
 }
 
 #endif /* NET_SSL */

@@ -55,7 +55,7 @@ $taskname = "";
 $archivedir = "";
 $dbtype = "ldbm database";
 $instance = "";
-$dsroot = "{{DS-ROOT}}";
+$prefix = "{{DS-ROOT}}";
 $mydsroot = "{{MY-DS-ROOT}}";
 $verbose = 0;
 $rootdn = "";
@@ -127,7 +127,7 @@ $nsdbtype = "nsDatabaseType: $dbtype\n";
 $entry = "${dn}${misc}${cn}${nsinstance}${nsarchivedir}${nsdbtype}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-chdir("$dsroot{{SEP}}shared{{SEP}}bin");
-open(FOO, "| $dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+chdir("$prefix{{SEP}}shared{{SEP}}bin");
+open(FOO, "| $prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

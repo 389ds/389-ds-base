@@ -392,54 +392,50 @@ int snmp_collator_start()
 {
 
   int err;
-  char *instancedir = config_get_instancedir();
+  char *statspath = config_get_tmpdir();
+  char *lp = NULL;
 
-	/*
-	 * Get directory for our stats file
-	 */
+  /*
+   * Get directory for our stats file
+   */
+  if (NULL == statspath) {
+     statspath = slapi_ch_strdup("/tmp");
+  }
 
-  PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/logs/%s", instancedir, 
-		  AGT_STATS_FILE);
+  PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/%s",
+                                                statspath, AGT_STATS_FILE);
   tmpstatsfile = szStatsFile;
+  slapi_ch_free((void **) &statspath);
 
-  slapi_ch_free((void **) &instancedir);
-
-
-	  /* open the memory map */
-	  
-	  if ((err = agt_mopen_stats(tmpstatsfile, O_RDWR,  &hdl) != 0))
-	  {
-	      if (err != EEXIST)			/* Ignore if file already exists */
-	      {
-	          printf("Failed to open stats file (%s) (error %d).\n", 
-	                 AGT_STATS_FILE, err);
-           
-	          exit(1);
-	      }
-	  }
+  /* open the memory map */
+  if ((err = agt_mopen_stats(tmpstatsfile, O_RDWR,  &hdl) != 0))
+  {
+    if (err != EEXIST)      /* Ignore if file already exists */
+    {
+      printf("Failed to open stats file (%s) (error %d).\n", 
+                                         szStatsFile, err);
+      exit(1);
+    }
+  }
 
 /* read config entry for entity table data */
-	 
 
 /* point stats struct at mmap data */
-	stats = (struct agt_stats_t *) mmap_tbl [hdl].fp;
+  stats = (struct agt_stats_t *) mmap_tbl [hdl].fp;
 
 /* initialize stats data */
 
-	snmp_collator_init();
+  snmp_collator_init();
 /*
-*	now that memmap is open and things point the right way
-*    an atomic set or increment anywhere in slapd should set
-*	the snmp memmap vars correctly and be able to be polled by snmp
+*  now that memmap is open and things point the right way
+*  an atomic set or increment anywhere in slapd should set
+*  the snmp memmap vars correctly and be able to be polled by snmp
 */
 
-	/* Arrange to be called back periodically */
-	snmp_eq_ctx = slapi_eq_repeat(snmp_collator_update, NULL, (time_t)0,
-			SLAPD_SNMP_UPDATE_INTERVAL);
-
-
-return 0;
-
+  /* Arrange to be called back periodically */
+  snmp_eq_ctx = slapi_eq_repeat(snmp_collator_update, NULL, (time_t)0,
+                                SLAPD_SNMP_UPDATE_INTERVAL);
+  return 0;
 }
 
 

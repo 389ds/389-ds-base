@@ -44,7 +44,6 @@
 
 #ifndef _WIN32
 
-#define LOCK_DIR    "locks"
 #define LOCK_FILE   "lock"
 #define IMPORT_DIR  "imports"
 #define EXPORT_DIR  "exports"
@@ -87,8 +86,8 @@ grab_lockfile()
        gets called by an atexit function, and NSPR is long gone by then. */
 
     /* Get the name of the lockfile */
-    snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->instancedir, LOCK_FILE);
-	lockfile[sizeof(lockfile)-1] = (char)0;
+    snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->lockdir, LOCK_FILE);
+    lockfile[sizeof(lockfile)-1] = (char)0;
     /* Get our pid */
     pid = getpid();
 
@@ -96,7 +95,7 @@ grab_lockfile()
     if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0664)) != -1) {
         /* We got the lock, write our pid to the file */
         write(fd, (void *) &pid, sizeof(pid_t));
-	close(fd);
+    close(fd);
         return 0;
     }
      
@@ -109,13 +108,13 @@ grab_lockfile()
 
     while(1) {
         /* Try to grab the lockfile NUM_TRIES times waiting WAIT_TIME milliseconds after each try */
-	t.tv_sec = 0;
-	t.tv_usec = WAIT_TIME * 1000;
+    t.tv_sec = 0;
+    t.tv_usec = WAIT_TIME * 1000;
         for(x = 0; x < NUM_TRIES; x++) {
             if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL)) != -1) {
                 /* Got the lock */
                 write(fd, (void *) &pid, sizeof(pid_t));
-		close(fd);
+        close(fd);
                 return 0;
             }
             select(0, NULL, NULL, NULL, &t);
@@ -123,7 +122,7 @@ grab_lockfile()
         
         /* We still haven't got the lockfile.  Find out who owns it and see if they are still up */
         if ((fd = open(lockfile,  O_RDONLY)) != -1) {
-			size_t nb_bytes=0;	
+            size_t nb_bytes=0;    
 
             nb_bytes = read(fd, (void *) &owning_pid, sizeof(pid_t));
             if ( (nb_bytes != (size_t)(sizeof(pid_t)) ) || (owning_pid == 0) || (kill(owning_pid, 0) != 0 && errno == ESRCH) ) {
@@ -158,8 +157,8 @@ release_lockfile()
 
     /* This function assumes that the caller owns the lock, it doesn't check to make sure! */
 
-    snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->instancedir, LOCK_FILE);
-	lockfile[sizeof(lockfile)-1] = (char)0;
+    snprintf(lockfile, sizeof(lockfile), "%s/%s", slapdFrontendConfig->lockdir, LOCK_FILE);
+    lockfile[sizeof(lockfile)-1] = (char)0;
     unlink(lockfile);
 }
 
@@ -171,9 +170,9 @@ static int
 is_process_up(pid_t pid) 
 {
     if (kill(pid, 0) == -1 && errno == ESRCH) {
-	return 0;
+        return 0;
     } else {
-	return 1;
+        return 1;
     }
 }
 
@@ -189,24 +188,24 @@ make_sure_dir_exists(char *dir)
 
     /* Make sure it exists */
     if (PR_MkDir(dir, 0755) != PR_SUCCESS) {
-		PRErrorCode prerr = PR_GetError();
-		if (prerr != PR_FILE_EXISTS_ERROR) {
-			LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_ERROR, dir, prerr, slapd_pr_strerror(prerr));
-			return 1;
-		}
+        PRErrorCode prerr = PR_GetError();
+        if (prerr != PR_FILE_EXISTS_ERROR) {
+            LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_ERROR, dir, prerr, slapd_pr_strerror(prerr));
+            return 1;
+        }
     }
 
     /* Make sure it's owned by the correct user */
     if (slapdFrontendConfig->localuser != NULL) {
       if ( (pw = getpwnam(slapdFrontendConfig->localuser)) == NULL ) {
-	LDAPDebug(LDAP_DEBUG_ANY, GETPWNAM_WARNING, slapdFrontendConfig->localuser, errno, strerror(errno));
+        LDAPDebug(LDAP_DEBUG_ANY, GETPWNAM_WARNING, slapdFrontendConfig->localuser, errno, strerror(errno));
       } else {
-	if (chown(dir, pw->pw_uid, -1) == -1) {
-	    stat(dir, &stat_buffer);
-	    if (stat_buffer.st_uid != pw->pw_uid) {
-		LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, dir, 0, 0);
-	    }
-	}
+        if (chown(dir, pw->pw_uid, -1) == -1) {
+            stat(dir, &stat_buffer);
+            if (stat_buffer.st_uid != pw->pw_uid) {
+                LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, dir, 0, 0);
+            }
+        }
       } /* else */
     }
 
@@ -226,25 +225,25 @@ add_this_process_to(char *dir_name)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     snprintf(file_name, sizeof(file_name), "%s/%d", dir_name, getpid());
-	file_name[sizeof(file_name)-1] = (char)0;
+    file_name[sizeof(file_name)-1] = (char)0;
     
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0666)) == NULL) {
-	LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_WARNING, file_name, 0, 0);
-	return;
+    LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_WARNING, file_name, 0, 0);
+    return;
     }
     
     /* Make sure the owner is of the file is the user the server
      * runs as. */
     if (slapdFrontendConfig->localuser != NULL) {
       if ( (pw = getpwnam(slapdFrontendConfig->localuser)) == NULL ) {
-	LDAPDebug(LDAP_DEBUG_ANY, GETPWNAM_WARNING, slapdFrontendConfig->localuser, errno, strerror(errno));
+    LDAPDebug(LDAP_DEBUG_ANY, GETPWNAM_WARNING, slapdFrontendConfig->localuser, errno, strerror(errno));
       } else {
-	if (chown(file_name, pw->pw_uid, -1) == -1) {
-	    stat(file_name, &stat_buffer);
-	    if (stat_buffer.st_uid != pw->pw_uid) {
-		LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, file_name, 0, 0);
-	    }
-	}
+        if (chown(file_name, pw->pw_uid, -1) == -1) {
+            stat(file_name, &stat_buffer);
+            if (stat_buffer.st_uid != pw->pw_uid) {
+                LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, file_name, 0, 0);
+            }
+        }
       } /* else */
     }
     PR_Close(prfd);
@@ -269,22 +268,22 @@ sample_and_update(char *dir_name)
     char file_name[MAXPATHLEN];
 
     if ((dir = PR_OpenDir(dir_name)) == NULL) {
-	return 0;
+        return 0;
     }
 
     while((entry = PR_ReadDir(dir, PR_SKIP_BOTH)) != NULL) {
-	pid = (pid_t) strtol(entry->name, &endp, 0);
-	if (*endp != '\0') {
-	    /* not quite sure what this file was, but we 
-	     * didn't put it there */
-	    continue;
-	}
-	if (is_process_up(pid)) {
-	    result = (long) pid;
-	} else {
-	    PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->name);
-	    PR_Delete(file_name);
-	}
+        pid = (pid_t) strtol(entry->name, &endp, 0);
+        if (*endp != '\0') {
+            /* not quite sure what this file was, but we 
+             * didn't put it there */
+            continue;
+        }
+        if (is_process_up(pid)) {
+            result = (long) pid;
+        } else {
+            PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->name);
+            PR_Delete(file_name);
+        }
     }
     PR_CloseDir(dir);
     return result;
@@ -299,7 +298,6 @@ remove_and_update(char *dir_name)
 {
     /* since this is called from an atexit function, we can't use
      * NSPR. */
-
     DIR *dir;
     struct dirent *entry;
     pid_t pid;
@@ -311,30 +309,30 @@ remove_and_update(char *dir_name)
     our_pid = getpid();
 
     if ((dir = opendir(dir_name)) == NULL) {
-	return;
+        return;
     }
 
     while((entry = readdir(dir)) != NULL) {
-	
-	/* skip dot and dot-dot */
-	if (strcmp(entry->d_name, ".") == 0 ||
-	    strcmp(entry->d_name, "..") == 0)
-	    continue;
+    
+        /* skip dot and dot-dot */
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0)
+            continue;
 
-	pid = (pid_t) strtol(entry->d_name, &endp, 0);
-	if (*endp != '\0') {
-	    /* not quite sure what this file was, but we 
-	     * didn't put it there */
-	    continue;
-	}	
-	if (!is_process_up(pid) || pid == our_pid) {
-	    PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->d_name);
-	    unlink(file_name);
-	}
+        pid = (pid_t) strtol(entry->d_name, &endp, 0);
+        if (*endp != '\0') {
+            /* not quite sure what this file was, but we 
+             * didn't put it there */
+            continue;
+        }    
+        if (!is_process_up(pid) || pid == our_pid) {
+            PR_snprintf(file_name, sizeof(file_name), "%s/%s", dir_name, entry->d_name);
+            unlink(file_name);
+        }
     }
     closedir(dir);
 }
-	
+    
 
 
 /* Walks through all the pid directories and clears any stale 
@@ -343,31 +341,26 @@ remove_and_update(char *dir_name)
 void
 remove_slapd_process()
 {
-    char lock_dir[MAXPATHLEN];
     char import_dir[MAXPATHLEN];
     char export_dir[MAXPATHLEN];
     char server_dir[MAXPATHLEN];
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-
     /* Create the name of the directories that hold the pids of the currently running 
      * ns-slapd processes */
-    snprintf(lock_dir, sizeof(lock_dir), "%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR);
-	lock_dir[sizeof(lock_dir)-1] = (char)0;
-    snprintf(import_dir, sizeof(import_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, IMPORT_DIR);
-	import_dir[sizeof(import_dir)-1] = (char)0;
-    snprintf(export_dir, sizeof(export_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, EXPORT_DIR);
-	export_dir[sizeof(export_dir)-1] = (char)0;
-    snprintf(server_dir, sizeof(server_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, SERVER_DIR);
-	server_dir[sizeof(server_dir)-1] = (char)0;
+    snprintf(import_dir, sizeof(import_dir), "%s/%s", slapdFrontendConfig->lockdir, IMPORT_DIR);
+    import_dir[sizeof(import_dir)-1] = (char)0;
+    snprintf(export_dir, sizeof(export_dir), "%s/%s", slapdFrontendConfig->lockdir, EXPORT_DIR);
+    export_dir[sizeof(export_dir)-1] = (char)0;
+    snprintf(server_dir, sizeof(server_dir), "%s/%s", slapdFrontendConfig->lockdir, SERVER_DIR);
+    server_dir[sizeof(server_dir)-1] = (char)0;
 
     /* Grab the lockfile */
     if (grab_lockfile() != 0) {
-	/* Unable to grab the lockfile */
-	return;
+        /* Unable to grab the lockfile */
+        return;
     }
 
-    
     remove_and_update(import_dir);
     remove_and_update(export_dir);
     remove_and_update(server_dir);
@@ -378,7 +371,6 @@ remove_slapd_process()
 int
 add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 {
-    char lock_dir[MAXPATHLEN];
     char import_dir[MAXPATHLEN];
     char export_dir[MAXPATHLEN];
     char server_dir[MAXPATHLEN];
@@ -387,33 +379,31 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if (skip_flag) {
-	return 0;
+        return 0;
     }
 
     /* Create the name of the directories that hold the pids of the currently running 
      * ns-slapd processes */
-    snprintf(lock_dir, sizeof(lock_dir), "%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR);
-	lock_dir[sizeof(lock_dir)-1] = (char)0;
-    snprintf(import_dir, sizeof(import_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, IMPORT_DIR);
-	import_dir[sizeof(import_dir)-1] = (char)0;
-    snprintf(export_dir, sizeof(export_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, EXPORT_DIR);
-	export_dir[sizeof(export_dir)-1] = (char)0;
-    snprintf(server_dir, sizeof(server_dir), "%s/%s/%s", slapdFrontendConfig->instancedir, LOCK_DIR, SERVER_DIR);
-	server_dir[sizeof(server_dir)-1] = (char)0;
+    snprintf(import_dir, sizeof(import_dir), "%s/%s", slapdFrontendConfig->lockdir, IMPORT_DIR);
+    import_dir[sizeof(import_dir)-1] = (char)0;
+    snprintf(export_dir, sizeof(export_dir), "%s/%s", slapdFrontendConfig->lockdir, EXPORT_DIR);
+    export_dir[sizeof(export_dir)-1] = (char)0;
+    snprintf(server_dir, sizeof(server_dir), "%s/%s", slapdFrontendConfig->lockdir, SERVER_DIR);
+    server_dir[sizeof(server_dir)-1] = (char)0;
 
     /* Grab the lockfile */
     if (grab_lockfile() != 0) {
-	/* Unable to grab the lockfile */
-	return -1;
+        /* Unable to grab the lockfile */
+        return -1;
     }
 
     /* Make sure the directories exist */
-    if (make_sure_dir_exists(lock_dir) != 0 ||
-	make_sure_dir_exists(import_dir) != 0 ||
-	make_sure_dir_exists(export_dir) != 0 || 
-	make_sure_dir_exists(server_dir) != 0) {
-	release_lockfile();
-	return -1;
+    if (make_sure_dir_exists(slapdFrontendConfig->lockdir) != 0 ||
+        make_sure_dir_exists(import_dir) != 0 ||
+        make_sure_dir_exists(export_dir) != 0 || 
+        make_sure_dir_exists(server_dir) != 0) {
+        release_lockfile();
+        return -1;
     }
 
     /* Go through the directories and find out what's going on.  
@@ -424,62 +414,62 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 
     switch (exec_mode) {
     case SLAPD_EXEMODE_SLAPD:
-	if (running) {
-	    result = -1;
-	    LDAPDebug(LDAP_DEBUG_ANY, NO_SERVER_DUE_TO_SERVER, running, 0, 0);
-	} else if (importing) {
-	    result = -1;
-	    LDAPDebug(LDAP_DEBUG_ANY, NO_SERVER_DUE_TO_IMPORT, importing, 0, 0);
-	} else {
-	    add_this_process_to(server_dir);
-	    result = 0;
-	}
-	break;
+    if (running) {
+        result = -1;
+        LDAPDebug(LDAP_DEBUG_ANY, NO_SERVER_DUE_TO_SERVER, running, 0, 0);
+    } else if (importing) {
+        result = -1;
+        LDAPDebug(LDAP_DEBUG_ANY, NO_SERVER_DUE_TO_IMPORT, importing, 0, 0);
+    } else {
+        add_this_process_to(server_dir);
+        result = 0;
+    }
+    break;
     case SLAPD_EXEMODE_DB2LDIF:
-	if (r_flag)  {
-	    /* When the -r flag is used in db2ldif we need to make sure 
-	     * we get a consistent snapshot of the server.  As a result
-	     * it needs to run by itself, so no other slapd process can
-	     * change the database while it is running. */
-	    if (running || importing) {
-		LDAPDebug(LDAP_DEBUG_ANY, NO_DB2LDIFR_DUE_TO_USE, 0, 0, 0);
-		result = -1;
-	    } else {
-		/* Even though this is really going to export code, we will 
-		 * but it in the importing dir so no other process can change 
-		 * things while we are doing ldif2db with the -r flag. */
-		 add_this_process_to(import_dir);
-		 result = 0;
-	    }
-	} else {
-	    if (importing) {
-		LDAPDebug(LDAP_DEBUG_ANY, NO_DB2LDIF_DUE_TO_IMPORT, importing, 0, 0);
-		result = -1;		
-	    } else {
-		add_this_process_to(export_dir);
-		result = 0;
-	    }
-	}
-	break;
+    if (r_flag)  {
+        /* When the -r flag is used in db2ldif we need to make sure 
+         * we get a consistent snapshot of the server.  As a result
+         * it needs to run by itself, so no other slapd process can
+         * change the database while it is running. */
+        if (running || importing) {
+            LDAPDebug(LDAP_DEBUG_ANY, NO_DB2LDIFR_DUE_TO_USE, 0, 0, 0);
+            result = -1;
+        } else {
+            /* Even though this is really going to export code, we will 
+             * but it in the importing dir so no other process can change 
+             * things while we are doing ldif2db with the -r flag. */
+             add_this_process_to(import_dir);
+             result = 0;
+        }
+    } else {
+        if (importing) {
+            LDAPDebug(LDAP_DEBUG_ANY, NO_DB2LDIF_DUE_TO_IMPORT, importing, 0, 0);
+            result = -1;        
+        } else {
+            add_this_process_to(export_dir);
+            result = 0;
+        }
+    }
+    break;
     case SLAPD_EXEMODE_DB2ARCHIVE:
-	if (importing) {
-	    LDAPDebug(LDAP_DEBUG_ANY, NO_DB2BAK_DUE_TO_IMPORT, importing, 0, 0);	    
-	    result = -1;
-	} else {
-	    add_this_process_to(export_dir);
-	    result = 0;
-	}
-	break;
+    if (importing) {
+        LDAPDebug(LDAP_DEBUG_ANY, NO_DB2BAK_DUE_TO_IMPORT, importing, 0, 0);        
+        result = -1;
+    } else {
+        add_this_process_to(export_dir);
+        result = 0;
+    }
+    break;
     case SLAPD_EXEMODE_ARCHIVE2DB:
     case SLAPD_EXEMODE_LDIF2DB:
-	if (running || importing || exporting) {
-	    LDAPDebug(LDAP_DEBUG_ANY, NO_IMPORT_DUE_TO_USE, 0, 0, 0);
-	    result = -1;
-	} else {
-	    add_this_process_to(import_dir);
-	    result = 0;
-	}
-	break;
+    if (running || importing || exporting) {
+        LDAPDebug(LDAP_DEBUG_ANY, NO_IMPORT_DUE_TO_USE, 0, 0, 0);
+        result = -1;
+    } else {
+        add_this_process_to(import_dir);
+        result = 0;
+    }
+    break;
     case SLAPD_EXEMODE_DB2INDEX:
         if (running || importing || exporting) {
             LDAPDebug(LDAP_DEBUG_ANY, NO_DB2INDEX_DUE_TO_USE, 0, 0, 0);
@@ -514,7 +504,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     release_lockfile();
     
     if (result == 0) {
-	atexit(remove_slapd_process);
+        atexit(remove_slapd_process);
     }
 
     return result;
@@ -525,31 +515,26 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 /* is_slapd_running()
  * returns 1 if slapd is running, 0 if not, -1 on error
  */
-   
-  
 int
 is_slapd_running() {
   char server_dir[MAXPATHLEN];
-  char lock_dir[MAXPATHLEN];
   slapdFrontendConfig_t *cfg = getFrontendConfig();
   int running = 0;
   
-  snprintf(lock_dir, sizeof(lock_dir), "%s/%s", cfg->instancedir, LOCK_DIR);
-  lock_dir[sizeof(lock_dir)-1] = (char)0;
-  snprintf( server_dir, sizeof(server_dir), "%s/%s/%s", cfg->instancedir, LOCK_DIR, SERVER_DIR);
+  snprintf(server_dir, sizeof(server_dir), "%s/%s", cfg->lockdir, SERVER_DIR);
   server_dir[sizeof(server_dir)-1] = (char)0;
   
   /* Grab the lockfile */
   if (grab_lockfile() != 0) {
-	/* Unable to grab the lockfile */
-	return -1;
+    /* Unable to grab the lockfile */
+    return -1;
   }
 
   /* Make sure the directories exist */
-  if (make_sure_dir_exists(lock_dir) != 0 ||
-	  make_sure_dir_exists(server_dir) != 0) {
-	release_lockfile();
-	return -1;
+  if (make_sure_dir_exists(cfg->lockdir) != 0 ||
+      make_sure_dir_exists(server_dir) != 0) {
+    release_lockfile();
+    return -1;
   }
   
   running = sample_and_update(server_dir);
@@ -557,7 +542,6 @@ is_slapd_running() {
   return running;
 }
 
- 
 #else /* _WIN32 */
 
 /* The NT version of this code */
@@ -568,11 +552,11 @@ is_slapd_running() {
 int
 mutex_exists( char *mutexName )
 {
-	if ( OpenMutex( SYNCHRONIZE, FALSE, mutexName ) == NULL ) {
-		return( 0 );
-	} else {
-		return( 1 );
-	}		
+    if ( OpenMutex( SYNCHRONIZE, FALSE, mutexName ) == NULL ) {
+        return( 0 );
+    } else {
+        return( 1 );
+    }        
 }
 
 /* is_slapd_running(): 
@@ -586,28 +570,28 @@ is_slapd_running() {
   int result = 0;
   slapdFrontendConfig_t *cfg = getFrontendConfig();
 
-  strncpy( mutexName, cfg->instancedir, MAXPATHLEN );
-  strncpy( serverMutexName, cfg->instancedir, MAXPATHLEN );
+  strncpy( mutexName, cfg->lockdir, MAXPATHLEN );
+  strncpy( serverMutexName, cfg->lockdir, MAXPATHLEN );
   mutexName[ MAXPATHLEN ] = '\0';
 
   serverMutexName[ MAXPATHLEN ] = '\0';
   strcat( serverMutexName, "/server" );
-	
+    
   return mutex_exists ( serverMutexName );
 }
 
 static void fix_mutex_name(char *name)
 {
-	/* On NT mutex names cannot contain the '\' character.
-	 * This functions replaces '\' with '/' in the supplied
-	 * name. */
-	int x;
+    /* On NT mutex names cannot contain the '\' character.
+     * This functions replaces '\' with '/' in the supplied
+     * name. */
+    int x;
 
-	for (x = 0; name[x] != '\0'; x++) {
-		if ('\\' == name[x]) {
-			name[x] = '/';
-		}
-	}
+    for (x = 0; name[x] != '\0'; x++) {
+        if ('\\' == name[x]) {
+            name[x] = '/';
+        }
+    }
 }
 
 /*
@@ -624,9 +608,9 @@ static HANDLE open_mutex = NULL;
 void
 remove_slapd_process()
 {
-	if (open_mutex) {
-		CloseHandle(open_mutex);
-	}
+    if (open_mutex) {
+        CloseHandle(open_mutex);
+    }
 }
 
 /* This function makes sure different instances of slapd don't
@@ -646,158 +630,158 @@ remove_slapd_process()
 int
 add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
 {
-	char mutexName[ MAXPATHLEN + 1 ];
-	char serverMutexName[ MAXPATHLEN + 1 ];
-	char importMutexName[ MAXPATHLEN + 1 ];
-	char exportMutexName[ MAXPATHLEN + 1 ];
+    char mutexName[ MAXPATHLEN + 1 ];
+    char serverMutexName[ MAXPATHLEN + 1 ];
+    char importMutexName[ MAXPATHLEN + 1 ];
+    char exportMutexName[ MAXPATHLEN + 1 ];
 
-	HANDLE mutex;
-	SECURITY_ATTRIBUTES mutexAttributes;
-	PSECURITY_DESCRIPTOR pSD;
-	LPVOID lpMsgBuf;
+    HANDLE mutex;
+    SECURITY_ATTRIBUTES mutexAttributes;
+    PSECURITY_DESCRIPTOR pSD;
+    LPVOID lpMsgBuf;
 
-	int result = 0;
+    int result = 0;
 
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-	if (skip_flag) {
-	    return 0;
-	}
+    if (skip_flag) {
+        return 0;
+    }
 
-	/* Create the names for the mutexes */
-	PL_strncpyz(mutexName, slapdFrontendConfig->instancedir, sizeof(mutexName));
+    /* Create the names for the mutexes */
+    PL_strncpyz(mutexName, slapdFrontendConfig->lockdir, sizeof(mutexName));
 
-	/* Make sure the name of the mutex is legal. */
-	fix_mutex_name(mutexName);
+    /* Make sure the name of the mutex is legal. */
+    fix_mutex_name(mutexName);
 
-	PR_snprintf(serverMutexName, sizeof(serverMutexName), "%s/server", mutexName);
-	PR_snprintf(importMutexName, sizeof(importMutexName), "%s/import", mutexName);
-	PR_snprintf(exportMutexName, sizeof(exportMutexName), "%s/export", mutexName);
-	
-	/* Fill in the security crap for the mutex */
-	pSD = (PSECURITY_DESCRIPTOR)slapi_ch_malloc( sizeof( SECURITY_DESCRIPTOR ) );
-	InitializeSecurityDescriptor( pSD, SECURITY_DESCRIPTOR_REVISION );
-	SetSecurityDescriptorDacl( pSD, TRUE, NULL, FALSE );
-	mutexAttributes.nLength = sizeof( mutexAttributes );
-	mutexAttributes.lpSecurityDescriptor = pSD;
-	mutexAttributes.bInheritHandle = FALSE;
-	
-	/* Get a handle to the main mutex */
-	if ( ( mutex = CreateMutex( &mutexAttributes, FALSE, mutexName ) ) == NULL ) {
-		FormatMessage( 
-    		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-    		NULL,
-    		GetLastError(),
-    		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), /* Default language */
-    		(LPTSTR) &lpMsgBuf,
-    		0,
-    		NULL 
-		);
+    PR_snprintf(serverMutexName, sizeof(serverMutexName), "%s/server", mutexName);
+    PR_snprintf(importMutexName, sizeof(importMutexName), "%s/import", mutexName);
+    PR_snprintf(exportMutexName, sizeof(exportMutexName), "%s/export", mutexName);
+    
+    /* Fill in the security crap for the mutex */
+    pSD = (PSECURITY_DESCRIPTOR)slapi_ch_malloc( sizeof( SECURITY_DESCRIPTOR ) );
+    InitializeSecurityDescriptor( pSD, SECURITY_DESCRIPTOR_REVISION );
+    SetSecurityDescriptorDacl( pSD, TRUE, NULL, FALSE );
+    mutexAttributes.nLength = sizeof( mutexAttributes );
+    mutexAttributes.lpSecurityDescriptor = pSD;
+    mutexAttributes.bInheritHandle = FALSE;
+    
+    /* Get a handle to the main mutex */
+    if ( ( mutex = CreateMutex( &mutexAttributes, FALSE, mutexName ) ) == NULL ) {
+        FormatMessage( 
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+            NULL,
+            GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), /* Default language */
+            (LPTSTR) &lpMsgBuf,
+            0,
+            NULL 
+        );
 
-		LDAPDebug( LDAP_DEBUG_ANY, CREATE_MUTEX_ERROR, lpMsgBuf, 0, 0 );
-		LocalFree( lpMsgBuf );
-		exit( 1 );
-	}
-	
-	/* Lock the main mutex */
-	if ( WaitForSingleObject( mutex, INFINITE ) == WAIT_FAILED ) {
-		FormatMessage( 
-    		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-    		NULL,
-    		GetLastError(),
-    		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), /* Default language */
-    		(LPTSTR) &lpMsgBuf,
-    		0,
-    		NULL 
-		);
+        LDAPDebug( LDAP_DEBUG_ANY, CREATE_MUTEX_ERROR, lpMsgBuf, 0, 0 );
+        LocalFree( lpMsgBuf );
+        exit( 1 );
+    }
+    
+    /* Lock the main mutex */
+    if ( WaitForSingleObject( mutex, INFINITE ) == WAIT_FAILED ) {
+        FormatMessage( 
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+            NULL,
+            GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), /* Default language */
+            (LPTSTR) &lpMsgBuf,
+            0,
+            NULL 
+        );
 
-		LDAPDebug( LDAP_DEBUG_ANY, WAIT_ERROR, lpMsgBuf, 0, 0 );
-		LocalFree( lpMsgBuf );
-		exit( 1 );
-	}
+        LDAPDebug( LDAP_DEBUG_ANY, WAIT_ERROR, lpMsgBuf, 0, 0 );
+        LocalFree( lpMsgBuf );
+        exit( 1 );
+    }
 
 
-	switch (exec_mode) {
-		case SLAPD_EXEMODE_SLAPD:
-			if ( mutex_exists( serverMutexName ) ||
-				 mutex_exists( importMutexName ) )  {
-				LDAPDebug( LDAP_DEBUG_ANY, NO_SERVER_DUE_TO_USE, 0, 0, 0);
-				result = -1;
-			} else {
-				open_mutex = CreateMutex( &mutexAttributes, FALSE, serverMutexName );
-				result = 0;
-			}
-			break;
-		case SLAPD_EXEMODE_DB2LDIF:
-			if (r_flag)  {
-				/* When the -r flag is used in db2ldif we need to make sure 
-				 * we get a consistent snapshot of the server.  As a result
-				 * it needs to run by itself, so no other slapd process can
-				 * change the database while it is running. */
-				if ( mutex_exists( serverMutexName ) ||
-				 	mutex_exists( importMutexName ) ||
-				 	mutex_exists( exportMutexName ) ) {
-					LDAPDebug(LDAP_DEBUG_ANY, NO_DB2LDIFR_DUE_TO_USE, 0, 0, 0);
-					result = -1;
-				} else {
-					CreateMutex( &mutexAttributes, FALSE, exportMutexName );
-					result = 0;
-				}
-				break;
-			}
-		case SLAPD_EXEMODE_DB2ARCHIVE:
-			if ( mutex_exists( importMutexName ) )  {
-				LDAPDebug(LDAP_DEBUG_ANY, NO_EXPORT_DUE_TO_IMPORT, 0, 0, 0);
-				result = -1;
-			} else {
-				CreateMutex( &mutexAttributes, FALSE, exportMutexName );
-				result = 0;
-			}
-			break;
-		case SLAPD_EXEMODE_ARCHIVE2DB:
-		case SLAPD_EXEMODE_LDIF2DB:
-			if ( mutex_exists( serverMutexName ) ||
-				 mutex_exists( importMutexName ) ||
-				 mutex_exists( exportMutexName ) ) {
-			        LDAPDebug(LDAP_DEBUG_ANY, NO_IMPORT_DUE_TO_USE, 0, 0, 0);
-				result = -1;
-			} else {
-				CreateMutex( &mutexAttributes, FALSE, importMutexName );
-				result = 0;
-			}
-			break;
+    switch (exec_mode) {
+        case SLAPD_EXEMODE_SLAPD:
+            if ( mutex_exists( serverMutexName ) ||
+                 mutex_exists( importMutexName ) )  {
+                LDAPDebug( LDAP_DEBUG_ANY, NO_SERVER_DUE_TO_USE, 0, 0, 0);
+                result = -1;
+            } else {
+                open_mutex = CreateMutex( &mutexAttributes, FALSE, serverMutexName );
+                result = 0;
+            }
+            break;
+        case SLAPD_EXEMODE_DB2LDIF:
+            if (r_flag)  {
+                /* When the -r flag is used in db2ldif we need to make sure 
+                 * we get a consistent snapshot of the server.  As a result
+                 * it needs to run by itself, so no other slapd process can
+                 * change the database while it is running. */
+                if ( mutex_exists( serverMutexName ) ||
+                     mutex_exists( importMutexName ) ||
+                     mutex_exists( exportMutexName ) ) {
+                    LDAPDebug(LDAP_DEBUG_ANY, NO_DB2LDIFR_DUE_TO_USE, 0, 0, 0);
+                    result = -1;
+                } else {
+                    CreateMutex( &mutexAttributes, FALSE, exportMutexName );
+                    result = 0;
+                }
+                break;
+            }
+        case SLAPD_EXEMODE_DB2ARCHIVE:
+            if ( mutex_exists( importMutexName ) )  {
+                LDAPDebug(LDAP_DEBUG_ANY, NO_EXPORT_DUE_TO_IMPORT, 0, 0, 0);
+                result = -1;
+            } else {
+                CreateMutex( &mutexAttributes, FALSE, exportMutexName );
+                result = 0;
+            }
+            break;
+        case SLAPD_EXEMODE_ARCHIVE2DB:
+        case SLAPD_EXEMODE_LDIF2DB:
+            if ( mutex_exists( serverMutexName ) ||
+                 mutex_exists( importMutexName ) ||
+                 mutex_exists( exportMutexName ) ) {
+                    LDAPDebug(LDAP_DEBUG_ANY, NO_IMPORT_DUE_TO_USE, 0, 0, 0);
+                result = -1;
+            } else {
+                CreateMutex( &mutexAttributes, FALSE, importMutexName );
+                result = 0;
+            }
+            break;
 #if defined(UPGRADEDB)
-		case SLAPD_EXEMODE_UPGRADEDB:
-			if ( mutex_exists( serverMutexName ) ||
-				 mutex_exists( importMutexName ) ||
-				 mutex_exists( exportMutexName ) ) {
-			        LDAPDebug(LDAP_DEBUG_ANY, NO_UPGRADEDB_DUE_TO_USE, 0, 0, 0);
-				result = -1;
-			} else {
-				CreateMutex( &mutexAttributes, FALSE, importMutexName );
-				result = 0;
-			}
-			break;
+        case SLAPD_EXEMODE_UPGRADEDB:
+            if ( mutex_exists( serverMutexName ) ||
+                 mutex_exists( importMutexName ) ||
+                 mutex_exists( exportMutexName ) ) {
+                    LDAPDebug(LDAP_DEBUG_ANY, NO_UPGRADEDB_DUE_TO_USE, 0, 0, 0);
+                result = -1;
+            } else {
+                CreateMutex( &mutexAttributes, FALSE, importMutexName );
+                result = 0;
+            }
+            break;
 #endif
-		case SLAPD_EXEMODE_DBTEST:
-			if ( mutex_exists( serverMutexName ) ||
-				 mutex_exists( importMutexName ) ||
-				 mutex_exists( exportMutexName ) ) {
-			        LDAPDebug(LDAP_DEBUG_ANY, NO_DBTEST_DUE_TO_USE, 0, 0, 0);
-				result = -1;
-			} else {
-				CreateMutex( &mutexAttributes, FALSE, importMutexName );
-				result = 0;
-			}
-			break;
-	}
-	
-	/* release the main mutex */
-	ReleaseMutex( mutex );
+        case SLAPD_EXEMODE_DBTEST:
+            if ( mutex_exists( serverMutexName ) ||
+                 mutex_exists( importMutexName ) ||
+                 mutex_exists( exportMutexName ) ) {
+                    LDAPDebug(LDAP_DEBUG_ANY, NO_DBTEST_DUE_TO_USE, 0, 0, 0);
+                result = -1;
+            } else {
+                CreateMutex( &mutexAttributes, FALSE, importMutexName );
+                result = 0;
+            }
+            break;
+    }
+    
+    /* release the main mutex */
+    ReleaseMutex( mutex );
 
-	slapi_ch_free((void**)&pSD );
+    slapi_ch_free((void**)&pSD );
 
-	return( result );
+    return( result );
 }
 #endif /* _WIN32 */    
     

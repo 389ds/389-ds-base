@@ -53,8 +53,8 @@ sub usage {
 $taskname = "";
 $archivedir = "";
 $dbtype = "ldbm database";
-$dsroot = "{{DS-ROOT}}";
-$mydsroot = "{{MY-DS-ROOT}}";
+$prefix = "{{DS-ROOT}}";
+$mybakdir = "{{BAK-DIR}}";
 $verbose = 0;
 $rootdn = "";
 $passwd = "";
@@ -105,7 +105,7 @@ if ( $rootdn eq "" || $passwd eq "") { &usage; exit(1); }
 $mn++; $yr += 1900;
 $taskname = "backup_${yr}_${mn}_${dy}_${h}_${m}_${s}";
 if ($archivedir eq "") {
-	$archivedir = "${mydsroot}{{SEP}}bak{{SEP}}${yr}_${mn}_${dy}_${h}_${m}_${s}";
+	$archivedir = "${bakdir}{{SEP}}bak{{SEP}}${yr}_${mn}_${dy}_${h}_${m}_${s}";
 }
 $dn = "dn: cn=$taskname, cn=backup, cn=tasks, cn=config\n";
 $misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";
@@ -115,7 +115,7 @@ $nsdbtype = "nsDatabaseType: $dbtype\n";
 $entry = "${dn}${misc}${cn}${nsarchivedir}${nsdbtype}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-chdir("$dsroot{{SEP}}shared{{SEP}}bin");
-open(FOO, "| $dsroot{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+chdir("$prefix{{SEP}}shared{{SEP}}bin");
+open(FOO, "| $prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);
