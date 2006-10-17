@@ -41,7 +41,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/stat.h>
-#include <ldap-agent.h>
+#include "ldap-agent.h"
 
 static char *agentx_master = NULL;
 static char *agent_logdir = NULL;

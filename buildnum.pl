@@ -57,8 +57,7 @@ getopts('p:H');
 if ($opt_H) {exitHelp();}
 
 # Load arguments
-$platdir = $opt_p || exitHelp();
-$buildnum_file = "./$platdir/buildnum.dat";
+$platdir = $opt_p;
 
 # Get current time
 @now = gmtime;
@@ -70,10 +69,15 @@ if ($doy < 100) { $doy = 0 . $doy; }
 $tod = $now[2] . $now[1];
 $buildnum = "$year.$doy.$tod";
 
-# Write buildnum.dat
-open(BUILDNUM,">$buildnum_file") || die "Error: Can't create $buildnum_file: $!\n";
-print BUILDNUM "\\\"$buildnum\\\"";
-close(BUILDNUM);
+if ($platdir) {
+    # Write buildnum.dat
+    $buildnum_file = "./$platdir/buildnum.dat";
+    open(BUILDNUM,">$buildnum_file") || die "Error: Can't create $buildnum_file: $!\n";
+    print BUILDNUM "\\\"$buildnum\\\"";
+    close(BUILDNUM);
+} else {
+    print "\\\"$buildnum\\\"";
+}
 
 #---------- exitHelp subroutine ----------
 sub exitHelp {
