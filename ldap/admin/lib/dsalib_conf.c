@@ -51,7 +51,7 @@
 
 #include "nspr.h"
 
-#define CONF_FILE_NAME "dse.ldif"
+#define CONF_FILE_NAME "config/dse.ldif"
 #define CONF_SUFFIX "cn=config"
 
 DS_EXPORT_SYMBOL char *
@@ -69,7 +69,7 @@ DS_EXPORT_SYMBOL char **
 ds_get_config(int type)
 {
     char        conffile[PATH_MAX];
-    char        *configdir;
+    char        *root;
     FILE        *sf = NULL;
     char        **conf_list = NULL;
 
@@ -78,12 +78,12 @@ ds_get_config(int type)
         return(NULL);
     }
 
-    if ( (configdir = ds_get_config_dir()) == NULL ) {
-        ds_send_error("Cannot find configuration directory.", 0);
+    if ( (root = ds_get_install_root()) == NULL ) {
+        ds_send_error("Cannot find server root directory.", 0);
         return(NULL);
     }
 
-    PR_snprintf(conffile, PATH_MAX, "%s/%s", configdir, CONF_FILE_NAME);
+    PR_snprintf(conffile, PATH_MAX, "%s/%s", root, CONF_FILE_NAME);
 
     if ( !(sf = fopen(conffile, "r")) )  {
         ds_send_error("could not read config file.", 1);

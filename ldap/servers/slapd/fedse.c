@@ -38,9 +38,9 @@
 /*
  * fedse.c - Front End DSE (DSA-Specific Entry) persistent storage.
  *
- * The DSE store is an LDIF file contained in the file dse.ldif.
- * The file is located in the directory specified with '-D' 
- * when staring the server.
+ * The DSE store is an LDIF file contained in the file
+ * INSTANCEDIR/config/dse.ldif, where INSTANCEDIR is
+ * the directory of the server instance.
  *
  * In core, the DSEs are stored in an AVL tree, keyed on
  * DN.  Whenever a modification is made to a DSE, the
@@ -1866,54 +1866,48 @@ setup_internal_backends(char *configdir)
 
 int fedse_create_startOK(char *filename,  char *startokfilename, const char *configdir)
 {
+    const char *config_sub_dir = "config";
+    char *id =  config_get_instancedir();
     char *realconfigdir = NULL;
-    char *dse_filename = NULL;
-    char *dse_filestartOK = NULL;
-    int rc = -1;
+	char *dse_filename = NULL;
+	char *dse_filestartOK = NULL;
+	int rc = -1;
 
-    if (configdir!=NULL)
-    {
+    if (configdir!=NULL) {
         realconfigdir = slapi_ch_strdup(configdir);
+    } else if (id!=NULL) {
+        realconfigdir = slapi_ch_smprintf("%s/%s", id, config_sub_dir);
     }
-    else
-    {
-        realconfigdir = config_get_configdir();
-    }
+	slapi_ch_free_string(&id);
     if(realconfigdir!=NULL)
     {
-        /* Set the full path name for the config DSE entry */
-        if (!strstr(filename, realconfigdir))
-        {
-            dse_filename = slapi_ch_smprintf("%s/%s", realconfigdir, filename);
-        }
-        else
-        {
-            dse_filename = slapi_ch_strdup(filename);
-        }
+		/* Set the full path name for the config DSE entry */
+		if (!strstr(filename, realconfigdir))
+		{
+			dse_filename = slapi_ch_smprintf("%s/%s", realconfigdir, filename );
+		}
+		else
+			dse_filename = slapi_ch_strdup(filename);
 
-        if (!strstr(startokfilename, realconfigdir))
-        {
-            dse_filestartOK = slapi_ch_smprintf("%s/%s",
-                                                realconfigdir, startokfilename);
-        }
-        else
-        {
-            dse_filestartOK = slapi_ch_strdup(startokfilename);
-        }
+		if (!strstr(startokfilename, realconfigdir)) {
+			dse_filestartOK = slapi_ch_smprintf("%s/%s", realconfigdir, startokfilename );
+		}
+		else
+			dse_filestartOK = slapi_ch_strdup(startokfilename);
 
-        rc = slapi_copy(dse_filename, dse_filestartOK);
-        if ( rc != 0 )
-        {
-            slapi_log_error( SLAPI_LOG_FATAL, "dse", "Cannot copy"
-                    " DSE file \"%s\" to \"%s\" OS error %d (%s)\n",
-                    dse_filename, dse_filestartOK,
-                    rc, slapd_system_strerror(rc) );
-        }
-        
-        slapi_ch_free_string(&dse_filename);
-        slapi_ch_free_string(&dse_filestartOK);
-        slapi_ch_free_string(&realconfigdir);
-    }
+		rc = slapi_copy(dse_filename, dse_filestartOK);
+		if ( rc != 0 )
+		{
+			slapi_log_error( SLAPI_LOG_FATAL, "dse", "Cannot copy"
+					" DSE file \"%s\" to \"%s\" OS error %d (%s)\n",
+					dse_filename, dse_filestartOK,
+					rc, slapd_system_strerror(rc) );
+		}
+		
+		slapi_ch_free_string(&dse_filename);
+		slapi_ch_free_string(&dse_filestartOK);
+		slapi_ch_free_string(&realconfigdir);
+	}
 
-    return rc;
+	return rc;
 }

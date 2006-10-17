@@ -418,7 +418,9 @@ ifeq ($(USE_DSGW), 1)
 	then $(INSTALL) -m 755 $$file $(RELDIR)/clients/lib ; \
 	fi ; \
 	done
-endif
+# the httpd library
+	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/clients/lib
+endif # USE_DSGW
 ifeq ($(PACKAGE_LIB32), 1)
 # these are files to copy to the shared32/lib directory - nspr, nss, ldapsdk lib
 	for file in $(LIBS_TO_PKG_SHARED_32); \
