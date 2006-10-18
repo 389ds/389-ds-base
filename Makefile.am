@@ -6,13 +6,13 @@ ACLOCAL_AMFLAGS = -I m4
 #------------------------
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 PLATFORM_DEFINES = @platform_defs@
-# NGK - Other defines which may need to be conditionally set
+DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DNS_DS -DNET_SSL -DLDAP_DEBUG -DLDAP_DONT_USE_SMARTHEAP \
 	-DUPGRADEDB -DNSPR20 -DLDAPDB_THREAD_SAFE -DCLIENT_AUTH \
 	-DMCC_HTTPD -DNS_DOMESTIC -DSPAPI20 -DSERVER_BUILD \
 	-DBUILD_NUM=$(BUILDNUM)
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
-AM_CPPFLAGS = $(PLATFORM_DEFINES) $(DS_DEFINES) $(DS_INCLUDES)
+AM_CPPFLAGS = $(PLATFORM_DEFINES) $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
 #------------------------

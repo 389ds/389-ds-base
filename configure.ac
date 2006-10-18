@@ -68,10 +68,22 @@ case $host in
     ;;
 esac
 AC_SUBST([platform_defs])
-
 AM_CONDITIONAL(SOLARIS,test $platform = solaris)
 
+AC_MSG_CHECKING(for --enable-debug)
+AC_ARG_ENABLE(debug, [  --enable-debug         Enable debug features],
+[
+  AC_MSG_RESULT(yes)
+  debug_defs="-DDEBUG -DMCC_DEBUG"
+],
+[
+  AC_MSG_RESULT(no)
+  debug_defs=""
+])
+AC_SUBST([debug_defs])
+
 BRAND=fedora
+AC_MSG_CHECKING(for --with-brand)
 AC_ARG_WITH(brand, [  --with-brand=PATH        Specify branding (fedora or redhat)],
 [
   if test "$withval"
@@ -82,7 +94,7 @@ AC_ARG_WITH(brand, [  --with-brand=PATH        Specify branding (fedora or redha
 ],
 AC_MSG_RESULT(no))
 PKGNAME=$BRAND-ds
-AC_PREFIX_DEFAULT([/opt/$PKGNAME])
+AC_PREFIX_DEFAULT("/opt/\$(PACKAGE)")
 
 # Check for library dependencies
 m4_include(m4/nspr.m4)
