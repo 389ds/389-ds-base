@@ -4,14 +4,14 @@ ACLOCAL_AMFLAGS = -I m4
 #------------------------
 # Compiler Flags
 #------------------------
-BUILDNUM := $(shell perl buildnum.pl)
+BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 PLATFORM_DEFINES = @platform_defs@
 # NGK - Other defines which may need to be conditionally set
 DS_DEFINES = -DNS_DS -DNET_SSL -DLDAP_DEBUG -DLDAP_DONT_USE_SMARTHEAP \
 	-DUPGRADEDB -DNSPR20 -DLDAPDB_THREAD_SAFE -DCLIENT_AUTH \
 	-DMCC_HTTPD -DNS_DOMESTIC -DSPAPI20 -DSERVER_BUILD \
 	-DBUILD_NUM=$(BUILDNUM)
-DS_INCLUDES = -Ildap/include -Ildap/servers/slapd -Iinclude
+DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 AM_CPPFLAGS = $(PLATFORM_DEFINES) $(DS_DEFINES) $(DS_INCLUDES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
@@ -31,17 +31,15 @@ PAM_LINK = -lpam
 #------------------------
 # Generated Sources
 #------------------------
-BUILT_SOURCES = ldap/include/dirver.h \
-	ldap/include/dberrstrs.h
+BUILT_SOURCES = dirver.h dberrstrs.h
 
-CLEANFILES = ldap/include/dirver.h \
-	ldap/include/dberrstrs.h
+CLEANFILES =  dirver.h dberrstrs.h ns-slapd.properties
 
-ldap/include/dirver.h: Makefile
-	perl dirver.pl -v "$(VERSION)" -o ldap/include/dirver.h
+dirver.h: Makefile
+	perl $(srcdir)/dirver.pl -v "$(VERSION)" -o dirver.h
 
-ldap/include/dberrstrs.h: Makefile
-	perl ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o ldap/include
+dberrstrs.h: Makefile
+	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
 
 #------------------------
 # Build Products
@@ -103,7 +101,7 @@ libldaputil_a_SOURCES = lib/ldaputil/cert.c \
 	lib/ldaputil/ldapdb.c \
 	lib/ldaputil/vtable.c
 
-libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -Ilib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
 #------------------------
 # libldif
@@ -138,7 +136,7 @@ libds_admin_la_SOURCES = ldap/admin/lib/dsalib_conf.c \
 	ldap/admin/lib/dsalib_util.c \
 	$(libldif_a_SOURCES)
 
-libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -Ildap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 libds_admin_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
@@ -198,7 +196,7 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/libsi18n/txtfile.c \
 	$(libldaputil_a_SOURCES)
 
-libns_dshttpd_la_CPPFLAGS = -Iinclude/base $(AM_CPPFLAGS) -Ilib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
 #------------------------
 # libslapd
@@ -389,7 +387,7 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 	ldap/servers/plugins/acl/aclproxy.c \
 	ldap/servers/plugins/acl/aclutil.c
 
-libacl_plugin_la_CPPFLAGS = -Iinclude/libaccess $(PLUGIN_CPPFLAGS)
+libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
 libacl_plugin_la_LIBADD = libns-dshttpd.la
 
 #------------------------
@@ -399,7 +397,7 @@ libattr_unique_plugin_la_SOURCES = ldap/servers/plugins/uiduniq/7bit.c \
 	ldap/servers/plugins/uiduniq/uid.c \
 	ldap/servers/plugins/shared/utils.c
 
-libattr_unique_plugin_la_CPPFLAGS = -Ildap/servers/plugins/shared $(PLUGIN_CPPFLAGS)
+libattr_unique_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/shared $(PLUGIN_CPPFLAGS)
 
 #------------------------
 # libchainingdb-plugin
@@ -501,7 +499,7 @@ libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 #------------------------
 libpresence_plugin_la_SOURCES = ldap/servers/plugins/presence/presence.c
 
-libpresence_plugin_la_CPPFLAGS = -Ildap/servers/plugins/http $(PLUGIN_CPPFLAGS)
+libpresence_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/http $(PLUGIN_CPPFLAGS)
 
 #------------------------
 # libpwdstorage-plugin
@@ -660,7 +658,7 @@ ds_newinst_SOURCES = ldap/admin/src/cfg_sspt.c \
 	ldap/admin/src/ds_newinst.c \
 	ldap/admin/src/script-gen.c
 
-ds_newinst_CPPFLAGS = $(AM_CPPFLAGS) -Ildap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ds_newinst_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 ds_newinst_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
