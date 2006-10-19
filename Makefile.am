@@ -20,7 +20,7 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3 -lsoftokn3
-LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lldap60 -lprldap60
+LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lldap60 -lprldap60 -lldif60
 DB_LINK = @db_lib@ -ldb-4.2
 SASL_LINK = @sasl_lib@ -lsasl2
 SVRCORE_LINK = @svrcore_lib@ -lsvrcore
@@ -55,7 +55,7 @@ lib_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la
-noinst_LIBRARIES = libavl.a libldaputil.a libldif.a
+noinst_LIBRARIES = libavl.a libldaputil.a
 nodist_data_DATA = ns-slapd.properties
 
 
@@ -103,14 +103,6 @@ libldaputil_a_SOURCES = lib/ldaputil/cert.c \
 
 libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
-#------------------------
-# libldif
-#------------------------
-libldif_a_SOURCES = ldap/libraries/libldif/fileurl.c \
-	ldap/libraries/libldif/line64.c
-
-libldif_a_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-
 
 #////////////////////////////////////////////////////////////////
 #
@@ -133,8 +125,7 @@ libds_admin_la_SOURCES = ldap/admin/lib/dsalib_conf.c \
 	ldap/admin/lib/dsalib_pw.c \
 	ldap/admin/lib/dsalib_tailf.c \
 	ldap/admin/lib/dsalib_updown.c \
-	ldap/admin/lib/dsalib_util.c \
-	$(libldif_a_SOURCES)
+	ldap/admin/lib/dsalib_util.c
 
 libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 libds_admin_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
@@ -288,8 +279,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c \
-	$(libavl_a_SOURCES) \
-	$(libldif_a_SOURCES)
+	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@ @svrcore_inc@
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
@@ -578,8 +568,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.o \
 	ldap/servers/plugins/replication/windows_inc_protocol.c \
 	ldap/servers/plugins/replication/windows_private.c \
 	ldap/servers/plugins/replication/windows_protocol_util.c \
-	ldap/servers/plugins/replication/windows_tot_protocol.c \
-	$(libldif_a_SOURCES)
+	ldap/servers/plugins/replication/windows_tot_protocol.c
 
 libreplication_plugin_la_CPPFLAGS = @icu_inc@ @db_inc@ $(PLUGIN_CPPFLAGS)
 libreplication_plugin_la_LIBADD = $(ICU_LINK)
@@ -592,8 +581,7 @@ libretrocl_plugin_la_SOURCES = ldap/servers/plugins/retrocl/retrocl.c \
 	ldap/servers/plugins/retrocl/retrocl_create.c \
 	ldap/servers/plugins/retrocl/retrocl_po.c \
 	ldap/servers/plugins/retrocl/retrocl_rootdse.c \
-	ldap/servers/plugins/retrocl/retrocl_trim.c \
-	$(libldif_a_SOURCES)
+	ldap/servers/plugins/retrocl/retrocl_trim.c
 
 libretrocl_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 
@@ -705,7 +693,7 @@ ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 ldif_SOURCES = ldap/servers/slapd/tools/ldif.c
 
 ldif_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) libldif.a
+ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # migratecred

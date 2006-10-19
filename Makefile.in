@@ -17,7 +17,7 @@
 
 
 
-SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) $(libldif_a_SOURCES) $(libacl_plugin_la_SOURCES) $(libattr_unique_plugin_la_SOURCES) $(libback_ldbm_la_SOURCES) $(libchainingdb_plugin_la_SOURCES) $(libcollation_plugin_la_SOURCES) $(libcos_plugin_la_SOURCES) $(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) $(libds_admin_la_SOURCES) $(libhttp_client_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) $(libpam_passthru_plugin_la_SOURCES) $(libpassthru_plugin_la_SOURCES) $(libpresence_plugin_la_SOURCES) $(libpwdstorage_plugin_la_SOURCES) $(libreferint_plugin_la_SOURCES) $(libreplication_plugin_la_SOURCES) $(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) $(libslapd_la_SOURCES) $(libstatechange_plugin_la_SOURCES) $(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) $(dbscan_SOURCES) $(ds_newinst_SOURCES) $(dsktune_SOURCES) $(ldap_agent_SOURCES) $(ldclt_SOURCES) $(ldif_SOURCES) $(makstrdb_SOURCES) $(migratecred_SOURCES) $(mmldif_SOURCES) $(ns_slapd_SOURCES) $(pwdhash_SOURCES) $(rsearch_SOURCES)
+SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) $(libacl_plugin_la_SOURCES) $(libattr_unique_plugin_la_SOURCES) $(libback_ldbm_la_SOURCES) $(libchainingdb_plugin_la_SOURCES) $(libcollation_plugin_la_SOURCES) $(libcos_plugin_la_SOURCES) $(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) $(libds_admin_la_SOURCES) $(libhttp_client_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) $(libpam_passthru_plugin_la_SOURCES) $(libpassthru_plugin_la_SOURCES) $(libpresence_plugin_la_SOURCES) $(libpwdstorage_plugin_la_SOURCES) $(libreferint_plugin_la_SOURCES) $(libreplication_plugin_la_SOURCES) $(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) $(libslapd_la_SOURCES) $(libstatechange_plugin_la_SOURCES) $(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) $(dbscan_SOURCES) $(ds_newinst_SOURCES) $(dsktune_SOURCES) $(ldap_agent_SOURCES) $(ldclt_SOURCES) $(ldif_SOURCES) $(makstrdb_SOURCES) $(migratecred_SOURCES) $(mmldif_SOURCES) $(ns_slapd_SOURCES) $(pwdhash_SOURCES) $(rsearch_SOURCES)
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -82,12 +82,6 @@ am_libldaputil_a_OBJECTS = lib/ldaputil/libldaputil_a-cert.$(OBJEXT) \
 	lib/ldaputil/libldaputil_a-ldapdb.$(OBJEXT) \
 	lib/ldaputil/libldaputil_a-vtable.$(OBJEXT)
 libldaputil_a_OBJECTS = $(am_libldaputil_a_OBJECTS)
-libldif_a_AR = $(AR) $(ARFLAGS)
-libldif_a_LIBADD =
-am_libldif_a_OBJECTS =  \
-	ldap/libraries/libldif/libldif_a-fileurl.$(OBJEXT) \
-	ldap/libraries/libldif/libldif_a-line64.$(OBJEXT)
-libldif_a_OBJECTS = $(am_libldif_a_OBJECTS)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -231,8 +225,6 @@ am_libdistrib_plugin_la_OBJECTS =  \
 libdistrib_plugin_la_OBJECTS = $(am_libdistrib_plugin_la_OBJECTS)
 libds_admin_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-am__objects_1 = ldap/libraries/libldif/libds_admin_la-fileurl.lo \
-	ldap/libraries/libldif/libds_admin_la-line64.lo
 am_libds_admin_la_OBJECTS =  \
 	ldap/admin/lib/libds_admin_la-dsalib_conf.lo \
 	ldap/admin/lib/libds_admin_la-dsalib_confs.lo \
@@ -246,7 +238,7 @@ am_libds_admin_la_OBJECTS =  \
 	ldap/admin/lib/libds_admin_la-dsalib_pw.lo \
 	ldap/admin/lib/libds_admin_la-dsalib_tailf.lo \
 	ldap/admin/lib/libds_admin_la-dsalib_updown.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_util.lo $(am__objects_1)
+	ldap/admin/lib/libds_admin_la-dsalib_util.lo
 libds_admin_la_OBJECTS = $(am_libds_admin_la_OBJECTS)
 libhttp_client_plugin_la_LIBADD =
 am_libhttp_client_plugin_la_OBJECTS = ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo \
@@ -254,7 +246,7 @@ am_libhttp_client_plugin_la_OBJECTS = ldap/servers/plugins/http/libhttp_client_p
 libhttp_client_plugin_la_OBJECTS =  \
 	$(am_libhttp_client_plugin_la_OBJECTS)
 libns_dshttpd_la_LIBADD =
-am__objects_2 = lib/ldaputil/libns_dshttpd_la-cert.lo \
+am__objects_1 = lib/ldaputil/libns_dshttpd_la-cert.lo \
 	lib/ldaputil/libns_dshttpd_la-certmap.lo \
 	lib/ldaputil/libns_dshttpd_la-dbconf.lo \
 	lib/ldaputil/libns_dshttpd_la-encode.lo \
@@ -315,7 +307,7 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/libsi18n/libns_dshttpd_la-getlang.lo \
 	lib/libsi18n/libns_dshttpd_la-propset.lo \
 	lib/libsi18n/libns_dshttpd_la-reshash.lo \
-	lib/libsi18n/libns_dshttpd_la-txtfile.lo $(am__objects_2)
+	lib/libsi18n/libns_dshttpd_la-txtfile.lo $(am__objects_1)
 libns_dshttpd_la_OBJECTS = $(am_libns_dshttpd_la_OBJECTS)
 libpam_passthru_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libpam_passthru_plugin_la_OBJECTS = ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo \
@@ -351,9 +343,6 @@ libreferint_plugin_la_LIBADD =
 am_libreferint_plugin_la_OBJECTS = ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo
 libreferint_plugin_la_OBJECTS = $(am_libreferint_plugin_la_OBJECTS)
 libreplication_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am__objects_3 =  \
-	ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo \
-	ldap/libraries/libldif/libreplication_plugin_la-line64.lo
 am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_config.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_init.lo \
@@ -406,22 +395,17 @@ am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplic
 	ldap/servers/plugins/replication/libreplication_plugin_la-windows_inc_protocol.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-windows_private.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-windows_protocol_util.lo \
-	ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.lo \
-	$(am__objects_3)
+	ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.lo
 libreplication_plugin_la_OBJECTS =  \
 	$(am_libreplication_plugin_la_OBJECTS)
 libretrocl_plugin_la_LIBADD =
-am__objects_4 =  \
-	ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo \
-	ldap/libraries/libldif/libretrocl_plugin_la-line64.lo
 am_libretrocl_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl.lo \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_cn.lo \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_create.lo \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_po.lo \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_rootdse.lo \
-	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo \
-	$(am__objects_4)
+	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo
 libretrocl_plugin_la_OBJECTS = $(am_libretrocl_plugin_la_OBJECTS)
 libroles_plugin_la_LIBADD =
 am_libroles_plugin_la_OBJECTS =  \
@@ -430,9 +414,7 @@ am_libroles_plugin_la_OBJECTS =  \
 libroles_plugin_la_OBJECTS = $(am_libroles_plugin_la_OBJECTS)
 libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-am__objects_5 = ldap/libraries/libavl/libslapd_la-avl.lo
-am__objects_6 = ldap/libraries/libldif/libslapd_la-fileurl.lo \
-	ldap/libraries/libldif/libslapd_la-line64.lo
+am__objects_2 = ldap/libraries/libavl/libslapd_la-avl.lo
 am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-agtmmap.lo \
 	ldap/servers/slapd/libslapd_la-apibroker.lo \
@@ -519,8 +501,7 @@ am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-uuid.lo \
 	ldap/servers/slapd/libslapd_la-value.lo \
 	ldap/servers/slapd/libslapd_la-valueset.lo \
-	ldap/servers/slapd/libslapd_la-vattr.lo $(am__objects_5) \
-	$(am__objects_6)
+	ldap/servers/slapd/libslapd_la-vattr.lo $(am__objects_2)
 libslapd_la_OBJECTS = $(am_libslapd_la_OBJECTS)
 libstatechange_plugin_la_LIBADD =
 am_libstatechange_plugin_la_OBJECTS = ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo
@@ -578,7 +559,7 @@ am__ldclt_SOURCES_DIST = ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c \
 	ldap/servers/slapd/tools/ldclt/opCheck.c
-@SOLARIS_TRUE@am__objects_7 = ldap/servers/slapd/tools/ldclt/ldclt-opCheck.$(OBJEXT)
+@SOLARIS_TRUE@am__objects_3 = ldap/servers/slapd/tools/ldclt/ldclt-opCheck.$(OBJEXT)
 am_ldclt_OBJECTS =  \
 	ldap/servers/slapd/tools/ldclt/ldclt-data.$(OBJEXT) \
 	ldap/servers/slapd/tools/ldclt/ldclt-ldapfct.$(OBJEXT) \
@@ -591,14 +572,14 @@ am_ldclt_OBJECTS =  \
 	ldap/servers/slapd/tools/ldclt/ldclt-utils.$(OBJEXT) \
 	ldap/servers/slapd/tools/ldclt/ldclt-version.$(OBJEXT) \
 	ldap/servers/slapd/tools/ldclt/ldclt-workarounds.$(OBJEXT) \
-	$(am__objects_7)
+	$(am__objects_3)
 ldclt_OBJECTS = $(am_ldclt_OBJECTS)
 ldclt_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_ldif_OBJECTS = ldap/servers/slapd/tools/ldif-ldif.$(OBJEXT)
 ldif_OBJECTS = $(am_ldif_OBJECTS)
 ldif_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) libldif.a
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_makstrdb_OBJECTS = lib/libsi18n/makstrdb-makstrdb.$(OBJEXT)
 makstrdb_OBJECTS = $(am_makstrdb_OBJECTS)
 makstrdb_LDADD = $(LDADD)
@@ -684,7 +665,7 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --mode=link --tag=CXX $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
-	$(libldif_a_SOURCES) $(libacl_plugin_la_SOURCES) \
+	$(libacl_plugin_la_SOURCES) \
 	$(libattr_unique_plugin_la_SOURCES) $(libback_ldbm_la_SOURCES) \
 	$(libchainingdb_plugin_la_SOURCES) \
 	$(libcollation_plugin_la_SOURCES) $(libcos_plugin_la_SOURCES) \
@@ -705,7 +686,7 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(makstrdb_SOURCES) $(migratecred_SOURCES) $(mmldif_SOURCES) \
 	$(ns_slapd_SOURCES) $(pwdhash_SOURCES) $(rsearch_SOURCES)
 DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
-	$(libldif_a_SOURCES) $(libacl_plugin_la_SOURCES) \
+	$(libacl_plugin_la_SOURCES) \
 	$(libattr_unique_plugin_la_SOURCES) $(libback_ldbm_la_SOURCES) \
 	$(libchainingdb_plugin_la_SOURCES) \
 	$(libcollation_plugin_la_SOURCES) $(libcos_plugin_la_SOURCES) \
@@ -889,7 +870,7 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3 -lsoftokn3
-LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lldap60 -lprldap60
+LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lldap60 -lprldap60 -lldif60
 DB_LINK = @db_lib@ -ldb-4.2
 SASL_LINK = @sasl_lib@ -lsasl2
 SVRCORE_LINK = @svrcore_lib@ -lsvrcore
@@ -911,7 +892,7 @@ lib_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la
 
-noinst_LIBRARIES = libavl.a libldaputil.a libldif.a
+noinst_LIBRARIES = libavl.a libldaputil.a
 nodist_data_DATA = ns-slapd.properties
 
 #////////////////////////////////////////////////////////////////
@@ -950,14 +931,6 @@ libldaputil_a_SOURCES = lib/ldaputil/cert.c \
 
 libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
-#------------------------
-# libldif
-#------------------------
-libldif_a_SOURCES = ldap/libraries/libldif/fileurl.c \
-	ldap/libraries/libldif/line64.c
-
-libldif_a_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-
 #////////////////////////////////////////////////////////////////
 #
 #   Dynamic Server Libraries
@@ -979,8 +952,7 @@ libds_admin_la_SOURCES = ldap/admin/lib/dsalib_conf.c \
 	ldap/admin/lib/dsalib_pw.c \
 	ldap/admin/lib/dsalib_tailf.c \
 	ldap/admin/lib/dsalib_updown.c \
-	ldap/admin/lib/dsalib_util.c \
-	$(libldif_a_SOURCES)
+	ldap/admin/lib/dsalib_util.c
 
 libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 libds_admin_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
@@ -1134,8 +1106,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c \
-	$(libavl_a_SOURCES) \
-	$(libldif_a_SOURCES)
+	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@ @svrcore_inc@
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
@@ -1419,8 +1390,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.o \
 	ldap/servers/plugins/replication/windows_inc_protocol.c \
 	ldap/servers/plugins/replication/windows_private.c \
 	ldap/servers/plugins/replication/windows_protocol_util.c \
-	ldap/servers/plugins/replication/windows_tot_protocol.c \
-	$(libldif_a_SOURCES)
+	ldap/servers/plugins/replication/windows_tot_protocol.c
 
 libreplication_plugin_la_CPPFLAGS = @icu_inc@ @db_inc@ $(PLUGIN_CPPFLAGS)
 libreplication_plugin_la_LIBADD = $(ICU_LINK)
@@ -1433,8 +1403,7 @@ libretrocl_plugin_la_SOURCES = ldap/servers/plugins/retrocl/retrocl.c \
 	ldap/servers/plugins/retrocl/retrocl_create.c \
 	ldap/servers/plugins/retrocl/retrocl_po.c \
 	ldap/servers/plugins/retrocl/retrocl_rootdse.c \
-	ldap/servers/plugins/retrocl/retrocl_trim.c \
-	$(libldif_a_SOURCES)
+	ldap/servers/plugins/retrocl/retrocl_trim.c
 
 libretrocl_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 
@@ -1537,7 +1506,7 @@ ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 #------------------------
 ldif_SOURCES = ldap/servers/slapd/tools/ldif.c
 ldif_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) libldif.a
+ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # migratecred
@@ -1705,22 +1674,6 @@ libldaputil.a: $(libldaputil_a_OBJECTS) $(libldaputil_a_DEPENDENCIES)
 	-rm -f libldaputil.a
 	$(libldaputil_a_AR) libldaputil.a $(libldaputil_a_OBJECTS) $(libldaputil_a_LIBADD)
 	$(RANLIB) libldaputil.a
-ldap/libraries/libldif/$(am__dirstamp):
-	@$(mkdir_p) ldap/libraries/libldif
-	@: > ldap/libraries/libldif/$(am__dirstamp)
-ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp):
-	@$(mkdir_p) ldap/libraries/libldif/$(DEPDIR)
-	@: > ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libldif_a-fileurl.$(OBJEXT):  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libldif_a-line64.$(OBJEXT):  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-libldif.a: $(libldif_a_OBJECTS) $(libldif_a_DEPENDENCIES) 
-	-rm -f libldif.a
-	$(libldif_a_AR) libldif.a $(libldif_a_OBJECTS) $(libldif_a_LIBADD)
-	$(RANLIB) libldif.a
 install-libLTLIBRARIES: $(lib_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
 	test -z "$(libdir)" || $(mkdir_p) "$(DESTDIR)$(libdir)"
@@ -2181,12 +2134,6 @@ ldap/admin/lib/libds_admin_la-dsalib_updown.lo:  \
 ldap/admin/lib/libds_admin_la-dsalib_util.lo:  \
 	ldap/admin/lib/$(am__dirstamp) \
 	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libds_admin_la-fileurl.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libds_admin_la-line64.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
 libds_admin.la: $(libds_admin_la_OBJECTS) $(libds_admin_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libds_admin_la_LDFLAGS) $(libds_admin_la_OBJECTS) $(libds_admin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/http/$(am__dirstamp):
@@ -2650,12 +2597,6 @@ ldap/servers/plugins/replication/libreplication_plugin_la-windows_protocol_util.
 ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.lo:  \
 	ldap/servers/plugins/replication/$(am__dirstamp) \
 	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libreplication_plugin_la-line64.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
 libreplication-plugin.la: $(libreplication_plugin_la_OBJECTS) $(libreplication_plugin_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libreplication_plugin_la_LDFLAGS) $(libreplication_plugin_la_OBJECTS) $(libreplication_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/retrocl/$(am__dirstamp):
@@ -2682,12 +2623,6 @@ ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_rootdse.lo:  \
 ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo:  \
 	ldap/servers/plugins/retrocl/$(am__dirstamp) \
 	ldap/servers/plugins/retrocl/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libretrocl_plugin_la-line64.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
 libretrocl-plugin.la: $(libretrocl_plugin_la_OBJECTS) $(libretrocl_plugin_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libretrocl_plugin_la_LDFLAGS) $(libretrocl_plugin_la_OBJECTS) $(libretrocl_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/roles/$(am__dirstamp):
@@ -2974,12 +2909,6 @@ ldap/servers/slapd/libslapd_la-vattr.lo:  \
 ldap/libraries/libavl/libslapd_la-avl.lo:  \
 	ldap/libraries/libavl/$(am__dirstamp) \
 	ldap/libraries/libavl/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libslapd_la-fileurl.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-ldap/libraries/libldif/libslapd_la-line64.lo:  \
-	ldap/libraries/libldif/$(am__dirstamp) \
-	ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
 libslapd.la: $(libslapd_la_OBJECTS) $(libslapd_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libslapd_la_LDFLAGS) $(libslapd_la_OBJECTS) $(libslapd_la_LIBADD) $(LIBS)
 ldap/servers/plugins/statechange/$(am__dirstamp):
@@ -3378,24 +3307,6 @@ mostlyclean-compile:
 	-rm -f ldap/libraries/libavl/avl.$(OBJEXT)
 	-rm -f ldap/libraries/libavl/libslapd_la-avl.$(OBJEXT)
 	-rm -f ldap/libraries/libavl/libslapd_la-avl.lo
-	-rm -f ldap/libraries/libldif/libds_admin_la-fileurl.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libds_admin_la-fileurl.lo
-	-rm -f ldap/libraries/libldif/libds_admin_la-line64.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libds_admin_la-line64.lo
-	-rm -f ldap/libraries/libldif/libldif_a-fileurl.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libldif_a-line64.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libreplication_plugin_la-fileurl.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo
-	-rm -f ldap/libraries/libldif/libreplication_plugin_la-line64.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libreplication_plugin_la-line64.lo
-	-rm -f ldap/libraries/libldif/libretrocl_plugin_la-fileurl.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo
-	-rm -f ldap/libraries/libldif/libretrocl_plugin_la-line64.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libretrocl_plugin_la-line64.lo
-	-rm -f ldap/libraries/libldif/libslapd_la-fileurl.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libslapd_la-fileurl.lo
-	-rm -f ldap/libraries/libldif/libslapd_la-line64.$(OBJEXT)
-	-rm -f ldap/libraries/libldif/libslapd_la-line64.lo
 	-rm -f ldap/servers/plugins/acl/libacl_plugin_la-acl.$(OBJEXT)
 	-rm -f ldap/servers/plugins/acl/libacl_plugin_la-acl.lo
 	-rm -f ldap/servers/plugins/acl/libacl_plugin_la-acl_ext.$(OBJEXT)
@@ -4188,16 +4099,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/src/$(DEPDIR)/ds_newinst-script-gen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libavl/$(DEPDIR)/avl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libavl/$(DEPDIR)/libslapd_la-avl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-fileurl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-line64.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-fileurl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-line64.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-fileurl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-line64.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libslapd_la-fileurl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libldif/$(DEPDIR)/libslapd_la-line64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/acl/$(DEPDIR)/libacl_plugin_la-acl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/acl/$(DEPDIR)/libacl_plugin_la-acl_ext.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/acl/$(DEPDIR)/libacl_plugin_la-aclanom.Plo@am__quote@
@@ -4767,34 +4668,6 @@ lib/ldaputil/libldaputil_a-vtable.obj: lib/ldaputil/vtable.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/ldaputil/vtable.c' object='lib/ldaputil/libldaputil_a-vtable.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libldaputil_a-vtable.obj `if test -f 'lib/ldaputil/vtable.c'; then $(CYGPATH_W) 'lib/ldaputil/vtable.c'; else $(CYGPATH_W) '$(srcdir)/lib/ldaputil/vtable.c'; fi`
-
-ldap/libraries/libldif/libldif_a-fileurl.o: ldap/libraries/libldif/fileurl.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libldif_a-fileurl.o -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Tpo" -c -o ldap/libraries/libldif/libldif_a-fileurl.o `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Po"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/fileurl.c' object='ldap/libraries/libldif/libldif_a-fileurl.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libldif_a-fileurl.o `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c
-
-ldap/libraries/libldif/libldif_a-fileurl.obj: ldap/libraries/libldif/fileurl.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libldif_a-fileurl.obj -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Tpo" -c -o ldap/libraries/libldif/libldif_a-fileurl.obj `if test -f 'ldap/libraries/libldif/fileurl.c'; then $(CYGPATH_W) 'ldap/libraries/libldif/fileurl.c'; else $(CYGPATH_W) '$(srcdir)/ldap/libraries/libldif/fileurl.c'; fi`; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Po"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-fileurl.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/fileurl.c' object='ldap/libraries/libldif/libldif_a-fileurl.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libldif_a-fileurl.obj `if test -f 'ldap/libraries/libldif/fileurl.c'; then $(CYGPATH_W) 'ldap/libraries/libldif/fileurl.c'; else $(CYGPATH_W) '$(srcdir)/ldap/libraries/libldif/fileurl.c'; fi`
-
-ldap/libraries/libldif/libldif_a-line64.o: ldap/libraries/libldif/line64.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libldif_a-line64.o -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Tpo" -c -o ldap/libraries/libldif/libldif_a-line64.o `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Po"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/line64.c' object='ldap/libraries/libldif/libldif_a-line64.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libldif_a-line64.o `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c
-
-ldap/libraries/libldif/libldif_a-line64.obj: ldap/libraries/libldif/line64.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libldif_a-line64.obj -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Tpo" -c -o ldap/libraries/libldif/libldif_a-line64.obj `if test -f 'ldap/libraries/libldif/line64.c'; then $(CYGPATH_W) 'ldap/libraries/libldif/line64.c'; else $(CYGPATH_W) '$(srcdir)/ldap/libraries/libldif/line64.c'; fi`; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Po"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libldif_a-line64.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/line64.c' object='ldap/libraries/libldif/libldif_a-line64.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldif_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libldif_a-line64.obj `if test -f 'ldap/libraries/libldif/line64.c'; then $(CYGPATH_W) 'ldap/libraries/libldif/line64.c'; else $(CYGPATH_W) '$(srcdir)/ldap/libraries/libldif/line64.c'; fi`
 
 ldap/servers/plugins/acl/libacl_plugin_la-acl.lo: ldap/servers/plugins/acl/acl.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libacl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/acl/libacl_plugin_la-acl.lo -MD -MP -MF "ldap/servers/plugins/acl/$(DEPDIR)/libacl_plugin_la-acl.Tpo" -c -o ldap/servers/plugins/acl/libacl_plugin_la-acl.lo `test -f 'ldap/servers/plugins/acl/acl.c' || echo '$(srcdir)/'`ldap/servers/plugins/acl/acl.c; \
@@ -5629,20 +5502,6 @@ ldap/admin/lib/libds_admin_la-dsalib_util.lo: ldap/admin/lib/dsalib_util.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_util.lo `test -f 'ldap/admin/lib/dsalib_util.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_util.c
 
-ldap/libraries/libldif/libds_admin_la-fileurl.lo: ldap/libraries/libldif/fileurl.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libds_admin_la-fileurl.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-fileurl.Tpo" -c -o ldap/libraries/libldif/libds_admin_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-fileurl.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-fileurl.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-fileurl.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/fileurl.c' object='ldap/libraries/libldif/libds_admin_la-fileurl.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libds_admin_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c
-
-ldap/libraries/libldif/libds_admin_la-line64.lo: ldap/libraries/libldif/line64.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libds_admin_la-line64.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-line64.Tpo" -c -o ldap/libraries/libldif/libds_admin_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-line64.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-line64.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libds_admin_la-line64.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/line64.c' object='ldap/libraries/libldif/libds_admin_la-line64.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libds_admin_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c
-
 ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo: ldap/servers/plugins/http/http_client.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhttp_client_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo -MD -MP -MF "ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Tpo" -c -o ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo `test -f 'ldap/servers/plugins/http/http_client.c' || echo '$(srcdir)/'`ldap/servers/plugins/http/http_client.c; \
 @am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Tpo" "ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Plo"; else rm -f "ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Tpo"; exit 1; fi
@@ -6315,20 +6174,6 @@ ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.l
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.lo `test -f 'ldap/servers/plugins/replication/windows_tot_protocol.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/windows_tot_protocol.c
 
-ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo: ldap/libraries/libldif/fileurl.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-fileurl.Tpo" -c -o ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-fileurl.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-fileurl.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-fileurl.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/fileurl.c' object='ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libreplication_plugin_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c
-
-ldap/libraries/libldif/libreplication_plugin_la-line64.lo: ldap/libraries/libldif/line64.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libreplication_plugin_la-line64.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-line64.Tpo" -c -o ldap/libraries/libldif/libreplication_plugin_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-line64.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-line64.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libreplication_plugin_la-line64.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/line64.c' object='ldap/libraries/libldif/libreplication_plugin_la-line64.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libreplication_plugin_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c
-
 ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl.lo: ldap/servers/plugins/retrocl/retrocl.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libretrocl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl.lo -MD -MP -MF "ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl.Tpo" -c -o ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl.lo `test -f 'ldap/servers/plugins/retrocl/retrocl.c' || echo '$(srcdir)/'`ldap/servers/plugins/retrocl/retrocl.c; \
 @am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl.Tpo" "ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl.Plo"; else rm -f "ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl.Tpo"; exit 1; fi
@@ -6370,20 +6215,6 @@ ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo: ldap/servers/
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/retrocl/retrocl_trim.c' object='ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libretrocl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo `test -f 'ldap/servers/plugins/retrocl/retrocl_trim.c' || echo '$(srcdir)/'`ldap/servers/plugins/retrocl/retrocl_trim.c
-
-ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo: ldap/libraries/libldif/fileurl.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libretrocl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-fileurl.Tpo" -c -o ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-fileurl.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-fileurl.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-fileurl.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/fileurl.c' object='ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libretrocl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libretrocl_plugin_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c
-
-ldap/libraries/libldif/libretrocl_plugin_la-line64.lo: ldap/libraries/libldif/line64.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libretrocl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libretrocl_plugin_la-line64.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-line64.Tpo" -c -o ldap/libraries/libldif/libretrocl_plugin_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-line64.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-line64.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libretrocl_plugin_la-line64.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/line64.c' object='ldap/libraries/libldif/libretrocl_plugin_la-line64.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libretrocl_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libretrocl_plugin_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c
 
 ldap/servers/plugins/roles/libroles_plugin_la-roles_cache.lo: ldap/servers/plugins/roles/roles_cache.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libroles_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/roles/libroles_plugin_la-roles_cache.lo -MD -MP -MF "ldap/servers/plugins/roles/$(DEPDIR)/libroles_plugin_la-roles_cache.Tpo" -c -o ldap/servers/plugins/roles/libroles_plugin_la-roles_cache.lo `test -f 'ldap/servers/plugins/roles/roles_cache.c' || echo '$(srcdir)/'`ldap/servers/plugins/roles/roles_cache.c; \
@@ -7014,20 +6845,6 @@ ldap/libraries/libavl/libslapd_la-avl.lo: ldap/libraries/libavl/avl.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libavl/avl.c' object='ldap/libraries/libavl/libslapd_la-avl.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libavl/libslapd_la-avl.lo `test -f 'ldap/libraries/libavl/avl.c' || echo '$(srcdir)/'`ldap/libraries/libavl/avl.c
-
-ldap/libraries/libldif/libslapd_la-fileurl.lo: ldap/libraries/libldif/fileurl.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libslapd_la-fileurl.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-fileurl.Tpo" -c -o ldap/libraries/libldif/libslapd_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-fileurl.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-fileurl.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-fileurl.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/fileurl.c' object='ldap/libraries/libldif/libslapd_la-fileurl.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libslapd_la-fileurl.lo `test -f 'ldap/libraries/libldif/fileurl.c' || echo '$(srcdir)/'`ldap/libraries/libldif/fileurl.c
-
-ldap/libraries/libldif/libslapd_la-line64.lo: ldap/libraries/libldif/line64.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/libraries/libldif/libslapd_la-line64.lo -MD -MP -MF "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-line64.Tpo" -c -o ldap/libraries/libldif/libslapd_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-line64.Tpo" "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-line64.Plo"; else rm -f "ldap/libraries/libldif/$(DEPDIR)/libslapd_la-line64.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/libraries/libldif/line64.c' object='ldap/libraries/libldif/libslapd_la-line64.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/libraries/libldif/libslapd_la-line64.lo `test -f 'ldap/libraries/libldif/line64.c' || echo '$(srcdir)/'`ldap/libraries/libldif/line64.c
 
 ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo: ldap/servers/plugins/statechange/statechange.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libstatechange_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo -MD -MP -MF "ldap/servers/plugins/statechange/$(DEPDIR)/libstatechange_plugin_la-statechange.Tpo" -c -o ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo `test -f 'ldap/servers/plugins/statechange/statechange.c' || echo '$(srcdir)/'`ldap/servers/plugins/statechange/statechange.c; \
@@ -8299,7 +8116,6 @@ clean-libtool:
 	-rm -rf .libs _libs
 	-rm -rf ldap/admin/lib/.libs ldap/admin/lib/_libs
 	-rm -rf ldap/libraries/libavl/.libs ldap/libraries/libavl/_libs
-	-rm -rf ldap/libraries/libldif/.libs ldap/libraries/libldif/_libs
 	-rm -rf ldap/servers/plugins/acl/.libs ldap/servers/plugins/acl/_libs
 	-rm -rf ldap/servers/plugins/chainingdb/.libs ldap/servers/plugins/chainingdb/_libs
 	-rm -rf ldap/servers/plugins/collation/.libs ldap/servers/plugins/collation/_libs
@@ -8562,8 +8378,6 @@ distclean-generic:
 	-rm -f ldap/admin/src/$(am__dirstamp)
 	-rm -f ldap/libraries/libavl/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/libraries/libavl/$(am__dirstamp)
-	-rm -f ldap/libraries/libldif/$(DEPDIR)/$(am__dirstamp)
-	-rm -f ldap/libraries/libldif/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/acl/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/acl/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/chainingdb/$(DEPDIR)/$(am__dirstamp)
@@ -8641,7 +8455,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libLTLIBRARIES \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/libraries/libldif/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-libtool distclean-tags
@@ -8669,7 +8483,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/libraries/libldif/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
