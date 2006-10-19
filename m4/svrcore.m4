@@ -63,6 +63,32 @@ AC_ARG_WITH(svrcore-lib,
     ],
     AC_MSG_RESULT(no))
 
+dnl svrcore not given - look for pkg-config
 if test -z "$svrcore_inc" -o -z "$svrcore_lib"; then
-  AC_MSG_ERROR([svrcore not found, specify with --with-svrcore.])
+  AC_MSG_CHECKING(for svrcore with pkg-config)
+  AC_PATH_PROG(PKG_CONFIG, pkg-config)
+  if test -n "$PKG_CONFIG"; then
+    if $PKG_CONFIG --exists svrcore-devel; then
+      svrcore_inc=`$PKG_CONFIG --cflags-only-I svrcore-devel`
+      svrcore_lib=`$PKG_CONFIG --libs-only-L svrcore-devel`
+      AC_MSG_RESULT([using system svrcore])
+    fi
+  fi
+fi
+
+if test -z "$svrcore_inc" -o -z "$svrcore_lib"; then
+dnl just see if svrcore is already a system library
+  AC_CHECK_LIB([svrcore], [SVRCORE_GetRegisteredPinObj], [havesvrcore=1],
+	       [], [$nss_inc $nspr_inc $nss_lib -lnss3 -lsoftokn3 $nspr_lib -lplds4 -lplc4 -lnspr4])
+  if test -n "$havesvrcore" ; then
+dnl just see if svrcore is already a system header file
+    save_cppflags="$CPPFLAGS"
+    CPPFLAGS="$nss_inc $nspr_inc"
+    AC_CHECK_HEADER([svrcore.h], [havesvrcore=1], [havesvrcore=])
+    CPPFLAGS="$save_cppflags"
+  fi
+dnl for svrcore to be present, both the library and the header must exist
+  if test -z "$havesvrcore" ; then
+    AC_MSG_ERROR([svrcore not found, specify with --with-svrcore.])
+  fi
 fi

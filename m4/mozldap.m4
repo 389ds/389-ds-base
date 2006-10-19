@@ -74,9 +74,10 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
   AC_MSG_CHECKING(for mozldap with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
   if test -n "$PKG_CONFIG"; then
-    if $PKG_CONFIG --exists mozldap; then
-      nspr_inc=`$PKG_CONFIG --cflags-only-I mozldap`
-      nspr_lib=`$PKG_CONFIG --libs-only-L mozldap`
+    if $PKG_CONFIG --exists mozldap6; then
+      ldapsdk_inc=`$PKG_CONFIG --cflags-only-I mozldap6`
+      ldapsdk_lib=`$PKG_CONFIG --libs-only-L mozldap6`
+      AC_MSG_RESULT([using system mozldap6])
     else
       AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
     fi
@@ -84,4 +85,20 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
 fi
 if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
   AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
+fi
+dnl make sure the ldap sdk version is 6 or greater - we do not support
+dnl the old 5.x or prior versions - the ldap server code expects the new
+dnl ber types and other code used with version 6
+save_cppflags="$CPPFLAGS"
+CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
+AC_CHECK_HEADER([ldap.h], [isversion6=1], [isversion6=],
+[#include <ldap-standard.h>
+#if LDAP_VENDOR_VERSION < 600
+#error The LDAP C SDK version is not supported
+#endif
+])
+CPPFLAGS="$save_cppflags"
+
+if test -z "$isversion6" ; then
+  AC_MSG_ERROR([The LDAPSDK version in $ldapsdk_inc/ldap-standard.h is not supported])
 fi

@@ -78,6 +78,10 @@ if test -z "$nspr_inc" -o -z "$nspr_lib"; then
       nspr_inc=`$PKG_CONFIG --cflags-only-I nspr`
       nspr_lib=`$PKG_CONFIG --libs-only-L nspr`
       AC_MSG_RESULT([using system NSPR])
+    elif $PKG_CONFIG --exists dirsec-nspr; then
+      nspr_inc=`$PKG_CONFIG --cflags-only-I dirsec-nspr`
+      nspr_lib=`$PKG_CONFIG --libs-only-L dirsec-nspr`
+      AC_MSG_RESULT([using system dirsec NSPR])
     else
       AC_MSG_ERROR([NSPR not found, specify with --with-nspr.])
     fi

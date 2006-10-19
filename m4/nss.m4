@@ -78,6 +78,10 @@ if test -z "$nss_inc" -o -z "$nss_lib"; then
       nss_inc=`$PKG_CONFIG --cflags-only-I nss`
       nss_lib=`$PKG_CONFIG --libs-only-L nss`
       AC_MSG_RESULT([using system NSS])
+    elif $PKG_CONFIG --exists dirsec-nss; then
+      nss_inc=`$PKG_CONFIG --cflags-only-I dirsec-nss`
+      nss_lib=`$PKG_CONFIG --libs-only-L dirsec-nss`
+      AC_MSG_RESULT([using system dirsec NSS])
     else
       AC_MSG_ERROR([NSS not found, specify with --with-nss.])
     fi
