@@ -42,21 +42,78 @@ dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
 
 #------------------------
+# Install Paths
+#------------------------
+bindir = @prefix@/usr/bin
+configdir = @sysconfdir@/$(PACKAGE)/config
+datadir = @prefix@/usr/share/$(PACKAGE)/data
+plugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
+propertydir = @sysconfdir@/$(PACKAGE)/property
+schemadir = @sysconfdir@/$(PACKAGE)/schema
+serverdir = @prefix@/usr/lib/$(PACKAGE)
+
+#------------------------
 # Build Products
 #------------------------
-bin_PROGRAMS = dbscan ds_newinst dsktune ldap-agent ldclt ldif \
-	migratecred mmldif ns-slapd pwdhash rsearch
-noinst_PROGRAMS = makstrdb
-lib_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la \
-	libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
+server_PROGRAMS = dbscan-bin ds_newinst-bin dsktune-bin ldap-agent-bin ldif-bin \
+	migratecred-bin mmldif-bin ns-slapd pwdhash-bin
+
+bin_PROGRAMS = infadd-bin ldclt-bin rsearch-bin
+
+server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
+
+plugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
 	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
 	libhttp-client-plugin.la libcollation-plugin.la libpam-passthru-plugin.la \
 	libpassthru-plugin.la libpresence-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la
+
+nodist_property_DATA = ns-slapd.properties
+
+noinst_PROGRAMS = makstrdb
+
 noinst_LIBRARIES = libavl.a libldaputil.a
-nodist_data_DATA = ns-slapd.properties
+
+#------------------------
+# Installed Files
+#------------------------
+config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
+	$(srcdir)/ldap/schema/slapd-collations.conf
+
+data_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
+	$(srcdir)/ldap/ldif/commonTasks.ldif \
+	$(srcdir)/ldap/ldif/European.ldif \
+	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
+	$(srcdir)/ldap/ldif/Example.ldif \
+	$(srcdir)/ldap/ldif/Example-roles.ldif \
+	$(srcdir)/ldap/ldif/Example-views.ldif \
+	$(srcdir)/ldap/ldif/roledit.ldif \
+	$(srcdir)/ldap/ldif/tasks.ldif \
+	$(srcdir)/ldap/ldif/template.ldif \
+	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
+	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
+	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
+
+schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
+	$(srcdir)/ldap/schema/05rfc2247.ldif \
+	$(srcdir)/ldap/schema/05rfc2927.ldif \
+	$(srcdir)/ldap/schema/10presence.ldif \
+	$(srcdir)/ldap/schema/10rfc2307.ldif \
+	$(srcdir)/ldap/schema/20subscriber.ldif \
+	$(srcdir)/ldap/schema/25java-object.ldif \
+	$(srcdir)/ldap/schema/28pilot.ldif \
+	$(srcdir)/ldap/schema/30ns-common.ldif \
+	$(srcdir)/ldap/schema/50ns-admin.ldif \
+	$(srcdir)/ldap/schema/50ns-certificate.ldif \
+	$(srcdir)/ldap/schema/50ns-directory.ldif \
+	$(srcdir)/ldap/schema/50ns-value.ldif \
+	$(srcdir)/ldap/schema/50ns-web.ldif \
+	$(srcdir)/ldap/schema/60pam-plugin.ldif \
+	$(srcdir)/ldap/schema/99user.ldif
+
+bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl
 
 
 #////////////////////////////////////////////////////////////////
@@ -633,42 +690,52 @@ libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 #------------------------
 # dbscan
 #------------------------
-dbscan_SOURCES = ldap/servers/slapd/tools/dbscan.c
+dbscan_bin_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
-dbscan_CPPFLAGS = @db_inc@ $(AM_CPPFLAGS)
-dbscan_LDADD = $(NSPR_LINK) $(DB_LINK)
+dbscan_bin_CPPFLAGS = @db_inc@ $(AM_CPPFLAGS)
+dbscan_bin_LDADD = $(NSPR_LINK) $(DB_LINK)
 
 #------------------------
 # ds_newinst
 #------------------------
-ds_newinst_SOURCES = ldap/admin/src/cfg_sspt.c \
+ds_newinst_bin_SOURCES = ldap/admin/src/cfg_sspt.c \
 	ldap/admin/src/create_instance.c \
 	ldap/admin/src/ds_newinst.c \
 	ldap/admin/src/script-gen.c
 
-ds_newinst_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ds_newinst_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ds_newinst_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # dsktune
 #------------------------
-dsktune_SOURCES = ldap/systools/idsktune.c \
+dsktune_bin_SOURCES = ldap/systools/idsktune.c \
 	ldap/systools/pio.c
+
+#------------------------
+# infadd
+#------------------------
+infadd_bin_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
+	ldap/servers/slapd/tools/rsearch/infadd.c \
+	ldap/servers/slapd/tools/rsearch/nametable.c
+
+infadd_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # ldap-agent
 #------------------------
-ldap_agent_SOURCES = ldap/servers/snmp/main.c \
+ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/snmp/ldap-agent.c \
 	ldap/servers/slapd/agtmmap.c
 
-ldap_agent_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldap_agent_LDADD = $(NETSNMP_LINK)
+ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldap_agent_bin_LDADD = $(NETSNMP_LINK)
 
 #------------------------
 # ldclt
 #------------------------
-ldclt_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
+ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
 	ldap/servers/slapd/tools/ldclt/ldclt.c \
 	ldap/servers/slapd/tools/ldclt/ldcltU.c \
@@ -681,35 +748,35 @@ ldclt_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c
 
 if SOLARIS
-ldclt_SOURCES += ldap/servers/slapd/tools/ldclt/opCheck.c
+ldclt_bin_SOURCES += ldap/servers/slapd/tools/ldclt/opCheck.c
 endif
 
-ldclt_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # ldif
 #------------------------
-ldif_SOURCES = ldap/servers/slapd/tools/ldif.c
+ldif_bin_SOURCES = ldap/servers/slapd/tools/ldif.c
 
-ldif_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # migratecred
 #------------------------
-migratecred_SOURCES = ldap/servers/slapd/tools/migratecred.c
+migratecred_bin_SOURCES = ldap/servers/slapd/tools/migratecred.c
 
-migratecred_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-migratecred_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+migratecred_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # mmldif
 #------------------------
-mmldif_SOURCES = ldap/servers/slapd/tools/mmldif.c
+mmldif_bin_SOURCES = ldap/servers/slapd/tools/mmldif.c
 
-mmldif_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-mmldif_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # ns-slapd
@@ -756,18 +823,18 @@ ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 #------------------------
 # pwdhash
 #------------------------
-pwdhash_SOURCES = ldap/servers/slapd/tools/pwenc.c
+pwdhash_bin_SOURCES = ldap/servers/slapd/tools/pwenc.c
 
-pwdhash_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-pwdhash_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+pwdhash_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+pwdhash_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # rsearch
 #------------------------
-rsearch_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
+rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 	ldap/servers/slapd/tools/rsearch/rsearch.c \
 	ldap/servers/slapd/tools/rsearch/sdattable.c \
 	ldap/servers/slapd/tools/rsearch/searchthread.c
 
-rsearch_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-rsearch_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
