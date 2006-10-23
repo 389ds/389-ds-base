@@ -91,14 +91,14 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(plugindir)" "$(DESTDIR)$(serverdir)" \
-	"$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" \
-	"$(DESTDIR)$(bindir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(schemadir)"
-pluginLTLIBRARIES_INSTALL = $(INSTALL)
+am__installdirs = "$(DESTDIR)$(serverdir)" \
+	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
+	"$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" \
+	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
-LTLIBRARIES = $(plugin_LTLIBRARIES) $(server_LTLIBRARIES)
+serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
+LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
 libacl_plugin_la_DEPENDENCIES = libns-dshttpd.la
 am_libacl_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/acl/libacl_plugin_la-acl.lo \
@@ -917,12 +917,12 @@ PAM_LINK = -lpam
 BUILT_SOURCES = dirver.h dberrstrs.h
 CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
 configdir = @sysconfdir@/$(PACKAGE)/config
-plugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
 propertydir = @sysconfdir@/$(PACKAGE)/property
 schemadir = @sysconfdir@/$(PACKAGE)/schema
 serverdir = @prefix@/usr/lib/$(PACKAGE)
+serverplugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
 server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
-plugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
+serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
 	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
 	libhttp-client-plugin.la libcollation-plugin.la libpam-passthru-plugin.la \
 	libpassthru-plugin.la libpresence-plugin.la libpwdstorage-plugin.la \
@@ -1761,33 +1761,6 @@ libldaputil.a: $(libldaputil_a_OBJECTS) $(libldaputil_a_DEPENDENCIES)
 	-rm -f libldaputil.a
 	$(libldaputil_a_AR) libldaputil.a $(libldaputil_a_OBJECTS) $(libldaputil_a_LIBADD)
 	$(RANLIB) libldaputil.a
-install-pluginLTLIBRARIES: $(plugin_LTLIBRARIES)
-	@$(NORMAL_INSTALL)
-	test -z "$(plugindir)" || $(mkdir_p) "$(DESTDIR)$(plugindir)"
-	@list='$(plugin_LTLIBRARIES)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    f=$(am__strip_dir) \
-	    echo " $(LIBTOOL) --mode=install $(pluginLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(plugindir)/$$f'"; \
-	    $(LIBTOOL) --mode=install $(pluginLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(plugindir)/$$f"; \
-	  else :; fi; \
-	done
-
-uninstall-pluginLTLIBRARIES:
-	@$(NORMAL_UNINSTALL)
-	@set -x; list='$(plugin_LTLIBRARIES)'; for p in $$list; do \
-	  p=$(am__strip_dir) \
-	  echo " $(LIBTOOL) --mode=uninstall rm -f '$(DESTDIR)$(plugindir)/$$p'"; \
-	  $(LIBTOOL) --mode=uninstall rm -f "$(DESTDIR)$(plugindir)/$$p"; \
-	done
-
-clean-pluginLTLIBRARIES:
-	-test -z "$(plugin_LTLIBRARIES)" || rm -f $(plugin_LTLIBRARIES)
-	@list='$(plugin_LTLIBRARIES)'; for p in $$list; do \
-	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
-	  test "$$dir" != "$$p" || dir=.; \
-	  echo "rm -f \"$${dir}/so_locations\""; \
-	  rm -f "$${dir}/so_locations"; \
-	done
 install-serverLTLIBRARIES: $(server_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
 	test -z "$(serverdir)" || $(mkdir_p) "$(DESTDIR)$(serverdir)"
@@ -1810,6 +1783,33 @@ uninstall-serverLTLIBRARIES:
 clean-serverLTLIBRARIES:
 	-test -z "$(server_LTLIBRARIES)" || rm -f $(server_LTLIBRARIES)
 	@list='$(server_LTLIBRARIES)'; for p in $$list; do \
+	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
+	  test "$$dir" != "$$p" || dir=.; \
+	  echo "rm -f \"$${dir}/so_locations\""; \
+	  rm -f "$${dir}/so_locations"; \
+	done
+install-serverpluginLTLIBRARIES: $(serverplugin_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	test -z "$(serverplugindir)" || $(mkdir_p) "$(DESTDIR)$(serverplugindir)"
+	@list='$(serverplugin_LTLIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    f=$(am__strip_dir) \
+	    echo " $(LIBTOOL) --mode=install $(serverpluginLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(serverplugindir)/$$f'"; \
+	    $(LIBTOOL) --mode=install $(serverpluginLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(serverplugindir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-serverpluginLTLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	@set -x; list='$(serverplugin_LTLIBRARIES)'; for p in $$list; do \
+	  p=$(am__strip_dir) \
+	  echo " $(LIBTOOL) --mode=uninstall rm -f '$(DESTDIR)$(serverplugindir)/$$p'"; \
+	  $(LIBTOOL) --mode=uninstall rm -f "$(DESTDIR)$(serverplugindir)/$$p"; \
+	done
+
+clean-serverpluginLTLIBRARIES:
+	-test -z "$(serverplugin_LTLIBRARIES)" || rm -f $(serverplugin_LTLIBRARIES)
+	@list='$(serverplugin_LTLIBRARIES)'; for p in $$list; do \
 	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
 	  test "$$dir" != "$$p" || dir=.; \
 	  echo "rm -f \"$${dir}/so_locations\""; \
@@ -1858,7 +1858,7 @@ ldap/servers/plugins/acl/libacl_plugin_la-aclutil.lo:  \
 	ldap/servers/plugins/acl/$(am__dirstamp) \
 	ldap/servers/plugins/acl/$(DEPDIR)/$(am__dirstamp)
 libacl-plugin.la: $(libacl_plugin_la_OBJECTS) $(libacl_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libacl_plugin_la_LDFLAGS) $(libacl_plugin_la_OBJECTS) $(libacl_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libacl_plugin_la_LDFLAGS) $(libacl_plugin_la_OBJECTS) $(libacl_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/uiduniq/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/uiduniq
 	@: > ldap/servers/plugins/uiduniq/$(am__dirstamp)
@@ -1881,7 +1881,7 @@ ldap/servers/plugins/shared/libattr_unique_plugin_la-utils.lo:  \
 	ldap/servers/plugins/shared/$(am__dirstamp) \
 	ldap/servers/plugins/shared/$(DEPDIR)/$(am__dirstamp)
 libattr-unique-plugin.la: $(libattr_unique_plugin_la_OBJECTS) $(libattr_unique_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libattr_unique_plugin_la_LDFLAGS) $(libattr_unique_plugin_la_OBJECTS) $(libattr_unique_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libattr_unique_plugin_la_LDFLAGS) $(libattr_unique_plugin_la_OBJECTS) $(libattr_unique_plugin_la_LIBADD) $(LIBS)
 ldap/servers/slapd/back-ldbm/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/slapd/back-ldbm
 	@: > ldap/servers/slapd/back-ldbm/$(am__dirstamp)
@@ -2146,7 +2146,7 @@ ldap/servers/plugins/chainingdb/libchainingdb_plugin_la-cb_utils.lo:  \
 	ldap/servers/plugins/chainingdb/$(am__dirstamp) \
 	ldap/servers/plugins/chainingdb/$(DEPDIR)/$(am__dirstamp)
 libchainingdb-plugin.la: $(libchainingdb_plugin_la_OBJECTS) $(libchainingdb_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libchainingdb_plugin_la_LDFLAGS) $(libchainingdb_plugin_la_OBJECTS) $(libchainingdb_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libchainingdb_plugin_la_LDFLAGS) $(libchainingdb_plugin_la_OBJECTS) $(libchainingdb_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/collation/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/collation
 	@: > ldap/servers/plugins/collation/$(am__dirstamp)
@@ -2163,7 +2163,7 @@ ldap/servers/plugins/collation/libcollation_plugin_la-orfilter.lo:  \
 	ldap/servers/plugins/collation/$(am__dirstamp) \
 	ldap/servers/plugins/collation/$(DEPDIR)/$(am__dirstamp)
 libcollation-plugin.la: $(libcollation_plugin_la_OBJECTS) $(libcollation_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libcollation_plugin_la_LDFLAGS) $(libcollation_plugin_la_OBJECTS) $(libcollation_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libcollation_plugin_la_LDFLAGS) $(libcollation_plugin_la_OBJECTS) $(libcollation_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/cos/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/cos
 	@: > ldap/servers/plugins/cos/$(am__dirstamp)
@@ -2177,7 +2177,7 @@ ldap/servers/plugins/cos/libcos_plugin_la-cos_cache.lo:  \
 	ldap/servers/plugins/cos/$(am__dirstamp) \
 	ldap/servers/plugins/cos/$(DEPDIR)/$(am__dirstamp)
 libcos-plugin.la: $(libcos_plugin_la_OBJECTS) $(libcos_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libcos_plugin_la_LDFLAGS) $(libcos_plugin_la_OBJECTS) $(libcos_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libcos_plugin_la_LDFLAGS) $(libcos_plugin_la_OBJECTS) $(libcos_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/rever/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/rever
 	@: > ldap/servers/plugins/rever/$(am__dirstamp)
@@ -2191,7 +2191,7 @@ ldap/servers/plugins/rever/libdes_plugin_la-rever.lo:  \
 	ldap/servers/plugins/rever/$(am__dirstamp) \
 	ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
 libdes-plugin.la: $(libdes_plugin_la_OBJECTS) $(libdes_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libdes_plugin_la_LDFLAGS) $(libdes_plugin_la_OBJECTS) $(libdes_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libdes_plugin_la_LDFLAGS) $(libdes_plugin_la_OBJECTS) $(libdes_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/distrib/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/distrib
 	@: > ldap/servers/plugins/distrib/$(am__dirstamp)
@@ -2202,7 +2202,7 @@ ldap/servers/plugins/distrib/libdistrib_plugin_la-distrib.lo:  \
 	ldap/servers/plugins/distrib/$(am__dirstamp) \
 	ldap/servers/plugins/distrib/$(DEPDIR)/$(am__dirstamp)
 libdistrib-plugin.la: $(libdistrib_plugin_la_OBJECTS) $(libdistrib_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libdistrib_plugin_la_LDFLAGS) $(libdistrib_plugin_la_OBJECTS) $(libdistrib_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libdistrib_plugin_la_LDFLAGS) $(libdistrib_plugin_la_OBJECTS) $(libdistrib_plugin_la_LIBADD) $(LIBS)
 ldap/admin/lib/$(am__dirstamp):
 	@$(mkdir_p) ldap/admin/lib
 	@: > ldap/admin/lib/$(am__dirstamp)
@@ -2263,7 +2263,7 @@ ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo:  \
 	ldap/servers/plugins/http/$(am__dirstamp) \
 	ldap/servers/plugins/http/$(DEPDIR)/$(am__dirstamp)
 libhttp-client-plugin.la: $(libhttp_client_plugin_la_OBJECTS) $(libhttp_client_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libhttp_client_plugin_la_LDFLAGS) $(libhttp_client_plugin_la_OBJECTS) $(libhttp_client_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libhttp_client_plugin_la_LDFLAGS) $(libhttp_client_plugin_la_OBJECTS) $(libhttp_client_plugin_la_LIBADD) $(LIBS)
 lib/libaccess/$(am__dirstamp):
 	@$(mkdir_p) lib/libaccess
 	@: > lib/libaccess/$(am__dirstamp)
@@ -2465,7 +2465,7 @@ ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptpreop.lo:  \
 	ldap/servers/plugins/pam_passthru/$(am__dirstamp) \
 	ldap/servers/plugins/pam_passthru/$(DEPDIR)/$(am__dirstamp)
 libpam-passthru-plugin.la: $(libpam_passthru_plugin_la_OBJECTS) $(libpam_passthru_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libpam_passthru_plugin_la_LDFLAGS) $(libpam_passthru_plugin_la_OBJECTS) $(libpam_passthru_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libpam_passthru_plugin_la_LDFLAGS) $(libpam_passthru_plugin_la_OBJECTS) $(libpam_passthru_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/passthru/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/passthru
 	@: > ldap/servers/plugins/passthru/$(am__dirstamp)
@@ -2491,7 +2491,7 @@ ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo:  \
 	ldap/servers/plugins/passthru/$(am__dirstamp) \
 	ldap/servers/plugins/passthru/$(DEPDIR)/$(am__dirstamp)
 libpassthru-plugin.la: $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libpassthru_plugin_la_LDFLAGS) $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libpassthru_plugin_la_LDFLAGS) $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/presence/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/presence
 	@: > ldap/servers/plugins/presence/$(am__dirstamp)
@@ -2502,7 +2502,7 @@ ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo:  \
 	ldap/servers/plugins/presence/$(am__dirstamp) \
 	ldap/servers/plugins/presence/$(DEPDIR)/$(am__dirstamp)
 libpresence-plugin.la: $(libpresence_plugin_la_OBJECTS) $(libpresence_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libpresence_plugin_la_LDFLAGS) $(libpresence_plugin_la_OBJECTS) $(libpresence_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libpresence_plugin_la_LDFLAGS) $(libpresence_plugin_la_OBJECTS) $(libpresence_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/pwdstorage/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/pwdstorage
 	@: > ldap/servers/plugins/pwdstorage/$(am__dirstamp)
@@ -2534,7 +2534,7 @@ ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo:  \
 	ldap/servers/plugins/pwdstorage/$(am__dirstamp) \
 	ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
 libpwdstorage-plugin.la: $(libpwdstorage_plugin_la_OBJECTS) $(libpwdstorage_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libpwdstorage_plugin_la_LDFLAGS) $(libpwdstorage_plugin_la_OBJECTS) $(libpwdstorage_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libpwdstorage_plugin_la_LDFLAGS) $(libpwdstorage_plugin_la_OBJECTS) $(libpwdstorage_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/referint/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/referint
 	@: > ldap/servers/plugins/referint/$(am__dirstamp)
@@ -2545,7 +2545,7 @@ ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo:  \
 	ldap/servers/plugins/referint/$(am__dirstamp) \
 	ldap/servers/plugins/referint/$(DEPDIR)/$(am__dirstamp)
 libreferint-plugin.la: $(libreferint_plugin_la_OBJECTS) $(libreferint_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libreferint_plugin_la_LDFLAGS) $(libreferint_plugin_la_OBJECTS) $(libreferint_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libreferint_plugin_la_LDFLAGS) $(libreferint_plugin_la_OBJECTS) $(libreferint_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/replication/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/replication
 	@: > ldap/servers/plugins/replication/$(am__dirstamp)
@@ -2712,7 +2712,7 @@ ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.l
 	ldap/servers/plugins/replication/$(am__dirstamp) \
 	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
 libreplication-plugin.la: $(libreplication_plugin_la_OBJECTS) $(libreplication_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libreplication_plugin_la_LDFLAGS) $(libreplication_plugin_la_OBJECTS) $(libreplication_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libreplication_plugin_la_LDFLAGS) $(libreplication_plugin_la_OBJECTS) $(libreplication_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/retrocl/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/retrocl
 	@: > ldap/servers/plugins/retrocl/$(am__dirstamp)
@@ -2738,7 +2738,7 @@ ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo:  \
 	ldap/servers/plugins/retrocl/$(am__dirstamp) \
 	ldap/servers/plugins/retrocl/$(DEPDIR)/$(am__dirstamp)
 libretrocl-plugin.la: $(libretrocl_plugin_la_OBJECTS) $(libretrocl_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libretrocl_plugin_la_LDFLAGS) $(libretrocl_plugin_la_OBJECTS) $(libretrocl_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libretrocl_plugin_la_LDFLAGS) $(libretrocl_plugin_la_OBJECTS) $(libretrocl_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/roles/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/roles
 	@: > ldap/servers/plugins/roles/$(am__dirstamp)
@@ -2752,7 +2752,7 @@ ldap/servers/plugins/roles/libroles_plugin_la-roles_plugin.lo:  \
 	ldap/servers/plugins/roles/$(am__dirstamp) \
 	ldap/servers/plugins/roles/$(DEPDIR)/$(am__dirstamp)
 libroles-plugin.la: $(libroles_plugin_la_OBJECTS) $(libroles_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libroles_plugin_la_LDFLAGS) $(libroles_plugin_la_OBJECTS) $(libroles_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libroles_plugin_la_LDFLAGS) $(libroles_plugin_la_OBJECTS) $(libroles_plugin_la_LIBADD) $(LIBS)
 ldap/servers/slapd/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/slapd
 	@: > ldap/servers/slapd/$(am__dirstamp)
@@ -3035,7 +3035,7 @@ ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo:  \
 	ldap/servers/plugins/statechange/$(am__dirstamp) \
 	ldap/servers/plugins/statechange/$(DEPDIR)/$(am__dirstamp)
 libstatechange-plugin.la: $(libstatechange_plugin_la_OBJECTS) $(libstatechange_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libstatechange_plugin_la_LDFLAGS) $(libstatechange_plugin_la_OBJECTS) $(libstatechange_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libstatechange_plugin_la_LDFLAGS) $(libstatechange_plugin_la_OBJECTS) $(libstatechange_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/syntaxes/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/syntaxes
 	@: > ldap/servers/plugins/syntaxes/$(am__dirstamp)
@@ -3076,7 +3076,7 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-value.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 libsyntax-plugin.la: $(libsyntax_plugin_la_OBJECTS) $(libsyntax_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libsyntax_plugin_la_LDFLAGS) $(libsyntax_plugin_la_OBJECTS) $(libsyntax_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libsyntax_plugin_la_LDFLAGS) $(libsyntax_plugin_la_OBJECTS) $(libsyntax_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/views/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/views
 	@: > ldap/servers/plugins/views/$(am__dirstamp)
@@ -3087,7 +3087,7 @@ ldap/servers/plugins/views/libviews_plugin_la-views.lo:  \
 	ldap/servers/plugins/views/$(am__dirstamp) \
 	ldap/servers/plugins/views/$(DEPDIR)/$(am__dirstamp)
 libviews-plugin.la: $(libviews_plugin_la_OBJECTS) $(libviews_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(plugindir) $(libviews_plugin_la_LDFLAGS) $(libviews_plugin_la_OBJECTS) $(libviews_plugin_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(serverplugindir) $(libviews_plugin_la_LDFLAGS) $(libviews_plugin_la_OBJECTS) $(libviews_plugin_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(mkdir_p) "$(DESTDIR)$(bindir)"
@@ -8618,7 +8618,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(plugindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -8722,8 +8722,8 @@ clean: clean-am
 
 clean-am: clean-binPROGRAMS clean-generic clean-libtool \
 	clean-noinstLIBRARIES clean-noinstPROGRAMS \
-	clean-pluginLTLIBRARIES clean-serverLTLIBRARIES \
-	clean-serverPROGRAMS mostlyclean-am
+	clean-serverLTLIBRARIES clean-serverPROGRAMS \
+	clean-serverpluginLTLIBRARIES mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -8743,9 +8743,9 @@ info: info-am
 info-am:
 
 install-data-am: install-configDATA install-dataDATA \
-	install-nodist_propertyDATA install-pluginLTLIBRARIES \
-	install-schemaDATA install-serverLTLIBRARIES \
-	install-serverPROGRAMS
+	install-nodist_propertyDATA install-schemaDATA \
+	install-serverLTLIBRARIES install-serverPROGRAMS \
+	install-serverpluginLTLIBRARIES
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS
 
@@ -8777,33 +8777,33 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-dataDATA uninstall-info-am \
-	uninstall-nodist_propertyDATA uninstall-pluginLTLIBRARIES \
-	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
-	uninstall-serverPROGRAMS
+	uninstall-nodist_propertyDATA uninstall-schemaDATA \
+	uninstall-serverLTLIBRARIES uninstall-serverPROGRAMS \
+	uninstall-serverpluginLTLIBRARIES
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-generic clean-libtool \
 	clean-noinstLIBRARIES clean-noinstPROGRAMS \
-	clean-pluginLTLIBRARIES clean-serverLTLIBRARIES \
-	clean-serverPROGRAMS ctags dist dist-all dist-bzip2 dist-gzip \
-	dist-shar dist-tarZ dist-zip distcheck distclean \
+	clean-serverLTLIBRARIES clean-serverPROGRAMS \
+	clean-serverpluginLTLIBRARIES ctags dist dist-all dist-bzip2 \
+	dist-gzip dist-shar dist-tarZ dist-zip distcheck distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distcleancheck distdir distuninstallcheck dvi \
 	dvi-am html html-am info info-am install install-am \
 	install-binPROGRAMS install-binSCRIPTS install-configDATA \
 	install-data install-data-am install-dataDATA install-exec \
 	install-exec-am install-info install-info-am install-man \
-	install-nodist_propertyDATA install-pluginLTLIBRARIES \
-	install-schemaDATA install-serverLTLIBRARIES \
-	install-serverPROGRAMS install-strip installcheck \
+	install-nodist_propertyDATA install-schemaDATA \
+	install-serverLTLIBRARIES install-serverPROGRAMS \
+	install-serverpluginLTLIBRARIES install-strip installcheck \
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-binPROGRAMS \
 	uninstall-binSCRIPTS uninstall-configDATA uninstall-dataDATA \
 	uninstall-info-am uninstall-nodist_propertyDATA \
-	uninstall-pluginLTLIBRARIES uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverPROGRAMS
+	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-serverPROGRAMS uninstall-serverpluginLTLIBRARIES
 
 
 dirver.h: Makefile

@@ -47,10 +47,10 @@ dberrstrs.h: Makefile
 bindir = @prefix@/usr/bin
 configdir = @sysconfdir@/$(PACKAGE)/config
 datadir = @prefix@/usr/share/$(PACKAGE)/data
-plugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
 propertydir = @sysconfdir@/$(PACKAGE)/property
 schemadir = @sysconfdir@/$(PACKAGE)/schema
 serverdir = @prefix@/usr/lib/$(PACKAGE)
+serverplugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
 
 #------------------------
 # Build Products
@@ -62,7 +62,7 @@ bin_PROGRAMS = infadd-bin ldclt-bin rsearch-bin
 
 server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
 
-plugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
+serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
 	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
 	libhttp-client-plugin.la libcollation-plugin.la libpam-passthru-plugin.la \
 	libpassthru-plugin.la libpresence-plugin.la libpwdstorage-plugin.la \
