@@ -30,6 +30,7 @@ AC_ARG_WITH(nss, [  --with-nss=PATH         Network Security Services (NSS) dire
     NSSDIR=$withval
     nss_inc="-I$NSSDIR/include"
     nss_lib="-L$NSSDIR/lib"
+    nss_libdir="$NSSDIR/lib"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -60,6 +61,7 @@ AC_ARG_WITH(nss-lib, [  --with-nss-lib=PATH         Network Security Services (N
   then
     AC_MSG_RESULT([using $withval])
     nss_lib="-L$withval"
+    nss_libdir="$withval"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -70,17 +72,19 @@ AC_MSG_RESULT(no))
 # if NSS is not found yet, try pkg-config
 
 # last resort
-if test -z "$nss_inc" -o -z "$nss_lib"; then
+if test -z "$nss_inc" -o -z "$nss_lib" -o -z "$nss_libdir"; then
   AC_MSG_CHECKING(for nss with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
   if test -n "$PKG_CONFIG"; then
     if $PKG_CONFIG --exists nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I nss`
       nss_lib=`$PKG_CONFIG --libs-only-L nss`
+      nss_libdir=`$PKG_CONFIG --libs-only-L nss | sed -e s/-L// | sed -e s/\ *$//`
       AC_MSG_RESULT([using system NSS])
     elif $PKG_CONFIG --exists dirsec-nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I dirsec-nss`
       nss_lib=`$PKG_CONFIG --libs-only-L dirsec-nss`
+      nss_libdir=`$PKG_CONFIG --libs-only-L dirsec-nss | sed -e s/-L// | sed -e s/\ *$//`
       AC_MSG_RESULT([using system dirsec NSS])
     else
       AC_MSG_ERROR([NSS not found, specify with --with-nss.])

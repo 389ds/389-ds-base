@@ -51,8 +51,18 @@ bin_PROGRAMS = infadd-bin$(EXEEXT) ldclt-bin$(EXEEXT) \
 noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/tools/ldclt/opCheck.c
 DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(top_srcdir)/configure compile \
-	config.guess config.sub depcomp install-sh ltmain.sh missing
+	$(srcdir)/Makefile.in $(top_srcdir)/configure \
+	$(top_srcdir)/wrappers/dbscan.in \
+	$(top_srcdir)/wrappers/ds_newinst.in \
+	$(top_srcdir)/wrappers/dsktune.in \
+	$(top_srcdir)/wrappers/infadd.in \
+	$(top_srcdir)/wrappers/ldap-agent.in \
+	$(top_srcdir)/wrappers/ldclt.in $(top_srcdir)/wrappers/ldif.in \
+	$(top_srcdir)/wrappers/migratecred.in \
+	$(top_srcdir)/wrappers/mmldif.in \
+	$(top_srcdir)/wrappers/pwdhash.in \
+	$(top_srcdir)/wrappers/rsearch.in compile config.guess \
+	config.sub depcomp install-sh ltmain.sh missing
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/nspr.m4 $(top_srcdir)/m4/nss.m4 \
@@ -65,7 +75,10 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno configure.status.lineno
 mkinstalldirs = $(install_sh) -d
-CONFIG_CLEAN_FILES =
+CONFIG_CLEAN_FILES = wrappers/dbscan wrappers/dsktune \
+	wrappers/ds_newinst wrappers/infadd wrappers/ldap-agent \
+	wrappers/ldclt wrappers/ldif wrappers/migratecred \
+	wrappers/mmldif wrappers/pwdhash wrappers/rsearch
 LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libavl_a_AR = $(AR) $(ARFLAGS)
@@ -94,8 +107,9 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(serverdir)" "$(DESTDIR)$(configdir)" \
+	"$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -664,7 +678,8 @@ rsearch_bin_OBJECTS = $(am_rsearch_bin_OBJECTS)
 rsearch_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(bin_SCRIPTS)
+serverSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+SCRIPTS = $(bin_SCRIPTS) $(server_SCRIPTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -830,16 +845,18 @@ am__untar = @am__untar@
 #------------------------
 # Install Paths
 #------------------------
-bindir = @prefix@/usr/bin
+bindir = @prefix@@bindir@
 build = @build@
 build_alias = @build_alias@
 build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
-datadir = @prefix@/usr/share/$(PACKAGE)/data
+configdir = @sysconfdir@@configdir@
+datadir = @prefix@@datadir@
 db_inc = @db_inc@
 db_incdir = @db_incdir@
 db_lib = @db_lib@
+db_libdir = @db_libdir@
 debug_defs = @debug_defs@
 exec_prefix = @exec_prefix@
 host = @host@
@@ -855,6 +872,7 @@ infodir = @infodir@
 install_sh = @install_sh@
 ldapsdk_inc = @ldapsdk_inc@
 ldapsdk_lib = @ldapsdk_lib@
+ldapsdk_libdir = @ldapsdk_libdir@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localstatedir = @localstatedir@
@@ -862,18 +880,26 @@ mandir = @mandir@
 mkdir_p = @mkdir_p@
 netsnmp_inc = @netsnmp_inc@
 netsnmp_lib = @netsnmp_lib@
+netsnmp_libdir = @netsnmp_libdir@
 netsnmp_link = @netsnmp_link@
 nspr_inc = @nspr_inc@
 nspr_lib = @nspr_lib@
+nspr_libdir = @nspr_libdir@
 nss_inc = @nss_inc@
 nss_lib = @nss_lib@
+nss_libdir = @nss_libdir@
 oldincludedir = @oldincludedir@
 platform_defs = @platform_defs@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
+propertydir = @sysconfdir@@propertydir@
 sasl_inc = @sasl_inc@
 sasl_lib = @sasl_lib@
+sasl_libdir = @sasl_libdir@
 sbindir = @sbindir@
+schemadir = @sysconfdir@@schemadir@
+serverdir = @prefix@@serverdir@
+serverplugindir = @prefix@@serverplugindir@
 sharedstatedir = @sharedstatedir@
 svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
@@ -916,11 +942,6 @@ PAM_LINK = -lpam
 #------------------------
 BUILT_SOURCES = dirver.h dberrstrs.h
 CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
-configdir = @sysconfdir@/$(PACKAGE)/config
-propertydir = @sysconfdir@/$(PACKAGE)/property
-schemadir = @sysconfdir@/$(PACKAGE)/schema
-serverdir = @prefix@/usr/lib/$(PACKAGE)
-serverplugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
 server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
 	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
@@ -970,7 +991,20 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
-bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl
+bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
+	wrappers/infadd \
+	wrappers/ldclt \
+	wrappers/rsearch
+
+server_SCRIPTS = wrappers/dbscan \
+	wrappers/dsktune \
+	wrappers/ds_newinst \
+	wrappers/ldap-agent \
+	wrappers/ldif \
+	wrappers/migratecred \
+	wrappers/mmldif \
+	wrappers/pwdhash
+
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1708,6 +1742,28 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(srcdir) && $(AUTOCONF)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
+wrappers/dbscan: $(top_builddir)/config.status $(top_srcdir)/wrappers/dbscan.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/dsktune: $(top_builddir)/config.status $(top_srcdir)/wrappers/dsktune.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/ds_newinst: $(top_builddir)/config.status $(top_srcdir)/wrappers/ds_newinst.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/infadd: $(top_builddir)/config.status $(top_srcdir)/wrappers/infadd.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/ldap-agent: $(top_builddir)/config.status $(top_srcdir)/wrappers/ldap-agent.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/ldclt: $(top_builddir)/config.status $(top_srcdir)/wrappers/ldclt.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/ldif: $(top_builddir)/config.status $(top_srcdir)/wrappers/ldif.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/migratecred: $(top_builddir)/config.status $(top_srcdir)/wrappers/migratecred.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/mmldif: $(top_builddir)/config.status $(top_srcdir)/wrappers/mmldif.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/pwdhash: $(top_builddir)/config.status $(top_srcdir)/wrappers/pwdhash.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+wrappers/rsearch: $(top_builddir)/config.status $(top_srcdir)/wrappers/rsearch.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
 
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
@@ -3443,6 +3499,25 @@ uninstall-binSCRIPTS:
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
 	  echo " rm -f '$(DESTDIR)$(bindir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(bindir)/$$f"; \
+	done
+install-serverSCRIPTS: $(server_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(serverdir)" || $(mkdir_p) "$(DESTDIR)$(serverdir)"
+	@list='$(server_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(serverSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(serverdir)/$$f'"; \
+	    $(serverSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(serverdir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-serverSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(server_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(serverdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(serverdir)/$$f"; \
 	done
 
 mostlyclean-compile:
@@ -8488,7 +8563,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/m4
+	$(mkdir_p) $(distdir)/m4 $(distdir)/wrappers
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
@@ -8618,7 +8693,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -8745,7 +8820,7 @@ info-am:
 install-data-am: install-configDATA install-dataDATA \
 	install-nodist_propertyDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverPROGRAMS \
-	install-serverpluginLTLIBRARIES
+	install-serverSCRIPTS install-serverpluginLTLIBRARIES
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS
 
@@ -8779,7 +8854,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-dataDATA uninstall-info-am \
 	uninstall-nodist_propertyDATA uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverPROGRAMS \
-	uninstall-serverpluginLTLIBRARIES
+	uninstall-serverSCRIPTS uninstall-serverpluginLTLIBRARIES
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-generic clean-libtool \
@@ -8795,15 +8870,16 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	install-exec-am install-info install-info-am install-man \
 	install-nodist_propertyDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverPROGRAMS \
-	install-serverpluginLTLIBRARIES install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-binPROGRAMS \
-	uninstall-binSCRIPTS uninstall-configDATA uninstall-dataDATA \
-	uninstall-info-am uninstall-nodist_propertyDATA \
-	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
-	uninstall-serverPROGRAMS uninstall-serverpluginLTLIBRARIES
+	install-serverSCRIPTS install-serverpluginLTLIBRARIES \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am tags uninstall uninstall-am \
+	uninstall-binPROGRAMS uninstall-binSCRIPTS \
+	uninstall-configDATA uninstall-dataDATA uninstall-info-am \
+	uninstall-nodist_propertyDATA uninstall-schemaDATA \
+	uninstall-serverLTLIBRARIES uninstall-serverPROGRAMS \
+	uninstall-serverSCRIPTS uninstall-serverpluginLTLIBRARIES
 
 
 dirver.h: Makefile

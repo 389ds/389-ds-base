@@ -44,13 +44,13 @@ dberrstrs.h: Makefile
 #------------------------
 # Install Paths
 #------------------------
-bindir = @prefix@/usr/bin
-configdir = @sysconfdir@/$(PACKAGE)/config
-datadir = @prefix@/usr/share/$(PACKAGE)/data
-propertydir = @sysconfdir@/$(PACKAGE)/property
-schemadir = @sysconfdir@/$(PACKAGE)/schema
-serverdir = @prefix@/usr/lib/$(PACKAGE)
-serverplugindir = @prefix@/usr/lib/$(PACKAGE)/plugins
+bindir = @prefix@@bindir@
+configdir = @sysconfdir@@configdir@
+datadir = @prefix@@datadir@
+propertydir = @sysconfdir@@propertydir@
+schemadir = @sysconfdir@@schemadir@
+serverdir = @prefix@@serverdir@
+serverplugindir = @prefix@@serverplugindir@
 
 #------------------------
 # Build Products
@@ -113,7 +113,19 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
-bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl
+bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
+	wrappers/infadd \
+	wrappers/ldclt \
+	wrappers/rsearch
+
+server_SCRIPTS = wrappers/dbscan \
+	wrappers/dsktune \
+	wrappers/ds_newinst \
+	wrappers/ldap-agent \
+	wrappers/ldif \
+	wrappers/migratecred \
+	wrappers/mmldif \
+	wrappers/pwdhash
 
 
 #////////////////////////////////////////////////////////////////

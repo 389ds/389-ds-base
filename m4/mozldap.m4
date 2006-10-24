@@ -30,6 +30,7 @@ AC_ARG_WITH(ldapsdk, [  --with-ldapsdk=PATH     Mozilla LDAP SDK directory],
     LDAPSDKDIR=$withval
     ldapsdk_inc="-I$LDAPSDKDIR/include"
     ldapsdk_lib="-L$LDAPSDKDIR/lib"
+    ldapsdk_libdir="$LDAPSDKDIR/lib"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -60,6 +61,7 @@ AC_ARG_WITH(ldapsdk-lib, [  --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library
   then
     AC_MSG_RESULT([using $withval])
     ldapsdk_lib="-L$withval"
+    ldapsdk_libdir="$withval"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -70,13 +72,14 @@ AC_MSG_RESULT(no))
 # if LDAPSDK is not found yet, try pkg-config
 
 # last resort
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
+if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir"; then
   AC_MSG_CHECKING(for mozldap with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
   if test -n "$PKG_CONFIG"; then
     if $PKG_CONFIG --exists mozldap6; then
       ldapsdk_inc=`$PKG_CONFIG --cflags-only-I mozldap6`
       ldapsdk_lib=`$PKG_CONFIG --libs-only-L mozldap6`
+      ldapsdk_libdir=`$PKG_CONFIG --libs-only-L mozldap6 | sed -e s/-L// | sed -e s/\ *$//`
       AC_MSG_RESULT([using system mozldap6])
     else
       AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])

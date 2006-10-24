@@ -42,6 +42,7 @@ AC_ARG_WITH(sasl,
         fi
 
         sasl_lib="-L$withval/lib"
+        sasl_libdir="$withval/lib"
       else
           AC_MSG_RESULT(yes)
           AC_MSG_ERROR([sasl not found in $withval])
@@ -70,6 +71,7 @@ AC_ARG_WITH(sasl-lib,
       if test -d "$withval"; then
         AC_MSG_RESULT([using $withval])
         sasl_lib="-L$withval"
+        sasl_libdir="$withval"
       else
         echo
         AC_MSG_ERROR([$withval not found])

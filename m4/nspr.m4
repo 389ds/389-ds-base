@@ -30,6 +30,7 @@ AC_ARG_WITH(nspr, [  --with-nspr=PATH        Netscape Portable Runtime (NSPR) di
     NSPRDIR=$withval
     nspr_inc="-I$NSPRDIR/include"
     nspr_lib="-L$NSPRDIR/lib"
+    nspr_libdir="$NSPRDIR/lib"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -60,6 +61,7 @@ AC_ARG_WITH(nspr-lib, [  --with-nspr-lib=PATH        Netscape Portable Runtime (
   then
     AC_MSG_RESULT([using $withval])
     nspr_lib="-L$withval"
+    nspr_libdir="$withval"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -70,17 +72,19 @@ AC_MSG_RESULT(no))
 # if NSPR is not found yet, try pkg-config
 
 # last resort
-if test -z "$nspr_inc" -o -z "$nspr_lib"; then
+if test -z "$nspr_inc" -o -z "$nspr_lib" -o -z "$nspr_libdir"; then
   AC_MSG_CHECKING(for nspr with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
   if test -n "$PKG_CONFIG"; then
     if $PKG_CONFIG --exists nspr; then
       nspr_inc=`$PKG_CONFIG --cflags-only-I nspr`
       nspr_lib=`$PKG_CONFIG --libs-only-L nspr`
+      nspr_libdir=`$PKG_CONFIG --libs-only-L nspr | sed -e s/-L// | sed -e s/\ *$//`
       AC_MSG_RESULT([using system NSPR])
     elif $PKG_CONFIG --exists dirsec-nspr; then
       nspr_inc=`$PKG_CONFIG --cflags-only-I dirsec-nspr`
       nspr_lib=`$PKG_CONFIG --libs-only-L dirsec-nspr`
+      nspr_libdir=`$PKG_CONFIG --libs-only-L dirsec-nspr | sed -e s/-L// | sed -e s/\ *$//`
       AC_MSG_RESULT([using system dirsec NSPR])
     else
       AC_MSG_ERROR([NSPR not found, specify with --with-nspr.])

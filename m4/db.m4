@@ -38,6 +38,7 @@ AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
     dnl - check the user provided location
     DBDIR=$withval
     db_lib="-L$DBDIR/lib"
+    db_libdir="$DBDIR/lib"
     db_incdir="$DBDIR/include"
     if ! test -e "$db_incdir/db.h" ; then
       AC_MSG_ERROR([$withval include dir not found])

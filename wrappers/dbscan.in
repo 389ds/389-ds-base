@@ -1,0 +1,58 @@
+#!/bin/sh
+ 
+###############################################################################
+##  (1) Specify variables used by this script.                               ##
+###############################################################################
+
+LIB_DIR=@nspr_libdir@:@db_libdir@
+BIN_DIR=@prefix@@serverdir@
+COMMAND=dbscan-bin
+
+
+###############################################################################
+##  (2) Set the LD_LIBRARY_PATH environment variable to determine the        ##
+##      search order this command wrapper uses to find shared libraries.     ##
+###############################################################################
+
+LD_LIBRARY_PATH=${LIB_DIR}
+export LD_LIBRARY_PATH
+
+
+###############################################################################
+##  (3) Set the PATH environment variable to determine the search            ##
+##      order this command wrapper uses to find binary executables.          ##
+##                                                                           ##
+##      NOTE:  Since the wrappers themselves are ALWAYS located in           ##
+##             "/usr/bin", this directory will always be excluded            ##
+##             from the search path.  Since "/bin" is nothing more           ##
+##             than a symbolic link to "/usr/bin" on Solaris, this           ##
+##             directory will also always be excluded from the search        ##
+##             path on this platform.                                        ##
+###############################################################################
+
+PATH=${BIN_DIR}
+export PATH
+
+
+###############################################################################
+##  (4) Execute the binary executable specified by this command wrapper      ##
+##      based upon the preset LD_LIBRARY_PATH and PATH environment variables.##
+###############################################################################
+
+ORIGINAL_IFS=${IFS}
+IFS=:
+
+for dir in ${PATH}
+do
+	if [ -x ${dir}/${COMMAND} ]
+	then
+		IFS=${ORIGINAL_IFS}
+		${dir}/${COMMAND} "$@"
+		exit $?
+	fi
+done
+
+echo "Unable to find \"${COMMAND}\" in \"${PATH}\"!"
+
+exit 255
+

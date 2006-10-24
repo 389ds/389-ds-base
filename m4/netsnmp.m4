@@ -35,6 +35,7 @@ AC_ARG_WITH(netsnmp, [  --with-netsnmp=PATH   Net-SNMP directory],
     fi
 
     netsnmp_lib="-L$withval/lib"
+    netsnmp_libdir="$withval/lib"
   else
     AC_MSG_RESULT(yes)
     AC_MSG_ERROR([$withval not found])
@@ -64,6 +65,7 @@ AC_ARG_WITH(netsnmp-lib, [  --with-netsnmp-lib=PATH     Net-SNMP library directo
   then
     AC_MSG_RESULT([using $withval])
     netsnmp_lib="-L$withval"
+    netsnmp_libdir="$withval"
   else
     echo
     AC_MSG_ERROR([$withval not found])

@@ -82,19 +82,7 @@ AC_ARG_ENABLE(debug, [  --enable-debug         Enable debug features],
 ])
 AC_SUBST([debug_defs])
 
-BRAND=fedora
-AC_MSG_CHECKING(for --with-brand)
-AC_ARG_WITH(brand, [  --with-brand=PATH        Specify branding (fedora or redhat)],
-[
-  if test "$withval"
-  then
-    AC_MSG_RESULT([using $withval])
-    BRAND="$withval"
-  fi
-],
-AC_MSG_RESULT(no))
-PKGNAME=$BRAND-ds
-AC_PREFIX_DEFAULT("/opt/\$(PACKAGE)")
+AC_PREFIX_DEFAULT([/opt/fedora-ds])
 
 # Check for library dependencies
 m4_include(m4/nspr.m4)
@@ -109,15 +97,20 @@ m4_include(m4/netsnmp.m4)
 # write out paths for binary components
 AC_SUBST(nspr_inc)
 AC_SUBST(nspr_lib)
+AC_SUBST(nspr_libdir)
 AC_SUBST(nss_inc)
 AC_SUBST(nss_lib)
+AC_SUBST(nss_libdir)
 AC_SUBST(ldapsdk_inc)
 AC_SUBST(ldapsdk_lib)
+AC_SUBST(ldapsdk_libdir)
 AC_SUBST(db_inc)
 AC_SUBST(db_incdir)
 AC_SUBST(db_lib)
+AC_SUBST(db_libdir)
 AC_SUBST(sasl_inc)
 AC_SUBST(sasl_lib)
+AC_SUBST(sasl_libdir)
 AC_SUBST(svrcore_inc)
 AC_SUBST(svrcore_lib)
 AC_SUBST(icu_lib)
@@ -125,11 +118,39 @@ AC_SUBST(icu_inc)
 AC_SUBST(icu_bin)
 AC_SUBST(netsnmp_inc)
 AC_SUBST(netsnmp_lib)
+AC_SUBST(netsnmp_libdir)
 AC_SUBST(netsnmp_link)
+
+# installation paths
+bindir=/usr/bin
+configdir=/fedora-ds/config
+datadir=/usr/share/fedora-ds/data
+propertydir=/fedora-ds/property
+schemadir=/fedora-ds/schema
+serverdir=/usr/lib/fedora-ds
+serverplugindir=/usr/lib/fedora-ds/plugins
+AC_SUBST(bindir)
+AC_SUBST(configdir)
+AC_SUBST(datadir)
+AC_SUBST(propertydir)
+AC_SUBST(schemadir)
+AC_SUBST(serverdir)
+AC_SUBST(serverplugindir)
 
 # WINNT should be true if building on Windows system not using
 # cygnus, mingw, or the like and using cmd.exe as the shell
 AM_CONDITIONAL([WINNT], false)
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([wrappers/dbscan])
+AC_CONFIG_FILES([wrappers/dsktune])
+AC_CONFIG_FILES([wrappers/ds_newinst])
+AC_CONFIG_FILES([wrappers/infadd])
+AC_CONFIG_FILES([wrappers/ldap-agent])
+AC_CONFIG_FILES([wrappers/ldclt])
+AC_CONFIG_FILES([wrappers/ldif])
+AC_CONFIG_FILES([wrappers/migratecred])
+AC_CONFIG_FILES([wrappers/mmldif])
+AC_CONFIG_FILES([wrappers/pwdhash])
+AC_CONFIG_FILES([wrappers/rsearch])
 AC_OUTPUT

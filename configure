@@ -464,8 +464,8 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_default_prefix="/opt/\$(PACKAGE)"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS platform_defs SOLARIS_TRUE SOLARIS_FALSE debug_defs PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nss_inc nss_lib ldapsdk_inc ldapsdk_lib db_inc db_incdir db_lib sasl_inc sasl_lib svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_link WINNT_TRUE WINNT_FALSE LTLIBOBJS'
+ac_default_prefix=/opt/fedora-ds
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS platform_defs SOLARIS_TRUE SOLARIS_FALSE debug_defs PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir db_inc db_incdir db_lib db_libdir sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link configdir propertydir schemadir serverdir serverplugindir WINNT_TRUE WINNT_FALSE LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -1046,7 +1046,6 @@ Optional Packages:
                           both]
   --with-tags[=TAGS]
                           include additional configurations [automatic]
-  --with-brand=PATH        Specify branding (fedora or redhat)
   --with-nspr=PATH        Netscape Portable Runtime (NSPR) directory
   --with-nspr-inc=PATH        Netscape Portable Runtime (NSPR) include file directory
   --with-nspr-lib=PATH        Netscape Portable Runtime (NSPR) library directory
@@ -4252,7 +4251,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4255 "configure"' > conftest.$ac_ext
+  echo '#line 4254 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5360,7 +5359,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5363:" \
+echo "$as_me:5362:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6394,11 +6393,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6397: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6396: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6401: \$? = $ac_status" >&5
+   echo "$as_me:6400: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings
@@ -6627,11 +6626,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6630: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6629: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6634: \$? = $ac_status" >&5
+   echo "$as_me:6633: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings
@@ -6687,11 +6686,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6690: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6689: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6694: \$? = $ac_status" >&5
+   echo "$as_me:6693: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8021,7 +8020,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8024 "configure"' > conftest.$ac_ext
+    echo '#line 8023 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -8892,7 +8891,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 8895 "configure"
+#line 8894 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -8990,7 +8989,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 8993 "configure"
+#line 8992 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11169,11 +11168,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11172: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11171: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11176: \$? = $ac_status" >&5
+   echo "$as_me:11175: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings
@@ -11229,11 +11228,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11232: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11231: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11236: \$? = $ac_status" >&5
+   echo "$as_me:11235: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -11740,7 +11739,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 11743 "configure"' > conftest.$ac_ext
+    echo '#line 11742 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -12611,7 +12610,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 12614 "configure"
+#line 12613 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12709,7 +12708,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 12712 "configure"
+#line 12711 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -13536,11 +13535,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13539: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13538: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13543: \$? = $ac_status" >&5
+   echo "$as_me:13542: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings
@@ -13596,11 +13595,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13599: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13598: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13603: \$? = $ac_status" >&5
+   echo "$as_me:13602: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14910,7 +14909,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 14913 "configure"' > conftest.$ac_ext
+    echo '#line 14912 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15651,11 +15650,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15654: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15653: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15658: \$? = $ac_status" >&5
+   echo "$as_me:15657: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings
@@ -15884,11 +15883,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15887: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15886: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15891: \$? = $ac_status" >&5
+   echo "$as_me:15890: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings
@@ -15944,11 +15943,11 @@ else
    -e 's:.*FLAGS}? :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15947: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15946: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:15951: \$? = $ac_status" >&5
+   echo "$as_me:15950: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17278,7 +17277,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17281 "configure"' > conftest.$ac_ext
+    echo '#line 17280 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -18149,7 +18148,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 18152 "configure"
+#line 18151 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -18247,7 +18246,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 18250 "configure"
+#line 18249 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -23400,26 +23399,6 @@ echo "${ECHO_T}no" >&6
 fi;
 
 
-BRAND=fedora
-echo "$as_me:$LINENO: checking for --with-brand" >&5
-echo $ECHO_N "checking for --with-brand... $ECHO_C" >&6
-
-# Check whether --with-brand or --without-brand was given.
-if test "${with_brand+set}" = set; then
-  withval="$with_brand"
-
-  if test "$withval"
-  then
-    echo "$as_me:$LINENO: result: using $withval" >&5
-echo "${ECHO_T}using $withval" >&6
-    BRAND="$withval"
-  fi
-
-else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-fi;
-PKGNAME=$BRAND-ds
 
 
 # Check for library dependencies
@@ -23461,6 +23440,7 @@ echo "${ECHO_T}using $withval" >&6
     NSPRDIR=$withval
     nspr_inc="-I$NSPRDIR/include"
     nspr_lib="-L$NSPRDIR/lib"
+    nspr_libdir="$NSPRDIR/lib"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -23511,6 +23491,7 @@ if test "${with_nspr_lib+set}" = set; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
     nspr_lib="-L$withval"
+    nspr_libdir="$withval"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -23526,7 +23507,7 @@ fi;
 # if NSPR is not found yet, try pkg-config
 
 # last resort
-if test -z "$nspr_inc" -o -z "$nspr_lib"; then
+if test -z "$nspr_inc" -o -z "$nspr_lib" -o -z "$nspr_libdir"; then
   echo "$as_me:$LINENO: checking for nspr with pkg-config" >&5
 echo $ECHO_N "checking for nspr with pkg-config... $ECHO_C" >&6
   # Extract the first word of "pkg-config", so it can be a program name with args.
@@ -23572,11 +23553,13 @@ fi
     if $PKG_CONFIG --exists nspr; then
       nspr_inc=`$PKG_CONFIG --cflags-only-I nspr`
       nspr_lib=`$PKG_CONFIG --libs-only-L nspr`
+      nspr_libdir=`$PKG_CONFIG --libs-only-L nspr | sed -e s/-L// | sed -e s/\ *$//`
       echo "$as_me:$LINENO: result: using system NSPR" >&5
 echo "${ECHO_T}using system NSPR" >&6
     elif $PKG_CONFIG --exists dirsec-nspr; then
       nspr_inc=`$PKG_CONFIG --cflags-only-I dirsec-nspr`
       nspr_lib=`$PKG_CONFIG --libs-only-L dirsec-nspr`
+      nspr_libdir=`$PKG_CONFIG --libs-only-L dirsec-nspr | sed -e s/-L// | sed -e s/\ *$//`
       echo "$as_me:$LINENO: result: using system dirsec NSPR" >&5
 echo "${ECHO_T}using system dirsec NSPR" >&6
     else
@@ -23625,6 +23608,7 @@ echo "${ECHO_T}using $withval" >&6
     NSSDIR=$withval
     nss_inc="-I$NSSDIR/include"
     nss_lib="-L$NSSDIR/lib"
+    nss_libdir="$NSSDIR/lib"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -23675,6 +23659,7 @@ if test "${with_nss_lib+set}" = set; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
     nss_lib="-L$withval"
+    nss_libdir="$withval"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -23690,7 +23675,7 @@ fi;
 # if NSS is not found yet, try pkg-config
 
 # last resort
-if test -z "$nss_inc" -o -z "$nss_lib"; then
+if test -z "$nss_inc" -o -z "$nss_lib" -o -z "$nss_libdir"; then
   echo "$as_me:$LINENO: checking for nss with pkg-config" >&5
 echo $ECHO_N "checking for nss with pkg-config... $ECHO_C" >&6
   # Extract the first word of "pkg-config", so it can be a program name with args.
@@ -23736,11 +23721,13 @@ fi
     if $PKG_CONFIG --exists nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I nss`
       nss_lib=`$PKG_CONFIG --libs-only-L nss`
+      nss_libdir=`$PKG_CONFIG --libs-only-L nss | sed -e s/-L// | sed -e s/\ *$//`
       echo "$as_me:$LINENO: result: using system NSS" >&5
 echo "${ECHO_T}using system NSS" >&6
     elif $PKG_CONFIG --exists dirsec-nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I dirsec-nss`
       nss_lib=`$PKG_CONFIG --libs-only-L dirsec-nss`
+      nss_libdir=`$PKG_CONFIG --libs-only-L dirsec-nss | sed -e s/-L// | sed -e s/\ *$//`
       echo "$as_me:$LINENO: result: using system dirsec NSS" >&5
 echo "${ECHO_T}using system dirsec NSS" >&6
     else
@@ -23789,6 +23776,7 @@ echo "${ECHO_T}using $withval" >&6
     LDAPSDKDIR=$withval
     ldapsdk_inc="-I$LDAPSDKDIR/include"
     ldapsdk_lib="-L$LDAPSDKDIR/lib"
+    ldapsdk_libdir="$LDAPSDKDIR/lib"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -23839,6 +23827,7 @@ if test "${with_ldapsdk_lib+set}" = set; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
     ldapsdk_lib="-L$withval"
+    ldapsdk_libdir="$withval"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -23854,7 +23843,7 @@ fi;
 # if LDAPSDK is not found yet, try pkg-config
 
 # last resort
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
+if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir"; then
   echo "$as_me:$LINENO: checking for mozldap with pkg-config" >&5
 echo $ECHO_N "checking for mozldap with pkg-config... $ECHO_C" >&6
   # Extract the first word of "pkg-config", so it can be a program name with args.
@@ -23900,6 +23889,7 @@ fi
     if $PKG_CONFIG --exists mozldap6; then
       ldapsdk_inc=`$PKG_CONFIG --cflags-only-I mozldap6`
       ldapsdk_lib=`$PKG_CONFIG --libs-only-L mozldap6`
+      ldapsdk_libdir=`$PKG_CONFIG --libs-only-L mozldap6 | sed -e s/-L// | sed -e s/\ *$//`
       echo "$as_me:$LINENO: result: using system mozldap6" >&5
 echo "${ECHO_T}using system mozldap6" >&6
     else
@@ -24029,6 +24019,7 @@ echo "$as_me: error: db.h not found" >&2;}
 echo "${ECHO_T}using $withval" >&6
         DBDIR=$withval
     db_lib="-L$DBDIR/lib"
+    db_libdir="$DBDIR/lib"
     db_incdir="$DBDIR/include"
     if ! test -e "$db_incdir/db.h" ; then
       { { echo "$as_me:$LINENO: error: $withval include dir not found" >&5
@@ -24109,6 +24100,7 @@ echo "$as_me: error: sasl.h not found" >&2;}
         fi
 
         sasl_lib="-L$withval/lib"
+        sasl_libdir="$withval/lib"
       else
           echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
@@ -24156,6 +24148,7 @@ if test "${with_sasl_lib+set}" = set; then
         echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
         sasl_lib="-L$withval"
+        sasl_libdir="$withval"
       else
         echo
         { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -24787,6 +24780,7 @@ echo "$as_me: error: net-snmp-config.h not found" >&2;}
     fi
 
     netsnmp_lib="-L$withval/lib"
+    netsnmp_libdir="$withval/lib"
   else
     echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
@@ -24835,6 +24829,7 @@ if test "${with_netsnmp_lib+set}" = set; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
     netsnmp_lib="-L$withval"
+    netsnmp_libdir="$withval"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -24945,6 +24940,28 @@ fi
 
 
 
+
+
+
+
+
+
+# installation paths
+bindir=/usr/bin
+configdir=/fedora-ds/config
+datadir=/usr/share/fedora-ds/data
+propertydir=/fedora-ds/property
+schemadir=/fedora-ds/schema
+serverdir=/usr/lib/fedora-ds
+serverplugindir=/usr/lib/fedora-ds/plugins
+
+
+
+
+
+
+
+
 # WINNT should be true if building on Windows system not using
 # cygnus, mingw, or the like and using cmd.exe as the shell
 
@@ -24959,6 +24976,28 @@ fi
 
 
           ac_config_files="$ac_config_files Makefile"
+
+          ac_config_files="$ac_config_files wrappers/dbscan"
+
+          ac_config_files="$ac_config_files wrappers/dsktune"
+
+          ac_config_files="$ac_config_files wrappers/ds_newinst"
+
+          ac_config_files="$ac_config_files wrappers/infadd"
+
+          ac_config_files="$ac_config_files wrappers/ldap-agent"
+
+          ac_config_files="$ac_config_files wrappers/ldclt"
+
+          ac_config_files="$ac_config_files wrappers/ldif"
+
+          ac_config_files="$ac_config_files wrappers/migratecred"
+
+          ac_config_files="$ac_config_files wrappers/mmldif"
+
+          ac_config_files="$ac_config_files wrappers/pwdhash"
+
+          ac_config_files="$ac_config_files wrappers/rsearch"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -25557,6 +25596,17 @@ do
   case "$ac_config_target" in
   # Handling of arguments.
   "Makefile" ) CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+  "wrappers/dbscan" ) CONFIG_FILES="$CONFIG_FILES wrappers/dbscan" ;;
+  "wrappers/dsktune" ) CONFIG_FILES="$CONFIG_FILES wrappers/dsktune" ;;
+  "wrappers/ds_newinst" ) CONFIG_FILES="$CONFIG_FILES wrappers/ds_newinst" ;;
+  "wrappers/infadd" ) CONFIG_FILES="$CONFIG_FILES wrappers/infadd" ;;
+  "wrappers/ldap-agent" ) CONFIG_FILES="$CONFIG_FILES wrappers/ldap-agent" ;;
+  "wrappers/ldclt" ) CONFIG_FILES="$CONFIG_FILES wrappers/ldclt" ;;
+  "wrappers/ldif" ) CONFIG_FILES="$CONFIG_FILES wrappers/ldif" ;;
+  "wrappers/migratecred" ) CONFIG_FILES="$CONFIG_FILES wrappers/migratecred" ;;
+  "wrappers/mmldif" ) CONFIG_FILES="$CONFIG_FILES wrappers/mmldif" ;;
+  "wrappers/pwdhash" ) CONFIG_FILES="$CONFIG_FILES wrappers/pwdhash" ;;
+  "wrappers/rsearch" ) CONFIG_FILES="$CONFIG_FILES wrappers/rsearch" ;;
   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
@@ -25717,15 +25767,20 @@ s,@ICU_CONFIG@,$ICU_CONFIG,;t t
 s,@NETSNMP_CONFIG@,$NETSNMP_CONFIG,;t t
 s,@nspr_inc@,$nspr_inc,;t t
 s,@nspr_lib@,$nspr_lib,;t t
+s,@nspr_libdir@,$nspr_libdir,;t t
 s,@nss_inc@,$nss_inc,;t t
 s,@nss_lib@,$nss_lib,;t t
+s,@nss_libdir@,$nss_libdir,;t t
 s,@ldapsdk_inc@,$ldapsdk_inc,;t t
 s,@ldapsdk_lib@,$ldapsdk_lib,;t t
+s,@ldapsdk_libdir@,$ldapsdk_libdir,;t t
 s,@db_inc@,$db_inc,;t t
 s,@db_incdir@,$db_incdir,;t t
 s,@db_lib@,$db_lib,;t t
+s,@db_libdir@,$db_libdir,;t t
 s,@sasl_inc@,$sasl_inc,;t t
 s,@sasl_lib@,$sasl_lib,;t t
+s,@sasl_libdir@,$sasl_libdir,;t t
 s,@svrcore_inc@,$svrcore_inc,;t t
 s,@svrcore_lib@,$svrcore_lib,;t t
 s,@icu_lib@,$icu_lib,;t t
@@ -25733,7 +25788,13 @@ s,@icu_inc@,$icu_inc,;t t
 s,@icu_bin@,$icu_bin,;t t
 s,@netsnmp_inc@,$netsnmp_inc,;t t
 s,@netsnmp_lib@,$netsnmp_lib,;t t
+s,@netsnmp_libdir@,$netsnmp_libdir,;t t
 s,@netsnmp_link@,$netsnmp_link,;t t
+s,@configdir@,$configdir,;t t
+s,@propertydir@,$propertydir,;t t
+s,@schemadir@,$schemadir,;t t
+s,@serverdir@,$serverdir,;t t
+s,@serverplugindir@,$serverplugindir,;t t
 s,@WINNT_TRUE@,$WINNT_TRUE,;t t
 s,@WINNT_FALSE@,$WINNT_FALSE,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
