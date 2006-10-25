@@ -111,12 +111,16 @@ print("*****************************************************************\n");
 
 # get dirs having DBVERSION
 my $dbdirs = getDbDir(".");
+my $brand_ds = {{DS-BRAND}};
+$ENV{'PATH'} = '$prefix/usr/bin:$prefix/usr/lib:/usr/bin:/usr/lib';
+$ENV{'LD_LIBRARY_PATH'} = ':/usr/lib';
+$ENV{'SHLIB_PATH'} = ':/usr/lib';
 
 for (my $i = 0; $i < @$dbdirs; $i++)
 {
-    # run ../bin/slapd/server/db_printlog -h <dbdir> for each <dbdir>
+    # run db_printlog -h <dbdir> for each <dbdir>
     print "Verify log files in $$dbdirs[$i] ... ";
-    open(PRINTLOG, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_printlog -h $$dbdirs[$i] 2>&1 1> $NULL |");
+    open(PRINTLOG, "db_printlog -h $$dbdirs[$i] 2>&1 1> $NULL |");
     sleep 1;
     my $haserr = 0;
     while ($l = <PRINTLOG>)
@@ -154,7 +158,7 @@ for (my $i = 0; $i < @$dbdirs; $i++)
         {
             my $thisdb = $$dbdirs[$i] . "{{SEP}}" . $db;
             print "Verify $thisdb ... ";
-            open(DBVERIFY, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_verify $thisdb 2>&1 1> $NULL |");
+            open(DBVERIFY, "db_verify $thisdb 2>&1 1> $NULL |");
             sleep 1;
             my $haserr = 0;
             while ($l = <DBVERIFY>)
@@ -195,7 +199,7 @@ for (my $i = 0; $i < @$dbdirs; $i++)
             {
                 my $thisdb = $$instdirs[$j] . "{{SEP}}" . $db;
                 print "Verify $thisdb ... ";
-                open(DBVERIFY, "..{{SEP}}bin{{SEP}}slapd{{SEP}}server{{SEP}}db_verify $thisdb 2>&1 1> $NULL |");
+                open(DBVERIFY, "db_verify $thisdb 2>&1 1> $NULL |");
                 sleep 1;
                 my $haserr = 0;
                 while ($l = <DBVERIFY>)

@@ -49,7 +49,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libdes
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(BUILD_ROOT)/ns_usepurify.mk
@@ -73,7 +73,7 @@ ifeq ($(ARCH), WINNT)
 LIBREVER_DLL_OBJ = $(addprefix $(OBJDEST)/, dllmain.o)
 endif
 
-REVER_DLL = des-plugin
+REVER_DLL = libdes-plugin
 LIBREVER =	$(addprefix $(LIBDIR)/, $(REVER_DLL).$(DLL_SUFFIX))
 
 ifeq ($(ARCH), WINNT)

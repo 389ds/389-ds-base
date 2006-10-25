@@ -45,7 +45,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libpresence
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
@@ -58,7 +58,7 @@ endif
 PRESENCE_OBJS =	presence.o
 OBJS = $(addprefix $(OBJDEST)/, $(PRESENCE_OBJS)) 
 
-PRESENCE_DLL = presence-plugin
+PRESENCE_DLL = libpresence-plugin
 
 INCLUDES += -I../http -I../../slapd  -I../../../include  
 CFLAGS+=$(SLCFLAGS) -DSLAPD_LOGGING

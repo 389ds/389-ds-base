@@ -165,6 +165,7 @@ close IN;
 # next, construct a hash table with our arguments
 
 my %cgiargs = ();
+my $brand_ds = "fedora-ds";
 
 # the following items are always required
 addAndCheck(\%cgiargs, "sroot", \%table, "General", "ServerRoot");
@@ -214,7 +215,12 @@ if ($table{General}->{UserDirectoryLdapURL}) {
 }
 
 if ($table{General}->{prefix}) {
-	$cgiargs{prefix} = $table{General}->{prefix};
+	$prefix = $table{General}->{prefix};
+}
+$cgiargs{prefix} = $prefix;
+
+if ($table{General}->{BrandDs}) {
+	$brand_ds = $table{General}->{BrandDs};
 }
 
 # populate the DS with this file - the suffix in this file must
@@ -230,7 +236,7 @@ $cgiargs{start_server} = 1;
 my $sroot = $cgiargs{sroot};
 
 my $rc = &cgiFake($sroot, $verbose,
-				  $sroot . "/bin/slapd/admin/bin/ds_newinst",
+				  $prefix . "/usr/lib/$brand_ds/ds_newinst",
 				  \%cgiargs);
 
 if (!$rc) {

@@ -47,9 +47,9 @@
 LDAP_SRC = ../../../..
 BUILD_ROOT = ../../../../..
 
-OBJDEST         = $(OBJDIR)/servers/tools/obj
-BINDIR = $(RELDIR)/shared/bin
-DATDIR = $(RELDIR)/shared/data
+OBJDEST = $(OBJDIR)/servers/tools/obj
+BINDIR = $(RELDIR)/usr/bin
+DATDIR = $(RELDIR)/usr/share/data
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk

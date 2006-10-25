@@ -49,7 +49,7 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/retrocl-plugin
 BINDIR = $(LDAP_SERVER_RELDIR)
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk

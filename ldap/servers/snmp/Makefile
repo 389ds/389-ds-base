@@ -89,9 +89,9 @@ ifneq ($(ARCH), WINNT)
   EXTRA_LIBS += $(NETSNMP_LINK) $(EXTERNAL_AGENT_LIBS)
 endif
 
-# the redhat-directory.mib goes in the plugins/snmp directory, and the other mib like
-# files go in the plugins/snmp/mibs directory
-MIB_DEST_DIR = $(RELDIR)/plugins/snmp
+# the redhat-directory.mib goes in the _datadir/brand-ds/plugins/snmp directory, and the other mib like
+# files go in the _datadir/brand-ds/plugins/snmp/mibs directory
+MIB_DEST_DIR = $(RELDIR)/$(DS_PLUGINDIR)/snmp
 MIB_SRC_FILES =redhat-directory.mib
 MIBS_DEST_DIR = $(MIB_DEST_DIR)/mibs
 MIBS_SRC_FILES = NETWORK-SERVICES-MIB.txt \

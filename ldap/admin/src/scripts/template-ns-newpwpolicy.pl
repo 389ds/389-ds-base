@@ -42,19 +42,9 @@
 # enable the use of our bundled perldap with our bundled ldapsdk libraries
 # all of this nonsense can be omitted if the mozldapsdk and perldap are
 # installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
-BEGIN {
-	my $sroot = "{{DS-ROOT}}";
-	push @INC, "$sroot/lib/perl/arch", "$sroot/lib/perl";
-	if ($ENV{LD_LIBRARY_PATH}) {
-		$ENV{LD_LIBRARY_PATH} .= ":";
-	}
-	$ENV{LD_LIBRARY_PATH} .= "$sroot/shared/lib";
-	# this is only needed for HP/ux PA-RISC, but it doesn't hurt other platforms
-	if ($ENV{SHLIB_PATH}) {
-		$ENV{SHLIB_PATH} .= ":";
-	}
-	$ENV{SHLIB_PATH} .= "$sroot/shared/lib";
-}
+$ENV{'PATH'} = '$prefix/usr/lib/mozldap6:$prefix/usr/lib:/usr/lib/mozldap6:/usr/lib';
+$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
 # Add new password policy specific entries
 
 #############################################################################
@@ -74,11 +64,15 @@ $opt_p = "{{SERVER-PORT}}";
 $opt_h = "{{SERVER-NAME}}";
 $opt_v = 0;
 
-# Variables
-$ldapsearch="{{DS-ROOT}}{{SEP}}shared{{SEP}}bin{{SEP}}ldapsearch";
-$ldapmodify="{{DS-ROOT}}{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify";
+$ENV{'PATH'} = '$prefix{{SEP}}usr{{SEP}}lib:{{SEP}}usr{{SEP}}lib{{SEP}}mozldap';
+$ENV{'LD_LIBRARY_PATH'} .= ":";
+$ENV{'LD_LIBRARY_PATH'} .= "$prefix{{SEP}}usr{{SEP}}lib:{{SEP}}usr{{SEP}}lib{{SEP}}mozldap";
+$ENV{'SHLIB_PATH'} .= ":";
+$ENV{'SHLIB_PATH'} .= "$prefix{{SEP}}usr{{SEP}}lib:{{SEP}}usr{{SEP}}lib{{SEP}}mozldap";
 
-chdir("{{DS-ROOT}}{{SEP}}shared{{SEP}}bin");
+# Variables
+$ldapsearch="ldapsearch -1";
+$ldapmodify="ldapmodify";
 
 #############################################################################
 

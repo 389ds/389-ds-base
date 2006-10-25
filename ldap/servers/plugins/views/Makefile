@@ -45,7 +45,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libviews
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
@@ -58,7 +58,7 @@ endif
 VIEWS_OBJS =	views.o
 OBJS = $(addprefix $(OBJDEST)/, $(VIEWS_OBJS)) 
 
-VIEWS_DLL = views-plugin
+VIEWS_DLL = libviews-plugin
 
 INCLUDES += -I../../slapd  -I../../../include
 CFLAGS+=$(SLCFLAGS) -DSLAPD_LOGGING

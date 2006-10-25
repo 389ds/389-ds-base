@@ -49,10 +49,10 @@ NSPR20=true	# probably should be defined somewhere else (not sure where)
 BINDIR=$(LDAP_ADMIN_BIN_RELDIR)
 OBJDEST=$(LDAP_ADMOBJDIR)
 
-SCRIPTSDIR=$(LDAP_BASE_RELDIR)/admin/scripts
-
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
+
+SCRIPTSDIR=$(RELDIR)/$(DS_ETCDIR)/script-templates
 
 ifeq ($(USE_ADMINSERVER), 1)
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
@@ -242,7 +242,7 @@ TEMPLATE_SCRIPTS_SRC = $(wildcard scripts/template-*)
 TEMPLATE_SCRIPTS_DEST = $(subst scripts/,$(SCRIPTSDIR)/,$(TEMPLATE_SCRIPTS_SRC))
 
 # we wrap the security tools with a shell script wrapper for their ld libpath
-PACKAGE_SEC_TOOLS = $(addprefix $(RELDIR)/shared/bin/,$(SECURITY_TOOLS))
+PACKAGE_SEC_TOOLS = $(addprefix $(RELDIR)/usr/bin/,$(SECURITY_TOOLS))
 
 # We only need to do this if we have to ship 32 bit binaries in our 64 bit packages
 # Right now, on rhel/linux, we ship all native 64 bit apps so we don't have to do
@@ -385,7 +385,7 @@ $(SCRIPTSDIR)/template-%: scripts/template-% $(SCRIPTSDIR)
 	$(CP) $< $@
 	chmod +x $@
 
-$(RELDIR)/shared/bin/%: sec_tools_wrapper $(RELDIR)/shared/bin
+$(RELDIR)/usr/bin/%: sec_tools_wrapper $(RELDIR)/usr/bin
 	-@$(RM) $@
 	$(CP) $< $@
 	chmod +x $@

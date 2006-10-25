@@ -150,7 +150,7 @@
 #   e.g. PERL5LIB="serverroot/lib/perl/arch:serverroot/lib/perl"
 #
 #    4. Set LD_LIBRARY_PATH (or SHLIB_PATH) to point to the location of our
-#   bundled shared libraries e.g. LD_LIBRARY_PATH="serverroot/shared/lib"
+#   bundled shared libraries e.g. LD_LIBRARY_PATH="serverroot/lib"
 #
 #    5. Invoke the script as follows if <MYPERLDIR> (serverroot/lib/perl) contains
 #	Mozilla/LDAP:
@@ -163,19 +163,6 @@
 # this script is always invoked by repl-monitor-cgi.pl, which sets all of these
 # If using this script standalone, be sure to set the shared lib path and
 # the path to the perldap modules.
-# BEGIN {
-# 	my $sroot = "{{DS-ROOT}}";
-# 	push @INC, "$sroot/lib/perl/arch", "$sroot/lib/perl";
-# 	if ($ENV{LD_LIBRARY_PATH}) {
-# 		$ENV{LD_LIBRARY_PATH} .= ":";
-# 	}
-# 	$ENV{LD_LIBRARY_PATH} .= "$sroot/shared/lib";
-# 	# this is only needed for HP/ux PA-RISC, but it doesn't hurt other platforms
-# 	if ($ENV{SHLIB_PATH}) {
-# 		$ENV{SHLIB_PATH} .= ":";
-# 	}
-# 	$ENV{SHLIB_PATH} .= "$sroot/shared/lib";
-# }
 $usage = "\nusage: $0 -f configuration-file [-h host] [-p port] [-r] [-u refresh-url] [-t refresh-interval]\n\nor   : $0 -v\n"; 
 
 use Getopt::Std;		# parse command line arguments

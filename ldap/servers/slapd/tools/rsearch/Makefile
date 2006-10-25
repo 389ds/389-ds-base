@@ -49,8 +49,8 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/servers/tools/obj
-BINDIR = $(RELDIR)/shared/bin
-DATDIR = $(RELDIR)/shared/data
+BINDIR = $(RELDIR)/usr/bin
+DATDIR = $(RELDIR)/usr/share/$(DS_BRAND)-ds/data
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk

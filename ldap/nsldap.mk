@@ -72,20 +72,44 @@ RELDIR = $(BUILD_DRIVE)$(RELTOP)/$(OBJDIR_BASE)
 RELDIR_32 = $(BUILD_DRIVE)$(RELTOP)/$(OBJDIR_BASE_32)
 RELDIR_UNSTRIP = $(RELDIR)-unstripped
 
-# this is the place libraries and plugins go which are used by other
-# components i.e. not specific to slapd and its programs
-LIB_RELDIR = $(RELDIR)/lib
+# FHS install paths
+CORE_BINDIR := /usr/bin
+CORE_LIBDIR := /usr/lib
+CORE_DATADIR := /usr/share
+CORE_DOCDIR := /usr/doc
+CORE_SYSCONFDIR := /etc
+DS_ETCDIR := $(CORE_SYSCONFDIR)/$(DS_BRAND)-ds
+DS_LIBDIR := $(CORE_LIBDIR)/$(DS_BRAND)-ds
+DS_DOCDIR := $(CORE_DOCDIR)/$(DS_BRAND)-ds
+DS_PLUGINDIR := $(CORE_DATADIR)/$(DS_BRAND)-ds/plugins
+DS_DATADIR := $(CORE_DATADIR)/$(DS_BRAND)-ds
+DS_LDIFDIR := $(DS_DATADIR)/data
+DS_PROPERTYDIR := $(DS_ETCDIR)/property
+# WILL GO AWAY ???
+DS_JAVADIR := $(CORE_DATADIR)/java
+# WILL GO AWAY ???
+DS_CONSOLEDIR := $(DS_JAVADIR)/$(DS_BRAND)-directoryconsole
+# WILL GO AWAY ???
+DS_DSGWDIR := $(DS_LIBDIR)/dsgw
+# WILL GO AWAY ???
+DS_DSMLGWDIR := $(DS_JAVADIR)/dsmlgw
+DS_SCHEMADIR := $(DS_ETCDIR)/schema
+DS_CONFIGDIR := $(DS_ETCDIR)/config
+DS_LEGACYSCHEMADIR := $(CORE_DATADIR)/$(DS_BRAND)-ds/legacy-schema
+
 # Release path definitions for software components
 # This is the base path for directory server specific components
 LDAP_BASE_RELDIR = $(RELDIR)/bin/slapd
 # This is the base path for the slapd program and other related programs
-LDAP_SERVER_RELDIR = $(LDAP_BASE_RELDIR)/server
+LDAP_SERVER_RELDIR = $(RELDIR)$(DS_LIBDIR)
 # This is the path for administrative programs, installers, CGIs, etc.
-LDAP_ADMIN_BIN_RELDIR = $(LDAP_BASE_RELDIR)/admin/bin
+LDAP_ADMIN_BIN_RELDIR = $(RELDIR)$(DS_LIBDIR)
 # This is the path for other programs, perf counters, etc.
 LDAP_INSTALL_BIN_RELDIR = $(LDAP_BASE_RELDIR)/install/bin
 # This is the base path for directory server specific dlls
-LDAP_LIB_RELDIR = $(LDAP_BASE_RELDIR)/lib
+LDAP_LIB_RELDIR = $(RELDIR)$(DS_LIBDIR)
+# Plugin location
+LDAP_PLUGIN_RELDIR = $(RELDIR)$(DS_LIBDIR)/plugins
 # This is the primary location for the dsadmin dll
 LDAP_ADMDLLDIR = $(LDAP_LIB_RELDIR)
 # This is the location for the dsadmin export and/or static library,
@@ -120,10 +144,11 @@ LDAP_HDIR = $(LDAP_SRC)/include
 
 # set up a target for all directories which are used as dependencies so that the
 # directory will be created if it is needed
-DEPENDENCY_DIRS = $(RELDIR) $(LDAP_SERVER_RELDIR) $(LDAP_ADMIN_BIN_RELDIR) \
-	$(LDAP_LIB_RELDIR) $(LDAP_ADMROOT)/lib $(OBJDIR) $(LDAP_LIBDIR) $(LDAP_OBJDIR) \
-	$(LDAP_MANDIR) $(LDAP_BINDIR) $(LDAP_INCLUDEDIR) $(LDAP_ETCDIR) $(LIB_RELDIR) \
-	$(LDAP_ADMINCDIR) $(LDAP_ADMOBJDIR) $(LDAP_ADMPERLDIR) $(LDAP_INSTALL_BIN_RELDIR)
+DEPENDENCY_DIRS = $(RELDIR) $(LDAP_SERVER_RELDIR) \
+	$(LDAP_ADMROOT)/lib $(OBJDIR) $(LDAP_LIBDIR) $(LDAP_OBJDIR) \
+	$(LDAP_MANDIR) $(LDAP_BINDIR) $(LDAP_INCLUDEDIR) $(LDAP_ETCDIR) \
+	$(LDAP_ADMINCDIR) $(LDAP_ADMOBJDIR) $(LDAP_ADMPERLDIR) \
+	$(LDAP_PLUGIN_RELDIR) $(LDAP_INSTALL_BIN_RELDIR)
 
 $(DEPENDENCY_DIRS):
 	$(MKDIR) $@
@@ -291,14 +316,14 @@ endif
 # be put in <builddir>/lib; this is mostly for NT and other
 # platforms that separate the static and dynamic code
 ifeq ($(ARCH), WINNT)
-LDAP_LIBBACK_LDBM_LIBDIR = $(LDAP_LIBDIR)
-LDAP_LIBBACK_LDBM_DLLDIR = $(LIB_RELDIR)
+LDAP_LIBBACK_LDBM_LIBDIR = $(LDAP_LIB_RELDIR)
+LDAP_LIBBACK_LDBM_DLLDIR = $(LDAP_LIB_RELDIR)
 LDAP_LIBBACK_LDBM = $(addsuffix .$(LIB_SUFFIX), \
     $(addprefix $(LDAP_LIBDIR)/, $(LIBBACK_LDBM_LIB)))
 else
 LDAP_LIBBACK_LDBM = -lback-ldbm
-LDAP_LIBBACK_LDBM_LIBDIR = $(LDAP_LIBDIR)
-LDAP_LIBBACK_LDBM_DLLDIR = $(LIB_RELDIR)
+LDAP_LIBBACK_LDBM_LIBDIR = $(LDAP_LIB_RELDIR)
+LDAP_LIBBACK_LDBM_DLLDIR = $(LDAP_LIB_RELDIR)
 endif
 LDAP_LIBBACK_LDBM_DEP = $(addsuffix .$(DLL_SUFFIX), \
     $(addprefix $(LDAP_LIBBACK_LDBM_LIBDIR)/, $(LIBBACK_LDBM_DLL)))
@@ -515,7 +540,7 @@ LIBBACK_LDIF_DLL = libback-ldif$(DLL_PRESUFFIX)
 ifeq ($(ARCH), WINNT)
 REFERINT_DLL = referint-plugin
 else
-REFERINT_DLL = referint-plugin$(DLL_PRESUFFIX)
+REFERINT_DLL = libreferint-plugin$(DLL_PRESUFFIX)
 endif
 
 #
@@ -524,44 +549,44 @@ endif
 ifeq ($(ARCH), WINNT)
 SYNTAX_DLL = syntax-plugin
 else
-SYNTAX_DLL = syntax-plugin$(DLL_PRESUFFIX)
+SYNTAX_DLL = libsyntax-plugin$(DLL_PRESUFFIX)
 endif
 
 #
 # Dynamic library, COLLATION
 #
-COLLATION_DLL=liblcoll$(DLL_PRESUFFIX)
+COLLATION_DLL=libcollation-plugin$(DLL_PRESUFFIX)
 
 #
 # Dynamic library, NT Synchronization Service plugin
 #
-NTSYNCH_DLL=ntsynch-plugin$(DLL_PRESUFFIX)
+NTSYNCH_DLL=libntsynch-plugin$(DLL_PRESUFFIX)
 
 #
 # Dynamic library, PASS THROUGH AUTHENTICATION PLUGIN
 #
-PASSTHRU_DLL = passthru-plugin$(DLL_PRESUFFIX)
+PASSTHRU_DLL = libpassthru-plugin$(DLL_PRESUFFIX)
 
 #
 # Dynamic library, PAM PASS THROUGH AUTHENTICATION PLUGIN
 #
-PAM_PASSTHRU_DLL = pam-passthru-plugin$(DLL_PRESUFFIX)
+PAM_PASSTHRU_DLL = libpam-passthru-plugin$(DLL_PRESUFFIX)
 
 #
 # Dynamic library, UNIQUE UID CHECKING PLUGIN
 #
-UID_DLL = attr-unique-plugin$(DLL_RESUFFIX)
+UID_DLL = libattr-unique-plugin$(DLL_RESUFFIX)
 
 # Dynamic library, Replication Plugin
 #
-REPLICATION_DLL = replication-plugin$(DLL_RESUFFIX)
+REPLICATION_DLL = libreplication-plugin$(DLL_RESUFFIX)
 
-RETROCL_DLL = retrocl-plugin$(DLL_RESUFFIX)
+RETROCL_DLL = libretrocl-plugin$(DLL_RESUFFIX)
 
 #
 # Dynamic library, ACL PLUGIN
 #
-ACL_DLL = acl-plugin$(DLL_RESUFFIX)
+ACL_DLL = libacl-plugin$(DLL_RESUFFIX)
 
 #
 # Dynamic library, TEST-PLUGINS
@@ -578,7 +603,7 @@ endif
 ifeq ($(ARCH), WINNT)
 PWD_DLL = pwdstorage-plugin
 else
-PWD_DLL = pwdstorage-plugin$(DLL_PRESUFFIX)
+PWD_DLL = libpwdstorage-plugin$(DLL_PRESUFFIX)
 endif
 
 #
@@ -587,13 +612,13 @@ endif
 ifeq ($(ARCH), WINNT)
 DIS_DLL = distrib-plugin
 else
-DIS_DLL = distrib-plugin$(DLL_PRESUFFIX)
+DIS_DLL = libdistrib-plugin$(DLL_PRESUFFIX)
 endif
 
 #
 # Chaining backend library, CHAINING DATABASE PLUGIN
 #
-CB_DLL = chainingdb-plugin$(DLL_PRESUFFIX)
+CB_DLL = libchainingdb-plugin$(DLL_PRESUFFIX)
 
 #
 # Admin server dynamic library location.

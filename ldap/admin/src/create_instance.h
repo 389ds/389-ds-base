@@ -54,13 +54,20 @@ extern "C" {            /* Assume C declarations for C++ */
 #ifdef XP_UNIX
 #define PRODUCT_NAME    "slapd"
 #define PRODUCT_BIN     "ns-slapd"
-#endif
-
 #define LOCALSTATEDIR   "/var"
 #define SYSCONFDIR      "/etc"
-#define BINDIR          "/bin"
-#define DATADIR         "/share"
+#define BINDIR          "/usr/bin"
+#define DATADIR         "/usr/share"
 #define DOCDIR          "/usr/doc"
+#else # Windows
+#define PRODUCT_NAME    "slapd"
+#define PRODUCT_BIN     "slapd"
+#define LOCALSTATEDIR   "\\var"
+#define SYSCONFDIR      "\\etc"
+#define BINDIR          "\\usr\\bin"
+#define DATADIR         "\\usr\\share"
+#define DOCDIR          "\\usr\\doc"
+#endif
 
 typedef struct {
     char *sroot; /* _libdir */
@@ -82,9 +89,6 @@ typedef struct {
     char *cfg_sspt_uidpw;
     char *secserv;
     char *secservport;
-    char *ntsynch;
-    char *ntsynchssl;
-    char *ntsynchport;
     char *rootdn;
     char *rootpw;    
     char *roothashedpw;
@@ -129,6 +133,7 @@ typedef struct {
     char *db_dir;
     char *bak_dir;
     char *ldif_dir;
+    char *plugin_dir;
     char *tmp_dir;
     char *cert_dir;
     char *prefix;

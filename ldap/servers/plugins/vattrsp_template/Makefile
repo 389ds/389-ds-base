@@ -45,7 +45,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libvattrsp
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
@@ -58,7 +58,7 @@ endif
 VATTRSP_OBJS =	vattrsp.o
 OBJS = $(addprefix $(OBJDEST)/, $(VATTRSP_OBJS)) 
 
-VATTRSP_DLL = vattrsp-plugin
+VATTRSP_DLL = libvattrsp-plugin
 
 INCLUDES += -I../../slapd  -I../../../include
 CFLAGS+=$(SLCFLAGS) -DSLAPD_LOGGING

@@ -45,7 +45,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libstatechange
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
@@ -58,7 +58,7 @@ endif
 STATECHANGE_OBJS =	statechange.o
 OBJS = $(addprefix $(OBJDEST)/, $(STATECHANGE_OBJS)) 
 
-STATECHANGE_DLL = statechange-plugin
+STATECHANGE_DLL = libstatechange-plugin
 
 INCLUDES += -I../../slapd  -I../../../include
 CFLAGS+=$(SLCFLAGS) -DSLAPD_LOGGING

@@ -43,7 +43,12 @@
 # the directory it lives in due to run time shared library
 # dependencies
 
-sroot=`echo $0 | sed s#/bin/slapd/admin/bin/.\*##g`
+# ns-update is supposed to be placed in _libdir/<brand>-ds
+brand_ds=`echo $0 | sed -e "s#.*/\([a-z]*-ds\)/.*#\1#"`
+if [ -z ${brand_ds} ]; then
+    brand_ds=`pwd | sed -e "s#.*/\([a-z]*-ds\)/.*#\1#"`
+fi
+sroot=`echo $0 | sed -e "s#/lib/$brand_ds/.\*##g"`
 PERL=perl # just use perl from PATH
 
 #        run_ds_create "$sroot" "$dir" "$inffile"
@@ -56,7 +61,7 @@ run_ds_create()
     inffile="$1"
 
     # the inffile is incomplete - it needs the instance specific stuff
-    dseldif=$sroot/$dir/config/dse.ldif
+    dseldif=$sroot/var/lib/$dir/dse.ldif
     port=`grep \^nsslapd-port: $dseldif | sed -e s/\^nsslapd-port:[\ \	]*//`
     rootdn=`grep \^nsslapd-rootdn: $dseldif | sed -e s/\^nsslapd-rootdn:[\ \	]*//`
     id=`echo $dir | sed -e s/^slapd-//`
@@ -131,9 +136,9 @@ if [ "$iDSISolaris" = "" ]; then
 	# instances in this server root, and assume -r if there
 	# are
 	if [ "$reconfig" = "" ]; then
-		cd $sroot
+		cd $sroot/var/lib
 		for dir in slapd-* ; do
-			if [ -d $dir/config ]; then
+			if [ -f $dir/dse.ldif ]; then
 				reconfig=1
 				extraflags="-r"
 				break
@@ -146,15 +151,15 @@ if [ $reconfig ] ; then
 	cd $sroot
 	for dir in slapd-* ; do
 		# first, fix any old password files
-		if [ -d alias ]; then
-			cd alias
+		if [ -d etc/$brand_ds/$dir ]; then
+			cd etc/$brand_ds/$dir
 			echo Converting $dir to new format password file . . .
-			$PERL $sroot/bin/slapd/admin/bin/migratePwdFile $sroot $dir
-			cd ..
+			$PERL $sroot/lib/$brand_ds/migratePwdFile $sroot $dir
+			cd ../../..
 		fi
 		# Copy new schema ldiffiles
 		echo Copying new schema ldiffiles . . .
-		$PERL $sroot/bin/slapd/admin/bin/upgradeServer $sroot $dir
+		$PERL $sroot/lib/$brand_ds/upgradeServer $brand_ds $sroot $dir
 
 		# next, start the server
 		echo Starting $dir . . .
@@ -166,7 +171,7 @@ if [ $reconfig ] ; then
 
 	done
 	# fix any non-instance specific files - omit server instance argument
-	$PERL $sroot/bin/slapd/admin/bin/upgradeServer $sroot
+	$PERL $sroot/lib/$brand_ds/upgradeServer $brand_ds $sroot
 fi
 
 cd `dirname $0`
@@ -192,13 +197,14 @@ if test -z "$reconfig" ; then
 fi
 rc=$?
 
-# chown the cookie directory - bug 175098
-if [ "$ssuser" ] ; then
-    if [ "$ssgrp" ] ; then
-        chown $ssuser:$ssgrp $sroot/bin/slapd/authck
-    else
-        chown $ssuser $sroot/bin/slapd/authck
-    fi
-fi
+# dsgw package should take care of this ???
+## chown the cookie directory - bug 175098
+#if [ "$ssuser" ] ; then
+#    if [ "$ssgrp" ] ; then
+#        chown $ssuser:$ssgrp $sroot/bin/slapd/authck
+#    else
+#        chown $ssuser $sroot/bin/slapd/authck
+#    fi
+#fi
 
 exit $rc

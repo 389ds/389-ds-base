@@ -256,9 +256,6 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     conf->servport = "389";
     conf->secserv = "off";
     conf->secservport = "636";
-    conf->ntsynch = "off";
-    conf->ntsynchssl = "on";
-    conf->ntsynchport = "5009";
     conf->rootpw = "";
     conf->roothashedpw = "";
     conf->loglevel = NULL;
@@ -445,13 +442,6 @@ static char *sanity_check(server_config_s *cf, char *param_name)
          (*(cf->secservport) != '\0') ) {
             if ( (t = create_instance_checkport(cf->bindaddr, cf->secservport)) ) {
                 PL_strncpyz(param_name, "secservport", BIG_LINE);
-                return t;
-            }
-        }
-        if ( cf->ntsynch && (strcmp(cf->ntsynch, "on") == 0) && (cf->ntsynchport != NULL) &&
-         (*(cf->ntsynchport) != '\0') ) {
-            if ( (t = create_instance_checkport(cf->bindaddr, cf->ntsynchport)) ) {
-                PL_strncpyz(param_name, "ntsynchport", BIG_LINE);
                 return t;
             }
         }
@@ -710,10 +700,11 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
         return NULL;
     }
 
-    PR_snprintf(ofn, sizeof(ofn), "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s",
-            cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-            FILE_PATHSEP, name);
+    PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
+            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
+            FILE_PATHSEP, FILE_PATHSEP, name);
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
+    create_instance_mkdir(cs_path, NEWDIR_MODE);
 #ifdef USE_NSPERL
     PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
             cf->prefix, FILE_PATHSEP, FILE_PATHSEP,
@@ -724,8 +715,8 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
 
     table[0][0] = "DS-ROOT";
     table[0][1] = cf->prefix;
-    table[1][0] = "MY-DS-ROOT";
-    table[1][1] = cs_path;
+    table[1][0] = "DS-BRAND";
+    table[1][1] = cf->brand_ds;
     table[2][0] = "SEP";
     table[2][1] = FILE_PATHSEPP;
     table[3][0] = "SERVER-NAME";
@@ -765,13 +756,19 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
     char myperl[PATH_SIZE];
     char fn[PATH_SIZE], ofn[PATH_SIZE];
     const char *table[12][2];
+    char *fnp = NULL;
+    int fnlen = 0;
 
-    PR_snprintf(ofn, sizeof(ofn), "%s%cbin%cslapd%cadmin%cscripts%ctemplate-%s",
-            cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
+    PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
+            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
             FILE_PATHSEP, FILE_PATHSEP, name);
-    PR_snprintf(fn, sizeof(fn), "%s%cbin%cslapd%cadmin%cbin%c%s",
-            cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-            FILE_PATHSEP, FILE_PATHSEP, name);
+    PR_snprintf(fn, sizeof(fn),   "%s%c%s%cbin",
+            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
+    create_instance_mkdir(fn, NEWDIR_MODE);
+    fnlen = strlen(fn);
+    fnp = fn + fnlen;
+    PR_snprintf(fnp, sizeof(fn) - fnlen,   "%c%s", FILE_PATHSEP, name);
+
 #ifdef USE_NSPERL
     PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
             cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
@@ -782,8 +779,8 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
 
     table[0][0] = "DS-ROOT";
     table[0][1] = cf->prefix;
-    table[1][0] = "MY-DS-ROOT";
-    table[1][1] = cs_path;
+    table[1][0] = "DS-BRAND";
+    table[1][1] = cf->brand_ds;
     table[2][0] = "SEP";
     table[2][1] = FILE_PATHSEPP;
     table[3][0] = "SERVER-NAME";
@@ -1171,11 +1168,7 @@ create_scripts(server_config_s *cf, char *param_name)
             "        rm -f $PIDFILE\n"
             "    fi\n"
             "fi\n"
-#if 0
             "cd %s; ./%s -D %s -i %s/pid -w $STARTPIDFILE \"$@\"\n"
-#else /* will go away */
-            "cd %s/bin/slapd/server; ./%s -D %s -i %s/pid -w $STARTPIDFILE \"$@\"\n"
-#endif
             "if [ $? -ne 0 ]; then\n"
             "    exit 1\n"
             "fi\n"
@@ -1218,7 +1211,7 @@ create_scripts(server_config_s *cf, char *param_name)
             "exit 1\n",
             sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
             cf->run_dir, PRODUCT_BIN, PRODUCT_BIN,
-            cf->prefix, PRODUCT_BIN, cf->config_dir, cf->run_dir
+            cf->sroot, PRODUCT_BIN, cf->config_dir, cf->run_dir
         );
     }
     if(t) return t;
@@ -1380,9 +1373,8 @@ out:
 /* ---------------------- Create configuration files ---------------------- */
 char *create_server(server_config_s *cf, char *param_name)
 {
-#if 0
+#if defined (BUILD_PRESENCE)
     char line[PATH_SIZE]
-    char subdir[PATH_SIZE];
 #endif
     char *t, *sroot = cf->sroot;
     struct passwd *pw = getpwnam(cf->servuser);
@@ -1461,12 +1453,6 @@ char *create_server(server_config_s *cf, char *param_name)
     if( (create_instance_mkdir_p("cert dir", cf->cert_dir, NEWSECDIR_MODE, pw)) )
         return make_error("make cert dir %s failed (%s)",
                           cf->cert_dir, ds_system_errmsg());
-# if 0
-    /* Create httpacl directory */
-    PR_snprintf(line, sizeof(line), "%s%chttpacl", cf->sroot, FILE_PATHSEP); 
-    if( (create_instance_mkdir(line, NEWDIR_MODE)) )
-        return make_error("mkdir %s failed (%s)", line, ds_system_errmsg());
-#endif
     t = create_scripts(cf, param_name);
     if(t) return t;
 
@@ -2069,16 +2055,9 @@ ds_cre_subdirs(server_config_s *cf, struct passwd* pw)
 char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
 {
     char *t = NULL;
-#if 0
     char *server = sroot;
     char *admin = sroot;
     char *tools = cf->bindir;
-    char cgics_path[PATH_SIZE];
-#else
-    char server[PATH_SIZE];
-    char admin[PATH_SIZE];
-    char tools[PATH_SIZE];
-#endif
     char *cl_scripts[7] = {"dsstop", "dsstart", "dsrestart", "dsrestore", "dsbackup", "dsimport", "dsexport"};
     char *cl_javafiles[7] = {"DSStop", "DSStart", "DSRestart", "DSRestore", "DSBackup", "DSImport", "DSExport"};
     int  cls = 0; /*Index into commandline script names and java names - RJP*/
@@ -2094,16 +2073,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     mysroot = sroot;
     mycs_path = cs_path;
 
-#if 0
-    /* nothing to do for server, admin, tools */
-    PR_snprintf(cgics_path, sizeof(cgics_path), "%s%cbin%cadmin%cadmin%cbin",
-            cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP);
-
-#else /* will go away */
-    PR_snprintf(server, sizeof(server), "%s/bin/"PRODUCT_NAME"/server", cf->prefix); 
-    PR_snprintf(admin, sizeof(admin), "%s/bin/"PRODUCT_NAME"/admin/bin", cf->prefix);
-    PR_snprintf(tools, sizeof(tools), "%s/shared/bin", cf->prefix);    
-#endif
     t = gen_script(cs_path, "monitor", 
            "if [ \"x$1\" != \"x\" ];\nthen MDN=\"$1\";\nelse MDN=\"cn=monitor\";\n fi\n"
 
@@ -3184,7 +3153,7 @@ suffix_gen_conf(FILE* f, char * suffix, char *be_name)
     fprintf(f, "objectclass: nsSlapdPlugin\n"); \
     fprintf(f, "objectclass: extensibleObject\n"); \
     fprintf(f, "cn: %s\n",(_name)); \
-    fprintf(f, "nsslapd-pluginpath: %s/lib/syntax-plugin%s\n", prefix, shared_lib); \
+    fprintf(f, "nsslapd-pluginpath: %s/libsyntax-plugin%s\n", cf->plugin_dir, shared_lib); \
     fprintf(f, "nsslapd-plugininitfunc: %s\n", (_fn)); \
     fprintf(f, "nsslapd-plugintype: syntax\n"); \
     fprintf(f, "nsslapd-pluginenabled: on\n"); \
@@ -3306,7 +3275,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SSHA\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ssha_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3316,7 +3285,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SSHA256\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ssha256_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3326,7 +3295,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SSHA384\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ssha384_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3336,7 +3305,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SSHA512\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ssha512_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3346,7 +3315,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SHA\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: sha_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3356,7 +3325,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SHA256\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: sha256_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3366,7 +3335,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SHA384\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: sha384_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3376,7 +3345,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: SHA512\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: sha512_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3387,7 +3356,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: CRYPT\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: crypt_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3398,7 +3367,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: MD5\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: md5_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3408,7 +3377,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: CLEAR\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: clear_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3418,7 +3387,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "cn: NS-MTA-MD5\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pwdstorage-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpwdstorage-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ns_mta_md5_pwd_storage_scheme_init\n");
     fprintf(f, "nsslapd-plugintype: pwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3429,7 +3398,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: DES\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/des-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libdes-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: des_init\n");
     fprintf(f, "nsslapd-plugintype: reverpwdstoragescheme\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3459,7 +3428,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: State Change Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/statechange-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libstatechange-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: statechange_init\n");
     fprintf(f, "nsslapd-plugintype: postoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3470,7 +3439,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Roles Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/roles-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libroles-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: roles_init\n");
      fprintf(f, "nsslapd-plugintype: postoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3484,7 +3453,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: ACL Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/acl-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libacl-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: acl_init\n");
     fprintf(f, "nsslapd-plugintype: accesscontrol\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3496,7 +3465,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: ACL preoperation\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/acl-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libacl-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: acl_preopInit\n");
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3508,7 +3477,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Legacy Replication Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/replication-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libreplication-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: replication_legacy_plugin_init\n");
     fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3521,7 +3490,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Multimaster Replication Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/replication-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libreplication-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: replication_multimaster_plugin_init\n");
     fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3534,7 +3503,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Retro Changelog Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/retrocl-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libretrocl-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: retrocl_plugin_init\n");
     fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: off\n");
@@ -3548,7 +3517,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Class of Service\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/cos-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libcos-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: cos_init\n");
     fprintf(f, "nsslapd-plugintype: postoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3562,7 +3531,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Views\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/views-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libviews-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: views_init\n");
     fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3579,7 +3548,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: referential integrity postoperation\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/referint-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libreferint-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: referint_postop_init\n");
     fprintf(f, "nsslapd-plugintype: postoperation\n");
     fprintf(f, "nsslapd-pluginenabled: off\n");
@@ -3592,31 +3561,6 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
      fprintf(f, "nsslapd-pluginArg6: seeAlso\n");
     fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
     fprintf(f, "\n");
-/*
-    NT synch is dead as of 5.0
-
-    fprintf(f, "dn: cn=ntSynchService preoperation,cn=plugins,cn=config\n");
-    fprintf(f, "objectclass: top\n");
-    fprintf(f, "objectclass: nsSlapdPlugin\n");
-    fprintf(f, "objectclass: extensibleObject\n");
-    fprintf(f, "cn: ntSynchService preoperation\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/ntsynch-plugin%s\n", prefix, shared_lib);
-    fprintf(f, "nsslapd-plugininitfunc: libntsynch_plugin_preop_init\n");
-    fprintf(f, "nsslapd-plugintype: preoperation\n");
-    fprintf(f, "nsslapd-pluginenabled: on\n");
-    fprintf(f, "\n");
-
-    fprintf(f, "dn: cn=ntSynchService postoperation,cn=plugins,cn=config\n");
-    fprintf(f, "objectclass: top\n");
-    fprintf(f, "objectclass: nsSlapdPlugin\n");
-    fprintf(f, "objectclass: extensibleObject\n");
-    fprintf(f, "cn: ntSynchService postoperation\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/ntsynch-plugin%s\n", prefix, shared_lib);
-    fprintf(f, "nsslapd-plugininitfunc: libntsynch_plugin_postop_init\n");
-    fprintf(f, "nsslapd-plugintype: postoperation\n");
-    fprintf(f, "nsslapd-pluginenabled: on\n");
-    fprintf(f, "\n");
-*/
     if (!cf->use_existing_user_ds) {
         t = cf->suffix;
     } else {
@@ -3632,7 +3576,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: attribute uniqueness\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/attr-unique-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libattr-unique-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: NSUniqueAttr_Init\n");
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: off\n");
@@ -3646,7 +3590,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: 7-bit check\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/attr-unique-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libattr-unique-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: NS7bitAttr_Init\n");
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3665,7 +3609,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Internationalization Plugin\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/liblcoll%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libcollation-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: orderingRule_init\n");
     fprintf(f, "nsslapd-plugintype: matchingRule\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3678,7 +3622,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: HTTP Client\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/http-client-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libhttp-client-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: http_client_init\n");
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3692,7 +3636,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: Presence\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/presence-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpresence-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: presence_init\n");
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3774,7 +3718,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
             fprintf(f, "objectclass: nsSlapdPlugin\n");
             fprintf(f, "objectclass: extensibleObject\n");
             fprintf(f, "cn: Pass Through Authentication\n");
-            fprintf(f, "nsslapd-pluginpath: %s/lib/passthru-plugin%s\n", prefix, shared_lib);
+            fprintf(f, "nsslapd-pluginpath: %s/libpassthru-plugin%s\n", cf->plugin_dir, shared_lib);
             fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
             fprintf(f, "nsslapd-plugintype: preoperation\n");
             fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3791,7 +3735,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
         fprintf(f, "objectclass: nsSlapdPlugin\n");
         fprintf(f, "objectclass: extensibleObject\n");
         fprintf(f, "cn: Pass Through Authentication\n");
-        fprintf(f, "nsslapd-pluginpath: %s/lib/passthru-plugin%s\n", prefix, shared_lib);
+        fprintf(f, "nsslapd-pluginpath: %s/libpassthru-plugin%s\n", cf->plugin_dir, shared_lib);
         fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
         fprintf(f, "nsslapd-plugintype: preoperation\n");
         fprintf(f, "nsslapd-pluginenabled: off\n");
@@ -3808,7 +3752,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "objectclass: pamConfig\n");
     fprintf(f, "cn: PAM Pass Through Auth\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/pam-passthru-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libpam-passthru-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: pam_passthruauth_init\n");
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: off\n");
@@ -3832,7 +3776,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: ldbm database\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/libback-ldbm%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libback-ldbm%s\n", cf->sroot, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ldbm_back_init\n");
     fprintf(f, "nsslapd-plugintype: database\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -3887,7 +3831,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: chaining database\n");
-    fprintf(f, "nsslapd-pluginpath: %s/lib/chainingdb-plugin%s\n", prefix, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libchainingdb-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: chaining_back_init\n");
     fprintf(f, "nsslapd-plugintype: database\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -4024,15 +3968,15 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     create_instance_copy(src, dest, 0600, 0 );
 
     /* install certmap.conf at <configdir> */
-    PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/config/certmap.conf",
-                cf->prefix);
+    PR_snprintf(src, sizeof(src), "%s%c%s%c/config/certmap.conf",
+                cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
     PR_snprintf(dest, sizeof(dest), "%s/certmap.conf", cf->config_dir);
     create_instance_copy(src, dest, 0600, 0 );
 
     /* generate <confdir>/slapd-collations.conf */
-    PR_snprintf(src, sizeof(src),
-                "%s/bin/slapd/install/config/%s-collations.conf",
-                cf->prefix, PRODUCT_NAME);
+    PR_snprintf(src, sizeof(src), "%s%c%s%c/config/%s-collations.conf",
+                cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
+                FILE_PATHSEP, PRODUCT_NAME);
     PR_snprintf(dest, sizeof(dest), "%s%c%s-collations.conf",
             cf->config_dir, FILE_PATHSEP, PRODUCT_NAME);
     if (!(srcf = fopen(src, "r"))) {
@@ -4056,12 +4000,14 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     /*
      * <sysconfdir>/BRAND_DS/schema to schema_dir
      */
-    PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/schema", cf->prefix);
+    PR_snprintf(src, sizeof(src), "%s%c%s%cschema", 
+        cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
     if (NULL != (t = ds_copy_group_files(src, cf->schema_dir, 0)))
         return t;
         
 #if defined (BUILD_PRESENCE)
-    PR_snprintf(src, sizeof(src), "%s/bin/slapd/install/presence", cf->prefix);
+    PR_snprintf(src, sizeof(src), "%s%c%s%c/config/presence",
+                cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
     PR_snprintf(dest, sizeof(dest), "%s/presence", cf->config_dir);
     if (t = ds_copy_group_files(src, dest, 0))
         return t;
@@ -4511,42 +4457,6 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     if ( (t = ds_gen_confs(sroot, cf, cf->inst_dir)) )
         return(t);
 
-    PR_snprintf(src, sizeof(src),
-                "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample.ldif",
-                cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-                FILE_PATHSEP, FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cExample.ldif",
-                cf->ldif_dir, FILE_PATHSEP);
-    create_instance_copy(src, dest, NEWFILE_MODE, 1);
-    chownfile (pw, dest);
-
-    PR_snprintf(src, sizeof(src),
-                "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-roles.ldif",
-                cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-                FILE_PATHSEP, FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cExample-roles.ldif",
-                cf->ldif_dir, FILE_PATHSEP);
-    create_instance_copy(src, dest, NEWFILE_MODE, 1);
-    chownfile (pw, dest);
-
-    PR_snprintf(src, sizeof(src),
-                "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cExample-views.ldif",
-                cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-                FILE_PATHSEP, FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cExample-views.ldif",
-                cf->ldif_dir, FILE_PATHSEP);
-    create_instance_copy(src, dest, NEWFILE_MODE, 1);
-    chownfile (pw, dest);
-
-    PR_snprintf(src, sizeof(src),
-                "%s%cbin%c"PRODUCT_NAME"%cinstall%cldif%cEuropean.ldif",
-                cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-                FILE_PATHSEP, FILE_PATHSEP);
-    PR_snprintf(dest, sizeof(dest), "%s%cEuropean.ldif",
-                cf->ldif_dir, FILE_PATHSEP);
-    create_instance_copy(src, dest, NEWFILE_MODE, 1);
-    chownfile (pw, dest);
-
 #ifdef DSML
     /* new code for dsml sample files */
     PR_snprintf(src, sizeof(src),
@@ -4873,7 +4783,7 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
 /* ------ Parse the results of a form and create a server from them ------- */
 /*
  * FHS description
- * cf->prefix: %{_prefix}
+ * cf->prefix: %{_prefix} 
  * cf->sroot: %{_libdir}/BRAND_DS 
  * cf->localstatedir: %{_localstatedir}
  * cf->sysconfdir: %{_sysconfdir}
@@ -4889,14 +4799,16 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
  * cf->db_dir: <localstatedir>/lib/slapd-<servid>/db
  * cf->bak_dir: <localstatedir>/lib/slapd-<servid>/bak
  * cf->tmp_dir: <localstatedir>/tmp/slapd-<servid>
- * cf->ldif_dir: <datadir>/<brand-ds>/slapd-<servid>
+ * cf->ldif_dir: <datadir>/<brand-ds>/ldif
  * cf->cert_dir: <sysconfdir>/BRAND_DS/slapd-<servid>
+ * cf->plugin_dir: <sroot>/plugins
  *
- * NOTE: If prefix is given, all the other paths start from prefix.
- * NETSITE_ROOT is treated as a secondary prefix.  (If prefix is also set,
- * it's ignored.  If prefix is not set, NETSITE_ROOT becomes prefix.
- * If both are not set, the paths start from '/'.)
- * Therefore, NETSITE_ROOT is not mandatory any more.
+ * NOTES: 
+ *    If prefix is given, all the other paths start from prefix.
+ *    NETSITE_ROOT is treated as a secondary prefix.  (If prefix is also set,
+ *    it's ignored.  If prefix is not set, NETSITE_ROOT becomes prefix.
+ *    If both are not set, the paths start from '/'.)
+ *    Therefore, NETSITE_ROOT is not mandatory any more.
  */
 
 int parse_form(server_config_s *cf)
@@ -4907,18 +4819,10 @@ int parse_form(server_config_s *cf)
     char *cfg_sspt_uid_pw2 = NULL;
     char *temp = NULL;
     char *prefix = NULL;
+    int prefixlen = 0;
     LDAPURLDesc *desc = 0;
 
     cf->brand_ds = BRAND_DS;
-    prefix = getenv("NETSITE_ROOT");
-#if 0
-    if (NULL == temp) {
-        ds_report_error (DS_INCORRECT_USAGE,
-            " NETSITE_ROOT environment variable not set.",
-            "The environment variable NETSITE_ROOT must be set to the server root directory.");
-        return 1;
-    }
-#endif
     if (rm && qs && !strcmp(rm, "GET"))
     {
         ds_get_begin(qs);
@@ -4934,16 +4838,19 @@ int parse_form(server_config_s *cf)
     }
     /* else we are being called from server installation; no output */
 
+    prefix = getenv("NETSITE_ROOT");
     temp = ds_a_get_cgi_var("prefix", NULL, NULL);
     if (NULL != temp) {
         prefix = cf->prefix = PL_strdup(temp);
     } else if (NULL != prefix) {
-        cf->prefix = prefix;
+        cf->prefix = PL_strdup(prefix); /* value of NETSITE_ROOT */
     } else {
-        prefix = cf->prefix = "";
+        prefix = cf->prefix = PL_strdup("/");
     }
-    cf->sroot = PR_smprintf("%s%clib%c%s",
-                            prefix, FILE_PATHSEP, FILE_PATHSEP, cf->brand_ds);
+
+    cf->sroot = PR_smprintf("%s%cusr%clib%c%s",
+                prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, cf->brand_ds);
+    cf->plugin_dir = PR_smprintf("%s%cplugins", cf->sroot, FILE_PATHSEP);
 
     if (!(cf->servname = ds_a_get_cgi_var("servname", "Server Name",
                                           "Please give a hostname for your server.")))

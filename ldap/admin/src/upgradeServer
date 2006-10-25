@@ -204,8 +204,8 @@ sub modify_dse_ldif
     print DSE "nsslapd-pluginType: syntax\n";
     print DSE "nsslapd-pluginEnabled: on\n";
     print DSE "nsslapd-pluginId: oid-syntax\n";
-    print DSE "nsslapd-pluginVersion: 6.2.1\n";
-    print DSE "nsslapd-pluginVendor: Netscape Communications Corp.\n";
+    print DSE "nsslapd-pluginVersion: 1.0.3\n";
+    print DSE "nsslapd-pluginVendor: Fedora Project\n";
     print DSE "nsslapd-pluginDescription: OID attribute syntax plugin\n";
     print DSE "\n";
   }
@@ -222,8 +222,8 @@ sub modify_dse_ldif
     print DSE "nsslapd-pluginType: syntax\n";
     print DSE "nsslapd-pluginEnabled: on\n";
     print DSE "nsslapd-pluginId: jpeg-syntax\n";
-    print DSE "nsslapd-pluginVersion: 6.2.1\n";
-    print DSE "nsslapd-pluginVendor: Netscape Communications Corp.\n";
+    print DSE "nsslapd-pluginVersion: 1.0.3\n";
+    print DSE "nsslapd-pluginVendor: Fedora Project\n";
     print DSE "nsslapd-pluginDescription: JPEG attribute syntax plugin\n";
     print DSE "\n";
   }
@@ -240,8 +240,8 @@ sub modify_dse_ldif
     print DSE "nsslapd-pluginType: syntax\n";
     print DSE "nsslapd-pluginEnabled: on\n";
     print DSE "nsslapd-pluginId: spaceinsensitivestring-syntax\n";
-    print DSE "nsslapd-pluginVersion: 6.2.1\n";
-    print DSE "nsslapd-pluginVendor: Netscape Communications Corp.\n";
+    print DSE "nsslapd-pluginVersion: 1.0.3\n";
+    print DSE "nsslapd-pluginVendor: Fedora Project\n";
     print DSE "nsslapd-pluginDescription: space insensitive string attribute syntax plugin\n";
     print DSE "\n";
   }

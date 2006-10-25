@@ -254,12 +254,12 @@ else
 endif
 
 # we need to package the root cert file in the alias directory
-PACKAGE_SRC_DEST += $(SECURITY_LIBPATH)/$(LIB_PREFIX)nssckbi.$(DLL_SUFFIX) alias
+PACKAGE_SRC_DEST += $(SECURITY_LIBPATH)/$(LIB_PREFIX)nssckbi.$(DLL_SUFFIX) etc/$(DS_BRAND)-ds
 
 # the security tools are wrapped with shell scripts so that the correct ld libpath can be set
 # so, when we package them, we rename them with a -bin extension e.g. certutil -> shared/bin/certutil-bin
 # the actual certutil will be an executable shell script that points to certutil-bin
-PACKAGE_SRC_DESTFILE += $(foreach prog,$(SECURITY_TOOLS),$(SECURITY_BINPATH)/$(prog)$(SPACE)shared/bin/$(prog)-bin)
+PACKAGE_SRC_DESTFILE += $(foreach prog,$(SECURITY_TOOLS),$(SECURITY_BINPATH)/$(prog)$(SPACE)usr/bin/$(prog)-bin)
 
 ### SECURITY END #############################
 
@@ -312,9 +312,10 @@ LDAPSDK_INCLUDE = -I$(LDAPSDK_INCDIR)
 LDAPSDK_TOOLS = $(wildcard $(LDAPSDK_BINPATH)/ldap*$(EXE_SUFFIX))
 BINS_TO_PKG_SHARED += $(LDAPSDK_TOOLS)
 # package the include files - needed for the plugin API
-LDAPSDK_INCLUDE_FILES = $(wildcard $(LDAPSDK_INCDIR)/*.h)
-PACKAGE_SRC_DEST += $(subst $(SPACE),$(SPACE)plugins/slapd/slapi/include$(SPACE),$(LDAPSDK_INCLUDE_FILES))
-PACKAGE_SRC_DEST += plugins/slapd/slapi/include
+#LDAPSDK_INCLUDE_FILES = $(wildcard $(LDAPSDK_INCDIR)/*.h)
+#PACKAGE_SRC_DEST += $(subst $(SPACE),$(SPACE)usr/share/$(DS_BRAND)-ds/plugins/slapi/include$(SPACE),$(LDAPSDK_INCLUDE_FILES))
+# _datadir/brand_ds/plugins/slapi/include
+#PACKAGE_SRC_DEST += usr/share/$(DS_BRAND)-ds/plugins/slapi/include
 
 ifeq ($(ARCH), WINNT)
   LDAP_LIBNAMES = ldapssl32v$(LDAP_SUF) ldap32v$(LDAP_SUF) ldappr32v$(LDAP_SUF)
@@ -519,7 +520,7 @@ else	# not WINNT
 endif	# not WINNT
 
 # libdb only needs to be in the server directory since only the server uses it
-PACKAGE_SRC_DEST += $(wildcard $(DB_LIBPATH)/*.$(DLL_SUFFIX)) bin/slapd/server
+PACKAGE_SRC_DEST += $(wildcard $(DB_LIBPATH)/*.$(DLL_SUFFIX)) usr/lib/$(DS_BRAND)-ds
 
 ### DB component (Berkeley DB) ############################
 
@@ -638,9 +639,9 @@ ifdef PERLDAP_SOURCE_ROOT
   PERLDAP_LIB_DIR = $(PERLDAP_BUILT_DIR)/lib/Mozilla
   PERLDAP_AUTOLIB_DIR = $(PERLDAP_BUILT_DIR)/lib/auto
   # under the serverroot/lib directory, we should have a perl directory which contains arch/, auto/, and Mozilla/
-  PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) lib/perl
-  PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) lib/perl
-  PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_ARCHLIB_DIR) usr/lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_LIB_DIR) usr/lib/perl
+  PACKAGE_SRC_DEST += $(PERLDAP_AUTOLIB_DIR) usr/lib/perl
 endif
 
 

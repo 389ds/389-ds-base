@@ -45,7 +45,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libroles
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 ifndef INSTDIR
 INSTDIR = c:/netscape/server4/
 endif
@@ -61,7 +61,7 @@ endif
 ROLES_OBJS = roles_plugin.o roles_cache.o
 OBJS = $(addprefix $(OBJDEST)/, $(ROLES_OBJS)) 
 
-ROLES_DLL = roles-plugin
+ROLES_DLL = libroles-plugin
 
 INCLUDES += -I../../slapd  -I../../../include
 CFLAGS+=$(SLCFLAGS) -DSLAPD_LOGGING

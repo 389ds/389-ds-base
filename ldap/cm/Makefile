@@ -246,10 +246,8 @@ DS_JAR_SRC_PATH = $(NSDIST)/$(BUILD_DEBUG)
 # web services files that are Apache or Java licensed - we cannot put them
 # in the same rpm/tarball as the directory server, so we create a separate
 # package for them, using the below macro as the staging area
-#EXT_JAVA_RELDIR = $(BUILD_ROOT)/built/release/extjava
 # actually, we can - GPL is compatible with APL in this situation
 EXT_JAVA_RELDIR = $(RELDIR)
-DS_JAR_DEST_PATH = java/jars
 XMLTOOLS_JAR_FILE = xmltools.jar
 
 UNZIP=unzip -o
@@ -306,73 +304,73 @@ dummy:
 importAdmin:
 
 releaseDirectory:
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/bin/slapd/install/schema
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/slapd-collations.conf $(RELDIR)/bin/slapd/install/config
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/$(DS_LDIFDIR)
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/*.ldif $(RELDIR)/$(DS_SCHEMADIR)
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/schema/slapd-collations.conf $(RELDIR)/$(DS_CONFIGDIR)
 
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/lib/ldaputil/certmap.conf $(RELDIR)/bin/slapd/install/config
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/lib/ldaputil/certmap.conf $(RELDIR)/$(DS_CONFIGDIR)
 
 # the httpd library
 ifneq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/bin/slapd/lib
+	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/$(DS_LIBDIR)
 endif
 
 # Images for IM Presence plugin
 ifdef BUILD_PRESENCE
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/bin/slapd/install/presence
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/presence/images/*.gif $(RELDIR)/$(DS_CONFIGDIR)/presence
 endif
 
 ifdef USE_PURIFY
-	-$(INSTALL) -m 755 $(DB_LIBPATH)/*.so_pure* $(RELDIR)/lib
-	-$(INSTALL) -m 755 $(NSCP_DISTDIR)/lib/*.so_pure* $(RELDIR)/lib
-	rm -f $(RELDIR)/bin/slapd/server/ns-slapd
-	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.pure $(RELDIR)/bin/slapd/server/ns-slapd
+	-$(INSTALL) -m 755 $(DB_LIBPATH)/*.so_pure* $(DS_LIBDIR)
+	-$(INSTALL) -m 755 $(NSCP_DISTDIR)/lib/*.so_pure* $(DS_LIBDIR)
+	rm -f $(RELDIR)/$(DS_LIBDIR)/ns-slapd
+	mv -f $(RELDIR)/$(DS_LIBDIR)/ns-slapd.pure $(RELDIR)/$(DS_LIBDIR)/ns-slapd
 endif
 ifdef USE_QUANTIFY
-	rm -f $(RELDIR)/bin/slapd/server/ns-slapd
-	mv -f $(RELDIR)/bin/slapd/server/ns-slapd.quantify $(RELDIR)/bin/slapd/server/ns-slapd
+	rm -f $(RELDIR)/$(DS_LIBDIR)/ns-slapd
+	mv -f $(RELDIR)/$(DS_LIBDIR)/ns-slapd.quantify $(RELDIR)/$(DS_LIBDIR)/ns-slapd
 endif
 
-	$(INSTALL) -m 755 $(OBJDIR)/lib/libsi18n/ns-slapd.properties $(RELDIR)/bin/slapd/property;
+	$(INSTALL) -m 755 $(OBJDIR)/lib/libsi18n/ns-slapd.properties $(RELDIR)/$(DS_PROPERTYDIR)
 
 # Install LDAP Readme and License files at root of SLAPD Release sub-directory.
 ifeq ($(ARCH), WINNT)
 	if [ -d $(LDAPDIR)/docs ] ; then \
 		cd $(LDAPDIR)/docs; \
-		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR)/bin/slapd; \
+		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR)/$(DS_ETCDIR); \
 		perl $(NT_RELTOOLS)/unx2dos.plx WINNT LICENSE.txt $(RELDIR); \
-		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR)/bin/slapd; \
+		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR)/$(DS_ETCDIR); \
 		perl $(NT_RELTOOLS)/unx2dos.plx WINNT README.txt $(RELDIR); \
 	fi
 else
 	if [ -d $(LDAPDIR)/docs ] ; then \
 		cd $(LDAPDIR)/docs; \
-		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR)/bin/slapd; \
+		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR)/$(DS_ETCDIR); \
 		$(INSTALL) -m 755 README.txt LICENSE.txt $(RELDIR); \
 	fi
 endif
 
 # include the old configuration files in the package so we can use them
 # for comparison purposes during migration
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v1confs/*.* $(RELDIR)/bin/slapd/install/version1
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v3confs/*.* $(RELDIR)/bin/slapd/install/version3
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/40/*.*  $(RELDIR)/bin/slapd/install/version4/40
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/41/*.*  $(RELDIR)/bin/slapd/install/version4/41
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/411/*.* $(RELDIR)/bin/slapd/install/version4/411
-	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/412/*.* $(RELDIR)/bin/slapd/install/version4/412
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v1confs/*.* $(RELDIR)/$(DS_LEGACYSCHEMADIR)/version1
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v3confs/*.* $(RELDIR)/$(DS_LEGACYSCHEMADIR)/version3
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/40/*.*  $(RELDIR)/$(DS_LEGACYSCHEMADIR)/version4/40
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/41/*.*  $(RELDIR)/$(DS_LEGACYSCHEMADIR)/version4/41
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/411/*.* $(RELDIR)/$(DS_LEGACYSCHEMADIR)/version4/411
+	$(INSTALL) -m 444 $(LDAPDIR)/cm/v4confs/412/*.* $(RELDIR)/$(DS_LEGACYSCHEMADIR)/version4/412
 
 # for RPM, include the post install setup program
 ifdef BUILD_RPM
-	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/setup
+	$(INSTALL) -m 755 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/cm/newinst/setup $(RELDIR)/$(DS_SETUPDIR)
 endif # BUILD_RPM
 
 	find $(RELDIR) -exec chmod go-w {} \;
-# $(RELDIR)/bin/slapd/server may host a core file if the server crashes
+# $(RELDIR)/$(DS_LIBDIR) may host a core file if the server crashes
 # shortly after startup (otherwise, cores go in slapd-instance/logs)
 # For security reasons, it's readable only by the owner
 # but it needs to be executable (11) so that it can
 # load in shared libs from slapd/lib after the setuid
-	chmod 711 $(RELDIR)/bin/slapd/server
+	chmod 711 $(RELDIR)/$(DS_LIBDIR)
 
 $(INSTDIR):
 	$(MKDIR) -p $@
@@ -394,41 +392,49 @@ packageDirectory: $(INSTDIR) $(INSTDIR)/slapd \
 # with the other component files that we don't necessarily pick up from the admin server build
 # see below for windows packaging
 ifneq ($(ARCH), WINNT)
+###############################################################################
+### THIS INSTALLATION SHOULD GO AWAY, WHEN LIBS_TO_PKG BECOME SYSTEM LIB: BEGIN
+###############################################################################
 	for file in $(LIBS_TO_PKG) ; \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/bin/slapd/lib ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_LIBDIR) ; \
 	fi ; \
 	done
-# these are files to copy to the shared/bin directory - ldap cmd line tools, sec tools, etc.
+# these are files to copy to the bin directory - ldap cmd line tools, sec tools, etc.
 	for file in $(BINS_TO_PKG_SHARED); \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/shared/bin ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(CORE_BINDIR) ; \
 	fi ; \
 	done
-# these are files to copy to the shared/lib directory - ldap cmd line tools, sec tools, etc.
+# these are files to copy to the lib directory - ldap cmd line tools, sec tools, etc.
 	for file in $(LIBS_TO_PKG_SHARED); \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/shared/lib ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(CORE_LIBDIR) ; \
 	fi ; \
 	done
-# these are libs to copy to clients/lib on unix to support dsgw & pb
+#############################################################################
+### THIS INSTALLATION SHOULD GO AWAY, WHEN LIBS_TO_PKG BECOME SYSTEM LIB: END
+#############################################################################
+# these are libs to copy to lib on unix to support dsgw & pb
 ifeq ($(USE_DSGW), 1)
 	for file in $(LIBS_TO_PKG_CLIENTS); \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/clients/lib ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(CORE_LIBDIR) ; \
 	fi ; \
 	done
 # the httpd library
-	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/clients/lib
+	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/$(CORE_LIBDIR)
 endif # USE_DSGW
-ifeq ($(PACKAGE_LIB32), 1)
-# these are files to copy to the shared32/lib directory - nspr, nss, ldapsdk lib
-	for file in $(LIBS_TO_PKG_SHARED_32); \
-	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/shared32/lib ; \
-	fi ; \
-	done
-endif
+## We don't need this any more, do we?
+#ifeq ($(PACKAGE_LIB32), 1)
+## these are files to copy to the shared32/lib directory - nspr, nss, ldapsdk lib
+#	for file in $(LIBS_TO_PKG_SHARED_32); \
+#	do if [ -f $$file ] ; \
+#	then $(INSTALL) -m 755 $$file $(RELDIR)/shared32/lib ; \
+#	fi ; \
+#	done
+#endif
+## We don't need this any more, do we?
 endif
 
 # PACKAGE_SRC_DEST is defined in components.mk - these are component files and directories to install
@@ -467,34 +473,33 @@ endif
 # web-app_2_3.dtd, activation.jar, saaj.jar - due to Sun license
 # jaxrpc-api.jar, jaxrpc.jar, xercesImpl.jar, xml-apis.jar, crimson.jar - due to Apache license
 ifeq ($(USE_DSMLGW), 1)
-	$(MKDIR) $(RELDIR)/clients/dsmlgw
-	$(MKDIR) $(EXT_JAVA_RELDIR)/clients/dsmlgw
+	$(MKDIR) $(RELDIR)/$(DS_DSMLGWDIR)
 	if [ -d $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis ] ; then \
-		$(CP) -R $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis/*  $(EXT_JAVA_RELDIR)/clients/dsmlgw/ ; \
+		$(CP) -R $(DSMLGWJARS_BUILD_DIR)/$(AXIS_REL_DIR)/webapps/axis/*  $(RELDIR)/$(DS_DSMLGWDIR) ; \
 	fi
 
-	$(INSTALL) -m 644 $(NSDIST)/dsmlgw/dsmlgw.jar $(RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/server-config.wsdd $(RELDIR)/clients/dsmlgw/WEB-INF
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(EXT_JAVA_RELDIR)/clients/dsmlgw/
+	$(INSTALL) -m 644 $(NSDIST)/dsmlgw/dsmlgw.jar $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/server-config.wsdd $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/clients/dsmlgw/misc/web-app_2_3.dtd $(RELDIR)/$(DS_DSMLGWDIR)/
 
 # now time to move the necessary jars in place
-	$(INSTALL) -m 644 $(LDAPJARFILE)  $(RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(LDAPJARFILE)  $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib
 	if [ -f $(DSMLGWJARS_BUILD_DIR)/jaf.jar ] ; then \
-		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaf.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaf.jar  $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib ; \
 	else \
-		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/activation.jar  $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib ; \
 	fi
 # if you use the jaxrpc.jar from the axis distribution, you don't need the api file
 # or perhaps you need the jaxrpc.jar for building, and jaxrpc-api.jar at runtime, or vice versa
 # if so, I'm not sure where to get the implementation
 	if [ -f $(DSMLGWJARS_BUILD_DIR)/jaxrpc-api.jar ] ; then \
-		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc-api.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib ; \
+		$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc-api.jar  $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib ; \
 	fi
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jaxrpc.jar  $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib
 	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/saaj.jar  $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xercesImpl.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xml-apis.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
-	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jakarta-commons-codec.jar $(EXT_JAVA_RELDIR)/clients/dsmlgw/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xercesImpl.jar $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/xml-apis.jar $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib
+	$(INSTALL) -m 644 $(DSMLGWJARS_BUILD_DIR)/jakarta-commons-codec.jar $(RELDIR)/$(DS_DSMLGWDIR)/WEB-INF/lib
 endif # USE_DSMLGW
 
 # PACKAGE_UNDER_JAVA is defined in components.mk - these are component .jar files to install
@@ -503,12 +508,12 @@ endif # USE_DSMLGW
 ifdef PACKAGE_UNDER_JAVA
 	for file in $(PACKAGE_UNDER_JAVA) ; \
 		do if [ -f $$file ] ; \
-		then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
+		then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_JAVADIR) ; \
 	fi ; \
 	done
 endif
 
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/dsml/*.dsml $(RELDIR)/bin/slapd/install/dsml
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/dsml/*.dsml $(RELDIR)/$(DS_DSMLGWDIR)
 
 ### Package up the orgchart ###
 ifeq ($(USE_ORGCHART), 1)
@@ -532,114 +537,116 @@ endif # USE_ORGCHART
 
 # libdb for windows special and smartheap
 ifeq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(DB_LIBPATH)/$(DB_LIBNAME).$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
-	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
+    ### THIS INSTALLATION SHOULD GO AWAY, WHEN LIBS_TO_PKG BECOME SYSTEM LIB
+	$(INSTALL) -m 755 $(DB_LIBPATH)/$(DB_LIBNAME).$(DLL_SUFFIX) $(RELDIR)/$(DS_LIBDIR)
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)  $(RELDIR)/$(DS_LIBDIR)
 #Install smartheap dll in the server binary directory
 ifeq ($(DEBUG), optimize)
-	$(INSTALL) -m 755 $(SH_LIBPATH)/shsmp.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
-	$(INSTALL) -m 755 $(SH_LIBPATH)/shsmp.$(DLL_SUFFIX)  $(RELDIR)/lib
+	$(INSTALL) -m 755 $(SH_LIBPATH)/shsmp.$(DLL_SUFFIX)  $(RELDIR)/$(DS_LIBDIR)
 endif
-endif
+endif # WINNT
 
 ifeq ($(ARCH), SOLARIS)
 ifndef LDAP_DONT_USE_SMARTHEAP
-	$(INSTALL) -m 755 $(SH_LIBPATH)/libsh.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
+    ### THIS INSTALLATION SHOULD GO AWAY, WHEN LIBS_TO_PKG BECOME SYSTEM LIB
+    ### BUT WE DON'T NEED THIS ANY MORE, DO WE?
+	$(INSTALL) -m 755 $(SH_LIBPATH)/libsh.$(DLL_SUFFIX)  $(RELDIR)/$(DS_LIBDIR)
 endif
 endif
 
 ifeq ($(ARCH), HPUX)
 ifeq ($(DEBUG), optimize)
 ifndef LDAP_DONT_USE_SMARTHEAP
-	$(INSTALL) -m 755 $(SH_LIBPATH)/libsh.$(DLL_SUFFIX)  $(RELDIR)/bin/slapd/server
+    ### DO WE STILL NEED THIS???
+	$(INSTALL) -m 755 $(SH_LIBPATH)/libsh.$(DLL_SUFFIX)  $(RELDIR)/$(DS_LIBDIR)
 endif
 endif
 endif
 
 # if not Linux, we need package sasl library and supported plugins
 ifneq ($(ARCH), Linux)
-	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)* $(RELDIR)/lib
-	-mkdir $(RELDIR)/lib/sasl2
-	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libdigestmd5.$(DLL_SUFFIX)* $(RELDIR)/lib/sasl2
-	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libgssapiv2.$(DLL_SUFFIX)* $(RELDIR)/lib/sasl2
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)* $(DS_LIBDIR)
+	-mkdir $(DS_LIBDIR)/sasl2
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libdigestmd5.$(DLL_SUFFIX)* $(DS_LIBDIR)/sasl2
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libgssapiv2.$(DLL_SUFFIX)* $(DS_LIBDIR)/sasl2
 endif
 
 # the plugin API
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin.h $(RELDIR)/plugins/slapd/slapi/include
-	$(INSTALL) -m 644 $(NSPR_INCDIR)/*.h $(RELDIR)/plugins/slapd/slapi/include
-	$(INSTALL) -m 644 $(NSPR_INCDIR)/obsolete/*.h $(RELDIR)/plugins/slapd/slapi/include/obsolete
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin-compat4.h $(RELDIR)/plugins/slapd/slapi/include
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin.h $(RELDIR)/$(DS_PLUGINDIR)/include
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/slapi-plugin-compat4.h $(RELDIR)/$(DS_PLUGINDIR)/include
 #	if [ -f $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/docs/plugin/README ] ; \
 #	then $(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/docs/plugin/README $(RELDIR)/plugins/slapd ; \
 #	fi
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/*.c $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/*.h $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(DB_INCLUDE)/db.h $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/README $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/clients/*.* $(RELDIR)/plugins/slapd/slapi/examples/clients
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/clients/README $(RELDIR)/plugins/slapd/slapi/examples/clients
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/*.c $(RELDIR)/plugins/slapd/slapi/examples/distrib
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/README $(RELDIR)/plugins/slapd/slapi/examples/distrib
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples
-	$(MV) $(RELDIR)/plugins/slapd/slapi/examples/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples/Makefile
-	$(CP) $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/Makefile.$(MAKEARCH) $(RELDIR)/plugins/slapd/slapi/examples/distrib/Makefile
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/*.c $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/*.h $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(DB_INCLUDE)/db.h $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/README $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/clients/*.* $(RELDIR)/$(DS_PLUGINDIR)/examples/clients
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/clients/README $(RELDIR)/$(DS_PLUGINDIR)/examples/clients
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/*.c $(RELDIR)/$(DS_PLUGINDIR)/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/README $(RELDIR)/$(DS_PLUGINDIR)/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/Makefile.$(MAKEARCH) $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(MV) $(RELDIR)/$(DS_PLUGINDIR)/examples/Makefile.$(MAKEARCH) $(RELDIR)/$(DS_PLUGINDIR)/examples/Makefile
+	$(CP) $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/Makefile.$(MAKEARCH) $(RELDIR)/$(DS_PLUGINDIR)/examples/distrib/Makefile
 ifeq ($(ARCH), WINNT)
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.mak $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.def $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.dsp $(RELDIR)/plugins/slapd/slapi/examples
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/distrib.dsp $(RELDIR)/plugins/slapd/slapi/examples/distrib
-	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/libdistrib.def $(RELDIR)/plugins/slapd/slapi/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.mak $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.def $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/slapd/test-plugins/testplugin.dsp $(RELDIR)/$(DS_PLUGINDIR)/examples
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/distrib.dsp $(RELDIR)/$(DS_PLUGINDIR)/examples/distrib
+	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/servers/plugins/distrib/libdistrib.def $(RELDIR)/$(DS_PLUGINDIR)/examples/distrib
 endif
 ifeq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(LIBSLAPD) $(RELDIR)/plugins/slapd/slapi/lib
-	$(INSTALL) -m 755 $(NSPR_LIBPATH)/*.lib $(RELDIR)/plugins/slapd/slapi/lib
+	$(INSTALL) -m 755 $(LIBSLAPD) $(RELDIR)/$(DS_PLUGINDIR)/lib
+	$(INSTALL) -m 755 $(NSPR_LIBPATH)/*.lib $(RELDIR)/$(DS_PLUGINDIR)/lib
 # needed only for testdatainterop plugin in the plugins examples
-	mkdir -p $(RELDIR)/plugins/slapd/slapi/examples/lib
-	$(INSTALL) -m 755 $(DB_LIBPATH)/$(DB_LIBNAME).lib $(RELDIR)/plugins/slapd/slapi/examples/lib
+	mkdir -p $(RELDIR)/$(DS_PLUGINDIR)/examples/lib
+	$(INSTALL) -m 755 $(DB_LIBPATH)/$(DB_LIBNAME).lib $(RELDIR)/$(DS_PLUGINDIR)/examples/lib
 endif
 
-# install the ds jar file in the <server root>/$(DS_JAR_DEST_PATH) directory
+# install the ds jar file in the <server root>/$(DS_CONSOLEDIR) directory
 # also install the other jar files we use
 ifeq ($(USE_CONSOLE), 1)
-	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR) $(RELDIR)/$(DS_CONSOLEDIR)
+	$(INSTALL) -m 644 $(LDAPCONSOLE_DIR)/$(LDAPCONSOLEJAR_EN) $(RELDIR)/$(DS_CONSOLEDIR)
   ifneq ($(ARCH), WINNT)
-	-(cd $(RELDIR)/$(DS_JAR_DEST_PATH); ln -s $(LDAPCONSOLEJAR_EN) $(LDAPCONSOLEGENJAR_EN))
-	-(cd $(RELDIR)/$(DS_JAR_DEST_PATH); ln -s $(LDAPCONSOLEJAR) $(LDAPCONSOLEGENJAR))
+	-(cd $(RELDIR)/$(DS_CONSOLEDIR); ln -s $(LDAPCONSOLEJAR_EN) $(LDAPCONSOLEGENJAR_EN))
+	-(cd $(RELDIR)/$(DS_CONSOLEDIR); ln -s $(LDAPCONSOLEJAR) $(LDAPCONSOLEGENJAR))
   endif
 endif
 ifeq ($(USE_JAVATOOLS), 1)
-	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
-	$(INSTALL) -m 644 $(CRIMSONJAR_FILE) $(EXT_JAVA_RELDIR)/$(DS_JAR_DEST_PATH)
+	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_CONSOLEDIR)
+	$(INSTALL) -m 644 $(CRIMSONJAR_FILE) $(EXT_JAVA_RELDIR)/$(DS_CONSOLEDIR)
 	if [ -f $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) ] ; then \
-		$(INSTALL) -m 644 $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) $(EXT_JAVA_RELDIR)/$(DS_JAR_DEST_PATH) ; \
+		$(INSTALL) -m 644 $(CRIMSON_BUILD_DIR)/$(CRIMSON_LICENSE) $(EXT_JAVA_RELDIR)/$(DS_CONSOLEDIR) ; \
 	fi
 endif
 
 # docs
-	-$(RM) -r $(RELDIR)/manual/en/slapd
-	-$(MKDIR) $(RELDIR)/manual/en/slapd
+	-$(RM) -r $(RELDIR)/$(DS_DOCDIR)/en/slapd
+	-$(MKDIR) $(RELDIR)/$(DS_DOCDIR)/en/slapd
 # copy over the manual files built in our build tree
 	if [ -d "$(OBJDIR)/manual/slapd" ] ; then \
-	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/manual/en/slapd/help ; \
-	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/manual/en/slapd/ ; \
-	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/manual/en/slapd/ ; \
-	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/pixel.gif $(RELDIR)/manual/en/slapd/ ; \
-	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/topicindex.htm $(RELDIR)/manual/en/slapd/ ; \
-	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/tokens.map $(RELDIR)/manual/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/help/*.* $(RELDIR)/$(DS_DOCDIR)/en/slapd/help ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.map $(RELDIR)/$(DS_DOCDIR)/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/index.htm $(RELDIR)/$(DS_DOCDIR)/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/pixel.gif $(RELDIR)/$(DS_DOCDIR)/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/topicindex.htm $(RELDIR)/$(DS_DOCDIR)/en/slapd/ ; \
+	  $(INSTALL) -m 644 $(OBJDIR)/manual/slapd/tokens.map $(RELDIR)/$(DS_DOCDIR)/en/slapd/ ; \
     fi
 # copy the manual files from the zip files or checked out directory
 	if [ "$(DSDOC_DIR)" -a -d "$(DSDOC_DIR)" ] ; then \
       if [ -f $(DSDOC_DIR)/$(DSDOC_COPYRIGHT) ] ; then \
-	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT) -d $(RELDIR)/manual/en/slapd ; \
-	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS) -d $(RELDIR)/manual/en/slapd ; \
+	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_COPYRIGHT) -d $(RELDIR)/$(DS_DOCDIR)/en/slapd ; \
+	    $(UNZIP) $(DSDOC_DIR)/$(DSDOC_CLIENTS) -d $(RELDIR)/$(DS_DOCDIR)/en/slapd ; \
       else \
-        cp -r $(DSDOC_DIR) $(RELDIR)/manual/en/slapd ; \
+        cp -r $(DSDOC_DIR) $(RELDIR)/$(DS_DOCDIR)/en/slapd ; \
       fi ; \
 	fi
 
 # Copy db tools 
-	$(INSTALL) -m 755 $(DB_BINPATH)/db_printlog$(EXE_SUFFIX) $(RELDIR)/bin/slapd/server
-	$(INSTALL) -m 755 $(DB_BINPATH)/db_verify$(EXE_SUFFIX) $(RELDIR)/bin/slapd/server
+### THIS INSTALLATION SHOULD GO AWAY, WHEN LIBS_TO_PKG BECOME SYSTEM LIB
+	$(INSTALL) -m 755 $(DB_BINPATH)/db_printlog$(EXE_SUFFIX) $(RELDIR)/$(DS_LIBDIR)
+	$(INSTALL) -m 755 $(DB_BINPATH)/db_verify$(EXE_SUFFIX) $(RELDIR)/$(DS_LIBDIR)
 
 # this gets setup, setup.inf, silent.inf, the zip wrapper, and svrcore, among others
 ifeq ($(USE_SETUPUTIL), 1)
@@ -714,7 +721,7 @@ else
 endif
 endif # USE_CONSOLE
 #; for file in $(LDAPSDK_IMPORTS) ; \
-#	do $(ZIP) $(ZIP_FLAGS) -g $(INSTDIR)/slapd/slapd-client.zip bin/slapd/server/$$file$(DOTEXE) ; \
+#	do $(ZIP) $(ZIP_FLAGS) -g $(INSTDIR)/slapd/slapd-client.zip $(DS_LIBDIR)/$$file$(DOTEXE) ; \
 #	done
 
 ifeq ($(USE_SETUPUTIL), 1)
@@ -784,7 +791,7 @@ endif
 	fi
 
 # Install dsktune at root of Installation
-	cp $(RELDIR)/bin/slapd/server/dsktune $(INSTDIR)
+	cp $(RELDIR)/$(DS_LIBDIR)/dsktune $(INSTDIR)
 
 ifeq ($(USE_SETUPUTIL), 1)
 ifndef NO_INSTALLER_TAR_FILES
@@ -1020,24 +1027,23 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.z:
 # see components.mk for a description of LIBS_TO_PKG
 	-@for file in $(LIBS_TO_PKG) ; \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/bin/slapd/server ; \
-	     $(INSTALL) -m 755 $$file $(RELDIR)/bin/slapd/admin/bin ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_LIBDIR) ; \
 	fi ; \
 	done
-# these are files to copy to the shared/bin directory - ldap cmd line tools, sec tools, etc.
+# these are files to copy to the bin directory - ldap cmd line tools, sec tools, etc.
 	for file in $(BINS_TO_PKG_SHARED) $(LIBS_TO_PKG_SHARED); \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/shared/bin ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(CORE_BINDIR) ; \
 	fi ; \
 	done
 # these are dlls to copy to the clients/dsgw/bin directory to support dsgw & pb
 	for file in $(LIBS_TO_PKG_CLIENTS); \
 	do if [ -f $$file ] ; \
-	then $(INSTALL) -m 755 $$file $(RELDIR)/clients/dsgw/bin ; \
+	then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_DSGWDIR) ; \
 	fi ; \
 	done
-	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/bin/slapd/server
-	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/clients/dsgw/bin
+	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/$(DS_LIBDIR)
+	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/$(DS_DSGWDIR)
 	rm -f $(SLAPD_ZIPFILE); cd $(RELDIR); zip -r $(SLAPD_ZIPFILE) *
 
 #----------------------------- setup rules ---------------------------------------------------

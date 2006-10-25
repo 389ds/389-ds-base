@@ -44,8 +44,8 @@ NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
-OBJDEST= $(OBJDIR)/lib/liblcoll
-LIBDIR= $(LIB_RELDIR)
+OBJDEST= $(OBJDIR)/lib/libcollation-plugin
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk

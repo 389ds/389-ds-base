@@ -392,9 +392,12 @@ else
 
 debug("Running ** $cmd ** $operation\n");
 
-$dsbinroot="$prefix{{SEP}}shared{{SEP}}bin";
-$ldapsearch="$dsbinroot{{SEP}}ldapsearch -1";
-$ldapmodify="$dsbinroot{{SEP}}ldapmodify";
+$ENV{'PATH'} = '$prefix/usr/lib/mozldap6:$prefix/usr/lib:/usr/lib/mozldap6:/usr/lib';
+$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+
+$ldapsearch="ldapsearch -1";
+$ldapmodify="ldapmodify";
  
 # Default values
 $defrootdn= "{{ROOT-DN}}";
@@ -411,8 +414,6 @@ $entry= "";
 
 $single=0;
 $role=0;
-
-chdir("$dsbinroot");
 
 # Process the command line arguments
 while( $arg = shift)

@@ -44,7 +44,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libhttpclient
-LIBDIR = $(LIB_RELDIR)
+LIBDIR = $(LDAP_PLUGIN_RELDIR)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
@@ -58,7 +58,7 @@ HTTP_OBJS =	http_client.o http_impl.o
 
 OBJS = $(addprefix $(OBJDEST)/, $(HTTP_OBJS)) 
 
-HTTP_DLL = http-client-plugin
+HTTP_DLL = libhttp-client-plugin
 
 INCLUDES += -I../../slapd  -I../../../include
 

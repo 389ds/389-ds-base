@@ -745,7 +745,7 @@ static void usage(char *argv0)
     printf("    -r              display the conents of idl\n");
     printf("    -s              Summary of index counts\n");
     printf("  sample usages:\n");
-    printf("    # set <serverroot>/bin/slapd/server:<serverroot>/shared/lib in the library path\n");
+    printf("    # set <prefix>/usr/lib/<brand-ds>:<prefix>/usr/lib:/usr/lib in the library path\n");
     printf("    # dump the entry file\n");
     printf("    %s -f id2entry.db\n", argv0);
     printf("    # display index keys in cn.db4\n");

@@ -94,7 +94,6 @@ $genuniqid = "time";
 $uniqidname = "";
 $taskname = "";
 $prefix = "{{DS-ROOT}}";
-$mydsroot = "{{MY-DS-ROOT}}";
 $verbose = 0;
 $rootdn = "";
 $passwd = "";
@@ -219,7 +218,9 @@ if ($uniqidname ne "") { $nsuniqidname = "nsUniqueIdGeneratorNamespace: ${uniqid
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-chdir("$prefix{{SEP}}shared{{SEP}}bin");
-open(FOO, "| $prefix{{SEP}}shared{{SEP}}bin{{SEP}}ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+$ENV{'PATH'} = '$prefix/usr/lib/mozldap6:$prefix/usr/lib:/usr/lib/mozldap6:/usr/lib';
+$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+open(FOO, "| ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);
