@@ -50,6 +50,8 @@ AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
   fi
 ],
 AC_MSG_RESULT(no))
+dnl default path for the db tools (see [210947] for more details)
+db_bindir=/usr/bin
 
 dnl - check in system locations
 if test -z "$db_inc"; then

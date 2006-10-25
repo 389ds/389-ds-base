@@ -114,9 +114,9 @@ my $dbdirs = getDbDir(".");
 my $brand_ds = {{DS-BRAND}};
 my $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = '$prefix/usr/bin:$prefix/usr/lib:/usr/bin:/usr/lib';
-$ENV{'LD_LIBRARY_PATH'} = ':/usr/lib';
-$ENV{'SHLIB_PATH'} = ':/usr/lib';
+$ENV{'PATH'} = '$prefix@db_bindir@:$prefix/usr/lib:@db_bindir@:/usr/lib';
+$ENV{'LD_LIBRARY_PATH'} = '@db_libdir@:/usr/lib';
+$ENV{'SHLIB_PATH'} = '@db_libdir@:/usr/lib';
 
 for (my $i = 0; $i < @$dbdirs; $i++)
 {

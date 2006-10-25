@@ -89,6 +89,9 @@ fi
 if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
   AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
 fi
+dnl default path for the ldap c sdk tools (see [210947] for more details)
+ldapsdk_bindir=/usr/lib/mozldap6
+
 dnl make sure the ldap sdk version is 6 or greater - we do not support
 dnl the old 5.x or prior versions - the ldap server code expects the new
 dnl ber types and other code used with version 6
