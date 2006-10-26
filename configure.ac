@@ -3,6 +3,7 @@
 AC_PREREQ(2.59)
 AC_INIT([fedora-ds], [1.1], [http://bugzilla.redhat.com/])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
+AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
 
 # Checks for programs.
