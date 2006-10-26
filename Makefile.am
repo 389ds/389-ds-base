@@ -51,6 +51,7 @@ propertydir = @sysconfdir@@propertydir@
 schemadir = @sysconfdir@@schemadir@
 serverdir = @prefix@@serverdir@
 serverplugindir = @prefix@@serverplugindir@
+taskdir = @sysconfdir@@scripttemplatedir@
 
 #------------------------
 # Build Products
@@ -125,8 +126,39 @@ server_SCRIPTS = wrappers/dbscan \
 	wrappers/ldif \
 	wrappers/migratecred \
 	wrappers/mmldif \
-	wrappers/pwdhash
+	wrappers/pwdhash \
+	$(srcdir)/ldap/admin/src/ds_newinst.pl
 
+task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
+	ldap/admin/src/scripts/template-db2bak \
+	ldap/admin/src/scripts/template-db2index \
+	ldap/admin/src/scripts/template-db2ldif \
+	ldap/admin/src/scripts/template-ldif2db \
+	ldap/admin/src/scripts/template-ldif2ldap \
+	ldap/admin/src/scripts/template-monitor \
+	ldap/admin/src/scripts/template-restoreconfig \
+	ldap/admin/src/scripts/template-saveconfig \
+	ldap/admin/src/scripts/template-start-slapd \
+	ldap/admin/src/scripts/template-stop-slapd \
+	ldap/admin/src/scripts/template-suffix2instance \
+	ldap/admin/src/scripts/template-vlvindex \
+	ldap/admin/src/scripts/template-bak2db.pl \
+	ldap/admin/src/scripts/template-cl-dump.pl \
+	ldap/admin/src/scripts/template-db2bak.pl \
+	ldap/admin/src/scripts/template-db2index.pl \
+	ldap/admin/src/scripts/template-db2ldif.pl \
+	ldap/admin/src/scripts/template-ldif2db.pl \
+	ldap/admin/src/scripts/template-ns-accountstatus.pl \
+	ldap/admin/src/scripts/template-ns-activate.pl \
+	ldap/admin/src/scripts/template-ns-inactivate.pl \
+	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/template-repl-monitor-cgi.pl \
+	ldap/admin/src/scripts/template-repl-monitor.pl \
+	ldap/admin/src/scripts/template-verify-db.pl \
+	$(srcdir)/ldap/admin/src/scripts/template-migrate5to7 \
+	$(srcdir)/ldap/admin/src/scripts/template-migrate6to7 \
+	$(srcdir)/ldap/admin/src/scripts/template-migrateInstance7 \
+	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
 
 #////////////////////////////////////////////////////////////////
 #
@@ -584,7 +616,7 @@ libreferint_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 #------------------------
 # libreplication-plugin
 #------------------------
-libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.o \
+libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/cl5_clcache.c \
 	ldap/servers/plugins/replication/cl5_config.c \
 	ldap/servers/plugins/replication/cl5_init.c \

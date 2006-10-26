@@ -1,0 +1,10 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+PATH=$prefix@ldapsdk_bindir@:@ldapsdk_bindir@
+LD_LIBRARY_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export SHLIB_PATH
+
+ldapmodify -a -p {{SERVER-PORT}} -D "$1" -w "$2" -f $3

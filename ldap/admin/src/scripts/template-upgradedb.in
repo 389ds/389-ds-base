@@ -1,0 +1,18 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export SHLIB_PATH
+
+cd {{SERVER-DIR}}
+if [ "$#" -eq 1 ]
+then
+	bak_dir=$1
+else
+	bak_dir={{BAK-DIR}}/upgradedb_`date +%Y_%m_%d_%H_%M_%S`
+fi
+
+echo upgrade index files ...
+./ns-slapd upgradedb -D {{CONFIG-DIR}} -a $bak_dir

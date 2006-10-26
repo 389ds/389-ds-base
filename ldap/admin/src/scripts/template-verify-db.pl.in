@@ -111,7 +111,6 @@ print("*****************************************************************\n");
 
 # get dirs having DBVERSION
 my $dbdirs = getDbDir(".");
-my $brand_ds = {{DS-BRAND}};
 my $prefix = "{{DS-ROOT}}";
 
 $ENV{'PATH'} = '$prefix@db_bindir@:$prefix/usr/lib:@db_bindir@:/usr/lib';

@@ -688,12 +688,12 @@ char *gen_script(char *s_root, char *name, char *fmt, ...)
     return NULL;
 }
 
-char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
-                           server_config_s *cf)
+char *gen_script_auto(char *s_root, char *cs_path,
+                      char *name, server_config_s *cf)
 {
     char myperl[PATH_SIZE];
     char fn[PATH_SIZE], ofn[PATH_SIZE];
-    const char *table[12][2];
+    const char *table[16][2];
 
     if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
         printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
@@ -738,9 +738,16 @@ char *gen_perl_script_auto(char *s_root, char *cs_path, char *name,
     table[8][1] = cf->ldif_dir;
     table[9][0] = "SERV-ID";
     table[9][1] = cf->servid;
+
     table[10][0] = "BAK-DIR";
     table[10][1] = cf->bak_dir;
-    table[11][0] = table[11][1] = NULL;
+    table[11][0] = "SERVER-DIR";
+    table[11][1] = cf->sroot;
+    table[12][0] = "CONFIG-DIR";
+    table[12][1] = cf->config_dir;
+    table[13][0] = "RUN-DIR";
+    table[13][1] = cf->run_dir;
+    table[14][0] = table[14][1] = NULL;
 
     if (generate_script(ofn, fn, NEWSCRIPT_MODE, table) != 0) {
         return make_error("Could not write %s to %s (%s).", ofn, fn,
@@ -755,7 +762,7 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
 {
     char myperl[PATH_SIZE];
     char fn[PATH_SIZE], ofn[PATH_SIZE];
-    const char *table[12][2];
+    const char *table[16][2];
     char *fnp = NULL;
     int fnlen = 0;
 
@@ -802,9 +809,16 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
     table[8][1] = cf->ldif_dir;
     table[9][0] = "SERV-ID";
     table[9][1] = cf->servid;
+
     table[10][0] = "BAK-DIR";
     table[10][1] = cf->bak_dir;
-    table[11][0] = table[11][1] = NULL;
+    table[11][0] = "SERVER-DIR";
+    table[11][1] = cf->sroot;
+    table[12][0] = "CONFIG-DIR";
+    table[12][1] = cf->config_dir;
+    table[13][0] = "RUN-DIR";
+    table[13][1] = cf->run_dir;
+    table[14][0] = table[14][1] = NULL;
 
     if (generate_script(ofn, fn, NEWSCRIPT_MODE, table) != 0) {
         return make_error("Could not write %s to %s (%s).", ofn, fn,
@@ -1026,243 +1040,6 @@ create_scripts(server_config_s *cf, char *param_name)
     PR_snprintf(subdir, sizeof(subdir), "%s%c"PRODUCT_NAME"-%s",
                     sroot, FILE_PATHSEP, cf->servid);
 #ifdef XP_UNIX
-    /* Start/stop/rotate/restart scripts */
-    if (getenv("USE_DEBUGGER"))
-    {
-        char *debugger = getenv("DSINST_DEBUGGER");
-        char *debugger_command = getenv("DSINST_DEBUGGER_CMD");
-        if (! debugger) {
-            debugger = "gdb";
-        }
-        if (! debugger_command) {
-            debugger_command = "echo"; /* e.g. do nothing */
-        }
-#ifdef OSF1
-        printf("-D %s -i %s/pid -d %s -z\n", cf->config_dir, cf->run_dir, 
-               cf->loglevel ? cf->loglevel : "0");
-        t = gen_script(cf->inst_dir, START_SCRIPT,
-               "\n"
-               "# Script that starts the %s.\n"
-               "# Exit status can be:\n"
-               "#       0: Server started successfully\n"
-               "#       1: Server could not be started\n"
-               "#       2: Server already running\n"
-               "\n"
-               "NETSITE_ROOT=%s\n"
-               "export NETSITE_ROOT\n"
-               "%s=%s\n"
-               "export %s\n"
-               "PIDFILE=%s/pid\n"
-               "if test -f $PIDFILE ; then\n"
-               "    PID=`cat $PIDFILE`\n"
-               "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-               "        echo There is an %s process already running: $PID\n"
-               "        exit 2;\n"
-               "    else\n"
-               "        rm -f $PIDFILE\n"
-               "    fi\n"
-               "fi\n"
-               "cd %s; ./%s -D %s -i %s/pid -d %s -z \"$@\" &\n"
-               "loop_counter=1\n"
-               "max_count=120\n"
-               "while test $loop_counter -le $max_count; do\n"
-               "    loop_counter=`expr $loop_counter + 1`\n"
-               "    if test ! -f $PIDFILE ; then\n"
-               "        sleep 1;\n"
-               "    else\n"
-               "        PID=`cat $PIDFILE`\n"
-               /* rbyrne: setuputil takes any message here as an error:
-               "  echo Server has been started. ns-slapd process started: $PID\n"*/
-               "        exit 0;\n"
-               "    fi\n"
-               "done\n"
-               "echo Server not running!! Failed to start ns-slapd process.\n"
-               "exit 1\n",
-               PRODUCT_BIN,
-               sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
-               PRODUCT_BIN,
-               sroot, PRODUCT_BIN, cf->config_dir, cf->run_dir,
-               cf->loglevel ? cf->loglevel : "0"
-        );
-#else
-        t = gen_script(cf->inst_dir, START_SCRIPT,
-               "\n"
-               "# Script that starts the ns-slapd server.\n"
-               "# Exit status can be:\n"
-               "#       0: Server started successfully\n"
-               "#       1: Server could not be started\n"
-               "#       2: Server already running\n"
-               "\n"
-               "NETSITE_ROOT=%s\n"
-               "export NETSITE_ROOT\n"
-               "%s=%s\n"
-               "export %s\n"
-               "PIDFILE=%s/pid\n"
-               "if test -f $PIDFILE ; then\n"
-               "    PID=`cat $PIDFILE`\n"
-               "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-               "        echo There is an ns-slapd process already running: $PID\n"
-               "        exit 2;\n"
-               "    else\n"
-               "        rm -f $PIDFILE\n"
-               "    fi\n"
-               "fi\n"
-               "if [ -x /usr/bin/xterm ]; then\n"
-               "  xterm=/usr/bin/xterm\n"
-               "else\n"
-               "  xterm=/usr/openwin/bin/xterm\n"
-               "fi\n"
-               "cd %s; $xterm -title debugger -e %s -c \"dbxenv follow_fork_mode child ; break main ; %s ; run -D %s -i %s/pid -d %s -z $*\" %s &\n"
-               "loop_counter=1\n"
-               "max_count=120\n"
-               "while test $loop_counter -le $max_count; do\n"
-               "    loop_counter=`expr $loop_counter + 1`\n"
-               "    if test ! -f $PIDFILE ; then\n"
-               "        sleep 1;\n"
-               "    else\n"
-               "        PID=`cat $PIDFILE`\n"
-                /* rbyrne: setuputil takes any message here as an error:
-               "        echo Server has been started. ns-slapd process started: $PID\n"*/
-               "        exit 0;\n"
-               "    fi\n"
-               "done\n"
-               "echo Server not running!! Failed to start ns-slapd process.\n"
-               "exit 1\n",
-               sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
-               sroot, debugger, debugger_command, cf->config_dir, cf->run_dir,
-               cf->loglevel ? cf->loglevel : "0", PRODUCT_BIN
-        );
-#endif
-    }
-    else
-    {
-        t = gen_script(cf->inst_dir, START_SCRIPT,
-            "\n"
-            "# Script that starts the ns-slapd server.\n"
-            "# Exit status can be:\n"
-            "#       0: Server started successfully\n"
-            "#       1: Server could not be started\n"
-            "#       2: Server already running\n"
-            "\n"
-            "NETSITE_ROOT=%s\n"
-            "export NETSITE_ROOT\n"
-            "%s=%s\n"
-            "export %s\n"
-            "PIDFILE=%s/pid\n"
-            "STARTPIDFILE=%s/startpid\n"
-            "if test -f $STARTPIDFILE ; then\n"
-            "    PID=`cat $STARTPIDFILE`\n"
-            "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-            "        echo There is an %s process already running: $PID\n"
-            "        exit 2;\n"
-            "    else\n"
-            "        rm -f $STARTPIDFILE\n"
-            "    fi\n"
-            "fi\n"
-            "if test -f $PIDFILE ; then\n"
-            "    PID=`cat $PIDFILE`\n"
-            "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-            "        echo There is an %s running: $PID\n"
-            "        exit 2;\n"
-            "    else\n"
-            "        rm -f $PIDFILE\n"
-            "    fi\n"
-            "fi\n"
-            "cd %s; ./%s -D %s -i %s/pid -w $STARTPIDFILE \"$@\"\n"
-            "if [ $? -ne 0 ]; then\n"
-            "    exit 1\n"
-            "fi\n"
-            "\n"
-            "loop_counter=1\n"
-            "# wait for 10 seconds for the start pid file to appear\n"
-            "max_count=10\n"
-            "while test $loop_counter -le $max_count; do\n"
-            "    loop_counter=`expr $loop_counter + 1`\n"
-            "    if test ! -f $STARTPIDFILE ; then\n"
-            "        sleep 1;\n"
-            "    else\n"
-            "        PID=`cat $STARTPIDFILE`\n"
-            "    fi\n"
-            "done\n"
-            "if test ! -f $STARTPIDFILE ; then\n"
-            "    echo Server failed to start !!! Please check errors log for problems\n"
-            "    exit 1\n"
-            "fi\n"
-            "loop_counter=1\n"
-            "# wait for 10 minutes (600 times 1 seconds)\n"
-            "max_count=600\n" /* 10 minutes */
-            "while test $loop_counter -le $max_count; do\n"
-            "    loop_counter=`expr $loop_counter + 1`\n"
-            "    if test ! -f $PIDFILE ; then\n"
-            "        if kill -0 $PID > /dev/null 2>&1 ; then\n"
-            "            sleep 1\n"
-            "    else\n"
-            "        echo Server failed to start !!! Please check errors log for problems\n"
-            "        exit 1\n"
-            "    fi\n"
-            "    else\n"
-            "        PID=`cat $PIDFILE`\n"
-            /* rbyrne: setuputil takes any message here as an error:
-            "        echo Server has been started. ns-slapd process started: $PID\n"*/
-            "        exit 0;\n"
-            "    fi\n"
-            "done\n"
-            "echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.\n"
-            "exit 1\n",
-            sroot, DS_CONFIG_DIR, cf->config_dir, DS_CONFIG_DIR, cf->run_dir,
-            cf->run_dir, PRODUCT_BIN, PRODUCT_BIN,
-            cf->sroot, PRODUCT_BIN, cf->config_dir, cf->run_dir
-        );
-    }
-    if(t) return t;
-    
-    t = gen_script(cf->inst_dir, STOP_SCRIPT,
-           "\n"
-           "# Script that stops the ns-slapd server.\n"
-           "# Exit status can be:\n"
-           "#       0: Server stopped successfully\n"
-           "#       1: Server could not be stopped\n"
-           "#       2: Server was not running\n"
-           "\n"
-           "PIDFILE=%s/pid\n"
-           "if test ! -f $PIDFILE ; then\n"
-           "    echo No ns-slapd PID file found. Server is probably not running\n"
-           "    exit 2\n"
-           "fi\n"
-           "PID=`cat $PIDFILE`\n"
-           "# see if the server is already stopped\n"
-           "kill -0 $PID > /dev/null 2>&1 || {\n"
-           "    echo Server not running\n"
-           "    if test -f $PIDFILE ; then\n"
-           "        rm -f $PIDFILE\n"
-           "    fi\n"
-           "    exit 2\n"
-           "}\n"
-           "# server is running - kill it\n"
-           "kill $PID\n"
-           "loop_counter=1\n"
-           "# wait for 10 minutes (600 times 1 second)\n"
-           "max_count=600\n" /* 10 minutes */
-           "while test $loop_counter -le $max_count; do\n"
-           "    loop_counter=`expr $loop_counter + 1`\n"
-           "    if kill -0 $PID > /dev/null 2>&1 ; then\n"
-           "        sleep 1;\n"
-           "    else\n"
-           "        if test -f $PIDFILE ; then\n"
-           "            rm -f $PIDFILE\n"
-           "        fi\n"
-         /* rbyrne: setuputil takes any message here as an error:
-           " echo Server has been stopped. ns-slapd process stopped: $PID\n"*/
-           "        exit 0\n"
-           "    fi\n"
-           "done\n"
-           "if test -f $PIDFILE ; then\n"
-           "    echo Server still running!! Failed to stop the ns-slapd process: $PID.  Please check the errors log for problems.\n"
-           "fi\n"
-           "exit 1\n",
-            cf->run_dir);
-    if(t) return t;
-
     t = gen_script(cf->inst_dir, RESTART_SCRIPT,
            "\n"
            "# Script that restarts the ns-slapd server.\n"
@@ -1991,50 +1768,29 @@ ds_cre_subdirs(server_config_s *cf, struct passwd* pw)
 }
 
 #define CREATE_LDIF2DB() \
-    gen_perl_script_auto(mysroot, mycs_path, "ldif2db.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "ldif2db.pl", cf)
 
 #define CREATE_DB2INDEX() \
-    gen_perl_script_auto(mysroot, mycs_path, "db2index.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "db2index.pl", cf)
 
 #define CREATE_DB2LDIF() \
-    gen_perl_script_auto(mysroot, mycs_path, "db2ldif.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "db2ldif.pl", cf)
 
 #define CREATE_DB2BAK() \
-    gen_perl_script_auto(mysroot, mycs_path, "db2bak.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "db2bak.pl", cf)
 
 #define CREATE_BAK2DB() \
-    gen_perl_script_auto(mysroot, mycs_path, "bak2db.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "bak2db.pl", cf)
 
 #define CREATE_VERIFYDB() \
-    gen_perl_script_auto(mysroot, mycs_path, "verify-db.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "verify-db.pl", cf)
 
 /* tentatively moved to mycs_path */
 #define CREATE_REPL_MONITOR_CGI() \
-    gen_perl_script_auto(mysroot, mycs_path, "repl-monitor-cgi.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "repl-monitor-cgi.pl", cf)
 
 #define CREATE_ACCOUNT_INACT(_commandName) \
-    gen_perl_script_auto(mysroot, cs_path, _commandName, cf)
-
-#define CREATE_DSML() \
-    gen_perl_script_auto(mysroot, mycs_path, "dsml-activate.pl", cf)
-
-#define CREATE_MIGRATETO5() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateTo5", cf)
-
-#define CREATE_MIGRATE50TO51() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrate50to51", cf)
-
-#define CREATE_MIGRATEINSTANCE5() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateInstance5", cf)
-
-#define CREATE_MIGRATE5TO6() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrate5to6", cf)
-
-#define CREATE_MIGRATEINSTANCE6() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateInstance6", cf)
-
-#define CREATE_MIGRATETO6() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateTo6", cf)
+    gen_script_auto(mysroot, cs_path, _commandName, cf)
 
 #define CREATE_MIGRATE5TO7() \
     gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrate5to7", cf)
@@ -2049,7 +1805,46 @@ ds_cre_subdirs(server_config_s *cf, struct passwd* pw)
     gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateTo7", cf)
 
 #define CREATE_NEWPWPOLICY() \
-    gen_perl_script_auto(mysroot, mycs_path, "ns-newpwpolicy.pl", cf)
+    gen_script_auto(mysroot, mycs_path, "ns-newpwpolicy.pl", cf)
+
+#define CREATE_BAK2DB_SH() \
+    gen_script_auto(mysroot, mycs_path, "bak2db", cf)
+
+#define CREATE_DB2BAK_SH() \
+    gen_script_auto(mysroot, mycs_path, "db2bak", cf)
+
+#define CREATE_DB2INDEX_SH() \
+    gen_script_auto(mysroot, mycs_path, "db2index", cf)
+
+#define CREATE_DB2LDIF_SH() \
+    gen_script_auto(mysroot, mycs_path, "db2ldif", cf)
+
+#define CREATE_LDIF2DB_SH() \
+    gen_script_auto(mysroot, mycs_path, "ldif2db", cf)
+
+#define CREATE_LDIF2LDAP_SH() \
+    gen_script_auto(mysroot, mycs_path, "ldif2ldap", cf)
+
+#define CREATE_MONITOR_SH() \
+    gen_script_auto(mysroot, mycs_path, "monitor", cf)
+
+#define CREATE_RESTORECONFIG_SH() \
+    gen_script_auto(mysroot, mycs_path, "restoreconfig", cf)
+
+#define CREATE_SAVECONFIG_SH() \
+    gen_script_auto(mysroot, mycs_path, "saveconfig", cf)
+
+#define CREATE_START_SLAPD_SH() \
+    gen_script_auto(mysroot, mycs_path, "start-slapd", cf)
+
+#define CREATE_STOP_SLAPD_SH() \
+    gen_script_auto(mysroot, mycs_path, "stop-slapd", cf)
+
+#define CREATE_SUFFIX2INSTANCE_SH() \
+    gen_script_auto(mysroot, mycs_path, "suffix2instance", cf)
+
+#define CREATE_VLVINDEX_SH() \
+    gen_script_auto(mysroot, mycs_path, "vlvindex", cf)
 
 #ifdef XP_UNIX
 char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
@@ -2073,153 +1868,11 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     mysroot = sroot;
     mycs_path = cs_path;
 
-    t = gen_script(cs_path, "monitor", 
-           "if [ \"x$1\" != \"x\" ];\nthen MDN=\"$1\";\nelse MDN=\"cn=monitor\";\n fi\n"
-
-           "cd %s\nPATH=%s:$PATH;export PATH\n"
-           "ldapsearch -p %s -b \"$MDN\" -s base \"objectClass=*\"\n",
-                   tools, tools, cf->servport);
-    if(t) return t;
-    
-    t = gen_script(cs_path, "saveconfig", 
-        "cd %s\n"
-        "echo saving configuration ...\n"
-        "conf_ldif=%s/confbak/%s-`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\n"
-        "./%s db2ldif -N -D %s "
-        "-s \"%s\" -a $conf_ldif -n NetscapeRoot 2>&1\n"
-        "if [ \"$?\" -ge 1 ] \nthen\n"
-        "    echo Error occurred while saving configuration\n"
-        "    exit 1\n"
-        "fi\n"
-        "exit 0\n",
-        server, 
-        cf->config_dir, cf->servid, 
-        PRODUCT_BIN, cf->config_dir,
-        cf->netscaperoot);
-    if(t) return t;
-    
-    t = gen_script(cs_path, "restoreconfig", 
-        "cd %s\n"
-        "conf_ldif=`ls -1t %s/confbak/%s-*.ldif | head -1`\n"
-        "if [ -z \"$conf_ldif\" ]\n"
-        "then\n"
-        "    echo No configuration to restore in %s/confbak ; exit 1\n"
-        "fi\n"
-        "echo Restoring $conf_ldif\n"
-        "./%s ldif2db -D %s"
-        " -i $conf_ldif -n NetscapeRoot 2>&1\n"
-        "exit $?\n",
-        server,
-        cf->config_dir, cf->servid,
-        cf->config_dir,
-        PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-    
-    t = gen_script(cs_path, "ldif2db", 
-        "cd %s\n"
-        "if [ $# -lt 4 ]\nthen\n"
-        "\techo \"Usage: ldif2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]\"\n"
-        "\techo \"               {-i ldiffile}* [-O]\"\n"
-        "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" and \\\"-i ldiffile\\\" are required.\"\n"
-        "\texit 1\n"
-        "fi\n\n"
-        "echo importing data ...\n"
-        "./%s ldif2db -D %s \"$@\" 2>&1\n"
-        "exit $?\n",
-        server, PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-
-#if defined(UPGRADEDB)
-    t = gen_script(cs_path, "upgradedb", 
-        "cd %s\n"
-        "if [ \"$#\" -eq 1 ]\nthen\n"
-        "\tbak_dir=$1\nelse\n"
-        "\tbak_dir=%s/upgradedb_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
-        "echo upgrade index files ...\n"
-        "./%s upgradedb -D %s -a $bak_dir\n",
-        server, cf->bak_dir, PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-#endif
-
-    /* new code for dsml import */
-    /* OBSOLETE??? */
-    t = gen_script(cs_path, "dsml2db", 
-        "cd %s\n"
-        "if [ $# -lt 4 ]\nthen\n"
-        "\techo \"Usage: dsml2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]\"\n"
-        "\techo \"               {-i dsmlfile}\"\n"
-        "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" and \\\"-i dsmlfile\\\" are required.\"\n"
-        "\texit 1\n"
-        "fi\n\n"
-        "set_dsml=0\n"
-        "dsml_file=\"mydummy\"\n"                
-        "space=\" \"\n"
-        "i=0\n"
-        "for arg in \"$@\"\ndo\n"
-        "\tif [ \"$arg\" = '-i' ];\n\tthen\n"
-        "\t\tset_dsml=1\n"
-        "\telif [ $set_dsml -eq 1 ];\n\tthen\n"
-        "\t\tdsml_file=$arg\n"
-        "\t\tset_dsml=2\n"
-        "\telse\n"                
-        "\t\teval a$i=\\\"$arg\\\"\n"
-        "\t\ti=`expr $i + 1`\n"
-        "\tfi\n"
-        "done\n"
-        "max=$i; i=0;\n"
-        "shift $#\n"
-        "while [ $i -lt $max ]; do\n"
-        "\teval arg=\\$a$i\n"
-        "\tset -- \"$@\" \"$arg\"\n"
-        "\ti=`expr $i + 1`\n"
-        "done\n"
-        "\tif [ $dsml_file = \"mydummy\" ]\n\tthen\n\t"
-        "echo \"Need a DSML file as input\""
-        "\n\t\t exit 1"
-        "\n\tfi\n"
-        "\tif [ -f $dsml_file ] && [ -r $dsml_file ]\n\tthen\n"
-        "\t\t%s/bin/base/jre/bin/java -Dverify=true -classpath %s/java/jars/crimson.jar:%s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.DSML2LDIF $dsml_file\n"
-        "\t\tif [ $? = 0 ]; then\n"
-        "\t\techo importing data ...\n"
-        "\t\t%s/bin/base/jre/bin/java -classpath %s/java/jars/crimson.jar:%s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.DSML2LDIF $dsml_file | ./ns-slapd ldif2db -D %s \"$@\" -i -\n"
-        "\t\texit $?\n"
-        "\t\tfi\n"
-        "\telse\n"
-        "\t\techo \"File $dsml_file invalid. Absolute path is required.\"\n\t\texit 1\n"        
-        "\tfi\n",
-        server,sroot,sroot,sroot,sroot,sroot,sroot,sroot,sroot,cs_path);
-    if(t) return t;
-        
-    t = gen_script(cs_path, "ldif2ldap", 
-           "cd %s\n"
-           "./ldapmodify -a -p %s -D \"$1\" -w \"$2\" -f $3\n",
-           tools, cf->servport);
-    if(t) return t;
-    
     t = CREATE_LDIF2DB();
     if(t) return t;
 
     t = CREATE_DB2INDEX();
     if(t) return t;
-/*
-    t = CREATE_MIGRATETO5();
-    if(t) return t;
-    
-    t = CREATE_MIGRATE50TO51();
-    if(t) return t;
-
-    t = CREATE_MIGRATEINSTANCE5();
-    if(t) return t;
-
-    t = CREATE_MIGRATE5TO6();
-    if(t) return t;
-
-    t = CREATE_MIGRATEINSTANCE6();
-    if(t) return t;
-
-    t = CREATE_MIGRATETO6();
-    if(t) return t;
-*/    
 
     t = CREATE_MIGRATE5TO7();
     if(t) return t;
@@ -2231,6 +1884,45 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = CREATE_MIGRATETO7();
+    if(t) return t;
+
+    t = CREATE_BAK2DB_SH();
+    if(t) return t;
+
+    t = CREATE_DB2BAK_SH();
+    if(t) return t;
+
+    t = CREATE_DB2INDEX_SH();
+    if(t) return t;
+
+    t = CREATE_DB2LDIF_SH();
+    if(t) return t;
+
+    t = CREATE_LDIF2DB_SH();
+    if(t) return t;
+
+    t = CREATE_LDIF2LDAP_SH();
+    if(t) return t;
+
+    t = CREATE_MONITOR_SH();
+    if(t) return t;
+
+    t = CREATE_RESTORECONFIG_SH();
+    if(t) return t;
+
+    t = CREATE_SAVECONFIG_SH();
+    if(t) return t;
+
+    t = CREATE_START_SLAPD_SH();
+    if(t) return t;
+
+    t = CREATE_STOP_SLAPD_SH();
+    if(t) return t;
+
+    t = CREATE_SUFFIX2INSTANCE_SH();
+    if(t) return t;
+
+    t = CREATE_VLVINDEX_SH();
     if(t) return t;
 
     t = gen_script(cs_path, "getpwenc", 
@@ -2245,144 +1937,7 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            server, cf->config_dir, cs_path);
     if(t) return t;
     
-    t = gen_script(cs_path, "db2ldif", 
-           "cd %s\n"
-           "if [ \"$#\" -lt 2 ];\nthen\n"
-           "\techo \"Usage: db2ldif {-n backend_instance}* | {-s includesuffix}*\"\n"
-           "\techo \"               [{-x excludesuffix}*] [-a outputfile]\"\n"
-           "\techo \"               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1]\"\n"
-           "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" is required.\"\n"
-           "\texit 1\n"
-           "fi\n\n"
-           "set_ldif=0\n"
-           "ldif_file=\"mydummy\"\n"
-           "for arg in \"$@\"\ndo\n"
-           "\tif [ \"$arg\" = '-a' ];\n\tthen\n"
-           "\t\tset_ldif=1\n"
-           "\telif [ $set_ldif -eq 1 ];\n\tthen\n"
-           "\t\tldif_file=$arg\n"
-           "\t\tset_ldif=2\n"
-           "\tfi\n"
-           "done\n"
-           "if [ $ldif_file = \"mydummy\" ]\nthen\n"
-           "\tldif_file=%s/%s-`date +%%Y_%%m_%%d_%%H%%M%%S`.ldif\nfi\n"
-           "if [ $set_ldif -eq 2 ]\nthen\n"
-           "./%s db2ldif -D %s \"$@\"\nelse\n"
-           "./%s db2ldif -D %s -a $ldif_file \"$@\"\nfi\n",
-           server,
-           cf->ldif_dir, cf->servid,
-           PRODUCT_BIN, cf->config_dir,
-           PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-
-    /* new code for dsml export */
-    t = gen_script(cs_path, "db2dsml", 
-           "cd %s\n"
-           "if [ \"$#\" -lt 2 ];\nthen\n"
-           "\techo \"Usage: db2dsml {-n backend_instance} | {-s includesuffix}*\"\n"
-           "\techo \"               [{-x excludesuffix}*] [-a outputfile]\"\n"
-           "\techo \"               [-u]\"\n"
-           "\techo \"Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" is required.\"\n"
-           "\texit 1\n"
-           "fi\n\n"
-           "set_dsml=0\n"
-           "dsml_file=\"mydummy\"\n"
-           "arg_list=\"\"\n"
-           "space=\" \"\n"
-           "for arg in \"$@\"\ndo\n"
-           "\tif [ \"$arg\" = '-a' ];\n\tthen\n"
-           "\t\tset_dsml=1\n"
-           "\telif [ $set_dsml -eq 1 ];\n\tthen\n"
-           "\t\tdsml_file=$arg\n"
-           "\t\tset_dsml=2\n"
-           "\telse\n"           
-           "\t\targ_list=$arg_list$space$arg\n"
-           "\tfi\n"
-           "done\n"           
-           "if [ $dsml_file = \"mydummy\" ]\nthen\n"
-           "\tdsml_file=%s/dsml/`date +%%Y_%%m_%%d_%%H%%M%%S`.dsml\n"
-           "\techo dsmlfile: $dsml_file\n"
-           "fi\n"
-           "%s/bin/base/jre/bin/java -Dverify=true -classpath %s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.LDIF2DSML -s -o $dsml_file \n"
-           "if [ $? = 0 ]; then\n"
-           "\t./ns-slapd db2ldif -D %s \"$@\" -a - | %s/bin/base/jre/bin/java -classpath %s/java/ldapjdk.jar:%s/java/jars/xmltools.jar com.netscape.xmltools.LDIF2DSML -s -o $dsml_file \n"
-           "fi\n",
-            server, cs_path, sroot, sroot, sroot, cs_path, sroot, sroot, sroot);
-    if(t) return t;
-
     t = CREATE_DB2LDIF();
-    if(t) return t;
-
-#if defined(UPGRADEDB)
-    t = gen_script(cs_path, "db2index", 
-           "cd %s\n"
-           "if [ $# -eq 0 ]\n"
-           "then\n"
-           "\tbak_dir=%s/bak/reindex_`date +%%Y_%%m_%%d_%%H_%%M_%%S`\n"
-           "\t./%s upgradedb -D %s -f -a \"$bak_dir\"\n"
-           "elif [ $# -lt 4 ]\n"
-           "then\n"
-           "\techo \"Usage: db2index [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]\"\n"
-           "\texit 1\n"
-           "else\n"
-           "\t./%s db2index -D %s \"$@\"\n"
-           "fi\n\n",
-           server, cf->ldif_dir, 
-           PRODUCT_BIN, cf->config_dir, 
-           PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-#endif
-
-    t = gen_script(cs_path, "vlvindex", 
-           "cd %s\n"
-           "if [ $# -lt 4 ]\n"
-           "then\n"
-           "\techo \"Usage: vlvindex -n backend_instance | {-s includesuffix}* -T attribute\"\n"
-           "\techo Note: either \\\"-n backend_instance\\\" or \\\"-s includesuffix\\\" are required.\n"
-           "\texit 1\n"
-           "fi\n\n"
-           "./%s db2index -D %s \"$@\"\n",
-           server, PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-
-    t = gen_script(cs_path, "db2bak", 
-           "cd %s\n"
-           "if [ \"$#\" -eq 1 ]\nthen\n"
-           "\tbak_dir=$1\nelse\n"
-           "\tbak_dir=%s/`date +%%Y_%%m_%%d_%%H_%%M_%%S`\nfi\n\n"
-           "./%s db2archive -D %s -a $bak_dir\n",
-           server, cf->bak_dir, PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-
-    t = CREATE_DB2BAK();
-    if(t) return t;
-    
-    t = gen_script(cs_path, "bak2db", 
-           "if [ $# -lt 1 ] || [ $# -gt 3 ]\nthen\n"
-           "    echo \"Usage: bak2db archivedir [-n backendname]\"\n"
-           "    exit 1\n"
-           "else\n"
-           "    archivedir=$1\n"
-           "    shift\n"
-           "fi\n"
-           "while getopts \"n:\" flag\ndo\n"
-           "    case $flag in\n"
-           "        n) bename=$OPTARG;;\n"
-           "        *) echo \"Usage: bak2db archivedir [-n backendname]\"; exit 2;;\n"
-           "    esac\n"
-           "done\n\n"
-           "if [ 1 = `expr $archivedir : \"\\/\"` ]\nthen\n"
-           "    archivedir=$archivedir\n"
-           "else\n"
-           "    # relative\n"
-           "    archivedir=`pwd`/$archivedir\nfi\n\n"
-           "cd %s\n"
-           "if [ \"$#\" -eq 2 ]\nthen\n"
-           "    ./%s archive2db -D %s -a $archivedir -n $bename\n"
-           "else\n"
-           "    ./%s archive2db -D %s -a $archivedir\n"           
-           "fi\n",
-           server, PRODUCT_BIN, cf->config_dir, PRODUCT_BIN, cf->config_dir);
     if(t) return t;
 
     t = CREATE_BAK2DB();
@@ -2403,49 +1958,8 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     t = CREATE_ACCOUNT_INACT("ns-accountstatus.pl");
     if(t) return t;
 
-    t = CREATE_DSML();
-    if(t) return t;
-
     t = CREATE_NEWPWPOLICY();
     if(t) return t;
-
-    t = gen_script(cs_path, "suffix2instance",
-           "cd %s\n"
-           "if [ $# -lt 2 ]\n"
-           "then\n"
-           "\techo Usage: suffix2instance {-s includesuffix}*\n"
-           "\texit 1\n"
-           "fi\n\n"
-           "./%s suffix2instance -D %s \"$@\" 2>&1\n",
-           server, PRODUCT_BIN, cf->config_dir);
-    if(t) return t;
-
-    /*Generate the java commandline tools in bin/slapd/server*/
-    for (cls = 0; cls < 7; cls++) {
-        t = gen_script(server, cl_scripts[cls], 
-             "cd %s\n\n"
-             "lang=${LANG:=en}\n"
-             "while [ $# -ge 1 ]\n"
-             "do\n"
-             "    if [ $1 = '-l' ]\n"
-             "    then\n"
-             "        shift\n"
-             "        lang=$1\n"
-             "    else\n"
-             "        arg=\"$arg $1\"\n"
-             "    fi\n"
-             "    shift\n"
-             "done\n"
-             "./bin/base/jre/bin/jre -classpath ./bin/base/jre/lib:"
-             "./bin/base/jre/lib/rt.jar:./bin/base/jre/lib/i18n.jar:"
-             "./java/base.jar:./java/jars/ds40.jar:./java/jars/ds40_${lang}.jar:"
-             "./java/swingall.jar:./java/ssl.zip:"
-             "./java/ldapjdk.jar:./java/mcc40.jar:./java/mcc40_${lang}.jar:"
-             "./java/nmclf40.jar:./java/nmclf40_${lang}.jar"
-             " com.netscape.admin.dirserv.cmdln.%s $arg\n", 
-             sroot, cl_javafiles[cls]);
-        if(t) return t;
-    }
 
     return (t);
 }
@@ -2655,25 +2169,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     t = CREATE_DB2INDEX();
     if(t) return t;
 
-/*    
-    t = CREATE_MIGRATETO5();
-    if(t) return t;
-    
-    t = CREATE_MIGRATE50TO51();
-    if(t) return t;
-
-    t = CREATE_MIGRATEINSTANCE5();
-    if(t) return t;
-
-    t = CREATE_MIGRATETO6();
-    if(t) return t;
-    
-    t = CREATE_MIGRATE5TO6();
-    if(t) return t;
-
-    t = CREATE_MIGRATEINSTANCE6();
-    if(t) return t;
-*/
     t = CREATE_MIGRATE5TO7();
     if(t) return t;
 
@@ -3008,9 +2503,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     if(t) return t;
 
     t = CREATE_ACCOUNT_INACT("ns-accountstatus.pl");
-    if(t) return t;
-
-    t = CREATE_DSML();
     if(t) return t;
 
     t = gen_script(cs_path, "dsml-activate.bat",

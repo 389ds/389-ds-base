@@ -131,6 +131,7 @@ propertydir=/fedora-ds/property
 schemadir=/fedora-ds/schema
 serverdir=/usr/lib/fedora-ds
 serverplugindir=/usr/lib/fedora-ds/plugins
+scripttemplatedir=/fedora-ds/script-templates
 AC_SUBST(bindir)
 AC_SUBST(configdir)
 AC_SUBST(datadir)
@@ -138,6 +139,7 @@ AC_SUBST(propertydir)
 AC_SUBST(schemadir)
 AC_SUBST(serverdir)
 AC_SUBST(serverplugindir)
+AC_SUBST(scripttemplatedir)
 
 # WINNT should be true if building on Windows system not using
 # cygnus, mingw, or the like and using cmd.exe as the shell
@@ -155,6 +157,20 @@ AC_CONFIG_FILES([wrappers/migratecred])
 AC_CONFIG_FILES([wrappers/mmldif])
 AC_CONFIG_FILES([wrappers/pwdhash])
 AC_CONFIG_FILES([wrappers/rsearch])
+
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-bak2db])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2bak])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2index])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2ldif])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-ldif2db])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-ldif2ldap])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-monitor])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-restoreconfig])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-saveconfig])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-start-slapd])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-stop-slapd])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-suffix2instance])
+AC_CONFIG_FILES([ldap/admin/src/scripts/template-vlvindex])
 
 AC_CONFIG_FILES([ldap/admin/src/scripts/template-bak2db.pl])
 AC_CONFIG_FILES([ldap/admin/src/scripts/template-cl-dump.pl])

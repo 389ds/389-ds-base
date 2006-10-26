@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/fedora-ds
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS platform_defs SOLARIS_TRUE SOLARIS_FALSE debug_defs PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir db_inc db_incdir db_lib db_libdir sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link configdir propertydir schemadir serverdir serverplugindir WINNT_TRUE WINNT_FALSE LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS platform_defs SOLARIS_TRUE SOLARIS_FALSE debug_defs PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link configdir propertydir schemadir serverdir serverplugindir scripttemplatedir WINNT_TRUE WINNT_FALSE LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -23904,6 +23904,8 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
 echo "$as_me: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib." >&2;}
    { (exit 1); exit 1; }; }
 fi
+ldapsdk_bindir=/usr/lib/mozldap6
+
 save_cppflags="$CPPFLAGS"
 CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
 echo "$as_me:$LINENO: checking for ldap.h" >&5
@@ -24038,6 +24040,7 @@ else
   echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
 fi;
+db_bindir=/usr/bin
 
 if test -z "$db_inc"; then
   echo "$as_me:$LINENO: checking for db.h" >&5
@@ -24946,6 +24949,8 @@ fi
 
 
 
+
+
 # installation paths
 bindir=/usr/bin
 configdir=/fedora-ds/config
@@ -24954,6 +24959,8 @@ propertydir=/fedora-ds/property
 schemadir=/fedora-ds/schema
 serverdir=/usr/lib/fedora-ds
 serverplugindir=/usr/lib/fedora-ds/plugins
+scripttemplatedir=/fedora-ds/script-templates
+
 
 
 
@@ -24998,6 +25005,61 @@ fi
           ac_config_files="$ac_config_files wrappers/pwdhash"
 
           ac_config_files="$ac_config_files wrappers/rsearch"
+
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-bak2db"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-db2bak"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-db2index"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-db2ldif"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ldif2db"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ldif2ldap"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-monitor"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-restoreconfig"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-saveconfig"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-start-slapd"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-stop-slapd"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-suffix2instance"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-vlvindex"
+
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-bak2db.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-cl-dump.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-db2bak.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-db2index.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-db2ldif.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ldif2db.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ns-accountstatus.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ns-activate.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ns-inactivate.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-ns-newpwpolicy.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-repl-monitor-cgi.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-repl-monitor.pl"
+
+          ac_config_files="$ac_config_files ldap/admin/src/scripts/template-verify-db.pl"
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -25607,6 +25669,32 @@ do
   "wrappers/mmldif" ) CONFIG_FILES="$CONFIG_FILES wrappers/mmldif" ;;
   "wrappers/pwdhash" ) CONFIG_FILES="$CONFIG_FILES wrappers/pwdhash" ;;
   "wrappers/rsearch" ) CONFIG_FILES="$CONFIG_FILES wrappers/rsearch" ;;
+  "ldap/admin/src/scripts/template-bak2db" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-bak2db" ;;
+  "ldap/admin/src/scripts/template-db2bak" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-db2bak" ;;
+  "ldap/admin/src/scripts/template-db2index" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-db2index" ;;
+  "ldap/admin/src/scripts/template-db2ldif" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-db2ldif" ;;
+  "ldap/admin/src/scripts/template-ldif2db" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ldif2db" ;;
+  "ldap/admin/src/scripts/template-ldif2ldap" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ldif2ldap" ;;
+  "ldap/admin/src/scripts/template-monitor" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-monitor" ;;
+  "ldap/admin/src/scripts/template-restoreconfig" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-restoreconfig" ;;
+  "ldap/admin/src/scripts/template-saveconfig" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-saveconfig" ;;
+  "ldap/admin/src/scripts/template-start-slapd" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-start-slapd" ;;
+  "ldap/admin/src/scripts/template-stop-slapd" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-stop-slapd" ;;
+  "ldap/admin/src/scripts/template-suffix2instance" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-suffix2instance" ;;
+  "ldap/admin/src/scripts/template-vlvindex" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-vlvindex" ;;
+  "ldap/admin/src/scripts/template-bak2db.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-bak2db.pl" ;;
+  "ldap/admin/src/scripts/template-cl-dump.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-cl-dump.pl" ;;
+  "ldap/admin/src/scripts/template-db2bak.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-db2bak.pl" ;;
+  "ldap/admin/src/scripts/template-db2index.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-db2index.pl" ;;
+  "ldap/admin/src/scripts/template-db2ldif.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-db2ldif.pl" ;;
+  "ldap/admin/src/scripts/template-ldif2db.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ldif2db.pl" ;;
+  "ldap/admin/src/scripts/template-ns-accountstatus.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ns-accountstatus.pl" ;;
+  "ldap/admin/src/scripts/template-ns-activate.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ns-activate.pl" ;;
+  "ldap/admin/src/scripts/template-ns-inactivate.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ns-inactivate.pl" ;;
+  "ldap/admin/src/scripts/template-ns-newpwpolicy.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-ns-newpwpolicy.pl" ;;
+  "ldap/admin/src/scripts/template-repl-monitor-cgi.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-repl-monitor-cgi.pl" ;;
+  "ldap/admin/src/scripts/template-repl-monitor.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-repl-monitor.pl" ;;
+  "ldap/admin/src/scripts/template-verify-db.pl" ) CONFIG_FILES="$CONFIG_FILES ldap/admin/src/scripts/template-verify-db.pl" ;;
   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
@@ -25774,10 +25862,12 @@ s,@nss_libdir@,$nss_libdir,;t t
 s,@ldapsdk_inc@,$ldapsdk_inc,;t t
 s,@ldapsdk_lib@,$ldapsdk_lib,;t t
 s,@ldapsdk_libdir@,$ldapsdk_libdir,;t t
+s,@ldapsdk_bindir@,$ldapsdk_bindir,;t t
 s,@db_inc@,$db_inc,;t t
 s,@db_incdir@,$db_incdir,;t t
 s,@db_lib@,$db_lib,;t t
 s,@db_libdir@,$db_libdir,;t t
+s,@db_bindir@,$db_bindir,;t t
 s,@sasl_inc@,$sasl_inc,;t t
 s,@sasl_lib@,$sasl_lib,;t t
 s,@sasl_libdir@,$sasl_libdir,;t t
@@ -25795,6 +25885,7 @@ s,@propertydir@,$propertydir,;t t
 s,@schemadir@,$schemadir,;t t
 s,@serverdir@,$serverdir,;t t
 s,@serverplugindir@,$serverplugindir,;t t
+s,@scripttemplatedir@,$scripttemplatedir,;t t
 s,@WINNT_TRUE@,$WINNT_TRUE,;t t
 s,@WINNT_FALSE@,$WINNT_FALSE,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t

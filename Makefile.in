@@ -52,6 +52,32 @@ noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/tools/ldclt/opCheck.c
 DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure \
+	$(top_srcdir)/ldap/admin/src/scripts/template-bak2db.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-bak2db.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-cl-dump.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-db2bak.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-db2bak.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-db2index.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-db2index.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-db2ldif.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-db2ldif.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ldif2db.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ldif2db.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ldif2ldap.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-monitor.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ns-accountstatus.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ns-activate.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ns-inactivate.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-ns-newpwpolicy.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-repl-monitor-cgi.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-repl-monitor.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-restoreconfig.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-saveconfig.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-start-slapd.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-stop-slapd.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-suffix2instance.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-verify-db.pl.in \
+	$(top_srcdir)/ldap/admin/src/scripts/template-vlvindex.in \
 	$(top_srcdir)/wrappers/dbscan.in \
 	$(top_srcdir)/wrappers/ds_newinst.in \
 	$(top_srcdir)/wrappers/dsktune.in \
@@ -78,7 +104,33 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES = wrappers/dbscan wrappers/dsktune \
 	wrappers/ds_newinst wrappers/infadd wrappers/ldap-agent \
 	wrappers/ldclt wrappers/ldif wrappers/migratecred \
-	wrappers/mmldif wrappers/pwdhash wrappers/rsearch
+	wrappers/mmldif wrappers/pwdhash wrappers/rsearch \
+	ldap/admin/src/scripts/template-bak2db \
+	ldap/admin/src/scripts/template-db2bak \
+	ldap/admin/src/scripts/template-db2index \
+	ldap/admin/src/scripts/template-db2ldif \
+	ldap/admin/src/scripts/template-ldif2db \
+	ldap/admin/src/scripts/template-ldif2ldap \
+	ldap/admin/src/scripts/template-monitor \
+	ldap/admin/src/scripts/template-restoreconfig \
+	ldap/admin/src/scripts/template-saveconfig \
+	ldap/admin/src/scripts/template-start-slapd \
+	ldap/admin/src/scripts/template-stop-slapd \
+	ldap/admin/src/scripts/template-suffix2instance \
+	ldap/admin/src/scripts/template-vlvindex \
+	ldap/admin/src/scripts/template-bak2db.pl \
+	ldap/admin/src/scripts/template-cl-dump.pl \
+	ldap/admin/src/scripts/template-db2bak.pl \
+	ldap/admin/src/scripts/template-db2index.pl \
+	ldap/admin/src/scripts/template-db2ldif.pl \
+	ldap/admin/src/scripts/template-ldif2db.pl \
+	ldap/admin/src/scripts/template-ns-accountstatus.pl \
+	ldap/admin/src/scripts/template-ns-activate.pl \
+	ldap/admin/src/scripts/template-ns-inactivate.pl \
+	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/template-repl-monitor-cgi.pl \
+	ldap/admin/src/scripts/template-repl-monitor.pl \
+	ldap/admin/src/scripts/template-verify-db.pl
 LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libavl_a_AR = $(AR) $(ARFLAGS)
@@ -107,9 +159,9 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(serverdir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(serverdir)" "$(DESTDIR)$(taskdir)" \
+	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -364,7 +416,8 @@ libreferint_plugin_la_LIBADD =
 am_libreferint_plugin_la_OBJECTS = ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo
 libreferint_plugin_la_OBJECTS = $(am_libreferint_plugin_la_OBJECTS)
 libreplication_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo \
+am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo \
+	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_config.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_init.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-csnpl.lo \
@@ -679,7 +732,8 @@ rsearch_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 serverSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(bin_SCRIPTS) $(server_SCRIPTS)
+taskSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+SCRIPTS = $(bin_SCRIPTS) $(server_SCRIPTS) $(task_SCRIPTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -853,6 +907,7 @@ build_os = @build_os@
 build_vendor = @build_vendor@
 configdir = @sysconfdir@@configdir@
 datadir = @prefix@@datadir@
+db_bindir = @db_bindir@
 db_inc = @db_inc@
 db_incdir = @db_incdir@
 db_lib = @db_lib@
@@ -870,6 +925,7 @@ icu_lib = @icu_lib@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
+ldapsdk_bindir = @ldapsdk_bindir@
 ldapsdk_inc = @ldapsdk_inc@
 ldapsdk_lib = @ldapsdk_lib@
 ldapsdk_libdir = @ldapsdk_libdir@
@@ -898,6 +954,7 @@ sasl_lib = @sasl_lib@
 sasl_libdir = @sasl_libdir@
 sbindir = @sbindir@
 schemadir = @sysconfdir@@schemadir@
+scripttemplatedir = @scripttemplatedir@
 serverdir = @prefix@@serverdir@
 serverplugindir = @prefix@@serverplugindir@
 sharedstatedir = @sharedstatedir@
@@ -942,6 +999,7 @@ PAM_LINK = -lpam
 #------------------------
 BUILT_SOURCES = dirver.h dberrstrs.h
 CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
+taskdir = @sysconfdir@@scripttemplatedir@
 server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
 	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
@@ -1003,7 +1061,39 @@ server_SCRIPTS = wrappers/dbscan \
 	wrappers/ldif \
 	wrappers/migratecred \
 	wrappers/mmldif \
-	wrappers/pwdhash
+	wrappers/pwdhash \
+	$(srcdir)/ldap/admin/src/ds_newinst.pl
+
+task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
+	ldap/admin/src/scripts/template-db2bak \
+	ldap/admin/src/scripts/template-db2index \
+	ldap/admin/src/scripts/template-db2ldif \
+	ldap/admin/src/scripts/template-ldif2db \
+	ldap/admin/src/scripts/template-ldif2ldap \
+	ldap/admin/src/scripts/template-monitor \
+	ldap/admin/src/scripts/template-restoreconfig \
+	ldap/admin/src/scripts/template-saveconfig \
+	ldap/admin/src/scripts/template-start-slapd \
+	ldap/admin/src/scripts/template-stop-slapd \
+	ldap/admin/src/scripts/template-suffix2instance \
+	ldap/admin/src/scripts/template-vlvindex \
+	ldap/admin/src/scripts/template-bak2db.pl \
+	ldap/admin/src/scripts/template-cl-dump.pl \
+	ldap/admin/src/scripts/template-db2bak.pl \
+	ldap/admin/src/scripts/template-db2index.pl \
+	ldap/admin/src/scripts/template-db2ldif.pl \
+	ldap/admin/src/scripts/template-ldif2db.pl \
+	ldap/admin/src/scripts/template-ns-accountstatus.pl \
+	ldap/admin/src/scripts/template-ns-activate.pl \
+	ldap/admin/src/scripts/template-ns-inactivate.pl \
+	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/template-repl-monitor-cgi.pl \
+	ldap/admin/src/scripts/template-repl-monitor.pl \
+	ldap/admin/src/scripts/template-verify-db.pl \
+	$(srcdir)/ldap/admin/src/scripts/template-migrate5to7 \
+	$(srcdir)/ldap/admin/src/scripts/template-migrate6to7 \
+	$(srcdir)/ldap/admin/src/scripts/template-migrateInstance7 \
+	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
 
 
 #////////////////////////////////////////////////////////////////
@@ -1448,7 +1538,7 @@ libreferint_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 #------------------------
 # libreplication-plugin
 #------------------------
-libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.o \
+libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/cl5_clcache.c \
 	ldap/servers/plugins/replication/cl5_config.c \
 	ldap/servers/plugins/replication/cl5_init.c \
@@ -1763,6 +1853,58 @@ wrappers/mmldif: $(top_builddir)/config.status $(top_srcdir)/wrappers/mmldif.in
 wrappers/pwdhash: $(top_builddir)/config.status $(top_srcdir)/wrappers/pwdhash.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 wrappers/rsearch: $(top_builddir)/config.status $(top_srcdir)/wrappers/rsearch.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-bak2db: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-bak2db.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-db2bak: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-db2bak.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-db2index: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-db2index.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-db2ldif: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-db2ldif.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ldif2db: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ldif2db.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ldif2ldap: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ldif2ldap.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-monitor: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-monitor.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-restoreconfig: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-restoreconfig.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-saveconfig: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-saveconfig.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-start-slapd: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-start-slapd.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-stop-slapd: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-stop-slapd.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-suffix2instance: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-suffix2instance.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-vlvindex: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-vlvindex.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-bak2db.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-bak2db.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-cl-dump.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-cl-dump.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-db2bak.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-db2bak.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-db2index.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-db2index.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-db2ldif.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-db2ldif.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ldif2db.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ldif2db.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ns-accountstatus.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ns-accountstatus.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ns-activate.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ns-activate.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ns-inactivate.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ns-inactivate.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-ns-newpwpolicy.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-ns-newpwpolicy.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-repl-monitor-cgi.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-repl-monitor-cgi.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-repl-monitor.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-repl-monitor.pl.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ldap/admin/src/scripts/template-verify-db.pl: $(top_builddir)/config.status $(top_srcdir)/ldap/admin/src/scripts/template-verify-db.pl.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 
 clean-noinstLIBRARIES:
@@ -2608,6 +2750,9 @@ ldap/servers/plugins/replication/$(am__dirstamp):
 ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/replication/$(DEPDIR)
 	@: > ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo:  \
+	ldap/servers/plugins/replication/$(am__dirstamp) \
+	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo:  \
 	ldap/servers/plugins/replication/$(am__dirstamp) \
 	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
@@ -3519,6 +3664,25 @@ uninstall-serverSCRIPTS:
 	  echo " rm -f '$(DESTDIR)$(serverdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(serverdir)/$$f"; \
 	done
+install-taskSCRIPTS: $(task_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(taskdir)" || $(mkdir_p) "$(DESTDIR)$(taskdir)"
+	@list='$(task_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(taskSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(taskdir)/$$f'"; \
+	    $(taskSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(taskdir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-taskSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(task_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(taskdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(taskdir)/$$f"; \
+	done
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -3685,6 +3849,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo
 	-rm -f ldap/servers/plugins/referint/libreferint_plugin_la-referint.$(OBJEXT)
 	-rm -f ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo
+	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.$(OBJEXT)
+	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.$(OBJEXT)
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-cl5_config.$(OBJEXT)
@@ -4415,6 +4581,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-sha_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-ssha_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/referint/$(DEPDIR)/libreferint_plugin_la-referint.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_api.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_clcache.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_config.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_init.Plo@am__quote@
@@ -6056,6 +6223,13 @@ ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo: ldap/servers/pl
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/referint/referint.c' object='ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreferint_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo `test -f 'ldap/servers/plugins/referint/referint.c' || echo '$(srcdir)/'`ldap/servers/plugins/referint/referint.c
+
+ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo: ldap/servers/plugins/replication/cl5_api.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo -MD -MP -MF "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_api.Tpo" -c -o ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo `test -f 'ldap/servers/plugins/replication/cl5_api.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/cl5_api.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_api.Tpo" "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_api.Plo"; else rm -f "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_api.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/replication/cl5_api.c' object='ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo `test -f 'ldap/servers/plugins/replication/cl5_api.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/cl5_api.c
 
 ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo: ldap/servers/plugins/replication/cl5_clcache.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo -MD -MP -MF "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_clcache.Tpo" -c -o ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo `test -f 'ldap/servers/plugins/replication/cl5_clcache.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/cl5_clcache.c; \
@@ -8563,7 +8737,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/m4 $(distdir)/wrappers
+	$(mkdir_p) $(distdir)/ldap/admin/src/scripts $(distdir)/m4 $(distdir)/wrappers
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
@@ -8693,7 +8867,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(datadir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -8820,7 +8994,8 @@ info-am:
 install-data-am: install-configDATA install-dataDATA \
 	install-nodist_propertyDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverPROGRAMS \
-	install-serverSCRIPTS install-serverpluginLTLIBRARIES
+	install-serverSCRIPTS install-serverpluginLTLIBRARIES \
+	install-taskSCRIPTS
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS
 
@@ -8854,7 +9029,8 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-dataDATA uninstall-info-am \
 	uninstall-nodist_propertyDATA uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverPROGRAMS \
-	uninstall-serverSCRIPTS uninstall-serverpluginLTLIBRARIES
+	uninstall-serverSCRIPTS uninstall-serverpluginLTLIBRARIES \
+	uninstall-taskSCRIPTS
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-generic clean-libtool \
@@ -8871,15 +9047,16 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	install-nodist_propertyDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverPROGRAMS \
 	install-serverSCRIPTS install-serverpluginLTLIBRARIES \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-binSCRIPTS \
+	install-strip install-taskSCRIPTS installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
+	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-dataDATA uninstall-info-am \
 	uninstall-nodist_propertyDATA uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverPROGRAMS \
-	uninstall-serverSCRIPTS uninstall-serverpluginLTLIBRARIES
+	uninstall-serverSCRIPTS uninstall-serverpluginLTLIBRARIES \
+	uninstall-taskSCRIPTS
 
 
 dirver.h: Makefile

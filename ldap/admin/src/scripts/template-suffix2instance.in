@@ -1,0 +1,16 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export SHLIB_PATH
+
+cd {{SERVER-DIR}}
+if [ $# -lt 2 ]
+then
+	echo Usage: suffix2instance {-s includesuffix}*
+	exit 1
+fi
+
+./ns-slapd suffix2instance -D {{CONFIG-DIR}} "$@" 2>&1

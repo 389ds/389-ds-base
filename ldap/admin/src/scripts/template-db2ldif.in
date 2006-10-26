@@ -1,0 +1,41 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+export SHLIB_PATH
+
+cd {{SERVER-DIR}}
+if [ "$#" -lt 2 ];
+then
+	echo "Usage: db2ldif {-n backend_instance}* | {-s includesuffix}*"
+	echo "               [{-x excludesuffix}*] [-a outputfile]"
+	echo "               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1]"
+	echo "Note: either \"-n backend_instance\" or \"-s includesuffix\" is required."
+	exit 1
+fi
+
+set_ldif=0
+ldif_file="mydummy"
+for arg in "$@"
+do
+	if [ "$arg" = '-a' ];
+	then
+		set_ldif=1
+	elif [ $set_ldif -eq 1 ];
+	then
+		ldif_file=$arg
+		set_ldif=2
+	fi
+done
+if [ $ldif_file = "mydummy" ]
+then
+	ldif_file={{LDIF-DIR}}/laputa-`date +%Y_%m_%d_%H%M%S`.ldif
+fi
+if [ $set_ldif -eq 2 ]
+then
+./ns-slapd db2ldif -D {{CONFIG-DIR}} "$@"
+else
+./ns-slapd db2ldif -D {{CONFIG-DIR}} -a $ldif_file "$@"
+fi
