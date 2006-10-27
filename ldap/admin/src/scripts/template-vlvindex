@@ -1,0 +1,17 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export SHLIB_PATH
+
+cd {{SERVER-DIR}}
+if [ $# -lt 4 ]
+then
+	echo "Usage: vlvindex -n backend_instance | {-s includesuffix}* -T attribute"
+	echo Note: either \"-n backend_instance\" or \"-s includesuffix\" are required.
+	exit 1
+fi
+
+./ns-slapd db2index -D {{CONFIG-DIR}} "$@"

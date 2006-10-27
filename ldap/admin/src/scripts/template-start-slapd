@@ -1,0 +1,77 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export SHLIB_PATH
+
+# Script that starts the ns-slapd server.
+# Exit status can be:
+#       0: Server started successfully
+#       1: Server could not be started
+#       2: Server already running
+
+NETSITE_ROOT={{SERVER-DIR}}
+export NETSITE_ROOT
+DS_CONFIG_DIR={{CONFIG-DIR}}
+export DS_CONFIG_DIR
+PIDFILE={{RUN-DIR}}/pid
+STARTPIDFILE={{RUN-DIR}}/startpid
+if test -f $STARTPIDFILE ; then
+    PID=`cat $STARTPIDFILE`
+    if kill -0 $PID > /dev/null 2>&1 ; then
+        echo There is an ns-slapd process already running: $PID
+        exit 2;
+    else
+        rm -f $STARTPIDFILE
+    fi
+fi
+if test -f $PIDFILE ; then
+    PID=`cat $PIDFILE`
+    if kill -0 $PID > /dev/null 2>&1 ; then
+        echo There is an ns-slapd running: $PID
+        exit 2;
+    else
+        rm -f $PIDFILE
+    fi
+fi
+cd {{SERVER-DIR}}; ./ns-slapd -D {{CONFIG-DIR}} -i $PIDFILE -w $STARTPIDFILE "$@"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+loop_counter=1
+# wait for 10 seconds for the start pid file to appear
+max_count=10
+while test $loop_counter -le $max_count; do
+    loop_counter=`expr $loop_counter + 1`
+    if test ! -f $STARTPIDFILE ; then
+        sleep 1;
+    else
+        PID=`cat $STARTPIDFILE`
+    fi
+done
+if test ! -f $STARTPIDFILE ; then
+    echo Server failed to start !!! Please check errors log for problems
+    exit 1
+fi
+loop_counter=1
+# wait for 10 minutes (600 times 1 seconds)
+max_count=600
+while test $loop_counter -le $max_count; do
+    loop_counter=`expr $loop_counter + 1`
+    if test ! -f $PIDFILE ; then
+        if kill -0 $PID > /dev/null 2>&1 ; then
+            sleep 1
+    else
+        echo Server failed to start !!! Please check errors log for problems
+        exit 1
+    fi
+    else
+        PID=`cat $PIDFILE`
+        exit 0;
+    fi
+done
+echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.
+exit 1

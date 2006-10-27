@@ -1,0 +1,20 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export SHLIB_PATH
+
+cd {{SERVER-DIR}}
+if [ $# -lt 4 ]
+then
+	echo "Usage: ldif2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]"
+	echo "               {-i ldiffile}* [-O]"
+	echo "Note: either \"-n backend_instance\" or \"-s includesuffix\" and \"-i ldiffile\" are required."
+	exit 1
+fi
+
+echo importing data ...
+./ns-slapd ldif2db -D {{CONFIG-DIR}} "$@" 2>&1
+exit $?

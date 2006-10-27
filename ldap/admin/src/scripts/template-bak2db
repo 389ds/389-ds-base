@@ -1,0 +1,39 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export SHLIB_PATH
+
+if [ $# -lt 1 ] || [ $# -gt 3 ]
+then
+    echo "Usage: bak2db archivedir [-n backendname]"
+    exit 1
+else
+    archivedir=$1
+    shift
+fi
+while getopts "n:" flag
+do
+    case $flag in
+        n) bename=$OPTARG;;
+        *) echo "Usage: bak2db archivedir [-n backendname]"; exit 2;;
+    esac
+done
+
+if [ 1 = `expr $archivedir : "\/"` ]
+then
+    archivedir=$archivedir
+else
+    # relative
+    archivedir=`pwd`/$archivedir
+fi
+
+cd {{SERVER-DIR}}
+if [ "$#" -eq 2 ]
+then
+    ./ns-slapd archive2db -D {{CONFIG-DIR}} -a $archivedir -n $bename
+else
+    ./ns-slapd archive2db -D {{CONFIG-DIR}} -a $archivedir
+fi

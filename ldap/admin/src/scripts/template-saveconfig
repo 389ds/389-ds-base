@@ -1,0 +1,18 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export LD_LIBRARY_PATH
+SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+export SHLIB_PATH
+
+cd {{SERVER-DIR}}
+echo saving configuration ...
+conf_ldif={{BAK-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H%M%S`.ldif
+./ns-slapd db2ldif -N -D {{CONFIG-DIR}} -s "o=NetscapeRoot" -a $conf_ldif -n NetscapeRoot 2>&1
+if [ "$?" -ge 1 ] 
+then
+    echo Error occurred while saving configuration
+    exit 1
+fi
+exit 0
