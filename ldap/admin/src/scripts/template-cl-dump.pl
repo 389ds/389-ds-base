@@ -101,8 +101,8 @@
 # installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
 $prefix = "{{DS-ROOT}}";
 
-$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
-$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'LD_LIBRARY_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
+$ENV{'SHLIB_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
 
 $usage="Usage: $0 [-h host] [-p port] [-D bind-dn] [-w bind-password | -P bind-cert] [-r replica-roots] [-o output-file] [-c] [-v]\n\n       $0 -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]";
 

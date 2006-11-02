@@ -111,12 +111,11 @@ print("*****************************************************************\n");
 
 # get dirs having DBVERSION
 my $dbdirs = getDbDir(".");
-my $brand_ds = {{DS-BRAND}};
 my $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = '$prefix/usr/bin:$prefix/usr/lib:/usr/bin:/usr/lib';
-$ENV{'LD_LIBRARY_PATH'} = ':/usr/lib';
-$ENV{'SHLIB_PATH'} = ':/usr/lib';
+$ENV{'PATH'} = "$prefix/usr/bin:$prefix/usr/bin:/usr/bin:/usr/bin";
+$ENV{'LD_LIBRARY_PATH'} = ":/usr/lib";
+$ENV{'SHLIB_PATH'} = ":/usr/lib";
 
 for (my $i = 0; $i < @$dbdirs; $i++)
 {

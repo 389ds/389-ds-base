@@ -58,9 +58,9 @@ if ($cgiVars{'admurl'}) {
 $siteroot = $cgiVars{'siteroot'};
 $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = '$prefix/usr/lib/mozldap6:$prefix/usr/lib:/usr/lib/mozldap6:/usr/lib';
-$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
-$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'PATH'} = "$prefix/usr/lib/mozldap6:$prefix/usr/bin:/usr/lib/mozldap6:/usr/bin";
+$ENV{'LD_LIBRARY_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
+$ENV{'SHLIB_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
 
 # Save user-specified parameters as cookies in monreplication.properties.
 # Sync up with the property file so that monreplication2 is interval, and

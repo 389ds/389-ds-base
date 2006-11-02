@@ -67,9 +67,9 @@ $verbose = 0;
 
 $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = '$prefix/usr/lib/mozldap6:$prefix/usr/lib:/usr/lib/mozldap6:/usr/lib';
-$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
-$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'PATH'} = "$prefix/usr/lib/mozldap6:$prefix/usr/bin:/usr/lib/mozldap6:/usr/bin";
+$ENV{'LD_LIBRARY_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
+$ENV{'SHLIB_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
 
 $i = 0;
 while ($i <= $#ARGV) 

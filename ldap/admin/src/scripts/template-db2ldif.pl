@@ -242,9 +242,9 @@ $nsldiffile = "nsFilename: ${ldiffile}\n";
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsreplica}${nsnobase64}${nsnowrap}${nsnoversion}${nsnouniqueid}${nsuseid2entry}${nsonefile}${nsexportdecrypt}${nsprintkey}${nsldiffile}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-$ENV{'PATH'} = '$prefix/usr/lib/mozldap6:$prefix/usr/lib:/usr/lib/mozldap6:/usr/lib';
-$ENV{'LD_LIBRARY_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
-$ENV{'SHLIB_PATH'} = '$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib';
+$ENV{'PATH'} = "$prefix/usr/lib/mozldap6:$prefix/usr/bin:/usr/lib/mozldap6:/usr/bin";
+$ENV{'LD_LIBRARY_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
+$ENV{'SHLIB_PATH'} = "$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec:/usr/lib";
 open(FOO, "| ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

@@ -218,9 +218,9 @@ if ($uniqidname ne "") { $nsuniqidname = "nsUniqueIdGeneratorNamespace: ${uniqid
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-$ENV{'PATH'} = '$prefix@ldapsdk_bindir@:$prefix/usr/lib:@ldapsdk_bindir@:/usr/lib';
-$ENV{'LD_LIBRARY_PATH'} = '$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib';
-$ENV{'SHLIB_PATH'} = '$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib';
+$ENV{'PATH'} = "$prefix@ldapsdk_bindir@:$prefix/usr/bin:@ldapsdk_bindir@:/usr/bin";
+$ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
+$ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 open(FOO, "| ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);
