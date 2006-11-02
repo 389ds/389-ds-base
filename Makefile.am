@@ -44,14 +44,13 @@ dberrstrs.h: Makefile
 #------------------------
 # Install Paths
 #------------------------
-bindir = @prefix@@bindir@
-configdir = @sysconfdir@@configdir@
-datadir = @prefix@@datadir@
-propertydir = @sysconfdir@@propertydir@
-schemadir = @sysconfdir@@schemadir@
-serverdir = @prefix@@serverdir@
-serverplugindir = @prefix@@serverplugindir@
-taskdir = @sysconfdir@@scripttemplatedir@
+configdir = $(sysconfdir)@configdir@
+sampledatadir = $(datadir)@sampledatadir@
+propertydir = $(sysconfdir)@propertydir@
+schemadir = $(sysconfdir)@schemadir@
+serverdir = $(libdir)@serverdir@
+serverplugindir = $(libdir)@serverplugindir@
+taskdir = $(sysconfdir)@scripttemplatedir@
 
 #------------------------
 # Build Products
@@ -83,7 +82,7 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf
 
-data_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
+sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/commonTasks.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
@@ -882,3 +881,31 @@ rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 
 rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+
+# these are for the config files and scripts that we need to generate and replace
+# the paths and other tokens with the real values set during configure/make
+# note that we cannot just use AC_OUTPUT to do this for us, since it will do things like this:
+# LD_LIBRARY_PATH = ${prefix}/lib/fedora-ds
+# i.e. it literally copies in '${prefix}' rather than expanding it out - we want this instead:
+# LD_LIBRARY_PATH = /usr/lib/fedora-ds
+fixupcmd = sed \
+	-e 's,@bindir\@,$(bindir),g' \
+	-e 's,@libdir\@,$(libdir),g' \
+	-e 's,@nspr_libdir\@,$(nspr_libdir),g' \
+	-e 's,@nss_libdir\@,$(nss_libdir),g' \
+	-e 's,@ldapsdk_libdir\@,$(ldapsdk_libdir),g' \
+	-e 's,@ldapsdk_bindir\@,$(ldapsdk_bindir),g' \
+	-e 's,@db_libdir\@,$(db_libdir),g' \
+	-e 's,@db_bindir\@,$(db_bindir),g' \
+	-e 's,@sasl_libdir\@,$(sasl_libdir),g' \
+	-e 's,@netsnmp_libdir\@,$(netsnmp_libdir),g' \
+	-e 's,@propertydir\@,$(propertydir),g' \
+	-e 's,@datadir\@,$(datadir),g' \
+	-e 's,@schemadir\@,$(schemadir),g' \
+	-e 's,@serverdir\@,$(serverdir),g' \
+	-e 's,@serverplugindir\@,$(serverplugindir),g' \
+	-e 's,@taskdir\@,$(taskdir),g' \
+	-e 's,@configdir\@,$(configdir),g'
+
+% : %.in
+	$(fixupcmd) $^ > $@

@@ -5,7 +5,7 @@
 ###############################################################################
 
 LIB_DIR=@netsnmp_libdir@
-BIN_DIR=@prefix@@serverdir@
+BIN_DIR=@serverdir@
 COMMAND=ldap-agent-bin
 
 

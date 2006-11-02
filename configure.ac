@@ -125,17 +125,23 @@ AC_SUBST(netsnmp_libdir)
 AC_SUBST(netsnmp_link)
 
 # installation paths
-bindir=/usr/bin
+dnl bindir=/usr/bin
+# relative to sysconfdir
 configdir=/fedora-ds/config
-datadir=/usr/share/fedora-ds/data
+# relative to datadir
+sampledatadir=/fedora-ds/data
+# relative to sysconfdir
 propertydir=/fedora-ds/property
+# relative to sysconfdir
 schemadir=/fedora-ds/schema
-serverdir=/usr/lib/fedora-ds
-serverplugindir=/usr/lib/fedora-ds/plugins
+# relative to libdir
+serverdir=/fedora-ds
+# relative to libdir
+serverplugindir=/fedora-ds/plugins
+# relative to sysconfdir
 scripttemplatedir=/fedora-ds/script-templates
-AC_SUBST(bindir)
 AC_SUBST(configdir)
-AC_SUBST(datadir)
+AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
 AC_SUBST(schemadir)
 AC_SUBST(serverdir)
@@ -147,44 +153,5 @@ AC_SUBST(scripttemplatedir)
 AM_CONDITIONAL([WINNT], false)
 
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([wrappers/dbscan])
-AC_CONFIG_FILES([wrappers/dsktune])
-AC_CONFIG_FILES([wrappers/ds_newinst])
-AC_CONFIG_FILES([wrappers/infadd])
-AC_CONFIG_FILES([wrappers/ldap-agent])
-AC_CONFIG_FILES([wrappers/ldclt])
-AC_CONFIG_FILES([wrappers/ldif])
-AC_CONFIG_FILES([wrappers/migratecred])
-AC_CONFIG_FILES([wrappers/mmldif])
-AC_CONFIG_FILES([wrappers/pwdhash])
-AC_CONFIG_FILES([wrappers/rsearch])
-
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-bak2db])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2bak])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2index])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2ldif])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ldif2db])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ldif2ldap])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-monitor])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-restoreconfig])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-saveconfig])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-start-slapd])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-stop-slapd])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-suffix2instance])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-vlvindex])
-
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-bak2db.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-cl-dump.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2bak.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2index.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-db2ldif.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ldif2db.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ns-accountstatus.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ns-activate.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ns-inactivate.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-ns-newpwpolicy.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-repl-monitor-cgi.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-repl-monitor.pl])
-AC_CONFIG_FILES([ldap/admin/src/scripts/template-verify-db.pl])
 
 AC_OUTPUT

@@ -5,7 +5,7 @@
 ###############################################################################
 
 LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@
-BIN_DIR=@prefix@@serverdir@
+BIN_DIR=@serverdir@
 COMMAND=ldif-bin
 
 

@@ -4,8 +4,8 @@
 ##  (1) Specify variables used by this script.                               ##
 ###############################################################################
 
-LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@:@prefix@@serverdir@
-BIN_DIR=@prefix@@serverdir@
+LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@:@serverdir@
+BIN_DIR=@serverdir@
 COMMAND=ds_newinst-bin
 
 

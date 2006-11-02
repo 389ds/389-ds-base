@@ -5,7 +5,7 @@
 ###############################################################################
 
 LIB_DIR=@nspr_libdir@:@db_libdir@
-BIN_DIR=@prefix@@serverdir@
+BIN_DIR=@serverdir@
 COMMAND=dbscan-bin
 
 
