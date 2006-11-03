@@ -907,5 +907,6 @@ fixupcmd = sed \
 	-e 's,@taskdir\@,$(taskdir),g' \
 	-e 's,@configdir\@,$(configdir),g'
 
-% : %.in
+%: %.in
+	mkdir -p $(dir $@)
 	$(fixupcmd) $^ > $@
