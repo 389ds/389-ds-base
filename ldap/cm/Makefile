@@ -312,7 +312,11 @@ releaseDirectory:
 
 # the httpd library
 ifneq ($(ARCH), WINNT)
+  ifeq ($(ARCH), SOLARIS)
 	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(LDAP_PLUGIN_RELDIR)
+  else
+	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/$(DS_LIBDIR)
+  endif
 endif
 
 # Images for IM Presence plugin
