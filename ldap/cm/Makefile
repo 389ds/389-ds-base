@@ -312,7 +312,7 @@ releaseDirectory:
 
 # the httpd library
 ifneq ($(ARCH), WINNT)
-	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(RELDIR)/$(DS_LIBDIR)
+	$(INSTALL) -m 755 $(OBJDIR)/$(NSHTTPD_DLL)$(DLL_PRESUF).$(DLL_SUFFIX)* $(LDAP_PLUGIN_RELDIR)
 endif
 
 # Images for IM Presence plugin
@@ -1042,7 +1042,7 @@ $(INSTDIR)/$(SLAPD_DIR)/slapd.z:
 	then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_DSGWDIR) ; \
 	fi ; \
 	done
-	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/$(DS_LIBDIR)
+	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/$(DS_PLUGINDIR)
 	$(INSTALL) -m 755 $(OBJDIR)/$(BUILD_HTTPDLL_NAME).dll $(RELDIR)/$(DS_DSGWDIR)
 	rm -f $(SLAPD_ZIPFILE); cd $(RELDIR); zip -r $(SLAPD_ZIPFILE) *
 
