@@ -90,7 +90,7 @@ nsslapd-pluginId: test-entry
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc entrypdesc = { "test-entry", "Fedora Project", "1.0.3",
+Slapi_PluginDesc entrypdesc = { "test-entry", "Fedora Project", "1.0.4",
 	"sample entry modification plugin" };
 
 /* Entry store plug-in function */
