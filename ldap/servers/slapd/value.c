@@ -190,6 +190,30 @@ value_init(Slapi_Value *v, const struct berval *bval,CSNType t,const CSN *csn)
     return v;
 }
 
+void
+slapi_value_set_flags(Slapi_Value *v, unsigned long flags)
+{
+	PR_ASSERT(v!=NULL);
+	v->v_flags = flags;
+}
+
+void
+slapi_values_set_flags(Slapi_Value **vs, unsigned long flags)
+{
+	PR_ASSERT(vs!=NULL);
+	Slapi_Value **v;
+	for (v = vs; v && *v; v++) {
+		slapi_value_set_flags(*v, flags);
+	}
+}
+
+unsigned long
+slapi_value_get_flags(Slapi_Value *v)
+{
+	PR_ASSERT(v!=NULL);
+	return v->v_flags;
+}
+
 void 
 slapi_value_free(Slapi_Value **v)
 {

@@ -319,8 +319,10 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 
 		for ( i = 0; i < numbvals; i++ )
 		{
-                    c = slapi_ch_strdup(slapi_value_get_string(bvals[i]));
-                    value_normalize( c, syntax, 1 /* trim leading blanks */ );
+			c = slapi_ch_strdup(slapi_value_get_string(bvals[i]));
+			/* if the NORMALIZED flag is set, skip normalizing */
+			if (!(slapi_value_get_flags(bvals[i]) & SLAPI_ATTR_FLAG_NORMALIZED))
+				value_normalize( c, syntax, 1 /* trim leading blanks */ );
 		    nbvals[i] = slapi_value_new_string_passin(c);
 		}
 		nbvals[i] = NULL;

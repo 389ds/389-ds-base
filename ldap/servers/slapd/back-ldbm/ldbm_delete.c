@@ -250,7 +250,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
     		struct backentry *parent = NULL;
 			entry_address parent_addr;
 
-			parent_addr.dn = (char*)slapi_sdn_get_ndn (&parentsdn);
+			parent_addr.dn = (char*)slapi_sdn_get_dn (&parentsdn);
 			parent_addr.uniqueid = NULL;
     		parent = find_entry2modify_only(pb,be,&parent_addr,&txn);
     		if (NULL != parent) {

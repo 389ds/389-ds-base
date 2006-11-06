@@ -2796,6 +2796,17 @@ entry_replace_values(
 }
 
 int
+entry_replace_values_with_flags(
+    Slapi_Entry		*e,
+    const char		*type,
+    struct berval	**vals,
+    int flags
+)
+{
+    return attrlist_replace_with_flags( &e->e_attrs, type, vals, flags );
+}
+
+int
 slapi_entry_flag_is_set( const Slapi_Entry *e, unsigned char flag )
 {
 	return( e->e_flags & flag );

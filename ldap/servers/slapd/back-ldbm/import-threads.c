@@ -933,7 +933,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
 
     /* insert into the entrydn index */
     bv.bv_val = (void*)backentry_get_ndn(fi->entry);   /* jcm - Had to cast away const */
-    bv.bv_len = strlen(backentry_get_ndn(fi->entry));
+    bv.bv_len = strlen(bv.bv_val);
 
     /* We need to check here whether the DN is already present in
      * the entrydn index. If it is then the input ldif 
@@ -960,7 +960,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     if ((ret = index_addordel_string(be, "entrydn", 
                                      bv.bv_val,
                                      fi->entry->ep_id,
-                                     BE_INDEX_ADD, NULL)) != 0) {
+                                     BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL)) != 0) {
         import_log_notice(job, "Error writing entrydn index "
                           "(error %d: %s)",
                           ret, dblayer_strerror(ret));

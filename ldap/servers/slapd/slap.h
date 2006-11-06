@@ -379,6 +379,7 @@ struct slapi_value
 {
     struct berval bv;
     CSNSet *v_csnset;
+    unsigned long v_flags;
 };
 
 /*

@@ -381,10 +381,10 @@ index_addordel_entry(
     /* if we are adding a tombstone entry (see ldbm_add.c) */
     if ((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_ADD))
     {
-	Slapi_DN parent;
-	Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
-	slapi_sdn_init(&parent);
-	slapi_sdn_get_parent(sdn, &parent);
+        Slapi_DN parent;
+        Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
+        slapi_sdn_init(&parent);
+        slapi_sdn_get_parent(sdn, &parent);
         /*
          * Just index the "nstombstone" attribute value from the objectclass
          * attribute, and the nsuniqueid attribute value, and the entrydn value of the deleted entry.
@@ -404,7 +404,7 @@ index_addordel_entry(
             ldbm_nasty(errmsg, 1020, result);
             return( result );
         }
-	slapi_sdn_done(&parent);
+        slapi_sdn_done(&parent);
     }
     else
     {
@@ -414,8 +414,11 @@ index_addordel_entry(
               rc = slapi_entry_next_attr( e->ep_entry, attr, &attr ) ) {
             slapi_attr_get_type( attr, &type );
             svals = attr_get_present_values(attr);
-            result = index_addordel_values_sv( be, type, svals, NULL, e->ep_id,
-                                               flags, txn );
+            if ( 0 == strcmp( type, "entrydn" )) {
+                slapi_values_set_flags(svals, SLAPI_ATTR_FLAG_NORMALIZED);
+            }
+            result = index_addordel_values_sv( be, type, svals, NULL,
+                                               e->ep_id, flags, txn );
             if ( result != 0 ) {
                 ldbm_nasty(errmsg, 1030, result);
                 return( result );
@@ -423,13 +426,13 @@ index_addordel_entry(
         }
 
         /* update ancestorid index . . . */
-		/* . . . only if we are not deleting a tombstone entry - tombstone entries are not in the ancestor id index - see bug 603279 */
-	if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
-	        result = ldbm_ancestorid_index_entry(be, e, flags, txn);
-		if ( result != 0 ) {
-			return( result );
-		}
-	}
+        /* . . . only if we are not deleting a tombstone entry - tombstone entries are not in the ancestor id index - see bug 603279 */
+        if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
+                result = ldbm_ancestorid_index_entry(be, e, flags, txn);
+            if ( result != 0 ) {
+                return( result );
+            }
+        }
     }
     
     LDAPDebug( LDAP_DEBUG_TRACE, "<= index_%s_entry%s %d\n",
@@ -1643,6 +1646,8 @@ index_addordel_string(backend *be, const char *type, const char *s, ID id, int f
     sv.bv.bv_val= (void*)s;
     svp[0] = &sv;
     svp[1] = NULL;
+    if (flags & BE_INDEX_NORMALIZED)
+        slapi_value_set_flags(&sv, BE_INDEX_NORMALIZED);
     return index_addordel_values_ext_sv(be,type,svp,NULL,id,flags,txn,NULL,NULL);
 }
 

@@ -195,7 +195,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		   slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
 		{
 			done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY); /* Could be through this multiple times */
-			addr.dn = (char*)slapi_sdn_get_ndn (&parentsdn);
+			addr.dn = (char*)slapi_sdn_get_dn (&parentsdn); /* get_copy_of_entry assumes the DN is not normalized */
 			addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_PARENT_ENTRY, !is_replicated_operation);
 			/* need to set parentsdn or parentuniqueid if either is not set? */
@@ -234,7 +234,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	 */
     if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid))
 	{
-		addr.dn = (char*)slapi_sdn_get_ndn (&parentsdn);
+		addr.dn = (char*)slapi_sdn_get_dn (&parentsdn);
 		addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
 		parententry = find_entry2modify_only(pb,be,&addr,&txn);
 		if (parententry && parententry->ep_entry) {
@@ -898,7 +898,7 @@ add_update_entrydn_operational_attributes(struct backentry *ep)
     bvp[1] = NULL;
     bv.bv_val = (void*)backentry_get_ndn(ep);
     bv.bv_len = strlen( bv.bv_val );
-    entry_replace_values( ep->ep_entry, "entrydn", bvp );
+    entry_replace_values_with_flags( ep->ep_entry, "entrydn", bvp, SLAPI_ATTR_FLAG_NORMALIZED );
 }
 
 /*

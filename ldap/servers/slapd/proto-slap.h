@@ -81,6 +81,7 @@ void attrlist_add(Slapi_Attr **attrs, Slapi_Attr *a);
 int attrlist_count_subtypes(Slapi_Attr *a, const char *type);
 Slapi_Attr *attrlist_find_ex( Slapi_Attr *a, const char *type, int *type_name_disposition, char** actual_type_name, void **hint );
 int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals);
+int attrlist_replace_with_flags(Slapi_Attr **alist, const char *type, struct berval **vals, int flags);
 
 /*
  * attrsyntax.c
@@ -121,6 +122,7 @@ size_t value_size(const Slapi_Value *v);
  * valueset.c
  */
 int valuearray_init_bervalarray(struct berval **bvals, Slapi_Value ***cvals);
+int valuearray_init_bervalarray_with_flags(struct berval **bvals, Slapi_Value ***cvals, unsigned long flags);
 int valuearray_get_bervalarray(Slapi_Value **cvals, struct berval ***bvals); /* JCM SLOW FUNCTION */
 void valuearray_free(Slapi_Value ***va);
 Slapi_Value *valuearray_remove_value(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
@@ -642,6 +644,7 @@ void do_modrdn( Slapi_PBlock *pb );
  * modutil.c
  */
 int entry_replace_values( Slapi_Entry *e, const char *type, struct berval **vals );
+int entry_replace_values_with_flags( Slapi_Entry *e, const char *type, struct berval **vals, int flags );
 int entry_apply_mods( Slapi_Entry *e, LDAPMod **mods );
 int entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod );
 void freepmods( LDAPMod **pmods );

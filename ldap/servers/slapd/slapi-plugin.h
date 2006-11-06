@@ -61,6 +61,7 @@ extern "C" {
 #define SLAPI_ATTR_FLAG_OBSOLETE	0x0040	/* an outdated definition */
 #define SLAPI_ATTR_FLAG_COLLECTIVE	0x0080	/* collective (not supported) */
 #define SLAPI_ATTR_FLAG_NOUSERMOD	0x0100	/* can't be modified over LDAP */
+#define SLAPI_ATTR_FLAG_NORMALIZED	0x0200	/* the attr value is normalized */
 
 /* operation flags */
 #define SLAPI_OP_FLAG_NEVER_CHAIN	0x00800 /* Do not chain the operation */	
@@ -429,6 +430,9 @@ Slapi_Value *slapi_value_init_berval(Slapi_Value *v, struct berval *bval);
 Slapi_Value *slapi_value_init_string(Slapi_Value *v,const char *s);
 Slapi_Value *slapi_value_init_string_passin(Slapi_Value *v, char *s);
 Slapi_Value *slapi_value_dup(const Slapi_Value *v);
+void slapi_value_set_flags(Slapi_Value *v, unsigned long flags);
+void slapi_values_set_flags(Slapi_Value **vs, unsigned long flags);
+unsigned long slapi_value_get_flags(Slapi_Value *v);
 void slapi_value_free(Slapi_Value **value);
 const struct berval *slapi_value_get_berval( const Slapi_Value *value );
 Slapi_Value *slapi_value_set_berval( Slapi_Value *value, const struct berval *bval );

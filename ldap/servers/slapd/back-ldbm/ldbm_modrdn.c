@@ -271,7 +271,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	}
 
 	/* Fetch and lock the parent of the entry that is moving */
-	oldparent_addr.dn = (char*)slapi_sdn_get_ndn (&dn_parentdn);
+	oldparent_addr.dn = (char*)slapi_sdn_get_dn (&dn_parentdn);
 	oldparent_addr.uniqueid = NULL;    		
 	parententry = find_entry2modify_only( pb, be, &oldparent_addr, NULL );
    	modify_init(&parent_modify_context,parententry);
@@ -360,10 +360,17 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 		if(!(slapi_dn_isbesuffix(pb,slapi_sdn_get_ndn(&dn_olddn)) && isroot))
 		{
 			/* Here means that we didn't find the parent */
-			ldap_result_matcheddn = slapi_ch_strdup((char *) slapi_entry_get_dn(parententry->ep_entry));
+			if (parententry && parententry->ep_entry)
+			{
+				ldap_result_matcheddn = slapi_ch_strdup((char *) slapi_entry_get_dn(parententry->ep_entry));
+			}
+			else
+			{
+				ldap_result_matcheddn = "NULL";
+			}
 			ldap_result_code= LDAP_NO_SUCH_OBJECT;
 			LDAPDebug( LDAP_DEBUG_TRACE, "Parent does not exist matched %s, parentdn = %s\n", 
-				ldap_result_matcheddn == NULL ? "NULL" : ldap_result_matcheddn, slapi_sdn_get_ndn(&dn_parentdn), 0 );
+				ldap_result_matcheddn, slapi_sdn_get_ndn(&dn_parentdn), 0 );
 			goto error_return;
 		}
 	}
@@ -818,7 +825,8 @@ common_return:
     moddn_unlock_and_return_entries(be,&e,&existingentry);
     slapi_ch_free((void**)&child_entries);
     slapi_ch_free((void**)&child_entry_copies);
-    slapi_ch_free((void**)&ldap_result_matcheddn);
+    if (ldap_result_matcheddn && 0 != strcmp(ldap_result_matcheddn, "NULL"))
+        slapi_ch_free((void**)&ldap_result_matcheddn);
 	idl_free(children);
     slapi_sdn_done(&dn_olddn);
     slapi_sdn_done(&dn_newdn);

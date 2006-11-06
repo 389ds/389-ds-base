@@ -250,6 +250,36 @@ valuearray_init_bervalarray(struct berval **bvals, Slapi_Value ***cvals)
 /*
  * JCM SLOW FUNCTION
  *
+ * WARNING: Use only if you absolutley need to...
+ * This function mostly exists to map from the old slapi berval
+ * based interface to the new Slapi_Value based interfaces.
+ */
+int
+valuearray_init_bervalarray_with_flags(struct berval **bvals, Slapi_Value ***cvals, unsigned long flags)
+{
+    int n;
+    for(n=0; bvals != NULL && bvals[n] != NULL; n++);
+    if(n==0)
+    {
+        *cvals = NULL;
+    }
+    else
+    {
+        int i;
+        *cvals = (Slapi_Value **) slapi_ch_malloc((n + 1) * sizeof(Slapi_Value *));
+        for(i=0;i<n;i++)
+        {
+            (*cvals)[i] = slapi_value_new_berval(bvals[i]);
+            slapi_value_set_flags((*cvals)[i], flags);
+        }
+        (*cvals)[i] = NULL;
+    }
+    return n;
+}
+
+/*
+ * JCM SLOW FUNCTION
+ *
  * Use only if you absolutley need to...
  * This function mostly exists to map from the old slapi berval
  * based interface to the new Slapi_Value based interfaces.
