@@ -136,6 +136,7 @@ typedef struct {
     char *plugin_dir;
     char *tmp_dir;
     char *cert_dir;
+    char *sasl_path;
     char *prefix;
 } server_config_s;
 

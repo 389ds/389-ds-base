@@ -552,14 +552,20 @@ static int ids_sasl_canon_user(
 }
 
 #ifdef CYRUS_SASL
-#if !defined(LINUX)
 static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
 {
-    static char *pluginpath = "../../../lib/sasl2";
+    /* Try to get path from config, otherwise check for SASL_PATH environment
+     * variable.  If neither of these are set, just default to /usr/lib/sasl2
+     */
+    char *pluginpath = config_get_saslpath();
+    if ((!pluginpath) || (*pluginpath == '\0')) {
+        if (!(pluginpath = getenv("SASL_PATH"))) {
+            pluginpath = "/usr/lib/sasl2";
+        }
+    }
     *path = pluginpath;
     return SASL_OK;
 }
-#endif
 #endif
 
 static sasl_callback_t ids_sasl_callbacks[] =
@@ -589,17 +595,11 @@ static sasl_callback_t ids_sasl_callbacks[] =
       NULL
     },
 #ifdef CYRUS_SASL
-    /* On Linux: we use system sasl and plugins are found in the default path
-     * /usr/lib/sasl2
-     * On other platforms: we need to tell cyrus sasl where they are localted.
-     */
-#if !defined(LINUX)
     {
       SASL_CB_GETPATH,
       (IFP) ids_sasl_getpluginpath,
       NULL
     },
-#endif
 #endif
     {
       SASL_CB_LIST_END,
@@ -751,7 +751,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
     }
     PR_Unlock(pb->pb_conn->c_mutex);
 
-    LDAPDebug( LDAP_DEBUG_TRACE, ">= ids_sasl_listmech\n", 0, 0, 0 );
+    LDAPDebug( LDAP_DEBUG_TRACE, "<= ids_sasl_listmech\n", 0, 0, 0 );
 
     return ret;
 }

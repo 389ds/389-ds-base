@@ -358,6 +358,19 @@ slapd_bootstrap_config(const char *configdir)
 					}
 				}
 
+				/* set the sasl path; needed in main */
+				 workpath[0] = '\0';
+				if (entry_has_attr_and_value(e, CONFIG_SASLPATH_ATTRIBUTE,
+						workpath, sizeof(workpath)))
+				{
+					if (config_set_saslpath(CONFIG_SASLPATH_ATTRIBUTE,
+							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+									  CONFIG_SASLPATH_ATTRIBUTE, errorbuf);
+					}
+				}
+
 				/* see if the entry is a child of the plugin base dn */
 				if (slapi_sdn_isparent(&plug_dn,
 									   slapi_entry_get_sdn_const(e)))

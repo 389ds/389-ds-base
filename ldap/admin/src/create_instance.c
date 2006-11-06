@@ -2700,6 +2700,10 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-lockdir: %s\n", cf->lock_dir);
     fprintf(f, "nsslapd-tmpdir: %s\n", cf->tmp_dir);
     fprintf(f, "nsslapd-certdir: %s\n", cf->cert_dir);
+/* We use the system SASL by default on Linux, so we don't need to set sasl path */
+#if !defined( LINUX )
+    fprintf(f, "nsslapd-saslpath: %s\n", cf->sasl_path);
+#endif
     fprintf(f, "nsslapd-accesslog-logging-enabled: on\n");
     fprintf(f, "nsslapd-accesslog-maxlogsperdir: 10\n");
     fprintf(f, "nsslapd-accesslog-mode: 600\n");
@@ -4293,6 +4297,7 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
  * cf->tmp_dir: <localstatedir>/tmp/slapd-<servid>
  * cf->ldif_dir: <datadir>/<brand-ds>/ldif
  * cf->cert_dir: <sysconfdir>/BRAND_DS/slapd-<servid>
+ * cf->sasl_path: <sroot>/sasl2
  * cf->plugin_dir: <sroot>/plugins
  *
  * NOTES: 
@@ -4342,6 +4347,7 @@ int parse_form(server_config_s *cf)
 
     cf->sroot = PR_smprintf("%s%cusr%clib%c%s",
                 prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, cf->brand_ds);
+    cf->sasl_path = PR_smprintf("%s%csasl2", cf->sroot, FILE_PATHSEP);
     cf->plugin_dir = PR_smprintf("%s%cplugins", cf->sroot, FILE_PATHSEP);
 
     if (!(cf->servname = ds_a_get_cgi_var("servname", "Server Name",

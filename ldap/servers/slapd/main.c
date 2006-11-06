@@ -748,7 +748,6 @@ main( int argc, char **argv)
 		 * THE FIX: Move the two calls below before a call to 
 		 * setup_internal_backends (down in this same function)
 		 */
-		init_saslmechanisms();
 		ldapi_init_extended_ops();
 
 		
@@ -776,6 +775,11 @@ main( int argc, char **argv)
 							slapdFrontendConfig->configdir);
 			exit(1);
 		}
+
+		/* We need to init sasl after we load the bootstrap config since
+		 * the config may be setting the sasl plugin path.
+		 */
+		init_saslmechanisms();
 
 		/* -sduloutre: must be done before any internal search */
 		/* do it before splitting off to other modes too -robey */

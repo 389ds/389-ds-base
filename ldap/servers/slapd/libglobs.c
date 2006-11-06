@@ -529,6 +529,10 @@ static struct config_get_and_set {
 	{CONFIG_CERTDIR_ATTRIBUTE, config_set_certdir,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.certdir, CONFIG_STRING, config_get_certdir},
+	/* parameterizing sasl plugin path */
+	{CONFIG_SASLPATH_ATTRIBUTE, config_set_saslpath,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.saslpath, CONFIG_STRING, config_get_saslpath},
 	{CONFIG_REWRITE_RFC1274_ATTRIBUTE, config_set_rewrite_rfc1274,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.rewrite_rfc1274, CONFIG_ON_OFF, NULL},
@@ -4301,6 +4305,42 @@ config_set_certdir(const char *attrname, char *value, char *errorbuf, int apply)
 
 	slapdFrontendConfig->certdir = slapi_ch_strdup(value);
   
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	return retVal;
+}
+
+char *
+config_get_saslpath()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	char *retVal;
+
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = config_copy_strval(slapdFrontendConfig->saslpath);
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal;
+}
+
+int
+config_set_saslpath(const char *attrname, char *value, char *errorbuf, int apply)
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	if (!apply) {
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	slapi_ch_free((void **)&slapdFrontendConfig->saslpath);
+
+	slapdFrontendConfig->saslpath = slapi_ch_strdup(value);
+
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
 	return retVal;
 }
