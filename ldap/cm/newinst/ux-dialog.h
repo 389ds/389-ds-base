@@ -54,7 +54,7 @@ extern DialogInput askSlapdSuffix;
 extern DialogInput askSlapdRootDN;
 extern DialogYesNo askReplication;
 extern DialogYesNo askSample;
-extern DialogYesNo askPopulate;
+extern DialogInput askPopulate;
 extern DialogInput askOrgSize;
 extern DialogYesNo askCIR;
 extern DialogInput askCIRHost;

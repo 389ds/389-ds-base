@@ -1034,7 +1034,7 @@ askSampleNext(Dialog *me)
 	return DIALOG_NEXT;
 }
 
-DialogYesNo askPopulate(
+DialogInput askPopulate(
 "You may wish to populate your new directory instance with some data.\n"
 "You may already have a file in LDIF format to use or some suggested\n"
 "entries can be added.  If you want to import entries from an LDIF\n"
@@ -1074,7 +1074,9 @@ askPopulateSetup(Dialog *me)
 	}
 
 	dialogSetup(me, SLAPD_KEY_INSTALL_LDIF_FILE, "none");
-	me->setInputLen(1024); // it seems to get reset somewhere . . .
+    // max input buffer size is sizeof(Dialog::_buf)-1
+    // Dialog::_buf is defined as char[MED_BUF]
+	me->setInputLen(MED_BUF-1); // it seems to get reset somewhere . . .
 
 	long setupval = 0;
 	if (me->getUserData(SETUP_DEFAULTS, setupval) == SETUP_ONLY ||
