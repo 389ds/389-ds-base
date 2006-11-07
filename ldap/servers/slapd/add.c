@@ -484,9 +484,9 @@ static void op_shared_add (Slapi_PBlock *pb)
 
 			/* Check ACI before checking password syntax */
 			if ( (err = slapi_access_allowed(pb, e, SLAPI_USERPWD_ATTR, NULL,
-                                     SLAPI_ACL_WRITE)) != LDAP_SUCCESS) {
+                                     SLAPI_ACL_ADD)) != LDAP_SUCCESS) {
                                 send_ldap_result(pb, err, NULL,
-                                              "Insufficient 'write' privilege to the "
+                                              "Insufficient 'add' privilege to the "
                                               "'userPassword' attribute", 0, NULL);
                                 goto done;
 			}
