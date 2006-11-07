@@ -160,40 +160,30 @@ slapd_bootstrap_config(const char *configdir)
 	char *buf = 0;
 	char *lastp = 0;
 	char *entrystr = 0;
-	char *instancedir = NULL;
 
-	if (NULL == configdir) {
-		slapi_log_error(SLAPI_LOG_FATAL,
-						"startup", "Passed null config directory\n");
-		return rc; /* Fail */
-	}
 	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir,
-				CONFIG_FILENAME);
+			CONFIG_FILENAME);
 	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		/* the "real" file does not exist; see if there is a tmpfile */
 		char tmpfile[MAXPATHLEN+1];
-		slapi_log_error(SLAPI_LOG_FATAL, "config",
-					"The configuration file %s does not exist\n", configfile);
 		PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.tmp", configdir,
-					CONFIG_FILENAME);
+				CONFIG_FILENAME);
 		if ( PR_GetFileInfo( tmpfile, &prfinfo ) == PR_SUCCESS ) {
 			rc = PR_Rename(tmpfile, configfile);
 			if (rc == PR_SUCCESS) {
 				slapi_log_error(SLAPI_LOG_FATAL, "config",
 								"The configuration file %s was restored from backup %s\n",
 								configfile, tmpfile);
+				rc = 1;
 			} else {
 				slapi_log_error(SLAPI_LOG_FATAL, "config",
 								"The configuration file %s was not restored from backup %s, error %d\n",
 								configfile, tmpfile, rc);
-				return rc; /* Fail */
+				rc = 0;
 			}
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, "config",
-				"The backup configuration file %s does not exist, either.\n",
-				tmpfile);
-			return rc; /* Fail */
+			rc = 0; /* fail */
 		}
 	}
 	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
@@ -201,7 +191,7 @@ slapd_bootstrap_config(const char *configdir)
 		PRErrorCode prerr = PR_GetError();
 		slapi_log_error(SLAPI_LOG_FATAL, "config", "The given config file %s could not be accessed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 						configfile, prerr, slapd_pr_strerror(prerr));
-		return rc;
+		rc = 0; /* Fail */
 	}
 	else if (( prfd = PR_Open( configfile, PR_RDONLY,
 							   SLAPD_DEFAULT_FILE_MODE )) == NULL )
@@ -209,7 +199,7 @@ slapd_bootstrap_config(const char *configdir)
 		PRErrorCode prerr = PR_GetError();
 		slapi_log_error(SLAPI_LOG_FATAL, "config", "The given config file %s could not be opened for reading, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 						configfile, prerr, slapd_pr_strerror(prerr));
-		return rc; /* Fail */
+		rc = 0; /* Fail */
 	}
 	else
 	{
@@ -228,7 +218,7 @@ slapd_bootstrap_config(const char *configdir)
 
 		if(!done)
 		{
-			char workpath[MAXPATHLEN+1];
+			char errorlog[MAXPATHLEN+1];
 			char loglevel[BUFSIZ];
 			char maxdescriptors[BUFSIZ];
 			char val[BUFSIZ];
@@ -237,7 +227,7 @@ slapd_bootstrap_config(const char *configdir)
 			char schemacheck[BUFSIZ];
 			Slapi_DN plug_dn;
 
-			workpath[0] = loglevel[0] = maxdescriptors[0] = '\0';
+			errorlog[0] = loglevel[0] = maxdescriptors[0] = '\0';
 			val[0] = logenabled[0] = schemacheck[0] = '\0';
 			_localuser[0] = '\0';
 
@@ -260,28 +250,6 @@ slapd_bootstrap_config(const char *configdir)
 					  LDAPDebug(LDAP_DEBUG_ANY, "The entry [%s] in the configfile %s was empty or could not be parsed\n",
 								entrystr, configfile, 0);
 					continue;
-				}
-
-				/* if instancedir is not set, set it first */
-				{
-					instancedir = config_get_instancedir();
-					if (NULL == instancedir) {
-						workpath[0] = '\0';
-						if (entry_has_attr_and_value(e,
-												CONFIG_INSTANCEDIR_ATTRIBUTE,
-												workpath, sizeof(workpath))) {
-							if (config_set_instancedir(
-											CONFIG_INSTANCEDIR_ATTRIBUTE,
-											workpath, errorbuf, CONFIG_APPLY)
-								!= LDAP_SUCCESS) {
-								LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n",
-									configfile, CONFIG_INSTANCEDIR_ATTRIBUTE,
-									errorbuf);
-							}
-						}
-					} else {
-						slapi_ch_free((void **)&instancedir);
-					}
 				}
 
 				/* increase file descriptors */
@@ -333,13 +301,12 @@ slapd_bootstrap_config(const char *configdir)
 #endif
 				
 				/* set the log file name */
-				workpath[0] = '\0';
-				if (!workpath[0] &&
+				if (!errorlog[0] &&
 					entry_has_attr_and_value(e, CONFIG_ERRORLOG_ATTRIBUTE,
-								workpath, sizeof(workpath)))
+								errorlog, sizeof(errorlog)))
 				{
 					if (config_set_errorlog(CONFIG_ERRORLOG_ATTRIBUTE,
-						workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
+						errorlog, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
 						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
 								  CONFIG_ERRORLOG_ATTRIBUTE, errorbuf);
@@ -518,18 +485,6 @@ slapd_bootstrap_config(const char *configdir)
 					slapi_entry_free(e);
 			}
 
-			/* 
-			 * check if the instance dir is set.
-			 */
-			if ( NULL == ( instancedir = config_get_instancedir() )) {
-				slapi_log_error(SLAPI_LOG_FATAL, "startup",
-								"Instance directory is not specifiled in the file %s. It is mandatory.\n",
-								configfile);
-				exit (1);
-			} else {
-				slapi_ch_free((void **)&instancedir);
-			}
-			
 			/* kexcoff: initialize rootpwstoragescheme and pw_storagescheme
 			 *			if not explicilty set in the config file
 			 */

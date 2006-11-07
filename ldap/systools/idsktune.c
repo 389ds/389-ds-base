@@ -108,7 +108,6 @@ extern char *optarg;
 #include <sys/vfs.h>
 #include <sys/utsname.h>
 #include <linux/kernel.h>
-#include <linux/sys.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <mntent.h>

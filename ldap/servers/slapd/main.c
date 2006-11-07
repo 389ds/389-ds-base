@@ -255,7 +255,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
 }
 
 /* Changes the owner of the files in the logs and
- * config directory to the user that the server runs as. 
+ * config directorys to the user that the server runs as. 
 */
 
 static void
@@ -276,26 +276,13 @@ fix_ownership()
 	}
 
 	/* The instance directory needs to be owned by the local user */
-	if (slapdFrontendConfig->instancedir) {
-		slapd_chown_if_not_owner(slapdFrontendConfig->instancedir,
-								 pw->pw_uid, -1);
-	}
-	/* config directory */
-	if (slapdFrontendConfig->configdir) {
-		chown_dir_files(slapdFrontendConfig->configdir, pw, PR_FALSE);
-	}
-	/* do access log file, if any */
-	if (slapdFrontendConfig->accesslog) {
-		chown_dir_files(slapdFrontendConfig->accesslog, pw, PR_TRUE);
-	}
-	/* do audit log file, if any */
-	if (slapdFrontendConfig->auditlog) {
-		chown_dir_files(slapdFrontendConfig->auditlog, pw, PR_TRUE); 
-	}
-	/* do error log file, if any */
-	if (slapdFrontendConfig->errorlog) {
-		chown_dir_files(slapdFrontendConfig->errorlog, pw, PR_TRUE); 
-	}
+	slapd_chown_if_not_owner( slapdFrontendConfig->instancedir, pw->pw_uid, -1 );
+	PR_snprintf(dirname,sizeof(dirname),"%s/config",slapdFrontendConfig->instancedir);
+	chown_dir_files(dirname, pw, PR_FALSE); /* config directory */
+	chown_dir_files(slapdFrontendConfig->accesslog, pw, PR_TRUE); /* do access log directory */
+	chown_dir_files(slapdFrontendConfig->auditlog, pw, PR_TRUE);  /* do audit log directory */
+	chown_dir_files(slapdFrontendConfig->errorlog, pw, PR_TRUE);  /* do error log directory */
+
 }
 #endif  
 
@@ -378,7 +365,7 @@ name2exemode( char *progname, char *s, int exit_if_unknown )
 	}
 #endif
 	else if ( exit_if_unknown ) {
-		fprintf( stderr, "usage: %s -D configdir "
+		fprintf( stderr, "usage: %s -D instancedir "
 				 "[ldif2db | db2ldif | archive2db "
 				 "| db2archive | db2index | refer | suffix2instance"
 #if defined(UPGRADEDB)
@@ -410,46 +397,46 @@ usage( char *name, char *extraname )
 	
     switch( slapd_exemode ) {
     case SLAPD_EXEMODE_DB2LDIF:
-	usagestr = "usage: %s %s%s-D configdir [-n backend-instance-name] [-d debuglevel] "
+	usagestr = "usage: %s %s%s-D instancedir [-n backend-instance-name] [-d debuglevel] "
 		"[-N] [-a outputfile] [-r] [-C] [{-s includesuffix}*] "
 		"[{-x excludesuffix}*] [-u] [-U] [-m] [-M] [-E]\n"
 		"Note: either \"-n backend_instance_name\" or \"-s includesuffix\" is required.\n";
 	break;
     case SLAPD_EXEMODE_LDIF2DB:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] "
+	usagestr = "usage: %s %s%s-D instancedir [-d debuglevel] "
 		"[-n backend_instance_name] [-O] [-g uniqueid_type] [--namespaceid uniqueID]"
 		"[{-s includesuffix}*] [{-x excludesuffix}*]  [-E] {-i ldif-file}*\n"
 		"Note: either \"-n backend_instance_name\" or \"-s includesuffix\" is required.\n";
 	break;
     case SLAPD_EXEMODE_DB2ARCHIVE:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] -a archivedir\n";
+	usagestr = "usage: %s %s%s-D instancedir [-d debuglevel] -a archivedir\n";
 	break;
     case SLAPD_EXEMODE_ARCHIVE2DB:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] -a archivedir\n";
+	usagestr = "usage: %s %s%s-D instancedir [-d debuglevel] -a archivedir\n";
 	break;
     case SLAPD_EXEMODE_DB2INDEX:
-	usagestr = "usage: %s %s%s-D configdir -n backend-instance-name "
+	usagestr = "usage: %s %s%s-D instancedir -n backend-instance-name "
 		"[-d debuglevel] {-t attributetype}* {-T VLV Search Name}*\n";
 	/* JCM should say 'Address Book' or something instead of VLV */
 	break;
     case SLAPD_EXEMODE_REFERRAL:
-	usagestr = "usage: %s %s%s-D configdir -r referral-url [-p port]\n";
+	usagestr = "usage: %s %s%s-D instancedir -r referral-url [-p port]\n";
 	break;
     case SLAPD_EXEMODE_DBTEST:
-	usagestr = "usage: %s %s%s-D configdir -n backend-instance-name "
+	usagestr = "usage: %s %s%s-D instancedir -n backend-instance-name "
 		"[-d debuglevel] [-S] [-v]\n";
 	break;
     case SLAPD_EXEMODE_SUFFIX2INSTANCE:
-	usagestr = "usage: %s %s%s -D configdir {-s suffix}*\n";
+	usagestr = "usage: %s %s%s -D instancedir {-s suffix}*\n";
 	break;
 #if defined(UPGRADEDB)
     case SLAPD_EXEMODE_UPGRADEDB:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-f] -a archivedir\n";
+	usagestr = "usage: %s %s%s-D instancedir [-d debuglevel] [-f] -a archivedir\n";
 	break;
 #endif
 
     default:	/* SLAPD_EXEMODE_SLAPD */
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] "
+	usagestr = "usage: %s %s%s-D instancedir [-d debuglevel] "
 		"[-i pidlogfile] [-v] [-V]\n";
     }
 
@@ -696,9 +683,9 @@ main( int argc, char **argv)
 	}
 #endif
 
-	process_command_line(argc,argv,myname,&extraname);
+    process_command_line(argc,argv,myname,&extraname);
 
-	if (!slapdFrontendConfig->instancedir &&
+	if (!slapdFrontendConfig->instancedir ||
 		!slapdFrontendConfig->configdir) {
 		usage( myname, extraname );
 		exit( 1 );
@@ -711,7 +698,7 @@ main( int argc, char **argv)
 	}
 
 #ifndef LDAP_DONT_USE_SMARTHEAP
-	MemRegisterTask();
+        MemRegisterTask();
 #endif
 
 	slapd_init();
@@ -719,52 +706,39 @@ main( int argc, char **argv)
 	vattr_init();
 
 	if (slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
-		slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-		/* make up the config stuff */
-		referral_set_defaults();
-		/*
-		 * Process the config files.
-		 */
-		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, "startup",
-							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
-							slapdFrontendConfig->configdir);
-			exit(1);
-		}
-
-		n_port = config_get_port();
-		s_port = config_get_secureport();
+	    /* make up the config stuff */
+	    referral_set_defaults();
+	    n_port = config_get_port();
+	    s_port = config_get_secureport();
    		register_objects();
 
 	} else {
-		slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-		/* The 2 calls below have been moved to this place to make sure that
-		 * they are called before setup_internal_backends to avoid bug 524439 */
-		/*
-		 * The 2 calls below where being sometimes called AFTER 
-		 * ldapi_register_extended_op (such fact was being stated and 
-		 * reproducible for some optimized installations at startup (bug 
-		 * 524439)... Such bad call was happening in the context of
-		 * setup_internal_backends -> dse_read_file -> load_plugin_entry ->
-		 * plugin_setup -> replication_multimaster_plugin_init ->
-		 * slapi_register_plugin -> plugin_setup -> 
-		 * multimaster_start_extop_init -> * slapi_pblock_set ->
-		 * ldapi_register_extended_op... Unfortunately, the server
-		 * design is such that it is assumed that ldapi_init_extended_ops is 
-		 * always called first.
-		 * THE FIX: Move the two calls below before a call to 
-		 * setup_internal_backends (down in this same function)
-		 */
-		init_saslmechanisms();
-		ldapi_init_extended_ops();
+    	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	/* The 2 calls below have been moved to this place to make sure that they
+	 * are called before setup_internal_backends to avoid bug 524439 */
+	/*
+	 * The 2 calls below where being sometimes called AFTER ldapi_register_extended_op
+	 * (such fact was being stated and reproducible for some optimized installations
+	 * at startup (bug 524439)... Such bad call was happening in the context of
+	 * setup_internal_backends -> dse_read_file -> load_plugin_entry ->
+	 * plugin_setup -> replication_multimaster_plugin_init ->
+	 * slapi_register_plugin -> plugin_setup -> multimaster_start_extop_init ->
+	 * slapi_pblock_set -> ldapi_register_extended_op... Unfortunately, the server
+	 * design is such that it is assumed that ldapi_init_extended_ops is always
+	 * called first.
+	 * THE FIX: Move the two calls below before a call to setup_internal_backends
+	 * (down in this same function)
+	 */
+	init_saslmechanisms();
+	ldapi_init_extended_ops();
 
 		
-		/*
-		 * Initialize the default backend.  This should be done before we
-		 * process the config. files
-		 */
-		defbackend_init();
-		
+	    /*
+	     * Initialize the default backend.  This should be done before we
+	     * process the config. files
+	     */
+	    defbackend_init();
+	    
 		/*
 		 * Register the extensible objects with the factory.
 		 */
@@ -772,12 +746,12 @@ main( int argc, char **argv)
 		/* 
 		 * Register the controls that we support.
 		 */
-		init_controls();
+    	init_controls();
 
-		/*
-		 * Process the config files.
-		 */
-		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
+	    /*
+	     * Process the config files.
+	     */
+	    if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
 			slapi_log_error(SLAPI_LOG_FATAL, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
@@ -785,7 +759,7 @@ main( int argc, char **argv)
 		}
 
 		/* -sduloutre: must be done before any internal search */
-		/* do it before splitting off to other modes too -robey */
+        /* do it before splitting off to other modes too -robey */
 		/* -richm: must be done before reading config files */
 		if (0 != (return_value = compute_init())) {
 			LDAPDebug(LDAP_DEBUG_ANY, "Initialization Failed 0 %d\n",return_value,0,0);
@@ -800,8 +774,8 @@ main( int argc, char **argv)
 			exit(1);
 		}
 
-		n_port = config_get_port();
-		s_port = config_get_secureport();
+	    n_port = config_get_port();
+	    s_port = config_get_secureport();
 	}
 
 	raise_process_limits();	/* should be done ASAP once config file read */
@@ -818,22 +792,22 @@ main( int argc, char **argv)
 	set_entry_points();
 
 #if defined( XP_WIN32 )
-	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
-		/* Register with the NT EventLog */
-		hSlapdEventSource = RegisterEventSource(NULL, pszServerName );
-		if( !hSlapdEventSource  ) {
-			char szMessage[256];
-			PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
-						 "to set the EventLog source.", pszServerName);
-			MessageBox(GetDesktopWindow(), szMessage, " ", 
-					   MB_ICONEXCLAMATION | MB_OK);
-			exit( 1 );
-		}
+    if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
+        /* Register with the NT EventLog */
+        hSlapdEventSource = RegisterEventSource(NULL, pszServerName );
+        if( !hSlapdEventSource  ) {
+            char szMessage[256];
+            PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
+                         "to set the EventLog source.", pszServerName);
+            MessageBox(GetDesktopWindow(), szMessage, " ", 
+                       MB_ICONEXCLAMATION | MB_OK);
+            exit( 1 );
+        }
 
-		/* Check to ensure there isn't a copy of this server already running. */
-		if( MultipleInstances() ) 
-			exit( 1 );
-	}
+        /* Check to ensure there isn't a copy of this server already running. */
+        if( MultipleInstances() ) 
+            exit( 1 );
+    }
 #endif
 
 	/*
@@ -852,8 +826,8 @@ main( int argc, char **argv)
 	 * we need to be root in order to open them. 
 	 */
 
-	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
-		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
+    if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+        (slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
 		ports_info.n_port = (unsigned short)n_port;
 		if ( slapd_listenhost2addr( config_get_listenhost(),
 				&ports_info.n_listenaddr ) != 0 ) {
@@ -868,9 +842,9 @@ main( int argc, char **argv)
 
 		return_value = daemon_pre_setuid_init(&ports_info);
 		if (0 != return_value) {
-			LDAPDebug( LDAP_DEBUG_ANY, "Failed to init daemon\n",
-				   0, 0, 0 );
-			exit(1);
+		    LDAPDebug( LDAP_DEBUG_ANY, "Failed to init daemon\n",
+			       0, 0, 0 );
+		    exit(1);
 		}
 	}
 
@@ -879,9 +853,9 @@ main( int argc, char **argv)
 #ifndef _WIN32
 	return_value = main_setuid(slapdFrontendConfig->localuser);
 	if (0 != return_value) {
-		LDAPDebug( LDAP_DEBUG_ANY, "Failed to change user and group identity to that of %s\n",
+	    LDAPDebug( LDAP_DEBUG_ANY, "Failed to change user and group identity to that of %s\n",
 				   slapdFrontendConfig->localuser, 0, 0 );
-		exit(1);
+	    exit(1);
 	}
 #endif
 
@@ -896,7 +870,7 @@ main( int argc, char **argv)
 				&& (0 != s_port) && (s_port <= LDAP_PORT_MAX);
 	/* As of DS 6.1, always do a full initialization so that other
 	 * modules can assume NSS is available
-	 */
+     */
 	if ( slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
 			(slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
 		 LDAPDebug(LDAP_DEBUG_ANY,
@@ -914,14 +888,14 @@ main( int argc, char **argv)
 		exit( 1 );
 	}
 
-	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
-		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
-		if ( init_ssl && ( 0 != slapd_ssl_init2(&ports_info.s_socket, 0) ) ) {
-			LDAPDebug(LDAP_DEBUG_ANY,
-					  "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
-			exit( 1 );
-		}
-	}
+    if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+        (slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
+        if ( init_ssl && ( 0 != slapd_ssl_init2(&ports_info.s_socket, 0) ) ) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                      "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
+            exit( 1 );
+        }
+    }
 
 	/*
 	 * if we were called upon to do special database stuff, do it and be
@@ -929,52 +903,52 @@ main( int argc, char **argv)
 	 */
 	switch ( slapd_exemode ) {
 	case SLAPD_EXEMODE_LDIF2DB:
-		return slapd_exemode_ldif2db();
+	    return slapd_exemode_ldif2db();
 
 	case SLAPD_EXEMODE_DB2LDIF:
-		return slapd_exemode_db2ldif(argc,argv);
+	    return slapd_exemode_db2ldif(argc,argv);
 
 	case SLAPD_EXEMODE_DB2INDEX:
-		return slapd_exemode_db2index();
+	    return slapd_exemode_db2index();
 
 	case SLAPD_EXEMODE_ARCHIVE2DB:
-		return slapd_exemode_archive2db();
+	    return slapd_exemode_archive2db();
 
 	case SLAPD_EXEMODE_DB2ARCHIVE:
-		return slapd_exemode_db2archive();
+	    return slapd_exemode_db2archive();
 
 	case SLAPD_EXEMODE_DBTEST:
-		return slapd_exemode_dbtest();
+	    return slapd_exemode_dbtest();
 		
 	case SLAPD_EXEMODE_REFERRAL:
 		/* check that all the necessary info was given, then go on */
-		if (! config_check_referral_mode()) {
-			LDAPDebug(LDAP_DEBUG_ANY,
-				  "ERROR: No referral URL supplied\n", 0, 0, 0);
+        if (! config_check_referral_mode()) {
+		    LDAPDebug(LDAP_DEBUG_ANY,
+			      "ERROR: No referral URL supplied\n", 0, 0, 0);
 			usage( myname, extraname );
-			exit(1);
+		    exit(1);
 		}
 		break;
 
 	case SLAPD_EXEMODE_SUFFIX2INSTANCE:
-		return slapd_exemode_suffix2instance();
+	    return slapd_exemode_suffix2instance();
 
 #if defined(UPGRADEDB)
 	case SLAPD_EXEMODE_UPGRADEDB:
-		return slapd_exemode_upgradedb();
+	    return slapd_exemode_upgradedb();
 #endif
 
 	case SLAPD_EXEMODE_PRINTVERSION:
-		slapd_print_version(1);
-		exit(1);
+	    slapd_print_version(1);
+	    exit(1);
 	}
 
 	/*
 	 * Detach ourselves from the terminal (unless running in debug mode).
 	 * We must detach before we start any threads since detach forks() on
 	 * UNIX.
-	 * Have to detach after ssl_init - the user may be prompted for the PIN
-	 * on the terminal, so it must be open.
+     * Have to detach after ssl_init - the user may be prompted for the PIN
+     * on the terminal, so it must be open.
 	 */
 	detach();
 
@@ -995,8 +969,8 @@ main( int argc, char **argv)
  	 * slapd processes that are currently running
  	 */
 	if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
-		( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-					skip_db_protect_check) == -1 ))  {
+	    ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
+				    skip_db_protect_check) == -1 ))  {
  		LDAPDebug( LDAP_DEBUG_ANY, 
 				"Shutting down due to possible conflicts with other slapd processes\n",
 				0, 0, 0 );
@@ -1014,7 +988,7 @@ main( int argc, char **argv)
 	  char *versionstring = config_get_versionstring();
 	  char *buildnum = config_get_buildnum();
 	  LDAPDebug( LDAP_DEBUG_ANY, "%s B%s starting up\n",
-			 versionstring, buildnum, 0 );
+		     versionstring, buildnum, 0 );
 	  slapi_ch_free((void **)&buildnum);
 	  slapi_ch_free((void **)&versionstring);
 	}
@@ -1029,8 +1003,8 @@ main( int argc, char **argv)
 				slapdFrontendConfig->configdir);
 
 		eq_init();					/* must be done before plugins started */
-		snmp_collator_start();
-		ps_init_psearch_system();   /* must come before plugin_startall() */
+	    snmp_collator_start();
+	    ps_init_psearch_system();   /* must come before plugin_startall() */
 
 		/* Initailize the mapping tree */
 
@@ -1038,12 +1012,12 @@ main( int argc, char **argv)
 		{
 			LDAPDebug( LDAP_DEBUG_ANY, "Failed to init mapping tree\n",
 				0, 0, 0 );
-			exit(1);
+        	exit(1);
 		}
 
 
 		/* initialize UniqueID generator - must be done once backends are started
-		   and event queue is initialized but before plugins are started */
+           and event queue is initialized but before plugins are started */
 		sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
 		rc = uniqueIDGenInit (NULL, sdn, slapd_exemode == SLAPD_EXEMODE_SLAPD);
 		slapi_sdn_free (&sdn);
@@ -1051,7 +1025,7 @@ main( int argc, char **argv)
 		{
 			LDAPDebug( LDAP_DEBUG_ANY,
 				"Fatal Error---Failed to initialize uniqueid generator; error = %d. "
-				"Exiting now.\n", rc, 0, 0 );
+                "Exiting now.\n", rc, 0, 0 );
 			exit( 1 );
 		}
 
@@ -1060,17 +1034,17 @@ main( int argc, char **argv)
 		if ( slapd_security_library_is_initialized() != 0 ) {
 	
 		
-				 start_tls_register_plugin();
+		         start_tls_register_plugin();
 			 LDAPDebug( LDAP_DEBUG_PLUGIN, 
-					"Start TLS plugin registered.\n",
-					0, 0, 0 );
+				    "Start TLS plugin registered.\n",
+				    0, 0, 0 );
 		} 
 #endif
-		passwd_modify_register_plugin();
-		LDAPDebug( LDAP_DEBUG_PLUGIN, 
-					"Password Modify plugin registered.\n", 0, 0, 0 );
+	    passwd_modify_register_plugin();
+	    LDAPDebug( LDAP_DEBUG_PLUGIN, 
+				    "Password Modify plugin registered.\n", 0, 0, 0 );
 
-		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
+	    plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
 			exit (1);
 		}
@@ -1078,50 +1052,50 @@ main( int argc, char **argv)
 		eq_start();					/* must be done after plugins started */
 
 #ifdef HPUX10
-		/* HPUX linker voodoo */
-		if (collation_init == NULL) {
+	    /* HPUX linker voodoo */
+	    if (collation_init == NULL) {
 		exit (1);
-		}
-		
+	    }
+	    
 #endif /* HPUX */
 
-		normalize_oc();
+	    normalize_oc();
 
-		if (n_port) {
+	    if (n_port) {
 #if defined(NET_SSL)
-		} else if ( config_get_security()) {
+	    } else if ( config_get_security()) {
 #endif
-		} else {
+	    } else {
 #ifdef _WIN32	
-			if( SlapdIsAService() )
-			{
-				LDAPServerStatus.dwCurrentState = SERVICE_STOPPED;
-				LDAPServerStatus.dwCheckPoint = 0;
-				LDAPServerStatus.dwWaitHint = 0;
-				LDAPServerStatus.dwWin32ExitCode = 1;
-				LDAPServerStatus.dwServiceSpecificExitCode = 1;
+    		if( SlapdIsAService() )
+    		{
+    			LDAPServerStatus.dwCurrentState = SERVICE_STOPPED;
+    			LDAPServerStatus.dwCheckPoint = 0;
+    			LDAPServerStatus.dwWaitHint = 0;
+    			LDAPServerStatus.dwWin32ExitCode = 1;
+    			LDAPServerStatus.dwServiceSpecificExitCode = 1;
 
-				SetServiceStatus(hLDAPServerServiceStatus, &LDAPServerStatus);
+    			SetServiceStatus(hLDAPServerServiceStatus, &LDAPServerStatus);
 
-				/* Log this event */
-				ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_START_FAILED, 1, 
-					"Check server port specification");
-			}
-			else
-			{
-				char szMessage[256];
-				PR_snprintf( szMessage, sizeof(szMessage), "The Directory Server %s is terminating due to an error. Check server port specification", pszServerName);
-				MessageBox(GetDesktopWindow(), szMessage,	" ", MB_ICONEXCLAMATION | MB_OK);
-			}
+    			/* Log this event */
+    			ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_START_FAILED, 1, 
+    				"Check server port specification");
+    		}
+    		else
+    		{
+    			char szMessage[256];
+    			PR_snprintf( szMessage, sizeof(szMessage), "The Directory Server %s is terminating due to an error. Check server port specification", pszServerName);
+    			MessageBox(GetDesktopWindow(), szMessage,	" ", MB_ICONEXCLAMATION | MB_OK);
+    		}
 #endif
-			exit(1);
-		}
+    		exit(1);
+	    }
 	}
 
-	{
-		Slapi_PBlock pb;
-		memset( &pb, '\0', sizeof(pb) );
-		pb.pb_backend = be;
+    {
+    	Slapi_PBlock pb;
+    	memset( &pb, '\0', sizeof(pb) );
+    	pb.pb_backend = be;
 	}
 
 	if (slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
@@ -1250,7 +1224,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"debug",ArgRequired,'d'},
 		{"backend",ArgRequired,'n'},
 		{"allowMultipleProcesses",ArgNone,'S'},
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{0,0,0}};
 	
 	
@@ -1266,7 +1240,7 @@ process_command_line(int argc, char **argv, char *myname,
 		/*{"whatshouldwecallthis",ArgNone,'C'},*/
 		{"allowMultipleProcesses",ArgNone,'S'},
 		{"noUniqueIds",ArgNone,'u'},
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{"encrypt",ArgOptional,'E'},
 		{"nowrap",ArgNone,'U'},
 		{"minimalEncode",ArgNone,'m'},
@@ -1290,7 +1264,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"allowMultipleProcesses",ArgNone,'S'},
 		{"namespaceid", ArgRequired, 'G'},
 		{"nostate",ArgNone,'Z'},
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{"encrypt",ArgOptional,'E'},
 		{0,0,0}};
 
@@ -1302,7 +1276,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"archive",ArgRequired,'a'},
 		{"backEndInstName",ArgRequired,'n'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{0,0,0}};
 
 
@@ -1313,7 +1287,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"pidfile",ArgRequired,'i'},
 		{"archive",ArgRequired,'a'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{0,0,0}};
 
 	char *opts_db2index = "vd:a:t:T:SD:n:s:x:"; 
@@ -1325,7 +1299,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"indexAttribute",ArgRequired,'t'},
 		{"vlvIndex",ArgRequired,'T'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{"include",ArgRequired,'s'},
 		{"exclude",ArgRequired,'x'},
 		{0,0,0}};
@@ -1337,7 +1311,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"debug",ArgRequired,'d'},
 		{"force",ArgNone,'f'},
 		{"archive",ArgRequired,'a'},
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{0,0,0}};
 #endif
 
@@ -1348,7 +1322,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"port",ArgRequired,'p'},
 		{"referralMode",ArgRequired,'r'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{0,0,0}};
 
 	char *opts_suffix2instance = "s:D:";
@@ -1364,7 +1338,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"debug",ArgRequired,'d'},
 		{"pidfile",ArgRequired,'i'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
-		{"configDir",ArgRequired,'D'},
+		{"instanceDir",ArgRequired,'D'},
 		{"startpidfile",ArgRequired,'w'},
 		{0,0,0}};
 
@@ -1446,7 +1420,7 @@ process_command_line(int argc, char **argv, char *myname,
 
 	while ( (i = getopt_ext( argc, argv, opts,
 							 long_opts, &longopt_index)) != EOF ) {
-		char *configdir = 0;
+		char *instancedir = 0;
 		switch ( i ) {
 #ifdef LDAP_DEBUG
 		case 'd':	/* turn on debugging */
@@ -1472,11 +1446,11 @@ process_command_line(int argc, char **argv, char *myname,
 #endif
 
 		case 'D':	/* config dir */
-			configdir = rel2abspath( optarg_ext );
+			instancedir = rel2abspath( optarg_ext );
 
 #if defined( XP_WIN32 )
 			pszServerName = slapi_ch_malloc( MAX_SERVICE_NAME );
-			if( !SlapdGetServerNameFromCmdline(pszServerName, configdir, 1) )
+			if( !SlapdGetServerNameFromCmdline(pszServerName, instancedir, 1) )
 			{
 				MessageBox(GetDesktopWindow(), "Failed to get the Directory"
 					" Server name from the command-line argument.",
@@ -1484,13 +1458,13 @@ process_command_line(int argc, char **argv, char *myname,
 				exit( 1 );
 			}  
 #endif
-			if ( config_set_configdir( "configdir (-D)",
-					configdir, errorbuf, 1) != LDAP_SUCCESS ) {
+			if ( config_set_instancedir( "instancedir (-D)",
+					instancedir, errorbuf, 1) != LDAP_SUCCESS ) {
 				fprintf( stderr, "%s: aborting now\n", errorbuf );
 			    usage( myname, *extraname );
 			    exit( 1 );
 			}
-			slapi_ch_free((void **)&configdir);
+			slapi_ch_free((void **)&instancedir);
 
 			break;
 

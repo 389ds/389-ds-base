@@ -513,16 +513,9 @@ static struct config_get_and_set {
 		CONFIG_CONSTANT_STRING, NULL},
 	{CONFIG_HASH_FILTERS_ATTRIBUTE, config_set_hash_filters,
 		NULL, 0, NULL, CONFIG_ON_OFF, (ConfigGetFunc)config_get_hash_filters},
-	{CONFIG_INSTANCEDIR_ATTRIBUTE, config_set_instancedir,
+	{CONFIG_INSTANCEDIR_ATTRIBUTE, NULL /* read only */,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.instancedir, CONFIG_STRING, NULL},
-	/* parameterizing schema dir */
-	{CONFIG_SCHEMADIR_ATTRIBUTE, config_set_schemadir,
-		NULL, 0,
-		(void**)&global_slapdFrontendConfig.schemadir, CONFIG_STRING, NULL},
-	/* parameterizing ldif dir */
-	{CONFIG_LDIFDIR_ATTRIBUTE, config_set_ldifdir,
-		NULL, 0, NULL, CONFIG_STRING, NULL},
 	{CONFIG_REWRITE_RFC1274_ATTRIBUTE, config_set_rewrite_rfc1274,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.rewrite_rfc1274, CONFIG_ON_OFF, NULL},
@@ -2351,7 +2344,7 @@ config_set_instancedir( const char *attrname, char *value, char *errorbuf, int a
 	/* Set the slapd type also */
 	config_set_slapd_type ();
 
-	/* Set the configdir if not set (it must be set since 7.2) */
+	/* Set the configdir if not set */
 	if (!slapdFrontendConfig->configdir)
 	{
 		char newdir[MAXPATHLEN+1];
@@ -4225,49 +4218,6 @@ config_set_configdir(const char *attrname, char *value, char *errorbuf, int appl
   
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
 	return retVal;
-}
-
-char *
-config_get_schemadir()
-{
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	char *retVal;
-
-	CFG_LOCK_READ(slapdFrontendConfig);
-	retVal = config_copy_strval(slapdFrontendConfig->schemadir);
-	CFG_UNLOCK_READ(slapdFrontendConfig);
-
-	return retVal; 
-}
-
-int
-config_set_schemadir(const char *attrname, char *value, char *errorbuf, int apply)
-{
-	int retVal = LDAP_SUCCESS;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  
-	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-		return LDAP_OPERATIONS_ERROR;
-	}
-  
-	if (!apply) {
-		return retVal;
-	}
-
-	CFG_LOCK_WRITE(slapdFrontendConfig);
-	slapi_ch_free((void **)&slapdFrontendConfig->schemadir);
-
-	slapdFrontendConfig->schemadir = slapi_ch_strdup(value);
-  
-	CFG_UNLOCK_WRITE(slapdFrontendConfig);
-	return retVal;
-}
-
-int
-config_set_ldifdir(const char *attrname, char *value, char *errorbuf, int apply)
-{
-	/* noop */
-	return LDAP_SUCCESS;
 }
 
 char **

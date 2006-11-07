@@ -58,11 +58,11 @@ ds_get_server_root()
     if ( (root = getenv("NETSITE_ROOT")) == NULL )
         return(NULL);
 
-    /* WIN32: Needed to take care of embedded space, */
-    /* otherwise system() call fails */
-    root = ds_makeshort( root );
+	/* WIN32: Needed to take care of embedded space, */
+	/* otherwise system() call fails */
+	root = ds_makeshort( root );
 
-    return root;
+	return root;
 }
 
 /*
@@ -84,52 +84,6 @@ ds_get_install_root()
 
     PR_snprintf(install_root, sizeof(install_root), "%s/%s", root, ds_name);
     return(install_root);
-}
-
-/*
- * Returns the config file location of the server. Info is 
- * returned in a static area. The caller must copy it 
- * for reuse if needed.
- */
-DS_EXPORT_SYMBOL char *
-ds_get_config_dir()
-{
-    return getenv("DS_CONFIG_DIR");
-}
-
-/*
- * set config_dir to environment variable DS_CONFIG_DIR
- * to retrieve the value using ds_get_config_dir later.
- */
-DS_EXPORT_SYMBOL void
-ds_set_config_dir(char *config_dir)
-{
-    static char env[PATH_MAX];
-    PR_snprintf(env, sizeof(env), "DS_CONFIG_DIR=%s", config_dir);
-    putenv(env);
-}
-
-/*
- * Returns the run dir of the server, where pid files are put.
- * Info is returned in a static area. The caller must copy it 
- * for reuse if needed.
- */
-DS_EXPORT_SYMBOL char *
-ds_get_run_dir()
-{
-    return getenv("DS_RUN_DIR");
-}
-
-/*
- * set run_dir to environment variable DS_RUN_DIR
- * to retrieve the value using ds_get_run_dir later.
- */
-DS_EXPORT_SYMBOL void
-ds_set_run_dir(char *run_dir)
-{
-    static char env[PATH_MAX];
-    PR_snprintf(env, sizeof(env), "DS_RUN_DIR=%s", run_dir);
-    putenv(env);
 }
 
 /*
@@ -155,50 +109,50 @@ DS_EXPORT_SYMBOL char *
 ds_get_server_name()
 {
     if( getenv("SERVER_NAMES") )
-        return( getenv("SERVER_NAMES") );
-    else {
-        static char logfile[PATH_MAX];
-        char *buf;
-        char *out = logfile;
-        buf = getenv("SCRIPT_NAME");
-        if ( buf && (*buf == '/') )
-            buf++;
-        while ( *buf && (*buf != '/') ) {
-            *out++ = *buf++;
-        }
-        *out = 0;
-        return logfile;
-    }
+		return( getenv("SERVER_NAMES") );
+	else {
+		static char logfile[PATH_MAX];
+		char *buf;
+		char *out = logfile;
+		buf = getenv("SCRIPT_NAME");
+		if ( buf && (*buf == '/') )
+			buf++;
+		while ( *buf && (*buf != '/') ) {
+			*out++ = *buf++;
+		}
+		*out = 0;
+		return logfile;
+	}
 }
 
 DS_EXPORT_SYMBOL char *
 ds_get_logfile_name(int config_type)
 {
     char        *filename;
-    char        **ds_config = NULL;
+    char	**ds_config = NULL;
     static char logfile[PATH_MAX+1];
  
     if ( (ds_config = ds_get_config(DS_REAL_CONFIG)) == NULL ) {
-        /* For DS 4.0, no error output if file doesn't exist - that's
-           a normal situation */
-        /* ds_send_error("ds_get_config(DS_REAL_CONFIG) == NULL", 0); */
+		/* For DS 4.0, no error output if file doesn't exist - that's
+		   a normal situation */
+		/* ds_send_error("ds_get_config(DS_REAL_CONFIG) == NULL", 0); */
         return(NULL);
     }
     filename = ds_get_value(ds_config, ds_get_var_name(config_type), 0, 1);
 
     if ( filename == NULL ) {
-        /* For DS 4.0, no error output if file doesn't exist - that's
-           a normal situation */
-        /* ds_send_error("ds_get_logfile_name: filename == NULL", 0); */
+		/* For DS 4.0, no error output if file doesn't exist - that's
+		   a normal situation */
+		/* ds_send_error("ds_get_logfile_name: filename == NULL", 0); */
         return(NULL);
     }
     if ( ((int) strlen(filename)) >= PATH_MAX ) {
-        ds_send_error("ds_get_logfile_name: filename too long", 0);
-        free(filename);
+		ds_send_error("ds_get_logfile_name: filename too long", 0);
+		free(filename);
         return(NULL);
     }
     PL_strncpyz(logfile, filename, sizeof(logfile));
-    free(filename);
+	free(filename);
     return(logfile);
 }
 

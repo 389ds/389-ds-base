@@ -1708,8 +1708,6 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
-#define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
-#define CONFIG_LDIFDIR_ATTRIBUTE "nsslapd-ldifdir"
 #define CONFIG_SSLCLIENTAUTH_ATTRIBUTE "nsslapd-SSLclientAuth"
 #define CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE "nsslapd-ssl-check-hostname"
 #define CONFIG_HASH_FILTERS_ATTRIBUTE "nsslapd-hash-filters"
@@ -1884,7 +1882,6 @@ typedef struct _slapdFrontendConfig {
 
   char *workingdir;	/* full path of directory before detach */
   char *configdir; /* full path name of directory containing configuration files */
-  char *schemadir; /* full path name of directory containing schema files */
   int attrname_exceptions; /* if true, allow questionable attribute names */
   int rewrite_rfc1274;		/* return attrs for both v2 and v3 names */
   char *schemareplace;		/* see CONFIG_SCHEMAREPLACE_* #defines below */

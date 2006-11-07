@@ -272,27 +272,41 @@ void
 client_auth_init ()
 {
     char *instancedir;
+    int len = 0;
+    char *val = NULL;
+    char* filename;
+    char netsite_root[MAXPATHLEN];
     int err;
     if (client_auth_config_file == NULL) {
-	char *confdir = config_get_configdir();
-	if (NULL == confdir) {
-	    LDAPDebug (LDAP_DEBUG_ANY,
-		"client_auth_init: failed to get configdir\n",
-		0, 0, 0);
-	    return;
-	}
-	client_auth_config_file = PR_smprintf("%s/certmap.conf", confdir);
-	if (NULL == client_auth_config_file) {
-	    LDAPDebug (LDAP_DEBUG_ANY,
-		"client_auth_init: failed to duplicate \"%s/certmap\"\n",
-		confdir, 0, 0);
-	    return;
-	}
+	client_auth_config_file = "shared/config/certmap.conf";
     }
-    err = ldaputil_init (client_auth_config_file, "", NULL, "slapd", NULL);
+
+    /* calculate the server_root from instance dir */
+    instancedir = config_get_instancedir();
+    /* make sure path does not end in the path separator character */
+    len = strlen(instancedir);
+    if (instancedir[len-1] == '/' || instancedir[len-1] == '\\') {
+	instancedir[len-1] = '\0';
+    }
+
+    /* get the server root from the path */
+    val = strrchr(instancedir, '/');
+    if (!val) {
+	val = strrchr(instancedir, '\\');
+    }
+    if (val) {
+    	val++;
+    	*val = '\0';
+    } 
+
+    PL_strncpyz(netsite_root, instancedir, MAXPATHLEN);
+    slapi_ch_free_string(&instancedir);
+    filename = PR_smprintf("%s%s", netsite_root, client_auth_config_file);
+
+    err = ldaputil_init (filename, "", netsite_root, "slapd", NULL);
     if (err != LDAPU_SUCCESS) {
 	LDAPDebug (LDAP_DEBUG_TRACE, "ldaputil_init(%s,...) %i\n",
-		client_auth_config_file, err, 0);
+		filename, err, 0);
     } else {
 	LDAPUVTable_t vtable = {
 	    NULL /* ssl_init */,
@@ -315,6 +329,9 @@ client_auth_init ()
 	    slapu_value_free_len};
 	ldapu_VTable_set (&vtable);
     }
+    PR_smprintf_free (filename);
+    /* why do we define these strings if we never use them? */
+    if (ldapu_strings != NULL);
 
     /* Generate a component id for cert-based authentication */
     generate_id();

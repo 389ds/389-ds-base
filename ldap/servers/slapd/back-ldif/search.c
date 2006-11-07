@@ -143,7 +143,7 @@ ldif_back_search( Slapi_PBlock *pb )
 
     /*Make sure we're not exceeding our time limit...*/
     currtime = time(&dummy);
-    if ((tlimit > 0) && ((currtime - optime) > (time_t)tlimit)){
+    if ((tlimit > 0) && ((currtime - optime) > tlimit)){
       slapi_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL, NULL, nentries, NULL);
 
       /*We "hit" the cache*/

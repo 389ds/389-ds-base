@@ -367,7 +367,7 @@ mod2smod (LDAPMod *mod, Slapi_Mod *smod)
 
 	if (mod->mod_op & LDAP_MOD_BVALUES)
 	{
-		while (mod->mod_bvalues[smod->num_values])
+		while (mod->mod_bvalues && mod->mod_bvalues[smod->num_values])
 		{
 			smod->num_values ++;
 		}
@@ -375,7 +375,7 @@ mod2smod (LDAPMod *mod, Slapi_Mod *smod)
 	else
 	{
 		PR_ASSERT(0); /* ggood shouldn't ever use string values in server */
-		while (mod->mod_values[smod->num_values])
+		while (mod->mod_values && mod->mod_values[smod->num_values])
 		{
 			smod->num_values ++;
 		}

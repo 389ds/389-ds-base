@@ -213,10 +213,6 @@ if ($table{General}->{UserDirectoryLdapURL}) {
 	$cgiargs{user_ldap_url} = $cgiargs{ldap_url};
 }
 
-if ($table{General}->{prefix}) {
-	$cgiargs{prefix} = $table{General}->{prefix};
-}
-
 # populate the DS with this file - the suffix in this file must
 # be the suffix specified in the suffix argument above
 # the filename should use the full absolute path

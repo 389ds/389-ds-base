@@ -365,8 +365,11 @@ LIBLDAP = $(addprefix $(LDAP_LIBPATH)/, $(LDAPOBJNAME))
 ifeq ($(ARCH), Linux)
   ifeq ($(BUILD_ARCH), RHEL3)
     SASL_LIBPATH = /usr/kerberos/lib
+    SASL_LINK = -L$(SASL_LIBPATH)
   else
-    SASL_LIBPATH = /usr/lib
+# just use default linker path
+    SASL_LIBPATH = 
+    SASL_LINK = 
   endif
   SASL_INCDIR = /usr/include/sasl
 else
@@ -377,6 +380,7 @@ else
     SASL_LIBPATH = $(SASL_BUILD_DIR)/lib
     SASL_INCDIR = $(SASL_BUILD_DIR)/include/sasl
   endif
+  SASL_LINK = -L$(SASL_LIBPATH)
 endif
 SASL_INCLUDE = $(SASL_INCDIR)
 
@@ -403,7 +407,7 @@ else
       endif
   endif
 
-  SASL_LINK = -L$(SASL_LIBPATH) -l$(SASL_LIB_ROOT_NAME) $(GSSAPI_LIBS)
+  SASL_LINK += -l$(SASL_LIB_ROOT_NAME) $(GSSAPI_LIBS)
 endif
 ###########################################################
 

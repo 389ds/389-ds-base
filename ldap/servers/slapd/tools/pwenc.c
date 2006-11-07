@@ -82,7 +82,7 @@ static void
 usage( name )
 char	*name;
 {
-    fprintf( stderr, "usage: %s -D config-dir [-H] [-s scheme | -c comparepwd ] password...\n", name );
+    fprintf( stderr, "usage: %s -D instance-dir [-H] [-s scheme | -c comparepwd ] password...\n", name );
     exit( 1 );
 }
 
@@ -133,7 +133,7 @@ main( argc, argv )
 	slapdFrontendConfig_t *slapdFrontendConfig =  NULL;
 
 	char *opts = "Hs:c:D:";
-	char *configdir = NULL;
+	char *instancedir = NULL;
     name = argv[ 0 ];
     pwsp = cmppwsp = NULL;
 
@@ -157,13 +157,13 @@ main( argc, argv )
 			/* kexcoff: quite the same as slapd_bootstrap_config */
 			FrontendConfig_init();
 
-			configdir = rel2abspath( optarg );
-			if ( config_set_configdir( "configdir (-D)", configdir,
+			instancedir = rel2abspath( optarg );
+			if ( config_set_instancedir( "configdir (-D)", instancedir,
 						errorbuf, 1) != LDAP_SUCCESS ) {
 				fprintf( stderr, "%s\n", errorbuf );
 				return( 1 );
 			}
-			slapi_ch_free((void **)&configdir);
+			slapi_ch_free((void **)&instancedir);
 
 
 			slapdFrontendConfig = getFrontendConfig();

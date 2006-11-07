@@ -49,46 +49,31 @@
 extern "C" {            /* Assume C declarations for C++ */
 #endif  /* __cplusplus */
 
-#define BRAND_DS        "fedora-ds"
-#define DS_CONFIG_DIR   "DS_CONFIG_DIR"
-#define DS_CONFIG_FILE  "dse.ldif"
 
 #ifdef XP_UNIX
-#define PRODUCT_NAME    "slapd"
-#define PRODUCT_BIN     "ns-slapd"
+#define PRODUCT_NAME "slapd"
+
+#define PRODUCT_BIN "ns-slapd"
+
 #endif
 
-#define LOCALSTATEDIR   "/var"
-#define SYSCONFDIR      "/etc"
-#define BINDIR          "/bin"
-#define DATADIR         "/share"
-#define DOCDIR          "/usr/doc"
-
 typedef struct {
-    char *sroot; /* _libdir */
-    char *localstatedir;
-    char *sysconfdir;
-    char *bindir;
-    char *datadir;
-    char *docdir;
-
-    char *brand_ds;
-    char *lang;
+    char *sroot;
 
     char *servname;
     char *bindaddr;
     char *servport;
-    char *suitespot3x_uid;
-    char *cfg_sspt;
-    char *cfg_sspt_uid;
-    char *cfg_sspt_uidpw;
+	char *suitespot3x_uid;
+	char *cfg_sspt;
+	char *cfg_sspt_uid;
+	char *cfg_sspt_uidpw;
     char *secserv;
     char *secservport;
     char *ntsynch;
     char *ntsynchssl;
     char *ntsynchport;
     char *rootdn;
-    char *rootpw;    
+    char *rootpw;	
     char *roothashedpw;
     char *replicationdn;
     char *replicationpw;
@@ -99,10 +84,10 @@ typedef struct {
     char *changelogdir;
     char *changelogsuffix;
     char *suffix;
-    char *loglevel;
-    char *netscaperoot;
-    char *samplesuffix;
-    char *testconfig;
+	char *loglevel;
+	char *netscaperoot;
+	char *samplesuffix;
+	char *testconfig;
     char *servid;
 #ifdef XP_UNIX
     char *servuser;
@@ -112,26 +97,16 @@ typedef struct {
     char *maxthreads;
     int  upgradingServer;
 
-    char * start_server;
+	char * start_server;
 
-    char * admin_domain;
-    char * config_ldap_url;
-    char * user_ldap_url;
-    int use_existing_user_ds;
-    int use_existing_config_ds;
-    char * disable_schema_checking;
-    char * install_ldif_file;
-    char *adminport;
-    char *inst_dir;
-    char *config_dir;
-    char *schema_dir;
-    char *lock_dir;
-    char *log_dir;
-    char *run_dir;
-    char *db_dir;
-    char *bak_dir;
-    char *ldif_dir;
-    char *prefix;
+	char * admin_domain;
+	char * config_ldap_url;
+	char * user_ldap_url;
+	int use_existing_user_ds;
+	int use_existing_config_ds;
+	char * disable_schema_checking;
+	char * install_ldif_file;
+        char *adminport;
 } server_config_s;
 
 

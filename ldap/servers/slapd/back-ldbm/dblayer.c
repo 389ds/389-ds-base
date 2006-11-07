@@ -683,7 +683,6 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
 #endif
 #ifdef LINUX
 #include <linux/kernel.h>
-#include <linux/sys.h>
 #include <sys/sysinfo.h>    /* undocumented (?) */
 #include <sys/resource.h>
 #endif

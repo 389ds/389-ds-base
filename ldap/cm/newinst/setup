@@ -157,6 +157,10 @@ inffile=
 tmpinffile=
 nextisinffile=
 keepinffile=
+# set by user or from existing files during upgrade
+user=
+# set by user or from existing files during upgrade
+group=
 for arg in "$@" ; do
 	if [ "$arg" = "-s" ]; then
 		silent=1
@@ -227,6 +231,7 @@ adminSSLOff() {
 			echo $conffile=$security >> $tmpfile
 			cat $conffile | sed -e "s/^\($security\) .*/\1 off/g" > $conffile.01
 			mv $conffile.01 $conffile
+			chown $user:$group $conffile
 			echo "$conffile: SSL off ..."
 		fi
 	fi
@@ -248,6 +253,7 @@ adminXmlSSLOff() {
 			echo $conffile=$confparam >> $tmpfile
 			cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"off\"/g" > $conffile.0
 			mv $conffile.0 $conffile
+			chown $user:$group $conffile
 			echo "$conffile: SSL off ..."
 		fi
 		sslparams0=`grep -i "<.*SSLPARAMS " $conffile`
@@ -263,6 +269,7 @@ echo adminXmlSSLOff: SSLPARAMS off
 			sslparams=`echo $sslparams1 | sed -e 's/\"/\\\\\"/g'`
 			cat $conffile | sed -e "s/\($sslparams\)/\<\!-- \1 --\>/g" > $conffile.1
 			mv $conffile.1 $conffile
+			chown $user:$group $conffile
 		fi
 	fi
 }
@@ -282,6 +289,7 @@ SSLOff() {
 				$dir/stop-slapd
 				cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 off/g" > $dir/config/dse.ldif.0
 				mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+				chown $user:$group $dir/config/dse.ldif
 				echo "$dir/config/dse.ldif: SSL off ..."
 			fi
 		fi
@@ -308,6 +316,7 @@ adminSSLOn() {
 	if [ -f $conffile ]; then
 		cat $conffile | sed -e "s/^\($confparam\) .*/\1 on/g" > $conffile.00
 		mv $conffile.00 $conffile
+		chown $user:$group $conffile
 		echo "$conffile $confparam: SSL on ..."
 	fi
 }
@@ -317,6 +326,7 @@ adminXmlSSLOn() {
 	if [ -f $conffile ]; then
 		cat $conffile | sed -e "s/\([Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]=\)\"[A-Za-z]*\"/\1\"on\"/g" > $conffile.2
 		mv $conffile.2 $conffile
+		chown $user:$group $conffile
 	fi
 	grep -i "<.*SSLPARAMS " $conffile > /dev/null 2>&1
 	rval=$?
@@ -324,6 +334,7 @@ adminXmlSSLOn() {
 	then
 		cat $conffile | sed -e "s/<\!-- *$sslparams *-->/$sslparams/g" > $conffile.3
 		mv $conffile.3 $conffile
+		chown $user:$group $conffile
 	fi
 	echo "$conffile: SSL on ..."
 }
@@ -336,6 +347,7 @@ SSLOn() {
 				$dir/stop-slapd
 				cat $dir/config/dse.ldif | sed -e "s/\($security\) .*/\1 on/g" > $dir/config/dse.ldif.0
 				mv $dir/config/dse.ldif.0 $dir/config/dse.ldif
+				chown $user:$group $dir/config/dse.ldif
 				echo "$dir/config/dse.ldif: SSL on ..."
 				echo "Restarting Directory Server: $dir/start-slapd"
 				$dir/start-slapd
@@ -370,9 +382,14 @@ SSLOn() {
 
 # check whether it is an in-place installation
 if [ -f $sroot/admin-serv/config/adm.conf ]; then
+	dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
+	if [ -f $sroot/$dsinst/config/dse.ldif ]; then
+		user=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $3}'`
+		group=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $4}'`
+    fi
+
 	SSLOff
 
-	dsinst=`getValFromAdminConf "ldapStart:" "adm.conf" | awk -F/ '{print $1}'`
 	if [ -f $sroot/$dsinst/config/dse.ldif ]; then
 		# it is an in=place installation
 		ldaphost=`getValFromAdminConf "ldapHost:" "adm.conf"`
@@ -380,8 +397,6 @@ if [ -f $sroot/admin-serv/config/adm.conf ]; then
 		adminport=`getValFromAdminConf "\<port:" "adm.conf"`
 		adminid=`getValFromAdmpw "admpw"`
 		sysuser=`getValFromAdminConf "nsSuiteSpotUser:" "local.conf"`
-		suitespotuser=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $3}'`
-		suitespotgroup=`ls -l $sroot/$dsinst/config/dse.ldif | awk '{print $4}'`
 		admindomain=`echo $ldaphost | awk -F. '{print $5 ? $2 "." $3 "." $4 "." $5: $4 ? $2 "." $3 "." $4 : $3 ? $2 "." $3 : $2 ? $2 : ""}'`
 		if [ "$admindomain" = "" ]; then
 			admindomain=`domainname`
@@ -405,8 +420,8 @@ if [ -f $sroot/admin-serv/config/adm.conf ]; then
 		inffile=$sroot/setup/myinstall.inf
 		echo "[General]" > $inffile
 		echo "FullMachineName=   $ldaphost" >> $inffile
-		echo "SuiteSpotUserID=   $suitespotuser" >> $inffile
-		echo "SuitespotGroup=   $suitespotgroup" >> $inffile
+		echo "SuiteSpotUserID=   $user" >> $inffile
+		echo "SuitespotGroup=   $group" >> $inffile
 		echo "ServerRoot=   $sroot" >> $inffile
 		echo "ConfigDirectoryLdapURL=   ldap://$ldaphost:$ldapport/o=NetscapeRoot" >> $inffile
 		echo "ConfigDirectoryAdminID=   $adminid" >> $inffile

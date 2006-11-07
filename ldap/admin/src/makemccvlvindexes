@@ -235,9 +235,9 @@ if($really_do_it eq "1" && $#vlvnames > 0)
     print "\n";
     print "$#vlvnames VLV indices have been declared.  Execute the following commands to build the index files.\n";
     print "\n";
-    print "<config-dir>\\stop\n";
-    print "slapd db2index -f <config-dir> -V @vlvnames\n";
-    print "<config-dir>\\start\n";
+    print "<instance-dir>\\stop\n";
+    print "slapd db2index -f <instance-dir>\\config\\slapd.conf -V @vlvnames\n";
+    print "<instance-dir>\\start\n";
 }
 
 

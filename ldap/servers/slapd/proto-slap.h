@@ -301,8 +301,6 @@ int config_set_versionstring(const char *attrname,  char *versionstring, char *e
 int config_set_enquote_sup_oc(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_basedn( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_configdir( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_schemadir( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_ldifdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_attrname_exceptions( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_hash_filters( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_rewrite_rfc1274( const char *attrname, char *value, char *errorbuf, int apply );
@@ -400,7 +398,6 @@ char *config_get_buildnum(void);
 int config_get_enquote_sup_oc();
 char *config_get_basedn();
 char *config_get_configdir();
-char *config_get_schemadir();
 char **config_get_errorlog_list();
 char **config_get_accesslog_list();
 char **config_get_auditlog_list();

@@ -113,7 +113,7 @@
 /*
  * Static variables.
  */
-static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, "Fedora Project", "1.0.3",
+static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, "Fedora Project", "1.0.4",
 	"sample pre-operation null suffix plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;
