@@ -560,7 +560,7 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
     char *pluginpath = config_get_saslpath();
     if ((!pluginpath) || (*pluginpath == '\0')) {
         if (!(pluginpath = getenv("SASL_PATH"))) {
-            pluginpath = "/usr/lib/sasl2";
+            pluginpath = "/usr/lib64/sasl2:/usr/lib/sasl2";
         }
     }
     *path = pluginpath;
@@ -744,7 +744,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
         LDAPDebug(LDAP_DEBUG_TRACE, "sasl library mechs: %s\n", str, 0, 0);
         /* merge into result set */
         dupstr = slapi_ch_strdup(str);
-        others = str2charray(dupstr, ",");
+        others = str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
         charray_merge(&ret, others, 1);
         charray_free(others);
         slapi_ch_free((void**)&dupstr);

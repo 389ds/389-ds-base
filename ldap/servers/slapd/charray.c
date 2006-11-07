@@ -270,9 +270,20 @@ charray_dup( char **a )
 char **
 str2charray( char *str, char *brkstr )
 {
+    return( str2charray_ext( str, brkstr, 1 ));
+}
+
+/*
+ * extended version of str2charray lets you disallow
+ * duplicate values into the array.
+ */
+char **
+str2charray_ext( char *str, char *brkstr, int allow_dups )
+{
     char    **res;
     char    *s;
-    int    i;
+    int    i, j;
+    int dup_found = 0;
     char * iter = NULL;
 
     i = 1;
@@ -284,9 +295,22 @@ str2charray( char *str, char *brkstr )
 
     res = (char **) slapi_ch_malloc( (i + 1) * sizeof(char *) );
     i = 0;
-    for ( s = ldap_utf8strtok_r( str, brkstr , &iter); s != NULL; 
+    for ( s = ldap_utf8strtok_r( str, brkstr , &iter); s != NULL;
             s = ldap_utf8strtok_r( NULL, brkstr , &iter) ) {
-        res[i++] = slapi_ch_strdup( s );
+        dup_found = 0;
+        /* Always copy the first value into the array */
+        if ( (!allow_dups) && (i != 0) ) {
+            /* Check for duplicates */
+            for ( j = 0; j < i; j++ ) {
+                if ( strncmp( res[j], s, strlen( s ) ) == 0 ) {
+                    dup_found = 1;
+                    break;
+                }
+            }
+        }
+
+        if ( !dup_found )
+            res[i++] = slapi_ch_strdup( s );
     }
     res[i] = NULL;
 
