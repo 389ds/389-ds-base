@@ -168,7 +168,7 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
 		if (delimiter >= maxsize) {
 			delimiter = maxsize-1;
 		}
-        PL_strncpyz(token, attr_pattern, delimiter);
+        PL_strncpyz(token, attr_pattern, delimiter + 1);
         token[delimiter] = '\0';
 
         /*  Skip any white space after the token 		*/
