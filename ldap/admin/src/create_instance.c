@@ -305,18 +305,20 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     conf->disable_schema_checking = NULL;
     conf->install_ldif_file = NULL;
 
-    conf->sysconfdir = NULL;
+    conf->bak_dir = NULL;
+    conf->config_dir = NULL;
     conf->datadir = NULL;
+    conf->db_dir = NULL;
     conf->docdir = NULL;
     conf->inst_dir = NULL;
-    conf->config_dir = NULL;
-    conf->schema_dir = NULL;
+    conf->ldif_dir = NULL;
     conf->lock_dir = NULL;
     conf->log_dir = NULL;
+    conf->plugin_dir = NULL;
     conf->run_dir = NULL;
-    conf->db_dir = NULL;
-    conf->bak_dir = NULL;
-    conf->ldif_dir = NULL;
+    conf->sasl_path = NULL;
+    conf->schema_dir = NULL;
+    conf->sysconfdir = NULL;
     conf->tmp_dir = NULL;
 }
 
@@ -2342,7 +2344,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     t = CREATE_DB2BAK();
     if(t) return t;
     
-#if defined(UPGRADEDB)
     t = gen_script(cs_path, "db2index.bat", 
            "@echo off\n"
        "setlocal\n"
@@ -2375,7 +2376,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
            "exit /b %%rc%%\n",
            server, cs_path, server, cs_path, server, cs_path);
     if(t) return t;
-#endif
 
     t = gen_script(cs_path, "vlvindex.bat", 
            "@echo off\n"
@@ -2431,7 +2431,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
             server, cs_path, server, cs_path);
     if(t) return t;
 
-#if defined(UPGRADEDB)
     t = gen_script(cs_path, "upgradedb.bat", 
             "@echo off\n"
         "setlocal\n"
@@ -2455,7 +2454,6 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
             "exit /b %%rc%%\n",
             server, cs_path, server, cs_path);
     if(t) return t;
-#endif
 
     t = CREATE_BAK2DB();
     if(t) return t;
@@ -2701,9 +2699,9 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-tmpdir: %s\n", cf->tmp_dir);
     fprintf(f, "nsslapd-certdir: %s\n", cf->cert_dir);
 /* We use the system SASL by default on Linux, so we don't need to set sasl path */
-#if !defined( LINUX )
-    fprintf(f, "nsslapd-saslpath: %s\n", cf->sasl_path);
-#endif
+    if (NULL != cf->sasl_path) {
+        fprintf(f, "nsslapd-saslpath: %s\n", cf->sasl_path);
+    }
     fprintf(f, "nsslapd-accesslog-logging-enabled: on\n");
     fprintf(f, "nsslapd-accesslog-maxlogsperdir: 10\n");
     fprintf(f, "nsslapd-accesslog-mode: 600\n");
@@ -3412,13 +3410,11 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "cn: restore\n");
     fprintf(f, "\n");
 
-#if defined(UPGRADEDB)
     fprintf(f, "dn: cn=upgradedb,cn=tasks,cn=config\n");
     fprintf(f, "objectclass: top\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: upgradedb\n");
     fprintf(f, "\n");
-#endif
     /* END of tasks */
 
 
@@ -4347,7 +4343,20 @@ int parse_form(server_config_s *cf)
 
     cf->sroot = PR_smprintf("%s%cusr%clib%c%s",
                 prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, cf->brand_ds);
-    cf->sasl_path = PR_smprintf("%s%csasl2", cf->sroot, FILE_PATHSEP);
+    temp = ds_a_get_cgi_var("sasl_path", NULL, NULL);
+    if (NULL != temp) {
+        /* if sasl_path is given, we set it in the conf file regardless of
+         * the platform. */
+        cf->sasl_path = PL_strdup(temp);
+    }
+#if !defined( LINUX )
+    /* if not linux, we package sasl2 with DS,
+       and always set it in the conf file. */
+    else
+    {
+        cf->sasl_path = PR_smprintf("%s%csasl2", cf->sroot, FILE_PATHSEP);
+    }
+#endif
     cf->plugin_dir = PR_smprintf("%s%cplugins", cf->sroot, FILE_PATHSEP);
 
     if (!(cf->servname = ds_a_get_cgi_var("servname", "Server Name",
