@@ -179,6 +179,25 @@ addAndCheck(\%cgiargs, "suffix", \%table, "slapd", "Suffix");
 
 # the following items are optional
 
+$cgiargs{"prefix"} = $table{"slapd"}->{"prefix"};
+$cgiargs{"lock_dir"} = $table{"slapd"}->{"lock_dir"};
+$cgiargs{"log_dir"} = $table{"slapd"}->{"log_dir"};
+$cgiargs{"run_dir"} = $table{"slapd"}->{"run_dir"};
+$cgiargs{"db_dir"} = $table{"slapd"}->{"db_dir"};
+$cgiargs{"bak_dir"} = $table{"slapd"}->{"bak_dir"};
+$cgiargs{"ldif_dir"} = $table{"slapd"}->{"ldif_dir"};
+$cgiargs{"tmp_dir"} = $table{"slapd"}->{"tmp_dir"};
+$cgiargs{"cert_dir"} = $table{"slapd"}->{"cert_dir"};
+$cgiargs{"localstatedir"} = $table{"slapd"}->{"localstatedir"};
+$cgiargs{"sysconfdir"} = $table{"slapd"}->{"sysconfdir"};
+$cgiargs{"bindir"} = $table{"slapd"}->{"bindir"};
+$cgiargs{"datadir"} = $table{"slapd"}->{"datadir"};
+$cgiargs{"docdir"} = $table{"slapd"}->{"docdir"};
+$cgiargs{"inst_dir"} = $table{"slapd"}->{"inst_dir"};
+$cgiargs{"config_dir"} = $table{"slapd"}->{"config_dir"};
+$cgiargs{"schema_dir"} = $table{"slapd"}->{"schema_dir"};
+$cgiargs{"sasl_path"} = $table{"slapd"}->{"sasl_path"};
+
 # port number for Admin Server - used to configure some web apps
 $cgiargs{adminport} = $table{admin}->{Port};
 
