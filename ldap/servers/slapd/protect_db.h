@@ -95,9 +95,7 @@ void remove_slapd_process();
 
 #define NO_DB2INDEX_DUE_TO_USE "Unable to create an index because the database is being used by another slapd process.\n"
 
-#if defined(UPGRADEDB)
 #define NO_UPGRADEDB_DUE_TO_USE "Unable to recreate index files because the database is being used by another slapd process.\n"
-#endif
 
 #define CREATE_MUTEX_ERROR "Error - CreateMutex failed: %s\n"
   /* reason for failure */

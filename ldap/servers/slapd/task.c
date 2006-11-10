@@ -56,9 +56,7 @@ static int shutting_down = 0;
 #define TASK_BACKUP_DN  "cn=backup, cn=tasks, cn=config"
 #define TASK_RESTORE_DN "cn=restore, cn=tasks, cn=config"
 #define TASK_INDEX_DN   "cn=index, cn=tasks, cn=config"
-#if defined(UPGRADEDB)
 #define TASK_UPGRADEDB_DN   "cn=upgradedb, cn=tasks, cn=config"
-#endif
 
 #define TASK_LOG_NAME           "nsTaskLog"
 #define TASK_STATUS_NAME        "nsTaskStatus"
@@ -1367,7 +1365,6 @@ out:
     return rv;
 }
 
-#if defined(UPGRADEDB)
 static int
 task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                    int *returncode, char *returntext, void *arg)
@@ -1465,7 +1462,6 @@ out:
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
 }
-#endif
 
 /* update attributes in the entry under "cn=tasks" to match the current
  * status of the task.
@@ -1697,9 +1693,7 @@ void task_init(void)
     slapi_task_register_handler("backup", task_backup_add);
     slapi_task_register_handler("restore", task_restore_add);
     slapi_task_register_handler("index", task_index_add);
-#if defined(UPGRADEDB)
     slapi_task_register_handler("upgradedb", task_upgradedb_add);
-#endif
 }
 
 /* called when the server is shutting down -- abort all existing tasks */

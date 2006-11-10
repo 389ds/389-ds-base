@@ -825,9 +825,7 @@ int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v)
 #define SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN	230
 #define SLAPI_PLUGIN_DB_INIT_INSTANCE_FN        231
 #define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN          234
-#if defined(UPGRADEDB)
 #define SLAPI_PLUGIN_DB_UPGRADEDB_FN		235
-#endif
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280
@@ -1231,11 +1229,9 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
 
 void    DS_Sleep(PRIntervalTime ticks);
 
-#if defined(UPGRADEDB)
 /* macro to specify the behavior of upgradedb */
 #define SLAPI_UPGRADEDB_FORCE    0x1 /* reindex all (no check w/ idl switch) */
 #define SLAPI_UPGRADEDB_SKIPINIT 0x2 /* call upgradedb as part of other op */
-#endif
 
 /*
  * Macro to set port to the 'port' field of a NSPR PRNetAddr union.

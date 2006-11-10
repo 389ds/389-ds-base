@@ -1116,7 +1116,6 @@ int import_main_offline(void *arg)
         /* start the producer */
         import_init_worker_info(producer, job);
         producer->work_type = PRODUCER;
-#if defined(UPGRADEDB)
         if (job->flags & FLAG_REINDEXING)
         {
             if (! CREATE_THREAD(PR_USER_THREAD, (VFP)index_producer, producer,
@@ -1132,7 +1131,6 @@ int import_main_offline(void *arg)
             }
         }
         else
-#endif
         {
             import_log_notice(job, "Beginning import job...");
             if (! CREATE_THREAD(PR_USER_THREAD, (VFP)import_producer, producer,
@@ -1427,10 +1425,8 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
     }
 
     job->flags = FLAG_USE_FILES;
-#if defined(UPGRADEDB)
     if (NULL == name_array)    /* no ldif file is given -> reindexing */
         job->flags |= FLAG_REINDEXING;
-#endif
     if (!noattrindexes)
     job->flags |= FLAG_INDEX_ATTRS;
     for (i = 0; name_array && name_array[i] != NULL; i++)

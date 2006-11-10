@@ -433,9 +433,7 @@ int ldbm_back_ldbm2ldifalt( Slapi_PBlock *pb );
 int ldbm_back_ldbm2index( Slapi_PBlock *pb );
 int ldbm_back_archive2ldbm( Slapi_PBlock *pb );
 int ldbm_back_ldbm2archive( Slapi_PBlock *pb );
-#if defined(UPGRADEDB)
 int ldbm_back_upgradedb( Slapi_PBlock *pb );
-#endif
 int ldbm_back_next_search_entry( Slapi_PBlock *pb ); 
 int ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension );
 int ldbm_back_db_test( Slapi_PBlock *pb ); 
@@ -536,9 +534,7 @@ int matchrule_values_to_keys_sv(Slapi_PBlock *pb,Slapi_Value **input_values, Sla
  */
 int check_db_version(struct ldbminfo *li, int *action);
 int check_db_inst_version(ldbm_instance *inst);
-#if defined(UPGRADEDB)
 int adjust_idl_switch(char *ldbmversion, struct ldbminfo *li);
-#endif
 int ldbm_upgrade(ldbm_instance *inst, int action);
 int lookup_dbversion(char *dbversion, int flag);
 

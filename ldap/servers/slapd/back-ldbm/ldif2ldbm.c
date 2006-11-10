@@ -1927,7 +1927,6 @@ ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
 	return( rc );
 }
 
-#if defined(UPGRADEDB)
 /*
  * ldbm_back_upgradedb - 
  *
@@ -2468,4 +2467,3 @@ void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     ldbm_back_ldif2ldbm_deluxe(pb);
 }
 
-#endif /* UPGRADEDB */

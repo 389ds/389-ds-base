@@ -205,7 +205,6 @@ check_db_inst_version( ldbm_instance *inst )
     return rval;
 }
 
-#if defined(UPGRADEDB)
 /*
  * adjust_idl_switch
  * if the current nsslapd-idl-switch is different from ldbmversion,
@@ -264,7 +263,6 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
     li->li_flags &= ~LI_FORCE_MOD_CONFIG;
     return rval;
 }
-#endif
 
 /* Do the work to upgrade a database if needed */
 /* When we're called, the database files have been opened, and any

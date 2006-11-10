@@ -620,7 +620,6 @@ error:
     info->state = ABORTED;
 }
 
-#if defined(UPGRADEDB)
 /* producer thread for re-indexing:
  * read id2entry, parsing entries (str2entry) (needed???), assigning
  * them IDs (again, needed???) and queueing them on the entry FIFO. 
@@ -855,7 +854,6 @@ error:
     dblayer_release_aux_id2entry( be, db, env );
     info->state = ABORTED;
 }
-#endif
 
 static void
 import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
@@ -1090,9 +1088,7 @@ void import_foreman(void *param)
             goto error;
         }
 
-#if defined (UPGRADEDB)
         if (!(job->flags & FLAG_REINDEXING))/* reindex reads data from id2entry */
-#endif
         {
             /* insert into the id2entry index
              * (that isn't really an index -- it's the storehouse of the entries
@@ -1144,9 +1140,7 @@ void import_foreman(void *param)
 
 
         /* Remove the entry from the cache (caused by id2entry_add) */
-#if defined (UPGRADEDB)
     if (!(job->flags & FLAG_REINDEXING))/* reindex reads data from id2entry */
-#endif
         cache_remove(&inst->inst_cache, fi->entry);
         fi->entry->ep_refcnt = job->number_indexers;
 

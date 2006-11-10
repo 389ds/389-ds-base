@@ -479,7 +479,6 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
             result = 0;
         }
         break;
-#if defined(UPGRADEDB)
     case SLAPD_EXEMODE_UPGRADEDB:
         if (running || importing || exporting) {
             LDAPDebug(LDAP_DEBUG_ANY, NO_UPGRADEDB_DUE_TO_USE, 0, 0, 0);
@@ -489,7 +488,6 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
             result = 0;
         }
         break;
-#endif
     case SLAPD_EXEMODE_DBTEST:
         if (running || importing || exporting) {
             LDAPDebug(LDAP_DEBUG_ANY, NO_DBTEST_DUE_TO_USE, 0, 0, 0);
@@ -750,7 +748,6 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
                 result = 0;
             }
             break;
-#if defined(UPGRADEDB)
         case SLAPD_EXEMODE_UPGRADEDB:
             if ( mutex_exists( serverMutexName ) ||
                  mutex_exists( importMutexName ) ||
@@ -762,7 +759,6 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
                 result = 0;
             }
             break;
-#endif
         case SLAPD_EXEMODE_DBTEST:
             if ( mutex_exists( serverMutexName ) ||
                  mutex_exists( importMutexName ) ||

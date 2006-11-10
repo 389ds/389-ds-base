@@ -202,10 +202,8 @@ ldbm_back_init( Slapi_PBlock *pb )
 	    (void *) ldbm_back_archive2ldbm );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_DB2ARCHIVE_FN,
 	    (void *) ldbm_back_ldbm2archive );
-#if defined(UPGRADEDB)
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_UPGRADEDB_FN,
 	    (void *) ldbm_back_upgradedb );
-#endif
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_BEGIN_FN,
 	    (void *) dblayer_plugin_begin );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_COMMIT_FN,

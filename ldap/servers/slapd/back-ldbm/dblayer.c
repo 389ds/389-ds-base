@@ -1719,12 +1719,10 @@ int dblayer_instance_start(backend *be, int mode)
                           "file in %s\n", inst->inst_dir_name, 0, 0);
             } else {
                 int rval = 0;
-#if defined(UPGRADEDB)
                 /* check the DBVERSION and reset idl-switch if needed (DS6.2) */
                 /* from the next major rel, we won't do this and just upgrade */
                 if (!(li->li_flags & LI_FORCE_MOD_CONFIG))
                     adjust_idl_switch(ldbmversion, li);
-#endif
 
                 /* check to make sure these instance was made with the correct
                  * version. */
@@ -2022,7 +2020,6 @@ int dblayer_release_id2entry(backend *be, DB *pDB)
     return 0;
 }
 
-#ifdef UPGRADEDB
 /*
  * dblayer_get_aux_id2entry:
  * - create a dedicated db env and db handler for id2entry.
@@ -2222,7 +2219,6 @@ done:
         slapi_ch_free_string(&inst_dirp);
     return 0;
 }
-#endif
 
 int dblayer_close_indexes(backend *be)
 {
@@ -5387,7 +5383,6 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     }
     /* We're done ! */
 
-#if defined(UPGRADEDB)
     /* [605024] check the DBVERSION and reset idl-switch if needed */
     if (dbversion_exists(li, home_dir))
     {
@@ -5404,7 +5399,6 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
             adjust_idl_switch(ldbmversion, li);
         }
     }
-#endif
 
     return_value = check_db_version(li, &action);
     if (action & DBVERSION_UPGRADE_3_4)

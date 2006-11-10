@@ -157,9 +157,7 @@ typedef struct {
                                          * for replica initialization */
 #define FLAG_ABORT              0x08    /* import has been aborted */
 #define FLAG_ONLINE             0x10    /* bring backend online when done */
-#if defined(UPGRADEDB)
 #define FLAG_REINDEXING         0x20    /* read from id2entry and do indexing */
-#endif
 
 
 /* Structure holding stuff about a worker thread and what it's up to */
@@ -229,9 +227,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
 
 /* import-threads.c */
 void import_producer(void *param);
-#if defined(UPGRADEDB)
 void index_producer(void *param);
-#endif
 void import_foreman(void *param);
 void import_worker(void *param);
 static void import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
