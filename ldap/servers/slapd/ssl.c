@@ -37,8 +37,6 @@
  * END COPYRIGHT BLOCK **/
 /* SSL-related stuff for slapd */
 
-#if defined(NET_SSL)
-
 #if defined( _WINDOWS )
 #include <windows.h>
 #include <winsock.h>
@@ -101,8 +99,6 @@ static char * configDN = "cn=encryption,cn=config";
 
 /* ----------------------- Multiple cipher support ------------------------ */
 
-
-#ifdef NET_SSL
 
 static char **cipher_names = NULL;
 typedef struct {
@@ -182,9 +178,7 @@ _conf_setallciphers(int active)
         if(active && !strcmp(_conf_ciphers[x].name, "rsa_null_md5"))  {
             continue;
         }
-#ifdef NET_SSL
         SSL_CipherPrefSetDefault(_conf_ciphers[x].num, active ? PR_TRUE : PR_FALSE);
-#endif
     }
 }
 
@@ -253,23 +247,11 @@ SSLPLCY_Install(void)
 
   SECStatus s = 0;
 
-
-#ifdef NS_DOMESTIC
-
-	s = NSS_SetDomesticPolicy();
-
-#else
-	s = NSS_SetExportPolicy();
-
-#endif
-
+  s = NSS_SetDomesticPolicy();
 
   return s?PR_FAILURE:PR_SUCCESS;
 
 }
-
-
-#endif /* NET_SSL */
 
 static void
 slapd_SSL_report(int degree, char *fmt, va_list args)
@@ -1144,11 +1126,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     SSL_OptionSetDefault(SSL_ENABLE_SSL2, PR_FALSE);
 	SSL_OptionSetDefault(SSL_ENABLE_SSLdirs
 3, PR_TRUE);
-#ifdef NS_DOMESTIC
 	s = NSS_SetDomesticPolicy(); 
-#elif NS_EXPORT
-	s = NSS_SetExportPolicy(); 
-
 We already do pr_init, we don't need pr_setconcurrency, we already do nss_init and the rest
 
 */   
@@ -1511,5 +1489,3 @@ char* slapd_get_tmp_dir()
 #endif
 	return ( tmpdir );
 }
-
-#endif /* NET_SSL */

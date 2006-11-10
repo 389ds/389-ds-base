@@ -45,7 +45,7 @@
  *
  ******************************************************/
 
-#if defined( _WIN32 ) && defined ( NET_SSL )
+#if defined( _WIN32 )
 
 #include <windows.h>
 #include <nspr.h>
@@ -68,5 +68,5 @@ WH_FileName (const char *name, PRFileType type)
 {
 	return NULL;
 }
-#endif /* WIN32 && NET_SSL */
+#endif /* WIN32 */
 

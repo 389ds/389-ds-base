@@ -39,10 +39,6 @@
  * dsgw.h -- defines for HTTP gateway 
  */
 
-#if !defined( DSGW_NO_SSL ) && !defined( NET_SSL )
-#define DSGW_NO_SSL
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

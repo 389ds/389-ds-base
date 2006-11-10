@@ -94,7 +94,6 @@ VOID InitializeSafFunctions()
 /* Functions from ereport.h */
 	SafTable[EREPORT] = (SafFunction *)ereport ;
 
-#ifdef NET_SSL
 /* Functions from minissl.h */
 	SafTable[SSL_CLOSE] = (SafFunction *)PR_Close;
 	SafTable[SSL_SOCKET] = (SafFunction *)PR_NewTCPSocket;
@@ -106,7 +105,6 @@ VOID InitializeSafFunctions()
 	SafTable[SSL_READ] = (SafFunction *)PR_Read;
 	SafTable[SSL_WRITE] = (SafFunction *)PR_Write;
 	SafTable[SSL_GETPEERNAME] = (SafFunction *)PR_GetPeerName;
-#endif /* NET_SSL */
 
 
 /* Functions from shexp.h */

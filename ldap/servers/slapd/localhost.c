@@ -56,10 +56,8 @@
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 
-#if defined( NET_SSL )
 #include <ssl.h>
 #include "fe.h"
-#endif /* defined(NET_SSL) */
 
 #ifndef _PATH_RESCONF /* usually defined in <resolv.h> */
 #define _PATH_RESCONF "/etc/resolv.conf"

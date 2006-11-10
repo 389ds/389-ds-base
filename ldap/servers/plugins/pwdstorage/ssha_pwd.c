@@ -48,10 +48,8 @@
 #include "prtime.h"
 #include "prlong.h"
 
-#if defined(NET_SSL)
 #include <pk11func.h>
 #include <pk11pqg.h>
-#endif /* NET_SSL */
 
 #define SHA_SALT_LENGTH    8   /* number of bytes of data in salt */
 

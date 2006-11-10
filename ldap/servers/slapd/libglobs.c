@@ -45,15 +45,12 @@
 */
 #define DONT_DECLARE_SLAPD_LDAP_DEBUG /* see ldaplog.h */
 
-#if defined(NET_SSL)
 #include "ldap.h"
 #include <sslproto.h>
 #include <ldap_ssl.h>
 
 #undef OFF
 #undef LITTLE_ENDIAN
-
-#endif
 
 #include <stdio.h>
 #include <string.h>

@@ -61,9 +61,7 @@ static char ptokDes[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_REFERRAL		8
 #define SLAPD_EXEMODE_SUFFIX2INSTANCE	9
 #define SLAPD_EXEMODE_PRINTVERSION     10
-#if defined(UPGRADEDB)
 #define SLAPD_EXEMODE_UPGRADEDB     11
-#endif
 
 #ifdef _WIN32
 #ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG
@@ -119,7 +117,6 @@ void *dlsym(void *a, char *b);
 
 #define SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH 256
 
-#if defined(NET_SSL)
 typedef struct symbol_t {
     const char* name;
     unsigned number;
@@ -129,7 +126,6 @@ typedef struct symbol_t {
 #define SLAPD_SSLCLIENTAUTH_ALLOWED  1 /* server asks for cert, but client need not send one */
 #define SLAPD_SSLCLIENTAUTH_REQUIRED 2 /* server will refuse SSL session unless client sends cert */
 #define SLAPD_SSLCLIENTAUTH_DEFAULT  SLAPD_SSLCLIENTAUTH_ALLOWED
-#endif /* NET_SSL */
 
 #define	SLAPD_LOGGING	1
 #define NUM_SNMP_INT_TBL_ROWS 5
@@ -768,9 +764,7 @@ struct slapdplugin {
 			IFP	plg_un_db_db2index;	  /* database 2 index */
 			IFP	plg_un_db_archive2db;	  /* ldif 2 database */
 			IFP	plg_un_db_db2archive;	  /* database 2 ldif */
-#if defined(UPGRADEDB)
 			IFP	plg_un_db_upgradedb;	  /* convert old idl to new */
-#endif
 			IFP	plg_un_db_begin;	  /* dbase txn begin */
 			IFP	plg_un_db_commit;	  /* dbase txn commit */
 			IFP	plg_un_db_abort;	  /* dbase txn abort */
@@ -805,9 +799,7 @@ struct slapdplugin {
 #define plg_db2index		plg_un.plg_un_db.plg_un_db_db2index
 #define plg_archive2db		plg_un.plg_un_db.plg_un_db_archive2db
 #define plg_db2archive		plg_un.plg_un_db.plg_un_db_db2archive
-#if defined(UPGRADEDB)
 #define plg_upgradedb		plg_un.plg_un_db.plg_un_db_upgradedb
-#endif
 #define plg_dbsize		plg_un.plg_un_db.plg_un_db_dbsize
 #define plg_dbtest		plg_un.plg_un_db.plg_un_db_dbtest
 #define plg_rmdb		plg_un.plg_un_db.plg_un_db_rmdb
@@ -1051,9 +1043,7 @@ typedef struct backend {
 #define be_poststart		be_database->plg_poststart
 #define be_seq			be_database->plg_seq
 #define be_ldif2db		be_database->plg_ldif2db
-#if defined(UPGRADEDB)
 #define be_upgradedb		be_database->plg_upgradedb
-#endif
 #define be_db2ldif		be_database->plg_db2ldif
 #define be_db2index		be_database->plg_db2index
 #define be_archive2db	be_database->plg_archive2db

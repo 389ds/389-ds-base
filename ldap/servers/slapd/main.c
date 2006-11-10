@@ -36,11 +36,9 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
-#if defined(NET_SSL)
 #include <ldap.h>
 #undef OFF
 #undef LITTLE_ENDIAN
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -108,9 +106,7 @@ static int slapd_exemode_db2ldif(int argc, char **argv);
 static int slapd_exemode_db2index();
 static int slapd_exemode_archive2db();
 static int slapd_exemode_db2archive();
-#if defined(UPGRADEDB)
 static int slapd_exemode_upgradedb();
-#endif
 static int slapd_exemode_dbtest();
 static int slapd_exemode_suffix2instance();
 static int slapd_debug_level_string2level( const char *s );
@@ -365,21 +361,15 @@ name2exemode( char *progname, char *s, int exit_if_unknown )
 	} else if ( strcmp( s, "suffix2instance" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_SUFFIX2INSTANCE;
 	}
-#if defined(UPGRADEDB)
 	else if ( strcmp( s, "upgradedb" ) == 0 )
 	{
 		exemode = SLAPD_EXEMODE_UPGRADEDB;
 	}
-#endif
 	else if ( exit_if_unknown ) {
 		fprintf( stderr, "usage: %s -D configdir "
 				 "[ldif2db | db2ldif | archive2db "
 				 "| db2archive | db2index | refer | suffix2instance"
-#if defined(UPGRADEDB)
 				 " | upgradedb] "
-#else
-				 "] "
-#endif
 				 "[options]\n", progname );
 		exit( 1 );
 	} else {
@@ -436,11 +426,9 @@ usage( char *name, char *extraname )
     case SLAPD_EXEMODE_SUFFIX2INSTANCE:
 	usagestr = "usage: %s %s%s -D configdir {-s suffix}*\n";
 	break;
-#if defined(UPGRADEDB)
     case SLAPD_EXEMODE_UPGRADEDB:
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-f] -a archivedir\n";
 	break;
-#endif
 
     default:	/* SLAPD_EXEMODE_SLAPD */
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] "
@@ -480,9 +468,7 @@ static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
 static int ldif2db_load_state= 1;
 static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
-#if defined(UPGRADEDB)
 static int upgradedb_force = 0;
-#endif
 
 /* taken from idsktune */
 #if defined(__sun)
@@ -956,10 +942,8 @@ main( int argc, char **argv)
 	case SLAPD_EXEMODE_SUFFIX2INSTANCE:
 		return slapd_exemode_suffix2instance();
 
-#if defined(UPGRADEDB)
 	case SLAPD_EXEMODE_UPGRADEDB:
 		return slapd_exemode_upgradedb();
-#endif
 
 	case SLAPD_EXEMODE_PRINTVERSION:
 		slapd_print_version(1);
@@ -1085,9 +1069,7 @@ main( int argc, char **argv)
 		normalize_oc();
 
 		if (n_port) {
-#if defined(NET_SSL)
 		} else if ( config_get_security()) {
-#endif
 		} else {
 #ifdef _WIN32	
 			if( SlapdIsAService() )
@@ -1327,7 +1309,6 @@ process_command_line(int argc, char **argv, char *myname,
 		{"exclude",ArgRequired,'x'},
 		{0,0,0}};
 
-#if defined(UPGRADEDB)
 	char *opts_upgradedb = "vfd:a:D:"; 
 	struct opt_ext long_options_upgradedb[] = {
 		{"version",ArgNone,'v'},
@@ -1336,7 +1317,6 @@ process_command_line(int argc, char **argv, char *myname,
 		{"archive",ArgRequired,'a'},
 		{"configDir",ArgRequired,'D'},
 		{0,0,0}};
-#endif
 
 	char *opts_referral = "vd:p:r:SD:"; 
 	struct opt_ext long_options_referral[] = {
@@ -1430,12 +1410,10 @@ process_command_line(int argc, char **argv, char *myname,
 		opts = opts_suffix2instance;
 		long_opts = long_options_suffix2instance;
 		break;
-#if defined(UPGRADEDB)
 	case SLAPD_EXEMODE_UPGRADEDB:
 		opts = opts_upgradedb;
 		long_opts = long_options_upgradedb;
 		break;
-#endif
 	default:	/* SLAPD_EXEMODE_SLAPD */
 		opts = opts_slapd;
 		long_opts = long_options_slapd;
@@ -1755,7 +1733,6 @@ process_command_line(int argc, char **argv, char *myname,
 			}
 			importexport_encrypt = 1;
 			break;			
-#if defined(UPGRADEDB)
 		case 'f':	/* upgradedb only */
 		    if ( slapd_exemode != SLAPD_EXEMODE_UPGRADEDB ) {
 				usage( myname, *extraname );
@@ -1763,7 +1740,6 @@ process_command_line(int argc, char **argv, char *myname,
 			}
 			upgradedb_force = SLAPI_UPGRADEDB_FORCE;
 			break;			
-#endif
 		case '1':	/* db2ldif only */
 			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
 				usage( myname, *extraname );
@@ -2500,7 +2476,6 @@ slapd_exemode_archive2db()
 	return return_value;
 }	
 
-#if defined(UPGRADEDB)
 /*
  * functions to convert idl from the old format to the new one
  * (604921) Support a database uprev process any time post-install
@@ -2575,7 +2550,6 @@ slapd_exemode_upgradedb()
     slapi_ch_free((void**)&myname );
     return( return_value );
 }
-#endif
 
 
 static int

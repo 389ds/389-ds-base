@@ -83,9 +83,7 @@
 #include "snmp_collator.h"
 #include <private/pprio.h>
 
-#if defined( NET_SSL )
 #include <ssl.h>
-#endif /* defined(NET_SSL) */
 
 #include "fe.h"
 
@@ -1895,7 +1893,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		*/
 	}
 
-#if defined(NET_SSL)
 	if( secure && config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) { 
 	    /* Prepare to handle the client's certificate (if any): */
 		int rv;
@@ -1917,7 +1914,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 					conn->c_sd, rv, prerr);
 		}
 	}
-#endif
 
 	connection_reset(conn, ns, &from, sizeof(from), secure);
 

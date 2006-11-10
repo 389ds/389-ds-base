@@ -43,7 +43,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#if defined(NET_SSL)
 #include <sechash.h>
 #if defined( _WIN32 )
 #undef DEBUG
@@ -51,8 +50,6 @@
 #if defined( _WIN32 )
 #undef LDAPDebug
 #endif	/*  _WIN32 */
-
-#endif /* NET_SSL */
 
 #include "slap.h"
 

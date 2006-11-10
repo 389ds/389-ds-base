@@ -53,10 +53,7 @@
 #include "fe.h"
 #include "vattr_spi.h"
 
-
-#if defined( NET_SSL )
 #include <ssl.h>
-#endif
 
 PRUint64 num_entries_sent;
 PRUint64 num_bytes_sent;

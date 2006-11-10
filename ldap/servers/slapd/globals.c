@@ -42,15 +42,12 @@
  *  SLAPD globals.c -- SLAPD library global variables
  */
 
-#if defined(NET_SSL)
 #include "ldap.h"
 #include <sslproto.h> /* cipher suite names */
 #include <ldap_ssl.h>
 
 #undef OFF
 #undef LITTLE_ENDIAN
-
-#endif
 
 #include <stdio.h>
 #include <string.h>

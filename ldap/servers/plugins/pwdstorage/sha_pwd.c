@@ -46,9 +46,7 @@
 
 #include "pwdstorage.h"
 
-#if defined(NET_SSL)
 #include <sechash.h>
-#endif /* NET_SSL */
 
 #define SHA_SALT_LENGTH    8   /* number of bytes of data in salt */
 #define NOT_FIRST_TIME (time_t)1 /* not the first logon */

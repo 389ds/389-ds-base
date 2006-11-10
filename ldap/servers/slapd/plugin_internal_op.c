@@ -42,9 +42,7 @@
 #include "slapi-plugin.h"
 #include "slap.h"
 
-#if defined(NET_SSL)
 #include <ssl.h>
-#endif
 
 /* entry list node */
 typedef struct Entry_Node{

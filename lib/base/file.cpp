@@ -528,8 +528,6 @@ extern char *sys_errlist[];
 #endif /* SNI */
 #endif
 
-#ifdef NET_SSL
-
 #define ERRMSG_SIZE 35
 #ifdef THREAD_ANY
 static int errmsg_key = -1;
@@ -537,19 +535,16 @@ static int errmsg_key = -1;
 /* Removed for ns security integration
 #include "xp_error.h"
 */
-#else
+#else /* THREAD_ANY */
 static char errmsg[ERRMSG_SIZE];
-#endif
+#endif /* THREAD_ANY */
 
 #include "util.h"
-
-#endif
-
 
 void system_errmsg_init(void)
 {
     if (errmsg_key == -1) {
-#if defined(THREAD_ANY) && defined(NET_SSL)
+#if defined(THREAD_ANY)
         errmsg_key = systhread_newkey();
 #endif
 #ifdef XP_WIN32

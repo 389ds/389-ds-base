@@ -56,10 +56,8 @@
 #include "prlong.h"
 #include "prmem.h"
 
-#if defined(NET_SSL)
 #include <pk11func.h>
 #include <pk11pqg.h>
-#endif /* NET_SSL */
 
 #define SHA1_SALT_LENGTH    8   /* number of bytes of data in salt */
 #define PWD_HASH_PREFIX_START   '{'

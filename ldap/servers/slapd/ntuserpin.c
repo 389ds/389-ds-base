@@ -42,7 +42,7 @@
  *
  ******************************************************/
 
-#if defined( _WIN32 ) && defined ( NET_SSL )
+#if defined( _WIN32 )
 
 #include <windows.h>
 #include "ntwatchdog.h"
@@ -206,4 +206,4 @@ static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
  */
 static const SVRCOREPinMethods vtable =
 { 0, 0, destroyObject, getPin };
-#endif /* defined( _WIN32 ) && defined ( NET_SSL ) */
+#endif /* defined( _WIN32 ) */

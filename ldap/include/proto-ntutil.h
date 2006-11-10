@@ -94,10 +94,8 @@ extern BOOL SlapdGetServerNameFromCmdline(char *szServerName, char *szCmdLine, i
  * ntgetpassword.c  
  *
  */
-#ifdef NET_SSL
 extern char *Slapd_GetPassword();
 extern void CenterDialog(HWND hwndParent, HWND hwndDialog);
-#endif /* NET_SSL */
 
 #ifdef __cplusplus
 }
