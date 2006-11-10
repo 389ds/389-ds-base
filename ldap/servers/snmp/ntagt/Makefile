@@ -50,7 +50,6 @@ BINDIR      =   $(LDAP_SERVER_RELDIR)
 
 NOSTDCLEAN = true # don't let nsconfig.mk define target clean
 NOSTDSTRIP = true # don't let nsconfig.mk define target strip
-NSPR20     = true
 
 include         $(BUILD_ROOT)/nsconfig.mk
 include         $(MSRV_ROOT)/nsldap.mk

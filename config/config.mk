@@ -411,7 +411,7 @@ endif
 # Platform dependent switching off of NSPR and JAVA
 #
 ifndef NO_NSPR
-DEFINES		+= -DNSPR -DNSPR20
+DEFINES		+= -DNSPR
 endif
 
 ifndef NO_JAVA

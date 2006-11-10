@@ -205,11 +205,7 @@ endif
 endif
 BASIC_OBJDIR=$(BUILD_ROOT)/built/$(FULL_RTL_OBJDIR)
 
-ifdef NSPR20
- NSPR_DIR=nspr20
-else
- NSPR_DIR=nspr
-endif
+NSPR_DIR=nspr
 NSPR_BASENAME=libnspr21
 PRODUCTCORE=Fedora Directory Server
 PRODUCT="$(PRODUCTCORE)"

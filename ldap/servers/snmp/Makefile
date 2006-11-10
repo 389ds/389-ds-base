@@ -52,7 +52,6 @@ LDAP_SRC = ../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
-NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/ldap-agent
 BINDIR = $(LDAP_SERVER_RELDIR)

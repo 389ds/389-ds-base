@@ -46,7 +46,6 @@ BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
-NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/ntmsgdll/obj
 BINDIR = $(LDAP_SERVER_RELDIR)

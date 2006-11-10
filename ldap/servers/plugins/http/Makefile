@@ -41,7 +41,6 @@ BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
-NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/lib/libhttpclient
 LIBDIR = $(LDAP_PLUGIN_RELDIR)

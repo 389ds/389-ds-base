@@ -46,7 +46,6 @@ BUILD_ROOT = ../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
-NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 include $(BUILD_ROOT)/nsdefs.mk
 include $(BUILD_ROOT)/nsconfig.mk
