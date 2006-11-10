@@ -570,6 +570,7 @@ endif
 # if not Linux, we need package sasl library and supported plugins
 ifneq ($(ARCH), Linux)
 	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)* $(RELDIR)/$(DS_LIBDIR)
+	$(INSTALL) -m 755 $(SASL_LIBPATH)/*.$(DLL_SUFFIX)* $(RELDIR)/$(CORE_LIBDIR)
 	-mkdir $(DS_LIBDIR)/sasl2
 	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libdigestmd5.$(DLL_SUFFIX)* $(RELDIR)/$(DS_LIBDIR)/sasl2
 	$(INSTALL) -m 755 $(SASL_LIBPATH)/sasl2/libgssapiv2.$(DLL_SUFFIX)* $(RELDIR)/$(DS_LIBDIR)/sasl2
