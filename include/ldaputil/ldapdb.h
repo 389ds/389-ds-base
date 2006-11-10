@@ -39,17 +39,10 @@
 #define _LDAPU_LDAPDB_H
 
 #include <ldap.h>
-/* removed for LDAPSDK31 integration
-#include <lcache.h>
-*/
-#ifdef LDAPDB_THREAD_SAFE
 /* In the past, we used CRITICAL objects from lib/base/crit.cpp.
  * Now we use PRMonitor to avoid ldapu to depend on lib/base.
  */
 #include <prmon.h>
-#else
-#define PRMonitor void
-#endif /* LDAPDB_THREAD_SAFE */
 
 #ifndef NSAPI_PUBLIC
 #ifdef XP_WIN32
