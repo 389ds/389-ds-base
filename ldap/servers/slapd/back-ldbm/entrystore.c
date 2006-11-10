@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* entrystore.c --- functions dealing with entries and their storage.
    Put computed attributes, compression etc here */
 

@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* upgrade.c --- upgrade from a previous version of the database */
 
 #include "back-ldbm.h"

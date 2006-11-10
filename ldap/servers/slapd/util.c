@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* util.c   -- utility functions -- functions available form libslapd */
 #ifdef _WIN32
 #include <direct.h> /* for getcwd */

@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* Implementation note:
    PR_AtomicIncrement and PR_AtomicDecrement both return a value whose
    sign is the same sign (or zero) as the variable *after* it was updated.

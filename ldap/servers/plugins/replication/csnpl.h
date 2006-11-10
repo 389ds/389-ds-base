@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* csnpl.h - interface for csn pending list */
 
 #ifndef CSNPL_H

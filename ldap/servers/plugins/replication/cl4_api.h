@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* cl4_api.h - minimal interface to 4.0 changelog necessary to link 4.0 changelog
 			   to 5.0 replication
  */

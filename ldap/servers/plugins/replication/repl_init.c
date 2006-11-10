@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
  * Add an entry like the following to dse.ldif to enable this plugin:
 

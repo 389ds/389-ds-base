@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*-------------------------------------------------------------------------
  *
  * nsldapagt_nt.c - SNMP Extension Agent for Directory Server on NT.

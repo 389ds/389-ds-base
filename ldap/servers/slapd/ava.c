@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* ava.c - routines for dealing with attribute value assertions */
 
 #include <stdio.h>

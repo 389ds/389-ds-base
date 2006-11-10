@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
 	FILE :		opCheck.c
 	AUTHOR :        Jean-Luc SCHWING

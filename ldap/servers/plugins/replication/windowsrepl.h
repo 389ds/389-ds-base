@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* windows_private.c */
 typedef struct windowsprivate Dirsync_Private;
 Dirsync_Private* windows_private_new();

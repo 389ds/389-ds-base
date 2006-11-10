@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* This is the required stub entry point for the message-table DLL */
 #if defined( _WIN32 )
 #include <windows.h>

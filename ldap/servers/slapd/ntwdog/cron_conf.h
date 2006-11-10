@@ -35,8 +35,13 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /***********************************************************************
-** $Id: cron_conf.h,v 1.5 2006/09/15 16:26:44 rmeggins Exp $
+** $Id: cron_conf.h,v 1.6 2006/11/10 23:45:49 nhosoi Exp $
 **
 **
 ** NAME

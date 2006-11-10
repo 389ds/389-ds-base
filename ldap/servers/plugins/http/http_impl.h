@@ -36,6 +36,11 @@
  * All rights reserved.
  * --- END COPYRIGHT BLOCK --- */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #ifndef HTTP_IMPL_H__
 #define HTTP_IMPL_H__
 

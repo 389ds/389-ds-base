@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* uuid.h - interface  to uuid layer. UUID is generated in accordance
             with UUIDs and GUIDs IETF draft
  */

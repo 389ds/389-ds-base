@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #if defined( _WIN32 )
 #include <sys/stat.h> /* for S_IREAD and S_IWRITE */
 #include <windows.h>

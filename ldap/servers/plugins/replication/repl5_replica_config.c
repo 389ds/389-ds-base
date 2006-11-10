@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* repl5_replica_config.c - replica configuration over ldap */
 #include <ctype.h>	/* for isdigit() */
 #include "repl.h"   /* ONREPL - this is bad */

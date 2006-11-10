@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*********************************************************************
 **
 **
@@ -48,6 +53,16 @@
 **
 ** HISTORY:
 ** $Log: ux-config.h,v $
+** Revision 1.7  2006/11/10 23:44:40  nhosoi
+** Resolves: #214533
+** Summary: configure needs to support --with-fhs (Comment #6)
+** Changes: Added the following include next to the end of the copyright block.
+** +
+** +#ifdef HAVE_CONFIG_H
+** +#  include <config.h>
+** +#endif
+** +
+**
 ** Revision 1.6  2005/04/19 22:07:21  nkinder
 ** Fixed licensing typo
 **

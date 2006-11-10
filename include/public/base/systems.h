@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #ifndef PUBLIC_BASE_SYSTEMS_H
 #define PUBLIC_BASE_SYSTEMS_H
 

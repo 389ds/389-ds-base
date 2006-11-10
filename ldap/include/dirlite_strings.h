@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* dirlite_strings.h - strings  used for Directory Lite */
 #ifndef _DIRLITE_STRINGS_H_
 #define _DIRLITE_STRINGS_H_

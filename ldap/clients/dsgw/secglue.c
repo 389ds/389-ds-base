@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * secglue.c: Glue routines for the httpd.so shared object. These are 
  * necessary because on many system no garbage collection is performed for

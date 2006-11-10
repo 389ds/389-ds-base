@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #ifndef _SEARCHTHREAD_H
 #define _SEARCHTHREAD_H
 

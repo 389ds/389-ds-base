@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
  * small program to scan a Directory Server db file and dump the contents
  *

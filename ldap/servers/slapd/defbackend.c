@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * defbackend.c - implement a "backend of last resort" which is used only
  * when a request's basedn does not match one of the suffixes of any of the

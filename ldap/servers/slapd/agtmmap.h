@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /********************************************************************
  *
  *      agtmmap.h: Memory Map interface for SNMP sub-agent for 

@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #define LIBRARY_NAME "libadmin"
 
 static char dbtlibadminid[] = "$DBT: libadmin referenced v1 $";

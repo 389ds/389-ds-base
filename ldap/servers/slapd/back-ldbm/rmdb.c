@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * rmdb.c - ldbm backend routine which deletes an entire database.
  * This routine is not exposed in the public SLAPI interface.  It

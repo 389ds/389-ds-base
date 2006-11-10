@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* from /usr/project/iplanet/ws/ds5.ke/ns/svrcore/pkcs7/tstarchive.c */
 
 #include <string.h>

@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include "cb.h"
 
 void cb_eliminate_illegal_attributes(cb_backend_instance * inst, Slapi_Entry * e) {

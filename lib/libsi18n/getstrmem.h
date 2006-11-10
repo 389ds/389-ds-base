@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #define BUCKET_MASK NUM_BUCKETS-1
 typedef struct DATABIN {
   char*    pLibraryName;

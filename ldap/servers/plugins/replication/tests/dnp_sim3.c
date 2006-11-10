@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* dnp_simulation.c - this file varifies the correctness of dnp algorithm
                       by generating random sequences of operations, applying
                       the algorithm and outputing the result

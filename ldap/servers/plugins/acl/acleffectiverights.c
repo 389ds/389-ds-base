@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #include "acl.h"
 
 /* safer than doing strcat unprotected */

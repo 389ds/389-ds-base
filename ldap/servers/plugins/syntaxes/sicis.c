@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
  * sicis.c - space insensitive string syntax routines.
  *           these strings are also case insensitive.

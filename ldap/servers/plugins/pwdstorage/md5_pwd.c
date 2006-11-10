@@ -34,6 +34,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * MD5 Password Encryption/Comparison routines by David Irving, Fred Brittain,
  * and Aaron Gagnon --  University of Maine Farmington

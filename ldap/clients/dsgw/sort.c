@@ -36,6 +36,11 @@
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* DON'T SHIP THIS PROGRAM.  It's terribly un-secure, as it
    enables an HTTP client to read the contents of any file.
 */

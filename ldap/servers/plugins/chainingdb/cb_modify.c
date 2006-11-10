@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include "cb.h"
 
 static void cb_remove_illegal_mods(cb_backend_instance * inst, LDAPMod **mods);

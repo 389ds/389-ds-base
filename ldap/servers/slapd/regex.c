@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include "slap.h"	/* must come before regex.h */
 #include "portable.h"
 
@@ -86,6 +91,16 @@ slapd_re_unlock( void )
  * Modification history:
  *
  * $Log: regex.c,v $
+ * Revision 1.5  2006/11/10 23:45:40  nhosoi
+ * Resolves: #214533
+ * Summary: configure needs to support --with-fhs (Comment #6)
+ * Changes: Added the following include next to the end of the copyright block.
+ * +
+ * +#ifdef HAVE_CONFIG_H
+ * +#  include <config.h>
+ * +#endif
+ * +
+ *
  * Revision 1.4  2005/04/19 22:07:37  nkinder
  * Fixed licensing typo
  *

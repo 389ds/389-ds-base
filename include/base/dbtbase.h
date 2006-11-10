@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #define LIBRARY_NAME "base"
 
 static char dbtbaseid[] = "$DBT: base referenced v1 $";

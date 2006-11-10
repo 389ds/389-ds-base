@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #ifndef _STATE_NOTIFY_H_
 #define _STATE_NOTIFY_H_
 

@@ -36,6 +36,11 @@
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #include "netsite.h"			/* to get MAGNUS_VERSION_STRING */
 
 #ifdef MAGNUS_VERSION_STRING

@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /******** testdbinterop.h *******************
 
  The header file is for access to a Berkeley DB

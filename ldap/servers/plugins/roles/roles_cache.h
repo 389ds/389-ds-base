@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #if !defined( _ROLES_CACHE_H )
 
 #define SLAPD_ROLES_INTERFACE "roles-slapd"

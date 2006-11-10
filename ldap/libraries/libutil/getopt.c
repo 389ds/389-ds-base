@@ -17,6 +17,11 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #ifdef _WINDOWS
 
 #if defined(LIBC_SCCS) && !defined(lint)

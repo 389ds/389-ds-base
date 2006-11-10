@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* Defines the vattr SPI interface, used by COS and Roles at present */
 /* Also needs to be included by any code which participates in the vattr
    loop detection scheme (e.g. filter test code) 

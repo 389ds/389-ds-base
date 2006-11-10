@@ -34,6 +34,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* Private tructures and #defines used in the attribute encryption code. */
 
 #ifndef _ATTRCRYPT_H_

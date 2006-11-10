@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * --- END COPYRIGHT BLOCK --- */
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 {"PHSS_30966","1.0","ld(1) and linker tools cumulative patch",0,0,0},
 {"PHSS_29486","1.0","KRB5-Client Version 1.0 cumulative patch",0,0,0},
 {"PHSS_29487","1.0","GSS-API Version 1.0 Cumulative patch",0,0,0},

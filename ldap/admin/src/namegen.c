@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* namegen.c - utility program to generate name *
  * of backup files in the format YYYY_MM_DD_HMS *
  * and set it up as an environment variable to  *

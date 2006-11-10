@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * entrydisplay.c --  output entries one at a time or in a list -- HTTP gateway 
  */

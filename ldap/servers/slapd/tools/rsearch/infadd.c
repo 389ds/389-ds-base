@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
  * XP port of dboreham's NT tool "infinite_add"
  * robey, june 1998
@@ -338,8 +343,11 @@ int main(int argc, char **argv)
                         ntot);
         }
         if (!quiet && (numThreads > 1 || !verbose)) {
-            fprintf(stdout, "Average rate:%7.2f, total: %u\n", 
-                       (double)total/(double)numThreads, ntotal);
+            double val = 1000.0 * (double)total / (double)sampleInterval;
+            fprintf(stdout, "Rate: %7.2f/thr (%6.2f/sec =%7.4fms/op), "
+                            "total: %u (%d thr)\n", 
+                    (double)total/(double)numThreads, val, 
+                    (double)1000.0/val, ntotal, numThreads);
         }
         if (lmtCount && ntotal >= lmtCount) {
             if (!quiet) {

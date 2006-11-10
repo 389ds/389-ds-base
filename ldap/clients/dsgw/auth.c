@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * auth.c -- CGI authentication form generator -- HTTP gateway
  */

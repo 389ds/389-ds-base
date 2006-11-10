@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /******** testdatainterop.c ******************* 
 
  This source file provides an example of a plug-in function

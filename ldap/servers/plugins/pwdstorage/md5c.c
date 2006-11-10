@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /* MD5 code taken from reference implementation published in RFC 1321 */
 
 /* MD5C.C - RSA Data Security, Inc., MD5 message-digest algorithm */

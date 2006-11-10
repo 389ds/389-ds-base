@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* Operation Snooping Function.
    Used by server internal code (and plugins if they fancy)
    to detect state changes in the server.

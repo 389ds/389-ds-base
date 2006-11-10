@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 NSPR_BEGIN_EXTERN_C
 /*
  * access_plhash.cpp - supplement to NSPR plhash

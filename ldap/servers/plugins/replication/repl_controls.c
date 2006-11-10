@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #include "slapi-plugin.h"
 #include "repl5.h"
 #include "repl.h" /* For LDAP_CONTROL_REPL_MODRDN_EXTRAMODS */

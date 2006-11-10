@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 void	configure __P((char *));
 DB_ENV *db_init __P((char *));
 void	pheader __P((DB *, int));

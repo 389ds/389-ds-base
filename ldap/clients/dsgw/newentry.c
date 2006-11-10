@@ -35,6 +35,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * newentry.c -- CGI program to generate newentry form -- HTTP gateway
  */

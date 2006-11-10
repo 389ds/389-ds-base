@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #include "errno.h"			/* ENOMEM, EVAL used by Berkeley DB */
 #include "db.h"				/* Berkeley DB */
 #include "cl5.h"			/* changelog5Config */

@@ -34,6 +34,11 @@
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
+
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 /*
  * ds_newinst.c - creates a new instance of directory server, scripts,
  * configuration, etc.  Does not create any Admin Server stuff or

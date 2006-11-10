@@ -38,6 +38,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
         FILE :		repslave.c
         AUTHOR :        Fabio Pistolesi

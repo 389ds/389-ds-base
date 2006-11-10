@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* repl5_ruv.c - implementation of replica update vector */
 /*
  * The replica update vector is stored in the nsds50ruv attribute. The LDIF

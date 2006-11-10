@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /*
   This file contains a function which augments the standard nspr PL_HashTable
   api.  The problem is that the hash table lookup function in the standard NSPR

@@ -38,6 +38,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #ifndef _LDAP_PRIVATE_H
 #define _LDAP_PRIVATE_H
 

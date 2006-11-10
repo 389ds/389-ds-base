@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 #include "repl5_prot_private.h"
  
 #ifndef _WINDOWS_PROT_PRIVATE_H_

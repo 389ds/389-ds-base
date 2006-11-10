@@ -36,6 +36,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 typedef struct LASIpTree {
 	struct LASIpTree	*action[2];
 } LASIpTree_t;

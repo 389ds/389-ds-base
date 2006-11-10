@@ -35,6 +35,11 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+
 /* 
  * File for helper functions related to BerkeleyDB.
  * This exists because dblayer.c is 5k+ lines long, 
