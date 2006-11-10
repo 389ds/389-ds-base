@@ -53,6 +53,7 @@ sub getCgiContentAndLength {
   my $content = "";
   my $firsttime = 1;
   while (my ($kk, $vv) = each %{$args}) {
+    next if (!$kk || !$vv);
 	if ($firsttime) {
 	  $firsttime = 0;
 	} else {
@@ -73,7 +74,6 @@ sub cgiFake {
 
   # setup CGI environment
   $ENV{REQUEST_METHOD} = "POST";
-  $ENV{NETSITE_ROOT} = $sroot;
   $ENV{CONTENT_LENGTH} = $length;
   $ENV{SERVER_NAMES} = 'slapd-' . $args->{servid};
 
@@ -179,7 +179,6 @@ addAndCheck(\%cgiargs, "suffix", \%table, "slapd", "Suffix");
 
 # the following items are optional
 
-$cgiargs{"prefix"} = $table{"slapd"}->{"prefix"};
 $cgiargs{"lock_dir"} = $table{"slapd"}->{"lock_dir"};
 $cgiargs{"log_dir"} = $table{"slapd"}->{"log_dir"};
 $cgiargs{"run_dir"} = $table{"slapd"}->{"run_dir"};
