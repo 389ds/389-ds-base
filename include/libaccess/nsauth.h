@@ -48,16 +48,9 @@
  *	into and out of authentication interface functions.
  */
 
-#ifdef CLIENT_AUTH
-
 #include "ssl.h"
 
-#if 0
-/* Removed for new ns security */
-#include "sec.h"		/* SECCertificate */
-#endif
 #include "cert.h"               /* CERTCertificate for new ns security bin */
-#endif /* CLIENT_AUTH */
 
 #include "usi.h"		/* identifier list support */
 #include "attrec.h"		/* attribute record types */
@@ -308,13 +301,7 @@ struct ClAuth_s {
     char * cla_dns;		/* DNS name string pointer */
     UserObj_t * cla_uoptr;	/* authenticated user object pointer */
     GroupObj_t * cla_goptr;	/* pointer to list of group objects */
-#ifdef CLIENT_AUTH
-#if 0
-  /* Removed for new ns security  */
-    SECCertificate * cla_cert;	/* certificate from SSL client auth */
-#endif
     CERTCertificate * cla_cert;	/* certificate from SSL client auth */
-#endif /* CLIENT_AUTH */
 };
 
 #endif /* __nsauth_h */
