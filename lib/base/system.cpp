@@ -53,7 +53,7 @@
 
 static int thread_malloc_key = -1;
 
-#if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
+#if defined(MALLOC_POOLS) && defined(THREAD_ANY)
 #include "base/pool.h"
 #include "base/systhr.h"
 
@@ -85,7 +85,7 @@ static int thread_malloc_key = -1;
 
 NSAPI_PUBLIC void *system_malloc(int size)
 {
-#if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
+#if defined(MALLOC_POOLS) && defined(THREAD_ANY)
     return pool_malloc(MALLOC_KEY, size);
 #else
     return malloc(size);
@@ -96,7 +96,7 @@ NSAPI_PUBLIC void *system_malloc(int size)
 NSAPI_PUBLIC void *system_calloc(int size)
 {
     void *ret;
-#if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
+#if defined(MALLOC_POOLS) && defined(THREAD_ANY)
     ret = pool_malloc(MALLOC_KEY, size);
 #else
     ret = malloc(size);
@@ -109,7 +109,7 @@ NSAPI_PUBLIC void *system_calloc(int size)
 
 NSAPI_PUBLIC void *system_realloc(void *ptr, int size)
 {
-#if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
+#if defined(MALLOC_POOLS) && defined(THREAD_ANY)
     return pool_realloc(MALLOC_KEY, ptr, size);
 #else
     return realloc(ptr, size);
@@ -119,7 +119,7 @@ NSAPI_PUBLIC void *system_realloc(void *ptr, int size)
 
 NSAPI_PUBLIC void system_free(void *ptr)
 {
-#if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
+#if defined(MALLOC_POOLS) && defined(THREAD_ANY)
     pool_free(MALLOC_KEY, ptr);
 #else
     PR_ASSERT(ptr);
@@ -130,7 +130,7 @@ NSAPI_PUBLIC void system_free(void *ptr)
 NSAPI_PUBLIC char *system_strdup(const char *ptr)
 {
     PR_ASSERT(ptr);
-#if defined(MALLOC_POOLS) && defined(MCC_HTTPD) && defined(THREAD_ANY)
+#if defined(MALLOC_POOLS) && defined(THREAD_ANY)
     return pool_strdup(MALLOC_KEY, ptr);
 #else
     return strdup(ptr);

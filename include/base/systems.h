@@ -509,7 +509,7 @@ typedef void* PASSWD;
 /* NS_MAIL builds sec-key.c which calls systhread_init, which requires */
 /* that USE_NSPR is defined when systhr.c is compiled.  --lachman */
 /* MCC_PROXY does the same thing now --nbreslow -- LIKE HELL --ari */
-#if (defined(MCC_HTTPD) || defined(MCC_ADMSERV) || defined(MCC_PROXY) || defined(NS_MAIL)) && defined(XP_UNIX)
+#if defined(XP_UNIX)
 #define USE_NSPR
 /* XXXrobm This is UNIX-only for the moment */
 #define LOG_BUFFERING
@@ -520,10 +520,10 @@ typedef void* PASSWD;
 #ifdef IRIX 
 #undef SEM_FLOCK
 #define SEM_IRIX
-#endif 
-#endif
+#endif /* IRIX */
+#endif /* SW_THREADS */
 #define THREAD_ANY
-#endif
+#endif /* XP_UNIX */
 
 /* --- End the great debate --- */
 

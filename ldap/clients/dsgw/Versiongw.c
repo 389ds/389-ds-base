@@ -36,10 +36,6 @@
  * All rights reserved.
   --- END COPYRIGHT BLOCK ---  */
 
-#if defined( XP_WIN32 )
-#undef MCC_HTTPD
-#endif
-
 #include "netsite.h"			/* to get MAGNUS_VERSION_STRING */
 
 #ifdef MAGNUS_VERSION_STRING
