@@ -2,6 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
 AC_INIT([fedora-ds], [1.1], [http://bugzilla.redhat.com/])
+# AC_CONFIG_HEADER must be called right after AC_INIT.
+AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
@@ -94,6 +96,7 @@ m4_include(m4/sasl.m4)
 m4_include(m4/svrcore.m4)
 m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
+m4_include(m4/fhs.m4)
 
 # write out paths for binary components
 AC_SUBST(nspr_inc)
@@ -151,6 +154,9 @@ AC_SUBST(scripttemplatedir)
 # WINNT should be true if building on Windows system not using
 # cygnus, mingw, or the like and using cmd.exe as the shell
 AM_CONDITIONAL([WINNT], false)
+
+AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
+AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
 
 AC_CONFIG_FILES([Makefile])
 

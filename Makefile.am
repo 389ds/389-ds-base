@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS = -I m4
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 PLATFORM_DEFINES = @platform_defs@
 DEBUG_DEFINES = @debug_defs@
-DS_DEFINES = -DLDAP_DEBUG -DLDAP_DONT_USE_SMARTHEAP -DBUILD_NUM=$(BUILDNUM)
+DS_DEFINES = -DBUILD_NUM=$(BUILDNUM)
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 AM_CPPFLAGS = $(PLATFORM_DEFINES) $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
