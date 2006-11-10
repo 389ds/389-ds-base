@@ -173,9 +173,6 @@ endif
 #CFLAGS += -xwe
 #endif
 
-# turn on convidl: new idl upgrade tool
-CFLAGS+=-DUPGRADEDB
-
 #
 # Dynamic library for LDAP Server Admin interface
 #
@@ -872,7 +869,7 @@ ifeq ($(SECURITY), domestic)
 SECURITY_EXTN=us
 endif
 
-SSL = -DNET_SSL -DUSE_NSPR_MT
+SSL = -DUSE_NSPR_MT
 EXTRASSLLIBS = $(LIBARES)
 
 ifeq ($(ARCH), WINNT)
