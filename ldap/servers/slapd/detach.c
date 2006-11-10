@@ -85,7 +85,7 @@ detach()
 #ifndef _WIN32
 	if ( should_detach ) {
 		for ( i = 0; i < 5; i++ ) {
-#if defined( sunos5 ) && ( defined( THREAD_SUNOS5_LWP ) || defined( NSPR20 ))
+#if defined( sunos5 )
 			switch ( fork1() ) {
 #else
 			switch ( fork() ) {

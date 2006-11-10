@@ -47,11 +47,7 @@
 #include	<libaccess/aclproto.h>
 #include	<libaccess/ldapacl.h>
 #include 	<ldaputil/dbconf.h>
-#ifdef	NSPR20
 #include	<prprf.h>
-#else
-#include	<nspr/prprf.h>
-#endif
 
 NSPR_BEGIN_EXTERN_C
 extern char * ACL_Program;

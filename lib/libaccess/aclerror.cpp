@@ -45,11 +45,7 @@
 
 #include "base/systems.h"
 #include "public/nsapi.h"
-#ifdef NSPR20
 #include "prprf.h"
-#else
-#include "nspr/prprf.h"
-#endif
 #include "prlog.h"
 #include "libaccess/nserror.h"
 #include "libaccess/nsautherr.h"

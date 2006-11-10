@@ -216,20 +216,6 @@ NSAPI_PUBLIC void systhread_setdata(int key, void *data)
 NSAPI_PUBLIC void systhread_dummy(void)
 {
 
-#ifndef NSPR20
-    /* nspr/gc.c */
-    PR_InitGC(0,0);
-    /* nspr/prsystem.c */
-    PR_GetSystemInfo(PR_SI_SYSNAME, 0, 0);
-    /* nspr/linker.c */
-    PR_GetLibName(0, 0);
-    /* nspr/file.c */
-    PR_Mkdir(0, 0);
-    /* nspr/prnetdb.c */
-    PR_gethostbyname(0, 0, 0, 0, 0);
-    /* nspr/longlong.c */
-    LL_TO_S(LL_ZERO, 0, NULL, 0);
-#endif /* NSPR20 */
 }
 
 #elif defined(THREAD_WIN32)

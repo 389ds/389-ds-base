@@ -231,11 +231,7 @@ NSAPI_PUBLIC int ACL_DatabaseFind(NSErr_t *errp, const char *name,
 
     if (ACLDbNameHash) {
 	info = (AuthdbInfo_t *)PR_HashTableLookup(ACLDbNameHash, 
-#ifdef NSPR20
 						  name
-#else
-						  (char *)name
-#endif
 						  );
 
 	if (info) {

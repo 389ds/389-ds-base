@@ -44,14 +44,9 @@
 #include <string.h>
 #include <malloc.h>
 
-#ifdef LDAPDB_THREAD_SAFE
 #include <nspr.h>
 #include <prthread.h>
 #include <prmon.h>
-/* removed for new ns security integration
-#include <xp_error.h>
-*/
-#endif /* LDAPDB_THREAD_SAFE */
 
 #include "ldaputil/errors.h"
 #include "ldaputil/certmap.h"
@@ -72,16 +67,7 @@
 #define LDAPDB_PREFIX_WITH_SLASHES	    "ldapdb://"
 #define LDAPDB_PREFIX_WITH_SLASHES_LEN  9
 
-#ifndef LDAPDB_THREAD_SAFE
-#define ldb_crit_init(x)
-#define ldb_crit_enter(x)
-#define ldb_crit_exit(x)
-#else
-#ifdef NSPR20
 uintn           tsdindex;
-#else
-int32           tsdindex;
-#endif
 
 static void ldb_crit_init (LDAPDatabase_t *ldb)
 {
@@ -109,15 +95,11 @@ static void set_ld_error( int err, char *matched, char *errmsg, void *dummy )
 {
     struct ldap_error *le;
 
-#ifdef NSPR20
     if (!(le = (struct ldap_error *) PR_GetThreadPrivate(tsdindex))) {
 	le = (struct ldap_error *) malloc(sizeof(struct ldap_error));
 	memset((void *)le, 0, sizeof(struct ldap_error));
 	PR_SetThreadPrivate(tsdindex, (void *)le);
     }
-#else
-    le = (struct ldap_error *) PR_GetThreadPrivate( PR_CurrentThread(), tsdindex );
-#endif
     le->le_errno = err;
     if ( le->le_matched != NULL ) {
 	ldap_memfree( le->le_matched );
@@ -133,11 +115,7 @@ static int get_ld_error( char **matched, char **errmsg, void *dummy )
 {
     struct ldap_error *le;
 
-#ifdef NSPR20
     le = (struct ldap_error *) PR_GetThreadPrivate( tsdindex);
-#else
-    le = (struct ldap_error *) PR_GetThreadPrivate( PR_CurrentThread(), tsdindex );
-#endif
     if ( matched != NULL ) {
 	*matched = le->le_matched;
     }
@@ -191,7 +169,6 @@ ldapu_gethostbyaddr( const char *addr, int length, int type,
     return( (LDAPHostEnt *)PR_GetError() );
 }
 #endif /* LDAP_OPT_DNS_FN_PTRS */
-#endif /* LDAPDB_THREAD_SAFE */
 
 
 static void unescape_ldap_basedn (char *str)
@@ -460,15 +437,10 @@ NSAPI_PUBLIC int ldapu_ldap_init(LDAPDatabase_t *ldb)
 	return LDAPU_ERR_LDAP_INIT_FAILED;
     }
 
-#ifdef LDAPDB_THREAD_SAFE
     {
 	struct ldap_thread_fns  tfns;
 
-#ifdef NSPR20
         PR_NewThreadPrivateIndex(&tsdindex, NULL);
-#else
-        tsdindex = PR_NewThreadPrivateID();
-#endif
 
         /* set mutex pointers */
         memset( &tfns, '\0', sizeof(struct ldap_thread_fns) );
@@ -502,7 +474,6 @@ NSAPI_PUBLIC int ldapu_ldap_init(LDAPDatabase_t *ldb)
         }
     }
 #endif /* LDAP_OPT_DNS_FN_PTRS */
-#endif /* LDAPDB_THREAD_SAFE */
 
     if (ldapu_is_local_db(ldb)) {
       /* No more Local db support, force error!  */

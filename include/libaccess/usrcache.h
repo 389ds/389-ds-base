@@ -39,11 +39,7 @@
 #ifndef ACL_USER_CACHE_H
 #define ACL_USER_CACHE_H
 
-#ifdef NSPR20
 #include <plhash.h>
-#else
-#include <nspr/prhash.h>
-#endif
 
 #include <sys/types.h>
 #include <time.h>
