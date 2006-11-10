@@ -35,8 +35,6 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
-#define CYRUS_SASL 1
-
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"
@@ -201,7 +199,6 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
         return -1;
         
     }
-#ifdef CYRUS_SASL
     if (ret == sizeof(buffer)) {
         /* Decode the length (could use ntohl here ??) */
         packet_length = buffer[0] << 24 | buffer[1] << 16 | buffer[2] << 8 | buffer[3];
@@ -217,17 +214,6 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
         c->c_sasl_io_private->encrypted_buffer_count = packet_length;
         c->c_sasl_io_private->encrypted_buffer_offset = 4;
     }
-#else
-    if (ret == sizeof(buffer)) {
-        /* Decode the length (could use ntohl here ??) */
-        packet_length = buffer[0] << 24 | buffer[1] << 16 | buffer[2] << 8 | buffer[3];
-        LDAPDebug( LDAP_DEBUG_CONNS,
-            "read sasl packet length %ld on connection %d\n", packet_length, c->c_connid, 0 );
-        sasl_io_resize_encrypted_buffer(c->c_sasl_io_private, packet_length);
-        c->c_sasl_io_private->encrypted_buffer_count = packet_length;
-        c->c_sasl_io_private->encrypted_buffer_offset = 0;
-    }
-#endif
     return 0;
 }
 static int

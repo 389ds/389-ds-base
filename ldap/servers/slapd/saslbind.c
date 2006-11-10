@@ -36,22 +36,12 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
-#define CYRUS_SASL 1
-
 #include <slap.h>
 #include <fe.h>
 #include <sasl.h>
 #include <saslplug.h>
-#ifndef CYRUS_SASL
-#include <saslmod.h>
-#endif
 #ifndef _WIN32
 #include <unistd.h>
-#endif
-
-/* No GSSAPI on Windows */
-#if !defined(_WIN32)
-#define BUILD_GSSAPI 1
 #endif
 
 static char *serverfqdn;
@@ -427,14 +417,8 @@ static int ids_sasl_canon_user(
     sasl_conn_t *conn,
     void *context,
     const char *userbuf, unsigned ulen,
-#ifndef CYRUS_SASL
-    const char *authidbuf, unsigned alen,
-#endif
     unsigned flags, const char *user_realm,
     char *out_user, unsigned out_umax, unsigned *out_ulen
-#ifndef CYRUS_SASL
-    ,char *out_authid, unsigned out_amax, unsigned *out_alen
-#endif
 )
 {
     struct propctx *propctx = sasl_auxprop_getctx(conn);
@@ -442,9 +426,6 @@ static int ids_sasl_canon_user(
     Slapi_DN *sdn = NULL;
     char *pw = NULL;
     char *user = NULL;
-#ifndef CYRUS_SASL
-    char *authid = NULL;
-#endif
     const char *dn;
     int isroot = 0;
     char *clear = NULL;
@@ -454,17 +435,9 @@ static int ids_sasl_canon_user(
     if (user == NULL) {
         goto fail;
     } 
-#ifdef CYRUS_SASL
     LDAPDebug(LDAP_DEBUG_TRACE, 
               "ids_sasl_canon_user(user=%s, realm=%s)\n", 
               user, user_realm ? user_realm : "", 0);
-#else
-    authid = buf2str(authidbuf, alen);
-
-    LDAPDebug(LDAP_DEBUG_TRACE, 
-              "ids_sasl_canon_user(user=%s, authzid=%s, realm=%s)\n", 
-              user, authid, user_realm ? user_realm : "");
-#endif
 
     if (strncasecmp(user, "dn:", 3) == 0) {
         sdn = slapi_sdn_new();
@@ -480,11 +453,9 @@ static int ids_sasl_canon_user(
         /* map the sasl username into an entry */
         entry = ids_sasl_user_to_entry(conn, context, user, user_realm);
         if (entry == NULL) {
-#ifdef CYRUS_SASL
             /* Specific return value is supposed to be set instead of 
                an generic error (SASL_FAIL) for Cyrus SASL */
             returnvalue = SASL_NOAUTHZ;
-#endif
             goto fail;
         }
         dn = slapi_entry_get_ndn(entry);
@@ -515,22 +486,8 @@ static int ids_sasl_canon_user(
 
     /* TODO: canonicalize */
     PL_strncpyz(out_user, dn, out_umax);
-#ifdef CYRUS_SASL
     /* the length of out_user needs to be set for Cyrus SASL */
     *out_ulen = strlen(out_user);
-#else
-    if (authid )
-    {
-        int offset = 0;
-        /* The authid can start with dn:. In such case remove it */    
-        if (strncasecmp(authid,"dn:",3) == 0 )
-            offset = 3;
-        PL_strncpyz(out_authid, authid+offset, out_amax);
-    }
-    *out_ulen = -1;
-    *out_alen = -1;
-    slapi_ch_free((void**)&authid);
-#endif
 
     slapi_entry_free(entry);
     slapi_ch_free((void**)&user);
@@ -542,16 +499,12 @@ static int ids_sasl_canon_user(
  fail:
     slapi_entry_free(entry);
     slapi_ch_free((void**)&user);
-#ifndef CYRUS_SASL
-    slapi_ch_free((void**)&authid);
-#endif
     slapi_ch_free((void**)&pw);
     slapi_sdn_free(&sdn);
 
     return returnvalue;
 }
 
-#ifdef CYRUS_SASL
 static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
 {
     /* Try to get path from config, otherwise check for SASL_PATH environment
@@ -566,7 +519,6 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
     *path = pluginpath;
     return SASL_OK;
 }
-#endif
 
 static sasl_callback_t ids_sasl_callbacks[] =
 {
@@ -586,21 +538,15 @@ static sasl_callback_t ids_sasl_callbacks[] =
       NULL
     },
     {
-#ifdef CYRUS_SASL
       SASL_CB_CANON_USER,
-#else
-      SASL_CB_SERVER_CANON_USER,
-#endif
       (IFP) ids_sasl_canon_user,
       NULL
     },
-#ifdef CYRUS_SASL
     {
       SASL_CB_GETPATH,
       (IFP) ids_sasl_getpluginpath,
       NULL
     },
-#endif
     {
       SASL_CB_LIST_END,
       (IFP) NULL,
@@ -635,25 +581,6 @@ int ids_sasl_init(void)
                   0, 0, 0);
         return result;
     }
-
-#ifndef CYRUS_SASL
-    result = sasl_server_add_plugin("USERDB", sasl_userdb_init);
-
-    if (result != SASL_OK) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "failed to add LDAP sasl plugin\n",
-                  0, 0, 0);
-        return result;
-    }
-
-#if defined(BUILD_GSSAPI)
-    result = sasl_server_add_plugin("GSSAPI", sasl_gssapi_init);
-
-    if (result != SASL_OK) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "failed to add LDAP gssapi plugin\n",
-                  0, 0, 0);
-    }
-#endif
-#endif
 
     result = sasl_auxprop_add_plugin("iDS", ids_auxprop_plug_init);
 
