@@ -91,10 +91,8 @@
 #define ADM_DIR_ROOT           "admin"
 #define ADM_NAME_UNINSTALL     "Uninstall Administration Server 1.0"
 
-#if defined( NS_DS )
 #define ADMIN_SERVICE_NAME      "Admin Server" 
 #define ADMIN_ICON_NAME          "Administer Netscape Servers"
-#endif
 
 /* Enterprise IDs */
 #define ENT_ID_PRODUCT         "https"

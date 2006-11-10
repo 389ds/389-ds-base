@@ -52,10 +52,8 @@
 /* Begin: Application dependent information */
 /********************************************/
 
-#ifdef NS_DS
 #include "gsslapd.h"
 #define GSXXX_H_INCLUDED
-#endif
 
 #ifdef buildAnotherServer
 #include "gsanother.h"

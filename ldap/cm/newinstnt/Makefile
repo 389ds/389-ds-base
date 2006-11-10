@@ -84,7 +84,7 @@ CONSOLOBJS= \
 LIBINSTOBJS = \
 	$(OUTDIR)/libinst.obj
 
-CFLAGS+= /I "$(BUILD_ROOT)/include/nt" /I "$(BUILD_ROOT)/ldap/include" /I "$(BUILD_ROOT)/include" $(ADMINUTIL_INCLUDE) $(NSPR_INCLUDE) /D "NS_DS" /D "XP_WIN32"
+CFLAGS+= /I "$(BUILD_ROOT)/include/nt" /I "$(BUILD_ROOT)/ldap/include" /I "$(BUILD_ROOT)/include" $(ADMINUTIL_INCLUDE) $(NSPR_INCLUDE) /D "XP_WIN32"
 
 CC=cl.exe
 LD=link.exe

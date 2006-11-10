@@ -114,9 +114,6 @@ slapd_versatile_strerror( const PRErrorCode prerrno )
  *	Netscape Certificate Server team on 27-March-1998.
  *	Taken from the file ns/security/cmd/lib/secerror.c on NSS_1_BRANCH.
  *	Last updated from there: 24-July-1998 by Mark Smith <mcs>
- *
- * All of the Directory Server specific changes are enclosed inside
- *	#ifdef NS_DS.
  ****************************************************************************
  */
 #include "nspr.h"
@@ -137,17 +134,11 @@ typedef struct tuple_str tuple_str;
 static const tuple_str errStrings[] = {
 
 /* keep this list in ascending order of error numbers */
-#ifdef NS_DS
 #include "dberrstrs.h"
 #include "sslerrstrs.h"
 #include "secerrstrs.h"
 #include "prerrstrs.h"
 #include "disconnect_error_strings.h"
-#else /* NS_DS */
-#include "SSLerrs.h"
-#include "SECerrs.h"
-#include "NSPRerrs.h"
-#endif /* NS_DS */
 
 };
 
@@ -156,10 +147,7 @@ static const PRInt32 numStrings = sizeof(errStrings) / sizeof(tuple_str);
 /* Returns a UTF-8 encoded constant error string for "errNum".
  * Returns NULL of errNum is unknown.
  */
-#ifdef NS_DS
-static
-#endif /* NS_DS */
-const char *
+static const char *
 SECU_Strerror(PRErrorCode errNum) {
     PRInt32 low  = 0;
     PRInt32 high = numStrings - 1;
@@ -175,7 +163,6 @@ SECU_Strerror(PRErrorCode errNum) {
     	for (i = low + 1; i <= high; ++i) {
 	    num = errStrings[i].errNum;
 	    if (num <= lastNum) {
-#ifdef NS_DS
 		LDAPDebug( LDAP_DEBUG_ANY,
 			"sequence error in error strings at item %d\n"
 			"error %d (%s)\n",
@@ -184,15 +171,6 @@ SECU_Strerror(PRErrorCode errNum) {
 			"should come after \n"
 			"error %d (%s)\n",
 			num, errStrings[i].errString, 0 );
-#else /* NS_DS */
-	    	fprintf(stderr, 
-"sequence error in error strings at item %d\n"
-"error %d (%s)\n"
-"should come after \n"
-"error %d (%s)\n",
-		        i, lastNum, errStrings[i-1].errString, 
-			num, errStrings[i].errString);
-#endif /* NS_DS */
 	    }
 	    lastNum = num;
 	}

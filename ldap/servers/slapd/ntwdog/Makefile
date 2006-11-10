@@ -46,7 +46,6 @@ BUILD_ROOT = ../../../..
 
 NOSTDCLEAN=true # don't let nsconfig.mk define target clean
 NOSTDSTRIP=true # don't let nsconfig.mk define target strip
-NSPR20=true	# probably should be defined somewhere else (not sure where)
 
 OBJDEST = $(OBJDIR)/ntwdog/obj
 SLAPD_OBJDEST= $(OBJDIR)/obj
@@ -62,7 +61,7 @@ endif
 
 #INCLUDES += -I$(BUILD_ROOT)/include/libadmin 
 
-DS_SERVER_DEFS = -DNS_DS
+DS_SERVER_DEFS =
 
 NTWDOG_OBJS=	ntwatchdog.o 
 

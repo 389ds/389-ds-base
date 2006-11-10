@@ -56,7 +56,7 @@ MC=mc	#message compiler?
 DLLS = nsldapctr
 
 # -D's get all screwed up: we need to fix them:
-CFLAGS+= -UNS_PERSONAL -DNS_DS
+CFLAGS+= -UNS_PERSONAL
 # this lets us pickup regparms.h
 CFLAGS += -I $(BUILD_ROOT)/include
 

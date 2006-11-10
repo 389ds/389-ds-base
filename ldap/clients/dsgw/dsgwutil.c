@@ -42,11 +42,7 @@
 #include <limits.h> /* PATH_MAX */
 #include "dsgw.h"
 #include "dbtdsgw.h"
-#ifdef NS_DS
 #include "../lib/libsi18n/gsslapd.h"
-#else /* Admin Server */
-#include "../lib/libsi18n/gsadmserv.h"
-#endif
 
 #ifdef DSGW_DEBUG
 #include <time.h>
@@ -96,11 +92,7 @@ dsgw_init( int argc, char **argv, int methods_handled )
 
     /* initialize the string database */
     XP_InitStringDatabase(
-#ifdef NS_DS
 	  SERVER_ROOT_PATH "/bin/slapd/property" /* Directory Server Gateway */
-#else
-	  SERVER_ROOT_PATH "/admin" /* Admin Server */
-#endif
 	  , DATABASE_NAME);
     /* set default default languages for string database */
     SetLanguage(CLIENT_LANGUAGE, "");
