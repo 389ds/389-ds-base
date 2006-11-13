@@ -4346,8 +4346,8 @@ int parse_form(server_config_s *cf)
         prefix = cf->prefix = PL_strdup("/");
     }
 
-    cf->sroot = PR_smprintf("%s%cusr%clib%c%s",
-                prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP, cf->brand_ds);
+    cf->sroot = PR_smprintf("%s%s%c%s",
+                prefix, LIBDIR, FILE_PATHSEP, cf->brand_ds);
     temp = ds_a_get_cgi_var("sasl_path", NULL, NULL);
     if (NULL != temp) {
         /* if sasl_path is given, we set it in the conf file regardless of

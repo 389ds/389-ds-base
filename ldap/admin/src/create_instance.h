@@ -61,14 +61,23 @@ extern "C" {            /* Assume C declarations for C++ */
 #define PRODUCT_BIN     "ns-slapd"
 #define LOCALSTATEDIR   "/var"
 #define SYSCONFDIR      "/etc"
+#if defined (IS_FHS)
+#define LIBDIR          "/usr/lib"
 #define BINDIR          "/usr/bin"
 #define DATADIR         "/usr/share"
 #define DOCDIR          "/usr/doc"
-#else # Windows
+#else /* RPM */
+#define LIBDIR          "/lib"
+#define BINDIR          "/bin"
+#define DATADIR         "/share"
+#define DOCDIR          "/doc"
+#endif /* IS_FHS */
+#else /* Windows */
 #define PRODUCT_NAME    "slapd"
 #define PRODUCT_BIN     "slapd"
 #define LOCALSTATEDIR   "\\var"
 #define SYSCONFDIR      "\\etc"
+#define LIBDIR          "\\usr\\lib"
 #define BINDIR          "\\usr\\bin"
 #define DATADIR         "\\usr\\share"
 #define DOCDIR          "\\usr\\doc"

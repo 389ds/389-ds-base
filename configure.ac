@@ -129,9 +129,9 @@ AC_SUBST(netsnmp_link)
 
 # installation paths
 if test "$with_fhs" = "yes"; then
-  bindir=$prefix/usr/bin
-  libdir=$prefix/usr/lib
-  datadir=$prefix/usr/share
+  bindir=@prefix@/usr/bin
+  libdir=@prefix@/usr/lib
+  datadir=@prefix@/usr/share
 fi
 # relative to sysconfdir
 configdir=/fedora-ds/config
