@@ -59,7 +59,7 @@ endif
 
 INCLUDES += -I$(LDAP_SRC)/admin/include
 
-DS_SERVER_DEFS = -DNS_DS
+DS_SERVER_DEFS = -DNS_DS -DIS_FHS
 
 ifneq ($(ARCH), WINNT)
 EXTRALDFLAGS += $(SSLLIBFLAG)
