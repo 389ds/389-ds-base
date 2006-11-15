@@ -3,6 +3,15 @@
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
 #undef CLOSEDIR_VOID
 
+/* cpu type pa-risc */
+#undef CPU_hppa
+
+/* cpu type ia64 */
+#undef CPU_ia64
+
+/* cpu type sparc */
+#undef CPU_sparc
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -208,6 +217,18 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
+/* HP-UX */
+#undef HPUX
+
+/* HP-UX 11 */
+#undef HPUX11
+
+/* HP-UX 11.11 */
+#undef HPUX11_11
+
+/* HP-UX 11.23 */
+#undef HPUX11_23
+
 /* Use FHS layout */
 #undef IS_FHS
 
@@ -217,12 +238,36 @@
 /* Don't use smartheap */
 #undef LDAP_DONT_USE_SMARTHEAP
 
+/* Linux */
+#undef LINUX
+
+/* Linux 2.0 */
+#undef LINUX2_0
+
+/* Linux 2.2 */
+#undef LINUX2_2
+
+/* Linux 2.4 */
+#undef LINUX2_4
+
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
 
+/* Linux */
+#undef Linux
+
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
+
+/* OS version */
+#undef OSVERSION
+
+/* OS HP-UX */
+#undef OS_hpux
+
+/* OS SOLARIS */
+#undef OS_solaris
 
 /* Name of package */
 #undef PACKAGE
@@ -245,6 +290,9 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
+/* SOLARIS */
+#undef SOLARIS
+
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
 #undef STAT_MACROS_BROKEN
 
@@ -253,6 +301,9 @@
 
 /* Define to 1 if strerror_r returns char *. */
 #undef STRERROR_R_CHAR_P
+
+/* SVR4 */
+#undef SVR4
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
@@ -263,11 +314,29 @@
 /* Version number of package */
 #undef VERSION
 
+/* UNIX */
+#undef XP_UNIX
+
+/* _REENTRANT */
+#undef _REENTRANT
+
+/* SVID_GETTOD */
+#undef _SVID_GETTOD
+
+/* SVR4 */
+#undef __svr4
+
+/* SVR4 */
+#undef __svr4__
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef gid_t
+
+/* HP-UX */
+#undef hpux
 
 /* Define to rpl_malloc if the replacement function should be used. */
 #undef malloc
@@ -277,6 +346,9 @@
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 #undef size_t
+
+/* SunOS5 */
+#undef sunos5
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef uid_t

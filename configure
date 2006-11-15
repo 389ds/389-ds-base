@@ -23375,29 +23375,6 @@ fi
 done
 
 
-# Deal with platform dependent defines
-case $host in
-  *-*-linux*)
-    platform_defs="-DXP_UNIX -DLinux -DLINUX -DLINUX2_0 -DLINUX2_2 -DLINUX2_4"
-    platform="linux"
-    ;;
-  ia64-hp-hpux*)
-    platform_defs="-DXP_UNIX -Dhpux -DHPUX -DHPUX11 -DHPUX11_11 -DCPU_ia64 -DOS_hpux -D_PR_NTHREAD"
-    platform="hpux"
-    ;;
-  hppa*-hp-hpux*)
-    platform_defs="-DXP_UNIX -Dhpux -DHPUX -DHPUX11 -DHPUX11_11 -DCPU_hppa -DOS_hpux -D_PR_NTHREAD"
-    platform="hpux"
-    ;;
-  sparc-sun-solaris*)
-    platform_defs="-DXP_UNIX -DSVR4 -D__svr4 -D__svr4__ -D_SVID_GETTOD -DSOLARIS -DCPU_sparc -DOS_solaris -Dsunos5 -DOSVERSION=509 -D_REENTRANT"
-    platform="solaris"
-    ;;
-  *)
-    platform_defs=""
-    platform=""
-    ;;
-esac
 
 
 
@@ -25069,6 +25046,180 @@ else
 fi
 
 
+# Deal with platform dependent defines
+case $host in
+  *-*-linux*)
+
+cat >>confdefs.h <<\_ACEOF
+#define XP_UNIX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define Linux 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX2_0 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX2_2 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX2_4 1
+_ACEOF
+
+    platform="linux"
+    ;;
+  ia64-hp-hpux*)
+
+cat >>confdefs.h <<\_ACEOF
+#define XP_UNIX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define hpux 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HPUX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HPUX11 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HPUX11_23 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define CPU_ia64
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define OS_hpux 1
+_ACEOF
+
+    platform="hpux"
+    ;;
+  hppa*-hp-hpux*)
+
+cat >>confdefs.h <<\_ACEOF
+#define XP_UNIX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define hpux 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HPUX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HPUX11 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HPUX11_11 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define CPU_hppa
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define OS_hpux 1
+_ACEOF
+
+    platform="hpux"
+    ;;
+  sparc-sun-solaris*)
+
+cat >>confdefs.h <<\_ACEOF
+#define XP_UNIX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define SVR4 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define __svr4 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define __svr4__ 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define _SVID_GETTOD 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define SOLARIS 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define CPU_sparc
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define OS_solaris 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define sunos5 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define OSVERSION 509
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define _REENTRANT 1
+_ACEOF
+
+    platform="solaris"
+    ;;
+  *)
+    platform_defs=""
+    platform=""
+    ;;
+esac
 
 cat >>confdefs.h <<\_ACEOF
 #define LDAP_DEBUG 1

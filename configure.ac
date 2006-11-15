@@ -47,29 +47,6 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([setrlimit endpwent ftruncate getcwd gethostbyname inet_ntoa localtime_r memmove memset mkdir munmap putenv rmdir socket strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk strrchr strstr strtol tzset])
 
-# Deal with platform dependent defines
-case $host in
-  *-*-linux*)
-    platform_defs="-DXP_UNIX -DLinux -DLINUX -DLINUX2_0 -DLINUX2_2 -DLINUX2_4"
-    platform="linux"
-    ;;
-  ia64-hp-hpux*)
-    platform_defs="-DXP_UNIX -Dhpux -DHPUX -DHPUX11 -DHPUX11_11 -DCPU_ia64 -DOS_hpux -D_PR_NTHREAD"
-    platform="hpux"
-    ;;
-  hppa*-hp-hpux*)
-    platform_defs="-DXP_UNIX -Dhpux -DHPUX -DHPUX11 -DHPUX11_11 -DCPU_hppa -DOS_hpux -D_PR_NTHREAD"
-    platform="hpux"
-    ;;
-  sparc-sun-solaris*)
-    platform_defs="-DXP_UNIX -DSVR4 -D__svr4 -D__svr4__ -D_SVID_GETTOD -DSOLARIS -DCPU_sparc -DOS_solaris -Dsunos5 -DOSVERSION=509 -D_REENTRANT"
-    platform="solaris"
-    ;;
-  *)
-    platform_defs=""
-    platform=""
-    ;;
-esac
 AC_SUBST([platform_defs])
 AM_CONDITIONAL(SOLARIS,test $platform = solaris)
 
@@ -159,6 +136,56 @@ AC_SUBST(scripttemplatedir)
 # cygnus, mingw, or the like and using cmd.exe as the shell
 AM_CONDITIONAL([WINNT], false)
 
+# Deal with platform dependent defines
+case $host in
+  *-*-linux*)
+    AC_DEFINE([XP_UNIX], [1], [UNIX])
+    AC_DEFINE([Linux], [1], [Linux])
+    AC_DEFINE([LINUX], [1], [Linux])
+    AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
+    AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
+    AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
+    platform="linux"
+    ;;
+  ia64-hp-hpux*)
+    AC_DEFINE([XP_UNIX], [1], [UNIX])
+    AC_DEFINE([hpux], [1], [HP-UX])
+    AC_DEFINE([HPUX], [1], [HP-UX])
+    AC_DEFINE([HPUX11], [1], [HP-UX 11])
+    AC_DEFINE([HPUX11_23], [1], [HP-UX 11.23])
+    AC_DEFINE([CPU_ia64], [], [cpu type ia64])
+    AC_DEFINE([OS_hpux], [1], [OS HP-UX])
+    platform="hpux"
+    ;;
+  hppa*-hp-hpux*)
+    AC_DEFINE([XP_UNIX], [1], [UNIX])
+    AC_DEFINE([hpux], [1], [HP-UX])
+    AC_DEFINE([HPUX], [1], [HP-UX])
+    AC_DEFINE([HPUX11], [1], [HP-UX 11])
+    AC_DEFINE([HPUX11_11], [1], [HP-UX 11.11])
+    AC_DEFINE([CPU_hppa], [], [cpu type pa-risc])
+    AC_DEFINE([OS_hpux], [1], [OS HP-UX])
+    platform="hpux"
+    ;;
+  sparc-sun-solaris*)
+    AC_DEFINE([XP_UNIX], [1], [UNIX])
+    AC_DEFINE([SVR4], [1], [SVR4])
+    AC_DEFINE([__svr4], [1], [SVR4])
+    AC_DEFINE([__svr4__], [1], [SVR4])
+    AC_DEFINE([_SVID_GETTOD], [1], [SVID_GETTOD])
+    AC_DEFINE([SOLARIS], [1], [SOLARIS])
+    AC_DEFINE([CPU_sparc], [], [cpu type sparc])
+    AC_DEFINE([OS_solaris], [1], [OS SOLARIS])
+    AC_DEFINE([sunos5], [1], [SunOS5])
+    AC_DEFINE([OSVERSION], [509], [OS version])
+    AC_DEFINE([_REENTRANT], [1], [_REENTRANT])
+    platform="solaris"
+    ;;
+  *)
+    platform_defs=""
+    platform=""
+    ;;
+esac
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
 
