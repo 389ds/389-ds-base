@@ -325,7 +325,12 @@ static void dblayer_reset_env(struct ldbminfo *li)
 }
 
 /* Callback function for libdb to spit error info into our log */
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+void dblayer_log_print(const DB_ENV *dbenv, const char* prefix,
+                       const char *buffer)
+#else
 void dblayer_log_print(const char* prefix, char *buffer)
+#endif
 {
     /* We ignore the prefix since we know who we are anyway */
     LDAPDebug(LDAP_DEBUG_ANY,"libdb: %s\n", buffer, 0, 0);    
@@ -400,6 +405,16 @@ static int dblayer_seek24_large(int fd, size_t pgsize, db_pgno_t pageno,
     return (ret < 0) ? errno : 0;
 }
 
+/* Helper function for large seeks, db4.3 */
+static int dblayer_seek43_large(int fd, off64_t offset, int whence)
+{
+    int ret = 0;
+
+    ret = lseek64(fd, offset, whence);
+
+    return (ret < 0) ? errno : 0;
+}
+
 /* helper function for large fstat -- this depends on 'struct stat64' having
  * the following members:
  *    off64_t        st_size;
@@ -464,7 +479,11 @@ static int dblayer_override_libdb_functions(DB_ENV *pEnv, dblayer_private *priv)
 #endif  /* !irix */
     db_env_set_func_ioinfo(dblayer_ioinfo_large);
     db_env_set_func_exists((int (*)())dblayer_exists_large);
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+    db_env_set_func_seek((int (*)())dblayer_seek43_large);
+#else
     db_env_set_func_seek((int (*)())dblayer_seek24_large);
+#endif
 
     LDAPDebug(LDAP_DEBUG_TRACE, "Enabled 64-bit files\n", 0, 0, 0);
 #endif   /* DB_USE_64LFS */

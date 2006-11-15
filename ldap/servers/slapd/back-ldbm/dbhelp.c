@@ -225,7 +225,11 @@ void dblayer_set_env_debugging(DB_ENV *pEnv, dblayer_private *priv)
 {
 	pEnv->set_errpfx(pEnv, "ns-slapd");
     if (priv->dblayer_verbose) {
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+        /* DB_VERB_CHKPOINT removed in 43 */
+#else
         pEnv->set_verbose(pEnv, DB_VERB_CHKPOINT, 1);    /* 1 means on */
+#endif
         pEnv->set_verbose(pEnv, DB_VERB_DEADLOCK, 1);    /* 1 means on */
         pEnv->set_verbose(pEnv, DB_VERB_RECOVERY, 1);    /* 1 means on */
         pEnv->set_verbose(pEnv, DB_VERB_WAITSFOR, 1);    /* 1 means on */

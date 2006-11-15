@@ -364,7 +364,11 @@ static int  _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purg
 static int  _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv);
 
 /* db error processing */
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+static void _cl5DBLogPrint(const DB_ENV *dbenv, const char* prefix, const char *buffer);
+#else /* assume 42 */
 static void _cl5DBLogPrint(const char* prefix, char *buffer);
+#endif
 
 /* bakup/recovery, import/export */
 static PRBool _cl5IsLogFile (const char *name);
@@ -384,7 +388,12 @@ static Object* _cl5GetReplica (const slapi_operation_parameters *op, const char*
 static int _cl5FileEndsWith(const char *filename, const char *ext);
 
 /* Callback function for libdb to spit error info into our log */
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+static void dblayer_log_print(const DB_ENV *dbenv, const char* prefix,
+                              const char *buffer)
+#else
 static void dblayer_log_print(const char* prefix, char *buffer)
+#endif
 {
 	/* We ignore the prefix since we know who we are anyway */
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "libdb: %s\n", buffer);
@@ -3796,7 +3805,11 @@ static void _cl5InitDBEnv(DB_ENV *dbEnv)
 	if (s_cl5Desc.dbConfig.verbose)
 	{
 		int on = 1;
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+		/* DB_VERB_CHKPOINT removed in 43 */
+#else
 		dbEnv->set_verbose(dbEnv, DB_VERB_CHKPOINT, on);
+#endif
 		dbEnv->set_verbose(dbEnv, DB_VERB_DEADLOCK, on);
 		dbEnv->set_verbose(dbEnv, DB_VERB_RECOVERY, on);
 		dbEnv->set_verbose(dbEnv, DB_VERB_WAITSFOR, on);
@@ -3810,7 +3823,12 @@ static void _cl5InitDBEnv(DB_ENV *dbEnv)
 #endif
 }
 
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+static void _cl5DBLogPrint(const DB_ENV *dbenv, const char* prefix,
+                           const char *buffer)
+#else
 static void _cl5DBLogPrint(const char* prefix, char *buffer)
+#endif
 {
 	/* We ignore the prefix since we know who we are anyway */
 	slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name_cl, "cl5: %s\n", buffer);
@@ -4549,7 +4567,10 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 							return CL5_SUCCESS;
 
 		case DB_NOTFOUND:	file->entryCount = 0;
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
+
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+                            rc = file->db->stat(file->db, NULL, (void*)&stats, 0);
+#elif 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
                             rc = file->db->stat(file->db, (void*)&stats, 0);
 #else
                             rc = file->db->stat(file->db, (void*)&stats, malloc, 0);

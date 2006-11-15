@@ -170,7 +170,12 @@ struct dblayer_private
     int dblayer_lock_config;
 };
 
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+void dblayer_log_print(const DB_ENV *dbenv, const char* prefix,
+                       const char *buffer);
+#else
 void dblayer_log_print(const char* prefix, char *buffer);
+#endif
 
 int dblayer_db_remove(dblayer_private_env * env, char const path[], char const dbName[]);
 
