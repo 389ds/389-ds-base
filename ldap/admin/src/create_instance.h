@@ -54,23 +54,45 @@
 extern "C" {            /* Assume C declarations for C++ */
 #endif  /* __cplusplus */
 
+#ifndef BRAND_DS
 #define BRAND_DS        "fedora-ds"
+#endif
 
 #ifdef XP_UNIX
 #define PRODUCT_NAME    "slapd"
 #define PRODUCT_BIN     "ns-slapd"
+#ifndef LOCALSTATEDIR
 #define LOCALSTATEDIR   "/var"
+#endif
+#ifndef SYSCONFDIR
 #define SYSCONFDIR      "/etc"
+#endif
 #if defined (IS_FHS)
+#ifndef LIBDIR
 #define LIBDIR          "/usr/lib"
+#endif
+#ifndef BINDIR
 #define BINDIR          "/usr/bin"
+#endif
+#ifndef DATADIR
 #define DATADIR         "/usr/share"
+#endif
+#ifndef DOCDIR
 #define DOCDIR          "/usr/doc"
+#endif
 #else /* RPM */
+#ifndef LIBDIR
 #define LIBDIR          "/lib"
+#endif
+#ifndef BINDIR
 #define BINDIR          "/bin"
+#endif
+#ifndef DATADIR
 #define DATADIR         "/share"
+#endif
+#ifndef DOCDIR
 #define DOCDIR          "/doc"
+#endif
 #endif /* IS_FHS */
 #else /* Windows */
 #define PRODUCT_NAME    "slapd"

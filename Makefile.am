@@ -9,7 +9,20 @@ PLATFORM_DEFINES = @platform_defs@
 DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM)
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
-AM_CPPFLAGS = $(PLATFORM_DEFINES) $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES)
+# these paths are dependent on the settings of prefix and exec_prefix which may be specified
+# at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
+# values prior to their being defined.  Defining them here ensures that they are properly
+# expanded before use.  See create_instance.h for more details. The quoting ensures that
+# the values are quoted for the shell command, and the value expands to a quoted string
+# value in the header file e.g.
+# #define LOCALSTATEDIR "/var"
+# without the quotes, it would be
+# #define LOCALSTATEDIR /var
+# which would be an error
+PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfdir)\"" \
+	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
+	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\""
+AM_CPPFLAGS = $(PLATFORM_DEFINES) $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
 #------------------------
