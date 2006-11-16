@@ -681,7 +681,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
 libreplication_plugin_la_CPPFLAGS = @icu_inc@ @db_inc@ $(PLUGIN_CPPFLAGS)
-libreplication_plugin_la_LIBADD = $(ICU_LINK)
+libreplication_plugin_la_LIBADD = $(ICU_LINK) $(DB_LINK)
 
 #------------------------
 # libretrocl-plugin

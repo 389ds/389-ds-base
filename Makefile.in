@@ -350,7 +350,8 @@ libpwdstorage_plugin_la_OBJECTS =  \
 libreferint_plugin_la_LIBADD =
 am_libreferint_plugin_la_OBJECTS = ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo
 libreferint_plugin_la_OBJECTS = $(am_libreferint_plugin_la_OBJECTS)
-libreplication_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
+libreplication_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_config.lo \
@@ -1543,7 +1544,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
 libreplication_plugin_la_CPPFLAGS = @icu_inc@ @db_inc@ $(PLUGIN_CPPFLAGS)
-libreplication_plugin_la_LIBADD = $(ICU_LINK)
+libreplication_plugin_la_LIBADD = $(ICU_LINK) $(DB_LINK)
 
 #------------------------
 # libretrocl-plugin
