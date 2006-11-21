@@ -310,11 +310,25 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 								break;
 							case NSDS50_REPL_REPLICA_BUSY:
 								/* Someone else is updating the replica. Try later. */
-								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-									"%s: Unable to acquire replica: "
-									"the replica is currently being updated"
-									"by another supplier. Will try later\n",
-									agmt_get_long_name(prp->agmt));
+								/* if acquire_replica is called for replica 
+								   initialization, log REPLICA_BUSY, too */
+								if (strcmp(REPL_NSDS50_TOTAL_PROTOCOL_OID,
+										   prot_oid) == 0)
+								{
+									slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+										"%s: Unable to acquire replica: "
+										"the replica is currently being updated"
+										"by another supplier.\n",
+										agmt_get_long_name(prp->agmt));
+								}
+								else /* REPL_NSDS50_INCREMENTAL_PROTOCOL_OID */
+								{
+									slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+										"%s: Unable to acquire replica: "
+										"the replica is currently being updated"
+										"by another supplier. Will try later\n",
+										agmt_get_long_name(prp->agmt));
+								}
 								return_value = ACQUIRE_REPLICA_BUSY;
 								break;
 							case NSDS50_REPL_LEGACY_CONSUMER:
