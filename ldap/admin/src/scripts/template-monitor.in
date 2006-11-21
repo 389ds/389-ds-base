@@ -1,9 +1,9 @@
 #!/bin/sh
 
 PATH=$prefix@ldapsdk_bindir@:@ldapsdk_bindir@
-LD_LIBRARY_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+LD_LIBRARY_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export LD_LIBRARY_PATH
-SHLIB_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+SHLIB_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export SHLIB_PATH
 
 if [ "x$1" != "x" ];

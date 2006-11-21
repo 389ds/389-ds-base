@@ -1,9 +1,15 @@
 #!/bin/sh
 
 prefix="{{DS-ROOT}}"
-LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+if [ "$prefix" = "/" ] ; then
+    prefix=""
+fi
+LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix@libdir@
+if [ -n "$prefix" ] ; then
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
+fi
 export LD_LIBRARY_PATH
-SHLIB_PATH=$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@
+SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]
