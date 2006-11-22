@@ -23312,7 +23312,7 @@ fi;
 # if LDAPSDK is not found yet, try pkg-config
 
 # last resort
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir"; then
+if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
   echo "$as_me:$LINENO: checking for mozldap with pkg-config" >&5
 echo $ECHO_N "checking for mozldap with pkg-config... $ECHO_C" >&6
   # Extract the first word of "pkg-config", so it can be a program name with args.
@@ -23359,6 +23359,7 @@ fi
       ldapsdk_inc=`$PKG_CONFIG --cflags-only-I mozldap6`
       ldapsdk_lib=`$PKG_CONFIG --libs-only-L mozldap6`
       ldapsdk_libdir=`$PKG_CONFIG --libs-only-L mozldap6 | sed -e s/-L// | sed -e s/\ *$//`
+      ldapsdk_bindir=`$PKG_CONFIG --variable=bindir mozldap6`
       echo "$as_me:$LINENO: result: using system mozldap6" >&5
 echo "${ECHO_T}using system mozldap6" >&6
     else
@@ -23373,7 +23374,9 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
 echo "$as_me: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib." >&2;}
    { (exit 1); exit 1; }; }
 fi
-ldapsdk_bindir=/usr/lib/mozldap6
+if test -z "$ldapsdk_bindir" ; then
+  ldapsdk_bindir=$libdir/mozldap6
+fi
 
 save_cppflags="$CPPFLAGS"
 CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"

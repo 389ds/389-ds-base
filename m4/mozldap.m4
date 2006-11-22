@@ -72,7 +72,7 @@ AC_MSG_RESULT(no))
 # if LDAPSDK is not found yet, try pkg-config
 
 # last resort
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir"; then
+if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
   AC_MSG_CHECKING(for mozldap with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
   if test -n "$PKG_CONFIG"; then
@@ -80,6 +80,7 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir"; then
       ldapsdk_inc=`$PKG_CONFIG --cflags-only-I mozldap6`
       ldapsdk_lib=`$PKG_CONFIG --libs-only-L mozldap6`
       ldapsdk_libdir=`$PKG_CONFIG --libs-only-L mozldap6 | sed -e s/-L// | sed -e s/\ *$//`
+      ldapsdk_bindir=`$PKG_CONFIG --variable=bindir mozldap6`
       AC_MSG_RESULT([using system mozldap6])
     else
       AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
@@ -90,7 +91,9 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
   AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
 fi
 dnl default path for the ldap c sdk tools (see [210947] for more details)
-ldapsdk_bindir=/usr/lib/mozldap6
+if test -z "$ldapsdk_bindir" ; then
+  ldapsdk_bindir=$libdir/mozldap6
+fi
 
 dnl make sure the ldap sdk version is 6 or greater - we do not support
 dnl the old 5.x or prior versions - the ldap server code expects the new
