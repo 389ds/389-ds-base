@@ -732,6 +732,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char *dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	char *pwd = NULL;
 	char *p = NULL;
+	char errormsg[ BUFSIZ ];
 	passwdPolicy *pwpolicy = NULL;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
@@ -739,6 +740,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 	if ( pwpolicy->pw_syntax == 1 ) {
 		for ( i = 0; vals[ i ] != NULL; ++i ) {
+			int syntax_violation = 0;
 			int num_digits = 0;
 			int num_alphas = 0;
 			int num_uppers = 0;
@@ -753,13 +755,14 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			if ( pwpolicy->pw_minlength >
 				ldap_utf8characters((char *)slapi_value_get_string( vals[i] )) )
 			{
+				PR_snprintf( errormsg, BUFSIZ,
+				    "invalid password syntax - password must be at least %d characters long",
+				    pwpolicy->pw_minlength );
 				if ( pwresponse_req == 1 ) {
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOSHORT );
 				}
-				pw_send_ldap_result ( pb, 
-					LDAP_CONSTRAINT_VIOLATION, NULL,
-					"invalid password syntax", 0, NULL );
+				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
 				delete_passwdPolicy(&pwpolicy);
 				return ( 1 );
 			}
@@ -767,10 +770,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			/* check character types */
 			pwd = (char *)slapi_value_get_string( vals[i] );
 			p = pwd;
-			/*
-			pwdlen = slapi_value_get_length( vals[i] );
-			for ( j = 0; j < pwdlen; j++ ) {
-			*/
 			while ( p && *p )
 			{
 				if ( ldap_utf8isdigit( p ) ) {
@@ -829,24 +828,58 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				++num_categories;
 
 			/* check for character based syntax limits */
-			if ( ( pwpolicy->pw_mindigits > num_digits ) ||
-				( pwpolicy->pw_minalphas > num_alphas ) ||
-				( pwpolicy->pw_minuppers > num_uppers ) ||
-				( pwpolicy->pw_minlowers > num_lowers ) ||
-				( pwpolicy->pw_minspecials > num_specials ) ||
-				( pwpolicy->pw_min8bit > num_8bit ) ||
-				( (pwpolicy->pw_maxrepeats != 0) && (pwpolicy->pw_maxrepeats < (max_repeated + 1)) ) ||
-				( pwpolicy->pw_mincategories > num_categories ) )
-			{
-                                if ( pwresponse_req == 1 ) {
-                                        slapi_pwpolicy_make_response_control ( pb, -1, -1,
-                                                        LDAP_PWPOLICY_INVALIDPWDSYNTAX );
-                                }
-                                pw_send_ldap_result ( pb,
-                                        LDAP_CONSTRAINT_VIOLATION, NULL,
-                                        "invalid password syntax", 0, NULL );
-                                delete_passwdPolicy(&pwpolicy);
-                                return ( 1 );
+			if ( pwpolicy->pw_mindigits > num_digits ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+                                    "invalid password syntax - password must contain at least %d digit characters",
+                                    pwpolicy->pw_mindigits );
+			} else if ( pwpolicy->pw_minalphas > num_alphas ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - password must contain at least %d alphabetic characters",
+				    pwpolicy->pw_minalphas );
+			} else if ( pwpolicy->pw_minuppers > num_uppers ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - password must contain at least %d uppercase characters",
+				    pwpolicy->pw_minuppers );
+			} else if ( pwpolicy->pw_minlowers > num_lowers ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - password must contain at least %d lowercase characters",
+					pwpolicy->pw_minlowers );
+			} else if ( pwpolicy->pw_minspecials > num_specials ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - password must contain at least %d special characters",
+				    pwpolicy->pw_minspecials );
+			} else if ( pwpolicy->pw_min8bit > num_8bit ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - password must contain at least %d 8-bit characters",
+				    pwpolicy->pw_min8bit );
+			} else if ( (pwpolicy->pw_maxrepeats != 0) && (pwpolicy->pw_maxrepeats < (max_repeated + 1)) ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - a character cannot be repeated more than %d times",
+				    (pwpolicy->pw_maxrepeats + 1) );
+			} else if ( pwpolicy->pw_mincategories > num_categories ) {
+				syntax_violation = 1;
+				PR_snprintf ( errormsg, BUFSIZ,
+				    "invalid password syntax - password must contain at least %d character "
+				    "categories (valid categories are digit, uppercase, lowercase, special, and 8-bit characters)",
+				    pwpolicy->pw_mincategories );
+			}
+
+			/* If the password failed syntax checking, send the result and return */
+			if (syntax_violation) {
+				if ( pwresponse_req == 1 ) {
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
+					    LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+				}
+				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
+				delete_passwdPolicy(&pwpolicy);
+				return ( 1 );
 			}
 		}
 	}
@@ -1311,7 +1344,7 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 				}
 				pw_send_ldap_result ( pb, 
 					LDAP_CONSTRAINT_VIOLATION, NULL,
-					"invalid password syntax", 0, NULL );
+					"invalid password syntax - password based off of user entry", 0, NULL );
 
 				/* Free valueset */
 				slapi_valueset_free( vs );
