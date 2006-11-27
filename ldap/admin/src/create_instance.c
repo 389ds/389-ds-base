@@ -1657,8 +1657,8 @@ is_a_dir(const char *dirname, const char *filename)
 }
 
 static char *
-ds_copy_group_files_using_mode(char *src_dir, char *dest_dir, 
-                   char *filter, int use_mode)
+ds_copy_group_files_using_mode_owner(char *src_dir, char *dest_dir, 
+                                     char *filter, int use_mode, struct passwd *pw)
 {
     char *t = 0;
     PRDir *ds = 0;
@@ -1679,9 +1679,9 @@ ds_copy_group_files_using_mode(char *src_dir, char *dest_dir,
                 if(is_a_dir(src_dir, d->name)) {
                     char *sub_src_dir = strdup(src_file);
                     char *sub_dest_dir = strdup(dest_file);
-                    if( (t = create_instance_mkdir_p(sub_dest_dir, sub_dest_dir, NEWDIR_MODE, NULL)) )
+                    if( (t = create_instance_mkdir_p(sub_dest_dir, sub_dest_dir, NEWDIR_MODE, pw)) )
                         return(t);
-                    if( (t = ds_copy_group_files_using_mode(sub_src_dir, sub_dest_dir, filter, use_mode)) )
+                    if( (t = ds_copy_group_files_using_mode_owner(sub_src_dir, sub_dest_dir, filter, use_mode, pw)) )
                         return t;
                     free(sub_src_dir);
                     free(sub_dest_dir);
@@ -1689,12 +1689,21 @@ ds_copy_group_files_using_mode(char *src_dir, char *dest_dir,
                 else {
                     if( (t = create_instance_copy(src_file, dest_file, use_mode, 0 )) )
                         return t;
+                    if (pw)
+                        chownfile(pw, dest_file);
                 }
             }
         }
     }
     PR_CloseDir(ds);
     return(NULL);
+}
+
+static char *
+ds_copy_group_files_using_mode(char *src_dir, char *dest_dir, 
+                   char *filter, int use_mode)
+{
+    return ds_copy_group_files_using_mode_owner(src_dir, dest_dir, filter, use_mode, NULL);
 }
 
 static char *
@@ -3499,7 +3508,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
      */
     PR_snprintf(src, sizeof(src), "%s%c%s%cschema", 
         cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
-    if (NULL != (t = ds_copy_group_files(src, cf->schema_dir, 0)))
+    if (NULL != (t = ds_copy_group_files_using_mode_owner(src, cf->schema_dir, 0, NEWFILE_MODE, pw)))
         return t;
         
 #if defined (BUILD_PRESENCE)
