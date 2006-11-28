@@ -205,31 +205,221 @@ static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newP
 	return ret;
 }
 
-/* Generate a new random password */
-static int passwd_modify_generate_passwd(char **genpasswd)
+/* Generate a new, basic random password */
+static int passwd_modify_generate_basic_passwd( int passlen, char **genpasswd )
 {
-	unsigned char data[ LDAP_EXTOP_PASSMOD_RANDOM_BYTES ];
-	char enc[ 1 + LDIF_BASE64_LEN( LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN ) ];
+	unsigned char *data = NULL;
+	char *enc = NULL;
+	int datalen = LDAP_EXTOP_PASSMOD_RANDOM_BYTES;
+	int enclen = LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN + 1;
 
-	if (genpasswd == NULL) {
+	if ( genpasswd == NULL ) {
 		return LDAP_OPERATIONS_ERROR;
 	}
 
+	if ( passlen > 0 ) {
+		datalen = passlen * 3 / 4 + 1;
+		enclen = datalen * 4; /* allocate the large enough space */
+	}
+
+	data = (unsigned char *)slapi_ch_calloc( datalen, 1 );
+	enc = (char *)slapi_ch_calloc( enclen, 1 );
+
 	/* get random bytes from NSS */
-	PK11_GenerateRandom( data, LDAP_EXTOP_PASSMOD_RANDOM_BYTES );
+	PK11_GenerateRandom( data, datalen );
 
 	/* b64 encode the random bytes to get a password made up
-         * of printable characters. ldif_base64_encode() will
+	 * of printable characters. ldif_base64_encode() will
 	 * zero-terminate the string */
-	(void)ldif_base64_encode( data, enc, LDAP_EXTOP_PASSMOD_RANDOM_BYTES, -1 );
+	(void)ldif_base64_encode( data, enc, passlen, -1 );
 
 	/* This will get freed by the caller */
-	*genpasswd = slapi_ch_malloc( 1 + LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN);
+	*genpasswd = slapi_ch_malloc( 1 + passlen );
 
-	/* trim the password to the proper length. */
-	PL_strncpyz( *genpasswd, enc, 1 + LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN );
+	/* trim the password to the proper length */
+	PL_strncpyz( *genpasswd, enc, passlen + 1 );
+
+	slapi_ch_free( (void **)&data );
+	slapi_ch_free_string( &enc );
 
 	return LDAP_SUCCESS;
+}
+
+/* Generate a new, password-policy-based random password */
+static int passwd_modify_generate_policy_passwd( passwdPolicy *pwpolicy,
+											char **genpasswd, char **errMesg )
+{
+	unsigned char *data = NULL;
+	int passlen = 0;
+	int tmplen = 0;
+	enum {
+		idx_minuppers = 0,
+		idx_minlowers,
+		idx_mindigits,
+		idx_minspecials,
+		idx_end
+	}; 
+	int my_policy[idx_end];
+	struct {
+		int chr_start;
+		int chr_range;
+	} chr_table[] = { /* NOTE: the above enum order */
+		{ 65, 26 }, /* [ A - Z ] */
+		{ 97, 26 }, /* [ a - z ] */
+		{ 48, 10 }, /* [ 0 - 9 ] */
+		{ 58,  7 }  /* [ : - @ ] */
+	};
+#define gen_policy_pw_getchar(n, idx) \
+( chr_table[(idx)].chr_start + (n) % chr_table[(idx)].chr_range )
+	int i;
+
+	if ( genpasswd == NULL ) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	my_policy[idx_mindigits] = pwpolicy->pw_mindigits;
+	my_policy[idx_minuppers] = pwpolicy->pw_minuppers;
+	my_policy[idx_minlowers] = pwpolicy->pw_minlowers;
+	my_policy[idx_minspecials] = pwpolicy->pw_minspecials;
+
+	/* if only minalphas is set, divide it into minuppers and minlowers. */
+	if ( pwpolicy->pw_minalphas > 0 &&
+		 ( my_policy[idx_minuppers] == 0 && my_policy[idx_minlowers] == 0 )) {
+		unsigned int x = (unsigned int)time(NULL);
+		my_policy[idx_minuppers] = slapi_rand_r(&x) % pwpolicy->pw_minalphas;
+		my_policy[idx_minlowers] = pwpolicy->pw_minalphas - my_policy[idx_minuppers];
+	}
+
+	if ( pwpolicy->pw_mincategories ) {
+		int categories = 0;
+		for ( i = 0; i < idx_end; i++ ) {
+			if ( my_policy[i] > 0 ) {
+				categories++;
+			}
+		}
+		if ( pwpolicy->pw_mincategories > categories ) {
+			categories = pwpolicy->pw_mincategories;
+			for ( i = 0; i < idx_end; i++ ) {
+				if ( my_policy[i] == 0 ) {
+					/* force to add a policy to match the pw_mincategories */
+					my_policy[i] = 1; 
+				}
+				if ( --categories == 0 ) {
+					break;
+				}
+			}
+			if ( categories > 0 ) {
+				/* password generator does not support passwordMin8Bit */
+    			LDAPDebug( LDAP_DEBUG_ANY,
+					"Unable to generate a password that meets the current "
+					"password syntax rules.  A minimum categories setting "
+					"of %d is not supported with random password generation.\n",
+					pwpolicy->pw_mincategories, 0, 0 );
+				*errMesg = "Unable to generate new random password.  Please contact the Administrator.";
+				return LDAP_CONSTRAINT_VIOLATION;
+			}
+		}
+	}
+
+	/* get the password length */
+	tmplen = 0;
+	for ( i = 0; i < idx_end; i++ ) {
+		tmplen += my_policy[i];
+	}
+	passlen = tmplen;
+	if ( passlen < pwpolicy->pw_minlength ) {
+		passlen = pwpolicy->pw_minlength;
+	}
+	if ( passlen < LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN ) {
+		passlen = LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN;
+	}
+
+	data = (unsigned char *)slapi_ch_calloc( passlen, 1 );
+
+	/* get random bytes from NSS */
+	PK11_GenerateRandom( data, passlen );
+
+	/* if password length is longer the sum of my_policy's,
+	   let them share the burden */
+	if ( passlen > tmplen ) {
+		unsigned int x = (unsigned int)time(NULL);
+		int delta = passlen - tmplen;
+		for ( i = 0; i < delta; i++ ) {
+			my_policy[(x = slapi_rand_r(&x)) % idx_end]++;
+		}
+	}
+
+	/* This will get freed by the caller */
+	*genpasswd = slapi_ch_malloc( 1 + passlen );
+
+	for ( i = 0; i < passlen; i++ ) {
+		int idx = data[i] % idx_end;
+		int isfirst = 1;
+		/* choose a category based on the random value */
+		while ( my_policy[idx] <= 0 ) {
+			if ( ++idx == idx_end ) {
+				idx = 0; /* if no rule is found, default is uppercase */
+				if ( !isfirst ) {
+					break;
+				}
+				isfirst = 0;
+			}
+		}
+		my_policy[idx]--;
+		(*genpasswd)[i] = gen_policy_pw_getchar(data[i], idx);
+	}
+	(*genpasswd)[passlen] = '\0';
+
+	slapi_ch_free( (void **)&data );
+
+	return LDAP_SUCCESS;
+}
+
+/* Generate a new random password */
+static int passwd_modify_generate_passwd( passwdPolicy *pwpolicy,
+										  char **genpasswd, char **errMesg )
+{
+	int minalphalen = 0;
+	int passlen = LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN;
+	int rval = LDAP_SUCCESS;
+
+	if ( genpasswd == NULL ) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+	if ( pwpolicy->pw_min8bit > 0 ) {
+    	LDAPDebug( LDAP_DEBUG_ANY, "Unable to generate a password that meets "
+						"the current password syntax rules.  8-bit syntax "
+						"restrictions are not supported with random password "
+						"generation.\n", 0, 0, 0 );
+		*errMesg = "Unable to generate new random password.  Please contact the Administrator.";
+		return LDAP_CONSTRAINT_VIOLATION;
+	}
+
+	if ( pwpolicy->pw_minalphas || pwpolicy->pw_minuppers || 
+		 pwpolicy->pw_minlowers || pwpolicy->pw_mindigits ||
+		 pwpolicy->pw_minspecials || pwpolicy->pw_maxrepeats ||
+		 pwpolicy->pw_mincategories > 2 ) {
+		rval = passwd_modify_generate_policy_passwd( pwpolicy, genpasswd,
+													 errMesg );
+	} else {
+		/* find out the minimum length to fulfill the passwd policy 
+		   requirements */
+		minalphalen = pwpolicy->pw_minuppers + pwpolicy->pw_minlowers;
+		if ( minalphalen < pwpolicy->pw_minalphas ) {
+			minalphalen = pwpolicy->pw_minalphas;
+		}
+		passlen = minalphalen + pwpolicy->pw_mindigits + 
+				  pwpolicy->pw_minspecials + pwpolicy->pw_min8bit;
+		if ( passlen < pwpolicy->pw_minlength ) {
+			passlen = pwpolicy->pw_minlength;
+		}
+		if ( passlen < LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN ) {
+			passlen = LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN;
+		}
+		rval = passwd_modify_generate_basic_passwd( passlen, genpasswd );
+	}
+
+	return rval;
 }
 
 
@@ -415,12 +605,22 @@ parse_req_done:
 	 * a random one and return it to the user in a response.
 	 */
 	if (newPasswd == NULL || *newPasswd == '\0') {
+		passwdPolicy *pwpolicy;
+		int rval;
 		/* Do a free of newPasswd here to be safe, otherwise we may leak 1 byte */
 		slapi_ch_free_string( &newPasswd );
 
+
+		pwpolicy = new_passwdPolicy( pb, dn );
+
 		/* Generate a new password */
-		if (passwd_modify_generate_passwd( &newPasswd ) != LDAP_SUCCESS) {
-			errMesg = "Error generating new password.\n";
+		rval = passwd_modify_generate_passwd( pwpolicy, &newPasswd, &errMesg );
+
+		delete_passwdPolicy(&pwpolicy);
+
+		if (rval != LDAP_SUCCESS) {
+			if (!errMesg)
+				errMesg = "Error generating new password.\n";
 			rc = LDAP_OPERATIONS_ERROR;
 			goto free_and_return;
 		}
