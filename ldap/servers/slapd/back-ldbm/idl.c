@@ -49,7 +49,6 @@
  */
 #undef IDL_LOCKING_ENABLE
 
-static int idl_delete( IDList **idl, ID id ) ;
 static void make_cont_key( DBT *contkey, DBT *key, ID id );
 static int idl_insert_maxids( IDList **idl, ID id, int maxids );
 
@@ -1596,7 +1595,7 @@ idl_old_delete_key(
  *		4	cannot delete from allids block
  */
 
-static int
+int
 idl_delete( IDList **idl, ID id )
 {
 	ID	i, delpos;

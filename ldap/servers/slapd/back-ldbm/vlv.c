@@ -1463,9 +1463,17 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
         typedown_value= vlv_create_matching_rule_value(sort_control->mr_pb,(struct berval *)&vlv_request_control->value);
         compare_fn= slapi_berval_cmp;
     }
+retry:
     /*
      * Perform a binary search over the candidate list
      */
+    if (0 == candidates->b_nids) { /* idlist is empty */
+        LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID List is empty.\n", 0, 0, 0 );
+        ber_bvecfree((struct berval**)typedown_value);
+        return candidates->b_nids; /* not found */
+    }
+    low= 0;
+    high= candidates->b_nids-1;
     do {
         int err= 0;
         struct backentry *e= NULL;
@@ -1479,38 +1487,46 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
         }
         id= candidates->b_ids[current];
         e = id2entry( be, id, NULL, &err );
-    	if ( e == NULL )
-    	{
-    	    LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID %lu not found err=%d\n", (u_long)id, err, 0 );
-    	}
-    	else
-    	{
+        if ( e == NULL )
+        {
+            int rval;
+            LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID %lu not found err=%d\n", (u_long)id, err, 0 );
+            rval = idl_delete(&candidates, id);
+            if (0 == rval || 1 == rval || 2 == rval) {
+                goto retry;
+            } else {
+                ber_bvecfree((struct berval**)typedown_value);
+                return candidates->b_nids; /* not found */
+            }
+        }
+        else
+        {
             /* Check if vlv_request_control->value is greater than or equal to the primary key. */
             int match;
-        	Slapi_Attr *attr;
-			if ( (NULL != compare_fn) && (slapi_entry_attr_find( e->ep_entry, sort_control->type, &attr ) == 0) )
-			{
+            Slapi_Attr *attr;
+            if ( (NULL != compare_fn) && (slapi_entry_attr_find( e->ep_entry, sort_control->type, &attr ) == 0) )
+            {
                 /*
                  * If there's a matching rule associated with the primary
                  * attribute then use the indexer to mangle the attr values.
                  */
-				Slapi_Value **csn_value = valueset_get_valuearray(&attr->a_present_values);
-           		struct berval **entry_value = /* xxxPINAKI needs modification attr->a_vals */NULL;
-				PRBool needFree = PR_FALSE;
+                Slapi_Value **csn_value = valueset_get_valuearray(&attr->a_present_values);
+                   struct berval **entry_value = /* xxxPINAKI needs modification attr->a_vals */NULL;
+                PRBool needFree = PR_FALSE;
 
                 if(sort_control->mr_pb!=NULL)
                 {
-					struct berval **tmp_entry_value = NULL;
+                    struct berval **tmp_entry_value = NULL;
 
-					valuearray_get_bervalarray(csn_value,&tmp_entry_value);
-           			/* Matching rule. Do the magic mangling. Plugin owns the memory. */
-           			matchrule_values_to_keys(sort_control->mr_pb,/* xxxPINAKI needs modification attr->a_vals */tmp_entry_value,&entry_value);
+                    valuearray_get_bervalarray(csn_value,&tmp_entry_value);
+                    /* Matching rule. Do the magic mangling. Plugin owns the memory. */
+                    matchrule_values_to_keys(sort_control->mr_pb,/* xxxPINAKI needs modification attr->a_vals */tmp_entry_value,&entry_value);
                 }
-				else
-				{
-					valuearray_get_bervalarray(csn_value,&entry_value);
-					needFree = PR_TRUE; /* entry_value is a copy */
-				}
+                else
+                {
+                    valuearray_get_bervalarray(csn_value,&entry_value);
+                    needFree = PR_TRUE; /* entry_value is a copy */
+                }
                 if(!sort_control->order)
                 {
                     match= sort_attr_compare(entry_value, (struct berval**)typedown_value, compare_fn);
@@ -1519,10 +1535,10 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
                 {
                     match= sort_attr_compare((struct berval**)typedown_value, entry_value, compare_fn);
                 }
-		if (needFree) {
-		    ber_bvecfree((struct berval**)entry_value);
-		    entry_value = NULL;
-		}
+        if (needFree) {
+            ber_bvecfree((struct berval**)entry_value);
+            entry_value = NULL;
+        }
             }
             else
             {
@@ -1543,7 +1559,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
                 if (match>=0)
                 {
                     high= current;
-    			}
+                }
                 else
                 {
                     low= current+1;
@@ -1554,7 +1570,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
                 if (match>=0)
                 {
                     high= current-1;
-    			}
+                }
                 else
                 {
                     low= current;
@@ -1567,17 +1583,17 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
                 if(si==candidates->b_nids && !match)
                 {
                     /* Couldn't find an entry which matches the value, so return contentCount */
-                	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Not Found. Index %lu\n",si, 0, 0 );
+                    LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Not Found. Index %lu\n",si, 0, 0 );
                     si= candidates->b_nids;
                 }
                 else
                 {
-                	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Found. Index %lu\n",si, 0, 0 );
+                    LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Found. Index %lu\n",si, 0, 0 );
                 }
-    		}
-    	}
-	} while (!found);
-	ber_bvecfree((struct berval**)typedown_value);
+            }
+        }
+    } while (!found);
+    ber_bvecfree((struct berval**)typedown_value);
     return si;
 }
 
@@ -1824,8 +1840,8 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
     IDList *idl;
     Slapi_Filter *vlv_f;
 
-	PR_RWLock_Rlock(be->vlvSearchList_lock); 
 	slapi_sdn_init_dn_byref(&base_sdn, base);
+	PR_RWLock_Rlock(be->vlvSearchList_lock);
 	for (t = (struct vlvSearch *)be->vlvSearchList; t; t = t->vlv_next) {
 		/* all vlv "filters" start with (|(xxx)(objectclass=referral)).
 		 * we only care about the (xxx) part.
@@ -1851,9 +1867,10 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 			}
 			
 			if (dblayer_get_index_file(be, vi->vlv_attrinfo, &db, 0) == 0) {
+				length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
+				PR_RWLock_Unlock(be->vlvSearchList_lock);
 				err = db->cursor(db, 0 /* txn */, &dbc, 0);
 				if (err == 0) {
-					length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
 					if (length == 0) /* 609377: index size could be 0 */
 					{
 						LDAPDebug(LDAP_DEBUG_TRACE, "vlv: index %s is empty\n",
@@ -1868,18 +1885,16 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 				}
 				dblayer_release_index_file(be, vi->vlv_attrinfo, db);
 				if (err == 0) {
-					PR_RWLock_Unlock(be->vlvSearchList_lock);
 					return idl;
 				} else {
 					LDAPDebug(LDAP_DEBUG_ANY, "vlv find index: err %d\n",
 						err, 0, 0);
-					PR_RWLock_Unlock(be->vlvSearchList_lock);
 					return NULL;
 				}
 			}
 		}
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+    PR_RWLock_Unlock(be->vlvSearchList_lock);
     /* no match */
     slapi_sdn_done(&base_sdn);
     return NULL;
