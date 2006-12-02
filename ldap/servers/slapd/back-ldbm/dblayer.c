@@ -168,6 +168,28 @@
 #endif
 #endif
 
+/* Use these macros to incr/decrement the thread count for the
+   database housekeeping threads.  This ensures that the
+   value is changed in a thread safe manner, and safely notifies
+   the main thread during cleanup. INCR_THREAD_COUNT should be
+   the first real statement in the thread function, before any
+   actual work is done, other than perhaps variable assignments.
+   DECR_THREAD_COUNT should be called as the next to last thing
+   in the thread function, just before the trace log message and
+   return.
+*/
+#define INCR_THREAD_COUNT(priv) \
+    PR_Lock(priv->thread_count_lock); \
+    ++priv->dblayer_thread_count; \
+    PR_Unlock(priv->thread_count_lock)
+
+#define DECR_THREAD_COUNT(priv) \
+    PR_Lock(priv->thread_count_lock); \
+    if (--priv->dblayer_thread_count == 0) { \
+        PR_NotifyCondVar(priv->thread_count_cv); \
+    } \
+    PR_Unlock(priv->thread_count_lock)
+
 #define NEWDIR_MODE 0755
 
 
@@ -513,6 +535,8 @@ int dblayer_init(struct ldbminfo *li)
         /* Memory allocation failed */
         return -1;
     }
+    priv->thread_count_lock = PR_NewLock();
+    priv->thread_count_cv = PR_NewCondVar(priv->thread_count_lock);
     li->li_dblayer_private = priv;
 
     /* For now, we call this to get debug printout */
@@ -539,9 +563,11 @@ int dblayer_terminate(struct ldbminfo *li)
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (NULL != inst->inst_db_mutex) {
             PR_DestroyLock(inst->inst_db_mutex);
+            inst->inst_db_mutex = NULL;
         }
         if (NULL != inst->inst_handle_list_mutex) {
             PR_DestroyLock(inst->inst_handle_list_mutex);
+            inst->inst_handle_list_mutex = NULL;
         }
     }
     
@@ -549,6 +575,11 @@ int dblayer_terminate(struct ldbminfo *li)
     /* no need to release dblayer_home_directory,
      * which is one of dblayer_data_directories */
     charray_free(priv->dblayer_data_directories); 
+    priv->dblayer_data_directories = NULL;
+    PR_DestroyCondVar(priv->thread_count_cv);
+    priv->thread_count_cv = NULL;
+    PR_DestroyLock(priv->thread_count_lock);
+    priv->thread_count_lock = NULL;
     slapi_ch_free((void**)&priv);
     li->li_dblayer_private = NULL;
 
@@ -2321,6 +2352,7 @@ int dblayer_instance_close(backend *be)
 void dblayer_pre_close(struct ldbminfo *li)
 {
     dblayer_private *priv = 0;
+    PRInt32 threadcount = 0;
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -2328,48 +2360,56 @@ void dblayer_pre_close(struct ldbminfo *li)
     if (priv->dblayer_stop_threads)    /* already stopped.  do nothing... */
         return;
 
-    /* Now stop the make sure they've stopped,
-     * the various threads we have running */
-    priv->dblayer_stop_threads = 1;
-    if (priv->dblayer_thread_count > 0) {
-        int sleep_counter = 0;
+    /* first, see if there are any housekeeping threads running */
+    PR_Lock(priv->thread_count_lock);
+    threadcount = priv->dblayer_thread_count;
+    PR_Unlock(priv->thread_count_lock);
+
+    if (threadcount) {
+        PRIntervalTime cvwaittime = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL * 100);
+        int timedout = 0;
         /* Print handy-dandy log message */
         LDAPDebug(LDAP_DEBUG_ANY,"Waiting for %d database threads to stop\n",
-                  priv->dblayer_thread_count, 0,0);
-        while(priv->dblayer_thread_count > 0) {
-            /* We have no alternative here but to wait for them to finish,
-             * since if any thread activity,
-             * such as a checkpoint, wasn't finished when we shut down,
-             * the database would need recovery on startup */
-            PRIntervalTime    interval;
-
-            sleep_counter++;
-            if (0 == sleep_counter % 10) {
-                if (priv->dblayer_thread_count > 1) {
-                    LDAPDebug(LDAP_DEBUG_ANY,
-                              "Still waiting on %d database threads...\n",
-                              priv->dblayer_thread_count,0,0);
-                } else {
-                    LDAPDebug(LDAP_DEBUG_ANY,
-                              "Still waiting one database thread...\n",0,0,0);
+                  threadcount, 0,0);
+        PR_Lock(priv->thread_count_lock);
+        /* Tell them to stop - we wait until the last possible moment to invoke
+           this.  If we do this much sooner than this, we could find ourselves
+           in a situation where the threads see the stop_threads and exit before
+           we can issue the WaitCondVar below, which means the last thread to
+           exit will do a NotifyCondVar that has nothing waiting.  If we do this
+           inside the lock, we will ensure that the threads will block until we
+           issue the WaitCondVar below */
+        priv->dblayer_stop_threads = 1;
+        /* Wait for them to exit */
+        while (priv->dblayer_thread_count > 0) {
+            PRIntervalTime before = PR_IntervalNow();
+            /* There are 3 ways to wake up from this WaitCondVar:
+               1) The last database thread exits and calls NotifyCondVar - thread_count
+               should be 0 in this case
+               2) Timeout - in this case, thread_count will be > 0 - bad
+               3) A bad error occurs - bad - will be reported as a timeout
+            */
+            PR_WaitCondVar(priv->thread_count_cv, cvwaittime);
+            if (priv->dblayer_thread_count > 0) {
+                /* still at least 1 thread running - see if this is a timeout */
+                if ((PR_IntervalNow() - before) >= cvwaittime) {
+                    threadcount = priv->dblayer_thread_count;
+                    timedout = 1;
+                    break;
                 }
-            }
-
-            interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
-            DS_Sleep(interval);
-            if (sleep_counter >= 100) {
-                LDAPDebug(LDAP_DEBUG_ANY,"Timeout; leave %d thread(s)...\n",
-                          priv->dblayer_thread_count,0,0);
-                /*
-                 * The guardian file should not
-                 * get created under the timeout condition.
-                 */
-                priv->dblayer_bad_stuff_happened = 1;
-                goto timeout_escape;
+                /* else just a spurious interrupt */
             }
         }
-        LDAPDebug(LDAP_DEBUG_ANY,"All database threads now stopped\n",0,0,0);
+        PR_Unlock(priv->thread_count_lock); 
+        if (timedout) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                      "Timeout after [%d] milliseconds; leave %d database thread(s)...\n",
+                      (DBLAYER_SLEEP_INTERVAL * 100), threadcount,0);
+            priv->dblayer_bad_stuff_happened = 1;
+            goto timeout_escape;
+        }
     }
+    LDAPDebug(LDAP_DEBUG_ANY,"All database threads now stopped\n",0,0,0);
 timeout_escape:
     return;
 }
@@ -3211,12 +3251,16 @@ static int perf_threadmain(void *param)
 
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
-    PR_AtomicIncrement(&(priv->dblayer_thread_count));
+
+    INCR_THREAD_COUNT(priv);
+
     while (!priv->dblayer_stop_threads) {
         /* sleep for a while, updating perf counters if we need to */
         perfctrs_wait(1000,priv->perf_private,priv->dblayer_env->dblayer_DB_ENV);
     }
-    PR_AtomicDecrement(&(priv->dblayer_thread_count));
+	
+    DECR_THREAD_COUNT(priv);
+    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving perf_threadmain\n", 0, 0, 0);
     return 0;
 }
 
@@ -3257,8 +3301,9 @@ static int deadlock_threadmain(void *param)
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
+    INCR_THREAD_COUNT(priv);
+
     interval = PR_MillisecondsToInterval(100);
-    PR_AtomicIncrement(&(priv->dblayer_thread_count));
     while (!priv->dblayer_stop_threads)
     {
         if (priv->dblayer_enable_transactions) 
@@ -3278,7 +3323,9 @@ static int deadlock_threadmain(void *param)
         }
         DS_Sleep(interval);
     }
-    PR_AtomicDecrement(&(priv->dblayer_thread_count));
+
+    DECR_THREAD_COUNT(priv);
+    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving deadlock_threadmain\n", 0, 0, 0);
     return 0;
 }
 
@@ -3325,13 +3372,13 @@ static int log_flush_threadmain(void *param)
 {
     dblayer_private *priv = NULL;
     PRIntervalTime    interval;
-        
 
     PR_ASSERT(NULL != param);
     priv = (dblayer_private *) param;
-    PR_ASSERT(NULL != priv);
+
+    INCR_THREAD_COUNT(priv);
+
     interval = PR_MillisecondsToInterval(300);
-    PR_AtomicIncrement(&(priv->dblayer_thread_count));
     while ((!priv->dblayer_stop_threads) && (log_flush_thread))
     {      
         if (priv->dblayer_enable_transactions) 
@@ -3347,7 +3394,9 @@ static int log_flush_threadmain(void *param)
         }
         DS_Sleep(interval);
     }
-    PR_AtomicDecrement(&(priv->dblayer_thread_count));
+
+    DECR_THREAD_COUNT(priv);
+    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving log_flush_threadmain\n", 0, 0, 0);
     return 0;
 }
 
@@ -3377,7 +3426,7 @@ dblayer_start_checkpoint_thread(struct ldbminfo *li)
 static int checkpoint_threadmain(void *param)
 {
     time_t time_of_last_checkpoint_completion = 0;    /* seconds since epoch */
-    PRIntervalTime    interval;   /*NSPR timeout stuffy*/
+    PRIntervalTime    interval;
     int rval = -1;
     dblayer_private *priv = NULL;
     struct ldbminfo *li = NULL;
@@ -3388,24 +3437,25 @@ static int checkpoint_threadmain(void *param)
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo*)param;
 
+    priv = (dblayer_private*)li->li_dblayer_private;
+    PR_ASSERT(NULL != priv);
+
+    INCR_THREAD_COUNT(priv);
+
+    interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
     home_dir = dblayer_get_home_dir(li, NULL);
     if (NULL == home_dir)
     {
         LDAPDebug(LDAP_DEBUG_ANY, 
             "Checkpoint thread failed due to missing db home directory info\n",
             0, 0, 0);
-        return rval;
+        goto error_return;
     }
-
-    priv = (dblayer_private*)li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
 
     /* work around a problem with newly created environments */
     dblayer_force_checkpoint(li);
 
-    interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
     debug_checkpointing = priv->db_debug_checkpointing;
-    PR_AtomicIncrement(&(priv->dblayer_thread_count));
     /* assumes dblayer_force_checkpoint worked */
     time_of_last_checkpoint_completion = current_time();
     while (!priv->dblayer_stop_threads)
@@ -3452,7 +3502,7 @@ static int checkpoint_threadmain(void *param)
                     "err=%d (%s)\n", rval, dblayer_strerror(rval), 0);
                 if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
                     operation_out_of_disk_space();
-                    goto diskfull_return;
+                    goto error_return;
                 }
             } else {
                 time_of_last_checkpoint_completion = current_time();
@@ -3479,7 +3529,7 @@ static int checkpoint_threadmain(void *param)
                     "err=%d (%s)\n", rval, dblayer_strerror(rval), 0);
                 if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
                     operation_out_of_disk_space();
-                    goto diskfull_return;
+                    goto error_return;
                 }
             } else {
                 time_of_last_checkpoint_completion = current_time();
@@ -3532,10 +3582,13 @@ static int checkpoint_threadmain(void *param)
             }
         }
     }
-    dblayer_force_checkpoint(li);
-diskfull_return: 
-    PR_AtomicDecrement(&(priv->dblayer_thread_count));
-    return 0;
+    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving checkpoint_threadmain before checkpoint\n", 0, 0, 0);
+    rval = dblayer_force_checkpoint(li);
+error_return:
+
+    DECR_THREAD_COUNT(priv);
+    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving checkpoint_threadmain\n", 0, 0, 0);
+    return rval;
 }
 
 /*
@@ -3574,9 +3627,10 @@ static int trickle_threadmain(void *param)
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
+    INCR_THREAD_COUNT(priv);
+
     interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
     debug_checkpointing = priv->db_debug_checkpointing;
-    PR_AtomicIncrement(&(priv->dblayer_thread_count));
     while (!priv->dblayer_stop_threads)
     {
         DS_Sleep(interval);   /* 622855: wait for other threads fully started */
@@ -3600,7 +3654,9 @@ static int trickle_threadmain(void *param)
             }
         }
     }
-    PR_AtomicDecrement(&(priv->dblayer_thread_count));
+
+    DECR_THREAD_COUNT(priv);
+    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving trickle_threadmain priv\n", 0, 0, 0);
     return 0;
 }
 

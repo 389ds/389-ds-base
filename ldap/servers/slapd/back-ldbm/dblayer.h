@@ -166,6 +166,8 @@ struct dblayer_private
     PRInt32 dblayer_thread_count;   /* Tells us how many threads are running,
                                      * used to figure out when they're all
                                      * stopped */
+    PRLock *thread_count_lock;      /* lock for thread_count_cv */
+    PRCondVar *thread_count_cv;     /* condition variable for housekeeping thread shutdown */
     int dblayer_lockdown;           /* use DB_LOCKDOWN */
     int dblayer_lock_config;
 };
