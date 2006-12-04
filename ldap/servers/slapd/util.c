@@ -61,9 +61,11 @@
 
 #if defined( _WIN32 )
 #define _PSEP "\\"
+#define _PSEP2 "\\\\"
 #define _CSEP '\\'
 #else
 #define _PSEP "/"
+#define _PSEP2 "//"
 #define _CSEP '/'
 #endif
 
@@ -422,9 +424,9 @@ normalize_path(char *path)
         if (NULL == bnamep) {
             bnamep = dnamep;
         } else {
-           *bnamep = '\0';
-           bnamep++;
-       }
+            *bnamep = '\0';
+            bnamep++;
+        }
         if (0 != strcmp(bnamep, ".")) {
             *dp++ = slapi_ch_strdup(bnamep);    /* remove "/./" in the path */
         }
@@ -447,9 +449,10 @@ normalize_path(char *path)
             if (rdp > rdirs)
                 rdp--;
         }
-        if (*dp)
+        if (*dp && strlen(*dp) > 0)
             *rdp++ = slapi_ch_strdup(*dp);
     }
+    *rdp = NULL;
 
     clean_path(dirs);
     slapi_ch_free_string(&dname);
@@ -518,14 +521,14 @@ rel2abspath_ext( char *relpath, char *cwd )
             if ( abspath[ 0 ] != '\0' &&
                  abspath[ strlen( abspath ) - 1 ] != _CSEP )
             {
-                PL_strcatn( abspath, sizeof(abspath), "/" );
+                PL_strcatn( abspath, sizeof(abspath), _PSEP );
             }
             PL_strcatn( abspath, sizeof(abspath), relpath );
         }
     }
     retpath = slapi_ch_strdup(abspath);
     /* if there's no '.', no need to call normalize_path */
-    if (NULL != strchr(abspath, '.'))
+    if (NULL != strchr(abspath, '.') || NULL != strstr(abspath, _PSEP2))
     {
         char **norm_path = normalize_path(abspath);
         char **np, *rp;

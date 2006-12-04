@@ -189,15 +189,19 @@ ldbm_instance_config_instance_dir_set(void *arg, void *value, char *errorbuf, in
         {
             char sep = get_sep(dir);
             char *p = strrchr(dir, sep);
-            if (NULL == p)    /* never happens, tho */
+            if (NULL == p)    /* should not happens, tho */
             {
                 inst->inst_parent_dir_name = NULL;
-                inst->inst_dir_name = slapi_ch_strdup(dir);
+                inst->inst_dir_name = rel2abspath(dir); /* normalize dir;
+                                                           strdup'ed in 
+                                                           rel2abspath */
             }
             else
             {
                 *p = '\0';
-                inst->inst_parent_dir_name = slapi_ch_strdup(dir);
+                inst->inst_parent_dir_name = rel2abspath(dir); /* normalize dir;
+                                                                  strdup'ed in
+                                                                  rel2abspath */
                 inst->inst_dir_name = slapi_ch_strdup(p+1);
                 *p = sep;
             }

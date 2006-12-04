@@ -227,7 +227,8 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
 
     if (CONFIG_PHASE_RUNNING == phase) {
         slapi_ch_free((void **) &(li->li_new_directory));
-        li->li_new_directory = slapi_ch_strdup(val);
+        li->li_new_directory = rel2abspath(val); /* normalize the path;
+                                                    strdup'ed in rel2abspath */
         LDAPDebug(LDAP_DEBUG_ANY, "New db directory location will not take affect until the server is restarted\n", 0, 0, 0);
     } else {
         if (!strcmp(val, "get default")) {
@@ -294,8 +295,9 @@ done:
         }
         slapi_ch_free((void **) &(li->li_new_directory));
         slapi_ch_free((void **) &(li->li_directory));
-        li->li_new_directory = slapi_ch_strdup(val);
-        li->li_directory = slapi_ch_strdup(val);
+        li->li_new_directory = rel2abspath(val); /* normalize the path;
+                                                    strdup'ed in rel2abspath */
+        li->li_directory = rel2abspath(val);     /* ditto */
     }
 
     return retval;
