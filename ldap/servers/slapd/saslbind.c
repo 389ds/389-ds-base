@@ -183,8 +183,8 @@ static int ids_sasl_log(
 {
     switch (level) {
     case SASL_LOG_ERR:          /* log unusual errors (default) */
-    slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s\n", message);
-    break;
+        slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s\n", message);
+        break;
 
     case SASL_LOG_FAIL:         /* log all authentication failures */
     case SASL_LOG_WARN:         /* log non-fatal warnings */
@@ -193,7 +193,7 @@ static int ids_sasl_log(
     case SASL_LOG_TRACE:        /* traces of internal protocols */
     case SASL_LOG_PASS:         /* traces of internal protocols, including
                                  * passwords */
-        LDAPDebug(LDAP_DEBUG_ANY, "sasl(%d): %s\n", level, message, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl(%d): %s\n", level, message, 0);
         break;
 
     case SASL_LOG_NONE:         /* don't log anything */
@@ -472,7 +472,31 @@ static int ids_sasl_canon_user(
         goto fail;
     }
 
-    clear = pw;
+    /* We need to check if the first character of pw is an opening
+     * brace since strstr will simply return it's first argument if
+     * it is an empty string. */
+    if (pw && (*pw == '{')) {
+        if (strchr( pw, '}' )) {
+            /* This password is stored in a non-cleartext format.
+             * Any SASL mechanism that actually needs the
+             * password is going to fail.  We should print a warning
+             * to aid in troubleshooting. */
+            LDAPDebug(LDAP_DEBUG_TRACE, "Warning: Detected a sasl bind attempt by an "
+                      "entry whose password is stored in a non-cleartext format.  This "
+                      "will not work for mechanisms which require a cleartext password "
+                      "such as DIGEST-MD5 and CRAM-MD5.\n", 0, 0, 0);
+        } else {
+            /* This password doesn't have a storage prefix but
+             * just happens to start with the '{' character.  We'll
+             * assume that it's just a cleartext password without
+             * the proper storage prefix. */
+            clear = pw;
+        }
+    } else {
+        /* This password has no storage prefix, or the password is empty */
+        clear = pw;
+    }
+
     if (clear) {
 /* older versions of sasl do not have SASL_AUX_PASSWORD_PROP, so omit it */
 #ifdef SASL_AUX_PASSWORD_PROP

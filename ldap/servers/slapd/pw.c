@@ -319,7 +319,7 @@ int
 pw_encodevals( Slapi_Value **vals )
 {
 	int	i;
-	char	*enc;
+	char	*enc = NULL;
 	slapdFrontendConfig_t * slapdFrontendConfig = getFrontendConfig();
 
 
@@ -331,11 +331,17 @@ pw_encodevals( Slapi_Value **vals )
 	for ( i = 0; vals[ i ] != NULL; ++i ) {
 		struct pw_scheme    *pwsp;
 		if ( (pwsp=pw_val2scheme( (char*)slapi_value_get_string(vals[ i ]), NULL, 0)) != NULL ) { /* JCM Innards */
-			free_pw_scheme( pwsp );
-			continue;	/* don't touch pre-encoded values */
+			/* If the value already specifies clear storage, call the
+			 * clear storage plug-in */
+			if (strcasecmp( pwsp->pws_name, "clear" ) == 0) {
+				enc = (*pwsp->pws_enc)( (char*)slapi_value_get_string(vals[ i ]) );
+			} else {
+				free_pw_scheme( pwsp );
+				continue;	/* don't touch pre-encoded values */
+			}
 		}
-		if (( enc = (*slapdFrontendConfig->pw_storagescheme->pws_enc)( (char*)slapi_value_get_string(vals[ i ]) )) /* JCM Innards */
-		    == NULL ) {
+		if ((!enc) && (( enc = (*slapdFrontendConfig->pw_storagescheme->pws_enc)( (char*)slapi_value_get_string(vals[ i ]) )) /* JCM Innards */
+		    == NULL )) {
 			free_pw_scheme( pwsp );
 			return( -1 );
 		}

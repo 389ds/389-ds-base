@@ -60,5 +60,16 @@ clear_pw_cmp( char *userpwd, char *dbpwd )
 char *
 clear_pw_enc( char *pwd )
 {
-    return( slapi_ch_strdup( pwd ));
+    /* Just return NULL if pwd is NULL */
+    if (!pwd)
+        return NULL;
+
+    /* If the modify operation specified the "{clear}" storage scheme
+     * prefix, we should strip it off.
+     */
+    if ((*pwd == PWD_HASH_PREFIX_START) && (pwd == PL_strcasestr( pwd, "{clear}" ))) {
+        return( slapi_ch_strdup( pwd + 7 ));
+    } else {
+        return( slapi_ch_strdup( pwd ));
+    }
 }
