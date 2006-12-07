@@ -59,7 +59,7 @@
 
 static PRUint32 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control);
 static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control);
-static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control);
+static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked);
 
 /* New mutex for vlv locking
 PRRWLock * vlvSearchList_lock=NULL;
@@ -1068,15 +1068,16 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	PR_RWLock_Rlock(be->vlvSearchList_lock);
 	if((pi=vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
 	    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+	    PR_RWLock_Unlock(be->vlvSearchList_lock);
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
 		rc = VLV_FIND_SEARCH_FAILED;
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
+	    PR_RWLock_Unlock(be->vlvSearchList_lock);
 		rc = VLV_ACCESS_DENIED;
-	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,vlv_response_control)) != LDAP_SUCCESS) {
+	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,vlv_response_control, 1)) != LDAP_SUCCESS) {
 		rc = VLV_BLD_LIST_FAILED;
 		vlv_response_control->result=*vlv_rc;
 	}
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
 	return rc;
 }
 
@@ -1096,7 +1097,7 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
  
 
 static int
-vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control)
+vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked)
 {
     int return_value = LDAP_SUCCESS;
     DB *db = NULL;
@@ -1111,6 +1112,9 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
               slapi_sdn_get_dn(vlvIndex_getBase(p)), p->vlv_search->vlv_filter,
               vlvIndex_getName(p));
     if (!vlvIndex_online(p)) {
+        if (is_srchlist_locked) {
+            PR_RWLock_Unlock(be->vlvSearchList_lock);
+        }
         return -1;
     }
     rc = dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0);
@@ -1118,14 +1122,9 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
         /* shouldn't happen */
         LDAPDebug(LDAP_DEBUG_ANY, "VLV: can't get index file '%s' (err %d)\n",
                   p->vlv_attrinfo->ai_type, rc, 0);
-        return -1;
-    }
-
-    err = db->cursor(db, 0 /* txn */, &dbc, 0);
-    if (err != 0) {
-        /* shouldn't happen */
-        LDAPDebug(LDAP_DEBUG_ANY, "VLV: couldn't get cursor (err %d)\n",
-                  rc, 0, 0);
+        if (is_srchlist_locked) {
+            PR_RWLock_Unlock(be->vlvSearchList_lock);
+        }
         return -1;
     }
 
@@ -1133,6 +1132,17 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
 
     /* Increment the usage counter */
     vlvIndex_incrementUsage(p);
+
+    if (is_srchlist_locked) {
+        PR_RWLock_Unlock(be->vlvSearchList_lock);
+    }
+    err = db->cursor(db, 0 /* txn */, &dbc, 0);
+    if (err != 0) {
+        /* shouldn't happen */
+        LDAPDebug(LDAP_DEBUG_ANY, "VLV: couldn't get cursor (err %d)\n",
+                  rc, 0, 0);
+        return -1;
+    }
 
     if (vlv_request_control)
     {
