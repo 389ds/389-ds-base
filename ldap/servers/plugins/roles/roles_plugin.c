@@ -83,6 +83,52 @@ static int roles_post_op( Slapi_PBlock *pb );
 static int roles_close( Slapi_PBlock *pb );
 static void roles_set_plugin_identity(void * identity);
 
+int
+roles_postop_init ( Slapi_PBlock *pb )
+{
+	int rc = 0;
+
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, 
+							SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN,
+							(void *)roles_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN,
+							(void *)roles_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN,
+							(void *) roles_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN,
+							(void *) roles_post_op ) != 0 )
+	{
+		slapi_log_error( SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+						 "roles_postop_init: failed to register plugin\n" );
+		rc = -1;
+	}
+	return rc;
+}
+
+int
+roles_internalpostop_init ( Slapi_PBlock *pb )
+{
+	int rc = 0;
+
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, 
+							SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN,
+							(void *)roles_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN,
+							(void *)roles_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN,
+							(void *) roles_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
+							(void *) roles_post_op ) != 0 )
+	{
+		slapi_log_error( SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+					"roles_internalpostop_init: failed to register plugin\n" );
+		rc = -1;
+	}
+	return rc;
+}
+
 /* roles_init
    ----------
    Initialization of the plugin
@@ -93,36 +139,42 @@ int roles_init( Slapi_PBlock *pb )
 	void *plugin_identity = NULL; 
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
-			"=> roles_init\n" );
+						"=> roles_init\n" );
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &plugin_identity);
 	PR_ASSERT (plugin_identity);
 	roles_set_plugin_identity(plugin_identity);
 
-    if (    slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-					(void *)SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-					(void *)&pdesc ) != 0 || 
-			slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
-					(void *)roles_start ) != 0 ||
-            slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN,
-                     (void *) roles_post_op ) != 0 ||
-            slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN,
-                     (void *) roles_post_op ) != 0 ||
-            slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN,
-                     (void *) roles_post_op ) != 0 ||
-            slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN,
-                     (void *) roles_post_op ) != 0 ||
-            slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                     (void *) roles_close ) != 0 )
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+							(void *)SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		 slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+							(void *)&pdesc ) != 0 || 
+		 slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
+							(void *)roles_start ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
+							(void *) roles_close ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
 					"roles_init failed\n" );
 		rc = -1;
-    }
+		goto bailout;
+	}
 
+	rc = slapi_register_plugin("postoperation", 1 /* Enabled */,
+					"roles_postop_init", roles_postop_init,
+					"Roles postoperation plugin", NULL,
+					plugin_identity);
+	if ( rc < 0 ) {
+		goto bailout;
+	}
+
+	rc = slapi_register_plugin("internalpostoperation", 1 /* Enabled */,
+					"roles_internalpostop_init", roles_internalpostop_init,
+					"Roles internalpostoperation plugin", NULL,
+					plugin_identity);
+bailout:
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
-			"<= roles_init %d\n", rc );
+							"<= roles_init %d\n", rc );
 	return rc;
 }
 

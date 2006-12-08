@@ -2949,7 +2949,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "cn: Roles Plugin\n");
     fprintf(f, "nsslapd-pluginpath: %s/libroles-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: roles_init\n");
-     fprintf(f, "nsslapd-plugintype: postoperation\n");
+     fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
     fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
@@ -3027,7 +3027,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "cn: Class of Service\n");
     fprintf(f, "nsslapd-pluginpath: %s/libcos-plugin%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: cos_init\n");
-    fprintf(f, "nsslapd-plugintype: postoperation\n");
+    fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
     fprintf(f, "nsslapd-plugin-depends-on-named: State Change Plugin\n");
