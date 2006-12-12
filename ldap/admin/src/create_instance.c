@@ -2991,6 +2991,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
     fprintf(f, "nsslapd-plugin-depends-on-named: Multimaster Replication Plugin\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: Class of Service\n");
     fprintf(f, "\n");
 
     fprintf(f, "dn: cn=Multimaster Replication Plugin,cn=plugins,cn=config\n");
@@ -3004,6 +3005,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-pluginenabled: on\n");
     fprintf(f, "nsslapd-plugin-depends-on-named: ldbm database\n");
     fprintf(f, "nsslapd-plugin-depends-on-named: DES\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: Class of Service\n");
     fprintf(f, "\n");
 
     fprintf(f, "dn: cn=Retro Changelog Plugin,cn=plugins,cn=config\n");
@@ -3016,6 +3018,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-plugintype: object\n");
     fprintf(f, "nsslapd-pluginenabled: off\n");
     fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "nsslapd-plugin-depends-on-named: Class of Service\n");
     fprintf(f, "\n");
 
 
