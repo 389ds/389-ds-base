@@ -783,7 +783,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
          * Note that we should only call this once. If we're
          * dumping several backends then it gets called multiple
          * times and we get warnings in the error log like this:
-         *   WARNING: ldbm instance NetscapeRoot already exists
+         *   WARNING: ldbm instance userRoot already exists
          */
         ldbm_config_load_dse_info(li);
     }
@@ -1201,24 +1201,6 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
     if (we_start_the_backends) {
         if (0 != dblayer_close(li,DBLAYER_EXPORT_MODE)) {
-        LDAPDebug( LDAP_DEBUG_ANY,
-               "db2ldif: Failed to close database\n",
-               0, 0, 0 );
-        }
-    } else if (run_from_cmdline && dump_replica) {
-        /*
-         * It should not be necessary to close the dblayer here.
-         * However it masks complex thread timing issues that
-         * prevent a correct shutdown of the plugins.  Closing the
-         * dblayer here means we cannot dump multiple replicas
-         * using -r, but the server doesn't allow that either.
-         */
-
-        /*
-         * Use DBLAYER_NORMAL_MODE to match the value that was provided
-         * to dblayer_start() and ensure creation of the guardian file.
-         */
-        if (0 != dblayer_close(li,DBLAYER_NORMAL_MODE)) {
         LDAPDebug( LDAP_DEBUG_ANY,
                "db2ldif: Failed to close database\n",
                0, 0, 0 );
