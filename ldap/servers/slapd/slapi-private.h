@@ -744,6 +744,7 @@ int slapi_lookup_instance_name_by_suffix(char *suffix,
 /* begin and end the task subsystem */
 void task_init(void);
 void task_shutdown(void);
+void task_cleanup(void);
 
 /* for reversible encyrption */
 #define SLAPI_MB_CREDENTIALS    "nsmultiplexorcredentials"
@@ -1033,11 +1034,6 @@ int slapi_uniqueIDGenerateFromNameString(char **uId,
  * JCMREPL - Added for the replication plugin.
  */
  
-/* Front end configuration */
-
-typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *, 
-                             int *, char*, void *);
-
 /*
  * Note: DSE callback functions MUST return one of these three values:
  *
@@ -1177,23 +1173,10 @@ int slapd_re_init( void );
 
 /***** End of items added for the replication plugin. ***********************/
 
-
 /******************************************************************************
  * Online tasks interface (to support import, export, etc)
  * After some cleanup, we could consider making these public.
  */
-typedef struct _slapi_task Slapi_Task;
-typedef int (*TaskCallbackFn)(Slapi_Task *task);
-
-/* task states */
-#define SLAPI_TASK_SETUP        0
-#define SLAPI_TASK_RUNNING      1
-#define SLAPI_TASK_FINISHED     2
-#define SLAPI_TASK_CANCELLED    3
-
-/* task flags (set by the task-control code) */
-#define SLAPI_TASK_DESTROYING   0x01    /* queued event for destruction */
-
 struct _slapi_task {
     struct _slapi_task *next;
     char *task_dn;
@@ -1212,25 +1195,7 @@ struct _slapi_task {
     TaskCallbackFn destructor;  /* task entry is being destroyed */
 	int task_refcount;
 };
-
-int slapi_task_register_handler(const char *name, dseCallbackFn func);
-void slapi_task_status_changed(Slapi_Task *task);
-void slapi_task_log_status(Slapi_Task *task, char *format, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
-#else
-        ;
-#endif
-
-void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
-#else
-        ;
-#endif
-
 /* End of interface to support online tasks **********************************/
-
 
 void    DS_Sleep(PRIntervalTime ticks);
 

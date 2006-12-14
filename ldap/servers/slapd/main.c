@@ -1056,6 +1056,13 @@ main( int argc, char **argv)
 		LDAPDebug( LDAP_DEBUG_PLUGIN, 
 					"Password Modify plugin registered.\n", 0, 0, 0 );
 
+		/* Cleanup old tasks that may still be in the DSE from a previous 
+		   session.  Call before plugin_startall since cleanup needs to be
+		   done before plugin_startall where user defined task plugins could 
+		   be started.
+		 */
+		task_cleanup();
+
 		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
 			exit (1);

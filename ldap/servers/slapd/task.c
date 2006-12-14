@@ -78,8 +78,9 @@ static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
 					 Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int task_generic_destructor(Slapi_Task *task);
 
-/* create new task, fill in DN, and setup modify callback */
-static Slapi_Task *new_task(const char *dn)
+/* create a new task, fill in DN, and setup modify callback */
+static Slapi_Task *
+new_task(const char *dn)
 {
     Slapi_Task *task = (Slapi_Task *)slapi_ch_calloc(1, sizeof(Slapi_Task));
 
@@ -109,7 +110,8 @@ static Slapi_Task *new_task(const char *dn)
 }
 
 /* called by the event queue to destroy a task */
-static void destroy_task(time_t when, void *arg)
+static void
+destroy_task(time_t when, void *arg)
 {
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_Task *t1;
@@ -150,6 +152,31 @@ static void destroy_task(time_t when, void *arg)
     slapi_ch_free((void **)&task);
 }
 
+/*
+ * slapi_new_task: create a new task, fill in DN, and setup modify callback
+ * argument:
+ *     dn: task dn
+ * result: 
+ *     Success: Slapi_Task object
+ *     Failure: NULL
+ */
+Slapi_Task *
+slapi_new_task(const char *dn)
+{
+    return new_task(dn);
+}
+
+/* slapi_destroy_task: destroy a task
+ * argument:
+ *     task: task to destroy
+ * result: 
+ *     none
+ */
+void
+slapi_destroy_task(void *arg)
+{
+	destroy_task(1, arg);
+}
 
 /**********  some useful helper functions  **********/
 
@@ -1539,12 +1566,11 @@ void slapi_task_status_changed(Slapi_Task *task)
     }
 }
 
-
 /* cleanup old tasks that may still be in the DSE from a previous session
  * (this can happen if the server crashes [no matter how unlikely we like
  * to think that is].)
  */
-static void cleanup_old_tasks(void)
+void task_cleanup(void)
 {
 	Slapi_PBlock *pb = slapi_pblock_new();
 	Slapi_Entry **entries = NULL;
@@ -1690,8 +1716,6 @@ void task_init(void)
                   "(that's bad)\n", 0, 0, 0);
         return;
     }
-
-    cleanup_old_tasks();
 
     slapi_task_register_handler("import", task_import_add);
     slapi_task_register_handler("export", task_export_add);

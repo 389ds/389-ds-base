@@ -150,7 +150,9 @@ typedef struct slapi_rdn		Slapi_RDN;
 typedef struct slapi_mod		Slapi_Mod;
 typedef struct slapi_mods		Slapi_Mods;
 typedef struct slapi_componentid	Slapi_ComponentId;
-
+/* Online tasks interface (to support import, export, etc) */
+typedef struct _slapi_task		Slapi_Task;
+typedef int (*TaskCallbackFn)(Slapi_Task *task);
 
 /*
  * The default thread stacksize for nspr21 is 64k (except on IRIX!  It's 32k!).
@@ -1187,7 +1189,59 @@ typedef int (*roles_check_fn_type)(Slapi_Entry *entry_to_check, Slapi_DN *role_d
 int slapi_role_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present);
 void slapi_register_role_check(roles_check_fn_type check_fn);
 
+/* DSE */
+/* Front end configuration */
+typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *, 
+                             int *, char*, void *);
 
+/******************************************************************************
+ * Online tasks interface (to support import, export, etc)
+ * After some cleanup, we could consider making these public.
+ */
+
+/* task states */
+#define SLAPI_TASK_SETUP        0
+#define SLAPI_TASK_RUNNING      1
+#define SLAPI_TASK_FINISHED     2
+#define SLAPI_TASK_CANCELLED    3
+
+/* task flags (set by the task-control code) */
+#define SLAPI_TASK_DESTROYING   0x01    /* queued event for destruction */
+
+int slapi_task_register_handler(const char *name, dseCallbackFn func);
+void slapi_task_status_changed(Slapi_Task *task);
+void slapi_task_log_status(Slapi_Task *task, char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+
+void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+
+/*
+ * slapi_new_task: create new task, fill in DN, and setup modify callback
+ * argument:
+ *     dn: task dn
+ * result:
+ *     Success: Slapi_Task object
+ *     Failure: NULL
+ */
+Slapi_Task *slapi_new_task(const char *dn);
+
+/* slapi_destroy_task: destroy a task
+ * argument:
+ *     task: task to destroy
+ * result:
+ *     none
+ */
+void slapi_destroy_task(void *arg);
+/* End of interface to support online tasks **********************************/
 
 /* Binder-based (connection centric) resource limits */
 /*

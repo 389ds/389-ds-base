@@ -2445,7 +2445,8 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                 /* return next backend, increment index */
                 *be = target_node->mtn_be[*index];
                 if(*be==NULL) {
-                    if (target_node->mtn_be_states[*index] == SLAPI_BE_STATE_DELETE) {
+                    if (NULL != target_node->mtn_be_states &&
+                        target_node->mtn_be_states[*index] == SLAPI_BE_STATE_DELETE) {
                         /* This MTN is being deleted */
                         *be = defbackend_get_backend();
                     } else {
@@ -2816,7 +2817,7 @@ slapi_on_internal_backends(const Slapi_DN *sdn)
 
 /* Some of the operations are not allowed from the plugins
  * but default to specialized use of those operations 
- * e.g rootDse search, NetscapeRoot searches
+ * e.g rootDse search, ConfigRoot searches
  * cn=config, cn=schema etc
  */
 
