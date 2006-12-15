@@ -87,6 +87,12 @@ testsaslbind.c
 This is an example of a pre-operation plug-in function that 
 implements a SASL mechanism.
 
+sampletask.c
+------------
+This is an example of task plug-in that implements a task which is
+invoked by adding the corresponding task entry.
+
+
 clients
 -------
 This directory contains the C and Java source code for clients
@@ -109,7 +115,7 @@ Server plug-ins are built as libraries available to the server.
 
 1. Include the Plug-In API. For example:
 
-   #include "[serverRoot]/plugins/slapd/slapi/include/slapi-plugin.h"
+   #include "slapi-plugin.h"
 
 2. Write your plug-in, including a top level initialization function
    used by the server to start the plug-in. For example:
@@ -133,14 +139,47 @@ Server plug-ins are built as libraries available to the server.
 
    } /* my_plugin_init() */
 
-   See the Parameter Block Reference in the Netscape Directory Server
+   See the Parameter Block Reference in the Red Hat Directory Server
    Plug-In Programmer's Guide for hints on plug-in types.
 
 3. Build the plug-in as a library.
 
-   We recommend you copy and adapt the Makefile in
-   [serverRoot]/plugins/slapd/slapi/examples.
+   We recommend to use the Directory Server's build scheme.
+   3.1 Add your plugin to Makefile.am
+   Index: Makefile.am
+   ===================================================================
+   RCS file: /cvs/dirsec/ldapserver/Makefile.am,v
+   retrieving revision 1.14
+   diff -t -w -U2 -r1.14 Makefile.am
+   --- Makefile.am 16 Nov 2006 18:56:03 -0000      1.14
+   +++ Makefile.am 14 Dec 2006 23:51:30 -0000
+   @@ -74,5 +74,5 @@
+   
+    serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
+   -        libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
+   +        libsampletask-plugin.la libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
+            libhttp-client-plugin.la libcollation-plugin.la libpam-passthru-plugin.la \
+            libpassthru-plugin.la libpresence-plugin.la libpwdstorage-plugin.la \
+   @@ -540,4 +540,11 @@
+   
+    #------------------------
+   +# libsampletask-plugin
+   +#------------------------
+   +libsampletask_plugin_la_SOURCES = ldap/servers/slapd/test-plugins/sampletask.c
+   +
+   +libsampletask_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+   +
+   +#------------------------
+    # libdes-plugin
+    #-----------------------
 
+   3.2 run autotool commands/configure
+   $ cd <src_root>/ldapserver
+   $ autogen.sh   # make sure there is no errors / warnings
+   $ mkdir testbuild
+   $ cd testbuild
+   $ ../configure --with-fhs [ --prefix=/opt/fedora-ds ... ]
+   $ make install
 
 Plugging the Library Into the Server
 ------------------------------------
@@ -149,17 +188,17 @@ When started, the server loads plug-ins.
 1. Stop the server.
 
    Console:      Select the server; Object > Stop Server
-   Command Line: cd [serverRoot]/slapd-[serverID] ; ./stop-slapd
+   Command Line: cd [prefix]/usr/lib/<brand>-ds/slapd-[serverID] ; ./stop-slapd
 
 2. Add the entry for the server plug-in to
-   [serverRoot]/slapd-[serverID]/config/dse.ldif. For example:
+   [prefix]/var/lib/slapd-[serverID]/dse.ldif. For example:
 
    dn: cn=[My Server Plugin],cn=plugins,cn=config
    objectClass: top
    objectClass: nsSlapdPlugin
    objectClass: extensibleObject
    cn: [My Server Plugin]
-   nsslapd-pluginPath: [[serverRoot]/myPlugins/myveryown-plugin.so]
+   nsslapd-pluginPath: [[prefix]/usr/lib/<brand>-ds/plugins/myveryown-plugin.so]
    nsslapd-pluginInitfunc: [my_plugin_init]
    nsslapd-pluginType: [myPluginType]
    nsslapd-pluginEnabled: on
@@ -172,10 +211,10 @@ When started, the server loads plug-ins.
    nsslapd-pluginVendor: [Fictional Software Company Incorporated]
    nsslapd-pluginDescription: [Add lots of cool functionality]
 
-   See the Parameter Block Reference in the Netscape Directory Server
+   See the Parameter Block Reference in the Red Hat Directory Server
    Plug-In Programmer's Guide for hints on plug-in types.
 
 3. Restart the server.
 
    Console:      Object > Start Server
-   Command Line: cd [serverRoot]/slapd-[serverID] ; ./restart-slapd
+   Command Line: cd [prefix]/usr/lib/<brand>-ds/slapd-[serverID] ; ./restart-slapd
