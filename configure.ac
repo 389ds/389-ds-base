@@ -91,6 +91,7 @@ AC_SUBST(db_incdir)
 AC_SUBST(db_lib)
 AC_SUBST(db_libdir)
 AC_SUBST(db_bindir)
+AC_SUBST(db_libver)
 AC_SUBST(sasl_inc)
 AC_SUBST(sasl_lib)
 AC_SUBST(sasl_libdir)
@@ -104,12 +105,19 @@ AC_SUBST(netsnmp_lib)
 AC_SUBST(netsnmp_libdir)
 AC_SUBST(netsnmp_link)
 
-# installation paths
+# installation paths - by default, configure will just
+# use /usr as the prefix for everything, which means
+# /usr/etc and /usr/var.  FHS sez to use /etc and /var.
 if test "$with_fhs" = "yes"; then
-  bindir=@prefix@/usr/bin
-  libdir=@prefix@/usr/lib
-  datadir=@prefix@/usr/share
+  ac_default_prefix=/usr
+  prefix=$ac_default_prefix
+  exec_prefix=$prefix
+dnl as opposed to the default /usr/etc
+  sysconfdir='/etc'
+dnl as opposed to the default /usr/var
+  localstatedir='/var'
 fi
+
 # relative to sysconfdir
 configdir=/fedora-ds/config
 # relative to datadir

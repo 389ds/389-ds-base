@@ -65,3 +65,13 @@ if test -z "$db_inc"; then
     AC_MSG_ERROR([db not found, specify with --with-db.])
   fi
 fi
+dnl figure out which version of db we're using from the header file
+db_ver_maj=`grep DB_VERSION_MAJOR $db_incdir/db.h | awk '{print $3}'`
+db_ver_min=`grep DB_VERSION_MINOR $db_incdir/db.h | awk '{print $3}'`
+db_ver_pat=`grep DB_VERSION_PATCH $db_incdir/db.h | awk '{print $3}'`
+dnl libname is libdb-maj.min e.g. libdb-4.2
+db_libver=${db_ver_maj}.${db_ver_min}
+dnl make sure the lib is available
+AC_CHECK_LIB([db-$db_libver], [db_create], [],
+  [AC_MSG_ERROR([$db_incdir/db.h is version $db_libver but libdb-$db_libver not found])])
+

@@ -68,9 +68,9 @@ if test -z "$svrcore_inc" -o -z "$svrcore_lib"; then
   AC_MSG_CHECKING(for svrcore with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
   if test -n "$PKG_CONFIG"; then
-    if $PKG_CONFIG --exists svrcore-devel; then
-      svrcore_inc=`$PKG_CONFIG --cflags-only-I svrcore-devel`
-      svrcore_lib=`$PKG_CONFIG --libs-only-L svrcore-devel`
+    if $PKG_CONFIG --exists svrcore; then
+      svrcore_inc=`$PKG_CONFIG --cflags-only-I svrcore`
+      svrcore_lib=`$PKG_CONFIG --libs-only-L svrcore`
       AC_MSG_RESULT([using system svrcore])
     fi
   fi

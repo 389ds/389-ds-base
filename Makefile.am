@@ -30,8 +30,8 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3 -lsoftokn3
-LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lldap60 -lprldap60 -lldif60
-DB_LINK = @db_lib@ -ldb-4.2
+LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
+DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
 SVRCORE_LINK = @svrcore_lib@ -lsvrcore
 ICU_LINK = @icu_lib@ -licui18n -licuuc -licudata
