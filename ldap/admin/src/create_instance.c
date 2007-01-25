@@ -708,7 +708,7 @@ char *gen_script_auto(char *s_root, char *cs_path,
     }
 
     PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
-            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
+            cf->datadir, FILE_PATHSEP, cf->brand_ds,
             FILE_PATHSEP, FILE_PATHSEP, name);
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
     create_instance_mkdir(cs_path, NEWDIR_MODE);
@@ -774,7 +774,7 @@ char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name
     int fnlen = 0;
 
     PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
-            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
+            cf->datadir, FILE_PATHSEP, cf->brand_ds,
             FILE_PATHSEP, FILE_PATHSEP, name);
     PR_snprintf(fn, sizeof(fn),   "%s%c%s%cbin",
             cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);

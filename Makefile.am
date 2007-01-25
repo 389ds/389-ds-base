@@ -60,7 +60,7 @@ propertydir = $(sysconfdir)@propertydir@
 schemadir = $(sysconfdir)@schemadir@
 serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
-taskdir = $(sysconfdir)@scripttemplatedir@
+taskdir = $(datadir)@scripttemplatedir@
 
 #------------------------
 # Build Products

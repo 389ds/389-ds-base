@@ -951,7 +951,7 @@ PAM_LINK = -lpam
 #------------------------
 BUILT_SOURCES = dirver.h dberrstrs.h
 CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
-taskdir = $(sysconfdir)@scripttemplatedir@
+taskdir = $(datadir)@scripttemplatedir@
 server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
 	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \

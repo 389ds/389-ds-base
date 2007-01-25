@@ -130,7 +130,7 @@ schemadir=/fedora-ds/schema
 serverdir=/fedora-ds
 # relative to libdir
 serverplugindir=/fedora-ds/plugins
-# relative to sysconfdir
+# relative to datadir
 scripttemplatedir=/fedora-ds/script-templates
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
