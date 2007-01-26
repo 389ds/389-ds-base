@@ -754,7 +754,9 @@ char *gen_script_auto(char *s_root, char *cs_path,
     table[12][1] = cf->config_dir;
     table[13][0] = "RUN-DIR";
     table[13][1] = cf->run_dir;
-    table[14][0] = table[14][1] = NULL;
+    table[14][0] = "PRODUCT-NAME";
+    table[14][1] = PRODUCT_NAME;
+    table[15][0] = table[15][1] = NULL;
 
     if (generate_script(ofn, fn, NEWSCRIPT_MODE, table) != 0) {
         return make_error("Could not write %s to %s (%s).", ofn, fn,
@@ -764,76 +766,6 @@ char *gen_script_auto(char *s_root, char *cs_path,
     return NULL;
 }
 
-char *gen_perl_script_auto_for_migration(char *s_root, char *cs_path, char *name,
-                           server_config_s *cf)
-{
-    char myperl[PATH_SIZE];
-    char fn[PATH_SIZE], ofn[PATH_SIZE];
-    const char *table[16][2];
-    char *fnp = NULL;
-    int fnlen = 0;
-
-    PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
-            cf->datadir, FILE_PATHSEP, cf->brand_ds,
-            FILE_PATHSEP, FILE_PATHSEP, name);
-    PR_snprintf(fn, sizeof(fn),   "%s%c%s%cbin",
-            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
-    create_instance_mkdir(fn, NEWDIR_MODE);
-    fnlen = strlen(fn);
-    fnp = fn + fnlen;
-    PR_snprintf(fnp, sizeof(fn) - fnlen,   "%c%s", FILE_PATHSEP, name);
-
-#ifdef USE_NSPERL
-    PR_snprintf(myperl, sizeof(myperl), "!%s%cbin%cslapd%cadmin%cbin%cperl",
-            cf->prefix, FILE_PATHSEP, FILE_PATHSEP, FILE_PATHSEP,
-            FILE_PATHSEP, FILE_PATHSEP);
-#else
-    strcpy(myperl, "!/usr/bin/env perl");
-#endif
-
-    table[0][0] = "DS-ROOT";
-    table[0][1] = cf->prefix;
-    table[1][0] = "DS-BRAND";
-    table[1][1] = cf->brand_ds;
-    table[2][0] = "SEP";
-    table[2][1] = FILE_PATHSEPP;
-    table[3][0] = "SERVER-NAME";
-    table[3][1] = cf->servname;
-    table[4][0] = "SERVER-PORT";
-    table[4][1] = cf->servport;
-    table[5][0] = "PERL-EXEC";
-    table[6][0] = "DEV-NULL";
-#if !defined( XP_WIN32 )
-    table[5][1] = myperl;
-    table[6][1] = " /dev/null ";
-#else
-    table[5][1] = " perl script";
-    table[6][1] = " NUL ";
-#endif
-    table[7][0] = "ROOT-DN";
-    table[7][1] = cf->rootdn;
-    table[8][0] = "LDIF-DIR";
-    table[8][1] = cf->ldif_dir;
-    table[9][0] = "SERV-ID";
-    table[9][1] = cf->servid;
-
-    table[10][0] = "BAK-DIR";
-    table[10][1] = cf->bak_dir;
-    table[11][0] = "SERVER-DIR";
-    table[11][1] = cf->sroot;
-    table[12][0] = "CONFIG-DIR";
-    table[12][1] = cf->config_dir;
-    table[13][0] = "RUN-DIR";
-    table[13][1] = cf->run_dir;
-    table[14][0] = table[14][1] = NULL;
-
-    if (generate_script(ofn, fn, NEWSCRIPT_MODE, table) != 0) {
-        return make_error("Could not write %s to %s (%s).", ofn, fn,
-                          ds_system_errmsg());
-    }
-
-    return NULL;
-}
 
 /* ------------------ NT utilities for server creation ------------------ */
 
@@ -1809,16 +1741,16 @@ ds_cre_subdirs(server_config_s *cf, struct passwd* pw)
     gen_script_auto(mysroot, cs_path, _commandName, cf)
 
 #define CREATE_MIGRATE5TO7() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrate5to7", cf)
+    gen_script_auto(mysroot, mycs_path, "migrate5to7", cf)
 
 #define CREATE_MIGRATE6TO7() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrate6to7", cf)
+    gen_script_auto(mysroot, mycs_path, "migrate6to7", cf)
 
 #define CREATE_MIGRATEINSTANCE7() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateInstance7", cf)
+    gen_script_auto(mysroot, mycs_path, "migrateInstance7", cf)
 
 #define CREATE_MIGRATETO7() \
-    gen_perl_script_auto_for_migration(mysroot, mycs_path, "migrateTo7", cf)
+    gen_script_auto(mysroot, mycs_path, "migrateTo7", cf)
 
 #define CREATE_NEWPWPOLICY() \
     gen_script_auto(mysroot, mycs_path, "ns-newpwpolicy.pl", cf)
@@ -4300,14 +4232,14 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
  * cf->datadir: %{_datadir}
  * cf->docdir: %{_docdir}
  * cf->inst_dir: <sroot>/slapd-<servid>
- * cf->config_dir: <localstatedir>/lib/slapd-<servid>
- * cf->schema_dir: <localstatedir>/lib/slapd-<servid>/schema
- * cf->lock_dir: <localstatedir>/lock/slapd-<servid>
- * cf->log_dir: <localstatedir>/log/slapd-<servid>
- * cf->run_dir: <localstatedir>/run/slapd-<servid>
- * cf->db_dir: <localstatedir>/lib/slapd-<servid>/db
- * cf->bak_dir: <localstatedir>/lib/slapd-<servid>/bak
- * cf->tmp_dir: <localstatedir>/tmp/slapd-<servid>
+ * cf->config_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>
+ * cf->schema_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>/schema
+ * cf->lock_dir: <localstatedir>/lock/BRAND_DS/slapd-<servid>
+ * cf->log_dir: <localstatedir>/log/BRAND_DS/slapd-<servid>
+ * cf->run_dir: <localstatedir>/run/BRAND_DS (slapd-instance.pid slapd-instance.startpid files)
+ * cf->db_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>/db
+ * cf->bak_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>/bak
+ * cf->tmp_dir: <localstatedir>/tmp/BRAND_DS/slapd-<servid>
  * cf->ldif_dir: <datadir>/<brand-ds>/ldif
  * cf->cert_dir: <sysconfdir>/BRAND_DS/slapd-<servid>
  * cf->sasl_path: <sroot>/sasl2
@@ -4542,8 +4474,9 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("config_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->config_dir = PR_smprintf("%s%clib%c%s-%s",
+        cf->config_dir = PR_smprintf("%s%clib%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->config_dir = PL_strdup(temp);
@@ -4554,8 +4487,9 @@ int parse_form(server_config_s *cf)
     cf->schema_dir = ds_a_get_cgi_var("schema_dir", NULL, NULL);
     temp = ds_a_get_cgi_var("schema_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->schema_dir = PR_smprintf("%s%clib%c%s-%s%cschema",
+        cf->schema_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cschema",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
         cf->schema_dir = PL_strdup(temp);
@@ -4563,8 +4497,9 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("lock_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->lock_dir = PR_smprintf("%s%clock%c%s-%s",
+        cf->lock_dir = PR_smprintf("%s%clock%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->lock_dir = PL_strdup(temp);
@@ -4572,8 +4507,9 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("log_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->log_dir = PR_smprintf("%s%clog%c%s-%s",
+        cf->log_dir = PR_smprintf("%s%clog%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->log_dir = PL_strdup(temp);
@@ -4581,9 +4517,9 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("run_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->run_dir = PR_smprintf("%s%crun%c%s-%s",
+        cf->run_dir = PR_smprintf("%s%crun%c%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            PRODUCT_NAME, cf->servid);
+                            cf->brand_ds);
     } else {
         cf->run_dir = PL_strdup(temp);
     }
@@ -4592,8 +4528,9 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("db_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->db_dir = PR_smprintf("%s%clib%c%s-%s%cdb",
+        cf->db_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cdb",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
         cf->db_dir = PL_strdup(temp);
@@ -4601,8 +4538,9 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("bak_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->bak_dir = PR_smprintf("%s%clib%c%s-%s%cbak",
+        cf->bak_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cbak",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
         cf->bak_dir = PL_strdup(temp);
@@ -4613,15 +4551,16 @@ int parse_form(server_config_s *cf)
     temp = ds_a_get_cgi_var("ldif_dir", NULL, NULL);
     if (NULL == temp) {
         cf->ldif_dir = PR_smprintf("%s%c%s%cldif",
-                            cf->datadir, FILE_PATHSEP, BRAND_DS, FILE_PATHSEP);
+                            cf->datadir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
     } else {
         cf->ldif_dir = PL_strdup(temp);
     }
 
     temp = ds_a_get_cgi_var("tmp_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->tmp_dir = PR_smprintf("%s%ctmp%c%s-%s",
+        cf->tmp_dir = PR_smprintf("%s%ctmp%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->tmp_dir = PL_strdup(temp);
@@ -4631,9 +4570,7 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("cert_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->cert_dir = PR_smprintf("%s%c%s%c%s-%s",
-                            cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
-                            FILE_PATHSEP, PRODUCT_NAME, cf->servid);
+        cf->cert_dir = PL_strdup(cf->config_dir);
     } else {
         cf->cert_dir = PL_strdup(temp);
     }
