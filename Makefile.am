@@ -136,6 +136,7 @@ server_SCRIPTS = wrappers/dbscan \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \
+	$(srcdir)/ldap/admin/src/logconv.pl \
 	$(srcdir)/ldap/admin/src/ds_newinst.pl
 
 task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
