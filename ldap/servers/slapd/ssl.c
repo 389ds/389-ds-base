@@ -359,62 +359,28 @@ freeChildren( char **list ) {
 }
 
 static void
-warn_if_no_cert_file(const char *filename)
+warn_if_no_cert_file(const char *dir)
 {
+    char *filename = slapi_ch_smprintf("%s/cert8.db", dir);
 	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
 	if (PR_SUCCESS != status) {
-		/* if file ends in -cert7.db and the corresponding -cert8.db exists, just
-		   warn */
-		char *cert8 = slapi_ch_strdup(filename);
-		char *ptr;
-		if ((ptr = PL_strrstr(cert8, "-cert7.db"))) {
-			strcpy(ptr, "-cert8.db");
-			status = PR_Access(cert8, PR_ACCESS_READ_OK);
-			if (PR_SUCCESS == status) {
-				slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-								"Notice: certificate DB file %s does not exist but %s does - suggest updating nscertfile\n",
-								filename, cert8);
-			}
-		}
-		slapi_ch_free_string(&cert8);
-
-		if (PR_SUCCESS != status) {
-			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-							"Warning: certificate DB file %s does not exist - SSL initialization will likely fail\n",
-							filename);
-		}
+        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                        "Warning: certificate DB file %s does not exist - SSL initialization will likely fail\n",
+                        filename);
 	}
+    slapi_ch_free_string(&filename);
 }
 
 static void
-warn_if_no_key_file(const char *path, const char *name)
+warn_if_no_key_file(const char *dir)
 {
-	char last = path[strlen(path)-1];
-	char *filename = slapi_ch_smprintf("%s%s%s", path, ((last == '/' || last == '\\') ? "" : "/"), name);
+	char *filename = slapi_ch_smprintf("%s/key3.db", dir);
 	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
 	if (PR_SUCCESS != status) {
-		/* if file ends in -key3.db and the corresponding -key4.db exists, just
-		   warn */
-		char *key4 = slapi_ch_strdup(filename);
-		char *ptr;
-		if ((ptr = PL_strrstr(key4, "-key3.db"))) {
-			strcpy(ptr, "-key4.db");
-			status = PR_Access(key4, PR_ACCESS_READ_OK);
-			if (PR_SUCCESS == status) {
-				slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-								"Notice: key DB file %s does not exist but %s does - suggest updating nskeyfile\n",
-								filename, key4);
-			}
-		}
-		slapi_ch_free_string(&key4);
-
-		if (PR_SUCCESS != status) {
-			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-							"Warning: key DB file %s does not exist - SSL initialization will likely fail\n",
-							filename);
-		}
+        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                        "Warning: key DB file %s does not exist - SSL initialization will likely fail\n",
+                        filename);
 	}
-
 	slapi_ch_free_string(&filename);
 }
 
@@ -450,20 +416,26 @@ slapd_nss_init(int init_ssl, int config_available)
 		certdir[len-1] = '\0';
 	}
 
-    /* we open the key/cert db in rw mode, so make sure the directory 
-       is writable */
-    if (PR_SUCCESS != (status = PR_Access(certdir, PR_ACCESS_WRITE_OK))) {
-        char *serveruser = "unknown";
+    /* If the server is configured to use SSL, we must have a key and cert db */
+    if (config_get_security()) {
+        warn_if_no_cert_file(certdir);
+        warn_if_no_key_file(certdir);
+    } else { /* otherwise, NSS will create empty databases */
+        /* we open the key/cert db in rw mode, so make sure the directory 
+           is writable */
+        if (PR_SUCCESS != (status = PR_Access(certdir, PR_ACCESS_WRITE_OK))) {
+            char *serveruser = "unknown";
 #ifndef _WIN32
-        serveruser = config_get_localuser();
+            serveruser = config_get_localuser();
 #endif
-        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-                        "Warning: The key/cert database directory [%s] is not writable by "
-                        "the server uid [%s]: initialization likely to fail.\n",
-                        certdir, serveruser);
+            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                            "Warning: The key/cert database directory [%s] is not writable by "
+                            "the server uid [%s]: initialization likely to fail.\n",
+                            certdir, serveruser);
 #ifndef _WIN32
-        slapi_ch_free_string(&serveruser);
+            slapi_ch_free_string(&serveruser);
 #endif
+        }
     }
 
     /******** Initialise NSS *********/
