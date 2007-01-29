@@ -424,146 +424,68 @@ warn_if_no_key_file(const char *path, const char *name)
  * config. entries from dse.ldif are NOT available (used only when
  * running in referral mode).
  * As of DS6.1, the init_ssl flag passed is ignored.
+ *
+ * richm 20070126 - By default now we put the key/cert db files
+ * in an instance specific directory (the certdir directory) so
+ * we do not need a prefix any more.
  */
 int 
 slapd_nss_init(int init_ssl, int config_available)
 {
     SECStatus secStatus;
     PRErrorCode errorCode;
-    char *keyfn = NULL;
-    char *certfn = NULL;
-    char *val = NULL;
-    char certPref[1024];
-    char keyPref[1024];
-    char path[1024];
+    PRStatus status;
     int rv = 0;
 	int len = 0;
     PRUint32 nssFlags = 0;
-	Slapi_Entry *ec = NULL;
 	char *certdir;
-
-	if (config_available) {
-		getConfigEntry( configDN, &ec );
-	}
-
-	if ( ec != NULL ) {
-		certfn = slapi_entry_attr_get_charptr( ec, "nscertfile" );
-		keyfn = slapi_entry_attr_get_charptr( ec, "nskeyfile" );
-		slapi_entry_free (ec);
-		ec = NULL;
-	}
 
 	/* set in slapd_bootstrap_config,
 	   thus certdir is available even if config_available is false */
 	certdir = config_get_certdir();
-	PL_strncpyz(path, certdir, sizeof(path));
-	slapi_ch_free_string(&certdir);
 
 	/* make sure path does not end in the path separator character */
-	len = strlen(path);
-	if (path[len-1] == '/' || path[len-1] == '\\') {
-		path[len-1] = '\0';
+	len = strlen(certdir);
+	if (certdir[len-1] == '/' || certdir[len-1] == '\\') {
+		certdir[len-1] = '\0';
 	}
 
-	/* get the server instance dir name from path:
-	   <sysconfig>/BRAND_DS/slapd-<id> */
-	val = strrchr(path, '/');
-	if (!val) {
-		val = strrchr(path, '\\');
-	}
-	val++;
-
-	if (keyfn && certfn) {
-		if (is_abspath(certfn)) {
-			warn_if_no_cert_file(certfn);
-			/* first, initialize path from the certfn */
-			PL_strncpyz(path, certfn, sizeof(path));
-			/* extract path from cert db filename */
-			val = strrchr(path, '/');
-			if (!val) {
-				val = strrchr(path, '\\');
-			}
-			*val = 0; /* path is initialized */
-			/* next, init the cert db prefix */
-			val++;
-			PL_strncpyz(certPref, val, sizeof(certPref));
-		} else {
-			PL_strncpyz(val, certfn, sizeof(path)-(val-path));
-			warn_if_no_cert_file(path); /* assumes certfn is relative to server root */
-			val = strrchr(path, '/');
-			if (!val) {
-				val = strrchr(path, '\\');
-			}
-			val++;
-			PL_strncpyz(certPref, val, sizeof(certPref));
-			*val = '\0'; 
-		}
-		/* path represents now the base directory where cert, key, pin, and module db live */
-		/* richm - use strrstr to get the last occurance of -cert in the string, in case
-		   the instance is named slapd-cert - the certdb name will be slapd-cert-cert7.db
-		*/
-		val = PL_strrstr(certPref, "-cert");
-		val++;
-		*val = '\0';
-		/* certPref keeps the prefix added to the cert db, usually "slapd-myserver-" */
-
-		/* now find the key db prefix */
-		val = strrchr(keyfn, '/');
-		if (!val) {
-			val = strrchr(keyfn, '\\');
-		}
-		if (val != NULL) {
-			val++;
-		} else {
-			val = keyfn;
-		}
-		PL_strncpyz(keyPref, val, sizeof(keyPref));
-		warn_if_no_key_file(path, keyPref);
-		/* richm - use strrstr to get the last occurance of -key in the string, in case
-		   the instance is named slapd-key - the keydb name will be slapd-key-key3.db
-		*/
-		val = PL_strrstr(keyPref, "-key");
-		val++;
-		*val = '\0';
-		/* keypref keeps the prefix added to the key db, usually "slapd-myserver-" */
-	} else {
-		if ( config_get_security() ) {
-			/* Have to have the key and cert file names to enable an SSL port */
-			errorCode = PR_GetError();
-			slapd_SSL_warn("Security Initialization: Failed to retrieve SSL "
-						   "configuration information ("
-						   SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
-						   "nskeyfile: %s, nscertfile: %s ",
-						   errorCode, slapd_pr_strerror(errorCode),
-						   (keyfn ? "found" : "not found"),
-						   (certfn ? "found" : "not found"));
-		}
-		PR_snprintf(certPref, sizeof(certPref), "%s-", val);
-		PL_strncpyz(keyPref, certPref, sizeof(keyPref));
-	}
-
-	slapi_ch_free((void **) &certfn);
-	slapi_ch_free((void **) &keyfn);
+    /* we open the key/cert db in rw mode, so make sure the directory 
+       is writable */
+    if (PR_SUCCESS != (status = PR_Access(certdir, PR_ACCESS_WRITE_OK))) {
+        char *serveruser = "unknown";
+#ifndef _WIN32
+        serveruser = config_get_localuser();
+#endif
+        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                        "Warning: The key/cert database directory [%s] is not writable by "
+                        "the server uid [%s]: initialization likely to fail.\n",
+                        certdir, serveruser);
+#ifndef _WIN32
+        slapi_ch_free_string(&serveruser);
+#endif
+    }
 
     /******** Initialise NSS *********/
     
     nssFlags &= (~NSS_INIT_READONLY);
     slapd_pk11_configurePKCS11(NULL, NULL, tokDes, ptokDes, NULL, NULL, NULL, NULL, 0, 0 );
-	secStatus = NSS_Initialize(path, certPref, keyPref, "secmod.db", nssFlags);
+	secStatus = NSS_Initialize(certdir, NULL, NULL, "secmod.db", nssFlags);
 
-	dongle_file_name = PR_smprintf("%s/%spin.txt", path, certPref);
+	dongle_file_name = PR_smprintf("%s/pin.txt", certdir);
 
 	if (secStatus != SECSuccess) {
 		errorCode = PR_GetError();
 		slapd_SSL_warn("Security Initialization: NSS initialization failed ("
 					   SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
-					   "path: %s, certdb prefix: %s, keydb prefix: %s.",
-					   errorCode, slapd_pr_strerror(errorCode), path, certPref, keyPref);
+					   "certdir: %s",
+					   errorCode, slapd_pr_strerror(errorCode), certdir);
 		rv = -1;
 	}
 
     /****** end of NSS Initialization ******/
 
+    slapi_ch_free_string(&certdir);
     return rv;
 }
 
