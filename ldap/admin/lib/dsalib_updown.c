@@ -95,7 +95,7 @@ ds_get_updown_status()
       fprintf(stderr, "ds_get_updown_status: could not get install root\n");
         return(DS_SERVER_UNKNOWN);
     }
-    PR_snprintf(pid_file_name, BIG_LINE, "%s/%s.pid", ds_get_server_name(), rundir);
+    PR_snprintf(pid_file_name, BIG_LINE, "%s/%s.pid", rundir, ds_get_server_name());
     pidfile = fopen(pid_file_name, "r");
     if ( pidfile == NULL ) {
 /* 
