@@ -78,7 +78,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchaining
 	libpassthru-plugin.la libpresence-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la
+	libviews-plugin.la libdna-plugin.la
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -734,6 +734,13 @@ libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+
+#------------------------
+# libdna-plugin
+#------------------------
+libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
+
+libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 
 
 #////////////////////////////////////////////////////////////////

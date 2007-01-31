@@ -50,7 +50,7 @@ NOSTDSTRIP=true # don't let nsconfig.mk define target strip
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
-PLUGINS = _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views
+PLUGINS = _referint _collation _syntaxes _passthru _utils _uiduniq _roles _acl _replication _cos _pwdstorage _rever _chainingdb _distrib _retrocl _statechange _http _views _dna
 ifneq ($(ARCH), WINNT)
 ifneq ($(BRAND), redhat)
 PLUGINS += _pam_passthru
@@ -121,6 +121,9 @@ _presence:
 _views:
 	cd views; $(MAKE) $(MFLAGS) all
 
+_dna:
+        cd dna; $(MAKE) $(MFLAGS) all
+
 clean: 
 	cd rever; $(MAKE) $(MFLAGS) clean
 	cd referint; $(MAKE) $(MFLAGS) clean
@@ -144,5 +147,6 @@ endif
 	cd http; $(MAKE) $(MFLAGS) clean
 	cd views; $(MAKE) $(MFLAGS) clean
 	#cd presence; $(MAKE) $(MFLAGS) clean
+        cd dna; $(MAKE) $(MFLAGS) clean
 
 veryclean:	clean

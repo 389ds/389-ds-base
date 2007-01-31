@@ -1,0 +1,58 @@
+dn: uid=add_has_magic_number, dc=example, dc=com
+objectclass: top
+objectclass: organizationalperson
+objectclass: posixaccount
+cn: 1
+sn: test
+uid: add_has_uid_number
+uidNumber: 499
+gidNumber: 550
+homeDirectory: /
+
+dn: uid=add_second_has_magic_number, dc=example, dc=com
+objectclass: top
+objectclass: organizationalperson
+objectclass: posixaccount
+cn: 2
+sn: test
+uid: add_second_has_magic_number
+uidNumber: 499
+gidNumber: 550
+homeDirectory: /
+
+dn: uid=no_uid_number, dc=example, dc=com
+objectclass: top
+objectclass: organizationalperson
+objectclass: posixaccount
+cn: 3
+sn: test
+uid: no_uid_number
+gidNumber: 550
+homeDirectory: /
+
+dn: uid=add_has_uid_number_550, dc=example, dc=com
+objectclass: top
+objectclass: organizationalperson
+objectclass: posixaccount
+cn: 4
+sn: test
+uid: add_has_uid_number
+uidNumber: 550
+gidNumber: 550
+homeDirectory: /
+
+dn: ou=sub, dc=example, dc=com
+objectclass: top
+objectclass: organizationalunit
+ou: sub
+
+dn: uid=add_is_sub, ou=sub, dc=example, dc=com
+objectclass: top
+objectclass: organizationalperson
+objectclass: posixaccount
+cn: 4
+sn: test
+uidNumber: 499
+gidNumber: 550
+homeDirectory: /
+

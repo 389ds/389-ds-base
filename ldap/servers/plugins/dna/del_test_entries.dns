@@ -1,0 +1,6 @@
+uid=add_has_magic_number, dc=example, dc=com
+uid=add_second_has_magic_number, dc=example, dc=com
+uid=no_uid_number, dc=example, dc=com
+uid=add_has_uid_number_550, dc=example, dc=com
+uid=add_is_sub, ou=sub, dc=example, dc=com
+ou=sub, dc=example, dc=com

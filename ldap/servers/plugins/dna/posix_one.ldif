@@ -1,0 +1,10 @@
+dn: uid=add_has_magic_number, dc=example, dc=com
+objectclass: top
+objectclass: organizationalperson
+objectclass: posixaccount
+cn: 1
+sn: test
+uid: add_has_uid_number
+uidNumber: 499
+gidNumber: 550
+homeDirectory: /
