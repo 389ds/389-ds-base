@@ -95,8 +95,8 @@ static int vattrsp_vattr_types(
 		);
 
 
-static Slapi_PluginDesc pdesc = { "vattrsp", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
-	"class of service plugin" };
+static Slapi_PluginDesc pdesc = { "vattrexamplesp", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"vattr service provider example plugin" };
 
 static void * vattrsp_plugin_identity = NULL;
 
