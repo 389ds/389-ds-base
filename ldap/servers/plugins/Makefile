@@ -122,7 +122,7 @@ _views:
 	cd views; $(MAKE) $(MFLAGS) all
 
 _dna:
-        cd dna; $(MAKE) $(MFLAGS) all
+	cd dna; $(MAKE) $(MFLAGS) all
 
 clean: 
 	cd rever; $(MAKE) $(MFLAGS) clean
