@@ -147,6 +147,6 @@ endif
 	cd http; $(MAKE) $(MFLAGS) clean
 	cd views; $(MAKE) $(MFLAGS) clean
 	#cd presence; $(MAKE) $(MFLAGS) clean
-        cd dna; $(MAKE) $(MFLAGS) clean
+	cd dna; $(MAKE) $(MFLAGS) clean
 
 veryclean:	clean
