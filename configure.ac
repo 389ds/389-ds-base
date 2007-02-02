@@ -47,9 +47,6 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([setrlimit endpwent ftruncate getcwd gethostbyname inet_ntoa localtime_r memmove memset mkdir munmap putenv rmdir socket strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk strrchr strstr strtol tzset])
 
-AC_SUBST([platform_defs])
-AM_CONDITIONAL(SOLARIS,test $platform = solaris)
-
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, [  --enable-debug         Enable debug features],
 [
@@ -190,10 +187,12 @@ case $host in
     platform="solaris"
     ;;
   *)
-    platform_defs=""
     platform=""
     ;;
 esac
+
+AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
+
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
 

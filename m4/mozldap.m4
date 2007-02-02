@@ -1,5 +1,5 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ AC_ARG_WITH(ldapsdk, [  --with-ldapsdk=PATH     Mozilla LDAP SDK directory],
     ldapsdk_inc="-I$LDAPSDKDIR/include"
     ldapsdk_lib="-L$LDAPSDKDIR/lib"
     ldapsdk_libdir="$LDAPSDKDIR/lib"
+    ldapsdk_bindir="$LDAPSDKDIR/bin"
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -73,8 +74,8 @@ AC_MSG_RESULT(no))
 
 # last resort
 if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
-  AC_MSG_CHECKING(for mozldap with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
+  AC_MSG_CHECKING(for mozldap with pkg-config)
   if test -n "$PKG_CONFIG"; then
     if $PKG_CONFIG --exists mozldap6; then
 	mozldappkg=mozldap6

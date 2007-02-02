@@ -1,5 +1,5 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -73,8 +73,8 @@ AC_MSG_RESULT(no))
 
 # last resort
 if test -z "$nss_inc" -o -z "$nss_lib" -o -z "$nss_libdir"; then
-  AC_MSG_CHECKING(for nss with pkg-config)
   AC_PATH_PROG(PKG_CONFIG, pkg-config)
+  AC_MSG_CHECKING(for nss with pkg-config)
   if test -n "$PKG_CONFIG"; then
     if $PKG_CONFIG --exists nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I nss`
