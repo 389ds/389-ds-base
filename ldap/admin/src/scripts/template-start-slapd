@@ -16,8 +16,8 @@ NETSITE_ROOT={{SERVER-DIR}}
 export NETSITE_ROOT
 DS_CONFIG_DIR={{CONFIG-DIR}}
 export DS_CONFIG_DIR
-PIDFILE={{RUN-DIR}}/pid
-STARTPIDFILE={{RUN-DIR}}/startpid
+PIDFILE={{RUN-DIR}}/{{PRODUCT-NAME}}-{{SERV-ID}}.pid
+STARTPIDFILE={{RUN-DIR}}/{{PRODUCT-NAME}}-{{SERV-ID}}.startpid
 if test -f $STARTPIDFILE ; then
     PID=`cat $STARTPIDFILE`
     if kill -0 $PID > /dev/null 2>&1 ; then

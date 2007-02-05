@@ -12,7 +12,7 @@ export SHLIB_PATH
 #       1: Server could not be stopped
 #       2: Server was not running
 
-PIDFILE={{RUN-DIR}}/pid
+PIDFILE={{RUN-DIR}}/{{PRODUCT-NAME}}-{{SERV-ID}}.pid
 if test ! -f $PIDFILE ; then
     echo No ns-slapd PID file found. Server is probably not running
     exit 2

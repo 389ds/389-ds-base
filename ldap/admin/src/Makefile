@@ -51,7 +51,7 @@ OBJDEST=$(LDAP_ADMOBJDIR)
 include $(BUILD_ROOT)/nsconfig.mk
 include $(LDAP_SRC)/nsldap.mk
 
-SCRIPTSDIR=$(RELDIR)/$(DS_ETCDIR)/script-templates
+SCRIPTSDIR=$(RELDIR)/$(DS_DATADIR)/script-templates
 
 ifeq ($(USE_ADMINSERVER), 1)
 MCC_INCLUDE += $(ADMINUTIL_INCLUDE)
