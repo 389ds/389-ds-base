@@ -37,6 +37,10 @@ ICU_LINK = @icu_lib@ -licui18n -licuuc -licudata
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 
+LIBSOCKET=@LIBSOCKET@
+LIBNSL=@LIBNSL@
+LIBDL=@LIBDL@
+
 #------------------------
 # Generated Sources
 #------------------------
@@ -680,7 +684,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_protocol_util.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
-libreplication_plugin_la_CPPFLAGS = @icu_inc@ @db_inc@ $(PLUGIN_CPPFLAGS)
+libreplication_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@ @db_inc@
 libreplication_plugin_la_LIBADD = $(ICU_LINK) $(DB_LINK)
 
 #------------------------
@@ -764,7 +768,7 @@ ds_newinst_bin_SOURCES = ldap/admin/src/cfg_sspt.c \
 	ldap/admin/src/script-gen.c
 
 ds_newinst_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET)
 
 #------------------------
 # dsktune
@@ -780,7 +784,7 @@ infadd_bin_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
 	ldap/servers/slapd/tools/rsearch/nametable.c
 
 infadd_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 #------------------------
 # ldap-agent
@@ -812,7 +816,7 @@ ldclt_bin_SOURCES += ldap/servers/slapd/tools/ldclt/opCheck.c
 endif
 
 ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL)
 
 #------------------------
 # ldif
@@ -878,7 +882,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
 	@nspr_inc@ @svrcore_inc@
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK)
+	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)
 
 #------------------------
 # pwdhash
@@ -897,7 +901,7 @@ rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 	ldap/servers/slapd/tools/rsearch/searchthread.c
 
 rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 # these are for the config files and scripts that we need to generate and replace
 # the paths and other tokens with the real values set during configure/make

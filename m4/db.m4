@@ -72,6 +72,8 @@ db_ver_pat=`grep DB_VERSION_PATCH $db_incdir/db.h | awk '{print $3}'`
 dnl libname is libdb-maj.min e.g. libdb-4.2
 db_libver=${db_ver_maj}.${db_ver_min}
 dnl make sure the lib is available
-AC_CHECK_LIB([db-$db_libver], [db_create], [],
-  [AC_MSG_ERROR([$db_incdir/db.h is version $db_libver but libdb-$db_libver not found])])
+dnl use true so libdb won't be added to LIBS
+AC_CHECK_LIB([db-$db_libver], [db_create], [true],
+  [AC_MSG_ERROR([$db_incdir/db.h is version $db_libver but libdb-$db_libver not found])],
+  [$LIBNSL])
 

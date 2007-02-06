@@ -61,47 +61,6 @@ AC_SUBST([debug_defs])
 
 AC_PREFIX_DEFAULT([/opt/fedora-ds])
 
-# Check for library dependencies
-m4_include(m4/nspr.m4)
-m4_include(m4/nss.m4)
-m4_include(m4/mozldap.m4)
-m4_include(m4/db.m4)
-m4_include(m4/sasl.m4)
-m4_include(m4/svrcore.m4)
-m4_include(m4/icu.m4)
-m4_include(m4/netsnmp.m4)
-m4_include(m4/fhs.m4)
-
-# write out paths for binary components
-AC_SUBST(nspr_inc)
-AC_SUBST(nspr_lib)
-AC_SUBST(nspr_libdir)
-AC_SUBST(nss_inc)
-AC_SUBST(nss_lib)
-AC_SUBST(nss_libdir)
-AC_SUBST(ldapsdk_inc)
-AC_SUBST(ldapsdk_lib)
-AC_SUBST(ldapsdk_libdir)
-AC_SUBST(ldapsdk_bindir)
-AC_SUBST(db_inc)
-AC_SUBST(db_incdir)
-AC_SUBST(db_lib)
-AC_SUBST(db_libdir)
-AC_SUBST(db_bindir)
-AC_SUBST(db_libver)
-AC_SUBST(sasl_inc)
-AC_SUBST(sasl_lib)
-AC_SUBST(sasl_libdir)
-AC_SUBST(svrcore_inc)
-AC_SUBST(svrcore_lib)
-AC_SUBST(icu_lib)
-AC_SUBST(icu_inc)
-AC_SUBST(icu_bin)
-AC_SUBST(netsnmp_inc)
-AC_SUBST(netsnmp_lib)
-AC_SUBST(netsnmp_libdir)
-AC_SUBST(netsnmp_link)
-
 # installation paths - by default, configure will just
 # use /usr as the prefix for everything, which means
 # /usr/etc and /usr/var.  FHS sez to use /etc and /var.
@@ -184,6 +143,12 @@ case $host in
     AC_DEFINE([sunos5], [1], [SunOS5])
     AC_DEFINE([OSVERSION], [509], [OS version])
     AC_DEFINE([_REENTRANT], [1], [_REENTRANT])
+    LIBSOCKET=-lsocket
+    AC_SUBST([LIBSOCKET], [$LIBSOCKET])
+    LIBNSL=-lnsl
+    AC_SUBST([LIBNSL], [$LIBNSL])
+    LIBDL=-ldl
+    AC_SUBST([LIBDL], [$LIBDL])
     platform="solaris"
     ;;
   *)
@@ -192,6 +157,47 @@ case $host in
 esac
 
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
+
+# Check for library dependencies
+m4_include(m4/nspr.m4)
+m4_include(m4/nss.m4)
+m4_include(m4/mozldap.m4)
+m4_include(m4/db.m4)
+m4_include(m4/sasl.m4)
+m4_include(m4/svrcore.m4)
+m4_include(m4/icu.m4)
+m4_include(m4/netsnmp.m4)
+m4_include(m4/fhs.m4)
+
+# write out paths for binary components
+AC_SUBST(nspr_inc)
+AC_SUBST(nspr_lib)
+AC_SUBST(nspr_libdir)
+AC_SUBST(nss_inc)
+AC_SUBST(nss_lib)
+AC_SUBST(nss_libdir)
+AC_SUBST(ldapsdk_inc)
+AC_SUBST(ldapsdk_lib)
+AC_SUBST(ldapsdk_libdir)
+AC_SUBST(ldapsdk_bindir)
+AC_SUBST(db_inc)
+AC_SUBST(db_incdir)
+AC_SUBST(db_lib)
+AC_SUBST(db_libdir)
+AC_SUBST(db_bindir)
+AC_SUBST(db_libver)
+AC_SUBST(sasl_inc)
+AC_SUBST(sasl_lib)
+AC_SUBST(sasl_libdir)
+AC_SUBST(svrcore_inc)
+AC_SUBST(svrcore_lib)
+AC_SUBST(icu_lib)
+AC_SUBST(icu_inc)
+AC_SUBST(icu_bin)
+AC_SUBST(netsnmp_inc)
+AC_SUBST(netsnmp_lib)
+AC_SUBST(netsnmp_libdir)
+AC_SUBST(netsnmp_link)
 
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])

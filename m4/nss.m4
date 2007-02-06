@@ -79,12 +79,12 @@ if test -z "$nss_inc" -o -z "$nss_lib" -o -z "$nss_libdir"; then
     if $PKG_CONFIG --exists nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I nss`
       nss_lib=`$PKG_CONFIG --libs-only-L nss`
-      nss_libdir=`$PKG_CONFIG --libs-only-L nss | sed -e s/-L// | sed -e s/\ *$//`
+      nss_libdir=`$PKG_CONFIG --libs-only-L nss | sed -e s/-L// | sed -e s/\ .*$//`
       AC_MSG_RESULT([using system NSS])
     elif $PKG_CONFIG --exists dirsec-nss; then
       nss_inc=`$PKG_CONFIG --cflags-only-I dirsec-nss`
       nss_lib=`$PKG_CONFIG --libs-only-L dirsec-nss`
-      nss_libdir=`$PKG_CONFIG --libs-only-L dirsec-nss | sed -e s/-L// | sed -e s/\ *$//`
+      nss_libdir=`$PKG_CONFIG --libs-only-L dirsec-nss | sed -e s/-L// | sed -e s/\ .*$//`
       AC_MSG_RESULT([using system dirsec NSS])
     else
       AC_MSG_ERROR([NSS not found, specify with --with-nss.])

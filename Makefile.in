@@ -554,6 +554,7 @@ am_ds_newinst_bin_OBJECTS =  \
 ds_newinst_bin_OBJECTS = $(am_ds_newinst_bin_OBJECTS)
 ds_newinst_bin_DEPENDENCIES = libds_admin.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am_dsktune_bin_OBJECTS = ldap/systools/idsktune.$(OBJEXT) \
 	ldap/systools/pio.$(OBJEXT)
@@ -564,7 +565,8 @@ am_infadd_bin_OBJECTS = ldap/servers/slapd/tools/rsearch/infadd_bin-addthread.$(
 	ldap/servers/slapd/tools/rsearch/infadd_bin-nametable.$(OBJEXT)
 infadd_bin_OBJECTS = $(am_infadd_bin_OBJECTS)
 infadd_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_ldap_agent_bin_OBJECTS =  \
 	ldap/servers/snmp/ldap_agent_bin-main.$(OBJEXT) \
 	ldap/servers/snmp/ldap_agent_bin-ldap-agent.$(OBJEXT) \
@@ -599,7 +601,9 @@ am_ldclt_bin_OBJECTS =  \
 	$(am__objects_3)
 ldclt_bin_OBJECTS = $(am_ldclt_bin_OBJECTS)
 ldclt_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_ldif_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/ldif_bin-ldif.$(OBJEXT)
 ldif_bin_OBJECTS = $(am_ldif_bin_OBJECTS)
@@ -656,6 +660,7 @@ ns_slapd_OBJECTS = $(am_ns_slapd_OBJECTS)
 ns_slapd_DEPENDENCIES = libslapd.la libldaputil.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am_pwdhash_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/pwdhash_bin-pwenc.$(OBJEXT)
@@ -669,7 +674,8 @@ am_rsearch_bin_OBJECTS = ldap/servers/slapd/tools/rsearch/rsearch_bin-nametable.
 	ldap/servers/slapd/tools/rsearch/rsearch_bin-searchthread.$(OBJEXT)
 rsearch_bin_OBJECTS = $(am_rsearch_bin_OBJECTS)
 rsearch_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 serverSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 taskSCRIPT_INSTALL = $(INSTALL_SCRIPT)
@@ -797,8 +803,11 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
+LIBDL = @LIBDL@
+LIBNSL = @LIBNSL@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBSOCKET = @LIBSOCKET@
 LIBTOOL = @LIBTOOL@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -1550,7 +1559,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_protocol_util.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
-libreplication_plugin_la_CPPFLAGS = @icu_inc@ @db_inc@ $(PLUGIN_CPPFLAGS)
+libreplication_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@ @db_inc@
 libreplication_plugin_la_LIBADD = $(ICU_LINK) $(DB_LINK)
 
 #------------------------
@@ -1629,7 +1638,7 @@ ds_newinst_bin_SOURCES = ldap/admin/src/cfg_sspt.c \
 	ldap/admin/src/script-gen.c
 
 ds_newinst_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET)
 
 #------------------------
 # dsktune
@@ -1646,7 +1655,7 @@ infadd_bin_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
 	ldap/servers/slapd/tools/rsearch/nametable.c
 
 infadd_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 #------------------------
 # ldap-agent
@@ -1673,7 +1682,7 @@ ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c $(am__append_1)
 ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL)
 
 #------------------------
 # ldif
@@ -1737,7 +1746,7 @@ ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
 	@nspr_inc@ @svrcore_inc@
 
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK)
+	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)
 
 
 #------------------------
@@ -1756,7 +1765,7 @@ rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 	ldap/servers/slapd/tools/rsearch/searchthread.c
 
 rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 # these are for the config files and scripts that we need to generate and replace
 # the paths and other tokens with the real values set during configure/make

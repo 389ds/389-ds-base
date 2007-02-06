@@ -86,7 +86,7 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$l
     fi
     ldapsdk_inc=`$PKG_CONFIG --cflags-only-I $mozldappkg`
     ldapsdk_lib=`$PKG_CONFIG --libs-only-L $mozldappkg`
-    ldapsdk_libdir=`$PKG_CONFIG --libs-only-L $mozldappkg | sed -e s/-L// | sed -e s/\ *$//`
+    ldapsdk_libdir=`$PKG_CONFIG --libs-only-L $mozldappkg | sed -e s/-L// | sed -e s/\ .*$//`
     ldapsdk_bindir=`$PKG_CONFIG --variable=bindir $mozldappkg`
     AC_MSG_RESULT([using system $mozldappkg])
   fi
