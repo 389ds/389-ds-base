@@ -87,7 +87,6 @@ fi
 
 dnl -  find dependent libs with net-snmp-config
 if test -n "$netsnmp_inc"; then
-  AC_MSG_CHECKING(for netsnmp libs with net-snmp-config)
   if test -x "$NETSNMPDIR/bin/net-snmp-config"; then
     NETSNMP_CONFIG=$NETSNMPDIR/bin/net-snmp-config
   else

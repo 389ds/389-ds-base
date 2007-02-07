@@ -1,5 +1,5 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -73,7 +73,10 @@ dnl libname is libdb-maj.min e.g. libdb-4.2
 db_libver=${db_ver_maj}.${db_ver_min}
 dnl make sure the lib is available
 dnl use true so libdb won't be added to LIBS
+save_ldflags="$LDFLAGS"
+LDFLAGS="$db_lib"
 AC_CHECK_LIB([db-$db_libver], [db_create], [true],
   [AC_MSG_ERROR([$db_incdir/db.h is version $db_libver but libdb-$db_libver not found])],
   [$LIBNSL])
+LDFLAGS="$save_ldflags"
 
