@@ -20,7 +20,9 @@ DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir
 # which would be an error
 PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfdir)\"" \
 	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
-	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\""
+	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
+	-DSBINDIR="\"$(sbindir)\""
+
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
@@ -68,20 +70,20 @@ taskdir = $(datadir)@scripttemplatedir@
 #------------------------
 # Build Products
 #------------------------
-server_PROGRAMS = dbscan-bin ds_newinst-bin dsktune-bin ldap-agent-bin ldif-bin \
-	migratecred-bin mmldif-bin ns-slapd pwdhash-bin
+sbin_PROGRAMS = ns-slapd
 
-bin_PROGRAMS = infadd-bin ldclt-bin rsearch-bin
+bin_PROGRAMS = dbscan-bin ds_newinst-bin dsktune-bin infadd-bin ldap-agent-bin \
+	ldclt-bin ldif-bin migratecred-bin mmldif-bin pwdhash-bin rsearch-bin
 
-server_LTLIBRARIES = libslapd.la libback-ldbm.la libds_admin.la libns-dshttpd.la
+server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
 
-serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la libchainingdb-plugin.la \
-	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
-	libhttp-client-plugin.la libcollation-plugin.la libpam-passthru-plugin.la \
-	libpassthru-plugin.la libpresence-plugin.la libpwdstorage-plugin.la \
-	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
-	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la libdna-plugin.la
+serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
+	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
+	libdistrib-plugin.la libdna-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
+	libpam-passthru-plugin.la libpassthru-plugin.la libpresence-plugin.la \
+	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
+	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
+	libviews-plugin.la
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -127,20 +129,19 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
 bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
-	wrappers/infadd \
-	wrappers/ldclt \
-	wrappers/rsearch
-
-server_SCRIPTS = wrappers/dbscan \
-	wrappers/dsktune \
+	wrappers/dbscan \
 	wrappers/ds_newinst \
+	$(srcdir)/ldap/admin/src/ds_newinst.pl \
+	wrappers/dsktune \
+	wrappers/infadd \
 	wrappers/ldap-agent \
+	wrappers/ldclt \
 	wrappers/ldif \
+	$(srcdir)/ldap/admin/src/logconv.pl \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \
-	$(srcdir)/ldap/admin/src/logconv.pl \
-	$(srcdir)/ldap/admin/src/ds_newinst.pl
+	wrappers/rsearch
 
 task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak \
@@ -401,7 +402,7 @@ libslapd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #////////////////////////////////////////////////////////////////
 #
-#   Backend Plugins
+#   Plugins
 #
 #////////////////////////////////////////////////////////////////
 #------------------------
@@ -468,13 +469,8 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 
 libback_ldbm_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@
 libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK)
+libback_ldbm_la_LDFLAGS = -avoid-version
 
-
-#////////////////////////////////////////////////////////////////
-#
-#   Plugins
-#
-#////////////////////////////////////////////////////////////////
 #------------------------
 # libacl-plugin
 #------------------------
@@ -493,6 +489,7 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
 libacl_plugin_la_LIBADD = libns-dshttpd.la
+libacl_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libattr-unique-plugin
@@ -502,6 +499,7 @@ libattr_unique_plugin_la_SOURCES = ldap/servers/plugins/uiduniq/7bit.c \
 	ldap/servers/plugins/shared/utils.c
 
 libattr_unique_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/shared $(PLUGIN_CPPFLAGS)
+libattr_unique_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libchainingdb-plugin
@@ -533,6 +531,7 @@ libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
 	ldap/servers/plugins/chainingdb/cb_utils.c 
 
 libchainingdb_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libchainingdb_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libcos-plugin
@@ -541,6 +540,7 @@ libcos_plugin_la_SOURCES = ldap/servers/plugins/cos/cos.c \
 	ldap/servers/plugins/cos/cos_cache.c
 
 libcos_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libcos_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdes-plugin
@@ -549,6 +549,7 @@ libdes_plugin_la_SOURCES = ldap/servers/plugins/rever/des.c \
 	ldap/servers/plugins/rever/rever.c
 
 libdes_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
+libdes_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdistrib-plugin
@@ -556,6 +557,7 @@ libdes_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
 libdistrib_plugin_la_SOURCES = ldap/servers/plugins/distrib/distrib.c
 
 libdistrib_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libdistrib_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libhttp-client-plugin
@@ -564,6 +566,7 @@ libhttp_client_plugin_la_SOURCES = ldap/servers/plugins/http/http_client.c \
 	ldap/servers/plugins/http/http_impl.c
 
 libhttp_client_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libhttp_client_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libcollation-plugin
@@ -574,6 +577,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
 
 libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
 libcollation_plugin_la_LIBADD = $(ICU_LINK)
+libcollation_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpam-passthru-plugin
@@ -585,6 +589,7 @@ libpam_passthru_plugin_la_SOURCES = ldap/servers/plugins/pam_passthru/pam_ptconf
 
 libpam_passthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpam_passthru_plugin_la_LIBADD = $(PAM_LINK)
+libpam_passthru_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpassthru-plugin
@@ -597,6 +602,7 @@ libpassthru_plugin_la_SOURCES = ldap/servers/plugins/passthru/ptbind.c \
 	ldap/servers/plugins/passthru/ptutil.c
 
 libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libpassthru_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpresence-plugin
@@ -604,6 +610,7 @@ libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpresence_plugin_la_SOURCES = ldap/servers/plugins/presence/presence.c
 
 libpresence_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/http $(PLUGIN_CPPFLAGS)
+libpresence_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpwdstorage-plugin
@@ -618,6 +625,7 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 	ldap/servers/plugins/pwdstorage/ssha_pwd.c
 
 libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libpwdstorage_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libreferint-plugin
@@ -625,6 +633,7 @@ libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libreferint_plugin_la_SOURCES = ldap/servers/plugins/referint/referint.c
 
 libreferint_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libreferint_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libreplication-plugin
@@ -686,6 +695,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 
 libreplication_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@ @db_inc@
 libreplication_plugin_la_LIBADD = $(ICU_LINK) $(DB_LINK)
+libreplication_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libretrocl-plugin
@@ -698,6 +708,7 @@ libretrocl_plugin_la_SOURCES = ldap/servers/plugins/retrocl/retrocl.c \
 	ldap/servers/plugins/retrocl/retrocl_trim.c
 
 libretrocl_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libretrocl_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libroles-plugin
@@ -706,6 +717,7 @@ libroles_plugin_la_SOURCES = ldap/servers/plugins/roles/roles_cache.c \
 	ldap/servers/plugins/roles/roles_plugin.c
 
 libroles_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libroles_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libstatechange-plugin
@@ -713,6 +725,7 @@ libroles_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libstatechange_plugin_la_SOURCES = ldap/servers/plugins/statechange/statechange.c
 
 libstatechange_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libstatechange_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libsyntax-plugin
@@ -730,6 +743,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/value.c
 
 libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libsyntax_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libviews-plugin
@@ -737,6 +751,7 @@ libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libviews_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdna-plugin
@@ -744,6 +759,7 @@ libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
 
 libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libdna_plugin_la_LDFLAGS = -avoid-version
 
 
 #////////////////////////////////////////////////////////////////
@@ -911,6 +927,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 # LD_LIBRARY_PATH = /usr/lib/fedora-ds
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
+	-e 's,@sbindir\@,$(sbindir),g' \
 	-e 's,@libdir\@,$(libdir),g' \
 	-e 's,@nspr_libdir\@,$(nspr_libdir),g' \
 	-e 's,@nss_libdir\@,$(nss_libdir),g' \

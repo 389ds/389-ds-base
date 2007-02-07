@@ -1,11 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
-export LD_LIBRARY_PATH
-SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
-export SHLIB_PATH
-
 # Script that stops the ns-slapd server.
 # Exit status can be:
 #       0: Server stopped successfully

@@ -4,7 +4,7 @@ prefix="{{DS-ROOT}}"
 if [ "$prefix" = "/" ] ; then
     prefix=""
 fi
-LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix@libdir@
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@
 if [ -n "$prefix" ] ; then
     LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
 fi
@@ -12,7 +12,7 @@ export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
-cd {{SERVER-DIR}}
+cd {{SERVERBIN-DIR}}
 if [ "$#" -lt 2 ];
 then
 	echo "Usage: db2ldif {-n backend_instance}* | {-s includesuffix}*"
@@ -37,7 +37,7 @@ do
 done
 if [ $ldif_file = "mydummy" ]
 then
-	ldif_file={{LDIF-DIR}}/laputa-`date +%Y_%m_%d_%H%M%S`.ldif
+	ldif_file={{LDIF-DIR}}/`date +%Y_%m_%d_%H%M%S`.ldif
 fi
 if [ $set_ldif -eq 2 ]
 then

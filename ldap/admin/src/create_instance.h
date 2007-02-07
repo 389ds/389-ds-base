@@ -74,6 +74,9 @@ extern "C" {            /* Assume C declarations for C++ */
 #ifndef BINDIR
 #define BINDIR          "/usr/bin"
 #endif
+#ifndef SBINDIR
+#define SBINDIR         "/usr/sbin"
+#endif
 #ifndef DATADIR
 #define DATADIR         "/usr/share"
 #endif
@@ -86,6 +89,9 @@ extern "C" {            /* Assume C declarations for C++ */
 #endif
 #ifndef BINDIR
 #define BINDIR          "/bin"
+#endif
+#ifndef SBINDIR
+#define SBINDIR         "/sbin"
 #endif
 #ifndef DATADIR
 #define DATADIR         "/share"
@@ -101,6 +107,7 @@ extern "C" {            /* Assume C declarations for C++ */
 #define SYSCONFDIR      "\\etc"
 #define LIBDIR          "\\usr\\lib"
 #define BINDIR          "\\usr\\bin"
+#define SBINDIR         "\\usr\\sbin"
 #define DATADIR         "\\usr\\share"
 #define DOCDIR          "\\usr\\doc"
 #endif
@@ -110,6 +117,7 @@ typedef struct {
     char *localstatedir;
     char *sysconfdir;
     char *bindir;
+    char *sbindir;
     char *datadir;
     char *docdir;
 

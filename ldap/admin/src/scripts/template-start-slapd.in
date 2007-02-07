@@ -1,9 +1,9 @@
 #!/bin/sh
 
 prefix="{{DS-ROOT}}"
-LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
+LD_LIBRARY_PATH=$prefix{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export LD_LIBRARY_PATH
-SHLIB_PATH=$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
+SHLIB_PATH=$prefix{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export SHLIB_PATH
 
 # Script that starts the ns-slapd server.
@@ -12,8 +12,6 @@ export SHLIB_PATH
 #       1: Server could not be started
 #       2: Server already running
 
-NETSITE_ROOT={{SERVER-DIR}}
-export NETSITE_ROOT
 DS_CONFIG_DIR={{CONFIG-DIR}}
 export DS_CONFIG_DIR
 PIDFILE={{RUN-DIR}}/{{PRODUCT-NAME}}-{{SERV-ID}}.pid
@@ -36,7 +34,7 @@ if test -f $PIDFILE ; then
         rm -f $PIDFILE
     fi
 fi
-cd {{SERVER-DIR}}; ./ns-slapd -D {{CONFIG-DIR}} -i $PIDFILE -w $STARTPIDFILE "$@"
+cd {{SERVERBIN-DIR}}; ./ns-slapd -D {{CONFIG-DIR}} -i $PIDFILE -w $STARTPIDFILE "$@"
 if [ $? -ne 0 ]; then
     exit 1
 fi

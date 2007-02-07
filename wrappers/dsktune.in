@@ -5,7 +5,7 @@
 ###############################################################################
 
 LIB_DIR=
-BIN_DIR=@serverdir@
+BIN_DIR=@bindir@
 COMMAND=dsktune-bin
 
 

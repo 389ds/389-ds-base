@@ -74,7 +74,7 @@ db_libver=${db_ver_maj}.${db_ver_min}
 dnl make sure the lib is available
 dnl use true so libdb won't be added to LIBS
 save_ldflags="$LDFLAGS"
-LDFLAGS="$db_lib"
+LDFLAGS="$db_lib $LDFLAGS"
 AC_CHECK_LIB([db-$db_libver], [db_create], [true],
   [AC_MSG_ERROR([$db_incdir/db.h is version $db_libver but libdb-$db_libver not found])],
   [$LIBNSL])

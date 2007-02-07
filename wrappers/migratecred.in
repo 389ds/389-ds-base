@@ -4,8 +4,8 @@
 ##  (1) Specify variables used by this script.                               ##
 ###############################################################################
 
-LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@
-BIN_DIR=@serverdir@
+LIB_DIR=@serverdir@:@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@
+BIN_DIR=@bindir@
 COMMAND=migratecred-bin
 
 

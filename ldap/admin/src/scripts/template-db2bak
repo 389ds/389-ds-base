@@ -1,12 +1,12 @@
 #!/bin/sh
 
 prefix="{{DS-ROOT}}"
-LD_LIBRARY_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
 export LD_LIBRARY_PATH
-SHLIB_PATH=$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
+SHLIB_PATH=$prefix/{{SERVER-DIR}}:$prefix/usr/lib/dirsec:$prefix/usr/lib:/usr/lib/dirsec
 export SHLIB_PATH
 
-cd {{SERVER-DIR}}
+cd {{SERVERBIN-DIR}}
 if [ "$#" -eq 1 ]
 then
 	bak_dir=$1

@@ -4,7 +4,7 @@ prefix="{{DS-ROOT}}"
 if [ "$prefix" = "/" ] ; then
     prefix=""
 fi
-LD_LIBRARY_PATH=$prefix@nss_libdir@:$prefix@libdir@
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@
 if [ -n "$prefix" ] ; then
     LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
 fi
@@ -36,7 +36,7 @@ else
     archivedir=`pwd`/$archivedir
 fi
 
-cd {{SERVER-DIR}}
+cd {{SERVERBIN-DIR}}
 if [ "$#" -eq 2 ]
 then
     ./ns-slapd archive2db -D {{CONFIG-DIR}} -a $archivedir -n $bename

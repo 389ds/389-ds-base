@@ -312,6 +312,7 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
 
     conf->bak_dir = NULL;
     conf->config_dir = NULL;
+    conf->sbindir = NULL;
     conf->datadir = NULL;
     conf->db_dir = NULL;
     conf->docdir = NULL;
@@ -700,7 +701,7 @@ char *gen_script_auto(char *s_root, char *cs_path,
 {
     char myperl[PATH_SIZE];
     char fn[PATH_SIZE], ofn[PATH_SIZE];
-    const char *table[16][2];
+    const char *table[17][2];
 
     if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
         printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
@@ -756,7 +757,9 @@ char *gen_script_auto(char *s_root, char *cs_path,
     table[13][1] = cf->run_dir;
     table[14][0] = "PRODUCT-NAME";
     table[14][1] = PRODUCT_NAME;
-    table[15][0] = table[15][1] = NULL;
+    table[15][0] = "SERVERBIN-DIR";
+    table[15][1] = cf->sbindir;
+    table[16][0] = table[16][1] = NULL;
 
     if (generate_script(ofn, fn, NEWSCRIPT_MODE, table) != 0) {
         return make_error("Could not write %s to %s (%s).", ofn, fn,
@@ -3219,7 +3222,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "objectclass: nsSlapdPlugin\n");
     fprintf(f, "objectclass: extensibleObject\n");
     fprintf(f, "cn: ldbm database\n");
-    fprintf(f, "nsslapd-pluginpath: %s/libback-ldbm%s\n", cf->sroot, shared_lib);
+    fprintf(f, "nsslapd-pluginpath: %s/libback-ldbm%s\n", cf->plugin_dir, shared_lib);
     fprintf(f, "nsslapd-plugininitfunc: ldbm_back_init\n");
     fprintf(f, "nsslapd-plugintype: database\n");
     fprintf(f, "nsslapd-pluginenabled: on\n");
@@ -4229,6 +4232,7 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
  * cf->localstatedir: %{_localstatedir}
  * cf->sysconfdir: %{_sysconfdir}
  * cf->bindir: %{_bindir}
+ * cf->sbindir: %{_sbindir}
  * cf->datadir: %{_datadir}
  * cf->docdir: %{_docdir}
  * cf->inst_dir: <sroot>/slapd-<servid>
@@ -4461,6 +4465,7 @@ int parse_form(server_config_s *cf)
     cf->localstatedir = set_path_attribute("localstatedir", LOCALSTATEDIR, prefix);
     cf->sysconfdir = set_path_attribute("sysconfdir", SYSCONFDIR, prefix);
     cf->bindir = set_path_attribute("bindir", BINDIR, prefix);
+    cf->sbindir = set_path_attribute("sbindir", SBINDIR, prefix);
     cf->datadir = set_path_attribute("datadir", DATADIR, prefix);
     cf->docdir = set_path_attribute("docdir", DOCDIR, prefix);
 

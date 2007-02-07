@@ -190,6 +190,7 @@ $cgiargs{"cert_dir"} = $table{"slapd"}->{"cert_dir"};
 $cgiargs{"localstatedir"} = $table{"slapd"}->{"localstatedir"};
 $cgiargs{"sysconfdir"} = $table{"slapd"}->{"sysconfdir"};
 $cgiargs{"bindir"} = $table{"slapd"}->{"bindir"};
+$cgiargs{"sbindir"} = $table{"slapd"}->{"sbindir"};
 $cgiargs{"datadir"} = $table{"slapd"}->{"datadir"};
 $cgiargs{"docdir"} = $table{"slapd"}->{"docdir"};
 $cgiargs{"inst_dir"} = $table{"slapd"}->{"inst_dir"};
@@ -253,9 +254,13 @@ $cgiargs{start_server} = 1;
 
 my $sroot = $cgiargs{sroot};
 
+my $prog = "@bindir@/ds_newinst";
+if (! -x $prog) {
+    $prog = "@libdir@/$brand_ds/ds_newinst";
+}
+
 my $rc = &cgiFake($sroot, $verbose,
-				  "@libdir@/$brand_ds/ds_newinst",
-				  \%cgiargs);
+				  $prog, \%cgiargs);
 
 if (!$rc) {
 	print "Success!  Your new directory server instance was created\n";
