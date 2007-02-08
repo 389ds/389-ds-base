@@ -166,7 +166,6 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-repl-monitor-cgi.pl \
 	ldap/admin/src/scripts/template-repl-monitor.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	$(srcdir)/ldap/admin/src/scripts/template-migrate5to7 \

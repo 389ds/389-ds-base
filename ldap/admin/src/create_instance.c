@@ -1737,8 +1737,10 @@ ds_cre_subdirs(server_config_s *cf, struct passwd* pw)
     gen_script_auto(mysroot, mycs_path, "verify-db.pl", cf)
 
 /* tentatively moved to mycs_path */
+#ifdef MOVE_TO_ADMIN_SERVER
 #define CREATE_REPL_MONITOR_CGI() \
     gen_script_auto(mysroot, mycs_path, "repl-monitor-cgi.pl", cf)
+#endif
 
 #define CREATE_ACCOUNT_INACT(_commandName) \
     gen_script_auto(mysroot, cs_path, _commandName, cf)
@@ -1897,8 +1899,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     t = CREATE_VERIFYDB();
     if(t) return t;
 
+#ifdef MOVE_TO_ADMIN_SERVER
     t = CREATE_REPL_MONITOR_CGI();
     if(t) return t;
+#endif
 
     t = CREATE_ACCOUNT_INACT("ns-inactivate.pl");
     if(t) return t;
@@ -2410,8 +2414,10 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     t = CREATE_VERIFYDB();
     if(t) return t;
 
+#ifdef MOVE_TO_ADMIN_SERVER
     t = CREATE_REPL_MONITOR_CGI();
     if(t) return t;
+#endif
 
     t = gen_script(cs_path, "suffix2instance.bat",
            "@if not \"%%echo%%\" == \"on\" echo off\n\n"
@@ -4479,8 +4485,8 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("config_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->config_dir = PR_smprintf("%s%clib%c%s%c%s-%s",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+        cf->config_dir = PR_smprintf("%s%c%s%c%s-%s",
+                            cf->sysconfdir, FILE_PATHSEP,
                             cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
@@ -4492,8 +4498,8 @@ int parse_form(server_config_s *cf)
     cf->schema_dir = ds_a_get_cgi_var("schema_dir", NULL, NULL);
     temp = ds_a_get_cgi_var("schema_dir", NULL, NULL);
     if (NULL == temp) {
-        cf->schema_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cschema",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+        cf->schema_dir = PR_smprintf("%s%c%s%c%s-%s%cschema",
+                            cf->sysconfdir, FILE_PATHSEP,
                             cf->brand_ds, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
