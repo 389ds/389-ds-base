@@ -59,6 +59,19 @@ AC_ARG_ENABLE(debug, [  --enable-debug         Enable debug features],
 ])
 AC_SUBST([debug_defs])
 
+# Used for legacy style packaging where we bundle all of the dependencies.
+AC_MSG_CHECKING(for --enable-bundle)
+AC_ARG_ENABLE(bundle, [  --enable-bundle      Enable bundled dependencies],
+[
+  AC_MSG_RESULT(yes)
+  bundle="1";
+],
+[
+  AC_MSG_RESULT(no)
+  bundle="";
+])
+AM_CONDITIONAL(BUNDLE,test "$bundle" = "1")
+
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
 # installation paths - by default, configure will just

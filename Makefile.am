@@ -927,6 +927,30 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 # LD_LIBRARY_PATH = ${prefix}/lib/fedora-ds
 # i.e. it literally copies in '${prefix}' rather than expanding it out - we want this instead:
 # LD_LIBRARY_PATH = /usr/lib/fedora-ds
+if BUNDLE
+fixupcmd = sed \
+	-e 's,@bindir\@,$(bindir),g' \
+	-e 's,@sbindir\@,$(sbindir),g' \
+	-e 's,@libdir\@,$(libdir),g' \
+	-e 's,@nspr_libdir\@,$(libdir),g' \
+	-e 's,@nss_libdir\@,$(libdir),g' \
+	-e 's,@ldapsdk_libdir\@,$(libdir),g' \
+	-e 's,@ldapsdk_bindir\@,$(bindir),g' \
+	-e 's,@db_libdir\@,$(libdir),g' \
+	-e 's,@db_bindir\@,$(bindir),g' \
+	-e 's,@sasl_libdir\@,$(libdir),g' \
+	-e 's,@netsnmp_libdir\@,$(libdir),g' \
+	-e 's,@propertydir\@,$(propertydir),g' \
+	-e 's,@datadir\@,$(datadir),g' \
+	-e 's,@schemadir\@,$(schemadir),g' \
+	-e 's,@serverdir\@,$(serverdir),g' \
+	-e 's,@serverplugindir\@,$(serverplugindir),g' \
+	-e 's,@taskdir\@,$(taskdir),g' \
+	-e 's,@configdir\@,$(configdir),g' \
+	-e 's,@sysconfdir\@,$(sysconfdir),g' \
+	-e 's,@localstatedir\@,$(localstatedir),g' \
+	-e 's,@package_name\@,$(PACKAGE_NAME),g'
+else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
 	-e 's,@sbindir\@,$(sbindir),g' \
@@ -949,6 +973,7 @@ fixupcmd = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g'
+endif
 
 %: %.in
 	mkdir -p $(dir $@)
