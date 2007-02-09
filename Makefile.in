@@ -94,9 +94,9 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" \
-	"$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(taskdir)" \
+	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -677,8 +677,9 @@ rsearch_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+initSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 taskSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(bin_SCRIPTS) $(task_SCRIPTS)
+SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(task_SCRIPTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -879,6 +880,7 @@ icu_inc = @icu_inc@
 icu_lib = @icu_lib@
 includedir = @includedir@
 infodir = @infodir@
+initdir = $(sysconfdir)@initdir@
 install_sh = @install_sh@
 ldapsdk_bindir = @ldapsdk_bindir@
 ldapsdk_inc = @ldapsdk_inc@
@@ -1059,6 +1061,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateInstance7 \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
 
+init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1805,7 +1808,10 @@ fixupcmd = sed \
 	-e 's,@serverdir\@,$(serverdir),g' \
 	-e 's,@serverplugindir\@,$(serverplugindir),g' \
 	-e 's,@taskdir\@,$(taskdir),g' \
-	-e 's,@configdir\@,$(configdir),g'
+	-e 's,@configdir\@,$(configdir),g' \
+	-e 's,@sysconfdir\@,$(sysconfdir),g' \
+	-e 's,@localstatedir\@,$(localstatedir),g' \
+	-e 's,@package_name\@,$(PACKAGE_NAME),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -3611,6 +3617,25 @@ uninstall-binSCRIPTS:
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
 	  echo " rm -f '$(DESTDIR)$(bindir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(bindir)/$$f"; \
+	done
+install-initSCRIPTS: $(init_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(initdir)" || $(mkdir_p) "$(DESTDIR)$(initdir)"
+	@list='$(init_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(initSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(initdir)/$$f'"; \
+	    $(initSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(initdir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-initSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(init_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(initdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(initdir)/$$f"; \
 	done
 install-taskSCRIPTS: $(task_SCRIPTS)
 	@$(NORMAL_INSTALL)
@@ -8826,7 +8851,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -8952,10 +8977,10 @@ info: info-am
 
 info-am:
 
-install-data-am: install-configDATA install-nodist_propertyDATA \
-	install-sampledataDATA install-schemaDATA \
-	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
-	install-taskSCRIPTS
+install-data-am: install-configDATA install-initSCRIPTS \
+	install-nodist_propertyDATA install-sampledataDATA \
+	install-schemaDATA install-serverLTLIBRARIES \
+	install-serverpluginLTLIBRARIES install-taskSCRIPTS
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS \
 	install-sbinPROGRAMS
@@ -8987,7 +9012,7 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
-	uninstall-configDATA uninstall-info-am \
+	uninstall-configDATA uninstall-info-am uninstall-initSCRIPTS \
 	uninstall-nodist_propertyDATA uninstall-sampledataDATA \
 	uninstall-sbinPROGRAMS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
@@ -9004,7 +9029,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	dvi-am html html-am info info-am install install-am \
 	install-binPROGRAMS install-binSCRIPTS install-configDATA \
 	install-data install-data-am install-exec install-exec-am \
-	install-info install-info-am install-man \
+	install-info install-info-am install-initSCRIPTS install-man \
 	install-nodist_propertyDATA install-sampledataDATA \
 	install-sbinPROGRAMS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
@@ -9013,7 +9038,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
-	uninstall-configDATA uninstall-info-am \
+	uninstall-configDATA uninstall-info-am uninstall-initSCRIPTS \
 	uninstall-nodist_propertyDATA uninstall-sampledataDATA \
 	uninstall-sbinPROGRAMS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
@@ -9034,6 +9059,9 @@ ns-slapd.properties: makstrdb
 
 %: %.in
 	mkdir -p $(dir $@)
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME): %/initscript.in
 	$(fixupcmd) $^ > $@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

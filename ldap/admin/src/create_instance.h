@@ -54,8 +54,8 @@
 extern "C" {            /* Assume C declarations for C++ */
 #endif  /* __cplusplus */
 
-#ifndef BRAND_DS
-#define BRAND_DS        "fedora-ds"
+#ifndef PACKAGE_NAME
+#define PACKAGE_NAME    "fedora-ds"
 #endif
 
 #ifdef XP_UNIX
@@ -121,7 +121,7 @@ typedef struct {
     char *datadir;
     char *docdir;
 
-    char *brand_ds;
+    char *package_name;
     char *lang;
 
     char *servname;

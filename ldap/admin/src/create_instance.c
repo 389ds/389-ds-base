@@ -709,7 +709,7 @@ char *gen_script_auto(char *s_root, char *cs_path,
     }
 
     PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
-            cf->datadir, FILE_PATHSEP, cf->brand_ds,
+            cf->datadir, FILE_PATHSEP, cf->package_name,
             FILE_PATHSEP, FILE_PATHSEP, name);
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
     create_instance_mkdir(cs_path, NEWDIR_MODE);
@@ -724,7 +724,7 @@ char *gen_script_auto(char *s_root, char *cs_path,
     table[0][0] = "DS-ROOT";
     table[0][1] = cf->prefix;
     table[1][0] = "DS-BRAND";
-    table[1][1] = cf->brand_ds;
+    table[1][1] = cf->package_name;
     table[2][0] = "SEP";
     table[2][1] = FILE_PATHSEPP;
     table[3][0] = "SERVER-NAME";
@@ -3419,13 +3419,13 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
 
     /* install certmap.conf at <configdir> */
     PR_snprintf(src, sizeof(src), "%s%c%s%c/config/certmap.conf",
-                cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
+                cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
     PR_snprintf(dest, sizeof(dest), "%s/certmap.conf", cf->config_dir);
     create_instance_copy(src, dest, 0600, 0 );
 
     /* generate <confdir>/slapd-collations.conf */
     PR_snprintf(src, sizeof(src), "%s%c%s%c/config/%s-collations.conf",
-                cf->sysconfdir, FILE_PATHSEP, cf->brand_ds,
+                cf->sysconfdir, FILE_PATHSEP, cf->package_name,
                 FILE_PATHSEP, PRODUCT_NAME);
     PR_snprintf(dest, sizeof(dest), "%s%c%s-collations.conf",
             cf->config_dir, FILE_PATHSEP, PRODUCT_NAME);
@@ -3448,16 +3448,16 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fclose(f);
 
     /*
-     * <sysconfdir>/BRAND_DS/schema to schema_dir
+     * <sysconfdir>/PACKAGE_NAME/schema to schema_dir
      */
     PR_snprintf(src, sizeof(src), "%s%c%s%cschema", 
-        cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
+        cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
     if (NULL != (t = ds_copy_group_files_using_mode_owner(src, cf->schema_dir, 0, NEWFILE_MODE, pw)))
         return t;
         
 #if defined (BUILD_PRESENCE)
     PR_snprintf(src, sizeof(src), "%s%c%s%c/config/presence",
-                cf->sysconfdir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
+                cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
     PR_snprintf(dest, sizeof(dest), "%s/presence", cf->config_dir);
     if (t = ds_copy_group_files(src, dest, 0))
         return t;
@@ -4234,7 +4234,7 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
 /*
  * FHS description
  * cf->prefix: %{_prefix} 
- * cf->sroot: %{_libdir}/BRAND_DS 
+ * cf->sroot: %{_libdir}/PACKAGE_NAME 
  * cf->localstatedir: %{_localstatedir}
  * cf->sysconfdir: %{_sysconfdir}
  * cf->bindir: %{_bindir}
@@ -4242,16 +4242,16 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
  * cf->datadir: %{_datadir}
  * cf->docdir: %{_docdir}
  * cf->inst_dir: <sroot>/slapd-<servid>
- * cf->config_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>
- * cf->schema_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>/schema
- * cf->lock_dir: <localstatedir>/lock/BRAND_DS/slapd-<servid>
- * cf->log_dir: <localstatedir>/log/BRAND_DS/slapd-<servid>
- * cf->run_dir: <localstatedir>/run/BRAND_DS (slapd-instance.pid slapd-instance.startpid files)
- * cf->db_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>/db
- * cf->bak_dir: <localstatedir>/lib/BRAND_DS/slapd-<servid>/bak
- * cf->tmp_dir: <localstatedir>/tmp/BRAND_DS/slapd-<servid>
+ * cf->config_dir: <localstatedir>/lib/PACKAGE_NAME/slapd-<servid>
+ * cf->schema_dir: <localstatedir>/lib/PACKAGE_NAME/slapd-<servid>/schema
+ * cf->lock_dir: <localstatedir>/lock/PACKAGE_NAME/slapd-<servid>
+ * cf->log_dir: <localstatedir>/log/PACKAGE_NAME/slapd-<servid>
+ * cf->run_dir: <localstatedir>/run/PACKAGE_NAME (slapd-instance.pid slapd-instance.startpid files)
+ * cf->db_dir: <localstatedir>/lib/PACKAGE_NAME/slapd-<servid>/db
+ * cf->bak_dir: <localstatedir>/lib/PACKAGE_NAME/slapd-<servid>/bak
+ * cf->tmp_dir: <localstatedir>/tmp/PACKAGE_NAME/slapd-<servid>
  * cf->ldif_dir: <datadir>/<brand-ds>/ldif
- * cf->cert_dir: <sysconfdir>/BRAND_DS/slapd-<servid>
+ * cf->cert_dir: <sysconfdir>/PACKAGE_NAME/slapd-<servid>
  * cf->sasl_path: <sroot>/sasl2
  * cf->plugin_dir: <sroot>/plugins
  *
@@ -4274,7 +4274,7 @@ int parse_form(server_config_s *cf)
     int prefixlen = 0;
     LDAPURLDesc *desc = 0;
 
-    cf->brand_ds = BRAND_DS;
+    cf->package_name = PACKAGE_NAME;
     if (rm && qs && !strcmp(rm, "GET"))
     {
         ds_get_begin(qs);
@@ -4301,7 +4301,7 @@ int parse_form(server_config_s *cf)
     }
 
     cf->sroot = PR_smprintf("%s%s%c%s",
-                prefix, LIBDIR, FILE_PATHSEP, cf->brand_ds);
+                prefix, LIBDIR, FILE_PATHSEP, cf->package_name);
     temp = ds_a_get_cgi_var("sasl_path", NULL, NULL);
     if (NULL != temp) {
         /* if sasl_path is given, we set it in the conf file regardless of
@@ -4487,7 +4487,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->config_dir = PR_smprintf("%s%c%s%c%s-%s",
                             cf->sysconfdir, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->config_dir = PL_strdup(temp);
@@ -4500,7 +4500,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->schema_dir = PR_smprintf("%s%c%s%c%s-%s%cschema",
                             cf->sysconfdir, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
         cf->schema_dir = PL_strdup(temp);
@@ -4510,7 +4510,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->lock_dir = PR_smprintf("%s%clock%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->lock_dir = PL_strdup(temp);
@@ -4520,7 +4520,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->log_dir = PR_smprintf("%s%clog%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->log_dir = PL_strdup(temp);
@@ -4530,7 +4530,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->run_dir = PR_smprintf("%s%crun%c%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->brand_ds);
+                            cf->package_name);
     } else {
         cf->run_dir = PL_strdup(temp);
     }
@@ -4541,7 +4541,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->db_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cdb",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
         cf->db_dir = PL_strdup(temp);
@@ -4551,7 +4551,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->bak_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cbak",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
     } else {
         cf->bak_dir = PL_strdup(temp);
@@ -4562,7 +4562,7 @@ int parse_form(server_config_s *cf)
     temp = ds_a_get_cgi_var("ldif_dir", NULL, NULL);
     if (NULL == temp) {
         cf->ldif_dir = PR_smprintf("%s%c%s%cldif",
-                            cf->datadir, FILE_PATHSEP, cf->brand_ds, FILE_PATHSEP);
+                            cf->datadir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
     } else {
         cf->ldif_dir = PL_strdup(temp);
     }
@@ -4571,7 +4571,7 @@ int parse_form(server_config_s *cf)
     if (NULL == temp) {
         cf->tmp_dir = PR_smprintf("%s%ctmp%c%s%c%s-%s",
                             cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->brand_ds, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid);
     } else {
         cf->tmp_dir = PL_strdup(temp);

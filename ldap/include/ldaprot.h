@@ -47,10 +47,18 @@
 extern "C" {
 #endif
 
+#ifndef LDAP_VERSION1
 #define LDAP_VERSION1	1
+#endif
+#ifndef LDAP_VERSION2
 #define LDAP_VERSION2	2
+#endif
+#ifndef LDAP_VERSION3
 #define LDAP_VERSION3	3
+#endif
+#ifndef LDAP_VERSION
 #define LDAP_VERSION	LDAP_VERSION2
+#endif
 
 #define COMPAT20
 #define COMPAT30

@@ -165,7 +165,7 @@ close IN;
 # next, construct a hash table with our arguments
 
 my %cgiargs = ();
-my $brand_ds = "fedora-ds";
+my $package_name = "@package_name@";
 
 # the following items are always required
 addAndCheck(\%cgiargs, "sroot", \%table, "General", "ServerRoot");
@@ -238,8 +238,8 @@ if ($table{General}->{prefix}) {
 }
 $cgiargs{prefix} = $prefix;
 
-if ($table{General}->{BrandDs}) {
-	$brand_ds = $table{General}->{BrandDs};
+if ($table{General}->{PackageName}) {
+	$package_name = $table{General}->{PackageName};
 }
 
 # populate the DS with this file - the suffix in this file must
@@ -256,7 +256,7 @@ my $sroot = $cgiargs{sroot};
 
 my $prog = "@bindir@/ds_newinst";
 if (! -x $prog) {
-    $prog = "@libdir@/$brand_ds/ds_newinst";
+    $prog = "@libdir@/$package_name/ds_newinst";
 }
 
 my $rc = &cgiFake($sroot, $verbose,

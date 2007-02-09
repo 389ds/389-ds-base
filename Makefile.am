@@ -66,6 +66,7 @@ schemadir = $(sysconfdir)@schemadir@
 serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
+initdir = $(sysconfdir)@initdir@
 
 #------------------------
 # Build Products
@@ -172,6 +173,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	$(srcdir)/ldap/admin/src/scripts/template-migrate6to7 \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateInstance7 \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
+
+init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
 #////////////////////////////////////////////////////////////////
 #
@@ -942,8 +945,14 @@ fixupcmd = sed \
 	-e 's,@serverdir\@,$(serverdir),g' \
 	-e 's,@serverplugindir\@,$(serverplugindir),g' \
 	-e 's,@taskdir\@,$(taskdir),g' \
-	-e 's,@configdir\@,$(configdir),g'
+	-e 's,@configdir\@,$(configdir),g' \
+	-e 's,@sysconfdir\@,$(sysconfdir),g' \
+	-e 's,@localstatedir\@,$(localstatedir),g' \
+	-e 's,@package_name\@,$(PACKAGE_NAME),g'
 
 %: %.in
 	mkdir -p $(dir $@)
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME): %/initscript.in
 	$(fixupcmd) $^ > $@

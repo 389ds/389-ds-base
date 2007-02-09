@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-AC_INIT([fedora-ds], [1.1], [http://bugzilla.redhat.com/])
+AC_INIT([fedora-ds], [1.1.0], [http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
@@ -59,7 +59,7 @@ AC_ARG_ENABLE(debug, [  --enable-debug         Enable debug features],
 ])
 AC_SUBST([debug_defs])
 
-AC_PREFIX_DEFAULT([/opt/fedora-ds])
+AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
 # installation paths - by default, configure will just
 # use /usr as the prefix for everything, which means
@@ -75,19 +75,19 @@ dnl as opposed to the default /usr/var
 fi
 
 # relative to sysconfdir
-configdir=/fedora-ds/config
+configdir=/$PACKAGE_NAME/config
 # relative to datadir
-sampledatadir=/fedora-ds/data
+sampledatadir=/$PACKAGE_NAME/data
 # relative to sysconfdir
-propertydir=/fedora-ds/property
+propertydir=/$PACKAGE_NAME/property
 # relative to sysconfdir
-schemadir=/fedora-ds/schema
+schemadir=/$PACKAGE_NAME/schema
 # relative to libdir
-serverdir=/fedora-ds
+serverdir=/$PACKAGE_NAME
 # relative to libdir
-serverplugindir=/fedora-ds/plugins
+serverplugindir=/$PACKAGE_NAME/plugins
 # relative to datadir
-scripttemplatedir=/fedora-ds/script-templates
+scripttemplatedir=/$PACKAGE_NAME/script-templates
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
@@ -101,6 +101,8 @@ AC_SUBST(scripttemplatedir)
 AM_CONDITIONAL([WINNT], false)
 
 # Deal with platform dependent defines
+# relative to sysconfdir
+initdir=/rc.d
 case $host in
   *-*-linux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -110,6 +112,8 @@ case $host in
     AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
     AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
     platform="linux"
+    # relative to sysconfdir
+    initdir=/rc.d/init.d
     ;;
   ia64-hp-hpux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -150,11 +154,14 @@ case $host in
     LIBDL=-ldl
     AC_SUBST([LIBDL], [$LIBDL])
     platform="solaris"
+    # relative to sysconfdir
+    initdir=/init.d
     ;;
   *)
     platform=""
     ;;
 esac
+AC_SUBST(initdir)
 
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
 
