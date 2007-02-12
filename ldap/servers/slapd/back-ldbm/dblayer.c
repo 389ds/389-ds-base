@@ -122,8 +122,6 @@
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
 #define DB_ENV_SET_REGION_INIT(env) (env)->set_flags((env), DB_REGION_INIT, 1)
-#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
-    (env)->set_tas_spins((env), (tas_spins))
 #define TXN_BEGIN(env, parent_txn, tid, flags) \
     (env)->txn_begin((env), (parent_txn), (tid), (flags))
 #define TXN_COMMIT(txn, flags) (txn)->commit((txn), (flags))
@@ -139,7 +137,13 @@
 #define LOG_FLUSH(env, lsn) (env)->log_flush((env), (lsn))
 #define LOCK_DETECT(env, flags, atype, aborted) \
     (env)->lock_detect((env), (flags), (atype), (aborted))
-
+#if DB_VERSION_MINOR >= 4 /* i.e. 4.4 or later */
+#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
+    (env)->mutex_set_tas_spins((env), (tas_spins))
+#else /* < 4.4 */
+#define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
+    (env)->set_tas_spins((env), (tas_spins))
+#endif /* 4.4 or later */
 #else    /* older than db 4.0 */
 #define DB_ENV_SET_REGION_INIT(env) db_env_set_region_init(1)
 #define DB_ENV_SET_TAS_SPINS(env, tas_spins) \

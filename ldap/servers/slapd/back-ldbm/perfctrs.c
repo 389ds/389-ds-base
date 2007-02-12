@@ -53,6 +53,11 @@
 #define LOG_STAT(env, spp, flags, malloc) (env)->log_stat((env), (spp), (flags))
 #define LOCK_STAT(env, statp, flags, malloc) \
 	(env)->lock_stat((env), (statp), (flags))
+#if DB_VERSION_MINOR >= 4 /* i.e. 4.4 or later */
+#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_lock_wait
+#else
+#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts
+#endif
 
 #else	/* older than db 4.0 */
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
@@ -60,13 +65,14 @@
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) memp_stat((env), (gsp), (fsp))
 #define LOG_STAT(env, spp, flags, malloc) log_stat((env), (spp))
 #define LOCK_STAT(env, statp, flags, malloc) lock_stat((env), (statp))
-
+#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts
 #else	/* older than db 3.3 */
 #define TXN_STAT(env, statp, flags, malloc) txn_stat((env), (statp), (malloc))
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) 
 	memp_stat((env), (gsp), (fsp), (malloc))
 #define LOG_STAT(env, spp, flags, malloc) log_stat((env), (spp), (malloc))
 #define LOCK_STAT(env, statp, flags, malloc) lock_stat((env), (statp), (malloc))
+#define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts
 #endif
 #endif
 
@@ -312,7 +318,7 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 			perf->current_locks = lockstat->st_nlocks;
 			perf->max_locks = lockstat->st_maxnlocks;
 			perf->lockers = lockstat->st_nlockers;
-			perf->lock_conflicts = lockstat->st_nconflicts;
+			perf->lock_conflicts = GET_N_LOCK_WAITS(lockstat);
 			perf->lock_request_rate = lockstat->st_nrequests;			
 			perf->current_lock_objects = lockstat->st_nobjects;
 			perf->max_lock_objects = lockstat->st_maxnobjects;
