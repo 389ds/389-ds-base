@@ -74,6 +74,8 @@ AM_CONDITIONAL(BUNDLE,test "$bundle" = "1")
 
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
+m4_include(m4/fhs.m4)
+
 # installation paths - by default, configure will just
 # use /usr as the prefix for everything, which means
 # /usr/etc and /usr/var.  FHS sez to use /etc and /var.
@@ -101,6 +103,7 @@ serverdir=/$PACKAGE_NAME
 serverplugindir=/$PACKAGE_NAME/plugins
 # relative to datadir
 scripttemplatedir=/$PACKAGE_NAME/script-templates
+
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
@@ -108,6 +111,23 @@ AC_SUBST(schemadir)
 AC_SUBST(serverdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
+
+AC_CHECKING(for instconfigdir)
+
+# check for --with-instconfigdir
+AC_MSG_CHECKING(for --with-instconfigdir)
+AC_ARG_WITH(instconfigdir, [  --with-instconfigdir=/path   Base directory for instance specific writable configuration directories (default $sysconfdir/$PACKAGE_NAME)],
+[
+  if test $withval = yes ; then
+     AC_ERROR([Please specify a full path with --with-instconfigdir])
+  fi
+  instconfigdir="$withval"
+],
+[
+  dnl this value is expanded out in Makefile.am
+  instconfigdir='$(sysconfdir)/$(PACKAGE_NAME)'
+])
+AC_SUBST(instconfigdir)
 
 # WINNT should be true if building on Windows system not using
 # cygnus, mingw, or the like and using cmd.exe as the shell
@@ -187,7 +207,6 @@ m4_include(m4/sasl.m4)
 m4_include(m4/svrcore.m4)
 m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
-m4_include(m4/fhs.m4)
 
 # write out paths for binary components
 AC_SUBST(nspr_inc)

@@ -30,7 +30,7 @@ lockfile="@localstatedir@/lock/subsys/@package_name@"
 # PID directory
 piddir="@localstatedir@/run/@package_name@"
 # Instance basedir
-instbase="@sysconfdir@/@package_name@"
+instbase="@instconfigdir@"
 
 
 [ -f $exec ] || exit 0
@@ -43,8 +43,10 @@ pids=$(pidof $exec)
 INSTANCES=""
 
 for FILE in `/bin/ls -d $instbase/slapd-* 2>/dev/null`; do
-    INSTANCES+=$(echo "$FILE" | sed -e "s|$instbase/slapd-||")
-    INSTANCES+=" "
+    if [ -d "$FILE" ] ; then
+        INSTANCES+=$(echo "$FILE" | sed -e "s|$instbase/slapd-||")
+        INSTANCES+=" "
+    fi
 done
 
 if [ -n "$2" ]; then

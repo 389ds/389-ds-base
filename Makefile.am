@@ -67,6 +67,7 @@ serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
 initdir = $(sysconfdir)@initdir@
+instconfigdir = @instconfigdir@
 
 #------------------------
 # Build Products
@@ -949,7 +950,8 @@ fixupcmd = sed \
 	-e 's,@configdir\@,$(configdir),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
-	-e 's,@package_name\@,$(PACKAGE_NAME),g'
+	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
+	-e 's,@instconfigdir\@,$(instconfigdir),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -972,7 +974,8 @@ fixupcmd = sed \
 	-e 's,@configdir\@,$(configdir),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
-	-e 's,@package_name\@,$(PACKAGE_NAME),g'
+	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
+	-e 's,@instconfigdir\@,$(instconfigdir),g'
 endif
 
 %: %.in

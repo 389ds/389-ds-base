@@ -194,10 +194,13 @@ $cgiargs{"sbindir"} = $table{"slapd"}->{"sbindir"};
 $cgiargs{"datadir"} = $table{"slapd"}->{"datadir"};
 $cgiargs{"docdir"} = $table{"slapd"}->{"docdir"};
 $cgiargs{"inst_dir"} = $table{"slapd"}->{"inst_dir"};
-$cgiargs{"config_dir"} = $table{"slapd"}->{"config_dir"};
 $cgiargs{"schema_dir"} = $table{"slapd"}->{"schema_dir"};
 $cgiargs{"sasl_path"} = $table{"slapd"}->{"sasl_path"};
-
+if ($table{"slapd"}->{"config_dir"}) {
+    $cgiargs{"config_dir"} = $table{"slapd"}->{"config_dir"};
+} else {
+    $cgiargs{"config_dir"} = "@instconfigdir@/slapd-" . $table{"slapd"}->{"ServerIdentifier"};
+}
 # port number for Admin Server - used to configure some web apps
 $cgiargs{adminport} = $table{admin}->{Port};
 
