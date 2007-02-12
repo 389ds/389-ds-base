@@ -44,14 +44,14 @@ INSTANCES=""
 
 for FILE in `/bin/ls -d $instbase/slapd-* 2>/dev/null`; do
     if [ -d "$FILE" ] ; then
-        INSTANCES+=$(echo "$FILE" | sed -e "s|$instbase/slapd-||")
-        INSTANCES+=" "
+        inst=$(echo "$FILE" | sed -e "s|$instbase/slapd-||")
+        INSTANCES="$INSTANCES $inst"
     fi
 done
 
 if [ -n "$2" ]; then
    for I in $INSTANCES; do
-      if [ "$2" == "$I" ]; then
+      if [ "$2" = "$I" ]; then
          INSTANCES="$2"
       fi
    done
