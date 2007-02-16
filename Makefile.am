@@ -25,6 +25,10 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+# We need to make sure that libpthread is linked before libc on HP-UX.
+if HPUX
+AM_LDFLAGS = -lpthread
+endif
 
 #------------------------
 # Linker Flags

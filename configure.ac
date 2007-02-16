@@ -157,6 +157,8 @@ case $host in
     AC_DEFINE([HPUX11_23], [1], [HP-UX 11.23])
     AC_DEFINE([CPU_ia64], [], [cpu type ia64])
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
+    AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
+    AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     platform="hpux"
     ;;
   hppa*-hp-hpux*)
@@ -167,6 +169,8 @@ case $host in
     AC_DEFINE([HPUX11_11], [1], [HP-UX 11.11])
     AC_DEFINE([CPU_hppa], [], [cpu type pa-risc])
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
+    AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
+    AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     platform="hpux"
     ;;
   sparc-sun-solaris*)
@@ -197,6 +201,7 @@ case $host in
 esac
 AC_SUBST(initdir)
 
+AM_CONDITIONAL(HPUX,test "$platform" = "hpux")
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
 
 # Check for library dependencies

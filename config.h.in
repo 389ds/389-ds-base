@@ -317,6 +317,12 @@
 /* UNIX */
 #undef XP_UNIX
 
+/* Source namespace */
+#undef _HPUX_SOURCE
+
+/* POSIX revision */
+#undef _POSIX_C_SOURCE
+
 /* _REENTRANT */
 #undef _REENTRANT
 
