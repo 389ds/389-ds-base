@@ -46,6 +46,8 @@ PAM_LINK = -lpam
 LIBSOCKET=@LIBSOCKET@
 LIBNSL=@LIBNSL@
 LIBDL=@LIBDL@
+LIBCSTD=@LIBCSTD@
+LIBCRUN=@LIBCRUN@
 
 #------------------------
 # Generated Sources
@@ -495,8 +497,9 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 	ldap/servers/plugins/acl/aclutil.c
 
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
-libacl_plugin_la_LIBADD = libns-dshttpd.la
+libacl_plugin_la_LIBADD = libns-dshttpd.la $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
+libacl_plugin_la_LINK = $(CXXLINK)
 
 #------------------------
 # libattr-unique-plugin
@@ -583,8 +586,9 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
 	ldap/servers/plugins/collation/orfilter.c
 
 libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
-libcollation_plugin_la_LIBADD = $(ICU_LINK)
+libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
+libcollation_plugin_la_LINK = $(CXXLINK)
 
 #------------------------
 # libpam-passthru-plugin

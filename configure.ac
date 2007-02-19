@@ -13,6 +13,8 @@ AC_CANONICAL_HOST
 AC_PROG_CXX
 AC_PROG_CC
 AM_PROG_CC_C_O
+# disable static libs by default - we only use a couple
+AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 
 # Checks for header files.
@@ -185,12 +187,18 @@ case $host in
     AC_DEFINE([sunos5], [1], [SunOS5])
     AC_DEFINE([OSVERSION], [509], [OS version])
     AC_DEFINE([_REENTRANT], [1], [_REENTRANT])
+dnl socket nsl and dl are required to link several programs and libdb
     LIBSOCKET=-lsocket
     AC_SUBST([LIBSOCKET], [$LIBSOCKET])
     LIBNSL=-lnsl
     AC_SUBST([LIBNSL], [$LIBNSL])
     LIBDL=-ldl
     AC_SUBST([LIBDL], [$LIBDL])
+dnl Cstd and Crun are required to link any C++ related code
+    LIBCSTD=-lCstd
+    AC_SUBST([LIBCSTD], [$LIBCSTD])
+    LIBCRUN=-lCrun
+    AC_SUBST([LIBCRUN], [$LIBCRUN])
     platform="solaris"
     # relative to sysconfdir
     initdir=/init.d
@@ -246,6 +254,28 @@ AC_SUBST(netsnmp_link)
 
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
+
+
+# libtool on fedora/rhel contains some gcc-isms which cause problems
+# if not using gcc (e.g. Forte on Solaris, aCC on HP-UX)
+# we remove them here
+if test "$GCC" != yes ; then
+   AC_MSG_NOTICE([Not using gcc - fixing libtool to remove gcc-isms . . .])
+   cp -p libtool libtool.orig
+   cp -p libtool libtool.tmp
+   # dnl note the special chars @<:@ and @:>@ - since m4 treats [ and ] specially,
+   # we have to use the quadrigraph @<:@ for [ and @:>@ for ] - and you thought
+   # perl produced write-only code . . .
+   sed -e '/^gcc_dir/ d' \
+       -e '/^gcc_ver/ d' \
+       -e 's/^predep_objects=.*echo \("@<:@^"@:>@*"\).*$/predep_objects=\1/' \
+       -e 's/^postdep_objects=.*echo \("@<:@^"@:>@*"\).*$/postdep_objects=\1/' \
+       -e 's/^compiler_lib_search_path=.*echo \("@<:@^"@:>@*"\).*$/compiler_lib_search_path=\1/' \
+       -e 's/^sys_lib_search_path_spec=.*echo \("@<:@^"@:>@*"\).*$/sys_lib_search_path_spec=\1/' \
+       libtool > libtool.tmp
+   cp -p libtool.tmp libtool
+   rm -f libtool.tmp
+fi
 
 AC_CONFIG_FILES([Makefile])
 
