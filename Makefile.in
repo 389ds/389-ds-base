@@ -1778,6 +1778,9 @@ ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)
 
+# We need to link ns-slapd with the C++ compiler on HP-UX since we load
+# some C++ shared libraries (such as icu).
+@HPUX_TRUE@ns_slapd_LINK = $(CXXLINK)
 
 #------------------------
 # pwdhash
@@ -3615,7 +3618,7 @@ ldap/servers/slapd/ns_slapd-unbind.$(OBJEXT):  \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 ns-slapd$(EXEEXT): $(ns_slapd_OBJECTS) $(ns_slapd_DEPENDENCIES) 
 	@rm -f ns-slapd$(EXEEXT)
-	$(LINK) $(ns_slapd_LDFLAGS) $(ns_slapd_OBJECTS) $(ns_slapd_LDADD) $(LIBS)
+	$(ns_slapd_LINK) $(ns_slapd_LDFLAGS) $(ns_slapd_OBJECTS) $(ns_slapd_LDADD) $(LIBS)
 ldap/servers/slapd/tools/pwdhash_bin-pwenc.$(OBJEXT):  \
 	ldap/servers/slapd/tools/$(am__dirstamp) \
 	ldap/servers/slapd/tools/$(DEPDIR)/$(am__dirstamp)
