@@ -3149,7 +3149,8 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
 #endif
 
     /* enable pass thru authentication */
-    if (cf->use_existing_config_ds || cf->use_existing_user_ds)
+    if ((cf->use_existing_config_ds && cf->config_ldap_url) ||
+        (cf->use_existing_user_ds && cf->user_ldap_url))
     {
         LDAPURLDesc *desc = 0;
         char *url = cf->use_existing_config_ds ? cf->config_ldap_url :
@@ -3195,7 +3196,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
         fprintf(f, "\n");
     }
 
-#ifdef BUILD_PAM_PASSTHRU
+#ifdef ENABLE_PAM_PASSTHRU
 #if !defined( XP_WIN32 )
     /* PAM Pass Through Auth plugin - off by default */
     fprintf(f, "dn: cn=PAM Pass Through Auth,cn=plugins,cn=config\n");
@@ -3215,13 +3216,27 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
         fprintf(f, "pamExcludeSuffix: %s\n", cf->netscaperoot);
     }
     fprintf(f, "pamExcludeSuffix: cn=config\n");
-    fprintf(f, "pamMapMethod: RDN\n");
+    fprintf(f, "pamIDMapMethod: RDN\n");
+    fprintf(f, "pamIDAttr: notUsedWithRDNMethod\n");
     fprintf(f, "pamFallback: FALSE\n");
     fprintf(f, "pamSecure: TRUE\n");
     fprintf(f, "pamService: ldapserver\n");
     fprintf(f, "\n");
 #endif /* NO PAM FOR WINDOWS */
-#endif /* BUILD_PAM_PASSTHRU */
+#endif /* ENABLE_PAM_PASSTHRU */
+
+#ifdef ENABLE_DNA
+    fprintf(f, "dn: cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "objectclass: nsContainer\n");
+    fprintf(f, "cn: Distributed Numeric Assignment Plugin\n");
+    fprintf(f, "nsslapd-plugininitfunc: dna_init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: off\n");
+    fprintf(f, "nsslapd-pluginPath: %s/libdna-plugin%s\n", cf->plugin_dir, shared_lib);
+#endif /* ENABLE_DNA */
 
     fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");

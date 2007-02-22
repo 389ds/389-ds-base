@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/$PACKAGE_NAME
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -1038,8 +1038,14 @@ Optional Features:
   --enable-fast-install[=PKGS]
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
-  --enable-debug         Enable debug features
-  --enable-bundle      Enable bundled dependencies
+  --enable-debug          Enable debug features (default: no)
+  --enable-bundle         Enable bundled dependencies (default: no)
+  --enable-pam-passthru   enable the PAM passthrough auth plugin (default:
+                          yes)
+  --enable-dna            enable the Distributed Numeric Assignment (DNA)
+                          plugin (default: yes)
+  --enable-ldapi          enable LDAP over unix domain socket (LDAPI) support
+                          (default: yes)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1050,7 +1056,10 @@ Optional Packages:
   --with-tags[=TAGS]
                           include additional configurations [automatic]
   --with-fhs   Use FHS layout
-  --with-instconfigdir=/path   Base directory for instance specific writable configuration directories (default $sysconfdir/$PACKAGE_NAME)
+  --with-instconfigdir=/path
+                          Base directory for instance specific writable
+                          configuration directories (default
+                          $sysconfdir/$PACKAGE_NAME)
   --with-nspr=PATH        Netscape Portable Runtime (NSPR) directory
   --with-nspr-inc=PATH        Netscape Portable Runtime (NSPR) include file directory
   --with-nspr-lib=PATH        Netscape Portable Runtime (NSPR) library directory
@@ -4299,7 +4308,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4302 "configure"' > conftest.$ac_ext
+  echo '#line 4311 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5434,7 +5443,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5437:" \
+echo "$as_me:5446:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6497,11 +6506,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6500: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6509: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6504: \$? = $ac_status" >&5
+   echo "$as_me:6513: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6765,11 +6774,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6768: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6777: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6772: \$? = $ac_status" >&5
+   echo "$as_me:6781: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6869,11 +6878,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6872: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6881: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6876: \$? = $ac_status" >&5
+   echo "$as_me:6885: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8338,7 +8347,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8341 "configure"' > conftest.$ac_ext
+    echo '#line 8350 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -9235,7 +9244,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9238 "configure"
+#line 9247 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9335,7 +9344,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9338 "configure"
+#line 9347 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11678,11 +11687,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11681: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11690: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11685: \$? = $ac_status" >&5
+   echo "$as_me:11694: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11782,11 +11791,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11785: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11794: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11789: \$? = $ac_status" >&5
+   echo "$as_me:11798: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12318,7 +12327,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 12321 "configure"' > conftest.$ac_ext
+    echo '#line 12330 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -13376,11 +13385,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13379: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13388: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13383: \$? = $ac_status" >&5
+   echo "$as_me:13392: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13480,11 +13489,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13483: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13492: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13487: \$? = $ac_status" >&5
+   echo "$as_me:13496: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14929,7 +14938,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 14932 "configure"' > conftest.$ac_ext
+    echo '#line 14941 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15707,11 +15716,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15710: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15719: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15714: \$? = $ac_status" >&5
+   echo "$as_me:15723: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -15975,11 +15984,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15978: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15987: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15982: \$? = $ac_status" >&5
+   echo "$as_me:15991: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16079,11 +16088,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16082: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16091: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16086: \$? = $ac_status" >&5
+   echo "$as_me:16095: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17548,7 +17557,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17551 "configure"' > conftest.$ac_ext
+    echo '#line 17560 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -22906,6 +22915,97 @@ else
 fi
 
 
+# these enables are for optional or experimental features
+if test -z "$enable_pam_passthru" ; then
+   enable_pam_passthru=yes # if not set on cmdline, set default
+fi
+echo "$as_me:$LINENO: checking for --enable-pam-passthru" >&5
+echo $ECHO_N "checking for --enable-pam-passthru... $ECHO_C" >&6
+# Check whether --enable-pam-passthru or --disable-pam-passthru was given.
+if test "${enable_pam_passthru+set}" = set; then
+  enableval="$enable_pam_passthru"
+
+fi;
+if test "$enable_pam_passthru" = yes ; then
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define ENABLE_PAM_PASSTHRU 1
+_ACEOF
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+
+if test "$enable_pam_passthru" = "yes"; then
+  enable_pam_passthru_TRUE=
+  enable_pam_passthru_FALSE='#'
+else
+  enable_pam_passthru_TRUE='#'
+  enable_pam_passthru_FALSE=
+fi
+
+
+if test -z "$enable_dna" ; then
+   enable_dna=yes # if not set on cmdline, set default
+fi
+echo "$as_me:$LINENO: checking for --enable-dna" >&5
+echo $ECHO_N "checking for --enable-dna... $ECHO_C" >&6
+# Check whether --enable-dna or --disable-dna was given.
+if test "${enable_dna+set}" = set; then
+  enableval="$enable_dna"
+
+fi;
+if test "$enable_dna" = yes ; then
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define ENABLE_DNA 1
+_ACEOF
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+
+if test "$enable_dna" = "yes"; then
+  enable_dna_TRUE=
+  enable_dna_FALSE='#'
+else
+  enable_dna_TRUE='#'
+  enable_dna_FALSE=
+fi
+
+
+if test -z "$enable_ldapi" ; then
+   enable_ldapi=yes # if not set on cmdline, set default
+fi
+echo "$as_me:$LINENO: checking for --enable-ldapi" >&5
+echo $ECHO_N "checking for --enable-ldapi... $ECHO_C" >&6
+# Check whether --enable-ldapi or --disable-ldapi was given.
+if test "${enable_ldapi+set}" = set; then
+  enableval="$enable_ldapi"
+
+fi;
+if test "$enable_ldapi" = yes ; then
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define ENABLE_LDAPI 1
+_ACEOF
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+# the default prefix - override with --prefix or --with-fhs
 
 
 # BEGIN COPYRIGHT BLOCK
@@ -22989,9 +23089,6 @@ scripttemplatedir=/$PACKAGE_NAME/script-templates
 
 
 
-
-{ echo "$as_me:$LINENO: checking for instconfigdir..." >&5
-echo "$as_me: checking for instconfigdir..." >&6;}
 
 # check for --with-instconfigdir
 echo "$as_me:$LINENO: checking for --with-instconfigdir" >&5
@@ -25107,6 +25204,20 @@ echo "$as_me: error: conditional \"BUNDLE\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi
+if test -z "${enable_pam_passthru_TRUE}" && test -z "${enable_pam_passthru_FALSE}"; then
+  { { echo "$as_me:$LINENO: error: conditional \"enable_pam_passthru\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+echo "$as_me: error: conditional \"enable_pam_passthru\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${enable_dna_TRUE}" && test -z "${enable_dna_FALSE}"; then
+  { { echo "$as_me:$LINENO: error: conditional \"enable_dna\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+echo "$as_me: error: conditional \"enable_dna\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
 if test -z "${WINNT_TRUE}" && test -z "${WINNT_FALSE}"; then
   { { echo "$as_me:$LINENO: error: conditional \"WINNT\" was never defined.
 Usually this means the macro was only invoked conditionally." >&5
@@ -25733,6 +25844,10 @@ s,@LIBOBJS@,$LIBOBJS,;t t
 s,@debug_defs@,$debug_defs,;t t
 s,@BUNDLE_TRUE@,$BUNDLE_TRUE,;t t
 s,@BUNDLE_FALSE@,$BUNDLE_FALSE,;t t
+s,@enable_pam_passthru_TRUE@,$enable_pam_passthru_TRUE,;t t
+s,@enable_pam_passthru_FALSE@,$enable_pam_passthru_FALSE,;t t
+s,@enable_dna_TRUE@,$enable_dna_TRUE,;t t
+s,@enable_dna_FALSE@,$enable_dna_FALSE,;t t
 s,@configdir@,$configdir,;t t
 s,@sampledatadir@,$sampledatadir,;t t
 s,@propertydir@,$propertydir,;t t

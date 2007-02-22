@@ -51,7 +51,7 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([setrlimit endpwent ftruncate getcwd gethostbyname inet_ntoa localtime_r memmove memset mkdir munmap putenv rmdir socket strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk strrchr strstr strtol tzset])
 
 AC_MSG_CHECKING(for --enable-debug)
-AC_ARG_ENABLE(debug, [  --enable-debug         Enable debug features],
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
 [
   AC_MSG_RESULT(yes)
   debug_defs="-DDEBUG -DMCC_DEBUG"
@@ -64,7 +64,7 @@ AC_SUBST([debug_defs])
 
 # Used for legacy style packaging where we bundle all of the dependencies.
 AC_MSG_CHECKING(for --enable-bundle)
-AC_ARG_ENABLE(bundle, [  --enable-bundle      Enable bundled dependencies],
+AC_ARG_ENABLE(bundle, AS_HELP_STRING([--enable-bundle], [Enable bundled dependencies (default: no)]),
 [
   AC_MSG_RESULT(yes)
   bundle="1";
@@ -75,6 +75,52 @@ AC_ARG_ENABLE(bundle, [  --enable-bundle      Enable bundled dependencies],
 ])
 AM_CONDITIONAL(BUNDLE,test "$bundle" = "1")
 
+# these enables are for optional or experimental features
+if test -z "$enable_pam_passthru" ; then
+   enable_pam_passthru=yes # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-pam-passthru)
+AC_ARG_ENABLE(pam-passthru,
+        AS_HELP_STRING([--enable-pam-passthru],
+                       [enable the PAM passthrough auth plugin (default: yes)]))
+if test "$enable_pam_passthru" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_PAM_PASSTHRU], [1], [enable the pam passthru auth plugin])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_pam_passthru,test "$enable_pam_passthru" = "yes")
+
+if test -z "$enable_dna" ; then
+   enable_dna=yes # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-dna)
+AC_ARG_ENABLE(dna,
+        AS_HELP_STRING([--enable-dna],
+                       [enable the Distributed Numeric Assignment (DNA) plugin (default: yes)]))
+if test "$enable_dna" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_DNA], [1], [enable the dna plugin])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_dna,test "$enable_dna" = "yes")
+
+if test -z "$enable_ldapi" ; then
+   enable_ldapi=yes # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-ldapi)
+AC_ARG_ENABLE(ldapi,
+        AS_HELP_STRING([--enable-ldapi],
+                       [enable LDAP over unix domain socket (LDAPI) support (default: yes)]))
+if test "$enable_ldapi" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_LDAPI], [1], [enable ldapi support in the server])
+else
+  AC_MSG_RESULT(no)
+fi
+
+# the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
 m4_include(m4/fhs.m4)
@@ -115,11 +161,11 @@ AC_SUBST(serverdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 
-AC_CHECKING(for instconfigdir)
-
 # check for --with-instconfigdir
 AC_MSG_CHECKING(for --with-instconfigdir)
-AC_ARG_WITH(instconfigdir, [  --with-instconfigdir=/path   Base directory for instance specific writable configuration directories (default $sysconfdir/$PACKAGE_NAME)],
+AC_ARG_WITH(instconfigdir,
+        AS_HELP_STRING([--with-instconfigdir=/path],
+                       [Base directory for instance specific writable configuration directories (default $sysconfdir/$PACKAGE_NAME)]),
 [
   if test $withval = yes ; then
      AC_ERROR([Please specify a full path with --with-instconfigdir])

@@ -237,6 +237,7 @@ libdna_plugin_la_LIBADD =
 am_libdna_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/dna/libdna_plugin_la-dna.lo
 libdna_plugin_la_OBJECTS = $(am_libdna_plugin_la_OBJECTS)
+@enable_dna_TRUE@am_libdna_plugin_la_rpath = -rpath $(serverplugindir)
 libds_admin_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am_libds_admin_la_OBJECTS =  \
@@ -330,6 +331,8 @@ am_libpam_passthru_plugin_la_OBJECTS = ldap/servers/plugins/pam_passthru/libpam_
 	ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptpreop.lo
 libpam_passthru_plugin_la_OBJECTS =  \
 	$(am_libpam_passthru_plugin_la_OBJECTS)
+@enable_pam_passthru_TRUE@am_libpam_passthru_plugin_la_rpath = -rpath \
+@enable_pam_passthru_TRUE@	$(serverplugindir)
 libpassthru_plugin_la_LIBADD =
 am_libpassthru_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/passthru/libpassthru_plugin_la-ptbind.lo \
@@ -877,6 +880,10 @@ db_lib = @db_lib@
 db_libdir = @db_libdir@
 db_libver = @db_libver@
 debug_defs = @debug_defs@
+enable_dna_FALSE = @enable_dna_FALSE@
+enable_dna_TRUE = @enable_dna_TRUE@
+enable_pam_passthru_FALSE = @enable_pam_passthru_FALSE@
+enable_pam_passthru_TRUE = @enable_pam_passthru_TRUE@
 exec_prefix = @exec_prefix@
 host = @host@
 host_alias = @host_alias@
@@ -979,13 +986,17 @@ BUILT_SOURCES = dirver.h dberrstrs.h
 CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
 taskdir = $(datadir)@scripttemplatedir@
 server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
+
+# this is how to add optional plugins
+@enable_pam_passthru_TRUE@LIBPAM_PASSTHRU_PLUGIN = libpam-passthru-plugin.la
+@enable_dna_TRUE@LIBDNA_PLUGIN = libdna-plugin.la
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
-	libdistrib-plugin.la libdna-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
-	libpam-passthru-plugin.la libpassthru-plugin.la libpresence-plugin.la \
+	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
+	libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
 	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la
+	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 noinst_LIBRARIES = libavl.a libldaputil.a
@@ -2415,7 +2426,7 @@ ldap/servers/plugins/dna/libdna_plugin_la-dna.lo:  \
 	ldap/servers/plugins/dna/$(am__dirstamp) \
 	ldap/servers/plugins/dna/$(DEPDIR)/$(am__dirstamp)
 libdna-plugin.la: $(libdna_plugin_la_OBJECTS) $(libdna_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(serverplugindir) $(libdna_plugin_la_LDFLAGS) $(libdna_plugin_la_OBJECTS) $(libdna_plugin_la_LIBADD) $(LIBS)
+	$(LINK) $(am_libdna_plugin_la_rpath) $(libdna_plugin_la_LDFLAGS) $(libdna_plugin_la_OBJECTS) $(libdna_plugin_la_LIBADD) $(LIBS)
 ldap/admin/lib/$(am__dirstamp):
 	@$(mkdir_p) ldap/admin/lib
 	@: > ldap/admin/lib/$(am__dirstamp)
@@ -2678,7 +2689,7 @@ ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptpreop.lo:  \
 	ldap/servers/plugins/pam_passthru/$(am__dirstamp) \
 	ldap/servers/plugins/pam_passthru/$(DEPDIR)/$(am__dirstamp)
 libpam-passthru-plugin.la: $(libpam_passthru_plugin_la_OBJECTS) $(libpam_passthru_plugin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(serverplugindir) $(libpam_passthru_plugin_la_LDFLAGS) $(libpam_passthru_plugin_la_OBJECTS) $(libpam_passthru_plugin_la_LIBADD) $(LIBS)
+	$(LINK) $(am_libpam_passthru_plugin_la_rpath) $(libpam_passthru_plugin_la_LDFLAGS) $(libpam_passthru_plugin_la_OBJECTS) $(libpam_passthru_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/passthru/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/passthru
 	@: > ldap/servers/plugins/passthru/$(am__dirstamp)

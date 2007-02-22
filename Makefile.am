@@ -85,13 +85,21 @@ bin_PROGRAMS = dbscan-bin ds_newinst-bin dsktune-bin infadd-bin ldap-agent-bin \
 
 server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
 
+# this is how to add optional plugins
+if enable_pam_passthru
+LIBPAM_PASSTHRU_PLUGIN = libpam-passthru-plugin.la
+endif
+if enable_dna
+LIBDNA_PLUGIN = libdna-plugin.la
+endif
+
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
-	libdistrib-plugin.la libdna-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
-	libpam-passthru-plugin.la libpassthru-plugin.la libpresence-plugin.la \
+	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
+	libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
 	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la
+	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 

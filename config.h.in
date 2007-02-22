@@ -12,6 +12,15 @@
 /* cpu type sparc */
 #undef CPU_sparc
 
+/* enable the dna plugin */
+#undef ENABLE_DNA
+
+/* enable ldapi support in the server */
+#undef ENABLE_LDAPI
+
+/* enable the pam passthru auth plugin */
+#undef ENABLE_PAM_PASSTHRU
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
