@@ -1778,6 +1778,7 @@ ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)
 
+@HPUX_FALSE@ns_slapd_LINK = $(LINK)
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
 @HPUX_TRUE@ns_slapd_LINK = $(CXXLINK)

@@ -914,6 +914,8 @@ ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 # some C++ shared libraries (such as icu).
 if HPUX
 ns_slapd_LINK = $(CXXLINK)
+else
+ns_slapd_LINK = $(LINK)
 endif
 
 #------------------------
