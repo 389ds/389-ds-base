@@ -338,6 +338,7 @@ char *create_instance_copy(char *, char *, int, int);
 char *create_instance_concatenate(char *, char *, int);
 int create_instance_mkdir(char *, int);
 char *create_instance_mkdir_p(char *, char *, int, struct passwd *);
+static char *create_instance_strdup(const char *);
 
 #if defined( SOLARIS )
 /*
@@ -1309,6 +1310,16 @@ int create_instance_numbers(char *target)
             return 0;
     }
     return 1;
+}
+
+static char *create_instance_strdup(const char *s)
+{
+    char *result = NULL;
+    if (s) {
+        result = PL_strdup(s);
+    }
+
+    return result;
 }
 
 #if defined( SOLARIS )
@@ -4063,23 +4074,23 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
 
     memset( &query_vars, 0, sizeof(query_vars) );
     if (!cf->use_existing_user_ds)
-        query_vars.suffix = PL_strdup( cf->suffix );
-    query_vars.ssAdmID = PL_strdup( cf->cfg_sspt_uid );
-    query_vars.ssAdmPW1 = PL_strdup( cf->cfg_sspt_uidpw );
-    query_vars.ssAdmPW2 = PL_strdup( cf->cfg_sspt_uidpw );
-    query_vars.rootDN = PL_strdup( cf->rootdn ); 
-    query_vars.rootPW = PL_strdup( cf->rootpw );
-    query_vars.admin_domain = PL_strdup( cf->admin_domain );
-    query_vars.netscaperoot = PL_strdup( cf->netscaperoot );
-    query_vars.testconfig = PL_strdup( cf->testconfig );
-    query_vars.consumerDN = PL_strdup(cf->consumerdn);
-    query_vars.consumerPW = PL_strdup(cf->consumerhashedpw);
+        query_vars.suffix = create_instance_strdup( cf->suffix );
+    query_vars.ssAdmID = create_instance_strdup( cf->cfg_sspt_uid );
+    query_vars.ssAdmPW1 = create_instance_strdup( cf->cfg_sspt_uidpw );
+    query_vars.ssAdmPW2 = create_instance_strdup( cf->cfg_sspt_uidpw );
+    query_vars.rootDN = create_instance_strdup( cf->rootdn ); 
+    query_vars.rootPW = create_instance_strdup( cf->rootpw );
+    query_vars.admin_domain = create_instance_strdup( cf->admin_domain );
+    query_vars.netscaperoot = create_instance_strdup( cf->netscaperoot );
+    query_vars.testconfig = create_instance_strdup( cf->testconfig );
+    query_vars.consumerDN = create_instance_strdup(cf->consumerdn);
+    query_vars.consumerPW = create_instance_strdup(cf->consumerhashedpw);
     if (cf->cfg_sspt && !strcmp(cf->cfg_sspt, "1"))
         query_vars.cfg_sspt = 1;
     else
         query_vars.cfg_sspt = 0;
 
-    query_vars.config_admin_uid = PL_strdup(cf->cfg_sspt_uid);
+    query_vars.config_admin_uid = create_instance_strdup(cf->cfg_sspt_uid);
 
     memset(&slapd_conf, 0, sizeof(SLAPD_CONFIG));
     if (sroot)
