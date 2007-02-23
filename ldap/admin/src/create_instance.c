@@ -3236,6 +3236,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-plugintype: preoperation\n");
     fprintf(f, "nsslapd-pluginenabled: off\n");
     fprintf(f, "nsslapd-pluginPath: %s/libdna-plugin%s\n", cf->plugin_dir, shared_lib);
+    fprintf(f, "\n");
 #endif /* ENABLE_DNA */
 
     fprintf(f, "dn: cn=ldbm database,cn=plugins,cn=config\n");
