@@ -92,10 +92,10 @@ ldif_back_close( Slapi_PBlock *pb )
 {
   LDIF   *db;
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend syncing\n", 0, 0, 0 );
+  LDAPDebug( LDAP_DEBUG_TRACE, "ldif backend syncing\n", 0, 0, 0 );
   slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &db );
   ldif_free_db(db);
-  LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend done syncing\n", 0, 0, 0 );
+  LDAPDebug( LDAP_DEBUG_TRACE, "ldif backend done syncing\n", 0, 0, 0 );
 }
 
 /*
@@ -108,8 +108,8 @@ ldif_back_close( Slapi_PBlock *pb )
 void
 ldif_back_flush( Slapi_PBlock *pb )
 {
-  LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend flushing\n", 0, 0, 0 );
-  LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend done flushing\n", 0, 0, 0 );
+  LDAPDebug( LDAP_DEBUG_TRACE, "ldif backend flushing\n", 0, 0, 0 );
+  LDAPDebug( LDAP_DEBUG_TRACE, "ldif backend done flushing\n", 0, 0, 0 );
   return;
 }
 

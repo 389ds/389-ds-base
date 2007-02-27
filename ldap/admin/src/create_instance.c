@@ -2686,6 +2686,20 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-return-exact-case: on\n");
     fprintf(f, "nsslapd-ssl-check-hostname: on\n");
     fprintf(f, "nsslapd-port: %s\n", cf->servport);
+#if defined(ENABLE_LDAPI)
+    fprintf(f, "nsslapd-ldapifilepath: %s/%s-%s.socket\n", cf->run_dir, PRODUCT_NAME, cf->servid);
+    fprintf(f, "nsslapd-ldapilisten: on\n");
+#if defined(ENABLE_AUTOBIND)
+    fprintf(f, "nsslapd-ldapiautobind: on\n");
+#endif /* ENABLE_AUTOBIND */
+    fprintf(f, "nsslapd-ldapimaprootdn: cn=Directory Manager\n");
+    fprintf(f, "nsslapd-ldapimaptoentries: off\n");
+    fprintf(f, "nsslapd-ldapiuidnumbertype: uidNumber\n");
+    fprintf(f, "nsslapd-ldapigidnumbertype: gidNumber\n");
+    fprintf(f, "nsslapd-ldapientrysearchbase: dc=example, dc=com\n");
+    fprintf(f, "nsslapd-ldapiautodnsuffix: cn=peercred,cn=external,cn=auth\n");
+#endif /* ENABLE_LDAPI */
+
 #if !defined( XP_WIN32 )
     if (cf->servuser && *(cf->servuser)) {
         fprintf(f, "nsslapd-localuser: %s\n", cf->servuser);

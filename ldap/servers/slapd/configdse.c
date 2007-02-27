@@ -65,6 +65,8 @@ static void get_log_max_size(   LDAPMod *mod,
 static const char *requires_restart[] = {
     "cn=config:nsslapd-port",
     "cn=config:nsslapd-secureport",
+    "cn=config:" CONFIG_LDAPI_FILENAME_ATTRIBUTE,
+    "cn=config:" CONFIG_LDAPI_SWITCH_ATTRIBUTE,
     "cn=config:nsslapd-workingdir",
     "cn=config:nsslapd-plugin",
     "cn=config:nsslapd-sslclientauth",

@@ -880,6 +880,10 @@ mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSD
 #------------------------
 # ns-slapd
 #------------------------
+if enable_ldapi
+        GETSOCKETPEER=ldap/servers/slapd/getsocketpeer.c
+endif
+
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \
 	ldap/servers/slapd/bind.c  \
@@ -912,7 +916,8 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/strdup.c \
 	ldap/servers/slapd/stubs.c \
 	ldap/servers/slapd/tempnam.c  \
-	ldap/servers/slapd/unbind.c
+	ldap/servers/slapd/unbind.c \
+	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
 	@nspr_inc@ @svrcore_inc@

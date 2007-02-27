@@ -275,7 +275,8 @@ start_tls( Slapi_PBlock *pb )
 	 * connection ready. */
 
 	secure = 1;
-	ns = configure_pr_socket( &newsocket, secure );
+	ns = configure_pr_socket( &newsocket, secure, 0 /*never local*/ );
+
 
 	/*
 	ber_sockbuf_set_option( conn->c_sb, LBER_SOCKBUF_OPT_DESC, &newsocket );
@@ -417,7 +418,7 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 
 #ifndef _WIN32
 	secure = 0;
-	ns = configure_pr_socket( &(c->c_prfd), secure );
+	ns = configure_pr_socket( &(c->c_prfd), secure, 0 /*never local*/ );
 
 	ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_DESC, &(c->c_prfd) );
 

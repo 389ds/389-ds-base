@@ -628,6 +628,26 @@ mmldif_bin_OBJECTS = $(am_mmldif_bin_OBJECTS)
 mmldif_bin_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+am__ns_slapd_SOURCES_DIST = ldap/servers/slapd/abandon.c \
+	ldap/servers/slapd/auth.c ldap/servers/slapd/bind.c \
+	ldap/servers/slapd/compare.c ldap/servers/slapd/config.c \
+	ldap/servers/slapd/configdse.c ldap/servers/slapd/connection.c \
+	ldap/servers/slapd/conntable.c ldap/servers/slapd/daemon.c \
+	ldap/servers/slapd/detach.c ldap/servers/slapd/extendop.c \
+	ldap/servers/slapd/fedse.c ldap/servers/slapd/fileio.c \
+	ldap/servers/slapd/getopt_ext.c ldap/servers/slapd/globals.c \
+	ldap/servers/slapd/house.c ldap/servers/slapd/init.c \
+	ldap/servers/slapd/lite_entries.c ldap/servers/slapd/main.c \
+	ldap/servers/slapd/monitor.c ldap/servers/slapd/passwd_extop.c \
+	ldap/servers/slapd/protect_db.c ldap/servers/slapd/psearch.c \
+	ldap/servers/slapd/pw_mgmt.c ldap/servers/slapd/rootdse.c \
+	ldap/servers/slapd/sasl_io.c ldap/servers/slapd/saslbind.c \
+	ldap/servers/slapd/search.c \
+	ldap/servers/slapd/start_tls_extop.c \
+	ldap/servers/slapd/strdup.c ldap/servers/slapd/stubs.c \
+	ldap/servers/slapd/tempnam.c ldap/servers/slapd/unbind.c \
+	ldap/servers/slapd/getsocketpeer.c
+@enable_ldapi_TRUE@am__objects_4 = ldap/servers/slapd/ns_slapd-getsocketpeer.$(OBJEXT)
 am_ns_slapd_OBJECTS = ldap/servers/slapd/ns_slapd-abandon.$(OBJEXT) \
 	ldap/servers/slapd/ns_slapd-auth.$(OBJEXT) \
 	ldap/servers/slapd/ns_slapd-bind.$(OBJEXT) \
@@ -660,7 +680,7 @@ am_ns_slapd_OBJECTS = ldap/servers/slapd/ns_slapd-abandon.$(OBJEXT) \
 	ldap/servers/slapd/ns_slapd-strdup.$(OBJEXT) \
 	ldap/servers/slapd/ns_slapd-stubs.$(OBJEXT) \
 	ldap/servers/slapd/ns_slapd-tempnam.$(OBJEXT) \
-	ldap/servers/slapd/ns_slapd-unbind.$(OBJEXT)
+	ldap/servers/slapd/ns_slapd-unbind.$(OBJEXT) $(am__objects_4)
 ns_slapd_OBJECTS = $(am_ns_slapd_OBJECTS)
 ns_slapd_DEPENDENCIES = libslapd.la libldaputil.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -752,7 +772,7 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(ldap_agent_bin_SOURCES) $(am__ldclt_bin_SOURCES_DIST) \
 	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
 	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
-	$(ns_slapd_SOURCES) $(pwdhash_bin_SOURCES) \
+	$(am__ns_slapd_SOURCES_DIST) $(pwdhash_bin_SOURCES) \
 	$(rsearch_bin_SOURCES)
 configDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
@@ -837,7 +857,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -882,6 +901,8 @@ db_libver = @db_libver@
 debug_defs = @debug_defs@
 enable_dna_FALSE = @enable_dna_FALSE@
 enable_dna_TRUE = @enable_dna_TRUE@
+enable_ldapi_FALSE = @enable_ldapi_FALSE@
+enable_ldapi_TRUE = @enable_ldapi_TRUE@
 enable_pam_passthru_FALSE = @enable_pam_passthru_FALSE@
 enable_pam_passthru_TRUE = @enable_pam_passthru_TRUE@
 exec_prefix = @exec_prefix@
@@ -1749,6 +1770,7 @@ mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSD
 #------------------------
 # ns-slapd
 #------------------------
+@enable_ldapi_TRUE@GETSOCKETPEER = ldap/servers/slapd/getsocketpeer.c
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \
 	ldap/servers/slapd/bind.c  \
@@ -1781,7 +1803,8 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/strdup.c \
 	ldap/servers/slapd/stubs.c \
 	ldap/servers/slapd/tempnam.c  \
-	ldap/servers/slapd/unbind.c
+	ldap/servers/slapd/unbind.c \
+	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
 	@nspr_inc@ @svrcore_inc@
@@ -3628,6 +3651,9 @@ ldap/servers/slapd/ns_slapd-tempnam.$(OBJEXT):  \
 ldap/servers/slapd/ns_slapd-unbind.$(OBJEXT):  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/ns_slapd-getsocketpeer.$(OBJEXT):  \
+	ldap/servers/slapd/$(am__dirstamp) \
+	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 ns-slapd$(EXEEXT): $(ns_slapd_OBJECTS) $(ns_slapd_DEPENDENCIES) 
 	@rm -f ns-slapd$(EXEEXT)
 	$(ns_slapd_LINK) $(ns_slapd_LDFLAGS) $(ns_slapd_OBJECTS) $(ns_slapd_LDADD) $(LIBS)
@@ -4342,6 +4368,7 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/ns_slapd-fedse.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-fileio.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-getopt_ext.$(OBJEXT)
+	-rm -f ldap/servers/slapd/ns_slapd-getsocketpeer.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-globals.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-house.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-init.$(OBJEXT)
@@ -4792,6 +4819,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-fedse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-fileio.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-getopt_ext.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-globals.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-house.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ns_slapd-init.Po@am__quote@
@@ -8240,6 +8268,20 @@ ldap/servers/slapd/ns_slapd-unbind.obj: ldap/servers/slapd/unbind.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/unbind.c' object='ldap/servers/slapd/ns_slapd-unbind.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ns_slapd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/ns_slapd-unbind.obj `if test -f 'ldap/servers/slapd/unbind.c'; then $(CYGPATH_W) 'ldap/servers/slapd/unbind.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/unbind.c'; fi`
+
+ldap/servers/slapd/ns_slapd-getsocketpeer.o: ldap/servers/slapd/getsocketpeer.c
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ns_slapd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/ns_slapd-getsocketpeer.o -MD -MP -MF "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Tpo" -c -o ldap/servers/slapd/ns_slapd-getsocketpeer.o `test -f 'ldap/servers/slapd/getsocketpeer.c' || echo '$(srcdir)/'`ldap/servers/slapd/getsocketpeer.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Tpo" "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Po"; else rm -f "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/getsocketpeer.c' object='ldap/servers/slapd/ns_slapd-getsocketpeer.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ns_slapd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/ns_slapd-getsocketpeer.o `test -f 'ldap/servers/slapd/getsocketpeer.c' || echo '$(srcdir)/'`ldap/servers/slapd/getsocketpeer.c
+
+ldap/servers/slapd/ns_slapd-getsocketpeer.obj: ldap/servers/slapd/getsocketpeer.c
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ns_slapd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/ns_slapd-getsocketpeer.obj -MD -MP -MF "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Tpo" -c -o ldap/servers/slapd/ns_slapd-getsocketpeer.obj `if test -f 'ldap/servers/slapd/getsocketpeer.c'; then $(CYGPATH_W) 'ldap/servers/slapd/getsocketpeer.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/getsocketpeer.c'; fi`; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Tpo" "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Po"; else rm -f "ldap/servers/slapd/$(DEPDIR)/ns_slapd-getsocketpeer.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/getsocketpeer.c' object='ldap/servers/slapd/ns_slapd-getsocketpeer.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ns_slapd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/ns_slapd-getsocketpeer.obj `if test -f 'ldap/servers/slapd/getsocketpeer.c'; then $(CYGPATH_W) 'ldap/servers/slapd/getsocketpeer.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/getsocketpeer.c'; fi`
 
 ldap/servers/slapd/tools/pwdhash_bin-pwenc.o: ldap/servers/slapd/tools/pwenc.c
 @am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(pwdhash_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/tools/pwdhash_bin-pwenc.o -MD -MP -MF "ldap/servers/slapd/tools/$(DEPDIR)/pwdhash_bin-pwenc.Tpo" -c -o ldap/servers/slapd/tools/pwdhash_bin-pwenc.o `test -f 'ldap/servers/slapd/tools/pwenc.c' || echo '$(srcdir)/'`ldap/servers/slapd/tools/pwenc.c; \

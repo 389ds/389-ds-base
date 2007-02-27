@@ -119,6 +119,7 @@ if test "$enable_ldapi" = yes ; then
 else
   AC_MSG_RESULT(no)
 fi
+AM_CONDITIONAL(enable_ldapi,test "$enable_ldapi" = "yes")
 
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])

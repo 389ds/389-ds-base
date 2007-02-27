@@ -291,7 +291,7 @@ skip:
 
 /* check_account_lock is called before bind opeation; this could be a pre-op. */
 int
-check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req) {
+check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req, int account_inactivation_only) {
 
 	time_t		unlock_time;
 	time_t		cur_time;
@@ -312,8 +312,11 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 	if ( bind_target_entry == NULL ) 
 		return -1;
 
-	dn = slapi_entry_get_ndn(bind_target_entry);
-	pwpolicy = new_passwdPolicy(pb, dn);
+	if(!account_inactivation_only)
+	{
+		dn = slapi_entry_get_ndn(bind_target_entry);
+		pwpolicy = new_passwdPolicy(pb, dn);
+	}
 
 	/* kexcoff: account inactivation */
 	/* check if the entry is locked by nsAccountLock attribute - account inactivation feature */
@@ -334,11 +337,12 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 			if ( (bvp != NULL) && (strcasecmp(bvp->bv_val, "true") == 0) )
 			{
 				/* account inactivated */
-				if (pwresponse_req) {
+				if (!account_inactivation_only && pwresponse_req) {
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_ACCTLOCKED );
 				}
-				send_ldap_result ( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+				if(!account_inactivation_only)
+					send_ldap_result ( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 							"Account inactivated. Contact system administrator.",
 							0, NULL );
 				slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
@@ -354,7 +358,7 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 	/*
 	 * Check if the password policy has to be checked or not
 	 */
-	if ( pwpolicy->pw_lockout == 0 ) {
+	if ( account_inactivation_only || pwpolicy->pw_lockout == 0 ) {
 		goto notlocked;
 	}
 
@@ -412,11 +416,13 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 	}
 
 notlocked:
-	/* account is not locked. */ 
-	delete_passwdPolicy(&pwpolicy);
+	/* account is not locked. */
+        if(!account_inactivation_only)
+		delete_passwdPolicy(&pwpolicy);
 	return ( 0 );	
 locked:
-	delete_passwdPolicy(&pwpolicy);
+	if(!account_inactivation_only)
+		delete_passwdPolicy(&pwpolicy);
 	return (1);
 
 }

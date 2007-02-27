@@ -1367,7 +1367,7 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 #define SLAPD_AUTH_SIMPLE "simple"
 #define SLAPD_AUTH_SSL    "SSL"
 #define SLAPD_AUTH_SASL   "SASL " /* followed by the mechanism name */
-
+#define SLAPD_AUTH_OS     "OS"
 
 /* Command Line Arguments */
 #define SLAPI_ARGC				147

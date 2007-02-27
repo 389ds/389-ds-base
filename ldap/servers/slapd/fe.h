@@ -173,7 +173,7 @@ int secure_write_function( int ignore, const void *buffer, int count, struct lex
 int read_function(int ignore, void *buffer,  int count, struct lextiof_socket_private *handle );
 int write_function(int ignore, const void *buffer,  int count, struct lextiof_socket_private *handle );
 PRFileDesc * get_ssl_listener_fd();
-int configure_pr_socket( PRFileDesc **pr_socket, int secure );
+int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local );
 void configure_ns_socket( int * ns );
 
 /*

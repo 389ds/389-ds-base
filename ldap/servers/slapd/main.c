@@ -453,6 +453,7 @@ usage( char *name, char *extraname )
 static char *extraname;
 static char *myname;
 static int n_port = 0;
+static int i_port = 0;
 static int s_port = 0;
 static char **ldif_file = NULL;
 static int ldif_files = 0;
@@ -611,6 +612,7 @@ write_start_pid_file()
 	}
 }
 #endif /* WIN32 */
+
 
 int
 main( int argc, char **argv)
@@ -854,6 +856,19 @@ main( int argc, char **argv)
 			return(1);
 		}
 
+#if defined(ENABLE_LDAPI)
+		if(	config_get_ldapi_switch() &&
+			config_get_ldapi_filename() != 0)
+		{
+			i_port = ports_info.i_port = 1; /* flag ldapi as on */
+			ports_info.i_listenaddr.local.family = PR_AF_LOCAL;
+			PL_strncpyz(ports_info.i_listenaddr.local.path,
+				config_get_ldapi_filename(),
+				sizeof(ports_info.i_listenaddr.local.path));
+			unlink(ports_info.i_listenaddr.local.path);
+		}
+#endif /* ENABLE_LDAPI */
+
 		return_value = daemon_pre_setuid_init(&ports_info);
 		if (0 != return_value) {
 			LDAPDebug( LDAP_DEBUG_ANY, "Failed to init daemon\n",
@@ -1081,6 +1096,7 @@ main( int argc, char **argv)
 		normalize_oc();
 
 		if (n_port) {
+		} else if (i_port) {
 		} else if ( config_get_security()) {
 		} else {
 #ifdef _WIN32	
@@ -1105,6 +1121,10 @@ main( int argc, char **argv)
 				MessageBox(GetDesktopWindow(), szMessage,	" ", MB_ICONEXCLAMATION | MB_OK);
 			}
 #endif
+			LDAPDebug( LDAP_DEBUG_ANY,
+                                "Fatal Error---No ports specified. "
+                                "Exiting now.\n", 0, 0, 0 );
+			
 			exit(1);
 		}
 	}

@@ -592,7 +592,7 @@ parse_req_done:
 
 	 if (oldPasswd == NULL || *oldPasswd == '\0') {
      /* If user is authenticated, they already gave their password during
-        the bind operation (or used sasl or client cert auth) */
+        the bind operation (or used sasl or client cert auth or OS creds) */
         slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
         if (!authmethod || !strcmp(authmethod, SLAPD_AUTH_NONE)) {
             errMesg = "User must be authenticated to the directory server.\n";

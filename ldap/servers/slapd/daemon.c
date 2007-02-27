@@ -92,6 +92,10 @@
 
 #include "fe.h"
 
+#if defined(ENABLE_LDAPI)
+#include "getsocketpeer.h"
+#endif /* ENABLE_LDAPI */
+
 /*
  * Define the backlog number for use in listen() call.
  * We use the same definition as in ldapserver/include/base/systems.h
@@ -125,6 +129,7 @@ static int readsignalpipe = SLAPD_INVALID_SOCKET;
 #define FDS_SIGNAL_PIPE 0
 #define FDS_N_TCPS      1
 #define FDS_S_TCPS      2
+#define FDS_I_UNIX	3
 
 static int get_configured_connection_table_size();
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
@@ -135,11 +140,11 @@ static void get_loopback_by_addr( void );
 static int createlistensocket(unsigned short port, const PRNetAddr *listenaddr);
 #endif
 static PRFileDesc *createprlistensocket(unsigned short port,
-	const PRNetAddr *listenaddr, int secure);
+	const PRNetAddr *listenaddr, int secure, int local);
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf,
 	size_t addrbuflen);
 static void	set_shutdown (int);
-static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, PRIntn *num_to_read);
+static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, PRFileDesc *i_unix, PRIntn *num_to_read);
 
 #ifdef HPUX10
 static void* catch_signals();
@@ -274,7 +279,7 @@ syn_scan (int sock)
 
 static int
 accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr, 
-	int addrlen, int secure, PRFileDesc **pr_clonefd)
+	int addrlen, int secure, int local, PRFileDesc **pr_clonefd)
 {
 	int ns = 0;
 
@@ -290,7 +295,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 		return(SLAPD_INVALID_SOCKET);
 	}
 
-	ns = configure_pr_socket( pr_clonefd, secure );
+	ns = configure_pr_socket( pr_clonefd, secure, local );
 
 #else /* Windows */
 	if( secure ) {
@@ -316,7 +321,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 			return(SLAPD_INVALID_SOCKET);
 		}
 
-		ns = configure_pr_socket( pr_clonefd, secure );
+		ns = configure_pr_socket( pr_clonefd, secure, local );
 
 	} else { /* !secure */
 		struct sockaddr *addr; /* NOT IPv6 enabled */
@@ -364,11 +369,11 @@ static void set_timeval_ms(struct timeval *t, int ms);
 #endif
 /* GGOODREPL static void handle_timeout( void ); */
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
-static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure );
+static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local );
 #ifdef _WIN32
 static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, int n_tcps, PRFileDesc *s_tcps);
 #else
-static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc *n_tcps, PRFileDesc *s_tcps);
+static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc *n_tcps, PRFileDesc *s_tcps, PRFileDesc *i_unix);
 #endif
 static int write_pid_file();
 static int init_shutdown_detect();
@@ -392,13 +397,13 @@ int daemon_pre_setuid_init(daemon_ports_t *ports)
 											 &ports->n_listenaddr);
 #else
 		ports->n_socket = createprlistensocket(ports->n_port,
-											 &ports->n_listenaddr, 0);
+											 &ports->n_listenaddr, 0, 0);
 #endif
 	}
 
 	if ( config_get_security() && (0 != ports->s_port) ) {
 		ports->s_socket = createprlistensocket((unsigned short)ports->s_port,
-		    &ports->s_listenaddr, 1);
+		    &ports->s_listenaddr, 1, 0);
 #ifdef XP_WIN32
 		ports->s_socket_native = PR_FileDesc2NativeHandle(ports->s_socket);
 #endif
@@ -408,6 +413,15 @@ int daemon_pre_setuid_init(daemon_ports_t *ports)
 	    ports->s_socket_native = SLAPD_INVALID_SOCKET;
 #endif
 	}
+
+#ifndef XP_WIN32
+#if defined(ENABLE_LDAPI)
+	/* ldapi */
+	if(0 != ports->i_port) {
+		ports->i_socket = createprlistensocket(1, &ports->i_listenaddr, 0, 1);
+	}
+#endif /* ENABLE_LDAPI */
+#endif
 
 	return( rc );
 }
@@ -460,8 +474,8 @@ time_thread(void *nothing)
 
 void slapd_daemon( daemon_ports_t *ports )
 {
-	/* We are passed a pair of ports---one for regular connections, the
-	 * other for SSL connections.
+	/* We are passed some ports---one for regular connections, one
+	 * for SSL connections, one for ldapi connections.
 	 */
 	/* Previously there was a ton of code #defined on NET_SSL. 
 	 * This looked horrible, so now I'm doing it this way:
@@ -475,6 +489,7 @@ void slapd_daemon( daemon_ports_t *ports )
 #else
 	PRFileDesc *n_tcps = NULL; 
 	PRFileDesc *tcps = 0;
+	PRFileDesc *i_unix = 0;
 #endif
 	PRFileDesc *s_tcps = NULL; 
 	PRIntn num_poll = 0;
@@ -504,16 +519,24 @@ void slapd_daemon( daemon_ports_t *ports )
 	s_tcps = ports->s_socket;
 #ifdef XP_WIN32
 	s_tcps_native = ports->s_socket_native;
+#else
+#if defined(ENABLE_LDAPI)
+	i_unix = ports->i_socket;
+#endif /* ENABLE_LDAPI */
 #endif
 	
 	createsignalpipe();
 
 	init_shutdown_detect();
 
+	if (
 #if defined( XP_WIN32 )
-	if ( (n_tcps == SLAPD_INVALID_SOCKET) && 
+		(n_tcps == SLAPD_INVALID_SOCKET) && 
 #else
-	if ( (n_tcps == NULL) && 
+		(n_tcps == NULL) &&
+#if defined(ENABLE_LDAPI)
+		(i_unix == NULL) &&
+#endif /* ENABLE_LDAPI */
 #endif
 	    (s_tcps == NULL) ) {	/* nothing to do */
 	    LDAPDebug( LDAP_DEBUG_ANY,
@@ -521,7 +544,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	    exit( 1 );
 	}
 
-	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps);
+	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps,i_unix);
 	init_op_threads ();
 	detect_timeout_support();
 
@@ -580,6 +603,21 @@ void slapd_daemon( daemon_ports_t *ports )
 		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 	}
 
+#if !defined( XP_WIN32 )
+#if defined(ENABLE_LDAPI)
+	if( i_unix != NULL &&
+		PR_Listen(i_unix, DAEMON_LISTEN_SIZE) == PR_FAILURE) {
+		PRErrorCode prerr = PR_GetError();
+		slapi_log_error(SLAPI_LOG_FATAL, "slapd_daemon",
+			"listen() on %s failed: error %d (%s)\n",
+			ports->i_listenaddr.local.path,
+			prerr,
+			slapd_pr_strerror( prerr ));
+		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+	}
+#endif /* ENABLE_LDAPI */
+#endif
+
 	/* Now we write the pid file, indicating that the server is finally and listening for connections */
 	write_pid_file();
 
@@ -593,6 +631,8 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif
 		int select_return = 0;
 		int secure = 0; /* is a new connection an SSL one ? */
+		int local = 0; /* is new connection an ldapi one? */
+
 #ifndef _WIN32
 		PRErrorCode prerr;
 #endif
@@ -603,7 +643,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		/* This select needs to timeout to give the server a chance to test for shutdown */
 		select_return = select(connection_table_size, &readfds, NULL, 0, &wakeup_timer);
 #else
-		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,&num_poll);
+		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
 #endif
 		switch (select_return) {
@@ -629,11 +669,11 @@ void slapd_daemon( daemon_ports_t *ports )
 #ifdef _WIN32
 			/* If so, then handle a new connection */
 			if ( n_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( n_tcps,&readfds ) ) {
-				handle_new_connection(the_connection_table,n_tcps,NULL,0);
+				handle_new_connection(the_connection_table,n_tcps,NULL,0,0);
 			} 
 			/* If so, then handle a new connection */
 			if ( s_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( s_tcps_native,&readfds ) ) {
-				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,s_tcps,1);
+				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,s_tcps,1,0);
 			} 
 			/* handle new data ready */
 			handle_read_ready(the_connection_table,&readfds);
@@ -650,9 +690,17 @@ void slapd_daemon( daemon_ports_t *ports )
 				tcps = s_tcps;
 				secure = 1;
 			}
+#if defined(ENABLE_LDAPI)
+			else if ( i_unix != 0 &&
+				the_connection_table->fd[FDS_I_UNIX].out_flags & SLAPD_POLL_FLAGS ) {
+				tcps = i_unix;
+				local = 1;
+			}
+#endif /* ENABLE_LDAPI */
+
 			/* If so, then handle a new connection */
 			if ( tcps != NULL ) {
-				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,tcps,secure);
+				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,tcps,secure,local);
 			}
 			/* handle new data ready */
 			handle_pr_read_ready(the_connection_table, connection_table_size);
@@ -674,11 +722,18 @@ void slapd_daemon( daemon_ports_t *ports )
 #ifdef _WIN32
 	if ( n_tcps != SLAPD_INVALID_SOCKET ) {
 		closesocket( n_tcps );
+	}
 #else
 	if ( n_tcps != NULL ) {
 		PR_Close( n_tcps );
-#endif
 	}
+
+	if ( i_unix != NULL ) {
+		PR_Close( i_unix );
+	}
+
+#endif
+
 	if ( s_tcps != NULL ) {
  		PR_Close( s_tcps );
 	}
@@ -934,7 +989,7 @@ static void setup_read_fds(Connection_Table *ct, fd_set *readfds, int n_tcps, in
 
 static int first_time_setup_pr_read_pds = 1;
 static void
-setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, PRIntn *num_to_read)
+setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, PRFileDesc *i_unix, PRIntn *num_to_read)
 {
 	Connection *c= NULL;
 	Connection *next= NULL;
@@ -999,7 +1054,19 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, 
         ct->fd[FDS_S_TCPS].fd = NULL;
     }
 
-#if !defined(_WIN32) 
+#if !defined(_WIN32)
+	/* The fds entry for i_unix is always FDS_I_UNIX */
+	if (i_unix != NULL && accept_new_connections)
+	{
+		ct->fd[FDS_I_UNIX].fd = i_unix;
+		ct->fd[FDS_I_UNIX].in_flags = SLAPD_POLL_FLAGS;
+		ct->fd[FDS_I_UNIX].out_flags = 0;
+		LDAPDebug( LDAP_DEBUG_HOUSE,
+			"listening for LDAPI connections on %d\n", socketdesc, 0, 0 );
+	} else {
+		ct->fd[FDS_S_TCPS].fd = NULL;
+	}
+ 
 	/* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE */
 	ct->fd[FDS_SIGNAL_PIPE].fd = signalpipe[0];
 	ct->fd[FDS_SIGNAL_PIPE].in_flags = SLAPD_POLL_FLAGS;
@@ -1013,8 +1080,9 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, 
     /* count is the number of entries we've place in the fds array.
      * we always put n_tcps in slot FDS_N_TCPS, s_tcps in slot
      * FDS_S_TCPS and the signal pipe in slot FDS_SIGNAL_PIPE
-     * so we now set count to 3 */
-    count = 3;
+     * and i_unix in FDS_I_UNIX
+     * so we now set count to 4 */
+    count = 4;
     
     /* Walk down the list of active connections to find 
 	 * out which connections we should poll over.  If a connection
@@ -1798,10 +1866,271 @@ daemon_register_connection()
         connection_type= factory_register_type(SLAPI_EXT_CONNECTION,offsetof(Connection,c_extension));
 	}
 }
-	
+
+#if defined(ENABLE_LDAPI)
+int
+slapd_identify_local_user(Connection *conn)
+{
+	int ret = -1;
+	uid_t uid = 0;
+	gid_t gid = 0;
+
+	if(0 == slapd_get_socket_peer(conn->c_prfd, &uid, &gid))
+	{
+		conn->c_local_uid = uid;
+		conn->c_local_gid = gid;
+
+		ret = 0;
+	}
+
+	return ret;
+}
+
+#if defined(ENABLE_AUTOBIND)
+int
+slapd_bind_local_user(Connection *conn)
+{
+	int ret = -1;
+	uid_t uid = conn->c_local_uid;
+	gid_t gid = conn->c_local_gid;
+
+	/* observe configuration for auto binding */
+	/* bind at all? */
+	if(config_get_ldapi_bind_switch())
+	{
+		/* map users to a dn
+		   root may also map to an entry
+		*/
+
+		/* require real entry? */
+		if(config_get_ldapi_map_entries())
+		{
+			/* get uid type to map to (e.g. uidNumber) */
+			char *utype = config_get_ldapi_uidnumber_type();
+			/* get gid type to map to (e.g. gidNumber) */
+			char *gtype = config_get_ldapi_gidnumber_type();
+			/* get base dn for search */
+			char *base_dn = config_get_ldapi_search_base_dn();
+
+			/* search vars */
+			Slapi_PBlock *search_pb = 0;
+			Slapi_Entry **entries = 0;
+			int result;
+
+			/* filter manipulation vars */
+			char *one_type = 0;
+			char *filter_tpl = 0;
+			char *filter = 0;
+
+			/* create filter, matching whatever is given */
+			if(utype && gtype)
+			{
+				filter_tpl = "(&(%s=%u)(%s=%u))";
+			}
+			else
+			{
+				if(utype || gtype)
+				{
+					filter_tpl = "(%s=%u)";
+					if(utype)
+						one_type = utype;
+					else
+						one_type = gtype;
+				}
+				else
+				{
+					goto entry_map_free;
+				}
+			}
+
+			if(one_type)
+			{
+				if(one_type == utype)
+					filter = slapi_ch_smprintf(filter_tpl,
+						utype, uid);
+				else
+					filter = slapi_ch_smprintf(filter_tpl,
+						gtype, gid);
+			}
+			else
+			{
+				filter = slapi_ch_smprintf(filter_tpl, 
+					utype, uid, gtype, gid);
+			}
+
+			/* search for single entry matching types */
+			search_pb = slapi_pblock_new();
+
+			slapi_search_internal_set_pb(
+				search_pb, 
+				base_dn,
+				LDAP_SCOPE_SUBTREE,
+               			filter, 
+				NULL, 0, NULL, NULL, 
+				(void*)plugin_get_default_component_id(), 
+				0);
+
+			slapi_search_internal_pb(search_pb);
+			slapi_pblock_get(
+				search_pb,
+				SLAPI_PLUGIN_INTOP_RESULT, 
+				&result);
+			if(LDAP_SUCCESS == result)
+				 slapi_pblock_get(
+					search_pb,
+					SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+					&entries);
+
+			if(entries)
+			{
+				/* zero or multiple entries fail */
+				if(entries[0] && 0 == entries[1])
+				{
+					/* observe account locking */
+					ret = check_account_lock(
+						0,  /* pb not req */
+						entries[0],
+						0, /* no response control */
+						1  /* inactivation only */
+						);
+
+					if(0 == ret)
+					{
+						char *auth_dn = slapi_ch_strdup(
+							slapi_entry_get_ndn(
+								entries[0]));
+
+						auth_dn = slapi_dn_normalize(
+							auth_dn);
+
+						bind_credentials_set_nolock(
+							conn,
+							SLAPD_AUTH_OS,
+							auth_dn,
+							NULL, NULL,
+							NULL , entries[0]);
+
+						ret = 0;
+					}
+				}
+			}
+
+entry_map_free:
+			/* auth_dn consumed by bind creds set */
+			slapi_free_search_results_internal(search_pb);
+			slapi_pblock_destroy(search_pb);
+			slapi_ch_free_string(&filter);
+			slapi_ch_free_string(&utype);
+                        slapi_ch_free_string(&gtype);
+                        slapi_ch_free_string(&base_dn);
+		}
+
+		if(ret && 0 == uid)
+		{
+			/* map unix root (uidNumber:0)? */
+			char *root_dn = config_get_ldapi_root_dn();
+
+			if(root_dn)
+			{
+				Slapi_DN *edn = slapi_sdn_new_dn_byref(
+					 slapi_dn_normalize(root_dn));
+				Slapi_Entry *e = 0;
+
+				/* root might be locked too! :) */
+				ret =  slapi_search_internal_get_entry(
+					edn, 0,
+        				&e,
+					(void*)plugin_get_default_component_id()
+
+					);	
+
+				if(0 == ret && e)
+				{
+					ret = check_account_lock(
+						0, /* pb not req */
+						e,
+						0, /* no response control */
+						1  /* inactivation only */
+						);
+
+					if(1 == ret)
+						/* sorry root,
+						 * just not cool enough
+						*/
+						goto root_map_free;
+				}
+
+				/* it's ok not to find the entry,
+				 * dn doesn't have to have an entry
+				 * e.g. cn=Directory Manager
+				 */
+				bind_credentials_set_nolock( 
+					conn, SLAPD_AUTH_OS, root_dn,
+					NULL, NULL, NULL , e);
+
+root_map_free:
+				/* root_dn consumed by bind creds set */
+				slapi_sdn_free(&edn);
+				slapi_entry_free(e);
+				ret = 0;
+			}
+		}
+
+		if(ret) 
+		{
+			/* create phony auth dn? */
+			char *base = config_get_ldapi_auto_dn_suffix();
+			if(base)
+			{
+				char *tpl = "gidNumber=%u+uidNumber=%u,";
+				int len = 
+				strlen(tpl) + 
+					strlen(base) +
+					51 /* uid,gid,null,w/padding */
+					;
+				char *dn_str = (char*)slapi_ch_malloc(
+					len);
+				char *auth_dn = (char*)slapi_ch_malloc(
+					len);
+
+				dn_str[0] = 0;
+				strcpy(dn_str, tpl);
+				strcat(dn_str, base);
+
+				sprintf(auth_dn, dn_str, gid, uid);
+
+				auth_dn = slapi_dn_normalize(auth_dn);
+
+				bind_credentials_set_nolock(
+					conn,
+					SLAPD_AUTH_OS,
+					auth_dn,
+                               		NULL, NULL, NULL , NULL);
+
+				/* auth_dn consumed by bind creds set */
+				slapi_ch_free_string(&dn_str);
+				slapi_ch_free_string(&base);
+				ret = 0;
+			}
+		}
+	}
+
+bail:
+	/* if all fails, the peer is anonymous */
+	if(conn->c_dn)
+	{
+		/* log the auto bind */
+		slapi_log_access(LDAP_DEBUG_STATS, "conn=%d AUTOBIND dn=\"%s\"\n", conn->c_connid, conn->c_dn);
+	}
+
+	return ret;
+}	
+#endif /* ENABLE_AUTOBIND */
+#endif /* ENABLE_LDAPI */
+
 /* NOTE: this routine is not reentrant */
 static int
-handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure)
+handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local)
 {
 	int ns = 0;
 	Connection *conn = NULL;
@@ -1810,7 +2139,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	PRFileDesc *pr_clonefd = NULL;
 
 	if ( (ns = accept_and_configure( tcps, pr_acceptfd, &from,
-		sizeof(from), secure, &pr_clonefd)) == SLAPD_INVALID_SOCKET ) {
+		sizeof(from), secure, local, &pr_clonefd)) == SLAPD_INVALID_SOCKET ) {
 		return -1;
 	}
 
@@ -1935,6 +2264,21 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		connection_table_move_connection_on_to_active_list(the_connection_table,conn);
 	}
 
+#if defined(ENABLE_LDAPI)
+#if !defined( XP_WIN32 )
+        /* ldapi */
+        if( local )
+        {
+                conn->c_unix_local = 1;
+		slapd_identify_local_user(conn);
+
+#if defined(ENABLE_AUTOBIND)
+                slapd_bind_local_user(conn);
+#endif /* ENABLE_AUTOBIND */
+        }
+#endif
+#endif /* ENABLE_LDAPI */
+
 	PR_Unlock( conn->c_mutex );
 
 	connection_new_private(conn);
@@ -2019,7 +2363,7 @@ static void
 unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, int n_tcps, PRFileDesc *s_tcps)
 #else
 static void
-unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc *n_tcps, PRFileDesc *s_tcps)
+unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc *n_tcps, PRFileDesc *s_tcps, PRFileDesc *i_unix)
 #endif
 {
 	slapdFrontendConfig_t	*slapdFrontendConfig = getFrontendConfig();
@@ -2079,6 +2423,18 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc *n_tcps, P
 			netaddr2string(&ports->s_listenaddr, addrbuf, sizeof(addrbuf)),
 		    ports->s_port, 0 );
 	}
+
+#if !defined( XP_WIN32 )
+#if defined(ENABLE_LDAPI)
+	if ( i_unix != NULL ) {                                 /* LDAPI */
+		LDAPDebug( LDAP_DEBUG_ANY,
+			"Listening on %s for LDAPI requests\n",
+			ports->i_listenaddr.local.path,
+			0, 0 );
+	}
+#endif /* ENABLE_LDAPI */
+#endif
+
 }
 
 #if defined( _WIN32 )
@@ -2273,7 +2629,7 @@ suppressed:
 
 static PRFileDesc *
 createprlistensocket(PRUint16 port, const PRNetAddr *listenaddr,
-		int secure)
+		int secure, int local)
 {
 	PRFileDesc			*sock;
 	PRNetAddr			sa_server;
@@ -2281,16 +2637,26 @@ createprlistensocket(PRUint16 port, const PRNetAddr *listenaddr,
 	PRSocketOptionData	pr_socketoption;
 	char				addrbuf[ 256 ];
 	char				*logname = "createprlistensocket";
+	int                             socktype = PR_AF_INET6;
+	char                            *socktype_s = "PR_AF_INET";
 
 	if (!port) goto suppressed;
 
 	PR_ASSERT( listenaddr != NULL );
 
+#if defined(ENABLE_LDAPI)
+	if(local) { /* ldapi */
+		socktype = PR_AF_LOCAL;
+		socktype_s = "PR_AF_LOCAL";
+	}
+#endif /* ENABLE_LDAPI */
+
 	/* create TCP socket */
-	if ((sock = PR_OpenTCPSocket(PR_AF_INET6)) == SLAPD_INVALID_SOCKET) {
+	if ((sock = PR_OpenTCPSocket(socktype)) == SLAPD_INVALID_SOCKET) {
 		prerr = PR_GetError();
 		slapi_log_error(SLAPI_LOG_FATAL, logname,
-		    "PR_OpenTCPSocket(PR_AF_INET6) failed: %s error %d (%s)\n",
+		    "PR_OpenTCPSocket(%s) failed: %s error %d (%s)\n",
+		    socktype_s,
 		    SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
 		goto failed;
 	}
@@ -2307,16 +2673,43 @@ createprlistensocket(PRUint16 port, const PRNetAddr *listenaddr,
 
 	/* set up listener address, including port */
 	memcpy(&sa_server, listenaddr, sizeof(sa_server));
-	PRLDAP_SET_PORT( &sa_server, port );
+
+	if(!local)
+		PRLDAP_SET_PORT( &sa_server, port );
 
 	if ( PR_Bind(sock, &sa_server) == PR_FAILURE) {
 		prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, logname,
+		if(!local)
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, logname,
 				"PR_Bind() on %s port %d failed: %s error %d (%s)\n",
 				netaddr2string(&sa_server, addrbuf, sizeof(addrbuf)), port,
 				SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
+		}
+#if defined(ENABLE_LDAPI)
+		else
+		{
+                        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                                "PR_Bind() on %s file %s failed: %s error %d (%s)\n",
+                                netaddr2string(&sa_server, addrbuf, sizeof(addrbuf)),
+				sa_server.local.path,
+                                SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
+		}
+#endif /* ENABLE_LDAPI */
+
 		goto failed;	
 	}
+
+#if defined(ENABLE_LDAPI)
+	if(local)
+	{
+		if(chmod(listenaddr->local.path,
+			S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH))
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, logname, "err: %d", errno);
+		}
+	}
+#endif /* ENABLE_LDAPI */
 
 	return( sock );
 
@@ -2536,7 +2929,7 @@ PRFileDesc * get_ssl_listener_fd()
 
 
 
-int configure_pr_socket( PRFileDesc **pr_socket, int secure )
+int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 {
 	int ns = 0;
 	int reservedescriptors = config_get_reservedescriptors();
@@ -2617,7 +3010,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure )
 	} /* else (secure) */
 
 
-	if ( !enable_nagle ) {
+	if ( !enable_nagle && !local ) {
 
 		 pr_socketoption.option = PR_SockOpt_NoDelay;
 		 pr_socketoption.value.no_delay = 1;
@@ -2628,7 +3021,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure )
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					prerr, slapd_pr_strerror( prerr ), 0 );
 		 }
-	} else {
+	} else if( !local) {
 		 pr_socketoption.option = PR_SockOpt_NoDelay;
 		 pr_socketoption.value.no_delay = 0;
 		 if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE) {

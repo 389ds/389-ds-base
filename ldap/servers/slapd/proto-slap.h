@@ -239,6 +239,15 @@ int config_set_SSL3ciphers( const char *attrname, char *value, char *errorbuf, i
 int config_set_localhost( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_listenhost( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_securelistenhost( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_filename( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_switch( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_bind_switch( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_root_dn( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_map_entries( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_uidnumber_type( const char *attrname, char *value, char *errorbuf, int apply );    
+int config_set_ldapi_gidnumber_type( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_search_base_dn( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *errorbuf, int apply );   
 int config_set_srvtab( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply );
@@ -334,6 +343,15 @@ char *config_get_SSL3ciphers();
 char *config_get_localhost();
 char *config_get_listenhost();
 char *config_get_securelistenhost();
+char *config_get_ldapi_filename();
+int config_get_ldapi_switch(); 
+int config_get_ldapi_bind_switch();
+char *config_get_ldapi_root_dn(); 
+int config_get_ldapi_map_entries(); 
+char *config_get_ldapi_uidnumber_type(); 
+char *config_get_ldapi_gidnumber_type(); 
+char *config_get_ldapi_search_base_dn(); 
+char *config_get_ldapi_auto_dn_suffix(); 
 char *config_get_srvtab();
 int config_get_sizelimit();
 char *config_get_pw_storagescheme();
@@ -738,7 +756,7 @@ int check_pw_syntax( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char **old_pw, Slapi_Entry *e, int mod_op );
 int check_pw_syntax_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods );
-int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req);
+int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req, int account_inactivation_only /*no wire/no pw policy*/);
 int check_pw_minage( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals) ;
 void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );
 void mod_allowchange_aci(char *val);
@@ -961,6 +979,9 @@ void pblock_init( Slapi_PBlock *pb );
 void pblock_init_common( Slapi_PBlock *pb, Slapi_Backend *be, Connection *conn, Operation *op );
 void pblock_done( Slapi_PBlock *pb );
 void bind_credentials_set( Connection *conn,
+                char *authtype, char *normdn,
+                char *extauthtype, char *externaldn, CERTCertificate *clientcert , Slapi_Entry * binded);
+void bind_credentials_set_nolock( Connection *conn,
 		char *authtype, char *normdn,
 		char *extauthtype, char *externaldn, CERTCertificate *clientcert , Slapi_Entry * binded);
 void bind_credentials_clear( Connection *conn, PRBool lock_conn,

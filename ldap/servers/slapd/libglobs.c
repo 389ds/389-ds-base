@@ -459,6 +459,33 @@ static struct config_get_and_set {
 	{CONFIG_LISTENHOST_ATTRIBUTE, config_set_listenhost,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listenhost, CONFIG_STRING, NULL},
+	{CONFIG_LDAPI_FILENAME_ATTRIBUTE, config_set_ldapi_filename,
+                NULL, 0,
+                (void**)&global_slapdFrontendConfig.ldapi_filename, CONFIG_STRING, NULL},
+        {CONFIG_LDAPI_SWITCH_ATTRIBUTE, config_set_ldapi_switch,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_switch, CONFIG_ON_OFF, NULL},
+        {CONFIG_LDAPI_BIND_SWITCH_ATTRIBUTE, config_set_ldapi_bind_switch,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_bind_switch, CONFIG_ON_OFF, NULL},
+        {CONFIG_LDAPI_ROOT_DN_ATTRIBUTE, config_set_ldapi_root_dn,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_root_dn, CONFIG_STRING, NULL},
+        {CONFIG_LDAPI_MAP_ENTRIES_ATTRIBUTE, config_set_ldapi_map_entries,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_map_entries, CONFIG_ON_OFF, NULL},
+        {CONFIG_LDAPI_UIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_uidnumber_type,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_uidnumber_type, CONFIG_STRING, NULL},
+        {CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_gidnumber_type,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_gidnumber_type, CONFIG_STRING, NULL},
+        {CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE, config_set_ldapi_search_base_dn,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_search_base_dn, CONFIG_STRING, NULL},
+        {CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE, config_set_ldapi_auto_dn_suffix,
+                NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix, CONFIG_STRING, NULL},
 	{CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_minfreespace, CONFIG_INT, NULL},
@@ -750,6 +777,15 @@ FrontendConfig_init () {
 				
   cfg->port = LDAP_PORT;
   cfg->secureport = LDAPS_PORT;
+  cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
+  cfg->ldapi_switch = LDAP_ON;
+  cfg->ldapi_bind_switch = LDAP_OFF;
+  cfg->ldapi_root_dn = slapi_ch_strdup("cn=Directory Manager");
+  cfg->ldapi_map_entries = LDAP_OFF;
+  cfg->ldapi_uidnumber_type = slapi_ch_strdup("uidNumber");
+  cfg->ldapi_gidnumber_type = slapi_ch_strdup("gidNumber");
+  cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example, dc=com");
+  cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
   cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
@@ -991,7 +1027,7 @@ config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
 
   if ( nPort == 0 ) {
         LDAPDebug( LDAP_DEBUG_ANY,
-                           "Information: Non-Secure Port Disabled, server only contactable via secure port\n", 0, 0, 0 );
+                           "Information: Non-Secure Port Disabled\n", 0, 0, 0 );
   }
   
   if ( apply ) {
@@ -1140,6 +1176,163 @@ config_set_listenhost( const char *attrname, char *value, char *errorbuf, int ap
   }
   return retVal;
 }
+
+int
+config_set_ldapi_filename( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->ldapi_filename) );
+        slapdFrontendConfig->ldapi_filename = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+}
+
+int
+config_set_ldapi_switch( const char *attrname, char *value, char *errorbuf, int apply ) {
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->ldapi_switch),
+		errorbuf,
+		apply);
+
+	return retVal;
+}
+
+int config_set_ldapi_bind_switch( const char *attrname, char *value, char *errorbuf, int apply )
+{
+        int retVal = LDAP_SUCCESS;
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+        retVal = config_set_onoff(attrname,
+                value,
+                &(slapdFrontendConfig->ldapi_bind_switch),
+                errorbuf,
+                apply);
+
+        return retVal;
+}
+
+int config_set_ldapi_root_dn( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->ldapi_root_dn) );
+        slapdFrontendConfig->ldapi_root_dn = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+}
+
+int config_set_ldapi_map_entries( const char *attrname, char *value, char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->ldapi_map_entries),
+		errorbuf,
+		apply);
+
+	return retVal;
+} 
+
+int config_set_ldapi_uidnumber_type( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->ldapi_uidnumber_type) );
+        slapdFrontendConfig->ldapi_uidnumber_type = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+} 
+
+int config_set_ldapi_gidnumber_type( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->ldapi_gidnumber_type) );
+        slapdFrontendConfig->ldapi_gidnumber_type = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+}
+
+int config_set_ldapi_search_base_dn( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->ldapi_search_base_dn) );
+        slapdFrontendConfig->ldapi_search_base_dn = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+}
+
+int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->ldapi_auto_dn_suffix) );
+        slapdFrontendConfig->ldapi_auto_dn_suffix = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+}
+
 
 int
 config_set_securelistenhost( const char *attrname, char *value, char *errorbuf, int apply ) {
@@ -3064,6 +3257,100 @@ config_get_port(){
   return retVal;
 
 }
+
+char *
+config_get_ldapi_filename(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_filename);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+
+int config_get_ldapi_switch(){   
+  int retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig(); 
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->ldapi_switch;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int config_get_ldapi_bind_switch(){
+  int retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->ldapi_bind_switch;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+char *config_get_ldapi_root_dn(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_root_dn);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int config_get_ldapi_map_entries(){
+  int retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->ldapi_map_entries;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+char *config_get_ldapi_uidnumber_type(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_uidnumber_type);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+char *config_get_ldapi_gidnumber_type(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_gidnumber_type);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+char *config_get_ldapi_search_base_dn(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_search_base_dn);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+char *config_get_ldapi_auto_dn_suffix(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_auto_dn_suffix);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
 
 char *
 config_get_workingdir() {

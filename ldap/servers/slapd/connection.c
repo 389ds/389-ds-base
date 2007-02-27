@@ -511,21 +511,27 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	{
 		int i = 1;
 		int ret = 0;
-		/* Set TCP_CORK here */
-		ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
-		if (ret < 0) {
-			LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %d\n",conn->c_connid, 0, 0);
+		/* Set TCP_CORK here but only if this is not LDAPI */
+		if(!conn->c_unix_local)
+		{
+			ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
+			if (ret < 0) {
+				LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %d\n",conn->c_connid, 0, 0);
+			}
 		}
 #endif
 
 		do_search( pb );
 
 #if defined(LINUX)
-		/* Clear TCP_CORK to flush any unsent data */
+		/* Clear TCP_CORK to flush any unsent data but only if not LDAPI*/
 		i = 0;
-		ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
-		if (ret < 0) {
-			LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %d\n",conn->c_connid, 0, 0);
+		if(!conn->c_unix_local)
+		{
+			ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
+			if (ret < 0) {
+				LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %d\n",conn->c_connid, 0, 0);
+			}
 		}
 	}
 #endif

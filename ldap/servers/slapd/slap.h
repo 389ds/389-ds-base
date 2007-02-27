@@ -304,6 +304,10 @@ typedef void	(*VFP0)();
 /* the default schema sub directory of the config sub directory */
 #define SCHEMA_SUBDIR_NAME "schema"
 
+/* LDAPI default configuration */
+#define SLAPD_LDAPI_DEFAULT_FILENAME "/var/run/ldapi"
+#define SLAPD_LDAPI_DEFAULT_STATUS "off"
+
 struct subfilt {
 	char	*sf_type;
 	char	*sf_initial;
@@ -1249,6 +1253,9 @@ typedef struct conn {
     int				c_enable_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
     int				c_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
     int				c_sasl_ssf; /* flag to tell us the SASL SSF */
+    int                         c_unix_local; /* flag true for LDAPI */
+    uid_t                         c_local_uid;  /* uid of connecting process */
+    gid_t                         c_local_gid;  /* gid of connecting process */
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 
@@ -1456,6 +1463,11 @@ typedef struct daemon_ports_s {
 	int		s_socket_native;
 #else
 	PRFileDesc	*n_socket;
+	/* ldapi */
+	PRNetAddr       i_listenaddr;
+	int             i_port; /* used as a flag only */
+	PRFileDesc      *i_socket;
+
 #endif
 	PRFileDesc	*s_socket;
 } daemon_ports_t;
@@ -1640,6 +1652,15 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PORT_ATTRIBUTE "nsslapd-port"
 #define CONFIG_WORKINGDIR_ATTRIBUTE "nsslapd-workingdir"
 #define CONFIG_LISTENHOST_ATTRIBUTE "nsslapd-listenhost"
+#define CONFIG_LDAPI_FILENAME_ATTRIBUTE "nsslapd-ldapifilepath"
+#define CONFIG_LDAPI_SWITCH_ATTRIBUTE "nsslapd-ldapilisten"
+#define CONFIG_LDAPI_BIND_SWITCH_ATTRIBUTE "nsslapd-ldapiautobind"
+#define CONFIG_LDAPI_ROOT_DN_ATTRIBUTE "nsslapd-ldapimaprootdn"
+#define CONFIG_LDAPI_MAP_ENTRIES_ATTRIBUTE "nsslapd-ldapimaptoentries"
+#define CONFIG_LDAPI_UIDNUMBER_TYPE_ATTRIBUTE "nsslapd-ldapiuidnumbertype"
+#define CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE "nsslapd-ldapigidnumbertype"
+#define CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE "nsslapd-ldapientrysearchbase"
+#define CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE "nsslapd-ldapiautodnsuffix"
 #define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
 #define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
 #define CONFIG_ACCESSLOG_ATTRIBUTE "nsslapd-accesslog"
@@ -1889,6 +1910,15 @@ typedef struct _slapdFrontendConfig {
   int attrname_exceptions;  /* if true, allow questionable attribute names */
   int rewrite_rfc1274;		/* return attrs for both v2 and v3 names */
   char *schemareplace;		/* see CONFIG_SCHEMAREPLACE_* #defines below */
+  char *ldapi_filename;		/* filename for ldapi socket */
+  int ldapi_switch;             /* switch to turn ldapi on/off */
+  int ldapi_bind_switch;        /* switch to turn ldapi auto binding on/off */
+  char *ldapi_root_dn;          /* DN to map root to over LDAPI */
+  int ldapi_map_entries;        /* turns ldapi entry bind mapping on/off */
+  char *ldapi_uidnumber_type;   /* type that contains uid number */
+  char *ldapi_gidnumber_type;   /* type that contains gid number */
+  char *ldapi_search_base_dn;   /* base dn to search for mapped entries */
+  char *ldapi_auto_dn_suffix;   /* suffix to be appended to auto gen DNs */
 } slapdFrontendConfig_t;
 
 #define SLAPD_FULL	0
@@ -1901,6 +1931,8 @@ typedef struct _slapdFrontendConfig {
 
  
 slapdFrontendConfig_t *getFrontendConfig();
+
+int slapd_bind_local_user(Connection *conn);
 
 /* LP: NO_TIME cannot be -1, it generates wrong GeneralizedTime
  * And causes some errors on AIX also 

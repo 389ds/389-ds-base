@@ -126,6 +126,7 @@ do_bind( Slapi_PBlock *pb )
     char **supported, **pmech;
     char authtypebuf[256]; /* >26 (strlen(SLAPD_AUTH_SASL)+SASL_MECHNAMEMAX+1) */
     Slapi_Entry *bind_target_entry = NULL;
+    int auto_bind = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
@@ -250,14 +251,31 @@ do_bind( Slapi_PBlock *pb )
         slapi_pblock_get (pb, SLAPI_PWPOLICY, &pw_response_requested);
     }
 
-    log_bind_access(pb, dn, method, version, saslmech, NULL);
+    PR_Lock( pb->pb_conn->c_mutex );
 
     /* According to RFC2251,
      * "if the bind fails, the connection will be treated as anonymous".
      */
-    PR_Lock( pb->pb_conn->c_mutex );
-    bind_credentials_clear( pb->pb_conn, PR_FALSE, /* conn is already locked */
+    bind_credentials_clear( pb->pb_conn, PR_FALSE, /* do not lock conn */
                             PR_FALSE /* do not clear external creds. */ );
+
+    /* LDAPI might have auto bind on, binding as anon should
+       mean bind as self in this case
+     */
+#if defined(ENABLE_AUTOBIND)
+    if((0 == dn || 0 == dn[0]) && pb->pb_conn->c_unix_local)
+    {
+        slapd_bind_local_user(pb->pb_conn);
+	
+	if(pb->pb_conn->c_dn)
+	{
+            auto_bind = 1; /* flag the bind method */
+	    dn = slapi_ch_strdup(pb->pb_conn->c_dn);
+	    slapi_sdn_init_dn_passin(&sdn,dn);
+	}
+    }
+#endif /* ENABLE_AUTOBIND */
+
     /* Clear the password policy flag that forbid operation
      * other than Bind, Modify, Unbind :
      * With a new bind, the flag should be reset so that the new
@@ -265,6 +283,8 @@ do_bind( Slapi_PBlock *pb )
      */
     pb->pb_conn->c_needpw = 0;
     PR_Unlock( pb->pb_conn->c_mutex );
+
+    log_bind_access(pb, dn, method, version, saslmech, NULL);
 
     switch ( version ) {
     case LDAP_VERSION2:
@@ -502,22 +522,31 @@ do_bind( Slapi_PBlock *pb )
 			/* get the entry now, so that we can give it to check_account_lock and reslimit_update_from_dn */
             if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
 				bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(&sdn));
-				rc = check_account_lock ( pb, bind_target_entry, pw_response_requested);
+				rc = check_account_lock ( pb, bind_target_entry, pw_response_requested,0);
             }
 
             slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
             set_db_default_result_handlers(pb);
-            if ( (rc != 1) && (((rc = (*be->be_bind)( pb ))
+            if ( (rc != 1) && (auto_bind || (((rc = (*be->be_bind)( pb ))
                                 == SLAPI_BIND_SUCCESS ) || rc
-                               == SLAPI_BIND_ANONYMOUS )) {
+                               == SLAPI_BIND_ANONYMOUS ))) {
                 long t;
                 {
                     char* authtype = NULL;
+
+                    if(auto_bind)
+                        rc = SLAPI_BIND_SUCCESS;
+
                     switch ( method ) {
                     case LDAP_AUTH_SIMPLE:
                         if (cred.bv_len != 0) {
                             authtype = SLAPD_AUTH_SIMPLE;
                         }
+#if defined(ENABLE_AUTOBIND)
+                        else if(auto_bind) {
+                            authtype = SLAPD_AUTH_OS;
+                        }
+#endif /* ENABLE_AUTOBIND */
                         break;
                     case LDAP_AUTH_SASL:
                         /* authtype = SLAPD_AUTH_SASL && saslmech: */
@@ -529,7 +558,8 @@ do_bind( Slapi_PBlock *pb )
                     }
 
                     if ( rc == SLAPI_BIND_SUCCESS ) {
-                        bind_credentials_set( pb->pb_conn,
+			if(!auto_bind)
+                            bind_credentials_set( pb->pb_conn,
                                               authtype, slapi_ch_strdup(
                                                   slapi_sdn_get_ndn(&sdn)),
                                               NULL, NULL, NULL, bind_target_entry );
@@ -545,7 +575,7 @@ do_bind( Slapi_PBlock *pb )
                     }
                 }
 
-                if ( rc != SLAPI_BIND_ANONYMOUS &&
+                if ( 0 == auto_bind && rc != SLAPI_BIND_ANONYMOUS &&
                      ! slapi_be_is_flag_set(be,
                                             SLAPI_BE_FLAG_REMOTE_DATA)) {
                     /* check if need new password before sending 

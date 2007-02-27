@@ -212,6 +212,8 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
                     (*(char **)value) = SLAPD_AUTH_SIMPLE;
                 } else if (strcasecmp(authtype, SLAPD_AUTH_SSL) == 0) {
                     (*(char **)value) = SLAPD_AUTH_SSL;
+                } else if (strcasecmp(authtype, SLAPD_AUTH_OS) == 0) {
+                    (*(char **)value) = SLAPD_AUTH_OS;
                 } else if (strncasecmp(authtype, SLAPD_AUTH_SASL, 
                                        strlen(SLAPD_AUTH_SASL)) == 0) {
                     (*(char **)value) = SLAPD_AUTH_SASL;
@@ -2932,7 +2934,15 @@ bind_credentials_set( Connection *conn, char *authtype, char *normdn,
 		char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry * bind_target_entry )
 {
 	PR_Lock( conn->c_mutex );
+	bind_credentials_set_nolock(conn, authtype, normdn,
+		extauthtype, externaldn, clientcert, bind_target_entry);
+	PR_Unlock( conn->c_mutex );
+}
 
+void
+bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
+                char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry * bind_target_entry )
+{
 	/* clear credentials */
 	bind_credentials_clear( conn, PR_FALSE /* conn is already locked */,
 			( extauthtype != NULL ) /* clear external creds. if requested */ );
@@ -2968,6 +2978,4 @@ bind_credentials_set( Connection *conn, char *authtype, char *normdn,
 				reslimit_update_from_entry( conn, bind_target_entry );	
 		}
 	}
-
-	PR_Unlock( conn->c_mutex );
 }
