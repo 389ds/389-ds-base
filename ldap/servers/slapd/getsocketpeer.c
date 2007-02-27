@@ -100,7 +100,7 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 	if(0 == getpeereid(fd, &uid, &gid))
 		ret = 0;
 
-#else 0 /* hpux / some BSDs - file descriptor cooperative auth */
+#elif 0 /* hpux / some BSDs - file descriptor cooperative auth */
 
         struct msghdr msg;
 	struct iovec iov;
