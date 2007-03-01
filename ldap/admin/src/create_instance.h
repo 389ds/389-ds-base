@@ -182,6 +182,9 @@ typedef struct {
     char *cert_dir;
     char *sasl_path;
     char *prefix;
+#if defined(ENABLE_LDAPI)
+    char *ldapifilepath;
+#endif
 } server_config_s;
 
 

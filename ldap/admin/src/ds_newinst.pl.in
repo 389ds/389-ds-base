@@ -44,7 +44,8 @@ use File::Basename;
 sub usage {
 	my $msg = shift;
 	print "Error: $msg\n";
-	print "Usage: $0 filename.inf\n";
+	print "Usage: $0 [-|filename.inf]\n";
+	print "Use - to read from stdin\n";
 	exit 1
 }
 
@@ -136,7 +137,7 @@ sub addAndCheck {
 }
 
 my $filename = $ARGV[0];
-usage("$filename not found") if (! -f $filename);
+usage("$filename not found") if ($filename ne "-" && ! -f $filename);
 
 my $curSection;
 # each key in the table is a section name
@@ -145,8 +146,14 @@ my $curSection;
 #   and the value is the config param value
 my %table = ();
 
-open(IN, $filename);
-while (<IN>) {
+my $fh;
+if ($filename eq "-") {
+    $fh = \*STDIN;
+} else {
+    open(IN, $filename);
+    $fh = \*IN;
+}
+while (<$fh>) {
 	# e.g. [General]
 	if (/^\[(.*?)\]/) {
 		$curSection = $1;
@@ -158,7 +165,9 @@ while (<IN>) {
 		$table{$curSection}->{$1} = $2;
 	}
 }
-close IN;
+if ($filename ne "-") {
+    close IN;
+}
 
 #printhash (\%table);
 
@@ -171,11 +180,28 @@ my $package_name = "@package_name@";
 addAndCheck(\%cgiargs, "sroot", \%table, "General", "ServerRoot");
 addAndCheck(\%cgiargs, "servname", \%table, "General", "FullMachineName");
 addAndCheck(\%cgiargs, "servuser", \%table, "General", "SuiteSpotUserID");
-addAndCheck(\%cgiargs, "servport", \%table, "slapd", "ServerPort");
 addAndCheck(\%cgiargs, "rootdn", \%table, "slapd", "RootDN");
 addAndCheck(\%cgiargs, "rootpw", \%table, "slapd", "RootDNPwd");
 addAndCheck(\%cgiargs, "servid", \%table, "slapd", "ServerIdentifier");
 addAndCheck(\%cgiargs, "suffix", \%table, "slapd", "Suffix");
+
+# either servport or ldapifilepath must be specified - the server must
+# listen to something . . .
+my $canlisten = 0;
+if (defined($table{"slapd"}->{"ServerPort"}) &&
+    $table{"slapd"}->{"ServerPort"} > 0) {
+    $canlisten = 1;
+    $cgiargs{"servport"} = $table{"slapd"}->{"ServerPort"};
+} else {
+    $cgiargs{"servport"} = "0"; # 0 means do not listen
+}
+if (defined($table{"slapd"}->{"ldapifilepath"})) {
+    $canlisten = 1;
+    $cgiargs{"ldapifilepath"} = $table{"slapd"}->{"ldapifilepath"};
+}
+if (! $canlisten) {
+    usage("Either ServerPort or ldapifilepath must be specified in the slapd section of $filename");
+}
 
 # the following items are optional
 
@@ -253,7 +279,11 @@ $cgiargs{install_ldif_file} = $table{slapd}->{InstallLdifFile};
 # if for some reason you do not want the server started after instance creation
 # the following line can be commented out - NOTE that if you are creating the
 # Configuration DS, it will be started anyway
-$cgiargs{start_server} = 1;
+if (defined($table{"slapd"}->{"start_server"})) {
+    $cgiargs{start_server} = $table{"slapd"}->{"start_server"};
+} else { # default is on
+    $cgiargs{start_server} = 1;
+}
 
 my $sroot = $cgiargs{sroot};
 

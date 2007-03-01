@@ -253,7 +253,6 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
 
     conf->servname = hn;
     conf->bindaddr = "";
-    conf->servport = "80";
     conf->cfg_sspt = NULL;
     conf->suitespot3x_uid = NULL;
     conf->cfg_sspt_uid = NULL;
@@ -331,6 +330,7 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
 /* ----------------- Sanity check a server configuration ------------------ */
 
 char *create_instance_checkport(char *, char *);
+char *create_instance_checkports(server_config_s *cf);
 char *create_instance_checkuser(char *);
 int create_instance_numbers(char *);
 int create_instance_exists(char *fn, int type);
@@ -441,7 +441,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     */
     if (!needToStartServer(cf))
     {
-        if( (t = create_instance_checkport(cf->bindaddr, cf->servport)) )
+        if( (t = create_instance_checkports(cf)))
         {
             PL_strncpyz(param_name, "servport", BIG_LINE);
             return t;
@@ -1417,6 +1417,20 @@ int tryuser(char *user)
 
 
 /* --------------------------- create_instance_check* ---------------------------- */
+
+char *create_instance_checkports(server_config_s *cf)
+{
+    /* allow port 0 if ldapifilepath is specified */
+#if defined(ENABLE_LDAPI)
+    if (!cf->ldapifilepath || strcmp(cf->servport, "0")) {
+#endif
+        return create_instance_checkport(cf->bindaddr, cf->servport);
+#if defined(ENABLE_LDAPI)
+    }
+#endif
+
+    return NULL;
+}
 
 
 char *create_instance_checkport(char *addr, char *sport)
@@ -2687,7 +2701,11 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-ssl-check-hostname: on\n");
     fprintf(f, "nsslapd-port: %s\n", cf->servport);
 #if defined(ENABLE_LDAPI)
-    fprintf(f, "nsslapd-ldapifilepath: %s/%s-%s.socket\n", cf->run_dir, PRODUCT_NAME, cf->servid);
+    if (cf->ldapifilepath) {
+        fprintf(f, "nsslapd-ldapifilepath: %s\n", cf->ldapifilepath);
+    } else {
+        fprintf(f, "nsslapd-ldapifilepath: %s/%s-%s.socket\n", cf->run_dir, PRODUCT_NAME, cf->servid);
+    }
     fprintf(f, "nsslapd-ldapilisten: on\n");
 #if defined(ENABLE_AUTOBIND)
     fprintf(f, "nsslapd-ldapiautobind: on\n");
@@ -4003,9 +4021,10 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
       it or if we are configuring the server to serve as the repository
       for SuiteSpot (Mission Control) information
       Only attempt to start the server if the port is not in use
+      In order to start the server, there must either be an ldapifilepath
+      specified or a valid port.  If the port is not "0" it must be valid.
       */
-    if(needToStartServer(cf) &&
-       !(t = create_instance_checkport(cf->bindaddr, cf->servport)))
+    if(needToStartServer(cf) && !(t = create_instance_checkports(cf)))
     {
     PR_snprintf(big_line, sizeof(big_line),"SERVER_NAMES=slapd-%s",cf->servid);
     putenv(big_line);
@@ -4366,10 +4385,31 @@ int parse_form(server_config_s *cf)
     }
 
     cf->bindaddr = ds_a_get_cgi_var("bindaddr", NULL, NULL);
-    if (!(cf->servport = ds_a_get_cgi_var("servport", "Server Port",
-                                          "Please specify the TCP port number for this server.")))
-    {
+#if defined(ENABLE_LDAPI)
+    temp = ds_a_get_cgi_var("ldapifilepath", NULL, NULL);
+    if (NULL != temp) {
+        cf->ldapifilepath = PL_strdup(temp);
+    }
+#endif
+
+    temp = ds_a_get_cgi_var("servport", NULL, NULL);
+    if (!temp
+#if defined(ENABLE_LDAPI)
+        && !cf->ldapifilepath
+#endif
+        ) {
+#if defined(ENABLE_LDAPI)
+        ds_show_message("error: either servport or ldapifilepath must be specified.");
+#else
+        ds_show_message("error: servport must be specified.");
+#endif
         return 1;
+    }
+
+    if (NULL != temp) {
+        cf->servport = PL_strdup(temp);
+    } else {
+        cf->servport = PL_strdup("0");
     }
 
     cf->cfg_sspt = ds_a_get_cgi_var("cfg_sspt", NULL, NULL);
