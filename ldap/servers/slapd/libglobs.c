@@ -778,7 +778,7 @@ FrontendConfig_init () {
   cfg->port = LDAP_PORT;
   cfg->secureport = LDAPS_PORT;
   cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
-  cfg->ldapi_switch = LDAP_ON;
+  cfg->ldapi_switch = LDAP_OFF;
   cfg->ldapi_bind_switch = LDAP_OFF;
   cfg->ldapi_root_dn = slapi_ch_strdup("cn=Directory Manager");
   cfg->ldapi_map_entries = LDAP_OFF;
