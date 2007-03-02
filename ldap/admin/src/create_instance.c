@@ -2703,10 +2703,11 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
 #if defined(ENABLE_LDAPI)
     if (cf->ldapifilepath) {
         fprintf(f, "nsslapd-ldapifilepath: %s\n", cf->ldapifilepath);
+        fprintf(f, "nsslapd-ldapilisten: on\n");
     } else {
         fprintf(f, "nsslapd-ldapifilepath: %s/%s-%s.socket\n", cf->run_dir, PRODUCT_NAME, cf->servid);
+        fprintf(f, "nsslapd-ldapilisten: off\n");
     }
-    fprintf(f, "nsslapd-ldapilisten: on\n");
 #if defined(ENABLE_AUTOBIND)
     fprintf(f, "nsslapd-ldapiautobind: on\n");
 #endif /* ENABLE_AUTOBIND */
