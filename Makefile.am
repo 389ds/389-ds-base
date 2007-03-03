@@ -128,6 +128,7 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
 
 schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
+	$(srcdir)/ldap/schema/01common.ldif \
 	$(srcdir)/ldap/schema/05rfc2247.ldif \
 	$(srcdir)/ldap/schema/05rfc2927.ldif \
 	$(srcdir)/ldap/schema/10presence.ldif \
