@@ -179,7 +179,7 @@ int ldbm_instance_create_default_indexes(backend *be)
 
 	/* For MMR, we need this attribute (to replace use of dncomp in delete). */
     argv[ 0 ] = ATTR_NSDS5_REPLCONFLICT;
-    argv[ 1 ] = "eq";
+    argv[ 1 ] = "eq,pres";
     argv[ 2 ] = NULL;
     ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
 
