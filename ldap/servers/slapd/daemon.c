@@ -1064,7 +1064,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc *n_tcps, PRFileDesc *s_tcps, 
 		LDAPDebug( LDAP_DEBUG_HOUSE,
 			"listening for LDAPI connections on %d\n", socketdesc, 0, 0 );
 	} else {
-		ct->fd[FDS_S_TCPS].fd = NULL;
+		ct->fd[FDS_I_UNIX].fd = NULL;
 	}
  
 	/* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE */
