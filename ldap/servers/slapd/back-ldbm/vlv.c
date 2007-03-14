@@ -499,7 +499,7 @@ vlv_getindices(IFP callback_fn,void *param, backend *be)
 static struct vlv_key *
 vlv_create_key(struct vlvIndex* p, struct backentry* e)
 {
-    struct berval val, *lowest_value = NULL;
+    struct berval val;
     unsigned char char_min = 0x00;
     unsigned char char_max = 0xFF;
     struct vlv_key *key= vlv_key_new();
@@ -521,7 +521,7 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
 				/* xxxPINAKI */
 				/* need to free some stuff! */
 		        Slapi_Value **cvalue = NULL;
-        		struct berval **value = NULL;
+        		struct berval **value = NULL, *lowest_value = NULL;
                 int free_value= 0;
                 if (attr != NULL && !valueset_isempty(&attr->a_present_values))
 				{
@@ -578,7 +578,7 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                     unsigned int i;
                     char *attributeValue = NULL;
                     /* Bug 605477 : Don't malloc 0 bytes */
-                    if (attr != NULL && lowest_value->bv_len != 0) {
+                    if (attr != NULL && lowest_value && lowest_value->bv_len != 0) {
                          attributeValue = (char*)slapi_ch_malloc(lowest_value->bv_len);
                          for(i=0;i<lowest_value->bv_len;i++)
                        	 {
@@ -606,7 +606,7 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                     /* If the forward-sorted attribute is absent or has no 
                      * value, we need to use the value of 0xFF.
                      */
-                     if (attr != NULL && lowest_value->bv_len > 0) {
+                     if (attr != NULL && lowest_value && lowest_value->bv_len > 0) {
                          vlv_key_addattr(key,lowest_value);
                      } else {
                          val.bv_val = (void*)&char_max;
