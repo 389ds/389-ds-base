@@ -346,7 +346,7 @@ static void dblayer_reset_env(struct ldbminfo *li)
     dblayer_private *priv = (dblayer_private*)li->li_dblayer_private;
     DB_ENV *pEnv = priv->dblayer_env->dblayer_DB_ENV;
     char *home_dir = dblayer_get_home_dir(li, NULL);
-    if (home_dir)
+    if (home_dir && *home_dir)
         pEnv->remove(pEnv, home_dir, DB_FORCE);
 }
 
@@ -815,18 +815,18 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
 #ifdef LINUX
     {
         struct sysinfo si;
-		size_t pages_per_mem_unit = 0;
-		size_t mem_units_per_page = 0; /* We don't know if these units are really pages */
+        size_t pages_per_mem_unit = 0;
+        size_t mem_units_per_page = 0; /* We don't know if these units are really pages */
 
         sysinfo(&si);
         *pagesize = getpagesize();
-		if (si.mem_unit > *pagesize) {
-			pages_per_mem_unit = si.mem_unit / *pagesize;
-			*pages = si.totalram * pages_per_mem_unit;
-		} else {
-			mem_units_per_page = *pagesize / si.mem_unit;
-		    *pages = si.totalram / mem_units_per_page;
-		}
+        if (si.mem_unit > *pagesize) {
+            pages_per_mem_unit = si.mem_unit / *pagesize;
+            *pages = si.totalram * pages_per_mem_unit;
+        } else {
+            mem_units_per_page = *pagesize / si.mem_unit;
+            *pages = si.totalram / mem_units_per_page;
+        }
         *availpages = dblayer_getvirtualmemsize() / *pagesize;
         /* okay i take that back, linux's method is more retarded here.
          * hopefully linux doesn't have the FILE* problem that solaris does
@@ -861,7 +861,7 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
         if (rval < 0)    /* pstat_getstatic failed */
             return;
         *pagesize = pst.page_size;
-		*pages = pst.physical_memory;
+        *pages = pst.physical_memory;
         *availpages = dblayer_getvirtualmemsize() / *pagesize;
         if (procpages)
         {
@@ -894,21 +894,21 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
         }
     }
 #endif
-	/* If this is a 32-bit build, it might be running on a 64-bit machine,
-	 * in which case, if the box has tons of ram, we can end up telling 
-	 * the auto cache code to use more memory than the process can address.
-	 * so we cap the number returned here.
-	 */
+    /* If this is a 32-bit build, it might be running on a 64-bit machine,
+     * in which case, if the box has tons of ram, we can end up telling 
+     * the auto cache code to use more memory than the process can address.
+     * so we cap the number returned here.
+     */
 #if defined(__LP64__) || defined (_LP64)
 #else
-	{	
-		size_t one_gig_pages = GIGABYTE / *pagesize;
-		if (*pages > (2 * one_gig_pages) ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,"More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
-				0, 0, 0);
-			*pages = (2 * one_gig_pages);
-		}
-	}
+    {    
+        size_t one_gig_pages = GIGABYTE / *pagesize;
+        if (*pages > (2 * one_gig_pages) ) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
+                0, 0, 0);
+            *pages = (2 * one_gig_pages);
+        }
+    }
 #endif
 }
 
@@ -921,21 +921,21 @@ int dblayer_is_cachesize_sane(size_t *cachesize)
     dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
     if (!pagesize || !pages)
         return 1;    /* do nothing when we can't get the avail mem */
-	/* If the requested cache size is larger than the remaining pysical memory
-	 * after the current working set size for this process has been subtracted,
-	 * then we say that's insane and try to correct.
-	 */
+    /* If the requested cache size is larger than the remaining pysical memory
+     * after the current working set size for this process has been subtracted,
+     * then we say that's insane and try to correct.
+     */
     issane = (int)(*cachesize / pagesize) <= (pages - procpages);
     if (!issane) {
-		*cachesize = (size_t)((pages - procpages) * pagesize);
-	}
-	/* We now compensate for DB's own compensation for metadata size 
-	 * They increase the actual cache size by 25%, but only for sizes
-	 * less than 500Meg.
-	 */
-	if (*cachesize < 500*MEGABYTE) {
-		*cachesize = (size_t)((double)*cachesize * (double)0.8);
-	}
+        *cachesize = (size_t)((pages - procpages) * pagesize);
+    }
+    /* We now compensate for DB's own compensation for metadata size 
+     * They increase the actual cache size by 25%, but only for sizes
+     * less than 500Meg.
+     */
+    if (*cachesize < 500*MEGABYTE) {
+        *cachesize = (size_t)((double)*cachesize * (double)0.8);
+    }
     
     return issane;
 }
@@ -1153,7 +1153,8 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     }
     home_dir = dblayer_get_home_dir(li, NULL);
     /* user specified db home */
-    if (!charray_utf8_inlist(priv->dblayer_data_directories, home_dir))
+    if (home_dir && *home_dir &&
+        !charray_utf8_inlist(priv->dblayer_data_directories, home_dir))
     {
         charray_add(&(priv->dblayer_data_directories), home_dir);
     }
@@ -1206,6 +1207,10 @@ dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst,
     else
     {
         parent_dir = dblayer_get_home_dir(li, NULL);
+        if (!parent_dir || !*parent_dir) {
+            buf = NULL;
+            return buf;
+        }
         mylen = strlen(parent_dir);
         inst->inst_parent_dir_name = slapi_ch_strdup(parent_dir);
     }
@@ -1382,6 +1387,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
 
     log_dir = priv->dblayer_log_directory; /* nsslapd-db-logdirectory */
     if (log_dir && *log_dir) {
+        /* checking the user defined log dir's accessability */
         return_value = dblayer_grok_directory(log_dir,
                            DBLAYER_DIRECTORY_READWRITE_ACCESS);
         if (0 != return_value) {
@@ -1390,6 +1396,11 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                       "accessible\n", log_dir, 0, 0);
             return return_value;
         }
+    }
+    else
+    {
+        /* using the home dir for the log dir, which is already checked */
+        log_dir = dblayer_get_home_dir(li, NULL);
     }
 
     /* Sanity check on cache size on platforms which allow us to figure out
@@ -1523,6 +1534,15 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                           "dblayer_start: failed to remove old db env "
                           "in %s: %s\n", region_dir, 
                           dblayer_strerror(return_value), 0);
+                return return_value;
+            }
+            /* remove transaction logs */
+            return_value = dblayer_delete_transaction_logs(log_dir);
+            if (return_value)
+            {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                  "dblayer_start: failed to remove old transaction logs (%d)\n",
+                  return_value, 0, 0);
                 return return_value;
             }
             dbmode = DBLAYER_NORMAL_MODE;
@@ -1687,22 +1707,22 @@ autosize_import_cache(struct ldbminfo *li)
         if (pagesize) {
             char s[32];   /* big enough to hold %ld */
             int import_pages;
-			int pages_limit = (200 * 1024) / (pagesize/1024);
+            int pages_limit = (200 * 1024) / (pagesize/1024);
             import_pages = (li->li_import_cache_autosize * pages) / 125;
-			/* We don't want to go wild with memory when auto-sizing, cap the 
-			 * cache size at 200 Megs to try to avoid situations where we 
-			 * attempt to allocate more memory than there is free page pool for, or 
-			 * where there's some system limit on the size of process memory
-			 */
-			if (import_pages > pages_limit) {
-				import_pages = pages_limit;
-			}
+            /* We don't want to go wild with memory when auto-sizing, cap the 
+             * cache size at 200 Megs to try to avoid situations where we 
+             * attempt to allocate more memory than there is free page pool for, or 
+             * where there's some system limit on the size of process memory
+             */
+            if (import_pages > pages_limit) {
+                import_pages = pages_limit;
+            }
             LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing: import cache: %dk \n",
                 import_pages*(pagesize/1024), NULL, NULL);
             LDAPDebug(LDAP_DEBUG_ANY,
                           "li_import_cache_autosize: %d, import_pages: %d, pagesize: %d\n", 
                           li->li_import_cache_autosize, import_pages,
-						  pagesize);
+                          pagesize);
 
             sprintf(s, "%lu", (unsigned long)(import_pages * pagesize));
             ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
@@ -1742,7 +1762,7 @@ int dblayer_instance_start(backend *be, int mode)
         return 0;
     }
 
-	attrcrypt_init(inst);
+    attrcrypt_init(inst);
 
     /* Get the name of the directory that holds index files
      * for this instance. */
@@ -1753,8 +1773,14 @@ int dblayer_instance_start(backend *be, int mode)
     }
 
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-    return_value = dblayer_grok_directory(inst_dirp,
+    if (inst_dirp && *inst_dirp) {
+        return_value = dblayer_grok_directory(inst_dirp,
                                           DBLAYER_DIRECTORY_READWRITE_ACCESS);
+    } else {
+        LDAPDebug(LDAP_DEBUG_ANY,"Can't start because the database instance "
+                      "directory is NULL\n", 0, 0, 0);
+        goto errout;
+    }
     if (0 != return_value) {
         LDAPDebug(LDAP_DEBUG_ANY,"Can't start because the database instance "
                       "directory \"%s\" either doesn't exist, "
@@ -1770,18 +1796,20 @@ int dblayer_instance_start(backend *be, int mode)
         /* Read the dbversion file if there is one, and create it
          * if it doesn't exist. */
         if (dbversion_exists(li, inst_dirp)) {
-            char ldbmversion[LDBM_VERSION_MAXBUF];
-            char dataversion[LDBM_VERSION_MAXBUF];
+            char *ldbmversion = NULL;
+            char *dataversion = NULL;
 
-            if (dbversion_read(li, inst_dirp, ldbmversion, dataversion) != 0) {
+            if (dbversion_read(li, inst_dirp, &ldbmversion, &dataversion) != 0) {
                 LDAPDebug(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion "
                           "file in %s\n", inst->inst_dir_name, 0, 0);
             } else {
                 int rval = 0;
                 /* check the DBVERSION and reset idl-switch if needed (DS6.2) */
                 /* from the next major rel, we won't do this and just upgrade */
-                if (!(li->li_flags & LI_FORCE_MOD_CONFIG))
+                if (!(li->li_flags & LI_FORCE_MOD_CONFIG)) {
                     adjust_idl_switch(ldbmversion, li);
+                }
+                slapi_ch_free_string(&ldbmversion);
 
                 /* check to make sure these instance was made with the correct
                  * version. */
@@ -1810,8 +1838,10 @@ int dblayer_instance_start(backend *be, int mode)
                 }
 
                 /* record the dataversion */
-                if (dataversion[0] != '\0') {
-                    inst->inst_dataversion = slapi_ch_strdup(dataversion);
+                if (dataversion != NULL && *dataversion != '\0') {
+                    inst->inst_dataversion = dataversion;
+                } else {
+                    slapi_ch_free_string(&dataversion);
                 }
 
                 rval = ldbm_upgrade(inst, rval);
@@ -1888,8 +1918,8 @@ int dblayer_instance_start(backend *be, int mode)
                 cachesize = 1048576;
             }
             priv->dblayer_cachesize = cachesize;
-			/* We always auto-calculate ncache for the import region */
-			priv->dblayer_ncache = 0;
+            /* We always auto-calculate ncache for the import region */
+            priv->dblayer_ncache = 0;
 
             /* use our own env */
             return_value = dblayer_make_env(&mypEnv, li);
@@ -2026,10 +2056,10 @@ out:
 
     if (mode & DBLAYER_NORMAL_MODE) {
         dbversion_write(li, inst_dirp, NULL);
-		/* richm - not sure if need to acquire the be lock first? */
-		/* need to set state back to started - set to stopped in
-		   dblayer_instance_close */
-		be->be_state = BE_STATE_STARTED;
+        /* richm - not sure if need to acquire the be lock first? */
+        /* need to set state back to started - set to stopped in
+           dblayer_instance_close */
+        be->be_state = BE_STATE_STARTED;
     }
 
     /*
@@ -2136,8 +2166,17 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
     priv->dblayer_spin_count = 0;
 
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-    priv->dblayer_home_directory =
-            slapi_ch_smprintf("%s/dbenv", inst_dirp);
+    if (inst_dirp && *inst_dirp)
+    {
+        priv->dblayer_home_directory = slapi_ch_smprintf("%s/dbenv", inst_dirp);
+    }
+    else
+    {
+        LDAPDebug(LDAP_DEBUG_ANY,
+          "Instance dir is NULL: persistent id2entry is not available\n",
+          0, 0, 0);
+        goto done;
+    }
     priv->dblayer_log_directory = slapi_ch_strdup(priv->dblayer_home_directory);
 
     prst = PR_GetFileInfo(inst_dirp, &prfinfo);
@@ -2263,7 +2302,10 @@ int dblayer_release_aux_id2entry(backend *be, DB *pDB, DB_ENV *pEnv)
 
     inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                           inst_dir, MAXPATHLEN);
-    envdir = slapi_ch_smprintf("%s/dbenv", inst_dirp);
+    if (inst_dirp && *inst_dirp)
+    {
+        envdir = slapi_ch_smprintf("%s/dbenv", inst_dirp);
+    }
 
 done:
     if (pDB)
@@ -2272,8 +2314,8 @@ done:
        pEnv->close(pEnv, 0);
     if (envdir) {
         ldbm_delete_dirs(envdir);
-		slapi_ch_free_string(&envdir);
-	}
+        slapi_ch_free_string(&envdir);
+    }
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
     return 0;
@@ -2336,7 +2378,13 @@ int dblayer_instance_close(backend *be)
          char inst_dir[MAXPATHLEN];
          char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                                      inst_dir, MAXPATHLEN);
-         return_value = env->remove(env, inst_dirp, 0);
+         if (inst_dirp && *inst_dir) {
+           return_value = env->remove(env, inst_dirp, 0);
+         }
+         else
+         {
+           return_value = -1;
+         }
          if (return_value == EBUSY) {
            return_value = 0; /* something else is using the env so ignore */
          }
@@ -2457,7 +2505,7 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         if (return_value == 0) {
             char *home_dir = dblayer_get_home_dir(li, NULL);
             if (home_dir)
-		     return_value = env->remove(env, home_dir, 0);
+                return_value = env->remove(env, home_dir, 0);
             if (0 == return_value
                 && !((DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE) & dbmode)
                 && !priv->dblayer_bad_stuff_happened) {
@@ -2670,6 +2718,11 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
         /* create a file with abs path, then try again */
 
         inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
+        if (!inst_dirp || !*inst_dirp)
+        {
+            return_value = -1;
+            goto out;
+        }
         abs_file_name = slapi_ch_smprintf("%s%c%s",
                 inst_dirp, get_sep(inst_dirp), file_name);
         DB_OPEN(pENV->dblayer_openflags,
@@ -2678,7 +2731,9 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
         dbp->close(dbp, 0);
         return_value = db_create(ppDB, pENV->dblayer_DB_ENV, 0);
         if (0 != return_value)
+        {
             goto out;
+        }
         dbp = *ppDB;
 
         slapi_ch_free_string(&abs_file_name);
@@ -2895,7 +2950,7 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
   dblayer_private *priv = (dblayer_private*) li->li_dblayer_private;
   struct dblayer_private_env *pEnv = priv->dblayer_env;
   ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
-  dblayer_handle *handle;
+  dblayer_handle *handle = NULL;
   char dbName[MAXPATHLEN];
   char *dbNamep;
   char *p;
@@ -2961,19 +3016,26 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
         }
       }
       dbNamep = dblayer_get_full_inst_dir(li, inst, dbName, MAXPATHLEN);
-      dbbasenamelen = strlen(dbNamep);
-      dbnamelen = dbbasenamelen + strlen(a->ai_type) + 6;
-      if (dbnamelen > MAXPATHLEN)
-      {
-        dbNamep = (char *)slapi_ch_realloc(dbNamep, dbnamelen);
+      if (dbNamep && *dbNamep) {
+        dbbasenamelen = strlen(dbNamep);
+        dbnamelen = dbbasenamelen + strlen(a->ai_type) + 6;
+        if (dbnamelen > MAXPATHLEN)
+        {
+          dbNamep = (char *)slapi_ch_realloc(dbNamep, dbnamelen);
+        }
+        p = dbNamep + dbbasenamelen;
+        sprintf(p, "%c%s%s",
+                   get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
+        rc = dblayer_db_remove_ex(pEnv, dbNamep, 0, use_lock);
+        a->ai_dblayer = NULL;
+        if (dbNamep != dbName)
+          slapi_ch_free_string(&dbNamep);
       }
-      p = dbNamep + dbbasenamelen;
-      sprintf(p, "%c%s%s", get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
-      rc = dblayer_db_remove_ex(pEnv, dbNamep, 0, use_lock);
-      a->ai_dblayer = NULL;
+      else
+      {
+        rc = -1;
+      }
       slapi_ch_free((void **)&handle);
-      if (dbNamep != dbName)
-        slapi_ch_free_string(&dbNamep);
     } else {
       /* no handle to close */
     }
@@ -3262,7 +3324,7 @@ static int perf_threadmain(void *param)
         /* sleep for a while, updating perf counters if we need to */
         perfctrs_wait(1000,priv->perf_private,priv->dblayer_env->dblayer_DB_ENV);
     }
-	
+
     DECR_THREAD_COUNT(priv);
     LDAPDebug(LDAP_DEBUG_TRACE, "Leaving perf_threadmain\n", 0, 0, 0);
     return 0;
@@ -3448,7 +3510,7 @@ static int checkpoint_threadmain(void *param)
 
     interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
     home_dir = dblayer_get_home_dir(li, NULL);
-    if (NULL == home_dir)
+    if (NULL == home_dir || '\0' == *home_dir)
     {
         LDAPDebug(LDAP_DEBUG_ANY, 
             "Checkpoint thread failed due to missing db home directory info\n",
@@ -3869,7 +3931,7 @@ static int commit_good_database(dblayer_private *priv)
         return -1;
     } 
     PR_snprintf(line,sizeof(line),"cachesize:%lu\nncache:%d\nversion:%d\n",
-            priv->dblayer_cachesize, priv->dblayer_ncache, 3);
+            priv->dblayer_cachesize, priv->dblayer_ncache, DB_VERSION_MAJOR);
     num_bytes = strlen(line);
     return_value = slapi_write_buffer(prfd, line, num_bytes);
     if (return_value != num_bytes)
@@ -4079,17 +4141,17 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
 
     if (NULL != li)
     {
-		if (startdb)
-		{
-			/* close immediately; no need to run db threads */
-			rval = dblayer_start(li, DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
-			if (rval)
-			{
-				LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_start failed! %s (%d)\n",
-					dblayer_strerror(rval), rval, 0);
-				goto done;
-			}
-		}
+        if (startdb)
+        {
+            /* close immediately; no need to run db threads */
+            rval = dblayer_start(li, DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
+            if (rval)
+            {
+                LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_start failed! %s (%d)\n",
+                    dblayer_strerror(rval), rval, 0);
+                goto done;
+            }
+        }
         priv = (dblayer_private*)li->li_dblayer_private;
         if (NULL != priv)
         {
@@ -4101,16 +4163,23 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         dblayer_get_instance_data_dir(inst->inst_be);
 
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-    dirhandle = PR_OpenDir(inst_dirp);
+    if (inst_dirp && *inst_dirp) {
+        dirhandle = PR_OpenDir(inst_dirp);
+    }
     if (! dirhandle) {
         if ( PR_GetError() == PR_FILE_NOT_FOUND_ERROR ) {
              /* the directory does not exist... that's not an error */
              rval = 0;
              goto done;
         }
-        LDAPDebug(LDAP_DEBUG_ANY,
-            "_dblayer_delete_instance_dir: PR_OpenDir(%s) failed (%d): %s\n", 
-            inst_dirp, PR_GetError(),slapd_pr_strerror(PR_GetError()));
+        if (inst_dirp && *inst_dirp) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+              "_dblayer_delete_instance_dir: inst_dir is NULL\n", 0, 0, 0);
+        } else {
+            LDAPDebug(LDAP_DEBUG_ANY,
+              "_dblayer_delete_instance_dir: PR_OpenDir(%s) failed (%d): %s\n", 
+              inst_dirp, PR_GetError(),slapd_pr_strerror(PR_GetError()));
+        }
         rval = -1;
         goto done;
     }
@@ -4148,15 +4217,15 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         }
     }
     PR_CloseDir(dirhandle);
-	if (pEnv && startdb)
-	{
-		rval = dblayer_close(li, DBLAYER_NORMAL_MODE);
-		if (rval)
-		{
-			LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_close failed! %s (%d)\n",
-				dblayer_strerror(rval), rval, 0);
-		}
-	}
+    if (pEnv && startdb)
+    {
+        rval = dblayer_close(li, DBLAYER_NORMAL_MODE);
+        if (rval)
+        {
+            LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_close failed! %s (%d)\n",
+                dblayer_strerror(rval), rval, 0);
+        }
+    }
 done:
     /* remove the directory itself too */
     if (0 == rval)
@@ -4276,7 +4345,7 @@ int dblayer_delete_database_ex(struct ldbminfo *li, char *instance)
     {
         log_dir = dblayer_get_home_dir(li, NULL);
     }
-	if (instance == NULL)
+	if (instance == NULL && log_dir && *log_dir)
 	{
 		ret = dblayer_delete_transaction_logs(log_dir);
 		if(ret) {
@@ -4565,17 +4634,25 @@ int dblayer_copy_directory(struct ldbminfo *li,
         return return_value;
     }
 
-    inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                          inst_dir, MAXPATHLEN);
     if (is_fullpath(src_dir))
         new_src_dir = src_dir;
     else
     {
-        int len = strlen(inst_dirp);
+        int len;
+        inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
+                                              inst_dir, MAXPATHLEN);
+        if (!inst_dirp || !*inst_dirp)
+        {
+            LDAPDebug(LDAP_DEBUG_ANY, "Instance dir is NULL.\n", 0, 0, 0);
+            return return_value;
+        }
+        len = strlen(inst_dirp);
         sep = get_sep(inst_dirp);
         if (*(inst_dirp+len-1) == sep)
             sep = '\0';
         new_src_dir = slapi_ch_smprintf("%s%c%s", inst_dirp, sep, src_dir);
+        if (inst_dirp != inst_dir)
+            slapi_ch_free_string(&inst_dirp);
     }
 
     dirhandle = PR_OpenDir(new_src_dir);
@@ -4619,6 +4696,10 @@ int dblayer_copy_directory(struct ldbminfo *li,
                 if (!is_fullpath(dest_dir))
                 {
                     prefix = dblayer_get_home_dir(li, NULL);
+                    if (!prefix || !*prefix)
+                    {
+                        continue;
+                    }
                     mysep = get_sep(prefix);
                 }
 
@@ -4711,7 +4792,7 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
     home_dir = dblayer_get_home_dir(li, NULL);
-    if (NULL == home_dir)
+    if (NULL == home_dir || '\0' == *home_dir)
     {
         LDAPDebug(LDAP_DEBUG_ANY, 
             "Backup failed due to missing db home directory info\n", 0, 0, 0);
@@ -4789,8 +4870,25 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             inst = (ldbm_instance *)object_get_data(inst_obj);
             inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                                     inst_dir, MAXPATHLEN);
-            return_value = dblayer_copy_directory(li, task, inst_dirp,
-                                        dest_dir, 0 /* backup */, &cnt, 0, 0, 0);
+            if (inst_dirp && *inst_dirp)
+            {
+                return_value = dblayer_copy_directory(li, task, inst_dirp,
+                                 dest_dir, 0 /* backup */, &cnt, 0, 0, 0);
+            }
+            else
+            {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                          "ERROR: Instance dir is empty\n", 0, 0, 0);
+                if (task) {
+                    slapi_task_log_notice(task,
+                          "ERROR: Instance dir is empty\n");
+                }
+                if (listA) {
+                    free(listA);
+                }
+                dblayer_txn_abort(li,&txn);
+                return -1;
+            }
             if (return_value != 0) {
                 LDAPDebug(LDAP_DEBUG_ANY,
                     "ERROR: error copying directory (%s -> %s): err=%d\n",
@@ -5266,7 +5364,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
     home_dir = dblayer_get_home_dir(li, NULL);
     
-    if (NULL == home_dir)
+    if (NULL == home_dir || '\0' == *home_dir)
     {
         LDAPDebug(LDAP_DEBUG_ANY, 
             "Restore failed due to missing db home directory info\n", 0, 0, 0);
@@ -5470,10 +5568,10 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     /* [605024] check the DBVERSION and reset idl-switch if needed */
     if (dbversion_exists(li, home_dir))
     {
-        char ldbmversion[LDBM_VERSION_MAXBUF];
-        char dataversion[LDBM_VERSION_MAXBUF];
+        char *ldbmversion = NULL;
+        char *dataversion = NULL;
 
-        if (dbversion_read(li, home_dir, ldbmversion, dataversion) != 0)
+        if (dbversion_read(li, home_dir, &ldbmversion, &dataversion) != 0)
         {
             LDAPDebug(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion "
                           "file in %s\n", home_dir, 0, 0);
@@ -5481,11 +5579,13 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         else
         {
             adjust_idl_switch(ldbmversion, li);
+            slapi_ch_free_string(&ldbmversion);
+            slapi_ch_free_string(&ldbmversion);
         }
     }
 
     return_value = check_db_version(li, &action);
-    if (action & DBVERSION_UPGRADE_3_4)
+    if (action & (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4))
     {
         dbmode = DBLAYER_CLEAN_RECOVER_MODE;/* upgrade: remove logs & recover */
     }
@@ -5586,6 +5686,9 @@ int dblayer_get_instance_data_dir(backend *be)
      */
     full_namep = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                            full_name, MAXPATHLEN);
+    if (!full_namep || !*full_namep) {
+        return ret;
+    }
     /* Does this directory already exist? */
     if ((db_dir = PR_OpenDir(full_namep)) != NULL) {
         /* yep. */
@@ -5622,6 +5725,11 @@ dblayer_in_import(ldbm_instance *inst)
 
     inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                           inst_dir, MAXPATHLEN);
+    if (!inst_dirp || !*inst_dirp)
+    {
+        rval = -1;
+        goto done;
+    }
     dirhandle = PR_OpenDir(inst_dirp);
 
     if (NULL == dirhandle)
@@ -5672,6 +5780,11 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
     li = inst->inst_li;
     priv = (dblayer_private*)li->li_dblayer_private;
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
+    if (!inst_dirp || *inst_dirp) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+            "update_db_ext: instance dir is NULL\n", 0, 0, 0);
+        return -1;    /* non zero */
+    }
     for (a = (struct attrinfo *)avl_getfirst(inst->inst_attrs);
          NULL != a;
          a = (struct attrinfo *)avl_getnext())

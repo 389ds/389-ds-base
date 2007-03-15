@@ -563,7 +563,7 @@ int ldbm_attribute_always_indexed(const char *attrtype);
  */
 int dbversion_write(struct ldbminfo *li, const char *dir, const char *dversion);
 int dbversion_read(struct ldbminfo *li, const char *directory,
-                   char *ldbmversion, char *dataversion);
+                   char **ldbmversion, char **dataversion);
 int dbversion_exists(struct ldbminfo *li, const char *directory);
 
 /* 

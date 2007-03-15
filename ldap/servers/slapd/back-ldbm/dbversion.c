@@ -105,19 +105,13 @@ dbversion_write(struct ldbminfo *li, const char *directory,
          * (406922) */
         if (idl_get_idl_new())
         {
-#if defined(USE_NEW_IDL)
-            sprintf( buf, "%s\n", LDBM_VERSION );
-#else
-            sprintf( buf, "%s\n", LDBM_VERSION_NEW );
-#endif
+            sprintf(buf, "%s/%d.%d/%s\n", 
+                    BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_BACKEND);
         }
         else
         {
-#if defined(USE_NEW_IDL)
-            sprintf( buf, "%s\n", LDBM_VERSION_OLD );
-#else
-            sprintf( buf, "%s\n", LDBM_VERSION );
-#endif
+            sprintf(buf, "%s/%d.%d/%s\n", 
+                    BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_BACKEND);
         }
         len = strlen( buf );
         if ( slapi_write_buffer( prfd, buf, len ) != len )
@@ -149,7 +143,7 @@ dbversion_write(struct ldbminfo *li, const char *directory,
  */
 int
 dbversion_read(struct ldbminfo *li, const char *directory,
-               char *ldbmversion, char *dataversion)
+               char **ldbmversion, char **dataversion)
 {
     char filename[ MAXPATHLEN*2 ];
     PRFileDesc *prfd;
@@ -157,15 +151,15 @@ dbversion_read(struct ldbminfo *li, const char *directory,
     char * iter = NULL;
 
     if (!is_fullpath((char *)directory)) {
-        rc = -1;
+        return rc;
+    }
+
+    if (NULL == ldbmversion) {
         return rc;
     }
 
     mk_dbversion_fullpath(li, directory, filename);
     
-    ldbmversion[0]= '\0';
-    dataversion[0]= '\0';
-  
     /* Open the file */
     if (( prfd = PR_Open( filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE  )) ==
           NULL )
@@ -180,15 +174,15 @@ dbversion_read(struct ldbminfo *li, const char *directory,
         if ( nr > 0 && nr != (PRInt32)LDBM_VERSION_MAXBUF-1 )
         {
             char *t;
-            buf[nr]= '\0';
-            t= ldap_utf8strtok_r(buf,"\n", &iter);
-            if(t!=NULL)
+            buf[nr] = '\0';
+            t = ldap_utf8strtok_r(buf,"\n", &iter);
+            if(NULL != t)
             {
-                strcpy(ldbmversion,t);
-                t= ldap_utf8strtok_r(NULL,"\n", &iter);
-                if(t!=NULL && t[0]!='\0')
+                *ldbmversion = slapi_ch_strdup(t);
+                t = ldap_utf8strtok_r(NULL,"\n", &iter);
+                if(NULL != dataversion && t != NULL && t[0] != '\0')
                 {
-                    strcpy(dataversion,t);
+                    *dataversion = slapi_ch_strdup(t);
                 }
             }
         }

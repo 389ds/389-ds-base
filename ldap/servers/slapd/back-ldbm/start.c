@@ -163,7 +163,7 @@ ldbm_back_start( Slapi_PBlock *pb )
       return SLAPI_FAIL_GENERAL;
   }
 
-  if (action & DBVERSION_UPGRADE_3_4)
+  if (action & (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4))
   {
       retval = dblayer_start(li,DBLAYER_CLEAN_RECOVER_MODE);
   }

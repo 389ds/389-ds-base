@@ -134,26 +134,29 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION_MAXBUF		64
 #define LDBM_DATABASE_TYPE_NAME	"ldbm database"
 /*
+ * 232050: Change format of DBVERSION and guardian files
+ * new format:
+ * implementation/version/server backend plugin name[/other tag][/other tag]....
+ * For example:
+ * bdb/4.2/libback-ldbm/newidl
+ * This indicates that the files use Berkeley DB version 4.2, they are used 
+ * by the server libback-ldbm database plugin, and the index files use the 
+ * newidl format.
+ * Starting from DS7.2
+ */
+#define BDB_IMPL        "bdb"
+#define BDB_BACKEND     "libback-ldbm" /* This backend plugin */
+
+/*
  * While we support both new and old idl index,
  * we distinguish them by the following 2 macros.
  * When we drop the old idl code, we eliminate LDBM_VERSION_OLD.
  * bug #604922
  */
-/* To set new idl default, uncomment it. */ 
-#define USE_NEW_IDL 1
-
 #define LDBM_VERSION_BASE       "Netscape-ldbm/"
 #define LDBM_VERSION            "Netscape-ldbm/7.0" /* db42: new idl -> old */
 #define LDBM_VERSION_NEW        "Netscape-ldbm/7.0_NEW"     /* db42: new idl */
-                                                            /* used only when
-                                                             * USE_NEW_IDL is
-                                                             * NOT defined
-                                                             */
 #define LDBM_VERSION_OLD        "Netscape-ldbm/7.0_CLASSIC" /* db42: old idl */
-                                                            /* used only when
-                                                             * USE_NEW_IDL is
-                                                             * defined
-                                                             */
 #define LDBM_VERSION_62         "Netscape-ldbm/6.2" /* db33: new idl */
 #define LDBM_VERSION_61         "Netscape-ldbm/6.1" /* db33: new idl */
 #define LDBM_VERSION_60         "Netscape-ldbm/6.0" /* db33: old idl */
@@ -364,7 +367,7 @@ struct attrinfo {
 	void	*ai_plugin;
 	char	**ai_index_rules; /* matching rule OIDs */
 	void	*ai_dblayer;	  /* private data used by the dblayer code */
-        PRInt32 ai_dblayer_count; /* used by the dblayer code */
+	PRInt32 ai_dblayer_count; /* used by the dblayer code */
 	idl_private	*ai_idl;  /* private data used by the IDL code (eg locking the IDLs) */
 	attrcrypt_private	*ai_attrcrypt;  /* private data used by the attribute encryption code (eg is it enabled or not) */
 };
@@ -380,7 +383,9 @@ struct id_array {
 typedef struct id_array Id_Array;
 
 struct _db_upgrade_info {
-	char* old_version_string;
+	char *old_version_string;
+	int old_dbversion_major;
+	int old_dbversion_minor;
 	int type;
 	int action;
 };
@@ -396,8 +401,17 @@ typedef struct _db_upgrade_info db_upgrade_info;
 #define DBVERSION_NO_UPGRADE       0x0
 #define DBVERSION_NEED_IDL_OLD2NEW 0x100
 #define DBVERSION_NEED_IDL_NEW2OLD 0x200
-#define DBVERSION_UPGRADE_3_4      0x400
-#define DBVERSION_NOT_SUPPORTED    0x800
+#define DBVERSION_UPGRADE_3_4      0x400 /* bdb 3.3 -> 4.2 */
+                                         /* The log file format changed; 
+                                          * No database formats changed;
+                                          * db extention: .db3 -> .db4
+                                          */
+#define DBVERSION_UPGRADE_4_4      0x800 /* bdb 4.2 -> 4.3 -> 4.4 -> 4.5 */
+                                         /* The log file format changed; 
+                                          * No database formats changed;
+                                          * no db extention change
+                                          */
+#define DBVERSION_NOT_SUPPORTED    0x10000000
 
 #define DBVERSION_TYPE   0x1
 #define DBVERSION_ACTION 0x2

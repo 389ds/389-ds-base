@@ -1214,11 +1214,7 @@ static config_info ldbm_config[] = {
     {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "0", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, 0},
     {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "50", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, 0},
     {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "20000000", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-#if defined(USE_NEW_IDL)
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
-#else
-    {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "old", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
-#endif
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &ldbm_config_get_bypass_filter_test, &ldbm_config_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_VLV_INDEX, CONFIG_TYPE_ONOFF, "on", &ldbm_config_get_use_vlv_index, &ldbm_config_set_use_vlv_index, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_LOCKDOWN, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_lockdown_get, &ldbm_config_db_lockdown_set, 0},

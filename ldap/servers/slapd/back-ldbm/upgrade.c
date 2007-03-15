@@ -45,9 +45,6 @@
 
 #include "back-ldbm.h"
 
-#if 0
-static char* filename = "upgrade.c";
-#endif
 /*
  * ldbm_compat_versions holds DBVERSION strings for all versions of the
  * database with which we are (upwards) compatible.  If check_db_version
@@ -56,16 +53,13 @@ static char* filename = "upgrade.c";
  */
 
 db_upgrade_info ldbm_version_suss[] = {
-#if defined(USE_NEW_IDL)
-    {LDBM_VERSION,DBVERSION_NEW_IDL,DBVERSION_NO_UPGRADE},
-    {LDBM_VERSION_OLD,DBVERSION_OLD_IDL,DBVERSION_NO_UPGRADE}, 
-#else
-    /* default: old idl (DS6.2) */
-    {LDBM_VERSION_NEW,DBVERSION_NEW_IDL,DBVERSION_NO_UPGRADE},
-    {LDBM_VERSION,DBVERSION_OLD_IDL,DBVERSION_NO_UPGRADE}, 
-#endif
-    {LDBM_VERSION_61,DBVERSION_NEW_IDL,DBVERSION_UPGRADE_3_4}, 
-    {LDBM_VERSION_60,DBVERSION_OLD_IDL,DBVERSION_UPGRADE_3_4}, 
+    /* for bdb/#.#/..., we don't have to put the version number in the 2nd col
+       since DBVERSION keeps it */
+    {BDB_IMPL, 0, 0, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
+    {LDBM_VERSION, 4, 2, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
+    {LDBM_VERSION_OLD, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
+    {LDBM_VERSION_61, 3, 3, DBVERSION_NEW_IDL, DBVERSION_UPGRADE_3_4}, 
+    {LDBM_VERSION_60, 3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
     {NULL,0,0}
 };
 
@@ -79,11 +73,12 @@ int
 lookup_dbversion(char *dbversion, int flag)
 {
     int i, matched = 0;
-    int rval = 0;
+    int rval = DBVERSION_NO_UPGRADE;
 
     for ( i = 0; ldbm_version_suss[i].old_version_string != NULL; ++i )
     {
-        if ( strcmp( dbversion, ldbm_version_suss[i].old_version_string ) == 0 )
+        if (PL_strncasecmp(dbversion, ldbm_version_suss[i].old_version_string,
+                          strlen(ldbm_version_suss[i].old_version_string)) == 0)
         {
             matched = 1;
             break;
@@ -97,7 +92,42 @@ lookup_dbversion(char *dbversion, int flag)
         }
         if ( flag & DBVERSION_ACTION )
         {
-            rval |= ldbm_version_suss[i].action;
+            int dbmajor = 0, dbminor = 0;
+            if (0 == ldbm_version_suss[i].old_dbversion_major)
+            {
+                /* case of bdb/#.#/... */
+                char *p = strchr(dbversion, '/');
+                char *endp = dbversion + strlen(dbversion);
+                if (NULL != p && p < endp)
+                {
+                    char *dotp = strchr(++p, '.');
+                    if (NULL != dotp)
+                    {
+                        *dotp = '\0';
+                        dbmajor = strtol(p, (char **)NULL, 10);
+                        dbminor = strtol(++dotp, (char **)NULL, 10);
+                    }
+                    else
+                    {
+                        dbmajor = strtol(p, (char **)NULL, 10);
+                    }
+                }
+            }
+            else
+            {
+                dbmajor = ldbm_version_suss[i].old_dbversion_major;
+                dbminor = ldbm_version_suss[i].old_dbversion_minor;
+            }
+            if (dbmajor < DB_VERSION_MAJOR)
+            {
+                /* 3.3 -> 4.x */
+                rval |= ldbm_version_suss[i].action;
+            }
+            else if (dbminor < DB_VERSION_MINOR)
+            {
+                /* 4.low -> 4.high */
+                rval |= DBVERSION_UPGRADE_4_4;
+            }
         }
     }
     return rval;
@@ -113,20 +143,23 @@ lookup_dbversion(char *dbversion, int flag)
  *
  * action: 0: nothing is needed
  *         DBVERSION_UPGRADE_3_4: db3->db4 uprev is needed
+ *         DBVERSION_UPGRADE_4_4: db4->db4 uprev is needed
  */
 int
 check_db_version( struct ldbminfo *li, int *action )
 {
     int value = 0;
-    char ldbmversion[BUFSIZ];
-    char dataversion[BUFSIZ];
+    char *ldbmversion = NULL;
+    char *dataversion = NULL;
 
     *action = 0;
-    dbversion_read(li, li->li_directory,ldbmversion,dataversion);
-    if (0 == strlen(ldbmversion))
+    dbversion_read(li, li->li_directory, &ldbmversion, &dataversion);
+    if (NULL == ldbmversion || '\0' == *ldbmversion) {
+        slapi_ch_free_string(&dataversion);
         return 0;
+    }
 
-    value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION);
+    value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION );
     if ( !value )
     {
         LDAPDebug( LDAP_DEBUG_ANY,
@@ -136,6 +169,8 @@ check_db_version( struct ldbminfo *li, int *action )
         /*
          * A non-zero return here will cause slapd to exit during startup.
          */
+        slapi_ch_free_string(&ldbmversion);
+        slapi_ch_free_string(&dataversion);
         return DBVERSION_NOT_SUPPORTED;
     }
     if ( value & DBVERSION_UPGRADE_3_4 )
@@ -143,6 +178,13 @@ check_db_version( struct ldbminfo *li, int *action )
         dblayer_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_3_4;
     }
+	else if ( value & DBVERSION_UPGRADE_4_4 )
+    {
+        dblayer_set_recovery_required(li);
+        *action = DBVERSION_UPGRADE_4_4;
+    }
+    slapi_ch_free_string(&ldbmversion);
+    slapi_ch_free_string(&dataversion);
     return 0;
 }
 
@@ -160,13 +202,14 @@ check_db_version( struct ldbminfo *li, int *action )
  *         DBVERSION_NOT_SUPPORTED: not supported
  *
  *         DBVERSION_UPGRADE_3_4: db3->db4 uprev is needed
+ *         DBVERSION_UPGRADE_4_4: db4->db4 uprev is needed
  */
 int
 check_db_inst_version( ldbm_instance *inst )
 {
     int value = 0;
-    char ldbmversion[BUFSIZ];
-    char dataversion[BUFSIZ];
+    char *ldbmversion = NULL;
+    char *dataversion = NULL;
     int rval = 0;
     char inst_dir[MAXPATHLEN*2];
     char *inst_dirp = NULL;
@@ -174,11 +217,12 @@ check_db_inst_version( ldbm_instance *inst )
     inst_dirp =
         dblayer_get_full_inst_dir(inst->inst_li, inst, inst_dir, MAXPATHLEN*2);
 
-    dbversion_read(inst->inst_li, inst_dirp,ldbmversion,dataversion);
-    if (0 == strlen(ldbmversion))
+    dbversion_read(inst->inst_li, inst_dirp, &ldbmversion, &dataversion);
+    if (NULL == ldbmversion || '\0' == *ldbmversion) {
         return rval;
+    }
     
-    value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION);
+    value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION );
     if ( !value )
     {
         LDAPDebug( LDAP_DEBUG_ANY,
@@ -188,6 +232,8 @@ check_db_inst_version( ldbm_instance *inst )
         /*
          * A non-zero return here will cause slapd to exit during startup.
          */
+        slapi_ch_free_string(&ldbmversion);
+        slapi_ch_free_string(&dataversion);
         return DBVERSION_NOT_SUPPORTED;
     }
 
@@ -205,8 +251,14 @@ check_db_inst_version( ldbm_instance *inst )
     {
         rval |= DBVERSION_UPGRADE_3_4;
     }
+	else if ( value & DBVERSION_UPGRADE_4_4 )
+    {
+        rval |= DBVERSION_UPGRADE_4_4;
+    }
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
+    slapi_ch_free_string(&ldbmversion);
+    slapi_ch_free_string(&dataversion);
     return rval;
 }
 
@@ -221,13 +273,9 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
     int rval = 0;
 
     li->li_flags |= LI_FORCE_MOD_CONFIG;
-#if defined(USE_NEW_IDL)
-    if ((0 == strcmp(ldbmversion, LDBM_VERSION)) ||
-        (0 == strcmp(ldbmversion, LDBM_VERSION_61)))    /* db: new idl */
-#else
-    if ((0 == strcmp(ldbmversion, LDBM_VERSION_NEW)) ||
-        (0 == strcmp(ldbmversion, LDBM_VERSION_61)))    /* db: new idl */
-#endif
+	if ((0 == PL_strncasecmp(ldbmversion, BDB_IMPL, strlen(BDB_IMPL))) ||
+	    (0 == PL_strcmp(ldbmversion, LDBM_VERSION)) ||
+        (0 == PL_strcmp(ldbmversion, LDBM_VERSION_61)))    /* db: new idl */
     {
         if (!idl_get_idl_new())   /* config: old idl */
         {
@@ -239,13 +287,8 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
                 ldbmversion, 0, 0);
         }
     }
-#if defined(USE_NEW_IDL)
     else if ((0 == strcmp(ldbmversion, LDBM_VERSION_OLD)) ||
              (0 == strcmp(ldbmversion, LDBM_VERSION_60)))    /* db: old */
-#else
-    else if ((0 == strcmp(ldbmversion, LDBM_VERSION)) ||     /* ds6.2: old */
-             (0 == strcmp(ldbmversion, LDBM_VERSION_60)))    /* db: old */
-#endif
     {
         if (idl_get_idl_new())   /* config: new */
         {
@@ -289,7 +332,6 @@ int ldbm_upgrade(ldbm_instance *inst, int action)
         int rval = dblayer_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
         if (0 == rval)
         {
-#if defined(USE_NEW_IDL)
             if (idl_get_idl_new())
             {
                  LDAPDebug(LDAP_DEBUG_ANY, 
@@ -302,11 +344,6 @@ int ldbm_upgrade(ldbm_instance *inst, int action)
                    "ldbm_upgrade: Upgrading instance %s to %s%s is successfully done.\n",
                    inst->inst_name, LDBM_VERSION_OLD, 0);
             }
-#else
-             LDAPDebug(LDAP_DEBUG_ANY, 
-            "ldbm_upgrade: Upgrading instance %s to %s%s is successfully done.\n",
-                   inst->inst_name, LDBM_VERSION_BASE, PRODUCTTEXT);
-#endif
         }
         else
         {
