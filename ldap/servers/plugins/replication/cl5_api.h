@@ -48,6 +48,10 @@
 #include "repl5.h"
 #include "repl5_prot_private.h"
 
+#define BDB_IMPL			"bdb"			/* changelog type */
+#define BDB_REPLPLUGIN		"libreplication-plugin" /* This backend plugin */
+
+
 #define CL5_TYPE			"Changelog5"	/* changelog type */
 #define VERSION_SIZE		127				/* size of the buffer to hold changelog version */
 #define CL5_DEFAULT_CONFIG	-1				/* value that indicates to changelog to use default */

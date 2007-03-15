@@ -128,11 +128,8 @@
  * a different version for the plugin itself and this particular version is only
  * used for the changelog database
 */
-/*
- * Changed version from 2.0 to 3.0 when we switched from libdb33 to libdb41
- * noriko 20021203
- */
-#define CHANGELOG_DB_VERSION_PREV "3.0"
+/* the current CHANGELOG_DB_VERSION: DB_VERSION_MAJOR"."DB_VERSION_MINOR" */
+/* this string is left for the backward compatibility */
 #define CHANGELOG_DB_VERSION "4.0"
 extern char *repl_plugin_name;
 extern char *windows_repl_plugin_name;

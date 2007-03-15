@@ -62,8 +62,6 @@
 #include "cl5_clcache.h" /* To use the Changelog Cache */
 #include "repl5.h"	 /* for agmt_get_consumer_rid() */
 
-#define CL5_TYPE			"Changelog5"	/* changelog type */
-#define VERSION_SIZE		127				/* size of the buffer to hold changelog version */
 #define GUARDIAN_FILE		"guardian"		/* name of the guardian file */
 #define VERSION_FILE		"DBVERSION"		/* name of the version file  */
 #define MAX_TRIALS			50				/* number of retries on db operations */
@@ -287,7 +285,7 @@ static void _cl5SetDefaultDBConfig ();
 static void _cl5SetDBConfig (const CL5DBConfig *config);
 static void _cl5InitDBEnv(DB_ENV *dbEnv);
 static int _cl5CheckDBVersion ();
-static int _cl5ReadDBVersion (const char *dir, char *clVersion);
+static int _cl5ReadDBVersion (const char *dir, char *clVersion, int buflen);
 static int _cl5WriteDBVersion ();
 static int _cl5CheckGuardian ();
 static int _cl5ReadGuardian (char *buff);
@@ -2214,6 +2212,52 @@ static int _cl5RemoveEnv ()
 	return CL5_SUCCESS;
 }
 
+static int _cl5RemoveLogs ()
+{
+	int rc = CL5_DB_ERROR;
+	char filename1[MAXPATHLEN];
+	PRDir *dirhandle = NULL;
+	dirhandle = PR_OpenDir(s_cl5Desc.dbDir);
+	if (NULL != dirhandle) {
+		PRDirEntry *direntry = NULL;
+		int pre = 0; 
+		PRFileInfo info;
+			
+		while (NULL != (direntry =
+						PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
+		{
+			if (NULL == direntry->name) {
+				/* NSPR doesn't behave like the docs say it should */
+				slapi_log_error(SLAPI_LOG_FATAL,  repl_plugin_name_cl,
+								"_cl5RemoveLogs: PR_ReadDir failed (%d): %s\n", 
+								PR_GetError(),slapd_pr_strerror(PR_GetError()));
+				break;
+			}
+			PR_snprintf(filename1, MAXPATHLEN,
+									"%s/%s", s_cl5Desc.dbDir, direntry->name);
+			pre = PR_GetFileInfo(filename1, &info);
+			if (pre == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
+				continue;
+			}
+			if (0 == strncmp(direntry->name, "log.", 4))
+			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+									"Deleting log file: (%s)\n", filename1);
+				unlink(filename1);
+			}
+			rc = CL5_SUCCESS;
+		}
+		PR_CloseDir(dirhandle);
+	}
+	else if (PR_FILE_NOT_FOUND_ERROR != PR_GetError())
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+			"_cl5RemoveLogs:: PR_OpenDir(%s) failed (%d): %s\n",
+			 s_cl5Desc.dbDir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
+	}
+	return rc;
+}
+
 static int _cl5AppInit (PRBool *didRecovery)
 {
 	int rc;
@@ -2286,7 +2330,10 @@ static int _cl5AppInit (PRBool *didRecovery)
 	if ((flags & DB_RECOVER) || (flags & DB_RECOVER_FATAL))
 	{		
 		if (CL5_OPEN_CLEAN_RECOVER == s_cl5Desc.dbOpenMode)
+		{
 			_cl5RemoveEnv();
+			_cl5RemoveLogs();
+		}
 
 		rc = _cl5Recover (flags, dbEnv);
 		if (rc != CL5_SUCCESS)
@@ -3219,7 +3266,8 @@ static int  _cl5TrickleMain (void *param)
 /* upgrade from db33 to db41
  * 1. Run recovery on the database environment using the DB_ENV->open method
  * 2. Remove any Berkeley DB environment using the DB_ENV->remove method 
- * 3. extention .db3 -> .db4 ### koko kara !!!
+ * 3. Remove any Berkeley DB transaction log files
+ * 4. extention .db3 -> .db4 
  */
 static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 {
@@ -3239,6 +3287,7 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 						"_cl5Upgrade3_4: failed to open the db env\n");
 		return rc;
 	}
+	s_cl5Desc.dbOpenMode = backup;
 
 	dir = PR_OpenDir(s_cl5Desc.dbDir);
 	if (dir == NULL)
@@ -3317,6 +3366,48 @@ out:
 	return rc;
 }
 
+/* upgrade from db41 -> db42 -> db43 -> db44 -> db45
+ * 1. Run recovery on the database environment using the DB_ENV->open method
+ * 2. Remove any Berkeley DB environment using the DB_ENV->remove method 
+ * 3. Remove any Berkeley DB transaction log files
+ */
+static int _cl5Upgrade4_4(char *fromVersion, char *toVersion)
+{
+	PRDirEntry *entry = NULL;
+	DB *thisdb = NULL;
+	CL5OpenMode	backup;
+	int rc = 0;
+
+	backup = s_cl5Desc.dbOpenMode;
+	s_cl5Desc.dbOpenMode = CL5_OPEN_CLEAN_RECOVER;
+	/* CL5_OPEN_CLEAN_RECOVER does 1 and 2 */
+	rc = _cl5AppInit (NULL);
+	if (rc != CL5_SUCCESS)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"_cl5Upgrade4_4: failed to open the db env\n");
+		return rc;
+	}
+	s_cl5Desc.dbOpenMode = backup;
+
+	/* update the version file */
+	_cl5WriteDBVersion ();
+
+	/* update the guardian file */
+	_cl5WriteGuardian ();
+	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+		"Upgrading from %s to %s is successfully done (%s)\n",
+		fromVersion, toVersion, s_cl5Desc.dbDir);
+
+	if (s_cl5Desc.dbEnv)
+	{
+		DB_ENV *dbEnv = s_cl5Desc.dbEnv;
+		dbEnv->close(dbEnv, 0);
+		s_cl5Desc.dbEnv = NULL;
+	}
+	return rc;
+}
+
 static int _cl5CheckDBVersion ()
 {
 	char clVersion [VERSION_SIZE + 1];
@@ -3332,48 +3423,87 @@ static int _cl5CheckDBVersion ()
 		}
 	}
 	else
-	{				
-		PR_snprintf (clVersion, VERSION_SIZE, "%s/%s/%s", CL5_TYPE, REPL_PLUGIN_NAME, 
-				 CHANGELOG_DB_VERSION);
-		rc = _cl5ReadDBVersion (s_cl5Desc.dbDir, dbVersion);
+	{
+		char *versionp = NULL;
+		char *versionendp = NULL;
+		char *dotp = NULL;
+		int dbmajor = 0;
+		int dbminor = 0;
+
+		PR_snprintf (clVersion, VERSION_SIZE, "%s/%d.%d/%s",
+				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
+
+		rc = _cl5ReadDBVersion (s_cl5Desc.dbDir, dbVersion, sizeof(dbVersion));
 
 		if (rc != CL5_SUCCESS)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 						"_cl5CheckDBVersion: invalid dbversion\n");
 			rc = CL5_BAD_DBVERSION;
+			goto bailout;
 		}
-		else if (strcasecmp (clVersion, dbVersion) != 0)
+		versionendp = dbVersion + strlen(dbVersion);
+		/* get the version number */
+		/* old DBVERSION string: CL5_TYPE/REPL_PLUGIN_NAME/#.# */
+		if (PL_strncmp(dbVersion, CL5_TYPE, strlen(CL5_TYPE)) == 0)
 		{
-			char prevClVersion [VERSION_SIZE + 1];
-			PR_snprintf (prevClVersion, VERSION_SIZE, "%s/%s/%s",
-						 CL5_TYPE, REPL_PLUGIN_NAME, CHANGELOG_DB_VERSION_PREV);
-			if (strcasecmp (prevClVersion, dbVersion) == 0)
-			{
-				/* upgrade */
-				rc = _cl5Upgrade3_4(prevClVersion, clVersion);
-				if (rc != CL5_SUCCESS)
-				{
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5CheckDBVersion: upgrade %s -> %s failed\n",
-						CHANGELOG_DB_VERSION_PREV, CHANGELOG_DB_VERSION);
-					rc = CL5_BAD_DBVERSION;
-				}
-			}
-			else
+			versionp = strrchr(dbVersion, '/');
+		}
+		/* new DBVERSION string: bdb/#.#/libreplication-plugin */
+		else if (PL_strncmp(dbVersion, BDB_IMPL, strlen(BDB_IMPL)) == 0)
+		{
+			versionp = strchr(dbVersion, '/');
+		}
+		if (NULL == versionp || versionp == versionendp)
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+					"_cl5CheckDBVersion: invalid dbversion: %s\n", dbVersion);
+			rc = CL5_BAD_DBVERSION;
+			goto bailout;
+		}
+		dotp = strchr(++versionp, '.');
+		if (NULL != dotp)
+		{
+			*dotp = '\0';
+			dbmajor = strtol(versionp, (char **)NULL, 10);
+			dbminor = strtol(++dotp, (char **)NULL, 10);
+			*dotp = '.';
+		}
+		else
+		{
+			dbmajor = strtol(versionp, (char **)NULL, 10);
+		}
+
+		if (dbmajor < DB_VERSION_MAJOR)
+		{
+			/* upgrade */
+			rc = _cl5Upgrade3_4(dbVersion, clVersion);
+			if (rc != CL5_SUCCESS)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-							"_cl5CheckDBVersion: invalid dbversion\n");
+						"_cl5CheckDBVersion: upgrade %s -> %s failed\n",
+						dbVersion, clVersion);
 				rc = CL5_BAD_DBVERSION;
 			}
 		}
-
+		else if (dbminor < DB_VERSION_MINOR)
+		{
+			/* minor upgrade */
+			rc = _cl5Upgrade4_4(dbVersion, clVersion);
+			if (rc != CL5_SUCCESS)
+			{
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"_cl5CheckDBVersion: upgrade %s -> %s failed\n",
+						dbVersion, clVersion);
+				rc = CL5_BAD_DBVERSION;
+			}
+		}
 	}
-
+bailout:
 	return rc;
 }
 
-static int _cl5ReadDBVersion (const char *dir, char *clVersion)
+static int _cl5ReadDBVersion (const char *dir, char *clVersion, int buflen)
 {
 	int rc;
 	PRFileDesc *file;
@@ -3416,7 +3546,7 @@ static int _cl5ReadDBVersion (const char *dir, char *clVersion)
 	{
 		if (clVersion)
 		{
-    		strcpy(clVersion, tok);
+    		PL_strncpyz(clVersion, tok, buflen);
 		}
 	}
 
@@ -3442,7 +3572,8 @@ static int _cl5WriteDBVersion ()
 
 	PR_snprintf (fName, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, VERSION_FILE);
 
-	file = PR_Open (fName, PR_WRONLY | PR_CREATE_FILE, s_cl5Desc.dbConfig.fileMode);
+	file = PR_Open (fName, PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE,
+					s_cl5Desc.dbConfig.fileMode);
 	if (file == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -3452,10 +3583,10 @@ static int _cl5WriteDBVersion ()
 	}
 
 	/* write changelog version */
-	PR_snprintf (clVersion, VERSION_SIZE, "%s/%s/%s\n", CL5_TYPE, REPL_PLUGIN_NAME, 	
-			 CHANGELOG_DB_VERSION);
+	PR_snprintf (clVersion, VERSION_SIZE, "%s/%d.%d/%s\n", 
+				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
 
-	len = strlen (clVersion);
+	len = strlen(clVersion);
 	size = slapi_write_buffer (file, clVersion, len);
 	if (size != len)
 	{
@@ -3492,15 +3623,26 @@ static int _cl5CheckGuardian ()
 	}
 	else
 	{
-		PR_snprintf (plVersion, VERSION_SIZE, "%s/%s/%s", CL5_TYPE, REPL_PLUGIN_NAME, 
-				 CHANGELOG_DB_VERSION);
+		PR_snprintf (plVersion, VERSION_SIZE, "%s/%d.%d/%s\n", 
+				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
 		rc = _cl5ReadGuardian (dbVersion);
 
 		if (rc != CL5_SUCCESS || strcasecmp (plVersion, dbVersion) != 0)
 		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-							"_cl5CheckGuardian: missing or invalid guardian file\n");
-			return (CL5_BAD_FORMAT);
+			PR_snprintf (plVersion, VERSION_SIZE, "%s/%s/%s", 
+							CL5_TYPE, REPL_PLUGIN_NAME, CHANGELOG_DB_VERSION);
+			if (strcasecmp (plVersion, dbVersion) != 0)
+			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+					"_cl5CheckGuardian: found old style of guardian file: %s\n",
+					dbVersion);
+			}
+			else
+			{
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+					"_cl5CheckGuardian: missing or invalid guardian file\n");
+				return (CL5_BAD_FORMAT);
+			}
 		}
 
 		/* remove guardian file */
@@ -3534,8 +3676,8 @@ static int _cl5WriteGuardian ()
 		return CL5_SYSTEM_ERROR;
 	}
 
-	PR_snprintf (version, VERSION_SIZE, "%s/%s/%s\n", CL5_TYPE, REPL_PLUGIN_NAME, 	
-			 CHANGELOG_DB_VERSION);
+	PR_snprintf (version, VERSION_SIZE, "%s/%d.%d/%s\n", 
+				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
 
 	len = strlen (version);
 	size = slapi_write_buffer (file, version, len);
