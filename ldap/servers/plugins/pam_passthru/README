@@ -155,7 +155,9 @@ values when the password has expired. So we need to call
 pam_acct_mgmt() somewhere during the pam handshakes and before
 pam_end() to get this information. We also try to return an
 appropriate LDAP error code.
+
 PAM Error Code			LDAP Error Code				Meaning
+==============          ===============             =======
 PAM_USER_UNKNOWN		LDAP_NO_SUCH_OBJECT			User ID does not exist
 PAM_AUTH_ERROR			LDAP_INVALID_CREDENTIALS	Password is not correct
 PAM_ACCT_EXPIRED		LDAP_INVALID_CREDENTIALS	User's password is expired
@@ -163,6 +165,7 @@ PAM_PERM_DENIED			LDAP_UNWILLING_TO_PERFORM	User's account is locked out
 PAM_NEW_AUTHTOK_REQD	LDAP_INVALID_CREDENTIALS	User's password has expired and must be renewed
 PAM_MAXTRIES			LDAP_CONSTRAINT_VIOLATION	Max retry count has been exceeded
 Other codes				LDAP_OPERATIONS_ERROR		PAM config is incorrect, machine problem, etc.
+
 There are three controls we might possibly add to the response:
 * the auth response control - returned upon success - contains the BIND DN (u: not currently supported)
 * LDAP_CONTROL_PWEXPIRED - returned when PAM reports ACCT_EXPIRED or NEW_AUTHTOK_REQD
@@ -182,7 +185,7 @@ Configuration
 
 1. Shutdown the server
 2. Make sure the slapd-instance/config/schema contains the 60pam-config.ldif file
-3. Make sure serverroot/lib/pam-passthru-plugin.so exists
+3. Make sure plugindir/libpam-passthru-plugin.so exists
 4. Make sure /etc/pam.d/ldapserver exists and is configured correctly
 5. If the configuration is not already in dse.ldif, append the following to slapd-instance/config/dse.ldif
 
@@ -192,7 +195,7 @@ objectclass: nsSlapdPlugin
 objectclass: extensibleObject
 objectclass: pamConfig
 cn: PAM Pass Through Auth
-nsslapd-pluginpath: /opt/ldapserver/lib/pam-passthru-plugin.so
+nsslapd-pluginpath: /path/to/libpam-passthru-plugin.so
 nsslapd-plugininitfunc: pam_passthruauth_init
 nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
@@ -210,7 +213,25 @@ Make sure there is a blank line at the end. The line with
 o=NetscapeRoot may be omitted if this is not a configuration DS. Then
 restart slapd.
 
+Testing
+
+I find it convenient to just test against regular /etc/passwd accounts.
+0) Create a server instance with suffix dc=example,dc=com and load the Example.ldif file
+1) cd /etc/pam.d
+2) cp system-auth ldapserver (make sure ldapserver is readable by nobody or whatever your ldap server account is)
+3) useradd scarter (or any uid from Example.ldif)
+4) passwd scarter - use a different password than the LDAP password
+5) Make sure /etc/shadow is readable by nobody or whatever your ldap server account is
+
+You might want to turn off pamSecure for testing purposes unless you have already set up your server and ldap clients to use TLS.
+
+Then you can run a test like this:
+ldapsearch -x -D "uid=scarter,ou=people,dc=example,dc=com" -w thepassword -s base -b ""
+
+Check /var/log/secure for any PAM authentication failures
+
 See Also
+
 PAM API for Linux http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam_appl.html
 PAM API for Solaris Writing PAM Applications and Services from the Solaris Security for Developers Guide http://docs.sun.com/app/docs/doc/816-4863/6mb20lvfh?a=view
 PAM API for HP-UX http://docs.hp.com/en/B2355-60103/pam.3.html

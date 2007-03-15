@@ -80,6 +80,10 @@ slapi_be_new( const char *type, const char *name, int isprivate, int logchanges 
 
 	backends[i] = be;
 	nbackends++;
+
+	slapi_log_error(SLAPI_LOG_TRACE, "slapi_be_new",
+					"Added new backend name [%s] type [%s] nbackends [%d]\n",
+					name, type, nbackends);
 	return( be );
 }
 

@@ -85,6 +85,9 @@ pam_passthruauth_init( Slapi_PBlock *pb )
     slapi_log_error( SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "=> pam_passthruauth_init\n" );
 
+    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &pam_passthruauth_plugin_identity);
+    PR_ASSERT (pam_passthruauth_plugin_identity);
+
     if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 		    (void *)SLAPI_PLUGIN_VERSION_01 ) != 0
 	    || slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,

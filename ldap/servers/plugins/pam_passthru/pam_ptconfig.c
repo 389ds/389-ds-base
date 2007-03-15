@@ -266,7 +266,23 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 
 	return err;
 }
-		
+
+static void
+print_suffixes()
+{
+	void *cookie = NULL;
+	Slapi_DN *sdn = NULL;
+	slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+					"The following is the list of valid suffixes to use with "
+					PAMPT_EXCLUDES_ATTR " and " PAMPT_INCLUDES_ATTR ":\n");
+	for (sdn = slapi_get_first_suffix(&cookie, 1);
+		 sdn && cookie;
+		 sdn = slapi_get_next_suffix(&cookie, 1)) {
+		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"\t%s\n", slapi_sdn_get_dn(sdn));
+	}
+}
+
 /*
   Validate the pending changes in the e entry.
 */
@@ -295,29 +311,26 @@ pam_passthru_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_
 
 	if (missing_suffix != PAMPT_MISSING_SUFFIX_IGNORE) {
 		char **missing_list = NULL;
-		Slapi_DN *comp_dn = slapi_sdn_new();
 
 		/* get the list of excluded suffixes */
 		excludes = slapi_entry_attr_get_charray(e, PAMPT_EXCLUDES_ATTR);
 		for (ii = 0; excludes && excludes[ii]; ++ii) {
-			slapi_sdn_init_dn_byref(comp_dn, excludes[ii]);
+			Slapi_DN *comp_dn = slapi_sdn_new_dn_byref(excludes[ii]);
 			if (!slapi_be_exist(comp_dn)) {
 				charray_add(&missing_list, slapi_ch_strdup(excludes[ii]));
 			}
-			slapi_sdn_done(comp_dn);
+			slapi_sdn_free(&comp_dn);
 		}
 
 		/* get the list of included suffixes */
 		includes = slapi_entry_attr_get_charray(e, PAMPT_INCLUDES_ATTR);
 		for (ii = 0; includes && includes[ii]; ++ii) {
-			slapi_sdn_init_dn_byref(comp_dn, includes[ii]);
+			Slapi_DN *comp_dn = slapi_sdn_new_dn_byref(includes[ii]);
 			if (!slapi_be_exist(comp_dn)) {
 				charray_add(&missing_list, slapi_ch_strdup(includes[ii]));
 			}
-			slapi_sdn_done(comp_dn);
+			slapi_sdn_free(&comp_dn);
 		}
-
-		slapi_sdn_free(&comp_dn);
 
 		if (missing_list) {
 			PRUint32 size =
@@ -333,6 +346,7 @@ pam_passthru_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_
 			}
 			slapi_ch_array_free(missing_list);
 			missing_list = NULL;
+			print_suffixes();
 			if (missing_suffix != PAMPT_MISSING_SUFFIX_ERROR) {
 				slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 								"Warning: %s\n", returntext);
@@ -398,8 +412,7 @@ New_Pam_PassthruSuffix(char *suffix)
 	Pam_PassthruSuffix *newone = NULL;
 	if (suffix) {
 		newone = (Pam_PassthruSuffix *)slapi_ch_malloc(sizeof(Pam_PassthruSuffix));
-		newone->pamptsuffix_dn = slapi_sdn_new();
-		slapi_sdn_init_dn_byval(newone->pamptsuffix_dn, suffix);
+		newone->pamptsuffix_dn = slapi_sdn_new_dn_byval(suffix);
 		newone->pamptsuffix_next = NULL;
 	}
 	return newone;
@@ -532,8 +545,7 @@ pam_passthru_check_suffix(Pam_PassthruConfig *cfg, char *binddn)
 	Pam_PassthruSuffix *try;
 	int ret = LDAP_SUCCESS;
 
-	comp_dn = slapi_sdn_new();
-	slapi_sdn_init_dn_byref(comp_dn, binddn);
+	comp_dn = slapi_sdn_new_dn_byref(binddn);
 
 	slapi_lock_mutex(cfg->lock);
 	if (!cfg->pamptconfig_includes && !cfg->pamptconfig_excludes) {

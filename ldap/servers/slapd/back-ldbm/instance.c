@@ -278,6 +278,7 @@ ldbm_instance_startall(struct ldbminfo *li)
 	    rc = rc1;
 	} else {
 	    vlv_init(inst);
+	    slapi_mtn_be_started(inst->inst_be);
 	}
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
     }

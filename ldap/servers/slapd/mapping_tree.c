@@ -324,6 +324,12 @@ mapping_tree_node_new(Slapi_DN *dn, Slapi_Backend **be, char **backend_names, in
     node->mtn_dstr_plg_name = plg_fct;
     node->mtn_dstr_plg = plg;
 
+    slapi_log_error(SLAPI_LOG_TRACE, "mapping_tree",
+                    "Created new mapping tree node for suffix [%s] backend [%s] [%p]\n",
+                    slapi_sdn_get_dn(dn),
+                    backend_names && backend_names[0] ? backend_names[0] : "null",
+                    be ? be[0] : NULL);
+
     return node;
 }
 
