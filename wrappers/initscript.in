@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # @package_name@    This starts and stops @package_name@
 #
@@ -11,24 +11,66 @@
 #
 
 # Source function library.
+if [ -f /etc/rc.d/init.d/functions ] ; then
 . /etc/rc.d/init.d/functions
+fi
 # Source networking configuration.
+if [ -f /etc/sysconfig/network ] ; then
 . /etc/sysconfig/network
+fi
 
 # Check that networking is up.
-if [ ${NETWORKING} = "no" ]
+if [ "${NETWORKING}" = "no" ]
 then
     echo "Networking is down"
     exit 0
 fi
 
+# failure and success are not defined on some platforms
+type failure > /dev/null 2>&1 || {
+failure()
+{
+    echo " FAILED\c"
+}
+}
 
-exec="@sbindir@/ns-slapd"
+type success > /dev/null 2>&1 || {
+success()
+{
+    echo " SUCCESS\c"
+}
+}
+
+# On Solaris /var/run is in tmpfs and gets wiped out upon reboot
+# we have to recreate the /var/run/@package_name@ directory
+# We also have to make sure that the directory is writable
+# by the directory server process
+# the argument to this function is the server instance directory,
+# which must have a dse.ldif file in it
+fix_pid_dir_ownership()
+{
+    if [ ! -d $piddir ] ; then
+	mkdir -p $piddir
+	owner=`grep \^nsslapd-localuser $1/dse.ldif | awk '{print $2}'`
+	if [ -n "$owner" ] ; then
+	    chown $owner $piddir
+	    chmod 700 $piddir
+	fi
+    fi
+}
+
+baseexec="ns-slapd"
+exec="@sbindir@/$baseexec"
 prog="@package_name@"
 # Lockfile
-lockfile="@localstatedir@/lock/subsys/@package_name@"
+if [ -d "@localstatedir@/lock/subsys" ] ; then
+    lockfile="@localstatedir@/lock/subsys/@package_name@"
+else
+    lockfile="@localstatedir@/lock/@package_name@/lock"
+fi
 # PID directory
 piddir="@localstatedir@/run/@package_name@"
+
 # Instance basedir
 instbase="@instconfigdir@"
 
@@ -38,13 +80,11 @@ instbase="@instconfigdir@"
 
 umask 077
 
-pids=$(pidof $exec)
-
 INSTANCES=""
 
 for FILE in `/bin/ls -d $instbase/slapd-* 2>/dev/null`; do
     if [ -d "$FILE" ] ; then
-        inst=$(echo "$FILE" | sed -e "s|$instbase/slapd-||")
+        inst=`echo "$FILE" | sed -e "s|$instbase/slapd-||"`
         INSTANCES="$INSTANCES $inst"
     fi
 done
@@ -56,7 +96,7 @@ if [ -n "$2" ]; then
       fi
    done
    if [ "$2" != "$INSTANCES" ]; then
-      echo -n "$2 is an invalid @package_name@ instance"
+      echo "$2 is an invalid @package_name@ instance\c"
       failure; echo
       exit 1
    fi
@@ -64,13 +104,14 @@ fi
 
 start() {
     if [ -n "$INSTANCES" ]; then
-        export LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@
+        LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@
+        export LD_LIBRARY_PATH
         echo  "Starting $prog: "
         # Start every slapd instance that isn't already running
         errors=0
         successes=0
         for instance in $INSTANCES; do
-            echo -n "    $instance..."
+            echo "    $instance...\c"
             # the server creates pidfile and writes the pid to it when it is fully
             # started and available to serve clients
             pidfile=$piddir/slapd-$instance.pid
@@ -79,15 +120,15 @@ start() {
             # die a horrible death (e.g. shared lib problem, oom, etc.)
             startpidfile=$piddir/slapd-$instance.startpid
             server_running=0
-            if [ -e $pidfile ]; then
-                pid=$(cat $pidfile)
-                if [ $(echo "$pids" | grep -c $pid) -ge 1 ]; then
-                    echo -n " already running"
+            if [ -f $pidfile ]; then
+                pid=`cat $pidfile`
+                if kill -0 $pid > /dev/null 2>&1 ; then
+                    echo " already running\c"
                     success; echo
-                    let successes=successes+1
+                    successes=`expr $successes + 1`
                     server_running=1
                 else
-                    echo -n " not running, but pid file exists - attempt to start anyway..."
+                    echo " not running, but pid file exists - attempt to start anyway...\c"
                     rm -f $pidfile
                 fi
             fi
@@ -95,12 +136,13 @@ start() {
             if [ $server_running -eq 0 ] ; then
                 rm -f $pidfile
                 rm -f $startpidfile
+		fix_pid_dir_ownership $instbase/slapd-$instance
                 $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
                 if [ $? -eq 0 ]; then
                     server_started=1 # well, perhaps not running, but started ok
                 else
                     failure; echo
-                    let errors=errors+1
+                    errors=`expr $errors + 1`
                 fi
             fi
             # ok, if we started the server successfully, let's see if it is really
@@ -119,7 +161,7 @@ start() {
                 done
                 if test ! -f $startpidfile ; then
                     failure; echo
-                    let errors=errors+1
+                    errors=`expr $errors + 1`
                     server_started=0
                 fi
             fi
@@ -144,10 +186,10 @@ start() {
                 done
                 if kill -0 $pid > /dev/null 2>&1 && test -f $pidfile ; then
                     success; echo
-                    let successes=successes+1
+                    successes=`expr $successes + 1`
                 else
                     failure; echo
-                    let errors=errors+1
+                    errors=`expr $errors + 1`
                 fi
             fi
             rm -f $startpidfile
@@ -168,17 +210,17 @@ stop() {
     errors=0
     for instance in $INSTANCES; do
         pidfile=$piddir/slapd-$instance.pid
-        if [ -e $pidfile ]; then
-            pid=$(cat $pidfile)
-            echo -n "    $instance..."
+        if [ -f $pidfile ]; then
+            pid=`cat $pidfile`
+            echo "    $instance...\c"
             server_stopped=0
-            if [ $(echo "$pids" | grep -c $pid) -ge 1 ]; then
+            if kill -0 $pid > /dev/null 2>&1 ; then
                 kill $pid
                 if [ $? -eq 0 ]; then
                     server_stopped=1
                 else
                     failure; echo
-                    let errors=errors+1
+                    errors=`expr $errors + 1`
                 fi
             fi
             if [ $server_stopped -eq 1 ] ; then
@@ -198,7 +240,7 @@ stop() {
                 done
                 if test -f $pidfile ; then
                     failure; echo
-                    let errors=errors+1
+                    errors=`expr $errors + 1`
                 else
                     success; echo
                     rm -f $pidfile
@@ -207,7 +249,7 @@ stop() {
         fi
     done
     if [ $errors -ge 1 ]; then
-        echo -n "*** Error: $errors instance(s) unsuccessfully stopped"
+        echo "*** Error: $errors instance(s) unsuccessfully stopped\c"
         failure; echo
     else
         rm -f $lockfile
@@ -222,9 +264,9 @@ restart() {
 
 status() {
      for instance in $INSTANCES; do
-         if [ -e $piddir/slapd-$instance.pid ]; then
-             pid=$(cat $piddir/slapd-$instance.pid)
-             if [ $(echo "$pids" | grep -c $pid) -ge 1 ]; then
+         if [ -f $piddir/slapd-$instance.pid ]; then
+             pid=`cat $piddir/slapd-$instance.pid`
+             if kill -0 $pid > /dev/null 2>&1 ; then
                  echo "$prog $instance (pid $pid) is running..."
              else
                 echo "$prog $instance dead but pid file exists"
@@ -244,6 +286,7 @@ case "$1" in
         [ ! -f $lockfile ] || restart
         ;;
     *)
-        echo $"Usage: $0 {start|stop|status|restart|condrestart} [instance-name]"
+	echo Unknown command $1
+        echo "Usage: $0 {start|stop|status|restart|condrestart} [instance-name]"
         exit 2
 esac
