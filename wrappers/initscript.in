@@ -26,18 +26,24 @@ then
     exit 0
 fi
 
+# Solaris echo cannot use -n - linux echo by default cannot use \c
+echo_n()
+{
+    echo @ECHO_N@ "$*@ECHO_C@"
+}
+
 # failure and success are not defined on some platforms
 type failure > /dev/null 2>&1 || {
 failure()
 {
-    echo " FAILED\c"
+    echo_n " FAILED"
 }
 }
 
 type success > /dev/null 2>&1 || {
 success()
 {
-    echo " SUCCESS\c"
+    echo_n " SUCCESS"
 }
 }
 
@@ -96,7 +102,7 @@ if [ -n "$2" ]; then
       fi
    done
    if [ "$2" != "$INSTANCES" ]; then
-      echo "$2 is an invalid @package_name@ instance\c"
+      echo_n "$2 is an invalid @package_name@ instance"
       failure; echo
       exit 1
    fi
@@ -111,7 +117,7 @@ start() {
         errors=0
         successes=0
         for instance in $INSTANCES; do
-            echo "    $instance...\c"
+            echo_n "    $instance..."
             # the server creates pidfile and writes the pid to it when it is fully
             # started and available to serve clients
             pidfile=$piddir/slapd-$instance.pid
@@ -123,12 +129,12 @@ start() {
             if [ -f $pidfile ]; then
                 pid=`cat $pidfile`
                 if kill -0 $pid > /dev/null 2>&1 ; then
-                    echo " already running\c"
+                    echo_n " already running"
                     success; echo
                     successes=`expr $successes + 1`
                     server_running=1
                 else
-                    echo " not running, but pid file exists - attempt to start anyway...\c"
+                    echo_n " not running, but pid file exists - attempt to start anyway..."
                     rm -f $pidfile
                 fi
             fi
@@ -136,7 +142,7 @@ start() {
             if [ $server_running -eq 0 ] ; then
                 rm -f $pidfile
                 rm -f $startpidfile
-		fix_pid_dir_ownership $instbase/slapd-$instance
+                fix_pid_dir_ownership $instbase/slapd-$instance
                 $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
                 if [ $? -eq 0 ]; then
                     server_started=1 # well, perhaps not running, but started ok
@@ -212,7 +218,7 @@ stop() {
         pidfile=$piddir/slapd-$instance.pid
         if [ -f $pidfile ]; then
             pid=`cat $pidfile`
-            echo "    $instance...\c"
+            echo_n "    $instance..."
             server_stopped=0
             if kill -0 $pid > /dev/null 2>&1 ; then
                 kill $pid
@@ -249,7 +255,7 @@ stop() {
         fi
     done
     if [ $errors -ge 1 ]; then
-        echo "*** Error: $errors instance(s) unsuccessfully stopped\c"
+        echo_n "*** Error: $errors instance(s) unsuccessfully stopped"
         failure; echo
     else
         rm -f $lockfile
@@ -286,7 +292,7 @@ case "$1" in
         [ ! -f $lockfile ] || restart
         ;;
     *)
-	echo Unknown command $1
+        echo Unknown command $1
         echo "Usage: $0 {start|stop|status|restart|condrestart} [instance-name]"
         exit 2
 esac

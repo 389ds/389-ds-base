@@ -981,7 +981,9 @@ fixupcmd = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
-	-e 's,@instconfigdir\@,$(instconfigdir),g'
+	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+	-e 's,@ECHO_N\@,$(ECHO_N),g' \
+	-e 's,@ECHO_C\@,$(ECHO_C),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1005,7 +1007,9 @@ fixupcmd = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
-	-e 's,@instconfigdir\@,$(instconfigdir),g'
+	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+	-e 's,@ECHO_N\@,$(ECHO_N),g' \
+	-e 's,@ECHO_C\@,$(ECHO_C),g'
 endif
 
 %: %.in

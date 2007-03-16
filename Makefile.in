@@ -1859,7 +1859,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 @BUNDLE_FALSE@	-e 's,@localstatedir\@,$(localstatedir),g' \
 @BUNDLE_FALSE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
-@BUNDLE_FALSE@	-e 's,@instconfigdir\@,$(instconfigdir),g'
+@BUNDLE_FALSE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+@BUNDLE_FALSE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
+@BUNDLE_FALSE@	-e 's,@ECHO_C\@,$(ECHO_C),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -1890,7 +1892,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 @BUNDLE_TRUE@	-e 's,@localstatedir\@,$(localstatedir),g' \
 @BUNDLE_TRUE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
-@BUNDLE_TRUE@	-e 's,@instconfigdir\@,$(instconfigdir),g'
+@BUNDLE_TRUE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+@BUNDLE_TRUE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
+@BUNDLE_TRUE@	-e 's,@ECHO_C\@,$(ECHO_C),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
