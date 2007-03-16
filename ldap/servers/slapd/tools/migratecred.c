@@ -46,6 +46,9 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #ifndef _WIN32
 #include <sys/param.h>  /* MAXPATHLEN */
@@ -56,7 +59,8 @@
 
 static void usage(char *name)
 {
-	fprintf(stderr, "usage: %s -o 5.0InstancePath -n 5.1InstancePath -c 5.0Credential\n", name);
+	fprintf(stderr, "usage: %s -o OldInstancePath -n NewInstancePath -c OldCredential [-p NewPluginPath]\n", name);
+    fprintf(stderr, "New plugin path defaults to [%s] if not given\n", PLUGINDIR);
 	exit(1);
 }
 	
@@ -76,18 +80,18 @@ static void dostounixpath(char *szText)
 }
 #endif
 
-/* Script used during 5.0 to 5.1 migration: replication and
+/* Script used during migration: replication and
 	chaining backend credentials must be converted.
 	
    Assumption: the built-in des-plugin.so lib has been used 
-	in 5.0 and is used in 5.1
+	in the old version and is used in the new version
 
    Usage: migrateCred 
-				-o <5.0 instance path> 
-				-n <5.1 instance path> 
-				-c <5.0 credential, with prefix>
+				-o <old instance path> 
+				-n <new instance path> 
+				-c <old credential, with prefix>
 
-   Return 5.1 credential with prefix
+   Return new credential with prefix
 */
 
 int
@@ -96,6 +100,7 @@ main( int argc, char **argv)
 	char *cmd = argv[0];
 	char *oldpath = NULL;
 	char *newpath = NULL;
+	char *pluginpath = NULL;
 	char *prefixCred = NULL;
 	char *cred = NULL;
 
@@ -104,7 +109,7 @@ main( int argc, char **argv)
 	char libpath[MAXPATHLEN];
 	char *shared_lib;
 
-	char *opts = "o:n:c:";
+	char *opts = "o:n:c:p:";
 	int i;
 
 	while (( i = getopt( argc, argv, opts )) != EOF ) 
@@ -144,6 +149,13 @@ main( int argc, char **argv)
 					}
 				}
 				break;
+			case 'p':
+				pluginpath = strdup(optarg);
+#ifdef _WIN32
+				dostounixpath(pluginpath);
+#endif /* _WIN32 */
+
+				break;
 			default: 
 				usage(cmd);
 		}
@@ -177,13 +189,26 @@ main( int argc, char **argv)
 #endif
 #endif
 
-	snprintf(libpath, sizeof(libpath), "%s/../lib/des-plugin%s", newpath, shared_lib);
-	libpath[sizeof(libpath)-1] = 0;
+	if (!pluginpath) {
+		pluginpath = strdup(PLUGINDIR);
+#ifdef _WIN32
+		dostounixpath(pluginpath);
+#endif /* _WIN32 */
+	}
+
+	if (access(pluginpath, R_OK)) {
+		snprintf(libpath, sizeof(libpath), "%s/../lib/des-plugin%s", newpath, shared_lib);
+		libpath[sizeof(libpath)-1] = 0;
+	} else {
+		snprintf(libpath, sizeof(libpath), "%s/libdes-plugin%s", pluginpath, shared_lib);
+		libpath[sizeof(libpath)-1] = 0;
+	}        
 
 	fct = (migrate_fn_type)sym_load(libpath, "migrateCredentials",
 			"DES Plugin", 1 /* report errors */ );
 	if ( fct == NULL )
 	{
+		usage(cmd);
 		return(1);
 	}
 

@@ -21,7 +21,7 @@ DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir
 PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfdir)\"" \
 	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
-	-DSBINDIR="\"$(sbindir)\""
+	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\""
 
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
@@ -148,13 +148,14 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
 	wrappers/ds_newinst \
-	$(srcdir)/ldap/admin/src/ds_newinst.pl \
+	ldap/admin/src/ds_newinst.pl \
 	wrappers/dsktune \
 	wrappers/infadd \
 	wrappers/ldap-agent \
 	wrappers/ldclt \
 	wrappers/ldif \
 	$(srcdir)/ldap/admin/src/logconv.pl \
+	ldap/admin/src/migrateTo11 \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \

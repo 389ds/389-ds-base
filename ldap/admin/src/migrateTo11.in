@@ -1,0 +1,676 @@
+#!/usr/bin/env perl
+#
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# Copyright (C) 2007 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+# cmd line parsing
+use Getopt::Long;
+# tempfiles
+use File::Temp qw(tempfile tempdir);
+
+# load perldap
+use Mozilla::LDAP::Conn;
+use Mozilla::LDAP::Utils qw(normalizeDN);
+use Mozilla::LDAP::API qw(ldap_explode_dn);
+use Mozilla::LDAP::LDIF;
+
+# these are the attributes for which we will always use
+# the new value, or which do not apply anymore
+my %ignoreOld =
+(
+ 'nsslapd-errorlog'                => 'nsslapd-errorlog',
+ 'nsslapd-accesslog'               => 'nsslapd-accesslog',
+ 'nsslapd-auditlog'                => 'nsslapd-auditlog',
+ 'nskeyfile'                       => 'nsKeyfile',
+ 'nscertfile'                      => 'nsCertfile',
+ 'nsslapd-pluginpath'              => 'nsslapd-pluginPath',
+ 'nsslapd-plugintype'              => 'nsslapd-pluginType',
+ 'nsslapd-pluginversion'           => 'nsslapd-pluginVersion',
+ 'nsslapd-plugin-depends-on-named' => 'nsslapd-plugin-depends-on-named',
+# these are new attrs that we should just pass through
+ 'nsslapd-schemadir'               => 'nsslapd-schemadir',
+ 'nsslapd-lockdir'                 => 'nsslapd-lockdir',
+ 'nsslapd-tmpdir'                  => 'nsslapd-tmpdir',
+ 'nsslapd-certdir'                 => 'nsslapd-certdir',
+ 'nsslapd-ldapifilepath'           => 'nsslapd-ldapifilepath',
+ 'nsslapd-ldapilisten'             => 'nsslapd-ldapilisten',
+ 'nsslapd-ldapiautobind'           => 'nsslapd-ldapiautobind',
+ 'nsslapd-ldapimaprootdn'          => 'nsslapd-ldapimaprootdn',
+ 'nsslapd-ldapimaptoentries'       => 'nsslapd-ldapimaptoentries',
+ 'nsslapd-ldapiuidnumbertype'      => 'nsslapd-ldapiuidnumbertype',
+ 'nsslapd-ldapigidnumbertype'      => 'nsslapd-ldapigidnumbertype',
+ 'nsslapd-ldapientrysearchbase'    => 'nsslapd-ldapientrysearchbase',
+ 'nsslapd-ldapiautodnsuffix'       => 'nsslapd-ldapiautodnsuffix'
+);
+
+# these are the attributes for which we will always use
+# the old value
+my %alwaysUseOld =
+(
+ 'aci'      => 'aci'
+);
+
+# global vars used throughout script + subs
+my $pkgname = "@package_name@";
+# this is the new pkgname which may be something like
+# fedora-ds-base - we have to strip off the -suffix
+if ($pkgname =~ /-(core|base)$/) {
+    $pkgname =~ s/-(core|base)$//;
+}
+my $oldpkgname = $pkgname;
+my $oldsroot = "/opt/$oldpkgname";
+
+# figure out the current bdb version
+my $db_version=`db_verify -V`;
+my ($db_major_version, $db_minor_version);
+if ($db_version =~ /Berkeley DB (\d+)\.(\d+)/) {
+    $db_major_version = $1;
+    $db_minor_version = $2;
+}
+my $db_verstr = "bdb/${db_major_version}.${db_minor_version}/libback-ldbm";
+
+my $debuglevel = 0;
+# use like this:
+# debug(3, "message");
+# this will only print "message" if $debuglevel is 3 or higher (-vvv on the command line)
+sub debug {
+    my ($level, @rest) = @_;
+    if ($level <= $debuglevel) {
+        print STDERR "+" x $level, @rest;
+    }
+}
+
+sub getNewDbDir {
+    my ($ent, $attr, $inst) = @_;
+    my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
+    my $cn = $ent->getValues('cn');
+    my $newval;
+    if ($objclasses{nsbackendinstance}) {
+        $newval = "@localstatedir@/lib/$pkgname/$inst/db/$cn";
+    } elsif (lc $cn eq 'config') {
+        $newval = "@localstatedir@/lib/$pkgname/$inst/db";
+    } elsif (lc $cn eq 'changelog5') {
+        $newval = "@localstatedir@/lib/$pkgname/$inst/cldb";
+    }
+    debug(2, "New value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
+    return $newval;
+}
+
+sub migrateCredentials {
+    my ($ent, $attr, $inst) = @_;
+    my $oldval = $ent->getValues($attr);
+    debug(3, "Executing migratecred -o $oldsroot/$inst -n @instconfigdir@/$inst -c $oldval . . .\n");
+    my $newval = `migratecred -o $oldsroot/$inst -n @instconfigdir@/$inst -c $oldval`;
+    debug(3, "Converted old value [$oldval] to new value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
+    return $newval;
+}
+
+# these are attributes that we have to transform from
+# the old value to the new value (e.g. a pathname)
+# The key of this hash is the attribute name.  The value
+# is an anonymous sub which takes two arguments - the entry
+# and the old value.  The return value of the sub is
+# the new value
+my %transformAttr =
+(
+ 'nsslapd-directory' => \&getNewDbDir,
+ 'nsslapd-db-logdirectory' => \&getNewDbDir,
+ 'nsslapd-changelogdir' => \&getNewDbDir,
+ 'nsds5replicacredentials' => \&migrateCredentials,
+ 'nsmultiplexorcredentials' => \&migrateCredentials
+);
+
+#nsslapd-directory - if same as old path, convert to new, otherwise, leave it
+#nsslapd-logdirectory - if same as old path, convert to new, otherwise, leave it
+
+#nsslapd-accesslog
+#nsslapd-errorlog
+#nsslapd-auditlog
+
+#nskeyfile
+#nscertfile
+
+#dn: cn=Internationalization Plugin
+#nsslapd-pluginArg0: $inst/config/slapd-collations.conf
+
+#dn: cn=referential integrity postoperation
+#nsslapd-pluginarg1: $inst/logs/referint
+
+# don't forget changelogdb and certmap.conf
+# [General]
+# FullMachineName=   localhost.localdomain
+# SuiteSpotUserID=   nobody
+# ServerRoot=    /usr/lib64/fedora-ds
+# [slapd]
+# ServerPort=   1100
+# ServerIdentifier=   localhost
+# Suffix=   dc=example,dc=com
+# RootDN=   cn=Directory Manager
+# RootDNPwd=  Secret123
+
+sub createInfFileFromDseLdif {
+    my $oldroot = shift;
+    my $inst = shift;
+    my $fname = "$oldroot/$inst/config/dse.ldif";
+    my $id;
+    ($id = $inst) =~ s/^slapd-//;
+    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
+    my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+    while ($ent = readOneEntry $in) {
+        my $dn = $ent->getDN();
+        if ($dn =~ /cn=config/) {
+            print $outfh "[General]\n";
+            print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
+            print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
+            print $outfh "ServerRoot = @serverdir@\n";
+            print $outfh "[slapd]\n";
+            print $outfh "RootDN = ", $ent->getValues('nsslapd-rootdn'), "\n";
+            print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
+            print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
+            print $outfh "ServerIdentifier = $id\n";
+            print $outfh "Suffix = o=deleteAfterMigration\n";
+            print $outfh "start_server= 0\n";
+            last;
+        }
+    }
+    close $outfh;
+    close DSELDIF;
+
+    return $inffile;
+}
+
+sub makeNewInst {
+    my ($ds_newinst, $inffile) = @_;
+    system ($ds_newinst, $inffile) == 0 or
+        die "Could not create new instance using $ds_newinst with inffile $inffile: $?";
+}
+
+sub copyDatabaseDirs {
+    my $srcdir = shift;
+    my $destdir = shift;
+    if (-d $srcdir && ! -d $destdir) {
+        debug(0, "Copying database directory $srcdir to $destdir\n");
+        system ("cp -p -r $srcdir $destdir") == 0 or
+            die "Could not copy database directory $srcdir to $destdir: $?";
+    } elsif (! -d $srcdir) {
+        die "Error: database directory $srcdir does not exist";
+    } else {
+        debug(0, "The destination directory $destdir already exists, copying files/dirs individually\n");
+        foreach my $file (glob("$srcdir/*")) {
+            debug(3, "Copying $file to $destdir\n");
+            if (-f $file) {
+                system ("cp -p $file $destdir") == 0 or
+                    die "Error: could not copy $file to $destdir: $!";
+            } elsif (-d $file) {
+                system ("cp -p -r $file $destdir") == 0 or
+                    die "Error: could not copy $file to $destdir: $!";
+            }
+        }
+    }
+}
+
+sub copyDatabases {
+    my $oldroot = shift;
+    my $inst = shift;
+    my $newdbdir = shift;
+
+    # global config and instance specific config are children of this entry
+    my $basedbdn = normalizeDN("cn=ldbm database,cn=plugins,cn=config");
+    # get the list of databases, their index and transaction log locations
+    my $fname = "$oldroot/$inst/config/dse.ldif";
+    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
+    my $targetdn = normalizeDN("cn=config,cn=ldbm database,cn=plugins,cn=config");
+    while ($ent = readOneEntry $in) {
+        next if (!$ent->getDN()); # just skip root dse
+        # look for the one level children of $basedbdn
+        my @rdns = ldap_explode_dn($ent->getDN(), 0);
+        my $parentdn = normalizeDN(join(',', @rdns[1..$#rdns]));
+        if ($parentdn eq $basedbdn) {
+            my $cn = $ent->getValues('cn');
+            my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
+            if ($cn eq 'config') { # global config
+                debug(1, "Found ldbm database plugin config entry ", $ent->getDN(), "\n");
+                my $dir = $ent->getValues('nsslapd-directory');
+                my $homedir = $ent->getValues('nsslapd-db-home-directory');
+                my $logdir = $ent->getValues('nsslapd-db-logdirectory');
+                debug(1, "old db dir = $dir homedir = $homedir logdir = $logdir\n");
+                my $srcdir = $homedir || $dir || "$oldroot/$inst/db";
+                copyDatabaseDirs($srcdir, $newdbdir);
+                copyDatabaseDirs($logdir, $newdbdir) if ($logdir && $logdir ne $srcdir);
+            } elsif ($objclasses{nsbackendinstance}) {
+                debug(1, "Found ldbm database instance entry ", $ent->getDN(), "\n");
+                my $dir = $ent->getValues('nsslapd-directory');
+                # the default db instance directory is
+                # $oldroot/$inst/$cn
+                debug(1, "old instance $cn dbdir $dir\n");
+                my $srcdir = $dir || "$oldroot/$inst/db/$cn";
+                copyDatabaseDirs($srcdir, "$newdbdir/$cn");
+            } # else just ignore for now
+        }
+    }
+    close DSELDIF;
+
+    # server automagically upgrades database if needed
+#    upgradeDatabase($newdbdir);
+    # fix the DBVERSION files
+#    updateDBVERSION($newdbdir);
+    # fix guardian files
+#    updateDBguardian($newdbdir);
+}
+
+sub copySecurityFiles {
+    my $oldroot = shift;
+    my $inst = shift;
+    my $destdir = shift;
+    
+    if (! -d "$oldroot/alias") {
+        debug(0, "Error: security file directory $oldroot/alias not found\n");
+    } elsif (! -d $destdir) {
+        debug(0, "Error: new security file directory $destdir not found\n");
+    } else {
+        debug(1, "Copying $oldroot/alias/$inst-cert8.db to $destdir/cert8.db\n");
+        system ("cp -p $oldroot/alias/$inst-cert8.db $destdir/cert8.db") == 0 or
+            die "Error: could not copy $oldroot/alias/$inst-cert8.db to $destdir/cert8.db: $!";
+        debug(1, "Copying $oldroot/alias/$inst-key3.db to $destdir/key3.db\n");
+        system ("cp -p $oldroot/alias/$inst-key3.db $destdir/key3.db") == 0 or
+            die "Error: could not copy $oldroot/alias/$inst-key3.db to $destdir/key3.db: $!";
+        debug(1, "Copying $oldroot/alias/secmod.db to $destdir/secmod.db\n");
+        system ("cp -p $oldroot/alias/secmod.db $destdir/secmod.db") == 0 or
+            die "Error: could not copy $oldroot/alias/secmod.db to $destdir/secmod.db: $!";
+        if (-f "$oldroot/alias/$inst-pin.txt") {
+            debug(1, "Copying $oldroot/alias/$inst-pin.txt to $destdir/pin.txt\n");
+                system ("cp -p $oldroot/alias/$inst-pin.txt $destdir/pin.txt") == 0 or
+                die "Error: could not copy $oldroot/alias/$inst-pin.txt to $destdir/pin.txt: $!";
+        }
+        if (-f "$oldroot/shared/config/certmap.conf") {
+            debug(1, "Copying $oldroot/shared/config/certmap.conf to $destdir/certmap.conf\n");
+                system ("cp -p $oldroot/shared/config/certmap.conf $destdir/certmap.conf") == 0 or
+                die "Error: could not copy $oldroot/shared/config/certmap.conf to $destdir/certmap.conf: $!";
+        }
+    }
+}
+
+sub copyChangelogDB {
+    my $oldroot = shift;
+    my $inst = shift;
+    my $newdbdir = shift;
+    # changelog config entry
+    my $cldn = normalizeDN("cn=changelog5, cn=config");
+    my $fname = "$oldroot/$inst/config/dse.ldif";
+    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
+    while ($ent = readOneEntry $in) {
+        my $targetdn = normalizeDN($ent->getDN());
+        if ($targetdn eq $cldn) {
+            my $oldcldir = $ent->getValues('nsslapd-changelogdir');
+            debug(1, "old cldb dir = $oldcldir\n");
+            my $srcdir = $oldcldir || "$oldroot/$inst/cldb";
+            copyDatabaseDirs($srcdir, $newdbdir);
+
+            # server automagically upgrades database if needed
+#            upgradeDatabase($newdbdir);
+
+            last;
+        }
+    }
+    close DSELDIF;
+}
+
+sub fixAttrsInEntry {
+    my ($ent, $inst) = @_;
+    for my $attr (keys %{$ent}) {
+        my $lcattr = lc $attr;
+        if ($transformAttr{$lcattr}) {
+            $ent->setValues($attr, &{$transformAttr{$lcattr}}($ent, $attr, $inst));
+        }
+    }
+}
+
+sub mergeEntries {
+    my ($old, $new, $inst) = @_;
+    my %inoldonly; # attrs in old entry but not new one
+    my %innewonly; # attrs in new entry but not old one
+    my @attrs; # attrs common to old and new
+    # if the attribute exists in the old entry but not the new one
+    # we should probably add it (checking for special cases first)
+    # if the attribute exists in the new entry but not the old one
+    # we might have to delete it from the new entry
+    # first, get a list of all attributes
+    foreach my $attr (keys %{$old}) {
+        if (! $new->exists($attr)) {
+            $inoldonly{$attr} = $attr;
+        } else {
+            push @attrs, $attr;
+        }
+    }
+    foreach my $attr (keys %{$new}) {
+        if (! $old->exists($attr)) {
+            $innewonly{$attr} = $attr;
+        }
+    }
+            
+    # iterate through the attr lists
+    my $cn = lc $new->getValues("cn");
+    foreach my $attr (keys %inoldonly, keys %innewonly, @attrs) {
+        my $lcattr = lc $attr;
+        if ($ignoreOld{$lcattr}) {
+            next; # use new value or just omit if attr is obsolete
+        } elsif ($transformAttr{$lcattr}) {
+            # only transform if the value is in the old entry
+            if (!$innewonly{$attr}) {
+                $new->setValues($attr, &{$transformAttr{$lcattr}}($old, $attr, $inst));
+            }
+        } elsif ($cn eq "internationalization plugin" and $lcattr eq "nsslapd-pluginarg0") {
+            next; # use the new value of this path name
+        } elsif ($cn eq "referential integrity postoperation" and $lcattr eq "nsslapd-pluginarg1") {
+            next; # use the new value of this path name
+        } elsif ($innewonly{$attr}) {
+            $new->remove($attr); # in new but not old - just remove it
+        } else {
+            $new->setValues($attr, $old->getValues($attr)); # use old value
+        }
+    }
+}
+
+sub mergeDseLdif {
+    my $oldroot = shift;
+    my $inst = shift;
+    my $ent;
+
+    # first, read in old file
+    my %olddse; # map of normalized DN to Entry
+    my @olddns; # the DNs in their original order
+    my $fname = "$oldroot/$inst/config/dse.ldif";
+    open( OLDDSELDIF, $fname ) || die "Can't open $fname: $!";
+    my $in = new Mozilla::LDAP::LDIF(*OLDDSELDIF);
+    while ($ent = readOneEntry $in) {
+        my $dn = normalizeDN($ent->getDN());
+        push @olddns, $dn;
+        $olddse{$dn} = $ent;
+    }
+    close OLDDSELDIF;
+
+    # next, read in new file
+    my %newdse; # map of normalized DN to Entry
+    my @newdns; # the DNs in their original order that are not in olddns
+    $fname = "@instconfigdir@/$inst/dse.ldif";
+    open( NEWDSELDIF, $fname ) || die "Can't open $fname: $!";
+    $in = new Mozilla::LDAP::LDIF(*NEWDSELDIF);
+    while ($ent = readOneEntry $in) {
+        my $dn = normalizeDN($ent->getDN());
+        $newdse{$dn} = $ent;
+        if (! exists $olddse{$dn}) {
+            push @newdns, $dn;
+        }
+    }
+    close NEWDSELDIF;
+
+    # temp file for new, merged dse.ldif
+    my ($dsefh, $tmpdse) = tempfile(SUFFIX => '.ldif');
+    # now, compare entries
+    # if the entry exists in the old tree but not the new, add it
+    # if the entry exists in the new tree but not the old, delete it
+    # otherwise, merge the entries
+    # @olddns contains the dns in the old dse.ldif, including ones that
+    # may also be in the new dse.ldif
+    # @newdns contains dns that are only in the new dse.ldif
+    for my $dn (@olddns, @newdns) {
+        my $oldent = $olddse{$dn};
+        my $newent = $newdse{$dn};
+        my $outputent;
+        if ($oldent && !$newent) {
+            # may have to fix up some values in the old entry
+            fixAttrsInEntry($oldent, $inst);
+            # output $oldent
+            $outputent = $oldent;
+        } elsif (!$oldent && $newent) {
+            next if ($dn =~ /o=deleteAfterMigration/i);
+            # output $newent
+            $outputent = $newent;
+        } else { #merge
+            # $newent will contain the merged entry
+            mergeEntries($oldent, $newent, $inst);
+            $outputent = $newent;
+        }
+        # special fix for rootDSE - perldap doesn't like "" for a dn
+        if (! $outputent->getDN()) {
+            my $ary = $outputent->getLDIFrecords();
+            shift @$ary; # remove "dn"
+            shift @$ary; # remove the empty dn value
+            print $dsefh "dn:\n";
+            print $dsefh (Mozilla::LDAP::LDIF::pack_LDIF (78, $ary), "\n");
+        } else {
+            Mozilla::LDAP::LDIF::put_LDIF($dsefh, 78, $outputent);
+        }
+    }
+    close $dsefh;
+
+    return $tmpdse;
+}
+
+sub usage {
+    print STDERR <<EOF;
+Usage: $0 [-h] [-v....v] [-o /path/to/oldserverroot] [-i slapd-instance ... -i slapd-instanceN]
+
+INTRODUCTION
+
+This script will copy instances (data and configuration) from the old
+server root directory to their new FHS locations.  This script does a
+copy only - the data in the old instances will be left untouched.  The
+old instances must be shutdown first to ensure that the databases are
+copied safely.  The new instances will not be started by migration,
+but can be started after running migration by doing
+
+ service $pkgname start
+
+WARNINGS
+
+You will not be able to use the console or Admin Express to manage
+instances that have been migrated.  You will be able to use the web
+applications such as the Directory Server Gateway, Directory Express,
+and Org Chart.
+
+If you have configured your main database or replication changelog
+database to use separate partitions for log files and index files,
+this configuration will not be migrated.  All of your data
+will be copied to the standard FHS location
+@localstatedir@/lib/$pkgname/slapd-INSTANCE/db (or cldb).
+
+OPTIONS
+
+-v   Increase the verbosity - you can specify this more than once
+     (e.g. -vvvv) for more output
+-o   The old server root directory (default $oldsroot)
+-i   Instance to migrate - by default, all instances in $oldsroot
+     will be migrated, but you can specify one or more if you do
+     not want all of them (e.g. -i slapd-inst1 -i slapd-inst2)
+-h   This message
+
+EOF
+
+	exit 1;
+}
+
+#################################################################
+# Main script begins here
+#################################################################
+
+my @instances; # the instances to migrate
+
+# process command line options
+Getopt::Long::Configure(qw(bundling)); # bundling allows -vvvvvv
+GetOptions('verbose|v+' => \$debuglevel,
+           'instance|i=s' => \@instances,
+           'oldsroot|o=s' => \$oldsroot,
+           'help|h' => sub { &usage });
+
+
+# get list of instances to migrate
+if (! @instances) {
+    # an instance must be a directory called $oldsroot/slapd-something and the file
+    # $oldsroot/slapd-something/config/dse.ldif must exist
+    @instances = grep { -d && -f "$_/config/dse.ldif" && ($_ =~ s,$oldsroot/,,) } glob("$oldsroot/slapd-*");
+}
+
+die "No instances found to migrate" unless (@instances);
+
+# find ds_newinst.pl - in same directory as this script or in PATH
+my $ds_newinst;
+($ds_newinst = $0) =~ s|/[^/]+$|/ds_newinst.pl|;
+if (! -x $ds_newinst) {
+    $ds_newinst = "ds_newinst.pl"; # just get from path
+}
+
+# for each instance
+foreach my $inst (@instances) {
+# set instance specific defaults
+    my $newdbdir = "@localstatedir@/lib/$pkgname/$inst/db";
+    my $newcertdir = "@instconfigdir@/$inst";
+    my $newcldbdir = "@localstatedir@/lib/$pkgname/$inst/cldb";
+
+# extract the information needed for ds_newinst.pl
+    my $inffile = createInfFileFromDseLdif($oldsroot, $inst);
+    debug(2, "Using inffile $inffile created from $oldsroot/$inst\n");
+
+# create the new instance
+    makeNewInst($ds_newinst, $inffile);
+    unlink($inffile);
+
+# copy over the files/directories
+# copy the databases
+    copyDatabases($oldsroot, $inst, $newdbdir);
+
+# copy the security related files
+    copySecurityFiles($oldsroot, $inst, $newcertdir);
+
+# copy the repl changelog database
+    copyChangelogDB($oldsroot, $inst, $newcldbdir);
+
+# merge the old info into the new dse.ldif
+    my $tmpdse = mergeDseLdif($oldsroot, $inst);
+
+# get user/group of new dse
+    my ($dev, $ino, $mode, $uid, $gid, @rest) = stat "@instconfigdir@/$inst/dse.ldif";
+# save the original new dse.ldif
+    system("cp -p @instconfigdir@/$inst/dse.ldif @instconfigdir@/$inst/dse.ldif.premigrate");
+# copy the new one
+    system("cp $tmpdse @instconfigdir@/$inst/dse.ldif");
+# change owner/group
+    chmod $mode, "@instconfigdir@/$inst/dse.ldif";
+    chown $uid, $gid, "@instconfigdir@/$inst/dse.ldif";
+
+# remove the temp one
+    unlink($tmpdse);
+}
+
+debug(0, "\n\nDone!  Migration is complete.\n");
+debug(0, "You can start your new servers with: service fedora-ds start\n");
+
+# the server automagically upgrades the databases, so these are not needed for now
+# sub upgradeDatabase {
+#     my $newdbdir = shift;
+#     # now, recover the database to flush the data from the log file(s)
+#     # into the .db4 (index) files
+#     debug(0, "Recovering and flushing log files in $newdbdir . . .\n");
+#     my $vflag = "";
+#     if ($debuglevel > 2) {
+#         $vflag = "-v";
+#     }
+#     system("db42_recover $vflag -h $newdbdir") == 0 or
+#         die "Error: could not recover the db files in $newdbdir: $!";
+#     # then, remove the log file(s) (log.xxxxx) and the old memory region files (__db.XXX files)
+#     debug(0, "Removing old log and memory region files in $newdbdir . . .\n");
+#     system("rm -f $newdbdir/log.* $newdbdir/__db.*") == 0 or
+#         die "Error: could not remove log and mem region files in $newdbdir: $!";
+#     # finally, upgrade the index files
+#     debug(0, "Upgrading all database files in $newdbdir . . .\n");
+#     for my $dbfile (<$newdbdir/*/*.db4>) {
+#         debug(2, "Upgrading database file $dbfile . . .\n");
+#         system("db_upgrade -h $newdbdir $dbfile") == 0 or
+#             die "Error: could not upgrade database file $dbfile: $!";
+#     }
+#     for my $dbfile (<$newdbdir/*.db4>) {
+#         debug(2, "Upgrading database file $dbfile . . .\n");
+#         system("db_upgrade -h $newdbdir $dbfile") == 0 or
+#             die "Error: could not upgrade database file $dbfile: $!";
+#     }
+# }
+
+# sub updateDBVERSION {
+#     my $newdbdir = shift;
+#     my $fname = "$newdbdir/DBVERSION";
+#     my @flist = ($fname);
+#     push @flist, glob("$newdbdir/*/DBVERSION");
+#     for $fname (@flist) {
+#         if (-f $fname) {
+#             debug(2, "Updating $fname to $db_verstr\n");
+#             open(FNAME, ">$fname") or die "Can't write $fname: $!";
+#             print FNAME $db_verstr, "\n";
+#             close FNAME;
+#         } else {
+#             debug(0, "No $fname - skipping\n");
+#         }
+#     }
+# }
+
+# sub updateDBguardian {
+#     my $newdbdir = shift;
+#     my $fname = "$newdbdir/guardian";
+#     my @flist = ($fname);
+#     push @flist, glob("$newdbdir/*/guardian");
+#     for $fname (@flist) {
+#         if (-f $fname) {
+#             debug(2, "Updating $fname to $db_verstr\n");
+#             open(FNAME, "$fname") or die "Can't read $fname: $!";
+#             my @lines = <FNAME>;
+#             close FNAME;
+#             open(FNAME, ">$fname") or die "Can't write $fname: $!";
+#             for (@lines) {
+#                 if (/^version:/) {
+#                     print FNAME "version:$db_verstr\n";
+#                 } else {
+#                     print FNAME;
+#                 }
+#             }
+#             close FNAME;
+#         } else {
+#             debug(0, "No $fname - skipping\n");
+#         }
+#     }
+# }
