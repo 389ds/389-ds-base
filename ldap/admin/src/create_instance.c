@@ -1918,6 +1918,9 @@ char *ds_gen_scripts(char *sroot, server_config_s *cf, char *cs_path)
     t = CREATE_DB2LDIF();
     if(t) return t;
 
+    t = CREATE_DB2BAK();
+    if(t) return t;
+
     t = CREATE_BAK2DB();
     if(t) return t;
 
