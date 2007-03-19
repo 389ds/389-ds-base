@@ -195,22 +195,32 @@ if (($instances[0] eq "" && $included[0] eq "") || $rootdn eq "" || $passwd eq "
 ($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
 $mn++; $yr += 1900;
 $taskname = "export_${yr}_${mn}_${dy}_${h}_${m}_${s}";
-if ($ldiffile eq "") {
-	$ldiffile = "${ldifdir}{{SEP}}${servid}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
-}
 $dn = "dn: cn=$taskname, cn=export, cn=tasks, cn=config\n";
 $misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";
 $cn =  "cn: $taskname\n";
 $i = 0;
+$be = "";
 $nsinstance = "";
 while ("" ne "$instances[$i]") {
 	$nsinstance = "${nsinstance}nsInstance: $instances[$i]\n";
+	if ( "" eq "$be" ) {
+		$be = "$instances[$i]";
+	} else {
+		$be = "${be}-$instances[$i]";
+	}
 	$i++;
 }
 $i = 0;
 $nsincluded = "";
 while ("" ne "$included[$i]") {
 	$nsincluded = "${nsincluded}nsIncludeSuffix: $included[$i]\n";
+	my ($rdn, $rest) = split(/,/, $included[$i]);
+	my ($rest, $tmpbe) = split(/=/, $rdn);
+	if ( "" eq "$be" ) {
+		$be = "$tmpbe";
+	} else {
+		$be = "${be}-$tmpbe";
+	}
 	$i++;
 }
 $i = 0;
@@ -218,6 +228,9 @@ $nsexcluded = "";
 while ("" ne "$excluded[$i]") {
 	$nsexcluded = "${nsexcluded}nsExcludeSuffix: $excluded[$i]\n";
 	$i++;
+}
+if ($ldiffile eq "") {
+	$ldiffile = "${ldifdir}{{SEP}}${servid}-${be}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
 }
 $nsreplica = "";
 if ($doreplica != 0) { $nsreplica = "nsExportReplica: true\n"; }
@@ -245,6 +258,7 @@ if ($verbose != 0) { $vstr = "-v"; }
 $ENV{'PATH'} = "$prefix@ldapsdk_bindir@:$prefix/usr/bin:@ldapsdk_bindir@:/usr/bin";
 $ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 $ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
+print("Exported ldif file: ${ldiffile}\n");
 open(FOO, "| ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);
