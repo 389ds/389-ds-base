@@ -105,7 +105,7 @@ if ( $rootdn eq "" || $passwd eq "") { &usage; exit(1); }
 $mn++; $yr += 1900;
 $taskname = "backup_${yr}_${mn}_${dy}_${h}_${m}_${s}";
 if ($archivedir eq "") {
-	$archivedir = "${mybakdir}{{SEP}}${yr}_${mn}_${dy}_${h}_${m}_${s}";
+	$archivedir = "${mybakdir}{{SEP}}{{SERV-ID}}-${yr}_${mn}_${dy}_${h}_${m}_${s}";
 }
 $dn = "dn: cn=$taskname, cn=backup, cn=tasks, cn=config\n";
 $misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";

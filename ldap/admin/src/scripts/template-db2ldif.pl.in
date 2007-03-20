@@ -230,7 +230,11 @@ while ("" ne "$excluded[$i]") {
 	$i++;
 }
 if ($ldiffile eq "") {
-	$ldiffile = "${ldifdir}{{SEP}}${servid}-${be}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
+	if ($onefile == 0) {
+		$ldiffile = "${ldifdir}{{SEP}}${servid}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
+	} else {
+		$ldiffile = "${ldifdir}{{SEP}}${servid}-${be}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
+	}
 }
 $nsreplica = "";
 if ($doreplica != 0) { $nsreplica = "nsExportReplica: true\n"; }

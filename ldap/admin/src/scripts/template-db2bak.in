@@ -17,7 +17,8 @@ if [ "$#" -eq 1 ]
 then
 	bak_dir=$1
 else
-	bak_dir={{BAK-DIR}}/`date +%Y_%m_%d_%H_%M_%S`
+	bak_dir={{BAK-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H_%M_%S`
 fi
 
+echo "Back up directory: $bak_dir"
 ./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir
