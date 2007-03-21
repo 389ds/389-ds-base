@@ -38,68 +38,121 @@
 # END COPYRIGHT BLOCK
 #
 
+sub usage
+{
+  print "Usage: $0 [ -a <fullpath_to_db_dir> ]\n";
+}
+
+# getDbDir checks up to 4 levels of db dirs
+# e.g., <server_inst_dir>/db/<backend_instance_dir>/<subdir>
 sub getDbDir
 {
-    (my $here) = @_;
-    my @dbdirs = ();
+  (my $here) = @_;
+  my @dbdirs = ();
 
-    opendir(DIR, $here) or die "can't opendir $here : $!";
-    while (defined($dir = readdir(DIR)))
+  opendir(DIR0, $here) or die "can't opendir $here : $!";
+  while (defined(my $file0 = readdir(DIR0)))
+  {
+    if ( "$file0" eq "\." || "$file0" eq "\.\." ) 
     {
-        my $thisdir;
-        if ("$here" eq ".")
-        {
-            $thisdir = $dir;
-        }
-        else
-        {
-            $thisdir = $here . "{{SEP}}" . $dir;
-        }
-        if (-d $thisdir)
-        {
-            if (!($thisdir =~ /\./))
-            {
-                opendir(SUBDIR, "$thisdir") or die "can't opendir $thisdir : $!";
-                while (defined($file = readdir(SUBDIR)))
-                {
-                    if ($file eq "DBVERSION")
-                    {
-                        $#dbdirs++;
-                        $dbdirs[$#dbdirs] = $thisdir;
-                    }
-                }
-                closedir(SUBDIR);
-            }
-        }
+      ;
     }
-    closedir(DIR);
+    elsif ( "$file0" eq "DBVERSION" )
+    {
+      $#dbdirs++;
+      $dbdirs[$#dbdirs] = $here;
+    }
+    elsif ( -d $here . "{{SEP}}" . $file0 )
+    {
+      opendir(DIR1, $here . "{{SEP}}" . $file0) or die "can't opendir $file0 : $!";
+      while (defined(my $file1 = readdir(DIR1)))
+      {
+        if ( "$file1" eq "\." || "$file1" eq "\.\." ) 
+        {
+          ;
+        }
+        elsif ( "$file1" eq "DBVERSION" )
+        {
+          $#dbdirs++;
+          $dbdirs[$#dbdirs] = $here . "{{SEP}}" . $file0;
+        }
+        elsif ( -d $here . "{{SEP}}" . $file0 . "{{SEP}}" . $file1 )
+        {
+          opendir(DIR2, $here . "{{SEP}}" . $file0 . "{{SEP}}" . $file1) or die "can't opendir $file1 : $!";
+          while (defined(my $file2 = readdir(DIR2)))
+          {
+            if ( "$file2" eq "\." || "$file2" eq "\.\." ) 
+            {
+              ;
+            }
+            elsif ("$file2" eq "DBVERSION")
+            {
+              $#dbdirs++;
+              $dbdirs[$#dbdirs] = $here . "{{SEP}}" . $file0 . "{{SEP}}" . $file1;
+            }
+            elsif ( -d $here . "{{SEP}}" . $file0 . "{{SEP}}" . $file1 . "{{SEP}}" . $file2 )
+            {
+              opendir(DIR3, $here . "{{SEP}}" . $file0 . "{{SEP}}" . $file1 . "{{SEP}}" . $file2) or die "can't opendir $file1 : $!";
+              while (defined(my $file3 = readdir(DIR3)))
+              {
+                if ( "$file3" eq "\." || "$file3" eq "\.\." ) 
+                {
+                  ;
+                }
+                elsif ("$file3" eq "DBVERSION")
+                {
+                  $#dbdirs++;
+                  $dbdirs[$#dbdirs] = $here . "{{SEP}}" . $file0 . "{{SEP}}" . $file1 . "{{SEP}}" . $file2;
+                }
+              }
+              closedir(DIR3);
+            }
+          }
+          closedir(DIR2);
+        }
+      }
+      closedir(DIR1);
+    }
+  }
+  closedir(DIR0);
 
-    return \@dbdirs;
+  return \@dbdirs;
 }
 
 sub getLastLogfile
 {
-    (my $here) = @_;
-    my $logfile = "";
+  (my $here) = @_;
+  my $logfile = "";
 
-    opendir(DIR, $here) or die "can't opendir $here : $!";
-    while (defined($file = readdir(DIR)))
+  opendir(DIR, $here) or die "can't opendir $here : $!";
+  while (defined($file = readdir(DIR)))
+  {
+    if ($file =~ /log./)
     {
-        if ($file =~ /log./)
-        {
-            $logfile = $file;
-        }
+      $logfile = $file;
     }
-    closedir(DIR);
+  }
+  closedir(DIR);
 
-    return \$logfile;
+  return \$logfile;
 }
 
 $isWin = -d '\\';
 if ($isWin) {
-	$NULL = "nul";
+  $NULL = "nul";
 } else {
-	$NULL = "/dev/null";
+  $NULL = "/dev/null";
+}
+
+my $i = 0;
+$startpoint = "";
+while ($i <= $#ARGV) {
+  if ( "$ARGV[$i]" eq "-a" ) {  # path to search the db files
+    $i++; $startpoint = $ARGV[$i];
+  } else {
+    &usage; exit(1);
+  }
+  $i++;
 }
 
 print("*****************************************************************\n");
@@ -109,16 +162,24 @@ print("verify-db: This tool should only be run if recovery start fails\n" .
       "false errors.\n");
 print("*****************************************************************\n");
 
+if ( "$startpoint" eq "" ) {
+  $startpoint = "{{DB-DIR}}";
+}
 # get dirs having DBVERSION
-my $dbdirs = getDbDir(".");
+my $dbdirs = getDbDir($startpoint);
 my $prefix = "{{DS-ROOT}}";
 
 $ENV{'PATH'} = "$prefix@db_bindir@:$prefix/usr/bin:@db_bindir@:/usr/bin";
 $ENV{'LD_LIBRARY_PATH'} = "@db_libdir@:@libdir@";
 $ENV{'SHLIB_PATH'} = "@db_libdir@:@libdir@";
 
-for (my $i = 0; $i < @$dbdirs; $i++)
+# Check transaction logs by db_printlog
+for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
 {
+  my $logfile = getLastLogfile($$dbdirs[$i]);
+
+  if ( "$$logfile" ne "" )
+  {
     # run db_printlog -h <dbdir> for each <dbdir>
     print "Verify log files in $$dbdirs[$i] ... ";
     open(PRINTLOG, "db_printlog -h $$dbdirs[$i] 2>&1 1> $NULL |");
@@ -126,115 +187,65 @@ for (my $i = 0; $i < @$dbdirs; $i++)
     my $haserr = 0;
     while ($l = <PRINTLOG>)
     {
-        if ("$l" ne "")
+      if ("$l" ne "")
+      {
+        if ($haserr == 0)
         {
-            if ($haserr == 0)
-            {
-                print "\n";
-            }
-            print "LOG ERROR: $l";
-            $haserr++;
+          print "\n";
         }
+        print "LOG ERROR: $l";
+        $haserr++;
+      }
     }
     close(PRINTLOG);
     if ($haserr == 0 && $? == 0)
     {
-        print "Good\n";
+      print "Good\n";
     }
     else
     {
-        my $logfile = getLastLogfile($$dbdirs[$i]);
-        print "Log file(s) in $$dbdirs[$i] could be corrupted.\n";
-        print "Please delete a log file $$logfile, and try restarting the server.\n";
+      print "Log file(s) in $$dbdirs[$i] could be corrupted.\n";
+      print "Please delete a log file $$logfile, and try restarting the server.\n";
     }
+  }
 }
 
-for (my $i = 0; $i < @$dbdirs; $i++)
+# Check db files by db_verify
+for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
 {
-    # changelog
-    opendir(DB, $$dbdirs[$i]) or die "can't opendir $$dbdirs[$i] : $!";
-    while (defined($db = readdir(DB)))
+  opendir(DB, $$dbdirs[$i]) or die "can't opendir $$dbdirs[$i] : $!";
+  while (defined($db = readdir(DB)))
+  {
+    if ($db =~ /\.db/)
     {
-        if ($db =~ /\.db/)
+      my $thisdb = $$dbdirs[$i] . "/" . $db;
+      print "Verify $thisdb ... ";
+      open(DBVERIFY, "db_verify $thisdb 2>&1 1> $NULL |");
+      sleep 1;
+      my $haserr = 0;
+      while ($l = <DBVERIFY>)
+      {
+        if ($haserr == 0)
         {
-            my $thisdb = $$dbdirs[$i] . "{{SEP}}" . $db;
-            print "Verify $thisdb ... ";
-            open(DBVERIFY, "db_verify $thisdb 2>&1 1> $NULL |");
-            sleep 1;
-            my $haserr = 0;
-            while ($l = <DBVERIFY>)
-            {
-                if ($haserr == 0)
-                {
-                    print "\n";
-                }
-                if ("$l" ne "")
-                {
-                    $haserr++;
-                    print "DB ERROR: $l";
-                }
-            }
-            close(DBVERIFY);
-            if ($haserr == 0 && $? == 0)
-            {
-                print "Good\n";
-            }
-            else
-            {
-                print "changelog file $db in $$dbdirs[$i] is corrupted.\n";
-                print "Please restore your backup and recover the database.\n";
-            }
+          print "\n";
         }
-    }
-    closedir(DB);
-
-    # backend: get instance dirs under <dbdir>
-    my $instdirs = getDbDir($$dbdirs[$i]);
-
-    for (my $j = 0; $j < @$instdirs; $j++)
-    {
-        opendir(DIR, $$instdirs[$j]) or die "can't opendir $here : $!";
-        while (defined($db = readdir(DIR)))
+        if ("$l" ne "")
         {
-            if ($db =~ /\.db/)
-            {
-                my $thisdb = $$instdirs[$j] . "{{SEP}}" . $db;
-                print "Verify $thisdb ... ";
-                open(DBVERIFY, "db_verify $thisdb 2>&1 1> $NULL |");
-                sleep 1;
-                my $haserr = 0;
-                while ($l = <DBVERIFY>)
-                {
-                    if ($haserr == 0)
-                    {
-                        print "\n";
-                    }
-                    if ("$l" ne "")
-                    {
-                        $haserr++;
-                        print "DB ERROR: $l";
-                    }
-                }
-                close(DBVERIFY);
-                if ($haserr == 0 && $? == 0)
-                {
-                    print "Good\n";
-                }
-                else
-                {
-                    if ("$db" =~ /id2entry.db/)
-                    {
-                        print "Primary db file $db in $$instdirs[$j] is corrupted.\n";
-                        print "Please restore your backup and recover the database.\n";
-                    }
-                    else
-                    {
-                        print "Secondary index file $db in $$instdirs[$j] is corrupted.\n";
-                        print "Please run db2index(.pl) for reindexing.\n";
-                    }
-                }
-            }
+          $haserr++;
+          print "DB ERROR: $l";
         }
-        closedir(DIR);
+      }
+      close(DBVERIFY);
+      if ($haserr == 0 && $? == 0)
+      {
+        print "Good\n";
+      }
+      else
+      {
+        print "db file $db in $$dbdirs[$i] is corrupted.\n";
+        print "Please restore your backup and recover the database.\n";
+      }
     }
+  }
+  closedir(DB);
 }
