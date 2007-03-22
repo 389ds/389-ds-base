@@ -262,7 +262,7 @@ libds_admin_la_SOURCES = ldap/admin/lib/dsalib_conf.c \
 	ldap/admin/lib/dsalib_util.c
 
 libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-libds_admin_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
+libds_admin_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libns-dshttpd
@@ -416,7 +416,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@ @svrcore_inc@
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 
 #////////////////////////////////////////////////////////////////
