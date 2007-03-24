@@ -14,14 +14,14 @@ export SHLIB_PATH
 
 make_ldiffile()
 {
-    nobe=0
+    be=""
     while [ "$1" != "" ]
     do
-        if [ "$1" = '-a' ]; then
+        if [ "$1" = "-a" ]; then
             shift
             echo $1
             return 1
-        elif [ "$1" = '-n' ]; then
+        elif [ "$1" = "-n" ]; then
             shift
             if [ "$be" = "" ]; then
                 be="$1"
@@ -29,26 +29,28 @@ make_ldiffile()
                 tmpbe="$be"
                 be="${tmpbe}-$1"
             fi
-        elif [ "$1" = '-s' ]; then
+        elif [ "$1" = "-s" ]; then
             shift
-            rdn=`echo $1 | awk -F, '{print $1}'`
-            rdnval=`echo $rdn | awk -F= '{print $2}'`
-            if [ "$be" = "" ]; then
-                be="$rdnval"
-            else
-                tmpbe="$be"
-                be="${tmpbe}-$rdnval"
+            if [ "$1" != "" ]; then
+                rdn=`echo $1 | awk -F, '{print $1}'`
+                rdnval=`echo $rdn | awk -F= '{print $2}'`
+                if [ "$be" = "" ]; then
+                    be="$rdnval"
+                else
+                    tmpbe="$be"
+                    be="${tmpbe}-$rdnval"
+                fi
             fi
-        elif [ "$1" = '-M' ]; then
-            nobe=1
+        elif [ "$1" = "-M" ]; then
+            be=""
         fi
         shift
     done
 
-    if [ $nobe -eq 0 ]; then
-        echo {{LDIF-DIR}}/{{SERV-ID}}-${be}-`date +%Y_%m_%d_%H%M%S`.ldif
-    else
+    if [ "$be" = "" ]; then
         echo {{LDIF-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H%M%S`.ldif
+    else
+        echo {{LDIF-DIR}}/{{SERV-ID}}-${be}-`date +%Y_%m_%d_%H%M%S`.ldif
     fi
     return 0
 }
