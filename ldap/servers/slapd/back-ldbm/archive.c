@@ -71,11 +71,11 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     /* check the current idl format vs backup DB version */
     if (idl_get_idl_new())
     {
-        char dbversion[LDBM_VERSION_MAXBUF];
-        char dataversion[LDBM_VERSION_MAXBUF];
+        char *dbversion = NULL;
+        char *dataversion = NULL;
         int value = 0;
 
-        if (dbversion_read(li, directory, dbversion, dataversion) != 0)
+        if (dbversion_read(li, directory, &dbversion, &dataversion) != 0)
         {
             LDAPDebug(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion "
                       "file in %s\n", directory, 0, 0);
@@ -85,6 +85,8 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         {
             is_old_to_new = 1;
         }
+        slapi_ch_free_string(&dbversion);
+        slapi_ch_free_string(&dataversion);
     }
 
     /* No ldbm be's exist until we process the config information. */
