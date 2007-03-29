@@ -44,7 +44,9 @@ make_ldiffile()
         elif [ "$1" = "-M" ]; then
             be=""
         fi
-        shift
+        if [ "$1" != "" ]; then
+            shift
+        fi
     done
 
     if [ "$be" = "" ]; then
