@@ -51,7 +51,6 @@ AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
 ],
 AC_MSG_RESULT(no))
 dnl default path for the db tools (see [210947] for more details)
-db_bindir=/usr/bin
 
 dnl - check in system locations
 if test -z "$db_inc"; then
@@ -80,3 +79,13 @@ AC_CHECK_LIB([db-$db_libver], [db_create], [true],
   [$LIBNSL])
 LDFLAGS="$save_ldflags"
 
+# if DB is not found yet, try pkg-config
+
+# last resort
+# Although the other db_* variables are correctly assigned at this point,
+# db_bindir needs to be set by pkg-config if possible (e.g., on 64-bit Solaris)
+if $PKG_CONFIG --exists db; then
+  db_bindir=`$PKG_CONFIG --variable=bindir db`
+else
+  db_bindir=/usr/bin
+fi

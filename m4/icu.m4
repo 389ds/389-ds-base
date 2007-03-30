@@ -82,7 +82,7 @@ AC_ARG_WITH(icu-bin, [  --with-icu-bin=PATH     ICU binary directory],
   fi
 ],
 AC_MSG_RESULT(no))
-# if not found yet, try pkg-config
+# if ICU is not found yet, try pkg-config
 
 # last resort
 if test -z "$icu_lib"; then
