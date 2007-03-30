@@ -702,7 +702,7 @@ char *gen_script_auto(char *s_root, char *cs_path,
 {
     char myperl[PATH_SIZE];
     char fn[PATH_SIZE], ofn[PATH_SIZE];
-    const char *table[17][2];
+    const char *table[18][2];
 
     if (PR_FAILURE == PR_Access(cs_path, PR_ACCESS_EXISTS)) {
         printf("Notice: %s does not exist, skipping %s . . .\n", cs_path, name);
@@ -760,7 +760,9 @@ char *gen_script_auto(char *s_root, char *cs_path,
     table[14][1] = PRODUCT_NAME;
     table[15][0] = "SERVERBIN-DIR";
     table[15][1] = cf->sbindir;
-    table[16][0] = table[16][1] = NULL;
+    table[16][0] = "DB-DIR";
+    table[16][1] = cf->db_dir;
+    table[17][0] = table[17][1] = NULL;
 
     if (generate_script(ofn, fn, NEWSCRIPT_MODE, table) != 0) {
         return make_error("Could not write %s to %s (%s).", ofn, fn,
