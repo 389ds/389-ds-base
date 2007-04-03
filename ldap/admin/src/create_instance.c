@@ -4318,7 +4318,7 @@ set_path_attribute(char *attr, char *defaultval, char *prefix)
  * cf->tmp_dir: <localstatedir>/tmp/PACKAGE_NAME/slapd-<servid>
  * cf->ldif_dir: <datadir>/<brand-ds>/ldif
  * cf->cert_dir: <sysconfdir>/PACKAGE_NAME/slapd-<servid>
- * cf->sasl_path: <sroot>/sasl2
+ * cf->sasl_path: %{_libdir}/sasl2
  * cf->plugin_dir: <sroot>/plugins
  *
  * NOTES: 
@@ -4379,7 +4379,7 @@ int parse_form(server_config_s *cf)
        and always set it in the conf file. */
     else
     {
-        cf->sasl_path = PR_smprintf("%s%csasl2", cf->sroot, FILE_PATHSEP);
+        cf->sasl_path = PR_smprintf("%s%s%csasl2", prefix, LIBDIR, FILE_PATHSEP);
     }
 #endif
     cf->plugin_dir = PR_smprintf("%s%cplugins", cf->sroot, FILE_PATHSEP);
