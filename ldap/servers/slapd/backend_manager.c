@@ -496,6 +496,7 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
         PR_Unlock(be->be_suffixlock);
        	be = (backend *)slapi_get_next_backend (cookie);
     }
+    slapi_ch_free((void **)&cookie);
 	
 	return rval;
 }

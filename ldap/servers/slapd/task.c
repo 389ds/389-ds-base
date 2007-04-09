@@ -1028,6 +1028,7 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
         be = (backend *)slapi_get_next_backend (cookie);
     }
+    slapi_ch_free((void **)&cookie);
     if (NULL == be || NULL == be->be_database->plg_db2archive) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: no db2archive function defined.\n", 0, 0, 0);
@@ -1174,6 +1175,7 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
         be = (backend *)slapi_get_next_backend (cookie);
     }
+    slapi_ch_free((void **)&cookie);
     if (NULL == be || NULL == be->be_database->plg_archive2db) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: no db2archive function defined.\n", 0, 0, 0);
@@ -1443,6 +1445,7 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
 
         be = (backend *)slapi_get_next_backend (cookie);
     }
+    slapi_ch_free((void **)&cookie);
     if (NULL == be || NULL == be->be_database->plg_upgradedb ||
         strcasecmp(database_type, be->be_database->plg_name)) {
         LDAPDebug(LDAP_DEBUG_ANY,
