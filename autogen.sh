@@ -15,8 +15,8 @@ esac
 # Check automake version
 AM_VERSION=`automake --version | grep '^automake' | sed 's/.*) *//'`
 case $AM_VERSION in
-'' | 0.* | 1.[0-8]* | 1.9.[0-1]* )
-    echo "You must have automake version 1.9.2 or later installed (found version $AM_VERSION)."
+'' | 0.* | 1.[0-8]* | 1.9.[0-5]* )
+    echo "You must have automake version 1.9.6 or later installed (found version $AM_VERSION)."
     exit 1
     ;;
 * )
