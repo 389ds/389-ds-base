@@ -126,9 +126,11 @@ AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
 m4_include(m4/fhs.m4)
 
-# installation paths - by default, configure will just
-# use /usr as the prefix for everything, which means
-# /usr/etc and /usr/var.  FHS sez to use /etc and /var.
+# installation paths - by default, we store everything
+# under the prefix.  The with-fhs option will use /usr,
+# /etc, and /var.  The with-fhs-opt option will use the
+# prefix, but it's sysconfdir and localstatedir will be
+# /etc/opt, and /var/opt.
 if test "$with_fhs" = "yes"; then
   ac_default_prefix=/usr
   prefix=$ac_default_prefix
@@ -137,22 +139,39 @@ dnl as opposed to the default /usr/etc
   sysconfdir='/etc'
 dnl as opposed to the default /usr/var
   localstatedir='/var'
+  # relative to datadir
+  sampledatadir=/$PACKAGE_NAME/data
+  # relative to datadir
+  scripttemplatedir=/$PACKAGE_NAME/script-templates
+  # relative to libdir
+  serverdir=/$PACKAGE_NAME
+  # relative to libdir
+  serverplugindir=/$PACKAGE_NAME/plugins
+else
+  if test "$with_fhs_opt" = "yes"; then
+    # Override sysconfdir and localstatedir if FHS optional
+    # package was requested.
+    sysconfdir='/etc/opt'
+    localstatedir='/var/opt'
+  fi
+  # Paths for default layout
+  # relative to datadir
+  sampledatadir=/data
+  # relative to datadir
+  scripttemplatedir=/script-templates
+  # relative to libdir
+  serverdir=
+  # relative to libdir
+  serverplugindir=/plugins
 fi
 
+# Shared paths for both FHS and default layouts
 # relative to sysconfdir
 configdir=/$PACKAGE_NAME/config
-# relative to datadir
-sampledatadir=/$PACKAGE_NAME/data
 # relative to sysconfdir
 propertydir=/$PACKAGE_NAME/property
 # relative to sysconfdir
 schemadir=/$PACKAGE_NAME/schema
-# relative to libdir
-serverdir=/$PACKAGE_NAME
-# relative to libdir
-serverplugindir=/$PACKAGE_NAME/plugins
-# relative to datadir
-scripttemplatedir=/$PACKAGE_NAME/script-templates
 
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
