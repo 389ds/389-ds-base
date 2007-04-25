@@ -269,13 +269,15 @@ sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err)
         }
         /* We now have the packet length
          * we now must read more data off the wire until we have the complete packet
-        */
-        ret = sasl_io_read_packet(c,err);
-        if (0 == ret || -1 == ret) {
-            return ret;
-        }
-        /* Are we there yet ? */
-        if (sasl_io_finished_packet(sp)) {
+         */
+        do {
+            ret = sasl_io_read_packet(c,err);
+            if (0 == ret || -1 == ret) {
+                return ret;
+            }
+        } while (!sasl_io_finished_packet(sp));
+        /* We are there. */
+        {
             const char *output_buffer = NULL;
             unsigned int output_length = 0;
             LDAPDebug( LDAP_DEBUG_CONNS,
@@ -298,14 +300,14 @@ sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err)
                 "sasl_recv_connection failed to decode packet for connection %d\n", c->c_connid, 0, 0 );
             }
         }
-    }        
+    }
     /* Finally, return data from the buffer to the caller */
     {
         size_t bytes_to_return = sp->decrypted_buffer_count - sp->decrypted_buffer_offset;
         if (bytes_to_return > count) {
             bytes_to_return = count;
         }
-	/* Copy data from the decrypted buffer starting at the offset */
+        /* Copy data from the decrypted buffer starting at the offset */
         memcpy(buffer, sp->decrypted_buffer + sp->decrypted_buffer_offset, bytes_to_return);
         if (bytes_in_buffer == bytes_to_return) {
             sp->decrypted_buffer_offset = 0;
