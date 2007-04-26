@@ -42,6 +42,10 @@ AC_ARG_WITH(fhs-opt, [  --with-fhs-opt   Use FHS optional layout],
 ],
 AC_MSG_RESULT(no))
 
+if test "$with_fhs_opt" = "yes"; then
+  AC_DEFINE([IS_FHS_OPT], [1], [Use FHS optional layout])
+fi
+
 if test "$with_fhs" = "yes" -a "$with_fhs_opt" = "yes"; then
   AC_MSG_ERROR([Can't set both --with-fhs and --with-fhs-opt.  Please only use one of these options.])
 fi

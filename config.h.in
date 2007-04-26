@@ -241,6 +241,9 @@
 /* Use FHS layout */
 #undef IS_FHS
 
+/* Use FHS optional layout */
+#undef IS_FHS_OPT
+
 /* LDAP debug flag */
 #undef LDAP_DEBUG
 

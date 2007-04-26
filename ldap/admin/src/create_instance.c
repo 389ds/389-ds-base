@@ -709,13 +709,13 @@ char *gen_script_auto(char *s_root, char *cs_path,
         return NULL;
     }
 
-#if defined (IS_FHS)
+#if defined (IS_FHS_OPT)
+    PR_snprintf(ofn, sizeof(ofn), "%s%cscript-templates%ctemplate-%s",
+            cf->datadir, FILE_PATHSEP, FILE_PATHSEP, name);
+#else
     PR_snprintf(ofn, sizeof(ofn), "%s%c%s%cscript-templates%ctemplate-%s",
             cf->datadir, FILE_PATHSEP, cf->package_name,
             FILE_PATHSEP, FILE_PATHSEP, name);
-#else
-    PR_snprintf(ofn, sizeof(ofn), "%s%cscript-templates%ctemplate-%s",
-            cf->datadir, FILE_PATHSEP, FILE_PATHSEP, name);
 #endif
     PR_snprintf(fn, sizeof(fn), "%s%c%s", cs_path, FILE_PATHSEP, name);
     create_instance_mkdir(cs_path, NEWDIR_MODE);
@@ -4371,11 +4371,11 @@ int parse_form(server_config_s *cf)
         prefix = cf->prefix = PL_strdup("/");
     }
 
-#if defined (IS_FHS)
+#if defined (IS_FHS_OPT)
+    cf->sroot = PR_smprintf("%sopt%c%s", prefix, FILE_PATHSEP, cf->package_name);
+#else
     cf->sroot = PR_smprintf("%s%s%c%s",
                 prefix, LIBDIR, FILE_PATHSEP, cf->package_name);
-#else
-    cf->sroot = PR_smprintf("%sopt%c%s", prefix, FILE_PATHSEP, cf->package_name);
 #endif
 
     temp = ds_a_get_cgi_var("sasl_path", NULL, NULL);
@@ -4393,10 +4393,10 @@ int parse_form(server_config_s *cf)
     }
 #endif
 
-#if defined (IS_FHS)
-    cf->plugin_dir = PR_smprintf("%s%cplugins", cf->sroot, FILE_PATHSEP);
-#else
+#if defined (IS_FHS_OPT)
     cf->plugin_dir = PR_smprintf("%s%s%cplugins", prefix, LIBDIR, FILE_PATHSEP);
+#else
+    cf->plugin_dir = PR_smprintf("%s%cplugins", cf->sroot, FILE_PATHSEP);
 #endif
 
     if (!(cf->servname = ds_a_get_cgi_var("servname", "Server Name",
@@ -4610,16 +4610,16 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("lock_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->lock_dir = PR_smprintf("%s%clock%c%s%c%s-%s",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->package_name, FILE_PATHSEP,
-                            PRODUCT_NAME, cf->servid);
-#else
+#if defined (IS_FHS_OPT)
         cf->lock_dir = PR_smprintf("%s%c%s%c%s-%s%clock",
                             cf->localstatedir, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+#else
+        cf->lock_dir = PR_smprintf("%s%clock%c%s%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
 #endif
     } else {
         cf->lock_dir = PL_strdup(temp);
@@ -4627,16 +4627,16 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("log_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->log_dir = PR_smprintf("%s%clog%c%s%c%s-%s",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->package_name, FILE_PATHSEP,
-                            PRODUCT_NAME, cf->servid);
-#else
+#if defined (IS_FHS_OPT)
         cf->log_dir = PR_smprintf("%s%c%s%c%s-%s%clog",
                             cf->localstatedir, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+#else
+        cf->log_dir = PR_smprintf("%s%clog%c%s%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
 #endif
     } else {
         cf->log_dir = PL_strdup(temp);
@@ -4644,15 +4644,15 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("run_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->run_dir = PR_smprintf("%s%crun%c%s",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->package_name);
-#else
+#if defined (IS_FHS_OPT)
         cf->run_dir = PR_smprintf("%s%c%s%c%s-%s%crun",
                             cf->localstatedir, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+#else
+        cf->run_dir = PR_smprintf("%s%crun%c%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->package_name);
 #endif
     } else {
         cf->run_dir = PL_strdup(temp);
@@ -4662,14 +4662,14 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("db_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->db_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cdb",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+#if defined (IS_FHS_OPT)
+        cf->db_dir = PR_smprintf("%s%c%s%c%s-%s%cdb",
+                            cf->localstatedir, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
 #else
-        cf->db_dir = PR_smprintf("%s%c%s%c%s-%s%cdb",
-                            cf->localstatedir, FILE_PATHSEP,
+        cf->db_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cdb",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
 #endif
@@ -4679,14 +4679,14 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("bak_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->bak_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cbak",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+#if defined (IS_FHS_OPT)
+        cf->bak_dir = PR_smprintf("%s%c%s%c%s-%s%cbak",
+                            cf->localstatedir, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
 #else
-        cf->bak_dir = PR_smprintf("%s%c%s%c%s-%s%cbak",
-                            cf->localstatedir, FILE_PATHSEP,
+        cf->bak_dir = PR_smprintf("%s%clib%c%s%c%s-%s%cbak",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
 #endif
@@ -4698,12 +4698,12 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("ldif_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->ldif_dir = PR_smprintf("%s%c%s%cldif",
-                            cf->datadir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
-#else
+#if defined (IS_FHS_OPT)
         cf->ldif_dir = PR_smprintf("%s%cldif",
                             cf->datadir, FILE_PATHSEP);
+#else
+        cf->ldif_dir = PR_smprintf("%s%c%s%cldif",
+                            cf->datadir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
 #endif
     } else {
         cf->ldif_dir = PL_strdup(temp);
@@ -4711,16 +4711,16 @@ int parse_form(server_config_s *cf)
 
     temp = ds_a_get_cgi_var("tmp_dir", NULL, NULL);
     if (NULL == temp) {
-#if defined (IS_FHS)
-        cf->tmp_dir = PR_smprintf("%s%ctmp%c%s%c%s-%s",
-                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
-                            cf->package_name, FILE_PATHSEP,
-                            PRODUCT_NAME, cf->servid);
-#else
+#if defined (IS_FHS_OPT)
         cf->tmp_dir = PR_smprintf("%s%c%s%c%s-%s%ctmp",
                             cf->localstatedir, FILE_PATHSEP,
                             cf->package_name, FILE_PATHSEP,
                             PRODUCT_NAME, cf->servid, FILE_PATHSEP);
+#else
+        cf->tmp_dir = PR_smprintf("%s%ctmp%c%s%c%s-%s",
+                            cf->localstatedir, FILE_PATHSEP, FILE_PATHSEP,
+                            cf->package_name, FILE_PATHSEP,
+                            PRODUCT_NAME, cf->servid);
 #endif
     } else {
         cf->tmp_dir = PL_strdup(temp);
