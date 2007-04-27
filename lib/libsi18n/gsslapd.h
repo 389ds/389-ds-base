@@ -52,13 +52,11 @@
 #undef LIBRARY_NAME
 #include "libadmin/dbtlibadmin.h"
 #undef LIBRARY_NAME
-#include "../ldap/clients/dsgw/dbtdsgw.h"
 
 static RESOURCE_GLOBAL allxpstr[] = {
   base,
   libaccess,
   libadmin,
-  dsgw,
   0
 };
 
