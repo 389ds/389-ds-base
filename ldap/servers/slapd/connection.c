@@ -1745,7 +1745,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 			}
 			/* err = PR_GetError(); */
 			/* If we would block, we need to poll for a while */
-			if ( SLAPD_PR_WOULD_BLOCK_ERROR( err ) ) {
+			if ( SLAPD_PR_WOULD_BLOCK_ERROR( err ) ||
+			     SLAPD_SYSTEM_WOULD_BLOCK_ERROR( err ) ) {
 				struct PRPollDesc	pr_pd;
 				PRIntervalTime	timeout = PR_MillisecondsToInterval(CONN_TURBO_TIMEOUT_INTERVAL);
 				pr_pd.fd = (PRFileDesc *)conn->c_prfd;
