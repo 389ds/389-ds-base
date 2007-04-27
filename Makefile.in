@@ -316,7 +316,6 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/base/libns_dshttpd_la-system.lo \
 	lib/base/libns_dshttpd_la-systhr.lo \
 	lib/base/libns_dshttpd_la-util.lo \
-	lib/libsi18n/libns_dshttpd_la-acclanglist.lo \
 	lib/libsi18n/libns_dshttpd_la-coreres.lo \
 	lib/libsi18n/libns_dshttpd_la-getstrprop.lo \
 	lib/libsi18n/libns_dshttpd_la-getlang.lo \
@@ -1218,7 +1217,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/system.cpp \
 	lib/base/systhr.cpp \
 	lib/base/util.cpp \
-	lib/libsi18n/acclanglist.c \
 	lib/libsi18n/coreres.c \
 	lib/libsi18n/getstrprop.c \
 	lib/libsi18n/getlang.c \
@@ -2656,9 +2654,6 @@ lib/libsi18n/$(am__dirstamp):
 lib/libsi18n/$(DEPDIR)/$(am__dirstamp):
 	@$(mkdir_p) lib/libsi18n/$(DEPDIR)
 	@: > lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
-lib/libsi18n/libns_dshttpd_la-acclanglist.lo:  \
-	lib/libsi18n/$(am__dirstamp) \
-	lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
 lib/libsi18n/libns_dshttpd_la-coreres.lo:  \
 	lib/libsi18n/$(am__dirstamp) \
 	lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
@@ -4539,8 +4534,6 @@ mostlyclean-compile:
 	-rm -f lib/libadmin/libns_dshttpd_la-template.lo
 	-rm -f lib/libadmin/libns_dshttpd_la-util.$(OBJEXT)
 	-rm -f lib/libadmin/libns_dshttpd_la-util.lo
-	-rm -f lib/libsi18n/libns_dshttpd_la-acclanglist.$(OBJEXT)
-	-rm -f lib/libsi18n/libns_dshttpd_la-acclanglist.lo
 	-rm -f lib/libsi18n/libns_dshttpd_la-coreres.$(OBJEXT)
 	-rm -f lib/libsi18n/libns_dshttpd_la-coreres.lo
 	-rm -f lib/libsi18n/libns_dshttpd_la-getlang.$(OBJEXT)
@@ -4994,7 +4987,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-error.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-template.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-util.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-acclanglist.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getlang.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getstrprop.Plo@am__quote@
@@ -6041,13 +6033,6 @@ lib/base/libns_dshttpd_la-nscperror.lo: lib/base/nscperror.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/base/nscperror.c' object='lib/base/libns_dshttpd_la-nscperror.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/base/libns_dshttpd_la-nscperror.lo `test -f 'lib/base/nscperror.c' || echo '$(srcdir)/'`lib/base/nscperror.c
-
-lib/libsi18n/libns_dshttpd_la-acclanglist.lo: lib/libsi18n/acclanglist.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-acclanglist.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-acclanglist.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-acclanglist.lo `test -f 'lib/libsi18n/acclanglist.c' || echo '$(srcdir)/'`lib/libsi18n/acclanglist.c; \
-@am__fastdepCC_TRUE@	then mv -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-acclanglist.Tpo" "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-acclanglist.Plo"; else rm -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-acclanglist.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/libsi18n/acclanglist.c' object='lib/libsi18n/libns_dshttpd_la-acclanglist.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/libsi18n/libns_dshttpd_la-acclanglist.lo `test -f 'lib/libsi18n/acclanglist.c' || echo '$(srcdir)/'`lib/libsi18n/acclanglist.c
 
 lib/libsi18n/libns_dshttpd_la-coreres.lo: lib/libsi18n/coreres.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-coreres.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-coreres.lo `test -f 'lib/libsi18n/coreres.c' || echo '$(srcdir)/'`lib/libsi18n/coreres.c; \

@@ -312,7 +312,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/system.cpp \
 	lib/base/systhr.cpp \
 	lib/base/util.cpp \
-	lib/libsi18n/acclanglist.c \
 	lib/libsi18n/coreres.c \
 	lib/libsi18n/getstrprop.c \
 	lib/libsi18n/getlang.c \
