@@ -1,4 +1,4 @@
-#{{PERL-EXEC}}
+#!/usr/bin/env perl
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 ##############################################################################
@@ -41,7 +41,7 @@
 # FILE: repl-monitor.pl
 #
 # SYNOPSIS:
-#    repl-monitor.pl -f configuration-file [-h host] [-p port] [-r] \
+#    repl-monitor.pl -f configuration-file [-h host] [-p port] [-r]
 #                    [-u refresh-url] [-t refresh-interval]
 #
 #    repl-monitor.pl -v
@@ -54,83 +54,83 @@
 #    All output is in HTML.
 #
 # OPTIONS:
-#
 #    -f configuration-file
-#	The configuration file contains the sections for the connection
-#	parameters, the server alias, and the thresholds for different colors
-#	when display the time lags between consumers and master.
-#	If the Admin Server is running on Windows, the configuration-file
-#	name may have format "D:/opt/replmon.conf".
+#       The configuration file contains the sections for the connection
+#       parameters, the server alias, and the thresholds for different colors
+#       when display the time lags between consumers and master.
+#       If the Admin Server is running on Windows, the configuration-file
+#       name may have format "D:/opt/replmon.conf".
 #
-#	The connection parameter section consists of the section name
-#	followed by one of more connection parameter entries:
+#   The connection parameter section consists of the section name
+#   followed by one of more connection parameter entries:
 #
-#		[connection]
-#		host:port:binddn:bindpwd:bindcert
-#		host:port=shadowport:binddn:bindpwd:bindcert
-#		...
+#       [connection]
+#       host:port:binddn:bindpwd:bindcert
+#       host:port=shadowport:binddn:bindpwd:bindcert
+#       ...
 #
 #   where host:port default (*:*) to that in a replication agreement,
 #   binddn default (*) to "cn=Directory Manager", and bindcert is the
-#	pathname of cert db if you want the script to connect to the server
-#	via SSL.  If bindcert is omitted, the connection will be simple
-#	bind.
+#   pathname of cert db if you want the script to connect to the server
+#   via SSL.  If bindcert is omitted, the connection will be simple
+#   bind.
 #   "port=shadowport" means to use shadowport instead of port if port
-#	is specified in the replication agreement. This is useful when
-#	for example, ssl port is specified in a replication agreement,
-#	but you can't access the cert db from the machine where this
-#	script is running. So you could let the script to map the ssl
-#	port to a non-ssl port and use the simple bind.
+#   is specified in the replication agreement. This is useful when
+#   for example, ssl port is specified in a replication agreement,
+#   but you can't access the cert db from the machine where this
+#   script is running. So you could let the script to map the ssl
+#   port to a non-ssl port and use the simple bind.
 #
-#	A server may have a dedicated or a share entry in the connection
-#	section. The script will find out the most matched entry for a given
-#	server. For example, if all the ldap servers except host1 share the
-#	same binddn and bindpassword, the connection section then just need
-#	two entries:
+#   A server may have a dedicated or a share entry in the connection
+#   section. The script will find out the most matched entry for a given
+#   server. For example, if all the ldap servers except host1 share the
+#   same binddn and bindpassword, the connection section then just need
+#   two entries:
 #
-#		[connection]
-# 		*:*:binddn:bindpassword:
-# 		host1:*:binddn:bindpassword:
+#       [connection]
+#        *:*:binddn:bindpassword:
+#        host1:*:binddn:bindpassword:
 #
-#	If a host:port is assigned an alias, then the alias instead of
-#	host:port will be displayed in The output file. Each host:port
-#	can have only one alias. But each alias may be used by more than
-#	one host:port.
+#   If a host:port is assigned an alias, then the alias instead of
+#   host:port will be displayed in The output file. Each host:port
+#   can have only one alias. But each alias may be used by more than
+#   one host:port.
 #
-#		[alias]
-#		alias = host:port
-#		...
+#       [alias]
+#       alias = host:port
+#       ...
 #
-#	CSN time lags between masters and consumers might be displayed in
-#	different colors based on their range. The thresholds for different
-#	colors may be specified in color section:
+#   CSN time lags between masters and consumers might be displayed in
+#   different colors based on their range. The thresholds for different
+#   colors may be specified in color section:
 #
-#		[color]
-#		lowmark (in minutes) = color
-#		...
-#	If the color section or color entry is missing, the default color
-#	set is: green for [0-5) minutes lag, yellow [5-60), and red 60 and more.
+#       [color]
+#       lowmark (in minutes) = color
+#       ...
+# 
+#   If the color section or color entry is missing, the default color
+#   set is: green for [0-5) minutes lag, yellow [5-60), and red 60 and more.
 #
 #    -h host
-#	Initial replication supplier's host. Default to the current host.
+#       Initial replication supplier's host. Default to the current host.
 #
 #    -p port
-#	Initial replication supplier's port. Default to 389.
+#       Initial replication supplier's port. Default to 389.
 #
 #    -r If specified, -r causes the routine to be entered without printing
-#	HTML header information.  This is suitable when making multiple calls
-#	to this routine (e.g. when specifying multiple, different, "unrelated"
-#	supplier servers) and expecting a single HTML output. 
+#       HTML header information.  This is suitable when making multiple calls
+#       to this routine (e.g. when specifying multiple, different, "unrelated"
+#       supplier servers) and expecting a single HTML output. 
 #
 #    -t refresh-interval
-#	Specify the refresh interval in seconds. This option has to be
-#	jointly used with option -u.
+#       Specify the refresh interval in seconds. This option has to be
+#       jointly used with option -u.
 #
 #    -u refresh-url
-#	The output HTML file may invoke a CGI program periodically. If
-#	this CGI program in turn calls this script, the effect is that
-#	the output HTML file would automatically refresh itself. This
-#	is useful for continuing monitoring. See also option -t.
+#       The output HTML file may invoke a CGI program periodically. If
+#       this CGI program in turn calls this script, the effect is that
+#       the output HTML file would automatically refresh itself. This
+#       is useful for continuing monitoring. See also option -t.
 #
 #    -v Print out the version of this script
 # 
@@ -139,22 +139,14 @@
 #    "Can't locate Mozilla/LDAP/Conn.pm in @INC", or
 #    "usage: Undefined variable":
 #
-#    1. Set the first line of the script to #!<DSHOME>/bin/slapd/admin/bin/perl
-#	and run this script directly.
+#    0. Prerequisite: NSPR, NSS, Mozilla LDAP C SDK, PerLDAP
 #
-#    2. Run
-#	<DSHOME>/bin/slapd/admin/bin/perl repl-monitor.pl
+#    1. Run this perl script via repl-monitor, which sets up LD_LIBRARY_PATH
+#       $ repl-monitor
 #
-#    3. Set environment variable PERL5LIB to your Perl lib dirs where
-#	Mozilla::LDAP module can be located.  This should be under serverroot/lib/perl
-#   e.g. PERL5LIB="serverroot/lib/perl/arch:serverroot/lib/perl"
-#
-#    4. Set LD_LIBRARY_PATH (or SHLIB_PATH) to point to the location of our
-#   bundled shared libraries e.g. LD_LIBRARY_PATH="serverroot/lib"
-#
-#    5. Invoke the script as follows if <MYPERLDIR> (serverroot/lib/perl) contains
-#	Mozilla/LDAP:
-#	<MYPERLDIR>/bin/perl -I <MYPERLDIR>/arch -I <MYPERLDIR> repl-monitor.pl
+#    2. If 1 does not work, try invoking this script as follows.
+#       Assuming <MYPERLDIR> contains Mozilla/LDAP:
+#       perl -I <MYPERLDIR> repl-monitor.pl
 #
 #############################################################################
 # enable the use of our bundled perldap with our bundled ldapsdk libraries
@@ -163,6 +155,7 @@
 # this script is always invoked by repl-monitor-cgi.pl, which sets all of these
 # If using this script standalone, be sure to set the shared lib path and
 # the path to the perldap modules.
+
 $usage = "\nusage: $0 -f configuration-file [-h host] [-p port] [-r] [-u refresh-url] [-t refresh-interval]\n\nor   : $0 -v\n"; 
 
 use Getopt::Std;		# parse command line arguments

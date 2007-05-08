@@ -1,4 +1,4 @@
-#{{PERL-EXEC}}
+#!/usr/bin/env perl
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 ###################################################################################
@@ -41,70 +41,63 @@
 # FILE: cl-dump.pl
 #
 # SYNOPSIS:
+#  cl-dump.pl [-h host] [-p port] [-D bind-dn] -w bind-password | -P bind-cert
+#       [-r replica-roots] [-o output-file] [-c] [-v]
 #
-#    cl-dump.pl [-h host] [-p port] [-D bind-dn] -w bind-password | -P bind-cert\
-#		[-r replica-roots] [-o output-file] [-c] [-v]\n";
-#
-#    cl-dump.pl -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]\n";
+#  cl-dump.pl -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]
 #
 # DESCRIPTION:
 #    Dump and decode Directory Server replication change log
 #
 # OPTIONS:
-#
 #    -c Dump and interpret CSN only. This option can be used with or
-#	without -i option. 
+#       without -i option. 
 #
 #    -D bind-dn
-#	Directory server's bind DN. Default to "cn=Directory Manager" if
-#	the option is omitted.
+#       Directory server's bind DN. Default to "cn=Directory Manager" if
+#       the option is omitted.
 #
 #    -h host
-#	Directory server's host. Default to the server where the script
-#	is running.
+#       Directory server's host. Default to the server where the script
+#       is running.
 #
 #    -i changelog-ldif-file-with-base64encoding
-#	If you already have a ldif-like changelog, but the changes
-#	in that file are encoded, you may use this option to
-#	decode that ldif-like changelog.
+#       If you already have a ldif-like changelog, but the changes
+#       in that file are encoded, you may use this option to
+#       decode that ldif-like changelog.
 #
 #    -o output-file
-#	Path name for the final result. Default to STDOUT if omitted.
+#       Path name for the final result. Default to STDOUT if omitted.
 #
 #    -p port
-#	Directory server's port. Default to 389.
+#       Directory server's port. Default to 389.
 #
 #    -P bind-cert
-#	Pathname of binding certificate DB
+#       Pathname of binding certificate DB
 #
 #    -r replica-roots
-#	Specify replica roots whose changelog you want to dump. The replica
-#	roots may be seperated by comma. All the replica roots would be
-#	dumped if the option is omitted.
+#       Specify replica roots whose changelog you want to dump. The replica
+#       roots may be seperated by comma. All the replica roots would be
+#       dumped if the option is omitted.
 #
 #    -v Print the version of this script.
 #
 #    -w bind-password
-#	Password for the bind DN
+#       Password for the bind DN
 #
 # RESTRICTION:
 #    If you are not using -i option, the script should be run when the server
 #    is running, and from where the server's changelog directory is accessible.
 #
 # DIAGNOSIS:
-#    For environment variable issues, see script template-repl-monitor.pl under
-#    DSHOME/bin/slapd/admin/scripts
+#    For environment variable issues, see script repl-monitor.pl under bindir
 #
 ################################################################################
 # enable the use of our bundled perldap with our bundled ldapsdk libraries
 # all of this nonsense can be omitted if the mozldapsdk and perldap are
 # installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
-$prefix = "{{DS-ROOT}}";
 
-$ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
-$ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
-
-$usage="Usage: $0 [-h host] [-p port] [-D bind-dn] [-w bind-password | -P bind-cert] [-r replica-roots] [-o output-file] [-c] [-v]\n\n       $0 -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]";
+$usage="Usage: $0 [-h host] [-p port] [-D bind-dn] [-w bind-password | -P bind-cert] [-r replica-roots] [-o output-file] [-c] [-v]\n\n       $0 -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]\n";
 
 use Getopt::Std;			# Parse command line arguments
 use Mozilla::LDAP::Conn;		# LDAP module for Perl

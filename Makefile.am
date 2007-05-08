@@ -159,7 +159,11 @@ bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \
-	wrappers/rsearch
+	wrappers/rsearch \
+	wrappers/cl-dump \
+	ldap/admin/src/scripts/cl-dump.pl \
+	wrappers/repl-monitor \
+	ldap/admin/src/scripts/repl-monitor.pl
 
 task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak \
@@ -175,7 +179,6 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-suffix2instance \
 	ldap/admin/src/scripts/template-vlvindex \
 	ldap/admin/src/scripts/template-bak2db.pl \
-	ldap/admin/src/scripts/template-cl-dump.pl \
 	ldap/admin/src/scripts/template-db2bak.pl \
 	ldap/admin/src/scripts/template-db2index.pl \
 	ldap/admin/src/scripts/template-db2ldif.pl \
@@ -184,7 +187,6 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-repl-monitor.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	$(srcdir)/ldap/admin/src/scripts/template-migrate5to7 \
 	$(srcdir)/ldap/admin/src/scripts/template-migrate6to7 \
