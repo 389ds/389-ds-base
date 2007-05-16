@@ -3122,6 +3122,19 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-pluginarg0: %s/slapd-collations.conf\n", cf->config_dir);
     fprintf(f, "\n");
 
+#ifdef ENABLE_BITWISE
+    fprintf(f, "dn: cn=Bitwise Plugin,cn=plugins,cn=config\n");
+    fprintf(f, "objectClass: top\n");
+    fprintf(f, "objectClass: nsSlapdPlugin\n");
+    fprintf(f, "objectClass: extensibleObject\n");
+    fprintf(f, "cn: Bitwise Plugin\n");
+    fprintf(f, "nsslapd-pluginPath: %s/libbitwise-plugin%s\n", cf->plugin_dir, shared_lib);
+    fprintf(f, "nsslapd-pluginInitfunc: bitwise_init\n");
+    fprintf(f, "nsslapd-pluginType: matchingRule\n");
+    fprintf(f, "nsslapd-pluginEnabled: on\n");
+    fprintf(f, "\n");
+#endif
+
     /* The HTTP client plugin */
     fprintf(f, "dn: cn=HTTP Client,cn=plugins,cn=config\n");
     fprintf(f, "objectclass: top\n");

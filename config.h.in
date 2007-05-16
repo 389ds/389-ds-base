@@ -12,6 +12,9 @@
 /* cpu type sparc */
 #undef CPU_sparc
 
+/* enable the bitwise plugin */
+#undef ENABLE_BITWISE
+
 /* enable the dna plugin */
 #undef ENABLE_DNA
 

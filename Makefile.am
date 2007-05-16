@@ -93,13 +93,17 @@ if enable_dna
 LIBDNA_PLUGIN = libdna-plugin.la
 endif
 
+if enable_bitwise
+LIBBITWISE_PLUGIN = libbitwise-plugin.la
+endif
+
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
 	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
 	libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
 	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN)
+	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -323,6 +327,7 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	$(libldaputil_a_SOURCES)
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libslapd
@@ -782,6 +787,14 @@ libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
 
 libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libdna_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libbitwise-plugin
+#------------------------
+libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
+
+libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libbitwise_plugin_la_LDFLAGS = -avoid-version
 
 
 #////////////////////////////////////////////////////////////////
