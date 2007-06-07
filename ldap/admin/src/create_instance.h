@@ -185,6 +185,7 @@ typedef struct {
 #if defined(ENABLE_LDAPI)
     char *ldapifilepath;
 #endif
+    int install_full_schema;
 } server_config_s;
 
 

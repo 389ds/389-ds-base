@@ -54,7 +54,7 @@ sub getCgiContentAndLength {
   my $content = "";
   my $firsttime = 1;
   while (my ($kk, $vv) = each %{$args}) {
-    next if (!$kk || !$vv);
+    next if (!defined($kk) || !defined($vv));
 	if ($firsttime) {
 	  $firsttime = 0;
 	} else {
@@ -277,12 +277,27 @@ if ($table{General}->{PackageName}) {
 $cgiargs{install_ldif_file} = $table{slapd}->{InstallLdifFile};
 
 # if for some reason you do not want the server started after instance creation
-# the following line can be commented out - NOTE that if you are creating the
+# then you can set
+# [slapd] 
+# start_server = 0
+# NOTE that if you are creating the
 # Configuration DS, it will be started anyway
+
 if (defined($table{"slapd"}->{"start_server"})) {
     $cgiargs{start_server} = $table{"slapd"}->{"start_server"};
 } else { # default is on
     $cgiargs{start_server} = 1;
+}
+
+# if for some reason you do not want the full schema to be installed, 
+# (such as needing to replace much of it with an AD-like schema), then set
+# [slapd]
+# install_full_schema = 0
+
+if (defined($table{"slapd"}->{"install_full_schema"})) {
+    $cgiargs{install_full_schema} = $table{"slapd"}->{"install_full_schema"};
+} else { 
+    # server-side default is on
 }
 
 my $sroot = $cgiargs{sroot};

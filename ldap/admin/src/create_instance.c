@@ -300,6 +300,7 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     conf->upgradingServer = 0;
     
     conf->start_server = "1";
+    conf->install_full_schema = 1;
     conf->admin_domain = NULL;
     conf->config_ldap_url = NULL;
     conf->user_ldap_url = NULL;
@@ -3530,14 +3531,27 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fclose(srcf);
     fclose(f);
 
-    /*
-     * <sysconfdir>/PACKAGE_NAME/schema to schema_dir
-     */
-    PR_snprintf(src, sizeof(src), "%s%c%s%cschema", 
-        cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
-    if (NULL != (t = ds_copy_group_files_using_mode_owner(src, cf->schema_dir, 0, NEWFILE_MODE, pw)))
-        return t;
-        
+    if (cf->install_full_schema) {
+	/*
+         * <sysconfdir>/PACKAGE_NAME/schema to schema_dir
+         */
+        PR_snprintf(src, sizeof(src), "%s%c%s%cschema", 
+            cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
+        if (NULL != (t = ds_copy_group_files_using_mode_owner(src, cf->schema_dir, 0, NEWFILE_MODE, pw)))
+            return t;
+    } else {
+        PR_snprintf(src, sizeof(src),  "%s%c%s%cschema%c00core.ldif", 
+		    cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP, FILE_PATHSEP);
+        PR_snprintf(dest, sizeof(dest), "%s%c00core.ldif", 
+		    cf->schema_dir, FILE_PATHSEP);
+	if( (t = create_instance_copy(src, dest, NEWFILE_MODE, 0 )) ) {
+            return t;
+	} else {
+	    if (pw) {
+		chownfile(pw, dest);
+	    }
+        }
+    }
 #if defined (BUILD_PRESENCE)
     PR_snprintf(src, sizeof(src), "%s%c%s%c/config/presence",
                 cf->sysconfdir, FILE_PATHSEP, cf->package_name, FILE_PATHSEP);
@@ -4490,6 +4504,9 @@ int parse_form(server_config_s *cf)
         return 1;
     }
     cf->start_server = ds_a_get_cgi_var("start_server", NULL, NULL);
+    if (temp = ds_a_get_cgi_var("install_full_schema", NULL, NULL)) {
+	    cf->install_full_schema = atoi(temp);
+    }
     cf->secserv = ds_a_get_cgi_var("secserv", NULL, NULL);
     if (cf->secserv && strcmp(cf->secserv, "off"))
         cf->secservport = ds_a_get_cgi_var("secservport", NULL, NULL);
