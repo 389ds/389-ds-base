@@ -144,7 +144,6 @@ static char *ds_gen_orgchart_conf(char *sroot, char *cs_path, server_config_s *c
 static char *ds_gen_gw_conf(char *sroot, char *cs_path, server_config_s *cf, int conf_type);
 static char *install_ds(char *sroot, server_config_s *cf, char *param_name);
 
-static int write_ldap_info(char *slapd_server_root, server_config_s *cf);
 #if defined (BUILD_PRESENCE)
 static char *gen_presence_init_script(char *sroot, server_config_s *cf, 
                                          char *cs_path);
@@ -4123,9 +4122,6 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
         }
     }
 
-    /* write ldap.conf */
-    write_ldap_info( sroot, cf );
-
 #ifdef XP_UNIX
     ds_become_localuser_name (cf->servuser);
 #endif
@@ -4142,6 +4138,17 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
         return 0;
     }
 #endif /* XP_WIN32 */
+
+    /* if an already hashed password is given, we cannot do the configure_suitespot()
+       stuff below, because that requires the clear text password in order to
+       bind to the server.  This also means that default entries and default
+       acis will not be added to the server.
+    */
+    if (cf->rootpw == cf->roothashedpw) {
+        if (status)
+            return make_error ("Could not configure server (%d).", status);
+        return NULL;
+    }
 
     memset( &query_vars, 0, sizeof(query_vars) );
     if (!cf->use_existing_user_ds)
@@ -4197,48 +4204,6 @@ static char *install_ds(char *sroot, server_config_s *cf, char *param_name)
     return make_error ("Could not configure server (%d).", status);
 
     return(NULL);
-}
-
-/* write_ldap_info() : writes ldap.conf */
-
-static int
-write_ldap_info( char *slapd_server_root, server_config_s *cf)
-{
-    FILE* fp;
-    int ret = 0;
-
-    char* fmt = "%s/shared/config/ldap.conf";
-    char* infoFileName;
-
-    if (!slapd_server_root) {
-      return -1;
-    }
-    
-    infoFileName = PR_smprintf(fmt, slapd_server_root);
-
-    if ((fp = fopen(infoFileName, "w")) == NULL)
-    {
-        ret = -1;
-    }
-    else
-    {
-        fprintf(fp, "url\tldap://%s:%d/",
-                cf->servname, atoi(cf->servport));
-    
-        if (cf->suffix)
-            fprintf(fp, "%s", cf->suffix);
-
-        fprintf(fp, "\n");
-        
-        if (cf->cfg_sspt_uid) {
-            fprintf(fp, "admnm\t%s\n", cf->cfg_sspt_uid);
-        }
-
-        fclose(fp);
-    }
-    PR_smprintf_free(infoFileName);
-
-    return ret;
 }
 
 /* ----------- Create a new server from configuration variables ----------- */
@@ -4542,8 +4507,17 @@ int parse_form(server_config_s *cf)
 
             cf->rootpw = pw1;
         }
-        /* Encode the password in SSHA by default */
-        cf->roothashedpw = (char *)ds_salted_sha1_pw_enc (cf->rootpw);
+        if (strchr(cf->rootpw, '}') &&
+            (!PL_strncasecmp(cf->rootpw, "{SHA", 4) ||
+             !PL_strncasecmp(cf->rootpw, "{SSHA", 5) ||
+             !PL_strncasecmp(cf->rootpw, "{CRYPT}", 7) ||
+             !PL_strncasecmp(cf->rootpw, "{MD5}", 5))) {
+            /* assume the password is already hashed */
+            cf->roothashedpw = cf->rootpw;
+        } else { /* assume cleartext password */
+            /* Encode the password in SSHA by default */
+            cf->roothashedpw = (char *)ds_salted_sha1_pw_enc (cf->rootpw);
+        }
     }
 
     cf->admin_domain = ds_a_get_cgi_var("admin_domain", NULL, NULL);
@@ -4555,7 +4529,7 @@ int parse_form(server_config_s *cf)
     }
 
     if ((temp = ds_a_get_cgi_var("use_existing_user_ds", NULL, NULL))) {
-        cf->use_existing_config_ds = atoi(temp);
+        cf->use_existing_user_ds = atoi(temp);
     } else {
         cf->use_existing_user_ds = 0; /* we are creating it */
     }

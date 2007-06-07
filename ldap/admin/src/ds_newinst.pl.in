@@ -35,6 +35,7 @@
 # Copyright (C) 2005 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
+use Net::Domain qw(hostfqdn);
 use IPC::Open2;
 use Symbol;
 use CGI::Util qw(escape);
@@ -43,9 +44,28 @@ use File::Basename;
 
 sub usage {
 	my $msg = shift;
-	print "Error: $msg\n";
-	print "Usage: $0 [-|filename.inf]\n";
-	print "Use - to read from stdin\n";
+    print <<EOF;
+Error: $msg
+Usage: $0 [-|filename.inf] [args]
+The filename, if any, should be specified first.  After the filename, other args
+can be provided to override settings in the provided file in this format:
+    section.param=value
+e.g.
+    General.FullMachineName=foo.example.com
+or
+    "slapd.Suffix=dc=example, dc=com"
+
+So, for example, if you use
+    $0 filename.inf General.FullMachineName=bar.example.com
+And your filename.inf file has
+    [General]
+    FullMachineName= foo.example.com
+$0 will use bar.example.com for FullMachineName since that was the one passed on the command line
+
+$0 will attempt to generate reasonable default values for some of the parameters, but there are a couple that must be specified:
+    slapd.ServerPort slapd.RootDNPwd
+Also General.SuiteSpotUserID must be specified if running as root.  If not running as root, the uid of the user will be used.
+EOF
 	exit 1
 }
 
@@ -69,7 +89,7 @@ sub getCgiContentAndLength {
 
 # fakes out the ds_newinst program into thinking it is getting cgi input
 sub cgiFake {
-  my ($sroot, $verbose, $prog, $args) = @_;
+  my ($verbose, $prog, $args) = @_;
   # construct content string
   my ($content, $length) = &getCgiContentAndLength($args);
 
@@ -87,9 +107,12 @@ sub cgiFake {
   chdir $dir;
   my $input = gensym();
   my $output = gensym();
+  # make sure the child exit code is reset before starting the fake
+  # cgi program
+  $? = 0;
   my $pid = open2($input, $output, "./$exe");
   sleep(1); # allow prog to init stdin read buffers
-  print $output $content, "\n";
+  print $output $content;
   close $output;
 
   if ($?) {
@@ -136,54 +159,93 @@ sub addAndCheck {
 	$dest->{$dkey} = $source->{$ssec}->{$skey};
 }
 
-my $filename = $ARGV[0];
-usage("$filename not found") if ($filename ne "-" && ! -f $filename);
-
-my $curSection;
-# each key in the table is a section name
-# the value is a hash ref of the items in that section
-#   in that hash ref, each key is the config param name,
-#   and the value is the config param value
-my %table = ();
-
-my $fh;
-if ($filename eq "-") {
-    $fh = \*STDIN;
-} else {
-    open(IN, $filename);
-    $fh = \*IN;
+sub readInfFile {
+    my $filename = shift;
+    my $fh;
+    if ($filename eq "-") {
+        $fh = \*STDIN;
+    } else {
+        open(IN, $filename) or usage("could not open file $filename: $!");
+        $fh = \*IN;
+    }
+    while (<$fh>) {
+        # e.g. [General]
+        if (/^\[(.*?)\]/) {
+            $curSection = $1;
+        } elsif (/^\s*$/) {
+            next; # skip blank lines
+        } elsif (/^\s*\#/) {
+            next; # skip comment lines
+        } elsif (/^\s*(.*?)\s*=\s*(.*?)\s*$/) {
+            $table{$curSection}->{$1} = $2;
+        }
+    }
+    if ($filename ne "-") {
+        close IN;
+    }
 }
-while (<$fh>) {
-	# e.g. [General]
-	if (/^\[(.*?)\]/) {
-		$curSection = $1;
-	} elsif (/^\s*$/) {
-		next; # skip blank lines
-	} elsif (/^\s*\#/) {
-		next; # skip comment lines
-	} elsif (/^\s*(.*?)\s*=\s*(.*?)\s*$/) {
-		$table{$curSection}->{$1} = $2;
-	}
-}
-if ($filename ne "-") {
-    close IN;
+
+usage("No arguments given") if (!@ARGV);
+
+# process command line arguments
+for (@ARGV) {
+    if (/^(\w+).(\w+)=(.*)$/) { # e.g. section.param=value
+        $table{$1}->{$2} = $3;
+    } else { # file?
+        readInfFile($_);
+    }
 }
 
 #printhash (\%table);
+
+# set default values
+if (!$table{General}->{FullMachineName}) {
+    $table{General}->{FullMachineName} = hostfqdn;
+}
+
+if (!$table{General}->{SuiteSpotUserID}) {
+    if ($> != 0) { # if not root, use the user's uid
+        $table{General}->{SuiteSpotUserID} = getlogin;
+    }
+    # otherwise, the uid must be specified
+}
+
+if (!$table{slapd}->{RootDN}) {
+    $table{slapd}->{RootDN} = "cn=Directory Manager";
+}
+
+if (!$table{slapd}->{Suffix}) {
+    my $suffix = $table{General}->{FullMachineName};
+    # convert fqdn to dc= domain components
+    $suffix = "dc=$suffix";
+    $suffix =~ s/\./, dc=/g;
+    $table{slapd}->{Suffix} = $suffix;
+}
+
+if (!$table{slapd}->{ServerIdentifier}) {
+    my $servid = $table{General}->{FullMachineName};
+    # strip out the leftmost domain component
+    $servid =~ s/\..*$//;
+    $table{slapd}->{ServerIdentifier} = $servid;
+}
 
 # next, construct a hash table with our arguments
 
 my %cgiargs = ();
 my $package_name = "@package_name@";
-
 # the following items are always required
-addAndCheck(\%cgiargs, "sroot", \%table, "General", "ServerRoot");
 addAndCheck(\%cgiargs, "servname", \%table, "General", "FullMachineName");
 addAndCheck(\%cgiargs, "servuser", \%table, "General", "SuiteSpotUserID");
 addAndCheck(\%cgiargs, "rootdn", \%table, "slapd", "RootDN");
 addAndCheck(\%cgiargs, "rootpw", \%table, "slapd", "RootDNPwd");
 addAndCheck(\%cgiargs, "servid", \%table, "slapd", "ServerIdentifier");
 addAndCheck(\%cgiargs, "suffix", \%table, "slapd", "Suffix");
+
+if (defined($table{"General"}->{"ServerRoot"})) {
+    $cgiargs{"sroot"} = $table{"General"}->{"ServerRoot"};
+} else {
+    $cgiargs{"sroot"} = '@serverdir@';
+}
 
 # either servport or ldapifilepath must be specified - the server must
 # listen to something . . .
@@ -200,7 +262,7 @@ if (defined($table{"slapd"}->{"ldapifilepath"})) {
     $cgiargs{"ldapifilepath"} = $table{"slapd"}->{"ldapifilepath"};
 }
 if (! $canlisten) {
-    usage("Either ServerPort or ldapifilepath must be specified in the slapd section of $filename");
+    usage("Either ServerPort or ldapifilepath must be specified in the slapd section");
 }
 
 # the following items are optional
@@ -227,6 +289,15 @@ if ($table{"slapd"}->{"config_dir"}) {
 } else {
     $cgiargs{"config_dir"} = "@instconfigdir@/slapd-" . $table{"slapd"}->{"ServerIdentifier"};
 }
+
+# check to see if this instance already exists
+if (-d $cgiargs{"config_dir"}) {
+    print STDERR "Error: the server already exists at ", $cgiargs{"config_dir"}, "\n";
+    print STDERR "Please remove it first if you really want to recreate it,\n";
+    print STDERR "or use a different ServerIdentifier to create another instance.\n";
+    exit 1;
+}
+
 # port number for Admin Server - used to configure some web apps
 $cgiargs{adminport} = $table{admin}->{Port};
 
@@ -300,21 +371,20 @@ if (defined($table{"slapd"}->{"install_full_schema"})) {
     # server-side default is on
 }
 
-my $sroot = $cgiargs{sroot};
-
 my $prog = "@bindir@/ds_newinst";
 if (! -x $prog) {
     $prog = "@libdir@/$package_name/ds_newinst";
 }
 
-my $rc = &cgiFake($sroot, $verbose,
-				  $prog, \%cgiargs);
+my $rc = &cgiFake($verbose, $prog, \%cgiargs);
 
 if (!$rc) {
 	print "Success!  Your new directory server instance was created\n";
 } else {
 	print "Error: Could not create new directory server instance\n";
 }
+
+exit $rc;
 
 sub printhash {
 	my $table = shift;

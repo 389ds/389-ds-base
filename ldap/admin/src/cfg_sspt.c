@@ -1362,39 +1362,6 @@ do_bind(SLAPD_CONFIG* slapd, char* rootdn, char* rootpw)
 	return connection;
 }
 
-static int
-write_ldap_info(SLAPD_CONFIG* slapd, char* base, char* admnm)
-{
-	FILE* fp;
-	int ret = 0;
-
-	char* fmt = "%s/shared/config/ldap.conf";
-	char* infoFileName = PR_smprintf(fmt, slapd->slapd_server_root);
-
-	if ((fp = fopen(infoFileName, "w")) == NULL)
-	{
-		ret = -1;
-	}
-	else
-	{
-		fprintf(fp, "url\tldap://%s:%d/",
-				slapd->host, slapd->port);
-    
-		if (base)
-			fprintf(fp, "%s", base);
-
-		fprintf(fp, "\n");
-
-		fprintf(fp, "admnm\t%s\n", admnm);
-
-		fclose(fp);
-	}
-  
-	PR_smprintf_free(infoFileName);
-
-	return ret;
-}
-
 #ifdef TEST_CONFIG
 int
 config_configEntry(LDAP* connection, QUERY_VARS* query)
@@ -1630,12 +1597,6 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 												value_hostPreferencesOU, 0,
 												0, 0, 0);
 		}
-
-		/*
-		** Write the ldap.info file and the SuiteSpot.ldif file
-		*/
-
-		write_ldap_info(slapd, query->suffix, query->ssAdmID);
 	}
 
 #ifdef TEST_CONFIG
