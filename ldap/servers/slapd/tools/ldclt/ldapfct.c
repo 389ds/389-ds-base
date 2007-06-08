@@ -254,6 +254,9 @@ dd/mm/yy | Author	| Comments
 #include "ldclt.h"	/* This tool's include file */
 #include "utils.h"	/* Utilities functions */		/*JLS 14-11-00*/
 
+#include <sasl.h>
+#include "ldaptool-sasl.h"
+
 
 
 
@@ -656,7 +659,6 @@ connectToServer (
    */
   if (tttctx->ldapCtx == NULL)
   {
-#ifdef LDCLTSSL
     /*
      * SSL is enabled ?
      */
@@ -703,7 +705,6 @@ connectToServer (
 	 }
       }
     } else {
-#endif
       /*
        * connection initialization in normal, unencrypted mode
        */
@@ -719,9 +720,7 @@ connectToServer (
 	fflush (stdout);
 	return (-1);
       }
-#ifdef LDCLTSSL
     }
-#endif
 
     if (mctx.mode & LDAP_V2)
       v2v3 = LDAP_VERSION2;
@@ -752,7 +751,8 @@ connectToServer (
    *        below in this function ?
    *        03-05-01 : no cleanup I think, cf M2_RNDBINDFILE
    */
-  if ((mctx.bindDN == NULL) && (!(mctx.mod2 & M2_RNDBINDFILE)))	/*JLS 03-05-01*/
+  if ((mctx.bindDN == NULL) && ((!(mctx.mod2 & M2_RNDBINDFILE))
+       && (!(mctx.mod2 & M2_SASLAUTH))))
   {								/*JLS 05-03-01*/
     tttctx->binded = 1;						/*JLS 05-03-01*/
     return (0);							/*JLS 05-03-01*/
@@ -761,7 +761,6 @@ connectToServer (
   /*
    * Maybe we should bind ?
    */
-#ifdef LDCLTSSL
   /*
    * for SSL client authentication, SASL BIND is used
    */
@@ -804,10 +803,50 @@ connectToServer (
 	return (-1);						/*JLS 18-12-00*/
       }								/*JLS 18-12-00*/
     }
-  }
-  else
-  {
-#endif /* LDCLTSSL */
+  } else if ((mctx.mod2 & M2_SASLAUTH) && ((!(tttctx->binded)) ||
+                                          (mctx.mode & BIND_EACH_OPER))) {
+    void *defaults;
+    LDAPControl **rctrls = NULL;
+
+    if ( mctx.sasl_mech == NULL) {
+      fprintf( stderr, "Please specify the SASL mechanism name when "
+                           "using SASL options\n");
+      return (-1);
+    }
+
+    if ( mctx.sasl_secprops != NULL) {
+      ret = ldap_set_option( tttctx->ldapCtx, LDAP_OPT_X_SASL_SECPROPS,
+                             (void *) mctx.sasl_secprops );
+
+      if ( ret != LDAP_SUCCESS ) {
+        fprintf( stderr, "Unable to set LDAP_OPT_X_SASL_SECPROPS: %s\n",
+                          mctx.sasl_secprops );
+        return (-1);
+      }
+    }
+
+    defaults = ldaptool_set_sasl_defaults( tttctx->ldapCtx, mctx.sasl_flags, mctx.sasl_mech,
+              mctx.sasl_authid, mctx.sasl_username, mctx.passwd, mctx.sasl_realm );
+    if (defaults == NULL) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+
+    ret = ldap_sasl_interactive_bind_ext_s( tttctx->ldapCtx, mctx.bindDN, mctx.sasl_mech,
+                       NULL, NULL, mctx.sasl_flags,
+                       ldaptool_sasl_interact, defaults, NULL );
+    if (ret != LDAP_SUCCESS ) {
+      tttctx->binded = 0;
+      if (!(mctx.mode & QUIET))
+        ldap_perror( tttctx->ldapCtx, "Bind Error" );
+      if (addErrorStat (ret) < 0)
+        return (-1);
+    } else {
+        tttctx->binded = 1;
+    }
+
+    ldaptool_free_defaults( defaults );
+  } else {
     if (((mctx.bindDN != NULL) || (mctx.mod2 & M2_RNDBINDFILE)) &&  /*03-05-01*/
 	((!(tttctx->binded)) || (mctx.mode & BIND_EACH_OPER)))
     {
@@ -857,9 +896,7 @@ connectToServer (
 	}							/*JLS 18-12-00*/
       }
     }
-#ifdef LDCLTSSL
   }
-#endif
 
   /*
    * Normal end
@@ -1769,7 +1806,6 @@ createMissingNodes (
     if (mctx.mode & VERY_VERBOSE)				/*JLS 14-12-00*/
       printf ("ldclt[%d]: T%03d: must connect to the server.\n",
                mctx.pid, tttctx->thrdNum);
-#ifdef LDCLTSSL
     /*
      * SSL is enabled ?
      */
@@ -1815,7 +1851,6 @@ createMissingNodes (
 	 }
       }
     } else {
-#endif
       /*
        * connection initialization in normal, unencrypted mode
        */
@@ -1827,9 +1862,7 @@ createMissingNodes (
 	fflush (stdout);
 	return (-1);
       }
-#ifdef LDCLTSSL
     }
-#endif
 
     if (mctx.mode & LDAP_V2)
       v2v3 = LDAP_VERSION2;
@@ -1848,7 +1881,6 @@ createMissingNodes (
     /*
      * Bind to the server
      */
-#ifdef LDCLTSSL
   /*
    * for SSL client authentication, SASL BIND is used
    */
@@ -1867,7 +1899,6 @@ createMissingNodes (
       return (-1);
     }
   } else {
-#endif
     ret = ldap_simple_bind_s (cnx, tttctx->bufBindDN, tttctx->bufPasswd);
     if (ret != LDAP_SUCCESS)
     {
@@ -1882,9 +1913,7 @@ createMissingNodes (
       return (-1);
     }
   }
-#ifdef LDCLTSSL
   }
-#endif
 
   /*
    * Create the entry
@@ -3276,7 +3305,9 @@ doBindOnly (
    */
   if (connectToServer (tttctx) < 0)
     return (-1);
-  if (!(tttctx->binded))
+
+  /* don't count failed binds unless counteach option is used */
+  if (!(tttctx->binded) && !(mctx.mode & COUNT_EACH))
     return (0);
 
   if (incrementNbOpers (tttctx) < 0)

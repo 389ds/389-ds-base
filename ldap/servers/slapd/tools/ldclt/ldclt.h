@@ -282,6 +282,7 @@ dd/mm/yy | Author	| Comments
 #define M2_APPEND	0x00000008 /* -e append */		/*JLS 05-04-01*/
 #define M2_RNDBINDFILE	0x00000010 /* -e randombinddnfromfile *//*JLS 03-05-01*/
 #define M2_BINDONLY	0x00000020 /* -e bindonly */		/*JLS 04-05-01*/
+#define M2_SASLAUTH     0x00000040 /* -o : SASL authentication */
 
 /*
  * Combinatory defines
@@ -536,6 +537,7 @@ typedef struct main_context {
         char            *keydbpin;      /* key DB password */   /* BK 23-11-00*/
 	int		 lastVal;	/* To build filters */	/*JLS 14-03-01*/
 	ldclt_mutex_t	 lastVal_mutex;	/* Protect lastVal */	/*JLS 14-03-01*/
+	int		 ldapauth;	/* Used to indicate auth type */
 	int		 maxErrors;	/* Max allowed errors */
 	unsigned int	 mode;		/* Running mode */
 	unsigned int	 mod2;		/* Running mode - 2 */	/*JLS 19-03-01*/
@@ -560,6 +562,12 @@ typedef struct main_context {
 	char		*rndBindFname;	/* Rnd bind file name *//*JLS 03-05-01*/
 	int		 referral;	/* Referral followed */	/*JLS 08-03-01*/
 	int		 sampling;	/* Sampling frequency */
+	char		*sasl_authid;
+	unsigned	 sasl_flags;
+	char		*sasl_mech;
+	char		*sasl_realm;
+	char		*sasl_secprops;
+	char		*sasl_username;
 	int		 scope;		/* Searches scope */
 	int		 slaveConn;	/* Slave has connected */
 	char		*slaves[MAX_SLAVES]; /* Slaves list */

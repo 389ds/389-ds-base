@@ -32,7 +32,7 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2007 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -47,7 +47,7 @@
 /*
  * usage: ldclt [-qQvV] [-E <max errors>]
  *              [-b <base DN>] [-h <host>] [-p <port>] [-t <timeout>]
- *              [-D <bind DN>] [-w <passwd>]
+ *              [-D <bind DN>] [-w <passwd>] [-o <SASL option>]
  *              [-e <execParams>] [-a <max pending>]
  * 	     [-n <nb threads>] [-i <nb times>] [-N <nb samples>]
  * 	     [-I <err number>] [-T <total>]
@@ -61,7 +61,7 @@
  * 
  * 	The valid options are:
  * 	 -a  Asynchronous mode, with max pending operations.
- * 	 -b  Give the base DN to use. Default "o=sun,c=us".
+ * 	 -b  Give the base DN to use. Default "dc=example,dc=com".
  * 	 -D  Bind DN. See -w
  * 	 -E  Max errors allowed.                   Default 1000.
  * 	 -e  Execution parameters:
@@ -116,6 +116,7 @@
  * 	 -I  Ignore errors (cf. -E).               Default none.
  * 	 -n  Number of threads.                    Default 10.
  * 	 -N  Number of samples (10 seconds each).  Default infinite.
+ *	 -o  SASL Option.
  * 	 -p  Server port.                          Default 389.
  * 	 -P  Master port (to check replication).   Default 16000.
  * 	 -q  Quiet mode. See option -I.
@@ -137,7 +138,7 @@ void usage ()
   (void) printf ("\n");
   (void) printf ("usage: ldclt [-qQvV] [-E <max errors>]\n");
   (void) printf ("             [-b <base DN>] [-h <host>] [-p <port>] [-t <timeout>]\n");
-  (void) printf ("             [-D <bind DN>] [-w <passwd>]\n");
+  (void) printf ("             [-D <bind DN>] [-w <passwd>] [-o <SASL option>]\n");
   (void) printf ("             [-e <execParams>] [-a <max pending>]\n");
   (void) printf ("	     [-n <nb threads>] [-i <nb times>] [-N <nb samples>]\n");
   (void) printf ("	     [-I <err number>] [-T <total>]\n");
@@ -206,6 +207,7 @@ void usage ()
   (void) printf ("	 -I  Ignore errors (cf. -E).               Default none.\n");
   (void) printf ("	 -n  Number of threads.                    Default 10.\n");
   (void) printf ("	 -N  Number of samples (10 seconds each).  Default infinite.\n");
+  (void) printf ("	 -o  SASL Option.\n");
   (void) printf ("	 -p  Server port.                          Default 389.\n");
   (void) printf ("	 -P  Master port (to check replication).   Default 16000.\n");
   (void) printf ("	 -q  Quiet mode. See option -I.\n");

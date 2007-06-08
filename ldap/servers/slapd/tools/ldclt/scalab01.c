@@ -513,7 +513,6 @@ scalab01_connectSuperuser (void)
   /*
    * Create the LDAP context
    */
-#ifdef LDCLTSSL
   /*
    * SSL is enabled ?
    */
@@ -558,7 +557,6 @@ scalab01_connectSuperuser (void)
   }
   else
   {
-#endif
     /*
      * Connection initialization in normal, unencrypted mode
      */
@@ -573,9 +571,7 @@ scalab01_connectSuperuser (void)
       fflush (stdout);
       return (-1);
     }
-#ifdef LDCLTSSL
   }
-#endif
 
   /*
    * Set the LDAP version and other options...
@@ -598,7 +594,6 @@ scalab01_connectSuperuser (void)
   /*
    * Now we could bind
    */
-#ifdef LDCLTSSL
   /*
    * for SSL client authentication, SASL BIND is used
    */
@@ -620,7 +615,6 @@ scalab01_connectSuperuser (void)
   }
   else
   {
-#endif /* LDCLTSSL */
     strcpy (bindDN, SCALAB01_SUPER_USER_RDN);
     strcat (bindDN, ",");
     strcat (bindDN, mctx.baseDN);
@@ -640,9 +634,7 @@ scalab01_connectSuperuser (void)
       fflush (stdout);
       return (-1);
     }
-#ifdef LDCLTSSL
   }
-#endif
 
   /*
    * Normal end...

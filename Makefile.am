@@ -867,7 +867,8 @@ ldap_agent_bin_LDADD = $(NETSNMP_LINK)
 #------------------------
 # ldclt
 #------------------------
-ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
+ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
+	ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
 	ldap/servers/slapd/tools/ldclt/ldclt.c \
 	ldap/servers/slapd/tools/ldclt/ldcltU.c \
@@ -883,7 +884,7 @@ if SOLARIS
 ldclt_bin_SOURCES += ldap/servers/slapd/tools/ldclt/opCheck.c
 endif
 
-ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools @ldapsdk_inc@ @sasl_inc@ @nss_inc@ @nspr_inc@
 ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL)
 
 #------------------------

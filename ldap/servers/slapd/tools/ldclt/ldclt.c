@@ -1644,7 +1644,6 @@ basicInit (void)
     }
   }
 
-#ifdef LDCLTSSL
   /*
    * SSL is enabled ?
    */
@@ -1677,7 +1676,6 @@ basicInit (void)
       }
     }
   }
-#endif /* LDCLTSSL */
 
   /*
    * Specific scenarios initialization...
@@ -1753,6 +1751,8 @@ dumpModeValues (void)
     printf (" ssl");
   if (mctx.mode & CLTAUTH)
     printf (" ssl_with_client_authentication");                 /* BK 23-11-00*/
+  if (mctx.mod2 & M2_SASLAUTH)
+    printf (" saslauth");
   if (mctx.mode & SMOOTHSHUTDOWN)				/*JLS 17-11-00*/
     printf (" smoothshutdown");					/*JLS 17-11-00*/
   if (mctx.mode & DONT_SLEEP_DOWN)				/*JLS 14-03-01*/
@@ -1852,6 +1852,104 @@ decodeScopeParams (
   return (0);
 }
 
+
+
+
+
+
+/* ****************************************************************************
+	FUNCTION :	saslSetParam
+	PURPOSE :	Sets SASL parameters
+	INPUT :		saslarg	= value to decode
+	OUTPUT :	None.
+	RETURN :	-1 if error, 0 otherwise.
+	DESCRIPTION :	Copied from Mozilla LDAP C SDK (common.c)
+ *****************************************************************************/
+int
+saslSetParam (
+	char	*saslarg)
+{
+  char *attr = NULL;
+  int argnamelen;
+
+  if (saslarg == NULL) {
+    fprintf (stderr, "Error: missing SASL argument\n");
+    return (-1);
+  }
+
+  attr = strchr(saslarg, '=');
+  if (attr == NULL) {
+     fprintf( stderr, "Didn't find \"=\" character in %s\n", saslarg);
+     return (-1);
+  }
+
+  argnamelen = attr - saslarg;
+  attr++;
+
+  if (!strncasecmp(saslarg, "secProp", argnamelen)) {
+    if ( mctx.sasl_secprops != NULL ) {
+      fprintf( stderr, "secProp previously specified\n");
+      return (-1);
+    }
+    if (( mctx.sasl_secprops = strdup(attr)) == NULL ) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+  } else if (!strncasecmp(saslarg, "realm", argnamelen)) {
+    if ( mctx.sasl_realm != NULL ) {
+      fprintf( stderr, "Realm previously specified\n");
+      return (-1);
+    }
+    if (( mctx.sasl_realm = strdup(attr)) == NULL ) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+  } else if (!strncasecmp(saslarg, "authzid", argnamelen)) {
+    if (mctx.sasl_username != NULL) {
+      fprintf( stderr, "Authorization name previously specified\n");
+      return (-1);
+    }
+    if (( mctx.sasl_username = strdup(attr)) == NULL ) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+  } else if (!strncasecmp(saslarg, "authid", argnamelen)) {
+    if ( mctx.sasl_authid != NULL ) {
+      fprintf( stderr, "Authentication name previously specified\n");
+      return (-1);
+    }
+    if (( mctx.sasl_authid = strdup(attr)) == NULL) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+  } else if (!strncasecmp(saslarg, "mech", argnamelen)) {
+    if ( mctx.sasl_mech != NULL ) {
+      fprintf( stderr, "Mech previously specified\n");
+      return (-1);
+    }
+    if (( mctx.sasl_mech = strdup(attr)) == NULL) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+  } else if (!strncasecmp(saslarg, "flags", argnamelen)) {
+    int len = strlen(attr);
+    if (len && !strncasecmp(attr, "automatic", len)) {
+      mctx.sasl_flags = LDAP_SASL_AUTOMATIC;
+    } else if (len && !strncasecmp(attr, "interactive", len)) {
+      mctx.sasl_flags = LDAP_SASL_INTERACTIVE;
+    } else if (len && !strncasecmp(attr, "quiet", len)) {
+      mctx.sasl_flags = LDAP_SASL_QUIET;
+    } else {
+      fprintf(stderr, "Invalid SASL flags value [%s]: must be one of "
+              "automatic, interactive, or quiet\n", attr);
+      return (-1);
+    }
+  } else {
+    fprintf (stderr, "Invalid SASL attribute name %s\n", saslarg);
+    return (-1);
+  }
+  return 0;
+}
 
 
 
@@ -2480,46 +2578,52 @@ main (
   /*
    * Initialization
    */
-  mctx.attrlistNb   = 0;					/*JLS 15-03-01*/
-  mctx.attrsonly    = DEF_ATTRSONLY;				/*JLS 03-01-01*/
-  mctx.baseDN       = "o=sun,c=us";
-  mctx.baseDNLow    = -1;					/*JLS 13-11-00*/
-  mctx.baseDNHigh   = -1;					/*JLS 13-11-00*/
-  mctx.bindDN	    = NULL;
-  mctx.bindDNLow    = -1;					/*JLS 05-01-01*/
-  mctx.bindDNHigh   = -1;					/*JLS 05-01-01*/
-  mctx.dlf	    = NULL;					/*JLS 23-03-01*/
-  mctx.exitStatus   = EXIT_OK;					/*JLS 25-08-00*/
-  mctx.filter	    = NULL;
-  mctx.globStatsCnt = DEF_GLOBAL_NB;				/*JLS 08-08-00*/
-  mctx.hostname	    = "localhost";
-  mctx.ignErrNb     = 0;
-  mctx.images	    = NULL;					/*JLS 17-11-00*/
-  mctx.imagesDir    = DEF_IMAGES_PATH;				/*JLS 16-11-00*/
-  mctx.inactivMax   = DEF_INACTIV_MAX;
-  mctx.maxErrors    = DEF_MAX_ERRORS;
-  mctx.mode	    = NOTHING;
-  mctx.mod2	    = NOTHING;
-  mctx.nbNoActivity = 0;
-  mctx.nbSamples    = -1;
-  mctx.nbThreads    = DEF_NB_THREADS;
-  mctx.opListTail   = NULL;
-  mctx.passwd	    = NULL;
-  mctx.pid	    = getpid();
-  mctx.port	    = DEF_PORT;
-  mctx.randomLow    = -1;
-  mctx.randomHigh   = -1;
-  mctx.referral	    = DEF_REFERRAL;				/*JLS 08-03-01*/
-  mctx.sampling     = DEF_SAMPLING;
-  mctx.scope	    = DEF_SCOPE;
-  mctx.slaveConn    = 0;
-  mctx.slavesNb     = 0;
-  mctx.timeout	    = DEF_TIMEOUT;
-  mctx.totalReq	    = -1;
-  mctx.waitSec      = 0;
-  s1ctx.cnxduration = SCALAB01_DEF_CNX_DURATION;		/*JLS 12-01-01*/
-  s1ctx.maxcnxnb    = SCALAB01_DEF_MAX_CNX;			/*JLS 12-01-01*/
-  s1ctx.wait        = SCALAB01_DEF_WAIT_TIME;			/*JLS 12-01-01*/
+  mctx.attrlistNb    = 0;					/*JLS 15-03-01*/
+  mctx.attrsonly     = DEF_ATTRSONLY;				/*JLS 03-01-01*/
+  mctx.baseDN        = "dc=example,dc=com";
+  mctx.baseDNLow     = -1;					/*JLS 13-11-00*/
+  mctx.baseDNHigh    = -1;					/*JLS 13-11-00*/
+  mctx.bindDN	     = NULL;
+  mctx.bindDNLow     = -1;					/*JLS 05-01-01*/
+  mctx.bindDNHigh    = -1;					/*JLS 05-01-01*/
+  mctx.dlf	     = NULL;					/*JLS 23-03-01*/
+  mctx.exitStatus    = EXIT_OK;					/*JLS 25-08-00*/
+  mctx.filter	     = NULL;
+  mctx.globStatsCnt  = DEF_GLOBAL_NB;				/*JLS 08-08-00*/
+  mctx.hostname	     = "localhost";
+  mctx.ignErrNb      = 0;
+  mctx.images	     = NULL;					/*JLS 17-11-00*/
+  mctx.imagesDir     = DEF_IMAGES_PATH;				/*JLS 16-11-00*/
+  mctx.inactivMax    = DEF_INACTIV_MAX;
+  mctx.maxErrors     = DEF_MAX_ERRORS;
+  mctx.mode	     = NOTHING;
+  mctx.mod2	     = NOTHING;
+  mctx.nbNoActivity  = 0;
+  mctx.nbSamples     = -1;
+  mctx.nbThreads     = DEF_NB_THREADS;
+  mctx.opListTail    = NULL;
+  mctx.passwd	     = NULL;
+  mctx.pid	     = getpid();
+  mctx.port	     = DEF_PORT;
+  mctx.randomLow     = -1;
+  mctx.randomHigh    = -1;
+  mctx.referral	     = DEF_REFERRAL;				/*JLS 08-03-01*/
+  mctx.sampling      = DEF_SAMPLING;
+  mctx.sasl_authid   = NULL;
+  mctx.sasl_flags    = LDAP_SASL_QUIET;
+  mctx.sasl_mech     = NULL;
+  mctx.sasl_realm    = NULL;
+  mctx.sasl_secprops = NULL;
+  mctx.sasl_username = NULL;
+  mctx.scope	     = DEF_SCOPE;
+  mctx.slaveConn     = 0;
+  mctx.slavesNb      = 0;
+  mctx.timeout	     = DEF_TIMEOUT;
+  mctx.totalReq	     = -1;
+  mctx.waitSec       = 0;
+  s1ctx.cnxduration  = SCALAB01_DEF_CNX_DURATION;		/*JLS 12-01-01*/
+  s1ctx.maxcnxnb     = SCALAB01_DEF_MAX_CNX;			/*JLS 12-01-01*/
+  s1ctx.wait         = SCALAB01_DEF_WAIT_TIME;			/*JLS 12-01-01*/
 
   /*
    * Initiates the object *NOW*
@@ -2534,7 +2638,7 @@ main (
    * Get options
    */
   while ((opt_ret = getopt (argc, argv, 
-		"a:b:D:e:E:f:h:i:I:n:N:p:qQr:R:s:S:t:T:vVw:W:Z:H")) != EOF)
+		"a:b:D:e:E:f:h:i:I:n:N:o:p:qQr:R:s:S:t:T:vVw:W:Z:H")) != EOF)
     switch (opt_ret)
     {
       case 'a':
@@ -2584,6 +2688,11 @@ main (
       case 'N':
 	mctx.nbSamples = atoi (optarg);
 	break;
+      case 'o':
+        if (saslSetParam (optarg) < 0)
+          ldcltExit (EXIT_PARAMS);
+        mctx.mod2 |= M2_SASLAUTH;
+        break;
       case 'p':
 	mctx.port = atoi (optarg);
 	break;

@@ -588,7 +588,8 @@ am_ldap_agent_bin_OBJECTS =  \
 	ldap/servers/slapd/ldap_agent_bin-agtmmap.$(OBJEXT)
 ldap_agent_bin_OBJECTS = $(am_ldap_agent_bin_OBJECTS)
 ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am__ldclt_bin_SOURCES_DIST = ldap/servers/slapd/tools/ldclt/data.c \
+am__ldclt_bin_SOURCES_DIST = ldap/servers/slapd/tools/ldaptool-sasl.c \
+	ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
 	ldap/servers/slapd/tools/ldclt/ldclt.c \
 	ldap/servers/slapd/tools/ldclt/ldcltU.c \
@@ -602,6 +603,7 @@ am__ldclt_bin_SOURCES_DIST = ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/opCheck.c
 @SOLARIS_TRUE@am__objects_3 = ldap/servers/slapd/tools/ldclt/ldclt_bin-opCheck.$(OBJEXT)
 am_ldclt_bin_OBJECTS =  \
+	ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.$(OBJEXT) \
 	ldap/servers/slapd/tools/ldclt/ldclt_bin-data.$(OBJEXT) \
 	ldap/servers/slapd/tools/ldclt/ldclt_bin-ldapfct.$(OBJEXT) \
 	ldap/servers/slapd/tools/ldclt/ldclt_bin-ldclt.$(OBJEXT) \
@@ -872,7 +874,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -1780,7 +1781,8 @@ ldap_agent_bin_LDADD = $(NETSNMP_LINK)
 #------------------------
 # ldclt
 #------------------------
-ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
+ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
+	ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
 	ldap/servers/slapd/tools/ldclt/ldclt.c \
 	ldap/servers/slapd/tools/ldclt/ldcltU.c \
@@ -1791,7 +1793,7 @@ ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/utils.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c $(am__append_1)
-ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools @ldapsdk_inc@ @sasl_inc@ @nss_inc@ @nspr_inc@
 ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL)
 
 #------------------------
@@ -3553,6 +3555,9 @@ ldap/servers/slapd/ldap_agent_bin-agtmmap.$(OBJEXT):  \
 ldap-agent-bin$(EXEEXT): $(ldap_agent_bin_OBJECTS) $(ldap_agent_bin_DEPENDENCIES) 
 	@rm -f ldap-agent-bin$(EXEEXT)
 	$(LINK) $(ldap_agent_bin_LDFLAGS) $(ldap_agent_bin_OBJECTS) $(ldap_agent_bin_LDADD) $(LIBS)
+ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.$(OBJEXT):  \
+	ldap/servers/slapd/tools/$(am__dirstamp) \
+	ldap/servers/slapd/tools/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/tools/ldclt/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/slapd/tools/ldclt
 	@: > ldap/servers/slapd/tools/ldclt/$(am__dirstamp)
@@ -4492,6 +4497,7 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/tools/ldclt/ldclt_bin-utils.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/ldclt/ldclt_bin-version.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/ldclt/ldclt_bin-workarounds.$(OBJEXT)
+	-rm -f ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/ldif_bin-ldif.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/migratecred_bin-migratecred.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/mmldif_bin-mmldif.$(OBJEXT)
@@ -4988,6 +4994,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-vlv_key.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-vlv_srch.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/tools/$(DEPDIR)/dbscan_bin-dbscan.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/tools/$(DEPDIR)/ldif_bin-ldif.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/tools/$(DEPDIR)/migratecred_bin-migratecred.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/tools/$(DEPDIR)/mmldif_bin-mmldif.Po@am__quote@
@@ -7671,6 +7678,20 @@ ldap/servers/slapd/ldap_agent_bin-agtmmap.obj: ldap/servers/slapd/agtmmap.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/agtmmap.c' object='ldap/servers/slapd/ldap_agent_bin-agtmmap.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ldap_agent_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/ldap_agent_bin-agtmmap.obj `if test -f 'ldap/servers/slapd/agtmmap.c'; then $(CYGPATH_W) 'ldap/servers/slapd/agtmmap.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/agtmmap.c'; fi`
+
+ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.o: ldap/servers/slapd/tools/ldaptool-sasl.c
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ldclt_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.o -MD -MP -MF "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Tpo" -c -o ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.o `test -f 'ldap/servers/slapd/tools/ldaptool-sasl.c' || echo '$(srcdir)/'`ldap/servers/slapd/tools/ldaptool-sasl.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Tpo" "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Po"; else rm -f "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/tools/ldaptool-sasl.c' object='ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ldclt_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.o `test -f 'ldap/servers/slapd/tools/ldaptool-sasl.c' || echo '$(srcdir)/'`ldap/servers/slapd/tools/ldaptool-sasl.c
+
+ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.obj: ldap/servers/slapd/tools/ldaptool-sasl.c
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ldclt_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.obj -MD -MP -MF "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Tpo" -c -o ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.obj `if test -f 'ldap/servers/slapd/tools/ldaptool-sasl.c'; then $(CYGPATH_W) 'ldap/servers/slapd/tools/ldaptool-sasl.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/tools/ldaptool-sasl.c'; fi`; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Tpo" "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Po"; else rm -f "ldap/servers/slapd/tools/$(DEPDIR)/ldclt_bin-ldaptool-sasl.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/tools/ldaptool-sasl.c' object='ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ldclt_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/tools/ldclt_bin-ldaptool-sasl.obj `if test -f 'ldap/servers/slapd/tools/ldaptool-sasl.c'; then $(CYGPATH_W) 'ldap/servers/slapd/tools/ldaptool-sasl.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/tools/ldaptool-sasl.c'; fi`
 
 ldap/servers/slapd/tools/ldclt/ldclt_bin-data.o: ldap/servers/slapd/tools/ldclt/data.c
 @am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ldclt_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/tools/ldclt/ldclt_bin-data.o -MD -MP -MF "ldap/servers/slapd/tools/ldclt/$(DEPDIR)/ldclt_bin-data.Tpo" -c -o ldap/servers/slapd/tools/ldclt/ldclt_bin-data.o `test -f 'ldap/servers/slapd/tools/ldclt/data.c' || echo '$(srcdir)/'`ldap/servers/slapd/tools/ldclt/data.c; \

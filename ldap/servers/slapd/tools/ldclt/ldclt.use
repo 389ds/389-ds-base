@@ -1,6 +1,6 @@
 usage: ldclt [-qQvV] [-E <max errors>]
              [-b <base DN>] [-h <host>] [-p <port>] [-t <timeout>]
-             [-D <bind DN>] [-w <passwd>]
+             [-D <bind DN>] [-w <passwd>] [-o <SASL options>]
              [-e <execParams>] [-a <max pending>]
 	     [-n <nb threads>] [-i <nb times>] [-N <nb samples>]
 	     [-I <err number>] [-T <total>]
@@ -14,7 +14,7 @@ usage: ldclt [-qQvV] [-E <max errors>]
 
 	The valid options are:
 	 -a  Asynchronous mode, with max pending operations.
-	 -b  Give the base DN to use. Default "o=sun,c=us".
+	 -b  Give the base DN to use. Default "dc=example,dc=com".
 	 -D  Bind DN. See -w
 	 -E  Max errors allowed.                   Default 1000.
 	 -e  Execution parameters:
@@ -68,6 +68,7 @@ usage: ldclt [-qQvV] [-E <max errors>]
 	 -I  Ignore errors (cf. -E).               Default none.
 	 -n  Number of threads.                    Default 10.
 	 -N  Number of samples (10 seconds each).  Default infinite.
+	 -o  SASL Options.
 	 -p  Server port.                          Default 389.
 	 -P  Master port (to check replication).   Default 16000.
 	 -q  Quiet mode. See option -I.
