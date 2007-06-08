@@ -1,0 +1,255 @@
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2007 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+package SetupDialogs;
+
+use strict;
+
+use DialogManager;
+use Setup;
+use Dialog;
+use Net::Domain qw(hostfqdn);
+
+my $welcome = new DialogYesNo (
+    $EXPRESS,
+    ['dialog_welcome_text', 'brand', 'brand'],
+    1,
+    sub {
+        my $self = shift;
+        my $ans = shift;
+        my $res = $self->handleResponse($ans);
+        if ($res == $DialogManager::NEXT) {
+            $res = $DialogManager::ERR if (!$self->isYes());
+        }
+        return $res;
+    },
+    ['dialog_welcome_prompt'],
+);
+
+my $license = new DialogYesNo (
+    $EXPRESS,
+    'dialog_license_text',
+    0,
+    sub {
+        my $self = shift;
+        my $ans = shift;
+        my $res = $self->handleResponse($ans);
+        if ($res == $DialogManager::NEXT) {
+            $res = $DialogManager::ERR if (!$self->isYes());
+        }
+        return $res;
+    },
+    ['dialog_license_prompt']
+);
+
+my $setuptype = new Dialog (
+    $EXPRESS,
+    'dialog_setuptype_text',
+    sub {
+        my $self = shift;
+        return $self->{manager}->getType();
+    },
+    sub {
+        my $self = shift;
+        my $ans = shift;
+        my $res = $DialogManager::SAME;
+        if ($ans < $EXPRESS or $ans > $CUSTOM) {
+            $self->{manager}->alert("dialog_setuptype_error");
+        } else {
+            $res = $DialogManager::NEXT;
+            $self->{manager}->setType($ans);
+        }
+        return $res;
+    },
+    ['dialog_setuptype_prompt']
+);
+
+my $hostdlg = new Dialog (
+    $TYPICAL,
+    'dialog_hostname_text',
+    sub {
+        my $self = shift;
+        return $self->{manager}->{inf}->{General}->{FullMachineName} ||
+            hostfqdn;
+    },
+    sub {
+        my $self = shift;
+        my $ans = shift;
+        my $res = $DialogManager::NEXT;
+        if ($ans !~ /\./) {
+            $self->{manager}->alert("dialog_hostname_warning", $ans);
+        }
+        $self->{manager}->{inf}->{General}->{FullMachineName} = $ans;
+        return $res;
+    },
+    ['dialog_hostname_prompt']
+);
+
+# must verify that the user or uid specified by the user to run the server as
+# is a valid uid
+sub verifyUserChoice {
+    my $self = shift;
+    my $ans = shift;
+    my $res = $DialogManager::NEXT;
+    # convert numeric uid to string
+    my $strans = $ans;
+    if ($ans =~ /^\d/) { # numeric - convert to string
+        $strans = getpwuid $ans;
+        if (!$strans) {
+            $self->{manager}->alert("dialog_ssuser_error", $ans);
+            return $DialogManager::SAME;
+        }
+    }
+    if ($> != 0) { # if not root, the user must be our uid
+        my $username = getlogin;
+        if ($strans ne $username) {
+            $self->{manager}->alert("dialog_ssuser_must_be_same", $username);
+            return $DialogManager::SAME;
+        }
+    } else { # user is root - verify id
+        my $nuid = getpwnam $strans;
+        if (!defined($nuid)) {
+            $self->{manager}->alert("dialog_ssuser_error", $ans);
+            return $DialogManager::SAME;
+        }
+        if (!$nuid) {
+            $self->{manager}->alert("dialog_ssuser_root_warning");
+        }
+    }
+    $self->{manager}->{inf}->{General}->{SuiteSpotUserID} = $ans;
+    return $res;
+}
+
+# must verify that the given group is one of the groups the given user
+# belongs to
+sub verifyGroupChoice {
+    my $self = shift;
+    my $ans = shift;
+    my $res = $DialogManager::NEXT;
+    my ($dummy, $memstr);
+    my $strgrp;
+    my $numgrp;
+    if ($ans =~ /^\d/) { # numeric
+        $numgrp = $ans;
+        ($strgrp, $dummy, $dummy, $memstr) = getgrgid $ans;
+    } else {
+        $strgrp = $ans;
+        ($dummy, $dummy, $numgrp, $memstr) = getgrnam $ans;
+    }
+
+    if (!defined($strgrp) or !defined($numgrp)) {
+        $self->{manager}->alert("dialog_ssgroup_error", $ans);
+        return $DialogManager::SAME;
+    }
+
+    # get the user id, and then get the user's default group id
+    my $uid = $self->{manager}->{inf}->{General}->{SuiteSpotUserID};
+    my $usergid;
+    if ($uid =~ /^\d/) { # numeric
+        ($uid, $dummy, $dummy, $usergid, $dummy) = getpwuid $uid;
+    } else { # string
+        ($uid, $dummy, $dummy, $usergid, $dummy) = getpwnam $uid;
+    }
+
+    if ($numgrp == $usergid) {
+        $self->{manager}->{inf}->{General}->{SuiteSpotGroup} = $ans;
+    } elsif ($memstr) { # see if the user is in the member list
+        if ($memstr =~ /\b$uid\b/) { # uid exactly matches one of the users in the member string
+            $self->{manager}->{inf}->{General}->{SuiteSpotGroup} = $ans;
+        } else { # no match
+            $self->{manager}->alert("dialog_ssgroup_no_match",
+                                   $self->{manager}->{inf}->{General}->{SuiteSpotUserID},
+                                   $ans, $memstr);
+            $res = $DialogManager::SAME;
+        }
+    } else { # user not in group
+        $self->{manager}->alert("dialog_ssgroup_no_user",
+                                $self->{manager}->{inf}->{General}->{SuiteSpotUserID},
+                                $ans);
+        $res = $DialogManager::SAME;
+    }
+    return $res;
+}
+
+my $usergroup = new Dialog (
+    $TYPICAL,
+    'dialog_ssuser_text',
+    sub {
+        my $self = shift;
+        my $index = shift;
+        if ($index == 0) {
+            my $username = $self->{manager}->{inf}->{General}->{SuiteSpotUserID};
+            if (!$username) {
+                if ($> == 0) { # if root, use the default user
+                    $username = "\@defaultuser\@";
+                } else { # if not root, use the user's uid
+                    $username = getlogin;
+                }
+            }
+            return $username;
+        } else { # group
+            my $groupname = $self->{manager}->{inf}->{General}->{SuiteSpotGroup};
+            if (!$groupname) {
+                if ($> == 0) { # if root, use the default group
+                    $groupname = "\@defaultgroup\@";
+                } else { # if not root, use the user's gid
+                    $groupname = getgrgid $(;
+                }
+            }
+            return $groupname;
+        }
+    },
+    sub {
+        my $self = shift;
+        my $ans = shift;
+        my $index = shift;
+        if ($index == 0) {
+            return verifyUserChoice($self, $ans);
+        } else {
+            return verifyGroupChoice($self, $ans);
+        }
+    },
+    ['dialog_ssuser_prompt'], ['dialog_ssgroup_prompt']
+);
+
+
+sub getDialogs {
+    return ($welcome, $license, $setuptype, $hostdlg, $usergroup);
+}
+
+1;

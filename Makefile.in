@@ -94,8 +94,9 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(taskdir)" \
-	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(perldir)" \
+	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" \
 	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
@@ -268,7 +269,8 @@ am_libhttp_client_plugin_la_OBJECTS = ldap/servers/plugins/http/libhttp_client_p
 libhttp_client_plugin_la_OBJECTS =  \
 	$(am_libhttp_client_plugin_la_OBJECTS)
 libns_dshttpd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am__objects_1 = lib/ldaputil/libns_dshttpd_la-cert.lo \
 	lib/ldaputil/libns_dshttpd_la-certmap.lo \
 	lib/ldaputil/libns_dshttpd_la-dbconf.lo \
@@ -711,8 +713,10 @@ rsearch_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 initSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+perlSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 taskSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(task_SCRIPTS)
+SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(perl_SCRIPTS) \
+	$(task_SCRIPTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -786,10 +790,11 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(rsearch_bin_SOURCES)
 configDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
+propertyDATA_INSTALL = $(INSTALL_DATA)
 sampledataDATA_INSTALL = $(INSTALL_DATA)
 schemaDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(config_DATA) $(nodist_property_DATA) $(sampledata_DATA) \
-	$(schema_DATA)
+DATA = $(config_DATA) $(nodist_property_DATA) $(property_DATA) \
+	$(sampledata_DATA) $(schema_DATA)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -892,11 +897,13 @@ am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
 bindir = @bindir@
+brand = @brand@
 build = @build@
 build_alias = @build_alias@
 build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
+capbrand = @capbrand@
 
 #------------------------
 # Install Paths
@@ -952,6 +959,7 @@ nss_inc = @nss_inc@
 nss_lib = @nss_lib@
 nss_libdir = @nss_libdir@
 oldincludedir = @oldincludedir@
+perldir = $(libdir)@perldir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 propertydir = $(sysconfdir)@propertydir@
@@ -969,6 +977,7 @@ svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
+vendor = @vendor@
 
 # look for included m4 files in the ./m4/ directory
 ACLOCAL_AMFLAGS = -I m4
@@ -1092,8 +1101,21 @@ bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/cl-dump \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
-	ldap/admin/src/scripts/repl-monitor.pl
+	ldap/admin/src/scripts/repl-monitor.pl \
+	ldap/admin/src/scripts/setup-ds.pl
 
+perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
+	ldap/admin/src/scripts/Resource.pm \
+	ldap/admin/src/scripts/Util.pm \
+	ldap/admin/src/scripts/Setup.pm \
+	ldap/admin/src/scripts/SetupDialogs.pm \
+	ldap/admin/src/scripts/Inf.pm \
+	ldap/admin/src/scripts/DialogManager.pm \
+	ldap/admin/src/scripts/Dialog.pm \
+	ldap/admin/src/scripts/DSDialogs.pm \
+	ldap/admin/src/scripts/Setup.pm
+
+property_DATA = ldap/admin/src/scripts/setup-ds.res
 task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak \
 	ldap/admin/src/scripts/template-db2index \
@@ -1243,7 +1265,7 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	$(libldaputil_a_SOURCES)
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
+libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libslapd
@@ -1883,7 +1905,11 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 @BUNDLE_FALSE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
 @BUNDLE_FALSE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
-@BUNDLE_FALSE@	-e 's,@ECHO_C\@,$(ECHO_C),g'
+@BUNDLE_FALSE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
+@BUNDLE_FALSE@	-e 's,@brand\@,$(brand),g' \
+@BUNDLE_FALSE@	-e 's,@capbrand\@,$(capbrand),g' \
+@BUNDLE_FALSE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+@BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -1916,7 +1942,11 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 @BUNDLE_TRUE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
 @BUNDLE_TRUE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
-@BUNDLE_TRUE@	-e 's,@ECHO_C\@,$(ECHO_C),g'
+@BUNDLE_TRUE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
+@BUNDLE_TRUE@	-e 's,@brand\@,$(brand),g' \
+@BUNDLE_TRUE@	-e 's,@capbrand\@,$(capbrand),g' \
+@BUNDLE_TRUE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+@BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -3752,6 +3782,25 @@ uninstall-initSCRIPTS:
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
 	  echo " rm -f '$(DESTDIR)$(initdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(initdir)/$$f"; \
+	done
+install-perlSCRIPTS: $(perl_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(perldir)" || $(mkdir_p) "$(DESTDIR)$(perldir)"
+	@list='$(perl_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(perlSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(perldir)/$$f'"; \
+	    $(perlSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(perldir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-perlSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(perl_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(perldir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(perldir)/$$f"; \
 	done
 install-taskSCRIPTS: $(task_SCRIPTS)
 	@$(NORMAL_INSTALL)
@@ -8768,6 +8817,23 @@ uninstall-nodist_propertyDATA:
 	  echo " rm -f '$(DESTDIR)$(propertydir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(propertydir)/$$f"; \
 	done
+install-propertyDATA: $(property_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(propertydir)" || $(mkdir_p) "$(DESTDIR)$(propertydir)"
+	@list='$(property_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(propertyDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(propertydir)/$$f'"; \
+	  $(propertyDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(propertydir)/$$f"; \
+	done
+
+uninstall-propertyDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(property_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(propertydir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(propertydir)/$$f"; \
+	done
 install-sampledataDATA: $(sampledata_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(sampledatadir)" || $(mkdir_p) "$(DESTDIR)$(sampledatadir)"
@@ -8984,7 +9050,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9113,9 +9179,10 @@ info: info-am
 info-am:
 
 install-data-am: install-configDATA install-initSCRIPTS \
-	install-nodist_propertyDATA install-sampledataDATA \
-	install-schemaDATA install-serverLTLIBRARIES \
-	install-serverpluginLTLIBRARIES install-taskSCRIPTS
+	install-nodist_propertyDATA install-perlSCRIPTS \
+	install-propertyDATA install-sampledataDATA install-schemaDATA \
+	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
+	install-taskSCRIPTS
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS \
 	install-sbinPROGRAMS
@@ -9148,7 +9215,8 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-info-am uninstall-initSCRIPTS \
-	uninstall-nodist_propertyDATA uninstall-sampledataDATA \
+	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
+	uninstall-propertyDATA uninstall-sampledataDATA \
 	uninstall-sbinPROGRAMS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
 	uninstall-taskSCRIPTS
@@ -9165,7 +9233,8 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	install-binPROGRAMS install-binSCRIPTS install-configDATA \
 	install-data install-data-am install-exec install-exec-am \
 	install-info install-info-am install-initSCRIPTS install-man \
-	install-nodist_propertyDATA install-sampledataDATA \
+	install-nodist_propertyDATA install-perlSCRIPTS \
+	install-propertyDATA install-sampledataDATA \
 	install-sbinPROGRAMS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-strip install-taskSCRIPTS installcheck installcheck-am \
@@ -9174,7 +9243,8 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-info-am uninstall-initSCRIPTS \
-	uninstall-nodist_propertyDATA uninstall-sampledataDATA \
+	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
+	uninstall-propertyDATA uninstall-sampledataDATA \
 	uninstall-sbinPROGRAMS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
 	uninstall-taskSCRIPTS

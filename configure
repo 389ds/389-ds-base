@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/$PACKAGE_NAME
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_bitwise_TRUE enable_bitwise_FALSE configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_bitwise_TRUE enable_bitwise_FALSE configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -23054,6 +23054,10 @@ fi
 # the default prefix - override with --prefix or --with-fhs
 
 
+brand=fedora
+capbrand=Fedora
+vendor="Fedora Project"
+
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2006 Red Hat, Inc.
 # All rights reserved.
@@ -23177,6 +23181,9 @@ configdir=/$PACKAGE_NAME/config
 propertydir=/$PACKAGE_NAME/property
 # relative to sysconfdir
 schemadir=/$PACKAGE_NAME/schema
+# relative to libdir
+perldir=/$PACKAGE_NAME/perl
+
 
 
 
@@ -25147,6 +25154,10 @@ fi
 
 
 
+
+
+
+
 cat >>confdefs.h <<\_ACEOF
 #define LDAP_DEBUG 1
 _ACEOF
@@ -25978,6 +25989,7 @@ s,@schemadir@,$schemadir,;t t
 s,@serverdir@,$serverdir,;t t
 s,@serverplugindir@,$serverplugindir,;t t
 s,@scripttemplatedir@,$scripttemplatedir,;t t
+s,@perldir@,$perldir,;t t
 s,@instconfigdir@,$instconfigdir,;t t
 s,@WINNT_TRUE@,$WINNT_TRUE,;t t
 s,@WINNT_FALSE@,$WINNT_FALSE,;t t
@@ -26022,6 +26034,9 @@ s,@netsnmp_inc@,$netsnmp_inc,;t t
 s,@netsnmp_lib@,$netsnmp_lib,;t t
 s,@netsnmp_libdir@,$netsnmp_libdir,;t t
 s,@netsnmp_link@,$netsnmp_link,;t t
+s,@brand@,$brand,;t t
+s,@capbrand@,$capbrand,;t t
+s,@vendor@,$vendor,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF
 

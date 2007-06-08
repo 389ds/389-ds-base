@@ -74,6 +74,7 @@ serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
 initdir = $(sysconfdir)@initdir@
 instconfigdir = @instconfigdir@
+perldir = $(libdir)@perldir@
 
 #------------------------
 # Build Products
@@ -167,7 +168,21 @@ bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/cl-dump \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
-	ldap/admin/src/scripts/repl-monitor.pl
+	ldap/admin/src/scripts/repl-monitor.pl \
+	ldap/admin/src/scripts/setup-ds.pl
+
+perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
+	ldap/admin/src/scripts/Resource.pm \
+	ldap/admin/src/scripts/Util.pm \
+	ldap/admin/src/scripts/Setup.pm \
+	ldap/admin/src/scripts/SetupDialogs.pm \
+	ldap/admin/src/scripts/Inf.pm \
+	ldap/admin/src/scripts/DialogManager.pm \
+	ldap/admin/src/scripts/Dialog.pm \
+	ldap/admin/src/scripts/DSDialogs.pm \
+	ldap/admin/src/scripts/Setup.pm
+
+property_DATA = ldap/admin/src/scripts/setup-ds.res
 
 task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak \
@@ -327,7 +342,7 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	$(libldaputil_a_SOURCES)
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK)
+libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libslapd
@@ -997,7 +1012,11 @@ fixupcmd = sed \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
-	-e 's,@ECHO_C\@,$(ECHO_C),g'
+	-e 's,@ECHO_C\@,$(ECHO_C),g' \
+	-e 's,@brand\@,$(brand),g' \
+	-e 's,@capbrand\@,$(capbrand),g' \
+	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@perldir\@,$(perldir),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1023,7 +1042,11 @@ fixupcmd = sed \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
-	-e 's,@ECHO_C\@,$(ECHO_C),g'
+	-e 's,@ECHO_C\@,$(ECHO_C),g' \
+	-e 's,@brand\@,$(brand),g' \
+	-e 's,@capbrand\@,$(capbrand),g' \
+	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@perldir\@,$(perldir),g'
 endif
 
 %: %.in

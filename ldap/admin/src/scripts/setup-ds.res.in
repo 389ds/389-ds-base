@@ -1,0 +1,81 @@
+# ------------ Global Resources -----------
+brand = @capbrand@
+yes = yes
+no = no
+yes_no_error = Please answer "yes" or "no"\n\n
+setup_err_exit = Setup cannot proceed.  Exiting.\n\n
+dialog_use_different_type = When using Silent or Express mode, some of the\ndialogs are skipped, but validation is still performed\non the default or given answers.  You should run this program again and\nchoose Typical or Custom mode in order to provide a valid input\nfor the problem dialog.\n\n
+
+# ------------ Welcome Dialog Resource ------------
+dialog_welcome_text = This program will setup the %s Directory Server.\n\nIt is recommended that you have "root" privilege to setup the software.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the setup program\n  - You can enter multiple items using commas to separate them.\n    For example: 1, 2, 3 \n\n
+# %s -> brand
+
+dialog_welcome_prompt = Would you like to continue with setup?
+
+# ----------- License Dialog Resource  -----------
+dialog_license_text = BY SETTING UP AND USING THIS SOFTWARE YOU ARE CONSENTING TO BE BOUND BY\nAND ARE BECOMING A PARTY TO THE AGREEMENT FOUND IN THE\nLICENSE.TXT FILE. IF YOU DO NOT AGREE TO ALL OF THE TERMS\nOF THIS AGREEMENT, PLEASE DO NOT SETUP OR USE THIS SOFTWARE.\n\n
+
+dialog_license_prompt = Do you agree to the license terms?
+
+
+# ----------- Setup Type Dialog Resource  ----------------
+dialog_setuptype_text = Choose a setup type:\n\n   1. Express\n       Allows you to quickly setup the servers using the most\n       common options and pre-defined defaults. Useful for quick\n       evaluation of the products.\n\n   2. Typical\n       Allows you to specify common defaults and options.\n\n   3. Custom\n       Allows you to specify more advanced options. This is \n       recommended for experienced server administrators only.\n\nTo accept the default shown in brackets, press the Enter key.\n\n
+
+dialog_setuptype_prompt = Choose a setup type
+
+dialog_setuptype_error = Invalid setup type\n\n
+
+
+# ----------- HostName Dialog Resource  ----------------
+dialog_hostname_text = Enter the fully qualified domain name of the computer\non which you're setting up server software. Using the form\n<hostname>.<domainname>\nExample: eros.example.com.\n\nTo accept the default shown in brackets, press the Enter key.\n\n
+
+dialog_hostname_prompt = Computer name
+
+dialog_hostname_warning = The hostname %s does not look like a\nfully qualified host and domain name.\nIf you feel you have made a mistake,\nplease go back to this dialog and enter another name.\n\n
+
+# ----------- SSUser Dialog Resource  ----------------
+dialog_ssuser_text = The server must run as a specific user in a specific group.\nIt is strongly recommended that this user should have no privileges\non the computer (i.e. a non-root user).  The Administration Server\nwill give this user/group some permissions in specific paths/files\nto perform server-specific operations.\n\nIf you have not yet created a user and group for the server,\ncreate this user and group using your native operating\nsystem utilities.\n\n
+
+dialog_ssuser_prompt = System User
+dialog_ssuser_error = The user '%s' is invalid.\n\n
+dialog_ssuser_must_be_same = Since you are not running setup as root, the System User must be the same as your userid '%s'.\n\n
+dialog_ssuser_root_warning = You are strongly discouraged to use a non-root user for the server uid.\nIf you feel you have made a mistake,\nplease go back to this dialog and enter another system user.\n\n
+dialog_ssgroup_prompt = System Group
+dialog_ssgroup_error = The group '%s' is invalid.\n\n
+dialog_ssgroup_no_match = The system user '%s' does not belong to the group '%s'.\n\nThis is the list of users of the given group: %s\n\n
+dialog_ssgroup_no_user = The system user '%s' does not belong to the group '%s'.\n\n
+
+# ----------- DS port Dialog Resource  ----------------
+dialog_dsport_text = The standard directory server network port number is 389.  However, if\nyou are not logged as the superuser, or port 389 is in use, the\ndefault value will be a random unused port number greater than 1024.\nIf you want to use port 389, make sure that you are logged in as the\nsuperuser, that port 389 is not in use.\n\n
+dialog_dsport_prompt = Directory server network port
+dialog_dsport_error = The port %s is in use or not available.  Please choose another port.\n\n
+
+# ----------- DS server ID Dialog Resource  ----------------
+dialog_dsserverid_text = Each instance of a directory server requires a unique identifier.\nThis identifier is used to name the various\ninstance specific files and directories in the file system,\nas well as for other uses as a server instance identifier.\n\n
+dialog_dsserverid_prompt = Directory server identifier
+dialog_dsserverid_error = The server identifier '%s' is not valid.  Please choose another one.\n\n
+dialog_dsserverid_inuse = The server identifier '%s' is already in use.  Please choose another one.\n\n
+
+# ----------- DS suffix Dialog Resource  ----------------
+dialog_dssuffix_text = The suffix is the root of your directory tree.  The suffix must be a valid DN.\nIt is recommended that you use the dc=domaincomponent suffix convention.\nFor example, if your domain is example.com,\nyou should use dc=example,dc=com for your suffix.\nSetup will create this initial suffix for you,\nbut you may have more than one suffix.\nUse the directory server utilities to create additional suffixes.\n\n
+dialog_dssuffix_prompt = Suffix
+dialog_dssuffix_error = The suffix '%s' is not a valid DN.  Please choose another one.\n\n
+
+# ----------- DS Root DN and password Dialog Resource  ----------------
+dialog_dsrootdn_text = Certain directory server operations require an administrative user.\nThis user is referred to as the Directory Manager and typically has a\nbind Distinguished Name (DN) of cn=Directory Manager.\nYou will also be prompted for the password for this user.  The password must\nbe at least 8 characters long, and contain no spaces.\n\n
+dialog_dsrootdn_prompt = Directory Manager DN
+dialog_dsrootdn_error = The input '%s' is not a valid DN.  Please choose another one.\n\n
+dialog_dsrootpw_prompt1 = Password
+dialog_dsrootpw_prompt2 = Password (again)
+dialog_dsrootpw_invalid = The password contains invalid characters.  Please choose another one.\n\n
+dialog_dsrootpw_tooshort = The password must be at least %s characters long.  Please choose another one.\n\n
+dialog_dsrootpw_nomatch = The passwords do not match.  Please try again.\n\n
+
+# ----------- DS Sample Data Dialog Resource  ----------------
+dialog_dssample_text = You may install some sample entries in this directory instance.  These\nentries will be installed in a separate suffix and will not interfere\nwith the normal operation of the directory server.\n\n
+dialog_dssample_prompt = Do you want to install the sample entries?
+
+# ----------- DS Populate Data Dialog Resource  ----------------
+dialog_dspopulate_text = You may wish to populate your new directory instance with some data.\n"You may already have a file in LDIF format to use or some suggested\nentries can be added.  If you want to import entries from an LDIF\nfile, you may type in the full path and filename at the prompt.  If\nyou want the setup program to add the suggested entries, type the\nword suggest at the prompt.  The suggested entries are common\ncontainer entries under your specified suffix, such as ou=People and\nou=Groups, which are commonly used to hold the entries for the persons\nand groups in your organization.  If you do not want to add any of\nthese entries, type the word none at the prompt.\n\n
+dialog_dspopulate_prompt = Type the full path and filename, the word suggest, or the word none
+dialog_dspopulate_error = The file '%s' was not found.  Please choose another one.\n\n

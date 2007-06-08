@@ -139,6 +139,10 @@ AM_CONDITIONAL(enable_bitwise,test "$enable_bitwise" = "yes")
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
+brand=fedora
+capbrand=Fedora
+vendor="Fedora Project"
+
 m4_include(m4/fhs.m4)
 
 # installation paths - by default, we store everything
@@ -186,6 +190,8 @@ configdir=/$PACKAGE_NAME/config
 propertydir=/$PACKAGE_NAME/property
 # relative to sysconfdir
 schemadir=/$PACKAGE_NAME/schema
+# relative to libdir
+perldir=/$PACKAGE_NAME/perl
 
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
@@ -194,6 +200,7 @@ AC_SUBST(schemadir)
 AC_SUBST(serverdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
+AC_SUBST(perldir)
 
 # check for --with-instconfigdir
 AC_MSG_CHECKING(for --with-instconfigdir)
@@ -331,6 +338,10 @@ AC_SUBST(netsnmp_inc)
 AC_SUBST(netsnmp_lib)
 AC_SUBST(netsnmp_libdir)
 AC_SUBST(netsnmp_link)
+
+AC_SUBST(brand)
+AC_SUBST(capbrand)
+AC_SUBST(vendor)
 
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
