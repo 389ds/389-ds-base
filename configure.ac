@@ -186,8 +186,8 @@ fi
 # Shared paths for all layouts
 # relative to sysconfdir
 configdir=/$PACKAGE_NAME/config
-# relative to sysconfdir
-propertydir=/$PACKAGE_NAME/property
+# location of property/resource files, relative to datadir
+propertydir=/$PACKAGE_NAME/properties
 # relative to sysconfdir
 schemadir=/$PACKAGE_NAME/schema
 # relative to libdir
@@ -223,6 +223,7 @@ AC_SUBST(instconfigdir)
 # cygnus, mingw, or the like and using cmd.exe as the shell
 AM_CONDITIONAL([WINNT], false)
 
+shared_lib_suffix=.so
 # Deal with platform dependent defines
 # relative to sysconfdir
 initdir=/rc.d
@@ -260,6 +261,7 @@ case $host in
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
+    shared_lib_suffix=.sl
     platform="hpux"
     ;;
   sparc-sun-solaris*)
@@ -295,6 +297,7 @@ dnl Cstd and Crun are required to link any C++ related code
     ;;
 esac
 AC_SUBST(initdir)
+AC_SUBST(shared_lib_suffix)
 
 AM_CONDITIONAL(HPUX,test "$platform" = "hpux")
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")

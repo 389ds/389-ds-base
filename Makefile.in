@@ -962,7 +962,7 @@ oldincludedir = @oldincludedir@
 perldir = $(libdir)@perldir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
-propertydir = $(sysconfdir)@propertydir@
+propertydir = $(datadir)@propertydir@
 sampledatadir = $(datadir)@sampledatadir@
 sasl_inc = @sasl_inc@
 sasl_lib = @sasl_lib@
@@ -972,6 +972,7 @@ schemadir = $(sysconfdir)@schemadir@
 scripttemplatedir = @scripttemplatedir@
 serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
+shared_lib_suffix = @shared_lib_suffix@
 sharedstatedir = @sharedstatedir@
 svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
@@ -1909,7 +1910,8 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@brand\@,$(brand),g' \
 @BUNDLE_FALSE@	-e 's,@capbrand\@,$(capbrand),g' \
 @BUNDLE_FALSE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
-@BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g'
+@BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g' \
+@BUNDLE_FALSE@	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -1946,7 +1948,8 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@brand\@,$(brand),g' \
 @BUNDLE_TRUE@	-e 's,@capbrand\@,$(capbrand),g' \
 @BUNDLE_TRUE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
-@BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g'
+@BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g' \
+@BUNDLE_TRUE@	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am

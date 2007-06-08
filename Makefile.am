@@ -67,7 +67,7 @@ dberrstrs.h: Makefile
 #------------------------
 configdir = $(sysconfdir)@configdir@
 sampledatadir = $(datadir)@sampledatadir@
-propertydir = $(sysconfdir)@propertydir@
+propertydir = $(datadir)@propertydir@
 schemadir = $(sysconfdir)@schemadir@
 serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
@@ -75,6 +75,8 @@ taskdir = $(datadir)@scripttemplatedir@
 initdir = $(sysconfdir)@initdir@
 instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
+
+shared_lib_suffix = @shared_lib_suffix@
 
 #------------------------
 # Build Products
@@ -1016,7 +1018,8 @@ fixupcmd = sed \
 	-e 's,@brand\@,$(brand),g' \
 	-e 's,@capbrand\@,$(capbrand),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
-	-e 's,@perldir\@,$(perldir),g'
+	-e 's,@perldir\@,$(perldir),g' \
+	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1046,7 +1049,8 @@ fixupcmd = sed \
 	-e 's,@brand\@,$(brand),g' \
 	-e 's,@capbrand\@,$(capbrand),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
-	-e 's,@perldir\@,$(perldir),g'
+	-e 's,@perldir\@,$(perldir),g' \
+	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 endif
 
 %: %.in

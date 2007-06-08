@@ -51,41 +51,44 @@ sub new {
     my $type = shift;
     my $self = {};
 
-    $self->{filename} = shift;
+    while (@_) {
+        push @{$self->{filenames}}, shift;
+    }
 
     $self = bless $self, $type;
 
-    if ($self->{filename}) {
+    if (@{$self->{filenames}}) {
         $self->read();
     }
 
     return $self;
 }
 
+# the resource files are read in order given.  Definitions from
+# later files override the same definitions in earlier files.
 sub read {
     my $self = shift;
-    my $filename = shift;
 
-    if ($filename) {
-        $self->{filename} = $filename;
-    } else {
-        $filename = $self->{filename};
+    while (@_) {
+        push @{$self->{filenames}}, shift;
     }
 
-    open RES, $filename or die "Error: could not open resource file $filename: $!";
-    while (<RES>) {
-        next if (/^\s*$/); # skip blank lines
-        next if (/^\s*\#/); # skip comment lines
-        # read name = value pairs like this
-        # bol whitespace* name whitespace* '=' whitespace* value eol
-        # the value will include any trailing whitespace
-        if (/^\s*(.*?)\s*=\s*(.*?)$/) {
-            $self->{res}->{$1} = $2;
-            # replace \n with real newline
-            $self->{res}->{$1} =~ s/\\n/\n/g;
+    for my $filename (@{$self->{filenames}}) {
+        open RES, $filename or die "Error: could not open resource file $filename: $!";
+        while (<RES>) {
+            next if (/^\s*$/); # skip blank lines
+            next if (/^\s*\#/); # skip comment lines
+            # read name = value pairs like this
+            # bol whitespace* name whitespace* '=' whitespace* value eol
+            # the value will include any trailing whitespace
+            if (/^\s*(.*?)\s*=\s*(.*?)$/) {
+                $self->{res}->{$1} = $2;
+                # replace \n with real newline
+                $self->{res}->{$1} =~ s/\\n/\n/g;
+            }
         }
-	}
-    close RES;
+        close RES;
+    }
 }
 
 # given a resource key and optional args, return the value

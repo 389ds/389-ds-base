@@ -34,12 +34,12 @@ dialog_hostname_prompt = Computer name
 dialog_hostname_warning = The hostname %s does not look like a\nfully qualified host and domain name.\nIf you feel you have made a mistake,\nplease go back to this dialog and enter another name.\n\n
 
 # ----------- SSUser Dialog Resource  ----------------
-dialog_ssuser_text = The server must run as a specific user in a specific group.\nIt is strongly recommended that this user should have no privileges\non the computer (i.e. a non-root user).  The Administration Server\nwill give this user/group some permissions in specific paths/files\nto perform server-specific operations.\n\nIf you have not yet created a user and group for the server,\ncreate this user and group using your native operating\nsystem utilities.\n\n
+dialog_ssuser_text = The server must run as a specific user in a specific group.\nIt is strongly recommended that this user should have no privileges\non the computer (i.e. a non-root user).  The setup procedure\nwill give this user/group some permissions in specific paths/files\nto perform server-specific operations.\n\nIf you have not yet created a user and group for the server,\ncreate this user and group using your native operating\nsystem utilities.\n\n
 
 dialog_ssuser_prompt = System User
 dialog_ssuser_error = The user '%s' is invalid.\n\n
 dialog_ssuser_must_be_same = Since you are not running setup as root, the System User must be the same as your userid '%s'.\n\n
-dialog_ssuser_root_warning = You are strongly discouraged to use a non-root user for the server uid.\nIf you feel you have made a mistake,\nplease go back to this dialog and enter another system user.\n\n
+dialog_ssuser_root_warning = You are strongly encouraged to use a non-root user for the server uid.\nIf you feel you have made a mistake,\nplease go back to this dialog and enter another system user.\n\n
 dialog_ssgroup_prompt = System Group
 dialog_ssgroup_error = The group '%s' is invalid.\n\n
 dialog_ssgroup_no_match = The system user '%s' does not belong to the group '%s'.\n\nThis is the list of users of the given group: %s\n\n

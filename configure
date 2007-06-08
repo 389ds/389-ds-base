@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/$PACKAGE_NAME
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_bitwise_TRUE enable_bitwise_FALSE configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_bitwise_TRUE enable_bitwise_FALSE configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir shared_lib_suffix HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -23177,8 +23177,8 @@ fi
 # Shared paths for all layouts
 # relative to sysconfdir
 configdir=/$PACKAGE_NAME/config
-# relative to sysconfdir
-propertydir=/$PACKAGE_NAME/property
+# location of property/resource files, relative to datadir
+propertydir=/$PACKAGE_NAME/properties
 # relative to sysconfdir
 schemadir=/$PACKAGE_NAME/schema
 # relative to libdir
@@ -23228,6 +23228,7 @@ else
 fi
 
 
+shared_lib_suffix=.so
 # Deal with platform dependent defines
 # relative to sysconfdir
 initdir=/rc.d
@@ -23361,6 +23362,7 @@ cat >>confdefs.h <<\_ACEOF
 #define _HPUX_SOURCE 1
 _ACEOF
 
+    shared_lib_suffix=.sl
     platform="hpux"
     ;;
   sparc-sun-solaris*)
@@ -23442,6 +23444,7 @@ _ACEOF
     platform=""
     ;;
 esac
+
 
 
 
@@ -25999,6 +26002,7 @@ s,@LIBDL@,$LIBDL,;t t
 s,@LIBCSTD@,$LIBCSTD,;t t
 s,@LIBCRUN@,$LIBCRUN,;t t
 s,@initdir@,$initdir,;t t
+s,@shared_lib_suffix@,$shared_lib_suffix,;t t
 s,@HPUX_TRUE@,$HPUX_TRUE,;t t
 s,@HPUX_FALSE@,$HPUX_FALSE,;t t
 s,@SOLARIS_TRUE@,$SOLARIS_TRUE,;t t
