@@ -283,21 +283,16 @@ import_get_version(char *str)
     offset = s - str;
     mystr = ms = slapi_ch_strdup(str);
     while ( (s = ldif_getline( &ms )) != NULL ) {
-        char *errmsg = NULL;
-	if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen, &errmsg )) >= 0 ) {
+	if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) >= 0 ) {
 	    if (!strcasecmp(type, "version")) {
 		my_version = atoi(valuecharptr);
 		*(str + offset) = '#';
 		/* the memory below was not allocated by the slapi_ch_ functions */
-		if (errmsg) PR_smprintf_free(errmsg);
 		if (retmalloc) slapi_ch_free((void **) &valuecharptr);
 		break;
 	    } 
-	} else if ( errmsg != NULL ) {
-	    LDAPDebug( LDAP_DEBUG_PARSE, "%s", errmsg, 0, 0 );
 	}
 	/* the memory below was not allocated by the slapi_ch_ functions */
-	if (errmsg) slapi_ch_free((void **) &errmsg);
 	if (retmalloc) slapi_ch_free((void **) &valuecharptr);
     }
 

@@ -428,8 +428,6 @@ parse_changes_string(char *str)
 		slapi_mod_init (&mod, 0);		
 		while (line)
 		{		
-		        char * errmsg = NULL;
-
 			if (strcasecmp (line, "-") == 0)
 			{
 				if (slapi_mod_isvalid (&mod))
@@ -446,14 +444,10 @@ parse_changes_string(char *str)
 				break;
 			}
 
-			rc = ldif_parse_line(line, &type, &value, &vlen, &errmsg);
+			rc = ldif_parse_line(line, &type, &value, &vlen);
 			if (rc != 0)
 			{
 				/* ONREPL - log warning */
-			        if ( errmsg != NULL ) {
-				        slapi_log_error( SLAPI_LOG_PARSE, repl_plugin_name, "%s", errmsg ); 
-					PR_smprintf_free(errmsg );
-				}
 				slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, 
 						 "Failed to parse the ldif line.\n");
 				continue;

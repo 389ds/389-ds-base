@@ -4988,21 +4988,15 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 	next = ldifEntry;
 	while ((line = ldif_getline(&next)) != NULL) 
 	{
-	        char *errmsg = NULL;
-
 		if ( *line == '\n' || *line == '\0' ) 
 		{
 			break;
 		}
 
 		/* this call modifies ldifEntry */
-		rc = ldif_parse_line(line, &type, &value, &vlen, &errmsg);
+		rc = ldif_parse_line(line, &type, &value, &vlen);
 		if (rc != 0)
 		{
-			if ( errmsg != NULL ) {
-			        slapi_log_error(SLAPI_LOG_PARSE, repl_plugin_name_cl, "%s", errmsg); 
-				PR_smprintf_free(errmsg );
-			}
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 							"_cl5LDIF2Operation: warning - failed to parse ldif line\n");
 			continue;

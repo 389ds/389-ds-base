@@ -78,22 +78,16 @@ ds_get_conf_from_file(FILE *conf)
 		char *type, *value;
 		int vlen = 0;
 		int rc;
-	        char *errmsg = NULL;
 
 		if ( *line == '\n' || *line == '\0' ) {
 		    break;
 		}
 
 		/* this call modifies line */
-		rc = ldif_parse_line(line, &type, &value, &vlen, &errmsg);
+		rc = ldif_parse_line(line, &type, &value, &vlen);
 		if (rc != 0)
 		{
-		    if ( errmsg != NULL ) {
-			ds_send_error(errmsg, 0);
-			PR_smprintf_free(errmsg);
-		    } else {
 			ds_send_error("Unknown error processing config file", 0);
-		    }
 		    free(begin);
 		    return NULL;
 		}
@@ -160,7 +154,7 @@ ds_get_value(char **ds_config, char *parm, int phase, int occurance)
 		     * Use ldif_parse_line() so continuation markers are
 		     * handled correctly, etc.
 		     */
-		    char	*errmsg, *type = NULL, *value = NULL, *tmpvalue = NULL;
+		    char	*type = NULL, *value = NULL, *tmpvalue = NULL;
 		    int		ldif_rc, tmpvlen = 0;
 		    char	*tmpline = strdup(line);
 
@@ -171,19 +165,15 @@ ds_get_value(char **ds_config, char *parm, int phase, int occurance)
 			return(NULL);
 		    }
 
-		    ldif_rc = ldif_parse_line( tmpline, &type, &tmpvalue,
-						&tmpvlen, &errmsg );
+		    ldif_rc = ldif_parse_line( tmpline, &type, &tmpvalue, &tmpvlen );
 		    if (ldif_rc < 0) {
-			ds_send_error(errmsg, 0 /* do not print errno */);
+			ds_send_error("Unknown error processing config file", 0);
 		    } else if (ldif_rc == 0) {	/* value returned in place */
 			value = strdup(tmpvalue);
 		    } else {			/* malloc'd value */
 			value = tmpvalue;
 		    }
 		    free(tmpline);
-			if (errmsg) {
-				PR_smprintf_free(errmsg);
-			}
 		    return value;
 		}
         }

@@ -203,26 +203,16 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		int maxvals;
 		int del_maxvals;
 		char *type;
-		char *errmsg = NULL;
 
 		if ( *s == '\n' || *s == '\0' ) {
 			break;
 		}
 
-		if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen, &errmsg )) < 0 ) {
-			if ( errmsg != NULL ) {
-			         LDAPDebug( LDAP_DEBUG_PARSE, "%s", errmsg, 0, 0 );
-				 /* the memory below was not allocated by the slapi_ch_ functions */
-				 PR_smprintf_free(errmsg );
-			}
+		if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) < 0 ) {
 			LDAPDebug( LDAP_DEBUG_TRACE,
 			    "<= str2entry_fast NULL (parse_line)\n", 0, 0, 0 );
 			continue;
 		}
-
-		/* We don't use errmsg anywhere later. free it to avoid leaking... */
-		/* the memory below was not allocated by the slapi_ch_ functions */
-		slapi_ch_free( (void**)&errmsg );
 
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
@@ -581,7 +571,6 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
     int i, j;
     char *next=NULL;
     char *valuecharptr=NULL;
-    char *errmsg = NULL;
     int retmalloc = 0;
     int rc;
 	int fast_dup_check = 0;
@@ -617,20 +606,11 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		    break;
 		}
 
-		if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen, &errmsg )) < 0 ) {
-		    if ( errmsg != NULL ) {
-		             LDAPDebug( LDAP_DEBUG_PARSE, "%s", errmsg, 0, 0 );
-			     /* the memory below was not allocated by the slapi_ch_ functions */
-			     PR_smprintf_free(errmsg );
-		    }
+		if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) < 0 ) {
 		    LDAPDebug( LDAP_DEBUG_TRACE,
 			    "<= slapi_str2entry NULL (parse_line)\n", 0, 0, 0 );
 		    continue;
 		}
-
-		/* We don't use errmsg anywhere later. free it to avoid leaking... */
-		/* the memory below was not allocated by the slapi_ch_ functions */
-		slapi_ch_free( (void**)&errmsg );
 
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.

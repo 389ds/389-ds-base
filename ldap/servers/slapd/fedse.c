@@ -1735,7 +1735,6 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
     {
 		static int twiddle= -1;
 		char *type, *value, *copy;
-		char *errmsg = NULL;
 		int vlen;
 		struct berval bv;
 		struct berval *bvals[2];
@@ -1745,12 +1744,7 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		bvals[0] = &bv;
 		bvals[1] = NULL;
 		copy= slapi_ch_strdup(easter_egg_photos[twiddle%NUM_EASTER_EGG_PHOTOS]);
-		if ( (retmalloc = ldif_parse_line(copy, &type, &value, &vlen, &errmsg)) < 0 ) {
-		    if ( errmsg != NULL ) {
-		             slapi_log_error( SLAPI_LOG_PARSE, "dse", "%s", errmsg );
-			     /* the memory below was not allocated by the slapi_ch_ functions */
-			     PR_smprintf_free(errmsg );
-		    }
+		if ( (retmalloc = ldif_parse_line(copy, &type, &value, &vlen)) < 0 ) {
 		    return SLAPI_DSE_CALLBACK_ERROR;
 		}
 		bv.bv_val = value;
@@ -1760,7 +1754,6 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		slapi_ch_free((void**)&copy);
 		twiddle++;
 		/* the memory below was not allocated by the slapi_ch_ functions */
-		slapi_ch_free( (void**)&errmsg );
 		if (retmalloc) slapi_ch_free( (void**)&value );
         return SLAPI_DSE_CALLBACK_OK;
     }
