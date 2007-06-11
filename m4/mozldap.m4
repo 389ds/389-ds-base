@@ -70,6 +70,21 @@ AC_ARG_WITH(ldapsdk-lib, [  --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library
 ],
 AC_MSG_RESULT(no))
 
+# check for --with-ldapsdk-bin
+AC_MSG_CHECKING(for --with-ldapsdk-bin)
+AC_ARG_WITH(ldapsdk-bin, [  --with-ldapsdk-bin=PATH     Mozilla LDAP SDK binary directory],
+[
+  if test -d "$withval"
+  then
+    AC_MSG_RESULT([using $withval])
+    ldapsdk_bindir="$withval"
+  else
+    echo
+    AC_MSG_ERROR([$withval not found])
+  fi
+],
+AC_MSG_RESULT(no))
+
 # if LDAPSDK is not found yet, try pkg-config
 
 # last resort
@@ -82,7 +97,7 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$l
     elif $PKG_CONFIG --exists mozldap; then
 	mozldappkg=mozldap
     else
-      AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
+      AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib|-bin].])
     fi
     ldapsdk_inc=`$PKG_CONFIG --cflags-only-I $mozldappkg`
     ldapsdk_lib=`$PKG_CONFIG --libs-only-L $mozldappkg`
@@ -92,7 +107,7 @@ if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$l
   fi
 fi
 if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
-  AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib].])
+  AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib|-bin].])
 fi
 dnl default path for the ldap c sdk tools (see [210947] for more details)
 if test -z "$ldapsdk_bindir" ; then
