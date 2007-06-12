@@ -107,12 +107,18 @@ sub isDisplayed {
 }
 
 # each prompt looks like this:
-# [ 'resource key', is pwd ]
+# [ 'resource key', is pwd, hide ]
 # The resource key is the string key of the resource
 # is pwd is optional - if present, the prompt is for a password
 # and should not echo the answer
+# hide is optional - if present and true, the prompt will not be displayed - this
+# is useful in cases where you may want to display or hide a subprompt depending
+# on the response to a main prompt
 # e.g.
 # ['RESOURCE_USERNAME'], ['RESOURCE_PASSWORD', 1], ['RESOURCE_PASSWORD_AGAIN', 1]
+# e.g.
+# ['USE_SECURITY'], ['CA_CERTIFICATE', 0, 0]
+# you can set the 0 to a 1 if the user has chosen to use security
 sub run {
     my $self = shift;
     my $resp = $DialogManager::SAME;
@@ -129,7 +135,7 @@ sub run {
         my $prompt = $prompts[$index];
         my $defaultans = $self->{defaultAns}($self, $index);
         my $ans;
-        if ($self->isDisplayed()) {
+        if ($self->isDisplayed() && !$promtpt->[2]) {
             $ans = $self->{manager}->showPrompt($prompt->[0], $defaultans, $prompt->[1]);
         } else {
             $ans = $defaultans;
@@ -201,7 +207,13 @@ sub defaultAns {
         return $self->{ans};
     }
     if (!exists($self->{default})) {
-        if ($self->{defaultIsYes}) {
+        my $isyes;
+        if (ref($self->{defaultIsYes}) eq 'CODE') {
+            $isyes = &{$self->{defaultIsYes}}($self);
+        } else {
+            $isyes = $self->{defaultIsYes};
+        }
+        if ($isyes) {
             $self->{default} = $self->{"manager"}->getText("yes");
         } else {
             $self->{default} = $self->{"manager"}->getText("no");
@@ -223,10 +235,10 @@ sub handleResponse {
     my $nno = $self->{"manager"}->getText("no");
 
     # the regexp allows us to use y or ye or yes for "yes"
-    if ($nno =~ /^$ans/) {
+    if ($nno =~ /^$ans/i) {
         $resp = $DialogManager::NEXT;
         $self->{ans} = $nno;
-    } elsif ($yes =~ /^$ans/) {
+    } elsif ($yes =~ /^$ans/i) {
         $resp = $DialogManager::NEXT;
         $self->{ans} = $yes;
     } else {

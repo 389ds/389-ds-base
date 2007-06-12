@@ -71,10 +71,10 @@ use File::Temp qw(tempfile tempdir);
 use SetupLog;
 
 # the setup types
-$SILENT = 0;
 $EXPRESS = 1;
 $TYPICAL = 2;
 $CUSTOM = 3;
+$SILENT = 4;
 
 # process command line options
 Getopt::Long::Configure(qw(bundling)); # bundling allows -ddddd
