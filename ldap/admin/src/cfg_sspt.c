@@ -93,14 +93,11 @@ char* const name_c                       = "c";
 char* const name_st                      = "st";
 char* const name_l                       = "l";
 
-char* const value_configAdminGroupCN	 = "Configuration Administrators";
-char* const value_configAdminGroupRDN = "cn=Configuration Administrators";
-char* const value_configAdminCN       = "Configuration Administrator";
-char* const value_configAdminSN       = "Administrator";
-char* const value_configAdminGN       = "Configuration";
-char* const value_globalPreferencesOU    = "Global Preferences";
-char* const value_hostPreferencesOU      = "Host Preferences";
-char* const value_netscapeConfigDesc  = "Standard branch for configuration information";
+char* const name_netscaperootDN          = "o=NetscapeRoot";
+
+char* const value_configAdminCN          = "Configuration Administrator";
+char* const value_configAdminSN          = "Administrator";
+char* const value_configAdminGN          = "Configuration";
 char* const value_peopleOU    			 = "People";
 char* const value_peopleDesc   			 = "Standard branch for people (uid) entries";
 char* const value_groupsOU    			 = "Groups";
@@ -112,14 +109,6 @@ char* const value_config40DN             = "cn=config40";
 
 char* dbg_log_file                       = "ds_sscfg.log";
 
-char* const name_netscaperoot			 = "NetscapeRoot";
-char* const name_netscaperootDN			 = "o=NetscapeRoot";
-char* const name_topology			 = "TopologyManagement";
-char* const name_topologyRDN		 = "ou=TopologyManagement";
-char* const value_topologyDESC	 = "Branch for Configuration Administration users and groups";
-char* const name_administratorsOU		 = "Administrators";
-char* const name_administratorsRDN		 = "ou=Administrators";
-char* const value_administratorsDESC	 = "Standard branch for Configuration Administrator (uid) entries";
 char* const name_localDAGroup		 	 = "Directory Administrators";
 char* const value_localDAGroupDesc		 = "Entities with administrative access to this directory server";
 
@@ -994,70 +983,6 @@ create_base(LDAP* ld, char* base)
 	return ret;
 }
 
-static int
-create_NetscapeRoot(LDAP* ld, const char *DN)
-{
-/*
-  dn: o=NetscapeRoot
-  o: NetscapeRoot
-  objectclass: top
-  objectclass: organization
-  */
-	int err;
-	int ret = 0;
-
-#ifdef CGI_DEBUG
-	debug_log (dbg_log_file, "create_NetscapeRoot()\n");
-#endif
-
-	if (ld == NULL)
-	{
-		return -1;
-	}
-
-	if (!entry_exists(ld, DN))
-	{
-		LDAPMod* attrs[4];
-		LDAPMod attr[3];
-		char* objectClasses[4];
-		char* names[2];
-
-		attrs[0] = &attr[0];
-		attrs[3] = NULL;
-		attr[0].mod_op = LDAP_MOD_ADD;
-		attr[0].mod_type = name_objectClass;
-		attr[0].mod_values = objectClasses;
-		objectClasses[0] = class_top;
-		objectClasses[1] = class_organization;
-		objectClasses[2] = NULL;
-		attrs[1] = &attr[1];
-		attr[1].mod_op = LDAP_MOD_ADD;
-		attr[1].mod_type = name_o;
-		attr[1].mod_values = names;
-		names[0] = name_netscaperoot;
-		names[1] = NULL;
-		attrs[2] = NULL;
-
-		/*	fprintf (stdout, "ldap_add_s(%s)<br>\n", DN); fflush (stdout); */
-
-		err = ldap_add_s (ld, DN, attrs);
-
-		if (err != LDAP_SUCCESS) 
-		{
-			char* explanation = PR_smprintf("Unable to create %s."
-											" (%s (%i) returned from ldap_add_s(%s))",
-											name_netscaperoot, ldap_err2string (err), err,
-											DN);
-			ds_report_warning (DS_NETWORK_ERROR, " can't create NetscapeRoot",
-							   explanation);
-			PR_smprintf_free (explanation);
-			ret = 1;
-		}
-
-	}
-
-	return ret;
-}
 
 #ifdef TEST_CONFIG
 static int
@@ -1405,28 +1330,6 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 	if (!(connection = do_bind (slapd, query->rootDN, query->rootPW)))
 		return 1;
 
-	/* parent dn of admin uid entry */
-	if (query->netscaperoot) {
-		parentDN = make_dn("%s, %s, %s", name_administratorsRDN,
-						   name_topologyRDN, query->netscaperoot, NULLSTR);
-	}
-
-	if (query->config_admin_uid) {
-		getUIDFromDN(query->config_admin_uid, realuid);
-		if (realuid[0]) {
-			/* admid is already a DN */
-			configAdminDN = strdup(query->config_admin_uid);
-		} else if (parentDN) {
-			/* create a DN for admid */
-			configAdminDN = make_dn(DN_formatUID, query->config_admin_uid, parentDN, NULLSTR);
-		} else {
-			/* create one from scratch */
-			configAdminDN = make_dn("%s=%s, %s, %s, %s", name_uid, query->config_admin_uid,
-									name_administratorsRDN, name_topologyRDN,
-									name_netscaperootDN, NULLSTR);
-		}
-	}
-
 	if (query->suffix)
 	{
 		status = create_base(connection, query->suffix);
@@ -1448,16 +1351,6 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 
 	if (!status)
 	{
-		/*
-		  Give the Configuration Admin group access to the root DSE entries
-		  */
-		if (query->netscaperoot) {
-			adminGroupDN = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
-								   name_ou, value_groupsOU,
-								   name_topologyRDN,
-								   query->netscaperoot, NULLSTR);
-		}
-
 		if (query->suffix)
 		{
 			localDAGroupDN = make_dn("cn=%s, %s", name_localDAGroup,
@@ -1488,114 +1381,6 @@ config_suitespot(SLAPD_CONFIG* slapd, QUERY_VARS* query)
 						  entryAndAccessList[ii].access,
 						  localDAGroupDN, NULLSTR);
 			}
-		}
-	}
-
-	if (query->cfg_sspt)
-	{
-		/* create and set ACIs for o=netscaperoot entry */
-		if (!status)
-			status = create_NetscapeRoot(connection, query->netscaperoot);
-
-		if (!status)
-			status = add_aci_v(connection, query->netscaperoot,
-							   ACI_config_admin_group_allow_all,
-							   value_configAdminGroupRDN,
-							   name_ou, value_groupsOU, name_topologyRDN,
-							   query->netscaperoot, NULLSTR);
-
-		if (!status)
-			status = add_aci_v(connection, query->netscaperoot,
-							   ACI_anonymous_allow_with_filter,
-							   query->netscaperoot, NULLSTR);
-
-		if (!status)
-			status = add_aci_v(connection, query->netscaperoot, ACI_group_expansion,
-							   query->netscaperoot, NULLSTR);
-
-		/* create "topologyOU, netscaperoot" entry and set ACIs */
-		if (!status)
-		{
-			char *dn = make_dn("%s, %s", name_topologyRDN,
-							   query->netscaperoot, NULLSTR);
-			status = create_organizational_unit(connection, NULL, dn,
-												value_topologyDESC,
-												0, 0, 0);
-
-			if (!status)
-				add_aci(connection, dn, ACI_anonymous_allow);
-
-			free(dn);
-		}
-
-		/* create "ou=Groups, ..." */
-		if (!status)
-		{
-			char *dn = make_dn("%s=%s, %s, %s", name_ou, value_groupsOU,
-							   name_topologyRDN, query->netscaperoot, NULLSTR);
-			status = create_organizational_unit (connection, NULL, dn,
-												 value_groupsDesc, 0, 0, 0);
-			free(dn);
-		}
-
-		/* create "ou=Administrators, ..." */
-		if (!status)
-		{
-			char *dn = make_dn("%s, %s, %s", name_administratorsRDN,
-							   name_topologyRDN, query->netscaperoot, NULLSTR);
-			status = create_organizational_unit (connection, NULL, dn,
-												 value_administratorsDESC,
-												 0, 0, 0);
-			free(dn);
-		}
-
-		/* create "cn=Configuration Administrators, ou=Groups, ..." */
-		if (!status)
-		{
-			char *dn = make_dn("%s=%s, %s, %s", name_ou, value_groupsOU,
-							   name_topologyRDN,
-							   query->netscaperoot, NULLSTR);
-			status = create_group (connection, dn, value_configAdminGroupCN);
-			free(dn);
-		}
-
-		/* create the ss admin user */
-		if (!status && !is_root_user(query->ssAdmID, query))
-		{
-			/* group to add the uid to */
-			char *groupdn = make_dn("%s, %s=%s, %s, %s", value_configAdminGroupRDN,
-									name_ou, value_groupsOU, name_topologyRDN,
-									query->netscaperoot, NULLSTR);
-			create_ssadmin_user(connection, parentDN,
-								query->ssAdmID, query->ssAdmPW1);
-
-			status = add_group_member (connection, groupdn,
-									   name_uniqueMember, configAdminDN);
-			free (groupdn);
-		}
-
-		admin_domainDN = make_dn("%s=%s, %s", name_ou, query->admin_domain,
-								 query->netscaperoot, NULLSTR);
-
-		if (!status)
-			status = create_organizational_unit (connection, 0,
-												 admin_domainDN,
-												 value_netscapeConfigDesc,
-												 class_adminDomain,
-												 name_adminDomain,
-												 query->admin_domain);
-
-		if (!status) {
-			status = create_organizational_unit(connection,
-												admin_domainDN,
-												value_globalPreferencesOU, 0,
-												0, 0, 0);
-		}
-		if (!status) {
-			status = create_organizational_unit(connection,
-												admin_domainDN,
-												value_hostPreferencesOU, 0,
-												0, 0, 0);
 		}
 	}
 
