@@ -79,3 +79,9 @@ dialog_dssample_prompt = Do you want to install the sample entries?
 dialog_dspopulate_text = You may wish to populate your new directory instance with some data.\n"You may already have a file in LDIF format to use or some suggested\nentries can be added.  If you want to import entries from an LDIF\nfile, you may type in the full path and filename at the prompt.  If\nyou want the setup program to add the suggested entries, type the\nword suggest at the prompt.  The suggested entries are common\ncontainer entries under your specified suffix, such as ou=People and\nou=Groups, which are commonly used to hold the entries for the persons\nand groups in your organization.  If you do not want to add any of\nthese entries, type the word none at the prompt.\n\n
 dialog_dspopulate_prompt = Type the full path and filename, the word suggest, or the word none
 dialog_dspopulate_error = The file '%s' was not found.  Please choose another one.\n\n
+
+# ----------- miscellaneous  ----------------
+backend_already_exists = A database backend with the name '%s' already exists.  Config entry DN '%s'.  Please choose another backend name.  addSuffix can generate a unique backend name if you do not specify a backend name.\n\n
+suffix_already_exists = The suffix '%s' already exists.  Config entry DN '%s'.\n\n
+error_creating_suffix_backend = Could not create the suffix '%s'.  There was an error creating the backend database named '%s' for the suffix.  Error: %s\n\n
+error_creating_suffix = Could not create the suffix '%s'.  Error: %s\n\n

@@ -189,7 +189,7 @@ usage("No arguments given") if (!@ARGV);
 
 # process command line arguments
 for (@ARGV) {
-    if (/^(\w+).(\w+)=(.*)$/) { # e.g. section.param=value
+    if (/^(\w+)\.(\w+)=(.*)$/) { # e.g. section.param=value
         $table{$1}->{$2} = $3;
     } else { # file?
         readInfFile($_);

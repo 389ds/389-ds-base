@@ -74,19 +74,45 @@ sub read {
     }
 
     for my $filename (@{$self->{filenames}}) {
+        my $incontinuation = 0;
+        my $curkey;
         open RES, $filename or die "Error: could not open resource file $filename: $!";
         while (<RES>) {
-            next if (/^\s*$/); # skip blank lines
-            next if (/^\s*\#/); # skip comment lines
+            my $iscontinuation;
+            chop; # trim trailing newline
+            if (/^\s*$/) { # skip blank/empty lines
+                $incontinuation = 0;
+                next;
+            }
+            if (/^\s*\#/) { # skip comment lines
+                $incontinuation = 0;
+                next;
+            }
             # read name = value pairs like this
             # bol whitespace* name whitespace* '=' whitespace* value eol
             # the value will include any trailing whitespace
-            if (/^\s*(.*?)\s*=\s*(.*?)$/) {
-                $self->{res}->{$1} = $2;
+            if (/\\$/) {
+                chop;
+                $iscontinuation = 1;
+            }
+            if ($incontinuation) {
+                $self->{res}->{$curkey} .= "\n" . $_;
+            } elsif (/^\s*(.*?)\s*=\s*(.*?)$/) {
                 # replace \n with real newline
-                $self->{res}->{$1} =~ s/\\n/\n/g;
+                if ($curkey) {
+                    $self->{res}->{$curkey} =~ s/\\n/\n/g;
+                }
+                $curkey = $1;
+                $self->{res}->{$curkey} = $2;
+            }
+            if ($iscontinuation) { # if line ends with a backslash, continue the data on the next line
+                $incontinuation = 1;
+            } else {
+                $incontinuation = 0;
             }
         }
+        # replace \n with real newline
+        $self->{res}->{$curkey} =~ s/\\n/\n/g;
         close RES;
     }
 }

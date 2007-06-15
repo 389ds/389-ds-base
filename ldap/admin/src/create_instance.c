@@ -3404,12 +3404,6 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "cn: tasks\n");
     fprintf(f, "\n");
 
-    /* Entries for the ldbm instances and mapping tree */
-    if ( cf->netscaperoot && !cf->use_existing_config_ds)
-    {
-        suffix_gen_conf(f, cf->netscaperoot, "NetscapeRoot");
-    }
-
     if (!cf->use_existing_user_ds)
     {
         suffix_gen_conf(f, cf->suffix, "userRoot");

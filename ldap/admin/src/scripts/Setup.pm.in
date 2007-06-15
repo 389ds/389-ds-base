@@ -147,7 +147,7 @@ sub new {
     # arguments override those passed in via an inf file - this
     # allows the reuse of .inf files with some parameters overridden
     for (@ARGV) {
-        if (/^(\w+).(\w+)=(.*)$/) { # e.g. section.param=value
+        if (/^(\w+)\.(\w+)=(.*)$/) { # e.g. section.param=value
             $self->{inf}->{$1}->{$2} = $3;
         } else { # error
             print STDERR "Error: unknown command line option $_\n";
@@ -201,6 +201,21 @@ sub doExit {
     $self->msg("Log file is " . $self->{log}->{filename} . "\n");
 	exit 1;
 }
+
+# get a list of the directory servers in configdir
+sub getDirServers {
+    my $self = shift;
+    if (!$self->{dirservers}) {
+        $self->{dirservers} = [];
+        for my $dir (glob("$self->{configdir}/slapd-*")) {
+            if (-d $dir) {
+                push @{$self->{dirservers}}, $dir;
+            }
+        }
+    }
+    return @{$self->{dirservers}};
+}
+
 
 #############################################################################
 # Mandatory TRUE return value.

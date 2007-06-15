@@ -46,10 +46,11 @@ use Dialog;
 use SetupLog;
 
 # Dialog responses
-$BACK = -1;
-$SAME = 0;
-$NEXT = 1;
-$ERR = 2;
+$FIRST = -2; # go back to first prompt on a dialog
+$BACK = -1; # go back to previous dialog
+$SAME = 0; # reshow the same prompt or dialog
+$NEXT = 1; # go to the next dialog
+$ERR = 2; # fatal error
 
 # The DialogManager controls the flow of the dialogs and contains context shared
 # among all of the dialogs (resources, logs, current setup type, etc.)
@@ -199,18 +200,20 @@ sub run {
 
     while (!$done) {
         my $dialog = $self->{dialogs}->[$index];
-        my $resp = $NEXT;
-        $resp = $dialog->run();
-        if ($resp == $BACK) {
-            $incr = -1;
-        } elsif ($resp == $NEXT) {
-            $incr = 1;
-        } elsif ($resp == $SAME) {
-            $incr = 0;
-        } else {
-            $self->handleError($resp);
-            $done = 1;
-            $rc = 1;
+        if ($dialog->isEnabled()) {
+            my $resp = $NEXT;
+            $resp = $dialog->run();
+            if ($resp == $BACK) {
+                $incr = -1;
+            } elsif ($resp == $NEXT) {
+                $incr = 1;
+            } elsif (($resp == $SAME) or ($resp == $FIRST)) {
+                $incr = 0;
+            } else {
+                $self->handleError($resp);
+                $done = 1;
+                $rc = 1;
+            }
         }
         $index += $incr;
         if ($index < 0) {

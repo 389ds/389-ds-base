@@ -106,6 +106,21 @@ sub isDisplayed {
     return $self->{type} <= $self->{"manager"}->{type};
 }
 
+sub isEnabled {
+    my $self = shift;
+    return !defined($self->{disabled});
+}
+
+sub enable {
+    my $self = shift;
+    delete $self->{disabled};
+}
+
+sub disable {
+    my $self = shift;
+    $self->{disabled} = 1;
+}
+
 # each prompt looks like this:
 # [ 'resource key', is pwd, hide ]
 # The resource key is the string key of the resource
@@ -135,7 +150,7 @@ sub run {
         my $prompt = $prompts[$index];
         my $defaultans = $self->{defaultAns}($self, $index);
         my $ans;
-        if ($self->isDisplayed() && !$promtpt->[2]) {
+        if ($self->isDisplayed() && !$prompt->[2]) {
             $ans = $self->{manager}->showPrompt($prompt->[0], $defaultans, $prompt->[1]);
         } else {
             $ans = $defaultans;
@@ -155,12 +170,14 @@ sub run {
         # NOTE: user cannot BACK from prompt to prompt - BACK
         # always means BACK to the previous dialog
         $resp = $self->{handleResp}($self, $ans, $index);
-        if ($resp == $DialogManager::SAME) {
+        if (($resp == $DialogManager::SAME) or ($resp == $DialogManager::FIRST)) {
             if (!$self->isDisplayed()) {
                 $self->{manager}->alert('dialog_use_different_type');
                 $resp = $DialogManager::ERR;
-            } else {
+            } elsif ($resp == $DialogManager::SAME) {
                 $index--; # reprompt
+            } else {
+                $index = -1; # reshow first prompt on dialog
             }
         } elsif ($resp == $DialogManager::ERR) {
             last;
