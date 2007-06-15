@@ -163,6 +163,8 @@ if test "$with_fhs_opt" = "yes"; then
   serverdir=
   # relative to libdir
   serverplugindir=/plugins
+  # relative to datadir
+  infdir=/inf
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -181,6 +183,8 @@ else
   serverdir=/$PACKAGE_NAME
   # relative to libdir
   serverplugindir=/$PACKAGE_NAME/plugins
+  # relative to datadir
+  infdir=/$PACKAGE_NAME/inf
 fi
 
 # Shared paths for all layouts
@@ -201,6 +205,7 @@ AC_SUBST(serverdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
+AC_SUBST(infdir)
 
 # check for --with-instconfigdir
 AC_MSG_CHECKING(for --with-instconfigdir)

@@ -75,6 +75,7 @@ taskdir = $(datadir)@scripttemplatedir@
 initdir = $(sysconfdir)@initdir@
 instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
+infdir = $(datadir)@infdir@
 
 shared_lib_suffix = @shared_lib_suffix@
 
@@ -106,7 +107,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
 	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN)
+	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) 
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -215,6 +216,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
+
+inf_DATA = ldap/cm/newinst/slapd.inf
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1018,7 +1021,9 @@ fixupcmd = sed \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
 	-e 's,@capbrand\@,$(capbrand),g' \
+	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
 	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 else
@@ -1049,7 +1054,9 @@ fixupcmd = sed \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
 	-e 's,@capbrand\@,$(capbrand),g' \
+	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
 	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 endif

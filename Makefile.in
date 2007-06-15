@@ -96,8 +96,9 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(perldir)" \
 	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" \
+	"$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -333,6 +334,10 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/libsi18n/libns_dshttpd_la-reshash.lo \
 	lib/libsi18n/libns_dshttpd_la-txtfile.lo $(am__objects_1)
 libns_dshttpd_la_OBJECTS = $(am_libns_dshttpd_la_OBJECTS)
+libothercrypto_plugin_la_LIBADD =
+am_libothercrypto_plugin_la_OBJECTS = ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo
+libothercrypto_plugin_la_OBJECTS =  \
+	$(am_libothercrypto_plugin_la_OBJECTS)
 libpam_passthru_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libpam_passthru_plugin_la_OBJECTS = ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo \
 	ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptdebug.lo \
@@ -354,6 +359,9 @@ libpassthru_plugin_la_OBJECTS = $(am_libpassthru_plugin_la_OBJECTS)
 libpresence_plugin_la_LIBADD =
 am_libpresence_plugin_la_OBJECTS = ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo
 libpresence_plugin_la_OBJECTS = $(am_libpresence_plugin_la_OBJECTS)
+libpwderror_plugin_la_LIBADD =
+am_libpwderror_plugin_la_OBJECTS = ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo
+libpwderror_plugin_la_OBJECTS = $(am_libpwderror_plugin_la_OBJECTS)
 libpwdstorage_plugin_la_LIBADD =
 am_libpwdstorage_plugin_la_OBJECTS = ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-crypt_pwd.lo \
@@ -554,6 +562,10 @@ libviews_plugin_la_LIBADD =
 am_libviews_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/views/libviews_plugin_la-views.lo
 libviews_plugin_la_OBJECTS = $(am_libviews_plugin_la_OBJECTS)
+libxor_plugin_la_LIBADD =
+am_libxor_plugin_la_OBJECTS =  \
+	ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo
+libxor_plugin_la_OBJECTS = $(am_libxor_plugin_la_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(sbin_PROGRAMS)
@@ -748,19 +760,21 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libdna_plugin_la_SOURCES) $(libds_admin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
 	$(libns_dshttpd_la_SOURCES) \
+	$(libothercrypto_plugin_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
 	$(libpassthru_plugin_la_SOURCES) \
 	$(libpresence_plugin_la_SOURCES) \
+	$(libpwderror_plugin_la_SOURCES) \
 	$(libpwdstorage_plugin_la_SOURCES) \
 	$(libreferint_plugin_la_SOURCES) \
 	$(libreplication_plugin_la_SOURCES) \
 	$(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) \
 	$(libslapd_la_SOURCES) $(libstatechange_plugin_la_SOURCES) \
 	$(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) \
-	$(dbscan_bin_SOURCES) $(ds_newinst_bin_SOURCES) \
-	$(dsktune_bin_SOURCES) $(infadd_bin_SOURCES) \
-	$(ldap_agent_bin_SOURCES) $(ldclt_bin_SOURCES) \
-	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
+	$(libxor_plugin_la_SOURCES) $(dbscan_bin_SOURCES) \
+	$(ds_newinst_bin_SOURCES) $(dsktune_bin_SOURCES) \
+	$(infadd_bin_SOURCES) $(ldap_agent_bin_SOURCES) \
+	$(ldclt_bin_SOURCES) $(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
 	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
 	$(ns_slapd_SOURCES) $(pwdhash_bin_SOURCES) \
 	$(rsearch_bin_SOURCES)
@@ -774,29 +788,32 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libdna_plugin_la_SOURCES) $(libds_admin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
 	$(libns_dshttpd_la_SOURCES) \
+	$(libothercrypto_plugin_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
 	$(libpassthru_plugin_la_SOURCES) \
 	$(libpresence_plugin_la_SOURCES) \
+	$(libpwderror_plugin_la_SOURCES) \
 	$(libpwdstorage_plugin_la_SOURCES) \
 	$(libreferint_plugin_la_SOURCES) \
 	$(libreplication_plugin_la_SOURCES) \
 	$(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) \
 	$(libslapd_la_SOURCES) $(libstatechange_plugin_la_SOURCES) \
 	$(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) \
-	$(dbscan_bin_SOURCES) $(ds_newinst_bin_SOURCES) \
-	$(dsktune_bin_SOURCES) $(infadd_bin_SOURCES) \
-	$(ldap_agent_bin_SOURCES) $(am__ldclt_bin_SOURCES_DIST) \
-	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
-	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
-	$(am__ns_slapd_SOURCES_DIST) $(pwdhash_bin_SOURCES) \
-	$(rsearch_bin_SOURCES)
+	$(libxor_plugin_la_SOURCES) $(dbscan_bin_SOURCES) \
+	$(ds_newinst_bin_SOURCES) $(dsktune_bin_SOURCES) \
+	$(infadd_bin_SOURCES) $(ldap_agent_bin_SOURCES) \
+	$(am__ldclt_bin_SOURCES_DIST) $(ldif_bin_SOURCES) \
+	$(makstrdb_SOURCES) $(migratecred_bin_SOURCES) \
+	$(mmldif_bin_SOURCES) $(am__ns_slapd_SOURCES_DIST) \
+	$(pwdhash_bin_SOURCES) $(rsearch_bin_SOURCES)
 configDATA_INSTALL = $(INSTALL_DATA)
+infDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
 propertyDATA_INSTALL = $(INSTALL_DATA)
 sampledataDATA_INSTALL = $(INSTALL_DATA)
 schemaDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(config_DATA) $(nodist_property_DATA) $(property_DATA) \
-	$(sampledata_DATA) $(schema_DATA)
+DATA = $(config_DATA) $(inf_DATA) $(nodist_property_DATA) \
+	$(property_DATA) $(sampledata_DATA) $(schema_DATA)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -874,7 +891,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -937,6 +953,7 @@ icu_bin = @icu_bin@
 icu_inc = @icu_inc@
 icu_lib = @icu_lib@
 includedir = @includedir@
+infdir = $(datadir)@infdir@
 infodir = @infodir@
 initdir = $(sysconfdir)@initdir@
 install_sh = @install_sh@
@@ -1037,13 +1054,17 @@ server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
 @enable_pam_passthru_TRUE@LIBPAM_PASSTHRU_PLUGIN = libpam-passthru-plugin.la
 @enable_dna_TRUE@LIBDNA_PLUGIN = libdna-plugin.la
 @enable_bitwise_TRUE@LIBBITWISE_PLUGIN = libbitwise-plugin.la
+LIBXOR_PLUGIN = libxor-plugin.la
+LIBPWDERROR_PLUGIN = libpwderror-plugin.la
+LIBOTHERCRYPTO_PLUGIN = libothercrypto-plugin.la
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
 	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
 	libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
 	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN)
+	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) \
+	$(LIBXOR_PLUGIN) $(LIBPWDERROR_PLUGIN) $(LIBOTHERCRYPTO_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 noinst_LIBRARIES = libavl.a libldaputil.a
@@ -1148,6 +1169,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
+inf_DATA = ldap/cm/newinst/slapd.inf
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1729,6 +1751,27 @@ libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
 libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libbitwise_plugin_la_LDFLAGS = -avoid-version
 
+#------------------------
+# libxor-plugin
+#------------------------
+libxor_plugin_la_SOURCES = ldap/servers/plugins/xor/xorplugin.c
+libxor_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libxor_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libpwderror-plugin
+#------------------------
+libpwderror_plugin_la_SOURCES = ldap/servers/plugins/pwderror/pwderror-plugin.c
+libpwderror_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libpwderror_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libothercrypto-plugin
+#------------------------
+libothercrypto_plugin_la_SOURCES = ldap/servers/plugins/othercrypto/othercrypto.c
+libothercrypto_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libothercrypto_plugin_la_LDFLAGS = -avoid-version
+
 #////////////////////////////////////////////////////////////////
 #
 #   Programs
@@ -1912,7 +1955,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 @BUNDLE_FALSE@	-e 's,@brand\@,$(brand),g' \
 @BUNDLE_FALSE@	-e 's,@capbrand\@,$(capbrand),g' \
+@BUNDLE_FALSE@	-e 's,@vendor\@,$(vendor),g' \
 @BUNDLE_FALSE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+@BUNDLE_FALSE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 @BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g' \
 @BUNDLE_FALSE@	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 
@@ -1950,7 +1995,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 @BUNDLE_TRUE@	-e 's,@brand\@,$(brand),g' \
 @BUNDLE_TRUE@	-e 's,@capbrand\@,$(capbrand),g' \
+@BUNDLE_TRUE@	-e 's,@vendor\@,$(vendor),g' \
 @BUNDLE_TRUE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+@BUNDLE_TRUE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 @BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g' \
 @BUNDLE_TRUE@	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
 
@@ -2766,6 +2813,17 @@ lib/ldaputil/libns_dshttpd_la-vtable.lo: lib/ldaputil/$(am__dirstamp) \
 	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
 libns-dshttpd.la: $(libns_dshttpd_la_OBJECTS) $(libns_dshttpd_la_DEPENDENCIES) 
 	$(CXXLINK) -rpath $(serverdir) $(libns_dshttpd_la_LDFLAGS) $(libns_dshttpd_la_OBJECTS) $(libns_dshttpd_la_LIBADD) $(LIBS)
+ldap/servers/plugins/othercrypto/$(am__dirstamp):
+	@$(mkdir_p) ldap/servers/plugins/othercrypto
+	@: > ldap/servers/plugins/othercrypto/$(am__dirstamp)
+ldap/servers/plugins/othercrypto/$(DEPDIR)/$(am__dirstamp):
+	@$(mkdir_p) ldap/servers/plugins/othercrypto/$(DEPDIR)
+	@: > ldap/servers/plugins/othercrypto/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo:  \
+	ldap/servers/plugins/othercrypto/$(am__dirstamp) \
+	ldap/servers/plugins/othercrypto/$(DEPDIR)/$(am__dirstamp)
+libothercrypto-plugin.la: $(libothercrypto_plugin_la_OBJECTS) $(libothercrypto_plugin_la_DEPENDENCIES) 
+	$(LINK) -rpath $(serverplugindir) $(libothercrypto_plugin_la_LDFLAGS) $(libothercrypto_plugin_la_OBJECTS) $(libothercrypto_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/pam_passthru/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/pam_passthru
 	@: > ldap/servers/plugins/pam_passthru/$(am__dirstamp)
@@ -2823,6 +2881,17 @@ ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo:  \
 	ldap/servers/plugins/presence/$(DEPDIR)/$(am__dirstamp)
 libpresence-plugin.la: $(libpresence_plugin_la_OBJECTS) $(libpresence_plugin_la_DEPENDENCIES) 
 	$(LINK) -rpath $(serverplugindir) $(libpresence_plugin_la_LDFLAGS) $(libpresence_plugin_la_OBJECTS) $(libpresence_plugin_la_LIBADD) $(LIBS)
+ldap/servers/plugins/pwderror/$(am__dirstamp):
+	@$(mkdir_p) ldap/servers/plugins/pwderror
+	@: > ldap/servers/plugins/pwderror/$(am__dirstamp)
+ldap/servers/plugins/pwderror/$(DEPDIR)/$(am__dirstamp):
+	@$(mkdir_p) ldap/servers/plugins/pwderror/$(DEPDIR)
+	@: > ldap/servers/plugins/pwderror/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo:  \
+	ldap/servers/plugins/pwderror/$(am__dirstamp) \
+	ldap/servers/plugins/pwderror/$(DEPDIR)/$(am__dirstamp)
+libpwderror-plugin.la: $(libpwderror_plugin_la_OBJECTS) $(libpwderror_plugin_la_DEPENDENCIES) 
+	$(LINK) -rpath $(serverplugindir) $(libpwderror_plugin_la_LDFLAGS) $(libpwderror_plugin_la_OBJECTS) $(libpwderror_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/pwdstorage/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/pwdstorage
 	@: > ldap/servers/plugins/pwdstorage/$(am__dirstamp)
@@ -3411,6 +3480,17 @@ ldap/servers/plugins/views/libviews_plugin_la-views.lo:  \
 	ldap/servers/plugins/views/$(DEPDIR)/$(am__dirstamp)
 libviews-plugin.la: $(libviews_plugin_la_OBJECTS) $(libviews_plugin_la_DEPENDENCIES) 
 	$(LINK) -rpath $(serverplugindir) $(libviews_plugin_la_LDFLAGS) $(libviews_plugin_la_OBJECTS) $(libviews_plugin_la_LIBADD) $(LIBS)
+ldap/servers/plugins/xor/$(am__dirstamp):
+	@$(mkdir_p) ldap/servers/plugins/xor
+	@: > ldap/servers/plugins/xor/$(am__dirstamp)
+ldap/servers/plugins/xor/$(DEPDIR)/$(am__dirstamp):
+	@$(mkdir_p) ldap/servers/plugins/xor/$(DEPDIR)
+	@: > ldap/servers/plugins/xor/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo:  \
+	ldap/servers/plugins/xor/$(am__dirstamp) \
+	ldap/servers/plugins/xor/$(DEPDIR)/$(am__dirstamp)
+libxor-plugin.la: $(libxor_plugin_la_OBJECTS) $(libxor_plugin_la_DEPENDENCIES) 
+	$(LINK) -rpath $(serverplugindir) $(libxor_plugin_la_LDFLAGS) $(libxor_plugin_la_OBJECTS) $(libxor_plugin_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(mkdir_p) "$(DESTDIR)$(bindir)"
@@ -3960,6 +4040,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.$(OBJEXT)
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo
+	-rm -f ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.$(OBJEXT)
+	-rm -f ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo
 	-rm -f ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.$(OBJEXT)
 	-rm -f ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo
 	-rm -f ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptdebug.$(OBJEXT)
@@ -3982,6 +4064,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo
 	-rm -f ldap/servers/plugins/presence/libpresence_plugin_la-presence.$(OBJEXT)
 	-rm -f ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo
+	-rm -f ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.$(OBJEXT)
+	-rm -f ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.$(OBJEXT)
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.lo
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-crypt_pwd.$(OBJEXT)
@@ -4160,6 +4244,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/uiduniq/libattr_unique_plugin_la-uid.lo
 	-rm -f ldap/servers/plugins/views/libviews_plugin_la-views.$(OBJEXT)
 	-rm -f ldap/servers/plugins/views/libviews_plugin_la-views.lo
+	-rm -f ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.$(OBJEXT)
+	-rm -f ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ancestorid.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ancestorid.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-archive.$(OBJEXT)
@@ -4714,6 +4800,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/dna/$(DEPDIR)/libdna_plugin_la-dna.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_impl.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/othercrypto/$(DEPDIR)/libothercrypto_plugin_la-othercrypto.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptdebug.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptimpl.Plo@am__quote@
@@ -4725,6 +4812,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/passthru/$(DEPDIR)/libpassthru_plugin_la-ptpreop.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/passthru/$(DEPDIR)/libpassthru_plugin_la-ptutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/presence/$(DEPDIR)/libpresence_plugin_la-presence.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwderror/$(DEPDIR)/libpwderror_plugin_la-pwderror-plugin.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-clear_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-crypt_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-md5_pwd.Plo@am__quote@
@@ -4814,6 +4902,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/uiduniq/$(DEPDIR)/libattr_unique_plugin_la-7bit.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/uiduniq/$(DEPDIR)/libattr_unique_plugin_la-uid.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/views/$(DEPDIR)/libviews_plugin_la-views.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/xor/$(DEPDIR)/libxor_plugin_la-xorplugin.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ldap_agent_bin-agtmmap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-add.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-agtmmap.Plo@am__quote@
@@ -6245,6 +6334,13 @@ lib/ldaputil/libns_dshttpd_la-vtable.lo: lib/ldaputil/vtable.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libns_dshttpd_la-vtable.lo `test -f 'lib/ldaputil/vtable.c' || echo '$(srcdir)/'`lib/ldaputil/vtable.c
 
+ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo: ldap/servers/plugins/othercrypto/othercrypto.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libothercrypto_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo -MD -MP -MF "ldap/servers/plugins/othercrypto/$(DEPDIR)/libothercrypto_plugin_la-othercrypto.Tpo" -c -o ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo `test -f 'ldap/servers/plugins/othercrypto/othercrypto.c' || echo '$(srcdir)/'`ldap/servers/plugins/othercrypto/othercrypto.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/othercrypto/$(DEPDIR)/libothercrypto_plugin_la-othercrypto.Tpo" "ldap/servers/plugins/othercrypto/$(DEPDIR)/libothercrypto_plugin_la-othercrypto.Plo"; else rm -f "ldap/servers/plugins/othercrypto/$(DEPDIR)/libothercrypto_plugin_la-othercrypto.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/othercrypto/othercrypto.c' object='ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libothercrypto_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/othercrypto/libothercrypto_plugin_la-othercrypto.lo `test -f 'ldap/servers/plugins/othercrypto/othercrypto.c' || echo '$(srcdir)/'`ldap/servers/plugins/othercrypto/othercrypto.c
+
 ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo: ldap/servers/plugins/pam_passthru/pam_ptconfig.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpam_passthru_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo -MD -MP -MF "ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Tpo" -c -o ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo `test -f 'ldap/servers/plugins/pam_passthru/pam_ptconfig.c' || echo '$(srcdir)/'`ldap/servers/plugins/pam_passthru/pam_ptconfig.c; \
 @am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Tpo" "ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Plo"; else rm -f "ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Tpo"; exit 1; fi
@@ -6321,6 +6417,13 @@ ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo: ldap/servers/pl
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/presence/presence.c' object='ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpresence_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo `test -f 'ldap/servers/plugins/presence/presence.c' || echo '$(srcdir)/'`ldap/servers/plugins/presence/presence.c
+
+ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo: ldap/servers/plugins/pwderror/pwderror-plugin.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwderror_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo -MD -MP -MF "ldap/servers/plugins/pwderror/$(DEPDIR)/libpwderror_plugin_la-pwderror-plugin.Tpo" -c -o ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo `test -f 'ldap/servers/plugins/pwderror/pwderror-plugin.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwderror/pwderror-plugin.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/pwderror/$(DEPDIR)/libpwderror_plugin_la-pwderror-plugin.Tpo" "ldap/servers/plugins/pwderror/$(DEPDIR)/libpwderror_plugin_la-pwderror-plugin.Plo"; else rm -f "ldap/servers/plugins/pwderror/$(DEPDIR)/libpwderror_plugin_la-pwderror-plugin.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/pwderror/pwderror-plugin.c' object='ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwderror_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/pwderror/libpwderror_plugin_la-pwderror-plugin.lo `test -f 'ldap/servers/plugins/pwderror/pwderror-plugin.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwderror/pwderror-plugin.c
 
 ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.lo: ldap/servers/plugins/pwdstorage/clear_pwd.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.lo -MD -MP -MF "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-clear_pwd.Tpo" -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.lo `test -f 'ldap/servers/plugins/pwdstorage/clear_pwd.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/clear_pwd.c; \
@@ -7525,6 +7628,13 @@ ldap/servers/plugins/views/libviews_plugin_la-views.lo: ldap/servers/plugins/vie
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/views/views.c' object='ldap/servers/plugins/views/libviews_plugin_la-views.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libviews_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/views/libviews_plugin_la-views.lo `test -f 'ldap/servers/plugins/views/views.c' || echo '$(srcdir)/'`ldap/servers/plugins/views/views.c
+
+ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo: ldap/servers/plugins/xor/xorplugin.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxor_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo -MD -MP -MF "ldap/servers/plugins/xor/$(DEPDIR)/libxor_plugin_la-xorplugin.Tpo" -c -o ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo `test -f 'ldap/servers/plugins/xor/xorplugin.c' || echo '$(srcdir)/'`ldap/servers/plugins/xor/xorplugin.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/xor/$(DEPDIR)/libxor_plugin_la-xorplugin.Tpo" "ldap/servers/plugins/xor/$(DEPDIR)/libxor_plugin_la-xorplugin.Plo"; else rm -f "ldap/servers/plugins/xor/$(DEPDIR)/libxor_plugin_la-xorplugin.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/xor/xorplugin.c' object='ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxor_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/xor/libxor_plugin_la-xorplugin.lo `test -f 'ldap/servers/plugins/xor/xorplugin.c' || echo '$(srcdir)/'`ldap/servers/plugins/xor/xorplugin.c
 
 ldap/servers/slapd/tools/dbscan_bin-dbscan.o: ldap/servers/slapd/tools/dbscan.c
 @am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dbscan_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/tools/dbscan_bin-dbscan.o -MD -MP -MF "ldap/servers/slapd/tools/$(DEPDIR)/dbscan_bin-dbscan.Tpo" -c -o ldap/servers/slapd/tools/dbscan_bin-dbscan.o `test -f 'ldap/servers/slapd/tools/dbscan.c' || echo '$(srcdir)/'`ldap/servers/slapd/tools/dbscan.c; \
@@ -8783,9 +8893,11 @@ clean-libtool:
 	-rm -rf ldap/servers/plugins/distrib/.libs ldap/servers/plugins/distrib/_libs
 	-rm -rf ldap/servers/plugins/dna/.libs ldap/servers/plugins/dna/_libs
 	-rm -rf ldap/servers/plugins/http/.libs ldap/servers/plugins/http/_libs
+	-rm -rf ldap/servers/plugins/othercrypto/.libs ldap/servers/plugins/othercrypto/_libs
 	-rm -rf ldap/servers/plugins/pam_passthru/.libs ldap/servers/plugins/pam_passthru/_libs
 	-rm -rf ldap/servers/plugins/passthru/.libs ldap/servers/plugins/passthru/_libs
 	-rm -rf ldap/servers/plugins/presence/.libs ldap/servers/plugins/presence/_libs
+	-rm -rf ldap/servers/plugins/pwderror/.libs ldap/servers/plugins/pwderror/_libs
 	-rm -rf ldap/servers/plugins/pwdstorage/.libs ldap/servers/plugins/pwdstorage/_libs
 	-rm -rf ldap/servers/plugins/referint/.libs ldap/servers/plugins/referint/_libs
 	-rm -rf ldap/servers/plugins/replication/.libs ldap/servers/plugins/replication/_libs
@@ -8797,6 +8909,7 @@ clean-libtool:
 	-rm -rf ldap/servers/plugins/syntaxes/.libs ldap/servers/plugins/syntaxes/_libs
 	-rm -rf ldap/servers/plugins/uiduniq/.libs ldap/servers/plugins/uiduniq/_libs
 	-rm -rf ldap/servers/plugins/views/.libs ldap/servers/plugins/views/_libs
+	-rm -rf ldap/servers/plugins/xor/.libs ldap/servers/plugins/xor/_libs
 	-rm -rf ldap/servers/slapd/.libs ldap/servers/slapd/_libs
 	-rm -rf ldap/servers/slapd/back-ldbm/.libs ldap/servers/slapd/back-ldbm/_libs
 	-rm -rf lib/base/.libs lib/base/_libs
@@ -8824,6 +8937,23 @@ uninstall-configDATA:
 	  f=$(am__strip_dir) \
 	  echo " rm -f '$(DESTDIR)$(configdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(configdir)/$$f"; \
+	done
+install-infDATA: $(inf_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(infdir)" || $(mkdir_p) "$(DESTDIR)$(infdir)"
+	@list='$(inf_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(infDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(infdir)/$$f'"; \
+	  $(infDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(infdir)/$$f"; \
+	done
+
+uninstall-infDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(inf_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(infdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(infdir)/$$f"; \
 	done
 install-nodist_propertyDATA: $(nodist_property_DATA)
 	@$(NORMAL_INSTALL)
@@ -9075,7 +9205,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9122,12 +9252,16 @@ distclean-generic:
 	-rm -f ldap/servers/plugins/dna/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/http/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/http/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/othercrypto/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/othercrypto/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/pam_passthru/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/pam_passthru/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/passthru/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/passthru/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/presence/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/presence/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/pwderror/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/pwderror/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/pwdstorage/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/referint/$(DEPDIR)/$(am__dirstamp)
@@ -9150,6 +9284,8 @@ distclean-generic:
 	-rm -f ldap/servers/plugins/uiduniq/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/views/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/views/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/xor/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/xor/$(am__dirstamp)
 	-rm -f ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/slapd/$(am__dirstamp)
 	-rm -f ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
@@ -9188,7 +9324,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libtool \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/othercrypto/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwderror/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/plugins/xor/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -9203,9 +9339,10 @@ info: info-am
 
 info-am:
 
-install-data-am: install-configDATA install-initSCRIPTS \
-	install-nodist_propertyDATA install-perlSCRIPTS \
-	install-propertyDATA install-sampledataDATA install-schemaDATA \
+install-data-am: install-configDATA install-infDATA \
+	install-initSCRIPTS install-nodist_propertyDATA \
+	install-perlSCRIPTS install-propertyDATA \
+	install-sampledataDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-taskSCRIPTS
 
@@ -9221,7 +9358,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/othercrypto/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwderror/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/plugins/xor/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -9239,12 +9376,12 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
-	uninstall-configDATA uninstall-info-am uninstall-initSCRIPTS \
-	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
-	uninstall-propertyDATA uninstall-sampledataDATA \
-	uninstall-sbinPROGRAMS uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
-	uninstall-taskSCRIPTS
+	uninstall-configDATA uninstall-infDATA uninstall-info-am \
+	uninstall-initSCRIPTS uninstall-nodist_propertyDATA \
+	uninstall-perlSCRIPTS uninstall-propertyDATA \
+	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
+	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-generic clean-libtool \
@@ -9257,22 +9394,22 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	dvi-am html html-am info info-am install install-am \
 	install-binPROGRAMS install-binSCRIPTS install-configDATA \
 	install-data install-data-am install-exec install-exec-am \
-	install-info install-info-am install-initSCRIPTS install-man \
-	install-nodist_propertyDATA install-perlSCRIPTS \
-	install-propertyDATA install-sampledataDATA \
-	install-sbinPROGRAMS install-schemaDATA \
+	install-infDATA install-info install-info-am \
+	install-initSCRIPTS install-man install-nodist_propertyDATA \
+	install-perlSCRIPTS install-propertyDATA \
+	install-sampledataDATA install-sbinPROGRAMS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-strip install-taskSCRIPTS installcheck installcheck-am \
 	installdirs maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
-	uninstall-configDATA uninstall-info-am uninstall-initSCRIPTS \
-	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
-	uninstall-propertyDATA uninstall-sampledataDATA \
-	uninstall-sbinPROGRAMS uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
-	uninstall-taskSCRIPTS
+	uninstall-configDATA uninstall-infDATA uninstall-info-am \
+	uninstall-initSCRIPTS uninstall-nodist_propertyDATA \
+	uninstall-perlSCRIPTS uninstall-propertyDATA \
+	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
+	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS
 
 
 dirver.h: Makefile

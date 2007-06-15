@@ -33,30 +33,27 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
 [General]
-Name=Fedora Directory Suite
-Components=slapd, slapd-client
+Name=@capbrand@ Directory Suite
+Components=slapd
 
 [slapd]
-Name= %%%SERVER_NAME%%%
-InstanceNamePrefix= %%%INSTANCE_NAME_PREFIX%%%
+Name= @capbrand@ Directory Server
+InstanceNamePrefix= Directory Server
 NickName= slapd
-Version= %%%SERVER_VERSION%%%
+Version= @PACKAGE_VERSION@
 Compatible= 1.0
-BuildNumber= %%%SERVER_BUILD_NUM%%%
-Expires= %%%PUMPKIN_HOUR%%%
-Security= %%%SECURITY%%%
-Vendor= Fedora Project
-Description= %%%SERVER_NAME%%%
-Dependencies= base/1.0, svrcore/1.0
+BuildNumber= @BUILDNUM@
+Expires= 0
+Security= domestic
+Vendor= @vendor@
+Description= @capbrand@ Directory Server
 ProductName=Directory Server
-IsDirLite=%%%IS_DIR_LITE%%%
-SourcePath=slapd
-Archive= nsslapd.zip
+IsDirLite=false
 PrePreInstall= dsktune
 PreInstall= ns-config
 PostInstall= bin/slapd/admin/bin/ns-update
@@ -65,15 +62,3 @@ PostUninstall=
 Checked=True
 Mandatory=False
 IsLdap=True
-
-[slapd-client]
-Name= Fedora Directory Server Console
-NickName= slapd-client
-Version= %%%SERVER_VERSION%%%
-Compatible= 1.0
-Checked=True
-Mandatory=False
-IsLdap=False
-SourcePath=slapd
-IsMCC=True
-Archive=slapd-client.zip
