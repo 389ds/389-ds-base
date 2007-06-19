@@ -67,7 +67,7 @@ sub read {
 #   and the value is the config param value
     my $self = shift;
     my $filename = shift;
-    my $curSection;
+    my $curSection = "";
 
     if ($filename) {
         $self->{filename} = $filename;
@@ -75,17 +75,36 @@ sub read {
         $filename = $self->{filename};
     }
 
+    my $incontinuation = 0;
+    my $curkey;
     open INF, $filename or die "Error: could not open inf file $filename: $!";
     while (<INF>) {
-        # e.g. [General]
-        if (/^\[(.*?)\]/) {
+        my $iscontinuation;
+        chop; # trim trailing newline
+        if (/^\s*$/) { # skip blank/empty lines
+            $incontinuation = 0;
+            next;
+        }
+        if (/^\s*\#/) { # skip comment lines
+            $incontinuation = 0;
+            next;
+        }
+        if (/\\$/) { # line ends in \ - continued on next line
+            chop;
+            $iscontinuation = 1;
+        }
+        if ($incontinuation) {
+            $self->{$curSection}->{$curkey} .= "\n" . $_; # add line in entirety to current value
+        } elsif (/^\[(.*?)\]/) { # e.g. [General]
             $curSection = $1;
-        } elsif (/^\s*$/) {
-            next; # skip blank lines
-        } elsif (/^\s*\#/) {
-            next; # skip comment lines
-        } elsif (/^\s*(.*?)\s*=\s*(.*?)\s*$/) {
-            $self->{$curSection}->{$1} = $2;
+        } elsif (/^\s*(.*?)\s*=\s*(.*?)\s*$/) { # key = value
+            $curkey = $1;
+            $self->{$curSection}->{$curkey} = $2;
+        }
+        if ($iscontinuation) { # if line ends with a backslash, continue the data on the next line
+            $incontinuation = 1;
+        } else {
+            $incontinuation = 0;
         }
 	}
     close INF;

@@ -46,9 +46,11 @@ use Mozilla::LDAP::LDIF;
 require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
-                process_maptbl check_and_add_entry getMappedEntries);
+                process_maptbl check_and_add_entry getMappedEntries
+                getHashedPassword);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
-                process_maptbl check_and_add_entry getMappedEntries);
+                process_maptbl check_and_add_entry getMappedEntries
+                getHashedPassword);
 
 use strict;
 
@@ -88,7 +90,7 @@ sub isValidDN {
 }
 
 sub debug {
-    print @_, "\n";
+#    print @_, "\n";
 }
 
 # delete the subtree starting from the passed entry
@@ -143,10 +145,9 @@ sub comp_entries
 		next if ( $ignorelist{lc($akey)} );
 		my $aval0 = $e0->{$akey};
 		my $aval1 = $e1->{$akey};
-		my $amin;
-		my $amax;
 		my $a0max = $#{$aval0};
 		my $a1max = $#{$aval1};
+		my $amin = $#{$aval0};
 		if ( $a0max != $a1max )
 		{
 			if ( $speciallist{lc($akey)} )
@@ -155,12 +156,10 @@ sub comp_entries
 				if ( $a0max < $a1max )
 				{
 					$amin = $a0max;
-					$amax = $a1max;
 				}
 				else
 				{
 					$amin = $a1max;
-					$amax = $a0max;
 				}
 			}
 			else
@@ -168,7 +167,7 @@ sub comp_entries
 				$rc = -1;
 				return $rc;
 			}
-		}
+        }
 		my @sval0 = sort { $a cmp $b } @{$aval0};
 		my @sval1 = sort { $a cmp $b } @{$aval1};
 		for ( my $i = 0; $i <= $amin; $i++ )
@@ -607,6 +606,25 @@ sub process_maptbl
         }
     }
 	return $mapper;
+}
+
+sub getHashedPassword {
+    my $pwd = shift;
+    my $alg = shift;
+
+    if ($pwd =~ /\{\w+\}.+/) {
+        return $pwd; # already hashed
+    }
+
+    my $cmd = "@bindir@/pwdhash";
+    if ($alg) {
+        $cmd .= " -s $alg";
+    }
+    $cmd .= " \'$pwd\'";
+    my $hashedpwd = `$cmd`;
+    chomp($hashedpwd);
+
+    return $hashedpwd;
 }
 
 1;

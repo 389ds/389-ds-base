@@ -85,3 +85,5 @@ backend_already_exists = A database backend with the name '%s' already exists.  
 suffix_already_exists = The suffix '%s' already exists.  Config entry DN '%s'.\n\n
 error_creating_suffix_backend = Could not create the suffix '%s'.  There was an error creating the backend database named '%s' for the suffix.  Error: %s\n\n
 error_creating_suffix = Could not create the suffix '%s'.  Error: %s\n\n
+
+setup_exiting = Exiting . . .\nLog file is '%s'\n\n

@@ -197,6 +197,10 @@ schemadir=/$PACKAGE_NAME/schema
 # relative to libdir
 perldir=/$PACKAGE_NAME/perl
 
+# default user, group
+defaultuser=nobody
+defaultgroup=nobody
+
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
@@ -206,6 +210,9 @@ AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
 AC_SUBST(infdir)
+
+AC_SUBST(defaultuser)
+AC_SUBST(defaultgroup)
 
 # check for --with-instconfigdir
 AC_MSG_CHECKING(for --with-instconfigdir)
@@ -228,7 +235,6 @@ AC_SUBST(instconfigdir)
 # cygnus, mingw, or the like and using cmd.exe as the shell
 AM_CONDITIONAL([WINNT], false)
 
-shared_lib_suffix=.so
 # Deal with platform dependent defines
 # relative to sysconfdir
 initdir=/rc.d
@@ -266,7 +272,6 @@ case $host in
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
-    shared_lib_suffix=.sl
     platform="hpux"
     ;;
   sparc-sun-solaris*)
@@ -302,7 +307,6 @@ dnl Cstd and Crun are required to link any C++ related code
     ;;
 esac
 AC_SUBST(initdir)
-AC_SUBST(shared_lib_suffix)
 
 AM_CONDITIONAL(HPUX,test "$platform" = "hpux")
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")

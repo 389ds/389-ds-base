@@ -1,10 +1,15 @@
 # look for included m4 files in the ./m4/ directory
 ACLOCAL_AMFLAGS = -I m4
+NULLSTRING :=
+SPACE := $(NULLSTRING) # the space is between the ) and the #
+COLON := $(NULLSTRING):# a colon
+QUOTE := $(NULLSTRING)"# a double quote"
 
 #------------------------
 # Compiler Flags
 #------------------------
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
+NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM)
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
@@ -21,7 +26,7 @@ DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir
 PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfdir)\"" \
 	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
-	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\""
+	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
 
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
@@ -77,7 +82,8 @@ instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
 
-shared_lib_suffix = @shared_lib_suffix@
+defaultuser=@defaultuser@
+defaultgroup=@defaultgroup@
 
 #------------------------
 # Build Products
@@ -131,6 +137,14 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/roledit.ldif \
 	$(srcdir)/ldap/ldif/tasks.ldif \
 	$(srcdir)/ldap/ldif/template.ldif \
+	ldap/ldif/template-dse.ldif \
+	ldap/ldif/template-suffix-db.ldif \
+	ldap/ldif/template-ldapi.ldif \
+	ldap/ldif/template-ldapi-default.ldif \
+	ldap/ldif/template-ldapi-autobind.ldif \
+	ldap/ldif/template-pampta.ldif \
+	ldap/ldif/template-dnaplugin.ldif \
+	ldap/ldif/template-bitwise.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
@@ -1024,8 +1038,10 @@ fixupcmd = sed \
 	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
+	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
-	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
+	-e 's,@defaultuser\@,$(defaultuser),g' \
+	-e 's,@defaultgroup\@,$(defaultgroup),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1057,8 +1073,10 @@ fixupcmd = sed \
 	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
+	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
-	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
+	-e 's,@defaultuser\@,$(defaultuser),g' \
+	-e 's,@defaultgroup\@,$(defaultgroup),g'
 endif
 
 %: %.in

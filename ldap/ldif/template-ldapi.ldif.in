@@ -1,0 +1,7 @@
+dn: cn=config
+changetype: modify
+replace: nsslapd-ldapifilepath
+nsslapd-ldapifilepath: %ldapifilepath%
+-
+replace: nsslapd-ldapilisten
+nsslapd-ldapilisten: on

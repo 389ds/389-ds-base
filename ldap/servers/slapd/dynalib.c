@@ -55,8 +55,20 @@ static struct dynalib {
 	PRLibrary	*dl_handle;
 } **libs = NULL;
 
-static void symload_report_error( char *libpath, char *symbol, char *plugin,
+static void symload_report_error( const char *libpath, char *symbol, char *plugin,
 		int libopen );
+
+/* construct a full path and name of a plugin
+   very similar to PR_GetLibraryName except that function inserts
+   the string "lib" at the beginning of name, making that function
+   unsuitable for constructing plugin names
+*/
+static char *get_plugin_name(const char *dir, const char *name);
+
+static void free_plugin_name(char *name)
+{
+	PR_smprintf_free(name);
+}
 
 void *
 sym_load( char *libpath, char *symbol, char *plugin, int report_errors )
@@ -64,6 +76,15 @@ sym_load( char *libpath, char *symbol, char *plugin, int report_errors )
 	return sym_load_with_flags(libpath, symbol, plugin, report_errors, PR_FALSE, PR_FALSE);
 }
 
+/* libpath is the pathname from the plugin config entry - it may be an absolute path
+   or a relative path.  It does not have to have the shared lib/dll suffix.  The
+   PR_GetLibraryName function will create the correct library name and path, including
+   the correct shared library suffix for the platform.  So, for example, if you just
+   pass in "libacl-plugin" as the libpath, and you are running on linux, the code
+   will first test for the existence of "libacl-plugin", then will construct the full
+   pathname to load as "PLUGINDIR/libacl-plugin.so" where PLUGINDIR is set during
+   build time to something like /usr/lib/brand/plugins.
+*/
 void *
 sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_errors, PRBool load_now, PRBool load_global )
 {
@@ -92,9 +113,17 @@ sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_error
 		flags |= PR_LD_GLOBAL;
 	}
 
+	if (PR_SUCCESS != PR_Access(libpath, PR_ACCESS_READ_OK)) {
+		libSpec.value.pathname = get_plugin_name(PLUGINDIR, libpath);
+		/* then just handle that failure case with symload_report_error below */
+	}
+
 	if ( (handle = PR_LoadLibraryWithFlags( libSpec, flags )) == NULL ) {
 		if ( report_errors ) {
-			symload_report_error( libpath, symbol, plugin, 0 /* lib not open */ );
+			symload_report_error( libSpec.value.pathname, symbol, plugin, 0 /* lib not open */ );
+		}
+		if (libSpec.value.pathname != libpath) {
+			free_plugin_name((char *)libSpec.value.pathname); /* cast ok - allocated by get_plugin_name */
 		}
 		return( NULL );
 	}
@@ -108,14 +137,17 @@ sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_error
 
 	handle = PR_FindSymbol( libs[i]->dl_handle, symbol );
 	if ( NULL == handle && report_errors ) {
-		symload_report_error( libpath, symbol, plugin, 1 /* lib open */ );
+		symload_report_error( libSpec.value.pathname, symbol, plugin, 1 /* lib open */ );
+	}
+	if (libSpec.value.pathname != libpath) {
+		free_plugin_name((char *)libSpec.value.pathname); /* cast ok - allocated by PR_GetLibraryName */
 	}
 	return handle;
 }
 
 
 static void
-symload_report_error( char *libpath, char *symbol, char *plugin, int libopen )
+symload_report_error( const char *libpath, char *symbol, char *plugin, int libopen )
 {
 	char	*errtext = NULL;
 	PRInt32	errlen, err;
@@ -138,4 +170,23 @@ symload_report_error( char *libpath, char *symbol, char *plugin, int libopen )
 			"Could not open library \"%s\" for plugin %s\n",
 			libpath, plugin, 0 );
 	}
+}
+
+/* PR_GetLibraryName does almost everything we need, and unfortunately
+   a little bit more - it adds "lib" to be beginning of the library
+   name.  So we have to strip that part off.
+*/
+static char *
+get_plugin_name(const char *path, const char *lib)
+{
+	char *fullname = PR_GetLibraryName(path, lib);
+	char *ptr = PL_strrstr(fullname, "/lib");
+
+	if (ptr) {
+		++ptr; /* now points at the "l" */
+		/* just copy the remainder of the string on top of here */
+		memmove(ptr, ptr+3, strlen(ptr+3)+1);
+	}
+
+	return fullname;
 }

@@ -1,0 +1,22 @@
+dn: cn=config
+changetype: modify
+replace: nsslapd-ldapiautobind
+nsslapd-ldapiautobind: on
+-
+replace: nsslapd-ldapimaprootdn
+nsslapd-ldapimaprootdn: %rootdn%
+-
+replace: nsslapd-ldapimaptoentries
+nsslapd-ldapimaptoentries: off
+-
+replace: nsslapd-ldapiuidnumbertype
+nsslapd-ldapiuidnumbertype: uidNumber
+-
+replace: nsslapd-ldapigidnumbertype
+nsslapd-ldapigidnumbertype: gidNumber
+-
+replace: nsslapd-ldapientrysearchbase
+nsslapd-ldapientrysearchbase: %ds_suffix%
+-
+replace: nsslapd-ldapiautodnsuffix
+nsslapd-ldapiautodnsuffix: cn=peercred,cn=external,cn=auth

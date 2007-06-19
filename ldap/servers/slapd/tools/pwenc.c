@@ -80,7 +80,7 @@ FILE			*access_logfp;
 struct pw_scheme	*pwdhashscheme;
 int			heflag = 0;
 
-static int slapd_config(const char *configdir);
+static int slapd_config(const char *configdir, const char *configfile);
 static int entry_has_attr_and_value(Slapi_Entry *e, const char *attrname, char *value);
 
 static void
@@ -124,6 +124,41 @@ decode( char *orig )
 }
 
 
+static slapdFrontendConfig_t *
+init_config(char *configdir)
+{
+    char *abs_configdir = NULL;
+    char *configfile = NULL;
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+    slapdFrontendConfig_t *slapdFrontendConfig = NULL;
+
+    if (configdir == NULL) { /* use default */
+        configdir = TEMPLATEDIR;
+        configfile = "template-dse.ldif";
+    }
+    /* kexcoff: quite the same as slapd_bootstrap_config */
+    FrontendConfig_init();
+
+    abs_configdir = rel2abspath( configdir );
+    if ( config_set_configdir( "configdir (-D)", abs_configdir,
+                               errorbuf, 1) != LDAP_SUCCESS ) {
+        fprintf( stderr, "%s\n", errorbuf );
+        return( NULL );
+    }
+    slapi_ch_free((void **)&abs_configdir);
+
+    slapdFrontendConfig = getFrontendConfig();
+    if (0 == slapd_config(slapdFrontendConfig->configdir, configfile)) {
+        fprintf(stderr,
+                "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
+                slapdFrontendConfig->configdir);
+        return(NULL);
+    }
+
+    return slapdFrontendConfig;
+}
+
+
 int
 main( argc, argv )
     int		argc;
@@ -159,31 +194,22 @@ main( argc, argv )
 	while (( i = getopt( argc, argv, opts )) != EOF ) {
 		switch ( i ) {
 		case 'D':
-			/* kexcoff: quite the same as slapd_bootstrap_config */
-			FrontendConfig_init();
-
-			configdir = rel2abspath( optarg );
-			if ( config_set_configdir( "configdir (-D)", configdir,
-						errorbuf, 1) != LDAP_SUCCESS ) {
-				fprintf( stderr, "%s\n", errorbuf );
-				return( 1 );
+			if (slapdFrontendConfig) {
+				fprintf(stderr, "The -D configdir argument must be given only once, and must be the first argument given\n");
+				usage(name);
+				return 1;
 			}
-			slapi_ch_free((void **)&configdir);
-
-
-			slapdFrontendConfig = getFrontendConfig();
-			if (0 == slapd_config(slapdFrontendConfig->configdir)) {
-				fprintf(stderr,
-						 "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
-						slapdFrontendConfig->configdir);
+			if (!(slapdFrontendConfig = init_config(optarg))) {
 				return(1);
 			}
 			break;
 
 		case 's':	/* set hash scheme */
 			if (!slapdFrontendConfig) {
-				usage( name );
-				return( 1 );
+				if (!(slapdFrontendConfig = init_config(NULL))) {
+					usage( name );
+					return(1);
+				}
 			}
 			if (( pwsp = pw_name2scheme( optarg )) == NULL ) {
 			fprintf( stderr, "%s: unknown hash scheme \"%s\"\n", name,
@@ -194,19 +220,23 @@ main( argc, argv )
 
 		case 'c':	/* compare encoded password to password */
 			if (!slapdFrontendConfig) {
-				usage( name );
-				return( 1 );
+				if (!(slapdFrontendConfig = init_config(NULL))) {
+					usage( name );
+					return(1);
+				}
 			}
 			cpwd = optarg;
 			break;
 
 		case 'H':	/* password(s) is(are) hex-encoded */
 			if (!slapdFrontendConfig) {
-				usage( name );
-				return( 1 );
+				if (!(slapdFrontendConfig = init_config(NULL))) {
+					usage( name );
+					return(1);
 				}
-				heflag = 1;
-				break;
+			}
+			heflag = 1;
+			break;
 
 		default:
 			usage( name );
@@ -214,8 +244,10 @@ main( argc, argv )
     }
 
 	if (!slapdFrontendConfig) {
-		usage( name );
-		return( 1 );
+		if (!(slapdFrontendConfig = init_config(NULL))) {
+			usage( name );
+			return(1);
+		}
 	}
 
     if ( cpwd != NULL ) {
@@ -272,7 +304,7 @@ main( argc, argv )
 	but it only loads password storage scheme plugins
  */
 static int
-slapd_config(const char *configdir)
+slapd_config(const char *configdir, const char *givenconfigfile)
 {
 	char configfile[MAXPATHLEN+1];
     PRFileInfo prfinfo;
@@ -284,7 +316,11 @@ slapd_config(const char *configdir)
 	char *lastp = 0;
 	char *entrystr = 0;
 
-	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, CONFIG_FILENAME);
+	if (!givenconfigfile) {
+		givenconfigfile = CONFIG_FILENAME;
+	}
+
+	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, givenconfigfile);
 	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		fprintf(stderr,

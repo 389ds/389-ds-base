@@ -111,6 +111,7 @@ EOF
 sub new {
     my $type = shift;
     my $self = {};
+    $self->{res} = shift;
     my ($debuglevel, $silent, $inffile, $keep, $preonly, $logfile);
     my @otherargs;
 
@@ -147,7 +148,7 @@ sub new {
     # arguments override those passed in via an inf file - this
     # allows the reuse of .inf files with some parameters overridden
     for (@ARGV) {
-        if (/^(\w+)\.(\w+)=(.*)$/) { # e.g. section.param=value
+        if (/^(\w_-+)\.(\w_-+)=(.*)$/) { # e.g. section.param=value
             $self->{inf}->{$1}->{$2} = $3;
         } else { # error
             print STDERR "Error: unknown command line option $_\n";
@@ -176,6 +177,11 @@ sub log {
 # if you use msg like this:
 # msg($WARN, "some message")
 # it will go to the screen and to the log at the $WARN level
+# all messages are localizable - you must define a resource key
+# the first string passed to this method is a resource key
+# additional strings are used as "arguments" to that resource key
+# if you want to print un-localizable messages, use debug or write
+# directly to the log or screen
 sub msg {
     my $self = shift;
     my $level = shift;
@@ -189,16 +195,16 @@ sub msg {
         unshift @text, $level;
         $level = $INFO;
     }
+    my $string = $self->{res}->getText(@text);
     if ($level) {
-        $self->log($level, @text);
+        $self->log($level, $string);
     }
-    print @text;
+    print $string;
 }
 
 sub doExit {
     my $self = shift;
-    $self->msg($FATAL, "Exiting . . .\n");
-    $self->msg("Log file is " . $self->{log}->{filename} . "\n");
+    $self->msg($FATAL, 'setup_exiting', $self->{log}->{filename});
 	exit 1;
 }
 

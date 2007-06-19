@@ -1,0 +1,11 @@
+dn: cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: nsContainer
+cn: Distributed Numeric Assignment Plugin
+nsslapd-plugininitfunc: dna_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: off
+nsslapd-pluginPath: libdna-plugin
+

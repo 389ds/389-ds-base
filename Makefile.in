@@ -876,6 +876,7 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -920,6 +921,8 @@ db_lib = @db_lib@
 db_libdir = @db_libdir@
 db_libver = @db_libver@
 debug_defs = @debug_defs@
+defaultgroup = @defaultgroup@
+defaultuser = @defaultuser@
 enable_bitwise_FALSE = @enable_bitwise_FALSE@
 enable_bitwise_TRUE = @enable_bitwise_TRUE@
 enable_dna_FALSE = @enable_dna_FALSE@
@@ -976,7 +979,6 @@ schemadir = $(sysconfdir)@schemadir@
 scripttemplatedir = @scripttemplatedir@
 serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
-shared_lib_suffix = @shared_lib_suffix@
 sharedstatedir = @sharedstatedir@
 svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
@@ -986,11 +988,16 @@ vendor = @vendor@
 
 # look for included m4 files in the ./m4/ directory
 ACLOCAL_AMFLAGS = -I m4
+NULLSTRING := 
+SPACE := $(NULLSTRING) # the space is between the ) and the #
+COLON := $(NULLSTRING):# a colon
+QUOTE := $(NULLSTRING)"# a double quote"
 
 #------------------------
 # Compiler Flags
 #------------------------
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
+NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM)
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
@@ -1007,7 +1014,7 @@ DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir
 PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfdir)\"" \
 	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
-	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\""
+	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
 
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
@@ -1066,6 +1073,14 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/roledit.ldif \
 	$(srcdir)/ldap/ldif/tasks.ldif \
 	$(srcdir)/ldap/ldif/template.ldif \
+	ldap/ldif/template-dse.ldif \
+	ldap/ldif/template-suffix-db.ldif \
+	ldap/ldif/template-ldapi.ldif \
+	ldap/ldif/template-ldapi-default.ldif \
+	ldap/ldif/template-ldapi-autobind.ldif \
+	ldap/ldif/template-pampta.ldif \
+	ldap/ldif/template-dnaplugin.ldif \
+	ldap/ldif/template-bitwise.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
@@ -1918,8 +1933,10 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@vendor\@,$(vendor),g' \
 @BUNDLE_FALSE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 @BUNDLE_FALSE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
+@BUNDLE_FALSE@	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 @BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g' \
-@BUNDLE_FALSE@	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
+@BUNDLE_FALSE@	-e 's,@defaultuser\@,$(defaultuser),g' \
+@BUNDLE_FALSE@	-e 's,@defaultgroup\@,$(defaultgroup),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -1958,8 +1975,10 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@vendor\@,$(vendor),g' \
 @BUNDLE_TRUE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 @BUNDLE_TRUE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
+@BUNDLE_TRUE@	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 @BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g' \
-@BUNDLE_TRUE@	-e 's,@shared_lib_suffix\@,$(shared_lib_suffix),g'
+@BUNDLE_TRUE@	-e 's,@defaultuser\@,$(defaultuser),g' \
+@BUNDLE_TRUE@	-e 's,@defaultgroup\@,$(defaultgroup),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am

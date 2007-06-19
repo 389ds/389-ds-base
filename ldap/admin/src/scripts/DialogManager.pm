@@ -94,6 +94,10 @@ sub isBack {
     my $self = shift;
     my $ans = shift;
 
+    if (!$ans) {
+        return 0;
+    }
+
     # the word "back"
     if ($ans =~ /back/i) {
         return 1;

@@ -47,12 +47,14 @@ InstanceNamePrefix= Directory Server
 NickName= slapd
 Version= @PACKAGE_VERSION@
 Compatible= 1.0
-BuildNumber= @BUILDNUM@
-Expires= 0
-Security= domestic
-Vendor= @vendor@
+BuildNumber= @NQBUILD_NUM@
 Description= @capbrand@ Directory Server
 ProductName=Directory Server
+Vendor= @vendor@
+# the rest of these are obsolete, but left here for
+# compatability with the old setuputil
+Expires= 0
+Security= domestic
 IsDirLite=false
 PrePreInstall= dsktune
 PreInstall= ns-config

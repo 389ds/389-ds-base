@@ -216,7 +216,7 @@ my $usergroup = new Dialog (
             my $username = $self->{manager}->{inf}->{General}->{SuiteSpotUserID};
             if (!$username) {
                 if ($> == 0) { # if root, use the default user
-                    $username = "\@defaultuser\@";
+                    $username = "@defaultuser@";
                 } else { # if not root, use the user's uid
                     $username = getlogin;
                 }
@@ -226,7 +226,7 @@ my $usergroup = new Dialog (
             my $groupname = $self->{manager}->{inf}->{General}->{SuiteSpotGroup};
             if (!$groupname) {
                 if ($> == 0) { # if root, use the default group
-                    $groupname = "\@defaultgroup\@";
+                    $groupname = "@defaultgroup@";
                 } else { # if not root, use the user's gid
                     $groupname = getgrgid $(;
                 }

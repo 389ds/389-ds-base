@@ -1,0 +1,26 @@
+dn: cn=config
+changetype: modify
+replace: nsslapd-ldapifilepath
+nsslapd-ldapifilepath: %run_dir%/slapd-%dsid%.socket
+-
+replace: nsslapd-ldapilisten
+nsslapd-ldapilisten: off
+-
+replace: nsslapd-ldapimaprootdn
+nsslapd-ldapimaprootdn: cn=Directory Manager
+-
+replace: nsslapd-ldapimaptoentries
+nsslapd-ldapimaptoentries: off
+-
+replace: nsslapd-ldapiuidnumbertype
+nsslapd-ldapiuidnumbertype: uidNumber
+-
+replace: nsslapd-ldapigidnumbertype
+nsslapd-ldapigidnumbertype: gidNumber
+-
+replace: nsslapd-ldapientrysearchbase
+nsslapd-ldapientrysearchbase: dc=example, dc=com
+-
+replace: nsslapd-ldapiautodnsuffix
+nsslapd-ldapiautodnsuffix: cn=peercred,cn=external,cn=auth
+
