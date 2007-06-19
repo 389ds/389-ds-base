@@ -148,7 +148,7 @@ sub new {
     # arguments override those passed in via an inf file - this
     # allows the reuse of .inf files with some parameters overridden
     for (@ARGV) {
-        if (/^(\w_-+)\.(\w_-+)=(.*)$/) { # e.g. section.param=value
+        if (/^([\w_-]+)\.([\w_-]+)=(.*)$/) { # e.g. section.param=value
             $self->{inf}->{$1}->{$2} = $3;
         } else { # error
             print STDERR "Error: unknown command line option $_\n";
