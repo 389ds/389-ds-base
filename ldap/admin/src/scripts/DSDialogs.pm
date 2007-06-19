@@ -122,6 +122,7 @@ my $dssuffix = new Dialog (
             if (!defined($suffix)) {
                 $suffix = hostfqdn;
             }
+            $suffix =~ s/^[^\.]*\.//; # just the domain part
             # convert fqdn to dc= domain components
             $suffix = "dc=$suffix";
             $suffix =~ s/\./, dc=/g;
