@@ -135,6 +135,8 @@ sub new {
     # if user supplied inf file, use that to initialize
     if (defined($self->{inffile})) {
         $self->{inf} = new Inf($self->{inffile});
+    } else {
+        $self->{inf} = new Inf;
     }
     my $fh;
     # create a temp inf file for writing for other processes

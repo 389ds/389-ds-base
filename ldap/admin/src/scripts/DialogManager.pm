@@ -206,7 +206,7 @@ sub run {
         my $dialog = $self->{dialogs}->[$index];
         if ($dialog->isEnabled()) {
             my $resp = $NEXT;
-            $resp = $dialog->run();
+            $resp = $dialog->run($incr);
             if ($resp == $BACK) {
                 $incr = -1;
             } elsif ($resp == $NEXT) {

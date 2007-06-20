@@ -136,6 +136,7 @@ sub disable {
 # you can set the 0 to a 1 if the user has chosen to use security
 sub run {
     my $self = shift;
+    my $direction = shift;
     my $resp = $DialogManager::SAME;
 
     # display the dialog text
@@ -181,6 +182,12 @@ sub run {
             }
         } elsif ($resp == $DialogManager::ERR) {
             last;
+        } elsif (!$self->isDisplayed() && ($direction < 0) &&
+                 ($resp == $DialogManager::NEXT)) {
+            # we did not display this dialog, and the current navigation
+            # direction is BACK, so we should return BACK, to allow
+            # the user to go back through several dialogs
+            $resp = $DialogManager::BACK;
         }
     }
 
