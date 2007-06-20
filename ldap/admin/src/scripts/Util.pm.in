@@ -96,40 +96,44 @@ sub debug {
 # delete the subtree starting from the passed entry
 sub delete_all
 {
-	my ($conn, $bentry) = @_;
-	my $sentry = $conn->search($bentry->{dn},
-							   "subtree", "(objectclass=*)", 0, ("dn"));
-	my @mystack = ();
-	while ($sentry) {
-		push @mystack, $sentry->getDN();
-		$sentry = $conn->nextEntry();
-	}
-	# reverse order
-	my $dn = pop @mystack;
-	while ($dn) {
-		$conn->delete($dn);
-		my $rc = $conn->getErrorCode();
-		if ( $rc != 0 ) {
-			$conn->printError();
-			print "ERROR: unable to delete entry $dn, error code: $rc\n";
-			return 1;
-		}
-		$dn = pop @mystack;
-	}
-	return 0;
+    my ($conn, $bentry) = @_;
+    my $sentry = $conn->search($bentry->{dn},
+                               "subtree", "(objectclass=*)", 0, ("dn"));
+    my @mystack = ();
+    while ($sentry) {
+        push @mystack, $sentry->getDN();
+        $sentry = $conn->nextEntry();
+    }
+    # reverse order
+    my $dn = pop @mystack;
+    while ($dn) {
+        $conn->delete($dn);
+        my $rc = $conn->getErrorCode();
+        if ( $rc != 0 ) {
+            $conn->printError();
+            print "ERROR: unable to delete entry $dn, error code: $rc\n";
+            return 1;
+        }
+        $dn = pop @mystack;
+    }
+    return 0;
 }
 
 my %ignorelist = (
-	"modifytimestamp", "modifyTimestamp",
-	"createtimestamp", "createTimestamp",
-	"installationtimestamp", "installationTimestamp",
-	"creatorsname", "creatorsName",
-	"modifiersname", "modifiersName",
-	"numsubordinates", "numSubordinates"
+    "nsslapd-directory", "nsslapd-directory",
+    "nsslapd-require-index", "nsslapd-require-index",
+    "nsslapd-readonly", "nsslapd-readonly",
+    "modifytimestamp", "modifyTimestamp",
+    "createtimestamp", "createTimestamp",
+    "installationtimestamp", "installationTimestamp",
+    "creatorsname", "creatorsName",
+    "modifiersname", "modifiersName",
+    "numsubordinates", "numSubordinates"
 );
 
 my %speciallist = (
-	"uniquemember", 1
+    "uniquemember", 1,
+    "aci", 1
 );
 
 # compare 2 entries
@@ -138,60 +142,60 @@ my %speciallist = (
 # return -1 if they do not match.
 sub comp_entries
 {
-	my ($e0, $e1) = @_;
-	my $rc = 0;
-	foreach my $akey ( keys %{$e0} )
-	{
-		next if ( $ignorelist{lc($akey)} );
-		my $aval0 = $e0->{$akey};
-		my $aval1 = $e1->{$akey};
-		my $a0max = $#{$aval0};
-		my $a1max = $#{$aval1};
-		my $amin = $#{$aval0};
-		if ( $a0max != $a1max )
-		{
-			if ( $speciallist{lc($akey)} )
-			{
-				$rc = 1;
-				if ( $a0max < $a1max )
-				{
-					$amin = $a0max;
-				}
-				else
-				{
-					$amin = $a1max;
-				}
-			}
-			else
-			{
-				$rc = -1;
-				return $rc;
-			}
+    my ($e0, $e1) = @_;
+    my $rc = 0;
+    foreach my $akey ( keys %{$e0} )
+    {
+        next if ( $ignorelist{lc($akey)} );
+        my $aval0 = $e0->{$akey};
+        my $aval1 = $e1->{$akey};
+        my $a0max = $#{$aval0};
+        my $a1max = $#{$aval1};
+        my $amin = $#{$aval0};
+        if ( $a0max != $a1max )
+        {
+            if ( $speciallist{lc($akey)} )
+            {
+                $rc = 1;
+                if ( $a0max < $a1max )
+                {
+                    $amin = $a0max;
+                }
+                else
+                {
+                    $amin = $a1max;
+                }
+            }
+            else
+            {
+                $rc = -1;
+                return $rc;
+            }
         }
-		my @sval0 = sort { $a cmp $b } @{$aval0};
-		my @sval1 = sort { $a cmp $b } @{$aval1};
-		for ( my $i = 0; $i <= $amin; $i++ )
-		{
-			my $isspecial = -1;
-			if ( $sval0[$i] ne $sval1[$i] )
-			{
-				if ( 0 > $isspecial )
-				{
-					$isspecial = $speciallist{lc($akey)};
-				}
-				if ( $isspecial )
-				{
-					$rc = 1;
-				}
-				else
-				{
-					$rc = -1;
-					return $rc;
-				}
-			}
-		}
-	}
-	return $rc;
+        my @sval0 = sort { $a cmp $b } @{$aval0};
+        my @sval1 = sort { $a cmp $b } @{$aval1};
+        for ( my $i = 0; $i <= $amin; $i++ )
+        {
+            my $isspecial = -1;
+            if ( $sval0[$i] ne $sval1[$i] )
+            {
+                if ( 0 > $isspecial )
+                {
+                    $isspecial = $speciallist{lc($akey)};
+                }
+                if ( $isspecial )
+                {
+                    $rc = 1;
+                }
+                else
+                {
+                    $rc = -1;
+                    return $rc;
+                }
+            }
+        }
+    }
+    return $rc;
 }
 
 # if the entry does not exist on the server, add the entry.
@@ -207,92 +211,170 @@ sub comp_entries
 # $verbose prints out more info
 sub check_and_add_entry
 {
-	my ($context, $aentry) = @_;
-	my $conn = $context->[0];
-	my $fresh = $context->[1];
-	my $verbose = $context->[2];
-	my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)");
-	do
-	{
-		my $needtoadd = 1;
-		my $needtomod = 0;
-		my $rval = -1;
-		if ( $sentry && !$fresh )
-		{
-			$rval = comp_entries( $sentry, $aentry );
-		}
-		if ( 0 == $rval && !$fresh )
-		{
-			# the identical entry exists on the configuration DS.
-			# no need to add the entry.
-			$needtoadd = 0;
-			goto out;
-		}
-		elsif ( (1 == $rval) && !$fresh )
-		{
-			$needtoadd = 0;
-			$needtomod = 1;
-		}
-		elsif ( $sentry && $sentry->{dn} )
-		{
-			# $fresh || $rval == -1
-			# an entry having the same DN exists, but the attributes do not
-			# match.  remove the entry and the subtree underneath.
-			if ( $verbose )
-			{
-				print "Deleting an entry dn: $sentry->{dn} ...\n";
-			}
-			$rval = delete_all($conn, $sentry);
-			if ( 0 != $rval )
-			{
-				return 0;
-			}
-		}
+    my ($context, $aentry) = @_;
+    my $conn = $context->[0];
+    my $fresh = $context->[1];
+    my $verbose = $context->[2];
+    my @ctypes = $aentry->getValues("changetype");
+    my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)");
+    do
+    {
+        my $needtoadd;
+        my $MOD_NONE = 0;
+        my $MOD_ADD = 1;
+        my $MOD_REPLACE = 2;
+        my $MOD_SPECIAL = 3;
+        # $needtomod stores either of the above $MOD_ values
+        # note: delete is not supported
+        my $needtomod;
+        if ( 0 > $#ctypes )    # aentry: complete entry
+        {
+            $needtoadd = 1;
+            $needtomod = 0; #$MOD_NONE
 
-		if ( 1 == $needtoadd )
-		{
-			$conn->add($aentry);
-			my $rc = $conn->getErrorCode();
-			if ( $rc != 0 )
-			{
-				print "ERROR: adding an entry $aentry->{dn} failed, error code: $rc\n";
-				print "[entry]\n";
-				$aentry->printLDIF();
-				$conn->close();
-				return 0;
-			}
-#			if ( $verbose )
-#			{
-#				print "Entry $aentry->{dn} is added\n";
-#			}
-		}
-		elsif ( 1 == $needtomod )	# $sentry exists
-		{
-			foreach my $attr ( keys %speciallist )
-			{
-				foreach my $nval ( @{$aentry->{$attr}} )
-				{
-					$sentry->addValue( $attr, $nval );
-				}
-			}
-			$conn->update($sentry);
-			my $rc = $conn->getErrorCode();
-			if ( $rc != 0 )
-			{
-				print "ERROR: updating an entry $sentry->{dn} failed, error code: $rc\n";
-				print "[entry]\n";
-				$aentry->printLDIF();
-				$conn->close();
-				return 0;
-			}
-		}
-		if ( $sentry )
-		{
-			$sentry = $conn->nextEntry();	# supposed to have no more entries
-		}
-	} until ( !$sentry );
+            my $rc = -1;
+            if ( $sentry && !$fresh )
+            {
+                $rc = comp_entries( $sentry, $aentry );
+            }
+            if ( 0 == $rc && !$fresh )
+            {
+                # the identical entry exists on the configuration DS.
+                # no need to add the entry.
+                $needtoadd = 0;
+                goto out;
+            }
+            elsif ( (1 == $rc) && !$fresh )
+            {
+                $needtoadd = 0;
+                $needtomod = $MOD_ADD;
+            }
+            elsif ( $sentry && $sentry->{dn} )
+            {
+                # $fresh || $rc == -1
+                # an entry having the same DN exists, but the attributes do not
+                # match.  remove the entry and the subtree underneath.
+                if ( $verbose )
+                {
+                    print "Deleting an entry dn: $sentry->{dn} ...\n";
+                }
+                $rc = delete_all($conn, $sentry);
+                if ( 0 != $rc )
+                {
+                    return 0;
+                }
+            }
+        }
+        else    # aentry: modify format
+        {
+            $needtoadd = 0;
+            if ( $sentry )
+            {
+                my @atypes = $aentry->getValues("add");
+                if ( 0 <= $#atypes )
+                {
+                    $needtomod = $MOD_ADD;
+                }
+                else
+                {
+                    @atypes = $aentry->getValues("replace");
+                    if ( 0 <= $#atypes )
+                    {
+                        $needtomod = $MOD_REPLACE;
+                    }
+                    else
+                    {
+                        @atypes = $aentry->getValues("delete");
+                        if ( 0 <= $#atypes )
+                        {
+                            print "\"delete\" is not supported; ignoring...\n";
+                        }
+                        $needtomod = $MOD_NONE;
+                    }
+                }
+            }
+            else
+            {
+                $needtomod = $MOD_NONE;
+            }
+        }
+
+        if ( 1 == $needtoadd )
+        {
+            $conn->add($aentry);
+            my $rc = $conn->getErrorCode();
+            if ( $rc != 0 )
+            {
+                print "ERROR: adding an entry $aentry->{dn} failed, error code: $rc\n";
+                print "[entry]\n";
+                $aentry->printLDIF();
+                $conn->close();
+                return 0;
+            }
+            debug("Entry $aentry->{dn} is added\n");
+        }
+        elsif ( 0 < $needtomod )    # $sentry exists
+        {
+            if ( $needtomod == $MOD_SPECIAL )
+            {
+                foreach my $attr ( keys %speciallist )
+                {
+                    foreach my $nval ( @{$aentry->{$attr}} )
+                    {
+                        $sentry->addValue( $attr, $nval );
+                    }
+                }
+                $conn->update($sentry);
+            }
+            elsif ( $needtomod == $MOD_ADD )
+            {
+                foreach my $attr ( keys %{$aentry} )
+                {
+                    next if $attr =~ /add|changetype/;
+                    foreach my $nval ( @{$aentry->{$attr}} )
+                    {
+                        $sentry->addValue( $attr, $nval );
+                    }
+                }
+                $conn->update($sentry);
+            }
+            elsif ( $needtomod == $MOD_REPLACE )
+            {
+                my $entry = new Mozilla::LDAP::Entry();
+                $entry->setDN($aentry->getDN());
+                foreach my $attr ( keys %{$aentry} )
+                {
+                    next if $attr =~ /replace|changetype/;
+                    foreach my $nval ( @{$aentry->{$attr}} )
+                    {
+                        $entry->addValue( $attr, $nval );
+                    }
+                }
+                $conn->update($entry);
+            }
+            else
+            {
+                print "ERROR: needtomod == $needtomod is not supported.\n";
+                $conn->close();
+                return 0;
+            }
+            my $rc = $conn->getErrorCode();
+            if ( $rc != 0 )
+            {
+                print "ERROR: updating an entry $sentry->{dn} failed, error code: $rc\n";
+                print "[entry]\n";
+                $aentry->printLDIF();
+                $conn->close();
+                return 0;
+            }
+        }
+        if ( $sentry )
+        {
+            $sentry = $conn->nextEntry();    # supposed to have no more entries
+        }
+    } until ( !$sentry );
 out:
-	return 1;
+    return 1;
 }
 
 # the default callback used with getMappedEntries
@@ -370,8 +452,8 @@ sub getMappedEntries {
         $ldiffiles = [ $ldiffiles ];
     }
 
-	foreach my $ldiffile (@{$ldiffiles}) {
-		open(MYLDIF, "< $ldiffile") or die "Can't open $ldiffile : $!";
+    foreach my $ldiffile (@{$ldiffiles}) {
+        open(MYLDIF, "< $ldiffile") or die "Can't open $ldiffile : $!";
         my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
         debug("Processing $ldiffile ...");
         ENTRY: while (my $entry = Mozilla::LDAP::LDIF::readOneEntry($in)) {
@@ -420,11 +502,11 @@ sub getMappedEntries {
             }                
 
         }
-		close(MYLDIF);
+        close(MYLDIF);
         last if ($error); # do not process any more ldiffiles if an error occurred
-	}
+    }
 
-	return @entries;
+    return @entries;
 }
 
 # you should only use this function if you know for sure
@@ -544,8 +626,8 @@ sub addSuffix {
 
 # process map table
 # [map table sample]
-# fqdn =	FullMachineName
-# hostname =	`use Sys::Hostname; $returnvalue = hostname();`
+# fqdn =    FullMachineName
+# hostname =    `use Sys::Hostname; $returnvalue = hostname();`
 # ds_console_jar ="%normbrand%-ds-%ds_version%.jar"
 #
 # * If the right-hand value is in ` (backquote), the value is eval'ed by perl.
@@ -560,7 +642,7 @@ sub addSuffix {
 # The %token% tokens are replaced in getMappedEntries
 sub process_maptbl
 {
-	my ($mapper, @infdata) = @_;
+    my ($mapper, @infdata) = @_;
 
     if (defined($mapper->{""})) {
         $mapper = $mapper->{""}; # side effect of Inf with no sections
@@ -605,7 +687,7 @@ sub process_maptbl
             }
         }
     }
-	return $mapper;
+    return $mapper;
 }
 
 sub getHashedPassword {
