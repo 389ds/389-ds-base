@@ -131,7 +131,9 @@ sub writeSection {
         print $fh "[$name]\n";
         for my $key (keys %{$section}) {
             if (defined($section->{$key})) {
-                print $fh "$key = ", $section->{$key}, "\n";
+                my $val = $section->{$key};
+                $val =~ s/\n/\\\n/g; # make continuation lines
+                print $fh "$key = $val\n";
             }
         }
     }

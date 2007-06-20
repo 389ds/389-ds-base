@@ -217,6 +217,7 @@ if (!$table{slapd}->{RootDN}) {
 if (!$table{slapd}->{Suffix}) {
     my $suffix = $table{General}->{FullMachineName};
     # convert fqdn to dc= domain components
+    $suffix =~ s/^[^\.]*\.//; # just the domain part
     $suffix = "dc=$suffix";
     $suffix =~ s/\./, dc=/g;
     $table{slapd}->{Suffix} = $suffix;

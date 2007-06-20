@@ -132,17 +132,17 @@ sub new {
     $self->{preonly} = $preonly;
     $self->{logfile} = $logfile;
     $self->{log} = new SetupLog($self->{logfile});
-    if (!$self->{inffile}) {
-        my ($fh, $filename) = tempfile("setupXXXXXX", UNLINK => !$keep,
+    # if user supplied inf file, use that to initialize
+    if (defined($self->{inffile})) {
+        $self->{inf} = new Inf($self->{inffile});
+    }
+    my $fh;
+    # create a temp inf file for writing for other processes
+    # never overwrite the user supplied inf file
+    ($fh, $self->{inffile}) = tempfile("setupXXXXXX", UNLINK => !$keep,
                                        SUFFIX => ".inf", OPEN => 0,
                                        DIR => File::Spec->tmpdir);
-        $self->{inffile} = $filename;
-        $self->{inf} = new Inf;
-        $self->{inf}->{filename} = $self->{inffile};
-    } else {
-        $self->{inf} = new Inf($self->{inffile});
-        $self->{keep} = 1; # do not delete user supplied inf file
-    }
+    $self->{inf}->{filename} = $self->{inffile};
 
     # see if user passed in default inf values - also, command line
     # arguments override those passed in via an inf file - this
@@ -157,6 +157,8 @@ sub new {
         }
     }
 
+    # this is the base config directory - the directory containing
+    # the slapd-instance instance specific config directories
     $self->{configdir} = $ENV{DS_CONFIG_DIR} || "@instconfigdir@";
 
     $self = bless $self, $type;
