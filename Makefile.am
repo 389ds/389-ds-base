@@ -231,7 +231,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
-inf_DATA = ldap/cm/newinst/slapd.inf
+inf_DATA = ldap/admin/src/slapd.inf
 
 #////////////////////////////////////////////////////////////////
 #

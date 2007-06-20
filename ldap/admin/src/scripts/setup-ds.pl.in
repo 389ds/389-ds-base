@@ -46,10 +46,11 @@ use Inf;
 use Resource;
 use DialogManager;
 
-my $setup = new Setup;
+my $res = new Resource("@propertydir@/setup-ds.res");
+
+my $setup = new Setup($res);
 
 if (!$setup->{silent}) {
-    my $res = new Resource("@propertydir@/setup-ds.res");
     my $dialogmgr = new DialogManager($setup, $res, $TYPICAL);
 
     require SetupDialogs;
@@ -68,8 +69,5 @@ if (!$setup->{silent}) {
 }
 
 system("@bindir@/ds_newinst.pl $setup->{inffile}");
-if (!$setup->{keep}) {
-    unlink $setup->{inffile};
-}
 
 $setup->doExit();
