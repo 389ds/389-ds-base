@@ -216,7 +216,7 @@ sub check_and_add_entry
     my $fresh = $context->[1];
     my $verbose = $context->[2];
     my @ctypes = $aentry->getValues("changetype");
-    my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)");
+    my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)", 0, ("*", "aci"));
     do
     {
         my $needtoadd;

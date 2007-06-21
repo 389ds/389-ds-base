@@ -1037,6 +1037,7 @@ fixupcmd = sed \
 	-e 's,@capbrand\@,$(capbrand),g' \
 	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
@@ -1072,6 +1073,7 @@ fixupcmd = sed \
 	-e 's,@capbrand\@,$(capbrand),g' \
 	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \

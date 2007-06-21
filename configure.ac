@@ -321,6 +321,9 @@ m4_include(m4/svrcore.m4)
 m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
 
+PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
+AC_SUBST(PACKAGE_BASE_VERSION)
+
 # write out paths for binary components
 AC_SUBST(nspr_inc)
 AC_SUBST(nspr_lib)
@@ -357,7 +360,6 @@ AC_SUBST(vendor)
 
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
-
 
 # libtool on fedora/rhel contains some gcc-isms which cause problems
 # if not using gcc (e.g. Forte on Solaris, aCC on HP-UX)
