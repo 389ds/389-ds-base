@@ -1728,6 +1728,8 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_LOCKDIR_ATTRIBUTE "nsslapd-lockdir"
 #define CONFIG_TMPDIR_ATTRIBUTE "nsslapd-tmpdir"
 #define CONFIG_CERTDIR_ATTRIBUTE "nsslapd-certdir"
+#define CONFIG_LDIFDIR_ATTRIBUTE "nsslapd-ldifdir"
+#define CONFIG_BAKDIR_ATTRIBUTE "nsslapd-bakdir"
 #define CONFIG_SASLPATH_ATTRIBUTE "nsslapd-saslpath"
 #define CONFIG_SSLCLIENTAUTH_ATTRIBUTE "nsslapd-SSLclientAuth"
 #define CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE "nsslapd-ssl-check-hostname"
@@ -1906,6 +1908,8 @@ typedef struct _slapdFrontendConfig {
   char *lockdir;    /* full path name of directory containing lock files */
   char *tmpdir;     /* full path name of directory containing tmp files */
   char *certdir;    /* full path name of directory containing cert files */
+  char *ldifdir;    /* full path name of directory containing ldif files */
+  char *bakdir;     /* full path name of directory containing bakup files */
   char *saslpath;   /* full path name of directory containing sasl plugins */
   int attrname_exceptions;  /* if true, allow questionable attribute names */
   int rewrite_rfc1274;		/* return attrs for both v2 and v3 names */

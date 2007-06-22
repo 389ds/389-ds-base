@@ -320,6 +320,8 @@ int config_set_schemadir( const char *attrname, char *value, char *errorbuf, int
 int config_set_lockdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_tmpdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_certdir( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_ldifdir( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_bakdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_saslpath( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_attrname_exceptions( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_hash_filters( const char *attrname, char *value, char *errorbuf, int apply );
@@ -430,6 +432,8 @@ char *config_get_schemadir();
 char *config_get_lockdir();
 char *config_get_tmpdir();
 char *config_get_certdir();
+char *config_get_ldifdir();
+char *config_get_bakdir();
 char *config_get_saslpath();
 char **config_get_errorlog_list();
 char **config_get_accesslog_list();
