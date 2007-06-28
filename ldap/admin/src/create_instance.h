@@ -161,10 +161,8 @@ typedef struct {
     char * start_server;
 
     char * admin_domain;
-    char * config_ldap_url;
     char * user_ldap_url;
     int use_existing_user_ds;
-    int use_existing_config_ds;
     char * disable_schema_checking;
     char * install_ldif_file;
     char *adminport;

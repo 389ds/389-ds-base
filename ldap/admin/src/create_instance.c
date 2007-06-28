@@ -301,9 +301,7 @@ void set_defaults(char *sroot, char *hn, server_config_s *conf)
     conf->start_server = "1";
     conf->install_full_schema = 1;
     conf->admin_domain = NULL;
-    conf->config_ldap_url = NULL;
     conf->user_ldap_url = NULL;
-    conf->use_existing_config_ds = 0;
     conf->use_existing_user_ds = 0;
     conf->consumerdn = NULL;
     conf->disable_schema_checking = NULL;
@@ -3217,53 +3215,17 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "\n");
 #endif
 
-    /* enable pass thru authentication */
-    if ((cf->use_existing_config_ds && cf->config_ldap_url) ||
-        (cf->use_existing_user_ds && cf->user_ldap_url))
-    {
-        LDAPURLDesc *desc = 0;
-        char *url = cf->use_existing_config_ds ? cf->config_ldap_url :
-                                                 cf->user_ldap_url;
-        if (url && !ldap_url_parse(url, &desc) && desc)
-        {
-            char *suffix = desc->lud_dn;
-            char *service = !strncmp(url, "ldaps:", strlen("ldaps:")) ?
-                "ldaps" : "ldap";
-            if (cf->use_existing_config_ds)
-            {
-                suffix = cf->netscaperoot;
-            }
-
-            suffix = ds_URL_encode(suffix);
-            fprintf(f, "dn: cn=Pass Through Authentication,cn=plugins,cn=config\n");
-            fprintf(f, "objectclass: top\n");
-            fprintf(f, "objectclass: nsSlapdPlugin\n");
-            fprintf(f, "objectclass: extensibleObject\n");
-            fprintf(f, "cn: Pass Through Authentication\n");
-            fprintf(f, "nsslapd-pluginpath: %s/libpassthru-plugin%s\n", cf->plugin_dir, shared_lib);
-            fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
-            fprintf(f, "nsslapd-plugintype: preoperation\n");
-            fprintf(f, "nsslapd-pluginenabled: on\n");
-            fprintf(f, "nsslapd-pluginarg0: %s://%s:%d/%s\n", service, desc->lud_host, desc->lud_port,
-                    suffix);
-            fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-            fprintf(f, "\n");
-            free(suffix);
-            ldap_free_urldesc(desc);
-        }
-    } else { /* just add the config, disabled */
-        fprintf(f, "dn: cn=Pass Through Authentication,cn=plugins,cn=config\n");
-        fprintf(f, "objectclass: top\n");
-        fprintf(f, "objectclass: nsSlapdPlugin\n");
-        fprintf(f, "objectclass: extensibleObject\n");
-        fprintf(f, "cn: Pass Through Authentication\n");
-        fprintf(f, "nsslapd-pluginpath: %s/libpassthru-plugin%s\n", cf->plugin_dir, shared_lib);
-        fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
-        fprintf(f, "nsslapd-plugintype: preoperation\n");
-        fprintf(f, "nsslapd-pluginenabled: off\n");
-        fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
-        fprintf(f, "\n");
-    }
+    fprintf(f, "dn: cn=Pass Through Authentication,cn=plugins,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSlapdPlugin\n");
+    fprintf(f, "objectclass: extensibleObject\n");
+    fprintf(f, "cn: Pass Through Authentication\n");
+    fprintf(f, "nsslapd-pluginpath: %s/libpassthru-plugin%s\n", cf->plugin_dir, shared_lib);
+    fprintf(f, "nsslapd-plugininitfunc: passthruauth_init\n");
+    fprintf(f, "nsslapd-plugintype: preoperation\n");
+    fprintf(f, "nsslapd-pluginenabled: off\n");
+    fprintf(f, "nsslapd-plugin-depends-on-type: database\n");
+    fprintf(f, "\n");
 
 #ifdef ENABLE_PAM_PASSTHRU
 #if !defined( XP_WIN32 )
@@ -4518,36 +4480,10 @@ int parse_form(server_config_s *cf)
 
     cf->admin_domain = ds_a_get_cgi_var("admin_domain", NULL, NULL);
 
-    if ((temp = ds_a_get_cgi_var("use_existing_config_ds", NULL, NULL))) {
-        cf->use_existing_config_ds = atoi(temp);
-    } else {
-        cf->use_existing_config_ds = 1; /* there must already be one */
-    }
-
     if ((temp = ds_a_get_cgi_var("use_existing_user_ds", NULL, NULL))) {
         cf->use_existing_user_ds = atoi(temp);
     } else {
         cf->use_existing_user_ds = 0; /* we are creating it */
-    }
-
-    temp = ds_a_get_cgi_var("ldap_url", NULL, NULL);
-    if (temp && !ldap_url_parse(temp, &desc) && desc)
-    {
-        char *suffix;
-        int isSSL;
-
-        if (desc->lud_dn && *desc->lud_dn) { /* use given DN for netscaperoot suffix */
-            cf->netscaperoot = strdup(desc->lud_dn);
-            suffix = cf->netscaperoot;
-        } else { /* use the default */
-            suffix = dn_normalize_convert(strdup(cf->netscaperoot));
-        }
-        /* the config ds connection may require SSL */
-        isSSL = !strncmp(temp, "ldaps:", strlen("ldaps:"));
-        cf->config_ldap_url = PR_smprintf("ldap%s://%s:%d/%s",
-                                          (isSSL ? "s" : ""), desc->lud_host,
-                                          desc->lud_port, suffix);
-        ldap_free_urldesc(desc);
     }
 
     /* if being called as a CGI, the user_ldap_url will be the directory
