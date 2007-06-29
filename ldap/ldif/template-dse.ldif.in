@@ -7,6 +7,8 @@ nsslapd-schemadir: %schema_dir%
 nsslapd-lockdir: %lock_dir%
 nsslapd-tmpdir: %tmp_dir%
 nsslapd-certdir: %cert_dir%
+nsslapd-ldifdir: %ldif_dir%
+nsslapd-bakdir: %bak_dir%
 nsslapd-saslpath: %sasl_path%
 nsslapd-accesslog-logging-enabled: on
 nsslapd-accesslog-maxlogsperdir: 10
