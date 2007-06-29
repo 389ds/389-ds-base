@@ -37,43 +37,29 @@
 # END COPYRIGHT BLOCK
 #
 
+###########################
+#
+# This perl module provides a way to set up a new installation after
+# the binaries have already been extracted.  This is typically after
+# using native packaging support to install the package e.g. RPM,
+# pkgadd, depot, etc.  This script will show the license, readme,
+# dsktune, then run the usual setup pre and post installers.
+#
+##########################
+
 use lib '@perldir@';
 
 use strict;
 
-use Setup;
-use Inf;
+use DSMigration;
+use Migration;
 use Resource;
-use DialogManager;
-use Util;
 
-my $res = new Resource("@propertydir@/setup-ds.res");
+my $res = new Resource("@propertydir@/migrate-ds.res",
+                       "@propertydir@/setup-ds.res");
 
-my $setup = new Setup($res);
+my $mig = new Migration($res);
 
-if (!$setup->{silent}) {
-    my $dialogmgr = new DialogManager($setup, $res, $TYPICAL);
-
-    require SetupDialogs;
-    require DSDialogs;
-
-    my @dialogs = SetupDialogs->getDialogs();
-    push @dialogs, DSDialogs->getDialogs();
-
-    $dialogmgr->addDialog(@dialogs);
-
-    my $rc = $dialogmgr->run();
-    if ($rc) {
-        $setup->doExit();
-    }
-    $setup->{inf}->write();
-}
-
-my ($rc, $output) = createDSInstance($setup->{inf});
-if ($rc) {
-    $setup->msg($FATAL, 'error_creating_dsinstance', $rc, $output);
-} else {
-    $setup->msg('created_dsinstance', $output);
-}
-
-$setup->doExit();
+$mig->msg('begin_ds_migration', $mig->{oldsroot});
+migrateDS($mig);
+$mig->msg('end_ds_migration');

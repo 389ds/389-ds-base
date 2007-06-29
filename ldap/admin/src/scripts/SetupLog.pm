@@ -59,11 +59,12 @@ $DEBUG    = "Debug";
 sub new {
     my $type = shift;
     my $filename = shift;
+    my $prefix = shift || "setup";
     my $self = {};
     my $fh;
 
     if (!$filename) {
-        ($fh, $filename) = tempfile("setupXXXXXX", UNLINK => 0,
+        ($fh, $filename) = tempfile("${prefix}XXXXXX", UNLINK => 0,
                                     SUFFIX => ".log", DIR => File::Spec->tmpdir);
     } else {
         open LOGFILE, ">$filename" or die "Error: could not open logfile $filename: $!";

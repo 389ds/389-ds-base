@@ -87,3 +87,5 @@ error_creating_suffix_backend = Could not create the suffix '%s'.  There was an 
 error_creating_suffix = Could not create the suffix '%s'.  Error: %s\n\n
 
 setup_exiting = Exiting . . .\nLog file is '%s'\n\n
+error_creating_dsinstance = Error: Could not create directory server instance.  Error code %s.  Output:\n%s\n
+created_dsinstance = Your new DS instance was successfully created.  Output:\n%s\n

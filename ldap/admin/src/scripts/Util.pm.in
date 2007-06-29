@@ -47,14 +47,27 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword);
+                getHashedPassword debug createDSInstance createInfFromConfig);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword);
+                getHashedPassword debug createDSInstance createInfFromConfig);
 
 use strict;
 
 use Socket;
+
+use File::Temp qw(tempfile tempdir);
+
+$Util::debuglevel = 0;
+# use like this:
+# debug(3, "message");
+# this will only print "message" if $debuglevel is 3 or higher (-ddd on the command line)
+sub debug {
+    my ($level, @rest) = @_;
+    if ($level <= $Util::debuglevel) {
+        print STDERR "+" x $level, @rest;
+    }
+}
 
 # return true if the given port number is available, false otherwise
 sub portAvailable {
@@ -87,10 +100,6 @@ sub getAvailablePort {
 sub isValidDN {
     my $dn = shift;
     return ($dn =~ /^[0-9a-zA-Z_-]+=.*$/);
-}
-
-sub debug {
-#    print @_, "\n";
 }
 
 # delete the subtree starting from the passed entry
@@ -217,9 +226,18 @@ sub check_and_add_entry
     my $verbose = $context->[2];
     my @ctypes = $aentry->getValues("changetype");
     my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)", 0, ("*", "aci"));
+    if ($sentry) {
+        debug(3, "check_and_add_entry: Found entry " . $sentry->getDN() . "\n");
+    } else {
+        debug(3, "check_and_add_entry: Entry not found " . $aentry->{dn} .
+              " error " . $conn->getErrorString() . "\n");
+    }
     do
     {
         my $needtoadd;
+        my @addtypes; # list of attr types for mod add
+        my @reptypes; # list of attr types for mod replace
+        my @deltypes; # list of attr types for mod delete
         my $MOD_NONE = 0;
         my $MOD_ADD = 1;
         my $MOD_REPLACE = 2;
@@ -248,19 +266,18 @@ sub check_and_add_entry
             {
                 $needtoadd = 0;
                 $needtomod = $MOD_ADD;
+                @addtypes = keys %{$aentry}; # add all attrs
             }
             elsif ( $sentry && $sentry->{dn} )
             {
                 # $fresh || $rc == -1
                 # an entry having the same DN exists, but the attributes do not
                 # match.  remove the entry and the subtree underneath.
-                if ( $verbose )
-                {
-                    print "Deleting an entry dn: $sentry->{dn} ...\n";
-                }
+                debug(1, "Deleting an entry dn: $sentry->{dn} ...\n");
                 $rc = delete_all($conn, $sentry);
                 if ( 0 != $rc )
                 {
+                    debug(1, "Error deleting $sentry->{dn}\n");
                     return 0;
                 }
             }
@@ -270,28 +287,10 @@ sub check_and_add_entry
             $needtoadd = 0;
             if ( $sentry )
             {
-                my @atypes = $aentry->getValues("add");
-                if ( 0 <= $#atypes )
-                {
-                    $needtomod = $MOD_ADD;
-                }
-                else
-                {
-                    @atypes = $aentry->getValues("replace");
-                    if ( 0 <= $#atypes )
-                    {
-                        $needtomod = $MOD_REPLACE;
-                    }
-                    else
-                    {
-                        @atypes = $aentry->getValues("delete");
-                        if ( 0 <= $#atypes )
-                        {
-                            print "\"delete\" is not supported; ignoring...\n";
-                        }
-                        $needtomod = $MOD_NONE;
-                    }
-                }
+                @addtypes = $aentry->getValues("add");
+                @reptypes = $aentry->getValues("replace");
+                @deltypes = $aentry->getValues("delete");
+                $needtomod = $MOD_REPLACE;
             }
             else
             {
@@ -305,63 +304,62 @@ sub check_and_add_entry
             my $rc = $conn->getErrorCode();
             if ( $rc != 0 )
             {
-                print "ERROR: adding an entry $aentry->{dn} failed, error code: $rc\n";
+                my $string = $conn->getErrorString();
+                print "ERROR: adding an entry $aentry->{dn} failed, error: $string\n";
                 print "[entry]\n";
                 $aentry->printLDIF();
                 $conn->close();
                 return 0;
             }
-            debug("Entry $aentry->{dn} is added\n");
+            debug(1, "Entry $aentry->{dn} is added\n");
         }
         elsif ( 0 < $needtomod )    # $sentry exists
         {
+            my $attr;
             if ( $needtomod == $MOD_SPECIAL )
             {
-                foreach my $attr ( keys %speciallist )
+                debug(3, "Doing MOD_SPECIAL for entry $aentry->{dn}\n");
+                foreach $attr ( keys %speciallist )
                 {
                     foreach my $nval ( @{$aentry->{$attr}} )
                     {
                         $sentry->addValue( $attr, $nval );
                     }
                 }
-                $conn->update($sentry);
             }
-            elsif ( $needtomod == $MOD_ADD )
+            foreach $attr ( @addtypes )
             {
-                foreach my $attr ( keys %{$aentry} )
+                debug(3, "Adding attr=$attr values=" . $aentry->getValues($attr) . " to entry $aentry->{dn}\n");
+                $sentry->addValue( $attr, $aentry->getValues($attr) );
+            }
+            foreach $attr ( @reptypes )
+            {
+                debug(3, "Replacing attr=$attr values=" . $aentry->getValues($attr) . " to entry $aentry->{dn}\n");
+                $sentry->setValues($attr, $aentry->getValues($attr));
+            }
+            foreach $attr ( @deltypes )
+            {
+                # removeValue takes a single value only
+                if (!$aentry->size($attr))
                 {
-                    next if $attr =~ /add|changetype/;
-                    foreach my $nval ( @{$aentry->{$attr}} )
+                    debug(3, "Deleting attr=$attr from entry $aentry->{dn}\n");
+                    $sentry->remove($attr); # just delete the attribute
+                }
+                else
+                {
+                    debug(3, "Deleting attr=$attr values=" . $aentry->getValues($attr) . " from entry $aentry->{dn}\n");
+                    foreach my $val ($aentry->getValues($attr))
                     {
-                        $sentry->addValue( $attr, $nval );
+                        $sentry->removeValue($attr, $val);
                     }
                 }
-                $conn->update($sentry);
             }
-            elsif ( $needtomod == $MOD_REPLACE )
-            {
-                my $entry = new Mozilla::LDAP::Entry();
-                $entry->setDN($aentry->getDN());
-                foreach my $attr ( keys %{$aentry} )
-                {
-                    next if $attr =~ /replace|changetype/;
-                    foreach my $nval ( @{$aentry->{$attr}} )
-                    {
-                        $entry->addValue( $attr, $nval );
-                    }
-                }
-                $conn->update($entry);
-            }
-            else
-            {
-                print "ERROR: needtomod == $needtomod is not supported.\n";
-                $conn->close();
-                return 0;
-            }
+            $conn->update($sentry);
             my $rc = $conn->getErrorCode();
             if ( $rc != 0 )
             {
-                print "ERROR: updating an entry $sentry->{dn} failed, error code: $rc\n";
+                my $string = $conn->getErrorString();
+                print "ERROR: updating an entry $sentry->{dn} failed, error: $string\n";
                 print "[entry]\n";
                 $aentry->printLDIF();
                 $conn->close();
@@ -455,7 +453,7 @@ sub getMappedEntries {
     foreach my $ldiffile (@{$ldiffiles}) {
         open(MYLDIF, "< $ldiffile") or die "Can't open $ldiffile : $!";
         my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
-        debug("Processing $ldiffile ...");
+        debug(1, "Processing $ldiffile ...\n");
         ENTRY: while (my $entry = Mozilla::LDAP::LDIF::readOneEntry($in)) {
             # first, fix the DN
             my $dn = $entry->getDN();
@@ -707,6 +705,57 @@ sub getHashedPassword {
     chomp($hashedpwd);
 
     return $hashedpwd;
+}
+
+sub createDSInstance {
+    my $inf = shift;
+# find ds_newinst.pl - in same directory as this script or in PATH
+    my $ds_newinst;
+    ($ds_newinst = $0) =~ s|/[^/]+$|/ds_newinst.pl|;
+    if (! -x $ds_newinst) {
+        $ds_newinst = "@bindir@/ds_newinst.pl";
+    }
+    if (! -x $ds_newinst) {
+        $ds_newinst = "ds_newinst.pl"; # just get from path
+    }
+    $? = 0; # clear error condition
+    my $output = `$ds_newinst $inf->{filename}`;
+    return ($?, $output);
+}
+
+# this creates an Inf suitable for passing to createDSInstance
+sub createInfFromConfig {
+    my $configdir = shift;
+    my $inst = shift;
+    my $fname = "$configdir/dse.ldif";
+    my $id;
+    ($id = $inst) =~ s/^slapd-//;
+    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
+    my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
+    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
+    while (my $ent = readOneEntry $in) {
+        my $dn = $ent->getDN();
+        if ($dn =~ /cn=config/) {
+            print $outfh "[General]\n";
+            print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
+            print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
+            print $outfh "ServerRoot = @serverdir@\n";
+            print $outfh "[slapd]\n";
+            print $outfh "RootDN = ", $ent->getValues('nsslapd-rootdn'), "\n";
+            print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
+            print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
+            print $outfh "ServerIdentifier = $id\n";
+            print $outfh "Suffix = o=deleteAfterMigration\n";
+            print $outfh "start_server= 0\n";
+            last;
+        }
+    }
+    close $outfh;
+    close DSELDIF;
+
+    my $inf = new Inf($inffile);
+
+    return $inf;
 }
 
 1;

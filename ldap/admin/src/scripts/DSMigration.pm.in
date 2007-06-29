@@ -1,5 +1,3 @@
-#!/usr/bin/env perl
-#
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,13 +30,27 @@
 # statement from your version and license this file solely under the GPL without
 # exception. 
 # 
+# 
 # Copyright (C) 2007 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
 
-# cmd line parsing
-use Getopt::Long;
+###########################
+#
+# This perl module provides a way to set up a new installation after
+# the binaries have already been extracted.  This is typically after
+# using native packaging support to install the package e.g. RPM,
+# pkgadd, depot, etc.  This script will show the license, readme,
+# dsktune, then run the usual setup pre and post installers.
+#
+##########################
+
+package DSMigration;
+use Migration;
+use Util;
+use Inf;
+
 # tempfiles
 use File::Temp qw(tempfile tempdir);
 
@@ -47,6 +59,16 @@ use Mozilla::LDAP::Conn;
 use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(ldap_explode_dn);
 use Mozilla::LDAP::LDIF;
+
+use Exporter;
+@ISA       = qw(Exporter);
+@EXPORT    = qw(migrateDS);
+@EXPORT_OK = qw(migrateDS);
+
+use strict;
+
+use SetupLog;
+use Util;
 
 # these are the attributes for which we will always use
 # the new value, or which do not apply anymore
@@ -84,35 +106,8 @@ my %alwaysUseOld =
  'aci'      => 'aci'
 );
 
-# global vars used throughout script + subs
-my $pkgname = "@package_name@";
-# this is the new pkgname which may be something like
-# fedora-ds-base - we have to strip off the -suffix
-if ($pkgname =~ /-(core|base)$/) {
-    $pkgname =~ s/-(core|base)$//;
-}
-my $oldpkgname = $pkgname;
-my $oldsroot = "/opt/$oldpkgname";
-
-# figure out the current bdb version
-my $db_version=`db_verify -V`;
-my ($db_major_version, $db_minor_version);
-if ($db_version =~ /Berkeley DB (\d+)\.(\d+)/) {
-    $db_major_version = $1;
-    $db_minor_version = $2;
-}
-my $db_verstr = "bdb/${db_major_version}.${db_minor_version}/libback-ldbm";
-
-my $debuglevel = 0;
-# use like this:
-# debug(3, "message");
-# this will only print "message" if $debuglevel is 3 or higher (-vvv on the command line)
-sub debug {
-    my ($level, @rest) = @_;
-    if ($level <= $debuglevel) {
-        print STDERR "+" x $level, @rest;
-    }
-}
+my $pkgname; # global used in several different places - set in migrateDS
+my $oldsroot; # global used in several different places - set in migrateDS
 
 sub getNewDbDir {
     my ($ent, $attr, $inst) = @_;
@@ -154,83 +149,17 @@ my %transformAttr =
  'nsmultiplexorcredentials' => \&migrateCredentials
 );
 
-#nsslapd-directory - if same as old path, convert to new, otherwise, leave it
-#nsslapd-logdirectory - if same as old path, convert to new, otherwise, leave it
-
-#nsslapd-accesslog
-#nsslapd-errorlog
-#nsslapd-auditlog
-
-#nskeyfile
-#nscertfile
-
-#dn: cn=Internationalization Plugin
-#nsslapd-pluginArg0: $inst/config/slapd-collations.conf
-
-#dn: cn=referential integrity postoperation
-#nsslapd-pluginarg1: $inst/logs/referint
-
-# don't forget changelogdb and certmap.conf
-# [General]
-# FullMachineName=   localhost.localdomain
-# SuiteSpotUserID=   nobody
-# ServerRoot=    /usr/lib64/fedora-ds
-# [slapd]
-# ServerPort=   1100
-# ServerIdentifier=   localhost
-# Suffix=   dc=example,dc=com
-# RootDN=   cn=Directory Manager
-# RootDNPwd=  Secret123
-
-sub createInfFileFromDseLdif {
-    my $oldroot = shift;
-    my $inst = shift;
-    my $fname = "$oldroot/$inst/config/dse.ldif";
-    my $id;
-    ($id = $inst) =~ s/^slapd-//;
-    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
-    my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
-    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
-    while ($ent = readOneEntry $in) {
-        my $dn = $ent->getDN();
-        if ($dn =~ /cn=config/) {
-            print $outfh "[General]\n";
-            print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
-            print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
-            print $outfh "ServerRoot = @serverdir@\n";
-            print $outfh "[slapd]\n";
-            print $outfh "RootDN = ", $ent->getValues('nsslapd-rootdn'), "\n";
-            print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
-            print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
-            print $outfh "ServerIdentifier = $id\n";
-            print $outfh "Suffix = o=deleteAfterMigration\n";
-            print $outfh "start_server= 0\n";
-            last;
-        }
-    }
-    close $outfh;
-    close DSELDIF;
-
-    return $inffile;
-}
-
-sub makeNewInst {
-    my ($ds_newinst, $inffile) = @_;
-    system ($ds_newinst, $inffile) == 0 or
-        die "Could not create new instance using $ds_newinst with inffile $inffile: $?";
-}
-
 sub copyDatabaseDirs {
     my $srcdir = shift;
     my $destdir = shift;
     if (-d $srcdir && ! -d $destdir) {
-        debug(0, "Copying database directory $srcdir to $destdir\n");
+        debug(1, "Copying database directory $srcdir to $destdir\n");
         system ("cp -p -r $srcdir $destdir") == 0 or
             die "Could not copy database directory $srcdir to $destdir: $?";
     } elsif (! -d $srcdir) {
         die "Error: database directory $srcdir does not exist";
     } else {
-        debug(0, "The destination directory $destdir already exists, copying files/dirs individually\n");
+        debug(1, "The destination directory $destdir already exists, copying files/dirs individually\n");
         foreach my $file (glob("$srcdir/*")) {
             debug(3, "Copying $file to $destdir\n");
             if (-f $file) {
@@ -256,7 +185,7 @@ sub copyDatabases {
     open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
     my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
     my $targetdn = normalizeDN("cn=config,cn=ldbm database,cn=plugins,cn=config");
-    while ($ent = readOneEntry $in) {
+    while (my $ent = readOneEntry $in) {
         next if (!$ent->getDN()); # just skip root dse
         # look for the one level children of $basedbdn
         my @rdns = ldap_explode_dn($ent->getDN(), 0);
@@ -285,13 +214,6 @@ sub copyDatabases {
         }
     }
     close DSELDIF;
-
-    # server automagically upgrades database if needed
-#    upgradeDatabase($newdbdir);
-    # fix the DBVERSION files
-#    updateDBVERSION($newdbdir);
-    # fix guardian files
-#    updateDBguardian($newdbdir);
 }
 
 sub copyChangelogDB {
@@ -303,17 +225,13 @@ sub copyChangelogDB {
     my $fname = "$oldroot/$inst/config/dse.ldif";
     open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
     my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
-    while ($ent = readOneEntry $in) {
+    while (my $ent = readOneEntry $in) {
         my $targetdn = normalizeDN($ent->getDN());
         if ($targetdn eq $cldn) {
             my $oldcldir = $ent->getValues('nsslapd-changelogdir');
             debug(1, "old cldb dir = $oldcldir\n");
             my $srcdir = $oldcldir || "$oldroot/$inst/cldb";
             copyDatabaseDirs($srcdir, $newdbdir);
-
-            # server automagically upgrades database if needed
-#            upgradeDatabase($newdbdir);
-
             last;
         }
     }
@@ -452,193 +370,68 @@ sub mergeDseLdif {
     return $tmpdse;
 }
 
-sub usage {
-    print STDERR <<EOF;
-Usage: $0 [-h] [-v....v] [-o /path/to/oldserverroot] [-i slapd-instance ... -i slapd-instanceN]
+sub migrateDS {
+    my $mig = shift;
+    $pkgname = $mig->{pkgname}; # set globals
+    $oldsroot = $mig->{oldsroot}; # set globals
 
-INTRODUCTION
+    # for each instance
+    foreach my $inst (@{$mig->{instances}}) {
+        if (-f "@instconfigdir@/$inst/dse.ldif") {
+            $mig->msg($WARN, 'instance_already_exists', "@instconfigdir@/$inst/dse.ldif");
+            next;
+        }
+        # set instance specific defaults
+        my $newdbdir = "@localstatedir@/lib/$pkgname/$inst/db";
+        my $newcertdir = "@instconfigdir@/$inst";
+        my $newcldbdir = "@localstatedir@/lib/$pkgname/$inst/cldb";
 
-This script will copy instances (data and configuration) from the old
-server root directory to their new FHS locations.  This script does a
-copy only - the data in the old instances will be left untouched.  The
-old instances must be shutdown first to ensure that the databases are
-copied safely.  The new instances will not be started by migration,
-but can be started after running migration by doing
+        # extract the information needed for ds_newinst.pl
+        my $configdir = "$oldsroot/$inst/config";
+        my $inf = createInfFromConfig($configdir, $inst);
+        debug(2, "Using inffile $inf->{filename} created from $configdir\n");
 
- service $pkgname start
+        # create the new instance
+        my ($rc, $output) = createDSInstance($inf);
+        unlink($inf->{filename});
+        if ($rc) {
+            $mig->msg($FATAL, 'error_creating_dsinstance', $rc, $output);
+            return 0;
+        } else {
+            $mig->msg('created_dsinstance', $output);
+        }
 
-WARNINGS
+        # copy over the files/directories
+        # copy the databases
+        copyDatabases($oldsroot, $inst, $newdbdir);
 
-You will not be able to use the console or Admin Express to manage
-instances that have been migrated.  You will be able to use the web
-applications such as the Directory Server Gateway, Directory Express,
-and Org Chart.
+        # copy the security related files
+        $mig->migrateSecurityFiles($inst, $newcertdir);
 
-If you have configured your main database or replication changelog
-database to use separate partitions for log files and index files,
-this configuration will not be migrated.  All of your data
-will be copied to the standard FHS location
-@localstatedir@/lib/$pkgname/slapd-INSTANCE/db (or cldb).
+        # copy the repl changelog database
+        copyChangelogDB($oldsroot, $inst, $newcldbdir);
 
-OPTIONS
+        # merge the old info into the new dse.ldif
+        my $tmpdse = mergeDseLdif($oldsroot, $inst);
 
--v   Increase the verbosity - you can specify this more than once
-     (e.g. -vvvv) for more output
--o   The old server root directory (default $oldsroot)
--i   Instance to migrate - by default, all instances in $oldsroot
-     will be migrated, but you can specify one or more if you do
-     not want all of them (e.g. -i slapd-inst1 -i slapd-inst2)
--h   This message
+        # get user/group of new dse
+        my ($dev, $ino, $mode, $uid, $gid, @rest) = stat "@instconfigdir@/$inst/dse.ldif";
+        # save the original new dse.ldif
+        system("cp -p @instconfigdir@/$inst/dse.ldif @instconfigdir@/$inst/dse.ldif.premigrate");
+        # copy the new one
+        system("cp $tmpdse @instconfigdir@/$inst/dse.ldif");
+        # change owner/group
+        chmod $mode, "@instconfigdir@/$inst/dse.ldif";
+        chown $uid, $gid, "@instconfigdir@/$inst/dse.ldif";
 
-EOF
+        # remove the temp one
+        unlink($tmpdse);
+    }
 
-	exit 1;
+    return 1;
 }
 
-#################################################################
-# Main script begins here
-#################################################################
-
-my @instances; # the instances to migrate
-
-# process command line options
-Getopt::Long::Configure(qw(bundling)); # bundling allows -vvvvvv
-GetOptions('verbose|v+' => \$debuglevel,
-           'instance|i=s' => \@instances,
-           'oldsroot|o=s' => \$oldsroot,
-           'help|h' => sub { &usage });
-
-
-# get list of instances to migrate
-if (! @instances) {
-    # an instance must be a directory called $oldsroot/slapd-something and the file
-    # $oldsroot/slapd-something/config/dse.ldif must exist
-    @instances = grep { -d && -f "$_/config/dse.ldif" && ($_ =~ s,$oldsroot/,,) } glob("$oldsroot/slapd-*");
-}
-
-die "No instances found to migrate" unless (@instances);
-
-# find ds_newinst.pl - in same directory as this script or in PATH
-my $ds_newinst;
-($ds_newinst = $0) =~ s|/[^/]+$|/ds_newinst.pl|;
-if (! -x $ds_newinst) {
-    $ds_newinst = "ds_newinst.pl"; # just get from path
-}
-
-# for each instance
-foreach my $inst (@instances) {
-# set instance specific defaults
-    my $newdbdir = "@localstatedir@/lib/$pkgname/$inst/db";
-    my $newcertdir = "@instconfigdir@/$inst";
-    my $newcldbdir = "@localstatedir@/lib/$pkgname/$inst/cldb";
-
-# extract the information needed for ds_newinst.pl
-    my $inffile = createInfFileFromDseLdif($oldsroot, $inst);
-    debug(2, "Using inffile $inffile created from $oldsroot/$inst\n");
-
-# create the new instance
-    makeNewInst($ds_newinst, $inffile);
-    unlink($inffile);
-
-# copy over the files/directories
-# copy the databases
-    copyDatabases($oldsroot, $inst, $newdbdir);
-
-# copy the security related files
-    copySecurityFiles($oldsroot, $inst, $newcertdir);
-
-# copy the repl changelog database
-    copyChangelogDB($oldsroot, $inst, $newcldbdir);
-
-# merge the old info into the new dse.ldif
-    my $tmpdse = mergeDseLdif($oldsroot, $inst);
-
-# get user/group of new dse
-    my ($dev, $ino, $mode, $uid, $gid, @rest) = stat "@instconfigdir@/$inst/dse.ldif";
-# save the original new dse.ldif
-    system("cp -p @instconfigdir@/$inst/dse.ldif @instconfigdir@/$inst/dse.ldif.premigrate");
-# copy the new one
-    system("cp $tmpdse @instconfigdir@/$inst/dse.ldif");
-# change owner/group
-    chmod $mode, "@instconfigdir@/$inst/dse.ldif";
-    chown $uid, $gid, "@instconfigdir@/$inst/dse.ldif";
-
-# remove the temp one
-    unlink($tmpdse);
-}
-
-debug(0, "\n\nDone!  Migration is complete.\n");
-debug(0, "You can start your new servers with: service fedora-ds start\n");
-
-# the server automagically upgrades the databases, so these are not needed for now
-# sub upgradeDatabase {
-#     my $newdbdir = shift;
-#     # now, recover the database to flush the data from the log file(s)
-#     # into the .db4 (index) files
-#     debug(0, "Recovering and flushing log files in $newdbdir . . .\n");
-#     my $vflag = "";
-#     if ($debuglevel > 2) {
-#         $vflag = "-v";
-#     }
-#     system("db42_recover $vflag -h $newdbdir") == 0 or
-#         die "Error: could not recover the db files in $newdbdir: $!";
-#     # then, remove the log file(s) (log.xxxxx) and the old memory region files (__db.XXX files)
-#     debug(0, "Removing old log and memory region files in $newdbdir . . .\n");
-#     system("rm -f $newdbdir/log.* $newdbdir/__db.*") == 0 or
-#         die "Error: could not remove log and mem region files in $newdbdir: $!";
-#     # finally, upgrade the index files
-#     debug(0, "Upgrading all database files in $newdbdir . . .\n");
-#     for my $dbfile (<$newdbdir/*/*.db4>) {
-#         debug(2, "Upgrading database file $dbfile . . .\n");
-#         system("db_upgrade -h $newdbdir $dbfile") == 0 or
-#             die "Error: could not upgrade database file $dbfile: $!";
-#     }
-#     for my $dbfile (<$newdbdir/*.db4>) {
-#         debug(2, "Upgrading database file $dbfile . . .\n");
-#         system("db_upgrade -h $newdbdir $dbfile") == 0 or
-#             die "Error: could not upgrade database file $dbfile: $!";
-#     }
-# }
-
-# sub updateDBVERSION {
-#     my $newdbdir = shift;
-#     my $fname = "$newdbdir/DBVERSION";
-#     my @flist = ($fname);
-#     push @flist, glob("$newdbdir/*/DBVERSION");
-#     for $fname (@flist) {
-#         if (-f $fname) {
-#             debug(2, "Updating $fname to $db_verstr\n");
-#             open(FNAME, ">$fname") or die "Can't write $fname: $!";
-#             print FNAME $db_verstr, "\n";
-#             close FNAME;
-#         } else {
-#             debug(0, "No $fname - skipping\n");
-#         }
-#     }
-# }
-
-# sub updateDBguardian {
-#     my $newdbdir = shift;
-#     my $fname = "$newdbdir/guardian";
-#     my @flist = ($fname);
-#     push @flist, glob("$newdbdir/*/guardian");
-#     for $fname (@flist) {
-#         if (-f $fname) {
-#             debug(2, "Updating $fname to $db_verstr\n");
-#             open(FNAME, "$fname") or die "Can't read $fname: $!";
-#             my @lines = <FNAME>;
-#             close FNAME;
-#             open(FNAME, ">$fname") or die "Can't write $fname: $!";
-#             for (@lines) {
-#                 if (/^version:/) {
-#                     print FNAME "version:$db_verstr\n";
-#                 } else {
-#                     print FNAME;
-#                 }
-#             }
-#             close FNAME;
-#         } else {
-#             debug(0, "No $fname - skipping\n");
-#         }
-#     }
-# }
+#############################################################################
+# Mandatory TRUE return value.
+#
+1;

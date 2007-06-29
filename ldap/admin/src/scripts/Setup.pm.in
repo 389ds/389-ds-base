@@ -69,6 +69,11 @@ use Getopt::Long;
 use File::Temp qw(tempfile tempdir);
 
 use SetupLog;
+use Util;
+use Inf;
+
+use strict;
+use vars qw($EXPRESS $TYPICAL $CUSTOM $SILENT);
 
 # the setup types
 $EXPRESS = 1;
@@ -111,13 +116,19 @@ EOF
 sub new {
     my $type = shift;
     my $self = {};
+    $self = bless $self, $type;
+    $self->init(@_);
+    return $self;
+}
+
+sub init {
+    my $self = shift;
     $self->{res} = shift;
-    my ($debuglevel, $silent, $inffile, $keep, $preonly, $logfile);
-    my @otherargs;
+    my ($silent, $inffile, $keep, $preonly, $logfile);
 
     GetOptions('help|h|?' => sub { VersionMessage(); HelpMessage(); exit 0 },
                'version|v' => sub { VersionMessage(); exit 0 },
-               'debug|d+' => \$debuglevel,
+               'debug|d+' => \$Util::debuglevel,
                'silent|s' => \$silent,
                'file|f=s' => \$inffile,
                'keepcache|k' => \$keep,
@@ -125,7 +136,6 @@ sub new {
                'logfile|l=s' => \$logfile
                );
 
-    $self->{debuglevel} = $debuglevel;
     $self->{silent} = $silent;
     $self->{inffile} = $inffile;
     $self->{keep} = $keep;
@@ -162,9 +172,6 @@ sub new {
     # this is the base config directory - the directory containing
     # the slapd-instance instance specific config directories
     $self->{configdir} = $ENV{DS_CONFIG_DIR} || "@instconfigdir@";
-
-    $self = bless $self, $type;
-    return $self;
 }
 
 # log only goes the the logfile

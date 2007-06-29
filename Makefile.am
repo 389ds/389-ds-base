@@ -186,7 +186,8 @@ bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
 	ldap/admin/src/scripts/repl-monitor.pl \
-	ldap/admin/src/scripts/setup-ds.pl
+	ldap/admin/src/scripts/setup-ds.pl \
+	ldap/admin/src/scripts/migrate-ds.pl
 
 perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Resource.pm \
@@ -197,9 +198,12 @@ perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DialogManager.pm \
 	ldap/admin/src/scripts/Dialog.pm \
 	ldap/admin/src/scripts/DSDialogs.pm \
-	ldap/admin/src/scripts/Setup.pm
+	ldap/admin/src/scripts/Setup.pm \
+	ldap/admin/src/scripts/Migration.pm \
+	ldap/admin/src/scripts/DSMigration.pm
 
-property_DATA = ldap/admin/src/scripts/setup-ds.res
+property_DATA = ldap/admin/src/scripts/setup-ds.res \
+	ldap/admin/src/scripts/migrate-ds.res
 
 task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak \

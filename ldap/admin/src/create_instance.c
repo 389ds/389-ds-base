@@ -437,7 +437,7 @@ static char *sanity_check(server_config_s *cf, char *param_name)
     /* if we don't need to start the server right away, we can skip the
     port number checks
     */
-    if (!needToStartServer(cf))
+    if (needToStartServer(cf))
     {
         if( (t = create_instance_checkports(cf)))
         {
