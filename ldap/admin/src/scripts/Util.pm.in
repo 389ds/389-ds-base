@@ -119,8 +119,7 @@ sub delete_all
         $conn->delete($dn);
         my $rc = $conn->getErrorCode();
         if ( $rc != 0 ) {
-            $conn->printError();
-            print "ERROR: unable to delete entry $dn, error code: $rc\n";
+            debug(1, "ERROR: unable to delete entry $dn, error code: $rc:" . $conn->getErrorString() . "\n");
             return 1;
         }
         $dn = pop @mystack;
@@ -220,7 +219,7 @@ sub comp_entries
 # $verbose prints out more info
 sub check_and_add_entry
 {
-    my ($context, $aentry) = @_;
+    my ($context, $aentry, $errs) = @_;
     my $conn = $context->[0];
     my $fresh = $context->[1];
     my $verbose = $context->[2];
@@ -277,6 +276,7 @@ sub check_and_add_entry
                 $rc = delete_all($conn, $sentry);
                 if ( 0 != $rc )
                 {
+                    push @{$errs}, 'error_deleteall_entries', $sentry->{dn}, $conn->getErrorString();
                     debug(1, "Error deleting $sentry->{dn}\n");
                     return 0;
                 }
@@ -305,8 +305,8 @@ sub check_and_add_entry
             if ( $rc != 0 )
             {
                 my $string = $conn->getErrorString();
-                print "ERROR: adding an entry $aentry->{dn} failed, error: $string\n";
-                print "[entry]\n";
+                push @{$errs}, 'error_adding_entry', $aentry->{dn}, $string;
+                debug(1, "ERROR: adding an entry $aentry->{dn} failed, error: $string\n");
                 $aentry->printLDIF();
                 $conn->close();
                 return 0;
@@ -359,8 +359,8 @@ sub check_and_add_entry
             if ( $rc != 0 )
             {
                 my $string = $conn->getErrorString();
-                print "ERROR: updating an entry $sentry->{dn} failed, error: $string\n";
-                print "[entry]\n";
+                push @{$errs}, 'error_updating_entry', $sentry->{dn}, $string;
+                debug(1, "ERROR: updating an entry $sentry->{dn} failed, error: $string\n");
                 $aentry->printLDIF();
                 $conn->close();
                 return 0;
@@ -396,12 +396,14 @@ sub cbaddent {
 #           and the values are the replacements
 #  ldiffiles - an array ref - the list of LDIF files to
 #           operate on
+#  errs -   an array ref - this is filled in with the
+#           errors encountered in processing - this is
+#           suitable for passing to setup->msg or
+#           Resource->getText
 #  callback (optional) - a code ref - a ref to a subroutine
 #           that will be called with each entry - see below
 #  context (optional) - this will be passed as the first
 #           argument to your given callback - see below
-#  errs (optional) - an array ref - This is how errors
-#           are returned to the caller - see below
 # Callback:
 #  The callback sub will be called for each entry after
 #  the entry has been converted.  The callback will be
@@ -413,18 +415,20 @@ sub cbaddent {
 #  abort processing of any further.
 # Errors:
 #  This function should return an array of errors in the
-#  format described below, for use with Resource::getText().
-#  If the callback returns any errors
+#  format described below, for use with Resource::getText()
+#  or Setup::msg()
 # Return:
 #  The return value is a list of entries.
 # Example usage:
 #  sub handle_entries {
 #    my $context = shift;
 #    my $entry = shift;
+#    my $errs = shift;
 #    .... do something with entry ....
 #    .... if $context is Mozilla::LDAP::Conn, $conn->add($entry); ...
 #    .... report errors ....
 #    if ($fatalerror) {
+#      push @{$errs}, 'error_token', arg1, arg2, ...;
 #      return 0;
 #    } else {
 #      return 1;
@@ -433,14 +437,16 @@ sub cbaddent {
 #  $mapper = {foo => 'bar', baz => 'biff'};
 #  @ldiffiles = ('foo.ldif', 'bar.ldif', ..., 'biff.ldif');
 #  $conn = new Mozilla::LDAP::Conn(...);
-#  @entries = getMappedEntries($mapper, \@ldiffiles, \&handle_entries, $conn);
+#  my @errs;
+#  @entries = getMappedEntries($mapper, \@ldiffiles, \@errs, \&handle_entries, $conn);
 #  Note that this will return 0 entries since a callback was used.
 #  The simpler example is this:
-#  @entries = getMappedEntries($mapper, \@ldiffiles);
+#  @entries = getMappedEntries($mapper, \@ldiffiles, \@errs);
 #  
 sub getMappedEntries {
     my $mapper = shift;
     my $ldiffiles = shift;
+    my $errs = shift;
     my $callback = shift || \&cbaddent; # default - just add entry to @entries
     my @entries = ();
     my $context = shift || \@entries;
@@ -451,7 +457,10 @@ sub getMappedEntries {
     }
 
     foreach my $ldiffile (@{$ldiffiles}) {
-        open(MYLDIF, "< $ldiffile") or die "Can't open $ldiffile : $!";
+        if (!open(MYLDIF, "< $ldiffile")) {
+            push @{$errs}, "error_opening_ldiftmpl", $ldiffile, $!;
+            return 0;
+        }
         my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
         debug(1, "Processing $ldiffile ...\n");
         ENTRY: while (my $entry = Mozilla::LDAP::LDIF::readOneEntry($in)) {
@@ -462,9 +471,7 @@ sub getMappedEntries {
                 if (exists($mapper->{$1})) {
                     $dn =~ s{%([\w_-]+)%}{$mapper->{$1}}ge;
                 } else {
-                    print "ERROR: \"$origdn\" mapped to \"$dn\".\n";
-                    print "The LDIF file $ldiffile contains a token $1 for which there is no mapper.\n";
-                    print "Please check $ldiffile and your mapper to make sure all tokens are handled correctly.\n";
+                    push @{$errs}, 'error_mapping_token_ldiftmpl', $dn, $ldiffile, $1;
                     $error = 1;
                     last ENTRY;
                 }
@@ -480,9 +487,8 @@ sub getMappedEntries {
                         if (exists($mapper->{$1})) {
                             $value =~ s{%([\w_-]+)%}{$mapper->{$1}}ge;
                         } else {
-                            print "ERROR: \"$origvalue\" mapped to \"$value\".\n";
-                            print "The LDIF file $ldiffile contains a token $1 for which there is no mapper.\n";
-                            print "Please check $ldiffile and your mapper to make sure all tokens are handled correctly.\n";
+                            push @{$errs}, 'error_mapping_token_ldiftmpl', $dn, $ldiffile, $1;
+                            debug(1, "ERROR: \"$origvalue\" mapped to \"$value\".\n");
                             $error = 1;
                             last ENTRY;
                         }
@@ -492,9 +498,9 @@ sub getMappedEntries {
                 $entry->setValues( $attr, @newvalues );
             }
 
-            if (!&{$callback}($context, $entry)) {
-                print "There was an error processing entry ", $entry->getDN(), "\n";
-                print "Cannot continue processing entries.\n";
+            if (!&{$callback}($context, $entry, $errs)) {
+                debug(1, "ERROR: There was an error processing entry ". $entry->getDN(). "\n");
+                debug(1, "Cannot continue processing entries.\n");
                 $error = 1;
                 last ENTRY;
             }                
@@ -640,7 +646,7 @@ sub addSuffix {
 # The %token% tokens are replaced in getMappedEntries
 sub process_maptbl
 {
-    my ($mapper, @infdata) = @_;
+    my ($mapper, $errs, @infdata) = @_;
 
     if (defined($mapper->{""})) {
         $mapper = $mapper->{""}; # side effect of Inf with no sections
@@ -680,7 +686,7 @@ sub process_maptbl
             }
             if (!defined($infsection->{$value}))
             {
-                print "ERROR: $value not found in the .inf files\n";
+                push @{$errs}, 'no_mapvalue_for_key', $value, $key;
                 return {};
             }
         }
@@ -709,6 +715,7 @@ sub getHashedPassword {
 
 sub createDSInstance {
     my $inf = shift;
+    my $errs = shift; # unused for now
 # find ds_newinst.pl - in same directory as this script or in PATH
     my $ds_newinst;
     ($ds_newinst = $0) =~ s|/[^/]+$|/ds_newinst.pl|;
@@ -724,13 +731,18 @@ sub createDSInstance {
 }
 
 # this creates an Inf suitable for passing to createDSInstance
+# except that it has a bogus suffix
 sub createInfFromConfig {
     my $configdir = shift;
     my $inst = shift;
+    my $errs = shift;
     my $fname = "$configdir/dse.ldif";
     my $id;
     ($id = $inst) =~ s/^slapd-//;
-    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
+    if (!open( DSELDIF, "$fname" )) {
+        push @{$errs}, "error_opening_dseldif", $fname, $!;
+        return 0;
+    }
     my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
     my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
     while (my $ent = readOneEntry $in) {

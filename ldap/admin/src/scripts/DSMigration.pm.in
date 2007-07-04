@@ -374,6 +374,7 @@ sub migrateDS {
     my $mig = shift;
     $pkgname = $mig->{pkgname}; # set globals
     $oldsroot = $mig->{oldsroot}; # set globals
+    my @errs;
 
     # for each instance
     foreach my $inst (@{$mig->{instances}}) {
@@ -388,13 +389,18 @@ sub migrateDS {
 
         # extract the information needed for ds_newinst.pl
         my $configdir = "$oldsroot/$inst/config";
-        my $inf = createInfFromConfig($configdir, $inst);
+        my $inf = createInfFromConfig($configdir, $inst, \@errs);
         debug(2, "Using inffile $inf->{filename} created from $configdir\n");
+        if (@errs) {
+            $mig->msg(@errs);
+            return 0;
+        }
 
         # create the new instance
-        my ($rc, $output) = createDSInstance($inf);
+        my ($rc, $output) = createDSInstance($inf, \@errs);
         unlink($inf->{filename});
         if ($rc) {
+            $mig->msg(@errs);
             $mig->msg($FATAL, 'error_creating_dsinstance', $rc, $output);
             return 0;
         } else {

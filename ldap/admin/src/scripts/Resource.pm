@@ -112,7 +112,9 @@ sub read {
             }
         }
         # replace \n with real newline
-        $self->{res}->{$curkey} =~ s/\\n/\n/g;
+        if (defined($curkey)) {
+            $self->{res}->{$curkey} =~ s/\\n/\n/g;
+        }
         close RES;
     }
 }

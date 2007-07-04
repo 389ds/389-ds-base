@@ -69,8 +69,10 @@ if (!$setup->{silent}) {
     $setup->{inf}->write();
 }
 
-my ($rc, $output) = createDSInstance($setup->{inf});
+my @errs;
+my ($rc, $output) = createDSInstance($setup->{inf}, \@errs);
 if ($rc) {
+    $setup->msg(@errs);
     $setup->msg($FATAL, 'error_creating_dsinstance', $rc, $output);
 } else {
     $setup->msg('created_dsinstance', $output);

@@ -1137,7 +1137,8 @@ perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DSDialogs.pm \
 	ldap/admin/src/scripts/Setup.pm \
 	ldap/admin/src/scripts/Migration.pm \
-	ldap/admin/src/scripts/DSMigration.pm
+	ldap/admin/src/scripts/DSMigration.pm \
+	ldap/admin/src/scripts/FileConn.pm
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
