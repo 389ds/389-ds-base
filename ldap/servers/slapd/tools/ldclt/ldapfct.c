@@ -807,6 +807,7 @@ connectToServer (
                                           (mctx.mode & BIND_EACH_OPER))) {
     void *defaults;
     LDAPControl **rctrls = NULL;
+    char *my_saslauthid = NULL;
 
     if ( mctx.sasl_mech == NULL) {
       fprintf( stderr, "Please specify the SASL mechanism name when "
@@ -825,13 +826,32 @@ connectToServer (
       }
     }
 
+  /*
+   * Generate the random authid if set up so
+   */
+    if (mctx.mod2 & M2_RANDOM_SASLAUTHID)
+    {
+      rnd (tttctx->buf2, mctx.sasl_authid_low, mctx.sasl_authid_high,
+                         mctx.sasl_authid_nbdigit);
+      strncpy (&(tttctx->bufSaslAuthid[tttctx->startSaslAuthid]),
+                         tttctx->buf2, mctx.sasl_authid_nbdigit);
+      my_saslauthid = tttctx->bufSaslAuthid;
+      if (mctx.mode & VERY_VERBOSE)
+        printf ("ldclt[%d]: T%03d: Sasl Authid=\"%s\"\n",
+             mctx.pid, tttctx->thrdNum, tttctx->bufSaslAuthid);
+    }
+    else
+    {
+      my_saslauthid =  mctx.sasl_authid;
+    }
+
     defaults = ldaptool_set_sasl_defaults( tttctx->ldapCtx, mctx.sasl_flags, mctx.sasl_mech,
-              mctx.sasl_authid, mctx.sasl_username, mctx.passwd, mctx.sasl_realm );
+              my_saslauthid, mctx.sasl_username, mctx.passwd, mctx.sasl_realm );
     if (defaults == NULL) {
       perror ("malloc");
       exit (LDAP_NO_MEMORY);
     }
-
+  
     ret = ldap_sasl_interactive_bind_ext_s( tttctx->ldapCtx, mctx.bindDN, mctx.sasl_mech,
                        NULL, NULL, mctx.sasl_flags,
                        ldaptool_sasl_interact, defaults, NULL );

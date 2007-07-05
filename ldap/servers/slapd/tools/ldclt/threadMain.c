@@ -1073,6 +1073,29 @@ threadMain (
     mctx.passwd = "foo bar"; /* trick... */			/*JLS 03-05-01*/
   }								/*JLS 03-05-01*/
 
+    /*
+     * Variable Authid ?
+     */
+    if (mctx.sasl_authid != NULL)
+    {
+      tttctx->bufSaslAuthid = (char *) malloc (strlen (mctx.sasl_authid) + 1);
+      if (tttctx->bufSaslAuthid == NULL)
+      {
+	printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufSaslAuthid), error=%d (%s)\n",
+		mctx.pid, tttctx->thrdNum, errno, strerror (errno));
+	ldcltExit (EXIT_INIT);
+      }
+      if (!(mctx.mod2 & M2_RANDOM_SASLAUTHID))
+	strcpy (tttctx->bufSaslAuthid, mctx.sasl_authid);
+      else
+      {
+	tttctx->startSaslAuthid = strlen (mctx.sasl_authid_head);
+	strcpy (tttctx->bufSaslAuthid, mctx.sasl_authid_head);
+	strcpy (&(tttctx->bufSaslAuthid[tttctx->startSaslAuthid+mctx.sasl_authid_nbdigit]),
+			mctx.sasl_authid_tail);
+      }
+    }
+
   /*
    * Initiates the attribute replace buffers
    */

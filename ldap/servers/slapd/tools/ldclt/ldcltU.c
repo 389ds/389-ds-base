@@ -201,6 +201,9 @@ void usage ()
   (void) printf ("		string	    : create random strings rather than random numbers.\n");
   (void) printf ("		v2	    : ldap v2.\n");
   (void) printf ("		withnewparent : rename with newparent specified as argument.\n");
+  (void) printf ("		randomauthid           : random SASL Authid.\n");
+  (void) printf ("		randomauthidlow=value  : low value for random SASL Authid.\n");
+  (void) printf ("		randomauthidhigh=value : high value for random SASL Authid.\n");
   (void) printf ("	 -f  Filter for searches.\n");
   (void) printf ("	 -h  Host to connect.                      Default \"localhost\".\n");
   (void) printf ("	 -i  Number of times inactivity allowed.   Default 3 (30 seconds)\n");

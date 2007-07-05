@@ -283,6 +283,7 @@ dd/mm/yy | Author	| Comments
 #define M2_RNDBINDFILE	0x00000010 /* -e randombinddnfromfile *//*JLS 03-05-01*/
 #define M2_BINDONLY	0x00000020 /* -e bindonly */		/*JLS 04-05-01*/
 #define M2_SASLAUTH     0x00000040 /* -o : SASL authentication */
+#define M2_RANDOM_SASLAUTHID     0x00000080 /* -e randomauthid */
 
 /*
  * Combinatory defines
@@ -563,6 +564,11 @@ typedef struct main_context {
 	int		 referral;	/* Referral followed */	/*JLS 08-03-01*/
 	int		 sampling;	/* Sampling frequency */
 	char		*sasl_authid;
+	int		 sasl_authid_low;	/* authid's low val */
+	int		 sasl_authid_high;	/* authid's high val */
+	int		 sasl_authid_nbdigit;	/* authid's ndigits */
+	char		*sasl_authid_head;	/* authid's head */
+	char		*sasl_authid_tail;	/* authid's tail */
 	unsigned	 sasl_flags;
 	char		*sasl_mech;
 	char		*sasl_realm;
@@ -636,6 +642,7 @@ typedef struct thread_context {
 	char		*bufBindDN;	/* Bind DN to use */	/*JLS 05-01-01*/
 	char		*bufFilter;	/* Filter to use */
 	char		*bufPasswd;	/* Bind passwd to use *//*JLS 05-01-01*/
+	char		*bufSaslAuthid;	/* Sasl Authid to use */
 	/*
  	 * Note about matcheddnp management. This pointer is managed by the 
 	 * function dnFromMessage() that need it to free or remember the string
@@ -647,6 +654,7 @@ typedef struct thread_context {
 	int		 startBindDN;	/* Insert random here *//*JLS 05-01-01*/
 	int		 startPasswd;	/* Insert random here *//*JLS 05-01-01*/
 	int		 startRandom;	/* Insert random here */
+	int		 startSaslAuthid;	/* Insert random here */
 	msgid_cell	*firstMsgId;	/* pending messages */
 	msgid_cell	*lastMsgId;	/* last one */
 } thread_context;

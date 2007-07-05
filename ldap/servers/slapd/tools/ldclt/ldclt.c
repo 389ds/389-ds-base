@@ -1496,7 +1496,7 @@ basicInit (void)
     }								/*JLS 19-03-01*/
 
   /*
-   * Maybe random filter to prepear ?
+   * Maybe random filter to prepare ?
    */
   if ((mctx.mode & (RANDOM | INCREMENTAL)) && 
       (!(mctx.mod2 & M2_RDN_VALUE)))				/*JLS 23-03-01*/
@@ -1510,7 +1510,7 @@ basicInit (void)
   }
 
   /*
-   * Maybe random base DN to prepear ?
+   * Maybe random base DN to prepare ?
    */
   if (mctx.mode & RANDOM_BASE)
   {
@@ -1523,7 +1523,7 @@ basicInit (void)
   }
 
   /*
-   * Maybe random bind DN to prepear ?
+   * Maybe random bind DN to prepare ?
    */
   if (mctx.mode & RANDOM_BINDDN)				/*JLS 05-01-01*/
   {								/*JLS 05-01-01*/
@@ -1542,7 +1542,20 @@ basicInit (void)
   }								/*JLS 05-01-01*/
 
   /*
-   * Maybe an attribute replacement to prepear ?
+   * Maybe random authid to prepare ?
+   */
+  if (mctx.mod2 & M2_RANDOM_SASLAUTHID)
+  {
+    if (parseFilter (mctx.sasl_authid, &(mctx.sasl_authid_head),
+        &(mctx.sasl_authid_tail), &(mctx.sasl_authid_nbdigit)) < 0)
+    {
+      printf ("Error: cannot parse bind DN...\n");
+      return (-1);
+    }
+  }
+
+  /*
+   * Maybe an attribute replacement to prepare ?
    */
   if (mctx.mode & ATTR_REPLACE)					/*JLS 21-11-00*/
   {								/*JLS 21-11-00*/
@@ -1753,6 +1766,8 @@ dumpModeValues (void)
     printf (" ssl_with_client_authentication");                 /* BK 23-11-00*/
   if (mctx.mod2 & M2_SASLAUTH)
     printf (" saslauth");
+  if (mctx.mod2 & M2_RANDOM_SASLAUTHID)
+    printf (" randomauthid");
   if (mctx.mode & SMOOTHSHUTDOWN)				/*JLS 17-11-00*/
     printf (" smoothshutdown");					/*JLS 17-11-00*/
   if (mctx.mode & DONT_SLEEP_DOWN)				/*JLS 14-03-01*/
@@ -2206,6 +2221,12 @@ char *execParams[] = {
 	"randombinddnfromfile",					/*JLS 03-05-01*/
 #define EP_BINDONLY			45			/*JLS 04-05-01*/
 	"bindonly",						/*JLS 04-05-01*/
+#define EP_RANDOMSASLAUTHID		46
+	"randomauthid",
+#define EP_RANDOMSASLAUTHIDHIGH		47
+	"randomauthidhigh",
+#define EP_RANDOMSASLAUTHIDLOW		48
+	"randomauthidlow",
 	NULL
 };
 
@@ -2416,6 +2437,27 @@ decodeExecParams (
 	}							/*JLS 12-01-01*/
 	mctx.bindDNLow = atoi (subvalue);			/*JLS 05-01-01*/
 	break;							/*JLS 05-01-01*/
+      case EP_RANDOMSASLAUTHID:
+	mctx.mod2 |= M2_RANDOM_SASLAUTHID;
+	break;
+      case EP_RANDOMSASLAUTHIDHIGH:
+	mctx.mod2 |= M2_RANDOM_SASLAUTHID;
+	if (subvalue == NULL)
+	{
+	  fprintf(stderr,"Error: missing arg randomauthidhigh\n");
+	  return (-1);
+	}
+	mctx.sasl_authid_high = atoi (subvalue);
+	break;
+      case EP_RANDOMSASLAUTHIDLOW:
+	mctx.mod2 |= M2_RANDOM_SASLAUTHID;
+	if (subvalue == NULL)
+	{
+	  fprintf(stderr, "Error: missing arg randomauthidlow\n");
+	  return (-1);
+	}
+	mctx.sasl_authid_low = atoi (subvalue);
+	break;
       case EP_RDN:						/*JLS 23-03-01*/
 	if (decodeRdnParam (subvalue) < 0)			/*JLS 23-03-01*/
 	  return (-1);						/*JLS 23-03-01*/
@@ -2931,6 +2973,14 @@ main (
     fprintf(stderr,"Error: use option -e randombinddnhigh=\n");	/*JLS 05-01-01*/
     ldcltExit (EXIT_PARAMS);					/*JLS 05-01-01*/
   }								/*JLS 05-01-01*/
+  if ((mctx.mod2 & M2_RANDOM_SASLAUTHID) &&
+      ((mctx.sasl_authid_low < 0) || (mctx.sasl_authid_high < 0)))
+  {
+    fprintf(stderr,"Error: missing ranges for randomauthid.\n");
+    fprintf(stderr,"Error: use option -e randomauthidlow=\n");
+    fprintf(stderr,"Error: use option -e randomauthidhigh=\n");
+    ldcltExit (EXIT_PARAMS);					/*JLS 05-01-01*/
+  }								/*JLS 05-01-01*/
   if (mctx.mode & CLTAUTH)                                      /* BK 23-11-00*/
   {                                                             /* BK 23-11-00*/
     if (!(mctx.mode & SSL))                                     /* BK 23-11-00*/
@@ -3135,6 +3185,13 @@ main (
 			mctx.bindDNLow, mctx.bindDNHigh);	/*JLS 05-01-01*/
       printf ("Bind passwd's head = \"%s\"\n", mctx.passwdHead);/*JLS 05-01-01*/
       printf ("Bind passwd's tail = \"%s\"\n", mctx.passwdTail);/*JLS 05-01-01*/
+    }								/*JLS 05-01-01*/
+    if (mctx.mod2 & M2_RANDOM_SASLAUTHID)
+    {								/*JLS 05-01-01*/
+      printf ("Bind Authid's head     = \"%s\"\n", mctx.sasl_authid_head);
+      printf ("Bind Authid's tail     = \"%s\"\n", mctx.sasl_authid_tail);
+      printf ("Bind Authid's range    = [%d , %d]\n",
+			mctx.sasl_authid_low, mctx.sasl_authid_high);
     }								/*JLS 05-01-01*/
     if (mctx.mode & ATTR_REPLACE)				/*JLS 21-11-00*/
     {								/*JLS 21-11-00*/
