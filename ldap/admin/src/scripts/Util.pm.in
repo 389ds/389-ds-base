@@ -233,21 +233,18 @@ sub check_and_add_entry
     }
     do
     {
-        my $needtoadd;
         my @addtypes; # list of attr types for mod add
         my @reptypes; # list of attr types for mod replace
         my @deltypes; # list of attr types for mod delete
-        my $MOD_NONE = 0;
-        my $MOD_ADD = 1;
-        my $MOD_REPLACE = 2;
-        my $MOD_SPECIAL = 3;
-        # $needtomod stores either of the above $MOD_ values
-        # note: delete is not supported
-        my $needtomod;
+        my $OP_NONE = 0;
+        my $OP_ADD = 1;
+        my $OP_MOD = 2;
+        my $OP_DEL = 3;
+        # $op stores either of the above $OP_ values
+        my $op = $OP_NONE;
         if ( 0 > $#ctypes )    # aentry: complete entry
         {
-            $needtoadd = 1;
-            $needtomod = 0; #$MOD_NONE
+            $op = $OP_ADD;
 
             my $rc = -1;
             if ( $sentry && !$fresh )
@@ -258,13 +255,12 @@ sub check_and_add_entry
             {
                 # the identical entry exists on the configuration DS.
                 # no need to add the entry.
-                $needtoadd = 0;
+                $op = $OP_NONE;
                 goto out;
             }
             elsif ( (1 == $rc) && !$fresh )
             {
-                $needtoadd = 0;
-                $needtomod = $MOD_ADD;
+                $op = $OP_MOD;
                 @addtypes = keys %{$aentry}; # add all attrs
             }
             elsif ( $sentry && $sentry->{dn} )
@@ -284,21 +280,27 @@ sub check_and_add_entry
         }
         else    # aentry: modify format
         {
-            $needtoadd = 0;
             if ( $sentry )
             {
-                @addtypes = $aentry->getValues("add");
-                @reptypes = $aentry->getValues("replace");
-                @deltypes = $aentry->getValues("delete");
-                $needtomod = $MOD_REPLACE;
+                if ( "delete" eq lc($ctypes[0]) )
+                {
+                    $op = $OP_DEL;
+                }
+                else
+                {
+                    @addtypes = $aentry->getValues("add");
+                    @reptypes = $aentry->getValues("replace");
+                    @deltypes = $aentry->getValues("delete");
+                    $op = $OP_MOD;
+                }
             }
             else
             {
-                $needtomod = $MOD_NONE;
+                $op = $OP_NONE;
             }
         }
 
-        if ( 1 == $needtoadd )
+        if ( $OP_ADD == $op )
         {
             $conn->add($aentry);
             my $rc = $conn->getErrorCode();
@@ -313,20 +315,20 @@ sub check_and_add_entry
             }
             debug(1, "Entry $aentry->{dn} is added\n");
         }
-        elsif ( 0 < $needtomod )    # $sentry exists
+        elsif ( $OP_DEL == $op )
+        {
+            my $rc = delete_all($conn, $sentry);
+            if ( 0 != $rc )
+            {
+                push @{$errs}, 'error_deleteall_entries', $sentry->{dn}, $conn->getErrorString();
+                debug(1, "Error deleting $sentry->{dn}\n");
+                return 0;
+            }
+            debug(1, "Entry $aentry->{dn} is deleted\n");
+        }
+        elsif ( 0 < $op )    # $sentry exists
         {
             my $attr;
-            if ( $needtomod == $MOD_SPECIAL )
-            {
-                debug(3, "Doing MOD_SPECIAL for entry $aentry->{dn}\n");
-                foreach $attr ( keys %speciallist )
-                {
-                    foreach my $nval ( @{$aentry->{$attr}} )
-                    {
-                        $sentry->addValue( $attr, $nval );
-                    }
-                }
-            }
             foreach $attr ( @addtypes )
             {
                 debug(3, "Adding attr=$attr values=" . $aentry->getValues($attr) . " to entry $aentry->{dn}\n");
@@ -670,6 +672,8 @@ sub process_maptbl
         else
         {
             # get the value from one of the Inf passed in
+            # they $value could be pure Key or Key:"default_value"
+            my ($key_value, $default_value) = split(/:/, $value, 2);
             my $infsection;
             foreach my $thisinf (@infdata)
             {
@@ -677,17 +681,25 @@ sub process_maptbl
                 {
                     $infsection = $thisinf->{$section0};
                     next if (!ref($infsection));
-                    if (defined($infsection->{$value}))
+                    if (defined($infsection->{$key_value}))
                     {
-                        $mapper->{$key} = $infsection->{$value};
+                        $mapper->{$key} = $infsection->{$key_value};
                         next KEY;
                     }
                 }
             }
             if (!defined($infsection->{$value}))
             {
-                push @{$errs}, 'no_mapvalue_for_key', $value, $key;
-                return {};
+                if ($default_value ne "")
+                {
+                    $default_value =~ tr/\"//d; # default_value is a regular double quoted string - remove quotes
+                    $mapper->{$key} = $default_value;
+                }
+                else
+                {
+                    push @{$errs}, 'no_mapvalue_for_key', $value, $key;
+                    return {};
+                }
             }
         }
     }
