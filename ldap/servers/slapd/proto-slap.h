@@ -316,6 +316,7 @@ int config_set_versionstring(const char *attrname,  char *versionstring, char *e
 int config_set_enquote_sup_oc(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_basedn( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_configdir( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_instancedir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_schemadir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_lockdir( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_tmpdir( const char *attrname, char *value, char *errorbuf, int apply );

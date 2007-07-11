@@ -2687,6 +2687,7 @@ char *ds_gen_confs(char *sroot, server_config_s *cf, char *cs_path)
     fprintf(f, "nsslapd-tmpdir: %s\n", cf->tmp_dir);
     fprintf(f, "nsslapd-certdir: %s\n", cf->cert_dir);
     fprintf(f, "nsslapd-ldifdir: %s\n", cf->ldif_dir);
+    fprintf(f, "nsslapd-instancedir: %s\n", cf->inst_dir);
     fprintf(f, "nsslapd-bakdir: %s\n", cf->bak_dir);
 /* We use the system SASL by default on Linux, so we don't need to set sasl path */
     if (NULL != cf->sasl_path) {

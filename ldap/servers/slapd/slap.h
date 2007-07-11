@@ -1724,6 +1724,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
+#define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
 #define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
 #define CONFIG_LOCKDIR_ATTRIBUTE "nsslapd-lockdir"
 #define CONFIG_TMPDIR_ATTRIBUTE "nsslapd-tmpdir"

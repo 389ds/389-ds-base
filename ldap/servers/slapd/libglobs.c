@@ -542,6 +542,9 @@ static struct config_get_and_set {
 		CONFIG_CONSTANT_STRING, NULL},
 	{CONFIG_HASH_FILTERS_ATTRIBUTE, config_set_hash_filters,
 		NULL, 0, NULL, CONFIG_ON_OFF, (ConfigGetFunc)config_get_hash_filters},
+	/* instance dir; used by admin tasks */
+	{CONFIG_INSTDIR_ATTRIBUTE, config_set_instancedir,
+		NULL, 0, NULL, CONFIG_STRING, NULL},
 	/* parameterizing schema dir */
 	{CONFIG_SCHEMADIR_ATTRIBUTE, config_set_schemadir,
 		NULL, 0,
@@ -4460,6 +4463,13 @@ config_set_configdir(const char *attrname, char *value, char *errorbuf, int appl
   
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
 	return retVal;
+}
+
+/* W/o the setter, "config_set: the attribute nsslapd-instancedir is read only" is printed out. */
+int
+config_set_instancedir(const char *attrname, char *value, char *errorbuf, int apply)
+{
+	return LDAP_SUCCESS;
 }
 
 char *
