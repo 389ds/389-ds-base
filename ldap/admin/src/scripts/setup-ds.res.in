@@ -95,3 +95,12 @@ error_mapping_token_ldiftmpl = The entry '%s' in LDIF file '%s' contains a token
 error_deleteall_entries = Error deleting entry '%s' and all children.  Error: %s\n
 error_adding_entry = Error adding entry '%s'.  Error: %s\n
 error_updating_entry = Error updating entry '%s'.  Error: %s\n
+
+
+error_invalid_param = The parameter '%s' has an invalid value '%s'.\n
+error_port_available = The port number '%s' is not available for use.  This may be due to an\
+invalid port number, or the port already being in use by another\
+program, or low port restriction.  Please choose another value for\
+ServerPort.  Error: $!\n
+error_invalid_serverid = The ServerIdentifier '%s' contains invalid characters.  It must\
+contain only alphanumeric characters and the following: #%,.:@_-\n

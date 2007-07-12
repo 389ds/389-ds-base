@@ -53,6 +53,7 @@ use Inf;
 
 # tempfiles
 use File::Temp qw(tempfile tempdir);
+use File::Basename qw(basename);
 
 # load perldap
 use Mozilla::LDAP::Conn;
@@ -88,6 +89,8 @@ my %ignoreOld =
  'nsslapd-lockdir'                 => 'nsslapd-lockdir',
  'nsslapd-tmpdir'                  => 'nsslapd-tmpdir',
  'nsslapd-certdir'                 => 'nsslapd-certdir',
+ 'nsslapd-ldifdir'                 => 'nsslapd-ldifdir',
+ 'nsslapd-bakdir'                  => 'nsslapd-bakdir',
  'nsslapd-ldapifilepath'           => 'nsslapd-ldapifilepath',
  'nsslapd-ldapilisten'             => 'nsslapd-ldapilisten',
  'nsslapd-ldapiautobind'           => 'nsslapd-ldapiautobind',
@@ -106,31 +109,52 @@ my %alwaysUseOld =
  'aci'      => 'aci'
 );
 
-my $pkgname; # global used in several different places - set in migrateDS
-my $oldsroot; # global used in several different places - set in migrateDS
-
 sub getNewDbDir {
-    my ($ent, $attr, $inst) = @_;
+    my ($ent, $attr, $mig, $inst) = @_;
     my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
     my $cn = $ent->getValues('cn');
+    my $oldval = $ent->getValues($attr);
     my $newval;
+    # there is one case where we want to just use the existing db directory
+    # that's the case where the user has moved the indexes and/or the
+    # transaction logs to different partitions for performance
+    # in that case, the old directory will not be the same as the default,
+    # and the directory will exist
+    my $olddefault = "$mig->{actualsroot}/$inst";
+    if (-d $oldval and ($oldval !~ /^$olddefault/)) {
+        debug(2, "Keeping old value [$oldval] for attr $attr in entry ", $ent->getDN(), "\n");
+        return $oldval;
+    }
+    # otherwise, just use the new default locations
     if ($objclasses{nsbackendinstance}) {
-        $newval = "@localstatedir@/lib/$pkgname/$inst/db/$cn";
+        $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/db/$cn";
     } elsif (lc $cn eq 'config') {
-        $newval = "@localstatedir@/lib/$pkgname/$inst/db";
+        $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
     } elsif (lc $cn eq 'changelog5') {
-        $newval = "@localstatedir@/lib/$pkgname/$inst/cldb";
+        $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/changelogdb";
     }
     debug(2, "New value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
     return $newval;
 }
 
 sub migrateCredentials {
-    my ($ent, $attr, $inst) = @_;
+    my ($ent, $attr, $mig, $inst) = @_;
     my $oldval = $ent->getValues($attr);
-    debug(3, "Executing migratecred -o $oldsroot/$inst -n @instconfigdir@/$inst -c $oldval . . .\n");
-    my $newval = `migratecred -o $oldsroot/$inst -n @instconfigdir@/$inst -c $oldval`;
+    debug(3, "Executing migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval . . .\n");
+    my $newval = `migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval`;
     debug(3, "Converted old value [$oldval] to new value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
+    return $newval;
+}
+
+sub removensState {
+    my ($ent, $attr, $mig, $inst) = @_;
+    my $newval;
+
+    # nsstate is binary and cannot be migrated cross platform
+    if (!$mig->{crossplatform}) {
+        $newval = $ent->getValues($attr);
+    }
+
     return $newval;
 }
 
@@ -146,110 +170,170 @@ my %transformAttr =
  'nsslapd-db-logdirectory' => \&getNewDbDir,
  'nsslapd-changelogdir' => \&getNewDbDir,
  'nsds5replicacredentials' => \&migrateCredentials,
- 'nsmultiplexorcredentials' => \&migrateCredentials
+ 'nsmultiplexorcredentials' => \&migrateCredentials,
+ 'nsstate' => \&removensState
 );
 
 sub copyDatabaseDirs {
     my $srcdir = shift;
     my $destdir = shift;
-    if (-d $srcdir && ! -d $destdir) {
+    my $filesonly = shift;
+    if (-d $srcdir && ! -d $destdir && !$filesonly) {
         debug(1, "Copying database directory $srcdir to $destdir\n");
-        system ("cp -p -r $srcdir $destdir") == 0 or
-            die "Could not copy database directory $srcdir to $destdir: $?";
+        if (system ("cp -p -r $srcdir $destdir")) {
+            return ('error_copying_dbdir', $srcdir, $destdir, $?);
+        }
     } elsif (! -d $srcdir) {
-        die "Error: database directory $srcdir does not exist";
+        return ("error_dbsrcdir_not_exist", $srcdir);
     } else {
         debug(1, "The destination directory $destdir already exists, copying files/dirs individually\n");
         foreach my $file (glob("$srcdir/*")) {
             debug(3, "Copying $file to $destdir\n");
             if (-f $file) {
-                system ("cp -p $file $destdir") == 0 or
-                    die "Error: could not copy $file to $destdir: $!";
-            } elsif (-d $file) {
-                system ("cp -p -r $file $destdir") == 0 or
-                    die "Error: could not copy $file to $destdir: $!";
+                if (system ("cp -p $file $destdir")) {
+                    return ('error_copying_dbfile', $file, $destdir, $?);
+                }
+            } elsif (-d $file && !$filesonly) {
+                if (system ("cp -p -r $file $destdir")) {
+                    return ('error_copying_dbdir', $file, $destdir, $?);
+                }
             }
         }
     }
 }
 
-sub copyDatabases {
-    my $oldroot = shift;
-    my $inst = shift;
-    my $newdbdir = shift;
+# migrate all of the databases in an instance
+sub migrateDatabases {
+    my $mig = shift; # the Migration object
+    my $inst = shift; # the instance name (e.g. slapd-instance)
+    my $src = shift; # a Conn to the source
+    my $dest = shift; # a Conn to the dest
+    my $olddefault = "$mig->{actualsroot}/$inst/db"; # old default db home directory
+    my @errs;
 
-    # global config and instance specific config are children of this entry
-    my $basedbdn = normalizeDN("cn=ldbm database,cn=plugins,cn=config");
-    # get the list of databases, their index and transaction log locations
-    my $fname = "$oldroot/$inst/config/dse.ldif";
-    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
-    my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
-    my $targetdn = normalizeDN("cn=config,cn=ldbm database,cn=plugins,cn=config");
-    while (my $ent = readOneEntry $in) {
-        next if (!$ent->getDN()); # just skip root dse
-        # look for the one level children of $basedbdn
-        my @rdns = ldap_explode_dn($ent->getDN(), 0);
-        my $parentdn = normalizeDN(join(',', @rdns[1..$#rdns]));
-        if ($parentdn eq $basedbdn) {
-            my $cn = $ent->getValues('cn');
-            my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
-            if ($cn eq 'config') { # global config
-                debug(1, "Found ldbm database plugin config entry ", $ent->getDN(), "\n");
-                my $dir = $ent->getValues('nsslapd-directory');
-                my $homedir = $ent->getValues('nsslapd-db-home-directory');
-                my $logdir = $ent->getValues('nsslapd-db-logdirectory');
-                debug(1, "old db dir = $dir homedir = $homedir logdir = $logdir\n");
-                my $srcdir = $homedir || $dir || "$oldroot/$inst/db";
-                copyDatabaseDirs($srcdir, $newdbdir);
-                copyDatabaseDirs($logdir, $newdbdir) if ($logdir && $logdir ne $srcdir);
-            } elsif ($objclasses{nsbackendinstance}) {
-                debug(1, "Found ldbm database instance entry ", $ent->getDN(), "\n");
-                my $dir = $ent->getValues('nsslapd-directory');
-                # the default db instance directory is
-                # $oldroot/$inst/$cn
-                debug(1, "old instance $cn dbdir $dir\n");
-                my $srcdir = $dir || "$oldroot/$inst/db/$cn";
-                copyDatabaseDirs($srcdir, "$newdbdir/$cn");
-            } # else just ignore for now
+    # first, look for an LDIF file in that directory with the same name as the
+    # database
+    my $foundldif;
+    for (glob("$mig->{oldsroot}/$inst/db/*.ldif")) {
+        my $dbname = basename($_, '.ldif');
+        my @cmd = ("@serverdir@/$inst/ldif2db", "-n", $dbname, "-i", $_);
+        debug(1, "migrateDatabases: executing command ", @cmd);
+        if (system(@cmd)) {
+            return ('error_importing_migrated_db', $_, $?);
         }
+        $foundldif = 1;
     }
-    close DSELDIF;
+
+    if ($foundldif) {
+        return (); # done - can do nothing else for cross-platform
+    }
+
+    # if no LDIF files, just copy over the database directories
+    my $ent = $src->search("cn=ldbm database,cn=plugins,cn=config", "one",
+                           "(objectclass=*)");
+    if (!$ent) {
+        return ("error_reading_olddbconfig", $src->getErrorString());
+    }
+    # there is one case where we want to just use the existing db directory
+    # that's the case where the user has moved the indexes and/or the
+    # transaction logs to different partitions for performance
+    # in that case, the old directory will not be the same as the default,
+    # and the directory will exist
+    my $olddefault = "$mig->{actualsroot}/$inst";
+    do {
+        my $cn = $ent->getValues('cn');
+        my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
+        if ($cn eq 'config') { # global config
+            my $newent = $dest->search($ent->getDN(), "base", "(objectclass=*)");
+            my $newdbdir = $newent->getValues('nsslapd-directory') ||
+                "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
+            debug(1, "Found ldbm database plugin config entry ", $ent->getDN(), "\n");
+            my $dir = $ent->getValues('nsslapd-directory');
+            my $homedir = $ent->getValues('nsslapd-db-home-directory');
+            my $logdir = $ent->getValues('nsslapd-db-logdirectory');
+            debug(1, "old db dir = $dir homedir = $homedir logdir = $logdir\n");
+            my $srcdir = $homedir || $dir || "$olddefault/db";
+            if (-d $srcdir and ($srcdir !~ /^$olddefault/)) {
+                debug(2, "Not copying database files from [$srcdir]\n");
+            } else {
+                # replace the old sroot value with the actual physical location on the target/dest
+                $srcdir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
+                if (@errs = copyDatabaseDirs($srcdir, $newdbdir, 1)) {
+                    return @errs;
+                }
+            }
+            if ($logdir && ($logdir ne $srcdir)) {
+                if (-d $logdir and ($logdir !~ /^$olddefault/)) {
+                    debug(2, "Not copying transaction logs from [$logdir]\n");
+                } else {
+                    # replace the old sroot value with the actual physical location on the target/dest
+                    $newdbdir = $newent->getValues('nsslapd-db-logdirectory') ||
+                        $newdbdir;
+                    $logdir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
+                    if (@errs = copyDatabaseDirs($logdir, $newdbdir, 1)) {
+                        return @errs;
+                    }
+                }
+            }
+        } elsif ($objclasses{nsbackendinstance}) {
+            debug(1, "Found ldbm database instance entry ", $ent->getDN(), "\n");
+            my $dir = $ent->getValues('nsslapd-directory');
+            # the default db instance directory is
+            # $oldroot/$inst/$cn
+            debug(1, "old instance $cn dbdir $dir\n");
+            my $srcdir = $dir || "$olddefault/db/$cn";
+            my $newent = $dest->search($ent->getDN(), "base", "(objectclass=*)");
+            my $newdbdir = $newent->getValues('nsslapd-directory') ||
+                "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
+            if (-d $srcdir and ($srcdir !~ /^$olddefault/)) {
+                debug(2, "Not copying database indexes from [$srcdir]\n");
+            } else {
+                # replace the old sroot value with the actual physical location on the target/dest
+                $srcdir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
+                if (@errs = copyDatabaseDirs($srcdir, "$newdbdir/$cn")) {
+                    return @errs;
+                }
+            }
+        }
+    } while ($ent = $src->nextEntry());
+
+    return ();
 }
 
-sub copyChangelogDB {
-    my $oldroot = shift;
-    my $inst = shift;
-    my $newdbdir = shift;
+sub migrateChangelogs {
+    my $mig = shift; # the Migration object
+    my $inst = shift; # the instance name (e.g. slapd-instance)
+    my $src = shift; # a Conn to the source
+    my $dest = shift; # a Conn to the dest
+    my $olddefault = "$mig->{actualsroot}/$inst"; # old default db home directory
     # changelog config entry
-    my $cldn = normalizeDN("cn=changelog5, cn=config");
-    my $fname = "$oldroot/$inst/config/dse.ldif";
-    open( DSELDIF, "$fname" ) || die "Can't open $fname: $!";
-    my $in = new Mozilla::LDAP::LDIF(*DSELDIF);
-    while (my $ent = readOneEntry $in) {
-        my $targetdn = normalizeDN($ent->getDN());
-        if ($targetdn eq $cldn) {
-            my $oldcldir = $ent->getValues('nsslapd-changelogdir');
-            debug(1, "old cldb dir = $oldcldir\n");
-            my $srcdir = $oldcldir || "$oldroot/$inst/cldb";
-            copyDatabaseDirs($srcdir, $newdbdir);
-            last;
+    my $oldent = $src->search("cn=changelog5, cn=config", "base", "(objectclass=*)");
+    my $newent = $dest->search("cn=changelog5, cn=config", "base", "(objectclass=*)");
+    if ($oldent and $newent) { # changelog configured
+        my $oldcldir = $oldent->getValues('nsslapd-changelogdir');
+        if (-d $oldcldir and ($oldcldir !~ /^$olddefault/)) {
+            debug(2, "Not copying changelogdb from [$oldcldir]\n");
+        } else {
+            # replace the old sroot value with the actual physical location on the target/dest
+            $oldcldir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
+            my $newcldir = $newent->getValues('nsslapd-changelogdir');
+            copyDatabaseDirs($oldcldir, $newcldir);
         }
     }
-    close DSELDIF;
 }
 
 sub fixAttrsInEntry {
-    my ($ent, $inst) = @_;
+    my ($ent, $mig, $inst) = @_;
     for my $attr (keys %{$ent}) {
         my $lcattr = lc $attr;
         if ($transformAttr{$lcattr}) {
-            $ent->setValues($attr, &{$transformAttr{$lcattr}}($ent, $attr, $inst));
+            $ent->setValues($attr, &{$transformAttr{$lcattr}}($ent, $attr, $mig, $inst));
         }
     }
 }
 
 sub mergeEntries {
-    my ($old, $new, $inst) = @_;
+    my ($old, $new, $mig, $inst) = @_;
     my %inoldonly; # attrs in old entry but not new one
     my %innewonly; # attrs in new entry but not old one
     my @attrs; # attrs common to old and new
@@ -280,7 +364,7 @@ sub mergeEntries {
         } elsif ($transformAttr{$lcattr}) {
             # only transform if the value is in the old entry
             if (!$innewonly{$attr}) {
-                $new->setValues($attr, &{$transformAttr{$lcattr}}($old, $attr, $inst));
+                $new->setValues($attr, &{$transformAttr{$lcattr}}($old, $attr, $mig, $inst));
             }
         } elsif ($cn eq "internationalization plugin" and $lcattr eq "nsslapd-pluginarg0") {
             next; # use the new value of this path name
@@ -294,41 +378,72 @@ sub mergeEntries {
     }
 }
 
-sub mergeDseLdif {
-    my $oldroot = shift;
-    my $inst = shift;
-    my $ent;
+
+my @allattrlist = ('*', 'aci', 'createTimestamp', 'creatorsName',
+                   'modifyTimestamp', 'modifiersName');
+
+sub getAllEntries {
+    my $conn = shift;
+    my $href = shift;
+    my $aref = shift;
+
+    # these are the special DSEs for which we only need ACIs
+    for my $dn ("", "cn=monitor", "cn=config") {
+        my $scope = $dn ? "sub" : "base";
+        my @attrlist;
+        if ($dn eq "cn=config") {
+            @attrlist = @allattrlist;
+        } else {
+            @attrlist = qw(aci);
+        }
+        my $ent = $conn->search($dn, $scope, "(objectclass=*)", 0, @attrlist);
+        next if (!$ent or ($conn->getErrorCode() eq 32));
+        if ($conn->getErrorCode()) {
+            return ('error_reading_entry', $dn, $conn->getErrorString());
+        }
+        do {
+            my $ndn = normalizeDN($ent->getDN());
+            $href->{$ndn} = $ent;
+            push @{$aref}, $ndn;
+        } while ($ent = $conn->nextEntry());
+    }
+
+    return ();
+}
+
+# these entries cannot be migrated if doing cross platform
+my %noCrossPlatformDN = (
+    'cn=uniqueid generator,cn=config' => 'cn=uniqueid generator,cn=config'
+);
+
+sub mergeConfigEntries {
+    my $mig = shift; # the Migration object
+    my $inst = shift; # the instance name (e.g. slapd-instance)
+    my $src = shift; # a Conn to the source
+    my $dest = shift; # a Conn to the dest
 
     # first, read in old file
     my %olddse; # map of normalized DN to Entry
     my @olddns; # the DNs in their original order
-    my $fname = "$oldroot/$inst/config/dse.ldif";
-    open( OLDDSELDIF, $fname ) || die "Can't open $fname: $!";
-    my $in = new Mozilla::LDAP::LDIF(*OLDDSELDIF);
-    while ($ent = readOneEntry $in) {
-        my $dn = normalizeDN($ent->getDN());
-        push @olddns, $dn;
-        $olddse{$dn} = $ent;
+    my @errs;
+    if (@errs = getAllEntries($src, \%olddse, \@olddns)) {
+        return @errs;
     }
-    close OLDDSELDIF;
 
     # next, read in new file
     my %newdse; # map of normalized DN to Entry
+    my @allnewdns;
     my @newdns; # the DNs in their original order that are not in olddns
-    $fname = "@instconfigdir@/$inst/dse.ldif";
-    open( NEWDSELDIF, $fname ) || die "Can't open $fname: $!";
-    $in = new Mozilla::LDAP::LDIF(*NEWDSELDIF);
-    while ($ent = readOneEntry $in) {
-        my $dn = normalizeDN($ent->getDN());
-        $newdse{$dn} = $ent;
-        if (! exists $olddse{$dn}) {
-            push @newdns, $dn;
+    if (@errs = getAllEntries($dest, \%newdse, \@allnewdns)) {
+        return @errs;
+    }
+
+    for my $ndn (@allnewdns) {
+        if (! exists $olddse{$ndn}) {
+            push @newdns, $ndn;
         }
     }
-    close NEWDSELDIF;
 
-    # temp file for new, merged dse.ldif
-    my ($dsefh, $tmpdse) = tempfile(SUFFIX => '.ldif');
     # now, compare entries
     # if the entry exists in the old tree but not the new, add it
     # if the entry exists in the new tree but not the old, delete it
@@ -339,58 +454,144 @@ sub mergeDseLdif {
     for my $dn (@olddns, @newdns) {
         my $oldent = $olddse{$dn};
         my $newent = $newdse{$dn};
-        my $outputent;
-        if ($oldent && !$newent) {
+        my $op;
+        my $rc = 1;
+        if ($mig->{crossplatform} && $noCrossPlatformDN{$dn}) {
+            debug(1, "Cannot migrate the entry $dn - skipping\n");
+            next;
+        } elsif ($oldent && !$newent) {
             # may have to fix up some values in the old entry
-            fixAttrsInEntry($oldent, $inst);
-            # output $oldent
-            $outputent = $oldent;
+            fixAttrsInEntry($oldent, $mig, $inst);
+            $rc = $dest->add($oldent);
+            $op = "add";
         } elsif (!$oldent && $newent) {
-            next if ($dn =~ /o=deleteAfterMigration/i);
-            # output $newent
-            $outputent = $newent;
+            if ($dn =~ /o=deleteAfterMigration/i) {
+                $rc = $dest->delete($dn);
+                $op = "delete";
+            } else {
+                # do nothing - no change to entry
+            }
         } else { #merge
             # $newent will contain the merged entry
-            mergeEntries($oldent, $newent, $inst);
-            $outputent = $newent;
+            mergeEntries($oldent, $newent, $mig, $inst);
+            $rc = $dest->update($newent);
+            $op = "update";
         }
-        # special fix for rootDSE - perldap doesn't like "" for a dn
-        if (! $outputent->getDN()) {
-            my $ary = $outputent->getLDIFrecords();
-            shift @$ary; # remove "dn"
-            shift @$ary; # remove the empty dn value
-            print $dsefh "dn:\n";
-            print $dsefh (Mozilla::LDAP::LDIF::pack_LDIF (78, $ary), "\n");
-        } else {
-            Mozilla::LDAP::LDIF::put_LDIF($dsefh, 78, $outputent);
+        
+        if (!$rc) {
+            return ('error_updating_merge_entry', $op, $dn, $dest->getErrorString());
         }
     }
-    close $dsefh;
 
-    return $tmpdse;
+    return ();
+}
+
+my %deletedschema = (
+    '50ns-calendar'        => '50ns-calendar.ldif',
+    '50ns-compass'         => '50ns-compass.ldif',
+    '50ns-delegated-admin' => '50ns-delegated-admin.ldif',
+    '50ns-legacy'          => '50ns-legacy.ldif',
+    '50ns-mail'            => '50ns-mail.ldif',
+    '50ns-mcd-browser'     => '50ns-mcd-browser.ldif',
+    '50ns-mcd-config'      => '50ns-mcd-config.ldif',
+    '50ns-mcd-li'          => '50ns-mcd-li.ldif',
+    '50ns-mcd-mail'        => '50ns-mcd-mail.ldif',
+    '50ns-media'           => '50ns-media.ldif',
+    '50ns-mlm'             => '50ns-mlm.ldif',
+    '50ns-msg'             => '50ns-msg.ldif',
+    '50ns-netshare'        => '50ns-netshare.ldif',
+    '50ns-news'            => '50ns-news.ldif',
+    '50ns-proxy'           => '50ns-proxy.ldif',
+    '50ns-wcal'            => '50ns-wcal.ldif',
+    '51ns-calendar'        => '51ns-calendar.ldif'
+);
+
+sub migrateSchema {
+    my $mig = shift; # the Migration object
+    my $inst = shift; # the instance name (e.g. slapd-instance)
+    my $src = shift; # a Conn to the source
+    my $dest = shift; # a Conn to the dest
+
+    my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
+    my $newschemadir = $cfgent->getValues('nsslapd-schemadir') ||
+        "$mig->{configdir}/$inst/schema";
+    my %newschema = map {basename($_, '.ldif') => $_} glob("$newschemadir/*.ldif");
+    delete $newschema{"99user"}; # always copy this one
+    for (glob("$mig->{oldsroot}/$inst/config/schema/*.ldif")) {
+        my $fname = basename($_, '.ldif');
+        next if ($deletedschema{$fname}); # don't copy deleted schema
+        next if ($newschema{$fname}); # use new version
+        if (system("cp -p $_ $newschemadir")) {
+            return ("error_migrating_schema", $_, $!);
+        }
+    }
+
+    return ();
+}
+
+sub migrateDSInstance {
+    my $mig = shift; # the Migration object
+    my $inst = shift; # the instance name (e.g. slapd-instance)
+    my $src = shift; # a Conn to the source
+    my $dest = shift; # a Conn to the dest
+
+    my @errs;
+    # first, merge dse ldif
+    if (@errs = mergeConfigEntries($mig, $inst, $src, $dest)) {
+        return @errs;
+    }
+
+    # next, grab the old schema
+    if (@errs = migrateSchema($mig, $inst, $src, $dest)) {
+        return @errs;
+    }
+
+    # next, the databases
+    if (@errs = migrateDatabases($mig, $inst, $src, $dest)) {
+        return @errs;
+    }
+
+    # next, the changelogs
+    if (!$mig->{crossplatform}) {
+        if (@errs = migrateChangelogs($mig, $inst, $src, $dest)) {
+            return @errs;
+        }
+    }
+
+    # next, the security files
+    my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
+    my $newcertdir = $cfgent->getValues("nsslapd-certdir") ||
+        "@instconfigdir@/$inst";
+    $mig->migrateSecurityFiles($inst, $newcertdir);
+
+    return @errs;
 }
 
 sub migrateDS {
     my $mig = shift;
-    $pkgname = $mig->{pkgname}; # set globals
-    $oldsroot = $mig->{oldsroot}; # set globals
     my @errs;
 
     # for each instance
     foreach my $inst (@{$mig->{instances}}) {
-        if (-f "@instconfigdir@/$inst/dse.ldif") {
-            $mig->msg($WARN, 'instance_already_exists', "@instconfigdir@/$inst/dse.ldif");
+        if (-f "$mig->{configdir}/$inst/dse.ldif") {
+            $mig->msg($WARN, 'instance_already_exists', "$mig->{configdir}/$inst/dse.ldif");
             next;
         }
-        # set instance specific defaults
-        my $newdbdir = "@localstatedir@/lib/$pkgname/$inst/db";
-        my $newcertdir = "@instconfigdir@/$inst";
-        my $newcldbdir = "@localstatedir@/lib/$pkgname/$inst/cldb";
+
+        # you could theoretically make this work with either a remote source or
+        # remote dest
+        # $mig->{inf} would contain an entry for each instance e.g.
+        # $mig->{inf}->{$inst}
+        # each instance specific entry would contain a {General} and a {slapd}
+        # all the information necessary to open an LDAP::Conn to the server
+        # if the source, you could also change createInfFromConfig to read
+        # the info from the Conn (or FileConn) that's needed to create the
+        # instance on the dest
 
         # extract the information needed for ds_newinst.pl
-        my $configdir = "$oldsroot/$inst/config";
-        my $inf = createInfFromConfig($configdir, $inst, \@errs);
-        debug(2, "Using inffile $inf->{filename} created from $configdir\n");
+        my $oldconfigdir = "$mig->{oldsroot}/$inst/config";
+        my $inf = createInfFromConfig($oldconfigdir, $inst, \@errs);
+        debug(2, "Using inffile $inf->{filename} created from $oldconfigdir\n");
         if (@errs) {
             $mig->msg(@errs);
             return 0;
@@ -407,31 +608,16 @@ sub migrateDS {
             $mig->msg('created_dsinstance', $output);
         }
 
-        # copy over the files/directories
-        # copy the databases
-        copyDatabases($oldsroot, $inst, $newdbdir);
+        my $src = new FileConn("$oldconfigdir/dse.ldif", 1); # read-only
+        my $dest = new FileConn("$mig->{configdir}/$inst/dse.ldif");
 
-        # copy the security related files
-        $mig->migrateSecurityFiles($inst, $newcertdir);
-
-        # copy the repl changelog database
-        copyChangelogDB($oldsroot, $inst, $newcldbdir);
-
-        # merge the old info into the new dse.ldif
-        my $tmpdse = mergeDseLdif($oldsroot, $inst);
-
-        # get user/group of new dse
-        my ($dev, $ino, $mode, $uid, $gid, @rest) = stat "@instconfigdir@/$inst/dse.ldif";
-        # save the original new dse.ldif
-        system("cp -p @instconfigdir@/$inst/dse.ldif @instconfigdir@/$inst/dse.ldif.premigrate");
-        # copy the new one
-        system("cp $tmpdse @instconfigdir@/$inst/dse.ldif");
-        # change owner/group
-        chmod $mode, "@instconfigdir@/$inst/dse.ldif";
-        chown $uid, $gid, "@instconfigdir@/$inst/dse.ldif";
-
-        # remove the temp one
-        unlink($tmpdse);
+        @errs = migrateDSInstance($mig, $inst, $src, $dest);
+        $src->close();
+        $dest->close();
+        if (@errs) {
+            $mig->msg(@errs);
+            return 0;
+        }
     }
 
     return 1;

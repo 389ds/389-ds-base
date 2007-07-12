@@ -47,10 +47,12 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword debug createDSInstance createInfFromConfig);
+                getHashedPassword debug createDSInstance createInfFromConfig
+                isValidServerID);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword debug createDSInstance createInfFromConfig);
+                getHashedPassword debug createDSInstance createInfFromConfig
+                isValidServerID);
 
 use strict;
 
@@ -100,6 +102,40 @@ sub getAvailablePort {
 sub isValidDN {
     my $dn = shift;
     return ($dn =~ /^[0-9a-zA-Z_-]+=.*$/);
+}
+
+sub isValidServerID {
+    my $servid = shift;
+    my $validchars = '#%,.:\w@_-';
+    return $servid =~ /^[$validchars]+$/o;
+}
+
+sub isValidUser {
+    my $user = shift;
+    # convert numeric uid to string
+    my $strans = $user;
+    if ($user =~ /^\d+$/) { # numeric - convert to string
+        $strans = getpwuid $user;
+        if (!$strans) {
+            return ("dialog_ssuser_error", $user);
+        }
+    }
+    if ($> != 0) { # if not root, the user must be our uid
+        my $username = getlogin;
+        if ($strans ne $username) {
+            return ("dialog_ssuser_must_be_same", $username);
+        }
+    } else { # user is root - verify id
+        my $nuid = getpwnam $strans;
+        if (!defined($nuid)) {
+            return ("dialog_ssuser_error", $user);
+        }
+        if (!$nuid) {
+            return ("dialog_ssuser_root_warning");
+        }
+    }
+
+    return ();
 }
 
 # delete the subtree starting from the passed entry

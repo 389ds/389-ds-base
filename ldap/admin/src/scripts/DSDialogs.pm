@@ -98,7 +98,7 @@ my $dsserverid = new Dialog (
         my $ans = shift;
         my $res = $DialogManager::SAME;
         my $path = $self->{manager}->{setup}->{configdir} . "/slapd-" . $ans;
-        if ($ans !~ /^[0-9a-zA-Z_-]+$/) {
+        if (!isValidServerID($ans)) {
             $self->{manager}->alert("dialog_dsserverid_error", $ans);
         } elsif (-d $path) {
             $self->{manager}->alert("dialog_dsserverid_inuse", $ans);

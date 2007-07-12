@@ -1,4 +1,13 @@
 begin_ds_migration = Beginning migration of directory server instances in %s . . .\n
 end_ds_migration = Directory server migration is complete.  Please check output and log files for details.\n
 migration_exiting = Exiting . . .\nLog file is '%s'\n\n
-instance_already_exists = The target directory server instance already exists at %s.  Skipping migration.\n\
+instance_already_exists = The target directory server instance already exists at %s.  Skipping migration.  Note that if you want to migrate the old instance you will have to first remove the new one of the same name.\n\n
+error_reading_entry = Could not read the entry '%s'.  Error: %s\n
+error_updating_merge_entry = Could not %s the migrated entry '%s' in the target directory server.  Error: %s\n
+error_importing_migrated_db = Could not import the LDIF file '%s' for the migrated database.  Error: %s.  Please check the directory server error log for more details.\n
+error_reading_olddbconfig = Could not read the old database configuration information.  Error: %s\n
+error_migrating_schema = Could not copy old schema file '%s'.  Error: %s\n
+error_copying_dbdir = Could not copy database directory '%s' to '%s'.  Error: %s\n
+error_copying_dbfile = Could not copy database file '%s' to '%s'.  Error: %s\n
+error_dbsrcdir_not_exist = Could not copy from the database source directory '%s' because it does not exist.  Please check your configuration.\n
+error_no_instances = Could not find any instances in the old directory '%s' to migrate.\n

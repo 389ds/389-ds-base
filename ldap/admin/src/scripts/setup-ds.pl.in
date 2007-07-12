@@ -42,6 +42,7 @@ use lib '@perldir@';
 use strict;
 
 use Setup;
+use SetupLog;
 use Inf;
 use Resource;
 use DialogManager;
@@ -78,4 +79,12 @@ if ($rc) {
     $setup->msg('created_dsinstance', $output);
 }
 
-$setup->doExit();
+END {
+    if ($setup) {
+        if (!$setup->{keep}) {
+            unlink $setup->{inffile};
+        }
+
+        $setup->doExit();
+    }
+}

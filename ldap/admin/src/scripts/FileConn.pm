@@ -54,10 +54,12 @@ require    Exporter;
 sub new {
     my $class = shift;
     my $filename = shift;
+    my $readonly = shift;
     my $self = {};
 
     $self = bless $self, $class;
 
+    $self->{readonly} = $readonly;
     $self->read($filename);
 
     return $self;
@@ -103,8 +105,12 @@ sub iterate {
     my $context = shift;
     my $suppress = shift;
     my $ndn = normalizeDN($dn);
-    my $children = $self->{$ndn}->{children};
-    if (($scope != LDAP_SCOPE_ONELEVEL) && $self->{$ndn}->{data} && !$suppress) {
+    my $children;
+    if (exists($self->{$ndn}) and exists($self->{$ndn}->{children})) {
+        $children = $self->{$ndn}->{children};
+    }
+    if (($scope != LDAP_SCOPE_ONELEVEL) && exists($self->{$ndn}) &&
+        exists($self->{$ndn}->{data}) && $self->{$ndn}->{data} && !$suppress) {
         &{$callback}($self->{$ndn}->{data}, $context);
     }
 
@@ -146,7 +152,7 @@ sub write {
         $filename = $self->{filename};
     }
 
-    if (!$self->{filename}) {
+    if (!$self->{filename} or $self->{readonly}) {
         return;
     }
 
@@ -181,8 +187,14 @@ sub printError
   print "$str ", $self->getErrorString(), "\n";
 }
 
+sub DESTROY {
+    my $self = shift;
+    $self->close();
+}
+
 sub close {
     my $self = shift;
+    return if ($self->{readonly});
     $self->write();
 }
 
@@ -280,7 +292,7 @@ sub search {
     $self->{entries} = [];
 
     my $ndn = normalizeDN($basedn);
-    if (!exists($self->{$ndn})) {
+    if (!exists($self->{$ndn}) or !exists($self->{$ndn}->{data})) {
         $self->setErrorCode(LDAP_NO_SUCH_OBJECT);
         return undef;
     }
@@ -308,12 +320,22 @@ sub add {
     my $parentdn = getParentDN($dn);
     my $nparentdn = normalizeDN($parentdn);
 
+
     $self->setErrorCode(0);
+    # special case of root DSE
+    if (!$ndn and exists($self->{$ndn}) and
+        !exists($self->{$ndn}->{data})) {
+        $self->{$ndn}->{data} = $entry;
+        $self->write();
+        return 1;
+    }
+
     if (exists($self->{$ndn})) {
         $self->setErrorCode(LDAP_ALREADY_EXISTS);
         return 0;
     }
-    if ($nparentdn && !exists($self->{$nparentdn})) {
+
+    if ($ndn && $nparentdn && !exists($self->{$nparentdn})) {
         $self->setErrorCode(LDAP_NO_SUCH_OBJECT);
         return 0;
     }
@@ -321,7 +343,10 @@ sub add {
     # data is the actual Entry
     # children is the array ref of the one level children of this dn
     $self->{$ndn}->{data} = $entry;
-    push @{$self->{$nparentdn}->{children}}, $self->{$ndn};
+    # don't add parent to list of children
+    if ($nparentdn ne $ndn) {
+        push @{$self->{$nparentdn}->{children}}, $self->{$ndn};
+    }
 
     return 1;
 }
@@ -339,6 +364,7 @@ sub update {
     }
 
     $self->{$ndn}->{data} = $entry;
+    $self->write();
 
     return 1;
 }
@@ -370,20 +396,23 @@ sub delete {
     my $parentdn = getParentDN($dn);
     my $nparentdn = normalizeDN($parentdn);
     # delete this node from its parent
-    for (my $ii = 0; $ii < @{$self->{$nparentdn}->{children}}; ++$ii) {
-        # find matching hash ref in parent's child list
-        if ($self->{$nparentdn}->{children}->[$ii] eq $self->{$ndn}) {
-            # remove that element from the array
-            splice @{$self->{$nparentdn}->{children}}, $ii, 1;
-            # done - should only ever be one matching child
-            last;
+    if ($ndn ne $nparentdn) {
+        for (my $ii = 0; $ii < @{$self->{$nparentdn}->{children}}; ++$ii) {
+            # find matching hash ref in parent's child list
+            if ($self->{$nparentdn}->{children}->[$ii] eq $self->{$ndn}) {
+                # remove that element from the array
+                splice @{$self->{$nparentdn}->{children}}, $ii, 1;
+                # done - should only ever be one matching child
+                last;
+            }
         }
     }
 
     # delete this node
     delete $self->{$ndn};
 
-    return 0;
+    $self->write();
+    return 1;
 }
 
 1;
