@@ -986,6 +986,7 @@ svrcore_lib = @svrcore_lib@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 vendor = @vendor@
+with_fhs_opt = @with_fhs_opt@
 
 # look for included m4 files in the ./m4/ directory
 ACLOCAL_AMFLAGS = -I m4
@@ -1045,8 +1046,11 @@ server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
 
 # this is how to add optional plugins
 @enable_pam_passthru_TRUE@LIBPAM_PASSTHRU_PLUGIN = libpam-passthru-plugin.la
+@enable_pam_passthru_TRUE@enable_pam_passthru = 1
 @enable_dna_TRUE@LIBDNA_PLUGIN = libdna-plugin.la
+@enable_dna_TRUE@enable_dna = 1
 @enable_bitwise_TRUE@LIBBITWISE_PLUGIN = libbitwise-plugin.la
+@enable_bitwise_TRUE@enable_bitwise = 1
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
 	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
@@ -1082,6 +1086,14 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-pampta.ldif \
 	ldap/ldif/template-dnaplugin.ldif \
 	ldap/ldif/template-bitwise.ldif \
+	ldap/ldif/template-dse.ldif \
+	ldap/ldif/template-org.ldif \
+	ldap/ldif/template-domain.ldif \
+	ldap/ldif/template-state.ldif \
+	ldap/ldif/template-locality.ldif \
+	ldap/ldif/template-country.ldif \
+	ldap/ldif/template-orgunit.ldif \
+	ldap/ldif/template-baseacis.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
@@ -1138,7 +1150,8 @@ perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Setup.pm \
 	ldap/admin/src/scripts/Migration.pm \
 	ldap/admin/src/scripts/DSMigration.pm \
-	ldap/admin/src/scripts/FileConn.pm
+	ldap/admin/src/scripts/FileConn.pm \
+	ldap/admin/src/scripts/DSCreate.pm
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
@@ -1154,6 +1167,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-saveconfig \
 	ldap/admin/src/scripts/template-start-slapd \
 	ldap/admin/src/scripts/template-stop-slapd \
+	ldap/admin/src/scripts/template-restart-slapd \
 	ldap/admin/src/scripts/template-suffix2instance \
 	ldap/admin/src/scripts/template-vlvindex \
 	ldap/admin/src/scripts/template-bak2db.pl \
@@ -1172,7 +1186,10 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
-inf_DATA = ldap/admin/src/slapd.inf
+inf_DATA = ldap/admin/src/slapd.inf \
+	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/dsorgentries.map
+
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1847,6 +1864,7 @@ mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSD
 # ns-slapd
 #------------------------
 @enable_ldapi_TRUE@GETSOCKETPEER = ldap/servers/slapd/getsocketpeer.c
+@enable_ldapi_TRUE@enable_ldapi = 1
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \
 	ldap/servers/slapd/bind.c  \
@@ -1931,20 +1949,29 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@configdir\@,$(configdir),g' \
 @BUNDLE_FALSE@	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 @BUNDLE_FALSE@	-e 's,@localstatedir\@,$(localstatedir),g' \
+@BUNDLE_FALSE@	-e 's,@infdir\@,$(infdir),g' \
+@BUNDLE_FALSE@	-e 's,@templatedir\@,$(sampledatadir),g' \
 @BUNDLE_FALSE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 @BUNDLE_FALSE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+@BUNDLE_FALSE@	-e 's,@enable_ldapi\@,$(enable_ldapi),g' \
+@BUNDLE_FALSE@	-e 's,@enable_pam_passthru\@,$(enable_pam_passthru),g' \
+@BUNDLE_FALSE@	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
+@BUNDLE_FALSE@	-e 's,@enable_dna\@,$(enable_dna),g' \
+@BUNDLE_FALSE@	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 @BUNDLE_FALSE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 @BUNDLE_FALSE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 @BUNDLE_FALSE@	-e 's,@brand\@,$(brand),g' \
 @BUNDLE_FALSE@	-e 's,@capbrand\@,$(capbrand),g' \
 @BUNDLE_FALSE@	-e 's,@vendor\@,$(vendor),g' \
+@BUNDLE_FALSE@	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 @BUNDLE_FALSE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 @BUNDLE_FALSE@	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 @BUNDLE_FALSE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 @BUNDLE_FALSE@	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 @BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g' \
 @BUNDLE_FALSE@	-e 's,@defaultuser\@,$(defaultuser),g' \
-@BUNDLE_FALSE@	-e 's,@defaultgroup\@,$(defaultgroup),g'
+@BUNDLE_FALSE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
+@BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -1974,20 +2001,29 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@configdir\@,$(configdir),g' \
 @BUNDLE_TRUE@	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 @BUNDLE_TRUE@	-e 's,@localstatedir\@,$(localstatedir),g' \
+@BUNDLE_TRUE@	-e 's,@infdir\@,$(infdir),g' \
+@BUNDLE_TRUE@	-e 's,@templatedir\@,$(sampledatadir),g' \
 @BUNDLE_TRUE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 @BUNDLE_TRUE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+@BUNDLE_TRUE@	-e 's,@enable_ldapi\@,$(enable_ldapi),g' \
+@BUNDLE_TRUE@	-e 's,@enable_pam_passthru\@,$(enable_pam_passthru),g' \
+@BUNDLE_TRUE@	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
+@BUNDLE_TRUE@	-e 's,@enable_dna\@,$(enable_dna),g' \
+@BUNDLE_TRUE@	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 @BUNDLE_TRUE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 @BUNDLE_TRUE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 @BUNDLE_TRUE@	-e 's,@brand\@,$(brand),g' \
 @BUNDLE_TRUE@	-e 's,@capbrand\@,$(capbrand),g' \
 @BUNDLE_TRUE@	-e 's,@vendor\@,$(vendor),g' \
+@BUNDLE_TRUE@	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 @BUNDLE_TRUE@	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 @BUNDLE_TRUE@	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 @BUNDLE_TRUE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 @BUNDLE_TRUE@	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 @BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g' \
 @BUNDLE_TRUE@	-e 's,@defaultuser\@,$(defaultuser),g' \
-@BUNDLE_TRUE@	-e 's,@defaultgroup\@,$(defaultgroup),g'
+@BUNDLE_TRUE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
+@BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am

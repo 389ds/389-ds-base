@@ -217,7 +217,7 @@ sub init {
 
     $self->{pkgname} = $pkgname;
     $self->{oldsroot} = $oldsroot || "/opt/$oldpkgname";
-    $self->{actualsroot} = $actualsroot || $oldsroot;
+    $self->{actualsroot} = $actualsroot || $self->{oldsroot};
     $self->{silent} = $silent;
     $self->{inffile} = $inffile;
     $self->{keep} = $keep;

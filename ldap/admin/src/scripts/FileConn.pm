@@ -46,6 +46,8 @@ use Mozilla::LDAP::API qw(:constant ldap_explode_dn ldap_err2string); # Direct a
 use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::LDIF;
 
+use Carp;
+
 require    Exporter;
 @ISA       = qw(Exporter Mozilla::LDAP::Conn);
 @EXPORT    = qw();
@@ -55,11 +57,16 @@ sub new {
     my $class = shift;
     my $filename = shift;
     my $readonly = shift;
+    my @namingContexts = @_;
     my $self = {};
 
     $self = bless $self, $class;
 
     $self->{readonly} = $readonly;
+    for (@namingContexts) {
+        $self->setNamingContext($_);
+    }
+    $self->setNamingContext(""); # root DSE
     $self->read($filename);
 
     return $self;
@@ -86,14 +93,29 @@ sub read {
         return;
     }
 
-    open( MYLDIF, "$filename" ) || die "Can't open $filename: $!";
+    open( MYLDIF, "$filename" ) || confess "Can't open $filename: $!";
     my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
+    $self->{reading} = 1;
     while ($ent = readOneEntry $in) {
         if (!$self->add($ent)) {
-            die "Error: could not add entry ", $ent->getDN(), ":", $self->getErrorString();
+            confess "Error: could not add entry ", $ent->getDN(), ":", $self->getErrorString();
         }
     }
+    delete $self->{reading};
     close( MYLDIF );
+}
+
+sub setNamingContext {
+    my $self = shift;
+    my $nc = shift;
+    my $ndn = normalizeDN($nc);
+    $self->{namingContexts}->{$ndn} = $ndn;
+}
+
+sub isNamingContext {
+    my $self = shift;
+    my $ndn = shift;
+    return exists($self->{namingContexts}->{$ndn});
 }
 
 # return all nodes below the given node
@@ -152,12 +174,16 @@ sub write {
         $filename = $self->{filename};
     }
 
-    if (!$self->{filename} or $self->{readonly}) {
+    if (!$self->{filename} or $self->{readonly} or $self->{reading}) {
         return;
     }
 
-    open( MYLDIF, ">$filename" ) || die "Can't write $filename: $!";
+    open( MYLDIF, ">$filename" ) || confess "Can't write $filename: $!";
     $self->iterate("", LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
+    for (keys %{$self->{namingContexts}}) {
+        next if (!$_); # skip "" - we already did that
+        $self->iterate($_, LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
+    }
     close( MYLDIF );
 }
 
@@ -307,9 +333,30 @@ sub search {
     return $self->nextEntry();
 }
 
+sub cloneEntry {
+    my $src = shift;
+    if (!$src) {
+        return undef;
+    }
+    my $dest = new Mozilla::LDAP::Entry();
+    $dest->setDN($src->getDN());
+    for (keys %{$src}) {
+        if (ref($src->{$_})) {
+            my @copyary = @{$src->{$_}};
+            $dest->{$_} = [ @copyary ]; # make a deep copy
+        } else {
+            $dest->{$_} = $src->{$_};
+        }
+    }
+
+    return $dest;
+}
+
+# have to return a copy of the entry - disallow inplace updates
 sub nextEntry {
     my $self = shift;
-    return shift @{$self->{entries}};
+    my $ent = shift @{$self->{entries}};
+    return cloneEntry($ent);
 }
 
 sub add {
@@ -320,10 +367,9 @@ sub add {
     my $parentdn = getParentDN($dn);
     my $nparentdn = normalizeDN($parentdn);
 
-
     $self->setErrorCode(0);
-    # special case of root DSE
-    if (!$ndn and exists($self->{$ndn}) and
+    # special case of naming context - has no parent
+    if ($self->isNamingContext($ndn) and
         !exists($self->{$ndn}->{data})) {
         $self->{$ndn}->{data} = $entry;
         $self->write();
@@ -357,6 +403,8 @@ sub update {
     my $dn = $entry->getDN();
     my $ndn = normalizeDN($dn);
 
+    confess "Attempt to modify read only $self->{filename} entry $dn" if ($self->{readonly});
+
     $self->setErrorCode(0);
     if (!exists($self->{$ndn})) {
         $self->setErrorCode(LDAP_NO_SUCH_OBJECT);
@@ -372,6 +420,8 @@ sub update {
 sub delete {
     my $self = shift;
     my $dn = shift;
+
+    confess "Attempt to modify read only $self->{filename} entry $dn" if ($self->{readonly});
 
     if (ref($dn)) {
         $dn = $dn->getDN(); # an Entry

@@ -47,18 +47,19 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword debug createDSInstance createInfFromConfig
-                isValidServerID);
+                getHashedPassword debug createInfFromConfig
+                isValidServerID isValidUser makePaths);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword debug createDSInstance createInfFromConfig
-                isValidServerID);
+                getHashedPassword debug createInfFromConfig
+                isValidServerID isValidUser makePaths);
 
 use strict;
 
 use Socket;
 
 use File::Temp qw(tempfile tempdir);
+use File::Basename qw(dirname);
 
 $Util::debuglevel = 0;
 # use like this:
@@ -131,7 +132,7 @@ sub isValidUser {
             return ("dialog_ssuser_error", $user);
         }
         if (!$nuid) {
-            return ("dialog_ssuser_root_warning");
+            debug(0, "Warning: using root as the server user id.  You are strongly encouraged to use a non-root user.\n");
         }
     }
 
@@ -367,13 +368,17 @@ sub check_and_add_entry
             my $attr;
             foreach $attr ( @addtypes )
             {
-                debug(3, "Adding attr=$attr values=" . $aentry->getValues($attr) . " to entry $aentry->{dn}\n");
-                $sentry->addValue( $attr, $aentry->getValues($attr) );
+                foreach my $val ($aentry->getValues($attr))
+                {
+                    debug(3, "Adding attr=$attr value=$val to entry $aentry->{dn}\n");
+                    $sentry->addValue( $attr, $val );
+                }
             }
             foreach $attr ( @reptypes )
             {
+                my @vals = $aentry->getValues($attr);
                 debug(3, "Replacing attr=$attr values=" . $aentry->getValues($attr) . " to entry $aentry->{dn}\n");
-                $sentry->setValues($attr, $aentry->getValues($attr));
+                $sentry->setValues($attr, @vals);
             }
             foreach $attr ( @deltypes )
             {
@@ -761,23 +766,6 @@ sub getHashedPassword {
     return $hashedpwd;
 }
 
-sub createDSInstance {
-    my $inf = shift;
-    my $errs = shift; # unused for now
-# find ds_newinst.pl - in same directory as this script or in PATH
-    my $ds_newinst;
-    ($ds_newinst = $0) =~ s|/[^/]+$|/ds_newinst.pl|;
-    if (! -x $ds_newinst) {
-        $ds_newinst = "@bindir@/ds_newinst.pl";
-    }
-    if (! -x $ds_newinst) {
-        $ds_newinst = "ds_newinst.pl"; # just get from path
-    }
-    $? = 0; # clear error condition
-    my $output = `$ds_newinst $inf->{filename}`;
-    return ($?, $output);
-}
-
 # this creates an Inf suitable for passing to createDSInstance
 # except that it has a bogus suffix
 sub createInfFromConfig {
@@ -787,35 +775,93 @@ sub createInfFromConfig {
     my $fname = "$configdir/dse.ldif";
     my $id;
     ($id = $inst) =~ s/^slapd-//;
-    if (!open( DSELDIF, "$fname" )) {
+    if (! -f $fname) {
         push @{$errs}, "error_opening_dseldif", $fname, $!;
         return 0;
     }
-    my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
-    my $in = new Mozilla::LDAP::LDIF(*DSELDIF) ;
-    while (my $ent = readOneEntry $in) {
-        my $dn = $ent->getDN();
-        if ($dn =~ /cn=config/) {
-            print $outfh "[General]\n";
-            print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
-            print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
-            print $outfh "ServerRoot = @serverdir@\n";
-            print $outfh "[slapd]\n";
-            print $outfh "RootDN = ", $ent->getValues('nsslapd-rootdn'), "\n";
-            print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
-            print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
-            print $outfh "ServerIdentifier = $id\n";
-            print $outfh "Suffix = o=deleteAfterMigration\n";
-            print $outfh "start_server= 0\n";
-            last;
-        }
+    my $conn = new FileConn($fname, 1);
+
+    my $ent = $conn->search("cn=config", "base", "(objectclass=*)");
+    if (!$ent) {
+        push @{$errs}, "error_opening_dseldif", $fname, $!;
+        return 0;
     }
+
+    my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
+    print $outfh "[General]\n";
+    print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
+    print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
+    print $outfh "[slapd]\n";
+    print $outfh "RootDN = ", $ent->getValues('nsslapd-rootdn'), "\n";
+    print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
+    print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
+    print $outfh "ServerIdentifier = $id\n";
+    print $outfh "start_server= 0\n";
+
+    my $suffix;
+    my $ent = $conn->search("cn=ldbm database,cn=plugins,cn=config",
+                            "one", "(objectclass=*)");
+    if (!$ent) {
+        push @{$errs}, "error_opening_dseldif", $fname, $!;
+        close $outfh;
+        $conn->close();
+        return 0;
+    }
+    # use the userRoot suffix if available
+    while ($ent) {
+        $suffix = $ent->getValues('nsslapd-suffix');
+        last if ($ent->hasValue('cn', 'userRoot', 1));
+        $ent = $conn->nextEntry();
+    }
+    $conn->close();
+
+    print $outfh "Suffix = $suffix\n";
     close $outfh;
-    close DSELDIF;
 
     my $inf = new Inf($inffile);
 
     return $inf;
 }
 
+# like File::Path mkpath, except we can set the owner and perm
+# of each new path and parent path created
+sub makePaths {
+    my ($path, $mode, $user, $group) = @_;
+    my $uid = getpwnam $user;
+    my $gid = -1; # default to leave it alone
+
+    if ($group) {
+        $gid = getgrnam $group;
+    }
+    my @dirnames = ($path);
+    my $parent = $path;
+    for ($parent = dirname($parent);
+         $parent and ($parent ne "/");
+         $parent = dirname($parent)) {
+        unshift @dirnames, $parent;
+    }
+    for (@dirnames) {
+        next if (-d $_);
+        $! = 0; # clear
+        mkdir $_, $mode;
+        if ($!) {
+            return ('error_creating_directory', $_, $!);
+        }
+        chown $uid, $gid, $_;
+        if ($!) {
+            return ('error_chowning_directory', $_, $!);
+        }
+        debug(1, "makePaths: created directory $_ mode $mode user $user group $group\n");
+    }
+
+    return ();
+}
+
 1;
+
+# emacs settings
+# Local Variables:
+# mode:perl
+# indent-tabs-mode: nil
+# tab-width: 4
+# End:

@@ -87,15 +87,14 @@ error_creating_suffix_backend = Could not create the suffix '%s'.  There was an 
 error_creating_suffix = Could not create the suffix '%s'.  Error: %s\n\n
 
 setup_exiting = Exiting . . .\nLog file is '%s'\n\n
-error_creating_dsinstance = Error: Could not create directory server instance.  Error code %s.  Output:\n%s\n
-created_dsinstance = Your new DS instance was successfully created.  Output:\n%s\n
+error_creating_dsinstance = Error: Could not create directory server instance '%s'.\n
+created_dsinstance = Your new DS instance '%s' was successfully created.\n
 no_mapvalue_for_key = The map value '%s' for key '%s' did not map to a value in any of the given information files.\n
 error_opening_ldiftmpl = Could not open the LDIF template file '%s'.  Error: %s\n
 error_mapping_token_ldiftmpl = The entry '%s' in LDIF file '%s' contains a token '%s' for which there is no mapper.\nPlease check the file and your mapper to make sure all tokens are handled correctly.\n
 error_deleteall_entries = Error deleting entry '%s' and all children.  Error: %s\n
 error_adding_entry = Error adding entry '%s'.  Error: %s\n
 error_updating_entry = Error updating entry '%s'.  Error: %s\n
-
 
 error_invalid_param = The parameter '%s' has an invalid value '%s'.\n
 error_port_available = The port number '%s' is not available for use.  This may be due to an\
@@ -104,3 +103,19 @@ program, or low port restriction.  Please choose another value for\
 ServerPort.  Error: $!\n
 error_invalid_serverid = The ServerIdentifier '%s' contains invalid characters.  It must\
 contain only alphanumeric characters and the following: #%,.:@_-\n
+error_opening_scripttmpl = Could not open the script template file '%s'.  Error: %s\n
+error_creating_directory = Could not create directory '%s'.  Error: %s\n
+error_chowning_directory = Could not change ownership of directory '%s' to userid '%s': Error: %s\n
+error_chowning_file = Could not change ownership of '%s' to userid '%s': Error: %s\n
+error_chmoding_file = Could not change permissions of '%s': Error: %s\n
+error_chgrping_directory = Could not change group of directory '%s' to group '%s': Error: %s\n
+error_creating_file = Could not create file '%s'.  Error: %s\n
+error_copying_file = Could not copy file '%s' to '%s'.  Error: %s\n
+error_enabling_feature = Could not enable the directory server feature '%s'.  Error: %s\n
+error_importing_ldif = Could not import LDIF file '%s'.  Error: %s.  Output: %s\n
+error_starting_server = Could not start the directory server using command '%s'.  The last line from the error log was '%s'.  Error: %s\n
+error_missing_port_and_ldapi = Either ServerPort or ldapifilepath must be specified.  The server must listen to something.\n
+error_missing_port = No ServerPort specified.  The server must have a port number to listen to (default 389).\n
+error_server_already_exists = Error: the server already exists at '%s'\
+Please remove it first if you really want to recreate it,\
+or use a different ServerIdentifier to create another instance.\n

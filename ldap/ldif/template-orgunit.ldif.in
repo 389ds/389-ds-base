@@ -1,0 +1,4 @@
+dn: %ds_suffix%
+objectclass: top
+objectclass: organizationalUnit
+ou: %naming_value%

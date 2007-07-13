@@ -1,0 +1,4 @@
+dn: %ds_suffix%
+objectclass: top
+objectclass: locality
+l: %naming_value%

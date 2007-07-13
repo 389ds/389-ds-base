@@ -39,6 +39,7 @@ AC_ARG_WITH(fhs-opt, [  --with-fhs-opt   Use FHS optional layout],
 [
   with_fhs_opt=yes
   AC_MSG_RESULT(yes)
+  AC_SUBST(with_fhs_opt)
 ],
 AC_MSG_RESULT(no))
 

@@ -1,0 +1,799 @@
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2007 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+###########################
+#
+# This perl module provides a way to create a new instance of
+# directory server.
+#
+##########################
+
+package DSCreate;
+use Util;
+use Inf;
+use FileConn;
+
+use Net::Domain qw(hostfqdn);
+# tempfiles
+use File::Temp qw(tempfile tempdir);
+use File::Path;
+use File::Copy;
+use File::Basename qw(basename);
+
+# load perldap
+use Mozilla::LDAP::Conn;
+use Mozilla::LDAP::Utils qw(normalizeDN);
+use Mozilla::LDAP::API qw(ldap_explode_dn);
+use Mozilla::LDAP::LDIF;
+
+use Exporter;
+@ISA       = qw(Exporter);
+@EXPORT    = qw(createDSInstance);
+@EXPORT_OK = qw(createDSInstance);
+
+use strict;
+
+use SetupLog;
+
+sub checkPort {
+    my $inf = shift;
+
+    # allow port 0 if ldapi is used
+    if ("@enable_ldapi@") {
+        if ($inf->{slapd}->{ldapifilepath} &&
+            ($inf->{slapd}->{ServerPort} == 0)) {
+            return ();
+        }
+    }
+
+    if (!portAvailable($inf->{slapd}->{ServerPort})) {
+        return ('error_port_available', $inf->{slapd}->{ServerPort}, $!);
+    }
+
+    return ();
+}
+
+# checks the parameters in $inf to make sure the supplied values
+# are valid
+# returns null if successful, or an error string for use with getText()
+sub sanityCheckParams {
+    my $inf = shift;
+    my @errs = ();
+
+    # if we don't need to start the server right away, we can skip the
+    # port number checks
+    if (!defined($inf->{slapd}->{start_server}) or
+        ($inf->{slapd}->{start_server} == 1)) {
+
+        if (@errs = checkPort($inf)) {
+            return @errs;
+        }
+    }
+
+    if (!isValidServerID($inf->{slapd}->{ServerIdentifier})) {
+        return ('error_invalid_serverid', $inf->{slapd}->{ServerIdentifier});
+    } elsif (-d $inf->{slapd}->{config_dir}) {
+        return ('error_server_already_exists', $inf->{slapd}->{config_dir});
+    }
+
+    if (@errs = isValidUser($inf->{General}->{SuiteSpotUserID})) {
+        return @errs;
+    }
+
+    if (!isValidDN($inf->{slapd}->{Suffix})) {
+        return ('dialog_dssuffix_error', $inf->{slapd}->{Suffix});
+    }
+
+    if (!isValidDN($inf->{slapd}->{RootDN})) {
+        return ('dialog_dsrootdn_error', $inf->{slapd}->{RootDN});
+    }
+
+    if ($inf->{slapd}->{RootDNPwd} =~ /\{\w+\}.+/) {
+        debug(1, "The root password is already hashed - no checking will be performed\n");
+    } elsif (length($inf->{slapd}->{RootDNPwd}) < 8) {
+        debug(0, "WARNING: The root password is less than 8 characters long.  You should choose a longer one.\n");
+    }
+
+    return ();
+}
+
+sub getMode {
+    my $inf = shift;
+    my $mode = shift;
+    if (defined($inf->{General}->{SuiteSpotGroup})) {
+        $mode = "0" . $mode . $mode . "0";
+    } else {
+        $mode = "0" . $mode . "00";
+    }
+
+    return oct($mode);
+}
+
+# This is used to change the ownership and permissions of files and directories
+# The mode is just a single digit octal number (e.g. 4 6 7)
+# If there is a group, the ownership and permissions will allow group access
+# otherwise, only the owner will be allowed access
+sub changeOwnerMode {
+    my $inf = shift;
+    my $mode = shift;
+    my $it = shift;
+
+    my $uid = getpwnam $inf->{General}->{SuiteSpotUserID};
+    my $gid = -1; # default to leave it alone
+
+    if (defined($inf->{General}->{SuiteSpotGroup})) {
+        $gid = getgrnam $inf->{General}->{SuiteSpotGroup};
+    }
+
+    $mode = getMode($inf, $mode);
+    $! = 0; # clear errno
+    chmod $mode, $it;
+    if ($!) {
+        return ('error_chmoding_file', $it, $!);
+    }
+    $! = 0; # clear errno
+    chown $uid, $gid, $it;
+    if ($!) {
+        return ('error_chowning_file', $it, $inf->{General}->{SuiteSpotUserID}, $!);
+    }
+
+    return ();
+}
+
+sub makeDSDirs {
+    my $inf = shift;
+    my $verbose = ($Util::debuglevel > 0);
+    my $mode = getMode($inf, 7);
+    my @errs;
+
+    # These paths are owned by the SuiteSpotGroup
+    # This allows the admin server to run as a different,
+    # more privileged user than the directory server, but
+    # still allows the admin server to manage directory
+    # server files/dirs without being root
+    for (qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir
+            cert_dir db_dir ldif_dir bak_dir)) {
+        my $dir = $inf->{slapd}->{$_};
+        @errs = makePaths($dir, $mode, $inf->{General}->{SuiteSpotUserID},
+                          $inf->{General}->{SuiteSpotGroup});
+        if (@errs) {
+            return @errs;
+        }
+    }
+
+    return @errs;
+}
+
+sub createInstanceScripts {
+    my $inf = shift;
+    my $myperl = "!/usr/bin/env perl";
+    my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
+    my %maptable = (
+        "DS-ROOT" => $inf->{General}->{prefix},
+        "SEP" => "/", # works on all platforms
+        "SERVER-NAME" => $inf->{General}->{FullMachineName},
+        "SERVER-PORT" => $inf->{slapd}->{ServerPort},
+        "PERL-EXEC" => $myperl,
+        "DEV-NULL" => $mydevnull,
+        "ROOT-DN" => $inf->{slapd}->{RootDN},
+        "LDIF-DIR" => $inf->{slapd}->{ldif_dir},
+        "SERV-ID" => $inf->{slapd}->{ServerIdentifier},
+        "BAK-DIR" => $inf->{slapd}->{bak_dir},
+        "SERVER-DIR" => $inf->{General}->{ServerRoot},
+        "CONFIG-DIR" => $inf->{slapd}->{config_dir},
+        "RUN-DIR" => $inf->{slapd}->{run_dir},
+        "PRODUCT-NAME" => "slapd",
+        "SERVERBIN-DIR" => $inf->{slapd}->{sbindir},
+        "DB-DIR" => $inf->{slapd}->{db_dir}
+    );
+
+    my $dir = "$inf->{General}->{prefix}@taskdir@";
+    for (glob("$dir/template-*")) {
+        my $basename = $_;
+        $basename =~ s/^.*template-//;
+        my $destfile = "$inf->{slapd}->{inst_dir}/$basename";
+        if (!open(SRC, "< $_")) {
+            return ("error_opening_scripttmpl", $_, $!);
+        }
+        if (!open(DEST, "> $destfile")) {
+            return ("error_opening_scripttmpl", $destfile, $!);
+        }
+        my $contents; # slurp entire file into memory
+        read SRC, $contents, int(-s $_);
+        close(SRC);
+        while (my ($key, $val) = each %maptable) {
+            $contents =~ s/\{\{$key\}\}/$val/g;
+        }
+        print DEST $contents;
+        close(DEST);
+        my @errs = changeOwnerMode($inf, 5, $destfile);
+        if (@errs) {
+            return @errs;
+        }
+    }
+
+    return ();
+}
+
+sub createConfigFile {
+    my $inf = shift;
+    my $conffile = "$inf->{slapd}->{config_dir}/dse.ldif";
+    my $conn = new FileConn;
+    my @errs;
+
+    # first, create the basic config
+    my $mapper = new Inf("$inf->{General}->{prefix}@infdir@/dscreate.map");
+    my $dsinf = new Inf("$inf->{General}->{prefix}@infdir@/slapd.inf");
+    if (!$inf->{slapd}->{ds_bename}) {
+        $inf->{slapd}->{ds_bename} = "userRoot"; # for suffix-db
+    }
+    $mapper = process_maptbl($mapper, \@errs, $inf, $dsinf);
+    if (!$mapper or @errs) {
+        $conn->close();
+        if (!@errs) {
+            @errs = ('error_creating_file', $conffile, $!);
+        }
+        return @errs;
+    }
+
+    my @ldiffiles = ("$inf->{General}->{prefix}@templatedir@/template-dse.ldif",
+                     "$inf->{General}->{prefix}@templatedir@/template-suffix-db.ldif");
+    if ("@enable_pam_passthru@") {
+        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-pampta.ldif";
+    }
+    if ("@enable_bitwise@") {
+        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-bitwise.ldif";
+    }
+    if ("@enable_dna@") {
+        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-dnaplugin.ldif";
+    }
+
+    getMappedEntries($mapper, \@ldiffiles, \@errs, \&check_and_add_entry,
+                     [$conn]);
+
+    if (@errs) {
+        $conn->close();
+        return @errs;
+    }
+
+    if ("@enable_ldapi@") {
+        my $ent = $conn->search("cn=config", "base", "(objectclass=*)");
+        if (defined($inf->{slapd}->{ldapifilepath})) {
+            $ent->setValues("nsslapd-ldapifilepath", $inf->{slapd}->{ldapifilepath});
+            $ent->setValues("nsslapd-ldapilisten", "on");
+        } else {
+            $ent->setValues("nsslapd-ldapifilepath",
+                            "$inf->{slapd}->{run_dir}/slapd-$inf->{slapd}->{ServerIdentifier}.socket");
+            $ent->setValues("nsslapd-ldapilisten", "off");
+        }
+        if ("@enable_autobind@") {
+            $ent->setValues("nsslapd-ldapiautobind", "on");
+        }
+        $ent->setValues("nsslapd-ldapimaprootdn", $inf->{slapd}->{RootDN});
+        $ent->setValues("nsslapd-ldapimaptoentries", "off");
+        $ent->setValues("nsslapd-ldapiuidnumbertype", "uidNumber");
+        $ent->setValues("nsslapd-ldapigidnumbertype", "gidNumber");
+        $ent->setValues("nsslapd-ldapientrysearchbase", "dc=example, dc=com");
+        $ent->setValues("nsslapd-ldapiautodnsuffix", "cn=peercred,cn=external,cn=auth");
+        if (!$conn->update($ent)) {
+            $conn->close();
+            return ("error_enabling_feature", "ldapi", $conn->getErrorString());
+        }
+    }
+
+    if ($inf->{slapd}->{sasl_path}) {
+        my $ent = $conn->search("cn=config", "base", "(objectclass=*)");
+        $ent->setValues("nsslapd-saslpath", $inf->{slapd}->{sasl_path});
+        if (!$conn->update($ent)) {
+            $conn->close();
+            return ("error_enabling_feature", "sasl_path", $conn->getErrorString());
+        }
+    }
+
+    $conn->write($conffile);
+    $conn->close();
+
+    if (@errs = changeOwnerMode($inf, 6, $conffile)) {
+        return @errs;
+    }
+    # make a copy
+    my $origconf = "$inf->{slapd}->{config_dir}/dse_original.ldif";
+    $! = 0; # clear errno
+    copy($conffile, $origconf);
+    if ($!) {
+        return ('error_copying_file', $conffile, $origconf, $!);
+    }
+    if (@errs = changeOwnerMode($inf, 4, $origconf)) {
+        return @errs;
+    }
+    
+    return @errs;
+}
+
+sub makeOtherConfigFiles {
+    my $inf = shift;
+    my @errs;
+    # install certmap.conf at <configdir>
+    my $src = "$inf->{General}->{prefix}@configdir@/certmap.conf";
+    my $dest = "$inf->{slapd}->{config_dir}/certmap.conf";
+    $! = 0; # clear errno
+    copy($src, $dest);
+    if ($!) {
+        return ('error_copying_file', $src, $dest, $!);
+    }
+    if (@errs = changeOwnerMode($inf, 4, $dest)) {
+        return @errs;
+    }
+
+    $src = "$inf->{General}->{prefix}@configdir@/slapd-collations.conf";
+    $dest = "$inf->{slapd}->{config_dir}/slapd-collations.conf";
+    $! = 0; # clear errno
+    copy($src, $dest);
+    if ($!) {
+        return ('error_copying_file', $src, $dest, $!);
+    }
+    if (@errs = changeOwnerMode($inf, 4, $dest)) {
+        return @errs;
+    }
+
+    return ();
+}
+
+sub installSchema {
+    my $inf = shift;
+    my @errs;
+    my @schemafiles = ();
+    if (!defined($inf->{slapd}->{install_full_schema}) or
+        $inf->{slapd}->{install_full_schema}) {
+        push @schemafiles, glob("$inf->{General}->{prefix}@schemadir@/*");
+    } else {
+        push @schemafiles, "$inf->{General}->{prefix}@schemadir@/00core.ldif";
+    }
+    for (@schemafiles) {
+        my $src = $_;
+        my $basename = basename($src);
+        my $dest = "$inf->{slapd}->{schema_dir}/$basename";
+        $! = 0; # clear errno
+        copy($src, $dest);
+        if ($!) {
+            return ('error_copying_file', $src, $dest, $!);
+        }
+        my $mode = 4; # default read only
+        if ($basename eq "99user.ldif") {
+            $mode = 6; # read write
+        }
+        if (@errs = changeOwnerMode($inf, $mode, $dest)) {
+            return @errs;
+        }
+    }
+
+    return ();
+}
+
+# maps the suffix attr to the filename to use
+my %suffixTable = (
+    'o' => "@templatedir@/template-org.ldif",
+    'dc' => "@templatedir@/template-domain.ldif",
+    'ou' => "@templatedir@/template-orgunit.ldif",
+    'st' => "@templatedir@/template-state.ldif",
+    'l' => "@templatedir@/template-locality.ldif",
+    'c' => "@templatedir@/template-country.ldif"
+);
+
+sub initDatabase {
+    my $inf = shift;
+    # If the user has specified an LDIF file to use to initialize the database,
+    # load it now
+    my $ldiffile = $inf->{slapd}->{InstallLdifFile};
+    if ($ldiffile && -f $ldiffile) {
+        debug(1, "Loading initial ldif file $ldiffile\n");
+    } elsif (($inf->{slapd}->{Suffix} =~ /^(.*?)=/) && $suffixTable{$1}) {
+        my @errs;
+        my $template = $inf->{General}->{prefix} . $suffixTable{$1};
+        my $mapper = new Inf("$inf->{General}->{prefix}@infdir@/dsorgentries.map");
+        my $dsinf = new Inf("$inf->{General}->{prefix}@infdir@/slapd.inf");
+        my @rdns = ldap_explode_dn($inf->{slapd}->{Suffix}, 1);
+        $inf->{slapd}->{naming_value} = $rdns[0];
+        $mapper = process_maptbl($mapper, \@errs, $inf, $dsinf);
+        if (!$mapper or @errs) {
+            return @errs;
+        }
+        
+        my @ldiffiles = ($template, "$inf->{General}->{prefix}@templatedir@/template-baseacis.ldif");
+        if (exists($inf->{slapd}->{InstallLdifFile}) and
+            ($inf->{slapd}->{InstallLdifFile} =~ /suggest/i)) {
+            push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template.ldif";
+        }
+        
+        my ($fh, $templdif) = tempfile("ldifXXXXXX", SUFFIX => ".ldif", OPEN => 0,
+                                       DIR => File::Spec->tmpdir);
+        my $conn = new FileConn;
+        $conn->setNamingContext($inf->{slapd}->{Suffix});
+        getMappedEntries($mapper, \@ldiffiles, \@errs, \&check_and_add_entry,
+                         [$conn]);
+        $conn->write($templdif);
+        $conn->close();
+        if (@errs) {
+            return @errs;
+        }
+        # $templdif now contains the ldif to import
+        $ldiffile = $templdif;
+    }
+    if (!$ldiffile) {
+        return ();
+    }
+
+    my $cmd = "$inf->{slapd}->{inst_dir}/ldif2db -n userRoot -i \'$ldiffile\'";
+    $? = 0; # clear error condition
+    my $output = `$cmd 2>&1`;
+    if ($?) {
+        return ('error_importing_ldif', $ldiffile, $?, $output);
+    }
+
+    debug(1, $output);
+
+    return ();
+}
+
+sub startServer {
+    my $inf = shift;
+    return () if (defined($inf->{slapd}->{start_server}) && !$inf->{slapd}->{start_server});
+
+    my @errs;
+    # get error log
+    my $errLog = "$inf->{slapd}->{log_dir}/errors";
+    my $startcmd = "$inf->{slapd}->{inst_dir}/start-slapd";
+
+    # emulate tail -f
+    # if the last line we see does not contain "slapd started", try again
+    my $done = 0;
+    my $started = 0;
+    my $code = 0;
+    my $lastLine = "";
+    my $cmdPat = 'slapd started\.';
+    my $timeout = $inf->{slapd}->{startup_timeout};
+
+    $timeout = $timeout?$timeout:600; # default is 10 minutes
+    $timeout = time + $timeout;
+
+    debug(1, "Starting the server: $startcmd\n");
+    $? = 0; # clear error condition
+    my $output = `$startcmd 2>&1`;
+    $code = $?;
+    debug(1, "Started the server: code $code\n");
+    if ($code) {
+        debug(0, $output);
+    } else {
+        debug(1, $output);
+    }
+
+    # try to open the server error log
+    my $ii = 0;
+    while (time < $timeout) {
+        if (open(IN, $errLog)) {
+            last;
+        }
+        sleep(1);
+		if (!($ii % 10)) {
+		    debug(0, "Attempting to obtain server status . . .\n");
+		}
+        ++$ii;
+    }
+
+    if (! -f $errLog) {
+        debug(0, "Error: Could not read error log $errLog to get server startup status.  Error: $!\n");
+        return ('error_starting_server', $startcmd, "no status", $!);
+    }
+    if (time >= $timeout) {
+        debug(0, "Error: timed out waiting for the server to start and write to $errLog");
+        return ('error_starting_server', $startcmd, "timeout", 0);
+    }
+        
+    my $pos = tell(IN);
+    while (($done == 0) && (time < $timeout)) {
+        for (; ($done == 0) && ($_ = <IN>); $pos = tell(IN)) {
+            $lastLine = $_;
+            debug(1, $_);
+            if (/$cmdPat/) {
+                $done = 1;
+                $started = 1;
+            } elsif (/Initialization Failed/) {
+                debug(1, "Server failed to start, retrying . . .\n");
+                $code = system($startcmd);
+            } elsif (/exiting\./) {
+                debug(1, "Server failed to start, retrying . . .\n");
+                $code = system($startcmd);
+            }
+        }
+        if ($lastLine =~ /PR_Bind/) {
+            # server port conflicts with another one, just report and punt
+            debug(0, $lastLine);
+            @errs = ('error_port_available', $inf->{slapd}->{ServerPort}, $!);
+            $done = 1;
+        }
+        if ($done == 0) {
+            # rest a bit, then . . .
+            sleep(2);
+            # . . . reset the EOF status of the file desc
+            seek(IN, $pos, 0);
+        }
+    }
+    close(IN);
+
+    if (!$started) {
+        $! = $code;
+        my $now = time;
+        if ($now > $timeout) {
+            debug(0, "Possible timeout starting server: timeout=$timeout now=$now\n");
+        }
+        @errs = ('error_starting_server', $startcmd, $lastLine, $!);
+    } else {
+        debug(1, "Your new directory server has been started.\n");
+    }
+    
+    return @errs;
+}
+
+sub set_path_attribute {
+    my $val = shift;
+    my $defaultval = shift;
+    my $prefix = shift;
+
+    if ($val) {
+        return "$prefix" . "$val";
+    } else {
+        return "$prefix" . "$defaultval";
+    }
+}
+
+sub setDefaults {
+    my $inf = shift;
+    # set default values
+
+    # this turns off the warnings
+    if (!defined($inf->{General}->{prefix})) {
+        $inf->{General}->{prefix} = "";
+    }
+
+    if (!$inf->{General}->{FullMachineName}) {
+        $inf->{General}->{FullMachineName} = hostfqdn;
+    }
+
+    if (!$inf->{General}->{SuiteSpotUserID}) {
+        if ($> != 0) { # if not root, use the user's uid
+            $inf->{General}->{SuiteSpotUserID} = getlogin;
+        }
+        # otherwise, the uid must be specified
+    }
+
+    if (!$inf->{slapd}->{RootDN}) {
+        $inf->{slapd}->{RootDN} = "cn=Directory Manager";
+    }
+
+    if (!$inf->{slapd}->{Suffix}) {
+        my $suffix = $inf->{General}->{FullMachineName};
+        # convert fqdn to dc= domain components
+        $suffix =~ s/^[^\.]*\.//; # just the domain part
+        $suffix = "dc=$suffix";
+        $suffix =~ s/\./, dc=/g;
+        $inf->{slapd}->{Suffix} = $suffix;
+    }
+
+    if (!$inf->{slapd}->{ServerIdentifier}) {
+        my $servid = $inf->{General}->{FullMachineName};
+        # strip out the leftmost domain component
+        $servid =~ s/\..*$//;
+        $inf->{slapd}->{ServerIdentifier} = $servid;
+    }
+
+    if ("@with_fhs_opt@") {
+        $inf->{General}->{ServerRoot} = "$inf->{General}->{prefix}/opt/@PACKAGE_NAME@";
+    } else {
+        $inf->{General}->{ServerRoot} = "$inf->{General}->{prefix}@serverdir@";
+    }
+
+    if (!defined($inf->{slapd}->{sasl_path})) {
+        if ($ ne "linux") {
+            $inf->{slapd}->{sasl_path} = "$inf->{General}->{prefix}@libdir@/sasl2";
+        }
+    }
+
+    if (!defined($inf->{slapd}->{ServerPort}) and
+        !defined($inf->{slapd}->{ldapifilepath})) {
+        if ("@enable_ldapi@") {
+            return ('error_missing_port_and_ldapi');
+        } else {
+            return ('error_missing_port');
+        }
+    }
+
+    if (!defined($inf->{slapd}->{ServerPort})) {
+        $inf->{slapd}->{ServerPort} = 0;
+    }
+
+    $inf->{slapd}->{HashedRootDNPwd} = getHashedPassword($inf->{slapd}->{RootDNPwd});
+
+    $inf->{slapd}->{localstatedir} = set_path_attribute($inf->{slapd}->{localstatedir},
+                                                        "@localstatedir@",
+                                                        $inf->{General}->{prefix});
+    my $localstatedir = $inf->{slapd}->{localstatedir};
+    my $servid = $inf->{slapd}->{ServerIdentifier};
+    $inf->{slapd}->{sysconfdir} = set_path_attribute($inf->{slapd}->{sysconfdir},
+                                                     "@sysconfdir@",
+                                                     $inf->{General}->{prefix});
+    my $sysconfdir = $inf->{slapd}->{sysconfdir};
+    $inf->{slapd}->{bindir} = set_path_attribute($inf->{slapd}->{bindir},
+                                                 "@bindir@",
+                                                 $inf->{General}->{prefix});
+    $inf->{slapd}->{sbindir} = set_path_attribute($inf->{slapd}->{sbindir},
+                                                  "@sbindir@",
+                                                  $inf->{General}->{prefix});
+    $inf->{slapd}->{datadir} = set_path_attribute($inf->{slapd}->{datadir},
+                                                  "@datadir@",
+                                                  $inf->{General}->{prefix});
+
+    if (!defined($inf->{slapd}->{inst_dir})) {
+        $inf->{slapd}->{inst_dir} = "$inf->{General}->{ServerRoot}/slapd-$servid";
+    }
+
+    if (!defined($inf->{slapd}->{config_dir})) {
+        $inf->{slapd}->{config_dir} = "$inf->{General}->{prefix}@instconfigdir@/slapd-$servid";
+    }
+    $ENV{DS_CONFIG_DIR} = $inf->{slapd}->{config_dir};
+
+    if (!defined($inf->{slapd}->{schema_dir})) {
+        $inf->{slapd}->{schema_dir} = "$sysconfdir/@PACKAGE_NAME@/slapd-$servid/schema";
+    }
+
+    if (!defined($inf->{slapd}->{lock_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{lock_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/lock";
+        } else {
+            $inf->{slapd}->{lock_dir} = "$localstatedir/lock/@PACKAGE_NAME@/slapd-$servid";
+        }
+    }
+
+    if (!defined($inf->{slapd}->{log_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{log_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/log";
+        } else {
+            $inf->{slapd}->{log_dir} = "$localstatedir/log/@PACKAGE_NAME@/slapd-$servid";
+        }
+    }
+
+    if (!defined($inf->{slapd}->{run_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{run_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/run";
+        } else {
+            $inf->{slapd}->{run_dir} = "$localstatedir/run/@PACKAGE_NAME@";
+        }
+    }
+    $ENV{DS_RUN_DIR} = $inf->{slapd}->{run_dir};
+
+    if (!defined($inf->{slapd}->{db_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{db_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/db";
+        } else {
+            $inf->{slapd}->{db_dir} = "$localstatedir/lib/@PACKAGE_NAME@/slapd-$servid/db";
+        }
+    }
+
+    if (!defined($inf->{slapd}->{bak_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{bak_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/bak";
+        } else {
+            $inf->{slapd}->{bak_dir} = "$localstatedir/lib/@PACKAGE_NAME@/slapd-$servid/bak";
+        }
+    }
+    $ENV{DS_BAK_DIR} = $inf->{slapd}->{bak_dir};
+
+    if (!defined($inf->{slapd}->{ldif_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{ldif_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/ldif";
+        } else {
+            $inf->{slapd}->{ldif_dir} = "$localstatedir/lib/@PACKAGE_NAME@/slapd-$servid/ldif";
+        }
+    }
+
+    if (!defined($inf->{slapd}->{tmp_dir})) {
+        if ("@with_fhs_opt@") {
+            $inf->{slapd}->{tmp_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/tmp";
+        } else {
+            $inf->{slapd}->{tmp_dir} = "$localstatedir/tmp/@PACKAGE_NAME@/slapd-$servid";
+        }
+    }
+    $ENV{DS_TMP_DIR} = $inf->{slapd}->{tmp_dir};
+
+    if (!defined($inf->{slapd}->{cert_dir})) {
+        $inf->{slapd}->{cert_dir} = $inf->{slapd}->{config_dir};
+    }
+
+    return ();
+}
+
+sub createDSInstance {
+    my $inf = shift;
+    my @errs;
+
+    if (@errs = setDefaults($inf)) {
+        return @errs;
+    }
+
+    if (@errs = sanityCheckParams($inf)) {
+        return @errs;
+    }
+
+    if (@errs = makeDSDirs($inf)) {
+        return @errs;
+    }
+
+    if (@errs = createConfigFile($inf)) {
+        return @errs;
+    }
+
+    if (@errs = makeOtherConfigFiles($inf)) {
+        return @errs;
+    }
+
+    if (@errs = createInstanceScripts($inf)) {
+        return @errs;
+    }
+
+    if (@errs = installSchema($inf)) {
+        return @errs;
+    }
+
+    if (@errs = initDatabase($inf)) {
+        return @errs;
+    }
+
+    if (@errs = startServer($inf)) {
+        return @errs;
+    }
+
+    return @errs;
+}
+
+1;
+
+# emacs settings
+# Local Variables:
+# mode:perl
+# indent-tabs-mode: nil
+# tab-width: 4
+# End:

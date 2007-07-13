@@ -1,0 +1,4 @@
+dn: %ds_suffix%
+objectclass: top
+objectclass: country
+c: %naming_value%

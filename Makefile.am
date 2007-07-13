@@ -98,13 +98,16 @@ server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
 # this is how to add optional plugins
 if enable_pam_passthru
 LIBPAM_PASSTHRU_PLUGIN = libpam-passthru-plugin.la
+enable_pam_passthru = 1
 endif
 if enable_dna
 LIBDNA_PLUGIN = libdna-plugin.la
+enable_dna = 1
 endif
 
 if enable_bitwise
 LIBBITWISE_PLUGIN = libbitwise-plugin.la
+enable_bitwise = 1
 endif
 
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
@@ -145,6 +148,14 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-pampta.ldif \
 	ldap/ldif/template-dnaplugin.ldif \
 	ldap/ldif/template-bitwise.ldif \
+	ldap/ldif/template-dse.ldif \
+	ldap/ldif/template-org.ldif \
+	ldap/ldif/template-domain.ldif \
+	ldap/ldif/template-state.ldif \
+	ldap/ldif/template-locality.ldif \
+	ldap/ldif/template-country.ldif \
+	ldap/ldif/template-orgunit.ldif \
+	ldap/ldif/template-baseacis.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
@@ -201,7 +212,8 @@ perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Setup.pm \
 	ldap/admin/src/scripts/Migration.pm \
 	ldap/admin/src/scripts/DSMigration.pm \
-	ldap/admin/src/scripts/FileConn.pm
+	ldap/admin/src/scripts/FileConn.pm \
+	ldap/admin/src/scripts/DSCreate.pm
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
@@ -217,6 +229,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-saveconfig \
 	ldap/admin/src/scripts/template-start-slapd \
 	ldap/admin/src/scripts/template-stop-slapd \
+	ldap/admin/src/scripts/template-restart-slapd \
 	ldap/admin/src/scripts/template-suffix2instance \
 	ldap/admin/src/scripts/template-vlvindex \
 	ldap/admin/src/scripts/template-bak2db.pl \
@@ -236,7 +249,9 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
-inf_DATA = ldap/admin/src/slapd.inf
+inf_DATA = ldap/admin/src/slapd.inf \
+	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/dsorgentries.map
 
 #////////////////////////////////////////////////////////////////
 #
@@ -938,6 +953,7 @@ mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSD
 #------------------------
 if enable_ldapi
         GETSOCKETPEER=ldap/servers/slapd/getsocketpeer.c
+        enable_ldapi = 1
 endif
 
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
@@ -1034,20 +1050,29 @@ fixupcmd = sed \
 	-e 's,@configdir\@,$(configdir),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
+	-e 's,@infdir\@,$(infdir),g' \
+	-e 's,@templatedir\@,$(sampledatadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+	-e 's,@enable_ldapi\@,$(enable_ldapi),g' \
+	-e 's,@enable_pam_passthru\@,$(enable_pam_passthru),g' \
+	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
+	-e 's,@enable_dna\@,$(enable_dna),g' \
+	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
 	-e 's,@capbrand\@,$(capbrand),g' \
 	-e 's,@vendor\@,$(vendor),g' \
+	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
-	-e 's,@defaultgroup\@,$(defaultgroup),g'
+	-e 's,@defaultgroup\@,$(defaultgroup),g' \
+	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1070,20 +1095,29 @@ fixupcmd = sed \
 	-e 's,@configdir\@,$(configdir),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
+	-e 's,@infdir\@,$(infdir),g' \
+	-e 's,@templatedir\@,$(sampledatadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
+	-e 's,@enable_ldapi\@,$(enable_ldapi),g' \
+	-e 's,@enable_pam_passthru\@,$(enable_pam_passthru),g' \
+	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
+	-e 's,@enable_dna\@,$(enable_dna),g' \
+	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
 	-e 's,@capbrand\@,$(capbrand),g' \
 	-e 's,@vendor\@,$(vendor),g' \
+	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perldir\@,$(perldir),g' \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
-	-e 's,@defaultgroup\@,$(defaultgroup),g'
+	-e 's,@defaultgroup\@,$(defaultgroup),g' \
+	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
 endif
 
 %: %.in

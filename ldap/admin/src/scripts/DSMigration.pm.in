@@ -50,6 +50,7 @@ package DSMigration;
 use Migration;
 use Util;
 use Inf;
+use DSCreate;
 
 # tempfiles
 use File::Temp qw(tempfile tempdir);
@@ -91,6 +92,7 @@ my %ignoreOld =
  'nsslapd-certdir'                 => 'nsslapd-certdir',
  'nsslapd-ldifdir'                 => 'nsslapd-ldifdir',
  'nsslapd-bakdir'                  => 'nsslapd-bakdir',
+ 'nsslapd-instancedir'             => 'nsslapd-instancedir',
  'nsslapd-ldapifilepath'           => 'nsslapd-ldapifilepath',
  'nsslapd-ldapilisten'             => 'nsslapd-ldapilisten',
  'nsslapd-ldapiautobind'           => 'nsslapd-ldapiautobind',
@@ -187,19 +189,28 @@ sub copyDatabaseDirs {
         return ("error_dbsrcdir_not_exist", $srcdir);
     } else {
         debug(1, "The destination directory $destdir already exists, copying files/dirs individually\n");
+        $! = 0;
+        debug(1, "Removing any existing db files in $destdir\n");
+        unlink glob("$destdir/*");
+        if ($!) {
+            return ("error_removing_temp_db_files", $destdir, $!);
+        }
         foreach my $file (glob("$srcdir/*")) {
-            debug(3, "Copying $file to $destdir\n");
             if (-f $file) {
+                debug(3, "Copying $file to $destdir\n");
                 if (system ("cp -p $file $destdir")) {
                     return ('error_copying_dbfile', $file, $destdir, $?);
                 }
             } elsif (-d $file && !$filesonly) {
+                debug(3, "Copying $file to $destdir\n");
                 if (system ("cp -p -r $file $destdir")) {
                     return ('error_copying_dbdir', $file, $destdir, $?);
                 }
             }
         }
     }
+
+    return ();
 }
 
 # migrate all of the databases in an instance
@@ -216,11 +227,14 @@ sub migrateDatabases {
     my $foundldif;
     for (glob("$mig->{oldsroot}/$inst/db/*.ldif")) {
         my $dbname = basename($_, '.ldif');
-        my @cmd = ("@serverdir@/$inst/ldif2db", "-n", $dbname, "-i", $_);
-        debug(1, "migrateDatabases: executing command ", @cmd);
-        if (system(@cmd)) {
-            return ('error_importing_migrated_db', $_, $?);
+        my $cmd = "@serverdir@/$inst/ldif2db -n \"$dbname\" -i \"$_\"";
+        debug(1, "migrateDatabases: executing command $cmd\n");
+        $? = 0; # clear error condition
+        my $output = `$cmd 2>&1`;
+        if ($?) {
+            return ('error_importing_migrated_db', $_, $?, $output);
         }
+        debug(1, $output);
         $foundldif = 1;
     }
 
@@ -284,13 +298,13 @@ sub migrateDatabases {
             my $srcdir = $dir || "$olddefault/db/$cn";
             my $newent = $dest->search($ent->getDN(), "base", "(objectclass=*)");
             my $newdbdir = $newent->getValues('nsslapd-directory') ||
-                "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
+                "@localstatedir@/lib/$mig->{pkgname}/$inst/db/$cn";
             if (-d $srcdir and ($srcdir !~ /^$olddefault/)) {
                 debug(2, "Not copying database indexes from [$srcdir]\n");
             } else {
                 # replace the old sroot value with the actual physical location on the target/dest
                 $srcdir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
-                if (@errs = copyDatabaseDirs($srcdir, "$newdbdir/$cn")) {
+                if (@errs = copyDatabaseDirs($srcdir, "$newdbdir")) {
                     return @errs;
                 }
             }
@@ -317,9 +331,14 @@ sub migrateChangelogs {
             # replace the old sroot value with the actual physical location on the target/dest
             $oldcldir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
             my $newcldir = $newent->getValues('nsslapd-changelogdir');
-            copyDatabaseDirs($oldcldir, $newcldir);
+            my @errs = copyDatabaseDirs($oldcldir, $newcldir);
+            if (@errs) {
+                return @errs;
+            }
         }
     }
+
+    return ();
 }
 
 sub fixAttrsInEntry {
@@ -358,26 +377,36 @@ sub mergeEntries {
     # iterate through the attr lists
     my $cn = lc $new->getValues("cn");
     foreach my $attr (keys %inoldonly, keys %innewonly, @attrs) {
+        debug(3, "mergeEntries: merging entry ", $old->getDN(), " attr $attr\n");
         my $lcattr = lc $attr;
         if ($ignoreOld{$lcattr}) {
+            debug(3, "mergeEntries: ignoring old invalid or obsolete attr $attr\n");
             next; # use new value or just omit if attr is obsolete
         } elsif ($transformAttr{$lcattr}) {
             # only transform if the value is in the old entry
             if (!$innewonly{$attr}) {
-                $new->setValues($attr, &{$transformAttr{$lcattr}}($old, $attr, $mig, $inst));
+                my $oldval = $old->getValues($attr);
+                my $newval = &{$transformAttr{$lcattr}}($old, $attr, $mig, $inst);
+                $new->setValues($attr, $newval);
+                debug(3, "mergeEntries: transformed old value $oldval to $newval\n");
             }
         } elsif ($cn eq "internationalization plugin" and $lcattr eq "nsslapd-pluginarg0") {
+            debug(3, "mergeEntries: using new value of internationalization plugin nsslapd-pluginarg0\n");
             next; # use the new value of this path name
         } elsif ($cn eq "referential integrity postoperation" and $lcattr eq "nsslapd-pluginarg1") {
+            debug(3, "mergeEntries: using new value of referential integrity postoperation nsslapd-pluginarg1\n");
             next; # use the new value of this path name
         } elsif ($innewonly{$attr}) {
+            debug(3, "mergeEntries: removing attr $attr from new entry\n");
             $new->remove($attr); # in new but not old - just remove it
         } else {
+            my $oldval = $old->getValues($attr);
+            my $newval = $new->getValues($attr);
             $new->setValues($attr, $old->getValues($attr)); # use old value
+            debug(3, "mergeEntries: using old val $oldval instead of new val $newval\n");
         }
     }
 }
-
 
 my @allattrlist = ('*', 'aci', 'createTimestamp', 'creatorsName',
                    'modifyTimestamp', 'modifiersName');
@@ -598,14 +627,14 @@ sub migrateDS {
         }
 
         # create the new instance
-        my ($rc, $output) = createDSInstance($inf, \@errs);
+        @errs = createDSInstance($inf);
         unlink($inf->{filename});
-        if ($rc) {
+        if (@errs) {
             $mig->msg(@errs);
-            $mig->msg($FATAL, 'error_creating_dsinstance', $rc, $output);
+            $mig->msg($FATAL, 'error_creating_dsinstance', $inst);
             return 0;
         } else {
-            $mig->msg('created_dsinstance', $output);
+            $mig->msg('created_dsinstance', $inst);
         }
 
         my $src = new FileConn("$oldconfigdir/dse.ldif", 1); # read-only
@@ -627,3 +656,10 @@ sub migrateDS {
 # Mandatory TRUE return value.
 #
 1;
+
+# emacs settings
+# Local Variables:
+# mode:perl
+# indent-tabs-mode: nil
+# tab-width: 4
+# End:

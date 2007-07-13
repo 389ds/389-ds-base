@@ -47,6 +47,7 @@ use Inf;
 use Resource;
 use DialogManager;
 use Util;
+use DSCreate;
 
 my $res = new Resource("@propertydir@/setup-ds.res");
 
@@ -70,13 +71,14 @@ if (!$setup->{silent}) {
     $setup->{inf}->write();
 }
 
-my @errs;
-my ($rc, $output) = createDSInstance($setup->{inf}, \@errs);
-if ($rc) {
+my @errs = createDSInstance($setup->{inf});
+if (@errs) {
     $setup->msg(@errs);
-    $setup->msg($FATAL, 'error_creating_dsinstance', $rc, $output);
+    $setup->msg($FATAL, 'error_creating_dsinstance',
+                $setup->{inf}->{slapd}->{ServerIdentifier});
 } else {
-    $setup->msg('created_dsinstance', $output);
+    $setup->msg('created_dsinstance',
+                $setup->{inf}->{slapd}->{ServerIdentifier});
 }
 
 END {

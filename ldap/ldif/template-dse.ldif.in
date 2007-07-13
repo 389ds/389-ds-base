@@ -9,7 +9,7 @@ nsslapd-tmpdir: %tmp_dir%
 nsslapd-certdir: %cert_dir%
 nsslapd-ldifdir: %ldif_dir%
 nsslapd-bakdir: %bak_dir%
-nsslapd-saslpath: %sasl_path%
+nsslapd-instancedir: %inst_dir%
 nsslapd-accesslog-logging-enabled: on
 nsslapd-accesslog-maxlogsperdir: 10
 nsslapd-accesslog-mode: 600
@@ -22,7 +22,7 @@ nsslapd-accesslog-logrotationsyncmin: 0
 nsslapd-accesslog: %log_dir%/access
 nsslapd-enquote-sup-oc: off
 nsslapd-localhost: %fqdn%
-nsslapd-schemacheck: 1
+nsslapd-schemacheck: on
 nsslapd-rewrite-rfc1274: off
 nsslapd-return-exact-case: on
 nsslapd-ssl-check-hostname: on
@@ -493,7 +493,7 @@ nsslapd-pluginpath: libcollation-plugin
 nsslapd-plugininitfunc: orderingRule_init
 nsslapd-plugintype: matchingRule
 nsslapd-pluginenabled: on
-nsslapd-pluginarg0: @configdir@/slapd-collations.conf
+nsslapd-pluginarg0: %config_dir%/slapd-collations.conf
 
 dn: cn=HTTP Client,cn=plugins,cn=config
 objectclass: top
