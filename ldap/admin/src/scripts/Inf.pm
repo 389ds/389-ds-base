@@ -77,8 +77,14 @@ sub read {
 
     my $incontinuation = 0;
     my $curkey;
-    open INF, $filename or die "Error: could not open inf file $filename: $!";
-    while (<INF>) {
+    my $inffh;
+    if ($filename eq "-") {
+        $inffh = \*STDIN;
+    } else {
+        open INF, $filename or die "Error: could not open inf file $filename: $!";
+        $inffh = \*INF;
+    }
+    while (<$inffh>) {
         my $iscontinuation;
         chop; # trim trailing newline
         if (/^\s*$/) { # skip blank/empty lines
@@ -107,7 +113,9 @@ sub read {
             $incontinuation = 0;
         }
 	}
-    close INF;
+    if ($inffh ne \*STDIN) {
+        close $inffh;
+    }
 }
 
 sub section {
@@ -148,6 +156,8 @@ sub write {
     } else {
         $filename = $self->{filename};
     }
+
+    return if ($filename eq "-");
 
     open INF, ">$filename" or die "Error: could not write inf file $filename: $!";
     # write General section first

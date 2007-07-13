@@ -44,6 +44,7 @@ use DialogManager;
 use Setup;
 use Dialog;
 use Net::Domain qw(hostfqdn);
+use Util;
 
 my $welcome = new DialogYesNo (
     $EXPRESS,
@@ -136,7 +137,7 @@ sub verifyUserChoice {
         }
     }
     if ($> != 0) { # if not root, the user must be our uid
-        my $username = getlogin;
+        my $username = getLogin;
         if ($strans ne $username) {
             $self->{manager}->alert("dialog_ssuser_must_be_same", $username);
             return $DialogManager::SAME;
@@ -218,7 +219,7 @@ my $usergroup = new Dialog (
                 if ($> == 0) { # if root, use the default user
                     $username = "@defaultuser@";
                 } else { # if not root, use the user's uid
-                    $username = getlogin;
+                    $username = getLogin;
                 }
             }
             return $username;

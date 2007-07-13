@@ -596,7 +596,7 @@ sub setDefaults {
 
     if (!$inf->{General}->{SuiteSpotUserID}) {
         if ($> != 0) { # if not root, use the user's uid
-            $inf->{General}->{SuiteSpotUserID} = getlogin;
+            $inf->{General}->{SuiteSpotUserID} = getLogin;
         }
         # otherwise, the uid must be specified
     }
