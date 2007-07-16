@@ -62,12 +62,13 @@ sub PrintUsage {
 	"\t Where options are:\n",
 	"\t -s suffix, default is 'dc=example,dc=com'\n",
 	"\t -c for CN naming style RDN's : default is UID\n",
-        "\t -O for organizationalPersons, default is inetOrgPerson\n",
+	"\t -O for organizationalPersons, default is inetOrgPerson\n",
 	"\t -p for piranha style aci's, default is barracuda\n",
 	"\t -r seed---seed number for random number generator\n",
 	"\t -g print extra entries for orgchart\n",
 	"\t -x suppress printing pre amble\n",
 	"\t -y suppress printing organizational units\n",
+	"\t -l location of directory containing data files, default is @templatedir@\n",
 	"\t -v verbose\n",
 	"\t -q quiet\n",
 	"\n";
@@ -528,7 +529,7 @@ my $mycert =
 
 require "flush.pl";
 require "getopts.pl";
-&Getopts('n:o:s:r:cOvpqgxy');
+&Getopts('n:o:s:r:cOvpqgxyl:');
 
 $Number_To_Generate = $opt_n;
 $Verbose = $opt_v;
@@ -542,6 +543,7 @@ $NamingType = "cn" if ($opt_c);
 $NamingType = "uid" if (!$opt_c);
 $inetOrgPerson = "objectClass: inetOrgPerson\n" if (!$opt_O);
 $PrintOrgChartDat = $opt_g;
+$DataDir = $opt_l || "@templatedir@";
 $printpreamble = 1;
 if ("" != $opt_x)
 {
@@ -582,10 +584,9 @@ srand($Random_Seed);
 
 print "Loading Name Data...\n" if $Verbose;
 
-$DATADIR = "../data";
-$GivenNamesFile = "$DATADIR/dbgen-GivenNames";
-$FamilyNamesFile = "$DATADIR/dbgen-FamilyNames";
-$OrgUnitsFile    = "$DATADIR/dbgen-OrgUnits";
+$GivenNamesFile = "$DataDir/dbgen-GivenNames";
+$FamilyNamesFile = "$DataDir/dbgen-FamilyNames";
+$OrgUnitsFile    = "$DataDir/dbgen-OrgUnits";
 &ReadGivenNames;
 &ReadFamilyNames;
 &ReadOrgUnits;
