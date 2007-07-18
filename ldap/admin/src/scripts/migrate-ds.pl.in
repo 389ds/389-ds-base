@@ -62,16 +62,15 @@ my $mig = new Migration($res);
 
 $mig->msg('begin_ds_migration', $mig->{oldsroot});
 if (!migrateDS($mig)) {
-    exit 1;
+    $mig->doExit(1);
 }
 $mig->msg('end_ds_migration');
+$mig->doExit(0);
 
 END {
     if ($mig) {
         if (!$mig->{keep}) {
             unlink $mig->{inffile};
         }
-
-        $mig->doExit();
     }
 }

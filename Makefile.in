@@ -41,10 +41,9 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 sbin_PROGRAMS = ns-slapd$(EXEEXT)
-bin_PROGRAMS = dbscan-bin$(EXEEXT) ds_newinst-bin$(EXEEXT) \
-	dsktune-bin$(EXEEXT) infadd-bin$(EXEEXT) \
-	ldap-agent-bin$(EXEEXT) ldclt-bin$(EXEEXT) ldif-bin$(EXEEXT) \
-	migratecred-bin$(EXEEXT) mmldif-bin$(EXEEXT) \
+bin_PROGRAMS = dbscan-bin$(EXEEXT) dsktune-bin$(EXEEXT) \
+	infadd-bin$(EXEEXT) ldap-agent-bin$(EXEEXT) ldclt-bin$(EXEEXT) \
+	ldif-bin$(EXEEXT) migratecred-bin$(EXEEXT) mmldif-bin$(EXEEXT) \
 	pwdhash-bin$(EXEEXT) rsearch-bin$(EXEEXT)
 noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/tools/ldclt/opCheck.c
@@ -246,24 +245,6 @@ am_libdna_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/dna/libdna_plugin_la-dna.lo
 libdna_plugin_la_OBJECTS = $(am_libdna_plugin_la_OBJECTS)
 @enable_dna_TRUE@am_libdna_plugin_la_rpath = -rpath $(serverplugindir)
-libds_admin_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
-am_libds_admin_la_OBJECTS =  \
-	ldap/admin/lib/libds_admin_la-dsalib_conf.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_confs.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_db.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_debug.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_dn.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_filename.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_html.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_ldif.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_location.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_pw.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_tailf.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_updown.lo \
-	ldap/admin/lib/libds_admin_la-dsalib_util.lo
-libds_admin_la_OBJECTS = $(am_libds_admin_la_OBJECTS)
 libhttp_client_plugin_la_LIBADD =
 am_libhttp_client_plugin_la_OBJECTS = ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo \
 	ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo
@@ -562,16 +543,6 @@ am_dbscan_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/dbscan_bin-dbscan.$(OBJEXT)
 dbscan_bin_OBJECTS = $(am_dbscan_bin_OBJECTS)
 dbscan_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
-am_ds_newinst_bin_OBJECTS =  \
-	ldap/admin/src/ds_newinst_bin-cfg_sspt.$(OBJEXT) \
-	ldap/admin/src/ds_newinst_bin-create_instance.$(OBJEXT) \
-	ldap/admin/src/ds_newinst_bin-ds_newinst.$(OBJEXT) \
-	ldap/admin/src/ds_newinst_bin-script-gen.$(OBJEXT)
-ds_newinst_bin_OBJECTS = $(am_ds_newinst_bin_OBJECTS)
-ds_newinst_bin_DEPENDENCIES = libds_admin.la $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
 am_dsktune_bin_OBJECTS = ldap/systools/idsktune.$(OBJEXT) \
 	ldap/systools/pio.$(OBJEXT)
 dsktune_bin_OBJECTS = $(am_dsktune_bin_OBJECTS)
@@ -746,7 +717,7 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libchainingdb_plugin_la_SOURCES) \
 	$(libcollation_plugin_la_SOURCES) $(libcos_plugin_la_SOURCES) \
 	$(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) \
-	$(libdna_plugin_la_SOURCES) $(libds_admin_la_SOURCES) \
+	$(libdna_plugin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
 	$(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
@@ -758,10 +729,9 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) \
 	$(libslapd_la_SOURCES) $(libstatechange_plugin_la_SOURCES) \
 	$(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) \
-	$(dbscan_bin_SOURCES) $(ds_newinst_bin_SOURCES) \
-	$(dsktune_bin_SOURCES) $(infadd_bin_SOURCES) \
-	$(ldap_agent_bin_SOURCES) $(ldclt_bin_SOURCES) \
-	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
+	$(dbscan_bin_SOURCES) $(dsktune_bin_SOURCES) \
+	$(infadd_bin_SOURCES) $(ldap_agent_bin_SOURCES) \
+	$(ldclt_bin_SOURCES) $(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
 	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
 	$(ns_slapd_SOURCES) $(pwdhash_bin_SOURCES) \
 	$(rsearch_bin_SOURCES)
@@ -772,7 +742,7 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libchainingdb_plugin_la_SOURCES) \
 	$(libcollation_plugin_la_SOURCES) $(libcos_plugin_la_SOURCES) \
 	$(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) \
-	$(libdna_plugin_la_SOURCES) $(libds_admin_la_SOURCES) \
+	$(libdna_plugin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
 	$(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
@@ -784,13 +754,12 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) \
 	$(libslapd_la_SOURCES) $(libstatechange_plugin_la_SOURCES) \
 	$(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) \
-	$(dbscan_bin_SOURCES) $(ds_newinst_bin_SOURCES) \
-	$(dsktune_bin_SOURCES) $(infadd_bin_SOURCES) \
-	$(ldap_agent_bin_SOURCES) $(am__ldclt_bin_SOURCES_DIST) \
-	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
-	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
-	$(am__ns_slapd_SOURCES_DIST) $(pwdhash_bin_SOURCES) \
-	$(rsearch_bin_SOURCES)
+	$(dbscan_bin_SOURCES) $(dsktune_bin_SOURCES) \
+	$(infadd_bin_SOURCES) $(ldap_agent_bin_SOURCES) \
+	$(am__ldclt_bin_SOURCES_DIST) $(ldif_bin_SOURCES) \
+	$(makstrdb_SOURCES) $(migratecred_bin_SOURCES) \
+	$(mmldif_bin_SOURCES) $(am__ns_slapd_SOURCES_DIST) \
+	$(pwdhash_bin_SOURCES) $(rsearch_bin_SOURCES)
 configDATA_INSTALL = $(INSTALL_DATA)
 infDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
@@ -1042,7 +1011,7 @@ PAM_LINK = -lpam
 BUILT_SOURCES = dirver.h dberrstrs.h
 CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
 taskdir = $(datadir)@scripttemplatedir@
-server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
+server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
 # this is how to add optional plugins
 @enable_pam_passthru_TRUE@LIBPAM_PASSTHRU_PLUGIN = libpam-passthru-plugin.la
@@ -1116,17 +1085,14 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
-bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
+bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
-	wrappers/ds_newinst \
-	ldap/admin/src/ds_newinst.pl \
 	wrappers/dsktune \
 	wrappers/infadd \
 	wrappers/ldap-agent \
 	wrappers/ldclt \
 	wrappers/ldif \
 	$(srcdir)/ldap/admin/src/logconv.pl \
-	ldap/admin/src/migrateTo11 \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \
@@ -1179,11 +1145,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-verify-db.pl \
-	$(srcdir)/ldap/admin/src/scripts/template-migrate5to7 \
-	$(srcdir)/ldap/admin/src/scripts/template-migrate6to7 \
-	$(srcdir)/ldap/admin/src/scripts/template-migrateInstance7 \
-	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
+	ldap/admin/src/scripts/template-verify-db.pl
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
@@ -1232,26 +1194,6 @@ libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @
 #   Dynamic Server Libraries
 #
 #////////////////////////////////////////////////////////////////
-
-#------------------------
-# libds_admin
-#------------------------
-libds_admin_la_SOURCES = ldap/admin/lib/dsalib_conf.c \
-	ldap/admin/lib/dsalib_confs.c \
-	ldap/admin/lib/dsalib_db.c \
-	ldap/admin/lib/dsalib_debug.c \
-	ldap/admin/lib/dsalib_dn.c \
-	ldap/admin/lib/dsalib_filename.c \
-	ldap/admin/lib/dsalib_html.c \
-	ldap/admin/lib/dsalib_ldif.c \
-	ldap/admin/lib/dsalib_location.c \
-	ldap/admin/lib/dsalib_pw.c \
-	ldap/admin/lib/dsalib_tailf.c \
-	ldap/admin/lib/dsalib_updown.c \
-	ldap/admin/lib/dsalib_util.c
-
-libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-libds_admin_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libns-dshttpd
@@ -1782,17 +1724,6 @@ libbitwise_plugin_la_LDFLAGS = -avoid-version
 dbscan_bin_SOURCES = ldap/servers/slapd/tools/dbscan.c
 dbscan_bin_CPPFLAGS = @db_inc@ $(AM_CPPFLAGS)
 dbscan_bin_LDADD = $(NSPR_LINK) $(DB_LINK)
-
-#------------------------
-# ds_newinst
-#------------------------
-ds_newinst_bin_SOURCES = ldap/admin/src/cfg_sspt.c \
-	ldap/admin/src/create_instance.c \
-	ldap/admin/src/ds_newinst.c \
-	ldap/admin/src/script-gen.c
-
-ds_newinst_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET)
 
 #------------------------
 # dsktune
@@ -2597,53 +2528,6 @@ ldap/servers/plugins/dna/libdna_plugin_la-dna.lo:  \
 	ldap/servers/plugins/dna/$(DEPDIR)/$(am__dirstamp)
 libdna-plugin.la: $(libdna_plugin_la_OBJECTS) $(libdna_plugin_la_DEPENDENCIES) 
 	$(LINK) $(am_libdna_plugin_la_rpath) $(libdna_plugin_la_LDFLAGS) $(libdna_plugin_la_OBJECTS) $(libdna_plugin_la_LIBADD) $(LIBS)
-ldap/admin/lib/$(am__dirstamp):
-	@$(mkdir_p) ldap/admin/lib
-	@: > ldap/admin/lib/$(am__dirstamp)
-ldap/admin/lib/$(DEPDIR)/$(am__dirstamp):
-	@$(mkdir_p) ldap/admin/lib/$(DEPDIR)
-	@: > ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_conf.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_confs.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_db.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_debug.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_dn.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_filename.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_html.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_ldif.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_location.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_pw.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_tailf.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_updown.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/lib/libds_admin_la-dsalib_util.lo:  \
-	ldap/admin/lib/$(am__dirstamp) \
-	ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-libds_admin.la: $(libds_admin_la_OBJECTS) $(libds_admin_la_DEPENDENCIES) 
-	$(LINK) -rpath $(serverdir) $(libds_admin_la_LDFLAGS) $(libds_admin_la_OBJECTS) $(libds_admin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/http/$(am__dirstamp):
 	@$(mkdir_p) ldap/servers/plugins/http
 	@: > ldap/servers/plugins/http/$(am__dirstamp)
@@ -3557,27 +3441,6 @@ ldap/servers/slapd/tools/dbscan_bin-dbscan.$(OBJEXT):  \
 dbscan-bin$(EXEEXT): $(dbscan_bin_OBJECTS) $(dbscan_bin_DEPENDENCIES) 
 	@rm -f dbscan-bin$(EXEEXT)
 	$(LINK) $(dbscan_bin_LDFLAGS) $(dbscan_bin_OBJECTS) $(dbscan_bin_LDADD) $(LIBS)
-ldap/admin/src/$(am__dirstamp):
-	@$(mkdir_p) ldap/admin/src
-	@: > ldap/admin/src/$(am__dirstamp)
-ldap/admin/src/$(DEPDIR)/$(am__dirstamp):
-	@$(mkdir_p) ldap/admin/src/$(DEPDIR)
-	@: > ldap/admin/src/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/src/ds_newinst_bin-cfg_sspt.$(OBJEXT):  \
-	ldap/admin/src/$(am__dirstamp) \
-	ldap/admin/src/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/src/ds_newinst_bin-create_instance.$(OBJEXT):  \
-	ldap/admin/src/$(am__dirstamp) \
-	ldap/admin/src/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/src/ds_newinst_bin-ds_newinst.$(OBJEXT):  \
-	ldap/admin/src/$(am__dirstamp) \
-	ldap/admin/src/$(DEPDIR)/$(am__dirstamp)
-ldap/admin/src/ds_newinst_bin-script-gen.$(OBJEXT):  \
-	ldap/admin/src/$(am__dirstamp) \
-	ldap/admin/src/$(DEPDIR)/$(am__dirstamp)
-ds_newinst-bin$(EXEEXT): $(ds_newinst_bin_OBJECTS) $(ds_newinst_bin_DEPENDENCIES) 
-	@rm -f ds_newinst-bin$(EXEEXT)
-	$(LINK) $(ds_newinst_bin_LDFLAGS) $(ds_newinst_bin_OBJECTS) $(ds_newinst_bin_LDADD) $(LIBS)
 ldap/systools/$(am__dirstamp):
 	@$(mkdir_p) ldap/systools
 	@: > ldap/systools/$(am__dirstamp)
@@ -3904,36 +3767,6 @@ uninstall-taskSCRIPTS:
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_conf.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_conf.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_confs.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_confs.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_db.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_db.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_debug.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_debug.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_dn.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_dn.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_filename.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_filename.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_html.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_html.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_ldif.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_ldif.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_location.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_location.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_pw.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_pw.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_tailf.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_tailf.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_updown.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_updown.lo
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_util.$(OBJEXT)
-	-rm -f ldap/admin/lib/libds_admin_la-dsalib_util.lo
-	-rm -f ldap/admin/src/ds_newinst_bin-cfg_sspt.$(OBJEXT)
-	-rm -f ldap/admin/src/ds_newinst_bin-create_instance.$(OBJEXT)
-	-rm -f ldap/admin/src/ds_newinst_bin-ds_newinst.$(OBJEXT)
-	-rm -f ldap/admin/src/ds_newinst_bin-script-gen.$(OBJEXT)
 	-rm -f ldap/libraries/libavl/avl.$(OBJEXT)
 	-rm -f ldap/libraries/libavl/libslapd_la-avl.$(OBJEXT)
 	-rm -f ldap/libraries/libavl/libslapd_la-avl.lo
@@ -4719,23 +4552,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_conf.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_confs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_db.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_debug.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_dn.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_filename.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_html.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_ldif.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_location.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_pw.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_tailf.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_updown.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_util.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libavl/$(DEPDIR)/avl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/libraries/libavl/$(DEPDIR)/libslapd_la-avl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/acl/$(DEPDIR)/libacl_plugin_la-acl.Plo@am__quote@
@@ -6070,97 +5886,6 @@ ldap/servers/plugins/dna/libdna_plugin_la-dna.lo: ldap/servers/plugins/dna/dna.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/dna/dna.c' object='ldap/servers/plugins/dna/libdna_plugin_la-dna.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdna_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/dna/libdna_plugin_la-dna.lo `test -f 'ldap/servers/plugins/dna/dna.c' || echo '$(srcdir)/'`ldap/servers/plugins/dna/dna.c
-
-ldap/admin/lib/libds_admin_la-dsalib_conf.lo: ldap/admin/lib/dsalib_conf.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_conf.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_conf.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_conf.lo `test -f 'ldap/admin/lib/dsalib_conf.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_conf.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_conf.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_conf.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_conf.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_conf.c' object='ldap/admin/lib/libds_admin_la-dsalib_conf.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_conf.lo `test -f 'ldap/admin/lib/dsalib_conf.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_conf.c
-
-ldap/admin/lib/libds_admin_la-dsalib_confs.lo: ldap/admin/lib/dsalib_confs.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_confs.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_confs.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_confs.lo `test -f 'ldap/admin/lib/dsalib_confs.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_confs.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_confs.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_confs.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_confs.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_confs.c' object='ldap/admin/lib/libds_admin_la-dsalib_confs.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_confs.lo `test -f 'ldap/admin/lib/dsalib_confs.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_confs.c
-
-ldap/admin/lib/libds_admin_la-dsalib_db.lo: ldap/admin/lib/dsalib_db.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_db.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_db.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_db.lo `test -f 'ldap/admin/lib/dsalib_db.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_db.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_db.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_db.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_db.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_db.c' object='ldap/admin/lib/libds_admin_la-dsalib_db.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_db.lo `test -f 'ldap/admin/lib/dsalib_db.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_db.c
-
-ldap/admin/lib/libds_admin_la-dsalib_debug.lo: ldap/admin/lib/dsalib_debug.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_debug.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_debug.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_debug.lo `test -f 'ldap/admin/lib/dsalib_debug.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_debug.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_debug.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_debug.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_debug.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_debug.c' object='ldap/admin/lib/libds_admin_la-dsalib_debug.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_debug.lo `test -f 'ldap/admin/lib/dsalib_debug.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_debug.c
-
-ldap/admin/lib/libds_admin_la-dsalib_dn.lo: ldap/admin/lib/dsalib_dn.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_dn.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_dn.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_dn.lo `test -f 'ldap/admin/lib/dsalib_dn.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_dn.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_dn.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_dn.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_dn.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_dn.c' object='ldap/admin/lib/libds_admin_la-dsalib_dn.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_dn.lo `test -f 'ldap/admin/lib/dsalib_dn.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_dn.c
-
-ldap/admin/lib/libds_admin_la-dsalib_filename.lo: ldap/admin/lib/dsalib_filename.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_filename.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_filename.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_filename.lo `test -f 'ldap/admin/lib/dsalib_filename.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_filename.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_filename.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_filename.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_filename.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_filename.c' object='ldap/admin/lib/libds_admin_la-dsalib_filename.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_filename.lo `test -f 'ldap/admin/lib/dsalib_filename.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_filename.c
-
-ldap/admin/lib/libds_admin_la-dsalib_html.lo: ldap/admin/lib/dsalib_html.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_html.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_html.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_html.lo `test -f 'ldap/admin/lib/dsalib_html.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_html.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_html.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_html.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_html.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_html.c' object='ldap/admin/lib/libds_admin_la-dsalib_html.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_html.lo `test -f 'ldap/admin/lib/dsalib_html.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_html.c
-
-ldap/admin/lib/libds_admin_la-dsalib_ldif.lo: ldap/admin/lib/dsalib_ldif.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_ldif.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_ldif.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_ldif.lo `test -f 'ldap/admin/lib/dsalib_ldif.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_ldif.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_ldif.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_ldif.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_ldif.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_ldif.c' object='ldap/admin/lib/libds_admin_la-dsalib_ldif.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_ldif.lo `test -f 'ldap/admin/lib/dsalib_ldif.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_ldif.c
-
-ldap/admin/lib/libds_admin_la-dsalib_location.lo: ldap/admin/lib/dsalib_location.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_location.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_location.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_location.lo `test -f 'ldap/admin/lib/dsalib_location.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_location.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_location.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_location.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_location.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_location.c' object='ldap/admin/lib/libds_admin_la-dsalib_location.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_location.lo `test -f 'ldap/admin/lib/dsalib_location.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_location.c
-
-ldap/admin/lib/libds_admin_la-dsalib_pw.lo: ldap/admin/lib/dsalib_pw.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_pw.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_pw.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_pw.lo `test -f 'ldap/admin/lib/dsalib_pw.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_pw.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_pw.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_pw.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_pw.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_pw.c' object='ldap/admin/lib/libds_admin_la-dsalib_pw.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_pw.lo `test -f 'ldap/admin/lib/dsalib_pw.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_pw.c
-
-ldap/admin/lib/libds_admin_la-dsalib_tailf.lo: ldap/admin/lib/dsalib_tailf.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_tailf.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_tailf.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_tailf.lo `test -f 'ldap/admin/lib/dsalib_tailf.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_tailf.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_tailf.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_tailf.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_tailf.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_tailf.c' object='ldap/admin/lib/libds_admin_la-dsalib_tailf.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_tailf.lo `test -f 'ldap/admin/lib/dsalib_tailf.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_tailf.c
-
-ldap/admin/lib/libds_admin_la-dsalib_updown.lo: ldap/admin/lib/dsalib_updown.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_updown.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_updown.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_updown.lo `test -f 'ldap/admin/lib/dsalib_updown.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_updown.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_updown.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_updown.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_updown.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_updown.c' object='ldap/admin/lib/libds_admin_la-dsalib_updown.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_updown.lo `test -f 'ldap/admin/lib/dsalib_updown.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_updown.c
-
-ldap/admin/lib/libds_admin_la-dsalib_util.lo: ldap/admin/lib/dsalib_util.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/lib/libds_admin_la-dsalib_util.lo -MD -MP -MF "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_util.Tpo" -c -o ldap/admin/lib/libds_admin_la-dsalib_util.lo `test -f 'ldap/admin/lib/dsalib_util.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_util.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_util.Tpo" "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_util.Plo"; else rm -f "ldap/admin/lib/$(DEPDIR)/libds_admin_la-dsalib_util.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/lib/dsalib_util.c' object='ldap/admin/lib/libds_admin_la-dsalib_util.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libds_admin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/lib/libds_admin_la-dsalib_util.lo `test -f 'ldap/admin/lib/dsalib_util.c' || echo '$(srcdir)/'`ldap/admin/lib/dsalib_util.c
 
 ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo: ldap/servers/plugins/http/http_client.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhttp_client_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo -MD -MP -MF "ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Tpo" -c -o ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo `test -f 'ldap/servers/plugins/http/http_client.c' || echo '$(srcdir)/'`ldap/servers/plugins/http/http_client.c; \
@@ -7611,62 +7336,6 @@ ldap/servers/slapd/tools/dbscan_bin-dbscan.obj: ldap/servers/slapd/tools/dbscan.
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dbscan_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/tools/dbscan_bin-dbscan.obj `if test -f 'ldap/servers/slapd/tools/dbscan.c'; then $(CYGPATH_W) 'ldap/servers/slapd/tools/dbscan.c'; else $(CYGPATH_W) '$(srcdir)/ldap/servers/slapd/tools/dbscan.c'; fi`
 
-ldap/admin/src/ds_newinst_bin-cfg_sspt.o: ldap/admin/src/cfg_sspt.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-cfg_sspt.o -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Tpo" -c -o ldap/admin/src/ds_newinst_bin-cfg_sspt.o `test -f 'ldap/admin/src/cfg_sspt.c' || echo '$(srcdir)/'`ldap/admin/src/cfg_sspt.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/cfg_sspt.c' object='ldap/admin/src/ds_newinst_bin-cfg_sspt.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-cfg_sspt.o `test -f 'ldap/admin/src/cfg_sspt.c' || echo '$(srcdir)/'`ldap/admin/src/cfg_sspt.c
-
-ldap/admin/src/ds_newinst_bin-cfg_sspt.obj: ldap/admin/src/cfg_sspt.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-cfg_sspt.obj -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Tpo" -c -o ldap/admin/src/ds_newinst_bin-cfg_sspt.obj `if test -f 'ldap/admin/src/cfg_sspt.c'; then $(CYGPATH_W) 'ldap/admin/src/cfg_sspt.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/cfg_sspt.c'; fi`; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-cfg_sspt.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/cfg_sspt.c' object='ldap/admin/src/ds_newinst_bin-cfg_sspt.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-cfg_sspt.obj `if test -f 'ldap/admin/src/cfg_sspt.c'; then $(CYGPATH_W) 'ldap/admin/src/cfg_sspt.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/cfg_sspt.c'; fi`
-
-ldap/admin/src/ds_newinst_bin-create_instance.o: ldap/admin/src/create_instance.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-create_instance.o -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Tpo" -c -o ldap/admin/src/ds_newinst_bin-create_instance.o `test -f 'ldap/admin/src/create_instance.c' || echo '$(srcdir)/'`ldap/admin/src/create_instance.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/create_instance.c' object='ldap/admin/src/ds_newinst_bin-create_instance.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-create_instance.o `test -f 'ldap/admin/src/create_instance.c' || echo '$(srcdir)/'`ldap/admin/src/create_instance.c
-
-ldap/admin/src/ds_newinst_bin-create_instance.obj: ldap/admin/src/create_instance.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-create_instance.obj -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Tpo" -c -o ldap/admin/src/ds_newinst_bin-create_instance.obj `if test -f 'ldap/admin/src/create_instance.c'; then $(CYGPATH_W) 'ldap/admin/src/create_instance.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/create_instance.c'; fi`; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-create_instance.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/create_instance.c' object='ldap/admin/src/ds_newinst_bin-create_instance.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-create_instance.obj `if test -f 'ldap/admin/src/create_instance.c'; then $(CYGPATH_W) 'ldap/admin/src/create_instance.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/create_instance.c'; fi`
-
-ldap/admin/src/ds_newinst_bin-ds_newinst.o: ldap/admin/src/ds_newinst.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-ds_newinst.o -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Tpo" -c -o ldap/admin/src/ds_newinst_bin-ds_newinst.o `test -f 'ldap/admin/src/ds_newinst.c' || echo '$(srcdir)/'`ldap/admin/src/ds_newinst.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/ds_newinst.c' object='ldap/admin/src/ds_newinst_bin-ds_newinst.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-ds_newinst.o `test -f 'ldap/admin/src/ds_newinst.c' || echo '$(srcdir)/'`ldap/admin/src/ds_newinst.c
-
-ldap/admin/src/ds_newinst_bin-ds_newinst.obj: ldap/admin/src/ds_newinst.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-ds_newinst.obj -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Tpo" -c -o ldap/admin/src/ds_newinst_bin-ds_newinst.obj `if test -f 'ldap/admin/src/ds_newinst.c'; then $(CYGPATH_W) 'ldap/admin/src/ds_newinst.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/ds_newinst.c'; fi`; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-ds_newinst.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/ds_newinst.c' object='ldap/admin/src/ds_newinst_bin-ds_newinst.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-ds_newinst.obj `if test -f 'ldap/admin/src/ds_newinst.c'; then $(CYGPATH_W) 'ldap/admin/src/ds_newinst.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/ds_newinst.c'; fi`
-
-ldap/admin/src/ds_newinst_bin-script-gen.o: ldap/admin/src/script-gen.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-script-gen.o -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Tpo" -c -o ldap/admin/src/ds_newinst_bin-script-gen.o `test -f 'ldap/admin/src/script-gen.c' || echo '$(srcdir)/'`ldap/admin/src/script-gen.c; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/script-gen.c' object='ldap/admin/src/ds_newinst_bin-script-gen.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-script-gen.o `test -f 'ldap/admin/src/script-gen.c' || echo '$(srcdir)/'`ldap/admin/src/script-gen.c
-
-ldap/admin/src/ds_newinst_bin-script-gen.obj: ldap/admin/src/script-gen.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/admin/src/ds_newinst_bin-script-gen.obj -MD -MP -MF "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Tpo" -c -o ldap/admin/src/ds_newinst_bin-script-gen.obj `if test -f 'ldap/admin/src/script-gen.c'; then $(CYGPATH_W) 'ldap/admin/src/script-gen.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/script-gen.c'; fi`; \
-@am__fastdepCC_TRUE@	then mv -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Tpo" "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Po"; else rm -f "ldap/admin/src/$(DEPDIR)/ds_newinst_bin-script-gen.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/admin/src/script-gen.c' object='ldap/admin/src/ds_newinst_bin-script-gen.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ds_newinst_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/admin/src/ds_newinst_bin-script-gen.obj `if test -f 'ldap/admin/src/script-gen.c'; then $(CYGPATH_W) 'ldap/admin/src/script-gen.c'; else $(CYGPATH_W) '$(srcdir)/ldap/admin/src/script-gen.c'; fi`
-
 ldap/servers/slapd/tools/rsearch/infadd_bin-addthread.o: ldap/servers/slapd/tools/rsearch/addthread.c
 @am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(infadd_bin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/tools/rsearch/infadd_bin-addthread.o -MD -MP -MF "ldap/servers/slapd/tools/rsearch/$(DEPDIR)/infadd_bin-addthread.Tpo" -c -o ldap/servers/slapd/tools/rsearch/infadd_bin-addthread.o `test -f 'ldap/servers/slapd/tools/rsearch/addthread.c' || echo '$(srcdir)/'`ldap/servers/slapd/tools/rsearch/addthread.c; \
 @am__fastdepCC_TRUE@	then mv -f "ldap/servers/slapd/tools/rsearch/$(DEPDIR)/infadd_bin-addthread.Tpo" "ldap/servers/slapd/tools/rsearch/$(DEPDIR)/infadd_bin-addthread.Po"; else rm -f "ldap/servers/slapd/tools/rsearch/$(DEPDIR)/infadd_bin-addthread.Tpo"; exit 1; fi
@@ -8844,7 +8513,6 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-	-rm -rf ldap/admin/lib/.libs ldap/admin/lib/_libs
 	-rm -rf ldap/libraries/libavl/.libs ldap/libraries/libavl/_libs
 	-rm -rf ldap/servers/plugins/acl/.libs ldap/servers/plugins/acl/_libs
 	-rm -rf ldap/servers/plugins/bitwise/.libs ldap/servers/plugins/bitwise/_libs
@@ -9188,10 +8856,6 @@ clean-generic:
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
-	-rm -f ldap/admin/lib/$(DEPDIR)/$(am__dirstamp)
-	-rm -f ldap/admin/lib/$(am__dirstamp)
-	-rm -f ldap/admin/src/$(DEPDIR)/$(am__dirstamp)
-	-rm -f ldap/admin/src/$(am__dirstamp)
 	-rm -f ldap/libraries/libavl/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/libraries/libavl/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/acl/$(DEPDIR)/$(am__dirstamp)
@@ -9276,7 +8940,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libtool \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -9310,7 +8974,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ldap/admin/lib/$(DEPDIR) ldap/admin/src/$(DEPDIR) ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

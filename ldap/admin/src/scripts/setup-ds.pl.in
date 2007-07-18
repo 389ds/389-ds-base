@@ -76,17 +76,18 @@ if (@errs) {
     $setup->msg(@errs);
     $setup->msg($FATAL, 'error_creating_dsinstance',
                 $setup->{inf}->{slapd}->{ServerIdentifier});
+    $setup->doExit(1);
 } else {
     $setup->msg('created_dsinstance',
                 $setup->{inf}->{slapd}->{ServerIdentifier});
 }
+
+$setup->doExit(0);
 
 END {
     if ($setup) {
         if (!$setup->{keep}) {
             unlink $setup->{inffile};
         }
-
-        $setup->doExit();
     }
 }

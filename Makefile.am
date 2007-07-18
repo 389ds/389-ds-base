@@ -90,10 +90,10 @@ defaultgroup=@defaultgroup@
 #------------------------
 sbin_PROGRAMS = ns-slapd
 
-bin_PROGRAMS = dbscan-bin ds_newinst-bin dsktune-bin infadd-bin ldap-agent-bin \
+bin_PROGRAMS = dbscan-bin dsktune-bin infadd-bin ldap-agent-bin \
 	ldclt-bin ldif-bin migratecred-bin mmldif-bin pwdhash-bin rsearch-bin
 
-server_LTLIBRARIES = libslapd.la libds_admin.la libns-dshttpd.la
+server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
 # this is how to add optional plugins
 if enable_pam_passthru
@@ -178,17 +178,14 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
-bin_SCRIPTS = $(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
+bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
-	wrappers/ds_newinst \
-	ldap/admin/src/ds_newinst.pl \
 	wrappers/dsktune \
 	wrappers/infadd \
 	wrappers/ldap-agent \
 	wrappers/ldclt \
 	wrappers/ldif \
 	$(srcdir)/ldap/admin/src/logconv.pl \
-	ldap/admin/src/migrateTo11 \
 	wrappers/migratecred \
 	wrappers/mmldif \
 	wrappers/pwdhash \
@@ -241,11 +238,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-verify-db.pl \
-	$(srcdir)/ldap/admin/src/scripts/template-migrate5to7 \
-	$(srcdir)/ldap/admin/src/scripts/template-migrate6to7 \
-	$(srcdir)/ldap/admin/src/scripts/template-migrateInstance7 \
-	$(srcdir)/ldap/admin/src/scripts/template-migrateTo7
+	ldap/admin/src/scripts/template-verify-db.pl
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
@@ -303,26 +296,6 @@ libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @
 #   Dynamic Server Libraries
 #
 #////////////////////////////////////////////////////////////////
-
-#------------------------
-# libds_admin
-#------------------------
-libds_admin_la_SOURCES = ldap/admin/lib/dsalib_conf.c \
-	ldap/admin/lib/dsalib_confs.c \
-	ldap/admin/lib/dsalib_db.c \
-	ldap/admin/lib/dsalib_debug.c \
-	ldap/admin/lib/dsalib_dn.c \
-	ldap/admin/lib/dsalib_filename.c \
-	ldap/admin/lib/dsalib_html.c \
-	ldap/admin/lib/dsalib_ldif.c \
-	ldap/admin/lib/dsalib_location.c \
-	ldap/admin/lib/dsalib_pw.c \
-	ldap/admin/lib/dsalib_tailf.c \
-	ldap/admin/lib/dsalib_updown.c \
-	ldap/admin/lib/dsalib_util.c
-
-libds_admin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-libds_admin_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libns-dshttpd
@@ -863,17 +836,6 @@ dbscan_bin_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
 dbscan_bin_CPPFLAGS = @db_inc@ $(AM_CPPFLAGS)
 dbscan_bin_LDADD = $(NSPR_LINK) $(DB_LINK)
-
-#------------------------
-# ds_newinst
-#------------------------
-ds_newinst_bin_SOURCES = ldap/admin/src/cfg_sspt.c \
-	ldap/admin/src/create_instance.c \
-	ldap/admin/src/ds_newinst.c \
-	ldap/admin/src/script-gen.c
-
-ds_newinst_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/admin/include @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ds_newinst_bin_LDADD = libds_admin.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET)
 
 #------------------------
 # dsktune

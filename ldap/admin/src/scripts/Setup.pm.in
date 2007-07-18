@@ -215,8 +215,17 @@ sub msg {
 
 sub doExit {
     my $self = shift;
-    $self->msg($FATAL, 'setup_exiting', $self->{log}->{filename});
-	exit 1;
+    my $code = shift;
+    if (!defined($code)) {
+        $code = 1;
+    }
+
+    if ($code) {
+        $self->msg($FATAL, 'setup_exiting', $self->{log}->{filename});
+    } else {
+        $self->msg($SUCCESS, 'setup_exiting', $self->{log}->{filename});
+    }
+	exit $code;
 }
 
 # get a list of the directory servers in configdir
@@ -238,3 +247,10 @@ sub getDirServers {
 # Mandatory TRUE return value.
 #
 1;
+
+# emacs settings
+# Local Variables:
+# mode:perl
+# indent-tabs-mode: nil
+# tab-width: 4
+# End:
