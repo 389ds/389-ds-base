@@ -111,8 +111,11 @@ sub isValidServerID {
     return $servid =~ /^[$validchars]+$/o;
 }
 
+# we want the name of the effective user id of this process e.g. if someone did
+# an su root, we want getLogin to return "root" not the originating id (getlogin)
+# in perl, $> is the effective numeric user id - we need to turn it into a string
 sub getLogin {
-    return getlogin || (getpwuid($>))[0] || $ENV{USER} || die "Error: could not determine the current user ID: $!";
+    return (getpwuid($>))[0] || $ENV{USER} || die "Error: could not determine the current user ID: $!";
 }
 
 sub isValidUser {
