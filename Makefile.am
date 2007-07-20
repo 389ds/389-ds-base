@@ -178,6 +178,9 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
+sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
+	ldap/admin/src/scripts/migrate-ds.pl
+
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
 	wrappers/dsktune \
@@ -193,9 +196,7 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/cl-dump \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
-	ldap/admin/src/scripts/repl-monitor.pl \
-	ldap/admin/src/scripts/setup-ds.pl \
-	ldap/admin/src/scripts/migrate-ds.pl
+	ldap/admin/src/scripts/repl-monitor.pl
 
 perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Resource.pm \
