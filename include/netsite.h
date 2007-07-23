@@ -70,10 +70,6 @@
 #define EXTERNC
 #endif
 
-#ifndef VERSION_H
-#include "version.h"
-#endif /* !VERSION_H */
-
 #ifndef BASE_SYSTEMS_H
 #include "base/systems.h"
 #endif /* !BASE_SYSTEMS_H */
