@@ -1039,14 +1039,11 @@ config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf
 
 sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
-	$(srcdir)/ldap/ldif/commonTasks.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
 	$(srcdir)/ldap/ldif/Example.ldif \
 	$(srcdir)/ldap/ldif/Example-roles.ldif \
 	$(srcdir)/ldap/ldif/Example-views.ldif \
-	$(srcdir)/ldap/ldif/roledit.ldif \
-	$(srcdir)/ldap/ldif/tasks.ldif \
 	$(srcdir)/ldap/ldif/template.ldif \
 	ldap/ldif/template-dse.ldif \
 	ldap/ldif/template-suffix-db.ldif \
