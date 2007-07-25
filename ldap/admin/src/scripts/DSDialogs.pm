@@ -220,7 +220,8 @@ my $dspopulate = new Dialog (
         my $self = shift;
         my $val = $self->{manager}->{inf}->{slapd}->{InstallLdifFile};
         if (!defined($val)) {
-            $val = 'none';
+            $val = 'suggest';
+            $self->{manager}->{inf}->{slapd}->{AddOrgEntries} = 'Yes';
         }
         return $val;
     },
