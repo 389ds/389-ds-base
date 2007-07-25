@@ -837,6 +837,10 @@ ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBe
     if (pb == NULL) {
         /* called during startup -- do the rest now */
         rc = ldbm_instance_generate(li, instance_name, NULL);
+        if (!rc) {
+            inst = ldbm_instance_find_by_name(li, instance_name);
+            rc = ldbm_instance_create_default_user_indexes(inst);
+        }
     }
     /* if called during a normal ADD operation, the postadd callback
      * will do the rest.

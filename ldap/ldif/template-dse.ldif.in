@@ -603,34 +603,11 @@ cn: member
 nssystemindex: false
 nsindextype: eq
 
-dn: cn=nsCalXItemId,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
-objectclass: top
-objectclass: nsIndex
-cn: nsCalXItemId
-nssystemindex: false
-nsindextype: pres
-nsindextype: eq
-nsindextype: sub
-
-dn: cn=nsLIProfileName,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
-objectclass: top
-objectclass: nsIndex
-cn: nsLIProfileName
-nssystemindex: false
-nsindextype: eq
-
 dn: cn=nsUniqueId,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
 cn: nsUniqueId
 nssystemindex: true
-nsindextype: eq
-
-dn: cn=nswcalCALID,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
-objectclass: top
-objectclass: nsIndex
-cn: nswcalCALID
-nssystemindex: false
 nsindextype: eq
 
 dn: cn=numsubordinates,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
@@ -660,20 +637,6 @@ objectclass: nsIndex
 cn: parentid
 nssystemindex: true
 nsindextype: eq
-
-dn: cn=pipstatus,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
-objectclass: top
-objectclass: nsIndex
-cn: pipstatus
-nssystemindex: false
-nsindextype: eq
-
-dn: cn=pipuid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
-objectclass: top
-objectclass: nsIndex
-cn: pipuid
-nssystemindex: false
-nsindextype: pres
 
 dn: cn=seeAlso,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
