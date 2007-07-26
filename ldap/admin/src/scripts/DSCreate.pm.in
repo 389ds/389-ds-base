@@ -216,6 +216,7 @@ sub createInstanceScripts {
         "BAK-DIR" => $inf->{slapd}->{bak_dir},
         "SERVER-DIR" => $inf->{General}->{ServerRoot},
         "CONFIG-DIR" => $inf->{slapd}->{config_dir},
+        "INST-DIR" => $inf->{slapd}->{inst_dir},
         "RUN-DIR" => $inf->{slapd}->{run_dir},
         "PRODUCT-NAME" => "slapd",
         "SERVERBIN-DIR" => $inf->{slapd}->{sbindir},
