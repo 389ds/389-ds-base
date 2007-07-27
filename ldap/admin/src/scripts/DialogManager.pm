@@ -89,6 +89,11 @@ sub addDialog {
     }
 }
 
+sub resetDialog {
+    my $self = shift;
+    @{$self->{dialogs}} = ();
+}
+
 # see if the user answered with the special BACK answer
 sub isBack {
     my $self = shift;

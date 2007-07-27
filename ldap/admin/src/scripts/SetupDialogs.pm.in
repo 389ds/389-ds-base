@@ -253,4 +253,8 @@ sub getDialogs {
     return ($welcome, $license, $setuptype, $hostdlg, $usergroup);
 }
 
+sub getRegDialogs {
+    return ($usergroup);
+}
+
 1;
