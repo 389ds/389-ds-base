@@ -52,6 +52,7 @@ typedef enum { op_search, op_modify, op_idxmodify, op_add, op_delete, op_compare
 extern char *hostname;
 extern int port;
 extern int numeric;
+extern int searchTimelimit;
 /**/ extern int threadCount;
 /**/ extern int verbose;
 /**/ extern int logging;

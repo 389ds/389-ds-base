@@ -285,6 +285,7 @@ static int st_search(SearchThread *st)
     char filterBuffer[100];
     char *pFilter;
     struct timeval timeout;
+    struct timeval *timeoutp;
     int scope, attrsOnly = 0;
     LDAPMessage *result;
     int ret;
@@ -312,10 +313,15 @@ static int st_search(SearchThread *st)
     if (!attrToReturn)
         attrToReturn = nt_get_all(attrTable);
 
-    timeout.tv_sec = 30;
-    timeout.tv_usec = 0;
+    if (searchTimelimit <= 0) {
+        timeoutp = NULL;
+    } else {
+        timeout.tv_sec = searchTimelimit;
+        timeout.tv_usec = 0;
+        timeoutp = &timeout;
+    }
     ret = ldap_search_st(st->ld, suffix, scope, pFilter, attrToReturn,
-                         attrsOnly, &timeout, &result);
+                         attrsOnly, timeoutp, &result);
     if (ret != LDAP_SUCCESS) {
         fprintf(stderr, "T%d: failed to search 2, error=0x%02X\n",
                 st->id, ret);

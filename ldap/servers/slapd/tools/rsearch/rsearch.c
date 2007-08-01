@@ -96,6 +96,7 @@ void usage()
 	   "-a file   -- list of attributes for search request in a file\n" 
 	   "          -- (use '-a \\?' to see the format ; -a & -A are mutually exclusive)\n"
 	   "-n number -- (reserved for future use)\n"
+	   "-o number -- Search time limit, in seconds; (default: 30; no time limit: 0)\n"
 	   "-j number -- sample interval, in seconds  (default: %u)\n"
 	   "-t number -- threads  (default: %d)\n"
 	   "-T number -- Time limit, in seconds; cmd stops when exceeds <number>\n"
@@ -202,6 +203,7 @@ char **string_to_list(char* s)
 char *hostname = DEFAULT_HOSTNAME;
 int port = DEFAULT_PORT;
 int numeric = 0;
+int searchTimelimit = 30;
 int threadCount = DEFAULT_THREADS;
 int verbose = 0;
 int logging = 0;
@@ -251,7 +253,7 @@ int main(int argc, char** argv)
     }
 
     while ((ch = getopt(argc, argv, 
-			"B:a:j:i:h:s:f:p:t:T:D:w:n:A:S:C:R:bvlyqmMcduNLHx?V"))
+			"B:a:j:i:h:s:f:p:o:t:T:D:w:n:A:S:C:R:bvlyqmMcduNLHx?V"))
 	   != EOF)
 	switch (ch) {
 	case 'h':
@@ -307,6 +309,9 @@ int main(int argc, char** argv)
 	    break;
 	case 'n':			
 	    numeric = atoi(optarg);
+	    break;
+	case 'o':		
+	    searchTimelimit = atoi(optarg);
 	    break;
 	case 't':		
 	    threadCount = atoi(optarg);
@@ -447,11 +452,12 @@ int main(int argc, char** argv)
 	for (x = 0; x < numThreads; x++) {
 	    alive = st_alive(threads[x]);
 	    if (alive < 1) {
+		int limit = -1 * (searchTimelimit>timeLimit?searchTimelimit:timeLimit + 40) * 1000 / sampleInterval;
 		int y;
 		PRThread *tid;
 
 		printf("T%d no heartbeat", st_getThread(threads[x], &tid));
-		if (alive <= -4) {
+		if (alive <= limit) {
 		    printf(" -- Dead thread being reaped.\n");
 		    PR_JoinThread(tid);
 		    for (y = x+1; y < numThreads; y++)
