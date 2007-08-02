@@ -238,6 +238,14 @@ AM_CONDITIONAL([WINNT], false)
 # Deal with platform dependent defines
 # relative to sysconfdir
 initdir=/rc.d
+# on most platforms, we will just use perl from PATH
+# On some platforms, we cannot.  Why not just use any old
+# perl?  Because of perldap.  We use a perldap that is
+# compiled to either 32bit or 64bit, so we must use a native
+# perl binary compiled with the same bitsize.  On Solaris
+# and HP-UX, /usr/bin/perl is 32 bit, so we cannot use
+# those with our 64 bit compiled product.
+perlexec='/usr/bin/env perl'
 case $host in
   *-*-linux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -260,6 +268,8 @@ case $host in
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
+    # assume 64 bit
+    perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     ;;
   hppa*-hp-hpux*)
@@ -272,6 +282,8 @@ case $host in
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
+    # assume 64 bit
+    perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     ;;
   sparc-sun-solaris*)
@@ -299,6 +311,8 @@ dnl Cstd and Crun are required to link any C++ related code
     LIBCRUN=-lCrun
     AC_SUBST([LIBCRUN], [$LIBCRUN])
     platform="solaris"
+    # assume 64 bit
+    perlexec='/opt/perl5x/bin/perl'
     # relative to sysconfdir
     initdir=/init.d
     ;;
@@ -307,6 +321,7 @@ dnl Cstd and Crun are required to link any C++ related code
     ;;
 esac
 AC_SUBST(initdir)
+AC_SUBST(perlexec)
 
 AM_CONDITIONAL(HPUX,test "$platform" = "hpux")
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")

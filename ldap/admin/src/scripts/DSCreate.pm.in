@@ -201,7 +201,8 @@ sub makeDSDirs {
 
 sub createInstanceScripts {
     my $inf = shift;
-    my $myperl = "!/usr/bin/env perl";
+    my $perlexec = "@perlexec@" || "/usr/bin/env perl";
+    my $myperl = "!$perlexec";
     my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
     my %maptable = (
         "DS-ROOT" => $inf->{General}->{prefix},

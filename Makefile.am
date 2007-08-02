@@ -989,6 +989,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 # i.e. it literally copies in '${prefix}' rather than expanding it out - we want this instead:
 # LD_LIBRARY_PATH = /usr/lib/fedora-ds
 if BUNDLE
+# on the systems on which we bundle, perldap will be in libdir/perl, so we need to point
+# the perlpath there - on other systems, perldap will be installed as a site module into
+# the system perl
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
 	-e 's,@sbindir\@,$(sbindir),g' \
@@ -1029,10 +1032,11 @@ fixupcmd = sed \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
-	-e 's,@perldir\@,$(perldir),g' \
+	-e 's,@perlpath\@,$(perldir) $(libdir)/perl/arch $(libdir)/perl,g' \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
-	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
+	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+	-e 's,@perlexec\@,@perlexec@,g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1074,10 +1078,11 @@ fixupcmd = sed \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
-	-e 's,@perldir\@,$(perldir),g' \
+	-e 's,@perlpath\@,$(perldir),g' \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
-	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
+	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+	-e 's,@perlexec\@,@perlexec@,g'
 endif
 
 %: %.in

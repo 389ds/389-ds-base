@@ -938,6 +938,7 @@ nss_lib = @nss_lib@
 nss_libdir = @nss_libdir@
 oldincludedir = @oldincludedir@
 perldir = $(libdir)@perldir@
+perlexec = @perlexec@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 propertydir = $(datadir)@propertydir@
@@ -1898,10 +1899,11 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 @BUNDLE_FALSE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 @BUNDLE_FALSE@	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
-@BUNDLE_FALSE@	-e 's,@perldir\@,$(perldir),g' \
+@BUNDLE_FALSE@	-e 's,@perlpath\@,$(perldir),g' \
 @BUNDLE_FALSE@	-e 's,@defaultuser\@,$(defaultuser),g' \
 @BUNDLE_FALSE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
-@BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
+@BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+@BUNDLE_FALSE@	-e 's,@perlexec\@,@perlexec@,g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -1910,6 +1912,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 # LD_LIBRARY_PATH = ${prefix}/lib/fedora-ds
 # i.e. it literally copies in '${prefix}' rather than expanding it out - we want this instead:
 # LD_LIBRARY_PATH = /usr/lib/fedora-ds
+# on the systems on which we bundle, perldap will be in libdir/perl, so we need to point
+# the perlpath there - on other systems, perldap will be installed as a site module into
+# the system perl
 @BUNDLE_TRUE@fixupcmd = sed \
 @BUNDLE_TRUE@	-e 's,@bindir\@,$(bindir),g' \
 @BUNDLE_TRUE@	-e 's,@sbindir\@,$(sbindir),g' \
@@ -1950,10 +1955,11 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 @BUNDLE_TRUE@	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 @BUNDLE_TRUE@	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
-@BUNDLE_TRUE@	-e 's,@perldir\@,$(perldir),g' \
+@BUNDLE_TRUE@	-e 's,@perlpath\@,$(perldir) $(libdir)/perl/arch $(libdir)/perl,g' \
 @BUNDLE_TRUE@	-e 's,@defaultuser\@,$(defaultuser),g' \
 @BUNDLE_TRUE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
-@BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g'
+@BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+@BUNDLE_TRUE@	-e 's,@perlexec\@,@perlexec@,g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
