@@ -134,6 +134,16 @@ struct connection_table
 	/* An array of connections, file descriptors, and a mapping between them. */
 	Connection *c;
 	struct POLL_STRUCT *fd;
+	int n_tcps;     /* standard socket start index in fd */
+	int n_tcpe;     /* standard socket last ( +1 ) index in fd */
+	int s_tcps;     /* ssl socket start index in fd */
+	int s_tcpe;     /* ssl socket last ( +1 ) in fd */
+#ifndef XP_WIN32
+#if defined(ENABLE_LDAPI)
+	int i_unixs;    /* unix socket start index in fd */
+	int i_unixe;    /* unix socket last ( +1 ) in fd */
+#endif /* ENABLE_LDAPI */
+#endif
 	PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
@@ -166,7 +176,7 @@ int signal_listner();
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_daemon( daemon_ports_t *ports );
 void daemon_register_connection();
-int slapd_listenhost2addr( const char *listenhost, PRNetAddr *addr );
+int slapd_listenhost2addr( const char *listenhost, PRNetAddr ***addr );
 int daemon_register_reslimits( void );
 int secure_read_function( int ignore , void *buffer, int count, struct lextiof_socket_private *handle );
 int secure_write_function( int ignore, const void *buffer, int count, struct lextiof_socket_private *handle );

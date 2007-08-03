@@ -1456,20 +1456,21 @@ typedef struct ref_array {
 typedef struct daemon_ports_s {
 	int			n_port;
 	int			s_port;
-	PRNetAddr	n_listenaddr;
-	PRNetAddr	s_listenaddr;
+	PRNetAddr	**n_listenaddr;
+	PRNetAddr	**s_listenaddr;
 #if defined( XP_WIN32 )
 	int		n_socket;
 	int		s_socket_native;
 #else
-	PRFileDesc	*n_socket;
+	PRFileDesc	**n_socket;
+#if defined(ENABLE_LDAPI)
 	/* ldapi */
-	PRNetAddr       i_listenaddr;
+	PRNetAddr       **i_listenaddr;
 	int             i_port; /* used as a flag only */
-	PRFileDesc      *i_socket;
-
+	PRFileDesc      **i_socket;
 #endif
-	PRFileDesc	*s_socket;
+#endif
+	PRFileDesc	**s_socket;
 } daemon_ports_t;
 
 

@@ -846,13 +846,15 @@ main( int argc, char **argv)
 		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
 		ports_info.n_port = (unsigned short)n_port;
 		if ( slapd_listenhost2addr( config_get_listenhost(),
-				&ports_info.n_listenaddr ) != 0 ) {
+				&ports_info.n_listenaddr ) != 0 || 
+		     ports_info.n_listenaddr == NULL ) {
 			return(1);
 		}
 
 		ports_info.s_port = (unsigned short)s_port;
 		if ( slapd_listenhost2addr( config_get_securelistenhost(),
-				&ports_info.s_listenaddr ) != 0 ) {
+				&ports_info.s_listenaddr ) != 0 ||
+			ports_info.s_listenaddr == NULL ) {
 			return(1);
 		}
 
@@ -861,11 +863,13 @@ main( int argc, char **argv)
 			config_get_ldapi_filename() != 0)
 		{
 			i_port = ports_info.i_port = 1; /* flag ldapi as on */
-			ports_info.i_listenaddr.local.family = PR_AF_LOCAL;
-			PL_strncpyz(ports_info.i_listenaddr.local.path,
+			ports_info.i_listenaddr = (PRNetAddr **)slapi_ch_calloc(2, sizeof(PRNetAddr *));
+			*ports_info.i_listenaddr = (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
+			(*ports_info.i_listenaddr)->local.family = PR_AF_LOCAL;
+			PL_strncpyz((*ports_info.i_listenaddr)->local.path,
 				config_get_ldapi_filename(),
-				sizeof(ports_info.i_listenaddr.local.path));
-			unlink(ports_info.i_listenaddr.local.path);
+				sizeof((*ports_info.i_listenaddr)->local.path));
+			unlink((*ports_info.i_listenaddr)->local.path);
 		}
 #endif /* ENABLE_LDAPI */
 
@@ -919,10 +923,15 @@ main( int argc, char **argv)
 
 	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
 		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
-		if ( init_ssl && ( 0 != slapd_ssl_init2(&ports_info.s_socket, 0) ) ) {
-			LDAPDebug(LDAP_DEBUG_ANY,
+		if ( init_ssl ) {
+			PRFileDesc **sock;
+			for (sock = ports_info.s_socket; sock && *sock; sock++) {
+				if ( 0 != slapd_ssl_init2(sock, 0) ) {
+					LDAPDebug(LDAP_DEBUG_ANY,
 					  "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
-			exit( 1 );
+					exit( 1 );
+				}
+			}
 		}
 	}
 
