@@ -17,6 +17,12 @@ dialog_license_text = BY SETTING UP AND USING THIS SOFTWARE YOU ARE CONSENTING T
 
 dialog_license_prompt = Do you agree to the license terms?
 
+# ----------- dsktune Dialog Resource  -----------
+dialog_dsktune_text = Your system has been scanned for potential problems, missing patches,\
+etc.  The following output is a report of the items found that need to\
+be addressed before running this software in a production\
+environment.\n\n%s
+dialog_dsktune_prompt = Would you like to continue?
 
 # ----------- Setup Type Dialog Resource  ----------------
 dialog_setuptype_text = Choose a setup type:\n\n   1. Express\n       Allows you to quickly setup the servers using the most\n       common options and pre-defined defaults. Useful for quick\n       evaluation of the products.\n\n   2. Typical\n       Allows you to specify common defaults and options.\n\n   3. Custom\n       Allows you to specify more advanced options. This is \n       recommended for experienced server administrators only.\n\nTo accept the default shown in brackets, press the Enter key.\n\n

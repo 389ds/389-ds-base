@@ -78,6 +78,25 @@ my $license = new DialogYesNo (
     ['dialog_license_prompt']
 );
 
+my $dsktune = new DialogYesNo (
+    $EXPRESS,
+    'dialog_dsktune_text',
+    0,
+    sub {
+        my $self = shift;
+        my $ans = shift;
+        my $res = $self->handleResponse($ans);
+        if ($res == $DialogManager::NEXT) {
+            $res = $DialogManager::ERR if (!$self->isYes());
+        }
+        return $res;
+    },
+    ['dialog_dsktune_prompt']
+);
+
+my $dsktune_output = `@bindir@/dsktune`;
+$dsktune->{text} = [$dsktune->{text}, $dsktune_output];
+
 my $setuptype = new Dialog (
     $EXPRESS,
     'dialog_setuptype_text',
@@ -250,7 +269,7 @@ my $usergroup = new Dialog (
 
 
 sub getDialogs {
-    return ($welcome, $license, $setuptype, $hostdlg, $usergroup);
+    return ($welcome, $license, $dsktune, $setuptype, $hostdlg, $usergroup);
 }
 
 sub getRegDialogs {
