@@ -53,7 +53,7 @@ use Net::Domain qw(hostfqdn);
 use File::Temp qw(tempfile tempdir);
 use File::Path;
 use File::Copy;
-use File::Basename qw(basename);
+use File::Basename qw(basename dirname);
 
 # load perldap
 use Mozilla::LDAP::Conn;
@@ -135,10 +135,14 @@ sub sanityCheckParams {
 sub getMode {
     my $inf = shift;
     my $mode = shift;
+    my $rest = shift;
+    if (!$rest) {
+        $rest = "0";
+    }
     if (defined($inf->{General}->{SuiteSpotGroup})) {
-        $mode = "0" . $mode . $mode . "0";
+        $mode = "0" . $mode . $mode . $rest;
     } else {
-        $mode = "0" . $mode . "00";
+        $mode = "0" . $mode . $rest . $rest;
     }
 
     return oct($mode);
@@ -152,6 +156,7 @@ sub changeOwnerMode {
     my $inf = shift;
     my $mode = shift;
     my $it = shift;
+    my $gidonly = shift;
 
     my $uid = getpwnam $inf->{General}->{SuiteSpotUserID};
     my $gid = -1; # default to leave it alone
@@ -160,14 +165,18 @@ sub changeOwnerMode {
         $gid = getgrnam $inf->{General}->{SuiteSpotGroup};
     }
 
-    $mode = getMode($inf, $mode);
+    $mode = getMode($inf, $mode, $gidonly);
     $! = 0; # clear errno
     chmod $mode, $it;
     if ($!) {
         return ('error_chmoding_file', $it, $!);
     }
     $! = 0; # clear errno
-    chown $uid, $gid, $it;
+    if ( $gidonly ) {
+        chown -1, $gid, $it;
+    } else {
+        chown $uid, $gid, $it;
+    }
     if ($!) {
         return ('error_chowning_file', $it, $inf->{General}->{SuiteSpotUserID}, $!);
     }
@@ -193,6 +202,18 @@ sub makeDSDirs {
                           $inf->{General}->{SuiteSpotGroup});
         if (@errs) {
             return @errs;
+        }
+    }
+    # set the group of the parent dir of config_dir and inst_dir
+    if (defined($inf->{General}->{SuiteSpotGroup})) {
+        for (qw(inst_dir config_dir)) {
+            my $dir = $inf->{slapd}->{$_};
+            my $parent = dirname($dir);
+                  # changeOwnerMode(inf, mode, file, gidonly & default mode);
+            @errs = changeOwnerMode($inf, 7, $parent, 5);
+            if (@errs) {
+                return @errs;
+            }
         }
     }
 
@@ -511,9 +532,9 @@ sub startServer {
             last;
         }
         sleep(1);
-		if (!($ii % 10)) {
-		    debug(0, "Attempting to obtain server status . . .\n");
-		}
+        if (!($ii % 10)) {
+            debug(0, "Attempting to obtain server status . . .\n");
+        }
         ++$ii;
     }
 
