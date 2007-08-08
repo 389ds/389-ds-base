@@ -47,6 +47,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include "ldap-agent.h"
+#include "ldif.h"
 
 static char *agentx_master = NULL;
 static char *agent_logdir = NULL;
@@ -239,19 +240,21 @@ load_config(char *conf_path)
     FILE *dse_fp = NULL;
     char line[MAXLINE];
     char *p = NULL;
-    char *p2 = NULL;
+    int error = 0;
 
     /* Make sure we are getting an absolute path */
     if (*conf_path != '/') {
         printf("ldap-agent: Error opening config file: %s\n", conf_path);
         printf("ldap-agent: You must specify the absolute path to your config file\n");
-        exit(1);
+        error = 1;
+        goto close_and_exit;
     }
 
     /* Open config file */
     if ((conf_file = fopen(conf_path, "r")) == NULL) {
         printf("ldap-agent: Error opening config file: %s\n", conf_path);
-        exit(1);
+        error = 1;
+        goto close_and_exit;
     } 
 
     /* set pidfile path */
@@ -265,7 +268,8 @@ load_config(char *conf_path)
                 pidfile[((p - conf_path) + strlen(LDAP_AGENT_PIDFILE) + 1)] = (char)0;
             } else {
                 printf("ldap-agent: malloc error processing config file\n");
-                exit(1);
+                error = 1;
+                goto close_and_exit;
             }
 
             /* set default logdir to location of config file */
@@ -275,7 +279,8 @@ load_config(char *conf_path)
                 break;
             } else {
                 printf("ldap-agent: malloc error processing config file\n");
-                exit(1);
+                error = 1;
+                goto close_and_exit;
             }
         }
     }
@@ -305,23 +310,34 @@ load_config(char *conf_path)
                     strcpy(agent_logdir, p);
             }
         } else if ((p = strstr(line, "server")) != NULL) {
+            int got_port = 0;
+            int got_tmpdir = 0;
+            int lineno = 0;
+            char *entry = NULL;
+
             /* Allocate a server_instance */
             if ((serv_p = malloc(sizeof(server_instance))) == NULL) {
                 printf("ldap-agent: malloc error processing config file\n");
-                exit(1);
+                error = 1;
+                goto close_and_exit;
             }
 
             /* load server setting */
             p = p + 6;
-            if ((p = strtok_r(p, " :\t\n", &p2)) != NULL) {
-                /* first token is the instance root */
-                if ((serv_p->stats_file = malloc(strlen(p) + 18)) != NULL)
-                    snprintf(serv_p->stats_file, strlen(p) + 18,
-                                     "%s/logs/slapd.stats", p);
-                    serv_p->stats_file[(strlen(p) + 17)] = (char)0;
-                if ((serv_p->dse_ldif = malloc(strlen(p) + 17)) != NULL) {
-                    snprintf(serv_p->dse_ldif, strlen(p) + 17, "%s/config/dse.ldif", p);
-                    serv_p->dse_ldif[(strlen(p) + 16)] = (char)0;
+            if ((p = strtok(p, " \t\n")) != NULL) {
+                /* first token is the instance name */
+                serv_p->dse_ldif = malloc(strlen(p) + strlen(SYSCONFDIR) +
+                                           strlen(PACKAGE_NAME) + 12);
+                if (serv_p->dse_ldif != NULL) {
+                    snprintf(serv_p->dse_ldif, strlen(p) + strlen(SYSCONFDIR) +
+                         strlen(PACKAGE_NAME) + 12, "%s/%s/%s/dse.ldif", 
+                         SYSCONFDIR, PACKAGE_NAME, p);
+                    serv_p->dse_ldif[(strlen(p) + strlen(SYSCONFDIR) +
+                                      strlen(PACKAGE_NAME) + 11)] = (char)0;
+                } else {
+                    printf("ldap-agent: malloc error processing config file\n");
+                    error = 1;
+                    goto close_and_exit;
                 }
             }
  
@@ -329,20 +345,78 @@ load_config(char *conf_path)
             if ((dse_fp = fopen(serv_p->dse_ldif, "r")) == NULL) {
                 printf("ldap-agent: Error opening server config file: %s\n",
                         serv_p->dse_ldif);
-                exit(1);
+                error = 1;
+                goto close_and_exit;
             }
 
-            /* Get port value */
-            while (fgets(line, MAXLINE, dse_fp) != NULL) {
-                if ((p = strstr(line, "nsslapd-port: ")) != NULL) {
-                    p = p + 14;
-                    if ((p = strtok(p, ": \t\n")) != NULL)
-                        serv_p->port = atol(p);
+            /* ldif_get_entry will realloc the entry if it's not null,
+             * so we can just free it when we're done fetching entries
+             * from the dse.ldif.  Unfortunately, ldif_getline moves
+             * the pointer that is passed to it, so we need to save a
+             * pointer to the beginning of the entry so we can free it
+             * later. */
+            while ((entry = ldif_get_entry(dse_fp, &lineno)) != NULL) {
+                char *entryp = entry;
+                char *attr = NULL;
+                char *val = NULL;
+                int vlen;
+
+                /* Check if this is the cn=config entry */
+                ldif_parse_line(ldif_getline(&entryp), &attr, &val, &vlen);
+                if ((strcmp(attr, "dn") == 0) &&
+                    (strcmp(val, "cn=config") == 0)) {
+                    char *dse_line = NULL;
+                    /* Look for port and tmpdir attributes */
+                    while ((dse_line = ldif_getline(&entryp)) != NULL) {
+                        ldif_parse_line(dse_line, &attr, &val, &vlen);
+                        if (strcmp(attr, "nsslapd-port") == 0) {
+                            serv_p->port = atol(val);
+                            got_port = 1;
+                        } else if (strcmp(attr, "nsslapd-tmpdir") == 0) {
+                            serv_p->stats_file = malloc(vlen + 13);
+                            if (serv_p->stats_file != NULL) {
+                                snprintf(serv_p->stats_file, vlen + 13,
+                                         "%s/slapd.stats", val);
+                                serv_p->stats_file[(vlen + 12)] = (char)0;
+                            } else {
+                                printf("ldap-agent: malloc error processing config file\n");
+                                free(entry);
+                                error = 1;
+                                goto close_and_exit;
+                            }
+                            got_tmpdir = 1;
+                        }
+
+                        /* Stop processing this entry if we found the
+                         *  port and tmpdir settings */
+                        if (got_port && got_tmpdir) {
+                            break;
+                        }
+                    }
+                    /* The port and tmpdir settings must be in the
+                     * cn=config entry, so we can stop reading through
+                     * the dse.ldif now. */
+                    break;
                 }
             }
 
-            /* Close dse.ldif */
-            fclose(dse_fp);
+            /* We're done reading entries from dse_ldif now, so
+             * we can free entry */
+            free(entry);
+
+            /* Make sure we were able to read the port and
+             * location of the stats file. */
+            if (!got_port) {
+                printf("ldap-agent: Error reading nsslapd-port from "
+                       "server config file: %s\n", serv_p->dse_ldif);
+                error = 1;
+                goto close_and_exit;
+            } else if (!got_tmpdir) {
+                printf("ldap-agent: Error reading nsslapd-tmpdir from "
+                       "server config file: %s\n", serv_p->dse_ldif);
+                error = 1;
+                goto close_and_exit;
+            }
 
             /* Insert server instance into linked list */
             serv_p->next = server_head;
@@ -350,14 +424,20 @@ load_config(char *conf_path)
         }
     }
 
-    /* Close config file */
-    fclose(conf_file);
-
     /* check for at least one directory server instance */
     if (server_head == NULL) {
         printf("ldap-agent: No server instances defined in config file\n");
-        exit(1);
+        error = 1;
+        goto close_and_exit;
     }
+
+close_and_exit:
+    if (conf_file)
+        fclose(conf_file);
+    if (dse_fp)
+        fclose(dse_fp);
+    if (error)
+        exit(error);
 }
 
 /************************************************************************

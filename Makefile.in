@@ -559,7 +559,8 @@ am_ldap_agent_bin_OBJECTS =  \
 	ldap/servers/snmp/ldap_agent_bin-ldap-agent.$(OBJEXT) \
 	ldap/servers/slapd/ldap_agent_bin-agtmmap.$(OBJEXT)
 ldap_agent_bin_OBJECTS = $(am_ldap_agent_bin_OBJECTS)
-ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_1)
+ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am__ldclt_bin_SOURCES_DIST = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
@@ -1750,7 +1751,7 @@ ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/slapd/agtmmap.c
 
 ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldap_agent_bin_LDADD = $(NETSNMP_LINK)
+ldap_agent_bin_LDADD = $(NETSNMP_LINK) $(LDAPSDK_LINK)
 
 #------------------------
 # ldclt

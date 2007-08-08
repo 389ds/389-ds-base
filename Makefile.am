@@ -859,7 +859,7 @@ ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/slapd/agtmmap.c
 
 ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldap_agent_bin_LDADD = $(NETSNMP_LINK)
+ldap_agent_bin_LDADD = $(NETSNMP_LINK) $(LDAPSDK_LINK)
 
 #------------------------
 # ldclt
