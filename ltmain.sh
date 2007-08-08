@@ -6460,8 +6460,6 @@ relink_command=\"$relink_command\""
       do
        eval "if test \"\${save_$lt_var+set}\" = set; then
                $lt_var=\$save_$lt_var; export $lt_var
-             else
-               $lt_unset $lt_var
              fi"
       done
 
