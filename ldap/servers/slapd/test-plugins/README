@@ -188,7 +188,7 @@ When started, the server loads plug-ins.
 1. Stop the server.
 
    Console:      Select the server; Object > Stop Server
-   Command Line: cd [prefix]/usr/lib/<brand>-ds/slapd-[serverID] ; ./stop-slapd
+   Command Line: cd [prefix]/usr/lib/<PACKAGE_NAME>/slapd-[serverID] ; ./stop-slapd
 
 2. Add the entry for the server plug-in to
    [prefix]/var/lib/slapd-[serverID]/dse.ldif. For example:
@@ -198,7 +198,7 @@ When started, the server loads plug-ins.
    objectClass: nsSlapdPlugin
    objectClass: extensibleObject
    cn: [My Server Plugin]
-   nsslapd-pluginPath: [[prefix]/usr/lib/<brand>-ds/plugins/myveryown-plugin.so]
+   nsslapd-pluginPath: [[prefix]/usr/lib/<PACAKGE_NAME>/plugins/myveryown-plugin.so]
    nsslapd-pluginInitfunc: [my_plugin_init]
    nsslapd-pluginType: [myPluginType]
    nsslapd-pluginEnabled: on
@@ -217,4 +217,4 @@ When started, the server loads plug-ins.
 3. Restart the server.
 
    Console:      Object > Start Server
-   Command Line: cd [prefix]/usr/lib/<brand>-ds/slapd-[serverID] ; ./restart-slapd
+   Command Line: cd [prefix]/usr/lib/<PACKAGE_NAME>/slapd-[serverID] ; ./restart-slapd

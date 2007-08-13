@@ -39,7 +39,7 @@
  * 
  * [How to set up the plugin for testing]
  * 1. compile and package with the other plugins
- * 2. put the plugin libsampletask-plugin.so at <prefix>/usr/lib/<brand>-ds/plugins
+ * 2. put the plugin libsampletask-plugin.so at <prefix>/usr/lib/<PACKAGE_NAME>/plugins
  * 3. register it as a plugin in dse.ldif
  * Plugin entry:
  * dn: cn=sampletask,cn=plugins,cn=config
@@ -47,7 +47,7 @@
  * objectClass: nsSlapdPlugin
  * objectClass: extensibleObject
  * cn: sampletask
- * nsslapd-pluginPath: <prefix>/usr/lib/<brand>-ds/plugins/libsampletask-plugin.so
+ * nsslapd-pluginPath: <prefix>/usr/lib/<PACKAGE_NAME>/plugins/libsampletask-plugin.so
  * nsslapd-pluginInitfunc: sampletask_init
  * nsslapd-pluginType: object
  * nsslapd-pluginEnabled: on

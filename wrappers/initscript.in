@@ -3,7 +3,7 @@
 # @package_name@    This starts and stops @package_name@
 #
 # chkconfig:   - 21 79
-# description: @package_name@ Directory Server
+# description: @capbrand@ Directory Server
 # processname: @sbindir@/ns-slapd
 # configdir:   @sysconfdir@/@package_name@/
 # piddir:      @localstatedir@/run/@package_name@
