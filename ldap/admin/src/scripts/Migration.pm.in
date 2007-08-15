@@ -213,7 +213,7 @@ sub init {
     if ($pkgname =~ /-(core|base)$/) {
         $pkgname =~ s/-(core|base)$//;
     }
-    my $oldpkgname = $pkgname;
+    my $oldpkgname = "@brand@-ds";
 
     $self->{pkgname} = $pkgname;
     $self->{oldsroot} = $oldsroot || "/opt/$oldpkgname";
@@ -274,10 +274,26 @@ sub init {
     $self->{instances} = \@instances;
 }
 
+# log only goes the the logfile
+sub log {
+    my $self = shift;
+    my $level = shift;
+    $self->{log}->logMessage($level, "Migration", @_);
+}
+
 sub doExit {
     my $self = shift;
-    $self->msg($FATAL, 'migration_exiting', $self->{log}->{filename});
-	exit 1;
+    my $code = shift;
+    if (!defined($code)) {
+        $code = 1;
+    }
+
+    if ($code) {
+        $self->msg($FATAL, 'migration_exiting', $self->{log}->{filename});
+    } else {
+        $self->msg($SUCCESS, 'migration_exiting', $self->{log}->{filename});
+    }
+	exit $code;
 }
 
 sub migrateSecurityFiles {

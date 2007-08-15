@@ -191,9 +191,12 @@ sub copyDatabaseDirs {
         debug(1, "The destination directory $destdir already exists, copying files/dirs individually\n");
         $! = 0;
         debug(1, "Removing any existing db files in $destdir\n");
-        unlink glob("$destdir/*");
-        if ($!) {
-            return ("error_removing_temp_db_files", $destdir, $!);
+        foreach my $file (glob("$destdir/*")) {
+            next if (! -f $file);
+            unlink($file);
+            if ($!) {
+                return ("error_removing_temp_db_files", $destdir, $!);
+            }
         }
         foreach my $file (glob("$srcdir/*")) {
             if (-f $file) {

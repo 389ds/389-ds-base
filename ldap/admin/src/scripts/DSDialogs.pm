@@ -86,10 +86,10 @@ my $dsserverid = new Dialog (
         if (!defined($serverid)) {
             $serverid = $self->{manager}->{inf}->{General}->{FullMachineName};
             if (!defined($serverid)) {
-                $serverid = hostname;
-            } else { # strip out the leftmost domain component
-                $serverid =~ s/\..*$//;
+                $serverid = hostfqdn;
             }
+            # strip out the leftmost domain component
+            $serverid =~ s/\..*$//;
         }
         return $serverid;
     },

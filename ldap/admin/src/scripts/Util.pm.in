@@ -697,6 +697,7 @@ sub addSuffix {
 sub process_maptbl
 {
     my ($mapper, $errs, @infdata) = @_;
+    my @deferredkeys = ();
 
     if (defined($mapper->{""})) {
         $mapper = $mapper->{""}; # side effect of Inf with no sections
@@ -712,10 +713,7 @@ sub process_maptbl
         }
         elsif ($value =~ /^\`/)
         {
-            $value =~ tr/\`//d; # value is a perl expression to eval
-            my $returnvalue; # set in eval expression
-            eval $value;
-            $mapper->{$key} = $returnvalue; # perl expression sets $returnvalue
+            push @deferredkeys, $key; # process these last
         }
         else
         {
@@ -751,6 +749,18 @@ sub process_maptbl
             }
         }
     }
+
+    # we have to process the perl expressions to eval last, because those
+    # expressions may use mappings defined elsewhere in the file, and we are not
+    # guaranteed of the order in which hash keys are enumerated
+    foreach my $key (@deferredkeys) {
+        my $value = $mapper->{$key};
+        $value =~ tr/\`//d; # value is a perl expression to eval
+        my $returnvalue; # set in eval expression
+        eval $value;
+        $mapper->{$key} = $returnvalue; # perl expression sets $returnvalue
+    }
+
     return $mapper;
 }
 
