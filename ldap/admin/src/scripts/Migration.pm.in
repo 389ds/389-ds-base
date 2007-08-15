@@ -293,24 +293,39 @@ sub migrateSecurityFiles {
         $self->msg('new_secdir_error', $destdir, $!);
         return 0;
     } else {
-        $self->log($INFO, "Copying $oldroot/alias/$inst-cert8.db to $destdir/cert8.db\n");
-        if (system ("cp -p $oldroot/alias/$inst-cert8.db $destdir/cert8.db")) {
-            $self->msg($FATAL, 'error_copying_certdb', "$oldroot/alias/$inst-cert8.db",
-                       "$destdir/cert8.db", $!);
-            return 0;
+        if (-f "$oldroot/alias/$inst-cert8.db") {
+            $self->log($INFO, "Copying $oldroot/alias/$inst-cert8.db to $destdir/cert8.db\n");
+            if (system ("cp -p $oldroot/alias/$inst-cert8.db $destdir/cert8.db")) {
+                $self->msg($FATAL, 'error_copying_certdb', "$oldroot/alias/$inst-cert8.db",
+                           "$destdir/cert8.db", $!);
+                return 0;
+            }
+        } else {
+            $self->log($DEBUG, "No file to migrate: $oldroot/alias/$inst-cert8.db\n");
         }
-        $self->log($INFO, "Copying $oldroot/alias/$inst-key3.db to $destdir/key3.db\n");
-        if (system ("cp -p $oldroot/alias/$inst-key3.db $destdir/key3.db")) {
-            $self->msg($FATAL, 'error_copying_keydb', "$oldroot/alias/$inst-key3.db",
-                       "$destdir/key3.db", $!);
-            return 0;
+
+        if (-f "$oldroot/alias/$inst-key3.db") {
+            $self->log($INFO, "Copying $oldroot/alias/$inst-key3.db to $destdir/key3.db\n");
+            if (system ("cp -p $oldroot/alias/$inst-key3.db $destdir/key3.db")) {
+                $self->msg($FATAL, 'error_copying_keydb', "$oldroot/alias/$inst-key3.db",
+                           "$destdir/key3.db", $!);
+                return 0;
+            }
+        } else {
+            $self->log($DEBUG, "No file to migrate: $oldroot/alias/$inst-key3.db\n");
         }
-        $self->log($INFO, "Copying $oldroot/alias/secmod.db to $destdir/secmod.db\n");
-        if (system ("cp -p $oldroot/alias/secmod.db $destdir/secmod.db")) {
-            $self->msg($FATAL, 'error_copying_secmoddb', "$oldroot/alias/secmod.db",
-                       "$destdir/secmod.db", $!);
-            return 0;
+
+        if (-f "$oldroot/alias/secmod.db") {
+            $self->log($INFO, "Copying $oldroot/alias/secmod.db to $destdir/secmod.db\n");
+            if (system ("cp -p $oldroot/alias/secmod.db $destdir/secmod.db")) {
+                $self->msg($FATAL, 'error_copying_secmoddb', "$oldroot/alias/secmod.db",
+                           "$destdir/secmod.db", $!);
+                return 0;
+            }
+        } else {
+            $self->log($DEBUG, "No file to migrate: $oldroot/alias/secmod.db\n");
         }
+
         if (-f "$oldroot/alias/$inst-pin.txt") {
             $self->log($INFO, "Copying $oldroot/alias/$inst-pin.txt to $destdir/pin.txt\n");
             if (system ("cp -p $oldroot/alias/$inst-pin.txt $destdir/pin.txt")) {
