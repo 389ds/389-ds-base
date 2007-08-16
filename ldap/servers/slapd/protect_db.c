@@ -116,7 +116,7 @@ grab_lockfile()
     t.tv_sec = 0;
     t.tv_usec = WAIT_TIME * 1000;
         for(x = 0; x < NUM_TRIES; x++) {
-            if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL)) != -1) {
+            if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0664)) != -1) {
                 /* Got the lock */
                 write(fd, (void *) &pid, sizeof(pid_t));
         close(fd);

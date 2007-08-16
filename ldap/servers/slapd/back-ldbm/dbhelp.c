@@ -74,7 +74,7 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Create error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
-	retval = source_file->open(source_file, NULL, source_file_name, NULL, DB_UNKNOWN, DB_RDONLY, 0);
+	retval = (source_file->open)(source_file, NULL, source_file_name, NULL, DB_UNKNOWN, DB_RDONLY, 0);
 	if (retval) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
@@ -113,7 +113,7 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, set_pagesize error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
-	retval = destination_file->open(destination_file, NULL, destination_file_name, NULL, dbtype, DB_CREATE | DB_EXCL, mode);
+	retval = (destination_file->open)(destination_file, NULL, destination_file_name, NULL, dbtype, DB_CREATE | DB_EXCL, mode);
 	if (retval) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
@@ -260,7 +260,7 @@ int dblayer_make_private_recovery_env(char *db_home_dir, dblayer_private *priv, 
 	}
 	dblayer_set_env_debugging(ret_env, priv);
 
-	retval = ret_env->open(ret_env,db_home_dir, DB_INIT_TXN | DB_RECOVER_FATAL | DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE,0);
+	retval = (ret_env->open)(ret_env,db_home_dir, DB_INIT_TXN | DB_RECOVER_FATAL | DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE,0);
 	if (0 == retval) {
 		*env = ret_env;
 	} else {
@@ -292,7 +292,7 @@ int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env)
 		goto error;
 	}
 
-	retval = ret_env->open(ret_env,db_home_dir,DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE,0);
+	retval = (ret_env->open)(ret_env,db_home_dir,DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE,0);
 	if (0 == retval) {
 		*env = ret_env;
 	} else {

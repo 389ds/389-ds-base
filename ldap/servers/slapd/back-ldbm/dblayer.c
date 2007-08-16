@@ -102,11 +102,11 @@
 {                                                                              \
     if (((oflags) & DB_INIT_TXN) && ((oflags) & DB_INIT_LOG))                  \
     {                                                                          \
-        (rval) = (db)->open((db), (txnid), (file), (database), (type), (flags)|DB_AUTO_COMMIT, (mode)); \
+        (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags)|DB_AUTO_COMMIT, (mode)); \
     }                                                                          \
     else                                                                       \
     {                                                                          \
-        (rval) = (db)->open((db), (txnid), (file), (database), (type), (flags), (mode)); \
+        (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags), (mode)); \
     }                                                                          \
 }
 /* 608145: db4.1 and newer does not require exclusive lock for checkpointing 
@@ -1556,7 +1556,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
             }
         }
 
-        return_value = pEnv->dblayer_DB_ENV->open(
+        return_value = (pEnv->dblayer_DB_ENV->open)(
                         pEnv->dblayer_DB_ENV,
                         region_dir,
                         recover_flags,
@@ -1612,7 +1612,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
     if (!((DBLAYER_IMPORT_MODE|DBLAYER_INDEX_MODE) & dbmode))
     {
         pEnv->dblayer_openflags = open_flags;
-        return_value = pEnv->dblayer_DB_ENV->open(
+        return_value = (pEnv->dblayer_DB_ENV->open)(
             pEnv->dblayer_DB_ENV,
             region_dir,
             open_flags,
@@ -1940,7 +1940,7 @@ int dblayer_instance_start(backend *be, int mode)
             mypEnv->dblayer_openflags = oflags;
             data_directories[0] = inst->inst_parent_dir_name;
             dblayer_set_data_dir(priv, mypEnv, data_directories);
-            return_value = mypEnv->dblayer_DB_ENV->open(mypEnv->dblayer_DB_ENV,
+            return_value = (mypEnv->dblayer_DB_ENV->open)(mypEnv->dblayer_DB_ENV,
                                                        inst_dirp,
                                                        oflags,
                                                        priv->dblayer_file_mode);
@@ -2220,7 +2220,7 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
     mypEnv->dblayer_openflags = envflags;
     data_directories[0] = inst->inst_parent_dir_name;
     dblayer_set_data_dir(priv, mypEnv, data_directories);
-    rval = mypEnv->dblayer_DB_ENV->open(mypEnv->dblayer_DB_ENV,
+    rval = (mypEnv->dblayer_DB_ENV->open)(mypEnv->dblayer_DB_ENV,
             priv->dblayer_home_directory, envflags, priv->dblayer_file_mode);
     if (rval != 0)
     {
