@@ -247,8 +247,8 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
     /* change the owner for each of the files in the dir */
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
-	PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
-	slapd_chown_if_not_owner( file, pw->pw_uid, -1 ); 
+      PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
+      slapd_chown_if_not_owner( file, pw->pw_uid, -1 ); 
     }
     PR_CloseDir( dir );
   }
@@ -267,14 +267,23 @@ fix_ownership()
 
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
+	if (slapdFrontendConfig->localuser != NULL) {
+		if (slapdFrontendConfig->localuserinfo == NULL) {
+			pw = getpwnam( slapdFrontendConfig->localuser );
+			if ( NULL == pw ) {
+				LDAPDebug(LDAP_DEBUG_ANY, 
+					"Unable to find user %s in system account database, "
+					"errno %d (%s)\n",
+					slapdFrontendConfig->localuser, errno, strerror(errno));
+				return; 
+			}
+			slapdFrontendConfig->localuserinfo =
+					(struct passwd *)slapi_ch_malloc(sizeof(struct passwd));
+			memcpy(slapdFrontendConfig->localuserinfo, pw, sizeof(struct passwd));
+		}
+		pw = slapdFrontendConfig->localuserinfo;
+	}
 
-	if ( slapdFrontendConfig->localuser != NULL )  {
-	        if ( (pw = getpwnam( slapdFrontendConfig->localuser )) == NULL ) 
-		      return;
-	}
-	else {
-		return;
-	}
 	/* config directory needs to be owned by the local user */
 	if (slapdFrontendConfig->configdir) {
 		chown_dir_files(slapdFrontendConfig->configdir, pw, PR_FALSE);

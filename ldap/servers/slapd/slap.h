@@ -1925,6 +1925,9 @@ typedef struct _slapdFrontendConfig {
   char *ldapi_gidnumber_type;   /* type that contains gid number */
   char *ldapi_search_base_dn;   /* base dn to search for mapped entries */
   char *ldapi_auto_dn_suffix;   /* suffix to be appended to auto gen DNs */
+#ifndef _WIN32
+  struct passwd *localuserinfo; /* userinfo of localuser */
+#endif /* _WIN32 */
 } slapdFrontendConfig_t;
 
 #define SLAPD_FULL	0

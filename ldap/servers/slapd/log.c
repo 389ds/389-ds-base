@@ -3480,9 +3480,9 @@ log__open_errorlogfile(int logfile_state, int locked)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 #ifndef _WIN32
-	if ( slapdFrontendConfig->localuser != NULL )  {
-		if ( (pw = getpwnam( slapdFrontendConfig->localuser )) == NULL )
-			return LOG_UNABLE_TO_OPENFILE;
+	if ( slapdFrontendConfig->localuser != NULL &&
+	     slapdFrontendConfig->localuserinfo != NULL ) {
+		pw = slapdFrontendConfig->localuserinfo;
 	}
 	else {
 		return LOG_UNABLE_TO_OPENFILE;

@@ -2500,9 +2500,20 @@ config_set_localuser( const char *attrname, char *value, char *errorbuf, int app
   }
 
   if (apply) {
+    struct passwd *pw = NULL;
 	CFG_LOCK_WRITE(slapdFrontendConfig);
 	slapi_ch_free ( (void **) &slapdFrontendConfig->localuser );
 	slapdFrontendConfig->localuser = slapi_ch_strdup ( value );
+	if (slapdFrontendConfig->localuserinfo != NULL) {
+	  slapi_ch_free ( (void **) &(slapdFrontendConfig->localuserinfo) );
+	}
+	pw = getpwnam( value );
+	if ( pw ) {
+	  slapdFrontendConfig->localuserinfo =
+			  (struct passwd *)slapi_ch_malloc(sizeof(struct passwd));
+	  memcpy(slapdFrontendConfig->localuserinfo, pw, sizeof(struct passwd));
+	}
+
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;

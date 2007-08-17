@@ -201,17 +201,16 @@ make_sure_dir_exists(char *dir)
     }
 
     /* Make sure it's owned by the correct user */
-    if (slapdFrontendConfig->localuser != NULL) {
-      if ( (pw = getpwnam(slapdFrontendConfig->localuser)) == NULL ) {
-        LDAPDebug(LDAP_DEBUG_ANY, GETPWNAM_WARNING, slapdFrontendConfig->localuser, errno, strerror(errno));
-      } else {
+    if (slapdFrontendConfig->localuser != NULL &&
+        slapdFrontendConfig->localuserinfo != NULL) {
+        pw = slapdFrontendConfig->localuserinfo;
         if (chown(dir, pw->pw_uid, -1) == -1) {
             stat(dir, &stat_buffer);
             if (stat_buffer.st_uid != pw->pw_uid) {
                 LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, dir, 0, 0);
+                return 1;
             }
         }
-      } /* else */
     }
 
     return 0;
@@ -233,24 +232,23 @@ add_this_process_to(char *dir_name)
     file_name[sizeof(file_name)-1] = (char)0;
     
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0666)) == NULL) {
-    LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_WARNING, file_name, 0, 0);
-    return;
+        LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_WARNING, file_name, 0, 0);
+        return;
     }
     
     /* Make sure the owner is of the file is the user the server
      * runs as. */
-    if (slapdFrontendConfig->localuser != NULL) {
-      if ( (pw = getpwnam(slapdFrontendConfig->localuser)) == NULL ) {
-    LDAPDebug(LDAP_DEBUG_ANY, GETPWNAM_WARNING, slapdFrontendConfig->localuser, errno, strerror(errno));
-      } else {
+    if (slapdFrontendConfig->localuser != NULL &&
+        slapdFrontendConfig->localuserinfo != NULL) {
+        pw = slapdFrontendConfig->localuserinfo;
         if (chown(file_name, pw->pw_uid, -1) == -1) {
             stat(file_name, &stat_buffer);
             if (stat_buffer.st_uid != pw->pw_uid) {
                 LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, file_name, 0, 0);
             }
         }
-      } /* else */
     }
+bail:
     PR_Close(prfd);
 }
 
