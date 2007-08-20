@@ -24272,8 +24272,12 @@ LDFLAGS="$save_ldflags"
 # last resort
 # Although the other db_* variables are correctly assigned at this point,
 # db_bindir needs to be set by pkg-config if possible (e.g., on 64-bit Solaris)
-if $PKG_CONFIG --exists db; then
-  db_bindir=`$PKG_CONFIG --variable=bindir db`
+if  test -n "$PKG_CONFIG"; then
+  if $PKG_CONFIG --exists db; then
+    db_bindir=`$PKG_CONFIG --variable=bindir db`
+  else
+    db_bindir=/usr/bin
+  fi
 else
   db_bindir=/usr/bin
 fi
