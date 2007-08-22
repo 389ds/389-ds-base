@@ -165,6 +165,10 @@ if test "$with_fhs_opt" = "yes"; then
   serverplugindir=/plugins
   # relative to datadir
   infdir=/inf
+  # location of property/resource files, relative to datadir
+  propertydir=/properties
+  # relative to libdir
+  perldir=/perl
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -185,17 +189,17 @@ else
   serverplugindir=/$PACKAGE_NAME/plugins
   # relative to datadir
   infdir=/$PACKAGE_NAME/inf
+  # location of property/resource files, relative to datadir
+  propertydir=/$PACKAGE_NAME/properties
+  # relative to libdir
+  perldir=/$PACKAGE_NAME/perl
 fi
 
 # Shared paths for all layouts
 # relative to sysconfdir
 configdir=/$PACKAGE_NAME/config
-# location of property/resource files, relative to datadir
-propertydir=/$PACKAGE_NAME/properties
 # relative to sysconfdir
 schemadir=/$PACKAGE_NAME/schema
-# relative to libdir
-perldir=/$PACKAGE_NAME/perl
 
 # default user, group
 defaultuser=nobody
