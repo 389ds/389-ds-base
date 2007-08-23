@@ -792,18 +792,8 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
 
     if (plugin_lib && plugin_funct)
     {
-        PRLibrary *lib = PR_LoadLibrary(plugin_lib);
-        if (lib)
-        { 
-            plugin = (mtn_distrib_fct) PR_FindSymbol(lib, plugin_funct);
-        }
-        else
-        {
-            LDAPDebug(LDAP_DEBUG_ANY, "ERROR: can't load plugin lib %s. "
-            SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
-            plugin_lib, PR_GetError(), slapd_pr_strerror(PR_GetError()));
-        }
-
+        plugin = (mtn_distrib_fct)sym_load(plugin_lib, plugin_funct,
+                                           "Entry Distribution", 1);
         if (plugin == NULL)
         {
             LDAPDebug(LDAP_DEBUG_ANY,
@@ -1315,9 +1305,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
     {
         if (plugin_lib && plugin_fct)
         {
-            PRLibrary *lib = PR_LoadLibrary(plugin_lib);
-            if (lib) 
-                plugin = (mtn_distrib_fct) PR_FindSymbol(lib, plugin_fct);
+            plugin = (mtn_distrib_fct) sym_load(plugin_lib, plugin_fct, "Entry Distribution", 1);
 
             if (plugin == NULL)
             {
