@@ -1315,6 +1315,33 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 
 		if ( is_straight_mapped_attr(type,is_user,is_nt4) )
 		{
+			/* The initials attribute is a special case.  AD has a constraint
+                         * that limits the value length.  If we're sending a change to
+                         * the initials attribute to AD, we trim if neccessary.
+                         */
+                         if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
+				int i = 0;
+				const char *initials_value = NULL;
+                                Slapi_Value *value = NULL;
+
+                                i = slapi_valueset_first_value(vs,&value);
+				while (i >= 0) {
+                                	initials_value = slapi_value_get_string(value);
+
+					/* If > AD_INITIALS_LENGTH, trim the value */
+					if (strlen(initials_value) > AD_INITIALS_LENGTH) {
+						char *new_initials = PL_strndup(initials_value, AD_INITIALS_LENGTH);
+						/* the below hands off memory */
+						slapi_value_set_string_passin(value, new_initials);
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: windows_create_remote_entry: "
+							"Trimming initials attribute to %d characters.\n",
+							agmt_get_long_name(prp->agmt), AD_INITIALS_LENGTH);
+					}
+
+					i = slapi_valueset_next_value(vs, i, &value);
+				}
+			}
 			/* copy over the attr values */
 			slapi_entry_add_valueset(new_entry,type,vs);
 		} else 
@@ -1461,7 +1488,26 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 
 		/* Check to see if this attribute is passed through */
 		if (is_straight_mapped_attr(attr_type,is_user,is_nt4)) {
-			/* If so then just copy over the mod */
+			/* The initials attribute is a special case.  AD has a constraint
+			 * that limits the value length.  If we're sending a change to
+			 * the initials attribute to AD, we trim if neccessary.
+			 */
+			if (0 == slapi_attr_type_cmp(attr_type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
+				int i;
+				for (i = 0; mod->mod_bvalues[i] != NULL; i++) {
+					/* If > AD_INITIALS_LENGTH, trim the value */
+					if (mod->mod_bvalues[i]->bv_len > AD_INITIALS_LENGTH) {
+						mod->mod_bvalues[i]->bv_val[AD_INITIALS_LENGTH] = '\0';
+						mod->mod_bvalues[i]->bv_len = AD_INITIALS_LENGTH;
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: windows_map_mods_for_replay: "
+							"Trimming initials attribute to %d characters.\n",
+							agmt_get_long_name(prp->agmt), AD_INITIALS_LENGTH);
+					}
+				}
+			}
+
+			/* copy over the mod */
 			slapi_mods_add_modbvps(&mapped_smods,mod->mod_op,attr_type,mod->mod_bvalues);
 		} else 
 		{
@@ -1521,9 +1567,12 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_map_mods_for_replay\n", 0, 0, 0 );
 }
 
-/* Returns non-zero if the attribute value sets are identical */
-static int 
-attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
+
+/* Returns non-zero if the attribute value sets are identical. If you want to
+ * compare the entire attribute value, set n to 0.  You can compare only the
+ * first n characters of the values by passing in the legth as n. */
+static int
+attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b, int n)
 {
 	/* For now only handle single values */
 	Slapi_Value *va = NULL;
@@ -1535,23 +1584,25 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
 	slapi_attr_get_numvalues(a,&num_a);
 	slapi_attr_get_numvalues(b,&num_b);
 
-	if (num_a == num_b) 
-	{
+	if (num_a == num_b) {
 		slapi_attr_first_value(a, &va);
 		slapi_attr_first_value(b, &vb);
 
-		if (va->bv.bv_len == vb->bv.bv_len) 
-		{
-			if (0 != memcmp(va->bv.bv_val,vb->bv.bv_val,va->bv.bv_len))
-			{
+		/* If either val is less than n, then check if the length, then values are
+		 * equal.  If both are n or greater, then only compare the first n chars. 
+		 * If n is 0, then just compare the entire attribute. */
+		if ((va->bv.bv_len < n) || (vb->bv.bv_len < n) || (n == 0)) {
+			if (va->bv.bv_len == vb->bv.bv_len) {
+				if (0 != memcmp(va->bv.bv_val, vb->bv.bv_val, va->bv.bv_len)) {
+					match = 0;
+				}
+			} else {
 				match = 0;
 			}
-		} else
-		{
+		} else if (0 != memcmp(va->bv.bv_val, vb->bv.bv_val, n)) {
 			match = 0;
 		}
-	} else
-	{
+	} else {
 		match = 0;
 	}
 	return match;
@@ -2554,7 +2605,17 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		{
 			if (!mapdn)
 			{
-				int values_equal = attr_compare_equal(attr,local_attr);
+				int values_equal = 0;
+
+                                /* AD has a legth contraint on the initials attribute,
+                                 * so treat is as a special case. */
+				if (0 == slapi_attr_type_cmp(type,"initials",SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
+					values_equal = attr_compare_equal(attr, local_attr, AD_INITIALS_LENGTH);
+				} else {
+					/* Compare the entire attribute values */
+					values_equal = attr_compare_equal(attr, local_attr, 0);
+				}
+
 				/* If it is then we need to replace the local values with the remote values if they are different */
 				if (!values_equal)
 				{
