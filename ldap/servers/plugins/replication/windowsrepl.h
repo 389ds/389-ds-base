@@ -99,4 +99,6 @@ void windows_conn_set_agmt_changed(Repl_Connection *conn);
 #define FAKE_STREET_ATTR_NAME "in#place#of#streetaddress"
 /* Used to work around contrained attribute legth for initials on AD */
 #define AD_INITIALS_LENGTH 6
-
+/* Used to check for pre-hashed passwords when syncing */
+#define PASSWD_CLEAR_PREFIX "{clear}"
+#define PASSWD_CLEAR_PREFIX_LEN 7

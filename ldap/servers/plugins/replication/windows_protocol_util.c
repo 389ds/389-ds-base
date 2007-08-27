@@ -1375,7 +1375,37 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 
 				slapi_valueset_first_value(vs,&value);
 				password_value = slapi_value_get_string(value);
-				*password = slapi_ch_strdup(password_value);
+				/* We need to check if the first character of password_value is an 
+				 * opening brace since strstr will simply return it's first argument
+				 * if it is an empty string. */
+				if (password_value && (*password_value == '{')) {
+					if (strchr( password_value, '}' )) {
+						/* A storage scheme is present.  Check if it's the
+						 * clear storage scheme. */
+						if ((strlen(password_value) >= PASSWD_CLEAR_PREFIX_LEN + 1) &&
+						    (strncasecmp(password_value, PASSWD_CLEAR_PREFIX, PASSWD_CLEAR_PREFIX_LEN) == 0)) {
+							/* This password is in clear text.  Strip off the clear prefix
+							 * and sync it. */
+							*password = slapi_ch_strdup(password_value + PASSWD_CLEAR_PREFIX_LEN);
+						} else {
+							/* This password is stored in a non-cleartext format.
+							 * We can only sync cleartext passwords. */
+							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: windows_create_remote_entry: "
+								"Password is already hashed.  Not syncing.\n",
+								agmt_get_long_name(prp->agmt));
+						}
+					} else {
+						/* This password doesn't have a storage prefix but
+						 * just happens to start with the '{' character.  We'll
+						 * assume that it's just a cleartext password without
+						 * the proper storage prefix. */
+						*password = slapi_ch_strdup(password_value);
+					}
+				} else {
+					/* This password has no storage prefix, or the password is empty */
+					*password = slapi_ch_strdup(password_value);
+				}
 			}
 
 		}
@@ -1554,7 +1584,37 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 				{
 					char *password_value = NULL;
 					password_value = mod->mod_bvalues[0]->bv_val;
-					*password = slapi_ch_strdup(password_value);
+					/* We need to check if the first character of password_value is an 
+					 * opening brace since strstr will simply return it's first argument
+					 * if it is an empty string. */
+					if (password_value && (*password_value == '{')) {
+						if (strchr( password_value, '}' )) {
+							/* A storage scheme is present.  Check if it's the
+							 * clear storage scheme. */
+							if ((strlen(password_value) >= PASSWD_CLEAR_PREFIX_LEN + 1) &&
+							     (strncasecmp(password_value, PASSWD_CLEAR_PREFIX, PASSWD_CLEAR_PREFIX_LEN) == 0)) {
+								/* This password is in clear text.  Strip off the clear prefix
+								 * and sync it. */
+								*password = slapi_ch_strdup(password_value + PASSWD_CLEAR_PREFIX_LEN);
+							} else {
+								/* This password is stored in a non-cleartext format.
+								 * We can only sync cleartext passwords. */
+								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+									"%s: windows_create_remote_entry: "
+									"Password is already hashed.  Not syncing.\n",
+									agmt_get_long_name(prp->agmt));
+							}
+						} else {
+							/* This password doesn't have a storage prefix but
+							 * just happens to start with the '{' character.  We'll
+							 * assume that it's just a cleartext password without
+							 * the proper storage prefix. */
+							*password = slapi_ch_strdup(password_value);
+						}
+					} else {
+						/* This password has no storage prefix, or the password is empty */
+						*password = slapi_ch_strdup(password_value);
+					}
 				}
 			}
 		}
