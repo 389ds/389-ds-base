@@ -262,8 +262,14 @@ sub migrateDatabases {
         my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
         if ($cn eq 'config') { # global config
             my $newent = $dest->search($ent->getDN(), "base", "(objectclass=*)");
-            my $newdbdir = $newent->getValues('nsslapd-directory') ||
-                "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
+            my $newdbdir = "";
+            if ("@with_fhs_opt@") {
+                $newdbdir = $newent->getValues('nsslapd-directory') ||
+                    "@localstatedir@/$mig->{pkgname}/$inst/db";
+            } else {
+                $newdbdir = $newent->getValues('nsslapd-directory') ||
+                    "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
+            }
             debug(1, "Found ldbm database plugin config entry ", $ent->getDN(), "\n");
             my $dir = $ent->getValues('nsslapd-directory');
             my $homedir = $ent->getValues('nsslapd-db-home-directory');
