@@ -128,12 +128,22 @@ sub getNewDbDir {
         return $oldval;
     }
     # otherwise, just use the new default locations
-    if ($objclasses{nsbackendinstance}) {
-        $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/db/$cn";
-    } elsif (lc $cn eq 'config') {
-        $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
-    } elsif (lc $cn eq 'changelog5') {
-        $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/changelogdb";
+    if ("@with_fhs_opt@") {
+        if ($objclasses{nsbackendinstance}) {
+            $newval = "@localstatedir@/$mig->{pkgname}/$inst/db/$cn";
+        } elsif (lc $cn eq 'config') {
+            $newval = "@localstatedir@/$mig->{pkgname}/$inst/db";
+        } elsif (lc $cn eq 'changelog5') {
+            $newval = "@localstatedir@/$mig->{pkgname}/$inst/changelogdb";
+        }
+    } else {
+        if ($objclasses{nsbackendinstance}) {
+            $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/db/$cn";
+        } elsif (lc $cn eq 'config') {
+            $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/db";
+        } elsif (lc $cn eq 'changelog5') {
+            $newval = "@localstatedir@/lib/$mig->{pkgname}/$inst/changelogdb";
+        }
     }
     debug(2, "New value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
     return $newval;
@@ -142,8 +152,8 @@ sub getNewDbDir {
 sub migrateCredentials {
     my ($ent, $attr, $mig, $inst) = @_;
     my $oldval = $ent->getValues($attr);
-    debug(3, "Executing migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval . . .\n");
-    my $newval = `migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval`;
+    debug(3, "Executing @bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval . . .\n");
+    my $newval = `@bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval`;
     debug(3, "Converted old value [$oldval] to new value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
     return $newval;
 }
@@ -230,7 +240,13 @@ sub migrateDatabases {
     my $foundldif;
     for (glob("$mig->{oldsroot}/$inst/db/*.ldif")) {
         my $dbname = basename($_, '.ldif');
-        my $cmd = "@serverdir@/$inst/ldif2db -n \"$dbname\" -i \"$_\"";
+        my $cmd = "";
+        if ("@with_fhs_opt@") {
+            $cmd = "/opt/@PACKAGE_NAME@/$inst/ldif2db -n \"$dbname\" -i \"$_\"";
+        } else {
+            $cmd = "@serverdir@/$inst/ldif2db -n \"$dbname\" -i \"$_\"";
+        }
+
         debug(1, "migrateDatabases: executing command $cmd\n");
         $? = 0; # clear error condition
         my $output = `$cmd 2>&1`;
@@ -306,8 +322,14 @@ sub migrateDatabases {
             debug(1, "old instance $cn dbdir $dir\n");
             my $srcdir = $dir || "$olddefault/db/$cn";
             my $newent = $dest->search($ent->getDN(), "base", "(objectclass=*)");
-            my $newdbdir = $newent->getValues('nsslapd-directory') ||
-                "@localstatedir@/lib/$mig->{pkgname}/$inst/db/$cn";
+            my $newdbdir = "";
+            if ("@with_fhs_opt@") {
+                $newdbdir = $newent->getValues('nsslapd-directory') ||
+                    "@localstatedir@/$mig->{pkgname}/$inst/db/$cn";
+            } else {
+                $newdbdir = $newent->getValues('nsslapd-directory') ||
+                    "@localstatedir@/lib/$mig->{pkgname}/$inst/db/$cn";
+            }
             if (-d $srcdir and ($srcdir !~ /^$olddefault/)) {
                 debug(2, "Not copying database indexes from [$srcdir]\n");
             } else {
