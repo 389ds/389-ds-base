@@ -17,3 +17,8 @@ error_copying_keydb = Could not copy the private key database file '%s' to '%s'.
 error_copying_secmoddb = Could not copy the security module database file '%s' to '%s'.  Error: %s\n
 error_copying_pinfile = Could not copy the key database PIN file '%s' to '%s'.  Error: %s\n
 error_copying_certmap = Could not copy the client certificate mapping file '%s' to '%s'.  Error: %s\n
+ldif_required_for_cross_platform = No LDIF files were found in %s.\n
+LDIF files are required in order to do cross platform migration.  The\
+database files are not binary compatible, and the new databases must\
+be initialized from an LDIF export of the old databases.  Please refer\
+to the migration instructions for help with how to do this.\n\n

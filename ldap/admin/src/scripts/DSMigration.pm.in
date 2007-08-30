@@ -152,8 +152,8 @@ sub getNewDbDir {
 sub migrateCredentials {
     my ($ent, $attr, $mig, $inst) = @_;
     my $oldval = $ent->getValues($attr);
-    debug(3, "Executing @bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval . . .\n");
-    my $newval = `@bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c $oldval`;
+    debug(3, "Executing @bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c \'$oldval\' . . .\n");
+    my $newval = `@bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c \'$oldval\'`;
     debug(3, "Converted old value [$oldval] to new value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
     return $newval;
 }
@@ -235,18 +235,15 @@ sub migrateDatabases {
     my $olddefault = "$mig->{actualsroot}/$inst/db"; # old default db home directory
     my @errs;
 
+    # the ldif2db command will be in nsslapd-instancedir
+    my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
+    my $inst_dir = $cfgent->getValues('nsslapd-instancedir');
     # first, look for an LDIF file in that directory with the same name as the
     # database
     my $foundldif;
     for (glob("$mig->{oldsroot}/$inst/db/*.ldif")) {
         my $dbname = basename($_, '.ldif');
-        my $cmd = "";
-        if ("@with_fhs_opt@") {
-            $cmd = "/opt/@PACKAGE_NAME@/$inst/ldif2db -n \"$dbname\" -i \"$_\"";
-        } else {
-            $cmd = "@serverdir@/$inst/ldif2db -n \"$dbname\" -i \"$_\"";
-        }
-
+        my $cmd = "$inst_dir/ldif2db -n \"$dbname\" -i \"$_\"";
         debug(1, "migrateDatabases: executing command $cmd\n");
         $? = 0; # clear error condition
         my $output = `$cmd 2>&1`;
@@ -259,6 +256,8 @@ sub migrateDatabases {
 
     if ($foundldif) {
         return (); # done - can do nothing else for cross-platform
+    } elsif ($mig->{crossplatform}) { # cross platform requires LDIF files
+        return ('ldif_required_for_cross_platform', "$mig->{oldsroot}/$inst/db");
     }
 
     # if no LDIF files, just copy over the database directories
