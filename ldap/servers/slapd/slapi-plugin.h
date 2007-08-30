@@ -418,6 +418,7 @@ int slapi_attr_get_numvalues( const Slapi_Attr *a, int *numValues);
 int slapi_attr_get_valueset(const Slapi_Attr *a, Slapi_ValueSet **vs);
 /* Make the valuset in Slapi_Attr be *vs--not a copy */
 int slapi_attr_set_valueset(Slapi_Attr *a, const Slapi_ValueSet *vs);
+int slapi_attr_set_type(Slapi_Attr *a, const char *type);
 int slapi_attr_get_bervals_copy( Slapi_Attr *a, struct berval ***vals );
 char * slapi_attr_syntax_normalize( const char *s );
 void slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);

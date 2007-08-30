@@ -699,7 +699,20 @@ slapi_attr_add_value(Slapi_Attr *a, const Slapi_Value *v)
 	return 0;
 }
 
-/* Make the valuset in SLapi_Attr be *vs--not a copy */
+int
+slapi_attr_set_type(Slapi_Attr *a, const char *type)
+{
+	int rc = 0;
+
+	if((NULL == a) || (NULL == type)) {
+		rc = -1;
+	} else {
+		a->a_type = slapi_ch_strdup(type);
+	}
+	return rc;
+}
+
+/* Make the valuset in Slapi_Attr be *vs--not a copy */
 int
 slapi_attr_set_valueset(Slapi_Attr *a, const Slapi_ValueSet *vs)
 {

@@ -1363,7 +1363,41 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 					}
 				} else 
 				{
-					slapi_entry_add_valueset(new_entry,new_type,vs);
+					Slapi_Attr *new_attr = NULL;
+
+					/* AD treats streetAddress as a single-valued attribute, while we define it
+					 * as a multi-valued attribute as it's defined in rfc 4519.  We only
+					 * sync the first value to AD to avoid a constraint violation.
+					 */
+					if (0 == slapi_attr_type_cmp(new_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) {
+						if (slapi_valueset_count(vs) > 1) {
+							int i = 0;
+							const char *street_value = NULL;
+							Slapi_Value *value = NULL;
+							Slapi_Value *new_value = NULL;
+
+							i = slapi_valueset_first_value(vs,&value);
+							if (i >= 0) {
+								/* Dup the first value, trash the valueset, then copy
+								 * in the dup'd value. */
+								new_value = slapi_value_dup(value);
+								slapi_valueset_done(vs);
+								/* The below hands off the memory to the valueset */
+								slapi_valueset_add_value_ext(vs, new_value, SLAPI_VALUE_FLAG_PASSIN);
+							}
+						}
+                        		}
+					
+					slapi_entry_add_valueset(new_entry,type,vs);
+
+					/* Reset the type to new_type here.  This is needed since
+					 * slapi_entry_add_valueset will create the Slapi_Attrs using
+					 * the schema definition, which can reset the type to something
+					 * other than the type you pass into it. To be safe, we just
+					 * create the attributes with the old type, then reset them. */
+					if (slapi_entry_attr_find(new_entry, type, &new_attr) == 0) {
+						slapi_attr_set_type(new_attr, new_type);
+					}
 				}
 				slapi_ch_free((void**)&new_type);
 			}
@@ -1574,6 +1608,29 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 					slapi_valueset_free(vs);
 				} else 
 				{
+					/* AD treats streetAddress as a single-valued attribute, while we define it
+					 * as a multi-valued attribute as it's defined in rfc 4519.  We only
+					 * sync the first value to AD to avoid a constraint violation.
+					 */
+					if (0 == slapi_attr_type_cmp(mapped_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) {
+						Slapi_Mod smod;
+						struct berval *new_bval = NULL;
+
+						slapi_mod_init_byref(&smod,mod);
+
+						/* Check if there is more than one value */
+						if (slapi_mod_get_num_values(&smod) > 1) {
+							new_bval = slapi_mod_get_first_value(&smod);
+							/* Remove all values except for the first */
+							while (slapi_mod_get_next_value(&smod)) {
+								/* This modifies the bvalues in the mod itself */
+								slapi_mod_remove_value(&smod);
+							}
+						}
+
+						slapi_mod_done(&smod);
+					}
+
 					slapi_mods_add_modbvps(&mapped_smods,mod->mod_op,mapped_type,mod->mod_bvalues);
 				}
 				slapi_ch_free((void**)&mapped_type);
@@ -1667,6 +1724,28 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b, int n)
 	}
 	return match;
 }
+
+/* Returns non-zero if all of the values of attribute a are contained in attribute b. */
+static int
+attr_compare_present(Slapi_Attr *a, Slapi_Attr *b)
+{
+	int match = 1;
+	int i = 0;
+	Slapi_Value *va = NULL;
+
+	/* Iterate through values in attr a and search for each in attr b */
+	for (i = slapi_attr_first_value(a, &va); va && (i != -1);
+	     i = slapi_attr_next_value(a, i, &va)) {
+		if (slapi_attr_value_find(b, slapi_value_get_berval(va)) != 0) {
+			/* This value wasn't found, so stop checking for values */
+			match = 0;
+			break;
+		}
+	}
+
+	return match;
+}
+
 
 /* Helper functions for dirsync result processing */
 
@@ -2669,8 +2748,11 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 
                                 /* AD has a legth contraint on the initials attribute,
                                  * so treat is as a special case. */
-				if (0 == slapi_attr_type_cmp(type,"initials",SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
+				if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
 					values_equal = attr_compare_equal(attr, local_attr, AD_INITIALS_LENGTH);
+				} else if (0 == slapi_attr_type_cmp(type, FAKE_STREET_ATTR_NAME, SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
+					/* Need to check if attr is present in local_attr */
+					values_equal = attr_compare_present(attr, local_attr);
 				} else {
 					/* Compare the entire attribute values */
 					values_equal = attr_compare_equal(attr, local_attr, 0);
