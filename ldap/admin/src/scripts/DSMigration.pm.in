@@ -104,6 +104,16 @@ my %ignoreOld =
  'nsslapd-ldapiautodnsuffix'       => 'nsslapd-ldapiautodnsuffix'
 );
 
+# these are the obsolete entries we do not migrate
+my %ignoreOldEntries =
+(
+ 'cn=presence,cn=plugins,cn=config' => 'cn=presence,cn=plugins,cn=config',
+ 'cn=aim presence,cn=presence,cn=plugins,cn=config' => 'cn=aim presence,cn=presence,cn=plugins,cn=config',
+ 'cn=icq presence,cn=presence,cn=plugins,cn=config' => 'cn=icq presence,cn=presence,cn=plugins,cn=config',
+ 'cn=yahoo presence,cn=presence,cn=plugins,cn=config' => 'cn=yahoo presence,cn=presence,cn=plugins,cn=config'
+);
+
+
 # these are the attributes for which we will always use
 # the old value
 my %alwaysUseOld =
@@ -519,10 +529,12 @@ sub mergeConfigEntries {
             debug(1, "Cannot migrate the entry $dn - skipping\n");
             next;
         } elsif ($oldent && !$newent) {
-            # may have to fix up some values in the old entry
-            fixAttrsInEntry($oldent, $mig, $inst);
-            $rc = $dest->add($oldent);
-            $op = "add";
+            if (!$ignoreOldEntries{$dn}) {  # make sure it's not obsolete
+                # may have to fix up some values in the old entry
+                fixAttrsInEntry($oldent, $mig, $inst);
+                $rc = $dest->add($oldent);
+                $op = "add";
+            }
         } elsif (!$oldent && $newent) {
             if ($dn =~ /o=deleteAfterMigration/i) {
                 $rc = $dest->delete($dn);
