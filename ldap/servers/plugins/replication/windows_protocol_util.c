@@ -3028,23 +3028,11 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 	return retval;
 }
 
-static int 
-windows_process_total_delete(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* remote_dn)
-{
-	int retval = 0;
-	if (delete_remote_entry_allowed(e))
-	{			
-		retval = windows_conn_send_delete(prp->conn, slapi_sdn_get_dn(remote_dn), NULL, NULL /* returned controls */);
-	}
-	return retval;
-}
-
 /* Entry point for the total protocol */
 int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 {
 	int retval = 0;
 	int is_ours = 0;
-	int is_tombstone = 0;
 	Slapi_DN *remote_dn = NULL;
 	int missing_entry = 0;
 	const Slapi_DN *local_dn = slapi_entry_get_sdn_const(e);
@@ -3063,14 +3051,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 				agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(local_dn));
 			goto error;
 		}
-		/* Either the entry is a tombstone, or not a tombstone */
-		if (is_tombstone)
-		{
-			retval = windows_process_total_delete(prp,e,remote_dn);
-		} else
-		{
-			retval = windows_process_total_add(prp,e,remote_dn,missing_entry);
-		}
+		retval = windows_process_total_add(prp,e,remote_dn,missing_entry);
 	}
 	if (remote_dn)
 	{

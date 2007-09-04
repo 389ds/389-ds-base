@@ -171,8 +171,10 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	dn = slapi_sdn_get_dn( windows_private_get_directory_subtree(prp->agmt));
 
 	pb = slapi_pblock_new ();
-    slapi_search_internal_set_pb (pb, dn, /* XXX modify the searchfilter and scope? */
-                                  LDAP_SCOPE_ONELEVEL, "(|(objectclass=ntuser)(objectclass=ntgroup)(nsuniqueid=*))", NULL, 0, NULL, NULL, 
+    /* Perform a subtree search for any ntuser or ntgroup entries underneath the
+     * suffix defined in the sync agreement. */
+    slapi_search_internal_set_pb (pb, dn, 
+                                  LDAP_SCOPE_SUBTREE, "(|(objectclass=ntuser)(objectclass=ntgroup))", NULL, 0, NULL, NULL, 
                                   repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     cb_data.prp = prp;
     cb_data.rc = 0;
@@ -180,8 +182,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	cb_data.sleep_on_busy = 0UL;
 	cb_data.last_busy = current_time ();
 
-    /* this search get all the entries from the replicated area including tombstones
-       and referrals */
     slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
                                        get_result /* result callback */,
                                        send_entry /* entry callback */,
