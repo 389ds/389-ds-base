@@ -101,7 +101,8 @@ my %ignoreOld =
  'nsslapd-ldapiuidnumbertype'      => 'nsslapd-ldapiuidnumbertype',
  'nsslapd-ldapigidnumbertype'      => 'nsslapd-ldapigidnumbertype',
  'nsslapd-ldapientrysearchbase'    => 'nsslapd-ldapientrysearchbase',
- 'nsslapd-ldapiautodnsuffix'       => 'nsslapd-ldapiautodnsuffix'
+ 'nsslapd-ldapiautodnsuffix'       => 'nsslapd-ldapiautodnsuffix',
+ 'numsubordinates'                 => 'numSubordinates'
 );
 
 # these are the obsolete entries we do not migrate
@@ -180,6 +181,21 @@ sub removensState {
     return $newval;
 }
 
+sub migIdlSwitch {
+    my ($ent, $attr, $mig, $inst) = @_;
+    my $newval;
+
+    # if doing cross platform migration, just use the default value for
+    # nsslapd-idl-switch
+    # if not doing cross platform, meaning we just use the existing
+    # database binaries, we must preserve whatever the old value is
+    if (!$mig->{crossplatform}) {
+        $newval = $ent->getValues($attr);
+    }
+
+    return $newval;
+}
+
 # these are attributes that we have to transform from
 # the old value to the new value (e.g. a pathname)
 # The key of this hash is the attribute name.  The value
@@ -193,7 +209,8 @@ my %transformAttr =
  'nsslapd-changelogdir' => \&getNewDbDir,
  'nsds5replicacredentials' => \&migrateCredentials,
  'nsmultiplexorcredentials' => \&migrateCredentials,
- 'nsstate' => \&removensState
+ 'nsstate' => \&removensState,
+ 'nsslapd-idl-switch' => \&migIdlSwitch
 );
 
 sub copyDatabaseDirs {
