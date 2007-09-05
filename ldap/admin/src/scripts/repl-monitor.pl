@@ -441,6 +441,8 @@ sub get_replicas
 	}
 
 	$conn->close;
+
+	return 0;
 }
 
 #
@@ -817,7 +819,11 @@ sub add_server
 		return $i if ($servers[$i] =~ /$hostnode($domainpattern)*:\d*=$shadowport\D/i);
 	}
 
-	push (@servers, "$host:$port=$shadowport:$binddn:$bindpwd:$bindcert");
+	if ($shadowport) {
+		push (@servers, "$host:$port=$shadowport:$binddn:$bindpwd:$bindcert");
+	} else {
+		push (@servers, "$host:$port:$binddn:$bindpwd:$bindcert");
+	}
 	return $i;
 }
 
