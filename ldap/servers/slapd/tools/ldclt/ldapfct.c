@@ -586,7 +586,7 @@ connectToServer (
 	thread_context	*tttctx)
 {
   int	 ret;	/* Return value */
-  int	 fd;	/* LDAP cnx's fd */
+  LBER_SOCKET	 fd;	/* LDAP cnx's fd */
   int	 v2v3;	/* LDAP version used */
 
   /*
@@ -623,9 +623,9 @@ connectToServer (
       }
 #endif
 #ifdef TRACE_FD_GET_OPTION_BUG
-      printf ("ldclt[%d]: T%03d:  fd=%d\n", mctx.pid, tttctx->thrdNum, fd);
+      printf ("ldclt[%d]: T%03d:  fd=%d\n", mctx.pid, tttctx->thrdNum, (int)fd);
 #endif
-      if (close (fd) < 0)
+      if (close ((int)fd) < 0)
       {
 	perror ("ldctx");
 	printf ("ldclt[%d]: T%03d: cannot close(fd=%d), error=%d (%s)\n",
