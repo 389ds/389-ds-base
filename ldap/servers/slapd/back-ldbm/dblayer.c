@@ -2522,8 +2522,11 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         }
     }
 #endif
-    commit_good_database(priv);
-
+    if (0 == return_value
+        && !((DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE) & dbmode)
+        && !priv->dblayer_bad_stuff_happened) {
+        commit_good_database(priv);
+    }
     return return_value;
 }
 

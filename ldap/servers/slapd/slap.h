@@ -65,8 +65,9 @@ static char ptokDes[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_DB2INDEX		7
 #define SLAPD_EXEMODE_REFERRAL		8
 #define SLAPD_EXEMODE_SUFFIX2INSTANCE	9
-#define SLAPD_EXEMODE_PRINTVERSION     10
+#define SLAPD_EXEMODE_PRINTVERSION  10
 #define SLAPD_EXEMODE_UPGRADEDB     11
+#define SLAPD_EXEMODE_DBVERIFY      12
 
 #ifdef _WIN32
 #ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG
@@ -766,14 +767,14 @@ struct slapdplugin {
 			IFP	plg_un_db_flush;	  /* close */
 			IFP	plg_un_db_seq;	  	  /* sequence */
 			IFP	plg_un_db_entry;	  /* entry send */
-			IFP	plg_un_db_referral;       /* referral send */
+			IFP	plg_un_db_referral;   /* referral send */
 			IFP	plg_un_db_result;	  /* result send */
 			IFP	plg_un_db_ldif2db;	  /* ldif 2 database */
 			IFP	plg_un_db_db2ldif;	  /* database 2 ldif */
 			IFP	plg_un_db_db2index;	  /* database 2 index */
-			IFP	plg_un_db_archive2db;	  /* ldif 2 database */
-			IFP	plg_un_db_db2archive;	  /* database 2 ldif */
-			IFP	plg_un_db_upgradedb;	  /* convert old idl to new */
+			IFP	plg_un_db_archive2db; /* ldif 2 database */
+			IFP	plg_un_db_db2archive; /* database 2 ldif */
+			IFP	plg_un_db_upgradedb;  /* convert old idl to new */
 			IFP	plg_un_db_begin;	  /* dbase txn begin */
 			IFP	plg_un_db_commit;	  /* dbase txn commit */
 			IFP	plg_un_db_abort;	  /* dbase txn abort */
@@ -784,6 +785,7 @@ struct slapdplugin {
 			IFP	plg_un_db_register_oc_callback; /* Register a function to call when a operation is applied to a given ObjectClass */
 			IFP	plg_un_db_init_instance;  /* initializes new db instance */
 			IFP	plg_un_db_wire_import;    /* fast replica update */
+			IFP	plg_un_db_verify;	  /* verify db files */
 		} plg_un_db;
 #define plg_bind		plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind		plg_un.plg_un_db.plg_un_db_unbind
@@ -809,6 +811,7 @@ struct slapdplugin {
 #define plg_archive2db		plg_un.plg_un_db.plg_un_db_archive2db
 #define plg_db2archive		plg_un.plg_un_db.plg_un_db_db2archive
 #define plg_upgradedb		plg_un.plg_un_db.plg_un_db_upgradedb
+#define plg_dbverify		plg_un.plg_un_db.plg_un_db_verify
 #define plg_dbsize		plg_un.plg_un_db.plg_un_db_dbsize
 #define plg_dbtest		plg_un.plg_un_db.plg_un_db_dbtest
 #define plg_rmdb		plg_un.plg_un_db.plg_un_db_rmdb

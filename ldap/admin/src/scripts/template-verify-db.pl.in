@@ -211,41 +211,48 @@ for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
 }
 
 # Check db files by db_verify
-for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
+print "Verify db files ... ";
+open(DBVERIFY, "dbverify $thisdb 2>&1 1> $NULL |");
+sleep 1;
+my $bad_index = 0;
+my $bad_id2entry = 0;
+my $isfirst = 1;
+while ($l = <DBVERIFY>)
 {
-  opendir(DB, $$dbdirs[$i]) or die "can't opendir $$dbdirs[$i] : $!";
-  while (defined($db = readdir(DB)))
-  {
-    if ($db =~ /\.db/)
+    if ($isfirst)
     {
-      my $thisdb = $$dbdirs[$i] . "/" . $db;
-      print "Verify $thisdb ... ";
-      open(DBVERIFY, "db_verify $thisdb 2>&1 1> $NULL |");
-      sleep 1;
-      my $haserr = 0;
-      while ($l = <DBVERIFY>)
-      {
-        if ($haserr == 0)
-        {
-          print "\n";
-        }
-        if ("$l" ne "")
-        {
-          $haserr++;
-          print "DB ERROR: $l";
-        }
-      }
-      close(DBVERIFY);
-      if ($haserr == 0 && $? == 0)
-      {
-        print "Good\n";
-      }
-      else
-      {
-        print "db file $db in $$dbdirs[$i] is corrupted.\n";
-        print "Please restore your backup and recover the database.\n";
-      }
+        print "\n";
+        $isfirst = 0;
     }
-  }
-  closedir(DB);
+    if ("$l" =~ /verify failed/)
+    {
+        if ("$l" =~ /id2entry.db/)
+        {
+            $bad_id2entry++;
+        }
+        else
+        {
+            $bad_index++;
+        }
+    }
+    print "$l";
+}
+close(DBVERIFY);
+
+if ($bad_id2entry > 0)
+{
+    print "\nFound the db was corrupted\n";
+    print "Please restore your backup and recover the database.\n";
+    exit(1);
+}
+elsif ($bad_index > 0)
+{
+    print "\nFound the index file(s) was corrupted\n";
+    print "Please run db2index on the corrupted index\n";
+    exit(1);
+}
+else
+{
+    print "Good\n";
+    exit(0);
 }

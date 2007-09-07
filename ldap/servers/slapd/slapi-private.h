@@ -829,9 +829,10 @@ int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v)
 #define SLAPI_PLUGIN_DB_DB2INDEX_FN		228
 #define SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN	229
 #define SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN	230
-#define SLAPI_PLUGIN_DB_INIT_INSTANCE_FN        231
-#define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN          234
+#define SLAPI_PLUGIN_DB_INIT_INSTANCE_FN	231
+#define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN		234
 #define SLAPI_PLUGIN_DB_UPGRADEDB_FN		235
+#define SLAPI_PLUGIN_DB_DBVERIFY_FN			236
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280

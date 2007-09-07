@@ -236,7 +236,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-verify-db.pl
+	ldap/admin/src/scripts/template-verify-db.pl \
+	ldap/admin/src/scripts/template-dbverify
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
@@ -501,6 +502,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/ldbm_search.c \
 	ldap/servers/slapd/back-ldbm/ldbm_unbind.c \
 	ldap/servers/slapd/back-ldbm/ldif2ldbm.c \
+	ldap/servers/slapd/back-ldbm/dbverify.c \
 	ldap/servers/slapd/back-ldbm/matchrule.c \
 	ldap/servers/slapd/back-ldbm/misc.c \
 	ldap/servers/slapd/back-ldbm/monitor.c \

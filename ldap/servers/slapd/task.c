@@ -55,13 +55,13 @@ static PRLock *global_task_lock = NULL;
 static int shutting_down = 0;
 
 
-#define TASK_BASE_DN    "cn=tasks, cn=config"
-#define TASK_IMPORT_DN  "cn=import, cn=tasks, cn=config"
-#define TASK_EXPORT_DN  "cn=export, cn=tasks, cn=config"
-#define TASK_BACKUP_DN  "cn=backup, cn=tasks, cn=config"
-#define TASK_RESTORE_DN "cn=restore, cn=tasks, cn=config"
-#define TASK_INDEX_DN   "cn=index, cn=tasks, cn=config"
-#define TASK_UPGRADEDB_DN   "cn=upgradedb, cn=tasks, cn=config"
+#define TASK_BASE_DN      "cn=tasks, cn=config"
+#define TASK_IMPORT_DN    "cn=import, cn=tasks, cn=config"
+#define TASK_EXPORT_DN    "cn=export, cn=tasks, cn=config"
+#define TASK_BACKUP_DN    "cn=backup, cn=tasks, cn=config"
+#define TASK_RESTORE_DN   "cn=restore, cn=tasks, cn=config"
+#define TASK_INDEX_DN     "cn=index, cn=tasks, cn=config"
+#define TASK_UPGRADEDB_DN "cn=upgradedb, cn=tasks, cn=config"
 
 #define TASK_LOG_NAME           "nsTaskLog"
 #define TASK_STATUS_NAME        "nsTaskStatus"
@@ -1486,6 +1486,7 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     }
 
 out:
+    slapi_ch_free((void **)&mypb.pb_seq_val);
     if (rv != 0) {
         if (task)
             destroy_task(1, task);

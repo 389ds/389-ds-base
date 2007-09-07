@@ -170,6 +170,7 @@ am_libback_ldbm_la_OBJECTS =  \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_search.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo \
+	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-misc.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-monitor.lo \
@@ -849,7 +850,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -1147,7 +1147,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-verify-db.pl
+	ldap/admin/src/scripts/template-verify-db.pl \
+	ldap/admin/src/scripts/template-dbverify
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
@@ -1402,6 +1403,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/ldbm_search.c \
 	ldap/servers/slapd/back-ldbm/ldbm_unbind.c \
 	ldap/servers/slapd/back-ldbm/ldif2ldbm.c \
+	ldap/servers/slapd/back-ldbm/dbverify.c \
 	ldap/servers/slapd/back-ldbm/matchrule.c \
 	ldap/servers/slapd/back-ldbm/misc.c \
 	ldap/servers/slapd/back-ldbm/monitor.c \
@@ -2325,6 +2327,9 @@ ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo:  \
 	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
 	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo:  \
+	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
+	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo:  \
 	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
 	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.lo:  \
@@ -4110,6 +4115,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo
+	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.$(OBJEXT)
+	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dn2entry.$(OBJEXT)
@@ -4859,6 +4866,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dblayer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbsize.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbtest.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbverify.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbversion.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dn2entry.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-entrystore.Plo@am__quote@
@@ -5562,6 +5570,13 @@ ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo: ldap/servers/slapd/ba
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/back-ldbm/ldif2ldbm.c' object='ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo `test -f 'ldap/servers/slapd/back-ldbm/ldif2ldbm.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/ldif2ldbm.c
+
+ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo: ldap/servers/slapd/back-ldbm/dbverify.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo -MD -MP -MF "ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbverify.Tpo" -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo `test -f 'ldap/servers/slapd/back-ldbm/dbverify.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/dbverify.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbverify.Tpo" "ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbverify.Plo"; else rm -f "ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbverify.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/back-ldbm/dbverify.c' object='ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo `test -f 'ldap/servers/slapd/back-ldbm/dbverify.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/dbverify.c
 
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.lo: ldap/servers/slapd/back-ldbm/matchrule.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.lo -MD -MP -MF "ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-matchrule.Tpo" -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.lo `test -f 'ldap/servers/slapd/back-ldbm/matchrule.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/matchrule.c; \

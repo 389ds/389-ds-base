@@ -448,6 +448,7 @@ int ldbm_back_ldbm2index( Slapi_PBlock *pb );
 int ldbm_back_archive2ldbm( Slapi_PBlock *pb );
 int ldbm_back_ldbm2archive( Slapi_PBlock *pb );
 int ldbm_back_upgradedb( Slapi_PBlock *pb );
+int ldbm_back_dbverify( Slapi_PBlock *pb );
 int ldbm_back_next_search_entry( Slapi_PBlock *pb ); 
 int ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension );
 int ldbm_back_db_test( Slapi_PBlock *pb ); 

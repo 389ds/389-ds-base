@@ -1,0 +1,42 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+if [ "$prefix" = "/" ] ; then
+    prefix=""
+fi
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@
+if [ -n "$prefix" ] ; then
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
+fi
+export LD_LIBRARY_PATH
+SHLIB_PATH=$LD_LIBRARY_PATH
+export SHLIB_PATH
+
+args=""
+while [ "$1" != "" ]
+do
+    if [ "$1" = "-n" ]; then
+        args=$args" "$1
+        shift
+        args=$args" "$1
+    elif [ "$1" = "-V" ]; then
+        args=$args" "$1
+    else
+        echo "Usage: dbverify [-n backend_instance] [-V]"
+        echo "Note : if \"-n backend_instance\" is not passed, verify all DBs."
+        echo "  -V : verbose"
+        exit 1
+    fi
+    shift
+done
+
+
+cd {{SERVERBIN-DIR}}
+./ns-slapd dbverify -D {{CONFIG-DIR}} $args
+if [ $? -eq 0 ]; then
+    echo "DB verify: Passed"
+    exit 0
+else
+    echo "DB verify: Failed"
+    exit 1
+fi

@@ -112,6 +112,7 @@ static int slapd_exemode_db2index();
 static int slapd_exemode_archive2db();
 static int slapd_exemode_db2archive();
 static int slapd_exemode_upgradedb();
+static int slapd_exemode_dbverify();
 static int slapd_exemode_dbtest();
 static int slapd_exemode_suffix2instance();
 static int slapd_debug_level_string2level( const char *s );
@@ -374,16 +375,16 @@ name2exemode( char *progname, char *s, int exit_if_unknown )
 		exemode = SLAPD_EXEMODE_REFERRAL;
 	} else if ( strcmp( s, "suffix2instance" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_SUFFIX2INSTANCE;
-	}
-	else if ( strcmp( s, "upgradedb" ) == 0 )
-	{
+	} else if ( strcmp( s, "upgradedb" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_UPGRADEDB;
+	} else if ( strcmp( s, "dbverify" ) == 0 ) {
+		exemode = SLAPD_EXEMODE_DBVERIFY;
 	}
 	else if ( exit_if_unknown ) {
 		fprintf( stderr, "usage: %s -D configdir "
 				 "[ldif2db | db2ldif | archive2db "
 				 "| db2archive | db2index | refer | suffix2instance"
-				 " | upgradedb] "
+				 " | upgradedb | dbverify] "
 				 "[options]\n", progname );
 		exit( 1 );
 	} else {
@@ -443,6 +444,9 @@ usage( char *name, char *extraname )
     case SLAPD_EXEMODE_UPGRADEDB:
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-f] -a archivedir\n";
 	break;
+    case SLAPD_EXEMODE_DBVERIFY:
+	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-n backend-instance-name]\n";
+	break;
 
     default:	/* SLAPD_EXEMODE_SLAPD */
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] "
@@ -480,7 +484,8 @@ static char *archive_name = NULL;
 static int db2ldif_dump_replica = 0;
 static int db2ldif_dump_uniqueid = 1;
 static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;	
-static int ldif2db_load_state= 1;
+static int ldif2db_load_state = 1;
+static int dbverify_verbose = 0;
 static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
 static int upgradedb_force = 0;
@@ -983,6 +988,13 @@ main( int argc, char **argv)
 	case SLAPD_EXEMODE_UPGRADEDB:
 		return slapd_exemode_upgradedb();
 
+	case SLAPD_EXEMODE_DBVERIFY:
+		return_value = slapd_exemode_dbverify();
+		if (return_value == 0)
+			return return_value;
+		else
+			return 1;
+
 	case SLAPD_EXEMODE_PRINTVERSION:
 		slapd_print_version(1);
 		exit(1);
@@ -1368,6 +1380,15 @@ process_command_line(int argc, char **argv, char *myname,
 		{"configDir",ArgRequired,'D'},
 		{0,0,0}};
 
+	char *opts_dbverify = "vVfd:n:D:"; 
+	struct opt_ext long_options_dbverify[] = {
+		{"version",ArgNone,'v'},
+		{"debug",ArgRequired,'d'},
+		{"backend",ArgRequired,'n'},
+		{"configDir",ArgRequired,'D'},
+		{"verbose",ArgNone,'V'},
+		{0,0,0}};
+
 	char *opts_referral = "vd:p:r:SD:"; 
 	struct opt_ext long_options_referral[] = {
 		{"version",ArgNone,'v'},
@@ -1463,6 +1484,10 @@ process_command_line(int argc, char **argv, char *myname,
 	case SLAPD_EXEMODE_UPGRADEDB:
 		opts = opts_upgradedb;
 		long_opts = long_options_upgradedb;
+		break;
+	case SLAPD_EXEMODE_DBVERIFY:
+		opts = opts_dbverify;
+		long_opts = long_options_dbverify;
 		break;
 	default:	/* SLAPD_EXEMODE_SLAPD */
 		opts = opts_slapd;
@@ -1567,7 +1592,8 @@ process_command_line(int argc, char **argv, char *myname,
 				slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
 				/* The -n argument will give the name of a backend instance. */
 				cmd_line_instance_name = optarg_ext;
-			} else if (slapd_exemode == SLAPD_EXEMODE_DB2LDIF) {
+			} else if (slapd_exemode == SLAPD_EXEMODE_DB2LDIF ||
+			 	slapd_exemode == SLAPD_EXEMODE_DBVERIFY) {
 			    char *s = slapi_ch_strdup(optarg_ext);
 			    charray_add(&cmd_line_instance_names, s);
 			} else { 
@@ -1726,7 +1752,11 @@ process_command_line(int argc, char **argv, char *myname,
 			break;
 
 		case 'V':
-		  	slapd_exemode = SLAPD_EXEMODE_PRINTVERSION;
+			if ( slapd_exemode == SLAPD_EXEMODE_DBVERIFY ) {
+				dbverify_verbose = 1;
+			} else {
+		  		slapd_exemode = SLAPD_EXEMODE_PRINTVERSION;
+			}
 			break;
 
 		case 'a':	/* archive pathname for db */
@@ -2004,7 +2034,7 @@ slapd_exemode_ldif2db()
         exit( 1 );
     }
 
-    /* this should be the first time this are called!  if the init order
+    /* this should be the first time to be called!  if the init order
      * is ever changed, these lines should be changed (or erased)!
      */
     mapping_tree_init();
@@ -2546,7 +2576,7 @@ slapd_exemode_upgradedb()
         exit( 1 );
     }
 
-    /* this should be the first time this are called!  if the init order
+    /* this should be the first time to be called!  if the init order
      * is ever changed, these lines should be changed (or erased)!
      */
     mapping_tree_init();
@@ -2601,10 +2631,58 @@ slapd_exemode_upgradedb()
     return( return_value );
 }
 
+/*
+ * function to perform DB verify
+ */
+static int
+slapd_exemode_dbverify()
+{
+    int return_value = 0;
+    Slapi_PBlock pb;
+    struct slapdplugin *backend_plugin;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    /* this should be the first time to be called!  if the init order
+     * is ever changed, these lines should be changed (or erased)!
+     */
+    mapping_tree_init();
+    if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
+        LDAPDebug(LDAP_DEBUG_ANY, 
+            "ERROR: Could not find the ldbm backend plugin.\n",
+            0, 0, 0);
+        exit(1);
+    }
+
+    /* check for slapi v2 support */
+    if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
+        LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do dbverify.\n",
+                  backend_plugin->plg_name, 0, 0);
+        exit(1);
+    }
+
+    memset( &pb, '\0', sizeof(pb) );
+    pb.pb_backend = NULL;
+    pb.pb_seq_val = dbverify_verbose;
+    pb.pb_plugin = backend_plugin;
+    pb.pb_instance_name = (char *)cmd_line_instance_names;
+    pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+    
+    if ( backend_plugin->plg_dbverify != NULL ) {
+        return_value = (*backend_plugin->plg_dbverify)( &pb );
+    } else {
+        LDAPDebug( LDAP_DEBUG_ANY,
+                   "ERROR: no db verify function defined for "
+                   "%s\n", backend_plugin->plg_name, 0, 0 );
+        return_value = -1;
+    }
+
+    return( return_value );
+}
+
 
 static int
 slapd_exemode_dbtest()
-{	
+{
     int return_value= 0;
     Slapi_PBlock pb;
     struct slapdplugin *plugin;
