@@ -161,7 +161,23 @@ sub init {
     # allows the reuse of .inf files with some parameters overridden
     for (@ARGV) {
         if (/^([\w_-]+)\.([\w_-]+)=(.*)$/) { # e.g. section.param=value
-            $self->{inf}->{$1}->{$2} = $3;
+            my $sec = $1;
+            my $parm = $2;
+            my $val = $3;
+            # a single value is just a single scalar
+            # multiple values are represented by an array ref
+            if (exists($self->{inf}->{$sec}->{$parm})) {
+                if (!ref($self->{inf}->{$sec}->{$parm})) {
+                    # convert single scalar to array ref
+                    my $ary = [$self->{inf}->{$sec}->{$parm}];
+                    $self->{inf}->{$sec}->{$parm} = $ary;
+                }
+                # just push the new value
+                push @{$self->{inf}->{$sec}->{$parm}}, $val;
+            } else {
+                # single value
+                $self->{inf}->{$sec}->{$parm} = $val;
+            }
         } else { # error
             print STDERR "Error: unknown command line option $_\n";
             usage();

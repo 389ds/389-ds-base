@@ -306,6 +306,15 @@ sub createConfigFile {
         push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-dnaplugin.ldif";
     }
 
+    # additional configuration LDIF files
+    if (exists($inf->{slapd}->{ConfigFile})) {
+        if (ref($inf->{slapd}->{ConfigFile})) {
+            push @ldiffiles, @{$inf->{slapd}->{ConfigFile}};
+        } else {
+            push @ldiffiles, $inf->{slapd}->{ConfigFile};
+        }
+    }
+
     getMappedEntries($mapper, \@ldiffiles, \@errs, \&check_and_add_entry,
                      [$conn]);
 
@@ -406,6 +415,15 @@ sub installSchema {
         push @schemafiles, glob("$inf->{General}->{prefix}@schemadir@/*");
     } else {
         push @schemafiles, "$inf->{General}->{prefix}@schemadir@/00core.ldif";
+    }
+
+    # additional schema files
+    if (exists($inf->{slapd}->{SchemaFile})) {
+        if (ref($inf->{slapd}->{SchemaFile})) {
+            push @schemafiles, @{$inf->{slapd}->{SchemaFile}};
+        } else {
+            push @schemafiles, $inf->{slapd}->{SchemaFile};
+        }
     }
     for (@schemafiles) {
         my $src = $_;

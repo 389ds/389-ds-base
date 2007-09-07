@@ -77,6 +77,7 @@ sub read {
 
     my $incontinuation = 0;
     my $curkey;
+    my $curval;
     my $inffh;
     if ($filename eq "-") {
         $inffh = \*STDIN;
@@ -100,12 +101,32 @@ sub read {
             $iscontinuation = 1;
         }
         if ($incontinuation) {
-            $self->{$curSection}->{$curkey} .= "\n" . $_; # add line in entirety to current value
+            if ($curval) {
+                $self->{$curSection}->{$curkey}->[$curval] .= "\n" . $_; # add line in entirety to current value
+            } else {
+                $self->{$curSection}->{$curkey} .= "\n" . $_; # add line in entirety to current value
+            }
         } elsif (/^\[(.*?)\]/) { # e.g. [General]
             $curSection = $1;
+            $iscontinuation = 0; # disallow section continuations
         } elsif (/^\s*(.*?)\s*=\s*(.*?)\s*$/) { # key = value
             $curkey = $1;
-            $self->{$curSection}->{$curkey} = $2;
+            # a single value is just a single scalar
+            # multiple values are represented by an array ref
+            if (exists($self->{$curSection}->{$curkey})) {
+                if (!ref($self->{$curSection}->{$curkey})) {
+                    # convert single scalar to array ref
+                    my $ary = [$self->{$curSection}->{$curkey}];
+                    $self->{$curSection}->{$curkey} = $ary;
+                }
+                # just push the new value
+                push @{$self->{$curSection}->{$curkey}}, $2;
+                $curval = @{$self->{$curSection}->{$curkey}} - 1; # curval is index of last item
+            } else {
+                # single value
+                $self->{$curSection}->{$curkey} = $2;
+                $curval = 0; # only 1 value
+            }
         }
         if ($iscontinuation) { # if line ends with a backslash, continue the data on the next line
             $incontinuation = 1;
