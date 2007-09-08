@@ -62,6 +62,8 @@ use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(ldap_explode_dn);
 use Mozilla::LDAP::LDIF;
 
+use Carp;
+
 use Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(migrateDS);
@@ -253,6 +255,35 @@ sub copyDatabaseDirs {
     return ();
 }
 
+# older versions may use the old Netscape names e.g. Netscape Administration Server
+# we have to convert these to the new names e.g. @capbrand@ Administration Server
+sub migrateNetscapeRoot {
+    my $ldiffile = shift;
+    my ($fh, $tmpldiffile);
+    # create a temp inf file for writing for other processes
+    # never overwrite the user supplied inf file
+    ($fh, $tmpldiffile) = tempfile("nsrootXXXXXX", UNLINK => 0,
+                                   SUFFIX => ".ldif", OPEN => 1,
+                                   DIR => File::Spec->tmpdir);
+    open( MYLDIF, "$ldiffile" ) || confess "Can't open $ldiffile: $!";
+    my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
+    while (my $ent = readOneEntry $in) {
+        my $dn = $ent->getDN();
+        $dn =~ s/\bNetscape\b/@capbrand@/g;
+        $ent->setDN($dn);
+        foreach my $attr (keys %{$ent}) {
+            my @vals = $ent->getValues($attr);
+            map { s/\bNetscape\b/@capbrand@/g } @vals;
+            $ent->setValues($attr, @vals);
+        }
+        Mozilla::LDAP::LDIF::put_LDIF($fh, 78, $ent);        
+    }
+    close( MYLDIF );
+    close( $fh );
+
+    return $tmpldiffile;
+}
+
 # migrate all of the databases in an instance
 sub migrateDatabases {
     my $mig = shift; # the Migration object
@@ -269,13 +300,22 @@ sub migrateDatabases {
     # database
     my $foundldif;
     for (glob("$mig->{oldsroot}/$inst/db/*.ldif")) {
-        my $dbname = basename($_, '.ldif');
-        my $cmd = "$inst_dir/ldif2db -n \"$dbname\" -i \"$_\"";
+        my $fname = $_;
+        my $dbname = basename($fname, '.ldif');
+        my $deleteflag = 0;
+        if ($fname =~ /NetscapeRoot.ldif$/) {
+            $fname = migrateNetscapeRoot($fname);
+            $deleteflag = 1;
+        }
+        my $cmd = "$inst_dir/ldif2db -n \"$dbname\" -i \"$fname\"";
         debug(1, "migrateDatabases: executing command $cmd\n");
         $? = 0; # clear error condition
         my $output = `$cmd 2>&1`;
+        if ($deleteflag) {
+            unlink($fname);
+        }
         if ($?) {
-            return ('error_importing_migrated_db', $_, $?, $output);
+            return ('error_importing_migrated_db', $fname, $?, $output);
         }
         debug(1, $output);
         $foundldif = 1;
