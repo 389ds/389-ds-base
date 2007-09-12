@@ -789,12 +789,26 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 int 
 multimaster_bepostop_modrdn (Slapi_PBlock *pb)
 {
+	Slapi_Operation *op;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	if ( ! operation_is_flag_set (op, OP_FLAG_REPL_FIXUP) )
+	{
+		urp_post_modrdn_operation (pb);
+	}
 	return 0;
 }
 
 int 
 multimaster_bepostop_delete (Slapi_PBlock *pb)
 {
+	Slapi_Operation *op;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	if ( ! operation_is_flag_set (op, OP_FLAG_REPL_FIXUP) )
+	{
+		urp_post_delete_operation (pb);
+	}
 	return 0;
 }
 
@@ -814,16 +828,7 @@ multimaster_postop_add (Slapi_PBlock *pb)
 int 
 multimaster_postop_delete (Slapi_PBlock *pb)
 {
-	int rc;
-	Slapi_Operation *op;
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	if ( ! operation_is_flag_set (op, OP_FLAG_REPL_FIXUP) )
-	{
-		urp_post_delete_operation (pb);
-	}
-	rc = process_postop(pb);
-	return rc;
+	return process_postop(pb);
 }
 
 int 
@@ -835,16 +840,7 @@ multimaster_postop_modify (Slapi_PBlock *pb)
 int 
 multimaster_postop_modrdn (Slapi_PBlock *pb)
 {
-	int rc;
-	Slapi_Operation *op;
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	if ( ! operation_is_flag_set (op, OP_FLAG_REPL_FIXUP) )
-	{
-		urp_post_modrdn_operation (pb);
-	}
-	rc = process_postop(pb);
-	return rc;
+	return process_postop(pb);
 }
 
 
