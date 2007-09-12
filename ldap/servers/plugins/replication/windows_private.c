@@ -65,6 +65,7 @@ struct windowsprivate {
   PRBool create_groups_from_dirsync;
   char *windows_domain;
   int isnt4;
+  int iswin2k3;
 };
 
 static int
@@ -243,6 +244,38 @@ void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 		dp->isnt4 = isit;
 		
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_isnt4\n", 0, 0, 0 );
+}
+
+int windows_private_get_iswin2k3(const Repl_Agmt *ra)
+{
+		Dirsync_Private *dp;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_iswin2k3\n", 0, 0, 0 );
+
+	PR_ASSERT(ra);
+
+		dp = (Dirsync_Private *) agmt_get_priv(ra);
+		PR_ASSERT (dp);
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_iswin2k3\n", 0, 0, 0 );
+
+		return dp->iswin2k3;
+}
+
+void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
+{
+		Dirsync_Private *dp;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_iswin2k3\n", 0, 0, 0 );
+
+	PR_ASSERT(ra);
+
+		dp = (Dirsync_Private *) agmt_get_priv(ra);
+		PR_ASSERT (dp);
+
+		dp->iswin2k3 = isit;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_iswin2k3\n", 0, 0, 0 );
 }
 
 

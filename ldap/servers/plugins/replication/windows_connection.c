@@ -83,6 +83,7 @@ typedef struct repl_connection
 	struct timeval timeout;
 	int flag_agmt_changed;
 	char *plain;
+	int is_win2k3; /* 1 if it is win2k3 or later, 0 if not, -1 if not determined */
 } repl_connection;
 
 /* #define DEFAULT_LINGER_TIME (5 * 60) */ /* 5 minutes */
@@ -167,6 +168,7 @@ windows_conn_new(Repl_Agmt *agmt)
 	rpc->supports_ds40_repl = -1;
 	rpc->supports_ds50_repl = -1;
 	rpc->supports_dirsync = -1;
+	rpc->is_win2k3 = -1;
 	rpc->linger_active = PR_FALSE;
 	rpc->delete_after_linger = PR_FALSE;
 	rpc->linger_event = NULL;
@@ -291,20 +293,17 @@ windows_conn_get_error(Repl_Connection *conn, int *operation, int *error)
 static ConnResult
 windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	LDAPMod **attrs, const char *newrdn, const char *newparent,
-	int deleteoldrdn, LDAPControl *update_control,
+	int deleteoldrdn, LDAPControl **server_controls,
 	const char *extop_oid, struct berval *extop_payload, char **retoidp,
 	struct berval **retdatap, LDAPControl ***returned_controls)
 {
 	int rc;
 	ConnResult return_value;
-	LDAPControl *server_controls[1];
 	LDAPControl **loc_returned_controls;
 	const char *op_string = NULL;
 	const char *extra_op_string = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_perform_operation\n", 0, 0, 0 );
-
-	server_controls[0] = NULL;
 
 	if (windows_conn_connected(conn))
 	{
@@ -588,8 +587,16 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
     return e;
 }
 
+/* Perform a simple search against Windows with no controls */
 ConnResult
 windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry)
+{
+	return windows_search_entry_ext(conn, searchbase, filter, entry, NULL);
+}
+
+/* Perform a simple search against Windows with optional controls */
+ConnResult
+windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls)
 {
 	ConnResult return_value = 0;
 	int ldap_rc = 0;
@@ -607,7 +614,7 @@ windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slap
 	{
 		ldap_rc = ldap_search_ext_s(conn->ld, searchbase, LDAP_SCOPE_SUBTREE,
 			filter, NULL, 0 /* attrsonly */,
-			NULL , NULL /* client controls */,
+			serverctrls , NULL /* client controls */,
 			&conn->timeout, 0 /* sizelimit */, &res);
 		if (LDAP_SUCCESS == ldap_rc)
 		{
@@ -684,9 +691,7 @@ send_dirsync_search(Repl_Connection *conn)
 			server_controls[0] = NULL; /* unsupported */
 		} else 
 		{
-			/* DBDB: I'm pretty sure that the control is leaked from here */
-			/* Purify agrees */
-			server_controls[0] = windows_private_dirsync_control(conn->agmt); /* yes, or don't know */
+			server_controls[0] = windows_private_dirsync_control(conn->agmt);
 		}
 
 		server_controls[1] = NULL;
@@ -746,12 +751,12 @@ send_dirsync_search(Repl_Connection *conn)
  */
 ConnResult
 windows_conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl **server_controls, LDAPControl ***returned_controls)
 {
 	ConnResult res = 0;
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_add\n", 0, 0, 0 );
 	res = windows_perform_operation(conn, CONN_ADD, dn, attrs, NULL /* newrdn */,
-		NULL /* newparent */, 0 /* deleteoldrdn */, update_control,
+		NULL /* newparent */, 0 /* deleteoldrdn */, server_controls,
 		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
 		NULL /* retdatap */, returned_controls);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_add\n", 0, 0, 0 );
@@ -764,13 +769,13 @@ windows_conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
  */
 ConnResult
 windows_conn_send_delete(Repl_Connection *conn, const char *dn,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl **server_controls, LDAPControl ***returned_controls)
 {
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_delete\n", 0, 0, 0 );
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_delete\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_DELETE, dn, NULL /* attrs */,
 		NULL /* newrdn */, NULL /* newparent */, 0 /* deleteoldrdn */,
-		update_control, NULL /* extop OID */, NULL /* extop payload */,
+		server_controls, NULL /* extop OID */, NULL /* extop payload */,
 		NULL /* retoidp */, NULL /* retdatap */, returned_controls);
 }
 
@@ -780,12 +785,12 @@ windows_conn_send_delete(Repl_Connection *conn, const char *dn,
  */
 ConnResult
 windows_conn_send_modify(Repl_Connection *conn, const char *dn, LDAPMod **mods,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl **server_controls, LDAPControl ***returned_controls)
 {
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_modify\n", 0, 0, 0 );
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_modify\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_MODIFY, dn, mods, NULL /* newrdn */,
-		NULL /* newparent */, 0 /* deleteoldrdn */, update_control,
+		NULL /* newparent */, 0 /* deleteoldrdn */, server_controls,
 		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
 		NULL /* retdatap */, returned_controls);
 }
@@ -796,12 +801,12 @@ windows_conn_send_modify(Repl_Connection *conn, const char *dn, LDAPMod **mods,
 ConnResult
 windows_conn_send_rename(Repl_Connection *conn, const char *dn,
 	const char *newrdn, const char *newparent, int deleteoldrdn,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl **server_controls, LDAPControl ***returned_controls)
 {
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_rename\n", 0, 0, 0 );
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_rename\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_RENAME, dn, NULL /* attrs */,
-		newrdn, newparent, deleteoldrdn, update_control,
+		newrdn, newparent, deleteoldrdn, server_controls,
 		NULL /* extop OID */, NULL /* extop payload */, NULL /* retoidp */,
 		NULL /* retdatap */, returned_controls);
 }
@@ -878,13 +883,13 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 ConnResult
 windows_conn_send_extended_operation(Repl_Connection *conn, const char *extop_oid,
 	struct berval *payload, char **retoidp, struct berval **retdatap,
-	LDAPControl *update_control, LDAPControl ***returned_controls)
+	LDAPControl **server_controls, LDAPControl ***returned_controls)
 {
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_send_extended_operation\n", 0, 0, 0 );
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_send_extended_operation\n", 0, 0, 0 );
 	return windows_perform_operation(conn, CONN_EXTENDED_OPERATION, NULL /* dn */, NULL /* attrs */,
 		NULL /* newrdn */, NULL /* newparent */,  0 /* deleteoldrdn */,
-		update_control, extop_oid, payload, retoidp, retdatap,
+		server_controls, extop_oid, payload, retoidp, retdatap,
 		returned_controls);
 }
 
@@ -1264,6 +1269,16 @@ windows_conn_connect(Repl_Connection *conn)
 		{
 			windows_private_set_isnt4(conn->agmt,0);
 		}
+
+		supports = windows_conn_replica_is_win2k3(conn);
+		if (CONN_IS_WIN2K3 == supports)
+		{
+			windows_private_set_iswin2k3(conn->agmt,1);
+			LDAPDebug( LDAP_DEBUG_REPL, "windows_conn_connect : detected Win2k3 peer\n", 0, 0, 0 );
+		} else
+		{
+			windows_private_set_iswin2k3(conn->agmt,0);
+		}
 	}
 
 	ber_bvfree(creds);
@@ -1471,6 +1486,71 @@ windows_conn_replica_supports_dirsync(Repl_Connection *conn)
 	return return_value;
 }
 
+
+/* Checks if the AD server is running win2k3 (or later) */
+ConnResult
+windows_conn_replica_is_win2k3(Repl_Connection *conn)
+{
+        ConnResult return_value;
+        int ldap_rc;
+
+        LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_replica_is_win2k3\n", 0, 0, 0 );
+
+        if (windows_conn_connected(conn))
+        {
+                if (conn->is_win2k3 == -1) {
+                        LDAPMessage *res = NULL;
+                        LDAPMessage *entry = NULL;
+                        char *attrs[] = {"supportedCapabilities", NULL};
+
+                        conn->status = STATUS_SEARCHING;
+                        ldap_rc = ldap_search_ext_s(conn->ld, "", LDAP_SCOPE_BASE,
+                                                                                "(objectclass=*)", attrs, 0 /* attrsonly */,
+                                                                                NULL /* server controls */, NULL /* client controls */,
+                                                                                &conn->timeout, LDAP_NO_LIMIT, &res);
+                        if (LDAP_SUCCESS == ldap_rc)
+                        {
+                                conn->is_win2k3 = 0;
+                                entry = ldap_first_entry(conn->ld, res);
+                                if (!attribute_string_value_present(conn->ld, entry, "supportedCapabilities", REPL_WIN2K3_AD_OID))
+                                {
+                                        return_value = CONN_NOT_WIN2K3;
+                                }
+                                else
+                                {
+
+                                        conn->is_win2k3 =1;
+                                        return_value = CONN_IS_WIN2K3;
+                                }
+                        }
+                        else
+                        {
+                                if (IS_DISCONNECT_ERROR(ldap_rc))
+                                {
+                                        conn->last_ldap_error = ldap_rc;        /* specific reason */
+                                        windows_conn_disconnect(conn);
+                                        return_value = CONN_NOT_CONNECTED;
+                                }
+                                else
+                                {
+                                        return_value = CONN_OPERATION_FAILED;
+                                }
+                        }
+                        if (NULL != res)
+                                ldap_msgfree(res);
+                        }
+                else {
+                        return_value = conn->is_win2k3 ? CONN_IS_WIN2K3 : CONN_NOT_WIN2K3;
+                }
+        }
+        else
+        {
+                /* Not connected */
+                return_value = CONN_NOT_CONNECTED;
+        }
+        LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_replica_is_win2k3\n", 0, 0, 0 );
+        return return_value;
+}
 
 
 /*
