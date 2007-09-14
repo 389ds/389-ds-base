@@ -269,6 +269,7 @@ sub migrateNetscapeRoot {
     my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
     while (my $ent = readOneEntry $in) {
         my $dn = $ent->getDN();
+        next if (!$dn); # netscaperoot should not have the empty dn
         $dn =~ s/\bNetscape\b/@capbrand@/g;
         $ent->setDN($dn);
         foreach my $attr (keys %{$ent}) {
@@ -305,6 +306,11 @@ sub migrateDatabases {
         my $deleteflag = 0;
         if ($fname =~ /NetscapeRoot.ldif$/) {
             $fname = migrateNetscapeRoot($fname);
+            # make sure $fname is owned by the server user
+            my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
+            my $user = $cfgent->getValues('nsslapd-localuser');
+            my $uid = getpwnam $user;
+            chown $uid, -1, $fname;
             $deleteflag = 1;
         }
         my $cmd = "$inst_dir/ldif2db -n \"$dbname\" -i \"$fname\"";
@@ -443,7 +449,14 @@ sub fixAttrsInEntry {
     for my $attr (keys %{$ent}) {
         my $lcattr = lc $attr;
         if ($transformAttr{$lcattr}) {
-            $ent->setValues($attr, &{$transformAttr{$lcattr}}($ent, $attr, $mig, $inst));
+            my $newval = &{$transformAttr{$lcattr}}($ent, $attr, $mig, $inst);
+            if (!$newval) {
+                debug(2, "Removing attribute $attr from entry ", $ent->getDN(), "\n");
+                $ent->remove($attr);
+            } else {
+                debug(2, "Setting new value $newval for attribute $attr in entry ", $ent->getDN(), "\n");
+                $ent->setValues($attr, $newval);
+            }
         }
     }
 }
@@ -484,8 +497,13 @@ sub mergeEntries {
             if (!$innewonly{$attr}) {
                 my $oldval = $old->getValues($attr);
                 my $newval = &{$transformAttr{$lcattr}}($old, $attr, $mig, $inst);
-                $new->setValues($attr, $newval);
-                debug(3, "mergeEntries: transformed old value $oldval to $newval\n");
+                if (!$newval) {
+                    debug(3, "Removing attribute $attr from entry ", $new->getDN(), "\n");
+                    $new->remove($attr);
+                } else {
+                    debug(3, "Setting new value $newval for attribute $attr in entry ", $new->getDN(), "\n");
+                    $new->setValues($attr, $newval);
+                }
             }
         } elsif ($cn eq "internationalization plugin" and $lcattr eq "nsslapd-pluginarg0") {
             debug(3, "mergeEntries: using new value of internationalization plugin nsslapd-pluginarg0\n");
@@ -723,6 +741,10 @@ sub migrateDS {
         if (@errs) {
             $mig->msg(@errs);
             return 0;
+        }
+
+        if (!$mig->{start_servers}) {
+            $inf->{slapd}->{start_server} = 0;
         }
 
         # create the new instance

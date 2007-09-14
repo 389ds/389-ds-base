@@ -411,7 +411,10 @@ sub update {
         return 0;
     }
 
-    $self->{$ndn}->{data} = $entry;
+    # The cloned entry will not contain the deleted attrs - the cloning
+    # process omits the deleted attrs via the Entry FETCH, FIRSTKEY, and NEXTKEY
+    # methods
+    $self->{$ndn}->{data} = cloneEntry($entry);
     $self->write();
 
     return 1;

@@ -813,7 +813,6 @@ sub createInfFromConfig {
     print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
     print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
     print $outfh "ServerIdentifier = $id\n";
-    print $outfh "start_server= 0\n";
 
     my $suffix;
     $ent = $conn->search("cn=ldbm database,cn=plugins,cn=config",
