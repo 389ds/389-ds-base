@@ -56,6 +56,9 @@ use DSCreate;
 use File::Temp qw(tempfile tempdir);
 use File::Basename qw(basename);
 
+# absolute path handling
+use Cwd qw(realpath);
+
 # load perldap
 use Mozilla::LDAP::Conn;
 use Mozilla::LDAP::Utils qw(normalizeDN);
@@ -104,7 +107,14 @@ my %ignoreOld =
  'nsslapd-ldapigidnumbertype'      => 'nsslapd-ldapigidnumbertype',
  'nsslapd-ldapientrysearchbase'    => 'nsslapd-ldapientrysearchbase',
  'nsslapd-ldapiautodnsuffix'       => 'nsslapd-ldapiautodnsuffix',
- 'numsubordinates'                 => 'numSubordinates'
+ 'numsubordinates'                 => 'numSubordinates',
+ # for these, we just want to use the default values, even if they were
+ # set in 7.1 or later
+ 'nsslapd-db-private-import-mem'   => 'nsslapd-db-private-import-mem',
+ 'nsslapd-import-cache-autosize'   => 'nsslapd-import-cache-autosize',
+ # nsslapd-allidsthreshold does not exist anymore
+ # the analogous concept is nsslapd-idlistscanlimit for searches
+ 'nsslapd-allidsthreshold'         => 'nsslapd-allidsthreshold'
 );
 
 # these are the obsolete entries we do not migrate
@@ -126,19 +136,23 @@ my %alwaysUseOld =
 
 sub getNewDbDir {
     my ($ent, $attr, $mig, $inst) = @_;
+    my $newval;
     my %objclasses = map { lc($_) => $_ } $ent->getValues('objectclass');
     my $cn = $ent->getValues('cn');
-    my $oldval = $ent->getValues($attr);
-    my $newval;
     # there is one case where we want to just use the existing db directory
     # that's the case where the user has moved the indexes and/or the
     # transaction logs to different partitions for performance
     # in that case, the old directory will not be the same as the default,
     # and the directory will exist
-    my $olddefault = "$mig->{actualsroot}/$inst";
-    if (-d $oldval and ($oldval !~ /^$olddefault/)) {
-        debug(2, "Keeping old value [$oldval] for attr $attr in entry ", $ent->getDN(), "\n");
-        return $oldval;
+    # for cross platform, we should just use the new default location
+    if (!$mig->{crossplatform}) {
+        my $oldval = $ent->getValues($attr);
+        my $absoldval = realpath($oldval) || $oldval;
+        my $olddefault = "$mig->{actualsroot}/$inst";
+        if (-d $absoldval and ($absoldval !~ /^$olddefault/)) {
+            debug(2, "Keeping old value [$absoldval] for attr $attr in entry ", $ent->getDN(), "\n");
+            return $oldval;
+        }
     }
     # otherwise, just use the new default locations
     if ("@with_fhs_opt@") {
