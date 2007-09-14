@@ -743,9 +743,9 @@ sub migrateDS {
             return 0;
         }
 
-        if (!$mig->{start_servers}) {
-            $inf->{slapd}->{start_server} = 0;
-        }
+        # create servers but do not start them until after databases
+        # have been migrated
+        $inf->{slapd}->{start_server} = 0;
 
         # create the new instance
         @errs = createDSInstance($inf);
@@ -767,6 +767,15 @@ sub migrateDS {
         if (@errs) {
             $mig->msg(@errs);
             return 0;
+        }
+
+        # finally, start the server
+        if ($mig->{start_servers}) {
+            $inf->{slapd}->{start_server} = 1;
+            if (@errs = DSCreate::startServer($inf)) {
+                $mig->msg(@errs);
+                return 0;
+            }
         }
     }
 
