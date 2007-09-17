@@ -52,35 +52,6 @@
 #define ACQUIRE_CONSUMER_WAS_UPTODATE 104
 #define ACQUIRE_TRANSIENT_ERROR 105
 
-typedef struct windows_private_repl_protocol
-{
-	void (*delete)(struct windows_private_repl_protocol **);
-	void (*run)(struct windows_private_repl_protocol *);
-	int (*stop)(struct windows_private_repl_protocol *);
-	int (*status)(struct windows_private_repl_protocol *);
-	void (*notify_update)(struct windows_private_repl_protocol *);
-	void (*notify_agmt_changed)(struct windows_private_repl_protocol *);
-        void (*notify_window_opened)(struct windows_private_repl_protocol *);
-        void (*notify_window_closed)(struct windows_private_repl_protocol *);
-	void (*update_now)(struct windows_private_repl_protocol *);
-	PRLock *lock;
-	PRCondVar *cvar;
-	int stopped;
-	int terminate;
-	PRUint32 eventbits;
-	Repl_Connection *conn;
-	int last_acquire_response_code;
-	Repl_Agmt *agmt;
-	Object *replica_object;
-	void *private;
-    PRBool replica_acquired;
-} Windows_Private_Repl_Protocol;
-
-/*
-extern Windows_Private_Repl_Protocol *Windows_Inc_Protocol_new();
-extern Windows_Private_Repl_Protocol *Windows_Tot_Protocol_new();
-*/
-
 #define PROTOCOL_TERMINATION_NORMAL 301
 #define PROTOCOL_TERMINATION_ABNORMAL 302
 #define PROTOCOL_TERMINATION_NEEDS_TOTAL_UPDATE 303

@@ -68,6 +68,8 @@ int windows_private_get_isnt4(const Repl_Agmt *ra);
 void windows_private_set_isnt4(const Repl_Agmt *ra, int isit);
 int windows_private_get_iswin2k3(const Repl_Agmt *ra);
 void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit);
+Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra);
+Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra);
 const char* windows_private_get_purl(const Repl_Agmt *ra);
 
 /* in windows_connection.c */

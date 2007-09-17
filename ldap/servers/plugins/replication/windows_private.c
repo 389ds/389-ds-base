@@ -66,6 +66,10 @@ struct windowsprivate {
   char *windows_domain;
   int isnt4;
   int iswin2k3;
+  /* This filter is used to determine if an entry belongs to this agreement.  We put it here
+   * so we only have to allocate each filter once instead of doing it every time we receive a change. */
+  Slapi_Filter *directory_filter; /* Used for checking if local entries need to be sync'd to AD */
+  Slapi_Filter *deleted_filter; /* Used for checking if an entry is an AD tombstone */
 };
 
 static int
@@ -192,6 +196,8 @@ Dirsync_Private* windows_private_new()
 	dp = (Dirsync_Private *)slapi_ch_calloc(sizeof(Dirsync_Private),1);
 
 	dp->dirsync_maxattributecount = -1;
+	dp->directory_filter = NULL;
+	dp->deleted_filter = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_new\n", 0, 0, 0 );
 	return dp;
@@ -206,8 +212,8 @@ void windows_agreement_delete(Repl_Agmt *ra)
 
 	PR_ASSERT(dp  != NULL);
 	
-	/* DBDB: need to free payoad here */
-	
+	slapi_filter_free(dp->directory_filter, 1);
+	slapi_filter_free(dp->deleted_filter, 1);
 	slapi_ch_free((void **)dp);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_delete\n", 0, 0, 0 );
@@ -278,6 +284,53 @@ void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_iswin2k3\n", 0, 0, 0 );
 }
 
+/* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
+Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra)
+{
+		Dirsync_Private *dp;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_filter\n", 0, 0, 0 );
+
+	PR_ASSERT(ra);
+
+		dp = (Dirsync_Private *) agmt_get_priv(ra);
+		PR_ASSERT (dp);
+
+		if (dp->directory_filter == NULL) {
+			char *string_filter = slapi_ch_strdup("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*))");
+			/* The filter gets freed in windows_agreement_delete() */
+                        dp->directory_filter = slapi_str2filter( string_filter );
+			slapi_ch_free_string(&string_filter);
+		}
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_filter\n", 0, 0, 0 );
+
+		return dp->directory_filter;
+}
+
+/* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
+Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra)
+{
+		Dirsync_Private *dp;
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_deleted_filter\n", 0, 0, 0 );
+
+	PR_ASSERT(ra);
+
+		dp = (Dirsync_Private *) agmt_get_priv(ra);
+		PR_ASSERT (dp);
+
+		if (dp->deleted_filter == NULL) {
+			char *string_filter = slapi_ch_strdup("(isdeleted=*)");
+			/* The filter gets freed in windows_agreement_delete() */
+			dp->deleted_filter = slapi_str2filter( string_filter );
+			slapi_ch_free_string(&string_filter);
+		}
+
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_deleted_filter\n", 0, 0, 0 );
+
+		return dp->deleted_filter;
+}
 
 /* Returns a copy of the Slapi_DN pointer, no need to free it */
 const Slapi_DN* windows_private_get_windows_subtree (const Repl_Agmt *ra)

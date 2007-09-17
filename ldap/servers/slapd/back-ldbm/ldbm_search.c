@@ -818,21 +818,6 @@ create_subtree_filter(Slapi_Filter* filter, int managedsait, Slapi_Filter** focr
 }
 
 
-static int
-nscpentrydn_check_filter(Slapi_Filter *f)
-{
-	if (!f || (f->f_choice != LDAP_FILTER_AND))
-		return 0; /* Not nscpEntryDN filter */
-	
-	if ( 0 == strcasecmp ( f->f_and->f_avtype, SLAPI_ATTR_NSCP_ENTRYDN)) {
-		return 1; /* Contains a nscpEntryDN filter */
-	} else if ( 0 == strcasecmp ( f->f_and->f_next->f_avtype, SLAPI_ATTR_NSCP_ENTRYDN)) {
-		return 1; 
-	}
-	return 0; /* Not nscpEntryDN filter */
-}
-
-
 /*
  * Build a candidate list for a SUBTREE scope search.
  */
@@ -885,41 +870,6 @@ subtree_candidates(
         candidates = idl_intersection(be, candidates, descendants);
         idl_free(tmp);
         idl_free(descendants);
-    }
-    /*
-     * If the search is initiated by the Directory Manager,
-     * and the filter includes objectclass=nsTombstone,
-     * then we union the candidate list with all the tombstone
-     * entries in this backend instance.
-     */
-    if (has_tombstone_filter && isroot && !nscpentrydn_check_filter(filter))
-    {
-        IDList *idl;
-        IDList *tmp= candidates;
-        struct slapi_filter     f = {0};
-        f.f_choice = LDAP_FILTER_EQUALITY;
-        f.f_avtype = "objectclass";
-        f.f_avvalue.bv_val = SLAPI_ATTR_VALUE_TOMBSTONE;
-        f.f_avvalue.bv_len = strlen(SLAPI_ATTR_VALUE_TOMBSTONE);
-        f.f_next= NULL;
-        idl = filter_candidates( pb, be, NULL, &f, NULL, 0, err );
-
-        /*
-         * If that gave allids then try (nscpentrydn=*) instead.
-         * The nscpentrydn equality index contains all the tombstones
-         * and can be used to resolve a presence filter without
-         * hitting allids.
-         */
-        if (idl && ALLIDS(idl)) {
-            idl_free(idl);
-            f.f_choice = LDAP_FILTER_PRESENT;
-            f.f_avtype = SLAPI_ATTR_NSCP_ENTRYDN;
-            idl = filter_candidates( pb, be, NULL, &f, NULL, 0, err );
-        }
-
-        candidates = idl_union( be, idl, tmp );
-        idl_free( idl );
-        idl_free( tmp );
     }
 
     return( candidates );

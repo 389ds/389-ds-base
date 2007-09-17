@@ -65,10 +65,12 @@ static Slapi_DN* map_dn_user(Slapi_DN *sdn, int map_to, const Slapi_DN *root);
 static Slapi_DN* map_dn_group(Slapi_DN *sdn, int map_to, const Slapi_DN *root);
 static void make_mods_from_entries(Slapi_Entry *new_entry, Slapi_Entry *existing_entry, LDAPMod ***attrs);
 static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password);
-static int is_subject_of_agreemeent_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
+static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
+static int windows_get_local_tombstone_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
+static int windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity);
 static int map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
 static char* extract_ntuserdomainid_from_entry(Slapi_Entry *e);
 static char* extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn);
@@ -76,7 +78,7 @@ static int windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN*
 static int windows_get_remote_tombstone(Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,Slapi_Entry **remote_entry);
 static int windows_reanimate_tombstone(Private_Repl_Protocol *prp, const Slapi_DN* tombstone_dn, const char* new_dn);
 static const char* op2string (int op);
-static int is_subject_of_agreemeent_remote(Slapi_Entry *e, const Repl_Agmt *ra);
+static int is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra);
 static int map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra);
 static int windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry);
 static int is_guid_dn(Slapi_DN *remote_dn);
@@ -405,7 +407,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 				int missing_entry = 0;
 				Slapi_DN *remote_dn = NULL;
 				/* Now map the DN */
-				is_ours = is_subject_of_agreemeent_local(local_entry,prp->agmt);
+				is_ours = is_subject_of_agreement_local(local_entry,prp->agmt);
 				if (is_ours)
 				{
 					map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 0 /* don't want GUID form here */);
@@ -447,7 +449,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 			retval = windows_get_remote_entry(prp,original_dn,&remote_entry);
 			if (remote_entry && 0 == retval)
 			{
-				is_ours = is_subject_of_agreemeent_remote(remote_entry,prp->agmt);
+				is_ours = is_subject_of_agreement_remote(remote_entry,prp->agmt);
 				if (is_ours)
 				{
 					retval = map_entry_dn_inbound(remote_entry,&local_dn,prp->agmt);	
@@ -1121,10 +1123,16 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	local_dn = slapi_sdn_new_dn_byref( op->target_address.dn );
 
 	/* Since we have the target uniqueid in the op structure, let's
-	 * fetch the local entry here using it.
+	 * fetch the local entry here using it. We do not want to search
+	 * across tombstone entries unless we are dealing with a delete
+	 * operation here since searching across tombstones can be very
+	 * inefficient as the tombstones build up.
 	 */
-	
-	rc = windows_get_local_entry_by_uniqueid(prp, op->target_address.uniqueid, &local_entry);
+	if (op->operation_type != SLAPI_OPERATION_DELETE) {
+		rc = windows_get_local_entry_by_uniqueid(prp, op->target_address.uniqueid, &local_entry);
+	} else {
+		rc = windows_get_local_tombstone_by_uniqueid(prp, op->target_address.uniqueid, &local_entry);
+	}
 
 	if (rc) 
 	{
@@ -1135,7 +1143,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		goto error;
 	}
 
-	is_ours = is_subject_of_agreemeent_local(local_entry, prp->agmt);
+	is_ours = is_subject_of_agreement_local(local_entry, prp->agmt);
 	windows_is_local_entry_user_or_group(local_entry,&is_user,&is_group);
 
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1839,24 +1847,14 @@ attr_compare_present(Slapi_Attr *a, Slapi_Attr *b)
 
 /* Is this entry a tombstone ? */
 static int 
-is_tombstone(Slapi_Entry *e)
+is_tombstone(Private_Repl_Protocol *prp, Slapi_Entry *e)
 {
 	int retval = 0;
 
-	char *string_deleted = slapi_ch_strdup("(isdeleted=*)");
-
-	/* DBDB: we should allocate these filters once and keep them around for better performance */
-	Slapi_Filter *filter_deleted = slapi_str2filter( string_deleted );
-	
-    slapi_ch_free_string(&string_deleted);
-	/* DBDB: this should be one filter, the code originally tested separately and hasn't been fixed yet */
-	if ( (slapi_filter_test_simple( e, filter_deleted ) == 0) )
+	if ( (slapi_filter_test_simple( e, (Slapi_Filter*)windows_private_get_deleted_filter(prp->agmt) ) == 0) )
 	{
 		retval = 1;
 	}
-
-	slapi_filter_free(filter_deleted,1);
-	filter_deleted = NULL;
 
 	return retval;
 }
@@ -2724,7 +2722,7 @@ error:
  * and does it have the right attribute values for sync ?) 
  */
 static int 
-is_subject_of_agreemeent_local(const Slapi_Entry *local_entry, const Repl_Agmt *ra)
+is_subject_of_agreement_local(const Slapi_Entry *local_entry, const Repl_Agmt *ra)
 {
 	int retval = 0;
 	int is_in_subtree = 0;
@@ -2741,23 +2739,16 @@ is_subject_of_agreemeent_local(const Slapi_Entry *local_entry, const Repl_Agmt *
 	{
 		/* Next test for the correct kind of entry */
 		if (local_entry) {
-			/* DBDB: we should allocate these filters once and keep them around for better performance */
-			char *string_filter = slapi_ch_strdup("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*))");
-			Slapi_Filter *filter = slapi_str2filter( string_filter );
-			
-            slapi_ch_free_string(&string_filter);
-			if (slapi_filter_test_simple( (Slapi_Entry*)local_entry, filter ) == 0)
+			if (slapi_filter_test_simple( (Slapi_Entry*)local_entry,
+					(Slapi_Filter*)windows_private_get_directory_filter(ra)) == 0)
 			{
 				retval = 1;
 			}
-
-			slapi_filter_free(filter,1);
-			filter = NULL;
 		} else 
 		{
 			/* Error: couldn't find the entry */
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-				"failed to find entry in is_subject_of_agreemeent_local: %d\n", retval);
+				"failed to find entry in is_subject_of_agreement_local: %d\n", retval);
 			retval = 0;
 		}
 	}
@@ -2767,7 +2758,7 @@ error:
 
 /* Tests if the entry is subject to our agreement (i.e. is it in the sync'ed subtree in AD and either a user or a group ?) */
 static int 
-is_subject_of_agreemeent_remote(Slapi_Entry *e, const Repl_Agmt *ra)
+is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
 {
 	int retval = 0;
 	int is_in_subtree = 0;
@@ -3342,7 +3333,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 	int missing_entry = 0;
 	const Slapi_DN *local_dn = slapi_entry_get_sdn_const(e);
 	/* First check if the entry is for us */
-	is_ours = is_subject_of_agreemeent_local(e, prp->agmt);
+	is_ours = is_subject_of_agreement_local(e, prp->agmt);
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 		"%s: windows_process_total_entry: Looking dn=\"%s\" (%s)\n",
 		agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), is_ours ? "ours" : "not ours");
@@ -3366,8 +3357,8 @@ error:
 	return retval;
 }
 
-int
-windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry , void * component_identity)
+static int
+windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *int_search_pb = NULL;
@@ -3377,7 +3368,15 @@ windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *u
     
     *ret_entry = NULL;
 	local_subtree = windows_private_get_directory_subtree(prp->agmt);
-	filter_string = PR_smprintf("(&(|(objectclass=*)(objectclass=ldapsubentry)(objectclass=nsTombstone))(nsUniqueid=%s))",uniqueid);
+
+	/* Searching for tombstones can be expensive, so the caller needs to specify if
+	 * we should search for a tombstone entry, or a normal entry. */
+	if (tombstone) {
+		filter_string = PR_smprintf("(&(objectclass=nsTombstone)(nsUniqueid=%s))", uniqueid);
+	} else {
+		filter_string = PR_smprintf("(&(|(objectclass=*)(objectclass=ldapsubentry))(nsUniqueid=%s))",uniqueid);
+	}
+
     int_search_pb = slapi_pblock_new ();
 	slapi_search_internal_set_pb ( int_search_pb,  slapi_sdn_get_dn(local_subtree), LDAP_SCOPE_SUBTREE, filter_string,
 								   attrs ,
@@ -3412,13 +3411,28 @@ windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqu
 {
 	int retval = ENTRY_NOTFOUND;
 	Slapi_Entry *new_entry = NULL;
-	windows_search_local_entry_by_uniqueid( prp, uniqueid, NULL, &new_entry,
+	windows_search_local_entry_by_uniqueid( prp, uniqueid, NULL, &new_entry, 0, /* Don't search tombstones */
 			repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION));
 	if (new_entry) 
 	{
 		*local_entry = new_entry;
 		retval = 0;
 	} 
+	return retval;
+}
+
+static int
+windows_get_local_tombstone_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry)
+{
+	int retval = ENTRY_NOTFOUND;
+	Slapi_Entry *new_entry = NULL;
+	windows_search_local_entry_by_uniqueid( prp, uniqueid, NULL, &new_entry, 1, /* Search for tombstones */
+			repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION));
+	if (new_entry)
+	{
+		*local_entry = new_entry;
+		retval = 0;
+	}
 	return retval;
 }
 
@@ -3446,7 +3460,7 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 	/* deleted users are outside the 'correct container'. 
 	They live in cn=deleted objects, windows_private_get_directory_subtree( prp->agmt) */
 
-	if (is_tombstone(e))
+	if (is_tombstone(prp, e))
 	{
 		rc = map_tombstone_dn_inbound(e, &local_sdn, prp->agmt);
 		if ((0 == rc) && local_sdn)
@@ -3461,7 +3475,7 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 	} else 
 	{
 		/* Is this entry one we should be interested in ? */
-		if (is_subject_of_agreemeent_remote(e,prp->agmt)) 
+		if (is_subject_of_agreement_remote(e,prp->agmt)) 
 		{
 			/* First make its local DN */
 			rc = map_entry_dn_inbound(e, &local_sdn, prp->agmt);
