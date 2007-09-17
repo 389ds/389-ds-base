@@ -552,27 +552,27 @@ static struct config_get_and_set {
 	/* parameterizing lock dir */
 	{CONFIG_LOCKDIR_ATTRIBUTE, config_set_lockdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.lockdir, CONFIG_STRING, config_get_lockdir},
+		(void**)&global_slapdFrontendConfig.lockdir, CONFIG_STRING, (ConfigGetFunc)config_get_lockdir},
 	/* parameterizing tmp dir */
 	{CONFIG_TMPDIR_ATTRIBUTE, config_set_tmpdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.tmpdir, CONFIG_STRING, config_get_tmpdir},
+		(void**)&global_slapdFrontendConfig.tmpdir, CONFIG_STRING, (ConfigGetFunc)config_get_tmpdir},
 	/* parameterizing cert dir */
 	{CONFIG_CERTDIR_ATTRIBUTE, config_set_certdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.certdir, CONFIG_STRING, config_get_certdir},
+		(void**)&global_slapdFrontendConfig.certdir, CONFIG_STRING, (ConfigGetFunc)config_get_certdir},
 	/* parameterizing ldif dir */
 	{CONFIG_LDIFDIR_ATTRIBUTE, config_set_ldifdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldifdir, CONFIG_STRING, config_get_ldifdir},
+		(void**)&global_slapdFrontendConfig.ldifdir, CONFIG_STRING, (ConfigGetFunc)config_get_ldifdir},
 	/* parameterizing bak dir */
 	{CONFIG_BAKDIR_ATTRIBUTE, config_set_bakdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.bakdir, CONFIG_STRING, config_get_bakdir},
+		(void**)&global_slapdFrontendConfig.bakdir, CONFIG_STRING, (ConfigGetFunc)config_get_bakdir},
 	/* parameterizing sasl plugin path */
 	{CONFIG_SASLPATH_ATTRIBUTE, config_set_saslpath,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.saslpath, CONFIG_STRING, config_get_saslpath},
+		(void**)&global_slapdFrontendConfig.saslpath, CONFIG_STRING, (ConfigGetFunc)config_get_saslpath},
 	{CONFIG_REWRITE_RFC1274_ATTRIBUTE, config_set_rewrite_rfc1274,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.rewrite_rfc1274, CONFIG_ON_OFF, NULL},
@@ -2655,8 +2655,9 @@ config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, in
   nValue = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", maximum file descriptors must range from 1 to %d (the current process limit)",
-			attrname, value, maxVal );
+	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", maximum "
+			"file descriptors must range from 1 to %d (the current process limit).  "
+			"Server will use a setting of %d.", attrname, value, maxVal, maxVal);
         if ( nValue > maxVal ) {
             nValue = maxVal;
             retVal = LDAP_UNWILLING_TO_PERFORM;
@@ -2707,8 +2708,9 @@ config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int
 #elif !defined(AIX)
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", connection table size must range from 1 to %d"
-                      " (the current process maxdescriptors limit)", attrname, value, maxVal );
+	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", connection table "
+			"size must range from 1 to %d (the current process maxdescriptors limit).  "
+			"Server will use a setting of %d.", attrname, value, maxVal );
         if ( nValue > maxVal) {
             nValue = maxVal;
             retVal = LDAP_UNWILLING_TO_PERFORM;
@@ -2753,8 +2755,9 @@ config_set_reservedescriptors( const char *attrname, char *value, char *errorbuf
   nValue = strtol(value, &endp, 10);
   
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", reserved file descriptors must range from 1 to %d"
-                      " (the current process maxdescriptors limit)", attrname, value, maxVal );
+	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", reserved file "
+			"descriptors must range from 1 to %d (the current process maxdescriptors limit).  "
+			"Server will use a setting of %d.", attrname, value, maxVal, maxVal );
         if ( nValue > maxVal) {
             nValue = maxVal;
             retVal = LDAP_UNWILLING_TO_PERFORM;

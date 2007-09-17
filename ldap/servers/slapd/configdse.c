@@ -294,9 +294,25 @@ load_config_dse(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *ret
 		if (attr_name)
 		{
 			retval = config_set(attr_name, values, returntext, 1 /* force apply */);
-			if ((retval != LDAP_SUCCESS) &&
-				slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_OPATTR))
-				retval = LDAP_SUCCESS; /* ignore attempts to modify operational attrs */
+			if ((strcasecmp(attr_name, CONFIG_MAXDESCRIPTORS_ATTRIBUTE) == 0) ||
+				(strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0) ||
+				(strcasecmp(attr_name, CONFIG_CONNTABLESIZE_ATTRIBUTE) == 0)) {
+				/* We should not treat an LDAP_UNWILLING_TO_PERFORM as fatal for
+				 * the these config attributes.  This error is returned when
+				 * the value we are trying to set is higher than the current
+				 * process limit.  The set function will auto-adjust the runtime
+				 * value to the current process limit when this happens.  We want
+				 * to allow the server to still start in this case. */
+				if (retval == LDAP_UNWILLING_TO_PERFORM) {
+					slapi_log_error (SLAPI_LOG_FATAL, NULL, "Config Warning: - %s\n", returntext);
+					retval = LDAP_SUCCESS;
+				}
+			} else {
+				if ((retval != LDAP_SUCCESS) &&
+					slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_OPATTR)) {
+					retval = LDAP_SUCCESS; /* ignore attempts to modify operational attrs */
+				}
+			}
 		}
 
 		if (values)
