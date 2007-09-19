@@ -222,13 +222,6 @@ dd/mm/yy | Author	| Comments
 #define DEF_REFERRAL	REFERRAL_ON				/*JLS 08-03-01*/
 #define DEF_SCOPE	LDAP_SCOPE_SUBTREE	/* Default for -s */
 
-#ifndef SSL_LIB
-#define SSL_LIB "libldapssl41.so"
-#endif
-#ifndef SSL_LIB_PATH
-#define SSL_LIB_PATH "/qa/ldap/tools/ldclt/src/lib-sparc/ldapcsdk"
-#endif
-
 /*
  * Referral choices...
  */
@@ -409,27 +402,6 @@ typedef struct _simpl_op {
 } thoper;
 
 /*
- * This structure will allow to manage the handlers for ssl-related
- * dynamic loaded functions.
- */
-typedef struct ssl_context {					/*JLS 07-11-00*/
-#ifndef _WIN32
-	void	*libssl;	/* lib ssl handler */		/*JLS 07-11-00*/
-	LDAP	*(*ldapssl_init)(const char *, int, int);	/*JLS 07-11-00*/
-	int	 (*ldapssl_client_init)(const char*, void*);	/*JLS 07-11-00*/
-	int	 (*ldapssl_clientauth_init)(char *, void *, int, char *, void*);
-								/* BK 23-11-00*/
-        int      (*ldapssl_enable_clientauth)(LDAP *, char *, char *, char *);
-                                                                /* BK 22-11-00*/
-#else /* _WIN32 */
-	LDAP	* (LDAP_CALL *ldapssl_init)(const char *, int, int);
-	int	  (LDAP_CALL *ldapssl_client_init)(const char*, void*);
-	int	  (LDAP_CALL *ldapssl_clientauth_init)(char *, void *, int, char *, void*);
-        int       (LDAP_CALL *ldapssl_enable_clientauth)(LDAP *, char *, char *, char *);
-#endif /* _WIN32 */
-} ssl_context;							/*JLS 07-11-00*/
-
-/*
  * Versatile object attribute's field
  * - If ldclt should use a common counter, then this counter will
  *   be in the mctx structure and will be found by the commonField
@@ -578,7 +550,6 @@ typedef struct main_context {
 	int		 slaveConn;	/* Slave has connected */
 	char		*slaves[MAX_SLAVES]; /* Slaves list */
 	int		 slavesNb;	/* Number of slaves */
-	ssl_context	 sslctx;	/* SSL dyn. load ctx */	/*JSL 07-11-00*/
 	int		 timeout;	/* LDAP op. t.o. */
 	struct timeval	 timeval;	/* Timeval structure */
 	struct timeval	 timevalZero;	/* Timeout of zero */

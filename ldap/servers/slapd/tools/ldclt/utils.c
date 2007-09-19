@@ -305,19 +305,10 @@ rndstr (
       else
       {
         /*
-         * Maybe strict ascii required ?
+         * strict ascii required
          */
-        if (1)
-        {
-          if (isascii (newChar) && !iscntrl(newChar))
-            buf[charNum++] = newChar;
-        }
-        else
-        {
-          if (((newChar >= 0x30) && (newChar <= 0x7a)) ||
-              ((newChar >= 0xc0) && (newChar <= 0xf6)))
-            buf[charNum++] = newChar;
-        }
+        if (isascii (newChar) && !iscntrl(newChar))
+          buf[charNum++] = newChar;
       }
     }
 

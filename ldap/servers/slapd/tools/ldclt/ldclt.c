@@ -281,21 +281,17 @@ dd/mm/yy | Author	| Comments
 #include <time.h>		/* ctime(), etc... */		/*JLS 18-08-00*/
 #include <lber.h>		/* ldap C-API BER decl. */
 #include <ldap.h>		/* ldap C-API decl. */
+#include <ldap_ssl.h>           /* ldapssl_init(), etc... */
 #ifdef LDAP_H_FROM_QA_WKA
 #include <proto-ldap.h>		/* ldap C-API prototypes */
 #endif
-#ifdef _WIN32							/*JLS 29-11-00*/
-#include <ldap_ssl.h>		/* ldapssl_init(), etc... */	/*JLS 29-11-00*/
-#else
+#ifndef _WIN32							/*JLS 29-11-00*/
 #include <pthread.h>		/* pthreads(), etc... */
 #include <unistd.h>		/* close(), etc... */
 #include <dlfcn.h>		/* dlopen(), etc... */		/*JLS 07-11-00*/
 #include <sys/resource.h>	/* setrlimit(), etc... */
 #include <sys/time.h>		/* struct rlimit, etc... */
 #endif
-#ifdef HPUX							/*JLS 19-06-01*/
-#include <ldap_ssl.h>		/* ldapssl_init(), etc... */	/*JLS 19-06-01*/
-#endif								/*JLS 19-06-01*/
 
 #include "port.h"		/* Portability definitions */	/*JLS 29-11-00*/
 #include "ldclt.h"		/* This tool's include file */
@@ -370,112 +366,6 @@ ldcltExit (
   }								/*JLS 25-08-00*/
   exit (status);
 }
-
-
-
-
-
-
-#ifdef LDCLT_NO_DLOPEN						/*JLS 01-12-00*/
-int								/*JLS 29-11-00*/
-sslDynLoadInit (void)						/*JLS 29-11-00*/
-{								/*JLS 29-11-00*/
-  mctx.sslctx.ldapssl_init		= ldapssl_init;
-  mctx.sslctx.ldapssl_client_init	= ldapssl_client_init;
-  mctx.sslctx.ldapssl_clientauth_init	= ldapssl_clientauth_init;
-  mctx.sslctx.ldapssl_enable_clientauth	= ldapssl_enable_clientauth;
-  return (0);							/*JLS 29-11-00*/
-}								/*JLS 29-11-00*/
-#else								/*JLS 29-11-00*/
-					/* New function */	/*JLS 07-11-00*/
-/* ****************************************************************************
-	FUNCTION :	sslDynLoadInit
-	PURPOSE :	Initiates the dynamic load of ssl library.
-	INPUT :		None.
-	OUTPUT :	None.
-	RETURN :	-1 if error, 0 else.
-	DESCRIPTION :
- *****************************************************************************/
-int
-sslDynLoadInit (void)
-{
-  char	*buf;							/*JLS 22-11-00*/
-
-  /*
-   * Open the shared library...
-   * Will try to load the hard-coded PATH if not in the PATH.
-   */
-  mctx.sslctx.libssl = dlopen (SSL_LIB, RTLD_LAZY);
-  if (mctx.sslctx.libssl == NULL)
-  {
-    buf = (char *) malloc (strlen (SSL_LIB) + strlen (SSL_LIB_PATH) + 2);
-    strcat (buf, SSL_LIB_PATH);
-    strcat (buf, "/");
-    strcat (buf, SSL_LIB);
-
-    mctx.sslctx.libssl = dlopen (buf, RTLD_LAZY);
-    if (mctx.sslctx.libssl == NULL)
-    {
-      printf ("Cannot dlopen (%s) : %s\n", SSL_LIB, dlerror());
-      return (-1);
-    }
-  }
-
-  /*
-   * Find the address of function and data objects
-   */
-  mctx.sslctx.ldapssl_init = (LDAP *(*)(const char *, int, int)) 
-			dlsym (mctx.sslctx.libssl, "ldapssl_init");
-  if (mctx.sslctx.ldapssl_init == NULL)
-  {
-    printf ("Cannot dlsym (ldapssl_init) : %s\n", dlerror());
-    return (-1);
-  }
-
-  /*
-   * Next function...
-   */
-  mctx.sslctx.ldapssl_client_init = (int (*)(const char*, void*)) 
-			dlsym (mctx.sslctx.libssl, "ldapssl_client_init");
-  if (mctx.sslctx.ldapssl_client_init == NULL)
-  {
-    printf ("Cannot dlsym (ldapssl_client_init) : %s\n", dlerror());
-    return (-1);
-  }
-
- /*
-   * Next function...
-   */
-  mctx.sslctx.ldapssl_clientauth_init = 
-			(int (*)(char *, void *, int, char *, void *))
-			dlsym (mctx.sslctx.libssl, "ldapssl_clientauth_init");
-  if (mctx.sslctx.ldapssl_clientauth_init == NULL)
-  {
-    printf ("Cannot dlsym (ldapssl_enable_clientauth): %s\n", dlerror());    
-    return (-1);
-  }
-
-  /*
-   * Next function...
-   */
-  mctx.sslctx.ldapssl_enable_clientauth = 
-			(int (*)(LDAP *, char *, char *, char *))
-			dlsym (mctx.sslctx.libssl, "ldapssl_enable_clientauth");
-  if (mctx.sslctx.ldapssl_enable_clientauth == NULL)
-  {
-    printf ("Cannot dlsym (ldapssl_enable_clientauth): %s\n", dlerror());    
-    return (-1);
-  }
-
-  return (0);
-}
-#endif	/* LDCLT_NO_DLOPEN */					/*JLS 29-11-00*/
-
-
-
-
-
-
 
 
 						/* New */	/*JLS 23-03-01*/
@@ -1668,8 +1558,7 @@ basicInit (void)
      */
     if (mctx.mode & CLTAUTH)
     {
-      if ((*(mctx.sslctx.ldapssl_clientauth_init))
-	          (mctx.certfile, NULL, 1, mctx.keydbfile, NULL) < 0)
+      if (ldapssl_clientauth_init(mctx.certfile, NULL, 1, mctx.keydbfile, NULL) < 0)
       {
 	fprintf (stderr, "ldclt: %s\n", strerror (errno));
 	fprintf (stderr, "Cannot ldapssl_clientauth_init (%s,%s)\n",
@@ -1678,8 +1567,7 @@ basicInit (void)
 	return (-1);
       }
     } else {
-      if ((*(mctx.sslctx.ldapssl_client_init))			/*JLS 07-11-00*/
-			(mctx.certfile, NULL) < 0)
+      if (ldapssl_client_init(mctx.certfile, NULL) < 0)
       {
 	fprintf (stderr, "ldclt: %s\n", strerror (errno));
 	fprintf (stderr, "Cannot ldapssl_client_init (%s)\n",	/*JLS 08-11-00*/
@@ -3071,13 +2959,6 @@ main (
     fprintf(stderr,"Error : -e rdn needs -e object.\n"); 	/*JLS 23-03-01*/
     ldcltExit (EXIT_PARAMS);					/*JLS 23-03-01*/
   }								/*JLS 23-03-01*/
-
-  /*
-   * Maybe we should load ssl library ?
-   */
-  if (mctx.mode & SSL)						/*JLS 07-11-00*/
-    if (sslDynLoadInit() < 0)					/*JLS 07-11-00*/
-      ldcltExit (EXIT_LOADSSL);					/*JLS 07-11-00*/
 
   /*
    * Basic initialization from the user's parameters/options

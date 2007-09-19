@@ -91,6 +91,7 @@ dd/mm/yy | Author	| Comments
 
 #include <lber.h>	/* ldap C-API BER declarations */
 #include <ldap.h>	/* ldap C-API declarations */
+#include <ldap_ssl.h>	/* ldapssl_init(), etc... */
 
 #include "port.h"	/* Portability definitions */
 #include "ldclt.h"	/* This tool's include file */
@@ -521,8 +522,7 @@ scalab01_connectSuperuser (void)
     /*
      * LDAP session initialization in SSL mode
      */
-    s1ctx.ldapCtx = (LDAP *)(*(mctx.sslctx.ldapssl_init))
-			(mctx.hostname, mctx.port, 1);
+    s1ctx.ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
     if (mctx.mode & VERY_VERBOSE)
       printf ("ldclt[%d]: ctrl: ldapssl_init (%s, %d), ldapCtx=0x%08x\n",
 			mctx.pid, mctx.hostname, mctx.port, (unsigned int)s1ctx.ldapCtx);
@@ -538,8 +538,7 @@ scalab01_connectSuperuser (void)
      */
     if (mctx.mode & CLTAUTH)
     {
-      ret = (int)(*(mctx.sslctx.ldapssl_enable_clientauth))
-		  (s1ctx.ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
+      ret = ldapssl_enable_clientauth(s1ctx.ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
       if (mctx.mode & VERY_VERBOSE)
 	printf
 	    ("ldclt[%d]: ctrl: After ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",

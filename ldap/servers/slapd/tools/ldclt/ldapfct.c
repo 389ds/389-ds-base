@@ -256,6 +256,7 @@ dd/mm/yy | Author	| Comments
 
 #include <sasl.h>
 #include "ldaptool-sasl.h"
+#include <ldap_ssl.h>	/* ldapssl_init(), etc... */
 
 
 
@@ -668,8 +669,7 @@ connectToServer (
        * LDAP session initialization in SSL mode
        * added by: B Kolics (11/10/00)
        */
-      tttctx->ldapCtx = (LDAP *)(*(mctx.sslctx.ldapssl_init)) 	/*JLS 07-11-00*/
-		(mctx.hostname, mctx.port, 1);
+      tttctx->ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
       if (mctx.mode & VERY_VERBOSE)
 	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%08x\n",
 		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
@@ -686,8 +686,7 @@ connectToServer (
        */
       if (mctx.mode & CLTAUTH)
 	{
-	 ret = (int)(*(mctx.sslctx.ldapssl_enable_clientauth))
-		  (tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
+	 ret = ldapssl_enable_clientauth(tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
 	 if (mctx.mode & VERY_VERBOSE)
 	   printf 
 	    ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
@@ -1835,8 +1834,7 @@ createMissingNodes (
        * LDAP session initialization in SSL mode
        * added by: B Kolics (11/10/00)
        */
-      tttctx->ldapCtx = (LDAP *)(*(mctx.sslctx.ldapssl_init)) 	/*JLS 07-11-00*/
-		(mctx.hostname, mctx.port, 1);
+      tttctx->ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
       if (mctx.mode & VERY_VERBOSE)
 	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%08x\n",
 		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
@@ -1853,8 +1851,7 @@ createMissingNodes (
        */
       if (mctx.mode & CLTAUTH)
 	{
-	 ret = (int)(*(mctx.sslctx.ldapssl_enable_clientauth))
-		  (tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
+	 ret = ldapssl_enable_clientauth(tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
 	 if (mctx.mode & VERY_VERBOSE)
 	   printf 
 	     ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
