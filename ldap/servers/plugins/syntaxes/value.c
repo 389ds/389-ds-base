@@ -78,6 +78,13 @@ utf8isspace_fast( char* s )
 ** of the form "cn=a* b*" (note the space) would be wrongly 
 ** normalized into "cn=a*b*", because this function is called
 ** once for "a" and once for " b".
+** richm 20070917 - added integer syntax - note that this implementation
+** of integer syntax tries to mimic the old implementation (atol) as much
+** as possible - leading spaces are ignored, then the optional hyphen for
+** negative numbers, then leading 0s.  That is
+** "    -0000000000001" should normalize to "-1" which is what atol() does
+** Also note that this deviates from rfc 4517 INTEGER syntax, but we must
+** support legacy clients for the time being
 */
 void
 value_normalize(
@@ -105,10 +112,34 @@ value_normalize(
 	      LDAP_UTF8INC(s);
 	  }
 	}
+
+	/* for int syntax, look for leading sign, then trim 0s */
+	/* have to do this after trimming spaces */
+	if (syntax & SYNTAX_INT) {
+		int foundsign = 0;
+		if (*s == '-') {
+			foundsign = 1;
+			LDAP_UTF8INC(s);
+		}
+
+		while (*s && (*s == '0')) {
+			LDAP_UTF8INC(s);
+		}
+
+		/* if there is a hyphen, make sure it is just to the left
+		   of the first significant (i.e. non-zero) digit e.g.
+		   convert -00000001 to -1 */
+		if (foundsign && (s > d)) {
+			*d = '-';
+			d++;
+		}
+		/* s should now point at the first significant digit/char */
+	}
+
 	/* handle value of all spaces - turn into single space */
-	/* unless space insensitive syntax - turn into zero length string */
+	/* unless space insensitive syntax or int - turn into zero length string */
 	if ( *s == '\0' && s != d ) {
-		if ( ! (syntax & SYNTAX_SI)) {
+		if ( ! (syntax & SYNTAX_SI) && ! (syntax & SYNTAX_INT) ) {
 			*d++ = ' ';
 		}
 		*d = '\0';
@@ -175,7 +206,7 @@ value_cmp(
     int			normalize
 )
 {
-	int		rc;
+	int		rc = 0;
 	struct berval bvcopy1;
 	struct berval bvcopy2;
 	char little_buffer[64];
@@ -183,6 +214,7 @@ value_cmp(
 	int buffer_offset = 0;
 	int free_v1 = 0;
 	int free_v2 = 0;
+	int v1sign = 1, v2sign = 1; /* default to positive */
 
 	/* This code used to call malloc up to four times in the copying
 	 * of attributes to be normalized. Now we attempt to keep everything
@@ -221,20 +253,42 @@ value_cmp(
 		value_normalize( v2->bv_val, syntax, 1 /* trim leading blanks */ );
 	}
 
-	switch ( syntax ) {
-	case SYNTAX_CIS:
-	case (SYNTAX_CIS | SYNTAX_TEL):
-	case (SYNTAX_CIS | SYNTAX_DN):
-	case (SYNTAX_CIS | SYNTAX_SI):
-		rc = slapi_utf8casecmp( (unsigned char *)v1->bv_val,
-					(unsigned char *)v2->bv_val );
-		break;
+	if (syntax & SYNTAX_INT) {
+		v1sign = v1->bv_val && (*v1->bv_val != '-');
+		v2sign = v2->bv_val && (*v2->bv_val != '-');
+		rc = v1sign - v2sign;
+		if (rc) { /* one is positive, one is negative */
+			goto done;
+		}
 
-	case SYNTAX_CES:
-		rc = strcmp( v1->bv_val, v2->bv_val );
-		break;
+		/* check magnitude */
+		/* unfortunately, bv_len cannot be trusted - bv_len is not
+		   updated during or after value_normalize */
+		rc = (strlen(v1->bv_val) - strlen(v2->bv_val));
+		if (rc) {
+			rc = (rc > 0) ? 1 : -1;
+			if (!v1sign && !v2sign) { /* both negative */
+				rc = 0 - rc; /* flip it */
+			}
+			goto done;
+		}
 	}
 
+	if (syntax & SYNTAX_CIS) {
+		rc = slapi_utf8casecmp( (unsigned char *)v1->bv_val,
+								(unsigned char *)v2->bv_val );
+	} else if (syntax & SYNTAX_CES) {
+		rc = strcmp( v1->bv_val, v2->bv_val );
+	} else { /* error - unknown syntax */
+		LDAPDebug(LDAP_DEBUG_PLUGIN,
+				  "invalid syntax [%d]\n", syntax, 0, 0);
+	}
+
+	if ((syntax & SYNTAX_INT) && !v1sign && !v2sign) { /* both negative */
+		rc = 0 - rc; /* flip it */
+	}
+
+done:
 	if ( (normalize & 1) && free_v1) {
 		ber_bvfree( v1 );
 	}

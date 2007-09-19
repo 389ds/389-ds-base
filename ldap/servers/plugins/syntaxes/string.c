@@ -73,6 +73,7 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 	SAFEMEMCPY( bvfilter_norm.bv_val, bvfilter->bv_val, bvfilter->bv_len );
 	bvfilter_norm.bv_val[bvfilter->bv_len] = '\0';
 	value_normalize( bvfilter_norm.bv_val, syntax, 1 /* trim leading blanks */ );
+	bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
 
 	for ( i = 0; bvals[i] != NULL; i++ ) {
 		rc = value_cmp( (struct berval*)slapi_value_get_berval(bvals[i]), &bvfilter_norm, syntax, 1/* Normalise the first value only */ );

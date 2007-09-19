@@ -1054,6 +1054,20 @@ static int import_all_done(ImportJob *job, int ret)
     }
 
     if (job->flags & FLAG_ONLINE) {
+        /* make sure the indexes are online as well */
+        /* richm 20070919 - if index entries are added online, they
+           are created and marked as INDEX_OFFLINE, in anticipation
+           of someone doing a db2index.  In this case, the db2index
+           code will correctly unset the INDEX_OFFLINE flag.
+           However, if import is used to create the indexes, the
+           INDEX_OFFLINE flag will not be cleared.  So, we do that
+           here
+        */
+        IndexInfo *index = job->index_list;
+        while (index != NULL) {
+            index->ai->ai_indexmask &= ~INDEX_OFFLINE;
+            index = index->next;
+        }
         /* start up the instance */
         ret = dblayer_instance_start(job->inst->inst_be, DBLAYER_NORMAL_MODE);
         if (ret != 0)

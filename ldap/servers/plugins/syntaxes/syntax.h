@@ -56,6 +56,7 @@
 #define SYNTAX_TEL		4	/* telephone number: used with SYNTAX_CIS */
 #define SYNTAX_DN		8	/* distinguished name: used with SYNTAX_CIS */
 #define SYNTAX_SI		16	/* space insensitive: used with SYNTAX_CIS */
+#define SYNTAX_INT		32	/* INTEGER */
 
 #define SUBLEN	3
 
