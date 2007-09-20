@@ -1264,7 +1264,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     int              numvlv = 0;
     int              return_value = -1;
     ID               temp_id;
-    int              i, j;
+    int              i, j, vlvidx;
     ID               lastid;
     struct backentry *ep;
     char             *type;
@@ -1277,6 +1277,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     int              index_aid = 0;          /* index ancestorid */
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_ldbm2index\n", 0, 0, 0 );
+    if ( g_get_shutdown() || c_get_shutdown() ) {
+        return -1;
+    }
         
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -1387,6 +1390,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
         slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &attrs);
         for (i = 0; attrs[i] != NULL; i++) {
+            if ( g_get_shutdown() || c_get_shutdown() ) {
+                ret = -1;
+                goto out;
+            }
             switch(attrs[i][0]) {
             case 't':        /* attribute type to index */
                 db2index_add_indexed_attr(be, attrs[i]);
@@ -1495,6 +1502,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
      */
     vlv_acquire_lock(be);
     while (1) {
+        if ( g_get_shutdown() || c_get_shutdown() ) {
+            ret = -1;
+            goto out;
+        }
         if (idl) {
             if (idindex >= idl->b_nids)
                 break;
@@ -1597,6 +1608,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
                 slapi_attr_get_type( attr, &type );
                 for ( j = 0; indexAttrs[j] != NULL; j++ ) {
+                    if ( g_get_shutdown() || c_get_shutdown() ) {
+                        ret = -1;
+                        goto out;
+                    }
                     if (slapi_attr_type_cmp(indexAttrs[j], type,
                                             SLAPI_TYPE_CMP_SUBTYPE) == 0 ) {
                         back_txn txn;
@@ -1679,9 +1694,13 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         /*
          * Update the Virtual List View indexes
          */
-        for ( j = 0; j<numvlv; j++ ) {
+        for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
             back_txn txn;
             int rc = 0;
+            if ( g_get_shutdown() || c_get_shutdown() ) {
+                ret = -1;
+                goto out;
+            }
             if (run_from_cmdline)
             {
                 txn.back_txn_txn = NULL;
@@ -1693,7 +1712,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (0 != rc) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: ERROR: failed to begin txn for update index '%s'\n",
-                      inst->inst_name, indexAttrs[j], 0);
+                      inst->inst_name, indexAttrs[vlvidx], 0);
                     LDAPDebug(LDAP_DEBUG_ANY,
                         "%s: Error %d: %s\n", inst->inst_name, rc,
                         dblayer_strerror(rc));
@@ -1701,20 +1720,20 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task,
                          "%s: ERROR: failed to begin txn for update index '%s' "
                          "(err %d: %s)", inst->inst_name,
-                         indexAttrs[j], rc, dblayer_strerror(rc));
+                         indexAttrs[vlvidx], rc, dblayer_strerror(rc));
                     }
                     ret = -2;
                     goto out;
                 }
             }
-            vlv_update_index(pvlv[j], &txn, li, pb, NULL, ep);
+            vlv_update_index(pvlv[vlvidx], &txn, li, pb, NULL, ep);
             if (!run_from_cmdline)
             {
                 rc = dblayer_txn_commit(li, &txn);
                 if (0 != rc) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: ERROR: failed to commit txn for update index '%s'\n",
-                      inst->inst_name, indexAttrs[j], 0);
+                      inst->inst_name, indexAttrs[vlvidx], 0);
                     LDAPDebug(LDAP_DEBUG_ANY,
                         "%s: Error %d: %s\n", inst->inst_name, rc,
                         dblayer_strerror(rc));
@@ -1722,7 +1741,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task,
                         "%s: ERROR: failed to commit txn for update index '%s' "
                         "(err %d: %s)", inst->inst_name,
-                        indexAttrs[j], rc, dblayer_strerror(rc));
+                        indexAttrs[vlvidx], rc, dblayer_strerror(rc));
                     }
                     ret = -2;
                     goto out;
@@ -1809,6 +1828,16 @@ out:
         idl_free(idl);
     } else {
         dbc->c_close(dbc);
+    }
+    if (ret < 0) {/* error case: undo vlv indexing */
+        struct vlvIndex *p = NULL;
+        /* if jumped to out due to an error, vlv lock has not been released */
+        vlv_release_lock(be);
+        for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
+            p = pvlv[vlvidx];
+            vlvIndex_go_offline(p, be);
+            vlvIndex_delete(&p);
+        }
     }
     dblayer_release_id2entry( be, db );
 
