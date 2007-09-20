@@ -478,9 +478,21 @@ static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, 
 	return err;
 }
 
+/*
+  The UUID name based generator was broken on x86 platforms.  We use
+  this to generate the password encryption key.  During migration,
+  we have to fix this so we can use the fixed generator.  The env.
+  var USE_BROKEN_UUID tells the uuid generator to use the old
+  broken method to create the UUID.  That will allow us to decrypt
+  the password to the correct clear text, then we can turn off
+  the broken method and use the fixed method to encrypt the
+  password.
+*/
 char *
 migrateCredentials(char *oldpath, char *newpath, char *oldcred)
 {
+	static char *useBrokenUUID = "USE_BROKEN_UUID=1";
+	static char *disableBrokenUUID = "USE_BROKEN_UUID";
 	char *plain = NULL;
 	char *cipher = NULL;
 
@@ -489,8 +501,15 @@ migrateCredentials(char *oldpath, char *newpath, char *oldcred)
 	slapd_pk11_configurePKCS11(NULL, NULL, tokDes, ptokDes, NULL, NULL, NULL, NULL, 0, 0 );	
 	NSS_NoDB_Init(NULL);
 
+	if (getenv("MIGRATE_BROKEN_PWD")) {
+		putenv(useBrokenUUID);
+	}
+
 	if ( decode_path(oldcred, &plain, oldpath) == 0 )
 	{
+		if (getenv("MIGRATE_BROKEN_PWD")) {
+			putenv(disableBrokenUUID);
+		}
 		if ( encode_path(plain, &cipher, newpath) != 0 )
 			return(NULL);
 		else

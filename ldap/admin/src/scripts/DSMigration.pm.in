@@ -180,7 +180,9 @@ sub migrateCredentials {
     my ($ent, $attr, $mig, $inst) = @_;
     my $oldval = $ent->getValues($attr);
     debug(3, "Executing @bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c \'$oldval\' . . .\n");
+    $ENV{MIGRATE_BROKEN_PWD} = "1"; # passwords prior to 8.0 were encrypted incorrectly
     my $newval = `@bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c \'$oldval\'`;
+    delete $ENV{MIGRATE_BROKEN_PWD}; # clear the flag
     debug(3, "Converted old value [$oldval] to new value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
     return $newval;
 }

@@ -856,10 +856,14 @@ static void format_uuid_v3(guid_t * uuid, unsigned char hash[16])
 
 	memcpy(uuid, hash, sizeof(guid_t));
 
-	/* convert UUID to local byte order */
-	uuid->time_low = PR_ntohl(uuid->time_low);
-	uuid->time_mid = PR_ntohs(uuid->time_mid);
-	uuid->time_hi_and_version = PR_ntohs(uuid->time_hi_and_version);
+	/* when migrating, we skip the ntohl in order to read in old, 
+	   incorrectly formatted uuids */
+	if (!getenv("USE_BROKEN_UUID")) {
+		/* convert UUID to local byte order */
+		uuid->time_low = PR_ntohl(uuid->time_low);
+		uuid->time_mid = PR_ntohs(uuid->time_mid);
+		uuid->time_hi_and_version = PR_ntohs(uuid->time_hi_and_version);
+	}
 
 	/* put in the variant and version bits */
 	uuid->time_hi_and_version &= 0x0FFF;
