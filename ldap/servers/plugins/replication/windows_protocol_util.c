@@ -2971,6 +2971,7 @@ windows_generate_dn_value_mods(char *local_type, const Slapi_Attr *attr, Slapi_M
 	return ret;
 }
 
+/* Generate the mods for an update in either direction.  Be careful... the "remote" entry is the DS entry in the to_windows case, but the AD entry in the other case. */
 static int
 windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry, int to_windows, Slapi_Mods *smods, int *do_modify)
 {
@@ -3033,7 +3034,13 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			}
 			continue;
 		}
-		slapi_entry_attr_find(local_entry,local_type,&local_attr);
+
+		if (to_windows && (0 == slapi_attr_type_cmp(local_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE))) {
+			slapi_entry_attr_find(local_entry,FAKE_STREET_ATTR_NAME,&local_attr);
+		} else {
+			slapi_entry_attr_find(local_entry,local_type,&local_attr);
+		}
+
 		is_present_local = (NULL == local_attr) ? 0 : 1;
 		/* Is the attribute present on the local entry ? */
 		if (is_present_local && !is_guid)
@@ -3041,14 +3048,21 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			if (!mapdn)
 			{
 				int values_equal = 0;
-
                                 /* AD has a legth contraint on the initials attribute,
                                  * so treat is as a special case. */
-				if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
+				if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
 					values_equal = attr_compare_equal(attr, local_attr, AD_INITIALS_LENGTH);
+				/* If we're getting a streetAddress (a fake attr name is used) from AD, then
+				 * we just check if the value in AD is present in our entry in DS.  In this
+				 * case, attr is from the AD entry, and local_attr is from the DS entry. */
 				} else if (0 == slapi_attr_type_cmp(type, FAKE_STREET_ATTR_NAME, SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
-					/* Need to check if attr is present in local_attr */
 					values_equal = attr_compare_present(attr, local_attr);
+				/* If we are checking if we should send a street attribute to AD, then
+				 * we want to first see if the AD entry already contains any street value
+				 * that is present in the DS entry.  In this case, attr is from the DS
+				 * entry, and local_attr is from the AD entry. */ 
+				} else if ((0 == slapi_attr_type_cmp(type, "street", SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
+					values_equal = attr_compare_present(local_attr, attr);
 				} else {
 					/* Compare the entire attribute values */
 					values_equal = attr_compare_equal(attr, local_attr, 0);
@@ -3058,8 +3072,58 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				if (!values_equal)
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are different\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
-					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,local_type,valueset_get_valuearray(vs));
+					"windows_generate_update_mods: %s, %s : values are different\n",
+					slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+
+					if ((0 == slapi_attr_type_cmp(local_type, "streetAddress",
+						SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
+						/* streetAddress is single-valued in AD, so make
+						 * sure we don't try to send more than one value. */
+						if (slapi_valueset_count(vs) > 1) {
+							int i = 0;
+							const char *street_value = NULL;
+							Slapi_Value *value = NULL;
+							Slapi_Value *new_value = NULL;
+
+							i = slapi_valueset_first_value(vs,&value);
+							if (i >= 0) {
+								/* Dup the first value, trash the valueset, then copy
+								 * in the dup'd value. */
+								new_value = slapi_value_dup(value);
+								slapi_valueset_done(vs);
+								/* The below hands off the memory to the valueset */
+								slapi_valueset_add_value_ext(vs, new_value, SLAPI_VALUE_FLAG_PASSIN);
+							}
+						}
+					} else if ((0 == slapi_attr_type_cmp(local_type, "initials",
+						SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
+						/* initials is constratined to a max length of
+						 * 6 characters in AD, so trim the value if
+						 * needed before sending. */
+						int i = 0;
+						const char *initials_value = NULL;
+						Slapi_Value *value = NULL;
+
+						i = slapi_valueset_first_value(vs,&value);
+						while (i >= 0) {
+							initials_value = slapi_value_get_string(value);
+
+							/* If > AD_INITIALS_LENGTH, trim the value */
+							if (strlen(initials_value) > AD_INITIALS_LENGTH) {
+								char *new_initials = PL_strndup(initials_value, AD_INITIALS_LENGTH);
+								/* the below hands off memory */
+								slapi_value_set_string_passin(value, new_initials);
+								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+									"%s: windows_generate_update_mods: "
+									"Trimming initials attribute to %d characters.\n",
+									agmt_get_long_name(prp->agmt), AD_INITIALS_LENGTH);
+							}
+
+							i = slapi_valueset_next_value(vs, i, &value);
+						}
+					}
+					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,
+						local_type,valueset_get_valuearray(vs));
 					*do_modify = 1;
 				} else
 				{
@@ -3125,6 +3189,53 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 						}
 					} else
 					{
+						if ((0 == slapi_attr_type_cmp(local_type, "streetAddress",
+							SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
+							/* streetAddress is single-valued in AD, so make
+							 * sure we don't try to send more than one value. */
+							if (slapi_valueset_count(vs) > 1) {
+								int i = 0;
+								const char *street_value = NULL;
+								Slapi_Value *value = NULL;
+								Slapi_Value *new_value = NULL;
+
+								i = slapi_valueset_first_value(vs,&value);
+								if (i >= 0) {
+									/* Dup the first value, trash the valueset, then copy
+									 * in the dup'd value. */
+									new_value = slapi_value_dup(value);
+									slapi_valueset_done(vs);
+									/* The below hands off the memory to the valueset */
+									slapi_valueset_add_value_ext(vs, new_value, SLAPI_VALUE_FLAG_PASSIN);
+								}
+							}
+						} else if ((0 == slapi_attr_type_cmp(local_type, "initials",
+							SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
+							/* initials is constratined to a max length of
+							 * 6 characters in AD, so trim the value if
+							 * needed before sending. */
+							int i = 0;
+							const char *initials_value = NULL;
+							Slapi_Value *value = NULL;
+
+							i = slapi_valueset_first_value(vs,&value);
+							while (i >= 0) {
+								initials_value = slapi_value_get_string(value);
+
+								/* If > AD_INITIALS_LENGTH, trim the value */
+								if (strlen(initials_value) > AD_INITIALS_LENGTH) {
+									char *new_initials = PL_strndup(initials_value, AD_INITIALS_LENGTH);
+									/* the below hands off memory */
+									slapi_value_set_string_passin(value, new_initials);
+									slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+										"%s: windows_generate_update_mods: "
+										"Trimming initials attribute to %d characters.\n",
+                                                                        agmt_get_long_name(prp->agmt), AD_INITIALS_LENGTH);
+								}
+
+								i = slapi_valueset_next_value(vs, i, &value);
+							}
+						}
 						slapi_mods_add_mod_values(smods,LDAP_MOD_ADD,local_type,valueset_get_valuearray(vs));
 					}
 				}
