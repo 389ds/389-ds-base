@@ -88,13 +88,11 @@ Slapi_PBlock	*repl_pb = NULL;
 /*
  * global variables that need mutex protection
  */
-int		active_threads;
 PRInt32		ops_initiated;
 PRInt32		ops_completed;
 PRLock		*ops_mutex;
 int		num_conns;
 PRLock		*num_conns_mutex;
-
 
 /*
   DEC/COMPAQ has released a patch for 4.0d (e?) which will speed up

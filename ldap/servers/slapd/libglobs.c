@@ -735,6 +735,29 @@ strarray2bervalarray(const char **strarray)
 }
 
 /*
+ * counter for active threads
+ */
+static PRInt32 active_threads = 0;
+
+void
+g_incr_active_threadcnt()
+{
+    PR_AtomicIncrement(&active_threads);
+}
+
+void
+g_decr_active_threadcnt()
+{
+    PR_AtomicDecrement(&active_threads);
+}
+
+int
+g_get_active_threadcnt()
+{
+    return (int)active_threads;
+}
+
+/*
 ** Setting this flag forces the server to shutdown.
 */
 static int slapd_shutdown;

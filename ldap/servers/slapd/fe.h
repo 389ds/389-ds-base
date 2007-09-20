@@ -56,7 +56,6 @@ extern __declspec(dllimport) int slapd_ldap_debug;
 #endif /* DONT_DECLARE_SLAPD_LDAP_DEBUG */
 #endif
 #endif
-extern int active_threads;
 extern PRInt32 ops_initiated;
 extern PRInt32 ops_completed;
 extern PRLock *ops_mutex;

@@ -402,7 +402,7 @@ init_op_threads()
 			LDAPDebug( LDAP_DEBUG_ANY, "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				prerr, slapd_pr_strerror( prerr ), 0 );
 		} else {
-			PR_AtomicIncrement(&active_threads);
+			g_incr_active_threadcnt();
 		}
 	}
 }
@@ -746,7 +746,7 @@ connection_threadmain()
 			}
 		}
 	}
-	PR_AtomicDecrement(&active_threads);
+	g_decr_active_threadcnt();
 }
 
 static int handle_read_data(Connection *conn,Operation **op,
@@ -1948,9 +1948,11 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 		   No bother to do so much calcuation, short-cut to non-turbo mode if no activities in passed interval */
 		new_mode = 0;
 	} else {
+	  double activet = 0.0;
 	  connection_find_our_rank(conn,&connection_count, &our_rank);
 	  LDAPDebug(LDAP_DEBUG_CONNS,"conn %d turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
-	  threshold_rank = (int)((double)active_threads * ((double)CONN_TURBO_PERCENTILE / 100.0) );
+	  activet = (double)g_get_active_threadcnt();
+	  threshold_rank = (int)(activet * ((double)CONN_TURBO_PERCENTILE / 100.0));
 
 	  /* adjust threshold_rank according number of connections,
 	     less turbo threads as more connections,
@@ -2023,7 +2025,7 @@ connection_threadmain()
 		if( op_shutdown ) {
 			LDAPDebug( LDAP_DEBUG_TRACE, 
 			"op_thread received shutdown signal\n",	0, 0, 0 );
-			PR_AtomicDecrement(&active_threads);
+			g_decr_active_threadcnt();
 			return;
 		}
 
@@ -2039,7 +2041,7 @@ connection_threadmain()
 				case CONN_SHUTDOWN:
 					LDAPDebug( LDAP_DEBUG_TRACE, 
 					"op_thread received shutdown signal\n", 					0,  0, 0 );
-					PR_AtomicDecrement(&active_threads);
+					g_decr_active_threadcnt();
 					return;
 				case CONN_FOUND_WORK_TO_DO:
 				default:
@@ -2102,7 +2104,7 @@ connection_threadmain()
 			case CONN_SHUTDOWN:
 				LDAPDebug( LDAP_DEBUG_TRACE, 
 				"op_thread received shutdown signal\n", 					0,  0, 0 );
-				PR_AtomicDecrement(&active_threads);
+				g_decr_active_threadcnt();
 				return;
 			default:
 				break;
@@ -2333,7 +2335,7 @@ op_thread_cleanup()
 #ifdef _WIN32 
     LDAPDebug( LDAP_DEBUG_ANY,
               "slapd shutting down - waiting for %d threads to terminate\n",
-              active_threads, 0, 0 );
+              g_get_active_threadcnt(), 0, 0 );
     /* kill off each worker waiting on GetQueuedCompletionStatus */
     for ( i = 0; i < max_threads; ++ i )
     {

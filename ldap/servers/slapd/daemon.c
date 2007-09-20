@@ -352,7 +352,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 		configure_ns_socket( &ns );
 	}
 #endif
-	
+
 	return ns;
 }
 
@@ -807,15 +807,16 @@ void slapd_daemon( daemon_ports_t *ports )
 	housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
 
 #ifndef _WIN32
-	if ( active_threads > 0 ) {
+	threads = g_get_active_threadcnt();
+	if ( threads > 0 ) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 			"slapd shutting down - waiting for %d thread%s to terminate\n",
-			active_threads, ( active_threads > 1 ) ? "s" : "", 0 );
+			threads, ( threads > 1 ) ? "s" : "", 0 );
 	}
 #endif
 
-	threads = active_threads;
-	while ( active_threads > 0 ) {
+	threads = g_get_active_threadcnt();
+	while ( threads > 0 ) {
 		PRPollDesc xpd;
 		char x;
 		int spe = 0;
@@ -845,11 +846,11 @@ void slapd_daemon( daemon_ports_t *ports )
 		    /* no data */
 		}
 		DS_Sleep(PR_INTERVAL_NO_WAIT);
-		if ( threads != active_threads )  {
+		if ( threads != g_get_active_threadcnt() )  {
 			LDAPDebug( LDAP_DEBUG_TRACE,
 					"slapd shutting down - waiting for %d threads to terminate\n",
-					active_threads, 0, 0 );
-			threads = active_threads;
+					g_get_active_threadcnt(), 0, 0 );
+			threads = g_get_active_threadcnt();
 		}
 	}
 
@@ -1247,7 +1248,7 @@ handle_timeout( void )
 		snmp_collator_update();
 
 		prevtime = curtime;
-		num_active_threads = active_threads;
+		num_active_threads = g_get_active_threadcnt();
 		if ( (num_active_threads == 0)  || 
 			(difftime(curtime, housekeeping_fire_time) >= 
 		slapd_housekeeping_timer*3) ) {

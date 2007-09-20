@@ -73,9 +73,9 @@ static int shutting_down = 0;
 
 
 static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
-					   Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+                       Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
-					 Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+                     Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int task_generic_destructor(Slapi_Task *task);
 
 /* create a new task, fill in DN, and setup modify callback */
@@ -94,16 +94,16 @@ new_task(const char *dn)
     task->task_dn = slapi_ch_strdup(dn);
     task->destructor = task_generic_destructor;
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
-								   LDAP_SCOPE_BASE, "(objectclass=*)", task_modify, (void *)task);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", task_modify, (void *)task);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn,
-								   LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
     /* don't add entries under this one */
 #if 0
     /* don't know why, but this doesn't work.  it makes the current add
      * operation fail. :(
      */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
-								   LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
+                                   LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
 #endif
 
     return task;
@@ -139,11 +139,11 @@ destroy_task(time_t when, void *arg)
     }
 
     slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
-								 task->task_dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_modify);
+                                 task->task_dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_modify);
     slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
-								 task->task_dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny);
+                                 task->task_dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny);
     slapi_delete_internal_set_pb(pb, task->task_dn, NULL, NULL,
-								 (void *)plugin_get_default_component_id(), 0);
+                                 (void *)plugin_get_default_component_id(), 0);
 
     slapi_delete_internal_pb(pb);
     slapi_pblock_destroy(pb);
@@ -175,7 +175,7 @@ slapi_new_task(const char *dn)
 void
 slapi_destroy_task(void *arg)
 {
-	destroy_task(1, arg);
+    destroy_task(1, arg);
 }
 
 /**********  some useful helper functions  **********/
@@ -204,7 +204,7 @@ static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn)
     int ret = 0;
 
     slapi_search_internal_set_pb(pb, dn, LDAP_SCOPE_BASE, "(objectclass=*)",
-								 NULL, 0, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
+                                 NULL, 0, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS) {
@@ -225,17 +225,17 @@ static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn)
 static void modify_internal_entry(char *dn, LDAPMod **mods)
 {
     Slapi_PBlock pb;
-	Slapi_Operation *op;
+    Slapi_Operation *op;
     int ret = 0;
     int tries = 0;
     int dont_write_file = 1;
 
     do {
 
-    	pblock_init(&pb);
+        pblock_init(&pb);
 
-    	slapi_modify_internal_set_pb(&pb, dn, mods, NULL, NULL,
-		(void *)plugin_get_default_component_id(), 0);
+        slapi_modify_internal_set_pb(&pb, dn, mods, NULL, NULL,
+        (void *)plugin_get_default_component_id(), 0);
 
         /* all modifications to the cn=tasks subtree are transient --
          * we erase them all when the server starts up next time, so there's
@@ -243,10 +243,10 @@ static void modify_internal_entry(char *dn, LDAPMod **mods)
          */
 
         slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
-		/* Make sure these mods are not logged in audit or changelog */
-		slapi_pblock_get(&pb, SLAPI_OPERATION, &op);
-		operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
-		
+        /* Make sure these mods are not logged in audit or changelog */
+        slapi_pblock_get(&pb, SLAPI_OPERATION, &op);
+        operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
+
         slapi_modify_internal_pb(&pb);
         slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
         if (ret != LDAP_SUCCESS) {
@@ -257,13 +257,13 @@ static void modify_internal_entry(char *dn, LDAPMod **mods)
             if (tries == 3) {
                 LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't modify task "
                         "entry '%s'; %s (%d)\n", dn, ldap_err2string(ret), ret);
-				pblock_done(&pb);
+                pblock_done(&pb);
                 return;
             }
             DS_Sleep(PR_SecondsToInterval(1));
         }
 
-		pblock_done(&pb);
+        pblock_done(&pb);
 
     } while (ret != LDAP_SUCCESS);
 }
@@ -283,9 +283,9 @@ void slapi_task_log_status(Slapi_Task *task, char *format, ...)
     va_list ap;
 
     if (! task->task_status)
-		task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
+        task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
     if (! task->task_status)
-		return;		/* out of memory? */
+        return;        /* out of memory? */
 
     va_start(ap, format);
     PR_vsnprintf(task->task_status, (10 * LOG_BUFFER), format, ap);
@@ -308,22 +308,22 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
 
     len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
     if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
-		size_t i;
-		char *newbuf;
+        size_t i;
+        char *newbuf;
 
-		/* start from middle of buffer, and find next linefeed */
-		i = strlen(task->task_log)/2;
-		while (task->task_log[i] && (task->task_log[i] != '\n'))
-			i++;
-		if (task->task_log[i])
-			i++;
-		len = strlen(task->task_log) - i + 2 + strlen(buffer);
-		newbuf = (char *)slapi_ch_malloc(len);
-		if (! newbuf)
-			return;	/* out of memory? */
-		strcpy(newbuf, task->task_log + i);
-		slapi_ch_free((void **)&task->task_log);
-		task->task_log = newbuf;
+        /* start from middle of buffer, and find next linefeed */
+        i = strlen(task->task_log)/2;
+        while (task->task_log[i] && (task->task_log[i] != '\n'))
+            i++;
+        if (task->task_log[i])
+            i++;
+        len = strlen(task->task_log) - i + 2 + strlen(buffer);
+        newbuf = (char *)slapi_ch_malloc(len);
+        if (! newbuf)
+            return;    /* out of memory? */
+        strcpy(newbuf, task->task_log + i);
+        slapi_ch_free((void **)&task->task_log);
+        task->task_log = newbuf;
     } else {
         if (! task->task_log) {
             task->task_log = (char *)slapi_ch_malloc(len);
@@ -331,8 +331,8 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
         } else {
             task->task_log = (char *)slapi_ch_realloc(task->task_log, len);
         }        
-		if (! task->task_log)
-			return;	/* out of memory? */
+        if (! task->task_log)
+            return;    /* out of memory? */
     }
 
     if (task->task_log[0])
@@ -359,7 +359,7 @@ static int task_generic_destructor(Slapi_Task *task)
 
 
 static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
-					 Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+                     Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     /* internal operations (conn=NULL) are allowed to do whatever they want */
     if (pb->pb_conn == NULL) {
@@ -372,7 +372,7 @@ static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
 }
 
 static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
-					   Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+                       Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Task *task = (Slapi_Task *)arg;
     LDAPMod **mods;
@@ -420,7 +420,7 @@ static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
 }
 
 static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
-						   Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+                           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -433,7 +433,7 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_PBlock mypb;
     Slapi_Task *task;
     char *nameFrombe_name = NULL;
-	const char *encrypt_on_import = NULL;
+    const char *encrypt_on_import = NULL;
 
     if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -465,40 +465,40 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
         char **instances, **ip;
         int counter;
 
-		if (slapi_lookup_instance_name_by_suffixes(include, exclude,
-												   &instances) < 0) {
-        	LDAPDebug(LDAP_DEBUG_ANY,
-					  "ERROR: No backend instance is specified.\n", 0, 0, 0);
-        	*returncode = LDAP_OBJECT_CLASS_VIOLATION;
-        	return SLAPI_DSE_CALLBACK_ERROR;
-		}
+        if (slapi_lookup_instance_name_by_suffixes(include, exclude,
+                                                   &instances) < 0) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                      "ERROR: No backend instance is specified.\n", 0, 0, 0);
+            *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+            return SLAPI_DSE_CALLBACK_ERROR;
+        }
 
         if (instances) {
             for (ip = instances, counter = 0; ip && *ip; ip++, counter++)
                 ;
 
-			if (counter == 1){
-				instance_name = *instances;
-				nameFrombe_name = *instances;
-				
-			}
-			else if (counter == 0) {
-        		LDAPDebug(LDAP_DEBUG_ANY,
-						  "ERROR: No backend instance is specified.\n", 0, 0, 0);
-        		*returncode = LDAP_OBJECT_CLASS_VIOLATION;
-        		return SLAPI_DSE_CALLBACK_ERROR;
-			} else {
-        		LDAPDebug(LDAP_DEBUG_ANY,
-						  "ERROR: Multiple backend instances are specified: "
-						  "%s, %s, ...\n", instances[0], instances[1], 0);
-        		*returncode = LDAP_OBJECT_CLASS_VIOLATION;
-        		return SLAPI_DSE_CALLBACK_ERROR;
-			}
-		} else {
-        	*returncode = LDAP_OBJECT_CLASS_VIOLATION;
-        	return SLAPI_DSE_CALLBACK_ERROR;
-		}
-	}
+            if (counter == 1){
+                instance_name = *instances;
+                nameFrombe_name = *instances;
+                
+            }
+            else if (counter == 0) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                          "ERROR: No backend instance is specified.\n", 0, 0, 0);
+                *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+                return SLAPI_DSE_CALLBACK_ERROR;
+            } else {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                          "ERROR: Multiple backend instances are specified: "
+                          "%s, %s, ...\n", instances[0], instances[1], 0);
+                *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+                return SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else {
+            *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+            return SLAPI_DSE_CALLBACK_ERROR;
+        }
+    }
 
     /* lookup the backend */
     be = slapi_be_select_by_instance_name(instance_name);
@@ -576,9 +576,9 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     mypb.pb_ldif_exclude = exclude;
     mypb.pb_task = task;
     mypb.pb_task_flags = TASK_RUNNING_AS_TASK;
-	if (NULL != encrypt_on_import && 0 == strcasecmp(encrypt_on_import, "true") ) {
-		mypb.pb_ldif_encrypt = 1;
-	}
+    if (NULL != encrypt_on_import && 0 == strcasecmp(encrypt_on_import, "true") ) {
+        mypb.pb_ldif_encrypt = 1;
+    }
 
     rv = (*mypb.pb_plugin->plg_ldif2db)(&mypb);
     if (rv == 0) {
@@ -615,6 +615,7 @@ static void task_export_thread(void *arg)
     int count;
     Slapi_Task *task = pb->pb_task;
 
+    g_incr_active_threadcnt();
     for (count = 0, inp = instance_names; *inp; inp++, count++)
         ;
     task->task_work = count;
@@ -623,7 +624,7 @@ static void task_export_thread(void *arg)
     slapi_task_status_changed(task);
 
     for (inp = instance_names; *inp; inp++) {
-		int release_me = 0;
+        int release_me = 0;
         /* lookup the backend */
         be = slapi_be_select_by_instance_name((const char *)*inp);
         if (be == NULL) {
@@ -639,39 +640,39 @@ static void task_export_thread(void *arg)
 
         /* ldif_file name for each? */
         if (pb->pb_ldif_printkey & EXPORT_APPENDMODE) {
-			if (inp == instance_names) { /* first export */
-				pb->pb_ldif_printkey |= EXPORT_APPENDMODE_1;
-			} else {
-				pb->pb_ldif_printkey &= ~EXPORT_APPENDMODE_1;
-			}
-		} else {
-        	if (strcmp(ldif_file, "-")) {	/* not '-' */
-            	char *p;
+            if (inp == instance_names) { /* first export */
+                pb->pb_ldif_printkey |= EXPORT_APPENDMODE_1;
+            } else {
+                pb->pb_ldif_printkey &= ~EXPORT_APPENDMODE_1;
+            }
+        } else {
+            if (strcmp(ldif_file, "-")) {    /* not '-' */
+                char *p;
 #if defined( _WIN32 )
-				char sep = '\\';
-				if (NULL != strchr(ldif_file, '/'))
-					sep = '/';
+                char sep = '\\';
+                if (NULL != strchr(ldif_file, '/'))
+                    sep = '/';
 #else
-    			char sep = '/';
+                char sep = '/';
 #endif
-            	this_ldif_file = (char *)slapi_ch_malloc(strlen(ldif_file) +
+                this_ldif_file = (char *)slapi_ch_malloc(strlen(ldif_file) +
                                                      strlen(*inp) + 2);
-            	p = strrchr(ldif_file, sep);
-            	if (NULL == p) {
-                	sprintf(this_ldif_file, "%s_%s", *inp, ldif_file);
-            	} else {
-                	char *q;
+                p = strrchr(ldif_file, sep);
+                if (NULL == p) {
+                    sprintf(this_ldif_file, "%s_%s", *inp, ldif_file);
+                } else {
+                    char *q;
 
-                	q = p + 1;
-                	*p = '\0';
-                	sprintf(this_ldif_file, "%s%c%s_%s",
-											ldif_file, sep, *inp, q);
-                	*p = sep;
-            	}
-            	pb->pb_ldif_file = this_ldif_file;
-				release_me = 1;
-			}
-		}
+                    q = p + 1;
+                    *p = '\0';
+                    sprintf(this_ldif_file, "%s%c%s_%s",
+                                            ldif_file, sep, *inp, q);
+                    *p = sep;
+                }
+                pb->pb_ldif_file = this_ldif_file;
+                release_me = 1;
+            }
+        }
 
         slapi_task_log_notice(task, "Beginning export of '%s'", *inp);
         LDAPDebug(LDAP_DEBUG_ANY, "Beginning export of '%s'\n", *inp, 0, 0);
@@ -714,10 +715,11 @@ static void task_export_thread(void *arg)
     task->task_exitcode = rv;
     task->task_state = SLAPI_TASK_FINISHED;
     slapi_task_status_changed(task);
+    g_decr_active_threadcnt();
 }
 
 static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
-						   Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
@@ -748,16 +750,16 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
         goto out;
     }
 
-	decrypt_on_export = fetch_attr(e, "nsExportDecrypt", NULL);
+    decrypt_on_export = fetch_attr(e, "nsExportDecrypt", NULL);
 
     /* nsInstances -- from here on, memory has been allocated */
     if (slapi_entry_attr_find(e, "nsInstance", &attr) == 0) {
-    	for (idx = slapi_attr_first_value(attr, &val);
+        for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
             charray_add(&instance_names,
                         slapi_ch_strdup(slapi_value_get_string(val)));
             instance_cnt++;
-    	}
+        }
     }
 
     /* include/exclude suffixes */
@@ -879,7 +881,7 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
         }
         if (be->be_database->plg_db2ldif == NULL) {
             LDAPDebug(LDAP_DEBUG_ANY, "ERROR: no db2ldif function defined for "
-					  "backend %s\n", be->be_database->plg_name, 0, 0);
+                      "backend %s\n", be->be_database->plg_name, 0, 0);
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             rv = SLAPI_DSE_CALLBACK_ERROR;
             goto out;
@@ -914,14 +916,14 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
     mypb->pb_instance_name = (char *)instance_names;
     mypb->pb_task = task;
     mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
-	if (NULL != decrypt_on_export && 0 == strcasecmp(decrypt_on_export, "true") ) {
-		mypb->pb_ldif_encrypt = 1;
-	}
+    if (NULL != decrypt_on_export && 0 == strcasecmp(decrypt_on_export, "true") ) {
+        mypb->pb_ldif_encrypt = 1;
+    }
 
     /* start the export as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_export_thread,
-							 (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-							 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+                        (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                        PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "unable to create ldbm2ldif thread!\n", 0, 0, 0);
@@ -955,6 +957,7 @@ static void task_backup_thread(void *arg)
     Slapi_Task *task = pb->pb_task;
     int rv;
 
+    g_incr_active_threadcnt();
     task->task_work = 1;
     task->task_progress = 0;
     task->task_state = SLAPI_TASK_RUNNING;
@@ -983,10 +986,11 @@ static void task_backup_thread(void *arg)
 
     slapi_ch_free((void **)&pb->pb_seq_val);
     slapi_pblock_destroy(pb);
+    g_decr_active_threadcnt();
 }
 
 static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
-						   Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+                           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Backend *be = NULL;
     PRThread *thread = NULL;
@@ -1070,8 +1074,8 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
     /* start the backup as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_backup_thread,
-							 (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-							 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+                             (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "unable to create backup thread!\n", 0, 0, 0);
@@ -1099,6 +1103,7 @@ static void task_restore_thread(void *arg)
     Slapi_Task *task = pb->pb_task;
     int rv;
 
+    g_incr_active_threadcnt();
     task->task_work = 1;
     task->task_progress = 0;
     task->task_state = SLAPI_TASK_RUNNING;
@@ -1127,10 +1132,11 @@ static void task_restore_thread(void *arg)
 
     slapi_ch_free((void **)&pb->pb_seq_val);
     slapi_pblock_destroy(pb);
+    g_decr_active_threadcnt();
 }
 
 static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
-							Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+                            Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Backend *be = NULL;
     const char *cn = NULL;
@@ -1222,8 +1228,8 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
     /* start the restore as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_restore_thread,
-							 (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-							 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+                             (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "unable to create restore thread!\n", 0, 0, 0);
@@ -1251,6 +1257,7 @@ static void task_index_thread(void *arg)
     Slapi_Task *task = pb->pb_task;
     int rv;
 
+    g_incr_active_threadcnt();
     task->task_work = 1;
     task->task_progress = 0;
     task->task_state = SLAPI_TASK_RUNNING;
@@ -1271,10 +1278,11 @@ static void task_index_thread(void *arg)
     charray_free(pb->pb_db2index_attrs);
     slapi_ch_free((void **)&pb->pb_instance_name);
     slapi_pblock_destroy(pb);
+    g_decr_active_threadcnt();
 }
 
 static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
-						  Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
+                          Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     const char *instance_name;
     const char *cn;
@@ -1317,7 +1325,7 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
     /* normal indexes */
     if (slapi_entry_attr_find(e, "nsIndexAttribute", &attr) == 0) {
-    	for (idx = slapi_attr_first_value(attr, &val);
+        for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
             const char *indexname = slapi_value_get_string(val);
             char *index = slapi_ch_smprintf("t%s", indexname);
@@ -1325,12 +1333,12 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
             if (index != NULL) {
                 charray_add(&indexlist, index);
             }
-    	}
+        }
     }
 
     /* vlv indexes */
     if (slapi_entry_attr_find(e, "nsIndexVlvAttribute", &attr) == 0) {
-    	for (idx = slapi_attr_first_value(attr, &val);
+        for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
             const char *indexname = slapi_value_get_string(val);
             char *index = slapi_ch_smprintf("T%s", indexname);
@@ -1338,7 +1346,7 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
             if (index != NULL) {
                 charray_add(&indexlist, index);
             }
-    	}
+        }
     }
 
     if (NULL == indexlist) {
@@ -1375,8 +1383,8 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
     /* start the db2index as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_index_thread,
-							 (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-							 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+                             (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "unable to create index thread!\n", 0, 0, 0);
@@ -1576,62 +1584,62 @@ void slapi_task_status_changed(Slapi_Task *task)
  */
 void task_cleanup(void)
 {
-	Slapi_PBlock *pb = slapi_pblock_new();
-	Slapi_Entry **entries = NULL;
-	int ret = 0, i, x;
-	Slapi_DN *rootDN;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_Entry **entries = NULL;
+    int ret = 0, i, x;
+    Slapi_DN *rootDN;
 
-	slapi_search_internal_set_pb(pb, TASK_BASE_DN, LDAP_SCOPE_SUBTREE,
-								 "(objectclass=*)", NULL, 0, NULL, NULL,
-								 (void *)plugin_get_default_component_id(), 0);
-	slapi_search_internal_pb(pb);
-	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
-	if (ret != LDAP_SUCCESS) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: entire cn=tasks tree seems to "
-				  "be AWOL!\n", 0, 0, 0);
-		slapi_pblock_destroy(pb);
-		return;
-	}
+    slapi_search_internal_set_pb(pb, TASK_BASE_DN, LDAP_SCOPE_SUBTREE,
+                                 "(objectclass=*)", NULL, 0, NULL, NULL,
+                                 (void *)plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+    if (ret != LDAP_SUCCESS) {
+        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: entire cn=tasks tree seems to "
+                  "be AWOL!\n", 0, 0, 0);
+        slapi_pblock_destroy(pb);
+        return;
+    }
 
-	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-	if (NULL == entries) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: entire cn=tasks tree seems to "
-				  "be AWOL!\n", 0, 0, 0);
-		slapi_pblock_destroy(pb);
-		return;
-	}
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    if (NULL == entries) {
+        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: entire cn=tasks tree seems to "
+                  "be AWOL!\n", 0, 0, 0);
+        slapi_pblock_destroy(pb);
+        return;
+    }
 
-	rootDN = slapi_sdn_new_dn_byval(TASK_BASE_DN);
+    rootDN = slapi_sdn_new_dn_byval(TASK_BASE_DN);
 
-	/* rotate through entries, skipping the base dn */
-	for (i = 0; entries[i] != NULL; i++) {
-		const Slapi_DN *sdn = slapi_entry_get_sdn_const(entries[i]);
-		Slapi_PBlock *mypb;
-		Slapi_Operation *op;
-		
-		if (slapi_sdn_compare(sdn, rootDN) == 0)
-			continue;
+    /* rotate through entries, skipping the base dn */
+    for (i = 0; entries[i] != NULL; i++) {
+        const Slapi_DN *sdn = slapi_entry_get_sdn_const(entries[i]);
+        Slapi_PBlock *mypb;
+        Slapi_Operation *op;
+        
+        if (slapi_sdn_compare(sdn, rootDN) == 0)
+            continue;
 
-		mypb = slapi_pblock_new();
-		if (mypb == NULL) {
-			continue;
-		}
-		slapi_delete_internal_set_pb(mypb, slapi_sdn_get_dn(sdn), NULL, NULL,
-									 plugin_get_default_component_id(), 0);
+        mypb = slapi_pblock_new();
+        if (mypb == NULL) {
+            continue;
+        }
+        slapi_delete_internal_set_pb(mypb, slapi_sdn_get_dn(sdn), NULL, NULL,
+                                     plugin_get_default_component_id(), 0);
 
-		/* Make sure these deletes don't appear in the audit and change logs */
-		slapi_pblock_get(mypb, SLAPI_OPERATION, &op);
-		operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
+        /* Make sure these deletes don't appear in the audit and change logs */
+        slapi_pblock_get(mypb, SLAPI_OPERATION, &op);
+        operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
 
-		x = 1;
-		slapi_pblock_set(mypb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
-		slapi_delete_internal_pb(mypb);
-		slapi_pblock_destroy(mypb);
-	}
+        x = 1;
+        slapi_pblock_set(mypb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
+        slapi_delete_internal_pb(mypb);
+        slapi_pblock_destroy(mypb);
+    }
 
-	slapi_sdn_free(&rootDN);
-	slapi_free_search_results_internal(pb);
-	slapi_pblock_destroy(pb);
+    slapi_sdn_free(&rootDN);
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
 }
 
 /* name is, for exmaple, "import" */
@@ -1639,7 +1647,7 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
 {
     char *dn = NULL;
     Slapi_PBlock *pb = NULL;
-	Slapi_Operation *op;
+    Slapi_Operation *op;
     LDAPMod *mods[3];
     LDAPMod mod[3];
     const char *objectclass[3];
@@ -1676,10 +1684,10 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
                               plugin_get_default_component_id(), 0);
     x = 1;
     slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
-	/* Make sure these adds don't appear in the audit and change logs */
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
-	
+    /* Make sure these adds don't appear in the audit and change logs */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
+
     slapi_add_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &x);
     if ((x != LDAP_SUCCESS) && (x != LDAP_ALREADY_EXISTS)) {
@@ -1692,12 +1700,12 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
 
     /* register add callback */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP,
-								   dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", func, NULL);
+                                   dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", func, NULL);
     /* deny modify/delete of the root task entry */
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
-								   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
+                                   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
-								   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
+                                   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
 
     ret = 0;
 
