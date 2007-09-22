@@ -625,6 +625,8 @@ sub mergeConfigEntries {
                 fixAttrsInEntry($oldent, $mig, $inst);
                 $rc = $dest->add($oldent);
                 $op = "add";
+            } else {
+                debug(2, "Ignoring entry $dn - configuration not supported\n");
             }
         } elsif (!$oldent && $newent) {
             if ($dn =~ /o=deleteAfterMigration/i) {
