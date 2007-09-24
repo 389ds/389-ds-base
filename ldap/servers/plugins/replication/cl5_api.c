@@ -6643,7 +6643,7 @@ static char* _cl5GetHelperEntryKey (int type, char *csnStr)
 	CSN *csn= csn_new();
 	char *rt;
 
-	csn_set_time(csn, type);
+	csn_set_time(csn, (time_t)type);
 	csn_set_replicaid(csn, 0);
 
 	rt = csn_as_string(csn, PR_FALSE, csnStr);

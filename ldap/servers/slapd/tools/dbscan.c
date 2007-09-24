@@ -93,6 +93,12 @@ typedef unsigned char uint8_t;
 #define SLAPI_OPERATION_ANY      0xFFFFFFFFUL
 #define SLAPI_OPERATION_NONE     0x00000000UL
 
+/* changelog ruv info.  These correspond with some special csn
+ * timestamps from cl5_api.c */
+#define ENTRY_COUNT_KEY	"0000006f" /* 111 csn timestamp */
+#define PURGE_RUV_KEY	"000000de" /* 222 csn timestamp */
+#define MAX_RUV_KEY	"0000014d" /* 333 csn timestamp */
+
 #define ONEMEG (1024*1024)
 
 #if defined(linux)
@@ -431,6 +437,25 @@ void _cl5ReadMod(char **buff)
     free(type);
 }
 
+/* data format: <value count> <value size> <value> <value size> <value> ..... */
+void print_ruv(unsigned char *buff)
+{
+    char *pos = buff;
+    uint32 i;
+    uint32 val_count;
+
+    /* need to do the copy first, to skirt around alignment problems on
+       certain architectures */
+    memcpy((char *)&val_count, pos, sizeof(val_count));
+    val_count = ntohl(val_count);
+    pos += sizeof (uint32);
+
+    for (i = 0; i < val_count; i++)
+    {
+        print_ber_attr(NULL, &pos);
+    }
+}
+
 /*
    *** Copied from cl5_api:cl5DBData2Entry ***
    Data in db format:
@@ -674,7 +699,17 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
         } else if (file_type & CHANGELOGTYPE) {
             /* changelog db file */
             printf("\ndbid: %s\n", format(key->data, key->size, buf, buflen));
-            print_changelog(data->data, data->size);
+            if (strncasecmp((char *)key->data, ENTRY_COUNT_KEY, 8) == 0) {
+                printf("\tentry count: %d\n", *(int*)data->data);
+            } else if (strncasecmp((char *)key->data, PURGE_RUV_KEY, 8) == 0) {
+                printf("\tpurge ruv:\n");
+                print_ruv(data->data);
+	    } else if (strncasecmp((char *)key->data, MAX_RUV_KEY, 8) == 0) {
+                printf("\tmax ruv:\n");
+                print_ruv(data->data);
+            } else {
+                print_changelog(data->data, data->size);
+            }
             return;
         } else if (file_type & ENTRYTYPE) {
             /* id2entry file */
