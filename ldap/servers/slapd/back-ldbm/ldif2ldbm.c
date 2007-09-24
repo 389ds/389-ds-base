@@ -58,7 +58,7 @@ static char *sourcefile = "ldif2ldbm.c";
 static int db2index_add_indexed_attr(backend *be, char *attrString);
 
 static int ldbm_exclude_attr_from_export( struct ldbminfo *li,
-		const char *attr, int dump_uniqueid );
+                                          const char *attr, int dump_uniqueid );
 
 
 /**********  common routines for classic/deluxe import code **********/
@@ -92,14 +92,14 @@ static PLHashNumber import_subcount_hash_fn(const void *id)
 void import_subcount_stuff_init(import_subcount_stuff *stuff)
 {
     stuff->hashtable = PL_NewHashTable(IMPORT_SUBCOUNT_HASHTABLE_SIZE,
-	import_subcount_hash_fn, import_subcount_hash_compare_keys,
-	import_subcount_hash_compare_values, NULL, NULL);
+    import_subcount_hash_fn, import_subcount_hash_compare_keys,
+    import_subcount_hash_compare_values, NULL, NULL);
 }
 
 void import_subcount_stuff_term(import_subcount_stuff *stuff)
 {
     if ( stuff != NULL && stuff->hashtable != NULL ) {
-	PL_HashTableDestroy(stuff->hashtable);
+        PL_HashTableDestroy(stuff->hashtable);
     }
 }
 
@@ -108,7 +108,7 @@ void import_subcount_stuff_term(import_subcount_stuff *stuff)
  * [used by both ldif2db and db2ldif]
  */
 int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
-			      char ***exclude)
+                              char ***exclude)
 {
     char **pb_incl, **pb_excl;
     char subtreeDn[BUFSIZ];
@@ -121,18 +121,18 @@ int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
 
     /* normalize */
     if (pb_excl) {
-	for (i = 0; pb_excl[i]; i++) {
-	    PL_strncpyz(subtreeDn, pb_excl[i], sizeof(subtreeDn));
-	    normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
-	    charray_add(exclude, slapi_ch_strdup(normSubtreeDn));
-	}
+        for (i = 0; pb_excl[i]; i++) {
+            PL_strncpyz(subtreeDn, pb_excl[i], sizeof(subtreeDn));
+            normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
+            charray_add(exclude, slapi_ch_strdup(normSubtreeDn));
+        }
     }
     if (pb_incl) {
-	for (i = 0; pb_incl[i]; i++) {
-	    PL_strncpyz(subtreeDn, pb_incl[i], sizeof(subtreeDn));
-	    normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
-	    charray_add(include, slapi_ch_strdup(normSubtreeDn));
-	}
+        for (i = 0; pb_incl[i]; i++) {
+            PL_strncpyz(subtreeDn, pb_incl[i], sizeof(subtreeDn));
+            normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
+            charray_add(include, slapi_ch_strdup(normSubtreeDn));
+        }
     }
     return (pb_incl || pb_excl);
 }
@@ -140,10 +140,10 @@ int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
 void ldbm_back_free_incl_excl(char **include, char **exclude)
 {
     if (include) {
-	charray_free(include);
+        charray_free(include);
     }
     if (exclude) {
-	charray_free(exclude);
+        charray_free(exclude);
     }
 }
 
@@ -155,26 +155,26 @@ int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
     int i = 0;
     
     if (!(include || exclude))
-	return(1);
+        return(1);
 
     if (exclude) {
-	i = 0;
-	while (exclude[i]) {
-	    if (slapi_dn_issuffix(dn,exclude[i]))
-		return(0);
-	    i++;
-	}
+        i = 0;
+        while (exclude[i]) {
+            if (slapi_dn_issuffix(dn,exclude[i]))
+               return(0);
+            i++;
+        }
     }
 
     if (include) {
-	i = 0;
-	while (include[i]) {
-	    if (slapi_dn_issuffix(dn,include[i]))
-		return(1);
-	    i++;
-	}
-	/* not in include... bye. */
-	return(0);
+        i = 0;
+        while (include[i]) {
+            if (slapi_dn_issuffix(dn,include[i]))
+                return(1);
+            i++;
+        }
+        /* not in include... bye. */
+        return(0);
     }
 
     return(1);
@@ -190,10 +190,10 @@ int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
  * Currenty the list of these is: numSubordinates, hasSubordinates
  */
 int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
-		 int *status)
+                 int *status)
 {
     backend *be;
-    const char *pdn;
+    char *pdn;
     ID pid = 0;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
@@ -203,46 +203,46 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
      */
 
     if (NULL != status) {
-	*status = IMPORT_ADD_OP_ATTRS_OK;
+        *status = IMPORT_ADD_OP_ATTRS_OK;
     }
 
     /* parentid */
     if ( (pdn = slapi_dn_parent( backentry_get_ndn(ep))) != NULL ) {
-	struct berval bv;
-	IDList *idl;
-	int err = 0;
+        struct berval bv;
+        IDList *idl;
+        int err = 0;
 
-	/*
-	 * read the entrydn index to get the id of the parent
-	 * If this entry's parent is not present in the index, 
-	 * we'll get a DB_NOTFOUND error here.
-	 * In olden times, we just ignored this, but now...
-	 * we see this as meaning that the entry is either a
-	 * suffix entry, or its erroneous. So, we signal this to the
-	 * caller via the status parameter.
-	 */
-        bv.bv_val = (char *)pdn;
-	bv.bv_len = strlen(pdn);
-	if ( (idl = index_read( be, "entrydn", indextype_EQUALITY, &bv, NULL,
-				&err )) != NULL ) {
-	    pid = idl_firstid( idl );
-	    idl_free( idl );
-	} else {
-	    /* empty idl */
-	    if ( 0 != err && DB_NOTFOUND != err ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "database error %d\n", err, 0, 0 );
-		slapi_ch_free( (void**)&pdn );
-		return( -1 );
-	    }
-	    if (NULL != status) {
-	        *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
-	    }
-	}
-	slapi_ch_free( (void**)&pdn );
+        /*
+         * read the entrydn index to get the id of the parent
+         * If this entry's parent is not present in the index, 
+         * we'll get a DB_NOTFOUND error here.
+         * In olden times, we just ignored this, but now...
+         * we see this as meaning that the entry is either a
+         * suffix entry, or its erroneous. So, we signal this to the
+         * caller via the status parameter.
+         */
+        bv.bv_val = pdn;
+        bv.bv_len = strlen(pdn);
+        if ( (idl = index_read( be, "entrydn", indextype_EQUALITY, &bv, NULL,
+                                &err )) != NULL ) {
+            pid = idl_firstid( idl );
+            idl_free( idl );
+        } else {
+            /* empty idl */
+            if ( 0 != err && DB_NOTFOUND != err ) {
+                LDAPDebug( LDAP_DEBUG_ANY, "database error %d\n", err, 0, 0 );
+                slapi_ch_free_string( &pdn );
+                return( -1 );
+            }
+            if (NULL != status) {
+                *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
+            }
+        }
+        slapi_ch_free_string( &pdn );
     } else {
-	if (NULL != status) {
-	    *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
-	}
+        if (NULL != status) {
+            *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
+        }
     }
 
     /* Get rid of attributes you're not allowed to specify yourself */
@@ -260,7 +260,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
 
 /* Update subordinate count in a hint list, given the parent's ID */
 int import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id,
-				size_t count)
+                                size_t count)
 {
     PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable,(void*)parent_id));
     PL_HashTableAdd(mothers->hashtable,(void*)parent_id,(void*)count);
@@ -269,18 +269,18 @@ int import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id,
 
 /* Look for a subordinate count in a hint list, given the parent's ID */
 static int import_subcount_mothers_lookup(import_subcount_stuff *mothers,
-	ID parent_id, size_t *count)
+        ID parent_id, size_t *count)
 {
     size_t stored_count = 0;
 
     *count = 0;
     /* Lookup hash table for ID */
     stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-					      (void*)parent_id);
+                                              (void*)parent_id);
     /* If present, return the count found */
     if (0 != stored_count) {
-	*count = stored_count;
-	return 0;
+        *count = stored_count;
+        return 0;
     }
     return -1;
 }
@@ -292,7 +292,7 @@ int import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
 
     /* Lookup the hash table for the target ID */
     stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-					      (void*)parent_id);
+                                              (void*)parent_id);
     PR_ASSERT(0 != stored_count);
     /* Increment the count */
     stored_count++;
@@ -301,7 +301,7 @@ int import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
 }
 
 static int import_update_entry_subcount(backend *be, ID parentid,
-					size_t sub_count)
+                                        size_t sub_count)
 {
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     int ret = 0;
@@ -313,8 +313,8 @@ static int import_update_entry_subcount(backend *be, ID parentid,
     /* Get hold of the parent */
     e = id2entry(be,parentid,NULL,&ret);
     if ( (NULL == e) || (0 != ret)) {
-	ldbm_nasty(sourcefile,5,ret);
-	return (0 == ret) ? -1 : ret;
+        ldbm_nasty(sourcefile,5,ret);
+        return (0 == ret) ? -1 : ret;
     }
     /* Lock it (not really required since we're single-threaded here, but 
      * let's do it so we can reuse the modify routines) */
@@ -325,19 +325,19 @@ static int import_update_entry_subcount(backend *be, ID parentid,
        let's check whether it's already there or not */
     isreplace = (attrlist_find(e->ep_entry->e_attrs, numsubordinates) != NULL);
     {
-	int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
-	Slapi_Mods *smods= slapi_mods_new();
+        int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
+        Slapi_Mods *smods= slapi_mods_new();
 
         slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsubordinates,
-			strlen(value_buffer), value_buffer);
-    	ret = modify_apply_mods(&mc,smods); /* smods passed in */
+                       strlen(value_buffer), value_buffer);
+        ret = modify_apply_mods(&mc,smods); /* smods passed in */
     }
     if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
-	/* This will correctly index subordinatecount: */
-	ret = modify_update_all(be,NULL,&mc,NULL);
-	if (0 == ret) {
-	    modify_switch_entries( &mc,be);
-	}
+        /* This will correctly index subordinatecount: */
+        ret = modify_update_all(be,NULL,&mc,NULL);
+        if (0 == ret) {
+            modify_switch_entries( &mc,be);
+        }
     }
     modify_term(&mc,be);
     return ret;
@@ -418,136 +418,136 @@ static int import_subcount_trawl(backend *be, import_subcount_trawl_info *trawl_
  * 
  */
 int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
-			     DB_TXN *txn)
+                             DB_TXN *txn)
 {
-	int ret = 0;
-	DB *db    = NULL;
-	DBC *dbc  = NULL; 
-	struct attrinfo  *ai  = NULL;
-	DBT key  = {0};
-	DBT data = {0};
-	import_subcount_trawl_info *trawl_list = NULL;
+    int ret = 0;
+    DB *db    = NULL;
+    DBC *dbc  = NULL; 
+    struct attrinfo  *ai  = NULL;
+    DBT key  = {0};
+    DBT data = {0};
+    import_subcount_trawl_info *trawl_list = NULL;
 
-	/* Open the parentid index */
-	ainfo_get( be, "parentid", &ai );
+    /* Open the parentid index */
+    ainfo_get( be, "parentid", &ai );
 
-	/* Open the parentid index file */
-	if ( (ret = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-		ldbm_nasty(sourcefile,67,ret);
-		return(ret);
-	}
+    /* Open the parentid index file */
+    if ( (ret = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
+        ldbm_nasty(sourcefile,67,ret);
+        return(ret);
+    }
 
-	/* Get a cursor so we can walk through the parentid */
-	ret = db->cursor(db,txn,&dbc,0);
-	if (ret != 0 ) {
-		ldbm_nasty(sourcefile,68,ret);
+    /* Get a cursor so we can walk through the parentid */
+    ret = db->cursor(db,txn,&dbc,0);
+    if (ret != 0 ) {
+        ldbm_nasty(sourcefile,68,ret);
                 dblayer_release_index_file( be, ai, db );
-		return ret;
-	}
+        return ret;
+    }
 
-	/* Walk along the index */
-	while (1) {
-		size_t sub_count = 0;
-		int found_count = 1;
-		ID parentid = 0;
-	
-		/* Foreach key which is an equality key : */
-		data.flags = DB_DBT_MALLOC;
-		key.flags = DB_DBT_MALLOC;
-		ret = dbc->c_get(dbc,&key,&data,DB_NEXT_NODUP);
-		if (NULL != data.data) {
-			free(data.data);
-			data.data = NULL;
-		}
-		if (0 != ret) {
-			if (ret != DB_NOTFOUND) {
-				ldbm_nasty(sourcefile,62,ret);
-			}
-			if (NULL != key.data) {
-				free(key.data);
-				key.data = NULL;
-			}
-			break;
-		}
-		if (*(char*)key.data == EQ_PREFIX) {
-			char *idptr = NULL;
-	
-			/* construct the parent's ID from the key */
-			/* Look for the ID in the hint list supplied by the caller */
-			/* If its there, we know the answer already */
-			idptr = (((char *) key.data) + 1);
-			parentid = (ID) atol(idptr);
-			PR_ASSERT(0 != parentid);
-			ret = import_subcount_mothers_lookup(mothers,parentid,&sub_count);
-			if (0 != ret) {
-				IDList *idl = NULL;
-		
-				/* If it's not, we need to compute it ourselves: */
-				/* Load the IDL matching the key */
-				key.flags = DB_DBT_REALLOC;
-				ret = NEW_IDL_NO_ALLID;
-				idl = idl_fetch(be,db,&key,NULL,NULL,&ret);
-				if ( (NULL == idl) || (0 != ret)) {
-					ldbm_nasty(sourcefile,4,ret);
+    /* Walk along the index */
+    while (1) {
+        size_t sub_count = 0;
+        int found_count = 1;
+        ID parentid = 0;
+    
+        /* Foreach key which is an equality key : */
+        data.flags = DB_DBT_MALLOC;
+        key.flags = DB_DBT_MALLOC;
+        ret = dbc->c_get(dbc,&key,&data,DB_NEXT_NODUP);
+        if (NULL != data.data) {
+            free(data.data);
+            data.data = NULL;
+        }
+        if (0 != ret) {
+            if (ret != DB_NOTFOUND) {
+                ldbm_nasty(sourcefile,62,ret);
+            }
+            if (NULL != key.data) {
+                free(key.data);
+                key.data = NULL;
+            }
+            break;
+        }
+        if (*(char*)key.data == EQ_PREFIX) {
+            char *idptr = NULL;
+    
+            /* construct the parent's ID from the key */
+            /* Look for the ID in the hint list supplied by the caller */
+            /* If its there, we know the answer already */
+            idptr = (((char *) key.data) + 1);
+            parentid = (ID) atol(idptr);
+            PR_ASSERT(0 != parentid);
+            ret = import_subcount_mothers_lookup(mothers,parentid,&sub_count);
+            if (0 != ret) {
+                IDList *idl = NULL;
+        
+                /* If it's not, we need to compute it ourselves: */
+                /* Load the IDL matching the key */
+                key.flags = DB_DBT_REALLOC;
+                ret = NEW_IDL_NO_ALLID;
+                idl = idl_fetch(be,db,&key,NULL,NULL,&ret);
+                if ( (NULL == idl) || (0 != ret)) {
+                    ldbm_nasty(sourcefile,4,ret);
                                         dblayer_release_index_file( be, ai, db );
-					return (0 == ret) ? -1 : ret;
-				}
-				/* The number of IDs in the IDL tells us the number of
-				 * subordinates for the entry */
-				/* Except, the number might be above the allidsthreshold,
-				 * in which case */
-				if (ALLIDS(idl)) {
-					/* We add this ID to the list for which to trawl */
-					import_subcount_trawl_add(&trawl_list,parentid);
-					found_count = 0;
-				} else {
-					/* We get the count from the IDL */
-					sub_count = idl->b_nids;
-				}
-				idl_free(idl);
-			} 
-			/* Did we get the count ? */
-			if (found_count) {
-				PR_ASSERT(0 != sub_count);
-				/* If so, update the parent now */
-				import_update_entry_subcount(be,parentid,sub_count);
-			}
-		}
-		if (NULL != key.data) {
-			free(key.data);
-			key.data = NULL;
-		}
-	}
+                    return (0 == ret) ? -1 : ret;
+                }
+                /* The number of IDs in the IDL tells us the number of
+                 * subordinates for the entry */
+                /* Except, the number might be above the allidsthreshold,
+                 * in which case */
+                if (ALLIDS(idl)) {
+                    /* We add this ID to the list for which to trawl */
+                    import_subcount_trawl_add(&trawl_list,parentid);
+                    found_count = 0;
+                } else {
+                    /* We get the count from the IDL */
+                    sub_count = idl->b_nids;
+                }
+                idl_free(idl);
+            } 
+            /* Did we get the count ? */
+            if (found_count) {
+                PR_ASSERT(0 != sub_count);
+                /* If so, update the parent now */
+                import_update_entry_subcount(be,parentid,sub_count);
+            }
+        }
+        if (NULL != key.data) {
+            free(key.data);
+            key.data = NULL;
+        }
+    }
 
-	ret = dbc->c_close(dbc);
-	if (0 != ret) {
-		ldbm_nasty(sourcefile,6,ret);
-	}
-	dblayer_release_index_file( be, ai, db );
+    ret = dbc->c_close(dbc);
+    if (0 != ret) {
+        ldbm_nasty(sourcefile,6,ret);
+    }
+    dblayer_release_index_file( be, ai, db );
 
-	/* Now see if we need to go trawling through id2entry for the info
-	 * we need */
-	if (NULL != trawl_list) {
-		ret = import_subcount_trawl(be,trawl_list);
-		if (0 != ret) {
-			ldbm_nasty(sourcefile,7,ret);
-		}
-	}
-	return(ret);
+    /* Now see if we need to go trawling through id2entry for the info
+     * we need */
+    if (NULL != trawl_list) {
+        ret = import_subcount_trawl(be,trawl_list);
+        if (0 != ret) {
+            ldbm_nasty(sourcefile,7,ret);
+        }
+    }
+    return(ret);
 }
 
 
 /**********  ldif2db entry point  **********/
 
 /*
-	Some notes about this stuff: 
+    Some notes about this stuff: 
 
-	The front-end does call our init routine before calling us here.
-	So, we get the regular chance to parse the config file etc.
-	However, it does _NOT_ call our start routine, so we need to
-	do whatever work that did and which we need for this work , here.
-	Furthermore, the front-end simply exits after calling us, so we need
-	to do any cleanup work here also.
+    The front-end does call our init routine before calling us here.
+    So, we get the regular chance to parse the config file etc.
+    However, it does _NOT_ call our start routine, so we need to
+    do whatever work that did and which we need for this work , here.
+    Furthermore, the front-end simply exits after calling us, so we need
+    to do any cleanup work here also.
  */
 
 /*
@@ -600,7 +600,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
 
         cache_clear(&inst->inst_cache);
         dblayer_instance_close(inst->inst_be);
-    	dblayer_delete_indices(inst);
+        dblayer_delete_indices(inst);
     } else {
         /* from the command line, libdb needs to be started up */
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
@@ -665,14 +665,14 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
 
     /* for each subtree spec... */
     for (i = 0; include[i]; i++) {
-	IDList *idl = NULL;
+        IDList *idl = NULL;
 
         /* 
          * First map the suffix to its entry ID.
          * Note that the suffix is already normalized.
          */
-	bv.bv_val = include[i];
-	bv.bv_len = strlen(include[i]);
+        bv.bv_val = include[i];
+        bv.bv_len = strlen(include[i]);
         idl = index_read(be, "entrydn", indextype_EQUALITY, &bv, txn, err);
         if (idl == NULL) {
             LDAPDebug(LDAP_DEBUG_ANY, "warning: entrydn not indexed on '%s'\n",
@@ -697,14 +697,14 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         idl_insert(&idl, id);
 
         /* Merge the idlists */
-	if (! idltotal) {
-	    idltotal = idl;
-	} else if (idl) {
-	    idltmp = idl_union(be, idltotal, idl);
-	    idl_free(idltotal);
-	    idl_free(idl);
-	    idltotal = idltmp;
-	}
+        if (! idltotal) {
+            idltotal = idl;
+        } else if (idl) {
+            idltmp = idl_union(be, idltotal, idl);
+            idl_free(idltotal);
+            idl_free(idl);
+            idltotal = idltmp;
+        }
     }
     
     return idltotal;
@@ -1104,7 +1104,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
 
         /* do not output attributes that are in the "exclude" list */
-		/* Also, decrypt any encrypted attributes, if we're asked to */
+        /* Also, decrypt any encrypted attributes, if we're asked to */
         rc = slapi_entry_first_attr( ep->ep_entry, &this_attr );
         while (0 == rc) {
             rc = slapi_entry_next_attr( ep->ep_entry,
@@ -1115,13 +1115,13 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             } 
             this_attr = next_attr;
         }
-		if (decrypt) {
-			/* Decrypt in place */
-			rc = attrcrypt_decrypt_entry(be, ep);
-			if (rc) {
-				LDAPDebug(LDAP_DEBUG_ANY,"Failed to decrypt entry%s\n", ep->ep_entry->e_sdn , 0, 0);
-			}
-		}
+        if (decrypt) {
+            /* Decrypt in place */
+            rc = attrcrypt_decrypt_entry(be, ep);
+            if (rc) {
+                LDAPDebug(LDAP_DEBUG_ANY,"Failed to decrypt entry%s\n", ep->ep_entry->e_sdn , 0, 0);
+            }
+        }
 
         data.data = slapi_entry2str_with_options( ep->ep_entry, &len, options );
         data.size = len + 1;
@@ -1181,7 +1181,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     if (idl) {
         idl_free(idl);
     }
-	if (dbc) {
+    if (dbc) {
         dbc->c_close(dbc);
     }
 
@@ -1239,7 +1239,7 @@ static void ldbm2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst,
               "ldbm2index: Unknown VLV Index named '%s'\n", index, 0, 0);
     LDAPDebug(LDAP_DEBUG_ANY,
               "ldbm2index: Known VLV Indexes are: %s\n", text, 0, 0);
-    slapi_ch_free((void**)&text);
+    slapi_ch_free_string(&text);
 }
 
 /*
@@ -1263,22 +1263,24 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     IDList           *idl = NULL; /* optimization for vlv index creation */
     int              numvlv = 0;
     int              return_value = -1;
+    int              rc = -1;
     ID               temp_id;
     int              i, j, vlvidx;
     ID               lastid;
-    struct backentry *ep;
+    struct backentry *ep = NULL;
     char             *type;
     NIDS             idindex = 0;
     int              count = 0;
     Slapi_Attr       *attr;
     Slapi_Task       *task;
-    int              ret = 0;
     int              isfirst = 1;
     int              index_aid = 0;          /* index ancestorid */
+    struct vlvIndex  *vlvip = NULL;
+    back_txn         txn;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_ldbm2index\n", 0, 0, 0 );
     if ( g_get_shutdown() || c_get_shutdown() ) {
-        return -1;
+        return return_value;
     }
         
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
@@ -1291,6 +1293,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         /* No ldbm backend exists until we process the config info. */
         li->li_flags |= TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
+        txn.back_txn_txn = NULL;    /* no transaction */
     }
 
     inst = ldbm_instance_find_by_name(li, instance_name);
@@ -1301,7 +1304,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         }
         LDAPDebug(LDAP_DEBUG_ANY, "Unknown ldbm instance %s\n",
                   instance_name, 0, 0);
-        return -1;
+        return return_value;
     }
     be = inst->inst_be;
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
@@ -1316,14 +1319,14 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         if (0 != dblayer_start(li,DBLAYER_INDEX_MODE)) {
             LDAPDebug( LDAP_DEBUG_ANY,
                        "ldbm2index: Failed to init database\n", 0, 0, 0 );
-            return( -1 );
+            return return_value;
         }
 
         /* dblayer_instance_start will init the id2entry index. */
         if (0 != dblayer_instance_start(be, DBLAYER_INDEX_MODE)) {
             LDAPDebug(LDAP_DEBUG_ANY, "db2ldif: Failed to init instance\n",
                       0, 0, 0);
-            return -1;
+            return return_value;
         }
 
         /* Initialise the Virtual List View code */
@@ -1335,34 +1338,31 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm: '%s' is already in the middle of "
                   "another task and cannot be disturbed.\n",
                   inst->inst_name, 0, 0);
-        return -1;
+        return return_value;
     }
 
     if ((( dblayer_get_id2entry( be, &db )) != 0 ) || (db == NULL)) {
         LDAPDebug( LDAP_DEBUG_ANY, "Could not open/create id2entry\n",
                    0, 0, 0 );
-        instance_set_not_busy(inst);
-        return( -1 );
+        goto err_min;
     }
 
     /* get a cursor to we can walk over the table */
-    return_value = db->cursor(db, NULL, &dbc, 0);
-    if (0 != return_value ) {
+    rc = db->cursor(db, NULL, &dbc, 0);
+    if (0 != rc) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "Failed to get cursor for ldbm2index\n", 0, 0, 0 );
-        dblayer_release_id2entry(be, db);
-        instance_set_not_busy(inst);
-        return( -1 );
+        goto err_min;
     }
 
     /* ask for the last id so we can give cute percentages */
     key.flags = DB_DBT_MALLOC;
     data.flags = DB_DBT_MALLOC;
-    return_value = dbc->c_get(dbc, &key, &data, DB_LAST);
-    if (return_value == DB_NOTFOUND) {
+    rc = dbc->c_get(dbc, &key, &data, DB_LAST);
+    if (rc == DB_NOTFOUND) {
         lastid = 0;
         isfirst = 0;  /* neither a first nor a last */
-    } else if (return_value == 0) {
+    } else if (rc == 0) {
         lastid = id_stored_to_internal((char *)key.data);
         free(key.data);
         free(data.data);
@@ -1371,10 +1371,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         LDAPDebug(LDAP_DEBUG_ANY,
                   "Failed to seek within id2entry (BAD %d)\n", 
                   return_value, 0 ,0);
-        dbc->c_close(dbc);
-        dblayer_release_id2entry(be, db);
-        instance_set_not_busy(inst);
-        return( -1 );
+        goto err_out;
     }
 
     /* Work out which indexes we should build */
@@ -1385,14 +1382,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
      */
     {
         char **attrs = NULL;
-        struct vlvIndex *p = NULL;
         struct attrinfo *ai = NULL;
 
         slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &attrs);
         for (i = 0; attrs[i] != NULL; i++) {
             if ( g_get_shutdown() || c_get_shutdown() ) {
-                ret = -1;
-                goto out;
+                goto err_out;
             }
             switch(attrs[i][0]) {
             case 't':        /* attribute type to index */
@@ -1421,13 +1416,11 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 dblayer_erase_index_file(be, ai, i/* chkpt; 1st time only */);
                 break;
             case 'T':        /* VLV Search to index */
-                p = vlv_find_searchname((attrs[i])+1, be);
-                if (p == NULL) {
+                vlvip = vlv_find_searchname((attrs[i])+1, be);
+                if (vlvip == NULL) {
                     ldbm2index_bad_vlv(task, inst, attrs[i]+1);
-                    ret = -1;
-                    goto out;
                 } else {
-                    vlvIndex_go_offline(p, be);
+                    vlvIndex_go_offline(vlvip, be);
                     if (pvlv == NULL) {
                         pvlv = (struct vlvIndex **)slapi_ch_calloc(1,
                                                      sizeof(struct vlvIndex *));
@@ -1435,10 +1428,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         pvlv = (struct vlvIndex **)slapi_ch_realloc((char*)pvlv,
                                           (numvlv+1)*sizeof(struct vlvIndex *));
                     }
-                    pvlv[numvlv] = p;
+                    pvlv[numvlv] = vlvip;
                     numvlv++;
                     /* Get rid of the index if it already exists */
-                    PR_Delete(vlvIndex_filename(p));
+                    PR_Delete(vlvIndex_filename(vlvip));
                     if (task) {
                         slapi_task_log_notice(task, "%s: Indexing VLV: %s",
                                               inst->inst_name, attrs[i]+1);
@@ -1456,12 +1449,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
      * entire database.
      */
     if (!indexAttrs && !index_aid && pvlv) {
-        int i, err;
+        int err;
         char **suffix_list = NULL;
 
         /* create suffix list */
-        for (i = 0; i < numvlv; i++) {
-            char *s = slapi_ch_strdup(slapi_sdn_get_dn(vlvIndex_getBase(pvlv[i])));
+        for (vlvidx = 0; vlvidx < numvlv; vlvidx++) {
+            char *s = slapi_ch_strdup(slapi_sdn_get_dn(vlvIndex_getBase(pvlv[vlvidx])));
 
             s = slapi_dn_normalize_case(s);
             charray_add(&suffix_list, s);
@@ -1497,14 +1490,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         idindex = 0;
     }
 
-    /* Bug 603120: slapd dumps core while indexing and deleting the db at the
-     * same time. Now added the lock for the indexing code too.
-     */
-    vlv_acquire_lock(be);
     while (1) {
         if ( g_get_shutdown() || c_get_shutdown() ) {
-            ret = -1;
-            goto out;
+            goto err_out;
         }
         if (idl) {
             if (idindex >= idl->b_nids)
@@ -1514,17 +1502,15 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             key.size = sizeof(temp_id);
             data.flags = DB_DBT_MALLOC;
 
-            return_value = db->get(db, NULL, &key, &data, 0);
-            if (return_value) {
+            rc = db->get(db, NULL, &key, &data, 0);
+            if (rc) {
                 LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed "
                           "to read database, errno=%d (%s)\n",
-                          inst->inst_name, return_value,
-                          dblayer_strerror(return_value));
+                          inst->inst_name, rc, dblayer_strerror(rc));
                 if (task) {
                     slapi_task_log_notice(task,
                         "%s: Failed to read database, err %d (%s)",
-                        inst->inst_name, return_value,
-                        dblayer_strerror(return_value));
+                        inst->inst_name, rc, dblayer_strerror(rc));
                 }
                 break;
             }
@@ -1535,27 +1521,24 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             key.flags = DB_DBT_MALLOC;
             data.flags = DB_DBT_MALLOC;
             if (isfirst) {
-                return_value = dbc->c_get(dbc, &key, &data, DB_FIRST);
+                rc = dbc->c_get(dbc, &key, &data, DB_FIRST);
                 isfirst = 0;
             } else{
-                return_value = dbc->c_get(dbc, &key, &data, DB_NEXT);
+                rc = dbc->c_get(dbc, &key, &data, DB_NEXT);
             }
 
-            if (0 != return_value) {
-                if (DB_NOTFOUND == return_value) {
-                    break;
-                } else {
-                    LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to read database, "
-                              "errno=%d (%s)\n", inst->inst_name, return_value,
-                              dblayer_strerror(return_value));
-                    if (task) {
-                        slapi_task_log_notice(task,
+            if (DB_NOTFOUND == rc) {
+                break;
+            } else if (0 != rc) {
+                LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to read database, "
+                              "errno=%d (%s)\n", inst->inst_name, rc,
+                              dblayer_strerror(rc));
+                if (task) {
+                    slapi_task_log_notice(task,
                             "%s: Failed to read database, err %d (%s)",
-                            inst->inst_name, return_value,
-                            dblayer_strerror(return_value));
-                    }
-                    break;
+                            inst->inst_name, rc, dblayer_strerror(rc));
                 }
+                break;
             }
             temp_id = id_stored_to_internal((char *)key.data);
             free(key.data);
@@ -1592,9 +1575,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             LDAPDebug(LDAP_DEBUG_ANY,
                 "%s: ERROR: Could not add op attrs to entry (id %lu)\n",
                 inst->inst_name, (u_long)ep->ep_id, 0);
-            backentry_free( &ep );
-            ret = -1;
-            goto out;
+            goto err_out;
         }
 
         /*
@@ -1604,25 +1585,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             for (i = slapi_entry_first_attr(ep->ep_entry, &attr); i == 0;
                  i = slapi_entry_next_attr(ep->ep_entry, attr, &attr)) {
                 Slapi_Value **svals;
-                int rc = 0;
 
                 slapi_attr_get_type( attr, &type );
                 for ( j = 0; indexAttrs[j] != NULL; j++ ) {
                     if ( g_get_shutdown() || c_get_shutdown() ) {
-                        ret = -1;
-                        goto out;
+                        goto err_out;
                     }
                     if (slapi_attr_type_cmp(indexAttrs[j], type,
                                             SLAPI_TYPE_CMP_SUBTYPE) == 0 ) {
-                        back_txn txn;
                         svals = attr_get_present_values(attr);
 
-                        if (run_from_cmdline)
-                        {
-                            txn.back_txn_txn = NULL;
-                        }
-                        else
-                        {
+                        if (!run_from_cmdline) {
                             rc = dblayer_txn_begin(li, NULL, &txn);
                             if (0 != rc) {
                                 LDAPDebug(LDAP_DEBUG_ANY,
@@ -1639,8 +1612,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                         inst->inst_name, indexAttrs[j], rc,
                                         dblayer_strerror(rc));
                                 }
-                                ret = -2;
-                                goto out;
+                                return_value = -2;
+                                goto err_out;
                             }
                         }
                         rc = index_addordel_values_sv(
@@ -1659,13 +1632,13 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                     "(err %d: %s)", inst->inst_name,
                                     indexAttrs[j], rc, dblayer_strerror(rc));
                             }
-                            if (!run_from_cmdline)
-                                   dblayer_txn_abort(li, &txn);
-                            ret = -2;
-                            goto out;
+                            if (!run_from_cmdline) {
+                                dblayer_txn_abort(li, &txn);
+                            }
+                            return_value = -2;
+                            goto err_out;
                         }
-                        if (!run_from_cmdline)
-                        {
+                        if (!run_from_cmdline) {
                             rc = dblayer_txn_commit(li, &txn);
                             if (0 != rc) {
                                 LDAPDebug(LDAP_DEBUG_ANY,
@@ -1682,8 +1655,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                         "(err %d: %s)", inst->inst_name,
                                         indexAttrs[j], rc, dblayer_strerror(rc));
                                 }
-                                ret = -2;
-                                goto out;
+                                return_value = -2;
+                                goto err_out;
                             }
                         }
                     }
@@ -1695,19 +1668,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
          * Update the Virtual List View indexes
          */
         for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
-            back_txn txn;
-            int rc = 0;
             if ( g_get_shutdown() || c_get_shutdown() ) {
-                ret = -1;
-                goto out;
+                goto err_out;
             }
-            if (run_from_cmdline)
-            {
-                txn.back_txn_txn = NULL;
-            }
-            else
-            if (!run_from_cmdline)
-            {
+            if (!run_from_cmdline) {
                 rc = dblayer_txn_begin(li, NULL, &txn);
                 if (0 != rc) {
                     LDAPDebug(LDAP_DEBUG_ANY,
@@ -1722,11 +1686,17 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                          "(err %d: %s)", inst->inst_name,
                          indexAttrs[vlvidx], rc, dblayer_strerror(rc));
                     }
-                    ret = -2;
-                    goto out;
+                    return_value = -2;
+                    goto err_out;
                 }
             }
+            /*
+             * lock is needed around vlv_update_index to protect the
+             * vlv structure.
+             */
+            vlv_acquire_lock(be);
             vlv_update_index(pvlv[vlvidx], &txn, li, pb, NULL, ep);
+            vlv_release_lock(be);
             if (!run_from_cmdline)
             {
                 rc = dblayer_txn_commit(li, &txn);
@@ -1743,8 +1713,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         "(err %d: %s)", inst->inst_name,
                         indexAttrs[vlvidx], rc, dblayer_strerror(rc));
                     }
-                    ret = -2;
-                    goto out;
+                    return_value = -2;
+                    goto err_out;
                 }
             }
         }
@@ -1753,8 +1723,6 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
          * Update the ancestorid index
          */
         if (index_aid) {
-            int rc;
-
             rc = ldbm_ancestorid_index_entry(be, ep, BE_INDEX_ADD, NULL);
             if (rc != 0) {
                 LDAPDebug(LDAP_DEBUG_ANY,
@@ -1769,8 +1737,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         "(err %d: %s)", inst->inst_name,
                         rc, dblayer_strerror(rc));
                 }
-                ret = -2;
-                goto out;
+                return_value = -2;
+                goto err_out;
             }
         }
 
@@ -1798,7 +1766,6 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
         backentry_free( &ep );
     }
-    vlv_release_lock(be);
 
     /* if we got here, we finished successfully */
 
@@ -1810,8 +1777,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         PR_ASSERT(ai != NULL);
         ai->ai_indexmask &= ~INDEX_OFFLINE;
     }
-    for (i = 0; i < numvlv; i++) {
-        vlvIndex_go_online(pvlv[i], be);
+    for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
+        vlvIndex_go_online(pvlv[vlvidx], be);
     }
 
     if (task) {
@@ -1822,28 +1789,27 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     }
     LDAPDebug(LDAP_DEBUG_ANY, "%s: Finished indexing.\n",
               inst->inst_name, 0, 0);
-
-out:
+    return_value = 0; /* success */
+err_out:
+    backentry_free( &ep ); /* if ep or *ep is NULL, it does nothing */
     if (idl) {
         idl_free(idl);
     } else {
         dbc->c_close(dbc);
     }
-    if (ret < 0) {/* error case: undo vlv indexing */
-        struct vlvIndex *p = NULL;
+    if (return_value < 0) {/* error case: undo vlv indexing */
+        struct vlvIndex *vlvip = NULL;
         /* if jumped to out due to an error, vlv lock has not been released */
-        vlv_release_lock(be);
         for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
-            p = pvlv[vlvidx];
-            vlvIndex_go_offline(p, be);
-            vlvIndex_delete(&p);
+            vlvIndex_go_offline(pvlv[vlvidx], be);
+            vlv_acquire_lock(be);
+            vlvIndex_delete(&pvlv[vlvidx]);
+            vlv_release_lock(be);
         }
     }
-    dblayer_release_id2entry( be, db );
-
+err_min:
+    dblayer_release_id2entry( be, db ); /* nope */
     instance_set_not_busy(inst);
-
-    LDAPDebug( LDAP_DEBUG_TRACE, "<= ldbm_back_ldbm2index\n", 0, 0, 0 );
 
     if (run_from_cmdline) {
         if (0 != dblayer_flush(li)) {
@@ -1860,8 +1826,13 @@ out:
     if (indexAttrs) {
         slapi_ch_free((void **)&indexAttrs);
     }
+    if (pvlv) {
+        slapi_ch_free((void **)&pvlv);
+    }
 
-    return (ret);
+    LDAPDebug( LDAP_DEBUG_TRACE, "<= ldbm_back_ldbm2index\n", 0, 0, 0 );
+
+    return return_value;
 }
 
 /*
@@ -1903,7 +1874,7 @@ db2index_add_indexed_attr(backend *be, char *attrString)
     attr_index_config(be, "from db2index()", 0, argc, nsslapd_index_value, 0);
 
     for ( i=0; i<argc; i++ ) {
-        slapi_ch_free((void **)&nsslapd_index_value[i]);
+        slapi_ch_free_string(&nsslapd_index_value[i]);
     }
     return(0);
 }
@@ -1915,32 +1886,32 @@ db2index_add_indexed_attr(backend *be, char *attrString)
  *
  * Returns a non-zero value if:
  *    1) The 'attr' is in the configured list of attribute types that
- *			are to be excluded.
+ *       are to be excluded.
  * OR 2) dump_uniqueid is non-zero and 'attr' is the unique ID attribute.
  *
  * Return 0 if the attribute is not to be excluded.
  */
 static int
 ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
-		int dump_uniqueid )
+                               int dump_uniqueid )
 
 {
-	int		i, rc = 0;
+    int i, rc = 0;
 
-	if ( !dump_uniqueid && 0 == strcasecmp( SLAPI_ATTR_UNIQUEID, attr )) {
-		rc = 1;				/* exclude */
+    if ( !dump_uniqueid && 0 == strcasecmp( SLAPI_ATTR_UNIQUEID, attr )) {
+        rc = 1;                /* exclude */
 
-	} else if ( NULL != li && NULL != li->li_attrs_to_exclude_from_export ) {
-		for ( i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i ) {
-			if ( 0 == strcasecmp( li->li_attrs_to_exclude_from_export[i],
-						attr )) {
-				rc = 1;		/* exclude */
-				break;
-			}
-		}
-	}
+    } else if ( NULL != li && NULL != li->li_attrs_to_exclude_from_export ) {
+        for ( i = 0; li->li_attrs_to_exclude_from_export[i] != NULL; ++i ) {
+            if ( 0 == strcasecmp( li->li_attrs_to_exclude_from_export[i],
+                        attr )) {
+                rc = 1;        /* exclude */
+                break;
+            }
+        }
+    }
 
-	return( rc );
+    return( rc );
 }
 
 /*

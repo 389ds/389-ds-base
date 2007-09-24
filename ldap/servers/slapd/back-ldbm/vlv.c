@@ -101,11 +101,11 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
         if(parent!=NULL)
         {
             struct vlvIndex* newVlvIndex= vlvIndex_new();
-			newVlvIndex->vlv_be=be;
+            newVlvIndex->vlv_be=be;
             vlvIndex_init(newVlvIndex, be, parent, entryBefore);
-		    vlvSearch_addIndex(parent, newVlvIndex);
+            vlvSearch_addIndex(parent, newVlvIndex);
         }
-		PR_RWLock_Unlock(be->vlvSearchList_lock);
+        PR_RWLock_Unlock(be->vlvSearchList_lock);
     }
     slapi_sdn_done(&parentdn);
     return SLAPI_DSE_CALLBACK_OK;
@@ -116,18 +116,28 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
 int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
     struct vlvSearch* p=NULL;
-    backend *be= ((ldbm_instance*)arg)->inst_be;
-	
+    ldbm_instance *inst = (ldbm_instance*)arg;
+    backend *be= inst->inst_be;
+    
+    if (instance_set_busy(inst) != 0)
+    {
+        LDAPDebug( LDAP_DEBUG_ANY,
+            "Backend instance: '%s' is already in the middle of "
+            "another task and cannot be disturbed.\n",
+            inst->inst_name, 0, 0);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
     /* vlvSearchList is modified; need Wlock */
     PR_RWLock_Wlock(be->vlvSearchList_lock);
     p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
-    {	
-		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
-		vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
-		vlvSearch_delete(&p);
+    {
+        LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
+        vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
+        vlvSearch_delete(&p);
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+    PR_RWLock_Unlock(be->vlvSearchList_lock);
+    instance_set_not_busy(inst);
     return SLAPI_DSE_CALLBACK_OK;
 }
 
@@ -136,8 +146,18 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
  
 int vlv_DeleteIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
-   	LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Index.\n", 0, 0, 0);
-    return SLAPI_DSE_CALLBACK_OK;
+    ldbm_instance *inst = (ldbm_instance*)arg;
+    if (inst && (inst->inst_flags & INST_FLAG_BUSY)) {
+        LDAPDebug( LDAP_DEBUG_ANY,
+                       "Backend instance: '%s' is already in the middle of "
+                       "another task and cannot be disturbed.\n",
+                       inst->inst_name, 0, 0);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    } else {
+        LDAPDebug( LDAP_DEBUG_ANY, 
+                       "Deleted Virtual List View Index.\n", 0, 0, 0);
+        return SLAPI_DSE_CALLBACK_OK;
+    }
 }
 
 
@@ -1500,8 +1520,9 @@ retry:
         if ( e == NULL )
         {
             int rval;
-            LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID %lu not found err=%d\n", (u_long)id, err, 0 );
-            rval = idl_delete(&candidates, id);
+            LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: "
+                    "Candidate ID %lu not found err=%d\n", (u_long)id, err, 0 );
+            rval = idl_delete((IDList **)&candidates, id);
             if (0 == rval || 1 == rval || 2 == rval) {
                 goto retry;
             } else {
@@ -1953,6 +1974,14 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	const char *dn= slapi_sdn_get_dn(&e->e_sdn);
 	backend *be= inst->inst_be;
 
+	if (instance_set_busy(inst) != 0)
+	{
+		LDAPDebug( LDAP_DEBUG_ANY,
+			"Backend instance: '%s' is already in the middle of "
+			"another task and cannot be disturbed.\n",
+			inst->inst_name, 0, 0);
+		return LDAP_OPERATIONS_ERROR;
+	}
 	tag1=create_vlv_search_tag(dn);
 	buf=slapi_ch_smprintf("%s%s%s%s%s","cn=MCC ",tag1,", cn=",inst->inst_name,LDBM_PLUGIN_ROOT);
 	newdn=slapi_sdn_new_dn_byval(buf);
@@ -1960,7 +1989,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	PR_RWLock_Wlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
 	if(p!=NULL)
-	{	
+	{
 		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
 		tag2=create_vlv_search_tag(dn);
 		buf2=slapi_ch_smprintf("%s%s,%s",TAG,tag2,buf);
@@ -1991,6 +2020,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
     } else {
 		PR_RWLock_Unlock(be->vlvSearchList_lock);
 	}
+	instance_set_not_busy(inst);
 	slapi_ch_free((void **)&tag1);
 	slapi_ch_free((void **)&buf);
 	slapi_sdn_free(&newdn);
