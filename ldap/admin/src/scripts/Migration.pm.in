@@ -128,17 +128,7 @@ e.g.
 or
     "slapd.Suffix=dc=example, dc=com"
 Values passed in this manner will override values in an .inf file
-given with the -f argument.  If you need to specify the cleartext
-directory manager password (e.g. in order to do remote migration),
-you must specify the password for each instance in a section whose
-name is the instance name e.g.
- [slapd-ldap1]
- RootDNPwd=ldap1password
- [slapd-ldap2]
- RootDNPwd=ldap2password
-or on the command line like this:
- command ... slapd-ldap1.RootDNPwd=ldap1password \
-    slapd-ldap2.RootDNPwd=ldap2password ...
+given with the -f argument.
 
 actualsroot:
 This is used when you must migrate from one machine to another.  The
@@ -373,3 +363,10 @@ sub migrateSecurityFiles {
 # Mandatory TRUE return value.
 #
 1;
+
+# emacs settings
+# Local Variables:
+# mode:perl
+# indent-tabs-mode: nil
+# tab-width: 4
+# End:

@@ -847,10 +847,16 @@ static void format_uuid_v1(guid_t * uuid, uuid_time_t timestamp, unsigned16 cloc
     memcpy(&uuid->node, &_state.genstate.node, sizeof (uuid->node));
 }
 
+/* when converting broken values, we may need to swap the bytes */
+#define BSWAP16(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
+#define BSWAP32(x) ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) | \
+                    (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+
 /* format_uuid_v3 -- make a UUID from a (pseudo)random 128 bit number
 */
 static void format_uuid_v3(guid_t * uuid, unsigned char hash[16]) 
 {
+	char *use_broken_uuid = getenv("USE_BROKEN_UUID");
 	/* Construct a version 3 uuid with the (pseudo-)random number
 	* plus a few constants. */
 
@@ -858,11 +864,18 @@ static void format_uuid_v3(guid_t * uuid, unsigned char hash[16])
 
 	/* when migrating, we skip the ntohl in order to read in old, 
 	   incorrectly formatted uuids */
-	if (!getenv("USE_BROKEN_UUID")) {
+	if (!use_broken_uuid || (*use_broken_uuid == '0')) {
 		/* convert UUID to local byte order */
 		uuid->time_low = PR_ntohl(uuid->time_low);
 		uuid->time_mid = PR_ntohs(uuid->time_mid);
 		uuid->time_hi_and_version = PR_ntohs(uuid->time_hi_and_version);
+	} else {
+#if defined(IS_BIG_ENDIAN)
+		/* convert UUID to b0rken byte order */
+		uuid->time_low = BSWAP32(uuid->time_low);
+		uuid->time_mid = BSWAP16(uuid->time_mid);
+		uuid->time_hi_and_version = BSWAP16(uuid->time_hi_and_version);
+#endif
 	}
 
 	/* put in the variant and version bits */

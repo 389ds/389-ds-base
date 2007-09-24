@@ -492,7 +492,7 @@ char *
 migrateCredentials(char *oldpath, char *newpath, char *oldcred)
 {
 	static char *useBrokenUUID = "USE_BROKEN_UUID=1";
-	static char *disableBrokenUUID = "USE_BROKEN_UUID";
+	static char *disableBrokenUUID = "USE_BROKEN_UUID=0";
 	char *plain = NULL;
 	char *cipher = NULL;
 

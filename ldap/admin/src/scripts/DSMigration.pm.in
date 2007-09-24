@@ -179,10 +179,20 @@ sub getNewDbDir {
 sub migrateCredentials {
     my ($ent, $attr, $mig, $inst) = @_;
     my $oldval = $ent->getValues($attr);
+
+    # Older versions of the server on x86 systems and other systems that do not use network byte order
+    # stored the credentials incorrectly.  The first step is to determine if this is the case.  We
+    # migrate using the same server root to see if we get the same output as we input.
+    debug(3, "In migrateCredentials - see how old credentials were encoded.\n");
+    my $testval = `@bindir@/migratecred -o $mig->{actualsroot}/$inst -n $mig->{actualsroot}/$inst -c \'$oldval\'`;
+    if ($testval ne $oldval) { # need to turn on the special flag
+        debug(3, "Credentials not encoded correctly.  oldval $oldval not equal to testval $testval.  The value will be re-encoded correctly.\n");
+        $ENV{MIGRATE_BROKEN_PWD} = "1"; # decode and re-encode correctly
+    }
+        
     debug(3, "Executing @bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c \'$oldval\' . . .\n");
-    $ENV{MIGRATE_BROKEN_PWD} = "1"; # passwords prior to 8.0 were encrypted incorrectly
     my $newval = `@bindir@/migratecred -o $mig->{actualsroot}/$inst -n @instconfigdir@/$inst -c \'$oldval\'`;
-    delete $ENV{MIGRATE_BROKEN_PWD}; # clear the flag
+    delete $ENV{MIGRATE_BROKEN_PWD}; # clear the flag, if set
     debug(3, "Converted old value [$oldval] to new value [$newval] for attr $attr in entry ", $ent->getDN(), "\n");
     return $newval;
 }
