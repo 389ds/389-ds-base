@@ -2553,6 +2553,10 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				/* the names match -- remove from the current list */
 				if ( tmpocp == curlisthead ) {
 					curlisthead = tmpocp->oc_next;
+					/* The global oc list is scanned in read_oc_ldif above,
+					   if there are multiple objectclasses to be updated.
+					   Needs to maintain the list dynamically. */
+					g_set_global_oc_nolock( curlisthead );
 				} else {
 					prevocp->oc_next = tmpocp->oc_next;
 				}
