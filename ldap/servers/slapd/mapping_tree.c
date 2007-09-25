@@ -2237,6 +2237,7 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     int index;
     Slapi_Operation *op;
     int ret;
+    int need_unlock = 0;
     
     if(mapping_tree_freed){
         return LDAP_OPERATIONS_ERROR;
@@ -2246,14 +2247,17 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     target_sdn = operation_get_target_spec (op);
 
-    mtn_lock();
-
     * referral = NULL;
     ret = slapi_mapping_tree_select(pb, be, referral, errorbuf); 
     if (ret)
         goto unlock_and_return;
 
     slapi_sdn_init_dn_byref(&dn_newdn,newdn);
+
+    /* acquire lock now, after slapi_mapping_tree_select() which also locks,
+       because we are accessing mt internals */
+    mtn_lock();
+    need_unlock = 1; /* we have now acquired the lock */
     target_node = slapi_get_mapping_tree_node_by_dn(&dn_newdn);
     if (target_node == NULL)
         target_node = mapping_tree_root;
@@ -2270,6 +2274,11 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     }
 
 unlock_and_return:
+    /* if slapi_mapping_tree_select failed, we won't have the lock */
+    if (need_unlock) {
+        mtn_unlock();
+    }
+
     slapi_sdn_done(&dn_newdn);
 
     if (new_be)
@@ -2291,8 +2300,6 @@ unlock_and_return:
             *referral = NULL;
         }
     }
-    
-    mtn_unlock();
 
     return ret;
 }
