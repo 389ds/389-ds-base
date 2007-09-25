@@ -2481,7 +2481,7 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
     /* Shutdown the performance counter stuff */
     if (DBLAYER_NORMAL_MODE & dbmode) {
         if (priv->perf_private) {
-            perfctrs_terminate(&priv->perf_private);
+            perfctrs_terminate(&priv->perf_private, priv->dblayer_env->dblayer_DB_ENV);
         }
     }
         

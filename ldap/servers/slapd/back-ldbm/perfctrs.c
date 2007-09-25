@@ -219,8 +219,21 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 }
 
 /* Terminate perf ctrs */
-void perfctrs_terminate(perfctrs_private **priv)
+void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 {
+	DB_MPOOL_STAT *mpstat = NULL;
+	DB_TXN_STAT   *txnstat = NULL;
+	DB_LOG_STAT   *logstat = NULL;
+	DB_LOCK_STATi *lockstat = NULL;
+
+	MEMP_STAT(db_env, &mpstat, NULL, DB_STAT_CLEAR, malloc);
+	slapi_ch_free((void**)&mpstat);
+	TXN_STAT(db_env, &txnstat, DB_STAT_CLEAR, malloc);
+	slapi_ch_free((void**)&txnstat);
+	LOG_STAT(db_env, &logstat, DB_STAT_CLEAR, malloc);
+	slapi_ch_free((void**)&logstat);
+	LOCK_STAT(db_env, &lockstat, DB_STAT_CLEAR, malloc);
+	slapi_ch_free((void**)&lockstat);
 #if defined(_WIN32)
 	if (NULL != (*priv)->memory) {
 		UnmapViewOfFile((*priv)->memory);

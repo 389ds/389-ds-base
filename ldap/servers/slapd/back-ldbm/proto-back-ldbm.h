@@ -382,7 +382,7 @@ int parent_update_on_childchange(modify_context *mc,int op, size_t *numofchildre
  */
 void perfctrs_wait(size_t milliseconds,perfctrs_private *priv,DB_ENV *db_env);
 void perfctrs_init(struct ldbminfo *li,perfctrs_private **priv);
-void perfctrs_terminate(perfctrs_private **priv);
+void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env);
 void perfctrs_as_entry( Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env );
 
 /*
