@@ -224,7 +224,7 @@ void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 	DB_MPOOL_STAT *mpstat = NULL;
 	DB_TXN_STAT   *txnstat = NULL;
 	DB_LOG_STAT   *logstat = NULL;
-	DB_LOCK_STATi *lockstat = NULL;
+	DB_LOCK_STAT  *lockstat = NULL;
 
 	MEMP_STAT(db_env, &mpstat, NULL, DB_STAT_CLEAR, malloc);
 	slapi_ch_free((void**)&mpstat);
