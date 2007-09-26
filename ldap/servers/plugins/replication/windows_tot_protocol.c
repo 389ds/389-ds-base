@@ -142,14 +142,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		goto done;    
     }
 
-	/* Get the current replica RUV.
-	 * If the total update succeeds, we will set the consumer RUV to this value.
-	 */
-	replica = object_get_data(prp->replica_object);
-	local_ruv_obj = replica_get_ruv (replica);
-	starting_ruv = ruv_dup((RUV*)  object_get_data ( local_ruv_obj ));
-	object_release (local_ruv_obj);
-	
 	agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
 	remote_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
 
@@ -165,6 +157,18 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	cookie_has_more = windows_private_dirsync_has_more(prp->agmt);	
 	
 	windows_private_save_dirsync_cookie(prp->agmt);
+
+	/* If we got a change from dirsync, we should have a good RUV
+	 * that has a min & max value.  If no change was generated,
+	 * the RUV will have NULL min and max csns.  We deal with
+	 * updating these values when we process the first change in
+	 * the incremental sync protocol ( send_updates() ).  We will
+	 * use this value for setting the consumer RUV if the total
+	 * update succeeds. */
+        replica = object_get_data(prp->replica_object);
+        local_ruv_obj = replica_get_ruv (replica);
+        starting_ruv = ruv_dup((RUV*)  object_get_data ( local_ruv_obj ));
+        object_release (local_ruv_obj);
 	
 
 	/* send everything */

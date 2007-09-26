@@ -1128,12 +1128,23 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	slapi_operation_parameters op;
 	int return_value;
 	int rc;
+	int set_mincsn = 0;
 	CL5ReplayIterator *changelog_iterator = NULL;
 	RUV *current_ruv = ruv_dup(remote_update_vector);
+	CSN *mincsn = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_updates\n", 0, 0, 0 );
 
 	*num_changes_sent = 0;
+
+	/* Check if the min csn is set in our RUV to see if we need to set it below. */
+	ruv_get_min_csn(current_ruv, &mincsn);
+	if (!mincsn) {
+		set_mincsn = 1;
+	} else {
+		csn_free(&mincsn);
+	}
+
 	/*
 	 * Iterate over the changelog. Retrieve each update,
 	 * construct an appropriate LDAP operation,
@@ -1341,7 +1352,22 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				}
 				if (mark_record_done)
 				{
-					/* bring the consumers (AD) RUV up to date */
+					/* If this is the very first change being sent,
+					 * it's possible that we haven't set a min csn
+					 * in the RUV yet.  This is possible because we
+					 * simply copy the supplier RUV during the total
+					 * update process.  The supplier RUV will not have
+					 * a min or max csn set if no changes have ever
+					 * been written to it's changelog.  We need to set
+					 * the min csn for the consumer here to prevent
+					 * problems with further sync operations. */
+					if (set_mincsn) {
+						ruv_set_min_csn(current_ruv, entry.op->csn, NULL);
+						set_mincsn = 0;
+					}
+
+					/* Bring the consumers (AD) RUV up to date.
+					 * This sets the max csn. */
 					ruv_force_csn_update(current_ruv, entry.op->csn);
 				}
 				break;
@@ -1637,14 +1663,7 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 		}
 		else
 		{
-			/* Check for the case where part of the RUV remote is missing */
-			if (ruv_has_both_csns(remote_ruv))
-			{
-				return_value = EXAMINE_RUV_OK;
-			} else 
-			{
-				return_value = EXAMINE_RUV_PRISTINE_REPLICA;
-			}
+			return_value = EXAMINE_RUV_OK;
 		}
 		slapi_ch_free((void**)&remote_gen);
 		slapi_ch_free((void**)&local_gen);
