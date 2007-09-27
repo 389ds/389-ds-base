@@ -100,6 +100,7 @@ ConnResult windows_conn_read_entry_attribute(Repl_Connection *conn, const char *
 ConnResult windows_conn_push_schema(Repl_Connection *conn, CSN **remotecsn);
 void windows_conn_set_timeout(Repl_Connection *conn, long timeout);
 void windows_conn_set_agmt_changed(Repl_Connection *conn);
+int windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *password);
 
 /* Used to work around a schema incompatibility between Microsoft and the IETF */
 #define FAKE_STREET_ATTR_NAME "in#place#of#streetaddress"

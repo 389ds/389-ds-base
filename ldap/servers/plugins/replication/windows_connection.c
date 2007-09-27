@@ -1796,6 +1796,34 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	}
 }
 
+/* Attempt to bind as a user to AD in order to see if we posess the
+ * most current password. Returns the LDAP return code of the bind. */
+int
+windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *password)
+{
+	const char *binddn = NULL;
+	LDAPMessage *res = NULL;
+	int rc = 0;
+	int msgid = 0;
+
+	/* If we're already connected, this will just return success */
+	windows_conn_connect(conn);
+
+	/* Get binddn from sdn */
+	binddn =  slapi_sdn_get_dn(sdn);
+
+	/* Attempt to do a bind on the existing connection 
+	 * using the dn and password that were passed in. */
+	msgid = do_simple_bind(conn, conn->ld, (char *) binddn, password);
+	ldap_result(conn->ld, msgid, LDAP_MSG_ALL, NULL, &res);
+	ldap_parse_result( conn->ld, res, &rc, NULL, NULL, NULL, NULL, 1 /* Free res */);
+
+	/* rebind as the DN specified in the sync agreement */
+	do_simple_bind(conn, conn->ld, conn->binddn, conn->plain);
+
+	return rc;
+}
+
 static int
 do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 {

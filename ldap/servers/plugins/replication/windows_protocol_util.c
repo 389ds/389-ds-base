@@ -741,49 +741,62 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 
 		} else
 		{
-			char *quoted_password = NULL;
-			/* AD wants the password in quotes ! */
-			quoted_password = PR_smprintf("\"%s\"",password);
-			if (quoted_password)
-			{
-				LDAPMod *pw_mods[2];
-				LDAPMod pw_mod;
-				struct berval bv = {0};
-				UChar *unicode_password = NULL;
-				int32_t unicode_password_length = 0; /* Length in _characters_ */
-				int32_t buffer_size = 0; /* Size in _characters_ */
-				UErrorCode error = U_ZERO_ERROR;
-				struct berval *bvals[2];
-				/* Need to UNICODE encode the password here */
-				/* It's one of those 'ask me first and I will tell you the buffer size' functions */
-				u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
-				buffer_size = unicode_password_length;
-				unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
-				if (unicode_password) {
-					error = U_ZERO_ERROR;
-					u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
-
-					/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
-					to_little_endian_double_bytes(unicode_password, unicode_password_length);
-
-					bv.bv_len = unicode_password_length * sizeof(UChar);
-					bv.bv_val = (char*)unicode_password;
+			/* We will attempt to bind to AD with the new password first. We do
+			 * this to avoid playing a password change that originated from AD
+			 * back to AD.  If we just played the password change back, then
+			 * both sides would be in sync, but AD would contain the new password
+			 * twice in it's password history, which undermines the password
+			 * history policies in AD. */
+			if (windows_check_user_password(prp->conn, sdn, password)) {
+				char *quoted_password = NULL;
+				/* AD wants the password in quotes ! */
+				quoted_password = PR_smprintf("\"%s\"",password);
+				if (quoted_password)
+				{
+					LDAPMod *pw_mods[2];
+					LDAPMod pw_mod;
+					struct berval bv = {0};
+					UChar *unicode_password = NULL;
+					int32_t unicode_password_length = 0; /* Length in _characters_ */
+					int32_t buffer_size = 0; /* Size in _characters_ */
+					UErrorCode error = U_ZERO_ERROR;
+					struct berval *bvals[2];
+					/* Need to UNICODE encode the password here */
+					/* It's one of those 'ask me first and I will tell you the buffer size' functions */
+					u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+					buffer_size = unicode_password_length;
+					unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
+					if (unicode_password) {
+						error = U_ZERO_ERROR;
+						u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
+	
+						/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
+						to_little_endian_double_bytes(unicode_password, unicode_password_length);
+	
+						bv.bv_len = unicode_password_length * sizeof(UChar);
+						bv.bv_val = (char*)unicode_password;
 				
-					bvals[0] = &bv; 
-					bvals[1] = NULL;
+						bvals[0] = &bv; 
+						bvals[1] = NULL;
 						
-					pw_mod.mod_type = "UnicodePwd";
-					pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
-					pw_mod.mod_bvalues = bvals;
+						pw_mod.mod_type = "UnicodePwd";
+						pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+						pw_mod.mod_bvalues = bvals;
 					
-					pw_mods[0] = &pw_mod;
-					pw_mods[1] = NULL;
+						pw_mods[0] = &pw_mod;
+						pw_mods[1] = NULL;
 
-					pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
+						pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
 
-					slapi_ch_free((void**)&unicode_password);
+						slapi_ch_free((void**)&unicode_password);
+					}
+					PR_smprintf_free(quoted_password);
 				}
-				PR_smprintf_free(quoted_password);
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"%s: AD already has the current password for %s. "
+					"Not sending password modify to AD.\n",
+					agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(sdn));
 			}
 		}
 
@@ -1230,15 +1243,32 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		}
 		if (password) 
 		{
-			return_value = send_password_modify(remote_dn, password, prp);
+			/* We need to have a non-GUID dn in send_password_modify in order to
+			 * bind as the user to check if we need to send the password change.
+			 * You are supposed to be able to bind using a GUID dn, but it doesn't
+			 * seem to work over plain LDAP. */
+			if (is_guid_dn(remote_dn)) {
+				Slapi_DN *remote_dn_norm = NULL;
+				int norm_missing = 0;
+
+				map_entry_dn_outbound(local_entry,&remote_dn_norm,prp,&norm_missing, 0);
+				return_value = send_password_modify(remote_dn_norm, password, prp);
+				slapi_sdn_free(&remote_dn_norm);
+			} else {
+				return_value = send_password_modify(remote_dn, password, prp);
+			}
+
 			if (return_value)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: windows_replay_update: update password returned %d\n",
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"%s: windows_replay_update: update password returned %d\n",
 					agmt_get_long_name(prp->agmt), return_value );
 			} else {
-				/* If we successfully added an entry, and then subsequently changed its password, THEN we need to change its status in AD 
-				 * in order that it can be used (otherwise the user is marked as disabled). To do this we set this attribute and value:
-				 * userAccountControl: 512 */
+				/* If we successfully added an entry, and then subsequently changed
+				 * its password, THEN we need to change its status in AD in order
+				 * that it can be used (otherwise the user is marked as disabled).
+				 * To do this we set this attribute and value:
+				 *   userAccountControl: 512 */
 				if (op->operation_type == SLAPI_OPERATION_ADD && missing_entry)
 				{
 					return_value = send_accountcontrol_modify(remote_dn, prp);
