@@ -943,10 +943,12 @@ can_skip_filter_test(
 	IDList *idl
 )
 {
+	int rc = 0;
+
 	/* Is the ID list ALLIDS ? */
 	if ( ALLIDS(idl)) {
 		/* If so, then can't optimize */
-		return 0;
+		return rc;
 	}
 
 	/* Is this a base scope search? */
@@ -956,11 +958,40 @@ can_skip_filter_test(
 		 * the entrydn index in producing our 1 candidate, and that means
 		 * we have not used the filter to produce the candidate list.
 		 */
-		return 0;
+		return rc;
 	}
-	
+
 	/* Grok the filter and tell me if it has only equality components in it */
-	return grok_filter(f);
+	rc = grok_filter(f);
+
+	/* If we haven't determined that we can't skip the filter test already,
+	 * do one last check for attribute subtypes.  We don't need to worry 
+	 * about any complex filters here since grok_filter() will have already
+	 * assumed that we can't skip the filter test in those cases. */
+	if (rc != 0) {
+		char *type = NULL;
+		char *basetype = NULL;
+
+		/* We don't need to free type since that's taken
+		 * care of when the filter is free'd later.  We
+		 * do need to free basetype when we are done. */
+		slapi_filter_get_attribute_type(f, &type);
+		basetype = slapi_attr_basetype(type, NULL, 0);
+
+		/* Is the filter using an attribute subtype? */
+		if (strcasecmp(type, basetype) != 0) {
+			/* If so, we can't optimize since attribute subtypes
+			 * are simply indexed under their basetype attribute.
+			 * The basetype index has no knowledge of the subtype
+			 * itself.  In the future, we should add support for
+			 * indexing the subtypes so we can optimize this type
+			 * of search. */
+			rc = 0;
+		}
+		slapi_ch_free_string(&basetype);
+	}
+
+	return rc;
 }
 
 
