@@ -399,7 +399,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 			{
 				/* Report the error to the client */
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "WARNING: "
-						"Attempt to exclude illegal attributes from a fractional agreement");
+						"Attempt to exclude illegal attributes from a fractional agreement\n");
 				/* Free the list */
 				slapi_ch_array_free(denied_attrs);	
 				goto loser;
