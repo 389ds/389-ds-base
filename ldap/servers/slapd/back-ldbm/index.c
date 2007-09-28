@@ -628,9 +628,12 @@ index_add_mods(
                     flags = BE_INDEX_DEL|BE_INDEX_PRESENCE|BE_INDEX_EQUALITY;
                 }
 
-		/* Update the index */
-                index_addordel_values_sv( be, mods[i]->mod_type,
-                                              deleted_valueArray, evals, id, flags, txn);
+                /* Update the index, if necessary */
+                if (deleted_valueArray) {
+                    index_addordel_values_sv( be, mods[i]->mod_type,
+                                              deleted_valueArray, evals, id, 
+                                              flags, txn );
+                }
 
                 slapi_valueset_free(mod_vals);
             } else {
@@ -645,18 +648,18 @@ index_add_mods(
                     flags = BE_INDEX_DEL;
                 }
 
-		/* If the same value doesn't exist in a subtype, set
-		 * BE_INDEX_EQUALITY flag so the equality index is
-		 * removed.
-		 */
-		slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr);
+                /* If the same value doesn't exist in a subtype, set
+                 * BE_INDEX_EQUALITY flag so the equality index is
+                 * removed.
+                 */
+                slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr);
                 for (j = 0; mods_valueArray[j] != NULL; j++ ) {
-		    if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) == -1 ) {
+                    if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) == -1 ) {
                         if (!(flags & BE_INDEX_EQUALITY)) {
-		            flags |= BE_INDEX_EQUALITY;
+                            flags |= BE_INDEX_EQUALITY;
                         }
                     }
-		}
+                }
 
                 rc = index_addordel_values_sv( be, basetype,
                                                mods_valueArray,

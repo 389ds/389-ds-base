@@ -310,59 +310,54 @@ int
 string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
     Slapi_Value ***ivals, int syntax, int ftype )
 {
-	int		nsubs, numbvals, i, n, j;
-	Slapi_Value	**nbvals;
+	int		nsubs, numbvals = 0, n;
+	Slapi_Value	**nbvals, **nbvlp;
+	Slapi_Value **bvlp;
 	char		*w, *c, *p;
-	char		buf[SUBLEN+1];
 
 	switch ( ftype ) {
 	case LDAP_FILTER_EQUALITY:
 		/* allocate a new array for the normalized values */
-		for ( numbvals = 0; bvals[numbvals] != NULL; numbvals++ ) {
-			/* NULL */
+		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
+			numbvals++;
 		}
-		nbvals = (Slapi_Value **) slapi_ch_malloc( (numbvals+1) * sizeof(Slapi_Value *));
+		nbvals = (Slapi_Value **) slapi_ch_calloc( (numbvals + 1), sizeof(Slapi_Value *));
 
-		for ( i = 0; i < numbvals; i++ )
+		for ( bvlp = bvals, nbvlp = nbvals; bvlp && *bvlp; bvlp++, nbvlp++ )
 		{
-			c = slapi_ch_strdup(slapi_value_get_string(bvals[i]));
+			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
 			/* if the NORMALIZED flag is set, skip normalizing */
-			if (!(slapi_value_get_flags(bvals[i]) & SLAPI_ATTR_FLAG_NORMALIZED))
+			if (!(slapi_value_get_flags(*bvlp) & SLAPI_ATTR_FLAG_NORMALIZED))
 				value_normalize( c, syntax, 1 /* trim leading blanks */ );
-		    nbvals[i] = slapi_value_new_string_passin(c);
+		    *nbvlp = slapi_value_new_string_passin(c);
 		}
-		nbvals[i] = NULL;
 		*ivals = nbvals;
 		break;
 
 	case LDAP_FILTER_APPROX:
 		/* XXX should not do this twice! XXX */
 		/* get an upper bound on the number of ivals */
-		numbvals = 0;
-		for ( i = 0; bvals[i] != NULL; i++ ) {
-			for ( w = first_word( (char*)slapi_value_get_string(bvals[i]) ); w != NULL;
-			    w = next_word( w ) ) {
+		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
+			for ( w = first_word( (char*)slapi_value_get_string(*bvlp) );
+				  w != NULL; w = next_word( w ) ) {
 				numbvals++;
 			}
 		}
-		nbvals = (Slapi_Value **) slapi_ch_malloc( (numbvals + 1) * sizeof(Slapi_Value *) );
+		nbvals = (Slapi_Value **) slapi_ch_calloc( (numbvals + 1), sizeof(Slapi_Value *) );
 
 		n = 0;
-		for ( i = 0; bvals[i] != NULL; i++ ) {
-			for ( w = first_word( (char*)slapi_value_get_string(bvals[i]) ); w != NULL;
-			    w = next_word( w ) ) {
+		nbvlp = nbvals;
+		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
+			for ( w = first_word( (char*)slapi_value_get_string(*bvlp) );
+				  w != NULL; w = next_word( w ) ) {
 				if ( (c = phonetic( w )) != NULL ) {
-				  nbvals[n] = slapi_value_new_string_passin(c);
-				  n++;
+				  *nbvlp = slapi_value_new_string_passin(c);
+				  nbvlp++;
 				}
 			}
 		}
-		nbvals[n] = NULL;
 
-		if ( n == 0 ) {
-			slapi_ch_free((void**)ivals );
-			return( 0 );
-		}
+		/* even if (n == 0), we should return the array nbvals w/ NULL items */
 		*ivals = nbvals;
 		break;
 
@@ -370,9 +365,11 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 		{
 		/* XXX should remove duplicates! XXX */
 		Slapi_Value *bvdup;
-                const struct berval *bvp;
+		const struct berval *bvp;
+		char buf[SUBLEN+1];
+		int i;
 		nsubs = 0;
-		for ( i = 0; bvals[i] != NULL; i++ ) {
+		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
 			/*
 			 * Note: this calculation may err on the high side,
 			 * because value_normalize(), which is called below
@@ -384,27 +381,26 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			 * the only downside is that we allocate more space than
 			 * we really need.
 			 */
-			nsubs += slapi_value_get_length(bvals[i]) - SUBLEN + 3;
+			nsubs += slapi_value_get_length(*bvlp) - SUBLEN + 3;
 		}
-		*ivals = (Slapi_Value **) slapi_ch_malloc( (nsubs + 1) * sizeof(Slapi_Value *) );
+		*ivals = (Slapi_Value **) slapi_ch_calloc( (nsubs + 1), sizeof(Slapi_Value *) );
 
 		buf[SUBLEN] = '\0';
 		n = 0;
 
 		bvdup= slapi_value_new(); 
-		for ( i = 0; bvals[i] != NULL; i++ )
-		{
-			c = slapi_ch_strdup(slapi_value_get_string(bvals[i]));
+		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
+			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
 			value_normalize( c, syntax, 1 /* trim leading blanks */ );
-                        slapi_value_set_string_passin(bvdup, c);
+			slapi_value_set_string_passin(bvdup, c);
 
-                        bvp = slapi_value_get_berval(bvdup);
+			bvp = slapi_value_get_berval(bvdup);
 
 			/* leading */
 			if ( bvp->bv_len > SUBLEN - 2 ) {
 				buf[0] = '^';
-				for ( j = 0; j < SUBLEN - 1; j++ ) {
-					buf[j + 1] = bvp->bv_val[j];
+				for ( i = 0; i < SUBLEN - 1; i++ ) {
+					buf[i + 1] = bvp->bv_val[i];
 				}
 				(*ivals)[n] = slapi_value_new_string(buf);
 				n++;
@@ -414,8 +410,8 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			for ( p = bvp->bv_val;
 			    p < (bvp->bv_val + bvp->bv_len - SUBLEN + 1);
 			    p++ ) {
-				for ( j = 0; j < SUBLEN; j++ ) {
-					buf[j] = p[j];
+				for ( i = 0; i < SUBLEN; i++ ) {
+					buf[i] = p[i];
 				}
 				buf[SUBLEN] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
@@ -425,8 +421,8 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			/* trailing */
 			if ( bvp->bv_len > SUBLEN - 2 ) {
 				p = bvp->bv_val + bvp->bv_len - SUBLEN + 1;
-				for ( j = 0; j < SUBLEN - 1; j++ ) {
-					buf[j] = p[j];
+				for ( i = 0; i < SUBLEN - 1; i++ ) {
+					buf[i] = p[i];
 				}
 				buf[SUBLEN - 1] = '$';
 				(*ivals)[n] = slapi_value_new_string(buf);
@@ -434,7 +430,6 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			}
 		}
 		slapi_value_free(&bvdup);
-		(*ivals)[n] = NULL;
 		}
 		break;
 	}
