@@ -134,7 +134,7 @@ passthru_config( int argc, char **argv )
 	srvr = (PassThruServer *)slapi_ch_calloc( 1, sizeof( PassThruServer ));
 	srvr->ptsrvr_url = slapi_ch_strdup( argv[i] );
 
-	if (( p = strchr( srvr->ptsrvr_url, ' ' )) == NULL ) {
+	if (( p = strchr( srvr->ptsrvr_url, ',' )) == NULL ) {
 	    /*
 	     * use defaults for maxconnections, maxconcurrency, timeout,
 	     * LDAP version, and connlifetime.
