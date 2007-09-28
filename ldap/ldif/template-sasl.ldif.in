@@ -1,0 +1,32 @@
+# replace the Suffix token with your suffix e.g. dc=example,dc=com
+dn: cn=Kerberos uid mapping,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: Kerberos uid mapping
+nsSaslMapRegexString: \(.*\)@\(.*\)\.\(.*\)
+nsSaslMapBaseDNTemplate: dc=\2,dc=\3
+nsSaslMapFilterTemplate: (uid=\1)
+
+dn: cn=rfc 2829 dn syntax,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: rfc 2829 dn syntax
+nsSaslMapRegexString: ^dn:\(.*\)
+nsSaslMapBaseDNTemplate: \1
+nsSaslMapFilterTemplate: (objectclass=*)
+
+dn: cn=rfc 2829 u syntax,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: rfc 2829 u syntax
+nsSaslMapRegexString: ^u:\(.*\)
+nsSaslMapBaseDNTemplate: %ds_suffix%
+nsSaslMapFilterTemplate: (uid=\1)
+
+dn: cn=uid mapping,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: uid mapping
+nsSaslMapRegexString: ^[^:@]+$
+nsSaslMapBaseDNTemplate: %ds_suffix%
+nsSaslMapFilterTemplate: (uid=&)
