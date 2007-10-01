@@ -458,13 +458,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 				slapi_entry_add_string(addingentry->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID, operation->o_params.p.p_add.parentuniqueid);
 			}
 		}
-		if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL )!= 0 )
-		{
-			LDAPDebug( LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected\n", 0, 0, 0 );
-			ldap_result_code= LDAP_ALREADY_EXISTS;
-			goto error_return;
-		}
-		addingentry_in_cache= 1;
 	}
 
 	/*
@@ -536,6 +529,16 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 */
 	    add_update_entry_operational_attributes(addingentry, pid);
 	}
+
+	/* Tentatively add the entry to the cache.  We do this after adding any
+	 * operational attributes to ensure that the cache is sized correctly. */
+	if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL )!= 0 )
+	{
+		LDAPDebug( LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected\n", 0, 0, 0 );
+		ldap_result_code= LDAP_ALREADY_EXISTS;
+		goto error_return;
+	}
+	addingentry_in_cache= 1;
 
 	/*
 	 * Before we add the entry, find out if the syntax of the aci
