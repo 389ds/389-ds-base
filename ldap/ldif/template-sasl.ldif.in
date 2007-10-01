@@ -1,4 +1,14 @@
 # replace the Suffix token with your suffix e.g. dc=example,dc=com
+dn: cn=sasl,cn=config
+objectClass: top
+objectClass: nsContainer
+cn: sasl
+
+dn: cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsContainer
+cn: mapping
+
 dn: cn=Kerberos uid mapping,cn=mapping,cn=sasl,cn=config
 objectClass: top
 objectClass: nsSaslMapping
