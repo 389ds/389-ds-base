@@ -1005,6 +1005,7 @@ fixupcmd = sed \
 	-e 's,@db_libdir\@,$(libdir),g' \
 	-e 's,@db_bindir\@,$(bindir),g' \
 	-e 's,@sasl_libdir\@,$(libdir),g' \
+	-e 's,@sasl_path\@,$(libdir)/sasl2,g' \
 	-e 's,@netsnmp_libdir\@,$(libdir),g' \
 	-e 's,@propertydir\@,$(propertydir),g' \
 	-e 's,@datadir\@,$(datadir),g' \
@@ -1051,6 +1052,7 @@ fixupcmd = sed \
 	-e 's,@db_libdir\@,$(db_libdir),g' \
 	-e 's,@db_bindir\@,$(db_bindir),g' \
 	-e 's,@sasl_libdir\@,$(sasl_libdir),g' \
+	-e 's,@sasl_path\@,@sasl_path@,g' \
 	-e 's,@netsnmp_libdir\@,$(netsnmp_libdir),g' \
 	-e 's,@propertydir\@,$(propertydir),g' \
 	-e 's,@datadir\@,$(datadir),g' \

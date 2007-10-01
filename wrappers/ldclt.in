@@ -16,6 +16,8 @@ COMMAND=ldclt-bin
 
 LD_LIBRARY_PATH=${LIB_DIR}
 export LD_LIBRARY_PATH
+SASL_PATH=@sasl_path@
+export SASL_PATH
 
 
 ###############################################################################

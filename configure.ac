@@ -343,6 +343,13 @@ m4_include(m4/netsnmp.m4)
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
 
+# set sasl_path for wrapper scripts
+if test -z "$sasl_libdir" ; then
+  sasl_path="$libdir/sasl2"
+else
+  sasl_path="$sasl_libdir/sasl2"
+fi
+
 # write out paths for binary components
 AC_SUBST(nspr_inc)
 AC_SUBST(nspr_lib)
@@ -363,6 +370,7 @@ AC_SUBST(db_libver)
 AC_SUBST(sasl_inc)
 AC_SUBST(sasl_lib)
 AC_SUBST(sasl_libdir)
+AC_SUBST(sasl_path)
 AC_SUBST(svrcore_inc)
 AC_SUBST(svrcore_lib)
 AC_SUBST(icu_lib)
