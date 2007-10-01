@@ -850,7 +850,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -1057,7 +1056,6 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-pampta.ldif \
 	ldap/ldif/template-dnaplugin.ldif \
 	ldap/ldif/template-bitwise.ldif \
-	ldap/ldif/template-dse.ldif \
 	ldap/ldif/template-org.ldif \
 	ldap/ldif/template-domain.ldif \
 	ldap/ldif/template-state.ldif \
@@ -1065,6 +1063,7 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-country.ldif \
 	ldap/ldif/template-orgunit.ldif \
 	ldap/ldif/template-baseacis.ldif \
+	ldap/ldif/template-sasl.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits

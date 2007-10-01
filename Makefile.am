@@ -145,7 +145,6 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-pampta.ldif \
 	ldap/ldif/template-dnaplugin.ldif \
 	ldap/ldif/template-bitwise.ldif \
-	ldap/ldif/template-dse.ldif \
 	ldap/ldif/template-org.ldif \
 	ldap/ldif/template-domain.ldif \
 	ldap/ldif/template-state.ldif \
@@ -153,6 +152,7 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-country.ldif \
 	ldap/ldif/template-orgunit.ldif \
 	ldap/ldif/template-baseacis.ldif \
+	ldap/ldif/template-sasl.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
