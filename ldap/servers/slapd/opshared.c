@@ -210,6 +210,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   int           iscritical = 0;
   char          * be_name = NULL;
   int           index = 0;
+  int		sent_result = 0;
 
   be_list[0] = NULL;
   referral_list[0] = NULL;
@@ -548,6 +549,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       int err;
     case 1:        /* backend successfully sent result to the client */
       rc = SLAPI_FAIL_GENERAL;
+      /* Set a flag here so we don't return another result. */
+      sent_result = 1;
       /* fall through */
 
     case -1:    /* an error occurred */            
@@ -676,9 +679,12 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     else if (flag_no_such_object)
     {
       /* there was at least 1 backend that was called to process 
-       * the operation and all backends returned NO SUCH OBJECTS
+       * the operation and all backends returned NO SUCH OBJECTS.
+       * Don't send the result if it's already been handled above.
        */
-      slapi_send_ldap_result_from_pb(pb);
+      if (!sent_result) {
+        slapi_send_ldap_result_from_pb(pb);
+      }
     }
     else
     {
