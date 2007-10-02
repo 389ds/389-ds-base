@@ -76,6 +76,9 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
     struct vlvSearch* newVlvSearch= vlvSearch_new();
     backend *be = inst->inst_be;
     
+    if (NULL == be) { /* backend is not associated */
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
     /* vlvSearchList is modified; need Wlock */
     PR_RWLock_Wlock(be->vlvSearchList_lock);
@@ -280,6 +283,9 @@ vlv_init_search_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
 	ldbm_instance *inst = (ldbm_instance*)arg;
 	backend *be= inst->inst_be;
 
+    if (NULL == be) { /* backend is not associated */
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
     vlvSearch_addtolist(newVlvSearch, (struct vlvSearch **)&be->vlvSearchList);
     return SLAPI_DSE_CALLBACK_OK;
