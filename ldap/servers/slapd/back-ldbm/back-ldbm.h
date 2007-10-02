@@ -364,12 +364,22 @@ struct attrinfo {
                                          * yet. */
 
 #define	IS_INDEXED( a )	( a & INDEX_ANY )
-	void	*ai_plugin;
+	void	*ai_plugin; /* the syntax plugin for this attribute */
 	char	**ai_index_rules; /* matching rule OIDs */
 	void	*ai_dblayer;	  /* private data used by the dblayer code */
 	PRInt32 ai_dblayer_count; /* used by the dblayer code */
 	idl_private	*ai_idl;  /* private data used by the IDL code (eg locking the IDLs) */
 	attrcrypt_private	*ai_attrcrypt;  /* private data used by the attribute encryption code (eg is it enabled or not) */
+	value_compare_fn_type ai_key_cmp_fn; /* function used to compare two index keys -
+											The function is the compare function provided by
+											ai_plugin - this function is used to order
+											the keys in the index so that we can use ORDERING
+											searches.  In order for this function to be used,
+											the syntax plugin must define a compare function,
+											and either the attribute definition schema must
+											specify an ORDERING matching rule, or the index
+											configuration must define an ORDERING matching rule.
+										 */
 };
 
 #define MAXDBCACHE	20

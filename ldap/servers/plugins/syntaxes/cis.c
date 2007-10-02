@@ -84,6 +84,19 @@ static char *boolean_names[] = { "Boolean", BOOLEAN_SYNTAX_OID, 0 };
 static char *time_names[] = { "GeneralizedTime", "time",
 		GENERALIZEDTIME_SYNTAX_OID, 0 };
 
+#define GENERALIZEDTIMEMATCH_OID "2.5.13.27"
+#define GENERALIZEDTIMEORDERINGMATCH_OID "2.5.13.28"
+static Slapi_MatchingRuleEntry
+generalizedTimeMatch = { GENERALIZEDTIMEMATCH_OID, NULL /* no alias? */,
+                         "generalizedTimeMatch", "The rule evaluates to TRUE if and only if the attribute value represents the same universal coordinated time as the assertion value.",
+                         GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */ };
+
+static Slapi_MatchingRuleEntry
+generalizedTimeOrderingMatch = { GENERALIZEDTIMEORDERINGMATCH_OID, NULL /* no alias? */,
+                                 "generalizedTimeOrderingMatch", "The rule evaluates to TRUE if and only if the attribute value represents a universal coordinated time that is earlier than the universal coordinated time represented by the assertion value.",
+                                 GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */ };
+
+
 static char *country_names[] = { "Country String",
 		COUNTRYSTRING_SYNTAX_OID, 0};
 
@@ -223,6 +236,9 @@ time_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> time_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &time_pdesc, time_names,
 			GENERALIZEDTIME_SYNTAX_OID );
+	/* also register this plugin for matching rules */
+	rc |= slapi_matchingrule_register(&generalizedTimeMatch);
+	rc |= slapi_matchingrule_register(&generalizedTimeOrderingMatch);
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= time_init %d\n", rc, 0, 0 );
 	return( rc );
 }

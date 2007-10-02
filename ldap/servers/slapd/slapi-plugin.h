@@ -140,7 +140,6 @@ typedef struct slapi_attr		Slapi_Attr;
 typedef struct slapi_value  		Slapi_Value;
 typedef struct slapi_value_set  	Slapi_ValueSet;
 typedef struct slapi_filter		Slapi_Filter;
-typedef struct slapi_matchingRuleEntry	Slapi_MatchingRuleEntry;
 typedef struct backend			Slapi_Backend;
 typedef struct _guid_t			Slapi_UniqueID;
 typedef struct op			Slapi_Operation;
@@ -645,6 +644,16 @@ int slapi_berval_cmp(const struct berval* L, const struct berval* R);
 #define SLAPI_BERVAL_EQ(L,R) ((L)->bv_len == (R)->bv_len && \
         ! memcmp ((L)->bv_val, (R)->bv_val, (L)->bv_len))
 
+typedef struct slapi_matchingRuleEntry {
+    char *mr_oid;
+    char *mr_oidalias;
+    char *mr_name;
+    char *mr_desc;
+    char *mr_syntax;
+    int mr_obsolete;
+} slapi_matchingRuleEntry;
+typedef struct slapi_matchingRuleEntry	Slapi_MatchingRuleEntry;
+
 Slapi_MatchingRuleEntry *slapi_matchingrule_new(void);
 void slapi_matchingrule_free(Slapi_MatchingRuleEntry **mrEntry,
                              int freeMembers);
@@ -652,6 +661,7 @@ int slapi_matchingrule_get(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_set(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrEntry);
 int slapi_matchingrule_unregister(char *oid);
+int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid);
 
 /*
  * access control

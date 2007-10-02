@@ -616,15 +616,6 @@ struct objclass {
 	struct objclass		*oc_next;
 };
 
-typedef struct slapi_matchingRuleEntry {
-    char *mr_oid;
-    char *mr_oidalias;
-    char *mr_name;
-    char *mr_desc;
-    char *mr_syntax;
-    int mr_obsolete;
-} slapi_matchingRuleEntry;
- 
 struct matchingRuleList {
     Slapi_MatchingRuleEntry *mr_entry;
     struct matchingRuleList *mrl_next;

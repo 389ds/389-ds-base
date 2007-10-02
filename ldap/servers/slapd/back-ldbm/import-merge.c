@@ -338,7 +338,7 @@ static int import_count_merge_input_files(ldbm_instance *inst,
     return 0;
 }
 
-static int import_open_merge_input_files(backend *be, char *indexname,
+static int import_open_merge_input_files(backend *be, IndexInfo *index_info,
 	int passes, DB ***input_files, int *number_found, int *pass_number)
 {
     int i = 0;
@@ -354,16 +354,22 @@ static int import_open_merge_input_files(backend *be, char *indexname,
     }
     for (i = 0; i < passes; i++) {
 	DB *pDB = NULL;
-	char *filename = slapi_ch_smprintf("%s.%d", indexname, i+1);
+	char *filename = slapi_ch_smprintf("%s.%d", index_info->name, i+1);
 
 	if (NULL == filename) {
 	    return -1;
 	}
 
 	if (vlv_isvlv(filename)) {
-		ret = dblayer_open_file(be, filename, 0, INDEX_VLV, &pDB);
+		/* not sure why the file would be marked as a vlv index but
+		   not the index configuration . . . but better make sure
+		   the new code works with the old semantics */
+		int saved_mask = index_info->ai->ai_indexmask;
+		index_info->ai->ai_indexmask |= INDEX_VLV;
+		ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+		index_info->ai->ai_indexmask = saved_mask;
 	} else {
-		ret = dblayer_open_file(be, filename, 0, 0, &pDB);
+		ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
 	}
 
 	slapi_ch_free( (void**)&filename);
@@ -488,7 +494,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
         }
 #endif
 
-	ret = import_open_merge_input_files(be, worker->index_info->name,
+	ret = import_open_merge_input_files(be, worker->index_info,
 		passes, &input_files, &number_found, &pass_number);
 	if (0 != ret) {
 	    import_log_notice(worker->job, "MERGE FAIL 10");
@@ -496,7 +502,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	}
 
 	ret = dblayer_open_file(be, worker->index_info->name, 1,
-				vlv_index ? INDEX_VLV : 0, &output_file);
+				worker->index_info->ai, &output_file);
 	if (0 != ret) {
 	    import_log_notice(worker->job, "Failed to open output file for "
 			      "index %s in merge", worker->index_info->name);

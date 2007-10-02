@@ -58,8 +58,22 @@ static int int_compare(struct berval	*v1, struct berval	*v2);
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "INTEGER", "int", INTEGER_SYNTAX_OID, 0 };
 
+#define INTEGERMATCH_OID "2.5.13.14"
+#define INTEGERORDERINGMATCH_OID "2.5.13.15"
+
 static Slapi_PluginDesc pdesc = { "int-syntax", PLUGIN_MAGIC_VENDOR_STR,
 	PRODUCTTEXT, "integer attribute syntax plugin" };
+
+static Slapi_MatchingRuleEntry
+integerMatch = { INTEGERMATCH_OID, NULL /* no alias? */,
+                 "integerMatch", "The rule evaluates to TRUE if and only if the attribute value and the assertion value are the same integer value.",
+                 INTEGER_SYNTAX_OID, 0 /* not obsolete */ };
+
+static Slapi_MatchingRuleEntry
+integerOrderingMatch = { INTEGERORDERINGMATCH_OID, NULL /* no alias? */,
+                         "integerOrderingMatch", "The rule evaluates to TRUE if and only if the integer value of the attribute value is less than the integer value of the assertion value.",
+                         INTEGER_SYNTAX_OID, 0 /* not obsolete */ };
+
 
 int
 int_init( Slapi_PBlock *pb )
@@ -87,6 +101,10 @@ int_init( Slapi_PBlock *pb )
 	    (void *) INTEGER_SYNTAX_OID );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) int_compare );
+
+	/* also register this plugin for matching rules */
+	rc |= slapi_matchingrule_register(&integerMatch);
+	rc |= slapi_matchingrule_register(&integerOrderingMatch);
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= int_init %d\n", rc, 0, 0 );
 	return( rc );

@@ -57,6 +57,7 @@ attrinfo_new()
 	p->ai_dblayer= NULL;
         p->ai_dblayer_count = 0;
 	p->ai_idl= NULL;
+	p->ai_key_cmp_fn = NULL;
     return p;
 }
 
@@ -66,6 +67,7 @@ attrinfo_delete(struct attrinfo **pp)
     if(pp!=NULL && *pp!=NULL)
     {
         idl_release_private(*pp);
+        (*pp)->ai_key_cmp_fn = NULL;
         slapi_ch_free((void**)&((*pp)->ai_type));
         slapi_ch_free((void**)(*pp)->ai_index_rules);
         slapi_ch_free((void**)pp);
@@ -179,9 +181,12 @@ attr_index_config(
 		}
 	}
 	for ( i = 0; attrs[i] != NULL; i++ ) {
+		int need_compare_fn = 0;
+		char *attrsyntax_oid = NULL;
 		a = attrinfo_new();
 		a->ai_type = slapi_attr_basetype( attrs[i], NULL, 0 );
 		slapi_attr_type2plugin( a->ai_type, &a->ai_plugin );
+		attrsyntax_oid = slapi_ch_strdup(plugin_syntax2oid(a->ai_plugin));
 		if ( argc == 1 ) {
 			a->ai_indexmask = (INDEX_PRESENCE | INDEX_EQUALITY |
 			    INDEX_APPROX | INDEX_SUB);
@@ -245,10 +250,12 @@ attr_index_config(
 						   preamble, officialOID, index_rules[j] );
 					slapi_ch_free((void**)&preamble);
 				    }
-				} else {
+				} else if (!slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid)) {
 				    LDAPDebug (LDAP_DEBUG_ANY, "%s: line %d: "
-					       "unknown index rule \"%s\" (ignored)\n",
+					       "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
 					       fname, lineno, index_rules[j] );
+				} else { /* assume builtin and use compare fn provided by syntax plugin */
+				    need_compare_fn = 1;
 				}
 				{/* It would improve speed to save the indexer, for future use.
 				    But, for simplicity, we destroy it now: */
@@ -269,13 +276,8 @@ attr_index_config(
 			    }
 			}
 		}
-#if 0    /* seems to not matter -- INDEX_FROMINIT is checked nowhere else */
-		if ( init ) {
-			a->ai_indexmask |= INDEX_FROMINIT;
-                        a->ai_indexmask &= ~INDEX_OFFLINE;
-		}
-#endif
 
+		slapi_ch_free_string(&attrsyntax_oid);
 		/* initialize the IDL code's private data */
 		return_value = idl_init_private(be, a);
 		if (0 != return_value) {
@@ -283,6 +285,26 @@ attr_index_config(
 			LDAPDebug(LDAP_DEBUG_ANY,"%s: line %d:Fatal Error: Failed to initialize attribute structure\n",
 			    fname, lineno, 0);
 			exit( 1 );
+		}
+
+		/* if user didn't specify an ordering rule in the index config,
+		   see if the schema def for the attr defines one */
+		if (!need_compare_fn) {
+			asyntaxinfo *asi = attr_syntax_get_by_name( a->ai_type );
+			if (asi && asi->asi_mr_ordering) {
+			 	need_compare_fn = 1;
+			}
+			attr_syntax_return( asi );
+		}
+
+		if (need_compare_fn) {
+			int rc = plugin_call_syntax_get_compare_fn( a->ai_plugin, &a->ai_key_cmp_fn );
+			if (rc != LDAP_SUCCESS) {
+			    LDAPDebug(LDAP_DEBUG_ANY,
+				      "The attribute [%s] does not have a valid ORDERING matching rule\n",
+				      a->ai_type, 0, 0);
+				a->ai_key_cmp_fn = NULL;
+			}
 		}
 
 		if ( avl_insert( &inst->inst_attrs, a, ainfo_cmp, ainfo_dup ) != 0 ) {

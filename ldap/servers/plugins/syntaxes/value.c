@@ -117,21 +117,25 @@ value_normalize(
 	/* have to do this after trimming spaces */
 	if (syntax & SYNTAX_INT) {
 		int foundsign = 0;
+		int foundzero = 0;
+
 		if (*s == '-') {
 			foundsign = 1;
 			LDAP_UTF8INC(s);
 		}
 
 		while (*s && (*s == '0')) {
+			foundzero = 1;
 			LDAP_UTF8INC(s);
 		}
 
-		/* if there is a hyphen, make sure it is just to the left
-		   of the first significant (i.e. non-zero) digit e.g.
-		   convert -00000001 to -1 */
-		if (foundsign && (s > d)) {
-			*d = '-';
-			d++;
+		if (foundzero && !*s) { /* value is all zeros */
+			*d++ = '0'; /* set value to a single zero */
+		} else if (foundsign && (s > d)) {
+			/* if there is a hyphen, make sure it is just to the left
+			   of the first significant (i.e. non-zero) digit e.g.
+			   convert -00000001 to -1 */
+			*d++ = '-';
 		}
 		/* s should now point at the first significant digit/char */
 	}

@@ -141,7 +141,7 @@ int dblayer_delete_database(struct ldbminfo *li);
 int dblayer_database_size(struct ldbminfo *li, unsigned int *size);
 int dblayer_terminate(struct ldbminfo *li);
 int dblayer_close_indexes(backend *be);
-int dblayer_open_file(backend *be, char* indexname, int create, int index_flags, DB **ppDB);
+int dblayer_open_file(backend *be, char* indexname, int create, struct attrinfo *ai, DB **ppDB);
 int dblayer_close_file(DB *db);
 void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages);
 int dblayer_is_cachesize_sane(size_t *cachesize);

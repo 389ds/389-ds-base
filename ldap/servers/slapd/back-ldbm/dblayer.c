@@ -223,6 +223,33 @@ static int dblayer_db_remove_ex(dblayer_private_env *env, char const path[], cha
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
 
+
+/* This function compares two index keys.  It is assumed
+   that the values are already normalized, since they should have
+   been when the index was created (by int_values2keys).
+
+   richm - actually, the current syntax compare functions
+   always normalize both arguments.  We need to add an additional
+   syntax compare function that does not normalize or takes
+   an argument like value_cmp to specify to normalize or not.
+*/
+
+typedef int (*syntax_cmp_fn_type)(struct berval *, struct berval *);
+static int
+dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2)
+{
+    struct berval bv1, bv2;
+    value_compare_fn_type syntax_cmp_fn = (value_compare_fn_type)db->app_private;
+
+    bv1.bv_val = (char *)dbt1->data+1; /* remove leading '=' */
+    bv1.bv_len = (ber_len_t)dbt1->size-1;
+
+    bv2.bv_val = (char *)dbt2->data+1; /* remove leading '=' */
+    bv2.bv_len = (ber_len_t)dbt2->size-1;
+
+    return syntax_cmp_fn(&bv1, &bv2);
+}
+
 /* this flag use if user remotely turned batching off */
 
 #define FLUSH_REMOTEOFF -1 
@@ -2594,7 +2621,7 @@ int    dblayer_flush(struct ldbminfo *li)
        Success: 0
     Failure: -1
  */
-int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_flags, DB **ppDB)
+int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrinfo *ai, DB **ppDB)
 {
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
@@ -2682,7 +2709,7 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
     }
 #endif
 
-    if (idl_get_idl_new() && !(index_flags & INDEX_VLV)) {
+    if (idl_get_idl_new() && !(ai->ai_indexmask & INDEX_VLV)) {
         return_value = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
         if (0 != return_value)
             goto out;
@@ -2695,7 +2722,7 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
             goto out;
     }
 
-    if (index_flags & INDEX_VLV) {
+    if (ai->ai_indexmask & INDEX_VLV) {
         /*
          * Need index with record numbers for
          * Virtual List View index
@@ -2703,6 +2730,24 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, int index_fla
         return_value = dbp->set_flags(dbp, DB_RECNUM);
         if (0 != return_value)
             goto out;
+    } else if (ai->ai_key_cmp_fn) { /* set in attr_index_config() */
+        /*
+          This is so that we can have ordered keys in the index, so that
+          greater than/less than searches work on indexed attrs.  We had
+          to introduce this when we changed the integer key format from
+          a 32/64 bit value to a normalized string value.  The default
+          bdb key cmp is based on length and lexicographic order, which
+          does not work with integer strings.
+
+          NOTE: If we ever need to use app_private for something else, we
+          will have to create some sort of data structure with different
+          fields for different uses.  We will also need to have a new()
+          function that creates and allocates that structure, and a
+          destroy() function that destroys the structure, and make sure
+          to call it when the DB* is closed and/or freed.
+        */
+        dbp->app_private = (void *)ai->ai_key_cmp_fn;
+        dbp->set_bt_compare(dbp, dblayer_bt_compare);
     }
 
     /* The subname argument allows applications to have
@@ -2842,7 +2887,7 @@ int dblayer_get_index_file(backend *be, struct attrinfo *a, DB** ppDB, int open_
    * index file and stuff it in the attrinfo.
    */
   return_value = dblayer_open_file(be, attribute_name, open_flags,
-                                   a->ai_indexmask, &pDB);
+                                   a, &pDB);
   if (0 == return_value) {
       /* Opened it OK */
       dblayer_handle *handle = (dblayer_handle *) 
