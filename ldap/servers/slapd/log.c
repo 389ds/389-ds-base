@@ -1050,6 +1050,10 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 	}
 
 	rtime = atoi(rtime_str);
+
+	if (0 == rtime) {
+	    rtime = -1;	/* Value Range: -1 | 1 to PR_INT32_MAX */
+	}
 	
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:
@@ -1087,6 +1091,10 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 		value =  -1;
 	}
 
+	if (rtime > 0 && value < 0) {
+	    value = PR_INT32_MAX; /* overflown */
+	}
+
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:
 		 fe_cfg->accesslog_rotationtime = rtime;
@@ -1116,7 +1124,7 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 ******************************************************************************/ 
 int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *errorbuf, int apply)
 {
-  int value= 0;
+  int origvalue = 0, value = 0;
   int runitType;
   int rv = 0;
   
@@ -1150,15 +1158,15 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
   switch (logtype) {
   case SLAPD_ACCESS_LOG:
 	LOG_ACCESS_LOCK_WRITE( );
-	value = loginfo.log_access_rotationtime;
+	origvalue = loginfo.log_access_rotationtime;
 	break;
   case SLAPD_ERROR_LOG:
 	LOG_ERROR_LOCK_WRITE( );
-	value = loginfo.log_error_rotationtime;
+	origvalue = loginfo.log_error_rotationtime;
 	break;
   case SLAPD_AUDIT_LOG:
 	LOG_AUDIT_LOCK_WRITE( );
-	value = loginfo.log_audit_rotationtime;
+	origvalue = loginfo.log_audit_rotationtime;
 	break;
   default:
 	rv = 1;
@@ -1166,23 +1174,27 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
   
   if (strcasecmp(runit, "month") == 0) {
 	runitType = LOG_UNIT_MONTHS;
-	value *= 31 * 24 * 60 * 60;
+	value = origvalue * 31 * 24 * 60 * 60;
   } else if (strcasecmp(runit, "week") == 0) {
 	runitType = LOG_UNIT_WEEKS;
-	value *= 7 * 24 * 60 * 60;
+	value = origvalue * 7 * 24 * 60 * 60;
   } else if (strcasecmp(runit, "day") == 0) {
 	runitType = LOG_UNIT_DAYS;
-	value *= 24 * 60 * 60;
+	value = origvalue * 24 * 60 * 60;
   } else if (strcasecmp(runit, "hour") == 0) { 
 	runitType = LOG_UNIT_HOURS;
-	value *= 3600;
+	value = origvalue * 3600;
   } else if (strcasecmp(runit, "minute") == 0) {
 	runitType = LOG_UNIT_MINS;
-	value *=  60;
+	value = origvalue * 60;
   } else  {
 	/* In this case we don't rotate */
 	runitType = LOG_UNIT_UNKNOWN;
-	value =  -1;
+	value = -1;
+  }
+
+  if (origvalue > 0 && value < 0) {
+    value = PR_INT32_MAX;	/* overflown */
   }
   
   switch (logtype) {
@@ -1392,7 +1404,7 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 	  return rv;
 	}
 
-	exptime = atoi(exptime_str);
+	exptime = atoi(exptime_str);	/* <= 0: no exptime */
 
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:
@@ -1429,8 +1441,11 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 		value = -1;
 	}
 	
-	if (value  < rsec) {
+	if (value > 0 && value < rsec) {
 		value = rsec;
+	}
+	if (exptime > 0 && value < 0) {
+		value = PR_INT32_MAX; /* overflown */
 	}
 
 	switch (logtype) {
@@ -1534,7 +1549,7 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 	  value = -1;
 	}
 
-	if ((value> 0)  && value   < rsecs ) {
+	if ((value > 0) && value < rsecs) {
 		value = rsecs;
 	}
 
@@ -1693,7 +1708,7 @@ slapd_log_audit_proc (
 	    		return 0;
 			}
 			while (loginfo.log_audit_rotationsyncclock <= loginfo.log_audit_ctime) {
-				loginfo.log_audit_rotationsyncclock += loginfo.log_audit_rotationtime_secs;
+				loginfo.log_audit_rotationsyncclock += PR_ABS(loginfo.log_audit_rotationtime_secs);
 			}
 		}
 		if (loginfo.log_audit_state & LOGGING_NEED_TITLE) {
@@ -1743,7 +1758,7 @@ slapd_log_error_proc_internal(
 				return 0;
 			}
 			while (loginfo.log_error_rotationsyncclock <= loginfo.log_error_ctime) {
-				loginfo.log_error_rotationsyncclock += loginfo.log_error_rotationtime_secs;
+				loginfo.log_error_rotationsyncclock += PR_ABS(loginfo.log_error_rotationtime_secs);
 			}
 		}
 
@@ -2644,8 +2659,8 @@ log__access_rotationinfof(char *pathname)
 	if (loginfo.log_access_rotationsync_enabled &&
 		loginfo.log_access_rotationunit != LOG_UNIT_HOURS &&
 		loginfo.log_access_rotationunit != LOG_UNIT_MINS &&
-		loginfo.log_access_ctime < loginfo.log_access_rotationsyncclock - loginfo.log_access_rotationtime_secs) {
-		loginfo.log_access_rotationsyncclock -= loginfo.log_access_rotationtime_secs;
+		loginfo.log_access_ctime < loginfo.log_access_rotationsyncclock - PR_ABS(loginfo.log_access_rotationtime_secs)) {
+		loginfo.log_access_rotationsyncclock -= PR_ABS(loginfo.log_access_rotationtime_secs);
 	}
 	return logfile_type;
 }
@@ -3365,8 +3380,8 @@ log__error_rotationinfof( char *pathname)
 	if (loginfo.log_error_rotationsync_enabled &&
 		loginfo.log_error_rotationunit != LOG_UNIT_HOURS &&
 		loginfo.log_error_rotationunit != LOG_UNIT_MINS &&
-		loginfo.log_error_ctime < loginfo.log_error_rotationsyncclock - loginfo.log_error_rotationtime_secs) {
-		loginfo.log_error_rotationsyncclock -= loginfo.log_error_rotationtime_secs;
+		loginfo.log_error_ctime < loginfo.log_error_rotationsyncclock - PR_ABS(loginfo.log_error_rotationtime_secs)) {
+		loginfo.log_error_rotationsyncclock -= PR_ABS(loginfo.log_error_rotationtime_secs);
 	}
 
 	return logfile_type;
@@ -3452,8 +3467,8 @@ log__audit_rotationinfof( char *pathname)
 	if (loginfo.log_audit_rotationsync_enabled &&
 		loginfo.log_audit_rotationunit != LOG_UNIT_HOURS &&
 		loginfo.log_audit_rotationunit != LOG_UNIT_MINS &&
-		loginfo.log_audit_ctime < loginfo.log_audit_rotationsyncclock - loginfo.log_audit_rotationtime_secs) {
-		loginfo.log_audit_rotationsyncclock -= loginfo.log_audit_rotationtime_secs;
+		loginfo.log_audit_ctime < loginfo.log_audit_rotationsyncclock - PR_ABS(loginfo.log_audit_rotationtime_secs)) {
+		loginfo.log_audit_rotationsyncclock -= PR_ABS(loginfo.log_audit_rotationtime_secs);
 	}
 
 	return logfile_type;
@@ -3842,7 +3857,7 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
     			return;
 			}
 			while (loginfo.log_access_rotationsyncclock <= loginfo.log_access_ctime) {
-				loginfo.log_access_rotationsyncclock += loginfo.log_access_rotationtime_secs;
+				loginfo.log_access_rotationsyncclock += PR_ABS(loginfo.log_access_rotationtime_secs);
 			}
 		}
 
