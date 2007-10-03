@@ -546,10 +546,22 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     rc = (*be->be_search)(pb);
     switch (rc)
     {
-      int err;
-    case 1:        /* backend successfully sent result to the client */
+      int err = 0;
+    case 1:        /* if the backend returned LDAP_NO_SUCH_OBJECT for a SEARCH request,
+                      it will not have sent back a result - otherwise, it will have
+                      sent a result */
       rc = SLAPI_FAIL_GENERAL;
-      /* Set a flag here so we don't return another result. */
+      slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
+      if (err == LDAP_NO_SUCH_OBJECT)
+      {
+          /* may be the object exist somewhere else
+           * wait the end of the loop to send back this error 
+           */
+          flag_no_such_object = 1;
+          break;
+      }
+      /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will have sent the result -
+         Set a flag here so we don't return another result. */
       sent_result = 1;
       /* fall through */
 

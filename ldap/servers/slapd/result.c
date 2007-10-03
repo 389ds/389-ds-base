@@ -573,7 +573,7 @@ send_nobackend_ldap_result( Slapi_PBlock *pb )
 	   err in the pblock, so this function needs to also */
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &err);
 
-	send_ldap_result( pb, err, NULL, NULL, 0, refurls );
+	slapi_send_ldap_result( pb, err, NULL, NULL, 0, refurls );
 }
 
 
