@@ -110,7 +110,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 slapi_task_log_notice(task,
                       "backup has old idl format; "
                       "to restore old formated backup onto the new server, "
-                      "please use command line utility \"bak2db\" .\n");
+                      "please use command line utility \"bak2db\" .");
             }
             goto out;
         }
@@ -128,7 +128,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 if (task) {
                     slapi_task_log_notice(task,
                         "Backend '%s' is already in the middle of "
-                        "another task and cannot be disturbed.\n",
+                        "another task and cannot be disturbed.",
                         inst->inst_name);
                 }
 
@@ -257,7 +257,8 @@ out:
 int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 {
     struct ldbminfo    *li;
-    char *directory = NULL;   /* -a <directory> */
+    char *rawdirectory = NULL;   /* -a <directory> */
+    char *directory = NULL;   /* normalized */
     char *dir_bak = NULL;
     int return_value = -1;
     int task_flags = 0;
@@ -266,25 +267,57 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
     struct stat sbuf;
 
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );
+    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &rawdirectory );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
     li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
 
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
 
-    if ( !directory || !*directory ) {
+    if ( !rawdirectory || !*rawdirectory ) {
         LDAPDebug( LDAP_DEBUG_ANY, "db2archive: no archive name\n",
                    0, 0, 0 );
-        return( -1 );
+        return -1;
     }
-    if (stat(directory, &sbuf) == 0) {
-        int baklen = strlen(directory) + 5; /* ".bak\0" */
+
+    /* start the database code up, do not attempt to perform recovery */
+    if (run_from_cmdline) {
+        /* No ldbm be's exist until we process the config information. */
+        mapping_tree_init();
+        ldbm_config_load_dse_info(li);
+        if (0 != (return_value = 
+                  dblayer_start(li,
+                            DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE))) {
+            LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to init database\n",
+                      0, 0, 0);
+            if (task) {
+                slapi_task_log_notice(task, "Failed to init database");
+            }
+            return -1;
+        }
+    }
+
+    if (stat(rawdirectory, &sbuf) == 0) {
+        int baklen = 0;
+        directory = rel2abspath(rawdirectory);
+
+        if (slapd_comp_path(directory, li->li_directory) == 0) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                "db2archive: Cannot archive to the db directory.\n", 0, 0, 0);
+            if (task) {
+                slapi_task_log_notice(task, 
+                                "Cannot archive to the db directory.");
+            }
+            return_value = -1;
+            goto out;
+        }
+
+        baklen = strlen(directory) + 5; /* ".bak\0" */
         dir_bak = slapi_ch_malloc(baklen);
         PR_snprintf(dir_bak, baklen, "%s.bak", directory);
         LDAPDebug(LDAP_DEBUG_ANY, "db2archive: %s exists. Renaming to %s\n",
                                   directory, dir_bak, 0);
         if (task) {
-            slapi_task_log_notice(task, "%s exists. Renaming to %s\n",
+            slapi_task_log_notice(task, "%s exists. Renaming to %s",
                                         directory, dir_bak);
         }
         if (stat(dir_bak, &sbuf) == 0) {
@@ -295,7 +328,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
                             dir_bak, 0, 0);
                 if (task) {
                     slapi_task_log_notice(task,
-                            "%s exists and failed to delete it.\n", dir_bak);
+                            "%s exists and failed to delete it.", dir_bak);
                 }
                 return_value = -1;
                 goto out;
@@ -305,10 +338,10 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         if (return_value != PR_SUCCESS) {
             PRErrorCode prerr = PR_GetError();
             LDAPDebug(LDAP_DEBUG_ANY,
-                            "db2archive: Failed to rename \"%s\" to \"%s\".",
+                            "db2archive: Failed to rename \"%s\" to \"%s\".\n",
                             directory, dir_bak, 0);
             LDAPDebug(LDAP_DEBUG_ANY,
-                            SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
+                            SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                             prerr, slapd_pr_strerror(prerr), 0);
             if (task) {
                 slapi_task_log_notice(task,
@@ -336,11 +369,6 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         goto err;
     }
 
-    /* No ldbm be's exist until we process the config information. */
-    if (run_from_cmdline) {
-        mapping_tree_init();
-        ldbm_config_load_dse_info(li);
-    }
     /* to avoid conflict w/ import, do this check for commandline, as well */
     {
         Object *inst_obj, *inst_obj2;
@@ -360,7 +388,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
                 if (task) {
                     slapi_task_log_notice(task,
                         "Backend '%s' is already in the middle of "
-                        "another task and cannot be disturbed.\n",
+                        "another task and cannot be disturbed.",
                         inst->inst_name);
                 }
 
@@ -381,44 +409,8 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         }
     }
 
-    /* start the database code up, do not attempt to perform recovery */
-    if (run_from_cmdline &&
-        0 != (return_value = dblayer_start(li,DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE))) {
-        LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to init database\n",
-                  0, 0, 0);
-        if (task) {
-            slapi_task_log_notice(task, "Failed to init database");
-        }
-        goto rel_err;
-    }
-
-    if (slapd_comp_path(directory, li->li_directory) == 0) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-                "db2archive: Cannot archive to the db directory.\n", 0, 0, 0);
-        if (task) {
-            slapi_task_log_notice(task, "Cannot archive to the db directory.\n");
-        }
-        return_value = -1;
-        goto rel_err;
-    }
-
     /* tell it to archive */
     return_value = dblayer_backup(li, directory, task);
-
-rel_err: 
-    /* close the database down again */
-    if (run_from_cmdline &&
-        0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to close database\n",
-                  0, 0, 0);
-        if (task) {
-            slapi_task_log_notice(task, "Failed to close database");
-        }
-        
-        /* The backup succeeded, so a failed close is not really a
-           total error... */
-        /*return( -1 );*/
-    }
 
     if (! run_from_cmdline) {
         ldbm_instance *inst;
@@ -436,13 +428,24 @@ err:
         LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Rename %s back to %s\n",
                                   dir_bak, directory, 0);
         if (task) {
-            slapi_task_log_notice(task, "Rename %s back to %s\n",
+            slapi_task_log_notice(task, "Rename %s back to %s",
                                         dir_bak, directory);
         }
         ldbm_delete_dirs(directory);
         PR_Rename(dir_bak, directory);
     }
 out:
+    /* close the database down again */
+    if (run_from_cmdline &&
+        0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE)) {
+        LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to close database\n",
+                  0, 0, 0);
+        if (task) {
+            slapi_task_log_notice(task, "Failed to close database");
+        }
+    }
+
     slapi_ch_free_string(&dir_bak);
+    slapi_ch_free_string(&directory);
     return return_value;
 }
