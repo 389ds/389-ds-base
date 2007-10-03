@@ -139,6 +139,7 @@ int
 sasl_io_cleanup(Connection *c)
 {
     int ret = 0;
+    struct lber_x_ext_io_fns *func_pointers = NULL;
     sasl_io_private *sp = c->c_sasl_io_private;
     if (sp) {
         LDAPDebug( LDAP_DEBUG_CONNS,
@@ -147,6 +148,8 @@ sasl_io_cleanup(Connection *c)
         slapi_ch_free((void**)&(sp->encrypted_buffer));
         slapi_ch_free((void**)&(sp->decrypted_buffer));
         /* Put the I/O functions back how they were */
+        ber_sockbuf_get_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
+        slapi_ch_free((void**)&func_pointers);
         ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, sp->real_iofns);
         slapi_ch_free((void**)&sp);
         c->c_sasl_io_private = NULL;

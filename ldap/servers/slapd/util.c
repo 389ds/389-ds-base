@@ -402,61 +402,63 @@ is_abspath(const char *path)
 static void
 clean_path(char **norm_path)
 {
-	char **np;
+    char **np;
 
-	for (np = norm_path; np && *np; np++)
-		slapi_ch_free((void **)np);
-	slapi_ch_free((void  **)&norm_path);
+    for (np = norm_path; np && *np; np++)
+        slapi_ch_free_string(np);
+    slapi_ch_free((void  **)&norm_path);
 }
 
 static char **
 normalize_path(char *path)
 {
-    char *dname = slapi_ch_strdup(path);
-    char *dnamep = dname;
-    char *bnamep = NULL;
+    char *dname = NULL;
+    char *dnamep = NULL;
     char **dirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
     char **rdirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
     char **dp = dirs;
     char **rdp;
+    int elimdots = 0;
+
+    if (NULL == path || '\0' == *path) {
+        return NULL;
+    }
+
+    dname = slapi_ch_strdup(path);
     do {
-        bnamep = strrchr(dnamep, _CSEP);
-        if (NULL == bnamep) {
-            bnamep = dnamep;
+        dnamep = strrchr(dname, _CSEP);
+        if (NULL == dnamep) {
+            dnamep = dname;
         } else {
-            *bnamep = '\0';
-            bnamep++;
+            *dnamep = '\0';
+            dnamep++;
         }
-        if (0 != strcmp(bnamep, ".")) {
-            *dp++ = slapi_ch_strdup(bnamep);    /* remove "/./" in the path */
+        if (0 != strcmp(dnamep, ".") && strlen(dnamep) > 0) {
+            *dp++ = slapi_ch_strdup(dnamep); /* rm "/./" and "//" in the path */
         }
-    } while (NULL != dnamep && '\0' != *dnamep && /* done or relative path */
-             !(0 == strcmp(dnamep, ".") && 0 == strcmp(bnamep, ".")));
+    } while ( dnamep > dname /* == -> no more _CSEP */ );
+    slapi_ch_free_string(&dname);
 
     /* remove "xxx/.." in the path */
     for (dp = dirs, rdp = rdirs; dp && *dp; dp++) {
         while (*dp && 0 == strcmp(*dp, "..")) {
             dp++; 
-            if (rdp > rdirs)
-                rdp--;
+            elimdots++;
         }
-        if (*dp)
+        if (elimdots > 0) {
+            elimdots--;
+        } else if (*dp) {
             *rdp++ = slapi_ch_strdup(*dp);
-    }
-    for (--dp, rdp = rdirs; dp >= dirs; dp--) {
-        while (*dp && 0 == strcmp(*dp, "..")) {
-            dp--; 
-            if (rdp > rdirs)
-                rdp--;
         }
-        if (*dp && strlen(*dp) > 0)
-            *rdp++ = slapi_ch_strdup(*dp);
     }
-    *rdp = NULL;
+    /* reverse */
+    for (--rdp, dp = rdirs; rdp >= dp && rdp >= rdirs; --rdp, dp++) {
+        char *tmpp = *dp;
+        *dp = *rdp;
+        *rdp = tmpp;
+    }
 
     clean_path(dirs);
-    slapi_ch_free_string(&dname);
-
     return rdirs;
 }
 
