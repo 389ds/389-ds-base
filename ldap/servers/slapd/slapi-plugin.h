@@ -398,6 +398,7 @@ int slapi_attr_add_value(Slapi_Attr *a, const Slapi_Value *v);
 int slapi_attr_type2plugin( const char *type, void **pi );
 int slapi_attr_get_type( Slapi_Attr *attr, char **type );
 int slapi_attr_get_oid_copy( const Slapi_Attr *attr, char **oidp );
+int slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp );
 int slapi_attr_get_flags( const Slapi_Attr *attr, unsigned long *flags );
 int slapi_attr_flag_is_set( const Slapi_Attr *attr, unsigned long flag );
 int slapi_attr_value_cmp( const Slapi_Attr *attr, const struct berval *v1, const struct berval *v2 );

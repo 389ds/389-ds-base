@@ -731,6 +731,22 @@ slapi_attr_get_oid_copy( const Slapi_Attr *a, char **oidp )
 	}
 }
 
+/* Returns the oid of the syntax of the Slapi_Attr that's passed in.
+ * The caller must dispose of oid by calling slapi_ch_free_string(). */
+int
+slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp )
+{
+	void *pi = NULL;
+
+	if (a && (slapi_attr_type2plugin(a->a_type, &pi) == 0)) {
+		*oidp = slapi_ch_strdup(plugin_syntax2oid(pi));
+		return( 0 );
+	} else {
+		*oidp = NULL;
+		return( -1 );
+	}
+}
+
 #ifdef ATTR_LDAP_DEBUG
 
 PRIntn

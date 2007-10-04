@@ -235,7 +235,7 @@ acl_access_allowed(
 	Slapi_PBlock	    *pb,
 	Slapi_Entry	    *e,			/* The Slapi_Entry */
 	char				*attr,		/* Attribute of	the entry */
-	struct berval	    *val,		/* value of attr. NOT USED */
+	struct berval	    *val,		/* value of attr */
 	int		    access		/* requested access rights */
 	)
 {
@@ -341,21 +341,32 @@ acl_access_allowed(
 	acl_init_aclpb ( pb, aclpb, clientDn, 0	);
 	TNF_PROBE_0_DEBUG(acl_aclpbinit_end,"ACL","");
 
+	/* Here	we mean	if "I am trying	to add/delete "myself" to a group, etc." We
+	 * basically just want to see if the value matches the DN of the user that
+	 * we're checking access for */
+	if (val &&  (access & SLAPI_ACL_WRITE) && (val->bv_len > 0)) {
+		Slapi_Attr *sa = slapi_attr_new();
+		char *oid = NULL;
 
-	/* Here	we mean	if "I am trying	to add/delete "myself" ? " */
-	if (val &&  (access & SLAPI_ACL_WRITE) && (val->bv_len > 0) ) {
-		/* should use slapi_sdn_compare() but that'a an extra malloc/free */
-		
-		char *dn_val_to_write =
-					slapi_dn_normalize(slapi_ch_strdup(val->bv_val)); 
-   
-     	if ( aclpb->aclpb_authorization_sdn && 
-				slapi_utf8casecmp((ACLUCHP)dn_val_to_write, (ACLUCHP)
-				slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn)) == 0) { 
-			access |= SLAPI_ACL_SELF;
-         } 
+		slapi_attr_init(sa, attr);
+		slapi_attr_get_syntax_oid_copy(sa, &oid);
+  
+		/* We only want to perform this check if the attribute is
+		 * defined using the DN syntax. */
+		if (oid && (strcasecmp(oid, DN_SYNTAX_OID) == 0)) { 
+			/* should use slapi_sdn_compare() but that'a an extra malloc/free */
+			char *dn_val_to_write = slapi_dn_normalize(slapi_ch_strdup(val->bv_val));
+			if ( aclpb->aclpb_authorization_sdn && 
+					slapi_utf8casecmp((ACLUCHP)dn_val_to_write, (ACLUCHP)
+					slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn)) == 0) { 
+				access |= SLAPI_ACL_SELF;
+			} 
 	
-		slapi_ch_free( (void **)&dn_val_to_write);
+			slapi_ch_free_string(&dn_val_to_write);
+		}
+
+		slapi_ch_free_string(&oid);
+		slapi_attr_free(&sa);
 	}
 
 	/* Convert access to string of rights eg SLAPI_ACL_ADD->"add". */

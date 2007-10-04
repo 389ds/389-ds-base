@@ -342,7 +342,13 @@ substr_dn_normalize( char *dn, char *end )
 	/*
 	 * Track and sort attribute values within multivalued RDNs.
 	 */
-	if ( rdn_av_count > 0 ) {
+	/* We may still be in an unexpected state, such as B4TYPE if
+	 * we encountered something odd like a '+' at the end of the
+	 * rdn.  If this is the case, we don't want to add this bogus
+	 * rdn to our list to sort.  We should only be in the INVALUE
+	 * or B4SEPARATOR state if we have a valid rdn component to 
+	 * be added. */
+	if ((rdn_av_count > 0) && ((state == INVALUE) || (state == B4SEPARATOR))) {
 	    add_rdn_av( typestart, d, &rdn_av_count,
 		    &rdn_avs, initial_rdn_av_stack );
 	}
@@ -352,7 +358,6 @@ substr_dn_normalize( char *dn, char *end )
 	if ( rdn_av_count > 0 ) {
 	    reset_rdn_avs( &rdn_avs, &rdn_av_count );
 	}
-
 	/* Trim trailing spaces */
 	while ( d != dn && *(d - 1) == ' ' ) d--;  /* XXX 518524 */
 

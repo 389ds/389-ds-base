@@ -1180,6 +1180,7 @@ EXPORTS
 	sasl_map_done @1179
 	slapd_SECITEM_FreeItem @1180
 	slapi_op_type_to_string @1181
+	slapi_attr_get_syntax_oid_copy @1182
 ; password syntax functions
         config_set_pw_mindigits @1190
         config_set_pw_minalphas @1191
