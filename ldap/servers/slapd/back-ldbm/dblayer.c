@@ -232,22 +232,42 @@ static int dblayer_db_remove_ex(dblayer_private_env *env, char const path[], cha
    always normalize both arguments.  We need to add an additional
    syntax compare function that does not normalize or takes
    an argument like value_cmp to specify to normalize or not.
-*/
 
-typedef int (*syntax_cmp_fn_type)(struct berval *, struct berval *);
+   More fun - this function is used to compare both raw database
+   keys (e.g. with the prefix '=' or '+' or '*' etc.) and without
+   (in the case of two equality keys, we want to strip off the
+   leading '=' to compare the actual values).  We only use the
+   value_compare function if both keys are equality keys with
+   some data after the equality prefix.  In every other case,
+   we will just use a standard berval cmp function.
+
+   see also DBTcmp
+*/
 static int
 dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2)
 {
     struct berval bv1, bv2;
     value_compare_fn_type syntax_cmp_fn = (value_compare_fn_type)db->app_private;
 
-    bv1.bv_val = (char *)dbt1->data+1; /* remove leading '=' */
-    bv1.bv_len = (ber_len_t)dbt1->size-1;
+    if ((dbt1->data && (dbt1->size>1) && (*((char*)dbt1->data) == EQ_PREFIX)) &&
+        (dbt2->data && (dbt2->size>1) && (*((char*)dbt2->data) == EQ_PREFIX))) {
+        bv1.bv_val = (char *)dbt1->data+1; /* remove leading '=' */
+        bv1.bv_len = (ber_len_t)dbt1->size-1;
 
-    bv2.bv_val = (char *)dbt2->data+1; /* remove leading '=' */
-    bv2.bv_len = (ber_len_t)dbt2->size-1;
+        bv2.bv_val = (char *)dbt2->data+1; /* remove leading '=' */
+        bv2.bv_len = (ber_len_t)dbt2->size-1;
 
-    return syntax_cmp_fn(&bv1, &bv2);
+        return syntax_cmp_fn(&bv1, &bv2);
+    }
+
+    /* else compare two "raw" index keys */
+    bv1.bv_val = (char *)dbt1->data;
+    bv1.bv_len = (ber_len_t)dbt1->size;
+
+    bv2.bv_val = (char *)dbt2->data;
+    bv2.bv_len = (ber_len_t)dbt2->size;
+
+    return slapi_berval_cmp(&bv1, &bv2);
 }
 
 /* this flag use if user remotely turned batching off */
