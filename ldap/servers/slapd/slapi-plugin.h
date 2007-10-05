@@ -1360,6 +1360,7 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 #define SLAPI_IS_REPLICATED_OPERATION		142
 #define SLAPI_IS_MMR_REPLICATED_OPERATION	153
 #define SLAPI_IS_LEGACY_REPLICATED_OPERATION	154
+#define SLAPI_SKIP_MODIFIED_ATTRS		155
 
 /* connection */
 #define SLAPI_CONN_DN        			143

@@ -226,12 +226,14 @@ void pw_apply_mods(const char *dn, Slapi_Mods *mods)
 	if (mods && (slapi_mods_get_num_mods(mods) > 0)) 
 	{
 		pblock_init(&pb);
+		/* We don't want to overwrite the modifiersname, etc. attributes,
+		 * so we set a flag for this operation */
 		slapi_modify_internal_set_pb (&pb, dn, 
-									  slapi_mods_get_ldapmods_byref(mods),
-									  NULL, /* Controls */
-									  NULL, /* UniqueID */
-									  pw_get_componentID(), /* PluginID */
-									  0); /* Flags */
+					  slapi_mods_get_ldapmods_byref(mods),
+					  NULL, /* Controls */
+					  NULL, /* UniqueID */
+					  pw_get_componentID(), /* PluginID */
+					  OP_FLAG_SKIP_MODIFIED_ATTRS); /* Flags */
 		slapi_modify_internal_pb (&pb);
 		
 		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &res);

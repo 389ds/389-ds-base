@@ -536,7 +536,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	LDAPMod	**mods, *pw_mod, **tmpmods = NULL;
 	Slapi_Mods smods;
 	Slapi_Mods unhashed_pw_smod;	
-	int repl_op, internal_op, lastmod;
+	int repl_op, internal_op, lastmod, skip_modified_attrs;
 	char *unhashed_pw_attr = NULL;
 	Slapi_Operation *operation;
 	char errorbuf[BUFSIZ];
@@ -551,6 +551,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
+	slapi_pblock_get (pb, SLAPI_SKIP_MODIFIED_ATTRS, &skip_modified_attrs);
 
 	if (dn == NULL)
 	{
@@ -667,8 +668,9 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	/* can get lastmod only after backend is selected */	
 	slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
 	
-	/* if this is replication session - leave mod attributes alone */
-	if (!repl_op && lastmod)
+	/* if this is replication session or the operation has been
+	 * flagged - leave mod attributes alone */
+	if (!repl_op && !skip_modified_attrs && lastmod)
 	{
 		modify_update_last_modified_attr(pb, &smods);
 	}			

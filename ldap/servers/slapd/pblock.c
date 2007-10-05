@@ -360,6 +360,16 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_REQUESTOR_ISROOT:
 		(*(int *)value) = pblock->pb_requestor_isroot;
 		break;
+	case SLAPI_SKIP_MODIFIED_ATTRS:
+		if(pblock->pb_op==NULL)
+                {
+                        (*(int *)value) = 0; /* No Operation -> No skip */
+                }
+                else
+                {
+                        (*(int *)value) = (pblock->pb_op->o_flags & OP_FLAG_SKIP_MODIFIED_ATTRS);
+		}
+		break;
 	case SLAPI_IS_REPLICATED_OPERATION:
 		if(pblock->pb_op==NULL)
 		{

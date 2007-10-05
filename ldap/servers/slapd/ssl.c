@@ -884,7 +884,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                     "slapd_ssl_init2", "tmp dir = %s\n", tmpDir);
 
     rv = SSL_ConfigServerSessionIDCache(0, stimeout, stimeout, tmpDir);
-	slapi_ch_free(&tmpDir);
+	slapi_ch_free_string(&tmpDir);
     if (rv) {
       errorCode = PR_GetError();
       if (errorCode == ENOSPC) {
