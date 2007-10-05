@@ -311,6 +311,45 @@ sub migrateNetscapeRoot {
     return $tmpldiffile;
 }
 
+sub fixIntegerIndexes {
+    my $mig = shift;
+    my $inst_dir = shift;
+    my $newdbdir = shift;
+
+    if (!$mig->{integerattrs}) {
+        debug(1, "No integer syntax attributes, no indexes fixed\n");
+        return ();
+    }
+
+    # look at each index file in the db dir
+    # if it is on our list of integer attributes,
+    # remove it and re-create it
+    my $dbname = basename($newdbdir);
+    for (glob("$newdbdir/*.db4")) {
+        my $indexname = basename($_, '.db4');
+        if ($mig->{integerattrs}->{lc $indexname}) {
+            $mig->msg($INFO, 'fixing_integer_attr_index', $indexname, $newdbdir);
+            debug(1, "Removing file $_\n");
+            if (! unlink $_) {
+                debug(1, "Error: could not remove file $_: $!\n");
+                return ('error_removing_index_file', $_, $!);
+            }
+            my $cmd = "$inst_dir/db2index -n \"$dbname\" -t \"$indexname\"";
+            debug(1, "Re-creating index file $_: $cmd\n");
+            $? = 0; # clear error condition
+            my $output = `$cmd 2>&1`;
+            if ($?) {
+                return ('error_recreating_index_file', $_, $output);
+            }
+            debug(1, $output);
+        } else {
+            debug(3, "Index $indexname is not for an integer syntax attribute - skipping\n");
+        }
+    }
+
+    return ();
+}
+
 # migrate all of the databases in an instance
 sub migrateDatabases {
     my $mig = shift; # the Migration object
@@ -435,6 +474,15 @@ sub migrateDatabases {
                 $srcdir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
                 if (@errs = copyDatabaseDirs($srcdir, "$newdbdir")) {
                     return @errs;
+                }
+                # fix up the integer indexes
+                if ($mig->{integerattrs}) {
+                    debug(3, "The schema has some integer attributes\n");
+                    if (@errs = fixIntegerIndexes($mig, $inst_dir, $newdbdir)) {
+                        return @errs;
+                    }
+                } else {
+                    debug(3, "No integer attributes to fix for $newdbdir\n");
                 }
             }
         }
@@ -680,6 +728,12 @@ my %deletedschema = (
     '51ns-calendar'        => '51ns-calendar.ldif'
 );
 
+# these indexes are handled specially by the db code
+my %intattrstoskip = (
+    'numsubordinates' => 'numSubordinates',
+    'hassubordinates' => 'hasSubordinates'
+);
+
 sub migrateSchema {
     my $mig = shift; # the Migration object
     my $inst = shift; # the instance name (e.g. slapd-instance)
@@ -698,6 +752,39 @@ sub migrateSchema {
         if (system("cp -p $_ $newschemadir")) {
             return ("error_migrating_schema", $_, $!);
         }
+    }
+
+    if (!$mig->{crossplatform}) {
+        # now, for all of the new schema, we need to get the list of attribute
+        # types with INTEGER syntax, including derived types (e.g. SUP 'attr')
+        # not required for cross platform because import of the old ldif file
+        # will automatically recreate all indexes
+        my %intattrs = ();
+        for (glob("$newschemadir/*.ldif")) {
+            # read in schema entry from LDIF
+            open( MYSCHEMA, $_ ) || die "Can't open $_: $!";
+            my $in = new Mozilla::LDAP::LDIF(*MYSCHEMA);
+            while (my $ent = readOneEntry $in) {
+                my @attrs = $ent->getValues('attributeTypes');
+                foreach my $attr (@attrs) {
+                    # first see if the attribute definition uses INTEGER syntax
+                    # else see if the super uses INTEGER - note this assumes the attributes
+                    # are listed in the files in SUP order - that is, an attribute does
+                    # not reference a SUP before it is defined
+                    if ($attr =~ / NAME (?:\(\s)?[\']?(\w+)[\']?.* SYNTAX 1.3.6.1.4.1.1466.115.121.1.27[\{\s]/) {
+                        next if ($intattrstoskip{lc $1});
+                        $intattrs{lc $1} = $1;
+                    } elsif (($attr =~ / NAME (?:\(\s)?[\']?(\w+)[\']?.*SUP [\']?(\w+)[\']?/) &&
+                             $intattrs{lc $2}) {
+                        next if ($intattrstoskip{lc $1});
+                        $intattrs{lc $1} = $1;
+                    }
+                }
+            }
+            close MYSCHEMA;
+        }
+        # %intattrs now contains all of the integer valued attributes
+        $mig->{integerattrs} = \%intattrs; # hashref
     }
 
     return ();

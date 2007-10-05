@@ -22,3 +22,6 @@ LDIF files are required in order to do cross platform migration.  The\
 database files are not binary compatible, and the new databases must\
 be initialized from an LDIF export of the old databases.  Please refer\
 to the migration instructions for help with how to do this.\n\n
+fixing_integer_attr_index = The index for the attribute '%s' in the database directory '%s' will be removed and re-created.\n\n
+error_removing_index_file = Could not remove the index file '%s'.  Error: %s\n\n
+error_recreating_index_file = Could not re-create the index file '%s'.  Error: %s\n\n
