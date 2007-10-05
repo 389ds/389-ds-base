@@ -3034,22 +3034,26 @@ config_set_errorlog( const char *attrname, char *value, char *errorbuf, int appl
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
-	return LDAP_OPERATIONS_ERROR;
+    return LDAP_OPERATIONS_ERROR;
   }
   
   retVal = log_update_errorlogdir ( value, apply );
   
   if ( retVal != LDAP_SUCCESS ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			"Cannot open errorlog directory \"%s\", errors will "
-			"not be logged.", value );
+    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
+      "Cannot open errorlog file \"%s\", errors cannot be logged.  Exiting...",
+      value );
+    syslog(LOG_ERR, 
+      "Cannot open errorlog file \"%s\", errors cannot be logged.  Exiting...",
+      value );
+    g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
   }
   
   if ( apply ) {
-	CFG_LOCK_WRITE(slapdFrontendConfig);
-	slapi_ch_free ( (void **) &(slapdFrontendConfig->errorlog) );
-	slapdFrontendConfig->errorlog = slapi_ch_strdup ( value );
-	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapi_ch_free ( (void **) &(slapdFrontendConfig->errorlog) );
+    slapdFrontendConfig->errorlog = slapi_ch_strdup ( value );
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
 }

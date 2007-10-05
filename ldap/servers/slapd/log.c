@@ -126,7 +126,7 @@ static int	log__check_prevlogs (FILE *fp, char *filename);
 static int 	log__getfilesize(LOGFD fp);
 static int 	log__enough_freespace(char  *path);
 
-static int 	vslapd_log_error(LOGFD fp, char *subsystem, char *fmt, va_list ap );
+static int 	vslapd_log_error(LOGFD fp, char *subsystem, char *fmt, va_list ap, int locked );
 static int 	vslapd_log_access(char *fmt, va_list ap );
 static void	log_convert_time (time_t ctime, char *tbuf, int type);
 static time_t	log_reverse_convert_time (char *tbuf);
@@ -134,7 +134,7 @@ static LogBufferInfo *log_create_buffer(size_t sz);
 static void	log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
 static void	log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now);
 static void	log_write_title(LOGFD fp);
-
+static void log__error_emergency(const char *errstr, int reopen, int locked);
 
 static int
 slapd_log_error_proc_internal(
@@ -154,8 +154,8 @@ slapd_log_error_proc_internal(
  * LOG_OPEN_WRITE(fd, filename, mode) is the same but truncates the file and
  *	starts writing at the beginning of the file.
  * LOG_WRITE(fd, buffer, size, headersize) writes into a LOGFD
- * LOG_WRITE_NOW(fd, buffer, size, headersize) writes into a LOGFD and flushes the
- *	buffer if necessary
+ * LOG_WRITE_NOW(fd, buffer, size, headersize, err) writes into a LOGFD and 
+ *  flushes the buffer if necessary
  * LOG_CLOSE(fd) closes the logfile
  */
 #ifdef XP_WIN32
@@ -168,10 +168,12 @@ slapd_log_error_proc_internal(
 	{\
 		ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_FAILED_TO_WRITE_LOG, 1, (buffer)); \
 	}
-#define LOG_WRITE_NOW(fd, buffer, size, headersize) do {\
+#define LOG_WRITE_NOW(fd, buffer, size, headersize, err) do {\
+		(err) = 0; \
 		if ( fwrite((buffer), (size), 1, (fd)) != 1 ) \
 		{ \
 			ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_FAILED_TO_WRITE_LOG, 1, (buffer)); \
+			(err) = 1; \
 		}; \
 		fflush((fd)); \
 	} while (0)
@@ -190,11 +192,13 @@ slapd_log_error_proc_internal(
 		PRErrorCode prerr = PR_GetError(); \
 		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(headersize) ); \
 	}
-#define LOG_WRITE_NOW(fd, buffer, size, headersize) do {\
+#define LOG_WRITE_NOW(fd, buffer, size, headersize, err) do {\
+	(err) = 0; \
 	if ( slapi_write_buffer((fd), (buffer), (size)) != (size) ) \
 	{ \
 		PRErrorCode prerr = PR_GetError(); \
 		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(headersize) ); \
+		(err) = prerr; \
 	} \
 	/* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */ \
 	PR_Sync(fd); \
@@ -528,10 +532,13 @@ log_update_errorlogdir(char *pathname, int apply)
 
 	/* try to open the file, we may have a incorrect path */
 	if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_error_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
-				"errno %d (%s)\n",
-				pathname, errno, slapd_system_strerror(errno));
+		char buffer[SLAPI_LOG_BUFSIZ];
+		PRErrorCode prerr = PR_GetError();
 		/* stay with the current log file */
+		PR_snprintf(buffer, sizeof(buffer),
+				"Failed to open file %s. error %d (%s). Exiting...",
+				pathname, prerr, slapd_pr_strerror(prerr));
+		log__error_emergency(buffer, 0, 0);
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 	
@@ -1589,11 +1596,12 @@ log_write_title (LOGFD fp)
 	char *buildnum = config_get_buildnum();
 	char buff[512];
 	int bufflen = sizeof(buff);
+	int err = 0;
 
 	PR_snprintf(buff, bufflen, "\t%s B%s\n",
 				fe_cfg->versionstring ? fe_cfg->versionstring : "Fedora-Directory",
 				buildnum ? buildnum : "");
-	LOG_WRITE_NOW(fp, buff, strlen(buff), 0);
+	LOG_WRITE_NOW(fp, buff, strlen(buff), 0, err);
 
 	if (fe_cfg->localhost) {
 		PR_snprintf(buff, bufflen, "\t%s:%d (%s)\n\n",
@@ -1608,7 +1616,7 @@ log_write_title (LOGFD fp)
 		PR_snprintf(buff, bufflen, "\t<host>:<port> (%s)\n\n",
 				fe_cfg->configdir ? fe_cfg->configdir : "");
 	}
-	LOG_WRITE_NOW(fp, buff, strlen(buff), 0);
+	LOG_WRITE_NOW(fp, buff, strlen(buff), 0, err);
 	slapi_ch_free((void **)&buildnum);
 }
 
@@ -1696,6 +1704,7 @@ slapd_log_audit_proc (
 	char	*buffer,
 	int	buf_len)
 {
+	int err;
 	if ( (loginfo.log_audit_state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL) ){
 		LOG_AUDIT_LOCK_WRITE( );
 		if (log__needrotation(loginfo.log_audit_fdes,
@@ -1715,7 +1724,7 @@ slapd_log_audit_proc (
 			log_write_title( loginfo.log_audit_fdes);
 			loginfo.log_audit_state &= ~LOGGING_NEED_TITLE;
 		}
-	    LOG_WRITE_NOW(loginfo.log_audit_fdes, buffer, buf_len, 0);
+	    LOG_WRITE_NOW(loginfo.log_audit_fdes, buffer, buf_len, 0, err);
    		LOG_AUDIT_UNLOCK_WRITE();
 	    return 0;
 	}
@@ -1755,6 +1764,8 @@ slapd_log_error_proc_internal(
 					SLAPD_ERROR_LOG) == LOG_ROTATE) {
 			if (log__open_errorlogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
 				LOG_ERROR_UNLOCK_WRITE();
+				/* shouldn't continue. error is syslog'ed in open_errorlogfile */
+				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 				return 0;
 			}
 			while (loginfo.log_error_rotationsyncclock <= loginfo.log_error_ctime) {
@@ -1763,19 +1774,19 @@ slapd_log_error_proc_internal(
 		}
 
 		if (!(detached)) { 
-			rc = vslapd_log_error( NULL, subsystem, fmt, ap_err ); 
+			rc = vslapd_log_error( NULL, subsystem, fmt, ap_err, 1 ); 
 		} 
 		if ( loginfo.log_error_fdes != NULL ) { 
 			if (loginfo.log_error_state & LOGGING_NEED_TITLE) {
 				log_write_title(loginfo.log_error_fdes);
 				loginfo.log_error_state &= ~LOGGING_NEED_TITLE;
 			}
-			rc = vslapd_log_error( loginfo.log_error_fdes, subsystem, fmt, ap_file ); 
+			rc = vslapd_log_error( loginfo.log_error_fdes, subsystem, fmt, ap_file, 1 ); 
 		} 
 		LOG_ERROR_UNLOCK_WRITE();
 	} else {
 		/* log the problem in the stderr */
-    	rc = vslapd_log_error( NULL, subsystem, fmt, ap_err ); 
+    	rc = vslapd_log_error( NULL, subsystem, fmt, ap_err, 0 ); 
 	}
 	return( rc );
 }
@@ -1785,17 +1796,19 @@ vslapd_log_error(
     LOGFD	fp,
     char	*subsystem,	/* omitted if NULL */
     char	*fmt,
-    va_list	ap )
+    va_list	ap,
+	int     locked )
 {
-    time_t	tnl;
-    long	tz;
-    struct tm	*tmsp, tms;
-    char	tbuf[ TBUFSIZE ];
-    char	sign;
-    char	buffer[SLAPI_LOG_BUFSIZ];
-    int		blen;
-    char	*vbuf;
-	int header_len = 0;
+    time_t    tnl;
+    long      tz;
+    struct tm *tmsp, tms;
+    char      tbuf[ TBUFSIZE ];
+    char      sign;
+    char      buffer[SLAPI_LOG_BUFSIZ];
+    int       blen;
+    char      *vbuf;
+    int       header_len = 0;
+    int       err = 0;
 
     tnl = current_time();
 #ifdef _WIN32
@@ -1813,50 +1826,67 @@ vslapd_log_error(
 #else /* BSD_TIME */
     tz = - timezone;
     if ( tmsp->tm_isdst ) {
-	tz += 3600;
+    tz += 3600;
     }
 #endif /* BSD_TIME */
     sign = ( tz >= 0 ? '+' : '-' );
     if ( tz < 0 ) {
-	tz = -tz;
+    tz = -tz;
     }
     (void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
     sprintf( buffer, "[%s %c%02d%02d]%s%s - ", tbuf, sign, 
-					(int)( tz / 3600 ), (int)( tz % 3600 ),
-					subsystem ? " " : "",
-					subsystem ? subsystem : "");
+                    (int)( tz / 3600 ), (int)( tz % 3600 ),
+                    subsystem ? " " : "",
+                    subsystem ? subsystem : "");
 
-	/* Bug 561525: to be able to remove timestamp to not over pollute syslog, we may need
-		to skip the timestamp part of the message. 
-	  The size of the header is: 
-		the size of the time string
-		+ size of space 
-		+ size of one char (sign)
-		+ size of 2 char 
-		+ size of 2 char 
-		+ size of [ 
-		+ size of ]
-	*/
+    /* Bug 561525: to be able to remove timestamp to not over pollute syslog, we may need
+        to skip the timestamp part of the message. 
+      The size of the header is: 
+        the size of the time string
+        + size of space 
+        + size of one char (sign)
+        + size of 2 char 
+        + size of 2 char 
+        + size of [ 
+        + size of ]
+    */
 
-	header_len = strlen(tbuf) + 8;
+    header_len = strlen(tbuf) + 8;
 
     if ((vbuf = PR_vsmprintf(fmt, ap)) == NULL) {
-		return -1;
+        return -1;
     }
     blen = strlen(buffer);
-    if ((unsigned int)(SLAPI_LOG_BUFSIZ - blen ) < strlen(vbuf)) {
-		free (vbuf);
-		return -1;
-    }
-  
-    sprintf (buffer+blen, "%s", vbuf);
+    PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
+    buffer[sizeof(buffer)-1] = '\0';
 
     if (fp)
-	LOG_WRITE_NOW(fp, buffer, strlen(buffer), header_len);
-
-
+#if 0
+        LOG_WRITE_NOW(fp, buffer, strlen(buffer), header_len, err);
+#else
+ do {
+	int size = strlen(buffer);
+	(err) = 0;
+	if ( slapi_write_buffer((fp), (buffer), (size)) != (size) ) 
+	{ 
+		PRErrorCode prerr = PR_GetError(); 
+		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(header_len) ); 
+		(err) = prerr; 
+	} 
+	/* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */ 
+	PR_Sync(fp); 
+	} while (0);
+#endif
     else  /* stderr is always unbuffered */
-	fprintf(stderr, "%s", buffer);
+        fprintf(stderr, "%s", buffer);
+
+    if (err) {
+        PR_snprintf(buffer, sizeof(buffer),
+                    "Writing to the errors log failed.  Exiting...");
+        log__error_emergency(buffer, 1, locked);
+        /* failed to write to the errors log.  should not continue. */
+        g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+    }
 
     PR_smprintf_free (vbuf);
     return( 0 );
@@ -1865,31 +1895,31 @@ vslapd_log_error(
 int
 slapi_log_error( int severity, char *subsystem, char *fmt, ... )
 {
-    va_list	ap1;
-    va_list	ap2;
-    int		rc;
+    va_list ap1;
+    va_list ap2;
+    int     rc;
 
     if ( severity < SLAPI_LOG_MIN || severity > SLAPI_LOG_MAX ) {
-	(void)slapd_log_error_proc( subsystem,
-		"slapi_log_error: invalid severity %d (message %s)\n",
-		severity, fmt );
-	return( -1 );
+        (void)slapd_log_error_proc( subsystem,
+                "slapi_log_error: invalid severity %d (message %s)\n",
+                severity, fmt );
+        return( -1 );
     }
 
-
+    if (
 #ifdef _WIN32
-    if ( *module_ldap_debug
+         *module_ldap_debug
 #else
-    if ( slapd_ldap_debug
+         slapd_ldap_debug
 #endif
-	    & slapi_log_map[ severity ] ) {
-	va_start( ap1, fmt );
-	va_start( ap2, fmt );
-	rc = slapd_log_error_proc_internal( subsystem, fmt, ap1, ap2 );
-    	va_end( ap1 );
-    	va_end( ap2 );
+            & slapi_log_map[ severity ] ) {
+        va_start( ap1, fmt );
+        va_start( ap2, fmt );
+        rc = slapd_log_error_proc_internal( subsystem, fmt, ap1, ap2 );
+            va_end( ap1 );
+            va_end( ap2 );
     } else {
-	rc = 0;	/* nothing to be logged --> always return success */
+        rc = 0;        /* nothing to be logged --> always return success */
     }
 
     return( rc );
@@ -1899,13 +1929,13 @@ int
 slapi_is_loglevel_set ( const int loglevel )
 {
 
-	return ( 
+    return ( 
 #ifdef _WIN32
     *module_ldap_debug
 #else
     slapd_ldap_debug
 #endif
-	    & slapi_log_map[ loglevel ] ? 1 : 0);
+        & slapi_log_map[ loglevel ] ? 1 : 0);
 }
 
 
@@ -3474,6 +3504,31 @@ log__audit_rotationinfof( char *pathname)
 	return logfile_type;
 }
 
+static void
+log__error_emergency(const char *errstr, int reopen, int locked)
+{
+	syslog(LOG_ERR, "%s\n", errstr);
+
+	/* emergency open */
+	if (!reopen) {
+		return;
+	}
+	if (NULL != loginfo.log_error_fdes) {
+		LOG_CLOSE(loginfo.log_error_fdes);
+	}
+	if (! LOG_OPEN_APPEND(loginfo.log_error_fdes, 
+						  loginfo.log_error_file, loginfo.log_error_mode)) {
+		PRErrorCode prerr = PR_GetError();
+		syslog(LOG_ERR, "Failed to reopen errors log file, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", prerr, slapd_pr_strerror(prerr));
+	} else {
+		/* LDAPDebug locks ERROR_LOCK_WRITE internally */
+		if (locked) LOG_ERROR_UNLOCK_WRITE();
+		LDAPDebug(LDAP_DEBUG_ANY, "%s\n", errstr, 0, 0);
+		if (locked) LOG_ERROR_LOCK_WRITE( );
+	}
+	return;
+}
+
 /******************************************************************************
 * log__open_errorlogfile
 *
@@ -3485,7 +3540,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 {
 
 	time_t			now;
-	LOGFD			fp;
+	LOGFD			fp = NULL;
 	LOGFD			fpinfo = NULL;
 	char			tbuf[TBUFSIZE];
 	struct logfileinfo	*logp;
@@ -3500,6 +3555,9 @@ log__open_errorlogfile(int logfile_state, int locked)
 		pw = slapdFrontendConfig->localuserinfo;
 	}
 	else {
+		PR_snprintf(buffer, sizeof(buffer),
+					"Invalid nsslapd-localuser. Cannot open the errors log. Exiting...");
+		log__error_emergency(buffer, 0, locked);
 		return LOG_UNABLE_TO_OPENFILE;
 	}
 #endif
@@ -3541,6 +3599,14 @@ log__open_errorlogfile(int logfile_state, int locked)
 			log_convert_time (log->l_ctime, tbuf, 1/*short */);
 			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_error_file, tbuf);
 			if (PR_Rename (loginfo.log_error_file, newfile) != PR_SUCCESS) {
+				PRErrorCode prerr = PR_GetError();
+				PR_snprintf(buffer, sizeof(buffer),
+					"Failed to rename errors log file, " 
+					SLAPI_COMPONENT_NAME_NSPR " error %d (%s). Exiting...", 
+					prerr, slapd_pr_strerror(prerr));
+				log__error_emergency(buffer, 1, 1);
+				slapi_ch_free((void **)&log);
+				if (!locked) LOG_ERROR_UNLOCK_WRITE();
 				return LOG_UNABLE_TO_OPENFILE;
 			}
 
@@ -3551,15 +3617,17 @@ log__open_errorlogfile(int logfile_state, int locked)
 		}
 	} 
 
-
 	/* open a new log file */
 	if (! LOG_OPEN_APPEND(fp, loginfo.log_error_file, loginfo.log_error_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
-				"errno %d (%s)\n",
+		PR_snprintf(buffer, sizeof(buffer),
+				"Failed to open errors log file %s: error %d (%s); Exiting...", 
 				loginfo.log_error_file, errno, slapd_system_strerror(errno));
+		log__error_emergency(buffer, 1, locked);
 		if (!locked) LOG_ERROR_UNLOCK_WRITE();
+		/* failed to write to the errors log.  should not continue. */
+		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 		/*if I have an old log file -- I should log a message
-		** that I can't open the  new file. Let the caller worry
+		** that I can't open the new file. Let the caller worry
 		** about logging message. 
 		*/
 		return LOG_UNABLE_TO_OPENFILE;
@@ -3583,9 +3651,10 @@ log__open_errorlogfile(int logfile_state, int locked)
 	loginfo.log_error_state |= LOGGING_NEED_TITLE;
 
 	if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_errorinfo_file, loginfo.log_error_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
-				"errno %d (%s)\n",
-				loginfo.log_errorinfo_file, errno, slapd_system_strerror(errno));
+		PR_snprintf(buffer, sizeof(buffer),
+				"Failed to open/write to errors log file %s: error %d (%s). Exiting...", 
+				loginfo.log_error_file, errno, slapd_system_strerror(errno));
+		log__error_emergency(buffer, 1, locked);
 		if (!locked) LOG_ERROR_UNLOCK_WRITE();
 		return LOG_UNABLE_TO_OPENFILE;
 	}
@@ -3597,7 +3666,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 	LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 
 	logp = loginfo.log_error_logchain;
-	while ( logp) {
+	while (logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%u)\n",
 			PREVLOGFILE, loginfo.log_error_file, tbuf, logp->l_ctime, logp->l_size);
@@ -3607,7 +3676,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 	/* Close the info file. We need only when we need to rotate to the
 	** next log file.
 	*/
-	if (fpinfo)  LOG_CLOSE(fpinfo);
+	if (fpinfo) LOG_CLOSE(fpinfo);
 
 	/* This is now the current error log */
 	loginfo.log_error_ctime = now;
@@ -3836,6 +3905,7 @@ static void log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_
 static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	int err = 0;
 	
     if (type == SLAPD_ACCESS_LOG) {
 
@@ -3868,7 +3938,8 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
 		if (!sync_now && slapdFrontendConfig->accesslogbuffering) {
 			LOG_WRITE(loginfo.log_access_fdes, lbi->top, lbi->current - lbi->top, 0);
 		} else {
-			LOG_WRITE_NOW(loginfo.log_access_fdes, lbi->top, lbi->current - lbi->top, 0);
+			LOG_WRITE_NOW(loginfo.log_access_fdes, lbi->top,
+								lbi->current - lbi->top, 0, err);
 		}
 
         lbi->current = lbi->top;
