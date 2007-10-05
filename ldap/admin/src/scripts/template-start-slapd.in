@@ -6,6 +6,12 @@ export LD_LIBRARY_PATH
 SHLIB_PATH=$prefix{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export SHLIB_PATH
 
+# source env. for all instances
+[ -f @initconfigdir@/@package_name@ ] && . @initconfigdir@/@package_name@
+
+# source env. for this instance
+[ -f @initconfigdir@/@package_name@-{{SERV-ID}} ] && . @initconfigdir@/@package_name@-{{SERV-ID}}
+
 # Script that starts the ns-slapd server.
 # Exit status can be:
 #       0: Server started successfully

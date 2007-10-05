@@ -275,6 +275,7 @@ case $host in
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
+    initconfigdir="/$PACKAGE_NAME/config"
     ;;
   hppa*-hp-hpux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -287,6 +288,7 @@ case $host in
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     # assume 64 bit
+    initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     ;;
@@ -326,6 +328,19 @@ dnl Cstd and Crun are required to link any C++ related code
 esac
 AC_SUBST(initdir)
 AC_SUBST(perlexec)
+
+# set default initconfigdir if not already set
+# value will be set so as to be relative to $(sysconfdir)
+if test -z "$initconfigdir" ; then
+   if test -d /etc/sysconfig ; then
+      initconfigdir=/sysconfig
+   elif test -d /etc/default ; then
+      initconfigdir=/default
+   else
+      initconfigdir="/$PACKAGE_NAME/config"
+   fi
+fi
+AC_SUBST(initconfigdir)
 
 AM_CONDITIONAL(HPUX,test "$platform" = "hpux")
 AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")

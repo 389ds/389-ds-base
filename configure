@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/$PACKAGE_NAME
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_bitwise_TRUE enable_bitwise_FALSE with_fhs_opt configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir infdir defaultuser defaultgroup instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir perlexec HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG PACKAGE_BASE_VERSION nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir sasl_path svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_bitwise_TRUE enable_bitwise_FALSE with_fhs_opt configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir infdir defaultuser defaultgroup instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir perlexec initconfigdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG PACKAGE_BASE_VERSION nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir sasl_path svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -23342,6 +23342,7 @@ _ACEOF
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
+    initconfigdir="/$PACKAGE_NAME/config"
     ;;
   hppa*-hp-hpux*)
 
@@ -23390,6 +23391,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
     # assume 64 bit
+    initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     ;;
@@ -23475,6 +23477,19 @@ _ACEOF
     ;;
 esac
 
+
+
+# set default initconfigdir if not already set
+# value will be set so as to be relative to $(sysconfdir)
+if test -z "$initconfigdir" ; then
+   if test -d /etc/sysconfig ; then
+      initconfigdir=/sysconfig
+   elif test -d /etc/default ; then
+      initconfigdir=/default
+   else
+      initconfigdir="/$PACKAGE_NAME/config"
+   fi
+fi
 
 
 
@@ -26076,6 +26091,7 @@ s,@LIBCSTD@,$LIBCSTD,;t t
 s,@LIBCRUN@,$LIBCRUN,;t t
 s,@initdir@,$initdir,;t t
 s,@perlexec@,$perlexec,;t t
+s,@initconfigdir@,$initconfigdir,;t t
 s,@HPUX_TRUE@,$HPUX_TRUE,;t t
 s,@HPUX_FALSE@,$HPUX_FALSE,;t t
 s,@SOLARIS_TRUE@,$SOLARIS_TRUE,;t t

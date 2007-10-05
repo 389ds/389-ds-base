@@ -1,0 +1,22 @@
+# This file is sourced by @package_name@ upon startup to set
+# the default environment for all directory server instances.
+# To set instance specific defaults, make a copy of this
+# file in the same directory called @package_name@-instance
+# where "instance" is the name of your directory server
+# instance e.g. @package_name@-localhost for the
+# slapd-localhost instance
+
+# In order to make more file descriptors available
+# to the directory server, first make sure the system
+# hard limits are raised, then use ulimit - uncomment
+# out the following line and change the value to the
+# desired value
+# ulimit -n 8192
+
+# In order to use SASL/GSSAPI the directory
+# server needs to know where to find its keytab
+# file - uncomment the following line and set
+# the path and filename appropriately
+# KRB5_KTNAME=@instconfigdir@/slapd-instance/keytab ; export KRB5_KTNAME
+
+# other environment settings can be added here too

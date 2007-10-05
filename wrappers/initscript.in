@@ -86,6 +86,8 @@ instbase="@instconfigdir@"
 
 umask 077
 
+[ -f @initconfigdir@/@package_name@ ] && . @initconfigdir@/@package_name@
+
 INSTANCES=""
 
 for FILE in `/bin/ls -d $instbase/slapd-* 2>/dev/null`; do
@@ -143,7 +145,12 @@ start() {
                 rm -f $pidfile
                 rm -f $startpidfile
                 fix_pid_dir_ownership $instbase/slapd-$instance
-                $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
+                # start the directory server in a subshell so that the instance specific
+                # init config environment will not apply to any other instance
+                (
+                    [ -f @initconfigdir@/@package_name@-$instance ] && . @initconfigdir@/@package_name@-$instance
+                    $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
+                )
                 if [ $? -eq 0 ]; then
                     server_started=1 # well, perhaps not running, but started ok
                 else

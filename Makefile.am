@@ -78,6 +78,7 @@ serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
 initdir = $(sysconfdir)@initdir@
+initconfigdir = $(sysconfdir)@initconfigdir@
 instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
@@ -240,6 +241,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-dbverify
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
+
+initconfig_SCRIPTS = ldap/admin/src/$(PACKAGE_NAME)
 
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
@@ -1039,7 +1042,8 @@ fixupcmd = sed \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
-	-e 's,@perlexec\@,@perlexec@,g'
+	-e 's,@perlexec\@,@perlexec@,g' \
+	-e 's,@initconfigdir\@,$(initconfigdir),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1086,7 +1090,8 @@ fixupcmd = sed \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
-	-e 's,@perlexec\@,@perlexec@,g'
+	-e 's,@perlexec\@,@perlexec@,g' \
+	-e 's,@initconfigdir\@,$(initconfigdir),g'
 endif
 
 %: %.in
@@ -1094,4 +1099,9 @@ endif
 	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME): %/initscript.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME): %/initconfig.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
