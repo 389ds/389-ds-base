@@ -148,7 +148,7 @@ passthru_bindpreop_close( Slapi_PBlock *pb )
 static int
 passthru_bindpreop( Slapi_PBlock *pb )
 {
-    int			rc, method;
+    int			rc, method, freeresctrls=1;
     char		*normbinddn, *matcheddn;
     char		*libldap_errmsg, *pr_errmsg, *errmsg;
     PassThruConfig	*cfg;
@@ -259,6 +259,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
 	 */
 	if ( resctrls != NULL ) {
 	    (void)slapi_pblock_set( pb, SLAPI_RESCONTROLS, resctrls );
+            freeresctrls=0;
 	}
 	slapi_send_ldap_result( pb, rc, matcheddn, errmsg, 0, urls );
     }
@@ -275,7 +276,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
     if ( pr_errmsg != NULL ) {
 	PR_smprintf_free( pr_errmsg );
     }
-    if ( resctrls != NULL ) {
+    if ( freeresctrls && (resctrls != NULL) ) {
 	ldap_controls_free( resctrls );
     }
     if ( matcheddn != NULL ) {
