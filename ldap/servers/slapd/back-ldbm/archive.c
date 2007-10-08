@@ -296,9 +296,11 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         }
     }
 
-    if (stat(rawdirectory, &sbuf) == 0) {
+    /* Initialize directory */
+    directory = rel2abspath(rawdirectory);
+
+    if (stat(directory, &sbuf) == 0) {
         int baklen = 0;
-        directory = rel2abspath(rawdirectory);
 
         if (slapd_comp_path(directory, li->li_directory) == 0) {
             LDAPDebug(LDAP_DEBUG_ANY,
