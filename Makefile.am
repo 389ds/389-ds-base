@@ -82,6 +82,7 @@ initconfigdir = $(sysconfdir)@initconfigdir@
 instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
+mibdir = $(datadir)@mibdir@
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -247,6 +248,14 @@ initconfig_SCRIPTS = ldap/admin/src/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
 	ldap/admin/src/scripts/dsorgentries.map
+
+mib_DATA = ldap/servers/snmp/RFC-1215.txt \
+	ldap/servers/snmp/SNMPv2-TC.txt \
+	ldap/servers/snmp/redhat-directory.mib \
+	ldap/servers/snmp/SNMPv2-CONF.txt \
+	ldap/servers/snmp/NETWORK-SERVICES-MIB.txt \
+	ldap/servers/snmp/RFC1155-SMI.txt \
+	ldap/servers/snmp/SNMPv2-SMI.txt
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1020,6 +1029,7 @@ fixupcmd = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@infdir\@,$(infdir),g' \
+	-e 's,@mibdir\@,$(mibdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
@@ -1068,6 +1078,7 @@ fixupcmd = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@infdir\@,$(infdir),g' \
+	-e 's,@mibdir\@,$(mibdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \

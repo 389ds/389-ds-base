@@ -165,6 +165,8 @@ if test "$with_fhs_opt" = "yes"; then
   serverplugindir=/plugins
   # relative to datadir
   infdir=/inf
+  # relative to datadir
+  mibdir=/mibs
   # location of property/resource files, relative to datadir
   propertydir=/properties
   # relative to libdir
@@ -189,6 +191,8 @@ else
   serverplugindir=/$PACKAGE_NAME/plugins
   # relative to datadir
   infdir=/$PACKAGE_NAME/inf
+  # relative to datadir
+  mibdir=/$PACKAGE_NAME/mibs
   # location of property/resource files, relative to datadir
   propertydir=/$PACKAGE_NAME/properties
   # relative to libdir
@@ -214,6 +218,7 @@ AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
 AC_SUBST(infdir)
+AC_SUBST(mibdir)
 
 AC_SUBST(defaultuser)
 AC_SUBST(defaultgroup)

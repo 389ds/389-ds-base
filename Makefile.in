@@ -96,9 +96,9 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" \
 	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" \
-	"$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -768,11 +768,12 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(pwdhash_bin_SOURCES) $(rsearch_bin_SOURCES)
 configDATA_INSTALL = $(INSTALL_DATA)
 infDATA_INSTALL = $(INSTALL_DATA)
+mibDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
 propertyDATA_INSTALL = $(INSTALL_DATA)
 sampledataDATA_INSTALL = $(INSTALL_DATA)
 schemaDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(config_DATA) $(inf_DATA) $(nodist_property_DATA) \
+DATA = $(config_DATA) $(inf_DATA) $(mib_DATA) $(nodist_property_DATA) \
 	$(property_DATA) $(sampledata_DATA) $(schema_DATA)
 ETAGS = etags
 CTAGS = ctags
@@ -931,6 +932,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localstatedir = @localstatedir@
 mandir = @mandir@
+mibdir = $(datadir)@mibdir@
 mkdir_p = @mkdir_p@
 netsnmp_inc = @netsnmp_inc@
 netsnmp_lib = @netsnmp_lib@
@@ -1160,6 +1162,14 @@ initconfig_SCRIPTS = ldap/admin/src/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
 	ldap/admin/src/scripts/dsorgentries.map
+
+mib_DATA = ldap/servers/snmp/RFC-1215.txt \
+	ldap/servers/snmp/SNMPv2-TC.txt \
+	ldap/servers/snmp/redhat-directory.mib \
+	ldap/servers/snmp/SNMPv2-CONF.txt \
+	ldap/servers/snmp/NETWORK-SERVICES-MIB.txt \
+	ldap/servers/snmp/RFC1155-SMI.txt \
+	ldap/servers/snmp/SNMPv2-SMI.txt
 
 
 #////////////////////////////////////////////////////////////////
@@ -1892,6 +1902,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 @BUNDLE_FALSE@	-e 's,@localstatedir\@,$(localstatedir),g' \
 @BUNDLE_FALSE@	-e 's,@infdir\@,$(infdir),g' \
+@BUNDLE_FALSE@	-e 's,@mibdir\@,$(mibdir),g' \
 @BUNDLE_FALSE@	-e 's,@templatedir\@,$(sampledatadir),g' \
 @BUNDLE_FALSE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 @BUNDLE_FALSE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
@@ -1950,6 +1961,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 @BUNDLE_TRUE@	-e 's,@localstatedir\@,$(localstatedir),g' \
 @BUNDLE_TRUE@	-e 's,@infdir\@,$(infdir),g' \
+@BUNDLE_TRUE@	-e 's,@mibdir\@,$(mibdir),g' \
 @BUNDLE_TRUE@	-e 's,@templatedir\@,$(sampledatadir),g' \
 @BUNDLE_TRUE@	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 @BUNDLE_TRUE@	-e 's,@instconfigdir\@,$(instconfigdir),g' \
@@ -8651,6 +8663,23 @@ uninstall-infDATA:
 	  echo " rm -f '$(DESTDIR)$(infdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(infdir)/$$f"; \
 	done
+install-mibDATA: $(mib_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(mibdir)" || $(mkdir_p) "$(DESTDIR)$(mibdir)"
+	@list='$(mib_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(mibDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(mibdir)/$$f'"; \
+	  $(mibDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(mibdir)/$$f"; \
+	done
+
+uninstall-mibDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(mib_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(mibdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(mibdir)/$$f"; \
+	done
 install-nodist_propertyDATA: $(nodist_property_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(propertydir)" || $(mkdir_p) "$(DESTDIR)$(propertydir)"
@@ -8901,7 +8930,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9026,7 +9055,7 @@ info: info-am
 info-am:
 
 install-data-am: install-configDATA install-infDATA \
-	install-initSCRIPTS install-initconfigSCRIPTS \
+	install-initSCRIPTS install-initconfigSCRIPTS install-mibDATA \
 	install-nodist_propertyDATA install-perlSCRIPTS \
 	install-propertyDATA install-sampledataDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
@@ -9064,11 +9093,12 @@ ps-am:
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-info-am \
 	uninstall-initSCRIPTS uninstall-initconfigSCRIPTS \
-	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
-	uninstall-propertyDATA uninstall-sampledataDATA \
-	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
-	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
-	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS
+	uninstall-mibDATA uninstall-nodist_propertyDATA \
+	uninstall-perlSCRIPTS uninstall-propertyDATA \
+	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
+	uninstall-sbinSCRIPTS uninstall-schemaDATA \
+	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
+	uninstall-taskSCRIPTS
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-generic clean-libtool \
@@ -9083,9 +9113,10 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	install-data install-data-am install-exec install-exec-am \
 	install-infDATA install-info install-info-am \
 	install-initSCRIPTS install-initconfigSCRIPTS install-man \
-	install-nodist_propertyDATA install-perlSCRIPTS \
-	install-propertyDATA install-sampledataDATA \
-	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
+	install-mibDATA install-nodist_propertyDATA \
+	install-perlSCRIPTS install-propertyDATA \
+	install-sampledataDATA install-sbinPROGRAMS \
+	install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-strip install-taskSCRIPTS installcheck installcheck-am \
 	installdirs maintainer-clean maintainer-clean-generic \
@@ -9094,11 +9125,12 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-info-am \
 	uninstall-initSCRIPTS uninstall-initconfigSCRIPTS \
-	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
-	uninstall-propertyDATA uninstall-sampledataDATA \
-	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
-	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
-	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS
+	uninstall-mibDATA uninstall-nodist_propertyDATA \
+	uninstall-perlSCRIPTS uninstall-propertyDATA \
+	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
+	uninstall-sbinSCRIPTS uninstall-schemaDATA \
+	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
+	uninstall-taskSCRIPTS
 
 
 dirver.h: Makefile
