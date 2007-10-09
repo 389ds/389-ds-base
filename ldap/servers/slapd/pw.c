@@ -319,7 +319,6 @@ int
 pw_encodevals( Slapi_Value **vals )
 {
 	int	i;
-	char	*enc = NULL;
 	slapdFrontendConfig_t * slapdFrontendConfig = getFrontendConfig();
 
 
@@ -330,6 +329,7 @@ pw_encodevals( Slapi_Value **vals )
 
 	for ( i = 0; vals[ i ] != NULL; ++i ) {
 		struct pw_scheme    *pwsp;
+		char	*enc = NULL;
 		if ( (pwsp=pw_val2scheme( (char*)slapi_value_get_string(vals[ i ]), NULL, 0)) != NULL ) { /* JCM Innards */
 			/* If the value already specifies clear storage, call the
 			 * clear storage plug-in */
