@@ -20,3 +20,14 @@
 # KRB5_KTNAME=@instconfigdir@/slapd-instance/keytab ; export KRB5_KTNAME
 
 # other environment settings can be added here too
+OS=`uname -s`
+# use the new mt slab memory allocator on Solaris
+# this requires Solaris 9 update 3 or later
+if [ "$OS" = "SunOS" -a -f /usr/lib/libumem.so ] ; then
+    LD_PRELOAD=/usr/lib/libumem.so
+    export LD_PRELOAD
+fi
+if [ "$OS" = "SunOS" -a -f /usr/lib/64/libumem.so ] ; then
+    LD_PRELOAD_64=/usr/lib/64/libumem.so
+    export LD_PRELOAD_64
+fi
