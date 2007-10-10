@@ -277,24 +277,17 @@ start_tls( Slapi_PBlock *pb )
 	secure = 1;
 	ns = configure_pr_socket( &newsocket, secure, 0 /*never local*/ );
 
-
-	/*
-	ber_sockbuf_set_option( conn->c_sb, LBER_SOCKBUF_OPT_DESC, &newsocket );
-	ber_sockbuf_set_option( conn->c_sb, LBER_SOCKBUF_OPT_READ_FN, (void *)secure_read_function );
-	ber_sockbuf_set_option( conn->c_sb, LBER_SOCKBUF_OPT_WRITE_FN, (void *)secure_write_function );
-	*/
-
 	/*changed to */
 	{
-	struct lber_x_ext_io_fns *func_pointers = malloc(LBER_X_EXTIO_FNS_SIZE);
-		func_pointers->lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
-		func_pointers->lbextiofn_read = secure_read_function;
-		func_pointers->lbextiofn_write = secure_write_function;
-		func_pointers->lbextiofn_writev = NULL;
-		func_pointers->lbextiofn_socket_arg = (struct lextiof_socket_private *) newsocket;
+		struct lber_x_ext_io_fns func_pointers;
+		memset(&func_pointers, 0, sizeof(func_pointers));
+		func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE; 
+		func_pointers.lbextiofn_read = secure_read_function;
+		func_pointers.lbextiofn_write = secure_write_function;
+		func_pointers.lbextiofn_writev = NULL;
+		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) newsocket;
 		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_EXT_IO_FNS, func_pointers);
-		free(func_pointers);
+			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
 	}	
 	conn->c_flags |= CONN_FLAG_SSL;
 	conn->c_flags |= CONN_FLAG_START_TLS;
@@ -420,25 +413,16 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	secure = 0;
 	ns = configure_pr_socket( &(c->c_prfd), secure, 0 /*never local*/ );
 
-	ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_DESC, &(c->c_prfd) );
-
 #else
 	ns = PR_FileDesc2NativeHandle( c->c_prfd );
 	c->c_prfd = NULL;
 
 	configure_ns_socket( &ns );
-
-	ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_DESC, &ns );	
-
 #endif
 
 	c->c_sd = ns;
         c->c_flags &= ~CONN_FLAG_SSL;
         c->c_flags &= ~CONN_FLAG_START_TLS;
-
-	ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_READ_FN, (void *)read_function );
-	ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_WRITE_FN, (void *)write_function );
-
 
 	/*  authentication & authorization credentials must be set to "anonymous". */
 

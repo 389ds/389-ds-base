@@ -2242,13 +2242,9 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	}
 	PR_Lock( conn->c_mutex );
 
-#if !defined( XP_WIN32 )
-	ber_sockbuf_set_option(conn->c_sb,LBER_SOCKBUF_OPT_DESC,&pr_clonefd);
-#else
+#if defined( XP_WIN32 )
 	if( !secure )
 		ber_sockbuf_set_option(conn->c_sb,LBER_SOCKBUF_OPT_DESC,&ns);
-	else
-		ber_sockbuf_set_option(conn->c_sb,LBER_SOCKBUF_OPT_DESC,&pr_clonefd);
 #endif
 
 	conn->c_sd = ns;
@@ -2288,13 +2284,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;
 		ber_sockbuf_set_option( conn->c_sb,
 			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
- 
-		/* changed here by Cheston
-		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_READ_FN, (void *)secure_read_function );
-		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_WRITE_FN, (void *)secure_write_function );
-		*/
 	} else {
 		struct lber_x_ext_io_fns func_pointers;
 		memset(&func_pointers, 0, sizeof(func_pointers));
@@ -2309,12 +2298,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 #endif
 		ber_sockbuf_set_option( conn->c_sb,
 			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);	
-		/*
-		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_READ_FN, (void *)read_function );
-		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_WRITE_FN, (void *)write_function );
-		*/
 	}
 
 	if( secure && config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) { 
