@@ -89,8 +89,7 @@ This script will copy instances (data and configuration) from the old
 server root directory to their new FHS locations.  This script does a
 copy only - the data in the old instances will be left untouched.  The
 old instances must be shutdown first to ensure that the databases are
-copied safely.  The new instances will not be started by migration,
-but can be started after running migration.
+copied safely.  During migration your migrated instances will be started.
 
 USAGE
 
