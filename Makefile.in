@@ -1073,7 +1073,8 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	ldap/ldif/template-sasl.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
-	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits
+	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits \
+	$(srcdir)/ldap/schema/10rfc2307bis.ldif
 
 schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/01common.ldif \
