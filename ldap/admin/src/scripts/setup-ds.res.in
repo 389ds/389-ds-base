@@ -7,13 +7,13 @@ setup_err_exit = Setup cannot proceed.  Exiting.\n\n
 dialog_use_different_type = When using Silent or Express mode, some of the\ndialogs are skipped, but validation is still performed\non the default or given answers.  You should run this program again and\nchoose Typical or Custom mode in order to provide a valid input\nfor the problem dialog.\n\n
 
 # ------------ Welcome Dialog Resource ------------
-dialog_welcome_text = This program will setup the %s Directory Server.\n\nIt is recommended that you have "root" privilege to setup the software.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the setup program\n  - You can enter multiple items using commas to separate them.\n    For example: 1, 2, 3 \n\n
+dialog_welcome_text = This program will set up the %s Directory Server.\n\nIt is recommended that you have "root" privilege to set up the software.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the setup program\n\n
 # %s -> brand
 
-dialog_welcome_prompt = Would you like to continue with setup?
+dialog_welcome_prompt = Would you like to continue with set up?
 
 # ----------- License Dialog Resource  -----------
-dialog_license_text = BY SETTING UP AND USING THIS SOFTWARE YOU ARE CONSENTING TO BE BOUND BY\nAND ARE BECOMING A PARTY TO THE AGREEMENT FOUND IN THE\nLICENSE.TXT FILE. IF YOU DO NOT AGREE TO ALL OF THE TERMS\nOF THIS AGREEMENT, PLEASE DO NOT SETUP OR USE THIS SOFTWARE.\n\n
+dialog_license_text = BY SETTING UP AND USING THIS SOFTWARE YOU ARE CONSENTING TO BE BOUND BY\nAND ARE BECOMING A PARTY TO THE AGREEMENT FOUND IN THE\nLICENSE.TXT FILE. IF YOU DO NOT AGREE TO ALL OF THE TERMS\nOF THIS AGREEMENT, PLEASE DO NOT SET UP OR USE THIS SOFTWARE.\n\n
 
 dialog_license_prompt = Do you agree to the license terms?
 
@@ -25,7 +25,7 @@ environment.\n\n%s
 dialog_dsktune_prompt = Would you like to continue?
 
 # ----------- Setup Type Dialog Resource  ----------------
-dialog_setuptype_text = Choose a setup type:\n\n   1. Express\n       Allows you to quickly setup the servers using the most\n       common options and pre-defined defaults. Useful for quick\n       evaluation of the products.\n\n   2. Typical\n       Allows you to specify common defaults and options.\n\n   3. Custom\n       Allows you to specify more advanced options. This is \n       recommended for experienced server administrators only.\n\nTo accept the default shown in brackets, press the Enter key.\n\n
+dialog_setuptype_text = Choose a setup type:\n\n   1. Express\n       Allows you to quickly set up the servers using the most\n       common options and pre-defined defaults. Useful for quick\n       evaluation of the products.\n\n   2. Typical\n       Allows you to specify common defaults and options.\n\n   3. Custom\n       Allows you to specify more advanced options. This is \n       recommended for experienced server administrators only.\n\nTo accept the default shown in brackets, press the Enter key.\n\n
 
 dialog_setuptype_prompt = Choose a setup type
 
