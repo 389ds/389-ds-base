@@ -768,7 +768,7 @@ done:
     }
 
 	if(original_base != new_base)
-		slapi_ch_free((void**)new_base);
+		slapi_ch_free_string(&new_base);
 
 	/* we strdup'd this above - need to free */
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &original_base);
