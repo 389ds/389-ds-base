@@ -1418,6 +1418,7 @@ typedef struct slapi_pblock {
 
 	/* For password policy control */
 	int		pb_pwpolicy_ctrl;
+	void	*pb_vattr_context;      /* hold the vattr_context for roles/cos */
 } slapi_pblock;
 
 /* The referral element */

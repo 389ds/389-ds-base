@@ -248,7 +248,7 @@ int roles_sp_get_value(vattr_sp_handle *handle,
 {
 	int rc = -1;
 
-	rc = roles_cache_listroles(e, 1, results);
+	rc = roles_cache_listroles_ext(c, e, 1, results);
     if (rc == 0) 
 	{
 		*free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;

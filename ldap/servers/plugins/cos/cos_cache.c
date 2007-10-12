@@ -2222,6 +2222,7 @@ bail:
 	returns 
 		0 on success, we added a computed attribute
 		1 on outright failure
+		> LDAP ERROR CODE
 		-1 when doesn't know about attribute
 
 	{PARPAR} must also check the attribute does not exist if we are not
@@ -2392,10 +2393,14 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 					int free_flags = 0;
 
 					if(pSpec && pSpec->val) {
-						slapi_vattr_values_get_sp(context, e, pSpec->val, &pAttrSpecs, &type_name_disposition, &actual_type_name, 0, &free_flags);
+						ret = slapi_vattr_values_get_sp(context, e, pSpec->val, &pAttrSpecs, &type_name_disposition, &actual_type_name, 0, &free_flags);
 						/* MAB: We need to free actual_type_name here !!! 
 						XXX BAD--should use slapi_vattr_values_free() */	
 						slapi_ch_free((void **) &actual_type_name);
+						if (SLAPI_VIRTUALATTRS_LOOP_DETECTED == ret) {
+							ret = LDAP_UNWILLING_TO_PERFORM;
+							goto bail;
+						}
 					}
 
 					if(pAttrSpecs || pDef->cosType == COSTYPE_POINTER)
@@ -2548,6 +2553,8 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 		ret = 1;
 	else if(hit == 1)
 		ret = 0;
+	else
+		ret = -1;
 
 	if(props)
 		*props = 0;

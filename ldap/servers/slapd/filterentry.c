@@ -861,7 +861,7 @@ slapi_vattr_filter_test_ext_internal(
 		if ( only_check_access || rc != LDAP_SUCCESS ) {
 			return( rc );
 		}
-		rc = vattr_test_filter( e, f, FILTER_TYPE_AVA, f->f_ava.ava_type );
+		rc = vattr_test_filter( pb, e, f, FILTER_TYPE_AVA, f->f_ava.ava_type );
 		break;
 
 	case LDAP_FILTER_SUBSTRINGS:
@@ -873,7 +873,7 @@ slapi_vattr_filter_test_ext_internal(
 		if ( only_check_access || rc != LDAP_SUCCESS ) {
 			return( rc );
 		}
-		rc =  vattr_test_filter( e, f, FILTER_TYPE_SUBSTRING, f->f_sub_type);
+		rc =  vattr_test_filter( pb, e, f, FILTER_TYPE_SUBSTRING, f->f_sub_type);
 		break;
 
 	case LDAP_FILTER_GE:
@@ -886,7 +886,7 @@ slapi_vattr_filter_test_ext_internal(
 		if ( only_check_access || rc != LDAP_SUCCESS ) {
 			return( rc );
 		}
-		rc = vattr_test_filter( e, f, FILTER_TYPE_AVA, f->f_ava.ava_type);
+		rc = vattr_test_filter( pb, e, f, FILTER_TYPE_AVA, f->f_ava.ava_type);
 		break;
 
 	case LDAP_FILTER_LE:
@@ -899,7 +899,7 @@ slapi_vattr_filter_test_ext_internal(
 		if ( only_check_access || rc != LDAP_SUCCESS ) {
 			return( rc );
 		}
-		rc = vattr_test_filter( e, f, FILTER_TYPE_AVA, f->f_ava.ava_type);
+		rc = vattr_test_filter( pb, e, f, FILTER_TYPE_AVA, f->f_ava.ava_type);
 		break;
 
 	case LDAP_FILTER_PRESENT:
@@ -911,7 +911,7 @@ slapi_vattr_filter_test_ext_internal(
 		if ( only_check_access || rc != LDAP_SUCCESS ) {
 			return( rc );
 		}
-		rc = vattr_test_filter( e, f, FILTER_TYPE_PRES, f->f_type);		
+		rc = vattr_test_filter( pb, e, f, FILTER_TYPE_PRES, f->f_type);		
 		break;
 
 	case LDAP_FILTER_APPROX:
@@ -924,7 +924,7 @@ slapi_vattr_filter_test_ext_internal(
 		if ( only_check_access || rc != LDAP_SUCCESS ) {
 			return( rc );
 		}
-		rc = vattr_test_filter( e, f, FILTER_TYPE_AVA, f->f_ava.ava_type);
+		rc = vattr_test_filter( pb, e, f, FILTER_TYPE_AVA, f->f_ava.ava_type);
 		break;
 
 	case LDAP_FILTER_EXTENDED:

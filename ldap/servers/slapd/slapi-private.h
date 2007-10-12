@@ -475,7 +475,8 @@ int slapi_vattrcache_iscacheable( const char * type );
 void slapi_vattrcache_cache_all();
 void slapi_vattrcache_cache_none();
 
-int vattr_test_filter(/* Entry we're interested in */ Slapi_Entry *e,						
+int vattr_test_filter( Slapi_PBlock *pb, 
+						/* Entry we're interested in */ Slapi_Entry *e,
 						Slapi_Filter *f,
 						filter_type_t filter_type,
 						char *type);

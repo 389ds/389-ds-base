@@ -102,7 +102,7 @@ struct _vattr_context {
 	unsigned int vattr_context_loop_count;
 	unsigned int error_displayed;
 };
-#define VATTR_LOOP_COUNT_MAX 50
+#define VATTR_LOOP_COUNT_MAX 256
 
 typedef  vattr_sp_handle vattr_sp_handle_list;
 
@@ -300,10 +300,18 @@ static int vattr_helper_get_entry_conts_ex(Slapi_Entry *e,const char *type, vatt
 
 vattr_context *vattr_context_new( Slapi_PBlock *pb )
 {
-	vattr_context *c = (vattr_context *)slapi_ch_calloc(1, sizeof(vattr_context));
+	vattr_context *c = NULL;
+	if (pb && pb->pb_vattr_context) {
+		c = (vattr_context *)pb->pb_vattr_context;
+	} else {
+		c = (vattr_context *)slapi_ch_calloc(1, sizeof(vattr_context));
+	}
 	/* The payload is zero, which is what we want */
 	if ( c ) {
 		c->pb = pb;
+	}
+	if ( pb && c != (vattr_context *)pb->pb_vattr_context ) {
+		pb->pb_vattr_context = (void *)c;
 	}
 
 	return c;
@@ -333,15 +341,33 @@ static void  vattr_context_ungrok(vattr_context **c)
 	/* Decrement the loop count */
 	if (0 == vattr_context_unmark(*c)) {
 		/* If necessary, delete the structure */
+		if ((*c)->pb) {
+			(*c)->pb->pb_vattr_context = NULL;
+		}
 		slapi_ch_free((void **)c);
 	}
+}
+
+static int vattr_context_grok_pb( Slapi_PBlock *pb, vattr_context **c )
+{
+	int rc = -1;
+	if (NULL == c) {
+		return rc;
+	}
+	*c = vattr_context_new( pb );
+	if (NULL == *c) {
+		return ENOMEM;
+	}
+	rc = vattr_context_check(*c);
+	vattr_context_mark(*c);	/* increment loop count */
+	return rc;
 }
 
 /* Check and mess with the context structure on entry to a vattr sp function */
 static int vattr_context_grok(vattr_context **c)
 {
 	int rc = 0;
-		/* First check that we've not got into an infinite loop.
+	/* First check that we've not got into an infinite loop.
 	   We do so by means of the vattr_context structure.
 	 */
 
@@ -388,10 +414,12 @@ static int vattr_context_is_loop_msg_displayed(vattr_context **c)
  *			>0	an ldap error code 
  *
 */
-int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,    					
+int vattr_test_filter( Slapi_PBlock *pb,
+						/* Entry we're interested in */ Slapi_Entry *e,
 						Slapi_Filter *f,
 						filter_type_t filter_type,
-						char * type) {	
+						char * type)
+{
 	int rc = -1;
 	int sp_bit = 0; /* Set if an SP supplied an answer */
 	vattr_sp_handle_list *list = NULL;
@@ -445,26 +473,23 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 				char **actual_type_name;
 				int buffer_flags;
 				vattr_get_thang my_get = {0};
-				vattr_context ctx;
 				/* bit cacky, but need to make a null terminated lists for now
 				 * for the (unimplemented and so fake) batch attribute request
 				 */
 				char *types[2];
 				void *hint_list[2];
+				vattr_context *ctx;
+				vattr_context_grok_pb( pb, &ctx ); /* get or new context */
 
 				types[0] = type;
 				types[1] = 0;
 				hint_list[1] = 0;
 
-				/* set up some local context */
-				ctx.vattr_context_loop_count=1;
-				ctx.error_displayed = 0;
-
 				for (current_handle = vattr_map_sp_first(list,&hint); current_handle; current_handle = vattr_map_sp_next(current_handle,&hint))
 				{			
 					hint_list[0] = hint;
 
-					rc = vattr_call_sp_get_batch_values(current_handle,&ctx,e,
+					rc = vattr_call_sp_get_batch_values(current_handle,ctx,e,
 							&my_get,types,&results,&type_name_disposition,
 								&actual_type_name,flags,&buffer_flags, hint_list);
 						
@@ -474,6 +499,7 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 						break;
 					}
 				}
+				vattr_context_ungrok(&ctx);
 
 				if(!sp_bit)
 				{
@@ -483,7 +509,6 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 					 * but first lets cache the no result
 					*/			
 					slapi_entry_vattrcache_merge_sv(e, type, NULL );
-
 				}
 				else
 				{
@@ -491,7 +516,7 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 					 * A vattr sp supplied an answer.
 					 * so turn the value into a Slapi_Attr, pass
 					 *  to the syntax plugin for comparison.
-					*/
+					 */
 
 					if ( filter_type == FILTER_TYPE_AVA ||
 							filter_type == FILTER_TYPE_SUBSTRING ) {				
@@ -566,14 +591,13 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 						slapi_ch_free((void**)&type_name_disposition);
 					}
 				}
-
 				break;
-			}			
+			}
 		}/* switch */		
 	}
 	/* If no SP supplied the answer, take it from the entry */
-	if (!sp_bit) 
-	{		
+	if (rc <= 1 && !sp_bit) /* if LDAP ERROR is set, skip further testing */
+	{
 		int acl_test_done;
 
 		if ( filter_type == FILTER_TYPE_AVA ) {
@@ -597,7 +621,7 @@ int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,
 										0 /* do test filter */,
 										&acl_test_done);
 		}
-	} 
+	}
 	return rc;
 }
 /*
@@ -1690,7 +1714,7 @@ int vattr_call_sp_get_batch_values(vattr_sp_handle *handle, vattr_context *c, Sl
 		*actual_type_name = (char**)slapi_ch_calloc(2, sizeof(*actual_type_name));
 
 		ret =((handle->sp->sp_get_fn)(handle,c,e,*type,*results,*type_name_disposition,*actual_type_name,flags,buffer_flags, hint)); 
-		if(ret)
+		if (ret)
 		{
 			slapi_ch_free((void**)results );
 			slapi_ch_free((void**)type_name_disposition );
@@ -2330,6 +2354,16 @@ void vattrcache_entry_WRITE_LOCK(const Slapi_Entry *e){
 }
 void vattrcache_entry_WRITE_UNLOCK(const Slapi_Entry *e){
 	PR_RWLock_Unlock(e->e_virtual_lock);
+}
+
+Slapi_PBlock *
+slapi_vattr_get_pblock_from_context(vattr_context *c)
+{
+	if (c) {
+		return c->pb;
+	} else {
+		return NULL;
+	}
 }
 
 #ifdef VATTR_TEST_CODE

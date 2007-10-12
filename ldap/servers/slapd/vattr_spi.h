@@ -88,4 +88,6 @@ int slapi_vattr_values_get_sp_ex(vattr_context *c, /* Entry we're interested in 
 int slapi_vattr_namespace_values_get_sp(vattr_context *c, /* Entry we're interested in */ Slapi_Entry *e, /* backend namespace dn */ Slapi_DN *namespace_dn, /* attr type name */ char *type, /* pointer to result set */ Slapi_ValueSet*** results,int **type_name_disposition, char ***actual_type_name, int flags, int *free_flags, int *subtype_count);
 int slapi_vattr_value_compare_sp(vattr_context *c, Slapi_Entry *e,char *type, Slapi_Value *test_this,  int *result, int flags);
 int slapi_vattr_namespace_value_compare_sp(vattr_context *c,/* Entry we're interested in */ Slapi_Entry *e, /* backend namespace dn*/Slapi_DN *namespace_dn, /* attr type name */ const char *type, Slapi_Value *test_this,/* pointer to result */ int *result, int flags);
+Slapi_PBlock *slapi_vattr_get_pblock_from_context( vattr_context *c );
+
 

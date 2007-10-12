@@ -105,7 +105,7 @@ typedef struct _roles_cache_def {
 	PRThread     *roles_tid;
 	int keeprunning;
 
-	Slapi_Mutex *cache_lock;
+	PRRWLock *cache_lock;
 	Slapi_Mutex *stop_lock;
 
 	Slapi_Mutex *change_lock;
@@ -143,6 +143,7 @@ typedef struct _roles_cache_build_result
     Slapi_Entry *requested_entry;	/* entry to get nsrole from */
     int has_value;					/* flag to determine if a new value has been added to the result */
     int need_value;					/* flag to determine if we need the result */
+	vattr_context *context;			/* vattr context */
 } roles_cache_build_result;
 
 /* Structure used to check if is_entry_member_of is part of a role defined in its suffix */
@@ -178,8 +179,9 @@ static int roles_cache_build_nsrole( caddr_t data, caddr_t arg );
 static int roles_cache_find_node( caddr_t d1, caddr_t d2 );
 static int roles_cache_find_roles_in_suffix(Slapi_DN *target_entry_dn, roles_cache_def **list_of_roles);
 static int roles_is_entry_member_of_object(caddr_t data, caddr_t arg );
+static int roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, caddr_t arg );
 static int roles_check_managed(Slapi_Entry *entry_to_check, role_object *role, int *present);
-static int roles_check_filtered(Slapi_Entry *entry_to_check, role_object *role, int *present);
+static int roles_check_filtered(vattr_context *c, Slapi_Entry *entry_to_check, role_object *role, int *present);
 static int roles_check_nested(caddr_t data, caddr_t arg);
 static int roles_is_inscope(Slapi_Entry *entry_to_check, Slapi_DN *role_dn);
 static void berval_set_string(struct berval *bv, const char* string);
@@ -303,7 +305,7 @@ static roles_cache_def *roles_cache_create_suffix(Slapi_DN *sdn)
 		return(NULL);
 	}
 
-	new_suffix->cache_lock = slapi_new_mutex();
+	new_suffix->cache_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "roles_def_lock");
 	new_suffix->change_lock = slapi_new_mutex();
 	new_suffix->stop_lock = slapi_new_mutex();
 	new_suffix->create_lock = slapi_new_mutex();
@@ -610,7 +612,7 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_update \n");
 
-	slapi_lock_mutex(suffix_to_update->cache_lock);
+	PR_RWLock_Wlock(suffix_to_update->cache_lock);
 
 	operation = suffix_to_update->notified_operation;
 	entry = suffix_to_update->notified_entry;
@@ -646,7 +648,7 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 		suffix_to_update->notified_entry = NULL;
 
 	}
-	slapi_unlock_mutex(suffix_to_update->cache_lock);
+	PR_RWLock_Unlock(suffix_to_update->cache_lock);
 
 	if ( dn != NULL )
 	{
@@ -1426,6 +1428,11 @@ static int roles_cache_object_nested_from_dn(Slapi_DN *role_dn, role_object_nest
  */
 int roles_cache_listroles(Slapi_Entry *entry, int return_values, Slapi_ValueSet **valueset_out)
 {
+	return roles_cache_listroles_ext(NULL, entry, return_values, valueset_out);
+}
+
+int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_values, Slapi_ValueSet **valueset_out)
+{
     roles_cache_def *roles_cache = NULL;
     int rc = 0;
 	roles_cache_build_result arg;
@@ -1464,13 +1471,14 @@ int roles_cache_listroles(Slapi_Entry *entry, int return_values, Slapi_ValueSet 
 			arg.need_value = return_values;
 			arg.requested_entry = entry;
 			arg.has_value = 0;
+			arg.context = c;
 
 			/* XXX really need a mutex for this read operation ? */
-			slapi_lock_mutex(roles_cache->cache_lock);
+			PR_RWLock_Rlock(roles_cache->cache_lock);
 
 			avl_apply(roles_cache->avl_tree, (IFP)roles_cache_build_nsrole, &arg, -1, AVL_INORDER);
 
-			slapi_unlock_mutex(roles_cache->cache_lock);
+			PR_RWLock_Unlock(roles_cache->cache_lock);
 	 
 			if( !arg.has_value )
 			{
@@ -1507,53 +1515,59 @@ int roles_cache_listroles(Slapi_Entry *entry, int return_values, Slapi_ValueSet 
    ------------------------
    Traverse the tree containing roles definitions for a suffix and for each
    one of them, check wether the entry is a member of it or not
-    For ones which check out positive, we add their DN to the value
-	always return 0 to allow to trverse all the tree
+   For ones which check out positive, we add their DN to the value
+   always return 0 to allow to trverse all the tree
  */
 static int roles_cache_build_nsrole( caddr_t data, caddr_t arg )
 {
     Slapi_Value *value = NULL;
     roles_cache_build_result *result = (roles_cache_build_result*)arg;
     role_object *this_role = (role_object*)data;
-	roles_cache_search_in_nested get_nsrole;
+    roles_cache_search_in_nested get_nsrole;
     /* Return a value different from the stop flag to be able
        to go through all the tree */
-	int rc = 0;
+    int rc = 0;
+    int tmprc = 0;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_build_nsrole: role %s\n", 
-					(char*) slapi_sdn_get_ndn(this_role->dn));
+    slapi_log_error(SLAPI_LOG_PLUGIN, 
+                    ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_build_nsrole: role %s\n", 
+                    (char*) slapi_sdn_get_ndn(this_role->dn));
 
     value = slapi_value_new_string("");
  
-	get_nsrole.is_entry_member_of = result->requested_entry;
-	get_nsrole.present = 0;
-	get_nsrole.hint = 0;
+    get_nsrole.is_entry_member_of = result->requested_entry;
+    get_nsrole.present = 0;
+    get_nsrole.hint = 0;
 
-    roles_is_entry_member_of_object((caddr_t)this_role, (caddr_t)&get_nsrole);
+    tmprc = roles_is_entry_member_of_object_ext(result->context, (caddr_t)this_role, (caddr_t)&get_nsrole); 
+    if (SLAPI_VIRTUALATTRS_LOOP_DETECTED == tmprc)
+    {
+        /* all we want to detect and return is loop/stack overflow */
+        rc = tmprc;
+    }
  
     /* If so, add its DN to the attribute */
     if (get_nsrole.present)
     {
         result->has_value = 1;
-		if ( result->need_value )
-		{
-			slapi_value_set_string(value,(char*) slapi_sdn_get_ndn(this_role->dn));
-			slapi_valueset_add_value(*(result->nsrole_values),value);
-		}
-		else
-		{
-			/* we don't need the value but we already know there is one nsrole.
-			   stop the traversal
-			 */
-			rc = -1;
-		}
+        if ( result->need_value )
+        {
+            slapi_value_set_string(value,(char*) slapi_sdn_get_ndn(this_role->dn));
+            slapi_valueset_add_value(*(result->nsrole_values),value);
+        }
+        else
+        {
+            /* we don't need the value but we already know there is one nsrole.
+               stop the traversal
+             */
+            rc = -1;
+        }
     }
  
     slapi_value_free(&value);
  
-	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_build_nsrole\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, 
+                    ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_build_nsrole\n");
 
     return rc;
 }
@@ -1564,54 +1578,54 @@ static int roles_cache_build_nsrole( caddr_t data, caddr_t arg )
    Checks if an entry has a presented role, assuming that we've already verified
 that
    the role both exists and is in scope
-	return 0: no processing error
-	return -1: error
+       return 0: no processing error
+       return -1: error
  */
 int roles_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present)
 {
     roles_cache_def *roles_cache = NULL;
     role_object *this_role = NULL;
-	roles_cache_search_in_nested get_nsrole;
+    roles_cache_search_in_nested get_nsrole;
 
     int rc = 0;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "--> roles_check\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, 
+                    ROLES_PLUGIN_SUBSYSTEM, "--> roles_check\n");
 
-	*present = 0;
+    *present = 0;
 
-	PR_RWLock_Rlock(global_lock);
+    PR_RWLock_Rlock(global_lock);
 
     if ( roles_cache_find_roles_in_suffix(slapi_entry_get_sdn(entry_to_check),
                                     &roles_cache) != 0 )
     {
-		PR_RWLock_Unlock(global_lock);
+        PR_RWLock_Unlock(global_lock);
         return -1;
     }
-	PR_RWLock_Unlock(global_lock);
+    PR_RWLock_Unlock(global_lock);
 
     this_role = (role_object *)avl_find(roles_cache->avl_tree, role_dn, (IFP)roles_cache_find_node);
 
-	/* MAB: For some reason the assumption made by this function (the role exists and is in scope)
-	 * does not seem to be true... this_role might be NULL after the avl_find call (is the avl_tree
-	 * broken? Anyway, this is crashing the 5.1 server on 29-Aug-01, so I am applying the following patch
-	 * to avoid the crash inside roles_is_entry_member_of_object */
-	/* Begin patch */
-	if (!this_role) {
-		/* Assume that the entry is not member of the role (*present=0) and leave... */
-		return rc;
-	}
-	/* End patch */
+    /* MAB: For some reason the assumption made by this function (the role exists and is in scope)
+     * does not seem to be true... this_role might be NULL after the avl_find call (is the avl_tree
+     * broken? Anyway, this is crashing the 5.1 server on 29-Aug-01, so I am applying the following patch
+     * to avoid the crash inside roles_is_entry_member_of_object */
+    /* Begin patch */
+    if (!this_role) {
+        /* Assume that the entry is not member of the role (*present=0) and leave... */
+        return rc;
+    }
+    /* End patch */
 
-	get_nsrole.is_entry_member_of = entry_to_check;
-	get_nsrole.present = 0;
-	get_nsrole.hint = 0;
+    get_nsrole.is_entry_member_of = entry_to_check;
+    get_nsrole.present = 0;
+    get_nsrole.hint = 0;
 
     roles_is_entry_member_of_object((caddr_t)this_role, (caddr_t)&get_nsrole);
-	*present = get_nsrole.present;
+    *present = get_nsrole.present;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "<-- roles_check\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, 
+                    ROLES_PLUGIN_SUBSYSTEM, "<-- roles_check\n");
 
     return rc;
 }
@@ -1691,6 +1705,11 @@ static int roles_cache_find_roles_in_suffix(Slapi_DN *target_entry_dn, roles_cac
  */
 static int roles_is_entry_member_of_object(caddr_t data, caddr_t argument )
 {
+	return roles_is_entry_member_of_object_ext(NULL, data, argument );
+}
+
+static int roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, caddr_t argument )
+{
 	int rc = -1;
 
     roles_cache_search_in_nested *get_nsrole = (roles_cache_search_in_nested*)argument;
@@ -1717,7 +1736,7 @@ static int roles_is_entry_member_of_object(caddr_t data, caddr_t argument )
 				rc = roles_check_managed(entry_to_check,this_role,&get_nsrole->present);
 				break;
 			case ROLE_TYPE_FILTERED:
-				rc = roles_check_filtered(entry_to_check,this_role,&get_nsrole->present);
+				rc = roles_check_filtered(c, entry_to_check,this_role,&get_nsrole->present);
 				break;
 			case ROLE_TYPE_NESTED:
 			{
@@ -1789,13 +1808,14 @@ static int roles_check_managed(Slapi_Entry *entry_to_check, role_object *role, i
 	return 1: fail
 	-> to check the presence, see present
  */
-static int roles_check_filtered(Slapi_Entry *entry_to_check, role_object *role, int *present)
+static int roles_check_filtered(vattr_context *c, Slapi_Entry *entry_to_check, role_object *role, int *present)
 {
 	int rc = 0;
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "--> roles_check_filtered\n");
-	rc = slapi_filter_test_simple(entry_to_check,role->filter);
+	rc = slapi_vattr_filter_test_ext(slapi_vattr_get_pblock_from_context(c),
+										entry_to_check, role->filter, 0, 0);
 	if ( rc == 0 ) 
 	{
 		*present = 1;
@@ -1991,7 +2011,7 @@ static void roles_cache_role_def_free(roles_cache_def *role_def)
 
 	avl_free(role_def->avl_tree, (IFP)roles_cache_role_object_free);
 	slapi_sdn_free(&(role_def->suffix_dn));
-	slapi_destroy_mutex(role_def->cache_lock);
+	PR_DestroyRWLock(role_def->cache_lock);
 	role_def->cache_lock = NULL;
 	slapi_destroy_mutex(role_def->change_lock);
 	role_def->change_lock = NULL;

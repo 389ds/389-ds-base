@@ -73,6 +73,7 @@ int roles_cache_init();
 void roles_cache_stop();
 void roles_cache_change_notify(Slapi_PBlock *pb);
 int roles_cache_listroles(Slapi_Entry *entry, int return_value, Slapi_ValueSet **valueset_out);
+int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_value, Slapi_ValueSet **valueset_out);
 
 int roles_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present);
 

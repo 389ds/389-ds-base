@@ -48,14 +48,14 @@
 
 /* prototypes */
 static int build_candidate_list( Slapi_PBlock *pb, backend *be,
-		struct backentry *e, const char * base, int scope,
-		int *lookup_returned_allidsp, IDList** candidates);
+        struct backentry *e, const char * base, int scope,
+        int *lookup_returned_allidsp, IDList** candidates);
 static IDList *base_candidates( Slapi_PBlock *pb, struct backentry *e );
 static IDList *onelevel_candidates( Slapi_PBlock *pb, backend *be, const char *base, struct backentry *e, Slapi_Filter *filter, int managedsait, int *lookup_returned_allidsp, int *err );
 static back_search_result_set* new_search_result_set(IDList* idl,int vlv, int lookthroughlimit);
 static void delete_search_result_set( back_search_result_set **sr );
 static int can_skip_filter_test( Slapi_PBlock *pb, struct slapi_filter *f,
-		int scope, IDList *idl );
+        int scope, IDList *idl );
 
 /* This is for performance testing, allows us to disable ACL checking altogether */
 #if defined(DISABLE_ACL_CHECK)
@@ -69,38 +69,38 @@ static int can_skip_filter_test( Slapi_PBlock *pb, struct slapi_filter *f,
 static int
 compute_lookthrough_limit( Slapi_PBlock *pb, struct ldbminfo *li )
 {
-	Slapi_Connection	*conn = NULL;
-	int					limit;
+    Slapi_Connection    *conn = NULL;
+    int                 limit;
 
-	slapi_pblock_get( pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get( pb, SLAPI_CONNECTION, &conn);
 
-	if ( slapi_reslimit_get_integer_limit( conn,
-			li->li_reslimit_lookthrough_handle, &limit )
-			!= SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		/*
-		 * no limit associated with binder/connection or some other error
-		 * occurred.  use the default.
-	 	 */
-		int	isroot = 0;
+    if ( slapi_reslimit_get_integer_limit( conn,
+            li->li_reslimit_lookthrough_handle, &limit )
+            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+        /*
+         * no limit associated with binder/connection or some other error
+         * occurred.  use the default.
+          */
+        int    isroot = 0;
 
-		slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-		if (isroot) {
-			limit = -1;
-		} else {
-			PR_Lock(li->li_config_mutex);
-			limit = li->li_lookthroughlimit;
-			PR_Unlock(li->li_config_mutex);
-		}
-	}
+        slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
+        if (isroot) {
+            limit = -1;
+        } else {
+            PR_Lock(li->li_config_mutex);
+            limit = li->li_lookthroughlimit;
+            PR_Unlock(li->li_config_mutex);
+        }
+    }
 
-	return( limit );
+    return( limit );
 }
 
 /* don't free the berval, just clean it */
 static void
 berval_done(struct berval *val)
 {
-	slapi_ch_free_string(&val->bv_val);
+    slapi_ch_free_string(&val->bv_val);
 }
 
 /*
@@ -116,20 +116,20 @@ int ldbm_back_search_cleanup(Slapi_PBlock *pb, struct ldbminfo *li, sort_spec_th
     {
         slapi_send_ldap_result( pb, ldap_result, NULL, ldap_result_description, 0, NULL );
     }
-	{
-		/* hack hack --- code to free the result set if we don't need it */
-		/* We get it and check to see if the structure was ever used */
-		back_search_result_set *sr = NULL;
-		slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
-		if ( (NULL != sr) && (function_result != 0) ) {
-			delete_search_result_set(&sr);
-		}
-	}
-	slapi_sdn_done(sdn);
-	if (vlv_request_control)
-	{
-		berval_done(&vlv_request_control->value);
-	}
+    {
+        /* hack hack --- code to free the result set if we don't need it */
+        /* We get it and check to see if the structure was ever used */
+        back_search_result_set *sr = NULL;
+        slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
+        if ( (NULL != sr) && (function_result != 0) ) {
+            delete_search_result_set(&sr);
+        }
+    }
+    slapi_sdn_done(sdn);
+    if (vlv_request_control)
+    {
+        berval_done(&vlv_request_control->value);
+    }
     return function_result;
 }
 
@@ -630,8 +630,8 @@ ldbm_back_search( Slapi_PBlock *pb )
  */
 static int
 build_candidate_list( Slapi_PBlock *pb, backend *be, struct backentry *e,
-	const char * base, int scope, int *lookup_returned_allidsp,
-	IDList** candidates)
+    const char * base, int scope, int *lookup_returned_allidsp,
+    IDList** candidates)
 {
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
     int managedsait= 0;
@@ -875,123 +875,123 @@ subtree_candidates(
     return( candidates );
 }
 
-static int grok_filter(struct slapi_filter	*f);
+static int grok_filter(struct slapi_filter    *f);
 #if 0
 /* Helper for grok_filter() */
 static int 
-grok_filter_list(struct slapi_filter	*flist)
+grok_filter_list(struct slapi_filter    *flist)
 {
-	struct slapi_filter	*f;
+    struct slapi_filter    *f;
 
-	/* Scan the clauses of the AND filter, if any of them fails the grok, then we fail */
-	for ( f = flist; f != NULL; f = f->f_next ) {
-		if ( !grok_filter(f) ) {
-				return( 0 );
-		}
-	}
-	return( 1 );
+    /* Scan the clauses of the AND filter, if any of them fails the grok, then we fail */
+    for ( f = flist; f != NULL; f = f->f_next ) {
+        if ( !grok_filter(f) ) {
+                return( 0 );
+        }
+    }
+    return( 1 );
 }
 #endif
 
 /* Helper function for can_skip_filter_test() */
-static int grok_filter(struct slapi_filter	*f)
+static int grok_filter(struct slapi_filter    *f)
 {
-	switch ( f->f_choice ) {
-	case LDAP_FILTER_EQUALITY:
-		return 1; /* If there's an ID list and an equality filter, we can skip the filter test */
-	case LDAP_FILTER_SUBSTRINGS:
-		return 0;
+    switch ( f->f_choice ) {
+    case LDAP_FILTER_EQUALITY:
+        return 1; /* If there's an ID list and an equality filter, we can skip the filter test */
+    case LDAP_FILTER_SUBSTRINGS:
+        return 0;
 
-	case LDAP_FILTER_GE:
-		return 1;
+    case LDAP_FILTER_GE:
+        return 1;
 
-	case LDAP_FILTER_LE:
-		return 1;
+    case LDAP_FILTER_LE:
+        return 1;
 
-	case LDAP_FILTER_PRESENT:
-		return 1; /* If there's an ID list, and a presence filter, we can skip the filter test */
+    case LDAP_FILTER_PRESENT:
+        return 1; /* If there's an ID list, and a presence filter, we can skip the filter test */
 
-	case LDAP_FILTER_APPROX:
-		return 0;
+    case LDAP_FILTER_APPROX:
+        return 0;
 
-	case LDAP_FILTER_EXTENDED:
-		return 0;
+    case LDAP_FILTER_EXTENDED:
+        return 0;
 
-	case LDAP_FILTER_AND:
-		return 0; /* Unless we check to see whether the presence and equality branches 
-					of the search filter were all indexed, we get things wrong here,
-					so let's punt for now */
-		/* return grok_filter_list(f->f_and);  AND clauses are potentially OK  */
+    case LDAP_FILTER_AND:
+        return 0; /* Unless we check to see whether the presence and equality branches 
+                    of the search filter were all indexed, we get things wrong here,
+                    so let's punt for now */
+        /* return grok_filter_list(f->f_and);  AND clauses are potentially OK  */
 
-	case LDAP_FILTER_OR:
-		return 0;
+    case LDAP_FILTER_OR:
+        return 0;
 
-	case LDAP_FILTER_NOT:
-		return 0;
+    case LDAP_FILTER_NOT:
+        return 0;
 
-	default:
-		return 0;
-	}
+    default:
+        return 0;
+    }
 }
 
 /* Routine which says whether or not the indices produced a "correct" answer */
 static int
 can_skip_filter_test(
-    Slapi_PBlock		*pb,
-    struct slapi_filter	*f,
-	int scope,
-	IDList *idl
+    Slapi_PBlock        *pb,
+    struct slapi_filter    *f,
+    int scope,
+    IDList *idl
 )
 {
-	int rc = 0;
+    int rc = 0;
 
-	/* Is the ID list ALLIDS ? */
-	if ( ALLIDS(idl)) {
-		/* If so, then can't optimize */
-		return rc;
-	}
+    /* Is the ID list ALLIDS ? */
+    if ( ALLIDS(idl)) {
+        /* If so, then can't optimize */
+        return rc;
+    }
 
-	/* Is this a base scope search? */
-	if ( scope == LDAP_SCOPE_BASE ) {
-		/*
-		 * If so, then we can't optimize.  Why not?  Because we only consult
-		 * the entrydn index in producing our 1 candidate, and that means
-		 * we have not used the filter to produce the candidate list.
-		 */
-		return rc;
-	}
+    /* Is this a base scope search? */
+    if ( scope == LDAP_SCOPE_BASE ) {
+        /*
+         * If so, then we can't optimize.  Why not?  Because we only consult
+         * the entrydn index in producing our 1 candidate, and that means
+         * we have not used the filter to produce the candidate list.
+         */
+        return rc;
+    }
 
-	/* Grok the filter and tell me if it has only equality components in it */
-	rc = grok_filter(f);
+    /* Grok the filter and tell me if it has only equality components in it */
+    rc = grok_filter(f);
 
-	/* If we haven't determined that we can't skip the filter test already,
-	 * do one last check for attribute subtypes.  We don't need to worry 
-	 * about any complex filters here since grok_filter() will have already
-	 * assumed that we can't skip the filter test in those cases. */
-	if (rc != 0) {
-		char *type = NULL;
-		char *basetype = NULL;
+    /* If we haven't determined that we can't skip the filter test already,
+     * do one last check for attribute subtypes.  We don't need to worry 
+     * about any complex filters here since grok_filter() will have already
+     * assumed that we can't skip the filter test in those cases. */
+    if (rc != 0) {
+        char *type = NULL;
+        char *basetype = NULL;
 
-		/* We don't need to free type since that's taken
-		 * care of when the filter is free'd later.  We
-		 * do need to free basetype when we are done. */
-		slapi_filter_get_attribute_type(f, &type);
-		basetype = slapi_attr_basetype(type, NULL, 0);
+        /* We don't need to free type since that's taken
+         * care of when the filter is free'd later.  We
+         * do need to free basetype when we are done. */
+        slapi_filter_get_attribute_type(f, &type);
+        basetype = slapi_attr_basetype(type, NULL, 0);
 
-		/* Is the filter using an attribute subtype? */
-		if (strcasecmp(type, basetype) != 0) {
-			/* If so, we can't optimize since attribute subtypes
-			 * are simply indexed under their basetype attribute.
-			 * The basetype index has no knowledge of the subtype
-			 * itself.  In the future, we should add support for
-			 * indexing the subtypes so we can optimize this type
-			 * of search. */
-			rc = 0;
-		}
-		slapi_ch_free_string(&basetype);
-	}
+        /* Is the filter using an attribute subtype? */
+        if (strcasecmp(type, basetype) != 0) {
+            /* If so, we can't optimize since attribute subtypes
+             * are simply indexed under their basetype attribute.
+             * The basetype index has no knowledge of the subtype
+             * itself.  In the future, we should add support for
+             * indexing the subtypes so we can optimize this type
+             * of search. */
+            rc = 0;
+        }
+        slapi_ch_free_string(&basetype);
+    }
 
-	return rc;
+    return rc;
 }
 
 
@@ -1014,24 +1014,25 @@ ldbm_back_next_search_entry( Slapi_PBlock *pb )
 int
 ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
 {
-    backend *be;
-    ldbm_instance *inst;
+    backend                *be;
+    ldbm_instance          *inst;
     struct ldbminfo        *li;
-    int                scope;
-    int                managedsait;
-    Slapi_Attr            *attr;
-    Slapi_Filter        *filter;
-    char            *base;
-    back_search_result_set    *sr;
-    ID                id;
-    struct backentry        *e;
-    int                nentries;
-    time_t            curtime, stoptime, optime;
-    int                tlimit, llimit, slimit, isroot;
-    struct berval        **urls = NULL;
-    int                err;
-    Slapi_DN basesdn;
-    char *target_uniqueid;
+    int                    scope;
+    int                    managedsait;
+    Slapi_Attr             *attr;
+    Slapi_Filter           *filter;
+    char                   *base;
+    back_search_result_set *sr;
+    ID                     id;
+    struct backentry       *e;
+    int                    nentries;
+    time_t                 curtime, stoptime, optime;
+    int                    tlimit, llimit, slimit, isroot;
+    struct berval          **urls = NULL;
+    int                    err;
+    Slapi_DN               basesdn;
+    char                   *target_uniqueid;
+    int                    rc = 0; 
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -1083,8 +1084,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             }
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            slapi_sdn_done(&basesdn);
-            return -1;
+            rc = SLAPI_FAIL_GENERAL;
+            goto bail;
         }
 
         /* check time limit */
@@ -1097,8 +1098,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             } 
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            slapi_sdn_done(&basesdn);
-            return -1;
+            rc = SLAPI_FAIL_GENERAL;
+            goto bail;
         }
             
         /* check lookthrough limit */
@@ -1110,8 +1111,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             } 
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            slapi_sdn_done(&basesdn);
-            return -1;
+            rc = SLAPI_FAIL_GENERAL;
+            goto bail;
         }
             
         /* get the entry */
@@ -1124,8 +1125,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             }
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            slapi_sdn_done(&basesdn);
-            return 0;
+            rc = 0;
+            goto bail;
         }
 
         ++sr->sr_lookthroughcount;    /* checked above */
@@ -1142,8 +1143,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                      * is gonna be traumatic.  unavoidable.
                      */
                     slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
-                    slapi_sdn_done(&basesdn);
-                    return return_on_disk_full(li);
+                    rc = return_on_disk_full(li);
+                    goto bail;
                 }
             }
             LDAPDebug( LDAP_DEBUG_ARGS, "candidate %lu not found\n", (u_long)id, 0, 0 );
@@ -1182,8 +1183,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                     slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, e );
                 }
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, e->ep_entry );
-                slapi_sdn_done(&basesdn);
-                return 0;
+                rc = 0;
+                goto bail;
             }
         }
         else
@@ -1253,8 +1254,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                          cache_return( &inst->inst_cache, &e );
                          delete_search_result_set( &sr );
                          slapi_send_ldap_result( pb, LDAP_SIZELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
-                         slapi_sdn_done(&basesdn);
-                         return -1;
+                         rc = SLAPI_FAIL_GENERAL;
+                         goto bail;
                      }
                      slapi_pblock_set( pb, SLAPI_SEARCH_SIZELIMIT, &slimit );
                  }
@@ -1277,8 +1278,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                      }
                      slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, e->ep_entry );
                  }
-                 slapi_sdn_done(&basesdn);
-                 return 0;
+                 rc = 0;
+                 goto bail;
              } 
              else 
              {
@@ -1289,11 +1290,19 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
           {
               /* Failed the filter test, and this isn't a VLV Search */
               cache_return( &inst->inst_cache, &(sr->sr_entry) );
+              if (LDAP_UNWILLING_TO_PERFORM == filter_test) {
+                  /* Need to catch this error to detect the vattr loop */
+                  slapi_send_ldap_result( pb, filter_test, NULL,
+                                  "Failed the filter test", 0, NULL );
+                  rc = SLAPI_FAIL_GENERAL;
+                  goto bail;
+              }
           }
         }
     }
-    /*NOTREACHED*/
+bail:
     slapi_sdn_done(&basesdn);
+    return rc;
 }
 
 
@@ -1333,19 +1342,19 @@ ldbm_back_entry_release( Slapi_PBlock *pb, void *backend_info_ptr ) {
     ldbm_instance *inst;
 
     if ( backend_info_ptr == NULL )
-	return 1;
+        return 1;
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-	inst = (ldbm_instance *) be->be_instance_info;
+        inst = (ldbm_instance *) be->be_instance_info;
 
     cache_return( &inst->inst_cache, (struct backentry **)&backend_info_ptr );
 
     if( ((struct backentry *) backend_info_ptr)->ep_vlventry != NULL )
     {
-	/* This entry was created during a vlv search whose acl check failed.  It needs to be
-	 * freed here */
+        /* This entry was created during a vlv search whose acl check failed.  It needs to be
+         * freed here */
         slapi_entry_free( ((struct backentry *) backend_info_ptr)->ep_vlventry );
-	((struct backentry *) backend_info_ptr)->ep_vlventry = NULL;
+        ((struct backentry *) backend_info_ptr)->ep_vlventry = NULL;
     }
     return 0;
 }
