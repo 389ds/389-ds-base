@@ -569,6 +569,18 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
 
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     if (task_flags & TASK_RUNNING_FROM_COMMANDLINE) {
+        /* initialize UniqueID generator - must be done once backends are started
+           and event queue is initialized but before plugins are started */
+        Slapi_DN *sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
+        int rc = uniqueIDGenInit (NULL, sdn, 0 /* use single thread mode */);
+        slapi_sdn_free (&sdn);
+        if (rc != UID_SUCCESS) {
+            LDAPDebug( LDAP_DEBUG_ANY,
+                       "Fatal Error---Failed to initialize uniqueid generator; error = %d. "
+                       "Exiting now.\n", rc, 0, 0 );
+            return -1;
+        }
+
         li->li_flags |= TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
         autosize_import_cache(li);
