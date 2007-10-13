@@ -842,7 +842,7 @@ static void format_uuid_v1(guid_t * uuid, uuid_time_t timestamp, unsigned16 cloc
                                   ((timestamp >> 48) & 0x0FFF);                                                   
     uuid->time_hi_and_version |= (1 << 12);
     uuid->clock_seq_low = clock_seq & 0xFF;
-    uuid->clock_seq_hi_and_reserved = (unsigned8)(clock_seq & 0x3F00) >> 8;
+    uuid->clock_seq_hi_and_reserved = (unsigned8)((clock_seq & 0x3F00) >> 8);
     uuid->clock_seq_hi_and_reserved |= 0x80;
     memcpy(&uuid->node, &_state.genstate.node, sizeof (uuid->node));
 }
