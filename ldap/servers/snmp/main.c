@@ -264,6 +264,10 @@ load_config(char *conf_path)
             if ((pidfile = malloc((p - conf_path) +
                                    strlen(LDAP_AGENT_PIDFILE) + 2)) != NULL) {
                 strncpy(pidfile, conf_path, (p - conf_path + 1));
+                /* The above will likely not be NULL terminated, but we need to
+                 * be sure that we're properly NULL terminated for the below
+                 * strcat() to work properly. */
+                pidfile[(p - conf_path + 2)] = (char)0;
                 strcat(pidfile, LDAP_AGENT_PIDFILE);
                 pidfile[((p - conf_path) + strlen(LDAP_AGENT_PIDFILE) + 1)] = (char)0;
             } else {
