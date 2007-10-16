@@ -5848,7 +5848,7 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
     li = inst->inst_li;
     priv = (dblayer_private*)li->li_dblayer_private;
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-    if (!inst_dirp || *inst_dirp) {
+    if (NULL == inst_dirp || '\0' == *inst_dirp) {
         LDAPDebug(LDAP_DEBUG_ANY,
             "update_db_ext: instance dir is NULL\n", 0, 0, 0);
         return -1;    /* non zero */

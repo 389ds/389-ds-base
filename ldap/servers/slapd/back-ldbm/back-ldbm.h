@@ -157,8 +157,8 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION            "Netscape-ldbm/7.0" /* db42: new idl -> old */
 #define LDBM_VERSION_NEW        "Netscape-ldbm/7.0_NEW"     /* db42: new idl */
 #define LDBM_VERSION_OLD        "Netscape-ldbm/7.0_CLASSIC" /* db42: old idl */
-#define LDBM_VERSION_62         "Netscape-ldbm/6.2" /* db33: new idl */
-#define LDBM_VERSION_61         "Netscape-ldbm/6.1" /* db33: new idl */
+#define LDBM_VERSION_62         "Netscape-ldbm/6.2" /* db42: old idl */
+#define LDBM_VERSION_61         "Netscape-ldbm/6.1" /* db33: old idl */
 #define LDBM_VERSION_60         "Netscape-ldbm/6.0" /* db33: old idl */
 
 #define LDBM_VERSION_50			"Netscape-ldbm/5.0"

@@ -58,7 +58,8 @@ db_upgrade_info ldbm_version_suss[] = {
     {BDB_IMPL, 0, 0, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
     {LDBM_VERSION, 4, 2, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
     {LDBM_VERSION_OLD, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
-    {LDBM_VERSION_61, 3, 3, DBVERSION_NEW_IDL, DBVERSION_UPGRADE_3_4}, 
+    {LDBM_VERSION_62, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
+    {LDBM_VERSION_61, 3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
     {LDBM_VERSION_60, 3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
     {NULL,0,0}
 };
@@ -274,8 +275,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
 
     li->li_flags |= LI_FORCE_MOD_CONFIG;
 	if ((0 == PL_strncasecmp(ldbmversion, BDB_IMPL, strlen(BDB_IMPL))) ||
-	    (0 == PL_strcmp(ldbmversion, LDBM_VERSION)) ||
-        (0 == PL_strcmp(ldbmversion, LDBM_VERSION_61)))    /* db: new idl */
+	    (0 == PL_strcmp(ldbmversion, LDBM_VERSION)))    /* db: new idl */
     {
         if (!idl_get_idl_new())   /* config: old idl */
         {
@@ -288,6 +288,8 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         }
     }
     else if ((0 == strcmp(ldbmversion, LDBM_VERSION_OLD)) ||
+             (0 == PL_strcmp(ldbmversion, LDBM_VERSION_61)) ||
+             (0 == PL_strcmp(ldbmversion, LDBM_VERSION_62)) ||
              (0 == strcmp(ldbmversion, LDBM_VERSION_60)))    /* db: old */
     {
         if (idl_get_idl_new())   /* config: new */
