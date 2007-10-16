@@ -3835,6 +3835,39 @@ static void _cl5DBClose ()
 	}
 }
 
+/* see if the given file is a changelog db file */
+static int
+_cl5IsDbFile(const char *fname)
+{
+	char *ptr = NULL;
+	if (!fname || !*fname) {
+		return 0;
+	}
+
+	if (!strcmp(fname, GUARDIAN_FILE)) {
+		return 1;
+	}
+
+	if (!strcmp(fname, VERSION_FILE)) {
+		return 1;
+	}
+
+	if (_cl5FileEndsWith(fname, DB_EXTENSION)) {
+		return 1;
+	}
+
+	if (_cl5IsLogFile(fname)) {
+		return 1;
+	}
+
+	ptr = strstr(fname, "__db.");
+	if (ptr == fname) { /* begins with __db. */
+		return 1;
+	}
+
+	return 0; /* not a filename we recognize as being associated with the db */
+}
+
 /* state lock must be locked */
 static int  _cl5Delete (const char *clDir, int rmDir)
 {
@@ -3842,6 +3875,7 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 	char  filename[MAXPATHLEN + 1];
 	PRDirEntry *entry = NULL;
 	int rc;
+	int dirisempty = 1;
 
 	/* remove all files in the directory and the directory */
 	dir = PR_OpenDir(clDir);
@@ -3859,6 +3893,13 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 		if (NULL == entry->name)
 		{
 			break;
+		}
+		if (!_cl5IsDbFile(entry->name)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"_cl5Delete: Skipping file [%s/%s] because it is not a changelogdb file.\n",
+							clDir, entry->name);
+			dirisempty = 0; /* skipped at least one file - dir not empty */
+			continue;
 		}
 		PR_snprintf(filename, MAXPATHLEN, "%s/%s", clDir, entry->name);
 		rc = PR_Delete(filename);
@@ -3879,7 +3920,7 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 		return CL5_SYSTEM_ERROR;
 	}
 		
-	if (rmDir)
+	if (rmDir && dirisempty)
 	{
 		rc = PR_RmDir (clDir);
 		if (rc != 0)
@@ -3889,6 +3930,10 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 					clDir, errno);
 			return CL5_SYSTEM_ERROR;
 		}
+	} else if (rmDir && !dirisempty) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"_cl5Delete: changelog dir (%s) is not empty - cannot remove\n",
+						clDir);
 	}
 			
 	return CL5_SUCCESS;
@@ -6769,4 +6814,36 @@ cl5_diskspace_is_available()
     }
 #endif
     return rval;
+}
+
+int
+cl5DbDirIsEmpty(const char *dir)
+{
+	PRDir *prDir;
+	PRDirEntry *prDirEntry;
+	int isempty = 1;
+
+	if (!dir || !*dir) {
+		return isempty;
+	}
+	/* assume failure means it does not exist - other failure
+	   cases will be handled by code which attempts to create the
+	   db in this directory */
+	if (PR_Access(dir, PR_ACCESS_EXISTS)) {
+		return isempty;
+	}
+	prDir = PR_OpenDir(dir);
+	if (prDir == NULL) {
+		return isempty; /* assume failure means does not exist */
+	}
+	while (NULL != (prDirEntry = PR_ReadDir(prDir, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+		if (NULL == prDirEntry->name) {	/* NSPR doesn't behave like the docs say it should */
+			break;
+		}
+		isempty = 0; /* found at least one "real" file */
+		break;
+	}
+	PR_CloseDir(prDir);
+
+	return isempty;
 }

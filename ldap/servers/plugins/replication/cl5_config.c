@@ -205,6 +205,20 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 		goto done;	
 	}	
 
+	if (!cl5DbDirIsEmpty(config.dir))
+	{
+		*returncode = 1;
+		if (returntext)
+		{
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+						"The changelog directory [%s] already exists and is not empty.  "
+						"Please choose a directory that does not exist or is empty.\n",
+						config.dir);
+		}
+		
+		goto done;
+	}
+
 	/* start the changelog */
 	rc = cl5Open (config.dir, &config.dbconfig);
 	if (rc != CL5_SUCCESS)
@@ -450,6 +464,20 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 		if (strcmp (currentDir, config.dir) != 0)
 #endif
 		{
+			if (!cl5DbDirIsEmpty(config.dir))
+			{
+				*returncode = 1;
+				if (returntext)
+				{
+					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+								"The changelog directory [%s] already exists and is not empty.  "
+								"Please choose a directory that does not exist or is empty.\n",
+								config.dir);
+				}
+
+				goto done;
+			}
+
 			if (!_is_absolutepath(config.dir) || (CL5_SUCCESS != cl5CreateDirIfNeeded(config.dir)))
 			{
 				*returncode = 1;

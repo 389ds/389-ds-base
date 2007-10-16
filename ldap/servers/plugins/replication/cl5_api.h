@@ -519,4 +519,13 @@ void cl5DestroyCSNList (CSN*** csns);
 int cl5_is_diskfull();
 int cl5_diskspace_is_available();
 
+/* Name: cl5DbDirIsEmpty
+   Description: See if the given cldb directory is empty or doesn't yet exist.
+   Parameters:	dir - Contains the name of the directory.
+   Return:		TRUE - directory does not exist or is empty, is NULL, or is
+                       an empty string
+				FALSE - otherwise
+*/
+int cl5DbDirIsEmpty(const char *dir);
+
 #endif
