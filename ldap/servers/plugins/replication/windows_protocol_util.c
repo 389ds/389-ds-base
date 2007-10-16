@@ -2851,7 +2851,6 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		"objectclass:top\n"
    		"objectclass:groupofuniquenames\n"
    		"objectclass:ntGroup\n"
-   		"objectclass:mailGroup\n"
 		"ntGroupDeleteGroup:true\n"
    		"cn:%s\n";
 
