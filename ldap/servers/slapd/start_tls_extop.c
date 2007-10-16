@@ -482,6 +482,7 @@ int start_tls_init( Slapi_PBlock *pb )
 		oid = slapi_ch_strdup( argv[0] );
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls_init", 
 				 "Registering plug-in for Start TLS extended op %s.\n", oid );
+		slapi_ch_free_string( &oid );
 	}
 
 	/* Register the plug-in function as an extended operation
