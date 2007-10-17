@@ -241,10 +241,37 @@ my %transformAttr =
  'nsslapd-idl-switch' => \&migIdlSwitch
 );
 
+sub getDBVERSION {
+    my $olddbdir = shift;
+    my $data = shift;
+
+    open DBVERSION, "$olddbdir/DBVERSION" or 
+        return ('error_reading_dbversion', $olddbdir, $!);
+    my $line = <DBVERSION>;
+    close DBVERSION;
+    chomp($line);
+    my @foo = split("/", $line);
+    $data = \@foo;
+    return ();
+}
+
 sub copyDatabaseDirs {
     my $srcdir = shift;
     my $destdir = shift;
     my $filesonly = shift;
+    my @errs;
+
+    # check old DBVERSION file
+    my @verinfo;
+    if (@errs = getDBVERSION($srcdir, \@verinfo)) {
+        return @errs;
+    }
+
+    if ((($verinfo[0] =~ /^netscape/i) or ($verinfo[0] =~ /^iplanet/i)) and
+        (($verinfo[1] =~ /^6/) or ($verinfo[1] =~ /^5/) or ($verinfo[1] =~ /^4/))) {
+        return ('error_database_too_old', $srcdir, @verinfo);
+    }
+
     if (-d $srcdir && ! -d $destdir && !$filesonly) {
         debug(1, "Copying database directory $srcdir to $destdir\n");
         if (system ("cp -p -r $srcdir $destdir")) {
