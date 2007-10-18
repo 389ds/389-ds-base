@@ -331,7 +331,17 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 			item->dn = 0;
 		item->filter = slapi_ch_strdup(filter);
 		item->caller_data = caller_data;
-		item->realfilter = slapi_str2filter(writable_filter);
+		if (NULL == (item->realfilter = slapi_str2filter(writable_filter))) {
+			slapi_log_error(SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM,
+							"Error: invalid filter in statechange entry [%s]: [%s]\n",
+							dn, filter);
+			slapi_ch_free_string(&item->caller_id);
+			slapi_ch_free_string(&item->dn);
+			slapi_ch_free_string(&item->filter);
+			slapi_ch_free_string(&writable_filter);
+			slapi_ch_free((void **)&item);
+			return -1;
+		}
 		item->func = func;
 
 		slapi_lock_mutex(buffer_lock);

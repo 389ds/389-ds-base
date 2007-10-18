@@ -512,7 +512,12 @@ static int parseConfigEntry(Slapi_Entry *e)
 
 	value = slapi_entry_attr_get_charptr(e, DNA_FILTER);
 	if (value) {
-		entry->filter = slapi_str2filter(value);
+		if (NULL == (entry->filter = slapi_str2filter(value))) {
+			slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM ,
+							"Error: Invalid search filter in entry [%s]: [%s]\n",
+							entry->dn, value);
+			goto bail;
+		}
 	}
 	else
 		goto bail;
@@ -1170,6 +1175,7 @@ void dnaDumpConfigEntry(configEntry *entry)
 	printf("<---- prefix ---------> %s\n", entry->prefix);
 	printf("<---- next value -----> %lu\n", entry->nextval);
 	printf("<---- interval -------> %lu\n", entry->interval);
+	buffer[0] = '\0';
 	printf("<---- filter ---------> %s\n", 
 		slapi_filter_to_string_internal((const struct slapi_filter *)entry->filter, buffer, &bufsiz));
 	printf("<---- generate flag --> %s\n", entry->generate);

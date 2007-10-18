@@ -3027,6 +3027,14 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	/* Convert the filter string */
 	f = slapi_str2filter ( ludp->lud_filter );
 
+	if (f == NULL) { /* bogus filter */
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+						"DS_LASUserAttrEval: The member URL search filter in entry [%s] is not valid: [%s]\n",
+						n_clientdn, ludp->lud_filter);
+		ldap_free_urldesc( ludp );
+		return ACL_FALSE;
+    }
+
 	rc = ACL_TRUE;
 	if (0 != slapi_vattr_filter_test ( aclpb->aclpb_pblock, 
 				aclpb->aclpb_client_entry, f, 0 /* no acces chk */ ))
