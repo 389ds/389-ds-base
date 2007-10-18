@@ -102,6 +102,7 @@ pblock_done( Slapi_PBlock *pb )
     {
 	    operation_free(&pb->pb_op,pb->pb_conn);
     }
+	slapi_ch_free((void**)&(pb->pb_vattr_context));
 	slapi_ch_free((void**)&(pb->pb_result_text));
 }
 
