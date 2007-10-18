@@ -601,7 +601,6 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 	ConnResult return_value = 0;
 	int ldap_rc = 0;
 	LDAPMessage *res = NULL;
-	int not_unique = 0;
 	int nummessages = 0;
 	int numentries = 0;
 	int numreferences = 0;
@@ -635,10 +634,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 			/* See if there are any more entries : if so then that's an error
 			 * but we still need to get them to avoid gumming up the connection
 			 */
-			while (NULL != ( message = ldap_next_entry(conn->ld,message))) 
-			{
-				not_unique = 1;
-			}
+			while (NULL != ( message = ldap_next_entry(conn->ld,message))) ;
 			return_value = CONN_OPERATION_SUCCESS;
 		}
 		else if (IS_DISCONNECT_ERROR(ldap_rc))
@@ -838,9 +834,8 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 			{
 				LDAPControl **returned_controls = NULL;
 				int code = 0;
-				int parse_rc = 0;
 				/* Purify says this is a leak : */
-				parse_rc = ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 0 );
+				ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 0 );
 				if (returned_controls)
 				{
 					windows_private_update_dirsync_control(conn->agmt, returned_controls);
@@ -1096,7 +1091,6 @@ windows_conn_start_linger(Repl_Connection *conn)
 ConnResult
 windows_conn_connect(Repl_Connection *conn)
 {
-	int ldap_rc;
 	int optdata;
 	int secure = 0;
 	char* binddn = NULL;
@@ -1252,7 +1246,7 @@ windows_conn_connect(Repl_Connection *conn)
 	}
 	else
 	{
-		conn->last_ldap_error = ldap_rc = LDAP_SUCCESS;
+		conn->last_ldap_error = LDAP_SUCCESS;
 		conn->state = STATE_CONNECTED;
 		return_value = CONN_OPERATION_SUCCESS;
 	}
@@ -1291,7 +1285,7 @@ windows_conn_connect(Repl_Connection *conn)
 		close_connection_internal(conn);
 	} else
 	{
-		conn->last_ldap_error = ldap_rc = LDAP_SUCCESS;
+		conn->last_ldap_error = LDAP_SUCCESS;
 		conn->state = STATE_CONNECTED;
 	}
 
@@ -1862,22 +1856,6 @@ do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 	return msgid;
 }
 
-
-static time_t 
-PRTime2time_t (PRTime tm)
-{
-    PRInt64 rt;
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> PRTime2time_t\n", 0, 0, 0 );
-
-    PR_ASSERT (tm);
-    
-    LL_DIV(rt, tm, PR_USEC_PER_SEC);
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= PRTime2time_t\n", 0, 0, 0 );
-
-    return (time_t)rt;
-}
 
 static Slapi_Eq_Context
 repl5_start_debug_timeout(int *setlevel)

@@ -572,7 +572,7 @@ static int grok_and_rewrite_filter(Slapi_Filter	*f)
 			rhs = f->f_ava.ava_value.bv_val;
 			/* is the value zero ? */
 			rhs_num = atoi(rhs);
-			if (0 == rhs) {
+			if (0 == rhs_num) {
 				/* If so, rewrite to same as numsubordinates=* */
 				free_the_filter_bits(f);
 				replace_filter(f,"(objectclass=*)");

@@ -181,7 +181,6 @@ NSPR_BEGIN_EXTERN_C
 int symTableAddSym(void * table, Symbol_t * newsym, void * symref)
 {
     SymTable_t * st = (SymTable_t *)table;
-    PLHashEntry * he;
     PLHashEntry **hep;
     PLHashNumber keyhash;
     int rv = 0;
@@ -196,7 +195,7 @@ int symTableAddSym(void * table, Symbol_t * newsym, void * symref)
     if (*hep == 0) {
 
 	/* Expand the hash table if necessary and allocate an entry */
-	he = PL_HashTableRawAdd(st->stb_ht,
+	PL_HashTableRawAdd(st->stb_ht,
 				hep, keyhash, (void *)newsym, symref);
     }
     else {

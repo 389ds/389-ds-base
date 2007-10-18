@@ -478,6 +478,7 @@ static int dblayer_seek24_large(int fd, size_t pgsize, db_pgno_t pageno,
     return (ret < 0) ? errno : 0;
 }
 
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
 /* Helper function for large seeks, db4.3 */
 static int dblayer_seek43_large(int fd, off64_t offset, int whence)
 {
@@ -487,6 +488,7 @@ static int dblayer_seek43_large(int fd, off64_t offset, int whence)
 
     return (ret < 0) ? errno : 0;
 }
+#endif
 
 /* helper function for large fstat -- this depends on 'struct stat64' having
  * the following members:
@@ -5828,7 +5830,6 @@ done:
 int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
 {
     struct attrinfo *a = NULL;
-    backend *be = NULL;
     struct ldbminfo *li = NULL;
     dblayer_private *priv = NULL;
     DB *thisdb = NULL;
@@ -5844,7 +5845,6 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
             "update_db_ext: Null instance is passed\n", 0, 0, 0);
         return -1;    /* non zero */
     }
-    be = inst->inst_be;
     li = inst->inst_li;
     priv = (dblayer_private*)li->li_dblayer_private;
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);

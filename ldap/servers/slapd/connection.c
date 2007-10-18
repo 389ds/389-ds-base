@@ -222,8 +222,8 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     PR_Unlock( num_conns_mutex );
 
     if (! in_referral_mode) {
-	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
-	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
+	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnections);
     }
 
     /* 
@@ -823,7 +823,7 @@ static int process_operation(Connection *conn, Operation *op)
 
 	if (! config_check_referral_mode()) {
 		PR_AtomicIncrement(&ops_initiated);
-		PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+		snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 	}
 
 	if ( (tag = ber_get_int( op->o_ber, &msgid ))
@@ -1920,10 +1920,9 @@ int table_iterate_function(Connection *conn, void *arg)
  */
 void connection_find_our_rank(Connection *conn,int *connection_count, int *our_rank)
 {
-	int ret = 0;
 	table_iterate_info info = {0};
 	info.our_rate = conn->c_private->operation_rate;
-	ret = connection_table_iterate_active_connections(the_connection_table, &info, &table_iterate_function);
+	connection_table_iterate_active_connections(the_connection_table, &info, &table_iterate_function);
 	*connection_count = info.connection_count;
 	*our_rank = info.rank_count;
 }
@@ -2060,7 +2059,7 @@ connection_threadmain()
 			PR_Unlock(conn->c_mutex);
 			if (! config_check_referral_mode()) {
 	    		  PR_AtomicIncrement(&ops_initiated);
-	    		  PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+	    		  snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 			}
 		}
 		/* Once we're here we have a pb */ 
@@ -2243,7 +2242,7 @@ connection_activity(Connection *conn)
 	
 	if (! config_check_referral_mode()) {
 	    PR_AtomicIncrement(&ops_initiated);
-	    PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+	    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 	}
 	return 0;
 }
@@ -2562,7 +2561,7 @@ disconnect_server_nomutex( Connection *conn, int opconnid, int opid, PRErrorCode
 	}
 
 	if (! config_check_referral_mode()) {
-	    PR_AtomicDecrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+	    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnections);
 	}
 
 	conn->c_gettingber = 0;

@@ -290,7 +290,6 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/libaccess/libns_dshttpd_la-symbols.lo \
 	lib/libaccess/libns_dshttpd_la-usi.lo \
 	lib/libaccess/libns_dshttpd_la-usrcache.lo \
-	lib/libadmin/libns_dshttpd_la-authdb.lo \
 	lib/libadmin/libns_dshttpd_la-error.lo \
 	lib/libadmin/libns_dshttpd_la-template.lo \
 	lib/libadmin/libns_dshttpd_la-util.lo \
@@ -853,7 +852,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -1243,7 +1241,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/libaccess/symbols.cpp \
 	lib/libaccess/usi.cpp \
 	lib/libaccess/usrcache.cpp \
-	lib/libadmin/authdb.c \
 	lib/libadmin/error.c \
 	lib/libadmin/template.c \
 	lib/libadmin/util.c \
@@ -2663,8 +2660,6 @@ lib/libadmin/$(am__dirstamp):
 lib/libadmin/$(DEPDIR)/$(am__dirstamp):
 	@$(mkdir_p) lib/libadmin/$(DEPDIR)
 	@: > lib/libadmin/$(DEPDIR)/$(am__dirstamp)
-lib/libadmin/libns_dshttpd_la-authdb.lo: lib/libadmin/$(am__dirstamp) \
-	lib/libadmin/$(DEPDIR)/$(am__dirstamp)
 lib/libadmin/libns_dshttpd_la-error.lo: lib/libadmin/$(am__dirstamp) \
 	lib/libadmin/$(DEPDIR)/$(am__dirstamp)
 lib/libadmin/libns_dshttpd_la-template.lo:  \
@@ -4602,8 +4597,6 @@ mostlyclean-compile:
 	-rm -f lib/libaccess/libns_dshttpd_la-usi.lo
 	-rm -f lib/libaccess/libns_dshttpd_la-usrcache.$(OBJEXT)
 	-rm -f lib/libaccess/libns_dshttpd_la-usrcache.lo
-	-rm -f lib/libadmin/libns_dshttpd_la-authdb.$(OBJEXT)
-	-rm -f lib/libadmin/libns_dshttpd_la-authdb.lo
 	-rm -f lib/libadmin/libns_dshttpd_la-error.$(OBJEXT)
 	-rm -f lib/libadmin/libns_dshttpd_la-error.lo
 	-rm -f lib/libadmin/libns_dshttpd_la-template.$(OBJEXT)
@@ -5045,7 +5038,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-symbols.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-usi.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-usrcache.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-authdb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-error.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-template.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-util.Plo@am__quote@
@@ -5983,13 +5975,6 @@ ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo: ldap/servers/pl
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/http/http_impl.c' object='ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhttp_client_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo `test -f 'ldap/servers/plugins/http/http_impl.c' || echo '$(srcdir)/'`ldap/servers/plugins/http/http_impl.c
-
-lib/libadmin/libns_dshttpd_la-authdb.lo: lib/libadmin/authdb.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libadmin/libns_dshttpd_la-authdb.lo -MD -MP -MF "lib/libadmin/$(DEPDIR)/libns_dshttpd_la-authdb.Tpo" -c -o lib/libadmin/libns_dshttpd_la-authdb.lo `test -f 'lib/libadmin/authdb.c' || echo '$(srcdir)/'`lib/libadmin/authdb.c; \
-@am__fastdepCC_TRUE@	then mv -f "lib/libadmin/$(DEPDIR)/libns_dshttpd_la-authdb.Tpo" "lib/libadmin/$(DEPDIR)/libns_dshttpd_la-authdb.Plo"; else rm -f "lib/libadmin/$(DEPDIR)/libns_dshttpd_la-authdb.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/libadmin/authdb.c' object='lib/libadmin/libns_dshttpd_la-authdb.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/libadmin/libns_dshttpd_la-authdb.lo `test -f 'lib/libadmin/authdb.c' || echo '$(srcdir)/'`lib/libadmin/authdb.c
 
 lib/libadmin/libns_dshttpd_la-error.lo: lib/libadmin/error.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libadmin/libns_dshttpd_la-error.lo -MD -MP -MF "lib/libadmin/$(DEPDIR)/libns_dshttpd_la-error.Tpo" -c -o lib/libadmin/libns_dshttpd_la-error.lo `test -f 'lib/libadmin/error.c' || echo '$(srcdir)/'`lib/libadmin/error.c; \

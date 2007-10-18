@@ -150,12 +150,12 @@ static void
 symload_report_error( const char *libpath, char *symbol, char *plugin, int libopen )
 {
 	char	*errtext = NULL;
-	PRInt32	errlen, err;
+	PRInt32	errlen;
 
 	errlen = PR_GetErrorTextLength();
 	if ( errlen > 0 ) {
 		errtext = slapi_ch_malloc( errlen );
-		if (( err = PR_GetErrorText( errtext )) > 0 ) {
+		if ( PR_GetErrorText( errtext ) > 0 ) {
 			LDAPDebug( LDAP_DEBUG_ANY, SLAPI_COMPONENT_NAME_NSPR " error %d: %s\n",
 				PR_GetError(), errtext, 0 );
 		}

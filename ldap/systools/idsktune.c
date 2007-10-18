@@ -1418,20 +1418,20 @@ static void gen_tests (void)
   } else {
     if (flag_debug) {
       printf("DEBUG  : Static info\n");
-      printf("DEBUG  : Physical memory size %d\n",pst_stt.physical_memory);
-      printf("DEBUG  : Page size %d\n",pst_stt.page_size);
-      printf("DEBUG  : Max nfile %d\n",pst_stt.pst_max_nfile);
+      printf("DEBUG  : Physical memory size %lu\n",pst_stt.physical_memory);
+      printf("DEBUG  : Page size %lu\n",pst_stt.page_size);
+      printf("DEBUG  : Max nfile %lu\n",pst_stt.pst_max_nfile);
       
       printf("DEBUG  : Dynamic info\n");
-      printf("DEBUG  : Physical memory size %d\n",pst_dyn.psd_rm);
-      printf("DEBUG  : Virtual Memory size %d\n",pst_dyn.psd_vm);
-      printf("DEBUG  : Physical memory size %d active\n",pst_dyn.psd_arm);
-      printf("DEBUG  : Virtual Memory size %d active\n",pst_dyn.psd_avm);
-      printf("DEBUG  : Processors %d\n",pst_dyn.psd_proc_cnt);
+      printf("DEBUG  : Physical memory size %lu\n",pst_dyn.psd_rm);
+      printf("DEBUG  : Virtual Memory size %lu\n",pst_dyn.psd_vm);
+      printf("DEBUG  : Physical memory size %lu active\n",pst_dyn.psd_arm);
+      printf("DEBUG  : Virtual Memory size %lu active\n",pst_dyn.psd_avm);
+      printf("DEBUG  : Processors %lu\n",pst_dyn.psd_proc_cnt);
 
       printf("DEBUG  : VM Info\n");
-      printf("DEBUG  : Pages on disk backing %d\n",pst_vmm.psv_swapspc_cnt);
-      printf("DEBUG  : Max pages on disk backing %d\n",pst_vmm.psv_swapspc_max);
+      printf("DEBUG  : Pages on disk backing %lu\n",pst_vmm.psv_swapspc_cnt);
+      printf("DEBUG  : Max pages on disk backing %lu\n",pst_vmm.psv_swapspc_max);
     }
     phys_mb = pst_stt.page_size / 1024;
     phys_mb = phys_mb * (pst_stt.physical_memory / 1024);
@@ -1828,6 +1828,7 @@ static int month_lookup(char *month)
     if (!strcmp(month, mo_lookup[i]))
       return i+1;
   }
+  return 0; /* error */
 }
 
 static void hp_check_index(char *index_path, char *desc, int yr, int mo)
@@ -1920,7 +1921,6 @@ static void hp_check_qpk()
 {
   char fbuf[MAXPATHLEN];
   int i,pm= 0;
-  int not_su = 0;
   int found = 0;
 
   DIR *prod_dir = NULL;
@@ -1928,7 +1928,6 @@ static void hp_check_qpk()
 
   if (access(HP_PATCH_DIR,X_OK) == -1) {
     printf("\nWARNING : Only the superuser can check which patches are installed.  You must\nrun dsktune as root to ensure the necessary patches are present.  If required\npatches are not present, the server may not function correctly.\n\n");
-    not_su = 1;
     return;
   }
 
@@ -1978,17 +1977,17 @@ static void hp_pthreads_tests(void)
   if (_SYSTEM_SUPPORTS_LP64OS(cpu64) == 0) {
     printf("WARNING: This system does not support 64 bit operating systems.\n\n");
   } else {
-    if (flag_debug) printf("DEBUG  : _SC_HW_32_64_CAPABLE 0x%x\n",cpu64);
+    if (flag_debug) printf("DEBUG  : _SC_HW_32_64_CAPABLE 0x%lx\n",cpu64);
   }
 
   tmax = sysconf(_SC_THREAD_THREADS_MAX);
 
   if (tmax < 128) {
-    printf("WARNING: only %d threads are available in a process.\n", tmax);
+    printf("WARNING: only %lu threads are available in a process.\n", tmax);
     printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change max_thread_proc\n");
     printf("and nkthreads as needed.\n\n");
   } else {
-    if (flag_debug) printf("DEBUG  : HP-UX max threads %ld\n", tmax);
+    if (flag_debug) printf("DEBUG  : HP-UX max threads %lu\n", tmax);
   }
 
   /* XXX set ncallout (max number of pending timeouts ) to 128 + NPROC */
@@ -1998,7 +1997,7 @@ static void hp_pthreads_tests(void)
   omax = sysconf(_SC_OPEN_MAX);
   
   if (omax < 120) {
-    printf("WARNING: only %d files can be opened at once in a process.\n",omax);
+    printf("WARNING: only %lu files can be opened at once in a process.\n",omax);
     printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change maxfiles.\n");    
   } else {
     if (flag_debug) printf("DEBUG  : HP-UX maxfiles %ld\n", omax);    
@@ -2076,7 +2075,7 @@ static void ndd_tests (void)
     if (ndd_get_tcp(name_tcp_time_wait_interval, &ndd_tcp_time_wait_interval) == 0) {
       if (ndd_tcp_time_wait_interval >= 240000) {
         if (flag_html) printf("<P>\n");
-        printf("%s: The %s is set to %d milliseconds (%d seconds).\n"
+        printf("%s: The %s is set to %ld milliseconds (%ld seconds).\n"
 		  "This value should be reduced to allow for more simultaneous connections\n"
 		  "to the server.\n",
 	       flag_carrier ? "ERROR  " : "WARNING",
@@ -2094,12 +2093,12 @@ static void ndd_tests (void)
         if (flag_carrier) flag_os_bad = 1;
       } else if (ndd_tcp_time_wait_interval < 10000) {
         if (flag_html) printf("<P>\n");
-        printf("WARNING: The %s is set to %d milliseconds.  Values below\n30000 may cause problems.\n\n",
+        printf("WARNING: The %s is set to %ld milliseconds.  Values below\n30000 may cause problems.\n\n",
 	  name_tcp_time_wait_interval, ndd_tcp_time_wait_interval);
         if (flag_html) printf("</P>\n");
       } else {
         if (flag_debug) {
-	  printf("DEBUG  : %s %d\n", name_tcp_time_wait_interval, ndd_tcp_time_wait_interval);
+	  printf("DEBUG  : %s %ld\n", name_tcp_time_wait_interval, ndd_tcp_time_wait_interval);
         }
       }
     }
@@ -2163,7 +2162,7 @@ static void ndd_tests (void)
     if (ndd_get_tcp(NAME_TCP_CONN_REQ_MAX_Q, &ndd_tcp_conn_req_max_q) == 0) {
       if (flag_html) printf("<P>\n");      
       if (ndd_tcp_conn_req_max_q < recommended_tcp_conn_req_max) {
-	printf("ERROR  : The NDD %s value %d is lower than the recommended minimum, %d.\n\n",
+	printf("ERROR  : The NDD %s value %ld is lower than the recommended minimum, %d.\n\n",
 	       NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q, recommended_tcp_conn_req_max);
 	if (flag_solaris_251) {
 	  printf("ERROR  : Patches %s and %s may need to be applied.\n\n",
@@ -2172,17 +2171,17 @@ static void ndd_tests (void)
 	}
       } else if (ndd_tcp_conn_req_max_q >= ndd_tcp_conn_req_max_q0) {
 	if (flag_debug) {
-	  printf("DEBUG  : %s %d\n", NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
+	  printf("DEBUG  : %s %ld\n", NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
 	}
       } else {
-	printf("NOTICE : The %s value is currently %d, which will limit the\nvalue of listen backlog which can be configured.  ",
+	printf("NOTICE : The %s value is currently %ld, which will limit the\nvalue of listen backlog which can be configured.  ",
 	       NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
 #ifdef NAME_NDD_CFG_FILE
 	printf("It can be raised by adding\nto %s, after any adb command, an entry similar to:\n", NAME_NDD_CFG_FILE);
 	if (flag_html) printf("</P><PRE>\n");
 	printf("TRANSPORT_NAME[10]=tcp\n");
 	printf("NDD_NAME[10]=%s\n", NAME_TCP_CONN_REQ_MAX_Q);
-	printf("NDD_VALUE[10]=%d\n\n", ndd_tcp_conn_req_max_q0);
+	printf("NDD_VALUE[10]=%ld\n\n", ndd_tcp_conn_req_max_q0);
 	if (flag_html) printf("</PRE><P>\n");      
 #endif
 	if (tcp_max_listen == 1024) {
@@ -2193,7 +2192,7 @@ static void ndd_tests (void)
       if (flag_html) printf("</P><P>\n");      
       
       if (tcp_max_listen && ndd_tcp_conn_req_max_q > tcp_max_listen) {
-	printf("WARNING: %s (value %d) is larger than the kernel will allow.\n\n", NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
+	printf("WARNING: %s (value %ld) is larger than the kernel will allow.\n\n", NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
       }
       
       if (flag_html) printf("</P><P>\n");      
@@ -2784,7 +2783,7 @@ static void disk_tests(void)
 #if defined(RLIMIT_CORE)
   getrlimit(RLIMIT_CORE,&r);
   if (flag_debug) printf("DEBUG  : RLIMIT_CORE is %ld, %ld\n", r.rlim_cur, r.rlim_max);
-  if (r.rlim_cur == -1 || r.rlim_cur >= 2147483647) {
+  if (r.rlim_cur == (unsigned long)-1 || r.rlim_cur >= 2147483647) {
     if (swap_mb <2048) {
       max_core = swap_mb;
     } else {
@@ -3121,24 +3120,24 @@ static void ids_get_platform(char *buf)
 	
 	switch(cpuvers) {
 	case CPU_PA_RISC1_0:
-	  sprintf(procstr,"hppa1.0/%d",cputype);
+	  sprintf(procstr,"hppa1.0/%ld",cputype);
 	  break;
 	case CPU_PA_RISC1_1:
-	  sprintf(procstr,"hppa1.1/%d",cputype);
+	  sprintf(procstr,"hppa1.1/%ld",cputype);
 	  break;
 	case CPU_PA_RISC1_2:
-	  sprintf(procstr,"hppa1.2/%d",cputype);
+	  sprintf(procstr,"hppa1.2/%ld",cputype);
 	  break;
 	case CPU_PA_RISC2_0:
-	  sprintf(procstr,"hppa2.0/%d",cputype);
+	  sprintf(procstr,"hppa2.0/%ld",cputype);
 	  break;
 #if defined(__ia64)
 	case CPU_IA64_ARCHREV_0:
-	  sprintf(procstr,"hpia0/%d",cputype);
+	  sprintf(procstr,"hpia0/%ld",cputype);
 	  break;
 #endif
 	default:
-	  sprintf(procstr,"hppa_0x%x/%d",cpuvers,cputype);
+	  sprintf(procstr,"hppa_0x%lx/%ld",cpuvers,cputype);
 	  break;
 	}
 

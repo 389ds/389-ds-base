@@ -598,8 +598,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
   int wait_change_timer_set = 0;
   time_t last_start_time;
   PRUint32 num_changes_sent;
-  char *hostname = NULL;
-  int portnum = 0;
   /* use a different backoff timer strategy for ACQUIRE_REPLICA_BUSY errors */
   PRBool use_busy_backoff_timer = PR_FALSE;
   long pausetime = 0;
@@ -607,8 +605,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 
   prp->stopped = 0;
   prp->terminate = 0;
-  hostname = agmt_get_hostname(prp->agmt);
-  portnum = agmt_get_port(prp->agmt);
 
   /* establish_protocol_callbacks(prp); */
   done = 0;
@@ -1264,7 +1260,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 
     current_state = next_state;
   } while (!done);
-  slapi_ch_free((void**)&hostname);
   /* remove_protocol_callbacks(prp); */
   prp->stopped = 1;
   /* Cancel any linger timer that might be in effect... */

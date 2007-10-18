@@ -106,7 +106,7 @@ slapd_versatile_strerror( const PRErrorCode prerrno )
     const char	*s;
 
     if (( s = (const char *)SECU_Strerror( prerrno )) == NULL ) {
-	s = slapd_system_strerror( (const int)prerrno );
+	s = slapd_system_strerror( prerrno );
     }
 
     return( s );

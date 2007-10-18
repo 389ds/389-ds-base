@@ -537,19 +537,20 @@ int referint_postop_start( Slapi_PBlock *pb)
 		  keeprunning_cv = PR_NewCondVar(keeprunning_mutex);
 		  keeprunning =1;
 			
-		  if (( referint_tid = PR_CreateThread (PR_USER_THREAD, 
+		  referint_tid = PR_CreateThread (PR_USER_THREAD, 
 							referint_thread_func, 
 							(void *)argv,
 							PR_PRIORITY_NORMAL, 
 							PR_GLOBAL_THREAD, 
 							PR_UNJOINABLE_THREAD, 
-							SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL ) {
+							SLAPD_DEFAULT_THREAD_STACKSIZE);
+		  if ( referint_tid == NULL ) {
 			slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
 				   "referint_postop_start PR_CreateThread failed\n" );
 			exit( 1 );
-			}
+		  }
 		}
-    } else {
+	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
 		     "referint_postop_start insufficient arguments supplied\n" );
 		return( -1 ); 
@@ -818,11 +819,10 @@ void writeintegritylog(char *logfilename, char *dn, char *newrdn){
                          " line length exceeded. It will not be able"
                          " to update references to this entry.\n");
     }else{
-       PRInt32 rv;
        PR_snprintf(buffer, MAX_LINE, "%s\t%s\t\n", 
 				   dn,
 				   (newrdn != NULL) ? newrdn : "NULL");
-        if ((rv = PR_Write(prfd,buffer,strlen(buffer))) < 0){
+        if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
            slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
 	       " writeintegritylog: PR_Write failed : The disk"
 	       " may be full or the file is unwritable :: NSPR error - %d\n",

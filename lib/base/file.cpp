@@ -565,19 +565,11 @@ NSAPI_PUBLIC int system_errmsg_fn(char **buff, size_t maxlen)
     char static_error[128];
     char *lmsg = 0; /* Local message pointer */
     size_t msglen = 0;
-    int sys_error = 0;
     PRErrorCode nscp_error;
 #ifdef XP_WIN32
     LPTSTR sysmsg = 0;
 #endif
 
-
-    /* Grab the OS error message */
-#ifdef XP_WIN32
-    sys_error = GetLastError();
-#else
-    sys_error = errno;
-#endif
     nscp_error = PR_GetError();
 
     /* If there is a NSPR error, but it is "unknown", try to get the OSError

@@ -70,8 +70,8 @@ typedef struct callback_data
     Private_Repl_Protocol *prp;
     int rc;    
 	unsigned long num_entries;
-    time_t sleep_on_busy;
-	time_t last_busy;
+    time_t sleep_on_busy;	/* not used ??? */
+	time_t last_busy;	/* not used ??? */
 } callback_data;
 
 /* 
@@ -100,8 +100,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
     callback_data cb_data;
     Slapi_PBlock *pb;
 	const char* dn;
-	CSN *remote_schema_csn = NULL;
-	PRBool cookie_has_more = PR_TRUE;
 	RUV *ruv = NULL;
 	RUV *starting_ruv = NULL;
 	Replica *replica = NULL;
@@ -143,7 +141,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
     }
 
 	agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
-	remote_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
 
     agmt_set_last_init_status(prp->agmt, 0, 0, "Total update in progress");
 
@@ -154,7 +151,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
 	/* get everything */
 	windows_dirsync_inc_run(prp);
-	cookie_has_more = windows_private_dirsync_has_more(prp->agmt);	
 	
 	windows_private_save_dirsync_cookie(prp->agmt);
 
@@ -350,10 +346,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 {
     int rc;
     Private_Repl_Protocol *prp;
-   
 	unsigned long *num_entriesp;
-	time_t *sleep_on_busyp;
-	time_t *last_busyp;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_entry\n", 0, 0, 0 );
 
@@ -361,8 +354,6 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 
     prp = ((callback_data*)cb_data)->prp;
 	num_entriesp = &((callback_data *)cb_data)->num_entries;
-	sleep_on_busyp = &((callback_data *)cb_data)->sleep_on_busy;
-	last_busyp = &((callback_data *)cb_data)->last_busy;
     PR_ASSERT (prp);
 
     if (prp->terminate)

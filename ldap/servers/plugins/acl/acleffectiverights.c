@@ -663,7 +663,6 @@ acl_get_effective_rights (
 	char *gerstr = NULL;
 	size_t gerstrsize = 0;
 	size_t gerstrcap = 0;
-	unsigned long entryrights;
 	int iscritical = 1;
 	int rc;
 
@@ -698,7 +697,7 @@ acl_get_effective_rights (
 	}
 
 	/* Get entry level effective rights */
-	entryrights = _ger_get_entry_rights ( gerpb, e, subjectndn, &gerstr, &gerstrsize, &gerstrcap, errbuf );
+	_ger_get_entry_rights ( gerpb, e, subjectndn, &gerstr, &gerstrsize, &gerstrcap, errbuf );
 
 	/*
 	 * Attribute level effective rights may not be NULL

@@ -97,7 +97,6 @@ int initCounterLock() {
 Slapi_PBlock *
 readPblockAndEntry( const char *baseDN, const char *filter,
 					char *attrs[] ) {
-	int result = 0;
 	Slapi_PBlock *spb = NULL;
 
 	BEGIN
@@ -107,15 +106,15 @@ readPblockAndEntry( const char *baseDN, const char *filter,
 		spb = slapi_search_internal((char *)baseDN, LDAP_SCOPE_BASE,
 									(char *)filter, NULL, attrs, 0);
 		if ( !spb ) {
-			result = op_error(20);
+			op_error(20);
 			break;
 		}
  
 		if ( slapi_pblock_get( spb, SLAPI_PLUGIN_INTOP_RESULT, &sres ) ) {
-			result = op_error(21);
+			op_error(21);
 			break;
 		} else if (sres) {
-			result = op_error(22);
+			op_error(22);
 			break;
 		}
     END
@@ -166,7 +165,6 @@ entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
  */
 Slapi_PBlock *
 dnHasObjectClass( const char *baseDN, const char *objectClass ) {
-	int result = 0;
 	char *filter = NULL;
 	Slapi_PBlock *spb = NULL;
 
@@ -184,7 +182,7 @@ dnHasObjectClass( const char *baseDN, const char *objectClass ) {
  
 		if ( slapi_pblock_get(spb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
 							  &entries) ) {
-			result = op_error(23);
+			op_error(23);
 			break;
 		}
 		/*
@@ -213,7 +211,6 @@ dnHasObjectClass( const char *baseDN, const char *objectClass ) {
  */
 Slapi_PBlock *
 dnHasAttribute( const char *baseDN, const char *attrName ) {
-	int result = 0;
 	Slapi_PBlock *spb = NULL;
 	char *filter = NULL;
 
@@ -229,21 +226,21 @@ dnHasAttribute( const char *baseDN, const char *attrName ) {
 		spb = slapi_search_internal((char *)baseDN, LDAP_SCOPE_BASE,
 									filter, NULL, attrs, 0);
 		if ( !spb ) {
-			result = op_error(20);
+			op_error(20);
 			break;
 		}
  
 		if ( slapi_pblock_get( spb, SLAPI_PLUGIN_INTOP_RESULT, &sres ) ) {
-			result = op_error(21);
+			op_error(21);
 			break;
 		} else if (sres) {
-			result = op_error(22);
+			op_error(22);
 			break;
 		}
 
 		if ( slapi_pblock_get(spb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
 							  &entries) ) {
-			result = op_error(23);
+			op_error(23);
 			break;
 		}
 		/*

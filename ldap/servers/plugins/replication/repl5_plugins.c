@@ -86,7 +86,6 @@ static int ruv_tombstone_op (Slapi_PBlock *pb);
 static PRBool process_operation (Slapi_PBlock *pb, const CSN *csn);
 static PRBool is_mmr_replica (Slapi_PBlock *pb);
 static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, const CSN *opcsn);
-static void strip_legacy_info (slapi_operation_parameters *op_params);
 
 /*
  * XXXggood - what to do if both ssl and non-ssl ports available? How
@@ -695,12 +694,10 @@ multimaster_bepreop_add (Slapi_PBlock *pb)
 	Slapi_Operation *op;
     int is_replicated_operation;
 	int is_fixup_operation;
-    int is_legacy_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-    is_legacy_operation= operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
 
 	/* For replicated operations, apply URP algorithm */
 	if (is_replicated_operation && !is_fixup_operation)
@@ -718,12 +715,10 @@ multimaster_bepreop_delete (Slapi_PBlock *pb)
 	Slapi_Operation *op;
     int is_replicated_operation;
 	int is_fixup_operation;
-    int is_legacy_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-    is_legacy_operation= operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
 
 	/* For replicated operations, apply URP algorithm */
 	if(is_replicated_operation && !is_fixup_operation)
@@ -741,12 +736,10 @@ multimaster_bepreop_modify (Slapi_PBlock *pb)
 	Slapi_Operation *op;
     int is_replicated_operation;
 	int is_fixup_operation;
-    int is_legacy_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-    is_legacy_operation= operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
 
 	/* For replicated operations, apply URP algorithm */
 	if(is_replicated_operation && !is_fixup_operation)
@@ -767,12 +760,10 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 	Slapi_Operation *op;
     int is_replicated_operation;
 	int is_fixup_operation;
-    int is_legacy_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-    is_legacy_operation= operation_is_flag_set(op,OP_FLAG_LEGACY_REPLICATION_DN);
 
 	/* For replicated operations, apply URP algorithm */
 	if(is_replicated_operation && !is_fixup_operation)
@@ -1341,6 +1332,7 @@ static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, 
     return purl;   
 }
 
+#ifdef NOTUSED
 /* ONREPL at the moment, I decided not to trim copiedFrom and copyingFrom
    attributes when sending operation to replicas. This is because, each
    operation results in a state information stored in the database and
@@ -1385,6 +1377,7 @@ static void strip_legacy_info (slapi_operation_parameters *op_params)
         default: break;
     }
 }
+#endif
 
 /* this function is called when state of a backend changes */
 void 
@@ -1432,9 +1425,12 @@ multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int 
     object_release (r_obj);
 }
 
+#ifdef NOTUSED
+/*  Keeping the function just in case */
 static void 
 close_changelog_for_replica (Object *r_obj)
 {
     if (cl5GetState () == CL5_STATE_OPEN)
         cl5CloseDB (r_obj);
 }
+#endif

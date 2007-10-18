@@ -52,7 +52,6 @@ int optind_last;
 static int _getopt_ext_inited = 0;
 static int _optind_firstHandled = 0;
 static int _optind_firstRecognized = 0;
-static int _getopt_ext_done_long = 0;
 
 static
 int _getopt_ext_init(int argc)
@@ -63,7 +62,6 @@ int _getopt_ext_init(int argc)
 	_optind_firstHandled = argc;
 	_optind_firstRecognized = argc;
 	/* optind = 1;*/
-	_getopt_ext_done_long = 0;
 	return(0);
 }
 

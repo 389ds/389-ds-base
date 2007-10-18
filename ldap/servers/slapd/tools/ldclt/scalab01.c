@@ -1019,7 +1019,6 @@ scalab01_control (
   /*
    * End of thread
    */
-  return (arg);
 }
 
 

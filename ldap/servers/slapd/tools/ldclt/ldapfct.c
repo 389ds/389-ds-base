@@ -629,7 +629,7 @@ connectToServer (
       if (close ((int)fd) < 0)
       {
 	perror ("ldctx");
-	printf ("ldclt[%d]: T%03d: cannot close(fd=%d), error=%d (%s)\n",
+	printf ("ldclt[%d]: T%03d: cannot close(fd=%ld), error=%d (%s)\n",
 		mctx.pid, tttctx->thrdNum, fd, errno, strerror (errno));
 	return (-1);
       }

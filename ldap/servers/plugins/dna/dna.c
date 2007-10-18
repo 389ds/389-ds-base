@@ -962,8 +962,8 @@ static int dna_pre_op(Slapi_PBlock *pb,  int modtype)
 					e, config_entry->type);
                                 if((value &&
 					!slapi_utf8casecmp(
-						config_entry->generate, 
-						value)) ||
+						(unsigned char *)config_entry->generate, 
+						(unsigned char *)value)) ||
 					0 == value)
                                 {
                                         generate = 1;
@@ -996,8 +996,8 @@ static int dna_pre_op(Slapi_PBlock *pb,  int modtype)
 						if(len == bv->bv_len)
 						{
 							if(!slapi_utf8ncasecmp(
-								bv->bv_val,
-								config_entry->
+								(unsigned char *)bv->bv_val,
+								(unsigned char *)config_entry->
 								generate,
 								len))
 
@@ -1128,7 +1128,6 @@ static int dna_config_check_post_op(Slapi_PBlock *pb)
 			loadPluginConfig();
 	}
 
-bail:
         slapi_log_error( SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM , "<-- dna_config_check_post_op\n");
 
 	return 0;
@@ -1165,11 +1164,14 @@ void dnaDumpConfig()
 
 void dnaDumpConfigEntry(configEntry *entry)
 {
+	char buffer[BUFSIZ];
+	size_t bufsiz = (size_t)sizeof(buffer);
 	printf("<- type --------------> %s\n", entry->type);
 	printf("<---- prefix ---------> %s\n", entry->prefix);
 	printf("<---- next value -----> %lu\n", entry->nextval);
 	printf("<---- interval -------> %lu\n", entry->interval);
-	printf("<---- filter ---------> %s\n", entry->filter);
+	printf("<---- filter ---------> %s\n", 
+		slapi_filter_to_string_internal((const struct slapi_filter *)entry->filter, buffer, &bufsiz));
 	printf("<---- generate flag --> %s\n", entry->generate);
 }
 

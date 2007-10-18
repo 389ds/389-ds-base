@@ -138,7 +138,7 @@ do_modify( Slapi_PBlock *pb )
 	ber = operation->o_ber;
 
 	/* count the modify request */
-	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
+	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
 
 	/*
 	 * Parse the modify request.  It looks like this:

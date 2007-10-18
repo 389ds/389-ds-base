@@ -81,7 +81,7 @@ delete_bitwise_match_cb(struct bitwise_match_cb *bmc)
     slapi_ch_free((void **)&bmc);
 }
 
-static int
+static void
 bitwise_filter_destroy(Slapi_PBlock* pb)
 {
     void *obj = NULL;

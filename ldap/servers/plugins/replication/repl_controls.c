@@ -229,7 +229,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 		if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING)
 		{
 			/* The optional superior_uuid is present */
-			if (ber_scanf(tmp_bere, "o", &superior_uuid_val) == -1)
+			if (ber_scanf(tmp_bere, "o", &superior_uuid_val) == LBER_DEFAULT)
 			{
 				rc = -1;
 				goto loser;

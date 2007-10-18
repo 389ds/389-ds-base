@@ -189,17 +189,14 @@ cmd_set_shutdown (int sig)
      * yourself).
      */
 
-#if 0
-    LDAPDebug( LDAP_DEBUG_ANY, "slapd got shutdown signal\n", 0, 0, 0 );
-#endif
-        c_set_shutdown();
+    c_set_shutdown();
 #ifndef _WIN32
 #ifndef LINUX
-        /* don't mess with USR1/USR2 on linux, used by libpthread */
-        (void) SIGNAL( SIGUSR2, cmd_set_shutdown );
+    /* don't mess with USR1/USR2 on linux, used by libpthread */
+    (void) SIGNAL( SIGUSR2, cmd_set_shutdown );
 #endif
-        (void) SIGNAL( SIGTERM, cmd_set_shutdown );
-        (void) SIGNAL( SIGHUP,  cmd_set_shutdown );
+    (void) SIGNAL( SIGTERM, cmd_set_shutdown );
+    (void) SIGNAL( SIGHUP,  cmd_set_shutdown );
 #endif
 }
 
@@ -470,7 +467,6 @@ static int i_port = 0;
 static int s_port = 0;
 static char **ldif_file = NULL;
 static int ldif_files = 0;
-static int ldif_backend = 0;
 static char *cmd_line_instance_name = NULL;
 static char **cmd_line_instance_names = NULL;
 static int skip_db_protect_check = 0;
@@ -484,7 +480,6 @@ static char *archive_name = NULL;
 static int db2ldif_dump_replica = 0;
 static int db2ldif_dump_uniqueid = 1;
 static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;	
-static int ldif2db_load_state = 1;
 static int dbverify_verbose = 0;
 static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
@@ -1218,7 +1213,7 @@ main( int argc, char **argv)
 
 
 #if ( defined( hpux ) || defined( irix ))
-void *
+void 
 signal2sigaction( int s, void *a )
 {
     struct sigaction act;
@@ -1596,8 +1591,6 @@ process_command_line(int argc, char **argv, char *myname,
 			 	slapd_exemode == SLAPD_EXEMODE_DBVERIFY) {
 			    char *s = slapi_ch_strdup(optarg_ext);
 			    charray_add(&cmd_line_instance_names, s);
-			} else { 
-				ldif_backend = atoi( optarg_ext );
 			}
 			break;
 		case 's':       /* which suffix to include in import/export */
@@ -1766,7 +1759,6 @@ process_command_line(int argc, char **argv, char *myname,
 		case 'Z':
 			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB)
 			{
-				ldif2db_load_state= 0;
 				break;
 			}
 			usage( myname, *extraname );
@@ -2122,7 +2114,6 @@ slapd_exemode_ldif2db()
     pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;
     pb.pb_ldif_namespaceid = ldif2db_namespaceid;
     pb.pb_ldif_encrypt = importexport_encrypt;
-/*    pb.pb_ldif_load_state = ldif2db_load_state; */
     pb.pb_instance_name = cmd_line_instance_name;
     pb.pb_ldif_files = ldif_file;
     pb.pb_ldif_include = db2ldif_include;
@@ -2662,7 +2653,7 @@ slapd_exemode_dbverify()
 
     memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
-    pb.pb_seq_val = dbverify_verbose;
+    pb.pb_seq_type = dbverify_verbose;
     pb.pb_plugin = backend_plugin;
     pb.pb_instance_name = (char *)cmd_line_instance_names;
     pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;

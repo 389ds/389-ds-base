@@ -348,7 +348,9 @@ static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size)
 static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size);
 
 /* replay iteration */
+#ifdef FOR_DEBUGGING
 static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator);
+#endif
 static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consumerRuv,
 			Object *replica, Object *fileObject, CL5ReplayIterator **iterator);
 static int _cl5CheckMissingCSN (const CSN *minCsn, const RUV *supplierRUV, CL5DBFile *file);
@@ -3766,7 +3768,6 @@ static int _cl5RemoveGuardian ()
 /* must be called under the state lock */
 static void _cl5Close ()
 {
-	int rc2 = 0;
 	PRIntervalTime interval;
 
 	if (s_cl5Desc.dbState != CL5_STATE_CLOSED) /* Don't try to close twice */
@@ -3792,7 +3793,7 @@ static void _cl5Close ()
 		if (s_cl5Desc.dbEnv)
 		{
 			DB_ENV *dbEnv = s_cl5Desc.dbEnv;
-			rc2 = dbEnv->close(dbEnv, 0);
+			dbEnv->close(dbEnv, 0);
 			s_cl5Desc.dbEnv = NULL;
 		}
 
@@ -5596,6 +5597,7 @@ PRBool cl5HelperEntry (const char *csnstr, CSN *csnp)
 	return retval;
 }
 
+#ifdef FOR_DEBUGGING
 /* Replay iteration helper functions */
 static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator)
 {
@@ -5606,6 +5608,7 @@ static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator)
 
 	return PR_TRUE;
 }
+#endif
 
 /* Algorithm: ONREPL!!!
  */
@@ -5628,7 +5631,6 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
     int rc = CL5_SUCCESS;
     Object *supplierRuvObj = NULL;
     RUV *supplierRuv = NULL;
-    ReplicaId supplierRID;
     PRBool newReplica;
     PRBool haveChanges = PR_FALSE;
 	char *agmt_name;
@@ -5638,7 +5640,6 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
 	csnStr[0] = '\0';
 
 	file = (CL5DBFile*)object_get_data (fileObj);
-    supplierRID = replica_get_rid((Replica*)object_get_data(replica));
 
     /* get supplier's RUV */
     supplierRuvObj = replica_get_ruv((Replica*)object_get_data(replica));

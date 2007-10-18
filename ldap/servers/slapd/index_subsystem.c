@@ -611,8 +611,6 @@ static int index_subsys_group_decoders(Slapi_Filter *flist)
 			/* indicates we found an existing targetf */
 			int assigned = 0; 
 
-			struct slapi_filter *f_last = 0; /* previos filter in list */
-
 			/* something to join with next compatible
 			 * subfilter we find - this will be the 
 			 * first occurence of a filter assigned
@@ -768,8 +766,6 @@ static int index_subsys_group_decoders(Slapi_Filter *flist)
 						break;
 					}
 				}
-
-				f_last = f;
 			}
 
 			/* iterate through the main list 

@@ -292,7 +292,6 @@ ACL_EvalDestroyContext(ACLListCache_t *cache)
 {
     ACLAceEntry_t	*cur_ace, *next_ace;
     ACLAceNumEntry_t    *cur_num_p, *next_num_p;
-    ACLExprHandle_t	*acep;
 
     if (!cache)
         return 0;
@@ -309,7 +308,6 @@ ACL_EvalDestroyContext(ACLListCache_t *cache)
 	    (cur_ace->acep->expr_type == ACL_EXPR_TYPE_AUTH))
 	    PListDestroy(cur_ace->global_auth);
         next_ace = cur_ace->next;
-        acep     = cur_ace->acep;    /* The ACE structure itself */
         PERM_FREE(cur_ace);
         cur_ace = next_ace;
     }

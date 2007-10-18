@@ -471,7 +471,6 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	LDAPControl *server_controls[3];
 	/* LDAPControl **loc_returned_controls; */
 	const char *op_string = NULL;
-	const char *extra_op_string = NULL;
 	int msgid = 0;
 
 	server_controls[0] = &manageDSAITControl;
@@ -562,7 +561,6 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		case CONN_EXTENDED_OPERATION:
 			conn->status = STATUS_PROCESSING_EXTENDED_OPERATION;
 			op_string = "extended";
-			extra_op_string = extop_oid;
 			rc = ldap_extended_operation(conn->ld, extop_oid, extop_payload,
 				server_controls, NULL /* clientctls */, &msgid);
 		}
@@ -864,7 +862,6 @@ conn_start_linger(Repl_Connection *conn)
 ConnResult
 conn_connect(Repl_Connection *conn)
 {
-	int ldap_rc;
 	int optdata;
 	int secure = 0;
 	char* binddn = NULL;
@@ -1012,7 +1009,7 @@ conn_connect(Repl_Connection *conn)
 	}
 	else
 	{
-		conn->last_ldap_error = ldap_rc = LDAP_SUCCESS;
+		conn->last_ldap_error = LDAP_SUCCESS;
 		conn->state = STATE_CONNECTED;
 		return_value = CONN_OPERATION_SUCCESS;
 	}
@@ -1028,7 +1025,7 @@ conn_connect(Repl_Connection *conn)
 		close_connection_internal(conn);
 	} else
 	{
-		conn->last_ldap_error = ldap_rc = LDAP_SUCCESS;
+		conn->last_ldap_error = LDAP_SUCCESS;
 		conn->state = STATE_CONNECTED;
 	}
 
@@ -1698,6 +1695,7 @@ repl5_set_debug_timeout(const char *val)
 	}
 }
 
+#ifdef FOR_DEBUGGING
 static time_t 
 PRTime2time_t (PRTime tm)
 {
@@ -1709,6 +1707,7 @@ PRTime2time_t (PRTime tm)
 
     return (time_t)rt;
 }
+#endif
 
 static Slapi_Eq_Context
 repl5_start_debug_timeout(int *setlevel)

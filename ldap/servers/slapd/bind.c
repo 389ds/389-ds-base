@@ -335,7 +335,7 @@ do_bind( Slapi_PBlock *pb )
          * All SASL auth methods are categorized as strong binds,
          * although they are not necessarily stronger than simple.
          */
-        PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds);
+        snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds);
         if ( saslmech == NULL || *saslmech == '\0' ) {
             send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                               "SASL mechanism absent", 0, NULL );
@@ -407,13 +407,13 @@ do_bind( Slapi_PBlock *pb )
         }
         break;
     case LDAP_AUTH_SIMPLE:
-        PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
+        snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
         /* accept null binds */
         if (dn == NULL || *dn == '\0') {
-            PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
+            snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
             /* by definition its anonymous is also UnAuthenticated so increment 
                that counter */
-            PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
             /* call preop plugins */
             if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0){
@@ -439,7 +439,7 @@ do_bind( Slapi_PBlock *pb )
     if ( isroot && method == LDAP_AUTH_SIMPLE ) {
         if ( cred.bv_len == 0 ) {
             /* unauthenticated bind */
-            PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
         } else {
             /* a passwd was supplied -- check it */
@@ -457,7 +457,7 @@ do_bind( Slapi_PBlock *pb )
                 send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
                                   NULL, 0, NULL );
 				/* increment BindSecurityErrorcount */
-                PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
                 goto free_and_return;
             }
@@ -601,11 +601,11 @@ do_bind( Slapi_PBlock *pb )
                 
                 if(cred.bv_len == 0) {
                     /* its an UnAuthenticated Bind, DN specified but no pw */
-                    PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+                    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
                 }else{
                     /* password must have been invalid */
                     /* increment BindSecurityError count */
-                    PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 }
 			
             }

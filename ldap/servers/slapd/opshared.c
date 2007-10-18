@@ -464,6 +464,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   while (be) 
   {
     const Slapi_DN * be_suffix;
+    int err = 0;
 
     if (be->be_search == NULL)
     {
@@ -546,7 +547,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     rc = (*be->be_search)(pb);
     switch (rc)
     {
-      int err = 0;
     case 1:        /* if the backend returned LDAP_NO_SUCH_OBJECT for a SEARCH request,
                       it will not have sent back a result - otherwise, it will have
                       sent a result */

@@ -200,7 +200,7 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
 		char *entry_string = slapi_ch_smprintf(entry_template,acs->ace->cipher_display_name,instance_name,acs->ace->cipher_display_name);
 		e = slapi_str2entry(entry_string, 0);
 		/* Add the key as a binary attribute */
-		key_as_berval.bv_val = wrapped_symmetric_key.data;
+		key_as_berval.bv_val = (char *)wrapped_symmetric_key.data;
 		key_as_berval.bv_len = wrapped_symmetric_key.len;
 		key_value = slapi_value_new_berval(&key_as_berval);
 		/* key_value is now a copy of key_as_berval - free wrapped_symmetric_key */
@@ -236,7 +236,7 @@ attrcrypt_wrap_key(attrcrypt_cipher_state *acs, PK11SymKey *symmetric_key, SECKE
 	CK_MECHANISM_TYPE wrap_mechanism = CKM_RSA_PKCS;
 	SECKEYPublicKey *wrapping_key = public_key;
 	wrapped_symmetric_key->len = slapd_SECKEY_PublicKeyStrength(public_key);
-	wrapped_symmetric_key->data = slapi_ch_malloc(wrapped_symmetric_key->len);
+	wrapped_symmetric_key->data = (unsigned char *)slapi_ch_malloc(wrapped_symmetric_key->len);
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_wrap_key\n", 0, 0, 0);
 	s = slapd_pk11_PubWrapSymKey(wrap_mechanism, wrapping_key, symmetric_key, wrapped_symmetric_key);
 	if (SECSuccess != s) {
@@ -567,7 +567,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 	SECItem *security_parameter = NULL;
 	int output_buffer_length = 0;
 	int output_buffer_size1 = 0;
-	int output_buffer_size2 = 0;
+	unsigned int output_buffer_size2 = 0;
 	unsigned char *output_buffer = NULL;
 	attrcrypt_cipher_state *acs = NULL;
 
@@ -586,7 +586,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 #endif
 	/* Allocate the output buffer */
 	output_buffer_length = in_size + 16;
-	output_buffer = slapi_ch_malloc(output_buffer_length);
+	output_buffer = (unsigned char *)slapi_ch_malloc(output_buffer_length);
 	/* Now call NSS to do the cipher op */
 	iv_item.data = "aaaaaaaaaaaaaaaa"; /* ptr to an array of IV bytes */
 	iv_item.len = acs->ace->iv_length; /* length of the array of IV bytes */
@@ -602,7 +602,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op failed on cipher %s : %d - %s\n", acs->ace->cipher_display_name, errorCode, slapd_pr_strerror(errorCode));
 		goto error;
 	}	
-	secret = slapd_pk11_cipherOp(sec_context, output_buffer, &output_buffer_size1, output_buffer_length, in_data, in_size);
+	secret = slapd_pk11_cipherOp(sec_context, output_buffer, &output_buffer_size1, output_buffer_length, (unsigned char *)in_data, in_size);
 	if (SECSuccess != secret) {
 		int errorCode = PR_GetError();
 		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op failed on cipher %s : %d - %s\n", acs->ace->cipher_display_name, errorCode, slapd_pr_strerror(errorCode));
@@ -621,11 +621,11 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 		if (encrypt) {
 			log_bytes("slapd_pk11_DigestFinal '%s' (%d)\n", output_buffer, output_buffer_size1 + output_buffer_size2);
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY,"slapd_pk11_DigestFinal '%s', %d\n", output_buffer, output_buffer_size2, 0);
+			LDAPDebug(LDAP_DEBUG_ANY,"slapd_pk11_DigestFinal '%s', %u\n", output_buffer, output_buffer_size2, 0);
 		}
 #endif
 		*out_size = output_buffer_size1 + output_buffer_size2;
-		*out_data = output_buffer;
+		*out_data = (char *)output_buffer;
 	}
 error:
 	if (sec_context) {

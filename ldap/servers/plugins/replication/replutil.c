@@ -824,7 +824,6 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	int local_backend = -1; /* index of local backend */
 	int chaining_backend = -1; /* index of chain backend */
 	PRBool local_online = PR_FALSE; /* true if the local db is online */
-	PRBool chain_online = PR_FALSE; /* true if the chain db is online */
 	int ii;
 	int opid;
 #ifdef DEBUG_CHAIN_ON_UPDATE
@@ -850,10 +849,6 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 		if (slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))
 		{
 			chaining_backend = ii;
-			if (mtn_be_states[ii] == SLAPI_BE_STATE_ON)
-			{
-				chain_online = PR_TRUE;
-			}
 		}
 		else
 		{

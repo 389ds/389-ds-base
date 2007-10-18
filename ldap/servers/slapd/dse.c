@@ -590,7 +590,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
         struct berval val;
         vals[0] = &val;
         vals[1] = NULL;
-        sprintf(value_buffer,"%u",current_sub_count);
+        sprintf(value_buffer,"%lu",current_sub_count);
         val.bv_val = value_buffer;
         val.bv_len = strlen (val.bv_val);
         switch(mod_op)
@@ -640,7 +640,6 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
     char *buf = NULL;
     char *lastp = NULL;
     int rc= 0; /* Fail */
-    PRInt32	remaining;
     PRInt32 nr = 0;
     PRFileInfo prfinfo;
     PRFileDesc *prfd = 0;
@@ -689,7 +688,6 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
             int done= 0;
             /* read the entire file into core */
             buf = slapi_ch_malloc( prfinfo.size + 1 );
-            remaining = prfinfo.size;
             if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
             {
 				slapi_log_error(SLAPI_LOG_FATAL, "dse",

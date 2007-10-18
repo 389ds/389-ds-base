@@ -68,7 +68,7 @@ ldapuVd_init    ( const char *host, int port )
 #endif
 
 static LDAP_CALL LDAP_CALLBACK int
-ldapuVd_set_option( LDAP *ld, int opt, void *val )
+ldapuVd_set_option( LDAP *ld, int opt, const void *val )
 {
     return ldap_set_option (ld, opt, val);
 }
@@ -150,7 +150,6 @@ ldapuVd_get_values_len( LDAP *ld, LDAPMessage *entry, const char *desc )
 #define ldapuVd_set_option      ldap_set_option
 #define ldapuVd_simple_bind_s   ldap_simple_bind_s
 #define ldapuVd_unbind          ldap_unbind
-#define ldapuVd_set_option      ldap_set_option
 #define ldapuVd_simple_bind_s   ldap_simple_bind_s
 #define ldapuVd_unbind          ldap_unbind
 #define ldapuVd_search_s        ldap_search_s

@@ -2059,8 +2059,6 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
     int ret_code = LDAP_SUCCESS;
     int be_index = 0 ;
     int referral_index = 0 ;
-    int be_list_size = 0;
-    int referral_list_size = 0;
     Slapi_Backend * be;
     Slapi_Entry * referral;
     int scope = LDAP_SCOPE_BASE;
@@ -2091,8 +2089,6 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
 
     mtn_lock();
 
-    be_list_size = BE_LIST_SIZE;
-    referral_list_size = BE_LIST_SIZE;
     be_list[0] = NULL;
     referral_list[0] = NULL;
         
@@ -3182,7 +3178,6 @@ slapi_mtn_get_referral(const Slapi_DN *sdn)
 char *
 slapi_mtn_get_state(const Slapi_DN *sdn)
 {
-    int hint;
     char * node_dn;
     Slapi_Attr *attr;
     char * state = NULL;
@@ -3199,7 +3194,7 @@ slapi_mtn_get_state(const Slapi_DN *sdn)
     if (attr)
     {
         /* entry state was found */
-        hint = slapi_attr_first_value(attr, &val);
+        slapi_attr_first_value(attr, &val);
         state = slapi_ch_strdup(slapi_value_get_string(val));
         slapi_attr_free(&attr);
     }

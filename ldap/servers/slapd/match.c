@@ -216,12 +216,11 @@ int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule)
 {
     struct matchingRuleList *mrl=NULL;
     struct matchingRuleList *newmrl=NULL;
-    int rc=0;
     
     if(NULL == mrule) {
 	return(-1);
     }
-    if((rc = _mr_alloc_new(&newmrl)) != 0) {
+    if(_mr_alloc_new(&newmrl) != 0) {
         return(-1);
     }
     if(NULL != mrule->mr_name) {

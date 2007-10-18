@@ -169,7 +169,7 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
 
     slapi_log_error(SLAPI_LOG_TRACE, "verify DB", "Verifying db files...\n");
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
-    slapi_pblock_get(pb, SLAPI_SEQ_VAL, &verbose);
+    slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &verbose);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     ldbm_config_load_dse_info(li);
     ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");

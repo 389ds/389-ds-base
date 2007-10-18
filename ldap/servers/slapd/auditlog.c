@@ -66,7 +66,6 @@ write_audit_log_entry( Slapi_PBlock *pb )
     char *dn;
     void *change;
 	int flag = 0;
-	int internal_op = 0;
 	Operation *op;
 
 	/* if the audit log is not enabled, just skip all of
@@ -76,7 +75,6 @@ write_audit_log_entry( Slapi_PBlock *pb )
 	}
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-	internal_op = operation_is_flag_set(op, OP_FLAG_INTERNAL);
     slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
     switch ( operation_get_type(op) )
 	{

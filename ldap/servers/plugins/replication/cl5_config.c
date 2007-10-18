@@ -330,7 +330,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	slapi_ch_free_string(&config.maxAge);
 	config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
 	config.dbconfig.maxChCacheEntries = 0;
-	config.dbconfig.maxChCacheSize = CL5_NUM_IGNORE;
+	config.dbconfig.maxChCacheSize = (PRUint32)CL5_NUM_IGNORE;
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
     for (i = 0; mods[i] != NULL; i++)
@@ -438,7 +438,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	}
 	if (config.dbconfig.maxChCacheEntries == 0)
 		config.dbconfig.maxChCacheEntries = originalConfig->dbconfig.maxChCacheEntries;
-	if (config.dbconfig.maxChCacheSize == CL5_NUM_IGNORE)
+	if (config.dbconfig.maxChCacheSize == (PRUint32)CL5_NUM_IGNORE)
 		config.dbconfig.maxChCacheSize = originalConfig->dbconfig.maxChCacheSize;
 
 	
@@ -567,7 +567,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 		}
 	}
 
-	if (config.dbconfig.maxChCacheEntries != 0 || config.dbconfig.maxChCacheSize != CL5_NUM_IGNORE)
+	if (config.dbconfig.maxChCacheEntries != 0 || config.dbconfig.maxChCacheSize != (PRUint32)CL5_NUM_IGNORE)
 	  clcache_set_config(&config.dbconfig);
 
 done:;						   

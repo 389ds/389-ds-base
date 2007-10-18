@@ -3230,7 +3230,6 @@ replica_disable_replication (Replica *r, Object *r_obj)
 	char *current_purl = NULL;
 	char *p_locking_purl = NULL;
 	char *locking_purl = NULL;
-	int junkrc;
 	ReplicaId junkrid;
     PRBool isInc = PR_FALSE; /* get exclusive access, but not for inc update */
 	RUV *repl_ruv = NULL;
@@ -3255,7 +3254,7 @@ replica_disable_replication (Replica *r, Object *r_obj)
        from a supplier
     */
     repl_ruv = (RUV*) object_get_data (r->repl_ruv);
-	junkrc = ruv_get_first_id_and_purl(repl_ruv, &junkrid, &p_locking_purl);
+	ruv_get_first_id_and_purl(repl_ruv, &junkrid, &p_locking_purl);
 	locking_purl = slapi_ch_strdup(p_locking_purl);
 	p_locking_purl = NULL;
 	repl_ruv = NULL;	

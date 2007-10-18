@@ -1051,12 +1051,10 @@ NSAPI_PUBLIC int ldapu_issuer_certinfo (const char *issuerDN, void **certmap_inf
     else if (certmap_listinfo) {
 	char	*n_issuerDN = ldapu_dn_normalize (ldapu_strdup(issuerDN));
 	LDAPUListNode_t *cur = certmap_listinfo->head;
-	int rv = LDAPU_FAILED;
 	while(cur) {
 	    if (!ldapu_strcasecmp(n_issuerDN, ((LDAPUCertMapInfo_t *)cur->info)->issuerDN))
 	    {
 		*certmap_info = cur->info;
-		rv = LDAPU_SUCCESS;
 		break;
 	    }
 	    cur = cur->next;
@@ -1302,10 +1300,9 @@ static CertMapFn_t ldapu_get_cert_mapfn_sub (LDAPUCertMapInfo_t *certmap_info)
 NSAPI_PUBLIC CertMapFn_t ldapu_get_cert_mapfn (const char *issuerDN)
 {
     LDAPUCertMapInfo_t *certmap_info = 0;
-    int rv;
 
     /* don't free the certmap_info -- its a pointer to an internal structure */
-    rv = ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
+    ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
     /* certmap_info may be NULL -- use the default */
 
     return ldapu_get_cert_mapfn_sub(certmap_info);
@@ -1344,10 +1341,9 @@ static CertSearchFn_t ldapu_get_cert_searchfn_sub (LDAPUCertMapInfo_t *certmap_i
 NSAPI_PUBLIC CertSearchFn_t ldapu_get_cert_searchfn (const char *issuerDN)
 {
     LDAPUCertMapInfo_t *certmap_info = 0;
-    int rv;
 
     /* don't free the certmap_info -- its a pointer to an internal structure */
-    rv = ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
+    ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
     /* certmap_info may be NULL -- use the default */
 
     return ldapu_get_cert_searchfn_sub(certmap_info);
@@ -1386,10 +1382,9 @@ static CertVerifyFn_t ldapu_get_cert_verifyfn_sub (LDAPUCertMapInfo_t *certmap_i
 NSAPI_PUBLIC CertVerifyFn_t ldapu_get_cert_verifyfn (const char *issuerDN)
 {
     LDAPUCertMapInfo_t *certmap_info = 0;
-    int rv;
 
     /* don't free the certmap_info -- its a pointer to an internal structure */
-    rv = ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
+    ldapu_issuer_certinfo(issuerDN, (void **)&certmap_info);
     /* certmap_info may be NULL -- use the default */
 
     return ldapu_get_cert_verifyfn_sub(certmap_info);

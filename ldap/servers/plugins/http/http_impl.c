@@ -57,6 +57,7 @@
 #include "http_client.h"
 #include "secerr.h"
 #include "sslerr.h"
+#include "slap.h"
 #include "slapi-private.h"
 #include "slapi-plugin-compat4.h"
 /* get file mode flags for unix */

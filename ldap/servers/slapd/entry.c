@@ -197,7 +197,6 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		Slapi_Attr **a;
 		char *valuecharptr=NULL;
 		int	valuelen;
-		CSNType attributecsntype;
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= ATTRIBUTE_NOTFOUND;
 		int maxvals;
@@ -217,7 +216,6 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
 		 */		
-		attributecsntype= CSN_TYPE_NONE;
 		csn_free(&attributedeletioncsn); /* JCM - Do this more efficiently */
 		csnset_free(&valuecsnset);
 		value_state= VALUE_NOTFOUND;
@@ -596,7 +594,6 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
     while ( (s = ldif_getline( &next )) != NULL )
     {
 		CSN *attributedeletioncsn= NULL;
-		CSNType attributecsntype;
 		CSNSet *valuecsnset= NULL;
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= VALUE_NOTFOUND;
@@ -615,7 +612,6 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
 		 */		
-		attributecsntype= CSN_TYPE_UNKNOWN;
 		csn_free(&attributedeletioncsn);
 		csnset_free(&valuecsnset);
 		value_state= VALUE_NOTFOUND;

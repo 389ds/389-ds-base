@@ -141,7 +141,7 @@ typedef struct {
 #else
     LDAP*       (LDAP_CALL LDAP_CALLBACK *ldapuV_init)             ( const char*, int );
 #endif
-    int         (LDAP_CALL LDAP_CALLBACK *ldapuV_set_option)       ( LDAP*, int, void* );
+    int         (LDAP_CALL LDAP_CALLBACK *ldapuV_set_option)       ( LDAP*, int, const void* );
     int         (LDAP_CALL LDAP_CALLBACK *ldapuV_simple_bind_s)    ( LDAP*, const char*, const char* );
     int         (LDAP_CALL LDAP_CALLBACK *ldapuV_unbind)           ( LDAP* );
     int         (LDAP_CALL LDAP_CALLBACK *ldapuV_search_s)         ( LDAP*, const char*, int, const char*, char**, int, LDAPMessage** );

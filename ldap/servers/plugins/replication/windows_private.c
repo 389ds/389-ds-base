@@ -554,7 +554,9 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 	ber_int_t hasMoreData;
 	ber_int_t maxAttributeCount;
 	BerValue  *serverCookie;
+#ifdef FOR_DEBUGGING
 	int return_value = LDAP_SUCCESS;
+#endif
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_update_dirsync_control\n", 0, 0, 0 );
 
@@ -572,7 +574,9 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 
 		if ( !foundDirsyncControl )
 		{
+#ifdef FOR_DEBUGGING
 			return_value = LDAP_CONTROL_NOT_FOUND;
+#endif
 			goto choke;
 		}
 		else
@@ -584,7 +588,9 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 
 		if (ber_scanf( ber, "{iiO}", &hasMoreData, &maxAttributeCount, &serverCookie) == LBER_ERROR)
 		{
+#ifdef FOR_DEBUGGING
 			return_value =  LDAP_CONTROL_NOT_FOUND;
+#endif
 			goto choke;
 		}
 
@@ -603,12 +609,16 @@ choke:
 	}
 	else
 	{
+#ifdef FOR_DEBUGGING
 		return_value = LDAP_CONTROL_NOT_FOUND;
+#endif
 	}
 
-
+#ifdef FOR_DEBUGGING
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control: rc=%d\n", return_value, 0, 0 );
+#else
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control\n", 0, 0, 0 );
-	/* return return_value; */
+#endif
 }
 
 PRBool windows_private_dirsync_has_more(const Repl_Agmt *ra)

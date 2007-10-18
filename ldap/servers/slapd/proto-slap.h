@@ -1273,6 +1273,6 @@ void *slapd_service_exit_wait();
  * main.c
  */
 #if ( defined( hpux ) || defined( irix ))
-void * signal2sigaction( int s, void *a );
+void signal2sigaction( int s, void *a );
 #endif
 #endif /* _PROTO_SLAP */

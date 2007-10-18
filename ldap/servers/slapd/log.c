@@ -1488,7 +1488,7 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 {
 	int	value = 0;
 	int	rv = 0;
-	int	eunit, etimeunit, rsecs;
+	int	etimeunit, rsecs;
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
 	if ( logtype != SLAPD_ACCESS_LOG &&
@@ -1543,16 +1543,12 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 	}
 
 	if (strcasecmp(expunit, "month") == 0) {
-		eunit = LOG_UNIT_MONTHS;
 		value = 31 * 24 * 60 * 60 * etimeunit;
 	} else if (strcasecmp(expunit, "week") == 0) {
-	 	eunit = LOG_UNIT_WEEKS;
 	 	value = 7 * 24 * 60 * 60 * etimeunit;
 	} else if (strcasecmp(expunit, "day") == 0) {
-	 	eunit = LOG_UNIT_DAYS;
 	 	value = 24 * 60 * 60 * etimeunit;
 	} else { 
-	  eunit = LOG_UNIT_UNKNOWN;
 	  value = -1;
 	}
 
@@ -2225,7 +2221,7 @@ log__needrotation(LOGFD fp, int logtype)
 	int	f_size = 0;
 	int	maxlogsize, nlogs;
 	int	rotationtime_secs = -1;
-	int	sync_enabled, synchour, syncmin, timeunit;
+	int	sync_enabled, timeunit;
 
 	if (fp == NULL) {
 		return LOG_ROTATE;
@@ -2236,8 +2232,6 @@ log__needrotation(LOGFD fp, int logtype)
 		nlogs = loginfo.log_access_maxnumlogs;
 		maxlogsize = loginfo.log_access_maxlogsize;
 		sync_enabled = loginfo.log_access_rotationsync_enabled;
-		synchour = loginfo.log_access_rotationsynchour;
-		syncmin = loginfo.log_access_rotationsyncmin;
 		syncclock = loginfo.log_access_rotationsyncclock;
 		timeunit = loginfo.log_access_rotationunit;
 		rotationtime_secs = loginfo.log_access_rotationtime_secs;
@@ -2247,8 +2241,6 @@ log__needrotation(LOGFD fp, int logtype)
 		nlogs = loginfo.log_error_maxnumlogs;
 		maxlogsize = loginfo.log_error_maxlogsize;
 		sync_enabled = loginfo.log_error_rotationsync_enabled;
-		synchour = loginfo.log_error_rotationsynchour;
-		syncmin = loginfo.log_error_rotationsyncmin;
 		syncclock = loginfo.log_error_rotationsyncclock;
 		timeunit = loginfo.log_error_rotationunit;
 		rotationtime_secs = loginfo.log_error_rotationtime_secs;
@@ -2258,8 +2250,6 @@ log__needrotation(LOGFD fp, int logtype)
 		nlogs = loginfo.log_audit_maxnumlogs;
 		maxlogsize = loginfo.log_audit_maxlogsize;
 		sync_enabled = loginfo.log_audit_rotationsync_enabled;
-		synchour = loginfo.log_audit_rotationsynchour;
-		syncmin = loginfo.log_audit_rotationsyncmin;
 		syncclock = loginfo.log_audit_rotationsyncclock;
 		timeunit = loginfo.log_audit_rotationunit;
 		rotationtime_secs = loginfo.log_audit_rotationtime_secs;
@@ -2875,11 +2865,10 @@ static int
 log__getfilesize(LOGFD fp)
 {
 	PRFileInfo      info;
-        int             rv;
  
-	if ((rv = PR_GetOpenFileInfo (fp, &info)) == PR_FAILURE) {
-                return -1;
-        }
+	if (PR_GetOpenFileInfo (fp, &info) == PR_FAILURE) {
+		return -1;
+	}
 	return info.size;
 }
 #endif
@@ -3076,6 +3065,7 @@ log__delete_error_logfile()
 	*/
 	if (++numoflogs > loginfo.log_error_maxnumlogs) {
 		logstr = "Exceeded max number of logs allowed";
+		syslog(LOG_ERR, "%s\n", logstr);
 		goto delete_logfile;
 	}
 
@@ -3166,7 +3156,15 @@ delete_logfile:
 	/* Delete the error file */
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
-	PR_Delete(buffer);
+	if (PR_Delete(buffer) != PR_SUCCESS) {
+		LDAPDebug(LDAP_DEBUG_ANY, "LOGINFO:Unable to remove file:%s.%s\n",
+				   loginfo.log_audit_file, tbuf,0);
+	} else {
+		LDAPDebug(LDAP_DEBUG_TRACE, 
+			   "LOGINFO:Removed file:%s.%s because of (%s)\n",
+					loginfo.log_error_file, tbuf,
+					logstr);
+	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_error_logs--;
 	
@@ -3222,7 +3220,7 @@ log__delete_audit_logfile()
 	** have to delete one any how.
 	*/
 	if (++numoflogs > loginfo.log_audit_maxnumlogs) {
-		logstr = "Exceeded max number of logs allowed";
+		logstr = "Delete Error Log File: Exceeded max number of logs allowed";
 		goto delete_logfile;
 	}
 

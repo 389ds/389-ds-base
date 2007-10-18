@@ -328,7 +328,7 @@ send_ldap_result_ext(
                    || err == LDAP_AUTH_UNKNOWN )
 		{
 			if(g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors!=NULL)
-				PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors);	
+				snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors);	
 		}else if(   err != LDAP_REFERRAL 
 			 && err != LDAP_OPT_REFERRALS
 			 && err != LDAP_PARTIAL_RESULTS)
@@ -339,7 +339,7 @@ send_ldap_result_ext(
 			    -- partially seviced operations will not be conted as an error
                       */
 			if(g_get_global_snmp_vars()->ops_tbl.dsErrors!=NULL)
-				PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsErrors);	
+				snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsErrors);	
 		}
 
 	}
@@ -413,7 +413,7 @@ send_ldap_result_ext(
 			int	len;
 
 		        /* count the referral */
-  		        PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+  		        snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
 
 			/*
 			 * figure out how much space we need
@@ -486,7 +486,7 @@ send_ldap_result_ext(
 		 */
 	        /* count the referral */
 		if (! config_check_referral_mode())
-		    PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+		    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
 		rc = ber_printf( ber, "{it{esst{s", operation->o_msgid, tag, err,
 		    matched ? matched : "", text ? text : "", LDAP_TAG_REFERRAL,
 		    urls[0]->bv_val );
@@ -524,7 +524,7 @@ send_ldap_result_ext(
 	if ( operation->o_results.result_controls != NULL 
 	    && conn->c_ldapversion >= LDAP_VERSION3
 	    && write_controls( ber, operation->o_results.result_controls ) != 0 ) {
-		rc = LBER_ERROR;
+		rc = (int)LBER_ERROR;
 	}
 
 	if ( rc != LBER_ERROR ) {	/* end the LDAPMessage sequence */
@@ -677,7 +677,7 @@ send_ldap_referral (
 	char	*attrs[2] = { NULL, NULL };
 
 	/* count the referral */
-	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
 
 	attrs[0] = refAttr;
 	if ( e != NULL && 
@@ -1550,11 +1550,11 @@ flush_ber(
 		plugin_call_plugins( pb, SLAPI_PLUGIN_POST_RESULT_FN );
 		break;
 	case _LDAP_SEND_REFERRAL:
-		PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned);
+		snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned);
 		plugin_call_plugins( pb, SLAPI_PLUGIN_POST_REFERRAL_FN );
 		break;
 	case _LDAP_SEND_ENTRY:
-		PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned);
+		snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned);
 		plugin_call_plugins( pb, SLAPI_PLUGIN_POST_ENTRY_FN );
 		break;
 	}

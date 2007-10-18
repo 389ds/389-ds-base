@@ -291,7 +291,7 @@ int uuid_compare(const guid_t *u1, const guid_t *u2)
 
 void uuid_format(const guid_t *u, char *buff) 
 {
-    sprintf(buff, "%8.8lx-%4.4x-%4.4x-%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x", 
+    sprintf(buff, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x", 
             u->time_low, u->time_mid, u->time_hi_and_version, 
             u->clock_seq_hi_and_reserved, u->clock_seq_low, u->node[0], 
             u->node[1], u->node[2], u->node[3], u->node[4], u->node[5]);
@@ -368,7 +368,7 @@ static int uuid_create_mt(guid_t *uuid)
        time calls are made by a uuid_update_state */
     update_time_mt (&timestamp, &clock_seq);
 
-	if (timestamp == NEED_TIME_UPDATE)
+	if (timestamp == (uuid_time_t)NEED_TIME_UPDATE)
 	{
 		slapi_log_error (SLAPI_LOG_FATAL, MODULE, "uuid_create_mt: generator ran "
 						 "out of sequence numbers.\n");

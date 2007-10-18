@@ -223,8 +223,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (use_random < 0 || sampleInterval <= 0 || thread_count <= 0 ||
-                lmtCount < 0 || blobsize < 0 || firstUID < 0) {
+    if ( sampleInterval <= 0 || thread_count <= 0 || lmtCount < 0 ) {
         printf("infadd: invalid option value\n");
         usage();
         exit(-1);

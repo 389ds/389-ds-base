@@ -277,7 +277,6 @@ load_stats_table(netsnmp_cache *cache, void *foo)
     time_t previous_start;
     int previous_state;
     int stats_hdl = -1;
-    int err;
 
     snmp_log(LOG_INFO, "Reloading stats.\n");
 
@@ -293,7 +292,7 @@ load_stats_table(netsnmp_cache *cache, void *foo)
                      serv_p->stats_file, serv_p->port);
 
             /* Open the stats file */
-            if ((err = agt_mopen_stats(serv_p->stats_file, O_RDONLY, &stats_hdl)) != 0) {
+            if ( agt_mopen_stats(serv_p->stats_file, O_RDONLY, &stats_hdl) != 0 ) {
                 /* Server must be down */
                 serv_p->server_state = SERVER_DOWN;
                 /* Zero out the ops and entries tables */
@@ -304,13 +303,13 @@ load_stats_table(netsnmp_cache *cache, void *foo)
                                        serv_p->stats_file, serv_p->port);
             } else {
                 /* Initialize ops table */
-                if ((err = agt_mread_stats(stats_hdl, &ctx->hdr_tbl, &ctx->ops_tbl,
-                                           &ctx->entries_tbl)) != 0)
+                if ( agt_mread_stats(stats_hdl, &ctx->hdr_tbl, &ctx->ops_tbl,
+                                           &ctx->entries_tbl) != 0 )
                     snmp_log(LOG_ERR, "Unable to read stats file: %s\n",
                                        serv_p->stats_file);
                                                                                                                 
                 /* Close stats file */
-                if ((err = agt_mclose_stats(stats_hdl)) != 0)
+                if ( agt_mclose_stats(stats_hdl) != 0 )
                     snmp_log(LOG_ERR, "Error closing stats file: %s\n",
                                        serv_p->stats_file);
 

@@ -886,141 +886,6 @@ void cb_stale_all_connections( cb_backend_instance * cb)
 }
 
 
-
-/**************************************************************************/
-/* Need to use our own connect function until we've switched to C-SDK 4.1 */
-/* to have a timeout in the connect system call.                          */
-/**************************************************************************/
-
-static int global_connect_to;
-
-#if 0
-
-/* Taken from C-SDK 4.1 */
-#include <fcntl.h>
-#include <errno.h>
-#define LDAP_X_IO_TIMEOUT_NO_TIMEOUT (-1)
-
-static int
-nsldapi_os_connect_with_to(LBER_SOCKET sockfd, struct sockaddr *saptr,
-        int salen)
-{
-#ifndef _WIN32
-        int             flags;
-#endif /* _WIN32 */
-        int             n, error;
-        int             len;
-        fd_set          rset, wset;
-        struct timeval  tval;
-#ifdef _WIN32
-        int             nonblock = 1;
-        int             block = 0;
-        fd_set          eset;
-#endif /* _WIN32 */
-	
-	int msec=global_connect_to;	/* global */
-
-#ifdef _WIN32
-        ioctlsocket(sockfd, FIONBIO, &nonblock);
-#else
-        flags = fcntl(sockfd, F_GETFL, 0);
-        fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
-#endif /* _WIN32 */
-
-        error = 0;
-        if ((n = connect(sockfd, saptr, salen)) < 0)
-#ifdef _WIN32
-                if ((n != SOCKET_ERROR) &&  (WSAGetLastError() != WSAEWOULDBLOCK)) {
-#else
-                if (errno != EINPROGRESS) {
-#endif /* _WIN32 */
-                        return (-1);
-                }
-
-        /* success */
-        if (n == 0)
-                goto done;
-
-        FD_ZERO(&rset);
-        FD_SET(sockfd, &rset);
-        wset = rset;
-
-#ifdef _WIN32
-        eset = rset;
-#endif /* _WIN32 */
-
-        if (msec < 0 && msec != LDAP_X_IO_TIMEOUT_NO_TIMEOUT) {
-                msec = LDAP_X_IO_TIMEOUT_NO_TIMEOUT;
-        } else {
-                if (msec != 0)
-                        tval.tv_sec = msec / 1000;
-                else
-                        tval.tv_sec = 0;
-                tval.tv_usec = 0;
-        }
-
-        /* if timeval structure == NULL, select will block indefinitely */
-        /*                      != NULL, and value == 0, select will */
-        /*                               not block */
-        /* Windows is a bit quirky on how it behaves w.r.t nonblocking */
-        /* connects.  If the connect fails, the exception fd, eset, is */
-        /* set to show the failure.  The first argument in select is */
-        /* ignored */
-
-#ifdef _WIN32
-        if ((n = select(sockfd +1, &rset, &wset, &eset,
-                (msec != LDAP_X_IO_TIMEOUT_NO_TIMEOUT) ? &tval : NULL)) == 0) {
-                errno = WSAETIMEDOUT;
-                return (-1);
-        }
-        /* if wset is set, the connect worked */
-        if (FD_ISSET(sockfd, &wset) || FD_ISSET(sockfd, &rset)) {
-                len = sizeof(error);
-                if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char *)&error, &len)
-                        < 0)
-                        return (-1);
-                goto done;
-	}
-
-        /* if eset is set, the connect failed */
-        if (FD_ISSET(sockfd, &eset)) {
-                return (-1);
-        }
-
-        /* failure on select call */
-        if (n == SOCKET_ERROR) {
-                return (-1);
-        }
-#else
-        if ((n = select(sockfd +1, &rset, &wset, NULL,
-                (msec != LDAP_X_IO_TIMEOUT_NO_TIMEOUT) ? &tval : NULL)) == 0) {
-                errno = ETIMEDOUT;
-                return (-1);
-        }
-        if (FD_ISSET(sockfd, &rset) || FD_ISSET(sockfd, &wset)) {
-                len = sizeof(error);
-                if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char *)&error, &len)
-                        < 0)
-                        return (-1);
-        }
-#endif /* _WIN32 */
-done:
-#ifdef _WIN32
-        ioctlsocket(sockfd, FIONBIO, &block);
-#else
-        fcntl(sockfd, F_SETFL, flags);
-#endif /* _WIN32 */
-
-        if (error) {
-                errno = error;
-                return (-1);
-        }
-
-        return (0);
-}
-
-#endif
-
 /* Try to figure out if a farm server is still alive */
 
 int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time) {
@@ -1030,9 +895,6 @@ int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time
     struct timeval          timeout;
 	LDAP 			*ld;
 	LDAPMessage		*result;
-#if 0
-	struct 			ldap_io_fns iof;
-#endif
 	time_t 			now;
 	if (cb->max_idle_time <=0)	/* Heart-beat disabled */
 		return LDAP_SUCCESS;
@@ -1049,27 +911,9 @@ int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time
 		return LDAP_SERVER_DOWN;
 	}
 
-#if 0
-	memset(&iof,0,sizeof(struct ldap_io_fns));
-	if (LDAP_SUCCESS !=ldap_get_option(ld,LDAP_OPT_IO_FN_PTRS,&iof)) {
-		slapi_ldap_unbind( ld );
-		cb_update_failed_conn_cpt( cb );
-		return LDAP_SERVER_DOWN;
-	}
-
-	iof.liof_connect = nsldapi_os_connect_with_to;
-	if (LDAP_SUCCESS !=ldap_set_option(ld,LDAP_OPT_IO_FN_PTRS,&iof)) {
-		slapi_ldap_unbind( ld );
-		cb_update_failed_conn_cpt( cb );
-		return LDAP_SERVER_DOWN;
-	}
-
-#endif
-	
 	timeout.tv_sec=cb->max_test_time;
 	timeout.tv_usec=0;
 	
-	global_connect_to=cb->max_test_time * 1000;	/* Reuse the same for the connect */
  	rc=ldap_search_ext_s(ld ,NULL,LDAP_SCOPE_BASE,"objectclass=*",attrs,1,NULL, 
 		NULL, &timeout, 1,&result);
 	if ( LDAP_SUCCESS != rc ) {
@@ -1122,7 +966,6 @@ void cb_reset_conn_cpt( cb_backend_instance *cb ) {
 
 int cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) {
 	/* check wether the farmserver is available or not */
-        int rc ;
 	time_t now ;
 	if ( cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE ){
 		slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -1138,7 +981,7 @@ int cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) {
 		}
 	        slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 				"cb_check_availability: ping the farm server and check if it's still unavailable");
-		if ((rc = cb_ping_farm(cb, NULL, 0)) != LDAP_SUCCESS) { /* farm still unavailable... Just change the timelimit */ 
+		if (cb_ping_farm(cb, NULL, 0) != LDAP_SUCCESS) { /* farm still unavailable... Just change the timelimit */ 
 		    slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
 		    now = current_time();
 		    cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD ;

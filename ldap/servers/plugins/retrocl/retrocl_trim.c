@@ -363,7 +363,6 @@ changelog_trim_thread_fn( void *arg )
 
 void retrocl_housekeeping ( time_t cur_time, void *noarg )
 {
-    static time_t	thread_start_time;
     int			ldrc;
 
     if (retrocl_be_changelog == NULL) {
@@ -402,7 +401,6 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 	if ( must_trim ) {
 	    LDAPDebug(LDAP_DEBUG_TRACE,"changelog about to create thread\n",0,0,0);
 	    /* Start a thread to trim the changelog */
-	    thread_start_time = cur_time;
 	    ts.ts_s_trimming = 1;
 	    if ( PR_CreateThread( PR_USER_THREAD,
 		    changelog_trim_thread_fn, NULL,

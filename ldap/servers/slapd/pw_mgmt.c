@@ -297,7 +297,6 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 
 	time_t		unlock_time;
 	time_t		cur_time;
-	double		diff_t;
 	char		*cur_time_str = NULL;
 	char *accountUnlockTime;
 	passwdPolicy *pwpolicy = NULL;
@@ -401,8 +400,7 @@ check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwre
 		}
 		cur_time = current_time();
 		cur_time_str = format_genTime( cur_time);
-		if ( ( diff_t = difftime ( parse_genTime( cur_time_str ), 
-			unlock_time ) ) < 0 ) {
+		if ( difftime ( parse_genTime( cur_time_str ), unlock_time )  < 0 ) {
 
 			/* account is locked, cannot do anything */	
 			if (pwresponse_req) {

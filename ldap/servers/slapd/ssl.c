@@ -400,7 +400,6 @@ slapd_nss_init(int init_ssl, int config_available)
 {
     SECStatus secStatus;
     PRErrorCode errorCode;
-    PRStatus status;
     int rv = 0;
 	int len = 0;
     PRUint32 nssFlags = 0;
@@ -423,7 +422,7 @@ slapd_nss_init(int init_ssl, int config_available)
     } else { /* otherwise, NSS will create empty databases */
         /* we open the key/cert db in rw mode, so make sure the directory 
            is writable */
-        if (PR_SUCCESS != (status = PR_Access(certdir, PR_ACCESS_WRITE_OK))) {
+        if (PR_SUCCESS != PR_Access(certdir, PR_ACCESS_WRITE_OK)) {
             char *serveruser = "unknown";
 #ifndef _WIN32
             serveruser = config_get_localuser();

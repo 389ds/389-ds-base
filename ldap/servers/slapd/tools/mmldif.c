@@ -290,7 +290,6 @@ static char	line[2048];
 static char	seed;
 static int	hashmask;
 static entry_t **hashtable;
-static int	maxcount;
 static int      emitchanges;
 
 static int readrec(edfFILE * edf1, attrib1_t ** attrib); 
@@ -641,7 +640,6 @@ int mm_init(int argc, char * argv[])
 
     time(&tl);
     seed = (char)tl;
-    maxcount = 10;
     ndirectories = 0;
     emitchanges = 0;
     ofp = NULL;

@@ -57,8 +57,8 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 	DB *destination_file = NULL;
 	DBC *source_cursor = NULL;
 	DBTYPE dbtype = 0;
-	int dbflags = 0;
-	int dbpagesize = 0;
+	PRUint32 dbflags = 0;
+	PRUint32 dbpagesize = 0;
 	int cursor_flag = 0;
 	int finished = 0;
 	int mode = 0;
@@ -187,14 +187,11 @@ error:
 int dblayer_copy_file_resetlsns(char *home_dir ,char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv)
 {
 	int retval = 0;
-	int mode = 0;
 	DB_ENV *env = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_resetlsns\n", 0, 0, 0 );
 	/* Make the environment */
 
-	if (priv->dblayer_file_mode)
-		mode = priv->dblayer_file_mode;
 	retval = dblayer_make_private_simple_env(home_dir,&env);
 	if (retval) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns: Call to dblayer_make_private_simple_env failed!\n" 

@@ -110,7 +110,6 @@ create_NSDS50ReplicationExtopPayload(const char *protocol_oid,
 	struct berval *req_data = NULL;
 	BerElement *tmp_bere = NULL;
 	int rc = 0;
-	const char *csnstr = NULL;
     Object  *repl_obj, *ruv_obj = NULL;
 	Replica *repl;
     RUV *ruv;
@@ -203,7 +202,7 @@ create_NSDS50ReplicationExtopPayload(const char *protocol_oid,
 		}
 		/* Add the CSN */
 		PR_ASSERT(NULL != csn);
-		if (ber_printf(tmp_bere, "s", csnstr = csn_as_string(csn,PR_FALSE,s)) == -1)
+		if (ber_printf(tmp_bere, "s", csn_as_string(csn,PR_FALSE,s)) == -1)
 		{
 			rc = LDAP_ENCODING_ERROR;
 			goto loser;
@@ -274,7 +273,7 @@ decode_ruv (BerElement *ber, RUV **ruv)
 
     PR_ASSERT (ber && ruv);
 
- 	if (ber_scanf(ber, "[V]", &bvals) == -1)
+ 	if (ber_scanf(ber, "[V]", &bvals) == LBER_DEFAULT)
 	{
 		goto done;
 	}
@@ -339,12 +338,12 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root,
 		goto free_and_return;
 	}
 	/* Get the required protocol OID and root of replicated subtree */
-	if (ber_get_stringa(tmp_bere, protocol_oid) == -1)
+	if (ber_get_stringa(tmp_bere, protocol_oid) == LBER_DEFAULT)
 	{
 		rc = -1;
 		goto free_and_return;
 	}
-	if (ber_get_stringa(tmp_bere, repl_root) == -1)
+	if (ber_get_stringa(tmp_bere, repl_root) == LBER_DEFAULT)
 	{
 		rc = -1;
 		goto free_and_return;
@@ -439,18 +438,18 @@ decode_endrepl_extop(Slapi_PBlock *pb, char **repl_root)
 		rc = -1;
 		goto free_and_return;
 	}
-	if (ber_scanf(tmp_bere, "{") == -1)
+	if (ber_scanf(tmp_bere, "{") == LBER_DEFAULT)
 	{
 		rc = -1;
 		goto free_and_return;
 	}
 	/* Get the required root of replicated subtree */
-	if (ber_get_stringa(tmp_bere, repl_root) == -1)
+	if (ber_get_stringa(tmp_bere, repl_root) == LBER_DEFAULT)
 	{
 		rc = -1;
 		goto free_and_return;
 	}
-	if (ber_scanf(tmp_bere, "}") == -1)
+	if (ber_scanf(tmp_bere, "}") == LBER_DEFAULT)
 	{
 		rc = -1;
 		goto free_and_return;
@@ -494,7 +493,6 @@ decode_repl_ext_response(struct berval *data, int *response_code,
 	else
 	{
 		ber_len_t len;
-		ber_tag_t tag = 0;
 		ber_int_t temp_response_code = 0;
 		*ruv_bervals = NULL;
 		if ((tmp_bere = ber_init(data)) == NULL)
@@ -505,7 +503,7 @@ decode_repl_ext_response(struct berval *data, int *response_code,
 		{
 			return_value = -1;
 		}
-		else if ((tag = ber_peek_tag(tmp_bere, &len)) == LBER_SEQUENCE)
+		else if (ber_peek_tag(tmp_bere, &len) == LBER_SEQUENCE)
 		{
 			if (ber_scanf(tmp_bere, "{V}}", ruv_bervals) == LBER_ERROR)
 			{
@@ -1034,7 +1032,6 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	ber_int_t response;
 	void *conn;
 	consumer_connection_extension *connext = NULL;
-	int rc;
 	int connid=-1, opid=-1;
 
 	/* Decode the extended operation */
@@ -1092,7 +1089,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 
                 if (cl5GetState () == CL5_STATE_OPEN)
                 {
-                    rc = cl5DeleteDBSync (connext->replica_acquired);
+                    cl5DeleteDBSync (connext->replica_acquired);
                 }
 
 				replica_set_ruv (r, connext->supplier_ruv);
@@ -1140,7 +1137,6 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	/* Send the response code */
 	if ((resp_bere = der_alloc()) == NULL)
 	{
-		rc = LDAP_ENCODING_ERROR;
 		goto free_and_return;
 	}
 	ber_printf(resp_bere, "{e}", response);

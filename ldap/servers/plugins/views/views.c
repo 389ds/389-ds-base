@@ -1202,12 +1202,8 @@ static int	views_dn_views_cb (Slapi_Entry* e, void *callback_data) {
 	struct berval **dnVals;
 	Slapi_Attr *dnAttr;
 	char *attrType = 0;
-	char *attrs[3];
 	viewEntry *pView;
-	
-	attrs[0] = VIEW_FILTER_ATTR;
-	attrs[1] = "entryid";
-	attrs[2] = 0;
+
 	info=(struct dn_views_info *)callback_data;
 	
 	info->ret = 0;

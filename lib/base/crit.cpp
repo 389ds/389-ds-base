@@ -150,7 +150,6 @@ NSAPI_PUBLIC void crit_exit(CRITICAL id)
         crit->owner = 0;
         PR_Unlock(crit->lock);
     }
-    PR_ASSERT(crit->count >= 0);
 #endif
 }
 
@@ -346,9 +345,9 @@ NSAPI_PUBLIC int
 cs_wait(COUNTING_SEMAPHORE csp)
 {
 	counting_sem_t *cs = (counting_sem_t *)csp;
+#if defined(SOLARIS) && defined(HW_THREADS)
 	int ret;
 
-#if defined(SOLARIS) && defined(HW_THREADS)
     if ( (ret = sema_wait(cs)) < 0 ) {
 		ereport(LOG_FAILURE, XP_GetAdminStr(DBT_csWaitFailureS_), system_errmsg());
 		return -1;
@@ -366,7 +365,7 @@ cs_wait(COUNTING_SEMAPHORE csp)
 		crit_exit(cs->cv_lock);
 		crit_enter(cs->lock);
 	}
-	ret = --(cs->count);
+	--(cs->count);
 	crit_exit(cs->lock);
 
 	return 0;
@@ -377,18 +376,19 @@ NSAPI_PUBLIC int
 cs_trywait(COUNTING_SEMAPHORE csp)
 {
 	counting_sem_t *cs = (counting_sem_t *)csp;
-	int ret;
 
 #if defined(SOLARIS) && defined(HW_THREADS)
+	int ret;
 	ret = sema_trywait(cs)?-1:0;
     return ret;
 #elif defined(IRIX) && defined(HW_THREADS)
+	int ret;
 	ret = uscpsema(cs);
 	return (ret == 1)?0:-1;
 #else
 	crit_enter(cs->lock);
 	if (cs->count > 0) {
-		ret = --(cs->count);
+		--(cs->count);
 		crit_exit(cs->lock);
         return 0;
     }
@@ -402,9 +402,9 @@ NSAPI_PUBLIC int
 cs_release(COUNTING_SEMAPHORE csp)
 {
 	counting_sem_t *cs = (counting_sem_t *)csp;
-	int ret;
 
 #if defined(SOLARIS) && defined(HW_THREADS)
+	int ret;
     if ( (ret = sema_post(cs)) < 0 ) {
 		ereport(LOG_FAILURE, XP_GetAdminStr(DBT_csPostFailureS_), system_errmsg());
 		return -1;
@@ -415,7 +415,7 @@ cs_release(COUNTING_SEMAPHORE csp)
 	return 0;
 #else
 	crit_enter(cs->lock);
-	ret = ++(cs->count);
+	++(cs->count);
 	if (cs->count == 1) {
 		crit_enter(cs->cv_lock);
 		condvar_notify(cs->cv);

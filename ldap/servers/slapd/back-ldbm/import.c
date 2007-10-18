@@ -173,8 +173,6 @@ static void import_log_status_add_line(ImportJob *job, char *format, ...)
 static void import_log_status_done(ImportJob *job)
 {
     if (job->task) {
-        int len = 0;
-        len = strlen(job->task_status);
         slapi_task_log_status(job->task, "%s", job->task_status);
     }
 }

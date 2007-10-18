@@ -436,7 +436,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	char		*errMesg = NULL;
 	int             ret=0, rc=0, sasl_ssf=0;
 	ber_tag_t	tag=0;
-	ber_len_t	len=-1;
+	ber_len_t	len=(ber_len_t)-1;
 	struct berval	*extop_value = NULL;
 	struct berval	*gen_passwd = NULL;
 	BerElement	*ber = NULL;

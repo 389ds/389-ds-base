@@ -248,7 +248,6 @@ add_this_process_to(char *dir_name)
             }
         }
     }
-bail:
     PR_Close(prfd);
 }
 

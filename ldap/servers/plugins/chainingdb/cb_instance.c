@@ -716,8 +716,6 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
  
 	if (apply) {
 
-		char * ptr;
-
                	PR_RWLock_Wlock(inst->rwl_config_lock);
 
 	        if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
@@ -771,7 +769,7 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 			while (aHostName) {
 			
 				char * aHostPort;
-				if ( NULL == ( ptr=strstr(aHostName,":"))) {
+				if ( NULL == strstr(aHostName,":")) {
 					aHostPort = slapi_ch_smprintf("%s://%s:%d/",
 												  inst->pool->secure ? "ldaps" : "ldap", 
 												  aHostName,inst->pool->port);

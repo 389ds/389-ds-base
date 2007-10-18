@@ -58,12 +58,10 @@ Code common to both incremental and total protocols.
 
 int ruv_private_new( RUV **ruv, RUV *clone );
 
-
+#ifdef FOR_DEBUGGING
 static Slapi_Entry* windows_entry_already_exists(Slapi_Entry *e);
-static void windows_dirsync_now  (Private_Repl_Protocol *prp);
-static Slapi_DN* map_dn_user(Slapi_DN *sdn, int map_to, const Slapi_DN *root);
-static Slapi_DN* map_dn_group(Slapi_DN *sdn, int map_to, const Slapi_DN *root);
-static void make_mods_from_entries(Slapi_Entry *new_entry, Slapi_Entry *existing_entry, LDAPMod ***attrs);
+static void extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv);
+#endif
 static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password);
 static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
@@ -395,6 +393,9 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 		original_dn_string = slapi_value_get_string(original_value);
 		/* Sanity check the data was a valid string */
 		original_dn_string_length = slapi_value_get_length(original_value);
+		if (0 == original_dn_string_length) {
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: length of dn is 0\n");
+		}
 		/* Make a sdn from the string */
 		original_dn = slapi_sdn_new_dn_byref(original_dn_string);
 		if (to_windows)
@@ -1098,9 +1099,10 @@ process_replay_add(Private_Repl_Protocol *prp, slapi_operation_parameters *op, S
 		}
 	} else 
 	{
-		Slapi_Entry *remote_entry = NULL;
+		Slapi_Entry *remote_entry;
 
 modify_fallback:
+		remote_entry = NULL;
 		/* Fetch the remote entry */
 		rc = windows_get_remote_entry(prp, remote_dn,&remote_entry);
 		if (0 == rc && remote_entry) {
@@ -1605,6 +1607,7 @@ error:
 	return retval;
 }
 
+#ifdef FOR_DEBUGGING
 /* the entry has already been translated, so be sure to search for ntuserid
    and not samaccountname or anything else. */
 
@@ -1632,6 +1635,7 @@ windows_entry_already_exists(Slapi_Entry *e){
 	}
 
 }
+#endif
 
 static int 
 windows_delete_local_entry(Slapi_DN *sdn){
@@ -1740,13 +1744,12 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 					 */
 					if (0 == slapi_attr_type_cmp(mapped_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) {
 						Slapi_Mod smod;
-						struct berval *new_bval = NULL;
 
 						slapi_mod_init_byref(&smod,mod);
 
 						/* Check if there is more than one value */
 						if (slapi_mod_get_num_values(&smod) > 1) {
-							new_bval = slapi_mod_get_first_value(&smod);
+							slapi_mod_get_first_value(&smod);
 							/* Remove all values except for the first */
 							while (slapi_mod_get_next_value(&smod)) {
 								/* This modifies the bvalues in the mod itself */
@@ -2315,6 +2318,7 @@ extract_guid_from_entry(Slapi_Entry *e, int is_nt4)
 	return guid;
 }
 
+#ifdef FOR_DEBUGGING
 static void
 extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv)
 {
@@ -2330,6 +2334,7 @@ extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv)
 		}
 	}
 }
+#endif
 
 static char*
 extract_username_from_entry(Slapi_Entry *e)

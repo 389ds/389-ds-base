@@ -570,7 +570,7 @@ snmp_collator_update(time_t start_time, void *arg)
 		    /* if we got a value for entrycachehits, then set it */
 		    if(val != NULL)
 		    {
-		        PR_AtomicSet(g_get_global_snmp_vars()->entries_tbl.dsCacheHits, atoi(val->bv_val));
+		        snmp_set_counter(g_get_global_snmp_vars()->entries_tbl.dsCacheHits, atoi(val->bv_val));
 
 		    }
 		    
@@ -590,7 +590,7 @@ snmp_collator_update(time_t start_time, void *arg)
 		    /* if we got a value for currententrycachesize, then set it */
 		    if(val != NULL)
 		    {
-		        PR_AtomicSet(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries, atoi(val->bv_val));
+		        snmp_set_counter(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries, atoi(val->bv_val));
 
 		    }
 
@@ -704,7 +704,7 @@ getConfigEntry( Slapi_Entry **e ) {
         slapi_sdn_done( &sdn );
         return *e;
 }
-                                                                                                                          
+
 static void
 freeConfigEntry( Slapi_Entry **e ) {
         if ( (e != NULL) && (*e != NULL) ) {
@@ -713,9 +713,20 @@ freeConfigEntry( Slapi_Entry **e ) {
         }
 }
 
+/*
+ * wrapper functions to ease the cast burdon between net=snmp APIs which expect
+ * unsigned int and PR_AtomicIncrement/PR_AtomicSet which expect signed int.
+ * NSPR_API(PRInt32) PR_AtomicSet(PRInt32 *val, PRInt32 newval);
+ * NSPR_API(PRInt32) PR_AtomicIncrement(PRInt32 *val);
+ */
+void
+snmp_increment_counter(PRUint32 *counter)
+{
+	PR_AtomicIncrement((PRInt32 *)counter);
+}
 
-
-
-
-
+void snmp_set_counter(PRUint32 *counter, PRInt32 newval)
+{
+	PR_AtomicSet((PRInt32 *)counter, newval);
+}
 

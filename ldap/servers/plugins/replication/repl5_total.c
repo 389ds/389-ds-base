@@ -634,7 +634,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
 	/* The "attribute deleted" flag is next, and is optional */
 	if (ber_peek_tag(ber, &len) == LBER_BOOLEAN)
 	{
-		if (ber_scanf(ber, "b", deleted) == -1)
+		if (ber_scanf(ber, "b", deleted) == LBER_DEFAULT)
 		{
 			goto loser;
 		}

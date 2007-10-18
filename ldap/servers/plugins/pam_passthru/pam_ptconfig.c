@@ -231,7 +231,6 @@ static int
 parse_map_method(char *map_method, int *one, int *two, int *three, char *returntext)
 {
 	int err = LDAP_SUCCESS;
-	int extra;
 	char **ptr = &map_method;
 
 	*one = *two = *three = PAMPT_MAP_METHOD_NONE;
@@ -256,7 +255,7 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 					"one of %s", map_method, get_map_method_values());
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
-	if (((extra = meth_to_int(ptr, &err)) != PAMPT_MAP_METHOD_NONE) ||
+	if ((meth_to_int(ptr, &err) != PAMPT_MAP_METHOD_NONE) ||
 		err) {
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"Invalid extra text [%s] after last map method",

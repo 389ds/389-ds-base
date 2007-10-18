@@ -249,6 +249,7 @@ int connection_table_iterate_active_connections(Connection_Table *ct, void* arg,
 	return ret;
 }
 
+#ifdef FOR_DEBUGGING
 static void 
 connection_table_dump_active_connection (Connection *c)
 {
@@ -257,7 +258,6 @@ connection_table_dump_active_connection (Connection *c)
                     c->c_mutex, c->c_next, c->c_prev);
 }
 
-#if 0 /* useful for debugging */
 static void 
 connection_table_dump_active_connections (Connection_Table *ct)
 {
@@ -289,8 +289,10 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
     /* we always have previous element because list contains a dummy header */;
     PR_ASSERT (c->c_prev);
 
-    /* slapi_log_error(SLAPI_LOG_FATAL, "connection", "Moving connection out of active list\n");
-    connection_table_dump_active_connection (c);*/
+#ifdef FOR_DEBUGGING
+    slapi_log_error(SLAPI_LOG_FATAL, "connection", "Moving connection out of active list\n");
+    connection_table_dump_active_connection (c);
+#endif
 
     /*
      * Note: the connection will NOT be moved off the active list if any other threads still hold
@@ -314,7 +316,9 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
 
     PR_Unlock(ct->table_mutex);
 	
-    /* connection_table_dump_active_connections (ct); */
+#ifdef FOR_DEBUGGING
+    connection_table_dump_active_connections (ct);
+#endif
 }
 
 /*
@@ -333,8 +337,10 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct,Connecti
 
 	connection_acquire_nolock (c);
 
-    /* slapi_log_error(SLAPI_LOG_FATAL, "connection", "Moving connection into active list\n");
-    connection_table_dump_active_connection (c);*/
+#ifdef FOR_DEBUGGING
+    slapi_log_error(SLAPI_LOG_FATAL, "connection", "Moving connection into active list\n");
+    connection_table_dump_active_connection (c);
+#endif
 
 	c->c_next = ct->c[0].c_next;
 	if ( c->c_next != NULL )
@@ -346,7 +352,9 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct,Connecti
 
     PR_Unlock(ct->table_mutex);
 
-	/* connection_table_dump_active_connections (ct); */
+#ifdef FOR_DEBUGGING
+	connection_table_dump_active_connections (ct);
+#endif
 }
 
 /*

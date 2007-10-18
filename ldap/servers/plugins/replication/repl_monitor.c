@@ -46,8 +46,10 @@
 #include "repl.h"
 #include "slapi-plugin.h"
  
+#ifdef FOR_40_STYLE_CHANGELOG
 /* Forward Declartions */
 static int repl_monitor_search (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
+#endif
 
 int
 repl_monitor_init()
@@ -58,14 +60,17 @@ repl_monitor_init()
 
 	if (!initialized)
 	{
-		/* ONREPL - this is commented until we implement 4.0 style changelog 
-        slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,"cn=monitor",LDAP_SCOPE_BASE,"(objectclass=*)",repl_monitor_search,NULL); */
+#ifdef FOR_40_STYLE_CHANGELOG
+		/* ONREPL - this is commented until we implement 4.0 style changelog */
+        slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,"cn=monitor",LDAP_SCOPE_BASE,"(objectclass=*)",repl_monitor_search,NULL);
+#endif
 		initialized = 1;
 	}
 
     return return_value;
 }
 
+#ifdef FOR_40_STYLE_CHANGELOG
 static int
 repl_monitor_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
@@ -93,4 +98,5 @@ repl_monitor_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, i
     }
 	return SLAPI_DSE_CALLBACK_OK;
 }
+#endif
 

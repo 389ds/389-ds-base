@@ -337,7 +337,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/libaccess/symbols.cpp \
 	lib/libaccess/usi.cpp \
 	lib/libaccess/usrcache.cpp \
-	lib/libadmin/authdb.c \
 	lib/libadmin/error.c \
 	lib/libadmin/template.c \
 	lib/libadmin/util.c \

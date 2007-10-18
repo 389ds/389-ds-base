@@ -782,7 +782,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 					num_digits++;
 				} else if ( ldap_utf8isalpha( p ) ) {
 					num_alphas++;
-					if ( slapi_utf8isLower( p ) ) {
+					if ( slapi_utf8isLower( (unsigned char *)p ) ) {
 						num_lowers++;
 					} else {
 						num_uppers++;

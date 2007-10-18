@@ -76,14 +76,14 @@ md5_pw_cmp( char *userpwd, char *dbpwd )
 
    /* create the hash */
    PK11_DigestBegin(ctx);
-   PK11_DigestOp(ctx, userpwd, strlen(userpwd));
+   PK11_DigestOp(ctx, (const unsigned char *)userpwd, strlen(userpwd));
    PK11_DigestFinal(ctx, hash_out, &outLen, sizeof hash_out);
    PK11_DestroyContext(ctx, 1);
 
    /* convert the binary hash to base64 */
    binary_item.data = hash_out;
    binary_item.len = outLen;
-   bver = NSSBase64_EncodeItem(NULL, b2a_out, sizeof b2a_out, &binary_item);
+   bver = NSSBase64_EncodeItem(NULL, (char *)b2a_out, sizeof b2a_out, &binary_item);
    /* bver points to b2a_out upon success */
    if (bver) {
 	   rc = strcmp(bver,dbpwd);
@@ -114,14 +114,14 @@ md5_pw_enc( char *pwd )
 
    /* create the hash */
    PK11_DigestBegin(ctx);
-   PK11_DigestOp(ctx, pwd, strlen(pwd));
+   PK11_DigestOp(ctx, (const unsigned char *)pwd, strlen(pwd));
    PK11_DigestFinal(ctx, hash_out, &outLen, sizeof hash_out);
    PK11_DestroyContext(ctx, 1);
 
    /* convert the binary hash to base64 */
    binary_item.data = hash_out;
    binary_item.len = outLen;
-   bver = NSSBase64_EncodeItem(NULL, b2a_out, sizeof b2a_out, &binary_item);
+   bver = NSSBase64_EncodeItem(NULL, (char *)b2a_out, sizeof b2a_out, &binary_item);
    if (bver) {
 	   enc = slapi_ch_smprintf("%c%s%c%s", PWD_HASH_PREFIX_START, MD5_SCHEME_NAME,
 							   PWD_HASH_PREFIX_END, bver );

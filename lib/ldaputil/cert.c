@@ -259,9 +259,9 @@ _rdns_count (char*** rdns)
 {
     auto size_t count = 0;
     auto char*** rdn;
-    for (rdn = rdns; *rdns; ++rdns) {
+    for (rdn = rdns; *rdn; ++rdn) {
 	auto char** ava;
-	for (ava = *rdns; *ava; ++ava) {
+	for (ava = *rdn; *ava; ++ava) {
 	    ++count;
 	}
     }

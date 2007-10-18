@@ -57,7 +57,9 @@ static int		acl_find_comp_start(char * s, int pos );
 static PRIntn	acl_ht_free_entry_and_value(PLHashEntry *he, PRIntn i,
 																void *arg);
 static PLHashNumber acl_ht_hash( const void *key);
+#ifdef FOR_DEBUGGING
 static PRIntn	acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg);
+#endif
 
 /***************************************************************************/
 /*	UTILITY FUNCTIONS						   */
@@ -664,7 +666,6 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	char *macro_suffix = NULL;
 	char *tmp_ptr = NULL;
 	char *matched_val = NULL;
-	char *ndn_suffix_start = NULL;
 	char *ret_val = NULL;
 	int ndn_len = 0;
 	int macro_suffix_len = 0;
@@ -716,9 +717,6 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 			}
 		}
 	}
-
-	/* Start of the suffix in ndn...and it matched. */
-	ndn_suffix_start = (char*)&ndn[ndn_len-macro_suffix_len];
 
 	/* Here, macro_suffix is a suffix of ndn.
 	 * 
@@ -1374,11 +1372,12 @@ acl_ht_free_entry_and_value(PLHashEntry *he, PRIntn i, void *arg)
 /* Free all the values in the ht */
 void acl_ht_display_ht( acl_ht_t *acl_ht) {
 
-#ifdef DEBUG
+#ifdef FOR_DEBUGGING
 	PL_HashTableEnumerateEntries( acl_ht, acl_ht_display_entry, NULL);
 #endif
 }
 
+#ifdef FOR_DEBUGGING
 static PRIntn
 acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg)
 {
@@ -1393,6 +1392,7 @@ acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg)
     return HT_ENUMERATE_NEXT;
 
 }
+#endif
 
 /* remove this entry from the ht--doesn't free the value.*/
 void acl_ht_remove( acl_ht_t *acl_ht, PLHashNumber key) {

@@ -673,7 +673,6 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	struct backentry *b = NULL;
 	int result = 0;
 	sort_spec_thing *this_one = NULL;
-	int return_value = -1;
 	backend *be = bc->be;
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int err;
@@ -706,8 +705,8 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 		struct berval **value_b = NULL;
 
 		/* Get the two attribute values from the entries */
-		return_value = slapi_entry_attr_find(a->ep_entry,type,&attr_a);
-		return_value = slapi_entry_attr_find(b->ep_entry,type,&attr_b);
+		slapi_entry_attr_find(a->ep_entry,type,&attr_a);
+		slapi_entry_attr_find(b->ep_entry,type,&attr_b);
 		/* What do we do if one or more of the entries lacks this attribute ? */
 		/* if one lacks the attribute */
 		if (NULL == attr_a) {

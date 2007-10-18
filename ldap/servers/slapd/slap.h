@@ -1368,7 +1368,6 @@ typedef struct slapi_pblock {
 	int		pb_ldif_dump_replica;
 	int		pb_ldif_dump_uniqueid;		/* dump uniqueid during db2ldif */
 	int		pb_ldif_generate_uniqueid;	/* generate uniqueid during db2ldif */
-/* JCMREPL	int     pb_ldif_load_state; */
 	char*     pb_ldif_namespaceid;		/* used for name based uniqueid generation */ 
 	int     pb_ldif_encrypt;		/* used to enable encrypt/decrypt on import and export */ 
 	/*

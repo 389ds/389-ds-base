@@ -227,7 +227,7 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
 static int
 sasl_io_read_packet(Connection *c, PRInt32 *err)
 {
-    size_t ret = 0;
+    PRInt32 ret = 0;
     sasl_io_private *sp = c->c_sasl_io_private;
     size_t bytes_remaining_to_read = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
 

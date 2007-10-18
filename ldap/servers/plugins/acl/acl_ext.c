@@ -43,11 +43,13 @@
 #include 	"acl.h"
 
 static void acl__done_aclpb ( struct acl_pblock *aclpb );
+#ifdef FOR_DEBUGGING
 static void	acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type);
+static char * acl__get_aclpb_type ( Acl_PBlock *aclpb );
+#endif
 static Acl_PBlock * acl__get_aclpb_from_pool ( );
 static int acl__put_aclpb_back_to_pool ( Acl_PBlock *aclpb );
 static Acl_PBlock * acl__malloc_aclpb ( );
-static char * acl__get_aclpb_type ( Acl_PBlock *aclpb );
 static PRLock *aclext_get_lock ();
 
 
@@ -788,7 +790,9 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 
 	}
 
-	/* acl__dump_stats ( aclpb, acl__get_aclpb_type(aclpb));					*/
+#ifdef FOR_DEBUGGING
+	acl__dump_stats ( aclpb, acl__get_aclpb_type(aclpb));
+#endif
 
 	/* reset the usergroup cache */
 	aclg_reset_userGroup ( aclpb );
@@ -956,15 +960,16 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 
 }
 
+#ifdef FOR_DEBUGGING
 static char *
 acl__get_aclpb_type ( Acl_PBlock *aclpb )
 {
-
 	if (aclpb->aclpb_state & ACLPB_TYPE_PROXY)	
 		return ACLPB_TYPE_PROXY_STR;
 
 	return ACLPB_TYPE_MAIN_STR;
 }
+
 static void
 acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type)
 {
@@ -998,6 +1003,7 @@ acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type)
 					aclpb->aclpb_stat_num_copy_attrs);
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name, " **** ACL OPERATION STAT END  *******\n");
 }
+#endif
 /****************************************************************************/
 /*				E	N	D													*/
 /****************************************************************************/

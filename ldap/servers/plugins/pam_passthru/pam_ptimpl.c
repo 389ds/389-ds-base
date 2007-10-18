@@ -177,7 +177,7 @@ free_pam_response(int nresp, struct pam_response *resp)
  * tell if this is actually the case.
  */
 static int
-pam_conv_func(int num_msg, const struct pam_message **msg, struct pam_response **resp, void *mydata)
+pam_conv_func(int num_msg, struct pam_message **msg, struct pam_response **resp, void *mydata)
 {
 	int ii;
 	struct berval *creds;

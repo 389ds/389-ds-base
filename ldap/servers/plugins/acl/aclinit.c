@@ -232,7 +232,6 @@ aclinit_search_and_update_aci ( int thisbeonly, const Slapi_DN *base,
 	 /* Tell __aclinit_handler whether it's an add or a delete */
 	Slapi_PBlock 	*aPb;
 	LDAPControl		**ctrls=NULL;
-	int				retval;
 	struct berval	*bval;
 	aclinit_handler_callback_data_t call_back_data;
 
@@ -273,7 +272,7 @@ aclinit_search_and_update_aci ( int thisbeonly, const Slapi_DN *base,
 		ctrls[0] = NULL;
 		ctrls[1] = NULL;
 	
-		retval = slapi_build_control_from_berval(
+		slapi_build_control_from_berval(
 										MTN_CONTROL_USE_ONE_BACKEND_OID,
                 						bval,
 										1 /* is critical */, 

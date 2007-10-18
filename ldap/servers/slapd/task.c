@@ -425,7 +425,7 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
     Slapi_Backend *be = NULL;
-    const char *cn, *instance_name;
+    const char *instance_name;
     char **ldif_file = NULL, **include = NULL, **exclude = NULL;
     int idx, rv = 0;
     const char *do_attr_indexes, *uniqueid_kind_str;
@@ -435,7 +435,7 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     char *nameFrombe_name = NULL;
     const char *encrypt_on_import = NULL;
 
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -724,7 +724,6 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
     Slapi_Backend *be = NULL;
-    const char *cn;
     char *ldif_file = NULL;
     char **instance_names = NULL, **inp;
     char **include = NULL, **exclude = NULL;
@@ -744,7 +743,7 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
     const char *decrypt_on_export = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -994,7 +993,6 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
 {
     Slapi_Backend *be = NULL;
     PRThread *thread = NULL;
-    const char *cn;
     const char *archive_dir = NULL;
     const char *my_database_type = NULL;
     const char *database_type = "ldbm database";
@@ -1004,7 +1002,7 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_Task *task = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1139,7 +1137,6 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
                             Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     Slapi_Backend *be = NULL;
-    const char *cn = NULL;
     const char *instance_name = NULL;
     const char *archive_dir = NULL;
     const char *my_database_type = NULL;
@@ -1151,7 +1148,7 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     PRThread *thread = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1285,7 +1282,6 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
                           Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg)
 {
     const char *instance_name;
-    const char *cn;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Backend *be = NULL;
     Slapi_Task *task = NULL;
@@ -1297,7 +1293,7 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
     PRThread *thread = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1411,7 +1407,6 @@ static int
 task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                    int *returncode, char *returntext, void *arg)
 {
-    const char *cn;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Backend *be = NULL;
     Slapi_Task *task = NULL;
@@ -1423,7 +1418,7 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     char *cookie = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1556,8 +1551,6 @@ void slapi_task_status_changed(Slapi_Task *task)
 
     if ((task->task_state == SLAPI_TASK_FINISHED) &&
         !(task->task_flags & SLAPI_TASK_DESTROYING)) {
-        /* queue an event to destroy the state info */
-        Slapi_Eq_Context event;
         Slapi_PBlock *pb = slapi_pblock_new();
         Slapi_Entry *e;
         int ttl;
@@ -1571,7 +1564,8 @@ void slapi_task_status_changed(Slapi_Task *task)
             ttl = 3600;         /* be reasonable. */
         expire = time(NULL) + ttl;
         task->task_flags |= SLAPI_TASK_DESTROYING;
-        event = slapi_eq_once(destroy_task, (void *)task, expire);
+        /* queue an event to destroy the state info */
+        slapi_eq_once(destroy_task, (void *)task, expire);
 
         slapi_free_search_results_internal(pb);
         slapi_pblock_destroy(pb);

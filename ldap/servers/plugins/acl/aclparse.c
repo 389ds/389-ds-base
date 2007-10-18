@@ -1768,7 +1768,7 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
 static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 						  char * input_str) {
 
-	char *str, *end_attr, *tmp_attr;
+	char *str, *end_attr;
 	Targetattrfilter *attrfilter = NULL;
 	int		numattr=0;
 	Targetattrfilter **attrFilterArray = NULL;
@@ -1801,7 +1801,7 @@ static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 		attrfilter = (Targetattrfilter *) slapi_ch_malloc (sizeof (Targetattrfilter));
 		memset (attrfilter, 0, sizeof(Targetattrfilter));
 
-		if ((tmp_attr = strstr( str,":")) != NULL) {
+		if (strstr( str,":") != NULL) {
 			
 			if ( __acl_init_targetattrfilter( attrfilter, str ) != 0 ) {
 				slapi_ch_free((void**)&attrfilter);

@@ -244,7 +244,6 @@ acl_access_allowed(
 	int					err;
 	int					ret_val;
 	char				*right;
-	int					num_handle;
 	struct	acl_pblock	*aclpb = NULL;
 	AclAttrEval			*c_attrEval = NULL;
 	int					got_reader_locked = 0;
@@ -555,7 +554,7 @@ acl_access_allowed(
 	** figure out if there are any ACLs which can be applied.
 	** If no ACLs are there, then it's a DENY as default.
 	*/
-	if (!(num_handle = acl__scan_for_acis(aclpb, &err))) {
+	if (!(acl__scan_for_acis(aclpb, &err))) {
 
 		/* We might have accessed the ACL first time which could
 		** have caused syntax error.
@@ -782,7 +781,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 		}
 	} else{
 		slapi_log_error(loglevel, plugin_name, 
-			"conn=%d op=%d (%s): %s %s on entry(%s).attr(%s)"
+			"conn=%d op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
 			": %s\n",
 				op->o_connid, op->o_opid,
 				source,
@@ -790,6 +789,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 				right, 
 				edn,
 				attr ? attr: "NULL",
+				real_user,
 				acl_info[0] ? acl_info : access_reason);									
 	}
 	
@@ -2252,7 +2252,6 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 
 			Targetattrfilter	*attrFilter = NULL;
 
-			int			found_applicable = 0;
 			Slapi_Attr	*attr_ptr = NULL;
 			Slapi_Value *sval;
 			const struct berval *attrVal;
@@ -2298,8 +2297,6 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 					 * could satisfy the filter and then put loads of other
 					 * values in on the back of it.
 				 	*/
-
-					found_applicable = 1;
 
 					sval=NULL;
 					attrVal=NULL;
@@ -2695,11 +2692,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 	char			*testRights[2];
 	aci_t			*aci;
 	int			numHandles = 0;
-	aclEvalContext		*c_evalContext = NULL;
 	
 	TNF_PROBE_0_DEBUG(acl__TestRights_start,"ACL","");
-
-	c_evalContext = &aclpb->aclpb_curr_entryEval_context;
 
 	/* record the aci and reason for access decision */
 	result_reason->deciding_aci = NULL;
@@ -3931,7 +3925,7 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 	char		*unused_str1, *unused_str2;
 	char		*acl_tag, *testRight[2];
 	int			j, expr_num;
-	int			result_status, rv, cache_result;
+	int			result_status, cache_result;
 	PRUint32	cookie;
 	aci_t		*aci;
 
@@ -3992,7 +3986,7 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 
 
 	ACL_SetDefaultResult (NULL, aclpb->aclpb_acleval, ACL_RES_INVALID);
-	rv = ACL_EvalSetACL(NULL, aclpb->aclpb_acleval, aci->aci_handle);
+	ACL_EvalSetACL(NULL, aclpb->aclpb_acleval, aci->aci_handle);
 
 	testRight[0] = acl_access2str ( access );
 	testRight[1] = '\0';

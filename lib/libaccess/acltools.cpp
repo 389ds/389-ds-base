@@ -2505,7 +2505,6 @@ append_cleanup:
 int 
 rename_acl_in_file(char * filename, char * aclname, char * newname) 
 {
-	ACLListHandle_t * racllist=NULL;
 	char * pattern=NULL;
 	char header[] = "version 3.0;\n";
 	int  headerlen = strlen(header);
@@ -2565,7 +2564,7 @@ rename_acl_in_file(char * filename, char * aclname, char * newname)
 		memcpy(&text[headerlen], aclhead, len);
 		text[headerlen + len] = 0;
 
-		if ((racllist=ACL_ParseString(NULL, text))==NULL) {
+		if (ACL_ParseString(NULL, text)==NULL) {
 			rv = ACLERRPARSE;
 			goto rename_cleanup;
 		}

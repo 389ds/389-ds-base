@@ -478,7 +478,6 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	int			matched;
 	int			rc;
 	short		len;
-	char		*s = NULL;
 	const size_t 	LDAP_URL_prefix_len = strlen(LDAP_URL_prefix);
 	lasInfo			lasinfo;
 	int			got_undefined = 0;
@@ -579,9 +578,9 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		} else {
 			/* URL format */
 			
-			if ((s = strstr (user, ACL_RULE_MACRO_DN_KEY)) != NULL ||
-				(s = strstr (user, ACL_RULE_MACRO_DN_LEVELS_KEY)) != NULL ||
-				(s = strstr (user, ACL_RULE_MACRO_ATTR_KEY)) != NULL) {			
+			if ((strstr (user, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+				(strstr (user, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+				(strstr (user, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				
 				matched = aclutil_evaluate_macro( s_user, &lasinfo,
 													ACL_EVAL_USER);
@@ -589,7 +588,7 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					break;
 				}										
 				
-			} else if ((s = strchr (user, '?'))!= NULL) {
+			} else if (strchr (user, '?') != NULL) {
 				/* URL format */
 				if (acllas__client_match_URL ( lasinfo.aclpb, lasinfo.clientDn, 
 							     s_user) == ACL_TRUE) {
@@ -828,12 +827,9 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					"Group not evaluated(%s)\n", groupName);
 			break;
 		} else {			
-			char	*s;
-
-			if ((s = strstr (groupName, ACL_RULE_MACRO_DN_KEY)) != NULL ||
-				(s = strstr (groupName, ACL_RULE_MACRO_DN_LEVELS_KEY)) != NULL ||
-				(s = strstr (groupName, ACL_RULE_MACRO_ATTR_KEY)) != NULL) {			
-				
+			if ((strstr (groupName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+				(strstr (groupName, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+				(strstr (groupName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				matched = aclutil_evaluate_macro( groupName, &lasinfo,
 													ACL_EVAL_GROUP);
 				slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
@@ -993,12 +989,9 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		} else {
 
 			/* Take care of param strings */
-		
-			char	*s;
-
-			if ((s = strstr (role, ACL_RULE_MACRO_DN_KEY)) != NULL ||
-				(s = strstr (role, ACL_RULE_MACRO_DN_LEVELS_KEY)) != NULL ||
-				(s = strstr (role, ACL_RULE_MACRO_ATTR_KEY)) != NULL) {			
+			if ((strstr (role, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+				(strstr (role, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+				(strstr (role, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				
 				matched = aclutil_evaluate_macro( role, &lasinfo,
 													ACL_EVAL_ROLE);
@@ -1431,6 +1424,7 @@ dump_member_info ( struct member_info *minfo, char *buf )
 	}
 }
 
+#ifdef FOR_DEBUGGING
 static void
 dump_eval_info (char *caller, struct eval_info *info, int idx)
 {
@@ -1481,7 +1475,7 @@ dump_eval_info (char *caller, struct eval_info *info, int idx)
 		slapi_log_error ( SLAPI_LOG_FATAL, NULL, "%s\n", buf );
 	}
 }
-
+#endif
 
 /***************************************************************************
 *
@@ -1611,7 +1605,9 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	max_memberlimit = aclpb->aclpb_max_member_sizelimit;
 	max_nestlevel = aclpb->aclpb_max_nesting_level;
 
-	/* dump_eval_info ( "acllas__user_ismember_of_group", &info, -1 ); */
+#ifdef FOR_DEBUGGING
+	dump_eval_info ( "acllas__user_ismember_of_group", &info, -1 );
+#endif
 
 eval_another_member:
 
@@ -2101,14 +2097,12 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	*/
 	attrName = attr_pattern;
 	if (strstr(attrName, LDAP_URL_prefix)) {
-		char *s;
-
 
 		/* In this case "grppupdnattr="ldap:///base??attr" */
 
-		if ((s = strstr (attrName, ACL_RULE_MACRO_DN_KEY)) != NULL ||
-				(s = strstr (attrName, ACL_RULE_MACRO_DN_LEVELS_KEY)) != NULL ||
-				(s = strstr (attrName, ACL_RULE_MACRO_ATTR_KEY)) != NULL) {			
+		if ((strstr (attrName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+			(strstr (attrName, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+			(strstr (attrName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				
 				matched = aclutil_evaluate_macro( attrName, &lasinfo,
 													ACL_EVAL_GROUPDNATTR);
@@ -3162,7 +3156,6 @@ static int acllas__user_has_role( struct acl_pblock *aclpb,
 								  Slapi_DN *roleDN, Slapi_DN *clientDn) {
 
 	int present = 0;
-	int rc = 0;
 
 	/* Get the client's entry if we don't have already */
 	if ( aclpb && ( NULL == aclpb->aclpb_client_entry )) {
@@ -3202,7 +3195,7 @@ static int acllas__user_has_role( struct acl_pblock *aclpb,
 
 	/* If the client has the role then it's a match, otherwise no */
 
-	rc = slapi_role_check( aclpb->aclpb_client_entry, roleDN, &present);
+	slapi_role_check( aclpb->aclpb_client_entry, roleDN, &present);
 	if ( present ) {
 		return(ACL_TRUE);
 	}							
@@ -3356,13 +3349,11 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 	char **tptr = NULL;
 	char *t = NULL;
 	char *s = NULL;
-	char *target_dn = NULL;
 	struct acl_pblock *aclpb = lasinfo->aclpb;
-	int found_matched_val_in_ht = 0;
 
 	aci = lasinfo->aclpb->aclpb_curr_aci;
 	/* Get a pointer to the ndn in the resouirce */
-	target_dn = slapi_entry_get_ndn (  lasinfo->resourceEntry );
+	slapi_entry_get_ndn (  lasinfo->resourceEntry );
 
 	/*
 	 * First, get the matched value from the target resource.
@@ -3395,8 +3386,6 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 				"ACL info: found matched_val (%s) for aci index %d"
 				"in macro ht\n", 
 				aci->aclName, aci->aci_index,0);
-	
-			found_matched_val_in_ht = 1;
 		}
 	}
 
@@ -3740,14 +3729,10 @@ static int
 acllas_eval_one_user( struct acl_pblock *aclpb, char * clientDN, char *rule) {
 
 	int exact_match = 0;
-	int ret_code = 0;
 	const size_t 	LDAP_URL_prefix_len = strlen(LDAP_URL_prefix);
-	char *s = NULL;
-
-	
 
 	/* URL format */
-	if ((s = strchr (rule, '?'))!= NULL) {
+	if (strchr (rule, '?') != NULL) {
 				/* URL format */
 				if (acllas__client_match_URL ( aclpb, clientDN, 
 							     rule) == ACL_TRUE) {
@@ -3763,7 +3748,7 @@ acllas_eval_one_user( struct acl_pblock *aclpb, char * clientDN, char *rule) {
 		/* Here, contains a =*, so need to match comp by comp */
 		/* skip the ldap:/// part */
 		rule += LDAP_URL_prefix_len;
-		ret_code = acl_match_prefix( rule, clientDN, &exact_match);
+		acl_match_prefix( rule, clientDN, &exact_match);
 	}
 	if ( exact_match) {
 		return( ACL_TRUE);

@@ -344,6 +344,9 @@
 /* SVID_GETTOD */
 #undef _SVID_GETTOD
 
+/* To use XOPEN getpeername */
+#undef _XOPEN_SOURCE_EXTENDED
+
 /* SVR4 */
 #undef __svr4
 

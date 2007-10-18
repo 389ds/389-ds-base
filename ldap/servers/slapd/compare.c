@@ -77,7 +77,7 @@ do_compare( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_compare\n", 0, 0, 0 );
 
 	/* count the compare request */
-	PR_AtomicIncrement(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
+	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
 
     /* have to init this here so we can "done" it below if we short circuit */
     slapi_sdn_init(&sdn);

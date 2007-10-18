@@ -284,7 +284,6 @@ static void cos_cache_add_ll_entry(void **attrval, void *theVal, int ( *compare 
 /* cosAttrValue manipulation */
 static int cos_cache_add_attrval(cosAttrValue **attrval, char *val);
 static void cos_cache_del_attrval_list(cosAttrValue **pVal);
-static int cos_cache_attrval_count(cosAttrValue *pVal);
 static int cos_cache_attrval_exists(cosAttrValue *pAttrs, const char *val);
 
 /* cosAttributes manipulation */
@@ -298,18 +297,12 @@ static int cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int 
 /* cosTemplates manipulation */
 static int cos_cache_add_dn_tmpls(char *dn,  cosAttrValue *pCosSpecifier, cosAttrValue *pAttrs, cosTemplates **pTmpls);
 static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAttrValue *objclasses, cosAttrValue *pCosSpecifier, cosAttributes *pAttrs,cosAttrValue *cosPriority);
-#if 0
-static int cos_cache_del_tmpl(cosTemplates *pTemplates, char *dn);
-#endif
 
 /* cosDefinitions manipulation */
 static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_cacheable);
 static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs, int *vattr_cacheable);
 static int cos_cache_add_defn(cosDefinitions **pDefs, cosAttrValue **dn, int cosType, cosAttrValue **tree, cosAttrValue **tmpDn, cosAttrValue **spec, cosAttrValue **pAttrs, cosAttrValue **pOverrides, cosAttrValue **pOperational, cosAttrValue **pCosMerge, cosAttrValue **pCosOpDefault);
 static int cos_cache_entry_is_cos_related( Slapi_Entry *e);
-#if 0
-static int cos_cache_del_defn(cosDefinitions *pDefs, char *dn);
-#endif
 
 /* schema checking */
 static int cos_cache_schema_check(cosCache *pCache, int cache_attr_index, Slapi_Attr *pObjclasses);
@@ -332,8 +325,6 @@ static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_
 static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result, int flags, void *hint);
 static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags);
 static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr, Slapi_Value *test_this, int *result, int *ops);
-static void cos_cache_query_attr_free(struct berval ***vals); /* deprecated */
-
 
 /* 
 	compares s2 to s1 starting from end of string until the beginning of either
@@ -344,7 +335,6 @@ static int cos_cache_backwards_stricmp_and_clip(char*s1,char*s2);
 
 /* module level thread control stuff */
 
-static PRThread		*cos_tid = NULL;
 static int keeprunning = 0;
 static int started = 0;
 
@@ -411,18 +401,18 @@ int cos_cache_init()
 		goto out;
         }
 
-        if ((cos_tid = PR_CreateThread (PR_USER_THREAD, 
+        if ( PR_CreateThread (PR_USER_THREAD, 
 					cos_cache_wait_on_change, 
 					NULL,
 					PR_PRIORITY_NORMAL, 
 					PR_GLOBAL_THREAD, 
 					PR_UNJOINABLE_THREAD, 
-					SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL )
+					SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
 			   "cos_cache_init: PR_CreateThread failed\n" );
 		ret = -1;
-                goto out;
+		goto out;
 	}
 
         /* wait for that thread to get started */
@@ -794,14 +784,6 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data) {
 	int valIndex = 0;
 	Slapi_Attr *dnAttr;
 	char *attrType = 0;
-	char *attrs[7];
-	
-	attrs[0] = "objectclass";
-	attrs[1] = "cosTargetTree";
-	attrs[2] = "cosTemplateDn";
-	attrs[3] = "cosSpecifier";
-	attrs[4] = "cosAttribute";
-	attrs[5] = 0;
 	info=(struct dn_defs_info *)callback_data;
 	
 			
@@ -849,7 +831,6 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data) {
 									*/
 									if(pSneakyVal == &pCosAttribute)
 									{
-										cosAttrValue *pTmpTargetTree = 0;
 										int qualifier_hit = 0;
 										int op_qualifier_hit = 0;
 										int merge_schemes_qualifier_hit = 0;
@@ -934,8 +915,6 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data) {
 											
 											slapi_ch_free((void**)&parent);
 										}
-										
-										pTmpTargetTree = pCosTargetTree;
 										
 										slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, dnVals[valIndex]->bv_val, NULL, NULL);			
 									} /* if(attrType is cosAttribute) */
@@ -1821,27 +1800,6 @@ int cos_cache_release(cos_cache *ptheCache)
 	return ret;
 }
 
-/*
-	cos_cache_attrval_count
-	-----------------------
-	counts the number of values in the list
-*/
-
-static int cos_cache_attrval_count(cosAttrValue *pVal)
-{
-	int ret = 0;
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_attrval_count\n",0,0,0);
-
-	while(pVal)
-	{
-		ret++;
-		pVal = pVal->list.pNext;
-	}
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_cache_attrval_count\n",0,0,0);
-	return ret;
-}
 
 /*
 	cos_cache_del_attr_list
@@ -1875,7 +1833,6 @@ static void cos_cache_del_attr_list(cosAttributes **pAttrs)
 static void cos_cache_del_schema(cosCache *pCache)
 {
 	char *pLastName = 0;
-	cosAttrValue *pLastRef = 0;
 	int attr_index = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_del_schema\n",0,0,0);
@@ -1883,7 +1840,6 @@ static void cos_cache_del_schema(cosCache *pCache)
 	if(pCache && pCache->attrCount && pCache->ppAttrIndex)
 	{
 		pLastName = pCache->ppAttrIndex[0]->pAttrName;
-		pLastRef = pCache->ppAttrIndex[0]->pObjectclasses;
 
 		for(attr_index=1; attr_index<pCache->attrCount; attr_index++)
 		{
@@ -2578,25 +2534,6 @@ bail:
 }
 
 /*
-	cos_cache_query_attr_free
-	-------------------------
-	frees the memory allocated for the data returned
-	by cos_cache_query_attr
-*/
-static void cos_cache_query_attr_free(struct berval ***vals)
-{
-	int index = 0;
-
-	while((*vals)[index])
-	{
-		slapi_ch_free((void**)&((*vals)[index]));
-		index++;
-	}
-
-	slapi_ch_free((void**)*vals);
-}
-
-/*
 	cos_cache_find_attr
 	-------------------
 	searches for the attribute "type", and if found returns the index
@@ -3006,19 +2943,6 @@ static int cos_cache_total_attr_count(cosCache *pCache)
 }
 
 
-/*
-	cos_cache_XXX_compare
-	---------------------
-	this set of functions are passed to sorting and searching
-	functions to provide an ordering comparison between to structures
-*/
-#if 0
-int cos_cache_attrval_compare(const void *e1, const void *e2) 
-{
-	return slapi_utf8casecmp((unsigned char*)(*(cosAttrValue**)e1)->val,(unsigned char*)(*(cosAttrValue**)e2)->val);
-}
-#endif
-
 static int cos_cache_attr_compare(const void *e1, const void *e2)
 {
 	int com_Result;
@@ -3044,13 +2968,6 @@ static int cos_cache_attr_compare(const void *e1, const void *e2)
 	            return -1;   
 		  return com_Result;
 }
-
-#if 0
-int cos_cache_tmpl_compare(const void *e1, const void *e2)
-{
-	return slapi_utf8casecmp((unsigned char*)(*(cosTemplates**)e1)->cosGrade,(unsigned char*)(*(cosTemplates**)e2)->cosGrade);
-}
-#endif
 
 static int cos_cache_string_compare(const void *e1, const void *e2)
 {

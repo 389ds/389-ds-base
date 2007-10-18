@@ -66,6 +66,12 @@ typedef unsigned char uint8_t;
 #include <inttypes.h>
 #endif
 
+#if ( defined( hpux ) )
+#ifdef _XOPEN_SOURCE_EXTENDED
+#include <arpa/inet.h>	/* for ntohl, et al. */
+#endif
+#endif
+
 /* file type */
 #define ENTRYTYPE     0x1
 #define INDEXTYPE     0x2
@@ -227,7 +233,7 @@ static char *format_raw(unsigned char *s, int len, int flags,
         }
         if (truncatesiz > 0 && o > bufend - 5) {
             /* truncate it */
-            strcpy(o, " ...");
+            strcpy((char *)o, " ...");
             i = len;
             o += 4;
         }
@@ -416,9 +422,7 @@ void _cl5ReadMod(char **buff)
     uint32 i;
     uint32 val_count;
     char *type = NULL;
-    int op;
 
-    op = (*pos) & 0x000000FF;
     pos ++;
     _cl5ReadString (&type, &pos);
 
@@ -440,7 +444,7 @@ void _cl5ReadMod(char **buff)
 /* data format: <value count> <value size> <value> <value size> <value> ..... */
 void print_ruv(unsigned char *buff)
 {
-    char *pos = buff;
+    char *pos = (char *)buff;
     uint32 i;
     uint32 val_count;
 
@@ -942,7 +946,7 @@ int main(int argc, char **argv)
         } while (0 == ret);
         key.size = 0;
         key.data = NULL;
-    } else if (entry_id != -1) {
+    } else if (entry_id != 0xffffffff) {
         key.size = sizeof(entry_id);
         key.data = &entry_id;
         ret = db->get(db, NULL, &key, &data, 0);

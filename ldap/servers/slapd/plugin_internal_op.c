@@ -591,7 +591,6 @@ static int search_internal_pb (Slapi_PBlock *pb)
     int                           opresult = 0;
     Slapi_Entry                   **pb_search_entries = NULL;
     char                          **pb_search_referrals = NULL;
-	int							  rc;
 
 	PR_ASSERT (pb);
 
@@ -609,7 +608,7 @@ static int search_internal_pb (Slapi_PBlock *pb)
  
     /* call internal search callback, define search_entry_callback, and result_callback such
        that the results of the search are stuffed into pb */
-    rc = search_internal_callback_pb (pb, &psid, internal_plugin_result_callback, 
+    search_internal_callback_pb (pb, &psid, internal_plugin_result_callback, 
 									  internal_plugin_search_entry_callback,  
 									  internal_plugin_search_referral_callback);
     opresult = psid.rc;

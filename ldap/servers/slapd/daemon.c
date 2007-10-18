@@ -1570,7 +1570,6 @@ slapd_poll( void *handle, int output, int secure )
     struct POLL_STRUCT	pr_pd;
     PRIntervalTime	timeout = PR_MillisecondsToInterval(ioblock_timeout);
 
-    if (timeout < 0) timeout = 0;
     pr_pd.fd = (PRFileDesc *)handle;
     pr_pd.in_flags = output ? PR_POLL_WRITE : PR_POLL_READ;
     pr_pd.out_flags = 0;
@@ -2841,7 +2840,7 @@ failed:
 	exit( 1 );
 
 suppressed:
-	return (PRFileDesc *)-1;
+	return (PRFileDesc **)-1;
 }  /* createprlistensockets */
 
 
