@@ -774,9 +774,9 @@ sub setDefaults {
 
     if (!defined($inf->{slapd}->{tmp_dir})) {
         if ("@with_fhs_opt@") {
-            $inf->{slapd}->{tmp_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/tmp";
+            $inf->{slapd}->{tmp_dir} = "/tmp";
         } else {
-            $inf->{slapd}->{tmp_dir} = "$localstatedir/tmp/@PACKAGE_NAME@/slapd-$servid";
+            $inf->{slapd}->{tmp_dir} = "/tmp";
         }
     }
     $ENV{DS_TMP_DIR} = $inf->{slapd}->{tmp_dir};
