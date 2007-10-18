@@ -1232,10 +1232,16 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 	s = strchr (attr_val, '=');
 	s++;
 	__acl_strip_leading_space(&s);
+	__acl_strip_trailing_space(s);
 	len = strlen(s);
 	if (*s == '"' && s[len-1] == '"') {
 		s[len-1] = '\0';
 		s++;
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+						"__aclp__init_targetattr: Error: The statement does not begin and end with a \": [%s]\n",
+						s);
+		return ACL_SYNTAX_ERR;
 	}
 
 	str = s;
@@ -1635,12 +1641,15 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
     s = strchr (input_str, '=');
     s++;							/* skip the = */
     __acl_strip_leading_space(&s);	/* skip to next significant character */
+    __acl_strip_trailing_space(s);
     len = strlen(s);				/* Knock off the " and trailing ) */
 	if (*s == '"' && s[len-1] == '"') {
 		s[len-1] = '\0';
 		s++;						/* skip the first " */
 	} else {						/* No matching quotes */
-        	
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+						"__aclp__init_targetattrfilters: Error: The statement does not begin and end with a \": [%s]\n",
+						s);
     	return (ACL_SYNTAX_ERR);
     }
     
