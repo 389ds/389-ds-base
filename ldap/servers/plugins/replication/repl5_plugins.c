@@ -846,39 +846,39 @@ multimaster_postop_modrdn (Slapi_PBlock *pb)
 static void
 copy_operation_parameters(Slapi_PBlock *pb)
 {
-	Slapi_Operation *op = NULL;
-	struct slapi_operation_parameters *op_params;
-	supplier_operation_extension *opext;
+    Slapi_Operation *op = NULL;
+    struct slapi_operation_parameters *op_params;
+    supplier_operation_extension *opext;
     Object *repl_obj;
     Replica *replica;
-	
+
     repl_obj = replica_get_replica_for_op (pb);
 
     /* we are only interested in the updates to replicas */
     if (repl_obj)
     {
         /* we only save the original operation parameters for replicated operations
-	       since client operations don't go through urp engine and pblock data can be logged */
-	    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-	    PR_ASSERT (op);
+           since client operations don't go through urp engine and pblock data can be logged */
+        slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+        PR_ASSERT (op);
 
         replica = (Replica*)object_get_data (repl_obj);
-		PR_ASSERT (replica);
+        PR_ASSERT (replica);
 
         opext = (supplier_operation_extension*) repl_sup_get_ext (REPL_SUP_EXT_OP, op);
-	    if (operation_is_flag_set(op,OP_FLAG_REPLICATED) &&
+        if (operation_is_flag_set(op,OP_FLAG_REPLICATED) &&
             !operation_is_flag_set(op, OP_FLAG_REPL_FIXUP))
-	    {
-		    slapi_pblock_get (pb, SLAPI_OPERATION_PARAMETERS, &op_params);						  
-		    opext->operation_parameters= operation_parameters_dup(op_params);             
-        }       
-		   
-        /* this condition is needed to avoid re-entering lock when
-           ruv state is updated */
+        {
+            slapi_pblock_get (pb, SLAPI_OPERATION_PARAMETERS, &op_params);                          
+            opext->operation_parameters= operation_parameters_dup(op_params);             
+        }
+           
+        /* this condition is needed to avoid re-entering backend serial lock
+           when ruv state is updated */
         if (!operation_is_flag_set(op, OP_FLAG_REPL_FIXUP))
         {
-		    /* save replica generation in case it changes */
-		    opext->repl_gen = replica_get_generation (replica);
+            /* save replica generation in case it changes */
+            opext->repl_gen = replica_get_generation (replica);
         }
 
         object_release (repl_obj);                

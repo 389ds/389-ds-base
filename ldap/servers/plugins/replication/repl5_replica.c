@@ -2258,7 +2258,8 @@ replica_write_ruv (Replica *r)
 		RUV_STORAGE_ENTRY_UNIQUEID,
 		repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
 		/* Add OP_FLAG_TOMBSTONE_ENTRY so that this doesn't get logged in the Retro ChangeLog */
-		OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_TOMBSTONE_ENTRY);
+        OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_TOMBSTONE_ENTRY |
+		OP_FLAG_REPL_RUV );
 	slapi_modify_internal_pb (pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
@@ -2732,7 +2733,8 @@ replica_create_ruv_tombstone(Replica *r)
 		e,
 		NULL /* controls */,
 		repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
-		OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP);
+		OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP |
+		OP_FLAG_REPL_RUV);
 	slapi_add_internal_pb(pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
     if (return_value == LDAP_SUCCESS)
@@ -3064,7 +3066,7 @@ replica_replace_ruv_tombstone(Replica *r)
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
         repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
-        OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP);
+        OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_REPL_RUV);
 
     slapi_modify_internal_pb (pb);
 

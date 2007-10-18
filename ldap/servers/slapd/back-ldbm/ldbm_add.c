@@ -104,6 +104,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_resurect_operation= 0;
 	int is_tombstone_operation= 0;
 	int is_fixup_operation= 0;
+	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	entry_address addr;
 
@@ -118,12 +119,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 	is_resurect_operation= operation_is_flag_set(operation,OP_FLAG_RESURECT_ENTRY);
 	is_tombstone_operation= operation_is_flag_set(operation,OP_FLAG_TOMBSTONE_ENTRY);
-	is_fixup_operation = operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP);
+	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
+	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 
 	inst = (ldbm_instance *) be->be_instance_info;
-        
-    slapi_sdn_init(&sdn);
-    slapi_sdn_init(&parentsdn);
+		
+	slapi_sdn_init(&sdn);
+	slapi_sdn_init(&parentsdn);
 	
 	/* Get rid of ldbm backend attributes that you are not allowed to specify yourself */
 	slapi_entry_delete_values( e, hassubordinates, NULL );
@@ -145,7 +147,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		dblock_acquired= 1;
 	}
 
-    rc= 0;
+	rc= 0;
 
 	/*
 	 * We are about to pass the last abandon test, so from now on we are
@@ -166,8 +168,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 		rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
 	}
 	rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY);
-    rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY);
-    while(rc!=0)
+	rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY);
+	while(rc!=0)
 	{
 		/* JCM - copying entries can be expensive... should optimize */
 		/* 
@@ -175,20 +177,20 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 * backend pre-op plugin. To ensure a consistent snapshot of this state
 		 * we wrap the reading of the entry with the dblock.
 		 */
-	    if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY))
+		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY))
 		{
-            /* Check if an entry with the intended uniqueid already exists. */
+			/* Check if an entry with the intended uniqueid already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY); /* Could be through this multiple times */
 			addr.dn = NULL;
 			addr.uniqueid = (char*)slapi_entry_get_uniqueid(e); /* jcm -  cast away const */
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY, !is_replicated_operation);
 		}
-	    if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
+		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
 		{
 			slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
-            slapi_sdn_set_dn_byref(&sdn, dn);
+			slapi_sdn_set_dn_byref(&sdn, dn);
 			slapi_sdn_get_backend_parent(&sdn,&parentsdn,pb->pb_backend);
-            /* Check if an entry with the intended DN already exists. */
+			/* Check if an entry with the intended DN already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
 			addr.dn = dn;
 			addr.uniqueid = NULL;
@@ -206,24 +208,24 @@ ldbm_back_add( Slapi_PBlock *pb )
 			/* need to set parentsdn or parentuniqueid if either is not set? */
 		}
 
-        /* Call the Backend Pre Add plugins */
+		/* Call the Backend Pre Add plugins */
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-    	rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
-    	if(rc==-1)
-    	{
+		rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
+		if(rc==-1)
+		{
 			/* 
 			 * Plugin indicated some kind of failure,
 			 * or that this Operation became a No-Op.
 			 */
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-    	    goto error_return;
-    	}
+			goto error_return;
+		}
 		/*
 		 * (rc!=-1 && rc!= 0) means that the plugin changed things, so we go around
 		 * the loop once again to get the new present state.
 		 */
 		/* JCMREPL - Warning: A Plugin could cause an infinite loop by always returning a result code that requires some action. */
-    }	
+	}	
 
 	/*
 	 * Originally (in the U-M LDAP 3.3 code), there was a comment near this
@@ -237,7 +239,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	/* 
 	 * Fetch the parent entry and acquire the cache lock.
 	 */
-    if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid))
+	if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid))
 	{
 		addr.dn = (char*)slapi_sdn_get_dn (&parentsdn);
 		addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
@@ -255,13 +257,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 		modify_init(&parent_modify_c,parententry);
 	}
 
-    /* Check if the entry we have been asked to add already exists */
+	/* Check if the entry we have been asked to add already exists */
 	{
 		Slapi_Entry *entry;
 		slapi_pblock_get( pb, SLAPI_ADD_EXISTING_DN_ENTRY, &entry);
 		if ( entry != NULL )
 		{
-		    /* The entry already exists */ 
+			/* The entry already exists */ 
 			ldap_result_code= LDAP_ALREADY_EXISTS;
 			goto error_return;
 		} 
@@ -283,7 +285,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				if ( ancestorentry != NULL )
 				{
 					int sentreferral= check_entry_for_referral(pb, ancestorentry->ep_entry, backentry_get_ndn(ancestorentry), "ldbm_back_add");
-				    cache_return( &inst->inst_cache, &ancestorentry );
+					cache_return( &inst->inst_cache, &ancestorentry );
 					if(sentreferral)
 					{
 						ldap_result_code= -1; /* The result was sent by check_entry_for_referral */
@@ -316,7 +318,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		tombstoneentry = find_entry2modify( pb, be, &addr, NULL );
 		if ( tombstoneentry==NULL )
 		{
-		    ldap_result_code= -1;
+			ldap_result_code= -1;
 			goto error_return;	  /* error result sent by find_entry2modify() */
 		}
 		tombstone_in_cache = 1;
@@ -324,7 +326,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		addingentry = backentry_dup( tombstoneentry );
 		if ( addingentry==NULL )
 		{
-	       	ldap_result_code= LDAP_OPERATIONS_ERROR;
+		   	ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
 		/*
@@ -405,8 +407,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 		addingentry = backentry_init( e );
 		if ( ( addingentry->ep_id = next_id( be ) ) >= MAXID ) {
 		  LDAPDebug( LDAP_DEBUG_ANY,
-			     "add: maximum ID reached, cannot add entry to "
-			     "backend '%s'", be->be_name, 0, 0 );
+				 "add: maximum ID reached, cannot add entry to "
+				 "backend '%s'", be->be_name, 0, 0 );
 		  ldap_result_code = LDAP_OPERATIONS_ERROR;
 		  goto error_return;
 		}
@@ -436,11 +438,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 			/* Directly add the entry as a tombstone */
 			/*
 			 * 1) If the entry has an existing DN, change it to be
-			 *    "nsuniqueid=<uniqueid>, <old dn>"
+			 *	"nsuniqueid=<uniqueid>, <old dn>"
 			 * 2) Add the objectclass value "tombstone" and arrange for only
-			 *    that value to be indexed. 
+			 *	that value to be indexed. 
 			 * 3) If the parent entry was found, set the nsparentuniqueid
-			 *    attribute to be the unique id of that parent.
+			 *	attribute to be the unique id of that parent.
 			 */
 			char *untombstoned_dn = slapi_entry_get_dn(e);
 			if (NULL == untombstoned_dn)
@@ -476,13 +478,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 			struct backentry *ancestorentry;
 
 			LDAPDebug( LDAP_DEBUG_TRACE,
-			    "parent does not exist, pdn = %s\n",
-			    slapi_sdn_get_dn(&parentsdn), 0, 0 );
+				"parent does not exist, pdn = %s\n",
+				slapi_sdn_get_dn(&parentsdn), 0, 0 );
 
 			ancestorentry = dn2ancestor(be, &parentsdn, &ancestordn, &txn, &err );
 			cache_return( &inst->inst_cache, &ancestorentry );
 
-    		ldap_result_code= LDAP_NO_SUCH_OBJECT;
+			ldap_result_code= LDAP_NO_SUCH_OBJECT;
 			ldap_result_matcheddn= slapi_ch_strdup((char *)slapi_sdn_get_dn(&ancestordn)); /* jcm - cast away const. */
 			slapi_sdn_done(&ancestordn);
 			goto error_return;
@@ -502,8 +504,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if ( !isroot && !is_replicated_operation)
 		{
 			LDAPDebug( LDAP_DEBUG_TRACE, "no parent & not root\n",
-			    0, 0, 0 );
-    		ldap_result_code= LDAP_INSUFFICIENT_ACCESS;
+				0, 0, 0 );
+			ldap_result_code= LDAP_INSUFFICIENT_ACCESS;
 			goto error_return;
 		}
 		parententry = NULL;
@@ -527,7 +529,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		/*
 		 * add the parentid, entryid and entrydn operational attributes
 		 */
-	    add_update_entry_operational_attributes(addingentry, pid);
+		add_update_entry_operational_attributes(addingentry, pid);
 	}
 
 	/* Tentatively add the entry to the cache.  We do this after adding any
@@ -560,7 +562,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		retval = parent_update_on_childchange(&parent_modify_c,1,NULL); /* 1==add */\
 		/* The modify context now contains info needed later */
 		if (0 != retval) {
-       		ldap_result_code= LDAP_OPERATIONS_ERROR;
+	   		ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
 		parent_found = 1;
@@ -577,10 +579,10 @@ ldbm_back_add( Slapi_PBlock *pb )
 			/* We're re-trying */
 			LDAPDebug( LDAP_DEBUG_TRACE, "Add Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
-            {
-    	        PRIntervalTime interval;
-    			interval = PR_MillisecondsToInterval(slapi_rand() % 100);
-    			DS_Sleep(interval);
+			{
+				PRIntervalTime interval;
+				interval = PR_MillisecondsToInterval(slapi_rand() % 100);
+				DS_Sleep(interval);
 			}
 #endif
 		}
@@ -682,7 +684,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		}
 		if (retval != 0) {
 			LDAPDebug( LDAP_DEBUG_ANY, "add: attempt to index %lu failed\n",
-                                   (u_long)addingentry->ep_id, 0, 0 );
+								   (u_long)addingentry->ep_id, 0, 0 );
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 				disk_full = 1;
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -705,38 +707,41 @@ ldbm_back_add( Slapi_PBlock *pb )
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 					disk_full = 1;
-            		ldap_result_code= LDAP_OPERATIONS_ERROR;
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto diskfull_return;
 				}
-            	ldap_result_code= LDAP_OPERATIONS_ERROR;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return; 
 			}
 		}
-        /*
-         * Update the Virtual List View indexes
-         */
-        retval= vlv_update_all_indexes(&txn, be, pb, NULL, addingentry);
-		if (DB_LOCK_DEADLOCK == retval)
+		/*
+		 * Update the Virtual List View indexes
+		 */
+		if (!is_ruv)
 		{
-			LDAPDebug( LDAP_DEBUG_ARGS, "add DEADLOCK vlv_update_index\n", 0, 0, 0 );
-			/* Retry txn */
-			continue;
-		}
-		if (0 != retval) {
-			LDAPDebug( LDAP_DEBUG_TRACE, "vlv_update_index failed, err=%d %s\n",
-				   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
-			if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
-				disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				goto diskfull_return;
+			retval= vlv_update_all_indexes(&txn, be, pb, NULL, addingentry);
+			if (DB_LOCK_DEADLOCK == retval) {
+				LDAPDebug( LDAP_DEBUG_ARGS,
+								"add DEADLOCK vlv_update_index\n", 0, 0, 0 );
+				/* Retry txn */
+				continue;
 			}
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			goto error_return; 
+			if (0 != retval) {
+				LDAPDebug( LDAP_DEBUG_TRACE,
+					"vlv_update_index failed, err=%d %s\n",
+				   	retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
+					disk_full = 1;
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					goto diskfull_return;
+				}
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return; 
+			}
 		}
-		if (retval  == 0 ) {
+		if (retval == 0) {
 			break;
 		}
-
 	}
 	if (retry_count == RETRY_TIMES) {
 		/* Failed */
@@ -760,9 +765,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (cache_replace( &inst->inst_cache, tombstoneentry, addingentry ) != 0 )
 		{
 			/* This happens if the dn of addingentry already exists */
-		    ldap_result_code= LDAP_ALREADY_EXISTS;
+			ldap_result_code= LDAP_ALREADY_EXISTS;
 			cache_unlock_entry( &inst->inst_cache, tombstoneentry );
-		    goto error_return;
+			goto error_return;
 		}
 		/*
 		 * The tombstone was locked down in the cache... we can
@@ -844,9 +849,9 @@ common_return:
 	{
 		dblayer_unlock_backend(be);
 	}
-    if(ldap_result_code!=-1)
+	if(ldap_result_code!=-1)
 	{
-        slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
+		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
 	}
 	slapi_sdn_done(&sdn);
 	slapi_sdn_done(&parentsdn);

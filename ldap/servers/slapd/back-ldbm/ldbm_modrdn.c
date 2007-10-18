@@ -113,7 +113,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
-	is_fixup_operation = operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP);
+	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
 
 	if (pb->pb_conn)
 	{
@@ -1127,8 +1127,12 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
 	ldbm_instance *inst;
 	int retval= 0;
 	char *msg;
+	Slapi_Operation *operation;
+	int is_ruv = 0;                 /* True if the current entry is RUV */
 
-	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
 
 	/*
@@ -1206,17 +1210,21 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
 	/*
 	 * Remove the old entry from the Virtual List View indexes.
 	 * Add the new entry to the Virtual List View indexes.
+	 * If ruv, we don't have to update vlv.
 	 */
-	retval= vlv_update_all_indexes(ptxn, be, pb, e, ec);
-	if (DB_LOCK_DEADLOCK == retval)
+	if (!is_ruv)
 	{
-		/* Abort and re-try */
-		goto error_return;
-	}
-	if (retval != 0)
-	{
-		LDAPDebug( LDAP_DEBUG_TRACE, "vlv_update_all_indexes failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
-		goto error_return;
+		retval= vlv_update_all_indexes(ptxn, be, pb, e, ec);
+		if (DB_LOCK_DEADLOCK == retval)
+		{
+			/* Abort and re-try */
+			goto error_return;
+		}
+		if (retval != 0)
+		{
+			LDAPDebug( LDAP_DEBUG_TRACE, "vlv_update_all_indexes failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+			goto error_return;
+		}
 	}
 	if (cache_replace( &inst->inst_cache, e, ec ) != 0 ) {
 		retval= -1;

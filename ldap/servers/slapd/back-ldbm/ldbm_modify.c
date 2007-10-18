@@ -131,12 +131,18 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 					  back_txn *txn)
 {
 	static char *function_name = "modify_update_all";
+	Slapi_Operation *operation;
+	int is_ruv = 0;				 /* True if the current entry is RUV */
 	int retval = 0;
 
-    /*
-     * Update the ID to Entry index. 
-     * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
-     */
+	if (pb) { /* pb could be NULL if it's called from import */
+		slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+		is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
+	}
+	/*
+	 * Update the ID to Entry index. 
+	 * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
+	 */
 	retval = id2entry_add( be, mc->new_entry, txn );
 	if ( 0 != retval ) {
 		if (DB_LOCK_DEADLOCK != retval)
@@ -153,13 +159,13 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 		}
 		goto error;
 	}
-    /*
-     * Remove the old entry from the Virtual List View indexes.
-     * Add the new entry to the Virtual List View indexes.
+	/*
+	 * Remove the old entry from the Virtual List View indexes.
+	 * Add the new entry to the Virtual List View indexes.
 	 * Because the VLV code calls slapi_filter_test(), which requires a pb (why?),
 	 * we allow the caller sans pb to get everything except vlv indexing.
-     */
-	if (NULL != pb) {
+	 */
+	if (NULL != pb && !is_ruv) {
 		retval= vlv_update_all_indexes(txn, be, pb, mc->old_entry, mc->new_entry);
 		if ( 0 != retval ) {
 			if (DB_LOCK_DEADLOCK != retval)
@@ -189,7 +195,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	char			*errbuf = NULL;
 	int retry_count = 0;
 	int disk_full = 0;
-    int ldap_result_code= LDAP_SUCCESS;
+	int ldap_result_code= LDAP_SUCCESS;
 	char *ldap_result_message= NULL;
 	int rc = 0;
 	Slapi_Operation *operation;
@@ -198,6 +204,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int change_entry = 0;
 	int ec_in_cache = 0;
 	int is_fixup_operation= 0;
+	int is_ruv = 0;                 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	int repl_op;
 
@@ -208,7 +215,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
-	is_fixup_operation = operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP);
+	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
+	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
 
 	dblayer_txn_init(li,&txn);
@@ -221,15 +229,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 * operations that the URP code in the Replication
 	 * plugin generates.
 	 */
-	if(SERIALLOCK(li) && !operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP))
-	{
+	if(SERIALLOCK(li) && !operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP)) {
 		dblayer_lock_backend(be);
 		dblock_acquired= 1;
 	}
 
 	/* find and lock the entry we are about to modify */
 	if ( (e = find_entry2modify( pb, be, addr, NULL )) == NULL ) {
-	    ldap_result_code= -1;
+		ldap_result_code= -1;
 		goto error_return;	  /* error result sent by find_entry2modify() */
 	}
 
@@ -260,7 +267,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	/* create a copy of the entry and apply the changes to it */
 	if ( (ec = backentry_dup( e )) == NULL ) {
-       	ldap_result_code= LDAP_OPERATIONS_ERROR;
+		ldap_result_code= LDAP_OPERATIONS_ERROR;
 		goto error_return;
 	}
 
@@ -276,10 +283,10 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	{
 		Slapi_Mods smods;
-        CSN *csn = operation_get_csn(operation);
+		CSN *csn = operation_get_csn(operation);
 		slapi_mods_init_byref(&smods,mods);
 		if ( (change_entry = mods_have_effect (ec->ep_entry, &smods)) ) {
-	    	ldap_result_code = entry_apply_mods_wsi(ec->ep_entry, &smods, csn, operation_is_flag_set(operation,OP_FLAG_REPLICATED));
+			ldap_result_code = entry_apply_mods_wsi(ec->ep_entry, &smods, csn, operation_is_flag_set(operation,OP_FLAG_REPLICATED));
 			/*
 			 * XXXmcs: it would be nice to get back an error message from
 			 * the above call so we could pass it along to the client, e.g.,
@@ -356,8 +363,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			dblayer_txn_abort(li,&txn);
 			LDAPDebug( LDAP_DEBUG_TRACE, "Modify Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
-            {
-	        PRIntervalTime interval;
+			{
+			PRIntervalTime interval;
 			interval = PR_MillisecondsToInterval(slapi_rand() % 100);
 			DS_Sleep(interval);
 			}
@@ -373,10 +380,10 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			goto error_return;
 		}
 
-        /*
-         * Update the ID to Entry index. 
-         * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
-         */
+		/*
+		 * Update the ID to Entry index. 
+		 * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
+		 */
 		retval = id2entry_add( be, ec, &txn ); 
 		if (DB_LOCK_DEADLOCK == retval)
 		{
@@ -404,37 +411,41 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
-        /*
-         * Remove the old entry from the Virtual List View indexes.
-         * Add the new entry to the Virtual List View indexes.
-         */
-        retval= vlv_update_all_indexes(&txn, be, pb, e, ec);
-		if (DB_LOCK_DEADLOCK == retval)
-		{
-			/* Abort and re-try */
-			continue;
-		}
-		if (0 != retval) {
-			LDAPDebug( LDAP_DEBUG_ANY, "vlv_update_index failed, err=%d %s\n",
-				  retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
-			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			goto error_return;
-		}
+		/*
+		 * Remove the old entry from the Virtual List View indexes.
+		 * Add the new entry to the Virtual List View indexes.
+		 * If the entry is ruv, no need to update vlv.
+		 */
+		if (!is_ruv) {
+			retval= vlv_update_all_indexes(&txn, be, pb, e, ec);
+			if (DB_LOCK_DEADLOCK == retval)
+			{
+				/* Abort and re-try */
+				continue;
+			}
+			if (0 != retval) {
+				LDAPDebug( LDAP_DEBUG_ANY, 
+					"vlv_update_index failed, err=%d %s\n",
+					retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
 
+		}
 		if (0 == retval) {
 			break;
 		}
 	}
 	if (retry_count == RETRY_TIMES) {
 		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in modify\n", 0, 0, 0 );
-    	ldap_result_code= LDAP_OPERATIONS_ERROR;
+	   	ldap_result_code= LDAP_OPERATIONS_ERROR;
 		goto error_return;
 	}
 	
 	if (cache_replace( &inst->inst_cache, e, ec ) != 0 ) {
-	    ldap_result_code= LDAP_OPERATIONS_ERROR;
-	    goto error_return;
+		ldap_result_code= LDAP_OPERATIONS_ERROR;
+		goto error_return;
 	}
 
 	postentry = slapi_entry_dup( ec->ep_entry );
@@ -473,7 +484,7 @@ error_return:
 	}
 	else
 	{
-        backentry_free(&ec);
+		backentry_free(&ec);
 	}
 	if ( postentry != NULL ) 
 	{

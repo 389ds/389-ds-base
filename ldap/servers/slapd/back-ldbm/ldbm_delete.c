@@ -73,6 +73,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	CSN *opcsn = NULL;
 	int is_fixup_operation = 0;
+	int is_ruv = 0;                 /* True if the current entry is RUV */
 	int is_replicated_operation= 0;
 	int	is_tombstone_entry = 0;		/* True if the current entry is alreday a tombstone		*/
 	int delete_tombstone_entry = 0;	/* We must remove the given tombstone entry from the DB	*/
@@ -95,7 +96,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%d op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
 	}
 
-	is_fixup_operation = operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP);
+	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
+	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
 	
 	inst = (ldbm_instance *) be->be_instance_info;
@@ -469,7 +471,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
     			ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
-		} else if (delete_tombstone_entry)
+		} /* create_tombstone_entry */
+		else if (delete_tombstone_entry)
 		{
 			/* 
 			 * We need to remove the Tombstone entry from the remaining indexes:
@@ -521,7 +524,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					goto error_return;
 				}
 			}
-		}
+		} /* delete_tombstone_entry */
 		
 		if (parent_found) {
 			/* Push out the db modifications from the parent entry */
@@ -536,32 +539,31 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				LDAPDebug( LDAP_DEBUG_TRACE, "delete 3 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-    			ldap_result_code= LDAP_OPERATIONS_ERROR;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
 		}
 		/* 
 		 * first check if searchentry needs to be removed
          * Remove the entry from the Virtual List View indexes.
-		 * 
 		 */
-		if(!delete_tombstone_entry && 
-		   !vlv_delete_search_entry(pb,e->ep_entry,inst)) {
+		if (!delete_tombstone_entry && !is_ruv &&
+		    !vlv_delete_search_entry(pb,e->ep_entry,inst)) {
 			retval = vlv_update_all_indexes(&txn, be, pb, e, NULL);
+
+			if (DB_LOCK_DEADLOCK == retval)
+			{
+				LDAPDebug( LDAP_DEBUG_ARGS, "delete DEADLOCK vlv_update_index\n", 0, 0, 0 );
+				/* Retry txn */
+				continue;
+			}
+			if (retval  != 0 ) {
+				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
 		}
-	
-		if (DB_LOCK_DEADLOCK == retval)
-		{
-			LDAPDebug( LDAP_DEBUG_ARGS, "delete DEADLOCK vlv_update_index\n", 0, 0, 0 );
-			/* Retry txn */
-			continue;
-		}
-		if (retval  != 0 ) {
-			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			goto error_return;
-		}
-		if (retval  == 0 ) {
+		if (retval == 0 ) {
 			break;
 		}
 	}
