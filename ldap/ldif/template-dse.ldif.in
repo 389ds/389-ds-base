@@ -9,6 +9,7 @@ nsslapd-tmpdir: %tmp_dir%
 nsslapd-certdir: %cert_dir%
 nsslapd-ldifdir: %ldif_dir%
 nsslapd-bakdir: %bak_dir%
+nsslapd-rundir: %run_dir%
 nsslapd-instancedir: %inst_dir%
 nsslapd-accesslog-logging-enabled: on
 nsslapd-accesslog-maxlogsperdir: 10

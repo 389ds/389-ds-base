@@ -1727,6 +1727,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_LDIFDIR_ATTRIBUTE "nsslapd-ldifdir"
 #define CONFIG_BAKDIR_ATTRIBUTE "nsslapd-bakdir"
 #define CONFIG_SASLPATH_ATTRIBUTE "nsslapd-saslpath"
+#define CONFIG_RUNDIR_ATTRIBUTE "nsslapd-rundir"
 #define CONFIG_SSLCLIENTAUTH_ATTRIBUTE "nsslapd-SSLclientAuth"
 #define CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE "nsslapd-ssl-check-hostname"
 #define CONFIG_HASH_FILTERS_ATTRIBUTE "nsslapd-hash-filters"
@@ -1906,6 +1907,7 @@ typedef struct _slapdFrontendConfig {
   char *certdir;    /* full path name of directory containing cert files */
   char *ldifdir;    /* full path name of directory containing ldif files */
   char *bakdir;     /* full path name of directory containing bakup files */
+  char *rundir;     /* where pid, snmp stats, and ldapi files go */
   char *saslpath;   /* full path name of directory containing sasl plugins */
   int attrname_exceptions;  /* if true, allow questionable attribute names */
   int rewrite_rfc1274;		/* return attrs for both v2 and v3 names */

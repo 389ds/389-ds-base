@@ -65,3 +65,4 @@ inst_dir =      inst_dir
 log_dir =       log_dir
 config_dir =    config_dir
 db_dir =        db_dir
+run_dir =       run_dir

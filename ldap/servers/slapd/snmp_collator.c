@@ -60,6 +60,7 @@
 #include "prlock.h"
 #include "prerror.h"
 #include "prcvar.h"
+#include "plstr.h"
 
 #include "snmp_collator.h" 
 #include "../snmp/ntagt/nslagtcom_nt.h"
@@ -397,8 +398,10 @@ int snmp_collator_start()
 {
 
   int err;
-  char *statspath = config_get_tmpdir();
+  char *statspath = config_get_rundir();
   char *lp = NULL;
+  char *instdir = config_get_configdir();
+  char *instname = NULL;
 
   /*
    * Get directory for our stats file
@@ -407,10 +410,18 @@ int snmp_collator_start()
      statspath = slapi_ch_strdup("/tmp");
   }
 
-  PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/%s",
-                                                statspath, AGT_STATS_FILE);
+  instname = PL_strrstr(instdir, "slapd-");
+  if (!instname) {
+      instname = PL_strrstr(instdir, "/");
+      if (instname) {
+          instname++;
+      }
+  }
+  PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/%s%s",
+              statspath, instname, AGT_STATS_EXTENSION);
   tmpstatsfile = szStatsFile;
-  slapi_ch_free((void **) &statspath);
+  slapi_ch_free_string(&statspath);
+  slapi_ch_free_string(&instname);
 
   /* open the memory map */
   if ((err = agt_mopen_stats(tmpstatsfile, O_RDWR,  &hdl) != 0))

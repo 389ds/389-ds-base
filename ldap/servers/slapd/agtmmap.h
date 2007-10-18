@@ -79,7 +79,8 @@ extern int			errno;
 #if !defined(_MAX_PATH)
 #define _MAX_PATH 256
 #endif
-#define AGT_STATS_FILE "slapd.stats"
+#define AGT_STATS_EXTENSION ".stats"
+#define AGT_STATS_FILE "slapd" AGT_STATS_EXTENSION
 #define AGT_MJR_VERSION 1
 #define AGT_MNR_VERSION 0
 
