@@ -421,7 +421,7 @@ int snmp_collator_start()
               statspath, instname, AGT_STATS_EXTENSION);
   tmpstatsfile = szStatsFile;
   slapi_ch_free_string(&statspath);
-  slapi_ch_free_string(&instname);
+  slapi_ch_free_string(&instdir);
 
   /* open the memory map */
   if ((err = agt_mopen_stats(tmpstatsfile, O_RDWR,  &hdl) != 0))
