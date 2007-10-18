@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     AddThread **threads;
     PRUint32 total = 0, ntotal = 0;
     int counter;
-    char familynames[strlen(TEMPLATEDIR) + 19], givennames[strlen(TEMPLATEDIR) + 18];
+    char familynames[sizeof(TEMPLATEDIR) + 19], givennames[sizeof(TEMPLATEDIR) + 18];
 
     srand(time(NULL));
     if (argc < 2) {
