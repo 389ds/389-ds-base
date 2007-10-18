@@ -172,15 +172,23 @@ main (int argc, char *argv[]) {
 
     /* run as a daemon */
     if (netsnmp_daemonize(0, 0)) {
+        int i;
+
         /* sleep to allow pidfile to be created by child */
-        sleep(5);
-        if((pid_fp = fopen(pidfile,"r")) == NULL) {
-            printf("ldap-agent: Not started!  Check log file for details.\n");
-            exit(1);
-        } else {
-            fscanf(pid_fp, "%d", &child_pid);
-            fclose(pid_fp);
+        for (i=0; i < 3; i++) {
+            sleep(5);
+            if((pid_fp = fopen(pidfile,"r")) != NULL) {
+                break;
+            }
         }
+
+        if(!pid_fp) {
+            printf("ldap-agent: Not started after 15 seconds!  Check log file for details.\n");
+            exit(1);
+        }
+
+        fscanf(pid_fp, "%d", &child_pid);
+        fclose(pid_fp);
         printf("ldap-agent: Started as pid %d\n", child_pid);
         exit(1);
     }
@@ -315,7 +323,7 @@ load_config(char *conf_path)
             }
         } else if ((p = strstr(line, "server")) != NULL) {
             int got_port = 0;
-            int got_tmpdir = 0;
+            int got_rundir = 0;
             int lineno = 0;
             char *entry = NULL;
             char *instancename = NULL;
@@ -376,7 +384,7 @@ load_config(char *conf_path)
                 if ((strcmp(attr, "dn") == 0) &&
                     (strcmp(val, "cn=config") == 0)) {
                     char *dse_line = NULL;
-                    /* Look for port and tmpdir attributes */
+                    /* Look for port and rundir attributes */
                     while ((dse_line = ldif_getline(&entryp)) != NULL) {
                         ldif_parse_line(dse_line, &attr, &val, &vlen);
                         if (strcmp(attr, "nsslapd-port") == 0) {
@@ -396,16 +404,16 @@ load_config(char *conf_path)
                                 instancename = NULL;
                                 goto close_and_exit;
                             }
-                            got_tmpdir = 1;
+                            got_rundir = 1;
                         }
 
                         /* Stop processing this entry if we found the
-                         *  port and tmpdir settings */
-                        if (got_port && got_tmpdir) {
+                         *  port and rundir settings */
+                        if (got_port && got_rundir) {
                             break;
                         }
                     }
-                    /* The port and tmpdir settings must be in the
+                    /* The port and rundir settings must be in the
                      * cn=config entry, so we can stop reading through
                      * the dse.ldif now. */
                     break;
@@ -425,8 +433,8 @@ load_config(char *conf_path)
                        "server config file: %s\n", serv_p->dse_ldif);
                 error = 1;
                 goto close_and_exit;
-            } else if (!got_tmpdir) {
-                printf("ldap-agent: Error reading nsslapd-tmpdir from "
+            } else if (!got_rundir) {
+                printf("ldap-agent: Error reading nsslapd-rundir from "
                        "server config file: %s\n", serv_p->dse_ldif);
                 error = 1;
                 goto close_and_exit;

@@ -8,6 +8,9 @@ LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@netsnmp_libdir@
 BIN_DIR=@bindir@
 COMMAND=ldap-agent-bin
 
+# We don't need to load any mibs, so set MIBS to nothing.
+MIBS=
+export MIBS
 
 ###############################################################################
 ##  (2) Set the LD_LIBRARY_PATH environment variable to determine the        ##
