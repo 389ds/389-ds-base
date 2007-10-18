@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     AddThread **threads;
     PRUint32 total = 0, ntotal = 0;
     int counter;
-    char familynames[35], givennames[35];
+    char familynames[strlen(TEMPLATEDIR) + 19], givennames[strlen(TEMPLATEDIR) + 18];
 
     srand(time(NULL));
     if (argc < 2) {
@@ -241,14 +241,8 @@ int main(int argc, char **argv)
         fill_table(family_names, use_random);
     }
     else {
-        if (!access("../data/dbgen-FamilyNames", R_OK)) {
-            strcpy(familynames, "../data/dbgen-FamilyNames");
-            strcpy(givennames, "../data/dbgen-GivenNames");
-        }
-        else  {
-            strcpy(familynames, "../../data/dbgen-FamilyNames");
-            strcpy(givennames, "../../data/dbgen-GivenNames");
-        }
+        strcpy(familynames, TEMPLATEDIR "/dbgen-FamilyNames");
+        strcpy(givennames, TEMPLATEDIR "/dbgen-GivenNames");
         fprintf(stdout, "Loading Given-Names ...\n");
         if (!nt_load(given_names, givennames)) {
             fprintf(stdout, "*** Failed to read name table\n");
