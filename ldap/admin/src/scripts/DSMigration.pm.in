@@ -549,7 +549,11 @@ sub fixAttrsInEntry {
     my ($ent, $mig, $inst) = @_;
     for my $attr (keys %{$ent}) {
         my $lcattr = lc $attr;
-        if ($transformAttr{$lcattr}) {
+        if ($ignoreOld{$lcattr}) {
+            debug(3, "fixAttrsInEntry: ignoring old invalid or obsolete attr $attr\n");
+            $ent->remove($attr);
+            next;
+        } elsif ($transformAttr{$lcattr}) {
             my $newval = &{$transformAttr{$lcattr}}($ent, $attr, $mig, $inst);
             if (!$newval) {
                 debug(2, "Removing attribute $attr from entry ", $ent->getDN(), "\n");
@@ -558,7 +562,7 @@ sub fixAttrsInEntry {
                 debug(2, "Setting new value $newval for attribute $attr in entry ", $ent->getDN(), "\n");
                 $ent->setValues($attr, $newval);
             }
-        }
+        } # else just keep as is
     }
 }
 
