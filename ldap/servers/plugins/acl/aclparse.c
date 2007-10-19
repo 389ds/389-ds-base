@@ -1234,14 +1234,21 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 	__acl_strip_leading_space(&s);
 	__acl_strip_trailing_space(s);
 	len = strlen(s);
-	if (*s == '"' && s[len-1] == '"') {
-		s[len-1] = '\0';
-		s++;
-	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-						"__aclp__init_targetattr: Error: The statement does not begin and end with a \": [%s]\n",
-						s);
-		return ACL_SYNTAX_ERR;
+    /* Simple targetattr statements may not be quoted e.g.
+       targetattr=* or targetattr=userPassword
+       if it begins with a quote, it must end with one as well
+    */
+	if (*s == '"') {
+		s++; /* skip leading quote */
+        if (s[len-1] == '"') {
+            s[len-1] = '\0'; /* trim trailing quote */
+        } else {
+            /* error - if it begins with a quote, it must end with a quote */
+            slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+                            "__aclp__init_targetattr: Error: The statement does not begin and end with a \": [%s]\n",
+                            attr_val);
+            return ACL_SYNTAX_ERR;
+        }
 	}
 
 	str = s;
