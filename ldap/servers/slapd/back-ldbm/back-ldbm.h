@@ -54,7 +54,9 @@
 
 /* needed by at least HPUX and Solaris, to define off64_t */
 #ifdef DB_USE_64LFS
+#if !defined(_LARGEFILE64_SOURCE)
 #define _LARGEFILE64_SOURCE
+#endif
 #endif
 
 /* A bunch of random system headers taken from all the source files, no source file should #include

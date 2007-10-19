@@ -588,7 +588,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 	output_buffer_length = in_size + 16;
 	output_buffer = (unsigned char *)slapi_ch_malloc(output_buffer_length);
 	/* Now call NSS to do the cipher op */
-	iv_item.data = "aaaaaaaaaaaaaaaa"; /* ptr to an array of IV bytes */
+	iv_item.data = (unsigned char *)"aaaaaaaaaaaaaaaa"; /* ptr to an array of IV bytes */
 	iv_item.len = acs->ace->iv_length; /* length of the array of IV bytes */
 	security_parameter = slapd_pk11_ParamFromIV(acs->ace->cipher_mechanism, &iv_item);
 	if (NULL == security_parameter) {

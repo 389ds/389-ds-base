@@ -2256,7 +2256,7 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
 	 * to trim the DN to only dc components. */
 	if (suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt))) {
 		/* If this isn't found, it is treated as an error below. */
-		suffix = (const char *) strcasestr(suffix,"dc=");
+		suffix = (const char *) PL_strcasestr(suffix,"dc=");
 	}
 
 	if (cn && guid && suffix) {

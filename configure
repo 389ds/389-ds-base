@@ -23360,6 +23360,11 @@ cat >>confdefs.h <<\_ACEOF
 #define _REENTRANT 1
 _ACEOF
 
+
+cat >>confdefs.h <<\_ACEOF
+#define NO_DOMAINNAME 1
+_ACEOF
+
     LIBSOCKET=-lsocket
     LIBSOCKET=$LIBSOCKET
 

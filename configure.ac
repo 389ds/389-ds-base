@@ -310,6 +310,7 @@ case $host in
     AC_DEFINE([sunos5], [1], [SunOS5])
     AC_DEFINE([OSVERSION], [509], [OS version])
     AC_DEFINE([_REENTRANT], [1], [_REENTRANT])
+    AC_DEFINE([NO_DOMAINNAME], [1], [no getdomainname])
 dnl socket nsl and dl are required to link several programs and libdb
     LIBSOCKET=-lsocket
     AC_SUBST([LIBSOCKET], [$LIBSOCKET])

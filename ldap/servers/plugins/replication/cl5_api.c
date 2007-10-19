@@ -43,6 +43,7 @@
 
 /* cl5_api.c - implementation of 5.0 style changelog API */
 
+#include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
 #if defined( OS_solaris ) || defined( hpux )
@@ -6451,8 +6452,8 @@ static void _cl5DBCloseFile (void **data)
             if (rc != 0)
 	    {
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-                    "failed to remove (%s) file; libdb error - %d (%s)\n", file->name,
-                    rc, dblayer_strerror(rc));
+                    "failed to remove (%s) file; libdb error - %d (%s)\n", 
+					fullpathname, rc, db_strerror(rc));
             }
         }
 
