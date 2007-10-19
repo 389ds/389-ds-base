@@ -3027,7 +3027,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	/* Convert the filter string */
 	f = slapi_str2filter ( ludp->lud_filter );
 
-	if (f == NULL) { /* bogus filter */
+	if (ludp->lud_filter && (f == NULL)) { /* bogus filter */
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 						"DS_LASUserAttrEval: The member URL search filter in entry [%s] is not valid: [%s]\n",
 						n_clientdn, ludp->lud_filter);
@@ -3036,8 +3036,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
     }
 
 	rc = ACL_TRUE;
-	if (0 != slapi_vattr_filter_test ( aclpb->aclpb_pblock, 
-				aclpb->aclpb_client_entry, f, 0 /* no acces chk */ ))
+	if (f && (0 != slapi_vattr_filter_test ( aclpb->aclpb_pblock, 
+				aclpb->aclpb_client_entry, f, 0 /* no acces chk */ )))
 		rc = ACL_FALSE;
 
 	ldap_free_urldesc( ludp );
@@ -3842,6 +3842,8 @@ static int acllas_eval_one_target_filter( char * str, Slapi_Entry *e) {
 	
 	int rc = ACL_FALSE;
 	Slapi_Filter *f = NULL;							
+
+	PR_ASSERT(str);
 
 	if ((f = slapi_str2filter(str)) == NULL) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,

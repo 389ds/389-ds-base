@@ -331,7 +331,8 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 			item->dn = 0;
 		item->filter = slapi_ch_strdup(filter);
 		item->caller_data = caller_data;
-		if (NULL == (item->realfilter = slapi_str2filter(writable_filter))) {
+		if (writable_filter &&
+			(NULL == (item->realfilter = slapi_str2filter(writable_filter)))) {
 			slapi_log_error(SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM,
 							"Error: invalid filter in statechange entry [%s]: [%s]\n",
 							dn, filter);
@@ -341,6 +342,8 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 			slapi_ch_free_string(&writable_filter);
 			slapi_ch_free((void **)&item);
 			return -1;
+		} else if (!writable_filter) {
+			item->realfilter = NULL;
 		}
 		item->func = func;
 
