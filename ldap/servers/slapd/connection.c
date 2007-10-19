@@ -254,7 +254,11 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 	/* try syscall since "from" was not given and PR_GetPeerName failed */
 	/* a corner case */
 	struct sockaddr_in addr; /* assuming IPv4 */
+#if ( defined( hpux ) )
+	int                addrlen;
+#else
 	socklen_t          addrlen;
+#endif
 
 	addrlen = sizeof( addr );
 	memset( &addr, 0, addrlen );
@@ -309,7 +313,11 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 	/* try syscall since c_prfd == NULL */
 	/* a corner case */
 	struct sockaddr_in	destaddr; /* assuming IPv4 */
+#if ( defined( hpux ) )
+	int			destaddrlen;
+#else
 	socklen_t		destaddrlen;
+#endif
 
 	destaddrlen = sizeof( destaddr );
 	memset( &destaddr, 0, destaddrlen );

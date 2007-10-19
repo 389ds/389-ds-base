@@ -277,7 +277,6 @@ case $host in
     AC_DEFINE([OS_hpux], [1], [OS HP-UX])
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
-    AC_DEFINE([_XOPEN_SOURCE_EXTENDED], [1], [To use XOPEN getpeername])
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
