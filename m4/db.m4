@@ -30,6 +30,8 @@ AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
     if test -f "/usr/include/db.h"; then
       db_incdir="/usr/include"
       db_inc="-I/usr/include"
+      db_lib='-L$(libdir)'
+      db_libdir='$(libdir)'
     else
       AC_MSG_ERROR([db.h not found])
     fi
@@ -59,6 +61,8 @@ if test -z "$db_inc"; then
     AC_MSG_RESULT([using /usr/include/db.h])
     db_incdir="/usr/include"
     db_inc="-I/usr/include"
+    db_lib='-L$(libdir)'
+    db_libdir='$(libdir)'
   else
     AC_MSG_RESULT(no)
     AC_MSG_ERROR([db not found, specify with --with-db.])

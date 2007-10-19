@@ -24169,6 +24169,8 @@ echo "${ECHO_T}yes" >&6
         if test -f "/usr/include/db.h"; then
       db_incdir="/usr/include"
       db_inc="-I/usr/include"
+      db_lib='-L$(libdir)'
+      db_libdir='$(libdir)'
     else
       { { echo "$as_me:$LINENO: error: db.h not found" >&5
 echo "$as_me: error: db.h not found" >&2;}
@@ -24207,6 +24209,8 @@ echo $ECHO_N "checking for db.h... $ECHO_C" >&6
 echo "${ECHO_T}using /usr/include/db.h" >&6
     db_incdir="/usr/include"
     db_inc="-I/usr/include"
+    db_lib='-L$(libdir)'
+    db_libdir='$(libdir)'
   else
     echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
