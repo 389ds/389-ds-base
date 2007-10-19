@@ -369,8 +369,8 @@ warn_if_no_cert_file(const char *dir)
         status = PR_Access(filename, PR_ACCESS_READ_OK);
         if (PR_SUCCESS != status) {
             slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-                            "Warning: certificate DB file cert8.db nor cert7.db exists - SSL initialization will likely fail\n",
-                            filename);
+                            "Warning: certificate DB file cert8.db nor cert7.db exists in [%s] - SSL initialization will likely fail\n",
+                            dir);
         }
     }
     slapi_ch_free_string(&filename);
