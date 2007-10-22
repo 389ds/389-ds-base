@@ -391,11 +391,12 @@ load_config(char *conf_path)
                             serv_p->port = atol(val);
                             got_port = 1;
                         } else if (strcmp(attr, "nsslapd-rundir") == 0) {
-                            serv_p->stats_file = malloc(vlen + 13);
+                            /* 8 =  "/" + ".stats" + \0 */
+                            serv_p->stats_file = malloc(vlen + strlen(instancename) + 8);
                             if (serv_p->stats_file != NULL) {
-                                snprintf(serv_p->stats_file, vlen + 13,
-                                         "%s/%s.stats", instancename, val);
-                                serv_p->stats_file[(vlen + 12)] = (char)0;
+                                snprintf(serv_p->stats_file, vlen + strlen(instancename) + 8,
+                                         "%s/%s.stats", val, instancename);
+                                serv_p->stats_file[(vlen + strlen(instancename) + 7)] = (char)0;
                             } else {
                                 printf("ldap-agent: malloc error processing config file\n");
                                 free(entry);
