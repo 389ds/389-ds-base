@@ -134,6 +134,37 @@ my %alwaysUseOld =
  'aci'      => 'aci'
 );
 
+sub getDBVERSION {
+    my $olddbdir = shift;
+    my $data = shift;
+
+    open DBVERSION, "$olddbdir/DBVERSION" or 
+        return ('error_reading_dbversion', $olddbdir, $!);
+    my $line = <DBVERSION>;
+    close DBVERSION;
+    chomp($line);
+    my @foo = split("/", $line);
+    $data = \@foo;
+    return ();
+}
+
+sub isOldDatabase {
+    my $olddbdir = shift;
+    my $errs = shift; # array ref
+    # check old DBVERSION file
+    my @verinfo;
+    if (@{$errs} = getDBVERSION($olddbdir, \@verinfo)) {
+        return 0;
+    }
+
+    if ((($verinfo[0] =~ /^netscape/i) or ($verinfo[0] =~ /^iplanet/i)) and
+        (($verinfo[1] =~ /^6/) or ($verinfo[1] =~ /^5/) or ($verinfo[1] =~ /^4/))) {
+        return 1;
+    }
+
+    return 0;
+}
+
 sub getNewDbDir {
     my ($ent, $attr, $mig, $inst) = @_;
     my $newval;
@@ -217,7 +248,27 @@ sub migIdlSwitch {
     # nsslapd-idl-switch
     # if not doing cross platform, meaning we just use the existing
     # database binaries, we must preserve whatever the old value is
+    # unless migrating from 6.21 or earlier, in which case we must
+    # be migrating from LDIF, and must use the new idl switch
     if (!$mig->{crossplatform}) {
+        # the given entry is the old entry - see if it has the nsslapd-directory
+        my $olddbdir = $ent->getValues('nsslapd-db-home-directory') ||
+            $ent->getValues('nsslapd-directory') ||
+            "$mig->{actualsroot}/$inst/db"; # old default db home directory
+        # replace the old sroot value with the actual physical location on the target/dest
+        $olddbdir =~ s/^$mig->{actualsroot}/$mig->{oldsroot}/;
+        my @errs;
+        my $isold = isOldDatabase($olddbdir, \@errs);
+        if (@errs) {
+            $mig->msg($FATAL, @errs);
+            return $newval; # use default new value
+        } elsif ($isold) {
+            debug(3, "The database in $olddbdir is too old to migrate the idl switch setting\n");
+            return $newval; # use default new value
+        }
+
+        # else the database could be in the new format already - preserve
+        # the user's old value
         $newval = $ent->getValues($attr);
     }
 
@@ -241,35 +292,17 @@ my %transformAttr =
  'nsslapd-idl-switch' => \&migIdlSwitch
 );
 
-sub getDBVERSION {
-    my $olddbdir = shift;
-    my $data = shift;
-
-    open DBVERSION, "$olddbdir/DBVERSION" or 
-        return ('error_reading_dbversion', $olddbdir, $!);
-    my $line = <DBVERSION>;
-    close DBVERSION;
-    chomp($line);
-    my @foo = split("/", $line);
-    $data = \@foo;
-    return ();
-}
-
 sub copyDatabaseDirs {
     my $srcdir = shift;
     my $destdir = shift;
     my $filesonly = shift;
     my @errs;
 
-    # check old DBVERSION file
-    my @verinfo;
-    if (@errs = getDBVERSION($srcdir, \@verinfo)) {
+    my $isold = isOldDatabase($srcdir, \@errs);
+    if (@errs) {
         return @errs;
-    }
-
-    if ((($verinfo[0] =~ /^netscape/i) or ($verinfo[0] =~ /^iplanet/i)) and
-        (($verinfo[1] =~ /^6/) or ($verinfo[1] =~ /^5/) or ($verinfo[1] =~ /^4/))) {
-        return ('error_database_too_old', $srcdir, @verinfo);
+    } elsif ($isold) {
+        return ('error_database_too_old', $olddbdir, @verinfo);
     }
 
     if (-d $srcdir && ! -d $destdir && !$filesonly) {
