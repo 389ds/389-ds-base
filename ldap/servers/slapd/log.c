@@ -3145,6 +3145,10 @@ delete_logfile:
 			return 0;
 		}
 	} 
+	LDAPDebug(LDAP_DEBUG_TRACE, 
+			   "LOGINFO:Removing file:%s.%s because of (%s)\n",
+					loginfo.log_error_file, tbuf,
+					logstr);
 
 	if (p_delete_logp == delete_logp) {
 		/* then we are deleteing the first one */
@@ -3159,11 +3163,6 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		LDAPDebug(LDAP_DEBUG_ANY, "LOGINFO:Unable to remove file:%s.%s\n",
 				   loginfo.log_audit_file, tbuf,0);
-	} else {
-		LDAPDebug(LDAP_DEBUG_TRACE, 
-			   "LOGINFO:Removed file:%s.%s because of (%s)\n",
-					loginfo.log_error_file, tbuf,
-					logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_error_logs--;
