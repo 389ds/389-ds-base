@@ -562,7 +562,10 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			/* ignore trailing whitespace */
 			len = strlen(user);
 			ptr = user+len-1;
-			while(ldap_utf8isspace(ptr)){ *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+			while(ptr >= user && ldap_utf8isspace(ptr)) {
+				*ptr = '\0';
+				LDAP_UTF8DEC(ptr);
+			}
 		}
 
 		/* 
@@ -806,7 +809,10 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			/* ignore trailing whitespace */
 			len = strlen(groupName);
 			ptr = groupName+len-1;
-			while(ldap_utf8isspace(ptr)) { *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+			while(ptr >= groupName && ldap_utf8isspace(ptr)) {
+				*ptr = '\0';
+				LDAP_UTF8DEC(ptr);
+			}
 		}
 
 		/* 
@@ -966,7 +972,10 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			/* ignore trailing whitespace */
 			len = strlen(role);
 			ptr = role+len-1;
-			while(ldap_utf8isspace(ptr)) { *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+			while(ptr >= role && ldap_utf8isspace(ptr)) {
+				*ptr = '\0';
+				LDAP_UTF8DEC(ptr);
+			}
 		}
 
 		/* 
@@ -1118,7 +1127,10 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	while(ldap_utf8isspace(attrName)) LDAP_UTF8INC(attrName);
 	len = strlen(attrName);
 	ptr = attrName+len-1;
-	while(ldap_utf8isspace(ptr)) { *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+	while(ptr >= attrName && ldap_utf8isspace(ptr)) {
+		*ptr = '\0';
+		LDAP_UTF8DEC(ptr);
+	}
 
 	
 	/* See if we have a  parent[2].attr" rule */
@@ -1346,7 +1358,10 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	while(ldap_utf8isspace(attr)) LDAP_UTF8INC(attr);
 	len = strlen(attr);
 	ptr = attr+len-1;
-	while(ldap_utf8isspace(ptr)) { *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+	while(ptr >= attr && ldap_utf8isspace(ptr)) {
+		*ptr = '\0';
+		LDAP_UTF8DEC(ptr);
+	}
 
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 				"DS_LASAuthMethodEval:authtype:%s authmethod:%s\n", 
@@ -2124,7 +2139,10 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		while(ldap_utf8isspace(attrName)) LDAP_UTF8INC(attrName);
 		len = strlen(attrName);
 		ptr = attrName+len-1;
-		while(ldap_utf8isspace(ptr)) { *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+		while(ptr >= attrName && ldap_utf8isspace(ptr)) {
+			*ptr = '\0';
+			LDAP_UTF8DEC(ptr);
+		}
 
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName, 0,0);
 

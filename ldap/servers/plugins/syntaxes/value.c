@@ -88,13 +88,14 @@ utf8isspace_fast( char* s )
 */
 void
 value_normalize(
-    char	*s,
-    int		syntax,
+    char    *s,
+    int     syntax,
     int     trim_spaces
 )
 {
-	char	*d;
-	int	prevspace, curspace;
+	char *head = s;
+	char *d;
+	int  prevspace, curspace;
 
 	if ( ! (syntax & SYNTAX_CIS) && ! (syntax & SYNTAX_CES) ) {
 		return;
@@ -107,10 +108,10 @@ value_normalize(
 
 	d = s;
 	if (trim_spaces) {
-	    /* strip leading blanks */
-	  while (utf8isspace_fast(s)) {
-	      LDAP_UTF8INC(s);
-	  }
+		/* strip leading blanks */
+		while (utf8isspace_fast(s)) {
+			LDAP_UTF8INC(s);
+		}
 	}
 
 	/* for int syntax, look for leading sign, then trim 0s */
@@ -167,8 +168,8 @@ value_normalize(
 
 		/* compress multiple blanks */
 		if ( prevspace && curspace ) {
-		    LDAP_UTF8INC(s);
-		    continue;
+			LDAP_UTF8INC(s);
+			continue;
 		}
 		prevspace = curspace;
 		if ( syntax & SYNTAX_CIS ) {
@@ -177,28 +178,28 @@ value_normalize(
 			s += ssz;
 			d += dsz;
 		} else {
-	            char *np;
-		    int sz;
+			char *np;
+			int sz;
 			
-		    np = ldap_utf8next(s);
-		    if (np == NULL || np == s) break;
-		    sz = np - s;
-		    memmove(d,s,sz);
-		    d += sz;
-		    s += sz;
+			np = ldap_utf8next(s);
+			if (np == NULL || np == s) break;
+			sz = np - s;
+			memmove(d,s,sz);
+			d += sz;
+			s += sz;
 		}
 	}
 	*d = '\0';
 	/* strip trailing blanks */
 	if (prevspace && trim_spaces) {
-	    char *nd;
+		char *nd;
 
-	    nd = ldap_utf8prev(d);
-	    while (nd && utf8isspace_fast(nd)) {
-	        d = nd;
-	        nd = ldap_utf8prev(d);
-		*d = '\0';
-	    }
+		nd = ldap_utf8prev(d);
+		while (nd && nd >= head && utf8isspace_fast(nd)) {
+			d = nd;
+			nd = ldap_utf8prev(d);
+			*d = '\0';
+		}
 	}
 }
 

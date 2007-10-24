@@ -464,7 +464,7 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 		char	*next;
 		next = s + 12;
 		s--;
-		while (s != str && ldap_utf8isspace(s)) LDAP_UTF8DEC(s);
+		while (s > str && ldap_utf8isspace(s)) LDAP_UTF8DEC(s);
 		if (s && *s == ';') {
 			/* We don't support authenticate stuff */
 			return ACL_INVALID_AUTHORIZATION;
@@ -1542,9 +1542,12 @@ __acl_strip_trailing_space( char *str) {
 
 	if (*str) {
 		/* ignore trailing whitespace */
-      		len = strlen(str);
-	      	ptr = str+len-1;
-		while(ldap_utf8isspace(ptr)){ *ptr = '\0'; LDAP_UTF8DEC(ptr); }
+		len = strlen(str);
+		ptr = str+len-1;
+		while(ptr >= str && ldap_utf8isspace(ptr)) {
+			*ptr = '\0';
+			LDAP_UTF8DEC(ptr);
+		}
 	}
 }
 
