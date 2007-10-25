@@ -302,7 +302,7 @@ sub copyDatabaseDirs {
     if (@errs) {
         return @errs;
     } elsif ($isold) {
-        return ('error_database_too_old', $olddbdir, @verinfo);
+        return ('error_database_too_old', $srcdir);
     }
 
     if (-d $srcdir && ! -d $destdir && !$filesonly) {
