@@ -1088,6 +1088,7 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/50ns-admin.ldif \
 	$(srcdir)/ldap/schema/50ns-certificate.ldif \
 	$(srcdir)/ldap/schema/50ns-directory.ldif \
+	$(srcdir)/ldap/schema/50ns-mail.ldif \
 	$(srcdir)/ldap/schema/50ns-value.ldif \
 	$(srcdir)/ldap/schema/50ns-web.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
