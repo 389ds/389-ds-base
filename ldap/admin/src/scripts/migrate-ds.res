@@ -26,7 +26,7 @@ fixing_integer_attr_index = The index for the attribute '%s' in the database dir
 error_removing_index_file = Could not remove the index file '%s'.  Error: %s\n\n
 error_recreating_index_file = Could not re-create the index file '%s'.  Error: %s\n\n
 error_reading_dbversion = Could not read the old database version information from '%s'.  Error: %s\n\n
-error_database_too_old = The database at '%s' is version '%s/%s'.\
+error_database_too_old = The database at '%s' is too old to be migrated as a binary copy.  You must export to LDIF.\n\n
 This version cannot be migrated using the database binaries.  You must\
 first convert the databases to LDIF format and use the cross platform\
 migration procedure.  This procedure is documented in the migration\
