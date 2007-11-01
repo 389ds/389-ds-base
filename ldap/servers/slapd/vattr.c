@@ -630,163 +630,162 @@ int vattr_test_filter( Slapi_PBlock *pb,
 */
 SLAPI_DEPRECATED int
 slapi_vattr_values_get_sp(vattr_context *c,
-							/* Entry we're interested in */ Slapi_Entry *e,
-							/* attr type name */ char *type,
-							/* pointer to result set */ Slapi_ValueSet** results,
-							int *type_name_disposition,
-							char** actual_type_name, int flags,
-							int *buffer_flags) 
+                          /* Entry we're interested in */ Slapi_Entry *e,
+                          /* attr type name */ char *type,
+                          /* pointer to result set */ Slapi_ValueSet** results,
+                          int *type_name_disposition,
+                          char** actual_type_name, int flags,
+                          int *buffer_flags) 
 {
+  PRBool use_local_ctx = PR_FALSE;
+  Slapi_PBlock *local_pb = NULL;
+  vattr_context *ctx = NULL;
+  int rc = 0;
+  int sp_bit = 0; /* Set if an SP supplied an answer */
+  vattr_sp_handle_list *list = NULL;
 
-  PRBool use_local_ctx=PR_FALSE;
-  vattr_context ctx;
-	int rc = 0;
-	int sp_bit = 0; /* Set if an SP supplied an answer */
-	vattr_sp_handle_list *list = NULL;
+  vattr_get_thang my_get = {0};
 
-	vattr_get_thang my_get = {0};
+  if (c != NULL) {
+    rc = vattr_context_grok(&c);
+    if (0 != rc) {
+      if(!vattr_context_is_loop_msg_displayed(&c))
+      {
+        /* Print a handy error log message */
+        LDAPDebug(LDAP_DEBUG_ANY,
+          "Detected virtual attribute loop in get on entry %s, attribute %s\n",
+          slapi_entry_get_dn_const(e), type, 0);
+        vattr_context_set_loop_msg_displayed(&c);
+      }
+      return rc;
+    }
+    ctx = c;
+  } else {
+    use_local_ctx = PR_TRUE;
+    local_pb = slapi_pblock_new();
+    ctx = vattr_context_new( local_pb );
+    ctx->vattr_context_loop_count = 1;
+    ctx->error_displayed = 0;
+  }
 
-	if (c != NULL) {
-	  rc = vattr_context_grok(&c);
-	  if (0 != rc) {
-		if(!vattr_context_is_loop_msg_displayed(&c))
-		{
-			/* Print a handy error log message */
-			LDAPDebug(LDAP_DEBUG_ANY,"Detected virtual attribute loop in get on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
-			vattr_context_set_loop_msg_displayed(&c);
-		}
-	    return rc;
-	  }
-	} else {
-	  use_local_ctx=PR_TRUE;
-	  ctx.vattr_context_loop_count=1;
-	  ctx.error_displayed = 0;
-	}
+  /* For attributes which are in the entry, we just need to get to the Slapi_Attr structure and yank out the slapi_value_set 
+     structure. We either return a pointer directly to it, or we copy it, depending upon whether the caller asked us to try to 
+     avoid copying.
+  */
 
-	/* For attributes which are in the entry, we just need to get to the Slapi_Attr structure and yank out the slapi_value_set 
-	   structure. We either return a pointer directly to it, or we copy it, depending upon whether the caller asked us to try to 
-	   avoid copying.
-	*/
+  /* First grok the entry, and remember what we saw. This call does no more than walk down the entry attribute list, do some string compares and copy pointers. */
+  vattr_helper_get_entry_conts(e,type, &my_get);
+  /* Having done that, we now consult the attribute map to find service providers who are interested */
+  /* Look for attribute in the map */
+  if(!(flags & SLAPI_REALATTRS_ONLY))
+  {
+    list = vattr_map_sp_getlist(type);
+    if (list) {
+      vattr_sp_handle *current_handle = NULL;
+      void *hint = NULL;
+      /* first lets consult the cache to save work */
+      int cache_status;
+            
+      cache_status =
+        slapi_entry_vattrcache_find_values_and_type(e, type,
+                              results,
+                              actual_type_name);                              
+      switch(cache_status)
+      {
+        case SLAPI_ENTRY_VATTR_RESOLVED_EXISTS: /* cached vattr */
+        {
+          sp_bit = 1;          
 
-	/* First grok the entry, and remember what we saw. This call does no more than walk down the entry attribute list, do some string compares and copy pointers. */
-	vattr_helper_get_entry_conts(e,type, &my_get);
-	/* Having done that, we now consult the attribute map to find service providers who are interested */
-	/* Look for attribute in the map */
-	if(!(flags & SLAPI_REALATTRS_ONLY))
-	{
-		list = vattr_map_sp_getlist(type);
-		if (list) {
-			vattr_sp_handle *current_handle = NULL;
-			void *hint = NULL;
-			/* first lets consult the cache to save work */
-			int cache_status;
-						
-			cache_status =
-				slapi_entry_vattrcache_find_values_and_type(e, type,
-															results,
-															actual_type_name);															
-			switch(cache_status)
-			{
-				case SLAPI_ENTRY_VATTR_RESOLVED_EXISTS: /* cached vattr */
-				{
-					sp_bit = 1;					
+          /* Complete analysis of type matching */
+          if ( 0 == slapi_attr_type_cmp( type , *actual_type_name, SLAPI_TYPE_CMP_EXACT) )
+          {
+            *type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS;
+          } else {
+            *type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE;
+          }
 
-					/* Complete analysis of type matching */
-					if ( 0 == slapi_attr_type_cmp( type , *actual_type_name, SLAPI_TYPE_CMP_EXACT) )
-					{
-						*type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS;
-					} else {
-						*type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE;
-					}
+          break;
+        }
 
-					break;
-				}
+        case SLAPI_ENTRY_VATTR_RESOLVED_ABSENT: /* does not exist */
+          break; /* look in entry */
 
-				case SLAPI_ENTRY_VATTR_RESOLVED_ABSENT: /* does not exist */
-					break; /* look in entry */
+        case SLAPI_ENTRY_VATTR_NOT_RESOLVED: /* not resolved */
+        default: /* any other result, resolve */
+        {
+          for (current_handle = vattr_map_sp_first(list,&hint); current_handle; current_handle = vattr_map_sp_next(current_handle,&hint))
+          {
+            rc = vattr_call_sp_get_value(current_handle,ctx,e,&my_get,type,results,type_name_disposition,actual_type_name,flags,buffer_flags, hint);
+            if (0 == rc)
+            {
+              sp_bit = 1;
+              break;
+            }
+          }
 
-				case SLAPI_ENTRY_VATTR_NOT_RESOLVED: /* not resolved */
-				default: /* any other result, resolve */
-				{
-					for (current_handle = vattr_map_sp_first(list,&hint); current_handle; current_handle = vattr_map_sp_next(current_handle,&hint))
-					{
-						if (use_local_ctx)
-						{
-							rc = vattr_call_sp_get_value(current_handle,&ctx,e,&my_get,type,results,type_name_disposition,actual_type_name,flags,buffer_flags, hint);
-						}
-						else
-						{
-							/* call this SP */
-							rc = vattr_call_sp_get_value(current_handle,c,e,&my_get,type,results,type_name_disposition,actual_type_name,flags,buffer_flags, hint);
-						}
+          if(!sp_bit)
+          {
+            /* clean up, we have failed and must now examine the
+             * entry itself
+             * But first lets cache the no result
+             * Creates the type (if necessary).
+            */
+            slapi_entry_vattrcache_merge_sv(e, type, NULL );
 
-						if (0 == rc)
-						{
-							sp_bit = 1;
-							break;
-						}
-					}
+          }
+          else
+          {
+            /*
+             * we need to cache the virtual attribute
+             * creates the type (if necessary) and dups
+             * results.
+            */
+            slapi_entry_vattrcache_merge_sv(e, *actual_type_name,
+                            *results );
+          }
 
-					if(!sp_bit)
-					{
-						/* clean up, we have failed and must now examine the
-						 * entry itself
-						 * But first lets cache the no result
-						 * Creates the type (if necessary).
-						*/
-						slapi_entry_vattrcache_merge_sv(e, type, NULL );
+          break;
+        }
+      }
+    }
+  }
+  /* If no SP supplied the answer, take it from the entry */
+  if (!sp_bit && !(flags & SLAPI_VIRTUALATTRS_ONLY)) 
+  {
+    rc = 0; /* reset return code (cause an sp must have failed) */
+    *type_name_disposition = my_get.get_name_disposition;
 
-					}
-					else
-					{
-						/*
-						 * we need to cache the virtual attribute
-						 * creates the type (if necessary) and dups
-						 * results.
-						*/
-						slapi_entry_vattrcache_merge_sv(e, *actual_type_name,
-														*results );
-					}
-
-					break;
-				}
-			}
-		}
-	}
-	/* If no SP supplied the answer, take it from the entry */
-	if (!sp_bit && !(flags & SLAPI_VIRTUALATTRS_ONLY)) 
-	{
-		rc = 0; /* reset return code (cause an sp must have failed) */
-		*type_name_disposition = my_get.get_name_disposition;
-
-		if (my_get.get_present) {
-			if (flags & SLAPI_VIRTUALATTRS_REQUEST_POINTERS) {
-				*results = my_get.get_present_values;
-				*actual_type_name = my_get.get_type_name;
-			} else {
-				*results = valueset_dup(my_get.get_present_values);
-				if (NULL == *results) {
-					rc = ENOMEM;
-				} else {
-					*actual_type_name = slapi_ch_strdup(my_get.get_type_name);
-					if (NULL == *actual_type_name) {
-						rc = ENOMEM;
-					}
-				}
-			}
-			if (flags & SLAPI_VIRTUALATTRS_REQUEST_POINTERS) {
-					*buffer_flags = SLAPI_VIRTUALATTRS_RETURNED_POINTERS;
-			} else {
-				*buffer_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;
-			}
-		} else {
-			rc = SLAPI_VIRTUALATTRS_NOT_FOUND;
-		}
-	}
-	if (!use_local_ctx) {
-	  vattr_context_ungrok(&c);
-	}
-	return rc;
+    if (my_get.get_present) {
+      if (flags & SLAPI_VIRTUALATTRS_REQUEST_POINTERS) {
+        *results = my_get.get_present_values;
+        *actual_type_name = my_get.get_type_name;
+      } else {
+        *results = valueset_dup(my_get.get_present_values);
+        if (NULL == *results) {
+          rc = ENOMEM;
+        } else {
+          *actual_type_name = slapi_ch_strdup(my_get.get_type_name);
+          if (NULL == *actual_type_name) {
+            rc = ENOMEM;
+          }
+        }
+      }
+      if (flags & SLAPI_VIRTUALATTRS_REQUEST_POINTERS) {
+          *buffer_flags = SLAPI_VIRTUALATTRS_RETURNED_POINTERS;
+      } else {
+        *buffer_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;
+      }
+    } else {
+      rc = SLAPI_VIRTUALATTRS_NOT_FOUND;
+    }
+  }
+  if (use_local_ctx) {
+    /* slapi_pblock_destroy cleans up pb_vattr_context, as well */
+    slapi_pblock_destroy(local_pb);
+  } else {
+    vattr_context_ungrok(&c);
+  }
+  return rc;
 }
 
 /*
