@@ -131,10 +131,29 @@ passthru_config( int argc, char **argv )
      */
     prevsrvr = NULL;
     for ( i = 0; i < argc; ++i ) {
+	char *p = NULL;
 	srvr = (PassThruServer *)slapi_ch_calloc( 1, sizeof( PassThruServer ));
 	srvr->ptsrvr_url = slapi_ch_strdup( argv[i] );
 
-	if (( p = strchr( srvr->ptsrvr_url, ',' )) == NULL ) {
+	/* since the ldap url may contain both spaces (to delimit multiple hosts)
+	   and commas (in suffixes), we have to search for the first space
+	   after the last /, then look for any commas after that
+	   This assumes the ldap url looks like this:
+	   ldap(s)://host:port host:port .... host:port/suffixes
+	   That is, it assumes there is always a trailing slash on the ldapurl
+	   and that the url does not look like this: ldap://host
+	   also assumes suffixes do not have any / in them
+	*/
+	if (p = strrchr(srvr->ptsrvr_url, '/')) { /* look for last / */
+	    p = strchr(p, ' '); /* look for first space after last / */
+	    if (p) {
+		if (!strchr(p, ',')) { /* no comma */
+		    p = NULL; /* just use defaults */
+		}
+	    }
+	}
+
+	if (!p) {
 	    /*
 	     * use defaults for maxconnections, maxconcurrency, timeout,
 	     * LDAP version, and connlifetime.
@@ -152,7 +171,7 @@ passthru_config( int argc, char **argv )
 	     *     maxconnections,maxconcurrency,timeout,ldapversion
 	     * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime
 	     */
-	    *p++ = '\0';
+	    *p++ = '\0'; /* p points at space preceding optional arguments */
 	    rc = sscanf( p, "%d,%d,%d,%d,%d", &srvr->ptsrvr_maxconnections,
 		    &srvr->ptsrvr_maxconcurrency, &tosecs,
 		    &srvr->ptsrvr_ldapversion, &srvr->ptsrvr_connlifetime );
