@@ -2870,11 +2870,11 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 			slapi_ch_free ((void**)&netaddr);
 		}
 		*addr = (PRNetAddr **)slapi_ch_calloc(2, sizeof (PRNetAddr *));
-		*addr[0] = netaddr;
+		(*addr)[0] = netaddr;
 	} else if (PR_SUCCESS == PR_StringToNetAddr(listenhost, netaddr)) {
 		/* PR_StringNetAddr newer than NSPR v4.6.2 supports both IPv4&v6 */; 
 		*addr = (PRNetAddr **)slapi_ch_calloc(2, sizeof (PRNetAddr *));
-		*addr[0] = netaddr;
+		(*addr)[0] = netaddr;
 	} else {
 		PRAddrInfo *infop = PR_GetAddrInfoByName( listenhost,
 						PR_AF_UNSPEC, (PR_AI_ADDRCONFIG|PR_AI_NOCANONNAME) );
@@ -2901,9 +2901,10 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 				for  ( i = 0; i < addrcnt; i++ ) {
 					iter = PR_EnumerateAddrInfo( iter, infop, 0, netaddr );
 					if ( NULL == iter ) {
+						slapi_ch_free((void **)&netaddr); /* not used */
 						break;
 					}
-					*addr[i] = netaddr;
+					(*addr)[i] = netaddr;
 					netaddr = (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
 				}
 			}
