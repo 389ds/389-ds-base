@@ -82,8 +82,10 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
     Slapi_Entry *e;
     Slapi_PBlock *util_pb = NULL;
     int rc;
+    int result;
     char entry_string[512];
     int dont_write_file = 0;
+    char ebuf[BUFSIZ];
 
     if (flags & LDBM_INSTANCE_CONFIG_DONT_WRITE) {
         dont_write_file = 1;
@@ -93,11 +95,21 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
         util_pb = slapi_pblock_new();
         PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
+        PR_snprintf(ebuf, sizeof(ebuf), slapi_entry_get_dn_const(e)); /* for logging */
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
         slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, 
                          &dont_write_file);
-        if ((rc = slapi_add_internal_pb(util_pb)) != LDAP_SUCCESS) {
-            LDAPDebug(LDAP_DEBUG_ANY, "Unable to add config entries to the DSE: %d\n", rc, 0, 0);
+        rc = slapi_add_internal_pb(util_pb);
+        slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        if (!rc && (result == LDAP_SUCCESS)) {
+            LDAPDebug(LDAP_DEBUG_CONFIG, "Added database config entry [%s]\n",
+                      ebuf, 0, 0);
+        } else if (result == LDAP_ALREADY_EXISTS) {
+            LDAPDebug(LDAP_DEBUG_TRACE, "Database config entry [%s] already exists - skipping\n",
+                      ebuf, 0, 0);
+        } else {
+            LDAPDebug(LDAP_DEBUG_ANY, "Unable to add config entry [%s] to the DSE: %d %d\n",
+                      ebuf, result, rc);
         }
         slapi_pblock_destroy(util_pb);
     }

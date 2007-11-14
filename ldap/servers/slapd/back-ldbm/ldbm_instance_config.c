@@ -490,27 +490,11 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         slapi_pblock_destroy(search_pb);
     }
 
-    /* now check for cn=monitor -- if not present, add default child entries */
-    search_pb = slapi_pblock_new();
-    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
-    slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE,
-                                 "objectclass=*", NULL, 0, NULL, NULL,
-                                 li->li_identity, 0);
-    slapi_search_internal_pb(search_pb);
-    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
-
-    if (res == LDAP_NO_SUCH_OBJECT) {
-        /* Add skeleton dse entries for this instance */
-        ldbm_config_add_dse_entries(li, ldbm_instance_skeleton_entries,
-                                    inst->inst_name, li->li_plugin->plg_name,
-                                    inst->inst_name, 0);
-    }
-
-    if (search_pb) {
-        slapi_free_search_results_internal(search_pb);
-        slapi_pblock_destroy(search_pb);
-    }
+    /* Add skeleton dse entries for this instance */
+    /* IF they already exist, that's ok */
+    ldbm_config_add_dse_entries(li, ldbm_instance_skeleton_entries,
+                                inst->inst_name, li->li_plugin->plg_name,
+                                inst->inst_name, 0);
 
     /* setup the dse callback functions for the ldbm instance config entry */
     PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
