@@ -5707,18 +5707,47 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
 		to any consumers; that is, we can assume that no changes were lost due to
 		either changelog purging or database reload - bug# 603061 - richm@netscape.com
 		*/
-        if (rc == 0 || (rc == DB_NOTFOUND && !ruv_has_csns(file->purgeRUV)))
+        if ((rc == DB_NOTFOUND) && !ruv_has_csns(file->purgeRUV))
         {
+            /* use the supplier min csn for the buffer start csn - we know
+               this csn is in our changelog */
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                            "%s: CSN %s not found and no purging, probably a reinit\n",
+                            agmt_name, csnStr);
+            if ((RUV_SUCCESS == ruv_get_min_csn(supplierRuv, &startCSN)) &&
+                startCSN)
+            { /* must now free startCSN */
+                csn_as_string(startCSN, PR_FALSE, csnStr); 
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                "%s: Will try to use supplier min CSN %s to load changelog\n",
+                                agmt_name, csnStr);
+                rc = clcache_load_buffer (clcache, startCSN, DB_SET);
+            }
+            else
+            {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                "%s: Could not get the min csn from the supplier RUV\n",
+                                agmt_name);
+            }
+        }
+
+        if (rc == 0) {
             haveChanges = PR_TRUE;
             rc = CL5_SUCCESS;
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
                             "%s: CSN %s found, position set for replay\n", agmt_name, csnStr);
+            if (startCSN != csns[i]) {
+                csn_free(&startCSN);
+            }
             break;
         }
         else if (rc == DB_NOTFOUND)  /* entry not found */
         {
             /* check whether this csn should be present */
             rc = _cl5CheckMissingCSN (startCSN, supplierRuv, file);
+            if (startCSN != csns[i]) {
+                csn_free(&startCSN);
+            }
             if (rc == CL5_MISSING_DATA)  /* we should have had the change but we don't */
             {
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -5735,6 +5764,9 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
         }
         else
         {
+            if (startCSN != csns[i]) {
+                csn_free(&startCSN);
+            }
 
             /* db error */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
