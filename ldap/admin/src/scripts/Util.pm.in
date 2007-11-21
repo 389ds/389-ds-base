@@ -107,7 +107,7 @@ sub isValidDN {
 
 sub isValidServerID {
     my $servid = shift;
-    my $validchars = '#%,.:\w@_-';
+    my $validchars = '#%:\w@_-';
     return $servid =~ /^[$validchars]+$/o;
 }
 

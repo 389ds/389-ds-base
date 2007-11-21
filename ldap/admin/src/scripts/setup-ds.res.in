@@ -108,7 +108,7 @@ invalid port number, or the port already being in use by another\
 program, or low port restriction.  Please choose another value for\
 ServerPort.  Error: $!\n
 error_invalid_serverid = The ServerIdentifier '%s' contains invalid characters.  It must\
-contain only alphanumeric characters and the following: #%,.:@_-\n
+contain only alphanumeric characters and the following: #%:@_-\n\n
 error_opening_scripttmpl = Could not open the script template file '%s'.  Error: %s\n
 error_creating_directory = Could not create directory '%s'.  Error: %s\n
 error_chowning_directory = Could not change ownership of directory '%s' to userid '%s': Error: %s\n

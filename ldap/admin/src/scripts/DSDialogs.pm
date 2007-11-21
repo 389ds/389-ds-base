@@ -99,9 +99,9 @@ my $dsserverid = new Dialog (
         my $res = $DialogManager::SAME;
         my $path = $self->{manager}->{setup}->{configdir} . "/slapd-" . $ans;
         if (!isValidServerID($ans)) {
-            $self->{manager}->alert("dialog_dsserverid_error", $ans);
+            $self->{manager}->alert("error_invalid_serverid", $ans);
         } elsif (-d $path) {
-            $self->{manager}->alert("dialog_dsserverid_inuse", $ans);
+            $self->{manager}->alert("error_server_already_exists", $path);
         } else {
             $res = $DialogManager::NEXT;
             $self->{manager}->{inf}->{slapd}->{ServerIdentifier} = $ans;
