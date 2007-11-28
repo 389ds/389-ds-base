@@ -169,7 +169,7 @@ if ( "$startpoint" eq "" ) {
 my $dbdirs = getDbDir($startpoint);
 my $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = "{{SERVER-DIR}}/{{PRODUCT-NAME}}-{{SERV-ID}}:$prefix@db_bindir@:$prefix/usr/bin:@db_bindir@:/usr/bin";
+$ENV{'PATH'} = "{{INST-DIR}}:$prefix@db_bindir@:$prefix/usr/bin:@db_bindir@:/usr/bin";
 $ENV{'LD_LIBRARY_PATH'} = "@db_libdir@:@libdir@";
 $ENV{'SHLIB_PATH'} = "@db_libdir@:@libdir@";
 
