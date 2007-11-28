@@ -1202,7 +1202,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_LOGDIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_db_logdirectory_get, &ldbm_config_db_logdirectory_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_DURABLE_TRANSACTIONS, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_durable_transactions_get, &ldbm_config_db_durable_transactions_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_CIRCULAR_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_circular_logging_get, &ldbm_config_db_circular_logging_set, 0},
-    {CONFIG_DB_TRANSACTION_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_transaction_logging_get, &ldbm_config_db_transaction_logging_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_DB_TRANSACTION_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_transaction_logging_get, &ldbm_config_db_transaction_logging_set, 0},
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &ldbm_config_db_checkpoint_interval_get, &ldbm_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &dblayer_get_batch_transactions, &dblayer_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_LOGBUF_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_logbuf_size_get, &ldbm_config_db_logbuf_size_set, CONFIG_FLAG_ALWAYS_SHOW},
