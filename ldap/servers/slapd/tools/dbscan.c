@@ -68,7 +68,7 @@ typedef unsigned char uint8_t;
 
 #if ( defined( hpux ) )
 #ifdef _XOPEN_SOURCE_EXTENDED
-#include <arpa/inet.h>	/* for ntohl, et al. */
+#include <arpa/inet.h>    /* for ntohl, et al. */
 #endif
 #endif
 
@@ -101,9 +101,9 @@ typedef unsigned char uint8_t;
 
 /* changelog ruv info.  These correspond with some special csn
  * timestamps from cl5_api.c */
-#define ENTRY_COUNT_KEY	"0000006f" /* 111 csn timestamp */
-#define PURGE_RUV_KEY	"000000de" /* 222 csn timestamp */
-#define MAX_RUV_KEY	"0000014d" /* 333 csn timestamp */
+#define ENTRY_COUNT_KEY    "0000006f" /* 111 csn timestamp */
+#define PURGE_RUV_KEY    "000000de" /* 222 csn timestamp */
+#define MAX_RUV_KEY    "0000014d" /* 333 csn timestamp */
 
 #define ONEMEG (1024*1024)
 
@@ -708,7 +708,7 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
             } else if (strncasecmp((char *)key->data, PURGE_RUV_KEY, 8) == 0) {
                 printf("\tpurge ruv:\n");
                 print_ruv(data->data);
-	    } else if (strncasecmp((char *)key->data, MAX_RUV_KEY, 8) == 0) {
+        } else if (strncasecmp((char *)key->data, MAX_RUV_KEY, 8) == 0) {
                 printf("\tmax ruv:\n");
                 print_ruv(data->data);
             } else {
@@ -772,7 +772,26 @@ is_changelog(char *filename)
 
 static void usage(char *argv0)
 {
-    printf("\n%s - scan a db file and dump the contents\n", argv0);
+    char *copy = strdup(argv0);
+    char *p0 = NULL, *p1 = NULL;
+    if (NULL != copy) {
+        /* the full path is not needed in the usages */
+        p0 = strrchr(argv0, '/');
+        if (NULL != p0) {
+            *p0 = '\0';
+            p0++;
+        } else {
+            p0 = argv0;
+        }
+        p1 = strrchr(p0, '-'); /* get rid of -bin from the usage */
+        if (NULL != p1) {
+            *p1 = '\0';
+        }
+    } 
+    if (NULL == p0) {
+        p0 = argv0;
+    }
+    printf("\n%s - scan a db file and dump the contents\n", p0);
     printf("  common options:\n");
     printf("    -f <filename>   specify db file\n");
     printf("    -R              dump as raw data\n");
@@ -785,21 +804,20 @@ static void usage(char *argv0)
     printf("                    (default %d; 40 bytes <= size <= 1048576 bytes)\n",
            MAX_BUFFER);
     printf("    -G <n>          only display index entries with more than <n> ids\n");
-    printf("    -n              display idl lengths\n");
-    printf("    -r              display the conents of idl\n");
+    printf("    -n              display ID list lengths\n");
+    printf("    -r              display the conents of ID list\n");
     printf("    -s              Summary of index counts\n");
     printf("  sample usages:\n");
-    printf("    # set <prefix>/usr/lib/<PACKAGE_NAME>:<prefix>/usr/lib:/usr/lib in the library path\n");
     printf("    # dump the entry file\n");
-    printf("    %s -f id2entry.db\n", argv0);
+    printf("    %s -f id2entry.db\n", p0);
     printf("    # display index keys in cn.db4\n");
-    printf("    %s -f cn.db4\n", argv0);
+    printf("    %s -f cn.db4\n", p0);
     printf("    # display index keys and the count of entries having the key in mail.db4\n");
-    printf("    %s -r -f mail.db4\n", argv0);
+    printf("    %s -r -f mail.db4\n", p0);
     printf("    # display index keys and the IDs having more than 20 IDs in sn.db4\n");
-    printf("    %s -r -G 20 -f sn.db4\n", argv0);
+    printf("    %s -r -G 20 -f sn.db4\n", p0);
     printf("    # display summary of objectclass.db4\n");
-    printf("    %s -f objectclass.db4\n", argv0);
+    printf("    %s -f objectclass.db4\n", p0);
     printf("\n");
     exit(1);
 }
