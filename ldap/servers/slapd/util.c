@@ -529,8 +529,8 @@ rel2abspath_ext( char *relpath, char *cwd )
         }
     }
     retpath = slapi_ch_strdup(abspath);
-    /* if there's no '.', no need to call normalize_path */
-    if (NULL != strchr(abspath, '.') || NULL != strstr(abspath, _PSEP2))
+    /* if there's no '.' or separators, no need to call normalize_path */
+    if (NULL != strchr(abspath, '.') || NULL != strstr(abspath, _PSEP))
     {
         char **norm_path = normalize_path(abspath);
         char **np, *rp;
