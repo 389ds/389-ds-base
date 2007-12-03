@@ -116,7 +116,7 @@ static int	log__open_errorlogfile(int logfile_type, int locked);
 static int	log__open_auditlogfile(int logfile_type, int locked);
 static int	log__needrotation(LOGFD fp, int logtype);
 static int	log__delete_access_logfile();
-static int	log__delete_error_logfile();
+static int	log__delete_error_logfile(int locked);
 static int	log__delete_audit_logfile();
 static int 	log__access_rotationinfof(char *pathname);
 static int 	log__error_rotationinfof(char *pathname);
@@ -2926,10 +2926,14 @@ char rootpath[4];
 	if (statvfs(path, &buf) == -1)
 #endif
 	{
-		int	oserr = errno;
-		LDAPDebug(LDAP_DEBUG_ANY, 
-			  "log__enough_freespace: Unable to get the free space (errno:%d)\n",
-				oserr,0,0);
+		char buffer[BUFSIZ];
+		PR_snprintf(buffer, sizeof(buffer),
+			  		"log__enough_freespace: Unable to get the free space (errno:%d)\n",
+					errno);
+		/* This function could be called in the ERROR WRITE LOCK,
+		 * which causes the self deadlock if you call LDAPDebug for logging.
+		 * Thus, instead of LDAPDebug, call log__error_emergency with locked == 1. */
+		log__error_emergency(buffer, 0, 1);
 		return 1;
 	} else {
 	    LL_UI2L(freeBytes, buf.f_bavail);
@@ -3024,7 +3028,7 @@ log_get_loglist(int logtype)
 ******************************************************************************/ 
 
 static int
-log__delete_error_logfile()
+log__delete_error_logfile(int locked)
 {
 
 	struct logfileinfo	*logp = NULL;
@@ -3044,18 +3048,27 @@ log__delete_error_logfile()
 	/* If we have only one log, then  will delete this one */
 	if (loginfo.log_error_maxnumlogs == 1) {
 		LOG_CLOSE(loginfo.log_error_fdes);
-                loginfo.log_error_fdes = NULL;
+		loginfo.log_error_fdes = NULL;
 		PR_snprintf (buffer, sizeof(buffer), "%s", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s\n", loginfo.log_error_file,0,0);
+			if (!locked) {
+				/* if locked, we should not call LDAPDebug, 
+				   which tries to get a lock internally. */
+				LDAPDebug(LDAP_DEBUG_TRACE, 
+					"LOGINFO:Unable to remove file:%s\n", loginfo.log_error_file,0,0);
+			}
 		}
 
 		/* Delete the rotation file also. */
 		PR_snprintf (buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s.rotationinfo\n", loginfo.log_error_file,0,0);
+			if (!locked) {
+				/* if locked, we should not call LDAPDebug, 
+				   which tries to get a lock internally. */
+				LDAPDebug(LDAP_DEBUG_TRACE, 
+					"LOGINFO:Unable to remove file:%s.rotationinfo\n", 
+					loginfo.log_error_file,0,0);
+			}
 		}
 		return 0;
 	}
@@ -3084,7 +3097,7 @@ log__delete_error_logfile()
 		}
 
 		/* If we have exceeded the max disk space or we have less than the
-  		** minimum, then we have to delete a file.
+		** minimum, then we have to delete a file.
 		*/
 		if (total_size >= loginfo.log_error_maxdiskspace)  {
 			logstr = "exceeded maximum log disk space";
@@ -3145,10 +3158,14 @@ delete_logfile:
 			return 0;
 		}
 	} 
-	LDAPDebug(LDAP_DEBUG_TRACE, 
+	if (!locked) {
+		/* if locked, we should not call LDAPDebug, 
+		   which tries to get a lock internally. */
+		LDAPDebug(LDAP_DEBUG_TRACE, 
 			   "LOGINFO:Removing file:%s.%s because of (%s)\n",
 					loginfo.log_error_file, tbuf,
 					logstr);
+	}
 
 	if (p_delete_logp == delete_logp) {
 		/* then we are deleteing the first one */
@@ -3161,8 +3178,12 @@ delete_logfile:
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
 	if (PR_Delete(buffer) != PR_SUCCESS) {
-		LDAPDebug(LDAP_DEBUG_ANY, "LOGINFO:Unable to remove file:%s.%s\n",
-				   loginfo.log_audit_file, tbuf,0);
+		/* This function could be called in the ERROR WRITE LOCK,
+		 * which causes the self deadlock if you call LDAPDebug for logging.
+		 * Thus, instead of LDAPDebug, call log__error_emergency with locked == 1. */
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Unable to remove file:%s.%s\n",
+				   loginfo.log_audit_file, tbuf);
+		log__error_emergency(buffer, 0, locked);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_error_logs--;
@@ -3580,7 +3601,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 
 
 		/*  Check if I have to delete any old file, delete it if it is required.*/
-		while (log__delete_error_logfile());
+		while (log__delete_error_logfile(1));
 
 		/* close the file */
 		if ( loginfo.log_error_fdes != NULL ) {
