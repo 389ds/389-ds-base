@@ -243,75 +243,86 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
                                                     strdup'ed in rel2abspath */
         LDAPDebug(LDAP_DEBUG_ANY, "New db directory location will not take affect until the server is restarted\n", 0, 0, 0);
     } else {
-        if (!strcmp(val, "get default")) {
-            /* We use this funky "get default" string for the caller to 
-             * tell us that it has no idea what the db directory should
-             * be.  This code figures it out be reading "cn=config,cn=ldbm
-             * database,cn=plugins,cn=config" entry. */
-            Slapi_PBlock *search_pb;
-            Slapi_Entry **entries = NULL;
-            Slapi_Attr *attr = NULL;
-            Slapi_Value *v = NULL;
-            const char *s = NULL;
-            int res;
-
-            search_pb = slapi_pblock_new();
-            slapi_search_internal_set_pb(search_pb, CONFIG_LDBM_DN,
-                    LDAP_SCOPE_BASE, "objectclass=*", NULL, 0, NULL, NULL,
-                    li->li_identity, 0);
-            slapi_search_internal_pb(search_pb);
-            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
-
-            if (res != LDAP_SUCCESS) {
-                LDAPDebug(LDAP_DEBUG_ANY, 
-                          "ERROR: ldbm plugin unable to read %s\n",
-                          CONFIG_LDBM_DN, 0, 0);
-                goto done;
-            }
-
-            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-            if (NULL == entries) {
-                LDAPDebug(LDAP_DEBUG_ANY,
-                          "ERROR: ldbm plugin unable to read %s\n",
-                          CONFIG_LDBM_DN, 0, 0);
-                res = LDAP_OPERATIONS_ERROR;
-                goto done;
-            }
-            
-            res = slapi_entry_attr_find(entries[0], "nsslapd-directory", &attr);
-            if (res != 0 || attr == NULL) {
-                LDAPDebug(LDAP_DEBUG_ANY, 
-                          "ERROR: ldbm plugin unable to read attribute nsslapd-directory from %s\n",
-                          CONFIG_LDBM_DN, 0, 0);
-                res = LDAP_OPERATIONS_ERROR;
-                goto done;
-            }
-
-            if ( slapi_attr_first_value(attr,&v) != 0
-                    || ( NULL == v )
-                    || ( NULL == ( s = slapi_value_get_string( v )))) {
-                LDAPDebug(LDAP_DEBUG_ANY, 
-                          "ERROR: ldbm plugin unable to read attribute nsslapd-directory from %s\n",
-                          CONFIG_LDBM_DN, 0, 0);
-                res = LDAP_OPERATIONS_ERROR;
-                goto done;
-            }
-
-done:
-            slapi_pblock_destroy(search_pb);
-            if (res != LDAP_SUCCESS) {
-                return res;
-            }
-            PR_snprintf(tmpbuf, BUFSIZ, "%s", s);
-            val = tmpbuf;
-        }
         slapi_ch_free((void **) &(li->li_new_directory));
         slapi_ch_free((void **) &(li->li_directory));
-        li->li_new_directory = rel2abspath(val); /* normalize the path;
-                                                    strdup'ed in rel2abspath */
-        li->li_directory = rel2abspath(val);     /* ditto */
+        if (NULL == val || '\0' == *val) {
+            LDAPDebug(LDAP_DEBUG_ANY, 
+                "ERROR: db directory is not set; check %s in the db config: %s\n",
+                CONFIG_DIRECTORY, CONFIG_LDBM_DN, 0);
+            retval = LDAP_PARAM_ERROR;
+        } else {
+            if (0 == strcmp(val, "get default")) {
+                /* We use this funky "get default" string for the caller to 
+                 * tell us that it has no idea what the db directory should
+                 * be.  This code figures it out be reading "cn=config,cn=ldbm
+                 * database,cn=plugins,cn=config" entry. */
+                Slapi_PBlock *search_pb;
+                Slapi_Entry **entries = NULL;
+                Slapi_Attr *attr = NULL;
+                Slapi_Value *v = NULL;
+                const char *s = NULL;
+                int res;
+    
+                search_pb = slapi_pblock_new();
+                slapi_search_internal_set_pb(search_pb, CONFIG_LDBM_DN,
+                        LDAP_SCOPE_BASE, "objectclass=*", NULL, 0, NULL, NULL,
+                        li->li_identity, 0);
+                slapi_search_internal_pb(search_pb);
+                slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    
+                if (res != LDAP_SUCCESS) {
+                    LDAPDebug(LDAP_DEBUG_ANY, 
+                              "ERROR: ldbm plugin unable to read %s\n",
+                              CONFIG_LDBM_DN, 0, 0);
+                    retval = res;
+                    goto done;
+                }
+    
+                slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+                if (NULL == entries) {
+                    LDAPDebug(LDAP_DEBUG_ANY,
+                              "ERROR: ldbm plugin unable to read %s\n",
+                              CONFIG_LDBM_DN, 0, 0);
+                    retval = LDAP_OPERATIONS_ERROR;
+                    goto done;
+                }
+                
+                res = slapi_entry_attr_find(entries[0], "nsslapd-directory", &attr);
+                if (res != 0 || attr == NULL) {
+                    LDAPDebug(LDAP_DEBUG_ANY, 
+                              "ERROR: ldbm plugin unable to read attribute nsslapd-directory from %s\n",
+                              CONFIG_LDBM_DN, 0, 0);
+                    retval = LDAP_OPERATIONS_ERROR;
+                    goto done;
+                }
+    
+                if ( slapi_attr_first_value(attr,&v) != 0
+                        || ( NULL == v )
+                        || ( NULL == ( s = slapi_value_get_string( v )))) {
+                    LDAPDebug(LDAP_DEBUG_ANY, 
+                              "ERROR: ldbm plugin unable to read attribute nsslapd-directory from %s\n",
+                              CONFIG_LDBM_DN, 0, 0);
+                    retval = LDAP_OPERATIONS_ERROR;
+                    goto done;
+                }
+                slapi_pblock_destroy(search_pb);
+                if (NULL == s || '\0' == s || 0 == PL_strcmp(s, "(null)")) {
+                    LDAPDebug(LDAP_DEBUG_ANY, 
+                        "ERROR: db directory is not set; check %s in the db config: %s\n",
+                        CONFIG_DIRECTORY, CONFIG_LDBM_DN, 0);
+                    retval = LDAP_PARAM_ERROR;
+                    goto done;
+                }
+                PR_snprintf(tmpbuf, BUFSIZ, "%s", s);
+                val = tmpbuf;
+            }
+            li->li_new_directory = rel2abspath(val); /* normalize the path;
+                                                        strdup'ed in 
+                                                        rel2abspath */
+            li->li_directory = rel2abspath(val);     /* ditto */
+        }
     }
-
+done:
     return retval;
 }
 
@@ -1193,7 +1204,7 @@ static config_info ldbm_config[] = {
     {CONFIG_LOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_lookthroughlimit_get, &ldbm_config_lookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE|CONFIG_FLAG_SKIP_DEFAULT_SETTING},
     {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, "10000000", &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBNCACHE, CONFIG_TYPE_INT, "0", &ldbm_config_dbncache_get, &ldbm_config_dbncache_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
@@ -1319,7 +1330,11 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
                       0, 0, 0);
             return 1;
         }
-        parse_ldbm_config_entry(li, entries[0], ldbm_config);    
+        if (0 != parse_ldbm_config_entry(li, entries[0], ldbm_config)) {
+            LDAPDebug(LDAP_DEBUG_ANY, "Error parsing the ldbm config DSE\n",
+                      0, 0, 0);
+            return 1;
+        }
     }
 
     if (search_pb) {
@@ -1520,6 +1535,9 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     /* If the config phase is initialization or if bval is NULL, we will use
      * the default value for the attribute. */
     if (CONFIG_PHASE_INITIALIZATION == phase || NULL == bval) {
+        if (CONFIG_FLAG_SKIP_DEFAULT_SETTING & config->config_flags) {
+            return LDAP_SUCCESS; /* Skipping the default config setting */
+        }
         use_default = 1;
     } else {
         use_default = 0;

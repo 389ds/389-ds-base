@@ -72,6 +72,7 @@ typedef void *config_get_fn_t(void *arg);
 #define CONFIG_FLAG_PREVIOUSLY_SET 1
 #define CONFIG_FLAG_ALWAYS_SHOW 2
 #define CONFIG_FLAG_ALLOW_RUNNING_CHANGE 4
+#define CONFIG_FLAG_SKIP_DEFAULT_SETTING 8
 
 struct config_info {
 	char *config_name;

@@ -63,7 +63,11 @@ ldbm_back_start( Slapi_PBlock *pb )
   slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 
   /* parse the config file here */
-  ldbm_config_load_dse_info(li);
+  if (0 != ldbm_config_load_dse_info(li)) {
+      LDAPDebug( LDAP_DEBUG_ANY, "start: Loading database configuration failed\n",
+            0, 0, 0 );
+      return SLAPI_FAIL_GENERAL;
+  }
 
   /* register with the binder-based resource limit subsystem so that    */
   /* lookthroughlimit can be supported on a per-connection basis.        */
@@ -77,7 +81,7 @@ ldbm_back_start( Slapi_PBlock *pb )
 
   /* If the db directory hasn't been set yet, we need to set it to 
    * the default. */
-  if ('\0' == li->li_directory[0]) {
+  if (NULL == li->li_directory || '\0' == li->li_directory[0]) {
       /* "get default" is a special string that tells the config
        * routines to figure out the default db directory by 
        * reading cn=config. */

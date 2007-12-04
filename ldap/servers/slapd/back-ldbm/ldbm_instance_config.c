@@ -480,8 +480,12 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
                       0, 0, 0);
             return 1;
         }
-        parse_ldbm_instance_config_entry(inst, entries[0],
-                                         ldbm_instance_config);    
+        if (0 != parse_ldbm_instance_config_entry(inst, entries[0],
+                                         ldbm_instance_config)) {
+            LDAPDebug(LDAP_DEBUG_ANY, "Error parsing the config DSE\n",
+                      0, 0, 0);
+            return 1;
+        }
     }
 
     if (search_pb)

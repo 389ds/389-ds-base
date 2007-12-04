@@ -1409,6 +1409,11 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
 
     /* DBDB we should pick these up in our config routine, and do away with
      *  the li_ one */
+    if (NULL == li->li_directory || '\0' == *li->li_directory) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+            "Error: DB directory is not specified.\n", 0, 0, 0);
+        return -1;
+	}
     PR_Lock(li->li_config_mutex);
     priv->dblayer_home_directory = li->li_directory; /* nsslapd-directory */
     priv->dblayer_cachesize = li->li_dbcachesize;
