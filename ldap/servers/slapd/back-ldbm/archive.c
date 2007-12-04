@@ -47,7 +47,8 @@
 int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 {
     struct ldbminfo    *li;
-    char *directory = NULL;    /* -a <directory> */
+    char *rawdirectory = NULL;    /* -a <directory> */
+    char *directory = NULL;       /* normalized */
     char *backendname = NULL;
     int return_value = -1;
     int task_flags = 0;
@@ -56,17 +57,19 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     int is_old_to_new = 0;
 
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );
+    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &rawdirectory );
     slapi_pblock_get( pb, SLAPI_BACKEND_INSTANCE_NAME, &backendname);
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
     li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
 
-    if ( !directory || !*directory ) {
+    if ( !rawdirectory || !*rawdirectory ) {
         LDAPDebug( LDAP_DEBUG_ANY, "archive2db: no archive name\n",
                    0, 0, 0 );
         return( -1 );
     }
+
+    directory = rel2abspath(rawdirectory);
 
     /* check the current idl format vs backup DB version */
     if (idl_get_idl_new())
@@ -251,6 +254,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         }
     }
 out:
+    slapi_ch_free_string(&directory);
     return return_value;
 }
 
