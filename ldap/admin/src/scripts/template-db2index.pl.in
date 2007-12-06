@@ -42,19 +42,20 @@
 sub usage {
     print(STDERR "Usage: $0 [-v] -D rootdn { -w password | -w - | -j filename } \n");
     print(STDERR "        -n instance [-t attributeName[:indextypes[:matchingrules]]]\n");
-    print(STDERR " Opts: -D rootdn          - Directory Manager\n");
-    print(STDERR "     : -w password        - Directory Manager's password\n");
-    print(STDERR "     : -w -               - Prompt for Directory Manager's password\n");
-    print(STDERR "     : -j filename        - Read Directory Manager's password from file\n");
-    print(STDERR "     : -n instance        - instance to be indexed\n");
+    print(STDERR " Opts: -D rootdn           - Directory Manager\n");
+    print(STDERR "     : -w password         - Directory Manager's password\n");
+    print(STDERR "     : -w -                - Prompt for Directory Manager's password\n");
+    print(STDERR "     : -j filename         - Read Directory Manager's password from file\n");
+    print(STDERR "     : -n instance         - instance to be indexed\n");
     print(STDERR "     : -t attributeName[:indextypes[:matchingrules]]\n");
-    print(STDERR "                          - attribute: name of the attribute to be indexed\n");
-    print(STDERR "                            If omitted, all the indexes defined \n");
-    print(STDERR "                            for that instance are generated.\n");
-    print(STDERR "                          - indextypes: comma separated index types\n");
-    print(STDERR "                          - matchingrules: comma separated matrules\n");
-    print(STDERR "                          Example: -t foo:eq,pres\n");
-    print(STDERR "     : -v                 - verbose\n");
+    print(STDERR "                           - attributeName: name of the attribute to be indexed\n");
+    print(STDERR "                             If omitted, all the indexes defined \n");
+    print(STDERR "                             for that instance are generated.\n");
+    print(STDERR "                           - indextypes: comma separated index types\n");
+    print(STDERR "                           - matchingrules: comma separated matrules\n");
+    print(STDERR "                           Example: -t foo:eq,pres\n");
+    print(STDERR "     : -T vlvAttributeName - vlvAttributeName: name of the vlv attribute to be indexed\n");
+    print(STDERR "     : -v                  - verbose\n");
 }
 
 $instance = "";
