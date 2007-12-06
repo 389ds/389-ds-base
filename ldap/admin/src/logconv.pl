@@ -365,7 +365,6 @@ print "Adds:                         $add\n";
 print "Deletes:                      $delete\n";
 print "Mod RDNs:                     $modrdn\n";
 print "\n";
-print "6.x Stats \n";
 print "Persistent Searches:          $persistent\n";
 print "Internal Operations:          $internal\n";
 print "Entry Operations:             $entryOp\n";
@@ -802,16 +801,16 @@ print "\n";
 }
 
 
-###############################################
-#					      #
-# Gather and process extended operations 6.x  #
-#					      #
-###############################################
+##########################################
+#                                        #
+# Gather and process extended operations #
+#                                        #
+##########################################
 
 if ($usage =~ /x/i || $verb eq "yes"){
 
 if ($extendedop > 0){
-print "\n\n----- 6.x Extended Operations -----\n\n";
+print "\n\n----- Extended Operations -----\n\n";
 foreach $oids (sort { $oid{$b} <=> $oid{$a} } (keys %oid) ){
 
 	if ($oids eq "2.16.840.1.113730.3.5.1"){ $oidmessage = "Transaction Request"}
@@ -824,7 +823,7 @@ foreach $oids (sort { $oid{$b} <=> $oid{$a} } (keys %oid) ){
 	elsif ($oids eq "2.16.840.1.113730.3.5.8"){ $oidmessage = "Finished Bulk Import"}
 	elsif ($oids eq "2.16.840.1.113730.3.6.1"){ $oidmessage = "Incremental Update Replication Protocol"}
 	elsif ($oids eq "2.16.840.1.113730.3.6.2"){ $oidmessage = "Total Update Replication Protocol (Initialization)"}
-	elsif ($oids eq "2.16.840.1.113730.3.5.9"){ $oidmessage = "Digest Authentication (iWS 6.x)"}
+	elsif ($oids eq "2.16.840.1.113730.3.5.9"){ $oidmessage = "Digest Authentication"}
 	else {$oidmessage = "Other"}
 
 	printf "%-6s      %-23s     %-60s\n", $oid{ $oids }, $oids, $oidmessage;
