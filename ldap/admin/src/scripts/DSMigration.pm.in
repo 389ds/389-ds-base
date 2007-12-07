@@ -895,6 +895,16 @@ sub migrateDS {
     my $mig = shift;
     my @errs;
 
+    # migration needs to know the instance directory for the directory
+    # servers - this assumes they are all in the same place
+    if (!$mig->{ServerRoot}) {
+        if ("@with_fhs_opt@") {
+            $mig->{ServerRoot} = "$inf->{General}->{prefix}/opt/@PACKAGE_NAME@";
+        } else {
+            $mig->{ServerRoot} = "$inf->{General}->{prefix}@serverdir@";
+        }
+    }
+
     # for each instance
     foreach my $inst (@{$mig->{instances}}) {
         if (-f "$mig->{configdir}/$inst/dse.ldif") {

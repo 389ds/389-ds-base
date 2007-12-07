@@ -829,8 +829,20 @@ sub createInfFromConfig {
         last if ($ent->hasValue('cn', 'userRoot', 1));
         $ent = $conn->nextEntry();
     }
+
+    # we also need the instance dir
+    $ent = $conn->search("cn=config", "base", "(objectclass=*)");
+    if (!$ent) {
+        push @{$errs}, "error_opening_dseldif", $fname, $!;
+        close $outfh;
+        $conn->close();
+        return 0;
+    }
+    my $inst_dir = $ent->getValue('nsslapd-instancedir');
+
     $conn->close();
 
+    print $outfh, "inst_dir = $inst_dir\n";
     print $outfh "Suffix = $suffix\n";
     close $outfh;
 
