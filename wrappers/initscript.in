@@ -26,10 +26,17 @@ then
     exit 0
 fi
 
-# Solaris echo cannot use -n - linux echo by default cannot use \c
+# figure out which echo we're using
+ECHO_N=`echo -n`
+
+# some shells echo cannot use -n - linux echo by default cannot use \c
 echo_n()
 {
-    echo @ECHO_N@ "$*@ECHO_C@"
+    if [ "$ECHO_N" = '-n' ] ; then
+        echo "$*\c"
+    else
+        echo -n "$*"
+    fi
 }
 
 # failure and success are not defined on some platforms
