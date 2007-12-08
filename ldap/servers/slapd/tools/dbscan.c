@@ -142,6 +142,7 @@ void db_printf(char *fmt, ...)
 
     va_start(ap, fmt);
     vfprintf(stdout, fmt, ap);
+    va_end(ap);
 }
 
 void db_printfln(char *fmt, ...)
@@ -150,7 +151,8 @@ void db_printfln(char *fmt, ...)
 
     va_start(ap, fmt);
     vfprintf(stdout, fmt, ap);
-    vfprintf(stdout, "\n", NULL);
+    va_end(ap);
+    fprintf(stdout, "\n");
 }
 
 int MAX_BUFFER = 4096;
