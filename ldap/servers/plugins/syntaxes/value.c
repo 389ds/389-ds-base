@@ -81,6 +81,7 @@ value_normalize(
     int     trim_spaces
 )
 {
+	char	*head = s;
 	char	*d;
 	int	prevspace, curspace;
 
@@ -154,7 +155,7 @@ value_normalize(
 	    char *nd;
 
 	    nd = ldap_utf8prev(d);
-	    while (nd && utf8isspace_fast(nd)) {
+	    while (nd && nd >= head && utf8isspace_fast(nd)) {
 	        d = nd;
 	        nd = ldap_utf8prev(d);
 		*d = '\0';
