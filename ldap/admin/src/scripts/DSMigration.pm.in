@@ -899,9 +899,9 @@ sub migrateDS {
     # servers - this assumes they are all in the same place
     if (!$mig->{ServerRoot}) {
         if ("@with_fhs_opt@") {
-            $mig->{ServerRoot} = "$inf->{General}->{prefix}/opt/@PACKAGE_NAME@";
+            $mig->{ServerRoot} = "$mig->{inf}->{General}->{prefix}/opt/@PACKAGE_NAME@";
         } else {
-            $mig->{ServerRoot} = "$inf->{General}->{prefix}@serverdir@";
+            $mig->{ServerRoot} = "$mig->{inf}->{General}->{prefix}@serverdir@";
         }
     }
 
