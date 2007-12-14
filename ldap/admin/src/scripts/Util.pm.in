@@ -842,7 +842,7 @@ sub createInfFromConfig {
 
     $conn->close();
 
-    print $outfh, "inst_dir = $inst_dir\n";
+    print $outfh "inst_dir = $inst_dir\n";
     print $outfh "Suffix = $suffix\n";
     close $outfh;
 
