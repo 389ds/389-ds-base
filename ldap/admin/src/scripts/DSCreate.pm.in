@@ -459,10 +459,14 @@ my %suffixTable = (
 
 sub initDatabase {
     my $inf = shift;
+    my $istempldif = 0;
     # If the user has specified an LDIF file to use to initialize the database,
     # load it now
     my $ldiffile = $inf->{slapd}->{InstallLdifFile};
-    if ($ldiffile && -f $ldiffile) {
+    if ($ldiffile =~ /none/i) {
+        debug(1, "No ldif file or org entries specified - no initial database will be created\n");
+        return ();
+    } elsif ($ldiffile && -f $ldiffile) {
         debug(1, "Loading initial ldif file $ldiffile\n");
     } elsif (($inf->{slapd}->{Suffix} =~ /^(.*?)=/) && $suffixTable{$1}) {
         my @errs;
@@ -477,7 +481,8 @@ sub initDatabase {
         }
         
         my @ldiffiles = ($template, "$inf->{General}->{prefix}@templatedir@/template-baseacis.ldif");
-        if (exists($inf->{slapd}->{InstallLdifFile}) and
+        # default is to create org entries unless explicitly set to none
+        if (!exists($inf->{slapd}->{InstallLdifFile}) or
             ($inf->{slapd}->{InstallLdifFile} =~ /suggest/i)) {
             push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template.ldif";
         }
@@ -495,6 +500,7 @@ sub initDatabase {
         }
         # $templdif now contains the ldif to import
         $ldiffile = $templdif;
+        $istempldif = 1;
     }
     if (!$ldiffile) {
         return ();
@@ -503,8 +509,12 @@ sub initDatabase {
     my $cmd = "$inf->{slapd}->{inst_dir}/ldif2db -n userRoot -i \'$ldiffile\'";
     $? = 0; # clear error condition
     my $output = `$cmd 2>&1`;
-    if ($?) {
-        return ('error_importing_ldif', $ldiffile, $?, $output);
+    my $result = $?;
+    if ($istempldif) {
+        unlink($ldiffile);
+    }
+    if ($result) {
+        return ('error_importing_ldif', $ldiffile, $result, $output);
     }
 
     debug(1, $output);
