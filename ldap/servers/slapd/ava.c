@@ -108,7 +108,7 @@ static void
 strcpy_special_undo( char *d, const char *s )
 {
     const char *end = s + strlen(s);
-	for ( ; *s; s++ )
+	for ( ; s < end && *s; s++ )
 	{
 		switch ( *s )
 		{
