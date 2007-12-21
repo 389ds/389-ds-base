@@ -1029,7 +1029,7 @@ int slapi_index_register_index(char *plugin_id, indexed_item *registration_item,
 	Slapi_Filter *tmp_f = slapi_str2filter(registration_item->index_filter);
 	Slapi_Backend *be;
 	
-	if(!theCache)
+	if(!theCache || !tmp_f)
 		return -1;
 
 	index_subsys_write_lock();

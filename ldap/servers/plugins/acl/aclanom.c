@@ -233,8 +233,16 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 		}
 
 		a_profile->anom_targetinfo[a_numacl].anom_filter =  NULL;
-		if ( aci->targetFilterStr )
+		if ( aci->targetFilterStr ) {
 			a_profile->anom_targetinfo[a_numacl].anom_filter =  slapi_str2filter ( aci->targetFilterStr );
+			if (NULL == a_profile->anom_targetinfo[a_numacl].anom_filter) {
+				const char	*dn = slapi_sdn_get_dn ( aci->aci_sdn );
+				slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+								"Error: invalid filter [%s] in anonymous aci in entry [%s]\n",
+								aci->targetFilterStr, dn);
+				goto cleanup;
+			}
+		}
 
 		i = 0;
 		srcattrArray = aci->targetAttr;
