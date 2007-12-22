@@ -67,9 +67,9 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 	pwpolicy = new_passwdPolicy(pb, dn);
 
 	/* after the user binds with authentication, clear the retry count */
-	if ( pwpolicy->pw_lockout == 1)
+	if (pwpolicy->pw_lockout == 1)
 	{
-		if(slapi_entry_attr_get_int( e, "passwordRetryCount") > 0)
+		if(slapi_entry_attr_get_int(e, "passwordRetryCount") > 0)
 		{
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordRetryCount", "0");
 		}
@@ -90,11 +90,13 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 			pw_exp_date = time_plus_sec ( cur_time, 
 				pwpolicy->pw_maxage );
 
-			timestring = format_genTime (pw_exp_date);			
+			timestring = format_genTime (pw_exp_date);
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpirationTime", timestring);
 			slapi_ch_free((void **)&timestring);
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "0");
 			
+			pw_apply_mods(dn, &smods);
+		} else if (pwpolicy->pw_lockout == 1) {
 			pw_apply_mods(dn, &smods);
 		}
 		slapi_mods_done(&smods);
@@ -104,7 +106,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 
 	pw_exp_date = parse_genTime(passwordExpirationTime);
 
-        slapi_ch_free((void**)&passwordExpirationTime);
+	slapi_ch_free((void**)&passwordExpirationTime);
 
 	/* Check if password has been reset */
 	if ( pw_exp_date == NO_TIME ) {
