@@ -49,15 +49,18 @@
 base: /share/builds/products/server/directry/7.1
 
 file: 147585: plugins/slapd/slapi/examples/testpreop.c
-file: 164834,165641,166229,173687,175063: bin/slapd/server/ns-slapd
-file: 155276,164834,164843,165641,166229,173687,175063,179135,179137: bin/slapd/server/libslapd.*
+file: 164834,165641,166229,173687,175063,202890,247725,297221: bin/slapd/server/ns-slapd
+file: 155276,164834,164843,165641,166229,173687,175063,179135,179137,202890,247725,297221: bin/slapd/server/libslapd.*
 file: 151678: bin/slapd/admin/bin/ds_newinst
 file: 151678: bin/slapd/admin/bin/ds_create
-file: 155276,164843,165641,165827,165862,166012,175063,175897,179135,179137,179810,189264,192901: lib/libback-ldbm.*
+file: 155276,164843,165641,165827,165862,166012,175063,175897,179135,179137,179810,189264,192901,231507: lib/libback-ldbm.*
 file: 160003: bin/slapd/admin/scripts/template-db2index.pl
 file: 160003: bin/slapd/admin/bin/upgradeServer
 file: 164836,165600: lib/attr-unique-plugin.*
 file: 165640: lib/views-plugin.*
+file: 339791: lib/syntax-plugin.*
+file: 297221: lib/acl-plugin.*
+file: 297221: lib/statechange-plugin.*
 file: 167478,160589: setup/setup
 file: 156120,159037,170321,170328,170556,170558,170816,185765: winsync/PassSync.msi
 file: 167761: java/jars/ds71.jar
