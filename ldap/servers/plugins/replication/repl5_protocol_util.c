@@ -112,6 +112,10 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 	int return_value;
 	ConnResult crc;
 	Repl_Connection *conn;
+	struct berval *retdata = NULL;
+	char *retoid = NULL;
+	Slapi_DN *replarea_sdn = NULL;
+	struct berval **ruv_bervals = NULL;
 
 	PR_ASSERT(prp && prot_oid);
 
@@ -195,9 +199,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 			} else 
 			{
 				CSN *current_csn = NULL;
-				struct berval *retdata = NULL;
-				char *retoid = NULL;
-				Slapi_DN *replarea_sdn;
 
 				/* Good to go. Start the protocol. */
 
@@ -238,7 +239,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						 * Extop was processed. Look at extop response to see if we're
 						 * permitted to go ahead.
 						 */
-						struct berval **ruv_bervals = NULL;
 						int extop_result;
 						int extop_rc = decode_repl_ext_response(retdata, &extop_result,
 																&ruv_bervals);
@@ -392,8 +392,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							prp->last_acquire_response_code = NSDS50_REPL_INTERNAL_ERROR;
 							return_value = ACQUIRE_FATAL_ERROR;
 						}
-						if (NULL != ruv_bervals)
-							ber_bvecfree(ruv_bervals);
 					}
 					else
 					{
@@ -418,15 +416,18 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						agmt_get_long_name(prp->agmt));
 					return_value = ACQUIRE_FATAL_ERROR;
 				}
-				slapi_sdn_free(&replarea_sdn);
-				if (NULL != retoid)
-					ldap_memfree(retoid);
-				if (NULL != retdata)
-					ber_bvfree(retdata);
 			}
 		}
 	}
 error:
+	if (NULL != ruv_bervals)
+		ber_bvecfree(ruv_bervals);
+	if (NULL != replarea_sdn)
+		slapi_sdn_free(&replarea_sdn);
+	if (NULL != retoid)
+		ldap_memfree(retoid);
+	if (NULL != retdata)
+		ber_bvfree(retdata);
 
 	if (ACQUIRE_SUCCESS != return_value)
 	{
