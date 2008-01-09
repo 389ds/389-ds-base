@@ -316,7 +316,8 @@ sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err)
         if (bytes_to_return > count) {
             bytes_to_return = count;
         }
-        memcpy(buffer, sp->decrypted_buffer, bytes_to_return);
+        /* Copy data from the decrypted buffer starting at the offset */
+        memcpy(buffer, sp->decrypted_buffer + sp->decrypted_buffer_offset, bytes_to_return);
         if (bytes_in_buffer == bytes_to_return) {
             sp->decrypted_buffer_offset = 0;
             sp->decrypted_buffer_count = 0;
