@@ -300,115 +300,56 @@ static Slapi_Entry *ids_sasl_user_to_entry(
 )
 {
     int found = 0;
-    unsigned fsize = 0, ulen, rlen = 0;
     int attrsonly = 0, scope = LDAP_SCOPE_SUBTREE;
-    char filter[1024], *fptr = filter;
     LDAPControl **ctrls = NULL;
     Slapi_Entry *entry = NULL;
     Slapi_DN *sdn;
     char **attrs = NULL;
-    char *userattr = "uid", *realmattr = NULL, *ufilter = NULL;
-    void *node;
     int regexmatch = 0;
-    char *regex_ldap_search_base = NULL;
-    char *regex_ldap_search_filter = NULL;
+    char *base = NULL;
+    char *filter = NULL;
 
-    /* TODO: userattr & realmattr should be configurable */
 
-    /*
-     * Check for dn: prefix. See RFC 2829 section 9.
-     */
-    if (strncasecmp(user, "dn:", 3) == 0) {
-        sprintf(fptr, "(objectclass=*)");
-        scope = LDAP_SCOPE_BASE;
-        ids_sasl_user_search((char*)user+3, scope, filter, 
+    /* Check for wildcards in the authid and realm. If we encounter one,
+     * just fail the mapping without performing a costly internal search. */
+    if (user && strchr(user, '*')) {
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search encountered a wildcard in "
+            "the authid.  Not attempting to map to entry. (authid=%s)\n", user, 0, 0);
+        return NULL;
+    } else if (user_realm && strchr(user_realm, '*')) {
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search encountered a wildcard in "
+            "the realm.  Not attempting to map to entry. (realm=%s)\n", user_realm, 0, 0);
+        return NULL;
+    }
+
+    /* New regex-based identity mapping */
+    regexmatch = sasl_map_domap((char*)user, (char*)user_realm, &base, &filter);
+    if (regexmatch) {
+        ids_sasl_user_search(base, scope, filter, 
                              ctrls, attrs, attrsonly,
                              &entry, &found);
-    } else {
-        int offset = 0; 
-        if (strncasecmp(user,"u:",2) == 0 )
-            offset = 2;
-        /* TODO: quote the filter values */
 
-        /* New regex-based identity mapping : we call it here before the old code.
-         * If there's a match, we skip the old way, otherwise we plow ahead for backwards compatibility reasons
-         */
-
-        regexmatch = sasl_map_domap((char*)user, (char*)user_realm, &regex_ldap_search_base, &regex_ldap_search_filter);
-        if (regexmatch) {
-
-            ids_sasl_user_search(regex_ldap_search_base, scope, regex_ldap_search_filter, 
-                                 ctrls, attrs, attrsonly,
-                                 &entry, &found);
-
-            /* Free the filter etc */
-            slapi_ch_free((void**)&regex_ldap_search_base);
-            slapi_ch_free((void**)&regex_ldap_search_filter);
-            } else {
-    
-            /* Ensure no buffer overflow. */
-            /* We don't know what the upper limits on username and
-             * realm lengths are. There don't seem to be any defined
-             * in the relevant standards. We may find in the future
-             * that a 1K buffer is insufficient for some mechanism,
-             * but it seems unlikely given that the values are exposed 
-             * to the end user.
-             */
-            ulen = strlen(user+offset);
-            fsize += strlen(userattr) + ulen;
-            if (realmattr && user_realm) {
-                rlen = strlen(user_realm);
-                fsize += strlen(realmattr) + rlen;
-            }
-            if (ufilter) fsize += strlen(ufilter);
-            fsize += 100;            /* includes a good safety margin */
-            if (fsize > 1024) {
-                LDAPDebug(LDAP_DEBUG_ANY, "sasl user name and/or realm too long"
-                          " (ulen=%u, rlen=%u)\n", ulen, rlen, 0);
-                return NULL;
-            }
-    
-            /* now we can safely write the filter */
-            sprintf(fptr, "(&(%s=%s)", userattr, user+offset);
-            fptr += strlen(fptr);
-            if (realmattr && user_realm) {
-                sprintf(fptr, "(%s=%s)", realmattr, user_realm);
-                fptr += strlen(fptr);
-            }
-            if (ufilter) {
-                if (*ufilter == '(') {
-                    sprintf(fptr, "%s", ufilter);
-                } else {
-                    sprintf(fptr, "(%s)", ufilter);
-                }
-                fptr += strlen(fptr);
-            }
-            sprintf(fptr, ")");
-    
-            /* iterate through the naming contexts */
-            for (sdn = slapi_get_first_suffix(&node, 0); sdn != NULL;
-                 sdn = slapi_get_next_suffix(&node, 0)) {
-    
-                ids_sasl_user_search((char*)slapi_sdn_get_dn(sdn), scope, filter, 
-                                     ctrls, attrs, attrsonly,
-                                     &entry, &found);
+        if (found == 1) {
+            LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, "
+                "matching filter=%s\n", entry->e_sdn.dn, filter, 0);
+        } else if (found == 0) {
+            LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries matching "
+                "filter=%s\n", filter, 0, 0);
+        } else {
+            LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found more than one entry "
+                "matching filter=%s\n", filter, 0, 0);
+            if (entry) {
+                slapi_entry_free(entry);
+                entry = NULL;
             }
         }
+
+        /* Free the filter etc */
+        slapi_ch_free_string(&base);
+        slapi_ch_free_string(&filter);
     }
 
-    if (found == 1) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, matching filter=%s\n", entry->e_sdn.dn, filter, 0);
-        return entry;
-    }
-
-    if (found == 0) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries matching filter=%s\n", filter, 0, 0);
-    } else {
-        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found more than one entry matching filter=%s\n", filter, 0, 0);
-    }
-
-    if (entry) slapi_entry_free(entry);
-    return NULL;
+    return entry;
 }
 
 static char *buf2str(const char *buf, unsigned buflen)

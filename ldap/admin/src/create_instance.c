@@ -3791,6 +3791,55 @@ char *ds_gen_confs(char *sroot, server_config_s *cf,
     fprintf(f, "cn: replication\n");
     fprintf(f, "\n");
 
+	/* bugzilla 311851: Don't allow * to be inserted into SASL mapping search*/
+    fprintf(f, "dn: cn=sasl,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsContainer\n");
+    fprintf(f, "cn: sasl\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=mapping,cn=sasl,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsContainer\n");
+    fprintf(f, "cn: mapping\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=Kerberos uid mapping,cn=mapping,cn=sasl,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSaslMapping\n");
+    fprintf(f, "cn: Kerberos uid mapping\n");
+    fprintf(f, "nsSaslMapRegexString: \\(.*\\)@\\(.*\\)\\.\\(.*\\)\n");
+    fprintf(f, "nsSaslMapBaseDNTemplate: dc=\\2,dc=\\3\n");
+    fprintf(f, "nsSaslMapFilterTemplate: (uid=\\1)\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=rfc 2829 dn syntax,cn=mapping,cn=sasl,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSaslMapping\n");
+    fprintf(f, "cn: rfc 2829 dn syntax\n");
+    fprintf(f, "nsSaslMapRegexString: ^dn:\\(.*\\)\n");
+    fprintf(f, "nsSaslMapBaseDNTemplate: \\1\n");
+    fprintf(f, "nsSaslMapFilterTemplate: (objectclass=*)\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=rfc 2829 u syntax,cn=mapping,cn=sasl,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSaslMapping\n");
+    fprintf(f, "cn: rfc 2829 u syntax\n");
+    fprintf(f, "nsSaslMapRegexString: ^u:\\(.*\\)\n");
+    fprintf(f, "nsSaslMapBaseDNTemplate: %s\n", cf->suffix);
+    fprintf(f, "nsSaslMapFilterTemplate: (uid=\\1)\n");
+    fprintf(f, "\n");
+
+    fprintf(f, "dn: cn=uid mapping,cn=mapping,cn=sasl,cn=config\n");
+    fprintf(f, "objectclass: top\n");
+    fprintf(f, "objectclass: nsSaslMapping\n");
+    fprintf(f, "cn: uid mapping\n");
+    fprintf(f, "nsSaslMapRegexString: ^[^:@]+$\n");
+    fprintf(f, "nsSaslMapBaseDNTemplate: %s\n", cf->suffix);
+    fprintf(f, "nsSaslMapFilterTemplate: (uid=&)\n");
+    fprintf(f, "\n");
+
     if( cf->replicationdn && *(cf->replicationdn) ) 
     {
         fprintf(f, "dn: cn=replication4,cn=replication,cn=config\n");
