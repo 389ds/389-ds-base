@@ -213,6 +213,15 @@ NIDS idl_length(IDList *idl);
 int idl_is_allids(IDList *idl);
 int idl_append( IDList *idl, ID id);
 void idl_insert(IDList **idl, ID id);
+/*
+ * idl_delete - delete an id from an id list.
+ * returns  0   id deleted
+ *      1   id deleted, first id in block has changed
+ *      2   id deleted, block is empty
+ *      3   id not there
+ *      4   cannot delete from allids block
+ */
+int idl_delete( IDList **idl, ID id );
 IDList * idl_allids( backend *be );
 IDList * idl_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err );
 int idl_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition );

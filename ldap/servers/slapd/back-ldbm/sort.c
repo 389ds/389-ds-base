@@ -677,7 +677,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	a = id2entry(be,*id_a,NULL,&err);
 	if (NULL == a) {
 		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_ANY,"compare_entries db err %d\n",err,0,0);
+			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
 		}
 		/* Were up a creek without paddle here */
 		/* Best to log error and set some flag */
@@ -686,7 +686,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	b = id2entry(be,*id_b,NULL,&err);
 	if (NULL == b) {
 		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_ANY,"compare_entries db err %d\n",err,0,0);
+			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
 		}
 		return 0;
 	}

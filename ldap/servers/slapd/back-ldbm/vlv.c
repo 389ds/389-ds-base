@@ -54,7 +54,7 @@
 
 static PRUint32 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control);
 static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control);
-static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control);
+static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked);
 
 /* New mutex for vlv locking
 PRRWLock * vlvSearchList_lock=NULL;
@@ -72,6 +72,7 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
     backend *be = inst->inst_be;
     
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
+    /* vlvSearchList is modified; need Wlock */
     PR_RWLock_Wlock(be->vlvSearchList_lock);
     vlvSearch_addtolist(newVlvSearch, (struct vlvSearch **)&be->vlvSearchList);
     PR_RWLock_Unlock(be->vlvSearchList_lock);
@@ -81,24 +82,25 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 /* Callback to add a new VLV Index specification. Added write lock.*/
 
 int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
-{ 
-	struct vlvSearch *parent;
-	backend *be= ((ldbm_instance*)arg)->inst_be;
-	Slapi_DN parentdn;
-	
-	slapi_sdn_init(&parentdn);
-	slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
+{
+    struct vlvSearch *parent;
+    backend *be= ((ldbm_instance*)arg)->inst_be;
+    Slapi_DN parentdn;
+    
+    slapi_sdn_init(&parentdn);
+    slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
     {
-		PR_RWLock_Wlock(be->vlvSearchList_lock);
+        /* vlvSearchList is modified; need Wlock */
+        PR_RWLock_Wlock(be->vlvSearchList_lock);
         parent= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
         if(parent!=NULL)
         {
             struct vlvIndex* newVlvIndex= vlvIndex_new();
-			newVlvIndex->vlv_be=be;
+            newVlvIndex->vlv_be=be;
             vlvIndex_init(newVlvIndex, be, parent, entryBefore);
-		    vlvSearch_addIndex(parent, newVlvIndex);
+            vlvSearch_addIndex(parent, newVlvIndex);
         }
-		PR_RWLock_Unlock(be->vlvSearchList_lock);
+        PR_RWLock_Unlock(be->vlvSearchList_lock);
     }
     slapi_sdn_done(&parentdn);
     return SLAPI_DSE_CALLBACK_OK;
@@ -111,6 +113,7 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
     struct vlvSearch* p=NULL;
 	backend *be= ((ldbm_instance*)arg)->inst_be;
 	
+    /* vlvSearchList is modified; need Wlock */
 	PR_RWLock_Wlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
@@ -320,6 +323,7 @@ vlv_init(ldbm_instance *inst)
     {
         struct vlvSearch *t = NULL;
         struct vlvSearch *nt = NULL;
+        /* vlvSearchList is modified; need Wlock */
         PR_RWLock_Wlock(be->vlvSearchList_lock);
         for (t = (struct vlvSearch *)be->vlvSearchList; NULL != t; )
         {
@@ -762,7 +766,7 @@ vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_P
  *
  * JCM: If only non-sorted attributes are changed, then the indexes don't need updating.
  * JCM: Detecting this fact, given multi-valued atribibutes, might be tricky...
- *  Added write lock
+ * Read lock (traverse vlvSearchList; no change on vlvSearchList/vlvIndex lists)
 */
 
 int
@@ -772,7 +776,7 @@ vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct back
     struct vlvSearch* ps=NULL;
 	struct ldbminfo *li = ((ldbm_instance *)be->be_instance_info)->inst_li;
 	
-	PR_RWLock_Wlock(be->vlvSearchList_lock);
+	PR_RWLock_Rlock(be->vlvSearchList_lock);
 	ps = (struct vlvSearch *)be->vlvSearchList;
     for(;ps!=NULL;ps= ps->vlv_next)
     {
@@ -1059,15 +1063,16 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	PR_RWLock_Rlock(be->vlvSearchList_lock);
 	if((pi=vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
 	    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+		PR_RWLock_Unlock(be->vlvSearchList_lock);
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
 		rc = VLV_FIND_SEARCH_FAILED;
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
+		PR_RWLock_Unlock(be->vlvSearchList_lock);
 		rc = VLV_ACCESS_DENIED;
-	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,vlv_response_control)) != LDAP_SUCCESS) {
+	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,vlv_response_control, 1)) != LDAP_SUCCESS) {
 		rc = VLV_BLD_LIST_FAILED;
 		vlv_response_control->result=*vlv_rc;
 	}
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
 	return rc;
 }
 
@@ -1087,7 +1092,7 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
  
 
 static int
-vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control)
+vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked)
 {
     int return_value = LDAP_SUCCESS;
     DB *db = NULL;
@@ -1102,6 +1107,9 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
               slapi_sdn_get_dn(vlvIndex_getBase(p)), p->vlv_search->vlv_filter,
               vlvIndex_getName(p));
     if (!vlvIndex_online(p)) {
+        if (is_srchlist_locked) {
+            PR_RWLock_Unlock(be->vlvSearchList_lock);
+        }
         return -1;
     }
     rc = dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0);
@@ -1109,14 +1117,9 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
         /* shouldn't happen */
         LDAPDebug(LDAP_DEBUG_ANY, "VLV: can't get index file '%s' (err %d)\n",
                   p->vlv_attrinfo->ai_type, rc, 0);
-        return -1;
-    }
-
-    err = db->cursor(db, 0 /* txn */, &dbc, 0);
-    if (err != 0) {
-        /* shouldn't happen */
-        LDAPDebug(LDAP_DEBUG_ANY, "VLV: couldn't get cursor (err %d)\n",
-                  rc, 0, 0);
+        if (is_srchlist_locked) {
+            PR_RWLock_Unlock(be->vlvSearchList_lock);
+        }
         return -1;
     }
 
@@ -1124,6 +1127,17 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
 
     /* Increment the usage counter */
     vlvIndex_incrementUsage(p);
+
+    if (is_srchlist_locked) {
+        PR_RWLock_Unlock(be->vlvSearchList_lock);
+    }
+    err = db->cursor(db, 0 /* txn */, &dbc, 0);
+    if (err != 0) {
+        /* shouldn't happen */
+        LDAPDebug(LDAP_DEBUG_ANY, "VLV: couldn't get cursor (err %d)\n",
+                  rc, 0, 0);
+        return -1;
+    }
 
     if (vlv_request_control)
     {
@@ -1454,9 +1468,17 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
         typedown_value= vlv_create_matching_rule_value(sort_control->mr_pb,(struct berval *)&vlv_request_control->value);
         compare_fn= slapi_berval_cmp;
     }
+retry:
     /*
      * Perform a binary search over the candidate list
      */
+    if (0 == candidates->b_nids) { /* idlist is empty */
+        LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID List is empty.\n", 0, 0, 0 );
+        ber_bvecfree((struct berval**)typedown_value);
+        return candidates->b_nids; /* not found */
+    }
+    low= 0;
+    high= candidates->b_nids-1;
     do {
         int err= 0;
         struct backentry *e= NULL;
@@ -1472,7 +1494,15 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
         e = id2entry( be, id, NULL, &err );
     	if ( e == NULL )
     	{
+            int rval;
     	    LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID %lu not found err=%d\n", (u_long)id, err, 0 );
+            rval = idl_delete(&candidates, id);
+            if (0 == rval || 1 == rval || 2 == rval) {
+                goto retry;
+            } else {
+                ber_bvecfree((struct berval**)typedown_value);
+                return candidates->b_nids; /* not found */
+            }
     	}
     	else
     	{
@@ -1820,8 +1850,8 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
     IDList *idl;
     Slapi_Filter *vlv_f;
 
-	PR_RWLock_Rlock(be->vlvSearchList_lock); 
 	slapi_sdn_init_dn_byref(&base_sdn, base);
+	PR_RWLock_Rlock(be->vlvSearchList_lock); 
 	for (t = (struct vlvSearch *)be->vlvSearchList; t; t = t->vlv_next) {
 		/* all vlv "filters" start with (|(xxx)(objectclass=referral)).
 		 * we only care about the (xxx) part.
@@ -1847,9 +1877,10 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 			}
 			
 			if (dblayer_get_index_file(be, vi->vlv_attrinfo, &db, 0) == 0) {
+				length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
+				PR_RWLock_Unlock(be->vlvSearchList_lock);
 				err = db->cursor(db, 0 /* txn */, &dbc, 0);
 				if (err == 0) {
-					length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
 					if (length == 0) /* 609377: index size could be 0 */
 					{
 						LDAPDebug(LDAP_DEBUG_TRACE, "vlv: index %s is empty\n",
@@ -1864,12 +1895,10 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 				}
 				dblayer_release_index_file(be, vi->vlv_attrinfo, db);
 				if (err == 0) {
-					PR_RWLock_Unlock(be->vlvSearchList_lock);
 					return idl;
 				} else {
 					LDAPDebug(LDAP_DEBUG_ANY, "vlv find index: err %d\n",
 						err, 0, 0);
-					PR_RWLock_Unlock(be->vlvSearchList_lock);
 					return NULL;
 				}
 			}
@@ -1927,6 +1956,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	tag1=create_vlv_search_tag(dn);
 	buf=slapi_ch_smprintf("%s%s%s%s%s","cn=MCC ",tag1,", cn=",inst->inst_name,LDBM_PLUGIN_ROOT);
 	newdn=slapi_sdn_new_dn_byval(buf);
+    /* vlvSearchList is modified; need Wlock */
 	PR_RWLock_Wlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
     if(p!=NULL)
