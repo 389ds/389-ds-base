@@ -81,7 +81,7 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	attrlist_replace( &e->e_attrs, "version", vals );
 	slapi_ch_free( (void **) &val.bv_val );
 
-	sprintf( buf, "%d", active_threads );
+	sprintf( buf, "%d", g_get_active_threadcnt() );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "threads", vals );

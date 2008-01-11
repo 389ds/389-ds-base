@@ -585,6 +585,7 @@ static void task_export_thread(void *arg)
     int count;
     Slapi_Task *task = pb->pb_task;
 
+    g_incr_active_threadcnt();
     for (count = 0, inp = instance_names; *inp; inp++, count++)
         ;
     task->task_work = count;
@@ -684,6 +685,7 @@ static void task_export_thread(void *arg)
     task->task_exitcode = rv;
     task->task_state = SLAPI_TASK_FINISHED;
     slapi_task_status_changed(task);
+    g_decr_active_threadcnt();
 }
 
 static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
@@ -925,6 +927,7 @@ static void task_backup_thread(void *arg)
     Slapi_Task *task = pb->pb_task;
     int rv;
 
+    g_incr_active_threadcnt();
     task->task_work = 1;
     task->task_progress = 0;
     task->task_state = SLAPI_TASK_RUNNING;
@@ -953,6 +956,7 @@ static void task_backup_thread(void *arg)
 
     slapi_ch_free((void **)&pb->pb_seq_val);
     slapi_pblock_destroy(pb);
+    g_decr_active_threadcnt();
 }
 
 static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
@@ -1068,6 +1072,7 @@ static void task_restore_thread(void *arg)
     Slapi_Task *task = pb->pb_task;
     int rv;
 
+    g_incr_active_threadcnt();
     task->task_work = 1;
     task->task_progress = 0;
     task->task_state = SLAPI_TASK_RUNNING;
@@ -1096,6 +1101,7 @@ static void task_restore_thread(void *arg)
 
     slapi_ch_free((void **)&pb->pb_seq_val);
     slapi_pblock_destroy(pb);
+    g_decr_active_threadcnt();
 }
 
 static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
@@ -1219,6 +1225,7 @@ static void task_index_thread(void *arg)
     Slapi_Task *task = pb->pb_task;
     int rv;
 
+    g_incr_active_threadcnt();
     task->task_work = 1;
     task->task_progress = 0;
     task->task_state = SLAPI_TASK_RUNNING;
@@ -1239,6 +1246,7 @@ static void task_index_thread(void *arg)
     charray_free(pb->pb_db2index_attrs);
     slapi_ch_free((void **)&pb->pb_instance_name);
     slapi_pblock_destroy(pb);
+    g_decr_active_threadcnt();
 }
 
 static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,

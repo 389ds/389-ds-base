@@ -290,7 +290,7 @@ ps_send_results( void *arg )
 	char **pbattrs = NULL;
 	int conn_acq_flag = 0;
     
-    PR_AtomicIncrement( &active_threads );
+    g_incr_active_threadcnt();
 
     /* need to acquire a reference to this connection so that it will not
        be released or cleaned up out from under us */
@@ -438,7 +438,7 @@ ps_send_results( void *arg )
 		pe_ch_free( &peq );
 	}
     slapi_ch_free((void **) &ps );
-    PR_AtomicDecrement(&active_threads);	
+    g_decr_active_threadcnt();
 }
 
 

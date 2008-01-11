@@ -196,6 +196,9 @@ int g_get_defsize();
 int g_get_deftime();
 void be_unbindall( Connection *conn, Operation *op); 
 int be_nbackends_public();
+void g_incr_active_threadcnt();
+void g_decr_active_threadcnt();
+int g_get_active_threadcnt();
 
 /*
  * bind.c
