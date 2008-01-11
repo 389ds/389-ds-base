@@ -422,7 +422,7 @@ ldbm_back_search( Slapi_PBlock *pb )
             if (sort && (NULL != candidates))
             {
                 time_t optime = 0;
-                time_t tlimit = 0;
+                int tlimit = 0;
 
                 slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
                 slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );

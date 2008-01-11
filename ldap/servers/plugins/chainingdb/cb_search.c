@@ -179,7 +179,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
             		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
                 	return 1;
 		}
-		timeout.tv_sec=timelimit-(now-optime);
+		timeout.tv_sec=(time_t)timelimit-(now-optime);
 		timeout.tv_usec=0;
 	}
 
@@ -414,7 +414,10 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 { 
 
 	char 			*target;
-	int			sizelimit,timelimit, rc, parse_rc, optime,i,retcode, attrsonly;
+	int				sizelimit, timelimit;
+	int				rc, parse_rc, retcode;
+	int				i, attrsonly;
+	time_t			optime;
  	LDAPMessage 		*res=NULL;
 	char 			*matched_msg,*error_msg;
 	cb_searchContext 	*ctx=NULL;
