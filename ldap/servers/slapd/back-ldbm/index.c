@@ -527,7 +527,8 @@ index_add_mods(
                 slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr );
                 if ( mods_valueArray != NULL ) {
                     for ( j = 0; mods_valueArray[j] != NULL; j++ ) {
-                        valuearray_remove_value(curr_attr, evals, mods_valueArray[j]);
+                        Slapi_Value *rval = valuearray_remove_value(curr_attr, evals, mods_valueArray[j]);
+                        slapi_value_free( &rval );
                     }
                 }
 
@@ -541,7 +542,8 @@ index_add_mods(
                         }
                     } else {
                         /* Remove duplicate value from deleted value array */
-                        valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                        Slapi_Value *rval = valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                        slapi_value_free( &rval );
                         j--;
                     }
                 }
@@ -607,7 +609,8 @@ index_add_mods(
                                     }
                                 } else {
                                     /* Remove duplicate value from the mod list */
-                                    valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                                    Slapi_Value *rval = valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                                    slapi_value_free( &rval );
                                     j--;
                                 }
                             }
