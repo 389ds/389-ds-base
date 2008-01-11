@@ -564,6 +564,8 @@ vlvIndex_delete(struct vlvIndex** ppvs)
         }
         ldap_free_sort_keylist((*ppvs)->vlv_sortkey);
         attrinfo_delete(&((*ppvs)->vlv_attrinfo));
+        slapi_ch_free((void**)&((*ppvs)->vlv_name));
+        slapi_ch_free((void**)&((*ppvs)->vlv_filename));
         slapi_ch_free((void**)&((*ppvs)->vlv_mrpb));
         slapi_ch_free((void**)&((*ppvs)->vlv_syntax_plugin));
         PR_DestroyLock((*ppvs)->vlv_indexlength_lock);
