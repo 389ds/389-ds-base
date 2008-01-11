@@ -6223,19 +6223,23 @@ static void _cl5DBCloseFile (void **data)
 		_cl5WriteRUV (file, PR_FALSE); 
 	}
 
-	/* close file */
+	/* close the db */
 	if (file->db)
 	    file->db->close(file->db, 0);
 
 	if (file->flags & DB_FILE_DELETED)
     {
+        int rc = 0;
+        /* We need to use the libdb API to delete the files, otherwise we'll
+         * run into problems when we try to checkpoint transactions later. */
         PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, file->name);
-	    if (PR_Delete(fullpathname) != PR_SUCCESS)	
-	    {
-		    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-                  "failed to remove (%s) file; NSPR error - %d\n", file->name, PR_GetError ());
-
-	    }
+        rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, fullpathname, 0, 0);
+        if (rc != 0)
+        {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
+                    "failed to remove (%s) file; libdb error - %d (%s)\n", 
+                    fullpathname, rc, db_strerror(rc));
+        }
     }
 
 	/* slapi_ch_free accepts NULL pointer */
