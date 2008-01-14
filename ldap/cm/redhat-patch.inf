@@ -49,22 +49,27 @@
 base: /share/builds/products/server/directry/7.1
 
 file: 147585: plugins/slapd/slapi/examples/testpreop.c
-file: 164834,165641,166229,173687,175063,202890,247725,297221: bin/slapd/server/ns-slapd
-file: 155276,164834,164843,165641,166229,173687,175063,179135,179137,202890,247725,297221: bin/slapd/server/libslapd.*
+file: 164834,165641,166229,173687,175063,202890,247725,297221,196523,208058,311851: bin/slapd/server/ns-slapd
+file: 155276,164834,164843,165641,166229,173687,175063,179135,179137,202890,247725,297221,240897: bin/slapd/server/libslapd.*
+file: 204808: bin/slapd/server/migratecred
+file: 204808: bin/slapd/server/mmldif
+file: 204808: bin/slapd/server/pwdhash
 file: 151678: bin/slapd/admin/bin/ds_newinst
 file: 151678: bin/slapd/admin/bin/ds_create
-file: 155276,164843,165641,165827,165862,166012,175063,175897,179135,179137,179810,189264,192901,231507: lib/libback-ldbm.*
+file: 155276,164843,165641,165827,165862,166012,175063,175897,179135,179137,179810,189264,192901,231507,183222,314851,171081,243820,219586: lib/libback-ldbm.*
 file: 160003: bin/slapd/admin/scripts/template-db2index.pl
 file: 160003: bin/slapd/admin/bin/upgradeServer
-file: 164836,165600: lib/attr-unique-plugin.*
+file: 164836,165600,288321: lib/attr-unique-plugin.*
 file: 165640: lib/views-plugin.*
 file: 339791: lib/syntax-plugin.*
-file: 297221: lib/acl-plugin.*
+file: 297221,288321: lib/acl-plugin.*
 file: 297221: lib/statechange-plugin.*
+file: 204808: lib/chainingdb-plugin.*
+file: 176302: lib/passthru-plugin.*
 file: 167478,160589: setup/setup
 file: 156120,159037,170321,170328,170556,170558,170816,185765: winsync/PassSync.msi
 file: 167761: java/jars/ds71.jar
-file: 169388,169954,170071,170350,181827,179135,179137: lib/replication-plugin.*
+file: 169388,169954,170071,170350,181827,179135,179137,238630: lib/replication-plugin.*
 file: xxxxxx: bin/slapd/README.txt
 file: xxxxxx: README.txt
 file: M324525,M324529: shared/lib/libldap50.*
