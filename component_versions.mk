@@ -198,7 +198,7 @@ ifndef SASL_VERSDIR
   SASL_VERSDIR=cyrus
 endif
 ifndef SASL_RELDATE
-  SASL_RELDATE=v2.1.20
+  SASL_RELDATE=v2.1.22/20080115.1
 endif
 
 # jakarta/axis for DSMLGW

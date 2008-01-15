@@ -60,35 +60,31 @@ static char *serverfqdn;
  * utility functions needed by the sasl library
  */
 
-int sasl_os_gethost(char *buf, int len)
-{
-    int rc;
-
-    rc = gethostname(buf, len);
-    LDAPDebug(LDAP_DEBUG_TRACE, "sasl_os_gethost %s\n", buf, 0, 0);
-    return ( rc == 0 ? SASL_OK : SASL_FAIL );
-}
-
-void *sasl_mutex_alloc(void)
+void *nssasl_mutex_alloc(void)
 {
     return PR_NewLock();
 }
 
-int sasl_mutex_lock(void *mutex)
+int nssasl_mutex_lock(void *mutex)
 {
     PR_Lock(mutex);
     return SASL_OK;
 }
 
-int sasl_mutex_unlock(void *mutex)
+int nssasl_mutex_unlock(void *mutex)
 {
     if (PR_Unlock(mutex) == PR_SUCCESS) return SASL_OK;
     return SASL_FAIL;
 }
 
-void sasl_mutex_free(void *mutex)
+void nssasl_mutex_free(void *mutex)
 {
     PR_DestroyLock(mutex);
+}
+
+void nssasl_free(void *ptr)
+{
+    slapi_ch_free(&ptr);
 }
 
 /* 
@@ -541,6 +537,20 @@ int ids_sasl_init(void)
 
     LDAPDebug(LDAP_DEBUG_TRACE, "sasl service fqdn is: %s\n", 
                   serverfqdn, 0, 0);
+
+    /* Set SASL memory allocation callbacks */
+    sasl_set_alloc(
+        (sasl_malloc_t *)slapi_ch_malloc,
+        (sasl_calloc_t *)slapi_ch_calloc,
+        (sasl_realloc_t *)slapi_ch_realloc,
+        (sasl_free_t *)nssasl_free );
+
+    /* Set SASL mutex callbacks */
+    sasl_set_mutex(
+        (sasl_mutex_alloc_t *)nssasl_mutex_alloc,
+        (sasl_mutex_lock_t *)nssasl_mutex_lock,
+        (sasl_mutex_unlock_t *)nssasl_mutex_unlock,
+        (sasl_mutex_free_t *)nssasl_mutex_free);
 
     result = sasl_server_init(ids_sasl_callbacks, "iDS");
 
