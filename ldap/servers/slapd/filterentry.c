@@ -436,6 +436,7 @@ dn2attrs(const char *dn)
                         bv.bv_len = strlen(val);
                         bvec[0] = &bv;
                         attrlist_merge (&dnAttrs, type, bvec);
+                        slapi_ch_free_string( &type );
                     }
                 }
                 ldap_value_free (avas);
@@ -500,7 +501,7 @@ test_extensible_filter(
 					/* B) Also check the DN attributes for the attribute value */
 					Slapi_Attr* dnattrs= dn2attrs(slapi_entry_get_dn_const(e));
 					rc= test_ava_filter( callers_pb, e, dnattrs, &a, LDAP_FILTER_EQUALITY, 0 /* Don't Verify Access */ , 0 /* don't just verify access */, access_check_done );
-        			slapi_attr_free( &dnattrs );
+        			attrlist_free( dnattrs );
 				}
 			}
 			else
@@ -515,7 +516,7 @@ test_extensible_filter(
 					/* D & F) Also check the DN attributes for the attribute value */
 					Slapi_Attr* dnattrs= dn2attrs(slapi_entry_get_dn_const(e));
 					mrf->mrf_match (mrf->mrf_object, e, dnattrs);
-        			slapi_attr_free( &dnattrs );
+        			attrlist_free( dnattrs );
 				}
 			}
 		}
@@ -568,7 +569,7 @@ test_extensible_filter(
 					/* B) Also check the DN attributes for the attribute value */
 					Slapi_Attr* dnattrs= dn2attrs(slapi_entry_get_dn_const(e));
 					rc= test_ava_filter( callers_pb, e, dnattrs, &a, LDAP_FILTER_EQUALITY, 0 /* Don't Verify Access */ , 0 /* don't just verify access */, access_check_done );
-        			slapi_attr_free( &dnattrs );
+        			attrlist_free( dnattrs );
 				}
 			}
 			else
@@ -583,7 +584,7 @@ test_extensible_filter(
 					/* D & F) Also check the DN attributes for the attribute value */
 					Slapi_Attr* dnattrs= dn2attrs(slapi_entry_get_dn_const(e));
 					mrf->mrf_match (mrf->mrf_object, e, dnattrs);
-        			slapi_attr_free( &dnattrs );
+        			attrlist_free( dnattrs );
 				}
 			}
 		}
