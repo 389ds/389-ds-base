@@ -49,11 +49,12 @@
 base: /share/builds/products/server/directry/7.1
 
 file: 147585: plugins/slapd/slapi/examples/testpreop.c
-file: 164834,165641,166229,173687,175063,202890,247725,297221,196523,208058,311851: bin/slapd/server/ns-slapd
-file: 155276,164834,164843,165641,166229,173687,175063,179135,179137,202890,247725,297221,240897: bin/slapd/server/libslapd.*
+file: 164834,165641,166229,173687,175063,202890,247725,297221,196523,208058,311851,240583: bin/slapd/server/ns-slapd
+file: 155276,164834,164843,165641,166229,173687,175063,179135,179137,202890,247725,297221,240897,428764: bin/slapd/server/libslapd.*
 file: 204808: bin/slapd/server/migratecred
 file: 204808: bin/slapd/server/mmldif
 file: 204808: bin/slapd/server/pwdhash
+file: xxxxxx: bin/slapd/server/libdb42.*
 file: 151678: bin/slapd/admin/bin/ds_newinst
 file: 151678: bin/slapd/admin/bin/ds_create
 file: 155276,164843,165641,165827,165862,166012,175063,175897,179135,179137,179810,189264,192901,231507,183222,314851,171081,243820,219586: lib/libback-ldbm.*
