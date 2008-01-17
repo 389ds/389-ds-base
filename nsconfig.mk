@@ -1105,6 +1105,7 @@ else
   ARCH_CFLAGS += -m64
 endif
 endif
+ARCH_CFLAGS += -xcode=pic32
 ARCH_DEBUG=-g
 RANLIB=true
 
