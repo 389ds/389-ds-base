@@ -297,10 +297,11 @@ endif # ICU_SOURCE_ROOT
 ifndef DB_SOURCE_ROOT
 #if no version specified, we'll use the latest one
 ifndef DB_VERSION
-  DB_VERSION=20040130
+  DB_VERSION=20080121
 endif
 # define the paths to the component parts
-db_components_share=$(COMPONENTS_DIR)/$(db_component_name)
+#db_components_share=$(COMPONENTS_DIR)/$(db_component_name)
+db_components_share=$(COMPONENTS_DIR_DEV)/$(db_component_name)
 MY_NSOBJDIR_TAG=$(NSOBJDIR_TAG).OBJ
 db_release_config =$(db_components_share)/$(DB_VERSION)/$(NSCONFIG_NOTAG)$(NS64TAG)$(MY_NSOBJDIR_TAG)
 # add ",bin" to DB_FILES if you want the programs like db_verify, db_recover, etc.

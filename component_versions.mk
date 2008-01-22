@@ -66,7 +66,7 @@ ifndef DB_MAJOR_MINOR
 DB_MAJOR_MINOR:=db42
 endif
 ifndef DB_VERSION
-  DB_VERSION:=20040813
+  DB_VERSION:=20080121
 endif
 
 # DBM Library
