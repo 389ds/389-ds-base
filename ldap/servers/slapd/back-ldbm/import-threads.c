@@ -872,7 +872,7 @@ import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
         for ( i = 0, slot_found = 0 ; i < job->fifo.size ; i++ ) {
             temp_ep = job->fifo.item[i].entry;
             if (temp_ep) {
-                if (temp_ep->ep_refcnt == 0 && temp_ep->ep_id < job->ready_ID) {
+                if (temp_ep->ep_refcnt == 0 && temp_ep->ep_id <= job->ready_ID) {
                     job->fifo.item[i].entry = NULL;
                     if (job->fifo.c_bsize > job->fifo.item[i].esize)
                         job->fifo.c_bsize -= job->fifo.item[i].esize;
