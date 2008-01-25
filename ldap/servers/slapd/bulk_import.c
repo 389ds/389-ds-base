@@ -171,10 +171,11 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
     rc = be->be_wire_import (pb);
     if (rc != 0)
     {
-        if (rc != LDAP_BUSY)
-			slapi_log_error(SLAPI_LOG_FATAL, NULL, "slapi_start_bulk_import: "
+        /* The caller will free the entry (e), so we just
+         * leave it alone here. */
+	slapi_log_error(SLAPI_LOG_FATAL, NULL, "slapi_start_bulk_import: "
                         "failed; error = %d\n", rc);
-        return (LDAP_BUSY == rc ? LDAP_BUSY : LDAP_OPERATIONS_ERROR);
+        return LDAP_OPERATIONS_ERROR;
     }
 
     return LDAP_SUCCESS;

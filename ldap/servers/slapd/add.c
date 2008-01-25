@@ -753,25 +753,19 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
     slapi_pblock_set(pb, SLAPI_BULK_IMPORT_STATE, &ret);
     ret = (*be->be_wire_import)(pb);
     if (ret != 0) {
-        if (ret != LDAP_BUSY) {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                      "wire import: error during import (%d)\n",
-                      ret, 0, 0);
-        } else {
-            LDAPDebug(LDAP_DEBUG_TRACE,
-                      "wire import: asking client to wait before resuming (returning LDAP_BUSY)\n",
-                      0, 0, 0);
-        }
-        send_ldap_result(pb,
-			 LDAP_BUSY == ret ? LDAP_BUSY : LDAP_OPERATIONS_ERROR,
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "wire import: error during import (%d)\n",
+                  ret, 0, 0);
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR,
 			 NULL, NULL, 0, NULL);
+        /* It's our responsibility to free the entry if
+         * be_wire_import doesn't succeed. */
         slapi_entry_free(entry);
 
-		if (LDAP_BUSY != ret) {
-        	/* turn off fast replica init -- import is now aborted */
-        	pb->pb_conn->c_bi_backend = NULL;
-        	pb->pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
-		}
+        /* turn off fast replica init -- import is now aborted */
+        pb->pb_conn->c_bi_backend = NULL;
+        pb->pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
+
         return;
     }
 

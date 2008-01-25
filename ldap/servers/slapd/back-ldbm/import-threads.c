@@ -1523,15 +1523,12 @@ fail:
 /* returns 0 on success, or < 0 on error 
  *
  * on error, the import process is aborted -- so if this returns an error,
- * don't try to queue any more entries or you'll be sorry.
+ * don't try to queue any more entries or you'll be sorry.  The caller
+ * is also responsible for free'ing the passed in entry on error.  The
+ * entry will be consumed on success.
  *
- * flag_block in used to know if this thread should block when
- * the fifo is full or return an error LDAP_BUSY
- * Typically, import done on from the GUI or the command line will
- * block while online import as used by the replication total update
- * will not block
  */
-static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry, int flag_block)
+static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 {
     struct backentry *ep = NULL, *old_ep = NULL;
     int idx;
@@ -1575,18 +1572,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry, int flag_block)
     if (old_ep) {
         while ((old_ep->ep_refcnt > 0) && !(job->flags & FLAG_ABORT))
         {
-            if (flag_block)
-                DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
-            else
-            {
-				/* DBBD: Argh -- why not just block, what's the benefit to this ?? */
-				/* I think that to support pipelining in the transport, we need to block here, */
-				/* Otherwise evil things could happen where we say we're busy for operation N, but */
-				/* Not for operation N+1, but the sender doesn't find out about this until after sending */
-				/* Operation N+2 etc. Seems possible to end up with children processed before parents which won't work. */
-                PR_Unlock(job->wire_lock);
-                return LDAP_BUSY;
-            }
+            DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
         }
 
         /* the producer could be running thru the fifo while
@@ -1595,16 +1581,12 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry, int flag_block)
          */
         while ((old_ep->ep_id >= job->ready_ID) && !(job->flags & FLAG_ABORT))
         {
-            if (flag_block)
-                DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
-            else
-            {
-                PR_Unlock(job->wire_lock);
-                return LDAP_BUSY;
-            }
+            DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
         }
 
         if (job->flags & FLAG_ABORT) {
+	    backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
+	    backentry_free( &ep );          /* release the backend wrapper, here */
             PR_Unlock(job->wire_lock);
             return -2;
         }
@@ -1624,8 +1606,9 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry, int flag_block)
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(ep->ep_entry), ebuf));
         import_log_notice(job, "REASON: entry too large (%d bytes) for "
-                    "the buffer size (%d bytes)", newesize, job->fifo.bsize);
-        backentry_free(&ep);
+                    "the import buffer size (%d bytes).  Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
+	backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
+	backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);
         return -1;
     }
@@ -1683,7 +1666,13 @@ void factory_destructor(void *extension, void *object, void *parent)
     return;
 }
 
-/* plugin entry function for replica init */
+/* plugin entry function for replica init
+ *
+ * For the SLAPI_BI_STATE_ADD state:
+ * On success (rc=0), the entry in pb->pb_import_entry will be
+ * consumed.  For any other return value, the caller is
+ * responsible for freeing the entry in the pb.
+ */
 int ldbm_back_wire_import(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
@@ -1716,12 +1705,12 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
         if (! import_entry_belongs_here(pb->pb_import_entry,
                                         job->inst->inst_be)) {
             /* silently skip */
+            /* We need to consume pb->pb_import_entry on success, so we free it here. */
+	    slapi_entry_free(pb->pb_import_entry);
             return 0;
         }
-		/* These days, we don't want to return LDAP_BUSY (it makes pipelineing impossible 
-		and actually doesn't achieve anything anyway). So we pass '1' for the block flag. */
-        return bulk_import_queue(job, pb->pb_import_entry,
-                                        1);
+
+        return bulk_import_queue(job, pb->pb_import_entry);
     }
 
     thread = job->main_thread;

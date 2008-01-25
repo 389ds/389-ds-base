@@ -869,12 +869,11 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 #endif
 
        rc = slapi_import_entry (pb, e); 
-       /* slapi_import_entry return an LDAP error in case of problem
-        * LDAP_BUSY is used to indicate that the import queue is full
-        * and that flow control must happen to stop the supplier 
-        * from sending entries
+       /* slapi_import_entry returns an LDAP error in case of a
+	* problem.  If there's a problem, it's our responsibility
+	* to free the slapi_entry that we're trying to import.
         */
-       if ((rc != LDAP_SUCCESS) && (rc != LDAP_BUSY))
+       if (rc != LDAP_SUCCESS)
 	   {
 		   const char *dn = slapi_entry_get_dn_const(e);
 		   slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -893,7 +892,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 						rc, connid, opid);
 	}
    
-    if ((rc != 0) && (rc != LDAP_BUSY))
+    if (rc != 0)
     {
         /* just disconnect from the supplier. bulk import is stopped when
            connection object is destroyed */
