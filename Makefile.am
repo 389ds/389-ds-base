@@ -115,7 +115,7 @@ endif
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
 	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
-	libpassthru-plugin.la libpresence-plugin.la \
+	libmemberof-plugin.la libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
 	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) 
@@ -645,6 +645,14 @@ libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
 libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
 libcollation_plugin_la_LINK = $(CXXLINK)
+
+#------------------------
+# libmemberof-plugin
+#------------------------
+libmemberof_plugin_la_SOURCES= ldap/servers/plugins/memberof/memberof.c
+
+libmemberof_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libmemberof_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpam-passthru-plugin
