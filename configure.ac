@@ -263,6 +263,7 @@ case $host in
     AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
     AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
     AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
+    AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
     platform="linux"
     # relative to sysconfdir
     initdir=/rc.d/init.d

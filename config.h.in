@@ -335,6 +335,9 @@
 /* UNIX */
 #undef XP_UNIX
 
+/* GNU Source */
+#undef _GNU_SOURCE
+
 /* Source namespace */
 #undef _HPUX_SOURCE
 
@@ -368,7 +371,7 @@
 /* Define to `int' if <sys/types.h> does not define. */
 #undef pid_t
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define to `unsigned' if <sys/types.h> does not define. */
 #undef size_t
 
 /* SunOS5 */
