@@ -335,6 +335,9 @@
 /* UNIX */
 #undef XP_UNIX
 
+/* GNU Source */
+#undef _GNU_SOURCE
+
 /* Source namespace */
 #undef _HPUX_SOURCE
 

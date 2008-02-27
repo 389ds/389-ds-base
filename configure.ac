@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
 # This version is the version returned by ns-slapd -v
-AC_INIT([dirsrv], [1.1.0b2], [http://bugzilla.redhat.com/])
+AC_INIT([dirsrv], [1.1.0], [http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
@@ -263,6 +263,7 @@ case $host in
     AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
     AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
     AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
+    AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
     platform="linux"
     # relative to sysconfdir
     initdir=/rc.d/init.d
