@@ -389,6 +389,9 @@ ifdef PACKAGE_UNDER_JAVA
 		then $(INSTALL) -m 755 $$file $(RELDIR)/$(DS_JAR_DEST_PATH) ; \
 	fi ; \
 	done
+	if [ "$(RELDIR)/$(DS_JAR_DEST_PATH)" -a -d "$(RELDIR)/$(DS_JAR_DEST_PATH)" ] ; then \
+		chmod 755 $(RELDIR)/$(DS_JAR_DEST_PATH); \
+	fi
 endif
 
 	$(INSTALL) -m 644 $(BUILD_DRIVE)$(BUILD_ROOT)/ldap/ldif/*.ldif $(RELDIR)/bin/slapd/install/ldif
@@ -492,6 +495,9 @@ ifeq ($(USE_JAVATOOLS), 1)
 	$(INSTALL) -m 644 $(DS_JAR_SRC_PATH)/$(XMLTOOLS_JAR_FILE) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSONJAR) $(RELDIR)/$(DS_JAR_DEST_PATH)
 	$(INSTALL) -m 644 $(NSDIST)/classes/$(CRIMSON_LICENSE) $(RELDIR)/$(DS_JAR_DEST_PATH)
+	if [ "$(RELDIR)/$(DS_JAR_DEST_PATH)" -a -d "$(RELDIR)/$(DS_JAR_DEST_PATH)" ] ; then \
+		chmod 755 $(RELDIR)/$(DS_JAR_DEST_PATH); \
+	fi
 endif
 
 # Images for IM Presence plugin
