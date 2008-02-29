@@ -89,6 +89,7 @@ rm -rf $RPM_BUILD_ROOT/$RPM_INSTALL_PREFIX
 # the entire ldapserver directory - if we change this to put
 # files in different places, we won't be able to do this anymore
 %defattr(-,root,root,-)
+%attr(0755,root,root) %dir %{prefix}/java/jars
 %{prefix}
 # don't update admin server configuration files.
 # note: if there's somes change b/w 2 versions, on-disk file is put w/ .rpmsave
