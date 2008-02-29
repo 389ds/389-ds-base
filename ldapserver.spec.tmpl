@@ -45,7 +45,7 @@
 Summary: @COMPANY-PRODUCT-NAME@
 Name: @LCASE-COMPANY-NAME-NOSP@-ds
 Version: @GEN-VERSION@
-Release: 6.@PLATFORM@
+Release: 7.@PLATFORM@
 License: GPL plus extensions
 Group: System Environment/Daemons
 URL: @COMPANY-URL@
@@ -135,7 +135,10 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
-* Mon Jan 07 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-4
+* Fri Feb 29 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-4-7
+- fixed the mode of java/jars
+
+* Mon Jan 07 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-4-6
 - apply patches defined in DS7.1 SP4 PRD
 
 * Tue Sep 13 2005 Nathan Kinder <nkinder@redhat.com> 7.1-3
