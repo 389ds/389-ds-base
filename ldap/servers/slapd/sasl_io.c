@@ -103,15 +103,16 @@ int
 sasl_io_setup(Connection *c)
 {
     int ret = 0;
-    struct lber_x_ext_io_fns *func_pointers = NULL;
+    struct lber_x_ext_io_fns func_pointers = {0};
+    struct lber_x_ext_io_fns *real_iofns = (struct lber_x_ext_io_fns *) slapi_ch_malloc(LBER_X_EXTIO_FNS_SIZE);
     sasl_io_private *sp = (sasl_io_private*) slapi_ch_calloc(1, sizeof(sasl_io_private));
 
     LDAPDebug( LDAP_DEBUG_CONNS,
                 "sasl_io_setup for connection %d\n", c->c_connid, 0, 0 );
     /* Get the current functions and store them for later */
-    ber_sockbuf_get_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
-    sp->real_iofns = func_pointers;
-    func_pointers = NULL;
+    real_iofns->lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
+    ber_sockbuf_get_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, real_iofns );
+    sp->real_iofns = real_iofns; /* released in sasl_io_cleanup */
 
     /* Set up the private structure */
     sp->real_handle = (struct lextiof_socket_private*) c->c_prfd;
@@ -119,13 +120,12 @@ sasl_io_setup(Connection *c)
     /* Store the private structure in the connection */
     c->c_sasl_io_private = sp;
     /* Insert the sasl i/o functions into the ber layer */
-    func_pointers = (struct lber_x_ext_io_fns *) slapi_ch_malloc(LBER_X_EXTIO_FNS_SIZE);
-    func_pointers->lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
-    func_pointers->lbextiofn_read = sasl_read_function;
-    func_pointers->lbextiofn_write = sasl_write_function;
-    func_pointers->lbextiofn_writev = NULL;
-    func_pointers->lbextiofn_socket_arg = (struct lextiof_socket_private *) sp;
-    ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, func_pointers);
+    func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
+    func_pointers.lbextiofn_read = sasl_read_function;
+    func_pointers.lbextiofn_write = sasl_write_function;
+    func_pointers.lbextiofn_writev = NULL;
+    func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) sp;
+    ret = ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
     /* Setup the data buffers for the fast read path */
     sasl_io_init_buffers(sp);
     /* Reset the enable flag, so we don't process it again */
@@ -139,7 +139,6 @@ int
 sasl_io_cleanup(Connection *c)
 {
     int ret = 0;
-    struct lber_x_ext_io_fns *func_pointers = NULL;
     sasl_io_private *sp = c->c_sasl_io_private;
     if (sp) {
         LDAPDebug( LDAP_DEBUG_CONNS,
@@ -148,9 +147,10 @@ sasl_io_cleanup(Connection *c)
         slapi_ch_free((void**)&(sp->encrypted_buffer));
         slapi_ch_free((void**)&(sp->decrypted_buffer));
         /* Put the I/O functions back how they were */
-        ber_sockbuf_get_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
-        slapi_ch_free((void**)&func_pointers);
-        ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, sp->real_iofns);
+        if (NULL != sp->real_iofns) {
+            ber_sockbuf_set_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, sp->real_iofns );
+            slapi_ch_free((void**)&(sp->real_iofns));
+        }
         slapi_ch_free((void**)&sp);
         c->c_sasl_io_private = NULL;
         c->c_enable_sasl_io = 0;
