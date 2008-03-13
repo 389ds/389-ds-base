@@ -330,8 +330,9 @@ sub createConfigFile {
             $ent->setValues("nsslapd-ldapifilepath", $inf->{slapd}->{ldapifilepath});
             $ent->setValues("nsslapd-ldapilisten", "on");
         } else {
+            my $parent = dirname($inf->{slapd}->{run_dir});
             $ent->setValues("nsslapd-ldapifilepath",
-                            "$inf->{slapd}->{run_dir}/slapd-$inf->{slapd}->{ServerIdentifier}.socket");
+                            "$parent/slapd-$inf->{slapd}->{ServerIdentifier}.socket");
             $ent->setValues("nsslapd-ldapilisten", "off");
         }
         if ("@enable_autobind@") {
