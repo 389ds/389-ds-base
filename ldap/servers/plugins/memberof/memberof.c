@@ -1177,7 +1177,17 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, int mod, char *group_dn, char *op
 
 		strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
 
-		memberof_modop_one_r(pb, mod, group_dn, op_this, dn_str, stack);
+		/* If we're doing a replace (as we would in the MODRDN case), we need
+		 * to specify the new group DN value */
+		if(mod == LDAP_MOD_REPLACE)
+		{
+			memberof_modop_one_replace_r(pb, mod, group_dn, op_this, group_dn,
+					dn_str, stack);
+		}
+		else
+		{
+			memberof_modop_one_r(pb, mod, group_dn, op_this, dn_str, stack);
+		}
 
 		hint = slapi_attr_next_value(attr, hint, &val);
 	}
