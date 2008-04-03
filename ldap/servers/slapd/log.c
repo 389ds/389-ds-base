@@ -4007,7 +4007,7 @@ log_convert_time (time_t ctime, char *tbuf, int type)
 static time_t
 log_reverse_convert_time(char *tbuf)
 {
-	struct tm tm;
+	struct tm tm = {0};
 
 	if (strchr(tbuf, '-')) { /* short format */
 		strptime(tbuf, "%Y%m%d-%H%M%S", &tm);
