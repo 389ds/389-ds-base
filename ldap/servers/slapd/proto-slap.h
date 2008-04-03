@@ -483,7 +483,8 @@ void do_delete( Slapi_PBlock *pb );
 /*
  * detach.c
  */
-void detach( void );
+void detach( int slapd_exemode, int importexport_encrypt,
+             int s_port, daemon_ports_t *ports_info );
 #ifndef _WIN32
 void close_all_files( void );
 #endif
@@ -878,7 +879,6 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
 int slapd_security_library_is_initialized();
 int slapd_ssl_listener_is_initialized();
 int sasl_io_cleanup(Connection *c);
-
 
 /*
  * security_wrappers.c
@@ -1277,4 +1277,7 @@ void *slapd_service_exit_wait();
 #if ( defined( hpux ) || defined( irix ))
 void signal2sigaction( int s, void *a );
 #endif
+int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
+                              int s_port, daemon_ports_t *ports_info);
+
 #endif /* _PROTO_SLAP */

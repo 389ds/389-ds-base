@@ -901,48 +901,14 @@ main( int argc, char **argv)
 	}
 #endif
 
-	/*
-	 * Initialise NSS once for the whole slapd process, whether SSL
-	 * is enabled or not. We use NSS for random number generation and
-	 * other things even if we are not going to accept SSL connections.
-	 * We also need NSS for attribute encryption/decryption on import and export.
-	 */
-	init_ssl = ( (slapd_exemode == SLAPD_EXEMODE_SLAPD) || importexport_encrypt) 
-				&& config_get_security()
-				&& (0 != s_port) && (s_port <= LDAP_PORT_MAX);
-	/* As of DS 6.1, always do a full initialization so that other
-	 * modules can assume NSS is available
-	 */
-	if ( slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
-			(slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
-		 LDAPDebug(LDAP_DEBUG_ANY,
-					"ERROR: NSS Initialization Failed.\n", 0, 0, 0);
-		 exit (1);
-	}
-
-	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
-		client_auth_init();
-	}
-
-	if ( init_ssl && ( 0 != slapd_ssl_init())) {
-		LDAPDebug(LDAP_DEBUG_ANY,
-					"ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
-		exit( 1 );
-	}
-
-	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
-		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
-		if ( init_ssl ) {
-			PRFileDesc **sock;
-			for (sock = ports_info.s_socket; sock && *sock; sock++) {
-				if ( 0 != slapd_ssl_init2(sock, 0) ) {
-					LDAPDebug(LDAP_DEBUG_ANY,
-					  "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
-					exit( 1 );
-				}
-			}
-		}
-	}
+    /* Do NSS and/or SSL init for those modes other than listening modes */
+    if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
+        (slapd_exemode != SLAPD_EXEMODE_SLAPD)) {
+        if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
+                                      s_port, &ports_info)) {
+            return 1;
+        }
+    }
 
 	/*
 	 * if we were called upon to do special database stuff, do it and be
@@ -1002,7 +968,8 @@ main( int argc, char **argv)
 	 * Have to detach after ssl_init - the user may be prompted for the PIN
 	 * on the terminal, so it must be open.
 	 */
-	detach();
+	detach(slapd_exemode, importexport_encrypt,
+           s_port, &ports_info);
 
   /*
    * Now write our PID to the startup PID file.
@@ -2885,3 +2852,67 @@ slapd_debug_level_usage( void )
 }
 #endif /* LDAP_DEBUG */
 
+/*
+  This function does all NSS and SSL related initialization
+  required during startup.  We use this function rather
+  than just call this code from main because we must perform
+  all of this initialization after the fork() but before
+  we detach from the controlling terminal.  This is because
+  the NSS softokn requires that NSS_Init is called after the
+  fork - this was always the case, but it is a hard error in
+  NSS 3.11.99 and later.  We also have to call NSS_Init before
+  doing the detach because NSS may prompt the user for the
+  token (h/w or softokn) password on stdin.  So we use this
+  function that we can call from detach() if running in 
+  regular slapd exemode or from main() if running in other
+  modes (or just not detaching).
+*/
+int
+slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
+                          int s_port, daemon_ports_t *ports_info)
+{
+	/*
+	 * Initialise NSS once for the whole slapd process, whether SSL
+	 * is enabled or not. We use NSS for random number generation and
+	 * other things even if we are not going to accept SSL connections.
+	 * We also need NSS for attribute encryption/decryption on import and export.
+	 */
+	int init_ssl = ( (slapd_exemode == SLAPD_EXEMODE_SLAPD) || importexport_encrypt) 
+        && config_get_security()
+        && (0 != s_port) && (s_port <= LDAP_PORT_MAX);
+	/* As of DS 6.1, always do a full initialization so that other
+	 * modules can assume NSS is available
+	 */
+	if ( slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
+                        (slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "ERROR: NSS Initialization Failed.\n", 0, 0, 0);
+        exit (1);
+	}
+
+	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
+        client_auth_init();
+	}
+
+	if ( init_ssl && ( 0 != slapd_ssl_init())) {
+		LDAPDebug(LDAP_DEBUG_ANY,
+                  "ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
+		exit( 1 );
+	}
+
+	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
+		if ( init_ssl ) {
+			PRFileDesc **sock;
+			for (sock = ports_info->s_socket; sock && *sock; sock++) {
+				if ( 0 != slapd_ssl_init2(sock, 0) ) {
+					LDAPDebug(LDAP_DEBUG_ANY,
+                              "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
+					exit( 1 );
+				}
+			}
+		}
+	}
+
+    return 0;
+}

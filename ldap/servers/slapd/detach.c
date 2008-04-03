@@ -76,7 +76,8 @@
 #endif /* USE_SYSCONF */
 
 void
-detach()
+detach( int slapd_exemode, int importexport_encrypt,
+        int s_port, daemon_ports_t *ports_info )
 {
 #ifndef _WIN32
 	int		i, sd;
@@ -106,6 +107,12 @@ detach()
 				_exit( 0 );
 			}
 			break;
+		}
+
+		/* call this right after the fork, but before closing stdin */
+		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
+									  s_port, ports_info)) {
+			exit(1);
 		}
 
 		workingdir = config_get_workingdir();
@@ -150,7 +157,12 @@ detach()
 #endif /* USE_SETSID */
 
 		g_set_detached(1);
-	} 
+	} else { /* not detaching - call nss/ssl init */
+		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
+									  s_port, ports_info)) {
+			exit(1);
+		}
+	}
 
 	(void) SIGNAL( SIGPIPE, SIG_IGN );
 #endif /* _WIN32 */
