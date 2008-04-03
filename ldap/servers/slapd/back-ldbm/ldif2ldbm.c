@@ -568,7 +568,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
     /* hopefully this will go away once import is not run standalone... */
 
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
-    if (task_flags & TASK_RUNNING_FROM_COMMANDLINE) {
+    if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* initialize UniqueID generator - must be done once backends are started
            and event queue is initialized but before plugins are started */
         Slapi_DN *sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
@@ -581,7 +581,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
             return -1;
         }
 
-        li->li_flags |= TASK_RUNNING_FROM_COMMANDLINE;
+        li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
         autosize_import_cache(li);
     }
@@ -604,7 +604,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
 
     /***** prepare & init libdb and dblayer *****/
 
-    if (! (task_flags & TASK_RUNNING_FROM_COMMANDLINE)) {
+    if (! (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
         /* shutdown this instance of the db */
         LDAPDebug(LDAP_DEBUG_ANY, "Bringing %s offline...\n", 
                   instance_name, 0, 0);
@@ -778,11 +778,11 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
     slapi_pblock_get( pb, SLAPI_DB2LDIF_DECRYPT, &decrypt );
     slapi_pblock_get( pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running );
-    run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
+    run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     dump_replica = pb->pb_ldif_dump_replica;
     if (run_from_cmdline) {
-        li->li_flags |= TASK_RUNNING_FROM_COMMANDLINE;
+        li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         if (!dump_replica) {
             we_start_the_backends = 1;
         }
@@ -1298,12 +1298,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
-    run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
+    run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
     if (run_from_cmdline) {
         /* No ldbm backend exists until we process the config info. */
-        li->li_flags |= TASK_RUNNING_FROM_COMMANDLINE;
+        li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
         txn.back_txn_txn = NULL;    /* no transaction */
     }
@@ -1764,6 +1764,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 percent = (ep->ep_id*100 / (lastid ? lastid : 1));
             }
             if (task) {
+                /* NGK - This should eventually be cleaned up to use the
+                 * public task API */
                 task->task_progress = (idl ? idindex : ep->ep_id);
                 task->task_work = (idl ? idl->b_nids : lastid);
                 slapi_task_status_changed(task);
@@ -1970,7 +1972,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
 
-    run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
+    run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     if (run_from_cmdline)
     {
@@ -2435,7 +2437,7 @@ void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     int run_from_cmdline = 0;
 
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
-    run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
+    run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     be = inst->inst_be;
     slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",

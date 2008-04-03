@@ -1060,22 +1060,6 @@ int slapi_uniqueIDGenerateFromNameString(char **uId,
  */
  
 /*
- * Note: DSE callback functions MUST return one of these three values:
- *
- *   SLAPI_DSE_CALLBACK_OK           -- no errors occurred; apply changes.
- *   SLAPI_DSE_CALLBACK_ERROR        -- an error occurred; don't apply changes.
- *   SLAPI_DSE_CALLBACK_DO_NOT_APPLY -- no error, but do not apply changes.
- *
- * SLAPI_DSE_CALLBACK_DO_NOT_APPLY should only be returned by modify
- * callbacks (i.e., those registered with operation==SLAPI_OPERATION_MODIFY).
- * A return value of SLAPI_DSE_CALLBACK_DO_NOT_APPLY is treated the same as
- * SLAPI_DSE_CALLBACK_ERROR for all other operations.
- */
-#define SLAPI_DSE_CALLBACK_OK			(1)
-#define SLAPI_DSE_CALLBACK_ERROR		(-1)
-#define SLAPI_DSE_CALLBACK_DO_NOT_APPLY	(0)
-
-/*
  * Flags for slapi_config_register_callback() and
  *		slapi_config_remove_callback()
  */
@@ -1197,30 +1181,6 @@ int slapd_re_init( void );
 #define PLUGIN_BASE_DN "cn=plugins,cn=config"
 
 /***** End of items added for the replication plugin. ***********************/
-
-/******************************************************************************
- * Online tasks interface (to support import, export, etc)
- * After some cleanup, we could consider making these public.
- */
-struct _slapi_task {
-    struct _slapi_task *next;
-    char *task_dn;
-    int task_exitcode;          /* for the end user */
-    int task_state;             /* (see above) */
-    int task_progress;          /* number between 0 and task_work */
-    int task_work;              /* "units" of work to be done */
-    int task_flags;             /* (see above) */
-
-    /* it is the task's responsibility to allocate this memory & free it: */
-    char *task_status;          /* transient status info */
-    char *task_log;             /* appended warnings, etc */
-
-    void *task_private;         /* for use by backends */
-    TaskCallbackFn cancel;      /* task has been cancelled by user */
-    TaskCallbackFn destructor;  /* task entry is being destroyed */
-	int task_refcount;
-};
-/* End of interface to support online tasks **********************************/
 
 void    DS_Sleep(PRIntervalTime ticks);
 

@@ -197,29 +197,19 @@ void import_log_notice(ImportJob *job, char *format, ...)
           buffer, 0);
 }
 
-static int import_task_destroy(Slapi_Task *task)
+static void import_task_destroy(Slapi_Task *task)
 {
-    ImportJob *job = (ImportJob *)task->task_private;
-
-    if (task->task_log) {
-        slapi_ch_free((void **)&task->task_log);
-    }
-
-    if (task->task_status) {
-        slapi_ch_free((void **)&task->task_status);
-    }
-    
+    ImportJob *job = (ImportJob *)slapi_task_get_data(task);
 
     if (job && job->task_status) {
         slapi_ch_free((void **)&job->task_status);
         job->task_status = NULL;
     }
     FREE(job);
-    task->task_private = NULL;
-    return 0;
+    slapi_task_set_data(task, NULL);
 }
 
-static int import_task_abort(Slapi_Task *task)
+static void import_task_abort(Slapi_Task *task)
 {
     ImportJob *job;
 
@@ -227,9 +217,8 @@ static int import_task_abort(Slapi_Task *task)
      * DSE lock for modify...
      */
 
-    if (task->task_state == SLAPI_TASK_FINISHED) {
+    if (slapi_task_get_state(task) == SLAPI_TASK_FINISHED) {
         /* too late */
-        return 0;
     }
 
     /*
@@ -238,14 +227,12 @@ static int import_task_abort(Slapi_Task *task)
      * because it will free the job.
      */
 
-    job = (ImportJob *)task->task_private;
+    job = (ImportJob *)slapi_task_get_data(task);
 
     import_abort_all(job, 0); 
-    while (task->task_state != SLAPI_TASK_FINISHED)
+    while (slapi_task_get_state(task) != SLAPI_TASK_FINISHED)
          DS_Sleep(PR_MillisecondsToInterval(100));
 
-
-    return 0;
 }
 
 
@@ -1042,13 +1029,8 @@ static int import_all_done(ImportJob *job, int ret)
             slapi_ch_free_string(&inst_dirp);
     }
 
-    if (job->task != NULL && 0 == job->task->task_refcount) {
-        /* exit code */
-        job->task->task_exitcode = ret;
-        job->task->task_state = SLAPI_TASK_FINISHED;
-        job->task->task_progress = job->task->task_work;
-        job->task->task_private = NULL;
-        slapi_task_status_changed(job->task);
+    if ((job->task != NULL) && (0 == slapi_task_get_refcount(job->task))) {
+        slapi_task_finish(job->task, ret);
     }
 
     if (job->flags & FLAG_ONLINE) {
@@ -1093,7 +1075,7 @@ int import_main_offline(void *arg)
     ImportWorkerInfo *producer = NULL;
 
     if (job->task)
-        job->task->task_refcount++;
+        slapi_task_inc_refcount(job->task);
 
     PR_ASSERT(inst != NULL);
     time(&beginning);
@@ -1364,13 +1346,11 @@ error:
     if (0 != ret) {
         import_log_notice(job, "Import failed.");
         if (job->task != NULL) {
-            job->task->task_state = SLAPI_TASK_FINISHED;
-            job->task->task_exitcode = ret;
-            slapi_task_status_changed(job->task);
+            slapi_task_finish(job->task, ret);
         }
     } else {
         if (job->task)
-            job->task->task_refcount--;
+            slapi_task_dec_refcount(job->task);
 
         import_all_done(job, ret);
     }
@@ -1471,15 +1451,17 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
         /* add 1 to account for post-import cleanup (which can take a
          * significant amount of time)
          */
+    /* NGK - This should eventually be cleaned up to use the public
+     * task API. */
     if (0 == total_files)    /* reindexing */
             job->task->task_work = 2;
     else
             job->task->task_work = total_files + 1;
         job->task->task_progress = 0;
         job->task->task_state = SLAPI_TASK_RUNNING;
-        job->task->task_private = job;
-        job->task->destructor = import_task_destroy;
-        job->task->cancel = import_task_abort;
+        slapi_task_set_data(job->task, job);
+        slapi_task_set_destructor_fn(job->task, import_task_destroy);
+        slapi_task_set_cancel_fn(job->task, import_task_abort);
         job->flags |= FLAG_ONLINE;
 
         /* create thread for import_main, so we can return */

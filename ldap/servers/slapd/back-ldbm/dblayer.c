@@ -1954,7 +1954,7 @@ int dblayer_instance_start(backend *be, int mode)
                 oflags |= DB_PRIVATE;
             }
             PR_Lock(li->li_config_mutex);
-            if ((li->li_flags & TASK_RUNNING_FROM_COMMANDLINE) &&
+            if ((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) &&
                 (li->li_import_cache_autosize)) /* Autosizing importCache
                                                  * Need to re-eval every time
                                                  * to guarantee the memory is
@@ -5678,7 +5678,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
      * dse_conf_verify may need to have db started, as well. */
     /* If no logfiles were stored, then fatal recovery isn't required */
 
-    if (li->li_flags & TASK_RUNNING_FROM_COMMANDLINE)
+    if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)
     {
         /* command line mode; no need to run db threads */
         dbmode |= DBLAYER_NO_DBTHREADS_MODE;
@@ -5707,7 +5707,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
                 "Warning: Unable to verify the index configuration\n", 0, 0, 0);
     }
 
-    if (li->li_flags & TASK_RUNNING_FROM_COMMANDLINE) {
+    if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* command line: close the database down again */
         tmp_rval = dblayer_close(li, dbmode);
         if (0 != tmp_rval) {

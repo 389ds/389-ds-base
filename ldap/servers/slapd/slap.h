@@ -1283,6 +1283,27 @@ typedef struct conn {
 #define SLAPD_POLL_FLAGS	(PR_POLL_READ)
 #endif
 
+/******************************************************************************
+ *  * Online tasks interface (to support import, export, etc)
+ *   * After some cleanup, we could consider making these public.
+ *    */
+struct slapi_task {
+    struct slapi_task *next;
+    char *task_dn;
+    int task_exitcode;          /* for the end user */
+    int task_state;             /* current state of task */
+    int task_progress;          /* number between 0 and task_work */
+    int task_work;              /* "units" of work to be done */
+    int task_flags;             /* (see above) */
+    char *task_status;          /* transient status info */
+    char *task_log;             /* appended warnings, etc */
+    void *task_private;         /* allow opaque data to be stashed in the task */
+    TaskCallbackFn cancel;      /* task has been cancelled by user */
+    TaskCallbackFn destructor;  /* task entry is being destroyed */
+    int task_refcount;
+} slapi_task;
+/* End of interface to support online tasks **********************************/
+
 typedef struct slapi_pblock {
 	/* common */
 	Slapi_Backend		*pb_backend;
@@ -2015,10 +2036,6 @@ extern char	*attr_dataversion;
 #define LDIF_CSNPREFIX_MAXLENGTH 6 /* sizeof(xxcsn-) */
 
 #include "intrinsics.h"
-
-/* task flag (pb_task_flags)*/
-#define TASK_RUNNING_AS_TASK		0x0
-#define TASK_RUNNING_FROM_COMMANDLINE	0x1
 
 /* printkey: import & export */
 #define	EXPORT_PRINTKEY			0x1

@@ -47,6 +47,9 @@
 #include "slap.h"
 
 
+/***********************************
+ * Static Global Variables
+ ***********************************/
 /* don't panic, this is only used when creating new tasks or removing old
  * ones...
  */
@@ -54,7 +57,9 @@ static Slapi_Task *global_task_list = NULL;
 static PRLock *global_task_lock = NULL;
 static int shutting_down = 0;
 
-
+/***********************************
+ * Private Defines
+ ***********************************/
 #define TASK_BASE_DN      "cn=tasks, cn=config"
 #define TASK_IMPORT_DN    "cn=import, cn=tasks, cn=config"
 #define TASK_EXPORT_DN    "cn=export, cn=tasks, cn=config"
@@ -71,13 +76,398 @@ static int shutting_down = 0;
 
 #define DEFAULT_TTL     "120"   /* seconds */
 
+#define LOG_BUFFER              256
+/* if the cumul. log gets larger than this, it's truncated: */
+#define MAX_SCROLLBACK_BUFFER   8192
 
+#define NEXTMOD(_type, _val) do { \
+    modlist[cur].mod_op = LDAP_MOD_REPLACE; \
+    modlist[cur].mod_type = (_type); \
+    modlist[cur].mod_values = (char **)slapi_ch_malloc(2*sizeof(char *)); \
+    modlist[cur].mod_values[0] = (_val); \
+    modlist[cur].mod_values[1] = NULL; \
+    mod[cur] = &modlist[cur]; \
+    cur++; \
+} while (0)
+
+
+/***********************************
+ * Static Function Prototypes
+ ***********************************/
+static Slapi_Task *new_task(const char *dn);
+static void destroy_task(time_t when, void *arg);
 static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
                        Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int task_deny(Slapi_PBlock *pb, Slapi_Entry *e,
                      Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
-static int task_generic_destructor(Slapi_Task *task);
+static void task_generic_destructor(Slapi_Task *task);
+static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
+                              const char *default_val);
+static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn);
+static void modify_internal_entry(char *dn, LDAPMod **mods);
 
+/***********************************
+ * Public Functions
+ ***********************************/ 
+/*
+ * slapi_new_task: create a new task, fill in DN, and setup modify callback
+ * argument:
+ *     dn: task dn
+ * result: 
+ *     Success: Slapi_Task object
+ *     Failure: NULL
+ */
+Slapi_Task *
+slapi_new_task(const char *dn)
+{
+    return new_task(dn);
+}
+
+/* slapi_destroy_task: destroy a task
+ * argument:
+ *     task: task to destroy
+ * result: 
+ *     none
+ */
+void
+slapi_destroy_task(void *arg)
+{
+    if (arg) {
+        destroy_task(1, arg);
+    }
+}
+
+/*
+ * Sets the initial task state and updated status
+ */
+void slapi_task_begin(Slapi_Task *task, int total_work)
+{
+    if (task) {
+        task->task_work = total_work;
+        task->task_progress = 0;
+        task->task_state = SLAPI_TASK_RUNNING;
+        slapi_task_status_changed(task);
+    }
+}
+
+/*
+ * Increments task progress and updates status
+ */
+void slapi_task_inc_progress(Slapi_Task *task)
+{
+    if (task) {
+        task->task_progress++;
+        slapi_task_status_changed(task);
+    }
+}
+
+/*
+ * Sets completed task state and updates status
+ */
+void slapi_task_finish(Slapi_Task *task, int rc)
+{
+    if (task) {
+        task->task_exitcode = rc;
+        task->task_state = SLAPI_TASK_FINISHED;
+        slapi_task_status_changed(task);
+    }
+}
+
+/*
+ * Cancels a task
+ */
+void slapi_task_cancel(Slapi_Task *task, int rc)
+{
+    if (task) {
+        task->task_exitcode = rc;
+        task->task_state = SLAPI_TASK_CANCELLED;
+        slapi_task_status_changed(task);
+    }
+}
+
+/*
+ * Get the current state of a task
+ */
+int slapi_task_get_state(Slapi_Task *task)
+{
+    if (task) {
+        return task->task_state;
+    }
+}
+
+/* this changes the 'nsTaskStatus' value, which is transient (anything logged
+ * here wipes out any previous status)
+ */
+void slapi_task_log_status(Slapi_Task *task, char *format, ...)
+{
+    va_list ap;
+
+    if (! task->task_status)
+        task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
+    if (! task->task_status)
+        return;        /* out of memory? */
+
+    va_start(ap, format);
+    PR_vsnprintf(task->task_status, (10 * LOG_BUFFER), format, ap);
+    va_end(ap);
+    slapi_task_status_changed(task);
+}
+
+/* this adds a line to the 'nsTaskLog' value, which is cumulative (anything
+ * logged here is added to the end)
+ */
+void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
+{
+    va_list ap;
+    char buffer[LOG_BUFFER];
+    size_t len;
+
+    va_start(ap, format);
+    PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
+    va_end(ap);
+
+    len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
+    if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
+        size_t i;
+        char *newbuf;
+
+        /* start from middle of buffer, and find next linefeed */
+        i = strlen(task->task_log)/2;
+        while (task->task_log[i] && (task->task_log[i] != '\n'))
+            i++;
+        if (task->task_log[i])
+            i++;
+        len = strlen(task->task_log) - i + 2 + strlen(buffer);
+        newbuf = (char *)slapi_ch_malloc(len);
+        if (! newbuf)
+            return;    /* out of memory? */
+        strcpy(newbuf, task->task_log + i);
+        slapi_ch_free((void **)&task->task_log);
+        task->task_log = newbuf;
+    } else {
+        if (! task->task_log) {
+            task->task_log = (char *)slapi_ch_malloc(len);
+            task->task_log[0] = 0;
+        } else {
+            task->task_log = (char *)slapi_ch_realloc(task->task_log, len);
+        }
+        if (! task->task_log)
+            return;    /* out of memory? */
+    }
+
+    if (task->task_log[0])
+        strcat(task->task_log, "\n");
+    strcat(task->task_log, buffer);
+
+    slapi_task_status_changed(task);
+}
+
+/* update attributes in the entry under "cn=tasks" to match the current
+ * status of the task. */
+void slapi_task_status_changed(Slapi_Task *task)
+{
+    LDAPMod modlist[20];
+    LDAPMod *mod[20];
+    int cur = 0, i;
+    char s1[20], s2[20], s3[20];
+
+    if (shutting_down) {
+        /* don't care about task status updates anymore */
+        return;
+    }
+
+    NEXTMOD(TASK_LOG_NAME, task->task_log);
+    NEXTMOD(TASK_STATUS_NAME, task->task_status);
+    sprintf(s1, "%d", task->task_exitcode);
+    sprintf(s2, "%d", task->task_progress);
+    sprintf(s3, "%d", task->task_work);
+    NEXTMOD(TASK_PROGRESS_NAME, s2);
+    NEXTMOD(TASK_WORK_NAME, s3);
+    /* only add the exit code when the job is done */
+    if ((task->task_state == SLAPI_TASK_FINISHED) ||
+        (task->task_state == SLAPI_TASK_CANCELLED)) {
+        NEXTMOD(TASK_EXITCODE_NAME, s1);
+        /* make sure the console can tell the task has ended */
+        if (task->task_progress != task->task_work) {
+            task->task_progress = task->task_work;
+        }
+    }
+
+    mod[cur] = NULL;
+    modify_internal_entry(task->task_dn, mod);
+
+    for (i = 0; i < cur; i++)
+        slapi_ch_free((void **)&modlist[i].mod_values);
+
+    if (((task->task_state == SLAPI_TASK_FINISHED) ||
+         (task->task_state == SLAPI_TASK_CANCELLED)) &&
+        !(task->task_flags & SLAPI_TASK_DESTROYING)) {
+        Slapi_PBlock *pb = slapi_pblock_new();
+        Slapi_Entry *e;
+        int ttl;
+        time_t expire;
+
+        e = get_internal_entry(pb, task->task_dn);
+        if (e == NULL)
+            return;
+        ttl = atoi(fetch_attr(e, "ttl", DEFAULT_TTL));
+        if (ttl > 3600)
+            ttl = 3600;         /* be reasonable. */
+        expire = time(NULL) + ttl;
+        task->task_flags |= SLAPI_TASK_DESTROYING;
+        /* queue an event to destroy the state info */
+        slapi_eq_once(destroy_task, (void *)task, expire);
+
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+    }
+}
+
+/*
+ * Stash some opaque task specific data in the task for later use.
+ */
+void slapi_task_set_data(Slapi_Task *task, void *data)
+{
+    if (task) {
+        task->task_private = data;
+    }
+}
+
+/*
+ * Retrieve some opaque task specific data from the task.
+ */
+void * slapi_task_get_data(Slapi_Task *task)
+{
+    if (task) {
+        return task->task_private;
+    }
+}
+
+/*
+ * Increment the task reference count
+ */
+void slapi_task_inc_refcount(Slapi_Task *task)
+{
+    if (task) {
+        task->task_refcount++;
+    }
+}
+
+/*
+ * Decrement the task reference count
+ */
+void slapi_task_dec_refcount(Slapi_Task *task)
+{
+    if (task) {
+        task->task_refcount--;
+    }
+}
+
+/*
+ * Returns the task reference count
+ */
+int slapi_task_get_refcount(Slapi_Task *task)
+{
+    if (task) {
+        return task->task_refcount;
+    }
+}
+
+/* name is, for example, "import" */
+int slapi_task_register_handler(const char *name, dseCallbackFn func)
+{
+    char *dn = NULL;
+    Slapi_PBlock *pb = NULL;
+    Slapi_Operation *op;
+    LDAPMod *mods[3];
+    LDAPMod mod[3];
+    const char *objectclass[3];
+    const char *cnvals[2];
+    int ret = -1;
+    int x;
+
+    dn = slapi_ch_smprintf("cn=%s, %s", name, TASK_BASE_DN);
+    if (dn == NULL) {
+        goto out;
+    }
+
+    pb = slapi_pblock_new();
+    if (pb == NULL) {
+        goto out;
+    }
+
+    /* this is painful :( */
+    mods[0] = &mod[0];
+    mod[0].mod_op = LDAP_MOD_ADD;
+    mod[0].mod_type = "objectClass";
+    mod[0].mod_values = (char **)objectclass;
+    objectclass[0] = "top";
+    objectclass[1] = "extensibleObject";
+    objectclass[2] = NULL;
+    mods[1] = &mod[1];
+    mod[1].mod_op = LDAP_MOD_ADD;
+    mod[1].mod_type = "cn";
+    mod[1].mod_values = (char **)cnvals;
+    cnvals[0] = name;
+    cnvals[1] = NULL;
+    mods[2] = NULL;
+    slapi_add_internal_set_pb(pb, dn, mods, NULL,
+                              plugin_get_default_component_id(), 0);
+    x = 1;
+    slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
+    /* Make sure these adds don't appear in the audit and change logs */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
+
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &x);
+    if ((x != LDAP_SUCCESS) && (x != LDAP_ALREADY_EXISTS)) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "Can't create task node '%s' (error %d)\n",
+                  name, x, 0);
+        ret = x;
+        goto out;
+    }
+
+    /* register add callback */
+    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP,
+                                   dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", func, NULL);
+    /* deny modify/delete of the root task entry */
+    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
+                                   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
+    slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
+                                   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
+
+    ret = 0;
+
+out:
+    if (dn) {
+        slapi_ch_free((void **)&dn);
+    }
+    if (pb) {
+        slapi_pblock_destroy(pb);
+    }
+    return ret;
+}
+
+void slapi_task_set_destructor_fn(Slapi_Task *task, TaskCallbackFn func)
+{
+    if (task) {
+        task->destructor = func;
+    }
+}
+
+void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func)
+{
+    if (task) {
+        task->cancel = func;
+    }
+}
+
+
+/***********************************
+ * Static Helper Functions
+ ***********************************/
 /* create a new task, fill in DN, and setup modify callback */
 static Slapi_Task *
 new_task(const char *dn)
@@ -92,7 +482,11 @@ new_task(const char *dn)
     PR_Unlock(global_task_lock);
 
     task->task_dn = slapi_ch_strdup(dn);
-    task->destructor = task_generic_destructor;
+    task->task_state = SLAPI_TASK_SETUP;
+    task->task_flags = SLAPI_TASK_RUNNING_AS_TASK;
+    task->destructor = NULL;
+    task->cancel = NULL;
+    task->task_private = NULL;
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", task_modify, (void *)task);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn,
@@ -100,8 +494,8 @@ new_task(const char *dn)
     /* don't add entries under this one */
 #if 0
     /* don't know why, but this doesn't work.  it makes the current add
-     * operation fail. :(
-     */
+ *      * operation fail. :(
+ *           */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
 #endif
@@ -117,8 +511,13 @@ destroy_task(time_t when, void *arg)
     Slapi_Task *t1;
     Slapi_PBlock *pb = slapi_pblock_new();
 
-    if (task->destructor != NULL)
+    /* Call the custom destructor callback if one was provided,
+     * then perform the internal task destruction. */
+    if (task->destructor != NULL) {
         (*task->destructor)(task);
+    }
+
+    task_generic_destructor(task);
 
     /* if when == 0, we're already locked (called during shutdown) */
     if (when != 0) {
@@ -151,35 +550,6 @@ destroy_task(time_t when, void *arg)
     slapi_ch_free((void **)&task->task_dn);
     slapi_ch_free((void **)&task);
 }
-
-/*
- * slapi_new_task: create a new task, fill in DN, and setup modify callback
- * argument:
- *     dn: task dn
- * result: 
- *     Success: Slapi_Task object
- *     Failure: NULL
- */
-Slapi_Task *
-slapi_new_task(const char *dn)
-{
-    return new_task(dn);
-}
-
-/* slapi_destroy_task: destroy a task
- * argument:
- *     task: task to destroy
- * result: 
- *     none
- */
-void
-slapi_destroy_task(void *arg)
-{
-    destroy_task(1, arg);
-}
-
-/**********  some useful helper functions  **********/
-
 
 /* extract a single value from the entry (as a string) -- if it's not in the
  * entry, the default will be returned (which can be NULL).
@@ -268,81 +638,7 @@ static void modify_internal_entry(char *dn, LDAPMod **mods)
     } while (ret != LDAP_SUCCESS);
 }
 
-
-/**********  helper functions for dealing with task logging  **********/
-
-#define LOG_BUFFER		256
-/* if the cumul. log gets larger than this, it's truncated: */
-#define MAX_SCROLLBACK_BUFFER	8192
-
-/* this changes the 'nsTaskStatus' value, which is transient (anything logged
- * here wipes out any previous status)
- */
-void slapi_task_log_status(Slapi_Task *task, char *format, ...)
-{
-    va_list ap;
-
-    if (! task->task_status)
-        task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
-    if (! task->task_status)
-        return;        /* out of memory? */
-
-    va_start(ap, format);
-    PR_vsnprintf(task->task_status, (10 * LOG_BUFFER), format, ap);
-    va_end(ap);
-    slapi_task_status_changed(task);
-}
-
-/* this adds a line to the 'nsTaskLog' value, which is cumulative (anything
- * logged here is added to the end)
- */
-void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
-{
-    va_list ap;
-    char buffer[LOG_BUFFER];
-    size_t len;
-
-    va_start(ap, format);
-    PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
-    va_end(ap);
-
-    len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
-    if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
-        size_t i;
-        char *newbuf;
-
-        /* start from middle of buffer, and find next linefeed */
-        i = strlen(task->task_log)/2;
-        while (task->task_log[i] && (task->task_log[i] != '\n'))
-            i++;
-        if (task->task_log[i])
-            i++;
-        len = strlen(task->task_log) - i + 2 + strlen(buffer);
-        newbuf = (char *)slapi_ch_malloc(len);
-        if (! newbuf)
-            return;    /* out of memory? */
-        strcpy(newbuf, task->task_log + i);
-        slapi_ch_free((void **)&task->task_log);
-        task->task_log = newbuf;
-    } else {
-        if (! task->task_log) {
-            task->task_log = (char *)slapi_ch_malloc(len);
-            task->task_log[0] = 0;
-        } else {
-            task->task_log = (char *)slapi_ch_realloc(task->task_log, len);
-        }        
-        if (! task->task_log)
-            return;    /* out of memory? */
-    }
-
-    if (task->task_log[0])
-        strcat(task->task_log, "\n");
-    strcat(task->task_log, buffer);
-
-    slapi_task_status_changed(task);
-}
-
-static int task_generic_destructor(Slapi_Task *task)
+static void task_generic_destructor(Slapi_Task *task)
 {
     if (task->task_log) {
         slapi_ch_free((void **)&task->task_log);
@@ -351,7 +647,6 @@ static int task_generic_destructor(Slapi_Task *task)
         slapi_ch_free((void **)&task->task_status);
     }
     task->task_log = task->task_status = NULL;
-    return 0;
 }
 
 
@@ -553,13 +848,12 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* allocate new task now */
-    task = new_task(slapi_entry_get_ndn(e));
+    task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
         rv = LDAP_OPERATIONS_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
 
     memset(&mypb, 0, sizeof(mypb));
     mypb.pb_backend = be;
@@ -575,7 +869,7 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     mypb.pb_ldif_include = include;
     mypb.pb_ldif_exclude = exclude;
     mypb.pb_task = task;
-    mypb.pb_task_flags = TASK_RUNNING_AS_TASK;
+    mypb.pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     if (NULL != encrypt_on_import && 0 == strcasecmp(encrypt_on_import, "true") ) {
         mypb.pb_ldif_encrypt = 1;
     }
@@ -618,10 +912,7 @@ static void task_export_thread(void *arg)
     g_incr_active_threadcnt();
     for (count = 0, inp = instance_names; *inp; inp++, count++)
         ;
-    task->task_work = count;
-    task->task_progress = 0;
-    task->task_state = SLAPI_TASK_RUNNING;
-    slapi_task_status_changed(task);
+    slapi_task_begin(task, count);
 
     for (inp = instance_names; *inp; inp++) {
         int release_me = 0;
@@ -693,8 +984,7 @@ static void task_export_thread(void *arg)
         if (rv != 0)
             break;
 
-        task->task_progress++;
-        slapi_task_status_changed(task);
+        slapi_task_inc_progress(task);
     }
 
     /* free the memory now */
@@ -712,9 +1002,7 @@ static void task_export_thread(void *arg)
         LDAPDebug(LDAP_DEBUG_ANY, "Export failed.\n", 0, 0, 0);
     }
 
-    task->task_exitcode = rv;
-    task->task_state = SLAPI_TASK_FINISHED;
-    slapi_task_status_changed(task);
+    slapi_task_finish(task, rv);
     g_decr_active_threadcnt();
 }
 
@@ -888,16 +1176,13 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* allocate new task now */
-    task = new_task(slapi_entry_get_ndn(e));
+    task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
-    task->task_work = instance_cnt;
-    task->task_progress = 0;
 
     mypb = slapi_pblock_new();
     if (mypb == NULL) {
@@ -914,7 +1199,7 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
     /* horrible hack */
     mypb->pb_instance_name = (char *)instance_names;
     mypb->pb_task = task;
-    mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
+    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     if (NULL != decrypt_on_export && 0 == strcasecmp(decrypt_on_export, "true") ) {
         mypb->pb_ldif_encrypt = 1;
     }
@@ -957,10 +1242,7 @@ static void task_backup_thread(void *arg)
     int rv;
 
     g_incr_active_threadcnt();
-    task->task_work = 1;
-    task->task_progress = 0;
-    task->task_state = SLAPI_TASK_RUNNING;
-    slapi_task_status_changed(task);
+    slapi_task_begin(task, 1);
 
     slapi_task_log_notice(task, "Beginning backup of '%s'",
                           pb->pb_plugin->plg_name);
@@ -978,11 +1260,7 @@ static void task_backup_thread(void *arg)
         LDAPDebug(LDAP_DEBUG_ANY, "Backup finished.\n", 0, 0, 0);
     }
 
-    task->task_progress = 1;
-    task->task_exitcode = rv;
-    task->task_state = SLAPI_TASK_FINISHED;
-    slapi_task_status_changed(task);
-
+    slapi_task_finish(task, rv);
     slapi_ch_free((void **)&pb->pb_seq_val);
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
@@ -1048,16 +1326,13 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* allocate new task now */
-    task = new_task(slapi_entry_get_ndn(e));
+    task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
-    task->task_work = 1;
-    task->task_progress = 0;
 
     mypb = slapi_pblock_new();
     if (mypb == NULL) {
@@ -1068,7 +1343,7 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
     mypb->pb_seq_val = slapi_ch_strdup(archive_dir);
     mypb->pb_plugin = be->be_database;
     mypb->pb_task = task;
-    mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
+    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
 
     /* start the backup as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_backup_thread,
@@ -1102,10 +1377,7 @@ static void task_restore_thread(void *arg)
     int rv;
 
     g_incr_active_threadcnt();
-    task->task_work = 1;
-    task->task_progress = 0;
-    task->task_state = SLAPI_TASK_RUNNING;
-    slapi_task_status_changed(task);
+    slapi_task_begin(task, 1);
 
     slapi_task_log_notice(task, "Beginning restore to '%s'",
                           pb->pb_plugin->plg_name);
@@ -1123,11 +1395,7 @@ static void task_restore_thread(void *arg)
         LDAPDebug(LDAP_DEBUG_ANY, "Restore finished.\n", 0, 0, 0);
     }
 
-    task->task_progress = 1;
-    task->task_exitcode = rv;
-    task->task_state = SLAPI_TASK_FINISHED;
-    slapi_task_status_changed(task);
-
+    slapi_task_finish(task, rv);
     slapi_ch_free((void **)&pb->pb_seq_val);
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
@@ -1199,16 +1467,13 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* allocate new task now */
-    task = new_task(slapi_entry_get_ndn(e));
+    task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
-    task->task_work = 1;
-    task->task_progress = 0;
 
     mypb = slapi_pblock_new();
     if (mypb == NULL) {
@@ -1221,7 +1486,7 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     if (NULL != instance_name)
         mypb->pb_instance_name = slapi_ch_strdup(instance_name);
     mypb->pb_task = task;
-    mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
+    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
 
     /* start the restore as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_restore_thread,
@@ -1255,10 +1520,7 @@ static void task_index_thread(void *arg)
     int rv;
 
     g_incr_active_threadcnt();
-    task->task_work = 1;
-    task->task_progress = 0;
-    task->task_state = SLAPI_TASK_RUNNING;
-    slapi_task_status_changed(task);
+    slapi_task_begin(task, 1);
 
     rv = (*pb->pb_plugin->plg_db2index)(pb);
     if (rv != 0) {
@@ -1267,11 +1529,7 @@ static void task_index_thread(void *arg)
         LDAPDebug(LDAP_DEBUG_ANY, "Index failed (error %d)\n", rv, 0, 0);
     }
 
-    task->task_progress = task->task_work;
-    task->task_exitcode = rv;
-    task->task_state = SLAPI_TASK_FINISHED;
-    slapi_task_status_changed(task);
-
+    slapi_task_finish(task, rv);
     charray_free(pb->pb_db2index_attrs);
     slapi_ch_free((void **)&pb->pb_instance_name);
     slapi_pblock_destroy(pb);
@@ -1353,16 +1611,13 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* allocate new task now */
-    task = new_task(slapi_entry_get_ndn(e));
+    task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
-    task->task_work = 1;
-    task->task_progress = 0;
 
     mypb = slapi_pblock_new();
     if (mypb == NULL) {
@@ -1375,7 +1630,7 @@ static int task_index_add(Slapi_PBlock *pb, Slapi_Entry *e,
     mypb->pb_instance_name = slapi_ch_strdup(instance_name);
     mypb->pb_db2index_attrs = indexlist;
     mypb->pb_task = task;
-    mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
+    mypb->pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
 
     /* start the db2index as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_index_thread,
@@ -1460,14 +1715,14 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     }
 
     /* allocate new task now */
-    task = new_task(slapi_entry_get_ndn(e));
+    task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
+    /* NGK - This could use some cleanup to use the SLAPI task API, such as slapi_task_begin() */
     task->task_work = 1;
     task->task_progress = 0;
 
@@ -1478,7 +1733,7 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         mypb.pb_seq_type = SLAPI_UPGRADEDB_FORCE; /* force; reindex all regardless the dbversion */
     mypb.pb_seq_val = slapi_ch_strdup(archive_dir);
     mypb.pb_task = task;
-    mypb.pb_task_flags = TASK_RUNNING_AS_TASK;
+    mypb.pb_task_flags = SLAPI_TASK_RUNNING_AS_TASK;
 
     rv = (mypb.pb_plugin->plg_upgradedb)(&mypb);
     if (rv == 0) {
@@ -1500,76 +1755,6 @@ out:
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
-}
-
-/* update attributes in the entry under "cn=tasks" to match the current
- * status of the task.
- */
-#define NEXTMOD(_type, _val) do { \
-    modlist[cur].mod_op = LDAP_MOD_REPLACE; \
-    modlist[cur].mod_type = (_type); \
-    modlist[cur].mod_values = (char **)slapi_ch_malloc(2*sizeof(char *)); \
-    modlist[cur].mod_values[0] = (_val); \
-    modlist[cur].mod_values[1] = NULL; \
-    mod[cur] = &modlist[cur]; \
-    cur++; \
-} while (0)
-void slapi_task_status_changed(Slapi_Task *task)
-{
-    LDAPMod modlist[20];
-    LDAPMod *mod[20];
-    int cur = 0, i;
-    char s1[20], s2[20], s3[20];
-
-    if (shutting_down) {
-        /* don't care about task status updates anymore */
-        return;
-    }
-
-    NEXTMOD(TASK_LOG_NAME, task->task_log);
-    NEXTMOD(TASK_STATUS_NAME, task->task_status);
-    sprintf(s1, "%d", task->task_exitcode);
-    sprintf(s2, "%d", task->task_progress);
-    sprintf(s3, "%d", task->task_work);
-    NEXTMOD(TASK_PROGRESS_NAME, s2);
-    NEXTMOD(TASK_WORK_NAME, s3);
-    /* only add the exit code when the job is done */
-    if ((task->task_state == SLAPI_TASK_FINISHED) ||
-        (task->task_state == SLAPI_TASK_CANCELLED)) {
-        NEXTMOD(TASK_EXITCODE_NAME, s1);
-        /* make sure the console can tell the task has ended */
-        if (task->task_progress != task->task_work) {
-            task->task_progress = task->task_work;
-        }
-    }
-
-    mod[cur] = NULL;
-    modify_internal_entry(task->task_dn, mod);
-
-    for (i = 0; i < cur; i++)
-        slapi_ch_free((void **)&modlist[i].mod_values);
-
-    if ((task->task_state == SLAPI_TASK_FINISHED) &&
-        !(task->task_flags & SLAPI_TASK_DESTROYING)) {
-        Slapi_PBlock *pb = slapi_pblock_new();
-        Slapi_Entry *e;
-        int ttl;
-        time_t expire;
-
-        e = get_internal_entry(pb, task->task_dn);
-        if (e == NULL)
-            return;
-        ttl = atoi(fetch_attr(e, "ttl", DEFAULT_TTL));
-        if (ttl > 3600)
-            ttl = 3600;         /* be reasonable. */
-        expire = time(NULL) + ttl;
-        task->task_flags |= SLAPI_TASK_DESTROYING;
-        /* queue an event to destroy the state info */
-        slapi_eq_once(destroy_task, (void *)task, expire);
-
-        slapi_free_search_results_internal(pb);
-        slapi_pblock_destroy(pb);
-    }
 }
 
 /* cleanup old tasks that may still be in the DSE from a previous session
@@ -1635,84 +1820,6 @@ void task_cleanup(void)
     slapi_free_search_results_internal(pb);
     slapi_pblock_destroy(pb);
 }
-
-/* name is, for exmaple, "import" */
-int slapi_task_register_handler(const char *name, dseCallbackFn func)
-{
-    char *dn = NULL;
-    Slapi_PBlock *pb = NULL;
-    Slapi_Operation *op;
-    LDAPMod *mods[3];
-    LDAPMod mod[3];
-    const char *objectclass[3];
-    const char *cnvals[2];
-    int ret = -1;
-    int x;
-
-    dn = slapi_ch_smprintf("cn=%s, %s", name, TASK_BASE_DN);
-    if (dn == NULL) {
-        goto out;
-    }
-
-    pb = slapi_pblock_new();
-    if (pb == NULL) {
-        goto out;
-    }
-
-    /* this is painful :( */
-    mods[0] = &mod[0];
-    mod[0].mod_op = LDAP_MOD_ADD;
-    mod[0].mod_type = "objectClass";
-    mod[0].mod_values = (char **)objectclass;
-    objectclass[0] = "top";
-    objectclass[1] = "extensibleObject";
-    objectclass[2] = NULL;
-    mods[1] = &mod[1];
-    mod[1].mod_op = LDAP_MOD_ADD;
-    mod[1].mod_type = "cn";
-    mod[1].mod_values = (char **)cnvals;
-    cnvals[0] = name;
-    cnvals[1] = NULL;
-    mods[2] = NULL;
-    slapi_add_internal_set_pb(pb, dn, mods, NULL,
-                              plugin_get_default_component_id(), 0);
-    x = 1;
-    slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
-    /* Make sure these adds don't appear in the audit and change logs */
-    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
-
-    slapi_add_internal_pb(pb);
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &x);
-    if ((x != LDAP_SUCCESS) && (x != LDAP_ALREADY_EXISTS)) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-                  "Can't create task node '%s' (error %d)\n",
-                  name, x, 0);
-        ret = x;
-        goto out;
-    }
-
-    /* register add callback */
-    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP,
-                                   dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", func, NULL);
-    /* deny modify/delete of the root task entry */
-    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
-                                   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
-    slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
-                                   dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
-
-    ret = 0;
-
-out:
-    if (dn) {
-        slapi_ch_free((void **)&dn);
-    }
-    if (pb) {
-        slapi_pblock_destroy(pb);
-    }
-    return ret;
-}
-
 
 void task_init(void)
 {

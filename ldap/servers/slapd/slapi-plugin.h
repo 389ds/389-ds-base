@@ -149,9 +149,10 @@ typedef struct slapi_rdn		Slapi_RDN;
 typedef struct slapi_mod		Slapi_Mod;
 typedef struct slapi_mods		Slapi_Mods;
 typedef struct slapi_componentid	Slapi_ComponentId;
+
 /* Online tasks interface (to support import, export, etc) */
-typedef struct _slapi_task		Slapi_Task;
-typedef int (*TaskCallbackFn)(Slapi_Task *task);
+typedef struct slapi_task		Slapi_Task;
+typedef void (*TaskCallbackFn)(Slapi_Task *task);
 
 /*
  * The default thread stacksize for nspr21 is 64k (except on IRIX!  It's 32k!).
@@ -1206,6 +1207,22 @@ void slapi_register_role_check(roles_check_fn_type check_fn);
 typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *, 
                              int *, char*, void *);
 
+/*
+ * Note: DSE callback functions MUST return one of these three values:
+ *
+ *   SLAPI_DSE_CALLBACK_OK           -- no errors occurred; apply changes.
+ *   SLAPI_DSE_CALLBACK_ERROR        -- an error occurred; don't apply changes.
+ *   SLAPI_DSE_CALLBACK_DO_NOT_APPLY -- no error, but do not apply changes.
+ *
+ * SLAPI_DSE_CALLBACK_DO_NOT_APPLY should only be returned by modify
+ * callbacks (i.e., those registered with operation==SLAPI_OPERATION_MODIFY).
+ * A return value of SLAPI_DSE_CALLBACK_DO_NOT_APPLY is treated the same as
+ * SLAPI_DSE_CALLBACK_ERROR for all other operations.
+ */
+#define SLAPI_DSE_CALLBACK_OK                   (1)
+#define SLAPI_DSE_CALLBACK_ERROR                (-1)
+#define SLAPI_DSE_CALLBACK_DO_NOT_APPLY (0)
+
 /******************************************************************************
  * Online tasks interface (to support import, export, etc)
  * After some cleanup, we could consider making these public.
@@ -1217,10 +1234,26 @@ typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *,
 #define SLAPI_TASK_FINISHED     2
 #define SLAPI_TASK_CANCELLED    3
 
+/* task flag (pb_task_flags)*/
+#define SLAPI_TASK_RUNNING_AS_TASK            0x0
+#define SLAPI_TASK_RUNNING_FROM_COMMANDLINE   0x1
+
 /* task flags (set by the task-control code) */
 #define SLAPI_TASK_DESTROYING   0x01    /* queued event for destruction */
 
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
+void slapi_task_begin(Slapi_Task *task, int total_work);
+void slapi_task_inc_progress(Slapi_Task *task);
+void slapi_task_finish(Slapi_Task *task, int rc);
+void slapi_task_cancel(Slapi_Task *task, int rc);
+int slapi_task_get_state(Slapi_Task *task);
+void slapi_task_set_data(Slapi_Task *task, void *data);
+void * slapi_task_get_data(Slapi_Task *task);
+void slapi_task_inc_refcount(Slapi_Task *task);
+void slapi_task_dec_refcount(Slapi_Task *task);
+int slapi_task_get_refcount(Slapi_Task *task);
+void slapi_task_set_destructor_fn(Slapi_Task *task, TaskCallbackFn func);
+void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func);
 void slapi_task_status_changed(Slapi_Task *task);
 void slapi_task_log_status(Slapi_Task *task, char *format, ...)
 #ifdef __GNUC__ 

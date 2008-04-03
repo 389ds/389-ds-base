@@ -47,7 +47,7 @@
  * objectClass: nsSlapdPlugin
  * objectClass: extensibleObject
  * cn: sampletask
- * nsslapd-pluginPath: <prefix>/usr/lib/<PACKAGE_NAME>/plugins/libsampletask-plugin.so
+ * nsslapd-pluginPath: libsampletask-plugin
  * nsslapd-pluginInitfunc: sampletask_init
  * nsslapd-pluginType: object
  * nsslapd-pluginEnabled: on
@@ -58,26 +58,26 @@
  *
  * 4. create a config task entry in dse.ldif
  * Task entry:
- * dn: cn=sample task, cn=tasks, cn=config
+ * dn: cn=sampletask, cn=tasks, cn=config
  * objectClass: top
  * objectClass: extensibleObject
- * cn: sample task
+ * cn: sampletask
  *
  * 5. to invoke the sample task, run the command line:
  * $ ./ldapmodify -h <host> -p <port> -D "cn=Directory Manager" -w <pw> -a
- * dn: cn=sample task 0, cn=sample task, cn=tasks, cn=config
+ * dn: cn=sampletask 0, cn=sample task, cn=tasks, cn=config
  * objectClass: top
  * objectClass: extensibleObject
  * cn: sample task 0
- * arg0: sample task arg0
+ * myarg: sample task myarg
  *
  * Result is in the errors log 
- * [...] - Sample task starts (arg: sample task arg0) ...
+ * [...] - Sample task starts (arg: sample task myarg) ...
  * [...] - Sample task finished.
  */
 
-#include "slap.h"
-#include "slapi-private.h"
+#include "slapi-plugin.h"
+#include "nspr.h"
 
 static int task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
                     Slapi_Entry *eAfter, int *returncode, char *returntext,
@@ -118,33 +118,32 @@ task_sampletask_start(Slapi_PBlock *pb)
 static void
 task_sampletask_thread(void *arg)
 {
-    Slapi_PBlock *pb = (Slapi_PBlock *)arg;
-    Slapi_Task *task = pb->pb_task;
-    int rv;
+    Slapi_Task *task = (Slapi_Task *)arg;
+    char *myarg = NULL;
+    int i, rv = 0;
+    int total_work = 3;
 
-    task->task_work = 1;
-    task->task_progress = 0;
-    task->task_state = SLAPI_TASK_RUNNING;
-    slapi_task_status_changed(task);
+    /* fetch our argument from the task */
+    myarg = (char *)slapi_task_get_data(task);
 
-    slapi_task_log_notice(task, "Sample task starts (arg: %s) ...\n", 
-								pb->pb_seq_val);
-    LDAPDebug(LDAP_DEBUG_ANY, "Sample task starts (arg: %s) ...\n",
-								pb->pb_seq_val, 0, 0);
-    /* do real work */
-    rv = 0;
+    /* update task state to show it's running */
+    slapi_task_begin(task, total_work);
+    slapi_task_log_notice(task, "Sample task starts (arg: %s) ...\n", myarg);
+    slapi_log_error(SLAPI_LOG_FATAL, "sampletask", "Sample task starts (arg: %s) ...\n", myarg);
 
+    /* real work would be done here */
+    for (i = 0; i < total_work; i++) {
+        PR_Sleep(10000);
+        slapi_task_inc_progress(task);
+    }
+
+    /* update task state to say we're finished */
     slapi_task_log_notice(task, "Sample task finished.");
     slapi_task_log_status(task, "Sample task finished.");
-    LDAPDebug(LDAP_DEBUG_ANY, "Sample task finished.\n", 0, 0, 0);
+    slapi_log_error(SLAPI_LOG_FATAL, "sampletask", "Sample task finished.\n");
 
-    task->task_progress = 1;
-    task->task_exitcode = rv;
-    task->task_state = SLAPI_TASK_FINISHED;
-    slapi_task_status_changed(task);
-
-    slapi_ch_free((void **)&pb->pb_seq_val);
-    slapi_pblock_destroy(pb);
+    /* this will queue the destruction of the task */
+    slapi_task_finish(task, rv);
 }
 
 /* extract a single value from the entry (as a string) -- if it's not in the
@@ -163,6 +162,17 @@ static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
     return slapi_value_get_string(val);
 }
 
+static void
+task_sampletask_destructor(Slapi_Task *task)
+{
+    if (task) {
+        char *myarg = (char *)slapi_task_get_data(task);
+        if (myarg) {
+            slapi_ch_free_string(&myarg);
+        }
+    }
+}
+
 /*
  * Invoked when the task instance is added by the client (step 5 of the comment)
  * Get the necessary attributes from the task entry, and spawns a thread to do
@@ -178,7 +188,7 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_PBlock *mypb = NULL;
     Slapi_Task *task = NULL;
-    const char *arg0;
+    const char *myarg;
 
     *returncode = LDAP_SUCCESS;
     if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
@@ -188,7 +198,7 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* get arg(s) */
-    if ((arg0 = fetch_attr(e, "arg0", NULL)) == NULL) {
+    if ((myarg = fetch_attr(e, "myarg", NULL)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -197,46 +207,33 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
     /* allocate new task now */
     task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, "unable to allocate new task!\n", 0, 0, 0);
+        slapi_log_error(SLAPI_LOG_FATAL, "sampletask", "unable to allocate new task!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    task->task_state = SLAPI_TASK_SETUP;
-    task->task_work = 1;
-    task->task_progress = 0;
 
-	/* create a pblock to pass the necessary info to the task thread */
-    mypb = slapi_pblock_new();
-    if (mypb == NULL) {
-        *returncode = LDAP_OPERATIONS_ERROR;
-        rv = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
-    mypb->pb_seq_val = slapi_ch_strdup(arg0);
-    mypb->pb_task = task;
-    mypb->pb_task_flags = TASK_RUNNING_AS_TASK;
+    /* set a destructor that will clean up myarg for us when the task is complete */
+    slapi_task_set_destructor_fn(task, task_sampletask_destructor);
+
+    /* Stash our argument in the task for use by the task thread */
+    slapi_task_set_data(task, slapi_ch_strdup(myarg));
 
     /* start the sample task as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, task_sampletask_thread,
-                             (void *)mypb, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-                  "unable to create sample task thread!\n", 0, 0, 0);
+        slapi_log_error(SLAPI_LOG_FATAL, "sampletask",
+                  "unable to create sample task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
-        slapi_ch_free((void **)&mypb->pb_seq_val);
-        slapi_pblock_destroy(mypb);
-        goto out;
+        slapi_task_finish(task, *returncode);
+    } else {
+        /* thread successful */
+        rv = SLAPI_DSE_CALLBACK_OK;
     }
-
-    /* thread successful -- don't free the pb, let the thread do that. */
-    return SLAPI_DSE_CALLBACK_OK;
 
 out:
-    if (task) {
-        slapi_destroy_task(task);
-    }
     return rv;
 }

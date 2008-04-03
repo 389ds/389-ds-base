@@ -2118,7 +2118,7 @@ slapd_exemode_ldif2db()
     pb.pb_ldif_files = ldif_file;
     pb.pb_ldif_include = db2ldif_include;
     pb.pb_ldif_exclude = db2ldif_exclude;
-    pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 #ifndef _WIN32
     main_setuid(slapdFrontendConfig->localuser);
 #endif
@@ -2245,7 +2245,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	    pb.pb_ldif_dump_uniqueid = db2ldif_dump_uniqueid;
 		pb.pb_ldif_encrypt = importexport_encrypt;
 	    pb.pb_instance_name = *instp;
-	    pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+	    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 		if (is_slapd_running())
 			pb.pb_server_running = 1;
 		else
@@ -2431,7 +2431,7 @@ static int slapd_exemode_db2index()
     pb.pb_plugin = plugin;
     pb.pb_db2index_attrs = db2index_attrs;
     pb.pb_instance_name = cmd_line_instance_name;
-    pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 #ifndef _WIN32
     main_setuid(slapdFrontendConfig->localuser);
 #endif
@@ -2489,7 +2489,7 @@ slapd_exemode_db2archive()
 	pb.pb_plugin = backend_plugin;
 	pb.pb_instance_name = cmd_line_instance_name;
 	pb.pb_seq_val = archive_name;
-	pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 #ifndef _WIN32
 	main_setuid(slapdFrontendConfig->localuser);
 #endif
@@ -2539,7 +2539,7 @@ slapd_exemode_archive2db()
 	pb.pb_plugin = backend_plugin;
 	pb.pb_instance_name = cmd_line_instance_name;
 	pb.pb_seq_val = archive_name;
-	pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 #ifndef _WIN32
 	main_setuid(slapdFrontendConfig->localuser);
 #endif
@@ -2601,7 +2601,7 @@ slapd_exemode_upgradedb()
     pb.pb_plugin = backend_plugin;
     pb.pb_seq_val = archive_name;
     pb.pb_seq_type = upgradedb_force;
-    pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     /* borrowing import code, so need to set up the import variables */
     pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;
     pb.pb_ldif_namespaceid = ldif2db_namespaceid;
@@ -2656,7 +2656,7 @@ slapd_exemode_dbverify()
     pb.pb_seq_type = dbverify_verbose;
     pb.pb_plugin = backend_plugin;
     pb.pb_instance_name = (char *)cmd_line_instance_names;
-    pb.pb_task_flags = TASK_RUNNING_FROM_COMMANDLINE;
+    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     
     if ( backend_plugin->plg_dbverify != NULL ) {
         return_value = (*backend_plugin->plg_dbverify)( &pb );

@@ -49,10 +49,10 @@
  *
  * To start the memberof task add an entry like:
  *
- * dn: cn=memberof task 2, cn=memberof task, cn=tasks, cn=config
+ * dn: cn=mytask, cn=memberof task, cn=tasks, cn=config
  * objectClass: top
  * objectClass: extensibleObject
- * cn: sample task
+ * cn: mytask
  * basedn: dc=example, dc=com
  * filter: (uid=test4)
  *
@@ -75,7 +75,6 @@
 #define MEMBEROF_GROUP_ATTR "member"
 #define MEMBEROF_ATTR "memberof"
 #define MEMBEROF_GROUP_ATTR_IS_DN 1
-#define MEMBEROF_GROUP_ATTR_TYPE "uid"
 #define MEMBEROF_GROUP_FILTER "(" MEMBEROF_GROUP_ATTR "=*)"
 
 #define MEMBEROF_PLUGIN_SUBSYSTEM   "memberof-plugin"   /* used for logging */
@@ -91,50 +90,6 @@ typedef struct _memberofstringll
 	char *dn;
 	void *next;
 } memberofstringll;
-
-
-
-/****** secrets *********/
-
-/*from FDS slap.h
- * until we get a proper api for access
- */
-#define TASK_RUNNING_AS_TASK             0x0
-
-/*from FDS slapi-private.h
- * until we get a proper api for access
- */
-
-
-#define SLAPI_DSE_CALLBACK_OK			(1)
-#define SLAPI_DSE_CALLBACK_ERROR		(-1)
-#define SLAPI_DSE_CALLBACK_DO_NOT_APPLY	(0)
-
-/******************************************************************************
- * Online tasks interface (to support import, export, etc)
- * After some cleanup, we could consider making these public.
- */
-struct _slapi_task {
-    struct _slapi_task *next;
-    char *task_dn;
-    int task_exitcode;          /* for the end user */
-    int task_state;             /* (see above) */
-    int task_progress;          /* number between 0 and task_work */
-    int task_work;              /* "units" of work to be done */
-    int task_flags;             /* (see above) */
-
-    /* it is the task's responsibility to allocate this memory & free it: */
-    char *task_status;          /* transient status info */
-    char *task_log;             /* appended warnings, etc */
-
-    void *task_private;         /* for use by backends */
-    TaskCallbackFn cancel;      /* task has been cancelled by user */
-    TaskCallbackFn destructor;  /* task entry is being destroyed */
-	int task_refcount;
-};
-
-/****** secrets ********/
-
 
 /*** function prototypes ***/
 
@@ -169,7 +124,7 @@ static int memberof_add_attr_list(Slapi_PBlock *pb, char *groupdn, Slapi_Attr *a
 static int memberof_del_attr_list(Slapi_PBlock *pb, char *groupdn, Slapi_Attr *attr);
 static int memberof_moddn_attr_list(Slapi_PBlock *pb, char *pre_dn, char *post_dn, 
 	Slapi_Attr *attr);
-static int memberofd_replace_list(Slapi_PBlock *pb, char *group_dn);
+static int memberof_replace_list(Slapi_PBlock *pb, char *group_dn);
 static void memberof_set_plugin_id(void * plugin_id);
 static void *memberof_get_plugin_id();
 static int memberof_compare(const void *a, const void *b);
@@ -195,9 +150,10 @@ static int memberof_add_membership(Slapi_PBlock *pb, char *op_this, char *op_to)
 static int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
                     Slapi_Entry *eAfter, int *returncode, char *returntext,
                     void *arg);
+static void memberof_task_destructor(Slapi_Task *task);
 static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
                                               const char *default_val);
-static void memberof_memberof_fixup_task_thread(void *arg);
+static void memberof_fixup_task_thread(void *arg);
 static int memberof_fix_memberof(char *dn, char *filter_str);
 static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
 
@@ -511,6 +467,8 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 
 			memberof_lock();
 
+			/* get a list of member attributes present in the group
+			 * entry that is being renamed. */
 			if(0 == slapi_entry_attr_find(post_e, MEMBEROF_GROUP_ATTR, &attr))
 			{
 				memberof_moddn_attr_list(pb, pre_dn, post_dn, attr);
@@ -656,7 +614,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 					{
 						/* If there are no values in the smod, we should
 						 * just do a replace instead.  The  user is just
-						 * trying to delete all members from this this
+						 * trying to delete all members from this group
 						 * entry, which the replace code deals with. */
 						if (slapi_mod_get_num_values(smod) == 0)
 						{
@@ -673,7 +631,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_REPLACE:
 					{
 						/* replace current values */
-						memberofd_replace_list(pb, dn);
+						memberof_replace_list(pb, dn);
 						break;
 					}
 
@@ -876,6 +834,14 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, int mod_op, char *group_dn,
 	else if(LDAP_MOD_ADD == mod_op)
 	{
 		op_str = "ADD";
+	}
+	else if(LDAP_MOD_REPLACE == mod_op)
+	{
+		op_str = "REPLACE";
+	}
+	else
+	{
+		op_str = "UNKNOWN";
 	}
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -1347,7 +1313,7 @@ int memberof_is_group_member(Slapi_Value *groupdn, Slapi_Value *memberdn)
 	return rc;
 }
 
-/* memberof_memberof_search_callback()
+/* memberof_test_membership()
  * for each attribute in the memberof attribute
  * determine if the entry is still a member
  * 
@@ -1517,7 +1483,7 @@ bail:
  * Perform replace the group DN list in the memberof attribute of the list of targets
  *
  */
-int memberofd_replace_list(Slapi_PBlock *pb, char *group_dn)
+int memberof_replace_list(Slapi_PBlock *pb, char *group_dn)
 {
 	struct slapi_entry *pre_e = NULL;
 	struct slapi_entry *post_e = NULL;
@@ -1876,29 +1842,22 @@ void memberof_unlock()
 	slapi_unlock_mutex(memberof_operation_lock);
 }
 
-/* 
- *
- */
- 
 typedef struct _task_data
 {
 	char *dn;
 	char *filter_str;
-	Slapi_Task *task;
 } task_data;
 
-void memberof_memberof_fixup_task_thread(void *arg)
+void memberof_fixup_task_thread(void *arg)
 {
-	task_data *td = (task_data *)arg;
-	Slapi_Task *task = td->task;
+	Slapi_Task *task = (Slapi_Task *)arg;
+	task_data *td = NULL;
 	int rc = 0;
 
-	task->task_work = 1;
-	task->task_progress = 0;
-	task->task_state = SLAPI_TASK_RUNNING;
+	/* Fetch our task data from the task */
+	td = (task_data *)slapi_task_get_data(task);
 
-	slapi_task_status_changed(task);
-
+	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n", 
 								td->filter_str);
 
@@ -1907,20 +1866,10 @@ void memberof_memberof_fixup_task_thread(void *arg)
 
 	slapi_task_log_notice(task, "Memberof task finished.");
 	slapi_task_log_status(task, "Memberof task finished.");
+	slapi_task_inc_progress(task);
 
-	task->task_progress = 1;
-	task->task_exitcode = rc;
-	task->task_state = SLAPI_TASK_FINISHED;
-	slapi_task_status_changed(task);
-
-	slapi_ch_free_string(&td->dn);
-	slapi_ch_free_string(&td->filter_str);
-
-	{
-		/* make the compiler happy */
-		void *ptd = td;
-		slapi_ch_free(&ptd);
-	}
+	/* this will queue the destruction of the task */
+	slapi_task_finish(task, rc);
 }
 
 /* extract a single value from the entry (as a string) -- if it's not in the
@@ -1966,13 +1915,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		goto out;
 	}
 
-	/* allocate new task now */
-	task = slapi_new_task(slapi_entry_get_ndn(e));
-	task->task_state = SLAPI_TASK_SETUP;
-	task->task_work = 1;
-	task->task_progress = 0;
-
-	/* create a pblock to pass the necessary info to the task thread */
+	/* setup our task data */
 	mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
 	if (mytaskdata == NULL)
 	{
@@ -1982,11 +1925,19 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	}
 	mytaskdata->dn = slapi_ch_strdup(dn);
 	mytaskdata->filter_str = slapi_ch_strdup(filter);
-	mytaskdata->task = task;
+
+	/* allocate new task now */
+	task = slapi_new_task(slapi_entry_get_ndn(e));
+
+	/* register our destructor for cleaning up our private data */
+	slapi_task_set_destructor_fn(task, memberof_task_destructor);
+
+	/* Stash a pointer to our data in the task */
+	slapi_task_set_data(task, mytaskdata);
 
 	/* start the sample task as a separate thread */
-	thread = PR_CreateThread(PR_USER_THREAD, memberof_memberof_fixup_task_thread,
-		(void *)mytaskdata, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+	thread = PR_CreateThread(PR_USER_THREAD, memberof_fixup_task_thread,
+		(void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 		PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (thread == NULL)
 	{
@@ -1994,26 +1945,27 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 			"unable to create task thread!\n");
 		*returncode = LDAP_OPERATIONS_ERROR;
 		rv = SLAPI_DSE_CALLBACK_ERROR;
-
-		slapi_ch_free_string(&mytaskdata->dn);
-		slapi_ch_free_string(&mytaskdata->filter_str);
-
-		{
-			void *ptask = mytaskdata;
-			slapi_ch_free(&ptask);
-			goto out;
-		}
+		slapi_task_finish(task, *returncode);
+	} else {
+		rv = SLAPI_DSE_CALLBACK_OK;
 	}
-
-	/* thread successful -- don't free the pb, let the thread do that. */
-	return SLAPI_DSE_CALLBACK_OK;
 
 out:
-	if (task)
-	{
-		slapi_destroy_task(task);
-	}
 	return rv;
+}
+
+void
+memberof_task_destructor(Slapi_Task *task)
+{
+	if (task) {
+		task_data *mydata = (task_data *)slapi_task_get_data(task);
+		if (mydata) {
+			slapi_ch_free_string(&mydata->dn);
+			slapi_ch_free_string(&mydata->filter_str);
+			/* Need to cast to avoid a compiler warning */
+			slapi_ch_free((void **)&mydata);
+		}
+	}
 }
 
 int memberof_fix_memberof(char *dn, char *filter_str)

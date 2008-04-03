@@ -61,7 +61,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_BACKEND_INSTANCE_NAME, &backendname);
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
-    li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
+    li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     if ( !rawdirectory || !*rawdirectory ) {
         LDAPDebug( LDAP_DEBUG_ANY, "archive2db: no archive name\n",
@@ -273,7 +273,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
     slapi_pblock_get( pb, SLAPI_SEQ_VAL, &rawdirectory );
     slapi_pblock_get( pb, SLAPI_TASK_FLAGS, &task_flags );
-    li->li_flags = run_from_cmdline = (task_flags & TASK_RUNNING_FROM_COMMANDLINE);
+    li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
 

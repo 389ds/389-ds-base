@@ -513,10 +513,10 @@ struct ldbminfo {
     int li_legacy_errcode;   /* 615428 -- in case legacy err code is expected */
 };
 
-/* li_flags could store these bits defined in ../slap.h
+/* li_flags could store these bits defined in ../slapi-plugin.h
  * task flag (pb_task_flags) *
- * #define TASK_RUNNING_AS_TASK		0x0
- * #define TASK_RUNNING_FROM_COMMANDLINE	0x1
+ *   SLAPI_TASK_RUNNING_AS_TASK
+ *   SLAPI_TASK_RUNNING_FROM_COMMANDLINE
  */
 /* allow conf w/o CONFIG_FLAG_ALLOW_RUNNING_CHANGE to be updated */
 #define LI_FORCE_MOD_CONFIG     0x10 
