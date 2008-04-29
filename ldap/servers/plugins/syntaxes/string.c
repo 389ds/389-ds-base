@@ -189,8 +189,8 @@ int
 string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
     Slapi_Value **bvals, int syntax )
 {
-	int		i, j, rc;
-	char		*p, *end, *realval, *tmpbuf;
+	int		i, j, rc, size=0;
+	char		*p, *end, *realval, *tmpbuf, *bigpat = NULL;
 	size_t		tmpbufsize;
 	char		pat[BUFSIZ];
 	char		buf[BUFSIZ];
@@ -198,7 +198,6 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
-
 	/*
 	 * construct a regular expression corresponding to the
 	 * filter and let regex do the work for each value
@@ -207,16 +206,33 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	pat[0] = '\0';
 	p = pat;
 	end = pat + sizeof(pat) - 2;	/* leave room for null */
+
+	if ( initial != NULL ) {
+		size = strlen( initial ) + 1; /* add 1 for "^" */
+	}
+
+	if ( any != NULL ) {
+		i = 0;
+		while ( any[i] ) {
+			size += strlen(any[i++]) + 2; /* add 2 for ".*" */
+		}
+	}
+
+	if ( final != NULL ) {
+		 size += strlen( final ) + 3; /* add 3 for ".*" and "$" */
+	}
+
+	size *= 2; /* doubled in case all filter chars need escaping */
+	size++; /* add 1 for null */
+
+	if ( p + size > end ) {
+		bigpat = slapi_ch_malloc( size );
+		p = bigpat;
+	}
+
 	if ( initial != NULL ) {
 		value_normalize( initial, syntax, 1 /* trim leading blanks */ );
-		strcpy( p, "^" );
-		p = strchr( p, '\0' );
-		/* 2 * in case every char is special */
-		if ( p + 2 * strlen( initial ) > end ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "not enough pattern space\n",
-			    0, 0, 0 );
-			return( -1 );
-		}
+		*p++ = '^';
 		filter_strcpy_special( p, initial );
 		p = strchr( p, '\0' );
 	}
@@ -224,13 +240,8 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		for ( i = 0; any[i] != NULL; i++ ) {
 			value_normalize( any[i], syntax, 0 /* DO NOT trim leading blanks */ );
 			/* ".*" + value */
-			if ( p + 2 * strlen( any[i] ) + 2 > end ) {
-				LDAPDebug( LDAP_DEBUG_ANY,
-				    "not enough pattern space\n", 0, 0, 0 );
-				return( -1 );
-			}
-			strcpy( p, ".*" );
-			p = strchr( p, '\0' );
+			*p++ = '.';
+			*p++ = '*';
 			filter_strcpy_special( p, any[i] );
 			p = strchr( p, '\0' );
 		}
@@ -238,28 +249,26 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	if ( final != NULL ) {
 		value_normalize( final, syntax, 0 /* DO NOT trim leading blanks */ );
 		/* ".*" + value */
-		if ( p + 2 * strlen( final ) + 2 > end ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "not enough pattern space\n",
-			    0, 0, 0 );
-			return( -1 );
-		}
-		strcpy( p, ".*" );
-		p = strchr( p, '\0' );
+		*p++ = '.';
+		*p++ = '*';
 		filter_strcpy_special( p, final );
-		p = strchr( p, '\0' );
-		strcpy( p, "$" );
+		strcat( p, "$" );
 	}
 
 	/* compile the regex */
+	p = (bigpat) ? bigpat : pat;
 	slapd_re_lock();
-	if ( (p = slapd_re_comp( pat )) != 0 ) {
+	if ( (tmpbuf = slapd_re_comp( p )) != 0 ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s)\n",
 		    pat, p, 0 );
 		slapd_re_unlock();
-		return( -1 );
+		if( bigpat != NULL ) {
+			slapi_ch_free((void**)&bigpat );
+		}
+		return( LDAP_OPERATIONS_ERROR );
 	} else {
-		LDAPDebug( LDAP_DEBUG_TRACE, "re_comp (%s)\n",
-				   escape_string( pat, ebuf ), 0, 0 );
+ 		LDAPDebug( LDAP_DEBUG_TRACE, "re_comp (%s)\n",
+				   escape_string( p, ebuf ), 0, 0 );
 	}
 
 	/*
@@ -300,6 +309,9 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	if ( tmpbuf != NULL ) {
 		slapi_ch_free((void**)&tmpbuf );
 	}
+	if( bigpat != NULL ) {
+		slapi_ch_free((void**)&bigpat );
+	} 
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "<= string_filter_sub %d\n",
 	    rc, 0, 0 );

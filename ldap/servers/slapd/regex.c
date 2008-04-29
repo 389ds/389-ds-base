@@ -43,31 +43,6 @@
 #include "slap.h"	/* must come before regex.h */
 #include "portable.h"
 
-static PRLock	*regex_mutex = NULL;
-
-int
-slapd_re_init( void )
-{
-	if ( NULL == regex_mutex ) {
-		regex_mutex = PR_NewLock();
-	}
-	return( NULL == regex_mutex ? -1 : 0 );
-}
-
-void
-slapd_re_lock( void )
-{
-	PR_ASSERT( NULL != regex_mutex );
-	PR_Lock( regex_mutex );
-}
-
-int
-slapd_re_unlock( void )
-{
-	PR_ASSERT( NULL != regex_mutex );
-	return( PR_Unlock( regex_mutex ) );
-}
-
 #if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
 #include "regex.h"
 
@@ -91,6 +66,17 @@ slapd_re_unlock( void )
  * Modification history:
  *
  * $Log: regex.c,v $
+ * Revision 1.5.2.1  2008/04/29 00:38:00  nhosoi
+ * Resolves: #182621 (#443955)
+ * Summary: Allow larger regex buffer to enable long substring filters
+ * Description: Applying the patches provided by ulf.weltman@hp.com.
+ * regex.c: use dynamically allocated regex buffer, use ptrdiff_t to store
+ * the offsets to be restored after the realloc, and use a constant for the
+ * value of "how much the NFA buffer can grow in one iteration on the pattern".
+ * string.c: use dynamically allocated buffer if the prepared buffer is not
+ * large enough, used wrong pointer (pat instead of p) in a debug message,
+ * and performed an unneeded strcat of ".*"
+ *
  * Revision 1.5  2006/11/10 23:45:40  nhosoi
  * Resolves: #214533
  * Summary: configure needs to support --with-fhs (Comment #6)
@@ -416,6 +402,12 @@ slapd_re_unlock( void )
  *	matches:	foo-foo fo-fo fob-fob foobar-foobar ...
  */
 
+/* This is the maximum the NFA buffer might grow for every op code processed.
+   The max seems to be the + after a character class, like "[a-z]+".  It
+   needs 1 byte for the CCL code, 16 for the CCL bit map, and 2 for END codes
+   and 1 for a CLO code. */
+#define MAXOPSPACE 20
+
 #define MAXNFA  1024
 #define MAXTAG  10
 
@@ -454,11 +446,12 @@ typedef unsigned char UCHAR;
  */
 
 static int  tagstk[MAXTAG];             /* subpat tag stack..*/
-static UCHAR nfa[MAXNFA];		/* automaton..       */
-static int  sta = NOP;               	/* status of lastpat */
+static UCHAR *nfa = NULL;               /* automaton..       */
+static int  nfasize = MAXNFA;           /* tracks size of nfa buffer */
+static int  sta = NOP;                  /* status of lastpat */
 
-static UCHAR bittab[BITBLK];		/* bit table for CCL */
-					/* pre-set bits...   */
+static UCHAR bittab[BITBLK];            /* bit table for CCL */
+                                        /* pre-set bits...   */
 static UCHAR bitarr[] = {1,2,4,8,16,32,64,128};
 
 #ifdef DEBUG
@@ -498,6 +491,21 @@ slapd_re_comp( char *pat )
 	sta = NOP;
 
 	for (p = (UCHAR*)pat; *p; p++) {
+		/* Check if we are approaching end of nfa buffer. MAXOPSPACE is
+		   the max we might add to the nfa per loop. */
+		if (mp - (UCHAR*)nfa + MAXOPSPACE >= nfasize) {
+			/* Save offsets */
+			ptrdiff_t mppos = mp - nfa;
+			ptrdiff_t sppos = sp - nfa;
+
+			/* Double the nfa buffer size */
+			nfasize *= 2;
+			nfa = (UCHAR*)slapi_ch_realloc((char*)nfa, nfasize);
+
+			/* Restore pointers into realloced space */
+			mp = nfa + mppos;
+			sp = nfa + sppos;
+		}
 		lp = mp;
 		switch(*p) {
 
@@ -1099,3 +1107,33 @@ nfadump( UCHAR *ap)
 }
 #endif
 #endif /* MACOS or DOS or NEED_BSDREGEX */
+
+static PRLock	*regex_mutex = NULL;
+
+int
+slapd_re_init( void )
+{
+	if ( NULL == regex_mutex ) {
+		regex_mutex = PR_NewLock();
+	}
+
+	if ( NULL == nfa ) {
+		nfa = (UCHAR*)slapi_ch_malloc( MAXNFA );
+	}
+
+	return( NULL == regex_mutex ? -1 : 0 );
+}
+
+void
+slapd_re_lock( void )
+{
+	PR_ASSERT( NULL != regex_mutex );
+	PR_Lock( regex_mutex );
+}
+
+int
+slapd_re_unlock( void )
+{
+	PR_ASSERT( NULL != regex_mutex );
+	return( PR_Unlock( regex_mutex ) );
+}
