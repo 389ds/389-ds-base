@@ -169,6 +169,13 @@ if [ $reconfig ] ; then
 		start_server $sroot $dir
 		echo ""
 	done
+	# fixup any admin server files
+	if [ -f $sroot/bin/admin/admin/bin/repl-monitor-cgi.pl.backup ] ; then
+		echo Already have repl-monitor-cgi.pl patch, skipping . . .
+	else
+		cp -f -p $sroot/bin/admin/admin/bin/repl-monitor-cgi.pl $sroot/bin/admin/admin/bin/repl-monitor-cgi.pl.backup
+		cp -f -p $sroot/bin/slapd/admin/scripts/template-repl-monitor-cgi.pl $sroot/bin/admin/admin/bin/repl-monitor-cgi.pl
+	fi
 fi
 
 wrap_security_tools $sroot

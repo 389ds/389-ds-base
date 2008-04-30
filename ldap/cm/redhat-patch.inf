@@ -46,8 +46,13 @@
 #                 32it:
 #                 %DISTDIR32% points <buildroot>/dist/<platform>
 #
+# Changes for 7.1 SP5
+# added files for bug 437301
+#
 base: /share/builds/products/server/directry/7.1
 
+file: 437301: bin/slapd/admin/scripts/template-repl-monitor-cgi.pl
+file: 437301: bin/slapd/admin/bin/ns-update
 file: 147585: plugins/slapd/slapi/examples/testpreop.c
 file: 164834,165641,166229,173687,175063,202890,247725,297221,196523,208058,311851,240583: bin/slapd/server/ns-slapd
 file: 155276,164834,164843,165641,166229,173687,175063,179135,179137,202890,247725,297221,240897,428764: bin/slapd/server/libslapd.*
