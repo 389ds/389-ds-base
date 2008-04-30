@@ -76,8 +76,8 @@ file: 167478,160589: setup/setup
 file: 156120,159037,170321,170328,170556,170558,170816,185765: winsync/PassSync.msi
 file: 167761: java/jars/ds71.jar
 file: 169388,169954,170071,170350,181827,179135,179137,238630,429793: lib/replication-plugin.*
-file: xxxxxx: bin/slapd/lib/libns-dshttpd71.so
-file: xxxxxx: clients/lib/libns-dshttpd71.so
+file: xxxxxx: bin/slapd/lib/libns-dshttpd71.*
+file: xxxxxx: clients/lib/libns-dshttpd71.*
 file: xxxxxx: clients/dsgw/bin/auth
 file: xxxxxx: clients/dsgw/bin/doauth
 file: xxxxxx: clients/dsgw/bin/edit
