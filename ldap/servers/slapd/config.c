@@ -375,7 +375,33 @@ slapd_bootstrap_config(const char *configdir)
 									  CONFIG_SASLPATH_ATTRIBUTE, errorbuf);
 					}
 				}
+#if defined(ENABLE_LDAPI)
+				/* set the ldapi file path; needed in main */
+				workpath[0] = '\0';
+				if (entry_has_attr_and_value(e, CONFIG_LDAPI_FILENAME_ATTRIBUTE,
+						workpath, sizeof(workpath)))
+				{
+					if (config_set_ldapi_filename(CONFIG_LDAPI_FILENAME_ATTRIBUTE,
+							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+									  CONFIG_LDAPI_FILENAME_ATTRIBUTE, errorbuf);
+					}
+				}
 
+				/* set the ldapi switch; needed in main */
+				workpath[0] = '\0';
+				if (entry_has_attr_and_value(e, CONFIG_LDAPI_SWITCH_ATTRIBUTE,
+						workpath, sizeof(workpath)))
+				{
+					if (config_set_ldapi_switch(CONFIG_LDAPI_SWITCH_ATTRIBUTE,
+							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+									  CONFIG_LDAPI_SWITCH_ATTRIBUTE, errorbuf);
+					}
+				}
+#endif
 				/* see if the entry is a child of the plugin base dn */
 				if (slapi_sdn_isparent(&plug_dn,
 									   slapi_entry_get_sdn_const(e)))
