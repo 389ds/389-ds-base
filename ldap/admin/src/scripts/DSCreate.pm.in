@@ -336,14 +336,14 @@ sub createConfigFile {
             $ent->setValues("nsslapd-ldapilisten", "off");
         }
         if ("@enable_autobind@") {
-            $ent->setValues("nsslapd-ldapiautobind", "on");
+            $ent->setValues("nsslapd-ldapiautobind", "off");
+            $ent->setValues("nsslapd-ldapimaprootdn", $inf->{slapd}->{RootDN});
+            $ent->setValues("nsslapd-ldapimaptoentries", "off");
+            $ent->setValues("nsslapd-ldapiuidnumbertype", "uidNumber");
+            $ent->setValues("nsslapd-ldapigidnumbertype", "gidNumber");
+            $ent->setValues("nsslapd-ldapientrysearchbase", $inf->{slapd}->{Suffix});
+            $ent->setValues("nsslapd-ldapiautodnsuffix", "cn=peercred,cn=external,cn=auth");
         }
-        $ent->setValues("nsslapd-ldapimaprootdn", $inf->{slapd}->{RootDN});
-        $ent->setValues("nsslapd-ldapimaptoentries", "off");
-        $ent->setValues("nsslapd-ldapiuidnumbertype", "uidNumber");
-        $ent->setValues("nsslapd-ldapigidnumbertype", "gidNumber");
-        $ent->setValues("nsslapd-ldapientrysearchbase", "dc=example, dc=com");
-        $ent->setValues("nsslapd-ldapiautodnsuffix", "cn=peercred,cn=external,cn=auth");
         if (!$conn->update($ent)) {
             $conn->close();
             return ("error_enabling_feature", "ldapi", $conn->getErrorString());
