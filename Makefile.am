@@ -938,6 +938,9 @@ if enable_ldapi
         GETSOCKETPEER=ldap/servers/slapd/getsocketpeer.c
         enable_ldapi = 1
 endif
+if enable_autobind
+        enable_autobind = 1
+endif
 
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \

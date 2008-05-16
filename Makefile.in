@@ -855,7 +855,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -902,6 +901,8 @@ db_libver = @db_libver@
 debug_defs = @debug_defs@
 defaultgroup = @defaultgroup@
 defaultuser = @defaultuser@
+enable_autobind_FALSE = @enable_autobind_FALSE@
+enable_autobind_TRUE = @enable_autobind_TRUE@
 enable_bitwise_FALSE = @enable_bitwise_FALSE@
 enable_bitwise_TRUE = @enable_bitwise_TRUE@
 enable_dna_FALSE = @enable_dna_FALSE@
@@ -1826,6 +1827,7 @@ mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSD
 #------------------------
 @enable_ldapi_TRUE@GETSOCKETPEER = ldap/servers/slapd/getsocketpeer.c
 @enable_ldapi_TRUE@enable_ldapi = 1
+@enable_autobind_TRUE@enable_autobind = 1
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \
 	ldap/servers/slapd/bind.c  \

@@ -12,6 +12,9 @@
 /* cpu type sparc */
 #undef CPU_sparc
 
+/* enable ldapi auto bind support in the server */
+#undef ENABLE_AUTOBIND
+
 /* enable the bitwise plugin */
 #undef ENABLE_BITWISE
 

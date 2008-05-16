@@ -121,6 +121,21 @@ else
 fi
 AM_CONDITIONAL(enable_ldapi,test "$enable_ldapi" = "yes")
 
+if test -z "$enable_autobind" ; then
+   enable_autobind=no # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-autobind)
+AC_ARG_ENABLE(autobind,
+        AS_HELP_STRING([--enable-autobind],
+                       [enable auto bind over unix domain socket (LDAPI) support (default: no)]))
+if test "$enable_ldapi" = yes -a "$enable_autobind" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_AUTOBIND], [1], [enable ldapi auto bind support in the server])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_autobind,test "$enable_autobind" = "yes")
+
 if test -z "$enable_bitwise" ; then
    enable_bitwise=yes # if not set on cmdline, set default
 fi
