@@ -1247,9 +1247,10 @@ typedef struct conn {
     int				c_enable_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
     int				c_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
     int				c_sasl_ssf; /* flag to tell us the SASL SSF */
-    int                         c_unix_local; /* flag true for LDAPI */
-    uid_t                         c_local_uid;  /* uid of connecting process */
-    gid_t                         c_local_gid;  /* gid of connecting process */
+    int				c_unix_local; /* flag true for LDAPI */
+    int				c_local_valid; /* flag true if the uid/gid are valid */
+    uid_t			c_local_uid;  /* uid of connecting process */
+    gid_t			c_local_gid;  /* gid of connecting process */
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 

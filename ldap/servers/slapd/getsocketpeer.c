@@ -70,7 +70,7 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 		}
 	}
 
-#elif 0 /*defined(HAVE_GETPEERUCRED)*/ /* solaris */
+#elif defined(HAVE_GETPEERUCRED) /* solaris10 */
 
 	ucred_t *creds = 0;
 
@@ -78,15 +78,15 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 	{
 		if(uid)
 		{
-			uid = ucred_getruid(creds);
+			*uid = ucred_getruid(creds);
 			if(-1 != uid)
 				ret = 0;
 		}
 
 		if(gid)
 		{
-			gid = ucred_getrgid(creds);
-			if(-1 == gid)
+			*gid = ucred_getrgid(creds);
+			if(-1 == *gid)
 				ret = -1;
 			else
 				ret = 0;
@@ -95,44 +95,61 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 		ucred_free(creds);
 	}
 
-#elif 0 /* defined(HAVE_GETPEEREID) */ /* osx / some BSDs */
+#elif defined(HAVE_GETPEEREID) /* osx / some BSDs */
 
 	if(0 == getpeereid(fd, &uid, &gid))
 		ret = 0;
 
-#elif 0 /* hpux / some BSDs - file descriptor cooperative auth */
-
-        struct msghdr msg;
+#else /* hpux / Solaris9 / some BSDs - file descriptor cooperative auth */
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+	struct msghdr msg;
 	struct iovec iov;
 	char dummy[8];
-	int fd[2];
+	int pass_sd[2];
+	int rc = 0;
+	unsigned int retrycnt = 0xffffffff;	/* safety net */
+	int myerrno = 0;
 
-	memset(msg, 0, sizeof(msg));
+	memset((void *)&msg, 0, sizeof(msg));
 	
 	iov.iov_base = dummy;
 	iov.iov_len = sizeof(dummy);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	msg.msg_accrights = (char*)fd;
-	msg.msg_accrightslen = sizeof(fd);
+	msg.msg_accrights = (caddr_t)&pass_sd;
+	msg.msg_accrightslen = sizeof(pass_sd); /* Initialize it with 8 bytes. 
+											   If recvmsg is successful,
+											   4 is supposed to be returned. */
+	/* 
+	   Since PR_SockOpt_Nonblocking is set to the socket,
+	   recvmsg returns immediately if no data is waiting to be received.
+	   If recvmsg returns an error and EGAIN (== EWOULDBLOCK) is set to errno, 
+	   we should retry some time.
+	 */
+	while ((rc = recvmsg(fd, &msg, MSG_PEEK)) < 0 && (EAGAIN == (myerrno = errno)) && retrycnt-- >= 0)
+		;
 
-        if(recvmsg(fd, &msg, MSG_PEEK) >= 0 && msg.msg_accrightslen == sizeof(int))
-        {
+	if (rc >= 0 && msg.msg_accrightslen == sizeof(int))
+	{
 		struct stat st;
 
-		ret = fstat(fd[0], &st);
-		close(fd[0]);
+		ret = fstat(pass_sd[0], &st);
 
 		if(0 == ret && S_ISFIFO(st.st_mode) &&
-			0 == st.st_mode & (S_IRWXG|S_IRWXO))
+		   0 == (st.st_mode & (S_IRWXG|S_IRWXO)))
 		{
 			if(uid)
-				uid = st.st_uid;
+				*uid = st.st_uid;
 
 			if(gid)
-				gid = st.st_gid;
+				*gid = st.st_gid;
+		} else {
+			ret = -1;
 		}
-        }
+	}
 
 #endif
 

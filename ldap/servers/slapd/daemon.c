@@ -1963,11 +1963,13 @@ slapd_identify_local_user(Connection *conn)
 	int ret = -1;
 	uid_t uid = 0;
 	gid_t gid = 0;
+	conn->c_local_valid = 0;
 
 	if(0 == slapd_get_socket_peer(conn->c_prfd, &uid, &gid))
 	{
 		conn->c_local_uid = uid;
 		conn->c_local_gid = gid;
+		conn->c_local_valid = 1;
 
 		ret = 0;
 	}
@@ -1982,6 +1984,11 @@ slapd_bind_local_user(Connection *conn)
 	int ret = -1;
 	uid_t uid = conn->c_local_uid;
 	gid_t gid = conn->c_local_gid;
+
+	if (!conn->c_local_valid)
+	{
+		goto bail;
+	}
 
 	/* observe configuration for auto binding */
 	/* bind at all? */
@@ -2338,16 +2345,12 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 
 #if defined(ENABLE_LDAPI)
 #if !defined( XP_WIN32 )
-        /* ldapi */
-        if( local )
-        {
-                conn->c_unix_local = 1;
+	/* ldapi */
+	if( local )
+	{
+		conn->c_unix_local = 1;
 		slapd_identify_local_user(conn);
-
-#if defined(ENABLE_AUTOBIND)
-                slapd_bind_local_user(conn);
-#endif /* ENABLE_AUTOBIND */
-        }
+	}
 #endif
 #endif /* ENABLE_LDAPI */
 

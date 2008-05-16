@@ -259,20 +259,24 @@ do_bind( Slapi_PBlock *pb )
     bind_credentials_clear( pb->pb_conn, PR_FALSE, /* do not lock conn */
                             PR_FALSE /* do not clear external creds. */ );
 
+#if defined(ENABLE_AUTOBIND)
     /* LDAPI might have auto bind on, binding as anon should
        mean bind as self in this case
      */
-#if defined(ENABLE_AUTOBIND)
-    if((0 == dn || 0 == dn[0]) && pb->pb_conn->c_unix_local)
+    /* You are "bound" when the SSL connection is made, 
+       but the client still passes a BIND SASL/EXTERNAL request.
+     */
+    if((LDAP_AUTH_SASL == method) &&
+       (0 == strcasecmp (saslmech, LDAP_SASL_EXTERNAL)) &&
+       (0 == dn || 0 == dn[0]) && pb->pb_conn->c_unix_local)
     {
         slapd_bind_local_user(pb->pb_conn);
-	
-	if(pb->pb_conn->c_dn)
-	{
+        if(pb->pb_conn->c_dn)
+        {
             auto_bind = 1; /* flag the bind method */
-	    dn = slapi_ch_strdup(pb->pb_conn->c_dn);
-	    slapi_sdn_init_dn_passin(&sdn,dn);
-	}
+            dn = slapi_ch_strdup(pb->pb_conn->c_dn);
+            slapi_sdn_init_dn_passin(&sdn,dn);
+        }
     }
 #endif /* ENABLE_AUTOBIND */
 
@@ -365,11 +369,17 @@ do_bind( Slapi_PBlock *pb )
             ids_sasl_check_bind(pb);
             goto free_and_return;
         }
-	else {
-	    charray_free(supported); /* Avoid leaking */
-	}
+        else {
+            charray_free(supported); /* Avoid leaking */
+        }
 
         if (!strcasecmp (saslmech, LDAP_SASL_EXTERNAL)) {
+#if defined(ENABLE_AUTOBIND)
+            if (1 == auto_bind) {
+                /* Already AUTO-BOUND */
+                break;
+            }
+#endif
             /*
              * if this is not an SSL connection, fail and return an
              * inappropriateAuth error.
