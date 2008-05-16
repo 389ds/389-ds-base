@@ -2741,20 +2741,13 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 	char				*logname = "createprlistensockets";
 	int					sockcnt = 0;
 	int					socktype;
-	char				*socktype_s = NULL;
+	char				*socktype_str = NULL;
 	PRNetAddr			**lap;
 	int					i;
 
 	if (!port) goto suppressed;
 
 	PR_ASSERT( listenaddr != NULL );
-
-#if defined(ENABLE_LDAPI)
-	if(local) { /* ldapi */
-		socktype = PR_AF_LOCAL;
-		socktype_s = "PR_AF_LOCAL";
-	}
-#endif
 
 	/* need to know the count */
 	sockcnt = 0;
@@ -2773,16 +2766,21 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 	for (i = 0, lap = listenaddr; lap && *lap && i < sockcnt; i++, lap++) {
 		/* create TCP socket */
 		socktype = PR_NetAddrFamily(*lap);
+#if defined(ENABLE_LDAPI)
+		if (PR_AF_LOCAL == socktype) {
+			socktype_str = "PR_AF_LOCAL";
+		} else 
+#endif
 		if (PR_AF_INET6 == socktype) {
-			socktype_s = "PR_AF_INET6";
+			socktype_str = "PR_AF_INET6";
 		} else {
-			socktype_s = "PR_AF_INET";
+			socktype_str = "PR_AF_INET";
 		}
 		if ((sock[i] = PR_OpenTCPSocket(socktype)) == SLAPD_INVALID_SOCKET) {
 			prerr = PR_GetError();
 			slapi_log_error(SLAPI_LOG_FATAL, logname,
 		    	"PR_OpenTCPSocket(%s) failed: %s error %d (%s)\n",
-		    	socktype_s,
+		    	socktype_str,
 		    	SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
 			goto failed;
 		}
