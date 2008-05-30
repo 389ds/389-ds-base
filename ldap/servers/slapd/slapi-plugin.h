@@ -151,6 +151,7 @@ typedef struct slapi_mods		Slapi_Mods;
 typedef struct slapi_componentid	Slapi_ComponentId;
 
 /* Online tasks interface (to support import, export, etc) */
+#define SLAPI_TASK_PUBLIC 1 /* tell old plugins that the task api is now public */
 typedef struct slapi_task		Slapi_Task;
 typedef void (*TaskCallbackFn)(Slapi_Task *task);
 
