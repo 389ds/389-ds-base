@@ -48,52 +48,52 @@ void
 be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit )
 {
     char text[128];
-	slapdFrontendConfig_t *fecfg;
-	be->be_suffix = NULL;
+    slapdFrontendConfig_t *fecfg;
+    be->be_suffix = NULL;
     be->be_suffixlock= PR_NewLock();
     be->be_suffixcount= 0;
-	/* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
-	PR_snprintf(text, sizeof(text),"cn=%s,cn=%s,cn=plugins,cn=config", name, type);
+    /* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
+    PR_snprintf(text, sizeof(text),"cn=%s,cn=%s,cn=plugins,cn=config", name, type);
     be->be_basedn= slapi_ch_strdup(slapi_dn_normalize(text));
-	PR_snprintf(text, sizeof(text), "cn=config,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
-	be->be_configdn= slapi_ch_strdup(slapi_dn_normalize(text));
-	PR_snprintf(text, sizeof(text), "cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
-	be->be_monitordn= slapi_ch_strdup(slapi_dn_normalize(text));
-	be->be_sizelimit = sizelimit;
-	be->be_timelimit = timelimit;
-	/* maximum group nesting level before giving up */
-	be->be_maxnestlevel = SLAPD_DEFAULT_GROUPNESTLEVEL;
-	be->be_noacl= 0;
+    PR_snprintf(text, sizeof(text), "cn=config,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
+    be->be_configdn= slapi_ch_strdup(slapi_dn_normalize(text));
+    PR_snprintf(text, sizeof(text), "cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
+    be->be_monitordn= slapi_ch_strdup(slapi_dn_normalize(text));
+    be->be_sizelimit = sizelimit;
+    be->be_timelimit = timelimit;
+    /* maximum group nesting level before giving up */
+    be->be_maxnestlevel = SLAPD_DEFAULT_GROUPNESTLEVEL;
+    be->be_noacl= 0;
         be->be_flags=0;
-	if (( fecfg = getFrontendConfig()) != NULL )
-	{
-	    if ( fecfg->backendconfig != NULL && fecfg->backendconfig[ 0 ] != NULL )
-	    {
-    		be->be_backendconfig = slapi_ch_strdup( fecfg->backendconfig[0] );
-	    }
-		else
-		{
-			be->be_backendconfig= NULL;
-		}
-	    be->be_readonly = fecfg->readonly;
-	}
-	else
-	{
-		be->be_readonly= 0;
-		be->be_backendconfig= NULL;
-	}
-	be->be_lastmod = LDAP_UNDEFINED;
-	be->be_type = slapi_ch_strdup(type);
-	be->be_include = NULL;
-	be->be_private = isprivate;
+    if (( fecfg = getFrontendConfig()) != NULL )
+    {
+        if ( fecfg->backendconfig != NULL && fecfg->backendconfig[ 0 ] != NULL )
+        {
+            be->be_backendconfig = slapi_ch_strdup( fecfg->backendconfig[0] );
+        }
+        else
+        {
+            be->be_backendconfig= NULL;
+        }
+        be->be_readonly = fecfg->readonly;
+    }
+    else
+    {
+        be->be_readonly= 0;
+        be->be_backendconfig= NULL;
+    }
+    be->be_lastmod = LDAP_UNDEFINED;
+    be->be_type = slapi_ch_strdup(type);
+    be->be_include = NULL;
+    be->be_private = isprivate;
     be->be_logchanges = logchanges;
-	be->be_database = NULL;
-	be->be_writeconfig = NULL;
+    be->be_database = NULL;
+    be->be_writeconfig = NULL;
     be->be_delete_on_exit = 0;
-	be->be_state = BE_STATE_STOPPED;
-	be->be_state_lock = PR_NewLock();
-	be->be_name = slapi_ch_strdup(name);
-	be->be_mapped = 0;
+    be->be_state = BE_STATE_STOPPED;
+    be->be_state_lock = PR_NewLock();
+    be->be_name = slapi_ch_strdup(name);
+    be->be_mapped = 0;
 }
 
 void 
@@ -115,12 +115,17 @@ be_done(Slapi_Backend *be)
     /* JCM char **be_include; ??? */
     slapi_ch_free((void **)&be->be_name);
     PR_DestroyLock(be->be_state_lock);
+    if (be->be_lock != NULL)
+    {
+        PR_DestroyRWLock(be->be_lock);
+        be->be_lock = NULL;
+    }
 }
 
 void
 slapi_be_delete_onexit (Slapi_Backend *be)
 {
-	be->be_delete_on_exit = 1;
+    be->be_delete_on_exit = 1;
 }
 
 void
@@ -159,6 +164,12 @@ slapi_be_issuffix( const Slapi_Backend *be, const Slapi_DN *suffix )
         PR_Unlock(be->be_suffixlock);
 	}
 	return r;
+}
+
+int
+be_isdeleted( const Slapi_Backend *be )
+{
+	return BE_STATE_DELETED == be->be_state;
 }
 
 void 

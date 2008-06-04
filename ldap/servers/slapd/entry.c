@@ -1067,7 +1067,14 @@ slapi_str2entry( char *s, int flags )
 
 	if ( flags & SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES )
 	{
-		slapi_schema_expand_objectclasses( e );
+		if ( flags & SLAPI_STR2ENTRY_NO_SCHEMA_LOCK )
+		{
+			schema_expand_objectclasses_nolock( e );
+		}
+		else
+		{
+			slapi_schema_expand_objectclasses( e );
+		}
 	}
 
     if ( flags & SLAPI_STR2ENTRY_TOMBSTONE_CHECK )

@@ -210,7 +210,7 @@ dse_get_entry_copy( struct dse* pdse, const Slapi_DN *dn, int use_lock )
     Slapi_Entry *e= NULL;
     struct dse_node *n;
 
-	if (use_lock == DSE_USE_LOCK)
+	if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock)
 		PR_RWLock_Rlock(pdse->dse_rwlock);
 
     n = dse_find_node( pdse, dn );
@@ -219,7 +219,7 @@ dse_get_entry_copy( struct dse* pdse, const Slapi_DN *dn, int use_lock )
         e = slapi_entry_dup(n->entry);
     }
 
-	if (use_lock == DSE_USE_LOCK)
+	if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock)
 		PR_RWLock_Unlock(pdse->dse_rwlock);
 
     return e;
@@ -444,6 +444,31 @@ dse_internal_delete_entry( caddr_t data, caddr_t arg )
  * Get rid of a dse structure.
  */
 int
+dse_destroy(struct dse *pdse)
+{
+    int nentries = 0;
+    if (pdse->dse_rwlock)
+        PR_RWLock_Wlock(pdse->dse_rwlock);
+    slapi_ch_free((void **)&(pdse->dse_filename));
+    slapi_ch_free((void **)&(pdse->dse_tmpfile));
+    slapi_ch_free((void **)&(pdse->dse_fileback));
+    slapi_ch_free((void **)&(pdse->dse_filestartOK));
+    dse_callback_deletelist(&pdse->dse_callback);
+    charray_free(pdse->dse_filelist);
+    nentries = avl_free(pdse->dse_tree, dse_internal_delete_entry);
+    if (pdse->dse_rwlock) {
+        PR_RWLock_Unlock(pdse->dse_rwlock);
+        PR_DestroyRWLock(pdse->dse_rwlock);
+    }
+    slapi_ch_free((void **)&pdse);
+    LDAPDebug( SLAPI_DSE_TRACELEVEL, "Removed [%d] entries from the dse tree.\n",
+                 nentries,0,0 );
+}
+
+/*
+ * Get rid of a dse structure.
+ */
+int
 dse_deletedse(Slapi_PBlock *pb)
 {
     struct dse *pdse = NULL;
@@ -452,22 +477,10 @@ dse_deletedse(Slapi_PBlock *pb)
 
     if (pdse)
     {
-		int nentries = 0;
-		PR_RWLock_Wlock(pdse->dse_rwlock);
-        slapi_ch_free((void **)&(pdse->dse_filename));
-        slapi_ch_free((void **)&(pdse->dse_tmpfile));
-        slapi_ch_free((void **)&(pdse->dse_fileback));
-        slapi_ch_free((void **)&(pdse->dse_filestartOK));
-        dse_callback_deletelist(&pdse->dse_callback);
-        nentries = avl_free(pdse->dse_tree, dse_internal_delete_entry);
-		PR_RWLock_Unlock(pdse->dse_rwlock);
-        PR_DestroyRWLock(pdse->dse_rwlock);
-        slapi_ch_free((void **)&pdse);
-	LDAPDebug( SLAPI_DSE_TRACELEVEL, "Removed [%d] entries from the dse tree.\n",
-						 nentries,0,0 );
+        dse_destroy(pdse);
     }
 
-	/* data is freed, so make sure no one tries to use it */
+    /* data is freed, so make sure no one tries to use it */
     slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
 
     return 0;
@@ -633,9 +646,9 @@ dse_updateNumSubOfParent(struct dse *pdse, const Slapi_DN *child, int op)
 
 static int
 dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
-		int primary_file )
+        int primary_file )
 {
-    Slapi_Entry	*e= NULL;
+    Slapi_Entry    *e= NULL;
     char *entrystr= NULL;
     char *buf = NULL;
     char *lastp = NULL;
@@ -643,44 +656,47 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
     PRInt32 nr = 0;
     PRFileInfo prfinfo;
     PRFileDesc *prfd = 0;
+    int schema_flags = 0;
+
+    slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, &schema_flags);
 
     if ( (NULL != pdse) && (NULL != filename) )
     {
         if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
         {
-			/* the "real" file does not exist; see if there is a tmpfile */
-			if ( pdse->dse_tmpfile &&
-				 PR_GetFileInfo( pdse->dse_tmpfile, &prfinfo ) == PR_SUCCESS ) {
-				rc = PR_Rename(pdse->dse_tmpfile, filename);
-				if (rc == PR_SUCCESS) {
-					slapi_log_error(SLAPI_LOG_FATAL, "dse",
-									"The configuration file %s was restored from backup %s\n",
-									filename, pdse->dse_tmpfile);
-					rc = 1;
-				} else {
-					slapi_log_error(SLAPI_LOG_FATAL, "dse",
-									"The configuration file %s was not restored from backup %s, error %d\n",
-									filename, pdse->dse_tmpfile, rc);
-					rc = 0;
-				}
-			} else {
-				rc = 0; /* fail */
-			}
+            /* the "real" file does not exist; see if there is a tmpfile */
+            if ( pdse->dse_tmpfile &&
+                 PR_GetFileInfo( pdse->dse_tmpfile, &prfinfo ) == PR_SUCCESS ) {
+                rc = PR_Rename(pdse->dse_tmpfile, filename);
+                if (rc == PR_SUCCESS) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "dse",
+                                    "The configuration file %s was restored from backup %s\n",
+                                    filename, pdse->dse_tmpfile);
+                    rc = 1;
+                } else {
+                    slapi_log_error(SLAPI_LOG_FATAL, "dse",
+                                    "The configuration file %s was not restored from backup %s, error %d\n",
+                                    filename, pdse->dse_tmpfile, rc);
+                    rc = 0;
+                }
+            } else {
+                rc = 0; /* fail */
+            }
         }
         if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
         {
-			slapi_log_error(SLAPI_LOG_FATAL, "dse",
-							"The configuration file %s could not be accessed, error %d\n",
-							filename, rc);
+            slapi_log_error(SLAPI_LOG_FATAL, "dse",
+                            "The configuration file %s could not be accessed, error %d\n",
+                            filename, rc);
             rc = 0; /* Fail */
         }
         else if (( prfd = PR_Open( filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE )) == NULL )
         {
-			slapi_log_error(SLAPI_LOG_FATAL, "dse",
-							"The configuration file %s could not be read. "
-							SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
-							filename,
-							PR_GetError(), slapd_pr_strerror(PR_GetError()));
+            slapi_log_error(SLAPI_LOG_FATAL, "dse",
+                            "The configuration file %s could not be read. "
+                            SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
+                            filename,
+                            PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rc = 0; /* Fail */
         }
         else
@@ -690,9 +706,9 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
             buf = slapi_ch_malloc( prfinfo.size + 1 );
             if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
             {
-				slapi_log_error(SLAPI_LOG_FATAL, "dse",
-								"Could only read %d of %d bytes from config file %s\n",
-								nr, prfinfo.size, filename);
+                slapi_log_error(SLAPI_LOG_FATAL, "dse",
+                                "Could only read %d of %d bytes from config file %s\n",
+                                nr, prfinfo.size, filename);
                 rc = 0; /* Fail */
                 done= 1;
             }
@@ -702,16 +718,18 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
 
             if(!done)
             {
-				int dont_check_dups = 0;
-				int str2entry_flags = SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES |
-							SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ;
+                int dont_check_dups = 0;
+                int str2entry_flags = SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES |
+                            SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ;
+                if (schema_flags & DSE_SCHEMA_LOCKED)
+                    str2entry_flags |= SLAPI_STR2ENTRY_NO_SCHEMA_LOCK;
 
-				PR_ASSERT(pb);
-				slapi_pblock_get(pb, SLAPI_DSE_DONT_CHECK_DUPS, &dont_check_dups);
-				if ( !dont_check_dups ) {
-					str2entry_flags |= SLAPI_STR2ENTRY_REMOVEDUPVALS;
-				}
-					
+                PR_ASSERT(pb);
+                slapi_pblock_get(pb, SLAPI_DSE_DONT_CHECK_DUPS, &dont_check_dups);
+                if ( !dont_check_dups ) {
+                    str2entry_flags |= SLAPI_STR2ENTRY_REMOVEDUPVALS;
+                }
+                    
                 /* Convert LDIF to entry structures */
                 rc= 1; /* assume we will succeed */
                 while (( entrystr = dse_read_next_entry( buf, &lastp )) != NULL )
@@ -722,47 +740,47 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                         int returncode = 0;
                         char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= {0};
 
-						LDAPDebug(SLAPI_DSE_TRACELEVEL, "dse_read_one_file"
-								" processing entry \"%s\" in file %s%s\n",
-								slapi_entry_get_dn_const(e), filename,
-								primary_file ? " (primary file)" : "" );
+                        LDAPDebug(SLAPI_DSE_TRACELEVEL, "dse_read_one_file"
+                                " processing entry \"%s\" in file %s%s\n",
+                                slapi_entry_get_dn_const(e), filename,
+                                primary_file ? " (primary file)" : "" );
 
-						/* remove the numsubordinates attr, which may be bogus */
-						slapi_entry_attr_delete(e, subordinatecount);
+                        /* remove the numsubordinates attr, which may be bogus */
+                        slapi_entry_attr_delete(e, subordinatecount);
 
-						/* set the "primary file" flag if appropriate */
-						slapi_pblock_set( pb, SLAPI_DSE_IS_PRIMARY_FILE, &primary_file );
+                        /* set the "primary file" flag if appropriate */
+                        slapi_pblock_set( pb, SLAPI_DSE_IS_PRIMARY_FILE, &primary_file );
                         if(dse_call_callback(pdse, pb, DSE_OPERATION_READ,
-									DSE_FLAG_PREOP, e, NULL, &returncode,
-									returntext) == SLAPI_DSE_CALLBACK_OK)
+                                    DSE_FLAG_PREOP, e, NULL, &returncode,
+                                    returntext) == SLAPI_DSE_CALLBACK_OK)
                         {
-							/* this will free the entry if not added, so it is
-							   definitely consumed by this call */
-							dse_add_entry_pb(pdse, e, pb);
+                            /* this will free the entry if not added, so it is
+                               definitely consumed by this call */
+                            dse_add_entry_pb(pdse, e, pb);
                         }
-						else /* free entry if not used */
-						{
-							slapi_log_error(SLAPI_LOG_FATAL, "dse",
-											"The entry %s in file %s is invalid, error code %d (%s) - %s\n",
-											slapi_entry_get_dn_const(e),
-											filename, returncode,
-											ldap_err2string(returncode),
-											returntext);
-							slapi_entry_free(e);
-							rc = 0;	/* failure */
-						}
+                        else /* free entry if not used */
+                        {
+                            slapi_log_error(SLAPI_LOG_FATAL, "dse",
+                                            "The entry %s in file %s is invalid, error code %d (%s) - %s\n",
+                                            slapi_entry_get_dn_const(e),
+                                            filename, returncode,
+                                            ldap_err2string(returncode),
+                                            returntext);
+                            slapi_entry_free(e);
+                            rc = 0;    /* failure */
+                        }
                     } else {
-						slapi_log_error( SLAPI_LOG_FATAL, "dse",
-								"parsing dse entry [%s]\n", entrystr );
-						rc = 0;	/* failure */
-					}
+                        slapi_log_error( SLAPI_LOG_FATAL, "dse",
+                                "parsing dse entry [%s]\n", entrystr );
+                        rc = 0;    /* failure */
+                    }
                 }
             }
-			slapi_ch_free((void **)&buf);
+            slapi_ch_free((void **)&buf);
         }
     }
 
-	return rc;
+    return rc;
 }
 
 /*
@@ -892,7 +910,8 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse* pdse)
 {
 	int		rc = 0;	/* default: no error */
 
-	PR_RWLock_Rlock(pdse->dse_rwlock);
+	if (pdse->dse_rwlock)
+		PR_RWLock_Rlock(pdse->dse_rwlock);
 
 	if ( !pdse->dse_is_updateable ) {
 		if ( !pdse->dse_readonly_error_reported ) {
@@ -908,7 +927,8 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse* pdse)
         rc = 1;	/* return an error to the client */
     }
 
-	PR_RWLock_Unlock(pdse->dse_rwlock);
+	if (pdse->dse_rwlock)
+		PR_RWLock_Unlock(pdse->dse_rwlock);
 
 	if ( rc != 0 ) {
         slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -1056,7 +1076,8 @@ dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_DSE_MERGE_WHEN_ADDING, &merge);
 
 	/* keep write lock during both tree update and file write operations */
-	PR_RWLock_Wlock(pdse->dse_rwlock);
+	if (pdse->dse_rwlock)
+		PR_RWLock_Wlock(pdse->dse_rwlock);
 	if (merge) 
 	{
 		rc= avl_insert( &(pdse->dse_tree), n, entry_dn_cmp, dupentry_merge );
@@ -1079,7 +1100,8 @@ dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 	} else { /* duplicate entry ignored */
 		dse_node_delete(&n); /* This also deletes the contained entry */
 	}
-	PR_RWLock_Unlock(pdse->dse_rwlock);
+	if (pdse->dse_rwlock)
+		PR_RWLock_Unlock(pdse->dse_rwlock);
 
 	if (rc == -1) 
 	{
@@ -1254,7 +1276,7 @@ dse_replace_entry( struct dse* pdse, Slapi_Entry *e, int write_file, int use_loc
     if ( NULL != e )
     {
         struct dse_node *n= dse_node_new(e);
-		if (use_lock)
+		if (use_lock && pdse->dse_rwlock)
 			PR_RWLock_Wlock(pdse->dse_rwlock);
         rc = avl_insert( &(pdse->dse_tree), n, entry_dn_cmp, dupentry_replace );
 		if (write_file)
@@ -1265,7 +1287,7 @@ dse_replace_entry( struct dse* pdse, Slapi_Entry *e, int write_file, int use_loc
 			dse_node_delete(&n);
 			rc = 0; /* for return to caller */
 		}
-		if (use_lock)
+		if (use_lock && pdse->dse_rwlock)
 			PR_RWLock_Unlock(pdse->dse_rwlock);
     }
     return rc;
@@ -1366,7 +1388,8 @@ dse_delete_entry(struct dse* pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
     slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
 
 	/* keep write lock for both tree deleting and file writing */
-	PR_RWLock_Wlock(pdse->dse_rwlock);
+	if (pdse->dse_rwlock)
+		PR_RWLock_Wlock(pdse->dse_rwlock);
     if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree,
 													  n, entry_dn_cmp)))
 		dse_node_delete(&deleted_node);
@@ -1379,7 +1402,8 @@ dse_delete_entry(struct dse* pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
 								 SLAPI_OPERATION_DELETE);
         dse_write_file_nolock(pdse);
     }
-	PR_RWLock_Unlock(pdse->dse_rwlock);
+	if (pdse->dse_rwlock)
+		PR_RWLock_Unlock(pdse->dse_rwlock);
 
     return 1;
 }
@@ -1555,9 +1579,11 @@ do_dse_search(struct dse* pdse, Slapi_PBlock *pb, int scope, const Slapi_DN *bas
      */ 
 	if ( pb->pb_op == NULL
 			|| !operation_is_flag_set( pb->pb_op, OP_FLAG_PS_CHANGESONLY )) {
-		PR_RWLock_Rlock(pdse->dse_rwlock);
+		if (pdse->dse_rwlock)
+			PR_RWLock_Rlock(pdse->dse_rwlock);
 		dse_apply_nolock(pdse,dse_search_filter_entry,(caddr_t)&stuff);
-		PR_RWLock_Unlock(pdse->dse_rwlock);
+		if (pdse->dse_rwlock)
+			PR_RWLock_Unlock(pdse->dse_rwlock);
 	}
 
 	if (stuff.ss) /* something was found which matched our criteria */

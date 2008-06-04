@@ -117,6 +117,7 @@ struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name,
  */
 void attr_syntax_return( struct asyntaxinfo *asi );
 void attr_syntax_return_locking_optional( struct asyntaxinfo *asi, PRBool use_lock );
+void attr_syntax_delete_all(void);
 
 /*
  * value.c
@@ -192,6 +193,7 @@ int be_writeconfig (Slapi_Backend *be);
  * backend_manager.c
  */
 Slapi_Backend *be_new_internal(struct dse *pdse, const char *type, const char *name);
+void be_replace_dse_internal(Slapi_Backend *be, struct dse *pdse);
 int fedse_create_startOK(char *filename,  char *startokfilename, const char *configdir);
 void be_cleanupall();
 void be_flushall();
@@ -550,10 +552,12 @@ void send_referrals_from_entry(Slapi_PBlock *pb, Slapi_Entry *referral);
 #define DSE_OPERATION_WRITE 0x200
 
 #define DSE_BACKEND             "frontend-internal"
+#define DSE_SCHEMA              "schema-internal"
 
 struct dse *dse_new( char *filename, char *tmpfilename, char *backfilename, char *startokfilename, const char *configdir);
 struct dse *dse_new_with_filelist(char *filename, char *tmpfilename, char *backfilename, char *startokfilename, const char *configdir, char **filelist);
 int dse_deletedse(Slapi_PBlock *pb);
+int dse_destroy(struct dse *pdse);
 int dse_read_file(struct dse *pdse, Slapi_PBlock *pb);
 int dse_bind( Slapi_PBlock *pb );
 int dse_unbind( Slapi_PBlock *pb );
@@ -853,11 +857,19 @@ const CSN *g_get_global_schema_csn();
 /* csn is consumed. */
 void g_set_global_schema_csn(CSN *csn);
 void slapi_schema_expand_objectclasses( Slapi_Entry *e );
+/* lock to protect both objectclass and schema_dse */
+void slapi_load_schemafile_lock( void );
+void slapi_load_schemafile_unlock( void );
+/* API to validate the schema files */
+int slapi_validate_schema_files(char *schemadir);
+/* API to reload the schema files */
+int slapi_reload_schema_files(char *schemadir);
 
 /*
  * schemaparse.c
  */
 void normalize_oc( void );
+void normalize_oc_nolock( void );
 /* Note: callers of oc_update_inheritance_nolock() must hold a write lock */
 void oc_update_inheritance_nolock( struct objclass *oc );
 

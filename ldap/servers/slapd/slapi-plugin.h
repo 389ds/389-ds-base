@@ -217,6 +217,7 @@ Slapi_Entry *slapi_str2entry( char *s, int flags );
    has the RDN as an attribute of the entry, and has all values for a
    given attribute type listed contiguously. */
 #define SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF 128
+#define SLAPI_STR2ENTRY_NO_SCHEMA_LOCK       256
 
 char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
 /* Options for slapi_entry2str_with_options() */
@@ -1431,7 +1432,7 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 #define SLAPI_DSE_IS_PRIMARY_FILE		289
 
 /* internal schema flags */
-#define SLAPI_SCHEMA_USER_DEFINED_ONLY		285
+#define SLAPI_SCHEMA_FLAGS					285
 
 /* urp flags */
 #define SLAPI_URP_NAMING_COLLISION_DN	286

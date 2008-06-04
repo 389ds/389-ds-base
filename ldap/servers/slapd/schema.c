@@ -111,7 +111,7 @@ static int schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod,
 static int schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod,
 		char *errorbuf, size_t errorbufsize );
 static int read_oc_ldif ( const char *input, struct objclass **oc,
-		char *errorbuf, size_t errorbufsize, int nolock, int is_user_defined,
+		char *errorbuf, size_t errorbufsize, PRUint32 flags, int is_user_defined,
 		int schema_ds4x_compat );
 static int schema_check_name(char *name, PRBool isAttribute, char *errorbuf,
 		size_t errorbufsize );
@@ -122,8 +122,8 @@ static int isExtensibleObjectclass(const char *objectclass);
 static int strip_oc_options ( struct objclass *poc );
 static char *stripOption (char *attr);
 static int read_at_ldif(const char *input, struct asyntaxinfo **asipp,
-		char *errorbuf, size_t errorbufsize, int nolock, int is_user_defined,
-		int schema_ds4x_compat, int is_remote);
+		char *errorbuf, size_t errorbufsize, PRUint32 flags,
+		int is_user_defined, int schema_ds4x_compat, int is_remote);
 static char **parse_qdlist(const char *s, int *n, int strip_options);
 static void free_qdlist(char **vals, int n);
 static char **parse_qdescrs(const char *s, int *n);
@@ -456,6 +456,7 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
   int i, oc_count = 0;
   int unknown_class = 0;
   char errtext[ BUFSIZ ];
+  PRUint32 schema_flags;
 
   /* smart referrals are not allowed in Directory Lite */
   if ( config_is_slapd_lite() ) {
@@ -468,8 +469,10 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
    * say the schema checked out ok if we're not checking schema at
    * all, or if this is a replication update.
    */
-  if (pb != NULL)
+  if (pb != NULL) {
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+	slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, &schema_flags);
+  }
   if ( schemacheck == 0 || is_replicated_operation ) {
     return( 0 );
   }
@@ -504,7 +507,8 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
   /*
    * Need the read lock to create the oc array and while we use it.
    */
-  oc_lock_read();
+  if (!(schema_flags & DSE_SCHEMA_LOCKED))
+    oc_lock_read();
 
   oc_count = 0;
   for (i= slapi_attr_first_value(aoc,&v); i != -1;
@@ -623,7 +627,8 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
 
  out:
   /* Done with the oc array so can release the lock */
-  oc_unlock();
+  if (!(schema_flags & DSE_SCHEMA_LOCKED))
+    oc_unlock();
   slapi_ch_free((void**)&oclist);
 
   return( ret );
@@ -686,7 +691,7 @@ oc_check_allowed_sv(Slapi_PBlock *pb, Slapi_Entry *e, const char *type, struct o
 {
     struct objclass *oc;
     int i, j;
-    int	rc = 1;		/* failure */
+    int	rc = 1;    /* failure */
  
     /* always allow objectclass and entryid attributes */
     /* MFW XXX  THESE SHORTCUTS SHOULD NOT BE NECESSARY BUT THEY MASK 
@@ -704,43 +709,43 @@ oc_check_allowed_sv(Slapi_PBlock *pb, Slapi_Entry *e, const char *type, struct o
 
       /* does it require the type? */
       for ( j = 0; oc->oc_required && oc->oc_required[j] != NULL; j++ ) {
-	if ( slapi_attr_type_cmp( oc->oc_required[j],
-				  type, SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
-	  rc = 0;
-	  break;
-	}
+        if ( slapi_attr_type_cmp( oc->oc_required[j],
+                                  type, SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
+          rc = 0;
+          break;
+        }
       }
-	  
+          
       if ( 0 != rc ) {
-	/* does it allow the type? */
-	for ( j = 0; oc->oc_allowed && oc->oc_allowed[j] != NULL; j++ ) {
-	  if ( slapi_attr_type_cmp( oc->oc_allowed[j],
-				    type, SLAPI_TYPE_CMP_SUBTYPE ) == 0 || 
-	       strcmp( oc->oc_allowed[j],"*" ) == 0 ) {
-	    rc = 0;
-	    break;
-	  }
-	}
-	/* maybe the next oc allows it */
+        /* does it allow the type? */
+        for ( j = 0; oc->oc_allowed && oc->oc_allowed[j] != NULL; j++ ) {
+          if ( slapi_attr_type_cmp( oc->oc_allowed[j],
+                                    type, SLAPI_TYPE_CMP_SUBTYPE ) == 0 || 
+               strcmp( oc->oc_allowed[j],"*" ) == 0 ) {
+            rc = 0;
+            break;
+          }
+        }
+        /* maybe the next oc allows it */
       }
-    }	  
+    }
 
     if ( 0 != rc ) {
-	  char errtext[ BUFSIZ ];
+      char errtext[ BUFSIZ ];
       char ebuf[ BUFSIZ ];
       char ebuf2[ BUFSIZ ];
       LDAPDebug( LDAP_DEBUG_ANY,
-		 "Entry \"%s\" -- attribute \"%s\" not allowed\n",
-		 escape_string( slapi_entry_get_dn_const(e), ebuf ),
-		 escape_string( type, ebuf2 ),
-		 0);
+         "Entry \"%s\" -- attribute \"%s\" not allowed\n",
+         escape_string( slapi_entry_get_dn_const(e), ebuf ),
+         escape_string( type, ebuf2 ),
+         0);
 
-	  if (pb) {
-		PR_snprintf( errtext, sizeof( errtext ),
-		 "attribute \"%s\" not allowed\n",
-		 escape_string( type, ebuf2 ) );
-		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
-	  }
+      if (pb) {
+        PR_snprintf( errtext, sizeof( errtext ),
+         "attribute \"%s\" not allowed\n",
+         escape_string( type, ebuf2 ) );
+        slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+      }
     }
     
     return rc;
@@ -920,6 +925,19 @@ oc_delete_nolock (char *ocname)
 	}
 
 	return rc;
+}
+
+static void
+oc_delete_all_nolock( void )
+{
+	struct objclass	*oc, *pnext;
+
+	oc = g_get_global_oc_nolock();
+	for (pnext = oc->oc_next; oc;
+		 oc = pnext, pnext = oc?oc->oc_next:NULL) {
+		oc_free( &oc );
+	}
+	g_set_global_oc_nolock ( NULL );
 }
 
 
@@ -1411,6 +1429,7 @@ read_schema_dse(
   struct attr_enum_wrapper aew;
   struct syntax_enum_wrapper sew;
   int enquote_sup_oc = config_get_enquote_sup_oc();
+  PRUint32 schema_flags = 0;
   int user_defined_only = 0;
   char **allowed, **required;
   char *mr_desc, *mr_name, *oc_description;
@@ -1420,7 +1439,8 @@ read_schema_dse(
   vals[0] = &val;
   vals[1] = NULL;
 
-  slapi_pblock_get(pb, SLAPI_SCHEMA_USER_DEFINED_ONLY, (void*)&user_defined_only);
+  slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
+  user_defined_only = (schema_flags & DSE_SCHEMA_USER_DEFINED_ONLY) ? 1 : 0;
   
   attrlist_delete (&pschema_info_e->e_attrs, "objectclasses");
   attrlist_delete (&pschema_info_e->e_attrs, "attributetypes"); 
@@ -1908,11 +1928,11 @@ dup_global_schema_csn()
 static int
 refresh_user_defined_schema( Slapi_PBlock *pb, Slapi_Entry *pschema_info_e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg /* not used */ )
 {
-	int user_defined_only = 1;
 	int rc;
 	Slapi_PBlock *mypbptr = pb;
 	Slapi_PBlock mypb;
 	const CSN *schema_csn;
+	PRUint32 schema_flags = DSE_SCHEMA_USER_DEFINED_ONLY;
 
 	pblock_init(&mypb);
 
@@ -1924,7 +1944,7 @@ refresh_user_defined_schema( Slapi_PBlock *pb, Slapi_Entry *pschema_info_e, Slap
 		mypbptr = &mypb;
 	}
 
-	slapi_pblock_set(mypbptr, SLAPI_SCHEMA_USER_DEFINED_ONLY, &user_defined_only);
+	slapi_pblock_set(mypbptr, SLAPI_SCHEMA_FLAGS, &schema_flags);
 	rc = read_schema_dse(mypbptr, pschema_info_e, NULL, returncode, returntext, NULL);
 	schema_csn = g_get_global_schema_csn();
 	if (NULL != schema_csn) {
@@ -2197,7 +2217,7 @@ schema_add_attribute ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
   int status = 0;
   
   for (i = 0; LDAP_SUCCESS == status && mod->mod_bvalues[i]; i++) {
-	int nolock = 0; /* lock global resources during normal operation */
+	PRUint32 nolock = 0; /* lock global resources during normal operation */
 	attr_ldif = (char *) mod->mod_bvalues[i]->bv_val;
 
 	status = read_at_ldif(attr_ldif, NULL, errorbuf, errorbufsize,
@@ -2221,13 +2241,14 @@ schema_add_attribute ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
  */
 static int
 add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
-		int schema_ds4x_compat )
+		int schema_ds4x_compat, PRUint32 flags )
 {
 	struct objclass *oldoc_by_name, *oldoc_by_oid, *psup_oc = NULL;
 	int redefined_oc = 0, rc=0;
 	asyntaxinfo *pasyntaxinfo = 0;
 
-	oc_lock_write();
+	if (!(flags & DSE_SCHEMA_LOCKED))
+		oc_lock_write();
 
 	oldoc_by_name = oc_find_nolock (pnew_oc->oc_name);
 	oldoc_by_oid = oc_find_nolock (pnew_oc->oc_oid);
@@ -2296,13 +2317,14 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 	}
 	
 	/* check to see if the objectclass name is valid */
-	if (!rc && schema_check_name ( pnew_oc->oc_name, PR_FALSE,
-				errorbuf, errorbufsize ) == 0 ) {
+	if (!rc && !(flags & DSE_SCHEMA_NO_CHECK) &&
+		schema_check_name ( pnew_oc->oc_name, PR_FALSE, errorbuf, errorbufsize )
+			== 0 ) {
 		rc = schema_ds4x_compat ? LDAP_OPERATIONS_ERROR : LDAP_INVALID_SYNTAX;
 	}
 
 	/* check to see if the oid is valid */
-	if (!rc)
+	if (!rc && !(flags & DSE_SCHEMA_NO_CHECK))
 	{
 	    struct sizedbuffer *psbOcOid, *psbOcName;
 	
@@ -2320,8 +2342,9 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 	}
 
 	/* check to see if the oc's attributes are valid */
-	if (!rc && schema_check_oc_attrs ( pnew_oc, errorbuf, errorbufsize,
-									   0 /* don't strip options */ ) == 0 ) {
+	if (!rc && !(flags & DSE_SCHEMA_NO_CHECK) &&
+		schema_check_oc_attrs ( pnew_oc, errorbuf, errorbufsize,
+								0 /* don't strip options */ ) == 0 ) {
 		rc = schema_ds4x_compat ? LDAP_OPERATIONS_ERROR : LDAP_INVALID_SYNTAX;
 	}
 	/* insert new objectclass exactly where the old one one in the linked list*/
@@ -2338,7 +2361,8 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 		oc_update_inheritance_nolock( pnew_oc );
 	}
 
-	oc_unlock();
+	if (!(flags & DSE_SCHEMA_LOCKED))
+		oc_unlock();
 	return rc;
 }
 
@@ -2470,7 +2494,7 @@ schema_add_objectclass ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		}
 
 		if ( LDAP_SUCCESS != (rc = add_oc_internal(pnew_oc, errorbuf,
-					errorbufsize, schema_ds4x_compat))) {
+					errorbufsize, schema_ds4x_compat, 0/* no restriction */))) {
 			oc_free( &pnew_oc );
 			return rc;
 		}
@@ -2541,7 +2565,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		struct objclass *addocp = NULL;
 
 		if ( LDAP_SUCCESS != ( rc = read_oc_ldif( mod->mod_bvalues[i]->bv_val,
-					&newocp, errorbuf, errorbufsize, 1 /* no locking */,
+					&newocp, errorbuf, errorbufsize, DSE_SCHEMA_NO_GLOCK,
 					1 /* user defined */, 0 /* no DS 4.x compat issues */ ))) {
 			rc = LDAP_INVALID_SYNTAX;
 			goto clean_up_and_return;
@@ -2695,7 +2719,12 @@ read_oc_ldif_return( int retVal,
  *     oc                : pointer write the objectclass to
  *     errorbuf          : buffer to write any errors to
  *     is_user_defined   : if non-zero, force objectclass to be user defined
- *     nolock            : if non-zero, assume oc_lock_*() has been called.
+ *     schema_flags      : Any or none of the following bits could be set
+ *                         DSE_SCHEMA_NO_CHECK -- schema won't be checked
+ *                         DSE_SCHEMA_NO_GLOCK -- don't lock global resources
+ *                         DSE_SCHEMA_LOCKED   -- already locked with
+ *                                                slapi_load_schemafile_lock;
+ *                                                no further lock needed
  *     schema_ds4x_compat: if non-zero, act like Netscape DS 4.x
  *
  * Returns: an LDAP error code
@@ -2708,8 +2737,9 @@ read_oc_ldif_return( int retVal,
  */
 static int
 read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
-		size_t errorbufsize, int nolock, int is_user_defined,
-		int schema_ds4x_compat ) {
+		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
+		int schema_ds4x_compat )
+{
   int i, j, num_origins;
   const char *pstart, *nextinput;
   struct objclass *pnew_oc, *psup_oc;
@@ -2848,7 +2878,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   flags |= get_flag_keyword( schema_obsolete_with_spaces,
 			OC_FLAG_OBSOLETE, &nextinput, keyword_strstr_fn );
 
-  if (!nolock) {
+  if (!(schema_flags & DSE_SCHEMA_NO_GLOCK)) {
 	oc_lock_read();		/* needed because we access the superior oc */
   }
 
@@ -3005,7 +3035,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 	OrigAllowedAttrsArray = charray_dup ( AllowedAttrsArray );
   }
 
-  if (!nolock) {
+  if (!(schema_flags & DSE_SCHEMA_NO_GLOCK)) {
 	  oc_unlock();	/* we are done accessing superior oc (psup_oc) */
   }
 
@@ -3108,9 +3138,14 @@ slapi_check_at_sup_dependency(char *sup, char *oid)
  * if asipp is NULL, the attribute type is added to the global set of schema.
  * if asipp is not NULL, the AT is not added but *asipp is set.
  * 
- * if nolock is true, locking of global resources is turned off; this saves
- * time during initialization since the server operates in single threaded
- * mode at that time.
+ *    schema_flags: Any or none of the following bits could be set
+ *        DSE_SCHEMA_NO_CHECK -- schema won't be checked
+ *        DSE_SCHEMA_NO_GLOCK -- locking of global resources is turned off;
+ *                               this saves time during initialization since 
+ *                               the server operates in single threaded mode 
+ *                               at that time or in slapi_load_schemafile_lock.
+ *        DSE_SCHEMA_LOCKED   -- already locked with slapi_load_schemafile_lock;
+ *                               no further lock needed
  *
  * if is_user_defined is true, force attribute type to be user defined.
  *
@@ -3118,26 +3153,26 @@ slapi_check_at_sup_dependency(char *sup, char *oid)
 */
 static int
 read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
-		size_t errorbufsize, int nolock, int is_user_defined,
-		int schema_ds4x_compat, int is_remote)
+        size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
+        int schema_ds4x_compat, int is_remote)
 {
-	char *pStart, *pEnd;
-	char *pOid, *pSyntax, *pSuperior, *pMREquality, *pMROrdering, *pMRSubstring;
-	const char *nextinput;
-	struct sizedbuffer *psbAttrName= sizedbuffer_construct(BUFSIZ);
-	struct sizedbuffer *psbAttrDesc= sizedbuffer_construct(BUFSIZ);
-	int status = 0;
-	int syntaxlength;
-	char **attr_names = NULL;
-	char *first_attr_name = NULL;
-	char **attr_origins = NULL;
-	int num_names = 0;
-	int num_origins = 0;
-	unsigned long flags = SLAPI_ATTR_FLAG_OVERRIDE;
-	const char *ss = 0;
-	struct asyntaxinfo	*tmpasip;
-	int invalid_syntax_error;
-	schema_strstr_fn_t keyword_strstr_fn;
+    char *pStart, *pEnd;
+    char *pOid, *pSyntax, *pSuperior, *pMREquality, *pMROrdering, *pMRSubstring;
+    const char *nextinput;
+    struct sizedbuffer *psbAttrName= sizedbuffer_construct(BUFSIZ);
+    struct sizedbuffer *psbAttrDesc= sizedbuffer_construct(BUFSIZ);
+    int status = 0;
+    int syntaxlength;
+    char **attr_names = NULL;
+    char *first_attr_name = NULL;
+    char **attr_origins = NULL;
+    int num_names = 0;
+    int num_origins = 0;
+    unsigned long flags = SLAPI_ATTR_FLAG_OVERRIDE;
+    const char *ss = 0;
+    struct asyntaxinfo    *tmpasip;
+    int invalid_syntax_error;
+    schema_strstr_fn_t keyword_strstr_fn;
 
   /*
    * From RFC 2252 section 4.2:
@@ -3183,174 +3218,174 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
    *   2. use a case-insensitive compare when looking for keywords, e.g., DESC
    */
 
-	if ( schema_ds4x_compat ) {
-		keyword_strstr_fn = PL_strcasestr;
-		invalid_syntax_error = LDAP_OPERATIONS_ERROR;
-	} else {
-		keyword_strstr_fn = PL_strstr;
-		invalid_syntax_error = LDAP_INVALID_SYNTAX;
-	}
+    if ( schema_ds4x_compat ) {
+        keyword_strstr_fn = PL_strcasestr;
+        invalid_syntax_error = LDAP_OPERATIONS_ERROR;
+    } else {
+        keyword_strstr_fn = PL_strstr;
+        invalid_syntax_error = LDAP_INVALID_SYNTAX;
+    }
 
-	if (nolock)
-		flags |= SLAPI_ATTR_FLAG_NOLOCKING;
+    if (schema_flags & DSE_SCHEMA_NO_GLOCK)
+        flags |= SLAPI_ATTR_FLAG_NOLOCKING;
 
-	psbAttrName->buffer[0] = '\0';
-	psbAttrDesc->buffer[0] = '\0';
-	pOid = pSyntax = pSuperior = NULL;
-	pMREquality = pMROrdering = pMRSubstring = NULL;
+    psbAttrName->buffer[0] = '\0';
+    psbAttrDesc->buffer[0] = '\0';
+    pOid = pSyntax = pSuperior = NULL;
+    pMREquality = pMROrdering = pMRSubstring = NULL;
     syntaxlength = SLAPI_SYNTAXLENGTH_NONE;
 
-	nextinput = input;
+    nextinput = input;
 
-	/* get the OID */
+    /* get the OID */
         pOid = get_tagged_oid( "(", &nextinput, keyword_strstr_fn );
 
-	if (NULL == pOid) {
-	  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				  input, "Missing or invalid OID" );
-	  status = invalid_syntax_error;
-	  goto done;
-	}
+    if (NULL == pOid) {
+      schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                  input, "Missing or invalid OID" );
+      status = invalid_syntax_error;
+      goto done;
+    }
 
-	if ( schema_ds4x_compat || (strcasecmp(pOid, "NAME") == 0))
-		nextinput = input;
+    if ( schema_ds4x_compat || (strcasecmp(pOid, "NAME") == 0))
+        nextinput = input;
 
-	/* look for the NAME (single or list of names) */
-	if ( (pStart = (*keyword_strstr_fn) ( nextinput, "NAME ")) != NULL ) {
-		pStart += 5;
-		sizedbuffer_allocate(psbAttrName,strlen(pStart)+1);
-		strcpy ( psbAttrName->buffer, pStart);
-		if (*pStart == '(')
-			pEnd = strchr(psbAttrName->buffer, ')');
-		else
-			pEnd = strchr(psbAttrName->buffer+1, '\'');
-		if (pEnd)
-			*(pEnd+1) = 0;
-		nextinput = pStart + strlen(psbAttrName->buffer) + 1;
-		attr_names = parse_qdescrs(psbAttrName->buffer, &num_names);
-		if ( NULL != attr_names ) {
-			first_attr_name = attr_names[0];
-		} else { /* NAME followed by nothing violates syntax */
-			schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-									input, "Missing or invalid attribute name" );
-			status = invalid_syntax_error;
-			goto done;
-		}
-	}
+    /* look for the NAME (single or list of names) */
+    if ( (pStart = (*keyword_strstr_fn) ( nextinput, "NAME ")) != NULL ) {
+        pStart += 5;
+        sizedbuffer_allocate(psbAttrName,strlen(pStart)+1);
+        strcpy ( psbAttrName->buffer, pStart);
+        if (*pStart == '(')
+            pEnd = strchr(psbAttrName->buffer, ')');
+        else
+            pEnd = strchr(psbAttrName->buffer+1, '\'');
+        if (pEnd)
+            *(pEnd+1) = 0;
+        nextinput = pStart + strlen(psbAttrName->buffer) + 1;
+        attr_names = parse_qdescrs(psbAttrName->buffer, &num_names);
+        if ( NULL != attr_names ) {
+            first_attr_name = attr_names[0];
+        } else { /* NAME followed by nothing violates syntax */
+            schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                                    input, "Missing or invalid attribute name" );
+            status = invalid_syntax_error;
+            goto done;
+        }
+    }
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
     /*
-	 * if the attribute ldif doesn't have an OID, we'll make the oid 
-	 * attrname-oid 
-	 */ 
-	if ( (strcasecmp ( pOid, "NAME" ) == 0) && (first_attr_name)) { 
-		slapi_ch_free_string( &pOid ); 
-		pOid = slapi_ch_smprintf("%s-oid", first_attr_name ); 
-	} 
+     * if the attribute ldif doesn't have an OID, we'll make the oid 
+     * attrname-oid 
+     */ 
+    if ( (strcasecmp ( pOid, "NAME" ) == 0) && (first_attr_name)) { 
+        slapi_ch_free_string( &pOid ); 
+        pOid = slapi_ch_smprintf("%s-oid", first_attr_name ); 
+    } 
 
-	/* look for the optional DESCription */
-	if ( (pStart = (*keyword_strstr_fn) ( nextinput, "DESC '")) != NULL ) {
-		pStart += 6;
-		sizedbuffer_allocate(psbAttrDesc,strlen(pStart));
-		strcpy ( psbAttrDesc->buffer, pStart);
-		if ( (pEnd = strchr (psbAttrDesc->buffer, '\'' )) != NULL ){
-			*pEnd ='\0';
-		}
-		nextinput = pStart + strlen(psbAttrDesc->buffer) + 1;
-	}
+    /* look for the optional DESCription */
+    if ( (pStart = (*keyword_strstr_fn) ( nextinput, "DESC '")) != NULL ) {
+        pStart += 6;
+        sizedbuffer_allocate(psbAttrDesc,strlen(pStart));
+        strcpy ( psbAttrDesc->buffer, pStart);
+        if ( (pEnd = strchr (psbAttrDesc->buffer, '\'' )) != NULL ){
+            *pEnd ='\0';
+        }
+        nextinput = pStart + strlen(psbAttrDesc->buffer) + 1;
+    }
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional OBSOLETE marker */
-	flags |= get_flag_keyword( schema_obsolete_with_spaces,
-			SLAPI_ATTR_FLAG_OBSOLETE, &nextinput, keyword_strstr_fn );
+    /* look for the optional OBSOLETE marker */
+    flags |= get_flag_keyword( schema_obsolete_with_spaces,
+            SLAPI_ATTR_FLAG_OBSOLETE, &nextinput, keyword_strstr_fn );
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional SUPerior type */
-	pSuperior = get_tagged_oid( "SUP ", &nextinput, keyword_strstr_fn );
+    /* look for the optional SUPerior type */
+    pSuperior = get_tagged_oid( "SUP ", &nextinput, keyword_strstr_fn );
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional matching rules */
-	pMREquality = get_tagged_oid( "EQUALITY ", &nextinput, keyword_strstr_fn );
-	if ( schema_ds4x_compat ) nextinput = input;
-	pMROrdering = get_tagged_oid( "ORDERING ", &nextinput, keyword_strstr_fn );
-	if ( schema_ds4x_compat ) nextinput = input;
-	pMRSubstring = get_tagged_oid( "SUBSTR ", &nextinput, keyword_strstr_fn );
-	if ( schema_ds4x_compat ) nextinput = input;
+    /* look for the optional matching rules */
+    pMREquality = get_tagged_oid( "EQUALITY ", &nextinput, keyword_strstr_fn );
+    if ( schema_ds4x_compat ) nextinput = input;
+    pMROrdering = get_tagged_oid( "ORDERING ", &nextinput, keyword_strstr_fn );
+    if ( schema_ds4x_compat ) nextinput = input;
+    pMRSubstring = get_tagged_oid( "SUBSTR ", &nextinput, keyword_strstr_fn );
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional SYNTAX */
-	if ( NULL != ( pSyntax = get_tagged_oid( "SYNTAX ", &nextinput,
-			keyword_strstr_fn ))) {
-		/*
-		 * Check for an optional {LEN}, which if present indicates a
-		 * suggested maximum size for values of this attribute type.
-		 *
-		 * XXXmcs: we do not enforce length restrictions, but we do read
-		 * and include them in the subschemasubentry.
-		 */
-		if ( (pEnd = strchr ( pSyntax, '{')) != NULL /* balance } */ ) {
-			*pEnd = '\0';
-			syntaxlength = atoi( pEnd + 1 );
-		}
-	}
+    /* look for the optional SYNTAX */
+    if ( NULL != ( pSyntax = get_tagged_oid( "SYNTAX ", &nextinput,
+            keyword_strstr_fn ))) {
+        /*
+         * Check for an optional {LEN}, which if present indicates a
+         * suggested maximum size for values of this attribute type.
+         *
+         * XXXmcs: we do not enforce length restrictions, but we do read
+         * and include them in the subschemasubentry.
+         */
+        if ( (pEnd = strchr ( pSyntax, '{')) != NULL /* balance } */ ) {
+            *pEnd = '\0';
+            syntaxlength = atoi( pEnd + 1 );
+        }
+    }
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional SINGLE-VALUE marker */
-	flags |= get_flag_keyword( " SINGLE-VALUE ",
-			SLAPI_ATTR_FLAG_SINGLE, &nextinput, keyword_strstr_fn );
+    /* look for the optional SINGLE-VALUE marker */
+    flags |= get_flag_keyword( " SINGLE-VALUE ",
+            SLAPI_ATTR_FLAG_SINGLE, &nextinput, keyword_strstr_fn );
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional COLLECTIVE marker */
-	flags |= get_flag_keyword( schema_collective_with_spaces,
-			SLAPI_ATTR_FLAG_COLLECTIVE, &nextinput, keyword_strstr_fn );
+    /* look for the optional COLLECTIVE marker */
+    flags |= get_flag_keyword( schema_collective_with_spaces,
+            SLAPI_ATTR_FLAG_COLLECTIVE, &nextinput, keyword_strstr_fn );
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional NO-USER-MODIFICATION marker */
-	flags |= get_flag_keyword( schema_nousermod_with_spaces,
-			SLAPI_ATTR_FLAG_NOUSERMOD, &nextinput, keyword_strstr_fn );
+    /* look for the optional NO-USER-MODIFICATION marker */
+    flags |= get_flag_keyword( schema_nousermod_with_spaces,
+            SLAPI_ATTR_FLAG_NOUSERMOD, &nextinput, keyword_strstr_fn );
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* look for the optional USAGE */
-	if (NULL != (ss = (*keyword_strstr_fn)(nextinput, " USAGE "))) {
-		ss += 7;
-		ss = skipWS(ss);
-		if (ss) {
-			if ( !PL_strncmp(ss, "directoryOperation",
-					strlen("directoryOperation"))) {
-				flags |= SLAPI_ATTR_FLAG_OPATTR;
-			}
-			if ( NULL == ( nextinput = strchr( ss, ' ' ))) {
-				nextinput = ss + strlen(ss);
-			}
-		}
-	}
+    /* look for the optional USAGE */
+    if (NULL != (ss = (*keyword_strstr_fn)(nextinput, " USAGE "))) {
+        ss += 7;
+        ss = skipWS(ss);
+        if (ss) {
+            if ( !PL_strncmp(ss, "directoryOperation",
+                    strlen("directoryOperation"))) {
+                flags |= SLAPI_ATTR_FLAG_OPATTR;
+            }
+            if ( NULL == ( nextinput = strchr( ss, ' ' ))) {
+                nextinput = ss + strlen(ss);
+            }
+        }
+    }
 
-	if ( schema_ds4x_compat ) nextinput = input;
+    if ( schema_ds4x_compat ) nextinput = input;
 
-	/* X-ORIGIN list */
-	attr_origins = parse_origin_list( nextinput, &num_origins,
-			schema_user_defined_origin );
+    /* X-ORIGIN list */
+    attr_origins = parse_origin_list( nextinput, &num_origins,
+            schema_user_defined_origin );
 
-	/* Do some sanity checking to make sure everything was read correctly */
-	
-	if (NULL == pOid) {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				first_attr_name, "Missing OID" );
-		status = invalid_syntax_error;
-	}
-	if (!status && (!attr_names || !num_names)) {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				first_attr_name,
-				"Missing name (OID is \"%s\")", pOid );
-		status = invalid_syntax_error;
-	}
+    /* Do some sanity checking to make sure everything was read correctly */
+    
+    if (NULL == pOid) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                first_attr_name, "Missing OID" );
+        status = invalid_syntax_error;
+    }
+    if (!status && (!attr_names || !num_names)) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                first_attr_name,
+                "Missing name (OID is \"%s\")", pOid );
+        status = invalid_syntax_error;
+    }
 
     if (!status && (NULL != pSuperior)) {
         struct asyntaxinfo *asi_parent;
@@ -3369,7 +3404,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
             char *pso = plugin_syntax2oid(asi_parent->asi_plugin);
             
             if (pso) {
-				slapi_ch_free ((void **)&pSyntax);
+                slapi_ch_free ((void **)&pSyntax);
                 pSyntax = slapi_ch_strdup(pso);
                 LDAPDebug (LDAP_DEBUG_TRACE,
                     "Inheriting syntax %s from parent type %s\n",
@@ -3380,6 +3415,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
                     "Missing parent attribute syntax OID");
                 status = invalid_syntax_error;
             }
+            attr_syntax_return( asi_parent );
         }
     }
     /* 
@@ -3401,135 +3437,137 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         }
     }
 
-	if (!status && (NULL == pSyntax)) {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				first_attr_name, "Missing attribute syntax OID");
-		status = invalid_syntax_error;
+    if (!status && (NULL == pSyntax)) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                first_attr_name, "Missing attribute syntax OID");
+        status = invalid_syntax_error;
 
-	}
-	
-	if (!status && (plugin_syntax_find ( pSyntax ) == NULL) ) {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				first_attr_name, "Unknown attribute syntax OID \"%s\"",
-				pSyntax );
-		status = invalid_syntax_error;
-	}
+    }
+    
+    if (!status && (plugin_syntax_find ( pSyntax ) == NULL) ) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                first_attr_name, "Unknown attribute syntax OID \"%s\"",
+                pSyntax );
+        status = invalid_syntax_error;
+    }
 
-	if (!status) {
-		struct objclass *poc;
-		/* check to make sure that the OID isn't being used by an objectclass */
-		oc_lock_read();
-		poc = oc_find_oid_nolock( pOid );
-		if ( poc != NULL) {
-			schema_create_errormsg( errorbuf, errorbufsize,
-					schema_errprefix_at, first_attr_name,
-					"The OID \"%s\" is also used by the object class \"%s\"",
-					pOid, poc->oc_name);
-			status = LDAP_TYPE_OR_VALUE_EXISTS;
-		}
-		oc_unlock();
-	}
+    if (!status) {
+        struct objclass *poc;
+        /* check to make sure that the OID isn't being used by an objectclass */
+        if (!(schema_flags & DSE_SCHEMA_LOCKED))
+            oc_lock_read();
+        poc = oc_find_oid_nolock( pOid );
+        if ( poc != NULL) {
+            schema_create_errormsg( errorbuf, errorbufsize,
+                    schema_errprefix_at, first_attr_name,
+                    "The OID \"%s\" is also used by the object class \"%s\"",
+                    pOid, poc->oc_name);
+            status = LDAP_TYPE_OR_VALUE_EXISTS;
+        }
+        if (!(schema_flags & DSE_SCHEMA_LOCKED))
+            oc_unlock();
+    }
 
-	if (!status && !element_is_user_defined( attr_origins )) {
-		if ( is_user_defined ) {
-			/* add missing user defined origin string */
-			charray_add( &attr_origins,
-						slapi_ch_strdup( schema_user_defined_origin[0] ));
-			++num_origins;
-		} else {
-			flags |= SLAPI_ATTR_FLAG_STD_ATTR;
-		}
-	}
+    if (!status && !element_is_user_defined( attr_origins )) {
+        if ( is_user_defined ) {
+            /* add missing user defined origin string */
+            charray_add( &attr_origins,
+                        slapi_ch_strdup( schema_user_defined_origin[0] ));
+            ++num_origins;
+        } else {
+            flags |= SLAPI_ATTR_FLAG_STD_ATTR;
+        }
+    }
 
-	if (!status) {
-		int ii;
-		/* check to see if the attribute name is valid */
-		for (ii = 0; !status && (ii < num_names); ++ii) {
-			if ( schema_check_name(attr_names[ii], PR_TRUE, errorbuf,
-					errorbufsize) == 0 ) {
-				status = invalid_syntax_error;
-			}
-			else if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
-					 attr_syntax_exists(attr_names[ii])) {
-				schema_create_errormsg( errorbuf, errorbufsize,
-					schema_errprefix_at, attr_names[ii],
-					"Could not be added because it already exists" );
-				status = LDAP_TYPE_OR_VALUE_EXISTS;
-			}
-		}
-	}
+    if (!(schema_flags & DSE_SCHEMA_NO_CHECK) && !status) {
+        int ii;
+        /* check to see if the attribute name is valid */
+        for (ii = 0; !status && (ii < num_names); ++ii) {
+            if ( schema_check_name(attr_names[ii], PR_TRUE, errorbuf,
+                    errorbufsize) == 0 ) {
+                status = invalid_syntax_error;
+            }
+            else if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
+                     attr_syntax_exists(attr_names[ii])) {
+                schema_create_errormsg( errorbuf, errorbufsize,
+                    schema_errprefix_at, attr_names[ii],
+                    "Could not be added because it already exists" );
+                status = LDAP_TYPE_OR_VALUE_EXISTS;
+            }
+        }
+    }
 
-	if (!status) {
-		if ( schema_check_oid ( first_attr_name, pOid, PR_TRUE, errorbuf,
-				errorbufsize ) == 0 ) {
-			status = invalid_syntax_error;
-		}
-	}
+    if (!(schema_flags & DSE_SCHEMA_NO_CHECK) && !status) {
+        if ( schema_check_oid ( first_attr_name, pOid, PR_TRUE, errorbuf,
+                errorbufsize ) == 0 ) {
+            status = invalid_syntax_error;
+        }
+    }
 
-	if (!status) {
-		struct asyntaxinfo	*tmpasi;
+    if (!status) {
+        struct asyntaxinfo    *tmpasi;
 
-		if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
-			( NULL != ( tmpasi = attr_syntax_get_by_oid(pOid)))) {
-			schema_create_errormsg( errorbuf, errorbufsize,
-				schema_errprefix_at, first_attr_name,
-				"Could not be added because the OID \"%s\" is already in use",
-				pOid);
-			status = LDAP_TYPE_OR_VALUE_EXISTS;
-			attr_syntax_return( tmpasi );
-		}
-	}
+        if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
+            ( NULL != ( tmpasi = attr_syntax_get_by_oid(pOid)))) {
+            schema_create_errormsg( errorbuf, errorbufsize,
+                schema_errprefix_at, first_attr_name,
+                "Could not be added because the OID \"%s\" is already in use",
+                pOid);
+            status = LDAP_TYPE_OR_VALUE_EXISTS;
+            attr_syntax_return( tmpasi );
+        }
+    }
 
-	
-	if (!status) {
-		status = attr_syntax_create( pOid, attr_names, num_names,
-				*psbAttrDesc->buffer == '\0' ? NULL : psbAttrDesc->buffer,
-				pSuperior,
-				pMREquality, pMROrdering, pMRSubstring, attr_origins,
-				pSyntax, syntaxlength, flags, &tmpasip );
-	}
+    
+    if (!status) {
+        status = attr_syntax_create( pOid, attr_names, num_names,
+                *psbAttrDesc->buffer == '\0' ? NULL : psbAttrDesc->buffer,
+                pSuperior,
+                pMREquality, pMROrdering, pMRSubstring, attr_origins,
+                pSyntax, syntaxlength, flags, &tmpasip );
+    }
 
-	if (!status) {
-		if ( NULL != asipp ) {
-			*asipp = tmpasip;	/* just return it */
-		} else {				/* add the new attribute to the global store */
-			status = attr_syntax_add( tmpasip );
-			if ( LDAP_SUCCESS != status ) {
-				if ( 0 != (flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
-							LDAP_TYPE_OR_VALUE_EXISTS == status ) {
-					/*
-					 * This can only occur if the name and OID don't match the
-					 * attribute we are trying to override (all other cases of
-					 * "type or value exists" were trapped above).
-					 */
-					schema_create_errormsg( errorbuf, errorbufsize,
-							schema_errprefix_at, first_attr_name,
-							"Does not match the OID \"%s\". Another attribute"
-							" type is already using the name or OID.", pOid);
-				} else {
-					schema_create_errormsg( errorbuf, errorbufsize,
-							schema_errprefix_at, first_attr_name,
-							"Could not be added (OID is \"%s\")", pOid );
-				}
-				attr_syntax_free( tmpasip );
-			}
-		}
-	}
+    if (!status) {
+        if ( NULL != asipp ) {
+            *asipp = tmpasip;    /* just return it */
+        } else {                /* add the new attribute to the global store */
+            status = attr_syntax_add( tmpasip );
+            if ( LDAP_SUCCESS != status ) {
+                if ( 0 != (flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
+                            LDAP_TYPE_OR_VALUE_EXISTS == status ) {
+                    /*
+                     * This can only occur if the name and OID don't match the
+                     * attribute we are trying to override (all other cases of
+                     * "type or value exists" were trapped above).
+                     */
+                    schema_create_errormsg( errorbuf, errorbufsize,
+                            schema_errprefix_at, first_attr_name,
+                            "Does not match the OID \"%s\". Another attribute"
+                            " type is already using the name or OID.", pOid);
+                } else {
+                    schema_create_errormsg( errorbuf, errorbufsize,
+                            schema_errprefix_at, first_attr_name,
+                            "Could not be added (OID is \"%s\")", pOid );
+                }
+                attr_syntax_free( tmpasip );
+            }
+        }
+    }
 
  done:
-	/* free everything */
-	free_qdlist(attr_names, num_names);
-	free_qdlist(attr_origins, num_origins);
-	sizedbuffer_destroy(psbAttrName);
-	sizedbuffer_destroy(psbAttrDesc);
-	slapi_ch_free((void **)&pOid);
-	slapi_ch_free((void **)&pSuperior);
-	slapi_ch_free((void **)&pMREquality);
-	slapi_ch_free((void **)&pMROrdering);
-	slapi_ch_free((void **)&pMRSubstring);
-	slapi_ch_free((void **)&pSyntax);
+    /* free everything */
+    free_qdlist(attr_names, num_names);
+    free_qdlist(attr_origins, num_origins);
+    sizedbuffer_destroy(psbAttrName);
+    sizedbuffer_destroy(psbAttrDesc);
+    slapi_ch_free((void **)&pOid);
+    slapi_ch_free((void **)&pSuperior);
+    slapi_ch_free((void **)&pMREquality);
+    slapi_ch_free((void **)&pMROrdering);
+    slapi_ch_free((void **)&pMRSubstring);
+    slapi_ch_free((void **)&pSyntax);
 
-	return status;
+    return status;
 }
 
 
@@ -3911,96 +3949,122 @@ stripOption(char *attr) {
  * Initialize attributes and objectclasses from the schema 
  *
  * Note that this function removes all values for `attributetypes'
- *		and `objectclasses' attributes from the entry `e'.
+ *        and `objectclasses' attributes from the entry `e'.
  *
  * returntext is always at least SLAPI_DSE_RETURNTEXT_SIZE bytes in size.
  */
 int
 load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
-				int *returncode, char *returntext, void *arg)
+                int *returncode, char *returntext, void *arg)
 {
-	Slapi_Attr *attr = 0;
-	int nolock = 1; /* don't lock global resources during initialization */
-	int primary_file = 0;	/* this is the primary (writeable) schema file */
-	int schema_ds4x_compat = config_get_ds4_compatible_schema();
+    Slapi_Attr *attr = 0;
+    int primary_file = 0;    /* this is the primary (writeable) schema file */
+    int schema_ds4x_compat = config_get_ds4_compatible_schema();
+    PRUint32 flags = *(PRUint32 *)arg;
+    flags |= DSE_SCHEMA_NO_GLOCK; /* don't lock global resources
+                                     during initialization */
 
-	*returncode = 0;
+    *returncode = 0;
 
-	/*
-	 * Note: there is no need to call schema_lock_write() here because this
-   	 * function is only called during server startup.
-	 */
+    /*
+     * Note: there is no need to call schema_lock_write() here because this
+        * function is only called during server startup.
+     */
 
-	slapi_pblock_get( pb, SLAPI_DSE_IS_PRIMARY_FILE, &primary_file );
+    slapi_pblock_get( pb, SLAPI_DSE_IS_PRIMARY_FILE, &primary_file );
 
-	if (!slapi_entry_attr_find(e, "attributetypes", &attr) && attr)
-	{
-		/* enumerate the values in attr */
-		Slapi_Value *v = 0;
-		int index = 0;
-		for (index = slapi_attr_first_value(attr, &v);
-			 v && (index != -1);
-			 index = slapi_attr_next_value(attr, index, &v))
-		{
-			const char *s = slapi_value_get_string(v);
-			if (!s)
-				continue;
-			if ((*returncode = read_at_ldif(s, NULL, returntext,
-						SLAPI_DSE_RETURNTEXT_SIZE, nolock,
-						primary_file /* force user defined? */,
-						schema_ds4x_compat, 0)) != 0)
-				break;
-		}
-		slapi_entry_attr_delete(e, "attributetypes");
-	}
+    if (!slapi_entry_attr_find(e, "attributetypes", &attr) && attr)
+    {
+        /* enumerate the values in attr */
+        Slapi_Value *v = 0;
+        int index = 0;
+        for (index = slapi_attr_first_value(attr, &v);
+             v && (index != -1);
+             index = slapi_attr_next_value(attr, index, &v))
+        {
+            const char *s = slapi_value_get_string(v);
+            if (!s)
+                continue;
+            if (flags & DSE_SCHEMA_NO_LOAD)
+            {
+                struct asyntaxinfo *tmpasip = NULL;
+                if ((*returncode = read_at_ldif(s, &tmpasip, returntext,
+                        SLAPI_DSE_RETURNTEXT_SIZE, flags,
+                        primary_file /* force user defined? */,
+                        schema_ds4x_compat, 0)) != 0)
+                    break;
+                attr_syntax_free( tmpasip );    /* trash it */
+            }
+            else
+            {
+                if ((*returncode = read_at_ldif(s, NULL, returntext,
+                        SLAPI_DSE_RETURNTEXT_SIZE, flags,
+                        primary_file /* force user defined? */,
+                        schema_ds4x_compat, 0)) != 0)
+                    break;
+            }
+        }
+        slapi_entry_attr_delete(e, "attributetypes");
+    }
 
-	if (*returncode)
-		return SLAPI_DSE_CALLBACK_ERROR;
+    if (*returncode)
+        return SLAPI_DSE_CALLBACK_ERROR;
 
-	if (!slapi_entry_attr_find(e, "objectclasses", &attr) && attr)
-	{
-		/* enumerate the values in attr */
-		Slapi_Value *v = 0;
-		int index = 0;
-		for (index = slapi_attr_first_value(attr, &v);
-			 v && (index != -1);
-			 index = slapi_attr_next_value(attr, index, &v))
-		{
-			struct objclass *oc = 0;
-			const char *s = slapi_value_get_string(v);
-			if (!s)
-				continue;
-			if ( LDAP_SUCCESS != (*returncode = read_oc_ldif(s, &oc, returntext,
-						SLAPI_DSE_RETURNTEXT_SIZE, nolock,
-						primary_file /* force user defined? */,
-						schema_ds4x_compat))) {
-				break;
-			}
-			if ( LDAP_SUCCESS != (*returncode = add_oc_internal(oc, returntext,
-						SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat))) {
-				oc_free( &oc );
-				break;
-			}
-		}
-		slapi_entry_attr_delete(e, "objectclasses");
-	}
+    if (!slapi_entry_attr_find(e, "objectclasses", &attr) && attr)
+    {
+        /* enumerate the values in attr */
+        Slapi_Value *v = 0;
+        int index = 0;
+        for (index = slapi_attr_first_value(attr, &v);
+             v && (index != -1);
+             index = slapi_attr_next_value(attr, index, &v))
+        {
+            struct objclass *oc = 0;
+            const char *s = slapi_value_get_string(v);
+            if (!s)
+                continue;
+            if ( LDAP_SUCCESS != (*returncode = read_oc_ldif(s, &oc, returntext,
+                        SLAPI_DSE_RETURNTEXT_SIZE, flags,
+                        primary_file /* force user defined? */,
+                        schema_ds4x_compat))) {
+                break;
+            }
+            if (flags & DSE_SCHEMA_NO_LOAD)
+            {
+                /* we don't load the objectclase; free it */
+                oc_free( &oc );
+            }
+            else
+            {
+                if ( LDAP_SUCCESS !=
+                        (*returncode = add_oc_internal(oc, returntext,
+                        SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat,
+                        flags))) {
+                    oc_free( &oc );
+                    break;
+                }
+            }
+        }
+        slapi_entry_attr_delete(e, "objectclasses");
+    }
 
-	/* Set the schema CSN */
-	if (!slapi_entry_attr_find(e, "nsschemacsn", &attr) && attr)
-	{
-		Slapi_Value *v = NULL;
-		slapi_attr_first_value(attr, &v);
-		if (NULL != v) {
-			const char *s = slapi_value_get_string(v);
-			if (NULL != s) {
-				CSN *csn = csn_new_by_string(s);
-				g_set_global_schema_csn(csn);
-			}
-		}
-	}
+    /* Set the schema CSN */
+    if (!(flags & DSE_SCHEMA_NO_LOAD) &&
+        !slapi_entry_attr_find(e, "nsschemacsn", &attr) && attr)
+    {
+        Slapi_Value *v = NULL;
+        slapi_attr_first_value(attr, &v);
+        if (NULL != v) {
+            const char *s = slapi_value_get_string(v);
+            if (NULL != s) {
+                CSN *csn = csn_new_by_string(s);
+                g_set_global_schema_csn(csn);
+            }
+        }
+    }
 
-	return (*returncode == LDAP_SUCCESS) ? SLAPI_DSE_CALLBACK_OK
-			: SLAPI_DSE_CALLBACK_ERROR;
+    return (*returncode == LDAP_SUCCESS) ? SLAPI_DSE_CALLBACK_OK
+            : SLAPI_DSE_CALLBACK_ERROR;
 }
 
 /*
@@ -4010,30 +4074,51 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
  * schema entry into it.
  * 
  * Returns 1 for OK, 0 for Fail.
+ *
+ * schema_flags:
+ * DSE_SCHEMA_NO_LOAD      -- schema won't get loaded
+ * DSE_SCHEMA_NO_CHECK     -- schema won't be checked
+ * DSE_SCHEMA_NO_BACKEND   -- don't add as backend
+ * DSE_SCHEMA_LOCKED       -- already locked; no further lock needed
+
  */
-int
-init_schema_dse(const char *configdir)
+static int
+init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
+				struct dse **local_pschemadse, PRUint32 schema_flags)
 {
-    int rc= 1; /* OK */
-	char *schemadir = 0;
+	int rc= 1; /* OK */
 	char *userschemafile = 0;
 	char *userschematmpfile = 0;
 	char **filelist = 0;
+	char *myschemadir = NULL;
 	Slapi_DN schema;
+
+	if (NULL == local_pschemadse)
+	{
+		return 0;	/* cannot proceed; return failure */
+	}
 
 	slapi_sdn_init_dn_byref(&schema,"cn=schema");
 
-	schemadir = config_get_schemadir();
-	if (NULL == schemadir) {
-		/* schemadir info is not configured, let's use the default place */
-		schemadir = slapi_ch_smprintf("%s/%s", configdir, SCHEMA_SUBDIR_NAME);
+	/* get schemadir if not given */
+	if (NULL == schemadir)
+	{
+		myschemadir = config_get_schemadir();
+		if (NULL == myschemadir)
+		{
+			return 0;	/* cannot proceed; return failure */
+		}
+	}
+	else
+	{
+		myschemadir = schemadir;
 	}
 
-	filelist = get_priority_filelist(schemadir, ".*ldif$");
+	filelist = get_priority_filelist(myschemadir, ".*ldif$");
 	if (!filelist || !*filelist)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, "schema",
-				"No schema files were found in the directory %s\n", schemadir);
+			"No schema files were found in the directory %s\n", myschemadir);
 		free_filelist(filelist);
 		rc = 0;
 	}
@@ -4046,21 +4131,26 @@ init_schema_dse(const char *configdir)
 		userschematmpfile = slapi_ch_smprintf("%s.tmp", userschemafile);
 	}
 
-    if(rc && (pschemadse==NULL))
-    {
-        pschemadse= dse_new_with_filelist(userschemafile,userschematmpfile, NULL, NULL, 
-										  schemadir,filelist);
-		PR_ASSERT(pschemadse);
-        if ((rc= (pschemadse!=NULL)) != 0)
-			dse_register_callback(pschemadse,DSE_OPERATION_READ,DSE_FLAG_PREOP,&schema,
-								  LDAP_SCOPE_BASE,NULL,
-								  load_schema_dse,NULL);
-		slapi_ch_free((void**)&userschematmpfile);
-    }
-	slapi_ch_free((void**)&schemadir);
+	if(rc)
+	{
+		*local_pschemadse = dse_new_with_filelist(userschemafile,
+						userschematmpfile, NULL, NULL, myschemadir, filelist);
+	}
+	PR_ASSERT(*local_pschemadse);
+	if ((rc = (*local_pschemadse != NULL)) != 0)
+	{
+		/* pass schema_flags as arguments */
+		dse_register_callback(*local_pschemadse,
+								  DSE_OPERATION_READ, DSE_FLAG_PREOP, &schema,
+								  LDAP_SCOPE_BASE, NULL,
+								  load_schema_dse, (void *)&schema_flags);
+	}
+	slapi_ch_free_string(&userschematmpfile);
+	if (NULL == schemadir)
+		slapi_ch_free_string(&myschemadir); /* allocated in this function */
 
-    if(rc)
-    {
+	if(rc)
+	{
 		char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
 		int dont_write = 1;
 		int merge = 1;
@@ -4073,14 +4163,30 @@ init_schema_dse(const char *configdir)
 		slapi_pblock_set(&pb, SLAPI_DSE_MERGE_WHEN_ADDING, (void*)&merge);
 		/* use the non duplicate checking str2entry */
 		slapi_pblock_set(&pb, SLAPI_DSE_DONT_CHECK_DUPS, (void*)&dont_dup_check);
+		/* borrow the task flag space */
+		slapi_pblock_set(&pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
 
 		/* add the objectclass attribute so we can do some basic schema
 		   checking during initialization; this will be overridden when
 		   its "real" definition is read from the schema conf files */
-		rc = read_at_ldif("attributeTypes: ( 2.5.4.0 NAME 'objectClass' "
+		if (schema_flags & DSE_SCHEMA_NO_LOAD)
+		{
+			struct asyntaxinfo *tmpasip = NULL;
+			rc = read_at_ldif("attributeTypes: ( 2.5.4.0 NAME 'objectClass' "
 						  "DESC 'Standard schema for LDAP' SYNTAX "
 						  "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )",
-						  NULL, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 1, 0, 0, 0);
+						  &tmpasip, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+						  DSE_SCHEMA_NO_GLOCK|schema_flags, 0, 0, 0);
+			attr_syntax_free( tmpasip );	/* trash it */
+		}
+		else
+		{
+			rc = read_at_ldif("attributeTypes: ( 2.5.4.0 NAME 'objectClass' "
+						  "DESC 'Standard schema for LDAP' SYNTAX "
+						  "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )",
+						  NULL, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+						  DSE_SCHEMA_NO_GLOCK|schema_flags, 0, 0, 0);
+		}
 		if (rc)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, "schema", "Could not add"
@@ -4088,39 +4194,69 @@ init_schema_dse(const char *configdir)
 				errorbuf);
 		}
 
-		rc = dse_read_file(pschemadse, &pb);
-    }
+		rc = dse_read_file(*local_pschemadse, &pb);
+	}
 
-	if (rc)
+	if (rc && !(schema_flags & DSE_SCHEMA_NO_BACKEND))
 	{
 		/* make sure the schema is normalized */
-		normalize_oc();
+		if (schema_flags & DSE_SCHEMA_LOCKED)
+			normalize_oc_nolock();
+		else
+			normalize_oc();
 
 		/* register callbacks */
-		dse_register_callback(pschemadse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&schema,
-							  LDAP_SCOPE_BASE,NULL,read_schema_dse,NULL);
-		dse_register_callback(pschemadse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&schema,
-							  LDAP_SCOPE_BASE,NULL,modify_schema_dse,NULL);
-		dse_register_callback(pschemadse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&schema,
-							  LDAP_SCOPE_BASE,NULL,dont_allow_that,NULL);
-		dse_register_callback(pschemadse,DSE_OPERATION_WRITE,DSE_FLAG_PREOP,&schema,
-							  LDAP_SCOPE_BASE,NULL,refresh_user_defined_schema,
-							  NULL);
+		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_SEARCH,
+							  DSE_FLAG_PREOP,&schema, LDAP_SCOPE_BASE,
+							  NULL, read_schema_dse, NULL);
+		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_MODIFY,
+							  DSE_FLAG_PREOP,&schema, LDAP_SCOPE_BASE,
+							  NULL, modify_schema_dse, NULL);
+		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_DELETE,
+							  DSE_FLAG_PREOP, &schema, LDAP_SCOPE_BASE,
+							  NULL,dont_allow_that,NULL);
+		dse_register_callback(*local_pschemadse, DSE_OPERATION_WRITE,
+							  DSE_FLAG_PREOP, &schema, LDAP_SCOPE_BASE,
+							  NULL, refresh_user_defined_schema, NULL);
 
 		if (rc) {
-			Slapi_Backend	*be;
+			if (NULL == be) {	/* be is not given. select it */
+				be = slapi_be_select_by_instance_name( DSE_SCHEMA );
+			}
+			if (NULL == be) {	/* first time */
+				/* add as a backend */
+				be = be_new_internal(*local_pschemadse, "DSE", DSE_SCHEMA);
+				be_addsuffix(be, &schema);
+			} else {					/* schema file reload */
+				struct slapdplugin *backend_plugin = NULL;
+				be_replace_dse_internal(be, *local_pschemadse);
 
-			/* add as a backend */
-			be= be_new_internal(pschemadse,"DSE", "schema-internal"); /* JCM - should be a #define */
-			be_addsuffix(be,&schema);
+				/* ldbm has some internal attributes to be added */
+				backend_plugin = plugin_get_by_name("ldbm database");
+				if (backend_plugin) {
+					(backend_plugin->plg_add_schema)( NULL );
+				}
+			}
 		}
 	}
 
 	slapi_sdn_done(&schema);
-    return rc;
+	return rc;
 }
 
-
+int
+init_schema_dse(const char *configdir)
+{
+	char *schemadir = config_get_schemadir();
+	int rc = 0;
+	if (NULL == schemadir)
+	{
+		schemadir = slapi_ch_smprintf("%s/%s", configdir, SCHEMA_SUBDIR_NAME);
+	}
+	rc = init_schema_dse_ext(schemadir, NULL, &pschemadse, 0);
+	slapi_ch_free_string(&schemadir);
+	return rc;
+}
 
 /*
  * Look for `keyword' within `*inputp' and return the flag_value if found
@@ -4712,4 +4848,116 @@ slapi_schema_expand_objectclasses( Slapi_Entry *e )
 	sa->a_present_values.va = va;
 
 	oc_unlock();
+}
+
+void
+schema_expand_objectclasses_nolock( Slapi_Entry *e )
+{
+	Slapi_Attr		*sa;
+	Slapi_Value		**va;
+	const char		*dn = slapi_entry_get_dn_const( e );
+	int				i;
+
+	if ( 0 != slapi_entry_attr_find( e, SLAPI_ATTR_OBJECTCLASS, &sa )) {
+		return;		/* no OC values -- nothing to do */
+	}
+
+	va = attr_get_present_values( sa );
+
+	if ( va == NULL || va[0] == NULL ) {
+		return;		/* no OC values -- nothing to do */
+	}
+
+	/*
+	 * This loop relies on the fact that bv_expand_one_oc()
+	 * always adds to the end
+	 */
+	for ( i = 0; va[i] != NULL; ++i ) {
+		if ( NULL != slapi_value_get_string(va[i]) ) {
+			va_expand_one_oc( dn, &va, slapi_value_get_string(va[i]) );
+		}
+	}
+  
+	/* top must always be present */
+	va_expand_one_oc( dn, &va, "top" );
+
+	/*
+	 * Reset the present values in the set because we may have realloc'd it.
+	 * Note that this is the counterpart to the attr_get_present_values()
+	 * call we made above... nothing new has been allocated, but sa holds
+	 * a pointer to the original (pre realloc) va.
+	 */
+	sa->a_present_values.va = va;
+}
+
+/* lock to protect both objectclass and schema_dse */
+static void
+slapi_load_schemafile_lock()
+{
+	oc_lock_write();
+	schema_dse_lock_write();
+}
+
+static void
+slapi_load_schemafile_unlock()
+{
+	schema_dse_unlock();
+	oc_unlock();
+}
+
+/* API to validate the schema files */
+int
+slapi_validate_schema_files(char *schemadir)
+{
+	struct dse *my_pschemadse = NULL;
+	int rc = init_schema_dse_ext(schemadir, NULL, &my_pschemadse,
+			DSE_SCHEMA_NO_LOAD | DSE_SCHEMA_NO_BACKEND);
+	dse_destroy(my_pschemadse);
+	if (rc)
+		return LDAP_SUCCESS;
+	else {
+		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
+				"schema file validation failed\n" );
+		return LDAP_OBJECT_CLASS_VIOLATION;
+	}
+}
+
+/* 
+ * API to reload the schema files.
+ * Rule: this function is called when slapi_validate_schema_files is passed.
+ *       Schema checking is skipped in this function.
+ */
+int
+slapi_reload_schema_files(char *schemadir)
+{
+	int rc = LDAP_SUCCESS;
+	struct dse *my_pschemadse = NULL;
+	/* get be to lock */
+	Slapi_Backend *be = slapi_be_select_by_instance_name( DSE_SCHEMA );
+
+	if (NULL == be)
+	{
+		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
+				"schema file reload failed\n" );
+		return LDAP_LOCAL_ERROR;
+	}
+	slapi_be_Wlock(be);	/* be lock must be outer of schemafile lock */
+	slapi_load_schemafile_lock();
+	attr_syntax_delete_all();
+	oc_delete_all_nolock();
+	rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
+			   DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
+	if (rc) {
+		dse_destroy(pschemadse);
+		pschemadse = my_pschemadse;
+		slapi_load_schemafile_unlock();
+		slapi_be_Unlock(be);
+		return LDAP_SUCCESS;
+	} else {
+		slapi_load_schemafile_unlock();
+		slapi_be_Unlock(be);
+		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
+				"schema file reload failed\n" );
+		return LDAP_LOCAL_ERROR;
+	}
 }

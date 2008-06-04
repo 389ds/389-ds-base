@@ -559,9 +559,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_POSTSTART_FN:
 		(*(IFP *)value) = pblock->pb_plugin->plg_poststart;
 		break;
-        case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
-                (*(IFP *)value) = pblock->pb_plugin->plg_wire_import;
-                break;
+	case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
+		(*(IFP *)value) = pblock->pb_plugin->plg_wire_import;
+		break;
+	case SLAPI_PLUGIN_DB_ADD_SCHEMA_FN:
+		(*(IFP *)value) = pblock->pb_plugin->plg_add_schema;
+		break;
 	case SLAPI_PLUGIN_DB_SEQ_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
 			return( -1 );
@@ -1583,9 +1586,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(int *)value) = pblock->pb_dse_is_primary_file;
 		break;
 		
-	/* used internally by schema code */
-	case SLAPI_SCHEMA_USER_DEFINED_ONLY:
-		(*(int *)value) = pblock->pb_schema_user_defined_only;
+	/* used internally by schema code (schema.c) */
+	case SLAPI_SCHEMA_FLAGS:
+		(*(int *)value) = pblock->pb_schema_flags;
 		break;
 
 	case SLAPI_URP_NAMING_COLLISION_DN:
@@ -1836,9 +1839,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_POSTSTART_FN:
 		pblock->pb_plugin->plg_poststart = (IFP) value;
 		break;
-        case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
-                pblock->pb_plugin->plg_wire_import = (IFP) value;
-                break;
+	case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
+		pblock->pb_plugin->plg_wire_import = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_DB_ADD_SCHEMA_FN:
+		pblock->pb_plugin->plg_add_schema = (IFP) value;
+		break;
 	case SLAPI_PLUGIN_DB_SEQ_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
 			return( -1 );
@@ -2824,9 +2830,9 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_dse_is_primary_file = *((int *)value);
 		break;
 		
-	/* used internally by schema code only */
-	case SLAPI_SCHEMA_USER_DEFINED_ONLY:
-		pblock->pb_schema_user_defined_only = *((int *)value);
+	/* used internally by schema code (schema.c) */
+	case SLAPI_SCHEMA_FLAGS:
+		pblock->pb_schema_flags = *((int *)value);
 		break;
 
 	case SLAPI_URP_NAMING_COLLISION_DN:

@@ -648,6 +648,8 @@ typedef struct index_config
 
 void be_set_sizelimit(Slapi_Backend * be, int sizelimit);
 void be_set_timelimit(Slapi_Backend * be, int timelimit);
+int be_isdeleted( const Slapi_Backend *be );
+
 
 /* used by mapping tree to delay sending of result code when several 
  * backend are parsed 
@@ -857,6 +859,7 @@ int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v)
 #define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN		234
 #define SLAPI_PLUGIN_DB_UPGRADEDB_FN		235
 #define SLAPI_PLUGIN_DB_DBVERIFY_FN			236
+#define SLAPI_PLUGIN_DB_ADD_SCHEMA_FN		237
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280
@@ -1073,6 +1076,17 @@ int slapi_uniqueIDGenerateFromNameString(char **uId,
 int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
 int slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn);
 int config_is_slapd_lite( void );
+void schema_expand_objectclasses_nolock( Slapi_Entry *e );
+
+#define DSE_SCHEMA_NO_LOAD           0x0001  /* schema won't get loaded */
+#define DSE_SCHEMA_NO_CHECK          0x0002  /* schema won't be checked */
+#define DSE_SCHEMA_NO_BACKEND        0x0004  /* don't add as backend */
+
+#define DSE_SCHEMA_NO_GLOCK          0x0010  /* don't lock global resources */
+#define DSE_SCHEMA_LOCKED            0x0020  /* already locked with
+                                              * slapi_load_schemafile_lock;
+                                              * no further lock needed */
+#define DSE_SCHEMA_USER_DEFINED_ONLY 0x0100  /* refresh user defined schema */
 
 #define SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY 0
 #define SLAPI_RTN_BIT_FETCH_PARENT_ENTRY 1

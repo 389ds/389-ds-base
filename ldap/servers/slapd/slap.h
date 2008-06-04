@@ -776,7 +776,8 @@ struct slapdplugin {
 			IFP	plg_un_db_register_oc_callback; /* Register a function to call when a operation is applied to a given ObjectClass */
 			IFP	plg_un_db_init_instance;  /* initializes new db instance */
 			IFP	plg_un_db_wire_import;    /* fast replica update */
-			IFP	plg_un_db_verify;	  /* verify db files */
+			IFP	plg_un_db_add_schema;     /* add schema */
+			IFP	plg_un_db_verify;	      /* verify db files */
 		} plg_un_db;
 #define plg_bind		plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind		plg_un.plg_un_db.plg_un_db_unbind
@@ -808,6 +809,7 @@ struct slapdplugin {
 #define plg_rmdb		plg_un.plg_un_db.plg_un_db_rmdb
 #define plg_init_instance       plg_un.plg_un_db.plg_un_db_init_instance
 #define plg_wire_import         plg_un.plg_un_db.plg_un_db_wire_import
+#define plg_add_schema          plg_un.plg_un_db.plg_un_db_add_schema
 
 		/* extended operation plugin structure */
 		struct plg_un_protocol_extension {
@@ -1414,7 +1416,9 @@ typedef struct slapi_pblock {
 								   after the schema and syntax and matching rule plugins are
 								   running */
 	int pb_dse_is_primary_file;	/* for read callbacks: non-zero for primary file */
-	int pb_schema_user_defined_only; /* return user defined schema only */
+	int pb_schema_flags; 		/* schema flags */
+								/* . check/load info (schema reload task) */
+								/* . refresh user defined schema */
 
 	/* NEW in 5.0 for getting back the backend result in frontend */
 	int pb_result_code;			/* operation result code */

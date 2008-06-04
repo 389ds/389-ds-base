@@ -117,8 +117,9 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpresence-plugin.la \
 	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
-	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) 
+	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la \
+	libsyntax-plugin.la libviews-plugin.la libschemareload-plugin.la \
+	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) 
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -827,6 +828,14 @@ libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libschemareload-plugin
+#------------------------
+libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_reload.c
+
+libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libschemareload_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdna-plugin

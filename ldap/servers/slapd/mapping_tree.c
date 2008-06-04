@@ -1605,7 +1605,7 @@ mapping_tree_init()
     mapping_tree_node_add_child(mapping_tree_root, node);
     node= add_internal_mapping_tree_node("cn=monitor", be, mapping_tree_root);
     mapping_tree_node_add_child(mapping_tree_root, node);
-    be= slapi_be_select_by_instance_name( "schema-internal" );
+    be= slapi_be_select_by_instance_name( DSE_SCHEMA );
     node= add_internal_mapping_tree_node("cn=schema", be, mapping_tree_root);
     mapping_tree_node_add_child(mapping_tree_root, node);
 
@@ -2003,7 +2003,7 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
 
         mtn_unlock();
         *be = slapi_be_select_by_instance_name(DSE_BACKEND);
-        if(*be != NULL)
+        if(*be != NULL && !be_isdeleted(*be))
         {
             ret  = LDAP_SUCCESS;
             slapi_be_Rlock(*be);    /* also done inside mtn_get_be() below */
@@ -2026,7 +2026,7 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
      * fail if the backend is read-only, 
      * or if the whole server is readonly AND backend is public (!private)
      */
-    if ((ret == LDAP_SUCCESS) && *be &&
+    if ((ret == LDAP_SUCCESS) && *be && !be_isdeleted(*be) &&
         ((*be)->be_readonly ||
         (slapi_config_get_readonly() && !slapi_be_private(*be)))) {
         unsigned long op_type = operation_get_type(op);
@@ -2101,7 +2101,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
             && (scope == LDAP_SCOPE_BASE) )  { 
         mtn_unlock();
         be = slapi_be_select_by_instance_name(DSE_BACKEND);
-        if(be != NULL)
+        if(be != NULL && !be_isdeleted(be))
         {
             be_list[0]=be;
             be_list[1] = NULL;
@@ -2128,7 +2128,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
             && (scope != LDAP_SCOPE_BASE)) )
                     && (!be || strncmp(be->be_name, "default", 8)))
         {
-            if (be)
+            if (be && !be_isdeleted(be))
             {
                 /* wrong backend or referall, ignore it */
                 slapi_log_error(SLAPI_LOG_ARGS, NULL,
@@ -2139,7 +2139,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
         }
         else
         {
-            if (be)
+            if (be && !be_isdeleted(be))
             {
                     be_list[be_index++]=be;
             }
@@ -2285,7 +2285,7 @@ unlock_and_return:
 
     if (ret != LDAP_SUCCESS)
     {
-        if (*be)
+        if (be && !be_isdeleted(be))
         {
             slapi_be_Unlock(*be);
             *be = NULL;
@@ -2521,7 +2521,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
     }
 
     if (result == LDAP_SUCCESS) {
-        if (*be) {
+        if (*be && !be_isdeleted(*be)) {
             slapi_log_error(SLAPI_LOG_ARGS, NULL,
                 "mapping tree selected backend : %s\n",
                 slapi_be_get_name(*be));
@@ -2790,7 +2790,7 @@ slapi_be_select( const Slapi_DN *sdn ) /* JCM - The name of this should change??
 int
 slapi_on_internal_backends(const Slapi_DN *sdn)
 {
-        char *backend_names[] = {"frontend-internal", "schema-internal"};
+        char *backend_names[] = {DSE_BACKEND, DSE_SCHEMA};
         int internal = 1;
         int numOfInternalBackends = 2;                           
         int count;

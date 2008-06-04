@@ -452,6 +452,7 @@ slapi_attr_syntax_normalize( const char *s )
 
     if((asi=attr_syntax_get_by_name_locking_optional(s, PR_TRUE, PR_FALSE)) != NULL ) {
 		r = slapi_ch_strdup(asi->asi_name);
+		attr_syntax_return( asi );
 	}
 	if ( NULL == asi ) {
 		r = attr_syntax_normalize_no_lookup( s );
@@ -501,6 +502,7 @@ attr_syntax_get_plugin_by_name_with_default( const char *type )
 	}
 	if ( NULL != asi ) {
 		plugin = asi->asi_plugin;
+		attr_syntax_return( asi );
 	}
 	return( plugin );
 }
@@ -890,6 +892,19 @@ attr_syntax_delete_if_not_flagged(struct asyntaxinfo *asip, void *arg)
 	}
 }
 
+static int
+attr_syntax_force_to_delete(struct asyntaxinfo *asip, void *arg)
+{
+	struct attr_syntax_enum_flaginfo	*fi;
+
+	PR_ASSERT( asip != NULL );
+	fi = (struct attr_syntax_enum_flaginfo *)arg;
+	PR_ASSERT( fi != NULL );
+
+	attr_syntax_delete_no_lock( asip, PR_FALSE );
+	return ATTR_SYNTAX_ENUM_REMOVE;
+}
+
 
 /*
  * Clear 'flag' within all attribute definitions.
@@ -918,6 +933,19 @@ attr_syntax_delete_all_not_flagged( unsigned long flag )
 	memset( &fi, 0, sizeof(fi));
 	fi.asef_flag = flag;
 	attr_syntax_enumerate_attrs( attr_syntax_delete_if_not_flagged,
+				(void *)&fi, PR_TRUE );
+}
+
+/*
+ * Delete all attribute definitions 
+ */
+void
+attr_syntax_delete_all()
+{
+	struct attr_syntax_enum_flaginfo fi;
+
+	memset( &fi, 0, sizeof(fi));
+	attr_syntax_enumerate_attrs( attr_syntax_force_to_delete,
 				(void *)&fi, PR_TRUE );
 }
 

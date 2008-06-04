@@ -149,6 +149,15 @@ be_new_internal(struct dse *pdse, const char *type, const char *name)
     return be;
 }
 
+/*
+ * Rule: before coming to this point, slapi_be_Wlock(be) must be acquired.
+ */
+void
+be_replace_dse_internal(Slapi_Backend *be, struct dse *pdse)
+{
+    be->be_database->plg_private= (void*)pdse;
+}
+
 Slapi_Backend* 
 slapi_get_first_backend (char **cookie)
 {
@@ -341,8 +350,7 @@ be_cleanupall()
             slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
 
             (*backends[i]->be_cleanup)( &pb );
-            be_done(backends[i]);
-            slapi_ch_free((void **)&backends[i]);
+            slapi_be_free(&backends[i]);
         }
     }
     slapi_ch_free((void**)&backends);
