@@ -64,6 +64,29 @@ plugin_init_debug_level(int *level_ptr)
 }
 #endif
 
+/* pb: not used */
+int
+ldbm_back_add_schema( Slapi_PBlock *pb )
+{
+	int rc = add_ldbm_internal_attr_syntax( "entrydn",
+			LDBM_ENTRYDN_OID, DN_SYNTAX_OID, DNMATCH_NAME,
+			SLAPI_ATTR_FLAG_SINGLE );
+
+	rc |= add_ldbm_internal_attr_syntax( "dncomp",
+			LDBM_DNCOMP_OID, DN_SYNTAX_OID, DNMATCH_NAME,
+			0 );
+
+	rc |= add_ldbm_internal_attr_syntax( "parentid",
+			LDBM_PARENTID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
+			SLAPI_ATTR_FLAG_SINGLE );
+
+	rc |= add_ldbm_internal_attr_syntax( "entryid",
+			LDBM_ENTRYID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
+			SLAPI_ATTR_FLAG_SINGLE );
+
+	return rc;
+}
+
 int 
 ldbm_back_init( Slapi_PBlock *pb )
 {
@@ -114,21 +137,7 @@ ldbm_back_init( Slapi_PBlock *pb )
         }
 
 	/* add some private attributes */
-	rc = add_ldbm_internal_attr_syntax( "entrydn",
-			LDBM_ENTRYDN_OID, DN_SYNTAX_OID, DNMATCH_NAME,
-			SLAPI_ATTR_FLAG_SINGLE );
-
-	rc = add_ldbm_internal_attr_syntax( "dncomp",
-			LDBM_DNCOMP_OID, DN_SYNTAX_OID, DNMATCH_NAME,
-			0 );
-
-	rc = add_ldbm_internal_attr_syntax( "parentid",
-			LDBM_PARENTID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
-			SLAPI_ATTR_FLAG_SINGLE );
-
-	rc = add_ldbm_internal_attr_syntax( "entryid",
-			LDBM_ENTRYID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
-			SLAPI_ATTR_FLAG_SINGLE );
+	rc = ldbm_back_add_schema( pb );
 
 	/* set plugin private pointer and initialize locks, etc. */
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, (void *) li );
@@ -222,10 +231,12 @@ ldbm_back_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_TEST_FN,
 	    (void *) ldbm_back_db_test );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_INIT_INSTANCE_FN,
-	    (void *) ldbm_back_init ); /* register itself so that the secon instance 
+	    (void *) ldbm_back_init ); /* register itself so that the secon instance
                                           can be initialized */
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_WIRE_IMPORT_FN,
-            (void *) ldbm_back_wire_import);
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_WIRE_IMPORT_FN,
+	    (void *) ldbm_back_wire_import );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ADD_SCHEMA_FN,
+	    (void *) ldbm_back_add_schema );
 
 	if ( rc != 0 ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init failed\n", 0, 0, 0 );
