@@ -4234,7 +4234,12 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 				/* ldbm has some internal attributes to be added */
 				backend_plugin = plugin_get_by_name("ldbm database");
 				if (backend_plugin) {
-					(backend_plugin->plg_add_schema)( NULL );
+					if (backend_plugin->plg_add_schema) {
+						(backend_plugin->plg_add_schema)( NULL );
+					} else {
+						slapi_log_error( SLAPI_LOG_FATAL, "init_schema_dse",
+							"backend has not set internal schema\n" );
+					}
 				}
 			}
 		}
@@ -4912,10 +4917,10 @@ slapi_validate_schema_files(char *schemadir)
 	struct dse *my_pschemadse = NULL;
 	int rc = init_schema_dse_ext(schemadir, NULL, &my_pschemadse,
 			DSE_SCHEMA_NO_LOAD | DSE_SCHEMA_NO_BACKEND);
-	dse_destroy(my_pschemadse);
-	if (rc)
+	if (rc) {
+		dse_destroy(my_pschemadse);
 		return LDAP_SUCCESS;
-	else {
+	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
 				"schema file validation failed\n" );
 		return LDAP_OBJECT_CLASS_VIOLATION;
