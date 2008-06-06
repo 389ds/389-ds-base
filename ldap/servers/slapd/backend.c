@@ -169,7 +169,7 @@ slapi_be_issuffix( const Slapi_Backend *be, const Slapi_DN *suffix )
 int
 be_isdeleted( const Slapi_Backend *be )
 {
-	return BE_STATE_DELETED == be->be_state;
+	return ((be == NULL) || (BE_STATE_DELETED == be->be_state));
 }
 
 void 

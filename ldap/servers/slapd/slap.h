@@ -776,8 +776,8 @@ struct slapdplugin {
 			IFP	plg_un_db_register_oc_callback; /* Register a function to call when a operation is applied to a given ObjectClass */
 			IFP	plg_un_db_init_instance;  /* initializes new db instance */
 			IFP	plg_un_db_wire_import;    /* fast replica update */
-			IFP	plg_un_db_add_schema;     /* add schema */
 			IFP	plg_un_db_verify;	      /* verify db files */
+			IFP	plg_un_db_add_schema;     /* add schema */
 		} plg_un_db;
 #define plg_bind		plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind		plg_un.plg_un_db.plg_un_db_unbind
