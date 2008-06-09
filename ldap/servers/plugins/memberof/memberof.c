@@ -2188,9 +2188,9 @@ int memberof_fix_memberof(char *dn, char *filter_str)
 /* memberof_fix_memberof_callback()
  * Add initial and/or fix up broken group list in entry
  *
- * 1. Make sure direct membership groups are in the entry
- * 2. Add all groups that current group list allows through nested membership
- * 3. Trim groups that have no relationship to entry
+ * 1. Remove all present memberOf values
+ * 2. Add direct group membership memberOf values
+ * 3. Add indirect group membership memberOf values
  */
 int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 {
@@ -2198,14 +2198,12 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	char *dn = slapi_entry_get_dn(e);
 	memberof_add_groups data = {dn, dn};
 
-	/* step 1. and step 2. */
+	/* step 1 */
+	slapi_entry_attr_delete(e, MEMBEROF_ATTR);
+
+	/* step 2 and 3 */
 	rc = memberof_call_foreach_dn(0, dn, MEMBEROF_GROUP_ATTR, 
 		memberof_add_groups_search_callback, &data);
-	if(0 == rc)
-	{
-		/* step 3. */
-		rc = memberof_test_membership_callback(e, 0);
-	}
 
 	return rc;
 }
