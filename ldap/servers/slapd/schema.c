@@ -2723,7 +2723,7 @@ read_oc_ldif_return( int retVal,
  *                         DSE_SCHEMA_NO_CHECK -- schema won't be checked
  *                         DSE_SCHEMA_NO_GLOCK -- don't lock global resources
  *                         DSE_SCHEMA_LOCKED   -- already locked with
- *                                                slapi_load_schemafile_lock;
+ *                                                reload_schemafile_lock;
  *                                                no further lock needed
  *     schema_ds4x_compat: if non-zero, act like Netscape DS 4.x
  *
@@ -3143,8 +3143,8 @@ slapi_check_at_sup_dependency(char *sup, char *oid)
  *        DSE_SCHEMA_NO_GLOCK -- locking of global resources is turned off;
  *                               this saves time during initialization since 
  *                               the server operates in single threaded mode 
- *                               at that time or in slapi_load_schemafile_lock.
- *        DSE_SCHEMA_LOCKED   -- already locked with slapi_load_schemafile_lock;
+ *                               at that time or in reload_schemafile_lock.
+ *        DSE_SCHEMA_LOCKED   -- already locked with reload_schemafile_lock;
  *                               no further lock needed
  *
  * if is_user_defined is true, force attribute type to be user defined.
@@ -4897,14 +4897,14 @@ schema_expand_objectclasses_nolock( Slapi_Entry *e )
 
 /* lock to protect both objectclass and schema_dse */
 static void
-slapi_load_schemafile_lock()
+reload_schemafile_lock()
 {
 	oc_lock_write();
 	schema_dse_lock_write();
 }
 
 static void
-slapi_load_schemafile_unlock()
+reload_schemafile_unlock()
 {
 	schema_dse_unlock();
 	oc_unlock();
@@ -4947,7 +4947,7 @@ slapi_reload_schema_files(char *schemadir)
 		return LDAP_LOCAL_ERROR;
 	}
 	slapi_be_Wlock(be);	/* be lock must be outer of schemafile lock */
-	slapi_load_schemafile_lock();
+	reload_schemafile_lock();
 	attr_syntax_delete_all();
 	oc_delete_all_nolock();
 	rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
@@ -4955,11 +4955,11 @@ slapi_reload_schema_files(char *schemadir)
 	if (rc) {
 		dse_destroy(pschemadse);
 		pschemadse = my_pschemadse;
-		slapi_load_schemafile_unlock();
+		reload_schemafile_unlock();
 		slapi_be_Unlock(be);
 		return LDAP_SUCCESS;
 	} else {
-		slapi_load_schemafile_unlock();
+		reload_schemafile_unlock();
 		slapi_be_Unlock(be);
 		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
 				"schema file reload failed\n" );

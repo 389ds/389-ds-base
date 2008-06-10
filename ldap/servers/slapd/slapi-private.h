@@ -1084,7 +1084,7 @@ void schema_expand_objectclasses_nolock( Slapi_Entry *e );
 
 #define DSE_SCHEMA_NO_GLOCK          0x0010  /* don't lock global resources */
 #define DSE_SCHEMA_LOCKED            0x0020  /* already locked with
-                                              * slapi_load_schemafile_lock;
+                                              * reload_schemafile_lock;
                                               * no further lock needed */
 #define DSE_SCHEMA_USER_DEFINED_ONLY 0x0100  /* refresh user defined schema */
 

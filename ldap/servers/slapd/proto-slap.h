@@ -857,9 +857,6 @@ const CSN *g_get_global_schema_csn();
 /* csn is consumed. */
 void g_set_global_schema_csn(CSN *csn);
 void slapi_schema_expand_objectclasses( Slapi_Entry *e );
-/* lock to protect both objectclass and schema_dse */
-void slapi_load_schemafile_lock( void );
-void slapi_load_schemafile_unlock( void );
 /* API to validate the schema files */
 int slapi_validate_schema_files(char *schemadir);
 /* API to reload the schema files */
