@@ -236,6 +236,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak.pl \
 	ldap/admin/src/scripts/template-db2index.pl \
 	ldap/admin/src/scripts/template-db2ldif.pl \
+	ldap/admin/src/scripts/template-fixup-memberof.pl \
 	ldap/admin/src/scripts/template-ldif2db.pl \
 	ldap/admin/src/scripts/template-ns-accountstatus.pl \
 	ldap/admin/src/scripts/template-ns-activate.pl \
