@@ -2285,7 +2285,7 @@ unlock_and_return:
 
     if (ret != LDAP_SUCCESS)
     {
-        if (be && !be_isdeleted(be))
+        if (be && *be && !be_isdeleted(*be))
         {
             slapi_be_Unlock(*be);
             *be = NULL;
