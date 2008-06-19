@@ -408,6 +408,8 @@ nsslapd-plugininitfunc: memberof_postop_init
 nsslapd-plugintype: postoperation
 nsslapd-pluginenabled: off
 nsslapd-plugin-depends-on-type: database
+memberOfGroupAttr: member
+memberOfAttr: memberOf
 
 dn: cn=Multimaster Replication Plugin,cn=plugins,cn=config
 objectclass: top

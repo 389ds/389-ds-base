@@ -276,7 +276,8 @@ libhttp_client_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libhttp_client_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
 libmemberof_plugin_la_LIBADD =
-am_libmemberof_plugin_la_OBJECTS = ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo
+am_libmemberof_plugin_la_OBJECTS = ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo \
+	ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo
 libmemberof_plugin_la_OBJECTS = $(am_libmemberof_plugin_la_OBJECTS)
 libmemberof_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -1620,7 +1621,9 @@ libcollation_plugin_la_LINK = $(CXXLINK)
 #------------------------
 # libmemberof-plugin
 #------------------------
-libmemberof_plugin_la_SOURCES = ldap/servers/plugins/memberof/memberof.c
+libmemberof_plugin_la_SOURCES = ldap/servers/plugins/memberof/memberof.c \
+	ldap/servers/plugins/memberof/memberof_config.c
+
 libmemberof_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libmemberof_plugin_la_LDFLAGS = -avoid-version
 
@@ -2666,6 +2669,9 @@ ldap/servers/plugins/memberof/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/memberof/$(DEPDIR)
 	@: > ldap/servers/plugins/memberof/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo:  \
+	ldap/servers/plugins/memberof/$(am__dirstamp) \
+	ldap/servers/plugins/memberof/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo:  \
 	ldap/servers/plugins/memberof/$(am__dirstamp) \
 	ldap/servers/plugins/memberof/$(DEPDIR)/$(am__dirstamp)
 libmemberof-plugin.la: $(libmemberof_plugin_la_OBJECTS) $(libmemberof_plugin_la_DEPENDENCIES) 
@@ -4041,6 +4047,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo
 	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.$(OBJEXT)
 	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo
+	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.$(OBJEXT)
+	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo
 	-rm -f ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.$(OBJEXT)
 	-rm -f ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo
 	-rm -f ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptdebug.$(OBJEXT)
@@ -4781,6 +4789,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_impl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof_config.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptdebug.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptimpl.Plo@am__quote@
@@ -6095,6 +6104,13 @@ ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo: ldap/servers/pl
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/memberof/memberof.c' object='ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmemberof_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo `test -f 'ldap/servers/plugins/memberof/memberof.c' || echo '$(srcdir)/'`ldap/servers/plugins/memberof/memberof.c
+
+ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo: ldap/servers/plugins/memberof/memberof_config.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmemberof_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo -MD -MP -MF ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof_config.Tpo -c -o ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo `test -f 'ldap/servers/plugins/memberof/memberof_config.c' || echo '$(srcdir)/'`ldap/servers/plugins/memberof/memberof_config.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof_config.Tpo ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof_config.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/memberof/memberof_config.c' object='ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmemberof_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo `test -f 'ldap/servers/plugins/memberof/memberof_config.c' || echo '$(srcdir)/'`ldap/servers/plugins/memberof/memberof_config.c
 
 lib/libadmin/libns_dshttpd_la-error.lo: lib/libadmin/error.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libadmin/libns_dshttpd_la-error.lo -MD -MP -MF lib/libadmin/$(DEPDIR)/libns_dshttpd_la-error.Tpo -c -o lib/libadmin/libns_dshttpd_la-error.lo `test -f 'lib/libadmin/error.c' || echo '$(srcdir)/'`lib/libadmin/error.c

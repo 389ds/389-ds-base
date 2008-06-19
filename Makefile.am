@@ -651,7 +651,8 @@ libcollation_plugin_la_LINK = $(CXXLINK)
 #------------------------
 # libmemberof-plugin
 #------------------------
-libmemberof_plugin_la_SOURCES= ldap/servers/plugins/memberof/memberof.c
+libmemberof_plugin_la_SOURCES= ldap/servers/plugins/memberof/memberof.c \
+	ldap/servers/plugins/memberof/memberof_config.c
 
 libmemberof_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libmemberof_plugin_la_LDFLAGS = -avoid-version
