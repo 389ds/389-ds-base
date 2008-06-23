@@ -294,6 +294,7 @@ static void repl5_inc_result_threadmain(void *param)
 		while (!finished)
 		{
 			conres = conn_read_result_ex(conn, NULL, NULL, NULL, &message_id, 0);
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: read result for message_id %d\n", message_id);
 			/* Timeout here means that we didn't block, not a real timeout */
 			if (CONN_TIMEOUT == conres)
 			{
@@ -328,6 +329,7 @@ static void repl5_inc_result_threadmain(void *param)
 		}
 		if (conres != CONN_TIMEOUT)
 		{
+			int should_finish = 0;
 			if (message_id) 
 			{
 				rd->last_message_id_received = message_id;
@@ -344,16 +346,18 @@ static void repl5_inc_result_threadmain(void *param)
 			}
 
 			conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
-			slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: result %d, %d, %d, %s\n", operation_code,connection_error,conres,ldap_error_string);
-			rd->result = repl5_inc_update_from_op_result(rd->prp, conres, connection_error, csn_str, uniqueid, replica_id, &finished, &(rd->num_changes_sent));
-			if (rd->result)
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: result %d, %d, %d, %d, %s\n", operation_code,connection_error,conres,message_id,ldap_error_string);
+			rd->result = repl5_inc_update_from_op_result(rd->prp, conres, connection_error, csn_str, uniqueid, replica_id, &should_finish, &(rd->num_changes_sent));
+			if (rd->result || should_finish)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: got op result %d\n", rd->result);
+				slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: got op result %d should finish %d\n", rd->result, should_finish);
 				/* If so then we need to take steps to abort the update process */
 				PR_Lock(rd->lock);
 				rd->abort = 1;
 				PR_Unlock(rd->lock);
 				/* We also need to log the error, including details stored from when the operation was sent */
+				/* we cannot finish yet - we still need to waitfor the pending results, then
+				   the main repl code will shut down this thread */
 			}
 		}
 		/* Should we stop ? */
