@@ -166,6 +166,10 @@ static int retrocl_create_be(const char *bedir)
     val.bv_len = strlen(val.bv_val);
     slapi_entry_add_values( e, "nsindextype", vals );
 
+    val.bv_val = "integerOrderingMatch";
+    val.bv_len = strlen(val.bv_val);
+    slapi_entry_add_values( e, "nsMatchingRule", vals );
+
     pb = slapi_pblock_new ();
     slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
 				     g_plg_identity[PLUGIN_RETROCL], 
