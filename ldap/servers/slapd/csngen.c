@@ -60,6 +60,9 @@
 #define STATE_FORMAT			 "%8x%8x%8x%4hx%4hx"
 #define STATE_LENGTH			 32
 #define MAX_VAL(x,y)			 ((x)>(y)?(x):(y))
+#define CSN_CALC_TSTAMP(gen)     ((gen)->state.sampled_time + \
+                                  (gen)->state.local_offset + \
+                                  (gen)->state.remote_offset)
 
 /*
  * **************************************************************************
@@ -273,8 +276,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
         gen->state.seq_num = 0;
     }
 
-    (*csn)->tstamp = gen->state.sampled_time + gen->state.local_offset + 
-                     gen->state.remote_offset;
+    (*csn)->tstamp = CSN_CALC_TSTAMP(gen);
     (*csn)->seqnum = gen->state.seq_num ++;
     (*csn)->rid = gen->state.rid;
 	(*csn)->subseqnum = 0;
@@ -308,8 +310,9 @@ void csngen_abort_csn (CSNGen *gen, const CSN *csn)
    of time so that it does not generate smaller csns */
 int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 {
-    time_t remote_time, remote_offset;
+    time_t remote_time, remote_offset, cur_time;
 	PRUint16 remote_seqnum;
+    int rc;
 
     if (gen == NULL || csn == NULL)
         return CSN_INVALID_PARAMETER;
@@ -319,21 +322,38 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 
     PR_RWLock_Wlock (gen->lock);
 
-	if (remote_seqnum > gen->state.seq_num )
-	{
-		if (remote_seqnum < CSN_MAX_SEQNUM)
-		{
-			gen->state.seq_num = remote_seqnum + 1;
-		}
-		else
-		{
-			remote_time++;
-		}
-	}
+    /* make sure we have the current time */
+    csngen_update_time();
+    cur_time = g_sampled_time;
 
-    if (remote_time >= gen->state.sampled_time)
+    /* make sure sampled_time is current */
+    /* must only call adjust_local_time if the current time is greater than
+       the generator state time */
+    if ((cur_time > gen->state.sampled_time) &&
+        (CSN_SUCCESS != (rc = _csngen_adjust_local_time(gen, cur_time))))
     {
-        remote_offset = remote_time - gen->state.sampled_time;
+        /* _csngen_adjust_local_time will log error */
+        PR_RWLock_Unlock (gen->lock);
+        csngen_dump_state(gen);
+        return rc;
+    }
+
+    cur_time = CSN_CALC_TSTAMP(gen);
+    if (remote_time >= cur_time)
+    {
+        if (remote_seqnum > gen->state.seq_num )
+        {
+            if (remote_seqnum < CSN_MAX_SEQNUM)
+            {
+                gen->state.seq_num = remote_seqnum + 1;
+            }
+            else
+            {
+                remote_time++;
+            }
+        }
+
+        remote_offset = remote_time - cur_time;
 		if (remote_offset > gen->state.remote_offset)
 		{
 			if (remote_offset <= CSN_MAX_TIME_ADJUST)
@@ -346,10 +366,18 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
                             "adjustment limit exceeded; value - %ld, limit - %ld\n",
                              remote_offset, (long)CSN_MAX_TIME_ADJUST);
 				PR_RWLock_Unlock (gen->lock);
+				csngen_dump_state(gen);
 				return CSN_LIMIT_EXCEEDED;
 			}
 		}
-    }
+	}
+	else if (gen->state.remote_offset > 0)
+	{
+		/* decrease remote offset? */
+		/* how to decrease remote offset but ensure that we don't
+		   generate a duplicate CSN, or a CSN smaller than one we've already
+		   generated? */
+	}
 
     PR_RWLock_Unlock (gen->lock);
 
@@ -576,7 +604,14 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 {
     time_t time_diff = cur_time - gen->state.sampled_time;
 
-    if (time_diff > 0)
+    if (time_diff == 0) {
+        /* This is a no op - _csngen_adjust_local_time should never be called
+           in this case, because there is nothing to adjust - but just return
+           here to protect ourselves
+        */
+        return CSN_SUCCESS;
+    }
+    else if (time_diff > 0)
     {
         gen->state.sampled_time = cur_time;
         if (time_diff > gen->state.local_offset)
@@ -588,7 +623,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 
         return CSN_SUCCESS;
     }
-    else   /* time was turend back */
+    else   /* time was turned back */
     {
         if (abs (time_diff) > CSN_MAX_TIME_ADJUST)
         {

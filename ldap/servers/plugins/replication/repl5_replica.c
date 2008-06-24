@@ -1043,7 +1043,7 @@ replica_set_referrals(Replica *r,const Slapi_ValueSet *vs)
 }
 
 int 
-replica_update_csngen_state (Replica *r, const RUV *ruv)
+replica_update_csngen_state_ext (Replica *r, const RUV *ruv, const CSN *extracsn)
 {
     int rc = 0;
     CSNGen *gen;
@@ -1057,9 +1057,15 @@ replica_update_csngen_state (Replica *r, const RUV *ruv)
         return -1;
     }
 
-    if (csn == NULL) /* ruv contains no csn - we are done */
+    if ((csn == NULL) && (extracsn == NULL)) /* ruv contains no csn and no extra - we are done */
     {
         return 0;
+    }
+
+    if (csn_compare(extracsn, csn) > 0) /* extracsn > csn */
+    {
+        csn_free (&csn); /* free */
+        csn = (CSN*)extracsn; /* use this csn to do the update */
     }
 
     PR_Lock(r->repl_lock);
@@ -1068,21 +1074,23 @@ replica_update_csngen_state (Replica *r, const RUV *ruv)
     PR_ASSERT (gen);
 
     rc = csngen_adjust_time (gen, csn);
-    if (rc != CSN_SUCCESS)
-    {
-        rc = -1;
-        goto done;
-    }
-            
-    rc = 0;
+    /* rc will be either CSN_SUCCESS (0) or clock skew */
 
 done:
 
     PR_Unlock(r->repl_lock);
-    if (csn)
+    if (csn != extracsn) /* do not free the given csn */
+    {
         csn_free (&csn);
+    }
 
     return rc;  
+}
+
+int 
+replica_update_csngen_state (Replica *r, const RUV *ruv)
+{
+    return replica_update_csngen_state_ext(r, ruv, NULL);
 }
 
 /* 
