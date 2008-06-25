@@ -901,20 +901,72 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	op_to_sdn = slapi_sdn_new_dn_byref(op_to);
 	slapi_search_internal_get_entry( op_to_sdn, attrlist,
 		&e, memberof_get_plugin_id());
-	slapi_sdn_free(&op_to_sdn);
 	if(!e)
 	{
+		/* In the case of a delete, we need to worry about the
+		 * missing entry being a nested group.  There's a small
+		 * window where another thread may have deleted a nested
+		 * group that our group_dn entry refers to.  This has the
+		 * potential of us missing some indirect member entries
+		 * that need to be updated. */
 		if(LDAP_MOD_DELETE == mod_op)
 		{
-			/* in the case of delete we must guard against
-			 * having groups in a nested chain having been
-			 * deleted during the window of opportunity
-			 * and we must fall back to testing all members
-			 * of the (potentially deleted group) for valid
-			 * membership given the delete operation that
-			 * triggered this operation
-			 */
-			memberof_test_membership(pb, config, group_dn);
+			Slapi_PBlock *search_pb = slapi_pblock_new();
+			Slapi_DN *base_sdn = 0;
+			Slapi_Backend *be = 0;
+			char *filter_str = 0;
+			int n_entries = 0;
+
+			/* We can't tell for sure if the op_to entry is a
+			 * user or a group since the entry doesn't exist
+			 * anymore.  We can safely ignore the missing entry
+			 * if no other entries have a memberOf attribute that
+			 * points to the missing entry. */
+			be = slapi_be_select(op_to_sdn);
+			if(be)
+			{
+				base_sdn = (Slapi_DN*)slapi_be_getsuffix(be,0);
+			}
+
+			if(base_sdn)
+			{
+				filter_str = slapi_ch_smprintf("(%s=%s)",
+				config->memberof_attr, op_to);
+			}
+
+			if(filter_str)
+			{
+				slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
+					LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
+					memberof_get_plugin_id(), 0);
+
+				if (slapi_search_internal_pb(search_pb))
+				{
+					/* get result and log an error */
+					int res = 0;
+					slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+					"memberof_modop_one_replace_r: error searching for members: "
+					"%d", res);
+				} else {
+					slapi_pblock_get(search_pb, SLAPI_NENTRIES, &n_entries);
+
+					if(n_entries > 0)
+					{
+						/* We want to fixup the membership for the
+						 * entries that referred to the missing group
+						 * entry.  This will fix the references to
+						 * the missing group as well as the group
+						 * represented by op_this. */
+						memberof_test_membership(pb, config, op_to);
+					}
+				}
+
+				slapi_free_search_results_internal(search_pb);
+				slapi_ch_free_string(&filter_str);
+			}
+
+			slapi_pblock_destroy(search_pb);
 		}
 
 		goto bail;
@@ -1108,6 +1160,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	}
 
 bail:
+	slapi_sdn_free(&op_to_sdn);
 	slapi_value_free(&to_dn_val);
 	slapi_value_free(&this_dn_val);
 	slapi_entry_free(e);
@@ -1243,50 +1296,61 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 {
 	int rc = 0;
 	Slapi_Value *val = 0;
+	Slapi_Value *op_this_val = 0;
 	int last_size = 0;
 	char *last_str = 0;
 	int hint = slapi_attr_first_value(attr, &val);
 
+	op_this_val = slapi_value_new_string(op_this);
+
 	while(val)
 	{
 		char *dn_str = 0;
-		struct berval *bv = (struct berval *)slapi_value_get_berval(val);
+		struct berval *bv = 0;
 
-		if(last_size > bv->bv_len)
+		/* We don't want to process a memberOf operation on ourselves. */
+		if(0 != memberof_compare(config, &val, &op_this_val))
 		{
-			dn_str = last_str;
-		}
-		else
-		{
-			int the_size = (bv->bv_len * 2) + 1;
+			bv = (struct berval *)slapi_value_get_berval(val);
 
-			if(last_str)
-				slapi_ch_free_string(&last_str);
+			if(last_size > bv->bv_len)
+			{
+				dn_str = last_str;
+			}
+			else
+			{
+				int the_size = (bv->bv_len * 2) + 1;
 
-			dn_str = (char*)slapi_ch_malloc(the_size);
+				if(last_str)
+					slapi_ch_free_string(&last_str);
 
-			last_str = dn_str;
-			last_size = the_size;
-		}
+				dn_str = (char*)slapi_ch_malloc(the_size);
 
-		memset(dn_str, 0, last_size);
+				last_str = dn_str;
+				last_size = the_size;
+			}
 
-		strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
+			memset(dn_str, 0, last_size);
 
-		/* If we're doing a replace (as we would in the MODRDN case), we need
-		 * to specify the new group DN value */
-		if(mod == LDAP_MOD_REPLACE)
-		{
-			memberof_modop_one_replace_r(pb, config, mod, group_dn, op_this, group_dn,
-					dn_str, stack);
-		}
-		else
-		{
-			memberof_modop_one_r(pb, config, mod, group_dn, op_this, dn_str, stack);
+			strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
+
+			/* If we're doing a replace (as we would in the MODRDN case), we need
+			 * to specify the new group DN value */
+			if(mod == LDAP_MOD_REPLACE)
+			{
+				memberof_modop_one_replace_r(pb, config, mod, group_dn, op_this,
+						group_dn, dn_str, stack);
+			}
+			else
+			{
+				memberof_modop_one_r(pb, config, mod, group_dn, op_this, dn_str, stack);
+			}
 		}
 
 		hint = slapi_attr_next_value(attr, hint, &val);
 	}
+
+	slapi_value_free(&op_this_val);
 
 	if(last_str)
 		slapi_ch_free_string(&last_str);
