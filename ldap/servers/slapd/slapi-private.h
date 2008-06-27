@@ -574,6 +574,7 @@ typedef struct slapi_operation_parameters
 			char **search_attrs;
 			int search_attrsonly;
 			int search_is_and;
+			char **search_gerattrs;
 		} p_search;
 
 		struct abandon_parameters
@@ -726,6 +727,11 @@ struct slapi_componentid * plugin_get_default_component_id();
 
 /* return the list of attr defined in the schema matching the attr flags */
 char ** slapi_schema_list_attribute_names(unsigned long flag);
+/* return the list of attributes belonging to the objectclass */
+char ** slapi_schema_list_objectclass_attributes(const char *ocname_or_oid,
+                                                 PRUint32 flags);
+char * slapi_schema_get_superior_name(const char *ocname_or_oid);
+
 CSN *dup_global_schema_csn();
 
 /* misc function for the chaining backend */
@@ -787,13 +793,14 @@ int slapi_config_get_readonly();
  */
 void charray_add( char ***a, char *s );
 void charray_merge( char ***a, char **s, int copy_strs );
+void charray_merge_nodup( char ***a, char **s, int copy_strs );
 void charray_free( char **array );
 int charray_inlist( char **a, char *s );
 int charray_utf8_inlist( char **a, char *s );
 char ** charray_dup( char **a );
 char ** str2charray( char *str, char *brkstr );
 char ** str2charray_ext( char *str, char *brkstr, int allow_dups );
-int charray_remove(char **a,const char *s);
+int charray_remove(char **a, const char *s, int freeit);
 char ** cool_charray_dup( char **a );
 void cool_charray_free( char **array );
 void charray_subtract( char **a, char **b, char ***c );
@@ -1124,10 +1131,6 @@ char* slapd_get_tmp_dir( void );
 const char* escape_string (const char* str, char buf[BUFSIZ]);
 const char* escape_string_with_punctuation(const char* str, char buf[BUFSIZ]);
 const char* escape_filter_value(const char* str, int len, char buf[BUFSIZ]);
-void charray_add( char ***a, char *s );
-void charray_free(char **array);
-int charray_remove(char **a,const char *s);
-int charray_inlist( char **a, char *s );
 
 char *slapi_berval_get_string_copy(const struct berval *bval);
 

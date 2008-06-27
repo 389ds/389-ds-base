@@ -46,7 +46,13 @@
 /* news2 is optional, provided as a convenience */
 /* capacity is the capacity of the gerstr, size is the current length */
 static void
-_append_gerstr(char **gerstr, size_t *capacity, size_t *size, const char *news, const char *news2)
+_append_gerstr(
+	char **gerstr,
+	size_t *capacity,
+	size_t *size,
+	const char *news,
+	const char *news2
+	)
 {
 	size_t len;
 	size_t increment = 128;
@@ -90,7 +96,12 @@ _append_gerstr(char **gerstr, size_t *capacity, size_t *size, const char *news, 
 }
 
 static int
-_ger_g_permission_granted ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf )
+_ger_g_permission_granted (
+	Slapi_PBlock *pb,
+	Slapi_Entry *e,
+	const char *subjectdn,
+	char **errbuf
+	)
 {
 	char *proxydn = NULL;
 	Slapi_DN *requestor_sdn, *entry_sdn;
@@ -151,6 +162,14 @@ _ger_g_permission_granted ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf )
 		goto bailout;
 	}
 
+	/* if the requestor and the subject user are identical, let's grant it */
+	if ( strcasecmp ( slapi_sdn_get_ndn(requestor_sdn), subjectdn ) == 0)
+	{
+		/* Requestor should see his own permission rights on any entry */
+		rc = LDAP_SUCCESS;
+		goto bailout;
+	}
+
 	aclutil_str_appened ( errbuf, "get-effective-rights: requestor has no g permission on the entry" );
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 				"_ger_g_permission_granted: %s\n", *errbuf);
@@ -166,11 +185,17 @@ bailout:
 }
 
 static int
-_ger_parse_control ( Slapi_PBlock *pb, char **subjectndn, int *iscritical, char **errbuf )
+_ger_parse_control (
+	Slapi_PBlock *pb,
+	char **subjectndn,
+	int *iscritical,
+	char **errbuf
+	)
 {
 	LDAPControl **requestcontrols;
 	struct berval *subjectber;
 	BerElement *ber;
+	int subjectndnlen = 0;
 
 	if (NULL == subjectndn)
 	{
@@ -231,7 +256,8 @@ _ger_parse_control ( Slapi_PBlock *pb, char **subjectndn, int *iscritical, char 
 	 * (see section 9 of RFC 2829) only. It also only supports the "dnAuthzId"
 	 * flavor, which looks like "dn:<DN>" where null <DN> is for anonymous.
 	 */
-	if ( NULL == *subjectndn || strlen (*subjectndn) < 3 ||
+	subjectndnlen = strlen(*subjectndn);
+	if ( NULL == *subjectndn || subjectndnlen < 3 ||
 		 strncasecmp ( "dn:", *subjectndn, 3 ) != 0 )
 	{
 		aclutil_str_appened ( errbuf, "get-effective-rights: subject is not dnAuthzId" );
@@ -239,7 +265,8 @@ _ger_parse_control ( Slapi_PBlock *pb, char **subjectndn, int *iscritical, char 
 		return LDAP_INVALID_SYNTAX;
 	}
 
-	strcpy ( *subjectndn, *subjectndn + 3 );
+	/* memmove is safe for overlapping copy */
+	memmove ( *subjectndn, *subjectndn + 3, subjectndnlen - 2);/* 1 for '\0' */
 	slapi_dn_normalize ( *subjectndn );
 	return LDAP_SUCCESS;
 }
@@ -533,6 +560,27 @@ _ger_get_attr_rights (
 	return attrrights;
 }
 
+#define GER_GET_ATTR_RIGHTS(attrs) \
+	for (thisattr = (attrs); thisattr && *thisattr; thisattr++) \
+	{ \
+		_ger_get_attr_rights (gerpb, e, subjectndn, *thisattr, \
+						gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf); \
+		isfirstattr = 0; \
+	} \
+
+#define GER_GET_ATTR_RIGHTA_EXT(c, inattrs, exattrs); \
+	for ( i = 0; attrs[i]; i++ ) \
+	{ \
+		if ((c) != *attrs[i] && charray_inlist((inattrs), attrs[i]) && \
+				!charray_inlist((exattrs), attrs[i])) \
+		{ \
+			_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i], \
+				gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf ); \
+			isfirstattr = 0; \
+		} \
+	}
+
+
 void
 _ger_get_attrs_rights (
 	Slapi_PBlock *gerpb,
@@ -552,12 +600,76 @@ _ger_get_attrs_rights (
 
 	if (attrs && *attrs)
 	{
-		int i;
-		for ( i = 0; attrs[i]; i++ )
-		{
-			_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i], gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
-			isfirstattr = 0;
+		int i = 0;
+		char **allattrs = NULL;
+		char **opattrs = NULL;
+		char **myattrs = NULL;
+		char **thisattr = NULL;
+		int hasstar = charray_inlist(attrs, "*");
+		int hasplus = charray_inlist(attrs, "+");
+		Slapi_Attr *objclasses = NULL;
+		Slapi_ValueSet *objclassvals = NULL;
+
+		/* get all attrs available for the entry */
+		slapi_entry_attr_find(e, "objectclass", &objclasses);
+		if (NULL != objclasses) {
+			Slapi_Value *v;
+			slapi_attr_get_valueset(objclasses, &objclassvals);
+			i = slapi_valueset_first_value(objclassvals, &v);
+			if (-1 != i) {
+				allattrs = slapi_schema_list_objectclass_attributes(
+							(const char *)v->bv.bv_val,
+							SLAPI_OC_FLAG_REQUIRED|SLAPI_OC_FLAG_ALLOWED);
+				/* add "aci" to the allattrs to adjust to do_search */
+				charray_add(&allattrs, slapi_attr_syntax_normalize("aci"));
+				while (-1 != i)
+				{
+					i = slapi_valueset_next_value(objclassvals, i, &v);
+					if (-1 != i)
+					{
+						myattrs = slapi_schema_list_objectclass_attributes(
+							(const char *)v->bv.bv_val,
+							SLAPI_OC_FLAG_REQUIRED|SLAPI_OC_FLAG_ALLOWED);
+						charray_merge_nodup(&allattrs, myattrs, 1/*copy_strs*/);
+						charray_free(myattrs);
+					}
+				}
+			}
 		}
+
+		/* get operational attrs */
+		opattrs = slapi_schema_list_attribute_names(SLAPI_ATTR_FLAG_OPATTR);
+
+		if (hasstar && hasplus)
+		{
+			GER_GET_ATTR_RIGHTS(allattrs);
+			GER_GET_ATTR_RIGHTS(opattrs);
+		}
+		else if (hasstar)
+		{
+			GER_GET_ATTR_RIGHTS(allattrs);
+			GER_GET_ATTR_RIGHTA_EXT('*', opattrs, allattrs);
+		}
+		else if (hasplus)
+		{
+			GER_GET_ATTR_RIGHTS(opattrs);
+			GER_GET_ATTR_RIGHTA_EXT('+', allattrs, opattrs);
+		}
+		else
+		{
+			for ( i = 0; attrs[i]; i++ )
+			{
+				if (charray_inlist(allattrs, attrs[i]) ||
+					charray_inlist(opattrs, attrs[i]))
+				{
+					_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i],
+						gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
+					isfirstattr = 0;
+				}
+			}
+		}
+		charray_free(allattrs);
+		charray_free(opattrs);
 	}
 	else
 	{
@@ -569,7 +681,8 @@ _ger_get_attrs_rights (
 			if ( ! slapi_attr_flag_is_set (attr, SLAPI_ATTR_FLAG_OPATTR) )
 			{
 				slapi_attr_get_type ( attr, &type );
-				_ger_get_attr_rights ( gerpb, e, subjectndn, type, gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
+				_ger_get_attr_rights ( gerpb, e, subjectndn, type, gerstr,
+								gerstrsize, gerstrcap, isfirstattr, errbuf );
 				isfirstattr = 0;
 			}
 			prevattr = attr;
@@ -648,6 +761,131 @@ bailout:
 }
 
 int
+_ger_generate_template_entry (
+	Slapi_PBlock    *pb
+	)
+{
+	Slapi_Entry	*e = NULL;
+	char **gerattrs = NULL;
+	char **attrs = NULL;
+	char *templateentry = NULL;
+	char *object = NULL;
+	char *superior = NULL;
+	char *p = NULL;
+	int siz = 0;
+	int len = 0;
+	int i = 0;
+	int notfirst = 0;
+	int rc = LDAP_SUCCESS;
+
+	slapi_pblock_get( pb, SLAPI_SEARCH_GERATTRS, &gerattrs );
+	if (NULL == gerattrs)
+	{
+		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
+						"Objectclass info is expected "
+						"in the attr list, e.g., \"*@person\"\n");
+		rc = LDAP_SUCCESS;
+		goto bailout;
+	}
+	for (i = 0; gerattrs && gerattrs[i]; i++)
+	{
+		object = strchr(gerattrs[i], '@');
+		if (NULL != object && '\0' != *(++object))
+		{
+			break;
+		}
+	}
+	if (NULL == object)
+	{
+		rc = LDAP_SUCCESS;	/* no objectclass info; ok to return */
+		goto bailout;
+	}
+	attrs = slapi_schema_list_objectclass_attributes(
+						(const char *)object, SLAPI_OC_FLAG_REQUIRED);
+	if (NULL == attrs)
+	{
+		rc = LDAP_SUCCESS;	/* bogus objectclass info; ok to return */
+		goto bailout;
+	}
+	for (i = 0; attrs[i]; i++)
+	{
+		if (0 == strcasecmp(attrs[i], "objectclass"))
+		{
+			/* <*attrp>: <object>\n\0 */
+			siz += strlen(attrs[i]) + 4 + strlen(object);
+		}
+		else
+		{
+			/* <*attrp>: dummy\n\0 */
+			siz += strlen(attrs[i]) + 4 + 5;
+		}
+	}
+	siz += 32 + strlen(object); /* dn: cn=<template_name>\n\0 */
+	templateentry = (char *)slapi_ch_malloc(siz);
+	PR_snprintf(templateentry, siz,
+					"dn: cn=template_%s_objectclass\n", object);
+	for (--i; i >= 0; i--)
+	{
+		len = strlen(templateentry);
+		p = templateentry + len;
+		if (0 == strcasecmp(attrs[i], "objectclass"))
+		{
+			PR_snprintf(p, siz - len, "%s: %s\n", attrs[i], object);
+		}
+		else
+		{
+			PR_snprintf(p, siz - len, "%s: dummy\n", attrs[i]);
+		}
+	}
+	charray_free(attrs);
+
+	while ((superior = slapi_schema_get_superior_name(object)) &&
+			(0 != strcasecmp(superior, "top")))
+	{
+		if (notfirst)
+		{
+			slapi_ch_free_string(&object);
+		}
+		notfirst = 1;
+		object = superior;
+		attrs = slapi_schema_list_objectclass_attributes(
+						(const char *)superior, SLAPI_OC_FLAG_REQUIRED);
+		for (i = 0; attrs && attrs[i]; i++)
+		{
+			if (0 == strcasecmp(attrs[i], "objectclass"))
+			{
+				/* <*attrp>: <object>\n\0 */
+				siz += strlen(attrs[i]) + 4 + strlen(object);
+			}
+		}
+		templateentry = (char *)slapi_ch_realloc(templateentry, siz);
+		for (--i; i >= 0; i--)
+		{
+			len = strlen(templateentry);
+			p = templateentry + len;
+			if (0 == strcasecmp(attrs[i], "objectclass"))
+			{
+				PR_snprintf(p, siz - len, "%s: %s\n", attrs[i], object);
+			}
+		}
+		charray_free(attrs);
+	}
+	slapi_ch_free_string(&superior);
+	siz += 18; /* objectclass: top\n\0 */
+	len = strlen(templateentry);
+	templateentry = (char *)slapi_ch_realloc(templateentry, siz);
+	p = templateentry + len;
+	PR_snprintf(p, siz - len, "objectclass: top\n");
+
+	e = slapi_str2entry(templateentry, SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF);
+	/* set the template entry to send the result to clients */
+	slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, e);
+bailout:
+	slapi_ch_free_string(&templateentry);
+	return rc;
+}
+
+int
 acl_get_effective_rights (
 	Slapi_PBlock    *pb,
 	Slapi_Entry	    *e,			/* target entry */
@@ -664,9 +902,19 @@ acl_get_effective_rights (
 	size_t gerstrsize = 0;
 	size_t gerstrcap = 0;
 	int iscritical = 1;
-	int rc;
+	int rc = LDAP_SUCCESS;
 
 	*errbuf = '\0';
+
+	if (NULL == e)	/* create a template entry from SLAPI_SEARCH_GERATTRS */
+	{
+		rc = _ger_generate_template_entry ( pb );
+		slapi_pblock_get ( pb, SLAPI_SEARCH_RESULT_ENTRY, &e );
+		if ( rc != LDAP_SUCCESS || NULL == e )
+		{
+			goto bailout;
+		}
+	}
 
 	/*
 	 * Get the subject
@@ -681,7 +929,7 @@ acl_get_effective_rights (
 	 * The requestor should have g permission on the entry
 	 * to get the effective rights.
 	 */
-	rc = _ger_g_permission_granted (pb, e, errbuf);
+	rc = _ger_g_permission_granted (pb, e, subjectndn, errbuf);
 	if ( rc != LDAP_SUCCESS )
 	{
 		goto bailout;
@@ -718,7 +966,7 @@ bailout:
 
 	slapi_log_error (SLAPI_LOG_ACLSUMMARY, plugin_name,
 		"###### Effective Rights on Entry (%s) for Subject (%s) ######\n",
-		slapi_entry_get_ndn (e), subjectndn);
+		e?slapi_entry_get_ndn(e):"null", subjectndn?subjectndn:"null");
 	slapi_log_error (SLAPI_LOG_ACLSUMMARY, plugin_name, "%s\n", gerstr);
 
 	/* Restore pb */

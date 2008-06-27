@@ -477,7 +477,8 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                                 } else
                                 if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
 					charray_remove(cb->config.chaining_components,
-						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)),
+						0 /* freeit */);
                                 }
                         }
                         if (NULL == mods[i]->mod_bvalues) {
@@ -513,7 +514,8 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                                 if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
                                         charray_remove(cb->config.chainable_components,
                                                 slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
-));
+),
+												0 /* freeit */);
                                 }
                         }
                         if (NULL == mods[i]->mod_bvalues) {

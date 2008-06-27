@@ -1203,14 +1203,15 @@ send_ldap_search_entry_ext(
 	int *dontsendattr= NULL;
 	Slapi_Operation *operation;
 	int real_attrs_only = 0;
-   	LDAPControl		**ctrlp = 0;
+	LDAPControl		**ctrlp = 0;
+	Slapi_Entry *gerentry = NULL;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_ldap_search_entry (%s)\n",
-	    slapi_entry_get_dn_const(e), 0, 0 );
+	    e?slapi_entry_get_dn_const(e):"null", 0, 0 );
 
-	if ( conn == NULL ) {
+	if ( conn == NULL && e ) {
 		if ( op->o_search_entry_handler != NULL ) {
 			if (( rc = (*op->o_search_entry_handler)(
 			    pb->pb_backend, conn, op, e )) == 0 ) {
@@ -1224,7 +1225,7 @@ send_ldap_search_entry_ext(
 	}
 
 #if !defined(DISABLE_ACL_CHECK)
-	if ( plugin_call_acl_plugin (pb, e, attrs, NULL, 
+	if ( e && plugin_call_acl_plugin (pb, e, attrs, NULL, 
 				    SLAPI_ACL_READ, ACLPLUGIN_ACCESS_READ_ON_ENTRY, NULL ) != LDAP_SUCCESS ) {
 		LDAPDebug( LDAP_DEBUG_ACL, "acl: access to entry not allowed\n",
 		    0, 0, 0 );
@@ -1232,21 +1233,8 @@ send_ldap_search_entry_ext(
 	}
 #endif
 
-	/* Check for possible get_effective_rights control */
-	if ( operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS ) {
-		char *errbuf = NULL;
-		rc = plugin_call_acl_plugin (pb, e, attrs, NULL, SLAPI_ACL_ALL,
-				ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS, &errbuf);
-		if ( rc != LDAP_SUCCESS ) {
-			LDAPDebug( LDAP_DEBUG_ANY,
-			"Failed to get effective rights for entry (%s), rc=%d\n",
-		    slapi_entry_get_dn_const(e), rc, 0 );
-			/* Send error result and abort op if the control is critical */
-			send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
-			slapi_ch_free ( (void**)&errbuf );
-			return( -1 );
-		}
-		slapi_ch_free ( (void**)&errbuf );
+	if (NULL == e) {
+		return 1;	/* everything is ok - don't send the result */
 	}
 
 	if ( (ber = der_alloc()) == NULL ) {
@@ -1454,6 +1442,10 @@ log_and_return:
 	    }
 	}
 
+	if (gerentry)
+	{
+		slapi_entry_free(gerentry);
+	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_search_entry\n", 0, 0, 0 );
 exit:
 	return( rc );

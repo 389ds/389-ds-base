@@ -118,6 +118,48 @@ charray_merge(
     (*a)[n + nn] = NULL;
 }
 
+/*
+ * charray_merge_nodup:
+ *     merge a string array (second arg) into the first string array 
+ *     unless the each string is in the first string array.
+ */
+void
+charray_merge_nodup(
+    char    ***a,
+    char    **s,
+    int        copy_strs
+)
+{
+    int  i, j, n, nn;
+    char **dupa;
+
+    if ( (s == NULL) || (s[0] == NULL) )
+        return;
+
+    for ( n = 0; *a != NULL && (*a)[n] != NULL; n++ ) {
+        ;    /* NULL */
+    }
+    for ( nn = 0; s[nn] != NULL; nn++ ) {
+        ;    /* NULL */
+    }
+
+    dupa = (char **)slapi_ch_calloc(1, (n+nn+1) * sizeof(char *));
+    memcpy(dupa, *a, sizeof(char *) * n);
+    slapi_ch_free((void **)a);
+
+    for ( i = 0, j = 0; i < nn; i++ ) {
+        if (!charray_inlist(dupa, s[i])) { /* skip if s[i] is already in *a */
+            if ( copy_strs ) {
+                dupa[n+j] = slapi_ch_strdup( s[i] );
+            } else {
+                dupa[n+j] = s[i];
+            }
+            j++;
+        }
+    }
+    *a = dupa;
+}
+
 /* Routines which don't pound on malloc. Don't interchange the arrays with the
  * regular calls---they can end up freeing non-heap memory, which is wrong */
 
@@ -337,13 +379,15 @@ charray_print( char **a )
  * Remove the char string from the array of char strings.
  * Performs a case *insensitive* comparison!
  * Just shunts the strings down to cover the deleted string.
- * Doesn't free up the unused memory.
+ * freeit: none zero -> free the found string
+ *       :      zero -> Doesn't free up the unused memory.
  * Returns 1 if the entry found and removed, 0 if not.
  */
 int
 charray_remove(
     char **a,
-    const char *s
+    const char *s,
+    int freeit
 )
 {
     int i;
@@ -353,6 +397,10 @@ charray_remove(
         if ( !found && strcasecmp (a[i],s) == 0 )
         {
             found= 1;
+            if (freeit)
+            {
+                slapi_ch_free_string(&a[i]);
+            }
         }
         if (found)
         {

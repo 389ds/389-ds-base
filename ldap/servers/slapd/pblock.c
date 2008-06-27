@@ -1231,6 +1231,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			(*(char ***)value) = pblock->pb_op->o_params.p.p_search.search_attrs;
 		}
 		break;
+	case SLAPI_SEARCH_GERATTRS:
+		if(pblock->pb_op!=NULL)
+		{
+			(*(char ***)value) = pblock->pb_op->o_params.p.p_search.search_gerattrs;
+		}
+		break;
 	case SLAPI_SEARCH_ATTRSONLY:
 		if(pblock->pb_op!=NULL)
 		{
@@ -2507,6 +2513,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		if(pblock->pb_op!=NULL)
 		{
 			pblock->pb_op->o_params.p.p_search.search_attrs = (char **) value;
+		}
+		break;
+	case SLAPI_SEARCH_GERATTRS:
+		if(pblock->pb_op!=NULL)
+		{
+			pblock->pb_op->o_params.p.p_search.search_gerattrs = (char **) value;
 		}
 		break;
 	case SLAPI_SEARCH_ATTRSONLY:

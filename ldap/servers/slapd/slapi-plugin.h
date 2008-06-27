@@ -72,6 +72,9 @@ extern "C" {
 #define SLAPI_OP_FLAG_NEVER_CHAIN	0x00800 /* Do not chain the operation */	
 #define SLAPI_OP_FLAG_NO_ACCESS_CHECK  	0x10000 /* Do not check for access control - bypass them */
 
+#define SLAPI_OC_FLAG_REQUIRED	0x0001
+#define SLAPI_OC_FLAG_ALLOWED	0x0002
+
 /*
  * access control levels
  */
@@ -1703,6 +1706,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_SEARCH_FILTER         114
 #define SLAPI_SEARCH_STRFILTER      115
 #define SLAPI_SEARCH_ATTRS          116
+#define SLAPI_SEARCH_GERATTRS       1160
 #define SLAPI_SEARCH_ATTRSONLY      117
 #define SLAPI_SEARCH_IS_AND         118
 

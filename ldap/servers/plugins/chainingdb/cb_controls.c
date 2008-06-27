@@ -91,7 +91,7 @@ cb_unregister_supported_control( cb_backend * cb, char *controloid, unsigned lon
             return;
         }
         if ( controlops == 0 ) {
-            charray_remove(cb->config.forward_ctrls,controloid);
+            charray_remove(cb->config.forward_ctrls,controloid,0/* free it */);
         }
         PR_RWLock_Unlock(cb->config.rwl_config_lock);
     }

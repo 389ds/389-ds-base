@@ -953,67 +953,188 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
     int rc;
     int attrsonly;
     int done = 0;
-    Slapi_Entry *e;
+    Slapi_Entry *e = NULL;
     char **attrs = NULL;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
 
-	*pnentries = 0;
+    *pnentries = 0;
     
     while (!done) 
-	{
-		rc = be->be_next_search_entry(pb);
-		if (rc < 0) 
-		{
-			/*
-			 * Some exceptional condition occurred. Results have been sent, so we're finished.
-			 */
-			if (rc == SLAPI_FAIL_DISKFULL) 
-			{
-				operation_out_of_disk_space();
-			}
-			return -1;
-		} 
-		else 
-		{
-			slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
-			if (e == NULL) 
-			{
-				/* no more entries */
-				done = 1;
-				continue;
-			}
-		}
+    {
+        Slapi_Entry *gerentry = NULL;
+        Slapi_Operation *operation;
 
-		if (process_entry(pb, e, send_result)) 
-		{
-			/* shouldn't  send this entry */
-			continue;
-		}
+        rc = be->be_next_search_entry(pb);
+        if (rc < 0) 
+        {
+            /*
+             * Some exceptional condition occurred. Results have been sent, so we're finished.
+             */
+            if (rc == SLAPI_FAIL_DISKFULL) 
+            {
+                operation_out_of_disk_space();
+            }
+            return -1;
+        } 
 
-		/*
-		 * It's a regular entry, or it's a referral and
-		 * managedsait control is on.  In either case, send
-		 * the entry.
-		 */
-		switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) 
-		{
-			case 0:		/* entry sent ok */
-				(*pnentries)++;
-				slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
-				break;
-			case 1:		/* entry not sent */
-				break;
-			case -1:	/* connection closed */
-				/*
-				 * mark the operation as abandoned so the backend
-				 * next entry function gets called again and has
-				 * a chance to clean things up.
-				 */
-				pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
-				break;
-		}
+        slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
+
+        /* Check for possible get_effective_rights control */
+        slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+        if ( operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS )
+        {
+            char *errbuf = NULL;
+            char **gerattrs = NULL;
+            char **gerattrsdup = NULL;
+            char **gap = NULL;
+            char *gapnext = NULL;
+
+            slapi_pblock_get( pb, SLAPI_SEARCH_GERATTRS, &gerattrs );
+
+            gerattrsdup = cool_charray_dup(gerattrs);
+            gap = gerattrsdup;
+            do
+            {
+                gapnext = NULL;
+                if (gap)
+                {
+                    if (*gap && *(gap+1))
+                    {
+                        gapnext = *(gap+1);
+                        *(gap+1) = NULL;
+                    }
+                    slapi_pblock_set( pb, SLAPI_SEARCH_GERATTRS, gap );
+                    rc = plugin_call_acl_plugin (pb, e, attrs, NULL, 
+                        SLAPI_ACL_ALL, ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS,
+                        &errbuf);
+                    if (NULL != gapnext)
+                    {
+                        *(gap+1) = gapnext;
+                    }
+                }
+                else if (NULL != e)
+                {
+                    rc = plugin_call_acl_plugin (pb, e, attrs, NULL, 
+                        SLAPI_ACL_ALL, ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS,
+                        &errbuf);
+                }
+                if (NULL == e) {
+                    /* get the template entry, if any */
+                    slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
+                    if (NULL == e) {
+                        /* everything is ok - don't send the result */
+                        return 1;
+                    }
+                    gerentry = e;
+                }
+                if ( rc != LDAP_SUCCESS ) {
+                    /* Send error result and 
+                           abort op if the control is critical */
+                     LDAPDebug( LDAP_DEBUG_ANY,
+                    "Failed to get effective rights for entry (%s), rc=%d\n",
+                    slapi_entry_get_dn_const(e), rc, 0 );
+                    send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
+                    slapi_ch_free ( (void**)&errbuf );
+                    if (gerentry)
+                    {
+                        slapi_pblock_set(pb,
+                                        SLAPI_SEARCH_RESULT_ENTRY, NULL);
+                        slapi_entry_free(gerentry);
+                        gerentry = e = NULL;
+                    }
+                    return( -1 );
+                }
+                slapi_ch_free ( (void**)&errbuf );
+                if (process_entry(pb, e, send_result)) 
+                {
+                    /* shouldn't send this entry */
+                    if (gerentry)
+                    {
+                        slapi_pblock_set(pb,
+                                        SLAPI_SEARCH_RESULT_ENTRY, NULL);
+                        slapi_entry_free(gerentry);
+                        gerentry = e = NULL;
+                    }
+                    continue;
+                }
+
+                /*
+                 * It's a regular entry, or it's a referral and
+                 * managedsait control is on.  In either case, send
+                 * the entry.
+                 */
+                switch (send_ldap_search_entry(pb, e,
+                                        NULL, attrs, attrsonly)) 
+                {
+                    case 0:        /* entry sent ok */
+                        (*pnentries)++;
+                        slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
+                        break;
+                    case 1:        /* entry not sent */
+                        break;
+                    case -1:    /* connection closed */
+                        /*
+                         * mark the operation as abandoned so the backend
+                         * next entry function gets called again and has
+                         * a chance to clean things up.
+                         */
+                        pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
+                        break;
+                }
+                if (gerentry)
+                {
+                    slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
+                    slapi_entry_free(gerentry);
+                    gerentry = e = NULL;
+                }
+            }
+            while (gap && ++gap && *gap);
+            slapi_pblock_set( pb, SLAPI_SEARCH_GERATTRS, gerattrs );
+            cool_charray_free(gerattrsdup);
+            if (NULL == e)
+            {
+                /* no more entries */
+                done = 1;
+            }
+        }
+        else if (e)
+        {
+            if (process_entry(pb, e, send_result)) 
+            {
+                /* shouldn't  send this entry */
+                continue;
+            }
+
+            /*
+             * It's a regular entry, or it's a referral and
+             * managedsait control is on.  In either case, send
+             * the entry.
+             */
+            switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) 
+            {
+                case 0:        /* entry sent ok */
+                    (*pnentries)++;
+                    slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
+                    break;
+                case 1:        /* entry not sent */
+                    break;
+                case -1:    /* connection closed */
+                    /*
+                     * mark the operation as abandoned so the backend
+                     * next entry function gets called again and has
+                     * a chance to clean things up.
+                     */
+                    pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
+                    break;
+            }
+        }
+        else
+        {
+            /* no more entries */
+            done = 1;
+        }
     }
 
     return 1;

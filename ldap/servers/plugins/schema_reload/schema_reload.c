@@ -214,10 +214,10 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
 {
     PRThread *thread = NULL;
     const char *cn;
+    const char *schemadir = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_PBlock *mypb = NULL;
     Slapi_Task *task = NULL;
-    char *schemadir = NULL;
 
     *returncode = LDAP_SUCCESS;
     if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {

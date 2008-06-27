@@ -641,41 +641,41 @@ static int
 oc_check_required( Slapi_PBlock *pb, Slapi_Entry *e, struct objclass *oc )
 {
     int i;
-    int	rc = 0; /* success, by default */
+    int        rc = 0; /* success, by default */
     Slapi_Attr *a;
 
     if (oc == NULL || oc->oc_required == NULL || oc->oc_required[0] == NULL) {
-	return 0;  /* success, as none required  */
+        return 0;  /* success, as none required  */
     }
 
     /* for each required attribute */
     for ( i = 0; oc->oc_required[i] != NULL; i++ ) {
         /* see if it's in the entry */
         for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
-	    if ( slapi_attr_type_cmp( oc->oc_required[i], a->a_type,
-				      SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
-		break;
-	    }
-	}
-	
-	/* not there => schema violation */
-	if ( a == NULL ) {
-	    char errtext[ BUFSIZ ];
-	    char ebuf[ BUFSIZ ];
-	    LDAPDebug( LDAP_DEBUG_ANY,
-		       "Entry \"%s\" missing attribute \"%s\" required"
-		       " by object class \"%s\"\n",
-		       escape_string( slapi_entry_get_dn_const(e), ebuf ),
-		       oc->oc_required[i], oc->oc_name);
-		if (pb) {
-			PR_snprintf( errtext, sizeof( errtext ),
-		       "missing attribute \"%s\" required"
-		       " by object class \"%s\"\n",
-		       oc->oc_required[i], oc->oc_name );
-			slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
-		}
-	    rc = 1; /* failure */
-	}
+            if ( slapi_attr_type_cmp( oc->oc_required[i], a->a_type,
+                                      SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
+                break;
+            }
+        }
+        
+        /* not there => schema violation */
+        if ( a == NULL ) {
+            char errtext[ BUFSIZ ];
+            char ebuf[ BUFSIZ ];
+            LDAPDebug( LDAP_DEBUG_ANY,
+                       "Entry \"%s\" missing attribute \"%s\" required"
+                       " by object class \"%s\"\n",
+                       escape_string( slapi_entry_get_dn_const(e), ebuf ),
+                       oc->oc_required[i], oc->oc_name);
+            if (pb) {
+                PR_snprintf( errtext, sizeof( errtext ),
+                       "missing attribute \"%s\" required"
+                       " by object class \"%s\"\n",
+                       oc->oc_required[i], oc->oc_name );
+                        slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+            }
+            rc = 1; /* failure */
+        }
     }
     
     return rc;
@@ -1392,8 +1392,8 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
 }
 
 /* Return the list of attributes names matching attribute flags */
-
-char ** slapi_schema_list_attribute_names(unsigned long flag)
+char **
+slapi_schema_list_attribute_names(unsigned long flag)
 {
         struct listargs aew;
         memset(&aew,0,sizeof(struct listargs));
@@ -4965,4 +4965,70 @@ slapi_reload_schema_files(char *schemadir)
 				"schema file reload failed\n" );
 		return LDAP_LOCAL_ERROR;
 	}
+}
+
+/* 
+ * slapi_schema_list_objectclass_attributes:
+ *         Return the list of attributes belonging to the objectclass
+ *
+ * The caller is responsible to free the returned list with charray_free.
+ * flags: one of them or both:
+ *         SLAPI_OC_FLAG_REQUIRED
+ *         SLAPI_OC_FLAG_ALLOWED
+ */
+char **
+slapi_schema_list_objectclass_attributes(const char *ocname_or_oid,
+                                         PRUint32 flags)
+{
+	struct objclass *oc = NULL;
+	char **attrs = NULL;
+	PRUint32 mask = SLAPI_OC_FLAG_REQUIRED | SLAPI_OC_FLAG_ALLOWED;
+
+	if (!flags) {
+		return attrs;
+	}
+		
+	oc_lock_read();
+	oc = oc_find_nolock(ocname_or_oid);
+	if (oc) {
+		switch (flags & mask) {
+		case SLAPI_OC_FLAG_REQUIRED:
+			attrs = charray_dup(oc->oc_required);
+			break;
+		case SLAPI_OC_FLAG_ALLOWED:
+			attrs = charray_dup(oc->oc_allowed);
+			break;
+		case SLAPI_OC_FLAG_REQUIRED|SLAPI_OC_FLAG_ALLOWED:
+			attrs = charray_dup(oc->oc_required);
+			charray_merge(&attrs, oc->oc_allowed, 1/*copy_strs*/);
+			break;
+		default:
+			slapi_log_error( SLAPI_LOG_FATAL, "list objectclass attributes",
+				"flag 0x%x not supported\n", flags );
+			break;
+		}
+	}
+	oc_unlock();
+	return attrs;
+}
+
+/* 
+ * slapi_schema_get_superior_name:
+ *         Return the name of the superior objectclass
+ *
+ * The caller is responsible to free the returned name
+ */
+char *
+slapi_schema_get_superior_name(const char *ocname_or_oid)
+{
+	struct objclass *oc = NULL;
+	char *superior = NULL;
+
+	oc_lock_read();
+	oc = oc_find_nolock(ocname_or_oid);
+	if (oc) {
+		superior = slapi_ch_strdup(oc->oc_superior);
+	}
+	oc_unlock();
+	return superior;
 }
