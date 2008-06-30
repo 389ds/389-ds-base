@@ -540,7 +540,7 @@ int vattr_test_filter( Slapi_PBlock *pb,
 									rc = plugin_call_syntax_filter_ava( a,
 															f->f_choice, &f->f_ava );
 								} else if ( filter_type == FILTER_TYPE_SUBSTRING) {
-									rc = plugin_call_syntax_filter_sub( a,
+									rc = plugin_call_syntax_filter_sub( pb, a,
 																		&f->f_sub);
 								}
 
@@ -611,7 +611,7 @@ int vattr_test_filter( Slapi_PBlock *pb,
 								    		
     	} else if ( filter_type == FILTER_TYPE_SUBSTRING ) {
 			
-			rc = test_substring_filter( NULL, e, f, 0 /* no access check */,
+			rc = test_substring_filter( pb, e, f, 0 /* no access check */,
 									0 /* do test filter */, &acl_test_done);
 				
 		} else if ( filter_type == FILTER_TYPE_PRES ) {

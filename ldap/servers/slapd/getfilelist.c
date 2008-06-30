@@ -130,7 +130,7 @@ matches(const char *filename, const char *pattern)
 	slapd_re_lock();
 	s = slapd_re_comp((char *)pattern);
 	if (!s)
-		match = slapd_re_exec((char *)filename);
+		match = slapd_re_exec((char *)filename, -1 /* no timelimit */);
 	slapd_re_unlock();
 
 	return match;

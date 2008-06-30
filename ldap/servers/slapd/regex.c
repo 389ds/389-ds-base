@@ -66,6 +66,14 @@
  * Modification history:
  *
  * $Log: regex.c,v $
+ * Revision 1.7  2008/06/30 17:28:16  nhosoi
+ * Resoves: #448831
+ * Summary: attacker can tie up CPU in regex code
+ * Description: when substring search is requested, sets the time limit based upon
+ * the nsslapd-timelimit value.  Pass the timelimit (time_up) to the regular
+ * expression function.  When the time is up, it returns the "Timelimit exceeded"
+ * error.	Note: timelimit is applied non-Directory Manager users.
+ *
  * Revision 1.6  2008/04/29 00:38:36  nhosoi
  * Resolves: #182621 (#443955)
  * Summary: Allow larger regex buffer to enable long substring filters
@@ -695,7 +703,7 @@ static UCHAR *bol;
 static UCHAR *bopat[MAXTAG];
 static UCHAR *eopat[MAXTAG];
 #ifdef NEEDPROTOS
-static UCHAR *pmatch( UCHAR *lp, UCHAR *ap );
+static UCHAR *pmatch( UCHAR *lp, UCHAR *ap, time_t time_up, int *err );
 #else /* NEEDPROTOS */
 static UCHAR *pmatch();
 #endif /* NEEDPROTOS */
@@ -720,14 +728,18 @@ static UCHAR *pmatch();
  *	to the beginning and the end of the matched fragment,
  *	respectively.
  *
+ *  return values: 0 -- did not match
+ *                 1 -- matched
+ *                 othersise -- ldap error (TIMELIMIT_EXCEEDED only)
  */
 
 int
-slapd_re_exec( char *lp )
+slapd_re_exec( char *lp, time_t time_up )
 {
 	register UCHAR c;
 	register UCHAR *ep = 0;
 	register UCHAR *ap = nfa;
+	int ldaperror = 0;
 
 	bol = (UCHAR*)lp;
 
@@ -745,7 +757,7 @@ slapd_re_exec( char *lp )
 	switch(*ap) {
 
 	case BOL:			/* anchored: match from BOL only */
-		ep = pmatch((UCHAR*)lp,ap);
+		ep = pmatch((UCHAR*)lp,ap,time_up,&ldaperror);
 		break;
 	case CHR:			/* ordinary char: locate it fast */
 		c = *(ap+1);
@@ -755,7 +767,7 @@ slapd_re_exec( char *lp )
 			return 0;
 	default:			/* regular matching all the way. */
 		do {
-			if ((ep = pmatch((UCHAR*)lp,ap)))
+			if ((ep = pmatch((UCHAR*)lp,ap,time_up,&ldaperror)))
 				break;
 			lp++;
 		} while (*lp);
@@ -764,6 +776,8 @@ slapd_re_exec( char *lp )
 	case END:			/* munged automaton. fail always */
 		return 0;
 	}
+	if (ldaperror)
+		return ldaperror;
 	if (!ep)
 		return 0;
 
@@ -844,13 +858,19 @@ static char chrtyp[MAXCHR] = {
 #define CCLSKIP 18	/* [CLO] CCL 16bytes END ... */
 
 static UCHAR *
-pmatch( UCHAR *lp, UCHAR *ap)
+pmatch( UCHAR *lp, UCHAR *ap, time_t time_up, int *err )
 {
 	register int op, c, n;
 	register UCHAR *e;		/* extra pointer for CLO */
 	register UCHAR *bp;		/* beginning of subpat.. */
 	register UCHAR *ep;		/* ending of subpat..	 */
 	UCHAR *are;			/* to save the line ptr. */
+	time_t curtime = current_time();
+
+	if ( time_up != -1 && curtime > time_up ) {
+		*err = LDAP_TIMELIMIT_EXCEEDED;
+		return 0;
+	}
 
 	while ((op = *ap++) != END)
 		switch(op) {
@@ -927,7 +947,7 @@ pmatch( UCHAR *lp, UCHAR *ap)
 			ap += n;
 
 			while (lp >= are) {
-				if ((e = pmatch(lp, ap)) != NULL)
+				if ((e = pmatch(lp, ap, time_up, err)) != NULL)
 					return e;
 				--lp;
 			}

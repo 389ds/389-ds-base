@@ -693,7 +693,7 @@ int test_substring_filter(
 			rc = -1;
 			for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
 				if ( slapi_attr_type_cmp( f->f_sub_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
-					rc = plugin_call_syntax_filter_sub( a, &f->f_sub );
+					rc = plugin_call_syntax_filter_sub( pb, a, &f->f_sub );
 					if ( rc == 0 ) {
 						break;
 					}
@@ -726,8 +726,8 @@ int test_substring_filter(
 		rc = -1;
 		for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
 			if ( slapi_attr_type_cmp( f->f_sub_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
-				rc = plugin_call_syntax_filter_sub( a, &f->f_sub );
-				if ( rc == 0 ) {
+				rc = plugin_call_syntax_filter_sub( pb, a, &f->f_sub );
+				if ( rc == 0 || rc == LDAP_TIMELIMIT_EXCEEDED ) {
 					break;
 				}
 			}
