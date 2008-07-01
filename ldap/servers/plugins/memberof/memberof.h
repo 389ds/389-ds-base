@@ -84,6 +84,7 @@ typedef struct memberofconfig {
  */
 int memberof_config(Slapi_Entry *config_e);
 void memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src);
+void memberof_free_config(MemberOfConfig *config);
 MemberOfConfig *memberof_get_config();
 void memberof_lock();
 void memberof_unlock();

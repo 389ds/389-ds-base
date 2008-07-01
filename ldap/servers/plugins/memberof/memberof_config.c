@@ -291,6 +291,23 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 }
 
 /*
+ * memberof_free_config()
+ *
+ * Free's the contents of a config structure.
+ */
+void
+memberof_free_config(MemberOfConfig *config)
+{
+	if (config)
+	{
+		slapi_ch_free_string(&config->groupattr);
+		slapi_filter_free(config->group_filter, 1);
+		slapi_attr_free(&config->group_slapiattr);
+		slapi_ch_free_string(&config->memberof_attr);
+	}
+}
+
+/*
  * memberof_get_config()
  *
  * Returns a pointer to the main config.  You should call

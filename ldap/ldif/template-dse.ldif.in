@@ -627,6 +627,13 @@ cn: member
 nssystemindex: false
 nsindextype: eq
 
+dn: cn=memberOf,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: memberOf
+nssystemindex: false
+nsindextype: eq
+
 dn: cn=nsUniqueId,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
