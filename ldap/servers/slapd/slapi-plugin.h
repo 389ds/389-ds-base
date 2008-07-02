@@ -470,6 +470,8 @@ int slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Va
 #define SLAPI_VALUE_FLAG_PASSIN			0x1
 #define SLAPI_VALUE_FLAG_IGNOREERROR	0x2
 #define SLAPI_VALUE_FLAG_PRESERVECSNSET	0x4
+#define SLAPI_VALUE_FLAG_USENEWVALUE	0x8	/* see valueset_remove_valuearray */
+
 Slapi_ValueSet *slapi_valueset_new( void );
 void slapi_valueset_free(Slapi_ValueSet *vs);
 void slapi_valueset_init(Slapi_ValueSet *vs);

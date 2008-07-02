@@ -497,7 +497,10 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 				break;
 			}
 			/* Check if any of the values to be added are on the deleted list */
-			valueset_remove_valuearray(&a->a_deleted_values, a, valuestoadd, SLAPI_VALUE_FLAG_IGNOREERROR,&deletedvalues); /* JCM Check return code */
+			valueset_remove_valuearray(&a->a_deleted_values,
+					a, valuestoadd,
+					SLAPI_VALUE_FLAG_IGNOREERROR|SLAPI_VALUE_FLAG_USENEWVALUE,
+					&deletedvalues); /* JCM Check return code */
 			if(deletedvalues!=NULL && deletedvalues[0]!=NULL)
 			{
 				/* Some of the values to be added were on the deleted list */

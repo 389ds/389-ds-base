@@ -1053,6 +1053,16 @@ valueset_update_csn(Slapi_ValueSet *vs, CSNType t, const CSN *csn)
  * Remove an array of values from a value set.
  * The removed values are passed back in an array.
  *
+ * Flags
+ *  SLAPI_VALUE_FLAG_PRESERVECSNSET - csnset in the value set is duplicated and
+ *                                    preserved in the matched element of the
+ *                                    array of values.
+ *  SLAPI_VALUE_FLAG_IGNOREERROR - ignore an error: Couldn't find the value to
+ *                                 be deleted.
+ *  SLAPI_VALUE_FLAG_USENEWVALUE - replace the value between the value set and
+ *                                 the matched element of the array of values
+ *                                 (used by entry_add_present_values_wsi).
+ *
  * Returns
  *  LDAP_SUCCESS - OK.
  *  LDAP_NO_SUCH_ATTRIBUTE - A value to be deleted was not in the value set.
@@ -1110,12 +1120,23 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 							/* Move the value to be removed to the out array */
 							if ( va_out )
 							{
-								if (vs->va[index]->v_csnset && (flags & SLAPI_VALUE_FLAG_PRESERVECSNSET))
+								if (vs->va[index]->v_csnset &&
+									(flags & SLAPI_VALUE_FLAG_PRESERVECSNSET|
+											 SLAPI_VALUE_FLAG_USENEWVALUE))
 								{
 									valuestodelete[i]->v_csnset = csnset_dup (vs->va[index]->v_csnset);
 								}
-								valuearrayfast_add_value_passin(&vaf_out,vs->va[index]);
-								vs->va[index] = NULL;
+								if (flags & SLAPI_VALUE_FLAG_USENEWVALUE)
+								{
+									valuearrayfast_add_value_passin(&vaf_out,valuestodelete[i]);
+									valuestodelete[i] = vs->va[index];
+									vs->va[index] = NULL;
+								}
+								else
+								{
+									valuearrayfast_add_value_passin(&vaf_out,vs->va[index]);
+									vs->va[index] = NULL;
+								}
 							}
 							else
 							{
@@ -1170,11 +1191,21 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 				{
 					if ( va_out )
 					{
-						if (found->v_csnset && (flags & SLAPI_VALUE_FLAG_PRESERVECSNSET))
+						if (found->v_csnset &&
+							(flags & SLAPI_VALUE_FLAG_PRESERVECSNSET|
+							 		 SLAPI_VALUE_FLAG_USENEWVALUE))
 						{
 							valuestodelete[i]->v_csnset = csnset_dup (found->v_csnset);
 						}
-						valuearrayfast_add_value_passin(&vaf_out,found);
+						if (flags & SLAPI_VALUE_FLAG_USENEWVALUE)
+						{
+							valuearrayfast_add_value_passin(&vaf_out,valuestodelete[i]);
+							valuestodelete[i] = found;
+						}
+						else
+						{
+							valuearrayfast_add_value_passin(&vaf_out,found);
+						}
 					}
 					else
 					{
