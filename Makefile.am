@@ -242,6 +242,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-activate.pl \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/template-schema-reload.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
