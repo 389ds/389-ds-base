@@ -1430,7 +1430,7 @@ int memberof_get_groups_r(MemberOfConfig *config, char *memberdn, memberof_get_g
 {
 	/* Search for member=<memberdn>
 	 * For each match, add it to the list, recurse and do same search */
-	memberof_call_foreach_dn(0, memberdn, config->groupattr,
+	return memberof_call_foreach_dn(NULL, memberdn, config->groupattr,
 		memberof_get_groups_callback, data);
 }
 
