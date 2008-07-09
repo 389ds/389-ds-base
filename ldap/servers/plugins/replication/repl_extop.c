@@ -546,7 +546,6 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	Replica *replica = NULL;
 	void *conn;
 	consumer_connection_extension *connext = NULL;
-	CSN *mycsn = NULL;
 	char *replicacsnstr = NULL;
 	CSN *replicacsn = NULL;
 	int zero = 0;
@@ -699,55 +698,37 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		gen = object_get_data(gen_obj);
 		if (NULL != gen)
 		{
-			if (csngen_new_csn(gen, &mycsn, PR_FALSE /* notify */) == CSN_SUCCESS)
+			replicacsn = csn_new_by_string(replicacsnstr);
+			if (NULL != replicacsn)
 			{
-				replicacsn = csn_new_by_string(replicacsnstr);
-				if (NULL != replicacsn)
+				/* ONREPL - we used to manage clock skew here. However, csn generator
+				   code already does it. The csngen also manages local skew caused by
+				   system clock reset, so to keep it consistent, I removed code from here */
+				/* update the state of the csn generator */
+				rc = replica_update_csngen_state_ext (replica, supplier_ruv, replicacsn); /* too much skew */
+				if (rc == CSN_LIMIT_EXCEEDED)
 				{
-                    /* ONREPL - we used to manage clock skew here. However, csn generator
-                       code already does it. The csngen also manages local skew caused by
-                       system clock reset, so to keep it consistent, I removed code from here */
-					time_t diff = 0L;
-					diff = csn_time_difference(mycsn, replicacsn);
-					if (diff > 0)
-					{
-					    /* update the state of the csn generator */
-                        rc = csngen_adjust_time (gen, replicacsn);
-                        if (rc == CSN_LIMIT_EXCEEDED)   /* too much skew */
-                        {
-							response = NSDS50_REPL_EXCESSIVE_CLOCK_SKEW;
-							goto send_response;
-						}
-					}
-					else if (diff <= 0)
-					{
-						/* Supplier's clock is behind ours */
-						/* XXXggood check if CSN smaller than purge point */
-						/* response = NSDS50_REPL_BELOW_PURGEPOINT; */
-						/* goto send_response; */
-					}
+					response = NSDS50_REPL_EXCESSIVE_CLOCK_SKEW;
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+									"conn=%d op=%d repl=\"%s\": "
+									"Excessive clock skew from supplier RUV\n",
+									connid, opid, repl_root);
+					goto send_response;
 				}
-				else
+				else if (rc != 0)
 				{
-					/* Oops, csnstr couldn't be converted */
+					/* Oops, problem csn or ruv format, or memory, or .... */
 					response = NSDS50_REPL_INTERNAL_ERROR;
 					goto send_response;
 				}
+
 			}
 			else
 			{
-				/* Oops, csn generator failed */
+				/* Oops, csnstr couldn't be converted */
 				response = NSDS50_REPL_INTERNAL_ERROR;
 				goto send_response;
 			}
-
-            /* update csn generator's state from the supplier's ruv */
-            rc = replica_update_csngen_state (replica, supplier_ruv); /* too much skew */
-            if (rc != 0)
-            {
-                response = NSDS50_REPL_EXCESSIVE_CLOCK_SKEW;
-				goto send_response;
-            }
 		}
 		else
 		{
@@ -983,11 +964,6 @@ send_response:
 	if (NULL != gen_obj)
 	{
 		object_release(gen_obj);
-	}
-	/* mycsn */
-	if (NULL != mycsn)
-	{
-		csn_free(&mycsn);
 	}
 	/* replicacsn */
 	if (NULL != replicacsn)

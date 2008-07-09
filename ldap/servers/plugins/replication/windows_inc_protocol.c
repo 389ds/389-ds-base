@@ -795,10 +795,17 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	    rc = replica_update_csngen_state (replica, ruv); 
 	    object_release (prp->replica_object);
 	    replica = NULL;
-	    if (rc != 0) /* too much skew */
+	    if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */
 	      {
-		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 			"%s: Incremental protocol: fatal error - too much time skew between replicas!\n",
+			agmt_get_long_name(prp->agmt));
+		next_state = STATE_STOP_FATAL_ERROR;
+	      }   
+	    else if (rc != 0) /* internal error */
+	      {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			"%s: Incremental protocol: fatal internal error updating the CSN generator!\n",
 			agmt_get_long_name(prp->agmt));
 		next_state = STATE_STOP_FATAL_ERROR;
 	      }   
