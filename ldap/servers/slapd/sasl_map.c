@@ -429,9 +429,10 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 	recomp_result = slapd_re_comp(dp->regular_expression);
 	if (recomp_result) {
 		LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_check : re_comp failed for expression (%s)\n", dp->regular_expression, 0, 0 );
+	} else {
+		matched = slapd_re_exec(sasl_user_and_realm, -1 /* no timelimit */);
+		LDAPDebug( LDAP_DEBUG_TRACE, "regex: %s, id: %s, %s\n", dp->regular_expression, sasl_user_and_realm, matched ? "matched" : "didn't match" );
 	}
-	matched = slapd_re_exec(sasl_user_and_realm);
-	LDAPDebug( LDAP_DEBUG_TRACE, "regex: %s, id: %s, %s\n", dp->regular_expression, sasl_user_and_realm, matched ? "matched" : "didn't match" );
 	if (matched) {
 		if (matched == 1) {
 			/* Allocate buffers for the returned strings */

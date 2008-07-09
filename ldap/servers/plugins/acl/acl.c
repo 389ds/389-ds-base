@@ -3255,7 +3255,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 	** matching, it seems that step() is leaking 1036 bytes/search	
 	** I couldn't figure out why it's leaking.
 	*/
-	rc = slapd_re_exec( realval );
+	rc = slapd_re_exec( realval, -1 /* no timelimit */ );
 
 	slapd_re_unlock();
 

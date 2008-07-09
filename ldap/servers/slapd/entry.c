@@ -1855,7 +1855,7 @@ slapi_entry_vattrcache_findAndTest( const Slapi_Entry *e, const char *type,
 														f->f_choice,
 														&f->f_ava );
 				} else if ( filter_type == FILTER_TYPE_SUBSTRING) {
-					*rc = plugin_call_syntax_filter_sub( tmp_attr,
+					*rc = plugin_call_syntax_filter_sub( NULL, tmp_attr,
 															&f->f_sub);
 				} else if ( filter_type == FILTER_TYPE_PRES ) {
 					/* type is there, that's all we need to know. */
