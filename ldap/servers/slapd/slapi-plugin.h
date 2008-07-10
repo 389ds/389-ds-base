@@ -172,9 +172,7 @@ typedef int (*TaskCallbackFn)(Slapi_Task *task);
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
 #elif ( defined ( AIX ))
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
-/* All 64-bit builds get a bigger stack size */
-#elif ( defined ( __LP64__ )) || defined (_LP64)
-#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
+/* All other platforms use the default stack size */
 #else
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  0
 #endif
