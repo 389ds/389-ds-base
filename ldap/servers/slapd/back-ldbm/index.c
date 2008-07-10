@@ -652,12 +652,20 @@ index_add_mods(
                  * BE_INDEX_EQUALITY flag so the equality index is
                  * removed.
                  */
-                slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr);
-                for (j = 0; mods_valueArray[j] != NULL; j++ ) {
-                    if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) == -1 ) {
-                        if (!(flags & BE_INDEX_EQUALITY)) {
-                            flags |= BE_INDEX_EQUALITY;
+                slapi_entry_attr_find( newe->ep_entry, mods[i]->mod_type, &curr_attr);
+                if (curr_attr) {
+                    for (j = 0; mods_valueArray[j] != NULL; j++ ) {
+                        if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) == -1 ) {
+                            if (!(flags & BE_INDEX_EQUALITY)) {
+                                flags |= BE_INDEX_EQUALITY;
+                            }
                         }
+                    }
+                } else {
+                    /* If we didn't find the attribute in the new
+                     * entry, we should remove the equality index. */
+                    if (!(flags & BE_INDEX_EQUALITY)) {
+                        flags |= BE_INDEX_EQUALITY;
                     }
                 }
 
