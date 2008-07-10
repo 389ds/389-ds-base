@@ -45,6 +45,15 @@
 #include "cl5.h"			/* changelog5Config */
 #include "cl5_clcache.h"
 
+/* newer bdb uses DB_BUFFER_SMALL instead of ENOMEM as the
+   error return if the given buffer in which to load a
+   key or value is too small - if it is not defined, define
+   it here to ENOMEM
+*/
+#ifndef DB_BUFFER_SMALL
+#define DB_BUFFER_SMALL ENOMEM
+#endif
+
 /*
  * Constants for the buffer pool:
  *
@@ -248,7 +257,7 @@ clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV
 	else {
 		slapi_log_error ( SLAPI_LOG_FATAL, get_thread_private_agmtname(),
 			"clcache_get_buffer: can't allocate new buffer\n" );
-		rc = ENOMEM;
+		rc = CL5_MEMORY_ERROR;
 	}
 
 	return rc;
@@ -379,7 +388,7 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 		 * Continue if the error is no-mem since we don't need to
 		 * load in the key record anyway with DB_SET.
 		 */
-		if ( 0 == rc || ENOMEM == rc )
+		if ( 0 == rc || DB_BUFFER_SMALL == rc )
 			rc = clcache_cursor_get ( cursor, buf, flag );
 
 	}
@@ -852,7 +861,7 @@ clcache_enqueue_busy_list ( DB *db, CLC_Buffer *buf )
 
 	if ( NULL == bl ) {
 		if ( NULL == ( bl = clcache_new_busy_list ()) ) {
-			rc = ENOMEM;
+			rc = CL5_MEMORY_ERROR;
 		}
 		else {
 			PR_RWLock_Wlock ( _pool->pl_lock );
@@ -898,7 +907,7 @@ clcache_cursor_get ( DBC *cursor, CLC_Buffer *buf, int flag )
 						 & buf->buf_key,
 						 & buf->buf_data,
 						 buf->buf_load_flag | flag );
-	if ( ENOMEM == rc ) {
+	if ( DB_BUFFER_SMALL == rc ) {
 		/*
 		 * The record takes more space than the current size of the
 		 * buffer. Fortunately, buf->buf_data.size has been set by
@@ -923,7 +932,7 @@ clcache_cursor_get ( DBC *cursor, CLC_Buffer *buf, int flag )
 					"clcache_cursor_get: invalid parameter\n" );
 			break;
 
-		case ENOMEM:
+		case DB_BUFFER_SMALL:
 			slapi_log_error ( SLAPI_LOG_FATAL, buf->buf_agmt_name,
 					"clcache_cursor_get: can't allocate %u bytes\n", buf->buf_data.ulen );
 			break;
