@@ -383,7 +383,8 @@ static int vattr_context_is_loop_msg_displayed(vattr_context **c)
  *			>0	an ldap error code 
  *
 */
-int vattr_test_filter( /* Entry we're interested in */ Slapi_Entry *e,    					
+int vattr_test_filter( Slapi_PBlock *pb,
+						/* Entry we're interested in */ Slapi_Entry *e,    					
 						Slapi_Filter *f,
 						filter_type_t filter_type,
 						char * type) {	
