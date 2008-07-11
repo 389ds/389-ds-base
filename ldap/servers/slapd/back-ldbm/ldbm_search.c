@@ -1296,6 +1296,10 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                                   "Failed the filter test", 0, NULL );
                   rc = SLAPI_FAIL_GENERAL;
                   goto bail;
+              } else if (LDAP_TIMELIMIT_EXCEEDED == filter_test) {
+                  slapi_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
+                  rc = SLAPI_FAIL_GENERAL;
+                  goto bail;
               }
           }
         }

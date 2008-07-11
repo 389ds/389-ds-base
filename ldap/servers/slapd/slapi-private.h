@@ -1184,7 +1184,7 @@ typedef char*(*CFP)();
 
 void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *addval, int nvals, int *maxvals);
 
-int slapd_re_exec( char *lp );
+int slapd_re_exec( char *lp, time_t time_up );
 char *slapd_re_comp( char *pat );
 int slapd_re_subs( char *src, char* dst );
 void slapd_re_lock( void );

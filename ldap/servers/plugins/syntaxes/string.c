@@ -195,9 +195,20 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	char		pat[BUFSIZ];
 	char		buf[BUFSIZ];
 	char		ebuf[BUFSIZ];
+	time_t          curtime = 0;
+	time_t          time_up = 0;
+	time_t          optime = 0; /* time op was initiated */
+	int             timelimit = 0; /* search timelimit */
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
+	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	/*
+	 * (timelimit==-1) means no time limit
+	 */
+	time_up = ( timelimit==-1 ? -1 : optime + timelimit);
+
 	/*
 	 * construct a regular expression corresponding to the
 	 * filter and let regex do the work for each value
@@ -259,16 +270,19 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	p = (bigpat) ? bigpat : pat;
 	slapd_re_lock();
 	if ( (tmpbuf = slapd_re_comp( p )) != 0 ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s)\n",
-		    pat, p, 0 );
-		slapd_re_unlock();
-		if( bigpat != NULL ) {
-			slapi_ch_free((void**)&bigpat );
-		}
-		return( LDAP_OPERATIONS_ERROR );
+		LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s): %s\n",
+		    pat, p, tmpbuf );
+		rc = LDAP_OPERATIONS_ERROR;
+		goto bailout;
 	} else {
  		LDAPDebug( LDAP_DEBUG_TRACE, "re_comp (%s)\n",
 				   escape_string( p, ebuf ), 0, 0 );
+	}
+
+	curtime = current_time();
+	if ( time_up != -1 && curtime > time_up ) {
+		rc = LDAP_TIMELIMIT_EXCEEDED;
+		goto bailout;
 	}
 
 	/*
@@ -296,22 +310,22 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		}
 		value_normalize( realval, syntax, 1 /* trim leading blanks */ );
 
-		tmprc = slapd_re_exec( realval );
+		tmprc = slapd_re_exec( realval, time_up );
 
 		LDAPDebug( LDAP_DEBUG_TRACE, "re_exec (%s) %i\n",
 				   escape_string( realval, ebuf ), tmprc, 0 );
-		if ( tmprc != 0 ) {
+		if ( tmprc == 1 ) {
 			rc = 0;
+			break;
+		} else if (tmprc != 0) {
+			rc = tmprc;
 			break;
 		}
 	}
+bailout:
 	slapd_re_unlock();
-	if ( tmpbuf != NULL ) {
-		slapi_ch_free((void**)&tmpbuf );
-	}
-	if( bigpat != NULL ) {
-		slapi_ch_free((void**)&bigpat );
-	} 
+	slapi_ch_free((void**)&tmpbuf );
+	slapi_ch_free((void**)&bigpat );
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "<= string_filter_sub %d\n",
 	    rc, 0, 0 );

@@ -211,15 +211,17 @@ plugin_call_syntax_filter_ava_sv(
 
 int
 plugin_call_syntax_filter_sub(
+    Slapi_PBlock        *pb,
     Slapi_Attr		*a,
     struct subfilt	*fsub
 )
 {
-	return(plugin_call_syntax_filter_sub_sv(a,fsub));
+	return(plugin_call_syntax_filter_sub_sv(pb,a,fsub));
 }
 
 int
 plugin_call_syntax_filter_sub_sv(
+    Slapi_PBlock        *pb,
     Slapi_Attr		*a,
     struct subfilt	*fsub
 )
@@ -240,6 +242,13 @@ plugin_call_syntax_filter_sub_sv(
 	{
 		Slapi_Value **va= valueset_get_valuearray(&a->a_present_values);
 		pblock_init( &pipb );
+		if (pb)
+		{
+			Operation *op = NULL;
+			/* to pass SLAPI_SEARCH_TIMELIMIT & SLAPI_OPINITATED_TIME */
+			slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+			slapi_pblock_set( &pipb, SLAPI_OPERATION, op );
+		}
 		slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
 		rc = a->a_plugin->plg_syntax_filter_sub( &pipb,
 		    fsub->sf_initial, fsub->sf_any, fsub->sf_final, va);
