@@ -486,6 +486,7 @@ void replica_flush(Replica *r);
 void replica_get_referrals(const Replica *r, char ***referrals);
 void replica_set_referrals(Replica *r,const Slapi_ValueSet *vs);
 int replica_update_csngen_state (Replica *r, const RUV *ruv);
+int replica_update_csngen_state_ext (Replica *r, const RUV *ruv, const CSN *extracsn);
 CSN *replica_get_purge_csn(const Replica *r);
 int replica_log_ruv_elements (const Replica *r);
 void replica_enumerate_replicas (FNEnumReplica fn, void *arg);
