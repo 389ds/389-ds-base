@@ -78,6 +78,7 @@ sub portAvailable {
     my $proto = getprotobyname('tcp');
     my $rc = socket(SOCK, PF_INET, SOCK_STREAM, $proto);
     if ($rc == 1) {
+        setsockopt(SOCK, SOL_SOCKET, SO_REUSEADDR, 1);
         $rc = bind(SOCK, sockaddr_in($port, INADDR_ANY));
     }
     close(SOCK);
