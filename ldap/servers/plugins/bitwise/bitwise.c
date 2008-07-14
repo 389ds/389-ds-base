@@ -167,14 +167,18 @@ bitwise_filter_create (Slapi_PBlock* pb)
 	!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE) && mrTYPE != NULL &&
 	!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_VALUE, &mrVALUE) && mrVALUE != NULL) {
 
-	struct bitwise_match_cb *bmc = new_bitwise_match_cb(mrTYPE, mrVALUE);
-	slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, bmc);
-	slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)bitwise_filter_destroy);
+	struct bitwise_match_cb *bmc = NULL;
 	if (strcmp(mrOID, "1.2.840.113556.1.4.803") == 0) {
 	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_MATCH_FN, (void*)bitwise_filter_match_and);
 	} else if (strcmp(mrOID, "1.2.840.113556.1.4.804") == 0) {
 	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_MATCH_FN, (void*)bitwise_filter_match_or);
+	} else { /* this oid not handled by this plugin */
+	    LDAPDebug (LDAP_DEBUG_FILTER, "=> bitwise_filter_create OID (%s) not handled\n", mrOID, 0, 0);
+	    return rc;
 	}
+	bmc = new_bitwise_match_cb(mrTYPE, mrVALUE);
+	slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, bmc);
+	slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)bitwise_filter_destroy);
 	rc = LDAP_SUCCESS;
     } else {
 	LDAPDebug (LDAP_DEBUG_FILTER, "=> bitwise_filter_create missing parameter(s)\n", 0, 0, 0);
@@ -190,9 +194,6 @@ int /* LDAP error code */
 bitwise_init (Slapi_PBlock* pb)
 {
     int rc;
-    int argc;
-    char** argv;
-    char* cfgpath;
 
     rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, (void*)bitwise_filter_create);
     if ( rc == 0 ) {
