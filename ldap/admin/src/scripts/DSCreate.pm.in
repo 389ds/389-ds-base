@@ -498,6 +498,10 @@ sub initDatabase {
         if (@errs) {
             return @errs;
         }
+        if (@errs = changeOwnerMode($inf, 4, $templdif)) {
+            unlink($ldiffile);
+            return @errs;
+        }
         # $templdif now contains the ldif to import
         $ldiffile = $templdif;
         $istempldif = 1;
