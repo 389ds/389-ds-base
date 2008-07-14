@@ -124,7 +124,7 @@ sub new {
 sub init {
     my $self = shift;
     $self->{res} = shift;
-    my ($silent, $inffile, $keep, $preonly, $logfile);
+    my ($silent, $inffile, $keep, $preonly, $logfile, $update);
 
     GetOptions('help|h|?' => sub { VersionMessage(); HelpMessage(); exit 0 },
                'version|v' => sub { VersionMessage(); exit 0 },
@@ -133,13 +133,15 @@ sub init {
                'file|f=s' => \$inffile,
                'keepcache|k' => \$keep,
                'preonly|p' => \$preonly,
-               'logfile|l=s' => \$logfile
+               'logfile|l=s' => \$logfile,
+               'update|u' => \$update
                );
 
     $self->{silent} = $silent;
     $self->{inffile} = $inffile;
     $self->{keep} = $keep;
     $self->{preonly} = $preonly;
+    $self->{update} = $update;
     $self->{logfile} = $logfile;
     $self->{log} = new SetupLog($self->{logfile});
     # if user supplied inf file, use that to initialize
@@ -251,6 +253,7 @@ sub getDirServers {
         $self->{dirservers} = [];
         for my $dir (glob("$self->{configdir}/slapd-*")) {
             if (-d $dir) {
+                $dir =~ s,$self->{configdir}/,,; # strip off dir part
                 push @{$self->{dirservers}}, $dir;
             }
         }
