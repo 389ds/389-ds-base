@@ -467,8 +467,11 @@ sub initDatabase {
     if ($ldiffile =~ /none/i) {
         debug(1, "No ldif file or org entries specified - no initial database will be created\n");
         return ();
-    } elsif ($ldiffile && -f $ldiffile) {
+    } elsif ($ldiffile && ($ldiffile !~ /suggest/i)) {
         debug(1, "Loading initial ldif file $ldiffile\n");
+        if (! -r $ldiffile) {
+            return ('error_opening_init_ldif', $ldiffile);
+        }
     } elsif (($inf->{slapd}->{Suffix} =~ /^(.*?)=/) && $suffixTable{$1}) {
         my @errs;
         my $template = $inf->{General}->{prefix} . $suffixTable{$1};
