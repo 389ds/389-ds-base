@@ -1,0 +1,138 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH RSEARCH 1 "May 18, 2008"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+rsearch \- Stress test an LDAP server with search operations
+.SH SYNOPSIS
+.B rsearch
+\fB\-D\fR binddn \fB\-w\fR bindpw \fB\-s\fR suffix \fB\-f\fR filter [\fIoptions\fR]
+.PP
+.SH DESCRIPTION
+Stress tests an LDAP server with search operations.
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics, 
+.\" respectively.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \-H
+print Usage (this message)
+.TP
+.B \fB\-h\fR host
+ldap server host (default: localhost)
+.TP
+.B \fB\-p\fR port
+ldap server port (default: 389)
+.TP
+.B \fB\-S\fR scope
+search SCOPE [0,1,or 2]  (default: 2)
+.TP
+.B \fB\-b\fR
+bind before every operation
+.TP
+.B \fB\-u\fR
+don't unbind \fB\-\-\fR just close the connection
+.TP
+.B \fB\-L\fR
+set linger \fB\-\-\fR connection discarded when closed
+.TP
+.B \fB\-N\fR
+No operation \fB\-\-\fR just bind (ignore mdc)
+.TP
+.B \fB\-v\fR
+verbose
+.TP
+.B \fB\-y\fR
+nodelay
+.TP
+.B \fB\-q\fR
+quiet
+.TP
+.B \fB\-l\fR
+logging
+.TP
+.B \fB\-m\fR
+operaton: modify non\-indexed attr (description). \fB\-B\fR required
+.TP
+.B \fB\-M\fR
+operaton: modify indexed attr (telephonenumber). \fB\-B\fR required
+.TP
+.B \fB\-d\fR
+operaton: delete. \fB\-B\fR required
+.TP
+.B \fB\-c\fR
+operaton: compare. \fB\-B\fR required
+.TP
+.B \fB\-i\fR file
+name file; used for the search filter
+.TP
+.B \fB\-B\fR file
+[DN and] UID file (use '\-B \e?' to see the format)
+.TP
+.B \fB\-A\fR attrs
+list of attributes for search request
+.TP
+.B \fB\-a\fR file
+list of attributes for search request in a file
+.HP
+.B \fB\-\-\fR (use '\-a \e?' to see the format ; \fB\-a\fR & \fB\-A\fR are mutually exclusive)
+.PP
+.TP
+.B \fB\-n\fR number
+(reserved for future use)
+.TP
+.B \fB\-o\fR number
+Search time limit, in seconds; (default: 30; no time limit: 0)
+.TP
+.B \fB\-j\fR number
+sample interval, in seconds  (default: 10)
+.TP
+.B \fB\-t\fR number
+threads  (default: 1)
+.TP
+.B \fB\-T\fR number
+Time limit, in seconds; cmd stops when exceeds <number>
+.TP
+.B \fB\-V\fR
+show running average
+.TP
+.B \fB\-C\fR num
+take num samples, then stop
+.TP
+.B \fB\-R\fR num
+drop connection & reconnect every num searches
+.TP
+.B \fB\-x\fR
+Use \fB\-B\fR file for binding; ignored if \fB\-B\fR is not given
+.br
+.SH AUTHOR
+rsearch was written by the Fedora Directory Server Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2008 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

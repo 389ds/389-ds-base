@@ -47,10 +47,10 @@ bin_PROGRAMS = dbscan-bin$(EXEEXT) dsktune-bin$(EXEEXT) \
 	pwdhash-bin$(EXEEXT) rsearch-bin$(EXEEXT)
 noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/tools/ldclt/opCheck.c
-DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
-	$(top_srcdir)/configure compile config.guess config.sub \
-	depcomp install-sh ltmain.sh missing
+DIST_COMMON = $(am__configure_deps) $(dist_man_MANS) \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/config.h.in $(top_srcdir)/configure compile \
+	config.guess config.sub depcomp install-sh ltmain.sh missing
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/fhs.m4 $(top_srcdir)/m4/nspr.m4 \
@@ -95,7 +95,8 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" \
 	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" \
-	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" \
+	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" \
+	"$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" \
 	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" \
 	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" \
 	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
@@ -775,6 +776,10 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(makstrdb_SOURCES) $(migratecred_bin_SOURCES) \
 	$(mmldif_bin_SOURCES) $(am__ns_slapd_SOURCES_DIST) \
 	$(pwdhash_bin_SOURCES) $(rsearch_bin_SOURCES)
+man1dir = $(mandir)/man1
+man8dir = $(mandir)/man8
+NROFF = nroff
+MANS = $(dist_man_MANS)
 configDATA_INSTALL = $(INSTALL_DATA)
 infDATA_INSTALL = $(INSTALL_DATA)
 mibDATA_INSTALL = $(INSTALL_DATA)
@@ -862,6 +867,7 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -1017,7 +1023,7 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 # Linker Flags
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
-NSS_LINK = @nss_lib@ -lssl3 -lnss3 -lsoftokn3
+NSS_LINK = @nss_lib@ -lssl3 -lnss3
 LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
@@ -1030,7 +1036,33 @@ PAM_LINK = -lpam
 # Generated Sources
 #------------------------
 BUILT_SOURCES = dirver.h dberrstrs.h
-CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties
+CLEANFILES = dirver.h dberrstrs.h ns-slapd.properties \
+	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
+	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
+	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
+	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
+	ldap/admin/src/scripts/Setup.pm ldap/admin/src/scripts/template-bak2db \
+	ldap/admin/src/scripts/template-bak2db.pl ldap/admin/src/scripts/template-db2bak \
+	ldap/admin/src/scripts/template-db2bak.pl ldap/admin/src/scripts/template-db2index \
+	ldap/admin/src/scripts/template-db2index.pl ldap/admin/src/scripts/template-db2ldif \
+	ldap/admin/src/scripts/template-db2ldif.pl ldap/admin/src/scripts/template-dbverify \
+	ldap/admin/src/scripts/template-ldif2db ldap/admin/src/scripts/template-ldif2db.pl \
+	ldap/admin/src/scripts/template-ldif2ldap ldap/admin/src/scripts/template-monitor \
+	ldap/admin/src/scripts/template-ns-accountstatus.pl ldap/admin/src/scripts/template-ns-activate.pl \
+	ldap/admin/src/scripts/template-ns-inactivate.pl ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/template-restart-slapd ldap/admin/src/scripts/template-restoreconfig \
+	ldap/admin/src/scripts/template-saveconfig ldap/admin/src/scripts/template-start-slapd \
+	ldap/admin/src/scripts/template-stop-slapd ldap/admin/src/scripts/template-suffix2instance \
+	ldap/admin/src/scripts/template-upgradedb ldap/admin/src/scripts/template-verify-db.pl \
+	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/Util.pm \
+	ldap/ldif/template-baseacis.ldif ldap/ldif/template-bitwise.ldif ldap/ldif/template-country.ldif \
+	ldap/ldif/template-dnaplugin.ldif ldap/ldif/template-domain.ldif ldap/ldif/template-dse.ldif \
+	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
+	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
+	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
+	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
+
 taskdir = $(datadir)@scripttemplatedir@
 server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
@@ -1185,6 +1217,28 @@ mib_DATA = ldap/servers/snmp/RFC-1215.txt \
 	ldap/servers/snmp/NETWORK-SERVICES-MIB.txt \
 	ldap/servers/snmp/RFC1155-SMI.txt \
 	ldap/servers/snmp/SNMPv2-SMI.txt
+
+
+#------------------------
+# man pages
+#------------------------
+dist_man_MANS = man/man1/dbscan.1 \
+        man/man1/cl-dump.1 \
+        man/man1/dbgen.pl.1 \
+        man/man1/dsktune.1 \
+        man/man1/infadd.1 \
+        man/man1/ldap-agent.1 \
+        man/man1/ldclt.1 \
+        man/man1/ldif.1 \
+        man/man1/logconv.pl.1 \
+        man/man1/migratecred.1 \
+        man/man1/mmldif.1 \
+        man/man1/pwdhash.1 \
+        man/man1/repl-monitor.1 \
+        man/man1/rsearch.1 \
+        man/man8/migrate-ds.pl.8 \
+        man/man8/ns-slapd.8 \
+        man/man8/setup-ds.pl.8
 
 
 #////////////////////////////////////////////////////////////////
@@ -8705,6 +8759,96 @@ clean-libtool:
 distclean-libtool:
 	-rm -f libtool
 uninstall-info-am:
+install-man1: $(man1_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	test -z "$(man1dir)" || $(mkdir_p) "$(DESTDIR)$(man1dir)"
+	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  case "$$ext" in \
+	    1*) ;; \
+	    *) ext='1' ;; \
+	  esac; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man1dir)/$$inst'"; \
+	  $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man1dir)/$$inst"; \
+	done
+uninstall-man1:
+	@$(NORMAL_UNINSTALL)
+	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  case "$$ext" in \
+	    1*) ;; \
+	    *) ext='1' ;; \
+	  esac; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f '$(DESTDIR)$(man1dir)/$$inst'"; \
+	  rm -f "$(DESTDIR)$(man1dir)/$$inst"; \
+	done
+install-man8: $(man8_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	test -z "$(man8dir)" || $(mkdir_p) "$(DESTDIR)$(man8dir)"
+	@list='$(man8_MANS) $(dist_man8_MANS) $(nodist_man8_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.8*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  case "$$ext" in \
+	    8*) ;; \
+	    *) ext='8' ;; \
+	  esac; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man8dir)/$$inst'"; \
+	  $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man8dir)/$$inst"; \
+	done
+uninstall-man8:
+	@$(NORMAL_UNINSTALL)
+	@list='$(man8_MANS) $(dist_man8_MANS) $(nodist_man8_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.8*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  case "$$ext" in \
+	    8*) ;; \
+	    *) ext='8' ;; \
+	  esac; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f '$(DESTDIR)$(man8dir)/$$inst'"; \
+	  rm -f "$(DESTDIR)$(man8dir)/$$inst"; \
+	done
 install-configDATA: $(config_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(configdir)" || $(mkdir_p) "$(DESTDIR)$(configdir)"
@@ -8876,7 +9020,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/m4
+	$(mkdir_p) $(distdir)/m4 $(distdir)/man/man1 $(distdir)/man/man8
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
@@ -9004,9 +9148,9 @@ check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
-		$(DATA) config.h
+		$(MANS) $(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9135,9 +9279,10 @@ info: info-am
 info-am:
 
 install-data-am: install-configDATA install-infDATA \
-	install-initSCRIPTS install-initconfigSCRIPTS install-mibDATA \
-	install-nodist_propertyDATA install-perlSCRIPTS \
-	install-propertyDATA install-sampledataDATA install-schemaDATA \
+	install-initSCRIPTS install-initconfigSCRIPTS install-man \
+	install-mibDATA install-nodist_propertyDATA \
+	install-perlSCRIPTS install-propertyDATA \
+	install-sampledataDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-taskSCRIPTS
 
@@ -9146,7 +9291,7 @@ install-exec-am: install-binPROGRAMS install-binSCRIPTS \
 
 install-info: install-info-am
 
-install-man:
+install-man: install-man1 install-man8
 
 installcheck-am:
 
@@ -9173,12 +9318,14 @@ ps-am:
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-info-am \
 	uninstall-initSCRIPTS uninstall-initconfigSCRIPTS \
-	uninstall-mibDATA uninstall-nodist_propertyDATA \
+	uninstall-man uninstall-mibDATA uninstall-nodist_propertyDATA \
 	uninstall-perlSCRIPTS uninstall-propertyDATA \
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
 	uninstall-taskSCRIPTS
+
+uninstall-man: uninstall-man1 uninstall-man8
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-generic clean-libtool \
@@ -9193,10 +9340,10 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	install-data install-data-am install-exec install-exec-am \
 	install-infDATA install-info install-info-am \
 	install-initSCRIPTS install-initconfigSCRIPTS install-man \
-	install-mibDATA install-nodist_propertyDATA \
-	install-perlSCRIPTS install-propertyDATA \
-	install-sampledataDATA install-sbinPROGRAMS \
-	install-sbinSCRIPTS install-schemaDATA \
+	install-man1 install-man8 install-mibDATA \
+	install-nodist_propertyDATA install-perlSCRIPTS \
+	install-propertyDATA install-sampledataDATA \
+	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-strip install-taskSCRIPTS installcheck installcheck-am \
 	installdirs maintainer-clean maintainer-clean-generic \
@@ -9205,12 +9352,12 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-info-am \
 	uninstall-initSCRIPTS uninstall-initconfigSCRIPTS \
-	uninstall-mibDATA uninstall-nodist_propertyDATA \
-	uninstall-perlSCRIPTS uninstall-propertyDATA \
-	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
-	uninstall-sbinSCRIPTS uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
-	uninstall-taskSCRIPTS
+	uninstall-man uninstall-man1 uninstall-man8 uninstall-mibDATA \
+	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
+	uninstall-propertyDATA uninstall-sampledataDATA \
+	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
+	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS
 
 
 dirver.h: Makefile

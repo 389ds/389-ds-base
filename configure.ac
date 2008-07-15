@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
 # This version is the version returned by ns-slapd -v
-AC_INIT([dirsrv], [1.1.1], [http://bugzilla.redhat.com/])
+AC_INIT([dirsrv], [1.1.2], [http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
@@ -214,6 +214,12 @@ else
   perldir=/$PACKAGE_NAME/perl
 fi
 
+# if mandir is the default value, override it
+# otherwise, the user must have set it - just use it
+if test X"$mandir" = X'${prefix}/man' ; then
+   mandir='$(datadir)/man'
+fi
+
 # Shared paths for all layouts
 # relative to sysconfdir
 configdir=/$PACKAGE_NAME/config
@@ -234,6 +240,7 @@ AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
 AC_SUBST(infdir)
 AC_SUBST(mibdir)
+AC_SUBST(mandir)
 
 AC_SUBST(defaultuser)
 AC_SUBST(defaultgroup)

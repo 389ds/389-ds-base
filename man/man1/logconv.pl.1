@@ -1,0 +1,118 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH LOGCONV.PL 1 "May 18, 2008"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+logconv.pl \- analyzes Directory Server access log files
+.SH SYNOPSIS
+.B logconv.pl 
+[\fI\-h\fR] [\fI\-d <rootDN>\fR] [\fI\-s <size limit>\fR] [\fI\-v\fR] [\fI\-V\fR]
+[\fI\-S <start time>\fR] [\fI\-E <end time>\fR]
+[\fI\-efcibaltnxgju\fR] [\fI access log ... ... \fR]
+.PP
+.SH DESCRIPTION
+Analyzes Directory Server access log files for specific information defined on the command
+line
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-h\fR 
+help/usage
+.TP
+.B \fB\-d\fR <Directory Managers DN>
+DEFAULT \-> cn=directory manager
+.TP
+.B \fB\-s\fR <Number of results to return per category>
+DEFAULT \-> 20
+.TP
+.B \fB\-X\fR <IP address to exclude from connection stats>
+E.g. Load balancers
+.TP
+.B \fB\-v\fR show version of tool
+Print version of the tool
+.TP
+.B \fB\-S\fR <time to begin analyzing logfile from>
+Time to begin analyzing logile from
+E.g. [28/Mar/2002:13:14:22 \fB\-0800]\fR
+.TP
+.B \fB\-E\fR <time to stop analyzing logfile>
+Time to stop analyzing logile from
+E.g. [28/Mar/2002:13:24:62 \fB\-0800]\fR
+.TP
+\fB\-V\fR <enable verbose output \- includes all stats listed below>
+Verbose output
+.TP
+.B \fB\-[efcibaltnxgju]\fR
+.br
+\fBe\fR Error Code stats
+.br
+\fBf\fR Failed Login Stats
+.br
+\fBc\fR Connection Code Stats
+.br
+\fBi\fR Client Stats
+.br
+\fBb\fR Bind Stats
+.br
+\fBa\fR Search Base Stats
+.br
+\fBl\fR Search Filter Stats
+.br
+\fBt\fR Etime Stats
+.br
+\fBn\fR Nentries Stats
+.br
+\fBx\fR Extended Operations
+.br
+\fBr\fR Most Requested Attribute Stats
+.br
+\fBg\fR Abandoned Operation Stats
+.br
+\fBj\fR Recommendations
+.br
+\fBu\fR Unindexed Search Stats
+.br
+\fBy\fR Connection Latency Stats
+.br
+\fBp\fR Open Connection ID Stats
+.PP
+.SH USAGE
+Examples:
+.IP
+logconv.pl \fB\-s\fR 10 \fB\-V\fR access
+.IP
+logconv.pl \fB\-d\fR "cn=directory manager" /export/server4/slapd\-host/logs/access*
+.IP
+logconv.pl \fB\-s\fR 50 \fB\-ibgju\fR access*
+.IP
+logconv.pl \fB\-S\fR "[28/Mar/2002:13:14:22 \fB\-0800]\fR" \fB\-E\fR "[28/Mar/2002:13:50:05 \fB\-0800]\fR" \fB\-e\fR access
+.br
+.SH AUTHOR
+logconv.pl was written by the Fedora Directory Server Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2008 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

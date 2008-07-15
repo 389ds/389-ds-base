@@ -39,7 +39,7 @@ endif
 # Linker Flags
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
-NSS_LINK = @nss_lib@ -lssl3 -lnss3 -lsoftokn3
+NSS_LINK = @nss_lib@ -lssl3 -lnss3
 LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
@@ -59,7 +59,32 @@ LIBCRUN=@LIBCRUN@
 #------------------------
 BUILT_SOURCES = dirver.h dberrstrs.h
 
-CLEANFILES =  dirver.h dberrstrs.h ns-slapd.properties
+CLEANFILES =  dirver.h dberrstrs.h ns-slapd.properties \
+	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
+	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
+	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
+	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
+	ldap/admin/src/scripts/Setup.pm ldap/admin/src/scripts/template-bak2db \
+	ldap/admin/src/scripts/template-bak2db.pl ldap/admin/src/scripts/template-db2bak \
+	ldap/admin/src/scripts/template-db2bak.pl ldap/admin/src/scripts/template-db2index \
+	ldap/admin/src/scripts/template-db2index.pl ldap/admin/src/scripts/template-db2ldif \
+	ldap/admin/src/scripts/template-db2ldif.pl ldap/admin/src/scripts/template-dbverify \
+	ldap/admin/src/scripts/template-ldif2db ldap/admin/src/scripts/template-ldif2db.pl \
+	ldap/admin/src/scripts/template-ldif2ldap ldap/admin/src/scripts/template-monitor \
+	ldap/admin/src/scripts/template-ns-accountstatus.pl ldap/admin/src/scripts/template-ns-activate.pl \
+	ldap/admin/src/scripts/template-ns-inactivate.pl ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/template-restart-slapd ldap/admin/src/scripts/template-restoreconfig \
+	ldap/admin/src/scripts/template-saveconfig ldap/admin/src/scripts/template-start-slapd \
+	ldap/admin/src/scripts/template-stop-slapd ldap/admin/src/scripts/template-suffix2instance \
+	ldap/admin/src/scripts/template-upgradedb ldap/admin/src/scripts/template-verify-db.pl \
+	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/Util.pm \
+	ldap/ldif/template-baseacis.ldif ldap/ldif/template-bitwise.ldif ldap/ldif/template-country.ldif \
+	ldap/ldif/template-dnaplugin.ldif ldap/ldif/template-domain.ldif ldap/ldif/template-dse.ldif \
+	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
+	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
+	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
+	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
 
 dirver.h: Makefile
 	perl $(srcdir)/dirver.pl -v "$(VERSION)" -o dirver.h
@@ -261,6 +286,27 @@ mib_DATA = ldap/servers/snmp/RFC-1215.txt \
 	ldap/servers/snmp/NETWORK-SERVICES-MIB.txt \
 	ldap/servers/snmp/RFC1155-SMI.txt \
 	ldap/servers/snmp/SNMPv2-SMI.txt
+
+#------------------------
+# man pages
+#------------------------
+dist_man_MANS = man/man1/dbscan.1 \
+        man/man1/cl-dump.1 \
+        man/man1/dbgen.pl.1 \
+        man/man1/dsktune.1 \
+        man/man1/infadd.1 \
+        man/man1/ldap-agent.1 \
+        man/man1/ldclt.1 \
+        man/man1/ldif.1 \
+        man/man1/logconv.pl.1 \
+        man/man1/migratecred.1 \
+        man/man1/mmldif.1 \
+        man/man1/pwdhash.1 \
+        man/man1/repl-monitor.1 \
+        man/man1/rsearch.1 \
+        man/man8/migrate-ds.pl.8 \
+        man/man8/ns-slapd.8 \
+        man/man8/setup-ds.pl.8
 
 #////////////////////////////////////////////////////////////////
 #

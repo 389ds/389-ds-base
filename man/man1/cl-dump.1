@@ -1,0 +1,96 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH CL-DUMP 1 "May 18, 2008"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+cl-dump \- Dump and decode Directory Server replication change log
+.SH SYNOPSIS
+.B cl\-dump
+[\fI-h host\fR] [\fI-p port\fR] [\fI-D bind-dn\fR] -w bind-password | -P bind-cert
+       [\fI-r replica-roots\fR] [\fI-o output-file\fR] [\fI-c\fR] [\fI-v\fR]
+
+.PP
+.B cl\-dump
+\-i changelog\-ldif\-file\-with\-base64encoding [\fI\-o output\-file\fR] [\fI\-c\fR]
+.PP
+.SH DESCRIPTION
+Dump and decode Directory Server replication change log
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics, 
+.\" respectively.
+.SH OPTIONS
+A summary of options is included below.
+.TP
+.B \-c 
+Dump and interpret CSN only. This option can be used with or
+without -i option.
+.TP
+.B \-D bind\-dn
+Directory server's bind DN. Default to "cn=Directory Manager" if
+the option is omitted.
+.TP
+.B \-h host
+Directory server's host. Default to the server where the script
+is running.
+.TP
+.B \-i changelog\-ldif\-file\-with\-base64encoding
+If you already have a ldif-like changelog, but the changes
+in that file are encoded, you may use this option to
+decode that ldif-like changelog.
+.TP
+.B \-o output\-file
+Path name for the final result. Default to STDOUT if omitted.
+.TP
+.B \-p port
+Directory server's port. Default to 389.
+.TP
+.B \-P bind\-cert
+Pathname of binding certificate DB
+.TP
+.B \-r replica\-roots
+Specify replica roots whose changelog you want to dump. The replica
+roots may be seperated by comma. All the replica roots would be
+dumped if the option is omitted.
+.TP
+.B \-v 
+Print the version of this script.
+.TP
+.B \-w bind\-password
+Password for the bind DN
+.SH RESTRICTIONS
+If you are not using \-i option, the script should be run when the server
+is running, and from where the server's changelog directory is accessible.
+.br
+.SH SEE ALSO
+.BR repl-monitor (1)
+.br
+.SH AUTHOR
+cl-dump was written by the Fedora Directory Server Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2008 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

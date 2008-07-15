@@ -1,0 +1,82 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH INFADD 1 "May 18, 2008"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+infadd \- infinite additions to LDAP server
+.SH SYNOPSIS
+.B infadd
+\fI-s suffix -u bindDN -w password \fR[\fIoptions\fR]
+.SH DESCRIPTION
+infadd is used
+to measure performance of the add operation. It can
+span multiple threads in order to test the performance 
+under heavy locking.
+.PP
+.SH OPTIONS
+.TP
+.B \-h hostname
+hostname (default: localhost)
+.TP
+.B \-p port
+port (default: 389)
+.TP
+.B \-t threads
+number of threads to spin (default: 1)
+.TP
+.B \-d
+use TCP no\-delay
+.TP
+.B \-q
+quiet mode (no status updates)
+.TP
+.B \-v
+verbose mode (give per\-thread statistics)
+.TP
+.B \-I num
+first uid (default: 0)
+.TP
+.B \-l count
+limit count; stops when the total count exceeds <count>
+.TP
+.B \-i msec
+sample interval in milliseconds (default: 10000)
+.TP
+.B \-R size
+generate <size> random names instead of using data files
+.TP
+.B \-z size
+add binary blob of average size of <size> bytes
+.PP
+.SH SEE ALSO
+.BR rsearch (1)
+.br
+.SH AUTHOR
+infadd was written by the Fedora Directory Server Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2008 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

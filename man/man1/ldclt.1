@@ -1,0 +1,232 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH LDCLT 1 "May 18, 2008"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+ldclt \- load test program for LDAP
+.SH SYNOPSYS
+.B ldclt 
+[\fI\-qQvV\fR] [\fI\-E <max errors>\fR]
+[\fI\-b <base DN>\fR] [\fI\-h <host>\fR] [\fI\-p <port>\fR] [\fI\-t <timeout>\fR]
+[\fI\-D <bind DN>\fR] [\fI\-w <passwd>\fR] [\fI\-o <SASL option>\fR]
+[\fI\-e <execParams>\fR] [\fI\-a <max pending>\fR]
+[\fI\-n <nb threads>\fR] [\fI\-i <nb times>\fR] [\fI\-N <nb samples>\fR]
+[\fI\-I <err number>\fR] [\fI\-T <total>\fR]
+[\fI\-r <low> \-R <high>\fR]
+[\fI\-f <filter>\fR] [\fI\-s <scope>\fR]
+[\fI\-S <slave>\fR] [\fI\-P<master port>\fR]
+[\fI\-W <waitsec>\fR] [\fI\-Z <certfile>\fR]
+.PP
+.SH DESCRIPTION
+This tool is a LDAP client targeted to validate the reliability of
+the product under a wide variety of stress conditions.
+.PP
+.SH OPTIONS
+The valid options are:
+.TP
+.B \fB\-a\fR
+Asynchronous mode, with max pending operations.
+.TP
+.B \fB\-b\fR
+Give the base DN to use. Default "o=sun,c=us".
+.TP
+.B \fB\-D\fR
+Bind DN. See \fB\-w\fR
+.TP
+.B \fB\-E\fR
+Max errors allowed. Default 1000.
+.TP
+.B \fB\-f\fR
+Filter for searches.
+.TP
+.B \fB\-h\fR
+Host to connect. Default "localhost".
+.TP
+.B \fB\-i\fR
+Number of times inactivity allowed. Default 3 (30 seconds)
+.TP
+\fB\-I\fR
+Ignore errors (cf. \fB\-E\fR). Default none.
+.TP
+.B \fB\-n\fR
+Number of threads. Default 10.
+.TP
+.B \fB\-N\fR
+Number of samples (10 seconds each). Default infinite.
+.TP
+.B \fB\-o\fR
+SASL Option.
+.TP
+.B \fB\-p\fR
+Server port. Default 389.
+.TP
+.B \fB\-P\fR
+Master port (to check replication). Default 16000.
+.TP
+.B \fB\-q\fR
+Quiet mode. See option \fB\-I\fR.
+.TP
+.B \fB\-Q\fR
+Super quiet mode.
+.TP
+.B \fB\-r\fR
+Range's low value.
+.TP
+.B \fB\-R\fR
+Range's high value.
+.TP
+.B \fB\-s\fR
+Scope. May be base, subtree or one. Default subtree.
+.TP
+.B \fB\-S\fR
+Slave to check.
+.TP
+.B \fB\-t\fR
+LDAP operations timeout. Default 30 seconds.
+.TP
+.B \fB\-T\fR
+Total number of operations per thread. Default infinite.
+.TP
+.B \fB\-v\fR
+Verbose.
+.TP
+.B \fB\-V\fR
+Very verbose.
+.TP
+.B \fB\-w\fR
+Bind passwd. See \fB\-D\fR.
+.TP
+.B \fB\-W\fR
+Wait between two operations. Default 0 seconds.
+.TP
+.B \fB\-Z\fR
+certfile. Turn on SSL and use certfile as the certificate DB
+.TP
+.B \fB\-e\fR
+Execution parameters:
+.IP
+\fBadd\fR ldap_add() entries.
+.br
+\fBappend\fR entries to the genldif file.
+.br
+\fBascii\fR ascii 7\-bits strings.
+.br
+\fBattreplace=name:mask\fR replace attribute of existing entry.
+.br
+\fBattrlist=name:name:name\fR specify list of attribs to retrieve
+.br
+\fBattrsonly=0|1\fR ldap_search() parameter. Set 0 to read values.
+.br
+\fBbindeach\fR ldap_bind() for each operation.
+.br
+\fBbindonly\fR only bind/unbind, no other operation is performed.
+.br
+\fBclose\fR will close() the fd, rather than ldap_unbind().
+.br
+\fBcltcertname=name\fR name of the SSL client certificate
+.br
+\fBcommoncounter\fR all threads share the same counter.
+.br
+\fBcounteach\fR count each operation not only successful ones.
+.br
+\fBdelete\fR ldap_delete() entries.
+.br
+\fBdontsleeponserverdown\fR will loop very fast if server down.
+.br
+\fBemailPerson\fR objectclass=emailPerson (\fB\-e\fR add only).
+.br
+\fBesearch\fR exact search.
+.br
+\fBgenldif=filename\fR generates a ldif file
+.br
+\fBimagesdir=path\fR specify where are the images.
+.br
+\fBincr\fR incremental values.
+.br
+\fBinetOrgPerson\fR objectclass=inetOrgPerson (\fB\-e\fR add only).
+.br
+\fBkeydbfile=file\fR filename of the key database
+.br
+\fBkeydbpin=password\fR password for accessing the key database
+.br
+\fBnoglobalstats\fR don't print periodical global statistics
+.br
+\fBnoloop\fR does not loop the incremental numbers.
+.br
+\fBobject=filename\fR build object from input file
+.br
+\fBperson\fR objectclass=person (\fB\-e\fR add only).
+.br
+\fBrandom\fR random filters, etc...
+.br
+\fBrandomattrlist=name:name:name\fR random select attrib in the list
+.br
+\fBrandombase\fR random base DN.
+.br
+\fBrandombaselow=value\fR low value for random generator.
+.br
+\fBrandombasehigh=value\fR high value for random generator.
+.br
+\fBrandombinddn\fR random bind DN.
+.br
+\fBrandombinddnfromfile=fine\fR retrieve bind DN & passwd from file
+.br
+\fBrandombinddnlow=value\fR low value for random generator.
+.br
+\fBrandombinddnhigh=value\fR high value for random generator.
+.br
+\fBrdn=attrname:value\fR alternate for \fB\-f\fR.
+.br
+\fBreferral=on|off|rebind\fR change referral behaviour.
+.br
+\fBscalab01\fR activates scalab01 scenario.
+.br
+\fBscalab01_cnxduration\fR maximum connection duration.
+.br
+\fBscalab01_maxcnxnb\fR modem pool size.
+.br
+\fBscalab01_wait\fR sleep() between 2 attempts to connect.
+.br
+\fBsmoothshutdown\fR main thread waits till the worker threads exit.
+.br
+\fBstring\fR create random strings rather than random numbers.
+.br
+\fBv2\fR ldap v2.
+.br
+\fBwithnewparent\fR rename with newparent specified as argument.
+.br
+\fBrandomauthid\fR random SASL Authid.
+.br
+\fBrandomauthidlow=value\fR low value for random SASL Authid.
+.br
+\fBrandomauthidhigh=value\fR high value for random SASL Authid.
+.PP
+.SH AUTHOR
+ldclt was written by the Fedora Directory Server Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2008 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

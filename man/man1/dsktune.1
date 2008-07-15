@@ -1,0 +1,64 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH DSKTUNE 1 "May 18, 2008"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+dsktune \- reports memory, network, and file system tuning settings
+which can affect the performance of the Directory Server
+.SH SYNOPSIS
+.B dsktune
+[\fI-q\fR] [\fI-c\fR] [\fI-D\fR] [\fI-v\fR] [\fI-i installdir\fR]
+.SH DESCRIPTION
+Reports memory, network, and file system tuning settings
+which can affect the performance of the Directory Server
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics, 
+.\" respectively.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-q\fR 
+dsktune only reports essential settings
+.TP
+.B \fB\-c\fR 
+dsktune only reports tuning information for client machines
+.TP
+.B \fB\-D\fR 
+dsktune also reports the commands executed
+.TP
+.B \fB\-v\fR 
+dsktune only reports its release version date
+.TP
+.B \fB\-i installdir\fR 
+specify alternate server installation directory
+.br
+.SH AUTHOR
+dsktune was written by the Fedora Directory Server Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2001 Sun Microsystems, Inc. Used by permission.
+.br
+Copyright \(co 2008 Red Hat, Inc.
+.br
+This manual page was written by Michele Baldessari <michele@pupazzo.org>,
+for the Debian project (but may be used by others).
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.
