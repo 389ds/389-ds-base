@@ -1059,6 +1059,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_syntax_compare;
 		break;
+	case SLAPI_SYNTAX_SUBSTRLENS:
+		(*(int **)value) = pblock->pb_substrlens;
+		break;
 
 	/* controls we know about */
 	case SLAPI_MANAGEDSAIT:
@@ -2298,12 +2301,15 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_syntax_compare = (IFP) value;
 		break;
-        case SLAPI_ENTRY_PRE_OP:
-                pblock->pb_pre_op_entry = (Slapi_Entry *) value;
-                break;
-        case SLAPI_ENTRY_POST_OP:
-                pblock->pb_post_op_entry = (Slapi_Entry *) value;
-                break;
+	case SLAPI_SYNTAX_SUBSTRLENS:
+		pblock->pb_substrlens = (int *) value;
+		break;
+	case SLAPI_ENTRY_PRE_OP:
+		pblock->pb_pre_op_entry = (Slapi_Entry *) value;
+		break;
+	case SLAPI_ENTRY_POST_OP:
+		pblock->pb_post_op_entry = (Slapi_Entry *) value;
+		break;
 
 	/* target address for all operations */
 	case SLAPI_TARGET_ADDRESS:

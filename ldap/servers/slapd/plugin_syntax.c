@@ -309,6 +309,38 @@ slapi_call_syntax_values2keys_sv(
 	return( rc );
 }
 
+/*
+ * almost identical to slapi_call_syntax_values2keys_sv except accepting 
+ * pblock to pass some info such as substrlen.
+ */
+int
+slapi_call_syntax_values2keys_sv_pb(
+    void			*vpi,
+    Slapi_Value		**vals,
+    Slapi_Value		***ivals,
+    int				ftype,
+	Slapi_PBlock	*pb
+)
+{
+	int					rc;
+	struct slapdplugin	*pi = vpi;
+
+	LDAPDebug( LDAP_DEBUG_FILTER, "=> slapi_call_syntax_values2keys\n",
+	    0, 0, 0 );
+
+	slapi_pblock_set( pb, SLAPI_PLUGIN, vpi );
+
+	*ivals = NULL;
+	rc = -1;	/* means no values2keys function */
+	if ( pi != NULL && pi->plg_syntax_values2keys != NULL ) {
+		rc = pi->plg_syntax_values2keys( pb, vals, ivals, ftype );
+	}
+
+	LDAPDebug( LDAP_DEBUG_FILTER,
+	    "<= slapi_call_syntax_values2keys %d\n", rc, 0, 0 );
+	return( rc );
+}
+
 SLAPI_DEPRECATED int
 slapi_call_syntax_assertion2keys_ava( /* JCM SLOW FUNCTION */
     void		*vpi,

@@ -1444,7 +1444,17 @@ typedef struct slapi_pblock {
 	/* For password policy control */
 	int		pb_pwpolicy_ctrl;
 	void	*pb_vattr_context;      /* hold the vattr_context for roles/cos */
+
+	int		*pb_substrlens; /* user specified minimum substr search key lengths:
+							 * nsSubStrBegin, nsSubStrMiddle, nsSubStrEnd
+							 */
 } slapi_pblock;
+
+/* index if substrlens */
+#define INDEX_SUBSTRBEGIN	0
+#define INDEX_SUBSTRMIDDLE	1
+#define INDEX_SUBSTREND		2
+#define INDEX_SUBSTRLEN		3	/* size of the substrlens */
 
 /* The referral element */
 typedef struct ref {

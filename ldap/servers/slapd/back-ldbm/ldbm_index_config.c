@@ -122,7 +122,7 @@ static char *attrinfo2ConfMatchingRules (struct attrinfo *pai)
 /* used by the two callbacks below, to parse an index entry into something
  * awkward that we can pass to attr_index_config().
  */
-#define MAX_TMPBUF      256
+#define MAX_TMPBUF      1024
 #define ZCAT_SAFE(_buf, _x1, _x2) do { \
     if (strlen(_buf) + strlen(_x1) + strlen(_x2) + 2 < MAX_TMPBUF) { \
         strcat(_buf, _x1); \
@@ -170,18 +170,71 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
         arglist[argc++] = slapi_ch_strdup(tmpBuf);
     }
 
+    tmpBuf[0] = 0;
     /* Get the list of matching rules from the entry. */
     if (0 == slapi_entry_attr_find(e, "nsMatchingRule", &attr)) {
         for (i = slapi_attr_first_value(attr, &sval); i != -1;
              i = slapi_attr_next_value(attr, i, &sval)) {
             attrValue = slapi_value_get_berval(sval);
             if (0 == i) {
-                tmpBuf[0] = 0;
                 ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
             } else {
                 ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
             }
         }
+    }
+
+    /* Get the substr begin length. note: pick the first value. */
+    if (0 == slapi_entry_attr_find(e, INDEX_ATTR_SUBSTRBEGIN, &attr)) {
+        i = slapi_attr_first_value(attr, &sval);
+        if (-1 != i) {
+            attrValue = slapi_value_get_berval(sval);
+            if (0 == tmpBuf[0]) {
+                PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
+                            INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
+            } else {
+                int tmpbuflen = strlen(tmpBuf);
+                char *p = tmpBuf + tmpbuflen;
+                PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
+                            INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
+            }
+        }
+    }
+
+    /* Get the substr middle length. note: pick the first value. */
+    if (0 == slapi_entry_attr_find(e, INDEX_ATTR_SUBSTRMIDDLE, &attr)) {
+        i = slapi_attr_first_value(attr, &sval);
+        if (-1 != i) {
+            attrValue = slapi_value_get_berval(sval);
+            if (0 == tmpBuf[0]) {
+                PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
+                            INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
+            } else {
+                int tmpbuflen = strlen(tmpBuf);
+                char *p = tmpBuf + tmpbuflen;
+                PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
+                            INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
+            }
+        }
+    }
+
+    /* Get the substr end length. note: pick the first value. */
+    if (0 == slapi_entry_attr_find(e, INDEX_ATTR_SUBSTREND, &attr)) {
+        i = slapi_attr_first_value(attr, &sval);
+        if (-1 != i) {
+            attrValue = slapi_value_get_berval(sval);
+            if (0 == tmpBuf[0]) {
+                PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
+                            INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
+            } else {
+                int tmpbuflen = strlen(tmpBuf);
+                char *p = tmpBuf + tmpbuflen;
+                PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
+                            INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
+            }
+        }
+    }
+    if (0 != tmpBuf[0]) {
         arglist[argc++] = slapi_ch_strdup(tmpBuf);
     }
 

@@ -891,6 +891,8 @@ char * slapi_ch_smprintf(const char *fmt, ...)
  */
 int slapi_call_syntax_values2keys_sv( void *vpi, Slapi_Value **vals,
 	Slapi_Value ***ivals, int ftype );
+int slapi_call_syntax_values2keys_sv_pb( void *vpi, Slapi_Value **vals,
+	Slapi_Value ***ivals, int ftype, Slapi_PBlock *pb );
 int slapi_call_syntax_assertion2keys_ava_sv( void *vpi, Slapi_Value *val,
 	Slapi_Value ***ivals, int ftype );
 int slapi_call_syntax_assertion2keys_sub_sv( void *vpi, char *initial,
@@ -1581,6 +1583,9 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_SYNTAX_OID			706
 #define SLAPI_PLUGIN_SYNTAX_FLAGS		707
 #define SLAPI_PLUGIN_SYNTAX_COMPARE		708
+
+/* user defined substrlen; not stored in slapdplugin, but pblock itself */
+#define SLAPI_SYNTAX_SUBSTRLENS	709
 
 /* ACL plugin functions and arguments */
 #define SLAPI_PLUGIN_ACL_INIT			730

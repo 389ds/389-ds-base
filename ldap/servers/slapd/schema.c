@@ -456,7 +456,7 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
   int i, oc_count = 0;
   int unknown_class = 0;
   char errtext[ BUFSIZ ];
-  PRUint32 schema_flags;
+  PRUint32 schema_flags = 0;
 
   /* smart referrals are not allowed in Directory Lite */
   if ( config_is_slapd_lite() ) {

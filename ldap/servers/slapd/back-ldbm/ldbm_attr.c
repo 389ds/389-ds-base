@@ -50,14 +50,6 @@ struct attrinfo *
 attrinfo_new()
 {
     struct attrinfo *p= (struct attrinfo *)slapi_ch_calloc(1, sizeof(struct attrinfo));
-	p->ai_type= 0;
-	p->ai_indexmask= 0;
-	p->ai_plugin= NULL;
-	p->ai_index_rules= NULL;
-	p->ai_dblayer= NULL;
-        p->ai_dblayer_count = 0;
-	p->ai_idl= NULL;
-	p->ai_key_cmp_fn = NULL;
     return p;
 }
 
@@ -156,6 +148,25 @@ ainfo_get(
 }
 
 void
+_set_attr_substrlen(int index, char *str, int **substrlens)
+{
+	char *p = NULL;
+	/* nsSubStrXxx=<VAL> is passed; 
+	   set it to the attribute's plugin */
+	p = strchr(str, '=');
+	if (NULL != p) {
+		long sublen = strtol(++p, (char **)NULL, 10);
+		if (sublen > 0) {	/* 0 is not acceptable */
+			if (NULL == *substrlens) {
+				*substrlens = (int *)slapi_ch_calloc(1, 
+												sizeof(int) * INDEX_SUBSTRLEN);
+			}
+			(*substrlens)[index] = sublen;
+		}
+	}
+}
+
+void
 attr_index_config(
     backend *be,
     char		*fname,
@@ -172,6 +183,8 @@ attr_index_config(
 	char	**index_rules = NULL;
 	struct attrinfo	*a;
 	int return_value = -1;
+	char    *p;
+	int *substrlens = NULL;
 
 	attrs = str2charray( argv[0], "," );
 	if ( argc > 1 ) {
@@ -189,34 +202,29 @@ attr_index_config(
 		attrsyntax_oid = slapi_ch_strdup(plugin_syntax2oid(a->ai_plugin));
 		if ( argc == 1 ) {
 			a->ai_indexmask = (INDEX_PRESENCE | INDEX_EQUALITY |
-			    INDEX_APPROX | INDEX_SUB);
+				INDEX_APPROX | INDEX_SUB);
 		} else {
 			a->ai_indexmask = 0;
 			for ( j = 0; indexes[j] != NULL; j++ ) {
-				if ( strncasecmp( indexes[j], "pres", 4 )
-				    == 0 ) {
+				if ( strncasecmp( indexes[j], "pres", 4 ) == 0 ) {
 					a->ai_indexmask |= INDEX_PRESENCE;
-				} else if ( strncasecmp( indexes[j], "eq", 2 )
-				    == 0 ) {
+				} else if ( strncasecmp( indexes[j], "eq", 2 ) == 0 ) {
 					a->ai_indexmask |= INDEX_EQUALITY;
-				} else if ( strncasecmp( indexes[j], "approx",
-				    6 ) == 0 ) {
+				} else if ( strncasecmp( indexes[j], "approx", 6 ) == 0 ) {
 					a->ai_indexmask |= INDEX_APPROX;
-				} else if ( strncasecmp( indexes[j], "sub", 3 )
-				    == 0 ) {
+				} else if ( strncasecmp( indexes[j], "sub", 3 ) == 0 ) {
 					a->ai_indexmask |= INDEX_SUB;
-				} else if ( strncasecmp( indexes[j], "none", 4 )
-				    == 0 ) {
+				} else if ( strncasecmp( indexes[j], "none", 4 ) == 0 ) {
 					if ( a->ai_indexmask != 0 ) {
 						LDAPDebug(LDAP_DEBUG_ANY,
 							"%s: line %d: index type \"none\" cannot be combined with other types\n",
-						    fname, lineno, 0);
+							fname, lineno, 0);
 					}
 					a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
 				} else {
 					LDAPDebug(LDAP_DEBUG_ANY,
 						"%s: line %d: unknown index type \"%s\" (ignored)\n",
-					    fname, lineno, indexes[j]);
+						fname, lineno, indexes[j]);
 					LDAPDebug(LDAP_DEBUG_ANY,
 						"valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
 						0, 0, 0);
@@ -227,53 +235,66 @@ attr_index_config(
 			j = 0;
 			if (index_rules != NULL) for (; index_rules[j] != NULL; ++j);
 			if (j > 0) { /* there are some candidates */
-			    char** official_rules = (char**)
-			      slapi_ch_malloc ((j + 1) * sizeof (char*));
-			    size_t k = 0;
-			    for (j = 0; index_rules[j] != NULL; ++j) {
-				/* Check that index_rules[j] is an official OID */
-				char* officialOID = NULL;
-				IFP mrINDEX = NULL;
-				Slapi_PBlock* pb = slapi_pblock_new();
-				if (!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, index_rules[j]) &&
-				    !slapi_pblock_set (pb, SLAPI_PLUGIN_MR_TYPE, a->ai_type) &&
-				    !slapi_mr_indexer_create (pb) &&
-				    !slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX) &&
-				    mrINDEX != NULL &&
-				    !slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &officialOID) &&
-				    officialOID != NULL) {
-				    if (!strcasecmp (index_rules[j], officialOID)) {
-					official_rules[k++] = slapi_ch_strdup (officialOID);
-				    } else {
-					char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
-					LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
-						   preamble, officialOID, index_rules[j] );
-					slapi_ch_free((void**)&preamble);
-				    }
-				} else if (!slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid)) {
-				    LDAPDebug (LDAP_DEBUG_ANY, "%s: line %d: "
-					       "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
-					       fname, lineno, index_rules[j] );
-				} else { /* assume builtin and use compare fn provided by syntax plugin */
-				    need_compare_fn = 1;
+				char** official_rules =
+						(char**)slapi_ch_malloc ((j + 1) * sizeof (char*));
+				size_t k = 0;
+				for (j = 0; index_rules[j] != NULL; ++j) {
+					/* Check that index_rules[j] is an official OID */
+					char* officialOID = NULL;
+					IFP mrINDEX = NULL;
+					Slapi_PBlock* pb = slapi_pblock_new();
+					if (!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, index_rules[j]) &&
+						!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_TYPE, a->ai_type) &&
+						!slapi_mr_indexer_create (pb) &&
+						!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX) &&
+						mrINDEX != NULL &&
+						!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &officialOID) &&
+						officialOID != NULL) {
+						if (!strcasecmp (index_rules[j], officialOID)) {
+						official_rules[k++] = slapi_ch_strdup (officialOID);
+						} else {
+						char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
+						LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
+							   preamble, officialOID, index_rules[j] );
+						slapi_ch_free((void**)&preamble);
+						}
+					} else if (p =
+							   strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN)) {
+						_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
+											&substrlens);
+					} else if (p =
+							   strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE)) {
+						_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
+											&substrlens);
+					} else if (p =
+							   strstr(index_rules[j], INDEX_ATTR_SUBSTREND)) {
+						_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
+											&substrlens);
+					} else if (!slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid)) {
+						LDAPDebug (LDAP_DEBUG_ANY, "%s: line %d: "
+							   "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
+							   fname, lineno, index_rules[j] );
+					} else { /* assume builtin and use compare fn provided by syntax plugin */
+						need_compare_fn = 1;
+					}
+					{/* It would improve speed to save the indexer, for future use.
+						But, for simplicity, we destroy it now: */
+						IFP mrDESTROY = NULL;
+						if (!slapi_pblock_get (pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
+						mrDESTROY != NULL) {
+						mrDESTROY (pb);
+						}
+					}
+					slapi_pblock_destroy (pb);
 				}
-				{/* It would improve speed to save the indexer, for future use.
-				    But, for simplicity, we destroy it now: */
-				    IFP mrDESTROY = NULL;
-				    if (!slapi_pblock_get (pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
-					mrDESTROY != NULL) {
-					mrDESTROY (pb);
-				    }
+				official_rules[k] = NULL;
+				a->ai_substr_lens = substrlens;
+				if (k > 0) {
+					a->ai_index_rules = official_rules;
+					a->ai_indexmask |= INDEX_RULES;
+				} else {
+					slapi_ch_free((void**)&official_rules);
 				}
-				slapi_pblock_destroy (pb);
-			    }
-			    official_rules[k] = NULL;
-			    if (k > 0) {
-				a->ai_index_rules = official_rules;
-				a->ai_indexmask |= INDEX_RULES;
-			    } else {
-				slapi_ch_free((void**)&official_rules);
-			    }
 			}
 		}
 
@@ -283,7 +304,7 @@ attr_index_config(
 		if (0 != return_value) {
 			/* fatal error, exit */
 			LDAPDebug(LDAP_DEBUG_ANY,"%s: line %d:Fatal Error: Failed to initialize attribute structure\n",
-			    fname, lineno, 0);
+				fname, lineno, 0);
 			exit( 1 );
 		}
 
@@ -300,24 +321,24 @@ attr_index_config(
 		if (need_compare_fn) {
 			int rc = plugin_call_syntax_get_compare_fn( a->ai_plugin, &a->ai_key_cmp_fn );
 			if (rc != LDAP_SUCCESS) {
-			    LDAPDebug(LDAP_DEBUG_ANY,
-				      "The attribute [%s] does not have a valid ORDERING matching rule\n",
-				      a->ai_type, 0, 0);
+				LDAPDebug(LDAP_DEBUG_ANY,
+					  "The attribute [%s] does not have a valid ORDERING matching rule\n",
+					  a->ai_type, 0, 0);
 				a->ai_key_cmp_fn = NULL;
 			}
 		}
 
 		if ( avl_insert( &inst->inst_attrs, a, ainfo_cmp, ainfo_dup ) != 0 ) {
 			/* duplicate - existing version updated */
-            attrinfo_delete(&a);
+			attrinfo_delete(&a);
 		}
 	}
 	charray_free( attrs );
 	if ( indexes != NULL ) {
-	    charray_free( indexes );
+		charray_free( indexes );
 	}
 	if ( index_rules != NULL ) {
-	    charray_free( index_rules );
+		charray_free( index_rules );
 	}
 }
 

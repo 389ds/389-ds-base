@@ -50,10 +50,12 @@
 #include <unistd.h>
 #endif
 
+#define MAX_VAL(x,y)                    ((x)>(y)?(x):(y))
+
 static int string_filter_approx( struct berval *bvfilter,
 	Slapi_Value **bvals, Slapi_Value **retVal );
 static void substring_comp_keys( Slapi_Value ***ivals, int *nsubs, char *str,
-	int prepost, int syntax );
+	int prepost, int syntax, char *comp_buf, int substrlen );
 
 int
 string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
@@ -294,7 +296,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	for ( j = 0; bvals[j] != NULL; j++ ) {
 		int	tmprc;
 		size_t	len;
-                const struct berval *bvp = slapi_value_get_berval(bvals[j]);
+		const struct berval *bvp = slapi_value_get_berval(bvals[j]);
 
 		len = bvp->bv_len;
 		if ( len < sizeof(buf) ) {
@@ -392,8 +394,53 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 		/* XXX should remove duplicates! XXX */
 		Slapi_Value *bvdup;
 		const struct berval *bvp;
-		char buf[SUBLEN+1];
+		char *buf;
 		int i;
+		int *substrlens = NULL;
+		int localsublens[3] = {SUBBEGIN, SUBMIDDLE, SUBEND};/* default values */
+		int maxsublen;
+		/*
+ 		 * Substring key has 3 types:
+		 * begin (e.g., *^a)
+		 * middle (e.g., *abc)
+		 * end (e.g., *xy$)
+		 *
+		 * the each has its own key length, which can be configured as follows:
+ 		 * Usage: turn an index object to extensibleobject and 
+ 		 *        set an integer value for each.
+ 		 * dn: cn=sn, cn=index, cn=userRoot, cn=ldbm database, cn=plugins, 
+		 *  cn=config
+ 		 * objectClass: extensibleObject
+ 		 * nsSubStrBegin: 2
+ 		 * nsSubStrMiddle: 3
+ 		 * nsSubStrEnd: 2
+ 		 * [...]
+ 		 * 
+ 		 * By default, begin == 2, middle == 3, end == 2 (defined in syntax.h)
+		 */
+
+		/* If nsSubStrLen is specified in each index entry,
+		   respect the length for the substring index key length.
+		   Otherwise, the deafult value SUBLEN is used */
+		slapi_pblock_get(pb, SLAPI_SYNTAX_SUBSTRLENS, &substrlens);
+
+		if (NULL == substrlens) {
+			substrlens = localsublens;
+		}
+		if (0 == substrlens[INDEX_SUBSTRBEGIN]) {
+			substrlens[INDEX_SUBSTRBEGIN] = SUBBEGIN;
+		}
+		if (0 == substrlens[INDEX_SUBSTRMIDDLE]) {
+			substrlens[INDEX_SUBSTRMIDDLE] = SUBMIDDLE;
+		}
+		if (0 == substrlens[INDEX_SUBSTREND]) {
+			substrlens[INDEX_SUBSTREND] = SUBEND;
+		}
+		maxsublen = MAX_VAL(substrlens[INDEX_SUBSTRBEGIN], substrlens[INDEX_SUBSTRMIDDLE]);
+		maxsublen = MAX_VAL(maxsublen, substrlens[INDEX_SUBSTREND]);
+
+		buf = (char *)slapi_ch_calloc(1, maxsublen + 1);
+
 		nsubs = 0;
 		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
 			/*
@@ -407,11 +454,11 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			 * the only downside is that we allocate more space than
 			 * we really need.
 			 */
-			nsubs += slapi_value_get_length(*bvlp) - SUBLEN + 3;
+			nsubs += slapi_value_get_length(*bvlp) - substrlens[INDEX_SUBSTRMIDDLE] + 3;
 		}
+		nsubs += substrlens[INDEX_SUBSTRMIDDLE] * 2 - substrlens[INDEX_SUBSTRBEGIN] - substrlens[INDEX_SUBSTREND];
 		*ivals = (Slapi_Value **) slapi_ch_calloc( (nsubs + 1), sizeof(Slapi_Value *) );
 
-		buf[SUBLEN] = '\0';
 		n = 0;
 
 		bvdup= slapi_value_new(); 
@@ -423,39 +470,42 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			bvp = slapi_value_get_berval(bvdup);
 
 			/* leading */
-			if ( bvp->bv_len > SUBLEN - 2 ) {
+			if ( bvp->bv_len > substrlens[INDEX_SUBSTRBEGIN] - 2 ) {
 				buf[0] = '^';
-				for ( i = 0; i < SUBLEN - 1; i++ ) {
+				for ( i = 0; i < substrlens[INDEX_SUBSTRBEGIN] - 1; i++ ) {
 					buf[i + 1] = bvp->bv_val[i];
 				}
+				buf[substrlens[INDEX_SUBSTRBEGIN]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
 				n++;
 			}
 
 			/* any */
 			for ( p = bvp->bv_val;
-			    p < (bvp->bv_val + bvp->bv_len - SUBLEN + 1);
+			    p < (bvp->bv_val + bvp->bv_len - substrlens[INDEX_SUBSTRMIDDLE] + 1);
 			    p++ ) {
-				for ( i = 0; i < SUBLEN; i++ ) {
+				for ( i = 0; i < substrlens[INDEX_SUBSTRMIDDLE]; i++ ) {
 					buf[i] = p[i];
 				}
-				buf[SUBLEN] = '\0';
+				buf[substrlens[INDEX_SUBSTRMIDDLE]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
 				n++;
 			}
 
 			/* trailing */
-			if ( bvp->bv_len > SUBLEN - 2 ) {
-				p = bvp->bv_val + bvp->bv_len - SUBLEN + 1;
-				for ( i = 0; i < SUBLEN - 1; i++ ) {
+			if ( bvp->bv_len > substrlens[INDEX_SUBSTREND] - 2 ) {
+				p = bvp->bv_val + bvp->bv_len - substrlens[INDEX_SUBSTREND] + 1;
+				for ( i = 0; i < substrlens[INDEX_SUBSTREND] - 1; i++ ) {
 					buf[i] = p[i];
 				}
-				buf[SUBLEN - 1] = '$';
+				buf[substrlens[INDEX_SUBSTREND] - 1] = '$';
+				buf[substrlens[INDEX_SUBSTREND]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
 				n++;
 			}
 		}
 		slapi_value_free(&bvdup);
+		slapi_ch_free_string(&buf);
 		}
 		break;
 	}
@@ -548,6 +598,25 @@ string_assertion2keys_sub(
 )
 {
 	int		nsubs, i, len;
+	int *substrlens = NULL;
+	int localsublens[3] = {SUBBEGIN, SUBMIDDLE, SUBEND};/* default values */
+	int maxsublen;
+	char	*comp_buf = NULL;
+
+	slapi_pblock_get(pb, SLAPI_SYNTAX_SUBSTRLENS, &substrlens);
+
+	if (NULL == substrlens) {
+		substrlens = localsublens;
+	}
+	if (0 == substrlens[INDEX_SUBSTRBEGIN]) {
+		substrlens[INDEX_SUBSTRBEGIN] = SUBBEGIN;
+	}
+	if (0 == substrlens[INDEX_SUBSTRMIDDLE]) {
+		substrlens[INDEX_SUBSTRMIDDLE] = SUBMIDDLE;
+	}
+	if (0 == substrlens[INDEX_SUBSTREND]) {
+		substrlens[INDEX_SUBSTREND] = SUBEND;
+	}
 
 	*ivals = NULL;
 
@@ -561,8 +630,8 @@ string_assertion2keys_sub(
 	nsubs = 0;
 	if ( initial != NULL ) {
 		value_normalize( initial, syntax, 0 /* do not trim leading blanks */ );
-		if ( strlen( initial ) > SUBLEN - 2 ) {
-			nsubs += strlen( initial ) - SUBLEN + 2;
+		if ( strlen( initial ) > substrlens[INDEX_SUBSTRBEGIN] - 2 ) {
+			nsubs += strlen( initial ) - substrlens[INDEX_SUBSTRBEGIN] + 2;
 		} else {
 			initial = NULL;	/* save some work later */
 		}
@@ -570,14 +639,14 @@ string_assertion2keys_sub(
 	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
 		value_normalize( any[i], syntax, 0 /* do not trim leading blanks */ );
 		len = strlen( any[i] );
-		if ( len >= SUBLEN ) {
-			nsubs += len - SUBLEN + 1;
+		if ( len >= substrlens[INDEX_SUBSTRMIDDLE] ) {
+			nsubs += len - substrlens[INDEX_SUBSTRMIDDLE] + 1;
 		}
 	}
 	if ( final != NULL ) {
 		value_normalize( final, syntax, 0 /* do not trim leading blanks */ );
-		if ( strlen( final ) > SUBLEN - 2 ) {
-			nsubs += strlen( final ) - SUBLEN + 2;
+		if ( strlen( final ) > substrlens[INDEX_SUBSTREND] - 2 ) {
+			nsubs += strlen( final ) - substrlens[INDEX_SUBSTREND] + 2;
 		} else {
 			final = NULL; /* save some work later */
 		}
@@ -592,21 +661,29 @@ string_assertion2keys_sub(
 	 */
 
 	*ivals = (Slapi_Value **) slapi_ch_malloc( (nsubs + 1) * sizeof(Slapi_Value *) );
+	
+	maxsublen = MAX_VAL(substrlens[INDEX_SUBSTRBEGIN], substrlens[INDEX_SUBSTRMIDDLE]);
+	maxsublen = MAX_VAL(maxsublen, substrlens[INDEX_SUBSTREND]);
 
 	nsubs = 0;
+	comp_buf = (char *)slapi_ch_malloc(maxsublen + 1);
 	if ( initial != NULL ) {
-		substring_comp_keys( ivals, &nsubs, initial, '^', syntax );
+		substring_comp_keys( ivals, &nsubs, initial, '^', syntax,
+							 comp_buf, substrlens[INDEX_SUBSTRBEGIN] );
 	}
 	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
-		if ( strlen( any[i] ) < SUBLEN ) {
+		if ( strlen( any[i] ) < substrlens[INDEX_SUBSTRMIDDLE] ) {
 			continue;
 		}
-		substring_comp_keys( ivals, &nsubs, any[i], 0, syntax );
+		substring_comp_keys( ivals, &nsubs, any[i], 0, syntax,
+							 comp_buf, substrlens[INDEX_SUBSTRMIDDLE] );
 	}
 	if ( final != NULL ) {
-		substring_comp_keys( ivals, &nsubs, final, '$', syntax );
+		substring_comp_keys( ivals, &nsubs, final, '$', syntax,
+							 comp_buf, substrlens[INDEX_SUBSTREND] );
 	}
 	(*ivals)[nsubs] = NULL;
+	slapi_ch_free_string(&comp_buf);
 
 	return( 0 );
 }
@@ -617,12 +694,15 @@ substring_comp_keys(
     int			*nsubs,
     char		*str,
     int			prepost,
-    int			syntax
+    int			syntax,
+	char		*comp_buf,
+	int			substrlen
 )
 {
     int     i, len;
     char    *p;
-    char    buf[SUBLEN + 1];
+
+	PR_ASSERT(NULL != comp_buf);
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> substring_comp_keys (%s) %d\n",
         str, prepost, 0 );
@@ -632,37 +712,37 @@ substring_comp_keys(
     /* prepend ^ for initial substring */
     if ( prepost == '^' )
     {
-		buf[0] = '^';
-		for ( i = 0; i < SUBLEN - 1; i++ )
+		comp_buf[0] = '^';
+		for ( i = 0; i < substrlen - 1; i++ )
 		{
-			buf[i + 1] = str[i];
+			comp_buf[i + 1] = str[i];
 		}
-		buf[SUBLEN] = '\0';
-		(*ivals)[*nsubs] = slapi_value_new_string(buf);
+		comp_buf[substrlen] = '\0';
+		(*ivals)[*nsubs] = slapi_value_new_string(comp_buf);
 		(*nsubs)++;
     }
 
-    for ( p = str; p < (str + len - SUBLEN + 1); p++ )
+    for ( p = str; p < (str + len - substrlen + 1); p++ )
     {
-		for ( i = 0; i < SUBLEN; i++ )
+		for ( i = 0; i < substrlen; i++ )
 		{
-			buf[i] = p[i];
+			comp_buf[i] = p[i];
 		}
-		buf[SUBLEN] = '\0';
-		(*ivals)[*nsubs] = slapi_value_new_string(buf);
+		comp_buf[substrlen] = '\0';
+		(*ivals)[*nsubs] = slapi_value_new_string(comp_buf);
 		(*nsubs)++;
     }
 
 	if ( prepost == '$' )
 	{
-		p = str + len - SUBLEN + 1;
-		for ( i = 0; i < SUBLEN - 1; i++ )
+		p = str + len - substrlen + 1;
+		for ( i = 0; i < substrlen - 1; i++ )
 		{
-			buf[i] = p[i];
+			comp_buf[i] = p[i];
 		}
-		buf[SUBLEN - 1] = '$';
-		buf[SUBLEN] = '\0';
-		(*ivals)[*nsubs] = slapi_value_new_string(buf);
+		comp_buf[substrlen - 1] = '$';
+		comp_buf[substrlen] = '\0';
+		(*ivals)[*nsubs] = slapi_value_new_string(comp_buf);
 		(*nsubs)++;
     }
 

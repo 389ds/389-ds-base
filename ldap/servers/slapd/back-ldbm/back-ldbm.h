@@ -346,6 +346,34 @@ typedef struct dblayer_private_env dblayer_private_env;
 typedef struct idl_private idl_private;
 typedef struct attrcrypt_private attrcrypt_private;
 
+/*
+ * Special attribute for an index entry 
+ * Usage: turn an index object to extensibleobject and 
+ *        set an integer value for each
+ * dn: cn=sn, cn=index, cn=userRoot, cn=ldbm database, cn=plugins, cn=config
+ * objectClass: extensibleObject
+ * nsSubStrBegin: 2
+ * nsSubStrMiddle: 3
+ * nsSubStrEnd: 2
+ * [...]
+ * 
+ * By default, the minimum key length triplets of substring index is 2, 3, 2.
+ * The length is changed by setting this nsSubStrLen value.
+ *
+ * Note: If any of the key length value is modified, the index file needs
+ * to be regenerated.  Otherwise, the index file is going to have mixed
+ * key length.
+ * To change the key length,
+ * 1) stop the server, 2) run db2index -t <attr>, 3) start the server.
+ */
+#define INDEX_ATTR_SUBSTRBEGIN	"nsSubStrBegin"
+#define INDEX_ATTR_SUBSTRMIDDLE	"nsSubStrMiddle"
+#define INDEX_ATTR_SUBSTREND	"nsSubStrEnd"
+
+#define INDEX_SUBSTRBEGIN	0
+#define INDEX_SUBSTRMIDDLE	1
+#define INDEX_SUBSTREND		2
+
 
 /* for the cache of attribute information (which are indexed, etc.) */
 struct attrinfo {
@@ -382,6 +410,10 @@ struct attrinfo {
 											specify an ORDERING matching rule, or the index
 											configuration must define an ORDERING matching rule.
 										 */
+	int	*ai_substr_lens;	/* if the attribute nsSubStrXxx is specivied in
+							 * an index instance (dse.ldif), the substr key 
+							 * len value(s) are stored here.  If not specified, 
+							 * the default length triplet is 2, 3, 2.
 };
 
 #define MAXDBCACHE	20
