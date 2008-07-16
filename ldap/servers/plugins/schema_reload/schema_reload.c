@@ -71,6 +71,7 @@
  * [ schemadir: path to reload files from ]
  */
 
+#include "slap.h"
 #include "slapi-plugin.h"
 #include "nspr.h"
 #include "dirver.h"             /* PRODUCTTEXT */
@@ -133,7 +134,7 @@ static void
 schemareload_thread(void *arg)
 {
     Slapi_Task *task = (Slapi_Task *)arg;
-    int i, rv = 0;
+    int rv = 0;
     int total_work = 2;
     /* fetch our argument from the task */
     char *schemadir = (char *)slapi_task_get_data(task);
@@ -216,7 +217,6 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
     const char *cn;
     const char *schemadir = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
-    Slapi_PBlock *mypb = NULL;
     Slapi_Task *task = NULL;
 
     *returncode = LDAP_SUCCESS;
