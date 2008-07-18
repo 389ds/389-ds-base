@@ -2115,24 +2115,25 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	{
 		Slapi_PBlock *mod_pb = slapi_pblock_new();
 		Slapi_Value *val = 0;
-		Slapi_Mod smod;
+		Slapi_Mod *smod;
 		LDAPMod **mods = (LDAPMod **) slapi_ch_malloc(2 * sizeof(LDAPMod *));
 		int hint = 0;
 
-		slapi_mod_init(&smod, 0);
-		slapi_mod_set_operation(&smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
-		slapi_mod_set_type(&smod, config->memberof_attr);
+		smod = slapi_mod_new();
+		slapi_mod_init(smod, 0);
+		slapi_mod_set_operation(smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+		slapi_mod_set_type(smod, config->memberof_attr);
 
 		/* Loop through all of our values and add them to smod */
 		hint = slapi_valueset_first_value(groups, &val);
 		while (val)
 		{
 			/* this makes a copy of the berval */
-			slapi_mod_add_value(&smod, slapi_value_get_berval(val));
+			slapi_mod_add_value(smod, slapi_value_get_berval(val));
 			hint = slapi_valueset_next_value(groups, hint, &val);
 		}
 		
-		mods[0] = slapi_mod_get_ldapmod_passout(&smod);
+		mods[0] = slapi_mod_get_ldapmod_passout(smod);
 		mods[1] = 0;
 
 		slapi_modify_internal_set_pb(
@@ -2144,7 +2145,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 		slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
 		ldap_mods_free(mods, 1);
-		slapi_mod_done(&smod);
+		slapi_mod_free(&smod);
 		slapi_pblock_destroy(mod_pb);
 	} else { 
 		/* No groups were found, so remove the memberOf attribute
