@@ -58,9 +58,9 @@
 #define SYNTAX_SI		16	/* space insensitive: used with SYNTAX_CIS */
 #define SYNTAX_INT		32	/* INTEGER */
 
-#define SUBBEGIN	2
+#define SUBBEGIN	3
 #define SUBMIDDLE	3
-#define SUBEND		2
+#define SUBEND		3
 
 #ifndef MIN
 #define MIN( a, b )	(a < b ? a : b )

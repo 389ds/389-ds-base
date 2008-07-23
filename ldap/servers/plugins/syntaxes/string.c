@@ -55,7 +55,7 @@
 static int string_filter_approx( struct berval *bvfilter,
 	Slapi_Value **bvals, Slapi_Value **retVal );
 static void substring_comp_keys( Slapi_Value ***ivals, int *nsubs, char *str,
-	int prepost, int syntax, char *comp_buf, int substrlen );
+	int lenstr, int prepost, int syntax, char *comp_buf, int *substrlens );
 
 int
 string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
@@ -605,6 +605,7 @@ string_assertion2keys_sub(
 )
 {
 	int		nsubs, i, len;
+	int initiallen = 0, finallen = 0;
 	int *substrlens = NULL;
 	int localsublens[3] = {SUBBEGIN, SUBMIDDLE, SUBEND};/* default values */
 	int maxsublen;
@@ -637,8 +638,13 @@ string_assertion2keys_sub(
 	nsubs = 0;
 	if ( initial != NULL ) {
 		value_normalize( initial, syntax, 0 /* do not trim leading blanks */ );
-		if ( strlen( initial ) > substrlens[INDEX_SUBSTRBEGIN] - 2 ) {
-			nsubs += strlen( initial ) - substrlens[INDEX_SUBSTRBEGIN] + 2;
+		initiallen = strlen( initial );
+		if ( initiallen > substrlens[INDEX_SUBSTRBEGIN] - 2 ) {
+			nsubs += 1; /* for the initial begin string key */
+			/* the rest of the sub keys are "any" keys for this case */
+			if ( initiallen >= substrlens[INDEX_SUBSTRMIDDLE] ) {
+				nsubs += initiallen - substrlens[INDEX_SUBSTRMIDDLE] + 1;
+			}
 		} else {
 			initial = NULL;	/* save some work later */
 		}
@@ -652,8 +658,13 @@ string_assertion2keys_sub(
 	}
 	if ( final != NULL ) {
 		value_normalize( final, syntax, 0 /* do not trim leading blanks */ );
-		if ( strlen( final ) > substrlens[INDEX_SUBSTREND] - 2 ) {
-			nsubs += strlen( final ) - substrlens[INDEX_SUBSTREND] + 2;
+		finallen = strlen( final );
+		if ( finallen > substrlens[INDEX_SUBSTREND] - 2 ) {
+			nsubs += 1; /* for the final end string key */
+			/* the rest of the sub keys are "any" keys for this case */
+			if ( finallen >= substrlens[INDEX_SUBSTRMIDDLE] ) {
+				nsubs += finallen - substrlens[INDEX_SUBSTRMIDDLE] + 1;
+			}
 		} else {
 			final = NULL; /* save some work later */
 		}
@@ -675,19 +686,20 @@ string_assertion2keys_sub(
 	nsubs = 0;
 	comp_buf = (char *)slapi_ch_malloc(maxsublen + 1);
 	if ( initial != NULL ) {
-		substring_comp_keys( ivals, &nsubs, initial, '^', syntax,
-							 comp_buf, substrlens[INDEX_SUBSTRBEGIN] );
+		substring_comp_keys( ivals, &nsubs, initial, initiallen, '^', syntax,
+							 comp_buf, substrlens );
 	}
 	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
-		if ( strlen( any[i] ) < substrlens[INDEX_SUBSTRMIDDLE] ) {
+		len = strlen( any[i] );
+		if ( len < substrlens[INDEX_SUBSTRMIDDLE] ) {
 			continue;
 		}
-		substring_comp_keys( ivals, &nsubs, any[i], 0, syntax,
-							 comp_buf, substrlens[INDEX_SUBSTRMIDDLE] );
+		substring_comp_keys( ivals, &nsubs, any[i], len, 0, syntax,
+							 comp_buf, substrlens );
 	}
 	if ( final != NULL ) {
-		substring_comp_keys( ivals, &nsubs, final, '$', syntax,
-							 comp_buf, substrlens[INDEX_SUBSTREND] );
+		substring_comp_keys( ivals, &nsubs, final, finallen, '$', syntax,
+							 comp_buf, substrlens );
 	}
 	(*ivals)[nsubs] = NULL;
 	slapi_ch_free_string(&comp_buf);
@@ -700,25 +712,26 @@ substring_comp_keys(
     Slapi_Value	***ivals,
     int			*nsubs,
     char		*str,
+    int         lenstr,
     int			prepost,
     int			syntax,
 	char		*comp_buf,
-	int			substrlen
+	int			*substrlens
 )
 {
-    int     i, len;
+    int     i, substrlen;
     char    *p;
 
 	PR_ASSERT(NULL != comp_buf);
+	PR_ASSERT(NULL != substrlens);
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> substring_comp_keys (%s) %d\n",
         str, prepost, 0 );
 
-    len = strlen( str );
-
     /* prepend ^ for initial substring */
     if ( prepost == '^' )
     {
+		substrlen = substrlens[INDEX_SUBSTRBEGIN];
 		comp_buf[0] = '^';
 		for ( i = 0; i < substrlen - 1; i++ )
 		{
@@ -729,7 +742,8 @@ substring_comp_keys(
 		(*nsubs)++;
     }
 
-    for ( p = str; p < (str + len - substrlen + 1); p++ )
+    substrlen = substrlens[INDEX_SUBSTRMIDDLE];
+    for ( p = str; p < (str + lenstr - substrlen + 1); p++ )
     {
 		for ( i = 0; i < substrlen; i++ )
 		{
@@ -742,7 +756,8 @@ substring_comp_keys(
 
 	if ( prepost == '$' )
 	{
-		p = str + len - substrlen + 1;
+		substrlen = substrlens[INDEX_SUBSTREND];
+		p = str + lenstr - substrlen + 1;
 		for ( i = 0; i < substrlen - 1; i++ )
 		{
 			comp_buf[i] = p[i];
