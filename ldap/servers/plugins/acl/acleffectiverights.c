@@ -666,6 +666,18 @@ _ger_get_attrs_rights (
 						gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
 					isfirstattr = 0;
 				}
+				else
+				{
+					/* if the attr does not belong to the entry,
+					   "<attr>:none" is returned */
+					if (!isfirstattr)
+					{
+						_append_gerstr(gerstr, gerstrsize, gerstrcap, ", ", NULL);
+					}
+					_append_gerstr(gerstr, gerstrsize, gerstrcap, attrs[i], ":");
+					_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);
+					isfirstattr = 0;
+				}
 			}
 		}
 		charray_free(allattrs);
