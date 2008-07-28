@@ -580,7 +580,6 @@ _ger_get_attr_rights (
 		} \
 	}
 
-
 void
 _ger_get_attrs_rights (
 	Slapi_PBlock *gerpb,
@@ -609,6 +608,7 @@ _ger_get_attrs_rights (
 		int hasplus = charray_inlist(attrs, "+");
 		Slapi_Attr *objclasses = NULL;
 		Slapi_ValueSet *objclassvals = NULL;
+		int isextensibleobj = 0;
 
 		/* get all attrs available for the entry */
 		slapi_entry_attr_find(e, "objectclass", &objclasses);
@@ -616,10 +616,18 @@ _ger_get_attrs_rights (
 			Slapi_Value *v;
 			slapi_attr_get_valueset(objclasses, &objclassvals);
 			i = slapi_valueset_first_value(objclassvals, &v);
-			if (-1 != i) {
+			if (-1 != i)
+			{
+				const char *ocname = NULL;
 				allattrs = slapi_schema_list_objectclass_attributes(
 							(const char *)v->bv.bv_val,
 							SLAPI_OC_FLAG_REQUIRED|SLAPI_OC_FLAG_ALLOWED);
+				/* check if this entry is an extensble object or not */
+				ocname = slapi_value_get_string(v);
+				if ( strcasecmp( ocname, "extensibleobject" ) == 0 )
+				{
+					isextensibleobj = 1;
+				}
 				/* add "aci" to the allattrs to adjust to do_search */
 				charray_add(&allattrs, slapi_attr_syntax_normalize("aci"));
 				while (-1 != i)
@@ -630,6 +638,12 @@ _ger_get_attrs_rights (
 						myattrs = slapi_schema_list_objectclass_attributes(
 							(const char *)v->bv.bv_val,
 							SLAPI_OC_FLAG_REQUIRED|SLAPI_OC_FLAG_ALLOWED);
+						/* check if this entry is an extensble object or not */
+						ocname = slapi_value_get_string(v);
+						if ( strcasecmp( ocname, "extensibleobject" ) == 0 )
+						{
+							isextensibleobj = 1;
+						}
 						charray_merge_nodup(&allattrs, myattrs, 1/*copy_strs*/);
 						charray_free(myattrs);
 					}
@@ -640,48 +654,61 @@ _ger_get_attrs_rights (
 		/* get operational attrs */
 		opattrs = slapi_schema_list_attribute_names(SLAPI_ATTR_FLAG_OPATTR);
 
-		if (hasstar && hasplus)
-		{
-			GER_GET_ATTR_RIGHTS(allattrs);
-			GER_GET_ATTR_RIGHTS(opattrs);
-		}
-		else if (hasstar)
-		{
-			GER_GET_ATTR_RIGHTS(allattrs);
-			GER_GET_ATTR_RIGHTA_EXT('*', opattrs, allattrs);
-		}
-		else if (hasplus)
-		{
-			GER_GET_ATTR_RIGHTS(opattrs);
-			GER_GET_ATTR_RIGHTA_EXT('+', allattrs, opattrs);
-		}
-		else
+		if (isextensibleobj)
 		{
 			for ( i = 0; attrs[i]; i++ )
 			{
-				if (charray_inlist(allattrs, attrs[i]) ||
-					charray_inlist(opattrs, attrs[i]))
-				{
-					_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i],
-						gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
-					isfirstattr = 0;
-				}
-				else
-				{
-					/* if the attr does not belong to the entry,
-					   "<attr>:none" is returned */
-					if (!isfirstattr)
-					{
-						_append_gerstr(gerstr, gerstrsize, gerstrcap, ", ", NULL);
-					}
-					_append_gerstr(gerstr, gerstrsize, gerstrcap, attrs[i], ":");
-					_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);
-					isfirstattr = 0;
-				}
+				_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i], gerstr, 
+								gerstrsize, gerstrcap, isfirstattr, errbuf );
+				isfirstattr = 0;
 			}
 		}
-		charray_free(allattrs);
-		charray_free(opattrs);
+		else
+		{
+			if (hasstar && hasplus)
+			{
+				GER_GET_ATTR_RIGHTS(allattrs);
+				GER_GET_ATTR_RIGHTS(opattrs);
+			}
+			else if (hasstar)
+			{
+				GER_GET_ATTR_RIGHTS(allattrs);
+				GER_GET_ATTR_RIGHTA_EXT('*', opattrs, allattrs);
+			}
+			else if (hasplus)
+			{
+				GER_GET_ATTR_RIGHTS(opattrs);
+				GER_GET_ATTR_RIGHTA_EXT('+', allattrs, opattrs);
+			}
+			else
+			{
+				for ( i = 0; attrs[i]; i++ )
+				{
+					if (charray_inlist(allattrs, attrs[i]) ||
+						charray_inlist(opattrs, attrs[i]) ||
+						(0 == strcasecmp(attrs[i], "dn")))
+					{
+						_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i],
+							gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
+						isfirstattr = 0;
+					}
+					else
+					{
+						/* if the attr does not belong to the entry,
+						   "<attr>:none" is returned */
+						if (!isfirstattr)
+						{
+							_append_gerstr(gerstr, gerstrsize, gerstrcap, ", ", NULL);
+						}
+						_append_gerstr(gerstr, gerstrsize, gerstrcap, attrs[i], ":");
+						_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);
+						isfirstattr = 0;
+					}
+				}
+			}
+			charray_free(allattrs);
+			charray_free(opattrs);
+		}
 	}
 	else
 	{
