@@ -263,12 +263,14 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	    ldap_result_code= -1;
 	    goto error_return; /* error result sent by find_entry2modify() */
 	}
-
     /* Check that an entry with the same DN doesn't already exist. */
 	{
 		Slapi_Entry *entry;
 		slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &entry);
-		if(entry!=NULL)
+		if((entry != NULL) && 
+			/* allow modrdn even if the src dn and dest dn are identical */
+		   (0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
+								   (const Slapi_DN *)&dn_olddn)))
 		{
 			ldap_result_code= LDAP_ALREADY_EXISTS;
 			goto error_return;
@@ -279,14 +281,14 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	oldparent_addr.dn = (char*)slapi_sdn_get_dn (&dn_parentdn);
 	oldparent_addr.uniqueid = NULL;    		
 	parententry = find_entry2modify_only( pb, be, &oldparent_addr, NULL );
-   	modify_init(&parent_modify_context,parententry);
+	modify_init(&parent_modify_context,parententry);
 
 	/* Fetch and lock the new parent of the entry that is moving */    		
 	if(slapi_sdn_get_ndn(&dn_newsuperiordn)!=NULL)
 	{
 		slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS, &newsuperior_addr);
 		newparententry = find_entry2modify_only( pb, be, newsuperior_addr, NULL);
-	   	modify_init(&newparent_modify_context,newparententry);
+		modify_init(&newparent_modify_context,newparententry);
 	}
 
 	opcsn = operation_get_csn (operation);
@@ -414,21 +416,25 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-   	slapi_entry_set_sdn( ec->ep_entry, &dn_newdn );
+	slapi_entry_set_sdn( ec->ep_entry, &dn_newdn );
 
 	/* create it in the cache - prevents others from creating it */
-	if ( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) {
+	if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) &&
+		/* allow modrdn even if the src dn and dest dn are identical */
+		( 0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
+							     (const Slapi_DN *)&dn_olddn)) )
+	{
 		/* somebody must've created it between dn2entry() and here */
 		/* JCMREPL - Hmm... we can't permit this to happen...? */
 		ldap_result_code= LDAP_ALREADY_EXISTS;
 		goto error_return;
 	}
-    ec_in_cache= 1;
+	ec_in_cache= 1;
 
     /* Build the list of modifications required to the existing entry */
 	{
-	   	slapi_mods_init(&smods_generated,4);
-	   	slapi_mods_init(&smods_generated_wsi,4);
+		slapi_mods_init(&smods_generated,4);
+		slapi_mods_init(&smods_generated_wsi,4);
 		ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(&dn_olddn), ec, &smods_generated, &smods_generated_wsi, 
 						     is_replicated_operation);
 		if (ldap_result_code != LDAP_SUCCESS) {
