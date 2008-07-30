@@ -111,7 +111,7 @@ struct configEntry {
     PRUint64 interval;
     PRUint64 maxval;
     char *filter;
-    struct slapi_filter *slapi_filter;
+    Slapi_Filter *slapi_filter;
     char *generate;
     char *scope;
 };
@@ -539,7 +539,7 @@ static int parseConfigEntry(Slapi_Entry * e)
     value = slapi_entry_attr_get_charptr(e, DNA_FILTER);
     if (value) {
         entry->filter = value;
-        if (NULL == (entry->filter = slapi_str2filter(value))) {
+        if (NULL == (entry->slapi_filter = slapi_str2filter(value))) {
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM ,
                 "Error: Invalid search filter in entry [%s]: [%s]\n",
                 entry->dn, value);
