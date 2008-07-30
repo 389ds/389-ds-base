@@ -114,6 +114,7 @@ struct configEntry {
     Slapi_Filter *slapi_filter;
     char *generate;
     char *scope;
+    Slapi_Mutex *new_value_lock;
 };
 
 static PRCList *dna_global_config = NULL;
@@ -122,11 +123,6 @@ static PRRWLock *g_dna_cache_lock;
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
 
-
-/*
- * new value lock
- */
-static Slapi_Mutex *g_new_value_lock;
 
 /**
  *
@@ -332,9 +328,8 @@ static int dna_start(Slapi_PBlock * pb)
                     "--> dna_start\n");
 
     g_dna_cache_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "dna");
-    g_new_value_lock = slapi_new_mutex();
 
-    if (!g_dna_cache_lock || !g_new_value_lock) {
+    if (!g_dna_cache_lock) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_start: lock creation failed\n");
 
@@ -570,9 +565,15 @@ static int parseConfigEntry(Slapi_Entry * e)
                         "----------> dnaMaxValue [%ld]\n", value, 0, 0);
 
             slapi_ch_free_string(&value);
-    } else
+    } else {
         entry->maxval = -1;
+    }
 
+    /* create the new value lock for this range */
+    entry->new_value_lock = slapi_new_mutex();
+    if (!entry->new_value_lock) {
+        goto bail;
+    }
 
     /**
      * Finally add the entry to the list
@@ -665,6 +666,9 @@ static void freeConfigEntry(struct configEntry ** entry)
 
     if (e->scope)
         slapi_ch_free_string(&e->scope);
+
+    if (e->new_value_lock)
+        slapi_destroy_mutex(e->new_value_lock);
 
     slapi_ch_free((void **) entry);
 }
@@ -954,7 +958,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
      * with itself so we lock here
      */
 
-    slapi_lock_mutex(g_new_value_lock);
+    slapi_lock_mutex(config_entry->new_value_lock);
 
     for (attempts = 0; attempts < 3; attempts++) {
 
@@ -1104,7 +1108,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
 
   done:
 
-    slapi_unlock_mutex(g_new_value_lock);
+    slapi_unlock_mutex(config_entry->new_value_lock);
 
     if (LDAP_SUCCESS != ret)
         slapi_ch_free_string(&old_value);
