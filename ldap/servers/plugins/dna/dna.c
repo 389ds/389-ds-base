@@ -695,7 +695,7 @@ static void deleteConfig()
     Distributed ranges Helpers
 ****************************************************/
 
-static int dna_fix_maxval(Slapi_DN *dn, PRUint64 *cur, PRUint64 *max)
+static int dna_fix_maxval(struct configEntry *config_entry, PRUint64 *cur)
 {
     /* TODO: check the main partition to see if another range
      * is available, and set the new local configuration
@@ -707,8 +707,13 @@ static int dna_fix_maxval(Slapi_DN *dn, PRUint64 *cur, PRUint64 *max)
     return LDAP_OPERATIONS_ERROR;
 }
 
-static void dna_notice_allocation(Slapi_DN *dn, PRUint64 new)
+static void dna_notice_allocation(struct configEntry *config_entry, PRUint64 new)
 {
+    /* update our cached config entry with the newly allocated
+     * value.
+     */
+    config_entry->nextval = new;
+
     /* TODO: check if we passed a new chunk threshold and update
      * the shared configuration on the public partition.
      */
@@ -794,13 +799,11 @@ static LDAPControl *dna_build_sort_control(const char *attr)
         than config and startup
 ****************************************************/
 
-/* we do search all values between newval and maxval asking the
+/* we do search all values between nextval and maxval asking the
  * server to sort them, then we check the first free spot and
  * use it as newval */
 static int dna_first_free_value(struct configEntry *config_entry,
-                                PRUint64 *newval,
-                                PRUint64 maxval,
-				PRUint64 increment)
+                                PRUint64 *newval)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *pb = NULL;
@@ -816,7 +819,7 @@ static int dna_first_free_value(struct configEntry *config_entry,
 
     prefix = config_entry->prefix;
     type = config_entry->type;
-    tmpval = *newval;
+    tmpval = config_entry->nextval;
 
     attrs[0] = type;
     attrs[1] = NULL;
@@ -834,7 +837,7 @@ static int dna_first_free_value(struct configEntry *config_entry,
     filter = slapi_ch_smprintf("(&%s(&(%s>=%s%llu)(%s<=%s%llu)))",
                                config_entry->filter,
                                type, prefix?prefix:"", tmpval,
-                               type, prefix?prefix:"", maxval);
+                               type, prefix?prefix:"", config_entry->maxval);
     if (NULL == filter) {
         ldap_control_free(ctrls[0]);
         slapi_ch_free((void **)&ctrls);
@@ -870,6 +873,7 @@ static int dna_first_free_value(struct configEntry *config_entry,
 
     if (NULL == entries || NULL == entries[0]) {
         /* no values means we already have a good value */
+        *newval = tmpval;
         status = LDAP_SUCCESS;
         goto cleanup;
     }
@@ -904,10 +908,10 @@ static int dna_first_free_value(struct configEntry *config_entry,
         if (tmpval != sval)
             break;
 
-        if (maxval < sval)
+        if (config_entry->maxval < sval)
             break;
 
-        tmpval += increment;
+        tmpval += config_entry->interval;
     }
 
     *newval = tmpval;
@@ -924,200 +928,106 @@ cleanup:
 /*
  * Perform ldap operationally atomic increment
  * Return the next value to be assigned
- * Method:
- * 1. retrieve entry
- * 2. do increment operations
- * 3. remove current value, add new value in one operation
- * 4. if failed, and less than 3 times, goto 1
  */
 static int dna_get_next_value(struct configEntry *config_entry,
                                  char **next_value_ret)
 {
     Slapi_PBlock *pb = NULL;
-    char *old_value = NULL;
-    Slapi_Entry *e = NULL;
-    Slapi_DN *dn = NULL;
-    char *attrlist[4];
-    int attempts;
+    LDAPMod mod_replace;
+    LDAPMod *mods[2];
+    char *replace_val[2];
+    char next_value[16];
+    PRUint64 setval = 0;
+    PRUint64 nextval = 0;
     int ret;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_get_next_value\n");
 
-    /* get pre-requisites to search */
-    dn = slapi_sdn_new_dn_byref(config_entry->dn);
-    attrlist[0] = DNA_NEXTVAL;
-    attrlist[1] = DNA_MAXVAL;
-    attrlist[2] = DNA_INTERVAL;
-    attrlist[3] = NULL;
-
-
-    /* the operation is constructed such that race conditions
-     * to increment the value are detected and avoided - one wins,
-     * one loses - however, there is no need for the server to compete
-     * with itself so we lock here
-     */
-
+    /* get the lock to prevent contention with other threads over
+     * the next new value for this range. */
     slapi_lock_mutex(config_entry->new_value_lock);
 
-    for (attempts = 0; attempts < 3; attempts++) {
+    /* get the first value */
+    ret = dna_first_free_value(config_entry, &setval);
+    if (LDAP_SUCCESS != ret)
+        goto done;
 
-        LDAPMod mod_add;
-        LDAPMod mod_delete;
-        LDAPMod *mods[3];
-        char *delete_val[2];
-        char *add_val[2];
-        char new_value[16];
-        char *interval;
-        char *max_value;
-        PRUint64 increment = 1; /* default increment */
-        PRUint64 setval = 0;
-        PRUint64 newval = 0;
-        PRUint64 maxval = -1;
-
-        /* do update */
-        ret = slapi_search_internal_get_entry(dn, attrlist, &e,
-                                              getPluginID());
+    /* try for a new range or fail */
+    if (setval > config_entry->maxval) {
+        ret = dna_fix_maxval(config_entry, &setval);
         if (LDAP_SUCCESS != ret) {
-            ret = LDAP_OPERATIONS_ERROR;
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_next_value: no more IDs available!!\n");
             goto done;
         }
 
-        old_value = slapi_entry_attr_get_charptr(e, DNA_NEXTVAL);
-        if (NULL == old_value) {
-            ret = LDAP_OPERATIONS_ERROR;
-            goto done;
-        }
-
-        setval = strtoul(old_value, 0, 0);
-
-        max_value = slapi_entry_attr_get_charptr(e, DNA_MAXVAL);
-        if (max_value) {
-            maxval = strtoul(max_value, 0, 0);
-            slapi_ch_free_string(&max_value);
-        }
-
-        /* if not present the default is 1 */
-        interval = slapi_entry_attr_get_charptr(e, DNA_INTERVAL);
-        if (NULL != interval) {
-            increment = strtoul(interval, 0, 0);
-        }
-
-        slapi_entry_free(e);
-        e = NULL;
-
-        /* check the value is actually in range */
-
-        /* verify the new value is actually free and get the first
-         * one free if not*/
-        ret = dna_first_free_value(config_entry, &setval, maxval, increment);
+        /* get the first value from our newly extended range */
+        ret = dna_first_free_value(config_entry, &setval);
         if (LDAP_SUCCESS != ret)
             goto done;
+    }
 
-        /* try for a new range or fail */
-        if (setval > maxval) {
-            ret = dna_fix_maxval(dn, &setval, &maxval);
-            if (LDAP_SUCCESS != ret) {
-                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                "dna_get_next_value: no more IDs available!!\n");
-                goto done;
-            }
+    /* ensure that we haven't gone past the end of our range */
+    if (setval > config_entry->maxval) {
+        ret = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
 
-            /* verify the new value is actually free and get the first
-             * one free if not */
-            ret = dna_first_free_value(config_entry, &setval, maxval, increment);
-            if (LDAP_SUCCESS != ret)
-                goto done;
+    nextval = setval + config_entry->interval;
+
+    /* try for a new range or fail */
+    if (nextval > config_entry->maxval) {
+        ret = dna_fix_maxval(config_entry, &nextval);
+        if (LDAP_SUCCESS != ret) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_next_value: no more IDs available!!\n");
+            goto done;
         }
+    }
 
-        if (setval > maxval) {
+    /* try to set the new next value in the config entry */
+    snprintf(next_value, sizeof(next_value),"%llu", nextval);
+
+    /* set up our replace modify operation */
+    replace_val[0] = next_value;
+    replace_val[1] = 0;
+    mod_replace.mod_op = LDAP_MOD_REPLACE;
+    mod_replace.mod_type = DNA_NEXTVAL;
+    mod_replace.mod_values = replace_val;
+    mods[0] = &mod_replace;
+    mods[1] = 0;
+
+    pb = slapi_pblock_new();
+    if (NULL == pb) {
+        ret = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
+
+    slapi_modify_internal_set_pb(pb, config_entry->dn,
+                                 mods, 0, 0, getPluginID(), 0);
+
+    slapi_modify_internal_pb(pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+
+    slapi_pblock_destroy(pb);
+    pb = NULL;
+
+    if (LDAP_SUCCESS == ret) {
+        *next_value_ret = slapi_ch_smprintf("%llu", setval);
+        if (NULL == *next_value_ret) {
             ret = LDAP_OPERATIONS_ERROR;
             goto done;
         }
 
-        newval = setval + increment;
-
-        /* try for a new range or fail */
-        if (newval > maxval) {
-            ret = dna_fix_maxval(dn, &newval, &maxval);
-            if (LDAP_SUCCESS != ret) {
-                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                "dna_get_next_value: no more IDs available!!\n");
-                goto done;
-            }
-        }
-
-        /* try to set the new value */
-
-        sprintf(new_value, "%llu", newval);
-
-        delete_val[0] = old_value;
-        delete_val[1] = 0;
-
-        mod_delete.mod_op = LDAP_MOD_DELETE;
-        mod_delete.mod_type = DNA_NEXTVAL;
-        mod_delete.mod_values = delete_val;
-
-        add_val[0] = new_value;
-        add_val[1] = 0;
-
-        mod_add.mod_op = LDAP_MOD_ADD;
-        mod_add.mod_type = DNA_NEXTVAL;
-        mod_add.mod_values = add_val;
-
-        mods[0] = &mod_delete;
-        mods[1] = &mod_add;
-        mods[2] = 0;
-
-        pb = slapi_pblock_new();
-        if (NULL == pb) {
-            ret = LDAP_OPERATIONS_ERROR;
-            goto done;
-        }
-
-        slapi_modify_internal_set_pb(pb, config_entry->dn,
-                                     mods, 0, 0, getPluginID(), 0);
-
-        slapi_modify_internal_pb(pb);
-
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
-
-        slapi_pblock_destroy(pb);
-        pb = NULL;
-        slapi_ch_free_string(&interval);
-        slapi_ch_free_string(&old_value);
-
-        if (LDAP_SUCCESS == ret) {
-            *next_value_ret = slapi_ch_smprintf("%llu", setval);
-            if (NULL == *next_value_ret) {
-                ret = LDAP_OPERATIONS_ERROR;
-                goto done;
-            }
-
-            dna_notice_allocation(dn, newval);
-            goto done;
-        }
-
-        if (LDAP_NO_SUCH_ATTRIBUTE != ret) {
-            /* not the result of a race
-               to change the value
-             */
-            goto done;
-        }
+        /* update our cached config */
+        dna_notice_allocation(config_entry, nextval);
     }
 
   done:
 
     slapi_unlock_mutex(config_entry->new_value_lock);
-
-    if (LDAP_SUCCESS != ret)
-        slapi_ch_free_string(&old_value);
-
-    if (dn)
-        slapi_sdn_free(&dn);
-
-    if (e)
-        slapi_entry_free(e);
 
     if (pb)
         slapi_pblock_destroy(pb);
