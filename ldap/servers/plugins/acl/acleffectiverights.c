@@ -811,6 +811,7 @@ _ger_generate_template_entry (
 	char *object = NULL;
 	char *superior = NULL;
 	char *p = NULL;
+	char *dn = NULL;
 	int siz = 0;
 	int len = 0;
 	int i = 0;
@@ -826,6 +827,8 @@ _ger_generate_template_entry (
 		rc = LDAP_SUCCESS;
 		goto bailout;
 	}
+	/* get the target dn where the template entry is located */
+	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
 	for (i = 0; gerattrs && gerattrs[i]; i++)
 	{
 		object = strchr(gerattrs[i], '@');
@@ -855,14 +858,23 @@ _ger_generate_template_entry (
 		}
 		else
 		{
-			/* <*attrp>: dummy\n\0 */
-			siz += strlen(attrs[i]) + 4 + 5;
+			/* <*attrp>: (template_attribute)\n\0 */
+			siz += strlen(attrs[i]) + 4 + 20;
 		}
 	}
-	siz += 32 + strlen(object); /* dn: cn=<template_name>\n\0 */
+	if (dn)
+	{
+		/* dn: cn=<template_name>,<dn>\n\0 */
+		siz += 32 + strlen(object) + strlen(dn);
+	}
+	else
+	{
+		/* dn: cn=<template_name>\n\0 */
+		siz += 32 + strlen(object);
+	}
 	templateentry = (char *)slapi_ch_malloc(siz);
 	PR_snprintf(templateentry, siz,
-					"dn: cn=template_%s_objectclass\n", object);
+		"dn: cn=template_%s_objectclass%s%s\n", object, dn?",":"", dn?dn:"");
 	for (--i; i >= 0; i--)
 	{
 		len = strlen(templateentry);
@@ -873,7 +885,7 @@ _ger_generate_template_entry (
 		}
 		else
 		{
-			PR_snprintf(p, siz - len, "%s: dummy\n", attrs[i]);
+			PR_snprintf(p, siz - len, "%s: (template_attribute)\n", attrs[i]);
 		}
 	}
 	charray_free(attrs);
@@ -908,6 +920,10 @@ _ger_generate_template_entry (
 			}
 		}
 		charray_free(attrs);
+	}
+	if (notfirst)
+	{
+		slapi_ch_free_string(&object);
 	}
 	slapi_ch_free_string(&superior);
 	siz += 18; /* objectclass: top\n\0 */
