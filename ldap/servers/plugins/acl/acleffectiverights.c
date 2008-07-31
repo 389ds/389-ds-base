@@ -873,8 +873,16 @@ _ger_generate_template_entry (
 		siz += 32 + strlen(object);
 	}
 	templateentry = (char *)slapi_ch_malloc(siz);
-	PR_snprintf(templateentry, siz,
-		"dn: cn=template_%s_objectclass%s%s\n", object, dn?",":"", dn?dn:"");
+	if (NULL != dn && strlen(dn) > 0)
+	{
+		PR_snprintf(templateentry, siz,
+			"dn: cn=template_%s_objectclass,%s\n", object, dn);
+	}
+	else
+	{
+		PR_snprintf(templateentry, siz,
+			"dn: cn=template_%s_objectclass\n", object);
+	}
 	for (--i; i >= 0; i--)
 	{
 		len = strlen(templateentry);
