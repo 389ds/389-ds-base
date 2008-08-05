@@ -48,6 +48,7 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "windowsrepl.h"
+#include "winsync-plugin.h"
 
 struct windowsprivate {
   
