@@ -414,6 +414,7 @@ struct attrinfo {
 							 * an index instance (dse.ldif), the substr key 
 							 * len value(s) are stored here.  If not specified, 
 							 * the default length triplet is 2, 3, 2.
+                             */
 };
 
 #define MAXDBCACHE	20
