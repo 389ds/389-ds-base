@@ -70,7 +70,11 @@ struct windowsprivate {
    * so we only have to allocate each filter once instead of doing it every time we receive a change. */
   Slapi_Filter *directory_filter; /* Used for checking if local entries need to be sync'd to AD */
   Slapi_Filter *deleted_filter; /* Used for checking if an entry is an AD tombstone */
+  Slapi_Entry *raw_entry; /* "raw" un-schema processed last entry read from AD */
+  void *api_cookie; /* private data used by api callbacks */
 };
+
+static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
 
 static int
 true_value_from_string(char *val)
@@ -99,7 +103,6 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_windows_subtree(ra, slapi_sdn_new_dn_passin(tmpstr) );
 		}
 		retval = 1;
-		slapi_ch_free((void**)&tmpstr);
 	}
 	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7DirectoryReplicaArea))
 	{
@@ -109,7 +112,6 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_directory_subtree(ra, slapi_sdn_new_dn_passin(tmpstr) );
 		}
 		retval = 1;
-		slapi_ch_free((void**)&tmpstr);
 	}
 	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7CreateNewUsers))
 	{
@@ -173,6 +175,8 @@ windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e)
 	agmt_set_priv(ra,windows_private_new());
 
 	windows_parse_config_entry(ra,NULL,e);
+
+	windows_plugin_init(ra);
 }
 
 const char* windows_private_get_purl(const Repl_Agmt *ra)
@@ -214,6 +218,9 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	
 	slapi_filter_free(dp->directory_filter, 1);
 	slapi_filter_free(dp->deleted_filter, 1);
+	slapi_entry_free(dp->raw_entry);
+	dp->raw_entry = NULL;
+	dp->api_cookie = NULL;
 	slapi_ch_free((void **)dp);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_delete\n", 0, 0, 0 );
@@ -401,7 +408,7 @@ const Slapi_DN* windows_private_get_directory_subtree (const Repl_Agmt *ra)
 }
 
 /* Takes a copy of the sdn passed in */
-void windows_private_set_windows_subtree (const Repl_Agmt *ra,const Slapi_DN* sdn )
+void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 {
 
 	Dirsync_Private *dp;
@@ -413,14 +420,15 @@ void windows_private_set_windows_subtree (const Repl_Agmt *ra,const Slapi_DN* sd
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
-	
-	dp->windows_subtree = slapi_sdn_dup(sdn);
+
+	slapi_sdn_free(&dp->windows_subtree);
+	dp->windows_subtree = sdn;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_replarea\n", 0, 0, 0 );
 }
 
 /* Takes a copy of the sdn passed in */
-void windows_private_set_directory_subtree (const Repl_Agmt *ra,const Slapi_DN* sdn )
+void windows_private_set_directory_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 {
 
 	Dirsync_Private *dp;
@@ -433,7 +441,8 @@ void windows_private_set_directory_subtree (const Repl_Agmt *ra,const Slapi_DN* 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 	
-	dp->directory_subtree = slapi_sdn_dup(sdn);
+	slapi_sdn_free(&dp->directory_subtree);
+	dp->directory_subtree = sdn;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_directory_replarea\n", 0, 0, 0 );
 }
@@ -516,6 +525,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 	LDAPControl *control = NULL;
 	BerElement *ber;
 	Dirsync_Private *dp;
+	char iscritical = PR_TRUE;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_dirsync_control\n", 0, 0, 0 );
 	
@@ -527,7 +537,10 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 
 	ber_printf( ber, "{iio}", dp->dirsync_flags, dp->dirsync_maxattributecount, dp->dirsync_cookie, dp->dirsync_cookie_len );
 
-	slapi_build_control( REPL_DIRSYNC_CONTROL_OID, ber, PR_TRUE, &control);
+#ifdef WINSYNC_TEST
+	iscritical = PR_FALSE;
+#endif
+	slapi_build_control( REPL_DIRSYNC_CONTROL_OID, ber, iscritical, &control);
 
 	ber_free(ber,1);
 
@@ -787,3 +800,389 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 	return rc;
 }
 
+/* get returns a pointer to the structure - do not free */
+Slapi_Entry *windows_private_get_raw_entry(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_raw_entry\n", 0, 0, 0 );
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_raw_entry\n", 0, 0, 0 );
+
+	return dp->raw_entry;
+}
+
+/* this is passin - windows_private owns the pointer, not a copy */
+void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_raw_entry\n", 0, 0, 0 );
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	slapi_entry_free(dp->raw_entry);
+	dp->raw_entry = e;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_raw_entry\n", 0, 0, 0 );
+}
+
+void *windows_private_get_api_cookie(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_api_cookie\n", 0, 0, 0 );
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_api_cookie\n", 0, 0, 0 );
+
+	return dp->api_cookie;
+}
+
+void windows_private_set_api_cookie(Repl_Agmt *ra, void *api_cookie)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_api_cookie\n", 0, 0, 0 );
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+	dp->api_cookie = api_cookie;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_api_cookie\n", 0, 0, 0 );
+}
+
+/* an array of function pointers */
+static void **_WinSyncAPI = NULL;
+
+void
+windows_plugin_init(Repl_Agmt *ra)
+{
+    void *cookie = NULL;
+    winsync_plugin_init_cb initfunc = NULL;
+
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n",0,0,0);
+
+    /* if the function pointer array is null, get the functions - we will
+       call init once per replication agreement, but will only grab the
+       api once */
+    if((NULL == _WinSyncAPI) &&
+       (slapi_apib_get_interface(WINSYNC_v1_0_GUID, &_WinSyncAPI) ||
+        (NULL == _WinSyncAPI)))
+	{
+        LDAPDebug( LDAP_DEBUG_PLUGIN,
+                   "<-- windows_plugin_init_start -- no windows plugin API registered for GUID [%s] -- end\n",
+                   WINSYNC_v1_0_GUID,0,0);
+        return;
+	}
+
+    initfunc = (winsync_plugin_init_cb)_WinSyncAPI[WINSYNC_PLUGIN_INIT_CB];
+    if (initfunc) {
+        cookie = (*initfunc)(windows_private_get_directory_subtree(ra),
+                             windows_private_get_windows_subtree(ra));
+    }
+    windows_private_set_api_cookie(ra, cookie);
+
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- windows_plugin_init_start -- end\n",0,0,0);
+    return;
+}
+
+void
+winsync_plugin_call_dirsync_search_params_cb(const Repl_Agmt *ra, const char *agmt_dn,
+                                             char **base, int *scope, char **filter,
+                                             char ***attrs, LDAPControl ***serverctrls)
+{
+    winsync_search_params_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_DIRSYNC_SEARCH_CB]) ?
+        (winsync_search_params_cb)_WinSyncAPI[WINSYNC_PLUGIN_DIRSYNC_SEARCH_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
+               attrs, serverctrls);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ad_search_cb(const Repl_Agmt *ra, const char *agmt_dn,
+                                     char **base, int *scope, char **filter,
+                                     char ***attrs, LDAPControl ***serverctrls)
+{
+    winsync_search_params_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_SEARCH_CB]) ?
+        (winsync_search_params_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_SEARCH_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
+               attrs, serverctrls);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ds_search_entry_cb(const Repl_Agmt *ra, const char *agmt_dn,
+                                           char **base, int *scope, char **filter,
+                                           char ***attrs, LDAPControl ***serverctrls)
+{
+    winsync_search_params_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_SEARCH_ENTRY_CB]) ?
+        (winsync_search_params_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_SEARCH_ENTRY_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
+               attrs, serverctrls);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ds_search_all_cb(const Repl_Agmt *ra, const char *agmt_dn,
+                                         char **base, int *scope, char **filter,
+                                         char ***attrs, LDAPControl ***serverctrls)
+{
+    winsync_search_params_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_SEARCH_ALL_CB]) ?
+        (winsync_search_params_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_SEARCH_ALL_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
+               attrs, serverctrls);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ad_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                       Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                       Slapi_Mods *smods, int *do_modify)
+{
+    winsync_pre_mod_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_USER_CB]) ?
+        (winsync_pre_mod_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_USER_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               ds_entry, smods, do_modify);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ad_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                        Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                        Slapi_Mods *smods, int *do_modify)
+{
+    winsync_pre_mod_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_CB]) ?
+        (winsync_pre_mod_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               ds_entry, smods, do_modify);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ds_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                       Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                       Slapi_Mods *smods, int *do_modify)
+{
+    winsync_pre_mod_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_MOD_USER_CB]) ?
+        (winsync_pre_mod_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_MOD_USER_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               ds_entry, smods, do_modify);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ds_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                        Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                        Slapi_Mods *smods, int *do_modify)
+{
+    winsync_pre_mod_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_MOD_GROUP_CB]) ?
+        (winsync_pre_mod_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_MOD_GROUP_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               ds_entry, smods, do_modify);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ds_add_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                       Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
+{
+    winsync_pre_add_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_ADD_USER_CB]) ?
+        (winsync_pre_add_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_ADD_USER_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               ds_entry);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ds_add_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                        Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
+{
+    winsync_pre_add_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_ADD_GROUP_CB]) ?
+        (winsync_pre_add_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_DS_ADD_GROUP_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               ds_entry);
+
+    return;
+}
+
+void
+winsync_plugin_call_get_new_ds_user_dn_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                          Slapi_Entry *ad_entry, char **new_dn_string,
+                                          const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
+{
+    winsync_get_new_dn_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_GET_NEW_DS_USER_DN_CB]) ?
+        (winsync_get_new_dn_cb)_WinSyncAPI[WINSYNC_PLUGIN_GET_NEW_DS_USER_DN_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               new_dn_string, ds_suffix, ad_suffix);
+
+    return;
+}
+
+void
+winsync_plugin_call_get_new_ds_group_dn_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                           Slapi_Entry *ad_entry, char **new_dn_string,
+                                           const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
+{
+    winsync_get_new_dn_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_GET_NEW_DS_GROUP_DN_CB]) ?
+        (winsync_get_new_dn_cb)_WinSyncAPI[WINSYNC_PLUGIN_GET_NEW_DS_GROUP_DN_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
+               new_dn_string, ds_suffix, ad_suffix);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                            const Slapi_DN *local_dn, LDAPMod * const *origmods,
+                                            Slapi_DN *remote_dn, LDAPMod ***modstosend)
+{
+    winsync_pre_ad_mod_mods_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_USER_MODS_CB]) ?
+        (winsync_pre_ad_mod_mods_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_USER_MODS_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
+               origmods, remote_dn, modstosend);
+
+    return;
+}
+
+void
+winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                             const Slapi_DN *local_dn, LDAPMod * const *origmods,
+                                             Slapi_DN *remote_dn, LDAPMod ***modstosend)
+{
+    winsync_pre_ad_mod_mods_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_MODS_CB]) ?
+        (winsync_pre_ad_mod_mods_cb)_WinSyncAPI[WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_MODS_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
+               origmods, remote_dn, modstosend);
+
+    return;
+}
+
+int
+winsync_plugin_call_can_add_entry_to_ad_cb(const Repl_Agmt *ra, const Slapi_Entry *local_entry,
+                                           const Slapi_DN *remote_dn)
+{
+    winsync_can_add_to_ad_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_CAN_ADD_ENTRY_TO_AD_CB]) ?
+        (winsync_can_add_to_ad_cb)_WinSyncAPI[WINSYNC_PLUGIN_CAN_ADD_ENTRY_TO_AD_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return 1; /* default is entry can be added to AD */
+    }
+
+    return (*thefunc)(windows_private_get_api_cookie(ra), local_entry, remote_dn);
+}

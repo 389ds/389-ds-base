@@ -99,11 +99,15 @@ windows_tot_run(Private_Repl_Protocol *prp)
     int rc;
     callback_data cb_data;
     Slapi_PBlock *pb;
-	const char* dn;
+	char* dn;
 	RUV *ruv = NULL;
 	RUV *starting_ruv = NULL;
 	Replica *replica = NULL;
 	Object *local_ruv_obj = NULL;
+	int scope = LDAP_SCOPE_SUBTREE;
+	char *filter = slapi_ch_strdup("(|(objectclass=ntuser)(objectclass=ntgroup))");
+	char **attrs = NULL;
+	LDAPControl **server_controls = NULL;
 	
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_run\n", 0, 0, 0 );
 	
@@ -168,13 +172,15 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	
 
 	/* send everything */
-	dn = slapi_sdn_get_dn( windows_private_get_directory_subtree(prp->agmt));
+	dn = slapi_ch_strdup(slapi_sdn_get_dn( windows_private_get_directory_subtree(prp->agmt)));
+
+	winsync_plugin_call_pre_ds_search_all_cb(prp->agmt, NULL, &dn, &scope, &filter,
+											 &attrs, &server_controls);
 
 	pb = slapi_pblock_new ();
     /* Perform a subtree search for any ntuser or ntgroup entries underneath the
      * suffix defined in the sync agreement. */
-    slapi_search_internal_set_pb (pb, dn, 
-                                  LDAP_SCOPE_SUBTREE, "(|(objectclass=ntuser)(objectclass=ntgroup))", NULL, 0, NULL, NULL, 
+    slapi_search_internal_set_pb (pb, dn, scope, filter, attrs, 0, server_controls, NULL, 
                                   repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     cb_data.prp = prp;
     cb_data.rc = 0;
@@ -186,6 +192,13 @@ windows_tot_run(Private_Repl_Protocol *prp)
                                        get_result /* result callback */,
                                        send_entry /* entry callback */,
 	    					           NULL /* referral callback*/);
+    slapi_ch_free_string(&dn);
+    slapi_ch_free_string(&filter);
+    slapi_ch_array_free(attrs);
+    attrs = NULL;
+    ldap_controls_free(server_controls);
+    server_controls = NULL;
+
     slapi_pblock_destroy (pb);
 	agmt_set_last_init_end(prp->agmt, current_time());
 	rc = cb_data.rc;

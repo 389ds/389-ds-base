@@ -835,6 +835,24 @@ int slapi_build_control( char *oid, BerElement *ber,
 int slapi_build_control_from_berval( char *oid, struct berval *bvp,
         char iscritical, LDAPControl **ctrlp );
 
+/* Given an array of controls e.g. LDAPControl **ctrls, add the given
+   control to the end of the array, growing the array with realloc
+   e.g. slapi_add_control_ext(&ctrls, newctrl, 1);
+   if ctrls is NULL, the array will be created with malloc
+   if copy is true, the given control will be copied
+   if copy is false, the given control will be used and owned by the array
+   if copy is false, make sure the control can be freed by ldap_controls_free
+*/
+void slapi_add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy );
+
+/* Given an array of controls e.g. LDAPControl **ctrls, add all of the given
+   controls in the newctrls array to the end of ctrls, growing the array with realloc
+   if ctrls is NULL, the array will be created with malloc
+   if copy is true, each given control will be copied
+   if copy is false, each given control will be used and owned by the array
+   if copy is false, make sure each control can be freed by ldap_controls_free
+*/
+void slapi_add_controls( LDAPControl ***ctrlsp, LDAPControl **newctrls, int copy );
 
 /*
  * routines for dealing with extended operations
@@ -865,6 +883,13 @@ int slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int log
  * routine for freeing the ch_arrays returned by the slapi_get*_copy functions above
  */
 void slapi_ch_array_free( char **array );
+/*
+ * Add the given string to the given null terminated array.
+ * s is not copied, so if you want to add a copy of s to the
+ * array, use slapi_ch_strdup(s)
+ * if *a is NULL, a new array will be created
+ */
+void slapi_ch_array_add( char ***array, char *string );
 
 
 /*

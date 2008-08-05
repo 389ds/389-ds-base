@@ -668,6 +668,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 				return_value = ACQUIRE_FATAL_ERROR;
 			}
 			slapi_sdn_free(&replarea_sdn);
+			csn_free(&current_csn);
 		}
 	}
 
@@ -1004,7 +1005,6 @@ process_replay_add(Private_Repl_Protocol *prp, slapi_operation_parameters *op, S
 			}
 
 			if (cn_string) {
-				char *rdnstr = NULL;
 				char *container_str = NULL;
 				const char *suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
 
@@ -1184,7 +1184,19 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			agmt_get_long_name(prp->agmt),
 			op2string(op->operation_type), op->target_address.dn, slapi_sdn_get_dn(remote_dn));
 		switch (op->operation_type) {
-		/* For an ADD operation, we map the entry and then send the operation, which may fail if the peer entry already existed */
+		/*
+		  we should check the modify case first and check the list of mods -
+		  if the magic objectclass (ntuser) and attributes (ntUserCreateNewAccount
+		  or ntGroupCreateNewAccount) then we should fall through to the ADD case
+		  since the user wants to add the user to AD - could maybe just change
+		  process_replay_add slightly, to add the mods list from the modify
+		  operation - process_replay_add already turns the entry into a mods list
+		  to pass to the ldap add operation, so it should not be too much more
+		  trouble to apply the additional mods from the modify operation - we'll
+		  have to pass in local entry, or perhaps just change the operation from
+		  modify to an add, and set the op->p.p_add.target_entry to the local_entry
+		  which gets retrieved above
+		*/
 		case SLAPI_OPERATION_ADD:
 			return_value = process_replay_add(prp,op,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
 			break;
@@ -1193,6 +1205,22 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				LDAPMod **mapped_mods = NULL;
 
 				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
+				if (is_user) {
+					winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
+																windows_private_get_raw_entry(prp->agmt),
+																local_dn,
+																op->p.p_modify.modify_mods,
+																remote_dn,
+																&mapped_mods);
+				} else if (is_group) {
+					winsync_plugin_call_pre_ad_mod_group_mods_cb(prp->agmt,
+																 windows_private_get_raw_entry(prp->agmt),
+																 local_dn,
+																 op->p.p_modify.modify_mods,
+																 remote_dn,
+																 &mapped_mods);
+				}
+
 				/* It's possible that the mapping process results in an empty mod list, in which case we don't bother with the replay */
 				if ( mapped_mods == NULL || *(mapped_mods)== NULL )
 				{
@@ -1304,7 +1332,7 @@ is_straight_mapped_attr(const char *type, int is_user /* or group */, int is_nt4
 	char *this_attr = NULL;
 	char **list = is_user ? (is_nt4 ? nt4_user_matching_attributes : windows_user_matching_attributes) : (is_nt4 ? nt4_group_matching_attributes : windows_group_matching_attributes);
 	/* Look for the type in the list of straight mapped attrs for the appropriate object type */
-	while (this_attr = list[offset])
+	while ((this_attr = list[offset]))
 	{
 		if (0 == slapi_attr_type_cmp(this_attr, type, SLAPI_TYPE_CMP_SUBTYPE))
 		{
@@ -1327,7 +1355,7 @@ windows_map_attr_name(const char *original_type , int to_windows, int is_user, i
 	*mapped_type = NULL;
 
 	/* Iterate over the map entries looking for the type we have */
-	while(this_map = &(our_map[offset]))
+	while((this_map = &(our_map[offset])))
 	{
 		char *their_name = to_windows ? this_map->windows_attribute_name : this_map->ldap_attribute_name;
 		char *our_name = to_windows ? this_map->ldap_attribute_name : this_map->windows_attribute_name;
@@ -1500,7 +1528,6 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 					if (0 == slapi_attr_type_cmp(new_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) {
 						if (slapi_valueset_count(vs) > 1) {
 							int i = 0;
-							const char *street_value = NULL;
 							Slapi_Value *value = NULL;
 							Slapi_Value *new_value = NULL;
 
@@ -2026,6 +2053,10 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
 	int rval = 0;
 	const char *subtree_dn = NULL;
 	int not_unique = 0;
+	char *subtree_dn_copy = NULL;
+	int scope = LDAP_SCOPE_SUBTREE;
+	char **attrs = NULL;
+	LDAPControl **server_controls = NULL;
 
     if (pb == NULL)
         goto done;
@@ -2036,12 +2067,21 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
 		goto done;
 
 	subtree_dn = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
+	subtree_dn_copy = slapi_ch_strdup(subtree_dn);
 
-    slapi_search_internal_set_pb(pb, subtree_dn,
-        LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
+    winsync_plugin_call_pre_ds_search_entry_cb(ra, NULL, &subtree_dn_copy, &scope, &query,
+                                               &attrs, &server_controls);
+
+    slapi_search_internal_set_pb(pb, subtree_dn_copy,
+        scope, query, attrs, 0, server_controls, NULL,
         (void *)plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
+    slapi_ch_free_string(&subtree_dn_copy);
     slapi_ch_free_string(&query);
+    slapi_ch_array_free(attrs);
+    attrs = NULL;
+    ldap_controls_free(server_controls);
+    server_controls = NULL;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
     if (rval != LDAP_SUCCESS)
@@ -2096,7 +2136,7 @@ dedash_guid(char *str)
 	char *p = str;
 	char c = '\0';
 
-	while (c = *p)
+	while ((c = *p))
 	{
 		if ('-' == c)
 		{
@@ -2254,7 +2294,7 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
 
 	/* The tombstone suffix discards any containers, so we need
 	 * to trim the DN to only dc components. */
-	if (suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt))) {
+	if ((suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt)))) {
 		/* If this isn't found, it is treated as an error below. */
 		suffix = (const char *) PL_strcasestr(suffix,"dc=");
 	}
@@ -2358,7 +2398,6 @@ static Slapi_DN *make_dn_from_guid(char *guid, int is_nt4, const char* suffix)
 	char *dn_string = NULL;
 	if (guid)
 	{
-		new_dn = slapi_sdn_new();
 		if (is_nt4)
 		{
 			dn_string = PR_smprintf("GUID=%s,%s",guid,suffix);
@@ -2366,7 +2405,7 @@ static Slapi_DN *make_dn_from_guid(char *guid, int is_nt4, const char* suffix)
 		{
 			dn_string = PR_smprintf("<GUID=%s>",guid);
 		}
-		slapi_sdn_init_dn_byval(new_dn,dn_string);
+		new_dn = slapi_sdn_new_dn_byval(dn_string);
 		PR_smprintf_free(dn_string);
 	}
 	/* dn string is now inside the Slapi_DN, and will be freed by its owner */
@@ -2452,6 +2491,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 		 * without removing the ntUniqueID attribute.  We should verify that the entry really
 		 * exists in AD. */
 		rc = windows_get_remote_entry(prp, new_dn, &remote_entry);
+		slapi_sdn_free(&new_dn);
 		if (0 == rc && remote_entry) {
 			slapi_entry_free(remote_entry);
 		} else {
@@ -2471,7 +2511,6 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 				}
 
 				if (cn_string) {
-					char *rdnstr = NULL;
 					char *container_str = NULL;
 
 					container_str = extract_container(slapi_entry_get_sdn_const(e),
@@ -2719,9 +2758,23 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 			if (is_user)
 			{
 				new_dn_string = PR_smprintf("uid=%s,%s%s",username,container_str,suffix);
+				winsync_plugin_call_get_new_ds_user_dn_cb(ra,
+														  windows_private_get_raw_entry(ra),
+														  e,
+														  &new_dn_string,
+														  windows_private_get_directory_subtree(ra),
+														  windows_private_get_windows_subtree(ra));
 			} else
 			{
 				new_dn_string = PR_smprintf("cn=%s,%s%s",username,container_str,suffix);
+				if (is_group) {
+					winsync_plugin_call_get_new_ds_group_dn_cb(ra,
+															   windows_private_get_raw_entry(ra),
+															   e,
+															   &new_dn_string,
+															   windows_private_get_directory_subtree(ra),
+															   windows_private_get_windows_subtree(ra));
+				}
 			}
 			new_dn = slapi_sdn_new_dn_byval(new_dn_string);
 			PR_smprintf_free(new_dn_string);
@@ -2939,6 +2992,18 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	{
 		slapi_entry_add_string(local_entry,"sn",username);
 	}
+
+	if (is_user) {
+	    winsync_plugin_call_pre_ds_add_user_cb(prp->agmt,
+						   windows_private_get_raw_entry(prp->agmt),
+						   remote_entry,
+						   local_entry);
+	} else if (is_group) {
+	    winsync_plugin_call_pre_ds_add_group_cb(prp->agmt,
+							windows_private_get_raw_entry(prp->agmt),
+						    remote_entry,
+						    local_entry);
+	}
 	/* Store it */
 	windows_dump_entry("Adding new local entry",local_entry);
 	pb = slapi_pblock_new();
@@ -2951,6 +3016,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			"add operation of entry %s returned: %d\n", slapi_sdn_get_dn(local_sdn), retval);
 	}
 error:
+	slapi_ch_free_string(&guid_str);
 	if (pb)
 	{
 		slapi_pblock_destroy(pb);
@@ -3115,7 +3181,6 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 						 * sure we don't try to send more than one value. */
 						if (slapi_valueset_count(vs) > 1) {
 							int i = 0;
-							const char *street_value = NULL;
 							Slapi_Value *value = NULL;
 							Slapi_Value *new_value = NULL;
 
@@ -3229,7 +3294,6 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 							 * sure we don't try to send more than one value. */
 							if (slapi_valueset_count(vs) > 1) {
 								int i = 0;
-								const char *street_value = NULL;
 								Slapi_Value *value = NULL;
 								Slapi_Value *new_value = NULL;
 
@@ -3317,6 +3381,40 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
                 entry_next_deleted_attribute(remote_entry, &del_attr);
 		slapi_ch_free_string(&local_type);
         }
+
+	if (to_windows) {
+	    if (is_user) {
+		winsync_plugin_call_pre_ad_mod_user_cb(prp->agmt,
+						       windows_private_get_raw_entry(prp->agmt),
+						       local_entry, /* the cooked ad entry */
+						       remote_entry, /* the ds entry */
+						       smods,
+						       do_modify);
+	    } else if (is_group) {
+		winsync_plugin_call_pre_ad_mod_group_cb(prp->agmt,
+							windows_private_get_raw_entry(prp->agmt),
+							local_entry, /* the cooked ad entry */
+							remote_entry, /* the ds entry */
+							smods,
+							do_modify);
+	    }
+	} else {
+	    if (is_user) {
+		winsync_plugin_call_pre_ds_mod_user_cb(prp->agmt,
+						       windows_private_get_raw_entry(prp->agmt),
+						       remote_entry, /* the cooked ad entry */
+						       local_entry, /* the ds entry */
+						       smods,
+						       do_modify);
+	    } else if (is_group) {
+		winsync_plugin_call_pre_ds_mod_group_cb(prp->agmt,
+							windows_private_get_raw_entry(prp->agmt),
+							remote_entry, /* the cooked ad entry */
+							local_entry, /* the ds entry */
+							smods,
+							do_modify);
+	    }
+	}
 
 	if (slapi_is_loglevel_set(SLAPI_LOG_REPL) && *do_modify)
 	{
@@ -3412,10 +3510,16 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 	Slapi_Entry *mapped_entry = NULL;
 	char *password = NULL;
 	const Slapi_DN* local_dn = NULL;
+	int can_add = winsync_plugin_call_can_add_entry_to_ad_cb(prp->agmt, e, remote_dn);
 	/* First map the entry */
 	local_dn = slapi_entry_get_sdn_const(e);
-	if (missing_entry)
-	retval = windows_create_remote_entry(prp, e, remote_dn, &mapped_entry, &password);
+	if (missing_entry) {
+		if (can_add) {
+			retval = windows_create_remote_entry(prp, e, remote_dn, &mapped_entry, &password);
+		} else {
+			return retval; /* cannot add and no entry to modify */
+		}
+	}
 	/* Convert entry to mods */
 	if (0 == retval && mapped_entry) 
 	{

@@ -512,15 +512,17 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 
 /* Copied from the chaining backend*/
 static Slapi_Entry * 
-windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
+windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonly) {
 
-	Slapi_Entry *e = slapi_entry_alloc();
+	Slapi_Entry *rawentry = NULL;
+	Slapi_Entry *e = NULL;
 	char *a = NULL;
 	BerElement * ber = NULL;
+	LDAP *ld = conn->ld;
 
-	if ( e == NULL ) return NULL;
+	windows_private_set_raw_entry(conn->agmt, NULL); /* clear it first */
+
 	if (msg == NULL) {
-		slapi_entry_free(e);
 		return NULL;
 	}
 	
@@ -529,10 +531,21 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 	 * attribute type and values ARE allocated
 	 */
 
+	e = slapi_entry_alloc();
+	if ( e == NULL ) return NULL;
 	slapi_entry_set_dn( e, ldap_get_dn( ld, msg ) );
+	rawentry = slapi_entry_alloc();
+	if ( rawentry == NULL ) {
+		slapi_entry_free(e);
+		return NULL;
+	}
+	slapi_entry_set_dn( rawentry, slapi_ch_strdup(slapi_entry_get_dn(e)) );
  
 	for ( a = ldap_first_attribute( ld, msg, &ber ); a!=NULL; a=ldap_next_attribute( ld, msg, ber ) ) 
 	{
+		struct  berval ** aVal = ldap_get_values_len( ld, msg, a);
+		slapi_entry_add_values(rawentry, a, aVal);
+
 		if (0 == strcasecmp(a,"dnsRecord") || 0 == strcasecmp(a,"dnsproperty") ||
 		    0 == strcasecmp(a,"dscorepropagationdata"))
 		{
@@ -548,10 +561,8 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 			if (attrsonly) 
 			{
 				slapi_entry_add_value(e, a, (Slapi_Value *)NULL);
-				ldap_memfree(a);
 			} else 
 			{
-				struct  berval ** aVal = ldap_get_values_len( ld, msg, a);
 				char *type_to_use = NULL;
 				/* Work around the fact that we alias street and streetaddress, while Microsoft do not */
 				if (0 == strcasecmp(a,"streetaddress")) 
@@ -575,15 +586,18 @@ windows_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) {
 					slapi_entry_add_values( e, type_to_use, aVal);
 				} 
                 
-				ldap_memfree(a);
-				ldap_value_free_len(aVal);
 			}
 		}
+		ldap_memfree(a);
+		ldap_value_free_len(aVal);
 	}
     if ( NULL != ber )
 	{
         ldap_ber_free( ber, 0 );
 	}
+
+	windows_private_set_raw_entry(conn->agmt, rawentry); /* windows private now owns rawentry */
+
     return e;
 }
 
@@ -599,11 +613,6 @@ ConnResult
 windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls)
 {
 	ConnResult return_value = 0;
-	int ldap_rc = 0;
-	LDAPMessage *res = NULL;
-	int nummessages = 0;
-	int numentries = 0;
-	int numreferences = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_search_entry\n", 0, 0, 0 );
 
@@ -611,15 +620,41 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 
 	if (windows_conn_connected(conn))
 	{
-		ldap_rc = ldap_search_ext_s(conn->ld, searchbase, LDAP_SCOPE_SUBTREE,
-			filter, NULL, 0 /* attrsonly */,
-			serverctrls , NULL /* client controls */,
+		int ldap_rc = 0;
+		LDAPMessage *res = NULL;
+		char *searchbase_copy = slapi_ch_strdup(searchbase);
+		int scope = LDAP_SCOPE_SUBTREE;
+		char *filter_copy = slapi_ch_strdup(filter);
+		char **attrs = NULL;
+		LDAPControl **serverctrls_copy = NULL;
+
+		slapi_add_controls(&serverctrls_copy, serverctrls, 1 /* make a copy we can free */);
+
+		LDAPDebug( LDAP_DEBUG_REPL, "Calling windows entry search request plugin\n", 0, 0, 0 );
+
+		winsync_plugin_call_pre_ad_search_cb(conn->agmt, NULL, &searchbase_copy, &scope, &filter_copy,
+											 &attrs, &serverctrls_copy);
+		
+		ldap_rc = ldap_search_ext_s(conn->ld, searchbase_copy, scope,
+			filter_copy, attrs, 0 /* attrsonly */,
+			serverctrls_copy , NULL /* client controls */,
 			&conn->timeout, 0 /* sizelimit */, &res);
+
+		slapi_ch_free_string(&searchbase_copy);
+		slapi_ch_free_string(&filter_copy);
+		slapi_ch_array_free(attrs);
+		attrs = NULL;
+		ldap_controls_free(serverctrls_copy);
+		serverctrls_copy = NULL;
+
 		if (LDAP_SUCCESS == ldap_rc)
 		{
 			LDAPMessage *message = ldap_first_entry(conn->ld, res);
 
 			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+				int nummessages = 0;
+				int numentries = 0;
+				int numreferences = 0;
 				nummessages = ldap_count_messages(conn->ld, res);
 				numentries = ldap_count_entries(conn->ld, res);
 				numreferences = ldap_count_references(conn->ld, res);
@@ -629,7 +664,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 
 			if (NULL != entry)
 			{
-				*entry = windows_LDAPMessage2Entry(conn->ld,message,0);
+				*entry = windows_LDAPMessage2Entry(conn,message,0);
 			}
 			/* See if there are any more entries : if so then that's an error
 			 * but we still need to get them to avoid gumming up the connection
@@ -664,42 +699,46 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 ConnResult
 send_dirsync_search(Repl_Connection *conn)
 {
-	int rc;
 	ConnResult return_value;
-	LDAPControl *server_controls[2];
-	int msgid;
-
-	const char *op_string = NULL;
-
-	const char* old_dn = NULL;
-	char* dn = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_dirsync_search\n", 0, 0, 0 );
 	
-	/* need to strip the dn down to dc= */
-	old_dn = slapi_sdn_get_ndn( windows_private_get_windows_subtree(conn->agmt) );
-	dn = strstr(old_dn, "dc=");
-
 	if (windows_conn_connected(conn))
 	{
+		const char *op_string = NULL;
+		int rc;
+		int scope = LDAP_SCOPE_SUBTREE;
+		char *filter = slapi_ch_strdup("(objectclass=*)");
+		char **attrs = NULL;
+		LDAPControl **server_controls = NULL;
+		int msgid;
+		/* need to strip the dn down to dc= */
+		const char *old_dn = slapi_sdn_get_ndn( windows_private_get_windows_subtree(conn->agmt) );
+		char *dn = slapi_ch_strdup(strstr(old_dn, "dc="));
+
 		if (conn->supports_dirsync == 0)
 		{
-			server_controls[0] = NULL; /* unsupported */
+			/* unsupported */
 		} else 
 		{
-			server_controls[0] = windows_private_dirsync_control(conn->agmt);
+			slapi_add_control_ext(&server_controls,
+								  windows_private_dirsync_control(conn->agmt),
+								  0 /* no copy - passin */);
 		}
 
-		server_controls[1] = NULL;
 		conn->last_operation = CONN_SEARCH;
 		conn->status = STATUS_SEARCHING;
 		op_string = "search";
 
+		LDAPDebug( LDAP_DEBUG_REPL, "Calling dirsync search request plugin\n", 0, 0, 0 );
+
+		winsync_plugin_call_dirsync_search_params_cb(conn->agmt, old_dn, &dn, &scope, &filter,
+													 &attrs, &server_controls);
+
 		LDAPDebug( LDAP_DEBUG_REPL, "Sending dirsync search request\n", 0, 0, 0 );
 
-		rc = ldap_search_ext( conn->ld, dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", /* filter */
-							  NULL /*attrs */,  PR_FALSE, server_controls, NULL, /* ClientControls */
-							  0,0, &msgid);
+		rc = ldap_search_ext( conn->ld, dn, scope, filter, attrs, PR_FALSE, server_controls,
+                              NULL /* ClientControls */, 0,0, &msgid);
 
 		if (LDAP_SUCCESS == rc)
 		{
@@ -723,11 +762,13 @@ send_dirsync_search(Repl_Connection *conn)
 				return_value = CONN_OPERATION_FAILED;
 			}
 		}
-		if (server_controls[0])
-		{
-			ldap_control_free(server_controls[0]);
-		}
-		
+		/* cleanup */
+		slapi_ch_free_string(&dn);
+		slapi_ch_free_string(&filter);
+		slapi_ch_array_free(attrs);
+		attrs = NULL;
+		ldap_controls_free(server_controls);
+		server_controls = NULL;
 	}
 	else
 	{
@@ -852,7 +893,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
 					lm = ldap_first_entry( conn->ld, res );			
-					e = windows_LDAPMessage2Entry(conn->ld,lm,0);
+					e = windows_LDAPMessage2Entry(conn,lm,0);
 					ldap_memfree(dn);
 				}
 			}
@@ -1424,6 +1465,13 @@ windows_conn_replica_supports_dirsync(Repl_Connection *conn)
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_replica_supports_dirsync\n", 0, 0, 0 );
 
+#ifdef WINSYNC_TEST
+	/* used to fake out dirsync to think it's talking to a real ad when in fact
+	   it's just talking to another directory server */
+	conn->supports_dirsync = 1;
+	return CONN_SUPPORTS_DIRSYNC;
+#endif
+
 	if (windows_conn_connected(conn))
 	{
 		if (conn->supports_dirsync == -1) {
@@ -1882,7 +1930,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> repl5_stop_debug_timeout\n", 0, 0, 0 );
 
 	if (eqctx && !*setlevel) {
-		int found = slapi_eq_cancel(eqctx);
+		(void)slapi_eq_cancel(eqctx);
 	}
 
 	if (s_debug_timeout && s_debug_level && *setlevel) {
