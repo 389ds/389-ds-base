@@ -96,6 +96,16 @@ slapi_pblock_new()
 }
 
 void
+slapi_pblock_init( Slapi_PBlock *pb )
+{
+	if(pb!=NULL)
+	{
+		pblock_done(pb);
+		pblock_init(pb);
+	}
+}
+
+void
 pblock_done( Slapi_PBlock *pb )
 {
     if(pb->pb_op!=NULL)

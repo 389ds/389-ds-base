@@ -186,6 +186,7 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
  * parameter block routines
  */
 Slapi_PBlock *slapi_pblock_new( void ); /* allocate and initialize */
+void slapi_pblock_init( Slapi_PBlock *pb ); /* clear out for re-use */
 int slapi_pblock_get( Slapi_PBlock *pb, int arg, void *value );
 int slapi_pblock_set( Slapi_PBlock *pb, int arg, void *value );
 void slapi_pblock_destroy( Slapi_PBlock *pb );

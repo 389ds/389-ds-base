@@ -801,21 +801,28 @@ static LDAPControl *dna_build_sort_control(const char *attr)
 
 /* we do search all values between nextval and maxval asking the
  * server to sort them, then we check the first free spot and
- * use it as newval */
+ * use it as newval.  If we go past the end of the range, we
+ * return LDAP_OPERATIONS_ERROR and set newval to be > the
+ * maximum configured value for this range. */
 static int dna_first_free_value(struct configEntry *config_entry,
                                 PRUint64 *newval)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *pb = NULL;
-    LDAPControl **ctrls;
+    LDAPControl **ctrls = NULL;
     char *attrs[2];
     char *filter;
     char *prefix;
     char *type;
-    int preflen;
-    int result, status;
+    int result, status, filterlen;
     PRUint64 tmpval, sval, i;
     char *strval = NULL;
+
+    /* check if the config is already out of range */
+    if (config_entry->nextval > config_entry->maxval) {
+        *newval = config_entry->nextval;
+        return LDAP_OPERATIONS_ERROR;
+    }
 
     prefix = config_entry->prefix;
     type = config_entry->type;
@@ -824,30 +831,46 @@ static int dna_first_free_value(struct configEntry *config_entry,
     attrs[0] = type;
     attrs[1] = NULL;
 
-    ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl));
-    if (NULL == ctrls)
-        return LDAP_OPERATIONS_ERROR;
+    /* We don't sort if we're using a prefix (non integer type).  Instead,
+     * we just search to see if the next value is free, and keep incrementing
+     * until we find the next free value. */
+    if (prefix) {
+        /* The 7 below is for all of the filter characters "(&(=))"
+         * plus the trailing \0.  The 20 is for the maximum string
+         * representation of a %llu. */
+        filterlen = strlen(config_entry->filter) +
+                                 strlen(prefix) + strlen(type)
+                                 + 7 + 20;
+        filter = slapi_ch_malloc(filterlen);
+        snprintf(filter, filterlen, "(&%s(%s=%s%llu))",
+                          config_entry->filter, type, prefix, tmpval);
+    } else {
+        ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl));
+        if (NULL == ctrls)
+            return LDAP_OPERATIONS_ERROR;
 
-    ctrls[0] = dna_build_sort_control(config_entry->type);
-    if (NULL == ctrls[0]) {
-        slapi_ch_free((void **)&ctrls);
-        return LDAP_OPERATIONS_ERROR;
+        ctrls[0] = dna_build_sort_control(config_entry->type);
+        if (NULL == ctrls[0]) {
+            slapi_ch_free((void **)&ctrls);
+            return LDAP_OPERATIONS_ERROR;
+        }
+
+        filter = slapi_ch_smprintf("(&%s(&(%s>=%llu)(%s<=%llu)))",
+                                   config_entry->filter,
+                                   type, tmpval,
+                                   type, config_entry->maxval);
     }
 
-    filter = slapi_ch_smprintf("(&%s(&(%s>=%s%llu)(%s<=%s%llu)))",
-                               config_entry->filter,
-                               type, prefix?prefix:"", tmpval,
-                               type, prefix?prefix:"", config_entry->maxval);
     if (NULL == filter) {
-        ldap_control_free(ctrls[0]);
-        slapi_ch_free((void **)&ctrls);
+        ldap_controls_free(ctrls);
+        ctrls = NULL;
         return LDAP_OPERATIONS_ERROR;
     }
 
     pb = slapi_pblock_new();
     if (NULL == pb) {
-        ldap_control_free(ctrls[0]);
-        slapi_ch_free((void **)&ctrls);
+        ldap_controls_free(ctrls);
+        ctrls = NULL;
         slapi_ch_free_string(&filter);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -857,10 +880,6 @@ static int dna_first_free_value(struct configEntry *config_entry,
                                  attrs, 0, ctrls,
                                  NULL, getPluginID(), 0);
     slapi_search_internal_pb(pb);
-/*
-    ldap_control_free(ctrls[0]);
-*/
-    slapi_ch_free_string(&filter);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
     if (LDAP_SUCCESS != result) {
@@ -878,46 +897,86 @@ static int dna_first_free_value(struct configEntry *config_entry,
         goto cleanup;
     }
 
-    /* entries are sorted and filtered for value >= tval therefore if the
-     * first one does not match tval it means that the value is free,
-     * otherwise we need to cycle through values until we find a mismatch,
-     * the first mismatch is the first free pit */
+    if (prefix) {
+        /* The next value identified in the config entry has already
+         * been taken.  We just iterate through the values until we
+         * (hopefully) find a free one. */
+        for (tmpval += config_entry->interval; tmpval <= config_entry->maxval;
+             tmpval += config_entry->interval) {
+            /* filter is guaranteed to be big enough since we allocated
+             * enough space to fit a string representation of any unsigned
+             * 64-bit integer */
+            snprintf(filter, filterlen, "(&%s(%s=%s%llu))",
+                              config_entry->filter, type, prefix, tmpval);
 
-    preflen = prefix?strlen(prefix):0;
-    sval = 0;
-    for (i = 0; NULL != entries[i]; i++) {
-        strval = slapi_entry_attr_get_charptr(entries[i], type);
-        if (preflen) {
-            if (strlen(strval) <= preflen) {
+            /* clear out the pblock so we can re-use it */
+            slapi_free_search_results_internal(pb);
+            slapi_pblock_init(pb);
+
+            slapi_search_internal_set_pb(pb, config_entry->scope,
+                                 LDAP_SCOPE_SUBTREE, filter,
+                                 attrs, 0, 0,
+                                 NULL, getPluginID(), 0);
+
+            slapi_search_internal_pb(pb);
+
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            if (LDAP_SUCCESS != result) {
+                status = LDAP_OPERATIONS_ERROR;
+                goto cleanup;
+            }
+
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+                             &entries);
+
+            if (NULL == entries || NULL == entries[0]) {
+                /* no values means we already have a good value */
+                *newval = tmpval;
+                status = LDAP_SUCCESS;
+                goto cleanup;
+            }
+        }
+    } else {
+        /* entries are sorted and filtered for value >= tval therefore if the
+         * first one does not match tval it means that the value is free,
+         * otherwise we need to cycle through values until we find a mismatch,
+         * the first mismatch is the first free pit */
+        sval = 0;
+        for (i = 0; NULL != entries[i]; i++) {
+            strval = slapi_entry_attr_get_charptr(entries[i], type);
+            errno = 0;
+            sval = strtoul(strval, 0, 0);
+            if (errno) {
                 /* something very wrong here ... */
                 status = LDAP_OPERATIONS_ERROR;
                 goto cleanup;
             }
-            strval = &strval[preflen-1];
+            slapi_ch_free_string(&strval);
+
+            if (tmpval != sval)
+                break;
+
+            if (config_entry->maxval < sval)
+                break;
+
+            tmpval += config_entry->interval;
         }
-
-        errno = 0;
-        sval = strtoul(strval, 0, 0);
-        if (errno) {
-            /* something very wrong here ... */
-            status = LDAP_OPERATIONS_ERROR;
-            goto cleanup;
-        }
-        slapi_ch_free_string(&strval);
-
-        if (tmpval != sval)
-            break;
-
-        if (config_entry->maxval < sval)
-            break;
-
-        tmpval += config_entry->interval;
     }
 
-    *newval = tmpval;
-    status = LDAP_SUCCESS;
+    /* check if we went past the end of the range */
+    if (tmpval <= config_entry->maxval) {
+        *newval = tmpval;
+        status = LDAP_SUCCESS;
+    } else {
+        /* we set newval past the end of the range
+         * so the caller can easily detect that we
+         * overflowed the configured range. */
+        *newval = tmpval;
+        status = LDAP_OPERATIONS_ERROR;
+    }
 
 cleanup:
+    slapi_ch_free_string(&filter);
     slapi_ch_free_string(&strval);
     slapi_free_search_results_internal(pb);
     slapi_pblock_destroy(pb);
@@ -950,69 +1009,79 @@ static int dna_get_next_value(struct configEntry *config_entry,
 
     /* get the first value */
     ret = dna_first_free_value(config_entry, &setval);
-    if (LDAP_SUCCESS != ret)
-        goto done;
+    if (LDAP_SUCCESS != ret) {
+        /* check if we overflowed the configured range */
+        if (setval > config_entry->maxval) {
+            /* try for a new range or fail */
+            ret = dna_fix_maxval(config_entry, &setval);
+            if (LDAP_SUCCESS != ret) {
+                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                "dna_get_next_value: no more IDs available!!\n");
+                goto done;
+            }
 
-    /* try for a new range or fail */
-    if (setval > config_entry->maxval) {
-        ret = dna_fix_maxval(config_entry, &setval);
-        if (LDAP_SUCCESS != ret) {
+            /* get the first value from our newly extended range */
+            ret = dna_first_free_value(config_entry, &setval);
+            if (LDAP_SUCCESS != ret)
+                goto done;
+        } else {
+            /* dna_first_free_value() failed for some unknown reason */
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_next_value: no more IDs available!!\n");
+                            "dna_get_next_value: failed to allocate a new ID!!\n");
             goto done;
         }
-
-        /* get the first value from our newly extended range */
-        ret = dna_first_free_value(config_entry, &setval);
-        if (LDAP_SUCCESS != ret)
-            goto done;
-    }
-
-    /* ensure that we haven't gone past the end of our range */
-    if (setval > config_entry->maxval) {
-        ret = LDAP_OPERATIONS_ERROR;
-        goto done;
     }
 
     nextval = setval + config_entry->interval;
-
-    /* try for a new range or fail */
+    /* check if the next value will overflow the range */
     if (nextval > config_entry->maxval) {
+        /* try for a new range now, but let this operation through either way */
         ret = dna_fix_maxval(config_entry, &nextval);
         if (LDAP_SUCCESS != ret) {
+            /* We were unable to extend the range.  The allocation
+             * for this operation was fine, but the next free value
+             * is outside of the configured range.
+             * 
+             * We log an error message, but let the original operation
+             * go through.  We skip updating the config entry with
+             * the new nextval since it falls outside of the configured
+             * range.
+             *
+             * The next attempt to allocate a new value from this
+             * range will fail. */
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                             "dna_get_next_value: no more IDs available!!\n");
+            ret = LDAP_SUCCESS;
+        }
+    } else {
+        /* try to set the new next value in the config entry */
+        snprintf(next_value, sizeof(next_value),"%llu", nextval);
+
+        /* set up our replace modify operation */
+        replace_val[0] = next_value;
+        replace_val[1] = 0;
+        mod_replace.mod_op = LDAP_MOD_REPLACE;
+        mod_replace.mod_type = DNA_NEXTVAL;
+        mod_replace.mod_values = replace_val;
+        mods[0] = &mod_replace;
+        mods[1] = 0;
+
+        pb = slapi_pblock_new();
+        if (NULL == pb) {
+            ret = LDAP_OPERATIONS_ERROR;
             goto done;
         }
+
+        slapi_modify_internal_set_pb(pb, config_entry->dn,
+                                     mods, 0, 0, getPluginID(), 0);
+
+        slapi_modify_internal_pb(pb);
+
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+
+        slapi_pblock_destroy(pb);
+        pb = NULL;
     }
-
-    /* try to set the new next value in the config entry */
-    snprintf(next_value, sizeof(next_value),"%llu", nextval);
-
-    /* set up our replace modify operation */
-    replace_val[0] = next_value;
-    replace_val[1] = 0;
-    mod_replace.mod_op = LDAP_MOD_REPLACE;
-    mod_replace.mod_type = DNA_NEXTVAL;
-    mod_replace.mod_values = replace_val;
-    mods[0] = &mod_replace;
-    mods[1] = 0;
-
-    pb = slapi_pblock_new();
-    if (NULL == pb) {
-        ret = LDAP_OPERATIONS_ERROR;
-        goto done;
-    }
-
-    slapi_modify_internal_set_pb(pb, config_entry->dn,
-                                 mods, 0, 0, getPluginID(), 0);
-
-    slapi_modify_internal_pb(pb);
-
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
-
-    slapi_pblock_destroy(pb);
-    pb = NULL;
 
     if (LDAP_SUCCESS == ret) {
         *next_value_ret = slapi_ch_smprintf("%llu", setval);
