@@ -112,6 +112,10 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 	return( -1 );
 }
 
+/*
+ * return value:  0 -- approximately matched
+ *               -1 -- did not match
+ */
 static int
 string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 							 Slapi_Value **retVal)
@@ -178,6 +182,9 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 			rc = 0;
 			break;
 		}
+	}
+	if (0 != rc) {
+		rc = -1;
 	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= string_filter_approx %d\n",
 	    rc, 0, 0 );
