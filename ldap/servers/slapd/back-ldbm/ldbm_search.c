@@ -478,9 +478,12 @@ ldbm_back_search( Slapi_PBlock *pb )
                 char *sort_error_type = NULL;
                 int sort_return_value  = 0;
 
-                /* Log to the access log the particulars of this sort request */
-                /* Log message looks like this: SORT <key list useful for input to ldapsearch> <#candidates> | <unsortable> */
-                sort_log_access(pb,sort_control,candidates);
+                /* Don't log internal operations */
+                if (!operation_is_flag_set(operation, OP_FLAG_INTERNAL)) {
+                    /* Log to the access log the particulars of this sort request */
+                    /* Log message looks like this: SORT <key list useful for input to ldapsearch> <#candidates> | <unsortable> */
+                    sort_log_access(pb,sort_control,candidates);
+                }
                 sort_return_value = sort_candidates( be, lookthrough_limit, time_up, pb, candidates, sort_control, &sort_error_type );
                 /* Fix for bugid # 394184, SD, 20 Jul 00 */
                 /* replace the hard coded return value by the appropriate LDAP error code */
