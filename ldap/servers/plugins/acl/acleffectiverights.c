@@ -649,6 +649,7 @@ _ger_get_attrs_rights (
 					}
 				}
 			}
+			slapi_valueset_free(objclassvals);
 		}
 
 		/* get operational attrs */
@@ -706,9 +707,9 @@ _ger_get_attrs_rights (
 					}
 				}
 			}
-			charray_free(allattrs);
-			charray_free(opattrs);
 		}
+		charray_free(allattrs);
+		charray_free(opattrs);
 	}
 	else
 	{
