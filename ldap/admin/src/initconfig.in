@@ -31,3 +31,10 @@ if [ "$OS" = "SunOS" -a -f /usr/lib/64/libumem.so ] ; then
     LD_PRELOAD_64=/usr/lib/64/libumem.so
     export LD_PRELOAD_64
 fi
+
+# how many seconds to wait for the startpid file to show
+# up before we assume there is a problem and fail to start
+#STARTPID_TIME=10 ; export STARTPID_TIME
+# how many seconds to wait for the pid file to show
+# up before we assume there is a problem and fail to start
+#PID_TIME=600 ; export PID_TIME

@@ -47,7 +47,7 @@ fi
 
 loop_counter=1
 # wait for 10 seconds for the start pid file to appear
-max_count=10
+max_count=${STARTPID_TIME:-10}
 while test $loop_counter -le $max_count; do
     loop_counter=`expr $loop_counter + 1`
     if test ! -f $STARTPIDFILE ; then
@@ -62,7 +62,7 @@ if test ! -f $STARTPIDFILE ; then
 fi
 loop_counter=1
 # wait for 10 minutes (600 times 1 seconds)
-max_count=600
+max_count=${PID_TIME:-600}
 while test $loop_counter -le $max_count; do
     loop_counter=`expr $loop_counter + 1`
     if test ! -f $PIDFILE ; then
