@@ -593,6 +593,7 @@ slapd_ssl_init() {
       			slapd_SSL_warn("Security Initialization: Unable to get token ("
 				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
 				       errorCode, slapd_pr_strerror(errorCode));
+      			freeChildren(family_list);
       			return -1;
 		}
 
@@ -603,6 +604,7 @@ slapd_ssl_init() {
       			slapd_SSL_warn("Security Initialization: Unable to find slot ("
 				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 				       errorCode, slapd_pr_strerror(errorCode));
+      			freeChildren(family_list);
       			return -1;
     		}
     		/* authenticate */
@@ -612,6 +614,7 @@ slapd_ssl_init() {
       			slapd_SSL_warn("Security Initialization: Unable to authenticate ("
 				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 				       errorCode, slapd_pr_strerror(errorCode));
+      			freeChildren(family_list);
       			return -1;
     		}
     	}
@@ -862,6 +865,10 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             if (cert) {
                 CERT_DestroyCertificate(cert);
                 cert = NULL;
+            }
+            if (key) {
+                slapd_pk11_DestroyPrivateKey(key);
+                key = NULL;
             }
 	    slapi_ch_free((void **) &personality);
             if (SECSuccess != rv) {

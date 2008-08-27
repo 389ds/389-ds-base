@@ -468,6 +468,7 @@ attrcrypt_init(ldbm_instance *li)
 					ret = attrcrypt_cipher_init(li, ace, private_key, public_key, acs);
 					if (ret) {
 						LDAPDebug(LDAP_DEBUG_ANY,"Failed to initialize cipher %s in attrcrypt_init\n", ace->cipher_display_name, 0, 0);
+						slapi_ch_free((void **)&acs);
 					} else {
 						/* Since we succeeded, add the acs to the backend instance list */
 						attrcrypt_acs_list_add(li,acs);
@@ -476,7 +477,11 @@ attrcrypt_init(ldbm_instance *li)
 					
 				}
 			}
-		} 
+			slapd_pk11_DestroyPublicKey(public_key);
+			public_key = NULL;
+		}
+		slapd_pk11_DestroyPrivateKey(private_key);
+		private_key = NULL;
 	} else {
 		if (li->attrcrypt_configured) {
 			LDAPDebug(LDAP_DEBUG_ANY,"Warning: encryption is configured in backend %s, but because SSL is not enabled, database encryption is not available and the configuration will be overridden.\n", li->inst_name, 0, 0);

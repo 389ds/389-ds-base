@@ -946,6 +946,8 @@ unsigned slapd_SECKEY_PublicKeyStrength(SECKEYPublicKey *pubk);
 SECStatus slapd_pk11_Finalize(PK11Context *context);
 SECStatus slapd_pk11_DigestFinal(PK11Context *context, unsigned char *data,unsigned int *outLen, unsigned int length);
 void slapd_SECITEM_FreeItem (SECItem *zap, PRBool freeit);
+void slapd_pk11_DestroyPrivateKey(SECKEYPrivateKey *key);
+void slapd_pk11_DestroyPublicKey(SECKEYPublicKey *key);
 
 /*
  * start_tls_extop.c

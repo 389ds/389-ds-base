@@ -290,8 +290,10 @@ client_auth_init ()
 	    LDAPDebug (LDAP_DEBUG_ANY,
 		"client_auth_init: failed to duplicate \"%s/certmap\"\n",
 		confdir, 0, 0);
+	    slapi_ch_free_string(&confdir);
 	    return;
 	}
+	slapi_ch_free_string(&confdir);
     }
     err = ldaputil_init (client_auth_config_file, "", NULL, "slapd", NULL);
     if (err != LDAPU_SUCCESS) {

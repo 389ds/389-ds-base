@@ -154,7 +154,7 @@ symload_report_error( const char *libpath, char *symbol, char *plugin, int libop
 
 	errlen = PR_GetErrorTextLength();
 	if ( errlen > 0 ) {
-		errtext = slapi_ch_malloc( errlen );
+		errtext = slapi_ch_malloc( errlen+1 );
 		if ( PR_GetErrorText( errtext ) > 0 ) {
 			LDAPDebug( LDAP_DEBUG_ANY, SLAPI_COMPONENT_NAME_NSPR " error %d: %s\n",
 				PR_GetError(), errtext, 0 );

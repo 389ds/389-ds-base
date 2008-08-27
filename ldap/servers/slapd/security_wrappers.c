@@ -374,3 +374,12 @@ slapd_SECITEM_FreeItem (SECItem *zap, PRBool freeit)
 	SECITEM_FreeItem(zap,freeit);
 }
 
+void slapd_pk11_DestroyPrivateKey(SECKEYPrivateKey *key)
+{
+	SECKEY_DestroyPrivateKey(key);
+}
+
+void slapd_pk11_DestroyPublicKey(SECKEYPublicKey *key)
+{
+	SECKEY_DestroyPublicKey(key);
+}
