@@ -311,18 +311,23 @@ valuearray_get_bervalarray(Slapi_Value **cvals,struct berval ***bvals)
 }
 
 void
-valuearray_free(Slapi_Value ***va)
+valuearray_free_ext(Slapi_Value ***va, int idx)
 {
 	if(va!=NULL && *va!=NULL)
 	{
-		int i;
-		for(i=0; (*va)[i]!=NULL; i++)
+		for(; (*va)[idx]!=NULL; idx++)
 		{
-			slapi_value_free(&(*va)[i]);
+			slapi_value_free(&(*va)[idx]);
 		}
 		slapi_ch_free((void **)va);
 		*va = NULL;
 	}
+}
+
+void
+valuearray_free(Slapi_Value ***va)
+{
+    valuearray_free_ext(va, 0);
 }
 
 int
@@ -663,7 +668,12 @@ valuetree_add_valuearray( const char *type, struct slapdplugin *pi, Slapi_Value 
 					}
 				}
 			}
-			valuearray_free( &keyvals );
+			/* start freeing at index i - the rest of them have already
+			   been moved into valuetreep
+			   the loop iteration will always do the +1, so we have
+			   to remove it if so */
+			i = (i > 0) ? i-1 : 0;
+			valuearray_free_ext( &keyvals, i );
 		}
 	}
 	if(rc!=0)
@@ -1121,8 +1131,8 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 							if ( va_out )
 							{
 								if (vs->va[index]->v_csnset &&
-									(flags & SLAPI_VALUE_FLAG_PRESERVECSNSET|
-											 SLAPI_VALUE_FLAG_USENEWVALUE))
+									(flags & (SLAPI_VALUE_FLAG_PRESERVECSNSET|
+                                              SLAPI_VALUE_FLAG_USENEWVALUE)))
 								{
 									valuestodelete[i]->v_csnset = csnset_dup (vs->va[index]->v_csnset);
 								}
@@ -1192,8 +1202,8 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 					if ( va_out )
 					{
 						if (found->v_csnset &&
-							(flags & SLAPI_VALUE_FLAG_PRESERVECSNSET|
-							 		 SLAPI_VALUE_FLAG_USENEWVALUE))
+							(flags & (SLAPI_VALUE_FLAG_PRESERVECSNSET|
+                                      SLAPI_VALUE_FLAG_USENEWVALUE)))
 						{
 							valuestodelete[i]->v_csnset = csnset_dup (found->v_csnset);
 						}
