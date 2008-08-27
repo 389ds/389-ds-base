@@ -153,6 +153,13 @@ void winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slap
 void winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
 
 int winsync_plugin_call_can_add_entry_to_ad_cb(const Repl_Agmt *ra, const Slapi_Entry *local_entry, const Slapi_DN *remote_dn);
+void winsync_plugin_call_begin_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
+                                         const Slapi_DN *ad_subtree, int is_total);
+void winsync_plugin_call_end_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
+                                       const Slapi_DN *ad_subtree, int is_total);
+void winsync_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra,
+                                         const Slapi_DN *ds_subtree,
+                                         const Slapi_DN *ad_subtree);
 /*
   Call stack for all places where windows_LDAPMessage2Entry is called:
 

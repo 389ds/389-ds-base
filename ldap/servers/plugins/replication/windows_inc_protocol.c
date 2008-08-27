@@ -812,6 +812,12 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	      }   
 	    else
 	      {
+		/* call begin incremental update callback */
+		winsync_plugin_call_begin_update_cb(prp->agmt,
+						    windows_private_get_directory_subtree(prp->agmt),
+						    windows_private_get_windows_subtree(prp->agmt),
+						    0 /* is_total == FALSE */);
+
 		rc = send_updates(prp, ruv, &num_changes_sent);
 		if (rc == UPDATE_NO_MORE_UPDATES)
 		  {
@@ -874,6 +880,12 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	if (rc == UPDATE_TIMEOUT) {
 	  windows_conn_disconnect(prp->conn);
 	}
+	/* call end incremental update callback */
+	winsync_plugin_call_end_update_cb(prp->agmt,
+					  windows_private_get_directory_subtree(prp->agmt),
+					  windows_private_get_windows_subtree(prp->agmt),
+					  0 /* is_total == FALSE */);
+
 	if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0)
 	{
 	  if (pausetime > 0)

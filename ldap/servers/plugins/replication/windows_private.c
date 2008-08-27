@@ -47,8 +47,8 @@
 #include "repl5.h"
 #include "slap.h"
 #include "slapi-plugin.h"
-#include "windowsrepl.h"
 #include "winsync-plugin.h"
+#include "windowsrepl.h"
 
 struct windowsprivate {
   
@@ -217,6 +217,11 @@ void windows_agreement_delete(Repl_Agmt *ra)
 
 	PR_ASSERT(dp  != NULL);
 	
+	winsync_plugin_call_destroy_agmt_cb(ra, dp->directory_subtree,
+										dp->windows_subtree);
+
+	slapi_sdn_free(&dp->directory_subtree);
+	slapi_sdn_free(&dp->windows_subtree);
 	slapi_filter_free(dp->directory_filter, 1);
 	slapi_filter_free(dp->deleted_filter, 1);
 	slapi_entry_free(dp->raw_entry);
@@ -538,9 +543,10 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 
 	ber_printf( ber, "{iio}", dp->dirsync_flags, dp->dirsync_maxattributecount, dp->dirsync_cookie, dp->dirsync_cookie_len );
 
-#ifdef WINSYNC_TEST
-	iscritical = PR_FALSE;
-#endif
+	/* Use a regular directory server instead of a real AD - for testing */
+	if (getenv("WINSYNC_USE_DS")) {
+		iscritical = PR_FALSE;
+	}
 	slapi_build_control( REPL_DIRSYNC_CONTROL_OID, ber, iscritical, &control);
 
 	ber_free(ber,1);
@@ -563,7 +569,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 	Dirsync_Private *dp;
     int foundDirsyncControl;
 	int i;
-	LDAPControl *dirsync;
+	LDAPControl *dirsync = NULL;
 	BerElement *ber;
 	ber_int_t hasMoreData;
 	ber_int_t maxAttributeCount;
@@ -620,6 +626,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 choke:
 		ber_bvfree(serverCookie);
 		ber_free(ber,1);
+		ldap_control_free(dirsync);
 	}
 	else
 	{
@@ -1187,3 +1194,64 @@ winsync_plugin_call_can_add_entry_to_ad_cb(const Repl_Agmt *ra, const Slapi_Entr
 
     return (*thefunc)(windows_private_get_api_cookie(ra), local_entry, remote_dn);
 }
+
+void
+winsync_plugin_call_begin_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
+                                    const Slapi_DN *ad_subtree, int is_total)
+{
+    winsync_plugin_update_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_BEGIN_UPDATE_CB]) ?
+        (winsync_plugin_update_cb)_WinSyncAPI[WINSYNC_PLUGIN_BEGIN_UPDATE_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), ds_subtree, ad_subtree, is_total);
+
+    return;
+}
+
+void
+winsync_plugin_call_end_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
+                                  const Slapi_DN *ad_subtree, int is_total)
+{
+    winsync_plugin_update_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_END_UPDATE_CB]) ?
+        (winsync_plugin_update_cb)_WinSyncAPI[WINSYNC_PLUGIN_END_UPDATE_CB] :
+        NULL;
+
+    if (!thefunc) {
+        return;
+    }
+
+    (*thefunc)(windows_private_get_api_cookie(ra), ds_subtree, ad_subtree, is_total);
+
+    return;
+}
+
+void
+winsync_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra,
+                                    const Slapi_DN *ds_subtree,
+                                    const Slapi_DN *ad_subtree)
+{
+    winsync_plugin_destroy_agmt_cb thefunc =
+        (_WinSyncAPI && _WinSyncAPI[WINSYNC_PLUGIN_DESTROY_AGMT_CB]) ?
+        (winsync_plugin_destroy_agmt_cb)_WinSyncAPI[WINSYNC_PLUGIN_DESTROY_AGMT_CB] :
+        NULL;
+
+    if (thefunc) {
+        (*thefunc)(windows_private_get_api_cookie(ra), ds_subtree, ad_subtree);
+    }
+
+    return;
+}
+
+/* #define WINSYNC_TEST_IPA */
+#ifdef WINSYNC_TEST_IPA
+
+#include "ipa-winsync.c"
+#include "ipa-winsync-config.c"
+
+#endif

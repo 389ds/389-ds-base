@@ -51,11 +51,12 @@
 #define WINSYNC_v1_0_GUID "CDA8F029-A3C6-4EBB-80B8-A2E183DB0481"
 
 /*
- * The plugin will define this callback in order to initialize itself.
- * The ds subtree and the ad subtree from the sync agreement are passed in.
- * These are read only.
- * The return value is private data to the plugin that will be passed back
- * at each callback
+ * This callback is called when a winsync agreement is created.
+ * The ds_subtree and ad_subtree from the agreement are read-only.
+ * The callback can allocate some private data to return.  If so
+ * the callback must define a winsync_plugin_destroy_agmt_cb so
+ * that the private data can be freed.  This private data is passed
+ * to every other callback function as the void *cookie argument.
  */
 typedef void * (*winsync_plugin_init_cb)(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
 #define WINSYNC_PLUGIN_INIT_CB 1
@@ -159,6 +160,29 @@ typedef void (*winsync_pre_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawe
  */
 typedef int (*winsync_can_add_to_ad_cb)(void *cookie, const Slapi_Entry *local_entry, const Slapi_DN *remote_dn);
 #define WINSYNC_PLUGIN_CAN_ADD_ENTRY_TO_AD_CB 16
+
+/*
+ * Callbacks called at begin and end of update
+ * 
+ * The ds subtree and the ad subtree from the sync agreement are passed in.
+ * These are read only.
+ * is_total will be true if this is a total update, or false if this
+ * is an incremental update
+ */
+typedef void (*winsync_plugin_update_cb)(void *cookie, const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree, int is_total);
+#define WINSYNC_PLUGIN_BEGIN_UPDATE_CB 17
+#define WINSYNC_PLUGIN_END_UPDATE_CB 18
+
+/*
+ * Callbacks called when the agreement is destroyed.
+ * 
+ * The ds subtree and the ad subtree from the sync agreement are passed in.
+ * These are read only.
+ * The plugin must define this function to free the cookie allocated
+ * in the init function, if any.
+ */
+typedef void (*winsync_plugin_destroy_agmt_cb)(void *cookie, const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
+#define WINSYNC_PLUGIN_DESTROY_AGMT_CB 19
 
 /*
   The following are sample code stubs to show how to implement
@@ -418,6 +442,47 @@ test_winsync_can_add_entry_to_ad_cb(void *cbdata, const Slapi_Entry *local_entry
     return 0; /* false - do not allow entries to be added to ad */
 }
 
+static void
+test_winsync_begin_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
+                             const Slapi_DN *ad_subtree, int is_total)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_begin_update_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_begin_update_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
+                           const Slapi_DN *ad_subtree, int is_total)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_end_update_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_end_update_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
+                             const Slapi_DN *ad_subtree)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_destroy_agmt_cb -- begin\n");
+
+    /* free(cbdata); */
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_destroy_agmt_cb -- end\n");
+
+    return;
+}
+
 /**
  * Plugin identifiers
  */
@@ -447,7 +512,10 @@ static void *test_winsync_api[] = {
     test_winsync_get_new_ds_group_dn_cb,
     test_winsync_pre_ad_mod_user_mods_cb,
     test_winsync_pre_ad_mod_group_mods_cb,
-    test_winsync_can_add_entry_to_ad_cb
+    test_winsync_can_add_entry_to_ad_cb,
+    test_winsync_begin_update_cb,
+    test_winsync_end_update_cb,
+    test_winsync_destroy_agmt_cb
 };
 
 static int

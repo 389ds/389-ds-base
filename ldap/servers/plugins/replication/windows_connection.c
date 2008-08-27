@@ -1465,12 +1465,12 @@ windows_conn_replica_supports_dirsync(Repl_Connection *conn)
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_replica_supports_dirsync\n", 0, 0, 0 );
 
-#ifdef WINSYNC_TEST
-	/* used to fake out dirsync to think it's talking to a real ad when in fact
-	   it's just talking to another directory server */
-	conn->supports_dirsync = 1;
-	return CONN_SUPPORTS_DIRSYNC;
-#endif
+	if (getenv("WINSYNC_USE_DS")) {
+		/* used to fake out dirsync to think it's talking to a real ad when in fact
+		   it's just talking to another directory server */
+		conn->supports_dirsync = 1;
+		return CONN_SUPPORTS_DIRSYNC;
+	}
 
 	if (windows_conn_connected(conn))
 	{

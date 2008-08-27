@@ -1069,19 +1069,6 @@ int slapi_uniqueIDGenerateFromNameString(char **uId,
  * JCMREPL - Added for the replication plugin.
  */
  
-/*
- * Flags for slapi_config_register_callback() and
- *		slapi_config_remove_callback()
- */
-#define DSE_FLAG_PREOP          0x0001
-#define DSE_FLAG_POSTOP         0x0002
-
-/* This is the size of the returntext parameter passed to the config callback function,
-   which is the "char *" argument to dseCallbackFn above */
-#define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
-
-int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
-int slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn);
 int config_is_slapd_lite( void );
 void schema_expand_objectclasses_nolock( Slapi_Entry *e );
 

@@ -1256,6 +1256,20 @@ typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *,
 #define SLAPI_DSE_CALLBACK_ERROR                (-1)
 #define SLAPI_DSE_CALLBACK_DO_NOT_APPLY (0)
 
+/*
+ * Flags for slapi_config_register_callback() and
+ *		slapi_config_remove_callback()
+ */
+#define DSE_FLAG_PREOP          0x0001
+#define DSE_FLAG_POSTOP         0x0002
+
+/* This is the size of the returntext parameter passed to the config callback function,
+   which is the "char *" argument to dseCallbackFn above */
+#define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
+
+int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
+int slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn);
+
 /******************************************************************************
  * Online tasks interface (to support import, export, etc)
  * After some cleanup, we could consider making these public.

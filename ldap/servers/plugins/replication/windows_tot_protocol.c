@@ -153,6 +153,12 @@ windows_tot_run(Private_Repl_Protocol *prp)
     
 	windows_private_null_dirsync_cookie(prp->agmt);
 
+	/* call begin total update callback */
+	winsync_plugin_call_begin_update_cb(prp->agmt,
+										windows_private_get_directory_subtree(prp->agmt),
+										windows_private_get_windows_subtree(prp->agmt),
+										1 /* is_total == TRUE */);
+
 	/* get everything */
 	windows_dirsync_inc_run(prp);
 	
@@ -224,6 +230,12 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		}
 		agmt_set_consumer_ruv(prp->agmt, starting_ruv );
 	}
+
+	/* call end total update callback */
+	winsync_plugin_call_end_update_cb(prp->agmt,
+									  windows_private_get_directory_subtree(prp->agmt),
+									  windows_private_get_windows_subtree(prp->agmt),
+									  1 /* is_total == TRUE */);
 
 done:
 	if (starting_ruv)

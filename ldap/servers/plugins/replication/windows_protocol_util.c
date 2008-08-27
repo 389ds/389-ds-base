@@ -2605,6 +2605,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 	{
 		*dn = new_dn;
 	}
+	slapi_ch_free_string(&guid);
 	return retval;
 }
 
