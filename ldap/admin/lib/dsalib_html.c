@@ -40,7 +40,9 @@
 #endif
 
 #include "dsalib.h"
+#include "nspr.h"
 #include "prprf.h"
+#include "plstr.h"
 #include <sys/types.h>
 #include <string.h>
 #include <stdio.h>
@@ -196,6 +198,113 @@ ds_a_get_cgi_var(char *varname, char *elem_id, char *bongmsg)
     return NULL;
 }
 
+/* (copied from adminutil/lib/libadminutil/form_post.c) */
+void
+form_unescape(char *str)
+{
+    register int x = 0, y = 0;
+    int l = strlen(str);
+    char digit;
+
+    while(x < l)  {
+        if((str[x] == '%') && (x < (l - 2)))  {
+            ++x;
+            digit = (str[x] >= 'A' ? 
+                         ((str[x] & 0xdf) - 'A')+10 : (str[x] - '0'));
+            digit *= 16;
+
+            ++x;
+            digit += (str[x] >= 'A' ? 
+                         ((str[x] & 0xdf) - 'A')+10 : (str[x] - '0'));
+
+            str[y] = digit;
+        } 
+        else if(str[x] == '+')  {
+            str[y] = ' ';
+        } else {
+            str[y] = str[x];
+        }
+        x++;
+        y++;
+    }
+    str[y] = '\0';
+}
+
+/*
+ * (copied from adminutil/lib/libadminutil/form_post.c)
+ * form_unescape_url_escape_html -- 1) unescape escaped chars in URL;
+ *                                  2) escape unsecure chars for scripts
+ * 1) "%##" is converted to one character which value is ##; so is '+' to ' '
+ * 2) <, >, &, ", ' are escaped with "&XXX;" format
+ */
+static char *
+form_unescape_url_escape_html(char *str) 
+{
+    register size_t x = 0, y = 0;
+    size_t l = 0;
+    char *rstr = NULL;
+
+    if (NULL == str) {
+        return NULL;
+    }
+
+    /* first, form_unescape to convert hex escapes to chars */
+    form_unescape(str);
+
+    /* next, allocate enough space for the escaped entities */
+    for (x = 0, y = 0; str[x] != '\0'; x++) {
+        if (('<' == str[x]) || ('>' == str[x]))
+            y += 5;
+        else if (('&' == str[x]) || ('\'' == str[x]))
+            y += 6;
+        else if ('"' == str[x])
+            y += 7;
+    }
+
+    if (0 < y) {
+        rstr = (char *)PR_Malloc(x + y + 2);
+    } else {
+        rstr = PL_strdup(str);
+    }
+    l = x; /* length of str */
+
+    if (NULL == rstr) {
+        ds_report_error(DS_SYSTEM_ERROR, "CGI error",
+            "Could not allocate enough memory to escape the string.");
+        return NULL;
+    }
+
+    if (y == 0) { /* no entities to escape - just return the string copy */
+        return rstr;
+    }
+
+    for (x = 0, y = 0; x < l; x++, y++) {
+        char digit = str[x];
+        /*  see if digit (the original or the unescaped char)
+            needs to be html encoded */
+        if ('<' == digit) {
+            memcpy(&rstr[y], "&lt;", 4);
+            y += 3;
+        } else if ('>' == digit) {
+            memcpy(&rstr[y], "&gt;", 4);
+            y += 3;
+        } else if ('&' == digit) {
+            memcpy(&rstr[y], "&amp;", 5);
+            y += 4;
+        } else if ('"' == digit) {
+            memcpy(&rstr[y], "&quot;", 6);
+            y += 5;
+        } else if ('\'' == digit) {
+            memcpy(&rstr[y], "&#39;", 5);
+            y += 4;
+        } else { /* just write the char to the output string */
+            rstr[y] = digit;
+        }
+    }
+    rstr[y] = '\0';
+    return rstr;
+}
+
 DS_EXPORT_SYMBOL char **
 ds_string_to_vec(char *in)
 {
@@ -216,10 +325,27 @@ ds_string_to_vec(char *in)
     x=0;
 	/* strtok() is not MT safe, but it is okay to call here because it is used in monothreaded env */
     tmp = strtok(in, "&");
-    ans[x++]=strdup(tmp);
+    if (!tmp || !strchr(tmp, '=')) { /* error, bail out */
+        PR_Free(in);
+        return(ans);
+    }
+
+    if (!(ans[x++] = form_unescape_url_escape_html(tmp))) {
+        /* could not allocate enough memory */
+        PR_Free(in);
+        return ans;
+    }
 
     while((tmp = strtok(NULL, "&")))  {
-        ans[x++] = strdup(tmp);
+        if (!strchr(tmp, '=')) {
+            PR_Free(in);
+            return ans;
+        }
+        if (!(ans[x++] = form_unescape_url_escape_html(tmp))) {
+            /* could not allocate enough memory */
+            PR_Free(in);
+            return ans;
+		}
     }
 
     free(in);
