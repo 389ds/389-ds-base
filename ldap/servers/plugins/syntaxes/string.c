@@ -106,6 +106,10 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 	return( -1 );
 }
 
+/*
+ * return value:  0 -- approximately matched
+ *               -1 -- did not match
+ */
 static int
 string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 							 Slapi_Value **retVal)
@@ -173,6 +177,9 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 			break;
 		}
 	}
+	if (0 != rc) {
+		rc = -1;
+	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= string_filter_approx %d\n",
 	    rc, 0, 0 );
 
@@ -193,11 +200,18 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	time_t		time_up = 0;
 	time_t		optime = 0; /* time op was initiated */
 	int		timelimit = 0; /* search timelimit */
+	Operation *op = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
-	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
-	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+	if (NULL != op) {
+		slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
+		slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	} else {
+		/* timelimit is not passed via pblock */
+		timelimit = -1;
+	}
 	/*
 	 * (timelimit==-1) means no time limit
 	 */
