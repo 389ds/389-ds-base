@@ -1286,8 +1286,6 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 	struct berval  *bvp = NULL;
 	int            i, pwresponse_req = 0;
 
-	vs = slapi_valueset_new();
-
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
 
         /* Get a list of present values for attrtype in the existing entry, if there is one */
@@ -1296,9 +1294,15 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 		if ( (attr = attrlist_find(e->e_attrs, attrtype)) &&
 			(!valueset_isempty(&attr->a_present_values)) )
 		{
-			/* Add present values to valueset */
+			/* allocate and add present values to valueset */
 			slapi_attr_get_valueset( attr, &vs );
 		}
+	}
+
+	/* allocate new one if not allocated above by
+	   slapi_attr_get_valueset */
+	if (!vs) {
+		vs = slapi_valueset_new();
 	}
 
 	/* Get a list of new values for attrtype from the operation */
@@ -1862,6 +1866,7 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
     
+	free_pw_scheme(new_scheme);
 	slapi_ch_free_string(&scheme_list);
 
 	return retVal;
