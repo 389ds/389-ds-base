@@ -275,7 +275,11 @@ static void ids_sasl_user_search(
 
  out:
 
-    if (pb) slapi_free_search_results_internal(pb);
+    if (pb) {
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+        pb = NULL;
+    }
     return;
 }
 
