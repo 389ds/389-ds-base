@@ -87,8 +87,7 @@ main( argc, argv, env )
 	if (( p = strrchr( tmplname, '&' )) != NULL ) {
 	    *p++ = '\0';
 	    if ( strncasecmp( p, "info=", 5 ) == 0 ) {
-		dsgw_last_op_info = dsgw_ch_strdup( p + 5 );
-		dsgw_form_unescape( dsgw_last_op_info );
+	  	dsgw_last_op_info = dsgw_form_unescape_url_escape_html( p + 5 );
 	    }
 	}
     }

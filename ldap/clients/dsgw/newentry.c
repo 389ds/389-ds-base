@@ -429,8 +429,7 @@ main( argc, argv, env )
 	     * was used, then use dsgw.conf
 	     */
 	    if ( !strncasecmp( p, "context=", 8 )) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+	  	context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 	    
@@ -439,16 +438,14 @@ main( argc, argv, env )
 	     * It'll be mapped into an html file in get_request
 	     */
 	    if ( !strncasecmp( p, "file=", 5 )) {
-		docname = dsgw_ch_strdup( p + 5 );
-		dsgw_form_unescape( docname );
+	  	docname = dsgw_form_unescape_url_escape_html( p + 5 );
 		
 		continue;
 	    }
 	    
 	    /* etype will be ntgroup, or person, etc */
 	    if ( !strncasecmp( p, "etype=", 6 )) {
-		etype = dsgw_ch_strdup( p + 6 );
-		dsgw_form_unescape( etype );
+	  	etype = dsgw_form_unescape_url_escape_html( p + 6 );
 		
 		continue;
 	    }

@@ -124,8 +124,7 @@ post_request()
     encodeddn = dsgw_get_cgi_var( "dn", DSGW_CGIVAR_REQUIRED );
 
     /* undo extra level of escaping on DN */
-    dn = dsgw_ch_strdup( encodeddn );
-    dsgw_form_unescape( dn );
+    dn = dsgw_form_unescape_url_escape_html( encodeddn );
     old_dn = dn;
 
     quiet = dsgw_get_boolean_var( "quiet", DSGW_CGIVAR_OPTIONAL, 0 );
@@ -349,7 +348,7 @@ post_request()
 	 * check for "completion_javascript" form var and
 	 * execute it if present.
 	 */ 
-	jscomp = dsgw_get_cgi_var( "completion_javascript",
+	jscomp = dsgw_get_cgi_var_noescape( "completion_javascript",
 		DSGW_CGIVAR_OPTIONAL );
 	if ( jscomp != NULL ) {
 	    char	*entry_name_js;

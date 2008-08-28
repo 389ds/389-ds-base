@@ -788,7 +788,9 @@ extern int dsgw_NSSInitializedAlready; /* set in cookie.c:dsgw_NSSInit */
  */
 int dsgw_post_begin( FILE *in );
 void dsgw_form_unescape( char *str );
+char * dsgw_form_unescape_url_escape_html(char *str);
 char *dsgw_get_cgi_var( char *varname, int required );
+char *dsgw_get_cgi_var_noescape( char *varname, int required );
 int dsgw_get_int_var( char *varname, int required, int defval );
 int dsgw_get_boolean_var( char *varname, int required, int defval );
 char *dsgw_get_escaped_cgi_var( char *varname_escaped, char *varname,

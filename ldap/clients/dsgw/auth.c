@@ -65,15 +65,13 @@ int main(
 
 	    /*Get the context.*/
 	    if ( !strncasecmp( p, "context=", 8 )) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+		context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 
 	    /*Get the dn*/
 	    if ( !strncasecmp( p, "dn=", 3 )) {
-		binddn = dsgw_ch_strdup( p + 3 );
-		dsgw_form_unescape( binddn );
+		binddn = dsgw_form_unescape_url_escape_html( p + 3 );
 		continue;
 	    }
 	}
@@ -111,8 +109,7 @@ get_request(char *binddn)
 	} else if ( *binddn == '\0' ) {
 	    binddn = NULL;
 	} else {
-	    binddn = dsgw_ch_strdup( binddn );
-	    dsgw_form_unescape( binddn );
+	    binddn = dsgw_form_unescape_url_escape_html( binddn );
 	}
     }
     dsgw_emit_auth_form( binddn );

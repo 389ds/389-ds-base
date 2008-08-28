@@ -86,26 +86,22 @@ int main( argc, argv, env )
 	     * was used, then use dsgw.conf
 	     */
 	    if ( !strncasecmp( p, "context=", 8 )) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+		context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 
 	    if ( !strncasecmp( p, "hp=", 3 )) {
-		hostport = dsgw_ch_strdup( p + 3 );
-		dsgw_form_unescape( hostport );
+		hostport = dsgw_form_unescape_url_escape_html( p + 3 );
 		continue;
 	    }
 
 	    if ( !strncasecmp( p, "ldq=", 4 )) {
-		ldapquery = dsgw_ch_strdup( p + 4 );
-		dsgw_form_unescape( ldapquery );
+		ldapquery = dsgw_form_unescape_url_escape_html( p + 4 );
 		continue;
 	    }
 
 	    if ( !strncasecmp( p, "dn=", 3 )) {
-		dn = dsgw_ch_strdup( p + 3 );
-		dsgw_form_unescape( dn );
+		dn = dsgw_form_unescape_url_escape_html( p + 3 );
 		continue;
 	    }
 	    

@@ -164,8 +164,7 @@ main( int argc, char *argv[]
 	     * was used, then use dsgw.conf
 	     */
 	    if ( !strncasecmp( p, "context=", 8 )) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+	  	context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 	    
@@ -177,8 +176,7 @@ main( int argc, char *argv[]
 		if (strlen(p) == 5) {
 		    docname = dsgw_ch_strdup("index.html");
 		} else {
-		    docname = dsgw_ch_strdup( p + 5 );
-		    dsgw_form_unescape( docname );
+		    docname = dsgw_form_unescape_url_escape_html( p + 5 );
 		}
 		
 		
@@ -225,8 +223,7 @@ main( int argc, char *argv[]
 	if (( p = strrchr( docname, '&' )) != NULL ) {
 	    *p++ = '\0';
 	    if ( strncasecmp( p, "info=", 5 ) == 0 ) {
-		dsgw_last_op_info = dsgw_ch_strdup( p + 5 );
-		dsgw_form_unescape( dsgw_last_op_info );
+	  	dsgw_last_op_info = dsgw_form_unescape_url_escape_html( p + 5 );
 	    }
 	}
     }

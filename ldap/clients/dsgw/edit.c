@@ -112,8 +112,7 @@ int main( argc, argv, env )
 	    }
 
 	    if ( p != NULL && strncasecmp( p, "info=", 5 ) == 0 ) {
-		dsgw_last_op_info = dsgw_ch_strdup( p + 5 );
-		dsgw_form_unescape( dsgw_last_op_info );
+		dsgw_last_op_info = dsgw_form_unescape_url_escape_html( p + 5 );
 		continue;
 	    } 
 	    if ( p != NULL && strncasecmp( p, "dn=", 3 ) == 0 ) {
@@ -122,18 +121,15 @@ int main( argc, argv, env )
 		continue;
 	    } 
 	    if ( p != NULL && strncasecmp( p, "dnattr=", 7 ) == 0 ) {
-		dsgw_dnattr = dsgw_ch_strdup( p + 7 );
-		dsgw_form_unescape( dsgw_dnattr );
+	  	dsgw_dnattr = dsgw_form_unescape_url_escape_html( p + 7 );
 		continue;
 	    } 
 	    if ( p != NULL && strncasecmp( p, "dndesc=", 7 ) == 0 ) {
-		dsgw_dndesc = dsgw_ch_strdup( p + 7 );
-		dsgw_form_unescape( dsgw_dndesc );
+	  	dsgw_dndesc = dsgw_form_unescape_url_escape_html( p + 7 );
 		continue;
 	    } 
 	    if ( p != NULL && strncasecmp( p, "context=", 8 ) == 0) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+	  	context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 	    

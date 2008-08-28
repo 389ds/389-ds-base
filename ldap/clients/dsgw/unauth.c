@@ -74,8 +74,7 @@ int main( int argc, char **argv )
 	     * was used, then use dsgw.conf
 	     */
 	    if ( !strncasecmp( p, "context=", 8 )) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+	  	context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 	    

@@ -692,7 +692,7 @@ dsgw_display_done( dsgwtmplinfo *tip )
      * check for "completion_javascript" form var and
      * execute it if present.
      */ 
-    jscomp = dsgw_get_cgi_var( "completion_javascript",
+    jscomp = dsgw_get_cgi_var_noescape( "completion_javascript",
 	    DSGW_CGIVAR_OPTIONAL );
     if ( jscomp != NULL ) {
 	dsgw_emits( "<SCRIPT LANGUAGE=\"JavaScript\">\n" );

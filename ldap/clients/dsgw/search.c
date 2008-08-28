@@ -74,16 +74,14 @@ int main( argc, argv, env )
 	     * was used, then use dsgw.conf
 	     */
 	    if ( !strncasecmp( p, "context=", 8 )) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+	  	context = dsgw_form_unescape_url_escape_html( p + 8 );
 		continue;
 	    }
 	    
 	    
 	    /*Get the filename and check it for naughtiness -RJP*/
 	    if ( !strncasecmp( p, "file=", 5 )) {
-		docname = dsgw_ch_strdup( p + 5 );
-		dsgw_form_unescape( docname );
+	  	docname = dsgw_form_unescape_url_escape_html( p + 5 );
 		
 		/*
 		 * Make sure the person isn't trying to get 

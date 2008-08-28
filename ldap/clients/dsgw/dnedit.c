@@ -80,20 +80,18 @@ int main(int argc, char *argv[] )
 	    if ( p != NULL && strncasecmp( p, "dn=", 3 ) == 0 ) {
 		edn = dsgw_ch_strdup( p + 3 );
 		dn = dsgw_ch_strdup( p + 3 );
-		dsgw_form_unescape( dn );
+		dsgw_form_unescape( dn );	/* search base */
 	    } else if ( p != NULL && strncasecmp( p, "template=", 9 ) == 0 ) {
-		tmplname = dsgw_ch_strdup( p + 9 );
-		dsgw_form_unescape( tmplname );
+		tmplname = dsgw_form_unescape_url_escape_html( p + 9 );
 	    } else if ( p != NULL && strncasecmp( p, "attr=", 5 ) == 0 ) {
 		attrname = dsgw_ch_strdup( p + 5 );
-		dsgw_form_unescape( attrname );
+		dsgw_form_unescape( attrname );	/* search attr list */
 	    } else if ( p != NULL && strncasecmp( p, "desc=", 5 ) == 0 ) {
 		attrdesc = dsgw_ch_strdup( p + 5 );
 		/* Don't bother unescaping it;
 		   we're only going to put it back in another URL. */
 	    } else if ( p != NULL && strncasecmp( p, "context=", 8 ) == 0) {
-		context = dsgw_ch_strdup( p + 8 );
-		dsgw_form_unescape( context );
+		context = dsgw_form_unescape_url_escape_html( p + 8 );
 	    }
 	    
 	}
@@ -133,7 +131,10 @@ int main(int argc, char *argv[] )
 	dsgw_error( DSGW_ERR_ENTRY_NOT_FOUND, dn, DSGW_ERROPT_EXIT, 0, NULL );
     }
     attrvals = ldap_get_values( ld, msgp, attrname );
-	
+
+    if (attrname) {
+	attrname = dsgw_form_unescape_url_escape_html( attrname );
+    }
 
     /* Send the top-level document HTML */
     dsgw_emits( "<HTML>\n"

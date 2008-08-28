@@ -693,28 +693,29 @@ int *argc
     while ( *string != '\0' ) {
         if (( *string == '\"' ) && ( lastchar != '\\' )) {
             if ( isvar != -1 )  {
-		numvars++;
-		vars = (char **)dsgw_ch_realloc( vars,
-			( numvars + 1 ) * sizeof ( char * ));
-                vars[ numvars - 1 ] = (char *) dsgw_ch_strdup( scratch );
-		if (( p = strchr( vars[ numvars - 1 ], '=' )) != NULL ) {
-		    dsgw_form_unescape( p + 1 );
-		}
-		vars[ numvars ] = NULL;
+                numvars++;
+                vars = (char **)dsgw_ch_realloc( vars,
+                        ( numvars + 1 ) * sizeof ( char * ));
+                if (( p = strchr( scratch, '=' )) != NULL ) {
+                    vars[ numvars - 1 ] = dsgw_form_unescape_url_escape_html( scratch );
+                } else {
+                    vars[ numvars - 1 ] = (char *) dsgw_ch_strdup( scratch );
+                }
+                vars[ numvars ] = NULL;
                 isvar = -1;
             }  else {
                 isvar = 0;
-	    }
+            }
         } else {
             if ( isvar != -1 )  {
-		isvar += LDAP_UTF8COPY(scratch + isvar, string);
+                isvar += LDAP_UTF8COPY(scratch + isvar, string);
                 scratch[ isvar ] = '\0';
             } else {
                 if ( *string == DIRECTIVE_END ) {
                     break;
-		}
-	    }
-	}
+                }
+            }
+        }
         lastchar = *string;
         LDAP_UTF8INC(string);
     }
