@@ -200,9 +200,10 @@ int
 passwd_modify_extop( Slapi_PBlock *pb )
 {
 	char		*oid = NULL;
-	char 		*bindDN = NULL;
-    char        *authmethod = NULL;
+	char		*bindDN = NULL;
+	char		*authmethod = NULL;
 	char		*dn = NULL;
+	char		*otdn = NULL;
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
 	char		*errMesg = NULL;
@@ -383,6 +384,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	 /* Did they give us a DN ? */
 	 if (dn == NULL || *dn == '\0') {
 	 	/* Get the DN from the bind identity on this connection */
+        slapi_ch_free_string(&dn);
         dn = slapi_ch_strdup(bindDN);
 		LDAPDebug( LDAP_DEBUG_ANY,
     		    "Missing userIdentity in request, using the bind DN instead.\n",
@@ -459,14 +461,17 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	
 	/* Free anything that we allocated above */
 	free_and_return:
-
+	slapi_ch_free_string(&bindDN); /* slapi_pblock_get SLAPI_CONN_DN does strdup */
     slapi_ch_free_string(&oldPasswd);
     slapi_ch_free_string(&newPasswd);
     /* Either this is the same pointer that we allocated and set above,
        or whoever used it should have freed it and allocated a new
        value that we need to free here */
-	slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET, &dn );
-    slapi_ch_free_string(&dn);
+	slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET, &otdn );
+	if (otdn != dn) {
+		slapi_ch_free_string(&dn);
+	}
+    slapi_ch_free_string(&otdn);
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
     slapi_ch_free_string(&authmethod);
 
