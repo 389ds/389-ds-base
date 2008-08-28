@@ -211,6 +211,77 @@ dsgw_form_unescape(char *str)
     str[y] = '\0';
 }
 
+/*
+ * (copied from adminutil/lib/libdminutil/form_post.c)
+ * dsgw_form_unescape_url_escape_html -- 1) unescape escaped chars in URL;
+ *                                       2) escape unsecure chars for scripts
+ * 1) "%##" is converted to one character which value is ##; so is '+' to ' '
+ * 2) <, >, ", ' are escaped with "&XXX;" format
+ */
+char *
+dsgw_form_unescape_url_escape_html(char *str) 
+{
+    register size_t x = 0, y = 0;
+    size_t l = 0;
+    char *rstr = NULL;
+
+    if (NULL == str) {
+        return NULL;
+    }
+
+    /* first, form_unescape to convert hex escapes to chars */
+    dsgw_form_unescape(str);
+
+    /* next, allocate enough space for the escaped entities */
+    for (x = 0, y = 0; str[x] != '\0'; x++) {
+        if (('<' == str[x]) || ('>' == str[x]))
+            y += 5;
+        else if ('\'' == str[x])
+            y += 6;
+        else if ('"' == str[x])
+            y += 7;
+    }
+
+    if (0 < y) {
+        rstr = dsgw_ch_malloc(x + y + 2);
+    } else {
+        rstr = dsgw_ch_strdup(str);
+    }
+    l = x; /* length of str */
+
+    if (NULL == rstr) {
+		dsgw_error( DSGW_ERR_NOMEMORY, NULL, DSGW_ERROPT_EXIT, 0, NULL );
+        return NULL;
+    }
+
+    if (y == 0) { /* no entities to escape - just return the string copy */
+        return rstr;
+    }
+
+    for (x = 0, y = 0; x < l; x++, y++) {
+        char digit = str[x];
+        /*  see if digit (the original or the unescaped char)
+            needs to be html encoded */
+        if ('<' == digit) {
+            memcpy(&rstr[y], "&lt;", 4);
+            y += 3;
+        } else if ('>' == digit) {
+            memcpy(&rstr[y], "&gt;", 4);
+            y += 3;
+        } else if ('"' == digit) {
+            memcpy(&rstr[y], "&quot;", 6);
+            y += 5;
+        } else if ('\'' == digit) {
+            memcpy(&rstr[y], "&#39;", 5);
+            y += 4;
+        } else { /* just write the char to the output string */
+            rstr[y] = digit;
+        }
+    }
+    rstr[y] = '\0';
+    return rstr;
+}
+
 
 /* Return the value of a POSTed variable, or NULL if none was sent. */
 char *
@@ -223,24 +294,58 @@ dsgw_get_cgi_var(char *varname, int required)
     while(formvars != NULL && formvars[x])  {
     /*  We want to get rid of the =, so len, len+1 */
         if((!strncmp(formvars[x], varname, len)) &&
-		(*(formvars[x]+len) == '='))  {
+            (*(formvars[x]+len) == '='))  {
             ans = dsgw_ch_strdup(formvars[x] + len + 1);
             if(!strcmp(ans, "")) {
-		free(ans);
+                free(ans);
                 ans = NULL;
-	    }
+           }
             break;
         }  else
             x++;
     }
 
     if ( required == DSGW_CGIVAR_REQUIRED && ans == NULL ) {
-	char errbuf[ 256 ];
-	PR_snprintf( errbuf, 256,
-		XP_GetClientStr(DBT_missingFormDataElement100s_), varname );
-	dsgw_error( DSGW_ERR_BADFORMDATA, errbuf, DSGW_ERROPT_EXIT, 0, NULL );
+        char errbuf[ 256 ];
+        PR_snprintf( errbuf, 256,
+                XP_GetClientStr(DBT_missingFormDataElement100s_), varname );
+        dsgw_error( DSGW_ERR_BADFORMDATA, errbuf, DSGW_ERROPT_EXIT, 0, NULL );
+    }
+    if (ans) {
+        ans = dsgw_form_unescape_url_escape_html( ans );
     }
 
+    return ans;
+}
+
+char *
+dsgw_get_cgi_var_noescape(char *varname, int required)
+{
+    register int x = 0;
+    int len = strlen(varname);
+    char *ans = NULL;
+   
+    while(formvars != NULL && formvars[x])  {
+    /*  We want to get rid of the =, so len, len+1 */
+        if((!strncmp(formvars[x], varname, len)) &&
+            (*(formvars[x]+len) == '='))  {
+            ans = dsgw_ch_strdup(formvars[x] + len + 1);
+            if(!strcmp(ans, "")) {
+                free(ans);
+                ans = NULL;
+            }
+            break;
+        }  else
+            x++;
+    }
+
+    if ( required == DSGW_CGIVAR_REQUIRED && ans == NULL ) {
+        char errbuf[ 256 ];
+        PR_snprintf( errbuf, 256,
+                XP_GetClientStr(DBT_missingFormDataElement100s_), varname );
+        dsgw_error( DSGW_ERR_BADFORMDATA, errbuf, DSGW_ERROPT_EXIT, 0, NULL );
+    }
+ 
     return ans;
 }
 
@@ -302,9 +407,9 @@ dsgw_get_escaped_cgi_var( char *varname_escaped, char *varname, int required )
 
     if (( val = dsgw_get_cgi_var( varname_escaped,
 	    ( varname == NULL ) ? required: DSGW_CGIVAR_OPTIONAL )) != NULL ) {
-	dsgw_form_unescape( val );
+        dsgw_form_unescape( val );
     } else if ( varname != NULL ) {
-	 val = dsgw_get_cgi_var( varname, required );
+        val = dsgw_get_cgi_var( varname, required );
     }
 
     return( val );
@@ -319,31 +424,37 @@ dsgw_string_to_vec(char *in)
     int vars = 0;
     register int x = 0;
     char *tmp;
-    
+
+    in = PL_strdup(in);
+
     while(in[x])
         if(in[x++]=='=')
             vars++;
     
-    ans = (char **) dsgw_ch_malloc((sizeof(char *)) * (vars+1));
+    ans = (char **) dsgw_ch_calloc(vars+1, sizeof(char *));
   
     x=0;
     /* strtok() is not MT safe, but it is okay to call here because it is used in monothreaded env */
     tmp = strtok(in, "&");
-    ans[x]=dsgw_ch_strdup(tmp);
-    dsgw_form_unescape(ans[x++]);
+    if (!tmp || !strchr(tmp, '=')) { /* error, bail out */
+        free(in);
+        return(ans);
+    }
+	ans[x] = dsgw_ch_strdup(tmp);
+	dsgw_form_unescape(ans[x++]);
 
     while((tmp = strtok(NULL, "&")))  {
-	if ( strchr( tmp, '=' ) == NULL ) {
-	    break;
-	}
-        ans[x] = dsgw_ch_strdup(tmp);
-        dsgw_form_unescape(ans[x++]);
+        if (!strchr(tmp, '=')) {
+            free(in);
+            return ans;
+        }
+		ans[x] = dsgw_ch_strdup(tmp);
+		dsgw_form_unescape(ans[x++]);
     }
-    ans[x] = NULL;
+    free(in);
 
     return(ans);
 }
-
 
 /*
  * Step through all the CGI POSTed variables.  A malloc'd copy of the variable
