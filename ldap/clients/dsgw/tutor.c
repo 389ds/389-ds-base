@@ -167,8 +167,7 @@ main(
 	 * was used, then use dsgw.conf
 	 */
 	if ( iter != NULL && !strncasecmp( iter, "context=", 8 )) {
-	    context = dsgw_ch_strdup( iter + 8 );
-	    dsgw_form_unescape( context );
+	    context = dsgw_form_unescape_url_escape_html( iter + 8 );
 	}
 	
     }
