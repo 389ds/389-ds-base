@@ -189,6 +189,9 @@ do_bind( Slapi_PBlock *pb )
             ber_len_t clen;
             if (( ber_peek_tag( ber, &clen )) == LBER_OCTETSTRING ) {
                 rc = ber_scanf( ber, "o}}", &cred );
+                if (cred.bv_len == 0) {
+                    slapi_ch_free_string(&cred.bv_val);
+                }
             } else {
                 rc = ber_scanf( ber, "}}" );
             }
@@ -210,6 +213,9 @@ do_bind( Slapi_PBlock *pb )
         /* FALLTHROUGH */
     case LDAP_AUTH_SIMPLE:
         rc = ber_scanf( ber, "o}", &cred );
+        if (cred.bv_len == 0) {
+            slapi_ch_free_string(&cred.bv_val);
+        }
         break;
     default:
         log_bind_access (pb, slapi_sdn_get_dn (&sdn), method, version, saslmech, "Unknown bind method");
