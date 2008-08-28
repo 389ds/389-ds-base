@@ -45,7 +45,7 @@
 Summary: @COMPANY-PRODUCT-NAME@
 Name: @LCASE-COMPANY-NAME-NOSP@-ds
 Version: @GEN-VERSION@
-Release: 9.@PLATFORM@
+Release: 14.@PLATFORM@
 License: GPL plus extensions
 Group: System Environment/Daemons
 URL: @COMPANY-URL@
@@ -136,6 +136,21 @@ if [ "$1" = 0 ] ; then
 fi
 
 %changelog
+* Tue Aug 12 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-6-14
+- fixed various memory leaks
+
+* Fri Aug 08 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-6-13
+- fixed a bug in dsgw
+
+* Wed Aug 06 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-6-12
+- fixed a bug in syntax plugin
+
+* Thu Jul 31 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-6-11
+- fixed a bug in dsgw
+
+* Mon Jul 14 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-6-10
+- initial commit for sp7
+
 * Wed Apr 30 2008 Noriko Hosoi <nhosoi@redhat.com> 7.1-6-9
 - initial commit for sp6
 
