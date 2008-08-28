@@ -1596,6 +1596,7 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
     
+	free_pw_scheme(new_scheme);
 	slapi_ch_free_string(&scheme_list);
 
 	return retVal;
