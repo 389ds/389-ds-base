@@ -1510,6 +1510,8 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
 	slapdFrontendConfig->pw_storagescheme = new_scheme;
 	
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  } else {
+	free_pw_scheme(new_scheme);
   }
   slapi_ch_free_string(&scheme_list);
 
