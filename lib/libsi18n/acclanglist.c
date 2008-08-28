@@ -75,7 +75,7 @@ AcceptLangList(const char* AcceptLanguage,
   char* cPtr2;
   int i;
   int j;
-  int countLang = 0;
+  size_t countLang = 0;
   
   input = strdup(AcceptLanguage);
   if (input == (char*)NULL){
@@ -94,8 +94,6 @@ AcceptLangList(const char* AcceptLanguage,
     else                       *cPtr2++ = *cPtr1;          /* else unchanged   */
   }
   *cPtr2 = '\0';
-
-  countLang = 0;
 
   if (strchr(input,';')) {
     /* deal with the quality values */
@@ -123,7 +121,7 @@ AcceptLangList(const char* AcceptLanguage,
 
     /* sort according to decending qvalue */
     /* not a very good algorithm, but count is not likely large */
-    for ( i=0 ; i<countLang-1 ; i++ ) {
+    for ( i=0 ; (countLang>0) && (i<countLang-1) ; i++ ) {
       for ( j=i+1 ; j<countLang ; j++ ) {
         if (qvalue[i]<qvalue[j]) {
           qSwap     = qvalue[i];
@@ -158,10 +156,47 @@ AcceptLangList(const char* AcceptLanguage,
 }
 
 /*
+  See if lang is in the given list.  lang should be the two character
+  lang code.  List must contain the exact string, so lang "en" will
+  match if "en" is in the list, but will not match "en_us"
+*/
+static int
+langIsInList(const char *lang, size_t listsize, ACCEPT_LANGUAGE_LIST accll)
+{
+	int retval = 0;
+	int ii;
+
+	for (ii = 0; !retval && (ii < listsize); ++ii) {
+		if (!strcmp(lang, accll[ii])) {
+			retval = 1;
+		}
+	}
+
+	return retval;
+}
+
+/*
  *   Get prioritized locale list from NLS_AcceptLangList 
  *      
  *   Add additonal language to the list for fallback if locale 
  *   name is language_region
+ *
+ *   I think the intention of this code is to take a list sorted
+ *   in q order (by AcceptLangList above) and make sure the list
+ *   has the 2 char lang code if only region codes were given.
+ *   For example, given the list "en_gb, en_us, fr_ca, fr_fr"
+ *   the output list should look like this:
+ *   "en_gb, en_us, fr_ca, fr_fr, en, fr"
+ *   But if the input list is like this:
+ *   "en_gb, en_us, en, fr_ca, fr_fr" - the code should not
+ *   add an "en" since it is already explicitly called out
+ *   in the list
+ *   Also note - the input list may not be well formed -
+ *   It could look like this e.g.
+ *   "en_us, en_gb, fr_ca, en_us, fr_ca, en_gb, fr_fr"
+ *   So we cannot make any assumptions about the list
+ *   having no duplicates or having the languages all
+ *   grouped together.
  *
  */
 
@@ -170,50 +205,47 @@ int
 XP_AccLangList(char* AcceptLanguage,
                ACCEPT_LANGUAGE_LIST AcceptLanguageList)
 {
-	int i;
-	int n;
+	size_t i;
+	size_t n;
 	char *defaultLanguage = "en";
 	ACCEPT_LANGUAGE_LIST curLanguageList;
-	int index = 0;
-	char lang[3];
-	int k;
+	size_t maxelems = sizeof(curLanguageList)/sizeof(curLanguageList[0]);
+	size_t index = 0;
 
+	/* parse the given Accept-Language string and sort according
+	   to q values */
 	n = AcceptLangList(AcceptLanguage, curLanguageList);
 
 	if (n == 0)
 		return 0;
 
-	memset(lang, 0, 3);
-	for (i = 0; i < n; i++) {
-		if (*lang && (strncmp(lang, curLanguageList[i], 2) != 0)) {
-			/* add lang if current language is the last occurence in the list */
-			for (k = i+1; (k < n) && strncmp(curLanguageList[k],lang,2); k++);
-
-			if (k == n) {
-				strcpy(AcceptLanguageList[index++], lang);
-				*lang = '\0';
-			}
-		}
-
+	/* first, just copy curLanguageList to AcceptLanguageList */
+	for (i = 0; (i < n) && (index < maxelems); i++) {
 		strcpy(AcceptLanguageList[index++], curLanguageList[i]);
-
-        /* Add current language for future appending.,make sure it's not on list */
-        if ((strlen(curLanguageList[i]) > 2) && (curLanguageList[i][2] == '_')) {
-		    strncpy(lang, curLanguageList[i], 2);
-	        for (k = 0; (k < index) && strcmp(AcceptLanguageList[k], lang); k++);
-
-	        if (k != index)   lang[0] = '\0';
-        }
 	}
 
-	if (lang[0] != '\0')
-		strcpy(AcceptLanguageList[index++], lang);	/* add new lang */
+	/* next, append the lang without the country code in the
+	   order that the country first appears in the list, if
+	   the lang is not already in the list */
+	for (i = 0; (i < n) && (index < maxelems); i++) {
+		/* if current item is a lang + co, grab the lang part */
+        if ((strlen(curLanguageList[i]) > 2) && (curLanguageList[i][2] == '_')) {
+			char lang[3];
+			strncpy(lang, curLanguageList[i], 2);
+			lang[sizeof(lang)-1] = 0;
 
-	/* Append defaultLanguage if it's not in the list */
-	for (i = 0; (i < index) && strcmp(AcceptLanguageList[i], defaultLanguage); i++);
+			if (!langIsInList(lang, index, AcceptLanguageList)) {
+				/* lang not already in list - append to list */
+				strcpy(AcceptLanguageList[index++], lang);
+			}
+		}
+	}
 
-	if (i == index)
+	/* Append defaultLanguage if it's not in the list and we have room */
+	if ((index < maxelems) &&
+		!langIsInList(defaultLanguage, index, AcceptLanguageList)) {
 		strcpy(AcceptLanguageList[index++], defaultLanguage);
+	}
 
-	return index;
+	return (int)index;
 }
