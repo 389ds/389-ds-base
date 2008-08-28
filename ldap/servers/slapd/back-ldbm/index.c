@@ -1002,7 +1002,7 @@ index_range_read(
     DBT    cur_key = {0};
     DBT    data = {0} ;
     IDList *idl= NULL;
-    char   *prefix;
+    char   *prefix = NULL;
     char   *realbuf, *nextrealbuf;
     size_t reallen, nextreallen;
     size_t plen;
@@ -1055,10 +1055,14 @@ index_range_read(
         LDAPDebug( LDAP_DEBUG_ANY,
               "<= index_range_read(%s,%s) NULL (operator %i)\n",
               type, prefix, operator );
+        free_prefix(prefix);
         return( NULL );
     }
     ainfo_get( be, type, &ai );
-    if (ai == NULL) return NULL;
+    if (ai == NULL) {
+        free_prefix(prefix);
+        return NULL;
+    }
     LDAPDebug( LDAP_DEBUG_ARGS, "   indextype: \"%s\" indexmask: 0x%x\n",
         indextype, ai->ai_indexmask, 0 );
     if ( !is_indexed( indextype, ai->ai_indexmask, ai->ai_index_rules )) {
@@ -1066,12 +1070,14 @@ index_range_read(
         LDAPDebug( LDAP_DEBUG_TRACE,
             "<= index_range_read(%s,%s) %lu candidates (allids)\n",
             type, prefix, (u_long)IDL_NIDS(idl) );
+        free_prefix(prefix);
         return( idl );
     }
     if ( (*err = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
         LDAPDebug( LDAP_DEBUG_ANY,
             "<= index_range_read(%s,%s) NULL (could not open index file)\n",
             type, prefix, 0 );
+        free_prefix(prefix);
         return( NULL ); /* why not allids? */
     }
     if (NULL != txn) {
@@ -1085,6 +1091,7 @@ index_range_read(
             "<= index_range_read(%s,%s) NULL: db->cursor() == %i\n",
             type, prefix, *err );
         dblayer_release_index_file( be, ai, db );
+        free_prefix(prefix);
         return( NULL ); /* why not allids? */
     }
 
@@ -1332,6 +1339,7 @@ index_range_read(
         }
 #endif
 error:
+    free_prefix(prefix);
     DBT_FREE_PAYLOAD(cur_key);
     DBT_FREE_PAYLOAD(upperkey);
 
