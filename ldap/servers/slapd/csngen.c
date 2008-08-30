@@ -322,6 +322,15 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 
     PR_RWLock_Wlock (gen->lock);
 
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        cur_time = CSN_CALC_TSTAMP(gen);
+        slapi_log_error (SLAPI_LOG_REPL, NULL, "csngen_adjust_time: "
+                         "gen state before %08lx%04x:%ld:%ld:%ld\n",
+                         cur_time, gen->state.seq_num,
+                         gen->state.sampled_time,
+                         gen->state.local_offset,
+                         gen->state.remote_offset);
+    }
     /* make sure we have the current time */
     csngen_update_time();
     cur_time = g_sampled_time;
@@ -341,6 +350,8 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
     cur_time = CSN_CALC_TSTAMP(gen);
     if (remote_time >= cur_time)
     {
+        time_t new_time = 0;
+
         if (remote_seqnum > gen->state.seq_num )
         {
             if (remote_seqnum < CSN_MAX_SEQNUM)
@@ -369,6 +380,31 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 				csngen_dump_state(gen);
 				return CSN_LIMIT_EXCEEDED;
 			}
+		}
+		else if (remote_offset > 0) { /* still need to account for this */
+			gen->state.local_offset += remote_offset;
+		}
+
+		new_time = CSN_CALC_TSTAMP(gen);
+		/* let's revisit the seq num - if the new time is > the old
+		   tiem, we should reset the seq number to remote + 1 if
+		   this won't cause a wrap around */
+		if (new_time > cur_time) {
+			/* just set seq_num regardless of whether the current one
+			   is < or > than the remote one - the goal of this function
+			   is to make sure we generate CSNs > the remote CSN - if
+			   we have increased the time, we can decrease the seqnum
+			   and still guarantee that any new CSNs generated will be
+			   > any current CSNs we have generated */
+			gen->state.seq_num = remote_seqnum + 1;
+		}
+		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+			slapi_log_error (SLAPI_LOG_REPL, NULL, "csngen_adjust_time: "
+							 "gen state after %08lx%04x:%ld:%ld:%ld\n",
+							 new_time, gen->state.seq_num,
+							 gen->state.sampled_time,
+							 gen->state.local_offset,
+							 gen->state.remote_offset);
 		}
 	}
 	else if (gen->state.remote_offset > 0)
@@ -613,18 +649,58 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
     }
     else if (time_diff > 0)
     {
+        time_t ts_before = CSN_CALC_TSTAMP(gen);
+        time_t ts_after = 0;
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            time_t new_time = CSN_CALC_TSTAMP(gen);
+            slapi_log_error (SLAPI_LOG_REPL, NULL, "_csngen_adjust_local_time: "
+                             "gen state before %08lx%04x:%ld:%ld:%ld\n",
+                             new_time, gen->state.seq_num,
+                             gen->state.sampled_time,
+                             gen->state.local_offset,
+                             gen->state.remote_offset);
+        }
+
         gen->state.sampled_time = cur_time;
         if (time_diff > gen->state.local_offset)
             gen->state.local_offset = 0;
         else
             gen->state.local_offset = gen->state.local_offset - time_diff;
 
-        gen->state.seq_num = 0;
+        /* only reset the seq_num if the new timestamp part of the CSN
+           is going to be greater than the old one - if they are the
+           same after the above adjustment (which can happen if
+           csngen_adjust_time has to store the offset in the
+           local_offset field) we must not allow the CSN to regress or
+           generate duplicate numbers */
+        ts_after = CSN_CALC_TSTAMP(gen);
+        if (ts_after > ts_before) {
+            gen->state.seq_num = 0; /* only reset if new time > old time */
+        }
 
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            time_t new_time = CSN_CALC_TSTAMP(gen);
+            slapi_log_error (SLAPI_LOG_REPL, NULL, "_csngen_adjust_local_time: "
+                             "gen state after %08lx%04x:%ld:%ld:%ld\n",
+                             new_time, gen->state.seq_num,
+                             gen->state.sampled_time,
+                             gen->state.local_offset,
+                             gen->state.remote_offset);
+        }
         return CSN_SUCCESS;
     }
     else   /* time was turned back */
     {
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            time_t new_time = CSN_CALC_TSTAMP(gen);
+            slapi_log_error (SLAPI_LOG_REPL, NULL, "_csngen_adjust_local_time: "
+                             "gen state back before %08lx%04x:%ld:%ld:%ld\n",
+                             new_time, gen->state.seq_num,
+                             gen->state.sampled_time,
+                             gen->state.local_offset,
+                             gen->state.remote_offset);
+        }
+
         if (abs (time_diff) > CSN_MAX_TIME_ADJUST)
         {
             slapi_log_error (SLAPI_LOG_FATAL, NULL, "_csngen_adjust_local_time: "
@@ -636,6 +712,16 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
         gen->state.sampled_time = cur_time;
         gen->state.local_offset = MAX_VAL (gen->state.local_offset, abs (time_diff));
         gen->state.seq_num = 0;
+
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            time_t new_time = CSN_CALC_TSTAMP(gen);
+            slapi_log_error (SLAPI_LOG_REPL, NULL, "_csngen_adjust_local_time: "
+                             "gen state back after %08lx%04x:%ld:%ld:%ld\n",
+                             new_time, gen->state.seq_num,
+                             gen->state.sampled_time,
+                             gen->state.local_offset,
+                             gen->state.remote_offset);
+        }
 
         return CSN_SUCCESS;
     }
