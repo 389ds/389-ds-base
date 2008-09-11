@@ -1059,35 +1059,6 @@ int slapi_uniqueIDGenerateFromNameString(char **uId,
  * JCMREPL - Added for the replication plugin.
  */
  
-/*
- * Note: DSE callback functions MUST return one of these three values:
- *
- *   SLAPI_DSE_CALLBACK_OK           -- no errors occurred; apply changes.
- *   SLAPI_DSE_CALLBACK_ERROR        -- an error occurred; don't apply changes.
- *   SLAPI_DSE_CALLBACK_DO_NOT_APPLY -- no error, but do not apply changes.
- *
- * SLAPI_DSE_CALLBACK_DO_NOT_APPLY should only be returned by modify
- * callbacks (i.e., those registered with operation==SLAPI_OPERATION_MODIFY).
- * A return value of SLAPI_DSE_CALLBACK_DO_NOT_APPLY is treated the same as
- * SLAPI_DSE_CALLBACK_ERROR for all other operations.
- */
-#define SLAPI_DSE_CALLBACK_OK			(1)
-#define SLAPI_DSE_CALLBACK_ERROR		(-1)
-#define SLAPI_DSE_CALLBACK_DO_NOT_APPLY	(0)
-
-/*
- * Flags for slapi_config_register_callback() and
- *		slapi_config_remove_callback()
- */
-#define DSE_FLAG_PREOP          0x0001
-#define DSE_FLAG_POSTOP         0x0002
-
-/* This is the size of the returntext parameter passed to the config callback function,
-   which is the "char *" argument to dseCallbackFn above */
-#define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
-
-int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
-int slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn);
 int config_is_slapd_lite( void );
 
 #define SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY 0

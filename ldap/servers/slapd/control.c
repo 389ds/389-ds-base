@@ -474,9 +474,14 @@ write_controls( BerElement *ber, LDAPControl **ctrls )
 /*
  * duplicate "newctrl" and add it to the array of controls "*ctrlsp"
  * note that *ctrlsp may be reset and that it is okay to pass NULL for it.
+ * IF copy is true, a copy of the passed in control will be added - copy
+ * made with slapi_dup_control - if copy is false, the control
+ * will be used directly and may be free'd by ldap_controls_free - so
+ * make sure it is ok for the control array to own the pointer you
+ * pass in
  */
 void
-add_control( LDAPControl ***ctrlsp, LDAPControl *newctrl )
+add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy )
 {
 	int	count;
 
@@ -491,10 +496,29 @@ add_control( LDAPControl ***ctrlsp, LDAPControl *newctrl )
         *ctrlsp = (LDAPControl **)slapi_ch_realloc( (char *)*ctrlsp,
                 ( count + 2 ) * sizeof(LDAPControl *));
 
-	(*ctrlsp)[ count ] = slapi_dup_control( newctrl );
+        if (copy) {
+            (*ctrlsp)[ count ] = slapi_dup_control( newctrl );
+        } else {
+            (*ctrlsp)[ count ] = newctrl;
+        }
 	(*ctrlsp)[ ++count ] = NULL;
 }
 
+/*
+ * duplicate "newctrl" and add it to the array of controls "*ctrlsp"
+ * note that *ctrlsp may be reset and that it is okay to pass NULL for it.
+ */
+void
+add_control( LDAPControl ***ctrlsp, LDAPControl *newctrl )
+{
+	add_control_ext(ctrlsp, newctrl, 1 /* copy */);
+}
+
+void
+slapi_add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy )
+{
+	add_control_ext(ctrlsp, newctrl, copy);
+}
 
 /*
  * return a malloc'd copy of "ctrl"
@@ -527,6 +551,14 @@ slapi_dup_control( LDAPControl *ctrl )
 	return( rctrl );
 }
 
+void
+slapi_add_controls( LDAPControl ***ctrlsp, LDAPControl **newctrls, int copy )
+{
+    int ii;
+    for (ii = 0; newctrls && newctrls[ii]; ++ii) {
+        slapi_add_control_ext(ctrlsp, newctrls[ii], copy);
+    }
+}
 
 int
 slapi_build_control( char *oid, BerElement *ber,

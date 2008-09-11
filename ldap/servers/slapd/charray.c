@@ -204,6 +204,11 @@ slapi_ch_array_free( char **array )
     charray_free (array);
 }
 
+void
+slapi_ch_array_add( char    ***a, char    *s )
+{
+    charray_add(a, s);
+}
 
 /* case insensitive search */
 int
