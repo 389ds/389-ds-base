@@ -1141,7 +1141,9 @@ winsync_plugin_call_get_new_ds_group_dn_cb(const Repl_Agmt *ra, const Slapi_Entr
 
 void
 winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
-                                            const Slapi_DN *local_dn, LDAPMod * const *origmods,
+                                            const Slapi_DN *local_dn,
+                                            const Slapi_Entry *ds_entry,
+                                            LDAPMod * const *origmods,
                                             Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
     winsync_pre_ad_mod_mods_cb thefunc =
@@ -1154,14 +1156,16 @@ winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Ent
     }
 
     (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
-               origmods, remote_dn, modstosend);
+               ds_entry, origmods, remote_dn, modstosend);
 
     return;
 }
 
 void
 winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
-                                             const Slapi_DN *local_dn, LDAPMod * const *origmods,
+                                             const Slapi_DN *local_dn,
+                                             const Slapi_Entry *ds_entry,
+                                             LDAPMod * const *origmods,
                                              Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
     winsync_pre_ad_mod_mods_cb thefunc =
@@ -1174,7 +1178,7 @@ winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_En
     }
 
     (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
-               origmods, remote_dn, modstosend);
+               ds_entry, origmods, remote_dn, modstosend);
 
     return;
 }

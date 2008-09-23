@@ -810,9 +810,24 @@ send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp)
 {
 	ConnResult mod_return = 0;
 	Slapi_Mods smods = {0};
+	Slapi_Entry *remote_entry = NULL;
+	int retval;
+	unsigned long acctval = 0;
+	char acctvalstr[32];
+
+	/* have to first retrieve the existing entry - userAccountControl is
+	   a bit array, and we must preserve the existing values if any */
+	/* Get the remote entry */
+	retval = windows_get_remote_entry(prp, sdn, &remote_entry);
+	if (0 == retval && remote_entry) {
+		acctval = slapi_entry_attr_get_ulong(remote_entry, "userAccountControl");
+	}
+	slapi_entry_free(remote_entry);
+	acctval |= 0x0200; /* normal account == 512 */
 
     slapi_mods_init (&smods, 0);
-	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "userAccountControl", "512");
+	PR_snprintf(acctvalstr, sizeof(acctvalstr), "%lu", acctval);
+	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "userAccountControl", acctvalstr);
 
 	mod_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL );
 
@@ -1209,6 +1224,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
 																windows_private_get_raw_entry(prp->agmt),
 																local_dn,
+																local_entry,
 																op->p.p_modify.modify_mods,
 																remote_dn,
 																&mapped_mods);
@@ -1216,6 +1232,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					winsync_plugin_call_pre_ad_mod_group_mods_cb(prp->agmt,
 																 windows_private_get_raw_entry(prp->agmt),
 																 local_dn,
+																 local_entry,
 																 op->p.p_modify.modify_mods,
 																 remote_dn,
 																 &mapped_mods);
