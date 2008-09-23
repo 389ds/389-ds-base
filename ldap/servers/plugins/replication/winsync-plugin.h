@@ -139,8 +139,9 @@ typedef void (*winsync_get_new_dn_cb)(void *cookie, const Slapi_Entry *rawentry,
  * to AD.  This case is different than the pre add or pre mod callbacks
  * above because in this context, we may only have the list of modifications
  * and the DN to which the mods were applied.
- * rawentry  - the raw AD entry, read directly from AD - may be NULL
+ * rawentry - the raw AD entry, read directly from AD - may be NULL
  * local_dn - the original local DN used in the modification
+ * ds_entry - the current DS entry that has the operation nsUniqueID
  * origmods - the original mod list
  * remote_dn - this is the DN which will be used with the remote modify operation
  *             to AD - the winsync code may have already attempted to calculate its value
@@ -148,7 +149,7 @@ typedef void (*winsync_get_new_dn_cb)(void *cookie, const Slapi_Entry *rawentry,
  *              code will already have done its default mapping to these values
  * 
  */
-typedef void (*winsync_pre_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
+typedef void (*winsync_pre_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
 #define WINSYNC_PLUGIN_PRE_AD_MOD_USER_MODS_CB 14
 #define WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_MODS_CB 15
 
@@ -403,6 +404,7 @@ test_winsync_get_new_ds_group_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
 
 static void
 test_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                     const Slapi_Entry *ds_entry,
                                      const Slapi_DN *local_dn, LDAPMod * const *origmods,
                                      Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
@@ -417,6 +419,7 @@ test_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
 
 static void
 test_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                     const Slapi_Entry *ds_entry,
                                      const Slapi_DN *local_dn, LDAPMod * const *origmods,
                                      Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {

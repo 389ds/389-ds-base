@@ -149,8 +149,8 @@ void winsync_plugin_call_get_new_ds_user_dn_cb(const Repl_Agmt *ra, const Slapi_
 void winsync_plugin_call_get_new_ds_group_dn_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry,
                                                 char **new_dn_string, const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix);
 
-void winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
-void winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
+void winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
+void winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend);
 
 int winsync_plugin_call_can_add_entry_to_ad_cb(const Repl_Agmt *ra, const Slapi_Entry *local_entry, const Slapi_DN *remote_dn);
 void winsync_plugin_call_begin_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
@@ -210,4 +210,3 @@ void winsync_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra,
   ++send_updates
   ++++windows_replay_update
 */
-/* #define WINSYNC_TEST 1 */ /* fake ad is really just a regular ds */
