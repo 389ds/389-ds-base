@@ -2200,6 +2200,36 @@ slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+long long
+slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type)
+{
+    long long r = 0;
+    Slapi_Attr* attr;
+    slapi_entry_attr_find(e, type, &attr);
+    if (attr!=NULL)
+    {
+        Slapi_Value *v;
+        slapi_valueset_first_value( &attr->a_present_values, &v);
+        r = slapi_value_get_longlong(v);
+    }
+    return r;
+}
+
+unsigned long long
+slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type)
+{
+    unsigned long long r = 0;
+    Slapi_Attr* attr;
+    slapi_entry_attr_find(e, type, &attr);
+    if (attr!=NULL)
+    {
+        Slapi_Value *v;
+        slapi_valueset_first_value( &attr->a_present_values, &v);
+        r = slapi_value_get_ulonglong(v);
+    }
+    return r;
+}
+
 PRBool
 slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type)
 {

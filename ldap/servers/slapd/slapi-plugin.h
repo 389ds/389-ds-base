@@ -256,6 +256,8 @@ int slapi_entry_attr_get_int(const Slapi_Entry* e, const char *type);
 unsigned int slapi_entry_attr_get_uint(const Slapi_Entry* e, const char *type);
 long slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type);
 unsigned long slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type);
+long long slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type);
+unsigned long long slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type);
 PRBool slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type);
 void slapi_entry_attr_set_charptr(Slapi_Entry* e, const char *type, const char *value);
 void slapi_entry_attr_set_int( Slapi_Entry* e, const char *type, int l);
@@ -459,6 +461,8 @@ int slapi_value_get_int(const Slapi_Value *value);
 unsigned int slapi_value_get_uint(const Slapi_Value *value);
 long slapi_value_get_long(const Slapi_Value *value);
 unsigned long slapi_value_get_ulong(const Slapi_Value *value);
+long long slapi_value_get_longlong(const Slapi_Value *value);
+unsigned long long slapi_value_get_ulonglong(const Slapi_Value *value);
 size_t slapi_value_get_length(const Slapi_Value *value);
 int slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Value *v2);
 
