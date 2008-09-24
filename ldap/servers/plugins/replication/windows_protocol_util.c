@@ -1189,9 +1189,11 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		if (rc || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: windows_replay_update: failed map dn for %s operation dn=\"%s\"\n",
+				"%s: windows_replay_update: failed map dn for %s operation dn=\"%s\""
+				"rc=%d remote_dn = [%s]\n",
 				agmt_get_long_name(prp->agmt),
-				op2string(op->operation_type), op->target_address.dn);
+				op2string(op->operation_type), op->target_address.dn,
+				rc, remote_dn ? slapi_sdn_get_dn(remote_dn) : "(null)");
 			goto error;
 		}
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -2497,6 +2499,12 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 	*missing_entry = 0;
 
 	guid = slapi_entry_attr_get_charptr(e,"ntUniqueId");
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"%s: map_entry_dn_outbound: looking for AD entry for DS "
+			"dn=\"%s\" guid=\"%s\"\n",
+			agmt_get_long_name(prp->agmt),
+			slapi_entry_get_dn_const(e),
+			guid ? guid : "(null)");
 	if (guid && guid_form) 
 	{
 		int rc = 0;
@@ -2508,10 +2516,18 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 		 * without removing the ntUniqueID attribute.  We should verify that the entry really
 		 * exists in AD. */
 		rc = windows_get_remote_entry(prp, new_dn, &remote_entry);
-		slapi_sdn_free(&new_dn);
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"%s: map_entry_dn_outbound: return code %d from search "
+				"for AD entry dn=\"%s\" or dn=\"%s\"\n",
+				agmt_get_long_name(prp->agmt), rc,
+				slapi_sdn_get_dn(new_dn),
+				remote_entry ? slapi_entry_get_dn_const(remote_entry) : "(null)");
 		if (0 == rc && remote_entry) {
 			slapi_entry_free(remote_entry);
 		} else {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: map_entry_dn_outbound: entry not found - rc %d\n",
+					agmt_get_long_name(prp->agmt), rc);
 			/* We need to re-write the DN to a non-GUID DN if we're syncing to a
 			 * Windows 2000 Server since tombstone reanimation is not supported.
 			 * If we're syncing with Windows 2003 Server, we'll just use the GUID
@@ -2552,6 +2568,12 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 		/* No GUID found, try ntUserDomainId */
 		Slapi_Entry *remote_entry = NULL;
 		char *username = slapi_entry_attr_get_charptr(e,"ntUserDomainId");
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"%s: map_entry_dn_outbound: looking for AD entry for DS "
+				"dn=\"%s\" username=\"%s\"\n",
+				agmt_get_long_name(prp->agmt),
+				slapi_entry_get_dn_const(e),
+				username ? username : "(null)");
 		if (username) {
 			retval = find_entry_by_attr_value_remote("samAccountName",username,&remote_entry,prp);
 			if (0 == retval && remote_entry) 
@@ -2559,7 +2581,14 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 				/* Get the entry's DN */
 				new_dn = slapi_sdn_new();
 				slapi_sdn_copy(slapi_entry_get_sdn_const(remote_entry), new_dn);
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: map_entry_dn_outbound: found AD entry dn=\"%s\"\n",
+						agmt_get_long_name(prp->agmt),
+						slapi_sdn_get_dn(new_dn));
 			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: map_entry_dn_outbound: entry not found - rc %d\n",
+						agmt_get_long_name(prp->agmt), retval);
 				if (0 == retval)
 				{
 					char *new_dn_string = NULL;
@@ -2704,12 +2733,25 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 
 	windows_is_remote_entry_user_or_group(e,&is_user,&is_group);
 
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: map_entry_dn_inbound: looking for local entry "
+					"matching AD entry [%s]\n",
+					agmt_get_long_name(ra),
+					slapi_entry_get_dn_const(e));
 	guid = extract_guid_from_entry(e, is_nt4);
 	if (guid) 
 	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: map_entry_dn_inbound: looking for local entry "
+						"by guid [%s]\n",
+						agmt_get_long_name(ra),
+						guid);
 		retval = find_entry_by_guid(guid,&matching_entry,ra);
 		if (retval) 
 		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: map_entry_dn_inbound: problem looking for guid: %d\n",
+							agmt_get_long_name(ra), retval);
 			if (ENTRY_NOTFOUND == retval) 
 			{
 			} else 
@@ -2726,16 +2768,34 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 		{
 			/* We found the matching entry : get its DN */
 			new_dn = slapi_sdn_dup(slapi_entry_get_sdn_const(matching_entry));
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: map_entry_dn_inbound: found local entry [%s]\n",
+							agmt_get_long_name(ra),
+							slapi_sdn_get_dn(new_dn));
 		}
+	}
+	else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: map_entry_dn_inbound: AD entry has no guid!\n",
+						agmt_get_long_name(ra));
 	}
 	/* If we failed to lookup by guid, try samaccountname */
 	if (NULL == new_dn) 
 	{
 		username = extract_username_from_entry(e);
 		if (username) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: map_entry_dn_inbound: looking for local entry "
+							"by uid [%s]\n",
+							agmt_get_long_name(ra),
+							username);
 			retval = find_entry_by_username(username,&matching_entry,ra);
 			if (retval) 
 			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: map_entry_dn_inbound: problem looking for username: %d\n",
+								agmt_get_long_name(ra), retval);
 				if (ENTRY_NOTFOUND == retval) 
 				{
 				} else 
@@ -2752,7 +2812,17 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 			{
 				/* We found the matching entry : get its DN */
 				new_dn = slapi_sdn_dup(slapi_entry_get_sdn_const(matching_entry));
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: map_entry_dn_inbound: found local entry by name [%s]\n",
+								agmt_get_long_name(ra),
+								slapi_sdn_get_dn(new_dn));
 			}
+		}
+		else
+		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: map_entry_dn_inbound: AD entry has no username!\n",
+							agmt_get_long_name(ra));
 		}
 	}
 	/* If we couldn't find a matching entry by either method, then we need to invent a new DN */
@@ -3806,8 +3876,13 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 			} else 
 			{
 				/* We should have been able to map the DN, so this is an error */
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to map inbound entry %s.\n",agmt_get_long_name(prp->agmt)
-					, slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+								"%s: windows_process_dirsync_entry: failed to map "
+								"inbound entry %s - rc is %d dn is [%d].\n",
+								agmt_get_long_name(prp->agmt),
+								slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)),
+								rc,
+								local_sdn ? slapi_sdn_get_dn(local_sdn) : "null");
 			}
 		} /* subject of agreement */
 	} /* is tombstone */
