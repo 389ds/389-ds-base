@@ -278,6 +278,7 @@ int slapi_entry_add_value(Slapi_Entry *e, const char *type, const Slapi_Value *v
 int slapi_entry_add_string(Slapi_Entry *e, const char *type, const char *value);
 int slapi_entry_delete_string(Slapi_Entry *e, const char *type, const char *value);
 void slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_ctrl);
+int slapi_entry_apply_mods(Slapi_Entry *e, LDAPMod **mods);
 
 
 /*

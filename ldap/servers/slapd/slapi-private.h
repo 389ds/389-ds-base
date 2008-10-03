@@ -315,7 +315,7 @@ int entry_add_present_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a);
 int entry_add_deleted_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a);
 
 /*
- * slapi_entry_apply_mods_wsi is similar to slapi_entry_apply_mods. It also
+ * entry_apply_mods_wsi is similar to entry_apply_mods. It also
  * handles the state storage information. "csn" is the CSN associated with
  * this modify operation.
  */

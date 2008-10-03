@@ -2578,6 +2578,12 @@ slapi_entry_has_children(const Slapi_Entry *entry)
  * Apply a set of modifications to an entry 
  */
 int
+slapi_entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
+{
+	return entry_apply_mods(e, mods);
+}
+
+int
 entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
 	int	err, j;

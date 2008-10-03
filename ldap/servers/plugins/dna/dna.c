@@ -210,7 +210,7 @@ static int dna_exop_init(Slapi_PBlock * pb);
  *
  */
 static int dna_load_plugin_config();
-static int dna_parse_config_entry(Slapi_Entry * e);
+static int dna_parse_config_entry(Slapi_Entry * e, int apply);
 static void dna_delete_config();
 static void dna_free_config_entry(struct configEntry ** entry);
 static int dna_load_host_port();
@@ -617,9 +617,10 @@ dna_load_plugin_config()
     }
 
     for (i = 0; (entries[i] != NULL); i++) {
-        status = dna_parse_config_entry(entries[i]);
-        if (DNA_SUCCESS != status)
-            break;
+        /* We don't care about the status here because we may have
+         * some invalid config entries, but we just want to continue
+         * looking for valid ones. */
+        dna_parse_config_entry(entries[i], 1);
     }
 
   cleanup:
@@ -632,22 +633,43 @@ dna_load_plugin_config()
     return status;
 }
 
+/*
+ * dna_parse_config_entry()
+ *
+ * Parses a single config entry.  If apply is non-zero, then
+ * we will load and start using the new config.  You can simply
+ * validate config without making any changes by setting apply
+ * to 0.
+ *
+ * Returns DNA_SUCCESS if the entry is valid and DNA_FAILURE
+ * if it is invalid.
+ */
 static int
-dna_parse_config_entry(Slapi_Entry * e)
+dna_parse_config_entry(Slapi_Entry * e, int apply)
 {
     char *value;
-    struct configEntry *entry;
+    struct configEntry *entry = NULL;
     struct configEntry *config_entry;
     PRCList *list;
     int entry_added = 0;
+    int ret = DNA_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_parse_config_entry\n");
 
+    /* If this is the main DNA plug-in
+     * config entry, just bail. */
+    if (strcasecmp(getPluginDN(), slapi_entry_get_ndn(e)) == 0) {
+        ret = DNA_FAILURE;
+        goto bail;
+    }
+
     entry = (struct configEntry *)
 	slapi_ch_calloc(1, sizeof(struct configEntry));
-    if (NULL == entry)
+    if (NULL == entry) {
+        ret = DNA_FAILURE;
         goto bail;
+    }
 
     value = slapi_entry_get_ndn(e);
     if (value) {
@@ -660,8 +682,14 @@ dna_parse_config_entry(Slapi_Entry * e)
     value = slapi_entry_attr_get_charptr(e, DNA_TYPE);
     if (value) {
         entry->type = value;
-    } else
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry: The %s config "
+                        "setting is required for range %s.\n",
+                        DNA_TYPE, entry->dn);
+        ret = DNA_FAILURE;
         goto bail;
+    }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%s]\n", DNA_TYPE, entry->type, 0, 0);
@@ -670,8 +698,14 @@ dna_parse_config_entry(Slapi_Entry * e)
     if (value) {
         entry->nextval = strtoull(value, 0, 0);
         slapi_ch_free_string(&value);
-    } else
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry: The %s config "
+                        "setting is required for range %s.\n",
+                        DNA_NEXTVAL, entry->dn);
+        ret = DNA_FAILURE;
         goto bail;
+    }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%llu]\n", DNA_NEXTVAL, entry->nextval, 0,
@@ -699,8 +733,7 @@ dna_parse_config_entry(Slapi_Entry * e)
     if (value) {
         entry->interval = strtoull(value, 0, 0);
         slapi_ch_free_string(&value);
-    } else
-        goto bail;
+    }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%llu]\n", DNA_INTERVAL, entry->interval, 0, 0);
@@ -722,9 +755,15 @@ dna_parse_config_entry(Slapi_Entry * e)
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM ,
                 "Error: Invalid search filter in entry [%s]: [%s]\n",
                 entry->dn, value);
+            ret = DNA_FAILURE;
             goto bail;
         }
     } else {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry: The %s config "
+                        "setting is required for range %s.\n",
+                        DNA_FILTER, entry->dn);
+        ret = DNA_FAILURE;
         goto bail;
     }
 
@@ -733,7 +772,16 @@ dna_parse_config_entry(Slapi_Entry * e)
 
     value = slapi_entry_attr_get_charptr(e, DNA_SCOPE);
     if (value) {
+        /* TODO - Allow multiple scope settings for a single range.  This may
+         * make ordering the scopes tough when we put them in the clist. */
         entry->scope = slapi_dn_normalize(value);
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry: The %s config "
+                        "config setting is required for range %s.\n",
+                        DNA_SCOPE, entry->dn);
+        ret = DNA_FAILURE;
+        goto bail;
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
@@ -744,14 +792,13 @@ dna_parse_config_entry(Slapi_Entry * e)
     value = slapi_entry_attr_get_charptr(e, DNA_MAXVAL);
     if (value) {
             entry->maxval = strtoull(value, 0, 0);
-
-            slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%llu]\n", DNA_MAXVAL, value, 0, 0);
-
             slapi_ch_free_string(&value);
     } else {
         entry->maxval = -1;
     }
+
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "----------> %s [%llu]\n", DNA_MAXVAL, entry->maxval, 0, 0);
 
     value = slapi_entry_attr_get_charptr(e, DNA_SHARED_CFG_DN);
     if (value) {
@@ -772,6 +819,7 @@ dna_parse_config_entry(Slapi_Entry * e)
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                             "dna_parse_config_entry: Unable to locate "
                             "shared configuration entry (%s)\n", value);
+            ret = DNA_FAILURE;
             goto bail;
         } else {
             slapi_entry_free(shared_e);
@@ -803,18 +851,20 @@ dna_parse_config_entry(Slapi_Entry * e)
         entry->threshold = 1;
     }
 
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "----------> %s [%llu]\n", DNA_THRESHOLD, entry->threshold, 0, 0);
+
     value = slapi_entry_attr_get_charptr(e, DNA_RANGE_REQUEST_TIMEOUT);
     if (value) {
         entry->timeout = strtoull(value, 0, 0);
-
-        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%llu]\n", DNA_RANGE_REQUEST_TIMEOUT,
-                        value, 0, 0);
-
         slapi_ch_free_string(&value);
     } else {
         entry->timeout = DNA_DEFAULT_TIMEOUT;
     }
+
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "----------> %s [%llu]\n", DNA_RANGE_REQUEST_TIMEOUT,
+                    entry->timeout, 0, 0);
 
     value = slapi_entry_attr_get_charptr(e, DNA_NEXT_RANGE);
     if (value) {
@@ -831,14 +881,45 @@ dna_parse_config_entry(Slapi_Entry * e)
             if (entry->next_range_upper <= entry->next_range_lower) {
                 slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                 "dna_parse_config_entry: Illegal %s "
-                                "setting specified for range %s.\n",
+                                "setting specified for range %s.  Legal "
+                                "format is <lower>-<upper>.\n",
                                 DNA_NEXT_RANGE, entry->dn);
+                ret = DNA_FAILURE;
                 entry->next_range_lower = 0;
                 entry->next_range_upper = 0;
             }           
+
+            /* make sure next range doesn't overlap with
+             * the active range */
+            if (((entry->next_range_upper <= entry->maxval) &&
+                 (entry->next_range_upper >= entry->nextval)) ||
+                ((entry->next_range_lower <= entry->maxval) &&
+                 (entry->next_range_lower >= entry->nextval))) {
+                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: Illegal %s "
+                            "setting specified for range %s.  %s "
+                            "overlaps with the active range.\n",
+                            DNA_NEXT_RANGE, entry->dn, DNA_NEXT_RANGE);
+                ret = DNA_FAILURE;
+                entry->next_range_lower = 0;
+                entry->next_range_upper = 0;
+            }
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: Illegal %s "
+                            "setting specified for range %s.  Legal "
+                            "format is <lower>-<upper>.\n",
+                            DNA_NEXT_RANGE, entry->dn);
+            ret = DNA_FAILURE;
         }
  
         slapi_ch_free_string(&value);
+    }
+
+    /* If we were only called to validate config, we can
+     * just bail out before applying the config changes */
+    if (apply == 0) {
+        goto bail;
     }
 
     /* Calculate number of remaining values. */
@@ -856,6 +937,10 @@ dna_parse_config_entry(Slapi_Entry * e)
     /* create the new value lock for this range */
     entry->lock = slapi_new_mutex();
     if (!entry->lock) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry: Unable to create lock "
+                        "for range %s.\n", entry->dn);
+        ret = DNA_FAILURE;
         goto bail;
     }
 
@@ -912,8 +997,12 @@ dna_parse_config_entry(Slapi_Entry * e)
 
   bail:
     if (0 == entry_added) {
-        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "config entry [%s] skipped\n", entry->dn, 0, 0);
+        /* Don't log error if we weren't asked to apply config */
+        if ((apply != 0) && (entry != NULL)) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: Invalid config entry "
+                            "[%s] skipped\n", entry->dn, 0, 0);
+        }
         dna_free_config_entry(&entry);
     } else {
         time_t now;
@@ -925,18 +1014,23 @@ dna_parse_config_entry(Slapi_Entry * e)
          * performing the operation now would cause the
          * change to not get changelogged. */
         slapi_eq_once(dna_update_config_event, entry, now + 30);
+
+        ret = DNA_SUCCESS;
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_parse_config_entry\n");
 
-    return DNA_SUCCESS;
+    return ret;
 }
 
 static void
 dna_free_config_entry(struct configEntry ** entry)
 {
     struct configEntry *e = *entry;
+
+    if (e == NULL)
+        return;
 
     if (e->dn) {
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
@@ -2396,9 +2490,6 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
     if (0 == (dn = dna_get_dn(pb)))
         goto bail;
 
-    if (dna_dn_is_config(dn))
-        goto bail;
-
     if (LDAP_CHANGETYPE_ADD == modtype) {
         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
     } else {
@@ -2430,6 +2521,34 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
     if (0 == e)
         goto bailmod;
+
+    if (dna_dn_is_config(dn)) {
+        /* Validate config changes, but don't apply them.
+         * This allows us to reject invalid config changes
+         * here at the pre-op stage.  Applying the config
+         * needs to be done at the post-op stage. */
+        if (smods) {
+            if (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS) {
+                /* The mods don't apply cleanly, so we just let this op go
+                 * to let the main server handle it. */
+                goto bailmod;
+            }
+        }
+
+        if (dna_parse_config_entry(e, 0) != DNA_SUCCESS) {
+            /* Refuse the operation if config parsing failed. */
+            ret = LDAP_UNWILLING_TO_PERFORM;
+            if (LDAP_CHANGETYPE_ADD == modtype) {
+                errstr = slapi_ch_smprintf("Not a valid DNA configuration entry.");
+            } else {
+                errstr = slapi_ch_smprintf("Changes result in an invalid "
+                                           "DNA configuration.");
+            }
+        }
+
+        /* We're done, so just bail. */
+        goto bailmod;
+    }
 
     dna_read_lock();
 
