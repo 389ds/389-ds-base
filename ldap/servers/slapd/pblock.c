@@ -2873,7 +2873,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		
 	case SLAPI_LDIF2DB_ENCRYPT:
 	case SLAPI_DB2LDIF_DECRYPT:
-		pblock->pb_ldif_encrypt = (int)value;
+		pblock->pb_ldif_encrypt = *((int *)value);
 		break;
 
 	default:

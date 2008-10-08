@@ -3060,7 +3060,7 @@ ACL_FileGetNameList(NSErr_t *errp, char * filename, char ***name_list)
 
 	const int block_size = 50;
 	int  rv, list_size, list_index;
-	char ** local_list;
+	char ** local_list = NULL;
 	char * block ;
 	char * name;
 	char * next;

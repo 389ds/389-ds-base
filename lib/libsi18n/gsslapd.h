@@ -54,10 +54,10 @@
 #undef LIBRARY_NAME
 
 static RESOURCE_GLOBAL allxpstr[] = {
-  base,
-  libaccess,
-  libadmin,
-  0
+  {base},
+  {libaccess},
+  {libadmin},
+  {0}
 };
 
 #endif /* ifdef RESOURCE_STR */

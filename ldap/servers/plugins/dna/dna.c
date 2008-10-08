@@ -55,6 +55,13 @@
 #include "prclist.h"
 #include "ldif.h"
 
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
+
 /* get file mode flags for unix */
 #ifndef _WIN32
 #include <sys/stat.h>
@@ -708,7 +715,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%llu]\n", DNA_NEXTVAL, entry->nextval, 0,
+                    "----------> %s [%" PRIu64 "]\n", DNA_NEXTVAL, entry->nextval, 0,
                     0);
 
     value = slapi_entry_attr_get_charptr(e, DNA_PREFIX);
@@ -736,7 +743,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%llu]\n", DNA_INTERVAL, entry->interval, 0, 0);
+                    "----------> %s [%" PRIu64 "]\n", DNA_INTERVAL, entry->interval, 0, 0);
 #endif
 
     value = slapi_entry_attr_get_charptr(e, DNA_GENERATE);
@@ -844,7 +851,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         entry->threshold = strtoull(value, 0, 0);
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%llu]\n", DNA_THRESHOLD, value, 0, 0);
+                        "----------> %s [%" PRIu64 "]\n", DNA_THRESHOLD, value, 0, 0);
 
         slapi_ch_free_string(&value);
     } else {
@@ -1319,8 +1326,8 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
      * don't need to do this if we already have a next range on deck. */
     if ((config_entry->next_range_lower == 0) && (config_entry->remaining <= config_entry->threshold)) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_notice_allocation: Passed threshold of %llu remaining values "
-                        "for range %s. (%llu values remain)\n",
+                        "dna_notice_allocation: Passed threshold of %" PRIu64 " remaining values "
+                        "for range %s. (%" PRIu64 " values remain)\n",
                         config_entry->threshold, config_entry->dn, config_entry->remaining);
         /* Only attempt to fix maxval if the fix flag is set. */
         if (fix != 0) {
@@ -1461,13 +1468,11 @@ static int dna_request_range(struct configEntry *config_entry,
                              struct dnaServer *server,
                              PRUint64 *lower, PRUint64 *upper)
 {
-    Slapi_DN *agmt_sdn = NULL;
     char *bind_dn = NULL;
     char *bind_passwd = NULL;
     char *bind_method = NULL;
     int is_ssl = 0;
     int is_client_auth = 0;
-    int replport = 0;
     struct berval *request = NULL;
     char *retoid = NULL;
     struct berval *responsedata = NULL;
@@ -1767,12 +1772,12 @@ dna_first_free_value(struct configEntry *config_entry,
     if (prefix) {
         /* The 7 below is for all of the filter characters "(&(=))"
          * plus the trailing \0.  The 20 is for the maximum string
-         * representation of a %llu. */
+         * representation of a " PRIu64 ". */
         filterlen = strlen(config_entry->filter) +
                                  strlen(prefix) + strlen(type)
                                  + 7 + 20;
         filter = slapi_ch_malloc(filterlen);
-        snprintf(filter, filterlen, "(&%s(%s=%s%llu))",
+        snprintf(filter, filterlen, "(&%s(%s=%s%" PRIu64 "))",
                           config_entry->filter, type, prefix, tmpval);
     } else {
         ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl));
@@ -1785,7 +1790,7 @@ dna_first_free_value(struct configEntry *config_entry,
             return LDAP_OPERATIONS_ERROR;
         }
 
-        filter = slapi_ch_smprintf("(&%s(&(%s>=%llu)(%s<=%llu)))",
+        filter = slapi_ch_smprintf("(&%s(&(%s>=%" PRIu64 ")(%s<=%" PRIu64 ")))",
                                    config_entry->filter,
                                    type, tmpval,
                                    type, config_entry->maxval);
@@ -1836,7 +1841,7 @@ dna_first_free_value(struct configEntry *config_entry,
             /* filter is guaranteed to be big enough since we allocated
              * enough space to fit a string representation of any unsigned
              * 64-bit integer */
-            snprintf(filter, filterlen, "(&%s(%s=%s%llu))",
+            snprintf(filter, filterlen, "(&%s(%s=%s%" PRIu64 "))",
                               config_entry->filter, type, prefix, tmpval);
 
             /* clear out the pblock so we can re-use it */
@@ -1968,7 +1973,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
      * of our current range */
     if (nextval <= (config_entry->maxval + config_entry->interval)) {
         /* try to set the new next value in the config entry */
-        snprintf(next_value, sizeof(next_value),"%llu", nextval);
+        snprintf(next_value, sizeof(next_value),"%" PRIu64, nextval);
 
         /* set up our replace modify operation */
         replace_val[0] = next_value;
@@ -1998,7 +2003,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
 
     if (LDAP_SUCCESS == ret) {
         slapi_ch_free_string(next_value_ret);
-        *next_value_ret = slapi_ch_smprintf("%llu", setval);
+        *next_value_ret = slapi_ch_smprintf("%" PRIu64, setval);
         if (NULL == *next_value_ret) {
             ret = LDAP_OPERATIONS_ERROR;
             goto done;
@@ -2045,7 +2050,7 @@ dna_update_shared_config(struct configEntry * config_entry)
 
         /* We store the number of remaining assigned values
          * in the shared config entry. */
-        snprintf(remaining_vals, sizeof(remaining_vals),"%llu", config_entry->remaining);
+        snprintf(remaining_vals, sizeof(remaining_vals),"%" PRIu64, config_entry->remaining);
 
         /* set up our replace modify operation */
         replace_val[0] = remaining_vals;
@@ -2130,7 +2135,7 @@ dna_update_next_range(struct configEntry *config_entry,
     int ret = 0;
 
     /* Try to set the new next range in the config entry. */
-    snprintf(nextrange_value, sizeof(nextrange_value), "%llu-%llu",
+    snprintf(nextrange_value, sizeof(nextrange_value), "%" PRIu64 "-%" PRIu64,
              lower, upper);
 
     /* set up our replace modify operation */
@@ -2199,8 +2204,8 @@ dna_activate_next_range(struct configEntry *config_entry)
     int ret = 0;
 
     /* Setup the modify operation for the config entry */
-    snprintf(maxval_val, sizeof(maxval_val),"%llu", config_entry->next_range_upper);
-    snprintf(nextval_val, sizeof(nextval_val),"%llu", config_entry->next_range_lower);
+    snprintf(maxval_val, sizeof(maxval_val),"%" PRIu64, config_entry->next_range_upper);
+    snprintf(nextval_val, sizeof(nextval_val),"%" PRIu64, config_entry->next_range_lower);
 
     maxval_vals[0] = maxval_val;
     maxval_vals[1] = 0;
@@ -2817,8 +2822,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         char highstr[16];
 
         /* Create the exop response */
-        snprintf(lowstr, sizeof(lowstr), "%llu", lower);
-        snprintf(highstr, sizeof(highstr), "%llu", upper);
+        snprintf(lowstr, sizeof(lowstr), "%" PRIu64, lower);
+        snprintf(highstr, sizeof(highstr), "%" PRIu64, upper);
         range_low.bv_val = lowstr;
         range_low.bv_len = strlen(range_low.bv_val);
         range_high.bv_val = highstr;
@@ -2846,12 +2851,12 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, respdata);
 
         /* send the response ourselves */
-        send_ldap_result( pb, ret, NULL, NULL, 0, NULL );
+        slapi_send_ldap_result( pb, ret, NULL, NULL, 0, NULL );
         ret = SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
         ber_bvfree(respdata);
 
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_extend_exop: Released range %llu-%llu.\n",
+                        "dna_extend_exop: Released range %" PRIu64 "-%" PRIu64 ".\n",
                         lower, upper);
     }
 
@@ -2993,7 +2998,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 *lower = *upper - release + 1;
 
                 /* try to set the new maxval in the config entry */
-                snprintf(max_value, sizeof(max_value),"%llu", (*lower - 1));
+                snprintf(max_value, sizeof(max_value),"%" PRIu64, (*lower - 1));
 
                 /* set up our replace modify operation */
                 replace_val[0] = max_value;
@@ -3092,11 +3097,11 @@ void dna_dump_config_entry(struct configEntry * entry)
     printf("<---- filter ---------> %s\n", entry->filter);
     printf("<---- prefix ---------> %s\n", entry->prefix);
     printf("<---- scope ----------> %s\n", entry->scope);
-    printf("<---- next value -----> %llu\n", entry->nextval);
-    printf("<---- max value ------> %llu\n", entry->maxval);
-    printf("<---- interval -------> %llu\n", entry->interval);
+    printf("<---- next value -----> %" PRIu64 "\n", entry->nextval);
+    printf("<---- max value ------> %" PRIu64 "\n", entry->maxval);
+    printf("<---- interval -------> %" PRIu64 "\n", entry->interval);
     printf("<---- generate flag --> %s\n", entry->generate);
     printf("<---- shared cfg base > %s\n", entry->shared_cfg_base);
     printf("<---- shared cfg DN --> %s\n", entry->shared_cfg_dn);
-    printf("<---- threshold -----> %llu", entry->threshold);
+    printf("<---- threshold ------> %" PRIu64 "", entry->threshold);
 }

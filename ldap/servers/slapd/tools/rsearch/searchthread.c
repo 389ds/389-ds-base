@@ -501,7 +501,7 @@ void search_start(void *v)
 {
     SearchThread *st = (SearchThread *)v;
     PRIntervalTime timer;
-    int notBound = 1, res, searches = 0;
+    int notBound = 1, res = LDAP_SUCCESS, searches = 0;
     PRUint32 span;
 
     st->alive = 1;

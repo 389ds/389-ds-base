@@ -145,7 +145,7 @@ int main( int argc, char **argv )
 					perror( "realloc" );
 					return( 1 );
 				}
-				fgets(buf+curlen, maxlen/2 + 1, stdin);
+				(void)fgets(buf+curlen, maxlen/2 + 1, stdin);
 			}
 			/* we have a full line, chop potential newline and turn into ldif */
 			if( buf[curlen-1] == '\n' )

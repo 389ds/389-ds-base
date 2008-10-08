@@ -171,7 +171,10 @@ ldapu_gethostbyaddr( const char *addr, int length, int type,
 	LDAPHostEnt *result, char *buffer, int buflen, int *statusp,
 	void *extradata )
 {
+    /* old code did this which was clearly wrong:
     return( (LDAPHostEnt *)PR_GetError() );
+    which leads me to believe this is not used */
+    return( NULL );
 }
 #endif /* LDAP_OPT_DNS_FN_PTRS */
 

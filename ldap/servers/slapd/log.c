@@ -2216,12 +2216,12 @@ log__needrotation(LOGFD fp, int logtype)
 {
 	time_t	curr_time;
 	time_t	log_createtime= 0;
-	time_t	syncclock;
+	time_t	syncclock = 0;
 	int	type = LOG_CONTINUE;
 	int	f_size = 0;
 	int	maxlogsize, nlogs;
 	int	rotationtime_secs = -1;
-	int	sync_enabled, timeunit;
+	int	sync_enabled = 0, timeunit = 0;
 
 	if (fp == NULL) {
 		return LOG_ROTATE;

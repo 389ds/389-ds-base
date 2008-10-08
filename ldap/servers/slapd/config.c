@@ -566,11 +566,11 @@ slapd_bootstrap_config(const char *configdir)
 			}
 		}
 
-		slapi_ch_free((void **)&buf);
+		slapi_ch_free_string(&buf);
 	}
 
 bail:
-	slapi_ch_free((void **)&buf);
+	slapi_ch_free_string(&buf);
 	return rc;
 }
 

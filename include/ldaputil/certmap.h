@@ -61,6 +61,8 @@ enum {
     LDAPU_STR_MAX_INDEX
 };
 
+#ifdef DEFINE_LDAPU_STRINGS
+/* used only in certmap.c and ldaputil.c */
 static char *ldapu_strings[] = {
     "objectclass=*",		/* LDAPU_STR_DEFAULT */
     "uid=%s",			/* LDAPU_STR_FILTER_USER */
@@ -71,7 +73,8 @@ static char *ldapu_strings[] = {
     "userCertificate;binary",	/* LDAPU_STR_ATTR_CERT */
     "userCertificate"	/* LDAPU_STR_ATTR_CERT_NOSUBTYPE */
 };
-    
+#endif /* DEFINE_LDAPU_STRINGS */
+
 typedef struct {
     char *str;
     int size;

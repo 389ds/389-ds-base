@@ -344,7 +344,7 @@ ACLEvalBuildContext(
     ACLHandle_t        *acl;
     ACLExprHandle_t    *ace;
     int                ace_cnt = -1;
-    ACLAceEntry_t      *acelast, *new_ace;
+    ACLAceEntry_t      *acelast = NULL, *new_ace;
     ACLAceNumEntry_t   *entry, *temp_entry;
     char               **argp;
     ACLListCache_t     *cache;
@@ -635,7 +635,7 @@ ACL_INTEvalTestRights(
     int i, j, right_num, delta;
     ACLCachable_t ace_cachable;
     int result;
-    int absolute;
+    int absolute = 0;
     int skipflag;
     int g_num;    /* index into the generic rights array.  */
     char **g_rights;

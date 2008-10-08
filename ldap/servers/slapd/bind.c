@@ -103,7 +103,7 @@ is_root_dn_pw( const char *dn, const Slapi_Value *cred )
 		rv = slapi_pw_find_sv( rdnpwvals, cred ) == 0;
 		value_done(&rdnpwbv);
 	}
-	slapi_ch_free( (void **) &rootpw );
+	slapi_ch_free_string( &rootpw );
 	return rv;
 }
 
@@ -787,6 +787,6 @@ slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn )
 	}
 
 	if ( NULL != dnbuf_dynamic ) {
-		slapi_ch_free( (void **)&dnbuf_dynamic );
+		slapi_ch_free_string( &dnbuf_dynamic );
 	}
 }

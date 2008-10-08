@@ -501,12 +501,12 @@ int main(int argc, char** argv)
 	    exit(0);
 	}
 	if (timeLimit && (lifeTime >= timeLimit)) {
-	    double tmpv;
+	    double tmpv = (val + sumVal)/counter;
 	    if (verbose)
 		printf("%d sec >= %d\n", lifeTime, timeLimit);
 	    printf("Final Average rate: "
 		            "%6.2f/sec = %6.4fmsec/op, total:%6u\n",
-			    (tmpv = (val + sumVal)/counter),
+			    tmpv,
 			    (double)1000.0/tmpv,
 			    total);
 	    exit(0);

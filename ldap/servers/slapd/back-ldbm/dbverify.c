@@ -50,7 +50,6 @@ dbverify_ext( ldbm_instance *inst, int verbose )
     char *filep           = NULL;
     PRDir *dirhandle      = NULL;
     PRDirEntry *direntry  = NULL;
-    backend *be           = inst->inst_be;
     DB *dbp               = NULL;
     int tmplen            = 0;
     int filelen           = 0;
@@ -87,7 +86,6 @@ dbverify_ext( ldbm_instance *inst, int verbose )
           (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
     {
         /* struct attrinfo *ai = NULL; */
-        char *p             = NULL;
         dbp = NULL;
 
         if (!direntry->name)

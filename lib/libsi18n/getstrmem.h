@@ -53,7 +53,6 @@ static char emptyString[] = "";
 #define NUM_BUCKETS 32 /* must be a power of 2 */
 
 /* strings in library libadmin */
-static char* libadminid[] = {"$DBT: libadmin in memory  v1 $"};
 static char* libadmin[] = {
   "",
   "  Help  ",
@@ -89,7 +88,6 @@ static struct DATABIN bucket5[] = {
   {emptyString,NULL,0} };
 
 /* strings in library userforms */
-static char* userformsid[] = {"$DBT: userforms in memory  v1 $"};
 static char* userforms[] = {
   "",
   "Error: could not open servers list file.<p>\n",
@@ -113,7 +111,6 @@ static struct DATABIN bucket8[] = {
   {emptyString,NULL,0} };
 
 /* strings in library libaccess */
-static char* libaccessid[] = {"$DBT: libaccess in memory  v1 $"};
 static char* libaccess[] = {
   "",
   "basic-ncsa",
@@ -274,7 +271,6 @@ static struct DATABIN bucket10[] = {
   {emptyString,NULL,0} };
 
 /* strings in library frame */
-static char* frameid[] = {"$DBT: frame in memory  v1 $"};
 static char* frame[] = {
   "",
   "<TITLE>Not Found</TITLE><H1>Not Found</H1> The requested object does not exist on this server. The link you followed is either outdated, inaccurate, or the server has been instructed not to let you have it. ",
@@ -465,7 +461,6 @@ static struct DATABIN bucket17[] = {
   {emptyString,NULL,0} };
 
 /* strings in library admserv */
-static char* admservid[] = {"$DBT: admserv in memory  v1 $"};
 static char* admserv[] = {
   "",
   "Unauthorized host",
@@ -477,7 +472,6 @@ static char* admserv[] = {
   emptyString };
 
 /* strings in library libir */
-static char* libirid[] = {"$DBT: libadmin in memory  v1 $"};
 static char* libir[] = {
   "",
   "An I/O error occurred before all form data could be read.",
@@ -494,7 +488,6 @@ static struct DATABIN bucket19[] = {
   {emptyString,NULL,0} };
 
 /* strings in library httpdaemon */
-static char* httpdaemonid[] = {"$DBT: httpdaemon in memory  v1 $"};
 static char* httpdaemon[] = {
   "",
   "Error in ConvertThreadToFiber",
@@ -540,7 +533,6 @@ static struct DATABIN bucket20[] = {
   {emptyString,NULL,0} };
 
 /* strings in library dsgw */
-static char* dsgwid[] = {"$DBT: dsgw in memory  v1 $"};
 static char* dsgw[] = {
   "",
   "Unknown HTTP request method",
@@ -856,7 +848,6 @@ static struct DATABIN bucket26[] = {
   {emptyString,NULL,0} };
 
 /* strings in library base */
-static char* baseid[] = {"$DBT: base in memory  v1 $"};
 static char* base[] = {
   "",
   "insufficient memory to create hash table",
@@ -1072,7 +1063,6 @@ static struct DATABIN bucket27[] = {
   {emptyString,NULL,0} };
 
 /* strings in library cgiadmin */
-static char* cgiadminid[] = {"$DBT: cgiadmin in memory  v1 $"};
 static char* cgiadmin[] = {
   "",
   "Missing REQUEST_METHOD",

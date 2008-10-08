@@ -111,11 +111,11 @@ typedef struct res_RESOURCE_GLOBAL
  
 #ifdef  RESOURCE_STR
 #define BEGIN_STR(argLibraryName) \
-                          RESOURCE_TABLE argLibraryName[] = { 0, #argLibraryName,
+                          RESOURCE_TABLE argLibraryName[] = { {0, #argLibraryName},
 #define ResDef(argToken,argID,argString) \
-                          argID, argString,
+                          {argID, argString},
 #define END_STR(argLibraryName) \
-                          0, 0 };
+                          {0, 0} };
 #else
 #define BEGIN_STR(argLibraryName) \
                           enum {

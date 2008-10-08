@@ -1328,13 +1328,14 @@ void acl_ht_add_and_freeOld(acl_ht_t * acl_ht,
 							PLHashNumber key,
 							char *value){
 	char *old_value = NULL;	
+	uintptr_t pkey = (uintptr_t)key;
 
 	if ( (old_value = (char *)acl_ht_lookup( acl_ht, key)) != NULL ) {
 		acl_ht_remove( acl_ht, key);
 		slapi_ch_free((void **)&old_value);
 	}
 
-	PL_HashTableAdd( acl_ht, (const void *)key, value);
+	PL_HashTableAdd( acl_ht, (const void *)pkey, value);
 }
 
 /*
@@ -1349,7 +1350,7 @@ acl_ht_t *acl_ht_new(void) {
 
 static PLHashNumber acl_ht_hash( const void *key) {
 
-	return( (PLHashNumber)key );
+	return( (PLHashNumber)((uintptr_t)key) );
 }
 
 /* Free all the values in the ht */
@@ -1397,14 +1398,14 @@ acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg)
 /* remove this entry from the ht--doesn't free the value.*/
 void acl_ht_remove( acl_ht_t *acl_ht, PLHashNumber key) {
 
-	PL_HashTableRemove( acl_ht, (const void *)key);
+	PL_HashTableRemove( acl_ht, (const void *)((uintptr_t)key) );
 }
 
 /* Retrieve a pointer to the value of the entry with key */
 void *acl_ht_lookup( acl_ht_t *acl_ht,
 								PLHashNumber key) {
 
-	return( PL_HashTableLookup( acl_ht, (const void *)key) );	
+	return( PL_HashTableLookup( acl_ht, (const void *)((uintptr_t)key)) );	
 }
 
 

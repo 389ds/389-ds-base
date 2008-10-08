@@ -50,14 +50,8 @@
 #include "vattr_spi.h"
 
 #include "roles_cache.h"
+#define DEFINE_STATECHANGE_STATICS 1
 #include "statechange.h"
-
-
-#ifdef SOURCEFILE 
-#undef SOURCEFILE
-#endif
-#define SOURCEFILE "roles_plugin.c"
-static char *sourcefile = SOURCEFILE;
 
 #define STATECHANGE_ROLES_ID "Roles"
 #define STATECHANGE_ROLES_CONFG_FILTER "objectclass=nsRoleDefinition"

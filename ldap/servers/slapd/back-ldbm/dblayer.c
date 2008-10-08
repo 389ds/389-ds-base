@@ -97,6 +97,13 @@
 #include "dblayer.h"
 #include <prrwlock.h>
 
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
+
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
@@ -284,7 +291,7 @@ dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2)
 
 int
 dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply) {
-    int val = (int) value;
+    int val = (int)((uintptr_t)value);
     int retval = LDAP_SUCCESS;
 
     if (apply) {
@@ -304,7 +311,7 @@ dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase
 
 void *
 dblayer_get_batch_transactions(void *arg) {
-  return (void *)trans_batch_limit;
+    return (void *)((uintptr_t)trans_batch_limit);
 }
 
 
@@ -465,6 +472,17 @@ int dblayer_open_huge_file(const char *path, int oflag, int mode)
 }
 
 
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
+/* Helper function for large seeks, db4.3 */
+static int dblayer_seek43_large(int fd, off64_t offset, int whence)
+{
+    int ret = 0;
+
+    ret = lseek64(fd, offset, whence);
+
+    return (ret < 0) ? errno : 0;
+}
+#else
 /* Helper function for large seeks, db2.4 */
 static int dblayer_seek24_large(int fd, size_t pgsize, db_pgno_t pageno,
                 u_long relative, int isrewind, int whence)
@@ -473,17 +491,6 @@ static int dblayer_seek24_large(int fd, size_t pgsize, db_pgno_t pageno,
 
     offset = (off64_t)pgsize * pageno + relative;
     if (isrewind) offset = -offset;
-    ret = lseek64(fd, offset, whence);
-
-    return (ret < 0) ? errno : 0;
-}
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-/* Helper function for large seeks, db4.3 */
-static int dblayer_seek43_large(int fd, off64_t offset, int whence)
-{
-    int ret = 0;
-
     ret = lseek64(fd, offset, whence);
 
     return (ret < 0) ? errno : 0;
@@ -892,7 +899,7 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
                 if (feof(f))
                     break;
                 if (strncmp(s, "VmSize:", 7) == 0) {
-                    sscanf(s+7, "%d", procpages);
+                    sscanf(s+7, "%" PRIuPTR, procpages);
                     break;
                 }
             }
@@ -3449,7 +3456,7 @@ static int deadlock_threadmain(void *param)
     {
         if (priv->dblayer_enable_transactions) 
         {
-            if (NULL != priv->dblayer_env->dblayer_DB_ENV->lk_handle) {
+            if (DB_USES_LOCKING(priv->dblayer_env->dblayer_DB_ENV)) {
                 int aborted;
                 if ((rval = LOCK_DETECT(priv->dblayer_env->dblayer_DB_ENV,
                             0,
@@ -3619,7 +3626,7 @@ static int checkpoint_threadmain(void *param)
                                                checkpoint_interval) 
             continue;
 
-        if (NULL == priv->dblayer_env->dblayer_DB_ENV->tx_handle)
+        if (!DB_USES_TRANSACTIONS(priv->dblayer_env->dblayer_DB_ENV))
             continue;
 
         /* now checkpoint */
@@ -3777,7 +3784,7 @@ static int trickle_threadmain(void *param)
         DS_Sleep(interval);   /* 622855: wait for other threads fully started */
         if (priv->dblayer_enable_transactions) 
         {
-            if ( (NULL != priv->dblayer_env->dblayer_DB_ENV->mp_handle) &&
+            if ( DB_USES_MPOOL(priv->dblayer_env->dblayer_DB_ENV) &&
                  (0 != priv->dblayer_trickle_percentage) )
             {
                 int pages_written = 0;

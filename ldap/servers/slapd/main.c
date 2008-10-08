@@ -261,7 +261,6 @@ static void
 fix_ownership() 
 {
 	struct passwd* pw=NULL;
-	char dirname[MAXPATHLEN + 1];
 
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -630,7 +629,6 @@ main( int argc, char **argv)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	daemon_ports_t ports_info = {0};
    	Slapi_Backend *be = NULL;
-	int init_ssl;
 #ifndef __LP64__ 
 #if defined(__hpux) && !defined(__ia64)
 	/* for static constructors */
@@ -2598,7 +2596,6 @@ slapd_exemode_dbverify()
     int return_value = 0;
     Slapi_PBlock pb;
     struct slapdplugin *backend_plugin;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     /* this should be the first time to be called!  if the init order
      * is ever changed, these lines should be changed (or erased)!

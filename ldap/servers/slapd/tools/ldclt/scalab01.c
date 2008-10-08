@@ -524,8 +524,8 @@ scalab01_connectSuperuser (void)
      */
     s1ctx.ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
     if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: ldapssl_init (%s, %d), ldapCtx=0x%08x\n",
-			mctx.pid, mctx.hostname, mctx.port, (unsigned int)s1ctx.ldapCtx);
+      printf ("ldclt[%d]: ctrl: ldapssl_init (%s, %d), ldapCtx=0x%p\n",
+			mctx.pid, mctx.hostname, mctx.port, s1ctx.ldapCtx);
     if (s1ctx.ldapCtx == NULL)
     {
       printf ("ldclt[%d]: ctrl: Cannot ldapssl_init (%s, %d), errno=%d\n",
@@ -541,13 +541,13 @@ scalab01_connectSuperuser (void)
       ret = ldapssl_enable_clientauth(s1ctx.ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
       if (mctx.mode & VERY_VERBOSE)
 	printf
-	    ("ldclt[%d]: ctrl: After ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
-	     mctx.pid, (unsigned int)s1ctx.ldapCtx, mctx.keydbpin, mctx.cltcertname);
+	    ("ldclt[%d]: ctrl: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	     mctx.pid, s1ctx.ldapCtx, mctx.keydbpin, mctx.cltcertname);
       if (ret < 0)
       {
 	printf
-	    ("ldclt[%d]: ctrl: Cannot ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
-	     mctx.pid, (unsigned int)s1ctx.ldapCtx, mctx.keydbpin, mctx.cltcertname);
+	    ("ldclt[%d]: ctrl: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	     mctx.pid, s1ctx.ldapCtx, mctx.keydbpin, mctx.cltcertname);
 	ldap_perror(s1ctx.ldapCtx, "ldapssl_enable_clientauth");
 	fflush (stdout);
 	return (-1);
@@ -561,8 +561,8 @@ scalab01_connectSuperuser (void)
      */
     s1ctx.ldapCtx = ldap_init (mctx.hostname, mctx.port);
     if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: After ldap_init (%s, %d), ldapCtx=0x%08x\n",
-		mctx.pid, mctx.hostname, mctx.port, (unsigned int)s1ctx.ldapCtx);
+      printf ("ldclt[%d]: ctrl: After ldap_init (%s, %d), ldapCtx=0x%p\n",
+		mctx.pid, mctx.hostname, mctx.port, s1ctx.ldapCtx);
     if (s1ctx.ldapCtx == NULL)
     {
       printf ("ldclt[%d]: ctrl: Cannot ldap_init (%s, %d), errno=%d\n",

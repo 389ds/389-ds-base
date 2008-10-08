@@ -47,6 +47,13 @@
  * code for db2index (is this still in use?)
  */
 
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
+
 #include "back-ldbm.h"
 #include "vlv_srch.h"
 #include "dblayer.h"
@@ -76,7 +83,7 @@ size_t import_get_index_buffer_size() {
 
 static PRIntn import_subcount_hash_compare_keys(const void *v1, const void *v2)
 {
-    return( ((ID)v1 == (ID)v2 ) ? 1 : 0);
+    return( ((ID)((uintptr_t)v1) == (ID)((uintptr_t)v2) ) ? 1 : 0);
 }
 
 static PRIntn import_subcount_hash_compare_values(const void *v1, const void *v2)
@@ -86,7 +93,7 @@ static PRIntn import_subcount_hash_compare_values(const void *v1, const void *v2
 
 static PLHashNumber import_subcount_hash_fn(const void *id)
 {
-    return (PLHashNumber) id;
+    return (PLHashNumber) ((uintptr_t)id);
 }
 
 void import_subcount_stuff_init(import_subcount_stuff *stuff)
@@ -263,7 +270,7 @@ int import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id,
                                 size_t count)
 {
     PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable,(void*)parent_id));
-    PL_HashTableAdd(mothers->hashtable,(void*)parent_id,(void*)count);
+    PL_HashTableAdd(mothers->hashtable,(void*)((uintptr_t)parent_id),(void*)count);
     return 0;
 }
 
@@ -276,7 +283,7 @@ static int import_subcount_mothers_lookup(import_subcount_stuff *mothers,
     *count = 0;
     /* Lookup hash table for ID */
     stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void*)parent_id);
+                                              (void*)((uintptr_t)parent_id));
     /* If present, return the count found */
     if (0 != stored_count) {
         *count = stored_count;
@@ -292,11 +299,11 @@ int import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
 
     /* Lookup the hash table for the target ID */
     stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void*)parent_id);
+                                              (void*)((uintptr_t)parent_id));
     PR_ASSERT(0 != stored_count);
     /* Increment the count */
     stored_count++;
-    PL_HashTableAdd(mothers->hashtable, (void*)parent_id, (void*)stored_count);
+    PL_HashTableAdd(mothers->hashtable, (void*)((uintptr_t)parent_id), (void*)stored_count);
     return 0;
 }
 
@@ -320,7 +327,7 @@ static int import_update_entry_subcount(backend *be, ID parentid,
      * let's do it so we can reuse the modify routines) */
     cache_lock_entry( &inst->inst_cache, e );
     modify_init(&mc,e);
-    sprintf(value_buffer,"%lu",sub_count);
+    sprintf(value_buffer,"%" PRIuPTR,sub_count);
     /* attr numsubordinates could already exist in the entry,
        let's check whether it's already there or not */
     isreplace = (attrlist_find(e->ep_entry->e_attrs, numsubordinates) != NULL);
@@ -761,12 +768,12 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     int              appendmode = 0;
     int              appendmode_1 = 0;
     int              noversion = 0;
-    ID               lastid;
+    ID               lastid = 0;
     int              task_flags;
     Slapi_Task       *task;
     int              run_from_cmdline = 0;
     char             *instance_name;
-    ldbm_instance    *inst;
+    ldbm_instance    *inst = NULL;
     int              str2entry_options= 0;
     int              retry;
     int              we_start_the_backends = 0;
@@ -1812,7 +1819,6 @@ err_out:
         dbc->c_close(dbc);
     }
     if (return_value < 0) {/* error case: undo vlv indexing */
-        struct vlvIndex *vlvip = NULL;
         /* if jumped to out due to an error, vlv lock has not been released */
         for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
             vlvIndex_go_offline(pvlv[vlvidx], be);

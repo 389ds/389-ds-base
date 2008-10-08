@@ -936,8 +936,8 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 			 * eg. "'ldap:///all"' or 'ldap:///all")' then exit in_dn_expr mode.
 			*/
 			if ( in_dn_expr && (word[len-1] == '"' ||
-								len>1 && word[len-2] == '"' ||
-								len>2 && word[len-3] == '"')) {
+								(len>1 && word[len-2] == '"') ||
+                                (len>2 && word[len-3] == '"')) ) {
 				in_dn_expr = 0;
 			}
 
@@ -1692,7 +1692,7 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
 		if ((str = strstr(s , "del=")) || ((str = strstr(s , "del ="))) ) {
         	str--;
 			*str = '\0';
-        	*str++;
+        	str++;
 		}
 
 
@@ -1704,7 +1704,7 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
 		if ((str = strstr(s , "add=")) || ((str = strstr(s , "add ="))) ) {
         	str--;
 			*str = '\0';
-        	*str++;
+        	str++;
 		}
     } else {
         return(ACL_SYNTAX_ERR);

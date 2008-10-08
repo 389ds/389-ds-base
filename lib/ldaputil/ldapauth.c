@@ -53,6 +53,7 @@
 #include <ldap.h>
 #include <prprf.h>
 
+#define DEFINE_LDAPU_STRINGS 1
 #include <ldaputil/certmap.h>
 #include <ldaputil/errors.h>
 #include <ldaputil/ldapauth.h>

@@ -47,7 +47,27 @@
 extern          "C" {
 #endif
 
+/* net-snmp-config.h defines
+   all of these unconditionally - so we undefine
+   them here to make the compiler warnings shut up
+   hopefully we don't need the real versions
+   of these, but then with no warnings the compiler
+   will just silently redefine them to the wrong
+   ones anyway
+   Then undefine them after the include so that
+   our own local defines will take effect
+*/
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
 #include <net-snmp/net-snmp-config.h>
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/library/snmp_assert.h>

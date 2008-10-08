@@ -136,7 +136,7 @@ ldbm_instance_config_readonly_get(void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
-    return (void *)inst->inst_be->be_readonly;
+    return (void *)((uintptr_t)inst->inst_be->be_readonly);
 }
 
 static void *
@@ -165,7 +165,7 @@ ldbm_instance_config_require_index_get(void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     
-    return (void *)inst->require_index;
+    return (void *)((uintptr_t)inst->require_index);
 }
 
 static int
@@ -219,6 +219,7 @@ static int
 ldbm_instance_config_readonly_set(void *arg, void *value, char *errorbuf, int phase, int apply)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
+    uintptr_t pval = (uintptr_t)value;
 
     if (!apply) {
         return LDAP_SUCCESS;
@@ -229,15 +230,15 @@ ldbm_instance_config_readonly_set(void *arg, void *value, char *errorbuf, int ph
          * but won't change them until the instance is un-busy again.
          */
         if (! (inst->inst_flags & INST_FLAG_BUSY)) {
-            slapi_mtn_be_set_readonly(inst->inst_be, (int)value);
+            slapi_mtn_be_set_readonly(inst->inst_be, (int)pval);
         }
-        if ((int)value) {
+        if ((int)pval) {
             inst->inst_flags |= INST_FLAG_READONLY;
         } else {
             inst->inst_flags &= ~INST_FLAG_READONLY;
         }
     } else {
-        slapi_be_set_readonly(inst->inst_be, (int)value);
+        slapi_be_set_readonly(inst->inst_be, (int)pval);
     }
 
     return LDAP_SUCCESS;
@@ -252,7 +253,7 @@ ldbm_instance_config_require_index_set(void *arg, void *value, char *errorbuf, i
         return LDAP_SUCCESS;
     }
 
-    inst->require_index = (int)value;
+    inst->require_index = (int)((uintptr_t)value);
 
     return LDAP_SUCCESS;
 }

@@ -42,6 +42,13 @@
 
 /* monitor.c - ldbm backend monitor function */
 
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
+
 #include "back-ldbm.h"
 #include "dblayer.h"	/* XXXmcs: not sure this is good to do... */
 #include <sys/stat.h>
@@ -117,9 +124,9 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     MSET("entryCacheTries");
     sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
     MSET("entryCacheHitRatio");
-    sprintf(buf, "%lu", size);
+    sprintf(buf, "%" PRIuPTR, size);
     MSET("currentEntryCacheSize");
-    sprintf(buf, "%lu", maxsize);
+    sprintf(buf, "%" PRIuPTR, maxsize);
     MSET("maxEntryCacheSize");
     sprintf(buf, "%ld", nentries);
     MSET("currentEntryCacheCount");

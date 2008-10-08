@@ -344,11 +344,12 @@ int main(int argc, char **argv)
         }
         if (lmtCount && ntotal >= lmtCount) {
             if (!quiet) {
+                tmpv = (double)ntotal*1000.0/(counter*sampleInterval);
                 fprintf(stdout,
                   "Total added records: %d, Average rate: %7.2f/thrd, "
                   "%6.2f/sec = %6.4fmsec/op\n",
                   ntotal, (double)ntotal/(double)numThreads,
-                  (tmpv = (double)ntotal*1000.0/(counter*sampleInterval)),
+                  tmpv,
                   (double)1000.0/tmpv);
             }
             exit(1);

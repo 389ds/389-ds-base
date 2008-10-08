@@ -297,7 +297,6 @@ static Slapi_Entry *ids_sasl_user_to_entry(
     int attrsonly = 0, scope = LDAP_SCOPE_SUBTREE;
     LDAPControl **ctrls = NULL;
     Slapi_Entry *entry = NULL;
-    Slapi_DN *sdn;
     char **attrs = NULL;
     int regexmatch = 0;
     char *base = NULL;

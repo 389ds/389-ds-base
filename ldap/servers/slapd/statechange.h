@@ -78,7 +78,9 @@ typedef void (*api_statechange_unregister_all)(char *caller_id, caller_data_free
 #define STATECHANGE_VATTR_ENTRY_INVALIDATE 2
 
 /* Vattr api caller data to be passed to statechange_register() */
+#ifdef DEFINE_STATECHANGE_STATICS
 static int vattr_global_invalidate = STATECHANGE_VATTR_GLOBAL_INVALIDATE;
-static int vattr_entry_invalidate = STATECHANGE_VATTR_ENTRY_INVALIDATE;
+/* static int vattr_entry_invalidate = STATECHANGE_VATTR_ENTRY_INVALIDATE; */
+#endif /* DEFINE_STATECHANGE_STATICS */
 
 #endif /*_STATE_NOTIFY_H_*/

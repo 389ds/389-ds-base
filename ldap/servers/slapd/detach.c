@@ -127,7 +127,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 				}
 				(void) chdir( errorlog );
 				config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, errorbuf, 1);
-				slapi_ch_free((void**)&errorlog);
+				slapi_ch_free_string(&errorlog);
 			}
 		} else {
 			/* calling config_set_workingdir to check for validity of directory, don't apply */
@@ -135,7 +135,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 				exit(1);
 			}
 			(void) chdir( workingdir );
-			slapi_ch_free((void**)&workingdir);
+			slapi_ch_free_string(&workingdir);
 		}
 
 		if ( (sd = open( "/dev/null", O_RDWR )) == -1 ) {

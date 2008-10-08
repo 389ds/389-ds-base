@@ -258,16 +258,16 @@ attr_index_config(
 							   preamble, officialOID, index_rules[j] );
 						slapi_ch_free((void**)&preamble);
 						}
-					} else if (p =
-							   strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN)) {
+					} else if ((p =
+                                strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN))) {
 						_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
 											&substrlens);
-					} else if (p =
-							   strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE)) {
+					} else if ((p =
+                                strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE))) {
 						_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
 											&substrlens);
-					} else if (p =
-							   strstr(index_rules[j], INDEX_ATTR_SUBSTREND)) {
+					} else if ((p =
+                                strstr(index_rules[j], INDEX_ATTR_SUBSTREND))) {
 						_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
 											&substrlens);
 					} else if (!slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid)) {

@@ -44,6 +44,13 @@
 
 #include "back-ldbm.h"
 
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
+
 char *numsubordinates = "numsubordinates";
 char *hassubordinates = "hassubordinates";
 
@@ -130,7 +137,7 @@ int parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_coun
 		else
 		{
         	char value_buffer[20]; /* enough digits for 2^64 children */
-        	sprintf(value_buffer,"%lu", current_sub_count);
+        	sprintf(value_buffer,"%" PRIuPTR, current_sub_count);
             slapi_mods_add(smods, mod_op | LDAP_MOD_BVALUES, numsubordinates, strlen(value_buffer), value_buffer);
 		}
     	ret = modify_apply_mods(mc,smods); /* smods passed in */

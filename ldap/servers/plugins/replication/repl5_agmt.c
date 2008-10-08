@@ -1183,7 +1183,7 @@ agmt_validate_replicated_attributes(Repl_Agmt *ra)
 	{
 		char *this_attr = NULL;
 		int i = 0;
-		for (i = 0; this_attr = frac_attrs[i]; i++)
+		for (i = 0; (this_attr = frac_attrs[i]); i++)
 		{
 			if (charray_inlist(verbotten_attrs,this_attr)) {
 				int k = 0;

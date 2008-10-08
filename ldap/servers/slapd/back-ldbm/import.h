@@ -235,4 +235,3 @@ void import_producer(void *param);
 void index_producer(void *param);
 void import_foreman(void *param);
 void import_worker(void *param);
-static void import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);

@@ -361,8 +361,8 @@ static int uuid_create_st(guid_t *uuid)
 /* uuid_create -- multithreaded generation */
 static int uuid_create_mt(guid_t *uuid) 
 {
-    uuid_time_t timestamp;
-	unsigned16 clock_seq;
+    uuid_time_t timestamp = 0;
+	unsigned16 clock_seq = 0;
 
 	/* just bumps time sequence number. the actual
        time calls are made by a uuid_update_state */

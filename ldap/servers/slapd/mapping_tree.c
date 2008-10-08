@@ -1998,7 +1998,7 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
      *  will be transferred to the internal DSE backend 
      */
     if( sdn_is_nulldn(target_sdn) &&
-        ((op_type == SLAPI_OPERATION_SEARCH) && (scope == LDAP_SCOPE_BASE)  ||
+        (((op_type == SLAPI_OPERATION_SEARCH) && (scope == LDAP_SCOPE_BASE)) ||
          (op_type != SLAPI_OPERATION_SEARCH)) ) {
 
         mtn_unlock();

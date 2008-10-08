@@ -102,7 +102,7 @@ int
 passthru_config( int argc, char **argv )
 {
     int			i, j, rc, tosecs, using_def_connlifetime;
-    char		*p, **suffixarray;
+    char		**suffixarray;
     PassThruServer	*prevsrvr, *srvr;
     PassThruSuffix	*suffix, *prevsuffix;
     LDAPURLDesc		*ludp;
@@ -144,7 +144,7 @@ passthru_config( int argc, char **argv )
 	   and that the url does not look like this: ldap://host
 	   also assumes suffixes do not have any / in them
 	*/
-	if (p = strrchr(srvr->ptsrvr_url, '/')) { /* look for last / */
+	if ((p = strrchr(srvr->ptsrvr_url, '/'))) { /* look for last / */
 	    p = strchr(p, ' '); /* look for first space after last / */
 	    if (p) {
 		if (!strchr(p, ',')) { /* no comma */

@@ -53,7 +53,9 @@ char *crypt(char *key, char *salt);
 #else
 #include <sys/socket.h>
 #if defined( hpux ) || defined ( AIX ) || defined (LINUX) || defined (OSF1)
+#ifndef __USE_XOPEN
 #define __USE_XOPEN     /* linux */
+#endif /* __USE_XOPEN */
 #include <unistd.h>
 #else /* hpux */
 #include <crypt.h>

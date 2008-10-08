@@ -1728,7 +1728,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	if (eqctx && !*setlevel) {
-		int found = slapi_eq_cancel(eqctx);
+		(void)slapi_eq_cancel(eqctx);
 	}
 
 	if (s_debug_timeout && s_debug_level && *setlevel) {

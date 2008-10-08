@@ -578,10 +578,10 @@ mods_have_effect (Slapi_Entry *entry, Slapi_Mods *smods)
 	 */
 	for ( j = 0; j < smods->num_mods - 1; j++ ) {
 		if ( (mod = smods->mods[j]) != NULL ) {
-			if ( (mod->mod_op & LDAP_MOD_REPLACE) == 0 ||
-				mod->mod_vals.modv_bvals &&
-				strcasecmp (mod->mod_type, "modifiersname") &&
-				strcasecmp (mod->mod_type, "modifytime") ) {
+			if ( ((mod->mod_op & LDAP_MOD_REPLACE) == 0) ||
+				 (mod->mod_vals.modv_bvals &&
+				  strcasecmp (mod->mod_type, "modifiersname") &&
+				  strcasecmp (mod->mod_type, "modifytime") ) ) {
 				goto done;
 			}
 		}
@@ -589,9 +589,9 @@ mods_have_effect (Slapi_Entry *entry, Slapi_Mods *smods)
 
 	if ( entry && entry->e_sdn.dn ) {
 		for ( j = 0; j < smods->num_mods - 1; j++ ) {
-			if ( (mod = smods->mods[j]) != NULL &&
-				strcasecmp (mod->mod_type, "modifiersname") &&
-				strcasecmp (mod->mod_type, "modifytime") ) {
+			if ( ((mod = smods->mods[j]) != NULL) &&
+				 strcasecmp (mod->mod_type, "modifiersname") &&
+				 strcasecmp (mod->mod_type, "modifytime") ) {
 				for ( attr = entry->e_attrs; attr; attr = attr->a_next ) {
 					/* Mods have effect if at least a null-value-mod is
 					 * to actually remove an existing attribute

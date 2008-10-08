@@ -49,8 +49,12 @@
  *************************************************************************/
 #include <stdio.h>
 #ifdef LINUX
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE /* glibc2 needs this */
+#endif
+#ifndef __USE_XOPEN
 #define __USE_XOPEN
+#endif
 #endif
 #include <time.h>
 #include <stdarg.h>

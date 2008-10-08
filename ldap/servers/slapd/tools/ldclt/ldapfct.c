@@ -671,9 +671,9 @@ connectToServer (
        */
       tttctx->ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
       if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%08x\n",
+	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%p\n",
 		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
-		(unsigned int)tttctx->ldapCtx);
+		tttctx->ldapCtx);
       if (tttctx->ldapCtx == NULL)
       {
 	printf ("ldclt[%d]: T%03d: Cannot ldapssl_init (%s, %d), errno=%d\n",
@@ -689,14 +689,14 @@ connectToServer (
 	 ret = ldapssl_enable_clientauth(tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
 	 if (mctx.mode & VERY_VERBOSE)
 	   printf 
-	    ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
-	     mctx.pid, tttctx->thrdNum, (unsigned int)tttctx->ldapCtx, mctx.keydbpin,
+	    ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	     mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
 	     mctx.cltcertname);
 	 if (ret < 0)
 	 {
 	   printf
-	    ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
-	     mctx.pid, tttctx->thrdNum, (unsigned int)tttctx->ldapCtx, mctx.keydbpin,
+	    ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	     mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
 	     mctx.cltcertname);
 	   ldap_perror(tttctx->ldapCtx, "ldapssl_enable_clientauth");
 	   fflush (stdout);
@@ -709,9 +709,9 @@ connectToServer (
        */
       tttctx->ldapCtx = ldap_init (mctx.hostname, mctx.port);
       if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldap_init (%s, %d), ldapCtx=0x%08x\n",
+	printf ("ldclt[%d]: T%03d: After ldap_init (%s, %d), ldapCtx=0x%p\n",
 		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
-		(unsigned int)tttctx->ldapCtx);
+		tttctx->ldapCtx);
       if (tttctx->ldapCtx == NULL)
       {
 	printf ("ldclt[%d]: T%03d: Cannot ldap_init (%s, %d), errno=%d\n",
@@ -805,7 +805,6 @@ connectToServer (
   } else if ((mctx.mod2 & M2_SASLAUTH) && ((!(tttctx->binded)) ||
                                           (mctx.mode & BIND_EACH_OPER))) {
     void *defaults;
-    LDAPControl **rctrls = NULL;
     char *my_saslauthid = NULL;
 
     if ( mctx.sasl_mech == NULL) {
@@ -1836,9 +1835,9 @@ createMissingNodes (
        */
       tttctx->ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
       if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%08x\n",
+	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%p\n",
 		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
-		(unsigned int)tttctx->ldapCtx);
+		tttctx->ldapCtx);
       if (tttctx->ldapCtx == NULL)
       {
 	printf ("ldclt[%d]: T%03d: Cannot ldapssl_init (%s, %d), errno=%d\n",
@@ -1854,14 +1853,14 @@ createMissingNodes (
 	 ret = ldapssl_enable_clientauth(tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
 	 if (mctx.mode & VERY_VERBOSE)
 	   printf 
-	     ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
-	      mctx.pid, tttctx->thrdNum, (unsigned int)tttctx->ldapCtx, mctx.keydbpin,
+	     ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	      mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
 	      mctx.cltcertname);
 	 if (ret < 0)
 	 {
 	   printf 
-	    ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%08x, %s, %s)",
-	     mctx.pid, tttctx->thrdNum, (unsigned int)tttctx->ldapCtx, mctx.keydbpin,
+	    ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	     mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
 	     mctx.cltcertname);
 	   fflush (stdout);
 	   return (-1);

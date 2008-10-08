@@ -102,7 +102,7 @@ isASyntaxOrMrPluginOrPss(Slapi_Entry *e)
 		retval = (ptype && !strcasecmp(ptype, "pwdstoragescheme"));
 	if (!retval)
 		retval = (ptype && !strcasecmp(ptype, "reverpwdstoragescheme"));
-	slapi_ch_free((void**)&ptype);
+	slapi_ch_free_string(&ptype);
 	return retval;
 }
 
@@ -178,7 +178,7 @@ read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int 
 		be = slapi_get_next_backend (cookie);
     }
 
-	slapi_ch_free ((void **)&cookie);
+	slapi_ch_free_string (&cookie);
 
 	/* show be_type */
 	attrlist_delete( &e->e_attrs, "nsslapd-betype");
@@ -195,7 +195,7 @@ read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int 
 		be = slapi_get_next_backend(cookie);
 	}
 
-	slapi_ch_free ( (void **) &cookie);
+	slapi_ch_free_string (&cookie);
 
     /* show private suffixes */
     attrlist_delete ( &e->e_attrs, "nsslapd-privatenamespaces");
@@ -222,7 +222,7 @@ read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int 
 		be = slapi_get_next_backend(cookie);    	
     }
 
-	slapi_ch_free ((void **) &cookie);
+	slapi_ch_free_string (&cookie);
 
 	/* show syntax plugins */
 	attrlist_delete ( &e->e_attrs, CONFIG_PLUGIN_ATTRIBUTE );
@@ -432,7 +432,7 @@ finish_and_return:
 	/* if the password has been set, it will be hashed */
 	if ((pwd = config_get_rootpw()) != NULL) {
 		slapi_entry_attr_set_charptr(e, CONFIG_ROOTPW_ATTRIBUTE, pwd);
-		slapi_ch_free((void**)&pwd);
+		slapi_ch_free_string(&pwd);
 	}
 
 	*returncode= rc;

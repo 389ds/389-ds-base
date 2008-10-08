@@ -449,7 +449,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
     if ( conn->c_flags & CONN_FLAG_START_TLS ) {
         if ( cipherInfo.symKeyBits == 0 ) {
 	        start_tls_graceful_closure( conn, NULL, 1 );
-			slapi_ch_free((void **)&cipher);
+			slapi_ch_free_string(&cipher);
 	        return ;
 	}
     }
@@ -457,7 +457,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
     if (config_get_SSLclientAuth() == SLAPD_SSLCLIENTAUTH_OFF ) {
 		slapi_log_access (LDAP_DEBUG_STATS, "conn=%d SSL %i-bit %s\n",
 		   		conn->c_connid, keySize, cipher ? cipher : "NULL" );
-		slapi_ch_free((void **)&cipher);
+		slapi_ch_free_string(&cipher);
 		return;
     } 
     if (clientCert == NULL) {
@@ -499,7 +499,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 	        LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
 			   err, extraErrorMsg, chain ? "" : " NULL");
 	    }
-		slapi_ch_free((void**)&basedn);
+		slapi_ch_free_string(&basedn);
 	    slapu_msgfree (internal_ld, chain);
 	}
 	if (subject) free (subject);
@@ -522,6 +522,6 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 	bind_credentials_set( conn, SLAPD_AUTH_SSL, clientDN,
 			SLAPD_AUTH_SSL, clientDN, clientCert , NULL);
 
-    slapi_ch_free((void **)&cipher);
+    slapi_ch_free_string(&cipher);
     /* clientDN and clientCert will be freed later */
 }

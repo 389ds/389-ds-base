@@ -762,7 +762,7 @@ NSAPI_PUBLIC int acl_user_exists (const char *user, const char *userdn,
     PList_t resource = 0;
     PList_t auth_info = 0;
     PList_t global_auth = NULL;
-    int rv;
+    int rv = 0;
 
     /* Check if the userdn is available in the usr_cache */
     if (acl_usr_cache_enabled() && userdn) {

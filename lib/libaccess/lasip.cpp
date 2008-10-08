@@ -340,7 +340,7 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
     int        stopbit;    /* Don't care after this point    */
     int        curbit;        /* current bit we're working on    */
     int        curval;        /* value of pattern[curbit]    */
-    LASIpTree_t    *curptr;    /* pointer to the current node    */
+    LASIpTree_t    *curptr = NULL;    /* pointer to the current node    */
     LASIpTree_t    *newptr;
 
     /* stop at the first 1 in the netmask from low to high         */
@@ -448,7 +448,7 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
     IPAddr_t           ip;
     int                retcode;
     LASIpTree_t        *node;
-    LASIpContext_t     *context;
+    LASIpContext_t     *context = NULL;
     int		       rv;
     char	       ip_str[124];
 

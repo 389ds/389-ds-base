@@ -3376,8 +3376,6 @@ out:
  */
 static int _cl5Upgrade4_4(char *fromVersion, char *toVersion)
 {
-	PRDirEntry *entry = NULL;
-	DB *thisdb = NULL;
 	CL5OpenMode	backup;
 	int rc = 0;
 

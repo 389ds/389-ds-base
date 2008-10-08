@@ -1280,7 +1280,7 @@ slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t
 			if(1 < *bufsize)
 			{
 				sprintf( buf, ")" );
-				*bufsize--;
+				(*bufsize)--;
 			}
 		}
 		break;
@@ -1313,7 +1313,7 @@ slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t
 			if(1 < *bufsize)
 			{
 				sprintf( buf, ")" );
-				*bufsize--;
+				(*bufsize)--;
 			}
 		}
 		break;

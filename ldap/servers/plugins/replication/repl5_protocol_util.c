@@ -417,7 +417,8 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 			}
 		}
 	}
-error:
+
+/* error: */
 	if (NULL != ruv_bervals)
 		ber_bvecfree(ruv_bervals);
 	if (NULL != replarea_sdn)

@@ -903,7 +903,7 @@ static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf, 
 static void *cb_instance_sizelimit_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->sizelimit;
@@ -916,10 +916,10 @@ static int cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf, int
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->sizelimit=(int) value;
+            inst->sizelimit=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 		if (inst->inst_be) 
-			be_set_sizelimit(inst->inst_be, (int) value);
+			be_set_sizelimit(inst->inst_be, (int) ((uintptr_t)value));
 	}
 	return LDAP_SUCCESS;
 }
@@ -927,7 +927,7 @@ static int cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf, int
 static void *cb_instance_timelimit_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->timelimit;
@@ -940,10 +940,10 @@ static int cb_instance_timelimit_set(void *arg, void *value, char *errorbuf, int
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->timelimit=(int) value;
+		inst->timelimit=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 		if (inst->inst_be) 
-			be_set_timelimit(inst->inst_be, (int) value);
+			be_set_timelimit(inst->inst_be, (int) ((uintptr_t)value));
 	}
 	return LDAP_SUCCESS;
 }
@@ -951,7 +951,7 @@ static int cb_instance_timelimit_set(void *arg, void *value, char *errorbuf, int
 static void *cb_instance_max_test_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->max_test_time;
@@ -964,7 +964,7 @@ static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->max_test_time=(int) value;
+		inst->max_test_time=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -973,7 +973,7 @@ static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_max_idle_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->max_idle_time;
@@ -986,7 +986,7 @@ static int cb_instance_max_idle_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->max_idle_time=(int) value;
+		inst->max_idle_time=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -996,7 +996,7 @@ static int cb_instance_max_idle_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_hoplimit_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->hoplimit;
@@ -1009,7 +1009,7 @@ static int cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->hoplimit=(int) value;
+		inst->hoplimit=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -1018,7 +1018,7 @@ static int cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_maxbconn_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->bind_pool->conn.maxconnections;
@@ -1031,7 +1031,7 @@ static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->bind_pool->conn.maxconnections=(int) value;
+		inst->bind_pool->conn.maxconnections=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -1040,7 +1040,7 @@ static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_maxconn_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->pool->conn.maxconnections;
@@ -1053,7 +1053,7 @@ static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf, int p
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->pool->conn.maxconnections=(int) value;
+		inst->pool->conn.maxconnections=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -1062,7 +1062,7 @@ static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf, int p
 static void *cb_instance_abandonto_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->abandon_timeout.tv_sec;
@@ -1084,7 +1084,7 @@ static int cb_instance_abandonto_set(void *arg, void *value, char *errorbuf, int
 		}
 
                	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->abandon_timeout.tv_sec=(int) value;
+		inst->abandon_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->abandon_timeout.tv_usec=0;
                	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
@@ -1094,7 +1094,7 @@ static int cb_instance_abandonto_set(void *arg, void *value, char *errorbuf, int
 static void *cb_instance_maxbconc_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->bind_pool->conn.maxconcurrency;
@@ -1107,7 +1107,7 @@ static int cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
         	PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->bind_pool->conn.maxconcurrency=(int) value;
+		inst->bind_pool->conn.maxconcurrency=(int) ((uintptr_t)value);
         	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -1116,7 +1116,7 @@ static int cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_maxconc_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
 	data = inst->pool->conn.maxconcurrency;
@@ -1129,7 +1129,7 @@ static int cb_instance_maxconc_set(void *arg, void *value, char *errorbuf, int p
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->pool->conn.maxconcurrency=(int) value;
+		inst->pool->conn.maxconcurrency=(int) ((uintptr_t)value);
                 PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
         return LDAP_SUCCESS;   
@@ -1138,7 +1138,7 @@ static int cb_instance_maxconc_set(void *arg, void *value, char *errorbuf, int p
 static void *cb_instance_imperson_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        int data;
+        uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
         data = inst->impersonate;
@@ -1153,7 +1153,7 @@ static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int 
 
 	if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock); 
-		inst->impersonate=(int) value;
+		inst->impersonate=(int) ((uintptr_t)value);
                 PR_RWLock_Unlock(inst->rwl_config_lock); 
 	} else {
 		/* Security check: Make sure the proxing user is */
@@ -1162,7 +1162,7 @@ static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int 
 		char * rootdn=cb_get_rootdn();
 
                 PR_RWLock_Rlock(inst->rwl_config_lock); 
-		if (((int) value) && inst->pool && inst->pool->binddn &&
+		if (((int) ((uintptr_t)value)) && inst->pool && inst->pool->binddn &&
 	                !strcmp(inst->pool->binddn,rootdn)) {	/* UTF-8 aware */
 		  	rc=LDAP_UNWILLING_TO_PERFORM;
 			if (errorbuf)
@@ -1179,7 +1179,7 @@ static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_connlife_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        int data; 
+        uintptr_t data; 
  
         PR_RWLock_Rlock(inst->rwl_config_lock); 
         data=inst->pool->conn.connlifetime;
@@ -1192,7 +1192,7 @@ static int cb_instance_connlife_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock);  
-		inst->pool->conn.connlifetime=(int) value;
+		inst->pool->conn.connlifetime=(int) ((uintptr_t)value);
                 PR_RWLock_Unlock(inst->rwl_config_lock);  
 	}
         return LDAP_SUCCESS;     
@@ -1201,7 +1201,7 @@ static int cb_instance_connlife_set(void *arg, void *value, char *errorbuf, int 
 static void *cb_instance_bindto_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        int data;  
+        uintptr_t data;  
  
         PR_RWLock_Rlock(inst->rwl_config_lock);  
         data=inst->bind_pool->conn.op_timeout.tv_sec;
@@ -1214,12 +1214,12 @@ static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf, int ph
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock);   
-		inst->bind_pool->conn.op_timeout.tv_sec=(int) value;
+		inst->bind_pool->conn.op_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->bind_pool->conn.op_timeout.tv_usec=0;
-		inst->bind_pool->conn.bind_timeout.tv_sec=(int) value;
+		inst->bind_pool->conn.bind_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->bind_pool->conn.bind_timeout.tv_usec=0;
 		/* Used to bind to the farm server */
-		inst->pool->conn.bind_timeout.tv_sec=(int) value;
+		inst->pool->conn.bind_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->pool->conn.bind_timeout.tv_usec=0;
                 PR_RWLock_Unlock(inst->rwl_config_lock);   
 	}
@@ -1229,7 +1229,7 @@ static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf, int ph
 static void *cb_instance_opto_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        int data;  
+        uintptr_t data;  
  
         PR_RWLock_Rlock(inst->rwl_config_lock);  
         data=inst->pool->conn.op_timeout.tv_sec;
@@ -1242,7 +1242,7 @@ static int cb_instance_opto_set(void *arg, void *value, char *errorbuf, int phas
         cb_backend_instance * inst=(cb_backend_instance *) arg;
         if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock);
-                inst->pool->conn.op_timeout.tv_sec=(int) value;
+                inst->pool->conn.op_timeout.tv_sec=(int) ((uintptr_t)value);
                 inst->pool->conn.op_timeout.tv_usec=0;
                 PR_RWLock_Unlock(inst->rwl_config_lock);
         }
@@ -1252,7 +1252,7 @@ static int cb_instance_opto_set(void *arg, void *value, char *errorbuf, int phas
 static void *cb_instance_ref_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        int data;   
+        uintptr_t data;   
   
         PR_RWLock_Rlock(inst->rwl_config_lock);   
         data=inst->searchreferral;
@@ -1265,7 +1265,7 @@ static int cb_instance_ref_set(void *arg, void *value, char *errorbuf, int phase
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock);    
-		inst->searchreferral=(int) value;
+		inst->searchreferral=(int) ((uintptr_t)value);
                 PR_RWLock_Unlock(inst->rwl_config_lock);    
 	}
 	return LDAP_SUCCESS;
@@ -1274,7 +1274,7 @@ static int cb_instance_ref_set(void *arg, void *value, char *errorbuf, int phase
 static void *cb_instance_acl_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-        int data;
+        uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock);
         data=inst->local_acl;
@@ -1295,7 +1295,7 @@ static int cb_instance_acl_set(void *arg, void *value, char *errorbuf, int phase
                         return LDAP_SUCCESS;
                 }
 	        PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->local_acl=(int) value;
+		inst->local_acl=(int) ((uintptr_t)value);
 	        PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -1304,7 +1304,7 @@ static int cb_instance_acl_set(void *arg, void *value, char *errorbuf, int phase
 static void *cb_instance_bindretry_get(void *arg)
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
-	int data;
+	uintptr_t data;
 
         PR_RWLock_Rlock(inst->rwl_config_lock); 
         data=inst->bind_retry;
@@ -1317,7 +1317,7 @@ static int cb_instance_bindretry_set(void *arg, void *value, char *errorbuf, int
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
                 PR_RWLock_Wlock(inst->rwl_config_lock);
-		inst->bind_retry=(int) value;
+		inst->bind_retry=(int) ((uintptr_t)value);
                 PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
@@ -1383,7 +1383,7 @@ struct berval *bval, char *err_buf, int phase, int apply_mod)
                 } else {
                         int_val = cb_atoi((char *)bval->bv_val);
                 }
-                retval = config->config_set_fn(arg, (void *) int_val, err_buf, phase, apply_mod);
+                retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
                 break;
         case CB_CONFIG_TYPE_INT_OCTAL:
                 if (use_default) {
@@ -1391,7 +1391,7 @@ struct berval *bval, char *err_buf, int phase, int apply_mod)
                 } else {
                         int_val = (int) strtol((char *)bval->bv_val, NULL, 8);
                 }
-                retval = config->config_set_fn(arg, (void *) int_val, err_buf, phase, apply_mod);
+                retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
                 break;
         case CB_CONFIG_TYPE_LONG:
                 if (use_default) {
@@ -1414,7 +1414,7 @@ struct berval *bval, char *err_buf, int phase, int apply_mod)
                 } else {
                         int_val = !strcasecmp((char *) bval->bv_val, "on");
                 }
-                retval = config->config_set_fn(arg, (void *) int_val, err_buf, phase, apply_mod);
+                retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
                 break;
         }        
         return retval;
@@ -1435,10 +1435,10 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
  
         switch(config->config_type) {
         case CB_CONFIG_TYPE_INT:
-                sprintf(buf, "%d", (int) config->config_get_fn(arg));
+                sprintf(buf, "%d", (int) ((uintptr_t)config->config_get_fn(arg)));
                 break;
         case CB_CONFIG_TYPE_INT_OCTAL:
-                sprintf(buf, "%o", (int) config->config_get_fn(arg));
+                sprintf(buf, "%o", (int) ((uintptr_t)config->config_get_fn(arg)));
                 break;
         case CB_CONFIG_TYPE_LONG:
                 sprintf(buf, "%ld", (long) config->config_get_fn(arg));
@@ -1451,7 +1451,7 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
                 slapi_ch_free((void **)&tmp_string);
                 break;
         case CB_CONFIG_TYPE_ONOFF:
-                if ((int) config->config_get_fn(arg)) {
+                if ((int) ((uintptr_t)config->config_get_fn(arg))) {
                         sprintf(buf,"%s","on");
                 } else {
                         sprintf(buf,"%s","off");

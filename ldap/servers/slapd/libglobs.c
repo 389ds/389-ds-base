@@ -5066,6 +5066,8 @@ config_set_value(
 {
     struct berval **values = 0;
     char *sval = 0;
+    int ival = 0;
+    uintptr_t pval;
 
     /* for null values, just set the attr value to the empty
        string */
@@ -5125,7 +5127,9 @@ config_set_value(
 
     case CONFIG_CONSTANT_INT:
         PR_ASSERT(value); /* should be a constant value */
-        slapi_entry_attr_set_int(e, cgas->attr_name, (int)value);
+        pval = (uintptr_t)value;
+        ival = (int)pval;
+        slapi_entry_attr_set_int(e, cgas->attr_name, ival);
         break;
 
     case CONFIG_SPECIAL_SSLCLIENTAUTH:

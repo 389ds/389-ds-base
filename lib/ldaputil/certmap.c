@@ -55,6 +55,7 @@
 
 #include <key.h>
 #include <cert.h>
+#define DEFINE_LDAPU_STRINGS 1
 #include <ldaputil/certmap.h>
 #include <ldaputil/ldapauth.h>
 #include <ldaputil/errors.h>
@@ -300,7 +301,8 @@ static int ldapu_list_print (LDAPUList_t *list, LDAPUListNodeFn_t print_fn,
     int rv;
 
     while(node) {
-	rv = (int)(*print_fn)(node->info, pinfo);
+	uintptr_t retval = (uintptr_t)(*print_fn)(node->info, pinfo);
+	rv = (int)retval;
 	if (rv != LDAPU_SUCCESS) return rv;
 	node = node->next;
     }
@@ -1691,6 +1693,7 @@ NSAPI_PUBLIC int ldapu_certinfo_save (const char *fname,
     char *ptr;
     int eof;
     int rv;
+    uintptr_t retval;
     LDAPUPrintInfo_t pinfo;
     
 #ifdef XP_WIN32
@@ -1730,7 +1733,8 @@ NSAPI_PUBLIC int ldapu_certinfo_save (const char *fname,
     pinfo.fp = tfp;
     pinfo.arg = default_certmap_info->issuerName;
 
-    rv = (int)ldapu_certinfo_print (default_certmap_info, &pinfo);
+    retval = (uintptr_t)ldapu_certinfo_print (default_certmap_info, &pinfo);
+    rv = (int)retval;
 
     if (rv != LDAPU_SUCCESS) {
 	fclose(tfp);

@@ -46,6 +46,12 @@
  * please make sure you use 4-space indentation on this file.
  */
 
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
 
 #include "back-ldbm.h"
 #include "vlv_srch.h"
@@ -1149,7 +1155,7 @@ int import_main_offline(void *arg)
                 import_log_notice(job, "Index buffering is disabled.");
         else
                 import_log_notice(job,
-                                "Index buffering enabled with bucket size %lu", 
+                                "Index buffering enabled with bucket size %" PRIuPTR, 
                                 job->job_index_buffer_suggestion);
 
         job->worker_list = producer;
@@ -1312,7 +1318,7 @@ error:
         if (job->not_here_skipped)
         {
                 if (job->skipped)
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
+                        import_log_notice(job, "Import complete.  Processed %" PRIuPTR " entries "
                               "(%d bad entries were skipped, "
                               "%d entries were skipped because they don't "
                                                           "belong to this database) in %d seconds. "
@@ -1320,7 +1326,7 @@ error:
                               job->skipped, job->not_here_skipped,
                                                           seconds_to_import, entries_per_second);
                 else
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
+                        import_log_notice(job, "Import complete.  Processed %" PRIuPTR " entries "
                               "(%d entries were skipped because they don't "
                                                           "belong to this database) "
                               "in %d seconds. (%.2f entries/sec)",
@@ -1330,13 +1336,13 @@ error:
         else
         {
                 if (job->skipped)
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
+                        import_log_notice(job, "Import complete.  Processed %" PRIuPTR " entries "
                               "(%d were skipped) in %d seconds. "
                               "(%.2f entries/sec)", entries_processed,
                               job->skipped, seconds_to_import,
                               entries_per_second);
                 else
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
+                        import_log_notice(job, "Import complete.  Processed %" PRIuPTR " entries "
                               "in %d seconds. (%.2f entries/sec)",
                               entries_processed, seconds_to_import,
                               entries_per_second);

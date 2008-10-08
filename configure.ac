@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
 # This version is the version returned by ns-slapd -v
-AC_INIT([dirsrv], [1.1.3], [http://bugzilla.redhat.com/])
+AC_INIT([dirsrv], [1.1.4], [http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
@@ -21,7 +21,7 @@ AC_PROG_LIBTOOL
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h unistd.h inttypes.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT

@@ -195,7 +195,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 		   {
 			   /* Without this we will get segv when we try to read/write later */
 			   buf = calloc (1, sz);
-			   write (fd, buf, sz);
+			   (void)write (fd, buf, sz);
 			   free (buf);
 		   }
 

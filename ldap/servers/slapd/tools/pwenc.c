@@ -145,7 +145,7 @@ init_config(char *configdir)
         fprintf( stderr, "%s\n", errorbuf );
         return( NULL );
     }
-    slapi_ch_free((void **)&abs_configdir);
+    slapi_ch_free_string(&abs_configdir);
 
     slapdFrontendConfig = getFrontendConfig();
     if (0 == slapd_config(slapdFrontendConfig->configdir, configfile)) {
@@ -169,11 +169,9 @@ main( argc, argv )
     struct pw_scheme	*pwsp, *cmppwsp;
     extern int		optind;
     char 		*cpwd = NULL;	/* candidate password for comparison */
-	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	slapdFrontendConfig_t *slapdFrontendConfig =  NULL;
 
 	char *opts = "Hs:c:D:";
-	char *configdir = NULL;
     name = argv[ 0 ];
     pwsp = cmppwsp = NULL;
 
@@ -409,7 +407,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 			rc= 1; /* OK */
 		}
 
-		slapi_ch_free((void **)&buf);
+		slapi_ch_free_string(&buf);
 	}
 
 	return rc;

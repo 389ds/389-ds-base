@@ -140,7 +140,7 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
     size_t	delimiter;    	/* length of valid token	*/
     char	token[256];    	/* max length dns name		*/
     int		i;
-    int		ipcnt;
+    int		ipcnt = 0;
     char	**p;
     unsigned long	*ipaddrs=0;
     pool_handle_t *pool;
@@ -347,7 +347,7 @@ int LASDnsEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
     int			result;
     int			aliasflg;
     char		*my_dns;
-    LASDnsContext_t 	*context;
+    LASDnsContext_t 	*context = NULL;
     int			rv;
 
     *cachable = ACL_INDEF_CACHABLE;

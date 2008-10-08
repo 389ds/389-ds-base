@@ -1076,7 +1076,7 @@ replica_update_csngen_state_ext (Replica *r, const RUV *ruv, const CSN *extracsn
     rc = csngen_adjust_time (gen, csn);
     /* rc will be either CSN_SUCCESS (0) or clock skew */
 
-done:
+/* done: */
 
     PR_Unlock(r->repl_lock);
     if (csn != extracsn) /* do not free the given csn */

@@ -100,7 +100,7 @@ char * ACL_Program = "NSACL";               /* ACL facility name */
 void aclErrorFmt(NSErr_t * errp, char * msgbuf, int maxlen, int maxdepth)
 {
     NSEFrame_t * efp;		/* error frame pointer */
-    int len;			/* length of error message text */
+    int len = 0;			/* length of error message text */
     int depth = 0;		/* current depth */
 
     msgbuf[0] = 0;

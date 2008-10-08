@@ -66,13 +66,7 @@
 
 /*** from proto-slap.h ***/
 
-int slapd_log_error_proc( char *subsystem, char *fmt, ... )
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
-#else
-        ;
-#endif
-
+int slapd_log_error_proc( char *subsystem, char *fmt, ... );
 
 /*** from ldaplog.h ***/
 
@@ -346,7 +340,6 @@ int presence_init( Slapi_PBlock *pb )
 int presence_start( Slapi_PBlock *pb )
 {
 	char * plugindn = NULL;
-	char * httpRootDir = NULL;
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_start -- begin\n",0,0,0);
 
@@ -1105,7 +1098,6 @@ static int setTypes(PLHashEntry *he, PRIntn i, void *arg)
 {
 	int status;
 	int props = SLAPI_ATTR_FLAG_OPATTR;
-	Slapi_Attr *attr = NULL;
 	Slapi_ValueSet *results = NULL;
 	int type_name_disposition = 0;
 	char *actual_type_name = 0;
@@ -1150,7 +1142,6 @@ logGraphicAttributeValue( Slapi_Attr *attr, const char *attrname )
 		v = slapi_value_get_berval(val);
 		if (v) {
 			char	*ldifvalue;
-			size_t	attrnamelen = strlen( attrname );
 
 			LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> %s size [%d] \n",
 					attrname,v->bv_len,0);

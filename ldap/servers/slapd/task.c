@@ -193,6 +193,8 @@ int slapi_task_get_state(Slapi_Task *task)
     if (task) {
         return task->task_state;
     }
+
+    return 0; /* return value not currently used */
 }
 
 /* this changes the 'nsTaskStatus' value, which is transient (anything logged
@@ -341,6 +343,8 @@ void * slapi_task_get_data(Slapi_Task *task)
     if (task) {
         return task->task_private;
     }
+
+    return NULL; /* return value not currently used */
 }
 
 /*
@@ -371,6 +375,8 @@ int slapi_task_get_refcount(Slapi_Task *task)
     if (task) {
         return task->task_refcount;
     }
+
+    return 0; /* return value not currently used */
 }
 
 /* name is, for example, "import" */

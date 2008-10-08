@@ -399,7 +399,6 @@ int snmp_collator_start()
 
   int err;
   char *statspath = config_get_rundir();
-  char *lp = NULL;
   char *instdir = config_get_configdir();
   char *instname = NULL;
 

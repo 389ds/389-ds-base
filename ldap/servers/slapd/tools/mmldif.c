@@ -816,7 +816,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 lookahead = fgetc(edf1->fp);
                 if (lookahead != ' ')
                     break;
-                fgets(line, sizeof(line), edf1->fp);
+                (void)fgets(line, sizeof(line), edf1->fp);
                 len = strlen(line);
                 for (lptr = line+len-1; len; len--, lptr--) {
                     if ((*lptr != '\n') && (*lptr != '\r'))
@@ -854,7 +854,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 lookahead = fgetc(edf1->fp);
                 if (lookahead != ' ')
                     break;
-                fgets(line, sizeof(line), edf1->fp);
+                (void)fgets(line, sizeof(line), edf1->fp);
                 len = strlen(line);
                 for (lptr = line+len-1; len; len--, lptr--) {
                     if ((*lptr != '\n') && (*lptr != '\r'))
