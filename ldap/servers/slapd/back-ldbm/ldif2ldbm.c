@@ -269,7 +269,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
 int import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id,
                                 size_t count)
 {
-    PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable,(void*)parent_id));
+    PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable,(void*)((uintptr_t)parent_id)));
     PL_HashTableAdd(mothers->hashtable,(void*)((uintptr_t)parent_id),(void*)count);
     return 0;
 }
