@@ -296,7 +296,7 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 		return;
 	}
 	/* Call libdb to get the various stats */
-	if (DB_USES_LOGGING(db_env))
+	if (dblayer_db_uses_logging(db_env))
 	{
 		DB_LOG_STAT *logstat = NULL;
 		ret = LOG_STAT(db_env,&logstat,0,malloc);
@@ -307,7 +307,7 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 		}
 		free(logstat);
 	}
-	if (DB_USES_TRANSACTIONS(db_env))
+	if (dblayer_db_uses_transactions(db_env))
 	{
 		DB_TXN_STAT *txnstat = NULL;
 		ret = TXN_STAT(db_env, &txnstat, 0, malloc);
@@ -320,7 +320,7 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 		if (txnstat)
 			free(txnstat);
 	}
-	if (DB_USES_LOCKING(db_env))
+	if (dblayer_db_uses_locking(db_env))
 	{
 		DB_LOCK_STAT *lockstat = NULL;
 		ret = LOCK_STAT(db_env,&lockstat,0,malloc);
@@ -338,7 +338,7 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 		}
 		free(lockstat);
 	}
-	if (DB_USES_MPOOL(db_env))
+	if (dblayer_db_uses_mpool(db_env))
 	{
 		DB_MPOOL_STAT	*mpstat = NULL;
 		ret = MEMP_STAT(db_env,&mpstat,NULL,0,malloc);

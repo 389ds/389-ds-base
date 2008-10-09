@@ -277,6 +277,31 @@ dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2)
     return slapi_berval_cmp(&bv1, &bv2);
 }
 
+static int db_uses_feature(DB_ENV *db_env, u_int32_t flags)
+{
+    u_int32_t openflags = 0;
+    PR_ASSERT(db_env);
+    (*db_env->get_open_flags)(db_env, &openflags);
+
+    return (flags & openflags);
+}
+
+int dblayer_db_uses_locking(DB_ENV *db_env) {
+    return db_uses_feature(db_env, DB_INIT_LOCK);
+}
+
+int dblayer_db_uses_transactions(DB_ENV *db_env) {
+    return db_uses_feature(db_env, DB_INIT_TXN);
+}
+
+int dblayer_db_uses_mpool(DB_ENV *db_env) {
+    return db_uses_feature(db_env, DB_INIT_MPOOL);
+}
+
+int dblayer_db_uses_logging(DB_ENV *db_env) {
+    return db_uses_feature(db_env, DB_INIT_LOG);
+};
+
 /* this flag use if user remotely turned batching off */
 
 #define FLUSH_REMOTEOFF -1 
@@ -3456,7 +3481,7 @@ static int deadlock_threadmain(void *param)
     {
         if (priv->dblayer_enable_transactions) 
         {
-            if (DB_USES_LOCKING(priv->dblayer_env->dblayer_DB_ENV)) {
+            if (dblayer_db_uses_locking(priv->dblayer_env->dblayer_DB_ENV)) {
                 int aborted;
                 if ((rval = LOCK_DETECT(priv->dblayer_env->dblayer_DB_ENV,
                             0,
@@ -3626,7 +3651,7 @@ static int checkpoint_threadmain(void *param)
                                                checkpoint_interval) 
             continue;
 
-        if (!DB_USES_TRANSACTIONS(priv->dblayer_env->dblayer_DB_ENV))
+        if (!dblayer_db_uses_transactions(priv->dblayer_env->dblayer_DB_ENV))
             continue;
 
         /* now checkpoint */
@@ -3784,7 +3809,7 @@ static int trickle_threadmain(void *param)
         DS_Sleep(interval);   /* 622855: wait for other threads fully started */
         if (priv->dblayer_enable_transactions) 
         {
-            if ( DB_USES_MPOOL(priv->dblayer_env->dblayer_DB_ENV) &&
+            if ( dblayer_db_uses_mpool(priv->dblayer_env->dblayer_DB_ENV) &&
                  (0 != priv->dblayer_trickle_percentage) )
             {
                 int pages_written = 0;

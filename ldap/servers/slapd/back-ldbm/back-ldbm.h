@@ -114,16 +114,6 @@ typedef unsigned short u_int16_t;
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
 
-#define DB_USES_LOCKING(env) \
-    (DB_INIT_LOCK & ((env)->get_open_flags((env), NULL)))
-#define DB_USES_TRANSACTIONS(env) \
-    (DB_INIT_TXN & ((env)->get_open_flags((env), NULL)))
-#define DB_USES_MPOOL(env) \
-    (DB_INIT_MPOOL & ((env)->get_open_flags((env), NULL)))
-#define DB_USES_LOGGING(env) \
-    (DB_INIT_LOG & ((env)->get_open_flags((env), NULL)))
-
-
 /* include NSPR header files */
 #include "nspr.h"
 #include "plhash.h"
