@@ -344,6 +344,9 @@
 /* Source namespace */
 #undef _HPUX_SOURCE
 
+/* to pick up all of the printf format macros in inttypes.h */
+#undef _INCLUDE_STDC__SOURCE_199901
+
 /* POSIX revision */
 #undef _POSIX_C_SOURCE
 

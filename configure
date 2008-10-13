@@ -23392,6 +23392,11 @@ cat >>confdefs.h <<\_ACEOF
 #define _HPUX_SOURCE 1
 _ACEOF
 
+
+cat >>confdefs.h <<\_ACEOF
+#define _INCLUDE_STDC__SOURCE_199901 1
+_ACEOF
+
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
@@ -23441,6 +23446,11 @@ _ACEOF
 
 cat >>confdefs.h <<\_ACEOF
 #define _HPUX_SOURCE 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define _INCLUDE_STDC__SOURCE_199901 1
 _ACEOF
 
     # assume 64 bit
