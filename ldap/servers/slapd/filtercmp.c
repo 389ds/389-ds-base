@@ -264,7 +264,7 @@ static int filter_compare_substrings(struct slapi_filter *f1,
 	return 1;
     ret = 1;	/* assume failure until done comparing */
     if (count1 > 20)
-	tally = (int *)malloc(count1);
+	tally = (int *)slapi_ch_malloc(count1);
     else
 	tally = buf;
     if (!tally)
@@ -292,7 +292,7 @@ static int filter_compare_substrings(struct slapi_filter *f1,
 
 done:
     if ((count1 > 20) && tally)
-	free(tally);
+	slapi_ch_free((void **)&tally);
     return ret;
 }
 
@@ -310,7 +310,7 @@ static int filter_compare_lists(struct slapi_filter *f1,
 	return 1;
     ret = 1;
     if (count1 > 20)
-	tally = (int *)malloc(count1);
+	tally = (int *)slapi_ch_malloc(count1);
     else
 	tally = buf;
     if (!tally)
@@ -336,7 +336,7 @@ static int filter_compare_lists(struct slapi_filter *f1,
 
 done:
     if ((count1 > 20) && tally)
-	free(tally);
+	slapi_ch_free((void **)&tally);
     return ret;
 }
 

@@ -463,7 +463,7 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
         key.flags = DB_DBT_MALLOC;
         ret = dbc->c_get(dbc,&key,&data,DB_NEXT_NODUP);
         if (NULL != data.data) {
-            free(data.data);
+            slapi_ch_free(&(data.data));
             data.data = NULL;
         }
         if (0 != ret) {
@@ -471,7 +471,7 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
                 ldbm_nasty(sourcefile,62,ret);
             }
             if (NULL != key.data) {
-                free(key.data);
+                slapi_ch_free(&(key.data));
                 key.data = NULL;
             }
             break;
@@ -521,7 +521,7 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
             }
         }
         if (NULL != key.data) {
-            free(key.data);
+            slapi_ch_free(&(key.data));
             key.data = NULL;
         }
     }
@@ -985,8 +985,8 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             keepgoing = 0;
         } else {
             lastid = id_stored_to_internal((char *)key.data);
-            free( key.data );
-            free( data.data );
+            slapi_ch_free( &(key.data) );
+            slapi_ch_free( &(data.data) );
             isfirst = 1;
         }
     }
@@ -1089,7 +1089,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
             /* back to internal format */
             temp_id = id_stored_to_internal((char *)key.data);
-            free(key.data);
+            slapi_ch_free(&(key.data));
         }
 
         /* call post-entry plugin */
@@ -1097,7 +1097,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
         ep = backentry_alloc();
         ep->ep_entry = slapi_str2entry( data.data, str2entry_options );
-        free(data.data);
+        slapi_ch_free(&(data.data));
 
         if ( (ep->ep_entry) != NULL ) {
             ep->ep_id = temp_id;
@@ -1176,7 +1176,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         }
 
         backentry_free( &ep );
-        free( data.data );
+        slapi_ch_free( &(data.data) );
     }
     /* DB_NOTFOUND -> successful end */
     if (return_value == DB_NOTFOUND)
@@ -1383,8 +1383,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         isfirst = 0;  /* neither a first nor a last */
     } else if (rc == 0) {
         lastid = id_stored_to_internal((char *)key.data);
-        free(key.data);
-        free(data.data);
+        slapi_ch_free(&(key.data));
+        slapi_ch_free(&(data.data));
         isfirst = 1;
     } else {
         LDAPDebug(LDAP_DEBUG_ANY,
@@ -1560,7 +1560,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 break;
             }
             temp_id = id_stored_to_internal((char *)key.data);
-            free(key.data);
+            slapi_ch_free(&(key.data));
         }
 
         /* call post-entry plugin */
@@ -1568,7 +1568,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
         ep = backentry_alloc();
         ep->ep_entry = slapi_str2entry( data.data, 0 );
-        free(data.data);
+        slapi_ch_free(&(data.data));
 
         if ( ep->ep_entry != NULL ) {
             ep->ep_id = temp_id;

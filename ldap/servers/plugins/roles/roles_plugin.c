@@ -246,7 +246,7 @@ int roles_sp_get_value(vattr_sp_handle *handle,
     if (rc == 0) 
 	{
 		*free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;
-		*actual_type_name = strdup(NSROLEATTR);
+		*actual_type_name = slapi_ch_strdup(NSROLEATTR);
 
 		if (type_name_disposition) 
 		{

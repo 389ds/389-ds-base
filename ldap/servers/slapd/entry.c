@@ -1918,7 +1918,7 @@ slapi_entry_vattrcache_find_values_and_type_ex( const Slapi_Entry *e,
 				*actual_type_name =
 							(char**)slapi_ch_malloc(sizeof(*actual_type_name));
 				slapi_attr_get_type( tmp_attr, &vattr_type );
-				**actual_type_name = strdup(vattr_type);
+				**actual_type_name = slapi_ch_strdup(vattr_type);
 							
 			}
 		}
@@ -1974,7 +1974,7 @@ slapi_entry_vattrcache_find_values_and_type( const Slapi_Entry *e,
 				*results = valueset_dup(&(tmp_attr->a_present_values));
 
 				slapi_attr_get_type( tmp_attr, &vattr_type );
-				*actual_type_name = strdup(vattr_type);
+				*actual_type_name = slapi_ch_strdup(vattr_type);
 							
 			}
 		}

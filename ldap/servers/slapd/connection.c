@@ -191,12 +191,12 @@ connection_cleanup(Connection *conn)
 	conn->c_prfd= NULL;
 	/* c_ci stays as it is */
 	conn->c_fdi= SLAPD_INVALID_SOCKET_INDEX;
-    conn->c_next= NULL;
-    conn->c_prev= NULL;
+	conn->c_next= NULL;
+	conn->c_prev= NULL;
 	conn->c_extension= NULL;
 	/* remove any SASL I/O from the connection */
 	sasl_io_cleanup(conn);
-        sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
+	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
@@ -2310,7 +2310,7 @@ get_pb()
 
 	pb = tmp->pb;
 	/* Free the memory used by the pb found. */
-	free ((char *) tmp);
+	slapi_ch_free ((void **)&tmp);
 
 	return (pb);
 }
@@ -2448,7 +2448,7 @@ op_copy_identity(Connection *conn, Operation *op)
 	typelen= conn->c_authtype ? strlen (conn->c_authtype) : 0;
 
 	slapi_sdn_done(&op->o_sdn);
-	slapi_ch_free((void **) &(op->o_authtype));
+	slapi_ch_free_string(&(op->o_authtype));
     if (dnlen <= 0 && typelen <= 0) {
         op->o_authtype = NULL;
     } else {

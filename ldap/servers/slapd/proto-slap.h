@@ -346,6 +346,11 @@ int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf
 int config_set_localuser( const char *attrname, char *value, char *errorbuf, int apply );
 #endif /* !_WIN32 */
 
+#ifdef MEMPOOL_EXPERIMENTAL
+int config_set_mempool_switch( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_mempool_maxfreelist( const char *attrname, char *value, char *errorbuf, int apply );
+#endif /* MEMPOOL_EXPERIMENTAL */
+
 int config_get_SSLclientAuth();
 int config_get_ssl_check_hostname();
 char *config_get_SSL3ciphers();
@@ -451,6 +456,13 @@ int config_get_hash_filters();
 int config_get_rewrite_rfc1274();
 int config_get_outbound_ldap_io_timeout(void);
 int config_get_csnlogging();
+#ifdef MEMPOOL_EXPERIMENTAL
+int config_get_mempool_switch();
+int config_get_mempool_maxfreelist();
+long config_get_system_page_size();
+int config_get_system_page_bits();
+#endif
+
 int is_abspath(const char *);
 char* rel2abspath( char * );
 char* rel2abspath_ext( char *, char * );

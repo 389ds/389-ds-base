@@ -772,6 +772,11 @@ cleanup:
 }
 #endif
 
+void dblayer_free(void *ptr)
+{
+    slapi_ch_free(&ptr);
+}
+
 static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
 {
     size_t  mysize;
@@ -797,7 +802,7 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
     pEnv->set_tx_max(pEnv, priv->dblayer_tx_max);
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-    pEnv->set_alloc(pEnv, malloc, realloc, free);
+    pEnv->set_alloc(pEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, dblayer_free);
 
     /* 
      * The log region is used to store filenames and so needs to be
@@ -2063,7 +2068,7 @@ int dblayer_instance_start(backend *be, int mode)
         }
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-        return_value = dbp->set_malloc(dbp, malloc);
+        return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
         if (0 != return_value) {
             LDAPDebug(LDAP_DEBUG_ANY,
                       "dbp->set_malloc failed %d\n",
@@ -2762,7 +2767,7 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrin
         goto out;
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-    return_value = dbp->set_malloc(dbp, malloc);
+    return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
     if (0 != return_value) {
         goto out;
     }
@@ -3727,7 +3732,7 @@ static int checkpoint_threadmain(void *param)
             /* find out which log files don't contain active txns */
             DB_CHECKPOINT_LOCK(PR_TRUE, penv->dblayer_env_lock);
             return_value = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
-                                       0, malloc);
+                                       0, (void *)slapi_ch_malloc);
             DB_CHECKPOINT_UNLOCK(PR_TRUE, penv->dblayer_env_lock);
             checkpoint_debug_message(debug_checkpointing,
                 "Got list of logfiles not needed %d %p\n",
@@ -3990,7 +3995,7 @@ int dblayer_memp_stat(struct ldbminfo *li, DB_MPOOL_STAT **gsp,
     env = priv->dblayer_env->dblayer_DB_ENV;
     PR_ASSERT(NULL != env);
     
-    return MEMP_STAT(env, gsp, fsp, 0, malloc);
+    return MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
 }
 
 /* import wants this one */
@@ -4011,7 +4016,7 @@ int dblayer_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp,
     }
     PR_ASSERT(NULL != env);
 
-    return MEMP_STAT(env, gsp, fsp, 0, malloc);
+    return MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
 }
 
 /* Helper functions for recovery */
@@ -4954,7 +4959,7 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         /* get the list of logfiles currently existing */
         if (priv->dblayer_enable_transactions) {
             return_value = LOG_ARCHIVE(priv->dblayer_env->dblayer_DB_ENV,
-                &listA, DB_ARCH_LOG, malloc);
+                &listA, DB_ARCH_LOG, (void *)slapi_ch_malloc);
             if ((return_value != 0) || (listA == NULL)) {
                 LDAPDebug(LDAP_DEBUG_ANY, "BAD: can't get list of logs\n",
                     0, 0, 0);
@@ -4990,9 +4995,7 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     slapi_task_log_notice(task,
                           "ERROR: Instance dir is empty\n");
                 }
-                if (listA) {
-                    free(listA);
-                }
+                slapi_ch_free((void **)&listA);
                 dblayer_txn_abort(li,&txn);
                 return -1;
             }
@@ -5005,9 +5008,7 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                         "ERROR: error copying directory (%s -> %s): err=%d",
                         inst_dirp, dest_dir, return_value);
                 }
-                if (listA) {
-                    free(listA);
-                }
+                slapi_ch_free((void **)&listA);
                 dblayer_txn_abort(li,&txn);
                 if (inst_dirp != inst_dir)
                     slapi_ch_free_string(&inst_dirp);
@@ -5019,11 +5020,11 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         if (priv->dblayer_enable_transactions) {
             /* now, get the list of logfiles that still exist */
             return_value = LOG_ARCHIVE(priv->dblayer_env->dblayer_DB_ENV,
-                &listB, DB_ARCH_LOG, malloc);
+                &listB, DB_ARCH_LOG, (void *)slapi_ch_malloc);
             if ((return_value != 0) || (listB == NULL)) {
                 LDAPDebug(LDAP_DEBUG_ANY, "ERROR: can't get list of logs\n",
                     0, 0, 0);
-                free(listA);
+                slapi_ch_free((void **)&listA);
                 dblayer_txn_abort(li,&txn);
                 return return_value;
             }
@@ -5107,14 +5108,8 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                 slapi_ch_free((void **)&pathname2);
             }
             
-            if (listA) {
-                free(listA);
-                listA = NULL;
-            }
-            if (listB) {
-                free(listB);
-                listB = NULL;
-            }
+            slapi_ch_free((void **)&listA);
+            slapi_ch_free((void **)&listB);
         }
     } while (!ok);
 

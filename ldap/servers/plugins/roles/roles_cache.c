@@ -272,7 +272,7 @@ int roles_cache_init()
 	{
         slapi_log_error( SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
                "roles_cache_init: slapi_vattrspi_regattr failed\n");
-		free(vattr_handle);
+		slapi_ch_free((void **)&vattr_handle);
 		PR_DestroyRWLock(global_lock);
 		global_lock = NULL;
 		return(-1);

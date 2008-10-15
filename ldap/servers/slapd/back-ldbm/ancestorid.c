@@ -373,7 +373,7 @@ static int ldbm_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid)
 
  out:
     /* Free the entry value */
-    if (data.data != NULL) free(data.data);
+    slapi_ch_free(&(data.data));
 
     /* Release the id2entry file */
     if (db != NULL) {

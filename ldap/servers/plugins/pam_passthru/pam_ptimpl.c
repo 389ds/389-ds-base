@@ -77,7 +77,7 @@ static void
 delete_my_str_buf(MyStrBuf *buf)
 {
 	if (buf->str != buf->fixbuf) {
-		slapi_ch_free_string(&buf->str);
+		slapi_ch_free_string(&(buf->str));
 	}
 }
 
@@ -152,7 +152,7 @@ report_pam_error(char *str, int rc, pam_handle_t *pam_handle)
 /* returns a berval value as a null terminated string */
 static char *strdupbv(struct berval *bv)
 {
-	char *str = malloc(bv->bv_len+1);
+	char *str = slapi_ch_malloc(bv->bv_len+1);
 	memcpy(str, bv->bv_val, bv->bv_len);
 	str[bv->bv_len] = 0;
 	return str;
@@ -164,10 +164,10 @@ free_pam_response(int nresp, struct pam_response *resp)
 	int ii;
 	for (ii = 0; ii < nresp; ++ii) {
 		if (resp[ii].resp) {
-			free(resp[ii].resp);
+			slapi_ch_free((void **)&(resp[ii].resp));
 		}
 	}
-	free(resp);
+	slapi_ch_free((void **)&resp);
 }
 
 /*
@@ -190,7 +190,7 @@ pam_conv_func(int num_msg, const struct pam_message **msg, struct pam_response *
 	}
 
 	/* empty reply structure */
-    reply = (struct pam_response *)calloc(num_msg,
+    reply = (struct pam_response *)slapi_ch_calloc(num_msg,
 										  sizeof(struct pam_response));
 	slapi_pblock_get( my_data->pb, SLAPI_BIND_CREDENTIALS, &creds ); /* the password */
 	for (ii = 0; ii < num_msg; ++ii) {
@@ -206,7 +206,7 @@ pam_conv_func(int num_msg, const struct pam_message **msg, struct pam_response *
 			reply[ii].resp = strdupbv(creds);
 #endif
 		} else if (msg[ii]->msg_style == PAM_PROMPT_ECHO_ON) { /* assume username */
-			reply[ii].resp = strdup(my_data->pam_identity);
+			reply[ii].resp = slapi_ch_strdup(my_data->pam_identity);
 		} else if (msg[ii]->msg_style == PAM_ERROR_MSG) {
 			slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 							"pam msg [%d] error [%s]\n", ii, msg[ii]->msg);

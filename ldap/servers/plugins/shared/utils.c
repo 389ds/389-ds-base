@@ -441,10 +441,10 @@ static Slapi_Mutex *cache_lock = NULL;
 DNLink *cacheInit() {
 	DNLink *root;
 	slapi_lock_mutex(cache_lock);
-	root = (DNLink *)malloc( sizeof(DNLink) );
+	root = (DNLink *)slapi_ch_malloc( sizeof(DNLink) );
 	root->next = NULL;
 	root->data = NULL;
-	root->dn = (char *)malloc(1);
+	root->dn = (char *)slapi_ch_malloc(1);
 	root->dn[0] = 0;
 	slapi_unlock_mutex(cache_lock);
 	return root;
@@ -457,7 +457,7 @@ DNLink *cacheAdd( DNLink *root, char *dn, void *data ) {
 	slapi_lock_mutex(cache_lock);
 	for( ; root->next; root = root->next ) {
 	}
-	root->next = (DNLink *)malloc( sizeof(DNLink) );
+	root->next = (DNLink *)slapi_ch_malloc( sizeof(DNLink) );
 	root = root->next;
 	root->dn = dn;
 	root->data = data;

@@ -133,7 +133,7 @@ static lenstr *make_changes_string(LDAPMod **ldm, const char **includeattrs)
 
 	    addlenstr( l, buf );
 
-	    free( buf );
+	    slapi_ch_free_string( &buf );
 	}
 	addlenstr( l, "-\n" );
     }
@@ -219,7 +219,7 @@ write_replog_db(
     val.bv_val = format_genTime (curtime);
     val.bv_len = strlen( val.bv_val );
     slapi_entry_add_values( e, attr_changetime, vals );
-    free( val.bv_val );
+    slapi_ch_free( (void **)&val.bv_val );
 
     /*
      * Finish constructing the entry.  How to do it depends on the type
@@ -329,7 +329,7 @@ entry2reple( Slapi_Entry *e, Slapi_Entry *oe )
     val.bv_val = p;
     val.bv_len = len - ( p - estr ); /* length + terminating \0 */
     slapi_entry_add_values( e, attr_changes, vals );
-    free( estr );
+    slapi_ch_free_string( &estr );
     return 0;
 }
 

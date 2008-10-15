@@ -103,7 +103,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     /* store it  */
     rc = db->put( db, db_txn, &key, &data, 0);
     /* DBDB looks like we're freeing memory allocated by another DLL, which is bad */
-    free( data.dptr );
+    slapi_ch_free( &(data.dptr) );
 
     dblayer_release_id2entry( be, db );
 
@@ -210,19 +210,30 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
     }
     do {
         *err = db->get( db, db_txn, &key, &data, 0 );
-        if ( 0 != *err && 
-             DB_NOTFOUND != *err && DB_LOCK_DEADLOCK != *err )
+        if ( (0 != *err) && 
+             (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err) )
         {
-            LDAPDebug( LDAP_DEBUG_ANY, "id2entry error %d\n",
-                *err, 0, 0 );
+            LDAPDebug( LDAP_DEBUG_ANY, 
+                "id2entry: libdb returned error %d (%s)\n",
+                *err, dblayer_strerror( *err ), 0 );
         }
     }
-    while ( DB_LOCK_DEADLOCK == *err && txn == NULL );
+    while ( (DB_LOCK_DEADLOCK == *err) && (txn == NULL) );
 
-    if ( 0 != *err && DB_NOTFOUND != *err && DB_LOCK_DEADLOCK != *err )
+    if ( (0 != *err) && (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err) )
     {
-        LDAPDebug( LDAP_DEBUG_ANY, "id2entry get error %d\n",
-            *err, 0, 0 );
+        if ( (ENOMEM == *err) && (data.dptr == NULL) )
+        {
+            /* 
+             * Now we are setting slapi_ch_malloc and its friends to libdb
+             * by ENV->set_alloc in dblayer.c.  As long as the functions are 
+             * used by libdb, it won't reach here.
+             */
+            LDAPDebug( LDAP_DEBUG_ANY,
+                "malloc failed in libdb; terminating the server; OS error %d (%s)\n",
+                *err, slapd_system_strerror( *err ), 0 );
+            exit (1);
+        }
         dblayer_release_id2entry( be, db );
         return( NULL );
     }
@@ -274,7 +285,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         e = NULL;
     }
 
-    free( data.data );
+    slapi_ch_free( &(data.data) );
 
     dblayer_release_id2entry( be, db );
 

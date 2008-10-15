@@ -135,7 +135,7 @@ static void import_fifo_destroy(ImportJob *job)
         job->fifo.item[i].entry = NULL;
         job->fifo.item[i].filename = NULL;
     }
-    free(job->fifo.item);
+    slapi_ch_free((void **)&job->fifo.item);
     job->fifo.item = NULL;
 }
 
@@ -277,7 +277,7 @@ static int import_attr_callback(void *node, void *param)
     info->ai = a;
     if (NULL == info->name) {
         /* Memory allocation error */
-        free(info);
+        FREE(info);
         return -1;
     }
     info->next = job->index_list;
@@ -505,15 +505,15 @@ static double import_grok_db_stats(ldbm_instance *inst)
     inst->inst_cache_hits = current_cache_hits;
 
     if (mpstat)
-        free(mpstat);
+        slapi_ch_free((void **)&mpstat);
     if (mpfstat) {
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR + DB_VERSION_PATCH <= 3204
             /* In DB 3.2.4 and earlier, we need to free each element */
         DB_MPOOL_FSTAT **tfsp;
         for (tfsp = mpfstat; *tfsp; tfsp++)
-        free(*tfsp);
+        slapi_ch_free((void **)tfsp);
 #endif
-        free(mpfstat);
+        slapi_ch_free((void **)&mpfstat);
     }
     }
     return cache_hit_ratio;

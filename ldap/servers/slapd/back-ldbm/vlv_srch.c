@@ -673,8 +673,8 @@ vlvIndex_get_indexlength(struct vlvIndex* p, DB *db, back_txn *txn)
             err= dbc->c_get(dbc,&key,&data,DB_LAST);
             if(err==0)
             {
-                free(key.data); key.data= NULL;
-                free(data.data); data.data= NULL;
+                slapi_ch_free(&(key.data));
+                slapi_ch_free(&(data.data));
                 err= dbc->c_get(dbc,&key,&data,DB_GET_RECNO);
                 if(err==0)
                 {
@@ -682,7 +682,7 @@ vlvIndex_get_indexlength(struct vlvIndex* p, DB *db, back_txn *txn)
                     p->vlv_indexlength_cached= 1;
                     p->vlv_indexlength= *((db_recno_t*)data.data);
                     PR_Unlock(p->vlv_indexlength_lock);
-                    free(data.data);
+                    slapi_ch_free(&(data.data));
                 }
             }
             dbc->c_close(dbc);

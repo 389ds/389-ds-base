@@ -357,6 +357,11 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 	Slapi_Value **bvlp;
 	char		*w, *c, *p;
 
+	if (NULL == bvals) {
+		*ivals = NULL;
+		return 0;
+	}
+
 	switch ( ftype ) {
 	case LDAP_FILTER_EQUALITY:
 		/* allocate a new array for the normalized values */

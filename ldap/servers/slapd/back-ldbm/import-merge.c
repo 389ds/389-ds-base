@@ -100,12 +100,12 @@ static int import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_
                 thang->payload.idl = idl_fetch(be, db, key, NULL, NULL, &ret);
                 PR_ASSERT(NULL != thang->payload.idl);
             } else {
-                free(value.data);
-                free(key->data);
+                slapi_ch_free(&(value.data));
+                slapi_ch_free(&(key->data));
                 key->flags = DB_DBT_MALLOC;
                 goto around; /* Just skip these */
             }
-            free(value.data);
+            slapi_ch_free(&(value.data));
         } else {
             if (DB_NOTFOUND == ret) {
                /* This means that we're at the end of the file */
@@ -189,7 +189,7 @@ static int import_merge_insert_input_queue(backend *be, import_merge_queue_entry
                     (current_entry->file_referenced_list)[fileno] = 1;
                     /* Because we merged the entries, we no longer need the
                      * key, so free it */
-                    free(key->data);
+                    slapi_ch_free(&(key->data));
                     goto done;
                 } else {
                     /* VLV case, we can see exact keys, this is not a bug ! */
@@ -573,7 +573,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 		    /* Write the vlv index */
 		    ret = output_file->put(output_file, NULL, &key,
 			&(thang.payload.vlv_data),0);
-		    free(thang.payload.vlv_data.data);
+		    slapi_ch_free(&(thang.payload.vlv_data.data));
 		    thang.payload.vlv_data.data = NULL;
 		} else {
 		    /* Write the IDL index */
@@ -583,7 +583,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 		    idl_free(thang.payload.idl);
 		    thang.payload.idl = NULL;
 		}
-		free(key.data);
+		slapi_ch_free(&(key.data));
 		key.data = NULL;
 		if (0 != ret) {
 		    /* Failed to write--- most obvious cause being out of 

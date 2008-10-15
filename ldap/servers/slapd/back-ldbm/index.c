@@ -187,7 +187,7 @@ index_put_idl(index_buffer_bin *bin,backend *be, DB_TXN *txn,struct attrinfo *a)
 		if (0 != ret) {
 			goto error;
 		}
-		slapi_ch_free((void**)&bin->key.data );
+		slapi_ch_free( &(bin->key.data) );
 		idl_free(bin->value);
 		/* If we're already at allids, store an allids block to prevent needless accumulation of blocks */
 		if (old_idl && ALLIDS(old_idl)) {
@@ -262,13 +262,11 @@ index_buffer_terminate(void *h)
 			idl_free(bin->value);
 			bin->value = NULL;
 		}
-		if (bin->key.data) {
-			free(bin->key.data);
-		}
+		slapi_ch_free(&(bin->key.data));
 	}
-	free(handle->bins);
+	slapi_ch_free((void **)&(handle->bins));
 	/* Now free the handle */
-	free(handle);
+	slapi_ch_free((void **)&handle);
 	return 0;
 }
 
@@ -334,7 +332,7 @@ index_buffer_insert(void *h, DBT *key, ID id,backend *be, DB_TXN *txn,struct att
 retry:
 	if (!(bin->key).data) {
 		(bin->key).size = key->size;
-		(bin->key).data = malloc(key->size);
+		(bin->key).data = slapi_ch_malloc(key->size);
 		if (NULL == bin->key.data) {
 			return -1;
 		}
@@ -1018,7 +1016,7 @@ error:
 			/* Means that we never allocated a new key */
 			;
 		} else {
-			free(saved_key);
+			slapi_ch_free(&saved_key);
 		}
 	}
 	return ret;
@@ -1248,7 +1246,7 @@ index_range_read(
         *err = dbc->c_get(dbc,&lowerkey,&data,DB_SET_RANGE); /* lowerkey, if allocated and needs freed */
         DBT_FREE_PAYLOAD(data);
         if (old_lower_key_data != lowerkey.data) {
-            free(old_lower_key_data);
+            slapi_ch_free(&old_lower_key_data);
         }
     }
     /* If the seek above fails due to DB_NOTFOUND, this means that there are no keys 
@@ -2044,7 +2042,7 @@ valuearray_minus_valuearray(
     for (bcnt = 0; b[bcnt] != NULL; bcnt++);
 
     /* allocate return array as big as a */
-    c = (Slapi_Value**)calloc(acnt+1, sizeof(Slapi_Value*));
+    c = (Slapi_Value**)slapi_ch_calloc(acnt+1, sizeof(Slapi_Value*));
     if (acnt == 0) return c;
 
     /* sort a */

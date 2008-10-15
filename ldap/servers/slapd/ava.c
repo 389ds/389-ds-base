@@ -62,13 +62,13 @@ get_ava(
 
 	if ( ber_scanf( ber, "{ao}", &type, &ava->ava_value )
 	    == LBER_ERROR ) {
-        slapi_ch_free_string(&type);
+        slapi_ch_free_string( &type );
         ava_done(ava);
 		LDAPDebug( LDAP_DEBUG_ANY, "  get_ava ber_scanf\n", 0, 0, 0 );
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	ava->ava_type = slapi_attr_syntax_normalize(type);
-	free( type );
+	slapi_ch_free_string( &type );
 
 	return( 0 );
 }

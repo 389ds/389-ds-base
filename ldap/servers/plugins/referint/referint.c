@@ -444,13 +444,11 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
 		   if(dnParts != NULL){
 		       for(x=0; dnParts[x] != NULL; x++)
 		       {
-		           free(dnParts[x]);
+		           slapi_ch_free_string(&dnParts[x]);
 		       }
-	               free(dnParts);
+	           slapi_ch_free((void **)&dnParts);
 		   }
-		   if(newDN != NULL){
-		       slapi_ch_free((void**)&newDN);
-		   }
+		   slapi_ch_free_string(&newDN);
 
 	       }
 
@@ -485,15 +483,12 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
 free_and_return:
 
   /* free filter and search_results_pb */
-  if(filter != NULL)
-  {
-      free(filter);
-  }
+  slapi_ch_free_string(&filter);
 
   if(search_result_pb != NULL)
   {
       slapi_free_search_results_internal(search_result_pb);
-      free(search_result_pb);
+	  slapi_pblock_destroy(search_result_pb);
   }
 
   return(rc);

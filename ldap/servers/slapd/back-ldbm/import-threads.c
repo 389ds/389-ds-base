@@ -734,7 +734,7 @@ void index_producer(void *param)
         }
         curr_entry++;
         temp_id = id_stored_to_internal((char *)key.data);
-        free(key.data);
+        slapi_ch_free(&(key.data));
 
         /* call post-entry plugin */
         plugin_call_entryfetch_plugins((char **) &data.dptr, &data.dsize);
@@ -750,7 +750,7 @@ void index_producer(void *param)
                 inst->inst_name, (u_long)temp_id, 0);
             continue;
         } 
-        free(data.data);
+        slapi_ch_free(&(data.data));
 
         /* generate uniqueid if necessary */
         import_generate_uniqueid(job, e);

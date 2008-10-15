@@ -386,7 +386,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 					rc=ldap_get_lderrno( ld, NULL, NULL );
 					prerr=PR_GetError();
 				}
-				if ( ret == 0 ) free(plain); /* free plain only if it has been duplicated */
+				if ( ret == 0 ) slapi_ch_free_string(&plain); /* free plain only if it has been duplicated */
 
 				if ( rc != LDAP_SUCCESS ) {
 					if (cb_debug_on()) {

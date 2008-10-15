@@ -177,35 +177,26 @@ get_ids_from_disk(backend *be)
     
     /*Get the last key*/
 	DBC *dbc = NULL;
-	DBT key = {0};                  /*For the nextid*/
+	DBT key = {0};              /*For the nextid*/
 	DBT Value = {0};
+
 	Value.flags = DB_DBT_MALLOC;
 	key.flags = DB_DBT_MALLOC;
 	return_value = id2entrydb->cursor(id2entrydb,NULL,&dbc,0);
 	if (0 == return_value) {
 		return_value = dbc->c_get(dbc,&key,&Value,DB_LAST);
-		if (0 == return_value) {
+		if ( (0 == return_value) && (NULL != key.dptr) ) {
 			inst->inst_nextid = id_stored_to_internal(key.dptr) + 1;
+		} else {
+			inst->inst_nextid = 1;	/* error case: set 1 */
 		}
-		if (NULL != key.data) {
-			free(key.data);
-		}
-		if (NULL != Value.data) {
-			free(Value.data);
-		}
+		slapi_ch_free(&(key.data));
+		slapi_ch_free(&(Value.data));
 		dbc->c_close(dbc);
+	} else {
+      inst->inst_nextid = 1;	/* when there is no id2entry, start from id 1 */
 	}
-	if ( (key.dptr == NULL) || (0 != return_value) ) {
-      inst->inst_nextid = 1;
 
-      /*close the cache*/
-      dblayer_release_id2entry( be, id2entrydb );
-
-      /* unlock */
-      PR_Unlock( inst->inst_nextid_mutex );
-      return;
-	}
-	    
   }
   
   /*close the cache*/
@@ -213,6 +204,8 @@ get_ids_from_disk(backend *be)
 
   /* unlock */
   PR_Unlock( inst->inst_nextid_mutex );
+
+  return;
 }
 
 

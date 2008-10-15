@@ -139,7 +139,7 @@ int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 	PR_ASSERT(NULL != function);
 	PR_ASSERT(NULL != compute_evaluators_lock);
 	PR_RWLock_Wlock(compute_evaluators_lock);
-	new_eval = calloc(1,sizeof (compute_evaluator));
+	new_eval = (compute_evaluator *)slapi_ch_calloc(1,sizeof (compute_evaluator));
 	if (NULL == new_eval) {
 		rc = ENOMEM;
 	} else {
@@ -180,7 +180,7 @@ int compute_terminate()
 		while (current != NULL) {
 			compute_evaluator *asabird = current;
 			current = current->next;
-			free(asabird);
+			slapi_ch_free((void **)&asabird);
 		}
 		PR_RWLock_Unlock(compute_evaluators_lock);
 		/* Free the lock */
@@ -192,7 +192,7 @@ int compute_terminate()
 		while (current != NULL) {
 			compute_rewriter *asabird = current;
 			current = current->next;
-			free(asabird);
+			slapi_ch_free((void **)&asabird);
 		}
 		PR_RWLock_Unlock(compute_rewriters_lock);
 		PR_DestroyRWLock(compute_rewriters_lock);
@@ -208,7 +208,7 @@ int slapi_compute_add_search_rewriter(slapi_search_rewrite_callback_t function)
 	compute_rewriter *new_rewriter = NULL;
 	PR_ASSERT(NULL != function);
 	PR_ASSERT(NULL != compute_rewriters_lock);
-	new_rewriter = calloc(1,sizeof (compute_rewriter));
+	new_rewriter = (compute_rewriter *)slapi_ch_calloc(1,sizeof (compute_rewriter));
 	if (NULL == new_rewriter) {
 		rc = ENOMEM;
 	} else {

@@ -652,12 +652,8 @@ do_bind( Slapi_PBlock *pb )
     if (be)
         slapi_be_Unlock(be);
     slapi_sdn_done(&sdn);
-    if ( saslmech != NULL ) {
-        free( saslmech );
-    }
-    if ( cred.bv_val != NULL ) {
-        free( cred.bv_val );
-    }
+    slapi_ch_free_string( &saslmech );
+    slapi_ch_free( (void **)&cred.bv_val );
 	if ( bind_target_entry != NULL )
 		slapi_entry_free(bind_target_entry);
 }

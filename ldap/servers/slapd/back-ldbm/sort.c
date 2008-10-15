@@ -395,7 +395,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 		}
 		/* normalize */
 		type = slapi_attr_syntax_normalize(rtype);
-		free(rtype);
+		slapi_ch_free_string(&rtype);
 
 		/* Now look for the next tag. */
 

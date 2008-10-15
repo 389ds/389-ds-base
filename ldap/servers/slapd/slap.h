@@ -1769,6 +1769,11 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_HASH_FILTERS_ATTRIBUTE "nsslapd-hash-filters"
 #define CONFIG_OUTBOUND_LDAP_IO_TIMEOUT_ATTRIBUTE "nsslapd-outbound-ldap-io-timeout"
 
+#ifdef MEMPOOL_EXPERIMENTAL
+#define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
+#define CONFIG_MEMPOOL_MAXFREELIST_ATTRIBUTE "nsslapd-mempool-maxfreelist"
+#endif /* MEMPOOL_EXPERIMENTAL */
+
 /* flag used to indicate that the change to the config parameter should be saved */
 #define CONFIG_APPLY 1
 
@@ -1960,6 +1965,12 @@ typedef struct _slapdFrontendConfig {
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */
+#ifdef MEMPOOL_EXPERIMENTAL
+  int mempool_switch;           /* switch to turn memory pool on/off */
+  int mempool_maxfreelist;      /* max free list length per memory pool item */
+  long system_page_size;		/* system page size */
+  int system_page_bits;			/* bit count to shift the system page size */
+#endif /* MEMPOOL_EXPERIMENTAL */
 } slapdFrontendConfig_t;
 
 #define SLAPD_FULL	0

@@ -695,9 +695,7 @@ slapi_attr_type2plugin( const char *type, void **pi )
 	if ( NULL != *pi ) {
 		rc = 0;
 	}
-	if ( tmp != NULL ) {
-		free( tmp );
-	}
+	slapi_ch_free_string(&tmp);
 
 	return( rc );
 }

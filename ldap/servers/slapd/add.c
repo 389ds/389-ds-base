@@ -158,7 +158,7 @@ do_add( Slapi_PBlock *pb )
 			ber_bvecfree( vals );
 			goto free_and_return;
 		}
-		free( type );
+		slapi_ch_free_string(&type);
 	
        /* for now we just ignore attributes that client is not allowed
           to modify so not to break existing clients */

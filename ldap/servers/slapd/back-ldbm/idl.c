@@ -141,7 +141,7 @@ int idl_old_release_private(struct attrinfo *a)
 		PR_ASSERT(NULL != priv->idl_rwlock);
 		PR_DestroyRWLock(priv->idl_rwlock);
 #endif
-		free( a->ai_idl );
+		slapi_ch_free( (void **)&(a->ai_idl) );
 	}
 	return 0;
 }
@@ -909,12 +909,8 @@ idl_old_insert_key(
 				idl_check_indirect (idl, i, tmp, tmp2,
 						    "idl_insert_key", "overflow", key, id);
 
-				if ( k2.dptr != NULL ) {
-					free( k2.dptr );
-				}
-				if ( k3.dptr != NULL ) {
-					free( k3.dptr );
-				}
+				slapi_ch_free( (void **)&(k2.dptr) );
+				slapi_ch_free( (void **)&(k3.dptr) );
 				idl_free( tmp );
 				idl_free( tmp2 );
 				idl_free( idl );
@@ -998,12 +994,8 @@ idl_old_insert_key(
 				}
 			}
 
-			if ( k2.dptr != NULL ) {
-				free( k2.dptr );
-			}
-			if ( k3.dptr != NULL ) {
-				free( k3.dptr );
-			}	
+			slapi_ch_free( (void **)&(k2.dptr) );
+			slapi_ch_free( (void **)&(k3.dptr) );
 			idl_free( idl );
 			idl_free( tmp );
 			idl_unlock_list(a->ai_idl,key);
@@ -1065,12 +1057,8 @@ idl_old_insert_key(
 		break;
 	}
 
-	if ( k2.dptr != NULL ) {
-		free( k2.dptr );
-	}
-	if ( k3.dptr != NULL ) {
-		free( k3.dptr );
-	}
+	slapi_ch_free( (void **)&(k2.dptr) );
+	slapi_ch_free( (void **)&(k3.dptr) );
 	idl_free( tmp );
 	idl_free( idl );
 	idl_unlock_list(a->ai_idl,key);
@@ -1166,7 +1154,7 @@ int idl_old_store_block(
 					/* Now store the continuation block */
 					ret = idl_store(be,db,&cont_key,this_cont_block,txn);
 					idl_free(this_cont_block);
-					free(cont_key.data);
+					slapi_ch_free(&(cont_key.data));
 					if ( ret != 0 && ret != DB_LOCK_DEADLOCK )
 					{
 						LDAPDebug( LDAP_DEBUG_ANY, "idl_store_block(%s) 1 BAD %d %s\n",key->data, ret, dblayer_strerror( ret ));
@@ -1490,9 +1478,7 @@ idl_old_delete_key(
 		}
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= idl_delete_key(%s,%lu) %d idl_fetch_one(contkey)\n",
 			   contkey.dptr, (u_long)id, rc );
-		if ( contkey.dptr != NULL ) {
-			free( contkey.dptr );
-		}
+		slapi_ch_free( (void **)&(contkey.dptr) );
 		return( rc );
 	}
 
@@ -1572,9 +1558,7 @@ idl_old_delete_key(
 	}
 	idl_free( idl );
 	idl_free( didl );
-	if ( contkey.dptr != NULL ) {
-		free( contkey.dptr );
-	}
+	slapi_ch_free( (void **)&(contkey.dptr) );
 	idl_unlock_list(a->ai_idl,key);
 	if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 	{

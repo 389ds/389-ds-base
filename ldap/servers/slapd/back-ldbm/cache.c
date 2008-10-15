@@ -423,7 +423,7 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries)
 #define  CACHE_FULL(cache) \
        (((cache)->c_cursize > (cache)->c_maxsize) || \
         (((cache)->c_maxentries > 0) && \
-         ((cache)->c_curentries > cache->c_maxentries)))
+         ((cache)->c_curentries > (cache)->c_maxentries)))
 
 
 /* clear out the cache to make room for new entries

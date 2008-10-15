@@ -977,12 +977,12 @@ agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 		if (NULL != sval)
 		{
 			const char *val = slapi_value_get_string(sval);
-			ra->binddn = strdup(val);
+			ra->binddn = slapi_ch_strdup(val);
 		}
 	}
 	/* If no BindDN set, set to zero-length string */
 	if (ra->binddn == NULL) {
-		ra->binddn = strdup("");
+		ra->binddn = slapi_ch_strdup("");
 	}
 	PR_Unlock(ra->lock);
 	prot_notify_agmt_changed(ra->protocol, ra->long_name);

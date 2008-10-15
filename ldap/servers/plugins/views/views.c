@@ -542,7 +542,7 @@ static int views_cache_index()
 		theCache.view_count++;
 	
 
-	theCache.ppViewIndex = (viewEntry**)calloc(theCache.view_count, sizeof(viewEntry*));
+	theCache.ppViewIndex = (viewEntry**)slapi_ch_calloc(theCache.view_count, sizeof(viewEntry*));
 	if(theCache.ppViewIndex)
 	{
 		/* copy over the views */
@@ -687,7 +687,7 @@ static void views_cache_discover_children(viewEntry *pView)
 	/* make the space for them */
 	pView->child_count = child_count;
 	
-	pView->pChildren = calloc(child_count, sizeof(viewEntry*));
+	pView->pChildren = (void **)slapi_ch_calloc(child_count, sizeof(viewEntry*));
 
 	/* add them */
 	for(current = head; current != NULL; current = current->list.pNext)
@@ -1211,7 +1211,7 @@ static int	views_dn_views_cb (Slapi_Entry* e, void *callback_data) {
 	pDn = slapi_entry_get_ndn(e);
 	
 	/* create the view */
-	pView = calloc(1, sizeof(viewEntry));
+	pView = (viewEntry *)slapi_ch_calloc(1, sizeof(viewEntry));
 	pView->pDn = slapi_ch_strdup(pDn);
 
 	if(!slapi_entry_first_attr(e, &dnAttr))
@@ -1517,7 +1517,7 @@ static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Sla
 		 */
 		if(modtype == LDAP_CHANGETYPE_ADD)
 		{
-			theView = calloc(1, sizeof(viewEntry));
+			theView = (viewEntry *)slapi_ch_calloc(1, sizeof(viewEntry));
 			theView->pDn = slapi_ch_strdup(pDn);
 			
 			/* get the view filter, the entryid, and the parentid */

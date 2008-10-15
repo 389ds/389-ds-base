@@ -193,23 +193,21 @@ rwl_new()
 {
     rwl	*rp;
 
-    if (( rp = (rwl *)malloc( sizeof( rwl ))) == NULL ) {
-	return NULL;
-    }
+    rp = (rwl *)slapi_ch_malloc( sizeof( rwl ));
     
     if (( rp->rwl_readers_mutex = PR_NewLock()) == NULL ) {
-	free( rp );
+	slapi_ch_free( (void **)&rp );
 	return NULL;
     }
     if (( rp->rwl_writers_mutex = PR_NewLock()) == NULL ) {
 	PR_DestroyLock( rp->rwl_readers_mutex );
-	free( rp );
+	slapi_ch_free( (void **)&rp );
 	return NULL;
     }
     if (( rp->rwl_writer_waiting_cv = PR_NewCondVar( rp->rwl_readers_mutex )) == NULL ) {
 	PR_DestroyLock( rp->rwl_readers_mutex );
 	PR_DestroyLock( rp->rwl_writers_mutex );
-	free( rp );
+	slapi_ch_free( (void **)&rp );
     }
     rp->rwl_num_readers = rp->rwl_writer_waiting = 0;
     
@@ -254,6 +252,6 @@ rwl_free( rwl **rh )
 	PR_DestroyCondVar( rp->rwl_writer_waiting_cv );
     }
     memset( rp, '\0', sizeof( rwl ));
-    free( rp );
+    slapi_ch_free( (void **)&rp );
     *rh = NULL;
 }

@@ -260,8 +260,8 @@ dbtest_traverse( DB *db, char *filename, unsigned int options, FILE *outfp )
 				fprintf( outfp, "\tdata: %s\n", (char *)data.data );
 			}
 		}
-		free( key.data );
-		free( data.data );
+		slapi_ch_free( &(key.data) );
+		slapi_ch_free( &(data.data) );
 	}
 	dbc->c_close(dbc);
 }

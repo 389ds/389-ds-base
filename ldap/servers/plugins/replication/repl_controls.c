@@ -254,7 +254,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 					goto loser;
 				}
 				slapi_mods_add_modbvps(&modrdn_smods, op, type, embvals);
-				free( type );
+				slapi_ch_free_string( &type );
 				ber_bvecfree( embvals );
 			}
 			got_modrdn_mods = PR_TRUE;
@@ -364,7 +364,7 @@ add_repl_control_mods( Slapi_PBlock *pb, Slapi_Mods *smods )
 						to end up in the entry. We need to remove the old ones.
 					*/
         		    }
-        		    free( type );
+        		    slapi_ch_free_string( &type );
         		    ber_bvecfree( embvals );
         		}
     	    }

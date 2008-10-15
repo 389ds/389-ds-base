@@ -959,14 +959,14 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
     err= dbc->c_get(dbc,&key,&data,DB_SET_RANGE);
     if(err==0)
     {
-        free(data.data);
+        slapi_ch_free(&(data.data));
         err= dbc->c_get(dbc,&key,&data,DB_GET_RECNO);
         if(err==0)
         {
             si= *((db_recno_t*)data.data);
             /* Records are numbered from one. */
             si--;
-            free(data.data);
+            slapi_ch_free(&(data.data));
         	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_build_candidate_list_byvalue: Found. Index=%lu\n",si,0,0);
         }
         else
@@ -1029,7 +1029,7 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
     err = dbc->c_get(dbc, &key, &data, DB_SET_RECNO);
     while ((err == 0) && (recno <= stop+1)) {
         if (key.data != &recno)
-            free(key.data);
+            slapi_ch_free(&(key.data));
         idl_append(idl, *(ID *)data.data);
         if (++recno <= stop+1) {
             err = dbc->c_get(dbc, &key, &data, DB_NEXT);
@@ -1955,7 +1955,7 @@ static void replace_char(char *name, char c, char c2)
 /* similar to what the console GUI does */
 
 char *create_vlv_search_tag(const char* dn) {
-	char  *tmp2=strdup(dn);
+	char  *tmp2=slapi_ch_strdup(dn);
 
 	replace_char(tmp2,',',' ');
 	replace_char(tmp2,'"','-');

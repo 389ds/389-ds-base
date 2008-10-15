@@ -585,6 +585,14 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void **)&global_slapdFrontendConfig.outbound_ldap_io_timeout,
 		CONFIG_INT, NULL}
+#ifdef MEMPOOL_EXPERIMENTAL
+	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.mempool_switch, CONFIG_ON_OFF, (ConfigGetFunc)config_get_mempool_switch},
+	{CONFIG_MEMPOOL_MAXFREELIST_ATTRIBUTE, config_set_mempool_maxfreelist,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.mempool_maxfreelist, CONFIG_INT, (ConfigGetFunc)config_get_mempool_maxfreelist}
+#endif /* MEMPOOL_EXPERIMENTAL */
 };
 
 /*
@@ -939,6 +947,19 @@ FrontendConfig_init () {
   cfg->auditlog_minfreespace = 5;
   cfg->auditlog_exptime = 1;
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
+
+#ifdef MEMPOOL_EXPERIMENTAL
+  cfg->mempool_switch = LDAP_ON;
+  cfg->mempool_maxfreelist = 1024;
+  cfg->system_page_size = sysconf(_SC_PAGE_SIZE);	/* not to get every time; no set, get only */
+  {
+    long sc_size = cfg->system_page_size;
+    cfg->system_page_bits = 0;
+    while ((sc_size >>= 1) > 0) {
+      cfg->system_page_bits++;	/* to calculate once; no set, get only */
+    }
+  }
+#endif /* MEMPOOL_EXPERIMENTAL */
 
   init_config_get_and_set();
 }
@@ -4839,6 +4860,79 @@ config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf,
   
 	return retVal;
 }
+
+#ifdef MEMPOOL_EXPERIMENTAL
+int
+config_set_mempool_switch( const char *attrname, char *value, char *errorbuf, int apply ) {
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->mempool_switch),
+		errorbuf,
+		apply);
+
+	return retVal;
+}
+
+int
+config_get_mempool_switch()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	return slapdFrontendConfig->mempool_switch;
+}
+
+int
+config_set_mempool_maxfreelist( const char *attrname, char *value, char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	char *endp = NULL;
+	int maxfreelist;
+
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+	errno = 0;
+	maxfreelist = strtol(value, &endp, 10);
+	if (0 != errno ) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	if ( apply ) {
+		CFG_LOCK_WRITE(slapdFrontendConfig);
+
+		slapdFrontendConfig->mempool_maxfreelist = maxfreelist;
+	
+		CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	}
+	
+	return retVal;
+}
+
+int
+config_get_mempool_maxfreelist()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	return slapdFrontendConfig->mempool_maxfreelist;
+}
+
+long
+config_get_system_page_size()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	return slapdFrontendConfig->system_page_size;
+}
+
+int
+config_get_system_page_bits()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	return slapdFrontendConfig->system_page_bits;
+}
+#endif /* MEMPOOL_EXPERIMENTAL */
 
 int
 config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply)

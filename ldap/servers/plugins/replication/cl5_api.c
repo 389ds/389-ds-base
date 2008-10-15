@@ -1008,7 +1008,7 @@ int cl5Backup (const char *bkDir, Object **replicas)
 	}
 		
 	/* copy db log files */
-	rc = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list, DB_ARCH_LOG, malloc);
+	rc = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list, DB_ARCH_LOG, (void *)slapi_ch_malloc);
 	if (rc != 0)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -1037,7 +1037,7 @@ int cl5Backup (const char *bkDir, Object **replicas)
 			logFile ++;
 		}
 		
-		free(list);
+		slapi_ch_free((void **)&list);
 	}
 		
 	/* now, copy the version file */
@@ -2535,7 +2535,7 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 	}	
 
 	/* allocate data buffer */
-	(*data) = (char *) slapi_ch_malloc (size);
+	(*data) = slapi_ch_malloc (size);
 	if ((*data) == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -3029,7 +3029,7 @@ static void _cl5ReadBerval (struct berval *bv, char** buff)
 	bv->bv_len = length;
 
     if (bv->bv_len > 0) {
-		bv->bv_val = (char*)slapi_ch_malloc (bv->bv_len);
+		bv->bv_val = slapi_ch_malloc (bv->bv_len);
 		memcpy (bv->bv_val, *buff, bv->bv_len);
 		*buff += bv->bv_len;
     }
@@ -3216,7 +3216,7 @@ static int  _cl5CheckpointMain (void *param)
 				char filename[MAXPATHLEN + 1];
 
 				/* find out which log files don't contain active txns */
-				rc = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list, 0, malloc);
+				rc = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list, 0, (void *)slapi_ch_malloc);
 				if (0 == rc && NULL != list)
 				{
 					/* zap 'em ! */
@@ -3982,6 +3982,16 @@ static void _cl5SetDBConfig (const CL5DBConfig *config)
   s_cl5Desc.dbConfig.fileMode = FILE_CREATE_MODE;
 }
 
+/*
+ * a wrapper for slapi_ch_free; it's declared to set slapi_ch_free in BDB
+ * dbEnv->set_alloc(dbEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, _cl5_api_free);
+ *
+ */
+void _cl5_api_free(void *ptr)
+{
+    slapi_ch_free(&ptr);
+}
+
 #define ONEG    1073741824      /* one giga bytes */
 static void _cl5InitDBEnv(DB_ENV *dbEnv)
 {
@@ -4011,7 +4021,7 @@ static void _cl5InitDBEnv(DB_ENV *dbEnv)
 		dbEnv->set_errcall(dbEnv, _cl5DBLogPrint);
 	}
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-        dbEnv->set_alloc(dbEnv, malloc, realloc, free);
+        dbEnv->set_alloc(dbEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, _cl5_api_free);
 #endif
 }
 
@@ -4393,7 +4403,7 @@ static int _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge)
 	{
 		case 0:				pos = data.data;
 							rc = _cl5ReadBervals (&vals, &pos, data.size);
-                            free (data.data);
+                            slapi_ch_free (&(data.data));
                             if (rc != CL5_SUCCESS)
                                 return rc;
                             
@@ -4473,7 +4483,7 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 #endif
 	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS);
 
-	slapi_ch_free ((void**)&data.data);
+	slapi_ch_free (&(data.data));
 	if ( rc == 0 )
 	{
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
@@ -4748,7 +4758,7 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 	switch (rc)
 	{
 		case 0:				file->entryCount = *(int*)data.data;
-							free (data.data);
+							slapi_ch_free (&(data.data));
 
 							/* delete the entry. the entry is re-added when file
 							   is successfully closed */
@@ -4765,7 +4775,7 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 #elif 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
                             rc = file->db->stat(file->db, (void*)&stats, 0);
 #else
-                            rc = file->db->stat(file->db, (void*)&stats, malloc, 0);
+                            rc = file->db->stat(file->db, (void*)&stats, (void *)slapi_ch_malloc, 0);
 #endif
 							if (rc != 0)
 							{
@@ -4784,7 +4794,7 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 									"_cl5GetEntryCount: %d changes for replica %s\n", 
                                     file->entryCount, file->replName);
 
-							free (stats);                             
+							slapi_ch_free ((void **)&stats);                             
 							return CL5_SUCCESS;
 		
 		default:			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -4950,7 +4960,7 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 	}
 
 	/* allocate buffer */
-	buff = (char*)slapi_ch_malloc (len);
+	buff = slapi_ch_malloc (len);
 	start = buff;
 	if (buff == NULL)
 	{
@@ -5315,7 +5325,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 	rc = CL5_SUCCESS;
 done:
 	if (data->data)
-		slapi_ch_free ((void**)&data->data);
+		slapi_ch_free (&(data->data));
 	slapi_ch_free((void**) &data);
 
 	if (file_obj)
@@ -5353,15 +5363,15 @@ static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_
 		/* skip service entries */
 		if (cl5HelperEntry ((char*)key.data, NULL))
 		{
-			free (key.data);
-			free (data.data);
+			slapi_ch_free (&(key.data));
+			slapi_ch_free (&(data.data));
 			continue;
 		}
 
 		/* format entry */
-		free (key.data);
+		slapi_ch_free (&(key.data));
 		rc = cl5DBData2Entry (data.data, data.size, entry);
-		free (data.data);
+		slapi_ch_free (&(data.data));
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -5397,8 +5407,8 @@ static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_
 	/* successfully retrieved next entry but it was out of range */
 	if (rc == CL5_SUCCESS)
 	{
-		free (key.data);
-		free (data.data);	
+		slapi_ch_free (&(key.data));
+		slapi_ch_free (&(data.data));	
 		rc = CL5_NOTFOUND;
 		goto done;
 	}
@@ -5429,15 +5439,15 @@ static int _cl5GetNextEntry (CL5Entry *entry, void *iterator)
 	{
 		if (cl5HelperEntry ((char*)key.data, NULL))
 		{
-			free (key.data);
-			free (data.data);
+			slapi_ch_free (&(key.data));
+			slapi_ch_free (&(data.data));
 			continue;
 		}
 
-		free (key.data);
+		slapi_ch_free (&(key.data));
 		/* format entry */
 		rc = cl5DBData2Entry (data.data, data.size, entry);
-		free (data.data);
+		slapi_ch_free (&(data.data));
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -5558,8 +5568,7 @@ done:;
 	if (obj)
 		object_release (obj);
 
-	if (data.data)
-		free (data.data);			
+	slapi_ch_free (&(data.data));
 	
 	return rc;
 }
@@ -6341,7 +6350,7 @@ static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile**
 	}
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-	rc = db->set_malloc(db, malloc);
+	rc = db->set_malloc(db, (void *)slapi_ch_malloc);
 	if (0 != rc) {
 		goto out;
 	}

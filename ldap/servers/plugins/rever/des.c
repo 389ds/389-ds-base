@@ -431,7 +431,8 @@ static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, 
 	}
 
 	/* store->crypt will hold the crypted password - it must be >= clear length */
-	store->crypt = (unsigned char *)slapi_ch_calloc(sizeof(unsigned char),
+	/* store->crypt is freed in NSS; let's not use slapi_ch_calloc */
+	store->crypt = (unsigned char *)calloc(sizeof(unsigned char),
 													store->length+1);
 	if (!store->crypt) 
 	{

@@ -60,7 +60,7 @@ int ldbm_instance_create(backend *be, char *name)
     inst = (ldbm_instance *) slapi_ch_calloc(1, sizeof(ldbm_instance));
 		
     /* Record the name of this instance. */
-    inst->inst_name = strdup(name);
+    inst->inst_name = slapi_ch_strdup(name);
 
     /* initialize the entry cache */
     if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,

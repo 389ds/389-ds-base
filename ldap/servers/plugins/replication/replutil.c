@@ -170,7 +170,7 @@ entry_print( Slapi_Entry *e )
     }
     puts( p );
     fflush( stdout );
-    free( p );
+    slapi_ch_free_string( &p );
     return;
 }
 
@@ -198,8 +198,8 @@ int copyfile(char* source, char * destination, int overwrite, int mode)
 	int return_value = -1;
 	int bytes_to_write = 0;
 
-	/* malloc the buffer */
-	buffer = (char*) malloc(64*1024);
+	/* allocate the buffer */
+	buffer =  slapi_ch_malloc(64*1024);
 	if (NULL == buffer)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "copy file: memory allocation failed\n");
@@ -250,10 +250,7 @@ error:
 	{
 		close(dest_fd);
 	}
-	if (NULL != buffer)
-	{
-		free(buffer);
-	}
+	slapi_ch_free_string(&buffer);
 	return return_value;
 #endif
 }
@@ -263,7 +260,7 @@ time_t
 age_str2time (const char *age)
 {
 	char *maxage;
-    char unit;
+	char unit;
 	time_t ageval;
 
 	if (age == NULL || age[0] == '\0' || strcmp (age, "0") == 0)
@@ -272,14 +269,11 @@ age_str2time (const char *age)
 	}
 
 	maxage = slapi_ch_strdup ( age );
-    unit = maxage[ strlen( maxage ) - 1 ];
-    maxage[ strlen( maxage ) - 1 ] = '\0';
-    ageval = strntoul( maxage, strlen( maxage ), 10 );
-    if ( maxage) 
-	{
-        slapi_ch_free ( (void **) &maxage );
-    }
-    switch ( unit ) 
+	unit = maxage[ strlen( maxage ) - 1 ];
+	maxage[ strlen( maxage ) - 1 ] = '\0';
+	ageval = strntoul( maxage, strlen( maxage ), 10 );
+	slapi_ch_free_string(&maxage);
+	switch ( unit ) 
 	{
 		case 's':
 			break;
@@ -297,10 +291,10 @@ age_str2time (const char *age)
 			break;
 		default:
 			slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, 
-                            "age_str2time: unknown unit \"%c\" "
+							"age_str2time: unknown unit \"%c\" "
 							"for maxiumum changelog age\n", unit );
 			ageval = -1;
-    }
+	}
 
 	return ageval;
 }
@@ -394,7 +388,7 @@ make_changes_string(LDAPMod **ldm, char **includeattrs)
 
 	    addlenstr( l, buf );
 
-	    free( buf );
+	    slapi_ch_free_string( &buf );
 	}
 	addlenstr( l, "-\n" );
     }
@@ -635,7 +629,7 @@ LDAPControl* create_backend_control (Slapi_DN *sdn)
 		control = (LDAPControl*)slapi_ch_malloc (sizeof (LDAPControl));
 		
 		control->ldctl_oid = slapi_ch_strdup ("2.16.840.1.113730.3.4.14");
-		control->ldctl_value.bv_val = strdup(be_name);
+		control->ldctl_value.bv_val = slapi_ch_strdup(be_name);
 		control->ldctl_value.bv_len = strlen (be_name);
 		control->ldctl_iscritical = 1;
 	}

@@ -303,7 +303,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		} else {
 			err = LDAP_SUCCESS;
 			f->f_type = slapi_attr_syntax_normalize( type );
-			free( type );
+			slapi_ch_free_string( &type );
 			filter_compute_hash(f);
 			*fstr = slapi_ch_smprintf( "(%s=*)", f->f_type );
 		}
@@ -458,7 +458,7 @@ get_substring_filter(
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	f->f_sub_type = slapi_attr_syntax_normalize( type );
-	free( type );
+	slapi_ch_free_string( &type );
 	f->f_sub_initial = NULL;
 	f->f_sub_any = NULL;
 	f->f_sub_final = NULL;
@@ -477,7 +477,7 @@ get_substring_filter(
 		}
 		if ( val == NULL || *val == '\0' ) {
 			if ( val != NULL ) {
-				free( val );
+				slapi_ch_free_string( &val );
 			}
 			return( LDAP_INVALID_SYNTAX );
 		}
@@ -593,7 +593,7 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 				rc = LDAP_PROTOCOL_ERROR;
 			    } else {
 				mrf->mrf_type = slapi_attr_syntax_normalize(type);
-				free (type);
+				slapi_ch_free_string (&type);
 			    }
 			}
 			gotelem++;
@@ -642,7 +642,7 @@ parsing_error:;
 Slapi_Filter *
 slapi_filter_dup(Slapi_Filter *f)
 {
-	Slapi_Filter *out = 0;
+	Slapi_Filter         *out = 0;
 	struct slapi_filter *fl = 0;
 	struct slapi_filter **outl = 0;
 	struct slapi_filter *lastout = 0;
@@ -651,7 +651,7 @@ slapi_filter_dup(Slapi_Filter *f)
 		return NULL;
 	}
 
-	out = (struct slapi_filter*)calloc(1, sizeof(struct slapi_filter));
+	out = (struct slapi_filter*)slapi_ch_calloc(1, sizeof(struct slapi_filter));
 	if ( out == NULL ) {
 		LDAPDebug(LDAP_DEBUG_ANY, "slapi_filter_dup: memory allocation error\n",
 		    0, 0, 0 );

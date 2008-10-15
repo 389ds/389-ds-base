@@ -105,7 +105,7 @@ decode( char *orig )
     if ( NULL == orig ) {
 	return NULL;
     }
-    r = calloc( 1, strlen( orig ) + 2 );
+    r = slapi_ch_calloc( 1, strlen( orig ) + 2 );
     strcpy( r, orig );
 
     if ( heflag ) {
@@ -282,7 +282,7 @@ main( argc, argv )
 			}
 
 			puts( enc );
-			free( enc );
+			slapi_ch_free_string( &enc );
 		} else {		/* compare passwords */
 			if (( rc = (*(cmppwsp->pws_cmp))( decode( argv[ optind ]), cmp )) == 0 ) {
 			printf( "%s: password ok.\n", name );

@@ -184,7 +184,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 			return_value = dbc->c_get(dbc,&key,&data,DB_SET);
 			if (0 == return_value)
 			{
-				free(data.data);
+				slapi_ch_free(&(data.data));
 				return_value = dbc->c_get(dbc,&key,&data,DB_NEXT);
 			}
 			else
@@ -198,7 +198,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 			return_value = dbc->c_get(dbc,&key,&data,DB_SET);
 			if (0 == return_value )
 			{
-				free(data.data);
+				slapi_ch_free(&(data.data));
 				return_value = dbc->c_get(dbc,&key,&data,DB_PREV);
 			}
 			else
@@ -216,7 +216,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 				return_value = dbc->c_get(dbc,&key,&data,DB_SET_RANGE);
 				if (0 == return_value || DB_NOTFOUND == return_value)
 				{
-					free(data.data);
+					slapi_ch_free(&(data.data));
 					return_value = dbc->c_get(dbc,&key,&data,DB_PREV); 
 				}
 			}
@@ -252,11 +252,11 @@ ldbm_back_seq( Slapi_PBlock *pb )
 		} else if ( err != 0 && err != DB_NOTFOUND ) {
 		  ldbm_nasty("ldbm_back_seq database error", 1650, err);
 		}
-		free( data.data );
+		slapi_ch_free( &(data.data) );
 		if ( key.data != little_buffer && key.data != &keystring ) {
-		    free( key.data );
+		    slapi_ch_free( &(key.data) );
 		}
-		free( big_buffer );
+		slapi_ch_free_string( &big_buffer );
 	}
 
 	/* null idlist means there were no matching keys */

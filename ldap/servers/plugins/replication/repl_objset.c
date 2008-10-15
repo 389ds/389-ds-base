@@ -95,7 +95,7 @@ repl_objset_new(FNFree destructor)
 	p->lock = PR_NewLock();
 	if (NULL == p->lock)
 	{
-		free(p); p = NULL;
+		slapi_ch_free((void **)&p);
 	}
 	p->objects = llistNew();
 	p->destructor = destructor;
@@ -196,7 +196,7 @@ repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
 		/* Free the linked list */
 		llistDestroy(&(*o)->objects, (*o)->destructor);
 		PR_DestroyLock((*o)->lock);
-		free(*o); *o = NULL;
+		slapi_ch_free((void **)o);
 	}
 }
 
@@ -270,9 +270,9 @@ removeObjectNolock(Repl_Objset *o, Repl_Objset_object *co)
 	llistRemove(o->objects, co->key);
 	/* Destroy the object */
 	o->destructor(&(co->data));
-	free(co->key);
+	slapi_ch_free((void **)&(co->key));
 	/* Deallocate the container */
-	free(co);
+	slapi_ch_free((void **)&co);
 }
 
 static Repl_Objset_object *
@@ -287,9 +287,9 @@ removeCurrentObjectAndGetNextNolock (Repl_Objset *o, Repl_Objset_object *co, voi
 	ro = llistRemoveCurrentAndGetNext (o->objects, &iterator);
 
 	o->destructor(&(co->data));
-	free(co->key);
+	slapi_ch_free((void **)&(co->key));
 	/* Deallocate the container */
-	free(co);
+	slapi_ch_free((void **)&co);
 
 	return ro;	
 }

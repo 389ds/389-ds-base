@@ -218,9 +218,9 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR + DB_VERSION_PATCH <= 3204
     /* In DB 3.2.4 and earlier, we need to free each element */
     for (i = 0; mpfstat[i]; i++)
-        free(mpfstat[i]);
+        slapi_ch_free((void **)&mpfstat[i]);
 #endif
-    free(mpfstat);
+    slapi_ch_free((void **)&mpfstat);
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
@@ -275,16 +275,16 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
     sprintf(buf, "%u", mpstat->st_rw_evict);
     MSET("dbCacheRWEvict");
 
-    free(mpstat);
+    slapi_ch_free((void **)&mpstat);
 
     if (mpfstat) {
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR + DB_VERSION_PATCH <= 3204
         /* In DB 3.2.4 and earlier, we need to free each element */
         int i;
         for (i = 0; mpfstat[i]; i++)
-            free(mpfstat[i]);
+            slapi_ch_free((void **)&mpfstat[i]);
 #endif
-        free(mpfstat);
+        slapi_ch_free((void **)&mpfstat);
     }
 
     *returncode = LDAP_SUCCESS;

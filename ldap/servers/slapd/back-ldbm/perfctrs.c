@@ -91,7 +91,7 @@ char * string_concatenate(char *a, char* b)
 	char *string = NULL;
 
 	string_length = strlen(a) + strlen(b) + 1;
-	string = malloc(string_length);
+	string = slapi_ch_malloc(string_length);
 	if (NULL == string) {
 		return string;
 	}
@@ -188,7 +188,7 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	/*
 	 * We need the perfctrs_private area on all platforms.
 	 */
-	priv = calloc(1,sizeof(perfctrs_private));
+	priv = (perfctrs_private *)slapi_ch_calloc(1,sizeof(perfctrs_private));
 	if (NULL == priv) {
 		return;
 	}
@@ -210,7 +210,7 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	/*
 	 * On other platforms, the performance counters reside in regular memory.
 	 */
-	if ( NULL == ( priv->memory = calloc( 1, sizeof( performance_counters )))) {
+	if ( NULL == ( priv->memory = slapi_ch_calloc( 1, sizeof( performance_counters )))) {
 		return;
 	}
 #endif
@@ -226,13 +226,13 @@ void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 	DB_LOG_STAT   *logstat = NULL;
 	DB_LOCK_STAT  *lockstat = NULL;
 
-	MEMP_STAT(db_env, &mpstat, NULL, DB_STAT_CLEAR, malloc);
+	MEMP_STAT(db_env, &mpstat, NULL, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
 	slapi_ch_free((void**)&mpstat);
-	TXN_STAT(db_env, &txnstat, DB_STAT_CLEAR, malloc);
+	TXN_STAT(db_env, &txnstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
 	slapi_ch_free((void**)&txnstat);
-	LOG_STAT(db_env, &logstat, DB_STAT_CLEAR, malloc);
+	LOG_STAT(db_env, &logstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
 	slapi_ch_free((void**)&logstat);
-	LOCK_STAT(db_env, &lockstat, DB_STAT_CLEAR, malloc);
+	LOCK_STAT(db_env, &lockstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
 	slapi_ch_free((void**)&lockstat);
 #if defined(_WIN32)
 	if (NULL != (*priv)->memory) {
@@ -246,12 +246,11 @@ void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 	}
 #else
 	if (NULL != (*priv)->memory) {
-		free((*priv)->memory);
+		slapi_ch_free(&(*priv)->memory);
 	}
 #endif
 
-	free( (*priv) );
-        (*priv) = NULL;
+	slapi_ch_free( (void **)priv );
 }
 
 /* Wait while checking for perfctr update requests */
@@ -299,31 +298,30 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 	if (dblayer_db_uses_logging(db_env))
 	{
 		DB_LOG_STAT *logstat = NULL;
-		ret = LOG_STAT(db_env,&logstat,0,malloc);
+		ret = LOG_STAT(db_env,&logstat,0,(void *)slapi_ch_malloc);
 		if (0 == ret) {
 			perf->log_region_wait_rate = logstat->st_region_wait;
 			perf->log_write_rate = 1024*1024*logstat->st_w_mbytes + logstat->st_w_bytes;
 			perf->log_bytes_since_checkpoint = 1024*1024*logstat->st_wc_mbytes + logstat->st_wc_bytes;
 		}
-		free(logstat);
+		slapi_ch_free((void **)&logstat);
 	}
 	if (dblayer_db_uses_transactions(db_env))
 	{
 		DB_TXN_STAT *txnstat = NULL;
-		ret = TXN_STAT(db_env, &txnstat, 0, malloc);
+		ret = TXN_STAT(db_env, &txnstat, 0, (void *)slapi_ch_malloc);
 		if (0 == ret) {
 			perf->active_txns = txnstat->st_nactive;
 			perf->commit_rate = txnstat->st_ncommits;
 			perf->abort_rate = txnstat->st_naborts;
 			perf->txn_region_wait_rate = txnstat->st_region_wait;
 		}
-		if (txnstat)
-			free(txnstat);
+		slapi_ch_free((void **)&txnstat);
 	}
 	if (dblayer_db_uses_locking(db_env))
 	{
 		DB_LOCK_STAT *lockstat = NULL;
-		ret = LOCK_STAT(db_env,&lockstat,0,malloc);
+		ret = LOCK_STAT(db_env,&lockstat,0,(void *)slapi_ch_malloc);
 		if (0 == ret) {
 			perf->lock_region_wait_rate = lockstat->st_region_wait;	
 			perf->deadlock_rate = lockstat->st_ndeadlocks;
@@ -336,12 +334,12 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 			perf->current_lock_objects = lockstat->st_nobjects;
 			perf->max_lock_objects = lockstat->st_maxnobjects;
 		}
-		free(lockstat);
+		slapi_ch_free((void **)&lockstat);
 	}
 	if (dblayer_db_uses_mpool(db_env))
 	{
 		DB_MPOOL_STAT	*mpstat = NULL;
-		ret = MEMP_STAT(db_env,&mpstat,NULL,0,malloc);
+		ret = MEMP_STAT(db_env,&mpstat,NULL,0,(void *)slapi_ch_malloc);
 		if (0 == ret) {
 #define ONEG  1073741824
 			perf->cache_size_bytes = mpstat->st_gbytes * ONEG + mpstat->st_bytes;
@@ -362,7 +360,7 @@ void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
 			perf->clean_pages = mpstat->st_page_clean;			
 			perf->page_trickle_rate = mpstat->st_page_trickle;			
 			perf->cache_region_wait_rate = mpstat->st_region_wait;			
-			free(mpstat);
+			slapi_ch_free((void **)&mpstat);
 		}
 	}
 	/* Place the stats in the shared memory region */

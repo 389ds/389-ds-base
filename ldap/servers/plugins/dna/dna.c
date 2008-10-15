@@ -680,7 +680,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
 
     value = slapi_entry_get_ndn(e);
     if (value) {
-        entry->dn = strdup(value);
+        entry->dn = slapi_ch_strdup(value);
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
