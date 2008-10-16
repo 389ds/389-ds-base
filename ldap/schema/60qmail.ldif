@@ -1,0 +1,442 @@
+# 60qmail.ldif - From qmail-ldap
+# Attributes mailMessageStore, mailAlternateAddress, mailForwardingAddress, and
+# mailHost are already present in 50ns-mail.ldif
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.1
+  NAME 'qmailUID'
+  DESC 'UID of the user on the mailsystem'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.2
+  NAME 'qmailGID'
+  DESC 'GID of the user on the mailsystem'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+# Present in 50ns-mail.ldif
+# attributeTypes: (
+#   1.3.6.1.4.1.7914.1.2.1.3
+#   NAME 'mailMessageStore'
+#   DESC 'Path to the maildir/mbox on the mail system'
+#   EQUALITY caseExactIA5Match
+#   SUBSTR caseIgnoreIA5SubstringsMatch
+#   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+#   SINGLE-VALUE
+#   )
+#
+################################################################################
+# Present in 50ns-mail.ldif
+# attributeTypes: (
+#   1.3.6.1.4.1.7914.1.2.1.4
+#   NAME 'mailAlternateAddress'
+#   DESC 'Secondary (alias) mailaddresses for the same user'
+#   EQUALITY caseIgnoreIA5Match
+#   SUBSTR caseIgnoreIA5SubstringsMatch
+#   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+#   )
+#
+################################################################################
+# Present in 50ns-mail.ldif
+# attributeTypes: (
+#   1.3.6.1.4.1.7914.1.2.1.6
+#   NAME 'mailHost'
+#   DESC 'On which qmail server the messagestore of this user is located.'
+#   EQUALITY caseIgnoreIA5Match
+#   SUBSTR caseIgnoreIA5SubstringsMatch
+#   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+#   SINGLE-VALUE
+#   )
+#
+################################################################################
+# Present in 50ns-mail.ldif
+# attributeTypes: (
+#   1.3.6.1.4.1.7914.1.2.1.7
+#   NAME 'mailForwardingAddress'
+#   DESC 'Address(es) to forward all incoming messages to.'
+#   EQUALITY caseIgnoreIA5Match
+#   SUBSTR caseIgnoreIA5SubstringsMatch
+#   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+#   )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.8
+  NAME 'deliveryProgramPath'
+  DESC 'Program to execute for all incoming mails.'
+  EQUALITY caseExactIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.9
+  NAME 'qmailDotMode'
+  DESC 'Interpretation of .qmail files: both, dotonly, ldaponly, ldapwithprog'
+  EQUALITY caseIgnoreIA5Match
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{32}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.10
+  NAME 'deliveryMode'
+  DESC 'multi field entries of: nolocal, noforward, noprogram, reply'
+  EQUALITY caseIgnoreIA5Match
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{32}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.11
+  NAME 'mailReplyText'
+  DESC 'A reply text for every incoming message'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{4096}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.12
+  NAME 'accountStatus'
+  DESC 'The status of a user account: active, noaccess, disabled, deleted'
+  EQUALITY caseIgnoreIA5Match
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.13
+  NAME 'qmailAccountPurge'
+  DESC 'The earliest date when a mailMessageStore will be purged'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.15
+  NAME 'mailQuotaSize'
+  DESC 'The size of space the user can have until further messages get bounced.'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.16
+  NAME 'mailQuotaCount'
+  DESC 'The number of messages the user can have until further messages get bounced.'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.2.1.17
+  NAME 'mailSizeMax'
+  DESC 'The maximum size of a single messages the user accepts.'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.1
+  NAME 'dnmember'
+  DESC 'Group member specified as distinguished name.'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.2
+  NAME 'rfc822member'
+  DESC 'Group member specified as normal rf822 email address.'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.3
+  NAME 'filtermember'
+  DESC 'Group member specified as ldap search filter.'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{512}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.4
+  NAME 'senderconfirm'
+  DESC 'Sender to Group has to answer confirmation email.'
+  EQUALITY booleanMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.5
+  NAME 'membersonly'
+  DESC 'Sender to Group must be group member itself.'
+  EQUALITY booleanMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.6
+  NAME 'confirmtext'
+  DESC 'Text that will be sent with sender confirmation email.'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{4096}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.7
+  NAME 'dnmoderator'
+  DESC 'Group moderator specified as Distinguished name.'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.8
+  NAME 'rfc822moderator'
+  DESC 'Group moderator specified as normal rfc822 email address.'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.9
+  NAME 'moderatortext'
+  DESC 'Text that will be sent with request for moderation email.'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{4096}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.10
+  NAME 'dnsender'
+  DESC 'Allowed sender specified as distinguished name.'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.11
+  NAME 'rfc822sender'
+  DESC 'Allowed sender specified as normal rf822 email address.'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.3.1.12
+  NAME 'filtersender'
+  DESC 'Allowed sender specified as ldap search filter.'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{512}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.1
+  NAME 'qladnmanager'
+  DESC 
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.2
+  NAME 'qlaDomainList'
+  DESC 
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.3
+  NAME 'qlaUidPrefix'
+  DESC 
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.4
+  NAME 'qlaQmailUid'
+  DESC 
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.5
+  NAME 'qlaQmailGid'
+  DESC 
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.6
+  NAME 'qlaMailMStorePrefix'
+  DESC 
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.7
+  NAME 'qlaMailQuotaSize'
+  DESC 
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.8
+  NAME 'qlaMailQuotaCount'
+  DESC 
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.9
+  NAME 'qlaMailSizeMax'
+  DESC 
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.7914.1.4.1.10
+  NAME 'qlaMailHostList'
+  DESC 
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  )
+#
+################################################################################
+#
+objectClasses: (
+  1.3.6.1.4.1.7914.1.2.2.1
+  NAME 'qmailUser'
+  DESC 'QMail-LDAP User'
+  SUP top
+  AUXILIARY
+  MUST ( mail )
+  MAY ( uid $ mailMessageStore $ homeDirectory $ userPassword $ mailAlternateAddress $ qmailUID $ qmailGID $ mailHost $ mailForwardingAddress $ deliveryProgramPath $ qmailDotMode $ deliveryMode $ mailReplyText $ accountStatus $ qmailAccountPurge $ mailQuotaSize $ mailQuotaCount $ mailSizeMax )
+  )
+#
+################################################################################
+#
+objectClasses: (
+  1.3.6.1.4.1.7914.1.3.2.1
+  NAME 'qmailGroup'
+  DESC 'QMail-LDAP Group'
+  SUP top
+  AUXILIARY
+  MUST ( mail $ mailAlternateAddress $ mailMessageStore )
+  MAY ( dnmember $ rfc822member $ filtermember $ senderconfirm $ membersonly $ confirmtext $ dnmoderator $ rfc822moderator $ moderatortext $ dnsender $ rfc822sender $ filtersender)
+  )
+#
+################################################################################
+#

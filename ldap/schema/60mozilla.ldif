@@ -1,0 +1,213 @@
+# 60mozilla.ldif
+# mozillaAbPersonAlpha
+#
+# Created initial version --[[User:Standard8|Standard8]] 12:21, 5 Dec 2005 (PST)
+#
+# This file contains LDAPv3 schema for use with the Mozilla Address Book
+# and is intended to ...
+#
+# Depends upon
+#   Definition of an X.500 Attribute Type and an Object Class to Hold
+#   Uniform Resource Identifiers (URIs) [RFC2079], and A Summary of
+#   the X.500(96) User Schema for use with LDAPv3 [RFC2256] (core.schema)
+#
+#   The COSINE and Internet X.500 Schema [RFC1274] (cosine.schema)
+#
+#   The InetOrgPerson Schema [RFC2798] (inetorgperson.schema)
+#
+# 1.3.6.1.4.1.13769.4.x - Mozilla AB 'Other' tab
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.4.1
+  NAME 'mozillaCustom1'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.4.2
+  NAME 'mozillaCustom2'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.4.3
+  NAME 'mozillaCustom3'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.4.4
+  NAME 'mozillaCustom4'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.1
+  NAME 'mozillaHomeStreet'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.2
+  NAME 'mozillaHomeStreet2'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.3
+  NAME 'mozillaHomeLocalityName'
+  SUP name
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.4
+  NAME 'mozillaHomeState'
+  SUP name
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.5
+  NAME 'mozillaHomePostalCode'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{40}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.6
+  NAME 'mozillaHomeCountryName'
+  SUP name
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.7
+  NAME 'mozillaHomeUrl'
+  EQUALITY caseIgnoreMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.8
+  NAME 'mozillaWorkStreet2'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.3.9
+  NAME 'mozillaWorkUrl'
+  EQUALITY caseIgnoreMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.2.1
+  NAME ( 'mozillaNickname' 'xmozillanickname' )
+  SUP name
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.2.2
+  NAME ( 'mozillaSecondEmail' 'xmozillasecondemail' )
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256}
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.13769.2.3
+  NAME ( 'mozillaUseHtmlMail' 'xmozillausehtmlmail' )
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+  SINGLE-VALUE
+  )
+#
+################################################################################
+# nsAIMid is already defined in 10presence.ldif as 2.16.840.1.113730.3.1.2013
+attributeTypes: (
+  1.3.6.1.4.1.13769.2.4
+  NAME ( 'nscpaimscreenname' )
+  EQUALITY telephoneNumberMatch
+  SUBSTR telephoneNumberSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.50
+  )
+#
+################################################################################
+# 1.3.6.1.4.1.13769.9 - Mozilla AB objectclasses
+#
+# The mozillaAddressBookEntry object class is used to define entries
+# representing Cards in the Mozilla Address Book.  The commonName attribute
+# is used for naming entries of this object class, but may not be unique.
+#
+objectClasses: (
+  1.3.6.1.4.1.13769.9.1
+  NAME 'mozillaAbPersonAlpha'
+  SUP top
+  AUXILIARY
+  MUST ( cn )
+  MAY ( c $ description $ displayName $ fax $ givenName $ homePhone $ l $ mail $ mobile $ mozillaCustom1 $ mozillaCustom2 $ mozillaCustom3 $ mozillaCustom4 $ mozillaHomeCountryName $ mozillaHomeLocalityName $ mozillaHomePostalCode $ mozillaHomeState $ mozillaHomeStreet $ mozillaHomeStreet2 $ mozillaHomeUrl $ mozillaNickname $ mozillaSecondEmail $ mozillaUseHtmlMail $ mozillaWorkStreet2 $ mozillaWorkUrl $ nsAIMid $ o $ ou $ pager $ postalCode $ postOfficeBox $ sn $ st $ street $ telephoneNumber $ title )
+  )
+#
+################################################################################
+#

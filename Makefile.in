@@ -1091,6 +1091,12 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf
 
+
+# the schema files in this list are either not
+# standard schema, not tested, or not compatible
+# with the default schema e.g. there is
+# considerable overlap of 60changelog.ldif and 01common.ldif
+# and 60inetmail.ldif and 50ns-mail.ldif among others
 sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
@@ -1117,7 +1123,17 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits \
-	$(srcdir)/ldap/schema/10rfc2307bis.ldif
+	$(srcdir)/ldap/schema/10rfc2307bis.ldif \
+	$(srcdir)/ldap/schema/60changelog.ldif \
+	$(srcdir)/ldap/schema/60inetmail.ldif \
+	$(srcdir)/ldap/schema/60krb5kdc.ldif \
+	$(srcdir)/ldap/schema/60kerberos.ldif \
+	$(srcdir)/ldap/schema/60nis.ldif \
+	$(srcdir)/ldap/schema/60qmail.ldif \
+	$(srcdir)/ldap/schema/60radius.ldif \
+	$(srcdir)/ldap/schema/60rfc4876.ldif \
+	$(srcdir)/ldap/schema/60samba.ldif \
+	$(srcdir)/ldap/schema/60samba3.ldif
 
 schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/01common.ldif \
@@ -1136,6 +1152,15 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/50ns-value.ldif \
 	$(srcdir)/ldap/schema/50ns-web.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
+	$(srcdir)/ldap/schema/60autofs.ldif \
+	$(srcdir)/ldap/schema/60eduperson.ldif \
+	$(srcdir)/ldap/schema/60mozilla.ldif \
+	$(srcdir)/ldap/schema/60pureftpd.ldif \
+	$(srcdir)/ldap/schema/60rfc2739.ldif \
+	$(srcdir)/ldap/schema/60rfc3712.ldif \
+	$(srcdir)/ldap/schema/60sabayon.ldif \
+	$(srcdir)/ldap/schema/60sudo.ldif \
+	$(srcdir)/ldap/schema/60trust.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \

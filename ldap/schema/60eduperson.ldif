@@ -1,0 +1,100 @@
+# 60eduperson.ldif - See http://www.educause.edu/eduperso
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.1
+  NAME 'eduPersonAffiliation'
+  DESC 'Affiliation'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.2
+  NAME 'eduPersonNickName'
+  DESC 'NickName'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.3
+  NAME 'eduPersonOrgDN'
+  DESC 'Organization DN'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.4
+  NAME 'eduPersonOrgUnitDN'
+  DESC 'Organizational Unit DN'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.5
+  NAME 'eduPersonPrimaryAffiliation'
+  DESC 'Primary Affiliation'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.6
+  NAME 'eduPersonPrincipalName'
+  DESC 'Principal Name'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.7
+  NAME 'eduPersonEntitlement'
+  DESC 'Entitlement'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.8
+  NAME 'eduPersonPrimaryOrgUnitDN'
+  DESC 'Primary Organizational Unit'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.4.1.5923.1.1.1.9
+  NAME 'eduPersonScopedAffiliation'
+  DESC 'Scoped Affiliation'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  )
+#
+################################################################################
+#
+objectClasses: (
+  1.3.6.1.4.1.5923.1.1.2
+  NAME 'eduPerson'
+  AUXILIARY
+  MAY ( eduPersonAffiliation $ eduPersonNickName $ eduPersonOrgDN $ eduPersonOrgUnitDN $ eduPersonPrimaryAffiliation $ eduPersonPrincipalName $ eduPersonEntitlement $eduPersonPrimaryOrgUnitDN $ eduPersonScopedAffiliation )
+  )
+#
+################################################################################
+#

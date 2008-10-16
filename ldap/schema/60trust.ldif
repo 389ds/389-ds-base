@@ -1,0 +1,44 @@
+# 60trust.ldif - Commonly used for trust relationships
+# For nss_ldap and/or pam_ldap
+# dc=com?sub?objectclass=posixAccount)(|(trustmodel=fullaccess)(accessto=server)
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: (
+  5.3.6.1.1.1.1.0
+  NAME 'trustModel'
+  DESC 'Access scheme'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  5.3.6.1.1.1.1.1
+  NAME 'accessTo'
+  DESC 'Access to which servers user is allowed'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  )
+#
+################################################################################
+#
+objectClasses: (
+  5.3.6.1.1.1.2.0
+  NAME 'trustAccount'
+  DESC 'Sets trust accounts information'
+  SUP top
+  AUXILIARY
+  MUST ( trustModel )
+  MAY ( accessTo )
+  )
+#
+################################################################################
+#

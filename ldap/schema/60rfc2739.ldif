@@ -1,0 +1,114 @@
+# 60rfc2739.ldif - RFC 2739, Calendar Attributes for vCard and LDAP
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.478
+  NAME 'calCalURI'
+  DESC 'RFC2739: URI of entire default calendar'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.479
+  NAME 'calFBURL'
+  DESC 'RFC2739: URI to the users default freebusy data'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.480
+  NAME 'calCAPURI'
+  DESC 'RFC2739: URI used to communicate with the users calendar'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.481
+  NAME 'calCalAdrURI'
+  DESC 'RFC2739: URI for event equests destination'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.482
+  NAME 'calOtherCalURIs'
+  DESC 'RFC2739: multi-value URI for snapshots of other calendars'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.483
+  NAME 'calOtherFBURLs'
+  DESC 'RFC2739: multi-value URI for other free/busy data'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.484
+  NAME 'calOtherCAPURIs'
+  DESC 'RFC2739: multi-value URI to other calendars'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+attributeTypes: (
+  1.2.840.113556.1.4.485
+  NAME 'calOtherCalAdrURIs'
+  DESC 'RFC2739: multi-value URI to other request destinations'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE userApplications
+  )
+#
+################################################################################
+#
+objectClasses: (
+  1.2.840.113556.1.5.87
+  NAME 'calEntry'
+  DESC 'RFC2739: Calendar Entry'
+  SUP top
+  AUXILIARY
+  MAY ( calCalURI $ calFBURL $ calOtherCalURIs $ calOtherFBURLs $ calCAPURI $ calOtherCAPURIs )
+  )
+#
+################################################################################
+#

@@ -1,0 +1,61 @@
+###########################################################
+# 1.3.6.1.4.1.2312 dot notation
+# 1.3.6.1.4.1.2312.4.3.3 attributeTypes
+# 1.3.6.1.4.1.2312.4.3.4 objectClasses
+###########################################################
+dn: cn=schema
+# These example schema can be used to integrate sabayon with ldap
+# However, the ldap support in sabayon is very flexible, so you can
+# choose to do your own ldap integration using a different schema
+# This attribute is used to point to a sabayon profile file
+# that is accessible via a (typically http) url
+attributeTypes: (
+  1.3.6.1.4.1.2312.4.3.3.1
+  NAME 'sabayonProfileURL'
+  DESC 'The URL of a sabayon profile'
+  SUP labeledURI
+)
+# This attribute is used to store the name of a sabayon profile.
+# It can refer to either a local zipfile (which will be looked up
+# in /etc/desktop-profiles/$(name).zip), or it can be used to
+# map to another ldap object that maps to the final profile URL
+attributeTypes: (
+  1.3.6.1.4.1.2312.4.3.3.2
+  NAME 'sabayonProfileName'
+  DESC 'The Name of a sabayon profile'
+  EQUALITY caseIgnoreMatch 
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 
+  SINGLE-VALUE
+)
+# Simple example object to store profile information
+# If you use this or something similar instead of a direct URL
+# in your user object you get more flexibility.
+objectClasses: (
+  1.3.6.1.4.1.2312.4.3.4.1
+  NAME 'sabayonProfile' 
+  DESC 'sabayon profile' 
+  SUP top
+  STRUCTURAL
+  MUST cn
+  MAY ( sabayonProfileURL $ description )
+)
+# Use these to put sabayonProfileName or sabayonProfileURL
+# attributes in an objetc
+objectClasses: (
+  1.3.6.1.4.1.2312.4.3.4.2
+  NAME 'sabayonProfileNameObject'
+  DESC 'contains sabayon profile name' 
+  SUP top
+  AUXILIARY
+  MUST sabayonProfileName 
+)
+objectClasses: ( 
+  1.3.6.1.4.1.2312.4.3.4.3  
+  NAME 'sabayonProfileURLObject'
+  DESC 'contains sabayon profile'
+  SUP top
+  AUXILIARY
+  MUST cn
+  MAY sabayonProfileURL  
+)

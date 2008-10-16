@@ -1,0 +1,41 @@
+# 60autofs.ldif - From draft-howard-rfc2307bis
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: (
+  1.3.6.1.1.1.1.33 
+  NAME 'automountInformation'
+  DESC 'Information used by the autofs automounter'
+  EQUALITY caseExactIA5Match
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
+objectClasses: (
+  1.3.6.1.1.1.2.17
+  NAME 'automount'
+  DESC 'An entry in an automounter map'
+  SUP top
+  STRUCTURAL
+  MUST ( cn $ automountInformation )
+  MAY ( description )
+  )
+#
+################################################################################
+#
+objectClasses: (
+  1.3.6.1.1.1.2.16
+  NAME 'automountMap'
+  DESC 'An group of related automount objects'
+  SUP top
+  STRUCTURAL
+  MUST ( ou )
+  )
+#
+################################################################################
+#
