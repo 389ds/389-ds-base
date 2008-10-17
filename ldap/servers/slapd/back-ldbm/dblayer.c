@@ -293,7 +293,7 @@ int dblayer_db_uses_mpool(DB_ENV *db_env) {
 
 int dblayer_db_uses_logging(DB_ENV *db_env) {
     return db_uses_feature(db_env, DB_INIT_LOG);
-};
+}
 
 /* this flag use if user remotely turned batching off */
 
