@@ -49,13 +49,6 @@
 #include "back-ldbm.h"
 #include "import.h"
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
-
 struct _import_merge_thang
 {
 	int type;
@@ -674,7 +667,7 @@ int import_mega_merge(ImportJob *job)
     if (1 == job->number_indexers) {
 	import_log_notice(job, "Beginning %d-way merge of one file...", passes);
     } else {
-	import_log_notice(job, "Beginning %d-way merge of up to %" PRIuPTR " files...",
+	import_log_notice(job, "Beginning %d-way merge of up to %lu files...",
 			  passes, job->number_indexers);
     }
 

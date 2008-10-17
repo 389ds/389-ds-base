@@ -42,13 +42,6 @@
 
 /* ldbm_config.c - Handles configuration information that is global to all ldbm instances. */
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
-
 #include "back-ldbm.h"
 #include "dblayer.h"
 
@@ -1426,7 +1419,7 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
         break;
     case CONFIG_TYPE_SIZE_T:
         val = (size_t) config->config_get_fn(arg);
-        sprintf(buf, "%" PRIuPTR, val);
+        sprintf(buf, "%lu", val);
         break;
     case CONFIG_TYPE_STRING:
         /* Remember the get function for strings returns memory

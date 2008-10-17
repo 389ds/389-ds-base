@@ -72,13 +72,6 @@
 #include <pwd.h>
 #endif  /* _WIN32 */
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
-
 /* #define SLAPI_DSE_DEBUG */ 	/* define this to force trace log	*/
 								/* messages to always be logged		*/
 
@@ -612,7 +605,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
         struct berval val;
         vals[0] = &val;
         vals[1] = NULL;
-        sprintf(value_buffer,"%" PRIuPTR,current_sub_count);
+        sprintf(value_buffer,"%lu",current_sub_count);
         val.bv_val = value_buffer;
         val.bv_len = strlen (val.bv_val);
         switch(mod_op)

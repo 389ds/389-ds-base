@@ -47,13 +47,6 @@
  * code for db2index (is this still in use?)
  */
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
-
 #include "back-ldbm.h"
 #include "vlv_srch.h"
 #include "dblayer.h"
@@ -327,7 +320,7 @@ static int import_update_entry_subcount(backend *be, ID parentid,
      * let's do it so we can reuse the modify routines) */
     cache_lock_entry( &inst->inst_cache, e );
     modify_init(&mc,e);
-    sprintf(value_buffer,"%" PRIuPTR,sub_count);
+    sprintf(value_buffer,"%lu",sub_count);
     /* attr numsubordinates could already exist in the entry,
        let's check whether it's already there or not */
     isreplace = (attrlist_find(e->ep_entry->e_attrs, numsubordinates) != NULL);

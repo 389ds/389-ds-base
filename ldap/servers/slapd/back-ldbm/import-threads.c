@@ -49,13 +49,6 @@
  * a wire import (aka "fast replica" import) won't have a producer thread.
  */
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
-
 #include "back-ldbm.h"
 #include "vlv_srch.h"
 #include "import.h"
@@ -579,7 +572,7 @@ void import_producer(void *param)
                     escape_string(slapi_entry_get_dn(e), ebuf),
                     curr_lineno, curr_filename);
             import_log_notice(job, "REASON: entry too large (%ld bytes) for "
-                    "the buffer size (%" PRIuPTR " bytes)", newesize, job->fifo.bsize);
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -812,8 +805,8 @@ void index_producer(void *param)
             char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf));
-            import_log_notice(job, "REASON: entry too large (%" PRIuPTR " bytes) for "
-                    "the buffer size (%" PRIuPTR " bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -1606,8 +1599,8 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(ep->ep_entry), ebuf));
-        import_log_notice(job, "REASON: entry too large (%" PRIuPTR " bytes) for "
-                    "the import buffer size (%" PRIuPTR " bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
+        import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
         backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);

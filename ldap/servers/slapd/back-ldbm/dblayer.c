@@ -97,13 +97,6 @@
 #include "dblayer.h"
 #include <prrwlock.h>
 
-/* Required to get portable printf/scanf format macros */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#error Need to define portable format macros such as PRIu64
-#endif /* HAVE_INTTYPES_H */
-
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
@@ -929,7 +922,7 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
                 if (feof(f))
                     break;
                 if (strncmp(s, "VmSize:", 7) == 0) {
-                    sscanf(s+7, "%" PRIuPTR, procpages);
+                    sscanf(s+7, "%lu", procpages);
                     break;
                 }
             }
