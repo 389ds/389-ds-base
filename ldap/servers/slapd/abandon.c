@@ -153,15 +153,15 @@ do_abandon( Slapi_PBlock *pb )
 	}
 
 	if ( NULL == o ) {
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d ABANDON"
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
 			" targetop=NOTFOUND msgid=%d\n",
 			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
 	} else if ( suppressed_by_plugin ) {
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d ABANDON"
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64"  op=%d ABANDON"
 			" targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
 			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
 	} else {
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d ABANDON"
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
 			" targetop=%d msgid=%d nentries=%d etime=%ld\n",
 			pb->pb_conn->c_connid, pb->pb_op->o_opid, o->o_opid, id,
 			o->o_results.r.r_search.nentries, current_time() - o->o_time );

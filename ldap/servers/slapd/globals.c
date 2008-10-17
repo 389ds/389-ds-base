@@ -91,8 +91,8 @@ Slapi_PBlock	*repl_pb = NULL;
 PRInt32		ops_initiated;
 PRInt32		ops_completed;
 PRLock		*ops_mutex;
-int		num_conns;
-PRLock		*num_conns_mutex;
+Slapi_Counter	*num_conns;
+
 
 /*
   DEC/COMPAQ has released a patch for 4.0d (e?) which will speed up

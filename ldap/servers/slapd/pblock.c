@@ -188,7 +188,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		          "Connection is NULL and hence cannot access SLAPI_CONN_ID \n", 0, 0, 0 );
 			return (-1);
 		}
-		(*(int *)value) = pblock->pb_conn->c_connid;
+		(*(PRUint64 *)value) = pblock->pb_conn->c_connid;
 		break;
 	case SLAPI_CONN_DN:
 		/*
@@ -1665,7 +1665,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		          "Connection is NULL and hence cannot access SLAPI_CONN_ID \n", 0, 0, 0 );
 			return (-1);
 		}
-		pblock->pb_conn->c_connid = *((int *) value);
+		pblock->pb_conn->c_connid = *((PRUint64 *) value);
 		break;
 	case SLAPI_CONN_DN:
             /*

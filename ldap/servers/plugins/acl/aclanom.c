@@ -543,14 +543,14 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 			aci_ndn = slapi_sdn_get_ndn (acl_anom_profile->anom_targetinfo[i].anom_target);
 
 			slapi_log_error(loglevel, plugin_name, 
-				"conn=%d op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
+				"conn=%" PRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
 				op->o_connid, op->o_opid,
 				escape_string_with_punctuation(ndn, ebuf),
 				attr ? attr:"NULL",
 				escape_string_with_punctuation(aci_ndn, ebuf));
 		} else {
 			slapi_log_error(loglevel, plugin_name,
-				"conn=%d op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
+				"conn=%" PRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
 		op->o_connid, op->o_opid,
                 escape_string_with_punctuation(ndn, ebuf), attr ? attr:"NULL" );
 		}

@@ -973,7 +973,7 @@ acl__get_aclpb_type ( Acl_PBlock *aclpb )
 static void
 acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type)
 {
-	int 			connid = 0;
+	PRUint64 			connid = 0;
 	int				opid = 0;
 	Slapi_PBlock  	*pb = NULL;
 
@@ -985,7 +985,7 @@ acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type)
 
 	/* DUMP STAT INFO */
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-			"**** ACL OPERATION STAT BEGIN ( aclpb:%p Block type: %s): Conn:%d Operation:%d  *******\n",
+			"**** ACL OPERATION STAT BEGIN ( aclpb:%p Block type: %s): Conn:%" PRIu64 " Operation:%d  *******\n",
 			aclpb, block_type, connid, opid );
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of entries scanned: %d\n",
 					aclpb->aclpb_stat_total_entries);

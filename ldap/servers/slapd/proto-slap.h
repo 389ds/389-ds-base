@@ -825,7 +825,7 @@ void g_set_num_sent_mutex( PRLock *plock );
 void g_set_default_referral( struct berval **ldap_url );
 struct berval	**g_get_default_referral();
 PRLock *g_get_num_sent_mutex();
-void disconnect_server( Connection *conn, int opconnid, int opid, PRErrorCode reason, PRInt32 error );
+void disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 int send_ldap_search_entry( Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls,
 	char **attrs, int attrsonly );
 void send_ldap_result( Slapi_PBlock *pb, int err, char *matched, char *text,
@@ -839,7 +839,7 @@ int send_ldap_referral( Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs,
 	struct berval ***urls );
 int send_ldapv3_referral( Slapi_PBlock *pb, struct berval **urls );
 int set_db_default_result_handlers(Slapi_PBlock *pb);
-void disconnect_server_nomutex( Connection *conn, int opconnid, int opid, PRErrorCode reason, PRInt32 error );
+void disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 long g_get_current_conn_count();
 void g_increment_current_conn_count();
 void g_decrement_current_conn_count();
@@ -1075,7 +1075,7 @@ Slapi_Backend *defbackend_get_backend( void );
 /*
  * plugin_internal_op.c
  */
-void do_disconnect_server( Connection *conn, int opconnid, int opid );
+void do_disconnect_server( Connection *conn, PRUint64 opconnid, int opid );
 
 /*
  * regex.c

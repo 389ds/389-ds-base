@@ -443,10 +443,10 @@ Replica *windows_replica_new(const Slapi_DN *root);
    during addition of the replica over LDAP */
 Replica *replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation);
 void replica_destroy(void **arg);
-PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, int connid, int opid,
+PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid,
 									const char *locking_purl,
 									char **current_purl);
-void replica_relinquish_exclusive_access(Replica *r, int connid, int opid);
+void replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid);
 PRBool replica_get_tombstone_reap_active(const Replica *r);
 const Slapi_DN *replica_get_root(const Replica *r);
 const char *replica_get_name(const Replica *r);

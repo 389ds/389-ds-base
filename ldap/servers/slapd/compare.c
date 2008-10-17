@@ -122,7 +122,7 @@ do_compare( Slapi_PBlock *pb )
 	    dn, ava.ava_type, 0 );
 
 	slapi_log_access( LDAP_DEBUG_STATS,
-	    "conn=%d op=%d CMP dn=\"%s\" attr=\"%s\"\n",
+	    "conn=%" PRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
 	    pb->pb_conn->c_connid, pb->pb_op->o_opid,
 	    escape_string( dn, ebuf ), ava.ava_type );
 

@@ -405,7 +405,7 @@ replica_destroy(void **arg)
  * current_purl is the supplier who already has access, if any
  */
 PRBool
-replica_get_exclusive_access(Replica *r, PRBool *isInc, int connid, int opid,
+replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid,
 							 const char *locking_purl,
 							 char **current_purl)
 {
@@ -421,7 +421,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, int connid, int opid,
 			*isInc = (r->repl_state_flags & REPLICA_INCREMENTAL_IN_PROGRESS);
 
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"conn=%d op=%d repl=\"%s\": "
+				"conn=%" PRIu64 " op=%d repl=\"%s\": "
 				"Replica in use locking_purl=%s\n",
 				connid, opid,
 				escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
@@ -435,7 +435,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, int connid, int opid,
 	else
 	{
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-						"conn=%d op=%d repl=\"%s\": Acquired replica\n",
+						"conn=%" PRIu64 " op=%d repl=\"%s\": Acquired replica\n",
 						connid, opid,
 						escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
 		r->repl_state_flags |= REPLICA_IN_USE;
@@ -463,7 +463,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, int connid, int opid,
  * Relinquish exclusive access to the replica 
  */
 void
-replica_relinquish_exclusive_access(Replica *r, int connid, int opid)
+replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 {
 	char ebuf[BUFSIZ];
 	PRBool isInc;
@@ -476,13 +476,13 @@ replica_relinquish_exclusive_access(Replica *r, int connid, int opid)
 	if (!(r->repl_state_flags & REPLICA_IN_USE))
 	{
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-					"conn=%d op=%d repl=\"%s\": "
+					"conn=%" PRIu64 " op=%d repl=\"%s\": "
 					"Replica not in use\n",
 					connid, opid,
 					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
 	} else {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-					"conn=%d op=%d repl=\"%s\": "
+					"conn=%" PRIu64 " op=%d repl=\"%s\": "
 					"Released replica\n",
 					connid, opid,
 					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));

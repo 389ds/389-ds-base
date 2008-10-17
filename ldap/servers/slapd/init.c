@@ -70,14 +70,17 @@ slapd_init()
 	}
 #endif /* _WIN32 */
 
+	/* We don't worry about free'ing this stuff
+         * since the only time we want to do that is when
+         * the process is exiting. */
 	ops_mutex = PR_NewLock();
-	num_conns_mutex = PR_NewLock();
+	num_conns = slapi_counter_new();
 	g_set_num_sent_mutex( PR_NewLock() );
 	g_set_current_conn_count_mutex( PR_NewLock() );
+
 	slapd_re_init();
 
 	if ( ops_mutex == NULL ||
-	    num_conns_mutex == NULL ||
 	    g_get_num_sent_mutex() == NULL ||
 	    g_get_current_conn_count_mutex() == NULL )
 	{

@@ -449,9 +449,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currentconnections", vals );
 
-	PR_Lock( num_conns_mutex );
-	sprintf( buf, "%d", num_conns );
-	PR_Unlock( num_conns_mutex );
+	sprintf( buf, "%" PRIu64, slapi_counter_get_value(num_conns));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "totalconnections", vals );

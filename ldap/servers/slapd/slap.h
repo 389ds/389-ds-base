@@ -97,6 +97,7 @@ void *dlsym(void *a, char *b);
 #include <errno.h>
 #if defined(SOLARIS)
 #include <limits.h> /* for LONG_MAX */
+
 #endif
 
 /* there's a bug in the dbm code we import (from where?) -- FIXME */
@@ -115,6 +116,22 @@ void *dlsym(void *a, char *b);
 #ifdef _WIN32
 #define LDAP_IOCP
 #endif
+
+/* Required to get portable printf/scanf format macros */
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+
+/* NSPR uses the print macros a bit differently than ANSI C.  We
+ * need to use ll for a 64-bit integer, even when a long is 64-bit.
+ */
+#undef PRIu64
+#define PRIu64	"llu"
+#undef PRI64
+#define PRI64	"ll"
+
+#else
+#error Need to define portable format macros such as PRIu64
+#endif /* HAVE_INTTYPES_H */
 
 #define LOG_INTERNAL_OP_CON_ID      "Internal"
 #define LOG_INTERNAL_OP_OP_ID       -1
@@ -1164,7 +1181,7 @@ typedef struct op {
 	Slapi_DN	o_sdn;		/* dn bound when op was initiated */
 	char		*o_authtype;	/* auth method used to bind dn	  */
 	int		o_opid;		/* id of this operation		  */
-	int		o_connid;	/* id of conn initiating this op; for logging only */
+	PRUint64	o_connid;	/* id of conn initiating this op; for logging only */
 	void		*o_handler_data;
 	result_handler		o_result_handler;
 	search_entry_handler	o_search_entry_handler;
@@ -1223,7 +1240,7 @@ typedef struct conn {
 	int				c_gettingber;	/* in the middle of ber_get_next  */
 	BerElement		*c_currentber;	/* ber we're getting              */
 	time_t			c_starttime;	/* when the connection was opened */
-	int				c_connid;	/* id of this connection for stats*/
+	PRUint64	c_connid;	/* id of this connection for stats*/
 	int				c_opsinitiated;	/* # ops initiated/next op id	  */
 	PRInt32			c_opscompleted;	/* # ops completed		  */
 	PRInt32			c_threadnumber; /* # threads used in this conn    */
@@ -1582,7 +1599,7 @@ struct snmp_vars_t{
 typedef void (*ps_wakeup_all_fn_ptr)( void );
 typedef void (*ps_service_fn_ptr)(Slapi_Entry *, Slapi_Entry *, int, int );
 typedef char *(*get_config_dn_fn_ptr)();
-typedef void (*get_disconnect_server_fn_ptr)(Connection *conn, int opconnid, int opid, PRErrorCode reason, PRInt32 error );
+typedef void (*get_disconnect_server_fn_ptr)(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 typedef int (*slapd_SSL_client_init_fn_ptr)( void );
 typedef int (*modify_config_dse_fn_ptr)( Slapi_PBlock *pb );
 typedef int (*slapd_ssl_init_fn_ptr)( void );

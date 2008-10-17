@@ -686,25 +686,25 @@ log_bind_access (
 
     if (method == LDAP_AUTH_SASL && saslmech && msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
-                          "conn=%d op=%d BIND dn=\"%s\" "
+                          "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=sasl version=%d mech=%s, %s\n",
                           pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
                           version, saslmech, msg );
     } else if (method == LDAP_AUTH_SASL && saslmech) {
         slapi_log_access( LDAP_DEBUG_STATS, 
-                          "conn=%d op=%d BIND dn=\"%s\" "
+                          "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=sasl version=%d mech=%s\n",
                           pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
                           version, saslmech );
     } else if (msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
-                          "conn=%d op=%d BIND dn=\"%s\" "
+                          "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=%d version=%d, %s\n",
                           pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
                           method, version, msg );
     } else {
         slapi_log_access( LDAP_DEBUG_STATS, 
-                          "conn=%d op=%d BIND dn=\"%s\" "
+                          "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
                           "method=%d version=%d\n",
                           pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
                           method, version );

@@ -516,6 +516,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/schemaparse.c \
 	ldap/servers/slapd/security_wrappers.c \
 	ldap/servers/slapd/slapd_plhash.c \
+	ldap/servers/slapd/slapi_counter.c \
 	ldap/servers/slapd/slapi2nspr.c \
 	ldap/servers/slapd/snmp_collator.c \
 	ldap/servers/slapd/ssl.c \
@@ -532,6 +533,10 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c \
 	$(libavl_a_SOURCES)
+
+if SOLARIS
+libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.il
+endif
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@ @svrcore_inc@
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK)

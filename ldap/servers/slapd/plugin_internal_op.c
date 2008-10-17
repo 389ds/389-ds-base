@@ -188,7 +188,7 @@ slapi_disconnect_server(Slapi_Connection *conn)
 static get_disconnect_server_fn_ptr disconnect_server_fn = NULL;
 
 void
-do_disconnect_server(Connection *conn, int opconnid, int opid)
+do_disconnect_server(Connection *conn, PRUint64 opconnid, int opid)
 {
     if (NULL == disconnect_server_fn) {
         if (get_entry_point(ENTRY_POINT_DISCONNECT_SERVER, (caddr_t *)(&disconnect_server_fn)) < 0) {

@@ -76,6 +76,7 @@
     }
 */
 
+#include "repl.h"
 #include "repl5.h"
 
 #define CSN_TYPE_VALUE_UPDATED_ON_WIRE 1
@@ -848,11 +849,10 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 	int rc;
 	Slapi_Entry *e = NULL;
     Slapi_Connection *conn = NULL;
-	int connid, opid;
+	PRUint64 connid = 0;
+	int opid = 0;
 	
-	connid = 0;
 	slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
-	opid = 0;
 	slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
 
 	/* Decode the extended operation */
@@ -881,7 +881,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 		   const char *dn = slapi_entry_get_dn_const(e);
 		   slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						   "Error %d: could not import entry dn %s "
-						   "for total update operation conn=%d op=%d\n",
+						   "for total update operation conn=%" PRIu64 " op=%d\n",
 						   rc, dn, connid, opid);
 		   rc = -1;
 	   }
@@ -891,7 +891,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"Error %d: could not decode the total update extop "
-						"for total update operation conn=%d op=%d\n",
+						"for total update operation conn=%" PRIu64 " op=%d\n",
 						rc, connid, opid);
 	}
    

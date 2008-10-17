@@ -305,7 +305,7 @@ ps_send_results( void *arg )
 
 	if (conn_acq_flag) {
 		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
-						"conn=%d op=%d Could not acquire the connection - psearch aborted\n",
+						"conn=%" PRIu64 " op=%d Could not acquire the connection - psearch aborted\n",
 						ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
 	}
 
@@ -315,7 +315,7 @@ ps_send_results( void *arg )
 	/* Check for an abandoned operation */
 	if ( ps->ps_pblock->pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
 		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
-						"conn=%d op=%d The operation has been abandoned\n",
+						"conn=%" PRIu64 " op=%d The operation has been abandoned\n",
 						ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
 	    break;
 	}
@@ -373,7 +373,7 @@ ps_send_results( void *arg )
 										 ectrls, attrs, attrsonly );
 			if (rc) {
 				slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
-								"conn=%d op=%d Error %d sending entry %s with op status %d\n",
+								"conn=%" PRIu64 " op=%d Error %d sending entry %s with op status %d\n",
 								ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid,
 								rc, slapi_entry_get_dn_const(ec), ps->ps_pblock->pb_op->o_status);
 			}
@@ -421,7 +421,7 @@ ps_send_results( void *arg )
     PR_Lock( ps->ps_pblock->pb_conn->c_mutex );
 
 	slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
-					"conn=%d op=%d Releasing the connection and operation\n",
+					"conn=%" PRIu64 " op=%d Releasing the connection and operation\n",
 					ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
     /* Delete this op from the connection's list */
     connection_remove_operation( ps->ps_pblock->pb_conn, ps->ps_pblock->pb_op );
@@ -557,7 +557,7 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		}
 
 		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
-						"conn=%d op=%d entry %s with chgtype %d "
+						"conn=%" PRIu64 " op=%d entry %s with chgtype %d "
 						"matches the ps changetype %d\n",
 						ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid,
 						edn, chgtype, ps->ps_changetypes);

@@ -147,14 +147,14 @@ connection_cleanup(Connection *conn)
 	if (conn->c_prfd && (conn->c_flags & CONN_FLAG_SSL))
 	{
 		LDAPDebug( LDAP_DEBUG_CONNS,
-		  "conn=%d fd=%d closed now\n",
+		  "conn=%" PRIu64 " fd=%d closed now\n",
 		  conn->c_connid, conn->c_sd,0);
 		PR_Close(conn->c_prfd);
 	}
 	else if (conn->c_sd)
 	{
 		LDAPDebug( LDAP_DEBUG_CONNS,
-		  "conn=%d fd=%d closed now\n",
+		  "conn=%" PRIu64 " fd=%d closed now\n",
 		  conn->c_connid, conn->c_sd,0);
 		closesocket(conn->c_sd);
 	}
@@ -217,9 +217,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     LDAPDebug( LDAP_DEBUG_CONNS, "new %sconnection on %d\n", pTmp, conn->c_sd, 0 );
 
     /* bump our count of connections and update SNMP stats */
-    PR_Lock( num_conns_mutex );
-    conn->c_connid = num_conns++;
-    PR_Unlock( num_conns_mutex );
+    conn->c_connid = slapi_counter_increment(num_conns);
 
     if (! in_referral_mode) {
 	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
@@ -354,7 +352,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 
     /* log useful stuff to our access log */
     slapi_log_access( LDAP_DEBUG_STATS,
-	    "conn=%d fd=%d slot=%d %sconnection from %s to %s\n",
+	    "conn=%" PRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
 	    conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip );
 
     /* initialize the remaining connection fields */
@@ -454,7 +452,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 		op->o_tag != LDAP_REQ_ABANDON )
 	{
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d %s\n",
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
            	pb->pb_conn->c_connid, pb->pb_op->o_opid, 
 			"need new password" );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, 
@@ -524,7 +522,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 		{
 			ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
-				LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %d\n",conn->c_connid, 0, 0);
+				LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %" PRIu64 "\n",conn->c_connid, 0, 0);
 			}
 		}
 #endif
@@ -538,7 +536,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 		{
 			ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
-				LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %d\n",conn->c_connid, 0, 0);
+				LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %" PRIu64 "\n",conn->c_connid, 0, 0);
 			}
 		}
 	}
@@ -564,7 +562,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 
 	default:
 		LDAPDebug( LDAP_DEBUG_ANY,
-		    "ignoring unknown LDAP request (conn=%d, tag=0x%lx)\n",
+		    "ignoring unknown LDAP request (conn=%" PRIu64 ", tag=0x%lx)\n",
 		    conn->c_connid, op->o_tag, 0 );
 		break;
 	}
@@ -576,7 +574,7 @@ int connection_release_nolock (Connection *conn)
     if (conn->c_refcnt <= 0)
     {
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
-		                "conn=%d fd=%d Attempt to release connection that is not aquired\n",
+		                "conn=%" PRIu64 " fd=%d Attempt to release connection that is not aquired\n",
 			            conn->c_connid, conn->c_sd);
         PR_ASSERT (PR_FALSE);
         return -1;
@@ -597,7 +595,7 @@ int connection_acquire_nolock (Connection *conn)
     {
 	/* This may happen while other threads are still working on this connection */
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
-		                "conn=%d fd=%d Attempt to acquire connection in the closing state\n",
+		                "conn=%" PRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 			            conn->c_connid, conn->c_sd);
         return -1;
     }
@@ -775,7 +773,7 @@ static int handle_read_data(Connection *conn,Operation **op,
 	/* if connection is closing */
 	if (return_value != 0) {
 	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "handle_read_data returns as conn %d closing, fd=%d\n",
+		      "handle_read_data returns as conn %" PRIu64 " closing, fd=%d\n",
 		      conn->c_connid,conn->c_sd,0);
 	    return return_value;
 	}
@@ -838,7 +836,7 @@ static int process_operation(Connection *conn, Operation *op)
 		!= LDAP_TAG_MSGID ) {
 		/* log, close and send error */
 		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%d unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
+			"conn=%" PRIu64 " unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
 		return_value = -1;
 		goto done;
 	}
@@ -850,7 +848,7 @@ static int process_operation(Connection *conn, Operation *op)
 	  case LDAP_TAG_LDAPDN: /* optional username, for CLDAP */
 		/* log, close and send error */
 		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%d ber_peek_tag returns 0x%lx\n", conn->c_connid, tag, 0 );
+			"conn=%" PRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, tag, 0 );
 		return_value = -1;
 		goto done;
 	  default:
@@ -981,7 +979,7 @@ static int connection_operation_new(Connection *conn, Operation **ppOp)
 	PR_Lock( conn->c_mutex );
 	if (connection_is_active_nolock(conn) == 0) {
 	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "not creating a new operation when conn %d closing\n",
+		      "not creating a new operation when conn %" PRIu64 " closing\n",
 		      conn->c_connid,0,0);
 	    PR_Unlock( conn->c_mutex );
 	    return -1;
@@ -1073,7 +1071,7 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 				So, we toss it away ! */
 				if (LBER_OVERFLOW == tag) {
 					slapi_log_error( SLAPI_LOG_FATAL, "connection",
-						"conn=%d fd=%d The length of BER Element was too long.\n",
+						"conn=%" PRIu64 " fd=%d The length of BER Element was too long.\n",
 						conn->c_connid, conn->c_sd );
 				}
 				PR_Lock( conn->c_mutex );
@@ -1110,7 +1108,7 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 				 * We received a non-LDAP message.  Log and close connection.
 				 */
 				LDAPDebug( LDAP_DEBUG_ANY,
-					"conn=%d received a non-LDAP message"
+					"conn=%" PRIu64 " received a non-LDAP message"
 					" (tag 0x%lx, expected 0x%lx)\n",
 					conn->c_connid, tag, LDAP_TAG_MESSAGE );
 				PR_Lock( conn->c_mutex );
@@ -1128,7 +1126,7 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 		if (Bytes_Scanned != Bytes_Read) {
 		        if (connection_increment_reference(conn) == -1) {
 			    LDAPDebug(LDAP_DEBUG_CONNS,
-				      "could not acquire lock in issue_new_read as conn %d closing fd=%d\n",
+				      "could not acquire lock in issue_new_read as conn %" PRIu64 " closing fd=%d\n",
 				      conn->c_connid,conn->c_sd,0); 
 			    /* XXX how to handle this error? */
 			    /* MAB: 25 Jan 01: let's try like this and pray this won't leak... */
@@ -1150,7 +1148,7 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 					 */
 					connection_decrement_reference(conn);
 					LDAPDebug(LDAP_DEBUG_CONNS,
-						  "push_back_data failed: closing conn %d fd=%d\n",
+						  "push_back_data failed: closing conn %" PRIu64 " fd=%d\n",
 						  conn->c_connid,conn->c_sd,0); 
 				}
 			} else {
@@ -1248,7 +1246,7 @@ int issue_new_read(Connection *conn)
 
 	if (connection_increment_reference(conn) == -1) {
 	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "could not acquire lock in issue_new_read as conn %d closing fd=%d\n",
+		      "could not acquire lock in issue_new_read as conn %" PRIu64 " closing fd=%d\n",
 		      conn->c_connid,conn->c_sd,0); 
 	    /* This means that the connection is closing */
 	    return -1;
@@ -1410,7 +1408,7 @@ int connection_activity(Connection *conn)
 	   be decremented in wait_for_new_work(). */
 	if (connection_acquire_nolock (conn) == -1) {
 	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "could not acquire lock in connection_activity as conn %d closing fd=%d\n",
+		      "could not acquire lock in connection_activity as conn %" PRIu64 " closing fd=%d\n",
 		      conn->c_connid,conn->c_sd,0); 
 	    /* XXX how to handle this error? */
 	    /* MAB: 25 Jan 01: let's return on error and pray this won't leak */
@@ -1646,7 +1644,7 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 		syserr = errno;
 		/* Bad stuff happened, like the client sent us some junk */
 		LDAPDebug( LDAP_DEBUG_CONNS,
-			"ber_get_next failed for connection %d\n", conn->c_connid, 0, 0 );
+			"ber_get_next failed for connection %" PRIu64 "\n", conn->c_connid, 0, 0 );
 		/* reset private buffer */
 		conn->c_private->c_buffer_bytes = conn->c_private->c_buffer_offset = 0;
 
@@ -1715,7 +1713,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		ret = sasl_io_setup(conn);
 		if (ret) {
 			LDAPDebug( LDAP_DEBUG_ANY,
-				"conn=%d unable to enable SASL I/O\n", conn->c_connid, 0, 0 );
+				"conn=%" PRIu64 " unable to enable SASL I/O\n", conn->c_connid, 0, 0 );
 				disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
 			return CONN_DONE;
 		}
@@ -1776,7 +1774,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					} else {
 						/* Otherwise we loop, unless we exceeded the ioblock timeout */
 						if (waits_done > ioblocktimeout_waits) {
-							LDAPDebug( LDAP_DEBUG_CONNS,"ioblock timeout expired on connection %d\n", conn->c_connid, 0, 0 );
+							LDAPDebug( LDAP_DEBUG_CONNS,"ioblock timeout expired on connection %" PRIu64 "\n", conn->c_connid, 0, 0 );
 							disconnect_server( conn, conn->c_connid, -1,
 									SLAPD_DISCONNECT_IO_TIMEOUT, 0 );
 							return CONN_DONE;
@@ -1796,7 +1794,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					err = PR_GetError();
 					syserr = PR_GetOSError();
 					LDAPDebug( LDAP_DEBUG_ANY,
-						"PR_Poll for connection %d returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
+						"PR_Poll for connection %" PRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
 					disconnect_server( conn, conn->c_connid, -1, err, syserr );
 					return CONN_DONE;
@@ -1805,7 +1803,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 				/* Some other error, typically meaning bad stuff */
 					syserr = PR_GetOSError();
 					LDAPDebug( LDAP_DEBUG_CONNS,
-						"PR_Recv for connection %d returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
+						"PR_Recv for connection %" PRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
 					disconnect_server( conn, conn->c_connid, -1, err, syserr );
 					return CONN_DONE;
@@ -1837,7 +1835,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		 * We received a non-LDAP message.  Log and close connection.
 		 */
 		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%d received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
+			"conn=%" PRIu64 " received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
 			conn->c_connid, *tag, LDAP_TAG_MESSAGE );
 		disconnect_server( conn, conn->c_connid, -1,
 			SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
@@ -1848,7 +1846,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		!= LDAP_TAG_MSGID ) {
 		/* log, close and send error */
 		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%d unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
+			"conn=%" PRIu64 " unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
 		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
 		return CONN_DONE;
 	}
@@ -1865,7 +1863,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	  case LDAP_TAG_LDAPDN: /* optional username, for CLDAP */
 		/* log, close and send error */
 		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%d ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag, 0 );
+			"conn=%" PRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag, 0 );
 		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_PEEK, EPROTO );
 		return CONN_DONE;
 	  default:
@@ -1902,7 +1900,7 @@ void connection_check_activity_level(Connection *conn)
 	/* update the last checked time */
 	conn->c_private->previous_count_check_time = current_time();
 	PR_Unlock( conn->c_mutex );
-	LDAPDebug(LDAP_DEBUG_CONNS,"conn %d activity level = %d\n",conn->c_connid,delta_count,0); 
+	LDAPDebug(LDAP_DEBUG_CONNS,"conn %" PRIu64 " activity level = %d\n",conn->c_connid,delta_count,0); 
 }
 
 typedef struct table_iterate_info_struct {
@@ -1957,7 +1955,7 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 	} else {
 	  double activet = 0.0;
 	  connection_find_our_rank(conn,&connection_count, &our_rank);
-	  LDAPDebug(LDAP_DEBUG_CONNS,"conn %d turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
+	  LDAPDebug(LDAP_DEBUG_CONNS,"conn %" PRIu64 " turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
 	  activet = (double)g_get_active_threadcnt();
 	  threshold_rank = (int)(activet * ((double)CONN_TURBO_PERCENTILE / 100.0));
 
@@ -1999,9 +1997,9 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 	PR_Unlock(conn->c_mutex);
 	if (current_mode != new_mode) {
 		if (current_mode) {
-			LDAPDebug(LDAP_DEBUG_CONNS,"conn %d leaving turbo mode\n",conn->c_connid,0,0); 
+			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" PRIu64 " leaving turbo mode\n",conn->c_connid,0,0); 
 		} else {
-			LDAPDebug(LDAP_DEBUG_CONNS,"conn %d entering turbo mode\n",conn->c_connid,0,0); 
+			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" PRIu64 " entering turbo mode\n",conn->c_connid,0,0); 
 		}
 	}
 	*new_turbo_flag = new_mode;
@@ -2092,7 +2090,7 @@ connection_threadmain()
 		/* turn off turbo mode immediately if any pb waiting in global queue */
 		if (thread_turbo_flag && (counter > 0)) {
 			thread_turbo_flag = 0;
-			LDAPDebug(LDAP_DEBUG_CONNS,"conn %d leaving turbo mode\n",conn->c_connid,0,0); 
+			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" PRIu64 " leaving turbo mode\n",conn->c_connid,0,0); 
 		}
 #endif
 		
@@ -2235,7 +2233,7 @@ connection_activity(Connection *conn)
 
 	if (connection_acquire_nolock (conn) == -1) {
 	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "could not acquire lock in connection_activity as conn %d closing fd=%d\n",
+		      "could not acquire lock in connection_activity as conn %" PRIu64 " closing fd=%d\n",
 		      conn->c_connid,conn->c_sd,0); 
 	    /* XXX how to handle this error? */
 	    /* MAB: 25 Jan 01: let's return on error and pray this won't leak */
@@ -2355,9 +2353,9 @@ op_thread_cleanup()
 static void
 connection_add_operation(Connection* conn,Operation* op)
 {
-    Operation **olist= &conn->c_ops;
-    int	id= conn->c_opsinitiated++;
-    int connid= conn->c_connid;
+	Operation **olist= &conn->c_ops;
+	int	id= conn->c_opsinitiated++;
+	PRUint64 connid = conn->c_connid;
 	Operation **tmp;
 
 	/* slapi_ch_stop_recording(); */
@@ -2387,7 +2385,7 @@ connection_remove_operation( Connection *conn, Operation *op )
 
 	if ( *tmp == NULL )
 	{
-		LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: can't find op %d for conn %d\n",
+		LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: can't find op %d for conn %" PRIu64 "\n",
 		    (int)op->o_msgid, conn->c_connid, 0 );
 	}
 	else
@@ -2498,13 +2496,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 	}
 	if (0 == ber_len) {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
-			"conn=%d fd=%d Incoming BER Element was too long, max allowable"
+			"conn=%" PRIu64 " fd=%d Incoming BER Element was too long, max allowable"
 			" is %u bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, maxbersize );
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
-			"conn=%d fd=%d Incoming BER Element was %u bytes, max allowable"
+			"conn=%" PRIu64 " fd=%d Incoming BER Element was %u bytes, max allowable"
 			" is %u bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, ber_len, maxbersize );
@@ -2513,7 +2511,7 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 
 
 void
-disconnect_server( Connection *conn, int opconnid, int opid, PRErrorCode reason, PRInt32 error )
+disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
 {
 	PR_Lock( conn->c_mutex );
 	disconnect_server_nomutex( conn, opconnid, opid, reason, error );
@@ -2530,7 +2528,7 @@ static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
  */
 
 void
-disconnect_server_nomutex( Connection *conn, int opconnid, int opid, PRErrorCode reason, PRInt32 error )
+disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
 {
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) ) { 
@@ -2557,13 +2555,13 @@ disconnect_server_nomutex( Connection *conn, int opconnid, int opid, PRErrorCode
 	 */
 	if (error && (EPIPE != error) ) {
 	    slapi_log_access( LDAP_DEBUG_STATS,
-		  "conn=%d op=%d fd=%d closed error %d (%s) - %s\n",
+		  "conn=%" PRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
 		  conn->c_connid, opid, conn->c_sd, error,
 		  slapd_system_strerror(error),
 		  slapd_pr_strerror(reason));
 	} else {
 	    slapi_log_access( LDAP_DEBUG_STATS,
-		  "conn=%d op=%d fd=%d closed - %s\n",
+		  "conn=%" PRIu64 " op=%d fd=%d closed - %s\n",
 		  conn->c_connid, opid, conn->c_sd,
 		  slapd_pr_strerror(reason));
 	}

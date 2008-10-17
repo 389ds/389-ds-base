@@ -68,7 +68,7 @@ void ldbm_nasty(const char* str, int c, int err)
 void ldbm_log_access_message(Slapi_PBlock *pblock,char *string)
 {
     int ret = 0;
-    int connection_id = 0;
+    PRUint64 connection_id = 0;
     int operation_id = 0;
     Operation *operation = NULL; /* DBDB this is sneaky---opid should be covered by the API directly */
 
@@ -81,7 +81,7 @@ void ldbm_log_access_message(Slapi_PBlock *pblock,char *string)
         return;
     }
     operation_id = operation->o_opid;
-    slapi_log_access( LDAP_DEBUG_STATS, "conn=%d op=%d %s\n",connection_id, operation_id,string);
+    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",connection_id, operation_id,string);
 }
 
 int return_on_disk_full(struct ldbminfo  *li)

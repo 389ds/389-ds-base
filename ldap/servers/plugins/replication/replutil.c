@@ -817,16 +817,17 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	int repl_op = 0;
 	int local_backend = -1; /* index of local backend */
 	int chaining_backend = -1; /* index of chain backend */
+	int is_internal = 0;
 	PRBool local_online = PR_FALSE; /* true if the local db is online */
 	int ii;
 	int opid;
 #ifdef DEBUG_CHAIN_ON_UPDATE
-	int connid;
+	PRUint64 connid = 0;
 #endif
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 #ifdef DEBUG_CHAIN_ON_UPDATE
 	if (operation_is_flag_set(op, OP_FLAG_INTERNAL)) {
-		connid=-1;  /* -1: internal op in a log msg */
+		is_internal = 1;
 	} else {
 		slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 	}
@@ -853,11 +854,18 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 			}
 		}
 #ifdef DEBUG_CHAIN_ON_UPDATE
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d be "
-			"%s is the %s backend and is %s\n",
-			connid, opid,
-			mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
-			(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
+		if (is_internal) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d be "
+				"%s is the %s backend and is %s\n", opid,
+				mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
+				(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d be "
+				"%s is the %s backend and is %s\n", connid, opid,
+				mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
+				(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
+
+		}
 #endif
 	}
 
@@ -880,9 +888,13 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	    (op_type == SLAPI_OPERATION_UNBIND) ||
 	    (op_type == SLAPI_OPERATION_COMPARE))) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d op is "
-						"%d: using local backend\n",
-						connid, opid, op_type);
+		if (is_internal) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d op is "
+						"%d: using local backend\n", opid, op_type);
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d op is "
+						"%d: using local backend\n", connid, opid, op_type);
+		}
 #endif
 		return local_backend;
 	}
@@ -899,8 +911,13 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestor_dn);
 	if (slapi_dn_isroot(requestor_dn)) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d requestor "
+		if (is_internal) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d requestor "
+						"is root: using local backend\n", opid);
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d requestor "
 						"is root: using local backend\n", connid, opid);
+		}
 #endif
 		return local_backend;
 	}
@@ -911,8 +928,13 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 	if (repl_op) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d op is "
+		if (is_internal) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d op is "
+						"replicated: using local backend\n", opid);
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d op is "
 						"replicated: using local backend\n", connid, opid);
+		}
 #endif
 		return local_backend;
 	}
@@ -923,8 +945,13 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
         extern int config_get_pw_is_global_policy();
         if (!config_get_pw_is_global_policy()) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d using "
+            if (is_internal) {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d using "
+                            "local backend for local password policy\n", opid);
+            } else {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d using "
                             "local backend for local password policy\n", connid, opid);
+            }
 #endif
             return local_backend;
         }
@@ -935,8 +962,13 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 * use the chaining backend 
 	 */
 #ifdef DEBUG_CHAIN_ON_UPDATE
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%d op=%d using "
+	if (is_internal) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d using "
+					"chaining backend\n", opid);
+	} else {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d using "
 					"chaining backend\n", connid, opid);
+	}
 #endif
 	return chaining_backend;
 }

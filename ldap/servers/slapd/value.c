@@ -487,7 +487,7 @@ slapi_value_get_longlong(const Slapi_Value *value)
             p = slapi_ch_malloc(value->bv.bv_len + 1);
             memcpy (p, value->bv.bv_val, value->bv.bv_len);
             p [value->bv.bv_len] = '\0';
-            r = atoll(p);
+            r = strtoll(p, (char **)NULL, 0);
             slapi_ch_free((void **)&p);
         }
         return r;
@@ -503,7 +503,7 @@ slapi_value_get_ulonglong(const Slapi_Value *value)
             p = slapi_ch_malloc(value->bv.bv_len + 1);
             memcpy (p, value->bv.bv_val, value->bv.bv_len);
             p [value->bv.bv_len] = '\0';
-            r = (unsigned long long)atoll(p);
+            r = strtoull(p, (char **)NULL, 0);
             slapi_ch_free((void **)&p);
         }
         return r;

@@ -152,6 +152,7 @@ typedef struct slapi_rdn		Slapi_RDN;
 typedef struct slapi_mod		Slapi_Mod;
 typedef struct slapi_mods		Slapi_Mods;
 typedef struct slapi_componentid	Slapi_ComponentId;
+typedef struct slapi_counter		Slapi_Counter;
 
 /* Online tasks interface (to support import, export, etc) */
 #define SLAPI_TASK_PUBLIC 1 /* tell old plugins that the task api is now public */
@@ -1339,6 +1340,17 @@ Slapi_Task *slapi_new_task(const char *dn);
  */
 void slapi_destroy_task(void *arg);
 /* End of interface to support online tasks **********************************/
+
+/* Slapi_Counter Interface */
+Slapi_Counter *slapi_counter_new();
+void slapi_counter_init(Slapi_Counter *counter);
+void slapi_counter_destroy(Slapi_Counter **counter);
+PRUint64 slapi_counter_increment(Slapi_Counter *counter);
+PRUint64 slapi_counter_decrement(Slapi_Counter *counter);
+PRUint64 slapi_counter_add(Slapi_Counter *counter, PRUint64 addvalue);
+PRUint64 slapi_counter_subtract(Slapi_Counter *counter, PRUint64 subvalue);
+PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue);
+PRUint64 slapi_counter_get_value(Slapi_Counter *counter);
 
 /* Binder-based (connection centric) resource limits */
 /*

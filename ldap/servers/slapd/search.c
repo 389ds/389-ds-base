@@ -384,7 +384,7 @@ static void log_search_access (Slapi_PBlock *pb, const char *base, int scope, co
 {
 	char ebuf[BUFSIZ];
 	slapi_log_access(LDAP_DEBUG_STATS,
-					 "conn=%d op=%d SRCH base=\"%s\" scope=%d filter=\"%s\", %s\n",
+					 "conn=%" PRIu64 " op=%d SRCH base=\"%s\" scope=%d filter=\"%s\", %s\n",
 					 pb->pb_conn->c_connid, pb->pb_op->o_opid, 
 					 escape_string(base, ebuf), scope, fstr, msg ? msg : "");
 

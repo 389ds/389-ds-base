@@ -611,6 +611,9 @@ snmp_collator_update(time_t start_time, void *arg)
     }
 }
 
+/* NGK - We should not be using a plain int here.  All of these counters
+ * are PRUint32 types for now, but they will be PRUint64 once converted
+ * to use Slapi_Counter. */
 static void
 add_counter_to_value(Slapi_Entry *e, const char *type, int countervalue)
 {

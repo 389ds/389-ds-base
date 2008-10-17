@@ -297,7 +297,7 @@ acl_access_allowed(
 
 		 if (  !privateBackend && (be_readonly ||  slapi_config_get_readonly () )){
 			slapi_log_error	(loglevel, plugin_name,
-				"conn=%d op=%d (main): Deny %s on entry(%s)"
+				"conn=%" PRIu64 " op=%d (main): Deny %s on entry(%s)"
 				": readonly backend\n",
 				 op->o_connid, op->o_opid,
 				acl_access2str(access),
@@ -310,7 +310,7 @@ acl_access_allowed(
 	TNF_PROBE_0_DEBUG(acl_skipaccess_start,"ACL","");
 	if (  acl_skip_access_check ( pb, e )) {
 		slapi_log_error	(loglevel,	plugin_name,
-				"conn=%d op=%d (main): Allow %s on entry(%s)"
+				"conn=%" PRIu64 " op=%d (main): Allow %s on entry(%s)"
 				": root user\n",
 				op->o_connid, op->o_opid,
 				acl_access2str(access),
@@ -438,7 +438,7 @@ acl_access_allowed(
 		TNF_PROBE_0_DEBUG(acl_entry_first_touch_start,"ACL","");
 
 		slapi_log_error(loglevel, plugin_name,
-			"#### conn=%d op=%d binddn=\"%s\"\n",
+			"#### conn=%" PRIu64 " op=%d binddn=\"%s\"\n",
 			op->o_connid, op->o_opid, clientDn);
 		aclpb->aclpb_stat_total_entries++;
 
@@ -755,7 +755,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 										null_user);
 
 				slapi_log_error(loglevel, plugin_name, 
-		"conn=%d op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+		"conn=%" PRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
 		": %s\n",
 				op->o_connid, op->o_opid,
 				source,
@@ -768,7 +768,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 		} else {
 					proxy_user = null_user;
 					slapi_log_error(loglevel, plugin_name, 
-		"conn=%d op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+		"conn=%" PRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
 		": %s\n",
 				op->o_connid, op->o_opid,
 				source,
@@ -781,7 +781,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 		}
 	} else{
 		slapi_log_error(loglevel, plugin_name, 
-			"conn=%d op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
+			"conn=%" PRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
 			": %s\n",
 				op->o_connid, op->o_opid,
 				source,

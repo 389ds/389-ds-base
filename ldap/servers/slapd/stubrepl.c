@@ -74,6 +74,6 @@ connection_abandon_operations( Connection *conn )
 }
 
 void
-disconnect_server( Connection *conn, int opconnid, int opid, PRErrorCode reason, PRInt32 error )
+disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
 {
 }
