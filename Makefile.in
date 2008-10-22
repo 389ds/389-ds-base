@@ -46,7 +46,7 @@ bin_PROGRAMS = dbscan-bin$(EXEEXT) dsktune-bin$(EXEEXT) \
 	ldif-bin$(EXEEXT) migratecred-bin$(EXEEXT) mmldif-bin$(EXEEXT) \
 	pwdhash-bin$(EXEEXT) rsearch-bin$(EXEEXT)
 noinst_PROGRAMS = makstrdb$(EXEEXT)
-@SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/slapi_counter_sunos_sparcv9.il
+@SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 @SOLARIS_TRUE@am__append_2 = ldap/servers/slapd/tools/ldclt/opCheck.c
 DIST_COMMON = $(am__configure_deps) $(dist_man_MANS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -488,9 +488,9 @@ am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/uuid.c ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
 	ldap/libraries/libavl/avl.c \
-	ldap/servers/slapd/slapi_counter_sunos_sparcv9.il
+	ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 am__objects_2 = ldap/libraries/libavl/libslapd_la-avl.lo
-am__objects_3 =
+@SOLARIS_TRUE@am__objects_3 = ldap/servers/slapd/slapi_counter_sunos_sparcv9.lo
 am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-agtmmap.lo \
 	ldap/servers/slapd/libslapd_la-apibroker.lo \
@@ -765,6 +765,9 @@ SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(initconfig_SCRIPTS) \
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
+CCASCOMPILE = $(CCAS) $(AM_CCASFLAGS) $(CCASFLAGS)
+LTCCASCOMPILE = $(LIBTOOL) --mode=compile $(CCAS) $(AM_CCASFLAGS) \
+	$(CCASFLAGS)
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
@@ -872,6 +875,8 @@ AWK = @AWK@
 BUNDLE_FALSE = @BUNDLE_FALSE@
 BUNDLE_TRUE = @BUNDLE_TRUE@
 CC = @CC@
+CCAS = @CCAS@
+CCASFLAGS = @CCASFLAGS@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
 CPP = @CPP@
@@ -925,6 +930,7 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -2121,7 +2127,7 @@ all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .cpp .lo .o .obj
+.SUFFIXES: .S .c .cpp .lo .o .obj
 am--refresh:
 	@:
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
@@ -3491,6 +3497,9 @@ ldap/servers/slapd/libslapd_la-vattr.lo:  \
 ldap/libraries/libavl/libslapd_la-avl.lo:  \
 	ldap/libraries/libavl/$(am__dirstamp) \
 	ldap/libraries/libavl/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/slapi_counter_sunos_sparcv9.lo:  \
+	ldap/servers/slapd/$(am__dirstamp) \
+	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 libslapd.la: $(libslapd_la_OBJECTS) $(libslapd_la_DEPENDENCIES) 
 	$(LINK) -rpath $(serverdir) $(libslapd_la_LDFLAGS) $(libslapd_la_OBJECTS) $(libslapd_la_LIBADD) $(LIBS)
 ldap/servers/plugins/statechange/$(am__dirstamp):
@@ -4627,6 +4636,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/ns_slapd-stubs.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-tempnam.$(OBJEXT)
 	-rm -f ldap/servers/slapd/ns_slapd-unbind.$(OBJEXT)
+	-rm -f ldap/servers/slapd/slapi_counter_sunos_sparcv9.$(OBJEXT)
+	-rm -f ldap/servers/slapd/slapi_counter_sunos_sparcv9.lo
 	-rm -f ldap/servers/slapd/tools/dbscan_bin-dbscan.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/ldclt/ldclt_bin-data.$(OBJEXT)
 	-rm -f ldap/servers/slapd/tools/ldclt/ldclt_bin-ldapfct.$(OBJEXT)
@@ -5220,6 +5231,15 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-reshash.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-txtfile.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/makstrdb-makstrdb.Po@am__quote@
+
+.S.o:
+	$(CCASCOMPILE) -c $<
+
+.S.obj:
+	$(CCASCOMPILE) -c `$(CYGPATH_W) '$<'`
+
+.S.lo:
+	$(LTCCASCOMPILE) -c -o $@ $<
 
 .c.o:
 @am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`; \
