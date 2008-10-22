@@ -535,7 +535,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 if SOLARIS
-libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.il
+libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 endif
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@ @svrcore_inc@

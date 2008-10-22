@@ -41,6 +41,12 @@
 
 #include "slap.h"
 
+#ifdef SOLARIS
+PRUint64 _sparcv9_AtomicSet_il(PRUint64 *address, PRUint64 newval);
+PRUint64 _sparcv9_AtomicAdd_il(PRUint64 *address, PRUint64 val);
+PRUint64 _sparcv9_AtomicSub_il(PRUint64 *address, PRUint64 val);
+#endif
+
 #ifdef HPUX
 #ifdef ATOMIC_64BIT_OPERATIONS
 #include <machine/sys/inline.h>
@@ -157,7 +163,7 @@ PRUint64 slapi_counter_add(Slapi_Counter *counter, PRUint64 addvalue)
 #ifdef LINUX
     newvalue = __sync_add_and_fetch(&(counter->value), addvalue);
 #elif defined(SOLARIS)
-    newvalue = _sparcv9_AtomicAdd_il(&(counter->value), addvalue);
+    newvalue = _sparcv9_AtomicAdd(&(counter->value), addvalue);
 #elif defined(HPUX)
     /* fetchadd only works with values of 1, 4, 8, and 16.  In addition, it requires
      * it's argument to be an integer constant. */
@@ -214,7 +220,7 @@ PRUint64 slapi_counter_subtract(Slapi_Counter *counter, PRUint64 subvalue)
 #ifdef LINUX
     newvalue = __sync_sub_and_fetch(&(counter->value), subvalue);
 #elif defined(SOLARIS)
-    newvalue = _sparcv9_AtomicSub_il(&(counter->value), subvalue);
+    newvalue = _sparcv9_AtomicSub(&(counter->value), subvalue);
 #elif defined(HPUX)
     /* fetchadd only works with values of -1, -4, -8, and -16.  In addition, it requires
      * it's argument to be an integer constant. */
@@ -272,7 +278,7 @@ PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue)
         }
     }
 #elif defined(SOLARIS)
-    _sparcv9_AtomicSet_il(&(counter->value), newvalue);
+    _sparcv9_AtomicSet(&(counter->value), newvalue);
     return newvalue;
 #elif defined(HPUX)
     do {
@@ -313,7 +319,7 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
 #elif defined(SOLARIS)
     while (1) {
         value = counter->value;
-        if (value == _sparcv9_AtomicSet_il(&(counter->value), value)) {
+        if (value == _sparcv9_AtomicSet(&(counter->value), value)) {
             break;
         }
     }
