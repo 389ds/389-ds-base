@@ -15,6 +15,9 @@
 /* enable ldapi auto bind support in the server */
 #undef ENABLE_AUTOBIND
 
+/* enable ldapi auto bind with auto dn suffix support in the server */
+#undef ENABLE_AUTO_DN_SUFFIX
+
 /* enable the bitwise plugin */
 #undef ENABLE_BITWISE
 

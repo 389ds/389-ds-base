@@ -977,6 +977,8 @@ db_libver = @db_libver@
 debug_defs = @debug_defs@
 defaultgroup = @defaultgroup@
 defaultuser = @defaultuser@
+enable_auto_dn_suffix_FALSE = @enable_auto_dn_suffix_FALSE@
+enable_auto_dn_suffix_TRUE = @enable_auto_dn_suffix_TRUE@
 enable_autobind_FALSE = @enable_autobind_FALSE@
 enable_autobind_TRUE = @enable_autobind_TRUE@
 enable_bitwise_FALSE = @enable_bitwise_FALSE@
@@ -1952,6 +1954,7 @@ mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSD
 @enable_ldapi_TRUE@GETSOCKETPEER = ldap/servers/slapd/getsocketpeer.c
 @enable_ldapi_TRUE@enable_ldapi = 1
 @enable_autobind_TRUE@enable_autobind = 1
+@enable_auto_dn_suffix_TRUE@enable_auto_dn_suffix = 1
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \
 	ldap/servers/slapd/bind.c  \
@@ -2047,6 +2050,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
 @BUNDLE_FALSE@	-e 's,@enable_dna\@,$(enable_dna),g' \
 @BUNDLE_FALSE@	-e 's,@enable_autobind\@,$(enable_autobind),g' \
+@BUNDLE_FALSE@	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 @BUNDLE_FALSE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 @BUNDLE_FALSE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 @BUNDLE_FALSE@	-e 's,@brand\@,$(brand),g' \
@@ -2106,6 +2110,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
 @BUNDLE_TRUE@	-e 's,@enable_dna\@,$(enable_dna),g' \
 @BUNDLE_TRUE@	-e 's,@enable_autobind\@,$(enable_autobind),g' \
+@BUNDLE_TRUE@	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 @BUNDLE_TRUE@	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 @BUNDLE_TRUE@	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 @BUNDLE_TRUE@	-e 's,@brand\@,$(brand),g' \
