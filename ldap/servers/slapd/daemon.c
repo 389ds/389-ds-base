@@ -2172,6 +2172,7 @@ root_map_free:
 			}
 		}
 
+#if defined(ENABLE_AUTO_DN_SUFFIX)
 		if(ret) 
 		{
 			/* create phony auth dn? */
@@ -2209,6 +2210,7 @@ root_map_free:
 				ret = 0;
 			}
 		}
+#endif
 	}
 
 bail:

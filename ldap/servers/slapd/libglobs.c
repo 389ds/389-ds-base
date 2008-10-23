@@ -483,9 +483,11 @@ static struct config_get_and_set {
         {CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE, config_set_ldapi_search_base_dn,
                 NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_search_base_dn, CONFIG_STRING, NULL},
+#if defined(ENABLE_AUTO_DN_SUFFIX)
         {CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE, config_set_ldapi_auto_dn_suffix,
                 NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix, CONFIG_STRING, NULL},
+#endif
 	{CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_minfreespace, CONFIG_INT, NULL},
@@ -831,7 +833,9 @@ FrontendConfig_init () {
   cfg->ldapi_uidnumber_type = slapi_ch_strdup("uidNumber");
   cfg->ldapi_gidnumber_type = slapi_ch_strdup("gidNumber");
   cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example, dc=com");
+#if defined(ENABLE_AUTO_DN_SUFFIX)
   cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
+#endif
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
   cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
@@ -1373,6 +1377,7 @@ int config_set_ldapi_search_base_dn( const char *attrname, char *value, char *er
   return retVal;
 }
 
+#if defined(ENABLE_AUTO_DN_SUFFIX)
 int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *errorbuf, int apply )
 {
   int retVal = LDAP_SUCCESS;
@@ -1391,6 +1396,7 @@ int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *er
   }
   return retVal;
 }
+#endif
 
 
 int
@@ -3420,6 +3426,7 @@ char *config_get_ldapi_search_base_dn(){
   return retVal;
 }
 
+#if defined(ENABLE_AUTO_DN_SUFFIX)
 char *config_get_ldapi_auto_dn_suffix(){
   char *retVal;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -3429,7 +3436,7 @@ char *config_get_ldapi_auto_dn_suffix(){
 
   return retVal;
 }
-
+#endif
 
 char *
 config_get_workingdir() {

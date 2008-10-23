@@ -1028,6 +1028,9 @@ endif
 if enable_autobind
         enable_autobind = 1
 endif
+if enable_auto_dn_suffix
+        enable_auto_dn_suffix = 1
+endif
 
 ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c \
@@ -1137,6 +1140,7 @@ fixupcmd = sed \
 	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
 	-e 's,@enable_dna\@,$(enable_dna),g' \
 	-e 's,@enable_autobind\@,$(enable_autobind),g' \
+	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
@@ -1186,6 +1190,7 @@ fixupcmd = sed \
 	-e 's,@enable_bitwise\@,$(enable_bitwise),g' \
 	-e 's,@enable_dna\@,$(enable_dna),g' \
 	-e 's,@enable_autobind\@,$(enable_autobind),g' \
+	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \

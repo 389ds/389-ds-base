@@ -342,7 +342,9 @@ sub createConfigFile {
             $ent->setValues("nsslapd-ldapiuidnumbertype", "uidNumber");
             $ent->setValues("nsslapd-ldapigidnumbertype", "gidNumber");
             $ent->setValues("nsslapd-ldapientrysearchbase", $inf->{slapd}->{Suffix});
-            $ent->setValues("nsslapd-ldapiautodnsuffix", "cn=peercred,cn=external,cn=auth");
+            if ("@enable_auto_dn_suffix@") {
+                $ent->setValues("nsslapd-ldapiautodnsuffix", "cn=peercred,cn=external,cn=auth");
+            }
         }
         if (!$conn->update($ent)) {
             $conn->close();

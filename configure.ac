@@ -137,6 +137,21 @@ else
 fi
 AM_CONDITIONAL(enable_autobind,test "$enable_autobind" = "yes")
 
+if test -z "$enable_auto_dn_suffix" ; then
+   enable_auto_dn_suffix=no # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-auto-dn-suffix)
+AC_ARG_ENABLE(autobind,
+        AS_HELP_STRING([--enable-auto-dn-suffix],
+                       [enable auto bind with auto dn suffix over unix domain socket (LDAPI) support (default: no)]))
+if test "$enable_ldapi" = yes -a "$enable_autobind" = yes -a "$enable_auto_dn_suffix" = "yes"; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_AUTO_DN_SUFFIX], [1], [enable ldapi auto bind with auto dn suffix support in the server])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_auto_dn_suffix,test "$enable_auto_dn_suffix" = "yes")
+
 if test -z "$enable_bitwise" ; then
    enable_bitwise=yes # if not set on cmdline, set default
 fi
