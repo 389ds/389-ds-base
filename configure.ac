@@ -302,6 +302,7 @@ case $host in
     AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
     AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
     AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
+    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
     platform="linux"
     # relative to sysconfdir
     initdir=/rc.d/init.d
@@ -317,6 +318,7 @@ case $host in
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
+    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
@@ -333,6 +335,7 @@ case $host in
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
+    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
     # assume 64 bit
     initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
@@ -351,6 +354,7 @@ case $host in
     AC_DEFINE([OSVERSION], [509], [OS version])
     AC_DEFINE([_REENTRANT], [1], [_REENTRANT])
     AC_DEFINE([NO_DOMAINNAME], [1], [no getdomainname])
+    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
 dnl socket nsl and dl are required to link several programs and libdb
     LIBSOCKET=-lsocket
     AC_SUBST([LIBSOCKET], [$LIBSOCKET])

@@ -74,10 +74,19 @@ extern          "C" {
 #include <net-snmp/library/container.h>
 #include <net-snmp/agent/table_array.h>
 #include "../slapd/agtmmap.h"
+#include <semaphore.h>
+#include <fcntl.h>
+
+#ifdef HPUX
+/* HP-UX doesn't define SEM_FAILED like other platforms, so
+ *  * we define it ourselves. */
+#define SEM_FAILED ((sem_t *)(-1))
+#endif
 
 #define MAXLINE 4096
 #define CACHE_REFRESH_INTERVAL 15
 #define UPDATE_THRESHOLD 20
+#define SNMP_NUM_SEM_WAITS 10
 #define LDAP_AGENT_PIDFILE ".ldap-agent.pid"
 #define LDAP_AGENT_LOGFILE "ldap-agent.log"
 
@@ -95,6 +104,7 @@ typedef struct server_instance_s {
     PRUint32 port;
     int server_state;
     char *stats_file;
+    char *stats_sem_name;
     char *dse_ldif;
     struct server_instance_s *next;
 } server_instance;

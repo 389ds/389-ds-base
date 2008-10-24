@@ -211,8 +211,6 @@ EXPORTS
 	g_set_num_bytes_sent	@173
 	g_get_num_entries_sent	@174
 	g_set_num_entries_sent	@175
-	g_get_num_sent_mutex	@176
-	g_set_num_sent_mutex	@177
 	g_get_default_referral	@178
 	g_set_default_referral	@179
 	slapi_ch_bvdup		@180

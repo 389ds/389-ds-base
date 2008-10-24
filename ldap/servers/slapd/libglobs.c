@@ -488,6 +488,10 @@ static struct config_get_and_set {
                 NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix, CONFIG_STRING, NULL},
 #endif
+	{CONFIG_SLAPI_COUNTER_ATTRIBUTE, config_set_slapi_counters,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.slapi_counters, CONFIG_ON_OFF, 
+		config_get_slapi_counters},
 	{CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_minfreespace, CONFIG_INT, NULL},
@@ -836,6 +840,7 @@ FrontendConfig_init () {
 #if defined(ENABLE_AUTO_DN_SUFFIX)
   cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
 #endif
+  cfg->slapi_counters = LDAP_ON;
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
   cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
@@ -1398,6 +1403,22 @@ int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *er
 }
 #endif
 
+/*
+ * Set nsslapd-counters: on | off to the internal config variable slapi_counters.
+ * If set to off, slapi_counters is not initialized and the counters are not
+ * incremented.  Note: counters which are necessary for the server's running
+ * are not disabled.
+ */
+int config_set_slapi_counters( const char *attrname, char *value, char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname, value,
+				&(slapdFrontendConfig->slapi_counters), errorbuf, apply);
+
+	return retVal;
+}
 
 int
 config_set_securelistenhost( const char *attrname, char *value, char *errorbuf, int apply ) {
@@ -3437,6 +3458,17 @@ char *config_get_ldapi_auto_dn_suffix(){
   return retVal;
 }
 #endif
+
+int config_get_slapi_counters()
+{   
+  int retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig(); 
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->slapi_counters;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
 
 char *
 config_get_workingdir() {

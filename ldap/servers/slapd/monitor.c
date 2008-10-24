@@ -93,30 +93,22 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 
 	connection_table_as_entry(the_connection_table, e);
 
-	PR_Lock( ops_mutex );
-	sprintf( buf, "%ld", (long) ops_initiated );
-	PR_Unlock( ops_mutex );
+	sprintf( buf, "%" PRIu64, slapi_counter_get_value(ops_initiated) );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "opsinitiated", vals );
 
-	PR_Lock( ops_mutex );
-	sprintf( buf, "%ld", (long) ops_completed );
-	PR_Unlock( ops_mutex );
+	sprintf( buf, "%" PRIu64, slapi_counter_get_value(ops_completed) );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "opscompleted", vals );
 
-	PR_Lock( g_get_num_sent_mutex() );
-	len = PR_snprintf ( buf, BUFSIZ, "%llu", g_get_num_entries_sent() );
-	PR_Unlock( g_get_num_sent_mutex() );
+	len = PR_snprintf ( buf, BUFSIZ, "%" PRIu64, g_get_num_entries_sent() );
 	val.bv_val = buf;
 	val.bv_len = ( unsigned long ) len;
 	attrlist_replace( &e->e_attrs, "entriessent", vals );
 
-	PR_Lock( g_get_num_sent_mutex() );
-	len = PR_snprintf ( buf, BUFSIZ, "%llu", g_get_num_bytes_sent() );
-	PR_Unlock( g_get_num_sent_mutex() );
+	len = PR_snprintf ( buf, BUFSIZ, "%" PRIu64, g_get_num_bytes_sent() );
 	val.bv_val = buf;
 	val.bv_len = ( unsigned long ) len;
 	attrlist_replace( &e->e_attrs, "bytessent", vals );

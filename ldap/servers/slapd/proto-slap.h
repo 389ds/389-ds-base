@@ -255,6 +255,7 @@ int config_set_ldapi_search_base_dn( const char *attrname, char *value, char *er
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *errorbuf, int apply );   
 #endif
+int config_set_slapi_counters( const char *attrname, char *value, char *errorbuf, int apply );   
 int config_set_srvtab( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply );
@@ -370,6 +371,7 @@ char *config_get_ldapi_search_base_dn();
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 char *config_get_ldapi_auto_dn_suffix(); 
 #endif
+int config_get_slapi_counters(); 
 char *config_get_srvtab();
 int config_get_sizelimit();
 char *config_get_pw_storagescheme();
@@ -821,14 +823,12 @@ void reslimit_cleanup( void );
 /*
  * result.c
  */
-void g_set_num_entries_sent( PRUint64 val );
+void g_set_num_entries_sent( Slapi_Counter *counter );
 PRUint64 g_get_num_entries_sent();
-void g_set_num_bytes_sent( PRUint64 val );
+void g_set_num_bytes_sent( Slapi_Counter *counter );
 PRUint64 g_get_num_bytes_sent();
-void g_set_num_sent_mutex( PRLock *plock );
 void g_set_default_referral( struct berval **ldap_url );
 struct berval	**g_get_default_referral();
-PRLock *g_get_num_sent_mutex();
 void disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 int send_ldap_search_entry( Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls,
 	char **attrs, int attrsonly );

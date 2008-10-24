@@ -220,8 +220,8 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     conn->c_connid = slapi_counter_increment(num_conns);
 
     if (! in_referral_mode) {
-	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
-	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
+	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
     }
 
     /* 
@@ -650,7 +650,7 @@ static int add_to_select_set(Connection *conn);
 static void inc_op_count(Connection* conn)
 {
 	PR_AtomicIncrement(&conn->c_opscompleted);
-	PR_AtomicIncrement(&ops_completed);
+	slapi_counter_increment(ops_completed);
 }
 
 static int connection_increment_reference(Connection *conn)
@@ -828,8 +828,8 @@ static int process_operation(Connection *conn, Operation *op)
     slapi_pblock_set (pb, SLAPI_DESTROY_CONTENT, &destroy_content);
 
 	if (! config_check_referral_mode()) {
-		PR_AtomicIncrement(&ops_initiated);
-		snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+		slapi_counter_increment(ops_initiated);
+		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 	}
 
 	if ( (tag = ber_get_int( op->o_ber, &msgid ))
@@ -2064,8 +2064,8 @@ connection_threadmain()
 			connection_make_new_pb(&pb,conn);
 			PR_Unlock(conn->c_mutex);
 			if (! config_check_referral_mode()) {
-	    		  PR_AtomicIncrement(&ops_initiated);
-	    		  snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+			  slapi_counter_increment(ops_initiated);
+	    		  slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 			}
 		}
 		/* Once we're here we have a pb */ 
@@ -2171,7 +2171,7 @@ done:
 		/* number of ops on this connection */
 		PR_AtomicIncrement(&conn->c_opscompleted);
 		/* total number of ops for the server */
-		PR_AtomicIncrement(&ops_completed);
+		slapi_counter_increment(ops_completed);
 		/* If this op isn't a persistent search, remove it */
 		if ( !( pb->pb_op->o_flags & OP_FLAG_PS )) {
 		    /* delete from connection operation queue & decr refcnt */
@@ -2247,8 +2247,8 @@ connection_activity(Connection *conn)
     PR_Unlock( op_thread_lock );
 	
 	if (! config_check_referral_mode()) {
-	    PR_AtomicIncrement(&ops_initiated);
-	    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+	    slapi_counter_increment(ops_initiated);
+	    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 	}
 	return 0;
 }
@@ -2567,7 +2567,7 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 	}
 
 	if (! config_check_referral_mode()) {
-	    snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+	    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
 	}
 
 	conn->c_gettingber = 0;

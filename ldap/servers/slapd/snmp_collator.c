@@ -48,6 +48,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <dirent.h>
+#include <semaphore.h>
 #endif
 #include <time.h>
 #include <signal.h>
@@ -62,6 +63,14 @@
 #include "prcvar.h"
 #include "plstr.h"
 
+#ifdef HPUX
+/* HP-UX doesn't define SEM_FAILED like other platforms, so
+ * we define it ourselves. */
+#define SEM_FAILED ((sem_t *)(-1))
+#endif
+
+#define SNMP_NUM_SEM_WAITS 10
+
 #include "snmp_collator.h" 
 #include "../snmp/ntagt/nslagtcom_nt.h"
 
@@ -70,12 +79,18 @@
 /* strlen of url portions ie "ldap://:/" */
 #define URL_CHARS_LEN 9 
 
-char *make_ds_url(char *host, int port);
-void print_snmp_interaction_table();
-int search_interaction_table(char *dsURL, int *isnew);
+static char *make_ds_url(char *host, int port);
+static void print_snmp_interaction_table();
+static int search_interaction_table(char *dsURL, int *isnew);
 static void loadConfigStats();
 static Slapi_Entry *getConfigEntry( Slapi_Entry **e );
 static void freeConfigEntry( Slapi_Entry **e );
+static void snmp_update_ops_table();
+static void snmp_update_entries_table();
+static void snmp_update_interactions_table();
+static void snmp_update_cache_stats();
+static void snmp_collator_create_semaphore();
+static void snmp_collator_sem_wait();
 
 /* snmp stats stuff */
 struct agt_stats_t *stats=NULL;
@@ -94,12 +109,14 @@ static HANDLE hLogFile = INVALID_HANDLE_VALUE;
 static TCHAR szSpoolRootDir[_MAX_PATH];
 #else
 static char szStatsFile[_MAX_PATH];
+static char stats_sem_name[_MAX_PATH];
 #endif /* _WIN32*/
 static Slapi_Eq_Context snmp_eq_ctx;
 static int snmp_collator_stopped = 0;
 
-/* lock stuff */
+/* synchronization stuff */
 static PRLock 		*interaction_table_mutex;
+static sem_t		*stats_sem;
 
 
 /***********************************************************************************
@@ -110,88 +127,80 @@ static PRLock 		*interaction_table_mutex;
 *
 ************************************************************************************/
 
-int snmp_collator_init(){
- int i;
+static int snmp_collator_init(){
+	int i;
 
-	/* 
-	* Initialize the mmap structure 
-	*/
+	/*
+	 * Create the global SNMP counters
+	 */
+	g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsInOps			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsReadOps			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsCompareOps			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsAddEntryOps			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsRemoveEntryOps		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsListOps			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsSearchOps			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsOneLevelSearchOps		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsWholeSubtreeSearchOps	= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsReferrals			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsChainings			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsErrors			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsConnections			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsBytesRecv			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsBytesSent			= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned		= slapi_counter_new();
+	g_get_global_snmp_vars()->entries_tbl.dsMasterEntries		= slapi_counter_new();
+	g_get_global_snmp_vars()->entries_tbl.dsCopyEntries		= slapi_counter_new();
+	g_get_global_snmp_vars()->entries_tbl.dsCacheEntries		= slapi_counter_new();
+	g_get_global_snmp_vars()->entries_tbl.dsCacheHits		= slapi_counter_new();
+	g_get_global_snmp_vars()->entries_tbl.dsSlaveHits		= slapi_counter_new();
+
+	/* Initialize the global interaction table */
+	for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++)
+	{
+		g_get_global_snmp_vars()->int_tbl[i].dsIntIndex                    = i + 1;
+		strncpy(g_get_global_snmp_vars()->int_tbl[i].dsName, "Not Available",
+			sizeof(g_get_global_snmp_vars()->int_tbl[i].dsName));
+		g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation              = 0;
+		g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt           = 0;
+		g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess           = 0;
+		g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess    = 0;
+		g_get_global_snmp_vars()->int_tbl[i].dsFailures                    = 0;
+		g_get_global_snmp_vars()->int_tbl[i].dsSuccesses                   = 0;
+		strncpy(g_get_global_snmp_vars()->int_tbl[i].dsURL, "Not Available",
+			sizeof(g_get_global_snmp_vars()->int_tbl[i].dsURL));
+	}
+
+	/* Get the semaphore */
+	snmp_collator_sem_wait();
+
+	/* Initialize the mmap structure */
 	memset((void *) stats, 0, sizeof(*stats));
+
+	/* Load header stats table */
 	strncpy(stats->hdr_stats.dsVersion, SLAPD_VERSION_STR,
                 (sizeof(stats->hdr_stats.dsVersion)/sizeof(char)) - 1);
 	stats->hdr_stats.restarted = 0;			 
 	stats->hdr_stats.startTime = time(0);		/* This is a bit off, hope it's ok */
-
-	/* load config stats */
 	loadConfigStats();
 
-	/* point these at the mmaped data */
-	g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds		= &(stats->ops_stats.dsAnonymousBinds);
-        g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds			= &(stats->ops_stats.dsUnAuthBinds);
-	g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds		= &(stats->ops_stats.dsSimpleAuthBinds);
-	g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds		= &(stats->ops_stats.dsStrongAuthBinds);
-	g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors	        = &(stats->ops_stats.dsBindSecurityErrors);
-	g_get_global_snmp_vars()->ops_tbl.dsInOps			= &(stats->ops_stats.dsInOps);
-    g_get_global_snmp_vars()->ops_tbl.dsReadOps			= &(stats->ops_stats.dsReadOps);
-    g_get_global_snmp_vars()->ops_tbl.dsCompareOps			= &(stats->ops_stats.dsCompareOps);
-	g_get_global_snmp_vars()->ops_tbl.dsAddEntryOps			= &(stats->ops_stats.dsAddEntryOps);
-	g_get_global_snmp_vars()->ops_tbl.dsRemoveEntryOps		= &(stats->ops_stats.dsRemoveEntryOps); 
-	g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps		= &(stats->ops_stats.dsModifyEntryOps);
-	g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps		= &(stats->ops_stats.dsModifyRDNOps);
-	g_get_global_snmp_vars()->ops_tbl.dsListOps			= &(stats->ops_stats.dsListOps);
-	g_get_global_snmp_vars()->ops_tbl.dsSearchOps			= &(stats->ops_stats.dsSearchOps);
-	g_get_global_snmp_vars()->ops_tbl.dsOneLevelSearchOps		= &(stats->ops_stats.dsOneLevelSearchOps);
-	g_get_global_snmp_vars()->ops_tbl.dsWholeSubtreeSearchOps       = &(stats->ops_stats.dsWholeSubtreeSearchOps);
-	g_get_global_snmp_vars()->ops_tbl.dsReferrals			= &(stats->ops_stats.dsReferrals);
-	g_get_global_snmp_vars()->ops_tbl.dsChainings			= &(stats->ops_stats.dsChainings);
-	g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors	        = &(stats->ops_stats.dsSecurityErrors);
-	g_get_global_snmp_vars()->ops_tbl.dsErrors			= &(stats->ops_stats.dsErrors);
-	g_get_global_snmp_vars()->ops_tbl.dsConnections			= &(stats->ops_stats.dsConnections);
-	g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq			= &(stats->ops_stats.dsConnectionSeq);
-	g_get_global_snmp_vars()->ops_tbl.dsBytesRecv			= &(stats->ops_stats.dsBytesRecv);
-	g_get_global_snmp_vars()->ops_tbl.dsBytesSent			= &(stats->ops_stats.dsBytesSent);
-	g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned			= &(stats->ops_stats.dsEntriesReturned);
-	g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned			= &(stats->ops_stats.dsReferralsReturned);
+	/* update the mmap'd tables */
+	snmp_update_ops_table();
+	snmp_update_entries_table();
+	snmp_update_interactions_table();
 
-	/* entries table */
-
-	g_get_global_snmp_vars()->entries_tbl.dsMasterEntries		= &(stats->entries_stats.dsMasterEntries);
-	g_get_global_snmp_vars()->entries_tbl.dsCopyEntries		= &(stats->entries_stats.dsCopyEntries);
-	g_get_global_snmp_vars()->entries_tbl.dsCacheEntries		= &(stats->entries_stats.dsCacheEntries);
-	g_get_global_snmp_vars()->entries_tbl.dsCacheHits		= &(stats->entries_stats.dsCacheHits);
-	g_get_global_snmp_vars()->entries_tbl.dsSlaveHits		= &(stats->entries_stats.dsSlaveHits);
-
-	/* interaction table */
-
-	/* set pointers to table */
-	for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++)
-	{
-	    stats->int_stats[i].dsIntIndex=i;
-	    g_get_global_snmp_vars()->int_tbl[i].dsIntIndex		 = &(stats->int_stats[i].dsIntIndex);
-	    g_get_global_snmp_vars()->int_tbl[i].dsName			 = stats->int_stats[i].dsName;
-	    g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation	 = &(stats->int_stats[i].dsTimeOfCreation);     
-	    g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt	 = &(stats->int_stats[i].dsTimeOfLastAttempt);
-	    g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess	 = &(stats->int_stats[i].dsTimeOfLastSuccess);
-	    g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess
-	      = &(stats->int_stats[i].dsFailuresSinceLastSuccess);
-	    g_get_global_snmp_vars()->int_tbl[i].dsFailures		 = &(stats->int_stats[i].dsFailures);
-	    g_get_global_snmp_vars()->int_tbl[i].dsSuccesses		 = &(stats->int_stats[i].dsSuccesses);
-	    g_get_global_snmp_vars()->int_tbl[i].dsURL			 = stats->int_stats[i].dsURL;
-	}
-
-	/* initialize table contents */
-	for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++)
-	{
-            *(g_get_global_snmp_vars()->int_tbl[i].dsIntIndex)                    = i + 1;
-            strcpy(g_get_global_snmp_vars()->int_tbl[i].dsName, "Not Available");
-            *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation)              = 0;
-            *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt)           = 0;
-            *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess)           = 0;
-            *(g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess)    = 0;
-            *(g_get_global_snmp_vars()->int_tbl[i].dsFailures)                    = 0;
-            *(g_get_global_snmp_vars()->int_tbl[i].dsSuccesses)                   = 0;
-	    strcpy(g_get_global_snmp_vars()->int_tbl[i].dsURL, "Not Available");
-	}
+	/* Release the semaphore */
+	sem_post(stats_sem);
 
 	/* create lock for interaction table */
         interaction_table_mutex = PR_NewLock();
@@ -202,7 +211,7 @@ int snmp_collator_init(){
 
 
 /***********************************************************************************
- * given the name, wether or not it was successfull and the URL updates snmp 
+ * given the name, whether or not it was successful and the URL updates snmp 
  * interaction table appropriately
  *
  *
@@ -231,32 +240,34 @@ void set_snmp_interaction_row(char *host, int port, int error)
   
       if(isnew){
           /* fillin the new row from scratch*/
-          *(g_get_global_snmp_vars()->int_tbl[index].dsIntIndex)	                  = index;
-          strcpy(g_get_global_snmp_vars()->int_tbl[index].dsName, dsName);
-          *(g_get_global_snmp_vars()->int_tbl[index].dsTimeOfCreation)	          = time(0);
-          *(g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt)	          = time(0);
+          g_get_global_snmp_vars()->int_tbl[index].dsIntIndex	                  = index;
+          strncpy(g_get_global_snmp_vars()->int_tbl[index].dsName, dsName,
+                  sizeof(g_get_global_snmp_vars()->int_tbl[index].dsName));
+          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfCreation	          = time(0);
+          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	          = time(0);
           if(error == 0){
-              *(g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess)	  = time(0);
-              *(g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess)  = 0;
-              *(g_get_global_snmp_vars()->int_tbl[index].dsFailures)	          = 0;
-              *(g_get_global_snmp_vars()->int_tbl[index].dsSuccesses)		  = 1;
+              g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = time(0);
+              g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
+              g_get_global_snmp_vars()->int_tbl[index].dsFailures	          = 0;
+              g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 1;
           }else{
-              *(g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess)	  = 0;
-              *(g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess)  = 1;
-              *(g_get_global_snmp_vars()->int_tbl[index].dsFailures)		  = 1;
-              *(g_get_global_snmp_vars()->int_tbl[index].dsSuccesses)		  = 0;
+              g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = 0;
+              g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 1;
+              g_get_global_snmp_vars()->int_tbl[index].dsFailures		  = 1;
+              g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 0;
           }
-          strcpy(g_get_global_snmp_vars()->int_tbl[index].dsURL, dsURL);		         
+          strncpy(g_get_global_snmp_vars()->int_tbl[index].dsURL, dsURL,
+                  sizeof(g_get_global_snmp_vars()->int_tbl[index].dsURL));		         
       }else{
         /* just update the appropriate fields */
-           *(g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt)	          = time(0);
+           g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	         = time(0);
           if(error == 0){
-             *(g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess)	  = time(0);
-             *(g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess)   = 0;
-             *(g_get_global_snmp_vars()->int_tbl[index].dsSuccesses)                  += 1;
+             g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess        = time(0);
+             g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
+             g_get_global_snmp_vars()->int_tbl[index].dsSuccesses                += 1;
           }else{
-             *(g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess)   +=1;
-             *(g_get_global_snmp_vars()->int_tbl[index].dsFailures)                   +=1;
+             g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess +=1;
+             g_get_global_snmp_vars()->int_tbl[index].dsFailures                 +=1;
           }
 
       }
@@ -274,7 +285,7 @@ void set_snmp_interaction_row(char *host, int port, int error)
  * 
  *    this should point to root DSE 
 ************************************************************************************/
-char *make_ds_url(char *host, int port){
+static char *make_ds_url(char *host, int port){
 
   char *url;
   
@@ -291,14 +302,14 @@ char *make_ds_url(char *host, int port){
  * so caller can rewrite this row
 ************************************************************************************/
 
-int search_interaction_table(char *dsURL, int *isnew)
+static int search_interaction_table(char *dsURL, int *isnew)
 {
   int i;
   int index = 0;
   time_t oldestattempt;
   time_t currentattempt;
    
-   oldestattempt = *(g_get_global_snmp_vars()->int_tbl[0].dsTimeOfLastAttempt);
+   oldestattempt = g_get_global_snmp_vars()->int_tbl[0].dsTimeOfLastAttempt;
    *isnew = 1;
    
    for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++){
@@ -314,7 +325,7 @@ int search_interaction_table(char *dsURL, int *isnew)
 	   break;
        }else{
           /* not found so figure out oldest row */ 
-          currentattempt = *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt);
+          currentattempt = g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt;
 	 
           if(currentattempt <= oldestattempt){
               index=i;
@@ -328,19 +339,19 @@ int search_interaction_table(char *dsURL, int *isnew)
 
 }
 /* for debuging until subagent part working, print contents of interaction table */
-void print_snmp_interaction_table()
+static void print_snmp_interaction_table()
 { 
   int i;
   for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++)
   {
-    fprintf(stderr, "                dsIntIndex: %d \n", *(g_get_global_snmp_vars()->int_tbl[i].dsIntIndex));
+    fprintf(stderr, "                dsIntIndex: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsIntIndex);
     fprintf(stderr, "                    dsName: %s \n",   g_get_global_snmp_vars()->int_tbl[i].dsName);
-    fprintf(stderr, "          dsTimeOfCreation: %ld \n", *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation));
-    fprintf(stderr, "       dsTimeOfLastAttempt: %ld \n", *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt));
-    fprintf(stderr, "       dsTimeOfLastSuccess: %ld \n", *(g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess));
-    fprintf(stderr, "dsFailuresSinceLastSuccess: %d \n", *(g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess));
-    fprintf(stderr, "                dsFailures: %d \n", *(g_get_global_snmp_vars()->int_tbl[i].dsFailures));
-    fprintf(stderr, "               dsSuccesses: %d \n", *(g_get_global_snmp_vars()->int_tbl[i].dsSuccesses));
+    fprintf(stderr, "          dsTimeOfCreation: %ld \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation);
+    fprintf(stderr, "       dsTimeOfLastAttempt: %ld \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt);
+    fprintf(stderr, "       dsTimeOfLastSuccess: %ld \n", g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess);
+    fprintf(stderr, "dsFailuresSinceLastSuccess: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess);
+    fprintf(stderr, "                dsFailures: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsFailures);
+    fprintf(stderr, "               dsSuccesses: %d \n", g_get_global_snmp_vars()->int_tbl[i].dsSuccesses);
     fprintf(stderr, "                     dsURL: %s \n", g_get_global_snmp_vars()->int_tbl[i].dsURL);
     fprintf(stderr, "\n");
   }
@@ -418,6 +429,8 @@ int snmp_collator_start()
   }
   PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/%s%s",
               statspath, instname, AGT_STATS_EXTENSION);
+  PR_snprintf(stats_sem_name, sizeof(stats_sem_name), "%s%s",
+              instname, AGT_STATS_EXTENSION);
   tmpstatsfile = szStatsFile;
   slapi_ch_free_string(&statspath);
   slapi_ch_free_string(&instdir);
@@ -427,27 +440,22 @@ int snmp_collator_start()
   {
     if (err != EEXIST)      /* Ignore if file already exists */
     {
-      printf("Failed to open stats file (%s) (error %d).\n", 
-                                         szStatsFile, err);
+      LDAPDebug( LDAP_DEBUG_ANY, "Failed to open stats file (%s) (error %d).\n",
+                         szStatsFile, err, 0 );
       exit(1);
     }
   }
 
-/* read config entry for entity table data */
+  /* Create semaphore for stats file access */
+  snmp_collator_create_semaphore();
 
-/* point stats struct at mmap data */
+  /* point stats struct at mmap data */
   stats = (struct agt_stats_t *) mmap_tbl [hdl].fp;
 
-/* initialize stats data */
-
+  /* initialize stats data */
   snmp_collator_init();
-/*
-*  now that memmap is open and things point the right way
-*  an atomic set or increment anywhere in slapd should set
-*  the snmp memmap vars correctly and be able to be polled by snmp
-*/
 
-  /* Arrange to be called back periodically */
+  /* Arrange to be called back periodically to update the mmap'd stats file. */
   snmp_eq_ctx = slapi_eq_repeat(snmp_collator_update, NULL, (time_t)0,
                                 SLAPD_SNMP_UPDATE_INTERVAL);
   return 0;
@@ -472,6 +480,9 @@ int snmp_collator_stop()
 	slapi_eq_cancel(snmp_eq_ctx);
 	snmp_collator_stopped = 1;
 
+   /* acquire the semaphore */
+   snmp_collator_sem_wait();
+
    /* close the memory map */
    if ((err = agt_mclose_stats(hdl)) != 0)
    {
@@ -484,6 +495,10 @@ int snmp_collator_stop()
        fprintf(stderr, "Failed to remove (%s) (error =  %d).\n", 
             tmpstatsfile, errno);
    }
+
+   /* close and delete semaphore */
+   sem_close(stats_sem);
+   sem_unlink(stats_sem_name);
 
    /* delete lock */
    PR_DestroyLock(interaction_table_mutex);
@@ -498,166 +513,304 @@ int snmp_collator_stop()
 return 0;
 }
 
+/*
+ * snmp_collator_create_semaphore()
+ *
+ * Create a semaphore to synchronize access to the stats file with
+ * the SNMP sub-agent.  NSPR doesn't support a trywait function
+ * for semaphores, so we just use POSIX semaphores directly.
+ */
+static void
+snmp_collator_create_semaphore()
+{
+    /* First just try to create the semaphore.  This should usually just work. */
+    if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
+        if (errno == EEXIST) {
+            /* It appears that we didn't exit cleanly last time and left the semaphore
+             * around.  Recreate it since we don't know what state it is in. */
+            sem_unlink(stats_sem_name);
+            if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
+                /* No dice */
+                LDAPDebug( LDAP_DEBUG_ANY, "Failed to create semaphore for stats file (%s). Error %d.\n",
+                         szStatsFile, errno, 0 );
+                exit(1);
+            }
+        } else {
+            /* Some other problem occurred creating the semaphore. */
+            LDAPDebug( LDAP_DEBUG_ANY, "Failed to create semaphore for stats file (%s). Error %d.\n",
+                     szStatsFile, errno, 0 );
+            exit(1);
+        }
+    }
+
+    /* If we've reached this point, everything should be good. */
+    return;
+}
+
+/*
+ * snmp_collator_sem_wait()
+ *
+ * A wrapper used to get the semaphore.  We don't want to block,
+ * but we want to retry a specified number of times in case the
+ * semaphore is help by the sub-agent.
+ */
+static void
+snmp_collator_sem_wait()
+{
+    int i = 0;
+    int got_sem = 0;
+
+    for (i=0; i < SNMP_NUM_SEM_WAITS; i++) {
+        if (sem_trywait(stats_sem) == 0) {
+            got_sem = 1;
+            break;
+        }
+        PR_Sleep(PR_SecondsToInterval(1));
+    }
+
+    if (!got_sem) {
+        /* If we've been unable to get the semaphore, there's
+         * something wrong (likely the sub-agent went out to
+         * lunch).  We remove the old semaphore and recreate
+         * a new one to avoid hanging up the server. */
+        sem_close(stats_sem);
+        sem_unlink(stats_sem_name);
+        snmp_collator_create_semaphore();
+    }
+}
+
 
 
 /***********************************************************************************
 *
 * int snmp_collator_update()
 *
-*    our architecture changed from mail server and we right to mmapped 
-*    area as soon as operation completed, rather than maintining the same data twice  
-*    and doing a polled update. However, to keep traps working correctly (as they depend)
-*    on the time in the header, it is more efficient to write the header info
-*    in a polled fashion (ever 1 sec)
+* Event callback function that updates the mmap'd stats file
+* for the SNMP sub-agent.  This will use a semaphore while
+* updating the stats file to prevent the SNMP sub-agent from
+* reading it in the middle of an update.
 *
 ************************************************************************************/
 
 void
 snmp_collator_update(time_t start_time, void *arg)
 {
-    Slapi_Backend	*be, *be_next;
-    char			*cookie = NULL;
-    Slapi_PBlock	*search_result_pb = NULL;
-    Slapi_Entry     **search_entries;
-    Slapi_Attr      *attr  = NULL;
-    Slapi_Value     *sval = NULL;
-    int             search_result;
-    
-	if (snmp_collator_stopped) {
-		return;
-	}
+    if (snmp_collator_stopped) {
+        return;
+    }
+
+    /* force an update of the backend cache stats. */
+    snmp_update_cache_stats();
+
+    /* get the semaphore */
+    snmp_collator_sem_wait();
 
     /* just update the update time in the header */
     if( stats != NULL){
         stats->hdr_stats.updateTime = time(0);		
     }
 
-    /* set the cache hits/cache entries info */
-	be = slapi_get_first_backend(&cookie);
-	if (!be)
-		return;
+    /* update the mmap'd tables */
+    snmp_update_ops_table();
+    snmp_update_entries_table();
+    snmp_update_interactions_table();
 
-	be_next = slapi_get_next_backend(cookie);
+    /* release the semaphore */
+    sem_post(stats_sem);
+}
 
-	slapi_ch_free ((void **) &cookie);
+/*
+ * snmp_update_ops_table()
+ *
+ * Updates the mmap'd operations table.  The semaphore
+ * should be acquired before you call this.
+ */
+static void
+snmp_update_ops_table()
+{
+    stats->ops_stats.dsAnonymousBinds = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
+    stats->ops_stats.dsUnAuthBinds = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+    stats->ops_stats.dsSimpleAuthBinds = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
+    stats->ops_stats.dsStrongAuthBinds = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds);
+    stats->ops_stats.dsBindSecurityErrors = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+    stats->ops_stats.dsInOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsInOps);
+    stats->ops_stats.dsReadOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReadOps);
+    stats->ops_stats.dsCompareOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
+    stats->ops_stats.dsAddEntryOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsAddEntryOps);
+    stats->ops_stats.dsRemoveEntryOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsRemoveEntryOps);
+    stats->ops_stats.dsModifyEntryOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps);
+    stats->ops_stats.dsModifyRDNOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
+    stats->ops_stats.dsListOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsListOps);
+    stats->ops_stats.dsSearchOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsSearchOps);
+    stats->ops_stats.dsOneLevelSearchOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsOneLevelSearchOps);
+    stats->ops_stats.dsWholeSubtreeSearchOps = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsWholeSubtreeSearchOps);
+    stats->ops_stats.dsReferrals = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+    stats->ops_stats.dsChainings = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsChainings);
+    stats->ops_stats.dsSecurityErrors = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors);
+    stats->ops_stats.dsErrors = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsErrors);
+    stats->ops_stats.dsConnections = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+    stats->ops_stats.dsConnectionSeq = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
+    stats->ops_stats.dsBytesRecv = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesRecv);
+    stats->ops_stats.dsBytesSent = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesSent);
+    stats->ops_stats.dsEntriesReturned = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned);
+    stats->ops_stats.dsReferralsReturned = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned);
+}
 
-	/* for now, only do it if there is only 1 backend, otherwise don't know 
-       which backend to pick */
-    if(be_next == NULL)
-    {
-	    Slapi_DN monitordn;
-		slapi_sdn_init(&monitordn);
-		be_getmonitordn(be,&monitordn);
-   
-	  /* do a search on the monitor dn to get info */
-        search_result_pb = slapi_search_internal( slapi_sdn_get_dn(&monitordn),
-				    LDAP_SCOPE_BASE,
-				    "objectclass=*", 
-				    NULL,
-				    NULL,
-				    0);
-		slapi_sdn_done(&monitordn);
+/*
+ * snmp_update_entries_table()
+ *
+ * Updated the mmap'd entries table.  The semaphore should
+ * be acquired before you call this.
+ */
+static void
+snmp_update_entries_table()
+{
+    stats->entries_stats.dsMasterEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsMasterEntries);
+    stats->entries_stats.dsCopyEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCopyEntries);
+    stats->entries_stats.dsCacheEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries);
+    stats->entries_stats.dsCacheHits = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheHits);
+    stats->entries_stats.dsSlaveHits = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsSlaveHits);
+}
 
-		slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
+/*
+ * snmp_update_interactions_table()
+ *
+ * Updates the mmap'd interactions table.  The semaphore should
+ * be acquired before you call this.
+ */
+static void
+snmp_update_interactions_table()
+{
+    int i;
 
-		if(search_result == 0)
-		{
-		    const struct berval *val = NULL;
-            /* get the entrycachehits */
-		    slapi_pblock_get( search_result_pb,SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
-				    &search_entries);
-		    if(slapi_entry_attr_find( search_entries[0], "entrycachehits", &attr)  == 0 )
-		    {
-		        /* get the values out of the attribute */
-				val = NULL;
-				slapi_attr_first_value( attr, &sval );
-				if(NULL != sval)
-				{
-				    val= slapi_value_get_berval( sval );
-				}
-		    }		       
-
-		    /* if we got a value for entrycachehits, then set it */
-		    if(val != NULL)
-		    {
-		        snmp_set_counter(g_get_global_snmp_vars()->entries_tbl.dsCacheHits, atoi(val->bv_val));
-
-		    }
-		    
-		    /* get the currententrycachesize */
-		    attr = NULL;
-		    val = NULL;
-		    sval = NULL;
-		    if(slapi_entry_attr_find( search_entries[0], "currententrycachesize", &attr)  == 0 )
-		    {
-		        /* get the values out of the attribute */
-		        slapi_attr_first_value( attr,&sval );
-				if(NULL != sval) {
-				    val= slapi_value_get_berval( sval );
-				}
-		    }		       
-
-		    /* if we got a value for currententrycachesize, then set it */
-		    if(val != NULL)
-		    {
-		        snmp_set_counter(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries, atoi(val->bv_val));
-
-		    }
-
-		}
-		
-		slapi_free_search_results_internal(search_result_pb);
-	    slapi_pblock_destroy(search_result_pb);
+    for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
+        stats->int_stats[i].dsIntIndex = i;
+        strncpy(stats->int_stats[i].dsName, g_get_global_snmp_vars()->int_tbl[i].dsName,
+                sizeof(stats->int_stats[i].dsName));
+        stats->int_stats[i].dsTimeOfCreation = g_get_global_snmp_vars()->int_tbl[i].dsTimeOfCreation;
+        stats->int_stats[i].dsTimeOfLastAttempt = g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt;
+        stats->int_stats[i].dsTimeOfLastSuccess = g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastSuccess;
+        stats->int_stats[i].dsFailuresSinceLastSuccess = g_get_global_snmp_vars()->int_tbl[i].dsFailuresSinceLastSuccess;
+        stats->int_stats[i].dsFailures = g_get_global_snmp_vars()->int_tbl[i].dsFailures;
+        stats->int_stats[i].dsSuccesses = g_get_global_snmp_vars()->int_tbl[i].dsSuccesses;
+        strncpy(stats->int_stats[i].dsURL, g_get_global_snmp_vars()->int_tbl[i].dsURL,
+                sizeof(stats->int_stats[i].dsURL));
     }
 }
 
-/* NGK - We should not be using a plain int here.  All of these counters
- * are PRUint32 types for now, but they will be PRUint64 once converted
- * to use Slapi_Counter. */
+/*
+ * snmp_update_cache_stats()
+ *
+ * Reads the backend cache stats from the backend monitor entry and 
+ * updates the global counter used by the SNMP sub-agent as well as
+ * the SNMP monitor entry.
+ */
 static void
-add_counter_to_value(Slapi_Entry *e, const char *type, int countervalue)
+snmp_update_cache_stats()
+{
+    Slapi_Backend       *be, *be_next;
+    char                *cookie = NULL;
+    Slapi_PBlock        *search_result_pb = NULL;
+    Slapi_Entry         **search_entries;
+    int                 search_result;
+
+    /* set the cache hits/cache entries info */
+    be = slapi_get_first_backend(&cookie);
+    if (!be)
+        return;
+
+    be_next = slapi_get_next_backend(cookie);
+
+    slapi_ch_free ((void **) &cookie);
+
+    /* for now, only do it if there is only 1 backend, otherwise don't know 
+     * which backend to pick */
+    if(be_next == NULL)
+    {
+        Slapi_DN monitordn;
+        slapi_sdn_init(&monitordn);
+        be_getmonitordn(be,&monitordn);
+   
+        /* do a search on the monitor dn to get info */
+        search_result_pb = slapi_search_internal( slapi_sdn_get_dn(&monitordn),
+                LDAP_SCOPE_BASE,
+                "objectclass=*", 
+                NULL,
+                NULL,
+                0);
+        slapi_sdn_done(&monitordn);
+
+        slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
+
+        if(search_result == 0)
+        {
+            slapi_pblock_get( search_result_pb,SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+                    &search_entries);
+
+            /* set the entrycachehits */
+            slapi_counter_set_value(g_get_global_snmp_vars()->entries_tbl.dsCacheHits,
+                    slapi_entry_attr_get_ulonglong(search_entries[0], "entrycachehits"));
+		    
+            /* set the currententrycachesize */
+            slapi_counter_set_value(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries,
+                    slapi_entry_attr_get_ulonglong(search_entries[0], "currententrycachesize"));
+        }
+
+        slapi_free_search_results_internal(search_result_pb);
+        slapi_pblock_destroy(search_result_pb);
+    }
+}
+
+static void
+add_counter_to_value(Slapi_Entry *e, const char *type, PRUint64 countervalue)
 {
 	char value[40];
-	sprintf(value,"%d",countervalue);
+	sprintf(value,"%" PRIu64, countervalue);
 	slapi_entry_attr_set_charptr( e, type, value);
 }
 
 void
 snmp_as_entry(Slapi_Entry *e)
 {
-	add_counter_to_value(e,"AnonymousBinds",stats->ops_stats.dsAnonymousBinds);
-	add_counter_to_value(e,"UnAuthBinds",stats->ops_stats.dsUnAuthBinds);
-	add_counter_to_value(e,"SimpleAuthBinds",stats->ops_stats.dsSimpleAuthBinds);
-	add_counter_to_value(e,"StrongAuthBinds",stats->ops_stats.dsStrongAuthBinds);
-	add_counter_to_value(e,"BindSecurityErrors",stats->ops_stats.dsBindSecurityErrors);
-	add_counter_to_value(e,"InOps",stats->ops_stats.dsInOps);
-	add_counter_to_value(e,"ReadOps",stats->ops_stats.dsReadOps);
-	add_counter_to_value(e,"CompareOps",stats->ops_stats.dsCompareOps);
-	add_counter_to_value(e,"AddEntryOps",stats->ops_stats.dsAddEntryOps);
-	add_counter_to_value(e,"RemoveEntryOps",stats->ops_stats.dsRemoveEntryOps);
-	add_counter_to_value(e,"ModifyEntryOps",stats->ops_stats.dsModifyEntryOps);
-	add_counter_to_value(e,"ModifyRDNOps",stats->ops_stats.dsModifyRDNOps);
-	add_counter_to_value(e,"ListOps",stats->ops_stats.dsListOps);
-	add_counter_to_value(e,"SearchOps",stats->ops_stats.dsSearchOps);
-	add_counter_to_value(e,"OneLevelSearchOps",stats->ops_stats.dsOneLevelSearchOps);
-	add_counter_to_value(e,"WholeSubtreeSearchOps",stats->ops_stats.dsWholeSubtreeSearchOps);
-	add_counter_to_value(e,"Referrals",stats->ops_stats.dsReferrals);
-	add_counter_to_value(e,"Chainings",stats->ops_stats.dsChainings);
-	add_counter_to_value(e,"SecurityErrors",stats->ops_stats.dsSecurityErrors);
-	add_counter_to_value(e,"Errors",stats->ops_stats.dsErrors);
-	add_counter_to_value(e,"Connections",stats->ops_stats.dsConnections);
-	add_counter_to_value(e,"ConnectionSeq",stats->ops_stats.dsConnectionSeq);
-	add_counter_to_value(e,"BytesRecv",stats->ops_stats.dsBytesRecv);
-	add_counter_to_value(e,"BytesSent",stats->ops_stats.dsBytesSent);
-	add_counter_to_value(e,"EntriesReturned",stats->ops_stats.dsEntriesReturned);
-	add_counter_to_value(e,"ReferralsReturned",stats->ops_stats.dsReferralsReturned);
-	add_counter_to_value(e,"MasterEntries",stats->entries_stats.dsMasterEntries);
-	add_counter_to_value(e,"CopyEntries",stats->entries_stats.dsCopyEntries);
-	add_counter_to_value(e,"CacheEntries",stats->entries_stats.dsCacheEntries);
-	add_counter_to_value(e,"CacheHits",stats->entries_stats.dsCacheHits);
-	add_counter_to_value(e,"SlaveHits",stats->entries_stats.dsSlaveHits);
+	add_counter_to_value(e,"AnonymousBinds", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds));
+	add_counter_to_value(e,"UnAuthBinds", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds));
+	add_counter_to_value(e,"SimpleAuthBinds", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds));
+	add_counter_to_value(e,"StrongAuthBinds", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds));
+	add_counter_to_value(e,"BindSecurityErrors", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors));
+	add_counter_to_value(e,"InOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsInOps));
+	add_counter_to_value(e,"ReadOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReadOps));
+	add_counter_to_value(e,"CompareOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsCompareOps));
+	add_counter_to_value(e,"AddEntryOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsAddEntryOps));
+	add_counter_to_value(e,"RemoveEntryOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsRemoveEntryOps));
+	add_counter_to_value(e,"ModifyEntryOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsModifyEntryOps));
+	add_counter_to_value(e,"ModifyRDNOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps));
+	add_counter_to_value(e,"ListOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsListOps));
+	add_counter_to_value(e,"SearchOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsSearchOps));
+	add_counter_to_value(e,"OneLevelSearchOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsOneLevelSearchOps));
+	add_counter_to_value(e,"WholeSubtreeSearchOps", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsWholeSubtreeSearchOps));
+	add_counter_to_value(e,"Referrals", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReferrals));
+	add_counter_to_value(e,"Chainings", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsChainings));
+	add_counter_to_value(e,"SecurityErrors", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors));
+	add_counter_to_value(e,"Errors", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsErrors));
+	add_counter_to_value(e,"Connections", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnections));
+	add_counter_to_value(e,"ConnectionSeq", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq));
+	add_counter_to_value(e,"BytesRecv", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesRecv));
+	add_counter_to_value(e,"BytesSent", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesSent));
+	add_counter_to_value(e,"EntriesReturned", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned));
+	add_counter_to_value(e,"ReferralsReturned", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned));
+	add_counter_to_value(e,"MasterEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsMasterEntries));
+	add_counter_to_value(e,"CopyEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCopyEntries));
+	add_counter_to_value(e,"CacheEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries));
+	add_counter_to_value(e,"CacheHits", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheHits));
+	add_counter_to_value(e,"SlaveHits", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsSlaveHits));
 }
 
+/*
+ * loadConfigStats()
+ *
+ * Reads the header table SNMP settings and sets them in the mmap'd stats
+ * file.  This should be done only when the semaphore is held.
+ */
 static void
 loadConfigStats() {
 	Slapi_Entry *entry = NULL;
@@ -724,22 +877,5 @@ freeConfigEntry( Slapi_Entry **e ) {
                 slapi_entry_free( *e );
                 *e = NULL;
         }
-}
-
-/*
- * wrapper functions to ease the cast burdon between net=snmp APIs which expect
- * unsigned int and PR_AtomicIncrement/PR_AtomicSet which expect signed int.
- * NSPR_API(PRInt32) PR_AtomicSet(PRInt32 *val, PRInt32 newval);
- * NSPR_API(PRInt32) PR_AtomicIncrement(PRInt32 *val);
- */
-void
-snmp_increment_counter(PRUint32 *counter)
-{
-	PR_AtomicIncrement((PRInt32 *)counter);
-}
-
-void snmp_set_counter(PRUint32 *counter, PRInt32 newval)
-{
-	PR_AtomicSet((PRInt32 *)counter, newval);
 }
 

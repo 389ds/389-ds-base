@@ -23394,6 +23394,11 @@ cat >>confdefs.h <<\_ACEOF
 #define _GNU_SOURCE 1
 _ACEOF
 
+
+cat >>confdefs.h <<\_ACEOF
+#define ATOMIC_64BIT_OPERATIONS 1
+_ACEOF
+
     platform="linux"
     # relative to sysconfdir
     initdir=/rc.d/init.d
@@ -23447,6 +23452,11 @@ _ACEOF
 
 cat >>confdefs.h <<\_ACEOF
 #define _INCLUDE_STDC__SOURCE_199901 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define ATOMIC_64BIT_OPERATIONS 1
 _ACEOF
 
     # assume 64 bit
@@ -23503,6 +23513,11 @@ _ACEOF
 
 cat >>confdefs.h <<\_ACEOF
 #define _INCLUDE_STDC__SOURCE_199901 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define ATOMIC_64BIT_OPERATIONS 1
 _ACEOF
 
     # assume 64 bit
@@ -23569,6 +23584,11 @@ _ACEOF
 
 cat >>confdefs.h <<\_ACEOF
 #define NO_DOMAINNAME 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define ATOMIC_64BIT_OPERATIONS 1
 _ACEOF
 
     LIBSOCKET=-lsocket

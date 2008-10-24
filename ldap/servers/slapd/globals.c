@@ -88,9 +88,8 @@ Slapi_PBlock	*repl_pb = NULL;
 /*
  * global variables that need mutex protection
  */
-PRInt32		ops_initiated;
-PRInt32		ops_completed;
-PRLock		*ops_mutex;
+Slapi_Counter	*ops_initiated;
+Slapi_Counter	*ops_completed;
 Slapi_Counter	*num_conns;
 
 
@@ -171,4 +170,17 @@ set_entry_points()
     sep->sep_slapd_ssl_init2 = (caddr_t)slapd_ssl_init2;
     set_dll_entry_points( sep );
    
+	/* To apply the nsslapd-counters config value properly,
+	   these values are initialized here after config file is read */
+	if (config_get_slapi_counters()) {
+		ops_initiated = slapi_counter_new();
+		ops_completed = slapi_counter_new();
+		g_set_num_entries_sent( slapi_counter_new() );
+		g_set_num_bytes_sent( slapi_counter_new() );
+	} else {
+		ops_initiated = NULL;
+		ops_completed = NULL;
+		g_set_num_entries_sent( NULL );
+		g_set_num_bytes_sent( NULL );
+	}
 }

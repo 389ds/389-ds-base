@@ -87,7 +87,7 @@ do_search( Slapi_PBlock *pb )
 	ber = operation->o_ber;
 
 	/* count the search request */
-	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsSearchOps);
+	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsSearchOps);
 
 	/*
 	 * Parse the search request.  It looks like this:
@@ -141,11 +141,11 @@ do_search( Slapi_PBlock *pb )
 	/* check and record the scope for snmp */
 	if ( scope == LDAP_SCOPE_ONELEVEL) {
 		/* count the one level search request */
-		snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsOneLevelSearchOps);
+		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsOneLevelSearchOps);
 
 	} else if (scope == LDAP_SCOPE_SUBTREE) {
 		/* count the subtree search request */
-		snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsWholeSubtreeSearchOps);
+		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsWholeSubtreeSearchOps);
 	}
 
 	/* filter - returns a "normalized" version */

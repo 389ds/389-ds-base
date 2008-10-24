@@ -1208,14 +1208,6 @@ void    DS_Sleep(PRIntervalTime ticks);
 #define PRLDAP_SET_PORT(myaddr,myport) \
     ((myaddr)->raw.family == PR_AF_INET6 ? ((myaddr)->ipv6.port = PR_htons(myport)) : ((myaddr)->inet.port = PR_htons(myport)))
 
-/*
- * snmp_collator.c
- * wrapper functions to ease the cast burdon between net-snmp APIs which expect 
- * unsigned int and PR_AtomicIncrement/PR_AtomicSet which expect signed int.
- */ 
-void snmp_increment_counter(PRUint32 *counter);
-void snmp_set_counter(PRUint32 *counter, PRInt32 newval);
-
 #ifdef __cplusplus
 }
 #endif

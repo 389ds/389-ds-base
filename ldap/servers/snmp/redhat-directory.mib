@@ -46,7 +46,7 @@
 RHDS-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
-      MODULE-IDENTITY,  Counter32, Gauge32, OBJECT-TYPE
+      MODULE-IDENTITY,  Counter64, Counter32, Gauge32, OBJECT-TYPE
                  FROM SNMPv2-SMI 
       DisplayString,    TimeStamp, TEXTUAL-CONVENTION
                  FROM SNMPv2-TC
@@ -68,7 +68,7 @@ IMPORTS
        SYNTAX DisplayString
 
     rhds MODULE-IDENTITY
-       LAST-UPDATED "200503020000Z"
+       LAST-UPDATED "200810230000Z"
        ORGANIZATION "Red Hat, Inc."
        CONTACT-INFO
               "Red Hat, Inc.
@@ -103,54 +103,54 @@ IMPORTS
     -- Bindings
 
         dsAnonymousBinds
-            Counter32,
+            Counter64,
         dsUnAuthBinds
-            Counter32,
+            Counter64,
         dsSimpleAuthBinds
-            Counter32,
+            Counter64,
         dsStrongAuthBinds
-            Counter32,
+            Counter64
         dsBindSecurityErrors
-            Counter32,
+            Counter64,
 
     -- In-coming operations
 
         dsInOps
-            Counter32,
+            Counter64,
         dsReadOps
-            Counter32,
+            Counter64,
         dsCompareOps
-            Counter32,
+            Counter64,
         dsAddEntryOps
-            Counter32,
+            Counter64,
         dsRemoveEntryOps
-            Counter32,
+            Counter64,
         dsModifyEntryOps
-            Counter32,
+            Counter64,
         dsModifyRDNOps
-            Counter32,
+            Counter64,
         dsListOps
-            Counter32,
+            Counter64,
         dsSearchOps
-            Counter32,
+            Counter64,
         dsOneLevelSearchOps
-            Counter32,
+            Counter64,
         dsWholeSubtreeSearchOps
-            Counter32,
+            Counter64,
 
     -- Out going operations
 
         dsReferrals
-            Counter32,
+            Counter64,
 	dsChainings
-            Counter32,
+            Counter64,
 
     -- Errors
 
         dsSecurityErrors
-            Counter32,
+            Counter64,
         dsErrors
-            Counter32
+            Counter64
     }
 
     -- CLDAP does not use binds; for A CLDAP DS the bind
@@ -172,7 +172,7 @@ IMPORTS
     -- CLDAP and LDAP DSs: dsReferrals.
 
     dsAnonymousBinds OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -181,7 +181,7 @@ IMPORTS
         ::= {dsOpsEntry 1}
 
     dsUnAuthBinds OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -190,7 +190,7 @@ IMPORTS
         ::= {dsOpsEntry 2}
 
     dsSimpleAuthBinds OBJECT-TYPE
-	SYNTAX Counter32
+	SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -203,7 +203,7 @@ IMPORTS
         ::= {dsOpsEntry 3}
 
     dsStrongAuthBinds OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -217,7 +217,7 @@ IMPORTS
         ::= {dsOpsEntry 4}
 
     dsBindSecurityErrors OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -230,7 +230,7 @@ IMPORTS
         ::= {dsOpsEntry 5}
 
     dsInOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -240,7 +240,7 @@ IMPORTS
         ::= {dsOpsEntry 6}
 		
 	dsReadOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -252,7 +252,7 @@ IMPORTS
         ::= {dsOpsEntry 7}
 
     dsCompareOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -264,7 +264,7 @@ IMPORTS
         ::= {dsOpsEntry 8}
 
     dsAddEntryOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -276,7 +276,7 @@ IMPORTS
         ::= {dsOpsEntry 9}
 
     dsRemoveEntryOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -288,7 +288,7 @@ IMPORTS
         ::= {dsOpsEntry 10}
 
 	dsModifyEntryOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -300,7 +300,7 @@ IMPORTS
         ::= {dsOpsEntry 11}
 
     dsModifyRDNOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -312,7 +312,7 @@ IMPORTS
         ::= {dsOpsEntry 12}
 
     dsListOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -324,7 +324,7 @@ IMPORTS
         ::= {dsOpsEntry 13}
 
     dsSearchOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -337,7 +337,7 @@ IMPORTS
         ::= {dsOpsEntry 14}
 
 	dsOneLevelSearchOps OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -349,7 +349,7 @@ IMPORTS
         ::= {dsOpsEntry 15}
 
     dsWholeSubtreeSearchOps   OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -361,7 +361,7 @@ IMPORTS
         ::= {dsOpsEntry 16}
 
     dsReferrals OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -373,7 +373,7 @@ IMPORTS
         ::= {dsOpsEntry 17}
 
     dsChainings OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -385,7 +385,7 @@ IMPORTS
         ::= {dsOpsEntry 18}
 
 	dsSecurityErrors OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -397,7 +397,7 @@ IMPORTS
         ::= {dsOpsEntry 19}
 
     dsErrors  OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -437,15 +437,15 @@ IMPORTS
 	DsEntriesEntry ::= SEQUENCE {
 
         dsMasterEntries
-            Gauge32,
+            Counter64,
         dsCopyEntries
-            Gauge32,
+            Counter64,
         dsCacheEntries
-            Gauge32,
+            Counter64,
         dsCacheHits
-            Counter32,
+            Counter64,
         dsSlaveHits
-            Counter32
+           Counter64 
     }
 
    -- A (C)LDAP frontend to the X.500 Directory will not have
@@ -454,7 +454,7 @@ IMPORTS
    -- directory: dsMasterEntries, dsCopyEntries, dsSlaveHits.
 
     dsMasterEntries OBJECT-TYPE
-        SYNTAX Gauge32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -462,7 +462,7 @@ IMPORTS
         ::= {dsEntriesEntry 1}
 
     dsCopyEntries OBJECT-TYPE
-        SYNTAX Gauge32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -471,7 +471,7 @@ IMPORTS
         ::= {dsEntriesEntry 2}
 
     dsCacheEntries OBJECT-TYPE
-        SYNTAX Gauge32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -480,8 +480,8 @@ IMPORTS
             cached partially. The negative cache is not counted."
         ::= {dsEntriesEntry 3}
 
-	dsCacheHits OBJECT-TYPE
-        SYNTAX Counter32
+    dsCacheHits OBJECT-TYPE
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION
@@ -491,7 +491,7 @@ IMPORTS
         ::= {dsEntriesEntry 4}
 
     dsSlaveHits  OBJECT-TYPE
-        SYNTAX Counter32
+        SYNTAX Counter64
         MAX-ACCESS read-only
         STATUS current
         DESCRIPTION

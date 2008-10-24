@@ -123,32 +123,32 @@ struct ops_stats_t{
     /*
      *      Ops Table attributes
      */
-    PRUint32 dsAnonymousBinds;
-    PRUint32 dsUnAuthBinds;
-    PRUint32 dsSimpleAuthBinds;
-    PRUint32 dsStrongAuthBinds;
-    PRUint32 dsBindSecurityErrors;
-    PRUint32 dsInOps;
-    PRUint32 dsReadOps;
-    PRUint32 dsCompareOps;
-    PRUint32 dsAddEntryOps;
-    PRUint32 dsRemoveEntryOps;
-    PRUint32 dsModifyEntryOps;
-    PRUint32 dsModifyRDNOps;
-    PRUint32 dsListOps;
-    PRUint32 dsSearchOps;
-    PRUint32 dsOneLevelSearchOps;
-    PRUint32 dsWholeSubtreeSearchOps;
-    PRUint32 dsReferrals;
-    PRUint32 dsChainings;
-    PRUint32 dsSecurityErrors;
-    PRUint32 dsErrors;
-    PRUint32 dsConnections;	 /* Number of currently connected clients */
-    PRUint32 dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
-    PRUint32 dsBytesRecv;	/* Count of bytes read from clients */
-    PRUint32 dsBytesSent;	/* Count of bytes sent to clients */
-    PRUint32 dsEntriesReturned; /* Number of entries returned by the server */
-    PRUint32 dsReferralsReturned; /* Number of entries returned by the server */
+    PRUint64 dsAnonymousBinds;
+    PRUint64 dsUnAuthBinds;
+    PRUint64 dsSimpleAuthBinds;
+    PRUint64 dsStrongAuthBinds;
+    PRUint64 dsBindSecurityErrors;
+    PRUint64 dsInOps;
+    PRUint64 dsReadOps;
+    PRUint64 dsCompareOps;
+    PRUint64 dsAddEntryOps;
+    PRUint64 dsRemoveEntryOps;
+    PRUint64 dsModifyEntryOps;
+    PRUint64 dsModifyRDNOps;
+    PRUint64 dsListOps;
+    PRUint64 dsSearchOps;
+    PRUint64 dsOneLevelSearchOps;
+    PRUint64 dsWholeSubtreeSearchOps;
+    PRUint64 dsReferrals;
+    PRUint64 dsChainings;
+    PRUint64 dsSecurityErrors;
+    PRUint64 dsErrors;
+    PRUint64 dsConnections;	 /* Number of currently connected clients */
+    PRUint64 dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
+    PRUint64 dsBytesRecv;	/* Count of bytes read from clients */
+    PRUint64 dsBytesSent;	/* Count of bytes sent to clients */
+    PRUint64 dsEntriesReturned; /* Number of entries returned by the server */
+    PRUint64 dsReferralsReturned; /* Number of entries returned by the server */
 };
 
 struct entries_stats_t
@@ -156,11 +156,11 @@ struct entries_stats_t
     /*
      *  Entries Table Attributes
      */
-    PRUint32 dsMasterEntries;
-    PRUint32 dsCopyEntries;
-    PRUint32 dsCacheEntries;
-    PRUint32 dsCacheHits;
-    PRUint32 dsSlaveHits;
+    PRUint64 dsMasterEntries;
+    PRUint64 dsCopyEntries;
+    PRUint64 dsCacheEntries;
+    PRUint64 dsCacheHits;
+    PRUint64 dsSlaveHits;
 };
 
 struct int_stats_t

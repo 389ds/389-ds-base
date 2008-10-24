@@ -355,6 +355,19 @@ load_config(char *conf_path)
                     instancename = NULL;
                     goto close_and_exit;
                 }
+
+                /* set the semaphore name */
+                /* ".stats" + \0 = 7 */
+                serv_p->stats_sem_name = malloc(strlen(p) + 7);
+                if (serv_p->stats_sem_name != NULL) {
+                    snprintf(serv_p->stats_sem_name, strlen(p) + 7, "%s.stats", p);
+                } else {
+                    printf("ldap-agent: malloc error processing config file\n");
+                    error = 1;
+                    free(instancename);
+                    instancename = NULL;
+                    goto close_and_exit;
+                }
             }
  
             /* Open dse.ldif */

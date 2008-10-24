@@ -79,7 +79,7 @@ do_modrdn( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
 
 	/* count the modrdn request */
-	snmp_increment_counter(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
+	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;

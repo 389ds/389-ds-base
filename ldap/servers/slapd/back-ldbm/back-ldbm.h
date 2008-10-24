@@ -339,7 +339,7 @@ struct backentry {
 /* for the in-core cache of entries */
 struct cache {
     size_t c_maxsize;		/* max size in bytes */
-    size_t c_cursize;		/* size in bytes */
+    Slapi_Counter *c_cursize;		/* size in bytes */
     long c_maxentries;		/* max entries allowed (-1: no limit) */
     long c_curentries;		/* current # entries in cache */
     Hashtable *c_dntable;
@@ -347,8 +347,8 @@ struct cache {
 #ifdef UUIDCACHE_ON 
     Hashtable *c_uuidtable;
 #endif
-    u_long c_hits;		/* for analysis of hits/misses */
-    u_long c_tries;
+    Slapi_Counter *c_hits;		/* for analysis of hits/misses */
+    Slapi_Counter *c_tries;
     struct backentry *c_lruhead;	/* add entries here */
     struct backentry *c_lrutail;	/* remove entries here */
     PRLock *c_mutex;			/* lock for cache operations */

@@ -87,8 +87,8 @@ agt_mmap_context_t 	mmap_tbl[2] = { {AGT_MAP_UNINIT, NULL, (caddr_t) -1, NULL},
  *	mode      ->  Must be one of O_RDONLY / O_RDWR.
  *		      O_RDWR creates the file if it does not exist.
  * Outputs:
- *	hdl	  ->  Opaque handle to the mapped file. Should be passed
- *		      Passed to a subsequent agt_mupdate_stats() or 
+ *	hdl	  ->  Opaque handle to the mapped file. Should be
+ *		      passed to a subsequent agt_mupdate_stats() or 
  *		      agt_mread_stats() or agt_mclose_stats() call.
  * Return Values:
  *		      Returns 0 on successfully doing the memmap or error codes 

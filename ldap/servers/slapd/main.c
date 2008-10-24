@@ -1039,7 +1039,12 @@ main( int argc, char **argv)
 				slapdFrontendConfig->configdir);
 
 		eq_init();					/* must be done before plugins started */
-		snmp_collator_start();
+
+		/* Start the SNMP collator if counters are enabled. */
+		if (config_get_slapi_counters()) {
+			snmp_collator_start();
+		}
+
 		ps_init_psearch_system();   /* must come before plugin_startall() */
 
 		/* Initailize the mapping tree */

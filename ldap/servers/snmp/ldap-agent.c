@@ -277,6 +277,7 @@ load_stats_table(netsnmp_cache *cache, void *foo)
     time_t previous_start;
     int previous_state;
     int stats_hdl = -1;
+    sem_t *stats_sem = NULL;
 
     snmp_log(LOG_INFO, "Reloading stats.\n");
 
@@ -291,8 +292,39 @@ load_stats_table(netsnmp_cache *cache, void *foo)
             snmp_log(LOG_INFO, "Opening stats file (%s) for server: %d\n",
                      serv_p->stats_file, serv_p->port);
 
+            /* Open and acquire semaphore */
+            if ((stats_sem = sem_open(serv_p->stats_sem_name, 0)) == SEM_FAILED) {
+                stats_sem = NULL;
+                snmp_log(LOG_INFO, "Unable to open semaphore for server: %d\n", serv_p->port);
+            } else {
+                int i = 0;
+                int got_sem = 0;
+
+                for (i=0; i < SNMP_NUM_SEM_WAITS; i++) {
+                    if (sem_trywait(stats_sem) == 0) {
+                        got_sem = 1;
+                        break;
+                    }
+                    PR_Sleep(PR_SecondsToInterval(1));
+                }
+
+                if (!got_sem) {
+                    /* We're unable to get the semaphore.  Assume
+                     * that the server is down. */
+                    snmp_log(LOG_INFO, "Unable to acquire semaphore for server: %d\n", serv_p->port);
+                    sem_close(stats_sem);
+                    stats_sem = NULL;
+                }
+            }
+
             /* Open the stats file */
-            if ( agt_mopen_stats(serv_p->stats_file, O_RDONLY, &stats_hdl) != 0 ) {
+            if ((stats_sem == NULL) || (agt_mopen_stats(serv_p->stats_file, O_RDONLY, &stats_hdl) != 0)) {
+                if (stats_sem) {
+                    /* Release and close semaphore */
+                    sem_post(stats_sem);
+                    sem_close(stats_sem);
+                }
+
                 /* Server must be down */
                 serv_p->server_state = SERVER_DOWN;
                 /* Zero out the ops and entries tables */
@@ -312,6 +344,10 @@ load_stats_table(netsnmp_cache *cache, void *foo)
                 if ( agt_mclose_stats(stats_hdl) != 0 )
                     snmp_log(LOG_ERR, "Error closing stats file: %s\n",
                                        serv_p->stats_file);
+
+                /* Release and close semaphore */
+                sem_post(stats_sem);
+                sem_close(stats_sem);
 
                 /* Server must be down if the stats file hasn't been
                  * updated in a while */
@@ -382,135 +418,108 @@ dsOpsTable_get_value(netsnmp_request_info *request,
                      netsnmp_index * item,
                      netsnmp_table_request_info *table_info)
 {
+    PRUint64 *the_stat = NULL;
+    integer64 new_val;
     netsnmp_variable_list *var = request->requestvb;
     stats_table_context *context = (stats_table_context *) item;
 
     switch (table_info->colnum) {
 
     case COLUMN_DSANONYMOUSBINDS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsAnonymousBinds,
-                                 sizeof(context->ops_tbl.dsAnonymousBinds));
+        the_stat = &context->ops_tbl.dsAnonymousBinds;
         break;
 
     case COLUMN_DSUNAUTHBINDS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsUnAuthBinds,
-                                 sizeof(context->ops_tbl.dsUnAuthBinds));
+        the_stat = &context->ops_tbl.dsUnAuthBinds;
         break;
 
     case COLUMN_DSSIMPLEAUTHBINDS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsSimpleAuthBinds,
-                                 sizeof(context->ops_tbl.dsSimpleAuthBinds));
+        the_stat = &context->ops_tbl.dsSimpleAuthBinds;
         break;
 
     case COLUMN_DSSTRONGAUTHBINDS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsStrongAuthBinds,
-                                 sizeof(context->ops_tbl.dsStrongAuthBinds));
+        the_stat = &context->ops_tbl.dsStrongAuthBinds;
         break;
 
     case COLUMN_DSBINDSECURITYERRORS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsBindSecurityErrors,
-                                 sizeof(context->ops_tbl.dsBindSecurityErrors));
+        the_stat = &context->ops_tbl.dsBindSecurityErrors;
         break;
 
     case COLUMN_DSINOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsInOps,
-                                 sizeof(context->ops_tbl.dsInOps));
+        the_stat = &context->ops_tbl.dsInOps;
         break;
 
     case COLUMN_DSREADOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsReadOps,
-                                 sizeof(context->ops_tbl.dsReadOps));
+        the_stat = &context->ops_tbl.dsReadOps;
         break;
 
     case COLUMN_DSCOMPAREOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsCompareOps,
-                                 sizeof(context->ops_tbl.dsCompareOps));
+        the_stat = &context->ops_tbl.dsCompareOps;
         break;
 
     case COLUMN_DSADDENTRYOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsAddEntryOps,
-                                 sizeof(context->ops_tbl.dsAddEntryOps));
+        the_stat = &context->ops_tbl.dsAddEntryOps;
         break;
 
     case COLUMN_DSREMOVEENTRYOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsRemoveEntryOps,
-                                 sizeof(context->ops_tbl.dsRemoveEntryOps));
+        the_stat = &context->ops_tbl.dsRemoveEntryOps;
         break;
 
     case COLUMN_DSMODIFYENTRYOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsModifyEntryOps,
-                                 sizeof(context->ops_tbl.dsModifyEntryOps));
+        the_stat = &context->ops_tbl.dsModifyEntryOps;
         break;
 
     case COLUMN_DSMODIFYRDNOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsModifyRDNOps,
-                                 sizeof(context->ops_tbl.dsModifyRDNOps));
+        the_stat = &context->ops_tbl.dsModifyRDNOps;
         break;
 
     case COLUMN_DSLISTOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsListOps,
-                                 sizeof(context->ops_tbl.dsListOps));
+        the_stat = &context->ops_tbl.dsListOps;
         break;
 
     case COLUMN_DSSEARCHOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsSearchOps,
-                                 sizeof(context->ops_tbl.dsSearchOps));
+        the_stat = &context->ops_tbl.dsSearchOps;
         break;
 
     case COLUMN_DSONELEVELSEARCHOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsOneLevelSearchOps,
-                                 sizeof(context->ops_tbl.dsOneLevelSearchOps));
+        the_stat = &context->ops_tbl.dsOneLevelSearchOps;
         break;
 
     case COLUMN_DSWHOLESUBTREESEARCHOPS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsWholeSubtreeSearchOps,
-                                 sizeof(context->ops_tbl.dsWholeSubtreeSearchOps));
+        the_stat = &context->ops_tbl.dsWholeSubtreeSearchOps;
         break;
 
     case COLUMN_DSREFERRALS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsReferrals,
-                                 sizeof(context->ops_tbl.dsReferrals));
+        the_stat = &context->ops_tbl.dsReferrals;
         break;
 
     case COLUMN_DSCHAININGS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsChainings,
-                                 sizeof(context->ops_tbl.dsChainings));
+        the_stat = &context->ops_tbl.dsChainings;
         break;
 
     case COLUMN_DSSECURITYERRORS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsSecurityErrors,
-                                 sizeof(context->ops_tbl.dsSecurityErrors));
+        the_stat = &context->ops_tbl.dsSecurityErrors;
         break;
 
     case COLUMN_DSERRORS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->ops_tbl.dsErrors,
-                                 sizeof(context->ops_tbl.dsErrors));
+        the_stat = &context->ops_tbl.dsErrors;
         break;
 
     default:/* We shouldn't get here */
         snmp_log(LOG_ERR, "Unknown column in dsOpsTable_get_value\n");
         return SNMP_ERR_GENERR;
     }
+
+    /* The Net-SNMP integer64 type isn't a true 64-bit value, but instead
+     * a structure containing the high and low bits separately.  We need
+     * to split our value appropriately. */
+    new_val.low = *the_stat & 0x00000000ffffffff;
+    new_val.high =  (*the_stat >> 32) & 0x00000000ffffffff;
+
+    snmp_set_var_typed_value(var, ASN_COUNTER64,
+                                 (u_char *) &new_val,
+                                 sizeof(new_val));
+
     return SNMP_ERR_NOERROR;
 }
 
@@ -527,45 +536,48 @@ dsEntriesTable_get_value(netsnmp_request_info *request,
                      netsnmp_index * item,
                      netsnmp_table_request_info *table_info)
 {
+    PRUint64 *the_stat = NULL;
+    integer64 new_val;
     netsnmp_variable_list *var = request->requestvb;
     stats_table_context *context = (stats_table_context *) item;
                                                                                                                 
     switch (table_info->colnum) {
                                                                                                                 
     case COLUMN_DSMASTERENTRIES:
-        snmp_set_var_typed_value(var, ASN_GAUGE,
-                                 (u_char *) &context->entries_tbl.dsMasterEntries,
-                                 sizeof(context->entries_tbl.dsMasterEntries));
+        the_stat = &context->entries_tbl.dsMasterEntries;
         break;
                                                                                                                 
     case COLUMN_DSCOPYENTRIES:
-        snmp_set_var_typed_value(var, ASN_GAUGE,
-                                 (u_char *) &context->entries_tbl.dsCopyEntries,
-                                 sizeof(context->entries_tbl.dsCopyEntries));
+        the_stat = &context->entries_tbl.dsCopyEntries;
         break;
                                                                                                                 
     case COLUMN_DSCACHEENTRIES:
-        snmp_set_var_typed_value(var, ASN_GAUGE,
-                                 (u_char *) &context->entries_tbl.dsCacheEntries,
-                                 sizeof(context->entries_tbl.dsCacheEntries));
+        the_stat = &context->entries_tbl.dsCacheEntries;
         break;
                                                                                                                 
     case COLUMN_DSCACHEHITS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->entries_tbl.dsCacheHits,
-                                 sizeof(context->entries_tbl.dsCacheHits));
+        the_stat = &context->entries_tbl.dsCacheHits;
         break;
                                                                                                                 
     case COLUMN_DSSLAVEHITS:
-        snmp_set_var_typed_value(var, ASN_COUNTER,
-                                 (u_char *) &context->entries_tbl.dsSlaveHits,
-                                 sizeof(context->entries_tbl.dsSlaveHits));
+        the_stat = &context->entries_tbl.dsSlaveHits;
         break;
                                                                                                                 
     default:/* We shouldn't get here */
         snmp_log(LOG_ERR, "Unknown column in dsEntriesTable_get_value\n");
         return SNMP_ERR_GENERR;
     }
+
+    /* The Net-SNMP integer64 type isn't a true 64-bit value, but instead
+     * a structure containing the high and low bits separately.  We need
+     * to split our value appropriately. */
+    new_val.low = *the_stat & 0x00000000ffffffff;
+    new_val.high =  (*the_stat >> 32) & 0x00000000ffffffff;
+
+    snmp_set_var_typed_value(var, ASN_COUNTER64,
+                                 (u_char *) &new_val,
+                                 sizeof(new_val));
+
     return SNMP_ERR_NOERROR;
 }
 

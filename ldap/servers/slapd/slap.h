@@ -152,6 +152,7 @@ typedef struct symbol_t {
 
 #define	SLAPD_LOGGING	1
 #define NUM_SNMP_INT_TBL_ROWS 5
+#define SNMP_FIELD_LENGTH 100
 
 /* include NSPR header files */
 #include "nspr.h"
@@ -1529,57 +1530,56 @@ typedef int (*value_compare_fn_type)(const struct berval *,const struct berval *
 #include "proto-slap.h"
 LDAPMod** entry2mods(Slapi_Entry *, LDAPMod **, int *, int);
 
-/* SNMP Variables */
+/* SNMP Counter Variables */
 struct snmp_ops_tbl_t{
-    PRUint32 *dsAnonymousBinds;
-    PRUint32 *dsUnAuthBinds;
-    PRUint32 *dsSimpleAuthBinds;
-    PRUint32 *dsStrongAuthBinds;
-    PRUint32 *dsBindSecurityErrors;
-    PRUint32 *dsInOps;
-    PRUint32 *dsReadOps;
-    PRUint32 *dsCompareOps;
-    PRUint32 *dsAddEntryOps;
-    PRUint32 *dsRemoveEntryOps;
-    PRUint32 *dsModifyEntryOps;
-    PRUint32 *dsModifyRDNOps;
-    PRUint32 *dsListOps;
-    PRUint32 *dsSearchOps;
-    PRUint32 *dsOneLevelSearchOps;
-    PRUint32 *dsWholeSubtreeSearchOps;
-    PRUint32 *dsReferrals;
-    PRUint32 *dsChainings;
-    PRUint32 *dsSecurityErrors;
-    PRUint32 *dsErrors;
-    PRUint32 *dsConnections;	 /* Number of currently connected clients */
-    PRUint32 *dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
-    PRUint32 *dsBytesRecv;	/* Count of bytes read from clients */
-    PRUint32 *dsBytesSent;	/* Count of bytes sent to clients */
-    PRUint32 *dsEntriesReturned;
-    PRUint32 *dsReferralsReturned;
+    Slapi_Counter *dsAnonymousBinds;
+    Slapi_Counter *dsUnAuthBinds;
+    Slapi_Counter *dsSimpleAuthBinds;
+    Slapi_Counter *dsStrongAuthBinds;
+    Slapi_Counter *dsBindSecurityErrors;
+    Slapi_Counter *dsInOps;
+    Slapi_Counter *dsReadOps;
+    Slapi_Counter *dsCompareOps;
+    Slapi_Counter *dsAddEntryOps;
+    Slapi_Counter *dsRemoveEntryOps;
+    Slapi_Counter *dsModifyEntryOps;
+    Slapi_Counter *dsModifyRDNOps;
+    Slapi_Counter *dsListOps;
+    Slapi_Counter *dsSearchOps;
+    Slapi_Counter *dsOneLevelSearchOps;
+    Slapi_Counter *dsWholeSubtreeSearchOps;
+    Slapi_Counter *dsReferrals;
+    Slapi_Counter *dsChainings;
+    Slapi_Counter *dsSecurityErrors;
+    Slapi_Counter *dsErrors;
+    Slapi_Counter *dsConnections;	 /* Number of currently connected clients */
+    Slapi_Counter *dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
+    Slapi_Counter *dsBytesRecv;	/* Count of bytes read from clients */
+    Slapi_Counter *dsBytesSent;	/* Count of bytes sent to clients */
+    Slapi_Counter *dsEntriesReturned;
+    Slapi_Counter *dsReferralsReturned;
 };
 
 struct snmp_entries_tbl_t{
-   /* entries table */
-   PRUint32 *dsMasterEntries;
-   PRUint32 *dsCopyEntries;
-   PRUint32 *dsCacheEntries;
-   PRUint32 *dsCacheHits;
-   PRUint32 *dsSlaveHits;
+    /* entries table */
+    Slapi_Counter *dsMasterEntries;
+    Slapi_Counter *dsCopyEntries;
+    Slapi_Counter *dsCacheEntries;
+    Slapi_Counter *dsCacheHits;
+    Slapi_Counter *dsSlaveHits;
 };
 
 struct snmp_int_tbl_t{
-
    /* interaction table */
-   PRUint32 *dsIntIndex;
-   char *dsName;
-   time_t *dsTimeOfCreation;          
-   time_t *dsTimeOfLastAttempt;      
-   time_t *dsTimeOfLastSuccess;      
-   PRUint32 *dsFailuresSinceLastSuccess;
-   PRUint32 *dsFailures;
-   PRUint32 *dsSuccesses;
-   char *dsURL;
+   PRUint32 dsIntIndex;
+   char dsName[SNMP_FIELD_LENGTH];
+   time_t dsTimeOfCreation;          
+   time_t dsTimeOfLastAttempt;      
+   time_t dsTimeOfLastSuccess;      
+   PRUint32 dsFailuresSinceLastSuccess;
+   PRUint32 dsFailures;
+   PRUint32 dsSuccesses;
+   char dsURL[SNMP_FIELD_LENGTH];
 };
 
 /* operation statistics */
@@ -1709,6 +1709,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE "nsslapd-ldapigidnumbertype"
 #define CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE "nsslapd-ldapientrysearchbase"
 #define CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE "nsslapd-ldapiautodnsuffix"
+#define CONFIG_SLAPI_COUNTER_ATTRIBUTE "nsslapd-counters"
 #define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
 #define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
 #define CONFIG_ACCESSLOG_ATTRIBUTE "nsslapd-accesslog"
@@ -1979,6 +1980,7 @@ typedef struct _slapdFrontendConfig {
   char *ldapi_gidnumber_type;   /* type that contains gid number */
   char *ldapi_search_base_dn;   /* base dn to search for mapped entries */
   char *ldapi_auto_dn_suffix;   /* suffix to be appended to auto gen DNs */
+  int slapi_counters;            /* switch to turn slapi_counters on/off */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */
