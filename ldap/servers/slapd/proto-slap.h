@@ -252,7 +252,9 @@ int config_set_ldapi_map_entries( const char *attrname, char *value, char *error
 int config_set_ldapi_uidnumber_type( const char *attrname, char *value, char *errorbuf, int apply );    
 int config_set_ldapi_gidnumber_type( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ldapi_search_base_dn( const char *attrname, char *value, char *errorbuf, int apply );
+#if defined(ENABLE_AUTO_DN_SUFFIX)
 int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *errorbuf, int apply );   
+#endif
 int config_set_srvtab( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply );
@@ -365,7 +367,9 @@ int config_get_ldapi_map_entries();
 char *config_get_ldapi_uidnumber_type(); 
 char *config_get_ldapi_gidnumber_type(); 
 char *config_get_ldapi_search_base_dn(); 
+#if defined(ENABLE_AUTO_DN_SUFFIX)
 char *config_get_ldapi_auto_dn_suffix(); 
+#endif
 char *config_get_srvtab();
 int config_get_sizelimit();
 char *config_get_pw_storagescheme();
