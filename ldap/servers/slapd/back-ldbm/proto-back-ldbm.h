@@ -69,7 +69,7 @@ void cache_set_max_size(struct cache *cache, size_t bytes);
 void cache_set_max_entries(struct cache *cache, long entries);
 size_t cache_get_max_size(struct cache *cache);
 long cache_get_max_entries(struct cache *cache);
-void cache_get_stats(struct cache *cache, u_long *hits, u_long *tries,
+void cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries,
              long *entries,long *maxentries, 
              size_t *size, size_t *maxsize);
 void cache_debug_hash(struct cache *cache, char **out);
