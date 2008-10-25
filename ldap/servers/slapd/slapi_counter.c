@@ -182,7 +182,7 @@ PRUint64 slapi_counter_add(Slapi_Counter *counter, PRUint64 addvalue)
     } else {
         /* For other values, we have to use cmpxchg. */
         do {
-            prev = slapi_counter_get(counter);
+            prev = slapi_counter_get_value(counter);
             newvalue = prev + addvalue;
             /* Put prev in a register for cmpxchg to compare against */
            _Asm_mov_to_ar(_AREG_CCV, prev);
@@ -239,7 +239,7 @@ PRUint64 slapi_counter_subtract(Slapi_Counter *counter, PRUint64 subvalue)
     } else {
         /* For other values, we have to use cmpxchg. */
         do {
-            prev = slapi_counter_get(counter);
+            prev = slapi_counter_get_value(counter);
             newvalue = prev - subvalue;
             /* Put prev in a register for cmpxchg to compare against */
            _Asm_mov_to_ar(_AREG_CCV, prev);
