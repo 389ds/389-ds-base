@@ -429,7 +429,7 @@ int snmp_collator_start()
   }
   PR_snprintf(szStatsFile, sizeof(szStatsFile), "%s/%s%s",
               statspath, instname, AGT_STATS_EXTENSION);
-  PR_snprintf(stats_sem_name, sizeof(stats_sem_name), "%s%s",
+  PR_snprintf(stats_sem_name, sizeof(stats_sem_name), "/%s%s",
               instname, AGT_STATS_EXTENSION);
   tmpstatsfile = szStatsFile;
   slapi_ch_free_string(&statspath);
