@@ -294,15 +294,32 @@ initdir=/rc.d
 # those with our 64 bit compiled product.
 perlexec='/usr/bin/env perl'
 case $host in
-  *-*-linux*)
+  i*86-*-linux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
     AC_DEFINE([Linux], [1], [Linux])
     AC_DEFINE([LINUX], [1], [Linux])
     AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
     AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
     AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
+    AC_DEFINE([CPU_x86], [], [cpu type x86])
     AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
     AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
+    AC_CHECK_DECLS([__sync_add_and_fetch])
+    platform="linux"
+    # relative to sysconfdir
+    initdir=/rc.d/init.d
+    ;;
+  x86_64-*-linux*)
+    AC_DEFINE([XP_UNIX], [1], [UNIX])
+    AC_DEFINE([Linux], [1], [Linux])
+    AC_DEFINE([LINUX], [1], [Linux])
+    AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
+    AC_DEFINE([LINUX2_2], [1], [Linux 2.2])
+    AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
+    AC_DEFINE([CPU_x86_64], [], [cpu type x86_64])
+    AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
+    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
+    AC_CHECK_DECLS([__sync_add_and_fetch])
     platform="linux"
     # relative to sysconfdir
     initdir=/rc.d/init.d

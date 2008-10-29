@@ -79,7 +79,10 @@ extern          "C" {
 
 #ifdef HPUX
 /* HP-UX doesn't define SEM_FAILED like other platforms, so
- *  * we define it ourselves. */
+ * we define it ourselves.  We make this define HP-UX specific
+ * since sem_open() doesn't seem to return the same value on
+ * all platforms in a failure case (it's 1 on some platforms,
+ * and 0 on others). */
 #define SEM_FAILED ((sem_t *)(-1))
 #endif
 

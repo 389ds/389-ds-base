@@ -60,8 +60,8 @@
 
 #include <ssl.h>
 
-Slapi_Counter *num_entries_sent;
-Slapi_Counter *num_bytes_sent;
+static Slapi_Counter *num_entries_sent;
+static Slapi_Counter *num_bytes_sent;
 
 static long	current_conn_count;
 static PRLock	*current_conn_count_mutex;

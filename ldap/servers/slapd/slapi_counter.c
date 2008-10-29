@@ -52,6 +52,24 @@ PRUint64 _sparcv9_AtomicSub_il(PRUint64 *address, PRUint64 val);
 #include <machine/sys/inline.h>
 #endif
 #endif
+
+#if defined LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH)
+/* On systems that don't have the 64-bit GCC atomic builtins, we need to
+ * implement our own atomic functions using inline assembly code. */
+static PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval);
+static PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval);
+#endif
+
+#if defined LINUX && !HAVE_DECL___SYNC_ADD_AND_FETCH
+/* Systems that have the atomic builtins defined, but don't have
+ * implementations for 64-bit values will automatically try to
+ * call the __sync_*_8 versions we provide.  If the atomic builtins
+ * are not defined at all, we define them here to use our local
+ * functions. */
+#define __sync_add_and_fetch __sync_add_and_fetch_8
+#define __sync_sub_and_fetch __sync_sub_and_fetch_8
+#endif
+
 /*
  * Counter Structure
  */
@@ -271,12 +289,49 @@ PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue)
     return newvalue;
 #else
 #ifdef LINUX
+/* Use our own inline assembly for an atomic set if
+ * the builtins aren't available. */
+#if defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH
+    /*
+     * %0 = counter->value
+     * %1 = newvalue
+     */
+    __asm__ __volatile__(
+#ifdef CPU_x86
+        /* Save the PIC register */
+        " pushl %%ebx;"
+#endif /* CPU_x86 */
+        /* Put value of counter->value in EDX:EAX */
+        "retryset: movl %0, %%eax;"
+        " movl 4%0, %%edx;"
+        /* Put newval in ECX:EBX */
+        " movl %1, %%ebx;"
+        " movl 4%1, %%ecx;"
+        /* If EDX:EAX and counter-> are the same,
+         * replace *ptr with ECX:EBX */
+        " lock; cmpxchg8b %0;"
+        " jnz retryset;"
+#ifdef CPU_x86
+        /* Restore the PIC register */
+        " popl %%ebx"
+#endif /* CPU_x86 */
+        : "+o" (counter->value)
+        : "m" (newvalue)
+#ifdef CPU_x86
+        : "memory", "eax", "ecx", "edx", "cc");
+#else
+        : "memory", "eax", "ebx", "ecx", "edx", "cc");
+#endif
+
+    return newvalue;
+#else
     while (1) {
         value = counter->value;
         if (__sync_bool_compare_and_swap(&(counter->value), value, newvalue)) {
             return newvalue;
         }
     }
+#endif /* CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH */
 #elif defined(SOLARIS)
     _sparcv9_AtomicSet(&(counter->value), newvalue);
     return newvalue;
@@ -310,12 +365,50 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
     slapi_unlock_mutex(counter->lock);
 #else
 #ifdef LINUX
+/* Use our own inline assembly for an atomic get if
+ * the builtins aren't available. */
+#if defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH
+    /*
+     * %0 = counter->value
+     * %1 = value
+     */
+    __asm__ __volatile__(
+#ifdef CPU_x86
+        /* Save the PIC register */
+        " pushl %%ebx;"
+#endif /* CPU_x86 */
+        /* Put value of counter->value in EDX:EAX */
+        "retryget: movl %0, %%eax;"
+        " movl 4%0, %%edx;"
+        /* Copy EDX:EAX to ECX:EBX */
+        " movl %%eax, %%ebx;"
+        " movl %%edx, %%ecx;"
+        /* If EDX:EAX and counter->value are the same,
+         * replace *ptr with ECX:EBX */
+        " lock; cmpxchg8b %0;"
+        " jnz retryget;"
+        /* Put retreived value into value */
+        " movl %%ebx, %1;"
+        " movl %%ecx, 4%1;"
+#ifdef CPU_x86
+        /* Restore the PIC register */
+        " popl %%ebx"
+#endif /* CPU_x86 */
+        : "+o" (counter->value), "=m" (value)
+        : 
+#ifdef CPU_x86
+        : "memory", "eax", "ecx", "edx", "cc");
+#else
+        : "memory", "eax", "ebx", "ecx", "edx", "cc");
+#endif
+#else
     while (1) {
         value = counter->value;
         if (__sync_bool_compare_and_swap(&(counter->value), value, value)) {
             break;
         }
     }
+#endif /* CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH */
 #elif defined(SOLARIS)
     while (1) {
         value = counter->value;
@@ -334,3 +427,96 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
 
     return value;
 }
+
+#if defined LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH)
+/* On systems that don't have the 64-bit GCC atomic builtins, we need to
+ * implement our own atomic add and subtract functions using inline
+ * assembly code. */
+static PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval)
+{
+    PRUint64 retval = 0;
+
+    /*
+     * %0 = *ptr
+     * %1 = retval
+     * %2 = addval
+     */
+    __asm__ __volatile__(
+#ifdef CPU_x86
+        /* Save the PIC register */
+        " pushl %%ebx;"
+#endif /* CPU_x86 */
+        /* Put value of *ptr in EDX:EAX */
+        "retryadd: movl %0, %%eax;"
+        " movl 4%0, %%edx;"
+        /* Put addval in ECX:EBX */
+        " movl %2, %%ebx;"
+        " movl 4%2, %%ecx;"
+        /* Add value from EDX:EAX to value in ECX:EBX */
+        " addl %%eax, %%ebx;"
+        " adcl %%edx, %%ecx;"
+        /* If EDX:EAX and *ptr are the same, replace ptr with ECX:EBX */
+        " lock; cmpxchg8b %0;"
+        " jnz retryadd;"
+        /* Put new value into retval */
+        " movl %%ebx, %1;"
+        " movl %%ecx, 4%1;"
+#ifdef CPU_x86
+        /* Restore the PIC register */
+        " popl %%ebx"
+#endif /* CPU_x86 */
+        : "+o" (*ptr), "=m" (retval)
+        : "m" (addval)
+#ifdef CPU_x86
+        : "memory", "eax", "ecx", "edx", "cc");
+#else
+        : "memory", "eax", "ebx", "ecx", "edx", "cc");
+#endif
+
+    return retval;
+}
+
+static PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval)
+{
+    PRUint64 retval = 0;
+
+    /*
+     * %0 = *ptr
+     * %1 = retval
+     * %2 = subval
+     */
+    __asm__ __volatile__(
+#ifdef CPU_x86
+        /* Save the PIC register */
+        " pushl %%ebx;"
+#endif /* CPU_x86 */
+        /* Put value of *ptr in EDX:EAX */
+        "retrysub: movl %0, %%eax;"
+        " movl 4%0, %%edx;"
+        /* Copy EDX:EAX to ECX:EBX */
+        " movl %%eax, %%ebx;"
+        " movl %%edx, %%ecx;"
+        /* Subtract subval from value in ECX:EBX */
+        " subl %2, %%ebx;"
+        " sbbl 4%2, %%ecx;"
+        /* If EDX:EAX and ptr are the same, replace *ptr with ECX:EBX */
+        " lock; cmpxchg8b %0;"
+        " jnz retrysub;"
+        /* Put new value into retval */
+        " movl %%ebx, %1;"
+        " movl %%ecx, 4%1;"
+#ifdef CPU_x86
+        /* Restore the PIC register */
+        " popl %%ebx"
+#endif /* CPU_x86 */
+        : "+o" (*ptr), "=m" (retval)
+        : "m" (subval)
+#ifdef CPU_x86 
+        : "memory", "eax", "ecx", "edx", "cc");
+#else
+        : "memory", "eax", "ebx", "ecx", "edx", "cc");
+#endif
+
+    return retval;
+}
+#endif /* LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH) */
