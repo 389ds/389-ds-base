@@ -56,8 +56,8 @@ PRUint64 _sparcv9_AtomicSub_il(PRUint64 *address, PRUint64 val);
 #if defined LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH)
 /* On systems that don't have the 64-bit GCC atomic builtins, we need to
  * implement our own atomic functions using inline assembly code. */
-static PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval);
-static PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval);
+PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval);
+PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval);
 #endif
 
 #if defined LINUX && !HAVE_DECL___SYNC_ADD_AND_FETCH
@@ -432,7 +432,7 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
 /* On systems that don't have the 64-bit GCC atomic builtins, we need to
  * implement our own atomic add and subtract functions using inline
  * assembly code. */
-static PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval)
+PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval)
 {
     PRUint64 retval = 0;
 
@@ -476,7 +476,7 @@ static PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval)
     return retval;
 }
 
-static PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval)
+PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval)
 {
     PRUint64 retval = 0;
 
