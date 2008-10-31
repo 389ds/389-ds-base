@@ -2355,36 +2355,90 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 
 	Slapi_Attr		*attr;
 	char			*s, *p;
-	char			*str, *s_str, *base, *groupattr;
+	char			*str, *s_str, *base, *groupattr = NULL;
 	int				i,j,k,matched, enumerate_groups;
 	aclUserGroup	*u_group;
 	char			ebuf [ BUFSIZ ];
 	Slapi_Value     *sval=NULL;
 	const struct berval	*attrVal;
+	int             qcnt = 0;
+	Slapi_PBlock	*myPb = NULL;
+	Slapi_Entry		**grpentries = NULL;
 
-	/* Parse the URL -- We can't use the ldap_url_parse()
-	** we don't follow thw complete url naming scheme
-	*/ 
+	/* Parse the URL -- getting the group attr and counting up '?'s.
+	 * If there is no group attr and there are 3 '?' marks,
+	 * we parse the URL with ldap_url_parse to get base dn and filter.
+	 */ 
 	s_str = str = slapi_ch_strdup(attrName);
 	while (str && ldap_utf8isspace(str)) LDAP_UTF8INC( str );
 	str +=8;
 	s = strchr (str, '?');
 	if (s) {
+		qcnt++;
 		p = s;
 		p++;
 		*s = '\0';
 		base = str;
 		s = strchr (p, '?');
-		if (s) *s = '\0';
+		if (s) {
+			qcnt++;
+			*s = '\0';
+			if (NULL != strchr (++s, '?')) {
+				qcnt++;
+			}
+		}
 
 		groupattr = p;
 	} else {
 		slapi_ch_free ( (void **)&s_str );
 		return ACL_FALSE;
 	}
+
+	/* Full LDAPURL is given? */
+	if ((NULL == groupattr || 0 == strlen(groupattr)) && 3 == qcnt) {
+		LDAPURLDesc		*ludp = NULL;
+		int				rval;
+
+		if ( 0 != ldap_url_parse( attrName, &ludp) ) {
+			slapi_ch_free ( (void **)&s_str );
+			return ACL_FALSE;
+		}
+
+		/* Use new search internal API */
+		myPb = slapi_pblock_new ();
+		slapi_search_internal_set_pb(
+						myPb,
+						ludp->lud_dn,
+						ludp->lud_scope,
+						ludp->lud_filter,
+						NULL,
+						0,
+						NULL /* controls */,
+						NULL /* uniqueid */,
+						aclplugin_get_identity (ACL_PLUGIN_IDENTITY),
+						0 );	
+		slapi_search_internal_pb(myPb);
+		ldap_free_urldesc( ludp );
 	
+		slapi_pblock_get(myPb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
+		if (rval != LDAP_SUCCESS) {
+			slapi_ch_free ( (void **)&s_str );
+			slapi_free_search_results_internal(myPb);
+			slapi_pblock_destroy (myPb);
+			return ACL_FALSE;
+		}
+	
+		slapi_pblock_get(myPb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &grpentries);
+		if ((grpentries == NULL) || (grpentries[0] == NULL)) {
+			slapi_ch_free ( (void **)&s_str );
+			slapi_free_search_results_internal(myPb);
+			slapi_pblock_destroy (myPb);
+			return ACL_FALSE;
+		}
+	}
+
 	if ( (u_group = aclg_get_usersGroup ( aclpb , n_clientdn )) == NULL) {
-		 slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 			"Failed to find/allocate a usergroup--aborting evaluation\n", 0, 0);
 		slapi_ch_free ( (void **)&s_str );
 		return(ACL_DONT_KNOW);
@@ -2540,12 +2594,28 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 					j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf),0);
 
 	matched = ACL_FALSE;
-	slapi_entry_attr_find( e, groupattr, &attr);
-	if (attr == NULL) {
-		slapi_ch_free ( (void **)&s_str );
-		return ACL_FALSE;
-	}
-	{
+	if ((NULL == groupattr || 0 == strlen(groupattr)) && 3 == qcnt) {
+		/* Full LDAPURL case */
+		for (k = 0; u_group->aclug_member_groups[k]; k++) { /* groups the bind
+															   user belong to */
+			Slapi_Entry		**ep;
+			for (ep = grpentries; *ep; ep++) { 			/* groups having ACI */
+				char *n_edn = slapi_entry_get_ndn(*ep);
+				if (slapi_utf8casecmp((ACLUCHP)u_group->aclug_member_groups[k],
+									  (ACLUCHP)n_edn) == 0) {
+					matched = ACL_TRUE;
+					break;
+				}
+			}
+		}
+		slapi_free_search_results_internal(myPb);
+		slapi_pblock_destroy(myPb);
+	} else {
+		slapi_entry_attr_find( e, groupattr, &attr);
+		if (attr == NULL) {
+			slapi_ch_free ( (void **)&s_str );
+			return ACL_FALSE;
+		}
 		k = slapi_attr_first_value ( attr,&sval );
 		while ( k != -1 ) {
 	        char *n_attrval;
