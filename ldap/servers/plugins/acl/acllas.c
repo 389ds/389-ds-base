@@ -747,6 +747,7 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 {
 
 	char			*groups;
+	char			*groupNameOrig;
 	char			*groupName;
 	char			*ptr;
 	char			*end_dn;
@@ -767,7 +768,7 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	}
 
  	groups = slapi_ch_strdup(attr_pattern);
-	groupName = groups;
+	groupNameOrig = groupName = groups;
 	matched = ACL_FALSE;
 
 	/* check if the groupdn is one of the users */
@@ -800,7 +801,17 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			auto char *t = end_dn;
 			LDAP_UTF8INC(end_dn);
 			LDAP_UTF8INC(end_dn);
-			*t = 0;
+			/* removing trailing spaces */
+			LDAP_UTF8DEC(t);
+			while (' ' == *t || '\t' == *t) {
+				LDAP_UTF8DEC(t);
+			}
+			LDAP_UTF8INC(t);
+			*t = '\0';
+			/* removing beginning spaces */
+			while (' ' == *end_dn || '\t' == *end_dn) {
+				LDAP_UTF8INC(end_dn);
+			}
 		}
 
 		if (*groupName) {
@@ -841,10 +852,58 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
 						"DS_LASGroupDnEval: Param group name:%s\n",
 						groupName);
-			} else {/* normal evaluation */
+			} else {
+				LDAPURLDesc		*ludp = NULL;
+				int				rval;
+				Slapi_PBlock	*myPb = NULL;
+				Slapi_Entry		**grpentries = NULL;
 
-				matched = acllas_eval_one_group( groupName, &lasinfo);
-
+				/* Groupdn is full ldapurl? */
+				if (0 == ldap_url_parse(groupNameOrig, &ludp) &&
+				    NULL != ludp->lud_dn &&
+					NULL != ludp->lud_scope &&
+					NULL != ludp->lud_filter) {
+					/* Yes, it is full ldapurl; Let's run the search */
+					myPb = slapi_pblock_new ();
+					slapi_search_internal_set_pb(
+								myPb,
+								ludp->lud_dn,
+								ludp->lud_scope,
+								ludp->lud_filter,
+								NULL,
+								0,
+								NULL /* controls */,
+								NULL /* uniqueid */,
+								aclplugin_get_identity (ACL_PLUGIN_IDENTITY),
+								0 );	
+					slapi_search_internal_pb(myPb);
+					slapi_pblock_get(myPb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
+					if (rval == LDAP_SUCCESS) {
+						Slapi_Entry		**ep;
+						slapi_pblock_get(myPb,
+								SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &grpentries);
+						if ((grpentries != NULL) && (grpentries[0] != NULL)) {
+							char *edn = NULL;
+							for (ep = grpentries; *ep; ep++) {
+								/* groups having ACI */
+								edn = slapi_entry_get_ndn(*ep);
+								matched = acllas_eval_one_group(edn, &lasinfo);
+								if (ACL_TRUE == matched) {
+									break; /* matched ! */
+								}
+							}
+						}
+					}
+					slapi_free_search_results_internal(myPb);
+					slapi_pblock_destroy (myPb);
+	
+				} else {
+					/* normal evaluation */
+					matched = acllas_eval_one_group( groupName, &lasinfo );
+				}
+				if ( ludp ) {
+					ldap_free_urldesc( ludp );
+				}
 			}
 			
 			if ( matched == ACL_TRUE ) {
@@ -855,7 +914,7 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			}
 		}
 		/* Nothing matched -- try the next DN */
-		groupName = end_dn;
+		groupNameOrig = groupName = end_dn;
 
 	} /* end of while */
 
@@ -2361,9 +2420,6 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	char			ebuf [ BUFSIZ ];
 	Slapi_Value     *sval=NULL;
 	const struct berval	*attrVal;
-	int             qcnt = 0;
-	Slapi_PBlock	*myPb = NULL;
-	Slapi_Entry		**grpentries = NULL;
 
 	/* Parse the URL -- getting the group attr and counting up '?'s.
 	 * If there is no group attr and there are 3 '?' marks,
@@ -2374,67 +2430,17 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	str +=8;
 	s = strchr (str, '?');
 	if (s) {
-		qcnt++;
 		p = s;
 		p++;
 		*s = '\0';
 		base = str;
 		s = strchr (p, '?');
-		if (s) {
-			qcnt++;
-			*s = '\0';
-			if (NULL != strchr (++s, '?')) {
-				qcnt++;
-			}
-		}
+		if (s) *s = '\0';
 
 		groupattr = p;
 	} else {
 		slapi_ch_free ( (void **)&s_str );
 		return ACL_FALSE;
-	}
-
-	/* Full LDAPURL is given? */
-	if ((NULL == groupattr || 0 == strlen(groupattr)) && 3 == qcnt) {
-		LDAPURLDesc		*ludp = NULL;
-		int				rval;
-
-		if ( 0 != ldap_url_parse( attrName, &ludp) ) {
-			slapi_ch_free ( (void **)&s_str );
-			return ACL_FALSE;
-		}
-
-		/* Use new search internal API */
-		myPb = slapi_pblock_new ();
-		slapi_search_internal_set_pb(
-						myPb,
-						ludp->lud_dn,
-						ludp->lud_scope,
-						ludp->lud_filter,
-						NULL,
-						0,
-						NULL /* controls */,
-						NULL /* uniqueid */,
-						aclplugin_get_identity (ACL_PLUGIN_IDENTITY),
-						0 );	
-		slapi_search_internal_pb(myPb);
-		ldap_free_urldesc( ludp );
-	
-		slapi_pblock_get(myPb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
-		if (rval != LDAP_SUCCESS) {
-			slapi_ch_free ( (void **)&s_str );
-			slapi_free_search_results_internal(myPb);
-			slapi_pblock_destroy (myPb);
-			return ACL_FALSE;
-		}
-	
-		slapi_pblock_get(myPb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &grpentries);
-		if ((grpentries == NULL) || (grpentries[0] == NULL)) {
-			slapi_ch_free ( (void **)&s_str );
-			slapi_free_search_results_internal(myPb);
-			slapi_pblock_destroy (myPb);
-			return ACL_FALSE;
-		}
 	}
 
 	if ( (u_group = aclg_get_usersGroup ( aclpb , n_clientdn )) == NULL) {
@@ -2594,55 +2600,37 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 					j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf),0);
 
 	matched = ACL_FALSE;
-	if ((NULL == groupattr || 0 == strlen(groupattr)) && 3 == qcnt) {
-		/* Full LDAPURL case */
-		for (k = 0; u_group->aclug_member_groups[k]; k++) { /* groups the bind
-															   user belong to */
-			Slapi_Entry		**ep;
-			for (ep = grpentries; *ep; ep++) { 			/* groups having ACI */
-				char *n_edn = slapi_entry_get_ndn(*ep);
-				if (slapi_utf8casecmp((ACLUCHP)u_group->aclug_member_groups[k],
-									  (ACLUCHP)n_edn) == 0) {
-					matched = ACL_TRUE;
-					break;
-				}
-			}
-		}
-		slapi_free_search_results_internal(myPb);
-		slapi_pblock_destroy(myPb);
-	} else {
-		slapi_entry_attr_find( e, groupattr, &attr);
-		if (attr == NULL) {
-			slapi_ch_free ( (void **)&s_str );
-			return ACL_FALSE;
-		}
-		k = slapi_attr_first_value ( attr,&sval );
-		while ( k != -1 ) {
-	        char *n_attrval;
-			attrVal = slapi_value_get_berval ( sval );
-			n_attrval = slapi_ch_strdup( attrVal->bv_val);
-			n_attrval = slapi_dn_normalize (n_attrval);
+	slapi_entry_attr_find( e, groupattr, &attr);
+	if (attr == NULL) {
+		slapi_ch_free ( (void **)&s_str );
+		return ACL_FALSE;
+	}
+	k = slapi_attr_first_value ( attr,&sval );
+	while ( k != -1 ) {
+        char *n_attrval;
+		attrVal = slapi_value_get_berval ( sval );
+		n_attrval = slapi_ch_strdup( attrVal->bv_val);
+		n_attrval = slapi_dn_normalize (n_attrval);
 
-			/*  We support: The attribute value can be a USER or a GROUP.
-			** Let's compare with the client, thi might be just an user. If it is not
-			** then we test it against the list of groups.
-			*/
-			if (slapi_utf8casecmp ((ACLUCHP)n_attrval, (ACLUCHP)n_clientdn) == 0 ) {
+		/*  We support: The attribute value can be a USER or a GROUP.
+		** Let's compare with the client, thi might be just an user. If it is not
+		** then we test it against the list of groups.
+		*/
+		if (slapi_utf8casecmp ((ACLUCHP)n_attrval, (ACLUCHP)n_clientdn) == 0 ) {
+			matched = ACL_TRUE;
+			slapi_ch_free ( (void **)&n_attrval );
+			break;
+		}
+		for (j=0; j <u_group->aclug_numof_member_group; j++) {
+			if ( slapi_utf8casecmp((ACLUCHP)n_attrval, 
+									(ACLUCHP)u_group->aclug_member_groups[j]) == 0) {
 				matched = ACL_TRUE;
-				slapi_ch_free ( (void **)&n_attrval );
 				break;
 			}
-			for (j=0; j <u_group->aclug_numof_member_group; j++) {
-				if ( slapi_utf8casecmp((ACLUCHP)n_attrval, 
-										(ACLUCHP)u_group->aclug_member_groups[j]) == 0) {
-					matched = ACL_TRUE;
-					break;
-				}
-			}
-			slapi_ch_free ( (void **)&n_attrval );
-			if (matched == ACL_TRUE) break;
-			k= slapi_attr_next_value ( attr, k, &sval );
 		}
+		slapi_ch_free ( (void **)&n_attrval );
+		if (matched == ACL_TRUE) break;
+		k= slapi_attr_next_value ( attr, k, &sval );
 	}
 	slapi_ch_free ( (void **)&s_str );
 	return matched;
