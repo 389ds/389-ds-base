@@ -603,6 +603,7 @@ dna_load_plugin_config()
     int status = DNA_SUCCESS;
     int result;
     int i;
+    time_t now;
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
 
@@ -638,6 +639,14 @@ dna_load_plugin_config()
          * looking for valid ones. */
         dna_parse_config_entry(entries[i], 1);
     }
+
+    /* Setup an event to update the shared config 30
+     * seconds from now.  We need to do this since
+     * performing the operation at this point when
+     * starting up  would cause the change to not
+     * get changelogged. */
+    time(&now);
+    slapi_eq_once(dna_update_config_event, NULL, now + 30);
 
   cleanup:
     slapi_free_search_results_internal(search_pb);
@@ -1021,16 +1030,6 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         }
         dna_free_config_entry(&entry);
     } else {
-        time_t now;
-
-        time(&now);
-
-        /* Setup an event to update the shared config 30
-         * seconds from now.  We need to do this since
-         * performing the operation now would cause the
-         * change to not get changelogged. */
-        slapi_eq_once(dna_update_config_event, entry, now + 30);
-
         ret = DNA_SUCCESS;
     }
 
@@ -1174,39 +1173,59 @@ dna_load_host_port()
  * dna_update_config_event()
  *
  * Event queue callback that we use to do the initial
- * update of the shared config entry shortly after
+ * update of the shared config entries shortly after
  * startup.
  */
 static void
 dna_update_config_event(time_t event_time, void *arg)
 {
     Slapi_PBlock *pb = NULL;
-    struct configEntry *config_entry = arg;
-
-    if ((pb = slapi_pblock_new()) == NULL)
-        goto bail;
+    struct configEntry *config_entry = NULL;
+    PRCList *list = NULL;
 
     /* Get read lock to prevent config changes */
     dna_read_lock();
 
-    /* First delete the existing shared config entry.  This
-     * will allow the entry to be updated for things like
-     * port number changes, etc. */
-    slapi_delete_internal_set_pb(pb, config_entry->shared_cfg_dn,
-                                 NULL, NULL, getPluginID(), 0);
+    /* Loop through all config entries and update the shared
+     * config entries. */
+    if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
+        list = PR_LIST_HEAD(dna_global_config);
 
-    /* We don't care about the results */
-    slapi_delete_internal_pb(pb);
+        /* Create the pblock.  We'll reuse this for all
+         * shared config updates. */
+        if ((pb = slapi_pblock_new()) == NULL)
+            goto bail;
 
-    /* Now force the entry to be recreated */
-    slapi_lock_mutex(config_entry->lock);
-    dna_update_shared_config(config_entry);
-    slapi_unlock_mutex(config_entry->lock);
+        while (list != dna_global_config) {
+            config_entry = (struct configEntry *) list;
+
+            /* If a shared config dn is set, update the shared config. */
+            if (config_entry->shared_cfg_dn != NULL) {
+                slapi_lock_mutex(config_entry->lock);
+
+                /* First delete the existing shared config entry.  This
+                 * will allow the entry to be updated for things like
+                 * port number changes, etc. */
+                slapi_delete_internal_set_pb(pb, config_entry->shared_cfg_dn,
+                                             NULL, NULL, getPluginID(), 0);
+
+                /* We don't care about the results */
+                slapi_delete_internal_pb(pb);
+
+                /* Now force the entry to be recreated */
+                dna_update_shared_config(config_entry);
+
+                slapi_unlock_mutex(config_entry->lock);
+                slapi_pblock_init(pb);
+            }
+
+            list = PR_NEXT_LINK(list);
+        }
+    }
+
+bail:
     dna_unlock();
-
-  bail:
     slapi_pblock_destroy(pb);
-    pb = NULL;
 }
 
 /****************************************************
