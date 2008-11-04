@@ -475,12 +475,17 @@ static int ids_sasl_canon_user(
 static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
 {
     /* Try to get path from config, otherwise check for SASL_PATH environment
-     * variable.  If neither of these are set, just default to /usr/lib/sasl2
+     * variable.  If neither of these are set, default to /usr/lib64/sasl2 on
+     * 64-bit Linux machines, and /usr/lib/sasl2 on all other platforms.
      */
     char *pluginpath = config_get_saslpath();
     if ((!pluginpath) || (*pluginpath == '\0')) {
         if (!(pluginpath = getenv("SASL_PATH"))) {
-            pluginpath = "/usr/lib64/sasl2:/usr/lib/sasl2";
+#if defined(LINUX) && defined(__LP64__)
+            pluginpath = "/usr/lib64/sasl2";
+#else
+            pluginpath = "/usr/lib/sasl2";
+#endif
         }
     }
     *path = pluginpath;
