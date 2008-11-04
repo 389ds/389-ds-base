@@ -301,6 +301,47 @@ import_get_version(char *str)
     return my_version;
 }
 
+/*
+ * add CreatorsName, ModifiersName, CreateTimestamp, ModifyTimestamp to entry
+ */
+static void
+import_add_created_attrs(Slapi_Entry *e)
+{
+    char          buf[20];
+    struct berval bv;
+    struct berval *bvals[2];
+    time_t        curtime;
+    struct tm     ltm;
+
+    bvals[0] = &bv;
+    bvals[1] = NULL;
+    
+    bv.bv_val = "";
+    bv.bv_len = 0;
+    slapi_entry_attr_replace(e, "creatorsname", bvals);
+    slapi_entry_attr_replace(e, "modifiersname", bvals);
+
+    curtime = current_time();
+#ifdef _WIN32
+{
+    struct tm *pt;
+    pt = gmtime(&curtime);
+    memcpy(&ltm, pt, sizeof(struct tm));
+}
+#else
+    gmtime_r(&curtime, &ltm);
+#endif
+    strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &ltm);
+
+    bv.bv_val = buf;
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "createtimestamp", bvals);
+
+    bv.bv_val = buf;
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "modifytimestamp", bvals);
+}
+
 /* producer thread:
  * read through the given file list, parsing entries (str2entry), assigning
  * them IDs and queueing them on the entry FIFO.  other threads will do
@@ -501,6 +542,9 @@ void import_producer(void *param)
 
         /* generate uniqueid if necessary */
         import_generate_uniqueid(job, e);
+        if (g_get_global_lastmod()) {
+            import_add_created_attrs(e);
+        }
 
         ep = import_make_backentry(e, id);
         if (!ep)
