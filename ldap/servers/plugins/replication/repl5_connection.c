@@ -93,7 +93,6 @@ static LDAPControl manageDSAITControl = {LDAP_CONTROL_MANAGEDSAIT, {0, ""}, '\0'
 static int attribute_string_value_present(LDAP *ld, LDAPMessage *entry,
 	const char *type, const char *value);
 static int bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password);
-static int do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password);
 
 static int s_debug_timeout = 0;
 static int s_debug_level = 0;
@@ -445,6 +444,80 @@ conn_read_result(Repl_Connection *conn, int *message_id)
 	return conn_read_result_ex(conn,NULL,NULL,NULL,message_id,1);
 }
 
+/* Because the SDK isn't really thread-safe (it can deadlock between
+ * a thread sending an operation and a thread trying to retrieve a response
+ * on the same connection), we need to _first_ verify that the connection
+ * is writable. If it isn't, we can deadlock if we proceed any further...
+ */
+/* Since we're poking around with ldap c sdk internals, we have to
+   be careful since the PR layer stores different session and socket
+   info than the NSS SSL layer than the SASL layer - and they all
+   use different poll functions too
+*/
+static ConnResult
+see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
+{
+	LDAP_X_PollFD pollstr;
+	int nfds = 1;
+	struct ldap_x_ext_io_fns iofns;
+	int rc = LDAP_SUCCESS;
+	LDAP_X_EXTIOF_POLL_CALLBACK *ldap_poll;
+	struct lextiof_session_private *private;
+
+	/* get the poll function to use */
+	memset(&iofns, 0, sizeof(iofns));
+	iofns.lextiof_size = LDAP_X_EXTIO_FNS_SIZE;
+	if (ldap_get_option(conn->ld, LDAP_X_OPT_EXTIO_FN_PTRS, &iofns) < 0) {
+		rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"%s: Failed call to ldap_get_option to get extiofns in "
+						"see_if_write_available: LDAP error %d (%s)\n",
+						agmt_get_long_name(conn->agmt),
+						rc, ldap_err2string(rc));
+		conn->last_ldap_error = rc;
+		return CONN_OPERATION_FAILED;
+	}
+	ldap_poll = iofns.lextiof_poll;
+
+	/* set up the poll structure */
+	if (ldap_get_option(conn->ld, LDAP_OPT_DESC, &pollstr.lpoll_fd) < 0) {
+		rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"%s: Failed call to ldap_get_option for poll_fd in "
+						"see_if_write_available: LDAP error %d (%s)\n",
+						agmt_get_long_name(conn->agmt),
+						rc, ldap_err2string(rc));
+		conn->last_ldap_error = rc;
+		return CONN_OPERATION_FAILED;
+	}
+
+	if (ldap_get_option(conn->ld, LDAP_X_OPT_SOCKETARG,
+						&pollstr.lpoll_socketarg) < 0) {
+		rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"%s: Failed call to ldap_get_option for socketarg in "
+						"see_if_write_available: LDAP error %d (%s)\n",
+						agmt_get_long_name(conn->agmt),
+						rc, ldap_err2string(rc));
+		conn->last_ldap_error = rc;
+		return CONN_OPERATION_FAILED;
+	}
+
+	pollstr.lpoll_events = LDAP_X_POLLOUT;
+	pollstr.lpoll_revents = 0;
+	private = iofns.lextiof_session_arg;
+
+	if (0 == (*ldap_poll)(&pollstr, nfds, timeout, private)) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: poll timed out - poll interval [%d]\n",
+						agmt_get_long_name(conn->agmt),
+						timeout);
+		return CONN_TIMEOUT;
+	}
+
+	return CONN_OPERATION_SUCCESS;
+}
+
 /*
  * Common code to send an LDAPv3 operation and collect the result.
  * Return values:
@@ -483,54 +556,11 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 
 		Slapi_Eq_Context eqctx = repl5_start_debug_timeout(&setlevel);
 
-		/* Because the SDK isn't really thread-safe (it can deadlock between
-		 * a thread sending an operation and a thread trying to retrieve a response
-		 * on the same connection), we need to _first_ verify that the connection
-		 * is writable. If it isn't, we can deadlock if we proceed any further...
-		 */
-		{
-				struct PRPollDesc	pr_pd;
-				PRIntervalTime	timeout = PR_SecondsToInterval(conn->timeout.tv_sec);
-				PRFileDesc *prfd = NULL;
-				struct lextiof_socket_private *socketargp = NULL;
-				PRLDAPSocketInfo    soi;
-
-				if ( (rc = ldap_get_option(conn->ld, LDAP_X_OPT_SOCKETARG, &socketargp)) != LDAP_SUCCESS)
-				{
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"%s: Failed call to ldap_get_option in perform_operation: LDAP error %d (%s)\n",
-					agmt_get_long_name(conn->agmt),
-					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
-					conn->last_ldap_error = rc;
-     				return CONN_OPERATION_FAILED;
-				}
-				memset( &soi, 0, sizeof(soi));
-				soi.soinfo_size = PRLDAP_SOCKETINFO_SIZE;
-				if (LDAP_SUCCESS != (rc = prldap_get_socket_info(0, socketargp, &soi))) 
-				{
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"%s: Failed call to prldap_get_socket_info in perform_operation: LDAP error %d (%s)\n",
-					agmt_get_long_name(conn->agmt),
-					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
-					conn->last_ldap_error = rc;
-     				return CONN_OPERATION_FAILED;
-				} 
-				prfd = soi.soinfo_prfd;
-				/* Before we connect, the prfd can be null */
-				if (prfd) 
-				{
-					pr_pd.fd = prfd;
-					pr_pd.in_flags = PR_POLL_WRITE;
-					pr_pd.out_flags = 0;
-					rc = PR_Poll(&pr_pd, 1, timeout);
-					/* Did we time out ? */
-					if (rc == 0)
-					{
-						return CONN_TIMEOUT;
-					}
-				}
+		return_value = see_if_write_available(
+			conn, PR_SecondsToInterval(conn->timeout.tv_sec));
+		if (return_value != CONN_OPERATION_SUCCESS) {
+			return return_value;
 		}
-
 		conn->last_operation = optype;
 		switch (optype)
 		{
@@ -919,16 +949,8 @@ conn_connect(Repl_Connection *conn)
 	/* ugaston: if SSL has been selected in the replication agreement, SSL client
 	 * initialisation should be done before ever trying to open any connection at all.
 	 */
-	if (conn->transport_flags == TRANSPORT_FLAG_TLS)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Replication secured by StartTLS not currently supported\n",
-				agmt_get_long_name(conn->agmt));
-		
-		return_value = CONN_OPERATION_FAILED;
-		conn->last_ldap_error = LDAP_STRONG_AUTH_NOT_SUPPORTED;
-		conn->state = STATE_DISCONNECTED;
-	} else if(conn->transport_flags == TRANSPORT_FLAG_SSL)
+	if ((conn->transport_flags == TRANSPORT_FLAG_TLS) ||
+		(conn->transport_flags == TRANSPORT_FLAG_SSL))
 	{
 
 		/** Make sure the SSL Library has been initialized before anything else **/
@@ -942,9 +964,12 @@ conn_connect(Repl_Connection *conn)
 			ber_bvfree(creds);
 			creds = NULL;
 			return CONN_SSL_NOT_ENABLED;
-		} else
+		} else if (conn->transport_flags == TRANSPORT_FLAG_SSL)
 		{
 			secure = 1;
+		} else
+		{
+			secure = 2; /* 2 means starttls security */
 		}
 	}
  
@@ -953,11 +978,12 @@ conn_connect(Repl_Connection *conn)
 		/* Now we initialize the LDAP Structure and set options */
 		
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: Trying %s slapi_ldap_init\n",
+			"%s: Trying %s%s slapi_ldap_init_ext\n",
 			agmt_get_long_name(conn->agmt),
-			secure ? "secure" : "non-secure");
+			secure ? "secure" : "non-secure",
+			(secure == 2) ? " startTLS" : "");
 		/* shared = 1 because we will read results from a second thread */
-		conn->ld = slapi_ldap_init(conn->hostname, conn->port, secure, 1);
+		conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 1, NULL);
 		if (NULL == conn->ld)
 		{
 			return_value = CONN_OPERATION_FAILED;
@@ -1501,8 +1527,28 @@ void conn_set_agmt_changed(Repl_Connection *conn)
 	PR_Unlock(conn->lock);
 }
 
+static const char *
+bind_method_to_mech(int bindmethod)
+{
+	switch (bindmethod) {
+	case BINDMETHOD_SSL_CLIENTAUTH:
+		return LDAP_SASL_EXTERNAL;
+		break;
+	case BINDMETHOD_SASL_GSSAPI:
+		return "GSSAPI";
+		break;
+	case BINDMETHOD_SASL_DIGEST_MD5:
+		return "DIGEST-MD5";
+		break;
+	default: /* anything else */
+		return LDAP_SASL_SIMPLE;
+	}
+
+	return LDAP_SASL_SIMPLE;
+}
+
 /*
- * Check the result of an ldap_simple_bind operation to see we it
+ * Check the result of an ldap BIND operation to see we it
  * contains the expiration controls
  * return: -1 error, not bound
  *          0, OK bind has succeeded
@@ -1512,91 +1558,24 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 {
 
 	LDAPControl	**ctrls = NULL;
-	LDAPMessage	*res = NULL;
-	char		*errmsg = NULL;
 	LDAP		*ld = conn->ld;
-	int 		msgid;
-	int 		*msgidAdr = &msgid;
 	int			rc;
+	const char  *mech = bind_method_to_mech(conn->bindmethod);
 
-	char * optype; /* ldap_simple_bind or slapd_SSL_client_bind */
-
-	if ( conn->transport_flags == TRANSPORT_FLAG_SSL )
-	{
-		char *auth;
-		optype = "ldap_sasl_bind";
-
-		if ( conn->bindmethod == BINDMETHOD_SSL_CLIENTAUTH )
-		{
-			rc = slapd_sasl_ext_client_bind(conn->ld, &msgidAdr);	
-			auth = "SSL client authentication";
-
-			if ( rc == LDAP_SUCCESS )
-			{
-				if (conn->last_ldap_error != rc)
-				{
-					conn->last_ldap_error = rc;
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"%s: Replication bind with %s resumed\n",
-					agmt_get_long_name(conn->agmt), auth);
-				}
-			}
-			else
-			{
-				/* Do not report the same error over and over again */
-				if (conn->last_ldap_error != rc)
-				{
-					conn->last_ldap_error = rc;
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"%s: Replication bind with %s failed: LDAP error %d (%s)\n",
-					agmt_get_long_name(conn->agmt), auth, rc,
-					ldap_err2string(rc));
-				}
-
-				return (CONN_OPERATION_FAILED);
-			}
-		}
-		else
-		{
-			if( ( msgid = do_simple_bind( conn, ld, binddn, password ) ) == -1 )
-			{
-				return (CONN_OPERATION_FAILED);
-			}
-		}
-	}
-	else
-	{
-		optype = "ldap_simple_bind";
-		if( ( msgid = do_simple_bind( conn, ld, binddn, password ) ) == -1 ) 
-		{
-			return (CONN_OPERATION_FAILED);
-		}
-	}
-
-	/* Wait for the result */
-	if ( ldap_result( ld, msgid, LDAP_MSG_ALL, NULL, &res ) == -1 ) 
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-			"%s: Received error from consumer for %s operation\n", 
-			agmt_get_long_name(conn->agmt), optype);
-
-		return (CONN_OPERATION_FAILED);
-	}
-	/* Don't check ldap_result against 0 because, no timeout is specified */
-
-	/* Free res as we won't use it any longer */
-	if ( ldap_parse_result( ld, res, &rc, NULL, NULL, NULL, &ctrls, 1 /* Free res */) 
-		!= LDAP_SUCCESS ) 
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-			"%s: Received error from consumer for %s operation\n",
-			agmt_get_long_name(conn->agmt), optype);
-
-		return (CONN_OPERATION_FAILED);
-	}
+	rc = slapi_ldap_bind(conn->ld, binddn, password, mech, NULL,
+						 &ctrls, NULL);
 
 	if ( rc == LDAP_SUCCESS ) 
 	{
+		if (conn->last_ldap_error != rc)
+		{
+			conn->last_ldap_error = rc;
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Replication bind with %s auth resumed\n",
+							agmt_get_long_name(conn->agmt),
+							mech ? mech : "SIMPLE");
+		}
+
 		if ( ctrls ) 
 		{
 			int i;
@@ -1631,50 +1610,23 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	}
 	else 
 	{
-		/* errmsg is a pointer directly into the ld structure - do not free */
-		rc = ldap_get_lderrno( ld, NULL, &errmsg );
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Replication bind to %s on consumer failed: %d (%s)\n",
-			agmt_get_long_name(conn->agmt), binddn, rc, errmsg);
+		ldap_controls_free( ctrls );
+		/* Do not report the same error over and over again */
+		if (conn->last_ldap_error != rc)
+		{
+			char *errmsg = NULL;
+			conn->last_ldap_error = rc;
+			/* errmsg is a pointer directly into the ld structure - do not free */
+			rc = ldap_get_lderrno( ld, NULL, &errmsg );
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
+							agmt_get_long_name(conn->agmt),
+							mech ? mech : "SIMPLE", rc,
+							ldap_err2string(rc), errmsg);
+		}
 
-		conn->last_ldap_error = rc;	/* specific error */
 		return (CONN_OPERATION_FAILED);
 	}
-}
-
-static int
-do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
-{
-	int msgid;
-
-	if( ( msgid = ldap_simple_bind( ld, binddn, password ) ) == -1 ) 
-	{
-		char *ldaperrtext = NULL;
-		int ldaperr;
-		int prerr = PR_GetError();
-
-		ldaperr = ldap_get_lderrno( ld, NULL, &ldaperrtext );
-		/* Do not report the same error over and over again */
-		if (conn->last_ldap_error != ldaperr)
-		{
-			conn->last_ldap_error = ldaperr;
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-				"%s: Simple bind failed, " 
-				SLAPI_COMPONENT_NAME_LDAPSDK " error %d (%s), "
-				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-				agmt_get_long_name(conn->agmt),
-				ldaperr, ldaperrtext ? ldaperrtext : ldap_err2string(ldaperr),
-				prerr, slapd_pr_strerror(prerr));
-		}
-	}
-	else if (conn->last_ldap_error != LDAP_SUCCESS)
-	{
-		conn->last_ldap_error = LDAP_SUCCESS;
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Simple bind resumed\n",
-			agmt_get_long_name(conn->agmt));
-	}
-	return msgid;
 }
 
 void

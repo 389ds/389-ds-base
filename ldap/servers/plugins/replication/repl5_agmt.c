@@ -87,7 +87,6 @@
 #include "slapi-plugin.h"
 
 #define DEFAULT_TIMEOUT 600 /* (seconds) default outbound LDAP connection */
-#define TRANSPORT_FLAG_SSL 1
 #define STATUS_LEN 1024
 
 struct changecounter {
@@ -1223,6 +1222,14 @@ agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
 	{
 		ra->bindmethod = BINDMETHOD_SSL_CLIENTAUTH;
 	}
+	else if (strcasecmp(tmpstr, "SASL/GSSAPI") == 0)
+	{
+		ra->bindmethod = BINDMETHOD_SASL_GSSAPI;
+	}
+	else if (strcasecmp(tmpstr, "SASL/DIGEST-MD5") == 0)
+	{
+		ra->bindmethod = BINDMETHOD_SASL_DIGEST_MD5;
+	}
 	else
 	{
 		ra->bindmethod = BINDMETHOD_SIMPLE_AUTH;
@@ -1261,14 +1268,16 @@ agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
 	int rc = 0;
 	
 	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5TransportInfo);
-	if (NULL != tmpstr && strcasecmp(tmpstr, "SSL") == 0)
-	{
-		ra->transport_flags |= TRANSPORT_FLAG_SSL;
-	} else {
-		ra->transport_flags &= ~TRANSPORT_FLAG_SSL;
+	if (!tmpstr || !strcasecmp(tmpstr, "LDAP")) {
+		ra->transport_flags = 0;
+	} else if (strcasecmp(tmpstr, "SSL") == 0) {
+		ra->transport_flags = TRANSPORT_FLAG_SSL;
+	} else if (strcasecmp(tmpstr, "TLS") == 0) {
+		ra->transport_flags = TRANSPORT_FLAG_TLS;
 	}
+	/* else do nothing - invalid value is a no-op */
 
-	slapi_ch_free((void **)&tmpstr);
+	slapi_ch_free_string(&tmpstr);
 	return (rc);
 }
 

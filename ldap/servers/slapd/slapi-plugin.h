@@ -1084,6 +1084,27 @@ int slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all );
  */
 LDAP *slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared );
 void slapi_ldap_unbind( LDAP *ld );
+LDAP *
+slapi_ldap_init_ext(
+    const char *ldapurl, /* full ldap url */
+    const char *hostname, /* can also use this to override
+                             host in url */
+    int port, /* can also use this to override port in url */
+    int secure, /* 0 for ldap, 1 for ldaps, 2 for starttls -
+                   override proto in url */
+    int shared, /* if true, LDAP* will be shared among multiple threads */
+    const char *filename /* for ldapi */
+);
+int
+slapi_ldap_bind(
+    LDAP *ld, /* ldap connection */
+    const char *bindid, /* usually a bind DN for simple bind */
+    const char *creds, /* usually a password for simple bind */
+    const char *mech, /* name of mechanism */
+    LDAPControl **serverctrls, /* additional controls to send */
+    LDAPControl ***returnedctrls, /* returned controls */
+    int *msgidp /* pass in non-NULL for async handling */
+);
 
 
 /*

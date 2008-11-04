@@ -904,6 +904,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
 int slapd_security_library_is_initialized();
 int slapd_ssl_listener_is_initialized();
 int sasl_io_cleanup(Connection *c);
+int slapd_SSL_client_auth (LDAP* ld);
 
 /*
  * security_wrappers.c
@@ -1279,6 +1280,15 @@ int ids_sasl_init(void);
 char **ids_sasl_listmech(Slapi_PBlock *pb);
 void ids_sasl_check_bind(Slapi_PBlock *pb);
 void ids_sasl_server_new(Connection *conn);
+int slapd_ldap_sasl_interactive_bind(
+    LDAP *ld, /* ldap connection */
+    const char *bindid, /* usually a bind DN for simple bind */
+    const char *creds, /* usually a password for simple bind */
+    const char *mech, /* name of mechanism */
+    LDAPControl **serverctrls, /* additional controls to send */
+    LDAPControl ***returnedctrls, /* returned controls */
+    int *msgidp /* pass in non-NULL for async handling */
+);
 
 /*
  * sasl_io.c

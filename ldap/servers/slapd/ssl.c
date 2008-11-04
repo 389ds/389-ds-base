@@ -1034,8 +1034,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 	}
     NSS_Init(certdbpath);
     SSL_OptionSetDefault(SSL_ENABLE_SSL2, PR_FALSE);
-	SSL_OptionSetDefault(SSL_ENABLE_SSLdirs
-3, PR_TRUE);
+	SSL_OptionSetDefault(SSL_ENABLE_SSL3, PR_TRUE);
 	s = NSS_SetDomesticPolicy(); 
 We already do pr_init, we don't need pr_setconcurrency, we already do nss_init and the rest
 
@@ -1047,7 +1046,7 @@ slapd_SSL_client_init()
     return 0;
 }
 
-static int
+int
 slapd_SSL_client_auth (LDAP* ld)
 {
     int rc = 0;

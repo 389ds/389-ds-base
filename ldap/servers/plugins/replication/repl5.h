@@ -256,6 +256,8 @@ typedef struct repl5agmt Repl_Agmt;
 #define TRANSPORT_FLAG_TLS 2
 #define BINDMETHOD_SIMPLE_AUTH 1
 #define BINDMETHOD_SSL_CLIENTAUTH 2
+#define BINDMETHOD_SASL_GSSAPI 3
+#define BINDMETHOD_SASL_DIGEST_MD5 4
 Repl_Agmt *agmt_new_from_entry(Slapi_Entry *e);
 Repl_Agmt *agmt_new_from_pblock(Slapi_PBlock *pb);
 void agmt_delete(void **ra);

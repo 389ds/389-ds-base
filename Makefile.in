@@ -59,7 +59,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/fhs.m4 $(top_srcdir)/m4/nspr.m4 \
 	$(top_srcdir)/m4/nss.m4 $(top_srcdir)/m4/mozldap.m4 \
 	$(top_srcdir)/m4/db.m4 $(top_srcdir)/m4/sasl.m4 \
 	$(top_srcdir)/m4/svrcore.m4 $(top_srcdir)/m4/icu.m4 \
-	$(top_srcdir)/m4/netsnmp.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/netsnmp.m4 $(top_srcdir)/m4/kerberos.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -434,9 +435,10 @@ libschemareload_plugin_la_LIBADD =
 am_libschemareload_plugin_la_OBJECTS = ldap/servers/plugins/schema_reload/libschemareload_plugin_la-schema_reload.lo
 libschemareload_plugin_la_OBJECTS =  \
 	$(am_libschemareload_plugin_la_OBJECTS)
+am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/agtmmap.c ldap/servers/slapd/apibroker.c \
 	ldap/servers/slapd/attr.c ldap/servers/slapd/attrlist.c \
@@ -905,6 +907,7 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KRB5_CONFIG_BIN = @KRB5_CONFIG_BIN@
 LDFLAGS = @LDFLAGS@
 LIBCRUN = @LIBCRUN@
 LIBCSTD = @LIBCSTD@
@@ -1007,6 +1010,9 @@ initconfigdir = $(sysconfdir)@initconfigdir@
 initdir = $(sysconfdir)@initdir@
 install_sh = @install_sh@
 instconfigdir = @instconfigdir@
+kerberos_inc = @kerberos_inc@
+kerberos_lib = @kerberos_lib@
+kerberos_libdir = @kerberos_libdir@
 ldapsdk_bindir = @ldapsdk_bindir@
 ldapsdk_inc = @ldapsdk_inc@
 ldapsdk_lib = @ldapsdk_lib@
@@ -1098,6 +1104,7 @@ SVRCORE_LINK = @svrcore_lib@ -lsvrcore
 ICU_LINK = @icu_lib@ -licui18n -licuuc -licudata
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
+KERBEROS_LINK = $(kerberos_lib)
 
 #------------------------
 # Generated Sources
@@ -1488,8 +1495,8 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/uuid.c ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
 	$(libavl_a_SOURCES) $(am__append_1)
-libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@ @svrcore_inc@
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK)
+libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK)
 
 #////////////////////////////////////////////////////////////////
 #

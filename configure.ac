@@ -271,10 +271,12 @@ AC_ARG_WITH(instconfigdir,
      AC_ERROR([Please specify a full path with --with-instconfigdir])
   fi
   instconfigdir="$withval"
+  AC_MSG_RESULT($withval)
 ],
 [
   dnl this value is expanded out in Makefile.am
   instconfigdir='$(sysconfdir)/$(PACKAGE_NAME)'
+  AC_MSG_RESULT(no)
 ])
 AC_SUBST(instconfigdir)
 
@@ -422,6 +424,7 @@ m4_include(m4/sasl.m4)
 m4_include(m4/svrcore.m4)
 m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
+m4_include(m4/kerberos.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)

@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/$PACKAGE_NAME
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CCAS CCASFLAGS SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_autobind_TRUE enable_autobind_FALSE enable_auto_dn_suffix_TRUE enable_auto_dn_suffix_FALSE enable_bitwise_TRUE enable_bitwise_FALSE with_fhs_opt configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir infdir mibdir defaultuser defaultgroup instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir perlexec initconfigdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG PACKAGE_BASE_VERSION nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir sasl_path svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CCAS CCASFLAGS SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_autobind_TRUE enable_autobind_FALSE enable_auto_dn_suffix_TRUE enable_auto_dn_suffix_FALSE enable_bitwise_TRUE enable_bitwise_FALSE with_fhs_opt configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir infdir mibdir defaultuser defaultgroup instconfigdir WINNT_TRUE WINNT_FALSE LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir perlexec initconfigdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG KRB5_CONFIG_BIN kerberos_inc kerberos_lib kerberos_libdir PACKAGE_BASE_VERSION nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir sasl_path svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link brand capbrand vendor LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -1099,6 +1099,25 @@ Optional Packages:
   --with-netsnmp=PATH   Net-SNMP directory
   --with-netsnmp-inc=PATH     Net-SNMP include directory
   --with-netsnmp-lib=PATH     Net-SNMP library directory
+  --with-kerberos=PATH  Use the kerberos API in the server directly - allows
+                          the server to authenticate directly with a keytab -
+                          otherwise, SASL/GSSAPI auth depends on underlying
+                          SASL libraries and external kinit with a keytab - if
+                          PATH is not specified, look for kerberos in the
+                          system locations. This will attempt to use
+                          krb5-config from the PATH to find the libs and
+                          include dirs - you can specify KRB5_CONFIG_BIN to
+                          specify a different filename or absolute path. If
+                          krb5-config does not work, this will attempt to look
+                          in various system directories
+  --with-kerberos-inc=PATH
+                          Allows you to explicitly set the directory
+                          containing the kerberos include files - implies use
+                          of kerberos
+  --with-kerberos-lib=PATH
+                          Allows you to explicitly set the directory
+                          containing the kerberos libraries - implies use of
+                          kerberos
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -4333,7 +4352,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4336 "configure"' > conftest.$ac_ext
+  echo '#line 4355 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5468,7 +5487,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5471:" \
+echo "$as_me:5490:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6531,11 +6550,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6534: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6553: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6538: \$? = $ac_status" >&5
+   echo "$as_me:6557: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6799,11 +6818,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6802: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6821: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6806: \$? = $ac_status" >&5
+   echo "$as_me:6825: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6903,11 +6922,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6906: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6925: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6910: \$? = $ac_status" >&5
+   echo "$as_me:6929: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8372,7 +8391,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8375 "configure"' > conftest.$ac_ext
+    echo '#line 8394 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -9269,7 +9288,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9272 "configure"
+#line 9291 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9369,7 +9388,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9372 "configure"
+#line 9391 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11712,11 +11731,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11715: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11734: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11719: \$? = $ac_status" >&5
+   echo "$as_me:11738: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11816,11 +11835,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11819: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11838: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11823: \$? = $ac_status" >&5
+   echo "$as_me:11842: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12352,7 +12371,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 12355 "configure"' > conftest.$ac_ext
+    echo '#line 12374 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -13410,11 +13429,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13413: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13432: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13417: \$? = $ac_status" >&5
+   echo "$as_me:13436: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13514,11 +13533,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13517: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13536: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13521: \$? = $ac_status" >&5
+   echo "$as_me:13540: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14963,7 +14982,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 14966 "configure"' > conftest.$ac_ext
+    echo '#line 14985 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15741,11 +15760,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15744: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15763: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15748: \$? = $ac_status" >&5
+   echo "$as_me:15767: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16009,11 +16028,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16012: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16031: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16016: \$? = $ac_status" >&5
+   echo "$as_me:16035: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16113,11 +16132,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16116: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16135: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16120: \$? = $ac_status" >&5
+   echo "$as_me:16139: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17582,7 +17601,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17585 "configure"' > conftest.$ac_ext
+    echo '#line 17604 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -23325,10 +23344,14 @@ echo "$as_me: error: Please specify a full path with --with-instconfigdir" >&2;}
    { (exit 1); exit 1; }; }
   fi
   instconfigdir="$withval"
+  echo "$as_me:$LINENO: result: $withval" >&5
+echo "${ECHO_T}$withval" >&6
 
 else
 
     instconfigdir='$(sysconfdir)/$(PACKAGE_NAME)'
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
 
 fi;
 
@@ -25542,6 +25565,764 @@ echo "$as_me: error: Net-SNMP not found, specify with --with-netsnmp." >&2;}
    { (exit 1); exit 1; }; }
 fi
 
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2008 Red Hat, Inc.
+# All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# END COPYRIGHT BLOCK
+# -*- tab-width: 4; -*-
+# Configure paths for Kerberos
+
+{ echo "$as_me:$LINENO: checking for kerberos..." >&5
+echo "$as_me: checking for kerberos..." >&6;}
+
+if test -z "$with_kerberos" ; then
+   with_kerberos=yes # if not set on cmdline, set default
+fi
+
+echo "$as_me:$LINENO: checking for --with-kerberos" >&5
+echo $ECHO_N "checking for --with-kerberos... $ECHO_C" >&6
+
+# Check whether --with-kerberos or --without-kerberos was given.
+if test "${with_kerberos+set}" = set; then
+  withval="$with_kerberos"
+
+        if test "x$withval" = "xyes"; then
+            echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+        elif test "x$withval" = "xno"; then
+            echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+            with_kerberos=
+        elif test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include" ; then
+            echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6
+            kerberos_incdir="$withval/include"
+            kerberos_libdir="$withval/lib"
+        else
+            echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+            { { echo "$as_me:$LINENO: error: kerberos not found in $withval" >&5
+echo "$as_me: error: kerberos not found in $withval" >&2;}
+   { (exit 1); exit 1; }; }
+        fi
+
+else
+
+        echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+        with_kerberos=
+
+
+fi;
+
+echo "$as_me:$LINENO: checking for --with-kerberos-inc" >&5
+echo $ECHO_N "checking for --with-kerberos-inc... $ECHO_C" >&6
+
+# Check whether --with-kerberos-inc or --without-kerberos-inc was given.
+if test "${with_kerberos_inc+set}" = set; then
+  withval="$with_kerberos_inc"
+
+      if test -f "$withval"/krb5.h; then
+        echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6
+        kerberos_incdir="$withval"
+        with_kerberos=yes # implies use of kerberos
+      else
+        echo
+        { { echo "$as_me:$LINENO: error: $withval/krb5.h not found" >&5
+echo "$as_me: error: $withval/krb5.h not found" >&2;}
+   { (exit 1); exit 1; }; }
+      fi
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+
+fi;
+
+echo "$as_me:$LINENO: checking for --with-kerberos-lib" >&5
+echo $ECHO_N "checking for --with-kerberos-lib... $ECHO_C" >&6
+
+# Check whether --with-kerberos-lib or --without-kerberos-lib was given.
+if test "${with_kerberos_lib+set}" = set; then
+  withval="$with_kerberos_lib"
+
+      if test -d "$withval"; then
+        echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6
+        kerberos_libdir="$withval"
+        with_kerberos=yes # implies use of kerberos
+      else
+        echo
+        { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+      fi
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+
+fi;
+
+if test -n "$with_kerberos" ; then
+    if test -z "$kerberos_incdir" -o -z "$kerberos_libdir" ; then
+                                        if test -z "$KRB5_CONFIG_BIN" ; then
+            # Extract the first word of "krb5-config", so it can be a program name with args.
+set dummy krb5-config; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_path_KRB5_CONFIG_BIN+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $KRB5_CONFIG_BIN in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_KRB5_CONFIG_BIN="$KRB5_CONFIG_BIN" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_KRB5_CONFIG_BIN="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+  ;;
+esac
+fi
+KRB5_CONFIG_BIN=$ac_cv_path_KRB5_CONFIG_BIN
+
+if test -n "$KRB5_CONFIG_BIN"; then
+  echo "$as_me:$LINENO: result: $KRB5_CONFIG_BIN" >&5
+echo "${ECHO_T}$KRB5_CONFIG_BIN" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+        fi
+        if test -n "$KRB5_CONFIG_BIN" ; then
+            echo "$as_me:$LINENO: checking for kerberos with $KRB5_CONFIG_BIN" >&5
+echo $ECHO_N "checking for kerberos with $KRB5_CONFIG_BIN... $ECHO_C" >&6
+            if test -z "$kerberos_libdir" ; then
+                kerberos_lib=`$KRB5_CONFIG_BIN --libs krb5`
+            fi
+            if test -z "$kerberos_incdir" ; then
+                kerberos_inc=`$KRB5_CONFIG_BIN --cflags krb5`
+            fi
+                        if test -n "$kerberos_lib" ; then
+                echo "$as_me:$LINENO: result: using kerberos found with $KRB5_CONFIG_BIN" >&5
+echo "${ECHO_T}using kerberos found with $KRB5_CONFIG_BIN" >&6
+                have_krb5=yes
+            fi
+        fi
+    fi
+fi
+
+if test -n "$with_kerberos" -a -z "$kerberos_lib" ; then
+    # save these in order to set them to use the check macros below
+    # like AC_CHECK_HEADERS, AC_CHECK_LIB, and AC_CHECK_FUNCS
+    save_CPPFLAGS="$CPPFLAGS"
+    if test -n "$kerberos_incdir" ; then
+        CPPFLAGS="-I$kerberos_incdir $CPPFLAGS"
+    fi
+    save_LDFLAGS="$LDFLAGS"
+    if test -n "$kerberos_libdir" ; then
+        LDFLAGS="-L$kerberos_libdir $LDFLAGS"
+    fi
+    krb5_impl=mit
+
+
+for ac_header in heim_err.h
+do
+as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
+if eval "test \"\${$as_ac_Header+set}\" = set"; then
+  echo "$as_me:$LINENO: checking for $ac_header" >&5
+echo $ECHO_N "checking for $ac_header... $ECHO_C" >&6
+if eval "test \"\${$as_ac_Header+set}\" = set"; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Header'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_Header'}'`" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking $ac_header usability" >&5
+echo $ECHO_N "checking $ac_header usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <$ac_header>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_header_compiler=no
+fi
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
+
+# Is the header present?
+echo "$as_me:$LINENO: checking $ac_header presence" >&5
+echo $ECHO_N "checking $ac_header presence... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <$ac_header>
+_ACEOF
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: $ac_header: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: $ac_header: present but cannot be compiled" >&5
+echo "$as_me: WARNING: $ac_header: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: $ac_header:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: $ac_header: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: $ac_header: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: $ac_header: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to http://bugzilla.redhat.com/ ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for $ac_header" >&5
+echo $ECHO_N "checking for $ac_header... $ECHO_C" >&6
+if eval "test \"\${$as_ac_Header+set}\" = set"; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  eval "$as_ac_Header=\$ac_header_preproc"
+fi
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Header'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_Header'}'`" >&6
+
+fi
+if test `eval echo '${'$as_ac_Header'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+    if test $ac_cv_header_heim_err_h = yes ; then
+        krb5_impl=heimdal
+    fi
+
+    if test "x$krb5_impl" = "xmit"; then
+        echo "$as_me:$LINENO: checking for main in -lk5crypto" >&5
+echo $ECHO_N "checking for main in -lk5crypto... $ECHO_C" >&6
+if test "${ac_cv_lib_k5crypto_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lk5crypto  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_k5crypto_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_k5crypto_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_k5crypto_main" >&5
+echo "${ECHO_T}$ac_cv_lib_k5crypto_main" >&6
+if test $ac_cv_lib_k5crypto_main = yes; then
+  krb5crypto=k5crypto
+else
+  krb5crypto=crypto
+fi
+
+
+        echo "$as_me:$LINENO: checking for main in -lkrb5" >&5
+echo $ECHO_N "checking for main in -lkrb5... $ECHO_C" >&6
+if test "${ac_cv_lib_krb5_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lkrb5 -l$krb5crypto -lcom_err $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_krb5_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_krb5_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_krb5_main" >&5
+echo "${ECHO_T}$ac_cv_lib_krb5_main" >&6
+if test $ac_cv_lib_krb5_main = yes; then
+  have_krb5=yes
+            kerberos_lib="-lkrb5 -l$krb5crypto -lcom_err"
+else
+  have_krb5=no
+fi
+
+
+    elif test "x$krb5_impl" = "xheimdal"; then
+        echo "$as_me:$LINENO: checking for main in -ldes" >&5
+echo $ECHO_N "checking for main in -ldes... $ECHO_C" >&6
+if test "${ac_cv_lib_des_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldes  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_des_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_des_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_des_main" >&5
+echo "${ECHO_T}$ac_cv_lib_des_main" >&6
+if test $ac_cv_lib_des_main = yes; then
+  krb5crypto=des
+else
+  krb5crypto=crypto
+fi
+
+
+        echo "$as_me:$LINENO: checking for main in -lkrb5" >&5
+echo $ECHO_N "checking for main in -lkrb5... $ECHO_C" >&6
+if test "${ac_cv_lib_krb5_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lkrb5 -l$krb5crypto -lasn1 -lroken -lcom_err $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_krb5_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_krb5_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_krb5_main" >&5
+echo "${ECHO_T}$ac_cv_lib_krb5_main" >&6
+if test $ac_cv_lib_krb5_main = yes; then
+  have_krb5=yes
+            kerberos_lib="-lkrb5 -l$krb5crypto -lasn1 -lroken -lcom_err"
+else
+  have_krb5=no
+fi
+
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_HEIMDAL_KERBEROS 1
+_ACEOF
+
+
+    else
+        have_krb5=no
+        { echo "$as_me:$LINENO: WARNING: Unrecognized Kerberos5 Implementation" >&5
+echo "$as_me: WARNING: Unrecognized Kerberos5 Implementation" >&2;}
+    fi
+
+    # reset to original values
+    CPPFLAGS="$save_CPPFLAGS"
+    LDFLAGS="$save_LDFLAGS"
+    if test -n "$kerberos_incdir" ; then
+        kerberos_inc="-I$kerberos_incdir"
+    fi
+    if test -n "$kerberos_libdir" ; then
+        kerberos_lib="-L$kerberos_libdir $kerberos_lib"
+    fi
+fi
+
+
+if test -n "$with_kerberos" ; then
+    if test "x$have_krb5" = "xyes" ; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_KRB5 1
+_ACEOF
+
+    else
+        { { echo "$as_me:$LINENO: error: Required Kerberos 5 support not available" >&5
+echo "$as_me: error: Required Kerberos 5 support not available" >&2;}
+   { (exit 1); exit 1; }; }
+    fi
+
+        save_LIBS="$LIBS"
+    LIBS="$kerberos_lib"
+    save_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$kerberos_inc $CPPFLAGS"
+
+for ac_func in krb5_cc_new_unique
+do
+as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
+echo "$as_me:$LINENO: checking for $ac_func" >&5
+echo $ECHO_N "checking for $ac_func... $ECHO_C" >&6
+if eval "test \"\${$as_ac_var+set}\" = set"; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+/* Define $ac_func to an innocuous variant, in case <limits.h> declares $ac_func.
+   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
+#define $ac_func innocuous_$ac_func
+
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $ac_func (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  */
+
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+
+#undef $ac_func
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char $ac_func ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub_$ac_func) || defined (__stub___$ac_func)
+choke me
+#else
+char (*f) () = $ac_func;
+#endif
+#ifdef __cplusplus
+}
+#endif
+
+int
+main ()
+{
+return f != $ac_func;
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  eval "$as_ac_var=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+eval "$as_ac_var=no"
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+fi
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_var'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_var'}'`" >&6
+if test `eval echo '${'$as_ac_var'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+    LIBS="$save_LIBS"
+    CPPFLAGS="$save_CPPFLAGS"
+fi
+
+
+
+
+
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 
@@ -26463,6 +27244,10 @@ s,@SOLARIS_FALSE@,$SOLARIS_FALSE,;t t
 s,@PKG_CONFIG@,$PKG_CONFIG,;t t
 s,@ICU_CONFIG@,$ICU_CONFIG,;t t
 s,@NETSNMP_CONFIG@,$NETSNMP_CONFIG,;t t
+s,@KRB5_CONFIG_BIN@,$KRB5_CONFIG_BIN,;t t
+s,@kerberos_inc@,$kerberos_inc,;t t
+s,@kerberos_lib@,$kerberos_lib,;t t
+s,@kerberos_libdir@,$kerberos_libdir,;t t
 s,@PACKAGE_BASE_VERSION@,$PACKAGE_BASE_VERSION,;t t
 s,@nspr_inc@,$nspr_inc,;t t
 s,@nspr_lib@,$nspr_lib,;t t
