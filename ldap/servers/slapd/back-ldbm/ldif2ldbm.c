@@ -687,8 +687,16 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         bv.bv_len = strlen(include[i]);
         idl = index_read(be, "entrydn", indextype_EQUALITY, &bv, txn, err);
         if (idl == NULL) {
-            LDAPDebug(LDAP_DEBUG_ANY, "warning: entrydn not indexed on '%s'\n",
-                      include[i], 0, 0);
+            if (DB_NOTFOUND == *err) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                    "warning: entrydn not indexed on '%s'; "
+                    "entry %s may not be added to the database yet.\n",
+                    include[i], include[i], 0);
+                *err = 0; /* not a problem */
+            } else {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                    "warning: entrydn not indexed on '%s'\n", include[i], 0, 0);
+            }
             continue;
         }
         id = idl_firstid(idl);
@@ -700,8 +708,17 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
          */
         *err = ldbm_ancestorid_read(be, txn, id, &idl);
         if (idl == NULL) {
-            LDAPDebug(LDAP_DEBUG_ANY, "warning: ancestorid not indexed on %lu\n",
-                      id, 0, 0);
+            if (DB_NOTFOUND == *err) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                    "warning: ancestorid not indexed on %lu; "
+                    "possibly, the entry id %lu has no descendants yet.\n",
+                    id, id, 0);
+                *err = 0; /* not a problem */
+            } else {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                    "warning: ancestorid not indexed on %lu\n",
+                    id, 0, 0);
+            }
             continue;
         }
 
@@ -1474,20 +1491,23 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         idl = ldbm_fetch_subtrees(be, suffix_list, &err);
         charray_free(suffix_list);
         if (! idl) {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            /* most likely, indexes are bad if err is set. */
+            if (0 != err) {
+                LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: WARNING: Failed to fetch subtree lists: (%d) %s\n",
                       inst->inst_name, err, dblayer_strerror(err));
-            LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: Possibly the entrydn or ancestorid index is "
                       "corrupted or does not exist.\n", inst->inst_name, 0, 0);
-            LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: Attempting brute-force method instead.\n",
                       inst->inst_name, 0, 0);
-            if (task) {
-                slapi_task_log_notice(task,
-                    "%s: WARNING: Failed to fetch subtree lists (err %d) -- "
-                    "attempting brute-force method instead.", 
-                    inst->inst_name, err);
+                if (task) {
+                    slapi_task_log_notice(task,
+                      "%s: WARNING: Failed to fetch subtree lists (err %d) -- "
+                      "attempting brute-force method instead.", 
+                      inst->inst_name, err);
+                }
             }
         } else if (ALLIDS(idl)) {
             /* that's no help. */
