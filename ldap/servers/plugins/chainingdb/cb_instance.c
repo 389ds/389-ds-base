@@ -53,7 +53,9 @@
 /* Get functions */
 
 static void *cb_instance_hosturl_get(void *arg);
+static void *cb_instance_starttls_get(void *arg);
 static void *cb_instance_binduser_get(void *arg);
+static void *cb_instance_bindmech_get(void *arg);
 static void *cb_instance_userpassword_get(void *arg);
 static void *cb_instance_maxbconn_get(void *arg);
 static void *cb_instance_maxconn_get(void *arg);
@@ -77,7 +79,9 @@ static void *cb_instance_max_test_get(void *arg);
 /* Set functions */
 
 static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int phase, int apply);
+static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int phase, int apply);
 static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int phase, int apply);
+static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int phase, int apply);
 static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf, int phase, int apply);
 static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf, int phase, int apply);
 static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf, int phase, int apply);
@@ -120,6 +124,8 @@ cb_instance_config_info cb_the_instance_config[] = {
 {CB_CONFIG_HOPLIMIT,CB_CONFIG_TYPE_INT,CB_DEF_HOPLIMIT,&cb_instance_hoplimit_get, &cb_instance_hoplimit_set,CB_ALWAYS_SHOW},
 {CB_CONFIG_MAX_IDLE_TIME,CB_CONFIG_TYPE_INT,CB_DEF_MAX_IDLE_TIME,&cb_instance_max_idle_get, &cb_instance_max_idle_set,CB_ALWAYS_SHOW},
 {CB_CONFIG_MAX_TEST_TIME,CB_CONFIG_TYPE_INT,CB_DEF_MAX_TEST_TIME,&cb_instance_max_test_get, &cb_instance_max_test_set,CB_ALWAYS_SHOW},
+{CB_CONFIG_STARTTLS,CB_CONFIG_TYPE_ONOFF,CB_DEF_STARTTLS,&cb_instance_starttls_get, &cb_instance_starttls_set,CB_ALWAYS_SHOW},
+{CB_CONFIG_BINDMECH,CB_CONFIG_TYPE_STRING,CB_DEF_BINDMECH,&cb_instance_bindmech_get, &cb_instance_bindmech_set,CB_ALWAYS_SHOW},
 {NULL, 0, NULL, NULL, NULL, 0}
 };
 
@@ -256,9 +262,9 @@ void cb_instance_free(cb_backend_instance * inst) {
 		slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
 		slapi_destroy_mutex(inst->monitor_availability.cpt_lock);
 		slapi_destroy_mutex(inst->monitor_availability.lock_timeLimit);
-		slapi_ch_free((void **) &inst->configDn);
-		slapi_ch_free((void **) &inst->monitorDn);
-		slapi_ch_free((void **) &inst->inst_name);
+		slapi_ch_free_string(&inst->configDn);
+		slapi_ch_free_string(&inst->monitorDn);
+		slapi_ch_free_string(&inst->inst_name);
 		charray_free(inst->every_attribute);
 
 		slapi_ch_free((void **) &inst->bind_pool);
@@ -1323,6 +1329,66 @@ static int cb_instance_bindretry_set(void *arg, void *value, char *errorbuf, int
 	return LDAP_SUCCESS;
 }
 
+
+static void *cb_instance_starttls_get(void *arg)
+{
+	cb_backend_instance * inst=(cb_backend_instance *) arg;
+        uintptr_t data;
+
+        PR_RWLock_Rlock(inst->rwl_config_lock);
+        data=inst->pool->starttls;
+        PR_RWLock_Unlock(inst->rwl_config_lock);
+        return (void *) data;
+}
+
+static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+	cb_backend_instance * inst=(cb_backend_instance *) arg;
+	int rc = LDAP_SUCCESS;
+
+	if (apply) {
+	        PR_RWLock_Wlock(inst->rwl_config_lock);
+		inst->pool->starttls=(int) ((uintptr_t)value);
+	        PR_RWLock_Unlock(inst->rwl_config_lock);
+		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
+    			( phase != CB_CONFIG_PHASE_STARTUP )) {
+		    rc=CB_REOPEN_CONN; /* reconnect with the new starttls setting */
+		}
+	}
+	return rc;
+}
+
+static void *cb_instance_bindmech_get(void *arg)
+{
+	cb_backend_instance * inst=(cb_backend_instance *) arg;
+	char * data;
+
+        PR_RWLock_Rlock(inst->rwl_config_lock);
+	data = slapi_ch_strdup(inst->pool->mech);
+        PR_RWLock_Unlock(inst->rwl_config_lock);
+	return data;
+}
+
+static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+	cb_backend_instance * inst=(cb_backend_instance *) arg;
+	int rc=LDAP_SUCCESS;
+
+	if (apply) {
+               	PR_RWLock_Wlock(inst->rwl_config_lock);
+		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
+    			( phase != CB_CONFIG_PHASE_STARTUP )) {
+
+			/* Dynamic modif */
+			charray_add(&inst->pool->waste_basket,inst->pool->mech);
+			rc=CB_REOPEN_CONN;
+		}
+
+		inst->pool->mech=slapi_ch_strdup((char *) value);
+               	PR_RWLock_Unlock(inst->rwl_config_lock);
+	}
+	return rc;
+}
 
 
 

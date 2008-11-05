@@ -440,6 +440,8 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 	}
 	if (matched) {
 		if (matched == 1) {
+			char escape_base[BUFSIZ];
+			char escape_filt[BUFSIZ];
 			/* Allocate buffers for the returned strings */
 			/* We already computed this, so we could pass it in to speed up a little */
 			size_t userrealmlen = strlen(sasl_user_and_realm); 
@@ -448,7 +450,11 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 			*ldap_search_filter = (char *) slapi_ch_malloc(userrealmlen + strlen(dp->template_search_filter) + 1);
 			slapd_re_subs(dp->template_base_dn,*ldap_search_base);
 			slapd_re_subs(dp->template_search_filter,*ldap_search_filter);
-			LDAPDebug( LDAP_DEBUG_TRACE, "mapped base dn: %s, filter: %s\n", ldap_search_base, ldap_search_filter, 0 );
+			/* these values are internal regex representations with lots of
+			   unprintable control chars - escape for logging */
+			LDAPDebug( LDAP_DEBUG_TRACE, "mapped base dn: %s, filter: %s\n",
+					   escape_string( *ldap_search_base, escape_base ),
+					   escape_string( *ldap_search_filter, escape_filt ), 0 );
 			ret = 1;
 		} else {
 			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_check : re_exec failed\n", 0, 0, 0 );

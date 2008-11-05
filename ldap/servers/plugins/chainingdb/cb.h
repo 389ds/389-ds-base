@@ -114,8 +114,10 @@
 #define CB_CONFIG_SIZELIMIT			"nsslapd-sizelimit"
 #define CB_CONFIG_TIMELIMIT			"nsslapd-timelimit"
 #define CB_CONFIG_HOSTURL			"nsFarmServerURL"
+#define CB_CONFIG_STARTTLS			"nsUseStartTLS"
 
 #define CB_CONFIG_BINDUSER			"nsMultiplexorBindDn"	
+#define CB_CONFIG_BINDMECH			"nsBindMechanism"
 #define CB_CONFIG_USERPASSWORD			"nsMultiplexorCredentials"	
 #define CB_CONFIG_MAXBINDCONNECTIONS		"nsBindConnectionsLimit"
 #define CB_CONFIG_MAXCONNECTIONS		"nsOperationConnectionsLimit"
@@ -163,6 +165,8 @@
 #define CB_DEF_HOPLIMIT				"10"	/* CB_CONFIG_HOPLIMIT */
 #define CB_DEF_MAX_IDLE_TIME			"60"	/* CB_CONFIG_MAX_IDLE_TIME */
 #define CB_DEF_MAX_TEST_TIME			"15"	/* CB_CONFIG_MAX_TEST_TIME */
+#define CB_DEF_STARTTLS			"off"	/* CB_CONFIG_STARTTLS */
+#define CB_DEF_BINDMECH			LDAP_SASL_SIMPLE	/* CB_CONFIG_BINDMECH */
 
 typedef void *cb_config_get_fn_t(void *arg);
 typedef int cb_config_set_fn_t(void *arg, void *value, char *errorbuf, int phase, int apply);
@@ -290,6 +294,8 @@ typedef struct  {
 
 	/* To protect the config set by LDAP */
 	PRRWLock	* rwl_config_lock;
+	int		starttls; /* use starttls with connection */
+	char		*mech; /* plain, external, or a sasl mech */
 } cb_conn_pool;
 
 

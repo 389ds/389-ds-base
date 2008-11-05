@@ -720,6 +720,7 @@ struct slapi_componentid * plugin_get_default_component_id();
 #define COMPONENT_RESLIMIT	"cn=resource limits,"COMPONENT_BASE_DN
 #define COMPONENT_PWPOLICY	"cn=password policy,"COMPONENT_BASE_DN
 #define COMPONENT_CERT_AUTH	"cn=certificate-based authentication,"COMPONENT_BASE_DN
+#define COMPONENT_SASL		"cn=sasl,"COMPONENT_BASE_DN
 
 /* Component names for logging */
 #define SLAPI_COMPONENT_NAME_NSPR	"Netscape Portable Runtime"

@@ -752,6 +752,9 @@ nsTransmittedControls: 1.2.840.113556.1.4.473
 nsTransmittedControls: 1.3.6.1.4.1.1466.29539.12
 nsPossibleChainingComponents: cn=resource limits,cn=components,cn=config
 nsPossibleChainingComponents: cn=certificate-based authentication,cn=components,cn=config
+nsPossibleChainingComponents: cn=password policy,cn=components,cn=config
+nsPossibleChainingComponents: cn=sasl,cn=components,cn=config
+nsPossibleChainingComponents: cn=roles,cn=components,cn=config
 nsPossibleChainingComponents: cn=ACL Plugin,cn=plugins,cn=config
 nsPossibleChainingComponents: cn=old plugin,cn=plugins,cn=config
 nsPossibleChainingComponents: cn=referential integrity postoperation,cn=plugins,cn=config

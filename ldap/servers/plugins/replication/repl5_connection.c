@@ -1563,7 +1563,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	const char  *mech = bind_method_to_mech(conn->bindmethod);
 
 	rc = slapi_ldap_bind(conn->ld, binddn, password, mech, NULL,
-						 &ctrls, NULL);
+						 &ctrls, NULL, NULL);
 
 	if ( rc == LDAP_SUCCESS ) 
 	{

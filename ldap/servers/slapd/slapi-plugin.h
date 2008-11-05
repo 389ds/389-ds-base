@@ -1103,6 +1103,7 @@ slapi_ldap_bind(
     const char *mech, /* name of mechanism */
     LDAPControl **serverctrls, /* additional controls to send */
     LDAPControl ***returnedctrls, /* returned controls */
+    struct timeval *timeout, /* timeout */
     int *msgidp /* pass in non-NULL for async handling */
 );
 

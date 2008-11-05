@@ -974,7 +974,17 @@ slapi_ldap_init_ext(
 		ssl_strength = LDAPSSL_AUTH_CERT;
 	    }
 
-	    if (ldapssl_set_strength(ld, ssl_strength) != 0) {
+	    /* Can only use ldapssl_set_strength on and LDAP* already
+	       initialized for SSL - this is not the case when using
+	       startTLS, so we use NULL to set the default for all
+	       new connections */
+	    if (secure == 1) {
+		rc = ldapssl_set_strength(ld, ssl_strength);
+	    } else {
+		rc = ldapssl_set_strength(NULL, ssl_strength);
+	    }
+
+	    if (rc != 0) {
 		int prerr = PR_GetError();
 
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
@@ -1052,6 +1062,7 @@ slapi_ldap_bind(
     const char *mech, /* name of mechanism */
     LDAPControl **serverctrls, /* additional controls to send */
     LDAPControl ***returnedctrls, /* returned controls */
+    struct timeval *timeout, /* timeout */
     int *msgidp /* pass in non-NULL for async handling */
 )
 {
@@ -1125,8 +1136,8 @@ slapi_ldap_bind(
 	if (msgidp) { /* let caller process result */
 	    *msgidp = mymsgid;
 	} else { /* process results */
-	    if (ldap_result(ld, mymsgid, LDAP_MSG_ALL,
-			    (struct timeval *)0, &result) == -1) {
+            rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, timeout, &result);
+	    if (-1 == rc) { /* error */
 		rc = ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error reading bind response for id "
@@ -1135,8 +1146,18 @@ slapi_ldap_bind(
 				mech ? mech : "SIMPLE",
 				rc, ldap_err2string(rc));
 		goto done;
-	    }                
-	    
+	    } else if (rc == 0) { /* timeout */
+		rc = LDAP_TIMEOUT;
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+				"Error: timeout after [%d.%d] seconds reading "
+				"bind response for [%s] mech [%s]\n",
+				timeout ? timeout->tv_sec : 0,
+				timeout ? timeout->tv_usec : 0,
+				bindid ? bindid : "(anon)",
+				mech ? mech : "SIMPLE");
+		goto done;
+	    }
+	    /* if we got here, we were able to read success result */
 	    /* Get the controls sent by the server if requested */
 	    if (returnedctrls) {
                 if ((rc = ldap_parse_result(ld, result, &rc, NULL, NULL,

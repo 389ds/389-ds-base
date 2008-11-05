@@ -81,6 +81,21 @@ void nssasl_free(void *ptr)
     slapi_ch_free(&ptr);
 }
 
+static Slapi_ComponentId *sasl_component_id = NULL;
+
+static void generate_component_id()
+{
+    if (NULL == sasl_component_id) {
+        sasl_component_id = generate_componentid(NULL /* Not a plugin */,
+                                                 COMPONENT_SASL);
+    }
+}
+
+static Slapi_ComponentId *sasl_get_component_id()
+{
+    return sasl_component_id;
+}
+
 /* 
  * sasl library callbacks
  */
@@ -238,19 +253,22 @@ static void ids_sasl_user_search(
 )
 {
     Slapi_Entry **entries = NULL;
-    Slapi_PBlock *pb;
+    Slapi_PBlock *pb = NULL;
     int i, ret;
 
     LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search basedn=\"%s\" filter=\"%s\"\n", basedn, filter, 0);
 
     /* TODO: set size and time limits */
-
-    pb = slapi_search_internal(basedn, scope, filter, 
-                               ctrls, attrs, attrsonly);
-    if (pb == NULL) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "null pblock from slapi_search_internal\n", 0, 0, 0);
+    pb = slapi_pblock_new();
+    if (!pb) {
+        LDAPDebug(LDAP_DEBUG_TRACE, "null pblock for search_internal_pb\n", 0, 0, 0);
         goto out;
     }
+
+    slapi_search_internal_set_pb(pb, basedn, scope, filter, attrs, attrsonly, ctrls, 
+                                 NULL, sasl_get_component_id(), 0); 
+
+    slapi_search_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS) {
@@ -261,7 +279,11 @@ static void ids_sasl_user_search(
     }
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-    if (entries == NULL) goto out;
+    if ((entries == NULL) || (entries[0] == NULL)) {
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries\n",
+                  0, 0, 0);
+        goto out;
+    }
 
     for (i = 0; entries[i]; i++) {
         (*foundp)++;
@@ -545,6 +567,9 @@ int ids_sasl_init(void)
 
     LDAPDebug(LDAP_DEBUG_TRACE, "sasl service fqdn is: %s\n", 
                   serverfqdn, 0, 0);
+
+    /* get component ID for internal operations */
+    generate_component_id();
 
     /* Set SASL memory allocation callbacks */
     sasl_set_alloc(
@@ -1016,4 +1041,3 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
     return;
 }
-

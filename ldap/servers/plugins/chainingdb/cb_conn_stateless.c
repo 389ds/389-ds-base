@@ -164,6 +164,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 	char 				*password,*binddn,*hostname;
 	unsigned int 		port;
 	int 				secure;
+	char 				*mech = NULL;;
 	static	char		*error1="Can't contact remote server : %s";
 	static	char		*error2="Can't bind to remote server : %s";
 	int					isMultiThread = ENABLE_MULTITHREAD_PER_CONN ; /* by default, we enable multiple operations per connection */
@@ -199,6 +200,10 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 	hostname=pool->hostname;
 	port=pool->port;
 	secure=pool->secure;
+	if (pool->starttls) {
+	    secure = 2;
+	}
+	mech=pool->mech;
 
 	PR_RWLock_Unlock(pool->rwl_config_lock);
 
@@ -348,12 +353,8 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 			/* For now, bind even if no user to detect error */
 			/* earlier					 */
                 	if (pool->bindit) {
-				int 				msgid;
-				LDAPMessage                  	*res=NULL;
-				int 				parse_rc;
 				PRErrorCode			prerr = 0;
 				LDAPControl                     **serverctrls=NULL;
-				char 				**referrals=NULL;
 				
 				char *plain = NULL;
 				int ret  = -1;
@@ -381,14 +382,21 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 				}
 
 				/* Password-based client authentication */
+				rc = slapi_ldap_bind(ld, binddn, plain, mech, NULL, &serverctrls,
+						     &bind_to, NULL);
 
-				if (( msgid = ldap_simple_bind( ld, binddn, plain)) <0) {
-					rc=ldap_get_lderrno( ld, NULL, NULL );
-					prerr=PR_GetError();
-				}
 				if ( ret == 0 ) slapi_ch_free_string(&plain); /* free plain only if it has been duplicated */
 
-				if ( rc != LDAP_SUCCESS ) {
+				if ( rc == LDAP_TIMEOUT ) {
+					if (cb_debug_on()) {
+                                	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                                        	"Can't bind to server <%s> port <%d>. (%s)\n",
+                                        	hostname, port, "time-out expired");
+					}
+					rc = LDAP_CONNECT_ERROR;
+					goto unlock_and_return;
+				} else if ( rc != LDAP_SUCCESS ) {
+					prerr=PR_GetError();
 					if (cb_debug_on()) {
 						slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 								"Can't bind to server <%s> port <%d>. "
@@ -405,67 +413,11 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 					goto unlock_and_return;
 				}
 
-				rc = ldap_result( ld, msgid, 0, &bind_to, &res );
-				switch (rc) {
-				case -1:
-					rc = ldap_get_lderrno( ld, NULL, NULL );
-					if (cb_debug_on()) {
-						slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-							"Can't bind to server <%s> port <%d>. "
-							"(LDAP error %d - %s; "
-							SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
-							hostname, port, rc,
-							ldap_err2string(rc),
-							prerr, slapd_pr_strerror(prerr));
-					}
-					if ( errmsg ) {
-						*errmsg = PR_smprintf(error2,ldap_err2string(rc));
-					}
-					rc = LDAP_CONNECT_ERROR;
-					goto unlock_and_return;
-				case 0:
-					if (cb_debug_on()) {
-                                	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                        	"Can't bind to server <%s> port <%d>. (%s)\n",
-                                        	hostname, port, "time-out expired");
-					}
-					rc = LDAP_CONNECT_ERROR;
-					goto unlock_and_return;
-				default:
-
-					parse_rc = ldap_parse_result( ld, res, &rc, NULL, 
-       						NULL, &referrals, &serverctrls, 1 );
-
-      					if ( parse_rc != LDAP_SUCCESS ) {
-						if (cb_debug_on()) {
-                                		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                        		"Can't bind to server <%s> port <%d>. (%s)\n",
-                                        		hostname, port, ldap_err2string(parse_rc));
-						}
-						if ( errmsg ) {
-							*errmsg = PR_smprintf(error2,ldap_err2string(parse_rc));
-						}
-						rc = parse_rc;
-						goto unlock_and_return;
-					}
-
-				  	if ( rc != LDAP_SUCCESS ) {
-						if (cb_debug_on()) {
-                                		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                        		"Can't bind to server <%s> port <%d>. (%s)\n",
-                                        		hostname, port, ldap_err2string(rc));
-						}
-						if ( errmsg ) {
-							*errmsg = PR_smprintf(error2, ldap_err2string(rc));
-						}
-						goto unlock_and_return;
-					}
-
-					if ( serverctrls ) 
+				if ( serverctrls ) 
+				{
+					int i;
+					for( i = 0; serverctrls[ i ] != NULL; ++i ) 
 					{
-					    int i;
-					    for( i = 0; serverctrls[ i ] != NULL; ++i ) 
-					    {
 						if ( !(strcmp( serverctrls[ i ]->ldctl_oid, LDAP_CONTROL_PWEXPIRED)) )
 						{
 						    /* Bind is successful but password has expired */
@@ -487,12 +439,8 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 									binddn, hostname, port, password_expiring);
 						    }
 						}
-					    }	
-					    ldap_controls_free(serverctrls);
-					}
-
-					if (referrals) 
-					    charray_free(referrals);
+					}	
+					ldap_controls_free(serverctrls);
 				}
 			}
 
@@ -896,6 +844,7 @@ int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time
 	LDAP 			*ld;
 	LDAPMessage		*result;
 	time_t 			now;
+	int 			secure;
 	if (cb->max_idle_time <=0)	/* Heart-beat disabled */
 		return LDAP_SUCCESS;
 
@@ -904,8 +853,12 @@ int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time
 
 	now = current_time();
 	if (end_time && ((now <= end_time) || (end_time <0))) return LDAP_SUCCESS;
-	
-	ld=slapi_ldap_init(cb->pool->hostname,cb->pool->port,cb->pool->secure,0); 
+
+	secure = cb->pool->secure;
+	if (cb->pool->starttls) {
+		secure = 2;
+	}
+	ld=slapi_ldap_init(cb->pool->hostname,cb->pool->port,secure,0); 
 	if (NULL == ld) {
 		cb_update_failed_conn_cpt( cb );
 		return LDAP_SERVER_DOWN;
@@ -914,6 +867,8 @@ int cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn * cnx,time_t end_time
 	timeout.tv_sec=cb->max_test_time;
 	timeout.tv_usec=0;
 	
+	/* NOTE: This will fail if we implement the ability to disable
+	   anonymous bind */
  	rc=ldap_search_ext_s(ld ,NULL,LDAP_SCOPE_BASE,"objectclass=*",attrs,1,NULL, 
 		NULL, &timeout, 1,&result);
 	if ( LDAP_SUCCESS != rc ) {
