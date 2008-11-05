@@ -861,7 +861,7 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				/* Groupdn is full ldapurl? */
 				if (0 == ldap_url_parse(groupNameOrig, &ludp) &&
 				    NULL != ludp->lud_dn &&
-					NULL != ludp->lud_scope &&
+					-1 != ludp->lud_scope &&
 					NULL != ludp->lud_filter) {
 					/* Yes, it is full ldapurl; Let's run the search */
 					myPb = slapi_pblock_new ();
