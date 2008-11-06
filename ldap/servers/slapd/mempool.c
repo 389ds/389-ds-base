@@ -234,6 +234,7 @@ mempool_return(int type, void *object, mempool_cleanup_callback cleanup)
 	if ((maxfreelist > 0) && (my_mempool[type].mempool_count > maxfreelist)) {
 		return LDAP_UNWILLING_TO_PERFORM;
 	} else {
+		((struct mempool_object *)object)->mempool_next = mempool[type].mempool_head;
 		my_mempool[type].mempool_head = (struct mempool_object *)object;
 		my_mempool[type].mempool_cleanup_fn = cleanup;
 		my_mempool[type].mempool_count++;
