@@ -101,7 +101,6 @@ sasl_map_private *sasl_map_new_private()
 	return new_priv;
 }
 
-#if 0 /* unused for now */
 static void 
 sasl_map_free_private(sasl_map_private **priv)
 {
@@ -109,7 +108,6 @@ sasl_map_free_private(sasl_map_private **priv)
 	slapi_ch_free((void**)priv);
 	*priv = NULL;
 }
-#endif
 
 /* This function does a shallow copy on the payload data supplied, so the caller should not free it, and it needs to be allocated using slapi_ch_malloc() */
 static 
@@ -132,6 +130,10 @@ sasl_map_data *sasl_map_next(sasl_map_data *dp)
 static void 
 sasl_map_free_data(sasl_map_data **dp)
 {
+	slapi_ch_free_string(&(*dp)->name);
+	slapi_ch_free_string(&(*dp)->regular_expression);
+	slapi_ch_free_string(&(*dp)->template_base_dn);
+	slapi_ch_free_string(&(*dp)->template_search_filter);
 	slapi_ch_free((void**)dp);
 }
 
@@ -287,7 +289,8 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 	filtertemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapFilterTemplate" );
 	map_name = slapi_entry_attr_get_charptr( entry, "cn" );
 
-	if ( (NULL == regex) || (NULL == basedntemplate) || (NULL == filtertemplate) ) {
+	if ( (NULL == map_name) || (NULL == regex) ||
+		 (NULL == basedntemplate) || (NULL == filtertemplate) ) {
 		/* Invalid entry */
 		ret = -1;
 	} else {
@@ -296,6 +299,7 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 	}
 
 	if (ret) {
+		slapi_ch_free((void **) &map_name);
 		slapi_ch_free((void **) &regex);
 		slapi_ch_free((void **) &basedntemplate);
 		slapi_ch_free((void **) &filtertemplate);
@@ -405,8 +409,21 @@ int sasl_map_init()
 int sasl_map_done()
 {
 	int ret = 0;
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	sasl_map_data *dp = NULL;
+
 	/* Free the map list */
+	PR_Lock(priv->lock);
+	dp = priv->map_data_list;
+	while (dp) {
+		sasl_map_data *dp_next = dp->next;
+		sasl_map_free_data(&dp);
+		dp = dp_next;
+	}
+	PR_Unlock(priv->lock);
+
 	/* Free the private structure */
+	sasl_map_free_private(&priv);
 	return ret;
 }
 
