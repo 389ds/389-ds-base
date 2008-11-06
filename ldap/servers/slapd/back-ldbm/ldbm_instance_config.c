@@ -939,34 +939,53 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
         struct dblayer_private_env *pEnv = priv->dblayer_env; 
         if(pEnv) {
             PRDir *dirhandle = NULL;
-            char dbName[MAXPATHLEN*2];
-            char *dbNamep = NULL;
-            char *p;
-            int dbbasenamelen, dbnamelen;
-            int rc;
+            char inst_dir[MAXPATHLEN*2];
+            char *inst_dirp = NULL;
+
             if (inst->inst_dir_name == NULL){
                 dblayer_get_instance_data_dir(inst->inst_be);
             }    
-            dirhandle = PR_OpenDir(inst->inst_dir_name);
-            /* the db dir instance may have been removed already */
-            if (dirhandle){
-                dbNamep = dblayer_get_full_inst_dir(li, inst,
-                                                    dbName, MAXPATHLEN*2);
-                dbbasenamelen = strlen(dbNamep);
-                dbnamelen = dbbasenamelen + 14; /* "/id2entry.db#" + '\0' */
-                if (dbnamelen > MAXPATHLEN*2)
-                {
-                    dbNamep = (char *)slapi_ch_realloc(dbNamep, dbnamelen);
+            inst_dirp = dblayer_get_full_inst_dir(li, inst, 
+                                                  inst_dir, MAXPATHLEN*2);
+            if (NULL != inst_dirp) {
+                dirhandle = PR_OpenDir(inst_dirp);
+                /* the db dir instance may have been removed already */
+                if (dirhandle) {
+                    PRDirEntry *direntry = NULL;
+                    char *dbp = NULL;
+                    char *p = NULL;
+                    while (NULL != (direntry = PR_ReadDir(dirhandle,
+                                               PR_SKIP_DOT|PR_SKIP_DOT_DOT))) {
+                        int rc;
+                        if (!direntry->name)
+                            break;
+
+                        dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
+                        if (NULL == dbp) {
+                            LDAPDebug (LDAP_DEBUG_ANY,
+                            "ldbm_instance_post_delete_instance_entry_callback:"
+                            " failed to generate db path: %s/%s\n",
+                            inst_dirp, direntry->name, 0);
+                            break;
+                        }
+
+                        p = strstr(dbp, LDBM_FILENAME_SUFFIX);
+                        if (NULL != p &&
+                            strlen(p) == strlen(LDBM_FILENAME_SUFFIX)) {
+                            rc = dblayer_db_remove(pEnv, dbp, 0);
+                        } else {
+                            rc = PR_Delete(dbp);
+                        }
+                        PR_ASSERT(rc == 0);
+                        PR_smprintf_free(dbp);
+                    }
+                    PR_CloseDir(dirhandle);                
                 }
-                p = dbNamep + dbbasenamelen;
-                sprintf(p, "%c%s%s", get_sep(dbNamep),
-                                     "id2entry", LDBM_FILENAME_SUFFIX);
-                rc = dblayer_db_remove(pEnv, dbName, 0);
-                PR_ASSERT(rc == 0);
-                if (dbNamep != dbName)
-                    slapi_ch_free_string(&dbNamep);
-                PR_CloseDir(dirhandle);                
+                PR_RmDir(inst_dirp);
             } /* non-null dirhandle */
+            if (inst_dirp != inst_dir) {
+                slapi_ch_free_string(&inst_dirp);
+            }
         } /* non-null pEnv */
     }
 
