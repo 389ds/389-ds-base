@@ -1693,6 +1693,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_USEROC_ATTRIBUTE "nsslapd-useroc"
 #define CONFIG_USERAT_ATTRIBUTE "nsslapd-userat"
 #define CONFIG_SVRTAB_ATTRIBUTE "nsslapd-svrtab"
+#define CONFIG_UNAUTH_BINDS_ATTRIBUTE "nsslapd-allow-unauthenticated-binds"
 #ifndef _WIN32
 #define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
 #endif /* !_WIN32 */
@@ -1981,6 +1982,7 @@ typedef struct _slapdFrontendConfig {
   char *ldapi_search_base_dn;   /* base dn to search for mapped entries */
   char *ldapi_auto_dn_suffix;   /* suffix to be appended to auto gen DNs */
   int slapi_counters;            /* switch to turn slapi_counters on/off */
+  int allow_unauth_binds;        /* switch to enable/disable unauthenticated binds */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */

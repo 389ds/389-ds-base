@@ -491,7 +491,7 @@ static struct config_get_and_set {
 	{CONFIG_SLAPI_COUNTER_ATTRIBUTE, config_set_slapi_counters,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.slapi_counters, CONFIG_ON_OFF, 
-		config_get_slapi_counters},
+		(ConfigGetFunc)config_get_slapi_counters},
 	{CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_minfreespace, CONFIG_INT, NULL},
@@ -590,7 +590,11 @@ static struct config_get_and_set {
 		config_set_outbound_ldap_io_timeout,
 		NULL, 0,
 		(void **)&global_slapdFrontendConfig.outbound_ldap_io_timeout,
-		CONFIG_INT, NULL}
+		CONFIG_INT, NULL},
+	{CONFIG_UNAUTH_BINDS_ATTRIBUTE, config_set_unauth_binds_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.allow_unauth_binds, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_unauth_binds_switch}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -840,6 +844,7 @@ FrontendConfig_init () {
 #if defined(ENABLE_AUTO_DN_SUFFIX)
   cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
 #endif
+  cfg->allow_unauth_binds = LDAP_OFF;
   cfg->slapi_counters = LDAP_ON;
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
@@ -4427,6 +4432,20 @@ config_get_outbound_ldap_io_timeout(void)
 	return retVal; 
 }
 
+
+int
+config_get_unauth_binds_switch(void)
+{
+	int retVal;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = slapdFrontendConfig->allow_unauth_binds;
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal;
+}
+
+
 int 
 config_is_slapd_lite ()
 {
@@ -5121,6 +5140,23 @@ config_set_outbound_ldap_io_timeout( const char *attrname, char *value,
 		CFG_UNLOCK_WRITE(slapdFrontendConfig);	
 	}
 	return LDAP_SUCCESS;
+}
+
+
+int
+config_set_unauth_binds_switch( const char *attrname, char *value,
+		char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->allow_unauth_binds),
+		errorbuf,
+		apply);
+
+	return retVal;
 }
 
 

@@ -259,9 +259,6 @@ do_bind( Slapi_PBlock *pb )
 
     PR_Lock( pb->pb_conn->c_mutex );
 
-    /* According to RFC2251,
-     * "if the bind fails, the connection will be treated as anonymous".
-     */
     bind_credentials_clear( pb->pb_conn, PR_FALSE, /* do not lock conn */
                             PR_FALSE /* do not clear external creds. */ );
 
@@ -442,6 +439,21 @@ do_bind( Slapi_PBlock *pb )
                 plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
             }
             goto free_and_return;
+        } else if ( cred.bv_len == 0 ) {
+            /* Increment unauthenticated bind counter */
+            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+
+            /* Refuse the operation if unauthenticated binds are disabled. */
+            if (!config_get_unauth_binds_switch()) {
+                /* As stated in RFC 4513, a server SHOULD by default fail
+                 * Unauthenticated Bind requests with a resultCode of
+                 * unwillingToPerform. */
+                send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                                 "Unauthenticated binds are not allowed", 0, NULL);
+                /* increment BindSecurityErrorcount */
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                goto free_and_return;
+            }
         }
         break;
     default:
@@ -453,26 +465,22 @@ do_bind( Slapi_PBlock *pb )
      */
 
     if ( isroot && method == LDAP_AUTH_SIMPLE ) {
-        if ( cred.bv_len == 0 ) {
-            /* unauthenticated bind */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
-
-        } else {
+        if (cred.bv_len != 0) {
             /* a passwd was supplied -- check it */
             Slapi_Value cv;
             slapi_value_init_berval(&cv,&cred);
 
+            /* right dn and passwd - authorize */
             if ( is_root_dn_pw( slapi_sdn_get_ndn(&sdn), &cv )) {
-				/* right dn and passwd - authorize */
                 bind_credentials_set( pb->pb_conn, SLAPD_AUTH_SIMPLE,
                                       slapi_ch_strdup( slapi_sdn_get_ndn(&sdn) ),
                                       NULL, NULL, NULL , NULL);
 
-                /* right dn, wrong passwd - reject with invalid creds */
+            /* right dn, wrong passwd - reject with invalid creds */
             } else {
                 send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
                                   NULL, 0, NULL );
-				/* increment BindSecurityErrorcount */
+                /* increment BindSecurityErrorcount */
                 slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
                 goto free_and_return;

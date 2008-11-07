@@ -338,6 +338,7 @@ int config_set_hash_filters( const char *attrname, char *value, char *errorbuf, 
 int config_set_rewrite_rfc1274( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_outbound_ldap_io_timeout( const char *attrname, char *value,
 		char *errorbuf, int apply );
+int config_set_unauth_binds_switch(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 
@@ -461,6 +462,7 @@ int config_get_attrname_exceptions();
 int config_get_hash_filters();
 int config_get_rewrite_rfc1274();
 int config_get_outbound_ldap_io_timeout(void);
+int config_get_unauth_binds_switch(void);
 int config_get_csnlogging();
 #ifdef MEMPOOL_EXPERIMENTAL
 int config_get_mempool_switch();
