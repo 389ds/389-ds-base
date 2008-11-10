@@ -991,9 +991,10 @@ conn_connect(Repl_Connection *conn)
 			conn->last_operation = CONN_INIT;
 			conn->last_ldap_error = LDAP_LOCAL_ERROR;
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Failed to establish %sconnection to the consumer\n",
+				"%s: Failed to establish %s%sconnection to the consumer\n",
 				agmt_get_long_name(conn->agmt),
-				secure ? "secure " : "");
+				secure ? "secure " : "",
+				(secure == 2) ? "startTLS " : "");
 			ber_bvfree(creds);
 			creds = NULL;
 			return return_value;

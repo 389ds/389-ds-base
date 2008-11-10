@@ -102,9 +102,6 @@ static int s_debug_level = 0;
 static Slapi_Eq_Context repl5_start_debug_timeout(int *setlevel);
 static void repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel);
 static void repl5_debug_timeout_callback(time_t when, void *arg);
-#ifndef DSE_RETURNTEXT_SIZE
-#define SLAPI_DSE_RETURNTEXT_SIZE 512
-#endif
 
 #define STATE_CONNECTED 600
 #define STATE_DISCONNECTED 601
@@ -1190,21 +1187,14 @@ windows_conn_connect(Repl_Connection *conn)
 		conn->plain = slapi_ch_strdup (plain);
 		if (!pw_ret) slapi_ch_free((void**)&plain);
 	}
+ 
 	
 
 	/* ugaston: if SSL has been selected in the replication agreement, SSL client
 	 * initialisation should be done before ever trying to open any connection at all.
 	 */
-	if (conn->transport_flags == TRANSPORT_FLAG_TLS)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Replication secured by StartTLS not currently supported\n",
-				agmt_get_long_name(conn->agmt));
-		
-		return_value = CONN_OPERATION_FAILED;
-		conn->last_ldap_error = LDAP_STRONG_AUTH_NOT_SUPPORTED;
-		conn->state = STATE_DISCONNECTED;
-	} else if(conn->transport_flags == TRANSPORT_FLAG_SSL)
+	if ((conn->transport_flags == TRANSPORT_FLAG_TLS) ||
+		(conn->transport_flags == TRANSPORT_FLAG_SSL))
 	{
 
 		/** Make sure the SSL Library has been initialized before anything else **/
@@ -1217,11 +1207,13 @@ windows_conn_connect(Repl_Connection *conn)
 			conn->last_operation = CONN_INIT;
 			ber_bvfree(creds);
 			creds = NULL;
-			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
 			return CONN_SSL_NOT_ENABLED;
-		} else
+		} else if (conn->transport_flags == TRANSPORT_FLAG_SSL)
 		{
 			secure = 1;
+		} else
+		{
+			secure = 2; /* 2 means starttls security */
 		}
 	}
  
@@ -1230,11 +1222,12 @@ windows_conn_connect(Repl_Connection *conn)
 		/* Now we initialize the LDAP Structure and set options */
 		
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: Trying %s slapi_ldap_init\n",
+			"%s: Trying %s%s slapi_ldap_init_ext\n",
 			agmt_get_long_name(conn->agmt),
-			secure ? "secure" : "non-secure");
+			secure ? "secure" : "non-secure",
+			(secure == 2) ? " startTLS" : "");
 		
-		conn->ld = slapi_ldap_init(conn->hostname, conn->port, secure, 0);
+		conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 0, NULL);
 		if (NULL == conn->ld)
 		{
 			return_value = CONN_OPERATION_FAILED;
@@ -1242,9 +1235,10 @@ windows_conn_connect(Repl_Connection *conn)
 			conn->last_operation = CONN_INIT;
 			conn->last_ldap_error = LDAP_LOCAL_ERROR;
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Failed to establish %sconnection to the consumer\n",
+				"%s: Failed to establish %s%sconnection to the consumer\n",
 				agmt_get_long_name(conn->agmt),
-				secure ? "secure " : "");
+				secure ? "secure " : "",
+				(secure == 2) ? "startTLS " : "");
 			ber_bvfree(creds);
 			creds = NULL;
 			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
@@ -1684,6 +1678,26 @@ void windows_conn_set_agmt_changed(Repl_Connection *conn)
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed\n", 0, 0, 0 );
 }
 
+static const char *
+bind_method_to_mech(int bindmethod)
+{
+	switch (bindmethod) {
+	case BINDMETHOD_SSL_CLIENTAUTH:
+		return LDAP_SASL_EXTERNAL;
+		break;
+	case BINDMETHOD_SASL_GSSAPI:
+		return "GSSAPI";
+		break;
+	case BINDMETHOD_SASL_DIGEST_MD5:
+		return "DIGEST-MD5";
+		break;
+	default: /* anything else */
+		return LDAP_SASL_SIMPLE;
+	}
+
+	return LDAP_SASL_SIMPLE;
+}
+
 /*
  * Check the result of an ldap_simple_bind operation to see we it
  * contains the expiration controls
@@ -1695,101 +1709,26 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 {
 
 	LDAPControl	**ctrls = NULL;
-	LDAPMessage	*res = NULL;
-	char		*errmsg = NULL;
 	LDAP		*ld = conn->ld;
-	int 		msgid;
-	int 		*msgidAdr = &msgid;
 	int			rc;
+	const char  *mech = bind_method_to_mech(conn->bindmethod);
 
-	char * optype; /* ldap_simple_bind or slapd_SSL_client_bind */
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> bind_and_check_pwp\n", 0, 0, 0 );
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_set_agmt_changed\n", 0, 0, 0 );
-
-	if ( conn->transport_flags == TRANSPORT_FLAG_SSL )
-	{
-		char *auth;
-		optype = "ldap_sasl_bind";
-
-		if ( conn->bindmethod == BINDMETHOD_SSL_CLIENTAUTH )
-		{
-			rc = slapd_sasl_ext_client_bind(conn->ld, &msgidAdr);	
-			auth = "SSL client authentication";
-
-			if ( rc == LDAP_SUCCESS )
-			{
-				if (conn->last_ldap_error != rc)
-				{
-					conn->last_ldap_error = rc;
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"%s: Replication bind with %s resumed\n",
-					agmt_get_long_name(conn->agmt), auth);
-				}
-			}
-			else
-			{
-				/* Do not report the same error over and over again */
-				if (conn->last_ldap_error != rc)
-				{
-					conn->last_ldap_error = rc;
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"%s: Replication bind with %s failed: LDAP error %d (%s)\n",
-					agmt_get_long_name(conn->agmt), auth, rc,
-					ldap_err2string(rc));
-				}
-
-				LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
-
-				return (CONN_OPERATION_FAILED);
-			}
-		}
-		else
-		{
-			if( ( msgid = do_simple_bind( conn, ld, binddn, password ) ) == -1 )
-			{
-				LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
-				return (CONN_OPERATION_FAILED);
-			}
-		}
-	}
-	else
-	{
-		optype = "ldap_simple_bind";
-		if( ( msgid = do_simple_bind( conn, ld, binddn, password ) ) == -1 ) 
-		{
-			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
-			return (CONN_OPERATION_FAILED);
-		}
-	}
-
-	/* Wait for the result */
-	if ( ldap_result( ld, msgid, LDAP_MSG_ALL, NULL, &res ) == -1 ) 
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-			"%s: Received error from consumer for %s operation\n", 
-
-			agmt_get_long_name(conn->agmt), optype);
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
-
-		return (CONN_OPERATION_FAILED);
-	}
-	/* Don't check ldap_result against 0 because, no timeout is specified */
-
-	/* Free res as we won't use it any longer */
-	if ( ldap_parse_result( ld, res, &rc, NULL, NULL, NULL, &ctrls, 1 /* Free res */) 
-		!= LDAP_SUCCESS ) 
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-			"%s: Received error from consumer for %s operation\n",
-			agmt_get_long_name(conn->agmt), optype);
-
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
-
-		return (CONN_OPERATION_FAILED);
-	}
+	rc = slapi_ldap_bind(conn->ld, binddn, password, mech, NULL,
+						 &ctrls, NULL, NULL);
 
 	if ( rc == LDAP_SUCCESS ) 
 	{
+		if (conn->last_ldap_error != rc)
+		{
+			conn->last_ldap_error = rc;
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Replication bind with %s auth resumed\n",
+							agmt_get_long_name(conn->agmt),
+							mech ? mech : "SIMPLE");
+		}
+
 		if ( ctrls ) 
 		{
 			int i;
@@ -1820,20 +1759,28 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			ldap_controls_free( ctrls );
 		}
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_SUCCESS\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= bind_and_check_pwp - CONN_OPERATION_SUCCESS\n", 0, 0, 0 );
 
 		return (CONN_OPERATION_SUCCESS);
 	}
 	else 
 	{
-		/* errmsg is a pointer directly into the ld structure - do not free */
-		rc = ldap_get_lderrno( ld, NULL, &errmsg );
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Replication bind to %s on consumer failed: %d (%s)\n",
-			agmt_get_long_name(conn->agmt), binddn, rc, errmsg);
+		ldap_controls_free( ctrls );
+		/* Do not report the same error over and over again */
+		if (conn->last_ldap_error != rc)
+		{
+			char *errmsg = NULL;
+			conn->last_ldap_error = rc;
+			/* errmsg is a pointer directly into the ld structure - do not free */
+			rc = ldap_get_lderrno( ld, NULL, &errmsg );
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
+							agmt_get_long_name(conn->agmt),
+							mech ? mech : "SIMPLE", rc,
+							ldap_err2string(rc), errmsg);
+		}
 
-		conn->last_ldap_error = rc;	/* specific error */
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_agmt_changed - CONN_OPERATION_FAILED\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_TRACE, "<= bind_and_check_pwp - CONN_OPERATION_FAILED\n", 0, 0, 0 );
 		return (CONN_OPERATION_FAILED);
 	}
 }
@@ -1861,7 +1808,7 @@ windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *password
 	ldap_parse_result( conn->ld, res, &rc, NULL, NULL, NULL, NULL, 1 /* Free res */);
 
 	/* rebind as the DN specified in the sync agreement */
-	do_simple_bind(conn, conn->ld, conn->binddn, conn->plain);
+	bind_and_check_pwp(conn, conn->binddn, conn->plain);
 
 	return rc;
 }
@@ -1886,10 +1833,11 @@ do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 			conn->last_ldap_error = ldaperr;
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 				"%s: Simple bind failed, " 
-				SLAPI_COMPONENT_NAME_LDAPSDK " error %d (%s), "
+				SLAPI_COMPONENT_NAME_LDAPSDK " error %d (%s) (%s), "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				agmt_get_long_name(conn->agmt),
-				ldaperr, ldaperrtext ? ldaperrtext : ldap_err2string(ldaperr),
+				ldaperr, ldap_err2string(ldaperr),
+				ldaperrtext ? ldaperrtext : "",
 				prerr, slapd_pr_strerror(prerr));
 		}
 	}

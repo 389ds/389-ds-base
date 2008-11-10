@@ -101,7 +101,7 @@ static int		inited = 0;
 int
 passthru_config( int argc, char **argv )
 {
-    int			i, j, rc, tosecs, using_def_connlifetime;
+    int			i, j, rc, tosecs, using_def_connlifetime, starttls = 0;
     char		**suffixarray;
     PassThruServer	*prevsrvr, *srvr;
     PassThruSuffix	*suffix, *prevsuffix;
@@ -170,11 +170,13 @@ passthru_config( int argc, char **argv )
 	     * parse parameters.  format is:
 	     *     maxconnections,maxconcurrency,timeout,ldapversion
 	     * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime
+	     * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime,starttls
 	     */
 	    *p++ = '\0'; /* p points at space preceding optional arguments */
-	    rc = sscanf( p, "%d,%d,%d,%d,%d", &srvr->ptsrvr_maxconnections,
+	    rc = sscanf( p, "%d,%d,%d,%d,%d,%d", &srvr->ptsrvr_maxconnections,
 		    &srvr->ptsrvr_maxconcurrency, &tosecs,
-		    &srvr->ptsrvr_ldapversion, &srvr->ptsrvr_connlifetime );
+		    &srvr->ptsrvr_ldapversion, &srvr->ptsrvr_connlifetime,
+		    &starttls);
 	    if ( rc < 4 ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"server parameters should be in the form "
@@ -184,8 +186,13 @@ passthru_config( int argc, char **argv )
 	    } else if ( rc < 5 ) {
 		using_def_connlifetime = 1;
 		srvr->ptsrvr_connlifetime = PASSTHRU_DEF_SRVR_CONNLIFETIME;
-	    } else {
-		using_def_connlifetime = 0;
+		starttls = 0;
+	    } else if ( rc < 6 ) {
+		using_def_connlifetime = 0; /* lifetime specified */
+		starttls = 0; /* but not starttls */
+	    } else { /* all 6 args supplied */
+		using_def_connlifetime = 0; /* lifetime specified */
+		/* and starttls */
 	    }
 
 	    if ( srvr->ptsrvr_ldapversion != LDAP_VERSION2
@@ -241,6 +248,9 @@ passthru_config( int argc, char **argv )
 	srvr->ptsrvr_port = ludp->lud_port;
 	srvr->ptsrvr_secure =
 		(( ludp->lud_options & LDAP_URL_OPT_SECURE ) != 0 );
+	if (starttls) {
+	    srvr->ptsrvr_secure = 2;
+	}
 
 	/*
 	 * If a space-separated list of hosts is configured for failover,

@@ -112,7 +112,7 @@ typedef struct passthruserver {
     char			*ptsrvr_url;		/* copy from argv[i] */
     char			*ptsrvr_hostname;
     int				ptsrvr_port;
-    int				ptsrvr_secure;		/* use SSL? */
+    int				ptsrvr_secure;		/* use SSL? or TLS == 2 */
     int				ptsrvr_ldapversion;
     int				ptsrvr_maxconnections;
     int				ptsrvr_maxconcurrency;
