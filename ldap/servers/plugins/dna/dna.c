@@ -118,6 +118,7 @@
 #define DNA_REPL_CREDS       "nsds5ReplicaCredentials"
 #define DNA_REPL_BIND_METHOD "nsds5ReplicaBindMethod"
 #define DNA_REPL_TRANSPORT   "nsds5ReplicaTransportInfo"
+#define DNA_REPL_PORT        "nsds5ReplicaPort"
 
 #define DNA_FEATURE_DESC      "Distributed Numeric Assignment"
 #define DNA_EXOP_FEATURE_DESC "DNA Range Extension Request"
@@ -261,7 +262,7 @@ static int dna_activate_next_range(struct configEntry *config_entry);
 static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn);
 static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
                                       char **bind_dn, char **bind_passwd,
-                                      char **bind_method, int *is_ssl);
+                                      char **bind_method, int *is_ssl, int *port);
 
 /**
  *
@@ -1483,7 +1484,6 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
     return ret;
 }
 
-
 /*
  * dna_request_range()
  *
@@ -1500,7 +1500,6 @@ static int dna_request_range(struct configEntry *config_entry,
     char *bind_passwd = NULL;
     char *bind_method = NULL;
     int is_ssl = 0;
-    int is_client_auth = 0;
     struct berval *request = NULL;
     char *retoid = NULL;
     struct berval *responsedata = NULL;
@@ -1510,6 +1509,7 @@ static int dna_request_range(struct configEntry *config_entry,
     char *upper_str = NULL;
     int set_extend_flag = 0;
     int ret = LDAP_OPERATIONS_ERROR;
+    int port = 0;
 
     /* See if we're allowed to send a range request now */
     slapi_lock_mutex(config_entry->extend_lock);
@@ -1529,23 +1529,11 @@ static int dna_request_range(struct configEntry *config_entry,
 
     /* Fetch the replication bind dn info */
     if (dna_get_replica_bind_creds(config_entry->shared_cfg_base, server,
-                               &bind_dn, &bind_passwd, &bind_method, &is_ssl) != 0) {
+                                   &bind_dn, &bind_passwd, &bind_method,
+                                   &is_ssl, &port) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_request_range: Unable to retrieve "
                         "replica bind credentials.\n");
-        goto bail;
-    }
-
-    if (strcasecmp(bind_method, "SIMPLE") == 0) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Using SIMPLE bind method.\n");
-    } else if (strcasecmp(bind_method, "SSLCLIENTAUTH") == 0) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Using SSLCLIENTAUTH bind method.\n");
-        is_client_auth = 1;
-    } else {
-        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Unknown bind method.\n");
         goto bail;
     }
 
@@ -1556,7 +1544,7 @@ static int dna_request_range(struct configEntry *config_entry,
         goto bail;
     }
 
-    if ((ld = slapi_ldap_init(server->host, is_ssl?server->secureport:server->port, is_ssl, 0)) == NULL) {
+    if ((ld = slapi_ldap_init(server->host, port, is_ssl, 0)) == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_request_range: Unable to "
                         "initialize LDAP session to server %s:%u.\n",
@@ -1567,15 +1555,11 @@ static int dna_request_range(struct configEntry *config_entry,
     /* Disable referrals and set timelimit and a connect timeout */
     ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
     ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &config_entry->timeout);
-    ldap_set_option(ld, LDAP_X_OPT_CONNECT_TIMEOUT, &config_entry->timeout); 
+    ldap_set_option(ld, LDAP_X_OPT_CONNECT_TIMEOUT, &config_entry->timeout);
 
     /* Bind to the replica server */
-    if (is_client_auth) {
-        ret = slapd_SSL_client_bind_s(ld, bind_dn, bind_passwd,
-                                      is_ssl, LDAP_VERSION3);
-    } else {
-        ret = ldap_simple_bind_s(ld, bind_dn, bind_passwd);
-    }
+    ret = slapi_ldap_bind(ld, bind_dn, bind_passwd, bind_method,
+                          NULL, NULL, NULL, NULL);
 
     if (ret != LDAP_SUCCESS) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
@@ -2363,14 +2347,14 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
 
 static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
                                       char **bind_dn, char **bind_passwd,
-                                      char **bind_method, int *is_ssl)
+                                      char **bind_method, int *is_ssl, int *port)
 {
     Slapi_PBlock *pb = NULL;
     Slapi_DN *range_sdn = NULL;
     char *replica_dn = NULL;
     Slapi_Backend *be = NULL;
     const char *be_suffix = NULL;
-    char *attrs[5];
+    char *attrs[6];
     char *filter = NULL;
     char *bind_cred = NULL;
     char *transport = NULL;
@@ -2388,15 +2372,16 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
         replica_dn = slapi_ch_smprintf("cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
                                        be_suffix);
 
-        filter = slapi_ch_smprintf("(&(nsds5ReplicaHost=%s)(|(nsds5ReplicaPort=%u)"
-                                   "(nsds5ReplicaPort=%u)))",
+        filter = slapi_ch_smprintf("(&(nsds5ReplicaHost=%s)(|(" DNA_REPL_PORT "=%u)"
+                                   "(" DNA_REPL_PORT "=%u)))",
                                    server->host, server->port, server->secureport);
 
         attrs[0] = DNA_REPL_BIND_DN;
         attrs[1] = DNA_REPL_CREDS;
         attrs[2] = DNA_REPL_BIND_METHOD;
         attrs[3] = DNA_REPL_TRANSPORT;
-        attrs[4] = 0;
+        attrs[4] = DNA_REPL_PORT;
+        attrs[5] = 0;
 
         pb = slapi_pblock_new();
         if (NULL == pb) {
@@ -2440,12 +2425,32 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
         *bind_method = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_BIND_METHOD);
         bind_cred = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_CREDS);
         transport = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_TRANSPORT);
+        *port = slapi_entry_attr_get_int(entries[0], DNA_REPL_PORT);
 
         /* Check if we should use SSL */
         if (transport && (strcasecmp(transport, "SSL") == 0)) {
             *is_ssl = 1;
+        } else if (transport && (strcasecmp(transport, "TLS") == 0)) {
+            *is_ssl = 2;
         } else {
             *is_ssl = 0;
+        }
+
+        /* fix up the bind method */
+        if ((NULL == *bind_method) || (strcasecmp(*bind_method, "SIMPLE") == 0)) {
+            slapi_ch_free_string(bind_method);
+            *bind_method = slapi_ch_strdup(LDAP_SASL_SIMPLE);
+        } else if (strcasecmp(*bind_method, "SSLCLIENTAUTH") == 0) {
+            slapi_ch_free_string(bind_method);
+            *bind_method = slapi_ch_strdup(LDAP_SASL_EXTERNAL);
+        } else if (strcasecmp(*bind_method, "SASL/GSSAPI") == 0) {
+            slapi_ch_free_string(bind_method);
+            *bind_method = slapi_ch_strdup("GSSAPI");
+        } else if (strcasecmp(*bind_method, "SASL/DIGEST-MD5") == 0) {
+            slapi_ch_free_string(bind_method);
+            *bind_method = slapi_ch_strdup("DIGEST-MD5");
+        } else { /* some other weird value */
+            ; /* just use it directly */
         }
 
         /* Decode the password */
@@ -2472,7 +2477,7 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
 
     /* If we didn't get both a bind DN and a decoded password,
      * then just free everything and return an error. */
-    if (*bind_dn && *bind_passwd && *bind_method) {
+    if (*bind_dn && *bind_passwd) {
         ret = 0;
     } else {
         slapi_ch_free_string(bind_dn);
