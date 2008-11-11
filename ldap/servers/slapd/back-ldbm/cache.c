@@ -938,8 +938,8 @@ struct backentry *cache_find_dn(struct cache *cache, const char *dn, unsigned lo
        }
        if (e->ep_refcnt == 0)
            lru_delete(cache, e);
-       PR_Unlock(cache->c_mutex);
        e->ep_refcnt++;
+       PR_Unlock(cache->c_mutex);
        slapi_counter_increment(cache->c_hits);
     } else {
        PR_Unlock(cache->c_mutex);
@@ -969,8 +969,8 @@ struct backentry *cache_find_id(struct cache *cache, ID id)
        }
        if (e->ep_refcnt == 0)
            lru_delete(cache, e);
-       PR_Unlock(cache->c_mutex);
        e->ep_refcnt++;
+       PR_Unlock(cache->c_mutex);
        slapi_counter_increment(cache->c_hits);
     } else {
        PR_Unlock(cache->c_mutex);
@@ -1000,8 +1000,8 @@ struct backentry *cache_find_uuid(struct cache *cache, const char *uuid)
        }
        if (e->ep_refcnt == 0)
            lru_delete(cache, e);
-       PR_Unlock(cache->c_mutex);
        e->ep_refcnt++;
+       PR_Unlock(cache->c_mutex);
        slapi_counter_increment(cache->c_hits);
     } else {
        PR_Unlock(cache->c_mutex);
