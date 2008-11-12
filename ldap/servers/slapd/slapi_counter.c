@@ -451,7 +451,7 @@ PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval)
         " movl 4%0, %%edx;"
         /* Put addval in ECX:EBX */
         " movl %2, %%ebx;"
-        " movl 4%2, %%ecx;"
+        " movl 4+%2, %%ecx;"
         /* Add value from EDX:EAX to value in ECX:EBX */
         " addl %%eax, %%ebx;"
         " adcl %%edx, %%ecx;"
@@ -498,7 +498,7 @@ PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval)
         " movl %%edx, %%ecx;"
         /* Subtract subval from value in ECX:EBX */
         " subl %2, %%ebx;"
-        " sbbl 4%2, %%ecx;"
+        " sbbl 4+%2, %%ecx;"
         /* If EDX:EAX and ptr are the same, replace *ptr with ECX:EBX */
         " lock; cmpxchg8b %0;"
         " jnz retrysub;"
