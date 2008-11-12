@@ -72,10 +72,6 @@
 #define _CSEP '/'
 #endif
 
-#ifdef HAVE_KRB5
-static void set_krb5_creds();
-#endif
-
 
 static int special_np(unsigned char c)
 {
@@ -1136,7 +1132,7 @@ slapi_ldap_bind(
 	if (msgidp) { /* let caller process result */
 	    *msgidp = mymsgid;
 	} else { /* process results */
-            rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, timeout, &result);
+	    rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, timeout, &result);
 	    if (-1 == rc) { /* error */
 		rc = ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
@@ -1219,6 +1215,16 @@ typedef struct {
     char *realm;
 } ldapSaslInteractVals;
 
+#ifdef HAVE_KRB5
+static void set_krb5_creds(
+    const char *authid,
+    const char *username,
+    const char *passwd,
+    const char *realm,
+    ldapSaslInteractVals *vals
+);
+#endif
+
 static void *
 ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
 			    const char *username, const char *passwd,
@@ -1249,12 +1255,6 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
         }
     }
 
-#ifdef HAVE_KRB5
-    if (mech && !strcmp(mech, "GSSAPI")) {
-        username = NULL; /* get from krb creds */
-    }
-#endif
-
     if (username) { /* use explicit passed in value */
         vals->username = slapi_ch_strdup(username);
     } else { /* use option value if any */
@@ -1281,7 +1281,7 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
 
 #ifdef HAVE_KRB5
     if (mech && !strcmp(mech, "GSSAPI")) {
-        set_krb5_creds();
+        set_krb5_creds(authid, username, passwd, realm, vals);
     }
 #endif /* HAVE_KRB5 */
 
@@ -1368,6 +1368,20 @@ ldap_sasl_interact_cb(LDAP *ld, unsigned flags, void *defaults, void *prompts)
     return (LDAP_SUCCESS);
 }
 
+/* figure out from the context and this error if we should
+   attempt to retry the bind */
+static int
+can_retry_bind(LDAP *ld, const char *mech, const char *bindid,
+               const char *creds, int rc, const char *errmsg)
+{
+    int localrc = 0;
+    if (errmsg && strstr(errmsg, "Ticket expired")) {
+        localrc = 1;
+    }
+
+    return localrc;
+}
+
 int
 slapd_ldap_sasl_interactive_bind(
     LDAP *ld, /* ldap connection */
@@ -1380,22 +1394,36 @@ slapd_ldap_sasl_interactive_bind(
 )
 {
     int rc = LDAP_SUCCESS;
-    void *defaults = ldap_sasl_set_interact_vals(ld, mech, NULL, bindid,
-                                                 creds, NULL);
-    /* have to first set the defaults used by the callback function */
-    /* call the bind function */
-    rc = ldap_sasl_interactive_bind_ext_s(ld, bindid, mech, serverctrls,
-                                          NULL, LDAP_SASL_QUIET,
-                                          ldap_sasl_interact_cb, defaults,
-                                          returnedctrls);
-    ldap_sasl_free_interact_vals(defaults);
-    if (LDAP_SUCCESS != rc) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_ldap_sasl_interactive_bind",
-                        "Error: could not perform interactive bind for id "
-                        "[%s] mech [%s]: error %d (%s)\n",
-                        bindid ? bindid : "(anon)",
-                        mech ? mech : "SIMPLE",
-                        rc, ldap_err2string(rc));
+    int tries = 0;
+
+    while (tries < 2) {
+        void *defaults = ldap_sasl_set_interact_vals(ld, mech, NULL, bindid,
+                                                     creds, NULL);
+        /* have to first set the defaults used by the callback function */
+        /* call the bind function */
+        rc = ldap_sasl_interactive_bind_ext_s(ld, bindid, mech, serverctrls,
+                                              NULL, LDAP_SASL_QUIET,
+                                              ldap_sasl_interact_cb, defaults,
+                                              returnedctrls);
+        ldap_sasl_free_interact_vals(defaults);
+        if (LDAP_SUCCESS != rc) {
+            char *errmsg = NULL;
+            rc = ldap_get_lderrno(ld, NULL, &errmsg);
+            slapi_log_error(SLAPI_LOG_FATAL, "slapd_ldap_sasl_interactive_bind",
+                            "Error: could not perform interactive bind for id "
+                            "[%s] mech [%s]: error %d (%s) (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc), errmsg);
+            if (can_retry_bind(ld, mech, bindid, creds, rc, errmsg)) {
+                ; /* pass through to retry one time */
+            } else {
+                break; /* done - fail - cannot retry */
+            }
+        } else {
+            break; /* done - success */
+        }
+        tries++;
     }
 
     return rc;
@@ -1506,6 +1534,94 @@ cleanup:
     return;
 }
 
+static int
+looks_like_a_dn(const char *username)
+{
+    return (username && strchr(username, '='));
+}
+
+static int
+credentials_are_valid(
+    krb5_context ctx,
+    krb5_ccache cc,
+    krb5_principal princ,
+    const char *princ_name, 
+    int *rc
+)
+{
+    char *logname = "credentials_are_valid";
+    int myrc = 0;
+    krb5_creds mcreds; /* match these values */
+    krb5_creds creds; /* returned creds */
+    char *tgs_princ_name = NULL;
+    krb5_timestamp currenttime;
+    int authtracelevel = SLAPI_LOG_SHELL; /* special auth tracing */
+    int realm_len;
+    char *realm_str;
+    int time_buffer = 30; /* seconds - go ahead and renew if creds are
+                             about to expire  */
+
+    memset(&mcreds, 0, sizeof(mcreds));
+    memset(&creds, 0, sizeof(creds));
+    *rc = 0;
+    if (!cc) {
+        /* ok - no error */
+        goto cleanup;
+    }
+
+    /* have to construct the tgs server principal in
+       order to set mcreds.server required in order
+       to use krb5_cc_retrieve_creds() */
+    /* get default realm first */
+    realm_len = krb5_princ_realm(ctx, princ)->length;
+    realm_str = krb5_princ_realm(ctx, princ)->data;
+    tgs_princ_name = slapi_ch_smprintf("%s/%*s@%*s", KRB5_TGS_NAME,
+                                       realm_len, realm_str,
+                                       realm_len, realm_str);
+
+    if ((*rc = krb5_parse_name(ctx, tgs_princ_name, &mcreds.server))) {
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Could parse principal [%s]: %d (%s)\n",
+                        tgs_princ_name, *rc, error_message(*rc));
+        goto cleanup;
+    }
+
+    mcreds.client = princ;
+    if ((*rc = krb5_cc_retrieve_cred(ctx, cc, 0, &mcreds, &creds))) {
+        if (*rc == KRB5_CC_NOTFOUND) {
+            /* ok - no creds for this princ in the cache */
+            *rc = 0;
+        }
+        goto cleanup;
+    }
+
+    /* have the creds - now look at the timestamp */
+    if ((*rc = krb5_timeofday(ctx, &currenttime))) {
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Could not get current time: %d (%s)\n",
+                        *rc, error_message(*rc));
+        goto cleanup;
+    }
+
+    if (currenttime > (creds.times.endtime + time_buffer)) {
+        slapi_log_error(authtracelevel, logname,
+                        "Credentials for [%s] have expired or will soon "
+                        "expire - now [%d] endtime [%d]\n", princ_name,
+                        currenttime, creds.times.endtime);
+        goto cleanup;
+    }
+
+    myrc = 1; /* credentials are valid */
+cleanup:
+   	krb5_free_cred_contents(ctx, &creds);
+    slapi_ch_free_string(&tgs_princ_name);
+    if (mcreds.server) {
+        krb5_free_principal(ctx, mcreds.server);
+    }
+
+    return myrc;
+}
+
 /*
  * This implementation assumes that we want to use the 
  * keytab from the default keytab env. var KRB5_KTNAME
@@ -1517,7 +1633,13 @@ cleanup:
  * env var to point to those credentials.
  */
 static void
-set_krb5_creds()
+set_krb5_creds(
+    const char *authid,
+    const char *username,
+    const char *passwd,
+    const char *realm,
+    ldapSaslInteractVals *vals
+)
 {
     char *logname = "set_krb5_creds";
     const char *cc_type = "MEMORY"; /* keep cred cache in memory */
@@ -1526,11 +1648,8 @@ set_krb5_creds()
     krb5_principal princ = NULL;
     char *princ_name = NULL;
     krb5_error_code rc = 0;
-    krb5_error_code looprc = 0;
     krb5_creds creds;
     krb5_keytab kt = NULL;
-    krb5_keytab_entry ktent;
-    krb5_kt_cursor ktcur = NULL;
     char *cc_name = NULL;
     char ktname[MAX_KEYTAB_NAME_LEN];
     static char cc_env_name[1024+32]; /* size from ccdefname.c */
@@ -1634,6 +1753,57 @@ set_krb5_creds()
         goto cleanup;
     }
 
+    /* need to figure out which principal to use
+       1) use the one from the ccache
+       2) use username
+       3) construct one in the form ldap/fqdn@REALM
+    */
+    if (!princ && username && !looks_like_a_dn(username) &&
+        (rc = krb5_parse_name(ctx, username, &princ))) {
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Error: could not convert [%s] into a kerberos "
+                        "principal: %d (%s)\n", username,
+                        rc, error_message(rc));
+        goto cleanup;
+    }
+
+    /* if still no principal, construct one */
+    if (!princ &&
+        (rc = krb5_sname_to_principal(ctx, NULL, "ldap",
+                                      KRB5_NT_SRV_HST, &princ))) {
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Error: could not construct ldap service "
+                        "principal: %d (%s)\n", rc, error_message(rc));
+        goto cleanup;
+    }
+
+    if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Unable to get name of principal: "
+                        "%d (%s)\n", rc, error_message(rc));
+        goto cleanup;
+    }
+
+    slapi_log_error(authtracelevel, logname,
+                    "Using principal named [%s]\n", princ_name);
+
+    /* grab the credentials from the ccache, if any -
+       if the credentials are still valid, we do not have
+       to authenticate again */
+    if (credentials_are_valid(ctx, cc, princ, princ_name, &rc)) {
+        slapi_log_error(authtracelevel, logname,
+                        "Credentials for principal [%s] are still "
+                        "valid - no auth is necessary.\n",
+                        princ_name);
+        goto cleanup;
+    } else if (rc) { /* some error other than "there are no credentials" */
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Unable to verify cached credentials for "
+                        "principal [%s]: %d (%s)\n", princ_name,
+                        rc, error_message(rc));
+        goto cleanup;
+    }      
+
     /* find our default keytab */
     if ((rc = krb5_kt_default(ctx, &kt))) {
         slapi_log_error(SLAPI_LOG_FATAL, logname,
@@ -1652,60 +1822,6 @@ set_krb5_creds()
 
     slapi_log_error(authtracelevel, logname,
                     "Using keytab named [%s]\n", ktname);
-
-    /* if there was no cache, or no principal in the cache, we look
-       in the keytab */
-    if (!princ) {
-        /* just use the first principal in the keytab
-           "first principals, clarice"
-        */
-        if ((rc = krb5_kt_start_seq_get(ctx, kt, &ktcur))) {
-            slapi_log_error(SLAPI_LOG_FATAL, logname,
-                            "Unable to open keytab [%s] cursor: %d (%s)\n",
-                            ktname, rc, error_message(rc));
-            goto cleanup;
-        }
-
-        memset(&ktent, 0, sizeof(ktent));
-        while ((looprc = krb5_kt_next_entry(ctx, kt, &ktent, &ktcur)) == 0) {
-            if ((looprc = krb5_unparse_name(ctx, ktent.principal,
-                                            &princ_name))) {
-                slapi_log_error(SLAPI_LOG_FATAL, logname,
-                                "Unable to get name from keytab [%s] "
-                                "principal: %d (%s)\n", ktname, looprc,
-                                error_message(looprc));
-                break;
-            }
-            /* found one - make a copy to free later */
-            if ((looprc = krb5_copy_principal(ctx, ktent.principal,
-                                              &princ))) {
-                slapi_log_error(SLAPI_LOG_FATAL, logname,
-                                "Unable to copy keytab [%s] principal [%s]: "
-                                "%d (%s)\n", ktname, princ_name, looprc,
-                                error_message(looprc));
-                break;
-            }
-            slapi_log_error(authtracelevel, logname,
-                            "Using keytab principal [%s]\n", princ_name);
-            break;
-        }
-
-        krb5_free_keytab_entry_contents(ctx, &ktent);
-        memset(&ktent, 0, sizeof(ktent));
-        if ((rc = krb5_kt_end_seq_get(ctx, kt, &ktcur))) {
-            slapi_log_error(SLAPI_LOG_FATAL, logname,
-                            "Unable to close keytab [%s] cursor: %d (%s)\n",
-                            ktname, rc, error_message(rc));
-            goto cleanup;
-        }
-
-        /* if we had an error in the loop above, just bail out
-           after closing the keytab cursor and keytab */
-        if (looprc) {
-            rc = looprc;
-            goto cleanup;
-        }
-    }
 
     /* now do the actual kerberos authentication using
        the keytab, and get the creds */
@@ -1808,6 +1924,9 @@ set_krb5_creds()
                         "Set new env for ccache: [%s]\n",
                         cc_env_name);
     }
+
+    /* use NULL as username */
+    slapi_ch_free_string(&vals->username);
 
 cleanup:
     krb5_free_unparsed_name(ctx, princ_name);
