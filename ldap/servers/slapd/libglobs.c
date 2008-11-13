@@ -3018,9 +3018,9 @@ config_set_timelimit( const char *attrname, char *value, char *errorbuf, int app
   errno = 0;
   nVal = strtol(value, &endp, 10);
 
-  if ( *endp != '\0' || errno == ERANGE || nVal < 0 ) {
+  if ( *endp != '\0' || errno == ERANGE || nVal < -1 ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			"%s: invalid value \"%s\", time limit must range from 0 to %ld",
+			"%s: invalid value \"%s\", time limit must range from -1 to %ld",
                          attrname, value, LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
