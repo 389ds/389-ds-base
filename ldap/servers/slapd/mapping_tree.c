@@ -1063,7 +1063,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             /* if we are deleting this attribute the new parent 
              * node will be mapping_tree_root
              */
-            if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
+            if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
                 parent_node = mapping_tree_root;
             }
@@ -1153,7 +1153,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             /* state change
              * for now only allow replace
              */
-            if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) != LDAP_MOD_REPLACE)
+            if (!SLAPI_IS_MOD_REPLACE(mods[i]->mod_op))
             {
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "must use replace operation to change state\n");
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -1206,8 +1206,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
             mtn_wlock();
 
-            if (((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)
-                || ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD))
+            if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)
+                || SLAPI_IS_MOD_ADD(mods[i]->mod_op))
             {
                 /* delete old referrals, set new ones */
                 mtn_free_referral_in_node(node);
@@ -1215,7 +1215,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 node->mtn_referral = referral;
                 node->mtn_referral_entry =
                      referral2entry(referral, slapi_sdn_get_dn(subtree));
-            } else if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
+            } else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
                 /* it is not OK to delete the referrals if they are still
                  * used 
@@ -1249,8 +1249,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
         else if (strcasecmp(mods[i]->mod_type,
                          "nsslapd-distribution-funct" ) == 0)
         {
-            if (((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)
-                || ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD))
+            if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)
+                || SLAPI_IS_MOD_ADD(mods[i]->mod_op))
             {
                 slapi_entry_attr_find(entryAfter,
                              "nsslapd-distribution-funct", &attr);
@@ -1264,7 +1264,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 }
                 plugin_fct = slapi_ch_strdup(slapi_value_get_string(val));
             }
-            else if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
+            else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
                 plugin_fct = NULL;
             }
@@ -1273,8 +1273,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
         else if (strcasecmp(mods[i]->mod_type,
                          "nsslapd-distribution-plugin" ) == 0)
         {
-            if (((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)
-                || ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD))
+            if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)
+                || SLAPI_IS_MOD_ADD(mods[i]->mod_op))
             {
                 slapi_entry_attr_find(entryAfter,
                              "nsslapd-distribution-plugin", &attr);
@@ -1288,7 +1288,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 }
                 plugin_lib = slapi_ch_strdup(slapi_value_get_string(val));
             }
-            else if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
+            else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
                 plugin_lib = NULL;
             }

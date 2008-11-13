@@ -304,7 +304,7 @@ ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
 
         if (strcasecmp(config_attr, "nsEncryptionAlgorithm") == 0) {
 
-            if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+            if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 
                 for (j = 0; mods[i]->mod_bvalues[j] != NULL; j++) {
                     int cipher = ldbm_attrcrypt_parse_cipher(mods[i]->mod_bvalues[j]->bv_val);
@@ -315,7 +315,7 @@ ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
                 }
                 continue;
             }
-            if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+            if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                 if ((mods[i]->mod_bvalues == NULL) ||
                     (mods[i]->mod_bvalues[0] == NULL)) {
 					/* Not legal */

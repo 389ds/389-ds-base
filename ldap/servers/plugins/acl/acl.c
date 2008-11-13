@@ -1428,14 +1428,14 @@ acl_check_mods(
 
 			for ( i = 0; mod->mod_bvalues[i] != NULL; i++ ) {
 
-				if ( ((mod->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) ||
-					 ((mod->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)) {
+				if (SLAPI_IS_MOD_ADD(mod->mod_op) ||
+					 SLAPI_IS_MOD_REPLACE(mod->mod_op)) {
 
 						rv = acl_access_allowed (pb,e,
 						     mod->mod_type, 
 						     mod->mod_bvalues[i],
                         	ACLPB_SLAPI_ACL_WRITE_ADD); /*was SLAPI_ACL_WRITE*/
-				} else if ((mod->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+				} else if (SLAPI_IS_MOD_DELETE(mod->mod_op)) {
 						rv = acl_access_allowed (pb,e,
 						     mod->mod_type, 
 						     mod->mod_bvalues[i],

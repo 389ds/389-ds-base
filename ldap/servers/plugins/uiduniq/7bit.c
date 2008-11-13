@@ -458,8 +458,8 @@ preop_modify(Slapi_PBlock *pb)
 	if ((slapi_attr_type_cmp(mod->mod_type, attr_name, 1) == 0) && /* mod contains target attr */
 	    (mod->mod_op & LDAP_MOD_BVALUES) && /* mod is bval encoded (not string val) */
 	    (mod->mod_bvalues && mod->mod_bvalues[0]) && /* mod actually contains some values */
-	    (((mod->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) || /* mod is add */
-	     (mod->mod_op & LDAP_MOD_REPLACE))) /* mod is replace */
+	    (SLAPI_IS_MOD_ADD(mod->mod_op) || /* mod is add */
+	     SLAPI_IS_MOD_REPLACE(mod->mod_op))) /* mod is replace */
 	{
 	  addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
 	}

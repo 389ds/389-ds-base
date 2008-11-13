@@ -1681,7 +1681,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 	/*
 	 * Delete an objectclass or attribute 
 	 */
-	if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
 	  if (strcasecmp (mods[i]->mod_type, "objectclasses") == 0) {
 		*returncode = schema_delete_objectclasses (entryBefore, mods[i],
 					returntext, SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat );
@@ -1707,7 +1707,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 	/*
 	 * Replace an objectclass,attribute, or schema CSN
 	 */
-	else if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE) {
+	else if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
 	  int     replace_allowed = 0;
 	  slapdFrontendConfig_t *slapdFrontendConfig;
 
@@ -1777,7 +1777,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 	/* 
 	 * Add an objectclass or attribute
 	 */
-	else if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+	else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 	  if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {
 		/* 
 		 * Add a new attribute 

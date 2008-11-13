@@ -911,12 +911,12 @@ replica_set_updatedn (Replica *r, const Slapi_ValueSet *vs, int mod_op)
 	if (!r->updatedn_list)
 		r->updatedn_list = replica_updatedn_list_new(NULL);
 
-	if (mod_op & LDAP_MOD_DELETE || vs == NULL ||
+	if (SLAPI_IS_MOD_DELETE(mod_op) || vs == NULL ||
 		(0 == slapi_valueset_count(vs))) /* null value also causes list deletion */
 		replica_updatedn_list_delete(r->updatedn_list, vs);
-	else if (mod_op & LDAP_MOD_REPLACE)
+	else if (SLAPI_IS_MOD_REPLACE(mod_op))
 		replica_updatedn_list_replace(r->updatedn_list, vs);
-	else if (mod_op & LDAP_MOD_ADD)
+	else if (SLAPI_IS_MOD_ADD(mod_op))
 		replica_updatedn_list_add(r->updatedn_list, vs);
 
 	PR_Unlock(r->repl_lock);

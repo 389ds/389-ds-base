@@ -429,17 +429,17 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					return SLAPI_DSE_CALLBACK_ERROR;
 				}
 
-			        if ( mods[i]->mod_op & LDAP_MOD_REPLACE) {
+			        if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
 					if (!done) {
 						cb_unregister_all_supported_control(cb);
 						done=1;
 					}
 					cb_register_supported_control(cb,config_attr_value,0);
 				} else
-			        if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+			        if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 					cb_register_supported_control(cb,config_attr_value,0);
 				} else 
-			        if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+			        if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
 					cb_unregister_supported_control(cb,config_attr_value,0);
 				}
 			}
@@ -450,7 +450,7 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			/* assume single-valued */
                         if (mods[i]->mod_op & LDAP_MOD_DELETE)
 				cb_set_debug(0);
-			else if ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
+			else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op))
 				cb_set_debug(1);
 		} else
  		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINING_COMPONENTS )) {
@@ -461,7 +461,7 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                 config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                                if ( mods[i]->mod_op & LDAP_MOD_REPLACE) {
+                                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
                                         if (!done) {
 					        charray_free(cb->config.chaining_components);
 					        cb->config.chaining_components=NULL;
@@ -471,11 +471,11 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					charray_add(&cb->config.chaining_components,
 						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
                                 } else
-                                if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+                                if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 					charray_add(&cb->config.chaining_components,
 						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
                                 } else
-                                if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+                                if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
 					charray_remove(cb->config.chaining_components,
 						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)),
 						0 /* freeit */);
@@ -496,7 +496,7 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                 config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                                if ( mods[i]->mod_op & LDAP_MOD_REPLACE) {
+                                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
                                         if (!done) {
                                                 charray_free(cb->config.chainable_components);
                                                 cb->config.chainable_components=NULL;
@@ -506,12 +506,12 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                                                 slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
 ));
                                 } else
-                                if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+                                if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
                                         charray_add(&cb->config.chainable_components,
                                                 slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
 ));
                                 } else
-                                if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+                                if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                                         charray_remove(cb->config.chainable_components,
                                                 slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
 ),

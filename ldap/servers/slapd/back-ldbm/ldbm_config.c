@@ -1727,8 +1727,8 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
                 continue;
             }
             
-            if ((mods[i]->mod_op & LDAP_MOD_DELETE) || 
-                ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)) { 
+            if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) || 
+                SLAPI_IS_MOD_ADD(mods[i]->mod_op)) { 
                 rc= LDAP_UNWILLING_TO_PERFORM; 
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed", 
                         (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding"); 

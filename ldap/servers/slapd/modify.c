@@ -637,7 +637,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			while ( tmpmods && *tmpmods )
 			{
 				if ((*tmpmods)->mod_bvalues != NULL &&
-				(((*tmpmods)->mod_op & ~LDAP_MOD_BVALUES) != LDAP_MOD_DELETE))
+				!SLAPI_IS_MOD_DELETE((*tmpmods)->mod_op))
 				{
 					for (i=0; i < numattr; i++)
 					{

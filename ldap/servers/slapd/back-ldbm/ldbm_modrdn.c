@@ -977,7 +977,7 @@ moddn_rdn_add_needed (
     for (mod = slapi_mods_get_first_mod(smods_wsi);
 		 mod != NULL;
 		 mod = slapi_mods_get_next_mod(smods_wsi)) {
-		if (((mod->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) && 
+		if (SLAPI_IS_MOD_DELETE(mod->mod_op) && 
 			(strcasecmp(mod->mod_type, type) == 0) &&
 			(mod->mod_bvalues != NULL) && 
 			(slapi_attr_value_cmp(attr, *mod->mod_bvalues, bvp) == 0)) {

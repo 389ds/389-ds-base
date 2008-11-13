@@ -1897,6 +1897,10 @@ typedef struct slapi_plugindesc {
 /* Size of the database, in kilobytes */
 #define SLAPI_DBSIZE				199
 
+/* convenience macros for checking modify operation types */
+#define SLAPI_IS_MOD_ADD(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
+#define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
+#define SLAPI_IS_MOD_REPLACE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)
 
 #ifdef __cplusplus
 }

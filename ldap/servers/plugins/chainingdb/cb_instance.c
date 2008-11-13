@@ -323,8 +323,8 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entr
 		if ( !strcasecmp ( attr_name, CB_CONFIG_BINDUSER ))  {
 
 			/* Make sure value is not forbidden */
-                	if ((mods[i]->mod_op & LDAP_MOD_REPLACE) ||
-                        	((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)) {
+                	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op) ||
+                        	SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 
                         	rc = cb_instance_config_set((void *) inst, attr_name,
                   	      	cb_the_instance_config, mods[i]->mod_bvalues[0], returntext,
@@ -333,8 +333,8 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entr
 			}
 		} 
 		
-                if ((mods[i]->mod_op & LDAP_MOD_DELETE) ||
-                        ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)) {
+                if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) ||
+                        SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
                         rc= LDAP_UNWILLING_TO_PERFORM;
                         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
                                 (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
@@ -383,7 +383,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
        			PR_RWLock_Wlock(inst->rwl_config_lock);
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                	config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                               	if ( mods[i]->mod_op & LDAP_MOD_REPLACE) {
+                               	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
                                        	if (!done) {
                                                	charray_free(inst->illegal_attributes);
                                                	inst->illegal_attributes=NULL;
@@ -392,11 +392,11 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                                        	charray_add(&inst->illegal_attributes,
 						slapi_ch_strdup(config_attr_value));
                                	} else
-                               	if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+                               	if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
                                        	charray_add(&inst->illegal_attributes,
                                                	slapi_ch_strdup(config_attr_value));
                                	} else
-                               	if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+                               	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                                        	charray_remove(inst->illegal_attributes,
                                                	slapi_ch_strdup(config_attr_value),
 												0 /* freeit */);
@@ -417,7 +417,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
         		PR_RWLock_Wlock(inst->rwl_config_lock);
                        	for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                	config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                               	if ( mods[i]->mod_op & LDAP_MOD_REPLACE) {
+                               	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
                                        	if (!done) {
                                                	charray_free(inst->chaining_components);
                                                	inst->chaining_components=NULL;
@@ -427,11 +427,11 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                                        	charray_add(&inst->chaining_components,
                                                	slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
                                	} else
-                               	if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD) {
+                               	if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
                                        	charray_add(&inst->chaining_components,
                                                	slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
                                	} else
-                               	if ( (mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE) {
+                               	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                                        	charray_remove(inst->chaining_components,
                                                	slapi_dn_normalize(slapi_ch_strdup(config_attr_value)),
 												0 /* freeit */);
@@ -447,8 +447,8 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
 
 
-		if ((mods[i]->mod_op & LDAP_MOD_DELETE) || 
-                        ((mods[i]->mod_op & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)) {
+		if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) || 
+                        SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 
 			/* Special processing for binddn & password */
 			/* because they are optional		    */
