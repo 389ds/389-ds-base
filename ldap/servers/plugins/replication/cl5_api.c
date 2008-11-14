@@ -6415,17 +6415,35 @@ out:
 		(*dbFile)->semaName = slapi_ch_smprintf("%s/%s.sema", semadir, replName);
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
 			"_cl5NewDBFile: semaphore %s\n", (*dbFile)->semaName);
-		(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName, PR_SEM_CREATE, 0666, s_cl5Desc.dbConfig.maxConcurrentWrites );
+		(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName,
+                        PR_SEM_CREATE | PR_SEM_EXCL, 0666,
+                        s_cl5Desc.dbConfig.maxConcurrentWrites );
 		slapi_log_error (SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5NewDBFile: maxConcurrentWrites=%d\n", s_cl5Desc.dbConfig.maxConcurrentWrites );
 	}
 
 	if ((*dbFile)->sema == NULL )
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-			"_cl5NewDBFile: failed to create semaphore %s; NSPR error - %d\n",
-			(*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", PR_GetError ());
-		rc = CL5_SYSTEM_ERROR;
-		goto done;
+		/* If the semaphore was left around due
+		 * to an unclean exit last time, remove
+		 * and re-create it.
+		 */ 
+		if (PR_GetError() == PR_FILE_EXISTS_ERROR) {
+			PR_DeleteSemaphore((*dbFile)->semaName);
+			(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName,
+					PR_SEM_CREATE | PR_SEM_EXCL, 0666,
+					s_cl5Desc.dbConfig.maxConcurrentWrites );
+		}
+
+		/* If we still failed to create the semaphore,
+		 * we should just error out. */
+		if ((*dbFile)->sema == NULL )
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				"_cl5NewDBFile: failed to create semaphore %s; NSPR error - %d\n",
+				(*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", PR_GetError());
+			rc = CL5_SYSTEM_ERROR;
+			goto done;
+		}
 	}
 
 	/* compute number of entries in the file */
