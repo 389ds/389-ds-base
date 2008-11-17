@@ -277,6 +277,7 @@ dd/mm/yy | Author	| Comments
 #define M2_BINDONLY	0x00000020 /* -e bindonly */		/*JLS 04-05-01*/
 #define M2_SASLAUTH     0x00000040 /* -o : SASL authentication */
 #define M2_RANDOM_SASLAUTHID     0x00000080 /* -e randomauthid */
+#define M2_ABANDON     0x00000100 /* -e abandon */
 
 /*
  * Combinatory defines
@@ -286,10 +287,11 @@ dd/mm/yy | Author	| Comments
  *  - VALID_OPERS	: valid operations
  */
 #define NEED_FILTER	(ADD_ENTRIES|DELETE_ENTRIES|EXACT_SEARCH|RENAME_ENTRIES|ATTR_REPLACE|SCALAB01)
+#define M2_NEED_FILTER	(M2_ABANDON)
 #define NEED_RANGE	(INCREMENTAL|RANDOM)
 #define NEED_RND_INCR	(ADD_ENTRIES|DELETE_ENTRIES|RENAME_ENTRIES)
 #define VALID_OPERS	(ADD_ENTRIES|DELETE_ENTRIES|EXACT_SEARCH|RENAME_ENTRIES|ATTR_REPLACE|SCALAB01)
-#define M2_VALID_OPERS	(M2_GENLDIF|M2_BINDONLY)
+#define M2_VALID_OPERS	(M2_GENLDIF|M2_BINDONLY|M2_ABANDON)
 #define NEED_CLASSES	(ADD_ENTRIES)
 #define THE_CLASSES	(OC_PERSON|OC_EMAILPERSON|OC_INETORGPRSON)
 
@@ -700,6 +702,7 @@ extern int	 doAttrReplace (thread_context *tttctx);	/*JLS 21-11-00*/
 extern int	 doBindOnly    (thread_context *tttctx);	/*JLS 04-05-01*/
 extern int	 doDeleteEntry (thread_context *tttctx);
 extern int	 doExactSearch (thread_context *tttctx);
+extern int   doAbandon (thread_context *tttctx);
 extern int	 doGenldif     (thread_context *tttctx);	/*JLS 19-03-01*/
 extern int	 doRename      (thread_context *tttctx);
 extern int	 freeAttrib (LDAPMod **attrs);

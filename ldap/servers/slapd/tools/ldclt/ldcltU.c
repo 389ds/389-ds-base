@@ -65,6 +65,7 @@
  * 	 -D  Bind DN. See -w
  * 	 -E  Max errors allowed.                   Default 1000.
  * 	 -e  Execution parameters:
+ * 		abandon : abandon asyncronous search requests.
  * 		add	    : ldap_add() entries.
  * 		append      : append entries to the genldif file.
  * 		ascii	    : ascii 7-bits strings.
@@ -156,35 +157,36 @@ void usage ()
   (void) printf ("	 -D  Bind DN. See -w\n");
   (void) printf ("	 -E  Max errors allowed.                   Default 1000.\n");
   (void) printf ("	 -e  Execution parameters:\n");
-  (void) printf ("		add	    : ldap_add() entries.\n");
-  (void) printf ("		append      : append entries to the genldif file.\n");
-  (void) printf ("		ascii	    : ascii 7-bits strings.\n");
+  (void) printf ("		abandon           : abandon async search requests.\n");
+  (void) printf ("		add               : ldap_add() entries.\n");
+  (void) printf ("		append            : append entries to the genldif file.\n");
+  (void) printf ("		ascii             : ascii 7-bits strings.\n");
   (void) printf ("		attreplace=name:mask    : replace attribute of existing entry.\n");
   (void) printf ("		attrlist=name:name:name : specify list of attribs to retrieve\n");
-  (void) printf ("		attrsonly=0|1  : ldap_search() parameter. Set 0 to read values.\n");
-  (void) printf ("		bindeach    : ldap_bind() for each operation.\n");
-  (void) printf ("		bindonly    : only bind/unbind, no other operation is performed.\n");
-  (void) printf ("		close       : will close() the fd, rather than ldap_unbind().\n");
-  (void) printf ("		cltcertname=name : name of the SSL client certificate\n");
-  (void) printf ("		commoncounter    : all threads share the same counter.\n");
-  (void) printf ("		counteach   : count each operation not only successful ones.\n");
-  (void) printf ("		delete                : ldap_delete() entries.\n");
+  (void) printf ("		attrsonly=0|1     : ldap_search() parameter. Set 0 to read values.\n");
+  (void) printf ("		bindeach          : ldap_bind() for each operation.\n");
+  (void) printf ("		bindonly          : only bind/unbind, no other operation is performed.\n");
+  (void) printf ("		close             : will close() the fd, rather than ldap_unbind().\n");
+  (void) printf ("		cltcertname=name  : name of the SSL client certificate\n");
+  (void) printf ("		commoncounter     : all threads share the same counter.\n");
+  (void) printf ("		counteach         : count each operation not only successful ones.\n");
+  (void) printf ("		delete            : ldap_delete() entries.\n");
   (void) printf ("		dontsleeponserverdown : will loop very fast if server down.\n");
-  (void) printf ("		emailPerson           : objectclass=emailPerson (-e add only).\n");
-  (void) printf ("		esearch	              : exact search.\n");
-  (void) printf ("		genldif=filename      : generates a ldif file\n");
-  (void) printf ("		imagesdir=path        : specify where are the images.\n");
-  (void) printf ("		incr	              : incremental values.\n");
-  (void) printf ("		inetOrgPerson         : objectclass=inetOrgPerson (-e add only).\n");
-  (void) printf ("		keydbfile=file        : filename of the key database\n");
-  (void) printf ("		keydbpin=password     : password for accessing the key database\n");
-  (void) printf ("		noglobalstats         : don't print periodical global statistics\n");
-  (void) printf ("		noloop	              : does not loop the incremental numbers.\n");
-  (void) printf ("		object=filename       : build object from input file\n");
-  (void) printf ("		person	              : objectclass=person (-e add only).\n");
-  (void) printf ("		random	              : random filters, etc...\n");
+  (void) printf ("		emailPerson       : objectclass=emailPerson (-e add only).\n");
+  (void) printf ("		esearch           : exact search.\n");
+  (void) printf ("		genldif=filename  : generates a ldif file\n");
+  (void) printf ("		imagesdir=path    : specify where are the images.\n");
+  (void) printf ("		incr              : incremental values.\n");
+  (void) printf ("		inetOrgPerson     : objectclass=inetOrgPerson (-e add only).\n");
+  (void) printf ("		keydbfile=file    : filename of the key database\n");
+  (void) printf ("		keydbpin=password : password for accessing the key database\n");
+  (void) printf ("		noglobalstats     : don't print periodical global statistics\n");
+  (void) printf ("		noloop            : does not loop the incremental numbers.\n");
+  (void) printf ("		object=filename   : build object from input file\n");
+  (void) printf ("		person            : objectclass=person (-e add only).\n");
+  (void) printf ("		random            : random filters, etc...\n");
   (void) printf ("		randomattrlist=name:name:name : random select attrib in the list\n");
-  (void) printf ("		randombase             : random base DN.\n");
+  (void) printf ("		randombase        : random base DN.\n");
   (void) printf ("		randombaselow=value    : low value for random generator.\n");
   (void) printf ("		randombasehigh=value   : high value for random generator.\n");
   (void) printf ("		randombinddn           : random bind DN.\n");
@@ -198,8 +200,8 @@ void usage ()
   (void) printf ("		scalab01_maxcnxnb      : modem pool size.\n");
   (void) printf ("		scalab01_wait          : sleep() between 2 attempts to connect.\n");
   (void) printf ("		smoothshutdown         : main thread waits till the worker threads exit.\n");
-  (void) printf ("		string	    : create random strings rather than random numbers.\n");
-  (void) printf ("		v2	    : ldap v2.\n");
+  (void) printf ("		string                 : create random strings rather than random numbers.\n");
+  (void) printf ("		v2                     : ldap v2.\n");
   (void) printf ("		withnewparent : rename with newparent specified as argument.\n");
   (void) printf ("		randomauthid           : random SASL Authid.\n");
   (void) printf ("		randomauthidlow=value  : low value for random SASL Authid.\n");

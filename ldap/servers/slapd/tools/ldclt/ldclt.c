@@ -2115,6 +2115,8 @@ char *execParams[] = {
 	"randomauthidhigh",
 #define EP_RANDOMSASLAUTHIDLOW		48
 	"randomauthidlow",
+#define EP_ABANDON		 	49
+	"abandon",
 	NULL
 };
 
@@ -2397,6 +2399,9 @@ decodeExecParams (
       case EP_WITH_NEWPARENT:					/*JLS 15-12-00*/
 	mctx.mode |= WITH_NEWPARENT;				/*JLS 15-12-00*/
 	break;							/*JLS 15-12-00*/
+      case EP_ABANDON:
+	mctx.mod2 |= M2_ABANDON;
+	break;
       default:
 	fprintf (stderr, "Error: illegal option -e %s\n", subvalue);
 	return (-1);
@@ -2750,7 +2755,8 @@ main (
     fprintf (stderr, "Error: use -f or -e rdn=value for this purpose.\n");
     ldcltExit (EXIT_PARAMS);					/*JLS 13-11-00*/
   }
-  if ((!((mctx.mode & NEED_FILTER) || (mctx.mod2 & M2_GENLDIF)))/*JLS 04-05-01*/
+  if ((!((mctx.mode & NEED_FILTER) || (mctx.mod2 & M2_GENLDIF) ||
+		 (mctx.mod2 & M2_NEED_FILTER)))/*JLS 04-05-01*/
 	&& (mctx.filter != NULL))				/*JLS 04-05-01*/
   {								/*JLS 04-05-01*/
     fprintf (stderr, "Error: do not need filter -f\n");		/*JLS 04-05-01*/

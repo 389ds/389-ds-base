@@ -954,7 +954,7 @@ threadMain (
    * Don't forget the buffers !!
    * This should save time while redoing random values
    */
-  if ((mctx.mode & NEED_FILTER) || (mctx.mod2 & M2_GENLDIF))	/*JLS 19-03-01*/
+  if ((mctx.mode & NEED_FILTER) || (mctx.mod2 & (M2_GENLDIF|M2_NEED_FILTER)))	/*JLS 19-03-01*/
   {
     if (mctx.mod2 & M2_RDN_VALUE)				/*JLS 23-03-01*/
       tttctx->bufFilter = (char *) malloc (MAX_FILTER);		/*JLS 23-03-01*/
@@ -1199,6 +1199,15 @@ threadMain (
 	go = 0;							/*JLS 19-03-01*/
 	continue;						/*JLS 19-03-01*/
       }								/*JLS 19-03-01*/
+
+    if (mctx.mod2 & M2_ABANDON) 
+    {
+      if (doAbandon (tttctx) < 0)
+      {
+        go = 0;
+        continue;
+      }
+    }
 
     /*
      * Check the thread's status

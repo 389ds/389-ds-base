@@ -1650,7 +1650,7 @@ buildNewEntry (
       attribute.mod_type   = "cn";
       attribute.mod_values = strList1 ("toto cn");
       if (addAttrib (attrs, nbAttribs++, &attribute) < 0)
-	return (-1);
+        return (-1);
     }
     if (strcmp (tttctx->buf2, "sn"))
     {
@@ -1658,7 +1658,7 @@ buildNewEntry (
       attribute.mod_type   = "sn";
       attribute.mod_values = strList1 ("toto sn");
       if (addAttrib (attrs, nbAttribs++, &attribute) < 0)
-	return (-1);
+        return (-1);
     }
   }
 
@@ -3554,5 +3554,174 @@ doExactSearch (
   return (0);
 }
 
+/* ****************************************************************************
+	FUNCTION :	doAbandon
+	PURPOSE :	Perform one abandon operation against an async search.
+	INPUT :		tttctx	= thread context
+	OUTPUT :	None.
+	RETURN :	-1 if error, 0 else.
+	DESCRIPTION :
+ *****************************************************************************/
+int
+doAbandon (thread_context *tttctx)
+{
+  int                 ret;               /* Return value */
+  LDAPMessage         *res;              /* LDAP results */
+  char                **attrlist;        /* Attribs list */
+  struct timeval      mytimeout;
+  int                 msgid;
+
+  /*
+   * Connection to the server
+   * The function connectToServer() will take care of the various connection/
+   * disconnection, bind/unbind/close etc... requested by the user.
+   * The cost is one more function call in this application, but the
+   * resulting source code will be much more easiest to maintain.
+   */
+  if (connectToServer (tttctx) < 0)
+    return (-1);
+  if (!(tttctx->binded))
+    return (0);
+
+  /*
+   * Build the filter
+   */
+  if (buildRandomRdnOrFilter (tttctx) < 0)
+    return (-1);
+
+  attrlist = NULL;
+
+  /*
+   * We use asynchronous search to abandon...
+   *
+   * set (1, 2) to (acyncMin, acyncMax), which combination does not stop write.
+   */
+  mctx.asyncMin = 1;
+  mctx.asyncMax = 2;
+  if (tttctx->pendingNb >= mctx.asyncMin)
+  {
+    mytimeout.tv_sec = 1;
+    mytimeout.tv_usec = 0;
+    ret = ldap_result (tttctx->ldapCtx,
+                       LDAP_RES_ANY, LDAP_MSG_ONE, &mytimeout, &res);
+    if (ret < 0)
+    {
+      if (!((mctx.mode & QUIET) && ignoreError (ret)))
+        (void) printErrorFromLdap (tttctx, res, ret, "Cannot ldap_result()");
+      if (addErrorStat (ret) < 0)
+        return (-1);
+    }
+    else
+    {
+      /* ret == 0 --> timeout; op abandoned and no result is returned */
+      tttctx->pendingNb--;
+
+      /*
+       * Don't forget to free the returned message !
+       */
+      if ((ret = ldap_msgfree (res)) < 0)
+      {
+        if (!((mctx.mode & QUIET) && ignoreError (ret)))
+        {
+          printf ("ldclt[%d]: T%03d: Cannot ldap_msgfree(), error=%d (%s)\n",
+                mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
+          fflush (stdout);
+        }
+        if (addErrorStat (ret) < 0)
+          return (-1);
+      }
+    }
+  }
+
+  /*
+   * Maybe we may send another request ?
+   * Well... there is no proper way to retrieve the error number for
+   * this, so I guess I may use direct access to the ldap context
+   * to read the field ld_errno.
+   */
+  if (tttctx->pendingNb > mctx.asyncMax)
+  {
+    if ((mctx.mode & VERBOSE)   &&
+        (tttctx->asyncHit == 1) &&
+        (!(mctx.mode & SUPER_QUIET)))
+    {
+      tttctx->asyncHit = 1;
+      printf ("ldclt[%d]: T%03d: Max pending request hit.\n",
+               mctx.pid, tttctx->thrdNum);
+      fflush (stdout);
+    }
+  }
+  else
+  {
+    if ((mctx.mode & VERBOSE)   &&
+        (tttctx->asyncHit == 1) &&
+        (!(mctx.mode & SUPER_QUIET)))
+    {
+      tttctx->asyncHit = 0;
+      printf ("ldclt[%d]: T%03d: Restart sending.\n",
+               mctx.pid, tttctx->thrdNum);
+      fflush (stdout);
+    }
+
+    msgid = -1;
+    /* for some reasons, it is an error to pass in a zero'd timeval */
+    mytimeout.tv_sec = mytimeout.tv_usec = -1;
+    ret = ldap_search_ext (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
+                tttctx->bufFilter, attrlist, mctx.attrsonly,
+                NULL, NULL, &mytimeout, -1, &msgid);
+    if (mctx.mode & VERY_VERBOSE)
+        printf ("ldclt[%d]: T%03d: ldap_search(%s)=>%d\n",
+             mctx.pid, tttctx->thrdNum, tttctx->bufFilter, ret);
+
+    if (ret != 0)
+    {
+      if (ldap_get_option (tttctx->ldapCtx, LDAP_OPT_ERROR_NUMBER, &ret) < 0)
+      {
+        printf ("ldclt[%d]: T%03d: Cannot ldap_get_option(LDAP_OPT_ERROR_NUMBER)\n",
+                mctx.pid, tttctx->thrdNum);
+        fflush (stdout);
+        return (-1);
+      }
+      else
+      {
+        if (!((mctx.mode & QUIET) && ignoreError (ret)))
+        {
+          printf ("ldclt[%d]: T%03d: Cannot ldap_search(), error=%d (%s)\n",
+                mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
+          fflush (stdout);
+        }
+        if (addErrorStat (ret) < 0)
+          return (-1);
+      }
+    }
+    else
+    {
+      if (msgid >= 0)
+      {
+        /* ABANDON the search request immediately */
+        (void) ldap_abandon(tttctx->ldapCtx, msgid);
+      }
+
+      /*
+       * Memorize the operation
+       */
+      if (incrementNbOpers (tttctx) < 0)
+        return (-1);
+      tttctx->pendingNb++;
+      if (mctx.mode & VERY_VERBOSE)
+        printf ("ldclt[%d]: T%03d: ldap_abandon(%d)\n",
+             mctx.pid, tttctx->thrdNum, msgid);
+    }
+  }
+
+  if (mctx.mode & VERY_VERBOSE)
+    printf ("ldclt[%d]: T%03d: pendingNb=%d\n",
+             mctx.pid, tttctx->thrdNum, tttctx->pendingNb);
+
+  /*
+   * End of asynchronous operation... and also end of function.
+   */
+  return (0);
+}
 
 /* End of file */
