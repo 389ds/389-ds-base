@@ -170,6 +170,8 @@ int dblayer_db_uses_locking(DB_ENV *db_env);
 int dblayer_db_uses_transactions(DB_ENV *db_env);
 int dblayer_db_uses_mpool(DB_ENV *db_env);
 int dblayer_db_uses_logging(DB_ENV *db_env);
+int dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
+
 
 /*
  * dn2entry.c

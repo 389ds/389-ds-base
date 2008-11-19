@@ -111,24 +111,66 @@ dbverify_ext( ldbm_instance *inst, int verbose )
                         "Unable to create id2entry db file %d\n", rval);
             return rval;
         }
+
 #define VLVPREFIX "vlv#"
-        if ((0 != strncmp(direntry->name, ID2ENTRY, strlen(ID2ENTRY))) &&
-            (0 != strncmp(direntry->name, VLVPREFIX, strlen(VLVPREFIX))))
+        if (0 != strncmp(direntry->name, ID2ENTRY, strlen(ID2ENTRY)))
         {
-            rval = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
+            struct attrinfo *ai = NULL;
+            char *p = NULL;
+            p = strstr(filep, LDBM_FILENAME_SUFFIX); /* since already checked,
+                                                        it must have it */
+            *p = '\0';
+            ainfo_get( inst->inst_be, filep+1, &ai );
+            *p = '.';
+            if (ai->ai_key_cmp_fn) {
+                dbp->app_private = (void *)ai->ai_key_cmp_fn;
+                dbp->set_bt_compare(dbp, dblayer_bt_compare);
+            }
+            if (idl_get_idl_new())
+            {
+                rval = dbp->set_pagesize(dbp,
+                        (priv->dblayer_index_page_size == 0) ?
+                        DBLAYER_INDEX_PAGESIZE : priv->dblayer_index_page_size);
+            }
+            else
+            {
+                rval = dbp->set_pagesize(dbp,
+                        (priv->dblayer_page_size == 0) ?
+                        DBLAYER_PAGESIZE : priv->dblayer_page_size);
+            }
             if (0 != rval)
             {
                 slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
-                       "Unable to set DUP flags to db %d\n", rval);
+                         "Unable to set pagesize flags to db (%d)\n", rval);
                 return rval;
             }
-
-            rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
-            if (0 != rval)
+            if (0 == strncmp(direntry->name, VLVPREFIX, strlen(VLVPREFIX)))
             {
-                slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
-                       "Unable to set dup_compare to db %d\n", rval);
-                return rval;
+                rval = dbp->set_flags(dbp, DB_RECNUM);
+                if (0 != rval)
+                {
+                    slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
+                         "Unable to set RECNUM flag to vlv index (%d)\n", rval);
+                    return rval;
+                }
+            }
+            else if (idl_get_idl_new())
+            {
+                rval = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
+                if (0 != rval)
+                {
+                    slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
+                           "Unable to set DUP flags to db (%d)\n", rval);
+                    return rval;
+                }
+    
+                rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+                if (0 != rval)
+                {
+                    slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
+                           "Unable to set dup_compare to db (%d)\n", rval);
+                    return rval;
+                }
             }
         }
 #undef VLVPREFIX

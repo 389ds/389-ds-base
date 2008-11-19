@@ -243,7 +243,7 @@ static int dblayer_db_remove_ex(dblayer_private_env *env, char const path[], cha
 
    see also DBTcmp
 */
-static int
+int
 dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2)
 {
     struct berval bv1, bv2;
