@@ -1620,15 +1620,6 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                           dblayer_strerror(return_value), 0);
                 return return_value;
             }
-            /* remove transaction logs */
-            return_value = dblayer_delete_transaction_logs(log_dir);
-            if (return_value)
-            {
-                LDAPDebug(LDAP_DEBUG_ANY,
-                  "dblayer_start: failed to remove old transaction logs (%d)\n",
-                  return_value, 0, 0);
-                return return_value;
-            }
             dbmode = DBLAYER_NORMAL_MODE;
 
             if ((return_value = dblayer_make_env(&pEnv, li)) != 0)
