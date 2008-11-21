@@ -306,7 +306,7 @@ PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue)
         " movl 4%0, %%edx;"
         /* Put newval in ECX:EBX */
         " movl %1, %%ebx;"
-        " movl 4%1, %%ecx;"
+        " movl 4+%1, %%ecx;"
         /* If EDX:EAX and counter-> are the same,
          * replace *ptr with ECX:EBX */
         " lock; cmpxchg8b %0;"
