@@ -1233,6 +1233,7 @@ void import_worker(void *param)
     FifoItem *fi = NULL;
     int is_objectclass_attribute;
     int is_nsuniqueid_attribute;
+    int is_nscpentrydn_attribute;
     void *attrlist_cursor;
     
     PR_ASSERT(NULL != info);
@@ -1250,14 +1251,16 @@ void import_worker(void *param)
     }
 
     /*
-     * If the entry is a Tombstone, then we only add it to the nsuniqeid index
-     * and the idlist for (objectclass=tombstone). These two flags are just
-     * handy for working out what to do in this case.
+     * If the entry is a Tombstone, then we only add it to the nsuniqeid index,
+     * the nscpEntryDN index, and the idlist for (objectclass=tombstone). These
+     * flags are just handy for working out what to do in this case.
      */
     is_objectclass_attribute =
         (strcasecmp(info->index_info->name, "objectclass") == 0);
     is_nsuniqueid_attribute = 
         (strcasecmp(info->index_info->name, SLAPI_ATTR_UNIQUEID) == 0);
+    is_nscpentrydn_attribute =
+        (strcasecmp(info->index_info->name, SLAPI_ATTR_NSCP_ENTRYDN) == 0);
 
     if (1 != idl_get_idl_new()) {
         /* Is there substring indexing going on here ? */
@@ -1364,8 +1367,8 @@ void import_worker(void *param)
                 }
             }
         } else {
-            /* This is a Tombstone entry... we only add it to the nsuniqeid
-             * index and the idlist for (objectclass=nstombstone).
+            /* This is a Tombstone entry... we only add it to the nsuniqueid
+             * index, the nscpEntryDN index,  and the idlist for (objectclass=nstombstone).
              */
             if (job->flags & FLAG_ABORT) {
                         goto error;
@@ -1385,6 +1388,29 @@ void import_worker(void *param)
                 if (0 != ret) {
                     /* Something went wrong, eg disk filled up */
                     goto error;
+                }
+            }
+            if (is_nscpentrydn_attribute) {
+                attrlist_cursor = NULL;
+                while ((attr = attrlist_find_ex(ep->ep_entry->e_attrs,
+                                                SLAPI_ATTR_NSCP_ENTRYDN,
+                                                NULL,
+                                                NULL,
+                                                &attrlist_cursor)) != NULL) {
+
+                    if (job->flags & FLAG_ABORT) {
+                        goto error;
+                    }
+                    if(valueset_isempty(&(attr->a_present_values))) continue;
+                    svals = attr_get_present_values(attr);
+                    ret = index_addordel_values_ext_sv(be, info->index_info->name,
+                        svals, NULL, ep->ep_id, BE_INDEX_ADD | (job->encrypt ? 0 : BE_INDEX_DONT_ENCRYPT), NULL, &idl_disposition,
+                        substring_key_buffer);
+
+                    if (0 != ret) {
+                        /* Something went wrong, eg disk filled up */
+                        goto error;
+                    }
                 }
             }
         }
