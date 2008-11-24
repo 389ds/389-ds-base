@@ -113,22 +113,32 @@ void sort_log_access(Slapi_PBlock *pb,sort_spec_thing *s,IDList *candidates)
 	int size = SORT_LOG_BSZ + SORT_LOG_PAD;
 	char *prefix = "SORT ";
 	int prefix_size = strlen(prefix);
+	char candidate_buffer[32]; /* store u_long value; max 20 digits */
+	int candidate_size = 0;
 
 	buffer = stack_buffer;
 	size -= PR_snprintf(buffer,sizeof(stack_buffer),"%s",prefix);
+	if (candidates) {
+		if (ALLIDS(candidates)) {
+			PR_snprintf(candidate_buffer, sizeof(candidate_buffer), "(*)");
+			candidate_size = strlen(candidate_buffer);
+		} else {
+			PR_snprintf(candidate_buffer, sizeof(candidate_buffer),
+							"(%lu)", (u_long)candidates->b_nids);
+			candidate_size = strlen(candidate_buffer);
+		}
+	}
+	size -= (candidate_size + 1);	/* 1 for '\0' */
 	ret = print_out_sort_spec(buffer+prefix_size,s,&size);
 	if (0 != ret) {
 		/* It wouldn't fit in the buffer */
-		buffer = slapi_ch_malloc(prefix_size + size + SORT_LOG_PAD);
+		buffer =
+			slapi_ch_malloc(prefix_size + size + candidate_size + SORT_LOG_PAD);
 		sprintf(buffer,"%s",prefix);
 		ret = print_out_sort_spec(buffer+prefix_size,s,&size);
 	}
-	if (candidates) {
-		if (ALLIDS(candidates)) {
-			sprintf(buffer+size+prefix_size,"(*)");
-		} else {
-			sprintf(buffer+size+prefix_size,"(%lu)",(u_long)candidates->b_nids);
-		}
+	if (0 == ret && candidates) {
+		sprintf(buffer+size+prefix_size, "%s", candidate_buffer);
 	}
 	/* Now output it */
 	ldbm_log_access_message(pb,buffer);
