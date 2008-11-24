@@ -1414,9 +1414,7 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op);
 	slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
 
-	if (slapdFrontendConfig->pwpolicy_local == 1) {
-	if ( !operation_is_flag_set( op, OP_FLAG_INTERNAL ) && dn ) {
-
+	if (dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
 		/*  If we're doing an add, COS does not apply yet so we check
 			parents for the pwdpolicysubentry.  We look only for virtual
 			attributes, because real ones are for single-target policy. */
@@ -1462,196 +1460,195 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 		}
 
 		if (values != NULL) {
-				Slapi_Value *v = NULL;	
-				const struct berval *bvp = NULL;
+			Slapi_Value *v = NULL;	
+			const struct berval *bvp = NULL;
 
-				if ( ((rc = slapi_valueset_first_value( values, &v )) != -1) &&
-					( bvp = slapi_value_get_berval( v )) != NULL ) {
-					if ( bvp != NULL ) {
-						/* we got the pwdpolicysubentry value */
-						pw_entry = get_entry ( pb, bvp->bv_val);
-					}
-				} 
-
-				slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
-
-				slapi_entry_free( e );
-
-				if ( pw_entry == NULL ) {
-					LDAPDebug(LDAP_DEBUG_ANY, "loading global password policy for %s"
-						"--local policy entry not found\n", escape_string(dn, ebuf),0,0);
-					goto done;
+			if ( ((rc = slapi_valueset_first_value( values, &v )) != -1) &&
+				( bvp = slapi_value_get_berval( v )) != NULL ) {
+				if ( bvp != NULL ) {
+					/* we got the pwdpolicysubentry value */
+					pw_entry = get_entry ( pb, bvp->bv_val);
 				}
-        
-				for (slapi_entry_first_attr(pw_entry, &attr); attr;
-						slapi_entry_next_attr(pw_entry, attr, &attr))
-				{
-					slapi_attr_get_type(attr, &attr_name);
-					if (!strcasecmp(attr_name, "passwordminage")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_minage = slapi_value_get_long(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordmaxage")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_maxage = slapi_value_get_long(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordwarning")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_warning = slapi_value_get_long(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordhistory")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_history = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordinhistory")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_inhistory = slapi_value_get_int(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordlockout")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_lockout = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordmaxfailure")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_maxfailure = slapi_value_get_int(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordunlock")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_unlock = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordlockoutduration")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_lockduration = slapi_value_get_long(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordresetfailurecount")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_resetfailurecount = slapi_value_get_long(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordchange")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_change = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}       
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordmustchange")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_must_change = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordchecksyntax")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_syntax = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordminlength")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_minlength = slapi_value_get_int(*sval);
-						}
-					}
-					else
-                                        if (!strcasecmp(attr_name, "passwordmindigits")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_mindigits = slapi_value_get_int(*sval);
-                                                }
-                                        }
-					else
-					if (!strcasecmp(attr_name, "passwordminalphas")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_minalphas = slapi_value_get_int(*sval);
-                                                }
-                                        }
-					else
-                                        if (!strcasecmp(attr_name, "passwordminuppers")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_minuppers = slapi_value_get_int(*sval);
-                                                }
-                                        }
-					else
-                                        if (!strcasecmp(attr_name, "passwordminlowers")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_minlowers = slapi_value_get_int(*sval);
-                                                }
-                                        }
-                                        else
-                                        if (!strcasecmp(attr_name, "passwordminspecials")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_minspecials = slapi_value_get_int(*sval);
-                                                }
-                                        }
-					else
-					if (!strcasecmp(attr_name, "passwordmin8bit")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_min8bit = slapi_value_get_int(*sval);
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordmaxrepeats")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_maxrepeats = slapi_value_get_int(*sval);
-                                                }
-                                        }
-                                        else
-                                        if (!strcasecmp(attr_name, "passwordmincategories")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_mincategories = slapi_value_get_int(*sval);
-                                                }
-                                        }
-                                        else
-                                        if (!strcasecmp(attr_name, "passwordmintokenlength")) {
-                                                if ((sval = attr_get_present_values(attr))) {
-                                                        pwdpolicy->pw_mintokenlength = slapi_value_get_int(*sval);
-                                                }
-                                        }
-					else
-					if (!strcasecmp(attr_name, "passwordexp")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_exp = 
-							pw_boolean_str2value(slapi_value_get_string(*sval));
-						}
-					}
-					else
-					if (!strcasecmp(attr_name, "passwordgracelimit")) {
-						if ((sval = attr_get_present_values(attr))) {
-							pwdpolicy->pw_gracelimit = slapi_value_get_int(*sval);
-						}
-					}
-                        
-				} /* end of for() loop */
-				if (pw_entry) {
-					slapi_entry_free(pw_entry);
-				}
-				return pwdpolicy;
-			} else if ( e ) {
-				slapi_entry_free( e );
+			} 
+
+			slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
+
+			slapi_entry_free( e );
+
+			if ( pw_entry == NULL ) {
+				LDAPDebug(LDAP_DEBUG_ANY, "loading global password policy for %s"
+					"--local policy entry not found\n", escape_string(dn, ebuf),0,0);
+				goto done;
 			}
+        
+			for (slapi_entry_first_attr(pw_entry, &attr); attr;
+					slapi_entry_next_attr(pw_entry, attr, &attr))
+			{
+				slapi_attr_get_type(attr, &attr_name);
+				if (!strcasecmp(attr_name, "passwordminage")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_minage = slapi_value_get_long(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmaxage")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_maxage = slapi_value_get_long(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordwarning")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_warning = slapi_value_get_long(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordhistory")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_history = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordinhistory")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_inhistory = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordlockout")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_lockout = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmaxfailure")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_maxfailure = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordunlock")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_unlock = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordlockoutduration")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_lockduration = slapi_value_get_long(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordresetfailurecount")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_resetfailurecount = slapi_value_get_long(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordchange")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_change = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}       
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmustchange")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_must_change = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordchecksyntax")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_syntax = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordminlength")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_minlength = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmindigits")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_mindigits = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordminalphas")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_minalphas = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordminuppers")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_minuppers = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordminlowers")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_minlowers = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordminspecials")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_minspecials = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmin8bit")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_min8bit = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmaxrepeats")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_maxrepeats = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmincategories")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_mincategories = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordmintokenlength")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_mintokenlength = slapi_value_get_int(*sval);
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordexp")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_exp = 
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordgracelimit")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_gracelimit = slapi_value_get_int(*sval);
+					}
+				}
+                        
+			} /* end of for() loop */
+			if (pw_entry) {
+				slapi_entry_free(pw_entry);
+			}
+			return pwdpolicy;
+		} else if ( e ) {
+			slapi_entry_free( e );
 		}
 	}
 

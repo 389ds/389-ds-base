@@ -293,16 +293,11 @@ send_ldap_result_ext(
 	char *dn;
 	passwdPolicy *pwpolicy = NULL;
 	
-
-	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
-	pwpolicy = new_passwdPolicy(pb, dn);
-
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	if ( ber != NULL ) {
 	    flush_ber_element = 0;
 	}
-
 
 	if(err != LDAP_SUCCESS){
 		/* count the error for snmp */
@@ -370,10 +365,12 @@ send_ldap_result_ext(
 
 	/* invalid password.  Update the password retry here */
 	/* put this here for now.  It could be a send_result pre-op plugin. */
-	if ( err == LDAP_INVALID_CREDENTIALS && 
-			pwpolicy->pw_lockout == 1 ) {
-
-		update_pw_retry ( pb );
+	if (err == LDAP_INVALID_CREDENTIALS) {
+		slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+                pwpolicy = new_passwdPolicy(pb, dn);
+		if (pwpolicy && (pwpolicy->pw_lockout == 1)) {
+			update_pw_retry ( pb );
+		}
 	}
         
 	if ( ber == NULL ) {
