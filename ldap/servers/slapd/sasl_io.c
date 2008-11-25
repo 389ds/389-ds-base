@@ -215,6 +215,15 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
 
         LDAPDebug( LDAP_DEBUG_CONNS,
             "read sasl packet length %ld on connection %" PRIu64 "\n", packet_length, c->c_connid, 0 );
+
+        if (packet_length > config_get_maxsasliosize()) {
+            LDAPDebug( LDAP_DEBUG_ANY,
+                "SASL encrypted packet length exceeds maximum allowed limit (length=%ld, limit=%ld)."
+                "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
+                 packet_length, config_get_maxsasliosize(), 0);
+            return -1;
+        }
+
         sasl_io_resize_encrypted_buffer(c->c_sasl_io_private, packet_length);
         /* Cyrus SASL implementation expects to have the length at the first 
            4 bytes */

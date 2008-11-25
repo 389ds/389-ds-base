@@ -525,6 +525,9 @@ static struct config_get_and_set {
 	{CONFIG_MAXBERSIZE_ATTRIBUTE, config_set_maxbersize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxbersize, CONFIG_INT, NULL},
+	{CONFIG_MAXSASLIOSIZE_ATTRIBUTE, config_set_maxsasliosize,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.maxsasliosize, CONFIG_INT, NULL},
 	{CONFIG_VERSIONSTRING_ATTRIBUTE, config_set_versionstring,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.versionstring, CONFIG_STRING, NULL},
@@ -4485,6 +4488,42 @@ config_get_maxbersize()
         maxbersize= 2 * 1024 * 1024; /* Default: 2Mb */
     return maxbersize;
 
+}
+
+int
+config_set_maxsasliosize( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal =  LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( !apply ) {
+        return retVal;
+  }
+
+  CFG_LOCK_WRITE(slapdFrontendConfig);
+
+  slapdFrontendConfig->maxsasliosize = atol(value);
+
+  CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  return retVal;
+}
+
+size_t
+config_get_maxsasliosize()
+{
+  size_t maxsasliosize;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  maxsasliosize = slapdFrontendConfig->maxsasliosize;
+  if (maxsasliosize == 0) {
+    maxsasliosize = 2 * 1024 * 1024; /* Default: 2Mb */
+  }
+
+  return maxsasliosize;
 }
 
 int

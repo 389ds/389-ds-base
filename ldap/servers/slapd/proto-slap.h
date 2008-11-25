@@ -320,6 +320,7 @@ int config_set_result_tweak(const char *attrname,  char *value, char *errorbuf, 
 int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, int apply);
 int config_set_conntablesize(const char *attrname, char *url, char *errorbuf, int apply);
 int config_set_maxbersize(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_maxsasliosize(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_versionstring(const char *attrname,  char *versionstring, char *errorbuf, int apply );
 int config_set_enquote_sup_oc(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_basedn( const char *attrname, char *value, char *errorbuf, int apply );
@@ -442,6 +443,7 @@ char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);
 ber_len_t config_get_maxbersize();
+size_t config_get_maxsasliosize();
 char *config_get_versionstring();
 char *config_get_buildnum(void);
 int config_get_enquote_sup_oc();

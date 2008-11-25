@@ -1764,6 +1764,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_REFERRAL_MODE_ATTRIBUTE		"nsslapd-referralmode"
 #define CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE "nsslapd-attribute-name-exceptions"
 #define CONFIG_MAXBERSIZE_ATTRIBUTE "nsslapd-maxbersize"
+#define CONFIG_MAXSASLIOSIZE_ATTRIBUTE "nsslapd-maxsasliosize"
 #define CONFIG_MAX_FILTER_NEST_LEVEL_ATTRIBUTE "nsslapd-max-filter-nest-level"
 #define CONFIG_VERSIONSTRING_ATTRIBUTE "nsslapd-versionstring"
 #define CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE "nsslapd-enquote-sup-oc"
@@ -1981,8 +1982,9 @@ typedef struct _slapdFrontendConfig {
   char *ldapi_gidnumber_type;   /* type that contains gid number */
   char *ldapi_search_base_dn;   /* base dn to search for mapped entries */
   char *ldapi_auto_dn_suffix;   /* suffix to be appended to auto gen DNs */
-  int slapi_counters;            /* switch to turn slapi_counters on/off */
-  int allow_unauth_binds;        /* switch to enable/disable unauthenticated binds */
+  int slapi_counters;           /* switch to turn slapi_counters on/off */
+  int allow_unauth_binds;       /* switch to enable/disable unauthenticated binds */
+  size_t maxsasliosize;         /* limit incoming SASL IO packet size */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */
