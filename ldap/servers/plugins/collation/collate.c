@@ -230,7 +230,6 @@ typedef struct collation_indexer_t
     UCollator*         collator;
     UConverter*	       converter;
     struct berval**    ix_keys;
-    int                is_default_collator;
 } collation_indexer_t;
 
 /*
@@ -386,8 +385,8 @@ collation_indexer_destroy (indexer_t* ix)
 	ucnv_close(etc->converter);
 	etc->converter = NULL;
     }
-    if (!etc->is_default_collator) {
-	/* Don't delete the default collation - it seems to cause problems */
+
+    if (etc->collator) {
 	ucol_close(etc->collator);
 	etc->collator = NULL;
     }
@@ -469,7 +468,6 @@ collation_indexer_create (const char* oid)
 				   oid, profile->decomposition, err);
 		    }
 		    etc->collator = coll;
-		    etc->is_default_collator = is_default;
 		    for (id = collation_id; *id; ++id) {
 			if ((*id)->profile == profile) {
 			    break; /* found the 'official' id */
