@@ -856,6 +856,7 @@ FrontendConfig_init () {
   cfg->ioblocktimeout = SLAPD_DEFAULT_IOBLOCK_TIMEOUT;
   cfg->outbound_ldap_io_timeout = SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT;
   cfg->max_filter_nest_level = SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL;
+  cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
 
 #ifdef _WIN32
   cfg->conntablesize = SLAPD_DEFAULT_CONNTABLESIZE;
@@ -4494,21 +4495,41 @@ int
 config_set_maxsasliosize( const char *attrname, char *value, char *errorbuf, int apply )
 {
   int retVal =  LDAP_SUCCESS;
+  long maxsasliosize;
+  char *endptr;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
         return LDAP_OPERATIONS_ERROR;
   }
 
-  if ( !apply ) {
-        return retVal;
+  maxsasliosize = strtol(value, &endptr, 10);
+
+  /* Check for non-numeric garbage in the value */
+  if (*endptr != '\0') {
+    retVal = LDAP_OPERATIONS_ERROR;
   }
 
-  CFG_LOCK_WRITE(slapdFrontendConfig);
+  /* Check for a value overflow */
+  if (((maxsasliosize == LONG_MAX) || (maxsasliosize == LONG_MIN)) && (errno == ERANGE)){
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
 
-  slapdFrontendConfig->maxsasliosize = atol(value);
+  /* A setting of -1 means unlimited.  Don't allow other negative values. */
+  if ((maxsasliosize < 0) && (maxsasliosize != -1)) {
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
 
-  CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  if (retVal != LDAP_SUCCESS) {
+    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                 "%s: \"%s\" is invalid. Value must range from -1 to %ld",
+                 attrname, value, LONG_MAX );
+  } else if (apply) {
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->maxsasliosize = maxsasliosize;
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
   return retVal;
 }
 
@@ -4519,9 +4540,6 @@ config_get_maxsasliosize()
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   maxsasliosize = slapdFrontendConfig->maxsasliosize;
-  if (maxsasliosize == 0) {
-    maxsasliosize = 2 * 1024 * 1024; /* Default: 2Mb */
-  }
 
   return maxsasliosize;
 }

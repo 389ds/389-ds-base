@@ -195,6 +195,7 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
     int ret = 0;
     unsigned char buffer[4];
     size_t packet_length = 0;
+    size_t saslio_limit;
     
     ret = PR_Recv(c->c_prfd,buffer,sizeof(buffer),0,PR_INTERVAL_NO_WAIT);
     if (ret < 0) {
@@ -216,7 +217,10 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
         LDAPDebug( LDAP_DEBUG_CONNS,
             "read sasl packet length %ld on connection %" PRIu64 "\n", packet_length, c->c_connid, 0 );
 
-        if (packet_length > config_get_maxsasliosize()) {
+        /* Check if the packet length is larger than our max allowed.  A
+         * setting of -1 means that we allow any size SASL IO packet. */
+        saslio_limit = config_get_maxsasliosize();
+        if(((long)saslio_limit != -1) && (packet_length > saslio_limit)) {
             LDAPDebug( LDAP_DEBUG_ANY,
                 "SASL encrypted packet length exceeds maximum allowed limit (length=%ld, limit=%ld)."
                 "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
