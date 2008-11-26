@@ -990,6 +990,10 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
         }
         LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_build_candidate_list_byvalue: Not Found. Index=%lu\n",si,0,0);
     }
+    if (key.data != typedown_value[0]->bv_val) { /* in case new key is set 
+                                                  in dbc->c_get(DB_SET_RANGE) */
+        slapi_ch_free(&(key.data));
+    }
     ber_bvecfree((struct berval**)typedown_value);
     return si;
 }
