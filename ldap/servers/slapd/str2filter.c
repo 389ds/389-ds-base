@@ -162,6 +162,7 @@ str2list( char *str, unsigned long ftype )
 		str = next;
 		f->f_flags |= ((*fp)->f_flags & SLAPI_FILTER_LDAPSUBENTRY);
 		f->f_flags |= ((*fp)->f_flags & SLAPI_FILTER_TOMBSTONE);
+		f->f_flags |= ((*fp)->f_flags & SLAPI_FILTER_RUV);
 		fp = &(*fp)->f_next;
 	}
 	*fp = NULL;
@@ -331,6 +332,13 @@ str2simple( char *str , int unescape_filter)
 			if (0 == strcasecmp (unqstr,SLAPI_ATTR_VALUE_TOMBSTONE))
 				f->f_flags |= SLAPI_FILTER_TOMBSTONE;
 		}
+
+		if((f->f_choice == LDAP_FILTER_EQUALITY) &&
+		   (0 == strncasecmp (str,"nsuniqueid",strlen("nsuniqueid")))) {
+			if (0 == strcasecmp (unqstr, "ffffffff-ffffffff-ffffffff-ffffffff"))
+				f->f_flags |= SLAPI_FILTER_RUV;
+		}
+
 	} if ( !unescape_filter ) {
 		f->f_avtype = slapi_ch_strdup( str );
 		f->f_avvalue.bv_val = slapi_ch_strdup ( value );

@@ -720,7 +720,11 @@ static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
     op->o_search_referral_handler = internal_ref_entry_callback;
 	
     filter = slapi_str2filter(ifstr ? (fstr = slapi_ch_strdup(ifstr)) : NULL);
-    if(scope == LDAP_SCOPE_BASE) filter->f_flags |= (SLAPI_FILTER_LDAPSUBENTRY | SLAPI_FILTER_TOMBSTONE);
+    if(scope == LDAP_SCOPE_BASE) {
+        filter->f_flags |= (SLAPI_FILTER_LDAPSUBENTRY |
+                            SLAPI_FILTER_TOMBSTONE | SLAPI_FILTER_RUV);
+    }
+
     if (NULL == filter) 
 	{
     	send_ldap_result(pb, LDAP_FILTER_ERROR, NULL, NULL, 0, NULL);

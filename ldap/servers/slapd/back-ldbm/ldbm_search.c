@@ -1203,11 +1203,17 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
           if((slapi_entry_flag_is_set(e->ep_entry,SLAPI_ENTRY_LDAPSUBENTRY) 
              && !filter_flag_is_set(filter,SLAPI_FILTER_LDAPSUBENTRY)) ||
             (slapi_entry_flag_is_set(e->ep_entry,SLAPI_ENTRY_FLAG_TOMBSTONE)
-             && (!isroot || !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
+             && ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
+             !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
           {
             /* If the entry is an LDAP subentry and filter don't filter subentries OR 
              * the entry is a TombStone and filter don't filter Tombstone 
-             * don't return the entry
+             * don't return the entry.  We make a special case to allow a non-root user
+             * to search for the RUV entry using a filter of:
+             *
+             *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
+             *
+             * For this RUV case, we let the ACL check apply.
              */
             /* ugaston - we don't want to mistake this filter failure with the one below due to ACL, 
              * because whereas the former should be read as 'no entry must be returned', the latter

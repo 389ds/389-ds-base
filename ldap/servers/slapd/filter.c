@@ -54,14 +54,15 @@
 static int
 get_filter_list( Connection *conn, BerElement *ber,
 		struct slapi_filter **f, char **fstr, int maxdepth, int curdepth,
-		int *subentry_dont_rewrite, int *has_tombstone_filter);
+		int *subentry_dont_rewrite, int *has_tombstone_filter, int *has_ruv_filter);
 static int	get_substring_filter();
 static int	get_extensible_filter( BerElement *ber, mr_filter_t* );
 
 static int get_filter_internal( Connection *conn, BerElement *ber,
 		struct slapi_filter **filt, char **fstr, int maxdepth, int curdepth,
-		int *subentry_dont_rewrite, int *has_tombstone_filter);
+		int *subentry_dont_rewrite, int *has_tombstone_filter, int *has_ruv_filter);
 static int tombstone_check_filter(Slapi_Filter *f);
+static int ruv_check_filter(Slapi_Filter *f);
 static void filter_optimize(Slapi_Filter *f);
 
 
@@ -83,20 +84,23 @@ get_filter( Connection *conn, BerElement *ber, int scope,
 {
 	int subentry_dont_rewrite = 0; /* Re-write unless we're told not to */
 	int has_tombstone_filter = 0; /* Check if nsTombstone appears */
+	int has_ruv_filter = 0;       /* Check if searching for RUV */
 	int return_value = 0;
 	char 	*logbuf = NULL;
 	size_t	logbufsize = 0;
 
 	return_value = get_filter_internal(conn, ber, filt, fstr,
 			config_get_max_filter_nest_level(),	/* maximum depth */
-			0, /* current depth */
-			&subentry_dont_rewrite, &has_tombstone_filter);
+			0, /* current depth */ &subentry_dont_rewrite,
+			&has_tombstone_filter, &has_ruv_filter);
 
 	if (0 == return_value) { /* Don't try to re-write if there was an error */
 		if (subentry_dont_rewrite || scope == LDAP_SCOPE_BASE)
 		  (*filt)->f_flags |= SLAPI_FILTER_LDAPSUBENTRY;
 		if (has_tombstone_filter)
 			(*filt)->f_flags |= SLAPI_FILTER_TOMBSTONE;
+		if (has_ruv_filter)
+			(*filt)->f_flags |= SLAPI_FILTER_RUV;
 	}
 
 	if (LDAPDebugLevelIsSet( LDAP_DEBUG_FILTER ) && *filt != NULL
@@ -175,7 +179,7 @@ filter_escape_filter_value(struct slapi_filter *f, const char *fmt, size_t len)
 static int
 get_filter_internal( Connection *conn, BerElement *ber, 
 	struct slapi_filter **filt, char **fstr, int maxdepth, int curdepth,
-	int *subentry_dont_rewrite, int *has_tombstone_filter )
+	int *subentry_dont_rewrite, int *has_tombstone_filter, int *has_ruv_filter )
 {
     ber_len_t	len;
     int		err;
@@ -272,6 +276,18 @@ get_filter_internal( Connection *conn, BerElement *ber,
 					*has_tombstone_filter = tombstone_check_filter(f);
 				}
 			} 
+
+			if ( 0 == strcasecmp ( f->f_avtype, "nsuniqueid")) {
+				/*
+				 * Check if it's a RUV filter.
+				 * We need to do it once per filter, so if flag is already set,
+				 * don't bother doing it
+				 */
+				if (!(*has_ruv_filter)) {
+					*has_ruv_filter = ruv_check_filter(f);
+				}
+			}
+
 			*fstr=filter_escape_filter_value(f, FILTER_EQ_FMT, FILTER_EQ_LEN);
 		}
 		break;
@@ -342,7 +358,8 @@ get_filter_internal( Connection *conn, BerElement *ber,
 	case LDAP_FILTER_AND:
 		LDAPDebug( LDAP_DEBUG_FILTER, "AND\n", 0, 0, 0 );
 		if ( (err = get_filter_list( conn, ber, &f->f_and, &ftmp, maxdepth,
-					curdepth, subentry_dont_rewrite, has_tombstone_filter ))
+					curdepth, subentry_dont_rewrite,
+					has_tombstone_filter, has_ruv_filter ))
 					== 0 ) {
 			filter_compute_hash(f);
 			*fstr = slapi_ch_smprintf( "(&%s)", ftmp );
@@ -353,7 +370,8 @@ get_filter_internal( Connection *conn, BerElement *ber,
 	case LDAP_FILTER_OR:
 		LDAPDebug( LDAP_DEBUG_FILTER, "OR\n", 0, 0, 0 );
 		if ( (err = get_filter_list( conn, ber, &f->f_or, &ftmp, maxdepth,
-					curdepth, subentry_dont_rewrite, has_tombstone_filter ))
+					curdepth, subentry_dont_rewrite,
+					has_tombstone_filter, has_ruv_filter ))
 					== 0 ) {
 			filter_compute_hash(f);
 			*fstr = slapi_ch_smprintf( "(|%s)", ftmp );
@@ -365,7 +383,8 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		LDAPDebug( LDAP_DEBUG_FILTER, "NOT\n", 0, 0, 0 );
 		(void) ber_skip_tag( ber, &len );
 		if ( (err = get_filter_internal( conn, ber, &f->f_not, &ftmp, maxdepth,
-					curdepth, subentry_dont_rewrite, has_tombstone_filter ))
+					curdepth, subentry_dont_rewrite,
+					has_tombstone_filter, has_ruv_filter ))
 					== 0 ) {
 			filter_compute_hash(f);
 			*fstr = slapi_ch_smprintf( "(!%s)", ftmp );
@@ -394,7 +413,7 @@ static int
 get_filter_list( Connection *conn, BerElement *ber,
 				struct slapi_filter **f, char **fstr, int maxdepth,
 				int curdepth, int *subentry_dont_rewrite,
-				int *has_tombstone_filter)
+				int *has_tombstone_filter, int* has_ruv_filter)
 {
 	struct slapi_filter	**new;
 	int		err;
@@ -411,7 +430,8 @@ get_filter_list( Connection *conn, BerElement *ber,
 	    tag = ber_next_element( ber, &len, last ) ) {
 		char *ftmp;
 		if ( (err = get_filter_internal( conn, ber, new, &ftmp, maxdepth,
-					curdepth, subentry_dont_rewrite, has_tombstone_filter))
+					curdepth, subentry_dont_rewrite,
+					has_tombstone_filter, has_ruv_filter))
 					!= 0 ) {
 		    if ( *fstr != NULL ) {
 			slapi_ch_free((void**)fstr );
@@ -1449,6 +1469,17 @@ tombstone_check_filter(Slapi_Filter *f)
 	}
 	return 0; /* Not nsTombstone filter */
 }
+
+
+static int
+ruv_check_filter(Slapi_Filter *f)
+{
+	if ( 0 == strcasecmp ( f->f_avvalue.bv_val, "ffffffff-ffffffff-ffffffff-ffffffff")) {
+		return 1; /* Contains a RUV filter */
+	}
+	return 0; /* Not a RUV filter */
+}
+
 
 /* filter_optimize
  * ---------------

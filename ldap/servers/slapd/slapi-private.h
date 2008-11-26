@@ -68,6 +68,7 @@ extern "C" {
 /* filter */
 #define SLAPI_FILTER_LDAPSUBENTRY 1
 #define SLAPI_FILTER_TOMBSTONE 2
+#define SLAPI_FILTER_RUV 4
 #define SLAPI_ENTRY_LDAPSUBENTRY 2
 
 /*
