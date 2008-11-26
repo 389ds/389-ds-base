@@ -5387,6 +5387,21 @@ static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_
 
 		return CL5_SUCCESS;
 	}
+	/*
+	 * Bug 430172 - memory leaks after db "get" deadlocks, e.g. in CL5 trim
+	 * Even when db->c_get() does not return success, memory may have been
+	 * allocated in the DBT.  This seems to happen when DB_DBT_MALLOC was set, 
+	 * the data being retrieved is larger than the page size, and we got 
+	 * DB_LOCK_DEADLOCK. libdb allocates the memory and then finds itself 
+	 * deadlocked trying to go through the overflow page list.  It returns 
+	 * DB_LOCK_DEADLOCK which we've assumed meant that no memory was allocated 
+	 * for the DBT.
+	 *
+	 * The following slapi_ch_free frees the memory only when the value is 
+	 * non NULL, which is true if the situation described above occurs.
+	 */
+	slapi_ch_free ((void **)&key.data);
+	slapi_ch_free ((void **)&data.data);
 
 	/* walked of the end of the file */
 	if (rc == DB_NOTFOUND)
@@ -5456,6 +5471,21 @@ static int _cl5GetNextEntry (CL5Entry *entry, void *iterator)
 
 		return rc;
 	}
+	/*
+	 * Bug 430172 - memory leaks after db "get" deadlocks, e.g. in CL5 trim
+	 * Even when db->c_get() does not return success, memory may have been
+	 * allocated in the DBT.  This seems to happen when DB_DBT_MALLOC was set, 
+	 * the data being retrieved is larger than the page size, and we got 
+	 * DB_LOCK_DEADLOCK. libdb allocates the memory and then finds itself 
+	 * deadlocked trying to go through the overflow page list.  It returns 
+	 * DB_LOCK_DEADLOCK which we've assumed meant that no memory was allocated 
+	 * for the DBT.
+	 *
+	 * The following slapi_ch_free frees the memory only when the value is 
+	 * non NULL, which is true if the situation described above occurs.
+	 */
+	slapi_ch_free ((void **)&key.data);
+	slapi_ch_free ((void **)&data.data);
 
 	/* walked of the end of the file or entry is out of range */
 	if (rc == 0 || rc == DB_NOTFOUND)
