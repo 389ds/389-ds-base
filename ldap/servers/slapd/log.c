@@ -277,14 +277,14 @@ void g_log_init(int log_enabled)
 	loginfo.log_access_rotationsynchour = -1;
 	loginfo.log_access_rotationsyncmin = -1;
 	loginfo.log_access_rotationsyncclock = -1;
-	loginfo.log_access_rotationtime = -1;
-	loginfo.log_access_rotationunit =  -1;
-	loginfo.log_access_rotationtime_secs = -1;
+	loginfo.log_access_rotationtime = 1;                  /* default: 1 */
+	loginfo.log_access_rotationunit = LOG_UNIT_DAYS;      /* default: day */
+	loginfo.log_access_rotationtime_secs = 86400;         /* default: 1 day */
 	loginfo.log_access_maxdiskspace =  -1;
 	loginfo.log_access_minfreespace =  -1;
-	loginfo.log_access_exptime =  -1;
-	loginfo.log_access_exptimeunit =  -1;
-	loginfo.log_access_exptime_secs = -1;
+	loginfo.log_access_exptime =  -1;                     /* default: -1 */
+	loginfo.log_access_exptimeunit =  LOG_UNIT_MONTHS;    /* default: month */
+	loginfo.log_access_exptime_secs = -1;                 /* default: -1 */
 	loginfo.log_access_level = LDAP_DEBUG_STATS;
 	loginfo.log_access_ctime = 0L;
 	loginfo.log_access_fdes = NULL;
@@ -307,14 +307,14 @@ void g_log_init(int log_enabled)
 	loginfo.log_error_rotationsynchour = -1;
 	loginfo.log_error_rotationsyncmin = -1;
 	loginfo.log_error_rotationsyncclock = -1;
-	loginfo.log_error_rotationtime = -1;
-	loginfo.log_error_rotationunit =  -1;
-	loginfo.log_error_rotationtime_secs = -1;
+	loginfo.log_error_rotationtime = 1;                   /* default: 1 */
+	loginfo.log_error_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
+	loginfo.log_error_rotationtime_secs = 604800;         /* default: 1 week */
 	loginfo.log_error_maxdiskspace =  -1;
 	loginfo.log_error_minfreespace =  -1;
-	loginfo.log_error_exptime =  -1;
-	loginfo.log_error_exptimeunit =  -1;
-	loginfo.log_error_exptime_secs = -1;
+	loginfo.log_error_exptime =  -1;                      /* default: -1 */
+	loginfo.log_error_exptimeunit =  LOG_UNIT_MONTHS;     /* default: month */
+	loginfo.log_error_exptime_secs = -1;                  /* default: -1 */
 	loginfo.log_error_ctime = 0L;
 	loginfo.log_error_file = NULL;
 	loginfo.log_error_fdes = NULL;
@@ -333,14 +333,14 @@ void g_log_init(int log_enabled)
 	loginfo.log_audit_rotationsynchour = -1;
 	loginfo.log_audit_rotationsyncmin = -1;
 	loginfo.log_audit_rotationsyncclock = -1;
-	loginfo.log_audit_rotationtime = -1;
-	loginfo.log_audit_rotationunit =  -1;
-	loginfo.log_audit_rotationtime_secs = -1;
+	loginfo.log_audit_rotationtime = 1;                   /* default: 1 */
+	loginfo.log_audit_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
+	loginfo.log_audit_rotationtime_secs = 604800;         /* default: 1 week */
 	loginfo.log_audit_maxdiskspace =  -1;
 	loginfo.log_audit_minfreespace =  -1;
-	loginfo.log_audit_exptime =  -1;
-	loginfo.log_audit_exptimeunit =  -1;
-	loginfo.log_audit_exptime_secs = -1;
+	loginfo.log_audit_exptime =  -1;                      /* default: -1 */
+	loginfo.log_audit_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
+	loginfo.log_audit_exptime_secs = -1;                  /* default: -1 */
 	loginfo.log_audit_ctime = 0L;
 	loginfo.log_audit_file = NULL;
 	loginfo.log_numof_audit_logs = 1;
@@ -1416,19 +1416,19 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:
 		LOG_ACCESS_LOCK_WRITE( );
- 		loginfo.log_access_exptime = exptime;
+		loginfo.log_access_exptime = exptime;
 		eunit = loginfo.log_access_exptimeunit;
 		rsec = loginfo.log_access_rotationtime_secs;
 		break;
 	   case SLAPD_ERROR_LOG:
 		LOG_ERROR_LOCK_WRITE( );
- 		loginfo.log_error_exptime = exptime;
+		loginfo.log_error_exptime = exptime;
 		eunit = loginfo.log_error_exptimeunit;
 		rsec = loginfo.log_error_rotationtime_secs;
 		break;
 	   case SLAPD_AUDIT_LOG:
 		LOG_AUDIT_LOCK_WRITE( );
- 		loginfo.log_audit_exptime = exptime;
+		loginfo.log_audit_exptime = exptime;
 		eunit = loginfo.log_audit_exptimeunit;
 		rsec = loginfo.log_audit_rotationtime_secs;
 		break;
@@ -1437,22 +1437,22 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 		eunit = -1;
 	}
 	
-	if (eunit == LOG_UNIT_MONTHS) {
-		value = 31 * 24 * 60 * 60 * exptime;
-	} else if (eunit == LOG_UNIT_WEEKS) {
-		value = 7 * 24 * 60 * 60 * exptime;
-	} else if (eunit == LOG_UNIT_DAYS) {
-		value = 24 * 60 * 60 * exptime;
-	} else  {
-		/* In this case we don't expire */
-		value = -1;
+	value = -1;	/* never expires, by default */
+	if (exptime > 0) {
+		if (eunit == LOG_UNIT_MONTHS) {
+			value = 31 * 24 * 60 * 60 * exptime;
+		} else if (eunit == LOG_UNIT_WEEKS) {
+			value = 7 * 24 * 60 * 60 * exptime;
+		} else if (eunit == LOG_UNIT_DAYS) {
+			value = 24 * 60 * 60 * exptime;
+		}
 	}
 	
 	if (value > 0 && value < rsec) {
 		value = rsec;
-	}
-	if (exptime > 0 && value < 0) {
-		value = PR_INT32_MAX; /* overflown */
+	} else if (exptime > 0 && value < -1) {
+		/* value is overflown */
+		value = PR_INT32_MAX; 
 	}
 
 	switch (logtype) {
@@ -1488,7 +1488,8 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 {
 	int	value = 0;
 	int	rv = 0;
-	int	etimeunit, rsecs;
+	int	exptime, rsecs;
+	int	*exptimeunitp = NULL;
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
 	if ( logtype != SLAPD_ACCESS_LOG &&
@@ -1523,33 +1524,50 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:
 		LOG_ACCESS_LOCK_WRITE( );
-		etimeunit = loginfo.log_access_exptime;
+		exptime = loginfo.log_access_exptime;
 		rsecs = loginfo.log_access_rotationtime_secs;
+		exptimeunitp = &(loginfo.log_access_exptimeunit);
 		break;
 	   case SLAPD_ERROR_LOG:
 		LOG_ERROR_LOCK_WRITE( );
-		etimeunit = loginfo.log_error_exptime;
+		exptime = loginfo.log_error_exptime;
 		rsecs = loginfo.log_error_rotationtime_secs;
+		exptimeunitp = &(loginfo.log_error_exptimeunit);
 		break;
 	   case SLAPD_AUDIT_LOG:
 		LOG_AUDIT_LOCK_WRITE( );
-		etimeunit = loginfo.log_audit_exptime;
+		exptime = loginfo.log_audit_exptime;
 		rsecs = loginfo.log_audit_rotationtime_secs;
+		exptimeunitp = &(loginfo.log_audit_exptimeunit);
 		break;
 	   default:
 		rv = 1;
-		etimeunit = -1;
+		exptime = -1;
 		rsecs = -1;
 	}
 
+	value = -1;
 	if (strcasecmp(expunit, "month") == 0) {
-		value = 31 * 24 * 60 * 60 * etimeunit;
+		if (exptime > 0) {
+			value = 31 * 24 * 60 * 60 * exptime;
+		}
+		if (exptimeunitp) {
+			*exptimeunitp = LOG_UNIT_MONTHS;
+		}
 	} else if (strcasecmp(expunit, "week") == 0) {
-	 	value = 7 * 24 * 60 * 60 * etimeunit;
+		if (exptime > 0) {
+		 	value = 7 * 24 * 60 * 60 * exptime;
+		}
+		if (exptimeunitp) {
+			*exptimeunitp = LOG_UNIT_WEEKS;
+		}
 	} else if (strcasecmp(expunit, "day") == 0) {
-	 	value = 24 * 60 * 60 * etimeunit;
-	} else { 
-	  value = -1;
+		if (exptime > 0) {
+		 	value = 24 * 60 * 60 * exptime;
+		}
+		if (exptimeunitp) {
+			*exptimeunitp = LOG_UNIT_DAYS;
+		}
 	}
 
 	if ((value > 0) && value < rsecs) {
