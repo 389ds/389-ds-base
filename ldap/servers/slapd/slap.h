@@ -1601,7 +1601,6 @@ typedef void (*ps_wakeup_all_fn_ptr)( void );
 typedef void (*ps_service_fn_ptr)(Slapi_Entry *, Slapi_Entry *, int, int );
 typedef char *(*get_config_dn_fn_ptr)();
 typedef void (*get_disconnect_server_fn_ptr)(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
-typedef int (*slapd_SSL_client_init_fn_ptr)( void );
 typedef int (*modify_config_dse_fn_ptr)( Slapi_PBlock *pb );
 typedef int (*slapd_ssl_init_fn_ptr)( void );
 typedef int (*slapd_ssl_init_fn_ptr2)( PRFileDesc **s, int StartTLS);
@@ -1614,7 +1613,6 @@ typedef struct _slapdEntryPoints {
     caddr_t	sep_ps_wakeup_all;
     caddr_t	sep_ps_service;
     caddr_t	sep_disconnect_server;
-    caddr_t	sep_slapd_SSL_client_init;
     caddr_t	sep_slapd_ssl_init;
     caddr_t	sep_slapd_ssl_init2;
 } slapdEntryPoints;

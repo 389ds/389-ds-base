@@ -1036,9 +1036,6 @@ get_entry_point( int ep_name, caddr_t *ep_addr )
         case ENTRY_POINT_DISCONNECT_SERVER:
         	*ep_addr = sep->sep_disconnect_server;
         	break;
-        case ENTRY_POINT_SLAPD_SSL_CLIENT_INIT:
-        	*ep_addr = sep->sep_slapd_SSL_client_init;
-        	break;
         case ENTRY_POINT_SLAPD_SSL_INIT:
         	*ep_addr = sep->sep_slapd_ssl_init;
         	break;

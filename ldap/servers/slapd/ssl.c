@@ -459,6 +459,14 @@ slapd_nss_init(int init_ssl, int config_available)
 		rv = -1;
 	}
 
+	if(SSLPLCY_Install() != PR_SUCCESS) {
+		errorCode = PR_GetError();
+		slapd_SSL_warn("Security Initialization: Unable to set SSL export policy ("
+					   SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
+					   errorCode, slapd_pr_strerror(errorCode));
+		return -1;
+	}
+
     /****** end of NSS Initialization ******/
 
     slapi_ch_free_string(&certdir);
@@ -621,15 +629,6 @@ slapd_ssl_init() {
 	freeChildren( family_list );
     }
 	freeConfigEntry( &entry );
-
-    if(SSLPLCY_Install() != PR_SUCCESS) {
-        errorCode = PR_GetError();
-	slapd_SSL_warn("Security Initialization: Unable to set SSL export policy ("
-		       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
-		       errorCode, slapd_pr_strerror(errorCode));
-	return -1;
-    }
-
 
     /* ugaston- Cipher preferences must be set before any sslSocket is created
      * for such sockets to take preferences into account.
@@ -1041,12 +1040,6 @@ We already do pr_init, we don't need pr_setconcurrency, we already do nss_init a
 */   
 
 int
-slapd_SSL_client_init()
-{
-    return 0;
-}
-
-int
 slapd_SSL_client_auth (LDAP* ld)
 {
     int rc = 0;
@@ -1204,111 +1197,6 @@ slapd_SSL_client_auth (LDAP* ld)
     LDAPDebug (LDAP_DEBUG_TRACE, "slapd_SSL_client_auth() %i\n", rc, 0, 0);
     return rc;
 }
-
-int
-slapd_simple_client_bind_s(LDAP* ld, char* DN, char* pw, int LDAPv)
-{
-    int rc;
-    PRErrorCode errorCode;
-
-    ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, (void *) &LDAPv);
-    rc = ldap_simple_bind_s (ld, DN, pw);
-    if (rc != 0) {
-      errorCode = PR_GetError();
-      slapd_SSL_warn("ldap_simple_bind_s(%s, %s) %i (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-		     DN, pw, rc, errorCode, slapd_pr_strerror(errorCode));
-    }
-    LDAPDebug (LDAP_DEBUG_TRACE, "slapd_simple_client_bind_s(%s, %i) %i\n", DN, LDAPv, rc);
-    return rc;
-}
-
-int
-slapd_SSL_client_bind_s (LDAP* ld, char* DN, char* pw, int use_SSL, int LDAPv)
-{
-    int rc;
-    struct berval noCred = {0, 0};
-
-    if (!use_SSL || LDAPv == LDAP_VERSION2) {
-		rc = slapd_simple_client_bind_s(ld, DN, pw, LDAPv);
-    } else {
-      
-                LDAPDebug (
-			   LDAP_DEBUG_TRACE,
-			   "slapd_SSL_client_bind_s: Trying SSL Client Authentication\n",
-			   0, 0, 0);
-		
-		rc = slapd_SSL_client_auth(ld);
-		
-		if(rc != 0)
-		{
-		        LDAPDebug (
-				   LDAP_DEBUG_TRACE,
-				   "slapd_SSL_client_bind_s: SSL Client Auth Failed during replication Bind\n",
-				   0, 0, 0);
-			return rc;
-		}
-									      
-		rc = ldap_sasl_bind_s (ld, "", LDAP_SASL_EXTERNAL, &noCred,
-				       NULL /* LDAPControl **serverctrls */,
-				       NULL /* LDAPControl **clientctrls */,
-				       NULL /* struct berval **servercredp */);		
-
-    }
-    LDAPDebug (
-	       LDAP_DEBUG_TRACE,
-	       "slapd_SSL_client_bind_s(%i,%i) %i\n", use_SSL, LDAPv, rc);
-    return rc;
-}
-
-int
-slapd_sasl_ext_client_bind (LDAP* ld, int **msgid)
-{
-    int rc;
-    PRErrorCode errorCode;
-    struct berval noCred = {0, 0};
-
-	LDAPDebug (
-		LDAP_DEBUG_TRACE,
-		"slapd_sasl_ext_client_bind: Trying SSL Client Authentication\n",
-		0, 0, 0);
-		
-	rc = slapd_SSL_client_auth(ld);
-	if(rc != 0)
-	{
-		LDAPDebug (
-			LDAP_DEBUG_TRACE,
-			"slapd_sasl_ext_client_bind: SSL Client Auth Failed during replication Bind\n",
-			0, 0, 0);
-		return rc;
-	}
-										  
-	rc = ldap_sasl_bind (ld, "", LDAP_SASL_EXTERNAL, &noCred,
-		NULL, 
-		NULL,
-		*msgid);		
-	if (rc != 0) {
-	        errorCode = PR_GetError();
-		slapd_SSL_warn("ldap_sasl_bind(\"\",LDAP_SASL_EXTERNAL) %i (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-			       rc, errorCode, slapd_pr_strerror(errorCode));
-	}
-	
-	LDAPDebug (
-		LDAP_DEBUG_TRACE,
-		"slapd_sasl_ext_client_bind %i\n", rc, 0, 0);
-
-	return rc;
-}
-
-
-int slapd_Client_auth(LDAP* ld)
-{
-	int rc=0;
-
-	rc = slapd_SSL_client_auth (ld);
-
-	return rc;
-}
-
 
 /* Function for keeping track of the SSL initialization status:
  *      - returns 1: when slapd_ssl_init has been executed

@@ -318,15 +318,6 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 
 			int version=LDAP_VERSION3;
 
-			/* check wether the security libraries are correctly initialized */
-			if (secure && slapd_security_library_is_initialized() != 1) {
-			    slapi_log_error(
-					    SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-					    "SSL Not Initialized, Chaining Backend over SSL FAILED\n");
-			    rc = LDAP_CONNECT_ERROR;
-			    goto unlock_and_return;
-			 }
-
             		/*
              		 * we have not exceeded the maximum number of connections allowed,
              		 * so we initialize a new one and add it to the end of our list.

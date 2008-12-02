@@ -899,9 +899,6 @@ void do_search( Slapi_PBlock *pb );
 /*
  * ssl.c
  */
-int slapd_SSL_client_init();
-int slapd_SSL_client_bind_s( LDAP* ld, char* DN, char* pw, int use_SSL, int LDAPv);
-int slapd_sasl_ext_client_bind( LDAP* ld, int **msgid);
 int slapd_nss_init(int init_ssl, int config_available);
 int slapd_ssl_init();
 int slapd_ssl_init2(PRFileDesc **fd, int startTLS);

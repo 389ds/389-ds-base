@@ -165,7 +165,6 @@ set_entry_points()
     sep->sep_ps_wakeup_all = (caddr_t)ps_wakeup_all;
     sep->sep_ps_service = (caddr_t)ps_service_persistent_searches;
     sep->sep_disconnect_server = (caddr_t)disconnect_server;
-    sep->sep_slapd_SSL_client_init = (caddr_t)slapd_SSL_client_init;
     sep->sep_slapd_ssl_init = (caddr_t)slapd_ssl_init;
     sep->sep_slapd_ssl_init2 = (caddr_t)slapd_ssl_init2;
     set_dll_entry_points( sep );

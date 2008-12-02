@@ -1108,11 +1108,7 @@ time_t read_genTime(struct berval* from);
 time_t parse_genTime(char* from);
 
 /* Client SSL code */
-int slapd_SSL_client_init( void );
 int slapd_security_library_is_initialized( void );
-int slapd_SSL_client_bind_s(LDAP* ld, char* DN, char* pw, int use_SSL, int LDAPv);
-int slapd_sasl_ext_client_bind(LDAP* ld, int **msgid);
-int slapd_Client_auth(LDAP* ld);
 char* slapd_get_tmp_dir( void );
 
 /* Misc crrrrrrap */

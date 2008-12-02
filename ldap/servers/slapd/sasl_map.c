@@ -320,6 +320,7 @@ sasl_map_read_config_startup(sasl_map_private *priv)
 		sasl_map_data *dp = NULL;
 
 		for (map_entry = map_entry_list; *map_entry && !ret; map_entry++) {
+			LDAPDebug( LDAP_DEBUG_CONFIG, "sasl_map_read_config_startup - proceesing [%s]\n", *map_entry, 0, 0 );
  			getConfigEntry( *map_entry, &entry );
 			if ( entry == NULL ) {
 				continue;
@@ -331,6 +332,8 @@ sasl_map_read_config_startup(sasl_map_private *priv)
 				ret = sasl_map_insert_list_entry(priv,dp);
 				if (ret) {
 					LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_read_config_startup failed to insert entry\n", 0, 0, 0 );
+				} else {
+					LDAPDebug( LDAP_DEBUG_CONFIG, "sasl_map_read_config_startup - processed [%s]\n", *map_entry, 0, 0 );
 				}
 			}
 			freeConfigEntry( &entry );
@@ -513,6 +516,7 @@ sasl_map_domap(char *sasl_user, char *sasl_realm, char **ldap_search_base, char 
 	while (this_map) {
 		int matched = 0;
 		/* If one matches, then make the search params */
+		LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_domap - trying map [%s]\n", this_map->name, 0, 0 );
 		matched = sasl_map_check(this_map, sasl_user_and_realm, ldap_search_base, ldap_search_filter);
 		if (1 == matched) {
 			ret = 1;

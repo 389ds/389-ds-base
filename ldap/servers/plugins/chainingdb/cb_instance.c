@@ -1380,11 +1380,17 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
     			( phase != CB_CONFIG_PHASE_STARTUP )) {
 
 			/* Dynamic modif */
-			charray_add(&inst->pool->waste_basket,inst->pool->mech);
+			if (inst->pool->mech) {
+			    charray_add(&inst->pool->waste_basket,inst->pool->mech);
+			}
 			rc=CB_REOPEN_CONN;
 		}
 
-		inst->pool->mech=slapi_ch_strdup((char *) value);
+		if (value && !PL_strcasecmp((char *) value, CB_SIMPLE_BINDMECH)) {
+		    inst->pool->mech=slapi_ch_strdup(LDAP_SASL_SIMPLE);
+		} else {
+		    inst->pool->mech=slapi_ch_strdup((char *) value);
+		}
                	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
 	return rc;
@@ -1513,8 +1519,12 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
                 /* Remember the get function for strings returns memory
                  * that must be freed. */
                 tmp_string = (char *) config->config_get_fn(arg);
-                PR_snprintf(buf, CB_BUFSIZE, "%s", (char *) tmp_string);
-                slapi_ch_free((void **)&tmp_string);
+                if (tmp_string) {
+                    PR_snprintf(buf, CB_BUFSIZE, "%s", (char *) tmp_string);
+                    slapi_ch_free_string(&tmp_string);
+                } else {
+                    buf[0] = '\0';
+                }
                 break;
         case CB_CONFIG_TYPE_ONOFF:
                 if ((int) ((uintptr_t)config->config_get_fn(arg))) {
@@ -1606,8 +1616,11 @@ int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 
                 val.bv_val = buf;
                 val.bv_len = strlen(buf);
-		if (val.bv_len) 
-                	slapi_entry_attr_replace(e, config->config_name, vals);
+                if (val.bv_len) {
+                    slapi_entry_attr_replace(e, config->config_name, vals);
+                } else {
+                    slapi_entry_attr_delete(e, config->config_name);
+                }
         }
 
         *returncode = LDAP_SUCCESS;

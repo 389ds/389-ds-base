@@ -168,6 +168,8 @@
 #define CB_DEF_STARTTLS			"off"	/* CB_CONFIG_STARTTLS */
 #define CB_DEF_BINDMECH			LDAP_SASL_SIMPLE	/* CB_CONFIG_BINDMECH */
 
+#define CB_SIMPLE_BINDMECH			"SIMPLE" /* will be translated to LDAP_SASL_SIMPLE */
+
 typedef void *cb_config_get_fn_t(void *arg);
 typedef int cb_config_set_fn_t(void *arg, void *value, char *errorbuf, int phase, int apply);
 typedef struct _cb_instance_config_info {

@@ -949,30 +949,25 @@ conn_connect(Repl_Connection *conn)
 	/* ugaston: if SSL has been selected in the replication agreement, SSL client
 	 * initialisation should be done before ever trying to open any connection at all.
 	 */
-	if ((conn->transport_flags == TRANSPORT_FLAG_TLS) ||
-		(conn->transport_flags == TRANSPORT_FLAG_SSL))
-	{
+	if (conn->transport_flags == TRANSPORT_FLAG_TLS) {
+		secure = 2;
+	} else if (conn->transport_flags == TRANSPORT_FLAG_SSL) {
+		secure = 1;
+	}
 
-		/** Make sure the SSL Library has been initialized before anything else **/
-		if(slapd_security_library_is_initialized() != 1)
-		{
+	if (secure > 0) {
+		if (!NSS_IsInitialized()) {
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: SSL Not Initialized, Replication over SSL FAILED\n",
-				agmt_get_long_name(conn->agmt));
+							"%s: SSL Not Initialized, Replication over SSL FAILED\n",
+							agmt_get_long_name(conn->agmt));
 			conn->last_ldap_error = LDAP_INAPPROPRIATE_AUTH;
 			conn->last_operation = CONN_INIT;
 			ber_bvfree(creds);
 			creds = NULL;
 			return CONN_SSL_NOT_ENABLED;
-		} else if (conn->transport_flags == TRANSPORT_FLAG_SSL)
-		{
-			secure = 1;
-		} else
-		{
-			secure = 2; /* 2 means starttls security */
 		}
 	}
- 
+
 	if (return_value == CONN_OPERATION_SUCCESS) {
 		int io_timeout_ms;
 		/* Now we initialize the LDAP Structure and set options */

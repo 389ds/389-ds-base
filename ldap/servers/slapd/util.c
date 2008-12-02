@@ -961,6 +961,7 @@ slapi_ldap_init_ext(
 	 */
 	if (secure > 0) {
 	    int ssl_strength = 0;
+	    LDAP *myld = NULL;
 
 	    if (config_get_ssl_check_hostname()) {
 		/* check hostname against name in certificate */
@@ -970,24 +971,23 @@ slapi_ldap_init_ext(
 		ssl_strength = LDAPSSL_AUTH_CERT;
 	    }
 
-	    /* Can only use ldapssl_set_strength on and LDAP* already
-	       initialized for SSL - this is not the case when using
-	       startTLS, so we use NULL to set the default for all
-	       new connections */
+	    /* we can only use the set functions below with a real
+	       LDAP* if it has already gone through ldapssl_init -
+	       so, use NULL if using starttls */
 	    if (secure == 1) {
-		rc = ldapssl_set_strength(ld, ssl_strength);
-	    } else {
-		rc = ldapssl_set_strength(NULL, ssl_strength);
+		myld = ld;
 	    }
 
-	    if (rc != 0) {
+	    if ((rc = ldapssl_set_strength(myld, ssl_strength)) ||
+		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL2, PR_FALSE)) ||
+		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL3, PR_TRUE)) ||
+		(rc = ldapssl_set_option(myld, SSL_ENABLE_TLS, PR_TRUE))) {
 		int prerr = PR_GetError();
 
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set SSL strength to %d ("
+				"failed: unable to set SSL options ("
 				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				ssl_strength, prerr,
-				slapd_pr_strerror(prerr));
+				prerr, slapd_pr_strerror(prerr));
 
 	    }
 	    if (secure == 1) {
@@ -1023,6 +1023,11 @@ slapi_ldap_init_ext(
 	ldap_controls_free(clientctrls); /* free the copy */
     }
 
+    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
+		    "Success: set up conn to [%s:%d]%s\n",
+		    hostname, port,
+		    (secure == 2) ? " using startTLS" :
+		    ((secure == 1) ? " using SSL" : ""));
 done:
     ldap_free_urldesc(ludp);
 
@@ -1092,7 +1097,10 @@ slapi_ldap_bind(
 			    "auth - error %d - make sure the server is "
 			    "correctly configured for SSL/TLS\n", rc);
 	    goto done;
-	}
+	} else {
+	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
+			    "Set up conn to use client auth\n");
+        }
 	bvcreds.bv_val = NULL; /* ignore username and passed in creds */
 	bvcreds.bv_len = 0; /* for external auth */
 	bindid = NULL;
@@ -1110,6 +1118,8 @@ slapi_ldap_bind(
 			    rc, ldap_err2string(rc));
 	    goto done;
 	}
+	slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
+			"startTLS started on connection\n");
     }
 
     /* The connection has been set up - now do the actual bind, depending on
@@ -1118,14 +1128,20 @@ slapi_ldap_bind(
 	!strcmp(mech, LDAP_SASL_EXTERNAL)) {
 	int mymsgid = 0;
 
+	slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
+			"attempting %s bind with id [%s] creds [%s]\n",
+			mech ? mech : "SIMPLE",
+			bindid, creds);
 	if ((rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
 				 NULL /* clientctrls */, &mymsgid))) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send bind request for id "
-			    "[%s] mech [%s]: error %d (%s)\n",
+			    "[%s] mech [%s]: error %d (%s) %d (%s) %d (%s)\n",
 			    bindid ? bindid : "(anon)",
 			    mech ? mech : "SIMPLE",
-			    rc, ldap_err2string(rc));
+			    rc, ldap_err2string(rc),
+			    PR_GetError(), slapd_pr_strerror(PR_GetError()),
+			    errno, slapd_system_strerror(errno));
 	    goto done;
 	}
 
