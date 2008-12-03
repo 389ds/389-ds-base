@@ -13,6 +13,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -24,6 +25,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -36,6 +38,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -48,6 +51,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -60,6 +64,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -72,6 +77,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -84,6 +90,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -96,6 +103,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -107,6 +115,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -118,6 +127,7 @@ attributeTypes: (
   EQUALITY booleanMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -129,6 +139,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{63}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -139,6 +150,7 @@ attributeTypes: (
   DESC 'Set of charsets supported for the attribute values of syntax DirectoryString for this directory entry.'
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{63}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -150,6 +162,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{63}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -161,6 +174,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -172,6 +186,7 @@ attributeTypes: (
   EQUALITY booleanMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -183,6 +198,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{255}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -195,6 +211,7 @@ attributeTypes: (
   ORDERING integerOrderingMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -207,6 +224,7 @@ attributeTypes: (
   ORDERING integerOrderingMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -218,6 +236,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{255}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -229,6 +248,7 @@ attributeTypes: (
   EQUALITY integerMatch
   ORDERING integerOrderingMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -239,6 +259,7 @@ attributeTypes: (
   DESC 'The number of impression sides (one or two) and the two-sided impression rotations supported by this printer.'
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -250,6 +271,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{255}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -261,6 +283,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{255}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -272,6 +295,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{255}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -282,6 +306,7 @@ attributeTypes: (
   DESC 'List of print qualities supported for printing documents on this printer.'
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -294,6 +319,7 @@ attributeTypes: (
   ORDERING integerOrderingMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -306,6 +332,7 @@ attributeTypes: (
   ORDERING integerOrderingMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -318,6 +345,7 @@ attributeTypes: (
   ORDERING integerOrderingMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -330,6 +358,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -342,6 +371,7 @@ attributeTypes: (
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
   SINGLE-VALUE
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -352,6 +382,7 @@ attributeTypes: (
   DESC 'The possible delivery orientations of pages as they are printed and ejected from this printer.'
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -362,6 +393,7 @@ attributeTypes: (
   DESC 'The possible stacking order of pages as they are printed and ejected from this printer.'
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -372,6 +404,7 @@ attributeTypes: (
   DESC 'The possible output features supported by this printer.'
   EQUALITY caseIgnoreMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -383,6 +416,7 @@ attributeTypes: (
   EQUALITY caseIgnoreMatch
   SUBSTR caseIgnoreSubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{127}
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -391,6 +425,7 @@ objectClasses: (
   
   NAME 'printer-uri'
   DESC 'A URI supported by this printer.'
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -402,6 +437,7 @@ objectClasses: (
   SUP top
   ABSTRACT
   MAY ( printer-name $ printer-natural-language-configured $ printer-location $ printer-info $ printer-more-info $ printer-make-and-model $ printer-multiple-document-jobs-supported $ printer-charset-configured $ printer-charset-supported $ printer-generated-natural-language-supported $ printer-document-format-supported $ printer-color-supported $ printer-compression-supported $ printer-pages-per-minute $ printer-pages-per-minute-color $ printer-finishings-supported $ printer-number-up-supported $ printer-sides-supported $ printer-media-supported $ printer-media-local-supported $ printer-resolution-supported $ printer-print-quality-supported $ printer-job-priority-supported $ printer-copies-supported $ printer-job-k-octets-supported $ printer-current-operator $ printer-service-person $ printer-delivery-orientation-supported $ printer-stacking-order-supported $ printer-output-features-supported )
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -413,6 +449,7 @@ objectClasses: (
   SUP printerAbstract
   STRUCTURAL
   MAY ( printer-uri $ printer-xri-supported )
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -424,6 +461,7 @@ objectClasses: (
   SUP printerAbstract
   AUXILIARY
   MAY ( printer-uri $ printer-xri-supported )
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -435,6 +473,7 @@ objectClasses: (
   SUP top
   AUXILIARY
   MAY ( printer-ipp-versions-supported $ printer-multiple-document-jobs-supported )
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################
@@ -447,6 +486,7 @@ objectClasses: (
   AUXILIARY
   MUST ( printer-name )
   MAY ( printer-aliases )
+  X-ORIGIN 'rfc3712'
   )
 #
 ################################################################################

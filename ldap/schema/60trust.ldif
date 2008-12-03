@@ -15,6 +15,7 @@ attributeTypes: (
   SUBSTR caseIgnoreIA5SubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
   SINGLE-VALUE
+  X-ORIGIN 'nss_ldap/pam_ldap'
   )
 #
 ################################################################################
@@ -26,6 +27,7 @@ attributeTypes: (
   EQUALITY caseIgnoreIA5Match
   SUBSTR caseIgnoreIA5SubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  X-ORIGIN 'nss_ldap/pam_ldap'
   )
 #
 ################################################################################
@@ -38,6 +40,7 @@ objectClasses: (
   AUXILIARY
   MUST ( trustModel )
   MAY ( accessTo )
+  X-ORIGIN 'nss_ldap/pam_ldap'
   )
 #
 ################################################################################
