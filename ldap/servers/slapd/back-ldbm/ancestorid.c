@@ -70,6 +70,8 @@ static void id2idl_hash_destroy(id2idl_hash *ht);
 static int ldbm_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid);
 static int check_cache(id2idl_hash *ht);
 static IDList *idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b);
+static int ldbm_ancestorid_default_create_index(backend *be);
+static int ldbm_ancestorid_new_idl_create_index(backend *be);
 
 static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
 {
@@ -157,6 +159,19 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
  *
  */
 int ldbm_ancestorid_create_index(backend *be)
+{
+	return (idl_get_idl_new()) ?
+		ldbm_ancestorid_new_idl_create_index(be) :
+	    ldbm_ancestorid_default_create_index(be);
+}
+
+/*
+ * Create the ancestorid index.  This version is safe to
+ * use whichever IDL mode is active.  However, it may be
+ * quite a bit slower than ldbm_ancestorid_new_idl_create_index()
+ * when the new mode is used, particularly with large databases.
+ */
+static int ldbm_ancestorid_default_create_index(backend *be)
 {
     int ret = 0;
     DB *db_pid    = NULL;
@@ -328,6 +343,181 @@ int ldbm_ancestorid_create_index(backend *be)
 
     return ret;
 }
+
+/*
+ * Create the ancestorid index.  This version expects to use
+ * idl_new_store_block() and should be used when idl_new != 0.
+ * It has lower overhead and can be faster than 
+ * ldbm_ancestorid_default_create_index(), particularly on
+ * large databases.  Cf. bug 469800.
+ */
+static int ldbm_ancestorid_new_idl_create_index(backend *be)
+{
+    int ret = 0;
+    DB *db_pid    = NULL;
+    DB *db_aid    = NULL;
+    DBT key  = {0};
+    DB_TXN *txn = NULL;
+    struct attrinfo *ai_pid = NULL;
+    struct attrinfo *ai_aid = NULL;
+    char keybuf[24];
+    IDList *nodes = NULL;
+    IDList *children = NULL;
+    NIDS nids;
+    ID id, parentid;
+
+    /*
+     * We need to iterate depth-first through the non-leaf nodes
+     * in the tree amassing an idlist of descendant ids for each node.
+     * We would prefer to go through the parentid keys just once from 
+     * highest id to lowest id but the btree ordering is by string
+     * rather than number. So we go through the parentid keys in btree
+     * order first of all to create an idlist of all the non-leaf nodes.
+     * Then we can use the idlist to iterate through parentid in the
+     * correct order.
+     */
+
+    LDAPDebug(LDAP_DEBUG_TRACE, "Creating ancestorid index\n", 0,0,0);
+
+	/* Bail now if we did not get here honestly. */
+	if (!idl_get_idl_new()) {
+		LDAPDebug(LDAP_DEBUG_ANY, "Cannot create ancestorid index.  " 
+			"New IDL version called but idl_new is false!\n", 0,0,0);
+		return 1;
+	}
+
+    /* Get the non-leaf node IDs */
+    ret = ldbm_get_nonleaf_ids(be, txn, &nodes);
+    if (ret != 0) return ret;
+
+    /* Get the ancestorid index */
+    ainfo_get(be, "ancestorid", &ai_aid);
+
+    /* Prevent any other use of the index */
+    ai_aid->ai_indexmask |= INDEX_OFFLINE;
+
+    /* Open the ancestorid index file */
+    ret = dblayer_get_index_file(be, ai_aid, &db_aid, DBOPEN_CREATE);
+    if (ret != 0) {
+        ldbm_nasty(sourcefile,13050,ret);
+        goto out;
+    }
+
+    /* Maybe nothing to do */
+    if (nodes == NULL || nodes->b_nids == 0) {
+        LDAPDebug(LDAP_DEBUG_ANY, "Nothing to do to build ancestorid index\n",
+                  0, 0, 0);
+        goto out;
+    }
+
+    /* Get the parentid index */
+    ainfo_get( be, "parentid", &ai_pid );
+
+    /* Open the parentid index file */
+    ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
+    if (ret != 0) {
+        ldbm_nasty(sourcefile,13060,ret);
+        goto out;
+    }
+
+    /* Initialize key DBT */
+    key.data = keybuf;
+    key.ulen = sizeof(keybuf);
+    key.flags = DB_DBT_USERMEM;
+
+    /* Iterate from highest to lowest ID */
+    nids = nodes->b_nids;
+    do {
+
+        nids--;
+        id = nodes->b_ids[nids];
+
+        /* Get immediate children from parentid index */
+        key.size = PR_snprintf(key.data, key.ulen, "%c%lu", 
+                               EQ_PREFIX, (u_long)id);
+        key.size++;             /* include the null terminator */
+        ret = NEW_IDL_NO_ALLID;
+        children = idl_fetch(be, db_pid, &key, txn, ai_pid, &ret);
+        if (ret != 0) {
+            ldbm_nasty(sourcefile,13070,ret);
+            break;
+        }
+
+		/* Instead of maintaining a full accounting of IDs in a hashtable
+		 * as is done with ldbm_ancestorid_default_create_index(), perform
+		 * incremental updates straight to the DB with idl_new_store_block()
+		 * (used by idl_store_block() when idl_get_idl_new() is true).  This 
+		 * can be a significant performance improvement with large databases,
+		 * where  the overhead of maintaining and copying the lists is very
+		 * expensive, particularly when the allids threshold is not being
+		 * used to provide any cut off.  Cf. bug 469800.
+		 * TEL 20081029 */
+
+        /* Insert into ancestorid for this node */
+        ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
+		if (ret != 0) {
+			idl_free(children);
+			break;
+		}
+
+        /* Get parentid for this entry */
+        ret = ldbm_parentid(be, txn, id, &parentid);
+        if (ret != 0) {
+            idl_free(children);
+            break;
+        }
+
+        /* A suffix entry does not have a parent */
+        if (parentid == NOID) {
+            idl_free(children);
+            continue;
+        }
+
+		/* Reset the key to the parent id */
+		key.size = PR_snprintf(key.data, key.ulen, "%c%lu", 
+							   EQ_PREFIX, (u_long)parentid);
+        key.size++;
+
+        /* Insert into ancestorid for this node's parent */
+        ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
+		idl_free(children);
+		if (ret != 0) {
+			break;
+		}
+    } while (nids > 0);
+
+    if (ret != 0) {
+        goto out;
+    }
+
+ out:
+    if (ret == 0) {
+        LDAPDebug(LDAP_DEBUG_TRACE, "Created ancestorid index\n", 0,0,0);
+    } else {
+        LDAPDebug(LDAP_DEBUG_ANY, "Failed to create ancestorid index\n", 0,0,0);
+    }
+
+    /* Free any leftover idlists */
+    idl_free(nodes);
+
+    /* Release the parentid file */
+    if (db_pid != NULL) {
+        dblayer_release_index_file( be, ai_pid, db_pid );
+    }
+
+    /* Release the ancestorid file */
+    if (db_aid != NULL) {
+        dblayer_release_index_file( be, ai_aid, db_aid );
+    }
+
+    /* Enable the index */
+    if (ret == 0) {
+        ai_aid->ai_indexmask &= ~INDEX_OFFLINE;
+    }
+
+    return ret;
+}
+
 
 /*
  * Get parentid of an id by reading the operational attr from id2entry.
