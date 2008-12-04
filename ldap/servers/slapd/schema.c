@@ -1497,9 +1497,13 @@ read_schema_dse(
 			 (oc->oc_oid) ? oc->oc_oid : "",
 			 oc->oc_name);
 	/* The DESC (description) is OPTIONAL */
-	if (oc_description && *oc_description) {
+	if (oc_description) {
 	  strcat(psbObjectClasses->buffer, " DESC '");
-	  strcat(psbObjectClasses->buffer, oc_description);
+	    /* We want to list an empty description
+	     * element if it was defined that way. */
+	    if (*oc_description) {
+	      strcat(psbObjectClasses->buffer, oc_description);
+	    }
 	  strcat(psbObjectClasses->buffer, "'");
 	  need_extra_space = 1;
 	}
