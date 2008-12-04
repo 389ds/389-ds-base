@@ -1458,6 +1458,8 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 							"%s: Schema replication update failed: %s\n",
 							agmt_get_long_name(conn->agmt),
 							ldaperr == -1 ? "Unknown Error" : ldap_err2string(ldaperr));
+						return_value = CONN_OPERATION_FAILED;
+						break;
 						}
 					case CONN_NOT_CONNECTED:
 						return_value = CONN_NOT_CONNECTED;
