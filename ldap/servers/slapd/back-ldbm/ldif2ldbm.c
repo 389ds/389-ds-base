@@ -675,9 +675,61 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
     back_txn *txn = NULL;
     struct berval bv;
 
+    *err = 0;
     /* for each subtree spec... */
     for (i = 0; include[i]; i++) {
         IDList *idl = NULL;
+        char *suffix = slapi_sdn_get_ndn(*be->be_suffix);
+        char *parentdn = slapi_ch_strdup(suffix);
+        char *nextdn = NULL;
+        int matched = 0;
+        int issubsuffix = 0;
+        /*
+         * avoid a case that an include suffix is applied to the backend of 
+         * its sub suffix 
+         * e.g., suffix: dc=example,dc=com (backend userRoot)
+         *       sub suffix: ou=sub,dc=example,dc=com (backend subUserRoot)
+         * When this CLI db2ldif -s "dc=example,dc=com" is executed,
+         * skip checking "dc=example,dc=com" in entrydn of subUserRoot.
+         */
+        while (NULL != parentdn &&
+               NULL != (nextdn = slapi_dn_parent( parentdn ))) {
+            slapi_ch_free_string( &parentdn );
+            if (0 == slapi_utf8casecmp(nextdn, include[i])) {
+                issubsuffix = 1; /* suffix of be is a subsuffix of include[i] */
+                break;
+            }
+            parentdn = nextdn;
+        }
+        slapi_ch_free_string( &parentdn );
+        slapi_ch_free_string( &nextdn );
+        if (issubsuffix) {
+            continue;
+        }
+
+        /*
+         * avoid a case that an include suffix is applied to the unrelated
+         * backend.
+         * e.g., suffix: dc=example,dc=com (backend userRoot)
+         *       suffix: dc=test,dc=com (backend testRoot))
+         * When this CLI db2ldif -s "dc=example,dc=com" is executed,
+         * skip checking "dc=example,dc=com" in entrydn of testRoot.
+         */
+        parentdn = slapi_ch_strdup(include[i]);
+        while (NULL != parentdn &&
+               NULL != (nextdn = slapi_dn_parent( parentdn ))) {
+            slapi_ch_free_string( &parentdn );
+            if (0 == slapi_utf8casecmp(nextdn, suffix)) {
+                matched = 1;
+                break;
+            }
+            parentdn = nextdn;
+        }
+        slapi_ch_free_string( &parentdn );
+        slapi_ch_free_string( &nextdn );
+        if (!matched) {
+            continue;
+        }
 
         /* 
          * First map the suffix to its entry ID.
@@ -689,7 +741,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         if (idl == NULL) {
             if (DB_NOTFOUND == *err) {
                 LDAPDebug(LDAP_DEBUG_ANY,
-                    "warning: entrydn not indexed on '%s'; "
+                    "info: entrydn not indexed on '%s'; "
                     "entry %s may not be added to the database yet.\n",
                     include[i], include[i], 0);
                 *err = 0; /* not a problem */
@@ -787,6 +839,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     int              str2entry_options= 0;
     int              retry;
     int              we_start_the_backends = 0;
+    static int       load_dse = 1; /* We'd like to load dse just once. */
     int              server_running;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_ldbm2ldif\n", 0, 0, 0 );
@@ -805,7 +858,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         }
     }
 
-    if (we_start_the_backends) {
+    if (we_start_the_backends && load_dse) {
         /* No ldbm be's exist until we process the config information. */
 
         /*
@@ -815,6 +868,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
          *   WARNING: ldbm instance userRoot already exists
          */
         ldbm_config_load_dse_info(li);
+        load_dse = 0;
     }
 
     if (run_from_cmdline && li->li_dblayer_private->dblayer_private_mem
@@ -1004,17 +1058,19 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         int err;
 
         idl = ldbm_fetch_subtrees(be, include_suffix, &err);
-        if (! idl) {
-            /* most likely, indexes are bad. */
-            LDAPDebug(LDAP_DEBUG_ANY,
-                  "Failed to fetch subtree lists (error %d) %s\n",
-                  err, dblayer_strerror(err), 0);
-            LDAPDebug(LDAP_DEBUG_ANY,
-                  "Possibly the entrydn or ancestorid index is corrupted or "
-                  "does not exist.\n", 0, 0, 0);
-            LDAPDebug(LDAP_DEBUG_ANY,
-                  "Attempting direct unindexed export instead.\n",
-                  0, 0, 0);
+        if (NULL == idl) {
+            if (err) {
+                /* most likely, indexes are bad. */
+                LDAPDebug(LDAP_DEBUG_ANY,
+                      "Failed to fetch subtree lists (error %d) %s\n",
+                      err, dblayer_strerror(err), 0);
+                LDAPDebug(LDAP_DEBUG_ANY,
+                      "Possibly the entrydn or ancestorid index is corrupted "
+                      "or does not exist.\n", 0, 0, 0);
+                LDAPDebug(LDAP_DEBUG_ANY,
+                      "Attempting direct unindexed export instead.\n",
+                      0, 0, 0);
+            }
             ok_index = 0;
             idl = NULL;
         } else if (ALLIDS(idl)) {
@@ -1122,6 +1178,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         if (!ldbm_back_ok_to_dump(backentry_get_ndn(ep), include_suffix,
                       exclude_suffix)) {
             backentry_free( &ep );
+            cnt--;
             continue;
         }
         if(!dump_replica && slapi_entry_flag_is_set(ep->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE))

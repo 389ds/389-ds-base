@@ -1839,56 +1839,81 @@ process_command_line(int argc, char **argv, char *myname,
 
 static int
 lookup_instance_name_by_suffix(char *suffix,
-							   char ***suffixes, char ***instances, int isexact)
+                               char ***suffixes, char ***instances, int isexact)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Entry **entries = NULL, **ep;
     char *query;
-	char *backend;
-	char *fullsuffix;
-	int rval = -1;
+    char *backend;
+    char *fullsuffix;
+    int rval = -1;
 
     if (pb == NULL)
         goto done;
 
-	if (isexact)
-    	query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=\"%s\")(cn=%s)))", suffix, suffix);
-	else
-    	query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=*%s\")(cn=*%s)))", suffix, suffix);
+    if (isexact) {
+        query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=\"%s\")(cn=%s)))", suffix, suffix);
+        if (query == NULL)
+            goto done;
+    
+        slapi_search_internal_set_pb(pb, "cn=mapping tree,cn=config",
+            LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
+            (void *)plugin_get_default_component_id(), 0);
+        slapi_search_internal_pb(pb);
+        slapi_ch_free((void **)&query);
+    
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
+        if (rval != LDAP_SUCCESS)
+            goto done;
 
-    if (query == NULL)
-		goto done;
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if ((entries == NULL) || (entries[0] == NULL))
+            goto done;
 
-    slapi_search_internal_set_pb(pb, "cn=mapping tree,cn=config",
-        LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
-        (void *)plugin_get_default_component_id(), 0);
-    slapi_search_internal_pb(pb);
-    slapi_ch_free((void **)&query);
+    } else {
+        char *suffixp = suffix;
+        while (NULL != suffixp && strlen(suffixp) > 0) {
+            query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=*%s\")(cn=*%s)))", suffixp, suffixp);
+            if (query == NULL)
+                goto done;
+            slapi_search_internal_set_pb(pb, "cn=mapping tree,cn=config",
+                LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
+                (void *)plugin_get_default_component_id(), 0);
+            slapi_search_internal_pb(pb);
+            slapi_ch_free((void **)&query);
 
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
-    if (rval != LDAP_SUCCESS)
-		goto done;
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
+            if (rval != LDAP_SUCCESS)
+                goto done;
 
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-    if ((entries == NULL) || (entries[0] == NULL))
-		goto done;
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            if ((entries == NULL) || (entries[0] == NULL)) {
+                suffixp = strchr(suffixp, ',');    /* get a parent dn */
+                if (NULL != suffixp) {
+                    suffixp++;
+                }
+            } else {
+                break;    /* found backend entries */
+            }
+        }
+    }
 
-	rval = 0;
-	for (ep = entries; *ep; ep++) {
-		backend = slapi_entry_attr_get_charptr(*ep, "nsslapd-backend");
-		if (backend) {
-			charray_add(instances, backend);
-			if (suffixes) {
-				fullsuffix = slapi_entry_attr_get_charptr(*ep, "cn");
-				charray_add(suffixes, fullsuffix);	/* NULL is ok */
-			}
-		}
-	}
+    rval = 0;
+    for (ep = entries; *ep; ep++) {
+        backend = slapi_entry_attr_get_charptr(*ep, "nsslapd-backend");
+        if (backend) {
+            charray_add(instances, backend);
+            if (suffixes) {
+                fullsuffix = slapi_entry_attr_get_charptr(*ep, "cn");
+                charray_add(suffixes, fullsuffix);    /* NULL is ok */
+            }
+        }
+    }
 
 done:
-	slapi_free_search_results_internal(pb);
-	slapi_pblock_destroy(pb);
-	return rval;
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+    return rval;
 }
 
 int
@@ -2167,8 +2192,10 @@ slapd_exemode_db2ldif(int argc, char** argv)
 					0, 0, 0);
 				exit(1);
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY, "Backend Instance: %s\n",
-					*instances, 0, 0);
+				LDAPDebug(LDAP_DEBUG_ANY, "Backend Instance(s): \n", 0, 0, 0);
+				for (ip = instances, counter = 0; ip && *ip; ip++, counter++) {
+					LDAPDebug(LDAP_DEBUG_ANY, "\t%s\n", *ip, 0, 0);
+				}
 				cmd_line_instance_names = instances;
 			}
 		} else {
