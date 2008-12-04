@@ -709,6 +709,11 @@ repl_set_mtn_state_and_referrals(
 	int ii = 0;
 	char **referrals_to_set = NULL;
 	PRBool chain_on_update = is_chain_on_update_setup(repl_root_sdn);
+	if (NULL == mtn_state) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+						"repl_set_mtn_referrals: cannot set NULL state.\n");
+		return;
+	}
 
 	/* Fix for blackflag bug 601440: We want the new behaviour of DS,
 	** going forward, to now be that if the nsds5replicareferral attrib

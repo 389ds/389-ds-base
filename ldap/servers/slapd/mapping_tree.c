@@ -3043,6 +3043,10 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
         return LDAP_OPERATIONS_ERROR;
     }
 
+    if (NULL == state) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
     if ( (value = slapi_mtn_get_state(sdn)) != NULL )
     {
         if ( strcasecmp(value, state) == 0 )

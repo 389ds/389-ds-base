@@ -837,10 +837,12 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         {
             response = NSDS50_REPL_INTERNAL_ERROR;
 			/* reset the mapping tree state to what it was before
-			   we tried to do the bulk import */
-			repl_set_mtn_state_and_referrals(repl_root_sdn, mtnstate,
+			   we tried to do the bulk import if mtnstate exists */
+			if (mtnstate) {
+				repl_set_mtn_state_and_referrals(repl_root_sdn, mtnstate,
 											 NULL, NULL, mtnreferral);
-			slapi_ch_free_string(&mtnstate);
+				slapi_ch_free_string(&mtnstate);
+			}
 			charray_free(mtnreferral);
 			mtnreferral = NULL;
 			
