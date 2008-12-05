@@ -186,6 +186,14 @@ bin_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 {
 	int	i;
 
+	if (NULL == ivals) {
+		return 1;
+	}
+	*ivals = NULL;
+	if (NULL == bvals) {
+		return 1;
+	}
+
 	if ( ftype != LDAP_FILTER_EQUALITY ) {
 		return( LDAP_PROTOCOL_ERROR );
 	}

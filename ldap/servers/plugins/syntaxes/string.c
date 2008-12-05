@@ -357,9 +357,12 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 	Slapi_Value **bvlp;
 	char		*w, *c, *p;
 
+	if (NULL == ivals) {
+		return 1;
+	}
+	*ivals = NULL;
 	if (NULL == bvals) {
-		*ivals = NULL;
-		return 0;
+		return 1;
 	}
 
 	switch ( ftype ) {
@@ -435,7 +438,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
  		 * nsSubStrEnd: 2
  		 * [...]
  		 * 
- 		 * By default, begin == 2, middle == 3, end == 2 (defined in syntax.h)
+ 		 * By default, begin == 3, middle == 3, end == 3 (defined in syntax.h)
 		 */
 
 		/* If nsSubStrLen is specified in each index entry,
