@@ -122,8 +122,7 @@ repl5_tot_log_operation_failure(int ldap_error, char* ldap_error_string, const c
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Received error %d: %s for total update operation\n",
 						agreement_name,
-						ldap_error, ldap_error_string ? ldap_error_string : "NULL",
-						0);
+						ldap_error, ldap_error_string ? ldap_error_string : "NULL");
 }
 
 /* Thread that collects results from async operations sent to the consumer */
@@ -285,7 +284,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 		/* Are we caught up ? */
 		slapi_log_error(SLAPI_LOG_REPL, NULL,
 					"repl5_tot_waitfor_async_results: %d %d\n",
-					cb_data->last_message_id_received, cb_data->last_message_id_sent, 0);
+					cb_data->last_message_id_received, cb_data->last_message_id_sent);
 		if (cb_data->last_message_id_received >= cb_data->last_message_id_sent) 
 		{
 			/* If so then we're done */
@@ -302,7 +301,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 			/* Log a warning */
 			slapi_log_error(SLAPI_LOG_FATAL, NULL,
 					"repl5_tot_waitfor_async_results timed out waiting for responses: %d %d\n",
-					cb_data->last_message_id_received, cb_data->last_message_id_sent, 0);
+					cb_data->last_message_id_received, cb_data->last_message_id_sent);
 			done = 1;
 		}
 	}
@@ -474,7 +473,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 		agmt_set_last_init_status(prp->agmt, rc, 0, "Total update aborted");
     } else {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Finished total update of replica "
-						"\"%s\". Sent %d entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
+						"\"%s\". Sent %lu entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
 	}
 
@@ -692,7 +691,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 	*last_busyp = now;
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-		"Replica \"%s\" is busy. Waiting %ds while"
+		"Replica \"%s\" is busy. Waiting %lds while"
 		" it finishes processing its current import queue\n", 
 		agmt_get_long_name(prp->agmt), *sleep_on_busyp);
 		DS_Sleep(PR_SecondsToInterval(*sleep_on_busyp));

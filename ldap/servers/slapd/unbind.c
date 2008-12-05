@@ -79,7 +79,7 @@ do_unbind( Slapi_PBlock *pb )
 	 *	UnBindRequest ::= NULL
 	 */
 	if ( ber_get_null( ber ) == LBER_ERROR ) {
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d UNBIND,"
 				" decoding error: UnBindRequest not null\n",
 				pb->pb_conn->c_connid, operation->o_opid );
 		/* LDAPv3 does not allow a response to an unbind... so just return. */
@@ -92,7 +92,7 @@ do_unbind( Slapi_PBlock *pb )
 	 * pass them to the backend.
 	 */
 	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 ) {
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND,"
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d UNBIND,"
 				" error processing controls - error %d (%s)\n",
 				pb->pb_conn->c_connid, operation->o_opid,
 				err, ldap_err2string( err ));
@@ -107,7 +107,7 @@ do_unbind( Slapi_PBlock *pb )
 
 	/* ONREPL - plugins should be called and passed bind dn and, possibly, other data */
 
-	slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d UNBIND\n",
+	slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d UNBIND\n",
 	    pb->pb_conn->c_connid, operation->o_opid );
 
 	/* pass the unbind to all backends */

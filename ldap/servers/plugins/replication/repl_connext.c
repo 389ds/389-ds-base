@@ -101,7 +101,7 @@ void consumer_connection_extension_destructor (void *ext, void *object, void *pa
 					slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 									"Aborting total update in progress for replicated "
-									"area %s connid=%" PRIu64 "\n", slapi_sdn_get_dn(repl_root_sdn),
+									"area %s connid=%" NSPRIu64 "\n", slapi_sdn_get_dn(repl_root_sdn),
 									connid);
 					slapi_stop_bulk_import(pb);
 				}

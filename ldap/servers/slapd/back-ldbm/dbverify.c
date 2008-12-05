@@ -66,7 +66,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
     {
         slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
                         "db path too long: %s/%s\n",
-                         inst->inst_parent_dir_name, inst->inst_dir_name, 0);
+                         inst->inst_parent_dir_name, inst->inst_dir_name);
         return 1;
     }
     tmplen = strlen(dbdir);
@@ -99,8 +99,8 @@ dbverify_ext( ldbm_instance *inst, int verbose )
         if (sizeof(direntry->name) + 2 > filelen)
         {
             slapi_log_error(SLAPI_LOG_FATAL, "DB verify",
-                                        "db path too long: %s/%s%s\n",
-                                         dbdir, direntry->name, 0);
+                                        "db path too long: %s/%s\n",
+                                         dbdir, direntry->name);
             continue;
         }
         PR_snprintf(filep, filelen, "/%s", direntry->name);

@@ -106,7 +106,7 @@ acl_print_acllib_err (NSErr_t *errp , char * str)
 
 	if (msgbuf)
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"ACL LIB ERR:(%s)(%s)\n", 
-				msgbuf, str ? str: "NULL",0); 
+				msgbuf, str ? str: "NULL"); 
 }
 void
 aclutil_print_aci (aci_t *aci_item, char *type)
@@ -120,7 +120,7 @@ aclutil_print_aci (aci_t *aci_item, char *type)
 	if (!aci_item) {
 		
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name,
-			"acl__print_aci: Null item\n",0,0,0);
+			"acl__print_aci: Null item\n");
 		return;
 	}
 
@@ -463,21 +463,21 @@ aclutil_print_resource( struct acl_pblock *aclpb, char *right , char *attr, char
 	if ( ! slapi_is_loglevel_set ( SLAPI_LOG_ACL ) )
 		return;
 
-	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO STARTS *********\n",0,0,0);
+	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO STARTS *********\n");
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    Client DN: %s\n", 
-		   clientdn ? escape_string_with_punctuation (clientdn, str) : "NULL", 0,0);
+		   clientdn ? escape_string_with_punctuation (clientdn, str) : "NULL");
 	aclutil__access_str (aclpb->aclpb_access, str);
     aclutil__typestr (aclpb->aclpb_res_type, &str[strlen(str)]);
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    resource type:%d(%s)\n",
-		   aclpb->aclpb_res_type, str, 0);
+		   aclpb->aclpb_res_type, str);
 
 	dn = slapi_sdn_get_dn ( aclpb->aclpb_curr_entry_sdn );
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    Slapi_Entry DN: %s\n", 
-		   dn ? escape_string_with_punctuation ( dn , str) : "NULL",0,0);
+		   dn ? escape_string_with_punctuation ( dn , str) : "NULL");
 
-	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ATTR: %s\n", attr ? attr : "NULL",0,0);
-	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    rights:%s\n", right ? right: "NULL",0,0);
-	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO ENDS   *********\n",0,0,0);
+	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ATTR: %s\n", attr ? attr : "NULL");
+	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    rights:%s\n", right ? right: "NULL");
+	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO ENDS   *********\n");
 }
 /*
  * The input string contains a rule like

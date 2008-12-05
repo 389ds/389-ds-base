@@ -679,7 +679,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
     /* for each subtree spec... */
     for (i = 0; include[i]; i++) {
         IDList *idl = NULL;
-        char *suffix = slapi_sdn_get_ndn(*be->be_suffix);
+        const char *suffix = slapi_sdn_get_ndn(*be->be_suffix);
         char *parentdn = slapi_ch_strdup(suffix);
         char *nextdn = NULL;
         int matched = 0;
@@ -695,7 +695,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         while (NULL != parentdn &&
                NULL != (nextdn = slapi_dn_parent( parentdn ))) {
             slapi_ch_free_string( &parentdn );
-            if (0 == slapi_utf8casecmp(nextdn, include[i])) {
+            if (0 == slapi_UTF8CASECMP(nextdn, include[i])) {
                 issubsuffix = 1; /* suffix of be is a subsuffix of include[i] */
                 break;
             }
@@ -719,7 +719,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         while (NULL != parentdn &&
                NULL != (nextdn = slapi_dn_parent( parentdn ))) {
             slapi_ch_free_string( &parentdn );
-            if (0 == slapi_utf8casecmp(nextdn, suffix)) {
+            if (0 == slapi_UTF8CASECMP(nextdn, (char *)suffix)) {
                 matched = 1;
                 break;
             }
@@ -2458,7 +2458,7 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst)
                                                 inst_dir, MAXPATHLEN);
 
     slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB",
-                    "upgradedb_delete_indices_4cmd: %s\n");
+                    "upgradedb_delete_indices_4cmd: %s\n", inst_dir);
     dirhandle = PR_OpenDir(inst_dirp);
     if (!dirhandle)
     {

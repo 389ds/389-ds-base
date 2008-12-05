@@ -1071,10 +1071,14 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		 */
 		if (0 == memberof_compare(config, &this_dn_val, &to_dn_val))
 		{
+			const char *strval = "NULL";
+			if (this_dn_val) {
+				strval = slapi_value_get_string(this_dn_val);
+			}
 			slapi_log_error( SLAPI_LOG_PLUGIN,
 				MEMBEROF_PLUGIN_SUBSYSTEM,
 				"memberof_modop_one_replace_r: not processing memberOf "
-				"operations on self entry: %s\n", this_dn_val);
+				"operations on self entry: %s\n", strval);
 			goto bail;
 		}
 

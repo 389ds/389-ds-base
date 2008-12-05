@@ -162,18 +162,18 @@ static Slapi_Eq_Context dirsync;
 static void
 windows_inc_delete(Private_Repl_Protocol **prpp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_delete\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_delete\n" );
 	/* First, stop the protocol if it isn't already stopped */
 	/* Then, delete all resources used by the protocol */
 	slapi_eq_cancel(dirsync); 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_delete\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_delete\n" );
 }
 
 /* helper function */
 void
 w_set_pause_and_busy_time(long *pausetime, long *busywaittime)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> w_set_pause_and_busy_time\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> w_set_pause_and_busy_time\n" );
   /* If neither are set, set busy time to its default */
   if (!*pausetime && !*busywaittime)
     {
@@ -210,7 +210,7 @@ w_set_pause_and_busy_time(long *pausetime, long *busywaittime)
        */
       *pausetime = *busywaittime + 1;
     }
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= w_set_pause_and_busy_time\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= w_set_pause_and_busy_time\n" );
 }
 
 /*
@@ -286,7 +286,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
  
 	PRBool run_dirsync = PR_FALSE;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_run\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_run\n" );
 
 	prp->stopped = 0;
 	prp->terminate = 0;
@@ -685,7 +685,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						next_fire_time = backoff_step(prp_priv->backoff);
 						/* And go back to sleep */
 						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-								"%s: Replication session backing off for %d seconds\n",
+								"%s: Replication session backing off for %ld seconds\n",
 								agmt_get_long_name(prp->agmt),
 								next_fire_time - now);
 
@@ -991,7 +991,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
   conn_cancel_linger(prp->conn);
   /* ... and disconnect, if currently connected */
   conn_disconnect(prp->conn);
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_run\n", 0, 0, 0 );
+  LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_run\n" );
 }
 
 
@@ -1002,7 +1002,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 static void
 protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> protocol_sleep\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> protocol_sleep\n" );
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
     /* we should not go to sleep if there are events available to be processed.
@@ -1016,7 +1016,7 @@ protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 			agmt_get_long_name(prp->agmt), prp->eventbits);
     }
 	PR_Unlock(prp->lock);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= protocol_sleep\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= protocol_sleep\n" );
 }
 
 
@@ -1029,13 +1029,13 @@ protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 static void
 event_notify(Private_Repl_Protocol *prp, PRUint32 event)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> event_notify\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> event_notify\n" );
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
 	prp->eventbits |= event;
 	PR_NotifyCondVar(prp->cvar);
 	PR_Unlock(prp->lock);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= event_notify\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= event_notify\n" );
 }
 
 
@@ -1048,26 +1048,26 @@ event_occurred(Private_Repl_Protocol *prp, PRUint32 event)
 {
 	PRUint32 return_value;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> event_occurred\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> event_occurred\n" );
 
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
 	return_value = (prp->eventbits & event);
 	prp->eventbits &= ~event; /* Clear event */
 	PR_Unlock(prp->lock);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= event_occurred\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= event_occurred\n" );
 	return return_value;
 }
 
 static void
 reset_events (Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> reset_events\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> reset_events\n" );
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
 	prp->eventbits = 0;
 	PR_Unlock(prp->lock);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= reset_events\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= reset_events\n" );
 }
 
 
@@ -1075,8 +1075,8 @@ reset_events (Private_Repl_Protocol *prp)
 static PRBool
 is_dummy_operation (const slapi_operation_parameters *op)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> is_dummy_operation\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= is_dummy_operation\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> is_dummy_operation\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= is_dummy_operation\n" );
     return (strcmp (op->target_address.uniqueid, START_ITERATION_ENTRY_UNIQUEID) == 0);
 }
 
@@ -1085,7 +1085,7 @@ is_dummy_operation (const slapi_operation_parameters *op)
 void
 w_cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> w_cl5_operation_parameters_done\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> w_cl5_operation_parameters_done\n" );
 	if(sop!=NULL) {
 		switch(sop->operation_type) 
 		{
@@ -1120,7 +1120,7 @@ w_cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
 		}
 	}
 	operation_parameters_done(sop);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= w_cl5_operation_parameters_done\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= w_cl5_operation_parameters_done\n" );
 }
 
 
@@ -1147,7 +1147,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	RUV *current_ruv = ruv_dup(remote_update_vector);
 	CSN *mincsn = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_updates\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> send_updates\n" );
 
 	*num_changes_sent = 0;
 
@@ -1445,7 +1445,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		agmt_set_consumer_ruv(prp->agmt,current_ruv);
 		ruv_destroy(&current_ruv);
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_updates\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= send_updates\n" );
 	return return_value;
 }
 
@@ -1462,7 +1462,7 @@ windows_inc_stop(Private_Repl_Protocol *prp)
 	PRIntervalTime start, maxwait, now;
 	int seconds = 1200;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_stop\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_stop\n" );
 
 	maxwait = PR_SecondsToInterval(seconds);
 	prp->terminate = 1;
@@ -1490,7 +1490,7 @@ windows_inc_stop(Private_Repl_Protocol *prp)
 				agmt_get_long_name(prp->agmt),
 				PR_IntervalToSeconds(now-start));
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_stop\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_stop\n" );
 	return return_value;
 }
 
@@ -1501,9 +1501,9 @@ windows_inc_status(Private_Repl_Protocol *prp)
 {
 	int return_value = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_status\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_status\n" );
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_status\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_status\n" );
 
 	return return_value;
 }
@@ -1513,43 +1513,43 @@ windows_inc_status(Private_Repl_Protocol *prp)
 static void
 windows_inc_notify_update(Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_notify_update\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_notify_update\n" );
 	event_notify(prp, EVENT_TRIGGERING_CRITERIA_MET);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_notify_update\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_notify_update\n" );
 }
 
 
 static void
 windows_inc_update_now(Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_update_now\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_update_now\n" );
 	event_notify(prp, EVENT_REPLICATE_NOW);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_update_now\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_update_now\n" );
 }
 
 
 static void
 windows_inc_notify_agmt_changed(Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_notify_agmt_changed\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_notify_agmt_changed\n" );
 	event_notify(prp, EVENT_AGMT_CHANGED);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_notify_agmt_changed\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_notify_agmt_changed\n" );
 }
 
 static void 
 windows_inc_notify_window_opened (Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_notify_window_opened\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_notify_window_opened\n" );
     event_notify(prp, EVENT_WINDOW_OPENED);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_notify_window_opened\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_notify_window_opened\n" );
 }
 
 static void 
 windows_inc_notify_window_closed (Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_notify_window_closed\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_notify_window_closed\n" );
     event_notify(prp, EVENT_WINDOW_CLOSED);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_notify_window_closed\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_notify_window_closed\n" );
 }
 
 
@@ -1559,7 +1559,7 @@ Windows_Inc_Protocol_new(Repl_Protocol *rp)
 	windows_inc_private *rip = NULL;
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> Windows_Inc_Protocol_new\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> Windows_Inc_Protocol_new\n" );
 
 	prp->delete = windows_inc_delete;
 	prp->run = windows_inc_run;
@@ -1592,13 +1592,13 @@ Windows_Inc_Protocol_new(Repl_Protocol *rp)
 	prp->private = (void *)rip;
     prp->replica_acquired = PR_FALSE;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= Windows_Inc_Protocol_new\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= Windows_Inc_Protocol_new\n" );
 
 	return prp;
 
 loser:
 	windows_inc_delete(&prp);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= Windows_Inc_Protocol_new (loser)\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= Windows_Inc_Protocol_new (loser)\n" );
 	return NULL;
 }
 
@@ -1610,12 +1610,12 @@ windows_inc_backoff_expired(time_t timer_fire_time, void *arg)
 {
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)arg;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_inc_backoff_expired\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_backoff_expired\n" );
 
 	PR_ASSERT(NULL != prp);
 	event_notify(prp, EVENT_BACKOFF_EXPIRED);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_inc_backoff_expired\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_backoff_expired\n" );
 }
 
 
@@ -1641,7 +1641,7 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 {
 	int return_value;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_examine_update_vector\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_examine_update_vector\n" );
 
 	PR_ASSERT(NULL != prp);
 	if (NULL == prp)
@@ -1682,7 +1682,7 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 		slapi_ch_free((void**)&remote_gen);
 		slapi_ch_free((void**)&local_gen);
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_examine_update_vector\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_examine_update_vector\n" );
 	return return_value;
 }
 
@@ -1707,8 +1707,8 @@ acquire2name (int code)
 static const char* 
 state2name (int state)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> state2name\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= state2name\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> state2name\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= state2name\n" );
     switch (state)
     {
         case STATE_START:                       return "start";
@@ -1729,8 +1729,8 @@ state2name (int state)
 static const char* 
 event2name (int event)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> event2name\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= event2name\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> event2name\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= event2name\n" );
     switch (event)
     {
         case EVENT_WINDOW_OPENED:           return "update_window_opened";
@@ -1749,11 +1749,11 @@ event2name (int event)
 static void 
 periodic_dirsync(time_t when, void *arg)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> periodic_dirsync\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> periodic_dirsync\n" );
 
 	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"Running Dirsync \n");
 
 	event_notify( (Private_Repl_Protocol*) arg, EVENT_RUN_DIRSYNC);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= periodic_dirsync\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= periodic_dirsync\n" );
 }

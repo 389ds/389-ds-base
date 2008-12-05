@@ -126,7 +126,7 @@ entry_has_attr_and_value(Slapi_Entry *e, const char *attrname,
 						slapi_log_error( SLAPI_LOG_FATAL, "bootstrap config",
 								"Ignoring extremely large value for"
 								" configuration attribute %s"
-								" (length=%d, value=%40.40s...)\n",
+								" (length=%ld, value=%40.40s...)\n",
 								attrname, len, s );
 						retval = 0;	/* value is too large: ignore it */
 					}

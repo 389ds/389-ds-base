@@ -890,7 +890,7 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 		if (theSize < CL5_MIN_NB_LOCK)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"Warning: Changelog %s value is too low (%d). Set to minimal value instead (%d)\n",
+				"Warning: Changelog %s value is too low (%ld). Set to minimal value instead (%d)\n",
 				CONFIG_CHANGELOG_NB_LOCK, theSize, CL5_MIN_NB_LOCK);
 			config->dbconfig.nb_lock_config = CL5_MIN_NB_LOCK;
 		} 

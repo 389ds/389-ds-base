@@ -2793,7 +2793,7 @@ config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", connection table "
 			"size must range from 1 to %d (the current process maxdescriptors limit).  "
-			"Server will use a setting of %d.", attrname, value, maxVal );
+			"Server will use a setting of %d.", attrname, value, maxVal, maxVal );
         if ( nValue > maxVal) {
             nValue = maxVal;
             retVal = LDAP_UNWILLING_TO_PERFORM;

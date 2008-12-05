@@ -181,7 +181,7 @@ int retrocl_get_changenumbers(void)
 
     retrocl_internal_cn = cr.cr_cnum;
     
-    slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Got changenumbers %d and %d\n",
+    slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Got changenumbers %lu and %lu\n",
 		    retrocl_first_cn,
 		    retrocl_internal_cn);
 
@@ -379,7 +379,7 @@ int retrocl_update_lastchangenumber(void)
 
 
     retrocl_internal_cn = cr.cr_cnum;
-    slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Refetched last changenumber =  %d \n",
+    slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Refetched last changenumber =  %lu \n",
             retrocl_internal_cn);
 
     slapi_ch_free(( void **) &cr.cr_time );

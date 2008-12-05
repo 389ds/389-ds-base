@@ -293,7 +293,7 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 	if ( rv != LAS_EVAL_TRUE  || ( NULL == aclpb )) {
 		acl_print_acllib_err(errp, NULL);
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-			"DS_LASIpGetter:Unable to get the ACLPB(%d)\n", rv,0,0);
+			"DS_LASIpGetter:Unable to get the ACLPB(%d)\n", rv);
 		return LAS_EVAL_FAIL;
 	}
 
@@ -346,7 +346,7 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 	if ( rv != LAS_EVAL_TRUE  || ( NULL == aclpb )) {
 		acl_print_acllib_err(errp, NULL);
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-			"DS_LASDnsGetter:Unable to get the ACLPB(%d)\n", rv,0,0);
+			"DS_LASDnsGetter:Unable to get the ACLPB(%d)\n", rv);
 		return LAS_EVAL_FAIL;
 	}
 	
@@ -424,7 +424,7 @@ DS_LASUserEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		PList_t global_auth)
 {
 	slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
-			"User LAS is not supported in the ACL\n",0,0,0);
+			"User LAS is not supported in the ACL\n");
 
 	return LAS_EVAL_INVALID;
 }
@@ -436,7 +436,7 @@ DS_LASGroupEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		PList_t global_auth)
 {
 	slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
-			"Group LAS is not supported in the ACL\n",0,0,0);
+			"Group LAS is not supported in the ACL\n");
 
 	return LAS_EVAL_INVALID;
 }
@@ -542,7 +542,7 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			char ebuf[ BUFSIZ ];
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 			 	"DS_LASUserDnEval:Syntax error(%s)\n", 
-				 escape_string_with_punctuation( user, ebuf  ), 0,0);
+				 escape_string_with_punctuation( user, ebuf  ));
 			return LAS_EVAL_FAIL;
 		}
 
@@ -671,7 +671,7 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				if (rc == ACL_ERR) {
 			   		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 			    			"DS_LASUserDnEval:Error in matching patteren(%s)\n",
-			     			user,0,0);
+			     			user);
 				}
 				slapi_filter_free(f,1);
 			} else {
@@ -793,7 +793,7 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			char ebuf[ BUFSIZ ];
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 				  "DS_LASGroupDnEval:Syntax error(%s)\n",
-				   escape_string_with_punctuation( groupName, ebuf ),0,0);
+				   escape_string_with_punctuation( groupName, ebuf ));
 		}
 	
 		/* Now we have the starting point of the "groupdn" */
@@ -1013,7 +1013,7 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			char ebuf[ BUFSIZ ];
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 				  "DS_LASRoleDnEval:Syntax error(%s)\n",
-				   escape_string_with_punctuation( role, ebuf ),0,0);
+				   escape_string_with_punctuation( role, ebuf ));
 		}
 	
 		/* Now we have the starting point of the "roledn" */
@@ -1244,7 +1244,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		return LAS_EVAL_FAIL;
 	}
 
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName, 0,0);
+	slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName);
 	matched = ACL_FALSE;
 	for (i=0; i < numOflevels; i++) {
 		if ( levels[i] == 0 ) {
@@ -1602,7 +1602,7 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	*/
 	if ( (u_group = aclg_get_usersGroup ( aclpb , clientDN )) == NULL) {
 		 slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-			"Failed to find/allocate a usergroup--aborting evaluation\n", 0, 0);
+			"Failed to find/allocate a usergroup--aborting evaluation\n");
 		return(ACL_DONT_KNOW);
 	}
 
@@ -1748,7 +1748,7 @@ eval_another_member:
 	if ((nesting_level > max_nestlevel)) {
 		 slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 			"GroupEval:Member not found within the allowed nesting level (Allowed:%d Looked at:%d)\n", 
-			max_nestlevel, nesting_level, 0);
+			max_nestlevel, nesting_level);
 
 		result = ACL_DONT_KNOW; /* don't try to cache info based on this result */
 		goto free_and_return;
@@ -1759,7 +1759,7 @@ eval_another_member:
 			max_memberlimit != -1 ) {
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 			"GroupEval:Looked at too many entries:(%d, %d)\n",
-				info.c_idx, info.lu_idx,0);
+				info.c_idx, info.lu_idx);
 		result = ACL_DONT_KNOW; /* don't try to cache info based on this result */
 		goto free_and_return;
 	}
@@ -2203,7 +2203,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			LDAP_UTF8DEC(ptr);
 		}
 
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName, 0,0);
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName);
 
 		/* See if we have a  parent[2].attr" rule */
 		if ( (ptr = strstr(attrName, "parent[")) != NULL) {
@@ -2229,7 +2229,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 						*/
 						slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
 						"DS_LASGroupDnattr: Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
-						ACLLAS_MAX_LEVELS,0,0);
+						ACLLAS_MAX_LEVELS);
 					}
 				} else {
 					/* Must be the attr name. We can goof of by 
@@ -2445,7 +2445,7 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 
 	if ( (u_group = aclg_get_usersGroup ( aclpb , n_clientdn )) == NULL) {
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-			"Failed to find/allocate a usergroup--aborting evaluation\n", 0, 0);
+			"Failed to find/allocate a usergroup--aborting evaluation\n");
 		slapi_ch_free ( (void **)&s_str );
 		return(ACL_DONT_KNOW);
 	}
@@ -2544,7 +2544,7 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 
 			if (tt == info.lu_idx) {
 				slapi_log_error( SLAPI_LOG_ACL, plugin_name, "currDn:(%s) \n\tNO MEMBER ADDED\n", 
-								ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf) , 0,0);
+								ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf));
 			} else {
 				for (i=tt; i < info.lu_idx; i++)
 					slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
@@ -2597,7 +2597,7 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	for (j=0; j < u_group->aclug_numof_member_group; j++)
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 				"acllas__eval_memberGroupDnAttr:GROUP[%d] IN CACHE:%s\n", 
-					j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf),0);
+					j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf));
 
 	matched = ACL_FALSE;
 	slapi_entry_attr_find( e, groupattr, &attr);
@@ -3060,7 +3060,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 
 	if ( NULL == aclpb->aclpb_client_entry ) {
 		slapi_log_error (  SLAPI_LOG_ACL, plugin_name, 
-			"DS_LASUserAttrEval: Unable to get client's entry\n",0,0,0);
+			"DS_LASUserAttrEval: Unable to get client's entry\n");
 		return ACL_FALSE;
 	}
 
@@ -3224,7 +3224,7 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					(void **)&linfo->authType, NULL)) < 0) {
 		acl_print_acllib_err(errp, NULL);
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-		          "%s:Unable to get the auth type(%d)\n", rc);
+		          "%s:Unable to get the auth type(%d)\n", lasName, rc);
 		return LAS_EVAL_FAIL;
 	}
 	return 0;	
@@ -3273,7 +3273,7 @@ static int acllas__user_has_role( struct acl_pblock *aclpb,
 
 	if ( NULL == aclpb->aclpb_client_entry ) {
 		slapi_log_error (  SLAPI_LOG_ACL, plugin_name, 
-			"acllas__user_has_role: Unable to get client's entry\n",0,0,0);
+			"acllas__user_has_role: Unable to get client's entry\n");
 		return ACL_FALSE;
 	}
 

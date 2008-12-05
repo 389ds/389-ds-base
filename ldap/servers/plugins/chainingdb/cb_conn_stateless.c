@@ -287,7 +287,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 			        conn->refcount < maxconcurrency)){
 			        if (cb_debug_on()) {
                 			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        		"<= cb_get_connection server found conn 0x%x to use)\n", conn );
+                        		"<= cb_get_connection server found conn 0x%p to use)\n", conn );
 				}
 				goto unlock_and_return;         /* found one */
 			  }
@@ -298,7 +298,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
         	for ( conn = pool->conn.conn_list; conn != NULL; conn = conn->next ) {
 			if (cb_debug_on()) {
                 		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        		"list: conn 0x%x status %d refcount %d\n", conn, 
+                        		"list: conn 0x%p status %d refcount %lu\n", conn, 
 					conn->status, conn->refcount );
 			}
 
@@ -306,7 +306,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
                     		&& conn->refcount < maxconcurrency ) {
 				if (cb_debug_on()) {
                 			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        		"<= cb_get_connection server found conn 0x%x to use)\n", conn );
+                        		"<= cb_get_connection server found conn 0x%p to use)\n", conn );
 				}
                 		goto unlock_and_return;         /* found one */
             		}
@@ -365,8 +365,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 				{
 					if (cb_debug_on()) {
                                			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                       		"Internal credentials decoding error\n.",
-                                       		0, 0, 0);
+                                       		"Internal credentials decoding error\n.");
 					}
 					rc = LDAP_LOCAL_ERROR;
 					goto unlock_and_return;
@@ -463,7 +462,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 				
 			if (cb_debug_on()) {
                       	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                    		"<= cb_get_connection added new conn 0x%x, "
+                    		"<= cb_get_connection added new conn 0x%p, "
                     		"conn count now %d\n", conn->ld, pool->conn.conn_list_count );
 			}
             		goto unlock_and_return;             /* got a new one */
@@ -489,7 +488,7 @@ unlock_and_return:
 		*cc=conn;
 		if (cb_debug_on()) {
   		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                "<== cb_get_connection ld=0x%x (concurrency now %d)\n",*lld, conn->refcount );
+                "<== cb_get_connection ld=0x%p (concurrency now %lu)\n",*lld, conn->refcount );
 		}
 
     	} else {
@@ -542,14 +541,14 @@ void cb_release_op_connection(cb_conn_pool* pool, LDAP *lld, int dispose) {
 
 	if ( conn == NULL ) {               /* ld not found -- unexpected */
         	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                "==> cb_release_op_connection ld=0x%x not found\n", lld );
+                "==> cb_release_op_connection ld=0x%p not found\n", lld );
     	} else {
 
         	--conn->refcount;
 
 		if (cb_debug_on()) {
                 	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                        	"release conn 0x%x status %d refcount after release %d\n", conn,
+                        	"release conn 0x%p status %d refcount after release %lu\n", conn,
                                         conn->status, conn->refcount );
                 }
 
@@ -632,7 +631,7 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 				if ( conn->refcount == 0 ) {
 					if (cb_debug_on()) {
                         			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-							"cb_check_for_stale_connections: conn 0x%x idle and stale\n",conn);
+							"cb_check_for_stale_connections: conn 0x%p idle and stale\n",conn);
 					}
                                		--pool->conn.conn_list_count;
 					if (connprev == NULL) {
@@ -653,7 +652,7 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 				}
                         	if (cb_debug_on()) {
                         	        slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                       		                "cb_check_for_stale_connections: conn 0x%x stale\n",conn);
+                       		                "cb_check_for_stale_connections: conn 0x%p stale\n",conn);
                         	}
 			}
 			connprev = conn ;
@@ -677,7 +676,7 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 
 				if (cb_debug_on()) {
                         		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-						"cb_check_for_stale_connections: conn 0x%x idle and stale\n",conn);
+						"cb_check_for_stale_connections: conn 0x%p idle and stale\n",conn);
 				}
                                 --pool->conn.conn_list_count;
 				conn_next=conn->next;
@@ -693,7 +692,7 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 			}
                         if (cb_debug_on()) {
                                 slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                        "cb_check_for_stale_connections: conn 0x%x stale\n",conn);
+                                        "cb_check_for_stale_connections: conn 0x%p stale\n",conn);
                         }
 		}
                 connprev = conn;

@@ -444,22 +444,22 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 		PR_Unlock( ct->c[i].c_mutex );
 	}
 
-	sprintf( buf, "%d", nconns );
+	PR_snprintf( buf, sizeof(buf), "%d", nconns );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currentconnections", vals );
 
-	sprintf( buf, "%" PRIu64, slapi_counter_get_value(num_conns));
+	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(num_conns));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "totalconnections", vals );
 
-	sprintf( buf, "%d", (ct!=NULL?ct->size:0) );
+	PR_snprintf( buf, sizeof(buf), "%d", (ct!=NULL?ct->size:0) );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "dtablesize", vals );
 
-	sprintf( buf, "%d", nreadwaiters );
+	PR_snprintf( buf, sizeof(buf), "%d", nreadwaiters );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "readwaiters", vals );

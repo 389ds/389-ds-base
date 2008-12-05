@@ -248,7 +248,7 @@ unlock_and_return:
 	++conn->ptconn_usecount;
 	*ldp = conn->ptconn_ld;
 	slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"<= passthru_get_connection ld=0x%x (concurrency now %d)\n",
+		"<= passthru_get_connection ld=0x%p (concurrency now %d)\n",
 		*ldp, conn->ptconn_usecount );
     } else {
 	slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
@@ -295,7 +295,7 @@ passthru_release_connection( PassThruServer *srvr, LDAP *ld, int dispose )
 
     if ( conn == NULL ) {		/* ld not found -- unexpected */
 	slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"=> passthru_release_connection ld=0x%x not found\n", ld );
+		"=> passthru_release_connection ld=0x%p not found\n", ld );
     } else {
 	PASSTHRU_ASSERT( conn->ptconn_usecount > 0 );
 	--conn->ptconn_usecount;

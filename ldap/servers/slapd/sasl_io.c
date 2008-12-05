@@ -82,7 +82,7 @@ sasl_io_enable(Connection *c)
     int ret = 0;
 
     LDAPDebug( LDAP_DEBUG_CONNS,
-                "sasl_io_enable for connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+                "sasl_io_enable for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
     /* Flag that we should enable SASL I/O for the next read operation on this connection */
     c->c_enable_sasl_io = 1;
     
@@ -108,7 +108,7 @@ sasl_io_setup(Connection *c)
     sasl_io_private *sp = (sasl_io_private*) slapi_ch_calloc(1, sizeof(sasl_io_private));
 
     LDAPDebug( LDAP_DEBUG_CONNS,
-                "sasl_io_setup for connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+                "sasl_io_setup for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
     /* Get the current functions and store them for later */
     real_iofns->lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
     ber_sockbuf_get_option( c->c_sb, LBER_SOCKBUF_OPT_EXT_IO_FNS, real_iofns );
@@ -142,7 +142,7 @@ sasl_io_cleanup(Connection *c)
     sasl_io_private *sp = c->c_sasl_io_private;
     if (sp) {
         LDAPDebug( LDAP_DEBUG_CONNS,
-                "sasl_io_cleanup for connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+                "sasl_io_cleanup for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
         /* Free the buffers */
         slapi_ch_free((void**)&(sp->encrypted_buffer));
         slapi_ch_free((void**)&(sp->decrypted_buffer));
@@ -204,7 +204,7 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
     }
     if (ret != 0 && ret < sizeof(buffer)) {
         LDAPDebug( LDAP_DEBUG_ANY,
-            "failed to read sasl packet length on connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+            "failed to read sasl packet length on connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
         return -1;
         
     }
@@ -215,7 +215,7 @@ sasl_io_start_packet(Connection *c, PRInt32 *err)
         packet_length += 4;
 
         LDAPDebug( LDAP_DEBUG_CONNS,
-            "read sasl packet length %ld on connection %" PRIu64 "\n", packet_length, c->c_connid, 0 );
+            "read sasl packet length %ld on connection %" NSPRIu64 "\n", packet_length, c->c_connid, 0 );
 
         /* Check if the packet length is larger than our max allowed.  A
          * setting of -1 means that we allow any size SASL IO packet. */
@@ -270,7 +270,7 @@ sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err)
 
     *err = 0;
     LDAPDebug( LDAP_DEBUG_CONNS,
-                "sasl_recv_connection for connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+                "sasl_recv_connection for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
     /* Do we have decrypted data buffered from 'before' ? */
     bytes_in_buffer = sp->decrypted_buffer_count - sp->decrypted_buffer_offset;
     if (0 == bytes_in_buffer) {
@@ -297,12 +297,12 @@ sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err)
             const char *output_buffer = NULL;
             unsigned int output_length = 0;
             LDAPDebug( LDAP_DEBUG_CONNS,
-            "sasl_recv_connection finished reading packet for connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+            "sasl_recv_connection finished reading packet for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
             /* Now decode it */
             ret = sasl_decode(c->c_sasl_conn,sp->encrypted_buffer,sp->encrypted_buffer_count,&output_buffer,&output_length);
             if (SASL_OK == ret) {
                 LDAPDebug( LDAP_DEBUG_CONNS,
-                "sasl_recv_connection decoded packet length %d for connection %" PRIu64 "\n", output_length, c->c_connid, 0 );
+                "sasl_recv_connection decoded packet length %d for connection %" NSPRIu64 "\n", output_length, c->c_connid, 0 );
                 if (output_length) {
                     sasl_io_resize_decrypted_buffer(sp,output_length);
                     memcpy(sp->decrypted_buffer,output_buffer,output_length);
@@ -313,7 +313,7 @@ sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err)
                 }
             } else {
                 LDAPDebug( LDAP_DEBUG_ANY,
-                "sasl_recv_connection failed to decode packet for connection %" PRIu64 "\n", c->c_connid, 0, 0 );
+                "sasl_recv_connection failed to decode packet for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
             }
         }
     }

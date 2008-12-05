@@ -198,7 +198,7 @@ typedef struct _defs _ConfigEntry;
 
 static vattr_sp_handle *_VattrHandle	= NULL;
 static void *_PluginID					= NULL;
-static void *_PluginDN					= NULL;
+static char *_PluginDN					= NULL;
 static PLHashTable *_IdVattrMapTable	= NULL;
 static PLHashTable *_IdConfigMapTable	= NULL;
 static void **_HttpAPI					= NULL;
@@ -281,12 +281,12 @@ void * getPluginID()
 	return _PluginID;
 }
 
-void setPluginDN(void *pluginDN)
+void setPluginDN(char *pluginDN)
 {
 	_PluginDN = pluginDN;
 }
 
-void * getPluginDN()
+char * getPluginDN()
 {
 	return _PluginDN;
 }

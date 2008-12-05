@@ -881,7 +881,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 		   const char *dn = slapi_entry_get_dn_const(e);
 		   slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						   "Error %d: could not import entry dn %s "
-						   "for total update operation conn=%" PRIu64 " op=%d\n",
+						   "for total update operation conn=%" NSPRIu64 " op=%d\n",
 						   rc, dn, connid, opid);
 		   rc = -1;
 	   }
@@ -891,7 +891,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"Error %d: could not decode the total update extop "
-						"for total update operation conn=%" PRIu64 " op=%d\n",
+						"for total update operation conn=%" NSPRIu64 " op=%d\n",
 						rc, connid, opid);
 	}
    

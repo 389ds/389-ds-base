@@ -54,6 +54,7 @@ replica locked. Seems like right thing to do.
 #include "repl5.h"
 #include "ldappr.h"
 #include "ldap-extension.h"
+#include "nss.h"
 
 typedef struct repl_connection
 {
@@ -1701,6 +1702,6 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	config_set_errorlog_level("nsslapd-errorlog-level", buf, msg, 1);
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-		"repl5_debug_timeout_callback: set debug level to %d at %d\n",
+		"repl5_debug_timeout_callback: set debug level to %d at %ld\n",
 		s_debug_level, when);
 }

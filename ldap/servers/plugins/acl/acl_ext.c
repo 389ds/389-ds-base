@@ -800,14 +800,14 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 	if ( aclpb->aclpb_res_type & ~ACLPB_RESTYPE_ALL ) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
 			   "The aclpb res_type value (%d) has exceeded. Limit is (%d)\n",
-				aclpb->aclpb_res_type, ACLPB_RESTYPE_ALL, 0 );
+				aclpb->aclpb_res_type, ACLPB_RESTYPE_ALL );
 		dump_aclpb_info = 1;
 	}
 
 	if ( dump_aclpb_info ) {
 		const char *ndn;
 		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,
-							"ACLPB value is:%p\n", aclpb, 0,0 );
+							"ACLPB value is:%p\n", aclpb );
 	
 		ndn = slapi_sdn_get_ndn ( aclpb->aclpb_curr_entry_sdn );	
 		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, "curr_entry:%p  num_entries:%d curr_dn:%p\n", 

@@ -421,7 +421,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 			*isInc = (r->repl_state_flags & REPLICA_INCREMENTAL_IN_PROGRESS);
 
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"conn=%" PRIu64 " op=%d repl=\"%s\": "
+				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"Replica in use locking_purl=%s\n",
 				connid, opid,
 				escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
@@ -435,7 +435,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 	else
 	{
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-						"conn=%" PRIu64 " op=%d repl=\"%s\": Acquired replica\n",
+						"conn=%" NSPRIu64 " op=%d repl=\"%s\": Acquired replica\n",
 						connid, opid,
 						escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
 		r->repl_state_flags |= REPLICA_IN_USE;
@@ -476,13 +476,13 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 	if (!(r->repl_state_flags & REPLICA_IN_USE))
 	{
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-					"conn=%" PRIu64 " op=%d repl=\"%s\": "
+					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Replica not in use\n",
 					connid, opid,
 					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
 	} else {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-					"conn=%" PRIu64 " op=%d repl=\"%s\": "
+					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Released replica\n",
 					connid, opid,
 					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
@@ -1111,7 +1111,7 @@ replica_dump(Replica *r)
                     _replica_type_as_string (r));    	
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\treplica id: %d\n", r->repl_rid);
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tflags: %d\n", r->repl_flags);
-    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tstate flags: %d\n", r->repl_state_flags);
+    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tstate flags: %lu\n", r->repl_state_flags);
 	if (r->updatedn_list)
 		updatedn_list = replica_updatedn_list_to_string(r->updatedn_list, "\n\t\t");
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tupdate dn: %s\n",
@@ -2522,15 +2522,15 @@ _replica_reap_tombstones(void *arg)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"_replica_reap_tombstones: failed when searching for "
-							"tombstones in replica %s: %s. Will try again in %d "
+							"tombstones in replica %s: %s. Will try again in %ld "
 							"seconds.\n", escape_string(slapi_sdn_get_dn(replica->repl_root),ebuf),
 							ldap_err2string(oprc), replica->tombstone_reap_interval);
 		}
 		else
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-							"_replica_reap_tombstones: purged %d of %d tombstones "
-							"in replica %s. Will try again in %d "
+							"_replica_reap_tombstones: purged %ld of %ld tombstones "
+							"in replica %s. Will try again in %ld "
 							"seconds.\n", cb_data.num_purged_entries, cb_data.num_entries,
 							escape_string(slapi_sdn_get_dn(replica->repl_root),ebuf),
 							replica->tombstone_reap_interval);
@@ -3020,7 +3020,7 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 		slapi_ch_free ((void**)&repl_name);
 		found = slapi_eq_cancel (r->repl_eqcxt_tr);
 		slapi_log_error (SLAPI_LOG_REPL, NULL,
-			"tombstone_reap event (interval=%d) was %s\n",
+			"tombstone_reap event (interval=%ld) was %s\n",
 			r->tombstone_reap_interval, (found ? "cancelled" : "not found"));
 		r->repl_eqcxt_tr = NULL;
 	}
@@ -3032,7 +3032,7 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 											current_time() + r->tombstone_reap_interval,
 											1000 * r->tombstone_reap_interval);
 		slapi_log_error (SLAPI_LOG_REPL, NULL,
-			"tombstone_reap event (interval=%d) was %s\n",
+			"tombstone_reap event (interval=%ld) was %s\n",
 			r->tombstone_reap_interval, (r->repl_eqcxt_tr ? "scheduled" : "not scheduled successfully"));
 	}
 	PR_Unlock(r->repl_lock);

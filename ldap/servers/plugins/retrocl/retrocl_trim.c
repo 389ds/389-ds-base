@@ -119,7 +119,7 @@ delete_changerecord( changeNumber cnum )
     
     if ( delrc != LDAP_SUCCESS ) {
 	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "delete_changerecord: could not delete "
-		"change record %d\n", cnum );
+		"change record %lu\n", cnum );
     } else {
 	slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 		"delete_changerecord: deleted changelog entry \"%s\"\n", dnbuf);
@@ -312,7 +312,7 @@ static int trim_changelog(void)
 	    }
 	}
     } else {
-       LDAPDebug(LDAP_DEBUG_PLUGIN, "not yet time to trim: %d < (%d+%d)\n",
+       LDAPDebug(LDAP_DEBUG_PLUGIN, "not yet time to trim: %ld < (%d+%d)\n",
 		 now,lt,(CHANGELOGDB_TRIM_INTERVAL/1000));
     }
     PR_Lock( ts.ts_s_trim_mutex );
@@ -366,7 +366,7 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
     int			ldrc;
 
     if (retrocl_be_changelog == NULL) {
-        LDAPDebug(LDAP_DEBUG_TRACE,"not housekeeping if no cl be\n",0,0,0);
+        LDAPDebug0Args(LDAP_DEBUG_TRACE,"not housekeeping if no cl be\n");
 	return;
     }
 
@@ -391,7 +391,7 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 		 */
 		first_time = retrocl_getchangetime( SLAPI_SEQ_FIRST, &ldrc );
 		LDAPDebug(LDAP_DEBUG_PLUGIN,
-			  "cltrim: ldrc=%d, first_time=%d, cur_time=%d\n",
+			  "cltrim: ldrc=%d, first_time=%ld, cur_time=%ld\n",
 			  ldrc,first_time,cur_time);
 		if ( LDAP_SUCCESS == ldrc && first_time > (time_t) 0L &&
 		     first_time + ts.ts_c_max_age < cur_time ) {
@@ -399,7 +399,7 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 		}
 	}
 	if ( must_trim ) {
-	    LDAPDebug(LDAP_DEBUG_TRACE,"changelog about to create thread\n",0,0,0);
+	    LDAPDebug0Args(LDAP_DEBUG_TRACE,"changelog about to create thread\n");
 	    /* Start a thread to trim the changelog */
 	    ts.ts_s_trimming = 1;
 	    if ( PR_CreateThread( PR_USER_THREAD,
@@ -409,8 +409,8 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 		slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "unable to create changelog trimming thread\n" );
 	    }
 	} else {
-	    LDAPDebug(LDAP_DEBUG_PLUGIN,
-		      "changelog does not need to be trimmed\n",0,0,0);
+	    LDAPDebug0Args(LDAP_DEBUG_PLUGIN,
+		      "changelog does not need to be trimmed\n");
 	}
     }
     PR_Unlock( ts.ts_s_trim_mutex );
@@ -491,7 +491,7 @@ void retrocl_init_trimming (void)
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
     
     if (cl_maxage == NULL) {
-      LDAPDebug(LDAP_DEBUG_TRACE,"No maxage, not trimming retro changelog.\n",0,0,0);
+      LDAPDebug0Args(LDAP_DEBUG_TRACE,"No maxage, not trimming retro changelog.\n");
       return;
     }
     ageval = age_str2time (cl_maxage);

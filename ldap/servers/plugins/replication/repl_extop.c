@@ -605,7 +605,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		/* Stash info that this is an incremental update session */
 		connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"conn=%" PRIu64 " op=%d repl=\"%s\": Begin incremental protocol\n",
+			"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin incremental protocol\n",
 			connid, opid, repl_root);
 		isInc = PR_TRUE;
 	}
@@ -617,7 +617,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			connext->repl_protocol_version = REPL_PROTOCOL_50_TOTALUPDATE;
 		}
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"conn=%" PRIu64 " op=%d repl=\"%s\": Begin total protocol\n",
+				"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin total protocol\n",
 				connid, opid, repl_root);
 		isInc = PR_FALSE;
 	}
@@ -626,7 +626,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		/* Stash info that this is an incremental update session */
 		connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"conn=%" PRIu64 " op=%d repl=\"%s\": Begin 7.1 incremental protocol\n",
+			"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin 7.1 incremental protocol\n",
 			connid, opid, repl_root);
 		isInc = PR_TRUE;
 	}
@@ -638,7 +638,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			connext->repl_protocol_version = REPL_PROTOCOL_71_TOTALUPDATE;
 		}
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"conn=%" PRIu64 " op=%d repl=\"%s\": Begin 7.1 total protocol\n",
+				"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin 7.1 total protocol\n",
 				connid, opid, repl_root);
 		isInc = PR_FALSE;
 	}
@@ -660,7 +660,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	if (replica_is_being_configured(repl_root))
 	{
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"conn=%" PRIu64 " op=%d replica=\"%s\": "
+				"conn=%" NSPRIu64 " op=%d replica=\"%s\": "
 				"Replica is being configured: try again later\n",
 				connid, opid, repl_root);
 		response = NSDS50_REPL_REPLICA_BUSY;
@@ -713,7 +713,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 				{
 					response = NSDS50_REPL_EXCESSIVE_CLOCK_SKEW;
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"conn=%" PRIu64 " op=%d repl=\"%s\": "
+									"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 									"Excessive clock skew from supplier RUV\n",
 									connid, opid, repl_root);
 					goto send_response;
@@ -749,7 +749,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 
 	if (check_replica_id_uniqueness(replica, supplier_ruv) != 0){
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"conn=%" PRIu64 " op=%d repl=\"%s\": "
+				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"Replica has same replicaID %d as supplier\n",
 				connid, opid, repl_root, replica_get_rid(replica));
 		response = NSDS50_REPL_REPLICAID_ERROR;
@@ -762,7 +762,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	 * the session's conn id and op id to identify the the supplier.
 	 */
 	/* junkrc = ruv_get_first_id_and_purl(supplier_ruv, &junkrid, &locking_purl); */
-	PR_snprintf(locking_session, sizeof(locking_session), "conn=%" PRIu64 " id=%d", connid, opid);
+	PR_snprintf(locking_session, sizeof(locking_session), "conn=%" NSPRIu64 " id=%d", connid, opid);
 	locking_purl = &locking_session[0];
 	if (replica_get_exclusive_access(replica, &isInc, connid, opid,
 									 locking_purl,
@@ -878,7 +878,7 @@ send_response:
 		}
 
         slapi_log_error (resp_log_level, repl_plugin_name,
-			"conn=%" PRIu64 " op=%d replica=\"%s\": "
+			"conn=%" NSPRIu64 " op=%d replica=\"%s\": "
 			"Unable to acquire replica: error: %s%s\n",
 			connid, opid,
 			(replica ? slapi_sdn_get_dn(replica_get_root(replica)) : "unknown"),
@@ -902,7 +902,7 @@ send_response:
 	slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS50_REPLICATION_RESPONSE_OID);
 	slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-					"conn=%" PRIu64 " op=%d repl=\"%s\": "
+					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"StartNSDS50ReplicationRequest: response=%d rc=%d\n",
 					connid, opid, repl_root,
 					response, rc);

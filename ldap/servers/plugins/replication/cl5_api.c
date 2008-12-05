@@ -3626,6 +3626,7 @@ static int _cl5CheckGuardian ()
 	{
 		PR_snprintf (plVersion, VERSION_SIZE, "%s/%d.%d/%s\n", 
 				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
+        dbVersion[0] = '\0';
 		rc = _cl5ReadGuardian (dbVersion);
 
 		if (rc != CL5_SUCCESS || strcasecmp (plVersion, dbVersion) != 0)
@@ -4954,7 +4955,7 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 									 break;	
 		
 		default:					 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-									"_cl5Operation2LDIF: invalid operation type - %d\n", op->operation_type);
+									"_cl5Operation2LDIF: invalid operation type - %lu\n", op->operation_type);
 
 									 return CL5_BAD_FORMAT;
 	}
@@ -5131,7 +5132,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 												break;	
 
 				default:						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-																"_cl5LDIF2Operation: invalid operation type - %d\n", 
+																"_cl5LDIF2Operation: invalid operation type - %lu\n", 
 																 op->operation_type);
 												return CL5_BAD_FORMAT;
 			}
@@ -5375,7 +5376,7 @@ static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5GetFirstOperation: failed to format entry\n", rc);
+				"_cl5GetFirstOperation: failed to format entry: %d\n", rc);
 			goto done;
 		}
 
@@ -5466,7 +5467,7 @@ static int _cl5GetNextEntry (CL5Entry *entry, void *iterator)
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5GetNextEntry: failed to format entry\n", rc);
+				"_cl5GetNextEntry: failed to format entry: %d\n", rc);
 		}
 
 		return rc;
@@ -6659,7 +6660,7 @@ static int _cl5CopyDBFiles (const char *srcDir, const char *destDir, Object **re
 			object_release (obj);
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 							"_cl5CopyDBFiles: failed to copy %s from %s to %s\n", 
-							file, srcDir, destDir);
+							file->name, srcDir, destDir);
 			return CL5_SYSTEM_ERROR;
 		}
 
@@ -6892,7 +6893,7 @@ cl5_diskspace_is_available()
         if (fsiz < NO_DISK_SPACE)
         {
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-                "cl5_diskspace_is_available: No enough diskspace for changelog: (%u bytes free)\n", fsiz);
+                "cl5_diskspace_is_available: No enough diskspace for changelog: (%lu bytes free)\n", fsiz);
             rval = 0;
         }
         else if (fsiz > MIN_DISK_SPACE)

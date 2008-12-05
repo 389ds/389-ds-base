@@ -193,7 +193,7 @@ get_repl_session_id (Slapi_PBlock *pb, char *idstr, CSN **csn)
 		/* Avoid "Connection is NULL and hence cannot access SLAPI_CONN_ID" */
 		if (opid) {
 			slapi_pblock_get (pb, SLAPI_CONN_ID, &connid);
-			PR_snprintf (idstr, REPL_SESSION_ID_SIZE, "conn=%" PRIu64 " op=%d", connid, opid);
+			PR_snprintf (idstr, REPL_SESSION_ID_SIZE, "conn=%" NSPRIu64 " op=%d", connid, opid);
 		}
 
 		slapi_pblock_get ( pb, SLAPI_OPERATION, &op );

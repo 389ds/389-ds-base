@@ -645,7 +645,7 @@ clcache_skip_change ( CLC_Buffer *buf )
 		/* Skip helper entry (ENTRY_COUNT, PURGE_RUV and so on) */
 		if ( cl5HelperEntry ( NULL, buf->buf_current_csn ) == PR_TRUE ) {
 			slapi_log_error ( SLAPI_LOG_REPL, buf->buf_agmt_name,
-				"Skip helper entry type=%d\n", csn_get_time( buf->buf_current_csn ));
+				"Skip helper entry type=%ld\n", csn_get_time( buf->buf_current_csn ));
 			break;
 		}
 
@@ -922,7 +922,7 @@ clcache_cursor_get ( DBC *cursor, CLC_Buffer *buf, int flag )
 								 &( buf->buf_data ),
 							 	 buf->buf_load_flag | flag );
 			slapi_log_error ( SLAPI_LOG_REPL, buf->buf_agmt_name,
-				"clcache: (%d | %d) %s reallocated and retry returns %d\n", buf->buf_load_flag, flag, buf->buf_key.data, rc );
+				"clcache: (%d | %d) buf key len %d reallocated and retry returns %d\n", buf->buf_load_flag, flag, buf->buf_key.size, rc );
 		}
 	}
 

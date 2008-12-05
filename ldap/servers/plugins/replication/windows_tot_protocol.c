@@ -109,7 +109,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	char **attrs = NULL;
 	LDAPControl **server_controls = NULL;
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_run\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_run\n" );
 	
 	PR_ASSERT(NULL != prp);
 
@@ -218,7 +218,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		agmt_set_last_init_status(prp->agmt, rc, 0, "Total update aborted");
     } else {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Finished total update of replica "
-						"\"%s\". Sent %d entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
+						"\"%s\". Sent %lu entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
 		/* Now update our consumer RUV for this agreement.
 		 * This ensures that future incrememental updates work.
@@ -244,7 +244,7 @@ done:
 	}
 	
 	prp->stopped = 1;
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_tot_run\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_run\n" );
 }
 
 static int
@@ -254,7 +254,7 @@ windows_tot_stop(Private_Repl_Protocol *prp)
 	int seconds = 600;
 	PRIntervalTime start, maxwait, now;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_stop\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_stop\n" );
 
 	prp->terminate = 1;
 	maxwait = PR_SecondsToInterval(seconds);
@@ -280,7 +280,7 @@ windows_tot_stop(Private_Repl_Protocol *prp)
 		return_value = 0;
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_tot_stop\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_stop\n" );
 
 	return return_value;
 }
@@ -291,8 +291,8 @@ static int
 windows_tot_status(Private_Repl_Protocol *prp)
 {
 	int return_value = 0;
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_status\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_tot_status\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_status\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_status\n" );
 	return return_value;
 }
 
@@ -301,8 +301,8 @@ windows_tot_status(Private_Repl_Protocol *prp)
 static void
 windows_tot_noop(Private_Repl_Protocol *prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_noop\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_tot_noop\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_noop\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_noop\n" );
 	/* noop */
 }
 
@@ -313,7 +313,7 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
 	windows_tot_private *rip = NULL;
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> Windows_Tot_Protocol_new\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> Windows_Tot_Protocol_new\n" );
 
 	prp->delete = windows_tot_delete;
 	prp->run = windows_tot_run;
@@ -342,28 +342,28 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
 	rip->rp = rp;
 	prp->private = (void *)rip;
     prp->replica_acquired = PR_FALSE;
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= Windows_Tot_Protocol_new\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= Windows_Tot_Protocol_new\n" );
 	return prp;
 loser:
 	windows_tot_delete(&prp);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= Windows_Tot_Protocol_new - loser\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= Windows_Tot_Protocol_new - loser\n" );
 	return NULL;
 }
 
 static void
 windows_tot_delete(Private_Repl_Protocol **prp)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_tot_delete\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_tot_delete\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_delete\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_delete\n" );
 }
 
 static 
 void get_result (int rc, void *cb_data)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> get_result\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> get_result\n" );
     PR_ASSERT (cb_data);
     ((callback_data*)cb_data)->rc = rc;
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= get_result\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= get_result\n" );
 }
 
 static 
@@ -373,7 +373,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
     Private_Repl_Protocol *prp;
 	unsigned long *num_entriesp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_entry\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> send_entry\n" );
 
     PR_ASSERT (cb_data);
 
@@ -386,13 +386,13 @@ int send_entry (Slapi_Entry *e, void *cb_data)
         conn_disconnect(prp->conn);
         prp->stopped = 1;
 		((callback_data*)cb_data)->rc = -1;
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= send_entry\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= send_entry\n" );
 		return -1;    
     }
 
     /* skip ruv tombstone - not relvant to Active Directory */
     if (is_ruv_tombstone_entry (e)) {
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= send_entry\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= send_entry\n" );
         return 0;
 	}
 
@@ -401,7 +401,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 	
 	(*num_entriesp)++;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_entry\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= send_entry\n" );
 
 	if (CONN_OPERATION_SUCCESS == rc) {
 		return 0;

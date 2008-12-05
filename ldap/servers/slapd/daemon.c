@@ -1496,7 +1496,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 						 * trying to acquire a closing connection
 						 */
 						LDAPDebug (LDAP_DEBUG_ANY,
-							"connection_activity: abandoning conn %" PRIu64 " as fd=%d is already closing\n",
+							"connection_activity: abandoning conn %" NSPRIu64 " as fd=%d is already closing\n",
 							c->c_connid,c->c_sd,0); 
 						/* The call disconnect_server should do nothing,
 						 * as the connection c should be already set to CLOSING */

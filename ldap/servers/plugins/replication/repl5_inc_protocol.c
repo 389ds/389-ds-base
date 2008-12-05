@@ -464,7 +464,7 @@ repl5_inc_waitfor_async_results(result_data *rd)
 		/* Are we caught up ? */
 		slapi_log_error(SLAPI_LOG_REPL, NULL,
 					"repl5_inc_waitfor_async_results: %d %d\n",
-					rd->last_message_id_received, rd->last_message_id_sent, 0);
+					rd->last_message_id_received, rd->last_message_id_sent);
 		if (rd->last_message_id_received >= rd->last_message_id_sent) 
 		{
 			/* If so then we're done */
@@ -481,7 +481,7 @@ repl5_inc_waitfor_async_results(result_data *rd)
 			/* Log a warning */
 			slapi_log_error(SLAPI_LOG_FATAL, NULL,
 					"repl5_inc_waitfor_async_results timed out waiting for responses: %d %d\n",
-					rd->last_message_id_received, rd->last_message_id_sent, 0);
+					rd->last_message_id_received, rd->last_message_id_sent);
 			done = 1;
 		}
 	}
@@ -966,7 +966,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 		next_fire_time = backoff_step(prp_priv->backoff);
 		/* And go back to sleep */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"%s: Replication session backing off for %d seconds\n",
+				"%s: Replication session backing off for %ld seconds\n",
 				agmt_get_long_name(prp->agmt),
 				next_fire_time - now);
 
@@ -1448,7 +1448,7 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 			break;
 		default:
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: replay_update: Unknown "
-				"operation type %d found in changelog - skipping change.\n",
+				"operation type %lu found in changelog - skipping change.\n",
 				agmt_get_long_name(prp->agmt), op->operation_type);
 		}
 

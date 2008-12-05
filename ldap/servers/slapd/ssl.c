@@ -166,7 +166,7 @@ char ** getSupportedCiphers()
 		cipher_names = (char **) slapi_ch_calloc ((number_of_ciphers +1 ) , sizeof(char *));
 		for (i = 0 ; _conf_ciphers[i].name != NULL; i++ ) {
 			SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[i].num,&info,sizeof(info));
-			cipher_names[i] = PR_smprintf("%s%s%s%s%s%s%s%s%d\0",_conf_ciphers[i].version,sep,_conf_ciphers[i].name,sep,info.symCipherName,sep,info.macAlgorithmName,sep,info.symKeyBits);
+			cipher_names[i] = PR_smprintf("%s%s%s%s%s%s%s%s%d",_conf_ciphers[i].version,sep,_conf_ciphers[i].name,sep,info.symCipherName,sep,info.macAlgorithmName,sep,info.symKeyBits);
 		}
 		cipher_names[i] = NULL;
 	}

@@ -1161,7 +1161,7 @@ slapi_ldap_bind(
 	    } else if (rc == 0) { /* timeout */
 		rc = LDAP_TIMEOUT;
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-				"Error: timeout after [%d.%d] seconds reading "
+				"Error: timeout after [%ld.%ld] seconds reading "
 				"bind response for [%s] mech [%s]\n",
 				timeout ? timeout->tv_sec : 0,
 				timeout ? timeout->tv_usec : 0,

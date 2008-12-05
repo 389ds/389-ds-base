@@ -59,14 +59,6 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 
-/* NSPR uses the print macros a bit differently than ANSI C.  We
- * need to use ll for a 64-bit integer, even when a long is 64-bit.
- */
-#undef PRIu64
-#define PRIu64  "llu"
-#undef PRI64
-#define PRI64   "ll"
-
 #else
 #error Need to define portable format macros such as PRIu64
 #endif /* HAVE_INTTYPES_H */
@@ -703,7 +695,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> dn [%s]\n", entry->dn, 0, 0);
+                    "----------> dn [%s]\n", entry->dn);
 
     value = slapi_entry_attr_get_charptr(e, DNA_TYPE);
     if (value) {
@@ -718,7 +710,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_TYPE, entry->type, 0, 0);
+                    "----------> %s [%s]\n", DNA_TYPE, entry->type);
 
     value = slapi_entry_attr_get_charptr(e, DNA_NEXTVAL);
     if (value) {
@@ -734,8 +726,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" PRIu64 "]\n", DNA_NEXTVAL, entry->nextval, 0,
-                    0);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_NEXTVAL, entry->nextval);
 
     value = slapi_entry_attr_get_charptr(e, DNA_PREFIX);
     if (value && value[0]) {
@@ -749,7 +740,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_PREFIX, entry->prefix, 0, 0);
+                    "----------> %s [%s]\n", DNA_PREFIX, entry->prefix);
 
     /* Set the default interval to 1 */
     entry->interval = 1;
@@ -762,7 +753,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" PRIu64 "]\n", DNA_INTERVAL, entry->interval, 0, 0);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_INTERVAL, entry->interval);
 #endif
 
     value = slapi_entry_attr_get_charptr(e, DNA_GENERATE);
@@ -771,8 +762,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_GENERATE, entry->generate,
-                    0, 0);
+                    "----------> %s [%s]\n", DNA_GENERATE, entry->generate);
 
     value = slapi_entry_attr_get_charptr(e, DNA_FILTER);
     if (value) {
@@ -794,7 +784,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_FILTER, value, 0, 0);
+                    "----------> %s [%s]\n", DNA_FILTER, value);
 
     value = slapi_entry_attr_get_charptr(e, DNA_SCOPE);
     if (value) {
@@ -811,7 +801,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_SCOPE, entry->scope, 0, 0);
+                    "----------> %s [%s]\n", DNA_SCOPE, entry->scope);
 
     /* optional, if not specified set -1  which is converted to the max unisgnee
      * value */
@@ -824,7 +814,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%llu]\n", DNA_MAXVAL, entry->maxval, 0, 0);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_MAXVAL, entry->maxval);
 
     value = slapi_entry_attr_get_charptr(e, DNA_SHARED_CFG_DN);
     if (value) {
@@ -862,7 +852,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_SHARED_CFG_DN,
-                        entry->shared_cfg_base, 0, 0);
+                        entry->shared_cfg_base);
     }
 
     value = slapi_entry_attr_get_charptr(e, DNA_THRESHOLD);
@@ -870,7 +860,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         entry->threshold = strtoull(value, 0, 0);
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%" PRIu64 "]\n", DNA_THRESHOLD, value, 0, 0);
+                        "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD, value);
 
         slapi_ch_free_string(&value);
     } else {
@@ -878,7 +868,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%llu]\n", DNA_THRESHOLD, entry->threshold, 0, 0);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD, entry->threshold);
 
     value = slapi_entry_attr_get_charptr(e, DNA_RANGE_REQUEST_TIMEOUT);
     if (value) {
@@ -889,8 +879,8 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%llu]\n", DNA_RANGE_REQUEST_TIMEOUT,
-                    entry->timeout, 0, 0);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_RANGE_REQUEST_TIMEOUT,
+                    entry->timeout);
 
     value = slapi_entry_attr_get_charptr(e, DNA_NEXT_RANGE);
     if (value) {
@@ -995,7 +985,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                 slapi_log_error(SLAPI_LOG_CONFIG,
                                 DNA_PLUGIN_SUBSYSTEM,
                                 "store [%s] before [%s] \n", entry->scope,
-                                config_entry->scope, 0);
+                                config_entry->scope);
                 entry_added = 1;
                 break;
             }
@@ -1007,8 +997,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                 /* add to tail */
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                                "store [%s] at tail\n", entry->scope, 0,
-                                0);
+                                "store [%s] at tail\n", entry->scope);
                 entry_added = 1;
                 break;
             }
@@ -1017,7 +1006,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         /* first entry */
         PR_INSERT_LINK(&(entry->list), dna_global_config);
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "store [%s] at head \n", entry->scope, 0, 0);
+                        "store [%s] at head \n", entry->scope);
         entry_added = 1;
     }
 
@@ -1027,7 +1016,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         if ((apply != 0) && (entry != NULL)) {
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                             "dna_parse_config_entry: Invalid config entry "
-                            "[%s] skipped\n", entry->dn, 0, 0);
+                            "[%s] skipped\n", entry->dn);
         }
         dna_free_config_entry(&entry);
     } else {
@@ -1050,7 +1039,7 @@ dna_free_config_entry(struct configEntry ** entry)
 
     if (e->dn) {
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "freeing config entry [%s]\n", e->dn, 0, 0);
+                        "freeing config entry [%s]\n", e->dn);
         slapi_ch_free_string(&e->dn);
     }
 
@@ -1355,8 +1344,8 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
      * don't need to do this if we already have a next range on deck. */
     if ((config_entry->next_range_lower == 0) && (config_entry->remaining <= config_entry->threshold)) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_notice_allocation: Passed threshold of %" PRIu64 " remaining values "
-                        "for range %s. (%" PRIu64 " values remain)\n",
+                        "dna_notice_allocation: Passed threshold of %" NSPRIu64 " remaining values "
+                        "for range %s. (%" NSPRIu64 " values remain)\n",
                         config_entry->threshold, config_entry->dn, config_entry->remaining);
         /* Only attempt to fix maxval if the fix flag is set. */
         if (fix != 0) {
@@ -1784,7 +1773,7 @@ dna_first_free_value(struct configEntry *config_entry,
     if (prefix) {
         /* The 7 below is for all of the filter characters "(&(=))"
          * plus the trailing \0.  The 20 is for the maximum string
-         * representation of a " PRIu64 ". */
+         * representation of a " NSPRIu64 ". */
         filterlen = strlen(config_entry->filter) +
                                  strlen(prefix) + strlen(type)
                                  + 7 + 20;
@@ -1802,7 +1791,7 @@ dna_first_free_value(struct configEntry *config_entry,
             return LDAP_OPERATIONS_ERROR;
         }
 
-        filter = slapi_ch_smprintf("(&%s(&(%s>=%" PRIu64 ")(%s<=%" PRIu64 ")))",
+        filter = slapi_ch_smprintf("(&%s(&(%s>=%" NSPRIu64 ")(%s<=%" NSPRIu64 ")))",
                                    config_entry->filter,
                                    type, tmpval,
                                    type, config_entry->maxval);
@@ -1985,7 +1974,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
      * of our current range */
     if (nextval <= (config_entry->maxval + config_entry->interval)) {
         /* try to set the new next value in the config entry */
-        snprintf(next_value, sizeof(next_value),"%" PRIu64, nextval);
+        PR_snprintf(next_value, sizeof(next_value),"%" NSPRIu64, nextval);
 
         /* set up our replace modify operation */
         replace_val[0] = next_value;
@@ -2015,7 +2004,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
 
     if (LDAP_SUCCESS == ret) {
         slapi_ch_free_string(next_value_ret);
-        *next_value_ret = slapi_ch_smprintf("%" PRIu64, setval);
+        *next_value_ret = slapi_ch_smprintf("%" NSPRIu64, setval);
         if (NULL == *next_value_ret) {
             ret = LDAP_OPERATIONS_ERROR;
             goto done;
@@ -2062,7 +2051,7 @@ dna_update_shared_config(struct configEntry * config_entry)
 
         /* We store the number of remaining assigned values
          * in the shared config entry. */
-        snprintf(remaining_vals, sizeof(remaining_vals),"%" PRIu64, config_entry->remaining);
+        PR_snprintf(remaining_vals, sizeof(remaining_vals),"%" NSPRIu64, config_entry->remaining);
 
         /* set up our replace modify operation */
         replace_val[0] = remaining_vals;
@@ -2147,7 +2136,7 @@ dna_update_next_range(struct configEntry *config_entry,
     int ret = 0;
 
     /* Try to set the new next range in the config entry. */
-    snprintf(nextrange_value, sizeof(nextrange_value), "%" PRIu64 "-%" PRIu64,
+    PR_snprintf(nextrange_value, sizeof(nextrange_value), "%" NSPRIu64 "-%" NSPRIu64,
              lower, upper);
 
     /* set up our replace modify operation */
@@ -2216,8 +2205,8 @@ dna_activate_next_range(struct configEntry *config_entry)
     int ret = 0;
 
     /* Setup the modify operation for the config entry */
-    snprintf(maxval_val, sizeof(maxval_val),"%" PRIu64, config_entry->next_range_upper);
-    snprintf(nextval_val, sizeof(nextval_val),"%" PRIu64, config_entry->next_range_lower);
+    PR_snprintf(maxval_val, sizeof(maxval_val),"%" NSPRIu64, config_entry->next_range_upper);
+    PR_snprintf(nextval_val, sizeof(nextval_val),"%" NSPRIu64, config_entry->next_range_lower);
 
     maxval_vals[0] = maxval_val;
     maxval_vals[1] = 0;
@@ -2855,8 +2844,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         char highstr[16];
 
         /* Create the exop response */
-        snprintf(lowstr, sizeof(lowstr), "%" PRIu64, lower);
-        snprintf(highstr, sizeof(highstr), "%" PRIu64, upper);
+        PR_snprintf(lowstr, sizeof(lowstr), "%" NSPRIu64, lower);
+        PR_snprintf(highstr, sizeof(highstr), "%" NSPRIu64, upper);
         range_low.bv_val = lowstr;
         range_low.bv_len = strlen(range_low.bv_val);
         range_high.bv_val = highstr;
@@ -2889,7 +2878,7 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         ber_bvfree(respdata);
 
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_extend_exop: Released range %" PRIu64 "-%" PRIu64 ".\n",
+                        "dna_extend_exop: Released range %" NSPRIu64 "-%" NSPRIu64 ".\n",
                         lower, upper);
     }
 
@@ -3031,7 +3020,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 *lower = *upper - release + 1;
 
                 /* try to set the new maxval in the config entry */
-                snprintf(max_value, sizeof(max_value),"%" PRIu64, (*lower - 1));
+                PR_snprintf(max_value, sizeof(max_value),"%" NSPRIu64, (*lower - 1));
 
                 /* set up our replace modify operation */
                 replace_val[0] = max_value;

@@ -124,7 +124,7 @@ aclg_init_userGroup ( struct acl_pblock *aclpb, const char *n_dn , int got_lock 
 			
 			if ( !u_group->aclug_refcnt ) {
 				slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-					"In traversal group deallocation\n", 0,0,0 );
+					"In traversal group deallocation\n" );
 				__aclg__delete_userGroup (u_group);								
 			}			
 		} else {
@@ -164,7 +164,7 @@ aclg_init_userGroup ( struct acl_pblock *aclpb, const char *n_dn , int got_lock 
 			if ( u_group == aclUserGroups->aclg_last )
 				aclUserGroups->aclg_last = p_group;
 		}
-		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl_init_userGroup: found in cache for dn:%s\n", n_dn,0,0);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl_init_userGroup: found in cache for dn:%s\n", n_dn);
 	}
 	if (!got_lock ) ACLG_ULOCK_GROUPCACHE_WRITE ();
 }
@@ -291,7 +291,7 @@ aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn)
 	 * That's fine as the invalid one will be deallocated when done.
 	 */
 
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "ALLOCATING GROUP FOR:%s\n", n_dn,0,0 );
+	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "ALLOCATING GROUP FOR:%s\n", n_dn );
 	u_group = ( aclUserGroup * ) slapi_ch_calloc ( 1, sizeof ( aclUserGroup ) );
 	
 	u_group->aclug_refcnt = 1;
@@ -385,7 +385,7 @@ __aclg__delete_userGroup ( aclUserGroup *u_group )
 	 * be in a condemned state and later deleted.
 	 */
 	
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "DEALLOCATING GROUP FOR:%s\n", u_group->aclug_ndn,0,0 );
+	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "DEALLOCATING GROUP FOR:%s\n", u_group->aclug_ndn );
 
 	slapi_ch_free ( (void **) &u_group->aclug_ndn );
 

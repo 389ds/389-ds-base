@@ -192,19 +192,19 @@ agmt_is_valid(Repl_Agmt *ra)
 	if (ra->timeout < 0)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
-			"is malformed: invalid timeout %d.\n", slapi_sdn_get_dn(ra->dn), ra->timeout);
+			"is malformed: invalid timeout %ld.\n", slapi_sdn_get_dn(ra->dn), ra->timeout);
 		return_value = 0;
 	}
 	if (ra->busywaittime < 0)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
-			"is malformed: invalid busy wait time %d.\n", slapi_sdn_get_dn(ra->dn), ra->busywaittime);
+			"is malformed: invalid busy wait time %ld.\n", slapi_sdn_get_dn(ra->dn), ra->busywaittime);
 		return_value = 0;
 	}
 	if (ra->pausetime < 0)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
-			"is malformed: invalid pausetime %d.\n", slapi_sdn_get_dn(ra->dn), ra->pausetime);
+			"is malformed: invalid pausetime %ld.\n", slapi_sdn_get_dn(ra->dn), ra->pausetime);
 		return_value = 0;
 	}
 	return return_value;

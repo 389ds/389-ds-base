@@ -73,9 +73,15 @@ extern "C" {
 /* Disable by default */
 #define LDAPDebug( level, fmt, arg1, arg2, arg3 )
 #define LDAPDebugLevelIsSet( level ) (0)
+#define LDAPDebug0Args( level, fmt )
+#define LDAPDebug1Arg( level, fmt, arg )
+#define LDAPDebug2Args( level, fmt, arg1, arg2 )
 
 #ifdef LDAP_DEBUG
 #  undef LDAPDebug
+#  undef LDAPDebug0Args
+#  undef LDAPDebug1Arg
+#  undef LDAPDebug2Args
 #  undef LDAPDebugLevelIsSet
 
 /* SLAPD_LOGGING should not be on for WINSOCK (16-bit Windows) */
@@ -90,6 +96,24 @@ extern "C" {
 		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
 	    } \
        }
+#      define LDAPDebug0Args( level, fmt )	\
+       { \
+		if ( *module_ldap_debug & level ) { \
+		        slapd_log_error_proc( NULL, fmt ); \
+	    } \
+       }
+#      define LDAPDebug1Arg( level, fmt, arg )      \
+       { \
+		if ( *module_ldap_debug & level ) { \
+		        slapd_log_error_proc( NULL, fmt, arg ); \
+	    } \
+       }
+#      define LDAPDebug2Args( level, fmt, arg1, arg2 )    \
+       { \
+		if ( *module_ldap_debug & level ) { \
+		        slapd_log_error_proc( NULL, fmt, arg1, arg2 ); \
+	    } \
+       }
 #      define LDAPDebugLevelIsSet( level ) (0 != (*module_ldap_debug & level))
 #    else /* Not _WIN32 */
        extern int	slapd_ldap_debug;
@@ -97,6 +121,24 @@ extern "C" {
        { \
 		if ( slapd_ldap_debug & level ) { \
 		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
+	    } \
+       }
+#      define LDAPDebug0Args( level, fmt )	\
+       { \
+		if ( slapd_ldap_debug & level ) { \
+		        slapd_log_error_proc( NULL, fmt ); \
+	    } \
+       }
+#      define LDAPDebug1Arg( level, fmt, arg )      \
+       { \
+		if ( slapd_ldap_debug & level ) { \
+		        slapd_log_error_proc( NULL, fmt, arg ); \
+	    } \
+       }
+#      define LDAPDebug2Args( level, fmt, arg1, arg2 )    \
+       { \
+		if ( slapd_ldap_debug & level ) { \
+		        slapd_log_error_proc( NULL, fmt, arg1, arg2 ); \
 	    } \
        }
 #      define LDAPDebugLevelIsSet( level ) (0 != (slapd_ldap_debug & level))
@@ -108,6 +150,24 @@ extern "C" {
 		if ( slapd_ldap_debug & level ) { \
 			char msg[256]; \
 			PR_snprintf( msg, sizeof(msg), fmt, arg1, arg2, arg3 ); \
+			ber_err_print( msg ); \
+		}
+#    define LDAPDebug0Args( level, fmt ) \
+		if ( slapd_ldap_debug & level ) { \
+			char msg[256]; \
+			PR_snprintf( msg, sizeof(msg), fmt ); \
+			ber_err_print( msg ); \
+		}
+#    define LDAPDebug1Arg( level, fmt, arg )  \
+		if ( slapd_ldap_debug & level ) { \
+			char msg[256]; \
+			PR_snprintf( msg, sizeof(msg), fmt, arg );  \
+			ber_err_print( msg ); \
+		}
+#    define LDAPDebug2Args( level, fmt, arg1, arg2 ) \
+		if ( slapd_ldap_debug & level ) { \
+			char msg[256]; \
+			PR_snprintf( msg, sizeof(msg), fmt, arg1, arg2 );    \
 			ber_err_print( msg ); \
 		}
 #    define LDAPDebugLevelIsSet( level )	(0 != (slapd_ldap_debug & level))

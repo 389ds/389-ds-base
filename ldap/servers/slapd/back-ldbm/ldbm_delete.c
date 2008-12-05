@@ -93,7 +93,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	
 	if (pb->pb_conn)
 	{
-		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%" PRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
+		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
 	}
 
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
@@ -666,7 +666,7 @@ diskfull_return:
 	slapi_ch_free_string(&e_uniqueid);
 	if (pb->pb_conn)
 	{
-		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" PRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
+		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
 	}
 	return rc;
 }

@@ -86,7 +86,7 @@ aclinit_main()
 	/* Initialize the LIBACCESS ACL library */
 	if (ACL_Init() != 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-			 "ACL Library Initialization failed\n",0,0,0);
+			 "ACL Library Initialization failed\n");
 		return 1;
 	}
 	
@@ -240,7 +240,7 @@ aclinit_search_and_update_aci ( int thisbeonly, const Slapi_DN *base,
 
 	if ( thisbeonly && be_name == NULL) {
 		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, 
-						"Error: This  be_name must be specified.\n", 0, 0, 0);
+						"Error: This  be_name must be specified.\n");
 		return -1;
 	}
 
@@ -387,7 +387,7 @@ __aclinit_handler ( Slapi_Entry *e, void *callback_data)
 							slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, 
 									  "Error: This  (%s) ACL will not be considered for evaluation"
 									  " because of syntax errors.\n", 
-									  attrValue->bv_val ? attrValue->bv_val: "NULL", 0, 0);
+									  attrValue->bv_val ? attrValue->bv_val: "NULL");
 							call_back_data->retCode = rv;
 						}				
 					i= slapi_attr_next_value( attr, i, &sval );
@@ -409,7 +409,7 @@ __aclinit_handler ( Slapi_Entry *e, void *callback_data)
 					/* We got an error; Log it  and then march along */
 					slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, 
 									  "Error: ACls not deleted from %s\n",
-										e_sdn, 0, 0);
+                                      slapi_sdn_get_dn(e_sdn));
 					call_back_data->retCode = rv;
 				}
 				if ( call_back_data->lock_flag == DO_TAKE_ACLCACHE_WRITELOCK) {
@@ -458,14 +458,14 @@ __aclinit__RegisterAttributes(void)
 	if (rv < 0) {
 		acl_print_acllib_err(&errp, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
-			  "Unable to Register the methods\n", 0,0,0);
+			  "Unable to Register the methods\n");
 		return ACL_ERR;
 	}
 	rv = ACL_MethodSetDefault (&errp,  methodinfo);
 	if (rv < 0) {
 		acl_print_acllib_err(&errp, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
-			  "Unable to Set the default method\n", 0,0,0);
+			  "Unable to Set the default method\n");
 		return ACL_ERR;
 	}
         rv = ACL_AttrGetterRegister(&errp, ACL_ATTR_IP, DS_LASIpGetter,
@@ -473,7 +473,7 @@ __aclinit__RegisterAttributes(void)
 	if (rv < 0) {
 		acl_print_acllib_err(&errp, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
-			  "Unable to Register Attr ip\n", 0,0,0);
+			  "Unable to Register Attr ip\n");
 		return ACL_ERR;
 	}
         rv = ACL_AttrGetterRegister(&errp, ACL_ATTR_DNS, DS_LASDnsGetter,
@@ -481,7 +481,7 @@ __aclinit__RegisterAttributes(void)
 	if (rv < 0) {
 		acl_print_acllib_err(&errp, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
-			  "Unable to Register Attr dns\n", 0,0,0);
+			  "Unable to Register Attr dns\n");
 		return ACL_ERR;
 	}
 	return ACL_OK;
@@ -512,59 +512,59 @@ __aclinit__RegisterLases(void)
 	if (ACL_LasRegister(NULL, DS_LAS_USER, (LASEvalFunc_t) DS_LASUserEval, 
 				(LASFlushFunc_t) NULL) <  0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register USER Las\n",0,0,0);
+				"Unable to register USER Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_GROUP, (LASEvalFunc_t) DS_LASGroupEval, 
 				(LASFlushFunc_t) NULL) <  0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register GROUP Las\n",0,0,0);
+				"Unable to register GROUP Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_GROUPDN, (LASEvalFunc_t)DS_LASGroupDnEval, 
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register GROUPDN Las\n",0,0,0);
+				"Unable to register GROUPDN Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_ROLEDN, (LASEvalFunc_t)DS_LASRoleDnEval, 
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register ROLEDN Las\n",0,0,0);
+				"Unable to register ROLEDN Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_USERDN, (LASEvalFunc_t)DS_LASUserDnEval, 
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register USERDN Las\n",0,0,0);
+				"Unable to register USERDN Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_USERDNATTR, 
 				(LASEvalFunc_t)DS_LASUserDnAttrEval, 
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register USERDNATTR Las\n",0,0,0);
+				"Unable to register USERDNATTR Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_AUTHMETHOD, 
 				(LASEvalFunc_t)DS_LASAuthMethodEval, 
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-			"Unable to register CLIENTAUTHTYPE Las\n",0,0,0);
+			"Unable to register CLIENTAUTHTYPE Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_GROUPDNATTR,
 				(LASEvalFunc_t)DS_LASGroupDnAttrEval,
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register GROUPDNATTR Las\n",0,0,0);
+				"Unable to register GROUPDNATTR Las\n");
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_USERATTR,
 				(LASEvalFunc_t)DS_LASUserAttrEval,
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
-				"Unable to register USERATTR Las\n",0,0,0);
+				"Unable to register USERATTR Las\n");
 		return ACL_ERR;
 	}
 	return ACL_OK;

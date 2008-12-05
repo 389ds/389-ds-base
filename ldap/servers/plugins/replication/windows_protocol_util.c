@@ -1287,7 +1287,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			break;
 		default:
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "%s: replay_update: Unknown "
-				"operation type %d found in changelog - skipping change.\n",
+				"operation type %lu found in changelog - skipping change.\n",
 				agmt_get_long_name(prp->agmt), op->operation_type);
 		}
 		if (password) 
@@ -3878,7 +3878,7 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 				/* We should have been able to map the DN, so this is an error */
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 								"%s: windows_process_dirsync_entry: failed to map "
-								"inbound entry %s - rc is %d dn is [%d].\n",
+								"inbound entry %s - rc is %d dn is [%s].\n",
 								agmt_get_long_name(prp->agmt),
 								slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)),
 								rc,

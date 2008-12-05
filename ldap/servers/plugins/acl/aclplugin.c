@@ -125,7 +125,7 @@ acl_preopInit (Slapi_PBlock *pb)
 #endif
 
 
-        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc, 0, 0 );
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc );
         return( rc );
 }
 
@@ -299,7 +299,7 @@ acl_init( Slapi_PBlock *pb )
 {
         int     rc =0;
 
-        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> acl_init\n", 0, 0, 0 );
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> acl_init\n" );
 
         if  ( 0 != acl_init_ext() ) {
 		    slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,
@@ -326,7 +326,7 @@ acl_init( Slapi_PBlock *pb )
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_ACL_MODS_UPDATE,
             (void *) acl_modified );
 
-        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= acl_init %d\n", rc, 0, 0 );
+        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= acl_init %d\n", rc);
         return( rc );
 }
 

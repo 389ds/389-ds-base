@@ -297,7 +297,7 @@ acl_access_allowed(
 
 		 if (  !privateBackend && (be_readonly ||  slapi_config_get_readonly () )){
 			slapi_log_error	(loglevel, plugin_name,
-				"conn=%" PRIu64 " op=%d (main): Deny %s on entry(%s)"
+				"conn=%" NSPRIu64 " op=%d (main): Deny %s on entry(%s)"
 				": readonly backend\n",
 				 op->o_connid, op->o_opid,
 				acl_access2str(access),
@@ -310,7 +310,7 @@ acl_access_allowed(
 	TNF_PROBE_0_DEBUG(acl_skipaccess_start,"ACL","");
 	if (  acl_skip_access_check ( pb, e )) {
 		slapi_log_error	(loglevel,	plugin_name,
-				"conn=%" PRIu64 " op=%d (main): Allow %s on entry(%s)"
+				"conn=%" NSPRIu64 " op=%d (main): Allow %s on entry(%s)"
 				": root user\n",
 				op->o_connid, op->o_opid,
 				acl_access2str(access),
@@ -438,7 +438,7 @@ acl_access_allowed(
 		TNF_PROBE_0_DEBUG(acl_entry_first_touch_start,"ACL","");
 
 		slapi_log_error(loglevel, plugin_name,
-			"#### conn=%" PRIu64 " op=%d binddn=\"%s\"\n",
+			"#### conn=%" NSPRIu64 " op=%d binddn=\"%s\"\n",
 			op->o_connid, op->o_opid, clientDn);
 		aclpb->aclpb_stat_total_entries++;
 
@@ -504,7 +504,7 @@ acl_access_allowed(
                                                  
 		if (rv < 0) {
 			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-	    	  		"Unable to set the Slapi_Entry in the Plist\n",0,0,0);
+	    	  		"Unable to set the Slapi_Entry in the Plist\n");
 			ret_val = LDAP_OPERATIONS_ERROR;
 			goto cleanup_and_ret;
 		}
@@ -570,7 +570,7 @@ acl_access_allowed(
 
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 		   "Processed attr:%s for entry:%s\n", attr ? attr : "NULL",
-		   ACL_ESCAPE_STRING_WITH_PUNCTUATION ( n_edn, ebuf), 0);
+		   ACL_ESCAPE_STRING_WITH_PUNCTUATION ( n_edn, ebuf));
 
 	/*
 	** Now evaluate the rights. 
@@ -755,7 +755,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 										null_user);
 
 				slapi_log_error(loglevel, plugin_name, 
-		"conn=%" PRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
 		": %s\n",
 				op->o_connid, op->o_opid,
 				source,
@@ -768,7 +768,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 		} else {
 					proxy_user = null_user;
 					slapi_log_error(loglevel, plugin_name, 
-		"conn=%" PRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
 		": %s\n",
 				op->o_connid, op->o_opid,
 				source,
@@ -781,7 +781,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 		}
 	} else{
 		slapi_log_error(loglevel, plugin_name, 
-			"conn=%" PRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
+			"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
 			": %s\n",
 				op->o_connid, op->o_opid,
 				source,
@@ -1150,7 +1150,7 @@ acl_read_access_allowed_on_attr (
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			  "Root access (%s) allowed on entry(%s)\n",
 			   acl_access2str(access), 
-			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf), 0);
+			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf));
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","",
 							tnf_string,skip_aclcheck,"");
 
@@ -1219,7 +1219,7 @@ acl_read_access_allowed_on_attr (
 	if (aclpb->aclpb_state & ACLPB_ATTR_STAR_MATCHED) {
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 		 	  "STAR Access allowed on attr:%s; entry:%s \n",
-		 	   attr, ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf), 0);
+		 	   attr, ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf));
 		decision_reason.reason =
 						ACL_REASON_EVALCONTEXT_CACHED_ATTR_STAR_ALLOW;
 		ret_val = LDAP_SUCCESS;
@@ -1575,7 +1575,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		*/
 		if ( group_change )  {
 			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
-			"Group Change: Invalidating entire UserGroup Cache\n",
+			"Group Change: Invalidating entire UserGroup Cache %s\n",
 			ACL_ESCAPE_STRING_WITH_PUNCTUATION(n_dn, ebuf));
 			aclg_regen_group_signature();
 			if (  (optype == SLAPI_OPERATION_MODIFY) || (optype == SLAPI_OPERATION_DELETE ) ) {
@@ -1753,7 +1753,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		new_RDN = (char*) change;
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			   "acl_modified (MODRDN %s => \"%s\"\n", 
-			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_dn, ebuf), new_RDN, 0);
+			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_dn, ebuf), new_RDN);
 
 		/* compute new_DN: */
 		parent_DN = slapi_dn_parent (n_dn);
@@ -1921,7 +1921,7 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 	aclpb->aclpb_num_allow_handles = allow_handle;
 
 	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Num of ALLOW Handles:%d, DENY handles:%d\n", 
-		  aclpb->aclpb_num_allow_handles, aclpb->aclpb_num_deny_handles, 0);
+		  aclpb->aclpb_num_allow_handles, aclpb->aclpb_num_deny_handles);
 
 	TNF_PROBE_0_DEBUG(acl__scan_for_acis_end,"ACL","");
 
@@ -2057,8 +2057,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			dn_matched = ACL_FALSE;
 			if(rv == ACL_ERR) {
 				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-					"acl__resource_match_aci:pattern err\n",
-					 0,0,0);
+					"acl__resource_match_aci:pattern err\n");
 				matches = ACL_FALSE;
 				goto acl__resource_match_aci_EXIT;	
 			}
@@ -2770,7 +2769,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 					if (access & SLAPI_ACL_SEARCH) {
 						if ( result & ACLPB_CACHE_SEARCH_RES_DENY){
 							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-						           "DENY:Found SEARCH DENY in cache\n",0,0,0);
+						           "DENY:Found SEARCH DENY in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_DENY;
@@ -2780,7 +2779,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 						} else if ((result & ACLPB_CACHE_SEARCH_RES_SKIP) ||
 							   (result & ACLPB_CACHE_SEARCH_RES_ALLOW)) { 
 					  	    slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-							     "DENY:Found SEARCH SKIP in cache\n",0,0,0);
+							     "DENY:Found SEARCH SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -2789,7 +2788,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 					} else {	/* must be READ */
 						if (result & ACLPB_CACHE_READ_RES_DENY) {
 							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-								  "DENY:Found READ DENY in cache\n",0,0,0);
+								  "DENY:Found READ DENY in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_DENY;
@@ -2798,7 +2797,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 							return ACL_RES_DENY;
 						} else if ( result & ACLPB_CACHE_READ_RES_SKIP) {
 							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-								  "DENY:Found READ SKIP in cache\n",0,0,0);
+								  "DENY:Found READ SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -2816,8 +2815,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 		rv = ACL_EvalSetACL(NULL, acleval, aci->aci_handle);
 		if ( rv < 0) {
 			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
-				"acl__TestRights:Unable to set the DENY acllist\n", 
-				0,0,0);
+				"acl__TestRights:Unable to set the DENY acllist\n");
 			continue;
 		}
 		/* 
@@ -2831,7 +2829,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 						&deny_generic,
 						&acl_tag, &expr_num);
 
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name, "Processed:%d DENY handles Result:%d\n",index, rights_rv,0);
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name, "Processed:%d DENY handles Result:%d\n",index, rights_rv);
 
 		if (rights_rv   == ACL_RES_FAIL) {
 				result_reason->deciding_aci = aci;
@@ -2989,7 +2987,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 							return ACL_RES_ALLOW;
 						} else if ( result & ACLPB_CACHE_SEARCH_RES_SKIP) {
 							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-							   "Found SEARCH SKIP in cache\n",0,0,0);
+							   "Found SEARCH SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -2999,7 +2997,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 					} else {
 						if ( result & ACLPB_CACHE_READ_RES_ALLOW) {
 							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-							   "Found READ ALLOW in cache\n",0,0,0);
+							   "Found READ ALLOW in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_ALLOW;
@@ -3008,7 +3006,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 							return ACL_RES_ALLOW;
 						} else if ( result & ACLPB_CACHE_READ_RES_SKIP) {
 							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-							   "Found READ SKIP in cache\n",0,0,0);
+							   "Found READ SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -3027,8 +3025,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 		rv = ACL_EvalSetACL(NULL, acleval, aci->aci_handle);
 		if ( rv < 0) {
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-				"acl__TestRights:Unable to set the acllist\n", 
-				0,0,0);
+				"acl__TestRights:Unable to set the acllist\n");
 			continue;
 		}
 		/* 
@@ -3172,7 +3169,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 		/* 2 * in case every char is special */
 		if (p + 2 * strlen ( initial ) > end) {
 			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-				"not enough pattern space\n", 0, 0, 0);
+				"not enough pattern space\n");
 
 			return (ACL_ERR);
 		}
@@ -3190,7 +3187,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 			/* ".*" + value */
 			if (p + 2 * strlen ( any[i]) + 2 > end) {
 				slapi_log_error (SLAPI_LOG_ACL, plugin_name,
-					"not enough pattern space\n", 0, 0, 0);
+					"not enough pattern space\n");
 				return (ACL_ERR);
 			}
 
@@ -3206,7 +3203,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 		/* ".*" + value */
 		if (p + 2 * strlen ( final ) + 2 > end) {
 			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-				"not enough pattern space\n", 0, 0, 0);
+				"not enough pattern space\n");
 			return (ACL_ERR);
 		}
 	
@@ -3240,7 +3237,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 	slapd_re_lock();
 	if ((p = slapd_re_comp (pat)) != 0) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-			"acl_match_substring:re_comp failed (%s)\n", p, 0, 0);
+			"acl_match_substring:re_comp failed (%s)\n", p);
 		slapd_re_unlock();
 		return (ACL_ERR);
 	}
@@ -3368,11 +3365,11 @@ acl__attr_cached_result (struct acl_pblock *aclpb, char *attr, int access )
 	if (aclpb->aclpb_state & ACLPB_HAS_ACLCB_EVALCONTEXT ) {
 		c_evalContext = &aclpb->aclpb_prev_opEval_context;
 		slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
-			    "acl__attr_cached_result:Using Context: ACLPB_ACLCB\n", 0,0,0 );
+			    "acl__attr_cached_result:Using Context: ACLPB_ACLCB\n" );
 	} else {
 		c_evalContext = &aclpb->aclpb_prev_entryEval_context;
 		slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
-			    "acl__attr_cached_result:Using Context: ACLPB_PREV\n", 0,0,0 );
+			    "acl__attr_cached_result:Using Context: ACLPB_PREV\n" );
 	}
 
 	if ( attr == NULL ) {

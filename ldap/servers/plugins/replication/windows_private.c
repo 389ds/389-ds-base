@@ -196,7 +196,7 @@ Dirsync_Private* windows_private_new()
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_new\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_new\n" );
 
 	dp = (Dirsync_Private *)slapi_ch_calloc(sizeof(Dirsync_Private),1);
 
@@ -204,7 +204,7 @@ Dirsync_Private* windows_private_new()
 	dp->directory_filter = NULL;
 	dp->deleted_filter = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_new\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_new\n" );
 	return dp;
 
 }
@@ -213,7 +213,7 @@ void windows_agreement_delete(Repl_Agmt *ra)
 {
 
 	Dirsync_Private *dp = (Dirsync_Private *) agmt_get_priv(ra);
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_delete\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_delete\n" );
 
 	PR_ASSERT(dp  != NULL);
 	
@@ -229,7 +229,7 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	dp->api_cookie = NULL;
 	slapi_ch_free((void **)dp);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_delete\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_delete\n" );
 
 }
 
@@ -237,14 +237,14 @@ int windows_private_get_isnt4(const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_isnt4\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_isnt4\n" );
 
         PR_ASSERT(ra);
 
 		dp = (Dirsync_Private *) agmt_get_priv(ra);
 		PR_ASSERT (dp);
 		
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_isnt4\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_isnt4\n" );
 	
 		return dp->isnt4;	
 }
@@ -253,7 +253,7 @@ void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_isnt4\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_isnt4\n" );
 
         PR_ASSERT(ra);
 
@@ -262,21 +262,21 @@ void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 
 		dp->isnt4 = isit;
 		
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_isnt4\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_isnt4\n" );
 }
 
 int windows_private_get_iswin2k3(const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_iswin2k3\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_iswin2k3\n" );
 
 	PR_ASSERT(ra);
 
 		dp = (Dirsync_Private *) agmt_get_priv(ra);
 		PR_ASSERT (dp);
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_iswin2k3\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_iswin2k3\n" );
 
 		return dp->iswin2k3;
 }
@@ -285,7 +285,7 @@ void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_iswin2k3\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_iswin2k3\n" );
 
 	PR_ASSERT(ra);
 
@@ -294,7 +294,7 @@ void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 
 		dp->iswin2k3 = isit;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_iswin2k3\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_iswin2k3\n" );
 }
 
 /* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
@@ -302,7 +302,7 @@ Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_filter\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_filter\n" );
 
 	PR_ASSERT(ra);
 
@@ -316,7 +316,7 @@ Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra)
 			slapi_ch_free_string(&string_filter);
 		}
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_filter\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_filter\n" );
 
 		return dp->directory_filter;
 }
@@ -326,7 +326,7 @@ Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_deleted_filter\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_deleted_filter\n" );
 
 	PR_ASSERT(ra);
 
@@ -340,7 +340,7 @@ Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra)
 			slapi_ch_free_string(&string_filter);
 		}
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_deleted_filter\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_deleted_filter\n" );
 
 		return dp->deleted_filter;
 }
@@ -350,14 +350,14 @@ const Slapi_DN* windows_private_get_windows_subtree (const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_subtree\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_subtree\n" );
 
         PR_ASSERT(ra);
 
 		dp = (Dirsync_Private *) agmt_get_priv(ra);
 		PR_ASSERT (dp);
 		
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_subtree\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_subtree\n" );
 	
 		return dp->windows_subtree;	
 }
@@ -367,14 +367,14 @@ windows_private_get_windows_domain(const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_domain\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_domain\n" );
 
         PR_ASSERT(ra);
 
 		dp = (Dirsync_Private *) agmt_get_priv(ra);
 		PR_ASSERT (dp);
 		
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_domain\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_domain\n" );
 	
 		return dp->windows_domain;	
 }
@@ -384,7 +384,7 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_domain\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_domain\n" );
 
         PR_ASSERT(ra);
 
@@ -393,7 +393,7 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 
 		dp->windows_domain = domain;
 		
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_domain\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_domain\n" );
 	}
 
 /* Returns a copy of the Slapi_DN pointer, no need to free it */
@@ -401,14 +401,14 @@ const Slapi_DN* windows_private_get_directory_subtree (const Repl_Agmt *ra)
 {
 		Dirsync_Private *dp;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_replarea\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_replarea\n" );
 
         PR_ASSERT(ra);
 
 		dp = (Dirsync_Private *) agmt_get_priv(ra);
 		PR_ASSERT (dp);
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_replarea\n", 0, 0, 0 );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_replarea\n" );
 	
 		return dp->directory_subtree; 
 }
@@ -419,7 +419,7 @@ void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_replarea\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_replarea\n" );
 
 	PR_ASSERT(ra);
 	PR_ASSERT(sdn);
@@ -430,7 +430,7 @@ void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 	slapi_sdn_free(&dp->windows_subtree);
 	dp->windows_subtree = sdn;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_replarea\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_replarea\n" );
 }
 
 /* Takes a copy of the sdn passed in */
@@ -439,7 +439,7 @@ void windows_private_set_directory_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_directory_replarea\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_directory_replarea\n" );
 
 	PR_ASSERT(ra);
 	PR_ASSERT(sdn);
@@ -450,20 +450,20 @@ void windows_private_set_directory_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 	slapi_sdn_free(&dp->directory_subtree);
 	dp->directory_subtree = sdn;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_directory_replarea\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_directory_replarea\n" );
 }
 
 PRBool windows_private_create_users(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_create_users\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_create_users\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_create_users\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_create_users\n" );
 
 	return dp->create_users_from_dirsync;
 
@@ -474,7 +474,7 @@ void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value)
 {
 	Dirsync_Private *dp;
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_create_users\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_create_users\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -482,7 +482,7 @@ void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value)
 
 	dp->create_users_from_dirsync = value;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_create_users\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_create_users\n" );
 
 }
 
@@ -490,13 +490,13 @@ PRBool windows_private_create_groups(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_create_groups\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_create_groups\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_create_groups\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_create_groups\n" );
 
 	return dp->create_groups_from_dirsync;
 
@@ -507,7 +507,7 @@ void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
 {
 	Dirsync_Private *dp;
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_create_groups\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_create_groups\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -515,7 +515,7 @@ void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
 
 	dp->create_groups_from_dirsync = value;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_create_groups\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_create_groups\n" );
 
 }
 
@@ -533,7 +533,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 	Dirsync_Private *dp;
 	char iscritical = PR_TRUE;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_dirsync_control\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_dirsync_control\n" );
 	
 	PR_ASSERT(ra);
 	
@@ -551,7 +551,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 
 	ber_free(ber,1);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_dirsync_control\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_dirsync_control\n" );
 
 
 	return control;
@@ -578,7 +578,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 	int return_value = LDAP_SUCCESS;
 #endif
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_update_dirsync_control\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_update_dirsync_control\n" );
 
     PR_ASSERT(ra);
 
@@ -636,9 +636,9 @@ choke:
 	}
 
 #ifdef FOR_DEBUGGING
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control: rc=%d\n", return_value, 0, 0 );
+	LDAPDebug1Arg( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control: rc=%d\n", return_value);
 #else
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control\n" );
 #endif
 }
 
@@ -646,14 +646,14 @@ PRBool windows_private_dirsync_has_more(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_dirsync_has_more\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_dirsync_has_more\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_dirsync_has_more\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_dirsync_has_more\n" );
 
 	return dp->dirsync_cookie_has_more;
 
@@ -663,7 +663,7 @@ void windows_private_null_dirsync_cookie(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_null_dirsync_control\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_null_dirsync_control\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
@@ -672,7 +672,7 @@ void windows_private_null_dirsync_cookie(const Repl_Agmt *ra)
 	slapi_ch_free_string(&dp->dirsync_cookie);
 	dp->dirsync_cookie = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_null_dirsync_control\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_null_dirsync_control\n" );
 }
 
 static 
@@ -703,7 +703,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 
     
   
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_save_dirsync_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_save_dirsync_cookie\n" );
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -736,7 +736,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 	slapi_mods_free(&mods);
 	slapi_sdn_free(&sdn);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_save_dirsync_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_save_dirsync_cookie\n" );
 	return rc;
 }
 
@@ -753,7 +753,7 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 	Slapi_Entry *entry = NULL;
 	Slapi_Attr *attr = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_load_dirsync_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_load_dirsync_cookie\n" );
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -803,7 +803,7 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 	slapi_sdn_free( &sdn);
 	slapi_pblock_destroy (pb);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_load_dirsync_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_load_dirsync_cookie\n" );
 
 	return rc;
 }
@@ -813,12 +813,12 @@ Slapi_Entry *windows_private_get_raw_entry(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_raw_entry\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_raw_entry\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_raw_entry\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_raw_entry\n" );
 
 	return dp->raw_entry;
 }
@@ -828,7 +828,7 @@ void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_raw_entry\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_raw_entry\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
@@ -836,19 +836,19 @@ void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
 	slapi_entry_free(dp->raw_entry);
 	dp->raw_entry = e;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_raw_entry\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_raw_entry\n" );
 }
 
 void *windows_private_get_api_cookie(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_get_api_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_api_cookie\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_get_api_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_api_cookie\n" );
 
 	return dp->api_cookie;
 }
@@ -857,13 +857,13 @@ void windows_private_set_api_cookie(Repl_Agmt *ra, void *api_cookie)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_private_set_api_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_api_cookie\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 	dp->api_cookie = api_cookie;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_private_set_api_cookie\n", 0, 0, 0 );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_api_cookie\n" );
 }
 
 /* an array of function pointers */
@@ -875,7 +875,7 @@ windows_plugin_init(Repl_Agmt *ra)
     void *cookie = NULL;
     winsync_plugin_init_cb initfunc = NULL;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n",0,0,0);
+	LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n");
 
     /* if the function pointer array is null, get the functions - we will
        call init once per replication agreement, but will only grab the
@@ -884,9 +884,9 @@ windows_plugin_init(Repl_Agmt *ra)
        (slapi_apib_get_interface(WINSYNC_v1_0_GUID, &_WinSyncAPI) ||
         (NULL == _WinSyncAPI)))
 	{
-        LDAPDebug( LDAP_DEBUG_PLUGIN,
+        LDAPDebug1Arg( LDAP_DEBUG_PLUGIN,
                    "<-- windows_plugin_init_start -- no windows plugin API registered for GUID [%s] -- end\n",
-                   WINSYNC_v1_0_GUID,0,0);
+                   WINSYNC_v1_0_GUID);
         return;
 	}
 
@@ -897,7 +897,7 @@ windows_plugin_init(Repl_Agmt *ra)
     }
     windows_private_set_api_cookie(ra, cookie);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- windows_plugin_init_start -- end\n",0,0,0);
+	LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "<-- windows_plugin_init_start -- end\n");
     return;
 }
 

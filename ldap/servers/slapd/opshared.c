@@ -230,7 +230,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   {
       char *fmtstr;
         
-#define SLAPD_SEARCH_FMTSTR_BASE "conn=%" PRIu64 " op=%d SRCH base=\"%s\" scope=%d "
+#define SLAPD_SEARCH_FMTSTR_BASE "conn=%" NSPRIu64 " op=%d SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_BASE_INT "conn=%s op=%d SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s\n"
 
@@ -1329,7 +1329,7 @@ static int  send_results (Slapi_PBlock *pb, int send_result, int * nentries)
 void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char *dn, const char *msg)
 {
 	char ebuf[BUFSIZ];
-	slapi_log_access( LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s dn=\"%s\", %s\n",
+	slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s dn=\"%s\", %s\n",
 		              ( pb->pb_conn ? pb->pb_conn->c_connid : 0), 
 					  ( pb->pb_op ? pb->pb_op->o_opid : 0), 
 					  type, 

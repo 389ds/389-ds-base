@@ -179,7 +179,7 @@ write_replog_db(
    
     PR_ASSERT( changenum > 0UL );
     slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-	    "write_replog_db: write change record %d for dn: \"%s\"\n", 
+	    "write_replog_db: write change record %lu for dn: \"%s\"\n", 
 	    changenum, ( dn == NULL ) ? "NULL" : dn );
 
     /* Construct the dn of this change record */
@@ -271,7 +271,7 @@ write_replog_db(
 	if ( 0 != rc ) {
 	    slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
 			     "replog: an error occured while adding change "
-			     "number %d, dn = %s: %s. \n",
+			     "number %lu, dn = %s: %s. \n",
 			     changenum, edn, ldap_err2string( rc ));
 	    retrocl_release_changenumber();
 	} else {
@@ -484,27 +484,24 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     (void)slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     
     if (slapi_be_logchanges(be) == 0) {
-        LDAPDebug(LDAP_DEBUG_TRACE,"not applying change if not logging\n",
-		  0,0,0);
+        LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if not logging\n");
 	return 0;
     }
     
     if (retrocl_be_changelog == NULL || be == retrocl_be_changelog) {
-        LDAPDebug(LDAP_DEBUG_TRACE,"not applying change if no/cl be\n",0,0,0);
+        LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if no/cl be\n");
 	return 0;
     }
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
 
     if (rc != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_TRACE,"not applying change if op failed %d\n",rc,
-		  0,0);
+        LDAPDebug1Arg(LDAP_DEBUG_TRACE,"not applying change if op failed %d\n",rc);
 	return 0;
     }
 
     if (slapi_op_abandoned(pb)) {
-        LDAPDebug(LDAP_DEBUG_PLUGIN,"not applying change if op abandoned\n",
-		  0,0,0);
+        LDAPDebug0Args(LDAP_DEBUG_PLUGIN,"not applying change if op abandoned\n");
 	return 0;
     }
 
@@ -519,12 +516,12 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 
     if (op == NULL) {
-        LDAPDebug(LDAP_DEBUG_TRACE,"not applying change if no op\n",0,0,0);
+        LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if no op\n");
         return 0;
     }
 
 	if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)){
-        LDAPDebug(LDAP_DEBUG_TRACE,"not applying change for nsTombstone entries\n",0,0,0);
+        LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change for nsTombstone entries\n");
         return 0;
 	}
 	

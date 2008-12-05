@@ -559,7 +559,7 @@ static void roles_cache_trigger_update_role(char *dn, Slapi_Entry *roles_entry, 
 	current_role = roles_list;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_trigger_update_role: %x \n", roles_list);
+					ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_trigger_update_role: %p \n", roles_list);
 
 	/* Go through all the roles list and trigger the associated structure */
 		
@@ -593,7 +593,7 @@ static void roles_cache_trigger_update_role(char *dn, Slapi_Entry *roles_entry, 
 
 	PR_RWLock_Unlock(global_lock);
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_trigger_update_role: %x \n", roles_list);
+	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_trigger_update_role: %p \n", roles_list);
 }
 
 /* roles_cache_update
@@ -1066,14 +1066,14 @@ static int roles_cache_create_role_under(roles_cache_def** roles_cache_suffix, S
 	role_object *new_role = NULL; 
 
     slapi_log_error(SLAPI_LOG_PLUGIN,
-                    ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_create_role_under: %s - %x\n",
+                    ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_create_role_under: %s - %p\n",
                     slapi_sdn_get_dn((*roles_cache_suffix)->suffix_dn),
                     (*roles_cache_suffix)->avl_tree);
 
 	rc = roles_cache_create_object_from_entry(entry,&new_role,0);
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, 
-					"roles_cache_create_role_under: create node for entry %s - rc: %d SUFFIX: %x\n", 
+					"roles_cache_create_role_under: create node for entry %s - rc: %d SUFFIX: %p\n", 
 					slapi_entry_get_dn_const(entry), rc, (*roles_cache_suffix)->avl_tree);
 
 	if ( (rc == 0) && new_role) 
@@ -1081,7 +1081,7 @@ static int roles_cache_create_role_under(roles_cache_def** roles_cache_suffix, S
 		/* Add to the tree where avl_data is a role_object struct */
 		rc = roles_cache_insert_object(&((*roles_cache_suffix)->avl_tree),new_role);  
 		slapi_log_error(SLAPI_LOG_PLUGIN, 
-						ROLES_PLUGIN_SUBSYSTEM, "roles_cache_create_role_under:%s in tree %x rc: %d\n", 
+						ROLES_PLUGIN_SUBSYSTEM, "roles_cache_create_role_under:%s in tree %p rc: %d\n", 
 						(char*)slapi_sdn_get_ndn(new_role->dn),
 						(*roles_cache_suffix)->avl_tree, rc);
 	}
@@ -1351,7 +1351,7 @@ static int roles_cache_insert_object(Avlnode **tree, role_object *object)
 {
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "roles_cache_insert_object: %s in tree %x\n", 
+					ROLES_PLUGIN_SUBSYSTEM, "roles_cache_insert_object: %s in tree %p\n", 
 					(char*)slapi_sdn_get_ndn(object->dn),
 					*tree);
 	return (avl_insert(tree, (caddr_t)object, roles_cache_node_cmp, avl_dup_error));
@@ -1381,7 +1381,7 @@ static int roles_cache_node_nested_cmp( caddr_t d1, caddr_t d2 )
 static int roles_cache_insert_object_nested(Avlnode **tree, role_object_nested *object)
 {
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "roles_cache_insert_object_nested: %s in tree %x: \n", 
+					ROLES_PLUGIN_SUBSYSTEM, "roles_cache_insert_object_nested: %s in tree %p: \n", 
 					(char*)slapi_sdn_get_ndn(object->dn), *tree);
 
 	return (avl_insert(tree, (caddr_t)object, roles_cache_node_nested_cmp, avl_dup_error));
@@ -2106,7 +2106,7 @@ static int roles_cache_dump( caddr_t data, caddr_t arg )
     role_object *this_role = (role_object*)data;
  
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
-					ROLES_PLUGIN_SUBSYSTEM, "roles_cache_dump: %x - %s - %x\n", 
+					ROLES_PLUGIN_SUBSYSTEM, "roles_cache_dump: %p - %s - %p\n", 
 					this_role, (char*)slapi_sdn_get_ndn(this_role->dn), this_role->avl_tree);
 	
     return 0;

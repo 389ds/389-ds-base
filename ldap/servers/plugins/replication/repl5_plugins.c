@@ -1015,7 +1015,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			    /* ONREPL - log error */
         		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"write_changelog_and_ruv: can't add a change for "
-					"%s (uniqid: %s, optype: %u) to changelog csn %s\n",
+					"%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
 					op_params->target_address.dn,
 					op_params->target_address.uniqueid,
 					op_params->operation_type,

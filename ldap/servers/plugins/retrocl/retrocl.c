@@ -221,8 +221,8 @@ static int retrocl_select_backend(void)
     operation_free(&op,NULL);
 
     if (err != LDAP_SUCCESS || be == NULL || be == defbackend_get_backend()) {
-        LDAPDebug(LDAP_DEBUG_TRACE,"Mapping tree select failed (%d) %s.\n",
-		  err,errbuf,0);
+        LDAPDebug2Args(LDAP_DEBUG_TRACE,"Mapping tree select failed (%d) %s.\n",
+		  err,errbuf);
 	
 	/* could not find the backend for cn=changelog, either because
 	 * it doesn't exist
@@ -307,7 +307,7 @@ static int retrocl_start (Slapi_PBlock *pb)
       if (rc == 0) {
 	retrocl_init_trimming();
       } else {
-	LDAPDebug(LDAP_DEBUG_TRACE,"Couldnt find backend, not trimming retro changelog (%d).\n",rc,0,0);
+	LDAPDebug1Arg(LDAP_DEBUG_TRACE,"Couldnt find backend, not trimming retro changelog (%d).\n",rc);
       }
     }
    

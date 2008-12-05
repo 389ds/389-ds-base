@@ -351,7 +351,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS,
-					 "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
+					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
 					 pb->pb_conn->c_connid, 
 					 pb->pb_op->o_opid,
 					 escape_string(dn, dnbuf),
@@ -374,7 +374,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	if ((rdns = ldap_explode_rdn(newrdn, 0)) == NULL) 
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
-				 "conn=%" PRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
+				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newrdn) ? "(null)" : newrdn);
@@ -391,7 +391,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	{
 		LDAPDebug(LDAP_DEBUG_ARGS, "ldap_explode_dn of newSuperior failed\n", 0, 0, 0);
 		slapi_log_error(SLAPI_LOG_FATAL, NULL,
-				 "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
+				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);

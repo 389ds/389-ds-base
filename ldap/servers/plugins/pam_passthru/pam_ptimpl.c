@@ -377,7 +377,7 @@ done:
 	delete_my_str_buf(&pam_id);
 
 	if ((retcode == LDAP_SUCCESS) && (rc != PAM_SUCCESS)) {
-		errmsg = PR_smprintf("Unknown PAM error [%d] for user id [%d], bind DN [%s]",
+		errmsg = PR_smprintf("Unknown PAM error [%d] for user id [%s], bind DN [%s]",
 							 rc, pam_id.str, escape_string(binddn, buf));
 		retcode = LDAP_OPERATIONS_ERROR;
 	}

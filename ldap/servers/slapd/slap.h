@@ -121,14 +121,6 @@ void *dlsym(void *a, char *b);
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 
-/* NSPR uses the print macros a bit differently than ANSI C.  We
- * need to use ll for a 64-bit integer, even when a long is 64-bit.
- */
-#undef PRIu64
-#define PRIu64	"llu"
-#undef PRI64
-#define PRI64	"ll"
-
 #else
 #error Need to define portable format macros such as PRIu64
 #endif /* HAVE_INTTYPES_H */

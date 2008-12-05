@@ -52,6 +52,37 @@ extern "C" {
 
 #include "prtypes.h"
 #include "ldap.h"
+#include "prprf.h"
+NSPR_API(PRUint32) PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
+NSPR_API(char*) PR_smprintf(const char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 1, 2)));
+#else
+        ;
+#endif
+NSPR_API(char*) PR_sprintf_append(char *last, const char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 2, 3)));
+#else
+        ;
+#endif
+
+/* NSPR uses the print macros a bit differently than ANSI C.  We
+ * need to use ll for a 64-bit integer, even when a long is 64-bit.
+ */
+#define NSPRIu64	"llu"
+#define NSPRI64	"ll"
 
 /*
  * The slapi_attr_get_flags() routine returns a bitmap that contains one or
@@ -1041,7 +1072,13 @@ int slapi_register_plugin( const char *plugintype, int enabled,
 /*
  * logging
  */
-int slapi_log_error( int severity, char *subsystem, char *fmt, ... );
+int slapi_log_error( int severity, char *subsystem, char *fmt, ... )
+#ifdef __GNUC__ 
+        __attribute__ ((format (printf, 3, 4)));
+#else
+        ;
+#endif
+
 /* allowed values for the "severity" parameter */
 #define SLAPI_LOG_FATAL          	0
 #define SLAPI_LOG_TRACE			1

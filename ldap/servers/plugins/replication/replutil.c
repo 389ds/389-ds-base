@@ -236,7 +236,7 @@ int copyfile(char* source, char * destination, int overwrite, int mode)
 		{
 			/* means error */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-						"copyfile: failed to write to destination file %s\n");
+						"copyfile: failed to write to destination file %s\n", destination);
 			return_value = -1;
 			break;
 		}
@@ -822,7 +822,9 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	int repl_op = 0;
 	int local_backend = -1; /* index of local backend */
 	int chaining_backend = -1; /* index of chain backend */
+#ifdef DEBUG_CHAIN_ON_UPDATE
 	int is_internal = 0;
+#endif
 	PRBool local_online = PR_FALSE; /* true if the local db is online */
 	int ii;
 	int opid;

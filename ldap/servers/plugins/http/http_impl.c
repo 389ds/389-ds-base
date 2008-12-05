@@ -666,7 +666,7 @@ static int nssReinitializationRequired()
 			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
 				"nssReinitializationRequired: vendor is not Fedora \n");
 			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-				"or version is earlier than 6.0\n", value);
+				"or version [%s] is earlier than 6.0\n", value?value:"NULL");
 			nssReinitializationRequired = 1;
 			slapi_free_search_results_internal(resultpb);
 			slapi_pblock_destroy(resultpb);

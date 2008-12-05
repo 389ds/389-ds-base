@@ -75,7 +75,6 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	struct tm		utm;
 	Slapi_Backend		*be;
 	char			*cookie;
-	PRUint32		len;
 
 	vals[0] = &val;
 	vals[1] = NULL;
@@ -86,31 +85,26 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	attrlist_replace( &e->e_attrs, "version", vals );
 	slapi_ch_free( (void **) &val.bv_val );
 
-	sprintf( buf, "%d", g_get_active_threadcnt() );
+	val.bv_len = PR_snprintf( buf, sizeof(buf), "%d", g_get_active_threadcnt() );
 	val.bv_val = buf;
-	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "threads", vals );
 
 	connection_table_as_entry(the_connection_table, e);
 
-	sprintf( buf, "%" PRIu64, slapi_counter_get_value(ops_initiated) );
+	val.bv_len = PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(ops_initiated) );
 	val.bv_val = buf;
-	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "opsinitiated", vals );
 
-	sprintf( buf, "%" PRIu64, slapi_counter_get_value(ops_completed) );
+	val.bv_len = PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(ops_completed) );
 	val.bv_val = buf;
-	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "opscompleted", vals );
 
-	len = PR_snprintf ( buf, BUFSIZ, "%" PRIu64, g_get_num_entries_sent() );
+	val.bv_len = PR_snprintf ( buf, sizeof(buf), "%" NSPRIu64, g_get_num_entries_sent() );
 	val.bv_val = buf;
-	val.bv_len = ( unsigned long ) len;
 	attrlist_replace( &e->e_attrs, "entriessent", vals );
 
-	len = PR_snprintf ( buf, BUFSIZ, "%" PRIu64, g_get_num_bytes_sent() );
+	val.bv_len = PR_snprintf ( buf, sizeof(buf), "%" NSPRIu64, g_get_num_bytes_sent() );
 	val.bv_val = buf;
-	val.bv_len = ( unsigned long ) len;
 	attrlist_replace( &e->e_attrs, "bytessent", vals );
 
 #ifdef _WIN32
@@ -141,15 +135,13 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "starttime", vals );
 
-	sprintf( buf, "%d", be_nbackends_public() );
+	val.bv_len = PR_snprintf( buf, sizeof(buf), "%d", be_nbackends_public() );
 	val.bv_val = buf;
-	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "nbackends", vals );
 
 #ifdef THREAD_SUNOS5_LWP
-	sprintf( buf, "%d", thr_getconcurrency() );
+	val.bv_len = PR_snprintf( buf, sizeof(buf), "%d", thr_getconcurrency() );
 	val.bv_val = buf;
-	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "concurrency", vals );
 #endif
 

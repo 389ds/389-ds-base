@@ -55,6 +55,7 @@ replica locked. Seems like right thing to do.
 #include "windowsrepl.h"
 #include "ldappr.h"
 #include "slap.h"
+#include "nss.h"
 
 typedef struct repl_connection
 {
@@ -880,7 +881,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 					ldap_controls_free(returned_controls);
 				}
 				if (windows_private_dirsync_has_more(conn->agmt)) {
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received hasmore from dirsync\n", 0);
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received hasmore from dirsync\n");
 				}
 			} 
 			break;
@@ -1900,7 +1901,7 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	config_set_errorlog_level("nsslapd-errorlog-level", buf, msg, 1);
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-		"repl5_debug_timeout_callback: set debug level to %d at %d\n",
+		"repl5_debug_timeout_callback: set debug level to %d at %ld\n",
 		s_debug_level, when);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= repl5_debug_timeout_callback\n", 0, 0, 0 );

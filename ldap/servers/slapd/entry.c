@@ -1360,7 +1360,7 @@ entry2str_internal( Slapi_Entry *e, int *len, int entry2str_ctrl )
     if ( (size_t)(ecur - ebuf + 1) > elen )
     {
         slapi_log_error (SLAPI_LOG_FATAL, NULL,
-            "entry2str_internal: array boundary wrote: bufsize=%d wrote=%d\n",
+            "entry2str_internal: array boundary wrote: bufsize=%ld wrote=%ld\n",
             elen, (ecur - ebuf + 1));
     }
 
