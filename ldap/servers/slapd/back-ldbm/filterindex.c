@@ -52,7 +52,7 @@ extern const char *indextype_SUB;
 
 static IDList    *ava_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int ftype, Slapi_Filter *nextf, int range, int *err);
 static IDList    *presence_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err);
-static IDList    *extensible_candidates(backend *be, Slapi_Filter *f, int *err);
+static IDList    *extensible_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err);
 static IDList    *list_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *flist, int ftype, int *err);
 static IDList    *substring_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err);
 static IDList * range_candidates(
@@ -69,7 +69,8 @@ keys2idl(
     char        *type,
     const char  *indextype,
     Slapi_Value **ivals,
-    int         *err
+    int         *err,
+    int         *unindexed
 );
 
 IDList *
@@ -147,7 +148,7 @@ filter_candidates(
 
     case LDAP_FILTER_EXTENDED:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tEXTENSIBLE\n", 0, 0, 0 );
-        result = extensible_candidates( be, f, err );
+        result = extensible_candidates( pb, be, f, err );
         break;
 
     case LDAP_FILTER_AND:
@@ -194,6 +195,7 @@ ava_candidates(
     Slapi_Value   **ivals;
     IDList        *idl;
     void          *pi;
+    int           unindexed = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ava_candidates\n", 0, 0, 0 );
 
@@ -281,7 +283,11 @@ ava_candidates(
         ivals=ptr;
 
         slapi_call_syntax_assertion2keys_ava_sv( pi, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
-        idl = keys2idl( be, type, indextype, ivals, err );
+        idl = keys2idl( be, type, indextype, ivals, err, &unindexed );
+        if ( unindexed ) {
+            unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+            slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        }
 
         /* We don't use valuearray_free here since the valueset, berval
          * and value was all allocated at once in one big chunk for
@@ -306,8 +312,12 @@ ava_candidates(
             LDAPDebug( LDAP_DEBUG_TRACE,
                 "<= ava_candidates ALLIDS (no keys)\n", 0, 0, 0 );
             return( idl_allids( be ) );
-         }
-         idl = keys2idl( be, type, indextype, ivals, err );
+        }
+        idl = keys2idl( be, type, indextype, ivals, err, &unindexed );
+        if ( unindexed ) {
+            unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+            slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        }
          valuearray_free( &ivals );
          LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
@@ -324,7 +334,8 @@ presence_candidates(
 )
 {
     char    *type;
-    IDList    *idl;
+    IDList  *idl;
+	int     unindexed = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> presence_candidates\n", 0, 0, 0 );
 
@@ -333,18 +344,24 @@ presence_candidates(
             0, 0, 0 );
         return( NULL );
     }
-    idl = index_read( be, type, indextype_PRESENCE, NULL, NULL, err );
+    idl = index_read_ext( be, type, indextype_PRESENCE,
+                          NULL, NULL, err, &unindexed );
 
-        if (idl != NULL && ALLIDS(idl) && strcasecmp(type, "nscpentrydn") == 0) {
-            /* try the equality index instead */
-            LDAPDebug(LDAP_DEBUG_TRACE, 
+    if ( unindexed ) {
+        unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+    }
+
+    if (idl != NULL && ALLIDS(idl) && strcasecmp(type, "nscpentrydn") == 0) {
+        /* try the equality index instead */
+        LDAPDebug(LDAP_DEBUG_TRACE, 
                       "fallback to eq index as pres index gave allids\n", 
                       0, 0, 0);
-            idl_free(idl);
-            idl = index_range_read(pb, be, type, indextype_EQUALITY,
+        idl_free(idl);
+        idl = index_range_read(pb, be, type, indextype_EQUALITY,
                                    SLAPI_OP_GREATER_OR_EQUAL,
                                    NULL, NULL, 0, NULL, err);
-        }
+    }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= presence_candidates %lu\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
@@ -353,9 +370,10 @@ presence_candidates(
 
 static IDList *
 extensible_candidates(
-    backend *be,
-    Slapi_Filter    *f,
-    int            *err
+    Slapi_PBlock *glob_pb, 
+    backend       *be,
+    Slapi_Filter  *f,
+    int           *err
 )
 {
     IDList* idl = NULL;
@@ -421,9 +439,17 @@ extensible_candidates(
                         struct berval** key;
                         for (key = keys; *key != NULL; ++key)
                         {
+                            int unindexed = 0;
                             IDList* idl3 = (mrOP == SLAPI_OP_EQUAL) ?
-                                index_read       (be, mrTYPE, mrOID,       *key,          NULL, err) :
-                                index_range_read (pb, be, mrTYPE, mrOID, mrOP, *key, NULL, 0, NULL, err);
+                                index_read_ext(be, mrTYPE, mrOID, *key, NULL,
+                                                          err, &unindexed) :
+                                index_range_read (pb, be, mrTYPE, mrOID, mrOP,
+                                                  *key, NULL, 0, NULL, err);
+                            if ( unindexed ) {
+                                unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+                                slapi_pblock_set( glob_pb,
+                                               SLAPI_OPERATION_NOTES, &opnote );
+                            }
                             if (idl2 == NULL)
                             {
                                 /* first iteration */
@@ -718,8 +744,9 @@ list_candidates(
         if ( idl == NULL ) {
             idl = tmp;
             if ( (ftype == LDAP_FILTER_AND) && ((idl == NULL) ||
-                (idl_length(idl) <= FILTER_TEST_THRESHOLD)))
+                (idl_length(idl) <= FILTER_TEST_THRESHOLD))) {
                 break; /* We can exit the loop now, since the candidate list is small already */
+			}
         } else if ( ftype == LDAP_FILTER_AND ) {
             if (isnot) {
                 IDList *new_idl = NULL;
@@ -771,11 +798,13 @@ substring_candidates(
     int            *err
 )
 {
-    char        *type, *initial, *final;
-    char        **any;
-    IDList        *idl;
-    void        *pi;
-    Slapi_Value    **ivals;
+    char         *type, *initial, *final;
+    char         **any;
+    IDList       *idl;
+    void         *pi;
+    Slapi_Value  **ivals;
+    int          unindexed = 0;
+    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> sub_candidates\n", 0, 0, 0 );
 
@@ -796,6 +825,7 @@ substring_candidates(
     }
     slapi_call_syntax_assertion2keys_sub_sv( pi, initial, any, final, &ivals );
     if ( ivals == NULL || *ivals == NULL ) {
+        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         LDAPDebug( LDAP_DEBUG_TRACE,
             "<= sub_candidates ALLIDS (no keys)\n", 0, 0, 0 );
         return( idl_allids( be ) );
@@ -805,7 +835,10 @@ substring_candidates(
      * look up each key in the index, ANDing the resulting
      * IDLists together.
      */
-    idl = keys2idl( be, type, indextype_SUB, ivals, err );
+    idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed );
+    if ( unindexed ) {
+        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+    }
     valuearray_free( &ivals );
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= sub_candidates %lu\n",
@@ -819,7 +852,8 @@ keys2idl(
     char        *type,
     const char  *indextype,
     Slapi_Value **ivals,
-    int         *err
+    int         *err,
+    int         *unindexed
 )
 {
     IDList    *idl;
@@ -831,7 +865,7 @@ keys2idl(
     for ( i = 0; ivals[i] != NULL; i++ ) {
         IDList    *idl2;
 
-        idl2 = index_read( be, type, indextype, slapi_value_get_berval(ivals[i]), NULL, err );
+        idl2 = index_read_ext( be, type, indextype, slapi_value_get_berval(ivals[i]), NULL, err, unindexed );
 
 #ifdef LDAP_DEBUG
         /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE ) { XXX */
