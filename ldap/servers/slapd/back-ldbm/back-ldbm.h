@@ -362,24 +362,36 @@ typedef struct idl_private idl_private;
 typedef struct attrcrypt_private attrcrypt_private;
 
 /*
- * Special attribute for an index entry 
- * Usage: turn an index object to extensibleobject and 
- *        set an integer value for each
- * dn: cn=sn, cn=index, cn=userRoot, cn=ldbm database, cn=plugins, cn=config
- * objectClass: extensibleObject
- * nsSubStrBegin: 2
- * nsSubStrMiddle: 3
- * nsSubStrEnd: 2
- * [...]
+ * Special attributes for an index entry to change the substring index width.
+ * By default, substring index width is 3, i.e., search with the filter
+ * "(cn=abc*)" is an indexed search, but "(cn=ab*)" or "(cn=a*)" isn't.
+ * There is a big performance gap between the indexed search and the unindexed
+ * search especially when the database is large.  To convert such unindexed 
+ * search to the indexed search to speed up the query, these nsSubStr 
+ * attributes are introduced.
+ *
+ * How to use the nsSubStr attributes:
+ * 1) turn the target index to extensibleobject by adding 
+ *    "objectClass: extensibleObject" to the index entry
+ * 2) set the length to each nsSubStr attribute of the index
+ *    dn: cn=sn, cn=index, cn=userRoot, cn=ldbm database, cn=plugins, cn=config
+ *    objectClass: extensibleObject
+ *    nsSubStrBegin: 2
+ *    nsSubStrMiddle: 3
+ *    nsSubStrEnd: 2
+ *    [...]
  * 
- * By default, the minimum key length triplets of substring index is 2, 3, 2.
- * The length is changed by setting this nsSubStrLen value.
+ * By default, the minimum key length triplets of substring index is 3, 3, 3.
+ * The length is changed by setting the triplets nsSubStrBegin, nsSubStrMiddle,
+ * nsSubStrEnd, respectively.
  *
  * Note: If any of the key length value is modified, the index file needs
  * to be regenerated.  Otherwise, the index file is going to have mixed
  * key length.
  * To change the key length,
- * 1) stop the server, 2) run db2index -t <attr>, 3) start the server.
+ * 1) stop the server,
+ * 2) run db2index -t <attr>,
+ * 3) start the server.
  */
 #define INDEX_ATTR_SUBSTRBEGIN	"nsSubStrBegin"
 #define INDEX_ATTR_SUBSTRMIDDLE	"nsSubStrMiddle"
