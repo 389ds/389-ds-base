@@ -121,9 +121,9 @@ static int	log__delete_audit_logfile();
 static int 	log__access_rotationinfof(char *pathname);
 static int 	log__error_rotationinfof(char *pathname);
 static int 	log__audit_rotationinfof(char *pathname);
-static int 	log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size);
+static int 	log__extract_logheader (FILE *fp, long  *f_ctime, PRInt64 *f_size);
 static int	log__check_prevlogs (FILE *fp, char *filename);
-static int 	log__getfilesize(LOGFD fp);
+static PRInt64 	log__getfilesize(LOGFD fp);
 static int 	log__enough_freespace(char  *path);
 
 static int 	vslapd_log_error(LOGFD fp, char *subsystem, char *fmt, va_list ap, int locked );
@@ -767,9 +767,9 @@ int
 log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *returntext, int apply)
 {
 	int	rv = LDAP_SUCCESS;
-	int mdiskspace= 0;
-	int	max_logsize;
-	int logsize;
+	PRInt64 mdiskspace= 0;  /* in bytes */
+	PRInt64	max_logsize;    /* in bytes */
+	int logsize;            /* in megabytes */
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
 	if (!apply || !logsize_str || !*logsize_str)
@@ -778,7 +778,7 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 	logsize = atoi(logsize_str);
 	
 	/* convert it to bytes */
-	max_logsize = logsize * LOG_MB_IN_BYTES;
+	max_logsize = (PRInt64)logsize * LOG_MB_IN_BYTES;
 
 	if (max_logsize <= 0) {
 	  max_logsize = -1;
@@ -831,11 +831,11 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 	   default:
 		rv = 1;
 	}
-	/* logsize will be in n MB. Convert it to bytes  */
+	/* logsize is in MB */
 	if (rv == 2) {
 		LDAPDebug (LDAP_DEBUG_ANY, 
 			   "Invalid value for Maximum log size:"
-			   "Maxlogsize:%d MB  Maxdisksize:%d MB\n", 
+			   "Maxlogsize:%d (MB) exceeds Maxdisksize:%d (MB)\n", 
 			    logsize, mdiskspace/LOG_MB_IN_BYTES,0);
 
 			rv = LDAP_OPERATIONS_ERROR;
@@ -1244,9 +1244,9 @@ int
 log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, char *errorbuf, int apply)
 {
 	int	rv = 0;
-  	int	mlogsize;
-	int maxdiskspace;
-	int	s_maxdiskspace;
+  	PRInt64	mlogsize;	  /* in bytes */
+	PRInt64 maxdiskspace; /* in bytes */
+	int	s_maxdiskspace;   /* in megabytes */
   
   	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 	
@@ -1261,8 +1261,7 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
 	if (!apply || !maxdiskspace_str || !*maxdiskspace_str)
 		return rv;
 
-	maxdiskspace = atoi(maxdiskspace_str);
-	s_maxdiskspace = maxdiskspace;
+	s_maxdiskspace = atoi(maxdiskspace_str);
 
 	/* Disk space are in MB  but store in bytes */
 	switch (logtype) {
@@ -1282,44 +1281,42 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
 		rv = 1;
 		mlogsize = -1;
 	}
-	maxdiskspace *=  LOG_MB_IN_BYTES;
+	maxdiskspace = (PRInt64)s_maxdiskspace * LOG_MB_IN_BYTES;
 	if (maxdiskspace < 0) {
 		maxdiskspace = -1;
-	}
-	else if (maxdiskspace  < mlogsize) {
+	} else if (maxdiskspace < mlogsize) {
 		rv = LDAP_OPERATIONS_ERROR;
 		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-				"%s: maxdiskspace \"%d\" is less than max log size \"%d\"",
-				attrname, maxdiskspace, mlogsize );
+			"%s: \"%d (MB)\" is less than max log size \"%d (MB)\"",
+			attrname, s_maxdiskspace, (int)(mlogsize/LOG_MB_IN_BYTES) );
 	}
 
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:
 		if (rv== 0 && apply) {
-		  loginfo.log_access_maxdiskspace = maxdiskspace;
-		  fe_cfg->accesslog_maxdiskspace = s_maxdiskspace  ;
+		  loginfo.log_access_maxdiskspace = maxdiskspace;  /* in bytes */
+		  fe_cfg->accesslog_maxdiskspace = s_maxdiskspace; /* in megabytes */
 		}
 		LOG_ACCESS_UNLOCK_WRITE();
 		break;
 	   case SLAPD_ERROR_LOG:
 		if (rv== 0 && apply) {
-		  loginfo.log_error_maxdiskspace = maxdiskspace;
-		  fe_cfg->errorlog_maxdiskspace = s_maxdiskspace;
+		  loginfo.log_error_maxdiskspace = maxdiskspace;  /* in bytes */
+		  fe_cfg->errorlog_maxdiskspace = s_maxdiskspace; /* in megabytes */
 		}
 		LOG_ERROR_UNLOCK_WRITE();
 		break;
 	   case SLAPD_AUDIT_LOG:
 		if (rv== 0 && apply) {
-		  loginfo.log_audit_maxdiskspace = maxdiskspace;
-		  fe_cfg->auditlog_maxdiskspace = s_maxdiskspace;
+		  loginfo.log_audit_maxdiskspace = maxdiskspace;  /* in bytes */
+		  fe_cfg->auditlog_maxdiskspace = s_maxdiskspace; /* in megabytes */
 		}
 		LOG_AUDIT_UNLOCK_WRITE();
 		break;
 	   default:
 		 PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-				 "%s: invalid maximum log disk size:"
-				 "Maxdiskspace:%d MB Maxlogsize:%d MB \n",
-				 attrname, maxdiskspace, mlogsize);
+			"%s: invalid log type (%d) for setting maximum disk space: %d MB\n",
+			attrname, logtype, s_maxdiskspace);
 		 rv = LDAP_OPERATIONS_ERROR;
 	}
 	return rv;
@@ -1335,8 +1332,8 @@ int
 log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, char *errorbuf, int apply)
 {
 	int	rv=LDAP_SUCCESS;
-	int minfreespaceB; 
-	int minfreespace;
+	int minfreespace;      /* in megabytes */
+	PRInt64 minfreespaceB; /* in bytes */
 	
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 	
@@ -1357,7 +1354,7 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
 
 	/* Disk space are in MB  but store in bytes */
 	if (minfreespace >= 1 ) {
-		minfreespaceB = minfreespace * LOG_MB_IN_BYTES;
+		minfreespaceB = (PRInt64)minfreespace * LOG_MB_IN_BYTES;
 		switch (logtype) {
 		   case SLAPD_ACCESS_LOG:
 			LOG_ACCESS_LOCK_WRITE( );
@@ -2115,13 +2112,13 @@ log__open_accesslogfile(int logfile_state, int locked)
 	** in the array stack.
 	*/
 	if (loginfo.log_access_fdes != NULL) {
-		struct  logfileinfo 	*log;
-		char			newfile[BUFSIZ];
-		int			f_size;
+		struct logfileinfo *log;
+		char               newfile[BUFSIZ];
+		PRInt64            f_size;
 
 		/* get rid of the old one */
 		if ((f_size = log__getfilesize(loginfo.log_access_fdes)) == -1) {
-			/* Then assume that we have the max size */
+			/* Then assume that we have the max size (in bytes) */
 			f_size = loginfo.log_access_maxlogsize;
 		}
 
@@ -2158,15 +2155,13 @@ log__open_accesslogfile(int logfile_state, int locked)
 		}
 	} 
 
-
 	/* open a new log file */
 	if (! LOG_OPEN_APPEND(fp, loginfo.log_access_file, loginfo.log_access_mode)) {
 		int oserr = errno;
 		loginfo.log_access_fdes = NULL;
 		if (!locked)  LOG_ACCESS_UNLOCK_WRITE();
-		LDAPDebug( LDAP_DEBUG_ANY, "access file open %s failed errno %d (%s)\n",
-					    loginfo.log_access_file,
-				            oserr, slapd_system_strerror(oserr));
+		LDAPDebug(LDAP_DEBUG_ANY, "access file open %s failed errno %d (%s)\n",
+				  loginfo.log_access_file, oserr, slapd_system_strerror(oserr));
 		return LOG_UNABLE_TO_OPENFILE;
 	}
 
@@ -2198,8 +2193,9 @@ log__open_accesslogfile(int logfile_state, int locked)
 	logp = loginfo.log_access_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short*/);
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%u)\n",
-			PREVLOGFILE, loginfo.log_access_file, tbuf, logp->l_ctime, logp->l_size);
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
+			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_access_file, tbuf, 
+			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -2236,8 +2232,9 @@ log__needrotation(LOGFD fp, int logtype)
 	time_t	log_createtime= 0;
 	time_t	syncclock = 0;
 	int	type = LOG_CONTINUE;
-	int	f_size = 0;
-	int	maxlogsize, nlogs;
+	PRInt64	f_size = 0;
+	PRInt64	maxlogsize;
+	int	nlogs;
 	int	rotationtime_secs = -1;
 	int	sync_enabled = 0, timeunit = 0;
 
@@ -2316,22 +2313,24 @@ log__needrotation(LOGFD fp, int logtype)
 	}
 
 log_rotate:
-    /*
-    ** Don't send messages to the error log whilst we're rotating it.
-    ** This'll lead to a recursive call to the logging function, and
-    ** an assertion trying to relock the write lock.
-    */
+	/*
+	** Don't send messages to the error log whilst we're rotating it.
+	** This'll lead to a recursive call to the logging function, and
+	** an assertion trying to relock the write lock.
+	*/
 	if (logtype!=SLAPD_ERROR_LOG)
-    {
-    	if (type == LOG_SIZE_EXCEEDED) {
-    		LDAPDebug (LDAP_DEBUG_TRACE,
-    			   "LOGINFO:End of Log because size exceeded(Max:%d bytes) (Is:%d bytes)\n", maxlogsize, f_size, 0);
-    	} else  if ( type == LOG_EXPIRED) {
-    		LDAPDebug(LDAP_DEBUG_TRACE,
-    			   "LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%ld secs)\n",
-    				rotationtime_secs, curr_time - log_createtime,0);
-    	}
-    }
+	{
+		if (type == LOG_SIZE_EXCEEDED) {
+			LDAPDebug (LDAP_DEBUG_TRACE,
+				   "LOGINFO:End of Log because size exceeded(Max:%" 
+				   NSPRI64 "d bytes) (Is:%" NSPRI64 "d bytes)\n",
+				   maxlogsize, f_size, 0);
+		} else  if ( type == LOG_EXPIRED) {
+			LDAPDebug(LDAP_DEBUG_TRACE,
+				   "LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%ld secs)\n",
+					rotationtime_secs, curr_time - log_createtime,0);
+		}
+	}
 	return (type == LOG_CONTINUE) ? LOG_CONTINUE : LOG_ROTATE;
 }
 
@@ -2349,18 +2348,18 @@ static int
 log__delete_access_logfile()
 {
 
-	struct logfileinfo	*logp = NULL;
-	struct logfileinfo	*delete_logp = NULL;
-	struct logfileinfo	*p_delete_logp = NULL;
-	struct logfileinfo	*prev_logp = NULL;
-	int			total_size=0;
-	time_t			cur_time;
-	int			f_size;
-	int			numoflogs=loginfo.log_numof_access_logs;
-	int			rv = 0;
-	char			*logstr;
-	char			buffer[BUFSIZ];
-	char			tbuf[TBUFSIZE];
+	struct logfileinfo *logp = NULL;
+	struct logfileinfo *delete_logp = NULL;
+	struct logfileinfo *p_delete_logp = NULL;
+	struct logfileinfo *prev_logp = NULL;
+	PRInt64            total_size=0;
+	time_t             cur_time;
+	PRInt64            f_size;
+	int                numoflogs=loginfo.log_numof_access_logs;
+	int                rv = 0;
+	char               *logstr;
+	char               buffer[BUFSIZ];
+	char               tbuf[TBUFSIZE];
 	
 	/* If we have only one log, then  will delete this one */
 	if (loginfo.log_access_maxnumlogs == 1) {
@@ -2629,7 +2628,7 @@ static int
 log__access_rotationinfof(char *pathname)
 {
 	long	f_ctime;
-	int		f_size;
+	PRInt64	f_size;
 	int		main_log = 1;
 	time_t	now;
 	FILE	*fp;
@@ -2782,14 +2781,17 @@ done:
 *	size info of all the old log files.
 ******************************************************************************/ 
 static int
-log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size)
+log__extract_logheader (FILE *fp, long *f_ctime, PRInt64 *f_size)
 {
 
 	char		buf[BUFSIZ];
 	char		*p, *s, *next;
 
+	if (NULL == f_ctime || NULL == f_size) {
+		return LOG_ERROR;
+	}
 	*f_ctime = 0L;
-	*f_size = 0;
+	*f_size = 0L;
 
 	if ( fp == NULL)
 		return LOG_ERROR;
@@ -2817,11 +2819,11 @@ log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size)
 	*s = '\0';
 	
 	/* Now p must hold the ctime value */
-	*f_ctime = atoi(p);
+	*f_ctime = strtol(p, (char **)NULL, 0); 
 
 	if ((p = strchr(next, '(')) == NULL) {
 		/* that's fine -- it means we have no size info */
-		*f_size = 0;
+		*f_size = 0L;
 		return LOG_CONTINUE;
 	}
 
@@ -2833,7 +2835,7 @@ log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size)
 	*next = '\0';
 	
 	/* Now p must hold the size value */
-	*f_size = atoi(p);
+	*f_size = strtoll(p, (char **)NULL, 0);
 
 	/* check if the Previous Log file really exists */
 	if ((p = strstr(buf, PREVLOGFILE)) != NULL) {
@@ -2867,7 +2869,7 @@ log__extract_logheader (FILE *fp, long  *f_ctime, int *f_size)
  * probably a safe assumption for now.
  */
 #ifdef XP_WIN32
-static int 
+static PRInt64 
 log__getfilesize(LOGFD fp)
 {
 	struct stat	info;
@@ -2876,10 +2878,10 @@ log__getfilesize(LOGFD fp)
 	if ((rv = fstat(fileno(fp), &info)) != 0) {
 		return -1;
 	}
-	return info.st_size;
+	return (PRInt64)info.st_size;
 } 
 #else
-static int
+static PRInt64
 log__getfilesize(LOGFD fp)
 {
 	PRFileInfo      info;
@@ -2887,7 +2889,7 @@ log__getfilesize(LOGFD fp)
 	if (PR_GetOpenFileInfo (fp, &info) == PR_FAILURE) {
 		return -1;
 	}
-	return info.size;
+	return (PRInt64)info.size;	/* type of size is off_t */
 }
 #endif
 
@@ -3049,18 +3051,18 @@ static int
 log__delete_error_logfile(int locked)
 {
 
-	struct logfileinfo	*logp = NULL;
-	struct logfileinfo	*delete_logp = NULL;
-	struct logfileinfo	*p_delete_logp = NULL;
-	struct logfileinfo	*prev_logp = NULL;
-	int			total_size=0;
-	time_t			cur_time;
-	int			f_size;
-	int			numoflogs=loginfo.log_numof_error_logs;
-	int			rv = 0;
-	char			*logstr;
-	char			buffer[BUFSIZ];
-	char			tbuf[TBUFSIZE];
+	struct logfileinfo *logp = NULL;
+	struct logfileinfo *delete_logp = NULL;
+	struct logfileinfo *p_delete_logp = NULL;
+	struct logfileinfo *prev_logp = NULL;
+	PRInt64            total_size=0;
+	time_t             cur_time;
+	PRInt64            f_size;
+	int                numoflogs=loginfo.log_numof_error_logs;
+	int                rv = 0;
+	char               *logstr;
+	char               buffer[BUFSIZ];
+	char               tbuf[TBUFSIZE];
 
 
 	/* If we have only one log, then  will delete this one */
@@ -3222,18 +3224,18 @@ delete_logfile:
 static int
 log__delete_audit_logfile()
 {
-	struct logfileinfo	*logp = NULL;
-	struct logfileinfo	*delete_logp = NULL;
-	struct logfileinfo	*p_delete_logp = NULL;
-	struct logfileinfo	*prev_logp = NULL;
-	int			total_size=0;
-	time_t			cur_time;
-	int			f_size;
-	int			numoflogs=loginfo.log_numof_audit_logs;
-	int			rv = 0;
-	char			*logstr;
-	char			buffer[BUFSIZ];
-	char			tbuf[TBUFSIZE];
+	struct logfileinfo *logp = NULL;
+	struct logfileinfo *delete_logp = NULL;
+	struct logfileinfo *p_delete_logp = NULL;
+	struct logfileinfo *prev_logp = NULL;
+	PRInt64     total_size=0;
+	time_t      cur_time;
+	PRInt64     f_size;
+	int         numoflogs=loginfo.log_numof_audit_logs;
+	int         rv = 0;
+	char        *logstr;
+	char        buffer[BUFSIZ];
+	char        tbuf[TBUFSIZE];
 
 	/* If we have only one log, then  will delete this one */
 	if (loginfo.log_audit_maxnumlogs == 1) {
@@ -3378,7 +3380,7 @@ static int
 log__error_rotationinfof( char *pathname)
 {
 	long	f_ctime;
-	int		f_size;
+	PRInt64	f_size;
 	int		main_log = 1;
 	time_t	now;
 	FILE	*fp;
@@ -3465,7 +3467,7 @@ static int
 log__audit_rotationinfof( char *pathname)
 {
 	long	f_ctime;
-	int		f_size;
+	PRInt64	f_size;
 	int		main_log = 1;
 	time_t	now;
 	FILE	*fp;
@@ -3607,9 +3609,9 @@ log__open_errorlogfile(int logfile_state, int locked)
 	** in the array stack.
 	*/
 	if (loginfo.log_error_fdes != NULL) {
-		struct  logfileinfo 	*log;
-		char			newfile[BUFSIZ];
-		int			f_size;
+		struct logfileinfo *log;
+		char               newfile[BUFSIZ];
+		PRInt64            f_size;
 
 		/* get rid of the old one */
 		if ((f_size = log__getfilesize(loginfo.log_error_fdes)) == -1) {
@@ -3704,8 +3706,9 @@ log__open_errorlogfile(int logfile_state, int locked)
 	logp = loginfo.log_error_logchain;
 	while (logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%u)\n",
-			PREVLOGFILE, loginfo.log_error_file, tbuf, logp->l_ctime, logp->l_size);
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" 
+			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_error_file, tbuf, 
+			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -3747,9 +3750,9 @@ log__open_auditlogfile(int logfile_state, int locked)
 	** in the array stack.
 	*/
 	if (loginfo.log_audit_fdes != NULL) {
-		struct  logfileinfo 	*log;
-		char			newfile[BUFSIZ];
-		int			f_size;
+		struct  logfileinfo *log;
+		char                newfile[BUFSIZ];
+		PRInt64             f_size;
 
 
 		/* get rid of the old one */
@@ -3757,7 +3760,6 @@ log__open_auditlogfile(int logfile_state, int locked)
 			/* Then assume that we have the max size */
 			f_size = loginfo.log_audit_maxlogsize;
 		}
-
 
 		/* Check if I have to delete any old file, delete it if it is required. */
 		while (log__delete_audit_logfile());
@@ -3784,7 +3786,6 @@ log__open_auditlogfile(int logfile_state, int locked)
 			loginfo.log_numof_audit_logs++;
 		}
 	} 
-
 
 	/* open a new log file */
 	if (! LOG_OPEN_APPEND(fp, loginfo.log_audit_file, loginfo.log_audit_mode)) {
@@ -3825,8 +3826,9 @@ log__open_auditlogfile(int logfile_state, int locked)
 	logp = loginfo.log_audit_logchain;
 	while ( logp) {
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);	
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%d) (%d)\n",
-			PREVLOGFILE, loginfo.log_audit_file, tbuf, (int)logp->l_ctime, logp->l_size);
+		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
+			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_audit_file, tbuf, 
+			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -4041,15 +4043,17 @@ log_reverse_convert_time(char *tbuf)
 int
 check_log_max_size( char *maxdiskspace_str,
                     char *mlogsize_str,
-                    int maxdiskspace,
-                    int mlogsize,
+                    int maxdiskspace, /* in megabytes */
+                    int mlogsize,     /* in megabytes */
                     char * returntext,
                     int logtype)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int rc = LDAP_SUCCESS;
-    int current_mlogsize = -1;
-    int current_maxdiskspace = -1;
+    int     current_mlogsize = -1;     /* in megabytes */
+    int     current_maxdiskspace = -1; /* in megabytes */
+    PRInt64 mlogsizeB;                 /* in bytes */
+    PRInt64 maxdiskspaceB;             /* in bytes */
  
     switch (logtype)
     {
@@ -4070,35 +4074,40 @@ check_log_max_size( char *maxdiskspace_str,
             current_maxdiskspace = -1;
     }
  
-    if ( maxdiskspace == -1 )
+    if ( maxdiskspace == -1 ) {
         maxdiskspace = current_maxdiskspace;
-    if ( mlogsize == -1 )
+    }
+    maxdiskspaceB = (PRInt64)maxdiskspace * LOG_MB_IN_BYTES;
+
+    if ( mlogsize == -1 ) {
         mlogsize = current_mlogsize;
+    }
+    mlogsizeB = (PRInt64)mlogsize * LOG_MB_IN_BYTES;
  
     if ( maxdiskspace < mlogsize )
     {
         /* fail */
         PR_snprintf ( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                "%s: maxdiskspace \"%d\" is less than max log size \"%d\"",
-                maxdiskspace_str, maxdiskspace*LOG_MB_IN_BYTES, mlogsize*LOG_MB_IN_BYTES );
+          "%s: maxdiskspace \"%d (MB)\" is less than max log size \"%d (MB)\"",
+          maxdiskspace_str, maxdiskspace, mlogsize );
         rc = LDAP_OPERATIONS_ERROR;
     }
     switch (logtype)
     {
         case SLAPD_ACCESS_LOG:
-			loginfo.log_access_maxlogsize = mlogsize * LOG_MB_IN_BYTES;
-			loginfo.log_access_maxdiskspace = maxdiskspace * LOG_MB_IN_BYTES;
+            loginfo.log_access_maxlogsize = mlogsizeB;
+            loginfo.log_access_maxdiskspace = maxdiskspaceB;
             break;
         case SLAPD_ERROR_LOG:
-			loginfo.log_error_maxlogsize = mlogsize  * LOG_MB_IN_BYTES;
-			loginfo.log_error_maxdiskspace = maxdiskspace  * LOG_MB_IN_BYTES;
+            loginfo.log_error_maxlogsize = mlogsizeB;
+            loginfo.log_error_maxdiskspace = maxdiskspaceB;
             break;
         case SLAPD_AUDIT_LOG:
-			loginfo.log_audit_maxlogsize = mlogsize * LOG_MB_IN_BYTES;
-			loginfo.log_audit_maxdiskspace = maxdiskspace  * LOG_MB_IN_BYTES;
+            loginfo.log_audit_maxlogsize = mlogsizeB;
+            loginfo.log_audit_maxdiskspace = maxdiskspaceB;
             break;
         default:
-			break;
+            break;
     }
  
     return rc;

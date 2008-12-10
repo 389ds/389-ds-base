@@ -116,9 +116,9 @@ typedef PRFileDesc *LOGFD;
 
 
 struct logfileinfo {
-	int		l_size;  		/* size is in KB */
-	time_t		l_ctime;		/* log creation time*/
-	struct logfileinfo	*l_next;		/* next log */
+    PRInt64            l_size;     /* size is in bytes */
+    time_t             l_ctime;    /* log creation time*/
+    struct logfileinfo *l_next;    /* next log */
 };
 typedef struct logfileinfo	LogFileInfo;
 
@@ -127,7 +127,7 @@ struct logbufinfo  {
     char    *current;                   /* current pointer into buffer */
     size_t  maxsize;                    /* size of buffer */
     PRLock *lock;                       /* lock for access logging */
-	PRInt32 refcount;					/* Reference count for buffer copies */
+    PRInt32 refcount;                   /* Reference count for buffer copies */
 };
 typedef struct logbufinfo LogBufferInfo;
 
@@ -136,7 +136,7 @@ struct logging_opts {
 	int		log_access_state;
 	int		log_access_mode;			/* access mode */
 	int		log_access_maxnumlogs;		/* Number of logs */
-	int		log_access_maxlogsize;		/* max log size in bytes*/
+	PRInt64	log_access_maxlogsize;		/* max log size in bytes*/
 	int		log_access_rotationtime;	/* time in units. */
 	int		log_access_rotationunit;	/* time in units. */
 	int		log_access_rotationtime_secs; 	/* time in seconds */
@@ -144,8 +144,8 @@ struct logging_opts {
 	int		log_access_rotationsynchour;	/* 0-23 */
 	int		log_access_rotationsyncmin;	/* 0-59 */
 	time_t	log_access_rotationsyncclock;	/* clock in seconds */
-	int		log_access_maxdiskspace;	/* space in bytes */
-	int		log_access_minfreespace;	/* free space in bytes */
+	PRInt64	log_access_maxdiskspace;	/* space in bytes */
+	PRInt64	log_access_minfreespace;	/* free space in bytes */
 	int		log_access_exptime;		/* time */
 	int		log_access_exptimeunit;		/* unit time */
 	int		log_access_exptime_secs;	/* time in secs */
@@ -163,7 +163,7 @@ struct logging_opts {
 	int		log_error_state;
 	int		log_error_mode;				/* access mode */
 	int		log_error_maxnumlogs;		/* Number of logs */
-	int		log_error_maxlogsize;		/* max log size in bytes*/
+	PRInt64	log_error_maxlogsize;		/* max log size in bytes*/
 	int		log_error_rotationtime;	/* time in units. */
 	int		log_error_rotationunit;	/* time in units. */
 	int		log_error_rotationtime_secs; 	/* time in seconds */
@@ -171,8 +171,8 @@ struct logging_opts {
 	int		log_error_rotationsynchour;	/* 0-23 */
 	int		log_error_rotationsyncmin;	/* 0-59 */
 	time_t	log_error_rotationsyncclock;	/* clock in seconds */
-	int		log_error_maxdiskspace;	/* space in bytes */
-	int		log_error_minfreespace;	/* free space in bytes */
+	PRInt64	log_error_maxdiskspace;	/* space in bytes */
+	PRInt64	log_error_minfreespace;	/* free space in bytes */
 	int		log_error_exptime;	/* time */
 	int		log_error_exptimeunit;	/* unit time */
 	int		log_error_exptime_secs;	/* time in secs */
@@ -189,7 +189,7 @@ struct logging_opts {
 	int		log_audit_state;
 	int		log_audit_mode;			/* access mode */
 	int		log_audit_maxnumlogs;	/* Number of logs */
-	int		log_audit_maxlogsize;	/* max log size in bytes*/
+	PRInt64	log_audit_maxlogsize;	/* max log size in bytes*/
 	int		log_audit_rotationtime;	/* time in units. */
 	int		log_audit_rotationunit;	/* time in units. */
 	int		log_audit_rotationtime_secs; 	/* time in seconds */
@@ -197,8 +197,8 @@ struct logging_opts {
 	int		log_audit_rotationsynchour;	/* 0-23 */
 	int		log_audit_rotationsyncmin;	/* 0-59 */
 	time_t	log_audit_rotationsyncclock;	/* clock in seconds */
-	int		log_audit_maxdiskspace;	/* space in bytes */
-	int		log_audit_minfreespace;	/* free space in bytes */
+	PRInt64	log_audit_maxdiskspace;	/* space in bytes */
+	PRInt64	log_audit_minfreespace;	/* free space in bytes */
 	int		log_audit_exptime;	/* time */
 	int		log_audit_exptimeunit;	/* unit time */
 	int		log_audit_exptime_secs;	/* time in secs */
