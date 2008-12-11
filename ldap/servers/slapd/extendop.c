@@ -295,6 +295,22 @@ do_extended( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
+	/* If a password change is required, only allow the password
+	 * modify extended operation */
+	if (!pb->pb_conn->c_isreplication_session &&
+                pb->pb_conn->c_needpw && (strcmp(extoid, EXTOP_PASSWD_OID) != 0))
+	{
+		char *dn = NULL;
+		slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
+
+		(void)slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+		op_shared_log_error_access (pb, "EXT", dn ? dn : "", "need new password");
+		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
+
+		slapi_ch_free_string(&dn);
+		goto free_and_return;
+	}
+
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
 	rc = plugin_call_exop_plugins( pb, extoid );

@@ -82,9 +82,6 @@
 /* number of random bytes needed to generate password */
 #define LDAP_EXTOP_PASSMOD_RANDOM_BYTES	6
 
-/* OID of the extended operation handled by this plug-in */
-#define EXOP_PASSWD_OID	"1.3.6.1.4.1.4203.1.11.1"
-
 
 Slapi_PluginDesc passwdopdesc = { "passwd_modify_plugin", "Fedora", "0.1",
 	"Password Modify extended operation plugin" };
@@ -450,7 +447,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 
 	/* Before going any further, we'll make sure that the right extended operation plugin
 	 * has been called: i.e., the OID shipped whithin the extended operation request must 
-	 * match this very plugin's OID: EXOP_PASSWD_OID. */
+	 * match this very plugin's OID: EXTOP_PASSWD_OID. */
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_OID, &oid ) != 0 ) {
 		errMesg = "Could not get OID value from request.\n";
 		rc = LDAP_OPERATIONS_ERROR;
@@ -462,7 +459,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 				 "Received extended operation request with OID %s\n", oid );
 	}
 	
-	if ( strcasecmp( oid, EXOP_PASSWD_OID ) != 0) {
+	if ( strcasecmp( oid, EXTOP_PASSWD_OID ) != 0) {
 	        errMesg = "Request OID does not match Passwd OID.\n";
 		rc = LDAP_OPERATIONS_ERROR;
 		goto free_and_return;
@@ -783,7 +780,7 @@ parse_req_done:
 
 
 static char *passwd_oid_list[] = {
-	EXOP_PASSWD_OID,
+	EXTOP_PASSWD_OID,
 	NULL
 };
 
@@ -812,9 +809,9 @@ int passwd_modify_init( Slapi_PBlock *pb )
 
 	/* Compare the OID specified in the configuration file against the Passwd OID. */
 
-	if ( argv == NULL || strcmp( argv[0], EXOP_PASSWD_OID ) != 0 ) {
+	if ( argv == NULL || strcmp( argv[0], EXTOP_PASSWD_OID ) != 0 ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_init", 
-				 "OID is missing or is not %s\n", EXOP_PASSWD_OID );
+				 "OID is missing or is not %s\n", EXTOP_PASSWD_OID );
 		return( -1 );
 	} else {
 		oid = slapi_ch_strdup( argv[0] );

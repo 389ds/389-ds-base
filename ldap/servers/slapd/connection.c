@@ -449,7 +449,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 
 	if ( conn->c_needpw && op->o_tag != LDAP_REQ_MODIFY &&
 		op->o_tag != LDAP_REQ_BIND && op->o_tag != LDAP_REQ_UNBIND && 
-		op->o_tag != LDAP_REQ_ABANDON )
+		op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_EXTENDED)
 	{
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",

@@ -540,6 +540,7 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc,
 /* extended operations supported by the server */
 #define EXTOP_BULK_IMPORT_START_OID     "2.16.840.1.113730.3.5.7"
 #define EXTOP_BULK_IMPORT_DONE_OID      "2.16.840.1.113730.3.5.8"
+#define EXTOP_PASSWD_OID		"1.3.6.1.4.1.4203.1.11.1"
 
 /* 
  * Represents a Distinguished Name of an entry
