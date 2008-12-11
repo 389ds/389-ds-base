@@ -55,9 +55,11 @@ slapi_op_abandoned( Slapi_PBlock *pb )
 {
 	int	op_status;
 
-	op_status = pb->pb_op->o_status;
-
-	return( op_status == SLAPI_OP_STATUS_ABANDONED );
+	if (pb && pb->pb_op) {
+		op_status = pb->pb_op->o_status;
+		return( op_status == SLAPI_OP_STATUS_ABANDONED );
+	}
+	return 0;
 }
 
 void
