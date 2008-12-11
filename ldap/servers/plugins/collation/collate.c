@@ -456,13 +456,15 @@ collation_indexer_create (const char* oid)
 		      slapi_ch_calloc (1, sizeof (collation_indexer_t));
 		    ix = (indexer_t*) slapi_ch_calloc (1, sizeof (indexer_t));
 		    ucol_setAttribute (coll, UCOL_STRENGTH, profile->strength, &err);
-		    if (err != U_ZERO_ERROR) {
+		    if (err != U_ZERO_ERROR && err != U_USING_FALLBACK_WARNING
+			&& (err != U_USING_DEFAULT_WARNING || !is_default)) {
 			LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: could not "
 				   "set the collator strength for oid %s to %d: err %d\n",
 				   oid, profile->strength, err);
 		    }
 		    ucol_setAttribute (coll, UCOL_DECOMPOSITION_MODE, profile->decomposition, &err);
-		    if (err != U_ZERO_ERROR) {
+		    if (err != U_ZERO_ERROR && err != U_USING_FALLBACK_WARNING
+			&& (err != U_USING_DEFAULT_WARNING || !is_default)) {
 			LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: could not "
 				   "set the collator decomposition mode for oid %s to %d: err %d\n",
 				   oid, profile->decomposition, err);
