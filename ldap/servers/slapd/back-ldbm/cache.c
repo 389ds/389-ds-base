@@ -50,7 +50,7 @@
 #endif
 
 /* cache can't get any smaller than this (in bytes) */
-#define MINCACHESIZE       (size_t)200000
+#define MINCACHESIZE       (size_t)512000
 
 /* don't let hash be smaller than this # of slots */
 #define MINHASHSIZE       1024

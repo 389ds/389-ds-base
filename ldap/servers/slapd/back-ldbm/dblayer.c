@@ -3875,10 +3875,20 @@ PRInt64 db_atoi(char *str, int *err)
 
 unsigned long db_strtoul(const char *str, int *err)
 {
-    unsigned long val, result, multiplier = 1;
+    unsigned long val = 0, result, multiplier = 1;
     char *p;
     errno = 0;
 
+    /*
+     * manpage of strtoul: Negative  values  are considered valid input and
+     * are silently converted to the equivalent unsigned long int value.
+     */
+    /* We don't want to make it happen. */
+    for (p = str; p && *p && (*p == ' ' || *p == '\t'); p++) ;
+    if ('-' == *p) {
+        if (err) *err = ERANGE;
+        return val;
+    }
     val = strtoul(str, &p, 10);
     if (errno != 0) {
         if (err) *err = errno;
