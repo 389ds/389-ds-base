@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!@perlexec@
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -155,6 +155,8 @@
 # this script is always invoked by repl-monitor-cgi.pl, which sets all of these
 # If using this script standalone, be sure to set the shared lib path and
 # the path to the perldap modules.
+
+use lib qw(@perlpath@);
 
 $usage = "\nusage: $0 -f configuration-file [-h host] [-p port] [-r] [-u refresh-url] [-t refresh-interval]\n\nor   : $0 -v\n"; 
 
