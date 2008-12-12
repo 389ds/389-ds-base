@@ -335,7 +335,7 @@ presence_candidates(
 {
     char    *type;
     IDList  *idl;
-	int     unindexed = 0;
+    int     unindexed = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> presence_candidates\n", 0, 0, 0 );
 
@@ -379,6 +379,7 @@ extensible_candidates(
     IDList* idl = NULL;
     Slapi_PBlock* pb = slapi_pblock_new();
     int mrOP = 0;
+    Slapi_Operation *op = NULL;
     LDAPDebug (LDAP_DEBUG_TRACE, "=> extensible_candidates\n", 0, 0, 0);
     if ( ! slapi_mr_filter_index (f, pb) &&    !slapi_pblock_get (pb, SLAPI_PLUGIN_MR_QUERY_OPERATOR, &mrOP))
     {
@@ -389,12 +390,17 @@ extensible_candidates(
         case SLAPI_OP_EQUAL:
         case SLAPI_OP_GREATER_OR_EQUAL:
         case SLAPI_OP_GREATER:
-               {
+            {
             IFP mrINDEX = NULL;
             void* mrOBJECT = NULL;
             struct berval** mrVALUES = NULL;
             char* mrOID = NULL;
             char* mrTYPE = NULL;
+
+            /* set the pb->pb_op to glob_pb->pb_op to catch the abandon req.
+             * in case the operation is interrupted. */
+            slapi_pblock_get (glob_pb, SLAPI_OPERATION, &op);
+            slapi_pblock_set (pb, SLAPI_OPERATION, op);
 
             slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
             slapi_pblock_get (pb, SLAPI_PLUGIN_OBJECT, &mrOBJECT);
@@ -493,6 +499,8 @@ extensible_candidates(
         idl = idl_allids (be); /* all entries are candidates */
     }
 return_idl:
+    op = NULL;
+    slapi_pblock_set (pb, SLAPI_OPERATION, op);
     slapi_pblock_destroy (pb);
     LDAPDebug (LDAP_DEBUG_TRACE, "<= extensible_candidates %lu\n", 
                    (u_long)IDL_NIDS(idl), 0, 0);
@@ -746,7 +754,7 @@ list_candidates(
             if ( (ftype == LDAP_FILTER_AND) && ((idl == NULL) ||
                 (idl_length(idl) <= FILTER_TEST_THRESHOLD))) {
                 break; /* We can exit the loop now, since the candidate list is small already */
-			}
+            }
         } else if ( ftype == LDAP_FILTER_AND ) {
             if (isnot) {
                 IDList *new_idl = NULL;
