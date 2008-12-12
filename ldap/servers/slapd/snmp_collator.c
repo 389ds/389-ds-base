@@ -440,8 +440,8 @@ int snmp_collator_start()
   {
     if (err != EEXIST)      /* Ignore if file already exists */
     {
-      LDAPDebug( LDAP_DEBUG_ANY, "Failed to open stats file (%s) (error %d).\n",
-                         szStatsFile, err, 0 );
+      slapi_log_error(SLAPI_LOG_FATAL, "snmp collator", "Failed to open stats file (%s) "
+                      "(error %d): %s.\n", szStatsFile, err, slapd_system_strerror(err));
       exit(1);
     }
   }
