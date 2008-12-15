@@ -1812,7 +1812,8 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 			} else 
 			{
 				/* password mods are treated specially */
-				if (0 == slapi_attr_type_cmp(attr_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD, SLAPI_TYPE_CMP_SUBTYPE) )
+				if ((0 == slapi_attr_type_cmp(attr_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD, SLAPI_TYPE_CMP_SUBTYPE)) &&
+					mod && mod->mod_bvalues && mod->mod_bvalues[0] && mod->mod_bvalues[0]->bv_val)
 				{
 					char *password_value = NULL;
 					password_value = mod->mod_bvalues[0]->bv_val;
