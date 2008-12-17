@@ -7,7 +7,7 @@ setup_err_exit = Setup cannot proceed.  Exiting.\n\n
 dialog_use_different_type = When using Silent or Express mode, some of the\ndialogs are skipped, but validation is still performed\non the default or given answers.  You should run this program again and\nchoose Typical or Custom mode in order to provide a valid input\nfor the problem dialog.\n\n
 
 # ------------ Welcome Dialog Resource ------------
-dialog_welcome_text = This program will set up the %s Directory Server.\n\nIt is recommended that you have "root" privilege to set up the software.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the setup program\n\n
+dialog_welcome_text = This program will set up the %s Directory Server.\n\nIt is recommended that you have "root" privilege to set up the software.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" or the word "back" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the setup program\n\n
 # %s -> brand
 
 dialog_welcome_prompt = Would you like to continue with set up?
@@ -68,7 +68,7 @@ dialog_dssuffix_prompt = Suffix
 dialog_dssuffix_error = The suffix '%s' is not a valid DN.  Please choose another one.\n\n
 
 # ----------- DS Root DN and password Dialog Resource  ----------------
-dialog_dsrootdn_text = Certain directory server operations require an administrative user.\nThis user is referred to as the Directory Manager and typically has a\nbind Distinguished Name (DN) of cn=Directory Manager.\nYou will also be prompted for the password for this user.  The password must\nbe at least 8 characters long, and contain no spaces.\nPress Control-B then Enter to back up and start over.\n\n
+dialog_dsrootdn_text = Certain directory server operations require an administrative user.\nThis user is referred to as the Directory Manager and typically has a\nbind Distinguished Name (DN) of cn=Directory Manager.\nYou will also be prompted for the password for this user.  The password must\nbe at least 8 characters long, and contain no spaces.\nPress Control-B or type the word "back", then Enter to back up and start over.\n\n
 dialog_dsrootdn_prompt = Directory Manager DN
 dialog_dsrootdn_error = The input '%s' is not a valid DN.  Please choose another one.\n\n
 dialog_dsrootpw_prompt1 = Password

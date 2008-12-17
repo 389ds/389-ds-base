@@ -104,7 +104,7 @@ sub isBack {
     }
 
     # the word "back"
-    if ($ans =~ /back/i) {
+    if ($ans =~ /^\s*back\s*$/i) {
         return 1;
     }
     # a Ctrl-B sequence
