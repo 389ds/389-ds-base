@@ -1247,6 +1247,7 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
 			    const char *realm)
 {
     ldapSaslInteractVals *vals = NULL;
+    char *idprefix = "";
 
     vals = (ldapSaslInteractVals *)
         slapi_ch_calloc(1, sizeof(ldapSaslInteractVals));
@@ -1261,8 +1262,12 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
         ldap_get_option(ld, LDAP_OPT_X_SASL_MECH, &vals->mech);
     }
 
+    if (vals->mech && !strcasecmp(vals->mech, "DIGEST-MD5")) {
+        idprefix = "dn:"; /* prefix name and id with this string */
+    }
+
     if (authid) { /* use explicit passed in value */
-        vals->authid = slapi_ch_strdup(authid);
+        vals->authid = slapi_ch_smprintf("%s%s", idprefix, authid);
     } else { /* use option value if any */
         ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHCID, &vals->authid);
         if (!vals->authid) {
@@ -1272,7 +1277,7 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
     }
 
     if (username) { /* use explicit passed in value */
-        vals->username = slapi_ch_strdup(username);
+        vals->username = slapi_ch_smprintf("%s%s", idprefix, username);
     } else { /* use option value if any */
         ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHZID, &vals->username);
         if (!vals->username) { /* use default sasl value */
@@ -1413,7 +1418,7 @@ slapd_ldap_sasl_interactive_bind(
     int tries = 0;
 
     while (tries < 2) {
-        void *defaults = ldap_sasl_set_interact_vals(ld, mech, NULL, bindid,
+        void *defaults = ldap_sasl_set_interact_vals(ld, mech, bindid, bindid,
                                                      creds, NULL);
         /* have to first set the defaults used by the callback function */
         /* call the bind function */
@@ -1941,8 +1946,9 @@ set_krb5_creds(
                         cc_env_name);
     }
 
-    /* use NULL as username */
+    /* use NULL as username and authid */
     slapi_ch_free_string(&vals->username);
+    slapi_ch_free_string(&vals->authid);
 
 cleanup:
     krb5_free_unparsed_name(ctx, princ_name);
