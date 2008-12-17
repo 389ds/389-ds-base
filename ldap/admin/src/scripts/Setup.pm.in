@@ -182,7 +182,7 @@ sub init {
             }
         } else { # error
             print STDERR "Error: unknown command line option $_\n";
-            usage();
+            HelpMessage();
             exit 1;
         }
     }
