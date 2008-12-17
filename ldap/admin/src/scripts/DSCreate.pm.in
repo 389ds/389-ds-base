@@ -160,6 +160,7 @@ sub changeOwnerMode {
 
     my $uid = getpwnam $inf->{General}->{SuiteSpotUserID};
     my $gid = -1; # default to leave it alone
+    my $mode_string = "";
 
     if (defined($inf->{General}->{SuiteSpotGroup})) {
         $gid = getgrnam $inf->{General}->{SuiteSpotGroup};
@@ -171,6 +172,10 @@ sub changeOwnerMode {
     if ($!) {
         return ('error_chmoding_file', $it, $!);
     }
+
+    $mode_string = sprintf "%lo", $mode;
+    debug(1, "changeOwnerMode: changed mode of $it to $mode_string\n");
+
     $! = 0; # clear errno
     if ( $gidonly ) {
         chown -1, $gid, $it;
@@ -179,6 +184,12 @@ sub changeOwnerMode {
     }
     if ($!) {
         return ('error_chowning_file', $it, $inf->{General}->{SuiteSpotUserID}, $!);
+    }
+
+    if ( $gidonly ) {
+        debug(1, "changeOwnerMode: changed group ownership of $it to group $gid\n");
+    } else {
+        debug(1, "changeOwnerMode: changed ownership of $it to user $uid group $gid\n");
     }
 
     return ();

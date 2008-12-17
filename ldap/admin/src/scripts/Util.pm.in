@@ -860,6 +860,7 @@ sub makePaths {
     my ($path, $mode, $user, $group) = @_;
     my $uid = getpwnam $user;
     my $gid = -1; # default to leave it alone
+    my $mode_string = "";
 
     if ($group) {
         $gid = getgrnam $group;
@@ -882,7 +883,10 @@ sub makePaths {
         if ($!) {
             return ('error_chowning_directory', $_, $!);
         }
-        debug(1, "makePaths: created directory $_ mode $mode user $user group $group\n");
+        chmod $mode, $_;
+        $mode_string = sprintf "%lo", $mode;
+        debug(1, "makePaths: created directory $_ mode $mode_string user $user group $group\n");
+        debug(2, "\t" . `ls -ld $_`);
     }
 
     return ();
