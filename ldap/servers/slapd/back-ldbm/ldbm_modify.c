@@ -206,7 +206,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int is_fixup_operation= 0;
 	int is_ruv = 0;                 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
-	int repl_op;
+	int i = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -214,7 +214,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
-	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
@@ -310,20 +309,13 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	}
 
 	/*
-	 * If we are not handling a replicated operation, AND if the
-	 * objectClass attribute type was modified in any way, expand
+	 * If the objectClass attribute type was modified in any way, expand
 	 * the objectClass values to reflect the inheritance hierarchy.
-	 * [blackflag 624152]: repl_op covers both regular and legacy replication
 	 */
-	if(!repl_op)
-	{
-		int		i;
-
-		for ( i = 0; mods[i] != NULL; ++i ) {
-			if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
-				slapi_schema_expand_objectclasses( ec->ep_entry );
-				break;
-			}
+	for ( i = 0; mods[i] != NULL; ++i ) {
+		if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
+			slapi_schema_expand_objectclasses( ec->ep_entry );
+			break;
 		}
 	}
 

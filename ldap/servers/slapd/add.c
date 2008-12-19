@@ -572,9 +572,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 	}
 
 	/* expand objectClass values to reflect the inheritance hierarchy */
-	if (!repl_op) {
-		slapi_schema_expand_objectclasses( e );
-	}
+	slapi_schema_expand_objectclasses( e );
 
 
     /* uniqueid needs to be generated for entries added during legacy replication */
