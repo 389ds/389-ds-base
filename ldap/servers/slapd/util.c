@@ -1946,11 +1946,11 @@ set_krb5_creds(
                         cc_env_name);
     }
 
+cleanup:
     /* use NULL as username and authid */
     slapi_ch_free_string(&vals->username);
     slapi_ch_free_string(&vals->authid);
 
-cleanup:
     krb5_free_unparsed_name(ctx, princ_name);
     if (kt) { /* NULL not allowed */
         krb5_kt_close(ctx, kt);
