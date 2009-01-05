@@ -64,6 +64,7 @@
 /* Forward declarations */
 static int rename_internal_pb (Slapi_PBlock *pb);
 static void op_shared_rename (Slapi_PBlock *pb, int passin_args );
+static int check_rdn_for_created_attrs(const char *newrdn);
 
 /* This function is called to process operation that come over external connections */
 void
@@ -151,10 +152,11 @@ do_modrdn( Slapi_PBlock *pb )
 	op_shared_rename(pb, 1 /* pass in ownership of string arguments */ );
 	return;
 
-free_and_return:;
+free_and_return:
 	slapi_ch_free((void **) &dn );
 	slapi_ch_free((void **) &newrdn );
 	slapi_ch_free((void **) &newsuperior );
+	return;
 }
 
 /* This function is used to issue internal modrdn operation
@@ -386,6 +388,12 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		ldap_value_free(rdns);
 	}
 
+	/* check if created attributes are used in the new RDN */
+	if (check_rdn_for_created_attrs((const char *)newrdn)) {
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "invalid attribute in RDN", 0, NULL);
+		goto free_and_return_nolock;
+	}
+
 	/* check that the dn is formatted correctly */
 	if ((rdns = ldap_explode_dn(newsuperior, 0)) == NULL) 
 	{
@@ -535,4 +543,36 @@ free_and_return_nolock:
 		slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &s);
 		slapi_ch_free((void **)&s);
 	}
+}
+
+
+/* Checks if created attributes are used in the RDN.
+ * Returns 1 if created attrs are in the RDN, and
+ * 0 if created attrs are not in the RDN. Returns
+ * -1 if an error occurs.
+ */
+static int check_rdn_for_created_attrs(const char *newrdn)
+{
+	int i, rc = 0;
+	Slapi_RDN *rdn = NULL;
+	char *value = NULL;
+	char *type[] = {"modifytimestamp", "createtimestamp",
+			"creatorsname", "modifiersname", 0};
+
+	if (newrdn && *newrdn && (rdn = slapi_rdn_new())) {
+		slapi_rdn_init_dn(rdn, newrdn);
+		for (i = 0; type[i] != NULL; i++) {
+			if (slapi_rdn_contains_attr(rdn, type[i], &value)) {
+				LDAPDebug(LDAP_DEBUG_TRACE, "Invalid DN. RDN contains %s attribute\n", type[i], 0, 0);
+				rc = 1;
+				break;
+			}
+		}
+		slapi_rdn_free(&rdn);
+	} else {
+		LDAPDebug(LDAP_DEBUG_TRACE, "check_rdn_for_created_attrs: Error allocating RDN\n", 0, 0, 0);
+		rc = -1;
+	}
+
+	return rc;
 }

@@ -68,6 +68,7 @@
 static int add_internal_pb (Slapi_PBlock *pb);
 static void op_shared_add (Slapi_PBlock *pb);
 static void add_created_attrs(Operation *op, Slapi_Entry *e);
+static int check_rdn_for_created_attrs(Slapi_Entry *e);
 static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry);
 static void add_uniqueid (Slapi_Entry *e);
 static PRBool check_oc_subentry(Slapi_Entry *e, struct berval	**vals, char *normtype);
@@ -176,15 +177,23 @@ do_add( Slapi_PBlock *pb )
 				goto free_and_return;
 			}
 
-            /* if this is uniqueid attribute, set uniqueid field of the entry */
-            if (strcasecmp (normtype, SLAPI_ATTR_UNIQUEID) == 0)
-            {
-                e->e_uniqueid = slapi_ch_strdup (vals[0]->bv_val);
-            }
-	    if(searchsubentry) searchsubentry=check_oc_subentry(e,vals,normtype);
+			/* if this is uniqueid attribute, set uniqueid field of the entry */
+			if (strcasecmp (normtype, SLAPI_ATTR_UNIQUEID) == 0)
+			{
+				e->e_uniqueid = slapi_ch_strdup (vals[0]->bv_val);
+			}
+			if(searchsubentry) searchsubentry=check_oc_subentry(e,vals,normtype);
 		}
+
 		slapi_ch_free( (void**)&normtype );
 		ber_bvecfree( vals );
+	}
+
+	/* Ensure that created attributes are not used in the RDN. */
+	if (check_rdn_for_created_attrs(e)) {
+		op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), "invalid DN");
+		send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL, "illegal attribute in RDN", 0, NULL );
+		goto free_and_return;
 	}
 
 	if ( tag == LBER_DEFAULT ) {
@@ -720,6 +729,40 @@ add_created_attrs(Operation *op, Slapi_Entry *e)
 	slapi_entry_attr_replace(e, "modifytimestamp", bvals);
 
     add_uniqueid (e);
+}
+
+
+/* Checks if created attributes are used in the RDN.
+ * Returns 1 if created attrs are in the RDN, and
+ * 0 if created attrs are not in the RDN. Returns
+ * -1 if an error occurred.
+ */
+static int check_rdn_for_created_attrs(Slapi_Entry *e)
+{
+    int i, rc = 0;
+    Slapi_RDN *rdn = NULL;
+    char *value = NULL;
+    char *type[] = {SLAPI_ATTR_UNIQUEID, "modifytimestamp", "createtimestamp",
+                   "creatorsname", "modifiersname", 0};
+
+    if (rdn = slapi_rdn_new()) {
+        slapi_rdn_init_dn(rdn, slapi_entry_get_dn_const(e));
+
+        for (i = 0; type[i] != NULL; i++) {
+            if (slapi_rdn_contains_attr(rdn, type[i], &value)) {
+                LDAPDebug(LDAP_DEBUG_TRACE, "Invalid DN. RDN contains %s attribute\n", type[i], 0, 0);
+                rc = 1;
+                break;
+            }
+        }
+
+        slapi_rdn_free(&rdn);
+    } else {
+        LDAPDebug(LDAP_DEBUG_TRACE, "check_rdn_for_created_attrs: Error allocating RDN\n", 0, 0, 0);
+        rc = -1;
+    }
+
+    return rc;
 }
 
 
