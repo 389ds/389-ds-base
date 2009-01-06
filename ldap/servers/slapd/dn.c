@@ -138,11 +138,11 @@ hexchar2int( char c )
 char *
 substr_dn_normalize( char *dn, char *end )
 {
-    /* \xx is changed to \c.
-     * \c is changed to c, unless this would change its meaning.
-     * All values that contain 2 or more separators are "enquoted";
-     * all other values are not enquoted.
-     */
+	/* \xx is changed to \c.
+	 * \c is changed to c, unless this would change its meaning.
+	 * All values that contain 2 or more separators are "enquoted";
+	 * all other values are not enquoted.
+	 */
 	char		*value = NULL;
 	char 		*value_separator = NULL;
 	char		*d = NULL;
@@ -192,22 +192,22 @@ substr_dn_normalize( char *dn, char *end )
 			break;
 		case INVALUE:
 			if ( gotesc ) {
-			    if ( SEPARATOR( *s ) ) {
-				value_separator = d;
-			    } else if ( ! NEEDSESCAPE( *s ) ) {
-				--d; /* eliminate the \ */
-			    }
+				if ( SEPARATOR( *s ) ) {
+					value_separator = d;
+				} else if ( ! NEEDSESCAPE( *s ) ) {
+					--d; /* eliminate the \ */
+				}
 			} else if ( SEPARATOR( *s ) ) {
-			    while ( SPACE( *(d - 1) ) )
-				d--;
-			    if ( value_separator == dn ) { /* 2 or more separators */
+				while ( SPACE( *(d - 1) ) )
+					d--;
+				if ( value_separator == dn ) { /* 2 or more separators */
 				/* convert to quoted value: */
 				char *L = NULL; /* char after last seperator */
 				char *R; /* value character iterator */
 				int escape_skips = 0; /* number of escapes we have seen after the first */
 
 				for ( R = value; (R = strchr( R, '\\' )) && (R < d); L = ++R ) {
-				    if ( SEPARATOR( R[1] )) {
+					if ( SEPARATOR( R[1] )) {
 						if ( L == NULL ) {
 							/* executes once, at first escape, adds opening quote */
 							const size_t len = R - value;
@@ -229,113 +229,120 @@ substr_dn_normalize( char *dn, char *end )
 							--d;
 							++escape_skips;
 						}
-				    }
+					}
 				}
 				memmove( value, L, d - L + escape_skips );
 				*d++ = '"'; /* closing quote */
-			    }
-			    state = B4TYPE;
+			}
+			state = B4TYPE;
 
-			    /*
-			     * Track and sort attribute values within
-			     * multivalued RDNs.
-			     */
-			    if ( *s == '+' || rdn_av_count > 0 ) {
+			/*
+			 * Track and sort attribute values within
+			 * multivalued RDNs.
+			 */
+			if ( *s == '+' || rdn_av_count > 0 ) {
 				add_rdn_av( typestart, d, &rdn_av_count,
 					&rdn_avs, initial_rdn_av_stack );
-			    }
-			    if ( *s != '+' ) {	/* at end of this RDN */
+			}
+			if ( *s != '+' ) {	/* at end of this RDN */
 				if ( rdn_av_count > 1 ) {
-				    sort_rdn_avs( rdn_avs, rdn_av_count );
+					sort_rdn_avs( rdn_avs, rdn_av_count );
 				}
 				if ( rdn_av_count > 0 ) {
-				    reset_rdn_avs( &rdn_avs, &rdn_av_count );
+					reset_rdn_avs( &rdn_avs, &rdn_av_count );
 				}
-			    }
+			}
 
-			    *d++ = (*s == '+') ? '+' : ',';
-			    break;
+			*d++ = (*s == '+') ? '+' : ',';
+			break;
 			}
 			*d++ = *s;
 			break;
 		case INQUOTEDVALUE:
 			if ( gotesc ) {
-			    if ( ! NEEDSESCAPE( *s ) ) {
-				--d; /* eliminate the \ */
-			    }
-			} else if ( *s == '"' ) {
-			    state = B4SEPARATOR;
-			    if ( value_separator == dn /* 2 or more separators */
-				|| SPACE( value[1] ) || SPACE( d[-1] ) ) {
-				*d++ = *s;
-			    } else {
-				/* convert to non-quoted value: */
-				if ( value_separator == NULL ) { /* no separators */
-				    memmove ( value, value+1, (d-value)-1 );
-				    --d;
-				} else { /* 1 separator */
-				    memmove ( value, value+1, (value_separator-value)-1 );
-				    *(value_separator - 1) = '\\';
+				if ( ! NEEDSESCAPE( *s ) ) {
+					--d; /* eliminate the \ */
 				}
-			    }
-			    break;
+			} else if ( *s == '"' ) {
+				state = B4SEPARATOR;
+				if ( value_separator == dn /* 2 or more separators */
+					 || SPACE( value[1] ) || SPACE( d[-1] ) ) {
+					*d++ = *s;
+				} else {
+					/* convert to non-quoted value: */
+					if ( value_separator == NULL ) { /* no separators */
+						memmove ( value, value+1, (d-value)-1 );
+						--d;
+					} else { /* 1 separator */
+						memmove ( value, value+1, (value_separator-value)-1 );
+						*(value_separator - 1) = '\\';
+					}
+				}
+				break;
 			}
 			if ( SEPARATOR( *s )) {
-			    if ( value_separator ) value_separator = dn;
-			    else value_separator = d;
+				if ( value_separator ) value_separator = dn;
+				else value_separator = d;
 			}
 			*d++ = *s;
 			break;
 		case B4SEPARATOR:
 			if ( SEPARATOR( *s ) ) {
-			    state = B4TYPE;
+				state = B4TYPE;
 
-			    /*
-			     * Track and sort attribute values within
-			     * multivalued RDNs.
-			     */
-			    if ( *s == '+' || rdn_av_count > 0 ) {
-				add_rdn_av( typestart, d, &rdn_av_count,
-					&rdn_avs, initial_rdn_av_stack );
-			    }
-			    if ( *s != '+' ) {	/* at end of this RDN */
-				if ( rdn_av_count > 1 ) {
-				    sort_rdn_avs( rdn_avs, rdn_av_count );
+				/*
+				 * Track and sort attribute values within
+				 * multivalued RDNs.
+				 */
+				if ( *s == '+' || rdn_av_count > 0 ) {
+					add_rdn_av( typestart, d, &rdn_av_count,
+						&rdn_avs, initial_rdn_av_stack );
 				}
-				if ( rdn_av_count > 0 ) {
-				    reset_rdn_avs( &rdn_avs, &rdn_av_count );
+				if ( *s != '+' ) {	/* at end of this RDN */
+					if ( rdn_av_count > 1 ) {
+						sort_rdn_avs( rdn_avs, rdn_av_count );
+					}
+					if ( rdn_av_count > 0 ) {
+						reset_rdn_avs( &rdn_avs, &rdn_av_count );
+					}
 				}
-			    }
 
-			    *d++ = (*s == '+') ? '+' : ',';
+				*d++ = (*s == '+') ? '+' : ',';
 			}
 			break;
 		default:
 			LDAPDebug( LDAP_DEBUG_ANY,
-			    "slapi_dn_normalize - unknown state %d\n", state, 0, 0 );
+				"slapi_dn_normalize - unknown state %d\n", state, 0, 0 );
 			break;
 		}
-		if ( *s != '\\' ) {
-			gotesc = 0;
-		} else {
-			gotesc = 1;
-			if ( s+2 < end ) {
-			    int n = hexchar2int( s[1] );
-			    if ( n >= 0 ) {
-				int n2 = hexchar2int( s[2] );
-				if ( n2 >= 0 ) {
-				    n = (n << 4) + n2;
-				    if (n == 0) { /* don't change \00 */
-					*d++ = *++s;
-					*d++ = *++s;
-					gotesc = 0;
-				    } else { /* change \xx to a single char */
-					++s;
-					*(unsigned char*)(s+1) = n;
-				    }
+		if ( *s == '\\' ) {
+			if ( gotesc ) { /* '\\', again */
+				/* <type>=XXX\\\\7AYYY; we should keep \\\\. */
+				gotesc = 0;
+			} else {
+				gotesc = 1;
+				if ( s+2 < end ) {
+					int n = hexchar2int( s[1] );
+					/* If 8th bit is on, the char is not ASCII (not UTF-8).  
+					 * Thus, not UTF-8 */
+					if ( n >= 0 && n < 8 ) {
+						int n2 = hexchar2int( s[2] );
+						if ( n2 >= 0 ) {
+							n = (n << 4) + n2;
+							if (n == 0) { /* don't change \00 */
+								*d++ = *++s;
+								*d++ = *++s;
+								gotesc = 0;
+							} else { /* change \xx to a single char */
+								++s;
+								*(unsigned char*)(s+1) = n;
+							}
+						}
+					}
 				}
-			    }
 			}
+		} else {
+			gotesc = 0;
 		}
 	}
 
@@ -349,14 +356,14 @@ substr_dn_normalize( char *dn, char *end )
 	 * or B4SEPARATOR state if we have a valid rdn component to 
 	 * be added. */
 	if ((rdn_av_count > 0) && ((state == INVALUE) || (state == B4SEPARATOR))) {
-	    add_rdn_av( typestart, d, &rdn_av_count,
-		    &rdn_avs, initial_rdn_av_stack );
+		add_rdn_av( typestart, d, &rdn_av_count,
+			&rdn_avs, initial_rdn_av_stack );
 	}
 	if ( rdn_av_count > 1 ) {
-	    sort_rdn_avs( rdn_avs, rdn_av_count );
+		sort_rdn_avs( rdn_avs, rdn_av_count );
 	}
 	if ( rdn_av_count > 0 ) {
-	    reset_rdn_avs( &rdn_avs, &rdn_av_count );
+		reset_rdn_avs( &rdn_avs, &rdn_av_count );
 	}
 	/* Trim trailing spaces */
 	while ( d != dn && *(d - 1) == ' ' ) d--;  /* XXX 518524 */
@@ -793,73 +800,6 @@ slapi_is_rootdse( const char *dn )
     return 0;
 }
 
-
-
-/*
-** This function takes a quoted attribute value of the form "abc",
-** and strips off the enclosing quotes.  It also deals with quoted
-** characters by removing the preceeding '\' character.
-**
-*/
-static void
-strcpy_unescape_dnvalue( char *d, const char *s )
-{
-    const char *end = s + strlen(s);
-	for ( ; *s; s++ )
-	{
-		switch ( *s )
-		{
-		case '"':
-			break;
-		case '\\':
-            {
-            /*
-             * The '\' could be escaping a single character, ie \"
-             * or could be escaping a hex byte, ie \01
-             */
-            int singlecharacter= 1;
-            if ( s+2 < end )
-            {
-                int n = hexchar2int( s[1] );
-                if ( n >= 0 )
-                {
-                    int n2 = hexchar2int( s[2] );
-                    if ( n2 >= 0 )
-                    {
-                        singlecharacter= 0;
-                        n = (n << 4) + n2;
-                        if (n == 0)
-                        {
-                            /* don't change \00 */
-                            *d++ = *++s;
-                            *d++ = *++s;
-                        }
-                        else
-                        {
-                            /* change \xx to a single char */
-                            ++s;
-                            *(unsigned char*)(s+1) = n;
-                        }
-                    }
-                }
-            }
-            if(singlecharacter)
-            {
-                s++;
-                *d++ = *s;
-            }
-            break;
-            }
-		default:
-			*d++ = *s;
-			break;
-		}
-	}
-	*d = '\0';
-}
-
-
-
 int
 slapi_rdn2typeval(
     char        	*rdn,
@@ -881,7 +821,7 @@ slapi_rdn2typeval(
        When adding the rdn attribute in the entry, we need to remove
        all special escaped characters included in the value itself,
        i.e., strings like "\;" must be converted to ";" and so on... */
-    strcpy_unescape_dnvalue(s,s);
+    strcpy_unescape_value(s,s);
 
     bv->bv_val = s;
     bv->bv_len = strlen( s );

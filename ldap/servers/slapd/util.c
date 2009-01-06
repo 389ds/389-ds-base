@@ -198,6 +198,64 @@ escape_filter_value(const char* str, int len, char buf[BUFSIZ])
     return do_escape_string(str,len,buf,special_filter);
 }
 
+/*
+** This function takes a quoted attribute value of the form "abc",
+** and strips off the enclosing quotes.  It also deals with quoted
+** characters by removing the preceeding '\' character.
+**
+*/
+void
+strcpy_unescape_value( char *d, const char *s )
+{
+    char *head = d;
+    int gotesc = 0;
+    const char *end = s + strlen(s);
+    for ( ; *s; s++ )
+    {
+        switch ( *s )
+        {
+        case '\\':
+            if ( gotesc ) {
+                gotesc = 0;
+            } else {
+                gotesc = 1;
+                if ( s+2 < end ) {
+                    int n = hexchar2int( s[1] );
+                    /* If 8th bit is on, the char is not ASCII (not UTF-8).  
+                     * Thus, not UTF-8 */
+                    if ( n >= 0 && n < 8 ) {
+                        int n2 = hexchar2int( s[2] );
+                        if ( n2 >= 0 ) {
+                            n = (n << 4) + n2;
+                            if (n == 0) { /* don't change \00 */
+                                *d++ = *s++;
+                                *d++ = *s++;
+                                *d++ = *s;
+                            } else { /* change \xx to a single char */
+                                *d++ = (char)n;
+                                s += 2;
+                            }
+                            gotesc = 0;
+                        }
+                    }
+                }
+                if (gotesc) {
+                    *d++ = *s;
+                }
+            }
+            break;
+        default:
+            if (gotesc) {
+                d--;
+            }
+            *d++ = *s;
+            gotesc = 0;
+            break;
+        }
+    }
+    *d = '\0';
+}
+
 /* functions to convert between an entry and a set of mods */
 int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
 {

@@ -96,73 +96,9 @@ rdn2ava(
 	*s++ = '\0';
 
 	ava->ava_type = rdn;
-	strcpy_special_undo( s, s );
+	strcpy_unescape_value( s, s );
 	ava->ava_value.bv_val = s;
 	ava->ava_value.bv_len = strlen( s );
 
 	return( 0 );
 }
-
-/*
-** This function takes a quoted attribute value of the form "abc",
-** and strips off the enclosing quotes.  It also deals with quoted
-** characters by removing the preceeding '\' character.
-**
-*/
-static void
-strcpy_special_undo( char *d, const char *s )
-{
-    const char *end = s + strlen(s);
-	for ( ; s < end && *s; s++ )
-	{
-		switch ( *s )
-		{
-		case '"':
-			break;
-		case '\\':
-            {
-            /*
-             * The '\' could be escaping a single character, ie \"
-             * or could be escaping a hex byte, ie \01
-             */
-            int singlecharacter= 1;
-            if ( s+2 < end )
-            {
-                int n = hexchar2int( s[1] );
-                if ( n >= 0 )
-                {
-                    int n2 = hexchar2int( s[2] );
-                    if ( n2 >= 0 )
-                    {
-                        singlecharacter= 0;
-                        n = (n << 4) + n2;
-                        if (n == 0)
-                        {
-                            /* don't change \00 */
-                            *d++ = *++s;
-                            *d++ = *++s;
-                        }
-                        else
-                        {
-                            /* change \xx to a single char */
-                            ++s;
-                            *(unsigned char*)(s+1) = n;
-                        }
-                    }
-                }
-            }
-            if(singlecharacter)
-            {
-                s++;
-                *d++ = *s;
-            }
-            break;
-            }
-		default:
-			*d++ = *s;
-			break;
-		}
-	}
-	*d = '\0';
-}
-
