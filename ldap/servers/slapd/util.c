@@ -1257,6 +1257,10 @@ slapi_ldap_bind(
 	    }
 	}
     } else {
+	/* a SASL mech - set the sasl ssf to 0 if using TLS/SSL */
+	if (secure) {
+	    ldap_set_option(ld, LDAP_OPT_X_SASL_SECPROPS, "maxssf=0");
+	}
 	rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
 					      serverctrls, returnedctrls,
 					      msgidp);
