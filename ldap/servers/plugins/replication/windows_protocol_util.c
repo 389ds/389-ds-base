@@ -806,7 +806,7 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 }
 
 static int
-send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp)
+send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp, int missing_entry)
 {
 	ConnResult mod_return = 0;
 	Slapi_Mods smods = {0};
@@ -823,9 +823,18 @@ send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp)
 		acctval = slapi_entry_attr_get_ulong(remote_entry, "userAccountControl");
 	}
 	slapi_entry_free(remote_entry);
+	/* if we are adding a new entry, we need to set the entry to be
+	   enabled to allow AD login */
+	if (missing_entry) {
+	    slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			    "%s: New Windows entry %s will be enabled.\n",
+			    agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(sdn));
+	    acctval &= ~0x2; /* unset the disabled bit, if set */
+	}
+	/* set the account to be a normal account */
 	acctval |= 0x0200; /* normal account == 512 */
 
-    slapi_mods_init (&smods, 0);
+	slapi_mods_init (&smods, 0);
 	PR_snprintf(acctvalstr, sizeof(acctvalstr), "%lu", acctval);
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "userAccountControl", acctvalstr);
 
@@ -1320,7 +1329,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				 *   userAccountControl: 512 */
 				if (op->operation_type == SLAPI_OPERATION_ADD && missing_entry)
 				{
-					return_value = send_accountcontrol_modify(remote_dn, prp);
+					return_value = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 				}
 			}
 		}
@@ -1340,6 +1349,7 @@ error:
 	{
 		slapi_sdn_free(&remote_dn);
 	}
+	slapi_ch_free_string(&password);
 	return return_value;
 }
 
@@ -3631,6 +3641,10 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			}
 			ldap_mods_free(entryattrs, 1);
 			entryattrs = NULL;
+
+			if (retval == 0) { /* set the account control bits */
+			    retval = send_accountcontrol_modify(remote_dn, prp, missing_entry);
+			}
 		}
 	} else
 	{
@@ -3659,6 +3673,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			slapi_entry_free(remote_entry);
 		}
 	}
+	slapi_ch_free_string(&password);
 	return retval;
 }
 
