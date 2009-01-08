@@ -1190,7 +1190,7 @@ static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 						{
 							while(dnVals[valIndex])
 							{
-								if(dnVals[valIndex]->bv_val)
+								if(dnVals[valIndex]->bv_val) 
 									cos_cache_add_attrval(pSneakyVal,
 													dnVals[valIndex]->bv_val);
 								
@@ -1269,6 +1269,8 @@ static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 				cos_cache_del_attrval_list(&pDn);
 			if(pAttributes)
 				cos_cache_del_attr_list(&pAttributes);
+			if(pCosPriority)
+				cos_cache_del_attrval_list(&pCosPriority);
 		}
 	}			
 	/*
