@@ -1758,7 +1758,15 @@ windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original
 			 * against the existing remote value.  We only need to do
 			 * this once for all mods. */
 			if (!got_entry) {
-				windows_get_remote_entry(prp, remote_dn, &remote_entry);
+				int free_entry = 0;
+
+				/* See if we have already fetched the remote entry.
+				 * If not, we just fetch it ourselves. */
+				if ((remote_entry = windows_private_get_raw_entry(prp->agmt)) == NULL) {
+					windows_get_remote_entry(prp, remote_dn, &remote_entry);
+					free_entry = 1;
+				}
+
 				if (remote_entry) {
 					/* Fetch and duplicate the cn attribute so we can perform comparisions */
 					slapi_entry_attr_find(remote_entry, "cn", &remote_rdn_attr);
@@ -1766,7 +1774,12 @@ windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original
 						remote_rdn_attr = slapi_attr_dup(remote_rdn_attr);
 						slapi_attr_first_value(remote_rdn_attr, &remote_rdn_val);
 					}
-					slapi_entry_free(remote_entry);
+
+					/* We only want to free the entry if we fetched it ourselves
+					 * by calling windows_get_remote_entry(). */
+					if (free_entry) {
+						slapi_entry_free(remote_entry);
+					}
 				}
 				got_entry = 1;
 
