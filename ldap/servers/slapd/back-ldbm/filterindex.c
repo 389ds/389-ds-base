@@ -672,9 +672,17 @@ list_candidates(
     }
     if (ftype == LDAP_FILTER_AND && f_count > 1)
     {
-        is_and = 1;
+        slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
+        if (is_and) {
+            /* Outer candidates function already set IS_AND.
+             * So, this function does not touch it. */
+            is_and = 0;
+        } else {
+            /* Outer candidates function hasn't set IS_AND */
+            is_and = 1;
+            slapi_pblock_set(pb, SLAPI_SEARCH_IS_AND, &is_and);
+        }
     }
-    slapi_pblock_set(pb, SLAPI_SEARCH_IS_AND, &is_and);
     if (le_count != 1 || ge_count != 1 || f_count != 2)
     {
         is_bounded_range = 0;
@@ -789,8 +797,15 @@ list_candidates(
     LDAPDebug( LDAP_DEBUG_TRACE, "<= list_candidates %lu\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
 out:
-    is_and = 0;
-    slapi_pblock_set(pb, SLAPI_SEARCH_IS_AND, &is_and);
+    if (is_and) {
+        /*
+         * Sets IS_AND back to 0 only when this function set 1.
+         * The info of the outer (&...) needs to be passed to the
+         * descendent *_candidates functions called recursively.
+         */
+        is_and = 0;
+        slapi_pblock_set(pb, SLAPI_SEARCH_IS_AND, &is_and);
+    }
     slapi_ch_free_string(&tpairs[0]);
     slapi_ch_bvfree(&vpairs[0]);
     slapi_ch_free_string(&tpairs[1]);
