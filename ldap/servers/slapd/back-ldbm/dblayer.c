@@ -3884,7 +3884,7 @@ unsigned long db_strtoul(const char *str, int *err)
      * are silently converted to the equivalent unsigned long int value.
      */
     /* We don't want to make it happen. */
-    for (p = str; p && *p && (*p == ' ' || *p == '\t'); p++) ;
+    for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++) ;
     if ('-' == *p) {
         if (err) *err = ERANGE;
         return val;

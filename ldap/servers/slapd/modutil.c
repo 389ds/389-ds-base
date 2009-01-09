@@ -595,6 +595,21 @@ slapi_mod_init_byval (Slapi_Mod *smod, const LDAPMod *mod)
 }
 
 void
+slapi_mod_init_valueset_byval(Slapi_Mod *smod, int op, const char *type, const Slapi_ValueSet *svs)
+{
+	PR_ASSERT(smod!=NULL);
+	slapi_mod_init(smod, 0);
+	slapi_mod_set_operation (smod, op);
+	slapi_mod_set_type (smod, type);
+	if (svs!=NULL) {
+		Slapi_Value **svary = valueset_get_valuearray(svs);
+		valuearray_get_bervalarray(svary, &smod->mod->mod_bvalues);
+		smod->num_values = slapi_valueset_count(svs);
+		smod->num_elements = smod->num_values + 1;
+	}
+}
+
+void
 slapi_mod_free (Slapi_Mod **smod)
 {
 	slapi_mod_done(*smod);
@@ -750,15 +765,16 @@ slapi_mod_isvalid (const Slapi_Mod *mod)
 	if (mod == NULL || mod->mod == NULL)
 		return 0;
 
-	op = mod->mod->mod_op && ~LDAP_MOD_BVALUES;
+	op = mod->mod->mod_op;
 
-	if (op != LDAP_MOD_ADD && op != LDAP_MOD_DELETE && op != LDAP_MOD_REPLACE)
+	if (!SLAPI_IS_MOD_ADD(op) && !SLAPI_IS_MOD_DELETE(op) && !SLAPI_IS_MOD_REPLACE(op))
 		return 0;
 
 	if (mod->mod->mod_type == NULL)
 		return 0;
 
-	if (op != LDAP_MOD_DELETE && mod->num_values == 0)
+	/* add op must have at least 1 value */
+	if (SLAPI_IS_MOD_ADD(op) && (mod->num_values == 0))
 		return 0;
 
 	return 1;

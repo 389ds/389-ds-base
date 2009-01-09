@@ -62,7 +62,7 @@ int ruv_private_new( RUV **ruv, RUV *clone );
 static Slapi_Entry* windows_entry_already_exists(Slapi_Entry *e);
 static void extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv);
 #endif
-static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password);
+static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password, const Slapi_Entry *ad_entry);
 static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
@@ -1233,7 +1233,8 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				LDAPMod **mapped_mods = NULL;
 				char *newrdn = NULL;
 
-				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
+				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password,
+											windows_private_get_raw_entry(prp->agmt));
 				if (is_user) {
 					winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
 																windows_private_get_raw_entry(prp->agmt),
@@ -1731,6 +1732,104 @@ windows_delete_local_entry(Slapi_DN *sdn){
 	return return_value;
 }
 
+/*
+  Before we send the modify to AD, we need to check to see if the mod still
+  applies - the entry in AD may have been modified, and those changes not sync'd
+  back to the DS, since the way winsync currently works is that it polls periodically
+  using DirSync for changes in AD - note that this does not guarantee that the mod
+  will apply cleanly, since there is still a small window of time between the time
+  we read the entry from AD and the time the mod op is sent, but doing this check
+  here should substantially reduce the chances of these types of out-of-sync problems
+
+  If we do find a mod that does not apply cleanly, we just discard it and log an
+  error message to that effect.
+*/
+static int
+mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod, const Slapi_Entry *ad_entry)
+{
+	int retval = 0;
+	int op = 0;
+	const char *type = NULL;
+
+	if (!slapi_mod_isvalid(smod)) { /* bogus */
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: mod_already_made: "
+						"modify operation is null - skipping.\n",
+						agmt_get_long_name(prp->agmt));
+		return 1;
+	}
+
+	op = slapi_mod_get_operation(smod);
+	type = slapi_mod_get_type(smod);
+	if (SLAPI_IS_MOD_ADD(op)) { /* make sure value is not there */
+		struct berval *bv = NULL;
+		for (bv = slapi_mod_get_first_value(smod);
+			 bv; bv = slapi_mod_get_next_value(smod)) {
+			Slapi_Value *sv = slapi_value_new();
+			slapi_value_init_berval(sv, bv); /* copies bv_val */
+			if (slapi_entry_attr_has_syntax_value(ad_entry, type, sv)) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: mod_already_made: "
+								"remote entry attr [%s] already has value [%s] - will not send.\n",
+								agmt_get_long_name(prp->agmt), type,
+								slapi_value_get_string(sv));
+				slapi_mod_remove_value(smod); /* removes the value at the current iterator pos */
+			}
+			slapi_value_free(&sv);
+		}
+		/* if all values were removed, no need to send the mod */
+		if (slapi_mod_get_num_values(smod) == 0) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: mod_already_made: "
+							"remote entry attr [%s] had all mod values removed - will not send.\n",
+							agmt_get_long_name(prp->agmt), type);
+			retval = 1;
+		}
+	} else if (SLAPI_IS_MOD_DELETE(op)) { /* make sure value or attr is there */
+		Slapi_Attr *attr = NULL;
+
+		/* if attribute does not exist, no need to send the delete */
+		if (slapi_entry_attr_find(ad_entry, type, &attr) || !attr) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: mod_already_made: "
+							"remote entry attr [%s] already deleted - will not send.\n",
+							agmt_get_long_name(prp->agmt), type);
+			retval = 1;
+		} else if (slapi_mod_get_num_values(smod) > 0) {
+			/* if attr exists, remove mods that have already been applied */
+			struct berval *bv = NULL;
+			for (bv = slapi_mod_get_first_value(smod);
+				 bv; bv = slapi_mod_get_next_value(smod)) {
+				Slapi_Value *sv = slapi_value_new();
+				slapi_value_init_berval(sv, bv); /* copies bv_val */
+				if (!slapi_entry_attr_has_syntax_value(ad_entry, type, sv)) {
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+									"%s: mod_already_made: "
+									"remote entry attr [%s] already deleted value [%s] - will not send.\n",
+									agmt_get_long_name(prp->agmt), type,
+									slapi_value_get_string(sv));
+					slapi_mod_remove_value(smod); /* removes the value at the current iterator pos */
+				}
+				slapi_value_free(&sv);
+			}
+			/* if all values were removed, no need to send the mod */
+			if (slapi_mod_get_num_values(smod) == 0) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: mod_already_made: "
+								"remote entry attr [%s] had all mod values removed - will not send.\n",
+								agmt_get_long_name(prp->agmt), type);
+				retval = 1;
+			}
+		} /* else if no values specified, this means delete the attribute */
+	} else { /* allow this mod */
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: mod_already_made: "
+						"skipping mod op [%d]\n",
+						agmt_get_long_name(prp->agmt), op);
+	}
+
+	return retval;
+}
 
 static int
 windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original_mods, 
@@ -1905,12 +2004,13 @@ done:
 
 
 static void 
-windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password) 
+windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password, const Slapi_Entry *ad_entry) 
 {
 	Slapi_Mods smods = {0};
 	Slapi_Mods mapped_smods = {0};
 	LDAPMod *mod = NULL;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
+	Slapi_Mod *mysmod = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
 
@@ -1945,8 +2045,9 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 				}
 			}
 
-			/* copy over the mod */
-			slapi_mods_add_modbvps(&mapped_smods,mod->mod_op,attr_type,mod->mod_bvalues);
+			/* create the new smod to add to the mapped_smods */
+			mysmod = slapi_mod_new();
+			slapi_mod_init_byval(mysmod, mod); /* copy contents */
 		} else 
 		{
 			char *mapped_type = NULL;
@@ -1967,7 +2068,8 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 					map_dn_values(prp,vs,&mapped_values, 1 /* to windows */,0);
 					if (mapped_values) 
 					{
-						slapi_mods_add_mod_values(&mapped_smods,mod->mod_op,mapped_type,valueset_get_valuearray(mapped_values));
+						mysmod = slapi_mod_new();
+						slapi_mod_init_valueset_byval(mysmod, mod->mod_op, mapped_type, mapped_values);
 						slapi_valueset_free(mapped_values);
 						mapped_values = NULL;
 					} else 
@@ -1975,7 +2077,10 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 						/* this might be a del: mod, in which case there are no values */
 						if (mod->mod_op & LDAP_MOD_DELETE)
 						{
-							slapi_mods_add_mod_values(&mapped_smods, LDAP_MOD_DELETE, mapped_type, NULL);
+							mysmod = slapi_mod_new();
+							slapi_mod_init(mysmod, 0);
+							slapi_mod_set_operation(mysmod, LDAP_MOD_DELETE|LDAP_MOD_BVALUES);
+							slapi_mod_set_type(mysmod, mapped_type);
 						}
 					}
 					slapi_mod_done(&smod);
@@ -2004,7 +2109,10 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 						slapi_mod_done(&smod);
 					}
 
-					slapi_mods_add_modbvps(&mapped_smods,mod->mod_op,mapped_type,mod->mod_bvalues);
+					/* create the new smod to add to the mapped_smods */
+					mysmod = slapi_mod_new();
+					slapi_mod_init_byval(mysmod, mod); /* copy contents */
+					slapi_mod_set_type(mysmod, mapped_type);
 				}
 				slapi_ch_free_string(&mapped_type);
 			} else 
@@ -2050,6 +2158,13 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 			}
 		}
 		/* Otherwise we do not copy this mod at all */
+		if (mysmod && !mod_already_made(prp, mysmod, ad_entry)) { /* make sure this mod is still valid to send */
+			slapi_mods_add_ldapmod(&mapped_smods, slapi_mod_get_ldapmod_passout(mysmod));
+		}
+		if (mysmod) {
+			slapi_mod_free(&mysmod);
+		}
+			
 		mod = slapi_mods_get_next_mod(&smods);
 	}
 	slapi_mods_done (&smods);

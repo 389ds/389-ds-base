@@ -573,6 +573,8 @@ void slapi_mod_init(Slapi_Mod *smod, int initCount);
 void slapi_mod_init_byval(Slapi_Mod *smod, const LDAPMod *mod);
 void slapi_mod_init_byref(Slapi_Mod *smod, LDAPMod *mod);
 void slapi_mod_init_passin(Slapi_Mod *smod, LDAPMod *mod);
+/* init a mod and set the mod values to be a copy of the given valueset */
+void slapi_mod_init_valueset_byval(Slapi_Mod *smod, int op, const char *type, const Slapi_ValueSet *svs);
 void slapi_mod_add_value(Slapi_Mod *smod, const struct berval *val);
 void slapi_mod_remove_value(Slapi_Mod *smod);
 struct berval *slapi_mod_get_first_value(Slapi_Mod *smod);

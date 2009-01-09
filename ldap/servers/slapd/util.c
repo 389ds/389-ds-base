@@ -207,7 +207,6 @@ escape_filter_value(const char* str, int len, char buf[BUFSIZ])
 void
 strcpy_unescape_value( char *d, const char *s )
 {
-    char *head = d;
     int gotesc = 0;
     const char *end = s + strlen(s);
     for ( ; *s; s++ )
