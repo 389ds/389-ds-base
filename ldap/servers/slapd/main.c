@@ -977,17 +977,23 @@ main( int argc, char **argv)
 		slapd_print_version(1);
 		exit(1);
 	default:
+		{
+		char *rundir = config_get_rundir();
+
 		/* Ensure that we can read from and write to our rundir */
-		if (access(config_get_rundir(), R_OK | W_OK)) {
+		if (access(rundir, R_OK | W_OK)) {
 			LDAPDebug(LDAP_DEBUG_ANY, "Unable to access nsslapd-rundir: %s\n",
 				slapd_system_strerror(errno), 0, 0);
 			LDAPDebug(LDAP_DEBUG_ANY, "Ensure that user \"%s\" has read and write "
 				"permissions on %s\n",
-				slapdFrontendConfig->localuser, config_get_rundir(), 0);
+				slapdFrontendConfig->localuser, rundir, 0);
 			LDAPDebug(LDAP_DEBUG_ANY, "Shutting down.\n", 0, 0, 0);
+			slapi_ch_free_string(&rundir);
 			exit(1);
 		}
+		slapi_ch_free_string(&rundir);
 		break;
+		}
 	}
 
 	/*

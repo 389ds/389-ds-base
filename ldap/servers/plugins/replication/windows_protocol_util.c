@@ -81,6 +81,8 @@ static int map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *
 static int windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry);
 static int is_guid_dn(Slapi_DN *remote_dn);
 static int map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *exists);
+static int windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original_mods, 
+		Slapi_Entry *local_entry, Slapi_DN *remote_dn, char **newrdn);
 
 
 /* Controls the direction of flow for mapped attributes */
@@ -207,13 +209,13 @@ static windows_attribute_map user_attribute_map[] =
 	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
 	{ "userParameters", "ntUserParms", bidirectional, always, normal},
 	{ "userWorkstations", "ntUserWorkstations", bidirectional, always, normal},
-    { "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
-	/* cn is a naming attribute in AD, so we don't want to change it after entry creation */
-    { "cn", "cn", towindowsonly, createonly, normal},
+	{ "sAMAccountName", "ntUserDomainId", bidirectional, always, normal},
+	/* AD uses cn as it's naming attribute.  We handle it as a special case */
+	{ "cn", "cn", towindowsonly, createonly, normal},
 	/* However, it isn't a naming attribute in DS (we use uid) so it's safe to accept changes inbound */
-    { "name", "cn", fromwindowsonly, always, normal},
-    { "manager", "manager", bidirectional, always, dnmap},
-    { "seealso", "seealso", bidirectional, always, dnmap},
+	{ "name", "cn", fromwindowsonly, always, normal},
+	{ "manager", "manager", bidirectional, always, dnmap},
+	{ "seealso", "seealso", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
 
@@ -224,7 +226,7 @@ static windows_attribute_map group_attribute_map[] =
 	/* IETF schema has 'street' and 'streetaddress' as aliases, but Microsoft does not */
 	{ "streetAddress", "street", towindowsonly, always, normal},
 	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
-    { "member", "uniquemember", bidirectional, always, dnmap},
+	{ "member", "uniquemember", bidirectional, always, dnmap},
 	{NULL, NULL, -1}
 };
 
@@ -1229,6 +1231,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		case SLAPI_OPERATION_MODIFY:
 			{
 				LDAPMod **mapped_mods = NULL;
+				char *newrdn = NULL;
 
 				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
 				if (is_user) {
@@ -1247,6 +1250,17 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 																 op->p.p_modify.modify_mods,
 																 remote_dn,
 																 &mapped_mods);
+				}
+
+				/* Check if a naming attribute is being modified. */
+				if (windows_check_mods_for_rdn_change(prp, op->p.p_modify.modify_mods, local_entry, remote_dn, &newrdn)) {
+					/* Issue MODRDN */
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s: renaming remote entry \"%s\" with new RDN of \"%s\"\n",
+							agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn), newrdn);
+					return_value = windows_conn_send_rename(prp->conn, slapi_sdn_get_dn(remote_dn),
+						newrdn, NULL, 1 /* delete old RDN */,
+						NULL, NULL /* returned controls */);
+					slapi_ch_free_string(&newrdn);
 				}
 
 				/* It's possible that the mapping process results in an empty mod list, in which case we don't bother with the replay */
@@ -1550,11 +1564,12 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 				{
 					Slapi_Attr *new_attr = NULL;
 
-					/* AD treats streetAddress as a single-valued attribute, while we define it
-					 * as a multi-valued attribute as it's defined in rfc 4519.  We only
+					/* AD treats cn and streetAddress as a single-valued attributes, while we define
+					 * them as multi-valued attribute as it's defined in rfc 4519.  We only
 					 * sync the first value to AD to avoid a constraint violation.
 					 */
-					if (0 == slapi_attr_type_cmp(new_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) {
+					if ((0 == slapi_attr_type_cmp(new_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) ||
+						(0 == slapi_attr_type_cmp(new_type, "cn", SLAPI_TYPE_CMP_SUBTYPE))) {
 						if (slapi_valueset_count(vs) > 1) {
 							int i = 0;
 							Slapi_Value *value = NULL;
@@ -1570,7 +1585,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 								slapi_valueset_add_value_ext(vs, new_value, SLAPI_VALUE_FLAG_PASSIN);
 							}
 						}
-                        		}
+					}
 					
 					slapi_entry_add_valueset(new_entry,type,vs);
 
@@ -1715,6 +1730,166 @@ windows_delete_local_entry(Slapi_DN *sdn){
 
 	return return_value;
 }
+
+
+static int
+windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original_mods, 
+		Slapi_Entry *local_entry, Slapi_DN *remote_dn, char **newrdn)
+{
+	int ret = 0;
+	int need_rename = 0;
+	int got_entry = 0;
+	Slapi_Entry *remote_entry = NULL;
+	Slapi_Attr *remote_rdn_attr = NULL;
+	Slapi_Value *remote_rdn_val = NULL;
+	Slapi_Mods smods = {0};
+	Slapi_Mod *smod = slapi_mod_new();
+	Slapi_Mod *last_smod = smod;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_check_mods_for_rdn_change\n", 0, 0, 0 );
+
+	/* Iterate through the original mods, looking for a modification to the RDN attribute */
+	slapi_mods_init_byref(&smods, original_mods);
+	smod = slapi_mods_get_first_smod(&smods, last_smod);
+	while(smod) {
+		/* Check if this is modifying the naming attribute (cn) */
+		if (slapi_attr_types_equivalent(slapi_mod_get_type(smod), "cn")) {
+			/* Fetch the remote entry so we can compare the new values
+			 * against the existing remote value.  We only need to do
+			 * this once for all mods. */
+			if (!got_entry) {
+				windows_get_remote_entry(prp, remote_dn, &remote_entry);
+				if (remote_entry) {
+					/* Fetch and duplicate the cn attribute so we can perform comparisions */
+					slapi_entry_attr_find(remote_entry, "cn", &remote_rdn_attr);
+					if (remote_rdn_attr) {
+						remote_rdn_attr = slapi_attr_dup(remote_rdn_attr);
+						slapi_attr_first_value(remote_rdn_attr, &remote_rdn_val);
+					}
+					slapi_entry_free(remote_entry);
+				}
+				got_entry = 1;
+
+				/* If we didn't get the remote value for some odd reason, just bail out. */
+				if (!remote_rdn_val) {
+					slapi_mod_done(smod);
+					goto done;
+				}
+			}
+
+			if (SLAPI_IS_MOD_REPLACE(slapi_mod_get_operation(smod))) {
+				/* For a replace, we just need to check if the old value that AD
+				 * has is still present after the operation.  If not, we rename
+				 * the entry in AD using the first new value as the RDN. */
+				Slapi_Value *new_val = NULL;
+				struct berval *bval = NULL;
+
+				/* Assume that we're going to need to do a rename. */
+				ret = 1;
+
+				/* Get the first new value, which is to be used as the RDN if we decide
+				 * that a rename is necessary. */
+				bval = slapi_mod_get_first_value(smod);
+				if (bval && bval->bv_val) {
+					/* Fill in new RDN to return to caller. */
+					slapi_ch_free_string(newrdn);
+					*newrdn = slapi_ch_smprintf("cn=%s", bval->bv_val);
+
+					/* Loop through all new values to check if they match
+					 * the value present in AD. */
+					do {
+						new_val = slapi_value_new_berval(bval);
+						if (slapi_value_compare(remote_rdn_attr, remote_rdn_val, new_val) == 0) {
+							/* We have a match.  This means we don't want to rename the entry in AD. */
+							slapi_ch_free_string(newrdn);
+							slapi_value_free(&new_val);
+							ret = 0;
+							break;
+						}
+						slapi_value_free(&new_val);
+						bval = slapi_mod_get_next_value(smod);
+					} while (bval && bval->bv_val);
+				}
+			} else if (SLAPI_IS_MOD_DELETE(slapi_mod_get_operation(smod))) {
+				/* We need to check if the cn in AD is the value being deleted.  If
+				 * so, set a flag saying that we will need to do a rename.  We will either
+				 * get a new value added from another mod in this op, or we will need to
+				 * use an old value that is left over after the delete operation. */
+				if (slapi_mod_get_num_values(smod) == 0) {
+					/* All values are being deleted, so a rename will be needed.  One
+					 * of the other mods will be adding the new values(s). */
+					need_rename = 1;
+				} else {
+					Slapi_Value *del_val = NULL;
+					struct berval *bval = NULL;
+
+					bval = slapi_mod_get_first_value(smod);
+					while (bval && bval->bv_val) {
+						/* Is this value the same one that is used as the RDN in AD? */
+						del_val = slapi_value_new_berval(bval);
+						if (slapi_value_compare(remote_rdn_attr, remote_rdn_val, del_val) == 0) {
+							/* We have a match.  This means we need to rename the entry in AD. */
+							need_rename = 1;
+							slapi_value_free(&del_val);
+							break;
+						}
+						slapi_value_free(&del_val);
+						bval = slapi_mod_get_next_value(smod);
+					}
+				}
+			} else if (SLAPI_IS_MOD_ADD(slapi_mod_get_operation(smod))) {
+				/* We only need to care about an add if the old value was deleted. */
+				if (need_rename) {
+					/* Just grab the first new value and use it to create the new RDN. */
+					struct berval *bval = slapi_mod_get_first_value(smod);
+
+					if (bval && bval->bv_val) {
+						/* Fill in new RDN to return to caller. */
+						slapi_ch_free_string(newrdn);
+						*newrdn = slapi_ch_smprintf("cn=%s", bval->bv_val);
+						need_rename = 0;
+						ret = 1;
+					}
+				}
+			}
+		}
+
+		/* Get the next mod from this op. */
+		slapi_mod_done(smod);
+
+		/* Need to prevent overwriting old smod with NULL return value and causing a leak. */
+		smod = slapi_mods_get_next_smod(&smods, last_smod);
+	}
+
+done:
+	/* We're done with the mods and the copied cn attr from the remote entry. */
+	slapi_attr_free(&remote_rdn_attr);
+	if (last_smod) {
+		slapi_mod_free(&last_smod);
+	}
+	slapi_mods_done (&smods);
+
+	if (need_rename) {
+		/* We need to perform a rename, but we didn't get the value for the
+		 * new RDN from this operation.  We fetch the first value from the local
+		 * entry to create the new RDN. */
+		if (local_entry) {
+			char *newval = slapi_entry_attr_get_charptr(local_entry, "cn");
+			if (newval) {
+				/* Fill in new RDN to return to caller. */
+				slapi_ch_free_string(newrdn);
+				*newrdn = slapi_ch_smprintf("cn=%s", newval);
+				slapi_ch_free_string(&newval);
+				ret = 1;
+			}
+		}
+	}
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_check_mods_for_rdn_change: %d\n", ret, 0, 0 );
+
+	return ret;
+}
+
 
 static void 
 windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password) 
@@ -3247,9 +3422,16 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			if (!mapdn)
 			{
 				int values_equal = 0;
-                                /* AD has a legth contraint on the initials attribute,
-                                 * so treat is as a special case. */
-				if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
+				/* We only have to deal with processing the cn here for
+				 * operations coming from AD since the mapping for the
+				 * to_windows case has the create only flag set.  We
+				 * just need to check if the value from the AD entry
+				 * is already present in the DS entry. */
+				if (0 == slapi_attr_type_cmp(type, "name", SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
+					values_equal = attr_compare_present(attr, local_attr);
+				/* AD has a legth contraint on the initials attribute,
+				 * so treat is as a special case. */
+				} else if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
 					values_equal = attr_compare_equal(attr, local_attr, AD_INITIALS_LENGTH);
 				/* If we're getting a streetAddress (a fake attr name is used) from AD, then
 				 * we just check if the value in AD is present in our entry in DS.  In this
@@ -3320,6 +3502,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 							i = slapi_valueset_next_value(vs, i, &value);
 						}
 					}
+
 					slapi_mods_add_mod_values(smods,LDAP_MOD_REPLACE,
 						local_type,valueset_get_valuearray(vs));
 					*do_modify = 1;
