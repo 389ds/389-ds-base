@@ -66,6 +66,10 @@
  * Modification history:
  *
  * $Log: regex.c,v $
+ * Revision 1.8  2009/01/12 18:14:57  nkinder
+ * Resolves: 174394
+ * Summary: Make regex filter code handle empty values properly.
+ *
  * Revision 1.7  2008/06/30 17:28:16  nhosoi
  * Resoves: #448831
  * Summary: attacker can tie up CPU in regex code
@@ -769,7 +773,8 @@ slapd_re_exec( char *lp, time_t time_up )
 		do {
 			if ((ep = pmatch((UCHAR*)lp,ap,time_up,&ldaperror)))
 				break;
-			lp++;
+			if (*lp)
+				lp++;
 		} while (*lp);
 
 		break;
