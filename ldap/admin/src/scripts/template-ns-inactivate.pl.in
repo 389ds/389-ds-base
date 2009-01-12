@@ -463,17 +463,15 @@ if ($pwfile ne ""){
 	close(RPASS);
 } elsif ($rootpw eq "-"){
 # Read the password from terminal
-	die "The '-w -' option requires an extension library (Term::ReadKey) which is not\n",
-	    "part of the standard perl distribution. If you want to use it, you must\n",
-	    "download and install the module. You can find it at\n",
-	    "http://www.perl.com/CPAN/CPAN.html\n";
-# Remove the previous line and uncomment the following 6 lines once you have installed Term::ReadKey module.
-# use Term::ReadKey; 
-#	print "Bind Password: ";
-#	ReadMode('noecho'); 
-#	$rootpw = ReadLine(0); 
-#	chomp($rootpw);
-#	ReadMode('normal');
+	print "Bind Password: ";
+	# Disable console echo
+	system("stty -echo");
+	# read the answer
+	$rootpw = <STDIN>;
+	# Enable console echo
+	system("stty echo");
+	print "\n";
+	chop($rootpw); # trim trailing newline
 }
 
 if( $rootpw eq "" )
