@@ -1159,15 +1159,6 @@ slapd_SSL_client_auth (LDAP* ld)
 
     /* Free config data */
 
-	/* We cannot allow NSS to cache outgoing client auth connections -
-	   each client auth connection must have it's own non-shared SSL
-	   connection to the peer so that it will go through the
-	   entire handshake protocol every time including the use of its
-	   own unique client cert - see bug 605457
-	*/
-
-	ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
-
 #ifndef _WIN32
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     err =  SVRCORE_StdPinGetPin( &pw, StdPinObj, token );
@@ -1188,6 +1179,15 @@ slapd_SSL_client_auth (LDAP* ld)
 				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 			    SERVER_KEY_NAME, cert_name, rc, 
 			    errorCode, slapd_pr_strerror(errorCode));
+	} else {
+	    /* We cannot allow NSS to cache outgoing client auth connections -
+	       each client auth connection must have it's own non-shared SSL
+	       connection to the peer so that it will go through the
+	       entire handshake protocol every time including the use of its
+	       own unique client cert - see bug 605457
+	    */
+
+	    ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
 	}
     }
 
