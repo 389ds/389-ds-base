@@ -1105,6 +1105,7 @@ slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared )
     return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL);
 }
 
+#include <sasl.h>
 /*
  * Does the correct bind operation simple/sasl/cert depending
  * on the arguments passed in.  If the user specified to use
@@ -1258,7 +1259,8 @@ slapi_ldap_bind(
     } else {
 	/* a SASL mech - set the sasl ssf to 0 if using TLS/SSL */
 	if (secure) {
-	    ldap_set_option(ld, LDAP_OPT_X_SASL_SECPROPS, "maxssf=0");
+	    sasl_ssf_t max_ssf = 0;
+	    ldap_set_option(ld, LDAP_OPT_X_SASL_SSF_MAX, &max_ssf);
 	}
 	rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
 					      serverctrls, returnedctrls,
@@ -1282,7 +1284,6 @@ done:
 
 /* the following implements the client side of sasl bind, for LDAP server
    -> LDAP server SASL */
-#include <sasl.h>
 
 typedef struct {
     char *mech;
