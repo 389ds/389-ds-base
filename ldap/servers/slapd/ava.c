@@ -50,8 +50,6 @@
 #endif
 #include "slap.h"
 
-static void strcpy_special_undo();
-
 int
 get_ava(
     BerElement	*ber,

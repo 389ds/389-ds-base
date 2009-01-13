@@ -993,8 +993,55 @@ windows_log_add_entry_remote(const Slapi_DN *local_dn,const Slapi_DN *remote_dn)
 	slapi_log_error(SLAPI_LOG_REPL, NULL, "Attempting to add entry %s to AD for local entry %s\n",remote_dn_string,local_dn_string);
 }
 
+/*
+ * The entry may have been modified to make it "sync-able", so the modify operation should
+ * actually trigger the addition of the entry to windows
+ * check the list of mods to see if the sync objectclass/attributes were added to the entry
+ * and if so if the current local entry still has them
+*/
+static int 
+sync_attrs_added(LDAPMod **original_mods, Slapi_Entry *local_entry) {
+	int retval = 0;
+	int ii = 0;
+	char *useroc = "ntuser";
+	char *groupoc = "ntgroup";
+	size_t ulen = 6;
+	size_t glen = 7;
+
+	for (ii = 0; (retval == 0) && original_mods && original_mods[ii]; ++ii) {
+		LDAPMod *mod = original_mods[ii];
+		/* look for a mod/add or replace op with valid type and values */
+		if (!(SLAPI_IS_MOD_ADD(mod->mod_op) || SLAPI_IS_MOD_REPLACE(mod->mod_op)) ||
+			!mod->mod_type || !mod->mod_bvalues || !mod->mod_bvalues[0]) {
+			continue; /* skip it */
+		}
+		/* if it has an objectclass mod, see if ntuser or ntgroup is one of them */
+		if (!strcasecmp(mod->mod_type, "objectclass")) {
+			int jj = 0;
+			for (jj = 0; (retval == 0) && mod->mod_bvalues[jj]; ++jj) {
+				struct berval *bv = mod->mod_bvalues[jj];
+				if (((bv->bv_len == ulen) && !PL_strncasecmp(useroc, bv->bv_val, ulen)) ||
+					((bv->bv_len == glen) && !PL_strncasecmp(groupoc, bv->bv_val, glen))) {
+					retval = 1; /* has magic objclass value */
+				}
+			}
+		}
+	}
+
+	/* if the modify op had the right values, see if they are still present in
+	   the local entry */
+	if (retval == 1) {
+		retval = add_remote_entry_allowed(local_entry); /* check local entry */
+		if (retval < 0) {
+			retval = 0;
+		}
+	}
+
+	return retval;
+}
+
 static ConnResult
-process_replay_add(Private_Repl_Protocol *prp, slapi_operation_parameters *op, Slapi_Entry *local_entry, Slapi_DN *local_dn, Slapi_DN *remote_dn, int is_user, int missing_entry, char **password)
+process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Entry *local_entry, Slapi_DN *local_dn, Slapi_DN *remote_dn, int is_user, int missing_entry, char **password)
 {
 	int remote_add_allowed = add_remote_entry_allowed(local_entry);
 	ConnResult return_value = 0;
@@ -1083,7 +1130,7 @@ process_replay_add(Private_Repl_Protocol *prp, slapi_operation_parameters *op, S
 			LDAPMod **entryattrs = NULL;
 			Slapi_Entry *mapped_entry = NULL;
 			/* First map the entry */
-			rc = windows_create_remote_entry(prp,op->p.p_add.target_entry, remote_dn, &mapped_entry, password);
+			rc = windows_create_remote_entry(prp,add_entry, remote_dn, &mapped_entry, password);
 			/* Convert entry to mods */
 			if (0 == rc && mapped_entry) 
 			{
@@ -1212,26 +1259,36 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			agmt_get_long_name(prp->agmt),
 			op2string(op->operation_type), op->target_address.dn, slapi_sdn_get_dn(remote_dn));
 		switch (op->operation_type) {
-		/*
-		  we should check the modify case first and check the list of mods -
-		  if the magic objectclass (ntuser) and attributes (ntUserCreateNewAccount
-		  or ntGroupCreateNewAccount) then we should fall through to the ADD case
-		  since the user wants to add the user to AD - could maybe just change
-		  process_replay_add slightly, to add the mods list from the modify
-		  operation - process_replay_add already turns the entry into a mods list
-		  to pass to the ldap add operation, so it should not be too much more
-		  trouble to apply the additional mods from the modify operation - we'll
-		  have to pass in local entry, or perhaps just change the operation from
-		  modify to an add, and set the op->p.p_add.target_entry to the local_entry
-		  which gets retrieved above
-		*/
 		case SLAPI_OPERATION_ADD:
-			return_value = process_replay_add(prp,op,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
+			return_value = process_replay_add(prp,op->p.p_add.target_entry,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
 			break;
 		case SLAPI_OPERATION_MODIFY:
 			{
 				LDAPMod **mapped_mods = NULL;
 				char *newrdn = NULL;
+
+				/*
+				 * If the magic objectclass and attributes have been added to the entry
+				 * to make the entry sync-able, add the entry first, then apply the other
+				 * mods
+				 */
+				if (sync_attrs_added(op->p.p_modify.modify_mods, local_entry)) {
+					Slapi_Entry *ad_entry = NULL;
+
+					return_value = process_replay_add(prp,local_entry,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+									"%s: windows_replay_update: "
+									"The modify operation added the sync objectclass and attribute, so "
+									"the entry was added to windows - result [%d]\n",
+									agmt_get_long_name(prp->agmt), return_value);
+					if (return_value) {
+						break; /* error adding entry - cannot continue */
+					}
+					/* the modify op needs the new remote entry, so retrieve it */
+					windows_get_remote_entry(prp, remote_dn, &ad_entry);
+					slapi_entry_free(ad_entry); /* getting sets windows_private_get_raw_entry */
+				}
+
 
 				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password,
 											windows_private_get_raw_entry(prp->agmt));
@@ -1336,17 +1393,18 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 					"%s: windows_replay_update: update password returned %d\n",
 					agmt_get_long_name(prp->agmt), return_value );
-			} else {
-				/* If we successfully added an entry, and then subsequently changed
-				 * its password, THEN we need to change its status in AD in order
-				 * that it can be used (otherwise the user is marked as disabled).
-				 * To do this we set this attribute and value:
-				 *   userAccountControl: 512 */
-				if (op->operation_type == SLAPI_OPERATION_ADD && missing_entry)
-				{
-					return_value = send_accountcontrol_modify(remote_dn, prp, missing_entry);
-				}
 			}
+		}
+		/* If we successfully added an entry, and then subsequently changed
+		 * its password, THEN we need to change its status in AD in order
+		 * that it can be used (otherwise the user is marked as disabled).
+		 * To do this we set this attribute and value:
+		 *   userAccountControl: 512
+		 * Or, if we added a new entry, we need to change the useraccountcontrol
+		 * to make the new user enabled by default
+		 */
+		if ((return_value == CONN_OPERATION_SUCCESS) && remote_dn && (password || missing_entry)) {
+			return_value = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 		}
 	} else {
 		/* We ignore operations that target entries outside of our sync'ed subtree, or which are not Windows users or groups */

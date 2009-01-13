@@ -707,6 +707,7 @@ slapi_attr_set_type(Slapi_Attr *a, const char *type)
 	if((NULL == a) || (NULL == type)) {
 		rc = -1;
 	} else {
+		slapi_ch_free_string(&a->a_type);
 		a->a_type = slapi_ch_strdup(type);
 	}
 	return rc;
