@@ -128,11 +128,6 @@ typedef struct windows_inc_private
  */
 #define MAX_WAIT_BETWEEN_SESSIONS PR_SecondsToInterval(60 * 5) /* 5 minutes */
 /*
- * Periodic synchronization interval.  This is used for scheduling the periodic_dirsync event.
- * The time is in milliseconds.
- */
-#define PERIODIC_DIRSYNC_INTERVAL 5 * 60 * 1000 /* DBDB this should probably be configurable. 5 mins fixed for now */
-/*
  * tests if the protocol has been shutdown and we need to quit
  * event_occurred resets the bits in the bit flag, so whoever tests for shutdown
  * resets the flags, so the next one who tests for shutdown won't get it, so we
@@ -345,12 +340,13 @@ windows_inc_run(Private_Repl_Protocol *prp)
 
 
 				if (is_first_start) {
+					unsigned long interval = windows_private_get_sync_interval(prp->agmt) * 1000;
 					/*
 					 * The function, the arguments, the time (hence) when it is first to be called, 
 					 * and the repeat interval. 
 					 */ 
 					/* DBDB: we should probably make this polling interval configurable */
-					dirsync = slapi_eq_repeat(periodic_dirsync, (void*) prp, (time_t)0 , PERIODIC_DIRSYNC_INTERVAL);
+					dirsync = slapi_eq_repeat(periodic_dirsync, (void*) prp, (time_t)0 , interval);
 					is_first_start = PR_FALSE;
 				}
 				break;

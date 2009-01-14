@@ -80,6 +80,8 @@ Slapi_Entry *windows_private_get_raw_entry(const Repl_Agmt *ra);
 void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e);
 void *windows_private_get_api_cookie(const Repl_Agmt *ra);
 void windows_private_set_api_cookie(Repl_Agmt *ra, void *cookie);
+time_t windows_private_get_sync_interval(const Repl_Agmt *ra);
+void windows_private_set_sync_interval(Repl_Agmt *ra, char *str);
 
 /* in windows_connection.c */
 ConnResult windows_conn_connect(Repl_Connection *conn);
@@ -121,6 +123,12 @@ int windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *pass
 /* Used for GUID format conversion */
 #define NTUNIQUEID_LENGTH 32
 #define AD_GUID_LENGTH 36
+
+/*
+ * Periodic synchronization interval.  This is used for scheduling the periodic_dirsync event.
+ * The time is in seconds.
+ */
+#define PERIODIC_DIRSYNC_INTERVAL 5 * 60 /* default value is 5 minutes */
 
 /* called for each replication agreement - so the winsync
    plugin can be agreement specific and store agreement

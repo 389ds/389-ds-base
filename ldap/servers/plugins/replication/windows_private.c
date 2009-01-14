@@ -73,6 +73,7 @@ struct windowsprivate {
   Slapi_Filter *deleted_filter; /* Used for checking if an entry is an AD tombstone */
   Slapi_Entry *raw_entry; /* "raw" un-schema processed last entry read from AD */
   void *api_cookie; /* private data used by api callbacks */
+  time_t sync_interval; /* how often to run the dirsync search, in seconds */
 };
 
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
@@ -153,6 +154,16 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 		tmpstr = NULL;
 		retval = 1;
 	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_winSyncInterval))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_winSyncInterval); 
+		if (NULL != tmpstr)
+		{
+			windows_private_set_sync_interval(ra,tmpstr);
+		}
+		slapi_ch_free_string(&tmpstr);
+		retval = 1;
+	}
 	return retval;
 }
 
@@ -203,6 +214,7 @@ Dirsync_Private* windows_private_new()
 	dp->dirsync_maxattributecount = -1;
 	dp->directory_filter = NULL;
 	dp->deleted_filter = NULL;
+	dp->sync_interval = PERIODIC_DIRSYNC_INTERVAL;
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_new\n" );
 	return dp;
@@ -864,6 +876,43 @@ void windows_private_set_api_cookie(Repl_Agmt *ra, void *api_cookie)
 	dp->api_cookie = api_cookie;
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_api_cookie\n" );
+}
+
+time_t
+windows_private_get_sync_interval(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_sync_interval\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_sync_interval\n" );
+
+	return dp->sync_interval;	
+}
+
+void
+windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
+{
+	Dirsync_Private *dp;
+	time_t tmpval = 0;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_sync_interval\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	if (str && (tmpval = (time_t)atol(str))) {
+		dp->sync_interval = tmpval;
+	}
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_sync_interval\n" );
 }
 
 /* an array of function pointers */
