@@ -292,6 +292,7 @@ restart() {
 
 
 status() {
+     ret=0
      for instance in $INSTANCES; do
          if [ -f $piddir/slapd-$instance.pid ]; then
              pid=`cat $piddir/slapd-$instance.pid`
@@ -299,9 +300,11 @@ status() {
                  echo "$prog $instance (pid $pid) is running..."
              else
                 echo "$prog $instance dead but pid file exists"
+                ret=1
              fi
          else
              echo "$prog $instance is stopped"
+             ret=3
          fi
      done
 }
