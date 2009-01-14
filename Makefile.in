@@ -1235,6 +1235,7 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60sabayon.ldif \
 	$(srcdir)/ldap/schema/60sudo.ldif \
 	$(srcdir)/ldap/schema/60trust.ldif \
+	$(srcdir)/ldap/schema/60nss-ldap.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
