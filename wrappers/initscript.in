@@ -143,7 +143,8 @@ start() {
                     successes=`expr $successes + 1`
                     server_running=1
                 else
-                    echo_n " not running, but pid file exists - attempt to start anyway..."
+                    echo " not running, but pid file exists"
+                    echo_n "    $instance... attempting to start anyway"
                     rm -f $pidfile
                 fi
             fi
@@ -218,10 +219,10 @@ start() {
             touch $lockfile
         fi
         if [ $errors -ge 1 ]; then
-            echo "*** Warning: $errors instance(s) failed to start"
+            echo "  *** Warning: $errors instance(s) failed to start"
         fi
     else
-        echo "*** Error: no $prog instances configured"
+        echo "  *** Error: no $prog instances configured"
     fi
 }
 
@@ -229,10 +230,10 @@ stop() {
     echo "Shutting down $prog: "
     errors=0
     for instance in $INSTANCES; do
+        echo_n "    $instance..."
         pidfile=$piddir/slapd-$instance.pid
         if [ -f $pidfile ]; then
             pid=`cat $pidfile`
-            echo_n "    $instance..."
             server_stopped=0
             if kill -0 $pid > /dev/null 2>&1 ; then
                 kill $pid
@@ -242,6 +243,10 @@ stop() {
                     failure; echo
                     errors=`expr $errors + 1`
                 fi
+            else
+                echo_n " server not running"
+                failure; echo
+                errors=`expr $errors + 1`
             fi
             if [ $server_stopped -eq 1 ] ; then
                 loop_counter=1
@@ -266,10 +271,14 @@ stop() {
                     rm -f $pidfile
                 fi
             fi
+        else
+            echo_n " server already stopped"
+            failure; echo
+            errors=`expr $errors + 1`
         fi
     done
     if [ $errors -ge 1 ]; then
-        echo_n "*** Error: $errors instance(s) unsuccessfully stopped"
+        echo_n "  *** Error: $errors instance(s) unsuccessfully stopped"
         failure; echo
     else
         rm -f $lockfile
