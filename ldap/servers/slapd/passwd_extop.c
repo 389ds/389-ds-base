@@ -143,33 +143,48 @@ passwd_modify_getEntry( const char *dn, Slapi_Entry **e2 ) {
 /* Construct Mods pblock and perform the modify operation 
  * Sets result of operation in SLAPI_PLUGIN_INTOP_RESULT 
  */
-static int passwd_apply_mods(const char *dn, Slapi_Mods *mods) 
+static int passwd_apply_mods(const char *dn, Slapi_Mods *mods, LDAPControl **req_controls,
+	LDAPControl ***resp_controls) 
 {
 	Slapi_PBlock pb;
+	LDAPControl **req_controls_copy = NULL;
+	LDAPControl **pb_resp_controls = NULL;
 	int ret=0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_apply_mods\n", 0, 0, 0 );
 
 	if (mods && (slapi_mods_get_num_mods(mods) > 0)) 
 	{
+		/* We need to dup the request controls since the original
+		 * pblock owns the ones that have been passed in. */
+		if (req_controls) {
+			slapi_add_controls(&req_controls_copy, req_controls, 1);
+		}
+
 		pblock_init(&pb);
 		slapi_modify_internal_set_pb (&pb, dn, 
-		  slapi_mods_get_ldapmods_byref(mods),
-		  NULL, /* Controls */
-		  NULL, /* UniqueID */
-		  pw_get_componentID(), /* PluginID */
-		  0); /* Flags */ 
+			slapi_mods_get_ldapmods_byref(mods),
+			req_controls_copy, NULL, /* UniqueID */
+			pw_get_componentID(), /* PluginID */
+			0); /* Flags */ 
 
-	 ret =slapi_modify_internal_pb (&pb);
+		ret =slapi_modify_internal_pb (&pb);
   
-	 slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
-	 if (ret != LDAP_SUCCESS){
-	  LDAPDebug(LDAP_DEBUG_TRACE, "WARNING: passwordPolicy modify error %d on entry '%s'\n",
-			ret, dn, 0);
-	 }
+		/* Retreive and duplicate the response controls since they will be
+		 * destroyed along with the pblock used for the internal operation. */
+		slapi_pblock_get(&pb, SLAPI_RESCONTROLS, &pb_resp_controls);
+		if (pb_resp_controls) {
+			slapi_add_controls(resp_controls, pb_resp_controls, 1);
+		}
 
-	pblock_done(&pb);
+		if (ret != LDAP_SUCCESS){
+			LDAPDebug(LDAP_DEBUG_TRACE, "WARNING: passwordPolicy modify error %d on entry '%s'\n",
+				ret, dn, 0);
+		}
+
+		pblock_done(&pb);
  	}
  
  	LDAPDebug( LDAP_DEBUG_TRACE, "<= passwd_apply_mods: %d\n", ret, 0, 0 );
@@ -180,7 +195,8 @@ static int passwd_apply_mods(const char *dn, Slapi_Mods *mods)
 
 
 /* Modify the userPassword attribute field of the entry */
-static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newPasswd)
+static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newPasswd,
+	LDAPControl **req_controls, LDAPControl ***resp_controls)
 {
 	char *dn = NULL;
 	int ret = 0;
@@ -193,7 +209,7 @@ static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newP
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, SLAPI_USERPWD_ATTR, newPasswd);
 
 
-	ret = passwd_apply_mods(dn, &smods);
+	ret = passwd_apply_mods(dn, &smods, req_controls, resp_controls);
  
 	slapi_mods_done(&smods);
 	
@@ -432,15 +448,18 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
 	char		*errMesg = NULL;
-	int             ret=0, rc=0, sasl_ssf=0;
+	int             ret=0, rc=0, sasl_ssf=0, need_pwpolicy_ctrl=0;
 	ber_tag_t	tag=0;
 	ber_len_t	len=(ber_len_t)-1;
 	struct berval	*extop_value = NULL;
 	struct berval	*gen_passwd = NULL;
 	BerElement	*ber = NULL;
 	BerElement	*response_ber = NULL;
-	Slapi_Entry *targetEntry=NULL;
+	Slapi_Entry	*targetEntry=NULL;
 	Connection      *conn = NULL;
+	LDAPControl	**req_controls = NULL;
+	LDAPControl	**resp_controls = NULL;
+	passwdPolicy	*pwpolicy = NULL;
 	/* Slapi_DN sdn; */
 
     	LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_modify_extop\n", 0, 0, 0 );
@@ -589,32 +608,30 @@ parse_req_done:
 	 }
 
 	 if (oldPasswd == NULL || *oldPasswd == '\0') {
-     /* If user is authenticated, they already gave their password during
-        the bind operation (or used sasl or client cert auth or OS creds) */
-        slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
-        if (!authmethod || !strcmp(authmethod, SLAPD_AUTH_NONE)) {
-            errMesg = "User must be authenticated to the directory server.\n";
-            rc = LDAP_INSUFFICIENT_ACCESS;
-            goto free_and_return;
-        }
+		/* If user is authenticated, they already gave their password during
+		 * the bind operation (or used sasl or client cert auth or OS creds) */
+		slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
+		if (!authmethod || !strcmp(authmethod, SLAPD_AUTH_NONE)) {
+			errMesg = "User must be authenticated to the directory server.\n";
+			rc = LDAP_INSUFFICIENT_ACCESS;
+			goto free_and_return;
+		}
 	 }
+
+	/* Fetch the password policy.  We need this in case we need to
+	 * generate a password as well as for some policy checks. */
+	pwpolicy = new_passwdPolicy( pb, dn );
 	 
 	/* A new password was not supplied in the request, so we need to generate
 	 * a random one and return it to the user in a response.
 	 */
 	if (newPasswd == NULL || *newPasswd == '\0') {
-		passwdPolicy *pwpolicy;
 		int rval;
 		/* Do a free of newPasswd here to be safe, otherwise we may leak 1 byte */
 		slapi_ch_free_string( &newPasswd );
 
-
-		pwpolicy = new_passwdPolicy( pb, dn );
-
 		/* Generate a new password */
 		rval = passwd_modify_generate_passwd( pwpolicy, &newPasswd, &errMesg );
-
-		delete_passwdPolicy(&pwpolicy);
 
 		if (rval != LDAP_SUCCESS) {
 			if (!errMesg)
@@ -659,8 +676,8 @@ parse_req_done:
 	 /* Did they give us a DN ? */
 	 if (dn == NULL || *dn == '\0') {
 	 	/* Get the DN from the bind identity on this connection */
-        slapi_ch_free_string(&dn);
-        dn = slapi_ch_strdup(bindDN);
+		slapi_ch_free_string(&dn);
+		dn = slapi_ch_strdup(bindDN);
 		LDAPDebug( LDAP_DEBUG_ANY,
     		    "Missing userIdentity in request, using the bind DN instead.\n",
 		     0, 0, 0 );
@@ -703,8 +720,14 @@ parse_req_done:
 		slapi_pblock_set(pb, SLAPI_BACKEND, be);
 	}
 
+	/* Check if the pwpolicy control is present */
+	slapi_pblock_get( pb, SLAPI_PWPOLICY, &need_pwpolicy_ctrl );
+
 	ret = slapi_access_allowed ( pb, targetEntry, SLAPI_USERPWD_ATTR, NULL, SLAPI_ACL_WRITE );
-    if ( ret != LDAP_SUCCESS ) {
+	if ( ret != LDAP_SUCCESS ) {
+		if (need_pwpolicy_ctrl) {
+			slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
+		}
 		errMesg = "Insufficient access rights\n";
 		rc = LDAP_INSUFFICIENT_ACCESS;
 		goto free_and_return;	
@@ -714,21 +737,50 @@ parse_req_done:
  	 * They gave us a password (old), check it against the target entry
 	 * Is the old password valid ?
 	 */
-    if (oldPasswd && *oldPasswd) {
-        ret = passwd_check_pwd(targetEntry, oldPasswd);
-        if (ret) {
-            /* No, then we fail this operation */
-            errMesg = "Invalid oldPasswd value.\n";
-            rc = ret;
-            goto free_and_return;
-        }
-    }
-	
+	if (oldPasswd && *oldPasswd) {
+		ret = passwd_check_pwd(targetEntry, oldPasswd);
+		if (ret) {
+			/* No, then we fail this operation */
+			errMesg = "Invalid oldPasswd value.\n";
+			rc = ret;
+			goto free_and_return;
+		}
+	}
 
+	/* Check if password policy allows users to change their passwords.  We need to do
+	 * this here since the normal modify code doesn't perform this check for
+	 * internal operations. */
+	if (!pb->pb_op->o_isroot && !pb->pb_conn->c_needpw && !pwpolicy->pw_change) {
+		Slapi_DN *bindSDN = slapi_sdn_new_dn_byref(bindDN);
+		/* Is this a user modifying their own password? */
+		if (slapi_sdn_compare(bindSDN, slapi_entry_get_sdn(targetEntry))==0) {
+			if (need_pwpolicy_ctrl) {
+				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
+			}
+			errMesg = "User is not allowed to change password\n";
+			rc = LDAP_UNWILLING_TO_PERFORM;
+			slapi_sdn_free(&bindSDN);
+			goto free_and_return;
+		}
+		slapi_sdn_free(&bindSDN);
+	}
+
+	/* Fetch any present request controls so we can use them when
+	 * performing the modify operation. */
+	slapi_pblock_get(pb, SLAPI_REQCONTROLS, &req_controls);
+	
 	/* Now we're ready to make actual password change */
-	ret = passwd_modify_userpassword(targetEntry, newPasswd);
+	ret = passwd_modify_userpassword(targetEntry, newPasswd, req_controls, &resp_controls);
+
+	/* Set the response controls if necessary.  We want to do this now
+	 * so it is set for both the success and failure cases.  The pblock
+	 * will now own the controls. */
+	if (resp_controls) {
+		slapi_pblock_set(pb, SLAPI_RESCONTROLS, resp_controls);
+	}
+
 	if (ret != LDAP_SUCCESS) {
-		/* Failed to modify the password, e.g. because insufficient access allowed */
+		/* Failed to modify the password, e.g. because password policy, etc. */
 		errMesg = "Failed to update password\n";
 		rc = ret;
 		goto free_and_return;
@@ -742,7 +794,7 @@ parse_req_done:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= passwd_modify_extop: %d\n", rc, 0, 0 );
 	
 	/* Free anything that we allocated above */
-	free_and_return:
+free_and_return:
 	slapi_ch_free_string(&bindDN); /* slapi_pblock_get SLAPI_CONN_DN does strdup */
 	slapi_ch_free_string(&oldPasswd);
 	slapi_ch_free_string(&newPasswd);
@@ -756,6 +808,7 @@ parse_req_done:
 	slapi_ch_free_string(&otdn);
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
 	slapi_ch_free_string(&authmethod);
+	delete_passwdPolicy(&pwpolicy);
 
 	if ( targetEntry != NULL ){
 		slapi_entry_free (targetEntry); 

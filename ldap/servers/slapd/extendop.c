@@ -311,6 +311,19 @@ do_extended( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
+	/* decode the optional controls - put them in the pblock */
+	if ( (lderr = get_ldapmessage_controls( pb, pb->pb_op->o_ber, NULL )) != 0 )
+	{
+		char *dn = NULL;
+		slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
+
+		op_shared_log_error_access (pb, "EXT", dn ? dn : "", "failed to decode LDAP controls");
+		send_ldap_result( pb, lderr, NULL, NULL, 0, NULL );
+
+		slapi_ch_free_string(&dn);
+		goto free_and_return;
+	}
+
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
 	rc = plugin_call_exop_plugins( pb, extoid );

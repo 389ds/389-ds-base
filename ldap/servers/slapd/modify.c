@@ -437,20 +437,29 @@ void slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **m
 
 static int modify_internal_pb (Slapi_PBlock *pb)
 {
-	LDAPControl		**controls;
+	LDAPControl	**controls;
+	LDAPControl	*pwpolicy_ctrl;
 	Operation       *op;
-    int             opresult = 0;
+	int		opresult = 0;
 	LDAPMod         **normalized_mods = NULL;
 	LDAPMod	        **mods;
 	LDAPMod	        **mod;
 	Slapi_Mods      smods;
-	int				pw_change = 0;
-	char			*old_pw = NULL;
+	int		pw_change = 0;
+	char		*old_pw = NULL;
 
 	PR_ASSERT (pb != NULL);
 
 	slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 	slapi_pblock_get(pb, SLAPI_CONTROLS_ARG, &controls);
+
+	/* See if pwpolicy control is present.  We need to do
+	 * this before we call op_shared_allow_pw_change() since
+	 * it looks for SLAPI_PWPOLICY in the pblock to determine
+	 * if the response contorl is needed. */
+	pwpolicy_ctrl = slapi_control_present( controls,
+		LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL );
+        slapi_pblock_set( pb, SLAPI_PWPOLICY, &pwpolicy_ctrl );
 
 	if(mods == NULL)
     {
