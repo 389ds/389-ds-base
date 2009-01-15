@@ -455,35 +455,38 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
 
         /* Insert into ancestorid for this node */
         ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
-		if (ret != 0) {
-			idl_free(children);
-			break;
-		}
-
-        /* Get parentid for this entry */
-        ret = ldbm_parentid(be, txn, id, &parentid);
         if (ret != 0) {
             idl_free(children);
             break;
         }
 
-        /* A suffix entry does not have a parent */
-        if (parentid == NOID) {
-            idl_free(children);
-            continue;
+        /* Get parentid(s) for this entry */
+        while (1) {
+            ret = ldbm_parentid(be, txn, id, &parentid);
+            if (ret != 0) {
+                idl_free(children);
+                goto out;
+            }
+    
+            /* A suffix entry does not have a parent */
+            if (parentid == NOID) {
+                idl_free(children);
+                break;
+            }
+    
+            /* Reset the key to the parent id */
+            key.size = PR_snprintf(key.data, key.ulen, "%c%lu", 
+                                   EQ_PREFIX, (u_long)parentid);
+            key.size++;
+    
+            /* Insert into ancestorid for this node's parent */
+            ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
+            if (ret != 0) {
+                idl_free(children);
+                goto out;
+            }
+            id = parentid;
         }
-
-		/* Reset the key to the parent id */
-		key.size = PR_snprintf(key.data, key.ulen, "%c%lu", 
-							   EQ_PREFIX, (u_long)parentid);
-        key.size++;
-
-        /* Insert into ancestorid for this node's parent */
-        ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
-		idl_free(children);
-		if (ret != 0) {
-			break;
-		}
     } while (nids > 0);
 
     if (ret != 0) {
