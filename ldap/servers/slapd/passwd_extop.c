@@ -143,8 +143,8 @@ passwd_modify_getEntry( const char *dn, Slapi_Entry **e2 ) {
 /* Construct Mods pblock and perform the modify operation 
  * Sets result of operation in SLAPI_PLUGIN_INTOP_RESULT 
  */
-static int passwd_apply_mods(const char *dn, Slapi_Mods *mods, LDAPControl **req_controls,
-	LDAPControl ***resp_controls) 
+static int passwd_apply_mods(Slapi_PBlock *pb_orig, const char *dn, Slapi_Mods *mods,
+	LDAPControl **req_controls, LDAPControl ***resp_controls) 
 {
 	Slapi_PBlock pb;
 	LDAPControl **req_controls_copy = NULL;
@@ -168,7 +168,19 @@ static int passwd_apply_mods(const char *dn, Slapi_Mods *mods, LDAPControl **req
 			pw_get_componentID(), /* PluginID */
 			0); /* Flags */ 
 
+		/* We copy the connection from the original pblock into the
+		 * pblock we use for the internal modify operation.  We do
+		 * this to allow the password policy code to be able to tell
+		 * that the password change was initiated by the user who
+		 * sent the extended operation instead of always assuming
+		 * that it was done by the root DN. */
+		pb.pb_conn = pb_orig->pb_conn;
+
 		ret =slapi_modify_internal_pb (&pb);
+
+		/* We now clean up the connection that we copied into the
+		 * new pblock.  We want to leave it untouched. */
+		pb.pb_conn = NULL;
   
 		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
@@ -195,8 +207,8 @@ static int passwd_apply_mods(const char *dn, Slapi_Mods *mods, LDAPControl **req
 
 
 /* Modify the userPassword attribute field of the entry */
-static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newPasswd,
-	LDAPControl **req_controls, LDAPControl ***resp_controls)
+static int passwd_modify_userpassword(Slapi_PBlock *pb_orig, Slapi_Entry *targetEntry,
+	const char *newPasswd, LDAPControl **req_controls, LDAPControl ***resp_controls)
 {
 	char *dn = NULL;
 	int ret = 0;
@@ -209,7 +221,7 @@ static int passwd_modify_userpassword(Slapi_Entry *targetEntry, const char *newP
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, SLAPI_USERPWD_ATTR, newPasswd);
 
 
-	ret = passwd_apply_mods(dn, &smods, req_controls, resp_controls);
+	ret = passwd_apply_mods(pb_orig, dn, &smods, req_controls, resp_controls);
  
 	slapi_mods_done(&smods);
 	
@@ -770,7 +782,7 @@ parse_req_done:
 	slapi_pblock_get(pb, SLAPI_REQCONTROLS, &req_controls);
 	
 	/* Now we're ready to make actual password change */
-	ret = passwd_modify_userpassword(targetEntry, newPasswd, req_controls, &resp_controls);
+	ret = passwd_modify_userpassword(pb, targetEntry, newPasswd, req_controls, &resp_controls);
 
 	/* Set the response controls if necessary.  We want to do this now
 	 * so it is set for both the success and failure cases.  The pblock

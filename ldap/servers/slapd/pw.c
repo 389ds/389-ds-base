@@ -160,6 +160,7 @@ slapi_pw_find_sv(
 /* Checks if the specified value is encoded.
    Returns 1 if it is and 0 otherwise 
  */
+/* NGK - Use this for checking if the password is hashed */
 int slapi_is_encoded (char *value)
 {
 	struct pw_scheme *is_hashed = NULL;
@@ -554,6 +555,11 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 	time_t          cur_time;
 	char 		*dn;
 	passwdPolicy *pwpolicy = NULL;
+	int internal_op = 0;
+	Slapi_Operation *operation = NULL;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
 	cur_time = current_time();
 	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
@@ -588,12 +594,13 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 	/* Clear the passwordgraceusertime from the user entry */
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordgraceusertime", "0");
 
-	/* if the password is reset by root, mark it the first time logon */
-	
-	if ( pb->pb_requestor_isroot == 1 && 
-	     pwpolicy->pw_must_change){
+	/* If the password is reset by root, mark it the first time logon.  If this is an internal
+	 * operation, we have a special case for the password modify extended operation where
+	 * we stuff the actual user who initiated the password change in pb_conn.  We check
+	 * for this special case to ensure we reset the expiration date properly. */
+	if ((internal_op && pwpolicy->pw_must_change && (!pb->pb_conn || slapi_dn_isroot(pb->pb_conn->c_dn))) ||
+		(!internal_op && pwpolicy->pw_must_change && (pb->pb_requestor_isroot == 1))) {
 		pw_exp_date = NO_TIME;
-
 	} else if ( pwpolicy->pw_exp == 1 ) {
 		Slapi_Entry *pse = NULL;
 
@@ -756,6 +763,20 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			int num_repeated = 0;
 			int max_repeated = 0;
 			int num_categories = 0;
+
+			/* NGK - Check if password is already hashed and reject if so. */
+			/* NGK - Allow if root or if replication user */
+			if (slapi_is_encoded(slapi_value_get_string(vals[i]))) {
+				PR_snprintf( errormsg, BUFSIZ,
+					"invalid password syntax - pre-hashed passwords are not allowed");
+				if ( pwresponse_req == 1 ) {
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
+							LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+				}
+				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
+                                delete_passwdPolicy(&pwpolicy);
+				return( 1 );
+			}
 
 			/* check for the minimum password length */
 			if ( pwpolicy->pw_minlength >
