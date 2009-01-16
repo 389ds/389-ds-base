@@ -740,16 +740,23 @@ int
 check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods)
 {
-   	Slapi_Attr* 	attr;
-	int 		i, pwresponse_req = 0;
-	char *dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
-	char *pwd = NULL;
-	char *p = NULL;
-	char errormsg[ BUFSIZ ];
-	passwdPolicy *pwpolicy = NULL;
+   	Slapi_Attr		*attr;
+	int 			i, pwresponse_req = 0;
+	int				is_replication = 0;
+	int				internal_op = 0;
+	char			*dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
+	char			*pwd = NULL;
+	char			*p = NULL;
+	char			errormsg[ BUFSIZ ];
+	passwdPolicy	*pwpolicy = NULL;
+	Slapi_Operation *operation = NULL;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
+
+	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replication);
+	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
 	if ( pwpolicy->pw_syntax == 1 ) {
 		for ( i = 0; vals[ i ] != NULL; ++i ) {
@@ -764,18 +771,29 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			int max_repeated = 0;
 			int num_categories = 0;
 
-			/* NGK - Check if password is already hashed and reject if so. */
-			/* NGK - Allow if root or if replication user */
-			if (slapi_is_encoded(slapi_value_get_string(vals[i]))) {
-				PR_snprintf( errormsg, BUFSIZ,
-					"invalid password syntax - pre-hashed passwords are not allowed");
-				if ( pwresponse_req == 1 ) {
-					slapi_pwpolicy_make_response_control ( pb, -1, -1,
-							LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+			/* Check if password is already hashed and reject if so.  We
+			 * We need to allow the root DN and replicated ops to send
+			 * pre-hashed passwords. We also check for a connection object
+			 * when processing an internal operation to handle a special
+			 * case for the password modify extended operation. */
+			if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
+				if ((!is_replication && ((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) ||
+					(!internal_op && !pb->pb_requestor_isroot)))) {
+					PR_snprintf( errormsg, BUFSIZ,
+						"invalid password syntax - pre-hashed passwords are not allowed");
+					if ( pwresponse_req == 1 ) {
+						slapi_pwpolicy_make_response_control ( pb, -1, -1,
+								LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+					}
+					pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
+					delete_passwdPolicy(&pwpolicy);
+					return( 1 );
+				} else {
+					/* We want to skip syntax checking since this is a pre-hashed
+					 * password from replication or the root DN. */
+					delete_passwdPolicy(&pwpolicy);
+					return( 0 );
 				}
-				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
-                                delete_passwdPolicy(&pwpolicy);
-				return( 1 );
 			}
 
 			/* check for the minimum password length */
