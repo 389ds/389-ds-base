@@ -567,7 +567,6 @@ attr_syntax_add( struct asyntaxinfo *asip )
 			rc = LDAP_TYPE_OR_VALUE_EXISTS;
 			goto cleanup_and_return;
 		}
-		attr_syntax_delete(oldas_from_name);
 	} else if ( NULL != oldas_from_oid ) {
 		/* failure - OID is in use but name does not exist */
 		rc = LDAP_TYPE_OR_VALUE_EXISTS;
