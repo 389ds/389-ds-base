@@ -3111,7 +3111,16 @@ at_sup_dependency_callback(struct asyntaxinfo *asi, void *arg)
             if(asi->asi_name != NULL) {
                 if (strcasecmp (asi->asi_name, aew->sup ) == 0) {
                     aew->rc=0;
-                }
+                } else if (asi->asi_aliases) {
+                   int i = 0;
+
+                    /* Loop through aliases to see if any match */
+                   for (i=0; asi->asi_aliases[i] != NULL; i++) {
+                       if (strcasecmp (asi->asi_aliases[i], aew->sup ) == 0) {
+                           aew->rc=0;
+                       }
+                   }
+		}
             }
         }
     }
