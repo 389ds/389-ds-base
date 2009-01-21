@@ -304,7 +304,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 				switch(attr_state)
 				{
 				case ATTRIBUTE_PRESENT:
-					if(attrlist_find_or_create_locking_optional(&e->e_attrs, type, &a, PR_FALSE, PR_TRUE)==0 /* Found */)
+					if(attrlist_find_or_create_locking_optional(&e->e_attrs, type, &a, PR_FALSE)==0 /* Found */)
 					{
 						LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous attribute values for %s\n", type, 0, 0);
 						PR_ASSERT(0);
@@ -312,7 +312,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 					}
 					break;
 				case ATTRIBUTE_DELETED:
-					if(attrlist_find_or_create_locking_optional(&e->e_deleted_attrs, type, &a, PR_FALSE, PR_TRUE)==0 /* Found */)
+					if(attrlist_find_or_create_locking_optional(&e->e_deleted_attrs, type, &a, PR_FALSE)==0 /* Found */)
 					{
 						LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous deleted attribute values for %s\n", type, 0, 0);
 						PR_ASSERT(0);
@@ -940,7 +940,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			{
 				int maxvals = 0;
 				Slapi_Attr **a= NULL;
-				attrlist_find_or_create_locking_optional(alist, sa->sa_type, &a, PR_FALSE, PR_TRUE);
+				attrlist_find_or_create_locking_optional(alist, sa->sa_type, &a, PR_FALSE);
 				valuearray_add_valuearray_fast( /* JCM should be calling a valueset function */
 					&(*a)->a_present_values.va, /* JCM .va is private */
 					sa->sa_present_values.va,

@@ -63,11 +63,11 @@ attrlist_free(Slapi_Attr *alist)
 int
 attrlist_find_or_create(Slapi_Attr **alist, const char *type, Slapi_Attr ***a)
 {
-	return attrlist_find_or_create_locking_optional(alist, type, a, PR_TRUE, PR_TRUE);
+	return attrlist_find_or_create_locking_optional(alist, type, a, PR_TRUE);
 }
 
 int
-attrlist_find_or_create_locking_optional(Slapi_Attr **alist, const char *type, Slapi_Attr ***a, PRBool use_lock, PRBool ref_count)
+attrlist_find_or_create_locking_optional(Slapi_Attr **alist, const char *type, Slapi_Attr ***a, PRBool use_lock)
 {
 	int rc= 0; /* found */
 	if ( *a==NULL )
@@ -82,7 +82,7 @@ attrlist_find_or_create_locking_optional(Slapi_Attr **alist, const char *type, S
 	if( **a==NULL )
 	{
 		**a = slapi_attr_new();
-		slapi_attr_init_locking_optional(**a, type, use_lock, ref_count);
+		slapi_attr_init_locking_optional(**a, type, use_lock);
 		rc= 1; /* created */
 	}
 	return rc;

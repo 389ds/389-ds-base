@@ -78,7 +78,7 @@ static void *attr_syntax_get_plugin_by_name_with_default( const char *type );
 static void attr_syntax_delete_no_lock( struct asyntaxinfo *asip,
 		PRBool remove_from_oid_table );
 static struct asyntaxinfo *attr_syntax_get_by_oid_locking_optional( const
-		char *oid, PRBool use_lock, PRBool ref_count);
+		char *oid, PRBool use_lock);
 
 #ifdef ATTR_LDAP_DEBUG
 static void attr_syntax_print();
@@ -236,12 +236,20 @@ hashNocaseCompare(const void *v1, const void *v2)
 struct asyntaxinfo *
 attr_syntax_get_by_oid(const char *oid)
 {
-	return attr_syntax_get_by_oid_locking_optional( oid, PR_TRUE, PR_TRUE);
+	return attr_syntax_get_by_oid_locking_optional( oid, PR_TRUE);
 }
 
 
+/*
+ * A version of attr_syntax_get_by_oid() that allows you to bypass using
+ * a lock to access the global oid hash table.
+ *
+ * Note: once the caller is finished using it, the structure must be
+ * returned by calling attr_syntax_return_locking_optional() with the
+ * same use_lock parameter.
+ */
 static struct asyntaxinfo *
-attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock, PRBool ref_count )
+attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock )
 {
 	struct asyntaxinfo *asi = 0;
 	if (oid2asi)
@@ -250,7 +258,7 @@ attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock, PRBoo
 		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(oid2asi, oid);
 		if (asi)
 		{
-			if(ref_count) PR_AtomicIncrement( &asi->asi_refcnt );
+			PR_AtomicIncrement( &asi->asi_refcnt );
 		}
 		if ( use_lock ) AS_UNLOCK_READ(oid2asi_lock);
 	}
@@ -290,12 +298,20 @@ attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, int lock)
 struct asyntaxinfo *
 attr_syntax_get_by_name(const char *name)
 {
-	return attr_syntax_get_by_name_locking_optional(name, PR_TRUE, PR_TRUE);
+	return attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
 }
 
 
+/*
+ * A version of attr_syntax_get_by_name() that allows you to bypass using
+ * a lock around the global name hashtable.
+ *
+ * Note: once the caller is finished using it, the structure must be
+ * returned by calling attr_syntax_return_locking_optional() with the
+ * same use_lock parameter.
+ */
 struct asyntaxinfo *
-attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRBool ref_count)
+attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock)
 {
 	struct asyntaxinfo *asi = 0;
 	if (name2asi)
@@ -303,12 +319,12 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRBo
 		if ( use_lock ) AS_LOCK_READ(name2asi_lock);
 		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, name);
 		if ( NULL != asi ) {
-			if(ref_count) PR_AtomicIncrement( &asi->asi_refcnt );
+			PR_AtomicIncrement( &asi->asi_refcnt );
 		}
 		if ( use_lock ) AS_UNLOCK_READ(name2asi_lock);
 	}
 	if (!asi) /* given name may be an OID */
-		asi = attr_syntax_get_by_oid_locking_optional(name, use_lock, ref_count);
+		asi = attr_syntax_get_by_oid_locking_optional(name, use_lock);
 
 	return asi;
 }
@@ -343,6 +359,8 @@ attr_syntax_return_locking_optional( struct asyntaxinfo *asi, PRBool use_lock )
 				AS_LOCK_WRITE(name2asi_lock);		/* get a write lock */
 				if ( asi->asi_marked_for_delete )	/* one final check */
 				{
+					/* ref count is 0 and it's flagged for
+					 * deletion, so it's safe to free now */
 					attr_syntax_free(asi);
 				}
 				AS_UNLOCK_WRITE(name2asi_lock);
@@ -427,6 +445,10 @@ attr_syntax_delete_no_lock( struct asyntaxinfo *asi,
 		if ( asi->asi_refcnt > 0 ) {
 			asi->asi_marked_for_delete = PR_TRUE;
 		} else {
+			/* This is ok, but the correct thing is to call delete first, 
+			 * then to call return.  The last return will then take care of
+			 * the free.  The only way this free would happen here is if
+			 * you return the syntax before calling delete. */
 			attr_syntax_free(asi);
 		}
 	}
@@ -450,7 +472,7 @@ slapi_attr_syntax_normalize( const char *s )
 	char *r;
 	
 
-    if((asi=attr_syntax_get_by_name_locking_optional(s, PR_TRUE, PR_FALSE)) != NULL ) {
+    if((asi=attr_syntax_get_by_name(s)) != NULL ) {
 		r = slapi_ch_strdup(asi->asi_name);
 		attr_syntax_return( asi );
 	}
@@ -480,7 +502,7 @@ attr_syntax_exists(const char *attr_name)
 	return 0;
 }
 
-/* check syntax without incrementing refcount -- handles locking itself */
+/* check syntax */
 
 static void *
 attr_syntax_get_plugin_by_name_with_default( const char *type )
@@ -491,14 +513,13 @@ attr_syntax_get_plugin_by_name_with_default( const char *type )
 	/*
 	 * first we look for this attribute type explictly
 	 */
-	if ( (asi = attr_syntax_get_by_name_locking_optional(type, PR_TRUE, PR_FALSE)) == NULL ) {
+	if ( (asi = attr_syntax_get_by_name(type)) == NULL ) {
 		/*
 		 * no syntax for this type... return DirectoryString
 		 * syntax.  we accomplish this by looking up a well known
 		 * attribute type that has that syntax.
 		 */
-		asi = attr_syntax_get_by_name_locking_optional(
-				ATTR_WITH_DIRSTRING_SYNTAX, PR_TRUE, PR_FALSE);
+		asi = attr_syntax_get_by_name(ATTR_WITH_DIRSTRING_SYNTAX);
 	}
 	if ( NULL != asi ) {
 		plugin = asi->asi_plugin;
@@ -548,7 +569,7 @@ attr_syntax_add( struct asyntaxinfo *asip )
 
 	/* make sure the oid is unique */
 	if ( NULL != ( oldas_from_oid = attr_syntax_get_by_oid_locking_optional(
-					asip->asi_oid, !nolock, PR_TRUE))) {
+					asip->asi_oid, !nolock))) {
 		if ( 0 == (asip->asi_flags & SLAPI_ATTR_FLAG_OVERRIDE)) {
 			/* failure - OID is in use; no override flag */
 			rc = LDAP_TYPE_OR_VALUE_EXISTS;
@@ -560,13 +581,15 @@ attr_syntax_add( struct asyntaxinfo *asip )
      * the primary name and OID point to the same schema definition.
 	 */
 	if ( NULL != ( oldas_from_name = attr_syntax_get_by_name_locking_optional(
-					asip->asi_name, !nolock, PR_TRUE))) {
+					asip->asi_name, !nolock))) {
 		if ( 0 == (asip->asi_flags & SLAPI_ATTR_FLAG_OVERRIDE)
 					|| ( oldas_from_oid != oldas_from_name )) {
 			/* failure; no override flag OR OID and name don't match */
 			rc = LDAP_TYPE_OR_VALUE_EXISTS;
 			goto cleanup_and_return;
 		}
+		/* Flag for deletion.  We are going to override this attr */
+		attr_syntax_delete(oldas_from_name);
 	} else if ( NULL != oldas_from_oid ) {
 		/* failure - OID is in use but name does not exist */
 		rc = LDAP_TYPE_OR_VALUE_EXISTS;
@@ -580,15 +603,17 @@ attr_syntax_add( struct asyntaxinfo *asip )
 
 			if ( NULL != ( tmpasi =
 							attr_syntax_get_by_name_locking_optional(
-							asip->asi_aliases[i], !nolock,PR_TRUE))) {
+							asip->asi_aliases[i], !nolock))) {
 				if (asip->asi_flags & SLAPI_ATTR_FLAG_OVERRIDE) {
+					/* Flag for tmpasi for deletion.  It will be free'd
+					 * when attr_syntax_return is called. */
 					attr_syntax_delete(tmpasi);
 				} else {
 					/* failure - one of the aliases is already in use */
 					rc = LDAP_TYPE_OR_VALUE_EXISTS;
 				}
 
-				attr_syntax_return( tmpasi );
+				attr_syntax_return_locking_optional( tmpasi, !nolock );
 				if ( LDAP_SUCCESS != rc ) {
 					goto cleanup_and_return;
 				}
@@ -605,8 +630,8 @@ attr_syntax_add( struct asyntaxinfo *asip )
 	attr_syntax_add_by_name( asip, !nolock);
 
 cleanup_and_return:
-	attr_syntax_return( oldas_from_oid );
-	attr_syntax_return( oldas_from_name );
+	attr_syntax_return_locking_optional( oldas_from_oid, !nolock );
+	attr_syntax_return_locking_optional( oldas_from_name, !nolock );
 	return rc;
 }
 

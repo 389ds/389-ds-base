@@ -160,7 +160,6 @@ slapi_pw_find_sv(
 /* Checks if the specified value is encoded.
    Returns 1 if it is and 0 otherwise 
  */
-/* NGK - Use this for checking if the password is hashed */
 int slapi_is_encoded (char *value)
 {
 	struct pw_scheme *is_hashed = NULL;

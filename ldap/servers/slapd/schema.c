@@ -2443,6 +2443,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				LDAPDebug( LDAP_DEBUG_TRACE, "schema_replace_attributes:"
 						" replacing type %s (OID %s)\n",
 						newasip->asi_name, newasip->asi_oid, 0 );
+				/* flag for deletion */
 				attr_syntax_delete( oldasip );
 			}
 
@@ -3149,7 +3150,8 @@ slapi_check_at_sup_dependency(char *sup, char *oid)
 
 /*
  * if asipp is NULL, the attribute type is added to the global set of schema.
- * if asipp is not NULL, the AT is not added but *asipp is set.
+ * if asipp is not NULL, the AT is not added but *asipp is set.  When you are
+ * finished with *asipp, use attr_syntax_free() to dispose of it.
  * 
  *    schema_flags: Any or none of the following bits could be set
  *        DSE_SCHEMA_NO_CHECK -- schema won't be checked

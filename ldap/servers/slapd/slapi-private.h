@@ -344,7 +344,7 @@ void entry_add_rdn_csn(Slapi_Entry *e, const CSN *csn);
 int entry_add_dncsn_ext(Slapi_Entry *entry, const CSN *csn, PRUint32 flags);
 
 /* attr.c */
-Slapi_Attr *slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock, PRBool ref_count);
+Slapi_Attr *slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock);
 int attr_set_csn( Slapi_Attr *a, const CSN *csn);
 int attr_set_deletion_csn( Slapi_Attr *a, const CSN *csn);
 const CSN *attr_get_deletion_csn(const Slapi_Attr *a);

@@ -226,11 +226,11 @@ slapi_attr_new()
 Slapi_Attr *
 slapi_attr_init(Slapi_Attr *a, const char *type)
 {
-	return slapi_attr_init_locking_optional(a, type, PR_TRUE, PR_TRUE);
+	return slapi_attr_init_locking_optional(a, type, PR_TRUE);
 }
 
 Slapi_Attr *
-slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock, PRBool ref_count)
+slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock)
 {
 	PR_ASSERT(a!=NULL);
 
@@ -249,7 +249,7 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 			{
 				basetype = tmp;	/* basetype was malloc'd */
 			}
-			asi = attr_syntax_get_by_name_locking_optional(basetype, use_lock, ref_count);
+			asi = attr_syntax_get_by_name_locking_optional(basetype, use_lock);
 		}
 		if(NULL == asi)
 		{
@@ -260,7 +260,7 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 			 * attribute type that has that syntax.
 			 */
 			asi = attr_syntax_get_by_name_locking_optional(
-					ATTR_WITH_DIRSTRING_SYNTAX, use_lock, ref_count);
+					ATTR_WITH_DIRSTRING_SYNTAX, use_lock);
 		}
 		else
 		{
