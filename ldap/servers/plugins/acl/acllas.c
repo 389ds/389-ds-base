@@ -248,6 +248,7 @@ static int 		acllas__eval_memberGroupDnAttr (char *attrName,
 							char *n_clientdn, 
 							struct acl_pblock *aclpb);
 static int 		acllas__verify_client (Slapi_Entry* e, void *callback_data);
+static int 		acllas__verify_ldapurl (Slapi_Entry* e, void *callback_data);
 static char* 		acllas__dn_parent( char *dn, int level);
 static int 		acllas__get_members (Slapi_Entry* e, void *callback_data);
 static int 		acllas__client_match_URL (struct acl_pblock *aclpb,
@@ -1129,6 +1130,7 @@ struct userdnattr_info {
 	char	*attr;
 	int	result;
 	char	*clientdn;
+	Acl_PBlock	*aclpb
 };
 #define ACLLAS_MAX_LEVELS 10
 int 
@@ -1360,6 +1362,237 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	return rc;
 }
+
+/***************************************************************************
+*
+* DS_LASLdapUrlAttrEval
+*
+*
+* Input:
+*	attr_name     The string "ldapurl" - in lower case.
+*	comparator    CMP_OP_EQ or CMP_OP_NE only
+*	attr_pattern  A comma-separated list of users
+*	cachable      Always set to FALSE.
+*	subject       Subject property list
+*	resource      Resource property list
+*	auth_info     Authentication info, if any
+*	las_info      LAS info to pass the resource entry
+*
+* Returns:
+*	retcode	      The usual LAS return codes.
+*
+* Error Handling:
+*	None.
+*
+**************************************************************************/
+int 
+DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, 
+		char *attr_pattern, int *cachable, void **LAS_cookie, 
+		PList_t subject, PList_t resource, PList_t auth_info,
+		PList_t global_auth, lasInfo lasinfo)
+{
+
+	char			*n_currEntryDn = NULL;
+	char			*s_attrName = NULL, *attrName = NULL;
+	char			*ptr;
+	int				matched;
+	int				rc, len, i;
+	int				levels[ACLLAS_MAX_LEVELS];
+	int				numOflevels =0;
+	struct userdnattr_info	info;
+	char			*attrs[2] = { LDAP_ALL_USER_ATTRS, NULL };
+	int				got_undefined = 0;
+
+	/* 
+	** The ldapurlAttr syntax is
+	** 	userdnattr = <attribute> or
+	**	userdnattr = parent[0,2,4].attribute"
+	**  Ex:
+	**	userdnattr = manager; or
+	**	userdnattr = "parent[0,2,4].manager";
+	**
+	**  Here 0 means current level, 2 means grandfather and 
+	**   4 (great great grandfather)
+	**
+	** The function of this LAS is to compare the value of the
+	** attribute in the Slapi_Entry with the "ldapurl". 
+	**
+	** Ex: ldapurl: ldap:///dc=example,dc=com??sub?(l=Mountain View)
+	** and in the Slapi_Entry of the bind user has
+	** l = Mountain View. Compare the bind user's 'l' and the value to
+	** determine the result.
+	**
+	*/
+ 	s_attrName = attrName = slapi_ch_strdup(attr_pattern);
+
+	/* ignore leading/trailing whitespace */
+	while (ldap_utf8isspace(attrName)) LDAP_UTF8INC(attrName);
+	len = strlen(attrName);
+	ptr = attrName+len-1;
+	while (ptr >= attrName && ldap_utf8isspace(ptr)) {
+		*ptr = '\0';
+		LDAP_UTF8DEC(ptr);
+	}
+
+	/* See if we have a  parent[2].attr" rule */
+	if ( (ptr = strstr(attrName, "parent[")) != NULL) {
+		char	*word, *str, *next;
+	
+		numOflevels = 0;
+		n_currEntryDn = slapi_entry_get_ndn ( lasinfo.resourceEntry );
+		str = attrName;
+
+		word = ldap_utf8strtok_r(str, "[],. ",&next);
+		/* The first word is "parent[" and so it's not important */
+
+		while ((word= ldap_utf8strtok_r(NULL, "[],.", &next)) != NULL) {
+			if (ldap_utf8isdigit(word)) {
+				while (word && ldap_utf8isspace(word)) LDAP_UTF8INC(word);
+				if (numOflevels < ACLLAS_MAX_LEVELS) 
+					levels[numOflevels++] = atoi (word);
+				else  {
+					/*
+					 * Here, ignore the extra levels..it's really
+					 * a syntax error which should have been ruled out at parse time
+					*/
+					slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
+						"DS_LASLdapUrlattr: Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
+									ACLLAS_MAX_LEVELS);
+				}
+			} else {
+				/* Must be the attr name. We can goof of by 
+				** having parent[1,2,a] but then you have to be
+				** stupid to do that.
+				*/
+				char	*p = word;
+				if (*--p == '.')  {
+					attrName = word;
+					break;
+				}
+			}
+		}
+		info.attr = attrName;
+		info.clientdn = lasinfo.clientDn;
+		info.aclpb = lasinfo.aclpb;
+		info.result = 0;
+	} else {
+		levels[0] = 0;
+		numOflevels = 1;
+		
+	} 
+
+	/* No attribute name specified--it's a syntax error and so undefined */
+	if (attrName == NULL ) {
+		slapi_ch_free ( (void**) &s_attrName);
+		return LAS_EVAL_FAIL;
+	}
+
+	slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName);
+	matched = ACL_FALSE;
+	for (i = 0; i < numOflevels; i++) {
+		if ( levels[i] == 0 ) { /* parent[0] or the target itself */
+			Slapi_Value             *sval = NULL;
+			const struct  berval	*attrVal;
+			Slapi_Attr				*attrs;
+			int i;
+	
+			/* Get the attr from the resouce entry */
+			if ( 0 == slapi_entry_attr_find (lasinfo.resourceEntry,
+											 attrName, &attrs) ) {
+				i = slapi_attr_first_value ( attrs, &sval );
+				if ( i == -1 ) {
+					/* Attr val not there
+					 * so it's value cannot equal other one */
+					matched = ACL_FALSE;
+					continue; /* try next level */
+				}
+			} else {
+				/* Not there  so it cannot equal another one */
+				matched = ACL_FALSE;
+				continue; /* try next level */
+			}
+			
+			while ( matched != ACL_TRUE && (sval != NULL)) {
+				attrVal = slapi_value_get_berval ( sval );
+				matched = acllas__client_match_URL ( lasinfo.aclpb, 
+													 lasinfo.clientDn, 
+								     				 attrVal->bv_val);
+				if ( matched != ACL_TRUE ) 
+					i = slapi_attr_next_value ( attrs, i, &sval );
+				if ( matched == ACL_DONT_KNOW ) {
+					got_undefined = 1;
+				}
+			}
+		} else {
+			char		*p_dn;	/* parent dn */
+			Slapi_PBlock *aPb = NULL;
+
+			p_dn = acllas__dn_parent (n_currEntryDn, levels[i]);
+			if (p_dn == NULL) continue;
+
+			/* use new search internal API */
+			aPb = slapi_pblock_new ();
+
+			/*
+			 * This search may be chained if chaining for ACL is
+			 * is enabled in the backend and the entry is in
+			 * a chained backend.
+			 */
+			slapi_search_internal_set_pb (  aPb,
+							p_dn,
+							LDAP_SCOPE_BASE,
+							"objectclass=*",
+							&attrs[0],
+							0,
+							NULL /* controls */,
+							NULL /* uniqueid */,
+							aclplugin_get_identity (ACL_PLUGIN_IDENTITY),
+							0 /* actions */);
+
+			slapi_search_internal_callback_pb(aPb,
+							  &info /* callback_data */,
+							  NULL/* result_callback */,
+							  acllas__verify_ldapurl,
+							  NULL /* referral_callback */);
+			slapi_pblock_destroy(aPb);
+
+			/*
+			 *  Currently info.result is boolean so
+			 * we do not need to check for ACL_DONT_KNOW
+			*/
+			if (info.result) {
+				matched = ACL_TRUE;
+				slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+						"userdnAttr matches at level (%d)\n", levels[i]);
+			}
+		}
+		if (matched == ACL_TRUE) {				
+			break;
+		}
+	}
+	slapi_ch_free ( (void **) &s_attrName);
+
+	/*
+	 * If no terms were undefined, then evaluate as normal.
+	 * If there was an undefined term, but another one was TRUE, 
+	 * then we also evaluate as normal.  
+	 * Otherwise, the whole expression is UNDEFINED.
+	 */
+	if ( matched == ACL_TRUE || !got_undefined ) {
+		if (comparator == CMP_OP_EQ) {
+			rc = (matched == ACL_TRUE  ? LAS_EVAL_TRUE : LAS_EVAL_FALSE);
+		} else {
+			rc = (matched == ACL_TRUE ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+		}
+	} else {
+		rc = LAS_EVAL_FAIL;
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
+			"Returning UNDEFINED for userdnattr evaluation.\n");
+	} 
+
+	return rc;
+}
+
 /***************************************************************************
 *
 * DS_LASAuthMethodEval
@@ -2764,9 +2997,8 @@ acllas__verify_client (Slapi_Entry* e, void *callback_data)
 
 	i = slapi_attr_first_value ( attr,&sval );
 	while ( i != -1 ) {
-	        attrVal = slapi_value_get_berval ( sval );
-		val = slapi_dn_normalize (
-			slapi_ch_strdup(attrVal->bv_val));
+		attrVal = slapi_value_get_berval ( sval );
+		val = slapi_dn_normalize(slapi_ch_strdup(attrVal->bv_val));
 
 		if (slapi_utf8casecmp((ACLUCHP)val, (ACLUCHP)info->clientdn ) == 0) {
 			info->result = 1;
@@ -2778,6 +3010,56 @@ acllas__verify_client (Slapi_Entry* e, void *callback_data)
 	}
 	return 0;
 }
+
+/*
+ * acllas__verify_ldapurl
+ *
+ * returns 1 if the attribute exists in the entry and
+ * it's value is equal to the client Dn.
+ * If the attribute is not in the entry, or it is and the
+ * value differs from the clientDn then returns FALSE.
+ *  
+ *  Verify if client's entry includes the attribute value that
+ *  matches the filter in LDAPURL
+ *  This is a handler from a search being done at DS_LASLdapUrlAttrEval().
+ *
+ */
+static int
+acllas__verify_ldapurl(Slapi_Entry* e, void *callback_data)
+{
+
+	Slapi_Attr		*attr;
+	struct userdnattr_info *info;
+	Slapi_Value             *sval;
+	const struct berval		*attrVal;
+	int rc;
+
+	info = (struct userdnattr_info *) callback_data;
+	info->result = ACL_FALSE;
+
+	rc = slapi_entry_attr_find( e, info->attr, &attr);
+	if (rc != 0 || attr == NULL) {
+		return 0;
+	}
+
+	rc = slapi_attr_first_value ( attr, &sval );
+	if ( rc == -1 ) {
+		return 0;
+	}
+
+	while (rc != -1 && sval != NULL) {
+		attrVal = slapi_value_get_berval ( sval );
+		info->result = acllas__client_match_URL ( info->aclpb, 
+												  info->clientdn, 
+							     				  attrVal->bv_val);
+		if ( info->result == ACL_TRUE ) {
+				return 0;
+		}
+		rc = slapi_attr_next_value ( attr, rc, &sval );
+	}
+	return 0;
+}
+
 /*
  *
  * acllas__get_members
@@ -2847,7 +3129,6 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	int				rc;
 	int				matched = ACL_FALSE;
 	char			*p;
-	int				URLAttrRule = 0;
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
 
@@ -2882,7 +3163,10 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 							subject, resource, auth_info, global_auth);
 		goto done_las;
 	} else if  ( 0 == strncasecmp ( attrValue, "LDAPURL", 7) ) {
-		URLAttrRule = 1;
+		matched = DS_LASLdapUrlAttrEval(errp, DS_LAS_USERATTR, comparator,
+							attrName, cachable, LAS_cookie,
+							subject, resource, auth_info, global_auth, lasinfo);
+		goto done_las;
 	} else if  ( 0 == strncasecmp ( attrValue, "ROLEDN", 6)) {
 		matched = DS_LASRoleDnAttrEval (errp,DS_LAS_ROLEDN, comparator,
 							attrName, cachable, LAS_cookie,
@@ -2893,7 +3177,6 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	if ( lasinfo.aclpb && ( NULL == lasinfo.aclpb->aclpb_client_entry )) {
 		/* SD 00/16/03 pass NULL in case the req is chained */
 		char **attrs=NULL;
-
 
 		/* Use new search internal API */
 		Slapi_PBlock *aPb = slapi_pblock_new ();
@@ -2924,54 +3207,23 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
 				"DS_LASUserAttrEval: AttrName:%s, attrVal:%s\n", attrName, attrValue );
 
-	if ( URLAttrRule ) {
-		Slapi_Value             *sval=NULL;
-		const struct  berval	*attrVal;
-		Slapi_Attr				*attrs;
-		int i;
-
-		/* Get the attr from the resouce entry */
-		if ( 0 == slapi_entry_attr_find (lasinfo.resourceEntry, attrName, &attrs) )  {
-			i= slapi_attr_first_value ( attrs, &sval );
-			if ( i==-1 ) {
-				matched = ACL_FALSE;	/* Attr val not there so it's value cannot equal other one */
-				goto done_acl;
-			}
-		} else {
-			matched = ACL_FALSE; /* Not there  so it cannot equal another one */
-			goto done_acl;
-		}
-		
-		while( matched != ACL_TRUE && (sval != NULL)) {
-			attrVal = slapi_value_get_berval ( sval );
-			matched = acllas__client_match_URL ( lasinfo.aclpb, 
-												 lasinfo.clientDn, 
-							     				 attrVal->bv_val);
-			if ( matched != ACL_TRUE ) 
-				i = slapi_attr_next_value ( attrs, i, &sval );
-			if ( matched == ACL_DONT_KNOW ) {
-				got_undefined = 1;
-			}
-		}/* while */
-	} else {
-		/*
-		 * Here it's the userAttr = "OU#Directory Server" case.
-		 * Allocate the Slapi_Value on the stack and init it by reference
-		 * to avoid having to malloc and free memory.
-		*/
-		Slapi_Value v;
-		
-		slapi_value_init_string_passin(&v, attrValue);
-		rc = slapi_entry_attr_has_syntax_value ( lasinfo.resourceEntry, attrName,
-										 &v );
-		if (rc) {
-		   rc = slapi_entry_attr_has_syntax_value ( 
-										lasinfo.aclpb->aclpb_client_entry, 
-										attrName, &v );
-			if (rc) matched = ACL_TRUE;
-		}
-		/* Nothing to free--cool */				
+	/*
+	 * Here it's the userAttr = "OU#Directory Server" case.
+	 * Allocate the Slapi_Value on the stack and init it by reference
+	 * to avoid having to malloc and free memory.
+	*/
+	Slapi_Value v;
+	
+	slapi_value_init_string_passin(&v, attrValue);
+	rc = slapi_entry_attr_has_syntax_value ( lasinfo.resourceEntry, attrName,
+									 &v );
+	if (rc) {
+	   rc = slapi_entry_attr_has_syntax_value ( 
+									lasinfo.aclpb->aclpb_client_entry, 
+									attrName, &v );
+		if (rc) matched = ACL_TRUE;
 	}
+	/* Nothing to free--cool */				
 
 	/*
 	 * Find out what the result is, in
@@ -2979,7 +3231,6 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	 * and got_undefined says whether a logical term evaluated to ACL_DONT_KNOW.
 	 *
 	 */
-done_acl:
 	if ( matched == ACL_TRUE || !got_undefined) {
 		if (comparator == CMP_OP_EQ) {
 			rc = (matched == ACL_TRUE ? LAS_EVAL_TRUE : LAS_EVAL_FALSE);
