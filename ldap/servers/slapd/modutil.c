@@ -603,6 +603,8 @@ slapi_mod_init_valueset_byval(Slapi_Mod *smod, int op, const char *type, const S
 	slapi_mod_set_type (smod, type);
 	if (svs!=NULL) {
 		Slapi_Value **svary = valueset_get_valuearray(svs);
+		ber_bvecfree(smod->mod->mod_bvalues);
+		smod->mod->mod_bvalues = NULL;
 		valuearray_get_bervalarray(svary, &smod->mod->mod_bvalues);
 		smod->num_values = slapi_valueset_count(svs);
 		smod->num_elements = smod->num_values + 1;

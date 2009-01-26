@@ -62,7 +62,7 @@ int ruv_private_new( RUV **ruv, RUV *clone );
 static Slapi_Entry* windows_entry_already_exists(Slapi_Entry *e);
 static void extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv);
 #endif
-static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password, const Slapi_Entry *ad_entry);
+static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password);
 static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
@@ -1290,8 +1290,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				}
 
 
-				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password,
-											windows_private_get_raw_entry(prp->agmt));
+				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
 				if (is_user) {
 					winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
 																windows_private_get_raw_entry(prp->agmt),
@@ -1803,11 +1802,12 @@ windows_delete_local_entry(Slapi_DN *sdn){
   error message to that effect.
 */
 static int
-mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod, const Slapi_Entry *ad_entry)
+mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod)
 {
 	int retval = 0;
 	int op = 0;
 	const char *type = NULL;
+	const Slapi_Entry *ad_entry = windows_private_get_raw_entry(prp->agmt);
 
 	if (!slapi_mod_isvalid(smod)) { /* bogus */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -2062,7 +2062,7 @@ done:
 
 
 static void 
-windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password, const Slapi_Entry *ad_entry) 
+windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password) 
 {
 	Slapi_Mods smods = {0};
 	Slapi_Mods mapped_smods = {0};
@@ -2216,7 +2216,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 			}
 		}
 		/* Otherwise we do not copy this mod at all */
-		if (mysmod && !mod_already_made(prp, mysmod, ad_entry)) { /* make sure this mod is still valid to send */
+		if (mysmod && !mod_already_made(prp, mysmod)) { /* make sure this mod is still valid to send */
 			slapi_mods_add_ldapmod(&mapped_smods, slapi_mod_get_ldapmod_passout(mysmod));
 		}
 		if (mysmod) {
