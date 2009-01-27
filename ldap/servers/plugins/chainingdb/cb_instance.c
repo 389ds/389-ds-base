@@ -722,7 +722,18 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 		return(LDAP_INVALID_SYNTAX);
 	}
  
-	if (apply) {
+	if (ludp && (ludp->lud_options & LDAP_URL_OPT_SECURE) && inst && inst->rwl_config_lock) {
+		int isgss = 0;
+		PR_RWLock_Rlock(inst->rwl_config_lock);
+		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
+		PR_RWLock_Unlock(inst->rwl_config_lock);
+		if (isgss) {
+			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use LDAPS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use LDAPS", CB_CONFIG_BINDMECH);
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		}
+	}
+
+	if ((LDAP_SUCCESS == rc) && apply) {
 
                	PR_RWLock_Wlock(inst->rwl_config_lock);
 
@@ -1346,7 +1357,18 @@ static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	int rc = LDAP_SUCCESS;
 
-	if (apply) {
+	if (value && inst && inst->rwl_config_lock) {
+		int isgss = 0;
+		PR_RWLock_Rlock(inst->rwl_config_lock);
+		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
+		PR_RWLock_Unlock(inst->rwl_config_lock);
+		if (isgss) {
+			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use startTLS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use startTLS", CB_CONFIG_BINDMECH);
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		}
+	}
+
+	if ((LDAP_SUCCESS == rc) && apply) {
 	        PR_RWLock_Wlock(inst->rwl_config_lock);
 		inst->pool->starttls=(int) ((uintptr_t)value);
 	        PR_RWLock_Unlock(inst->rwl_config_lock);
@@ -1374,7 +1396,18 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	int rc=LDAP_SUCCESS;
 
-	if (apply) {
+	if (value && !PL_strcasecmp((char *) value, "GSSAPI") && inst && inst->rwl_config_lock) {
+		int secure = 0;
+		PR_RWLock_Rlock(inst->rwl_config_lock);
+		secure = inst->pool->secure || inst->pool->starttls;
+		PR_RWLock_Unlock(inst->rwl_config_lock);
+		if (secure) {
+			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use SASL/GSSAPI if using SSL or TLS - please change the connection to use no security before changing %s to use GSSAPI", CB_CONFIG_BINDMECH);
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		}
+	}
+
+	if ((LDAP_SUCCESS == rc) && apply) {
                	PR_RWLock_Wlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
     			( phase != CB_CONFIG_PHASE_STARTUP )) {
