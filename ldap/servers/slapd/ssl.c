@@ -473,6 +473,67 @@ slapd_nss_init(int init_ssl, int config_available)
     return rv;
 }
 
+static int
+svrcore_setup()
+{
+    PRErrorCode errorCode;
+    int rv = 0;
+#ifndef _WIN32
+    SVRCOREStdPinObj *StdPinObj;
+#else
+    SVRCOREFilePinObj *FilePinObj;
+    SVRCOREAltPinObj *AltPinObj;
+    SVRCORENTUserPinObj *NTUserPinObj;
+#endif
+#ifndef _WIN32
+    StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+    if (StdPinObj) {
+	return 0; /* already registered */
+    }
+    if ( SVRCORE_CreateStdPinObj(&StdPinObj, dongle_file_name, PR_TRUE) !=
+	SVRCORE_Success) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Unable to create PinObj ("
+				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+				errorCode, slapd_pr_strerror(errorCode));
+	return -1;
+    }
+    SVRCORE_RegisterPinObj((SVRCOREPinObj *)StdPinObj);
+#else
+    AltPinObj = (SVRCOREAltPinObj *)SVRCORE_GetRegisteredPinObj();
+    if (AltPinObj) {
+	return 0; /* already registered */
+    }
+    if (SVRCORE_CreateFilePinObj(&FilePinObj, dongle_file_name) !=
+	SVRCORE_Success) {
+        errorCode = PR_GetError();
+	slapd_SSL_warn("Security Initialization: Unable to create FilePinObj ("
+				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+				errorCode, slapd_pr_strerror(errorCode));
+	return -1;
+    }
+    if (SVRCORE_CreateNTUserPinObj(&NTUserPinObj) != SVRCORE_Success){
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Unable to create NTUserPinObj ("
+				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+				errorCode, slapd_pr_strerror(errorCode));
+        return -1;
+    }
+    if (SVRCORE_CreateAltPinObj(&AltPinObj, (SVRCOREPinObj *)FilePinObj,
+	(SVRCOREPinObj *)NTUserPinObj) != SVRCORE_Success) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Unable to create AltPinObj ("
+				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+				errorCode, slapd_pr_strerror(errorCode));
+        return -1;
+    }
+    SVRCORE_RegisterPinObj((SVRCOREPinObj *)AltPinObj);
+
+#endif /* _WIN32 */
+
+    return rv;
+}
+
 /*
  * slapd_ssl_init() is called from main() if we plan to listen
  * on a secure port.
@@ -485,13 +546,6 @@ slapd_ssl_init() {
     char cipher_string[1024];
     int rv = 0;
     PK11SlotInfo *slot;
-#ifndef _WIN32
-    SVRCOREStdPinObj *StdPinObj;
-#else
-    SVRCOREFilePinObj *FilePinObj;
-    SVRCOREAltPinObj *AltPinObj;
-    SVRCORENTUserPinObj *NTUserPinObj;
-#endif
     Slapi_Entry *entry = NULL;
 
     /* Get general information */
@@ -524,44 +578,10 @@ slapd_ssl_init() {
 
     stimeout = atoi(val);
     slapi_ch_free((void **) &val);
-    
-#ifndef _WIN32
-    if ( SVRCORE_CreateStdPinObj(&StdPinObj, dongle_file_name, PR_TRUE) !=
-	SVRCORE_Success) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Unable to create PinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-	return -1;
-    }
-    SVRCORE_RegisterPinObj((SVRCOREPinObj *)StdPinObj);
-#else
-    if (SVRCORE_CreateFilePinObj(&FilePinObj, dongle_file_name) !=
-	SVRCORE_Success) {
-        errorCode = PR_GetError();
-	slapd_SSL_warn("Security Initialization: Unable to create FilePinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-	return -1;
-    }
-    if (SVRCORE_CreateNTUserPinObj(&NTUserPinObj) != SVRCORE_Success){
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Unable to create NTUserPinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-        return -1;
-    }
-    if (SVRCORE_CreateAltPinObj(&AltPinObj, (SVRCOREPinObj *)FilePinObj,
-	(SVRCOREPinObj *)NTUserPinObj) != SVRCORE_Success) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Unable to create AltPinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-        return -1;
-    }
-    SVRCORE_RegisterPinObj((SVRCOREPinObj *)AltPinObj);
 
-#endif /* _WIN32 */
+    if (svrcore_setup()) {
+	return -1;
+    }
 
     if((family_list = getChildren(configDN))) {
 		char **family;
@@ -686,6 +706,10 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     /* turn off the PKCS11 pin interactive mode */
 #ifndef _WIN32
     SVRCOREStdPinObj *StdPinObj;
+
+    if (svrcore_setup()) {
+	return 1;
+    }
 
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     SVRCORE_SetStdPinInteractive(StdPinObj, PR_FALSE);
@@ -1159,35 +1183,37 @@ slapd_SSL_client_auth (LDAP* ld)
 
     /* Free config data */
 
+    if (!svrcore_setup()) {
 #ifndef _WIN32
-    StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
-    err =  SVRCORE_StdPinGetPin( &pw, StdPinObj, token );
+	StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+	err =  SVRCORE_StdPinGetPin( &pw, StdPinObj, token );
 #else
-    AltPinObj = (SVRCOREAltPinObj *)SVRCORE_GetRegisteredPinObj();
-    pw = SVRCORE_GetPin( (SVRCOREPinObj *)AltPinObj, token, PR_FALSE);
+	AltPinObj = (SVRCOREAltPinObj *)SVRCORE_GetRegisteredPinObj();
+	pw = SVRCORE_GetPin( (SVRCOREPinObj *)AltPinObj, token, PR_FALSE);
 #endif
-    if ( err != SVRCORE_Success || pw == NULL) {
-        errorCode = PR_GetError();
-	slapd_SSL_warn("SSL client authentication cannot be used "
-		       "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
-		       errorCode, slapd_pr_strerror(errorCode));
-    } else {
-	rc = ldapssl_enable_clientauth (ld, SERVER_KEY_NAME, pw, cert_name);
-	if (rc != 0) {
+	if ( err != SVRCORE_Success || pw == NULL) {
 	    errorCode = PR_GetError();
-	    slapd_SSL_warn("ldapssl_enable_clientauth(%s, %s) %i ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-			    SERVER_KEY_NAME, cert_name, rc, 
-			    errorCode, slapd_pr_strerror(errorCode));
+	    slapd_SSL_warn("SSL client authentication cannot be used "
+			   "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
+			   errorCode, slapd_pr_strerror(errorCode));
 	} else {
-	    /* We cannot allow NSS to cache outgoing client auth connections -
-	       each client auth connection must have it's own non-shared SSL
-	       connection to the peer so that it will go through the
-	       entire handshake protocol every time including the use of its
-	       own unique client cert - see bug 605457
-	    */
+	    rc = ldapssl_enable_clientauth (ld, SERVER_KEY_NAME, pw, cert_name);
+	    if (rc != 0) {
+		errorCode = PR_GetError();
+		slapd_SSL_warn("ldapssl_enable_clientauth(%s, %s) %i ("
+			       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+			       SERVER_KEY_NAME, cert_name, rc, 
+			       errorCode, slapd_pr_strerror(errorCode));
+	    } else {
+		/* We cannot allow NSS to cache outgoing client auth connections -
+		   each client auth connection must have it's own non-shared SSL
+		   connection to the peer so that it will go through the
+		   entire handshake protocol every time including the use of its
+		   own unique client cert - see bug 605457
+		*/
 
-	    ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
+		ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
+	    }
 	}
     }
 
