@@ -90,7 +90,6 @@ SearchThread *st_new(void)
     st->alive = 1;
     st->lock = PR_NewLock();
 	st->retry = 0;
-    srand(time(0));
     return st;
 }
 
@@ -106,6 +105,11 @@ int st_getThread(SearchThread *st, PRThread **tid)
     return st->id;
 }
 
+void st_seed(SearchThread *st) {
+	time_t t = time(0);
+	t -= st->id * 1000;
+	srand((unsigned int)t);
+}
 
 static void st_enableTCPnodelay(SearchThread *st)
 {
@@ -143,12 +147,12 @@ static void st_disconnect(SearchThread *st)
     st->soc = -1;
 }
 
-static int st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *uid)
+static int st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *pw)
 {
 	int ret = 0;
 	int retry = 0;
     while (1) {
-        ret = ldap_simple_bind_s(*ld, dn, uid);
+        ret = ldap_simple_bind_s(*ld, dn, pw);
         if (LDAP_SUCCESS == ret) {
             break;
         } else if (LDAP_CONNECT_ERROR == ret && retry < 10) {
@@ -156,7 +160,7 @@ static int st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *uid)
 		} else {
             fprintf(stderr, "T%d: failed to bind, ldap_simple_bind_s"
                             "(%s, %s) returned 0x%x (errno %d)\n", 
-                            st->id, dn, uid, ret, errno);
+                            st->id, dn, pw, ret, errno);
             *ld = NULL;
             return 0;
         }
@@ -188,30 +192,33 @@ static int st_bind(SearchThread *st)
     if (opType != op_delete && opType != op_modify && opType != op_idxmodify &&
                sdattable && sdt_getlen(sdattable) > 0) {
         int e;
-        char *dn, *uid;
+        char *dn, *uid, *upw;
 
         do {
             e = sdt_getrand(sdattable);
         } while (e < 0);
         dn = sdt_dn_get(sdattable, e);
         uid = sdt_uid_get(sdattable, e);
+		/*  in this test, assuming uid == password unless told otherwise */
+		upw = (userPW) ? userPW : uid;
 
         if (useBFile) {
-            /*  in this test, assuming uid == password */
+
             if (dn) {
-                if (0 == st_bind_core(st, &(st->ld), dn, uid)) {
+                if (0 == st_bind_core(st, &(st->ld), dn, upw)) {
                     return 0;
                 }
             } else if (uid) {
                 char filterBuffer[100];
                 char *pFilter;
+				char *filterTemplate = (uidFilter) ? uidFilter : "(uid=%s)";
                 struct timeval timeout;
                 int scope = LDAP_SCOPE_SUBTREE, attrsOnly = 0;
                 LDAPMessage *result;
                 int retry = 0;
     
                 pFilter = filterBuffer;
-                sprintf(filterBuffer, "(uid=%s)", uid);
+				sprintf(filterBuffer, filterTemplate, uid);
                 timeout.tv_sec = 3600;
                 timeout.tv_usec = 0;
                 while (1) {
@@ -230,7 +237,7 @@ static int st_bind(SearchThread *st)
                 }
                 dn = ldap_get_dn(st->ld2, result);
     
-                if (0 == st_bind_core(st, &(st->ld), dn, uid)) {
+                if (0 == st_bind_core(st, &(st->ld), dn, upw)) {
                     return 0;
                 }
             } else {
@@ -239,7 +246,7 @@ static int st_bind(SearchThread *st)
                 return 0;
             }
         } else {
-            if (0 == st_bind_core(st, &(st->ld), dn, uid)) {
+            if (0 == st_bind_core(st, &(st->ld), dn, upw)) {
                 return 0;
             }
         }
@@ -504,6 +511,7 @@ void search_start(void *v)
     int notBound = 1, res = LDAP_SUCCESS, searches = 0;
     PRUint32 span;
 
+    st_seed(st);
     st->alive = 1;
     st->ld = 0;
     while (1) {
@@ -544,6 +552,10 @@ void search_start(void *v)
                 return;
             }
         }
+		else {
+			/* Fake status for NOOP */
+			res = LDAP_SUCCESS;
+		}
         if (LDAP_SUCCESS == res) {
             st->retry = 0;
         } else if (LDAP_CONNECT_ERROR == res && st->retry < 10) {

@@ -69,6 +69,8 @@ extern char *filter;
 /**/ extern char *nameFile;
 extern char *bindDN;
 extern char *bindPW;
+extern char *userPW;
+extern char *uidFilter;
 extern char **attrToReturn;
 /**/ extern char *attrList;
 extern Operation opType;

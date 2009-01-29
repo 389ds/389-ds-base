@@ -54,6 +54,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <string.h>
 #ifdef XP_UNIX
 #include <unistd.h>
 #endif
@@ -104,6 +106,8 @@ void usage()
 	   "-C num    -- take num samples, then stop\n"
 	   "-R num    -- drop connection & reconnect every num searches\n"
 	   "-x        -- Use -B file for binding; ignored if -B is not given\n"
+	   "-W        -- Password to use when binding with -B.  Default is the UID.\n"
+	   "-U        -- Filter to use with binding file.  Ignored if -x is not given.  Default is '(uid=%%s)'.\n"
 	   "\n",
 	   DEFAULT_HOSTNAME, DEFAULT_PORT,
 	   LDAP_SCOPE_BASE, LDAP_SCOPE_ONELEVEL, LDAP_SCOPE_SUBTREE,
@@ -223,6 +227,8 @@ char *searchDatFile = 0;
 char *attrFile = 0;
 char *bindDN = NULL;
 char *bindPW = NULL;
+char *userPW = NULL;
+char *uidFilter = NULL;
 char **attrToReturn = 0;
 char *attrList = 0;
 Operation opType = op_search;
@@ -253,7 +259,7 @@ int main(int argc, char** argv)
     }
 
     while ((ch = getopt(argc, argv, 
-			"B:a:j:i:h:s:f:p:o:t:T:D:w:n:A:S:C:R:bvlyqmMcduNLHx?V"))
+		"U:W:B:a:j:i:h:s:f:p:o:t:T:D:w:n:A:S:C:R:bvlyqmMcduNLHx?V"))
 	   != EOF)
 	switch (ch) {
 	case 'h':
@@ -359,6 +365,12 @@ int main(int argc, char** argv)
 	case 'x':
 	    useBFile = 1;
 	    break;
+	case 'W':
+		userPW = optarg;
+		break;
+	case 'U':
+		uidFilter = optarg;
+		break;
 	case 'a':
 	    if (optarg[0] == '?') {
 		usage_A();
@@ -386,6 +398,11 @@ int main(int argc, char** argv)
     }
     argc -= optind;
     argv += optind;
+
+	if (uidFilter && NULL == strstr(uidFilter, "%s")) {
+		printf("rsearch: invalid UID filter - must contain %%s, eg, (uid=%%s)\n");
+		usage();
+	}
 
     PR_Init(PR_SYSTEM_THREAD, PR_PRIORITY_NORMAL, 0);
 
@@ -487,13 +504,20 @@ int main(int argc, char** argv)
 	cumrate += rate;
 	if ((numThreads > 1) || (!verbose)) {
 	    if (!quiet) {
+			char tbuf[18];
+			struct tm* now;
+			time_t lt;
+
+			time(&lt);
+			now = localtime(&lt);
+			strftime(tbuf, sizeof(tbuf), "%Y%m%d %H:%M:%S", now);
 		if (showRunningAvg)
-		    printf("Rate: %7.2f/thr (cumul rate: %7.2f/thr)\n",
-			   rate, cumrate/(double)counter);
+		    printf("%s - Rate: %7.2f/thr (cumul rate: %7.2f/thr)\n",
+			   tbuf, rate, cumrate/(double)counter);
 		else
-		    printf("Rate: %7.2f/thr (%6.2f/sec =%7.4fms/op), "
+		    printf("%s - Rate: %7.2f/thr (%6.2f/sec =%7.4fms/op), "
 			   "total:%6u (%d thr)\n",
-			   rate, val, (double)1000.0/val, total, numThreads);
+			   tbuf, rate, val, (double)1000.0/val, total, numThreads);
 	    }
 	}
 	if (countLimit && (counter >= countLimit)) {
