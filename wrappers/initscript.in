@@ -97,7 +97,8 @@ umask 077
 
 INSTANCES=""
 
-for FILE in `/bin/ls -d $instbase/slapd-* 2>/dev/null`; do
+# Ignore instances that have been removed
+for FILE in `/bin/ls -d $instbase/slapd-* | sed -n '/\.removed$/!p' 2>/dev/null`; do
     if [ -d "$FILE" ] ; then
         inst=`echo "$FILE" | sed -e "s|$instbase/slapd-||"`
         INSTANCES="$INSTANCES $inst"
