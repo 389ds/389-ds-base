@@ -1917,7 +1917,7 @@ lookup_instance_name_by_suffix(char *suffix,
     }
 
     rval = 0;
-    for (ep = entries; *ep; ep++) {
+    for (ep = entries; ep && *ep; ep++) {
         backend = slapi_entry_attr_get_charptr(*ep, "nsslapd-backend");
         if (backend) {
             charray_add(instances, backend);
