@@ -54,6 +54,5 @@
 
 #include "nspr.h"
 
-void create_db();
 void db_put_dn(char *data);
 

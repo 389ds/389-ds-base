@@ -40,20 +40,20 @@
 #  include <config.h>
 #endif
 
-
 #include <sys/types.h>
 #include <stdio.h>
-#include "db.h"
 #include "testdbinterop.h"
 #include "slapi-plugin.h"
-
-#define DATABASE "access.db"
-static int number_of_keys=100;
-static int key_buffer_size = 8000;
 
 #define DB_PLUGIN_NAME "nullsuffix-preop"
 
 static  PRLock *db_lock=NULL; 
+
+#ifdef USE_BDB
+#include "db.h"
+#define DATABASE "access.db"
+static int number_of_keys=100;
+static int key_buffer_size = 8000;
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(db, txnid, file, database, type, flags, mode) \
@@ -143,3 +143,70 @@ db_put_dn(char *data_dn)
 	PR_Unlock(db_lock);
 
 }
+#else /* USE_BDB */
+#include <string.h>
+
+#define DATABASE "/tmp/testdbinterop.db"
+#define DATABASE_BACK "/tmp/testdbinterop.db.bak"
+
+void
+db_put_dn(char *data_dn)
+{
+    int ret;
+	char *db_path = DATABASE;
+	char *db_path_bak = DATABASE_BACK;
+	PRFileInfo info;
+	PRFileDesc *prfd;
+	PRInt32 data_sz;
+	char *data_dnp = NULL;
+
+	if(db_lock == NULL){
+		db_lock = PR_NewLock();
+	}
+	PR_Lock(db_lock);
+	/* if db_path is a directory, rename it */
+	ret =  PR_GetFileInfo(db_path, &info);
+	if (PR_SUCCESS == ret) {
+		if (PR_FILE_DIRECTORY == info.type) {    /* directory */
+			ret =  PR_GetFileInfo(db_path_bak, &info);
+			if (PR_SUCCESS == ret) {
+				if (PR_FILE_DIRECTORY != info.type) {    /* not a directory */
+					PR_Delete(db_path_bak);
+				}
+			}
+			PR_Rename(db_path, db_path_bak);
+		}
+	}
+
+	/* open a file */
+	if ((prfd = PR_Open(db_path, PR_RDWR | PR_CREATE_FILE | PR_APPEND, 0600)) == NULL ) {
+		slapi_log_error(SLAPI_LOG_FATAL, DB_PLUGIN_NAME,
+				"db: Could not open file \"%s\" for read/write; %d (%s)\n",
+				db_path, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+		return;
+	}
+
+	data_dnp = slapi_ch_smprintf("%s\n", data_dn);
+	data_sz = (PRInt32)strlen(data_dnp);
+
+	ret = PR_Write(prfd, data_dnp, data_sz);
+	if (ret == data_sz) {
+		slapi_log_error(SLAPI_LOG_PLUGIN, DB_PLUGIN_NAME,
+						"db: %s: key stored.\n", data_dn);
+		ret = 0;
+	} else  {
+		slapi_log_error(SLAPI_LOG_FATAL, DB_PLUGIN_NAME,
+				"db: Failed to store key \"%s\"; %d (%s)\n",
+				data_dn, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+		ret = 1;
+	}
+    if(ret) {
+		slapi_log_error(SLAPI_LOG_FATAL, DB_PLUGIN_NAME,
+						"db: Error detected in db_put_dn \n");
+    }
+	slapi_ch_free_string(&data_dnp);
+	PR_Close(prfd);
+	PR_Unlock(db_lock);
+	return;
+}
+#endif
