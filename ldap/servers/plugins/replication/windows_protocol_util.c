@@ -1817,6 +1817,14 @@ mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod)
 		return 1;
 	}
 
+	if (!ad_entry) { /* mods cannot already have been made */
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: mod_already_made: "
+						"AD entry not found\n",
+						agmt_get_long_name(prp->agmt));
+		return retval; /* just allow - will probably fail later if entry really doesn't exist */
+	}
+
 	op = slapi_mod_get_operation(smod);
 	type = slapi_mod_get_type(smod);
 	if (SLAPI_IS_MOD_ADD(op)) { /* make sure value is not there */
