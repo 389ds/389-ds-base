@@ -885,6 +885,54 @@ slapi_urlparse_err2string( int err )
     return( s );
 }
 
+#include <sasl.h>
+
+/* copied from mozldap libldap/saslbind.c */
+static int
+slapd_sasl_fail()
+{
+        return( SASL_FAIL );
+}
+
+/* copied from slapd/saslbind.c - not an easy way to share this function
+   between the two files */
+static int slapd_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
+{
+    /* Try to get path from config, otherwise check for SASL_PATH environment
+     * variable.  If neither of these are set, default to /usr/lib64/sasl2 on
+     * 64-bit Linux machines, and /usr/lib/sasl2 on all other platforms.
+     */
+    char *pluginpath = config_get_saslpath();
+    if ((!pluginpath) || (*pluginpath == '\0')) {
+        if (!(pluginpath = getenv("SASL_PATH"))) {
+#if defined(LINUX) && defined(__LP64__)
+            pluginpath = "/usr/lib64/sasl2";
+#else
+            pluginpath = "/usr/lib/sasl2";
+#endif
+        }
+    }
+    *path = pluginpath;
+    return SASL_OK;
+}
+
+/* copied from mozldap libldap/saslbind.c - except 
+   SASL_CB_GETPATH added as last item (before SASL_CB_LIST_END
+   This allows us to set the sasl path used for outgoing
+   client connections */
+sasl_callback_t slapd_client_callbacks[] = {
+        { SASL_CB_GETOPT, slapd_sasl_fail, NULL },
+        { SASL_CB_GETREALM, NULL, NULL },
+        { SASL_CB_USER, NULL, NULL },
+        { SASL_CB_CANON_USER, NULL, NULL },
+        { SASL_CB_AUTHNAME, NULL, NULL },
+        { SASL_CB_PASS, NULL, NULL },
+        { SASL_CB_ECHOPROMPT, NULL, NULL },
+        { SASL_CB_NOECHOPROMPT, NULL, NULL },
+        { SASL_CB_GETPATH, slapd_sasl_getpluginpath, NULL },
+        { SASL_CB_LIST_END, NULL, NULL }
+};
+
 /*
   Perform LDAP init and return an LDAP* handle.  If ldapurl is given,
   that is used as the basis for the protocol, host, port, and whether
@@ -914,6 +962,16 @@ slapi_ldap_init_ext(
     LDAPURLDesc	*ludp = NULL;
     LDAP *ld = NULL;
     int rc = 0;
+    extern sasl_callback_t *client_callbacks;
+
+    /* We need to provide a sasl path used for client connections, especially
+       if the server is not set up to be a sasl server - since mozldap provides
+       no way to override the default path programatically, we replace its
+       client callback list with our own so that we can provide a CB_GETPATH
+       callback */
+    if (client_callbacks != slapd_client_callbacks) {
+	client_callbacks = slapd_client_callbacks;
+    }
 
     /* if ldapurl is given, parse it */
     if (ldapurl && ((rc = ldap_url_parse_no_defaults(ldapurl, &ludp, 0)) ||
@@ -1105,7 +1163,6 @@ slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared )
     return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL);
 }
 
-#include <sasl.h>
 /*
  * Does the correct bind operation simple/sasl/cert depending
  * on the arguments passed in.  If the user specified to use
