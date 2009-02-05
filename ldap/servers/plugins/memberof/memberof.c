@@ -486,7 +486,6 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		struct slapi_entry *post_e = NULL;
 		char *pre_dn = 0;
 		char *post_dn = 0;
-		int interested = 0;
 
 		slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &pre_e );
 		slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &post_e );
@@ -497,23 +496,19 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 			post_dn = slapi_entry_get_ndn(post_e);
 		}
 
-		/* is the entry of interest? */
+		/* copy config so it doesn't change out from under us */
 		memberof_rlock_config();
 		mainConfig = memberof_get_config();
-		if(pre_dn && post_dn &&
-			!slapi_filter_test_simple(post_e, mainConfig->group_filter))
-		{
-			interested = 1;
-			/* copy config so it doesn't change out from under us */
-			memberof_copy_config(&configCopy, mainConfig);
-		}
+		memberof_copy_config(&configCopy, mainConfig);
 		memberof_unlock_config();
 
-		if(interested)
+		memberof_lock();
+
+		/*  update any downstream members */
+		if(pre_dn && post_dn &&
+			!slapi_filter_test_simple(post_e, configCopy.group_filter))
 		{
 			Slapi_Attr *attr = 0;
-
-			memberof_lock();
 
 			/* get a list of member attributes present in the group
 			 * entry that is being renamed. */
@@ -521,16 +516,15 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 			{
 				memberof_moddn_attr_list(pb, &configCopy, pre_dn, post_dn, attr);
 			}
-
-			/* modrdn must change the dns in groups that have
-			 * this group as a member.
-			 */
-			memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
-
-			memberof_unlock();
-
-			memberof_free_config(&configCopy);
 		}
+
+		/* It's possible that this is an entry who is a member
+		 * of other group entries.  We need to update any member
+		 * attributes to refer to the new name. */
+		memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
+
+		memberof_unlock();
+		memberof_free_config(&configCopy);
 	}
 
 
