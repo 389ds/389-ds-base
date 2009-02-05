@@ -87,6 +87,7 @@ static char*	dongle_file_name = NULL;
 
 static int _security_library_initialized = 0;
 static int _ssl_listener_initialized = 0;
+static int _nss_initialized = 0;
 
 /* Our name for the internal token, must match PKCS-11 config data below */
 static char *internalTokenName = "Internal (Software) Token";
@@ -469,6 +470,7 @@ slapd_nss_init(int init_ssl, int config_available)
 
     /****** end of NSS Initialization ******/
 
+    _nss_initialized = 1;
     slapi_ch_free_string(&certdir);
     return rv;
 }
@@ -1241,6 +1243,12 @@ int
 slapd_ssl_listener_is_initialized()
 {
 	return _ssl_listener_initialized;
+}
+
+int
+slapd_nss_is_initialized()
+{
+	return _nss_initialized;
 }
 
 /* memory to store tmpdir is allocated and returned; caller should free it. */

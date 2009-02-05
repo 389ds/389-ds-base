@@ -1107,6 +1107,7 @@ time_t parse_genTime(char* from);
 
 /* Client SSL code */
 int slapd_security_library_is_initialized( void );
+int slapd_nss_is_initialized( void );
 char* slapd_get_tmp_dir( void );
 
 /* util.c */

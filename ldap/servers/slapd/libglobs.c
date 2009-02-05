@@ -2501,12 +2501,20 @@ config_set_rootpw( const char *attrname, char *value, char *errorbuf, int apply 
   is_hashed  = pw_val2scheme ( value, NULL, 0 );
   
   if ( is_hashed ) {
-	slapdFrontendConfig->rootpw = slapi_ch_strdup ( value );
-	free_pw_scheme(is_hashed);
-  }
-  else {
-	/* pwd enc func returns slapi_ch_malloc memory */
-	slapdFrontendConfig->rootpw = (slapdFrontendConfig->rootpwstoragescheme->pws_enc)(value); 
+    slapdFrontendConfig->rootpw = slapi_ch_strdup ( value );
+    free_pw_scheme(is_hashed);
+  } else if (slapd_nss_is_initialized() ||
+            (strcasecmp(slapdFrontendConfig->rootpwstoragescheme->pws_name,
+                       "clear") == 0)) {
+    /* to hash, security library should have been initialized, by now */
+    /* pwd enc func returns slapi_ch_malloc memory */
+    slapdFrontendConfig->rootpw = (slapdFrontendConfig->rootpwstoragescheme->pws_enc)(value); 
+  } else {
+    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                  "%s: password scheme mismatch (passwd scheme is %s; "
+                  "password is clear text)", attrname,
+                  slapdFrontendConfig->rootpwstoragescheme->pws_name);
+    retVal = LDAP_PARAM_ERROR;
   }
   
   CFG_UNLOCK_WRITE(slapdFrontendConfig);
