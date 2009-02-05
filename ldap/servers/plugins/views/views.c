@@ -131,6 +131,7 @@ static int 	views_dn_views_cb (Slapi_Entry* e, void *callback_data);
 static int views_cache_add_dn_views(char *dn, viewEntry **pViews);
 static void views_cache_add_ll_entry(void** attrval, void *theVal);
 static void views_cache_discover_parent(viewEntry *pView);
+static void views_cache_discover_parent_for_children(viewEntry *pView);
 static void views_cache_discover_children(viewEntry *pView);
 static void views_cache_discover_view_scope(viewEntry *pView);
 static void views_cache_create_applied_filter(viewEntry *pView);
@@ -658,6 +659,22 @@ static void views_cache_discover_parent(viewEntry *pView)
 	}
 }
 
+/*
+	views_cache_discover_parent_for_children
+	------------------------------
+	The current node is being deleted - for each child, need
+	to find a new parent
+*/
+static void views_cache_discover_parent_for_children(viewEntry *pView)
+{
+	int ii = 0;
+	
+	for (ii = 0; pView->pChildren && (ii < pView->child_count); ++ii)
+	{
+		viewEntry *current = (viewEntry *)pView->pChildren[ii];
+		views_cache_discover_parent(current);
+	}
+}
 
 /*
 	views_cache_discover_children
@@ -1471,9 +1488,11 @@ static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Sla
 						theCache.pCacheViews = (viewEntry*)(theView->list.pNext);
 				}
 
-				/* update children */
+				/* the parent of this node needs to know about its children */
 				if(theView->pParent)
 					views_cache_discover_children((viewEntry*)theView->pParent);
+				/* each child of the deleted node will need to discover a new parent */
+				views_cache_discover_parent_for_children((viewEntry*)theView);
 
 				/* update filters */
 				for(current = theCache.pCacheViews; current != NULL; current = current->list.pNext)
