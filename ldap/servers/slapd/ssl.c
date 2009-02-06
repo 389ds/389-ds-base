@@ -410,6 +410,9 @@ slapd_nss_init(int init_ssl, int config_available)
 	int len = 0;
     PRUint32 nssFlags = 0;
 	char *certdir;
+	char *certdb_file_name = NULL;
+	char *keydb_file_name = NULL;
+	char *secmoddb_file_name = NULL;
 
 	/* set in slapd_bootstrap_config,
 	   thus certdir is available even if config_available is false */
@@ -468,9 +471,23 @@ slapd_nss_init(int init_ssl, int config_available)
 		return -1;
 	}
 
-    /****** end of NSS Initialization ******/
+	/* NSS creates the certificate db files with a mode of 600.  There
+	 * is no way to pass in a mode to use for creation to NSS, so we
+	 * need to modify it after creation.  We need to allow read and
+	 * write permission to the group so the certs can be managed via
+	 * the console/adminserver. */
+	certdb_file_name = slapi_ch_smprintf("%s/cert8.db", certdir);
+	keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
+	secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
+	chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+	chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+	chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
 
+    /****** end of NSS Initialization ******/
     _nss_initialized = 1;
+    slapi_ch_free_string(&certdb_file_name);
+    slapi_ch_free_string(&keydb_file_name);
+    slapi_ch_free_string(&secmoddb_file_name);
     slapi_ch_free_string(&certdir);
     return rv;
 }
