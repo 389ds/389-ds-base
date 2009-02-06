@@ -779,7 +779,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				if ((!is_replication && ((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) ||
 					(!internal_op && !pb->pb_requestor_isroot)))) {
 					PR_snprintf( errormsg, BUFSIZ,
-						"invalid password syntax - pre-hashed passwords are not allowed");
+						"invalid password syntax - passwords with storage scheme are not allowed");
 					if ( pwresponse_req == 1 ) {
 						slapi_pwpolicy_make_response_control ( pb, -1, -1,
 								LDAP_PWPOLICY_INVALIDPWDSYNTAX );
