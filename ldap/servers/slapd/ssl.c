@@ -359,9 +359,12 @@ freeChildren( char **list ) {
 	}
 }
 
-static void
-warn_if_no_cert_file(const char *dir)
+/* Logs a warning and returns 1 if cert file doesn't exist. You
+ * can skip the warning log message by setting no_log to 1.*/
+static int 
+warn_if_no_cert_file(const char *dir, int no_log)
 {
+    int ret = 0;
     char *filename = slapi_ch_smprintf("%s/cert8.db", dir);
 	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
 	if (PR_SUCCESS != status) {
@@ -369,25 +372,38 @@ warn_if_no_cert_file(const char *dir)
         filename = slapi_ch_smprintf("%s/cert7.db", dir);
         status = PR_Access(filename, PR_ACCESS_READ_OK);
         if (PR_SUCCESS != status) {
-            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-                            "Warning: certificate DB file cert8.db nor cert7.db exists in [%s] - SSL initialization will likely fail\n",
-                            dir);
+            ret = 1;
+            if (!no_log) {
+                slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                    "Warning: certificate DB file cert8.db nor cert7.db exists in [%s] - "
+                    "SSL initialization will likely fail\n", dir);
+            }
         }
     }
+
     slapi_ch_free_string(&filename);
+    return ret;
 }
 
-static void
-warn_if_no_key_file(const char *dir)
+/* Logs a warning and returns 1 if key file doesn't exist. You
+ * can skip the warning log message by setting no_log to 1.*/
+static int 
+warn_if_no_key_file(const char *dir, int no_log)
 {
+    int ret = 0;
 	char *filename = slapi_ch_smprintf("%s/key3.db", dir);
 	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
 	if (PR_SUCCESS != status) {
-        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-                        "Warning: key DB file %s does not exist - SSL initialization will likely fail\n",
-                        filename);
+        ret = 1;
+        if (!no_log) {
+            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                "Warning: key DB file %s does not exist - SSL initialization will "
+                "likely fail\n", filename);
+        }
 	}
+
 	slapi_ch_free_string(&filename);
+    return ret;
 }
 
 /*
@@ -404,11 +420,12 @@ warn_if_no_key_file(const char *dir)
 int 
 slapd_nss_init(int init_ssl, int config_available)
 {
-    SECStatus secStatus;
-    PRErrorCode errorCode;
-    int rv = 0;
+	SECStatus secStatus;
+	PRErrorCode errorCode;
+	int rv = 0;
 	int len = 0;
-    PRUint32 nssFlags = 0;
+	int create_certdb = 0;
+	PRUint32 nssFlags = 0;
 	char *certdir;
 	char *certdb_file_name = NULL;
 	char *keydb_file_name = NULL;
@@ -424,32 +441,38 @@ slapd_nss_init(int init_ssl, int config_available)
 		certdir[len-1] = '\0';
 	}
 
-    /* If the server is configured to use SSL, we must have a key and cert db */
-    if (config_get_security()) {
-        warn_if_no_cert_file(certdir);
-        warn_if_no_key_file(certdir);
-    } else { /* otherwise, NSS will create empty databases */
-        /* we open the key/cert db in rw mode, so make sure the directory 
-           is writable */
-        if (PR_SUCCESS != PR_Access(certdir, PR_ACCESS_WRITE_OK)) {
-            char *serveruser = "unknown";
+	/* If the server is configured to use SSL, we must have a key and cert db */
+	if (config_get_security()) {
+		warn_if_no_cert_file(certdir, 0);
+		warn_if_no_key_file(certdir, 0);
+	} else { /* otherwise, NSS will create empty databases */
+		/* we open the key/cert db in rw mode, so make sure the directory 
+		   is writable */
+		if (PR_SUCCESS != PR_Access(certdir, PR_ACCESS_WRITE_OK)) {
+			char *serveruser = "unknown";
 #ifndef _WIN32
-            serveruser = config_get_localuser();
+			serveruser = config_get_localuser();
 #endif
-            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
-                            "Warning: The key/cert database directory [%s] is not writable by "
-                            "the server uid [%s]: initialization likely to fail.\n",
-                            certdir, serveruser);
+			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+				"Warning: The key/cert database directory [%s] is not writable by "
+				"the server uid [%s]: initialization likely to fail.\n",
+				certdir, serveruser);
 #ifndef _WIN32
-            slapi_ch_free_string(&serveruser);
+			slapi_ch_free_string(&serveruser);
 #endif
-        }
-    }
+		}
+	}
 
-    /******** Initialise NSS *********/
+	/* Check if we have a certdb already.  If not, set a flag that we are
+	 * going to create one so we can set the appropriate permissions on it. */
+	if (warn_if_no_cert_file(certdir, 1) || warn_if_no_key_file(certdir, 1)) {
+		create_certdb = 1;
+	}
+
+	/******** Initialise NSS *********/
     
-    nssFlags &= (~NSS_INIT_READONLY);
-    slapd_pk11_configurePKCS11(NULL, NULL, tokDes, ptokDes, NULL, NULL, NULL, NULL, 0, 0 );
+	nssFlags &= (~NSS_INIT_READONLY);
+	slapd_pk11_configurePKCS11(NULL, NULL, tokDes, ptokDes, NULL, NULL, NULL, NULL, 0, 0 );
 	secStatus = NSS_Initialize(certdir, NULL, NULL, "secmod.db", nssFlags);
 
 	dongle_file_name = PR_smprintf("%s/pin.txt", certdir);
@@ -476,12 +499,14 @@ slapd_nss_init(int init_ssl, int config_available)
 	 * need to modify it after creation.  We need to allow read and
 	 * write permission to the group so the certs can be managed via
 	 * the console/adminserver. */
-	certdb_file_name = slapi_ch_smprintf("%s/cert8.db", certdir);
-	keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
-	secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
-	chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
-	chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
-	chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+	if (create_certdb) {
+		certdb_file_name = slapi_ch_smprintf("%s/cert8.db", certdir);
+		keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
+		secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
+		chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+		chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+		chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+	}
 
     /****** end of NSS Initialization ******/
     _nss_initialized = 1;
