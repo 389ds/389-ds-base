@@ -1055,6 +1055,8 @@ index_range_read(
     int retry_count = 0;
     int is_and = 0;
     int sizelimit = 0;
+    time_t curtime, stoptime, optime;
+    int timelimit = -1;
 
     *err = 0;
     plen = strlen( prefix = index2prefix( indextype ));
@@ -1063,6 +1065,9 @@ index_range_read(
     {
         slapi_pblock_get(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
     }
+    slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+    slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &timelimit);
+    stoptime = optime + timelimit;
 
     /*
      * Determine the lookthrough_limit from the PBlock.
@@ -1304,6 +1309,14 @@ index_range_read(
         if (idl != NULL && sizelimit > 0 && idl->b_nids > (ID)sizelimit)
         {
             LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read sizelimit exceeded\n",
+                                  0, 0, 0);
+            break;
+        }
+        /* check time limit */
+        curtime = current_time();
+        if ( timelimit != -1 && curtime >= stoptime )
+        {
+            LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read timelimit exceeded\n",
                                   0, 0, 0);
             break;
         }
