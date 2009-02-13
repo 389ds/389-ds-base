@@ -401,8 +401,8 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
 		       dnsize = 0;
 		       for(x=1; dnParts[x] != NULL; x++)
 		       { 
-			   /* +2 for space and comma adding later */
-			   dnsize += strlen(dnParts[x]) + 2;    
+			   /* +1 for comma adding later */
+			   dnsize += strlen(dnParts[x]) + 1;    
 		       }
 		       /* add the newrDN length */
 		       dnsize += strlen(newrDN) + 1;
@@ -411,7 +411,7 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
 		       strcat(newDN, newrDN);
 		       for(x=1; dnParts[x] != NULL; x++)
 		       { 
-			   strcat(newDN, ", ");
+			   strcat(newDN, ",");
 			   strcat(newDN, dnParts[x]);
 		       }
 	     
