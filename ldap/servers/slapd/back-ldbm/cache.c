@@ -865,7 +865,11 @@ int cache_replace(struct cache *cache, struct backentry *olde,
     /* adjust cache meta info */
     newe->ep_refcnt = 1;
     newe->size = cache_entry_size(newe);
-    slapi_counter_add(cache->c_cursize, newe->size - olde->size);
+    if (newe->size > olde->size) {
+        slapi_counter_add(cache->c_cursize, newe->size - olde->size);
+    } else if (newe->size < olde->size) {
+        slapi_counter_subtract(cache->c_cursize, olde->size - newe->size);
+    }
     olde->ep_state = ENTRY_STATE_DELETED;
     newe->ep_state = 0;
     PR_Unlock(cache->c_mutex);
