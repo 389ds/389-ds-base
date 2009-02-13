@@ -1,0 +1,233 @@
+#!@perlexec@
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# Copyright (C) 2007 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+use lib qw(@perlpath@);
+
+use strict;
+
+use File::Basename;
+use File::Path;
+use Util;
+use FileConn;
+
+sub usage {
+        print(STDERR "Usage: $0 [-f] -i instance\n\n");
+        print(STDERR " Opts: -f            - force removal\n");
+	print(STDERR "       -i instance   - instance name to remove (e.g. - slapd-example)\n");
+}
+
+# remove_tree($centry, $key, $instname, [$isparent, [$dontremove]])
+#     $centry: entry to look for the path to be removed
+#     $key: key to look for the path in the entry
+#     $instname: instance name "slapd-<ID>" to check the path
+#     $isparent: specify 1 to remove from the parent dir
+#     $dontremove: pattern not to be removed (e.g., ".db$")
+sub remove_tree
+{
+    my $centry = shift;
+    my $key = shift;
+    my $instname = shift;
+    my $isparent = shift;
+    my $dontremove = shift;
+
+    foreach my $path ( @{$centry->{$key}} )
+    {
+        my $rmdir = "";
+        my $rc = 0;
+        if ( 1 == $isparent )
+        {
+            $rmdir = dirname($path);
+        }
+        else
+        {
+            $rmdir = $path;
+        }
+        if ( -d $rmdir && $rmdir =~ /$instname/ )
+        {
+            if ( "" eq "$dontremove" )
+            {
+                $rc = rmtree($rmdir);
+                if ( 0 == $rc )
+                {
+                    print STDERR "Warning: $rmdir was not removed.\n";
+                }
+            }
+            else
+            {
+                # Skip the dontremove files
+                $rc = opendir(DIR, $rmdir);
+                if ($rc)
+                {
+                    while (defined(my $file = readdir(DIR)))
+                    {
+                        next if ( "$file" =~ /$dontremove/ );
+                        next if ( "$file" eq "." );
+                        next if ( "$file" eq ".." );
+                        my $rmfile = $rmdir . "/" . $file;
+                        my $rc0 = rmtree($rmfile);
+                        if ( 0 == $rc0 )
+                        {
+                            print STDERR "Warning: $rmfile was not removed.\n";
+                        }
+                    }
+                    closedir(DIR);
+                }
+                my $newrmdir = $rmdir . ".removed";
+                my $rc1 = 1;
+                if ( -d $newrmdir )
+                {
+                    $rc1 = rmtree($newrmdir);
+                    if ( 0 == $rc1 )
+                    {
+                        print STDERR "Warning: $newrmdir was not removed.\n";
+                    }
+                }
+                if ( 0 < $rc1 )
+                {
+                    rename($rmdir, $newrmdir);
+                }
+            }
+        }
+    }
+}
+
+sub remove_pidfile
+{
+    my ($type, $instdir, $instname) = @_;
+
+    my $pattern = "^" . $type . ".*=";
+    my $pidline = `grep $pattern $instdir/start-slapd`;
+    chomp($pidline);
+    my ($key, $pidfile) = split(/=/, $pidline);
+    if ( -e $pidfile && $pidfile =~ /$instname/ )
+    {
+        unlink($pidfile);
+    }
+}
+
+my $i = 0;
+my $force = "";
+my $instname = "";
+
+if ($#ARGV > 2) {
+    &usage; exit(1);
+}
+
+# load args from the command line
+while ($i <= $#ARGV) {
+    if ( "$ARGV[$i]" eq "-f" ) { 
+        $force = 1;
+    } elsif ("$ARGV[$i]" eq "-i") {
+        $i++;
+        $instname = $ARGV[$i];
+    }
+    $i++;
+}
+
+# Make sure the instance name option was provided.
+unless ($instname) {
+    &usage; exit(1);
+}
+
+# Make sure a full instance name was provided.
+my ($slapd, $inst) = split(/-/, $instname, 2);
+unless ($inst) {
+    print STDERR "Full instance name must be specified (e.g. - slapd-example)\n";
+    exit 1;
+}
+
+my $configdir = "@instconfigdir@/slapd-$inst";
+if ( ! -d $configdir )
+{
+    print STDERR "Error: $configdir does not exist\n";
+    exit 1;
+}
+
+# read the config file to find out the paths
+my $dseldif = "@instconfigdir@/$instname/dse.ldif";
+my $conn = new FileConn($dseldif);
+
+my $dn = "cn=config";
+my $entry = $conn->search($dn, "base", "(cn=*)", 0);
+if (!$entry)
+{
+    print STDERR "Error: Search $dn in $dseldif failed: $entry\n";
+    exit 1;
+}
+
+$dn = "cn=config,cn=ldbm database,cn=plugins,cn=config";
+my $dbentry = $conn->search($dn, "base", "(cn=*)", 0);
+if (!$dbentry)
+{
+    print "Error: Search $dn in $dseldif failed: $dbentry\n";
+    exit 1;
+}
+$conn->close();
+
+# stop the server
+my $instdir = "";
+foreach my $path ( @{$entry->{"nsslapd-instancedir"}} )
+{
+    if ( -d $path )
+    {
+        my $prog = $path . "/stop-slapd";
+        if (-x $prog) {
+            $? = 0;
+            # run the stop command
+            my $output = `$prog 2>&1`;
+            my $status = $?;
+            if ($status) {
+                # Ignore the stop failure
+                print STDERR "Warning: Could not stop directory server: $output\n";
+            }
+            $instdir = $path;    # need to use it later...
+        } elsif (!$force) {
+            print STDERR "Error: The program $prog does not exist\n";
+            exit 1;
+        }
+    }
+}
+    
+# remove physical dirs/files
+remove_tree($dbentry, "nsslapd-directory", $instname, 1);
+remove_tree($dbentry, "nsslapd-db-logdirectory", $instname, 1);
+remove_tree($entry, "nsslapd-lockdir", $instname);
+remove_tree($entry, "nsslapd-tmpdir", $instname);
+remove_tree($entry, "nsslapd-bakdir", $instname, 1);
+remove_tree($entry, "nsslapd-errorlog", $instname, 1);
+
+# instance dir
+if ( -d $instdir && $instdir =~ /$instname/ )
+{
+    # clean up pid files (if any)
+    remove_pidfile("STARTPIDFILE", $instdir, $instname);
+    remove_pidfile("PIDFILE", $instdir, $instname);
+
+    my $rc = rmtree($instdir);
+    if ( 0 == $rc )
+    {
+        print STDERR "Warning: $instdir was not removed.\n";
+    }
+}
+# Finally, config dir
+remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
+
+# if we got here, report success
+print "Instance $instname removed.\n";
+exit 0;

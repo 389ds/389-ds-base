@@ -61,7 +61,7 @@ LIBCRUN=@LIBCRUN@
 BUILT_SOURCES = dirver.h dberrstrs.h
 
 CLEANFILES =  dirver.h dberrstrs.h ns-slapd.properties \
-	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
@@ -232,7 +232,8 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/99user.ldif
 
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
-	ldap/admin/src/scripts/migrate-ds.pl
+	ldap/admin/src/scripts/migrate-ds.pl \
+	ldap/admin/src/scripts/remove-ds.pl
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
@@ -332,7 +333,8 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man1/rsearch.1 \
         man/man8/migrate-ds.pl.8 \
         man/man8/ns-slapd.8 \
-        man/man8/setup-ds.pl.8
+        man/man8/setup-ds.pl.8 \
+	man/man8/remove-ds.pl.8
 
 #////////////////////////////////////////////////////////////////
 #
