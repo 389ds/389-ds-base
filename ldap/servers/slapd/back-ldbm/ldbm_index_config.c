@@ -135,6 +135,7 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
 {
     char *arglist[] = { NULL, NULL, NULL, NULL };
     int argc = 0, i;
+    int isFirst;
     Slapi_Attr *attr;
     const struct berval *attrValue;
     Slapi_Value *sval;
@@ -150,6 +151,12 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
 
     slapi_attr_first_value(attr, &sval);
     attrValue = slapi_value_get_berval(sval);
+    if (NULL == attrValue->bv_val || 0 == strlen(attrValue->bv_val)) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "Warning: malformed index entry %s -- empty index name\n",
+                      slapi_entry_get_dn(e), 0, 0);
+        return LDAP_OPERATIONS_ERROR;
+    }
     arglist[argc++] = slapi_ch_strdup(attrValue->bv_val);
     if (index_name != NULL) {
         *index_name = slapi_ch_strdup(attrValue->bv_val);
@@ -157,15 +164,29 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
 
     /* Get the list of index types from the entry. */
     if (0 == slapi_entry_attr_find(e, "nsIndexType", &attr)) {
+        tmpBuf[0] = 0;
+        isFirst = 1;
         for (i = slapi_attr_first_value(attr, &sval); i != -1;
              i = slapi_attr_next_value(attr, i, &sval)) {
             attrValue = slapi_value_get_berval(sval);
-            if (0 == i) {
-                tmpBuf[0] = 0;
-                ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
-            } else {
-                ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
+            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
+                if (isFirst) {
+                    ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
+                    isFirst = 0;
+                } else {
+                    ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
+                }
             }
+        }
+        if (0 == tmpBuf[0]) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                     "Warning: malformed index entry %s -- empty nsIndexType\n",
+                     slapi_entry_get_dn(e), 0, 0);
+            slapi_ch_free_string(index_name);
+            for (i = 0; i < argc; i++) {
+                slapi_ch_free((void **)&arglist[i]);
+            }
+            return LDAP_OPERATIONS_ERROR;
         }
         arglist[argc++] = slapi_ch_strdup(tmpBuf);
     }
@@ -173,13 +194,16 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     tmpBuf[0] = 0;
     /* Get the list of matching rules from the entry. */
     if (0 == slapi_entry_attr_find(e, "nsMatchingRule", &attr)) {
+        isFirst = 1;
         for (i = slapi_attr_first_value(attr, &sval); i != -1;
              i = slapi_attr_next_value(attr, i, &sval)) {
             attrValue = slapi_value_get_berval(sval);
-            if (0 == i) {
-                ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
-            } else {
-                ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
+            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
+                if (isFirst) {
+                    ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
+                } else {
+                    ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
+                }
             }
         }
     }
@@ -189,14 +213,16 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
         i = slapi_attr_first_value(attr, &sval);
         if (-1 != i) {
             attrValue = slapi_value_get_berval(sval);
-            if (0 == tmpBuf[0]) {
-                PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
-                            INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
-            } else {
-                int tmpbuflen = strlen(tmpBuf);
-                char *p = tmpBuf + tmpbuflen;
-                PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
-                            INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
+            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
+                if (0 == tmpBuf[0]) {
+                    PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
+                                INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
+                } else {
+                    int tmpbuflen = strlen(tmpBuf);
+                    char *p = tmpBuf + tmpbuflen;
+                    PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
+                                INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
+                }
             }
         }
     }
@@ -206,14 +232,16 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
         i = slapi_attr_first_value(attr, &sval);
         if (-1 != i) {
             attrValue = slapi_value_get_berval(sval);
-            if (0 == tmpBuf[0]) {
-                PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
-                            INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
-            } else {
-                int tmpbuflen = strlen(tmpBuf);
-                char *p = tmpBuf + tmpbuflen;
-                PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
-                            INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
+            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
+                if (0 == tmpBuf[0]) {
+                    PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
+                                INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
+                } else {
+                    int tmpbuflen = strlen(tmpBuf);
+                    char *p = tmpBuf + tmpbuflen;
+                    PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
+                                INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
+                }
             }
         }
     }
@@ -223,14 +251,16 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
         i = slapi_attr_first_value(attr, &sval);
         if (-1 != i) {
             attrValue = slapi_value_get_berval(sval);
-            if (0 == tmpBuf[0]) {
-                PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
-                            INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
-            } else {
-                int tmpbuflen = strlen(tmpBuf);
-                char *p = tmpBuf + tmpbuflen;
-                PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
-                            INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
+            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
+                if (0 == tmpBuf[0]) {
+                    PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
+                                INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
+                } else {
+                    int tmpbuflen = strlen(tmpBuf);
+                    char *p = tmpBuf + tmpbuflen;
+                    PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
+                                INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
+                }
             }
         }
     }
