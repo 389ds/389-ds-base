@@ -13,11 +13,21 @@
 # desired value
 # ulimit -n 8192
 
-# In order to use SASL/GSSAPI the directory
+# A per instance keytab does not make much sense for servers.
+# Kerberos clients use the machine FQDN to obtain a ticket like ldap/FQDN, there
+# is nothing that can make a client understand how to get a per-instance ticket.
+# Therefore by default a keytab should be considered a per server option.
+
+# Also this file is sourced for all instances, so again all
+# instances would ultimately get the same keytab.
+
+# Finally a keytab is normally named either krb5.keytab or <service>.keytab
+
+# In order to use SASL/GSSAPI (Kerberos) the directory
 # server needs to know where to find its keytab
 # file - uncomment the following line and set
 # the path and filename appropriately
-# KRB5_KTNAME=@instconfigdir@/slapd-instance/keytab ; export KRB5_KTNAME
+# KRB5_KTNAME=@instconfigdir@/myname.keytab ; export KRB5_KTNAME
 
 # other environment settings can be added here too
 OS=`uname -s`
