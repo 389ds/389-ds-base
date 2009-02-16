@@ -3088,6 +3088,7 @@ static int cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int 
 
 	while( pAttrVal )
 	{
+		ret = 1; /* CoS attribute exists; return 1 */
 		if(!slapi_utf8casecmp((unsigned char*)the_cmp, (unsigned char*)pAttrVal->val))
 		{
 			/* compare match */
