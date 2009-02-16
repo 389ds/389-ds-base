@@ -1546,7 +1546,7 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
                 sprintf(buf, "%o", (int) ((uintptr_t)config->config_get_fn(arg)));
                 break;
         case CB_CONFIG_TYPE_LONG:
-                sprintf(buf, "%ld", (long) config->config_get_fn(arg));
+                sprintf(buf, "%ld", (long) ((uintptr_t)config->config_get_fn(arg)));
                 break;
         case CB_CONFIG_TYPE_STRING:
                 /* Remember the get function for strings returns memory

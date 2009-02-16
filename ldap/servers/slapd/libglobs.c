@@ -130,6 +130,12 @@ isIntegralType(ConfigVarType type)
 	return type == CONFIG_INT || type == CONFIG_LONG || type == CONFIG_ON_OFF;
 }
 
+static int
+isInt(ConfigVarType type)
+{
+    return type == CONFIG_INT || type == CONFIG_ON_OFF || type == CONFIG_SPECIAL_SSLCLIENTAUTH || type == CONFIG_SPECIAL_ERRORLOGLEVEL;
+}
+
 /* the caller will typically have to cast the result based on the ConfigVarType */
 typedef void *(*ConfigGetFunc)(void);
 
@@ -5459,8 +5465,10 @@ config_set_entry(Slapi_Entry *e)
      */
     for (ii = 0; ii < tablesize; ++ii) {
         struct config_get_and_set *cgas = &ConfigList[ii];
-        void **value = 0;
-        void *alloc_val;
+        int ival = 0;
+        long lval = 0;
+        void **value = NULL;
+        void *alloc_val = NULL;
         int needs_free = 0;
 
         PR_ASSERT(cgas);
@@ -5472,19 +5480,30 @@ config_set_entry(Slapi_Entry *e)
             continue;
         }
 
-        alloc_val = (cgas->getfunc)();
-
-        value = &alloc_val; /* value must be address of pointer */
-        if (!isIntegralType(cgas->config_var_type))
+        /* must cast return of getfunc and store in variable of correct sized type */
+        /* otherwise endianness problems will ensue */
+        if (isInt(cgas->config_var_type)) {
+            ival = (int)(intptr_t)(cgas->getfunc)();
+            value = (void **)&ival; /* value must be address of int */
+        } else if (cgas->config_var_type == CONFIG_LONG) {
+            lval = (long)(intptr_t)(cgas->getfunc)();
+            value = (void **)&lval; /* value must be address of long */
+        } else {
+            alloc_val = (cgas->getfunc)();
+            value = &alloc_val; /* value must be address of pointer */
             needs_free = 1; /* get funcs must return alloc'd memory except for get
                                funcs which return a simple integral type e.g. int */
+        }
 
         config_set_value(e, cgas, value);
 
         if (needs_free && value) { /* assumes memory allocated by slapi_ch_Xalloc */
             if (CONFIG_CHARRAY == cgas->config_var_type) {
                 charray_free(*((char ***)value));
-            } else {
+            } else if (CONFIG_SPECIAL_REFERRALLIST == cgas->config_var_type) {
+                ber_bvecfree(*((struct berval ***)value));
+            } else if ((CONFIG_CONSTANT_INT != cgas->config_var_type) && /* do not free constants */
+                       (CONFIG_CONSTANT_STRING != cgas->config_var_type)) {
                 slapi_ch_free(value);
             }
         }
