@@ -79,6 +79,16 @@ use Util;
 
 # these are the attributes for which we will always use
 # the new value, or which do not apply anymore
+# for the next major release e.g. when we support migration from the
+# current release 1.1.x to 1.2 or 2.0, the old version number will
+# become quite important for migration - for example, when migrating
+# from older than 1.1 to 1.1.x, we need to add the attributes in the
+# table below to the new entry because the attribute didn't exist
+# at all in the old server version - however, when migrating from
+# e.g. 1.1.x to 2.0, we must preserve the old value - this means
+# if the user has deleted the attribute from the entry, we must
+# "migrate" that deletion by removing the attribute from the new
+# entry
 my %ignoreOld =
 (
  'nsslapd-errorlog'                => 'nsslapd-errorlog',
@@ -91,6 +101,9 @@ my %ignoreOld =
  'nsslapd-pluginversion'           => 'nsslapd-pluginVersion',
  'nsslapd-plugin-depends-on-named' => 'nsslapd-plugin-depends-on-named',
 # these are new attrs that we should just pass through
+ 'nsslapd-allow-unauthenticated-binds' => 'nsslapd-allow-unauthenticated-binds',
+ 'nsslapd-saslpath'                => 'nsslapd-saslpath',
+ 'nsslapd-rundir'                  => 'nsslapd-rundir',
  'nsslapd-schemadir'               => 'nsslapd-schemadir',
  'nsslapd-lockdir'                 => 'nsslapd-lockdir',
  'nsslapd-tmpdir'                  => 'nsslapd-tmpdir',
