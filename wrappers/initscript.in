@@ -138,7 +138,10 @@ start() {
             server_running=0
             if [ -f $pidfile ]; then
                 pid=`cat $pidfile`
-                if kill -0 $pid > /dev/null 2>&1 ; then
+                instlockfile="@localstatedir@/lock/@package_name@/slapd-$instance/server/$pid"
+                if kill -0 $pid && \
+                 [ $(awk '{print $2}' /proc/$pid/stat) = "(ns-slapd)" ] \
+                 > /dev/null 2>&1 ; then
                     echo_n " already running"
                     success; echo
                     successes=`expr $successes + 1`
@@ -146,7 +149,9 @@ start() {
                 else
                     echo " not running, but pid file exists"
                     echo_n "    $instance... attempting to start anyway"
-                    rm -f $pidfile
+                    # Clean up the instance lockfile since we know the pid.  The
+                    # pidfiles will get cleaned up below.
+                    rm -f $instlockfile
                 fi
             fi
             server_started=0
