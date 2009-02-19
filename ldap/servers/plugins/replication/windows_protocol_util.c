@@ -3477,6 +3477,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	pb = slapi_pblock_new();
 	slapi_add_entry_internal_set_pb(pb, local_entry, NULL,repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),0);  
 	slapi_add_internal_pb(pb);
+	local_entry = NULL; /* consumed by add */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &retval);
 
 	if (retval) {
@@ -3484,6 +3485,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			"add operation of entry %s returned: %d\n", slapi_sdn_get_dn(local_sdn), retval);
 	}
 error:
+	slapi_entry_free(local_entry);
 	slapi_ch_free_string(&guid_str);
 	if (pb)
 	{

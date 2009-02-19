@@ -263,7 +263,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
 {
 	int rc = CL4_SUCCESS, res;
     char *changeEntryDN, *timeStr;
-    Slapi_Entry		*e;
+    Slapi_Entry		*e = NULL;
     Slapi_PBlock	*pb = NULL;
 	Slapi_Value     *values[3];
 	char s[CSN_STRSIZE];
@@ -364,6 +364,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
 	pb = slapi_pblock_new (pb);
 	slapi_add_entry_internal_set_pb (pb, e, NULL, repl_get_plugin_identity (PLUGIN_LEGACY_REPLICATION), 0);
 	slapi_add_internal_pb (pb);
+	e = NULL; /* add consumes entry */
 		
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	slapi_pblock_destroy(pb);
@@ -380,6 +381,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
 	}
  
 done:
+	slapi_entry_free(e);
 	if (changeEntryDN)   
 		slapi_ch_free((void **) &changeEntryDN);
 
