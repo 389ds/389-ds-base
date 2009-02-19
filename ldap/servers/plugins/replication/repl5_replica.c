@@ -2654,7 +2654,7 @@ replica_create_ruv_tombstone(Replica *r)
 {
 	int return_value = LDAP_LOCAL_ERROR;
 	char *root_entry_str;
-	Slapi_Entry *e;
+	Slapi_Entry *e = NULL;
     const char *purl = NULL;
     RUV *ruv;
     struct berval **bvals = NULL;
@@ -2744,15 +2744,13 @@ replica_create_ruv_tombstone(Replica *r)
 		OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP |
 		OP_FLAG_REPL_RUV);
 	slapi_add_internal_pb(pb);
+	e = NULL; /* add consumes e, upon success or failure */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
     if (return_value == LDAP_SUCCESS)
         r->repl_ruv_dirty = PR_FALSE;
 		
 done:
-    if (return_value != LDAP_SUCCESS)
-    {
-        slapi_entry_free (e);
-    }
+    slapi_entry_free (e);
 
     if (bvals)
         ber_bvecfree(bvals);
