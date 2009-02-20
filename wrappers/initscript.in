@@ -139,9 +139,8 @@ start() {
             if [ -f $pidfile ]; then
                 pid=`cat $pidfile`
                 instlockfile="@localstatedir@/lock/@package_name@/slapd-$instance/server/$pid"
-                if kill -0 $pid && \
-                 [ $(awk '{print $2}' /proc/$pid/stat) = "(ns-slapd)" ] \
-                 > /dev/null 2>&1 ; then
+                name=`ps -p $pid | tail -1 | awk '{ print $4 }'`
+                if kill -0 $pid && [ $name = "ns-slapd" ]; then
                     echo_n " already running"
                     success; echo
                     successes=`expr $successes + 1`
