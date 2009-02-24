@@ -192,6 +192,60 @@ sub write {
     close INF;
 }
 
+sub updateFromArgs {
+    my $self = shift;
+    my $argsinf = {}; # tmp for args read in
+
+    if (!@_) {
+        return 1; # no args - just return
+    }
+
+    # read args into temp inf
+    for (@_) {
+        if (/^([\w_-]+)\.([\w_-]+)=(.*)$/) { # e.g. section.param=value
+            my $sec = $1;
+            my $parm = $2;
+            my $val = $3;
+            # a single value is just a single scalar
+            # multiple values are represented by an array ref
+            if (exists($argsinf->{$sec}->{$parm})) {
+                if (!ref($argsinf->{$sec}->{$parm})) {
+                    # convert single scalar to array ref
+                    my $ary = [$argsinf->{$sec}->{$parm}];
+                    $argsinf->{$sec}->{$parm} = $ary;
+                }
+                # just push the new value
+                push @{$argsinf->{$sec}->{$parm}}, $val;
+            } else {
+                # single value
+                $argsinf->{$sec}->{$parm} = $val;
+            }
+        } else { # error
+            print STDERR "Error: unknown command line option $_\n";
+            return;
+        }
+    }
+
+    # no args read - just return true
+    if (!$argsinf || !%{$argsinf}) {
+        return 1;
+    }
+
+    # override inf with vals read from args
+    while (my ($name, $sec) = each %{$argsinf}) {
+        if (ref($sec) eq 'HASH') {
+            for my $key (keys %{$sec}) {
+                if (defined($sec->{$key})) {
+                    my $val = $sec->{$key};
+                    $self->{$name}->{$key} = $val;
+                }
+            }
+        }
+    }
+
+    return 1;
+}
+
 #############################################################################
 # Mandatory TRUE return value.
 #

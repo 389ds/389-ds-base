@@ -232,14 +232,9 @@ sub init {
     # see if user passed in default inf values - also, command line
     # arguments override those passed in via an inf file - this
     # allows the reuse of .inf files with some parameters overridden
-    for (@ARGV) {
-        if (/^([\w_-]+)\.([\w_-]+)=(.*)$/) { # e.g. section.param=value
-            $self->{inf}->{$1}->{$2} = $3;
-        } else { # error
-            print STDERR "Error: unknown command line option $_\n";
-            usage();
-            exit 1;
-        }
+    if (!$self->{inf}->updateFromArgs(@ARGV)) {
+        HelpMessage();
+        exit 1;
     }
 
     # this is the base config directory - the directory containing
