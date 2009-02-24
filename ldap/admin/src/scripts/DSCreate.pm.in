@@ -215,6 +215,28 @@ sub makeDSDirs {
             return @errs;
         }
     }
+    # run_dir is a special case because it is usually shared among
+    # all instances and the admin server
+    # all instances must be able to write to it
+    # if the SuiteSpotUserID is root or 0, we can just skip
+    # this because root will have access to it - we really
+    # shouldn't be using root anyway, primarily just for
+    # legacy migration support
+    # if there are two different user IDs that need access
+    # to this directory, then SuiteSpotGroup must be defined,
+    # and both users must be members of the SuiteSpotGroup
+    if (($inf->{General}->{SuiteSpotUserID} eq 'root') ||
+        (defined($inf->{General}->{SuiteSpotUserID}) &&
+         ($inf->{General}->{SuiteSpotUserID} =~ /^0$/))) {
+        # skip
+        debug(3, "Root user " . $inf->{General}->{SuiteSpotUserID} . " already has access to $inf->{slapd}->{run_dir} - skipping\n");
+    } else {
+        my $dir = $inf->{slapd}->{run_dir};
+        # rwx by user only, or by user & group if a group is defined
+        @errs = changeOwnerMode($inf, 7, $dir, 7);
+        debug(3, "Changed owner of $dir to " . $inf->{General}->{SuiteSpotUserID} . ": error @errs\n");
+        debug(3, "\t" . `/bin/ls -ld $dir`);
+    }
     # set the group of the parent dir of config_dir and inst_dir
     if (defined($inf->{General}->{SuiteSpotGroup})) {
         for (qw(inst_dir config_dir)) {
@@ -372,7 +394,10 @@ sub createConfigFile {
         }
     }
 
-    $conn->write($conffile);
+    if (!$conn->write($conffile)) {
+        $conn->close();
+        return ("error_writing_ldif", $conffile, $!);
+    }
     $conn->close();
 
     if (@errs = changeOwnerMode($inf, 6, $conffile)) {
@@ -506,11 +531,21 @@ sub initDatabase {
         
         my ($fh, $templdif) = tempfile("ldifXXXXXX", SUFFIX => ".ldif", OPEN => 0,
                                        DIR => File::Spec->tmpdir);
+        if (!$templdif) {
+            return ('error_creating_templdif', $!);
+        }
         my $conn = new FileConn;
         $conn->setNamingContext($inf->{slapd}->{Suffix});
         getMappedEntries($mapper, \@ldiffiles, \@errs, \&check_and_add_entry,
                          [$conn]);
-        $conn->write($templdif);
+        if (@errs) {
+            $conn->close();
+            return @errs;
+        }
+        if (!$conn->write($templdif)) {
+            $conn->close();
+            return ('error_writing_ldif', $templdif, $!);
+        }
         $conn->close();
         if (@errs) {
             return @errs;

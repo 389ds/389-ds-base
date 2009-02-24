@@ -162,6 +162,10 @@ if ( ! -d $configdir )
 # read the config file to find out the paths
 my $dseldif = "@instconfigdir@/$instname/dse.ldif";
 my $conn = new FileConn($dseldif);
+if (!$conn) {
+    print STDERR "Error: Could not open config file $dseldif: Error $!\n";
+    exit 1;
+}
 
 my $dn = "cn=config";
 my $entry = $conn->search($dn, "base", "(cn=*)", 0);

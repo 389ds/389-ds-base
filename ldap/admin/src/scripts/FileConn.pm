@@ -67,7 +67,9 @@ sub new {
         $self->setNamingContext($_);
     }
     $self->setNamingContext(""); # root DSE
-    $self->read($filename);
+    if (!$self->read($filename)) {
+        return;
+    }
 
     return $self;
 }
@@ -90,10 +92,14 @@ sub read {
     }
 
     if (!$self->{filename}) {
-        return;
+        return 1; # no filename given - ok
     }
 
-    open( MYLDIF, "$filename" ) || confess "Can't open $filename: $!";
+    if (!open( MYLDIF, "$filename" )) {
+        confess "Can't open $filename: $!";
+        return 0;
+    }
+
     my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
     $self->{reading} = 1;
     while ($ent = readOneEntry $in) {
@@ -103,6 +109,8 @@ sub read {
     }
     delete $self->{reading};
     close( MYLDIF );
+
+    return 1;
 }
 
 sub setNamingContext {
@@ -175,16 +183,22 @@ sub write {
     }
 
     if (!$self->{filename} or $self->{readonly} or $self->{reading}) {
-        return;
+        return 1; # ok - no filename given - just ignore
     }
 
-    open( MYLDIF, ">$filename" ) || confess "Can't write $filename: $!";
+    if (!open( MYLDIF, ">$filename" )) {
+        confess "Can't write $filename: $!";
+        return 0;
+    }
+
     $self->iterate("", LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
     for (keys %{$self->{namingContexts}}) {
         next if (!$_); # skip "" - we already did that
         $self->iterate($_, LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
     }
     close( MYLDIF );
+
+    return 1;
 }
 
 sub setErrorCode {
@@ -372,8 +386,7 @@ sub add {
     if ($self->isNamingContext($ndn) and
         !exists($self->{$ndn}->{data})) {
         $self->{$ndn}->{data} = $entry;
-        $self->write();
-        return 1;
+        return $self->write();
     }
 
     if (exists($self->{$ndn})) {
@@ -415,9 +428,7 @@ sub update {
     # process omits the deleted attrs via the Entry FETCH, FIRSTKEY, and NEXTKEY
     # methods
     $self->{$ndn}->{data} = cloneEntry($entry);
-    $self->write();
-
-    return 1;
+    return $self->write();
 }
 
 sub delete {
@@ -464,8 +475,7 @@ sub delete {
     # delete this node
     delete $self->{$ndn};
 
-    $self->write();
-    return 1;
+    return $self->write();
 }
 
 1;

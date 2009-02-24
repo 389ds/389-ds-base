@@ -938,11 +938,15 @@ sub migrateDS {
         # extract the information needed for ds_newinst.pl
         my $oldconfigdir = "$mig->{oldsroot}/$inst/config";
         my $inf = createInfFromConfig($oldconfigdir, $inst, \@errs);
-        debug(2, "Using inffile $inf->{filename} created from $oldconfigdir\n");
         if (@errs) {
             $mig->msg(@errs);
             return 0;
         }
+        if (!$inf) {
+            $mig->msg($FATAL, 'error_opening_dseldif', "$oldconfigdir/dse.ldif", $!);
+            return 0;
+        }
+        debug(2, "Using inffile $inf->{filename} created from $oldconfigdir\n");
 
         # create servers but do not start them until after databases
         # have been migrated
@@ -960,7 +964,16 @@ sub migrateDS {
         }
 
         my $src = new FileConn("$oldconfigdir/dse.ldif", 1); # read-only
+        if (!$src) {
+            $mig->msg($FATAL, 'error_opening_dseldif', "$oldconfigdir/dse.ldif", $!);
+            return 0;
+        }
         my $dest = new FileConn("$mig->{configdir}/$inst/dse.ldif");
+        if (!$dest) {
+            $src->close();
+            $mig->msg($FATAL, 'error_opening_dseldif', "$mig->{configdir}/$inst/dse.ldif", $!);
+            return 0;
+        }
 
         @errs = migrateDSInstance($mig, $inst, $src, $dest);
         $src->close();

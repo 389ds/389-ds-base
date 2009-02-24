@@ -127,3 +127,7 @@ Please remove it first if you really want to recreate it,\
 or use a different ServerIdentifier to create another instance.\n
 error_opening_init_ldif = Could not open the initial LDIF file '%s'.\
 The file was not found or could not be read.\n
+error_opening_dseldif = Could not open the DSE config file '%s'. Error: %s\n
+error_opening_tempinf = Could not create temporary .inf file for config. Error: %s\n
+error_writing_ldif = Could not write the LDIF file '%s'.  Error: %s\n
+error_creating_templdif = Could not create temporary LDIF file. Error: %s\n

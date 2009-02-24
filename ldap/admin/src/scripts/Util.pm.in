@@ -40,7 +40,7 @@ package Util;
 
 use Mozilla::LDAP::Conn;
 use Mozilla::LDAP::Utils qw(normalizeDN);
-use Mozilla::LDAP::API; # Direct access to C API
+use Mozilla::LDAP::API qw(:constant ldap_explode_dn ldap_err2string) ; # Direct access to C API
 use Mozilla::LDAP::LDIF;
 
 require Exporter;
@@ -172,85 +172,6 @@ sub delete_all
     return 0;
 }
 
-my %ignorelist = (
-    "nsslapd-directory", "nsslapd-directory",
-    "nsslapd-require-index", "nsslapd-require-index",
-    "nsslapd-readonly", "nsslapd-readonly",
-    "modifytimestamp", "modifyTimestamp",
-    "createtimestamp", "createTimestamp",
-    "installationtimestamp", "installationTimestamp",
-    "creatorsname", "creatorsName",
-    "modifiersname", "modifiersName",
-    "numsubordinates", "numSubordinates"
-);
-
-my %speciallist = (
-    "uniquemember", 1,
-    "aci", 1
-);
-
-# compare 2 entries
-# return 0 if they match 100% (exception: %ignorelist).
-# return 1 if they match except %speciallist.
-# return -1 if they do not match.
-sub comp_entries
-{
-    my ($e0, $e1) = @_;
-    my $rc = 0;
-    foreach my $akey ( keys %{$e0} )
-    {
-        next if ( $ignorelist{lc($akey)} );
-        my $aval0 = $e0->{$akey};
-        my $aval1 = $e1->{$akey};
-        my $a0max = $#{$aval0};
-        my $a1max = $#{$aval1};
-        my $amin = $#{$aval0};
-        if ( $a0max != $a1max )
-        {
-            if ( $speciallist{lc($akey)} )
-            {
-                $rc = 1;
-                if ( $a0max < $a1max )
-                {
-                    $amin = $a0max;
-                }
-                else
-                {
-                    $amin = $a1max;
-                }
-            }
-            else
-            {
-                $rc = -1;
-                return $rc;
-            }
-        }
-        my @sval0 = sort { $a cmp $b } @{$aval0};
-        my @sval1 = sort { $a cmp $b } @{$aval1};
-        for ( my $i = 0; $i <= $amin; $i++ )
-        {
-            my $isspecial = -1;
-            if ( $sval0[$i] ne $sval1[$i] )
-            {
-                if ( 0 > $isspecial )
-                {
-                    $isspecial = $speciallist{lc($akey)};
-                }
-                if ( $isspecial )
-                {
-                    $rc = 1;
-                }
-                else
-                {
-                    $rc = -1;
-                    return $rc;
-                }
-            }
-        }
-    }
-    return $rc;
-}
-
 # if the entry does not exist on the server, add the entry.
 # otherwise, do nothing
 # you can use this as the callback to getMappedEntries, so
@@ -272,9 +193,18 @@ sub check_and_add_entry
     my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)", 0, ("*", "aci"));
     if ($sentry) {
         debug(3, "check_and_add_entry: Found entry " . $sentry->getDN() . "\n");
+        if (! @ctypes) { # entry exists, and this is not a modify op
+            debug(3, "check_and_add_entry: skipping entry " . $sentry->getDN() . "\n");
+            return 1; # ignore - return success
+        }
     } else {
         debug(3, "check_and_add_entry: Entry not found " . $aentry->{dn} .
               " error " . $conn->getErrorString() . "\n");
+        if (@ctypes) { # uh oh - attempt to del/mod an entry that doesn't exist
+            debug(3, "check_and_add_entry: attepting to @ctypes the entry " . $aentry->{dn} .
+                  " that does not exist\n");
+            return 1; # ignore - return success
+        }
     }
     do
     {
@@ -289,39 +219,7 @@ sub check_and_add_entry
         my $op = $OP_NONE;
         if ( 0 > $#ctypes )    # aentry: complete entry
         {
-            $op = $OP_ADD;
-
-            my $rc = -1;
-            if ( $sentry && !$fresh )
-            {
-                $rc = comp_entries( $sentry, $aentry );
-            }
-            if ( 0 == $rc && !$fresh )
-            {
-                # the identical entry exists on the configuration DS.
-                # no need to add the entry.
-                $op = $OP_NONE;
-                goto out;
-            }
-            elsif ( (1 == $rc) && !$fresh )
-            {
-                $op = $OP_MOD;
-                @addtypes = keys %{$aentry}; # add all attrs
-            }
-            elsif ( $sentry && $sentry->{dn} )
-            {
-                # $fresh || $rc == -1
-                # an entry having the same DN exists, but the attributes do not
-                # match.  remove the entry and the subtree underneath.
-                debug(1, "Deleting an entry dn: $sentry->{dn} ...\n");
-                $rc = delete_all($conn, $sentry);
-                if ( 0 != $rc )
-                {
-                    push @{$errs}, 'error_deleteall_entries', $sentry->{dn}, $conn->getErrorString();
-                    debug(1, "Error deleting $sentry->{dn}\n");
-                    return 0;
-                }
-            }
+            $op = $OP_ADD; # just add the entry
         }
         else    # aentry: modify format
         {
@@ -371,9 +269,13 @@ sub check_and_add_entry
             }
             debug(1, "Entry $aentry->{dn} is deleted\n");
         }
-        elsif ( 0 < $op )    # $sentry exists
+        elsif ( 0 < $op )    # modify op
         {
             my $attr;
+            my @errsToIgnore;
+            if (@addtypes) {
+                push @errsToIgnore, LDAP_TYPE_OR_VALUE_EXISTS;
+            }                
             foreach $attr ( @addtypes )
             {
                 foreach my $val ($aentry->getValues($attr))
@@ -387,6 +289,9 @@ sub check_and_add_entry
                 my @vals = $aentry->getValues($attr);
                 debug(3, "Replacing attr=$attr values=" . $aentry->getValues($attr) . " to entry $aentry->{dn}\n");
                 $sentry->setValues($attr, @vals);
+            }
+            if (@deltypes) {
+                push @errsToIgnore, LDAP_NO_SUCH_ATTRIBUTE;
             }
             foreach $attr ( @deltypes )
             {
@@ -410,11 +315,15 @@ sub check_and_add_entry
             if ( $rc != 0 )
             {
                 my $string = $conn->getErrorString();
-                push @{$errs}, 'error_updating_entry', $sentry->{dn}, $string;
                 debug(1, "ERROR: updating an entry $sentry->{dn} failed, error: $string\n");
-                $aentry->printLDIF();
-                $conn->close();
-                return 0;
+                if (grep /^$rc$/, @errsToIgnore) {
+                    debug(1, "Ignoring error $rc returned by adding @addtypes deleting @deltypes\n");
+                } else {
+                    push @{$errs}, 'error_updating_entry', $sentry->{dn}, $string;
+                    $aentry->printLDIF();
+                    $conn->close();
+                    return 0;
+                }
             }
         }
         if ( $sentry )
@@ -793,19 +702,32 @@ sub createInfFromConfig {
     my $fname = "$configdir/dse.ldif";
     my $id;
     ($id = $inst) =~ s/^slapd-//;
-    if (! -f $fname) {
+    if (! -f $fname || ! -r $fname) {
         push @{$errs}, "error_opening_dseldif", $fname, $!;
         return 0;
     }
     my $conn = new FileConn($fname, 1);
-
-    my $ent = $conn->search("cn=config", "base", "(objectclass=*)");
-    if (!$ent) {
+    if (!$conn) {
         push @{$errs}, "error_opening_dseldif", $fname, $!;
         return 0;
     }
 
+    my $ent = $conn->search("cn=config", "base", "(objectclass=*)");
+    if (!$ent) {
+        push @{$errs}, "error_opening_dseldif", $fname, $!;
+        $conn->close();
+        return 0;
+    }
+
     my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
+    if (!$outfh || !$inffile) {
+        push @{$errs}, "error_opening_tempinf", $fname, $!;
+        if ($outfh) {
+            close $outfh;
+        }
+        $conn->close();
+        return 0;
+    }
     print $outfh "[General]\n";
     print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
     print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
