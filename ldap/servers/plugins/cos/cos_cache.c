@@ -2517,12 +2517,13 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 	if(props)
 		*props = 0;
 
-	if(hit == 1 && props && pDefAttr) {
+	if(hit == 1 && props) {
 		if (
-		((using_default && pDefAttr->attr_operational == 1) ||
-		(!using_default && pCache->ppAttrIndex[attr_matched_index]->attr_operational == 1)) ||
-		((using_default && pDefAttr->attr_operational_default == 1) ||
-		(!using_default && pCache->ppAttrIndex[attr_matched_index]->attr_operational_default == 1)) )
+			(using_default && pDefAttr &&
+			 ((pDefAttr->attr_operational == 1) || (pDefAttr->attr_operational_default == 1))) ||
+			(!using_default && pCache && pCache->ppAttrIndex && pCache->ppAttrIndex[attr_matched_index] &&
+			 ((pCache->ppAttrIndex[attr_matched_index]->attr_operational == 1) ||
+			  (pCache->ppAttrIndex[attr_matched_index]->attr_operational_default == 1))))
 	{
 		/* this is an operational attribute, lets mark it so */
 		*props |= SLAPI_ATTR_FLAG_OPATTR;
