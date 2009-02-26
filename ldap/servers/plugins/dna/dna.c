@@ -2628,18 +2628,44 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
                     if (slapi_attr_types_equivalent(type,
                                                     config_entry->type)) {
-                        struct berval *bv =
-                            slapi_mod_get_first_value(smod);
-                        int len = strlen(config_entry->generate);
+                        /* If all values are being deleted, we need to
+                         * generate a new value. */
+                        if (SLAPI_IS_MOD_DELETE(slapi_mod_get_operation(smod))) {
+                            int numvals = slapi_mod_get_num_values(smod);
 
-
-                        if (len == bv->bv_len) {
-                            if (!slapi_UTF8NCASECMP(bv->bv_val,
-                                                    config_entry->generate,
-                                                    len))
-
+                            if (numvals == 0) {
                                 generate = 1;
-                            break;
+                            } else {
+                                Slapi_Attr *attr = NULL;
+                                int e_numvals = 0;
+
+                                slapi_entry_attr_find(e, type, &attr);
+                                if (attr) {
+                                    slapi_attr_get_numvalues(attr, &e_numvals);
+                                    if (numvals >= e_numvals) {
+                                        generate = 1;
+                                    }
+                                }
+                            }
+                        } else {
+                            /* This is either adding or replacing a value */
+                            struct berval *bv = slapi_mod_get_first_value(smod);
+
+                            /* If we have a value, see if it's the magic value. */
+                            if (bv) {
+                                int len = strlen(config_entry->generate);
+                                if (len == bv->bv_len) {
+                                    if (!slapi_UTF8NCASECMP(bv->bv_val,
+                                                            config_entry->generate,
+                                                            len))
+                                        generate = 1;
+                                    break;
+                                }
+                            } else {
+                                /* This is a replace with no new values, so we need
+                                 * to generate a new value. */
+                                generate = 1;
+                            }
                         }
                     }
 
