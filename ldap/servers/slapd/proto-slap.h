@@ -494,6 +494,8 @@ int load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 void init_controls( void );
 int get_ldapmessage_controls( Slapi_PBlock *pb, BerElement *ber,
 	LDAPControl ***controls );
+int get_ldapmessage_controls_ext( Slapi_PBlock *pb, BerElement *ber,
+	LDAPControl ***controls, int ignore_criticality );
 int write_controls( BerElement *ber, LDAPControl **ctrls );
 void add_control( LDAPControl ***ctrlsp, LDAPControl *newctrl );
 

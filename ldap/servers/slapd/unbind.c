@@ -68,6 +68,7 @@ do_unbind( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement	*ber;
 	int		err;
+	int ignore_criticality = 1;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_unbind\n", 0, 0, 0 );
 
@@ -90,8 +91,10 @@ do_unbind( Slapi_PBlock *pb )
 	 * in LDAPv3 there can be optional control extensions on
 	 * the end of an LDAPMessage. we need to read them in and
 	 * pass them to the backend.
+	 * RFC 4511 section 4.1.11.  Controls says that the UnbindRequest
+	 * MUST ignore the criticality field of controls
 	 */
-	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 ) {
+	if ( (err = get_ldapmessage_controls_ext( pb, ber, NULL, ignore_criticality )) != 0 ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d UNBIND,"
 				" error processing controls - error %d (%s)\n",
 				pb->pb_conn->c_connid, operation->o_opid,

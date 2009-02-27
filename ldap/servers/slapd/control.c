@@ -183,12 +183,16 @@ int slapi_get_supported_controls_copy( char ***ctrloidsp, unsigned long **ctrlop
 	return (0);
 }
 
-
+/*
+ * RFC 4511 section 4.1.11.  Controls says that the UnbindRequest
+ * MUST ignore the criticality field of controls
+ */
 int
-get_ldapmessage_controls(
+get_ldapmessage_controls_ext(
     Slapi_PBlock	*pb,
     BerElement		*ber,
-    LDAPControl		***controlsp	/* can be NULL if no need to return */
+    LDAPControl		***controlsp,	/* can be NULL if no need to return */
+    int                 ignore_criticality /* some requests must ignore criticality */
 )
 {
 	LDAPControl		**ctrls, *new;
@@ -294,6 +298,10 @@ get_ldapmessage_controls(
 			/* absent is synonomous with FALSE */
 			new->ldctl_iscritical = 0;
 		}
+		/* if we are ignoring criticality, treat as FALSE */
+		if (ignore_criticality) {
+		    new->ldctl_iscritical = 0;
+		}
 
 		/*
 		 * return an appropriate error if this control is marked
@@ -380,6 +388,15 @@ free_and_return:;
 	return( rc );
 }
 
+int
+get_ldapmessage_controls(
+    Slapi_PBlock	*pb,
+    BerElement		*ber,
+    LDAPControl		***controlsp	/* can be NULL if no need to return */
+)
+{
+    return get_ldapmessage_controls_ext(pb, ber, controlsp, 0 /* do not ignore criticality */);
+}
 
 int
 slapi_control_present( LDAPControl **controls, char *oid, struct berval **val, int *iscritical )
