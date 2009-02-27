@@ -563,7 +563,7 @@ sub initDatabase {
         return ();
     }
 
-    my $cmd = "$inf->{slapd}->{inst_dir}/ldif2db -n userRoot -i \'$ldiffile\'";
+    my $cmd = "$inf->{slapd}->{inst_dir}/ldif2db -n $inf->{slapd}->{ds_bename} -i \'$ldiffile\'";
     $? = 0; # clear error condition
     my $output = `$cmd 2>&1`;
     my $result = $?;
