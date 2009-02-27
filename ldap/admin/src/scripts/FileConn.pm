@@ -46,7 +46,7 @@ use Mozilla::LDAP::API qw(:constant ldap_explode_dn ldap_err2string); # Direct a
 use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::LDIF;
 
-use Carp;
+use Util qw(debug);
 
 require    Exporter;
 @ISA       = qw(Exporter Mozilla::LDAP::Conn);
@@ -96,7 +96,7 @@ sub read {
     }
 
     if (!open( MYLDIF, "$filename" )) {
-        confess "Can't open $filename: $!";
+        debug(1, "Could not open $filename: $!\n");
         return 0;
     }
 
@@ -104,7 +104,7 @@ sub read {
     $self->{reading} = 1;
     while ($ent = readOneEntry $in) {
         if (!$self->add($ent)) {
-            confess "Error: could not add entry ", $ent->getDN(), ":", $self->getErrorString();
+            debug(1, "Error: could not add entry " . $ent->getDN() . ":" . $self->getErrorString());
         }
     }
     delete $self->{reading};
@@ -187,7 +187,7 @@ sub write {
     }
 
     if (!open( MYLDIF, ">$filename" )) {
-        confess "Can't write $filename: $!";
+        debug(1, "Can't write $filename: $!\n");
         return 0;
     }
 
@@ -416,11 +416,15 @@ sub update {
     my $dn = $entry->getDN();
     my $ndn = normalizeDN($dn);
 
-    confess "Attempt to modify read only $self->{filename} entry $dn" if ($self->{readonly});
+    if ($self->{readonly}) {
+        debug(1, "Attempt to update read only $self->{filename} entry $dn\n");
+        return 0;
+    }
 
     $self->setErrorCode(0);
     if (!exists($self->{$ndn})) {
         $self->setErrorCode(LDAP_NO_SUCH_OBJECT);
+        debug(1, "Attempt to update entry $dn that does not exist\n");
         return 0;
     }
 
@@ -435,7 +439,10 @@ sub delete {
     my $self = shift;
     my $dn = shift;
 
-    confess "Attempt to modify read only $self->{filename} entry $dn" if ($self->{readonly});
+    if ($self->{readonly}) {
+        debug(1, "Attempt to delete read only $self->{filename} entry $dn\n");
+        return 0;
+    }
 
     if (ref($dn)) {
         $dn = $dn->getDN(); # an Entry
@@ -445,11 +452,13 @@ sub delete {
     $self->setErrorCode(0);
     if (!exists($self->{$ndn})) {
         $self->setErrorCode(LDAP_NO_SUCH_OBJECT);
+        debug(1, "Attempt to delete entry $dn that does not exist\n");
         return 0;
     }
 
     if (@{$self->{$ndn}->{children}}) {
         $self->setErrorCode(LDAP_NOT_ALLOWED_ON_NONLEAF);
+        debug(1, "Attempt to delete entry $dn that has children\n");
         return 0;
     }
 

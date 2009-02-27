@@ -48,11 +48,11 @@ require Exporter;
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
                 getHashedPassword debug createInfFromConfig
-                isValidServerID isValidUser makePaths getLogin);
+                isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
                 getHashedPassword debug createInfFromConfig
-                isValidServerID isValidUser makePaths getLogin);
+                isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 
 use strict;
 
@@ -60,6 +60,9 @@ use Socket;
 
 use File::Temp qw(tempfile tempdir);
 use File::Basename qw(dirname);
+use File::Path qw(rmtree);
+
+use Carp;
 
 $Util::debuglevel = 0;
 # use like this:
@@ -115,8 +118,10 @@ sub isValidServerID {
 # we want the name of the effective user id of this process e.g. if someone did
 # an su root, we want getLogin to return "root" not the originating id (getlogin)
 # in perl, $> is the effective numeric user id - we need to turn it into a string
+# use confess here because if we cannot determine the user, something is really,
+# really wrong and we need to abort immediately
 sub getLogin {
-    return (getpwuid($>))[0] || $ENV{USER} || die "Error: could not determine the current user ID: $!";
+    return (getpwuid($>))[0] || $ENV{USER} || confess "Error: could not determine the current user ID: $!";
 }
 
 sub isValidUser {
@@ -812,6 +817,101 @@ sub makePaths {
     }
 
     return ();
+}
+
+# remove_tree($centry, $key, $instname, [$isparent, [$dontremove]])
+#     $centry: entry to look for the path to be removed
+#     $key: key to look for the path in the entry
+#     $instname: instance name "slapd-<ID>" to check the path
+#     $isparent: specify 1 to remove from the parent dir
+#     $dontremove: pattern not to be removed (e.g., ".db$")
+sub remove_tree
+{
+    my $centry = shift;
+    my $key = shift;
+    my $instname = shift;
+    my $isparent = shift;
+    my $dontremove = shift;
+    my @errs = (); # a list of array refs - each array ref is suitable for passing to Resource::getText
+
+    foreach my $path ( @{$centry->{$key}} )
+    {
+        my $rmdir = "";
+        my $rc = 0;
+        if ( 1 == $isparent )
+        {
+            $rmdir = dirname($path);
+        }
+        else
+        {
+            $rmdir = $path;
+        }
+        if ( -d $rmdir && $rmdir =~ /$instname/ )
+        {
+            if ( "" eq "$dontremove" )
+            {
+                $rc = rmtree($rmdir);
+                if ( 0 == $rc )
+                {
+                    push @errs, [ 'error_removing_path', $rmdir, $! ];
+                    debug(1, "Warning: $rmdir was not removed.  Error: $!\n");
+                }
+            }
+            else
+            {
+                # Skip the dontremove files
+                $rc = opendir(DIR, $rmdir);
+                if ($rc)
+                {
+                    while (defined(my $file = readdir(DIR)))
+                    {
+                        next if ( "$file" =~ /$dontremove/ );
+                        next if ( "$file" eq "." );
+                        next if ( "$file" eq ".." );
+                        my $rmfile = $rmdir . "/" . $file;
+                        my $rc0 = rmtree($rmfile);
+                        if ( 0 == $rc0 )
+                        {
+                            push @errs, [ 'error_removing_path', $rmfile, $! ];
+                            debug(1, "Warning: $rmfile was not removed.  Error: $!\n");
+                        }
+                    }
+                    closedir(DIR);
+                }
+                my $newrmdir = $rmdir . ".removed";
+                my $rc1 = 1;
+                if ( -d $newrmdir )
+                {
+                    $rc1 = rmtree($newrmdir);
+                    if ( 0 == $rc1 )
+                    {
+                        push @errs, [ 'error_removing_path', $newrmdir, $! ];
+                        debug(1, "Warning: $newrmdir was not removed.  Error: $!\n");
+                    }
+                }
+                if ( 0 < $rc1 )
+                {
+                    rename($rmdir, $newrmdir);
+                }
+            }
+        }
+    }
+
+    return @errs; # a list of array refs - if (!@errs) then success
+}
+
+sub remove_pidfile
+{
+    my ($type, $instdir, $instname) = @_;
+
+    my $pattern = "^" . $type . ".*=";
+    my $pidline = `grep $pattern $instdir/start-slapd`;
+    chomp($pidline);
+    my ($key, $pidfile) = split(/=/, $pidline);
+    if ( -e $pidfile && $pidfile =~ /$instname/ )
+    {
+        unlink($pidfile);
+    }
 }
 
 1;

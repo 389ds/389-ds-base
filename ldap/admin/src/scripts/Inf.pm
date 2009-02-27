@@ -82,7 +82,10 @@ sub read {
     if ($filename eq "-") {
         $inffh = \*STDIN;
     } else {
-        open INF, $filename or die "Error: could not open inf file $filename: $!";
+        if (!open(INF, $filename)) {
+            print STDERR "Error: could not open inf file $filename: $!\n";
+            return;
+        }
         $inffh = \*INF;
     }
     while (<$inffh>) {
@@ -180,7 +183,10 @@ sub write {
 
     return if ($filename eq "-");
 
-    open INF, ">$filename" or die "Error: could not write inf file $filename: $!";
+    if (!open(INF, ">$filename")) {
+        print STDERR "Error: could not write inf file $filename: $!\n";
+        return;
+    }
     # write General section first
     $self->writeSection('General', \*INF);
     print INF "\n";

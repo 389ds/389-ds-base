@@ -125,14 +125,23 @@ to LDIF format, and the LDIF file must be in the default database directory
 the same name as the database instance directory, with a ".ldif".  For
 example, if you have
 .IP
-/opt/fedora\-ds/slapd\-instance/db/userRoot/ and
+.ad l
+.nf
+/opt/fedora\-ds/slapd\-instance/db/userRoot/
+and
 /opt/fedora\-ds/slapd\-instance/db/NetscapeRoot/
+.na
+.fi
 .PP
 you must first use db2ldif to export these databases to LDIF e.g.
 .IP
+.ad l
+.nf
 cd /opt/fedora\-ds/slapd\-instance
 \&./db2ldif \fB\-n\fR userRoot \fB\-a\fR /opt/fedora\-ds/slapd\-instance/db/userRoot.ldif and
 \&./db2ldif \fB\-n\fR NetscapeRoot \fB\-a\fR /opt/fedora\-ds/slapd\-instance/db/NetscapeRoot.ldif
+.fi
+.na
 .PP
 Then you must somehow make your old server root directory available on
 the destination machine, either by creating a tar archive on the source

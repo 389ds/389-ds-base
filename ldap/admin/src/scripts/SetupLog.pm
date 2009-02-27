@@ -67,7 +67,10 @@ sub new {
         ($fh, $filename) = tempfile("${prefix}XXXXXX", UNLINK => 0,
                                     SUFFIX => ".log", DIR => File::Spec->tmpdir);
     } else {
-        open LOGFILE, ">$filename" or die "Error: could not open logfile $filename: $!";
+        if (!open(LOGFILE, ">$filename")) {
+            print STDERR "Error: could not open logfile $filename: $!\n";
+            return;
+        }
         $fh = \*LOGFILE;
     }
     $self->{fh} = $fh;

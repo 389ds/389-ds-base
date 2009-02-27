@@ -363,7 +363,10 @@ sub migrateNetscapeRoot {
     ($fh, $tmpldiffile) = tempfile("nsrootXXXXXX", UNLINK => 0,
                                    SUFFIX => ".ldif", OPEN => 1,
                                    DIR => File::Spec->tmpdir);
-    open( MYLDIF, "$ldiffile" ) || confess "Can't open $ldiffile: $!";
+    if (!open( MYLDIF, "$ldiffile" )) {
+        debug(1, "Error: Can't open $ldiffile: $!");
+        return;
+    }
     my $in = new Mozilla::LDAP::LDIF(*MYLDIF);
     while (my $ent = readOneEntry $in) {
         my $dn = $ent->getDN();
@@ -443,12 +446,16 @@ sub migrateDatabases {
         my $deleteflag = 0;
         if ($fname =~ /NetscapeRoot.ldif$/) {
             $fname = migrateNetscapeRoot($fname);
-            # make sure $fname is owned by the server user
-            my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
-            my $user = $cfgent->getValues('nsslapd-localuser');
-            my $uid = getpwnam $user;
-            chown $uid, -1, $fname;
-            $deleteflag = 1;
+            if ($fname) {
+                # make sure $fname is owned by the server user
+                my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
+                my $user = $cfgent->getValues('nsslapd-localuser');
+                my $uid = getpwnam $user;
+                chown $uid, -1, $fname;
+                $deleteflag = 1;
+            } else {
+                return ("error_creating_templdif", $!);
+            }
         }
         my $cmd = "$inst_dir/ldif2db -n \"$dbname\" -i \"$fname\"";
         debug(1, "migrateDatabases: executing command $cmd\n");
@@ -838,7 +845,10 @@ sub migrateSchema {
         my %intattrs = ();
         for (glob("$newschemadir/*.ldif")) {
             # read in schema entry from LDIF
-            open( MYSCHEMA, $_ ) || die "Can't open $_: $!";
+            if (!open( MYSCHEMA, $_ )) {
+                debug(0, "Can't open schema file $_: $!\n");
+                next;
+            }
             my $in = new Mozilla::LDAP::LDIF(*MYSCHEMA);
             while (my $ent = readOneEntry $in) {
                 my @attrs = $ent->getValues('attributeTypes');

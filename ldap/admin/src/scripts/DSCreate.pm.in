@@ -54,6 +54,7 @@ use File::Temp qw(tempfile tempdir);
 use File::Path;
 use File::Copy;
 use File::Basename qw(basename dirname);
+use POSIX qw(:errno_h);
 
 # load perldap
 use Mozilla::LDAP::Conn;
@@ -63,8 +64,8 @@ use Mozilla::LDAP::LDIF;
 
 use Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(createDSInstance);
-@EXPORT_OK = qw(createDSInstance);
+@EXPORT    = qw(createDSInstance removeDSInstance);
+@EXPORT_OK = qw(createDSInstance removeDSInstance);
 
 use strict;
 
@@ -892,6 +893,133 @@ sub createDSInstance {
 
     if (@errs = startServer($inf)) {
         return @errs;
+    }
+
+    return @errs;
+}
+
+sub stopServer {
+    my $instancedir = shift;
+    my $prog = $instancedir . "/stop-slapd";
+    if (-x $prog) {
+        $? = 0;
+        # run the stop command
+        my $output = `$prog 2>&1`;
+        my $status = $?;
+        debug(3, "stopping server $instancedir returns status $status: output $output\n");
+        if ($status) {
+            debug(1,"Warning: Could not stop directory server: status $status: output $output\n");
+            # if the server is not running, that's ok
+            if ($output =~ /not running/) {
+                $! = ENOENT;
+                return 1;
+            }
+            # else, some other error (e.g. permission) - return false for error
+            return;
+        }
+    } else {
+        debug(1, "stopping server: no such program $prog: cannot stop server\n");
+        return;
+    }
+
+    debug(1, "Successfully stopped server $instancedir\n");
+    return 1;
+}
+
+# NOTE: Returns a list of array ref - each array ref is suitable for passing
+# to Resource::getText
+sub removeDSInstance {
+    my $inst = shift;
+    my $force = shift;
+    my $baseconfigdir = $ENV{DS_CONFIG_DIR} || "@instconfigdir@";
+    my $instname = "slapd-$inst";
+    my $configdir = "$baseconfigdir/$instname";
+    my @errs;
+    if ( ! -d $configdir )
+    {
+        debug(1, "Error: $configdir does not exist: $!\n");
+        return ( [ 'error_no_such_instance', $configdir, $! ] );
+    }
+    # read the config file to find out the paths
+    my $dseldif = "$configdir/dse.ldif";
+    my $conn = new FileConn($dseldif, 1);
+    if (!$conn) {
+        debug(1, "Error: Could not open config file $dseldif: Error $!\n");
+        return ( [ 'error_opening_dseldif', $dseldif, $! ] );
+    }
+
+    my $dn = "cn=config";
+    my $entry = $conn->search($dn, "base", "(cn=*)", 0);
+    if (!$entry)
+    {
+        debug(1, "Error: Search $dn in $dseldif failed: $entry\n");
+        push @errs, [ 'error_finding_config_entry', $dn, $dseldif, $conn->getErrorString() ];
+    }
+
+    $dn = "cn=config,cn=ldbm database,cn=plugins,cn=config";
+    my $dbentry = $conn->search($dn, "base", "(cn=*)", 0);
+    if (!$dbentry)
+    {
+        debug(1, "Error: Search $dn in $dseldif failed: $dbentry\n");
+        push @errs, [ 'error_finding_config_entry', $dn, $dseldif, $conn->getErrorString() ];
+    }
+    $conn->close();
+
+    # stop the server
+    my $instdir = "";
+    if ($entry) {
+        foreach my $path ( @{$entry->{"nsslapd-instancedir"}} )
+        {
+            if (!stopServer($path)) {
+                if ($force) {
+                    debug(1, "Warning: Could not stop directory server - Error: $! - forcing continue\n");
+                } elsif ($! == ENOENT) { # stop script not found or server not running
+                    debug(1, "Warning: Could not stop directory server: already removed or not running\n");
+                    push @errs, [ 'error_stopping_server', $path, $! ];
+                } else { # real error
+                    debug(1, "Error: Could not stop directory server - aborting - use -f flag to force removal\n");
+                    push @errs, [ 'error_stopping_server', $path, $! ];
+                    return @errs;
+                }
+            }
+            $instdir = $path;
+        }
+    }
+
+    # remove physical dirs/files
+    if ($dbentry) {
+        push @errs, remove_tree($dbentry, "nsslapd-directory", $instname, 1);
+        push @errs, remove_tree($dbentry, "nsslapd-db-logdirectory", $instname, 1);
+    }
+    if ($entry) {
+        push @errs, remove_tree($entry, "nsslapd-lockdir", $instname);
+        push @errs, remove_tree($entry, "nsslapd-tmpdir", $instname);
+        push @errs, remove_tree($entry, "nsslapd-bakdir", $instname, 1);
+        push @errs, remove_tree($entry, "nsslapd-errorlog", $instname, 1);
+    }
+
+    # instance dir
+    if ( -d $instdir && $instdir =~ /$instname/ )
+    {
+        # clean up pid files (if any)
+        remove_pidfile("STARTPIDFILE", $instdir, $instname);
+        remove_pidfile("PIDFILE", $instdir, $instname);
+
+        my $rc = rmtree($instdir);
+        if ( 0 == $rc )
+        {
+            push @errs, [ 'error_removing_path', $instdir, $! ];
+            debug(1, "Warning: $instdir was not removed.  Error: $!\n");
+        }
+    }
+    # Finally, config dir
+    push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
+
+    # if we got here, report success
+    if (@errs) {
+        debug(1, "Could not successfully remove $instname\n");
+    } else {
+        debug(1, "Instance $instname removed.\n");
     }
 
     return @errs;
