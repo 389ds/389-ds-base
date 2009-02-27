@@ -2497,6 +2497,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
     PRCList *list = 0;
     struct configEntry *config_entry = 0;
     struct slapi_entry *e = 0;
+    Slapi_Entry *resulting_e = 0;
     char *last_type = 0;
     char *value = 0;
     int generate = 0;
@@ -2544,6 +2545,17 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
         smods = slapi_mods_new();
         slapi_mods_init_passin(smods, mods);
+
+        /* We need the resulting entry after the mods are applied to
+         * see if the entry is within the scope. */
+        if (e) {
+            resulting_e = slapi_entry_dup(e);
+            if (mods && (slapi_entry_apply_mods(resulting_e, mods) != LDAP_SUCCESS)) {
+                /* The mods don't apply cleanly, so we just let this op go
+                 * to let the main server handle it. */
+                goto bailmod;
+            }
+        }
     }
 
     if (0 == e)
@@ -2554,15 +2566,16 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
          * This allows us to reject invalid config changes
          * here at the pre-op stage.  Applying the config
          * needs to be done at the post-op stage. */
-        if (smods) {
-            if (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS) {
-                /* The mods don't apply cleanly, so we just let this op go
-                 * to let the main server handle it. */
-                goto bailmod;
-            }
+        Slapi_Entry *test_e = NULL;
+
+        /* For a MOD, we need to check the resulting entry */
+        if (LDAP_CHANGETYPE_ADD == modtype) {
+            test_e = e;
+        } else {
+            test_e = resulting_e;
         }
 
-        if (dna_parse_config_entry(e, 0) != DNA_SUCCESS) {
+        if (dna_parse_config_entry(test_e, 0) != DNA_SUCCESS) {
             /* Refuse the operation if config parsing failed. */
             ret = LDAP_UNWILLING_TO_PERFORM;
             if (LDAP_CHANGETYPE_ADD == modtype) {
@@ -2599,8 +2612,18 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
+                Slapi_Entry *test_e = NULL;
+
+                /* For a MOD operation, we need to check the filter
+                 * against the resulting entry. */
+                if (LDAP_CHANGETYPE_ADD == modtype) {
+                    test_e = e;
+                } else {
+                    test_e = resulting_e;
+                }
+
                 if (LDAP_SUCCESS != slapi_vattr_filter_test(pb,
-                                                            e,
+                                                            test_e,
                                                             config_entry->
                                                             slapi_filter, 0))
                     goto next;
@@ -2676,6 +2699,20 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                 slapi_mod_free(&next_mod);
             }
 
+            /* We need to perform one last check for modify operations.  If an
+             * entry within the scope has not triggered generation yet, we need
+             * to see if a value exists for the managed type in the resulting
+             * entry.  This will catch a modify operation that brings an entry
+             * into scope for a managed range, but doesn't supply a value for
+             * the managed type.
+             */
+            if ((LDAP_CHANGETYPE_MODIFY == modtype) && !generate) {
+                Slapi_Attr *attr = NULL;
+                if (slapi_entry_attr_find(resulting_e, config_entry->type, &attr) != 0) {
+                    generate = 1;
+                }
+            }
+
             if (generate) {
                 char *new_value;
                 int len;
@@ -2749,6 +2786,9 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
     if (free_entry && e)
         slapi_entry_free(e);
+
+    if (resulting_e)
+        slapi_entry_free(resulting_e);
 
     if (ret) {
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
