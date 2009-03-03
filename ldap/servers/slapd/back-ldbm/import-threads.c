@@ -461,8 +461,8 @@ void import_producer(void *param)
                 fd = dblayer_open_huge_file(curr_filename, o_flag, 0);
             }
             if (fd < 0) {
-                import_log_notice(job, "Could not open LDIF file \"%s\"",
-                                  curr_filename);
+                import_log_notice(job, "Could not open LDIF file \"%s\", errno %d (%s)",
+                                  curr_filename, errno, slapd_system_strerror(errno));
                 goto error;
             }
             if (fd == STDIN_FILENO) {
