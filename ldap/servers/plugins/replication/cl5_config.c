@@ -497,8 +497,6 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					"old dir - %s, new dir - %s; recreating changelog.\n",
 					currentDir, config.dir);
 
-			/* this call will block until all threads using changelog
-			   release changelog by calling cl5RemoveThread () */
 			rc = cl5Close ();
 			if (rc != CL5_SUCCESS)
 			{
@@ -511,6 +509,9 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 					"changelog5_config_modify: failed to close changelog\n");
 				goto done;
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+								"changelog5_config_modify: closed the changelog\n");
 			}
 
 			rc = cl5Delete (currentDir);
@@ -525,6 +526,9 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 					"changelog5_config_modify: failed to remove changelog\n");
 				goto done;
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+								"changelog5_config_modify: deleted the changelog at %s\n", currentDir);
 			}
 
 			rc = cl5Open (config.dir, &config.dbconfig);
@@ -544,6 +548,9 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 									"changelog5_config_modify: failed to restore previous changelog\n");
 				}
 				goto done;
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+								"changelog5_config_modify: opened the changelog at %s\n", config.dir);
 			}
 		}
 	}

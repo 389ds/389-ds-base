@@ -178,6 +178,9 @@ static void csn_dup_or_init_by_csn ( CSN **csn1, CSN *csn2 );
 int
 clcache_init ( DB_ENV **dbenv )
 {
+	if (_pool) {
+		return 0; /* already initialized */
+	}
 	_pool = (struct clc_pool*) slapi_ch_calloc ( 1, sizeof ( struct clc_pool ));
 	_pool->pl_dbenv = dbenv;
 	_pool->pl_buffer_cnt_min = DEFAULT_CLC_BUFFER_COUNT_MIN;
@@ -225,12 +228,23 @@ int
 clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv )
 {
 	int rc = 0;
+	int need_new;
 
 	if ( buf == NULL ) return CL5_BAD_DATA;
 
 	*buf = NULL;
 
-	if ( NULL != ( *buf = (CLC_Buffer*) get_thread_private_cache()) ) {
+	/* if the pool was re-initialized, the thread private cache will be invalid,
+	   so we must get a new one */
+	need_new = (!_pool || !_pool->pl_busy_lists || !_pool->pl_busy_lists->bl_buffers);
+
+	if ( (!need_new) && (NULL != ( *buf = (CLC_Buffer*) get_thread_private_cache())) ) {
+		slapi_log_error ( SLAPI_LOG_REPL, get_thread_private_agmtname(),
+						  "clcache_get_buffer: found thread private buffer cache %p\n", *buf);
+		slapi_log_error ( SLAPI_LOG_REPL, get_thread_private_agmtname(),
+						  "clcache_get_buffer: _pool is %p _pool->pl_busy_lists is %p _pool->pl_busy_lists->bl_buffers is %p\n",
+						  _pool, _pool ? _pool->pl_busy_lists : NULL,
+						  (_pool && _pool->pl_busy_lists) ? _pool->pl_busy_lists->bl_buffers : NULL);
 		(*buf)->buf_state = CLC_STATE_READY;
 		(*buf)->buf_load_cnt = 0;
 		(*buf)->buf_record_cnt = 0;
@@ -481,6 +495,7 @@ clcache_refresh_consumer_maxcsns ( CLC_Buffer *buf )
 	int i;
 
 	for ( i = 0; i < buf->buf_num_cscbs; i++ ) {
+		csn_free(&buf->buf_cscbs[i]->consumer_maxcsn);
 		ruv_get_largest_csn_for_replica (
 				buf->buf_consumer_ruv,
 				buf->buf_cscbs[i]->rid,
@@ -841,8 +856,22 @@ static void
 clcache_delete_busy_list ( CLC_Busy_List **bl )
 {
 	if ( bl && *bl ) {
+		CLC_Buffer *buf = NULL;
 		if ( (*bl)->bl_lock ) {
+			PR_Lock ( (*bl)->bl_lock );
+		}
+		buf = (*bl)->bl_buffers;
+		while (buf) {
+			CLC_Buffer *next = buf->buf_next;
+			clcache_delete_buffer(&buf);
+			buf = next;
+		}
+		(*bl)->bl_buffers = NULL;
+		(*bl)->bl_db = NULL;
+		if ( (*bl)->bl_lock ) {
+			PR_Unlock ( (*bl)->bl_lock );
 			PR_DestroyLock ( (*bl)->bl_lock );
+			(*bl)->bl_lock = NULL;
 		}
 		/* csn_free (&( (*bl)->bl_max_csn )); */
 		slapi_ch_free ( (void **) bl );
@@ -950,4 +979,30 @@ csn_dup_or_init_by_csn ( CSN **csn1, CSN *csn2 )
 	if ( *csn1 == NULL )
 		*csn1 = csn_new();
 	csn_init_by_csn ( *csn1, csn2 );
+}
+
+void
+clcache_destroy()
+{
+	if (_pool) {
+		CLC_Busy_List *bl = NULL;
+		if (_pool->pl_lock) {
+			PR_RWLock_Wlock (_pool->pl_lock);
+		}
+
+		bl = _pool->pl_busy_lists;
+		while (bl) {
+			CLC_Busy_List *next = bl->bl_next;
+			clcache_delete_busy_list(&bl);
+			bl = next;
+		}
+		_pool->pl_busy_lists = NULL;
+		_pool->pl_dbenv = NULL;
+		if (_pool->pl_lock) {
+			PR_RWLock_Unlock(_pool->pl_lock);
+			PR_DestroyRWLock(_pool->pl_lock);
+			_pool->pl_lock = NULL;
+		}
+		slapi_ch_free ( (void **) &_pool );
+	}
 }

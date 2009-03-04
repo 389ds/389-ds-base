@@ -55,5 +55,6 @@ int	 clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, cons
 int	 clcache_load_buffer ( CLC_Buffer *buf, CSN *startCSN, int flag );
 void clcache_return_buffer ( CLC_Buffer **buf );
 int	 clcache_get_next_change ( CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn );
+void clcache_destroy ();
 
 #endif

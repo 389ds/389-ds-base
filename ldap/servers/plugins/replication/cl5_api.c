@@ -527,7 +527,7 @@ int cl5Open (const char *dir, const CL5DBConfig *config)
 	/* already open - ignore */
 	if (s_cl5Desc.dbState == CL5_STATE_OPEN)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 					"cl5Open: changelog already opened; request ignored\n");
 		rc = CL5_SUCCESS;
 		goto done;
@@ -919,6 +919,11 @@ int cl5GetUpperBoundRUV (Replica *r, RUV **ruv)
         *ruv = ruv_dup (file->maxRUV);
 
         object_release (file_obj);
+	}
+	else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5GetUpperBoundRUV: "
+					    "could not find DB object for replica\n");
 	}
 
     object_release (r_obj);
@@ -1756,7 +1761,7 @@ int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRu
 	if (replica == NULL || consumerRuv == NULL || iterator == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"cl5CreateReplayIterator: invalid parameter\n");
+						"cl5CreateReplayIteratorEx: invalid parameter\n");
 		return CL5_BAD_DATA;
 	}
 
@@ -1765,7 +1770,7 @@ int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRu
 	if (s_cl5Desc.dbState == CL5_STATE_NONE)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"cl5CreateReplayIterator: changelog is not initialized\n");
+						"cl5CreateReplayIteratorEx: changelog is not initialized\n");
 		return CL5_BAD_STATE;
 	}
 
@@ -1787,8 +1792,17 @@ int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRu
 				object_release (obj);
 		}
 	}
+	else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"cl5CreateReplayIteratorEx: could not find DB object for replica\n");
+	}
 
-	_cl5RemoveThread ();
+	if (rc != CL5_SUCCESS)
+	{
+		/* release the thread */
+		_cl5RemoveThread ();
+	}
 
 	return rc;	
 }
@@ -1842,8 +1856,17 @@ int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *consumerRuv,
 				object_release (obj);
 		}
 	}
+	else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"cl5CreateReplayIterator: could not find DB object for replica\n");
+	}
 
-	_cl5RemoveThread ();
+	if (rc != CL5_SUCCESS)
+	{
+		/* release the thread */
+		_cl5RemoveThread ();
+	}
 
 	return rc;	
 
@@ -1937,14 +1960,21 @@ void cl5DestroyReplayIterator (CL5ReplayIterator **iterator)
 
 	clcache_return_buffer ( &(*iterator)->clcache );
 
-	if ((*iterator)->fileObj)
+	if ((*iterator)->fileObj) {
 		object_release ((*iterator)->fileObj);
+		(*iterator)->fileObj = NULL;
+	}
 
     /* release supplier's ruv */
-    if ((*iterator)->supplierRuvObj)
+    if ((*iterator)->supplierRuvObj) {
         object_release ((*iterator)->supplierRuvObj);
+        (*iterator)->supplierRuvObj = NULL;
+	}
 
 	slapi_ch_free ((void **)iterator);
+
+	/* this thread no longer holds a db reference, release it */
+	_cl5RemoveThread();
 }
 
 /* Name:		cl5DeleteOnClose
@@ -2039,10 +2069,14 @@ int cl5GetOperationCount (Object *replica)
 			PR_ASSERT (file);
 
 			count = file->entryCount; 
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"cl5GetOperationCount: found DB object %p\n", obj);
 			object_release (obj);
 		}
 		else
 		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"cl5GetOperationCount: could not get DB object for replica\n");
 			count = 0;
 		}
 	}
@@ -2069,6 +2103,12 @@ static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode ope
 	else
 	{
 		_cl5SetDefaultDBConfig ();
+	}
+
+	/* init the clcache */
+	if (( clcache_init (&s_cl5Desc.dbEnv) != 0 )) {
+		rc = CL5_SYSTEM_ERROR;
+		goto done;
 	}
 
 	/* initialize trimming */
@@ -2404,6 +2444,7 @@ static int _cl5DBOpen ()
 	PRDirEntry *entry = NULL;
 	int rc;
 	Object *replica;
+	int count = 0;
 
 	/* create lock that guarantees that each file is only added once to the list */
 	s_cl5Desc.fileLock = PR_NewLock ();
@@ -2445,6 +2486,7 @@ static int _cl5DBOpen ()
 			    }
 
                 object_release (replica);
+				count++;
 		    }
             else /* there is no matching replica for the file - remove */
             {
@@ -2464,6 +2506,8 @@ static int _cl5DBOpen ()
         }
 	}
 		
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBOpen: "
+					"opened %d existing databases in %s\n", count, s_cl5Desc.dbDir);
 	PR_CloseDir(dir);
 
 	return CL5_SUCCESS;
@@ -2759,11 +2803,11 @@ static int _cl5AddThread ()
 		return CL5_BAD_STATE;			
 	}
 
+	PR_RWLock_Unlock (s_cl5Desc.stLock);
+
 	/* increment global thread count to make sure that changelog does not close while
 	   backup is in progress */
 	PR_AtomicIncrement (&s_cl5Desc.threadCount);
-
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
 
 	return CL5_SUCCESS;
 }
@@ -3157,6 +3201,7 @@ static int _cl5DeadlockMain (void *param)
 	}
 
 	PR_AtomicDecrement (&s_cl5Desc.threadCount);
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DeadlockMain: exiting\n");
     return 0;
 }
 
@@ -3237,6 +3282,7 @@ static int  _cl5CheckpointMain (void *param)
 	}
 
 	PR_AtomicDecrement (&s_cl5Desc.threadCount);
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckpointMain: exiting\n");
     return 0;
 }
 
@@ -3262,6 +3308,7 @@ static int  _cl5TrickleMain (void *param)
 	}
 
 	PR_AtomicDecrement (&s_cl5Desc.threadCount);
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrickleMain: exiting\n");
 
 	return 0;
 }
@@ -3773,28 +3820,38 @@ static void _cl5Close ()
 	if (s_cl5Desc.dbState != CL5_STATE_CLOSED) /* Don't try to close twice */
 	{
 
-		/* close db files */
-		_cl5DBClose ();
-
-		/* stop global threads */
+		/* cl5Close() set the state flag to CL5_STATE_CLOSING, which should
+		   trigger all of the db housekeeping threads to exit, and which will
+		   eventually cause no new update threads to start - so we wait here
+		   for those other threads to finish before we proceed */
 		interval = PR_MillisecondsToInterval(100);			
 		while (s_cl5Desc.threadCount > 0)
 		{
-			slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name_cl,
+			slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name_cl,
 							"_cl5Close: waiting for threads to exit: %d thread(s) still active\n",
 							s_cl5Desc.threadCount);
 			DS_Sleep(interval);
 		}
 		
+		/* There should now be no threads accessing any of the changelog databases -
+		   it is safe to remove those databases */
+		_cl5DBClose ();
+
 		/* cleanup trimming */
 		_cl5TrimCleanup ();
 
-		/* shutdown db environment */
+		/* There should be no more open databases after _cl5DBClose, so it is now
+		   safe to close the dbEnv */
 		if (s_cl5Desc.dbEnv)
 		{
 			DB_ENV *dbEnv = s_cl5Desc.dbEnv;
-			dbEnv->close(dbEnv, 0);
+			int rc = dbEnv->close(dbEnv, 0);
 			s_cl5Desc.dbEnv = NULL;
+			if (rc) {
+				slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name_cl,
+								 "_cl5Close: error closing DB environment: %d (%s)\n",
+								 rc, db_strerror(rc));
+			}
 		}
 
 		/* record successful close by writing guardian file;
@@ -3828,11 +3885,20 @@ static void _cl5DBClose ()
 {
 	if (NULL != s_cl5Desc.dbFiles)
 	{
-		objset_delete (&s_cl5Desc.dbFiles);	
+		Object *obj;
+		for (obj = objset_first_obj(s_cl5Desc.dbFiles); obj;
+			 obj = objset_next_obj(s_cl5Desc.dbFiles, obj)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"_cl5DBClose: deleting DB object %p\n", obj);
+		}
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"_cl5DBClose: closing databases in %s\n", s_cl5Desc.dbDir);
+		objset_delete (&s_cl5Desc.dbFiles);
 	}
 	if (NULL != s_cl5Desc.fileLock)
 	{
 		PR_DestroyLock (s_cl5Desc.fileLock);
+		s_cl5Desc.fileLock = NULL;
 	}
 }
 
@@ -3936,6 +4002,9 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 						"_cl5Delete: changelog dir (%s) is not empty - cannot remove\n",
 						clDir);
 	}
+
+	/* invalidate the clcache */
+	clcache_destroy();
 			
 	return CL5_SUCCESS;
 }
@@ -4142,6 +4211,7 @@ static int _cl5TrimMain (void *param)
 	}
 
 	PR_AtomicDecrement (&s_cl5Desc.threadCount);
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrimMain: exiting\n");
 
     return 0;
 }
@@ -4502,8 +4572,8 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 	else
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-			"_cl5WriteRUV: failed to write %s RUV for file %s; db error - %d\n",
-			purge? "purge" : "upper bound", file->name, rc);
+			"_cl5WriteRUV: failed to write %s RUV for file %s; db error - %d (%s)\n",
+			purge? "purge" : "upper bound", file->name, rc, db_strerror(rc));
 
 		if (CL5_OS_ERR_IS_DISKFULL(rc))
 		{
@@ -5168,12 +5238,14 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
                                           PR_TRUE /* check for duplicates */);
 		if (rc != CL5_SUCCESS)
 		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"_cl5WriteOperation: failed to find or open DB object for replica %s\n", replName);
 			return rc;
 		}
 	}
 	else if (rc != CL5_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 						"_cl5WriteOperation: failed to get db file for target dn (%s)", 
 						op->target_address.dn);
 		return CL5_OBJSET_ERROR;
@@ -5283,7 +5355,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 			}
 			else if ((cnt + 1) >= MAX_TRIALS)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5WriteOperation: retry (%d) the transaction (csn=%s) failed (rc=%d)\n", cnt, (char*)key.data, rc);
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5WriteOperation: retry (%d) the transaction (csn=%s) failed (rc=%d (%s))\n", cnt, (char*)key.data, rc, db_strerror(rc));
 			}
 		}
 		cnt ++;
@@ -6235,6 +6307,8 @@ static int _cl5DBOpenFileByReplicaName (const char *replName, const char *replGe
 		file_name = NULL;
 		if (tmpObj)	/* this file already exist */
 		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"_cl5DBOpenFileByReplicaName: Found DB object %p for replica %s\n", tmpObj, replName);
 			/* if we were asked for file handle - keep the handle */
 			if (obj)
 			{
@@ -6281,6 +6355,8 @@ static int _cl5DBOpenFileByReplicaName (const char *replName, const char *replGe
 			/* Mark the DB File initialize */
 			_cl5DBFileInitialized(tmpObj);
 			
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+							"_cl5DBOpenFileByReplicaName: created new DB object %p\n", tmpObj);
 			if (obj)
 			{
 				*obj = tmpObj;
@@ -6324,6 +6400,11 @@ static int _cl5AddDBFile (CL5DBFile *file, Object **obj)
 						"repl_objset error - %d\n", rc);
 		object_release (tmpObj);
 		return CL5_OBJSET_ERROR;
+	}
+	else
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"_cl5AddDBFile: Added new DB object %p\n", tmpObj);
 	}
 
 	if (obj)
@@ -6516,6 +6597,11 @@ static void _cl5DBCloseFile (void **data)
 
 	file = *(CL5DBFile**)data;
 
+	PR_ASSERT (file);
+
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
+					"Closing database %s/%s\n", s_cl5Desc.dbDir, file->name);
+
 	/* close the file */
 	/* if this is normal close or close after import, update entry count */	
 	if ((s_cl5Desc.dbOpenMode == CL5_OPEN_NORMAL && s_cl5Desc.dbState == CL5_STATE_CLOSING) ||
@@ -6527,28 +6613,38 @@ static void _cl5DBCloseFile (void **data)
 	}
 
 	/* close the db */
-	if (file->db)
+	if (file->db) {
 	    file->db->close(file->db, 0);
+	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
+						"Closed the changelog database handle for %s/%s\n", s_cl5Desc.dbDir, file->name);
+	    file->db = NULL;
+	}
 
 	if (file->flags & DB_FILE_DELETED)
-        {
-            int rc = 0;
-            /* We need to use the libdb API to delete the files, otherwise we'll
-             * run into problems when we try to checkpoint transactions later. */
-            PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, file->name);
-            rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, fullpathname, 0, 0);
-            if (rc != 0)
-	    {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-                    "failed to remove (%s) file; libdb error - %d (%s)\n", 
-					fullpathname, rc, db_strerror(rc));
-            }
+    {
+		int rc = 0;
+		/* We need to use the libdb API to delete the files, otherwise we'll
+		 * run into problems when we try to checkpoint transactions later. */
+		PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, file->name);
+		rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, fullpathname, 0, 0);
+		if (rc != 0)
+		{
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
+							"failed to remove (%s) file; libdb error - %d (%s)\n", 
+							fullpathname, rc, db_strerror(rc));
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
+							"Deleted the changelog database file %s/%s\n", s_cl5Desc.dbDir, file->name);
+
         }
+	}
 
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free ((void**)&file->name);
 	slapi_ch_free ((void**)&file->replName);
 	slapi_ch_free ((void**)&file->replGen);
+	ruv_destroy(&file->maxRUV);
+	ruv_destroy(&file->purgeRUV);
 	if (file->sema) {
 		PR_CloseSemaphore (file->sema);
 		PR_DeleteSemaphore (file->semaName);
@@ -6568,13 +6664,18 @@ static int _cl5GetDBFile (Object *replica, Object **obj)
     fileName = _cl5Replica2FileName (replica);
 
 	*obj = objset_find(s_cl5Desc.dbFiles, _cl5CompareDBFile, fileName);
-	slapi_ch_free ((void**)&fileName);
 	if (*obj)
 	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5GetDBFile: "
+						"found DB object %p for database %s\n", *obj, fileName);
+		slapi_ch_free_string(&fileName);
 		return CL5_SUCCESS;
 	}
 	else
 	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5GetDBFile: "
+						"no DB object found for database %s\n", fileName);
+		slapi_ch_free_string(&fileName);
 		return CL5_NOTFOUND;
 	}
 }
@@ -6589,13 +6690,18 @@ static int _cl5GetDBFileByReplicaName (const char *replName, const char *replGen
     fileName = _cl5MakeFileName (replName, replGen);
 
 	*obj = objset_find(s_cl5Desc.dbFiles, _cl5CompareDBFile, fileName);
-	slapi_ch_free ((void**)&fileName);
 	if (*obj)
 	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5GetDBFileByReplicaName: "
+						"found DB object %p for database %s\n", *obj, fileName);
+		slapi_ch_free_string(&fileName);
 		return CL5_SUCCESS;
 	}
 	else
 	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5GetDBFileByReplicaName: "
+						"no DB object found for database %s\n", fileName);
+		slapi_ch_free_string(&fileName);
 		return CL5_NOTFOUND;
 	}
 }
@@ -6603,13 +6709,21 @@ static int _cl5GetDBFileByReplicaName (const char *replName, const char *replGen
 static void _cl5DBDeleteFile (Object *obj)
 {
     CL5DBFile *file;
+    int rc = 0;
 
     PR_ASSERT (obj);
 
     file = (CL5DBFile*)object_get_data (obj);
 	PR_ASSERT (file);
 	file->flags |= DB_FILE_DELETED;
-	objset_remove_obj(s_cl5Desc.dbFiles, obj);
+	rc = objset_remove_obj(s_cl5Desc.dbFiles, obj);
+	if (rc != OBJSET_SUCCESS) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBDeleteFile: "
+						"could not find DB object %p\n", obj);
+	} else {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBDeleteFile: "
+						"removed DB object %p\n", obj);
+	}
 	object_release (obj);
 }
 
