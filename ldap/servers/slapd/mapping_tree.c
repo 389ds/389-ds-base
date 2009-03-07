@@ -910,7 +910,9 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
         filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(!(%s=*)))",
                  MAPPING_TREE_PARENT_ATTRIBUTE);
     } else {
-        filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(%s=\"%s\"))",
+        filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(|(%s=\"%s\")(%s=%s)))",
+            MAPPING_TREE_PARENT_ATTRIBUTE, 
+            slapi_sdn_get_dn(target->mtn_subtree),
             MAPPING_TREE_PARENT_ATTRIBUTE, 
             slapi_sdn_get_dn(target->mtn_subtree));
     }
