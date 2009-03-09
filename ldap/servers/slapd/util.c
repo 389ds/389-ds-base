@@ -916,23 +916,6 @@ static int slapd_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
     return SASL_OK;
 }
 
-/* copied from mozldap libldap/saslbind.c - except 
-   SASL_CB_GETPATH added as last item (before SASL_CB_LIST_END
-   This allows us to set the sasl path used for outgoing
-   client connections */
-sasl_callback_t slapd_client_callbacks[] = {
-        { SASL_CB_GETOPT, slapd_sasl_fail, NULL },
-        { SASL_CB_GETREALM, NULL, NULL },
-        { SASL_CB_USER, NULL, NULL },
-        { SASL_CB_CANON_USER, NULL, NULL },
-        { SASL_CB_AUTHNAME, NULL, NULL },
-        { SASL_CB_PASS, NULL, NULL },
-        { SASL_CB_ECHOPROMPT, NULL, NULL },
-        { SASL_CB_NOECHOPROMPT, NULL, NULL },
-        { SASL_CB_GETPATH, slapd_sasl_getpluginpath, NULL },
-        { SASL_CB_LIST_END, NULL, NULL }
-};
-
 /*
   Perform LDAP init and return an LDAP* handle.  If ldapurl is given,
   that is used as the basis for the protocol, host, port, and whether
@@ -947,6 +930,10 @@ sasl_callback_t slapd_client_callbacks[] = {
   filename is the ldapi file name - if this is given, and no other options
   are given, ldapi is assumed.
  */
+/* util_sasl_path: the string argument for putenv.
+   It must be a global or a static */
+char util_sasl_path[MAXPATHLEN];
+
 LDAP *
 slapi_ldap_init_ext(
     const char *ldapurl, /* full ldap url */
@@ -962,16 +949,36 @@ slapi_ldap_init_ext(
     LDAPURLDesc	*ludp = NULL;
     LDAP *ld = NULL;
     int rc = 0;
-    extern sasl_callback_t *client_callbacks;
 
     /* We need to provide a sasl path used for client connections, especially
        if the server is not set up to be a sasl server - since mozldap provides
-       no way to override the default path programatically, we replace its
-       client callback list with our own so that we can provide a CB_GETPATH
-       callback */
-    if (client_callbacks != slapd_client_callbacks) {
-	client_callbacks = slapd_client_callbacks;
+       no way to override the default path programatically, we set the sasl
+       path to the environment variable SASL_PATH. */
+    char *configpluginpath = config_get_saslpath();
+    char *pluginpath = configpluginpath;
+    char *pp = NULL;
+
+    if (NULL == pluginpath || (*pluginpath == '\0')) {
+	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+			"configpluginpath == NULL\n");
+        if (!(pluginpath = getenv("SASL_PATH"))) {
+#if defined(LINUX) && defined(__LP64__)
+            pluginpath = "/usr/lib64/sasl2";
+#else
+            pluginpath = "/usr/lib/sasl2";
+#endif
+        }
     }
+    if ('\0' == util_sasl_path[0] || /* first time */
+        NULL == (pp = strchr(util_sasl_path, '=')) || /* invalid arg for putenv */
+        (0 != strcmp(++pp, pluginpath)) /* sasl_path has been updated */ ) {
+        PR_snprintf(util_sasl_path, sizeof(util_sasl_path),
+                                        "SASL_PATH=%s", pluginpath);
+	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+			"putenv(%s)\n", util_sasl_path);
+        putenv(util_sasl_path);
+    }
+    slapi_ch_free_string(&configpluginpath);
 
     /* if ldapurl is given, parse it */
     if (ldapurl && ((rc = ldap_url_parse_no_defaults(ldapurl, &ludp, 0)) ||
