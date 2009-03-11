@@ -1798,7 +1798,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 							agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
 						}
 						slapi_log_error(finished ? SLAPI_LOG_FATAL : slapi_log_urp, repl_plugin_name,
-							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s. %s.\n",
+							"%s: Failed to send update operation to consumer (uniqueid %s, CSN %s): %s. %s.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
 							ldap_err2string(error),
@@ -1811,7 +1811,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						return_value = UPDATE_CONNECTION_LOST;
 						finished = 1;
 						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): "
+							"%s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
 							"%s. Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
@@ -1822,7 +1822,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						return_value = UPDATE_TIMEOUT;
 						finished = 1;
 						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
+							"%s: Timed out sending update operation to consumer (uniqueid %s, CSN %s): "
 							"%s.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
@@ -1837,7 +1837,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						return_value = UPDATE_TRANSIENT_ERROR;
 						finished = 1;
 						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Failed to replay change (uniqueid %s, CSN %s): "
+							"%s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
 							"Local error. Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str);

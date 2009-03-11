@@ -306,6 +306,11 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 
 			while (1) 
 			{
+				if (!conn_connected(conn)) {
+					rc = -1;
+					return_value = CONN_NOT_CONNECTED;
+					break;
+				}
 				rc = ldap_result(conn->ld, LDAP_RES_ANY , 1, &local_timeout, &res);
 				if (0 != rc)
 				{
@@ -344,11 +349,20 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				conn->last_ldap_error = LDAP_TIMEOUT;
 				return_value = CONN_TIMEOUT;
 			}
+			else if ((-1 == rc) && (CONN_NOT_CONNECTED == return_value))
+			{
+				/* must not access conn->ld if disconnected in another thread */
+				/* the other thread that actually did the conn_disconnect() */
+				/* will set the status and error info */
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: Connection disconnected by another thread\n",
+								agmt_get_long_name(conn->agmt));
+			}
 			else if (-1 == rc)
 			{
 				/* Error */
 				char *s = NULL;
-		
+
 				rc = ldap_get_lderrno(conn->ld, NULL, &s);
 				conn->last_ldap_errmsg = s;
 				conn->last_ldap_error = rc;
