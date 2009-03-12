@@ -1139,9 +1139,6 @@ dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 		slapi_entry_free(schemacheckentry);
 	}
 
-	/* callers expect e (SLAPI_ADD_ENTRY) to be freed or otherwise consumed */
-	slapi_entry_free(e);
-
     return rc;
 }
 
