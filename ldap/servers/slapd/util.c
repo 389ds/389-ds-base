@@ -959,7 +959,7 @@ slapi_ldap_init_ext(
     char *pp = NULL;
 
     if (NULL == pluginpath || (*pluginpath == '\0')) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
 			"configpluginpath == NULL\n");
         if (!(pluginpath = getenv("SASL_PATH"))) {
 #if defined(LINUX) && defined(__LP64__)
@@ -974,7 +974,7 @@ slapi_ldap_init_ext(
         (0 != strcmp(++pp, pluginpath)) /* sasl_path has been updated */ ) {
         PR_snprintf(util_sasl_path, sizeof(util_sasl_path),
                                         "SASL_PATH=%s", pluginpath);
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
 			"putenv(%s)\n", util_sasl_path);
         putenv(util_sasl_path);
     }

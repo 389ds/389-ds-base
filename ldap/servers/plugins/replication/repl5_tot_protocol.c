@@ -95,6 +95,7 @@ static void get_result (int rc, void *cb_data);
 static int send_entry (Slapi_Entry *e, void *callback_data);
 static void repl5_tot_delete(Private_Repl_Protocol **prp);
 
+#define LOST_CONN_ERR(xx) ((xx == -2) || (xx == LDAP_SERVER_DOWN) || (xx == LDAP_CONNECT_ERROR))
 /*
  * Notes on the async version of this code: 
  * First, we need to have the supplier and consumer both be async-capable.
@@ -120,9 +121,9 @@ static void
 repl5_tot_log_operation_failure(int ldap_error, char* ldap_error_string, const char *agreement_name)
 {
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-						"%s: Received error %d: %s for total update operation\n",
+						"%s: Received error %d (%s): %s for total update operation\n",
 						agreement_name,
-						ldap_error, ldap_error_string ? ldap_error_string : "NULL");
+						ldap_error, ldap_err2string(ldap_error), ldap_error_string ? ldap_error_string : "");
 }
 
 /* Thread that collects results from async operations sent to the consumer */
@@ -206,7 +207,9 @@ static void repl5_tot_result_threadmain(void *param)
 		}
 		/* Should we stop ? */
 		PR_Lock(cb->lock);
-		if (cb->stop_result_thread) 
+		/* if the connection is not connected, then we cannot read any more
+		   results - we are finished */
+		if (cb->stop_result_thread || (conres == CONN_NOT_CONNECTED)) 
 		{
 			finished = 1;
 		}
@@ -290,13 +293,17 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 			/* If so then we're done */
 			done = 1;
 		}
+		if (cb_data->abort && LOST_CONN_ERR(cb_data->rc))
+		{
+			done = 1; /* no connection == no more results */
+		}
 		PR_Unlock(cb_data->lock);
 		/* If not then sleep a bit */
 		DS_Sleep(PR_SecondsToInterval(1));
 		loops++;
 		/* If we sleep forever then we can conclude that something bad happened, and bail... */
 		/* Arbitrary 30 second delay : basically we should only expect to wait as long as it takes to process a few operations, which should be on the order of a second at most */
-		if (loops > 300) 
+		if (!done && (loops > 300))
 		{
 			/* Log a warning */
 			slapi_log_error(SLAPI_LOG_FATAL, NULL,
@@ -618,6 +625,18 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 		return -1;    
     }
 
+    /* see if the result reader thread encountered
+       a fatal error */
+    PR_Lock(((callback_data*)cb_data)->lock);
+    rc = ((callback_data*)cb_data)->abort;
+    PR_Unlock(((callback_data*)cb_data)->lock);
+    if (rc)
+    {
+        conn_disconnect(prp->conn);
+        prp->stopped = 1;
+        ((callback_data*)cb_data)->rc = -1;
+        return -1;
+    }
     /* skip ruv tombstone - need to  do this because it might be
        more up to date then the data we are sending to the client.
        RUV is sent separately via the protocol */
@@ -702,9 +721,14 @@ int send_entry (Slapi_Entry *e, void *cb_data)
     ber_bvfree(bv);
 	(*num_entriesp)++;
 
-	/* For async operation we need to inspect the abort status from the result thread here */
-
-	if (CONN_OPERATION_SUCCESS == rc) {
+	/* if the connection has been closed, we need to stop
+	   sending entries and set a special rc value to let
+	   the result reading thread know the connection has been
+	   closed - do not attempt to read any more results */
+	if (CONN_NOT_CONNECTED == rc) {
+		((callback_data*)cb_data)->rc = -2;
+		retval = -1;
+	} else if (CONN_OPERATION_SUCCESS == rc) {
 		retval = 0;
 	} else {
 		((callback_data*)cb_data)->rc = rc;

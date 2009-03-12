@@ -306,12 +306,20 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 
 			while (1) 
 			{
-				if (!conn_connected(conn)) {
+				/* we have to make sure the update sending thread does not
+				   attempt to call conn_disconnect while we are reading
+				   results - so lock the conn while we get the results */
+				PR_Lock(conn->lock);
+				if ((STATE_CONNECTED != conn->state) || !conn->ld) {
 					rc = -1;
 					return_value = CONN_NOT_CONNECTED;
+					PR_Unlock(conn->lock);
 					break;
 				}
+
 				rc = ldap_result(conn->ld, LDAP_RES_ANY , 1, &local_timeout, &res);
+				PR_Unlock(conn->lock);
+
 				if (0 != rc)
 				{
 					/* Something other than a timeout happened */
@@ -342,6 +350,18 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 
 			repl5_stop_debug_timeout(eqctx, &setlevel);
 
+			PR_Lock(conn->lock);
+			/* we have to check again since the connection may have
+			   been closed in the meantime
+			   acquire the lock for the rest of the function
+			   to protect against another attempt to close
+			   the conn while we are using it
+			*/
+			if ((STATE_CONNECTED != conn->state) || !conn->ld) {
+				rc = -1;
+				return_value = CONN_NOT_CONNECTED;
+			}
+
 			if (0 == rc)
 			{
 				/* Timeout */
@@ -370,7 +390,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				   later */
 				if (IS_DISCONNECT_ERROR(rc))
 				{
-					conn_disconnect(conn);
+					close_connection_internal(conn); /* we already have the lock */
 					return_value = CONN_NOT_CONNECTED;
 				}
 				else
@@ -397,13 +417,13 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				if (IS_DISCONNECT_ERROR(rc))
 				{
 					conn->last_ldap_error = rc;
-					conn_disconnect(conn);
+					close_connection_internal(conn); /* we already have the lock */
 					return_value = CONN_NOT_CONNECTED;
 				}
 				else if (IS_DISCONNECT_ERROR(err))
 				{
 					conn->last_ldap_error = err;
-					conn_disconnect(conn);
+					close_connection_internal(conn); /* we already have the lock */
 					return_value = CONN_NOT_CONNECTED;
 				}
 				/* Got a result */
@@ -450,6 +470,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				conn->status = STATUS_CONNECTED;
 			}
 			if (res) ldap_msgfree(res);
+			PR_Unlock(conn->lock); /* release the conn lock */
 			return return_value;
 }
 
@@ -565,7 +586,10 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	server_controls[1] = update_control;
 	server_controls[2] = NULL;
 
-	if (conn_connected(conn))
+	/* lock the conn to prevent the result reader thread
+	   from closing the connection out from under us */
+	PR_Lock(conn->lock);
+	if (STATE_CONNECTED == conn->state)
 	{
 		int setlevel = 0;
 
@@ -574,6 +598,7 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		return_value = see_if_write_available(
 			conn, PR_SecondsToInterval(conn->timeout.tv_sec));
 		if (return_value != CONN_OPERATION_SUCCESS) {
+			PR_Unlock(conn->lock);
 			return return_value;
 		}
 		conn->last_operation = optype;
@@ -627,7 +652,7 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 			conn->last_ldap_error = rc;
 			if (IS_DISCONNECT_ERROR(rc))
 			{
-				conn_disconnect(conn);
+				close_connection_internal(conn); /* already have the lock */
 				return_value = CONN_NOT_CONNECTED;
 			}
 			else
@@ -640,11 +665,12 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	else
 	{
 		/* conn->last_ldap_error has been set to a more specific value
-		 * in conn_connected()
+		 * in the thread that did the disconnection
 		 * conn->last_ldap_error = LDAP_SERVER_DOWN;
 		 */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	PR_Unlock(conn->lock); /* release the lock */
 	if (message_id)
 	{
 		*message_id = msgid;
@@ -1073,6 +1099,13 @@ conn_connect(Repl_Connection *conn)
 static void
 close_connection_internal(Repl_Connection *conn)
 {
+	conn->state = STATE_DISCONNECTED;
+	conn->status = STATUS_DISCONNECTED;
+	conn->supports_ds50_repl = -1;
+	conn->supports_ds71_repl = -1;
+	/* do this last, to minimize the chance that another thread
+	   might read conn->state as not disconnected and attempt
+	   to use conn->ld */
 	if (NULL != conn->ld)
 	{
 		/* Since we call slapi_ldap_init, 
@@ -1080,10 +1113,6 @@ close_connection_internal(Repl_Connection *conn)
 		slapi_ldap_unbind(conn->ld);
 	}
 	conn->ld = NULL;
-	conn->state = STATE_DISCONNECTED;
-	conn->status = STATUS_DISCONNECTED;
-	conn->supports_ds50_repl = -1;
-	conn->supports_ds71_repl = -1;
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 		"%s: Disconnected from the consumer\n", agmt_get_long_name(conn->agmt));
 }
