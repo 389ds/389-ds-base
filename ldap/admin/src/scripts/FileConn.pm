@@ -213,7 +213,7 @@ sub getErrorCode {
 
 sub getErrorString {
     my $self = shift;
-    return ($self->{lastErrorCode} ? ldap_err2string($self->{lastErrorCode}) : LDAP_SUCCESS);
+    return ldap_err2string($self->{lastErrorCode});
 }
 
 #############################################################################
