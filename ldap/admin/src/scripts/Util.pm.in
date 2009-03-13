@@ -47,11 +47,11 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword debug createInfFromConfig
+                getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries
-                getHashedPassword debug createInfFromConfig
+                getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 
 use strict;
@@ -679,6 +679,20 @@ sub process_maptbl
     return $mapper;
 }
 
+# given a string, escape the characters in the string
+# so that it can be safely passed to the shell via
+# the system() call or `` backticks
+sub shellEscape {
+    my $val = shift;
+    # first, escape the double quotes and slashes
+    $val =~ s/([\\"])/\\$1/g; # " font lock fun
+    # next, escape the rest of the special chars
+    my $special = '!$\' @#%^&*()|[\]{};:<>?/`';
+    $val =~ s/([$special])/\\$1/g;
+
+    return $val;
+}
+
 sub getHashedPassword {
     my $pwd = shift;
     my $alg = shift;
@@ -691,7 +705,7 @@ sub getHashedPassword {
     if ($alg) {
         $cmd .= " -s $alg";
     }
-    $cmd .= " \'$pwd\'";
+    $cmd .= " " . shellEscape($pwd);
     my $hashedpwd = `$cmd`;
     chomp($hashedpwd);
 
