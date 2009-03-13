@@ -2144,9 +2144,15 @@ log__open_accesslogfile(int logfile_state, int locked)
 			log_convert_time (log->l_ctime, tbuf, 1 /*short */);
 			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_access_file, tbuf);
 			if (PR_Rename (loginfo.log_access_file, newfile) != PR_SUCCESS) {
-				loginfo.log_access_fdes = NULL;
-    				if (!locked)  LOG_ACCESS_UNLOCK_WRITE();
-				return LOG_UNABLE_TO_OPENFILE;
+				PRErrorCode prerr = PR_GetError();
+				/* Make "FILE EXISTS" error an exception.
+				   Even if PR_Rename fails with the error, we continue logging.
+				 */
+				if (PR_FILE_EXISTS_ERROR != prerr) {
+					loginfo.log_access_fdes = NULL;
+    					if (!locked)  LOG_ACCESS_UNLOCK_WRITE();
+					return LOG_UNABLE_TO_OPENFILE;
+				}
 			}
 			/* add the log to the chain */
 			log->l_next = loginfo.log_access_logchain;
@@ -3202,7 +3208,7 @@ delete_logfile:
 		 * which causes the self deadlock if you call LDAPDebug for logging.
 		 * Thus, instead of LDAPDebug, call log__error_emergency with locked == 1. */
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Unable to remove file:%s.%s\n",
-				   loginfo.log_audit_file, tbuf);
+					loginfo.log_audit_file, tbuf);
 		log__error_emergency(buffer, 0, locked);
 	}
 	slapi_ch_free((void**)&delete_logp);
@@ -3638,14 +3644,19 @@ log__open_errorlogfile(int logfile_state, int locked)
 			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_error_file, tbuf);
 			if (PR_Rename (loginfo.log_error_file, newfile) != PR_SUCCESS) {
 				PRErrorCode prerr = PR_GetError();
-				PR_snprintf(buffer, sizeof(buffer),
-					"Failed to rename errors log file, " 
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s). Exiting...", 
-					prerr, slapd_pr_strerror(prerr));
-				log__error_emergency(buffer, 1, 1);
-				slapi_ch_free((void **)&log);
-				if (!locked) LOG_ERROR_UNLOCK_WRITE();
-				return LOG_UNABLE_TO_OPENFILE;
+				/* Make "FILE EXISTS" error an exception.
+				   Even if PR_Rename fails with the error, we continue logging.
+				 */
+				if (PR_FILE_EXISTS_ERROR != prerr) {
+					PR_snprintf(buffer, sizeof(buffer),
+						"Failed to rename errors log file, " 
+						SLAPI_COMPONENT_NAME_NSPR " error %d (%s). Exiting...", 
+						prerr, slapd_pr_strerror(prerr));
+					log__error_emergency(buffer, 1, 1);
+					slapi_ch_free((void **)&log);
+					if (!locked) LOG_ERROR_UNLOCK_WRITE();
+					return LOG_UNABLE_TO_OPENFILE;
+				}
 			}
 
 			/* add the log to the chain */
@@ -3776,8 +3787,14 @@ log__open_auditlogfile(int logfile_state, int locked)
 			log_convert_time (log->l_ctime, tbuf, 1 /*short */);
 			PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_audit_file, tbuf);
 			if (PR_Rename (loginfo.log_audit_file, newfile) != PR_SUCCESS) {
-				if (!locked) LOG_AUDIT_UNLOCK_WRITE();
-				return LOG_UNABLE_TO_OPENFILE;
+				PRErrorCode prerr = PR_GetError();
+				/* Make "FILE EXISTS" error an exception.
+				   Even if PR_Rename fails with the error, we continue logging.
+				 */
+				if (PR_FILE_EXISTS_ERROR != prerr) {
+					if (!locked) LOG_AUDIT_UNLOCK_WRITE();
+					return LOG_UNABLE_TO_OPENFILE;
+				}
 			}
 
 			/* add the log to the chain */
