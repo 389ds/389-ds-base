@@ -3104,7 +3104,6 @@ log__delete_error_logfile(int locked)
 	*/
 	if (++numoflogs > loginfo.log_error_maxnumlogs) {
 		logstr = "Exceeded max number of logs allowed";
-		syslog(LOG_ERR, "%s\n", logstr);
 		goto delete_logfile;
 	}
 
@@ -3184,6 +3183,8 @@ delete_logfile:
 			return 0;
 		}
 	} 
+	memset(tbuf, 0, sizeof(tbuf));
+	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	if (!locked) {
 		/* if locked, we should not call LDAPDebug, 
 		   which tries to get a lock internally. */
@@ -3201,14 +3202,15 @@ delete_logfile:
 	}
 
 	/* Delete the error file */
-	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
 	if (PR_Delete(buffer) != PR_SUCCESS) {
+		PRErrorCode prerr = PR_GetError();
 		/* This function could be called in the ERROR WRITE LOCK,
 		 * which causes the self deadlock if you call LDAPDebug for logging.
 		 * Thus, instead of LDAPDebug, call log__error_emergency with locked == 1. */
-		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Unable to remove file:%s.%s\n",
-					loginfo.log_audit_file, tbuf);
+		PR_snprintf(buffer, sizeof(buffer),
+				"LOGINFO:Unable to remove file:%s.%s error %d (%s)\n",
+				loginfo.log_error_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		log__error_emergency(buffer, 0, locked);
 	}
 	slapi_ch_free((void**)&delete_logp);
