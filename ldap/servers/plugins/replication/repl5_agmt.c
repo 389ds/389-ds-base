@@ -207,6 +207,20 @@ agmt_is_valid(Repl_Agmt *ra)
 			"is malformed: invalid pausetime %ld.\n", slapi_sdn_get_dn(ra->dn), ra->pausetime);
 		return_value = 0;
 	}
+	if ((0 != ra->transport_flags) && (BINDMETHOD_SASL_GSSAPI == ra->bindmethod)) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+						" is malformed: cannot use SASL/GSSAPI if using SSL or TLS - please "
+						"change %s to LDAP before changing %s to use SASL/GSSAPI\n",
+						slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
+		return_value = 0;
+	}
+	if ((0 == ra->transport_flags) && (BINDMETHOD_SSL_CLIENTAUTH == ra->bindmethod)) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+						" is malformed: cannot use SSLCLIENTAUTH if using plain LDAP - please "
+						"change %s to SSL or TLS before changing %s to use SSLCLIENTAUTH\n",
+						slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
+		return_value = 0;
+	}
 	return return_value;
 }
 
