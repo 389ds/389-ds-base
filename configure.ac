@@ -388,7 +388,7 @@ dnl Cstd and Crun are required to link any C++ related code
     AC_SUBST([LIBCRUN], [$LIBCRUN])
     platform="solaris"
     # assume 64 bit
-    perlexec='/usr/lib/sparcv9/dirsrv/perl5x/bin/perl'
+    perlexec='/usr/lib/sparcv9/dirsec/perl5x/bin/perl'
     # relative to sysconfdir
     initdir=/init.d
     ;;

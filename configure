@@ -23830,7 +23830,7 @@ _ACEOF
 
     platform="solaris"
     # assume 64 bit
-    perlexec='/usr/lib/sparcv9/dirsrv/perl5x/bin/perl'
+    perlexec='/usr/lib/sparcv9/dirsec/perl5x/bin/perl'
     # relative to sysconfdir
     initdir=/init.d
     ;;
