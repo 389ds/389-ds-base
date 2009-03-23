@@ -820,12 +820,152 @@ my %intattrstoskip = (
     'hassubordinates' => 'hasSubordinates'
 );
 
+sub fixup99user {
+    my $mig = shift; # the Migration object
+    my $inst = shift; # The name of the instance
+    my $newschemadir = shift; # the new instance's schema path
+
+    my %attrstoskip = ();
+    my %objclassestoskip = ();
+    my $uid;
+    my $gid;
+    my $mode;
+
+    # Read every schema file in the legacy server's schema directory
+    for (glob("$mig->{oldsroot}/$inst/config/schema/*.ldif")) {
+        if (!open( OLDSCHEMA, $_ )) {
+                debug(0, "Can't open schema file $_: $!\n");
+                next;
+        }
+
+        # Read attributes from each file, looking for ones that contain
+        # the string "DESC ''".
+        my $in = new Mozilla::LDAP::LDIF(*OLDSCHEMA);
+        while (my $ent = readOneEntry $in) {
+            my @attrs = $ent->getValues('attributeTypes');
+            my @objclasses = $ent->getValues('objectClasses');
+            foreach my $attr (@attrs) {
+                debug(4, "Checking if attribute should be added to skip list ($attr)\n");
+                if ($attr =~ /\(\s*(\S*)\s*NAME .* DESC \'\'/) {
+                    # Store the OID of those in an associative array for
+                    # quick lookups later.
+                    debug(3, "Adding attribute to list to skip (OID $1)\n");
+                    $attrstoskip{"$1"} = 1;
+                }
+            }
+
+            foreach my $objclass (@objclasses) {
+                debug(4, "Checking if objectclass should be added to skip list ($objclass)\n");
+                if ($objclass =~ /\(\s*(\S*)\s*NAME .* DESC \'\'/) {
+                    # Store the OID of those in an associative array for
+                    # quick lookups later.
+                    debug(3, "Adding objectclass to list to skip (OID $1)\n");
+                    $objclassestoskip{"$1"} = 1;
+                }
+            }
+        }
+
+        close(OLDSCHEMA);
+    }
+
+    # Open the 99user.ldif file in the new server schema directory, which is a
+    # copy of the one in the legacy server.  Also open a tempfile.
+    if (!open(USERSCHEMA, "$newschemadir/99user.ldif")) {
+        return ("error_opening_schema", "$newschemadir/99user.ldif", $!);
+    }
+
+    # Open a tempfile to write the cleaned 99user.ldif to
+    if (!open(TMPSCHEMA, ">$newschemadir/99user.ldif.tmp")) {
+        close(USERSCHEMA);
+        return ("error_opening_schema", "$newschemadir/99user.ldif.tmp", $!);
+    }
+
+    # Iterate through every attribute in the 99user.ldif file and write them to the
+    # tempfile if their OID doesn't exist in the "bad schema" array.
+    my $in = new Mozilla::LDAP::LDIF(*USERSCHEMA);
+    while (my $ent = readOneEntry $in) {
+        my @attrs = $ent->getValues('attributeTypes');
+        my @objclasses = $ent->getValues('objectClasses');
+        my @keepattrs;
+        my @keepobjclasses;
+        foreach my $attr (@attrs) {
+            if ($attr =~ /\(\s*(\S*)\s*NAME/) {
+                debug(3, "Checking if attribute should be trimmed (OID $1)\n");
+                # See if this OID is in our list of attrs to skip
+                if ($attrstoskip{"$1"}) {
+                    debug(2, "Trimming attribute from 99user.ldif (OID $1)\n");
+                    next;
+                }
+            }
+
+            # Keep this value
+            debug(3, "Keeping attribute in 99user.ldif (OID $1)\n");
+            push @keepattrs, $attr;
+        }
+
+        foreach my $objclass (@objclasses) {
+            if ($objclass =~ /\(\s*(\S*)\s*NAME/) {
+                debug(3, "Checking if objectclass should be trimmed (OID $1)\n");
+                # See if this OID is in our list of objectclasses to skip
+                if ($objclassestoskip{"$1"}) {
+                    debug(2, "Trimming objectclass from 99user.ldif (OID $1)\n");
+                    next;
+                }
+            }
+
+            # Keep this value
+            debug(3, "Keeping objectclass in 99user.ldif (OID $1)\n");
+            push @keepobjclasses, $objclass;
+        }
+
+        # Update the entry with the values we want to keep
+        if ($#keepattrs >= $[) {
+            $ent->setValues("attributetypes", @keepattrs);
+        } else {
+            $ent->remove("attributetypes");
+        }
+
+        if ($#keepobjclasses >= $[) {
+            $ent->setValues("objectclasses", @keepobjclasses);
+        } else {
+            $ent->remove("objectclasses");
+        }
+
+        # Write the entry to temp schema file
+        my $oldfh = select(TMPSCHEMA);
+        $ent->printLDIF();
+        select($oldfh);
+    }
+
+    close(USERSCHEMA);
+    close(TMPSCHEMA);
+
+    # Make the ownership and permissions on the temp schema file
+    # the same as the copied 99user.ldif.
+    ($mode, $uid, $gid) = (stat("$newschemadir/99user.ldif"))[2,4,5];
+    if ((chown $uid, $gid, "$newschemadir/99user.ldif.tmp") != 1) {
+        return ("error_schema_permissions", "$newschemadir/99user.ldif.tmp", $!);
+    }
+
+    if ((chmod $mode, "$newschemadir/99user.ldif.tmp") != 1) {
+        return ("error_schema_permissions", "$newschemadir/99user.ldif.tmp", $!);
+    }
+
+    # Replace the copied 99user.ldif with the trimmed file.
+    if ((rename "$newschemadir/99user.ldif.tmp", "$newschemadir/99user.ldif") != 1) {
+        return ("error_renaming_schema", "$newschemadir/99user.ldif.tmp", "$newschemadir/99user.ldif", $!);
+    }
+
+    return();
+}
+
 sub migrateSchema {
     my $mig = shift; # the Migration object
     my $inst = shift; # the instance name (e.g. slapd-instance)
     my $src = shift; # a Conn to the source
     my $dest = shift; # a Conn to the dest
 
+    my @errs;
     my $cfgent = $dest->search("cn=config", "base", "(objectclass=*)");
     my $newschemadir = $cfgent->getValues('nsslapd-schemadir') ||
         "$mig->{configdir}/$inst/schema";
@@ -838,6 +978,11 @@ sub migrateSchema {
         if (system("cp -p $_ $newschemadir")) {
             return ("error_migrating_schema", $_, $!);
         }
+    }
+
+    # fixup any attributes with missing descriptions in 99user.ldif
+    if (@errs = fixup99user($mig, $inst, $newschemadir)) {
+        return @errs;
     }
 
     if (!$mig->{crossplatform}) {
