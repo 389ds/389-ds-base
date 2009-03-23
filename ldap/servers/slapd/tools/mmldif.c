@@ -347,6 +347,8 @@ int mm_diff(stats_t *statsp)
     time(&statsp->diff_start_time);
     license_count = 0;
 
+    NSS_NoDB_Init(".");
+
 /*
  *      read all entries from all directories hashing name and value, and make
  *      a bitmaps of who has each entry.  Flag those entries where at least
