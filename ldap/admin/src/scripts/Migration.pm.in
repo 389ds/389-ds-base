@@ -205,7 +205,9 @@ sub init {
     my $oldpkgname = "@brand@-ds";
 
     $self->{pkgname} = $pkgname;
+    $oldsroot =~ s/\/+$//; # trim trailing '/'s, if any
     $self->{oldsroot} = $oldsroot || "/opt/$oldpkgname";
+    $actualsroot =~ s/\/+$//; # trim trailing '/'s, if any
     $self->{actualsroot} = $actualsroot || $self->{oldsroot};
     $self->{silent} = $silent;
     $self->{inffile} = $inffile;
