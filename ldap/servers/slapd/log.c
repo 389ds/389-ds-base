@@ -124,6 +124,7 @@ static int 	log__audit_rotationinfof(char *pathname);
 static int 	log__extract_logheader (FILE *fp, long  *f_ctime, PRInt64 *f_size);
 static int	log__check_prevlogs (FILE *fp, char *filename);
 static PRInt64 	log__getfilesize(LOGFD fp);
+static PRInt64  log__getfilesize_with_filename(char *filename);
 static int 	log__enough_freespace(char  *path);
 
 static int 	vslapd_log_error(LOGFD fp, char *subsystem, char *fmt, va_list ap, int locked );
@@ -2515,6 +2516,8 @@ log__fix_rotationinfof(char *pathname)
 	int			log_type_id;
 	int			rval = LOG_ERROR;
 	char		*p;
+	char		*rotated_log = NULL;
+	int			rotated_log_len = 0;
 
 	/* rotation info file is broken; can't trust the contents */
 	time (&now);
@@ -2557,6 +2560,10 @@ log__fix_rotationinfof(char *pathname)
 		loginfo.log_audit_logchain = NULL;
 		break;
 	}
+	/* length of (pathname + .YYYYMMDD-hhmmss)
+	 * pathname includes ".rotationinfo", but that's fine. */
+	rotated_log_len = strlen(pathname) + 17;
+	rotated_log = (char *)slapi_ch_malloc(rotated_log_len);
 	/* read the directory entries into a linked list */
 	for (dirent = PR_ReadDir(dirptr, dirflags); dirent ;
 		dirent = PR_ReadDir(dirptr, dirflags)) {
@@ -2589,21 +2596,24 @@ log__fix_rotationinfof(char *pathname)
 
 			logp = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
 			logp->l_ctime = log_reverse_convert_time(p);
+
+			PR_snprintf(rotated_log, rotated_log_len, "%s/%s",
+							dirptr, dirent->name);
 			switch (log_type_id) {
 			case ERRORSLOG:
-				logp->l_size = loginfo.log_error_maxlogsize; /* dummy */
+				logp->l_size = log__getfilesize_with_filename(rotated_log);
 				logp->l_next = loginfo.log_error_logchain;
 				loginfo.log_error_logchain = logp;
 				loginfo.log_numof_error_logs++;
 				break;
 			case ACCESSLOG:
-				logp->l_size = loginfo.log_access_maxlogsize;
+				logp->l_size = log__getfilesize_with_filename(rotated_log);
 				logp->l_next = loginfo.log_access_logchain;
 				loginfo.log_access_logchain = logp;
 				loginfo.log_numof_access_logs++;
 				break;
 			case AUDITLOG:
-				logp->l_size =loginfo.log_audit_maxlogsize; 
+				logp->l_size = log__getfilesize_with_filename(rotated_log);
 				logp->l_next = loginfo.log_audit_logchain;
 				loginfo.log_audit_logchain = logp;
 				loginfo.log_numof_audit_logs++;
@@ -2616,6 +2626,7 @@ done:
 	if (NULL != dirptr)
 		PR_CloseDir(dirptr);
 	slapi_ch_free_string(&logsdir);
+	slapi_ch_free_string(&rotated_log);
 	return rval;
 }
 #undef ERRORSLOG
@@ -2890,12 +2901,23 @@ log__getfilesize(LOGFD fp)
 static PRInt64
 log__getfilesize(LOGFD fp)
 {
-	PRFileInfo      info;
+	PRFileInfo64      info;
  
-	if (PR_GetOpenFileInfo (fp, &info) == PR_FAILURE) {
+	if (PR_GetOpenFileInfo64 (fp, &info) == PR_FAILURE) {
 		return -1;
 	}
-	return (PRInt64)info.size;	/* type of size is off_t */
+	return (PRInt64)info.size;	/* type of size is PROffset64 */
+}
+
+static PRInt64
+log__getfilesize_with_filename(char *filename)
+{
+	PRFileInfo64      info;
+ 
+	if (PR_GetFileInfo64 ((const char *)filename, &info) == PR_FAILURE) {
+		return -1;
+	}
+	return (PRInt64)info.size;	/* type of size is PROffset64 */
 }
 #endif
 
@@ -4047,16 +4069,20 @@ static time_t
 log_reverse_convert_time(char *tbuf)
 {
 	struct tm tm = {0};
+	time_t converted = 0;
 
 	if (strchr(tbuf, '-')) { /* short format */
 		strptime(tbuf, "%Y%m%d-%H%M%S", &tm);
+		/* tm returned from strptime is one hour (3600 sec) advanced if
+		 * short format is used.  Adjusting it to the original string.
+	 	 */
+		converted = mktime(&tm) - 3600;
 	} else if (strchr(tbuf, '/') && strchr(tbuf, ':')) { /* long format */
 		strptime(tbuf, "%d/%b/%Y:%H:%M:%S", &tm);
-	} else {
-		return 0;
+		converted = mktime(&tm);
 	}
 
-	return mktime(&tm);
+	return converted;
 }
 
 int
