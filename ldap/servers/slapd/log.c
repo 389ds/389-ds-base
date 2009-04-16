@@ -2598,7 +2598,7 @@ log__fix_rotationinfof(char *pathname)
 			logp->l_ctime = log_reverse_convert_time(p);
 
 			PR_snprintf(rotated_log, rotated_log_len, "%s/%s",
-							dirptr, dirent->name);
+							logsdir, dirent->name);
 			switch (log_type_id) {
 			case ERRORSLOG:
 				logp->l_size = log__getfilesize_with_filename(rotated_log);
@@ -4069,20 +4069,16 @@ static time_t
 log_reverse_convert_time(char *tbuf)
 {
 	struct tm tm = {0};
-	time_t converted = 0;
 
 	if (strchr(tbuf, '-')) { /* short format */
 		strptime(tbuf, "%Y%m%d-%H%M%S", &tm);
-		/* tm returned from strptime is one hour (3600 sec) advanced if
-		 * short format is used.  Adjusting it to the original string.
-	 	 */
-		converted = mktime(&tm) - 3600;
 	} else if (strchr(tbuf, '/') && strchr(tbuf, ':')) { /* long format */
 		strptime(tbuf, "%d/%b/%Y:%H:%M:%S", &tm);
-		converted = mktime(&tm);
+	} else {
+		return 0;
 	}
-
-	return converted;
+	tm.tm_isdst = -1;
+	return mktime(&tm);
 }
 
 int
