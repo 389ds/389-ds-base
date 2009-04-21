@@ -23381,7 +23381,7 @@ initdir=/rc.d
 # those with our 64 bit compiled product.
 perlexec='/usr/bin/env perl'
 case $host in
-  *-*-linux*)
+  i*86-*-linux*)
 
 cat >>confdefs.h <<\_ACEOF
 #define XP_UNIX 1
@@ -23414,18 +23414,12 @@ _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
-#define _GNU_SOURCE 1
+#define CPU_x86
 _ACEOF
 
-    platform="linux"
-    # relative to sysconfdir
-    initdir=/rc.d/init.d
-    # do arch specific linux stuff here
-    case $host in
-      i*86-*-linux*)
 
 cat >>confdefs.h <<\_ACEOF
-#define CPU_x86
+#define _GNU_SOURCE 1
 _ACEOF
 
 
@@ -23433,7 +23427,7 @@ cat >>confdefs.h <<\_ACEOF
 #define ATOMIC_64BIT_OPERATIONS 1
 _ACEOF
 
-        echo "$as_me:$LINENO: checking whether __sync_add_and_fetch is declared" >&5
+    echo "$as_me:$LINENO: checking whether __sync_add_and_fetch is declared" >&5
 echo $ECHO_N "checking whether __sync_add_and_fetch is declared... $ECHO_C" >&6
 if test "${ac_cv_have_decl___sync_add_and_fetch+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -23505,8 +23499,41 @@ _ACEOF
 fi
 
 
-        ;;
-      x86_64-*-linux*)
+    platform="linux"
+    # relative to sysconfdir
+    initdir=/rc.d/init.d
+    ;;
+  x86_64-*-linux*)
+
+cat >>confdefs.h <<\_ACEOF
+#define XP_UNIX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define Linux 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX2_0 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX2_2 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define LINUX2_4 1
+_ACEOF
+
 
 cat >>confdefs.h <<\_ACEOF
 #define CPU_x86_64
@@ -23514,10 +23541,15 @@ _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
+#define _GNU_SOURCE 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
 #define ATOMIC_64BIT_OPERATIONS 1
 _ACEOF
 
-        echo "$as_me:$LINENO: checking whether __sync_add_and_fetch is declared" >&5
+    echo "$as_me:$LINENO: checking whether __sync_add_and_fetch is declared" >&5
 echo $ECHO_N "checking whether __sync_add_and_fetch is declared... $ECHO_C" >&6
 if test "${ac_cv_have_decl___sync_add_and_fetch+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -23589,8 +23621,9 @@ _ACEOF
 fi
 
 
-        ;;
-    esac
+    platform="linux"
+    # relative to sysconfdir
+    initdir=/rc.d/init.d
     ;;
   ia64-hp-hpux*)
 
