@@ -312,7 +312,6 @@ status() {
              ret=3
          fi
      done
-     exit $ret
 }
 
 
