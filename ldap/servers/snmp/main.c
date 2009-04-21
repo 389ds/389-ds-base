@@ -357,10 +357,10 @@ load_config(char *conf_path)
                 }
 
                 /* set the semaphore name */
-                /* ".stats" + \0 = 7 */
-                serv_p->stats_sem_name = malloc(strlen(p) + 7);
+                /* "/" + ".stats" + \0 = 8 */
+                serv_p->stats_sem_name = malloc(strlen(p) + 8);
                 if (serv_p->stats_sem_name != NULL) {
-                    snprintf(serv_p->stats_sem_name, strlen(p) + 7, "%s.stats", p);
+                    snprintf(serv_p->stats_sem_name, strlen(p) + 8, "/%s.stats", p);
                 } else {
                     printf("ldap-agent: malloc error processing config file\n");
                     error = 1;
