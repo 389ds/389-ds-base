@@ -188,6 +188,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	struct backentry	*e, *ec = NULL;
 	Slapi_Entry		*postentry = NULL;
 	LDAPMod			**mods;
+	Slapi_Mods smods;
 	back_txn txn;
 	back_txnid		parent_txn;
 	int			retval = -1;
@@ -279,11 +280,10 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+	slapi_mods_init_byref(&smods,mods);
 
 	{
-		Slapi_Mods smods;
 		CSN *csn = operation_get_csn(operation);
-		slapi_mods_init_byref(&smods,mods);
 		if ( (change_entry = mods_have_effect (ec->ep_entry, &smods)) ) {
 			ldap_result_code = entry_apply_mods_wsi(ec->ep_entry, &smods, csn, operation_is_flag_set(operation,OP_FLAG_REPLICATED));
 			/*
@@ -301,7 +301,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			slapi_pblock_set ( pb, SLAPI_ENTRY_POST_OP, postentry );
 			postentry = NULL;	/* avoid removal/free in error_return code */
 		}
-		slapi_mods_done(&smods);
 		if ( !change_entry || ldap_result_code != 0 ) {
 			/* change_entry == 0 is not an error, but we need to free lock etc */
 			goto error_return;
@@ -336,6 +335,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	if ( (operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) && 
 		  slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
 		ldap_result_code= LDAP_OBJECT_CLASS_VIOLATION;
+		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+		goto error_return;
+	}
+
+	/* check attribute syntax for the new values */
+	if (slapi_mods_syntax_check(pb, mods, 0) != 0)
+	{
+		ldap_result_code = LDAP_INVALID_SYNTAX;
 		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 		goto error_return;
 	}
@@ -506,6 +513,7 @@ error_return:
 
 	
 common_return:
+	slapi_mods_done(&smods);
 	
 	if (ec_in_cache)
 	{

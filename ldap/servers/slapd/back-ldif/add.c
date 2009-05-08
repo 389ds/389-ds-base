@@ -92,6 +92,13 @@ ldif_back_add( Slapi_PBlock *pb )
     return( -1 );
   }
 
+  /* Check if the attribute values in the entry obey the syntaxes */
+  if ( slapi_entry_syntax_check( pb, e, 0 ) != 0 ) {
+    LDAPDebug( LDAP_DEBUG_TRACE, "entry failed syntax_check\n", 0, 0, 0 );
+    slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, NULL, 0, NULL );
+    return( -1 );
+  }
+
   prev = NULL;
   
   /*Lock the database*/

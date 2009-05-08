@@ -534,9 +534,27 @@ void import_producer(void *param)
                               "violates schema, ending line %d of file "
                               "\"%s\"", escape_string(slapi_entry_get_dn(e), ebuf),
                               curr_lineno, curr_filename);
-            if (e)
+            if (e) {
                 slapi_entry_free(e);
-                job->skipped++;
+	    }
+
+            job->skipped++;
+            continue;
+        }
+
+        /* Check attribute syntax */
+        if (slapi_entry_syntax_check(NULL, e, 0) != 0)
+        {
+            char ebuf[BUFSIZ];
+            import_log_notice(job, "WARNING: skipping entry \"%s\" which "
+                              "violates attribute syntax, ending line %d of "
+                              "file \"%s\"", escape_string(slapi_entry_get_dn(e), ebuf),
+                              curr_lineno, curr_filename);
+            if (e) {
+                slapi_entry_free(e);
+            }
+
+            job->skipped++;
             continue;
         }
 

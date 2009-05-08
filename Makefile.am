@@ -138,14 +138,22 @@ LIBBITWISE_PLUGIN = libbitwise-plugin.la
 enable_bitwise = 1
 endif
 
+if enable_presence
+LIBPRESENCE_PLUGIN = libpresence-plugin.la
+LIBPRESENCE_SCHEMA = $(srcdir)/ldap/schema/10presence.ldif
+enable_presence = on
+else
+enable_presence = off
+endif
+
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
 	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
-	libmemberof-plugin.la libpassthru-plugin.la libpresence-plugin.la \
-	libpwdstorage-plugin.la libreferint-plugin.la libreplication-plugin.la \
-	libretrocl-plugin.la libroles-plugin.la libstatechange-plugin.la \
-	libsyntax-plugin.la libviews-plugin.la libschemareload-plugin.la \
-	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) 
+	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
+	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
+	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
+	libviews-plugin.la libschemareload-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
+	$(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -200,13 +208,13 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/schema/60radius.ldif \
 	$(srcdir)/ldap/schema/60rfc4876.ldif \
 	$(srcdir)/ldap/schema/60samba.ldif \
-	$(srcdir)/ldap/schema/60samba3.ldif
+	$(srcdir)/ldap/schema/60samba3.ldif \
+	$(LIBPRESENCE_SCHEMA)
 
 schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/01common.ldif \
 	$(srcdir)/ldap/schema/05rfc2247.ldif \
 	$(srcdir)/ldap/schema/05rfc2927.ldif \
-	$(srcdir)/ldap/schema/10presence.ldif \
 	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \
 	$(srcdir)/ldap/schema/25java-object.ldif \
@@ -295,6 +303,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-inactivate.pl \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
 	ldap/admin/src/scripts/template-schema-reload.pl \
+	ldap/admin/src/scripts/template-syntax-validate.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
@@ -894,10 +903,13 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/debug.c \
 	ldap/servers/plugins/syntaxes/dn.c \
 	ldap/servers/plugins/syntaxes/int.c \
+	ldap/servers/plugins/syntaxes/numericstring.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \
 	ldap/servers/plugins/syntaxes/sicis.c \
 	ldap/servers/plugins/syntaxes/string.c \
 	ldap/servers/plugins/syntaxes/tel.c \
+	ldap/servers/plugins/syntaxes/validate.c \
+	ldap/servers/plugins/syntaxes/validate_task.c \
 	ldap/servers/plugins/syntaxes/value.c
 
 libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
@@ -1149,6 +1161,7 @@ fixupcmd = sed \
 	-e 's,@enable_dna\@,$(enable_dna),g' \
 	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
+	-e 's,@enable_presence\@,$(enable_presence),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
@@ -1199,6 +1212,7 @@ fixupcmd = sed \
 	-e 's,@enable_dna\@,$(enable_dna),g' \
 	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
+	-e 's,@enable_presence\@,$(enable_presence),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \

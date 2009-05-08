@@ -264,6 +264,8 @@ int config_set_accesscontrol( const char *attrname, char *value, char *errorbuf,
 int config_set_security( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_readonly( const char *attrname, char *value, 	char *errorbuf, int apply );
 int config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_syntaxcheck( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_syntaxlogging( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ds4_compatible_schema( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_schema_ignore_trailing_spaces( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_rootdn( const char *attrname, char *value, char *errorbuf, int apply );
@@ -406,6 +408,8 @@ int config_get_return_exact_case();
 int config_get_result_tweak();
 int config_get_security();
 int config_get_schemacheck();
+int config_get_syntaxcheck();
+int config_get_syntaxlogging();
 int config_get_ds4_compatible_schema();
 int config_get_schema_ignore_trailing_spaces();
 char *config_get_rootdn();

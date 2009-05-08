@@ -54,6 +54,7 @@ static int int_values2keys( Slapi_PBlock *pb, Slapi_Value **val,
 static int int_assertion2keys( Slapi_PBlock *pb, Slapi_Value *val,
 		Slapi_Value ***ivals, int ftype );
 static int int_compare(struct berval	*v1, struct berval	*v2);
+static int int_validate(struct berval *val);
 
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "INTEGER", "int", INTEGER_SYNTAX_OID, 0 };
@@ -101,6 +102,8 @@ int_init( Slapi_PBlock *pb )
 	    (void *) INTEGER_SYNTAX_OID );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) int_compare );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
+	    (void *) int_validate );
 
 	/* also register this plugin for matching rules */
 	rc |= slapi_matchingrule_register(&integerMatch);
@@ -138,4 +141,57 @@ static int int_compare(
 )
 {
 	return value_cmp(v1, v2, SYNTAX_INT|SYNTAX_CES, 3 /* Normalise both values */);
+}
+
+/* return 0 if valid, non-0 if invalid */
+static int int_validate(
+        struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+	char    *p = NULL;
+	char	*end = NULL;
+
+	/* Per RFC4517:
+	 *
+	 *   Integer = (HYPHEN LDIGIT *DIGIT) / number
+	 *   number  = DIGIT / (LDIGIT 1*DIGIT)
+	 */
+        if ((val != NULL) && (val->bv_len > 0)) {
+		p = val->bv_val;
+		end = &(val->bv_val[val->bv_len - 1]);
+
+		/* If the first character is HYPHEN, we need
+		 * to make sure the next char is a LDIGIT. */
+		if (*p == '-') {
+			p++;
+			if ((p > end) || !IS_LDIGIT(*p)) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else if (*p == '0') {
+			/* 0 is allowed by itself, but not as
+			 * a leading 0 before other digits */
+			if (p != end) {
+				rc = 1;
+			}
+
+			/* We're done here */
+			goto exit;
+		}
+
+		/* Now we can simply allow the rest to be DIGIT */
+                for (; p <= end; p++) {
+                        if (!isdigit(*p)) {
+                                rc = 1;
+                                goto exit;
+                        }
+                }
+        } else {
+                rc = 1;
+        }
+
+exit:
+        return(rc);
 }

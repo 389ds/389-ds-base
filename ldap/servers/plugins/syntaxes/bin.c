@@ -43,8 +43,7 @@
 /* bin.c - bin syntax routines */
 
 /*
- * This file actually implements two syntax plugins: OctetString and Binary.
- * We treat them identically for now.  XXXmcs: check if that is correct.
+ * This file actually implements three syntax plugins: OctetString, JPEG, and Binary.
  */
 
 #include <stdio.h>
@@ -73,6 +72,9 @@ static char *octetstring_names[] = { "OctetString", OCTETSTRING_SYNTAX_OID, 0 };
 static char *jpeg_names[] = { "JPEG", JPEG_SYNTAX_OID, 0 };
 
 
+/* This syntax has "gone away" in RFC 4517, however we still use it for
+ * a number of attributes in our default schema.  We should try to eliminate
+ * it's use and remove support for it. */
 static Slapi_PluginDesc bin_pdesc = {
 	"bin-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
 	"binary attribute syntax plugin"

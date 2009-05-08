@@ -1072,6 +1072,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_SYNTAX_SUBSTRLENS:
 		(*(int **)value) = pblock->pb_substrlens;
 		break;
+	case SLAPI_PLUGIN_SYNTAX_VALIDATE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
+			return( -1 );
+		}
+		(*(int *)value) = pblock->pb_plugin->plg_syntax_validate;
+		break;
 
 	/* controls we know about */
 	case SLAPI_MANAGEDSAIT:
@@ -2313,6 +2319,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_SYNTAX_SUBSTRLENS:
 		pblock->pb_substrlens = (int *) value;
+		break;
+	case SLAPI_PLUGIN_SYNTAX_VALIDATE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_syntax_validate = (IFP) value;
 		break;
 	case SLAPI_ENTRY_PRE_OP:
 		pblock->pb_pre_op_entry = (Slapi_Entry *) value;

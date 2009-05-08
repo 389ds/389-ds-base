@@ -3415,7 +3415,9 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
                 schema_errprefix_at, first_attr_name,
                 "Missing parent attribute syntax OID");
             status = invalid_syntax_error;
-        } else {
+        /* We only want to use the parent syntax if a SYNTAX
+         * wasn't explicitly specified for this attribute. */
+        } else if (NULL == pSyntax) {
             char *pso = plugin_syntax2oid(asi_parent->asi_plugin);
             
             if (pso) {

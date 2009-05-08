@@ -43,6 +43,9 @@
 /*
  * sicis.c - space insensitive string syntax routines.
  *           these strings are also case insensitive.
+ *
+ * This is a non-standard syntax.  It is only used by the presence plug-in.
+ * It will be disabled by default unless the presence plug-in is compiled.
  */
 #include <stdio.h>
 #include <string.h>

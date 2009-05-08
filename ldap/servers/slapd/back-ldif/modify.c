@@ -140,6 +140,13 @@ ldif_back_modify( Slapi_PBlock *pb )
     PR_Unlock( db->ldif_lock );
     goto error_return;
   }
+
+  /* Check if the attribute values in the mods obey the syntaxes */
+  if ( slapi_mods_syntax_check( pb, mods, 0 ) != 0 ) {
+    slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, NULL, 0, NULL );
+    PR_Unlock( db->ldif_lock );
+    goto error_return;
+  }
   
   /* Check for abandon again */
   if ( slapi_op_abandoned( pb ) ) {
