@@ -287,8 +287,8 @@ typedef void	(*VFP0)();
 #define SLAPD_SCHEMA_DN			"cn=schema"
 #define SLAPD_CONFIG_DN			"cn=config"
 
-#define EGG_OBJECT_CLASS		"directory~team~extensible~object"
-#define EGG_FILTER				"(objectclass=directory~team~extensible~object)"
+#define EGG_OBJECT_CLASS		"directory-team-extensible-object"
+#define EGG_FILTER				"(objectclass=directory-team-extensible-object)"
 
 #define BE_LIST_SIZE 100 /* used by mapping tree code to hold be_list stuff */
 
@@ -501,16 +501,17 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc,
 
 /* OIDs for some commonly used syntaxes */
 #define BINARY_SYNTAX_OID    		"1.3.6.1.4.1.1466.115.121.1.5"
-#define BOOLEAN_SYNTAX_OID			"1.3.6.1.4.1.1466.115.121.1.7"
+#define BOOLEAN_SYNTAX_OID		"1.3.6.1.4.1.1466.115.121.1.7"
 #define COUNTRYSTRING_SYNTAX_OID	"1.3.6.1.4.1.1466.115.121.1.11"
 #define DN_SYNTAX_OID        		"1.3.6.1.4.1.1466.115.121.1.12"
 #define DIRSTRING_SYNTAX_OID		"1.3.6.1.4.1.1466.115.121.1.15"
 #define GENERALIZEDTIME_SYNTAX_OID	"1.3.6.1.4.1.1466.115.121.1.24"
 #define IA5STRING_SYNTAX_OID		"1.3.6.1.4.1.1466.115.121.1.26"
 #define INTEGER_SYNTAX_OID   		"1.3.6.1.4.1.1466.115.121.1.27"
-#define JPEG_SYNTAX_OID				"1.3.6.1.4.1.1466.115.121.1.28"
+#define JPEG_SYNTAX_OID			"1.3.6.1.4.1.1466.115.121.1.28"
+#define NUMERICSTRING_SYNTAX_OID	"1.3.6.1.4.1.1466.115.121.1.36"
+#define OID_SYNTAX_OID			"1.3.6.1.4.1.1466.115.121.1.38"
 #define OCTETSTRING_SYNTAX_OID		"1.3.6.1.4.1.1466.115.121.1.40"
-#define OID_SYNTAX_OID				"1.3.6.1.4.1.1466.115.121.1.38"
 #define POSTALADDRESS_SYNTAX_OID	"1.3.6.1.4.1.1466.115.121.1.41"
 #define TELEPHONE_SYNTAX_OID		"1.3.6.1.4.1.1466.115.121.1.50"
 #define SPACE_INSENSITIVE_STRING_SYNTAX_OID	"2.16.840.1.113730.3.7.1"
@@ -967,6 +968,7 @@ struct slapdplugin {
 			char	**plg_un_syntax_names;
 			char	*plg_un_syntax_oid;
 			IFP	plg_un_syntax_compare;
+			IFP	plg_un_syntax_validate;
 		} plg_un_syntax;
 #define plg_syntax_filter_ava		plg_un.plg_un_syntax.plg_un_syntax_filter_ava
 #define plg_syntax_filter_sub		plg_un.plg_un_syntax.plg_un_syntax_filter_sub
@@ -976,7 +978,8 @@ struct slapdplugin {
 #define plg_syntax_flags		plg_un.plg_un_syntax.plg_un_syntax_flags
 #define plg_syntax_names		plg_un.plg_un_syntax.plg_un_syntax_names
 #define plg_syntax_oid			plg_un.plg_un_syntax.plg_un_syntax_oid
-#define plg_syntax_compare			plg_un.plg_un_syntax.plg_un_syntax_compare
+#define plg_syntax_compare		plg_un.plg_un_syntax.plg_un_syntax_compare
+#define plg_syntax_validate		plg_un.plg_un_syntax.plg_un_syntax_validate
 
 		struct plg_un_acl_struct {
 			IFP	plg_un_acl_init;
@@ -1519,6 +1522,9 @@ typedef struct daemon_ports_s {
 /* Definition for plugin syntax compare routine */
 typedef int (*value_compare_fn_type)(const struct berval *,const struct berval *);
 
+/* Definition for plugin syntax validate routine */
+typedef int (*value_validate_fn_type)(const struct berval *);
+
 #include "pw.h"
 
 #include "proto-slap.h"
@@ -1631,6 +1637,8 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_OBJECTCLASS_ATTRIBUTE    "nsslapd-objectclass"
 #define CONFIG_ATTRIBUTE_ATTRIBUTE      "nsslapd-attribute"
 #define CONFIG_SCHEMACHECK_ATTRIBUTE    "nsslapd-schemacheck"
+#define CONFIG_SYNTAXCHECK_ATTRIBUTE	"nsslapd-syntaxcheck"
+#define CONFIG_SYNTAXLOGGING_ATTRIBUTE	"nsslapd-syntaxlogging"
 #define CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE    "nsslapd-ds4-compatible-schema"
 #define CONFIG_SCHEMA_IGNORE_TRAILING_SPACES    "nsslapd-schema-ignore-trailing-spaces"
 #define CONFIG_SCHEMAREPLACE_ATTRIBUTE	"nsslapd-schemareplace"
@@ -1846,6 +1854,8 @@ typedef struct _slapdFrontendConfig {
   int readonly;
   int reservedescriptors;
   int schemacheck;
+  int syntaxcheck;
+  int syntaxlogging;
   int ds4_compatible_schema;
   int schema_ignore_trailing_spaces;
   int secureport;

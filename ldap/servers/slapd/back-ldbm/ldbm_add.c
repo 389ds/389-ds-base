@@ -305,6 +305,15 @@ ldbm_back_add( Slapi_PBlock *pb )
 		goto error_return;
 	} 
 
+	/* Check attribute syntax */
+	if (slapi_entry_syntax_check(pb, e, 0) != 0)
+	{
+		LDAPDebug(LDAP_DEBUG_TRACE, "entry failed syntax check\n", 0, 0, 0);
+		ldap_result_code = LDAP_INVALID_SYNTAX;
+		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+		goto error_return;
+	}
+
 	opcsn = operation_get_csn (operation);
 	if(is_resurect_operation)
 	{

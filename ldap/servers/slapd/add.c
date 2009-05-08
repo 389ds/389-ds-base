@@ -800,6 +800,16 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
         return;
     }
 
+    /* syntax check */
+    if (slapi_entry_syntax_check(pb, entry, 0) != 0) {
+        char *errtext;
+        LDAPDebug(LDAP_DEBUG_TRACE, "entry failed syntax check\n", 0, 0, 0);
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+        send_ldap_result(pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL);
+        slapi_entry_free(entry);
+        return;
+    }
+
     /* Check if the entry being added is a Tombstone. Could be if we are
      * doing a replica init. */
     if (slapi_entry_attr_hasvalue(entry, SLAPI_ATTR_OBJECTCLASS,

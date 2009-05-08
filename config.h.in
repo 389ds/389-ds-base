@@ -39,6 +39,9 @@
 /* enable the pam passthru auth plugin */
 #undef ENABLE_PAM_PASSTHRU
 
+/* enable the presence plugin */
+#undef ENABLE_PRESENCE
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 

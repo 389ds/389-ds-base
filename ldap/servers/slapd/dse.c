@@ -1864,6 +1864,17 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         return dse_modify_return( -1, ec, ecc );
     }
 
+    /* Check if the attribute values in the mods obey the syntaxes */
+    if ( slapi_mods_syntax_check( pb, mods, 0 ) != 0 )
+    {
+        char *errtext;
+
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+        slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL );
+        slapi_sdn_done(&sdn);
+        return dse_modify_return( -1, ec, ecc );
+    }
+
     /* Change the entry itself both on disk and in the AVL tree */
     /* dse_replace_entry free's the existing entry. */
     if (dse_replace_entry( pdse, ecc, !dont_write_file, DSE_USE_LOCK )!=0 )
@@ -1938,6 +1949,18 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
 	slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         slapi_send_ldap_result( pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, errtext, 0, NULL );
 		slapi_sdn_done(&sdn);
+        return error;
+    }
+
+    /* Check if the attribute values in the entry obey the syntaxes */
+    if ( slapi_entry_syntax_check( pb, e, 0 ) != 0 )
+    {
+        char *errtext;
+        LDAPDebug( SLAPI_DSE_TRACELEVEL,
+                                "dse_add: entry failed syntax check\n", 0, 0, 0 );
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+        slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL );
+        slapi_sdn_done(&sdn);
         return error;
     }
 

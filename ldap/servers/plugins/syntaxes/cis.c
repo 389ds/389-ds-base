@@ -43,13 +43,15 @@
 /* cis.c - caseignorestring syntax routines */
 
 /*
- * This file actually implements three syntax plugins:
- *		DirectoryString
- *		Boolean
- *		GeneralizedTime
+ * This file actually implements numerous syntax plugins:
  *
- * We treat them identically for now.  XXXmcs: we could do some validation on
- *		Boolean and GeneralizedTime values (someday, maybe).
+ *		Boolean
+ *		CountryString
+ *		DirectoryString
+ *		GeneralizedTime
+ *		OID
+ *		PostalAddress
+ *
  */
 
 #include <stdio.h>
@@ -68,6 +70,12 @@ static int cis_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
 static int cis_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 		char *final, Slapi_Value ***ivals );
 static int cis_compare(struct berval	*v1, struct berval	*v2);
+static int dirstring_validate(struct berval *val);
+static int boolean_validate(struct berval *val);
+static int time_validate(struct berval *val);
+static int country_validate(struct berval *val);
+static int postal_validate(struct berval *val);
+static int oid_validate(struct berval *val);
 
 /*
  * Attribute syntaxes. We treat all of these the same for now, even though
@@ -170,7 +178,7 @@ static Slapi_PluginDesc oid_pdesc = { "oid-syntax",
  */
 static int
 register_cis_like_plugin( Slapi_PBlock *pb, Slapi_PluginDesc *pdescp,
-		char **names, char *oid )
+		char **names, char *oid, void *validate_fn )
 {
 	int	rc, flags;
 
@@ -197,10 +205,13 @@ register_cis_like_plugin( Slapi_PBlock *pb, Slapi_PluginDesc *pdescp,
 	    (void *) oid );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) cis_compare );
+	if (validate_fn != NULL) {
+		rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
+		    (void *)validate_fn );
+	}
 
 	return( rc );
 }
-
 
 int
 cis_init( Slapi_PBlock *pb )
@@ -209,7 +220,7 @@ cis_init( Slapi_PBlock *pb )
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> cis_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &dirstring_pdesc, dirstring_names,
-		 	DIRSTRING_SYNTAX_OID );
+		 	DIRSTRING_SYNTAX_OID, dirstring_validate );
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= cis_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -222,11 +233,10 @@ boolean_init( Slapi_PBlock *pb )
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> boolean_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &boolean_pdesc, boolean_names,
-			BOOLEAN_SYNTAX_OID );
+			BOOLEAN_SYNTAX_OID, boolean_validate );
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= boolean_init %d\n", rc, 0, 0 );
 	return( rc );
 }
-
 
 int
 time_init( Slapi_PBlock *pb )
@@ -235,7 +245,7 @@ time_init( Slapi_PBlock *pb )
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> time_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &time_pdesc, time_names,
-			GENERALIZEDTIME_SYNTAX_OID );
+			GENERALIZEDTIME_SYNTAX_OID, time_validate );
 	/* also register this plugin for matching rules */
 	rc |= slapi_matchingrule_register(&generalizedTimeMatch);
 	rc |= slapi_matchingrule_register(&generalizedTimeOrderingMatch);
@@ -250,7 +260,7 @@ country_init( Slapi_PBlock *pb )
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> country_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &country_pdesc, country_names,
-				       COUNTRYSTRING_SYNTAX_OID );
+				       COUNTRYSTRING_SYNTAX_OID, country_validate );
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= country_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -262,7 +272,7 @@ postal_init( Slapi_PBlock *pb )
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> postal_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &postal_pdesc, postal_names,
-				       POSTALADDRESS_SYNTAX_OID );
+				       POSTALADDRESS_SYNTAX_OID, postal_validate );
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= postal_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -274,7 +284,7 @@ oid_init( Slapi_PBlock *pb )
 	int	rc;
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> oid_init\n", 0, 0, 0 );
-	rc = register_cis_like_plugin( pb, &oid_pdesc, oid_names, OID_SYNTAX_OID );
+	rc = register_cis_like_plugin( pb, &oid_pdesc, oid_names, OID_SYNTAX_OID, oid_validate );
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= oid_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -349,3 +359,449 @@ static int cis_compare(
 {
 	return value_cmp(v1,v2,SYNTAX_CIS,3 /* Normalise both values */);
 }
+
+static int dirstring_validate(
+	struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+	char *p = NULL;
+	char *end = NULL;
+
+	/* Per RFC4517:
+	 *
+	 * DirectoryString = 1*UTF8
+	 */
+	if ((val != NULL) && (val->bv_len > 0)) {
+		p = val->bv_val;
+		end = &(val->bv_val[val->bv_len - 1]);
+		rc = utf8string_validate(p, end, NULL);
+	} else {
+		rc = 1;
+		goto exit;
+	}
+
+exit:
+	return( rc );
+}
+
+static int boolean_validate(
+	struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+
+	/* Per RFC4517:
+	 *
+	 * Boolean =  "TRUE" / "FALSE"
+	 */
+	if (val != NULL) {
+		if (val->bv_len == 4) {
+			if (strncmp(val->bv_val, "TRUE", 4) != 0) {
+				rc = 1;
+				goto exit;
+			}
+		} else if (val->bv_len == 5) {
+			if (strncmp(val->bv_val, "FALSE", 5) != 0) {
+				rc = 1;
+				goto exit;
+			}
+		} else {
+			rc = 1;
+			goto exit;
+		}
+	} else {
+		rc = 1;
+	}
+
+exit:
+	return(rc);
+}
+
+static int time_validate(
+	struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+	int	i = 0;
+        const char *p = NULL;
+	char *end = NULL;
+
+	/* Per RFC4517:
+	 *
+	 * GeneralizedTime = century year month day hour
+	 *                      [ minute [ second / leap-second ] ]
+	 *                      [ fraction ]
+	 *                      g-time-zone
+	 *
+	 * century = 2(%x30-39) ; "00" to "99"
+	 * year    = 2(%x30-39) ; "00" to "99"
+	 * month   =   ( %x30 %x31-39 ) ; "01" (January) to "09"
+	 *           / ( %x31 %x30-32 ) ; "10 to "12"
+	 * day     =   ( %x30 %x31-39 )     ; "01" to "09"
+	 *           / ( %x31-x32 %x30-39 ) ; "10" to "29"
+	 *           / ( %x33 %x30-31 )     ; "30" to "31"
+	 * hour    = ( %x30-31 %x30-39 ) / ( %x32 %x30-33 ) ; "00" to "23"
+	 * minute  = %x30-35 %x30-39                        ; "00" to "59"
+	 *
+	 * second      = ( %x30-35 - %x30-39 ) ; "00" to "59"
+	 * leap-second = ( %x36 %x30 )         ; "60"
+	 *
+	 * fraction        = ( DOT / COMMA ) 1*(%x30-39)
+	 * g-time-zone     = %x5A  ; "Z"
+	 *                   / g-differential
+	 * g-differential  = ( MINUS / PLUS ) hour [ minute ]
+	 */
+	if (val != NULL) {
+		/* A valid GeneralizedTime should be at least 11 characters.  There
+		 * is no upper bound due to the variable length of "fraction". */
+		if (val->bv_len < 11) {
+			rc = 1;
+			goto exit;
+		}
+
+		/* We're guaranteed that the value is at least 11 characters, so we
+		 * don't need to bother checking if we're at the end of the value
+		 * until we start processing the "minute" part of the value. */
+		p = val->bv_val;
+		end = &(val->bv_val[val->bv_len - 1]);
+
+		/* Process "century year". First 4 characters can be any valid digit. */
+		for (i=0; i<4; i++) {
+			if (!isdigit(*p)) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		}
+
+		/* Process "month". Next character can be "0" or "1". */
+		if (*p == '0') {
+			p++;
+			/* any LDIGIT is valid now */
+			if (!IS_LDIGIT(*p)) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else if (*p == '1') {
+			p++;
+			/* only "0"-"2" are valid now */
+			if ((*p < '0') || (*p > '2')) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else {
+			rc = 1;
+			goto exit;
+		}
+
+		/* Process "day".  Next character can be "0"-"3". */
+		if (*p == '0') {
+			p++;
+			/* any LDIGIT is valid now */
+			if (!IS_LDIGIT(*p)) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else if ((*p == '1') || (*p == '2')) {
+			p++;
+			/* any digit is valid now */
+			if (!isdigit(*p)) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else if (*p == '3') {
+			p++;
+			/* only "0"-"1" are valid now */
+			if ((*p != '0') && (*p != '1')) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else {
+			rc = 1;
+			goto exit;
+		}
+
+		/* Process "hour".  Next character can be "0"-"2". */
+		if ((*p == '0') || (*p == '1')) {
+			p++;
+			/* any digit is valid now */
+			if (!isdigit(*p)) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else if (*p == '2') {
+			p++;
+			/* only "0"-"3" are valid now */
+			if ((*p < '0') || (*p > '3')) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+		} else {
+			rc = 1;
+			goto exit;
+		}
+
+		/* Time for the optional stuff.  We know we have at least one character here, but
+		 * we need to start checking for the end of the string afterwards.
+		 *
+		 * See if a "minute" was specified. */
+		if ((*p >= '0') && (*p <= '5')) {
+			p++;
+			/* any digit is valid for the second char of a minute */
+			if ((p > end) || (!isdigit(*p))) {
+				rc = 1;
+				goto exit;
+			}
+			p++;
+
+			/* At this point, there has to at least be a "g-time-zone" left.
+			 * Make sure we're not at the end of the string. */
+			if (p > end) {
+				rc = 1;
+				goto exit;
+			}
+
+			/* See if a "second" or "leap-second" was specified. */
+			if ((*p >= '0') && (*p <= '5')) {
+				p++;
+				/* any digit is valid now */
+				if ((p > end) || (!isdigit(*p))) {
+					rc = 1;
+					goto exit;
+				}
+				p++;
+			} else if (*p == '6') {
+				p++;
+				/* only a '0' is valid now */
+				if ((p > end) || (*p != '0')) {
+					rc = 1;
+					goto exit;
+				}
+				p++;
+			}
+
+			/* At this point, there has to at least be a "g-time-zone" left.
+			 * Make sure we're not at the end of the string. */
+			if (p > end) {
+				rc = 1;
+				goto exit;
+			}
+		}
+
+		/* See if a fraction was specified. */
+		if ((*p == '.') || (*p == ',')) {
+			p++;
+			/* An arbitrary length string of digit chars is allowed here.
+			 * Ensure we have at least one digit character. */
+			if ((p >= end) || (!isdigit(*p))) {
+				rc = 1;
+				goto exit;
+			}
+
+			/* Just loop through the rest of the fraction until we encounter a non-digit */
+			p++;
+			while ((p < end) && (isdigit(*p))) {
+				p++;
+			}
+		}
+
+		/* Process "g-time-zone".  We either end with 'Z', or have a differential. */
+		if (p == end) {
+			if (*p != 'Z') {
+				rc = 1;
+				goto exit;
+			}
+		} else if (p < end) {
+			if ((*p != '-') && (*p != '+')) {
+				rc = 1;
+				goto exit;
+			} else {
+				/* A "g-differential" was specified. An "hour" must be present now. */
+				p++;
+				if ((*p == '0') || (*p == '1')) {
+					p++;
+					/* any digit is valid now */
+					if ((p > end) || !isdigit(*p)) {
+						rc = 1;
+						goto exit;
+					}
+					p++;
+				} else if (*p == '2') {
+					p++;
+					/* only "0"-"3" are valid now */
+					if ((p > end) || (*p < '0') || (*p > '3')) {
+						rc = 1;
+						goto exit;
+					}
+					p++;
+				} else {
+					rc = 1;
+					goto exit;
+				}
+
+				/* See if an optional minute is present ("00"-"59"). */
+				if (p <= end) {
+					/* "0"-"5" are valid now */
+					if ((*p < '0') || (*p > '5')) {
+						rc = 1;
+						goto exit;
+					}
+					p++;
+
+					/* We should be at the last character of the string
+					 * now, which must be a valid digit. */
+					if ((p != end) || !isdigit(*p)) {
+						rc = 1;
+						goto exit;
+					}
+				}
+			}
+		} else {
+			/* Premature end of string */
+			rc = 1;
+			goto exit;
+		}
+	} else {
+		rc = 1;
+		goto exit;
+	}
+
+exit:
+	return( rc );
+}
+
+static int country_validate(
+	struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+
+	/* Per RFC4517:
+	 *
+	 *   CountryString = 2(PrintableCharacter)
+	 */
+	if (val != NULL) {
+		if ((val->bv_len != 2) || !IS_PRINTABLE(val->bv_val[0]) || !IS_PRINTABLE(val->bv_val[1])) {
+			rc = 1;
+			goto exit;
+		}
+
+
+	} else {
+		rc = 1;
+	}
+
+exit:
+	return(rc);
+}
+
+static int postal_validate( 
+	struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+	const char *p = NULL;
+	const char *start = NULL;
+	char *end = NULL;
+
+	/* Per RFC4517:
+	 *   PostalAddress = line *( DOLLAR line )
+	 *   line          = 1*line-char
+	 *   line-char     = %x00-23
+	 *                   / (%x5C "24")  ; escaped "$"
+	 *                   / %x25-5B
+	 *                   / (%x5C "5C")  ; escaped "\"
+	 *                   / %x5D-7F
+	 *                   / UTFMB
+	 */
+	if (val != NULL) {
+		start = val->bv_val;
+		end = &(val->bv_val[val->bv_len - 1]);
+		for (p = start; p <= end; p++) {
+			/* look for a '\' and make sure it's only used to escape a '$' or a '\' */
+			if (*p == '\\') {
+				p++;
+				/* ensure that we're not at the end of the value */
+				if ((p > end) || (strncmp(p, "24", 2) != 0) && (strncasecmp(p, "5C", 2) != 0)) {
+					rc = 1;
+					goto exit;
+				} else {
+					/* advance the pointer to point to the end
+					 * of the hex code for the escaped character */
+					p++;
+				}
+			} else if (*p == '$') {
+				/* This signifies the end of a line.  We need
+				 * to ensure that the line is not empty. */
+				if (p == start) {
+					rc = 1;
+					goto exit;
+				}
+
+				/* make sure the value doesn't end with a '$' */
+				if (p == end) {
+					rc = 1;
+					goto exit;
+				}
+
+				/* Make sure the line (start to p) is valid UTF-8. */
+				if ((rc = utf8string_validate(start, p, NULL)) != 0) {
+					goto exit;
+				}
+
+				/* make the start pointer point to the
+				 * beginning of the next line */
+				start = p + 1;
+			}
+		}
+	} else {
+		rc = 1;
+	}
+
+exit:
+	return(rc);
+}
+
+static int oid_validate(
+	struct berval *val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+	const char *p = NULL;
+	char *end = NULL;
+
+	/* Per RFC4512:
+	 *
+	 *   oid = descr / numericoid
+	 *   descr = keystring
+	 */
+	if ((val != NULL) && (val->bv_len > 0)) {
+		p = val->bv_val;
+		end = &(val->bv_val[val->bv_len - 1]);
+
+		/* check if the value matches the descr form */
+		if (IS_LEADKEYCHAR(*p)) {
+			rc = keystring_validate(p, end);
+		/* check if the value matches the numericoid form */
+		} else if (isdigit(*p)) {
+			rc = numericoid_validate(p, end);
+		} else {
+			rc = 1;
+			goto exit;
+		}
+	} else {
+		rc = 1;
+	}
+
+exit:
+	return( rc );
+}
+

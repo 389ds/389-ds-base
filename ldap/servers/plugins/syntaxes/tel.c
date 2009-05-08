@@ -58,6 +58,7 @@ static int tel_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
 static int tel_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 		char *final, Slapi_Value ***ivals );
 static int tel_compare(struct berval	*v1, struct berval	*v2);
+static int tel_validate(struct berval *val);
 
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "TelephoneNumber", "tel", TELEPHONE_SYNTAX_OID, 0 };
@@ -95,6 +96,8 @@ tel_init( Slapi_PBlock *pb )
 	    (void *) TELEPHONE_SYNTAX_OID );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) tel_compare );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
+	    (void *) tel_validate );
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= tel_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -169,4 +172,36 @@ static int tel_compare(
 )
 {
 	return value_cmp(v1, v2, SYNTAX_TEL|SYNTAX_CIS, 3 /* Normalise both values */);
+}
+
+static int
+tel_validate(
+	struct berval	*val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+	int	i = 0;
+
+	/* Per RFC4517:
+	 *
+	 * TelephoneNumber = PrintableString
+	 * PrintableString = 1*PrintableCharacter
+	 */
+
+	/* Don't allow a 0 length string */
+	if ((val == NULL) || (val->bv_len == 0)) {
+		rc = 1;
+		goto exit;
+	}
+
+	/* Make sure all chars are a PrintableCharacter */
+	for (i=0; i < val->bv_len; i++) {
+		if (!IS_PRINTABLE(val->bv_val[i])) {
+			rc = 1;
+			goto exit;
+		}
+	}
+
+exit:
+	return rc;
 }

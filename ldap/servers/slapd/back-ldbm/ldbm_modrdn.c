@@ -530,6 +530,17 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
+	/* Check attribute syntax if any new values are being added for the new RDN */
+	if (slapi_mods_get_num_mods(&smods_operation_wsi)>0)
+	{
+		if (slapi_mods_syntax_check(pb, smods_generated_wsi.mods, 0) != 0)
+		{
+			ldap_result_code = LDAP_INVALID_SYNTAX;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
+	}
+
 	/*
 	 * Update the DN CSN of the entry.
 	 */

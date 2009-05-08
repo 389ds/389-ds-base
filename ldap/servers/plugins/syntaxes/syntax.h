@@ -66,6 +66,46 @@
 #define MIN( a, b )	(a < b ? a : b )
 #endif
 
+#define SYNTAX_PLUGIN_SUBSYSTEM "syntax-plugin"
+
+/* The following are derived from RFC 4512, section 1.4. */
+#define IS_LEADKEYCHAR(c)	( isalpha(c) )
+#define IS_KEYCHAR(c)		( isalnum(c) || (c == '-') )
+#define IS_SPACE(c)		( (c == ' ') )
+#define IS_LDIGIT(c)		( (c != '0') && isdigit(c) )
+#define IS_SHARP(c)		( (c == '#') )
+#define IS_ESC(c)		( (c == '\\') )
+#define IS_UTF0(c)		( (c >= '\x80') && (c <= '\xBF') )
+#define IS_UTF1(c)		( !(c & 128) )
+/* These are only checking the first byte of the multibyte character.  They
+ * do not verify that the entire multibyte character is correct. */
+#define IS_UTF2(c)		( (c >= '\xC2') && (c <= '\xDF') )
+#define IS_UTF3(c)		( (c >= '\xE0') && (c <= '\xEF') )
+#define IS_UTF4(c)		( (c >= '\xF0') && (c <= '\xF4') )
+#define IS_UTFMB(c)		( IS_UTF2(c) || IS_UTF3(c) || IS_UTF4(c) )
+#define IS_UTF8(c)		( IS_UTF1(c) || IS_UTFMB(c) )
+
+/* The following are derived from RFC 4514, section 3. */
+#define IS_ESCAPED(c)		( (c == '"') || (c == '+') || (c == ',') || \
+	(c == ';') || (c == '<') || (c == '>') )
+#define IS_SPECIAL(c)		( IS_ESCAPED(c) || IS_SPACE(c) || \
+	IS_SHARP(c) || (c == '=') )
+#define IS_LUTF1(c)		( IS_UTF1(c) && !IS_ESCAPED(c) && !IS_SPACE(c) && \
+	!IS_SHARP(c) && !IS_ESC(c) )
+#define IS_TUTF1(c)		( IS_UTF1(c) && !IS_ESCAPED(c) && !IS_SPACE(c) && \
+	!IS_ESC(c) )
+#define IS_SUTF1(c)		( IS_UTF1(c) && !IS_ESCAPED(c) && !IS_ESC(c) )
+
+/* Per RFC 4517:
+ *
+ *   PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
+ *                        PLUS / COMMA / HYPHEN / DOT / EQUALS /
+ *                        SLASH / COLON / QUESTION / SPACE
+ */
+#define IS_PRINTABLE(c)	( isalnum(c) || (c == '\'') || (c == '(') || \
+	(c == ')') || (c == '+') || (c == ',') || (c == '-') || (c == '.') || \
+	(c == '=') || (c == '/') || (c == ':') || (c == '?') || IS_SPACE(c) )
+
 int string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,Slapi_Value **bvals, int syntax );
 int string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,int ftype, Slapi_Value **retVal );
 int string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,Slapi_Value ***ivals, int syntax, int ftype );
@@ -78,5 +118,10 @@ char *first_word( char *s );
 char *next_word( char *s );
 char *phonetic( char *s );
 
+/* Validation helper functions */
+int keystring_validate( char *begin, char *end );
+int numericoid_validate( char *begin, char *end );
+int utf8char_validate( char *begin, char *end, char **last );
+int utf8string_validate( char *begin, char *end, char **last );
 
 #endif

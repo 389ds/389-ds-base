@@ -24,6 +24,7 @@ nsslapd-accesslog: %log_dir%/access
 nsslapd-enquote-sup-oc: off
 nsslapd-localhost: %fqdn%
 nsslapd-schemacheck: on
+nsslapd-syntaxcheck: on
 nsslapd-rewrite-rfc1274: off
 nsslapd-return-exact-case: on
 nsslapd-ssl-check-hostname: on
@@ -181,6 +182,16 @@ nsslapd-pluginarg0: nsmultiplexorcredentials
 nsslapd-pluginarg1: nsds5ReplicaCredentials
 nsslapd-pluginid: des-storage-scheme
 
+dn: cn=Syntax Validation Task,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Syntax Validation Task
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: syntax_validate_task_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: on
+
 dn: cn=Case Ignore String Syntax,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -219,7 +230,7 @@ cn: Space Insensitive String Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: sicis_init
 nsslapd-plugintype: syntax
-nsslapd-pluginenabled: on
+nsslapd-pluginenabled: @enable_presence@
 
 dn: cn=Binary Syntax,cn=plugins,cn=config
 objectclass: top
@@ -309,7 +320,7 @@ cn: URI Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: uri_init
 nsslapd-plugintype: syntax
-nsslapd-pluginenabled: on
+nsslapd-pluginenabled: off
 
 dn: cn=JPEG Syntax,cn=plugins,cn=config
 objectclass: top
@@ -338,6 +349,16 @@ objectclass: extensibleObject
 cn: Postal Address Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: postal_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Numeric String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Numeric String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: numstr_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 

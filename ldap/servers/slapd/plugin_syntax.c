@@ -261,6 +261,183 @@ plugin_call_syntax_filter_sub_sv(
 	return( rc );
 }
 
+/* Checks if the values of all attributes in an entry are valid for the
+ * syntax specified for the attribute in question.  Setting override to
+ * 1 will force syntax checking to be performed, even if syntax checking
+ * is disabled in the config.  Setting override to 0 will obey the config
+ * settings.
+ *
+ * Returns 1 if there is a syntax violation and sets the error message
+ * appropriately.  Returns 0 if everything checks out fine.
+ */
+int
+slapi_entry_syntax_check(
+	Slapi_PBlock *pb, Slapi_Entry *e, int override
+)
+{
+	int ret = 0;
+	int i = 0;
+	int is_replicated_operation = 0;
+	int badval = 0;
+	int syntaxcheck = config_get_syntaxcheck();
+	int syntaxlogging = config_get_syntaxlogging();
+	Slapi_Attr *prevattr = NULL;
+	Slapi_Attr *a = NULL;
+	char errtext[ BUFSIZ ];
+	char *errp = &errtext[0];
+	size_t err_remaining = sizeof(errtext);
+
+	if (pb != NULL) {
+		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+	}
+
+	/* If syntax checking and logging are off, or if this is a
+         * replicated operation, just return that the syntax is OK. */
+	if (((syntaxcheck == 0) && (syntaxlogging == 0) && (override == 0)) ||
+	    is_replicated_operation) {
+		goto exit;
+	}
+
+	i = slapi_entry_first_attr(e, &a);
+
+	while ((-1 != i) && a && (a->a_plugin != NULL)) {
+		/* If no validate function is available for this type, just
+		 * assume that the value is valid. */
+		if ( a->a_plugin->plg_syntax_validate != NULL ) {
+			int numvals = 0;
+
+			slapi_attr_get_numvalues(a, &numvals);
+			if ( numvals > 0 ) {
+				Slapi_Value *val = NULL;
+				const struct berval *bval = NULL;
+				int hint = slapi_attr_first_value(a, &val);
+
+				/* iterate through each value to check if it's valid */
+				while (val != NULL) {
+					bval = slapi_value_get_berval(val);
+					if ((a->a_plugin->plg_syntax_validate( bval )) != 0) {
+						if (syntaxlogging) {
+							slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check",
+							                "\"%s\": (%s) value #%d invalid per syntax\n",
+							                slapi_entry_get_dn(e), a->a_type, hint );
+						}
+
+						if (syntaxcheck || override) {
+							if (pb) {
+								/* Append new text to any existing text. */
+								errp += PR_snprintf( errp, err_remaining,
+								    "%s: value #%d invalid per syntax\n", a->a_type, hint );
+								err_remaining -= errp - &errtext[0];
+							}
+							ret = 1;
+						}
+					}
+
+					hint = slapi_attr_next_value(a, hint, &val);
+				}
+			}
+		}
+
+		prevattr = a;
+		i = slapi_entry_next_attr(e, prevattr, &a);
+	}
+
+	/* See if we need to set the error text in the pblock. */
+	if (errp != &errtext[0]) {
+		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+	}
+
+exit:
+	return( ret );
+}
+
+/* Checks if the values of all attributes being added in a Slapi_Mods
+ * are valid for the syntax specified for the attribute in question.
+ * The new values in an add or replace modify operation and the newrdn
+ * value for a modrdn operation will be checked.
+ * Returns 1 if there is a syntax violation and sets the error message
+ * appropriately.  Returns 0 if everything checks out fine.
+ */
+int
+slapi_mods_syntax_check(
+	Slapi_PBlock *pb, LDAPMod **mods, int override
+)
+{
+	int ret = 0;
+	int i, j = 0;
+	int is_replicated_operation = 0;
+	int badval = 0;
+	int syntaxcheck = config_get_syntaxcheck();
+	int syntaxlogging = config_get_syntaxlogging();
+	char errtext[ BUFSIZ ];
+	char *errp = &errtext[0];
+	size_t err_remaining = sizeof(errtext);
+	char *dn = NULL;
+	LDAPMod *mod = NULL;
+
+	if (mods == NULL) {
+		ret = 1;
+		goto exit;
+	}
+
+	if (pb != NULL) {
+		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+		slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
+	}
+
+	/* If syntax checking and logging are  off, or if this is a
+	 * replicated operation, just return that the syntax is OK. */
+	if (((syntaxcheck == 0) && (syntaxlogging == 0) && (override == 0)) ||
+	    is_replicated_operation) {
+		goto exit;
+	}
+
+	/* Loop through mods */
+	for (i = 0; mods[i] != NULL; i++) {
+		mod = mods[i];
+
+		/* We only care about replace and add modify operations that
+		 * are truly adding new values to the entry. */
+		if ((SLAPI_IS_MOD_REPLACE(mod->mod_op) || SLAPI_IS_MOD_ADD(mod->mod_op)) &&
+		    (mod->mod_bvalues != NULL)) {
+			struct slapdplugin *syntax_plugin = NULL;
+
+			/* Find the plug-in for this type, then call it's
+			 * validate function.*/
+			slapi_attr_type2plugin(mod->mod_type, (void **)&syntax_plugin);
+			if ((syntax_plugin != NULL) && (syntax_plugin->plg_syntax_validate != NULL)) {
+				/* Loop through the values and validate each one */
+				for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
+					if (syntax_plugin->plg_syntax_validate(mod->mod_bvalues[j]) != 0) {
+						if (syntaxlogging) {
+							slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check", "\"%s\": (%s) value #%d invalid per syntax\n", 
+							    dn ? dn : "NULL", mod->mod_type, j );
+						}
+
+						if (syntaxcheck || override) {
+							if (pb) {
+								/* Append new text to any existing text. */
+								errp += PR_snprintf( errp, err_remaining,
+								    "%s: value #%d invalid per syntax\n", mod->mod_type, j );
+								err_remaining -= errp - &errtext[0];
+							}
+							ret = 1;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/* See if we need to set the error text in the pblock. */
+	if (errp != &errtext[0]) {
+		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+	}
+
+exit:
+	return( ret );
+}
+
 SLAPI_DEPRECATED int
 slapi_call_syntax_values2keys( /* JCM SLOW FUNCTION */
     void		*vpi,

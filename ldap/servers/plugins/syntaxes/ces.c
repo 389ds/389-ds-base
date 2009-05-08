@@ -40,7 +40,9 @@
 #  include <config.h>
 #endif
 
-/* ces.c - caseexactstring syntax routines */
+/* ces.c - caseexactstring syntax routines.  Implements support for:
+ * 	- IA5String
+ * 	- URI (DEPRECATED - This is non-standard and isn't used in the default schema.) */
 
 #include <stdio.h>
 #include <string.h>
@@ -58,6 +60,7 @@ static int ces_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
 static int ces_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 		char *final, Slapi_Value ***ivals );
 static int ces_compare(struct berval	*v1, struct berval	*v2);
+static int ia5_validate(struct berval *val);
 
 /* the first name is the official one from RFC 2252 */
 static char *ia5_names[] = { "IA5String", "ces", "caseexactstring",
@@ -78,7 +81,7 @@ static Slapi_PluginDesc uri_pdesc = { "uri-syntax", PLUGIN_MAGIC_VENDOR_STR,
  */
 static int
 register_ces_like_plugin( Slapi_PBlock *pb, Slapi_PluginDesc *pdescp,
-		char **names, char *oid )
+		char **names, char *oid, void *validate_fn )
 {
 	int	rc, flags;
 
@@ -105,6 +108,10 @@ register_ces_like_plugin( Slapi_PBlock *pb, Slapi_PluginDesc *pdescp,
 	    (void *) oid );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) ces_compare );
+	if (validate_fn != NULL) {
+		rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
+		    (void *)validate_fn );
+	}
 
 	return( rc );
 }
@@ -116,7 +123,7 @@ ces_init( Slapi_PBlock *pb )
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> ces_init\n", 0, 0, 0 );
 
-	rc = register_ces_like_plugin(pb,&ia5_pdesc,ia5_names,IA5STRING_SYNTAX_OID);
+	rc = register_ces_like_plugin(pb,&ia5_pdesc,ia5_names,IA5STRING_SYNTAX_OID, ia5_validate);
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= ces_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -130,7 +137,7 @@ uri_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> uri_init\n", 0, 0, 0 );
 
 	rc = register_ces_like_plugin(pb,&uri_pdesc,uri_names,
-				      "1.3.6.1.4.1.4401.1.1.1");
+				      "1.3.6.1.4.1.4401.1.1.1", NULL);
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= uri_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -202,4 +209,32 @@ static int ces_compare(
 )
 {
 	return value_cmp(v1,v2,SYNTAX_CES,3 /* Normalise both values */);
+}
+
+static int
+ia5_validate(
+    struct berval *val
+)
+{
+	int	rc = 0;    /* assume the value is valid */
+	int	i = 0;
+
+	if (val == NULL) {
+		rc = 1;
+		goto exit;
+	}
+
+	/* Per RFC 4517:
+	 *
+	 * IA5String = *(%x00-7F)
+	 */
+	for (i=0; i < val->bv_len; i++) {
+		if (!IS_UTF1(val->bv_val[i])) {
+			rc = 1;
+			goto exit;
+		}
+	}
+
+exit:
+	return rc;
 }

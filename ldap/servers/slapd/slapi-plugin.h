@@ -280,6 +280,8 @@ int slapi_entry_next_attr( const Slapi_Entry *e, Slapi_Attr *prevattr, Slapi_Att
 const char *slapi_entry_get_uniqueid( const Slapi_Entry *e );
 void slapi_entry_set_uniqueid( Slapi_Entry *e, char *uniqueid );
 int slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e );
+int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
+int slapi_mods_syntax_check( Slapi_PBlock *pb, LDAPMod **mods, int override );
 int slapi_entry_rdn_values_present( const Slapi_Entry *e );
 int slapi_entry_add_rdn_values( Slapi_Entry *e );
 int slapi_entry_attr_delete( Slapi_Entry *e, const char *type );
@@ -1702,9 +1704,9 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_SYNTAX_OID			706
 #define SLAPI_PLUGIN_SYNTAX_FLAGS		707
 #define SLAPI_PLUGIN_SYNTAX_COMPARE		708
-
 /* user defined substrlen; not stored in slapdplugin, but pblock itself */
-#define SLAPI_SYNTAX_SUBSTRLENS	709
+#define SLAPI_SYNTAX_SUBSTRLENS			709
+#define SLAPI_PLUGIN_SYNTAX_VALIDATE		710
 
 /* ACL plugin functions and arguments */
 #define SLAPI_PLUGIN_ACL_INIT			730

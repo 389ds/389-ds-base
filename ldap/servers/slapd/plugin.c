@@ -1878,35 +1878,37 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 
 		if ( NULL == plugin )
 		{
+			/* This can happen for things such as disabled syntax plug-ins.  We
+			 * just treat this as a warning to allow the description attributes
+			 * to be set to a default value to avoid an objectclass violation. */
 			LDAPDebug(LDAP_DEBUG_PLUGIN,
-					"Error: failed to add descriptive values for plugin %s"
-					" (could not find plugin entry)\n",
+					"Warning: couldn't find plugin %s in global list. "
+					"Adding default descriptive values.\n",
 					slapi_entry_get_dn_const(e), 0, 0 );
-			return 1;		/* failure */
 		}
 	}
 
 
 	if (add_plugin_description(e, ATTR_PLUGIN_PLUGINID,
-							   plugin->plg_desc.spd_id))
+	                           plugin ? plugin->plg_desc.spd_id : NULL))
 	{
 		status = 1;
 	}
 
 	if (add_plugin_description(e, ATTR_PLUGIN_VERSION,
-							   plugin->plg_desc.spd_version))
+	                           plugin ? plugin->plg_desc.spd_version : NULL))
 	{
 		status = 1;
 	}
 
 	if (add_plugin_description(e, ATTR_PLUGIN_VENDOR,
-							   plugin->plg_desc.spd_vendor))
+	                           plugin ? plugin->plg_desc.spd_vendor: NULL))
 	{
 		status = 1;
 	}
 
 	if (add_plugin_description(e, ATTR_PLUGIN_DESC,
-							   plugin->plg_desc.spd_description))
+	                           plugin ? plugin->plg_desc.spd_description : NULL))
 	{
 		status = 1;
 	}
