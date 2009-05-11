@@ -1,4 +1,4 @@
-/** BEGIN COPYRIGHT BLOCK
+/* BEGIN COPYRIGHT BLOCK
  * This Program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation; version 2 of the License.
@@ -34,14 +34,20 @@
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
- * END COPYRIGHT BLOCK **/
+ * END COPYRIGHT BLOCK */
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
 
-/* slapi-plugin.h - public Directory Server plugin interface */
+/*! \file slapi-plugin.h
+ *  \brief Public Directory Server plugin interface.
+ *         
+ *  The SLAPI plugin interface allows complex plugins to be created
+ *  for Directory Server.
+ */
+
 
 #ifndef _SLAPIPLUGIN
 #define _SLAPIPLUGIN
@@ -169,26 +175,185 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 
 
 /* opaque structures */
+/**
+ * Contains name-value pairs, known as parameter blocks, that you can get or set for
+ * each LDAP operation.
+ *
+ * #Slapi_PBlock contains name-value pairs that you can use to retrieve information
+ * from the server and set information to be used by the server.
+ *
+ * For most types of plug-in functions, the server passes in a #Slapi_PBlock
+ * structure that typically includes data relevant to the operation being processed.
+ * You can get the value of a parameter by calling the slapi_pblock_get() function.
+ *
+ * For example, when the plug-in function for an LDAP bind operation is called, the
+ * server puts the DN and credentials in the #SLAPI_BIND_TARGET and
+ * #SLAPI_BIND_CREDENTIALS parameters of the Slapi_PBlock structure. You can
+ * call slapi_pblock_get() to get the DN and credentials of the client requesting
+ * authentication.
+ *
+ * For plug-in initialization functions, you can use the #Slapi_PBlock structure to
+ * pass information to the server, such as the description of your plug-in and the
+ * names of your plug-in functions. You can set the value of a parameter by calling
+ * the slapi_pblock_set() function.
+ *
+ * For example, in order to register a pre-operation bind plug-in function, you need to
+ * call slapi_pblock_set() to set the version number, description, and name of the
+ * plug-in function as the #SLAPI_PLUGIN_VERSION, #SLAPI_PLUGIN_DESCRIPTION,
+ * and #SLAPI_PLUGIN_PRE_BIND_FN parameters.
+ *
+ * The available parameters that you can use depends on the type of plug-in function
+ * you are writing.
+ */
 typedef struct slapi_pblock		Slapi_PBlock;
+
+/**
+ * Represents an entry in the directory.
+ *
+ * #Slapi_Entry is the data type for an opaque structure that represents an entry in
+ * the directory. In certain cases, your server plug-in may need to work with an entry
+ * in the directory.
+ */
 typedef struct slapi_entry		Slapi_Entry;
+
+/**
+ * Represents an attribute in an entry.
+ *
+ * #Slapi_Attr is the data type for an opaque structure that represents an attribute
+ * in a directory entry. In certain cases, your server plug-in may need to work with
+ * an entry’s attributes.
+ */
 typedef struct slapi_attr		Slapi_Attr;
+
+/**
+ * Represents the value of the attribute in a directory entry.
+ *
+ * #Slapi_Value is the data type for an opaque structure that represents the value of
+ * an attribute in a directory entry.
+ */
 typedef struct slapi_value  		Slapi_Value;
+
+/**
+ * Represents a set of Slapi_Value (or a list of Slapi_Value).
+ *
+ * #Slapi_ValueSet is the data type for an opaque structure that represents set of
+ * #Slapi_Value (or a list of #Slapi_Value).
+ */
 typedef struct slapi_value_set  	Slapi_ValueSet;
+
+/**
+ * Represents a search filter.
+ *
+ * #Slapi_Filter is the data type for an opaque structure that represents an search
+ * filter.
+ */
 typedef struct slapi_filter		Slapi_Filter;
+
+/**
+ * Represents a backend operation in the server plug-in.
+ *
+ * #Slapi_Backend is the data type for an opaque structure that represents a backend
+ * operation.
+ */
 typedef struct backend			Slapi_Backend;
+
+/**
+ * Represents the unique identifier of a directory entry.
+ *
+ * #Slapi_UniqueID is the data type for an opaque structure that represents the
+ * unique identifier of a directory entry. All directory entries contain a unique
+ * identifier. Unlike the distinguished name (DN), the unique identifier of an entry
+ * never changes, providing a good way to refer unambiguously to an entry in a
+ * distributed/replicated environment.
+ */
 typedef struct _guid_t			Slapi_UniqueID;
+
+/**
+ * Represents an operation pending from an LDAP client.
+ *
+ * #Slapi_Operation is the data type for an opaque structure that represents an
+ * operation pending from an LDAP client.
+ */
 typedef struct op			Slapi_Operation;
+
+/**
+ * Represents a connection.
+ *
+ * #Slapi_Connection is the data type for an opaque structure that represents a
+ * connection.
+ */
 typedef struct conn			Slapi_Connection;
+
+/**
+ * Represents a distinguished name in a directory entry.
+ *
+ * #Slapi_DN is the data type for an opaque structure that represents a distinguished
+ * name in the server plug-in.
+ */
 typedef struct slapi_dn			Slapi_DN;
+
+/**
+ * Represents a relative distinguished name in a directory entry.
+ *
+ * #Slapi_RDN is the data type for an opaque structure that represents a relative
+ * distinguished name in the server plug-in.
+ */
 typedef struct slapi_rdn		Slapi_RDN;
+
+/**
+ * Represents a single LDAP modification to a directory entry.
+ *
+ * #Slapi_Mod is the data type for an opaque structure that represents LDAPMod
+ * modifications to an attribute in a directory entry.
+ */
 typedef struct slapi_mod		Slapi_Mod;
+
+/**
+ * Represents two or more LDAP modifications to a directory entry
+ *
+ * #Slapi_Mods is the data type for an opaque structure that represents LDAPMod
+ * manipulations that can be made to a directory entry.
+ */
 typedef struct slapi_mods		Slapi_Mods;
+
+/**
+ * Represents a the component ID in a directory entry.
+ *
+ * #Slapi_ComponentId is the data type for an opaque structure that represents the
+ * component ID in a directory entry.
+ */
 typedef struct slapi_componentid	Slapi_ComponentId;
+
+/**
+ * Represents an integral counter.
+ *
+ * Provides 64-bit integers with support for atomic operations, even on 32-bit
+ * systems.  This lets your plug-in have global integers that can be updated by
+ * multiple worker threads in a thread-safe manner.
+ *
+ * The #Slapi_Counter structure is a wrapper around the actual counter value
+ */
 typedef struct slapi_counter		Slapi_Counter;
 
 /* Online tasks interface (to support import, export, etc) */
 #define SLAPI_TASK_PUBLIC 1 /* tell old plugins that the task api is now public */
+
+/**
+ * An opaque structure that represents a task that has been initiated.
+ *
+ * Common Directory Server tasks, including importing, exporting, and indexing
+ * databases, can be initiated through a special task configuration entry in
+ * cn=tasks,cn=config. These task operations are managed using the #Slapi_Task
+ * structure. 
+ */
 typedef struct slapi_task		Slapi_Task;
+
+/**
+ * Defines a callback used specifically by Slapi_Task structure cancel and
+ * destructor functions.
+ *
+ * \param task The task that is being cancelled or destroyed.
+ */
 typedef void (*TaskCallbackFn)(Slapi_Task *task);
 
 /*
@@ -215,125 +380,1367 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  0
 #endif
 
-/*
+
+/*---------------------------
  * parameter block routines
+ *--------------------------*/
+/**
+ * Creates a new parameter block.
+ *
+ * \return This function returns a pointer to the new parameter block.
+ * \warning The pblock pointer allocated with this function must always be freed by
+ *          slapi_pblock_destroy(). The use of other memory deallocators (for example,
+ *          <tt>free()</tt>) is not supported and may lead to crashes or memory leaks.
+ * \see slapi_pblock_destroy()
  */
 Slapi_PBlock *slapi_pblock_new( void ); /* allocate and initialize */
+
+/**
+ * Initializes an existing parameter block for re-use.
+ *
+ * \param pb The parameter block to initialize.
+ * \warning The parameter block that you wish to free must have been created using
+ *          slapi_pblock_new().  When you are finished with the parameter block, you
+ *          must free it using the slapi_pblock_destroy() function.
+ *
+ * \warning Note that search results will not be freed from the parameter block by
+ *          slapi_pblock_init(). You must free any internal  search results with the
+ *          slapi_free_search_results_internal() function prior to calling 
+ *          slapi_pblock_init(), otherwise the search results will be leaked.
+ * \see slapi_pblock_new()
+ * \see slapi_pblock_destroy()
+ * \see slapi_free_search_results_internal()
+ */
 void slapi_pblock_init( Slapi_PBlock *pb ); /* clear out for re-use */
+
+/**
+ * Gets the value of a name-value pair from a parameter block.
+ *
+ * \param pb Parameter block.
+ * \param arg ID of the name-value pair that you want to get.
+ * \param value Pointer to the value retrieved from the parameter block.
+ * \return \c 0 if successful.
+ * \return \c -1 if an error occurs (for example, if an invalid ID is specified).
+ * \todo Document valid values for the ID.
+ * \warning The <tt>void *value</tt> argument should always be a pointer to the
+ *          type of value you are retrieving:
+ * \code
+ *     int connid = 0;
+ *     ...
+ *     retval = slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
+ * \endcode
+ *
+ * \warning #SLAPI_CONN_ID is an integer value, so you will pass in a pointer
+ *          to/address of an integer to get the value. Similarly, for a
+ *          <tt>char *</tt> value (a string), pass in a pointer to/address of the value.
+ *          For example:
+ * \code
+ *     char *binddn = NULL;
+ *     ...
+ *     retval = slapi_pblock_get(pb, SLAPI_CONN_DN, &binddn);
+ * \endcode
+ *
+ * \warning With certain compilers on some platforms, you may have to cast the
+ *          value to <tt>(void *)</tt>.
+ *
+ * \warning We recommend that you set the value to \c 0 or \c NULL before calling
+ *          slapi_pblock_get() to avoid reading from uninitialized memory, in
+ *          case the call to slapi_pblock_get() fails.
+ *
+ * \warning In most instances, the caller should not free the returned value.
+ *          The value will usually be freed internally or through the call to
+ *          slapi_pblock_destroy(). The exception is if the value is explicitly
+ *          set by the caller through slapi_pblock_set(). In this case, the caller
+ *          is responsible for memory management. If the value is freed, it is
+ *          strongly recommended that the free is followed by a call to
+ *          slapi_pblock_set() with a value of \c NULL. For example:
+ * \code
+ *     char *someparam = NULL;
+ *     ...
+ *     someparam = slapi_ch_strdup(somestring);
+ *     slapi_pblock_set(pb, SOME_PARAM, someparam);
+ *     someparam = NULL;
+ *     ...
+ *     slapi_pblock_get(pb, SOME_PARAM, &someparam);
+ *     slapi_pblock_set(pb, SOME_PARAM, NULL);
+ *     slapi_ch_free_string(&someparam);
+ *     ...
+ * \endcode
+ *
+ * \warning Some internal functions may change the value passed in, so it is
+ *          recommended to use slapi_pblock_get() to retrieve the value again,
+ *          rather than relying on a potential dangling pointer. This is shown
+ *          in the example above, which sets someparam to \c NULL after setting
+ *          it in the pblock.
+ *
+ * \see slapi_pblock_destroy()
+ * \see slapi_pblock_set()
+ */
 int slapi_pblock_get( Slapi_PBlock *pb, int arg, void *value );
+
+/**
+ * Sets the value of a name-value pair in a parameter block.
+ *
+ * \param pb Parameter block.
+ * \param arg ID of the name-value pair that you want to get.
+ * \param value Pointer to the value you want to set in the parameter block.
+ * \return \c 0 if successful.
+ * \return \c -1 if an error occurs (for example, if an invalid ID is specified).
+ * \warning The value to be passed in must always be a pointer, even for integer
+ *          arguments. For example, if you wanted to do a search with the
+ *          \c ManageDSAIT control:
+ * \code
+ *     int managedsait = 1;
+ *     ...
+ *     slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &managedsait);
+ * \endcode
+ *
+ * \warning A call similar to the following example will cause a crash:
+ * \code
+ *     slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, 1);
+ * \endcode
+ *
+ * \warning However, for values which are already pointers, (<tt>char * string</tt>,
+ *          <tt>char **arrays</tt>, <tt>#Slapi_Backend *</tt>, etc.), you can pass
+ *          in the value directly. For example:
+ * \code
+ *     char *target_dn = slapi_ch_strdup(some_dn);
+ *     slapi_pblock_set(pb, SLAPI_TARGET_DN, target_dn);
+ * \endcode
+ *
+ * \warning or
+ * \code
+ *     slapi_pblock_set(pb, SLAPI_TARGET_DN, NULL);
+ * \endcode
+ *
+ * \warning With some compilers, you will have to cast the value argument to
+ *          <tt>(void *)</tt>. If the caller allocates the memory passed in, the
+ *          caller is responsible for freeing that memory. Also, it is recommended
+ *          to use slapi_pblock_get() to retrieve the value to free, rather than
+ *          relying on a potentially dangling pointer. See the slapi_pblock_get()
+ *          example for more details.
+ *
+ * \warning When setting parameters to register a plug-in, the plug-in type must
+ *          always be set first, since many of the plug-in parameters depend on
+ *          the type. For example, set the #SLAPI_PLUGIN_TYPE to extended
+ *          operation before setting the list of extended operation OIDs for
+ *          the plug-in.
+ *
+ * \see slapi_pblock_get()
+ */ 
 int slapi_pblock_set( Slapi_PBlock *pb, int arg, void *value );
+
+/**
+ * Frees the specified parameter block from memory.
+ *
+ * \param pb Parameter block you want to free.
+ * \warning The parameter block that you wish to free must have been created
+ *          using slapi_pblock_new(). Use of this function with parameter
+ *          blocks allocated on the stack (for example, <tt>#Slapi_PBlock pb;</tt>)
+ *          or using another memory allocator is not supported and may lead to
+ *          memory errors and memory leaks. For example:
+ * \code
+ *     Slapi_PBlock *pb = malloc(sizeof(Slapi_PBlock));
+ * \endcode
+ *
+ * \warning After calling this function, you should set the parameter block
+ *          pointer to \c NULL to avoid reusing freed memory in your function
+ *          context, as in the following:
+ * \code
+ *     slapi_pblock_destroy(pb);
+ *     pb =NULL;
+ * \endcode
+ *
+ * \warning If you reuse the pointer in this way, it makes it easier to
+ *          identify a Segmentation Fault, rather than using some difficult
+ *          method to detect memory leaks or other abnormal behavior.
+ *
+ * \warning It is safe to call this function with a \c NULL pointer. For
+ *          example:
+ * \code
+ *     Slapi_PBlock *pb = NULL;
+ *     slapi_pblock_destroy(pb);
+ * \endcode
+ *
+ * \warning This saves the trouble of checking for \c NULL before calling
+ *          slapi_pblock_destroy().
+ *
+ * \see slapi_pblock_new()
+ */
 void slapi_pblock_destroy( Slapi_PBlock *pb );
 
 
-/*
+/*----------------
  * entry routines
+ *---------------*/
+/**
+ * Converts an LDIF description of a directory entry (a string value) into
+ * an entry of the #Slapi_Entry type.
+ *
+ * A directory entry can be described by a string in LDIF format. Calling
+ * the slapi_str2entry() function converts a string description in this
+ * format to a #Slapi_Entry structure, which you can pass to other API
+ * functions.
+ *
+ * \param s Description of an entry that you want to convert to a #Slapi_Entry.
+ * \param flags One or more flags specifying how the entry should be generated.
+ *        The valid values of the \c flags argument are:
+ *        \arg #SLAPI_STR2ENTRY_REMOVEDUPVALS
+ *        \arg #SLAPI_STR2ENTRY_ADDRDNVALS
+ *        \arg #SLAPI_STR2ENTRY_BIGENTRY
+ *        \arg #SLAPI_STR2ENTRY_TOMBSTONE_CHECK
+ *        \arg #SLAPI_STR2ENTRY_IGNORE_STATE
+ *        \arg #SLAPI_STR2ENTRY_INCLUDE_VERSION_STR
+ *        \arg #SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES
+ *        \arg #SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF
+ *        \arg #SLAPI_STR2ENTRY_NO_SCHEMA_LOCK
+ * \return A pointer to the #Slapi_Entry structure representing the entry.
+ * \return \c NULL if the string cannot be converted; for example, if no DN is
+ *         specified in the string.
+ * \warning This function modifies the string argument s. If you still need to
+ *          use this string value, you should make a copy of this string before
+ *          calling slapi_str2entry().
+ *
+ * \warning When you are done working with the entry, you should call the
+ *          slapi_entry_free() function.
+ *
+ * \note To convert an entry to a string description, call the slapi_entry2str()
+ *       function.
+ *
+ * \see slapi_entry_free()
+ * \see slapi_entry2str()
  */
 Slapi_Entry *slapi_str2entry( char *s, int flags );
-/* Flags for slapi_str2entry() */
-/* Remove duplicate values */
+
+
+/*-----------------------------
+ * Flags for slapi_str2entry()
+ *----------------------------*/
+/**
+ * Removes any duplicate values in the attributes of the entry.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_REMOVEDUPVALS		1
-/* Add any missing values from RDN */
+
+/**
+ * Adds the relative distinguished name (RDN) components (for example,
+ * \c uid=bjensen) as attributes of the entry.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_ADDRDNVALS		2
-/* Provide a hint that the entry is large; this enables some optimizations
-   related to large entries. */
+
+/**
+ * Provide a hint that the entry is large. This enables some optimizations
+ * related to large entries.
+ *
+ *  \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_BIGENTRY		4
-/* Check to see if the entry is a tombstone; if so, set the tombstone flag
-   (SLAPI_ENTRY_FLAG_TOMBSTONE) */
+
+/**
+ * Check to see if the entry is a tombstone. If so, set the tombstone flag
+ * (#SLAPI_ENTRY_FLAG_TOMBSTONE).
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_TOMBSTONE_CHECK		8
-/* Ignore entry state information if present */
+
+/**
+ * Ignore entry state information if present.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_IGNORE_STATE		16
-/* Return entries that have a "version: 1" line as part of the LDIF
-   representation */
+
+/**
+ * Return entries that have a <tt>version: 1</tt> line as part of the LDIF
+ * representation.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_INCLUDE_VERSION_STR	32
-/* Add any missing ancestor values based on the object class hierarchy */
+
+/**
+ * Add any missing ancestor values based on the object class hierarchy.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES	64
-/* Inform slapi_str2entry() that the LDIF input is not well formed.
-   Well formed LDIF has no duplicate attribute values, already
-   has the RDN as an attribute of the entry, and has all values for a
-   given attribute type listed contiguously. */
+
+/**
+ * Inform slapi_str2entry() that the LDIF input is not well formed.
+ *
+ * Well formed LDIF has no duplicate attribute values, already has the RDN
+ * as an attribute of the entry, and has all values for a given attribute
+ * type listed contiguously.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF 128
+
+/**
+ * Don't acquire the schema lock.
+ *
+ * You should use this flag if you are sure that the lock is already held,
+ * or if the server has not started it's threads yet during startup.
+ *
+ * \see slapi_str2entry()
+ */
 #define SLAPI_STR2ENTRY_NO_SCHEMA_LOCK       256
 
+/**
+ * Generates a description of an entry as an LDIF string.
+ *
+ * This function behaves much like slapi_entry2str(); however, you can specify
+ * output options with this function.
+ *
+ * This function generates an LDIF string value conforming to the following syntax:
+ * \code
+ *     dn: dn\n
+ *     [attr: value\n]*
+ * \endcode
+ *
+ * For example:
+ * \code
+ *     dn: uid=jdoe, ou=People, dc=example,dc=com
+ *     cn: Jane Doe
+ *     sn: Doe
+ *     ...
+ * \endcode
+ *
+ * To convert an entry described in LDIF string format to an LDAP entry using
+ * the #Slapi_Entry data type, call the slapi_str2entry() function.
+ *
+ * \param e Entry that you want to convert into an LDIF string.
+ * \param len Length of the LDIF string returned by this function.
+ * \param options An option set that specifies how you want the string
+ *        converted. You can \c OR together any of the following options
+ *        when you call this function:
+ *        \arg #SLAPI_DUMP_STATEINFO
+ *        \arg #SLAPI_DUMP_UNIQUEID
+ *        \arg #SLAPI_DUMP_NOOPATTRS
+ *        \arg #SLAPI_DUMP_NOWRAP
+ *        \arg #SLAPI_DUMP_MINIMAL_ENCODING
+ * \return The LDIF string representation of the entry you specify.
+ * \return \c NULL if an error occurs.
+ * \warning When you no longer need to use the string, you should free it
+ *          from memory by calling the slapi_ch_free_string() function.
+ *
+ * \see slapi_entry2str()
+ * \see slapi_str2entry()
+ */
 char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
-/* Options for slapi_entry2str_with_options() */
+
+
+/*---------------------------------------------
+ * Options for slapi_entry2str_with_options()
+ *--------------------------------------------*/
+/**
+ * Output entry with replication state info.
+ *
+ * This allows access to the internal data used by multi-master replication.
+ *
+ * \see slapi_entry2str_with_options()
+ */
 #define SLAPI_DUMP_STATEINFO		1	/* replication state */
+
+/**
+ * Output entry with uniqueid.
+ *
+ * This option is used when creating an LDIF file to be used to initialize
+ * a replica. Each entry will contain the nsuniqueID operational attribute.
+ *
+ * \see slapi_entry2str_with_options()
+ */
 #define SLAPI_DUMP_UNIQUEID		2	/* unique ID */
+
+/**
+ * Output entry without operational attributes.
+ *
+ * By default, certain operational attributes (such as \c creatorsName,
+ * \c modifiersName, \c createTimestamp, \c modifyTimestamp) may be
+ * included in the output. With this option, no operational attributes
+ * will be included.
+ *
+ * \see slapi_entry2str_with_options()
+ */
 #define SLAPI_DUMP_NOOPATTRS		4	/* suppress operational attrs */
+
+/**
+ * Output entry without LDIF line wrapping.
+ *
+ * By default, lines will be wrapped as defined in the LDIF specification.
+ * With this option, line wrapping is disabled.
+ *
+ * \see slapi_entry2str_with_options()
+ */
 #define SLAPI_DUMP_NOWRAP		8	/* no line breaks */
+
+/**
+ * Output entry with less base64 encoding.
+ *
+ * Uses as little base64 encoding as possible in the output.
+ *
+ * \see slapi_entry2str_with_options()
+ */
 #define SLAPI_DUMP_MINIMAL_ENCODING	16	/* use less base64 encoding */
 
+/**
+ * Generates an LDIF string description of an LDAP entry.
+ *
+ * This function generates an LDIF string value conforming to the following syntax:
+ * \code
+ *     dn: dn\n
+ *     [attr: value\n]*
+ * \endcode
+ *
+ * For example:
+ * \code
+ *     dn: uid=jdoe, ou=People, dc=example,dc=com
+ *     cn: Jane Doe
+ *     sn: Doe
+ *     ...
+ * \endcode
+ *
+ * To convert an entry described in LDIF string format to an LDAP entry using
+ * the #Slapi_Entry data type, call the slapi_str2entry() function.
+ *
+ * \param e Entry that you want to convert into an LDIF string.
+ * \param len Length of the LDIF string returned by this function.
+ * \return The LDIF string representation of the entry you specify.
+ * \return \c NULL if an error occurs.
+ * \warning When you no longer need to use the string, you should free it
+ *          from memory by calling the slapi_ch_free_string() function.
+ *
+ * \see slapi_entry2str_with_options()
+ * \see slapi_str2entry()
+ */
 char *slapi_entry2str( Slapi_Entry *e, int *len );
+
+/**
+ * Allocates memory for a new entry of the data type #Slapi_Entry.
+ *
+ * This function returns an empty #Slapi_Entry structure. You can call other
+ * front-end functions to set the DN and attributes of this entry.
+ *
+ * When you are no longer using the entry, you should free it from memory by
+ * calling the slapi_entry_free() function.
+ *
+ * \return This function returns a pointer to the newly allocated entry of the
+ *         data type #Slapi_Entry. If space cannot be allocated, e.g., no more
+ *         virtual memory exists, the \c ns-slapd program terminates.
+ * \warning When you no longer use the entry, free it from memory by calling the
+ *          slapi_entry_free() function.
+ *
+ * \see slapi_entry_dup()
+ * \see slapi_entry_free()
+ */
 Slapi_Entry *slapi_entry_alloc(void);
+
+/**
+ * Initializes the values of an entry with the DN and attribute value pairs you
+ * supply.
+ *
+ * This function initializes the attributes and the corresponding attribute values
+ * of an entry. Also, during the course of processing, the unique ID of the entry
+ * is set to \c NULL, and the flag value is set to \c 0.
+ *
+ * Use this function to initialize a #Slapi_Entry pointer.
+ *
+ * \param e The entry you want to initialize.
+ * \param dn The DN of the entry you are initializing.
+ * \param a Initialization list of attribute value pairs, supplied as a
+ *          #Slapi_Attr data value.
+ * \warning This function should always be used after slapi_entry_alloc() and
+ *          never otherwise. For example:
+ * \code
+ *     Slapi_Entry *e = slapi_entry_alloc();
+ *     slapi_entry_init(e, NULL, NULL);
+ * \endcode
+ *
+ * \warning To set the DN in the entry:
+ * \code
+ *     slapi_sdn_set_dn_passin(slapi_entry_get_sdn(e), dn);
+ * \endcode
+ *
+ * \warning In this case, the dn argument is not copied but is consumed by the
+ *          function. To copy the argument, see the following example:
+ * \code
+ *     char *dn = slapi_ch_strdup(some_dn);
+ *     Slapi_Entry *e = slapi_entry_alloc();
+ *     slapi_entry_init(e, dn, NULL);
+ * \endcode
+ *
+ * \warning The \c dn argument is not freed in this context but will eventually
+ * be freed when slapi_entry_free() is called.
+ *
+ * \see slapi_entry_free()
+ * \see slapi_entry_alloc()
+ */
 void slapi_entry_init(Slapi_Entry *e, char *dn, Slapi_Attr *a);
+
+/**
+ * Frees an entry, its DN, and its attributes from memory.
+ *
+ * Call this function to free an entry that you have allocated by using the
+ * slapi_entry_alloc() function or the slapi_entry_dup() function.
+ *
+ * \param e Entry that you want to free.  If \c NULL, no action occurs.
+ * \warning To free entries, always use this function instead of using
+ *          slapi_ch_free() or free().
+ *
+ * \see slapi_entry_alloc()
+ * \see slapi_entry_dup()
+ */
 void slapi_entry_free( Slapi_Entry *e );
+
+/**
+ * Makes a copy of an entry, its DN, and its attributes.
+ *
+ * This function returns a copy of an existing #Slapi_Entry structure. You can 
+ * call other front-end functions to change the DN and attributes of this entry.
+ *
+ * \param e Entry that you want to copy.
+ * \return This function returns the new copy of the entry. If the structure
+ *         cannot be duplicated, for example, if no more virtual memory exists,
+ *         the \c ns-slapd program terminates.
+ * \warning When you are no longer using the entry, free it from memory by
+ *          calling the slapi_entry_free() function.
+ * \see slapi_entry_alloc()
+ * \see slapi_entry_free()
+ */
 Slapi_Entry *slapi_entry_dup( const Slapi_Entry *e );
+
+/**
+ * Gets the distinguished name (DN) of the specified entry.
+ *
+ * \param e Entry from which you want to get the DN.
+ * \return This function returns the DN of the entry. This returns a pointer
+ *         to the actual DN in the entry, not a copy of the DN. You should not
+ *         free the DN unless you plan to replace it by calling slapi_entry_set_dn().
+ * \warning Use slapi_ch_free_string() if you are replacing the DN with
+ *          slapi_entry_set_dn().
+ * \see slapi_ch_free_string()
+ * \see slapi_entry_set_dn()
+ */
 char *slapi_entry_get_dn( Slapi_Entry *e );
+
+/**
+ * Returns the normalized DN from the entry that you specify.
+ *
+ * \param e Entry from which you want to obtain the normalized DN.
+ * \return This function returns the normalized DN from the entry that you
+ *         specify. If the entry you specify does not contain a normalized DN,
+ *         one is created through the processing of this function.
+ * \warning Never free the returned value.
+ * \see slapi_entry_get_dn()
+ */
 char *slapi_entry_get_ndn( Slapi_Entry *e );
+
+/**
+ * Returns as a \c const the value of the #Slapi_DN object from the entry
+ * that you specify.
+ *
+ * \param e Entry from which you want to get the #Slapi_DN object.
+ * \return Returns as a \c const the #Slapi_DN object from the entry that you
+ *         specify. 
+ * \warning Never free the returned value.  If you need a copy, use
+ *          slapi_sdn_dup().
+ * \see slapi_sdn_dup()
+ * \see slapi_entry_get_sdn()
+ */
 const Slapi_DN *slapi_entry_get_sdn_const( const Slapi_Entry *e );
+
+/**
+ * Returns the #Slapi_DN object from the entry that you specify.
+ *
+ * \param e Entry from which you want to get the #Slapi_DN object.
+ * \return Returns the #Slapi_DN object from the entry that you specify.
+ * \warning Never free the returned value.  If you need a copy, use
+ *          slapi_sdn_dup().
+ * \see slapi_entry_get_sdn_const()
+ * \see slapi_sdn_dup()
+ */
 Slapi_DN *slapi_entry_get_sdn( Slapi_Entry *e );
+
+/**
+ * Returns as a \c const the DN value of the entry that you specify.
+ *
+ * \param e Entry from which you want to get the DN as a constant.
+ * \return This function returns one of the following values:
+ *         \arg The DN of the entry that you specify. The DN is returned
+ *              as a const; you are not able to modify the DN value.
+ *         \arg The NDN value of Slapi_DN if the DN of the Slapi_DN object is NULL.
+ * \warning Never free the returned value.
+ * \see slapi_entry_set_sdn()
+ */
 const char *slapi_entry_get_dn_const( const Slapi_Entry *e );
+
+/**
+ * Sets the distinguished name (DN) of an entry.
+ *
+ * This function sets the DN pointer in the specified entry to the DN that you supply.
+ *
+ * \param e Entry to which you want to assign the DN.
+ * \param dn Distinguished name you want assigned to the entry.
+ * \warning The dn will be freed eventually when slapi_entry_free() is called.
+ * \warning A copy of dn should be passed. For example:
+ * \code
+ *     char *dn = slapi_ch_strdup(some_dn):
+ *     slapi_entry_set_dn(e, dn);
+ * \endcode
+ *
+ * \warning The old dn will be freed as a result of this call. Do not pass in
+ *          a \c NULL value.
+ * \see slapi_entry_free()
+ * \see slapi_entry_get_dn()
+ */
 void slapi_entry_set_dn( Slapi_Entry *e, char *dn );
+
+/**
+ * Sets the Slapi_DN value in an entry.
+ *
+ * This function sets the value for the #Slapi_DN object in the entry you specify.
+ *
+ * \param e Entry to which you want to set the value of the #Slapi_DN.
+ * \param sdn The specified #Slapi_DN value that you want to set.
+ * \warning This function makes a copy of the \c sdn parameter.
+ * \see slapi_entry_get_sdn()
+ */
 void slapi_entry_set_sdn( Slapi_Entry *e, const Slapi_DN *sdn );
+
+/**
+ * Determines if an entry contains the specified attribute.
+ *
+ * If the entry contains the attribute, the function returns a pointer to
+ * the attribute.
+ *
+ * \param e Entry that you want to check.
+ * \param type Name of the attribute that you want to check.
+ * \param attr Pointer to the attribute, if the attribute is found in the
+ *        entry.
+ * \return \c 0 if the entry contains the specified attribute.
+ * \return \c -1 if the entry does not contain the specified attribute.
+ * \warning Do not free the returned \c attr. It is a pointer to the internal
+ *          entry data structure. It is usually wise to make a copy of the
+ *          returned attribute, using slapi_attr_dup(), to avoid dangling pointers
+ *          if the entry is freed while the pointer to attr is still being used.
+ * \see slapi_attr_dup()
+ */
 int slapi_entry_attr_find( const Slapi_Entry *e, const char *type, Slapi_Attr **attr );
+
+/**
+ * Finds the first attribute in an entry.
+ *
+ * If you want to iterate through the attributes in an entry, use this function
+ * in conjunction with the slapi_entry_next_attr() function.
+ *
+ * \param e Entry from which you want to get the attribute.
+ * \param attr Pointer to the first attribute in the entry.
+ * \return Returns 0 when successful; any other value returned signals failure.
+ * \warning Do not free the returned \c attr. This is a pointer into the
+ *          internal entry data structure. If you need a copy, use slapi_attr_dup().
+ * \see slapi_entry_next_attr()
+ * \see slapi_attr_dup()
+ */
 int slapi_entry_first_attr( const Slapi_Entry *e, Slapi_Attr **attr );
+
+/**
+ * Finds the next attribute after \c prevattr in an entry.
+ *
+ * To iterate through the attributes in an entry, use this function in conjunction
+ * with the slapi_entry_first_attr() function.
+ *
+ * \param e Entry from which you want to get the attribute.
+ * \param prevattr Previous attribute in the entry.
+ * \param attr Pointer to the next attribute after \c prevattr in the entry.
+ * \return \c 0 if successful.
+ * \return \c -1 if \c prevattr was the last attribute in the entry.
+ * \warning Do not free the returned \c attr. This is a pointer into the
+ *          internal entry data structure. If you need a copy, use slapi_attr_dup().
+ * \see slapi_entry_first_attr()
+ * \see slapi_entry_dup()
+ */
 int slapi_entry_next_attr( const Slapi_Entry *e, Slapi_Attr *prevattr, Slapi_Attr **attr );
+
+/**
+ * Gets the unique ID value of the entry.
+ *
+ * \param e Entry from which you want to obtain the unique ID.
+ * \return This function returns the unique ID value of the entry specified.
+ * \warning Never free this value. If you need a copy, use slapi_ch_strdup().
+ * \see slapi_entry_set_uniqueid()
+ * \see slapi_ch_strdup()
+ */
 const char *slapi_entry_get_uniqueid( const Slapi_Entry *e );
+
+/**
+ * Replaces the unique ID value of an entry with the unique ID value that you
+ * supply.
+ *
+ * This function replaces the unique ID value of the entry with the \c uniqueid
+ * value that you specify. In addition, the function adds #SLAPI_ATTR_UNIQUEID to
+ * the attribute list and gives it the unique ID value supplied. If the entry
+ * already contains a #SLAPI_ATTR_UNIQUEID attribute, its value is updated with
+ * the new value supplied.
+ *
+ * \param e Entry for which you want to generate a unique ID.
+ * \param uniqueid The unique ID value that you want to assign to the entry.
+ * \warning Do not free the \c uniqueid after calling this function. The value
+ *          will eventually be freed when slapi_entry_free() is called.
+ *
+ * \warning You should pass in a copy of the value because this function will
+ *          consume the value passed in. For example:
+ * \code
+ *     char *uniqueid = slapi_ch_strdup(some_uniqueid);
+ *     slapi_entry_set_uniqueid(e, uniqueid);
+ * \endcode
+ *
+ * \warning Do not pass in a \c NULL for \c uniqueid.
+ * \see slapi_entry_get_uniqueid()
+ * \see slapi_entry_free()
+ */
 void slapi_entry_set_uniqueid( Slapi_Entry *e, char *uniqueid );
+
+/**
+ * Determines whether the specified entry complies with the schema for its object
+ * class.
+ *
+ * \param pb Parmeter block.
+ * \param e Entry that you want to check.
+ * \return \c 0 if the entry complies with the schema or if schema checking is
+ *         turned off. The function also returns \c 0 if the entry has additional
+ *         attributes not allowed by the schema and has the object class
+ *         \c extensibleObject.
+ * \return \c 1 if the entry is missing the \c objectclass attribute, if it is missing
+ *         any required attributes, if it has any attributes not allowed by the schema
+ *         but does not have the object class \c extensibleObject, or if the entry has
+ *         multiple values for a single-valued attribute.
+ * \warning The \c pb argument can be \c NULL. It is only used to get the
+ *          #SLAPI_IS_REPLICATED_OPERATION flag. If that flag is present, no schema
+ *          checking is done.
+ */
 int slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e );
+
+/**
+ * Determines whether the specified entry complies with the syntax rules imposed
+ * by it's attribute types.
+ *
+ * \param pb Parameter block.
+ * \param e Entry that you want to check.
+ * \param override Flag to override the server configuration and force syntax checking
+ *        to be performed.
+ * \return \c 0 if the entry complies with the syntax rules or if syntax checking
+ *         is disabled.
+ * \return \c 1 if the entry has any attribute values that violate the syntax rules
+ *         imposed by the associated attribute type.  If the \c pb parameter was
+ *         passed in, an error message describing the syntax violations will be
+ *         set in the #SLAPI_PB_RESULT_TEXT paramter.
+ * \warning The \c pb parameter can be \c NULL.  It is used to store an error
+ *         message with details of any syntax violations.  The \c pb paramter
+ *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
+ *         set.   If that flag is present, no syntax checking is performed.
+ */
 int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
+
+/**
+ * Determines if any values being added to an entry violate the syntax rules
+ * imposed by the associated attribute type.
+ *
+ * \param pb Parameter block.
+ * \param mods Array of mods that you want to check.
+ * \param override Flag to override the server configuration and force syntax checking
+ *        to be performed.
+ * \return \c 0 if the mods comply with the syntax rules or if syntax checking
+ *         is disabled.
+ * \return \c 1 if the mods are adding any new attribute values that violate the
+ *         syntax rules imposed by the associated attribute type.  If the \c pb
+ *         parameter was passed in, an error message describing the syntax violations
+ *         will be set in the #SLAPI_PB_RESULT_TEXT paramter.
+ * \warning The \c pb parameter can be \c NULL.  It is used to store an error
+ *         message with details of any syntax violations.  The \c pb paramter
+ *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
+ *         set.   If that flag is present, no syntax checking is performed.
+ */
 int slapi_mods_syntax_check( Slapi_PBlock *pb, LDAPMod **mods, int override );
+
+/**
+ * Determines whether the values in an entry’s relative distinguished name (RDN)
+ * are also present as attribute values.
+ *
+ * For example, if the entry’s RDN is <tt>cn=Barbara Jensen</tt>, the function determines
+ * if the entry has the \c cn attribute with the value <tt>Barbara Jensen</tt>.
+ *
+ * \param e Entry that you want to check for RDN values.
+ * \return \c 1 if the values in the RDN are present in the attributes of the entry.
+ * \return \c 0 if the values are not present.
+ */
 int slapi_entry_rdn_values_present( const Slapi_Entry *e );
+
+/**
+ * Adds the components in an entry’s relative distinguished name (RDN) to the entry
+ * as attribute values.
+ *
+ * For example, if the entry’s RDN is <tt>uid=bjensen</tt>, the function adds
+ * <tt>uid=bjensen</tt> to the entry as an attribute value.
+ *
+ * \param e Entry to which you want to add the RDN attributes.
+ * \return \c LDAP_SUCCESS if the values were successfully added to the entry. The
+ *         function also returns \c LDAP_SUCCESS if the entry is \c NULL, if the
+ *         entry’s DN is \c NULL, or if the entry’s RDN is \c NULL.
+ * \return \c LDAP_INVALID_DN_SYNTAX if the DN of the entry cannot be parsed.
+ * \warning Free the entry from memory by using the slapi_entry_free() function, if the
+ *          entry was allocated by the user.
+ * \see slapi_entry_free()
+ */
 int slapi_entry_add_rdn_values( Slapi_Entry *e );
+
+/**
+ * Deletes an attribute (and all its associated values) from an entry.
+ *
+ * \param e Entry from which you want to delete the attribute.
+ * \param type Attribute type that you want to delete.
+ * \return \c 0 if successful.
+ * \return \c 1 if the specified attribute is not part of the entry.
+ * \return \c -1 if an error occurred.
+ */
 int slapi_entry_attr_delete( Slapi_Entry *e, const char *type );
-	char **slapi_entry_attr_get_charray(const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the values of a multi-valued attribute of an entry.
+ *
+ * This function is very similar to slapi_entry_attr_get_charptr(), except that it
+ * returns a <tt>char **</tt> array for multi-valued attributes. The array and all
+ * values are copies. Even if the attribute values are not strings, they will still
+ * be \c NULL terminated so that they can be used safely in a string context. If there
+ * are no values, \c NULL will be returned. Because the array is \c NULL terminated,
+ * the usage should be similar to the sample shown below:
+ * 
+ * \code
+ *     char **ary = slapi_entry_attr_get_charray(e, someattr);
+ *     int ii;
+ *     for (ii = 0; ary && ary[ii]; ++ii) {
+ *        char *strval = ary[ii];
+ *        ...
+ *     }
+ *     slapi_ch_array_free(ary);
+ * \endcode
+ *
+ * \param e Entry from which you want to get the values.
+ * \param type Attribute type from which you want to get the values.
+ * \return A copy of all the values of the attribute.
+ * \return \c NULL if the entry does not contain the attribute or if the attribute
+ *         has no values.
+ * \warning When you are done working with the values, free them from memory by calling
+ *          the slapi_ch_array_free() function.
+ * \see slapi_entry_attr_get_charptr()
+ */
+char **slapi_entry_attr_get_charray(const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the first value of an attribute of an entry as a string.
+ *
+ * \param e Entry from which you want to get the string value.
+ * \param type Attribute type from which you want to get the value.
+ * \return A copy of the first value in the attribute.
+ * \return \c NULL if the entry does not contain the attribute.
+ * \warning When you are done working with this value, free it from memory by calling the
+ *          slapi_ch_free_string() function.
+ * \see slapi_entry_attr_get_charray()
+ */
 char *slapi_entry_attr_get_charptr(const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the first value of an attribute in an entry as an integer.
+ *
+ * \param e Entry from which you want to get the integer value.
+ * \param type Attribute type from which you want to get the value.
+ * \return The first value of the attribute converted to an integer.
+ * \return \c 0 if the entry does not contain the attribute.
+ */
 int slapi_entry_attr_get_int(const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the first value of an attribute in an entry as an unsigned integer data type.
+ *
+ * \param e Entry from which you want to get the integer value.
+ * \param type Attribute type from which you want to get the value.
+ * \return The first value of the attribute converted to an unsigned integer.
+ * \return \c 0 if the entry does not contain the attribute.
+ */
 unsigned int slapi_entry_attr_get_uint(const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the first value of an attribute in an entry as a long data type.
+ *
+ * \param e Entry from which you want to get the long value.
+ * \param type Attribute type from which you want to get the value.
+ * \return The first value of the attribute converted to a \c long type.
+ * \return \c 0 if the entry does not contain the attribute.
+ */
 long slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the first value of an attribute in an entry as an unsigned long
+ * data type.
+ *
+ * \param e Entry from which you want to get the unsigned long value.
+ * \param type Attribute type from which you want to get the value.
+ * \return The first value of the attribute converted to an <tt>
+ *         unsigned long</tt>.
+ * \return \c 0 if the entry does not contain the attribute.
+ */
 unsigned long slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type);
+
+/**
+ *  Gets the first value of an attribute in an entry as a long long data type.
+ *
+ *  \param e Entry from which you want to get the long long value.
+ *  \param type Attribute type from which you want to get the value.
+ *  \return The first value of the attribute converted to a <tt>long long</tt>.
+ *  \return  \c 0 if the entry does not contain the attribute.
+ */
 long long slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the first value of an attribute in an entry as an unsigned
+ * long long data type.
+ *
+ * \param e Entry from which you want to get the unsigned long long value.
+ * \param type Attribute type from which you want to get the value.
+ * \return The first value of the attribute converted to an <tt>unsigned
+ *         long long</tt>.
+ * \return  \c 0 if the entry does not contain the attribute.
+ */
 unsigned long long slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the value of a given attribute of a given entry as a boolean value.
+ *
+ * Comparisons are case-insensitive (\c TRUE, \c trUe, and \c true are all the
+ * same), and unique substrings can be matched (\c t and \c tr will be interpreted
+ * as \c true). If the attribute value is a number, then non-zero numbers are
+ * interpreted as \c true, and \c 0 is interpreted as \c false.
+ *
+ * \param e Entry from which you want to get the boolean value.
+ * \param type Attribute type from which you want to get the value.
+ * \return \c PR_TRUE | \c PR_FALSE
+ */
 PRBool slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type);
+
+/**
+ * Replaces the value or values of an attribute in an entry with a specified string
+ * value.
+ *
+ * \param e Entry in which you want to set the value.
+ * \param type Attribute type in which you want to set the value.
+ * \param value String value that you want to assign to the attribute.
+ * \warning This function makes a copy of the parameter \c value. The \c value
+ *          parameter can be \c NULL; if so, this function is roughly equivalent
+ *          to slapi_entry_attr_delete().
+ * \see slapi_entry_attr_delete()
+ */
 void slapi_entry_attr_set_charptr(Slapi_Entry* e, const char *type, const char *value);
+
+/**
+ * Replaces the value or values of an attribute in an entry with a specified integer
+ * data value.
+ *
+ * This function will replace the value or values of an attribute with the
+ * integer value that you specify. If the attribute does not exist, it is created
+ * with the integer value that you specify.
+ *
+ * \param e Entry in which you want to set the value.
+ * \param type Attribute type in which you want to set the value.
+ * \param l Integer value that you want to assign to the attribute.
+ */
 void slapi_entry_attr_set_int( Slapi_Entry* e, const char *type, int l);
+
+/**
+ * Replaces the value or values of an attribute in an entry with a specified
+ * unsigned integer data type value.
+ *
+ * This function will replace the value or values of an attribute with the
+ * unsigned integer value that you specify. If the attribute does not exist,
+ * it is created with the unsigned integer value you specify.
+ *
+ * \param e Entry in which you want to set the value.
+ * \param type Attribute type in which you want to set the value.
+ * \param l Unsigned integer value that you want to assign to the attribute.
+ */
 void slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l);
+
+/**
+ * Replaces the value or values of an attribute in an entry with a specified long data
+ * type value.
+ *
+ * \param e Entry in which you want to set the value.
+ * \param type Attribute type in which you want to set the value.
+ * \param l Long integer value that you want to assign to the attribute.
+ */
 void slapi_entry_attr_set_long(Slapi_Entry* e, const char *type, long l);
+
+/**
+ * Replaces the value or values of an attribute in an entry with a specified unsigned
+ * long data type value.
+ *
+ * This function will replace the value or values of an attribute with the unsigned
+ * long value that you specify. If the attribute does not exist, it is created with the
+ * unsigned long value that you specify.
+ *
+ * \param e Entry in which you want to set the value.
+ * \param type Attribute type in which you want to set the value.
+ * \param l Unsigned long value that you want to assign to the attribute.
+ */
 void slapi_entry_attr_set_ulong(Slapi_Entry* e, const char *type, unsigned long l);
+
+/**
+ * Determines if an attribute in an entry contains a specified value.
+ *
+ * The syntax of the attribute type is taken into account when checking
+ * for the specified value.
+ *
+ * \param e Entry that you want to check.
+ * \param type Attribute type that you want to test for the value specified.
+ * \param value Value that you want to find in the attribute.
+ * \return \c 1 if the attribute contains the specified value.
+ * \return \c 0 if the attribute does not contain the specified value.
+ * \warning \c value must not be \c NULL.
+ */
 int slapi_entry_attr_has_syntax_value(const Slapi_Entry *e, const char *type, const Slapi_Value *value);
+
+/**
+ * This function determines if the specified entry has child entries.
+ *
+ * \param e Entry that you want to test for child entries.
+ * \return \c 1 if the entry you supply has child entries.
+ * \return \c 0 if the entry you supply has child entries.
+ */
 int slapi_entry_has_children(const Slapi_Entry *e);
+
+/**
+ * This function determines if an entry is the root DSE.
+ *
+ * The root DSE is a special entry that contains information about the Directory
+ * Server, including its capabilities and configuration.
+ *
+ * \param dn The DN that you want to test to see if it is the root DSE entry.
+ * \return \c 1 if \c dn is the root DSE.
+ * \return \c 0 if \c dn is not the root DSE.
+ */
 int slapi_is_rootdse( const char *dn );
+
+/**
+ * This function returns the approximate size of an entry, rounded to the nearest 1k.
+ * 
+ * This can be useful for checking cache sizes, estimating storage needs, and so on.
+ *
+ * When determining the size of an entry, only the sizes of the attribute values are
+ * counted; the size of other entry values (such as the size of attribute names,
+ * variously-normalized DNs, or any metadata) are not included in the size
+ * returned. It is assumed that the size of the metadata, et al., is well enough
+ * accounted for by the rounding of the size to the next largest 1k . This holds true
+ * especially in larger entries, where the actual size of the attribute values far
+ * outweighs the size of the metadata.
+ *
+ * When determining the size of the entry, both deleted values and deleted
+ * attributes are included in the count.
+ *
+ * \param e Entry from which you want the size returned.
+ * \return The size of the entry, rounded to the nearest 1k. The value returned is a
+ *         size_t data type with a u_long value.
+ * \return A size of 1k if the entry is empty.
+ * \warning The \c e parameter must not be \c NULL.
+ */
 size_t slapi_entry_size(Slapi_Entry *e);
+
+/**
+ * Adds an array of #Slapi_Value data values to the existing attribute values in
+ * an entry.
+ *
+ * If the attribute does not exist, it is created with the #Slapi_Value specified.
+ *
+ * \param e Entry to which you want to add values.
+ * \param type Attribute type to which you want to add values.
+ * \param vals \c NULL terminated array of #Slapi_Value data values you want to add.
+ * \return This function returns \c 0 if successful;  any other value returned
+ *         signals failure.
+ * \warning This function makes a copy of the parameter \c vals. The \c vals
+ *          parameter can be \c NULL.
+ */
 int slapi_entry_attr_merge_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+
+/**
+ * Adds and array of #Slapi_Value data values to the specified attribute in an entry.
+ *
+ * This function adds an array of #Slapi_Value data values to an attribute. If the
+ * attribute does not exist, it is created and given the value contained in the
+ * #Slapi_Value array.
+ *
+ * \param e Entry to which you want to add values.
+ * \param type Attribute type to which you want to add values.
+ * \param vals \c NULL terminated array of #Slapi_Value data values you want to add.
+ * \return \c LDAP_SUCCESS if the #Slapi_Value array if successfully added to the
+ *         attribute.
+ * \return \c LDAP_TYPE_OR_VALUE_EXISTS if any values you are trying to add duplicate
+ *          an existing value in the attribute.
+ * \return \c LDAP_OPERATIONS_ERROR if there are pre-existing duplicate values in the
+ *         attribute.
+ * \warning This function makes a copy of the parameter \c vals. The \c vals
+ *          parameter can be \c NULL.
+ */
 int slapi_entry_add_values_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+
+/**
+ * Add a Slapi_ValueSet data value to the specified attribute in an entry.
+ *
+ * This function adds a set of values to an attribute in an entry. The values added
+ * are in the form of a #Slapi_ValueSet data type. If the entry does not contain the
+ * attribute specified, it is created with the specified #Slapi_ValueSet values.
+ *
+ * \param e Entry to which you want to add values.
+ * \param type Attribute type to which you want to add values.
+ * \param vs #Slapi_ValueSet data value that you want to add to the entry.
+ * \return \c 0 when successful; any other value returned signals failure.
+ * \warning This function makes a copy of the parameter \c vs.  The \c vs
+ *          parameter can be \c NULL.
+ */
 int slapi_entry_add_valueset(Slapi_Entry *e, const char *type, Slapi_ValueSet *vs);
+
+/**
+ * Removes an array of Slapi_Value data values from an attribute in an entry.
+ *
+ * This function removes an attribute/valueset from an entry. Both the attribute
+ * and its #Slapi_Value data values are removed from the entry. If you supply a
+ * #Slapi_Value whose value is \c NULL, the function will delete the specified
+ * attribute from the entry. In either case, the function returns \c LDAP_SUCCESS.
+ *
+ * \param e Entry from which you want to delete values.
+ * \param type Attribute type from which you want to delete values.
+ * \param vals \c NULL terminated array of #Slapi_Value data values that you
+ *             want to delete.
+ * \return \c LDAP_SUCCESS if the specified attribute and the array of #Slapi_Value
+ *         data values are deleted from the entry.
+ * \return If the specified attribute contains a \c NULL value, the attribute is
+ *         deleted from the attribute list, and the function returns
+ *         \c LDAP_NO_SUCH_ATTRIBUTE. As well, if the attribute is not found in the
+ *         list of attributes for the specified entry, the function returns
+ *         \c LDAP_NO_SUCH_ATTRIBUTE.
+ * \return If there is an operational error during the processing of this call such
+ *         as a duplicate value found, the function will return
+ *         \c LDAP_OPERATIONS_ERROR.
+ * \warning The \c vals parameter can be \c NULL, in which case this function does
+ *          nothing.
+ */
 int slapi_entry_delete_values_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+
+/**
+ * Merges (adds) and array of #Slapi_Value data values to a specified attribute in
+ * an entry.
+ *
+ * This function adds additional #Slapi_Value data values to the existing values
+ * contained in an attribute. If the attribute type does not exist, it is created.
+ *
+ * If the specified attribute exists in the entry, the function merges the value
+ * specified and returns \c LDAP_SUCCESS. If the attribute is not found in the entry,
+ * the function creates it with the #Slapi_Value specified and returns \c
+ * LDAP_NO_SUCH_ATTRIBUTE.
+ *
+ * If this function fails, it leaves the values for \c type within a pointer to
+ * \c e in an indeterminate state. The present valueset may be truncated.
+ *
+ * \param e Entry into which you want to merge values.
+ * \param type Attribute type that you want to merge the values into.
+ * \param vals \c NULL terminated array of #Slapi_Value values that you want to merge
+ *             into the entry.
+ * \return \c LDAP_SUCCESS
+ * \return \c LDAP_NO_SUCH_ATTRIBUTE
+ * \warning This function makes a copy of \c vals.  The \c vals parameter
+ *          can be \c NULL.
+ */
 int slapi_entry_merge_values_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+
+/**
+ * Replaces the values of an attribute with the #Slapi_Value data value you specify.
+ *
+ * This function replaces existing attribute values in a specified entry with a single
+ * #Slapi_Value data value. The function first deletes the existing attribute from the
+ * entry, then replaces it with the new value specified.
+ *
+ * \param e Entry in which you want to replace values.
+ * \param type Attribute type which will receive the replaced values
+ * \param vals \c NULL terminated array of #Slapi_Value valyes that should replace
+ *             the existing values of the attribute.
+ * \return \c 0 when successfull; any other value returned signals failure.
+ * \warning This function makes a copy of \c vals.  The \c vals parameter
+ *          can be \c NULL.
+ */
 int slapi_entry_attr_replace_sv( Slapi_Entry *e, const char *type, Slapi_Value **vals );
+
+/**
+ * Adds a specified #Slapi_Value data value to an attribute in an entry.
+ *
+ * This function adds a #Slapi_Value data value to the existing attribute values in an
+ * entry. If the specified attribute does not exist in the entry, the attribute is
+ * created with the #Slapi_Value specified. The function doesn’t check for duplicate
+ * values, meaning it does not check if the value being added is already there.
+ *
+ * \param e Entry to which you want to add a value.
+ * \param type Attribute to which you want to add a value.
+ * \param value The #Slapi_Value data value you want to add to the entry.
+ * \return \c 0 when successfull; any other value returned signals failure.
+ * \warning This function makes a copy of \c value.  The \c value parameter
+ *          can be \c NULL.
+ */
 int slapi_entry_add_value(Slapi_Entry *e, const char *type, const Slapi_Value *value);
+
+/**
+ * Adds a string value to an attribute in an entry.
+ *
+ * This function adds a string value to the existing attribute values in an entry. If
+ * the specified attribute does not exist in the entry, the attribute is created with
+ * the string value specified. The function doesn’t check for duplicate values; it
+ * does not check if the string value being added is already there.
+ *
+ * \param e Entry to which you want to add a string value.
+ * \param type Attribute to which you want to add a string value.
+ * \param value String value you want to add.
+ * \return \c 0 when successfull; any other value returned signals failure.
+ * \warning This function makes a copy of \c value.  The \c value parameter
+ *          can be \c NULL.
+ */
 int slapi_entry_add_string(Slapi_Entry *e, const char *type, const char *value);
+
+/**
+ * Deletes a string value from an attribute in an entry.
+ *
+ * \param e Entry from which you want the string deleted.
+ * \param type Attribute type from which you want the string deleted.
+ * \param value Value of string to delete.
+ * \return \c 0 when successfull; any other value returned signals failure.
+ */
 int slapi_entry_delete_string(Slapi_Entry *e, const char *type, const char *value);
+
+/**
+ * Find differences between two entries.
+ *
+ * Compares two #Slapi_Entry entries and determines the difference between them.  The
+ * differences are returned as the modifications needed to the first entry to make it
+ * match the second entry.
+ *
+ * \param smods An empty #Slapi_Mods that will be filled in with the modifications
+ *              needed to make \c e1 the same as \c e2.
+ * \param e1 The first entry you want to compare.
+ * \param e2 The second entry you want to compare.
+ * \param diff_ctrl Allows you to skip comparing operational attributes by passing
+ *                  #SLAPI_DUMP_NOOPATTRS.  Pass \c 0 if you want to compare the
+ *                  operational attributes.
+ * \warning The caller must allocate the #Slapi_Mods that is passed in as \c smods.
+ *          This must be an empty #Slapi_Mods, otherwise the contents will be leaked.
+ * \warning It is up to the caller to free \c smods when they are finished using them
+ *          by calling slapi_mods_free() or slapi_mods_done() if \c smods was allocated
+ *          on the stack.
+ */
 void slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_ctrl);
+
+/**
+ * Applies an array of \c LDAPMod modifications a Slapi_Entry.
+ *
+ * \param e Entry to which you want to apply the modifications.
+ * \param mods \c NULL terminated array of \c LDAPMod modifications that you
+ *             want to apply to the specified entry.
+ * \return \c LDAP_SUCCESS if the mods applied to the entry cleanly, otherwise an
+ *         LDAP error is returned.
+ * \warning It is up to the caller to free the \c LDAPMod array after the mods have
+ *          been applied.
+ */
 int slapi_entry_apply_mods(Slapi_Entry *e, LDAPMod **mods);
 
 
-/*
+/*------------------------
  * Entry flags.
+ *-----------------------*/
+/**
+ * Flag that signifies that an entry is a tombstone entry
+ *
+ * \see slapi_entry_flag_is_set()
+ * \see slapi_entry_set_flag()
+ * \see slapi_entry_clear_flag()
  */
 #define SLAPI_ENTRY_FLAG_TOMBSTONE		1
+
+/**
+ * Determines if certain flags are set for a specified entry.
+ *
+ * \param e Entry for which you want to check for the specified flag.
+ * \param flag The flag whose presense you want to check for. Valid flags are:
+ *        \arg #SLAPI_ENTRY_FLAG_TOMBSTONE
+ * \return \c 0 if the flag is not set.
+ * \return The value of the flag if it is set.
+ * \see slapi_entry_clear_flag()
+ * \see slapi_entry_set_flag()
+ */
 int slapi_entry_flag_is_set( const Slapi_Entry *e, unsigned char flag );
+
+/**
+ * Sets a flag for a specified entry.
+ *
+ * \param e Entry for which you want to set the flag.
+ * \param flag Flag that you want to set. Valid flags are:
+ *        \arg #SLAPI_ENTRY_FLAG_TOMBSTONE
+ * \see slapi_entry_clear_flag()
+ * \see slapi_entry_flag_is_set()
+ */
 void slapi_entry_set_flag( Slapi_Entry *e, unsigned char flag);
+
+/**
+ * Clears a flag for a specified entry.
+ *
+ * \param e Entry for which you want to clear the flag.
+ * \param flag Flag that you want to clear.  Valid flags are:
+ *        \arg #SLAPI_ENTRY_FLAG_TOMBSTONE
+ * \see slapi_entry_flag_is_set()
+ * \see slapi_entry_set_flag()
+ */
 void slapi_entry_clear_flag( Slapi_Entry *e, unsigned char flag);
 
-/* exported vattrcache routines */
 
+/*------------------------------
+ * exported vattrcache routines
+ *------------------------------*/
+/**
+ * Check if an entry is current in the virtual attribute cache.
+ *
+ * \param e The entry for which you want to check the virtual attribute cache
+ *          validity.
+ * \return \c 1 if the entry is valid in the cache.
+ * \return \c 0 if the entry is invalid in the cache.
+ */
 int slapi_entry_vattrcache_watermark_isvalid(const Slapi_Entry *e);
+
+/**
+ * Mark an entry as valid in the virtual attribute cache.
+ *
+ * \param e The entry that you want to mark as valid.
+ */
 void slapi_entry_vattrcache_watermark_set(Slapi_Entry *e);
+
+/**
+ * Mark an entry as invalid in the virtual attribute cache.
+ *
+ * \param e The entry that you want to mark as invalid.
+ */
 void slapi_entry_vattrcache_watermark_invalidate(Slapi_Entry *e);
+
+/**
+ * Invalidate all entries in the virtual attribute cache.
+ */
 void slapi_entrycache_vattrcache_watermark_invalidate();
 
 
-
-
+/* TODO - Pickup Doxygen work here */
 /*
  * Slapi_DN routines
  */
@@ -1704,6 +3111,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_SYNTAX_OID			706
 #define SLAPI_PLUGIN_SYNTAX_FLAGS		707
 #define SLAPI_PLUGIN_SYNTAX_COMPARE		708
+
 /* user defined substrlen; not stored in slapdplugin, but pblock itself */
 #define SLAPI_SYNTAX_SUBSTRLENS			709
 #define SLAPI_PLUGIN_SYNTAX_VALIDATE		710
