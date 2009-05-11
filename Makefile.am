@@ -646,7 +646,7 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
 libacl_plugin_la_LIBADD = libns-dshttpd.la $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
-libacl_plugin_la_LINK = $(CXXLINK)
+libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
 
 #------------------------
 # libattr-unique-plugin
@@ -735,7 +735,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
 libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
 libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
-libcollation_plugin_la_LINK = $(CXXLINK)
+libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
 
 #------------------------
 # libmemberof-plugin
