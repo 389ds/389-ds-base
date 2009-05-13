@@ -241,11 +241,13 @@ slapd_bootstrap_config(const char *configdir)
 			char schemacheck[BUFSIZ];
 			char syntaxcheck[BUFSIZ];
 			char syntaxlogging[BUFSIZ];
+			char dn_validate_strict[BUFSIZ];
 			Slapi_DN plug_dn;
 
 			workpath[0] = loglevel[0] = maxdescriptors[0] = '\0';
 			val[0] = logenabled[0] = schemacheck[0] = syntaxcheck[0] = '\0';
 			syntaxlogging[0] = _localuser[0] = '\0';
+			dn_validate_strict[0] = '\0';
 
 			/* Convert LDIF to entry structures */
 			slapi_sdn_init_dn_byref(&plug_dn, PLUGIN_BASE_DN);
@@ -487,6 +489,20 @@ slapd_bootstrap_config(const char *configdir)
 					{
 						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
 						          CONFIG_SYNTAXLOGGING_ATTRIBUTE, errorbuf);
+					}
+				}
+
+				/* see if we need to enable strict dn validation */
+				if (!dn_validate_strict[0] &&
+				    entry_has_attr_and_value(e, CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE,
+				    dn_validate_strict, sizeof(dn_validate_strict)))
+				{
+					if (config_set_dn_validate_strict(CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE,
+					                           dn_validate_strict, errorbuf, CONFIG_APPLY)
+					                           != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						          CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE, errorbuf);
 					}
 				}
 
