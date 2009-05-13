@@ -1639,7 +1639,8 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SCHEMACHECK_ATTRIBUTE    "nsslapd-schemacheck"
 #define CONFIG_SYNTAXCHECK_ATTRIBUTE	"nsslapd-syntaxcheck"
 #define CONFIG_SYNTAXLOGGING_ATTRIBUTE	"nsslapd-syntaxlogging"
-#define CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE    "nsslapd-ds4-compatible-schema"
+#define CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE     "nsslapd-dn-validate-strict"
+#define CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE  "nsslapd-ds4-compatible-schema"
 #define CONFIG_SCHEMA_IGNORE_TRAILING_SPACES    "nsslapd-schema-ignore-trailing-spaces"
 #define CONFIG_SCHEMAREPLACE_ATTRIBUTE	"nsslapd-schemareplace"
 #define CONFIG_LOGLEVEL_ATTRIBUTE       "nsslapd-errorlog-level"
@@ -1856,6 +1857,7 @@ typedef struct _slapdFrontendConfig {
   int schemacheck;
   int syntaxcheck;
   int syntaxlogging;
+  int dn_validate_strict;
   int ds4_compatible_schema;
   int schema_ignore_trailing_spaces;
   int secureport;

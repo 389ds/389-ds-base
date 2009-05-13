@@ -327,6 +327,9 @@ static struct config_get_and_set {
 	{CONFIG_SYNTAXLOGGING_ATTRIBUTE, config_set_syntaxlogging,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.syntaxlogging, CONFIG_ON_OFF, NULL},
+	{CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE, config_set_dn_validate_strict,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.dn_validate_strict, CONFIG_ON_OFF, NULL},
 	{CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE, config_set_ds4_compatible_schema,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ds4_compatible_schema,
@@ -899,6 +902,7 @@ FrontendConfig_init () {
   cfg->schemacheck = LDAP_ON;
   cfg->syntaxcheck = LDAP_OFF;
   cfg->syntaxlogging = LDAP_OFF;
+  cfg->dn_validate_strict = LDAP_OFF;
   cfg->ds4_compatible_schema = LDAP_OFF;
   cfg->enquote_sup_oc = LDAP_OFF;
   cfg->lastmod = LDAP_ON;
@@ -2452,6 +2456,20 @@ config_set_syntaxlogging( const char *attrname, char *value, char *errorbuf, int
   retVal = config_set_onoff ( attrname,
                               value,
                               &(slapdFrontendConfig->syntaxlogging),
+                              errorbuf,
+                              apply);
+
+  return retVal;
+}
+
+int
+config_set_dn_validate_strict( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+                              value,
+                              &(slapdFrontendConfig->dn_validate_strict),
                               errorbuf,
                               apply);
 
@@ -4087,6 +4105,18 @@ config_get_syntaxlogging() {
 
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = slapdFrontendConfig->syntaxlogging;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
+
+int
+config_get_dn_validate_strict() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->dn_validate_strict;
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal;

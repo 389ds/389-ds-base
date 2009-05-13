@@ -141,6 +141,7 @@ dn_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 static int dn_validate( struct berval *val )
 {
 	int rc = 0; /* Assume value is valid */
+	char *val_copy = NULL;
 
 	if (val != NULL) {
 		/* Per RFC 4514:
@@ -154,9 +155,21 @@ static int dn_validate( struct berval *val )
 		 * attributeValue = string / hexstring
 		 */
 		if (val->bv_len > 0) {
+			int strict = 0;
 			char *p = val->bv_val;
 			char *end = &(val->bv_val[val->bv_len - 1]);
 			char *last = NULL;
+
+			/* Check if we should be performing strict validation. */
+			strict = config_get_dn_validate_strict();
+			if (!strict) {
+				/* Create a normalized copy of the value to use
+				 * for validation.  The original value will be
+				 * stored in the backend unmodified. */
+				val_copy = PL_strndup(val->bv_val, val->bv_len);
+				p = val_copy;
+				end = slapi_dn_normalize_to_end(p, NULL) - 1;
+			}
 
 			/* Validate one RDN at a time in a loop. */
 			while (p <= end) {
@@ -186,6 +199,9 @@ static int dn_validate( struct berval *val )
 		goto exit;
 	}
 exit:
+	if (val_copy) {
+		slapi_ch_free_string(&val_copy);
+	}
 	return rc;
 }
 
