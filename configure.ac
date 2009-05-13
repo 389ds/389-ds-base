@@ -185,9 +185,9 @@ AM_CONDITIONAL(enable_presence,test "$enable_presence" = "yes")
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
-brand=fedora
-capbrand=Fedora
-vendor="Fedora Project"
+brand=389
+capbrand=389
+vendor="389 Project"
 
 m4_include(m4/fhs.m4)
 
