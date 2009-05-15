@@ -1219,6 +1219,16 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 					c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 				}
 			}
+			if (c->c_timelimit > 0) /* check timeout for PAGED RESULTS */
+			{
+				time_t ctime = current_time();
+				if (ctime > c->c_timelimit)
+				{
+					/* Exceeded the timelimit; disconnect the client */
+					disconnect_server_nomutex(c, c->c_connid, -1,
+												SLAPD_DISCONNECT_IO_TIMEOUT, 0);
+				}
+			}
 			PR_Unlock( c->c_mutex );
 		}
 		c = next;

@@ -417,6 +417,8 @@ slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t
                                                   * is used to skip VLV op.
                                                   * (see #329951)
                                                   */
+#define OP_FLAG_PAGED_RESULTS            0x40000 /* simple paged results */
+#define OP_FLAG_SERVER_SIDE_SORTING      0x80000 /* server side sorting  */
 
 
 CSN *operation_get_csn(Slapi_Operation *op);
@@ -867,6 +869,7 @@ int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v)
 #define SLAPI_PLUGIN_DB_UPGRADEDB_FN		235
 #define SLAPI_PLUGIN_DB_DBVERIFY_FN			236
 #define SLAPI_PLUGIN_DB_ADD_SCHEMA_FN		237
+#define SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN	238
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280

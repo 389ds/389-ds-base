@@ -182,6 +182,8 @@ ldbm_back_init( Slapi_PBlock *pb )
 	    (void *) ldbm_back_next_search_entry_ext );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN,
 	    (void *) ldbm_back_entry_release );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN,
+	    (void *) ldbm_back_search_results_release );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_COMPARE_FN, 
 	    (void *) ldbm_back_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_MODIFY_FN, 
