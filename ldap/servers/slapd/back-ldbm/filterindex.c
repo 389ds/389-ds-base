@@ -782,16 +782,31 @@ list_candidates(
                 (idl_length(idl) <= FILTER_TEST_THRESHOLD))
                 break;
         } else {
+            Slapi_Operation *operation;
+            struct ldbminfo *li;
+            slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+            slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
+
             idl = idl_union( be, idl, tmp );
             idl_free( tmp );
             idl_free( tmp2 );
             /* stop if we're already committed to an exhaustive
              * search. :(
              */
+            /* PAGED RESULTS: if not Directory Manager, we strictly limit
+             *                the idlist size by the lookthrough limit.
+             */
+            if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
+                int nids = IDL_NIDS(idl);
+                int lookthroughlimits = compute_lookthrough_limit( pb, li );
+                if ( lookthroughlimits > 0 && nids > lookthroughlimits ) {
+                    idl_free( idl );
+                    idl = idl_allids( be );
+                }
+            }
             if (idl_is_allids(idl))
                 break;
         }
-
     }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= list_candidates %lu\n",

@@ -130,8 +130,8 @@ void
 connection_cleanup(Connection *conn)
 {
 	bind_credentials_clear( conn, PR_FALSE /* do not lock conn */,
-			PR_TRUE /* clear external creds. */ );
-        slapi_ch_free((void**)&conn->c_authtype);
+							PR_TRUE /* clear external creds. */ );
+	slapi_ch_free((void**)&conn->c_authtype);
 
 	/* Call the plugin extension destructors */
 	factory_destroy_extension(connection_type,conn,NULL/*Parent*/,&(conn->c_extension));
@@ -197,6 +197,15 @@ connection_cleanup(Connection *conn)
 	/* remove any SASL I/O from the connection */
 	sasl_io_cleanup(conn);
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
+	/* PAGED_RESULTS */
+	if (conn->c_search_result_set) {
+		conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
+		conn->c_search_result_set = NULL;
+	}
+	conn->c_current_be = NULL;
+	conn->c_search_result_count = 0;
+	conn->c_timelimit = 0;
+	/* PAGED_RESULTS ENDS */
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
@@ -1946,11 +1955,17 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 	PR_Lock(conn->c_mutex);
 	/* We can already be in turbo mode, or not */
 	current_mode = conn->c_private->turbo_flag;
-	if(conn->c_private->operation_rate == 0) {
-		/* The connection is ranked by the passed activities. If some other connection have more activity, 
-		   increase rank by one. The highest rank is least activity, good candidates to move out of turbo mode. 
-		   However, if no activity on all the connections, then every connection gets 0 rank, so none move out. 
-		   No bother to do so much calcuation, short-cut to non-turbo mode if no activities in passed interval */
+	if (conn->c_search_result_set) {
+		/* PAGED_RESULTS does not need turbo mode */
+		new_mode = 0;
+	} else if (conn->c_private->operation_rate == 0) {
+		/* The connection is ranked by the passed activities. If some other
+		 * connection have more activity, increase rank by one. The highest 
+		 * rank is least activity, good candidates to move out of turbo mode. 
+		 * However, if no activity on all the connections, then every 
+		 * connection gets 0 rank, so none move out. 
+		 * No bother to do so much calcuation, short-cut to non-turbo mode 
+		 * if no activities in passed interval */
 		new_mode = 0;
 	} else {
 	  double activet = 0.0;
@@ -1964,7 +1979,7 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 	     one measure to reduce thread startvation.
 	   */
 	  if (connection_count > threshold_rank) {
-	  	threshold_rank -= (connection_count - threshold_rank) / 5;
+		threshold_rank -= (connection_count - threshold_rank) / 5;
 	  }
 
 	  if (current_mode) {
@@ -2065,7 +2080,7 @@ connection_threadmain()
 			PR_Unlock(conn->c_mutex);
 			if (! config_check_referral_mode()) {
 			  slapi_counter_increment(ops_initiated);
-	    		  slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
+			  slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
 			}
 		}
 		/* Once we're here we have a pb */ 
@@ -2097,7 +2112,7 @@ connection_threadmain()
 		switch (ret) {
 			case CONN_DONE:
 				/* This means that the connection was closed, so clear turbo mode */
-			/*FALLTHROUGH*/
+				/*FALLTHROUGH*/
 			case CONN_TIMEDOUT:
 				thread_turbo_flag = 0;
 				is_timedout = 1;

@@ -45,74 +45,78 @@
 #include "slap.h"
 #include "index_subsys.h"
 
+#define PAGEDRESULTS_PAGE_END 1
+#define PAGEDRESULTS_SEARCH_END 2
+
 /* helper functions */
 static void compute_limits (Slapi_PBlock *pb);
 
 /* attributes that no clients are allowed to add or modify */
-static char *protected_attrs_all [] = {	PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
-										NULL
-									  };
+static char *protected_attrs_all [] = {    PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+                                        NULL
+                                      };
 static char *pwpolicy_lock_attrs_all [] = { "passwordRetryCount",
-											"retryCountResetTime",
-											"accountUnlockTime",
-											NULL};
+                                            "retryCountResetTime",
+                                            "accountUnlockTime",
+                                            NULL};
 /* Forward declarations */
 static void compute_limits (Slapi_PBlock *pb);
 static int  send_results (Slapi_PBlock *pb, int send_result, int *nentries);
+static int  send_results_ext (Slapi_PBlock *pb, int send_result, int *nentries, int pagesize, unsigned int *pr_stat);
 static int process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result);
-			
+            
 int op_shared_is_allowed_attr (const char *attr_name, int replicated_op)
 {
-	int 				i;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int                 i;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-	/* check list of attributes that no client is allowed to specify */
-	for (i = 0; protected_attrs_all[i]; i ++)
-	{
-		if (strcasecmp (attr_name, protected_attrs_all[i]) == 0)
-		{
-			/* this attribute is not allowed */
-			return 0;
-		}
-	}
+    /* check list of attributes that no client is allowed to specify */
+    for (i = 0; protected_attrs_all[i]; i ++)
+    {
+        if (strcasecmp (attr_name, protected_attrs_all[i]) == 0)
+        {
+            /* this attribute is not allowed */
+            return 0;
+        }
+    }
 
-	/* ONREPL - should allow backends to plugin here to specify 
-				attributes that are not allowed */
+    /* ONREPL - should allow backends to plugin here to specify 
+                attributes that are not allowed */
 
-	if (!replicated_op)
-	{
-		/*
-		 * check to see if attribute is marked as one clients can't modify
-		 */
-		struct asyntaxinfo	*asi;
-		int					no_user_mod = 0;
+    if (!replicated_op)
+    {
+        /*
+         * check to see if attribute is marked as one clients can't modify
+         */
+        struct asyntaxinfo    *asi;
+        int                    no_user_mod = 0;
 
-		asi = attr_syntax_get_by_name( attr_name );
-		if ( NULL != asi &&
-				0 != ( asi->asi_flags & SLAPI_ATTR_FLAG_NOUSERMOD ))
-		{
-			/* this attribute is not allowed */
-			no_user_mod = 1;
-		}
-		attr_syntax_return( asi );
+        asi = attr_syntax_get_by_name( attr_name );
+        if ( NULL != asi &&
+                0 != ( asi->asi_flags & SLAPI_ATTR_FLAG_NOUSERMOD ))
+        {
+            /* this attribute is not allowed */
+            no_user_mod = 1;
+        }
+        attr_syntax_return( asi );
 
-		if ( no_user_mod ) {
-			return( 0 );
-		}
-	} else if (!slapdFrontendConfig->pw_is_global_policy) {
-		/* check list of password policy attributes for locking accounts */
-		for (i = 0; pwpolicy_lock_attrs_all[i]; i ++)
-		{
-			if (strcasecmp (attr_name, pwpolicy_lock_attrs_all[i]) == 0)
-			{
-				/* this attribute is not allowed */
-				return 0;
-			}
-		}
-	}
+        if ( no_user_mod ) {
+            return( 0 );
+        }
+    } else if (!slapdFrontendConfig->pw_is_global_policy) {
+        /* check list of password policy attributes for locking accounts */
+        for (i = 0; pwpolicy_lock_attrs_all[i]; i ++)
+        {
+            if (strcasecmp (attr_name, pwpolicy_lock_attrs_all[i]) == 0)
+            {
+                /* this attribute is not allowed */
+                return 0;
+            }
+        }
+    }
 
-	/* this attribute is ok */
-	return 1;
+    /* this attribute is ok */
+    return 1;
 }
 
 
@@ -122,95 +126,102 @@ void
 do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t chgnum)
 {
     if (NULL == ps_service_fn) {
-	if (get_entry_point(ENTRY_POINT_PS_SERVICE, (caddr_t *)(&ps_service_fn)) < 0) {
-	    return;
-	}
+        if (get_entry_point(ENTRY_POINT_PS_SERVICE, (caddr_t *)(&ps_service_fn)) < 0) {
+            return;
+        }
     }
     (ps_service_fn)(e, eprev, chgtype, chgnum);
 }
 
 void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 {
-	char		buf[20];
-	struct berval	bv;
-	struct berval	*bvals[2];
-	time_t		curtime;
-	struct tm	utm;
-	Operation	*op;
+    char        buf[20];
+    struct berval    bv;
+    struct berval    *bvals[2];
+    time_t        curtime;
+    struct tm    utm;
+    Operation    *op;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "modify_update_last_modified_attr\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, "modify_update_last_modified_attr\n", 0, 0, 0);
 
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
-	bvals[0] = &bv;
-	bvals[1] = NULL;
+    bvals[0] = &bv;
+    bvals[1] = NULL;
 
-	/* fill in modifiersname */
-	if (slapi_sdn_isempty(&op->o_sdn)) {
-		bv.bv_val = "";
-		bv.bv_len = strlen(bv.bv_val);
-	} else {
-		bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
-		bv.bv_len = strlen(bv.bv_val);
-	}
+    /* fill in modifiersname */
+    if (slapi_sdn_isempty(&op->o_sdn)) {
+        bv.bv_val = "";
+        bv.bv_len = strlen(bv.bv_val);
+    } else {
+        bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+        bv.bv_len = strlen(bv.bv_val);
+    }
 
-	slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, 
-						   "modifiersname", bvals);	
+    slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, 
+                           "modifiersname", bvals);    
 
-	/* fill in modifytimestamp */
-	curtime = current_time();
+    /* fill in modifytimestamp */
+    curtime = current_time();
 #ifdef _WIN32
 {
-	struct tm *pt;
-	pt = gmtime(&curtime);
-	memcpy(&utm, pt, sizeof(struct tm));
+    struct tm *pt;
+    pt = gmtime(&curtime);
+    memcpy(&utm, pt, sizeof(struct tm));
 }
 #else
-	gmtime_r(&curtime, &utm);
+    gmtime_r(&curtime, &utm);
 #endif
-	strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &utm);
-	bv.bv_val = buf;
-	bv.bv_len = strlen(bv.bv_val);
-	slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, 
-						   "modifytimestamp", bvals);
+    strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &utm);
+    bv.bv_val = buf;
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, 
+                           "modifytimestamp", bvals);
 }
 
 /*
- * Returns: 0	- if the operation is successful
- * 		    < 0	- if operation fails. 
+ * Returns: 0    - if the operation is successful
+ *        < 0    - if operation fails. 
  * Note that an operation is considered "failed" if a result is sent 
  * directly to the client when send_result is 0.
  */
 void
 op_shared_search (Slapi_PBlock *pb, int send_result)
 {
-  char          *base, *fstr;
-  int           scope;
-  Slapi_Backend *be = NULL;
-  Slapi_Backend *be_single = NULL;
-  Slapi_Backend *be_list[BE_LIST_SIZE];
-  Slapi_Entry   *referral_list[BE_LIST_SIZE];
-  char          ebuf[ BUFSIZ ];
-  char          attrlistbuf[ 1024 ], *attrliststr, **attrs = NULL;
-  int           rc = 0;
-  int           internal_op;
+  char            *base, *fstr;
+  int             scope;
+  Slapi_Backend   *be = NULL;
+  Slapi_Backend   *be_single = NULL;
+  Slapi_Backend   *be_list[BE_LIST_SIZE];
+  Slapi_Entry     *referral_list[BE_LIST_SIZE];
+  char            ebuf[ BUFSIZ ];
+  char            attrlistbuf[ 1024 ], *attrliststr, **attrs = NULL;
+  int             rc = 0;
+  int             internal_op;
   Slapi_DN        sdn;
   Slapi_Operation *operation;
-  Slapi_Entry   *referral = NULL;
+  Slapi_Entry     *referral = NULL;
  
-  char          errorbuf[BUFSIZ];
-  int           nentries,pnentries;
-  int           flag_search_base_found = 0;
-  int           flag_no_such_object = 0;
-  int           flag_referral = 0;
-  int           flag_psearch = 0;
-  int           err_code = LDAP_SUCCESS;
-  LDAPControl   **ctrlp;
-  struct berval *ctl_value = NULL;
-  int           iscritical = 0;
-  char          * be_name = NULL;
-  int           index = 0;
-  int		sent_result = 0;
+  char            errorbuf[BUFSIZ];
+  int             nentries,pnentries;
+  int             flag_search_base_found = 0;
+  int             flag_no_such_object = 0;
+  int             flag_referral = 0;
+  int             flag_psearch = 0;
+  int             err_code = LDAP_SUCCESS;
+  LDAPControl     **ctrlp;
+  struct berval   *ctl_value = NULL;
+  int             iscritical = 0;
+  char            *be_name = NULL;
+  int             index = 0;
+  int             sent_result = 0;
+  unsigned int    pr_stat = 0;
+
+  ber_int_t pagesize = -1;
+  int curr_search_count = 0;
+  Slapi_Backend *pr_be = NULL;
+  void *pr_search_result = NULL;
+  int pr_search_result_count = 0;
 
   be_list[0] = NULL;
   referral_list[0] = NULL;
@@ -234,7 +245,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 #define SLAPD_SEARCH_FMTSTR_BASE_INT "conn=%s op=%d SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s\n"
 
-	  PR_ASSERT(fstr);
+      PR_ASSERT(fstr);
       if ( strlen(fstr) > 1024 )
       {
           /*
@@ -349,11 +360,30 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           }
       }
 
-	  if ( slapi_control_present (ctrlp, LDAP_CONTROL_GET_EFFECTIVE_RIGHTS,
-				&ctl_value, &iscritical) )
-	  {
-			operation->o_flags |= OP_FLAG_GET_EFFECTIVE_RIGHTS;
-	  }
+      if ( slapi_control_present (ctrlp, LDAP_CONTROL_GET_EFFECTIVE_RIGHTS,
+                                  &ctl_value, &iscritical) )
+      {
+          operation->o_flags |= OP_FLAG_GET_EFFECTIVE_RIGHTS;
+      }
+
+      if ( slapi_control_present (ctrlp, LDAP_CONTROL_PAGEDRESULTS,
+                                  &ctl_value, &iscritical) )
+      {
+          rc = pagedresults_parse_control_value(ctl_value,
+                                               &pagesize, &curr_search_count);
+          if (LDAP_SUCCESS == rc) {
+              operation->o_flags |= OP_FLAG_PAGED_RESULTS;
+              pr_be = pagedresults_get_current_be(pb->pb_conn);
+              pr_search_result = pagedresults_get_search_result(pb->pb_conn);
+              pr_search_result_count =
+                             pagedresults_get_search_result_count(pb->pb_conn);
+          } else {
+              /* parse paged-results-control failed */
+              if (iscritical) { /* return an error since it's critical */
+                  goto free_and_return;
+              }
+          }
+      }
   }
 
   if (be_name == NULL)
@@ -372,18 +402,29 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     if (be_list[0] != NULL)
     {
       index = 0;
-      while (be_list[index] && be_list[index+1])
-        index++;
+      if (pr_be) { /* PAGED RESULT: be is found from the previous paging. */
+        /* move the index in the be_list which matches pr_be */
+        while (be_list[index] && be_list[index+1] && pr_be != be_list[index])
+          index++;
+      } else {
+        while (be_list[index] && be_list[index+1])
+          index++;
+      }
+      /* "be" is either pr_be or the last backend */
       be = be_list[index];
     }
     else
-      be = NULL;
+      be = pr_be?pr_be:NULL;
   }
   else
   {
       /* specific backend be_name was requested, use slapi_be_select_by_instance_name
        */
-      be_single = be = slapi_be_select_by_instance_name(be_name);
+      if (pr_be) {
+        be_single = be = pr_be;
+      } else {
+        be_single = be = slapi_be_select_by_instance_name(be_name);
+      }
       if (be_single)
         slapi_be_Rlock(be_single);
       be_list[0] = NULL;
@@ -454,7 +495,17 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &rc);
         goto free_and_return;
     }
-  } 
+  }
+
+  /* set the timelimit to clean up the too-long-lived-paged results requests */
+  if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
+    time_t optime, time_up;
+    int tlimit;
+	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
+	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
+    pagedresults_set_timelimit(pb->pb_conn, time_up);
+  }
 
   /* PAR: now filters have been rewritten, we can assign plugins to work on them */
   index_subsys_assign_filter_decoders(pb);
@@ -465,6 +516,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   {
     const Slapi_DN * be_suffix;
     int err = 0;
+    Slapi_Backend   *next_be = NULL;
 
     if (be->be_search == NULL)
     {
@@ -489,136 +541,196 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 
     /* that's mean we only support one suffix per backend */
     be_suffix = slapi_be_getsuffix(be, 0);
-        
-    /* be_suffix null means that we are searching the default backend
-     * -> don't change the search parameters in pblock
-     */
-    if (be_suffix != NULL)
-    {
-      if ((be_name == NULL) && (scope == LDAP_SCOPE_ONELEVEL))
-      {
-                /* one level searches 
-                 * - depending on the suffix of the backend we might have to
-                 *   do a one level search or a base search
-                 * - we might also have to change the search target 
-                 */
-        if (slapi_sdn_isparent(&sdn, be_suffix)
-            || (slapi_sdn_get_ndn_len(&sdn) == 0))
-        {
-          int tmp_scope = LDAP_SCOPE_BASE;
-          slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-          slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
-                   (void *)slapi_sdn_get_ndn(be_suffix));
-        }
-        else if (slapi_sdn_issuffix(&sdn, be_suffix))
-        {
-          int tmp_scope = LDAP_SCOPE_ONELEVEL;
-          slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-          slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
-                   (void *)slapi_sdn_get_ndn (&sdn));
-        }
-        else
-          goto next_be;
-      }
-    
-      /* subtree searches :
-       * if the search was started above the backend suffix 
-       * - temporarily set the SLAPI_SEARCH_TARGET to the 
-       *   base of the node so that we don't get a NO SUCH OBJECT error
-       * - do not change the scope
-       */
-      if (scope == LDAP_SCOPE_SUBTREE)
-      {
-        if (slapi_sdn_issuffix(be_suffix, &sdn))
-        {
-          slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
-                   (void *)slapi_sdn_get_ndn(be_suffix));
-        }
-        else
-            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, (void *)slapi_sdn_get_ndn(&sdn));
-      }
-    }
-    
-    slapi_pblock_set(pb, SLAPI_BACKEND, be);
-    slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
-    slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
-    
-    /* ONREPL - we need to be able to tell the backend not to send results directly */
-    rc = (*be->be_search)(pb);
-    switch (rc)
-    {
-    case 1:        /* if the backend returned LDAP_NO_SUCH_OBJECT for a SEARCH request,
-                      it will not have sent back a result - otherwise, it will have
-                      sent a result */
-      rc = SLAPI_FAIL_GENERAL;
-      slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
-      if (err == LDAP_NO_SUCH_OBJECT)
-      {
-          /* may be the object exist somewhere else
-           * wait the end of the loop to send back this error 
-           */
-          flag_no_such_object = 1;
-          break;
-      }
-      /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will have sent the result -
-         Set a flag here so we don't return another result. */
-      sent_result = 1;
-      /* fall through */
 
-    case -1:    /* an error occurred */            
-      slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
-      if (err == LDAP_NO_SUCH_OBJECT)
-      {
-          /* may be the object exist somewhere else
-           * wait the end of the loop to send back this error 
-           */
-          flag_no_such_object = 1;
-          break;
-      }
-      else
-      {
-          /* for error other than LDAP_NO_SUCH_OBJECT
-           * the error has already been sent
-           * stop the search here
-           */
-          goto free_and_return;
-      }
-
-      /* when rc == SLAPI_FAIL_DISKFULL this case is executed */ 
-
-    case SLAPI_FAIL_DISKFULL: 
-      operation_out_of_disk_space(); 
-      goto free_and_return; 
-                        
-    case 0:        /* search was successful and we need to send the result */
-      flag_search_base_found++;
-      rc = send_results (pb, 1, &pnentries);
-
-      /* if rc != 0 an error occurred while sending back the entries
-       * to the LDAP client
-       * LDAP error should already have been sent to the client
-       * stop the search, free and return
-       */
-      if (rc != 0)     
-        goto free_and_return;
-      break;
-    }
-            
-    nentries += pnentries;
-
-    next_be:
     if (be_list[0] == NULL)
     {
-      be = NULL;
+      next_be = NULL;
     }
     else
     {
       index--;
       if (index>=0)
-        be = be_list[index];
+        next_be = be_list[index];
       else
-        be = NULL;
+        next_be = NULL;
     }
+        
+    if ((operation->o_flags & OP_FLAG_PAGED_RESULTS) && pr_search_result) {
+      /* PAGED RESULTS and already have the search results from the prev op */
+      slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
+      rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
+
+      if (PAGEDRESULTS_SEARCH_END == pr_stat) {
+        /* no more entries to send in the backend */
+        if (NULL == next_be) {
+          /* no more entries && no more backends */
+          curr_search_count = -1;
+        } else {
+          curr_search_count = pnentries;
+        }
+      } else {
+        curr_search_count = pnentries;
+      }
+      pagedresults_set_response_control(pb, 0, pagesize, curr_search_count);
+      if (pagedresults_get_with_sort(pb->pb_conn)) {
+        sort_make_sort_response_control(pb, CONN_GET_SORT_RESULT_CODE, NULL);
+      }
+      next_be = NULL; /* to break the loop */
+    } else {
+      /* be_suffix null means that we are searching the default backend
+       * -> don't change the search parameters in pblock
+       */
+      if (be_suffix != NULL)
+      {
+        if ((be_name == NULL) && (scope == LDAP_SCOPE_ONELEVEL))
+        {
+                  /* one level searches 
+                   * - depending on the suffix of the backend we might have to
+                   *   do a one level search or a base search
+                   * - we might also have to change the search target 
+                   */
+          if (slapi_sdn_isparent(&sdn, be_suffix)
+              || (slapi_sdn_get_ndn_len(&sdn) == 0))
+          {
+            int tmp_scope = LDAP_SCOPE_BASE;
+            slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
+            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
+                     (void *)slapi_sdn_get_ndn(be_suffix));
+          }
+          else if (slapi_sdn_issuffix(&sdn, be_suffix))
+          {
+            int tmp_scope = LDAP_SCOPE_ONELEVEL;
+            slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
+            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
+                     (void *)slapi_sdn_get_ndn (&sdn));
+          }
+          else
+            goto next_be;
+        }
+      
+        /* subtree searches :
+         * if the search was started above the backend suffix 
+         * - temporarily set the SLAPI_SEARCH_TARGET to the 
+         *   base of the node so that we don't get a NO SUCH OBJECT error
+         * - do not change the scope
+         */
+        if (scope == LDAP_SCOPE_SUBTREE)
+        {
+          if (slapi_sdn_issuffix(be_suffix, &sdn))
+          {
+            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
+                     (void *)slapi_sdn_get_ndn(be_suffix));
+          }
+          else
+              slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, (void *)slapi_sdn_get_ndn(&sdn));
+        }
+      }
+      
+      slapi_pblock_set(pb, SLAPI_BACKEND, be);
+      slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
+      slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
+      
+      /* ONREPL - we need to be able to tell the backend not to send results directly */
+      rc = (*be->be_search)(pb);
+      switch (rc)
+      {
+      case 1:
+        /* if the backend returned LDAP_NO_SUCH_OBJECT for a SEARCH request,
+         * it will not have sent back a result - otherwise, it will have
+         * sent a result */
+        rc = SLAPI_FAIL_GENERAL;
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
+        if (err == LDAP_NO_SUCH_OBJECT)
+        {
+            /* may be the object exist somewhere else
+             * wait the end of the loop to send back this error 
+             */
+            flag_no_such_object = 1;
+            break;
+        }
+        /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will
+         * have sent the result -
+         * Set a flag here so we don't return another result. */
+        sent_result = 1;
+        /* fall through */
+  
+      case -1:    /* an error occurred */            
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
+        if (err == LDAP_NO_SUCH_OBJECT)
+        {
+            /* may be the object exist somewhere else
+             * wait the end of the loop to send back this error 
+             */
+            flag_no_such_object = 1;
+            break;
+        }
+        else
+        {
+            /* for error other than LDAP_NO_SUCH_OBJECT
+             * the error has already been sent
+             * stop the search here
+             */
+            goto free_and_return;
+        }
+  
+        /* when rc == SLAPI_FAIL_DISKFULL this case is executed */ 
+  
+      case SLAPI_FAIL_DISKFULL: 
+        operation_out_of_disk_space(); 
+        goto free_and_return; 
+                          
+      case 0:        /* search was successful and we need to send the result */
+        flag_search_base_found++;
+        rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
+  
+        /* PAGED RESULTS */
+        if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
+            void *sr = NULL;
+            int with_sort = operation->o_flags & OP_FLAG_SERVER_SIDE_SORTING;
+  
+            curr_search_count = pnentries;
+            if (PAGEDRESULTS_SEARCH_END == pr_stat) {
+              if (NULL == next_be) {
+                /* no more entries && no more backends */
+                curr_search_count = -1;
+              } else {
+                /* no more entries, but at least another backend */
+                if (pagedresults_set_current_be(pb->pb_conn, next_be) < 0) {
+                  goto free_and_return;
+                }
+              }
+            } else {
+              curr_search_count = pnentries;
+              slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+              if (pagedresults_set_current_be(pb->pb_conn, be) < 0 ||
+                  pagedresults_set_search_result(pb->pb_conn, sr) < 0 ||
+                  pagedresults_set_search_result_count(pb->pb_conn,
+                                                   curr_search_count) < 0 ||
+                  pagedresults_set_with_sort(pb->pb_conn, with_sort) < 0) {
+                goto free_and_return;
+              }
+            }
+            pagedresults_set_response_control(pb, 0,
+                                              pagesize, curr_search_count);
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+            next_be = NULL; /* to break the loop */
+        }
+  
+        /* if rc != 0 an error occurred while sending back the entries
+         * to the LDAP client
+         * LDAP error should already have been sent to the client
+         * stop the search, free and return
+         */
+        if (rc != 0)     
+          goto free_and_return;
+        break;
+      }
+    }
+            
+    nentries += pnentries;
+
+next_be:
+    be = next_be; /* this be won't be used for PAGED_RESULTS */
   }
 
   /* if referrals were sent back by the mapping tree
@@ -731,14 +843,14 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
 {
     int managedsait;
     Slapi_Attr *a=NULL;
-	int numValues=0, i;
+    int numValues=0, i;
 
     if (!send_result) 
-	{
-		/* server requested that we don't send results to the client,
-		   for instance, in case of a persistent search
-		 */
-		return 1;
+    {
+        /* server requested that we don't send results to the client,
+           for instance, in case of a persistent search
+         */
+        return 1;
     }
     
    /* ONREPL - check if the entry should be referred (because of the copyingFrom) */
@@ -749,48 +861,48 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
      * the referrals are just squirreled away and sent with the
      * final result.  For v3, the referrals are sent in separate LDAP messages.
      */
-	slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
+    slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
     if (!managedsait && slapi_entry_attr_find(e, "ref", &a)== 0)
-	{
-		/* to fix 522189: when rootDSE, don't interpret attribute ref as a referral entry  */
+    {
+        /* to fix 522189: when rootDSE, don't interpret attribute ref as a referral entry  */
 
-		if ( slapi_is_rootdse(slapi_entry_get_dn_const(e)) )
-			return 0;	/* more to do for this entry, e.g., send it back to the client */
+        if ( slapi_is_rootdse(slapi_entry_get_dn_const(e)) )
+            return 0;    /* more to do for this entry, e.g., send it back to the client */
 
-		/* end fix */
-		slapi_attr_get_numvalues(a, &numValues );
-		if (numValues == 0) 
-		{
-			char ebuf[ BUFSIZ ];
-			LDAPDebug(LDAP_DEBUG_ANY, "null ref in (%s)\n",
-					  escape_string(slapi_entry_get_dn_const(e), ebuf), 0, 0);
-		}
-		else 
-		{
-			Slapi_Value *val=NULL;
-			struct berval **refscopy=NULL;
-			struct berval **urls, **tmpUrls=NULL;
-			tmpUrls=(struct berval **) slapi_ch_malloc((numValues + 1) * sizeof(struct berval*));
-			for ( i = slapi_attr_first_value(a, &val); i != -1;
-				 i = slapi_attr_next_value(a, i, &val)) {
-				tmpUrls[i]=(struct berval*)slapi_value_get_berval(val);
-			}
-			tmpUrls[numValues]=NULL;
-			refscopy = ref_adjust(pb, tmpUrls, slapi_entry_get_sdn_const(e), 1);
-			slapi_pblock_get(pb, SLAPI_SEARCH_REFERRALS, &urls);
-			send_ldap_referral(pb, e, refscopy, &urls);
-			slapi_pblock_set(pb, SLAPI_SEARCH_REFERRALS, urls);
-			if (NULL != refscopy) 
-			{
-				ber_bvecfree(refscopy);
-				refscopy = NULL;
-			}
-			if( NULL != tmpUrls) {
-				slapi_ch_free( (void **)&tmpUrls );
-			}
-		}
+        /* end fix */
+        slapi_attr_get_numvalues(a, &numValues );
+        if (numValues == 0) 
+        {
+            char ebuf[ BUFSIZ ];
+            LDAPDebug(LDAP_DEBUG_ANY, "null ref in (%s)\n",
+                      escape_string(slapi_entry_get_dn_const(e), ebuf), 0, 0);
+        }
+        else 
+        {
+            Slapi_Value *val=NULL;
+            struct berval **refscopy=NULL;
+            struct berval **urls, **tmpUrls=NULL;
+            tmpUrls=(struct berval **) slapi_ch_malloc((numValues + 1) * sizeof(struct berval*));
+            for ( i = slapi_attr_first_value(a, &val); i != -1;
+                 i = slapi_attr_next_value(a, i, &val)) {
+                tmpUrls[i]=(struct berval*)slapi_value_get_berval(val);
+            }
+            tmpUrls[numValues]=NULL;
+            refscopy = ref_adjust(pb, tmpUrls, slapi_entry_get_sdn_const(e), 1);
+            slapi_pblock_get(pb, SLAPI_SEARCH_REFERRALS, &urls);
+            send_ldap_referral(pb, e, refscopy, &urls);
+            slapi_pblock_set(pb, SLAPI_SEARCH_REFERRALS, urls);
+            if (NULL != refscopy) 
+            {
+                ber_bvecfree(refscopy);
+                refscopy = NULL;
+            }
+            if( NULL != tmpUrls) {
+                slapi_ch_free( (void **)&tmpUrls );
+            }
+        }
 
-		return 1;		/* done with this entry */
+        return 1;        /* done with this entry */
     } 
 
     return 0;
@@ -812,7 +924,7 @@ iterate_with_lookahead(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int
     Slapi_Entry *next_e;
     void *next_backend_info_ptr;
     char **attrs = NULL;    
-	int send_result_status = 0;
+    int send_result_status = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
@@ -820,24 +932,24 @@ iterate_with_lookahead(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int
     /* setup for the loop */
     rc = be->be_next_search_entry_ext(pb, 1);
     if (rc < 0) 
-	{
-		/*
-		 * Some exceptional condition occurred.  Results
-		 * have been sent, so we're finished.
-		 */
-		if (rc == SLAPI_FAIL_DISKFULL) 
-		{
-			operation_out_of_disk_space();
-		}
-		return -1;
+    {
+        /*
+         * Some exceptional condition occurred.  Results
+         * have been sent, so we're finished.
+         */
+        if (rc == SLAPI_FAIL_DISKFULL) 
+        {
+            operation_out_of_disk_space();
+        }
+        return -1;
     } 
-		
+        
     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &next_e);
     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, &next_backend_info_ptr);
     if (NULL == next_e) 
-	{
-		/* no entries */
-		done = 1;
+    {
+        /* no entries */
+        done = 1;
     }
 
     backend_info_ptr = NULL;
@@ -845,98 +957,98 @@ iterate_with_lookahead(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int
     /* Done setting up the loop, now here it comes */
     
     while (!done) 
-	{
-		/* Allow the backend to free the entry we just finished using */
-		/* It is ok to call this when backend_info_ptr is NULL */
-		be->be_entry_release(pb, backend_info_ptr);
-		e = next_e;
-		backend_info_ptr = next_backend_info_ptr;
+    {
+        /* Allow the backend to free the entry we just finished using */
+        /* It is ok to call this when backend_info_ptr is NULL */
+        be->be_entry_release(pb, backend_info_ptr);
+        e = next_e;
+        backend_info_ptr = next_backend_info_ptr;
 
-		rc = be->be_next_search_entry_ext(pb, 1);
-		if (rc < 0) 
-		{
-			/*
-			 * Some exceptional condition occurred.  Results
-			 * have been sent, so we're finished.
-			 */
-			if (rc == SLAPI_FAIL_DISKFULL) 
-			{
-				operation_out_of_disk_space();
-			}
-			return -1;
-		} 
-		else 
-		{
-			slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &next_e);
-			slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, &next_backend_info_ptr);
-			if (next_e == NULL) 
-			{
-				/* no more entries */
-				done = 1;
-			}
-		}
+        rc = be->be_next_search_entry_ext(pb, 1);
+        if (rc < 0) 
+        {
+            /*
+             * Some exceptional condition occurred.  Results
+             * have been sent, so we're finished.
+             */
+            if (rc == SLAPI_FAIL_DISKFULL) 
+            {
+                operation_out_of_disk_space();
+            }
+            return -1;
+        } 
+        else 
+        {
+            slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &next_e);
+            slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, &next_backend_info_ptr);
+            if (next_e == NULL) 
+            {
+                /* no more entries */
+                done = 1;
+            }
+        }
 
-		if (process_entry(pb, e, send_result)) 
-		{
-			/* shouldn't  send this entry */
-			continue;
-		}
+        if (process_entry(pb, e, send_result)) 
+        {
+            /* shouldn't  send this entry */
+            continue;
+        }
 
-		/*
-		 * It's a regular entry, or it's a referral and
-		 * managedsait control is on.  In either case, send the entry.
-		 */
-		if (done) 
-		{
-			struct berval **urls = NULL;
-			/* Send the entry and the result at the same time */
-			slapi_pblock_get(pb, SLAPI_SEARCH_REFERRALS, &urls);
-			rc = send_ldap_search_entry_ext(pb, e, NULL, attrs, attrsonly, 1, 
-											(*pnentries)+1, urls);
-			if (rc == 1) 
-			{
-				/* this means we didn't have access to the entry. Since the
-				 * entry was not sent, we need to send the done packet.
-				 */
-				send_result_status = 1;
-			}
-		} 
-		else 
-		{
-			/* Send the entry */
-			rc = send_ldap_search_entry(pb, e, NULL, attrs, 
-						attrsonly);
-		}
-		switch (rc) 
-		{
-			case 0:		/* entry sent ok */
-				(*pnentries)++;
-				slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
-				break;
-			case 1:		/* entry not sent */
-				break;
-			case -1:	/* connection closed */
-				/*
-				 * mark the operation as abandoned so the backend
-				 * next entry function gets called again and has
-				 * a chance to clean things up.
-				 */
-				pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
-				break;
-		}
+        /*
+         * It's a regular entry, or it's a referral and
+         * managedsait control is on.  In either case, send the entry.
+         */
+        if (done) 
+        {
+            struct berval **urls = NULL;
+            /* Send the entry and the result at the same time */
+            slapi_pblock_get(pb, SLAPI_SEARCH_REFERRALS, &urls);
+            rc = send_ldap_search_entry_ext(pb, e, NULL, attrs, attrsonly, 1, 
+                                            (*pnentries)+1, urls);
+            if (rc == 1) 
+            {
+                /* this means we didn't have access to the entry. Since the
+                 * entry was not sent, we need to send the done packet.
+                 */
+                send_result_status = 1;
+            }
+        } 
+        else 
+        {
+            /* Send the entry */
+            rc = send_ldap_search_entry(pb, e, NULL, attrs, 
+                        attrsonly);
+        }
+        switch (rc) 
+        {
+            case 0:        /* entry sent ok */
+                (*pnentries)++;
+                slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
+                break;
+            case 1:        /* entry not sent */
+                break;
+            case -1:    /* connection closed */
+                /*
+                 * mark the operation as abandoned so the backend
+                 * next entry function gets called again and has
+                 * a chance to clean things up.
+                 */
+                pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
+                break;
+        }
     }
 
     be->be_entry_release(pb, backend_info_ptr);
     if (*pnentries == 0 || send_result_status) 
-	{
-		/* We didn't send the result done message so the caller 
-		 * must send it */
-		return 1;
+    {
+        /* We didn't send the result done message so the caller 
+         * must send it */
+        return 1;
     } 
-	else 
-	{
-		/* The result message has been sent */
-		return 0;
+    else 
+    {
+        /* The result message has been sent */
+        return 0;
     }
 }
 #endif
@@ -948,7 +1060,8 @@ iterate_with_lookahead(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int
  * iterate_with_lookahead trys to do.
  */
 static int
-iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries) 
+iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
+        int *pnentries, int pagesize, unsigned int *pr_stat) 
 {
     int rc;
     int attrsonly;
@@ -960,6 +1073,9 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
 
     *pnentries = 0;
+    if (pr_stat) {
+        *pr_stat = 0;
+    }
     
     while (!done) 
     {
@@ -970,12 +1086,15 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
         if (rc < 0) 
         {
             /*
-             * Some exceptional condition occurred. Results have been sent, so we're finished.
+             * Some exceptional condition occurred. Results have been sent,
+             * so we're finished.
              */
             if (rc == SLAPI_FAIL_DISKFULL) 
             {
                 operation_out_of_disk_space();
             }
+            *pr_stat = PAGEDRESULTS_SEARCH_END;
+            pagedresults_set_timelimit(pb->pb_conn, 0);
             return -1;
         } 
 
@@ -1025,6 +1144,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
                     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
                     if (NULL == e) {
                         /* everything is ok - don't send the result */
+                        *pr_stat = PAGEDRESULTS_SEARCH_END;
                         return 1;
                     }
                     gerentry = e;
@@ -1044,6 +1164,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
                         slapi_entry_free(gerentry);
                         gerentry = e = NULL;
                     }
+                    *pr_stat = PAGEDRESULTS_SEARCH_END;
                     return( -1 );
                 }
                 slapi_ch_free ( (void**)&errbuf );
@@ -1097,6 +1218,9 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
             {
                 /* no more entries */
                 done = 1;
+                if (pr_stat) {
+                    *pr_stat = PAGEDRESULTS_SEARCH_END;
+                }
             }
         }
         else if (e)
@@ -1129,11 +1253,22 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
                     pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
                     break;
             }
+            if (pagesize == *pnentries)
+            { 
+                /* PAGED RESULTS: reached the pagesize */
+                done = 1;
+                if (pr_stat) {
+                    *pr_stat = PAGEDRESULTS_PAGE_END;
+                }
+            }
         }
         else
         {
             /* no more entries */
             done = 1;
+            if (pr_stat) {
+                *pr_stat = PAGEDRESULTS_SEARCH_END;
+            }
         }
     }
 
@@ -1141,8 +1276,8 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int *pnentries)
 }
 
 
-static int		timelimit_reslimit_handle = -1;
-static int		sizelimit_reslimit_handle = -1;
+static int        timelimit_reslimit_handle = -1;
+static int        sizelimit_reslimit_handle = -1;
 
 /*
  * Register size and time limit with the binder-based resource limits
@@ -1151,18 +1286,18 @@ static int		sizelimit_reslimit_handle = -1;
 int
 search_register_reslimits( void )
 {
-	int		rc1, rc2;
+    int        rc1, rc2;
 
     rc1 = slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             "nsSizeLimit" , &sizelimit_reslimit_handle );
     rc2 = slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             "nsTimeLimit", &timelimit_reslimit_handle );
 
-	if ( rc1 != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		return( rc1 );
-	} else {
-		return( rc2 );
-	}
+    if ( rc1 != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+        return( rc1 );
+    } else {
+        return( rc2 );
+    }
 }
 
 
@@ -1179,162 +1314,171 @@ search_register_reslimits( void )
 static void
 compute_limits (Slapi_PBlock *pb)
 {
-	int timelimit, sizelimit;
-	int requested_timelimit, max_timelimit, requested_sizelimit, max_sizelimit;
-	int isroot;
-	int isCertAuth;
-	Slapi_ComponentId *component_id = NULL;
-	Slapi_Backend *be;
+    int timelimit, sizelimit;
+    int requested_timelimit, max_timelimit, requested_sizelimit, max_sizelimit;
+    int isroot;
+    int isCertAuth;
+    Slapi_ComponentId *component_id = NULL;
+    Slapi_Backend *be;
 
-	slapi_pblock_get (pb, SLAPI_SEARCH_TIMELIMIT, &requested_timelimit);
-	slapi_pblock_get (pb, SLAPI_SEARCH_SIZELIMIT, &requested_sizelimit);
-	slapi_pblock_get (pb, SLAPI_REQUESTOR_ISROOT, &isroot);
-	slapi_pblock_get (pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get (pb, SLAPI_SEARCH_TIMELIMIT, &requested_timelimit);
+    slapi_pblock_get (pb, SLAPI_SEARCH_SIZELIMIT, &requested_sizelimit);
+    slapi_pblock_get (pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+    slapi_pblock_get (pb, SLAPI_BACKEND, &be);
 
 
-	/* If the search belongs to the client authentication process, take the value at
-	 * nsslapd-timelimit as the actual time limit.
-	 */
-	
-	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &component_id);
-	if (component_id) {
-	     isCertAuth = (! strcasecmp(component_id->sci_component_name, COMPONENT_CERT_AUTH) ) ? 1 : 0;
-	     if (isCertAuth) {
-	           timelimit = config_get_timelimit();
-		   goto set_timelimit;
-	     }
-	}
+    /* If the search belongs to the client authentication process, take the value at
+     * nsslapd-timelimit as the actual time limit.
+     */
+    
+    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &component_id);
+    if (component_id) {
+         isCertAuth = (! strcasecmp(component_id->sci_component_name, COMPONENT_CERT_AUTH) ) ? 1 : 0;
+         if (isCertAuth) {
+               timelimit = config_get_timelimit();
+           goto set_timelimit;
+         }
+    }
 
-	/*
-	 * Compute the time limit.
-	 */
-	if ( slapi_reslimit_get_integer_limit( pb->pb_conn,
-			timelimit_reslimit_handle, &max_timelimit )
-			!= SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		/*
-		 * no limit associated with binder/connection or some other error
-		 * occurred.  use the default maximum.
-	 	 */
-		if ( isroot ) {
-			max_timelimit = -1;	/* no limit */
-		} else {
-			max_timelimit = be->be_timelimit;
-		}
-	}
+    /*
+     * Compute the time limit.
+     */
+    if ( slapi_reslimit_get_integer_limit( pb->pb_conn,
+            timelimit_reslimit_handle, &max_timelimit )
+            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+        /*
+         * no limit associated with binder/connection or some other error
+         * occurred.  use the default maximum.
+          */
+        if ( isroot ) {
+            max_timelimit = -1;    /* no limit */
+        } else {
+            max_timelimit = be->be_timelimit;
+        }
+    }
 
-	if ( requested_timelimit == 0 ) {
-			timelimit = ( max_timelimit == -1 ) ? -1 : max_timelimit;
-	} else if ( max_timelimit == -1 || requested_timelimit < max_timelimit ) {
-			timelimit = requested_timelimit;
-	} else {
-			timelimit = max_timelimit;
-	}
+    if ( requested_timelimit == 0 ) {
+            timelimit = ( max_timelimit == -1 ) ? -1 : max_timelimit;
+    } else if ( max_timelimit == -1 || requested_timelimit < max_timelimit ) {
+            timelimit = requested_timelimit;
+    } else {
+            timelimit = max_timelimit;
+    }
 
  set_timelimit:
-	slapi_pblock_set(pb, SLAPI_SEARCH_TIMELIMIT, &timelimit);
+    slapi_pblock_set(pb, SLAPI_SEARCH_TIMELIMIT, &timelimit);
 
 
-	/*
-	 * Compute the size limit.
-	 */
-	if ( slapi_reslimit_get_integer_limit( pb->pb_conn,
-			sizelimit_reslimit_handle, &max_sizelimit )
-			!= SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		/*
-		 * no limit associated with binder/connection or some other error
-		 * occurred.  use the default maximum.
-	 	 */
-		if ( isroot ) {
-			max_sizelimit = -1;	/* no limit */
-		} else {
-			max_sizelimit = be->be_sizelimit;
-		}
-	}
+    /*
+     * Compute the size limit.
+     */
+    if ( slapi_reslimit_get_integer_limit( pb->pb_conn,
+            sizelimit_reslimit_handle, &max_sizelimit )
+            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+        /*
+         * no limit associated with binder/connection or some other error
+         * occurred.  use the default maximum.
+          */
+        if ( isroot ) {
+            max_sizelimit = -1;    /* no limit */
+        } else {
+            max_sizelimit = be->be_sizelimit;
+        }
+    }
 
-	if ( requested_sizelimit == 0 ) {
-			sizelimit = ( max_sizelimit == -1 ) ? -1 : max_sizelimit;
-	} else if ( max_sizelimit == -1 || requested_sizelimit < max_sizelimit ) {
-			sizelimit = requested_sizelimit;
-	} else {
-			sizelimit = max_sizelimit;
-	}
-	slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
+    if ( requested_sizelimit == 0 ) {
+            sizelimit = ( max_sizelimit == -1 ) ? -1 : max_sizelimit;
+    } else if ( max_sizelimit == -1 || requested_sizelimit < max_sizelimit ) {
+            sizelimit = requested_sizelimit;
+    } else {
+            sizelimit = max_sizelimit;
+    }
+    slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
 
-	LDAPDebug( LDAP_DEBUG_TRACE,
-			"=> compute_limits: sizelimit=%d, timelimit=%d\n",
-			sizelimit, timelimit, 0 );
+    LDAPDebug( LDAP_DEBUG_TRACE,
+            "=> compute_limits: sizelimit=%d, timelimit=%d\n",
+            sizelimit, timelimit, 0 );
 }
-
 
 /* Iterates through results and send them to the client.
  * Returns 0 if successful and -1 otherwise
  */
-static int  send_results (Slapi_PBlock *pb, int send_result, int * nentries)
+static int
+send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize, unsigned int *pr_stat)
 {
-	Slapi_Backend *be; 
-	int rc;
+    Slapi_Backend *be; 
+    int rc;
 
-	slapi_pblock_get (pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get (pb, SLAPI_BACKEND, &be);
 
-	if (be->be_next_search_entry == NULL)
-	{
-		/* we need to send the result, but the function to iterate through 
-		   the result set is not implemented */
-		/* ONREPL - log error */
-		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Search not supported", 0, NULL);
-		return -1;
-	}
+    if (be->be_next_search_entry == NULL)
+    {
+        /* we need to send the result, but the function to iterate through 
+           the result set is not implemented */
+        /* ONREPL - log error */
+        send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Search not supported", 0, NULL);
+        return -1;
+    }
 
-	/* Iterate through the returned result set */
-	if (be->be_next_search_entry_ext != NULL)
-	{
-	   /* The iterate look ahead is causing a whole mess with the ACL.
-		** the entries are now visiting the ACL land in a random way
-		** and not the ordered way it was before. Until we figure out
-		** let's not change the behavior.
-		**
-		** Don't use iterate_with_lookahead because it sends the result 
-		* in the same times as the entry and this can cause failure
-		* of the mapping tree scanning algorithme
-		* if (getFrontendConfig()->result_tweak)
-		* {
-		*	rc = iterate_with_lookahead(pb, be, send_result, nentries);
-		* }
-		* else
-		*/
-			rc = iterate(pb, be, send_result, nentries);
-	}
-	else
-	{
-		rc = iterate(pb, be, send_result, nentries);
-	}		 
+    /* Iterate through the returned result set */
+    if (be->be_next_search_entry_ext != NULL)
+    {
+        /* The iterate look ahead is causing a whole mess with the ACL.
+        ** the entries are now visiting the ACL land in a random way
+        ** and not the ordered way it was before. Until we figure out
+        ** let's not change the behavior.
+        **
+        ** Don't use iterate_with_lookahead because it sends the result 
+        * in the same times as the entry and this can cause failure
+        * of the mapping tree scanning algorithme
+        * if (getFrontendConfig()->result_tweak)
+        * {
+        *    rc = iterate_with_lookahead(pb, be, send_result, nentries);
+        * }
+        * else
+        */
+        rc = iterate(pb, be, send_result, nentries, pagesize, pr_stat);
+    }
+    else
+    {
+        rc = iterate(pb, be, send_result, nentries, pagesize, pr_stat);
+    }
 
-	switch(rc) 
-	{
-		case -1:	/* an error occured */
+    switch(rc) 
+    {
+        case -1:    /* an error occured */
 
-		case 0 :	/* everything is ok - result is sent */
-				    /* If this happens we are dead but hopefully iterate
-					 * never sends the result itself 
-					 */
-					break;	
+        case 0 :    /* everything is ok - result is sent */
+                    /* If this happens we are dead but hopefully iterate
+                     * never sends the result itself 
+                     */
+                    break;    
 
-		case 1:		/* everything is ok - don't send the result */
-					rc = 0;
-	}
-	
-	return rc;
+        case 1:        /* everything is ok - don't send the result */
+                    rc = 0;
+    }
+    
+    return rc;
+}
+
+/* Iterates through results and send them to the client.
+ * Returns 0 if successful and -1 otherwise
+ */
+static int 
+send_results(Slapi_PBlock *pb, int send_result, int *nentries)
+{
+    return send_results_ext(pb, send_result, nentries, -1, NULL);
 }
 
 void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char *dn, const char *msg)
 {
-	char ebuf[BUFSIZ];
-	slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s dn=\"%s\", %s\n",
-		              ( pb->pb_conn ? pb->pb_conn->c_connid : 0), 
-					  ( pb->pb_op ? pb->pb_op->o_opid : 0), 
-					  type, 
-					  escape_string( dn, ebuf ), 
-					  msg ? msg : "" );
+    char ebuf[BUFSIZ];
+    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s dn=\"%s\", %s\n",
+                      ( pb->pb_conn ? pb->pb_conn->c_connid : 0), 
+                      ( pb->pb_op ? pb->pb_op->o_opid : 0), 
+                      type, 
+                      escape_string( dn, ebuf ), 
+                      msg ? msg : "" );
 
 }
 

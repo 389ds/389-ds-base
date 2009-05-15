@@ -202,6 +202,11 @@ typedef struct symbol_t {
 #define LDAP_CONTROL_GET_EFFECTIVE_RIGHTS "1.3.6.1.4.1.42.2.27.9.5.2"
 #endif
 
+/* PAGED RESULTS control (shared by request and response) */
+#ifndef LDAP_CONTROL_PAGEDRESULTS
+#define LDAP_CONTROL_PAGEDRESULTS      "1.2.840.113556.1.4.319"
+#endif
+
 #define SLAPD_VENDOR_NAME	"Fedora Project"
 #define SLAPD_VERSION_STR	"Fedora-Directory/" PRODUCTTEXT
 #define SLAPD_SHORT_VERSION_STR	PRODUCTTEXT
@@ -760,6 +765,7 @@ struct slapdplugin {
 			IFP	plg_un_db_search;	  /* search */
 			IFP	plg_un_db_next_search_entry;	/* iterate */
 	        IFP plg_un_db_next_search_entry_ext;
+			IFP plg_un_db_search_results_release; /* PAGED RESULTS */
 	        IFP plg_un_db_entry_release;
 			IFP	plg_un_db_compare;	  /* compare */
 			IFP	plg_un_db_modify;	  /* modify */
@@ -797,6 +803,7 @@ struct slapdplugin {
 #define plg_search		plg_un.plg_un_db.plg_un_db_search
 #define plg_next_search_entry	plg_un.plg_un_db.plg_un_db_next_search_entry
 #define plg_next_search_entry_ext plg_un.plg_un_db.plg_un_db_next_search_entry_ext
+#define plg_search_results_release plg_un.plg_un_db.plg_un_db_search_results_release
 #define plg_entry_release       plg_un.plg_un_db.plg_un_db_entry_release
 #define plg_compare		plg_un.plg_un_db.plg_un_db_compare
 #define plg_modify		plg_un.plg_un_db.plg_un_db_modify
@@ -1050,6 +1057,7 @@ typedef struct backend {
 #define	be_next_search_entry be_database->plg_next_search_entry
 #define be_next_search_entry_ext be_database->plg_next_search_entry_ext
 #define be_entry_release be_database->plg_entry_release
+#define be_search_results_release be_database->plg_search_results_release
 #define be_compare		be_database->plg_compare
 #define be_modify		be_database->plg_modify
 #define be_modrdn		be_database->plg_modrdn
@@ -1268,6 +1276,13 @@ typedef struct conn {
     int				c_local_valid; /* flag true if the uid/gid are valid */
     uid_t			c_local_uid;  /* uid of connecting process */
     gid_t			c_local_gid;  /* gid of connecting process */
+    /* PAGED_RESULTS */
+    Slapi_Backend   *c_current_be;         /* backend being used */
+    void            *c_search_result_set;  /* search result set for paging */
+    int             c_search_result_count; /* search result count */
+    int             c_sort_result_code;    /* sort result put in response */
+    time_t          c_timelimit;           /* time limit for this connection */
+    /* PAGED_RESULTS ENDS */
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 
@@ -1291,6 +1306,10 @@ typedef struct conn {
                                      * successfully completed.
                                      */
 
+#define CONN_FLAG_PAGEDRESULTS_WITH_SORT 64 /* paged results control is
+                                             * sent with server side sorting
+                                             */
+#define CONN_GET_SORT_RESULT_CODE (-1)
 
 #define START_TLS_OID    "1.3.6.1.4.1.1466.20037"
 
