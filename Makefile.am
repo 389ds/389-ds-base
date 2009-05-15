@@ -509,6 +509,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/objset.c \
 	ldap/servers/slapd/operation.c \
 	ldap/servers/slapd/opshared.c \
+	ldap/servers/slapd/pagedresults.c \
 	ldap/servers/slapd/pblock.c \
 	ldap/servers/slapd/plugin.c \
 	ldap/servers/slapd/plugin_acl.c \
@@ -532,6 +533,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/slapi_counter.c \
 	ldap/servers/slapd/slapi2nspr.c \
 	ldap/servers/slapd/snmp_collator.c \
+	ldap/servers/slapd/sort.c \
 	ldap/servers/slapd/ssl.c \
 	ldap/servers/slapd/str2filter.c \
 	ldap/servers/slapd/subentry.c \

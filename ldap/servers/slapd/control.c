@@ -112,6 +112,10 @@ init_controls( void )
 */
 	slapi_register_supported_control( LDAP_CONTROL_GET_EFFECTIVE_RIGHTS,
 		SLAPI_OPERATION_SEARCH );
+
+	/* LDAP_CONTROL_PAGEDRESULTS is shared by request and response */
+	slapi_register_supported_control( LDAP_CONTROL_PAGEDRESULTS,
+		SLAPI_OPERATION_SEARCH );
 }
 
 
@@ -124,8 +128,7 @@ slapi_register_supported_control( char *controloid, unsigned long controlops )
 	if ( controloid != NULL ) {
 		PR_RWLock_Wlock(supported_controls_lock);
 		++supported_controls_count;
-		charray_add( &supported_controls,
-		    slapi_ch_strdup( controloid ));
+		charray_add( &supported_controls, slapi_ch_strdup( controloid ));
 		supported_controls_ops = (unsigned long *)slapi_ch_realloc(
 		    (char *)supported_controls_ops,
 		    supported_controls_count * sizeof( unsigned long ));
@@ -418,10 +421,8 @@ slapi_control_present( LDAPControl **controls, char *oid, struct berval **val, i
 
 	for ( i = 0; controls[i] != NULL; i++ ) {
 		if ( strcmp( controls[i]->ldctl_oid, oid ) == 0 ) {
-			if ( val != NULL ) {
-				if (NULL != val) {
-					*val = &controls[i]->ldctl_value;
-				}
+			if (NULL != val) {
+				*val = &controls[i]->ldctl_value;
 				if (NULL != iscritical) {
 					*iscritical = (int) controls[i]->ldctl_iscritical;
 				}
@@ -502,7 +503,7 @@ add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy )
 {
 	int	count;
 
-        if ( *ctrlsp == NULL ) {
+	if ( *ctrlsp == NULL ) {
 		count = 0;
 	} else {
 		for ( count = 0; (*ctrlsp)[count] != NULL; ++count ) {
@@ -510,14 +511,14 @@ add_control_ext( LDAPControl ***ctrlsp, LDAPControl *newctrl, int copy )
 		}
 	}
 
-        *ctrlsp = (LDAPControl **)slapi_ch_realloc( (char *)*ctrlsp,
-                ( count + 2 ) * sizeof(LDAPControl *));
+	*ctrlsp = (LDAPControl **)slapi_ch_realloc( (char *)*ctrlsp,
+				( count + 2 ) * sizeof(LDAPControl *));
 
-        if (copy) {
-            (*ctrlsp)[ count ] = slapi_dup_control( newctrl );
-        } else {
-            (*ctrlsp)[ count ] = newctrl;
-        }
+	if (copy) {
+		(*ctrlsp)[ count ] = slapi_dup_control( newctrl );
+	} else {
+		(*ctrlsp)[ count ] = newctrl;
+	}
 	(*ctrlsp)[ ++count ] = NULL;
 }
 

@@ -230,81 +230,6 @@ int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlo
 }
 /* End  fix for bug # 394184 */
 
-/*  Fix for bug # 394184, SD, 20 Jul 00 */
-/* fix and cleanup (switch(code) {} removed) */
-/* arg 'code' has now the correct sortResult value */
-int
-make_sort_response_control ( Slapi_PBlock *pb, int code, char *error_type) {
-
-	LDAPControl	new_ctrl = {0};
-    BerElement		*ber= NULL;    
-	struct berval	*bvp = NULL;
-	int rc = -1;
-	ber_int_t control_code = code;
-
-	/*
-	     SortResult ::= SEQUENCE {
-        sortResult  ENUMERATED {
-            success                   (0), -- results are sorted
-            operationsError           (1), -- server internal failure
-            timeLimitExceeded         (3), -- timelimit reached before
-                                           -- sorting was completed
-            strongAuthRequired        (8), -- refused to return sorted
-                                           -- results via insecure
-                                           -- protocol
-            adminLimitExceeded       (11), -- too many matching entries
-                                           -- for the server to sort
-            noSuchAttribute          (16), -- unrecognized attribute
-                                           -- type in sort key
-            inappropriateMatching    (18), -- unrecognized or inappro-
-                                           -- priate matching rule in
-                                           -- sort key
-            insufficientAccessRights (50), -- refused to return sorted
-                                           -- results to this client
-            busy                     (51), -- too busy to process
-            unwillingToPerform       (53), -- unable to sort
-            other                    (80)
-            },
-      attributeType [0] AttributeType OPTIONAL }
-
-	 */
-	
-    if ( ( ber = ber_alloc()) == NULL ) {
-		return -1;
-    }
-
-    if (( rc = ber_printf( ber, "{e", control_code )) != -1 ) {
-		if ( rc != -1 && NULL != error_type ) {
-			rc = ber_printf( ber, "s", error_type );
-		}
-		if ( rc != -1 ) {
-			rc = ber_printf( ber, "}" );
-		}
-    }
-    if ( rc != -1 ) {
-		rc = ber_flatten( ber, &bvp );
-    }
-    
-	ber_free( ber, 1 );
-
-    if ( rc == -1 ) {
-		return rc;
-    }
-        
-	new_ctrl.ldctl_oid = LDAP_CONTROL_SORTRESPONSE;
-	new_ctrl.ldctl_value = *bvp;
-	new_ctrl.ldctl_iscritical = 1;         
-
-	if ( slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &new_ctrl ) != 0 ) {
-            ber_bvfree(bvp);
-            return( -1 );
-	}
-
-        ber_bvfree(bvp);
-	return( LDAP_SUCCESS );
-}
-/* End fix for bug #394184 */
-
 static int term_tag(ber_tag_t tag)
 {
 	return ( (LBER_END_OF_SEQORSET == tag) || (LBER_ERROR == tag) );
@@ -804,7 +729,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
  * -5: Admin limit exceeded   now is: LDAP_ADMINLIMIT_EXCEEDED
  * -6: Abandoned              now is: LDAP_OTHER
  */
-static int sort_nazi(baggage_carrier *bc)
+static int sort_check(baggage_carrier *bc)
 {
 	time_t curtime = 0;
 	/* check for abandon */
@@ -956,7 +881,7 @@ recurse:
             swap(loguy, higuy);
 
 			/* Check admin and time limits here on the sort */
-			if ( LDAP_SUCCESS != (return_value = sort_nazi(bc)) )
+			if ( LDAP_SUCCESS != (return_value = sort_check(bc)) )
 			{
 				return return_value;
 			}

@@ -67,10 +67,10 @@ static long	current_conn_count;
 static PRLock	*current_conn_count_mutex;
 
 static int flush_ber( Slapi_PBlock *pb, Connection *conn,
-	Operation *op, BerElement *ber, int type );
+					  Operation *op, BerElement *ber, int type );
 static char *notes2str( unsigned int notes, char *buf, size_t buflen );
 static void log_result( Slapi_PBlock *pb, Operation *op, int err,
-	ber_tag_t tag, int nentries );
+						ber_tag_t tag, int nentries );
 static void log_entry( Operation *op, Slapi_Entry *e );
 static void log_referral( Operation *op );
 
@@ -1346,7 +1346,7 @@ send_ldap_search_entry_ext(
 
 	if ( conn->c_ldapversion >= LDAP_VERSION3 ) {
 		if ( ectrls != NULL ) {
-	    	rc = write_controls( ber, ectrls );
+			rc = write_controls( ber, ectrls );
 		}
 		/*
 		 * The get-effective-rights control is called within
@@ -1360,7 +1360,20 @@ send_ldap_search_entry_ext(
 				if (strcmp(ctrlp[i]->ldctl_oid, LDAP_CONTROL_GET_EFFECTIVE_RIGHTS ) == 0 ) {
 					gerctrl[0] = ctrlp[i];
 					gerctrl[1] = NULL;
-	    			rc = write_controls( ber, gerctrl );
+					rc = write_controls( ber, gerctrl );
+					break;
+				}
+			}
+		}
+		if ( operation->o_flags & OP_FLAG_PAGED_RESULTS ) {
+			LDAPControl *pagedctrl[2];
+			slapi_pblock_get (pb, SLAPI_RESCONTROLS, &ctrlp);
+			for ( i = 0; ctrlp != NULL && ctrlp[i] != NULL; i++ ) {
+				if (strcmp(ctrlp[i]->ldctl_oid, LDAP_CONTROL_PAGEDRESULTS )
+																	== 0 ) {
+					pagedctrl[0] = ctrlp[i];
+					pagedctrl[1] = NULL;
+					rc = write_controls( ber, pagedctrl );
 					break;
 				}
 			}

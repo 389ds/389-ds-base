@@ -459,6 +459,7 @@ int ldbm_back_next_search_entry( Slapi_PBlock *pb );
 int ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension );
 int ldbm_back_db_test( Slapi_PBlock *pb ); 
 int ldbm_back_entry_release( Slapi_PBlock *pb, void *backend_info_ptr );
+void ldbm_back_search_results_release( void **search_results );
 int ldbm_back_init( Slapi_PBlock *pb ); 
 
 /*
@@ -534,13 +535,15 @@ int bedse_add_index_entry(int argc, char **argv);
 #endif
 
 /*
- * search.c
+ * ldbm_search.c
  */
 Slapi_Filter* create_onelevel_filter(Slapi_Filter* filter, const struct backentry *e, int managedsait, Slapi_Filter** fid2kids, Slapi_Filter** focref, Slapi_Filter** fand, Slapi_Filter** forr);
 Slapi_Filter* create_subtree_filter(Slapi_Filter* filter, int managedsait, Slapi_Filter** focref, Slapi_Filter** forr);
 IDList* subtree_candidates(Slapi_PBlock *pb, backend *be, const char *base, const struct backentry *e, Slapi_Filter *filter, int managedsait, int *allids_before_scopingp, int *err);
 void search_set_tune(struct ldbminfo *li,int val);
 int search_get_tune(struct ldbminfo *li);
+int compute_lookthrough_limit( Slapi_PBlock *pb, struct ldbminfo *li );
+
 
 /*
  * matchrule.c

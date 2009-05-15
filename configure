@@ -24061,9 +24061,9 @@ fi
 # the default prefix - override with --prefix or --with-fhs
 
 
-brand=fedora
-capbrand=Fedora
-vendor="Fedora Project"
+brand=389
+capbrand=389
+vendor="389 Project"
 
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2006 Red Hat, Inc.
