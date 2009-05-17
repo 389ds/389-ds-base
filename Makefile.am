@@ -260,7 +260,9 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/repl-monitor \
 	ldap/admin/src/scripts/repl-monitor.pl
 
-perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
+# SCRIPTS makes them executables - these are perl modules
+# and should not be marked as executable - so use DATA
+perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Resource.pm \
 	ldap/admin/src/scripts/Util.pm \
 	ldap/admin/src/scripts/Setup.pm \
@@ -309,7 +311,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
 
-initconfig_SCRIPTS = ldap/admin/src/$(PACKAGE_NAME)
+initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
