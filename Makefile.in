@@ -92,12 +92,12 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" \
-	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" \
+	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" \
 	"$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" \
+	"$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(propertydir)" \
 	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
@@ -832,12 +832,10 @@ rsearch_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 initSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-initconfigSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-perlSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 taskSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(initconfig_SCRIPTS) \
-	$(perl_SCRIPTS) $(sbin_SCRIPTS) $(task_SCRIPTS)
+SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(sbin_SCRIPTS) \
+	$(task_SCRIPTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -923,13 +921,16 @@ NROFF = nroff
 MANS = $(dist_man_MANS)
 configDATA_INSTALL = $(INSTALL_DATA)
 infDATA_INSTALL = $(INSTALL_DATA)
+initconfigDATA_INSTALL = $(INSTALL_DATA)
 mibDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
+perlDATA_INSTALL = $(INSTALL_DATA)
 propertyDATA_INSTALL = $(INSTALL_DATA)
 sampledataDATA_INSTALL = $(INSTALL_DATA)
 schemaDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(config_DATA) $(inf_DATA) $(mib_DATA) $(nodist_property_DATA) \
-	$(property_DATA) $(sampledata_DATA) $(schema_DATA)
+DATA = $(config_DATA) $(inf_DATA) $(initconfig_DATA) $(mib_DATA) \
+	$(nodist_property_DATA) $(perl_DATA) $(property_DATA) \
+	$(sampledata_DATA) $(schema_DATA)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -1330,7 +1331,10 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/repl-monitor \
 	ldap/admin/src/scripts/repl-monitor.pl
 
-perl_SCRIPTS = ldap/admin/src/scripts/SetupLog.pm \
+
+# SCRIPTS makes them executables - these are perl modules
+# and should not be marked as executable - so use DATA
+perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Resource.pm \
 	ldap/admin/src/scripts/Util.pm \
 	ldap/admin/src/scripts/Setup.pm \
@@ -1378,7 +1382,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-dbverify
 
 init_SCRIPTS = wrappers/$(PACKAGE_NAME)
-initconfig_SCRIPTS = ldap/admin/src/$(PACKAGE_NAME)
+initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
 	ldap/admin/src/scripts/dsorgentries.map
@@ -4035,44 +4039,6 @@ uninstall-initSCRIPTS:
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
 	  echo " rm -f '$(DESTDIR)$(initdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(initdir)/$$f"; \
-	done
-install-initconfigSCRIPTS: $(initconfig_SCRIPTS)
-	@$(NORMAL_INSTALL)
-	test -z "$(initconfigdir)" || $(MKDIR_P) "$(DESTDIR)$(initconfigdir)"
-	@list='$(initconfig_SCRIPTS)'; for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  if test -f $$d$$p; then \
-	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
-	    echo " $(initconfigSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(initconfigdir)/$$f'"; \
-	    $(initconfigSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(initconfigdir)/$$f"; \
-	  else :; fi; \
-	done
-
-uninstall-initconfigSCRIPTS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(initconfig_SCRIPTS)'; for p in $$list; do \
-	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
-	  echo " rm -f '$(DESTDIR)$(initconfigdir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(initconfigdir)/$$f"; \
-	done
-install-perlSCRIPTS: $(perl_SCRIPTS)
-	@$(NORMAL_INSTALL)
-	test -z "$(perldir)" || $(MKDIR_P) "$(DESTDIR)$(perldir)"
-	@list='$(perl_SCRIPTS)'; for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  if test -f $$d$$p; then \
-	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
-	    echo " $(perlSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(perldir)/$$f'"; \
-	    $(perlSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(perldir)/$$f"; \
-	  else :; fi; \
-	done
-
-uninstall-perlSCRIPTS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(perl_SCRIPTS)'; for p in $$list; do \
-	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
-	  echo " rm -f '$(DESTDIR)$(perldir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(perldir)/$$f"; \
 	done
 install-sbinSCRIPTS: $(sbin_SCRIPTS)
 	@$(NORMAL_INSTALL)
@@ -9144,6 +9110,23 @@ uninstall-infDATA:
 	  echo " rm -f '$(DESTDIR)$(infdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(infdir)/$$f"; \
 	done
+install-initconfigDATA: $(initconfig_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(initconfigdir)" || $(MKDIR_P) "$(DESTDIR)$(initconfigdir)"
+	@list='$(initconfig_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(initconfigDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(initconfigdir)/$$f'"; \
+	  $(initconfigDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(initconfigdir)/$$f"; \
+	done
+
+uninstall-initconfigDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(initconfig_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(initconfigdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(initconfigdir)/$$f"; \
+	done
 install-mibDATA: $(mib_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(mibdir)" || $(MKDIR_P) "$(DESTDIR)$(mibdir)"
@@ -9177,6 +9160,23 @@ uninstall-nodist_propertyDATA:
 	  f=$(am__strip_dir) \
 	  echo " rm -f '$(DESTDIR)$(propertydir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(propertydir)/$$f"; \
+	done
+install-perlDATA: $(perl_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(perldir)" || $(MKDIR_P) "$(DESTDIR)$(perldir)"
+	@list='$(perl_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(perlDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(perldir)/$$f'"; \
+	  $(perlDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(perldir)/$$f"; \
+	done
+
+uninstall-perlDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(perl_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(perldir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(perldir)/$$f"; \
 	done
 install-propertyDATA: $(property_DATA)
 	@$(NORMAL_INSTALL)
@@ -9414,7 +9414,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(MANS) $(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9543,10 +9543,9 @@ info: info-am
 info-am:
 
 install-data-am: install-configDATA install-infDATA \
-	install-initSCRIPTS install-initconfigSCRIPTS install-man \
-	install-mibDATA install-nodist_propertyDATA \
-	install-perlSCRIPTS install-propertyDATA \
-	install-sampledataDATA install-schemaDATA \
+	install-initSCRIPTS install-initconfigDATA install-man \
+	install-mibDATA install-nodist_propertyDATA install-perlDATA \
+	install-propertyDATA install-sampledataDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-taskSCRIPTS
 
@@ -9589,8 +9588,8 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-initSCRIPTS \
-	uninstall-initconfigSCRIPTS uninstall-man uninstall-mibDATA \
-	uninstall-nodist_propertyDATA uninstall-perlSCRIPTS \
+	uninstall-initconfigDATA uninstall-man uninstall-mibDATA \
+	uninstall-nodist_propertyDATA uninstall-perlDATA \
 	uninstall-propertyDATA uninstall-sampledataDATA \
 	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
 	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
@@ -9613,11 +9612,11 @@ uninstall-man: uninstall-man1 uninstall-man8
 	install-data install-data-am install-dvi install-dvi-am \
 	install-exec install-exec-am install-html install-html-am \
 	install-infDATA install-info install-info-am \
-	install-initSCRIPTS install-initconfigSCRIPTS install-man \
+	install-initSCRIPTS install-initconfigDATA install-man \
 	install-man1 install-man8 install-mibDATA \
 	install-nodist_propertyDATA install-pdf install-pdf-am \
-	install-perlSCRIPTS install-propertyDATA install-ps \
-	install-ps-am install-sampledataDATA install-sbinPROGRAMS \
+	install-perlDATA install-propertyDATA install-ps install-ps-am \
+	install-sampledataDATA install-sbinPROGRAMS \
 	install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-strip install-taskSCRIPTS installcheck installcheck-am \
@@ -9626,9 +9625,9 @@ uninstall-man: uninstall-man1 uninstall-man8
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-initSCRIPTS \
-	uninstall-initconfigSCRIPTS uninstall-man uninstall-man1 \
+	uninstall-initconfigDATA uninstall-man uninstall-man1 \
 	uninstall-man8 uninstall-mibDATA uninstall-nodist_propertyDATA \
-	uninstall-perlSCRIPTS uninstall-propertyDATA \
+	uninstall-perlDATA uninstall-propertyDATA \
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
