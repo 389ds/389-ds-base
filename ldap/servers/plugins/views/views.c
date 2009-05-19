@@ -703,16 +703,19 @@ static void views_cache_discover_children(viewEntry *pView)
 
 	/* make the space for them */
 	pView->child_count = child_count;
-	
-	pView->pChildren = (void **)slapi_ch_calloc(child_count, sizeof(viewEntry*));
 
-	/* add them */
-	for(current = head; current != NULL; current = current->list.pNext)
+	if (child_count > 0)
 	{
-		if(slapi_dn_isparent(pView->pDn, current->pDn))
+		pView->pChildren = (void **)slapi_ch_calloc(child_count, sizeof(viewEntry*));
+
+		/* add them */
+		for(current = head; current != NULL; current = current->list.pNext)
 		{
-			((viewEntry**)pView->pChildren)[add_count] = current;
-			add_count++;
+			if(slapi_dn_isparent(pView->pDn, current->pDn))
+			{
+				((viewEntry**)pView->pChildren)[add_count] = current;
+				add_count++;
+			}
 		}
 	}
 }
