@@ -131,7 +131,7 @@ pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
 
     /* begin sequence, payload, end sequence */
     if (curr_search_count < 0) {
-        cookie_str = slapi_ch_smprintf("");
+        cookie_str = slapi_ch_strdup("");
     } else {
         cookie_str = slapi_ch_smprintf("%d", curr_search_count);
     }

@@ -58,7 +58,7 @@ static int dn_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
 static int dn_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 	char *final, Slapi_Value ***ivals );
 static int dn_validate( struct berval *val );
-static int rdn_validate( char *begin, char *end, char **last );
+static int rdn_validate( const char *begin, const char *end, const char **last );
 
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "DN", DN_SYNTAX_OID, 0 };
@@ -156,9 +156,9 @@ static int dn_validate( struct berval *val )
 		 */
 		if (val->bv_len > 0) {
 			int strict = 0;
-			char *p = val->bv_val;
-			char *end = &(val->bv_val[val->bv_len - 1]);
-			char *last = NULL;
+			const char *p = val->bv_val;
+			const char *end = &(val->bv_val[val->bv_len - 1]);
+			const char *last = NULL;
 
 			/* Check if we should be performing strict validation. */
 			strict = config_get_dn_validate_strict();
@@ -168,7 +168,7 @@ static int dn_validate( struct berval *val )
 				 * stored in the backend unmodified. */
 				val_copy = PL_strndup(val->bv_val, val->bv_len);
 				p = val_copy;
-				end = slapi_dn_normalize_to_end(p, NULL) - 1;
+				end = slapi_dn_normalize_to_end(val_copy, NULL) - 1;
 			}
 
 			/* Validate one RDN at a time in a loop. */
@@ -212,12 +212,12 @@ exit:
  * will be set in the "last parameter.  This will be the end of the RDN
  * in the valid case, and the illegal character in the invalid case.
  */
-static int rdn_validate( char *begin, char *end, char **last )
+static int rdn_validate( const char *begin, const char *end, const char **last )
 {
 	int rc = 0; /* Assume RDN is valid */
 	int numericform = 0;
 	char *separator = NULL;
-	char *p = begin;
+	const char *p = begin;
 
 	/* Find the '=', then use the helpers for descr and numericoid */
 	if ((separator = PL_strnchr(p, '=', end - begin + 1)) == NULL) {
@@ -228,13 +228,13 @@ static int rdn_validate( char *begin, char *end, char **last )
 	/* Process an attribute type. The 'descr'
 	 * form must start with a 'leadkeychar'. */
 	if (IS_LEADKEYCHAR(*p)) {
-		if (rc = keystring_validate(p, separator - 1)) {
+		if ((rc = keystring_validate(p, separator - 1))) {
 			goto exit;
 		}
 	/* See if the 'numericoid' form is being used */
 	} else if (isdigit(*p)) {
 		numericform = 1;
-		if (rc = numericoid_validate(p, separator - 1)) {
+		if ((rc = numericoid_validate(p, separator - 1))) {
 			goto exit;
 		}
 	} else {

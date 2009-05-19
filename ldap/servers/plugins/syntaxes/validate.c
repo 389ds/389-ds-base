@@ -52,8 +52,8 @@
  * Returns non-zero if the value is not a valide 'keystring'.
  */
 int keystring_validate(
-	char *begin,
-	char *end
+	const char *begin,
+	const char *end
 )
 {
 	int rc = 0;    /* assume the value is valid */
@@ -90,13 +90,13 @@ exit:
  * Returns non-zero if the value is not a valide 'numericoid'.
  */
 int numericoid_validate(
-	char *begin,
-	char *end
+	const char *begin,
+	const char *end
 )
 {
 	int rc = 0; /* assume the value is valid */
 	int found_separator = 0;
-	char *p = NULL;
+	const char *p = NULL;
 
 	if ((begin == NULL) || (end == NULL)) {
 		rc = 1;
@@ -181,13 +181,13 @@ exit:
  *
  * Returns 0 if it is valid and non-zero otherwise. */
 int utf8char_validate(
-	char *begin,
-	char *end,
-	char **last
+	const char *begin,
+	const char *end,
+	const char **last
 )
 {
 	int rc = 0; /* Assume char is valid */
-	char *p = begin;
+	const char *p = begin;
 
 	if ((begin == NULL) || (end == NULL)) {
 		rc = 1;
@@ -233,14 +233,14 @@ int utf8char_validate(
 		if (*p == '\xE0') {
 			/* The next byte must be %xA0-BF. */
 			p++;
-			if ((*p < '\xA0') || (*p > '\xBF')) {
+			if (((unsigned char)*p < (unsigned char)'\xA0') || ((unsigned char)*p > (unsigned char)'\xBF')) {
 				rc = 1;
 				goto exit;
 			}
 		} else if (*p == '\xED') {
 			/* The next byte must be %x80-9F. */
 			p++;
-			if ((*p < '\x80') || (*p > '\x9F')) {
+			if (((unsigned char)*p < (unsigned char)'\x80') || ((unsigned char)*p > (unsigned char)'\x9F')) {
 				rc = 1;
 				goto exit;
 			}
@@ -270,13 +270,13 @@ int utf8char_validate(
 		 * the second byte. */
 		if (*p == '\xF0') {
 			/* The next byte must be %x90-BF. */
-			if ((*p < '\x90') || (*p > '\xBF')) {
+			if (((unsigned char)*p < (unsigned char)'\x90') || ((unsigned char)*p > (unsigned char)'\xBF')) {
 				rc = 1;
 				goto exit;
 			}
 		} else if (*p == '\xF4') {
 			/* The next byte must be %x80-BF. */
-			if ((*p < '\x80') || (*p > '\xBF')) {
+			if (((unsigned char)*p < (unsigned char)'\x80') || ((unsigned char)*p > (unsigned char)'\xBF')) {
 				rc = 1;
 				goto exit;
 			}
@@ -307,7 +307,7 @@ int utf8char_validate(
 
 exit:
 	if (last) {
-		*last = p;
+		*last = (const char *)p;
 	}
 	return(rc);
 }
@@ -321,13 +321,13 @@ exit:
  *
  * Returns 0 if it is valid and non-zero otherwise. */
 int utf8string_validate(
-        char *begin,
-        char *end,
-        char **last
+        const char *begin,
+        const char *end,
+        const char **last
 )
 {
         int rc = 0; /* Assume string is valid */
-        char *p = NULL;
+        const char *p = NULL;
 
         if ((begin == NULL) || (end == NULL)) {
                 rc = 1;

@@ -1130,7 +1130,7 @@ struct userdnattr_info {
 	char	*attr;
 	int	result;
 	char	*clientdn;
-	Acl_PBlock	*aclpb
+	Acl_PBlock	*aclpb;
 };
 #define ACLLAS_MAX_LEVELS 10
 int 

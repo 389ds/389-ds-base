@@ -49,8 +49,6 @@
 /*
  * Globals
  */
-static Slapi_PluginDesc pdesc = { "syntax-validate-task", PLUGIN_MAGIC_VENDOR_STR,
-        PRODUCTTEXT, "syntax validation task plugin" };
 static void* _PluginID = NULL;
 
 

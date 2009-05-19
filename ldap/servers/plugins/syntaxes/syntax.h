@@ -75,13 +75,13 @@
 #define IS_LDIGIT(c)		( (c != '0') && isdigit(c) )
 #define IS_SHARP(c)		( (c == '#') )
 #define IS_ESC(c)		( (c == '\\') )
-#define IS_UTF0(c)		( (c >= '\x80') && (c <= '\xBF') )
-#define IS_UTF1(c)		( !(c & 128) )
+#define IS_UTF0(c)		( ((unsigned char)(c) >= (unsigned char)'\x80') && ((unsigned char)(c) <= (unsigned char)'\xBF') )
+#define IS_UTF1(c)		( !((unsigned char)(c) & 128) )
 /* These are only checking the first byte of the multibyte character.  They
  * do not verify that the entire multibyte character is correct. */
-#define IS_UTF2(c)		( (c >= '\xC2') && (c <= '\xDF') )
-#define IS_UTF3(c)		( (c >= '\xE0') && (c <= '\xEF') )
-#define IS_UTF4(c)		( (c >= '\xF0') && (c <= '\xF4') )
+#define IS_UTF2(c)		( ((unsigned char)(c) >= (unsigned char)'\xC2') && ((unsigned char)(c) <= (unsigned char)'\xDF') )
+#define IS_UTF3(c)		( ((unsigned char)(c) >= (unsigned char)'\xE0') && ((unsigned char)(c) <= (unsigned char)'\xEF') )
+#define IS_UTF4(c)		( ((unsigned char)(c) >= (unsigned char)'\xF0') && ((unsigned char)(c) <= (unsigned char)'\xF4') )
 #define IS_UTFMB(c)		( IS_UTF2(c) || IS_UTF3(c) || IS_UTF4(c) )
 #define IS_UTF8(c)		( IS_UTF1(c) || IS_UTFMB(c) )
 
@@ -119,9 +119,9 @@ char *next_word( char *s );
 char *phonetic( char *s );
 
 /* Validation helper functions */
-int keystring_validate( char *begin, char *end );
-int numericoid_validate( char *begin, char *end );
-int utf8char_validate( char *begin, char *end, char **last );
-int utf8string_validate( char *begin, char *end, char **last );
+int keystring_validate( const char *begin, const char *end );
+int numericoid_validate( const char *begin, const char *end );
+int utf8char_validate( const char *begin, const char *end, const char **last );
+int utf8string_validate( const char *begin, const char *end, const char **last );
 
 #endif

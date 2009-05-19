@@ -1082,7 +1082,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
 			return( -1 );
 		}
-		(*(int *)value) = pblock->pb_plugin->plg_syntax_validate;
+		(*(IFP *)value) = pblock->pb_plugin->plg_syntax_validate;
 		break;
 
 	/* controls we know about */

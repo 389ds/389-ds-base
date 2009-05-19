@@ -80,7 +80,9 @@
 #define URL_CHARS_LEN 9 
 
 static char *make_ds_url(char *host, int port);
+#ifdef DEBUG_SNMP_INTERACTION
 static void print_snmp_interaction_table();
+#endif /* DEBUG_SNMP_INTERACTION */
 static int search_interaction_table(char *dsURL, int *isnew);
 static void loadConfigStats();
 static Slapi_Entry *getConfigEntry( Slapi_Entry **e );
@@ -338,6 +340,8 @@ static int search_interaction_table(char *dsURL, int *isnew)
    return index;
 
 }
+
+#ifdef DEBUG_SNMP_INTERACTION
 /* for debuging until subagent part working, print contents of interaction table */
 static void print_snmp_interaction_table()
 { 
@@ -356,6 +360,7 @@ static void print_snmp_interaction_table()
     fprintf(stderr, "\n");
   }
 }
+#endif /* DEBUG_SNMP_INTERACTION */
 
 /*-------------------------------------------------------------------------
  *
