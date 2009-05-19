@@ -125,12 +125,6 @@ static int config_set_schemareplace ( const char *attrname, char *value,
 		char *errorbuf, int apply );
 
 static int
-isIntegralType(ConfigVarType type)
-{
-	return type == CONFIG_INT || type == CONFIG_LONG || type == CONFIG_ON_OFF;
-}
-
-static int
 isInt(ConfigVarType type)
 {
     return type == CONFIG_INT || type == CONFIG_ON_OFF || type == CONFIG_SPECIAL_SSLCLIENTAUTH || type == CONFIG_SPECIAL_ERRORLOGLEVEL;

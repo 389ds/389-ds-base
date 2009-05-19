@@ -887,35 +887,6 @@ slapi_urlparse_err2string( int err )
 
 #include <sasl.h>
 
-/* copied from mozldap libldap/saslbind.c */
-static int
-slapd_sasl_fail()
-{
-        return( SASL_FAIL );
-}
-
-/* copied from slapd/saslbind.c - not an easy way to share this function
-   between the two files */
-static int slapd_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
-{
-    /* Try to get path from config, otherwise check for SASL_PATH environment
-     * variable.  If neither of these are set, default to /usr/lib64/sasl2 on
-     * 64-bit Linux machines, and /usr/lib/sasl2 on all other platforms.
-     */
-    char *pluginpath = config_get_saslpath();
-    if ((!pluginpath) || (*pluginpath == '\0')) {
-        if (!(pluginpath = getenv("SASL_PATH"))) {
-#if defined(LINUX) && defined(__LP64__)
-            pluginpath = "/usr/lib64/sasl2";
-#else
-            pluginpath = "/usr/lib/sasl2";
-#endif
-        }
-    }
-    *path = pluginpath;
-    return SASL_OK;
-}
-
 /*
   Perform LDAP init and return an LDAP* handle.  If ldapurl is given,
   that is used as the basis for the protocol, host, port, and whether

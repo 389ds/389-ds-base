@@ -730,7 +730,7 @@ static int postal_validate(
 			if (*p == '\\') {
 				p++;
 				/* ensure that we're not at the end of the value */
-				if ((p > end) || (strncmp(p, "24", 2) != 0) && (strncasecmp(p, "5C", 2) != 0)) {
+				if ((p > end) || ((strncmp(p, "24", 2) != 0) && (strncasecmp(p, "5C", 2) != 0))) {
 					rc = 1;
 					goto exit;
 				} else {
@@ -776,7 +776,7 @@ static int oid_validate(
 {
 	int     rc = 0;    /* assume the value is valid */
 	const char *p = NULL;
-	char *end = NULL;
+	const char *end = NULL;
 
 	/* Per RFC4512:
 	 *

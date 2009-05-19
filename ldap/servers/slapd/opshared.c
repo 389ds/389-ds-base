@@ -61,7 +61,6 @@ static char *pwpolicy_lock_attrs_all [] = { "passwordRetryCount",
                                             NULL};
 /* Forward declarations */
 static void compute_limits (Slapi_PBlock *pb);
-static int  send_results (Slapi_PBlock *pb, int send_result, int *nentries);
 static int  send_results_ext (Slapi_PBlock *pb, int send_result, int *nentries, int pagesize, unsigned int *pr_stat);
 static int process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result);
             
@@ -1459,15 +1458,6 @@ send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize,
     }
     
     return rc;
-}
-
-/* Iterates through results and send them to the client.
- * Returns 0 if successful and -1 otherwise
- */
-static int 
-send_results(Slapi_PBlock *pb, int send_result, int *nentries)
-{
-    return send_results_ext(pb, send_result, nentries, -1, NULL);
 }
 
 void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char *dn, const char *msg)

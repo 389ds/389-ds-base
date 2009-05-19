@@ -278,7 +278,6 @@ slapi_entry_syntax_check(
 	int ret = 0;
 	int i = 0;
 	int is_replicated_operation = 0;
-	int badval = 0;
 	int syntaxcheck = config_get_syntaxcheck();
 	int syntaxlogging = config_get_syntaxlogging();
 	Slapi_Attr *prevattr = NULL;
@@ -366,7 +365,6 @@ slapi_mods_syntax_check(
 	int ret = 0;
 	int i, j = 0;
 	int is_replicated_operation = 0;
-	int badval = 0;
 	int syntaxcheck = config_get_syntaxcheck();
 	int syntaxlogging = config_get_syntaxlogging();
 	char errtext[ BUFSIZ ];

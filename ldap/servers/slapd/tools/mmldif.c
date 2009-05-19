@@ -53,6 +53,7 @@
 #  include	<io.h>
 #endif
 
+#include <nss.h>
 #include <pk11func.h>
 
 #include <slap.h>

@@ -249,9 +249,9 @@ static char     vsvfn[26] = {
 char *
 phonetic( char *Word )
 {
-    unsigned char   *n, *n_start, *n_end;        /* pointers to string */
+    unsigned char   *n_start, *n, *n_end;        /* pointers to string */
     char            *metaph_end;        /* pointers to metaph */
-    char            ntrans[42];        /* word with uppercase letters */
+    unsigned char   ntrans[42];        /* word with uppercase letters */
     int             KSflag;        /* state flag for X -> KS */
     char                buf[MAXPHONEMELEN + 2];
     char                *Metaph;
@@ -268,7 +268,7 @@ phonetic( char *Word )
             }
             ++Word;
         } else {
-            auto const size_t len = LDAP_UTF8COPY(n, Word);
+            auto const size_t len = LDAP_UTF8COPY((char *)n, Word);
             n += len; Word += len;
         }
     }

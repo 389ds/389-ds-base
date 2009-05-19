@@ -438,7 +438,7 @@ void slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **m
 static int modify_internal_pb (Slapi_PBlock *pb)
 {
 	LDAPControl	**controls;
-	LDAPControl	*pwpolicy_ctrl;
+	int pwpolicy_ctrl = 0;
 	Operation       *op;
 	int		opresult = 0;
 	LDAPMod         **normalized_mods = NULL;
