@@ -1092,11 +1092,6 @@ Slapi_Backend *defbackend_get_backend( void );
 void do_disconnect_server( Connection *conn, PRUint64 opconnid, int opid );
 
 /*
- * regex.c
- */
-int re_init( void );
-
-/*
  * secpwd.c
  */
 char* getPassword();
@@ -1184,7 +1179,7 @@ int plugin_get_log_audit (const struct slapdplugin *plugin);
  */
 char **get_filelist(
 	const char *dirname, /* directory path; if NULL, uses "." */
-	const char *pattern, /* grep (not shell!) file pattern regex */
+	const char *pattern, /* regex pattern, not shell style wildcard */
 	int hiddenfiles, /* if true, return hidden files and directories too */
 	int nofiles, /* if true, do not return files */
 	int nodirs /* if true, do not return directories */

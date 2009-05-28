@@ -719,12 +719,12 @@ for ($x= 0; $x < $Number_To_Generate; $x++) {
         if ($PrintOrgChartDat) {
             $managerCn    = $managers[int rand @managers]{"dn"};
         } else {
-            $managerCn    = $managers[int rand @managers]{"givenname"} . " " .
+            $managerCn    = "cn=" . $managers[int rand @managers]{"givenname"} . " " .
                             $managers[int rand @managers]{"sn"};
         }
         ($junk, $junk, $secretary_cn) = &MakeRandomName;
-        $manager           = "manager: $managerCn " . "\n";
-        $secretary         = "secretary: $secretary_cn" . "\n";
+        $manager           = "manager: " . $managerCn  . "\n";
+        $secretary         = "secretary: cn=" . $secretary_cn . "\n";
         $roomNumber        = "roomNumber: " . (int rand 10000) . "\n";
         $userPassword      = "$uid\n";
     }
@@ -931,9 +931,9 @@ sub PrintManagers {
         $pager             = "pager: "  . &MakeRandomTelephone . "\n";
         ($junk, $junk, $secretary_cn) = &MakeRandomName;
 		if ("" ne $managerCn) {
-        	$manager           = "manager: $managerCn\n";
+        	$manager           = "manager: cn=" . $managerCn . "\n";
 		}
-        $secretary         = "secretary: $secretary_cn" . "\n";
+        $secretary         = "secretary: cn=" . $secretary_cn . "\n";
         $roomNumber        = "roomNumber: " . (int rand 10000) . "\n";
         $userPassword      = "$uid\n";
     }

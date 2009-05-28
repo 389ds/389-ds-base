@@ -122,16 +122,20 @@ is_a_file(const char *dirname, const char *filename)
 static int
 matches(const char *filename, const char *pattern)
 {
+	Slapi_Regex *re = NULL;
 	int match = 0;
-	char *s = 0;
+	char *error = NULL;
+
 	if (!pattern)
 		return 1; /* null pattern matches everything */
 
-	slapd_re_lock();
-	s = slapd_re_comp((char *)pattern);
-	if (!s)
-		match = slapd_re_exec((char *)filename, -1 /* no timelimit */);
-	slapd_re_unlock();
+	/* Compile the pattern */
+	re = slapi_re_comp( (char *)pattern, &error );
+	if (re) {
+		/* Matches the compiled pattern against the filename */
+		match = slapi_re_exec( re, filename, -1 /* no time limit */ );
+		slapi_re_free( re );
+	}
 
 	return match;
 }
@@ -188,7 +192,7 @@ get_filelist(
 		if (nodirs && is_a_dir(dirname, dirent->name))
 			continue;
 
-		if (matches(dirent->name, pattern)) {
+		if (1 == matches(dirent->name, pattern)) {
 			/* this strdup is free'd by free_string */
 			char *newone = slapi_ch_strdup(dirent->name);
 			avl_insert(&filetree, newone, strcmp, 0);

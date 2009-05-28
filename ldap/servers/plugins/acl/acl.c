@@ -3141,12 +3141,13 @@ int
 acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 {
 	int 		i, rc, len;
-	char 		*p;
+	char 		*p = NULL;
 	char		*end, *realval, *tmp;
 	char 		pat[BUFSIZ];
 	char 		buf[BUFSIZ];
 	char		*type, *initial, *final;
 	char		**any;
+	Slapi_Regex	*re = NULL;
 
 	if ( 0 != slapi_filter_get_subfilt ( f, &type, &initial, &any, &final ) ) {
 		return (ACL_FALSE);
@@ -3234,29 +3235,21 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 	** Now we will compile the pattern and compare wth the string to
 	** see if the input string matches with the patteren or not.
 	*/
-	slapd_re_lock();
-	if ((p = slapd_re_comp (pat)) != 0) {
+	p = NULL;
+	re = slapi_re_comp( pat, &p );
+	if (NULL == re) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-			"acl_match_substring:re_comp failed (%s)\n", p);
-		slapd_re_unlock();
+			"acl_match_substring:re_comp failed (%s)\n", p?p:"unknown");
 		return (ACL_ERR);
 	}
 
-	/* re_exec() returns 1 if the string p1 matches the  last  compiled
+	/* slapi_re_exec() returns 1 if the string p1 matches the last compiled
 	** regular expression, 0 if the string p1 failed to match 
-	** (see man pages)
-	**
-	** IMPORTANT NOTE: If I use compile() and step() to do the patteren
-	** matching, it seems that step() is leaking 1036 bytes/search	
-	** I couldn't figure out why it's leaking.
 	*/
-	rc = slapd_re_exec( realval, -1 /* no timelimit */ );
+	rc = slapi_re_exec( re, realval, -1 /* no timelimit */ );
 
-	slapd_re_unlock();
-
-	if (tmp != NULL) {
-		slapi_ch_free ( (void **) &tmp );
-	}
+	slapi_re_free(re);
+	slapi_ch_free ( (void **) &tmp );
 
 	if (rc == 1) {
 		return ACL_TRUE;

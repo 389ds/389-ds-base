@@ -56,7 +56,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/fhs.m4 $(top_srcdir)/m4/nspr.m4 \
 	$(top_srcdir)/m4/db.m4 $(top_srcdir)/m4/sasl.m4 \
 	$(top_srcdir)/m4/svrcore.m4 $(top_srcdir)/m4/icu.m4 \
 	$(top_srcdir)/m4/netsnmp.m4 $(top_srcdir)/m4/kerberos.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/pcre.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -495,7 +495,8 @@ libschemareload_plugin_la_LINK = $(LIBTOOL) --tag=CC \
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+	$(am__DEPENDENCIES_1)
 am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/agtmmap.c ldap/servers/slapd/apibroker.c \
 	ldap/servers/slapd/attr.c ldap/servers/slapd/attrlist.c \
@@ -966,7 +967,6 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
-DSYMUTIL = @DSYMUTIL@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
@@ -998,7 +998,6 @@ MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 NETSNMP_CONFIG = @NETSNMP_CONFIG@
-NMEDIT = @NMEDIT@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BASE_VERSION = @PACKAGE_BASE_VERSION@
@@ -1096,6 +1095,9 @@ nss_inc = @nss_inc@
 nss_lib = @nss_lib@
 nss_libdir = @nss_libdir@
 oldincludedir = @oldincludedir@
+pcre_inc = @pcre_inc@
+pcre_lib = @pcre_lib@
+pcre_libdir = @pcre_libdir@
 pdfdir = @pdfdir@
 perldir = $(libdir)@perldir@
 perlexec = @perlexec@
@@ -1119,7 +1121,6 @@ svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 vendor = @vendor@
@@ -1170,6 +1171,7 @@ DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
 SVRCORE_LINK = @svrcore_lib@ -lsvrcore
 ICU_LINK = @icu_lib@ -licui18n -licuuc -licudata
+PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
@@ -1576,7 +1578,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
 	$(libavl_a_SOURCES) $(am__append_1)
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK)
 
 #////////////////////////////////////////////////////////////////
 #
@@ -2084,7 +2086,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
-	@nspr_inc@ @svrcore_inc@
+	@nspr_inc@ @svrcore_inc@ @pcre_inc@
 
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)

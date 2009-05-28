@@ -76,8 +76,6 @@ slapd_init()
 	num_conns = slapi_counter_new();
 	g_set_current_conn_count_mutex( PR_NewLock() );
 
-	slapd_re_init();
-
 	if ( g_get_current_conn_count_mutex() == NULL )
 	{
 		LDAPDebug( LDAP_DEBUG_ANY,

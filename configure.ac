@@ -435,6 +435,7 @@ m4_include(m4/svrcore.m4)
 m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
+m4_include(m4/pcre.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
@@ -476,6 +477,9 @@ AC_SUBST(netsnmp_inc)
 AC_SUBST(netsnmp_lib)
 AC_SUBST(netsnmp_libdir)
 AC_SUBST(netsnmp_link)
+AC_SUBST(pcre_inc)
+AC_SUBST(pcre_lib)
+AC_SUBST(pcre_libdir)
 
 AC_SUBST(brand)
 AC_SUBST(capbrand)
