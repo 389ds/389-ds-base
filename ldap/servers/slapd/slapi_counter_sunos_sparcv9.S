@@ -45,6 +45,7 @@
 ! END COPYRIGHT BLOCK
 !
 
+#define _ASM 1 /* force to set an assembler code macro _ASM */
 #include <sys/asm_linkage.h>
 
 !  ======================================================================

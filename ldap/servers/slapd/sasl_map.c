@@ -443,44 +443,80 @@ sasl_map_first(sasl_map_private *priv)
 static int
 sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_base, char **ldap_search_filter)
 {
+	Slapi_Regex *re = NULL;
 	int ret = 0;
 	int matched = 0;
 	char *recomp_result = NULL;
+
 	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_check\n", 0, 0, 0 );
-	/* DBDB: currently using the rather old internal slapd regex library, which is not thread-safe */
-	/* So lock it first */
-	slapd_re_lock();
-	/* Compile the regex */
-	recomp_result = slapd_re_comp(dp->regular_expression);
-	if (recomp_result) {
-		LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_check : re_comp failed for expression (%s)\n", dp->regular_expression, 0, 0 );
+	/* Compiles the regex */
+	re = slapi_re_comp(dp->regular_expression, &recomp_result);
+	if (NULL == re) {
+		LDAPDebug( LDAP_DEBUG_ANY,
+			"sasl_map_check: slapi_re_comp failed for expression (%s): %s\n",
+			dp->regular_expression, recomp_result?recomp_result:"unknown", 0 );
 	} else {
-		matched = slapd_re_exec(sasl_user_and_realm, -1 /* no timelimit */);
-		LDAPDebug( LDAP_DEBUG_TRACE, "regex: %s, id: %s, %s\n", dp->regular_expression, sasl_user_and_realm, matched ? "matched" : "didn't match" );
+		/* Matches the compiled regex against sasl_user_and_realm */
+		matched = slapi_re_exec(re, sasl_user_and_realm, -1 /* no timelimit */);
+		LDAPDebug( LDAP_DEBUG_TRACE, "regex: %s, id: %s, %s\n",
+			dp->regular_expression, sasl_user_and_realm,
+			matched ? "matched" : "didn't match" );
 	}
 	if (matched) {
 		if (matched == 1) {
 			char escape_base[BUFSIZ];
 			char escape_filt[BUFSIZ];
+			int ldap_search_base_len, ldap_search_filter_len;
+			int rc = 0;
+
 			/* Allocate buffers for the returned strings */
-			/* We already computed this, so we could pass it in to speed up a little */
+			/* We already computed this, so we could pass it in to speed up
+			 * a little */
 			size_t userrealmlen = strlen(sasl_user_and_realm); 
 			/* These lengths could be precomputed and stored in the dp */
-			*ldap_search_base = (char *) slapi_ch_malloc(userrealmlen + strlen(dp->template_base_dn) + 1);
-			*ldap_search_filter = (char *) slapi_ch_malloc(userrealmlen + strlen(dp->template_search_filter) + 1);
-			slapd_re_subs(dp->template_base_dn,*ldap_search_base);
-			slapd_re_subs(dp->template_search_filter,*ldap_search_filter);
-			/* these values are internal regex representations with lots of
-			   unprintable control chars - escape for logging */
-			LDAPDebug( LDAP_DEBUG_TRACE, "mapped base dn: %s, filter: %s\n",
-					   escape_string( *ldap_search_base, escape_base ),
-					   escape_string( *ldap_search_filter, escape_filt ), 0 );
-			ret = 1;
+			ldap_search_base_len =
+					userrealmlen + strlen(dp->template_base_dn) + 1;
+			ldap_search_filter_len =
+					userrealmlen + strlen(dp->template_search_filter) + 1;
+			*ldap_search_base = (char *)slapi_ch_malloc(ldap_search_base_len);
+			*ldap_search_filter =
+					(char *)slapi_ch_malloc(ldap_search_filter_len);
+			/* Substitutes '&' and/or "\#" in template_base_dn */
+			rc = slapi_re_subs(re, sasl_user_and_realm, dp->template_base_dn,
+					ldap_search_base, ldap_search_base_len);
+			if (0 != rc) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"sasl_map_check: slapi_re_subs failed: "
+					"subject: %s, subst str: %s (%d)\n",
+					sasl_user_and_realm, dp->template_base_dn, rc);
+			} else {
+				/* Substitutes '&' and/or "\#" in template_search_filter */
+				rc = slapi_re_subs(re, sasl_user_and_realm,
+					dp->template_search_filter, ldap_search_filter,
+					ldap_search_filter_len);
+				if (0 != rc) {
+					LDAPDebug( LDAP_DEBUG_ANY,
+						"sasl_map_check: slapi_re_subs failed: "
+						"subject: %s, subst str: %s (%d)\n",
+						sasl_user_and_realm, dp->template_search_filter, rc);
+				} else {
+					/* these values are internal regex representations with
+					 * lots of unprintable control chars - escape for logging */
+					LDAPDebug( LDAP_DEBUG_TRACE,
+						"mapped base dn: %s, filter: %s\n",
+						escape_string( *ldap_search_base, escape_base ),
+					escape_string( *ldap_search_filter, escape_filt ), 0 );
+					ret = 1;
+				}
+			}
 		} else {
-			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_check : re_exec failed\n", 0, 0, 0 );
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"sasl_map_check: slapi_re_exec failed: "
+				"regex: %s, subject: %s (%d)\n",
+				dp->regular_expression, sasl_user_and_realm, matched);
 		}
+		slapi_re_free(re);
 	}
-	slapd_re_unlock();
 	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_check\n", 0, 0, 0 );
 	return ret;
 }

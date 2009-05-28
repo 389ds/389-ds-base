@@ -3352,6 +3352,54 @@ typedef struct slapi_plugindesc {
 #define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
 #define SLAPI_IS_MOD_REPLACE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_REPLACE)
 
+/* regex.c */
+typedef struct slapi_regex_handle Slapi_Regex;
+
+/**
+ * Compiles a regular expression pattern. A thin wrapper of pcre_compile.
+ *
+ * \param pat Pattern to be compiled.
+ * \param error The error string is set if the compile fails.
+ * \return This function returns a pointer to the regex handler which stores
+ * the compiled pattern. NULL if the compile fails.
+ * \warning The regex handler should be released by slapi_re_free().
+ */
+Slapi_Regex *slapi_re_comp( char *pat, char **error );
+/**
+ * Matches a compiled regular expression pattern against a given string.
+ * A thin wrapper of pcre_exec.
+ *
+ * \param re_handle The regex handler returned from slapi_re_comp.
+ * \param subject A string to be checked against the compiled pattern.
+ * \param time_up If the current time is larger than the value, this function
+ * returns immediately.  (-1) means no time limit.
+ * \return This function returns 0 if the string did not match.
+ * \return This function returns 1 if the string matched.
+ * \return This function returns other values if any error occurred.
+ * \warning The regex handler should be released by slapi_re_free().
+ */
+int slapi_re_exec( Slapi_Regex *re_handle, char *subject, time_t time_up );
+/**
+ * Substitutes '&' or '\#' in the param src with the matched string.
+ *
+ * \param re_handle The regex handler returned from slapi_re_comp.
+ * \param subject A string checked against the compiled pattern.
+ * \param src A given string which could contain the substitution symbols.
+ * \param dst A pointer pointing to the memory which stores the output string.
+ * \param dstlen Size of the memory dst.
+ * \return This function returns 1 if the substitution was successful.
+ * \return This function returns 0 if the substitution failed.
+ * \warning The regex handler should be released by slapi_re_free().
+ */
+int slapi_re_subs( Slapi_Regex *re_handle, char *subject, char *src, char **dst, unsigned long dstlen );
+/**
+ * Releases the regex handler which was returned from slapi_re_comp.
+ *
+ * \param re_handle The regex handler to be released.
+ * \return nothing
+ */
+void slapi_re_free(Slapi_Regex *re_handle);
+
 #ifdef __cplusplus
 }
 #endif

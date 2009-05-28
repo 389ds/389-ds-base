@@ -169,6 +169,9 @@ typedef struct symbol_t {
 #include "csngen.h"
 #include "uuid.h"
 
+/* Perl Compatible Regular Expression */
+#include <pcre.h>
+
 #if defined(OS_solaris)
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
@@ -180,7 +183,6 @@ typedef struct symbol_t {
 #    define GET_THREAD_ID() pthread_self()
 #  endif
 #endif
-
 
 /*
  * XXXmcs: these are defined by ldap.h or ldap-extension.h,
@@ -216,6 +218,7 @@ typedef void	(*VFP0)();
 #define LDAPI_INTERNAL	1
 #include "slapi-private.h"
 #include "pw.h"
+
 /*
  * call the appropriate signal() function.
  */
@@ -1543,8 +1546,6 @@ typedef int (*value_compare_fn_type)(const struct berval *,const struct berval *
 
 /* Definition for plugin syntax validate routine */
 typedef int (*value_validate_fn_type)(const struct berval *);
-
-#include "pw.h"
 
 #include "proto-slap.h"
 LDAPMod** entry2mods(Slapi_Entry *, LDAPMod **, int *, int);

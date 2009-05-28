@@ -208,7 +208,8 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	time_t		time_up = 0;
 	time_t		optime = 0; /* time op was initiated */
 	int		timelimit = 0; /* search timelimit */
-	Operation *op = NULL;
+	Operation	*op = NULL;
+	Slapi_Regex	*re = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
@@ -284,10 +285,11 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 
 	/* compile the regex */
 	p = (bigpat) ? bigpat : pat;
-	slapd_re_lock();
-	if ( (tmpbuf = slapd_re_comp( p )) != 0 ) {
+	tmpbuf = NULL;
+	re = slapi_re_comp( p, &tmpbuf );
+	if (NULL == re) {
 		LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s): %s\n",
-		    pat, p, tmpbuf );
+		    pat, p, tmpbuf?tmpbuf:"unknown" );
 		rc = LDAP_OPERATIONS_ERROR;
 		goto bailout;
 	} else {
@@ -326,7 +328,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		}
 		value_normalize( realval, syntax, 1 /* trim leading blanks */ );
 
-		tmprc = slapd_re_exec( realval, time_up );
+		tmprc = slapi_re_exec( re, realval, time_up );
 
 		LDAPDebug( LDAP_DEBUG_TRACE, "re_exec (%s) %i\n",
 				   escape_string( realval, ebuf ), tmprc, 0 );
@@ -339,7 +341,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		}
 	}
 bailout:
-	slapd_re_unlock();
+	slapi_re_free(re);
 	slapi_ch_free((void**)&tmpbuf );	/* NULL is fine */
 	slapi_ch_free((void**)&bigpat );	/* NULL is fine */
 
