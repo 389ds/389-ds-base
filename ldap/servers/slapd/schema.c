@@ -2896,7 +2896,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
    * XXXmcs: Since we do not yet support multiple superior objectclasses, we
    * just grab the first OID in a parenthesized list.
    */
-  if ( NULL == ( pOcSup = get_tagged_oid( " SUP ( ", &nextinput,
+  if ( NULL == ( pOcSup = get_tagged_oid( " SUP (", &nextinput,
 				keyword_strstr_fn ))) {
       pOcSup = get_tagged_oid( " SUP ", &nextinput, keyword_strstr_fn );
   }
@@ -4332,9 +4332,14 @@ get_flag_keyword( const char *keyword, int flag_value, const char **inputp,
  * The `strstr_fn' function pointer is used to search for `tag', e.g., it
  * could be PL_strcasestr().
  *
- * The string passed in `tag' MUST include a trailing space, e.g.,
+ * The string passed in `tag' SHOULD generally include a trailing space, e.g.,
  *
  *       pSuperior = get_tagged_oid( "SUP ", &input, PL_strcasestr );
+ *
+ * The exception to this is when the tag contains '(' as a trailing character.
+ * This is used to process lists of oids, such as the following:
+ *
+ *       SUP (inetOrgPerson $ testUser)
  *
  * A malloc'd string is returned if `tag; is found and NULL if not.
  */
@@ -4350,7 +4355,7 @@ get_tagged_oid( const char *tag, const char **inputp,
 	PR_ASSERT( NULL != tag );
 	PR_ASSERT( '\0' != tag[ 0 ] );
        	if('(' !=tag[0]) 
-	  PR_ASSERT( ' ' == tag[ strlen( tag ) - 1 ] );
+	  PR_ASSERT((' ' == tag[ strlen( tag ) - 1 ]) || ('(' == tag[ strlen( tag ) - 1 ]));
 
 	if ( NULL == strstr_fn ) {
 		strstr_fn = PL_strcasestr;
