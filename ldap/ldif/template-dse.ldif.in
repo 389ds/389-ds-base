@@ -30,6 +30,7 @@ nsslapd-rewrite-rfc1274: off
 nsslapd-return-exact-case: on
 nsslapd-ssl-check-hostname: on
 nsslapd-allow-unauthenticated-binds: off
+nsslapd-require-secure-binds: off
 nsslapd-port: %ds_port%
 nsslapd-localuser: %ds_user%
 nsslapd-errorlog-logging-enabled: on

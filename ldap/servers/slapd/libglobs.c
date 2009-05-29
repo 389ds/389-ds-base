@@ -606,7 +606,11 @@ static struct config_get_and_set {
 	{CONFIG_UNAUTH_BINDS_ATTRIBUTE, config_set_unauth_binds_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allow_unauth_binds, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_unauth_binds_switch}
+		(ConfigGetFunc)config_get_unauth_binds_switch},
+	{CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE, config_set_require_secure_binds,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.require_secure_binds, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_require_secure_binds}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -857,6 +861,7 @@ FrontendConfig_init () {
   cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
 #endif
   cfg->allow_unauth_binds = LDAP_OFF;
+  cfg->require_secure_binds = LDAP_OFF;
   cfg->slapi_counters = LDAP_ON;
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
@@ -4544,6 +4549,19 @@ config_get_unauth_binds_switch(void)
 }
 
 
+int
+config_get_require_secure_binds(void)
+{
+	int retVal;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = slapdFrontendConfig->require_secure_binds;
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+return retVal;
+}
+
+
 int 
 config_is_slapd_lite ()
 {
@@ -5304,6 +5322,22 @@ config_set_unauth_binds_switch( const char *attrname, char *value,
 	retVal = config_set_onoff(attrname,
 		value,
 		&(slapdFrontendConfig->allow_unauth_binds),
+		errorbuf,
+		apply);
+
+	return retVal;
+}
+
+int
+config_set_require_secure_binds( const char *attrname, char *value,
+                char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->require_secure_binds),
 		errorbuf,
 		apply);
 

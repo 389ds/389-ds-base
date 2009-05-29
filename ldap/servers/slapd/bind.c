@@ -439,6 +439,7 @@ do_bind( Slapi_PBlock *pb )
                 plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
             }
             goto free_and_return;
+        /* Check if unauthenticated binds are allowed. */
         } else if ( cred.bv_len == 0 ) {
             /* Increment unauthenticated bind counter */
             slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
@@ -454,6 +455,29 @@ do_bind( Slapi_PBlock *pb )
                 slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
+        /* Check if simple binds are allowed over an insecure channel.  We only check
+	 * this for authenticated binds. */
+        } else if (config_get_require_secure_binds() == 1) {
+                Connection *conn = NULL;
+                int sasl_ssf = 0;
+
+                /* Allow simple binds only for SSL/TLS established connections
+                 * or connections using SASL privacy layers */
+                conn = pb->pb_conn;
+                if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
+                    slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
+                                     "Could not get SASL SSF from connection\n" );
+                    sasl_ssf = 0;
+                }
+
+                if (((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
+                    (sasl_ssf <= 1) ) {
+                        send_ldap_result(pb, LDAP_CONFIDENTIALITY_REQUIRED, NULL,
+                                         "Operation requires a secure connection",
+                                         0, NULL);
+                        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                        goto free_and_return;
+                }
         }
         break;
     default:
