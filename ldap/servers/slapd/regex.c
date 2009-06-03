@@ -61,7 +61,7 @@ struct slapi_regex_handle {
  * \warning The regex handler should be released by slapi_re_free().
  */
 Slapi_Regex *
-slapi_re_comp( char *pat, char **error )
+slapi_re_comp( const char *pat, const char **error )
 {
     Slapi_Regex *re_handle = NULL;
     pcre        *re = NULL;
@@ -94,7 +94,7 @@ slapi_re_comp( char *pat, char **error )
  * \warning The regex handler should be released by slapi_re_free().
  */
 int
-slapi_re_exec( Slapi_Regex *re_handle, char *subject, time_t time_up )
+slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
 {
     int rc;
     time_t curtime = current_time();
@@ -143,16 +143,16 @@ slapi_re_exec( Slapi_Regex *re_handle, char *subject, time_t time_up )
  * \warning The regex handler should be released by slapi_re_free().
  */
 int
-slapi_re_subs( Slapi_Regex *re_handle,
-               char *subject, char *src, char **dst, unsigned long dstlen )
+slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
+               const char *src, char **dst, unsigned long dstlen )
 {
     int  thislen = 0;
     int  len = 0;
     int  pin;
     int  *ovector;
     char *mydst = *dst;
-    char *substring_start;
-    char *p;
+    const char *substring_start;
+    const char *p;
 
     if (NULL == src || NULL == re_handle || NULL == re_handle->re_ovector) {
         memset(*dst, '\0', dstlen);
@@ -163,7 +163,7 @@ slapi_re_subs( Slapi_Regex *re_handle,
 
     ovector = re_handle->re_ovector;
 
-    for (p = src; *p != NULL; p++) {
+    for (p = src; *p != '\0'; p++) {
         if ('&' == *p) {
             if (re_handle->re_oveccount <= 1) {
                 memset(*dst, '\0', dstlen);

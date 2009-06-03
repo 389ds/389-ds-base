@@ -2305,6 +2305,12 @@ dse_search_set_clean(dse_search_set *ss)
 	}
 }
 
+void 
+dse_search_set_release (void **ss)
+{
+	dse_search_set_delete(*(dse_search_set **)ss);
+}
+
 static void 
 dse_search_set_delete (dse_search_set *ss)
 {

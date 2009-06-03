@@ -500,9 +500,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
     time_t optime, time_up;
     int tlimit;
-	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
-	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-	time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
+    slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
+    slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+    time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
     pagedresults_set_timelimit(pb->pb_conn, time_up);
   }
 
@@ -555,9 +555,14 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     }
         
     if ((operation->o_flags & OP_FLAG_PAGED_RESULTS) && pr_search_result) {
+      void *sr = NULL;
       /* PAGED RESULTS and already have the search results from the prev op */
       slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
       rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
+
+      /* search result could be reset in the backend/dse */
+      slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+      pagedresults_set_search_result(pb->pb_conn, sr);
 
       if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         /* no more entries to send in the backend */
