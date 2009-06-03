@@ -199,7 +199,9 @@ connection_cleanup(Connection *conn)
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
 	/* PAGED_RESULTS */
 	if (conn->c_search_result_set) {
-		conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
+		if (conn->c_current_be->be_search_results_release) {
+			conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
+		}
 		conn->c_search_result_set = NULL;
 	}
 	conn->c_current_be = NULL;

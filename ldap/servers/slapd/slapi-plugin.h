@@ -3364,7 +3364,7 @@ typedef struct slapi_regex_handle Slapi_Regex;
  * the compiled pattern. NULL if the compile fails.
  * \warning The regex handler should be released by slapi_re_free().
  */
-Slapi_Regex *slapi_re_comp( char *pat, char **error );
+Slapi_Regex *slapi_re_comp( const char *pat, const char **error );
 /**
  * Matches a compiled regular expression pattern against a given string.
  * A thin wrapper of pcre_exec.
@@ -3378,7 +3378,7 @@ Slapi_Regex *slapi_re_comp( char *pat, char **error );
  * \return This function returns other values if any error occurred.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int slapi_re_exec( Slapi_Regex *re_handle, char *subject, time_t time_up );
+int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up );
 /**
  * Substitutes '&' or '\#' in the param src with the matched string.
  *
@@ -3391,7 +3391,7 @@ int slapi_re_exec( Slapi_Regex *re_handle, char *subject, time_t time_up );
  * \return This function returns 0 if the substitution failed.
  * \warning The regex handler should be released by slapi_re_free().
  */
-int slapi_re_subs( Slapi_Regex *re_handle, char *subject, char *src, char **dst, unsigned long dstlen );
+int slapi_re_subs( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen );
 /**
  * Releases the regex handler which was returned from slapi_re_comp.
  *
