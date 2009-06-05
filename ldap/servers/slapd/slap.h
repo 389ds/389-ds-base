@@ -1229,8 +1229,6 @@ typedef struct op {
 
 struct Conn_Private;
 typedef struct Conn_private Conn_private;
-struct _sasl_io_private;  
-typedef struct _sasl_io_private sasl_io_private;
 
 typedef struct conn {
 	Sockbuf		*c_sb;		/* ber connection stuff		  */
@@ -1271,9 +1269,6 @@ typedef struct conn {
         Slapi_Backend *c_bi_backend;    /* which backend is doing the import */
 	void *c_extension; /* plugins are able to extend the Connection object */
     void *c_sasl_conn;   /* sasl library connection sasl_conn_t */
-    sasl_io_private *c_sasl_io_private; /* Private data for SASL I/O Layer */
-    int				c_enable_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
-    int				c_sasl_io; /* Flag to tell us to enable SASL I/O on the next read */
     int				c_sasl_ssf; /* flag to tell us the SASL SSF */
     int				c_unix_local; /* flag true for LDAPI */
     int				c_local_valid; /* flag true if the uid/gid are valid */
