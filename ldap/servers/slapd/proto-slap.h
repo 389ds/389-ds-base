@@ -1301,7 +1301,6 @@ int slapd_ldap_sasl_interactive_bind(
 /*
  * sasl_io.c
  */
-/* This function should be called under the connection mutex */
 int sasl_io_setup(Connection *c);
 
 /*

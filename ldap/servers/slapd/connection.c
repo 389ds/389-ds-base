@@ -1674,18 +1674,10 @@ static int
 connection_read_ldap_data(Connection *conn, PRInt32 *err)
 {
 	int ret = 0;
-	/* Is SASL encryption enabled on this connection ? */
-	if (conn->c_sasl_io) {
-		/* If so, call the SASL I/O layer */
-		ret = sasl_recv_connection(conn,conn->c_private->c_buffer, conn->c_private->c_buffer_size,err);
-	} else
-	{
-		/* Otherwise, just call PRRecv() */
-		ret = PR_Recv(conn->c_prfd,conn->c_private->c_buffer,conn->c_private->c_buffer_size,0,PR_INTERVAL_NO_WAIT);
-		if (ret < 0) {
-			*err = PR_GetError();
-		}
-	}
+    ret = PR_Recv(conn->c_prfd,conn->c_private->c_buffer,conn->c_private->c_buffer_size,0,PR_INTERVAL_NO_WAIT);
+    if (ret < 0) {
+        *err = PR_GetError();
+    }
 	return ret;
 }
 
@@ -1717,17 +1709,6 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	if ( (conn->c_sd == SLAPD_INVALID_SOCKET) ||
 		 (conn->c_flags & CONN_FLAG_CLOSING) ) {
 		return CONN_DONE;
-	}
-
-	/* See if we should enable SASL I/O for this connection */
-	if (conn->c_enable_sasl_io) {
-		ret = sasl_io_setup(conn);
-		if (ret) {
-			LDAPDebug( LDAP_DEBUG_ANY,
-				"conn=%" NSPRIu64 " unable to enable SASL I/O\n", conn->c_connid, 0, 0 );
-				disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
-			return CONN_DONE;
-		}
 	}
 	
 	*tag = LBER_DEFAULT;

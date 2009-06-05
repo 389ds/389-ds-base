@@ -910,24 +910,14 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
                           (const void**)&ssfp) == SASL_OK) && (*ssfp > 0)) {
             LDAPDebug(LDAP_DEBUG_TRACE, "sasl ssf=%u\n", (unsigned)*ssfp, 0, 0);
 
-            if (pb->pb_conn->c_flags & CONN_FLAG_SSL) {
+            /* Enable SASL I/O on the connection now */
+            if (0 != sasl_io_enable(pb->pb_conn) ) {
                 send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
-                                 "sasl encryption not supported over ssl", 
-                                 0, NULL);
-                if ( bind_target_entry != NULL )
-                    slapi_entry_free(bind_target_entry);
-                break;
-            } else {
-                /* Enable SASL I/O on the connection now */
-                /* Note that this doesn't go into effect until the next _read_ operation is done */
-                if (0 != sasl_io_enable(pb->pb_conn) ) {
-                    send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
                                  "failed to enable sasl i/o",
                                  0, NULL);
-                }
+            }
 	        /* Set the SSF in the connection */
 	        pb->pb_conn->c_sasl_ssf = (unsigned)*ssfp;
-            }
         }
 
         /* set the connection bind credentials */

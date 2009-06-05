@@ -186,10 +186,7 @@ void configure_ns_socket( int * ns );
 /*
  * sasl_io.c
  */
-int sasl_read_function(int ignore, void *buffer,  int count, struct lextiof_socket_private *handle );
-int sasl_write_function(int ignore, const void *buffer,  int count, struct lextiof_socket_private *handle );
 int sasl_io_enable(Connection *c);
-int sasl_recv_connection(Connection *c, char *buffer, size_t count,PRInt32 *err);
 
 /*
  * sasl_map.c
