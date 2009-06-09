@@ -175,8 +175,6 @@ void slapd_daemon( daemon_ports_t *ports );
 void daemon_register_connection();
 int slapd_listenhost2addr( const char *listenhost, PRNetAddr ***addr );
 int daemon_register_reslimits( void );
-int secure_read_function( int ignore , void *buffer, int count, struct lextiof_socket_private *handle );
-int secure_write_function( int ignore, const void *buffer, int count, struct lextiof_socket_private *handle );
 int read_function(int ignore, void *buffer,  int count, struct lextiof_socket_private *handle );
 int write_function(int ignore, const void *buffer,  int count, struct lextiof_socket_private *handle );
 PRFileDesc * get_ssl_listener_fd();
