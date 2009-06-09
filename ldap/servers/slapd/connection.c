@@ -1704,7 +1704,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	/*
 	 * if the socket is still valid, get the ber element
 	 * waiting for us on this connection. timeout is handled
-	 * in the low-level [secure_]read_function.
+	 * in the low-level read_function.
 	 */
 	if ( (conn->c_sd == SLAPD_INVALID_SOCKET) ||
 		 (conn->c_flags & CONN_FLAG_CLOSING) ) {

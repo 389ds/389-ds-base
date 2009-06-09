@@ -277,18 +277,6 @@ start_tls( Slapi_PBlock *pb )
 	secure = 1;
 	ns = configure_pr_socket( &newsocket, secure, 0 /*never local*/ );
 
-	/*changed to */
-	{
-		struct lber_x_ext_io_fns func_pointers;
-		memset(&func_pointers, 0, sizeof(func_pointers));
-		func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE; 
-		func_pointers.lbextiofn_read = secure_read_function;
-		func_pointers.lbextiofn_write = secure_write_function;
-		func_pointers.lbextiofn_writev = NULL;
-		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) newsocket;
-		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
-	}	
 	conn->c_flags |= CONN_FLAG_SSL;
 	conn->c_flags |= CONN_FLAG_START_TLS;
 	conn->c_sd = ns;
