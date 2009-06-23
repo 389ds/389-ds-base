@@ -274,6 +274,29 @@ freeConfigEntry( Slapi_Entry ** e ) {
 	}
 }
 
+/*
+ * unescape parenthesis in the regular expression.
+ * E.g., ^u:\(.*\) ==> ^u:(.*)
+ * This unescape is necessary for the new regex code using PCRE 
+ * to keep the backward compatibility.
+ */
+char *
+_sasl_unescape_parenthesis(char *input)
+{
+	char *s = NULL;
+	char *d = NULL;
+
+	for (s = input, d = input; s && *s; s++) {
+		if (*s == '\\' && *(s+1) && (*(s+1) == '(' || *(s+1) == ')')) {
+			*d++ = *(++s);
+		} else {
+			*d++ = *s;
+		}
+	}
+	*d = '\0';
+	return input;
+}
+
 static int
 sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 {
@@ -284,7 +307,7 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 	char *map_name = NULL;
 
 	*new_dp = NULL;
-	regex = slapi_entry_attr_get_charptr( entry, "nsSaslMapRegexString" );
+	regex = _sasl_unescape_parenthesis(slapi_entry_attr_get_charptr( entry, "nsSaslMapRegexString" ));
 	basedntemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapBaseDNTemplate" );
 	filtertemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapFilterTemplate" );
 	map_name = slapi_entry_attr_get_charptr( entry, "cn" );
