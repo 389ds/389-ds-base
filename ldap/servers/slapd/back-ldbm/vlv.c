@@ -1185,7 +1185,8 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
                                                      vlv_request_control);
             if (si==length) {
                 do_trim = 0;
-                *candidates = idl_alloc(0);
+                /* minimum idl_alloc size should be 1; 0 is considered ALLID */
+                *candidates = idl_alloc(1);
             }
             break;
         default:
@@ -1356,7 +1357,8 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
         if(si==candidates->b_nids)
         {
             do_trim= 0;
-            resultIdl= idl_alloc(0);
+            /* minimum idl_alloc size should be 1; 0 is considered ALLID */
+            resultIdl= idl_alloc(1);
         }
         break;
     default:

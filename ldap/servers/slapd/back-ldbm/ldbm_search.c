@@ -637,7 +637,7 @@ ldbm_back_search( Slapi_PBlock *pb )
          * this is not an internal operation.
          * We hope the plugins know what they are doing!
          */
-    if (!operation_is_flag_set(operation, OP_FLAG_INTERNAL)) {
+        if (!operation_is_flag_set(operation, OP_FLAG_INTERNAL)) {
 
             PR_Lock(inst->inst_config_mutex);
             ri = inst->require_index;
