@@ -641,7 +641,9 @@ static void op_shared_add (Slapi_PBlock *pb)
 				slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
 				do_ps_service(pse, NULL, LDAP_CHANGETYPE_ADD, 0);
 
-				e = NULL; /* if be_add succeeded, then e is consumed. Must prevent e from being free'd. */
+				/* If be_add succeeded, then e is consumed.  We
+				 * set e to NULL to prevent freeing it ourselves. */
+				e = NULL;
 			}
 			else
 			{

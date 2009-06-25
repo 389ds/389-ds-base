@@ -835,7 +835,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
             }
         }
 
-        slapi_log_error( SLAPI_LOG_FATAL, NULL, "add value \"%s\" to "
+        slapi_log_error( SLAPI_LOG_TRACE, NULL, "add value \"%s\" to "
                 "attribute type \"%s\" in entry \"%s\" failed: %s\n", 
                 duplicate_string,
                 a->a_type,

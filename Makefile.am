@@ -148,12 +148,13 @@ enable_presence = off
 endif
 
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
-	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
-	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
+	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
+	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
+	libhttp-client-plugin.la liblinkedattrs-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
-	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la libschemareload-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
+	libroles-plugin.la libschemareload-plugin.la libstatechange-plugin.la \
+	libsyntax-plugin.la libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
 	$(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
@@ -299,6 +300,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak.pl \
 	ldap/admin/src/scripts/template-db2index.pl \
 	ldap/admin/src/scripts/template-db2ldif.pl \
+        ldap/admin/src/scripts/template-fixup-linkedattrs.pl \
 	ldap/admin/src/scripts/template-fixup-memberof.pl \
 	ldap/admin/src/scripts/template-ldif2db.pl \
 	ldap/admin/src/scripts/template-ns-accountstatus.pl \
@@ -664,6 +666,14 @@ libattr_unique_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/shared $(PL
 libattr_unique_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libbitwise-plugin
+#------------------------
+libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
+
+libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libbitwise_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 # libchainingdb-plugin
 #------------------------
 libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
@@ -696,6 +706,18 @@ libchainingdb_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libchainingdb_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libcollation-plugin
+#------------------------
+libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
+        ldap/servers/plugins/collation/config.c \
+        ldap/servers/plugins/collation/orfilter.c
+
+libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
+libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
+libcollation_plugin_la_LDFLAGS = -avoid-version
+libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
+
+#------------------------
 # libcos-plugin
 #------------------------
 libcos_plugin_la_SOURCES = ldap/servers/plugins/cos/cos.c \
@@ -722,6 +744,14 @@ libdistrib_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libdistrib_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libdna-plugin
+#------------------------
+libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
+
+libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libdna_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 # libhttp-client-plugin
 #------------------------
 libhttp_client_plugin_la_SOURCES = ldap/servers/plugins/http/http_client.c \
@@ -731,16 +761,13 @@ libhttp_client_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libhttp_client_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
-# libcollation-plugin
+# liblinkedattrs-plugin
 #------------------------
-libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
-	ldap/servers/plugins/collation/config.c \
-	ldap/servers/plugins/collation/orfilter.c
+liblinkedattrs_plugin_la_SOURCES = ldap/servers/plugins/linkedattrs/fixup_task.c \
+	ldap/servers/plugins/linkedattrs/linked_attrs.c
 
-libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
-libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
-libcollation_plugin_la_LDFLAGS = -avoid-version
-libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
+liblinkedattrs_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+liblinkedattrs_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libmemberof-plugin
@@ -892,6 +919,14 @@ libroles_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libroles_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libschemareload-plugin
+#------------------------
+libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_reload.c
+
+libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libschemareload_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 # libstatechange-plugin
 #------------------------
 libstatechange_plugin_la_SOURCES = ldap/servers/plugins/statechange/statechange.c
@@ -927,30 +962,6 @@ libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libschemareload-plugin
-#------------------------
-libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_reload.c
-
-libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libschemareload_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libdna-plugin
-#------------------------
-libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
-
-libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libdna_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libbitwise-plugin
-#------------------------
-libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
-
-libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libbitwise_plugin_la_LDFLAGS = -avoid-version
 
 
 #////////////////////////////////////////////////////////////////
