@@ -554,6 +554,18 @@ nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
+dn: cn=Linked Attributes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: nsContainer
+cn: Linked Attributes
+nsslapd-pluginpath: liblinkedattrs-plugin
+nsslapd-plugininitfunc: linked_attrs_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
 dn: cn=Pass Through Authentication,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

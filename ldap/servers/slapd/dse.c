@@ -1065,6 +1065,11 @@ dse_write_entry( caddr_t data, caddr_t arg )
     return 0;
 }
   
+/*
+ * Adds an entry to the dse backend.  The passed in entry will be
+ * free'd upon success.  If we don't return 0, the caller is responsible
+ * for freeing the entry.
+ */
 static int
 dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 {
@@ -1139,7 +1144,13 @@ dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 		slapi_entry_free(schemacheckentry);
 	}
 
-    return rc;
+	/* Callers expect e (SLAPI_ADD_ENTRY) to be freed or otherwise
+	 * consumed if the add was successful. */
+	if (rc == 0) {
+		slapi_entry_free(e);
+	}
+
+	return rc;
 }
 
 /*

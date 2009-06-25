@@ -279,6 +279,14 @@ libhttp_client_plugin_la_OBJECTS =  \
 libhttp_client_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libhttp_client_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
+liblinkedattrs_plugin_la_LIBADD =
+am_liblinkedattrs_plugin_la_OBJECTS = ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo \
+	ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo
+liblinkedattrs_plugin_la_OBJECTS =  \
+	$(am_liblinkedattrs_plugin_la_OBJECTS)
+liblinkedattrs_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(liblinkedattrs_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
 libmemberof_plugin_la_LIBADD =
 am_libmemberof_plugin_la_OBJECTS = ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo \
 	ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo
@@ -872,6 +880,7 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) \
 	$(libdna_plugin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
+	$(liblinkedattrs_plugin_la_SOURCES) \
 	$(libmemberof_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
 	$(libpassthru_plugin_la_SOURCES) \
@@ -898,6 +907,7 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) \
 	$(libdna_plugin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
+	$(liblinkedattrs_plugin_la_SOURCES) \
 	$(libmemberof_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
 	$(libpassthru_plugin_la_SOURCES) \
@@ -1222,12 +1232,13 @@ server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 @enable_presence_FALSE@enable_presence = off
 @enable_presence_TRUE@enable_presence = on
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
-	libback-ldbm.la libchainingdb-plugin.la libcos-plugin.la libdes-plugin.la \
-	libdistrib-plugin.la libhttp-client-plugin.la libcollation-plugin.la \
+	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
+	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
+	libhttp-client-plugin.la liblinkedattrs-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
-	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
-	libviews-plugin.la libschemareload-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
+	libroles-plugin.la libschemareload-plugin.la libstatechange-plugin.la \
+	libsyntax-plugin.la libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
 	$(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
@@ -1372,6 +1383,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak.pl \
 	ldap/admin/src/scripts/template-db2index.pl \
 	ldap/admin/src/scripts/template-db2ldif.pl \
+        ldap/admin/src/scripts/template-fixup-linkedattrs.pl \
 	ldap/admin/src/scripts/template-fixup-memberof.pl \
 	ldap/admin/src/scripts/template-ldif2db.pl \
 	ldap/admin/src/scripts/template-ns-accountstatus.pl \
@@ -1684,6 +1696,13 @@ libattr_unique_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/shared $(PL
 libattr_unique_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libbitwise-plugin
+#------------------------
+libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
+libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libbitwise_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 # libchainingdb-plugin
 #------------------------
 libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
@@ -1716,6 +1735,18 @@ libchainingdb_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libchainingdb_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libcollation-plugin
+#------------------------
+libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
+        ldap/servers/plugins/collation/config.c \
+        ldap/servers/plugins/collation/orfilter.c
+
+libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
+libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
+libcollation_plugin_la_LDFLAGS = -avoid-version
+libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
+
+#------------------------
 # libcos-plugin
 #------------------------
 libcos_plugin_la_SOURCES = ldap/servers/plugins/cos/cos.c \
@@ -1741,6 +1772,13 @@ libdistrib_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libdistrib_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libdna-plugin
+#------------------------
+libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
+libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libdna_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 # libhttp-client-plugin
 #------------------------
 libhttp_client_plugin_la_SOURCES = ldap/servers/plugins/http/http_client.c \
@@ -1750,16 +1788,13 @@ libhttp_client_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libhttp_client_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
-# libcollation-plugin
+# liblinkedattrs-plugin
 #------------------------
-libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
-	ldap/servers/plugins/collation/config.c \
-	ldap/servers/plugins/collation/orfilter.c
+liblinkedattrs_plugin_la_SOURCES = ldap/servers/plugins/linkedattrs/fixup_task.c \
+	ldap/servers/plugins/linkedattrs/linked_attrs.c
 
-libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
-libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
-libcollation_plugin_la_LDFLAGS = -avoid-version
-libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
+liblinkedattrs_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+liblinkedattrs_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libmemberof-plugin
@@ -1909,6 +1944,13 @@ libroles_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libroles_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
+# libschemareload-plugin
+#------------------------
+libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_reload.c
+libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libschemareload_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 # libstatechange-plugin
 #------------------------
 libstatechange_plugin_la_SOURCES = ldap/servers/plugins/statechange/statechange.c
@@ -1942,27 +1984,6 @@ libsyntax_plugin_la_LDFLAGS = -avoid-version
 libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libschemareload-plugin
-#------------------------
-libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_reload.c
-libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libschemareload_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libdna-plugin
-#------------------------
-libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
-libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libdna_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libbitwise-plugin
-#------------------------
-libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
-libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libbitwise_plugin_la_LDFLAGS = -avoid-version
 
 #////////////////////////////////////////////////////////////////
 #
@@ -2814,6 +2835,20 @@ ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo:  \
 	ldap/servers/plugins/http/$(DEPDIR)/$(am__dirstamp)
 libhttp-client-plugin.la: $(libhttp_client_plugin_la_OBJECTS) $(libhttp_client_plugin_la_DEPENDENCIES) 
 	$(libhttp_client_plugin_la_LINK) -rpath $(serverplugindir) $(libhttp_client_plugin_la_OBJECTS) $(libhttp_client_plugin_la_LIBADD) $(LIBS)
+ldap/servers/plugins/linkedattrs/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/linkedattrs
+	@: > ldap/servers/plugins/linkedattrs/$(am__dirstamp)
+ldap/servers/plugins/linkedattrs/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/linkedattrs/$(DEPDIR)
+	@: > ldap/servers/plugins/linkedattrs/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo:  \
+	ldap/servers/plugins/linkedattrs/$(am__dirstamp) \
+	ldap/servers/plugins/linkedattrs/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo:  \
+	ldap/servers/plugins/linkedattrs/$(am__dirstamp) \
+	ldap/servers/plugins/linkedattrs/$(DEPDIR)/$(am__dirstamp)
+liblinkedattrs-plugin.la: $(liblinkedattrs_plugin_la_OBJECTS) $(liblinkedattrs_plugin_la_DEPENDENCIES) 
+	$(liblinkedattrs_plugin_la_LINK) -rpath $(serverplugindir) $(liblinkedattrs_plugin_la_OBJECTS) $(liblinkedattrs_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/memberof/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/memberof
 	@: > ldap/servers/plugins/memberof/$(am__dirstamp)
@@ -4180,6 +4215,10 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.$(OBJEXT)
 	-rm -f ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo
+	-rm -f ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.$(OBJEXT)
+	-rm -f ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo
+	-rm -f ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.$(OBJEXT)
+	-rm -f ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo
 	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.$(OBJEXT)
 	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo
 	-rm -f ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.$(OBJEXT)
@@ -4937,6 +4976,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/dna/$(DEPDIR)/libdna_plugin_la-dna.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_client.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/http/$(DEPDIR)/libhttp_client_plugin_la-http_impl.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-fixup_task.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-linked_attrs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof_config.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pam_passthru/$(DEPDIR)/libpam_passthru_plugin_la-pam_ptconfig.Plo@am__quote@
@@ -6284,6 +6325,20 @@ ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo: ldap/servers/pl
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/http/http_impl.c' object='ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhttp_client_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo `test -f 'ldap/servers/plugins/http/http_impl.c' || echo '$(srcdir)/'`ldap/servers/plugins/http/http_impl.c
+
+ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo: ldap/servers/plugins/linkedattrs/fixup_task.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblinkedattrs_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo -MD -MP -MF ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-fixup_task.Tpo -c -o ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo `test -f 'ldap/servers/plugins/linkedattrs/fixup_task.c' || echo '$(srcdir)/'`ldap/servers/plugins/linkedattrs/fixup_task.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-fixup_task.Tpo ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-fixup_task.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/linkedattrs/fixup_task.c' object='ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblinkedattrs_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo `test -f 'ldap/servers/plugins/linkedattrs/fixup_task.c' || echo '$(srcdir)/'`ldap/servers/plugins/linkedattrs/fixup_task.c
+
+ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo: ldap/servers/plugins/linkedattrs/linked_attrs.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblinkedattrs_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo -MD -MP -MF ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-linked_attrs.Tpo -c -o ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo `test -f 'ldap/servers/plugins/linkedattrs/linked_attrs.c' || echo '$(srcdir)/'`ldap/servers/plugins/linkedattrs/linked_attrs.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-linked_attrs.Tpo ldap/servers/plugins/linkedattrs/$(DEPDIR)/liblinkedattrs_plugin_la-linked_attrs.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/linkedattrs/linked_attrs.c' object='ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblinkedattrs_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo `test -f 'ldap/servers/plugins/linkedattrs/linked_attrs.c' || echo '$(srcdir)/'`ldap/servers/plugins/linkedattrs/linked_attrs.c
 
 ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo: ldap/servers/plugins/memberof/memberof.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmemberof_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo -MD -MP -MF ldap/servers/plugins/memberof/$(DEPDIR)/libmemberof_plugin_la-memberof.Tpo -c -o ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo `test -f 'ldap/servers/plugins/memberof/memberof.c' || echo '$(srcdir)/'`ldap/servers/plugins/memberof/memberof.c
@@ -8962,6 +9017,7 @@ clean-libtool:
 	-rm -rf ldap/servers/plugins/distrib/.libs ldap/servers/plugins/distrib/_libs
 	-rm -rf ldap/servers/plugins/dna/.libs ldap/servers/plugins/dna/_libs
 	-rm -rf ldap/servers/plugins/http/.libs ldap/servers/plugins/http/_libs
+	-rm -rf ldap/servers/plugins/linkedattrs/.libs ldap/servers/plugins/linkedattrs/_libs
 	-rm -rf ldap/servers/plugins/memberof/.libs ldap/servers/plugins/memberof/_libs
 	-rm -rf ldap/servers/plugins/pam_passthru/.libs ldap/servers/plugins/pam_passthru/_libs
 	-rm -rf ldap/servers/plugins/passthru/.libs ldap/servers/plugins/passthru/_libs
@@ -9459,6 +9515,8 @@ distclean-generic:
 	-rm -f ldap/servers/plugins/dna/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/http/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/http/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/linkedattrs/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/linkedattrs/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/memberof/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/memberof/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/pam_passthru/$(DEPDIR)/$(am__dirstamp)
@@ -9529,7 +9587,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libtool \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -9571,7 +9629,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
