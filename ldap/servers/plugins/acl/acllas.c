@@ -1149,7 +1149,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	Slapi_Attr 		*a;
 	int				levels[ACLLAS_MAX_LEVELS];
 	int				numOflevels =0;
-	struct userdnattr_info	info;
+	struct userdnattr_info	info = {0};
 	char			*attrs[2] = { LDAP_ALL_USER_ATTRS, NULL };
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
@@ -1399,7 +1399,7 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	int				rc, len, i;
 	int				levels[ACLLAS_MAX_LEVELS];
 	int				numOflevels =0;
-	struct userdnattr_info	info;
+	struct userdnattr_info	info = {0};
 	char			*attrs[2] = { LDAP_ALL_USER_ATTRS, NULL };
 	int				got_undefined = 0;
 
@@ -1698,8 +1698,8 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 struct member_info 
 {
 	char			*member;		/* member DN */
-	struct member_info	*parent;		/* parent of this member */
-} member_info;
+	int				parentId;		/* parent of this member */
+};
 
 struct eval_info
 {
@@ -1711,16 +1711,17 @@ struct eval_info
 	struct member_info 	**memberInfo;/* array of memberInfo  */
 	CERTCertificate		*clientCert;	/* ptr to cert */
 	struct acl_pblock 	*aclpb;	/*aclpblock */
-} eval_info;
+};
 
+#ifdef FOR_DEBUGGING
 static void
-dump_member_info ( struct member_info *minfo, char *buf )
+dump_member_info ( struct eval_info *info, struct member_info *minfo, char *buf )
 {
 	if ( minfo )
 	{
-		if ( minfo->parent )
+		if ( minfo->parentId >= 0 )
 		{
-			dump_member_info ( minfo->parent, buf );
+			dump_member_info ( info, minfo->parentId, buf );
 		}
 		else
 		{
@@ -1731,7 +1732,6 @@ dump_member_info ( struct member_info *minfo, char *buf )
 	}
 }
 
-#ifdef FOR_DEBUGGING
 static void
 dump_eval_info (char *caller, struct eval_info *info, int idx)
 {
@@ -1755,7 +1755,7 @@ dump_eval_info (char *caller, struct eval_info *info, int idx)
 		{
 			len = strlen(buf);
 			sprintf ( &buf[len], "\n  [%d]: ", i );
-			dump_member_info ( info->memberInfo[i], buf );
+			dump_member_info ( info, info->memberInfo[i], buf );
 		}
 		slapi_log_error ( SLAPI_LOG_FATAL, NULL, "\n======== candidate member info in eval_info ========%s\n\n", buf );
 	}
@@ -1778,7 +1778,7 @@ dump_eval_info (char *caller, struct eval_info *info, int idx)
 				sprintf ( &(buf[len]), "%d\n", info->result );
 				break;
 		}
-		dump_member_info ( info->memberInfo[idx], buf );
+		dump_member_info ( info, info->memberInfo[idx], buf );
 		slapi_log_error ( SLAPI_LOG_FATAL, NULL, "%s\n", buf );
 	}
 }
@@ -1817,7 +1817,7 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	char			*currDN;
 	int			i,j;
 	int			result = ACL_FALSE;
-	struct eval_info	info;
+	struct eval_info	info = {0};
 	int			nesting_level;
 	int 			numOfMembersAtCurrentLevel;
 	int			numOfMembersVisited;
@@ -1885,7 +1885,7 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	info.memberInfo = (struct member_info **) slapi_ch_malloc (ACLLAS_MAX_GRP_MEMBER * sizeof(struct member_info *));
 	groupMember = (struct member_info *) slapi_ch_malloc ( sizeof (struct member_info) );
 	groupMember->member = slapi_ch_strdup(groupDN);
-	groupMember->parent = NULL;
+	groupMember->parentId = -1;
 	info.memberInfo[0] = groupMember;
 	info.lu_idx = 0;
 
@@ -2092,7 +2092,7 @@ free_and_return:
 		while ( groupMember ) {
 			int already_cached = 0;
 
-			parentGroup = groupMember->parent;
+			parentGroup = (groupMember->parentId<0)?NULL:info.memberInfo[groupMember->parentId];
 			for (j=0; j < u_group->aclug_numof_member_group;j++){
 				if (slapi_utf8casecmp( (ACLUCHP)groupMember->member,
                                  (ACLUCHP)u_group->aclug_member_groups[j]) == 0) {
@@ -2137,7 +2137,7 @@ free_and_return:
 		while ( groupMember ) {
 			int already_cached = 0;
 
-			parentGroup = groupMember->parent;
+			parentGroup = (groupMember->parentId<0)?NULL:info.memberInfo[groupMember->parentId];
 			for (j=0; j < u_group->aclug_numof_notmember_group;j++){
 				if (slapi_utf8casecmp( (ACLUCHP)groupMember->member,
                                	(ACLUCHP)u_group->aclug_notmember_groups[j]) == 0) {
@@ -2217,8 +2217,8 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 	struct eval_info	*info;
  	Slapi_Attr		*currAttr, *nextAttr;
 	char			*n_dn, *attrType;
-	short			n;
-	int i;
+	int				n;
+	int				i, j;
 
 	info = (struct eval_info *) callback_data;
 	info->result = ACL_FALSE;
@@ -2234,7 +2234,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 	if (NULL == attrType ) return 0;
 
 	do {
-		Slapi_Value *sval=NULL;
+		Slapi_Value *sval = NULL;
 		const struct berval		*attrVal;
 
  		if ((strcasecmp (attrType, type_member) == 0) ||
@@ -2244,20 +2244,26 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 			while ( i != -1 ) {
 				struct member_info	*groupMember = NULL;
 				attrVal = slapi_value_get_berval ( sval );
-				n_dn = slapi_dn_normalize ( slapi_ch_strdup( attrVal->bv_val));
-				info->lu_idx++;
-				n = info->lu_idx;
+				n_dn = slapi_dn_normalize ( slapi_ch_strdup( attrVal->bv_val ));
+				n = ++info->lu_idx;
+				if (n < 0) {
+					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+						  "acllas__handle_group_entry: last member index lu_idx is overflown:%d: Too many group ACL members\n", n);
+					return 0;
+				}
 				if (!(n % ACLLAS_MAX_GRP_MEMBER)) {
-					info->memberInfo = (struct member_info **) slapi_ch_realloc( 
-							(void *) info->memberInfo,
-					      		(n+ACLLAS_MAX_GRP_MEMBER) * 
-							sizeof(struct eval_info *));
+					struct member_info *orig_memberInfo = info->memberInfo[0];
+					info->memberInfo = (struct member_info **)slapi_ch_realloc(
+							(char *)info->memberInfo,
+							(n + ACLLAS_MAX_GRP_MEMBER) *
+							sizeof(struct member_info *));
 				}
 
 				/* allocate the space for the member and attch it to the list */
-				groupMember = (struct member_info *) slapi_ch_malloc ( sizeof ( struct member_info ) );
+				groupMember = (struct member_info *)slapi_ch_malloc(
+								sizeof ( struct member_info ) );
 				groupMember->member = n_dn;
-				groupMember->parent = info->memberInfo[info->c_idx];
+				groupMember->parentId = info->c_idx;
 				info->memberInfo[n] = groupMember;
 
 				if (info->userDN && 
@@ -2702,7 +2708,7 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	if (enumerate_groups) {
 		char			filter_str[BUFSIZ];
 		char			*attrs[3];
-		struct eval_info	info;
+		struct eval_info	info = {0};
 		char			*curMemberDn;
 		int			Done = 0;
 		int			ngr, tt;
@@ -2892,7 +2898,7 @@ acllas__add_allgroups (Slapi_Entry* e, void *callback_data)
 	}
 
 	m = info->lu_idx;
-	n = info->lu_idx++;
+	n = ++info->lu_idx;
 	if (!(n % ACLLAS_MAX_GRP_MEMBER)) {
 		info->member = (char **) slapi_ch_realloc (
 					(void *) info->member,
