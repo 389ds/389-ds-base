@@ -312,7 +312,9 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
 
     connection_release_nolock (c);
 
+    PR_Lock(c->c_mutex);
     connection_cleanup (c);
+    PR_Unlock(c->c_mutex);
 
     PR_Unlock(ct->table_mutex);
 	
