@@ -1972,7 +1972,8 @@ static int dna_get_next_value(struct configEntry *config_entry,
     nextval = setval + config_entry->interval;
     /* update nextval if we have not reached the end
      * of our current range */
-    if (nextval <= (config_entry->maxval + config_entry->interval)) {
+    if ((config_entry->maxval == -1) ||
+        (nextval <= (config_entry->maxval + config_entry->interval))) {
         /* try to set the new next value in the config entry */
         PR_snprintf(next_value, sizeof(next_value),"%" NSPRIu64, nextval);
 
