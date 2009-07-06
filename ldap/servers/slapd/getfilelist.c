@@ -130,7 +130,7 @@ matches(const char *filename, const char *pattern)
 		return 1; /* null pattern matches everything */
 
 	/* Compile the pattern */
-	re = slapi_re_comp( (char *)pattern, &error );
+	re = slapi_re_comp( pattern, &error );
 	if (re) {
 		/* Matches the compiled pattern against the filename */
 		match = slapi_re_exec( re, filename, -1 /* no time limit */ );

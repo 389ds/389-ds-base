@@ -298,7 +298,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
         	switch ( rc ) {
         		case -1:
                         	/* An error occurred. return now */
-                        	rc = ldap_get_lderrno(ld,NULL,NULL);
+                        	rc = slapi_ldap_get_lderrno(ld,NULL,NULL);
 				/* tuck away some errors in a OPERATION_ERROR */
 				if (CB_LDAP_CONN_ERROR(rc)) {
 					cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
@@ -366,7 +366,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 					rc=-1;
                         	} else
                         	if ( rc != LDAP_SUCCESS ) {
-                                	ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
+                                	slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
                                 	cb_send_ldap_result( pb, rc, matched_msg,
                                         	error_msg,0,NULL);
 					/* BEWARE: matched_msg and error_msg points */
@@ -558,7 +558,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
       		case -1:
 
          		/* An error occurred. */
-         		rc = ldap_get_lderrno( ctx->ld, NULL, NULL );
+         		rc = slapi_ldap_get_lderrno( ctx->ld, NULL, NULL );
         		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
         		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
 
@@ -670,7 +670,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 			}
 
 			if (referrals != NULL) {
-				   ldap_value_free( referrals );
+				   slapi_ldap_value_free( referrals );
 			}
 			
 			return 0;
@@ -694,7 +694,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 				retcode=-1;
 			} else
 			if ( rc != LDAP_SUCCESS ) {
-				ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
+				slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
 	                	cb_send_ldap_result( pb, rc, matched_msg, NULL, 0, NULL);
 
 				/* BEWARE: Don't free matched_msg && error_msg */

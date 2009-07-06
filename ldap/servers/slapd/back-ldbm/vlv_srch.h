@@ -55,6 +55,17 @@ extern char* const type_vlvFilename;
 extern char* const type_vlvEnabled;
 extern char* const type_vlvUses;
 
+#if defined(USE_OPENLDAP)
+typedef struct LDAPsortkey {    /* structure for a sort-key */
+        char *  sk_attrtype;
+        char *  sk_matchruleoid;
+        int     sk_reverseorder;
+} LDAPsortkey;
+#endif
+
+void internal_ldap_free_sort_keylist(LDAPsortkey **sortKeyList);
+int internal_ldap_create_sort_keylist(LDAPsortkey ***sortKeyList, const char *string_rep);
+
 /*
  * This structure is the internal representation of a VLV Search.
  */

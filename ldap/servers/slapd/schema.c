@@ -1997,7 +1997,7 @@ static char **read_dollar_values ( char *vals) {
 	}
   }
   vals[k] = '\0';
-  retVal = str2charray (vals, "$");
+  retVal = slapi_str2charray (vals, "$");
   return retVal;
 }
 

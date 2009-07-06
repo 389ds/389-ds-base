@@ -52,7 +52,6 @@
 
 #include "ldap.h"
 #include <sslproto.h>
-#include <ldap_ssl.h>
 
 #undef OFF
 #undef LITTLE_ENDIAN

@@ -47,6 +47,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include "ldap-agent.h"
+#include "ldap.h"
 #include "ldif.h"
 
 static char *agentx_master = NULL;
@@ -245,7 +246,12 @@ load_config(char *conf_path)
 {
     server_instance *serv_p = NULL;
     FILE *conf_file = NULL;
+#if defined(USE_OPENLDAP)
+    LDIFFP *dse_fp = NULL;
+    int buflen;
+#else
     FILE *dse_fp = NULL;
+#endif
     char line[MAXLINE];
     char *p = NULL;
     int error = 0;
@@ -371,7 +377,12 @@ load_config(char *conf_path)
             }
  
             /* Open dse.ldif */
-            if ((dse_fp = fopen(serv_p->dse_ldif, "r")) == NULL) {
+#if defined(USE_OPENLDAP)
+            dse_fp = ldif_open(serv_p->dse_ldif, "r");
+#else
+            dse_fp = fopen(serv_p->dse_ldif, "r");
+#endif
+            if (dse_fp == NULL) {
                 printf("ldap-agent: Error opening server config file: %s\n",
                         serv_p->dse_ldif);
                 error = 1;
@@ -386,12 +397,20 @@ load_config(char *conf_path)
              * the pointer that is passed to it, so we need to save a
              * pointer to the beginning of the entry so we can free it
              * later. */
-            while ((entry = ldif_get_entry(dse_fp, &lineno)) != NULL) {
+#if defined(USE_OPENLDAP)
+            while (ldif_read_record(dse_fp, &lineno, &entry, &buflen))
+#else
+            while ((entry = ldif_get_entry(dse_fp, &lineno)) != NULL)
+#endif
+            {
                 char *entryp = entry;
                 char *attr = NULL;
                 char *val = NULL;
+#if defined(USE_OPENLDAP)
+                ber_len_t vlen;
+#else
                 int vlen;
-
+#endif
                 /* Check if this is the cn=config entry */
                 ldif_parse_line(ldif_getline(&entryp), &attr, &val, &vlen);
                 if ((strcmp(attr, "dn") == 0) &&
@@ -470,8 +489,13 @@ load_config(char *conf_path)
 close_and_exit:
     if (conf_file)
         fclose(conf_file);
-    if (dse_fp)
+    if (dse_fp) {
+#if defined(USE_OPENLDAP)
+        ldif_close(dse_fp);
+#else
         fclose(dse_fp);
+#endif
+    }
     if (error)
         exit(error);
 }

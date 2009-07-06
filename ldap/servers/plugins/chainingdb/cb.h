@@ -485,7 +485,6 @@ int cb_back_cleanup (Slapi_PBlock *pb );
 long cb_atol(char *str);
 
 Slapi_Entry * cb_LDAPMessage2Entry(LDAP * ctx, LDAPMessage * msg, int attrsonly);
-char * cb_urlparse_err2string( int err );
 char * cb_get_rootdn();
 struct berval ** referrals2berval(char ** referrals);
 cb_backend_instance * cb_get_instance(Slapi_Backend * be);

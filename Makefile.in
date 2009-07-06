@@ -52,11 +52,12 @@ DIST_COMMON = $(am__configure_deps) $(dist_man_MANS) \
 	config.guess config.sub depcomp install-sh ltmain.sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/fhs.m4 $(top_srcdir)/m4/nspr.m4 \
-	$(top_srcdir)/m4/nss.m4 $(top_srcdir)/m4/mozldap.m4 \
-	$(top_srcdir)/m4/db.m4 $(top_srcdir)/m4/sasl.m4 \
-	$(top_srcdir)/m4/svrcore.m4 $(top_srcdir)/m4/icu.m4 \
-	$(top_srcdir)/m4/netsnmp.m4 $(top_srcdir)/m4/kerberos.m4 \
-	$(top_srcdir)/m4/pcre.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/nss.m4 $(top_srcdir)/m4/openldap.m4 \
+	$(top_srcdir)/m4/mozldap.m4 $(top_srcdir)/m4/db.m4 \
+	$(top_srcdir)/m4/sasl.m4 $(top_srcdir)/m4/svrcore.m4 \
+	$(top_srcdir)/m4/icu.m4 $(top_srcdir)/m4/netsnmp.m4 \
+	$(top_srcdir)/m4/kerberos.m4 $(top_srcdir)/m4/pcre.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -80,7 +81,6 @@ am_libldaputil_a_OBJECTS = lib/ldaputil/libldaputil_a-cert.$(OBJEXT) \
 	lib/ldaputil/libldaputil_a-errors.$(OBJEXT) \
 	lib/ldaputil/libldaputil_a-init.$(OBJEXT) \
 	lib/ldaputil/libldaputil_a-ldapauth.$(OBJEXT) \
-	lib/ldaputil/libldaputil_a-ldapdb.$(OBJEXT) \
 	lib/ldaputil/libldaputil_a-vtable.$(OBJEXT)
 libldaputil_a_OBJECTS = $(am_libldaputil_a_OBJECTS)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -304,7 +304,6 @@ am__objects_1 = lib/ldaputil/libns_dshttpd_la-cert.lo \
 	lib/ldaputil/libns_dshttpd_la-errors.lo \
 	lib/ldaputil/libns_dshttpd_la-init.lo \
 	lib/ldaputil/libns_dshttpd_la-ldapauth.lo \
-	lib/ldaputil/libns_dshttpd_la-ldapdb.lo \
 	lib/ldaputil/libns_dshttpd_la-vtable.lo
 am_libns_dshttpd_la_OBJECTS =  \
 	lib/libaccess/libns_dshttpd_la-access_plhash.lo \
@@ -323,7 +322,6 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/libaccess/libns_dshttpd_la-lasip.lo \
 	lib/libaccess/libns_dshttpd_la-lastod.lo \
 	lib/libaccess/libns_dshttpd_la-lasuser.lo \
-	lib/libaccess/libns_dshttpd_la-ldapacl.lo \
 	lib/libaccess/libns_dshttpd_la-method.lo \
 	lib/libaccess/libns_dshttpd_la-nseframe.lo \
 	lib/libaccess/libns_dshttpd_la-nsautherr.lo \
@@ -527,13 +525,14 @@ am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/generation.c \
 	ldap/servers/slapd/getfilelist.c \
 	ldap/servers/slapd/index_subsystem.c \
-	ldap/servers/slapd/lenstr.c ldap/servers/slapd/libglobs.c \
-	ldap/servers/slapd/localhost.c ldap/servers/slapd/log.c \
-	ldap/servers/slapd/mapping_tree.c ldap/servers/slapd/match.c \
-	ldap/servers/slapd/modify.c ldap/servers/slapd/modrdn.c \
-	ldap/servers/slapd/modutil.c ldap/servers/slapd/ntuserpin.c \
-	ldap/servers/slapd/object.c ldap/servers/slapd/objset.c \
-	ldap/servers/slapd/operation.c ldap/servers/slapd/opshared.c \
+	ldap/servers/slapd/ldaputil.c ldap/servers/slapd/lenstr.c \
+	ldap/servers/slapd/libglobs.c ldap/servers/slapd/localhost.c \
+	ldap/servers/slapd/log.c ldap/servers/slapd/mapping_tree.c \
+	ldap/servers/slapd/match.c ldap/servers/slapd/modify.c \
+	ldap/servers/slapd/modrdn.c ldap/servers/slapd/modutil.c \
+	ldap/servers/slapd/ntuserpin.c ldap/servers/slapd/object.c \
+	ldap/servers/slapd/objset.c ldap/servers/slapd/operation.c \
+	ldap/servers/slapd/opshared.c \
 	ldap/servers/slapd/pagedresults.c ldap/servers/slapd/pblock.c \
 	ldap/servers/slapd/plugin.c ldap/servers/slapd/plugin_acl.c \
 	ldap/servers/slapd/plugin_internal_op.c \
@@ -553,7 +552,7 @@ am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/ssl.c ldap/servers/slapd/str2filter.c \
 	ldap/servers/slapd/subentry.c ldap/servers/slapd/task.c \
 	ldap/servers/slapd/time.c ldap/servers/slapd/uniqueid.c \
-	ldap/servers/slapd/uniqueidgen.c \
+	ldap/servers/slapd/uniqueidgen.c ldap/servers/slapd/utf8.c \
 	ldap/servers/slapd/utf8compare.c ldap/servers/slapd/util.c \
 	ldap/servers/slapd/uuid.c ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
@@ -599,6 +598,7 @@ am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-generation.lo \
 	ldap/servers/slapd/libslapd_la-getfilelist.lo \
 	ldap/servers/slapd/libslapd_la-index_subsystem.lo \
+	ldap/servers/slapd/libslapd_la-ldaputil.lo \
 	ldap/servers/slapd/libslapd_la-lenstr.lo \
 	ldap/servers/slapd/libslapd_la-libglobs.lo \
 	ldap/servers/slapd/libslapd_la-localhost.lo \
@@ -645,6 +645,7 @@ am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-time.lo \
 	ldap/servers/slapd/libslapd_la-uniqueid.lo \
 	ldap/servers/slapd/libslapd_la-uniqueidgen.lo \
+	ldap/servers/slapd/libslapd_la-utf8.lo \
 	ldap/servers/slapd/libslapd_la-utf8compare.lo \
 	ldap/servers/slapd/libslapd_la-util.lo \
 	ldap/servers/slapd/libslapd_la-uuid.lo \
@@ -1104,7 +1105,12 @@ nspr_libdir = @nspr_libdir@
 nss_inc = @nss_inc@
 nss_lib = @nss_lib@
 nss_libdir = @nss_libdir@
+ol_libver = @ol_libver@
 oldincludedir = @oldincludedir@
+openldap_bindir = @openldap_bindir@
+openldap_inc = @openldap_inc@
+openldap_lib = @openldap_lib@
+openldap_libdir = @openldap_libdir@
 pcre_inc = @pcre_inc@
 pcre_lib = @pcre_lib@
 pcre_libdir = @pcre_libdir@
@@ -1167,7 +1173,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
 
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
-PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 # We need to make sure that libpthread is linked before libc on HP-UX.
 @HPUX_TRUE@AM_LDFLAGS = -lpthread
 
@@ -1176,7 +1182,8 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
-LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
+@OPENLDAP_FALSE@LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
+@OPENLDAP_TRUE@LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ -lldif@ol_libver@ -llber@ol_libver@
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
 SVRCORE_LINK = @svrcore_lib@ -lsvrcore
@@ -1464,10 +1471,9 @@ libldaputil_a_SOURCES = lib/ldaputil/cert.c \
 	lib/ldaputil/errors.c \
 	lib/ldaputil/init.c \
 	lib/ldaputil/ldapauth.c \
-	lib/ldaputil/ldapdb.c \
 	lib/ldaputil/vtable.c
 
-libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+libldaputil_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1494,7 +1500,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/libaccess/lasip.cpp \
 	lib/libaccess/lastod.cpp \
 	lib/libaccess/lasuser.cpp \
-	lib/libaccess/ldapacl.cpp \
 	lib/libaccess/method.cpp \
 	lib/libaccess/nseframe.cpp \
 	lib/libaccess/nsautherr.cpp \
@@ -1530,7 +1535,7 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/libsi18n/txtfile.c \
 	$(libldaputil_a_SOURCES)
 
-libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
@@ -1558,13 +1563,14 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/generation.c \
 	ldap/servers/slapd/getfilelist.c \
 	ldap/servers/slapd/index_subsystem.c \
-	ldap/servers/slapd/lenstr.c ldap/servers/slapd/libglobs.c \
-	ldap/servers/slapd/localhost.c ldap/servers/slapd/log.c \
-	ldap/servers/slapd/mapping_tree.c ldap/servers/slapd/match.c \
-	ldap/servers/slapd/modify.c ldap/servers/slapd/modrdn.c \
-	ldap/servers/slapd/modutil.c ldap/servers/slapd/ntuserpin.c \
-	ldap/servers/slapd/object.c ldap/servers/slapd/objset.c \
-	ldap/servers/slapd/operation.c ldap/servers/slapd/opshared.c \
+	ldap/servers/slapd/ldaputil.c ldap/servers/slapd/lenstr.c \
+	ldap/servers/slapd/libglobs.c ldap/servers/slapd/localhost.c \
+	ldap/servers/slapd/log.c ldap/servers/slapd/mapping_tree.c \
+	ldap/servers/slapd/match.c ldap/servers/slapd/modify.c \
+	ldap/servers/slapd/modrdn.c ldap/servers/slapd/modutil.c \
+	ldap/servers/slapd/ntuserpin.c ldap/servers/slapd/object.c \
+	ldap/servers/slapd/objset.c ldap/servers/slapd/operation.c \
+	ldap/servers/slapd/opshared.c \
 	ldap/servers/slapd/pagedresults.c ldap/servers/slapd/pblock.c \
 	ldap/servers/slapd/plugin.c ldap/servers/slapd/plugin_acl.c \
 	ldap/servers/slapd/plugin_internal_op.c \
@@ -1584,7 +1590,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/ssl.c ldap/servers/slapd/str2filter.c \
 	ldap/servers/slapd/subentry.c ldap/servers/slapd/task.c \
 	ldap/servers/slapd/time.c ldap/servers/slapd/uniqueid.c \
-	ldap/servers/slapd/uniqueidgen.c \
+	ldap/servers/slapd/uniqueidgen.c ldap/servers/slapd/utf8.c \
 	ldap/servers/slapd/utf8compare.c ldap/servers/slapd/util.c \
 	ldap/servers/slapd/uuid.c ldap/servers/slapd/value.c \
 	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
@@ -2011,7 +2017,7 @@ infadd_bin_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
 	ldap/servers/slapd/tools/rsearch/infadd.c \
 	ldap/servers/slapd/tools/rsearch/nametable.c
 
-infadd_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+infadd_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 infadd_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 #------------------------
@@ -2021,7 +2027,7 @@ ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/snmp/ldap-agent.c \
 	ldap/servers/slapd/agtmmap.c
 
-ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 ldap_agent_bin_LDADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) \
 	$(NSPR_LINK) $(NETSNMP_LINK) $(am__append_2)
 
@@ -2040,28 +2046,28 @@ ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/utils.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c $(am__append_3)
-ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools @ldapsdk_inc@ @sasl_inc@ @nss_inc@ @nspr_inc@
+ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools @openldap_inc@ @ldapsdk_inc@ @sasl_inc@ @nss_inc@ @nspr_inc@
 ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL)
 
 #------------------------
 # ldif
 #------------------------
 ldif_bin_SOURCES = ldap/servers/slapd/tools/ldif.c
-ldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+ldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # migratecred
 #------------------------
 migratecred_bin_SOURCES = ldap/servers/slapd/tools/migratecred.c
-migratecred_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+migratecred_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # mmldif
 #------------------------
 mmldif_bin_SOURCES = ldap/servers/slapd/tools/mmldif.c
-mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
@@ -2106,7 +2112,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/unbind.c \
 	$(GETSOCKETPEER)
 
-ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @ldapsdk_inc@ @nss_inc@ \
+ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ \
 	@nspr_inc@ @svrcore_inc@ @pcre_inc@
 
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
@@ -2121,7 +2127,7 @@ ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 # pwdhash
 #------------------------
 pwdhash_bin_SOURCES = ldap/servers/slapd/tools/pwenc.c
-pwdhash_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+pwdhash_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 pwdhash_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
@@ -2132,7 +2138,7 @@ rsearch_bin_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
 	ldap/servers/slapd/tools/rsearch/sdattable.c \
 	ldap/servers/slapd/tools/rsearch/searchthread.c
 
-rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+rsearch_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 @BUNDLE_FALSE@fixupcmd = sed \
 @BUNDLE_FALSE@	-e 's,@bindir\@,$(bindir),g' \
@@ -2342,9 +2348,6 @@ lib/ldaputil/libldaputil_a-init.$(OBJEXT):  \
 	lib/ldaputil/$(am__dirstamp) \
 	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
 lib/ldaputil/libldaputil_a-ldapauth.$(OBJEXT):  \
-	lib/ldaputil/$(am__dirstamp) \
-	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
-lib/ldaputil/libldaputil_a-ldapdb.$(OBJEXT):  \
 	lib/ldaputil/$(am__dirstamp) \
 	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
 lib/ldaputil/libldaputil_a-vtable.$(OBJEXT):  \
@@ -2917,9 +2920,6 @@ lib/libaccess/libns_dshttpd_la-lastod.lo:  \
 lib/libaccess/libns_dshttpd_la-lasuser.lo:  \
 	lib/libaccess/$(am__dirstamp) \
 	lib/libaccess/$(DEPDIR)/$(am__dirstamp)
-lib/libaccess/libns_dshttpd_la-ldapacl.lo:  \
-	lib/libaccess/$(am__dirstamp) \
-	lib/libaccess/$(DEPDIR)/$(am__dirstamp)
 lib/libaccess/libns_dshttpd_la-method.lo:  \
 	lib/libaccess/$(am__dirstamp) \
 	lib/libaccess/$(DEPDIR)/$(am__dirstamp)
@@ -3033,8 +3033,6 @@ lib/ldaputil/libns_dshttpd_la-init.lo: lib/ldaputil/$(am__dirstamp) \
 	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
 lib/ldaputil/libns_dshttpd_la-ldapauth.lo:  \
 	lib/ldaputil/$(am__dirstamp) \
-	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
-lib/ldaputil/libns_dshttpd_la-ldapdb.lo: lib/ldaputil/$(am__dirstamp) \
 	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
 lib/ldaputil/libns_dshttpd_la-vtable.lo: lib/ldaputil/$(am__dirstamp) \
 	lib/ldaputil/$(DEPDIR)/$(am__dirstamp)
@@ -3481,6 +3479,9 @@ ldap/servers/slapd/libslapd_la-getfilelist.lo:  \
 ldap/servers/slapd/libslapd_la-index_subsystem.lo:  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/libslapd_la-ldaputil.lo:  \
+	ldap/servers/slapd/$(am__dirstamp) \
+	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/libslapd_la-lenstr.lo:  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
@@ -3617,6 +3618,9 @@ ldap/servers/slapd/libslapd_la-uniqueid.lo:  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/libslapd_la-uniqueidgen.lo:  \
+	ldap/servers/slapd/$(am__dirstamp) \
+	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/libslapd_la-utf8.lo:  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/libslapd_la-utf8compare.lo:  \
@@ -4626,6 +4630,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/libslapd_la-getfilelist.lo
 	-rm -f ldap/servers/slapd/libslapd_la-index_subsystem.$(OBJEXT)
 	-rm -f ldap/servers/slapd/libslapd_la-index_subsystem.lo
+	-rm -f ldap/servers/slapd/libslapd_la-ldaputil.$(OBJEXT)
+	-rm -f ldap/servers/slapd/libslapd_la-ldaputil.lo
 	-rm -f ldap/servers/slapd/libslapd_la-lenstr.$(OBJEXT)
 	-rm -f ldap/servers/slapd/libslapd_la-lenstr.lo
 	-rm -f ldap/servers/slapd/libslapd_la-libglobs.$(OBJEXT)
@@ -4720,6 +4726,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/libslapd_la-uniqueid.lo
 	-rm -f ldap/servers/slapd/libslapd_la-uniqueidgen.$(OBJEXT)
 	-rm -f ldap/servers/slapd/libslapd_la-uniqueidgen.lo
+	-rm -f ldap/servers/slapd/libslapd_la-utf8.$(OBJEXT)
+	-rm -f ldap/servers/slapd/libslapd_la-utf8.lo
 	-rm -f ldap/servers/slapd/libslapd_la-utf8compare.$(OBJEXT)
 	-rm -f ldap/servers/slapd/libslapd_la-utf8compare.lo
 	-rm -f ldap/servers/slapd/libslapd_la-util.$(OBJEXT)
@@ -4834,7 +4842,6 @@ mostlyclean-compile:
 	-rm -f lib/ldaputil/libldaputil_a-errors.$(OBJEXT)
 	-rm -f lib/ldaputil/libldaputil_a-init.$(OBJEXT)
 	-rm -f lib/ldaputil/libldaputil_a-ldapauth.$(OBJEXT)
-	-rm -f lib/ldaputil/libldaputil_a-ldapdb.$(OBJEXT)
 	-rm -f lib/ldaputil/libldaputil_a-vtable.$(OBJEXT)
 	-rm -f lib/ldaputil/libns_dshttpd_la-cert.$(OBJEXT)
 	-rm -f lib/ldaputil/libns_dshttpd_la-cert.lo
@@ -4850,8 +4857,6 @@ mostlyclean-compile:
 	-rm -f lib/ldaputil/libns_dshttpd_la-init.lo
 	-rm -f lib/ldaputil/libns_dshttpd_la-ldapauth.$(OBJEXT)
 	-rm -f lib/ldaputil/libns_dshttpd_la-ldapauth.lo
-	-rm -f lib/ldaputil/libns_dshttpd_la-ldapdb.$(OBJEXT)
-	-rm -f lib/ldaputil/libns_dshttpd_la-ldapdb.lo
 	-rm -f lib/ldaputil/libns_dshttpd_la-vtable.$(OBJEXT)
 	-rm -f lib/ldaputil/libns_dshttpd_la-vtable.lo
 	-rm -f lib/libaccess/libns_dshttpd_la-access_plhash.$(OBJEXT)
@@ -4886,8 +4891,6 @@ mostlyclean-compile:
 	-rm -f lib/libaccess/libns_dshttpd_la-lastod.lo
 	-rm -f lib/libaccess/libns_dshttpd_la-lasuser.$(OBJEXT)
 	-rm -f lib/libaccess/libns_dshttpd_la-lasuser.lo
-	-rm -f lib/libaccess/libns_dshttpd_la-ldapacl.$(OBJEXT)
-	-rm -f lib/libaccess/libns_dshttpd_la-ldapacl.lo
 	-rm -f lib/libaccess/libns_dshttpd_la-method.$(OBJEXT)
 	-rm -f lib/libaccess/libns_dshttpd_la-method.lo
 	-rm -f lib/libaccess/libns_dshttpd_la-nsautherr.$(OBJEXT)
@@ -5123,6 +5126,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-generation.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-getfilelist.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-index_subsystem.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-ldaputil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-lenstr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-libglobs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-localhost.Plo@am__quote@
@@ -5170,6 +5174,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-time.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-uniqueid.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-uniqueidgen.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-utf8.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-utf8compare.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-uuid.Plo@am__quote@
@@ -5321,7 +5326,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libldaputil_a-errors.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libldaputil_a-init.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapauth.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libldaputil_a-vtable.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-cert.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-certmap.Plo@am__quote@
@@ -5330,7 +5334,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-errors.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-init.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-ldapauth.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-ldapdb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-vtable.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-access_plhash.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-acl.tab.Plo@am__quote@
@@ -5348,7 +5351,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-lasip.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-lastod.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-lasuser.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-ldapacl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-method.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-nsautherr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libaccess/$(DEPDIR)/libns_dshttpd_la-nseframe.Plo@am__quote@
@@ -5520,20 +5522,6 @@ lib/ldaputil/libldaputil_a-ldapauth.obj: lib/ldaputil/ldapauth.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/ldaputil/ldapauth.c' object='lib/ldaputil/libldaputil_a-ldapauth.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libldaputil_a-ldapauth.obj `if test -f 'lib/ldaputil/ldapauth.c'; then $(CYGPATH_W) 'lib/ldaputil/ldapauth.c'; else $(CYGPATH_W) '$(srcdir)/lib/ldaputil/ldapauth.c'; fi`
-
-lib/ldaputil/libldaputil_a-ldapdb.o: lib/ldaputil/ldapdb.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/ldaputil/libldaputil_a-ldapdb.o -MD -MP -MF lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Tpo -c -o lib/ldaputil/libldaputil_a-ldapdb.o `test -f 'lib/ldaputil/ldapdb.c' || echo '$(srcdir)/'`lib/ldaputil/ldapdb.c
-@am__fastdepCC_TRUE@	mv -f lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Tpo lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/ldaputil/ldapdb.c' object='lib/ldaputil/libldaputil_a-ldapdb.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libldaputil_a-ldapdb.o `test -f 'lib/ldaputil/ldapdb.c' || echo '$(srcdir)/'`lib/ldaputil/ldapdb.c
-
-lib/ldaputil/libldaputil_a-ldapdb.obj: lib/ldaputil/ldapdb.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/ldaputil/libldaputil_a-ldapdb.obj -MD -MP -MF lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Tpo -c -o lib/ldaputil/libldaputil_a-ldapdb.obj `if test -f 'lib/ldaputil/ldapdb.c'; then $(CYGPATH_W) 'lib/ldaputil/ldapdb.c'; else $(CYGPATH_W) '$(srcdir)/lib/ldaputil/ldapdb.c'; fi`
-@am__fastdepCC_TRUE@	mv -f lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Tpo lib/ldaputil/$(DEPDIR)/libldaputil_a-ldapdb.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/ldaputil/ldapdb.c' object='lib/ldaputil/libldaputil_a-ldapdb.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libldaputil_a-ldapdb.obj `if test -f 'lib/ldaputil/ldapdb.c'; then $(CYGPATH_W) 'lib/ldaputil/ldapdb.c'; else $(CYGPATH_W) '$(srcdir)/lib/ldaputil/ldapdb.c'; fi`
 
 lib/ldaputil/libldaputil_a-vtable.o: lib/ldaputil/vtable.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libldaputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/ldaputil/libldaputil_a-vtable.o -MD -MP -MF lib/ldaputil/$(DEPDIR)/libldaputil_a-vtable.Tpo -c -o lib/ldaputil/libldaputil_a-vtable.o `test -f 'lib/ldaputil/vtable.c' || echo '$(srcdir)/'`lib/ldaputil/vtable.c
@@ -6473,13 +6461,6 @@ lib/ldaputil/libns_dshttpd_la-ldapauth.lo: lib/ldaputil/ldapauth.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libns_dshttpd_la-ldapauth.lo `test -f 'lib/ldaputil/ldapauth.c' || echo '$(srcdir)/'`lib/ldaputil/ldapauth.c
 
-lib/ldaputil/libns_dshttpd_la-ldapdb.lo: lib/ldaputil/ldapdb.c
-@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/ldaputil/libns_dshttpd_la-ldapdb.lo -MD -MP -MF lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-ldapdb.Tpo -c -o lib/ldaputil/libns_dshttpd_la-ldapdb.lo `test -f 'lib/ldaputil/ldapdb.c' || echo '$(srcdir)/'`lib/ldaputil/ldapdb.c
-@am__fastdepCC_TRUE@	mv -f lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-ldapdb.Tpo lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-ldapdb.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/ldaputil/ldapdb.c' object='lib/ldaputil/libns_dshttpd_la-ldapdb.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/ldaputil/libns_dshttpd_la-ldapdb.lo `test -f 'lib/ldaputil/ldapdb.c' || echo '$(srcdir)/'`lib/ldaputil/ldapdb.c
-
 lib/ldaputil/libns_dshttpd_la-vtable.lo: lib/ldaputil/vtable.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/ldaputil/libns_dshttpd_la-vtable.lo -MD -MP -MF lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-vtable.Tpo -c -o lib/ldaputil/libns_dshttpd_la-vtable.lo `test -f 'lib/ldaputil/vtable.c' || echo '$(srcdir)/'`lib/ldaputil/vtable.c
 @am__fastdepCC_TRUE@	mv -f lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-vtable.Tpo lib/ldaputil/$(DEPDIR)/libns_dshttpd_la-vtable.Plo
@@ -7334,6 +7315,13 @@ ldap/servers/slapd/libslapd_la-index_subsystem.lo: ldap/servers/slapd/index_subs
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/libslapd_la-index_subsystem.lo `test -f 'ldap/servers/slapd/index_subsystem.c' || echo '$(srcdir)/'`ldap/servers/slapd/index_subsystem.c
 
+ldap/servers/slapd/libslapd_la-ldaputil.lo: ldap/servers/slapd/ldaputil.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/libslapd_la-ldaputil.lo -MD -MP -MF ldap/servers/slapd/$(DEPDIR)/libslapd_la-ldaputil.Tpo -c -o ldap/servers/slapd/libslapd_la-ldaputil.lo `test -f 'ldap/servers/slapd/ldaputil.c' || echo '$(srcdir)/'`ldap/servers/slapd/ldaputil.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/slapd/$(DEPDIR)/libslapd_la-ldaputil.Tpo ldap/servers/slapd/$(DEPDIR)/libslapd_la-ldaputil.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/ldaputil.c' object='ldap/servers/slapd/libslapd_la-ldaputil.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/libslapd_la-ldaputil.lo `test -f 'ldap/servers/slapd/ldaputil.c' || echo '$(srcdir)/'`ldap/servers/slapd/ldaputil.c
+
 ldap/servers/slapd/libslapd_la-lenstr.lo: ldap/servers/slapd/lenstr.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/libslapd_la-lenstr.lo -MD -MP -MF ldap/servers/slapd/$(DEPDIR)/libslapd_la-lenstr.Tpo -c -o ldap/servers/slapd/libslapd_la-lenstr.lo `test -f 'ldap/servers/slapd/lenstr.c' || echo '$(srcdir)/'`ldap/servers/slapd/lenstr.c
 @am__fastdepCC_TRUE@	mv -f ldap/servers/slapd/$(DEPDIR)/libslapd_la-lenstr.Tpo ldap/servers/slapd/$(DEPDIR)/libslapd_la-lenstr.Plo
@@ -7655,6 +7643,13 @@ ldap/servers/slapd/libslapd_la-uniqueidgen.lo: ldap/servers/slapd/uniqueidgen.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/uniqueidgen.c' object='ldap/servers/slapd/libslapd_la-uniqueidgen.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/libslapd_la-uniqueidgen.lo `test -f 'ldap/servers/slapd/uniqueidgen.c' || echo '$(srcdir)/'`ldap/servers/slapd/uniqueidgen.c
+
+ldap/servers/slapd/libslapd_la-utf8.lo: ldap/servers/slapd/utf8.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/libslapd_la-utf8.lo -MD -MP -MF ldap/servers/slapd/$(DEPDIR)/libslapd_la-utf8.Tpo -c -o ldap/servers/slapd/libslapd_la-utf8.lo `test -f 'ldap/servers/slapd/utf8.c' || echo '$(srcdir)/'`ldap/servers/slapd/utf8.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/slapd/$(DEPDIR)/libslapd_la-utf8.Tpo ldap/servers/slapd/$(DEPDIR)/libslapd_la-utf8.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/utf8.c' object='ldap/servers/slapd/libslapd_la-utf8.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/libslapd_la-utf8.lo `test -f 'ldap/servers/slapd/utf8.c' || echo '$(srcdir)/'`ldap/servers/slapd/utf8.c
 
 ldap/servers/slapd/libslapd_la-utf8compare.lo: ldap/servers/slapd/utf8compare.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/libslapd_la-utf8compare.lo -MD -MP -MF ldap/servers/slapd/$(DEPDIR)/libslapd_la-utf8compare.Tpo -c -o ldap/servers/slapd/libslapd_la-utf8compare.lo `test -f 'ldap/servers/slapd/utf8compare.c' || echo '$(srcdir)/'`ldap/servers/slapd/utf8compare.c
@@ -8834,13 +8829,6 @@ lib/libaccess/libns_dshttpd_la-lasuser.lo: lib/libaccess/lasuser.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='lib/libaccess/lasuser.cpp' object='lib/libaccess/libns_dshttpd_la-lasuser.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o lib/libaccess/libns_dshttpd_la-lasuser.lo `test -f 'lib/libaccess/lasuser.cpp' || echo '$(srcdir)/'`lib/libaccess/lasuser.cpp
-
-lib/libaccess/libns_dshttpd_la-ldapacl.lo: lib/libaccess/ldapacl.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT lib/libaccess/libns_dshttpd_la-ldapacl.lo -MD -MP -MF lib/libaccess/$(DEPDIR)/libns_dshttpd_la-ldapacl.Tpo -c -o lib/libaccess/libns_dshttpd_la-ldapacl.lo `test -f 'lib/libaccess/ldapacl.cpp' || echo '$(srcdir)/'`lib/libaccess/ldapacl.cpp
-@am__fastdepCXX_TRUE@	mv -f lib/libaccess/$(DEPDIR)/libns_dshttpd_la-ldapacl.Tpo lib/libaccess/$(DEPDIR)/libns_dshttpd_la-ldapacl.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='lib/libaccess/ldapacl.cpp' object='lib/libaccess/libns_dshttpd_la-ldapacl.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o lib/libaccess/libns_dshttpd_la-ldapacl.lo `test -f 'lib/libaccess/ldapacl.cpp' || echo '$(srcdir)/'`lib/libaccess/ldapacl.cpp
 
 lib/libaccess/libns_dshttpd_la-method.lo: lib/libaccess/method.cpp
 @am__fastdepCXX_TRUE@	$(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT lib/libaccess/libns_dshttpd_la-method.lo -MD -MP -MF lib/libaccess/$(DEPDIR)/libns_dshttpd_la-method.Tpo -c -o lib/libaccess/libns_dshttpd_la-method.lo `test -f 'lib/libaccess/method.cpp' || echo '$(srcdir)/'`lib/libaccess/method.cpp

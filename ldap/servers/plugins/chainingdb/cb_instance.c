@@ -714,15 +714,16 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 	char 			*url = (char *) value;
         LDAPURLDesc         	*ludp=NULL;
 	int 			rc=LDAP_SUCCESS;
+	int			secure = 0;
 
- 	if (( rc = ldap_url_parse( url, &ludp )) != 0 ) {
-		PL_strncpyz(errorbuf,cb_urlparse_err2string( rc ), SLAPI_DSE_RETURNTEXT_SIZE);
+ 	if (( rc = slapi_ldap_url_parse( url, &ludp, 0, &secure )) != 0 ) {
+		PL_strncpyz(errorbuf,slapi_urlparse_err2string( rc ), SLAPI_DSE_RETURNTEXT_SIZE);
 		if (CB_CONFIG_PHASE_INITIALIZATION == phase)
 			inst->pool->url=slapi_ch_strdup("");
 		return(LDAP_INVALID_SYNTAX);
 	}
  
-	if (ludp && (ludp->lud_options & LDAP_URL_OPT_SECURE) && inst && inst->rwl_config_lock) {
+	if (ludp && secure && inst && inst->rwl_config_lock) {
 		int isgss = 0;
 		PR_RWLock_Rlock(inst->rwl_config_lock);
 		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
@@ -768,7 +769,7 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
                		inst->pool->hostname = slapi_ch_strdup( ludp->lud_host );
 		}
                	inst->pool->url = slapi_ch_strdup( url);
-               	inst->pool->secure = (( ludp->lud_options & LDAP_URL_OPT_SECURE ) != 0 );
+               	inst->pool->secure = secure;
 
 		if ((ludp->lud_port==0) && inst->pool->secure)
 			inst->pool->port=CB_LDAP_SECURE_PORT;

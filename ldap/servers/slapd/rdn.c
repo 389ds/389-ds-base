@@ -96,7 +96,7 @@ slapi_rdn_init_dn(Slapi_RDN *rdn,const char *dn)
 		if(dns!=NULL)
 		{
 			rdn->rdn= slapi_ch_strdup(dns[0]);
-	    	ldap_value_free(dns);
+	    	slapi_ldap_value_free(dns);
 		}
 	}
 }
@@ -151,7 +151,7 @@ slapi_rdn_get_rdns(Slapi_RDN *rdn)
 	{
 		if(rdn->rdns!=NULL)
 		{
-		    ldap_value_free(rdn->rdns);
+		    slapi_ldap_value_free(rdn->rdns);
 			rdn->rdns= NULL;
 		}
 		if(rdn->rdn!=NULL)
@@ -182,7 +182,7 @@ slapi_rdn_done(Slapi_RDN *rdn)
 	if(rdn!=NULL)
 	{
 	    slapi_ch_free((void**)&(rdn->rdn));
-	    ldap_value_free(rdn->rdns);
+	    slapi_ldap_value_free(rdn->rdns);
 		slapi_rdn_init(rdn);
 	}
 }

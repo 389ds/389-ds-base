@@ -418,7 +418,7 @@ get_filter_list( Connection *conn, BerElement *ber,
 	struct slapi_filter	**new;
 	int		err;
 	ber_tag_t	tag;
-	ber_len_t	len;
+	ber_len_t	len = -1;
 	char		*last;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_filter_list\n", 0, 0, 0 );
@@ -447,10 +447,16 @@ get_filter_list( Connection *conn, BerElement *ber,
 			slapi_ch_free((void**)&ftmp );
 		}
 		new = &(*new)->f_next;
+		len = -1;
 	}
 	*new = NULL;
 
-	if ( tag == LBER_ERROR && *fstr != NULL ) {
+	/* openldap does not return LBER_END_OF_SEQORSET -
+	   so check for len == -1 - openldap ber_next_element will not set
+	   len if it has reached the end, and -1 is not a valid value
+	   for a real len */
+	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) && (*fstr != NULL) ) {
+		LDAPDebug( LDAP_DEBUG_ANY, "   error parsing filter list\n", 0, 0, 0 );
 		slapi_ch_free((void**)fstr );
 	}
 
@@ -467,7 +473,7 @@ get_substring_filter(
 )
 {
 	ber_tag_t	tag, rc;
-	ber_len_t	len;
+	ber_len_t	len = -1;
 	char		*val, *last, *type = NULL;
 	char		ebuf[BUFSIZ];
 
@@ -489,6 +495,7 @@ get_substring_filter(
 	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
 	    tag = ber_next_element( ber, &len, last ) )
 	{
+        len = -1; /* reset - not used in loop */
         val = NULL;
 		rc = ber_scanf( ber, "a", &val );
 		if ( rc == LBER_ERROR ) {
@@ -547,7 +554,8 @@ get_substring_filter(
 		}
 	}
 
-	if ( tag == LBER_ERROR ) {
+	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) ) {
+		LDAPDebug( LDAP_DEBUG_ANY, "  error reading substring filter\n", 0, 0, 0 );
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	if ( f->f_sub_initial == NULL && f->f_sub_any == NULL &&
@@ -571,7 +579,7 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 {
 	int		gotelem, gotoid, gotvalue;
 	ber_tag_t	tag;
-	ber_len_t	len;
+	ber_len_t	len = -1;
 	char		*last;
 	int		rc = LDAP_SUCCESS;
 
@@ -589,6 +597,7 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 		 *
 		 * where either oid or type is required.
 		 */
+		len = -1; /* reset - not used in loop */
 		switch ( tag ) {
 		case LDAP_TAG_MRA_OID:
 			if ( gotelem != 0 ) {
@@ -645,7 +654,7 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 		}
 	}
 
-	if ( tag == LBER_ERROR ) {
+	if ( (tag != LBER_ERROR) && (len != -1) ) {
 		goto parsing_error;
 	}
 

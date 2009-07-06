@@ -61,7 +61,6 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include "ldap.h"
-#include "ldif.h"
 #include "../slapi-plugin.h"
 #include "../slap.h"
 #include <nspr.h>

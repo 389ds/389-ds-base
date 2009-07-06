@@ -74,7 +74,7 @@ ssha_rand_array(void *randx, size_t len)
 }
 
 SECStatus
-sha_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt, unsigned int secOID)
+sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID)
 {
     PK11Context *ctx;
     unsigned int outLen;
@@ -108,7 +108,7 @@ sha_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt, unsigne
             PK11_DigestBegin(ctx);
             PK11_DigestOp(ctx, (unsigned char*)pwd, strlen(pwd));
             PK11_DigestOp(ctx, (unsigned char*)(salt->bv_val), salt->bv_len);
-            PK11_DigestFinal(ctx, hash_out, &outLen, shaLen);
+            PK11_DigestFinal(ctx, (unsigned char*)hash_out, &outLen, shaLen);
             PK11_DestroyContext(ctx, 1);
             if (outLen == shaLen)
                 rc = SECSuccess;
@@ -118,17 +118,17 @@ sha_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt, unsigne
     }
     else {
         /*backward compatibility*/
-        rc = PK11_HashBuf(secOID, hash_out, (unsigned char *)pwd, strlen(pwd));
+        rc = PK11_HashBuf(secOID, (unsigned char*)hash_out, (unsigned char *)pwd, strlen(pwd));
     }
                                                                                                                             
     return rc;
 }
 
 char *
-salted_sha_pw_enc( char *pwd, unsigned int shaLen )
+salted_sha_pw_enc( const char *pwd, unsigned int shaLen )
 {
-    unsigned char hash[ MAX_SHA_HASH_SIZE + SHA_SALT_LENGTH ];
-    unsigned char *salt = hash + shaLen;
+    char hash[ MAX_SHA_HASH_SIZE + SHA_SALT_LENGTH ];
+    char *salt = hash + shaLen;
     struct berval saltval;
     char *enc;
     char *schemeName;
@@ -184,8 +184,7 @@ salted_sha_pw_enc( char *pwd, unsigned int shaLen )
                                                                                                                             
     sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName,
         PWD_HASH_PREFIX_END );
-    (void)ldif_base64_encode( hash, enc + 2 + schemeNameLen,
-        (shaLen + SHA_SALT_LENGTH), -1 );
+    (void)PL_Base64Encode( hash, (shaLen + SHA_SALT_LENGTH), enc + 2 + schemeNameLen );
                                                                                                                             
     return( enc );
 }
@@ -194,25 +193,25 @@ salted_sha_pw_enc( char *pwd, unsigned int shaLen )
  * Wrapper functions for password encoding
  */
 char *
-salted_sha1_pw_enc( char *pwd )
+salted_sha1_pw_enc( const char *pwd )
 {
     return salted_sha_pw_enc( pwd, SHA1_LENGTH );
 }
 
 char *
-salted_sha256_pw_enc( char *pwd )
+salted_sha256_pw_enc( const char *pwd )
 {
     return salted_sha_pw_enc( pwd, SHA256_LENGTH );
 }
 
 char *
-salted_sha384_pw_enc( char *pwd )
+salted_sha384_pw_enc( const char *pwd )
 {
     return salted_sha_pw_enc( pwd, SHA384_LENGTH );
 }
 
 char *
-salted_sha512_pw_enc( char *pwd )
+salted_sha512_pw_enc( const char *pwd )
 {
     return salted_sha_pw_enc( pwd, SHA512_LENGTH );
 }

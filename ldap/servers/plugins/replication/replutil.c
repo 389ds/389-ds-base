@@ -381,9 +381,9 @@ make_changes_string(LDAPMod **ldm, char **includeattrs)
 		    ldm[ i ]->mod_bvalues[ j ]->bv_len ) + 1;
 	    buf = slapi_ch_malloc( len );
 	    bufp = buf;
-	    ldif_put_type_and_value( &bufp, ldm[ i ]->mod_type,
+	    slapi_ldif_put_type_and_value_with_options( &bufp, ldm[ i ]->mod_type,
 		    ldm[ i ]->mod_bvalues[ j ]->bv_val,
-		    ldm[ i ]->mod_bvalues[ j ]->bv_len );
+		    ldm[ i ]->mod_bvalues[ j ]->bv_len, 0 );
 	    *bufp = '\0';
 
 	    addlenstr( l, buf );
@@ -739,10 +739,10 @@ repl_set_mtn_state_and_referrals(
 
 	/* next, add the repl root dn to each referral if not present */
 	for (ii = 0; referrals_to_set && referrals_to_set[ii]; ++ii) {
-		struct ldap_url_desc *lud = NULL;
-		int myrc = ldap_url_parse(referrals_to_set[ii], &lud);
+		LDAPURLDesc *lud = NULL;
+		int myrc = slapi_ldap_url_parse(referrals_to_set[ii], &lud, 0, NULL);
 		/* see if the dn is already in the referral URL */
-		if (myrc == LDAP_URL_ERR_NODN || !lud || !lud->lud_dn) {
+		if (!lud || !lud->lud_dn) {
 			/* add the dn */
 			int len = strlen(referrals_to_set[ii]);
 			const char *cdn = slapi_sdn_get_dn(repl_root_sdn);

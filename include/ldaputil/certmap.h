@@ -150,11 +150,6 @@ NSAPI_PUBLIC void *ldapu_realloc (void *ptr, int size);
 NSAPI_PUBLIC void ldapu_free (void *ptr);
 
 
-NSAPI_PUBLIC int ldapu_string_set (const int type, const char *filter);
-
-
-NSAPI_PUBLIC const char *ldapu_string_get (const int type);
-
 NSAPI_PUBLIC int ldaputil_exit ();
 
 #ifdef __cplusplus

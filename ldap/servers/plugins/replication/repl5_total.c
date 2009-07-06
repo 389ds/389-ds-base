@@ -472,7 +472,7 @@ static int
 my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 {
 	struct berval *attrval = NULL;
-	ber_len_t len;
+	ber_len_t len = -1;
 	ber_tag_t tag;
 	CSN *csn = NULL;
 	char csnstring[CSN_STRSIZE + 1];

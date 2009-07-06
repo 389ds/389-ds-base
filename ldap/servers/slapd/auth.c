@@ -83,7 +83,7 @@ slapu_search_s( LDAP* ld, const char* baseDN, int scope, const char* filter,
     LDAPControl **ctrls;
 
     if (ld != internal_ld) {
-	return ldap_search_s (ld, baseDN, scope, filter, attrs, attrsonly, result);
+	return ldap_search_ext_s (ld, baseDN, scope, filter, attrs, attrsonly, NULL, NULL, NULL, -1, result);
     }
     LDAPDebug (LDAP_DEBUG_TRACE, "=> slapu_search_s (\"%s\", %i, %s)\n",
 	       baseDN, scope, filter);
@@ -240,7 +240,7 @@ static void LDAP_CALL LDAP_CALLBACK
 slapu_ber_free( LDAP* ld, BerElement* iter, int freebuf )
 {
     if (ld != internal_ld) {
-	ldap_ber_free (iter, freebuf);
+	ber_free (iter, freebuf);
     } else {
 	free ((Slapi_Attr**)iter);
     }

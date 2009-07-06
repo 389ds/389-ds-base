@@ -67,20 +67,21 @@ static char *plugin_name = "NSPwdStoragePlugin";
  */
 
 int
-sha_pw_cmp (char *userpwd, char *dbpwd, unsigned int shaLen )
+sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
 {
     /*
      * SHA passwords are stored in the database as shaLen bytes of
      * hash, followed by zero or more bytes of salt, all BASE64 encoded.
      */
     int result = 1; /* failure */
-    unsigned char userhash[MAX_SHA_HASH_SIZE];
-    unsigned char quick_dbhash[MAX_SHA_HASH_SIZE + SHA_SALT_LENGTH + 3];
-    unsigned char *dbhash = quick_dbhash;
+    char userhash[MAX_SHA_HASH_SIZE];
+    char quick_dbhash[MAX_SHA_HASH_SIZE + SHA_SALT_LENGTH + 3];
+    char *dbhash = quick_dbhash;
     struct berval salt;
     int hash_len;   /* must be a signed valued -- see below */
     unsigned int secOID;
     char *schemeName;
+    char *hashresult = NULL;
                                                                                                                             
     /* Determine which algorithm we're using */
     switch (shaLen) {
@@ -107,24 +108,20 @@ sha_pw_cmp (char *userpwd, char *dbpwd, unsigned int shaLen )
 
     /*
      * Decode hash stored in database.
-     *
-     * Note that ldif_base64_decode() returns a value less than zero to
-     * indicate that a decoding error occurred, so it is critical that
-     * hash_len be a signed value.
      */
-    hash_len = (((strlen(dbpwd) + 3) / 4) * 3); /* maybe less */
+    hash_len = (strlen(dbpwd) * 3) / 4; /* includes the trailing = if any */
     if ( hash_len > sizeof(quick_dbhash) ) { /* get more space: */
-        dbhash = (unsigned char*) slapi_ch_malloc( hash_len );
+        dbhash = (char*) slapi_ch_malloc( hash_len );
         if ( dbhash == NULL ) goto loser;
     }
-    hash_len = ldif_base64_decode( dbpwd, dbhash );
-    if (hash_len < 0) {
+    hashresult = PL_Base64Decode( dbpwd, 0, dbhash );
+    if (NULL == hashresult) {
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
         goto loser;
     } else if ( hash_len >= shaLen ) {
         salt.bv_val = (void*)(dbhash + shaLen);
-        salt.bv_len = hash_len - shaLen;
-    } else if ( hash_len == DS40B1_SALTED_SHA_LENGTH ) {
+        salt.bv_len = SHA_SALT_LENGTH;
+    } else if ( hash_len >= DS40B1_SALTED_SHA_LENGTH ) {
         salt.bv_val = (void*)dbhash;
         salt.bv_len = 8;
     } else { /* unsupported, invalid BASE64 (hash_len < 0), or similar */
@@ -139,19 +136,19 @@ sha_pw_cmp (char *userpwd, char *dbpwd, unsigned int shaLen )
     }
                                                                                                                             
     /* the proof is in the comparison... */
-    result = ( hash_len == DS40B1_SALTED_SHA_LENGTH ) ?
-         ( memcmp( userhash, dbhash + 8, hash_len - 8 )) :
-         ( memcmp( userhash, dbhash, shaLen ));
+    result = ( hash_len >= shaLen ) ?
+        ( memcmp( userhash, dbhash, shaLen )) : /* include salt */
+        ( memcmp( userhash, dbhash + 8, hash_len - 8 )); /* exclude salt */
                                                                                                                             
     loser:
-    if ( dbhash && dbhash != quick_dbhash ) slapi_ch_free( (void**)&dbhash );
+    if ( dbhash && dbhash != quick_dbhash ) slapi_ch_free_string( &dbhash );
     return result;
 }
 
 char *
-sha_pw_enc( char *pwd, unsigned int shaLen )
+sha_pw_enc( const char *pwd, unsigned int shaLen )
 {
-    unsigned char   hash[MAX_SHA_HASH_SIZE];
+    char   hash[MAX_SHA_HASH_SIZE];
     char        *enc;
     char *schemeName;
     unsigned int schemeNameLen;
@@ -196,8 +193,7 @@ sha_pw_enc( char *pwd, unsigned int shaLen )
                                                                                                                             
     sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName,
         PWD_HASH_PREFIX_END );
-    (void)ldif_base64_encode( hash, enc + 2 + schemeNameLen,
-        shaLen, -1 );
+    (void)PL_Base64Encode( hash, shaLen, enc + 2 + schemeNameLen );
                                                                                                                             
     return( enc );
 }
@@ -206,25 +202,25 @@ sha_pw_enc( char *pwd, unsigned int shaLen )
  * Wrapper password comparison functions
  */
 int
-sha1_pw_cmp (char *userpwd, char *dbpwd )
+sha1_pw_cmp (const char *userpwd, const char *dbpwd )
 {
     return sha_pw_cmp( userpwd, dbpwd, SHA1_LENGTH );
 }
 
 int
-sha256_pw_cmp (char *userpwd, char *dbpwd )
+sha256_pw_cmp (const char *userpwd, const char *dbpwd )
 {
     return sha_pw_cmp( userpwd, dbpwd, SHA256_LENGTH );
 }
 
 int
-sha384_pw_cmp (char *userpwd, char *dbpwd )
+sha384_pw_cmp (const char *userpwd, const char *dbpwd )
 {
     return sha_pw_cmp( userpwd, dbpwd, SHA384_LENGTH );
 }
 
 int
-sha512_pw_cmp (char *userpwd, char *dbpwd )
+sha512_pw_cmp (const char *userpwd, const char *dbpwd )
 {
     return sha_pw_cmp( userpwd, dbpwd, SHA512_LENGTH );
 } 
@@ -233,25 +229,25 @@ sha512_pw_cmp (char *userpwd, char *dbpwd )
  * Wrapper password encryption functions
  */
 char *
-sha1_pw_enc( char *pwd )
+sha1_pw_enc( const char *pwd )
 {
     return sha_pw_enc( pwd, SHA1_LENGTH );
 }
 
 char *
-sha256_pw_enc( char *pwd )
+sha256_pw_enc( const char *pwd )
 {
     return sha_pw_enc( pwd, SHA256_LENGTH );
 }
 
 char *
-sha384_pw_enc( char *pwd )
+sha384_pw_enc( const char *pwd )
 {
     return sha_pw_enc( pwd, SHA384_LENGTH );
 }
 
 char *
-sha512_pw_enc( char *pwd )
+sha512_pw_enc( const char *pwd )
 {
     return sha_pw_enc( pwd, SHA512_LENGTH );
 }

@@ -158,7 +158,7 @@ passthru_simple_bind_once_s( PassThruServer *srvr, char *dn,
 	/*
 	 * Some other error occurred (no result received).
 	 */
-	rc = ldap_get_lderrno( ld, matcheddnp, errmsgp );
+	rc = slapi_ldap_get_lderrno( ld, matcheddnp, errmsgp );
     } else {
 	/*
 	 * Got a result from remote server -- parse it.
@@ -167,7 +167,7 @@ passthru_simple_bind_once_s( PassThruServer *srvr, char *dn,
 		&referrals, resctrlsp, 1 );
 	if ( referrals != NULL ) {
 	    *refurlsp = passthru_strs2bervals( referrals );
-	    ldap_value_free( referrals );
+	    slapi_ldap_value_free( referrals );
 	}
     }
 

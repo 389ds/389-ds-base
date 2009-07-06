@@ -51,7 +51,6 @@
 #include <libaccess/aclglobal.h>
 #include <libaccess/usrcache.h>
 #include <libaccess/las.h>
-#include <libaccess/ldapacl.h>
 #include "aclutil.h"
 #include "permhash.h"
 #include "aclcache.h"
@@ -565,8 +564,6 @@ ACL_Init(void)
     ACL_ListHashInit();
     ACL_LasHashInit();
     ACL_Init2();
-    init_ldb_rwlock();
-    ACL_RegisterInit();
 
     return 0;
 }
@@ -587,11 +584,6 @@ ACL_Init2(void)
 #ifdef MCC_ADMSERV
     ACL_LasRegister(NULL, "program", LASProgramEval, (LASFlushFunc_t)NULL);
 #endif
-
-    ACL_AttrGetterRegister(NULL, ACL_ATTR_USERDN,
-			   get_userdn_ldap,
-			   ACL_METHOD_ANY, ACL_DBTYPE_ANY,
-			   ACL_AT_END, NULL);
     return;
 }
 

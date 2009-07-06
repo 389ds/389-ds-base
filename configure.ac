@@ -428,6 +428,9 @@ AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
 # Check for library dependencies
 m4_include(m4/nspr.m4)
 m4_include(m4/nss.m4)
+# default to Mozilla LDAP C SDK - override with --with-openldap
+with_ldapsdk=yes
+m4_include(m4/openldap.m4)
 m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)
 m4_include(m4/sasl.m4)
@@ -447,6 +450,8 @@ else
   sasl_path="$sasl_libdir/sasl2"
 fi
 
+AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
+
 # write out paths for binary components
 AC_SUBST(nspr_inc)
 AC_SUBST(nspr_lib)
@@ -458,6 +463,11 @@ AC_SUBST(ldapsdk_inc)
 AC_SUBST(ldapsdk_lib)
 AC_SUBST(ldapsdk_libdir)
 AC_SUBST(ldapsdk_bindir)
+AC_SUBST(openldap_inc)
+AC_SUBST(openldap_lib)
+AC_SUBST(openldap_libdir)
+AC_SUBST(openldap_bindir)
+AC_SUBST(ol_libver)
 AC_SUBST(db_inc)
 AC_SUBST(db_incdir)
 AC_SUBST(db_lib)

@@ -800,8 +800,6 @@ void charray_free( char **array );
 int charray_inlist( char **a, char *s );
 int charray_utf8_inlist( char **a, char *s );
 char ** charray_dup( char **a );
-char ** str2charray( char *str, char *brkstr );
-char ** str2charray_ext( char *str, char *brkstr, int allow_dups );
 int charray_remove(char **a, const char *s, int freeit);
 char ** cool_charray_dup( char **a );
 void cool_charray_free( char **array );

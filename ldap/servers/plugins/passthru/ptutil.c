@@ -116,33 +116,3 @@ passthru_free_bervals( struct berval **bvs )
     }
     slapi_ch_free( (void **)&bvs );
 }
-
-
-char *
-passthru_urlparse_err2string( int err )
-{
-    char	*s;
-
-    switch( err ) {
-    case 0:
-	s = "no error";
-	break;
-    case LDAP_URL_ERR_NOTLDAP:
-	s = "missing ldap:// or ldaps://";
-	break;
-    case LDAP_URL_ERR_NODN:
-	s = "missing suffix";
-	break;
-    case LDAP_URL_ERR_BADSCOPE:
-	s = "invalid search scope";
-	break;
-    case LDAP_URL_ERR_MEM:
-	s = "unable to allocate memory";
-	break;
-    case LDAP_URL_ERR_PARAM:
-	s = "bad parameter to an LDAP URL function";
-	break;
-    }
-
-    return( s );
-}

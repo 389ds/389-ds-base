@@ -129,18 +129,143 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 
 /*
  * filter types
+ * openldap defines these, but not mozldap
  */
+#ifndef LDAP_FILTER_AND
 #define LDAP_FILTER_AND		0xa0L
+#endif
+#ifndef LDAP_FILTER_OR
 #define LDAP_FILTER_OR		0xa1L
+#endif
+#ifndef LDAP_FILTER_NOT
 #define LDAP_FILTER_NOT		0xa2L
+#endif
+#ifndef LDAP_FILTER_EQUALITY
 #define LDAP_FILTER_EQUALITY	0xa3L
+#endif
+#ifndef LDAP_FILTER_SUBSTRINGS
 #define LDAP_FILTER_SUBSTRINGS	0xa4L
+#endif
+#ifndef LDAP_FILTER_GE
 #define LDAP_FILTER_GE		0xa5L
+#endif
+#ifndef LDAP_FILTER_LE
 #define LDAP_FILTER_LE		0xa6L
+#endif
+#ifndef LDAP_FILTER_PRESENT
 #define LDAP_FILTER_PRESENT	0x87L
+#endif
+#ifndef LDAP_FILTER_APPROX
 #define LDAP_FILTER_APPROX	0xa8L
-#define LDAP_FILTER_EXTENDED	0xa9L
+#endif
 
+#ifndef LDAP_FILTER_EXTENDED
+#ifdef LDAP_FILTER_EXT
+#define LDAP_FILTER_EXTENDED	LDAP_FILTER_EXT
+#else
+#define LDAP_FILTER_EXTENDED 0xa9L
+#endif
+#endif
+
+#ifndef LBER_END_OF_SEQORSET
+#define LBER_END_OF_SEQORSET    ((ber_tag_t) -2) /* 0xfffffffeU */
+#endif
+
+#ifndef LDAP_CHANGETYPE_ADD
+#ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_ADD
+#define LDAP_CHANGETYPE_ADD LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_ADD
+#else
+#define LDAP_CHANGETYPE_ADD             1
+#endif
+#endif
+#ifndef LDAP_CHANGETYPE_DELETE
+#ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_DELETE
+#define LDAP_CHANGETYPE_DELETE LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_DELETE
+#else
+#define LDAP_CHANGETYPE_DELETE          2
+#endif
+#endif
+#ifndef LDAP_CHANGETYPE_MODIFY
+#ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_MODIFY
+#define LDAP_CHANGETYPE_MODIFY LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_MODIFY
+#else
+#define LDAP_CHANGETYPE_MODIFY          4
+#endif
+#endif
+#ifndef LDAP_CHANGETYPE_MODDN
+#ifdef LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_RENAME
+#define LDAP_CHANGETYPE_MODDN LDAP_CONTROL_PERSSIT_ENTRY_CHANGE_RENAME
+#else
+#define LDAP_CHANGETYPE_MODDN           8
+#endif
+#endif
+#ifndef LDAP_CHANGETYPE_ANY
+#define LDAP_CHANGETYPE_ANY             (1|2|4|8)
+#endif
+
+#ifndef LDAP_CONTROL_PERSISTENTSEARCH
+#ifdef LDAP_CONTROL_PERSIST_REQUEST
+#define LDAP_CONTROL_PERSISTENTSEARCH LDAP_CONTROL_PERSIST_REQUEST
+#else
+#define LDAP_CONTROL_PERSISTENTSEARCH   "2.16.840.1.113730.3.4.3"
+#endif
+#endif
+#ifndef LDAP_CONTROL_ENTRYCHANGE
+#ifdef LDAP_CONTROL_PERSIST_ENTRY_CHANGE_NOTICE
+#define LDAP_CONTROL_ENTRYCHANGE LDAP_CONTROL_PERSIST_ENTRY_CHANGE_NOTICE
+#else
+#define LDAP_CONTROL_ENTRYCHANGE        "2.16.840.1.113730.3.4.7"
+#endif
+#endif
+
+#ifndef LDAP_CONTROL_PWEXPIRED
+#define LDAP_CONTROL_PWEXPIRED          "2.16.840.1.113730.3.4.4"
+#endif
+#ifndef LDAP_CONTROL_PWEXPIRING
+#define LDAP_CONTROL_PWEXPIRING         "2.16.840.1.113730.3.4.5"
+#endif
+#ifndef LDAP_X_CONTROL_PWPOLICY_REQUEST
+#ifdef LDAP_CONTROL_PASSWORDPOLICYREQUEST
+#define LDAP_X_CONTROL_PWPOLICY_REQUEST LDAP_CONTROL_PASSWORDPOLICYREQUEST
+#else
+#define LDAP_X_CONTROL_PWPOLICY_REQUEST "1.3.6.1.4.1.42.2.27.8.5.1"
+#endif
+#endif
+#ifndef LDAP_X_CONTROL_PWPOLICY_RESPONSE
+#ifdef LDAP_CONTROL_PASSWORDPOLICYRESPONSE
+#define LDAP_X_CONTROL_PWPOLICY_RESPONSE LDAP_CONTROL_PASSWORDPOLICYRESPONSE
+#else
+#define LDAP_X_CONTROL_PWPOLICY_RESPONSE "1.3.6.1.4.1.42.2.27.8.5.1"
+#endif
+#endif
+
+#ifndef LDAP_CONTROL_PROXYAUTH
+#define LDAP_CONTROL_PROXYAUTH "2.16.840.1.113730.3.4.12" /* version 1 */
+#endif
+#ifndef LDAP_CONTROL_PROXIEDAUTH
+#ifdef LDAP_CONTROL_PROXY_AUTHZ
+#define LDAP_CONTROL_PROXIEDAUTH LDAP_CONTROL_PROXY_AUTHZ
+#else
+#define LDAP_CONTROL_PROXIEDAUTH        "2.16.840.1.113730.3.4.18" /* version 2 */
+#endif
+#endif
+
+#ifndef LDAP_CONTROL_AUTH_REQUEST
+#define LDAP_CONTROL_AUTH_REQUEST	"2.16.840.1.113730.3.4.16"
+#endif
+
+#ifndef LDAP_SORT_CONTROL_MISSING
+#define LDAP_SORT_CONTROL_MISSING       0x3C    /* 60 (server side sort extn) */
+#endif
+
+#ifndef LDAP_INDEX_RANGE_ERROR
+#define LDAP_INDEX_RANGE_ERROR          0x3D    /* 61 (VLV extn) */
+#endif
+
+/* openldap does not use this */
+#ifndef LBER_OVERFLOW
+#define LBER_OVERFLOW           ((ber_tag_t) -3) /* 0xfffffffdU */
+#endif
 
 /*
  * Sequential access types
@@ -3399,6 +3524,98 @@ int slapi_re_subs( Slapi_Regex *re_handle, const char *subject, const char *src,
  * \return nothing
  */
 void slapi_re_free(Slapi_Regex *re_handle);
+
+/* wrap non-portable LDAP API functions */
+void slapi_ldap_value_free(char **vals);
+int slapi_ldap_count_values(char **vals);
+int slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *secure);
+const char *slapi_urlparse_err2string(int err);
+int slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s);
+#ifndef LDIF_OPT_NOWRAP
+#define LDIF_OPT_NOWRAP			0x01UL
+#endif
+#ifndef LDIF_OPT_VALUE_IS_URL
+#define LDIF_OPT_VALUE_IS_URL		0x02UL
+#endif
+#ifndef LDIF_OPT_MINIMAL_ENCODING
+#define LDIF_OPT_MINIMAL_ENCODING	0x04UL
+#endif
+void slapi_ldif_put_type_and_value_with_options( char **out, const char *t, const char *val, int vlen, unsigned long options );
+
+#if defined(USE_OPENLDAP)
+/*
+ * UTF-8 routines (should these move into libnls?)
+ */
+/* number of bytes in character */
+int ldap_utf8len( const char* );
+/* find next character */
+char *ldap_utf8next( char* );
+/* find previous character */
+char *ldap_utf8prev( char* );
+/* copy one character */
+int ldap_utf8copy( char* dst, const char* src );
+/* total number of characters */
+size_t ldap_utf8characters( const char* );
+/* get one UCS-4 character, and move *src to the next character */
+unsigned long ldap_utf8getcc( const char** src );
+/* UTF-8 aware strtok_r() */
+char *ldap_utf8strtok_r( char* src, const char* brk, char** next);
+
+/* like isalnum(*s) in the C locale */
+int ldap_utf8isalnum( char* s );
+/* like isalpha(*s) in the C locale */
+int ldap_utf8isalpha( char* s );
+/* like isdigit(*s) in the C locale */
+int ldap_utf8isdigit( char* s );
+/* like isxdigit(*s) in the C locale */
+int ldap_utf8isxdigit(char* s );
+/* like isspace(*s) in the C locale */
+int ldap_utf8isspace( char* s );
+
+#define LDAP_UTF8LEN(s)  ((0x80 & *(unsigned char*)(s)) ?   ldap_utf8len (s) : 1)
+#define LDAP_UTF8NEXT(s) ((0x80 & *(unsigned char*)(s)) ?   ldap_utf8next(s) : ( s)+1)
+#define LDAP_UTF8INC(s)  ((0x80 & *(unsigned char*)(s)) ? s=ldap_utf8next(s) : ++s)
+
+#define LDAP_UTF8PREV(s)   ldap_utf8prev(s)
+#define LDAP_UTF8DEC(s) (s=ldap_utf8prev(s))
+
+#define LDAP_UTF8COPY(d,s) ((0x80 & *(unsigned char*)(s)) ? ldap_utf8copy(d,s) : ((*(d) = *(s)), 1))
+#define LDAP_UTF8GETCC(s) ((0x80 & *(unsigned char*)(s)) ? ldap_utf8getcc (&s) : *s++)
+#define LDAP_UTF8GETC(s) ((0x80 & *(unsigned char*)(s)) ? ldap_utf8getcc ((const char**)&s) : *s++)
+#endif /* USE_OPENLDAP */
+
+/* by default will allow dups */
+char **slapi_str2charray( char *str, char *brkstr );
+/*
+ * extended version of str2charray lets you disallow
+ * duplicate values into the array.
+ */
+char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
+
+#ifndef LDAP_PORT_MAX
+#define LDAP_PORT_MAX           65535           /* API extension */
+#endif
+
+#ifndef LDAP_ALL_USER_ATTRS
+#ifdef LDAP_ALL_USER_ATTRIBUTES
+#define LDAP_ALL_USER_ATTRS LDAP_ALL_USER_ATTRIBUTES
+#else
+#define LDAP_ALL_USER_ATTRS "*"
+#endif
+#endif
+
+#ifndef LDAP_SASL_EXTERNAL
+#define LDAP_SASL_EXTERNAL      "EXTERNAL"      /* TLS/SSL extension */
+#endif
+
+#ifndef LBER_SOCKET
+#ifdef LBER_SOCKET_T
+#define LBER_SOCKET LBER_SOCKET_T
+#else
+#define LBER_SOCKET int
+#endif
+#endif
+
 
 #ifdef __cplusplus
 }

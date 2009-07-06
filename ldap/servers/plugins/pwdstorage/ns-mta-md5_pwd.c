@@ -77,7 +77,7 @@ ns_mta_hexify(char *buffer, char *str, int len)
 }
 
 static char *
-ns_mta_hash_alg(char *buffer, char *salt, char *passwd)
+ns_mta_hash_alg(char *buffer, char *salt, const char *passwd)
 {
   mta_MD5_CTX context;
   char *saltstr;
@@ -102,7 +102,7 @@ ns_mta_hash_alg(char *buffer, char *salt, char *passwd)
 }
 
 int
-ns_mta_md5_pw_cmp(char * clear, char *mangled)
+ns_mta_md5_pw_cmp(const char * clear, const char *mangled)
 {
   char mta_hash[33];
   char mta_salt[33];

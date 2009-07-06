@@ -55,7 +55,6 @@
 #include "aclpriv.h"
 #include <libaccess/aclproto.h>
 #include <libaccess/aclglobal.h>
-#include <libaccess/ldapacl.h>
 #include "aclcache.h"
 #include <libaccess/dbtlibaccess.h>
 #include <libaccess/aclerror.h>
@@ -843,16 +842,3 @@ ACL_AttrGetterNext(ACLAttrGetterList_t *getters, ACLAttrGetter_t *last)
 
     return next;
 }
-    
-int
-ACL_RegisterInit ()
-{
-    NSErr_t *errp = 0;
-    int rv;
-
-    /* Register the ldap database */
-    rv = ACL_DbTypeRegister(errp, ACL_DBTYPE_LDAP, parse_ldap_url, &ACL_DbTypeLdap);
-
-    return rv;
-}
-

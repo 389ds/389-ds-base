@@ -682,7 +682,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
         LDAPDebug(LDAP_DEBUG_TRACE, "sasl library mechs: %s\n", str, 0, 0);
         /* merge into result set */
         dupstr = slapi_ch_strdup(str);
-        others = str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
+        others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
         charray_merge(&ret, others, 1);
         charray_free(others);
         slapi_ch_free((void**)&dupstr);
@@ -722,7 +722,7 @@ ids_sasl_mech_supported(Slapi_PBlock *pb, sasl_conn_t *sasl_conn, const char *me
   }
 
   dupstr = slapi_ch_strdup(str);
-  mechs = str2charray(dupstr, ",");
+  mechs = slapi_str2charray(dupstr, ",");
 
   for (i = 0; mechs[i] != NULL; i++) {
     if (strcasecmp(mech, mechs[i]) == 0) {

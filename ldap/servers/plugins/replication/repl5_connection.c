@@ -52,8 +52,14 @@ replica locked. Seems like right thing to do.
 */
 
 #include "repl5.h"
+#if defined(USE_OPENLDAP)
+#include "ldap.h"
+#else
 #include "ldappr.h"
 #include "ldap-extension.h"
+#endif
+#include "nspr.h"
+#include "private/pprio.h"
 #include "nss.h"
 
 typedef struct repl_connection
@@ -365,7 +371,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 			if (0 == rc)
 			{
 				/* Timeout */
-				rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+				rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
 				conn->last_ldap_error = LDAP_TIMEOUT;
 				return_value = CONN_TIMEOUT;
 			}
@@ -383,7 +389,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				/* Error */
 				char *s = NULL;
 
-				rc = ldap_get_lderrno(conn->ld, NULL, &s);
+				rc = slapi_ldap_get_lderrno(conn->ld, NULL, &s);
 				conn->last_ldap_errmsg = s;
 				conn->last_ldap_error = rc;
 				/* some errors will require a disconnect and retry the connection
@@ -485,6 +491,61 @@ conn_read_result(Repl_Connection *conn, int *message_id)
  * on the same connection), we need to _first_ verify that the connection
  * is writable. If it isn't, we can deadlock if we proceed any further...
  */
+#if defined(USE_OPENLDAP)
+/* openldap has LBER_SB_OPT_DATA_READY but that doesn't really
+   work for our purposes - so we grab the openldap fd from the
+   ber sockbuf layer, import it into a PR Poll FD, then
+   do the poll
+*/
+static ConnResult
+see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
+{
+	PRFileDesc *pollfd = NULL;
+	PRPollDesc polldesc;
+	ber_socket_t fd = 0;
+	int rc;
+
+	/* get the sockbuf */
+	ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd);
+	if (fd <= 0) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"%s: invalid connection insee_if_write_available \n",
+						agmt_get_long_name(conn->agmt));
+		conn->last_ldap_error = LDAP_PARAM_ERROR;
+		return CONN_OPERATION_FAILED;
+	}
+	/* wrap the sockbuf fd with a NSPR FD created especially
+	   for use with polling, and only with polling */
+	pollfd = PR_CreateSocketPollFd(fd);
+	polldesc.fd = pollfd;
+	polldesc.in_flags = PR_POLL_WRITE|PR_POLL_EXCEPT;
+	polldesc.out_flags = 0;
+
+	/* do the poll */
+	rc = PR_Poll(&polldesc, 1, timeout);
+
+	/* unwrap the socket */
+	PR_DestroySocketPollFd(pollfd);
+
+	/* check */
+	if (rc == 0) { /* timeout */
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: poll timed out - poll interval [%d]\n",
+						agmt_get_long_name(conn->agmt),
+						timeout);
+		return CONN_TIMEOUT;
+	} else if ((rc < 0) || ((polldesc.out_flags|PR_POLL_WRITE) == 0)) { /* error */
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: error during poll attempt [%d:%s]\n",
+						agmt_get_long_name(conn->agmt),
+						PR_GetError(), slapd_pr_strerror(PR_GetError()));
+		conn->last_ldap_error = LDAP_PARAM_ERROR;
+		return CONN_OPERATION_FAILED;
+	}
+
+	return CONN_OPERATION_SUCCESS;
+}
+#else /* ! USE_OPENLDAP */
 /* Since we're poking around with ldap c sdk internals, we have to
    be careful since the PR layer stores different session and socket
    info than the NSS SSL layer than the SASL layer - and they all
@@ -504,7 +565,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	memset(&iofns, 0, sizeof(iofns));
 	iofns.lextiof_size = LDAP_X_EXTIO_FNS_SIZE;
 	if (ldap_get_option(conn->ld, LDAP_X_OPT_EXTIO_FN_PTRS, &iofns) < 0) {
-		rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Failed call to ldap_get_option to get extiofns in "
 						"see_if_write_available: LDAP error %d (%s)\n",
@@ -517,7 +578,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 
 	/* set up the poll structure */
 	if (ldap_get_option(conn->ld, LDAP_OPT_DESC, &pollstr.lpoll_fd) < 0) {
-		rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Failed call to ldap_get_option for poll_fd in "
 						"see_if_write_available: LDAP error %d (%s)\n",
@@ -529,7 +590,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 
 	if (ldap_get_option(conn->ld, LDAP_X_OPT_SOCKETARG,
 						&pollstr.lpoll_socketarg) < 0) {
-		rc = ldap_get_lderrno(conn->ld, NULL, NULL);
+		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Failed call to ldap_get_option for socketarg in "
 						"see_if_write_available: LDAP error %d (%s)\n",
@@ -553,6 +614,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 
 	return CONN_OPERATION_SUCCESS;
 }
+#endif /* ! USE_OPENLDAP */
 
 /*
  * Common code to send an LDAPv3 operation and collect the result.
@@ -1010,7 +1072,9 @@ conn_connect(Repl_Connection *conn)
 	}
 
 	if (return_value == CONN_OPERATION_SUCCESS) {
+#if !defined(USE_OPENLDAP)
 		int io_timeout_ms;
+#endif
 		/* Now we initialize the LDAP Structure and set options */
 		
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1055,10 +1119,13 @@ conn_connect(Repl_Connection *conn)
 		ldap_set_option(conn->ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
 
 		/* override the default timeout with the specified timeout */
+#if defined(USE_OPENLDAP)
+		ldap_set_option(conn->ld, LDAP_OPT_NETWORK_TIMEOUT, &conn->timeout);
+#else
 		io_timeout_ms = conn->timeout.tv_sec * 1000 + conn->timeout.tv_usec / 1000;
 		prldap_set_session_option(conn->ld, NULL, PRLDAP_OPT_IO_MAX_TIMEOUT,
 								  io_timeout_ms);
-
+#endif
 		/* We've got an ld. Now bind to the server. */
 		conn->last_operation = CONN_BIND;
 		
@@ -1066,7 +1133,7 @@ conn_connect(Repl_Connection *conn)
 
 	if ( bind_and_check_pwp(conn, binddn, conn->plain) == CONN_OPERATION_FAILED )
 	{
-		conn->last_ldap_error = ldap_get_lderrno (conn->ld, NULL, NULL);
+		conn->last_ldap_error = slapi_ldap_get_lderrno (conn->ld, NULL, NULL);
 		conn->state = STATE_DISCONNECTED;
 		return_value = CONN_OPERATION_FAILED;
 	}
@@ -1308,36 +1375,38 @@ attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type,
 	const char *value)
 {
 	int return_value = 0;
+	ber_len_t vallen;
 
 	if (NULL != entry)
 	{
 		char *atype = NULL;
 		BerElement *ber = NULL;
 
+		vallen = strlen(value);
 		atype = ldap_first_attribute(ld, entry, &ber);
 		while (NULL != atype && 0 == return_value)
 		{
 			if (strcasecmp(atype, type) == 0)
 			{
-				char **strvals = ldap_get_values(ld, entry, atype);
+				struct berval **vals = ldap_get_values_len(ld, entry, atype);
 				int i;
-				for (i = 0; return_value == 0 && NULL != strvals && NULL != strvals[i]; i++)
+				for (i = 0; return_value == 0 && NULL != vals && NULL != vals[i]; i++)
 				{
-					if (strcmp(strvals[i], value) == 0)
+					if ((vallen == vals[i]->bv_len) && !strncmp(vals[i]->bv_val, value, vallen))
 					{
 						return_value = 1;
 					}
 				}
-				if (NULL != strvals)
+				if (NULL != vals)
 				{
-					ldap_value_free(strvals);
+					ldap_value_free_len(vals);
 				}
 			}
 			ldap_memfree(atype);
 			atype = ldap_next_attribute(ld, entry, ber);
 		}
 		if (NULL != ber)
-			ldap_ber_free(ber, 0);
+			ber_free(ber, 0);
 		/* The last atype has not been freed yet */
 		if (NULL != atype)
 			ldap_memfree(atype);
@@ -1659,7 +1728,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			char *errmsg = NULL;
 			conn->last_ldap_error = rc;
 			/* errmsg is a pointer directly into the ld structure - do not free */
-			rc = ldap_get_lderrno( ld, NULL, &errmsg );
+			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 							agmt_get_long_name(conn->agmt),

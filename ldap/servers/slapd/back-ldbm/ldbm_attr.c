@@ -44,8 +44,6 @@
 
 #include "back-ldbm.h"
 
-extern char	**str2charray();
-
 struct attrinfo *
 attrinfo_new()
 {
@@ -186,11 +184,11 @@ attr_index_config(
 	char    *p;
 	int *substrlens = NULL;
 
-	attrs = str2charray( argv[0], "," );
+	attrs = slapi_str2charray( argv[0], "," );
 	if ( argc > 1 ) {
-		indexes = str2charray( argv[1], "," );
+		indexes = slapi_str2charray( argv[1], "," );
 		if ( argc > 2 ) {
-			index_rules = str2charray( argv[2], "," );
+			index_rules = slapi_str2charray( argv[2], "," );
 		}
 	}
 	for ( i = 0; attrs[i] != NULL; i++ ) {

@@ -128,6 +128,8 @@ static int readsignalpipe = SLAPD_INVALID_SOCKET;
 
 #define FDS_SIGNAL_PIPE 0
 
+
+
 static int get_configured_connection_table_size();
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 static void get_loopback_by_addr( void );
@@ -1652,104 +1654,17 @@ slapd_poll( void *handle, int output )
     return rc;
 }
 
-/* The following 4 functions each read or write count bytes from or to
- * a socket handle.  If all goes well, they return the same count;
- * otherwise they return -1 and PR_GetError() explains the problem.
- * Revision: handle changed to struct lextiof_socket_private * and first
- * argument which used to be handle is now ignored.
- */
-int
-read_function( int ignore, void *buffer, int count, struct lextiof_socket_private *handle )
-{
-    int  gotbytes = 0;
-    int     bytes;
-    int ioblock_timeout = config_get_ioblocktimeout();
-    PRIntervalTime pr_timeout = PR_MillisecondsToInterval(ioblock_timeout);
-    int fd = PR_FileDesc2NativeHandle((PRFileDesc *)handle);
-
-    if (handle == SLAPD_INVALID_SOCKET) {
-        PR_SetError(PR_NOT_SOCKET_ERROR, EBADF);
-    } else {
-        while (1) {
-            bytes = PR_Recv( (PRFileDesc *)handle, (char *)buffer + gotbytes, 
-                             count - gotbytes, 0, pr_timeout );
-            if (bytes > 0) {
-                gotbytes += bytes;
-            } else if (bytes < 0) {
-                PRErrorCode prerr = PR_GetError();
-
-#ifdef _WIN32
-                /* we need to do this because on NT, once an I/O
-                   times out on an NSPR socket, that socket must
-                   be closed before any other I/O can happen in
-                   this thread.
-                */
-                if (prerr == PR_IO_TIMEOUT_ERROR) {
-                    Connection *conn = connection_table_get_connection_from_fd(the_connection_table,(PRFileDesc *)handle);
-                    if (conn == NULL)
-                        return -1;
-
-                    disconnect_server (conn, conn->c_connid, -1, SLAPD_DISCONNECT_NTSSL_TIMEOUT, 0);
-                    /* Disconnect_server just tells the poll thread that the 
-                     * socket should be closed.  We'll sleep 2 seconds here to 
-                     * to make sure that the poll thread has time to run 
-                     * and close this socket. */
-                    DS_Sleep(PR_SecondsToInterval(2));
-				
-                    LDAPDebug(LDAP_DEBUG_CONNS, "PR_Recv(%d) "
-                              SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                              fd, prerr, slapd_pr_strerror(prerr));
-
-                    return -1;
-                }
-#endif
-
-                LDAPDebug(LDAP_DEBUG_CONNS,
-                          "PR_Recv(%d) error %d (%s)\n",
-                          fd, prerr, slapd_pr_strerror(prerr));
-                if ( !SLAPD_PR_WOULD_BLOCK_ERROR(prerr) ) {
-                    LDAPDebug(LDAP_DEBUG_ANY,
-                              "PR_Recv(%d) error %d (%s)\n",
-                              fd, prerr, slapd_pr_strerror(prerr));
-                    break;		/* fatal error */
-                }
-            } else if (bytes == 0) { /* PR_Recv says bytes == 0 means conn closed */
-                PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_CONNS,
-                          "PR_Recv(%d) - 0 (EOF) %d:%s\n", /* disconnected */
-                          fd, prerr, slapd_pr_strerror(prerr));
-                PR_SetError(PR_PIPE_ERROR, EPIPE);
-                break;
-            } else if (gotbytes < count) {
-                LDAPDebug(LDAP_DEBUG_CONNS,
-                          "PR_Recv(%d) received only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
-                          fd, gotbytes, count);
-                PR_SetError(PR_PIPE_ERROR, EPIPE);
-                break;
-            }
-            if (gotbytes == count) { /* success */
-                return count;
-            } else if (gotbytes > count) { /* too many bytes */
-                LDAPDebug(LDAP_DEBUG_ANY,
-                          "PR_Recv(%d) overflow - received %d bytes (expected %d bytes) - error\n",
-                          fd, gotbytes, count);
-                PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
-                break;
-            } else if (slapd_poll(handle, SLAPD_POLLIN) < 0) { /* error */
-                break;
-            }
-        }
-    }
-    return -1;
-}
-
-
 /*
- * Revision: handle changed to struct lextiof_socket_private * and first
- * argument which used to be handle is now ignored. 
+ * Revision: handle changed to void * and first
+ * argument which used to be integer system fd is now ignored. 
  */
-int
+#if defined(USE_OPENLDAP)
+static int
+write_function( int ignore, void *buffer, int count, void *handle )
+#else
+static int
 write_function( int ignore, const void *buffer, int count, struct lextiof_socket_private *handle )
+#endif
 {
     int  sentbytes = 0;
     int     bytes;
@@ -1804,6 +1719,63 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
     }
     return -1;
 }
+
+#if defined(USE_OPENLDAP)
+/* The argument is a pointer to the socket descriptor */
+static int
+openldap_io_setup(Sockbuf_IO_Desc *sbiod, void *arg)
+{
+	PR_ASSERT(sbiod);
+
+	if (arg != NULL) {
+		sbiod->sbiod_pvt = arg;
+	}
+	return 0;
+}
+
+static ber_slen_t
+openldap_write_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
+{
+	Connection *conn = NULL;
+	PRFileDesc *fd = NULL;
+
+	PR_ASSERT(sbiod);
+	PR_ASSERT(sbiod->sbiod_pvt);
+
+	conn = (Connection *)sbiod->sbiod_pvt;
+
+	PR_ASSERT(conn->c_prfd);
+
+	fd = (PRFileDesc *)conn->c_prfd;
+
+	PR_ASSERT(fd != SLAPD_INVALID_SOCKET);
+
+	return write_function(0, buf, len, fd);
+}
+
+static int
+openldap_io_ctrl(Sockbuf_IO_Desc *sbiod, int opt, void *arg)
+{
+	PR_ASSERT(0); /* not sure if this is needed */
+	return -1;
+}
+
+static int 
+openldap_io_close(Sockbuf_IO_Desc *sbiod)
+{
+	return 0; /* closing done in connection_cleanup() */
+}
+
+static Sockbuf_IO openldap_sockbuf_io = {
+	openldap_io_setup, /* sbi_setup */
+	NULL, /* sbi_remove */
+	openldap_io_ctrl, /* sbi_ctrl */
+	openldap_read_function, /* sbi_read */ /* see connection.c */
+	openldap_write_function, /* sbi_write */
+	openldap_io_close /* sbi_close */
+};
+
+#endif /* USE_OPENLDAP */
 
 
 int connection_type = -1; /* The type number assigned by the Factory for 'Connection' */
@@ -2145,11 +2117,15 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	/* fds[ns].out_flags = 0; */
 #endif
 
+#if defined(USE_OPENLDAP)
+	ber_sockbuf_add_io( conn->c_sb, &openldap_sockbuf_io,
+						LBER_SBIOD_LEVEL_PROVIDER, conn );
+#else /* !USE_OPENLDAP */
     {
 		struct lber_x_ext_io_fns func_pointers;
 		memset(&func_pointers, 0, sizeof(func_pointers));
 		func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
-		func_pointers.lbextiofn_read = read_function;
+		func_pointers.lbextiofn_read = NULL; /* see connection_read_function */
 		func_pointers.lbextiofn_write = write_function;
 		func_pointers.lbextiofn_writev = NULL;
 #ifdef _WIN32
@@ -2160,6 +2136,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		ber_sockbuf_set_option( conn->c_sb,
 			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);	
 	}
+#endif /* !USE_OPENLDAP */
 
 	if( secure && config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) { 
 	    /* Prepare to handle the client's certificate (if any): */

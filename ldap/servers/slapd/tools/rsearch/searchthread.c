@@ -57,6 +57,14 @@
 #include "rsearch.h"
 #include "searchthread.h"
 
+#ifndef LBER_SOCKET
+#ifdef LBER_SOCKET_T
+#define LBER_SOCKET LBER_SOCKET_T
+#else
+#define LBER_SOCKET int
+#endif
+#endif
+
 /* local data for a search thread */
 struct _searchthread {
     PRUint32 searchCount;

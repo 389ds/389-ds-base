@@ -100,12 +100,6 @@ extern int getopt (int argc, char *const *argv, const char *optstring);
 #include <ldaplog.h>
 #include <ldif.h>
 
-#if defined(NET_SSL)
-#include <ldap_ssl.h>
-#endif
-
-#include <ldappr.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -119,7 +113,6 @@ extern "C" {
 
 #define LDAPTOOL_DEFSEP		"="	/* used by ldapcmp and ldapsearch */
 #define LDAPTOOL_DEFHOST	"localhost"
-#define LDAPTOOL_DEFSSLSTRENGTH	LDAPSSL_AUTH_CERT
 #define LDAPTOOL_DEFCERTDBPATH	"."
 #define LDAPTOOL_DEFKEYDBPATH	"."
 #define LDAPTOOL_DEFREFHOPLIMIT		5

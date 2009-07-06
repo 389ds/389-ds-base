@@ -91,8 +91,10 @@ dd/mm/yy | Author	| Comments
 
 #include <lber.h>	/* ldap C-API BER declarations */
 #include <ldap.h>	/* ldap C-API declarations */
+#if !defined(USE_OPENLDAP)
 #include <ldap_ssl.h>	/* ldapssl_init(), etc... */
-
+#endif
+#include <prprf.h>
 #include "port.h"	/* Portability definitions */
 #include "ldclt.h"	/* This tool's include file */
 #include "utils.h"	/* Utilities functions */
@@ -509,8 +511,28 @@ scalab01_connectSuperuser (void)
 {
   int	 ret;				/* Return value */
   int	 v2v3;				/* LDAP version used */
-  char	 bindDN [MAX_DN_LENGTH];	/* To bind */
+  char	 bindDN [MAX_DN_LENGTH] = {0};	/* To bind */
+  const char *mech = LDAP_SASL_SIMPLE;
+  struct berval cred = {0, NULL};
+  struct berval *servercredp = NULL;
+#if defined(USE_OPENLDAP)
+  char *ldapurl = NULL;
+#endif
 
+#if defined(USE_OPENLDAP)
+  ldapurl = PR_smprintf("ldap%s://%s:%d/",
+			(mctx.mode & SSL) ? "s" : "",
+			mctx.hostname, mctx.port);
+  if ((ret = ldap_initialize(&s1ctx.ldapCtx, ldapurl))) {
+    printf ("ldclt[%d]: ctrl: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
+	    mctx.pid, ldapurl, errno, ret, my_ldap_err2string(ret));
+    fflush (stdout);
+    PR_smprintf_free(ldapurl);
+    return (-1);
+  }
+  PR_smprintf_free(ldapurl);
+  ldapurl = NULL;
+#else /* !USE_OPENLDAP */
   /*
    * Create the LDAP context
    */
@@ -571,6 +593,17 @@ scalab01_connectSuperuser (void)
       return (-1);
     }
   }
+#endif /* !USE_OPENLDAP */
+
+  if (mctx.mode & CLTAUTH) {
+    mech = "EXTERNAL";
+  } else {
+    strcpy (bindDN, SCALAB01_SUPER_USER_RDN);
+    strcat (bindDN, ",");
+    strcat (bindDN, mctx.baseDN);
+    cred.bv_val = SCALAB01_SUPER_USER_PASSWORD;
+    cred.bv_len = strlen(cred.bv_val);
+  }
 
   /*
    * Set the LDAP version and other options...
@@ -590,49 +623,21 @@ scalab01_connectSuperuser (void)
   }								/*JLS 14-03-01*/
 
 
-  /*
-   * Now we could bind
-   */
-  /*
-   * for SSL client authentication, SASL BIND is used
-   */
-  if (mctx.mode & CLTAUTH)
+  if (mctx.mode & VERY_VERBOSE)
+    printf ("ldclt[%d]: ctrl: Before bind mech %s (%s , %s)\n",
+	    mctx.pid, mech ? mech : "SIMPLE", bindDN, SCALAB01_SUPER_USER_PASSWORD);
+  ret = ldap_sasl_bind_s (s1ctx.ldapCtx, bindDN, mech, &cred, NULL, NULL, &servercredp);
+  ber_bvfree(servercredp);
+  if (mctx.mode & VERY_VERBOSE)
+    printf ("ldclt[%d]: ctrl: After bind mech %s (%s, %s)\n",
+	    mctx.pid, mech ? mech : "SIMPLE", bindDN, SCALAB01_SUPER_USER_PASSWORD);
+  if (ret != LDAP_SUCCESS)
   {
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: Before ldap_sasl_bind_s\n", mctx.pid);
-    ret = ldap_sasl_bind_s (s1ctx.ldapCtx, "", "EXTERNAL", NULL, NULL, NULL,
-			    NULL);
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: After ldap_sasl_bind_s\n", mctx.pid);
-    if (ret != LDAP_SUCCESS)
-    {
-      printf ("ldclt[%d]: ctrl: Cannot ldap_sasl_bind_s, error=%d (%s)\n",
-		mctx.pid, ret, my_ldap_err2string (ret));
-      fflush (stdout);
-      return (-1);
-    }
-  }
-  else
-  {
-    strcpy (bindDN, SCALAB01_SUPER_USER_RDN);
-    strcat (bindDN, ",");
-    strcat (bindDN, mctx.baseDN);
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: Before ldap_simple_bind_s (%s , %s)\n",
-		mctx.pid, bindDN, SCALAB01_SUPER_USER_PASSWORD);
-    ret = ldap_simple_bind_s (s1ctx.ldapCtx,
-		bindDN, SCALAB01_SUPER_USER_PASSWORD);
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: After ldap_simple_bind_s (%s, %s)\n",
-		mctx.pid, bindDN, SCALAB01_SUPER_USER_PASSWORD);
-    if (ret != LDAP_SUCCESS)
-    {
-      printf("ldclt[%d]: ctrl: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
-		mctx.pid, bindDN, SCALAB01_SUPER_USER_PASSWORD,
-		ret, my_ldap_err2string (ret));
-      fflush (stdout);
-      return (-1);
-    }
+    printf("ldclt[%d]: ctrl: Cannot bind mech %s (%s, %s), error=%d (%s)\n",
+	   mctx.pid, mech ? mech : "SIMPLE", bindDN, SCALAB01_SUPER_USER_PASSWORD,
+	   ret, my_ldap_err2string (ret));
+    fflush (stdout);
+    return (-1);
   }
 
   /*
@@ -676,7 +681,6 @@ readAttrValue (
   LDAPMessage	 *cur;		/* Current message */
   BerElement	 *ber;		/* To decode the response */
   char		 *aname;	/* Current attribute name */
-  char		**vals;		/* Attribute value returned */
   char		 *filter;	/* Filter used for searching */
 
   /*
@@ -686,8 +690,8 @@ readAttrValue (
   attrs[1] = NULL;
   filter = (char *)malloc((4+strlen(attname))*sizeof(char));
   sprintf(filter, "(%s=*)", attname);
-  ret = ldap_search_s (ldapCtx, dn, LDAP_SCOPE_BASE,
-	filter, attrs, 0, &res);
+  ret = ldap_search_ext_s (ldapCtx, dn, LDAP_SCOPE_BASE,
+			   filter, attrs, 0, NULL, NULL, NULL, -1, &res);
   if (filter != NULL) free(filter);
   if (ret != LDAP_SUCCESS)
   {
@@ -712,7 +716,8 @@ readAttrValue (
        */
       if (!strcmp (aname, attname))
       {
-	vals = ldap_get_values (ldapCtx, cur, aname);
+	struct berval **vals;
+	vals = ldap_get_values_len (ldapCtx, cur, aname);
 	if (vals == NULL)
 	{
 	  printf ("ldclt[%d]: %s: no value for %s in %s\n",
@@ -720,8 +725,9 @@ readAttrValue (
 	  fflush (stdout);
 	  return (-1);
 	}
-	strcpy (value, vals[0]);
-	ldap_value_free (vals);
+	strncpy (value, vals[0]->bv_val, vals[0]->bv_len);
+	value[vals[0]->bv_len] = '\0';
+	ldap_value_free_len (vals);
       }
 
       /*
@@ -736,7 +742,7 @@ readAttrValue (
      * Next entry - shouldn't happen in theory
      */
     if (ber != NULL)
-      ldap_ber_free (ber, 0);
+      ber_free (ber, 0);
     cur = ldap_next_entry (ldapCtx, cur);
   }
   ldap_msgfree (res);	/* Free the response */

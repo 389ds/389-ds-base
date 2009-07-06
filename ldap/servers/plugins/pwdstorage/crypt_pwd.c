@@ -79,7 +79,7 @@ crypt_init()
 }
 
 int
-crypt_pw_cmp( char *userpwd, char *dbpwd )
+crypt_pw_cmp( const char *userpwd, const char *dbpwd )
 {
     int rc;
     char *cp;
@@ -96,7 +96,7 @@ crypt_pw_cmp( char *userpwd, char *dbpwd )
 }
 
 char *
-crypt_pw_enc( char *pwd )
+crypt_pw_enc( const char *pwd )
 {
     char *cry, salt[3];
     char *enc= NULL;

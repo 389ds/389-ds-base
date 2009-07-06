@@ -94,7 +94,7 @@ Slapi_Entry * cb_LDAPMessage2Entry(LDAP * ld, LDAPMessage * msg, int attrsonly) 
             }
         }
     if ( NULL != ber )
-        ldap_ber_free( ber, 0 );
+        ber_free( ber, 0 );
 
     return e;
 }
@@ -119,35 +119,6 @@ struct berval ** referrals2berval(char ** referrals) {
 	}
 
 	return val;
-}
- 
-char *
-cb_urlparse_err2string( int err )
-{
-    char        *s="internal error";
-
-    switch( err ) {
-    case 0:
-        s = "no error";
-        break;
-    case LDAP_URL_ERR_NOTLDAP:
-        s = "missing ldap:// or ldaps://";
-        break;
-    case LDAP_URL_ERR_NODN:
-        s = "missing suffix";
-        break;
-    case LDAP_URL_ERR_BADSCOPE:
-        s = "invalid search scope";
-        break;
-    case LDAP_URL_ERR_MEM:
-        s = "unable to allocate memory";
-        break;
-    case LDAP_URL_ERR_PARAM:
-        s = "bad parameter to an LDAP URL function";
-        break;
-    }
-       
-    return( s );
 }
 
 /*

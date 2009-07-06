@@ -52,13 +52,13 @@
 #include "pwdstorage.h"
 
 int
-clear_pw_cmp( char *userpwd, char *dbpwd )
+clear_pw_cmp( const char *userpwd, const char *dbpwd )
 {
     return( strcmp( userpwd, dbpwd ));
 }
 
 char *
-clear_pw_enc( char *pwd )
+clear_pw_enc( const char *pwd )
 {
     /* Just return NULL if pwd is NULL */
     if (!pwd)

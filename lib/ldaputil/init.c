@@ -54,6 +54,8 @@
 #include "ldaputil/errors.h"
 #include "ldaputil/init.h"
 
+#include "slapi-plugin.h"
+
 #ifdef XP_WIN32
 #define DLL_SUFFIX ".dll"
 #ifndef FILE_PATHSEP
@@ -200,7 +202,7 @@ NSAPI_PUBLIC int CertMapDLLInitFn(LDAPUDispatchVector_t **table)
 
 NSAPI_PUBLIC int CertMapDLLInitFn(LDAPUDispatchVector_t **table)
 {
-    *table = (LDAPUDispatchVector_t *)malloc(sizeof(LDAPUDispatchVector_t));
+    *table = (LDAPUDispatchVector_t *)slapi_ch_malloc(sizeof(LDAPUDispatchVector_t));
 
     if (!*table) return LDAPU_ERR_OUT_OF_MEMORY;
 

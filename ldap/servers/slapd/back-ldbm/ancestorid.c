@@ -904,8 +904,8 @@ int slapi_sdn_suffix_cmp(
               slapi_sdn_get_dn(common), 0, 0);
 
  out:
-    ldap_value_free(rdns1);
-    ldap_value_free(rdns2);
+    slapi_ldap_value_free(rdns1);
+    slapi_ldap_value_free(rdns2);
 
     LDAPDebug(LDAP_DEBUG_TRACE, "slapi_sdn_suffix_cmp(<%s>, <%s>) => %d\n",
               slapi_sdn_get_dn(left), slapi_sdn_get_dn(right), ret);
