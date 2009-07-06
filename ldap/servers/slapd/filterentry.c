@@ -444,10 +444,10 @@ dn2attrs(const char *dn)
                         slapi_ch_free_string( &type );
                     }
                 }
-                ldap_value_free (avas);
+                slapi_ldap_value_free (avas);
             }
         }
-        ldap_value_free (rdns);
+        slapi_ldap_value_free (rdns);
     }
     return dnAttrs;
 }

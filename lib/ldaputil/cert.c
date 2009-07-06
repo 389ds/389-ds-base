@@ -55,6 +55,8 @@
 #include <ldaputil/cert.h>
 #include "ldaputili.h"
 
+#include "slapi-plugin.h"
+
 NSAPI_PUBLIC int ldapu_get_cert (void *SSLendpoint, void **cert)
 {
     /* TEMPORARY  -- not implemented yet*/
@@ -209,7 +211,7 @@ _rdns_free (char*** rdns)
 {
     auto char*** rdn;
     for (rdn = rdns; *rdn; ++rdn) {
-	ldap_value_free (*rdn);
+	slapi_ldap_value_free (*rdn);
     }
     free (rdns);
 }
@@ -230,12 +232,12 @@ _explode_dn (const char* dn)
 		    if (exp) {
 			exp[expLen++] = avas;
 		    } else {
-			ldap_value_free (avas);
+			slapi_ldap_value_free (avas);
 			break;
 		    }
 		} else { /* parse error */
 		    if (avas) {
-			ldap_value_free (avas);
+			slapi_ldap_value_free (avas);
 		    }
 		    if (exp) {
 			exp[expLen] = NULL;
@@ -248,7 +250,7 @@ _explode_dn (const char* dn)
 	    if (exp) {
 		exp[expLen] = NULL;
 	    }
-	    ldap_value_free (rdns);
+	    slapi_ldap_value_free (rdns);
 	}
     }
     return exp;

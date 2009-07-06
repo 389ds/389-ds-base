@@ -162,7 +162,7 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
 	char * matcheddnp2, * errmsgp2;
 	matcheddnp2=errmsgp2=NULL;
 
-        rc = ldap_get_lderrno( ld, &matcheddnp2, &errmsgp2 );
+	rc = slapi_ldap_get_lderrno( ld, &matcheddnp2, &errmsgp2 );
 
 	/* Need to allocate errmsgs */
 	if (matcheddnp2)
@@ -185,7 +185,7 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
                 &referrals, resctrlsp, 1 );
         if ( referrals != NULL ) {
             *refurlsp = referrals2berval( referrals );
-            ldap_value_free( referrals );
+            slapi_ldap_value_free( referrals );
         }
 	/* realloc matcheddn & errmsg because the mem alloc model */
 	/* may differ from malloc				  */

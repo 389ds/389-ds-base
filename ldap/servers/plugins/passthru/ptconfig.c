@@ -131,6 +131,7 @@ passthru_config( int argc, char **argv )
      */
     prevsrvr = NULL;
     for ( i = 0; i < argc; ++i ) {
+	int secure = 0;
 	char *p = NULL;
 	srvr = (PassThruServer *)slapi_ch_calloc( 1, sizeof( PassThruServer ));
 	srvr->ptsrvr_url = slapi_ch_strdup( argv[i] );
@@ -230,10 +231,10 @@ passthru_config( int argc, char **argv )
 	/*
 	 * parse the LDAP URL
 	 */
-	if (( rc = ldap_url_parse( srvr->ptsrvr_url, &ludp )) != 0 ) {
+	if (( rc = slapi_ldap_url_parse( srvr->ptsrvr_url, &ludp, 0, &secure )) != 0 ) {
 	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		    "unable to parse LDAP URL \"%s\" (%s)\n",
-		    srvr->ptsrvr_url, passthru_urlparse_err2string( rc ));
+		    srvr->ptsrvr_url, slapi_urlparse_err2string( rc ));
 	    return( LDAP_PARAM_ERROR );
 	}
 
@@ -246,8 +247,7 @@ passthru_config( int argc, char **argv )
 	
 	srvr->ptsrvr_hostname = slapi_ch_strdup( ludp->lud_host );
 	srvr->ptsrvr_port = ludp->lud_port;
-	srvr->ptsrvr_secure =
-		(( ludp->lud_options & LDAP_URL_OPT_SECURE ) != 0 );
+	srvr->ptsrvr_secure = secure;
 	if (starttls) {
 	    srvr->ptsrvr_secure = 2;
 	}
@@ -265,7 +265,7 @@ passthru_config( int argc, char **argv )
 	/*
 	 * split the DN into multiple suffixes (separated by ';')
 	 */
-	if (( suffixarray = ldap_str2charray( ludp->lud_dn, ";" )) == NULL ) {
+	if (( suffixarray = slapi_str2charray( ludp->lud_dn, ";" )) == NULL ) {
 	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"unable to parse suffix string \"%s\" within \"%s\"\n",
 		ludp->lud_dn, srvr->ptsrvr_url );

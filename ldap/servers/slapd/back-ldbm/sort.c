@@ -294,7 +294,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 	BerElement *ber = NULL;
 	sort_spec_thing *listhead = NULL;
 	ber_tag_t tag = 0;
-	ber_len_t len = 0;
+	ber_len_t len = -1;
 	char *last = NULL;
 	sort_spec_thing *listpointer = NULL;
 	char *type = NULL;
@@ -318,6 +318,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 		sort_spec_thing *s = NULL;
 		ber_tag_t return_value;
 
+		len = -1; /* reset - not used here */
 		next_tag = ber_first_element( ber, &len, &inner_last );
 
 		/* The type is not optional */
@@ -334,6 +335,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 
 		/* Now look for the next tag. */
 
+		len = -1; /* reset - not used here */
 		next_tag = ber_next_element(ber,&len, inner_last);
 
 		/* Are we done ? */
@@ -343,6 +345,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 				/* If so, get it */
 				ber_scanf(ber,"a",&matchrule);
 				/* That can be followed by a reverse indicator */
+				len = -1; /* reset - not used here */
 				next_tag = ber_next_element(ber,&len, inner_last);
 				if (LDAP_TAG_SK_REVERSE == next_tag) {
 					/* Get the reverse sort indicator here */
@@ -355,7 +358,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 					}
 				} else {
 					/* Perhaps we're done now ? */
-					if (LBER_END_OF_SEQORSET != next_tag) {
+					if ((LBER_END_OF_SEQORSET != next_tag) && (len != -1)) {
 						/* Protocol error---we got a matching rule, but followed by something other 
 						 * than reverse or end of sequence.
 						 */
@@ -390,7 +393,7 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 		if (NULL == listhead) {
 			listhead = s;
 		}
-
+		len = -1; /* reset for next loop iter */
 	}
 
 	if (NULL == listhead) {  /* LP - defect #559792 - don't return null listhead */

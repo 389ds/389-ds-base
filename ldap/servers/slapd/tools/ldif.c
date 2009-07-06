@@ -42,6 +42,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <memory.h>
 #include <sys/types.h>
 #if defined( _WINDOWS ) || defined( _WIN32 )
@@ -58,6 +59,24 @@
 int	ldap_syslog;
 int	ldap_syslog_level;
 
+#if defined(USE_OPENLDAP)
+static char *
+ldif_type_and_value(const char *type, const char *val, int vlen)
+{
+    char	*buf, *p;
+    int		tlen;
+
+    tlen = strlen( type );
+    if (( buf = (char *)malloc( LDIF_SIZE_NEEDED( tlen, vlen ) + 1 )) !=
+	    NULL ) {
+        p = buf;
+        ldif_sput( &p, LDIF_PUT_VALUE, type, val, vlen );
+        *p = '\0';
+    }
+
+    return( buf );
+}
+#endif
 
 static void
 display_usage( char *name )

@@ -129,7 +129,7 @@ static ACLDispatchVector_t __nsacl_vector = {
     ACL_DatabaseRegister,
     ACL_DatabaseFind,
     ACL_DatabaseSetDefault,
-    ACL_LDAPDatabaseHandle,
+    NULL,
     ACL_AuthInfoGetDbname,
     ACL_CacheFlushRegister,
     ACL_CacheFlush,

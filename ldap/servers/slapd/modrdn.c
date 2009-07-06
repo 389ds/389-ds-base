@@ -385,7 +385,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	} 
 	else 
 	{
-		ldap_value_free(rdns);
+		slapi_ldap_value_free(rdns);
 	}
 
 	/* check if created attributes are used in the new RDN */
@@ -409,7 +409,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	} 
 	else 
 	{
-		ldap_value_free(rdns);
+		slapi_ldap_value_free(rdns);
 	}
 
 	if (newsuperior != NULL) 

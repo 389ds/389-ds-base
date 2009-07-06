@@ -585,8 +585,8 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 
 cleanup:
 
-	ldap_value_free ( a_dns );
-	ldap_value_free ( e_dns );
+	slapi_ldap_value_free ( a_dns );
+	slapi_ldap_value_free ( e_dns );
 	if ( 0 != rc ) /* error */ {
 		slapi_ch_free ( (void **) &buf );
 		buf = NULL;

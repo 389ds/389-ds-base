@@ -68,8 +68,11 @@
 
 #include "svrcore.h"
 #include "fe.h"
-#include <ldap_ssl.h> /* ldapssl_client_init */
 #include "certdb.h"
+
+#if !defined(USE_OPENLDAP)
+#include "ldap_ssl.h"
+#endif
 
 /* For IRIX... */
 #ifndef MAXPATHLEN
@@ -1241,6 +1244,21 @@ slapd_SSL_client_auth (LDAP* ld)
 			   "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
 			   errorCode, slapd_pr_strerror(errorCode));
 	} else {
+#if defined(USE_OPENLDAP)
+	    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, SERVER_KEY_NAME);
+	    if (rc) {
+		slapd_SSL_warn("SSL client authentication cannot be used "
+			       "unable to set the key to use to %s", SERVER_KEY_NAME);
+	    }
+	    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, cert_name);
+	    if (rc) {
+		slapd_SSL_warn("SSL client authentication cannot be used "
+			       "unable to set the cert to use to %s", cert_name);
+	    }
+	    /* not sure what else needs to be done for client auth - don't 
+	       currently have a way to pass in the password to use to unlock
+	       the keydb - nor a way to disable caching */
+#else /* !USE_OPENLDAP */
 	    rc = ldapssl_enable_clientauth (ld, SERVER_KEY_NAME, pw, cert_name);
 	    if (rc != 0) {
 		errorCode = PR_GetError();
@@ -1258,6 +1276,7 @@ slapd_SSL_client_auth (LDAP* ld)
 
 		ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
 	    }
+#endif
 	}
     }
 

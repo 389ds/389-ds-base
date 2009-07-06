@@ -57,7 +57,6 @@ extern int 	ACL_CacheCheck(char *uri, ACLListHandle_t **acllist_p);
 extern void 	ACL_CacheEnter(char *uri, ACLListHandle_t **acllist_p);
 extern void 	ACL_CacheAbort(ACLListHandle_t **acllist_p);
 extern void	ACL_Init2(void);
-extern int	ACL_RegisterInit ();
 
 NSPR_END_EXTERN_C
 

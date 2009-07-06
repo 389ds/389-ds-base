@@ -80,7 +80,7 @@ do_add( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement		*ber;
 	char			*last;
-	ber_len_t		len;
+	ber_len_t		len = -1;
 	ber_tag_t		tag;
 	Slapi_Entry		*e = NULL;
 	int			err;
@@ -130,6 +130,7 @@ do_add( Slapi_PBlock *pb )
 	      tag = ber_next_element( ber, &len, last ) ) {
 		char *type = NULL, *normtype = NULL;
 		struct berval	**vals = NULL;
+		len = -1; /* reset - not used in loop */
 		if ( ber_scanf( ber, "{a{V}}", &type, &vals ) == LBER_ERROR ) {
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
@@ -196,7 +197,7 @@ do_add( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	if ( tag == LBER_DEFAULT ) {
+	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) ) {
 		op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 		    "decoding error", 0, NULL );

@@ -567,7 +567,7 @@ vlvIndex_delete(struct vlvIndex** ppvs)
                 }
             }
         }
-        ldap_free_sort_keylist((*ppvs)->vlv_sortkey);
+        internal_ldap_free_sort_keylist((*ppvs)->vlv_sortkey);
         attrinfo_delete(&((*ppvs)->vlv_attrinfo));
         slapi_ch_free((void**)&((*ppvs)->vlv_name));
         slapi_ch_free((void**)&((*ppvs)->vlv_filename));
@@ -602,7 +602,7 @@ vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const 
     p->vlv_search= pSearch;
 
     /* Convert the textual sort specification into a keylist structure */
-    ldap_create_sort_keylist(&(p->vlv_sortkey),p->vlv_sortspec);
+    internal_ldap_create_sort_keylist(&(p->vlv_sortkey),p->vlv_sortspec);
     {
         /*
          * For each sort attribute find the appropriate syntax plugin,
@@ -937,4 +937,24 @@ vlv_isvlv(char *filename)
     if (0 == strncmp(filename, file_prefix, 4))
         return 1;
     return 0;
+}
+
+void
+internal_ldap_free_sort_keylist(LDAPsortkey **sortKeyList)
+{
+#if defined(USE_OPENLDAP)
+    ldap_free_sort_keylist((LDAPSortKey **)sortKeyList);
+#else
+    ldap_free_sort_keylist(sortKeyList);
+#endif
+}
+
+int
+internal_ldap_create_sort_keylist(LDAPsortkey ***sortKeyList, const char *string_rep)
+{
+#if defined(USE_OPENLDAP)
+    return ldap_create_sort_keylist((LDAPSortKey ***)sortKeyList, (char *)string_rep);
+#else
+    return ldap_create_sort_keylist(sortKeyList, string_rep);
+#endif
 }

@@ -816,7 +816,7 @@ slapi_mod_dump(LDAPMod *mod, int n)
 				len = LDIF_SIZE_NEEDED( len, mod->mod_bvalues[i]->bv_len ) + 1;
 				buf = slapi_ch_malloc( len );
 				bufp = buf;
-				ldif_put_type_and_value( &bufp, mod->mod_type, mod->mod_bvalues[i]->bv_val,	mod->mod_bvalues[i]->bv_len );
+				slapi_ldif_put_type_and_value_with_options( &bufp, mod->mod_type, mod->mod_bvalues[i]->bv_val,	mod->mod_bvalues[i]->bv_len, 0 );
 				*bufp = '\0';
 				LDAPDebug( LDAP_DEBUG_ANY, "smod %d - value: %s", n, buf, 0);
 				slapi_ch_free( (void**)&buf );

@@ -196,12 +196,17 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 	{
 		Slapi_Attr **a;
 		char *valuecharptr=NULL;
+#if defined(USE_OPENLDAP)
+		ber_len_t valuelen;
+#else
 		int	valuelen;
+#endif
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= ATTRIBUTE_NOTFOUND;
 		int maxvals;
 		int del_maxvals;
 		char *type;
+		int freetype = 0;
 
 		if ( *s == '\n' || *s == '\0' ) {
 			break;
@@ -212,6 +217,11 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			    "<= str2entry_fast NULL (parse_line)\n", 0, 0, 0 );
 			continue;
 		}
+#if defined(USE_OPENLDAP)
+		/* openldap always mallocs the type and value arguments to ldap_parse_line */
+		retmalloc = 1;
+		freetype = 1;
+#endif
 
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
@@ -228,7 +238,8 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			{
 				/* ignore deleted values and attributes */
 				/* the memory below was not allocated by the slapi_ch_ functions */
-				if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
+				if (freetype) slapi_ch_free_string(&type);
 				continue;
 			}
 			/* Ignore CSNs */
@@ -240,7 +251,8 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		 */
 		if((ptype==NULL)||(strcasecmp(type,ptype) != 0))
 		{
-			ptype=type;
+			slapi_ch_free_string(&ptype);
+			ptype=slapi_ch_strdup(type);
 			nvals = 0;
 			maxvals = 0;
 			del_nvals = 0;
@@ -259,11 +271,13 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 				    escape_string( valuecharptr, ebuf ), 0 );
 				    /* the memory below was not allocated by the slapi_ch_ functions */
 				if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+				if (freetype) slapi_ch_free_string(&type);
 				continue;
 			}
 			slapi_entry_set_dn(e,slapi_ch_strdup( valuecharptr ));
 			/* the memory below was not allocated by the slapi_ch_ functions */
-			if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			if (freetype) slapi_ch_free_string(&type);
 			continue;
 		}
 
@@ -281,7 +295,8 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 				attr_syntax_read_lock();
 			}
 			/* the memory below was not allocated by the slapi_ch_ functions */
-			if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			if (freetype) slapi_ch_free_string(&type);
 			continue;
 		}
 		
@@ -296,7 +311,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			Slapi_Value	*value= value_new(NULL,CSN_TYPE_NONE,NULL);
 			slapi_value_set( value, valuecharptr, valuelen );
 			/* the memory below was not allocated by the slapi_ch_ functions */	
-		if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			value->v_csnset= valuecsnset;
 			valuecsnset= NULL;
 			if(a==NULL)
@@ -308,6 +323,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 					{
 						LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous attribute values for %s\n", type, 0, 0);
 						PR_ASSERT(0);
+						if (freetype) slapi_ch_free_string(&type);
 						continue;
 					}
 					break;
@@ -316,17 +332,20 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 					{
 						LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous deleted attribute values for %s\n", type, 0, 0);
 						PR_ASSERT(0);
+						if (freetype) slapi_ch_free_string(&type);
 						continue;
 					}
 					break;
 				case ATTRIBUTE_NOTFOUND:
 					LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous deleted attribute values for %s\n", type, 0, 0);
 					PR_ASSERT(0);
+					if (freetype) slapi_ch_free_string(&type);
 					continue;
 					/* break; ??? */
 				}
 
 			}
+			if (freetype) slapi_ch_free_string(&type); /* don't need type anymore */
 			{
 				const CSN *distinguishedcsn= csnset_get_csn_of_type(value->v_csnset,CSN_TYPE_VALUE_DISTINGUISHED);
 				if(distinguishedcsn!=NULL)
@@ -367,6 +386,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		csnset_free(&valuecsnset);
 		attr_val_cnt++;
 	}
+	slapi_ch_free_string(&ptype);
 	if ( attr_val_cnt >= ENTRY_MAX_ATTRIBUTE_VALUE_COUNT )
 	{
 		LDAPDebug( LDAP_DEBUG_ANY,
@@ -597,7 +617,12 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		CSNSet *valuecsnset= NULL;
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= VALUE_NOTFOUND;
-		int valuelen;
+		int freetype = 0;
+#if defined(USE_OPENLDAP)
+		ber_len_t valuelen;
+#else
+		int	valuelen;
+#endif
 
 		if ( *s == '\n' || *s == '\0' ) {
 		    break;
@@ -608,7 +633,11 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			    "<= slapi_str2entry NULL (parse_line)\n", 0, 0, 0 );
 		    continue;
 		}
-
+#if defined(USE_OPENLDAP)
+		/* openldap always mallocs type and value */
+		retmalloc = 1;
+		freetype = 1;
+#endif
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
 		 */		
@@ -624,7 +653,8 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			{
 				/* ignore deleted values and attributes */
 				/* the memory below was not allocated by the slapi_ch_ functions */
-				if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
+				if (freetype) slapi_ch_free_string(&type);
 				continue;
 			}
 			/* Ignore CSNs */
@@ -640,12 +670,14 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 					escape_string( slapi_entry_get_dn_const(e), ebuf ),
 					escape_string( valuecharptr, ebuf ), 0 );
 				/* the memory below was not allocated by the slapi_ch_ functions */
-				if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
+				if (freetype) slapi_ch_free_string(&type);
 				continue;
 		    }
 			slapi_entry_set_dn(e,slapi_ch_strdup( valuecharptr ));
 			/* the memory below was not allocated by the slapi_ch_ functions */
-			if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			if (freetype) slapi_ch_free_string(&type);
 		    continue;
 		}
 
@@ -660,7 +692,8 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 				slapi_entry_set_uniqueid (e, slapi_ch_strdup(valuecharptr));
 			}
 			/* the memory below was not allocated by the slapi_ch_ functions */
-			if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			if (freetype) slapi_ch_free_string(&type);
 			continue;
 		}
 
@@ -702,6 +735,8 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 					if (0 != entry_attrs_new(&ea))
 					{
 						/* Something very bad happened */
+						if (retmalloc) slapi_ch_free_string(&valuecharptr);
+						if (freetype) slapi_ch_free_string(&type);
 						return NULL;
 					}
 					for ( i = 0; i < nattrs; i++ )
@@ -755,6 +790,8 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 						"<= slapi_str2entry NULL (slapi_attr_type2plugin)\n",
 						0, 0, 0 );
 					slapi_entry_free( e ); e = NULL;
+					if (retmalloc) slapi_ch_free_string(&valuecharptr);
+					if (freetype) slapi_ch_free_string(&type);
 					goto free_and_return;
 				}
 				/* Get the comparison function for later use */
@@ -781,11 +818,12 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			nattrs++;
 		}
 
+		if (freetype) slapi_ch_free_string(&type);
 		sa = prev_attr;	/* For readability */
 		value= value_new(NULL,CSN_TYPE_NONE,NULL);
 		slapi_value_set( value, valuecharptr, valuelen );
 		/* the memory below was not allocated by the slapi_ch_ functions */
-		if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+		if (retmalloc) slapi_ch_free_string(&valuecharptr);
 		value->v_csnset= valuecsnset;
 		valuecsnset= NULL;
 		{
@@ -1228,12 +1266,12 @@ entry2str_internal_put_value( const char *attrtype, const CSN *attrcsn, CSNType 
 	{
 		type= attrtype;
 	}
+	bvp = slapi_value_get_berval(v);
 	if (entry2str_ctrl & SLAPI_DUMP_NOWRAP)
 		options |= LDIF_OPT_NOWRAP;
 	if (entry2str_ctrl & SLAPI_DUMP_MINIMAL_ENCODING)
 		options |= LDIF_OPT_MINIMAL_ENCODING;
-        bvp = slapi_value_get_berval(v);
-	ldif_put_type_and_value_with_options( ecur, (char*)type, bvp->bv_val, bvp->bv_len, options );
+	slapi_ldif_put_type_and_value_with_options( ecur, type, bvp->bv_val, bvp->bv_len, options );
 }
 
 static void
@@ -2432,12 +2470,12 @@ slapi_entry_rdn_values_present( const Slapi_Entry *e )
 					}
 				}
 			}
-			ldap_value_free( rdns );
+			slapi_ldap_value_free( rdns );
 		} else {
 			rc = 0; /* Failure: the RDN seems invalid */
 		}
 		
-		ldap_value_free( dns );
+		slapi_ldap_value_free( dns );
 	}
 	else
 	{
@@ -2470,16 +2508,16 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
         return( LDAP_INVALID_DN_SYNTAX );
     }
     if ( (rdns = ldap_explode_rdn( dns[0], 0 )) == NULL ) {
-        ldap_value_free( dns );
+        slapi_ldap_value_free( dns );
         return( LDAP_INVALID_DN_SYNTAX );
     }
-    ldap_value_free( dns );
+    slapi_ldap_value_free( dns );
     for ( i = 0; rdns[i] != NULL && rc == LDAP_SUCCESS; i++ ) {
         struct ava		ava;
         char			*type;
         
         if ( rdn2ava( rdns[i], &ava ) != 0 ) {
-            ldap_value_free( rdns );
+            slapi_ldap_value_free( rdns );
             return( LDAP_INVALID_DN_SYNTAX );
         }
 
@@ -2528,7 +2566,7 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
 
         slapi_ch_free( (void **)&type );
     }
-    ldap_value_free( rdns );
+    slapi_ldap_value_free( rdns );
     
     return( rc );
 }

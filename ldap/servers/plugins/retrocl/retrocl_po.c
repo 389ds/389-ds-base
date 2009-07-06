@@ -126,9 +126,9 @@ static lenstr *make_changes_string(LDAPMod **ldm, const char **includeattrs)
 		    ldm[ i ]->mod_bvalues[ j ]->bv_len ) + 1;
 	    buf = slapi_ch_malloc( len );
 	    bufp = buf;
-	    ldif_put_type_and_value( &bufp, ldm[ i ]->mod_type,
+	    slapi_ldif_put_type_and_value_with_options( &bufp, ldm[ i ]->mod_type,
 		    ldm[ i ]->mod_bvalues[ j ]->bv_val,
-		    ldm[ i ]->mod_bvalues[ j ]->bv_len );
+		    ldm[ i ]->mod_bvalues[ j ]->bv_len, 0 );
 	    *bufp = '\0';
 
 	    addlenstr( l, buf );

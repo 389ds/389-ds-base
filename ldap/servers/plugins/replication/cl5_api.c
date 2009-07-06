@@ -1308,9 +1308,14 @@ done:;
  */
 int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 {
-	FILE *file;
+#if defined(USE_OPENLDAP)
+	LDIFFP *file = NULL;
+	int buflen;
+#else
+	FILE *file = NULL;
+#endif
 	int rc;
-	char *buff;
+	char *buff = NULL;
 	int lineno = 0;
 	slapi_operation_parameters op;
     Object *replica = NULL;
@@ -1345,7 +1350,11 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 	}
 	
 	/* open LDIF file */
+#if defined(USE_OPENLDAP)
+	file = ldif_open (ldifFile, "r");
+#else
 	file = fopen (ldifFile, "r"); /* XXXggood Does fopen reliably work if > 255 files open? */
+#endif
 	if (file == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -1374,10 +1383,14 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 	}
 	
 	/* read entries and write them to changelog */
+#if defined(USE_OPENLDAP)
+	while (ldif_read_record( file, &lineno, &buff, &buflen ))
+#else
 	while ((buff = ldif_get_entry( file, &lineno )) != NULL)
+#endif
 	{
 		rc = _cl5LDIF2Operation (buff, &op, &replGen);
-		slapi_ch_free ((void**)&buff);
+		slapi_ch_free_string(&buff);
 		if (rc != CL5_SUCCESS)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -1394,7 +1407,7 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 				"cl5ImportLDIF: failed to locate replica for target dn (%s) and "
                 "replica generation %s\n", op.target_address.dn, replGen);
 			
-            slapi_ch_free ((void**)&replGen);
+            slapi_ch_free_string(&replGen);
             operation_parameters_done (&op);
 			goto done;
         }
@@ -1409,18 +1422,25 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 						"cl5ImportLDIF: failed to write operation to the changelog\n");
                 object_release (replica);
-                slapi_ch_free ((void**)&replGen);
+                slapi_ch_free_string(&replGen);
 				operation_parameters_done (&op);
 				goto done;
 			}
 		}
         
         object_release (replica);
-        slapi_ch_free ((void**)&replGen);
+        slapi_ch_free_string(&replGen);
 		operation_parameters_done (&op);
 	}
 
 done:;
+	if (file) {
+#if defined(USE_OPENLDAP)
+		ldif_close(file);
+#else
+		fclose(file);
+#endif
+	}
 	_cl5Close ();
 	PR_RWLock_Unlock (s_cl5Desc.stLock);
     return rc;
@@ -5041,46 +5061,46 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 	}
 
 	/* fill buffer */
-	ldif_put_type_and_value(&buff, T_CHANGETYPESTR, (char*)strType, strlen (strType));
-	ldif_put_type_and_value(&buff, T_REPLGEN, (char*)replGen, strlen (replGen));
-	ldif_put_type_and_value(&buff, T_CSNSTR, (char*)strCSN, strlen (strCSN));
-	ldif_put_type_and_value(&buff, T_UNIQUEIDSTR, op->target_address.uniqueid, 
-							strlen (op->target_address.uniqueid));
+	slapi_ldif_put_type_and_value_with_options(&buff, T_CHANGETYPESTR, (char*)strType, strlen (strType), 0);
+	slapi_ldif_put_type_and_value_with_options(&buff, T_REPLGEN, (char*)replGen, strlen (replGen), 0);
+	slapi_ldif_put_type_and_value_with_options(&buff, T_CSNSTR, (char*)strCSN, strlen (strCSN), 0);
+	slapi_ldif_put_type_and_value_with_options(&buff, T_UNIQUEIDSTR, op->target_address.uniqueid, 
+							strlen (op->target_address.uniqueid), 0);
 
 	switch (op->operation_type)
 	{
 		case SLAPI_OPERATION_ADD:		if (op->p.p_add.parentuniqueid)
-											ldif_put_type_and_value(&buff, T_PARENTIDSTR, 
-												op->p.p_add.parentuniqueid, strlen (op->p.p_add.parentuniqueid));
-										ldif_put_type_and_value(&buff, T_DNSTR, rawDN, strlen (rawDN));
-										ldif_put_type_and_value(&buff, T_CHANGESTR, l->ls_buf, l->ls_len);
+											slapi_ldif_put_type_and_value_with_options(&buff, T_PARENTIDSTR, 
+												op->p.p_add.parentuniqueid, strlen (op->p.p_add.parentuniqueid), 0);
+										slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, rawDN, strlen (rawDN), 0);
+										slapi_ldif_put_type_and_value_with_options(&buff, T_CHANGESTR, l->ls_buf, l->ls_len, 0);
 										slapi_ch_free ((void**)&rawDN);
 										break;
 
-		case SLAPI_OPERATION_MODIFY:	ldif_put_type_and_value(&buff, T_DNSTR, op->target_address.dn, 
-																strlen (op->target_address.dn));
-										ldif_put_type_and_value(&buff, T_CHANGESTR, l->ls_buf, l->ls_len);
+		case SLAPI_OPERATION_MODIFY:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, op->target_address.dn, 
+																strlen (op->target_address.dn), 0);
+										slapi_ldif_put_type_and_value_with_options(&buff, T_CHANGESTR, l->ls_buf, l->ls_len, 0);
 										break;
 
-		case SLAPI_OPERATION_MODRDN:	ldif_put_type_and_value(&buff, T_DNSTR, op->target_address.dn, 
-																strlen (op->target_address.dn));
-										ldif_put_type_and_value(&buff, T_NEWRDNSTR, op->p.p_modrdn.modrdn_newrdn,
-						  										strlen (op->p.p_modrdn.modrdn_newrdn));
-										ldif_put_type_and_value(&buff, T_DRDNFLAGSTR, strDeleteOldRDN, 
-																strlen (strDeleteOldRDN));
+		case SLAPI_OPERATION_MODRDN:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, op->target_address.dn, 
+																strlen (op->target_address.dn), 0);
+										slapi_ldif_put_type_and_value_with_options(&buff, T_NEWRDNSTR, op->p.p_modrdn.modrdn_newrdn,
+						  										strlen (op->p.p_modrdn.modrdn_newrdn), 0);
+										slapi_ldif_put_type_and_value_with_options(&buff, T_DRDNFLAGSTR, strDeleteOldRDN, 
+																strlen (strDeleteOldRDN), 0);
 										if (op->p.p_modrdn.modrdn_newsuperior_address.dn)							
-											ldif_put_type_and_value(&buff, T_NEWSUPERIORDNSTR, 
+											slapi_ldif_put_type_and_value_with_options(&buff, T_NEWSUPERIORDNSTR, 
 																op->p.p_modrdn.modrdn_newsuperior_address.dn, 
-																strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn));
+																strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn), 0);
 										if (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid)							
-											ldif_put_type_and_value(&buff, T_NEWSUPERIORIDSTR, 
+											slapi_ldif_put_type_and_value_with_options(&buff, T_NEWSUPERIORIDSTR, 
 																op->p.p_modrdn.modrdn_newsuperior_address.uniqueid, 
-																strlen (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid));
-										ldif_put_type_and_value(&buff, T_CHANGESTR, l->ls_buf, l->ls_len);
+																strlen (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid), 0);
+										slapi_ldif_put_type_and_value_with_options(&buff, T_CHANGESTR, l->ls_buf, l->ls_len, 0);
 										break;	
 
-		case SLAPI_OPERATION_DELETE:	ldif_put_type_and_value(&buff, T_DNSTR, op->target_address.dn, 
-										strlen (op->target_address.dn));
+		case SLAPI_OPERATION_DELETE:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, op->target_address.dn, 
+										strlen (op->target_address.dn), 0);
 										break;	  
 	}
 
@@ -5101,7 +5121,11 @@ static int
 _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **replGen)
 {
 	int rc;
+#if defined(USE_OPENLDAP)
+	ber_len_t vlen;
+#else
 	int vlen;
+#endif
 	char *next, *line;
 	char *type, *value;
 	Slapi_Mods *mods;

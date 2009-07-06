@@ -78,18 +78,18 @@ extern "C" {
 int re_init( void );
 void re_lock( void );
 int re_unlock( void );
-char * LDAP_CALL re_comp( char *pat );
-int LDAP_CALL re_exec( char *lp );
-void LDAP_CALL re_modw( char *s );
-int LDAP_CALL re_subs( char *src, char *dst );
+char *  re_comp( char *pat );
+int re_exec( char *lp );
+void  re_modw( char *s );
+int  re_subs( char *src, char *dst );
 #else /* NEEDPROTOS */
 int re_init();
 void re_lock();
 int re_unlock();
-char * LDAP_CALL re_comp();
-int LDAP_CALL re_exec();
-void LDAP_CALL re_modw();
-int LDAP_CALL re_subs();
+char *  re_comp();
+int  re_exec();
+void  re_modw();
+int  re_subs();
 #endif /* NEEDPROTOS */
 
 #define re_fail( m, p )

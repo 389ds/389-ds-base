@@ -1465,6 +1465,48 @@ struct Conn_private
 	size_t c_buffer_offset; /* offset to the location of new data in the buffer */
 };
 
+#if defined(USE_OPENLDAP)
+/* Copy up to bytes_to_read bytes from b into return_buffer.
+ * Returns a count of bytes copied (always >= 0).
+ */
+ber_slen_t
+openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
+{
+	Connection *conn = NULL;
+	/* copy up to bytes_to_read bytes into the caller's buffer, return the number of bytes copied */
+	ber_slen_t bytes_to_copy = 0;
+	char *readbuf; /* buffer to "read" from */
+	size_t max; /* number of bytes currently stored in the buffer */
+	size_t offset; /* offset to the location of new data in the buffer */
+
+	PR_ASSERT(sbiod);
+	PR_ASSERT(sbiod->sbiod_pvt);
+
+	conn = (Connection *)sbiod->sbiod_pvt;
+
+	PR_ASSERT(conn->c_private->c_buffer);
+
+	readbuf = conn->c_private->c_buffer;
+	max = conn->c_private->c_buffer_bytes;
+	offset = conn->c_private->c_buffer_offset;
+
+	if (len <= (max - offset)) {
+		bytes_to_copy = len; /* we have enough buffered data */
+	} else {
+		bytes_to_copy = max - offset; /* just return what we have */
+	}
+
+	if (bytes_to_copy <= 0) {
+		bytes_to_copy = 0;	/* never return a negative result */
+	} else {
+		/* copy buffered data into output buf */
+		SAFEMEMCPY(buf, readbuf + offset, bytes_to_copy);
+		conn->c_private->c_buffer_offset += bytes_to_copy;
+	}
+	return bytes_to_copy;
+}
+#endif
+
 int 
 connection_new_private(Connection *conn)
 {
@@ -1640,12 +1682,27 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 	ber_len_t		bytes_scanned = 0;
 
 	*lenp = 0;
+#if defined(USE_OPENLDAP)
+	*tagp = ber_get_next( conn->c_sb, &bytes_scanned, ber );
+#else
 	*tagp = ber_get_next_buffer_ext( buffer, buffer_size, lenp, ber,
 			&bytes_scanned, conn->c_sb );
-	if ((LBER_OVERFLOW == *tagp || LBER_DEFAULT == *tagp) && 0 == bytes_scanned)
+#endif
+    /* openldap ber_get_next doesn't return partial bytes_scanned if it hasn't
+       read a whole pdu - so we have to check the errno for the
+       "would block" condition meaning openldap needs more data to read */
+	if ((LBER_OVERFLOW == *tagp || LBER_DEFAULT == *tagp) && 0 == bytes_scanned &&
+		!SLAPD_SYSTEM_WOULD_BLOCK_ERROR(errno))
 	{
 		if (LBER_OVERFLOW == *tagp)
 		{
+			err = SLAPD_DISCONNECT_BER_TOO_BIG;
+		}
+		else if (errno == ERANGE)
+		{
+			/* openldap does not differentiate between length == 0
+			   and length > max - all we know is that there was a
+			   problem with the length - assume too big */
 			err = SLAPD_DISCONNECT_BER_TOO_BIG;
 		}
 		else
@@ -1664,8 +1721,13 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 		return -1;
 	}
 
+	/* openldap_read_function will advance c_buffer_offset */
+#if !defined(USE_OPENLDAP)
 	/* success, or need to wait for more data */
+	/* if openldap could not read a whole pdu, bytes_scanned will be zero -
+	   it does not return partial results */
 	conn->c_private->c_buffer_offset += bytes_scanned;
+#endif
 	return 0;
 }
 

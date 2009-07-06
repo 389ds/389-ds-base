@@ -86,11 +86,6 @@ ldapu_err2string(int err)
     return errbuf;
 }
 
-
-void init_ldb_rwlock ()
-{
-}
-
 #ifdef notdef
 char *system_errmsg()
 {

@@ -281,7 +281,9 @@ dd/mm/yy | Author	| Comments
 #include <time.h>		/* ctime(), etc... */		/*JLS 18-08-00*/
 #include <lber.h>		/* ldap C-API BER decl. */
 #include <ldap.h>		/* ldap C-API decl. */
+#if !defined(USE_OPENLDAP)
 #include <ldap_ssl.h>           /* ldapssl_init(), etc... */
+#endif
 #ifdef LDAP_H_FROM_QA_WKA
 #include <proto-ldap.h>		/* ldap C-API prototypes */
 #endif
@@ -1547,6 +1549,7 @@ basicInit (void)
     }
   }
 
+#if !defined(USE_OPENLDAP)
   /*
    * SSL is enabled ?
    */
@@ -1577,6 +1580,7 @@ basicInit (void)
       }
     }
   }
+#endif /* !defined(USE_OPENLDAP) */
 
   /*
    * Specific scenarios initialization...

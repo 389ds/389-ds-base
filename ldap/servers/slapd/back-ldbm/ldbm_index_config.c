@@ -415,8 +415,8 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
 
     origIndexTypes = attrinfo2ConfIndexes(ainfo);
     origMatchingRules = attrinfo2ConfMatchingRules(ainfo);
-    origIndexTypesArray = str2charray(origIndexTypes, ",");
-    origMatchingRulesArray = str2charray(origMatchingRules, ",");
+    origIndexTypesArray = slapi_str2charray(origIndexTypes, ",");
+    origMatchingRulesArray = slapi_str2charray(origMatchingRules, ",");
 
     for (i = 0; mods[i] != NULL; i++) {
         config_attr = (char *)mods[i]->mod_type;
@@ -621,13 +621,13 @@ int ldbm_instance_config_add_index_entry(
     }
 
     PL_strncpyz(tmpAttrsStr,argv[0], sizeof(tmpAttrsStr));
-    attrs = str2charray( tmpAttrsStr, "," );
+    attrs = slapi_str2charray( tmpAttrsStr, "," );
     PL_strncpyz(tmpIndexesStr,argv[1], sizeof(tmpIndexesStr));
-    indexes = str2charray( tmpIndexesStr, ",");
+    indexes = slapi_str2charray( tmpIndexesStr, ",");
 
     if(argc > 2) {
         PL_strncpyz(tmpMatchingRulesStr,argv[2], sizeof(tmpMatchingRulesStr));
-        matchingRules = str2charray( tmpMatchingRulesStr, ",");
+        matchingRules = slapi_str2charray( tmpMatchingRulesStr, ",");
     }
 
     for(i=0; attrs[i] !=NULL; i++)

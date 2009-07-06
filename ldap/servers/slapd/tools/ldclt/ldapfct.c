@@ -256,10 +256,11 @@ dd/mm/yy | Author	| Comments
 
 #include <sasl.h>
 #include "ldaptool-sasl.h"
+#if !defined(USE_OPENLDAP)
 #include <ldap_ssl.h>	/* ldapssl_init(), etc... */
+#endif
 
-
-
+#include <prprf.h>
 
 
 
@@ -463,7 +464,27 @@ buildNewBindDN (
 
 
 
+#if defined(USE_OPENLDAP)
+int 
+refRebindProc(
+	LDAP       *ldapCtx,
+	const char *url,
+	ber_tag_t  request,
+	ber_int_t  msgid,
+	void       *arg
+)
+{
+  thread_context	*tttctx;
+  struct berval		cred;
 
+  tttctx = (thread_context *)arg;
+
+  cred.bv_val = tttctx->bufPasswd;
+  cred.bv_len = strlen(tttctx->bufPasswd);
+  return ldap_sasl_bind_s(ldapCtx, tttctx->bufBindDN, LDAP_SASL_SIMPLE,
+                          &cred, NULL, NULL, NULL);
+}
+#else /* !USE_OPENLDAP */
 					/* New function */	/*JLS 08-03-01*/
 /* ****************************************************************************
 	FUNCTION :	refRebindProc
@@ -503,6 +524,7 @@ refRebindProc (
 
   return (LDAP_SUCCESS);
 }
+#endif /* !USE_OPENLDAP */
 
 
 
@@ -589,6 +611,7 @@ connectToServer (
   int	 ret;	/* Return value */
   LBER_SOCKET	 fd;	/* LDAP cnx's fd */
   int	 v2v3;	/* LDAP version used */
+  struct berval cred = {0, NULL};
 
   /*
    * Maybe close the connection ?
@@ -629,8 +652,8 @@ connectToServer (
       if (close ((int)fd) < 0)
       {
 	perror ("ldctx");
-	printf ("ldclt[%d]: T%03d: cannot close(fd=%ld), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, fd, errno, strerror (errno));
+	printf ("ldclt[%d]: T%03d: cannot close(fd=%d), error=%d (%s)\n",
+            mctx.pid, tttctx->thrdNum, (int)fd, errno, strerror (errno));
 	return (-1);
       }
     }
@@ -642,7 +665,7 @@ connectToServer (
      * But don't be afraid, the UNBIND operation never reach the
      * server that will only see a suddent socket disconnection.
      */
-    ret = ldap_unbind (tttctx->ldapCtx);
+    ret = ldap_unbind_ext (tttctx->ldapCtx, NULL, NULL);
     if (ret != LDAP_SUCCESS)
     {
       fprintf (stderr, "ldclt[%d]: T%03d: cannot ldap_unbind(), error=%d (%s)\n",
@@ -660,6 +683,27 @@ connectToServer (
    */
   if (tttctx->ldapCtx == NULL)
   {
+    const char *mech = LDAP_SASL_SIMPLE;
+    const char *binddn = NULL;
+    const char *passwd = NULL;
+#if defined(USE_OPENLDAP)
+    char *ldapurl = NULL;
+#endif
+
+#if defined(USE_OPENLDAP)
+    ldapurl = PR_smprintf("ldap%s://%s:%d/",
+			  (mctx.mode & SSL) ? "s" : "",
+			  mctx.hostname, mctx.port);
+    if ((ret = ldap_initialize(&tttctx->ldapCtx, ldapurl))) {
+	printf ("ldclt[%d]: T%03d: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
+		mctx.pid, tttctx->thrdNum, ldapurl, errno, ret, my_ldap_err2string(ret));
+	fflush (stdout);
+	PR_smprintf_free(ldapurl);
+	return (-1);
+    }
+    PR_smprintf_free(ldapurl);
+    ldapurl = NULL;
+#else /* !USE_OPENLDAP */
     /*
      * SSL is enabled ?
      */
@@ -719,6 +763,18 @@ connectToServer (
 	fflush (stdout);
 	return (-1);
       }
+    }
+#endif /* !USE_OPENLDAP */
+
+    if (mctx.mode & CLTAUTH) {
+      mech = "EXTERNAL";
+      binddn = "";
+      passwd = NULL;
+    } else {
+      binddn = tttctx->bufBindDN;
+      passwd = tttctx->bufPasswd;
+      cred.bv_val = (char *)passwd;
+      cred.bv_len = strlen(passwd);
     }
 
     if (mctx.mode & LDAP_V2)
@@ -849,14 +905,21 @@ connectToServer (
       perror ("malloc");
       exit (LDAP_NO_MEMORY);
     }
-  
+#if defined(USE_OPENLDAP)
+    ret = ldap_sasl_interactive_bind_s( tttctx->ldapCtx, mctx.bindDN, mctx.sasl_mech,
+                       NULL, NULL, mctx.sasl_flags,
+                       ldaptool_sasl_interact, defaults );
+#else
     ret = ldap_sasl_interactive_bind_ext_s( tttctx->ldapCtx, mctx.bindDN, mctx.sasl_mech,
                        NULL, NULL, mctx.sasl_flags,
                        ldaptool_sasl_interact, defaults, NULL );
+#endif
     if (ret != LDAP_SUCCESS ) {
       tttctx->binded = 0;
-      if (!(mctx.mode & QUIET))
-        ldap_perror( tttctx->ldapCtx, "Bind Error" );
+      if (!(mctx.mode & QUIET)) {
+	fprintf(stderr, "Error: could not bind: %d:%s\n",
+		ret, my_ldap_err2string(ret));
+      }
       if (addErrorStat (ret) < 0)
         return (-1);
     } else {
@@ -868,15 +931,17 @@ connectToServer (
     if (((mctx.bindDN != NULL) || (mctx.mod2 & M2_RNDBINDFILE)) &&  /*03-05-01*/
 	((!(tttctx->binded)) || (mctx.mode & BIND_EACH_OPER)))
     {
+      struct berval *servercredp = NULL;
+
       if (buildNewBindDN (tttctx) < 0)				/*JLS 05-01-01*/
 	return (-1);						/*JLS 05-01-01*/
       if (mctx.mode & VERY_VERBOSE)
 	printf ("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
 		mctx.pid, tttctx->thrdNum, tttctx->bufBindDN,
 		mctx.passwd?tttctx->bufPasswd:"NO PASSWORD PROVIDED");
-      ret = ldap_simple_bind_s (tttctx->ldapCtx, 
-		tttctx->bufBindDN,				/*JLS 05-01-01*/
-		mctx.passwd?tttctx->bufPasswd:"NO PASSWORD PROVIDED");
+      ret = ldap_sasl_bind_s (tttctx->ldapCtx, tttctx->bufBindDN, LDAP_SASL_SIMPLE,
+			      &cred, NULL, NULL, &servercredp);	/*JLS 05-01-01*/
+      ber_bvfree(servercredp);
       if (mctx.mode & VERY_VERBOSE)
 	printf ("ldclt[%d]: T%03d: After ldap_simple_bind_s (%s, %s)\n",
 		mctx.pid, tttctx->thrdNum, tttctx->bufBindDN,
@@ -1821,9 +1886,31 @@ createMissingNodes (
    */
   if (cnx == NULL)
   {
+    const char *mech = LDAP_SASL_SIMPLE;
+    const char *binddn = NULL;
+    const char *passwd = NULL;
+    struct berval cred = {0, NULL};
+#if defined(USE_OPENLDAP)
+    char *ldapurl = NULL;
+#endif
+
     if (mctx.mode & VERY_VERBOSE)				/*JLS 14-12-00*/
       printf ("ldclt[%d]: T%03d: must connect to the server.\n",
                mctx.pid, tttctx->thrdNum);
+#if defined(USE_OPENLDAP)
+    ldapurl = PR_smprintf("ldap%s://%s:%d/",
+			  (mctx.mode & SSL) ? "s" : "",
+			  mctx.hostname, mctx.port);
+    if ((ret = ldap_initialize(&tttctx->ldapCtx, ldapurl))) {
+	printf ("ldclt[%d]: T%03d: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
+		mctx.pid, tttctx->thrdNum, ldapurl, errno, ret, my_ldap_err2string(ret));
+	fflush (stdout);
+	PR_smprintf_free(ldapurl);
+	return (-1);
+    }
+    PR_smprintf_free(ldapurl);
+    ldapurl = NULL;
+#else /* !USE_OPENLDAP */
     /*
      * SSL is enabled ?
      */
@@ -1879,6 +1966,18 @@ createMissingNodes (
 	return (-1);
       }
     }
+#endif /* !USE_OPENLDAP */
+
+    if (mctx.mode & CLTAUTH) {
+      mech = "EXTERNAL";
+      binddn = "";
+      passwd = NULL;
+    } else {
+      binddn = tttctx->bufBindDN;
+      passwd = tttctx->bufPasswd;
+      cred.bv_val = (char *)passwd;
+      cred.bv_len = strlen(passwd);
+    }
 
     if (mctx.mode & LDAP_V2)
       v2v3 = LDAP_VERSION2;
@@ -1897,30 +1996,15 @@ createMissingNodes (
     /*
      * Bind to the server
      */
-  /*
-   * for SSL client authentication, SASL BIND is used
-   */
-  if (mctx.mode & CLTAUTH)
-  {
-    ret = ldap_sasl_bind_s (tttctx->ldapCtx, "", "EXTERNAL", NULL, NULL, NULL,
+    ret = ldap_sasl_bind_s (tttctx->ldapCtx, binddn, mech, &cred, NULL, NULL,
 			    NULL);
     if (ret != LDAP_SUCCESS)
     {
-      printf ("ldclt[%d]: T%03d: Cannot ldap_sasl_bind_s, error=%d (%s)\n",
-	       mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
-      fflush (stdout);
-      tttctx->exitStatus = EXIT_NOBIND;
-      if (addErrorStat (ret) < 0)
-	return (-1);
-      return (-1);
-    }
-  } else {
-    ret = ldap_simple_bind_s (cnx, tttctx->bufBindDN, tttctx->bufPasswd);
-    if (ret != LDAP_SUCCESS)
-    {
-      printf ("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
+      printf ("ldclt[%d]: T%03d: Cannot bind using mech [%s] (%s, %s), error=%d (%s)\n",
 				mctx.pid, tttctx->thrdNum,
-				tttctx->bufBindDN, tttctx->bufPasswd,
+				mech ? mech : "SIMPLE",
+				tttctx->bufBindDN ? tttctx->bufBindDN : "",
+				tttctx->bufPasswd ? tttctx->bufPasswd : "",
 				ret, my_ldap_err2string (ret));
       fflush (stdout);
       tttctx->exitStatus = EXIT_NOBIND;				/*JLS 25-08-00*/
@@ -1928,7 +2012,6 @@ createMissingNodes (
 	return (-1);
       return (-1);
     }
-  }
   }
 
   /*
@@ -1951,7 +2034,7 @@ createMissingNodes (
    * Add the entry
    * If it doesn't work, we will recurse on the nodeDN
    */
-  ret = ldap_add_s (cnx, nodeDN, attrs);
+  ret = ldap_add_ext_s (cnx, nodeDN, attrs, NULL, NULL);
   if ((ret != LDAP_SUCCESS) && (ret != LDAP_ALREADY_EXISTS))
   {
     if (ret == LDAP_NO_SUCH_OBJECT)
@@ -2015,7 +2098,7 @@ createMissingNodes (
   if (freeAttrib (attrs) < 0)
     return (-1);
 
-  ret = ldap_unbind (cnx);
+  ret = ldap_unbind_ext (cnx, NULL, NULL);
   if (ret != LDAP_SUCCESS)
   {
     fprintf (stderr, "ldclt[%d]: T%03d: cannot ldap_unbind(), error=%d (%s)\n",
@@ -2775,7 +2858,7 @@ doAddEntry (
     retry = 1;
     while (retry)
     {
-      ret = ldap_add_s (tttctx->ldapCtx, newDn, attrs);
+      ret = ldap_add_ext_s (tttctx->ldapCtx, newDn, attrs, NULL, NULL);
       if (ret != LDAP_SUCCESS)
       {
 	if (!((mctx.mode & QUIET) && ignoreError (ret)))
@@ -2871,6 +2954,8 @@ doAddEntry (
   }
   else
   {
+    int msgid = 0;
+
     if ((mctx.mode & VERBOSE)   &&
 	(tttctx->asyncHit == 1) &&
 	(!(mctx.mode & SUPER_QUIET)))
@@ -2887,7 +2972,7 @@ doAddEntry (
     if (buildNewEntry (tttctx, newDn, attrs) < 0)
       return (-1);
 
-    ret = ldap_add (tttctx->ldapCtx, newDn, attrs);
+    ret = ldap_add_ext (tttctx->ldapCtx, newDn, attrs, NULL, NULL, &msgid);
     if (ret < 0)
     {
       if (ldap_get_option (tttctx->ldapCtx, LDAP_OPT_ERROR_NUMBER, &ret) < 0)
@@ -2929,7 +3014,7 @@ doAddEntry (
       /*
        * Memorize the operation
        */
-      if (msgIdAdd (tttctx, ret, newDn, newDn, attrs) < 0)
+      if (msgIdAdd (tttctx, msgid, newDn, newDn, attrs) < 0)
 	return (-1);
       if (incrementNbOpers (tttctx) < 0)
 	return (-1);
@@ -3160,7 +3245,7 @@ doDeleteEntry (
     strcat (delDn, ",");
     strcat (delDn, tttctx->bufBaseDN);
 
-    ret = ldap_delete_s (tttctx->ldapCtx, delDn);
+    ret = ldap_delete_ext_s (tttctx->ldapCtx, delDn, NULL, NULL);
     if (ret != LDAP_SUCCESS)
     {
       if (!((mctx.mode & QUIET) && ignoreError (ret)))
@@ -3223,6 +3308,8 @@ doDeleteEntry (
   }
   else
   {
+    int msgid = 0;
+
     if ((mctx.mode & VERBOSE)   &&
 	(tttctx->asyncHit == 1) &&
 	(!(mctx.mode & SUPER_QUIET)))
@@ -3243,7 +3330,7 @@ doDeleteEntry (
     strcat (delDn, ",");
     strcat (delDn, tttctx->bufBaseDN);
 
-    ret = ldap_delete (tttctx->ldapCtx, delDn);
+    ret = ldap_delete_ext (tttctx->ldapCtx, delDn, NULL, NULL, &msgid);
     if (ret < 0)
     {
       if (ldap_get_option (tttctx->ldapCtx, LDAP_OPT_ERROR_NUMBER, &ret) < 0)
@@ -3389,9 +3476,9 @@ doExactSearch (
    */
   if (!(mctx.mode & ASYNC))
   {
-    ret = ldap_search_s (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
+    ret = ldap_search_ext_s (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
 		tttctx->bufFilter, attrlist, 			/*JLS 15-03-01*/
-		mctx.attrsonly, &res);				/*JLS 03-01-01*/
+		mctx.attrsonly, NULL, NULL, NULL, -1, &res);	/*JLS 03-01-01*/
     if (ret != LDAP_SUCCESS)
     {
       if (!((mctx.mode & QUIET) && ignoreError (ret)))
@@ -3493,6 +3580,8 @@ doExactSearch (
   }
   else
   {
+    int msgid = 0;
+
     if ((mctx.mode & VERBOSE)   &&
 	(tttctx->asyncHit == 1) &&
 	(!(mctx.mode & SUPER_QUIET)))
@@ -3503,9 +3592,9 @@ doExactSearch (
       fflush (stdout);
     }
 
-    ret = ldap_search (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
+    ret = ldap_search_ext (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
 		tttctx->bufFilter, attrlist, 			/*JLS 15-03-01*/
-		mctx.attrsonly);				/*JLS 03-01-01*/
+		mctx.attrsonly, NULL, NULL, NULL, -1, &msgid);	/*JLS 03-01-01*/
     if (ret < 0)
     {
       if (ldap_get_option (tttctx->ldapCtx, LDAP_OPT_ERROR_NUMBER, &ret) < 0)
@@ -3699,7 +3788,7 @@ doAbandon (thread_context *tttctx)
       if (msgid >= 0)
       {
         /* ABANDON the search request immediately */
-        (void) ldap_abandon(tttctx->ldapCtx, msgid);
+        (void) ldap_abandon_ext(tttctx->ldapCtx, msgid, NULL, NULL);
       }
 
       /*

@@ -1204,9 +1204,9 @@ entry_dn_cmp( caddr_t d1, caddr_t d2 )
 				retval = len1 - len2;
 
 			if (dnlist1)
-				ldap_value_free(dnlist1);
+				slapi_ldap_value_free(dnlist1);
 			if (dnlist2)
-				ldap_value_free(dnlist2);
+				slapi_ldap_value_free(dnlist2);
 		}
 	}
 	/* else entries are equal if dns are equal */

@@ -49,7 +49,6 @@
 
 #include "ldap.h"
 #include <sslproto.h> /* cipher suite names */
-#include <ldap_ssl.h>
 
 #undef OFF
 #undef LITTLE_ENDIAN

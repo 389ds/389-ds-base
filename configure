@@ -933,6 +933,8 @@ kerberos_inc
 kerberos_lib
 kerberos_libdir
 PACKAGE_BASE_VERSION
+OPENLDAP_TRUE
+OPENLDAP_FALSE
 nspr_inc
 nspr_lib
 nspr_libdir
@@ -943,6 +945,11 @@ ldapsdk_inc
 ldapsdk_lib
 ldapsdk_libdir
 ldapsdk_bindir
+openldap_inc
+openldap_lib
+openldap_libdir
+openldap_bindir
+ol_libver
 db_inc
 db_incdir
 db_lib
@@ -1610,6 +1617,10 @@ Optional Packages:
   --with-nss=PATH         Network Security Services (NSS) directory
   --with-nss-inc=PATH         Network Security Services (NSS) include directory
   --with-nss-lib=PATH         Network Security Services (NSS) library directory
+  --with-openldap=PATH    Use OpenLDAP - optional PATH is path to OpenLDAP SDK
+  --with-openldap-inc=PATH     OpenLDAP SDK include directory
+  --with-openldap-lib=PATH     OpenLDAP SDK library directory
+  --with-openldap-bin=PATH     OpenLDAP SDK binary directory
   --with-ldapsdk=PATH     Mozilla LDAP SDK directory
   --with-ldapsdk-inc=PATH     Mozilla LDAP SDK include directory
   --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library directory
@@ -5219,7 +5230,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 5222 "configure"' > conftest.$ac_ext
+  echo '#line 5233 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7490,11 +7501,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7493: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7504: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7497: \$? = $ac_status" >&5
+   echo "$as_me:7508: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7780,11 +7791,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7783: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7794: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7787: \$? = $ac_status" >&5
+   echo "$as_me:7798: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7884,11 +7895,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7887: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7898: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:7891: \$? = $ac_status" >&5
+   echo "$as_me:7902: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -10235,7 +10246,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 10238 "configure"
+#line 10249 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -10335,7 +10346,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 10338 "configure"
+#line 10349 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12755,11 +12766,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12758: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12769: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:12762: \$? = $ac_status" >&5
+   echo "$as_me:12773: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -12859,11 +12870,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12862: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12873: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:12866: \$? = $ac_status" >&5
+   echo "$as_me:12877: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14423,11 +14434,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14426: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14437: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:14430: \$? = $ac_status" >&5
+   echo "$as_me:14441: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -14527,11 +14538,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14530: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14541: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14534: \$? = $ac_status" >&5
+   echo "$as_me:14545: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -16716,11 +16727,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16719: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16730: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16723: \$? = $ac_status" >&5
+   echo "$as_me:16734: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -17006,11 +17017,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:17009: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:17020: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:17013: \$? = $ac_status" >&5
+   echo "$as_me:17024: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -17110,11 +17121,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:17113: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:17124: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:17117: \$? = $ac_status" >&5
+   echo "$as_me:17128: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -25070,8 +25081,10 @@ echo "$as_me: error: NSS not found, specify with --with-nss." >&2;}
   fi
 fi
 
+# default to Mozilla LDAP C SDK - override with --with-openldap
+with_ldapsdk=yes
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
 # All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -25090,25 +25103,31 @@ fi
 #
 # END COPYRIGHT BLOCK
 
-{ echo "$as_me:$LINENO: checking for LDAPSDK..." >&5
-echo "$as_me: checking for LDAPSDK..." >&6;}
+{ echo "$as_me:$LINENO: checking for OpenLDAP..." >&5
+echo "$as_me: checking for OpenLDAP..." >&6;}
 
-# check for --with-ldapsdk
-{ echo "$as_me:$LINENO: checking for --with-ldapsdk" >&5
-echo $ECHO_N "checking for --with-ldapsdk... $ECHO_C" >&6; }
+# check for --with-openldap
+{ echo "$as_me:$LINENO: checking for --with-openldap" >&5
+echo $ECHO_N "checking for --with-openldap... $ECHO_C" >&6; }
 
-# Check whether --with-ldapsdk was given.
-if test "${with_ldapsdk+set}" = set; then
-  withval=$with_ldapsdk;
-  if test -e "$withval"/include/ldap.h -a -d "$withval"/lib
+# Check whether --with-openldap was given.
+if test "${with_openldap+set}" = set; then
+  withval=$with_openldap;
+  if test "$withval" = yes
+  then
+    { echo "$as_me:$LINENO: result: using system OpenLDAP" >&5
+echo "${ECHO_T}using system OpenLDAP" >&6; }
+  elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
   then
     { echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6; }
-    LDAPSDKDIR=$withval
-    ldapsdk_inc="-I$LDAPSDKDIR/include"
-    ldapsdk_lib="-L$LDAPSDKDIR/lib"
-    ldapsdk_libdir="$LDAPSDKDIR/lib"
-    ldapsdk_bindir="$LDAPSDKDIR/bin"
+    OPENLDAPDIR=$withval
+    openldap_incdir="$OPENLDAPDIR/include"
+    openldap_inc="-I$openldap_incdir"
+    openldap_lib="-L$OPENLDAPDIR/lib"
+    openldap_libdir="$OPENLDAPDIR/lib"
+    openldap_bindir="$OPENLDAPDIR/bin"
+    with_openldap=yes
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -25122,18 +25141,20 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 
-# check for --with-ldapsdk-inc
-{ echo "$as_me:$LINENO: checking for --with-ldapsdk-inc" >&5
-echo $ECHO_N "checking for --with-ldapsdk-inc... $ECHO_C" >&6; }
+# check for --with-openldap-inc
+{ echo "$as_me:$LINENO: checking for --with-openldap-inc" >&5
+echo $ECHO_N "checking for --with-openldap-inc... $ECHO_C" >&6; }
 
-# Check whether --with-ldapsdk-inc was given.
-if test "${with_ldapsdk_inc+set}" = set; then
-  withval=$with_ldapsdk_inc;
+# Check whether --with-openldap-inc was given.
+if test "${with_openldap_inc+set}" = set; then
+  withval=$with_openldap_inc;
   if test -e "$withval"/ldap.h
   then
     { echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6; }
-    ldapsdk_inc="-I$withval"
+    openldap_incdir="$withval"
+    openldap_inc="-I$withval"
+    with_openldap=yes
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -25147,19 +25168,20 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 
-# check for --with-ldapsdk-lib
-{ echo "$as_me:$LINENO: checking for --with-ldapsdk-lib" >&5
-echo $ECHO_N "checking for --with-ldapsdk-lib... $ECHO_C" >&6; }
+# check for --with-openldap-lib
+{ echo "$as_me:$LINENO: checking for --with-openldap-lib" >&5
+echo $ECHO_N "checking for --with-openldap-lib... $ECHO_C" >&6; }
 
-# Check whether --with-ldapsdk-lib was given.
-if test "${with_ldapsdk_lib+set}" = set; then
-  withval=$with_ldapsdk_lib;
+# Check whether --with-openldap-lib was given.
+if test "${with_openldap_lib+set}" = set; then
+  withval=$with_openldap_lib;
   if test -d "$withval"
   then
     { echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6; }
-    ldapsdk_lib="-L$withval"
-    ldapsdk_libdir="$withval"
+    openldap_lib="-L$withval"
+    openldap_libdir="$withval"
+    with_openldap=yes
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -25173,18 +25195,19 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 
-# check for --with-ldapsdk-bin
-{ echo "$as_me:$LINENO: checking for --with-ldapsdk-bin" >&5
-echo $ECHO_N "checking for --with-ldapsdk-bin... $ECHO_C" >&6; }
+# check for --with-openldap-bin
+{ echo "$as_me:$LINENO: checking for --with-openldap-bin" >&5
+echo $ECHO_N "checking for --with-openldap-bin... $ECHO_C" >&6; }
 
-# Check whether --with-ldapsdk-bin was given.
-if test "${with_ldapsdk_bin+set}" = set; then
-  withval=$with_ldapsdk_bin;
+# Check whether --with-openldap-bin was given.
+if test "${with_openldap_bin+set}" = set; then
+  withval=$with_openldap_bin;
   if test -d "$withval"
   then
     { echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6; }
-    ldapsdk_bindir="$withval"
+    openldap_bindir="$withval"
+    with_openldap=yes
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
@@ -25198,11 +25221,11 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 
-# if LDAPSDK is not found yet, try pkg-config
+# if OPENLDAP is not found yet, try pkg-config
 
-# last resort
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
-  # Extract the first word of "pkg-config", so it can be a program name with args.
+if test -z "$openldap_inc" -o -z "$openldap_lib" -o -z "$openldap_libdir" -o -z "$openldap_bindir"; then
+  if test "$with_openldap" = yes ; then # user wants to use openldap, but didn't specify paths
+    # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
 { echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
@@ -25242,42 +25265,614 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 
-  { echo "$as_me:$LINENO: checking for mozldap with pkg-config" >&5
-echo $ECHO_N "checking for mozldap with pkg-config... $ECHO_C" >&6; }
-  if test -n "$PKG_CONFIG"; then
-    if $PKG_CONFIG --exists mozldap6; then
-	mozldappkg=mozldap6
-    elif $PKG_CONFIG --exists mozldap; then
-	mozldappkg=mozldap
+    { echo "$as_me:$LINENO: checking for OpenLDAP with pkg-config" >&5
+echo $ECHO_N "checking for OpenLDAP with pkg-config... $ECHO_C" >&6; }
+    if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists openldap; then
+      openldap_inc=`$PKG_CONFIG --cflags-only-I openldap`
+      openldap_lib=`$PKG_CONFIG --libs-only-L openldap`
+      openldap_libdir=`$PKG_CONFIG --libs-only-L openldap | sed -e s/-L// | sed -e s/\ .*$//`
+      openldap_bindir=`$PKG_CONFIG --variable=bindir openldap`
+      openldap_incdir=`$PKG_CONFIG --variable=includedir openldap`
+      { echo "$as_me:$LINENO: result: using system OpenLDAP from pkg-config" >&5
+echo "${ECHO_T}using system OpenLDAP from pkg-config" >&6; }
     else
-      { { echo "$as_me:$LINENO: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&5
-echo "$as_me: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&2;}
-   { (exit 1); exit 1; }; }
+      openldap_incdir="/usr/include"
+      openldap_inc="-I$openldap_incdir"
+      { echo "$as_me:$LINENO: result: no OpenLDAP pkg-config files" >&5
+echo "${ECHO_T}no OpenLDAP pkg-config files" >&6; }
     fi
-    ldapsdk_inc=`$PKG_CONFIG --cflags-only-I $mozldappkg`
-    ldapsdk_lib=`$PKG_CONFIG --libs-only-L $mozldappkg`
-    ldapsdk_libdir=`$PKG_CONFIG --libs-only-L $mozldappkg | sed -e s/-L// | sed -e s/\ .*$//`
-    ldapsdk_bindir=`$PKG_CONFIG --variable=bindir $mozldappkg`
-    { echo "$as_me:$LINENO: result: using system $mozldappkg" >&5
-echo "${ECHO_T}using system $mozldappkg" >&6; }
-  fi
-fi
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
-  { { echo "$as_me:$LINENO: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&5
-echo "$as_me: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&2;}
-   { (exit 1); exit 1; }; }
-fi
-if test -z "$ldapsdk_bindir" ; then
-  if  -d $libdir/mozldap6  ; then
-    ldapsdk_bindir=$libdir/mozldap6
-  else
-    ldapsdk_bindir=$libdir/mozldap
   fi
 fi
 
-save_cppflags="$CPPFLAGS"
-CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
-{ echo "$as_me:$LINENO: checking for ldap.h" >&5
+
+if test "$with_openldap" = yes ; then
+  save_cppflags="$CPPFLAGS"
+  CPPFLAGS="$openldap_inc $nss_inc $nspr_inc"
+  if test "${ac_cv_header_ldap_features_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for ldap_features.h" >&5
+echo $ECHO_N "checking for ldap_features.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_ldap_features_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_ldap_features_h" >&5
+echo "${ECHO_T}$ac_cv_header_ldap_features_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking ldap_features.h usability" >&5
+echo $ECHO_N "checking ldap_features.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <ldap_features.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking ldap_features.h presence" >&5
+echo $ECHO_N "checking ldap_features.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <ldap_features.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: ldap_features.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: ldap_features.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: ldap_features.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: ldap_features.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: ldap_features.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: ldap_features.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: ldap_features.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ldap_features.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: ldap_features.h: in the future, the compiler will take precedence" >&2;}
+    ( cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to http://bugzilla.redhat.com/ ##
+## ------------------------------------------ ##
+_ASBOX
+     ) | sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for ldap_features.h" >&5
+echo $ECHO_N "checking for ldap_features.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_ldap_features_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_ldap_features_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_ldap_features_h" >&5
+echo "${ECHO_T}$ac_cv_header_ldap_features_h" >&6; }
+
+fi
+if test $ac_cv_header_ldap_features_h = yes; then
+  :
+else
+  { { echo "$as_me:$LINENO: error: specified with-openldap but ldap_features.h not found" >&5
+echo "$as_me: error: specified with-openldap but ldap_features.h not found" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+    ol_ver_maj=`grep LDAP_VENDOR_VERSION_MAJOR $openldap_incdir/ldap_features.h | awk '{print $3}'`
+  ol_ver_min=`grep LDAP_VENDOR_VERSION_MINOR $openldap_incdir/ldap_features.h | awk '{print $3}'`
+  ol_ver_pat=`grep LDAP_VENDOR_VERSION_PATCH $openldap_incdir/ldap_features.h | awk '{print $3}'`
+    ol_libver="-${ol_ver_maj}.${ol_ver_min}"
+    save_ldflags="$LDFLAGS"
+  LDFLAGS="$openldap_lib $LDFLAGS"
+  as_ac_Lib=`echo "ac_cv_lib_ldap$ol_libver''_ldap_initialize" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for ldap_initialize in -lldap$ol_libver" >&5
+echo $ECHO_N "checking for ldap_initialize in -lldap$ol_libver... $ECHO_C" >&6; }
+if { as_var=$as_ac_Lib; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lldap$ol_libver  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ldap_initialize ();
+int
+main ()
+{
+return ldap_initialize ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_Lib=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_Lib=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+ac_res=`eval echo '${'$as_ac_Lib'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
+  have_ldap_lib=1
+fi
+
+  if test -z "$have_ldap_lib" ; then
+    { echo "$as_me:$LINENO: checking for ldap_initialize in -lldap" >&5
+echo $ECHO_N "checking for ldap_initialize in -lldap... $ECHO_C" >&6; }
+if test "${ac_cv_lib_ldap_ldap_initialize+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lldap  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ldap_initialize ();
+int
+main ()
+{
+return ldap_initialize ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_ldap_ldap_initialize=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_ldap_ldap_initialize=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_ldap_ldap_initialize" >&5
+echo "${ECHO_T}$ac_cv_lib_ldap_ldap_initialize" >&6; }
+if test $ac_cv_lib_ldap_ldap_initialize = yes; then
+  unset ol_libver
+else
+  { { echo "$as_me:$LINENO: error: specified with-openldap but libldap not found" >&5
+echo "$as_me: error: specified with-openldap but libldap not found" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+  fi
+    as_ac_Lib=`echo "ac_cv_lib_ldap$ol_libver''_ldap_url_parse_ext" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for ldap_url_parse_ext in -lldap$ol_libver" >&5
+echo $ECHO_N "checking for ldap_url_parse_ext in -lldap$ol_libver... $ECHO_C" >&6; }
+if { as_var=$as_ac_Lib; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lldap$ol_libver  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ldap_url_parse_ext ();
+int
+main ()
+{
+return ldap_url_parse_ext ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_Lib=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_Lib=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+ac_res=`eval echo '${'$as_ac_Lib'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LDAP_URL_PARSE_EXT 1
+_ACEOF
+
+fi
+
+  LDFLAGS="$save_ldflags"
+  CPPFLAGS="$save_cppflags"
+
+
+cat >>confdefs.h <<\_ACEOF
+#define USE_OPENLDAP 1
+_ACEOF
+
+  with_ldapsdk=no # using openldap not mozldap
+fi
+
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2007 Red Hat, Inc.
+# All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# END COPYRIGHT BLOCK
+
+{ echo "$as_me:$LINENO: checking for Mozilla LDAPSDK..." >&5
+echo "$as_me: checking for Mozilla LDAPSDK..." >&6;}
+
+# check for --with-ldapsdk
+{ echo "$as_me:$LINENO: checking for --with-ldapsdk" >&5
+echo $ECHO_N "checking for --with-ldapsdk... $ECHO_C" >&6; }
+
+# Check whether --with-ldapsdk was given.
+if test "${with_ldapsdk+set}" = set; then
+  withval=$with_ldapsdk;
+  if test "$withval" = yes
+  then
+    { echo "$as_me:$LINENO: result: using system MozLDAP" >&5
+echo "${ECHO_T}using system MozLDAP" >&6; }
+  elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
+  then
+    { echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6; }
+    LDAPSDKDIR=$withval
+    ldapsdk_inc="-I$LDAPSDKDIR/include"
+    ldapsdk_lib="-L$LDAPSDKDIR/lib"
+    ldapsdk_libdir="$LDAPSDKDIR/lib"
+    ldapsdk_bindir="$LDAPSDKDIR/bin"
+    with_ldapsdk=yes
+  else
+    echo
+    { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
+# check for --with-ldapsdk-inc
+{ echo "$as_me:$LINENO: checking for --with-ldapsdk-inc" >&5
+echo $ECHO_N "checking for --with-ldapsdk-inc... $ECHO_C" >&6; }
+
+# Check whether --with-ldapsdk-inc was given.
+if test "${with_ldapsdk_inc+set}" = set; then
+  withval=$with_ldapsdk_inc;
+  if test -e "$withval"/ldap.h
+  then
+    { echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6; }
+    ldapsdk_inc="-I$withval"
+    with_ldapsdk=yes
+  else
+    echo
+    { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
+# check for --with-ldapsdk-lib
+{ echo "$as_me:$LINENO: checking for --with-ldapsdk-lib" >&5
+echo $ECHO_N "checking for --with-ldapsdk-lib... $ECHO_C" >&6; }
+
+# Check whether --with-ldapsdk-lib was given.
+if test "${with_ldapsdk_lib+set}" = set; then
+  withval=$with_ldapsdk_lib;
+  if test -d "$withval"
+  then
+    { echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6; }
+    ldapsdk_lib="-L$withval"
+    ldapsdk_libdir="$withval"
+    with_ldapsdk=yes
+  else
+    echo
+    { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
+# check for --with-ldapsdk-bin
+{ echo "$as_me:$LINENO: checking for --with-ldapsdk-bin" >&5
+echo $ECHO_N "checking for --with-ldapsdk-bin... $ECHO_C" >&6; }
+
+# Check whether --with-ldapsdk-bin was given.
+if test "${with_ldapsdk_bin+set}" = set; then
+  withval=$with_ldapsdk_bin;
+  if test -d "$withval"
+  then
+    { echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6; }
+    ldapsdk_bindir="$withval"
+    with_ldapsdk=yes
+  else
+    echo
+    { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
+# if LDAPSDK is not found yet, try pkg-config
+
+# last resort
+if test "$with_ldapsdk" = yes ; then
+  if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
+    # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
+if test "${ac_cv_path_PKG_CONFIG+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { echo "$as_me:$LINENO: result: $PKG_CONFIG" >&5
+echo "${ECHO_T}$PKG_CONFIG" >&6; }
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
+    { echo "$as_me:$LINENO: checking for mozldap with pkg-config" >&5
+echo $ECHO_N "checking for mozldap with pkg-config... $ECHO_C" >&6; }
+    if test -n "$PKG_CONFIG"; then
+      if $PKG_CONFIG --exists mozldap6; then
+	    mozldappkg=mozldap6
+      elif $PKG_CONFIG --exists mozldap; then
+	    mozldappkg=mozldap
+      else
+        { { echo "$as_me:$LINENO: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&5
+echo "$as_me: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&2;}
+   { (exit 1); exit 1; }; }
+      fi
+      ldapsdk_inc=`$PKG_CONFIG --cflags-only-I $mozldappkg`
+      ldapsdk_lib=`$PKG_CONFIG --libs-only-L $mozldappkg`
+      ldapsdk_libdir=`$PKG_CONFIG --libs-only-L $mozldappkg | sed -e s/-L// | sed -e s/\ .*$//`
+      ldapsdk_bindir=`$PKG_CONFIG --variable=bindir $mozldappkg`
+      { echo "$as_me:$LINENO: result: using system $mozldappkg" >&5
+echo "${ECHO_T}using system $mozldappkg" >&6; }
+    fi
+  fi
+fi
+
+if test "$with_ldapsdk" = yes ; then
+  if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
+    { { echo "$as_me:$LINENO: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&5
+echo "$as_me: error: LDAPSDK not found, specify with --with-ldapsdk-inc|-lib|-bin." >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+  if test -z "$ldapsdk_bindir" ; then
+    if  -d $libdir/mozldap6  ; then
+      ldapsdk_bindir=$libdir/mozldap6
+    else
+      ldapsdk_bindir=$libdir/mozldap
+    fi
+  fi
+
+        save_cppflags="$CPPFLAGS"
+  CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
+  { echo "$as_me:$LINENO: checking for ldap.h" >&5
 echo $ECHO_N "checking for ldap.h... $ECHO_C" >&6; }
 if test "${ac_cv_header_ldap_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -25332,12 +25927,23 @@ else
 fi
 
 
-CPPFLAGS="$save_cppflags"
+  CPPFLAGS="$save_cppflags"
 
-if test -z "$isversion6" ; then
-  { { echo "$as_me:$LINENO: error: The LDAPSDK version in $ldapsdk_inc/ldap-standard.h is not supported" >&5
+  if test -z "$isversion6" ; then
+    { { echo "$as_me:$LINENO: error: The LDAPSDK version in $ldapsdk_inc/ldap-standard.h is not supported" >&5
 echo "$as_me: error: The LDAPSDK version in $ldapsdk_inc/ldap-standard.h is not supported" >&2;}
    { (exit 1); exit 1; }; }
+  fi
+
+cat >>confdefs.h <<\_ACEOF
+#define USE_MOZLDAP 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LDAP_URL_PARSE_NO_DEFAULTS 1
+_ACEOF
+
 fi
 
 # BEGIN COPYRIGHT BLOCK
@@ -27304,7 +27910,21 @@ else
   sasl_path="$sasl_libdir/sasl2"
 fi
 
+ if test "$with_openldap" = "yes"; then
+  OPENLDAP_TRUE=
+  OPENLDAP_FALSE='#'
+else
+  OPENLDAP_TRUE='#'
+  OPENLDAP_FALSE=
+fi
+
+
 # write out paths for binary components
+
+
+
+
+
 
 
 
@@ -27583,6 +28203,13 @@ if test -z "${SOLARIS_TRUE}" && test -z "${SOLARIS_FALSE}"; then
   { { echo "$as_me:$LINENO: error: conditional \"SOLARIS\" was never defined.
 Usually this means the macro was only invoked conditionally." >&5
 echo "$as_me: error: conditional \"SOLARIS\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${OPENLDAP_TRUE}" && test -z "${OPENLDAP_FALSE}"; then
+  { { echo "$as_me:$LINENO: error: conditional \"OPENLDAP\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+echo "$as_me: error: conditional \"OPENLDAP\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi
@@ -28323,6 +28950,8 @@ kerberos_inc!$kerberos_inc$ac_delim
 kerberos_lib!$kerberos_lib$ac_delim
 kerberos_libdir!$kerberos_libdir$ac_delim
 PACKAGE_BASE_VERSION!$PACKAGE_BASE_VERSION$ac_delim
+OPENLDAP_TRUE!$OPENLDAP_TRUE$ac_delim
+OPENLDAP_FALSE!$OPENLDAP_FALSE$ac_delim
 nspr_inc!$nspr_inc$ac_delim
 nspr_lib!$nspr_lib$ac_delim
 nspr_libdir!$nspr_libdir$ac_delim
@@ -28333,6 +28962,11 @@ ldapsdk_inc!$ldapsdk_inc$ac_delim
 ldapsdk_lib!$ldapsdk_lib$ac_delim
 ldapsdk_libdir!$ldapsdk_libdir$ac_delim
 ldapsdk_bindir!$ldapsdk_bindir$ac_delim
+openldap_inc!$openldap_inc$ac_delim
+openldap_lib!$openldap_lib$ac_delim
+openldap_libdir!$openldap_libdir$ac_delim
+openldap_bindir!$openldap_bindir$ac_delim
+ol_libver!$ol_libver$ac_delim
 db_inc!$db_inc$ac_delim
 db_incdir!$db_incdir$ac_delim
 db_lib!$db_lib$ac_delim
@@ -28346,13 +28980,6 @@ sasl_path!$sasl_path$ac_delim
 svrcore_inc!$svrcore_inc$ac_delim
 svrcore_lib!$svrcore_lib$ac_delim
 icu_lib!$icu_lib$ac_delim
-icu_inc!$icu_inc$ac_delim
-icu_bin!$icu_bin$ac_delim
-netsnmp_inc!$netsnmp_inc$ac_delim
-netsnmp_lib!$netsnmp_lib$ac_delim
-netsnmp_libdir!$netsnmp_libdir$ac_delim
-netsnmp_link!$netsnmp_link$ac_delim
-pcre_inc!$pcre_inc$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -28394,6 +29021,13 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+icu_inc!$icu_inc$ac_delim
+icu_bin!$icu_bin$ac_delim
+netsnmp_inc!$netsnmp_inc$ac_delim
+netsnmp_lib!$netsnmp_lib$ac_delim
+netsnmp_libdir!$netsnmp_libdir$ac_delim
+netsnmp_link!$netsnmp_link$ac_delim
+pcre_inc!$pcre_inc$ac_delim
 pcre_lib!$pcre_lib$ac_delim
 pcre_libdir!$pcre_libdir$ac_delim
 brand!$brand$ac_delim
@@ -28402,7 +29036,7 @@ vendor!$vendor$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 6; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 13; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

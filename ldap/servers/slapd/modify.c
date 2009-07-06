@@ -179,6 +179,7 @@ do_modify( Slapi_PBlock *pb )
 
 	/* collect modifications & save for later */
 	slapi_mods_init(&smods, 0);
+	len = -1;
 	for ( tag = ber_first_element( ber, &len, &last );
 	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
 	    tag = ber_next_element( ber, &len, last ) )
@@ -186,6 +187,7 @@ do_modify( Slapi_PBlock *pb )
 		ber_int_t mod_op;
 		mod = (LDAPMod *) slapi_ch_malloc( sizeof(LDAPMod) );
 		mod->mod_bvalues = NULL;
+		len = -1; /* reset - len is not used */
 
 		if ( ber_scanf( ber, "{i{a[V]}}", &mod_op, &type,
 		    &mod->mod_bvalues ) == LBER_ERROR )
@@ -264,7 +266,7 @@ do_modify( Slapi_PBlock *pb )
 	}
 
 	/* check for decoding error */
-	if ( tag == LBER_ERROR )
+	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) )
 	{
 		op_shared_log_error_access (pb, "MOD", dn, "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL );

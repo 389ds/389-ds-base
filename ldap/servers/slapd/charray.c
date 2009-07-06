@@ -320,9 +320,9 @@ charray_dup( char **a )
 }
 
 char **
-str2charray( char *str, char *brkstr )
+slapi_str2charray( char *str, char *brkstr )
 {
-    return( str2charray_ext( str, brkstr, 1 ));
+    return( slapi_str2charray_ext( str, brkstr, 1 ));
 }
 
 /*
@@ -330,7 +330,7 @@ str2charray( char *str, char *brkstr )
  * duplicate values into the array.
  */
 char **
-str2charray_ext( char *str, char *brkstr, int allow_dups )
+slapi_str2charray_ext( char *str, char *brkstr, int allow_dups )
 {
     char    **res;
     char    *s;

@@ -274,7 +274,11 @@ import_get_version(char *str)
     char *valuecharptr;
     char *mystr, *ms;
     int offset;
+#if defined(USE_OPENLDAP)
+    ber_len_t valuelen;
+#else
     int	valuelen;
+#endif
     int my_version = 0;
     int retmalloc = 0;
 

@@ -137,9 +137,6 @@ coverage: acltest.o ustubs.o $(XOBJ)
 	rm -f *.pcv
 	acltestcov
 
-lasemail: lasemail.o
-	$(LD) -G -h lasemail.so -o lasemail.so lasemail.o
-
 #$(XOBJ): $(XSRC)
 #	cd ..; gmake OBJDEST=$(UTESTDEST) CC=$(OCC) TESTFLAGS=$(TESTFLAGS)
 

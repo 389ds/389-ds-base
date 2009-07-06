@@ -195,9 +195,9 @@ static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, char *dn,
 					}
 				}    			
 			}
-			ldap_value_free( rdns );
+			slapi_ldap_value_free( rdns );
 		}
-		ldap_value_free( dns );
+		slapi_ldap_value_free( dns );
 	}
 
 	return(retCode);

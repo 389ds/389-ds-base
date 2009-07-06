@@ -46,6 +46,7 @@
 #include "slapi-plugin.h"
 #include <ssl.h>
 #include "nspr.h"
+#include "plbase64.h"
 #include "ldif.h"
 #include "md5.h"
 
@@ -54,7 +55,7 @@
 #define PWD_HASH_PREFIX_START   '{'
 #define PWD_HASH_PREFIX_END '}'
 
-#define MAX_SHA_HASH_SIZE  64
+#define MAX_SHA_HASH_SIZE  HASH_LENGTH_MAX
 
 #define SHA1_SCHEME_NAME    "SHA"
 #define SHA1_NAME_LEN       3
@@ -81,31 +82,31 @@
 #define MD5_SCHEME_NAME "MD5"
 #define MD5_NAME_LEN 3
 
-SECStatus sha_salted_hash(unsigned char *hash_out, char *pwd, struct berval *salt, unsigned int secOID);
-int sha_pw_cmp( char *userpwd, char *dbpwd, unsigned int shaLen );
-char * sha_pw_enc( char *pwd, unsigned int shaLen );
-char * salted_sha_pw_enc( char *pwd, unsigned int shaLen );
-int sha1_pw_cmp( char *userpwd, char *dbpwd );
-char * sha1_pw_enc( char *pwd );
-char * salted_sha1_pw_enc( char *pwd );
-int sha256_pw_cmp( char *userpwd, char *dbpwd );
-char * sha256_pw_enc( char *pwd );
-char * salted_sha256_pw_enc( char *pwd );
-int sha384_pw_cmp( char *userpwd, char *dbpwd );
-char * sha384_pw_enc( char *pwd );
-char * salted_sha384_pw_enc( char *pwd );
-int sha512_pw_cmp( char *userpwd, char *dbpwd );
-char * sha512_pw_enc( char *pwd );
-char * salted_sha512_pw_enc( char *pwd );
-int clear_pw_cmp( char *userpwd, char *dbpwd );
-char *clear_pw_enc( char *pwd );
+SECStatus sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID);
+int sha_pw_cmp( const char *userpwd, const char *dbpwd, unsigned int shaLen );
+char * sha_pw_enc( const char *pwd, unsigned int shaLen );
+char * salted_sha_pw_enc( const char *pwd, unsigned int shaLen );
+int sha1_pw_cmp( const char *userpwd, const char *dbpwd );
+char * sha1_pw_enc( const char *pwd );
+char * salted_sha1_pw_enc( const char *pwd );
+int sha256_pw_cmp( const char *userpwd, const char *dbpwd );
+char * sha256_pw_enc( const char *pwd );
+char * salted_sha256_pw_enc( const char *pwd );
+int sha384_pw_cmp( const char *userpwd, const char *dbpwd );
+char * sha384_pw_enc( const char *pwd );
+char * salted_sha384_pw_enc( const char *pwd );
+int sha512_pw_cmp( const char *userpwd, const char *dbpwd );
+char * sha512_pw_enc( const char *pwd );
+char * salted_sha512_pw_enc( const char *pwd );
+int clear_pw_cmp( const char *userpwd, const char *dbpwd );
+char *clear_pw_enc( const char *pwd );
 #ifndef _WIN32
 void crypt_init();
-int crypt_pw_cmp( char *userpwd, char *dbpwd );
-char *crypt_pw_enc( char *pwd );
+int crypt_pw_cmp( const char *userpwd, const char *dbpwd );
+char *crypt_pw_enc( const char *pwd );
 #endif
-int ns_mta_md5_pw_cmp( char *userpwd, char *dbpwd );
-int md5_pw_cmp( char *userpwd, char *dbpwd );
-char *md5_pw_enc( char *pwd );
+int ns_mta_md5_pw_cmp( const char *userpwd, const char *dbpwd );
+int md5_pw_cmp( const char *userpwd, const char *dbpwd );
+char *md5_pw_enc( const char *pwd );
 
 #endif /* _PWDSTORAGE_H */

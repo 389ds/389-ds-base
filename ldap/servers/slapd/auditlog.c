@@ -195,9 +195,9 @@ write_audit_file(
         			len = LDIF_SIZE_NEEDED( len, mods[j]->mod_bvalues[i]->bv_len ) + 1;
        				buf = slapi_ch_malloc( len );
         			bufp = buf;
-        			ldif_put_type_and_value( &bufp, mods[j]->mod_type,
+        			slapi_ldif_put_type_and_value_with_options( &bufp, mods[j]->mod_type,
         				mods[j]->mod_bvalues[i]->bv_val,
-        				mods[j]->mod_bvalues[i]->bv_len );
+        				mods[j]->mod_bvalues[i]->bv_len, 0 );
         			*bufp = '\0';
         			addlenstr( l, buf );
         			slapi_ch_free( (void**)&buf );

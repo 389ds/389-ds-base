@@ -135,6 +135,14 @@ NSAPI_PUBLIC extern int ldapu_list_add_info (LDAPUList_t *list, void *info);
 #define USE_LDAP_SSL
 #endif
 
+#ifndef LDAP_CALL
+#define LDAP_CALL
+#endif
+
+#ifndef LDAP_CALLBACK
+#define LDAP_CALLBACK
+#endif
+
 typedef struct {
 #ifdef USE_LDAP_SSL
     LDAP*       (LDAP_CALL LDAP_CALLBACK *ldapuV_ssl_init)         ( const char*, int, int );

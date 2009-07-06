@@ -186,7 +186,7 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 		       rdnstr = slapi_ch_realloc(rdnstr, alloc_len);
 		       rdnpair = &rdnstr[rdnstr_len];
 		}
-	        ldif_put_type_and_value_with_options(&rdnpair, rdntype,
+	        slapi_ldif_put_type_and_value_with_options(&rdnpair, rdntype,
 				rdnval, rdnval_len, LDIF_OPT_NOWRAP);
 		*rdnpair = '\0';
 	}	  

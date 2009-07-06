@@ -327,20 +327,54 @@ dd/mm/yy | Author	| Comments
 #ifdef SOLARIS_LIBLDAP						/*JLS 19-09-00*/
 #define WORKAROUND_4197228	1				/*JLS 19-09-00*/
 #else								/*JLS 19-09-00*/
+#ifndef LDAP_REQ_BIND
 #define	LDAP_REQ_BIND			0x60			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_UNBIND
 #define	LDAP_REQ_UNBIND			0x42			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_SEARCH
 #define	LDAP_REQ_SEARCH			0x63			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_MODIFY
 #define	LDAP_REQ_MODIFY			0x66			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_ADD
 #define	LDAP_REQ_ADD			0x68			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_DELETE
 #define	LDAP_REQ_DELETE			0x4a			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_MODRDN
 #define	LDAP_REQ_MODRDN			0x6c			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_COMPARE
 #define	LDAP_REQ_COMPARE		0x6e			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_ABANDON
 #define	LDAP_REQ_ABANDON		0x50			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_EXTENDED
 #define	LDAP_REQ_EXTENDED		0x77			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_UNBIND_30
 #define	LDAP_REQ_UNBIND_30		0x62			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_DELETE_30
 #define	LDAP_REQ_DELETE_30		0x6a			/*JLS 19-09-00*/
+#endif
+#ifndef LDAP_REQ_ABANDON_30
 #define	LDAP_REQ_ABANDON_30		0x70			/*JLS 19-09-00*/
 #endif								/*JLS 19-09-00*/
+#endif
+
+#ifndef LBER_SOCKET
+#ifdef LBER_SOCKET_T
+#define LBER_SOCKET LBER_SOCKET_T
+#else
+#define LBER_SOCKET int
+#endif
+#endif
 
 /*
  * This structure is the internal representation of an image

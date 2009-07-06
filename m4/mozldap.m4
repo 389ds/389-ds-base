@@ -18,13 +18,16 @@
 #
 # END COPYRIGHT BLOCK
 
-AC_CHECKING(for LDAPSDK)
+AC_CHECKING(for Mozilla LDAPSDK)
 
 # check for --with-ldapsdk
 AC_MSG_CHECKING(for --with-ldapsdk)
 AC_ARG_WITH(ldapsdk, [  --with-ldapsdk=PATH     Mozilla LDAP SDK directory],
 [
-  if test -e "$withval"/include/ldap.h -a -d "$withval"/lib
+  if test "$withval" = yes
+  then
+    AC_MSG_RESULT([using system MozLDAP])
+  elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
   then
     AC_MSG_RESULT([using $withval])
     LDAPSDKDIR=$withval
@@ -32,6 +35,7 @@ AC_ARG_WITH(ldapsdk, [  --with-ldapsdk=PATH     Mozilla LDAP SDK directory],
     ldapsdk_lib="-L$LDAPSDKDIR/lib"
     ldapsdk_libdir="$LDAPSDKDIR/lib"
     ldapsdk_bindir="$LDAPSDKDIR/bin"
+    with_ldapsdk=yes
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -47,6 +51,7 @@ AC_ARG_WITH(ldapsdk-inc, [  --with-ldapsdk-inc=PATH     Mozilla LDAP SDK include
   then
     AC_MSG_RESULT([using $withval])
     ldapsdk_inc="-I$withval"
+    with_ldapsdk=yes
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -63,6 +68,7 @@ AC_ARG_WITH(ldapsdk-lib, [  --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library
     AC_MSG_RESULT([using $withval])
     ldapsdk_lib="-L$withval"
     ldapsdk_libdir="$withval"
+    with_ldapsdk=yes
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -78,6 +84,7 @@ AC_ARG_WITH(ldapsdk-bin, [  --with-ldapsdk-bin=PATH     Mozilla LDAP SDK binary 
   then
     AC_MSG_RESULT([using $withval])
     ldapsdk_bindir="$withval"
+    with_ldapsdk=yes
   else
     echo
     AC_MSG_ERROR([$withval not found])
@@ -88,49 +95,56 @@ AC_MSG_RESULT(no))
 # if LDAPSDK is not found yet, try pkg-config
 
 # last resort
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
-  AC_PATH_PROG(PKG_CONFIG, pkg-config)
-  AC_MSG_CHECKING(for mozldap with pkg-config)
-  if test -n "$PKG_CONFIG"; then
-    if $PKG_CONFIG --exists mozldap6; then
-	mozldappkg=mozldap6
-    elif $PKG_CONFIG --exists mozldap; then
-	mozldappkg=mozldap
-    else
-      AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib|-bin].])
+if test "$with_ldapsdk" = yes ; then
+  if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
+    AC_PATH_PROG(PKG_CONFIG, pkg-config)
+    AC_MSG_CHECKING(for mozldap with pkg-config)
+    if test -n "$PKG_CONFIG"; then
+      if $PKG_CONFIG --exists mozldap6; then
+	    mozldappkg=mozldap6
+      elif $PKG_CONFIG --exists mozldap; then
+	    mozldappkg=mozldap
+      else
+        AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib|-bin].])
+      fi
+      ldapsdk_inc=`$PKG_CONFIG --cflags-only-I $mozldappkg`
+      ldapsdk_lib=`$PKG_CONFIG --libs-only-L $mozldappkg`
+      ldapsdk_libdir=`$PKG_CONFIG --libs-only-L $mozldappkg | sed -e s/-L// | sed -e s/\ .*$//`
+      ldapsdk_bindir=`$PKG_CONFIG --variable=bindir $mozldappkg`
+      AC_MSG_RESULT([using system $mozldappkg])
     fi
-    ldapsdk_inc=`$PKG_CONFIG --cflags-only-I $mozldappkg`
-    ldapsdk_lib=`$PKG_CONFIG --libs-only-L $mozldappkg`
-    ldapsdk_libdir=`$PKG_CONFIG --libs-only-L $mozldappkg | sed -e s/-L// | sed -e s/\ .*$//`
-    ldapsdk_bindir=`$PKG_CONFIG --variable=bindir $mozldappkg`
-    AC_MSG_RESULT([using system $mozldappkg])
-  fi
-fi
-if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
-  AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib|-bin].])
-fi
-dnl default path for the ldap c sdk tools (see [210947] for more details)
-if test -z "$ldapsdk_bindir" ; then
-  if [ -d $libdir/mozldap6 ] ; then
-    ldapsdk_bindir=$libdir/mozldap6
-  else
-    ldapsdk_bindir=$libdir/mozldap
   fi
 fi
 
-dnl make sure the ldap sdk version is 6 or greater - we do not support
-dnl the old 5.x or prior versions - the ldap server code expects the new
-dnl ber types and other code used with version 6
-save_cppflags="$CPPFLAGS"
-CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
-AC_CHECK_HEADER([ldap.h], [isversion6=1], [isversion6=],
-[#include <ldap-standard.h>
+if test "$with_ldapsdk" = yes ; then
+  if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib"; then
+    AC_MSG_ERROR([LDAPSDK not found, specify with --with-ldapsdk[-inc|-lib|-bin].])
+  fi
+dnl default path for the ldap c sdk tools (see [210947] for more details)
+  if test -z "$ldapsdk_bindir" ; then
+    if [ -d $libdir/mozldap6 ] ; then
+      ldapsdk_bindir=$libdir/mozldap6
+    else
+      ldapsdk_bindir=$libdir/mozldap
+    fi
+  fi
+
+  dnl make sure the ldap sdk version is 6 or greater - we do not support
+  dnl the old 5.x or prior versions - the ldap server code expects the new
+  dnl ber types and other code used with version 6
+  save_cppflags="$CPPFLAGS"
+  CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
+  AC_CHECK_HEADER([ldap.h], [isversion6=1], [isversion6=],
+  [#include <ldap-standard.h>
 #if LDAP_VENDOR_VERSION < 600
 #error The LDAP C SDK version is not supported
 #endif
-])
-CPPFLAGS="$save_cppflags"
+  ])
+  CPPFLAGS="$save_cppflags"
 
-if test -z "$isversion6" ; then
-  AC_MSG_ERROR([The LDAPSDK version in $ldapsdk_inc/ldap-standard.h is not supported])
+  if test -z "$isversion6" ; then
+    AC_MSG_ERROR([The LDAPSDK version in $ldapsdk_inc/ldap-standard.h is not supported])
+  fi
+  AC_DEFINE([USE_MOZLDAP], [1], [If defined, using MozLDAP for LDAP SDK])
+  AC_DEFINE([HAVE_LDAP_URL_PARSE_NO_DEFAULTS], [1], [have the function ldap_url_parse_no_defaults])
 fi

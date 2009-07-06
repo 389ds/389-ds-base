@@ -115,6 +115,43 @@ get_operation_object_type()
     return operation_type;
 }
 
+#if defined(USE_OPENLDAP)
+/* openldap doesn't have anything like this, nor does it have
+   a way to portably and without cheating discover the
+   sizeof BerElement - see lber_pvt.h for the trick used
+   for BerElementBuffer
+   so we just allocate everything separately
+   If we wanted to get fancy, we could use LBER_OPT_MEMORY_FNS
+   to override the ber malloc, realloc, etc. and use
+   LBER_OPT_BER_MEMCTX to provide callback data for use
+   with those functions
+*/
+static void*
+ber_special_alloc(size_t size, BerElement **ppBer)
+{
+	void *mem = NULL;
+
+	/* starts out with a null buffer - will grow as needed */
+	*ppBer = ber_alloc_t(0);
+
+	/* Make sure mem size requested is aligned */
+	if (0 != ( size & 0x03 )) {
+		size += (sizeof(ber_int_t) - (size & 0x03));
+	}
+
+	mem = slapi_ch_malloc(size);
+
+	return mem;
+}
+
+static void
+ber_special_free(void* buf, BerElement *ber)
+{
+	ber_free(ber, 1);
+	slapi_ch_free(&buf);
+}
+#endif
+
 /*
  * Allocate a new Slapi_Operation.
  * The flag parameter indicates whether the the operation is

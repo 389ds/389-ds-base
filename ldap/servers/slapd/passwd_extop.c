@@ -57,6 +57,8 @@
 
 
 #include <prio.h>
+#include <plbase64.h>
+
 #include <ssl.h>
 #include "slap.h"
 #include "slapi-plugin.h"
@@ -233,7 +235,7 @@ static int passwd_modify_userpassword(Slapi_PBlock *pb_orig, Slapi_Entry *target
 /* Generate a new, basic random password */
 static int passwd_modify_generate_basic_passwd( int passlen, char **genpasswd )
 {
-	unsigned char *data = NULL;
+	char *data = NULL;
 	char *enc = NULL;
 	int datalen = LDAP_EXTOP_PASSMOD_RANDOM_BYTES;
 	int enclen = LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN + 1;
@@ -247,16 +249,14 @@ static int passwd_modify_generate_basic_passwd( int passlen, char **genpasswd )
 		enclen = datalen * 4; /* allocate the large enough space */
 	}
 
-	data = (unsigned char *)slapi_ch_calloc( datalen, 1 );
-	enc = (char *)slapi_ch_calloc( enclen, 1 );
+	data = slapi_ch_calloc( datalen, 1 );
 
 	/* get random bytes from NSS */
-	PK11_GenerateRandom( data, datalen );
+	PK11_GenerateRandom( (unsigned char *)data, datalen );
 
 	/* b64 encode the random bytes to get a password made up
-	 * of printable characters. ldif_base64_encode() will
-	 * zero-terminate the string */
-	(void)ldif_base64_encode( data, enc, passlen, -1 );
+	 * of printable characters. */
+	enc = PL_Base64Encode( data, datalen, NULL );
 
 	/* This will get freed by the caller */
 	*genpasswd = slapi_ch_malloc( 1 + passlen );
@@ -264,7 +264,7 @@ static int passwd_modify_generate_basic_passwd( int passlen, char **genpasswd )
 	/* trim the password to the proper length */
 	PL_strncpyz( *genpasswd, enc, passlen + 1 );
 
-	slapi_ch_free( (void **)&data );
+	slapi_ch_free_string( &data );
 	slapi_ch_free_string( &enc );
 
 	return LDAP_SUCCESS;

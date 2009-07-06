@@ -1728,7 +1728,11 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
     {
 		static int twiddle= -1;
 		char *type, *value, *copy;
+#if defined(USE_OPENLDAP)
+		ber_len_t vlen;
+#else
 		int vlen;
+#endif
 		struct berval bv;
 		struct berval *bvals[2];
 		if (twiddle < 0) {

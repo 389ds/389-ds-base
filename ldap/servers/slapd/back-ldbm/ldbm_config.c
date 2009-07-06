@@ -1132,7 +1132,7 @@ ldbm_config_exclude_from_export_set( void *arg, void *value, char *errorbuf,
         
         if ( NULL != value ) {
             char *dupvalue = slapi_ch_strdup( value );
-            li->li_attrs_to_exclude_from_export = str2charray( dupvalue, " " );
+            li->li_attrs_to_exclude_from_export = slapi_str2charray( dupvalue, " " );
             slapi_ch_free((void**)&dupvalue);
         }
     }

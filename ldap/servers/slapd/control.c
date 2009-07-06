@@ -200,7 +200,7 @@ get_ldapmessage_controls_ext(
 {
 	LDAPControl		**ctrls, *new;
 	ber_tag_t		tag;
-	ber_len_t		len;
+	ber_len_t		len = -1;
 	int			rc, maxcontrols, curcontrols;
 	char			*last;
 	int			managedsait, pwpolicy_ctrl;
@@ -277,6 +277,7 @@ get_ldapmessage_controls_ext(
 	for ( tag = ber_first_element( ber, &len, &last );
 	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
 	    tag = ber_next_element( ber, &len, last ) ) {
+		len = -1; /* reset */
 		if ( curcontrols >= maxcontrols - 1 ) {
 #define CONTROL_GRABSIZE	6
 			maxcontrols += CONTROL_GRABSIZE;
@@ -301,6 +302,7 @@ get_ldapmessage_controls_ext(
 			/* absent is synonomous with FALSE */
 			new->ldctl_iscritical = 0;
 		}
+		len = -1; /* reset */
 		/* if we are ignoring criticality, treat as FALSE */
 		if (ignore_criticality) {
 		    new->ldctl_iscritical = 0;
@@ -345,9 +347,10 @@ get_ldapmessage_controls_ext(
 			(new->ldctl_value).bv_val = NULL;
 			(new->ldctl_value).bv_len = 0;
 		}	
+		len = -1; /* reset for next loop iter */
 	}
 
-	if ( tag == LBER_ERROR ) {
+	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) ) {
 		goto free_and_return;
 	}
 

@@ -315,6 +315,7 @@ adjust_referral_basedn( char **urlp, const Slapi_DN *refsdn,
     LDAPURLDesc		*ludp = NULL;
     char		*p, *refdn_norm;
 	int rc = 0;
+    int secure = 0;
 	
     PR_ASSERT( urlp != NULL );
     PR_ASSERT( *urlp != NULL );
@@ -326,22 +327,16 @@ adjust_referral_basedn( char **urlp, const Slapi_DN *refsdn,
 		return;
 	}
 	
-	rc = ldap_url_parse( *urlp, &ludp );
+	rc = slapi_ldap_url_parse( *urlp, &ludp, 0, &secure );
 
-	if	((rc != 0) && 
-		 (rc != LDAP_URL_ERR_NODN)) 
-		/* 
-		 * rc != LDAP_URL_ERR_NODN is to circumvent a pb in the C-SDK
-		 * in ldap_url_parse. The function will return an error if the
-		 * URL contains no DN (though it is a valid URL according to
-		 * RFC 2255.
-		 */
+	if	(rc != 0)
 	{
 		/* Nothing to do, just return */
+		/* log bogus url? */
 		return;
 	}
 	
-    if (ludp && (ludp->lud_dn != NULL)) {
+    if (ludp && (ludp->lud_dn != NULL) && (ludp->lud_dn[0])) {
 
 		refdn_norm = slapi_dn_normalize( slapi_ch_strdup( ludp->lud_dn ));
 		

@@ -660,7 +660,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 						if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 					}
 				}
-				ldap_value_free( rdns );
+				slapi_ldap_value_free( rdns );
 				if (DB_LOCK_DEADLOCK == retval)
 				{
 					/* Retry txn */
@@ -1055,8 +1055,8 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
 					 */
 					if (!op_shared_is_allowed_attr (type, is_repl_op))
 					{
-						ldap_value_free( rdns );
-						ldap_value_free( dns );
+						slapi_ldap_value_free( rdns );
+						slapi_ldap_value_free( dns );
 						slapi_ch_free_string(&dn);
 						return LDAP_UNWILLING_TO_PERFORM;
 					}
@@ -1064,13 +1064,13 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
 						slapi_mods_add_modbvps( smods_wsi, LDAP_MOD_DELETE, type, bvps );
 				}
 			}
-			ldap_value_free( rdns );
+			slapi_ldap_value_free( rdns );
 		}
 	    else
 	    {
 			badrdn = 1;
 	    }
-		ldap_value_free( dns );
+		slapi_ldap_value_free( dns );
 	}
 	else
 	{
@@ -1106,7 +1106,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
                 slapi_mods_add_modbvps( smods_wsi, LDAP_MOD_ADD, type, bvps );
             }
         }
-        ldap_value_free( rdns );
+        slapi_ldap_value_free( rdns );
     }
     else
     {
@@ -1313,7 +1313,7 @@ moddn_rename_child_entry(
 			strcat(newdn,", ");
 		}
 	}
-	ldap_value_free( olddns );
+	slapi_ldap_value_free( olddns );
 	slapi_entry_set_dn( ec->ep_entry, newdn );
 	add_update_entrydn_operational_attributes (ec);
 
@@ -1369,7 +1369,7 @@ moddn_rename_children(
     	char **parentdns;
        	parentdns = ldap_explode_dn( slapi_sdn_get_dn(dn_parentdn), 0 );
 		for(;parentdns[parentdncomps]!=NULL;parentdncomps++);
-   		ldap_value_free( parentdns );
+   		slapi_ldap_value_free( parentdns );
 	}
 
     /*
@@ -1392,7 +1392,7 @@ moddn_rename_children(
 			i++;
 		}
 	}
-	ldap_value_free( newsuperiordns );
+	slapi_ldap_value_free( newsuperiordns );
 	return retval;
 }
 

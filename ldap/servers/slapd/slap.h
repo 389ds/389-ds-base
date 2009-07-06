@@ -188,9 +188,6 @@ typedef struct symbol_t {
  * XXXmcs: these are defined by ldap.h or ldap-extension.h,
  * but only in a newer release than we use with DS today.
  */
-#ifndef LDAP_CONTROL_AUTH_REQUEST
-#define LDAP_CONTROL_AUTH_REQUEST	"2.16.840.1.113730.3.4.16"
-#endif
 #ifndef LDAP_CONTROL_AUTH_RESPONSE
 #define LDAP_CONTROL_AUTH_RESPONSE	"2.16.840.1.113730.3.4.15"
 #endif
@@ -2047,8 +2044,12 @@ extern char	*attr_dataversion;
 
 #define SLAPD_SNMP_UPDATE_INTERVAL (10 * 1000) /* 10 seconds */
 
+#ifndef LDAP_AUTH_KRBV41
 #define LDAP_AUTH_KRBV41	0x81L
+#endif
+#ifndef LDAP_AUTH_KRBV42
 #define LDAP_AUTH_KRBV42	0x82L
+#endif
 
 /* for timing certain operations */
 #ifdef USE_TIMERS

@@ -57,7 +57,7 @@
 #define MD5_SUBSYSTEM_NAME "MD5 password hash"
 
 int
-md5_pw_cmp( char *userpwd, char *dbpwd )
+md5_pw_cmp( const char *userpwd, const char *dbpwd )
 {
    int rc=-1;
    char * bver;
@@ -96,7 +96,7 @@ loser:
 }
 
 char *
-md5_pw_enc( char *pwd )
+md5_pw_enc( const char *pwd )
 {
    char * bver, *enc=NULL;
    PK11Context *ctx=NULL;

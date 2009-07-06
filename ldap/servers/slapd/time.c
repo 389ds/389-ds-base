@@ -55,7 +55,7 @@
 #include "slap.h"
 #include "fe.h"
 
-LDAP_API(unsigned long) strntoul( char *from, size_t len, int base );
+unsigned long strntoul( char *from, size_t len, int base );
 #define mktime_r(from) mktime (from) /* possible bug: is this thread-safe? */
 
 static time_t	currenttime;
@@ -265,7 +265,7 @@ write_localTime (time_t from, struct berval* into)
  *
  * Returns:   See strtoul(3).
  */
-LDAP_API(unsigned long) strntoul( char *from, size_t len, int base )
+unsigned long strntoul( char *from, size_t len, int base )
 {
     unsigned long       result;
     char                c = from[ len ];
