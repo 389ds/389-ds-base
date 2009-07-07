@@ -3148,6 +3148,7 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 	char		*type, *initial, *final;
 	char		**any;
 	Slapi_Regex	*re = NULL;
+	const char  *re_result = NULL;
 
 	if ( 0 != slapi_filter_get_subfilt ( f, &type, &initial, &any, &final ) ) {
 		return (ACL_FALSE);
@@ -3235,11 +3236,10 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 	** Now we will compile the pattern and compare wth the string to
 	** see if the input string matches with the patteren or not.
 	*/
-	p = NULL;
-	re = slapi_re_comp( pat, &p );
+	re = slapi_re_comp( pat, &re_result );
 	if (NULL == re) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-			"acl_match_substring:re_comp failed (%s)\n", p?p:"unknown");
+			"acl_match_substring:re_comp failed (%s)\n", re_result?re_result:"unknown");
 		return (ACL_ERR);
 	}
 

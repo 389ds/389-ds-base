@@ -124,7 +124,7 @@ matches(const char *filename, const char *pattern)
 {
 	Slapi_Regex *re = NULL;
 	int match = 0;
-	char *error = NULL;
+	const char *error = NULL;
 
 	if (!pattern)
 		return 1; /* null pattern matches everything */

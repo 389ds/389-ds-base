@@ -2218,7 +2218,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
  	Slapi_Attr		*currAttr, *nextAttr;
 	char			*n_dn, *attrType;
 	int				n;
-	int				i, j;
+	int				i;
 
 	info = (struct eval_info *) callback_data;
 	info->result = ACL_FALSE;
@@ -2252,11 +2252,18 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 					return 0;
 				}
 				if (!(n % ACLLAS_MAX_GRP_MEMBER)) {
-					struct member_info *orig_memberInfo = info->memberInfo[0];
+					struct member_info **orig_memberInfo = info->memberInfo;
 					info->memberInfo = (struct member_info **)slapi_ch_realloc(
 							(char *)info->memberInfo,
 							(n + ACLLAS_MAX_GRP_MEMBER) *
 							sizeof(struct member_info *));
+					if (!info->memberInfo) {
+						slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+										 "acllas__handle_group_entry: out of memory - could not allocate space for %d group members\n",
+										 n + ACLLAS_MAX_GRP_MEMBER );
+						info->memberInfo = orig_memberInfo;
+						return 0;
+					}
 				}
 
 				/* allocate the space for the member and attch it to the list */

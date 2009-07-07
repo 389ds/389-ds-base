@@ -210,6 +210,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	int		timelimit = 0; /* search timelimit */
 	Operation	*op = NULL;
 	Slapi_Regex	*re = NULL;
+	const char  *re_result = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
@@ -286,10 +287,10 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	/* compile the regex */
 	p = (bigpat) ? bigpat : pat;
 	tmpbuf = NULL;
-	re = slapi_re_comp( p, &tmpbuf );
+	re = slapi_re_comp( p, &re_result );
 	if (NULL == re) {
 		LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s): %s\n",
-		    pat, p, tmpbuf?tmpbuf:"unknown" );
+		    pat, p, re_result?re_result:"unknown" );
 		rc = LDAP_OPERATIONS_ERROR;
 		goto bailout;
 	} else {
