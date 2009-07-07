@@ -502,7 +502,7 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
         be->be_entry_release=(IFP) ret_fnptr;
         break;
 	case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
-        be->be_search_results_release=(IFP) ret_fnptr;
+        be->be_search_results_release=(VFPP) ret_fnptr;
         break;
 	case SLAPI_PLUGIN_DB_SIZE_FN:
         be->be_dbsize=(IFP) ret_fnptr;

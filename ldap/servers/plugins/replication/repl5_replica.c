@@ -1012,7 +1012,8 @@ replica_set_referrals(Replica *r,const Slapi_ValueSet *vs)
 		{
 			const char *ref = slapi_value_get_string(vv);
 			LDAPURLDesc *lud = NULL;
-			int myrc = slapi_ldap_url_parse(ref, &lud, 0, NULL);
+
+			(void)slapi_ldap_url_parse(ref, &lud, 0, NULL);
 			/* see if the dn is already in the referral URL */
 			if (!lud || !lud->lud_dn) {
 				/* add the dn */

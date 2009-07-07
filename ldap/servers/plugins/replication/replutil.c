@@ -740,7 +740,7 @@ repl_set_mtn_state_and_referrals(
 	/* next, add the repl root dn to each referral if not present */
 	for (ii = 0; referrals_to_set && referrals_to_set[ii]; ++ii) {
 		LDAPURLDesc *lud = NULL;
-		int myrc = slapi_ldap_url_parse(referrals_to_set[ii], &lud, 0, NULL);
+		(void)slapi_ldap_url_parse(referrals_to_set[ii], &lud, 0, NULL);
 		/* see if the dn is already in the referral URL */
 		if (!lud || !lud->lud_dn) {
 			/* add the dn */

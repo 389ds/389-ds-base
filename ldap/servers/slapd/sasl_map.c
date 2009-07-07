@@ -469,7 +469,7 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 	Slapi_Regex *re = NULL;
 	int ret = 0;
 	int matched = 0;
-	char *recomp_result = NULL;
+	const char *recomp_result = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_check\n", 0, 0, 0 );
 	/* Compiles the regex */

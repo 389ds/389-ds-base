@@ -211,7 +211,8 @@ typedef struct symbol_t {
 #define SLAPD_SHORT_VERSION_STR	PRODUCTTEXT
 
 typedef void	(*VFP)(void *);
-typedef void	(*VFP0)();
+typedef void	(*VFPP)(void **);
+typedef void	(*VFP0)(void);
 #define LDAPI_INTERNAL	1
 #include "slapi-private.h"
 #include "pw.h"
@@ -765,7 +766,7 @@ struct slapdplugin {
 			IFP	plg_un_db_search;	  /* search */
 			IFP	plg_un_db_next_search_entry;	/* iterate */
 	        IFP plg_un_db_next_search_entry_ext;
-			IFP plg_un_db_search_results_release; /* PAGED RESULTS */
+			VFPP plg_un_db_search_results_release; /* PAGED RESULTS */
 	        IFP plg_un_db_entry_release;
 			IFP	plg_un_db_compare;	  /* compare */
 			IFP	plg_un_db_modify;	  /* modify */
