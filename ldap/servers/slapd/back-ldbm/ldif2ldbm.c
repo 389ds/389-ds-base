@@ -1205,7 +1205,8 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             /* Decrypt in place */
             rc = attrcrypt_decrypt_entry(be, ep);
             if (rc) {
-                LDAPDebug(LDAP_DEBUG_ANY,"Failed to decrypt entry%s\n", ep->ep_entry->e_sdn , 0, 0);
+                LDAPDebug(LDAP_DEBUG_ANY,"Failed to decrypt entry [%s] : %d\n",
+                          slapi_sdn_get_dn(&ep->ep_entry->e_sdn), rc, 0);
             }
         }
 

@@ -517,8 +517,8 @@ void do_delete( Slapi_PBlock *pb );
 /*
  * detach.c
  */
-void detach( int slapd_exemode, int importexport_encrypt,
-             int s_port, daemon_ports_t *ports_info );
+int detach( int slapd_exemode, int importexport_encrypt,
+			int s_port, daemon_ports_t *ports_info );
 #ifndef _WIN32
 void close_all_files( void );
 #endif

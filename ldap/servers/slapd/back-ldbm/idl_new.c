@@ -196,15 +196,15 @@ IDList * idl_new_fetch(
     int ret = 0;
     DBC *cursor = NULL;
     IDList *idl = NULL;
-    DBT key = {0};
-    DBT data = {0};
+    DBT key;
+    DBT data;
     ID id = 0;
     size_t count = 0;
 #ifdef DB_USE_BULK_FETCH
 	/* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE]; 
     void *ptr;
-    DBT dataret = {0};
+    DBT dataret;
 #endif
 
     if (NEW_IDL_NOOP == *flag_err)
@@ -220,11 +220,13 @@ IDList * idl_new_fetch(
         cursor = NULL;
         goto error;
     }
+    memset(&data, 0, sizeof(data));
 #ifdef DB_USE_BULK_FETCH
     data.ulen = sizeof(buffer);
     data.size = sizeof(buffer);
     data.data = buffer;
     data.flags = DB_DBT_USERMEM;
+    memset(&dataret, 0, sizeof(dataret));
 #else
     data.ulen = sizeof(id);
     data.size = sizeof(id);
@@ -237,6 +239,7 @@ IDList * idl_new_fetch(
      * so we can just use the input key as a buffer.
      * This avoids memory management of the key.
      */
+    memset(&key, 0, sizeof(key));
     key.ulen = inkey->size;
     key.size = inkey->size;
     key.data = inkey->data;
@@ -367,7 +370,7 @@ int idl_new_insert_key(
 )
 {
     int ret = 0;
-    DBT data = {0};
+    DBT data;
 
 #if defined(DB_ALLIDS_ON_WRITE)
     DBC *cursor = NULL;
@@ -380,6 +383,7 @@ int idl_new_insert_key(
         cursor = NULL;
         goto error;
     }
+    memset(data, 0, sizeof(data)); /* bdb says data = {0} is not sufficient */
     data.ulen = sizeof(id);
     data.size = sizeof(id);
     data.flags = DB_DBT_USERMEM;
@@ -437,6 +441,7 @@ error:
         }
     }
 #else
+    memset(&data, 0, sizeof(data)); /* bdb says data = {0} is not sufficient */
     data.ulen = sizeof(id);
     data.size = sizeof(id);
     data.flags = DB_DBT_USERMEM;

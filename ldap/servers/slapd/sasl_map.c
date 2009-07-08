@@ -438,6 +438,11 @@ int sasl_map_done()
 	sasl_map_private *priv = sasl_map_get_global_priv();
 	sasl_map_data *dp = NULL;
 
+	/* there is no sasl map in referral mode */
+	if (!priv || !priv->lock || !priv->map_data_list) {
+		return 0;
+	}
+
 	/* Free the map list */
 	PR_Lock(priv->lock);
 	dp = priv->map_data_list;

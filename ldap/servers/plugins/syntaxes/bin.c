@@ -165,8 +165,10 @@ bin_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 	int	i;
 
 	for ( i = 0; bvals[i] != NULL; i++ ) {
-        if ( slapi_value_get_length(bvals[i]) == bvfilter->bv_len &&
-            0 == memcmp( slapi_value_get_string(bvals[i]), bvfilter->bv_val, bvfilter->bv_len ))
+        const struct berval *bv = slapi_value_get_berval(bvals[i]);
+
+        if ( ( bv->bv_len == bvfilter->bv_len ) &&
+             ( 0 == memcmp( bv->bv_val, bvfilter->bv_val, bvfilter->bv_len ) ) )
         {
 			if(retVal!=NULL)
 			{

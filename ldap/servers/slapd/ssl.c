@@ -278,7 +278,7 @@ slapd_SSL_error(char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     slapd_SSL_report(LOG_FAILURE, fmt, args);
-    exit(1);
+    va_end(args);
 }
 
 void
@@ -620,6 +620,7 @@ slapd_ssl_init() {
 		     (val ? "found" : "not found"));
       slapi_ch_free((void **) &val);
       slapi_ch_free((void **) &ciphers);
+      freeConfigEntry( &entry );
       return -1;
     }
 
@@ -627,6 +628,7 @@ slapd_ssl_init() {
     slapi_ch_free((void **) &val);
 
     if (svrcore_setup()) {
+	freeConfigEntry( &entry );
 	return -1;
     }
 
@@ -669,6 +671,7 @@ slapd_ssl_init() {
 				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
 				       errorCode, slapd_pr_strerror(errorCode));
       			freeChildren(family_list);
+      			freeConfigEntry( &entry );
       			return -1;
 		}
 
@@ -680,6 +683,7 @@ slapd_ssl_init() {
 				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 				       errorCode, slapd_pr_strerror(errorCode));
       			freeChildren(family_list);
+      			freeConfigEntry( &entry );
       			return -1;
     		}
     		/* authenticate */
@@ -690,6 +694,7 @@ slapd_ssl_init() {
 				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 				       errorCode, slapd_pr_strerror(errorCode));
       			freeChildren(family_list);
+      			freeConfigEntry( &entry );
       			return -1;
     		}
     	}

@@ -609,10 +609,9 @@ normalize_nextACERule:
 	** for deny rule. We will never need more 2 times 
 	** the len.
 	*/
+	__acl_strip_leading_space(&tmp_str);
 	len = strlen (tmp_str);
 	s_acestr = acestr = slapi_ch_calloc ( 1, 2 * len);
-
-	__acl_strip_leading_space(&tmp_str);
 
 	/*
 	 * Now it's something like:
