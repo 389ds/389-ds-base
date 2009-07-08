@@ -565,7 +565,7 @@ static void log_bytes(char* format_string, unsigned char *bytes, size_t length)
 static int
 attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, char *in_data, size_t in_size, char **out_data, size_t *out_size, int encrypt)
 {
-	int ret = 0;
+	int ret = -1;
 	SECStatus secret = 0;
 	PK11Context* sec_context = NULL;
 	SECItem iv_item = {0};
@@ -631,6 +631,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 #endif
 		*out_size = output_buffer_size1 + output_buffer_size2;
 		*out_data = (char *)output_buffer;
+		ret = 0; /* success */
 	}
 error:
 	if (sec_context) {
@@ -638,6 +639,9 @@ error:
 	}
 	if (security_parameter) {
 		slapd_SECITEM_FreeItem(security_parameter, PR_TRUE);
+	}
+	if (ret) {
+		slapi_ch_free_string((char **)&output_buffer);
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op\n", 0, 0, 0);
 	return ret;
@@ -841,8 +845,6 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 	struct backentry *new_entry = NULL;
 	char *type = NULL;
 	Slapi_Attr *attr = NULL;
-	Slapi_Value	**svals = NULL;
-	Slapi_Value **new_vals = NULL;
 
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_entry\n", 0, 0, 0);
 	*out = NULL;
@@ -857,8 +859,9 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 		ainfo_get(be, type, &ai);
 
 		if (ai && ai->ai_attrcrypt) {
-			svals = attr_get_present_values(attr);
+			Slapi_Value	**svals = attr_get_present_values(attr);
 			if (svals) {
+				Slapi_Value **new_vals = NULL;
 				/* If we find one, did we make the new entry yet ? */
 				if (NULL == new_entry) {
 					/* If not then make it now as a copy of the old entry */
@@ -871,7 +874,9 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 					break;
 				}
 				/* DBDB does this call free the old value memory ? */
+				/* yes, DBDB, but it does not free new_vals - new_vals is copied */
 				slapi_entry_attr_replace_sv(new_entry->ep_entry, type, new_vals);
+				valuearray_free(&new_vals);
 			}
 		}
 	}

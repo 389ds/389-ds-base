@@ -75,7 +75,7 @@
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 
-void
+int
 detach( int slapd_exemode, int importexport_encrypt,
         int s_port, daemon_ports_t *ports_info )
 {
@@ -112,7 +112,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 		/* call this right after the fork, but before closing stdin */
 		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
 									  s_port, ports_info)) {
-			exit(1);
+			return 1;
 		}
 
 		workingdir = config_get_workingdir();
@@ -132,7 +132,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 		} else {
 			/* calling config_set_workingdir to check for validity of directory, don't apply */
 			if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, errorbuf, 0) == LDAP_OPERATIONS_ERROR) {
-				exit(1);
+				return 1;
 			}
 			(void) chdir( workingdir );
 			slapi_ch_free_string(&workingdir);
@@ -140,7 +140,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 
 		if ( (sd = open( "/dev/null", O_RDWR )) == -1 ) {
 			perror( "/dev/null" );
-			exit( 1 );
+			return 1;
 		}
 		(void) dup2( sd, 0 );
 		(void) dup2( sd, 1 );
@@ -160,12 +160,13 @@ detach( int slapd_exemode, int importexport_encrypt,
 	} else { /* not detaching - call nss/ssl init */
 		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
 									  s_port, ports_info)) {
-			exit(1);
+			return 1;
 		}
 	}
 
 	(void) SIGNAL( SIGPIPE, SIG_IGN );
 #endif /* _WIN32 */
+	return 0;
 }
 
 

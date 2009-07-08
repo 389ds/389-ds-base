@@ -131,10 +131,11 @@ salted_sha_pw_enc( const char *pwd, unsigned int shaLen )
     char *salt = hash + shaLen;
     struct berval saltval;
     char *enc;
+    size_t encsize;
     char *schemeName;
     unsigned int schemeNameLen;
     unsigned int secOID;
-                                                                                                                            
+
     /* Determine which algorithm we're using */
     switch (shaLen) {
         case SHA1_LENGTH:
@@ -161,31 +162,30 @@ salted_sha_pw_enc( const char *pwd, unsigned int shaLen )
             /* An unknown shaLen was passed in.  We shouldn't get here. */
             return( NULL );
     }
-                                                                                                                            
+
+    memset(hash, 0, sizeof(hash));
     saltval.bv_val = (void*)salt;
     saltval.bv_len = SHA_SALT_LENGTH;
-                                                                                                                            
+
     /* generate a new random salt */
-        /* Note: the uninitialized salt array provides a little extra entropy
-         * to the random array generation, but it is not really needed since
-         * PK11_GenerateRandom takes care of seeding. In any case, it doesn't
-         * hurt. */
-        ssha_rand_array( salt, SHA_SALT_LENGTH );
-                                                                                                                            
+    ssha_rand_array( salt, SHA_SALT_LENGTH );
+
     /* hash the user's key */
     if ( sha_salted_hash( hash, pwd, &saltval, secOID ) != SECSuccess ) {
         return( NULL );
     }
-                                                                                                                            
-    if (( enc = slapi_ch_malloc( 3 + schemeNameLen +
-        LDIF_BASE64_LEN(shaLen + SHA_SALT_LENGTH))) == NULL ) {
+
+    encsize = 3 + schemeNameLen +
+        LDIF_BASE64_LEN(shaLen + SHA_SALT_LENGTH);
+    if ( ( enc = slapi_ch_calloc( encsize, sizeof(char) ) ) == NULL ) {
         return( NULL );
     }
-                                                                                                                            
+
     sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName,
         PWD_HASH_PREFIX_END );
     (void)PL_Base64Encode( hash, (shaLen + SHA_SALT_LENGTH), enc + 2 + schemeNameLen );
-                                                                                                                            
+    PR_ASSERT(0 == enc[encsize-1]); /* must be null terminated */
+
     return( enc );
 }
 

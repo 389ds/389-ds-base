@@ -94,6 +94,7 @@ union semun {
 #include "protect_db.h"
 #include "getopt_ext.h"
 #include "fe.h"
+#include <nss.h>
 
 #ifndef LDAP_DONT_USE_SMARTHEAP
 #include "smrtheap.h"
@@ -634,7 +635,6 @@ main( int argc, char **argv)
 	int return_value = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	daemon_ports_t ports_info = {0};
-   	Slapi_Backend *be = NULL;
 #ifndef __LP64__ 
 #if defined(__hpux) && !defined(__ia64)
 	/* for static constructors */
@@ -923,7 +923,8 @@ main( int argc, char **argv)
         (slapd_exemode != SLAPD_EXEMODE_SLAPD)) {
         if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
                                       s_port, &ports_info)) {
-            return 1;
+            return_value = 1;
+            goto cleanup;
         }
     }
 
@@ -933,22 +934,34 @@ main( int argc, char **argv)
 	 */
 	switch ( slapd_exemode ) {
 	case SLAPD_EXEMODE_LDIF2DB:
-		return slapd_exemode_ldif2db();
+		return_value = slapd_exemode_ldif2db();
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_DB2LDIF:
-		return slapd_exemode_db2ldif(argc,argv);
+		return_value = slapd_exemode_db2ldif(argc,argv);
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_DB2INDEX:
-		return slapd_exemode_db2index();
+		return_value = slapd_exemode_db2index();
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_ARCHIVE2DB:
-		return slapd_exemode_archive2db();
+		return_value = slapd_exemode_archive2db();
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_DB2ARCHIVE:
-		return slapd_exemode_db2archive();
+		return_value = slapd_exemode_db2archive();
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_DBTEST:
-		return slapd_exemode_dbtest();
+		return_value = slapd_exemode_dbtest();
+		goto cleanup;
+		break;
 		
 	case SLAPD_EXEMODE_REFERRAL:
 		/* check that all the necessary info was given, then go on */
@@ -961,21 +974,25 @@ main( int argc, char **argv)
 		break;
 
 	case SLAPD_EXEMODE_SUFFIX2INSTANCE:
-		return slapd_exemode_suffix2instance();
+		return_value = slapd_exemode_suffix2instance();
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_UPGRADEDB:
-		return slapd_exemode_upgradedb();
+		return_value = slapd_exemode_upgradedb();
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_DBVERIFY:
 		return_value = slapd_exemode_dbverify();
-		if (return_value == 0)
-			return return_value;
-		else
-			return 1;
+		goto cleanup;
+		break;
 
 	case SLAPD_EXEMODE_PRINTVERSION:
 		slapd_print_version(1);
-		exit(1);
+		return_value = 1;
+		goto cleanup;
+		break;
 	default:
 		{
 		char *rundir = config_get_rundir();
@@ -989,7 +1006,8 @@ main( int argc, char **argv)
 				slapdFrontendConfig->localuser, rundir, 0);
 			LDAPDebug(LDAP_DEBUG_ANY, "Shutting down.\n", 0, 0, 0);
 			slapi_ch_free_string(&rundir);
-			exit(1);
+			return_value = 1;
+			goto cleanup;
 		}
 		slapi_ch_free_string(&rundir);
 		break;
@@ -1003,8 +1021,11 @@ main( int argc, char **argv)
 	 * Have to detach after ssl_init - the user may be prompted for the PIN
 	 * on the terminal, so it must be open.
 	 */
-	detach(slapd_exemode, importexport_encrypt,
-           s_port, &ports_info);
+	if (detach(slapd_exemode, importexport_encrypt,
+			   s_port, &ports_info)) {
+		return_value = 1;
+		goto cleanup;
+	}
 
   /*
    * Now write our PID to the startup PID file.
@@ -1028,7 +1049,8 @@ main( int argc, char **argv)
  		LDAPDebug( LDAP_DEBUG_ANY, 
 				"Shutting down due to possible conflicts with other slapd processes\n",
 				0, 0, 0 );
-		exit(1);
+		return_value = 1;
+		goto cleanup;
 	}
 
 
@@ -1071,7 +1093,8 @@ main( int argc, char **argv)
 		{
 			LDAPDebug( LDAP_DEBUG_ANY, "Failed to init mapping tree\n",
 				0, 0, 0 );
-			exit(1);
+			return_value = 1;
+			goto cleanup;
 		}
 
 
@@ -1085,7 +1108,8 @@ main( int argc, char **argv)
 			LDAPDebug( LDAP_DEBUG_ANY,
 				"Fatal Error---Failed to initialize uniqueid generator; error = %d. "
 				"Exiting now.\n", rc, 0, 0 );
-			exit( 1 );
+			return_value = 1;
+			goto cleanup;
 		}
 
 		/* --ugaston: register the start-tls plugin */
@@ -1112,7 +1136,8 @@ main( int argc, char **argv)
 
 		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
-			exit (1);
+			return_value = 1;
+			goto cleanup;
 		}
 
 		eq_start();					/* must be done after plugins started */
@@ -1120,7 +1145,8 @@ main( int argc, char **argv)
 #ifdef HPUX10
 		/* HPUX linker voodoo */
 		if (collation_init == NULL) {
-		exit (1);
+			return_value = 1;
+			goto cleanup;
 		}
 		
 #endif /* HPUX */
@@ -1157,14 +1183,9 @@ main( int argc, char **argv)
                                 "Fatal Error---No ports specified. "
                                 "Exiting now.\n", 0, 0, 0 );
 			
-			exit(1);
+			return_value = 1;
+			goto cleanup;
 		}
-	}
-
-	{
-		Slapi_PBlock pb;
-		memset( &pb, '\0', sizeof(pb) );
-		pb.pb_backend = be;
 	}
 
 	if (slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
@@ -1193,7 +1214,8 @@ main( int argc, char **argv)
 	 */
 	if ( search_register_reslimits() != SLAPI_RESLIMIT_STATUS_SUCCESS ||
 				daemon_register_reslimits() != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		exit( 1 );
+		return_value = 1;
+		goto cleanup;
 	}
 
 	{
@@ -1206,15 +1228,19 @@ main( int argc, char **argv)
 	compute_terminate();
 	vattr_cleanup();
 	sasl_map_done();
+cleanup:
+	SSL_ShutdownServerSessionIDCache();
+	SSL_ClearSessionCache();
+	NSS_Shutdown();
 	PR_Cleanup();
 #ifdef _WIN32
 	/* Clean up the mutex used to interlock processes, before we exit */
 	remove_slapd_process();
 #endif
 #if ( defined( hpux ) || defined( irix ) || defined( aix ) || defined( OSF1 ))
-	exit( 0 );
+	exit( return_value );
 #else
-	return 0;
+	return return_value;
 #endif
 }
 
@@ -2055,7 +2081,7 @@ slapd_exemode_ldif2db()
                    "ERROR: Required argument -i <ldiffile> missing\n",
                    0, 0, 0 );
         usage( myname, extraname );
-        exit( 1 );
+        return 1;
     }
 
     /* this should be the first time to be called!  if the init order
@@ -2077,7 +2103,7 @@ slapd_exemode_ldif2db()
 				"ERROR: backend instances name [-n <name>] or "
 				"included suffix [-s <suffix>] need to be specified.\n",
 				0, 0, 0);
-			exit(1);
+			return 1;
 		}
 
 		if (instances) {
@@ -2088,7 +2114,7 @@ slapd_exemode_ldif2db()
 				LDAPDebug(LDAP_DEBUG_ANY, 
 					"ERROR 1: There is no backend instance to import to.\n",
 					0, 0, 0);
-				exit(1);
+				return 1;
 			} else if (counter > 1) {
 				int i;
 				LDAPDebug(LDAP_DEBUG_ANY, 
@@ -2097,7 +2123,7 @@ slapd_exemode_ldif2db()
 				for (i = 0; i < counter; i++)
 					LDAPDebug(LDAP_DEBUG_ANY, "     : %s\n",
 											  instances[i], 0, 0);
-        		exit(1);
+        		return 1;
 			} else {
 				LDAPDebug(LDAP_DEBUG_ANY, "Backend Instance: %s\n",
 					*instances, 0, 0);
@@ -2107,7 +2133,7 @@ slapd_exemode_ldif2db()
 			LDAPDebug(LDAP_DEBUG_ANY, 
 				"ERROR 2: There is no backend instance to import to.\n",
 				0, 0, 0);
-			exit(1);
+			return 1;
 		}
     }
 
@@ -2116,7 +2142,7 @@ slapd_exemode_ldif2db()
         LDAPDebug(LDAP_DEBUG_ANY, 
                   "ERROR: Could not find backend '%s'.\n",
                   cmd_line_instance_name, 0, 0);
-        exit(1);
+        return 1;
     }
 
     /* Make sure we aren't going to run slapd in 
@@ -2129,13 +2155,13 @@ slapd_exemode_ldif2db()
         LDAPDebug( LDAP_DEBUG_ANY, 
                    "Shutting down due to possible conflicts with other slapd processes\n",
                    0, 0, 0 );
-        exit(1);
+        return 1;
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(plugin)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do imports.\n",
                   plugin->plg_name, 0, 0);
-        exit(1);
+        return 1;
     }
 
     memset( &pb, '\0', sizeof(pb) );
@@ -2197,7 +2223,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
 				"ERROR: backend instances name [-n <name>] or "
 				"included suffix [-s <suffix>] need to be specified.\n",
 				0, 0, 0);
-			exit(1);
+			return 1;
 		}
 
 		if (instances) {
@@ -2208,7 +2234,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
 				LDAPDebug(LDAP_DEBUG_ANY, 
 					"ERROR 1: There is no backend instance to export from.\n",
 					0, 0, 0);
-				exit(1);
+				return 1;
 			} else {
 				LDAPDebug(LDAP_DEBUG_ANY, "Backend Instance(s): \n", 0, 0, 0);
 				for (ip = instances, counter = 0; ip && *ip; ip++, counter++) {
@@ -2220,7 +2246,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
 			LDAPDebug(LDAP_DEBUG_ANY, 
 				"ERROR 2: There is no backend instance to export from.\n",
 				0, 0, 0);
-			exit(1);
+			return 1;
 		}
     }
 
@@ -2237,13 +2263,13 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	        LDAPDebug(LDAP_DEBUG_ANY, 
 	                  "ERROR: Could not find backend '%s'.\n", 
 	                  *instp, 0, 0);
-	        exit(1);
+	        return 1;
 	    }
 	
 		if (plugin->plg_db2ldif == NULL) {
 			LDAPDebug(LDAP_DEBUG_ANY, "ERROR: no db2ldif function defined for "
 					  "backend %s - cannot export\n", *instp, 0, 0);
-			exit(1);
+			return 1;
 		}
 
 	    /* Make sure we aren't going to run slapd in 
@@ -2256,18 +2282,18 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	                   "Shutting down due to possible conflicts "
 					   "with other slapd processes\n",
 	                   0, 0, 0 );
-	        exit(1);
+	        return 1;
 	    }
 	    if ( config_is_slapd_lite () &&
 			 !slapi_config_get_readonly () && is_slapd_running() ) {
 	        LDAPDebug( LDAP_DEBUG_ANY, "%s\n", LITE_BACKUP_ERR, 0, 0);
-	        exit ( 1 );
+	        return 1;
 	    }
 	
 	    if (! (SLAPI_PLUGIN_IS_V2(plugin))) {
 	        LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do exports.\n",
 	                  plugin->plg_name, 0, 0);
-	        exit(1);
+	        return 1;
 	    }
 	
 	    memset( &pb, '\0', sizeof(pb) );
@@ -2405,7 +2431,7 @@ static int slapd_exemode_db2index()
                       "ERROR: backend instances name [-n <name>] or "
                       "included suffix [-s <suffix>] need to be specified.\n",
                       0, 0, 0);
-            exit(1);
+            return 1;
         }
 
         if (instances) {
@@ -2416,7 +2442,7 @@ static int slapd_exemode_db2index()
                 LDAPDebug(LDAP_DEBUG_ANY, 
                           "ERROR 1: There is no backend instance to import to.\n",
                           0, 0, 0);
-                exit(1);
+                return 1;
             } else if (counter > 1) {
                 int i;
                 LDAPDebug(LDAP_DEBUG_ANY, 
@@ -2425,7 +2451,7 @@ static int slapd_exemode_db2index()
                 for (i = 0; i < counter; i++)
                     LDAPDebug(LDAP_DEBUG_ANY, "     : %s\n",
                               instances[i], 0, 0);
-                exit(1);
+                return 1;
             } else {
                 LDAPDebug(LDAP_DEBUG_ANY, "Backend Instance: %s\n",
                           *instances, 0, 0);
@@ -2435,7 +2461,7 @@ static int slapd_exemode_db2index()
             LDAPDebug(LDAP_DEBUG_ANY, 
                       "ERROR 2: There is no backend instance to import to.\n",
                       0, 0, 0);
-            exit(1);
+            return 1;
         }
     }
 
@@ -2444,7 +2470,7 @@ static int slapd_exemode_db2index()
         LDAPDebug(LDAP_DEBUG_ANY, 
                   "ERROR: Could not find backend '%s'.\n",
                   cmd_line_instance_name, 0, 0);
-        exit(1);
+        return 1;
     }
 
     /* make sure nothing else is running */
@@ -2453,12 +2479,12 @@ static int slapd_exemode_db2index()
         LDAPDebug(LDAP_DEBUG_ANY,
                   "Shutting down due to possible conflicts with other "
                   "slapd processes.\n", 0, 0, 0);
-        exit(1);
+        return 1;
     }
 
     if ( db2index_attrs == NULL ) {
 	usage( myname, extraname );
-	exit( 1 );
+	return 1;
     }
     memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
@@ -2488,18 +2514,18 @@ slapd_exemode_db2archive()
 		LDAPDebug(LDAP_DEBUG_ANY, 
 			"ERROR: Could not find the ldbm backend plugin.\n",
 			0, 0, 0);
-		exit(1);
+		return 1;
 	}
 	if (NULL == archive_name) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ERROR: no archive directory supplied\n",
 		    0, 0, 0 );
-		exit( 1 );
+		return 1;
 	}
 
 	if ( config_is_slapd_lite ()  && !slapi_config_get_readonly ()  && is_slapd_running ()) {
 		LDAPDebug( LDAP_DEBUG_ANY, "%s\n", LITE_BACKUP_ERR, 0, 0);
-		exit ( 1 );
+		return 1;
 	}
 
 	/* Make sure we aren't going to run slapd in 
@@ -2511,11 +2537,11 @@ slapd_exemode_db2archive()
 	    LDAPDebug( LDAP_DEBUG_ANY, 
 		       "Shutting down due to possible conflicts with other slapd processes\n",
 		       0, 0, 0 );
-	    exit(1);
+	    return 1;
 	}
 	if (compute_init()) {
 		LDAPDebug(LDAP_DEBUG_ANY, "Initialization Failed 0 %d\n",return_value,0,0);
-		exit (1);
+		return 1;
 	}
 
 	memset( &pb, '\0', sizeof(pb) );
@@ -2543,13 +2569,13 @@ slapd_exemode_archive2db()
 		LDAPDebug(LDAP_DEBUG_ANY, 
 			"ERROR: Could not find the ldbm backend plugin.\n",
 			0, 0, 0);
-		exit(1);
+		return 1;
 	}
 	if (NULL == archive_name) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ERROR: no archive directory supplied\n",
 		    0, 0, 0 );
-		exit( 1 );
+		return 1;
 	}
 	
 	/* Make sure we aren't going to run slapd in 
@@ -2561,11 +2587,11 @@ slapd_exemode_archive2db()
 	    LDAPDebug( LDAP_DEBUG_ANY, 
 		       "Shutting down due to possible conflicts with other slapd processes\n",
 		       0, 0, 0 );
-	    exit(1);
+	    return 1;
 	}
 	if (compute_init()) {
 		LDAPDebug(LDAP_DEBUG_ANY, "Initialization Failed 0 %d\n",return_value,0,0);
-		exit (1);
+		return 1;
 	}
 
 	memset( &pb, '\0', sizeof(pb) );
@@ -2598,7 +2624,7 @@ slapd_exemode_upgradedb()
                    "ERROR: Required argument -a <backup_dir> missing\n",
                    0, 0, 0 );
         usage( myname, extraname );
-        exit( 1 );
+        return 1;
     }
 
     /* this should be the first time to be called!  if the init order
@@ -2610,7 +2636,7 @@ slapd_exemode_upgradedb()
         LDAPDebug(LDAP_DEBUG_ANY, 
             "ERROR: Could not find the ldbm backend plugin.\n",
             0, 0, 0);
-        exit(1);
+        return 1;
     }
 
     /* Make sure we aren't going to run slapd in 
@@ -2621,13 +2647,13 @@ slapd_exemode_upgradedb()
         LDAPDebug( LDAP_DEBUG_ANY, 
                    "Shutting down due to possible conflicts with other slapd processes\n",
                    0, 0, 0 );
-        exit(1);
+        return 1;
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do convert idl.\n",
                   backend_plugin->plg_name, 0, 0);
-        exit(1);
+        return 1;
     }
 
     memset( &pb, '\0', sizeof(pb) );
@@ -2674,14 +2700,14 @@ slapd_exemode_dbverify()
         LDAPDebug(LDAP_DEBUG_ANY, 
             "ERROR: Could not find the ldbm backend plugin.\n",
             0, 0, 0);
-        exit(1);
+        return 1;
     }
 
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do dbverify.\n",
                   backend_plugin->plg_name, 0, 0);
-        exit(1);
+        return 1;
     }
 
     memset( &pb, '\0', sizeof(pb) );
@@ -2715,7 +2741,7 @@ slapd_exemode_dbtest()
         LDAPDebug(LDAP_DEBUG_ANY, 
                   "dbtest: Required argument -n <instance name> missing\n", 0, 0, 0);
         usage( myname, extraname );
-        exit(1);
+        return 1;
     }
 
     mapping_tree_init();
@@ -2725,7 +2751,7 @@ slapd_exemode_dbtest()
         LDAPDebug(LDAP_DEBUG_ANY, 
                   "ERROR: Could not find backend '%s'.\n",
                   cmd_line_instance_name, 0, 0);
-        exit(1);
+        return 1;
     }
 
     /* Make sure we aren't going to run slapd in 
@@ -2738,7 +2764,7 @@ slapd_exemode_dbtest()
         LDAPDebug( LDAP_DEBUG_ANY, 
                    "Shutting down due to possible conflicts with other slapd processes\n",
                    0, 0, 0 );
-        exit(1);
+        return 1;
     }
 
     pb.pb_backend = NULL;
@@ -2943,9 +2969,13 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
 	 * other things even if we are not going to accept SSL connections.
 	 * We also need NSS for attribute encryption/decryption on import and export.
 	 */
-	int init_ssl = ( (slapd_exemode == SLAPD_EXEMODE_SLAPD) || importexport_encrypt) 
-        && config_get_security()
-        && (0 != s_port) && (s_port <= LDAP_PORT_MAX);
+	int init_ssl = config_get_security();
+
+	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
+		init_ssl = init_ssl && (0 != s_port) && (s_port <= LDAP_PORT_MAX);
+	} else {
+		init_ssl = init_ssl && importexport_encrypt;
+	}
 	/* As of DS 6.1, always do a full initialization so that other
 	 * modules can assume NSS is available
 	 */
@@ -2953,7 +2983,7 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
                         (slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: NSS Initialization Failed.\n", 0, 0, 0);
-        exit (1);
+        return 1;
 	}
 
 	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
@@ -2963,7 +2993,7 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
 	if ( init_ssl && ( 0 != slapd_ssl_init())) {
 		LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
-		exit( 1 );
+		return 1;
 	}
 
 	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
@@ -2974,7 +3004,7 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
 				if ( 0 != slapd_ssl_init2(sock, 0) ) {
 					LDAPDebug(LDAP_DEBUG_ANY,
                               "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
-					exit( 1 );
+					return 1;
 				}
 			}
 		}

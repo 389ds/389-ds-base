@@ -53,8 +53,8 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     DB     *db = NULL;
     DB_TXN *db_txn = NULL;
-    DBT    data = {0};
-    DBT    key = {0};
+    DBT    data;
+    DBT    key;
     int    len, rc;
     char   temp_id[sizeof(ID)];
 	struct backentry *encrypted_entry = NULL;
@@ -70,6 +70,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
     id_internal_to_stored(e->ep_id,temp_id);
 
+    memset(&key, 0, sizeof(key));
     key.dptr = temp_id;
     key.dsize = sizeof(temp_id);
 
@@ -85,6 +86,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
 	{
 		Slapi_Entry *entry_to_use = encrypted_entry ? encrypted_entry->ep_entry : e->ep_entry;
+		memset(&data, 0, sizeof(data));
 		data.dptr = slapi_entry2str_with_options( entry_to_use, &len, SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID);
 		data.dsize = len + 1;
 		/* If we had an encrypted entry, we no longer need it */

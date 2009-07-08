@@ -54,6 +54,7 @@
 #include <sechash.h>
 
 #define SHA_SALT_LENGTH    8   /* number of bytes of data in salt */
+#define OLD_SALT_LENGTH    8
 #define NOT_FIRST_TIME (time_t)1 /* not the first logon */
 
 static char *hasherrmsg = "pw_cmp: %s userPassword \"%s\" is the wrong length or is not properly encoded BASE64\n";
@@ -82,7 +83,7 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     unsigned int secOID;
     char *schemeName;
     char *hashresult = NULL;
-                                                                                                                            
+
     /* Determine which algorithm we're using */
     switch (shaLen) {
         case SHA1_LENGTH:
@@ -111,8 +112,10 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
      */
     hash_len = (strlen(dbpwd) * 3) / 4; /* includes the trailing = if any */
     if ( hash_len > sizeof(quick_dbhash) ) { /* get more space: */
-        dbhash = (char*) slapi_ch_malloc( hash_len );
+        dbhash = (char*) slapi_ch_calloc( hash_len, sizeof(char) );
         if ( dbhash == NULL ) goto loser;
+    } else {
+        memset( quick_dbhash, 0, sizeof(quick_dbhash) );
     }
     hashresult = PL_Base64Decode( dbpwd, 0, dbhash );
     if (NULL == hashresult) {
@@ -123,23 +126,25 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
         salt.bv_len = SHA_SALT_LENGTH;
     } else if ( hash_len >= DS40B1_SALTED_SHA_LENGTH ) {
         salt.bv_val = (void*)dbhash;
-        salt.bv_len = 8;
+        salt.bv_len = OLD_SALT_LENGTH;
     } else { /* unsupported, invalid BASE64 (hash_len < 0), or similar */
                 slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
         goto loser;
     }
-                                                                                                                            
+
     /* hash the user's key */
+    memset( userhash, 0, sizeof(userhash) );
     if ( sha_salted_hash( userhash, userpwd, &salt, secOID ) != SECSuccess ) {
                 slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "sha_pw_cmp: sha_salted_hash() failed\n");
         goto loser;
     }
-                                                                                                                            
+
     /* the proof is in the comparison... */
     result = ( hash_len >= shaLen ) ?
-        ( memcmp( userhash, dbhash, shaLen )) : /* include salt */
-        ( memcmp( userhash, dbhash + 8, hash_len - 8 )); /* exclude salt */
-                                                                                                                            
+        ( memcmp( userhash, dbhash, shaLen ) ) : /* include salt */
+        ( memcmp( userhash, dbhash + OLD_SALT_LENGTH,
+                  hash_len - OLD_SALT_LENGTH ) ); /* exclude salt */
+
     loser:
     if ( dbhash && dbhash != quick_dbhash ) slapi_ch_free_string( &dbhash );
     return result;
@@ -153,7 +158,8 @@ sha_pw_enc( const char *pwd, unsigned int shaLen )
     char *schemeName;
     unsigned int schemeNameLen;
     unsigned int secOID;
-                                                                                                                            
+    size_t enclen;
+
     /* Determine which algorithm we're using */
     switch (shaLen) {
         case SHA1_LENGTH:
@@ -182,19 +188,20 @@ sha_pw_enc( const char *pwd, unsigned int shaLen )
     }
 
     /* hash the user's key */
+    memset( hash, 0, sizeof(hash) );
     if ( sha_salted_hash( hash, pwd, NULL, secOID ) != SECSuccess ) {
         return( NULL );
     }
-                                                                                                                            
-    if (( enc = slapi_ch_malloc( 3 + schemeNameLen +
-        LDIF_BASE64_LEN( shaLen ))) == NULL ) {
+
+    enclen = 3 + schemeNameLen + LDIF_BASE64_LEN( shaLen );
+    if (( enc = slapi_ch_calloc( enclen, sizeof(char) )) == NULL ) {
         return( NULL );
     }
-                                                                                                                            
+
     sprintf( enc, "%c%s%c", PWD_HASH_PREFIX_START, schemeName,
         PWD_HASH_PREFIX_END );
     (void)PL_Base64Encode( hash, shaLen, enc + 2 + schemeNameLen );
-                                                                                                                            
+
     return( enc );
 }
  

@@ -556,11 +556,10 @@ get_backends_from_attr(Slapi_Attr *attr, backend ***be_list, char ***be_names,
 
 /* 
  * Description:
- * Release the memory allocated by the routine above.
- * Call this when the backend not put into structure and need to cleanup these tmp allocations
+ * Free the data allocated for mapping tree node arrays
  */
 static void
-free_get_backends_from_attr(backend ***be_list, char ***be_names,
+free_mapping_tree_node_arrays(backend ***be_list, char ***be_names,
     int ** be_states, int *be_list_count)
 {
     int i;
@@ -671,7 +670,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
 
             if (get_backends_from_attr(attr, &be_list, &be_names, &be_states,
                                        &be_list_count, &be_list_size, NULL)) {
-                free_get_backends_from_attr(&be_list, &be_names, &be_states, &be_list_count);
+                free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
                 slapi_sdn_free(&subtree);
                 return lderr;
             }
@@ -776,7 +775,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         "ERROR: node %s must define a backend\n",
         slapi_entry_get_dn(entry), 0, 0);
         slapi_sdn_free(&subtree);
-        free_get_backends_from_attr(&be_list, &be_names, &be_states, &be_list_count);
+        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
         return lderr;
     }
     if (((state == MTN_REFERRAL) || (state == MTN_REFERRAL_ON_UPDATE))
@@ -786,7 +785,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         "ERROR: node %s must define referrals to be in referral state\n",
         slapi_entry_get_dn(entry), 0, 0);
         slapi_sdn_free(&subtree);
-        free_get_backends_from_attr(&be_list, &be_names, &be_states, &be_list_count);
+        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
         return lderr;
     }
 
@@ -803,7 +802,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
                 slapi_sdn_free(&subtree);
             slapi_ch_free((void **) &plugin_funct);
             slapi_ch_free((void **) &plugin_lib);
-            free_get_backends_from_attr(&be_list, &be_names, &be_states, &be_list_count);
+            free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
             return lderr;
         }
     }
@@ -822,7 +821,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         slapi_sdn_free(&subtree);
         slapi_ch_free((void **) &plugin_funct);
         slapi_ch_free((void **) &plugin_lib);
-        free_get_backends_from_attr(&be_list, &be_names, &be_states, &be_list_count);
+        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
         return lderr;
     }
         
@@ -1119,7 +1118,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             else if (get_backends_from_attr(attr, &backends, &be_names,
                          &be_states, &be_list_count, &be_list_size, node))
             {
-                free_get_backends_from_attr(&backends, &be_names, &be_states, &be_list_count);
+                free_mapping_tree_node_arrays(&backends, &be_names, &be_states, &be_list_count);
                 slapi_sdn_free(&subtree);
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 return SLAPI_DSE_CALLBACK_ERROR;
@@ -1132,11 +1131,13 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "mapping tree entry need at least one nsslapd-backend\n");
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 mtn_unlock();
-                free_get_backends_from_attr(&backends, &be_names, &be_states, &be_list_count);
+                free_mapping_tree_node_arrays(&backends, &be_names, &be_states, &be_list_count);
                 slapi_sdn_free(&subtree);
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
 
+            /* free any old data */
+            free_mapping_tree_node_arrays(&node->mtn_be, &node->mtn_backend_names, &node->mtn_be_states, &node->mtn_be_count);
             node->mtn_be_states = be_states;
             node->mtn_be = backends;
             node->mtn_backend_names = be_names;
@@ -1642,7 +1643,7 @@ mapping_tree_init()
 }
 
 static void
-mtn_free_node (mapping_tree_node **node)
+mtn_free_node  (mapping_tree_node **node)
 {
     mapping_tree_node *child = (*node)->mtn_children;
 
@@ -1668,15 +1669,12 @@ mtn_free_node (mapping_tree_node **node)
 
     if ((*node)->mtn_be_count > 0)
     {
-        if ((*node)->mtn_be)
-            slapi_ch_free((void **) &((*node)->mtn_be));
-    
-        if ((*node)->mtn_backend_names)
-            slapi_ch_free((void **) &((*node)->mtn_backend_names));
-
-        if ((*node)->mtn_be_states)
-            slapi_ch_free((void **) &((*node)->mtn_be_states));
+        free_mapping_tree_node_arrays(&((*node)->mtn_be), &((*node)->mtn_backend_names),
+                                      &((*node)->mtn_be_states), &((*node)->mtn_be_count)); 
     }
+
+    slapi_ch_free_string(&((*node)->mtn_dstr_plg_lib));
+    slapi_ch_free_string(&((*node)->mtn_dstr_plg_name));
 
     slapi_ch_free ((void**) node);
 }
