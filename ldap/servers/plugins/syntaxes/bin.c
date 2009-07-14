@@ -43,7 +43,8 @@
 /* bin.c - bin syntax routines */
 
 /*
- * This file actually implements three syntax plugins: OctetString, JPEG, and Binary.
+ * This file actually implements four syntax plugins: OctetString, JPEG,
+ * Fax, and Binary.
  */
 
 #include <stdio.h>
@@ -59,17 +60,19 @@ static int bin_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *bval,
 	Slapi_Value ***ivals, int ftype );
 
 /*
- * Attribute syntaxes. We treat all of these the same for now, even though
- * the specifications (e.g., RFC 2252) impose various constraints on the
- * the format for each of these.
- *
- * Note: the first name is the official one from RFC 2252.
+ * Attribute syntaxes. We treat all of these the same since the
+ * LDAP-specific encoding for all of them are simply strings of octets
+ * with no real content restrictions (even though the content is supposed
+ * to represent something specific).  For this reason, we do no
+ * validation of the values for these syntaxes.
  */
 static char *bin_names[] = { "Binary", "bin", BINARY_SYNTAX_OID, 0 };
 
 static char *octetstring_names[] = { "OctetString", OCTETSTRING_SYNTAX_OID, 0 };
 
 static char *jpeg_names[] = { "JPEG", JPEG_SYNTAX_OID, 0 };
+
+static char *fax_names[] = { "FAX", FAX_SYNTAX_OID, 0 };
 
 
 /* This syntax has "gone away" in RFC 4517, however we still use it for
@@ -90,6 +93,10 @@ static Slapi_PluginDesc jpeg_pdesc = {
 	"JPEG attribute syntax plugin"
 };
 
+static Slapi_PluginDesc fax_pdesc = {
+	"fax-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"Fax attribute syntax plugin"
+};
 
 /*
  * register_bin_like_plugin():  register all items for a bin-like plugin.
@@ -154,6 +161,19 @@ jpeg_init( Slapi_PBlock *pb )
 	rc = register_bin_like_plugin( pb, &jpeg_pdesc, jpeg_names,
 		 	JPEG_SYNTAX_OID );
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= jpeg_init %d\n", rc, 0, 0 );
+	return( rc );
+}
+
+
+int
+fax_init( Slapi_PBlock *pb )
+{
+	int	rc;
+
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> fax_init\n", 0, 0, 0 );
+	rc = register_bin_like_plugin( pb, &fax_pdesc, fax_names,
+			FAX_SYNTAX_OID );
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= fax_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 

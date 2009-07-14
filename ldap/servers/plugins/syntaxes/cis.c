@@ -51,7 +51,7 @@
  *		GeneralizedTime
  *		OID
  *		PostalAddress
- *
+ *		PrintableString
  */
 
 #include <stdio.h>
@@ -76,6 +76,7 @@ static int time_validate(struct berval *val);
 static int country_validate(struct berval *val);
 static int postal_validate(struct berval *val);
 static int oid_validate(struct berval *val);
+static int printable_validate(struct berval *val);
 
 /*
  * Attribute syntaxes. We treat all of these the same for now, even though
@@ -113,6 +114,9 @@ static char *postal_names[] = { "Postal Address",
 
 static char *oid_names[] = { "OID",
 		OID_SYNTAX_OID, 0};
+
+static char *printable_names[] = { "Printable String",
+		PRINTABLESTRING_SYNTAX_OID, 0};
 
 
 /*
@@ -171,6 +175,10 @@ static Slapi_PluginDesc postal_pdesc = { "postaladdress-syntax",
 static Slapi_PluginDesc oid_pdesc = { "oid-syntax",
 		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
 		"OID attribute syntax plugin" };
+
+static Slapi_PluginDesc printable_pdesc = { "printablestring-syntax",
+		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		"Printable String attribtue syntax plugin" };
 
 
 /*
@@ -289,7 +297,17 @@ oid_init( Slapi_PBlock *pb )
 	return( rc );
 }
 
+int
+printable_init( Slapi_PBlock *pb )
+{
+	int     rc;
 
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> printable_init\n", 0, 0, 0 );
+	rc = register_cis_like_plugin( pb, &printable_pdesc, printable_names,
+					PRINTABLESTRING_SYNTAX_OID, printable_validate );
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= printable_init %d\n", rc, 0, 0 );
+	return( rc );
+}
 
 static int
 cis_filter_ava(
@@ -805,3 +823,29 @@ exit:
 	return( rc );
 }
 
+static int printable_validate(
+	struct berval *val
+)
+{
+	int rc = 0;    /* assume the value is valid */
+        int i = 0;
+
+	/* Per RFC4517:
+	 *
+	 * PrintableString = 1*PrintableCharacter
+	 */
+	if ((val != NULL) && (val->bv_len > 0)) {
+		/* Make sure all chars are a PrintableCharacter */
+		for (i=0; i < val->bv_len; i++) {
+			if (!IS_PRINTABLE(val->bv_val[i])) {
+				rc = 1;
+				goto exit;
+			}
+		}
+	} else {
+		rc = 1;
+	}
+
+exit:
+	return( rc );
+}

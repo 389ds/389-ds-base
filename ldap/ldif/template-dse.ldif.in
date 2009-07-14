@@ -244,6 +244,16 @@ nsslapd-plugininitfunc: bin_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 
+dn: cn=Bit String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Bit String
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: bitstring_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
 dn: cn=Octet String Syntax,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -284,6 +294,76 @@ nsslapd-plugininitfunc: tel_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 
+dn: cn=Telex Number Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Telex Number Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: telex_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Teletex Terminal Identifier Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Teletex Terminal Identifier Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: teletex_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Enhanced Guide Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Enhanced Guide Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: enhancedguide_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Facsimile Telephone Number Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Facsimile Telephone Number Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: facsimile_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Fax Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Fax Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: fax_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Guide Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Guide Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: guide_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Delivery Method Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Delivery Method Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: delivery_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
 dn: cn=Integer Syntax,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
@@ -301,6 +381,16 @@ objectclass: extensibleObject
 cn: Distinguished Name Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: dn_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Name And Optional UID Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Name And Optional UID Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: nameoptuid_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 
@@ -361,6 +451,16 @@ objectclass: extensibleObject
 cn: Numeric String Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: numstr_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=Printable String Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Printable String Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: printable_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 

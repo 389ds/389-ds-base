@@ -74,7 +74,12 @@
 #define IS_SPACE(c)		( (c == ' ') )
 #define IS_LDIGIT(c)		( (c != '0') && isdigit(c) )
 #define IS_SHARP(c)		( (c == '#') )
+#define IS_DOLLAR(c)		( (c == '$') )
+#define IS_SQUOTE(c)		( (c == '\'') )
 #define IS_ESC(c)		( (c == '\\') )
+#define IS_LPAREN(c)		( (c == '(') )
+#define IS_RPAREN(c)		( (c == ')') )
+#define IS_COLON(c)		( (c == ':') )
 #define IS_UTF0(c)		( ((unsigned char)(c) >= (unsigned char)'\x80') && ((unsigned char)(c) <= (unsigned char)'\xBF') )
 #define IS_UTF1(c)		( !((unsigned char)(c) & 128) )
 /* These are only checking the first byte of the multibyte character.  They
@@ -102,8 +107,8 @@
  *                        PLUS / COMMA / HYPHEN / DOT / EQUALS /
  *                        SLASH / COLON / QUESTION / SPACE
  */
-#define IS_PRINTABLE(c)	( isalnum(c) || (c == '\'') || (c == '(') || \
-	(c == ')') || (c == '+') || (c == ',') || (c == '-') || (c == '.') || \
+#define IS_PRINTABLE(c)	( isalnum(c) || (c == '\'') || IS_LPAREN(c) || \
+	IS_RPAREN(c) || (c == '+') || (c == ',') || (c == '-') || (c == '.') || \
 	(c == '=') || (c == '/') || (c == ':') || (c == '?') || IS_SPACE(c) )
 
 int string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,Slapi_Value **bvals, int syntax );
@@ -123,5 +128,8 @@ int keystring_validate( const char *begin, const char *end );
 int numericoid_validate( const char *begin, const char *end );
 int utf8char_validate( const char *begin, const char *end, const char **last );
 int utf8string_validate( const char *begin, const char *end, const char **last );
+int distinguishedname_validate( const char *begin, const char *end );
+int rdn_validate( const char *begin, const char *end, const char **last );
+int bitstring_validate_internal(const char *begin, const char *end);
 
 #endif
