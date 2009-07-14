@@ -350,3 +350,262 @@ exit:
 	return(rc);
 }
 
+/*
+ * Validates a distinguishedName as degined in RFC 4514.  Returns
+ * 0 if the value from begin to end is a valid distinguishedName.
+ * Returns 1 otherwise.
+ */
+int distinguishedname_validate(
+	const char *begin,
+	const char *end
+)
+{
+	int rc = 0; /* Assume value is valid */
+	char *val_copy = NULL;
+	int strict = 0;
+	const char *p = begin;
+	const char *last = NULL;
+
+	/* Per RFC 4514:
+	 *
+	 * distinguishedName = [ relativeDistinguishedName
+	 *     *( COMMA relativeDistinguishedName ) ]
+	 * relativeDistinguishedName = attributeTypeAndValue
+	 *     *( PLUS attributeTypeAndValue )
+	 * attributeTypeAndValue = attribyteType EQUALS attributeValue
+	 * attributeType = descr / numericoid
+	 * attributeValue = string / hexstring
+	 */
+
+	/* Check if we should be performing strict validation. */
+	strict = config_get_dn_validate_strict();
+	if (!strict) {
+		/* Create a normalized copy of the value to use
+		 * for validation.  The original value will be
+		 * stored in the backend unmodified. */
+		val_copy = PL_strndup(begin, end - begin + 1);
+		p = val_copy;
+		end = slapi_dn_normalize_to_end(val_copy, NULL) - 1;
+	}
+
+	/* Validate one RDN at a time in a loop. */
+	while (p <= end) {
+		if ((rc = rdn_validate(p, end, &last)) != 0) {
+			goto exit;
+		}
+		p = last + 1;
+
+		/* p should be pointing at a comma, or one past
+		 * the end of the entire dn value.  If we have
+		 * not reached the end, ensure that the next
+		 * character is a comma and that there is at
+		 * least another character after the comma. */
+		if ((p <= end) && ((p == end) || (*p != ','))) {
+			rc = 1;
+			goto exit;
+		}
+
+		/* Advance the pointer past the comma so it
+		 * points at the beginning of the next RDN
+		 * (if there is one). */
+		p++;
+	}
+
+exit:
+	if (val_copy) {
+		slapi_ch_free_string(&val_copy);
+	}
+	return rc;
+}
+
+/*
+ * Helper function for validating a DN.  This function will validate
+ * a single RDN.  If the RDN is valid, 0 will be returned, otherwise
+ * non-zero will be returned. A pointer to the last character processed
+ * will be set in the "last parameter.  This will be the end of the RDN
+ * in the valid case, and the illegal character in the invalid case.
+ */
+int rdn_validate( const char *begin, const char *end, const char **last )
+{
+	int rc = 0; /* Assume RDN is valid */
+	int numericform = 0;
+	char *separator = NULL;
+	const char *p = begin;
+
+	/* Find the '=', then use the helpers for descr and numericoid */
+	if ((separator = PL_strnchr(p, '=', end - begin + 1)) == NULL) {
+		rc = 1;
+		goto exit;
+	}
+
+	/* Process an attribute type. The 'descr'
+	 * form must start with a 'leadkeychar'. */
+	if (IS_LEADKEYCHAR(*p)) {
+		if ((rc = keystring_validate(p, separator - 1))) {
+			goto exit;
+		}
+	/* See if the 'numericoid' form is being used */
+	} else if (isdigit(*p)) {
+		numericform = 1;
+		if ((rc = numericoid_validate(p, separator - 1))) {
+			goto exit;
+		}
+	} else {
+		rc = 1;
+		goto exit;
+	}
+
+	/* Advance the pointer past the '=' and make sure
+	 * we're not past the end of the string. */
+	p = separator + 1;
+	if (p > end) {
+		rc = 1;
+		goto exit;
+	}
+
+	/* The value must be a 'hexstring' if the 'numericoid'
+	 * form of 'attributeType' is used.  Per RFC 4514:
+	 *
+	 *   hexstring = SHARP 1*hexpair
+	 *   hexpair = HEX HEX
+	 */
+	if (numericform) {
+		if ((p == end) || !IS_SHARP(*p)) {
+			rc = 1;
+			goto exit;
+		}
+		p++;
+	/* The value must be a 'string' when the 'descr' form
+	 * of 'attributeType' is used.  Per RFC 4514:
+	 *
+	 *   string = [ ( leadchar / pair ) [ *( stringchar / pair )
+	 *      ( trailchar / pair ) ] ]
+	 *
+	 *   leadchar   = LUTF1 / UTFMB
+	 *   trailchar  = TUTF1 / UTFMB
+	 *   stringchar = SUTF1 / UTFMB
+	 *
+	 *   pair = ESC (ESC / special / hexpair )
+	 *   special = escaped / SPACE / SHARP / EQUALS
+	 *   escaped = DQUOTE / PLUS / COMMA / SEMI / LANGLE / RANGLE
+	 *   hexpair = HEX HEX
+	 */
+	} else {
+		/* Check the leadchar to see if anything illegal
+		 * is there.  We need to allow a 'pair' to get
+		 * through, so we'll assume that a '\' is the
+		 * start of a 'pair' for now. */
+		if (IS_UTF1(*p) && !IS_ESC(*p) && !IS_LUTF1(*p)) {
+			rc = 1;
+			goto exit;
+		}
+	}
+
+	/* Loop through string until we find the ',' separator, a '+'
+	 * char indicating a multi-value RDN, or we reach the end.  */
+	while ((p <= end) && (*p != ',') && (*p != '+')) {
+		if (numericform) {
+			/* Process a single 'hexpair' */
+			if ((p == end) || !isxdigit(*p) || !isxdigit(*p + 1)) {
+				rc = 1;
+				goto exit;
+			}
+			p = p + 2;
+		} else {
+			/* Check for a valid 'stringchar'.  We handle
+			 * multi-byte characters separately. */
+			if (IS_UTF1(*p)) {
+				/* If we're at the end, check if we have
+				 * a valid 'trailchar'. */
+				if ((p == end) && !IS_TUTF1(*p)) {
+					rc = 1;
+					goto exit;
+				/* Check for a 'pair'. */
+				} else if (IS_ESC(*p)) {
+					/* We're guaranteed to still have at
+					 * least one more character, so lets
+					 * take a look at it. */
+					p++;
+					if (!IS_ESC(*p) && !IS_SPECIAL(*p)) {
+						/* The only thing valid now
+						 * is a 'hexpair'. */
+						if ((p == end) || !isxdigit(*p) ||!isxdigit(*p + 1)) {
+							rc = 1;
+							goto exit;
+						}
+						p++;
+					}
+					p++;
+				/* Only allow 'SUTF1' chars now. */
+				} else if (!IS_SUTF1(*p)) {
+					rc = 1;
+					goto exit;
+				}
+
+				p++;
+			} else {
+				/* Validate a single 'UTFMB' (multi-byte) character. */
+				if (utf8char_validate(p, end, &p ) != 0) {
+					rc = 1;
+					goto exit;
+				}
+
+				/* Advance the pointer past the multi-byte char. */
+				p++;
+			}
+		}
+	}
+
+	/* We'll end up either at the comma, a '+', or one past end.
+	 * If we are processing a multi-valued RDN, we recurse to
+	 * process the next 'attributeTypeAndValue'. */
+	if ((p <= end) && (*p == '+')) {
+		/* Make sure that there is something after the '+'. */
+		if (p == end) {
+			rc = 1;
+			goto exit;
+		}
+		p++;
+
+		/* Recurse to process the next value.  We need to reset p to
+		 * ensure that last is set correctly for the original caller. */
+		rc = rdn_validate( p, end, last );
+		p = *last + 1;
+	}
+
+exit:
+	*last = p - 1;
+	return rc;
+}
+
+int
+bitstring_validate_internal(const char *begin, const char *end)
+{
+        int     rc = 0;    /* assume the value is valid */
+        const char *p = NULL;
+
+        /* Per RFC4517:
+         *
+         * BitString    = SQUOTE *binary-digit SQUOTE "B"
+         * binary-digit = "0" / "1"
+         */
+
+        /* Check that the value starts with a SQUOTE and
+         * ends with SQUOTE "B". */
+        if (!IS_SQUOTE(*begin) || (*end != 'B') ||
+            !IS_SQUOTE(*(end - 1))) {
+                rc = 1;
+                goto exit;
+        }
+
+        /* Ensure that only '0' and '1' are between the SQUOTE chars. */
+        for (p = begin + 1; p <= end - 2; p++) {
+                if ((*p != '0') && (*p != '1')) {
+                        rc = 1;
+                        goto exit;
+                }
+        }
+
+exit:
+        return rc;
+}

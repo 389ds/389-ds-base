@@ -277,7 +277,6 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DialogManager.pm \
 	ldap/admin/src/scripts/Dialog.pm \
 	ldap/admin/src/scripts/DSDialogs.pm \
-	ldap/admin/src/scripts/Setup.pm \
 	ldap/admin/src/scripts/Migration.pm \
 	ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/FileConn.pm \
@@ -942,16 +941,23 @@ libstatechange_plugin_la_LDFLAGS = -avoid-version
 # libsyntax-plugin
 #------------------------
 libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
+	ldap/servers/plugins/syntaxes/bitstring.c \
 	ldap/servers/plugins/syntaxes/ces.c \
 	ldap/servers/plugins/syntaxes/cis.c \
 	ldap/servers/plugins/syntaxes/debug.c \
 	ldap/servers/plugins/syntaxes/dn.c \
+	ldap/servers/plugins/syntaxes/deliverymethod.c \
+	ldap/servers/plugins/syntaxes/facsimile.c \
+	ldap/servers/plugins/syntaxes/guide.c \
 	ldap/servers/plugins/syntaxes/int.c \
+	ldap/servers/plugins/syntaxes/nameoptuid.c \
 	ldap/servers/plugins/syntaxes/numericstring.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \
 	ldap/servers/plugins/syntaxes/sicis.c \
 	ldap/servers/plugins/syntaxes/string.c \
 	ldap/servers/plugins/syntaxes/tel.c \
+	ldap/servers/plugins/syntaxes/telex.c \
+	ldap/servers/plugins/syntaxes/teletex.c \
 	ldap/servers/plugins/syntaxes/validate.c \
 	ldap/servers/plugins/syntaxes/validate_task.c \
 	ldap/servers/plugins/syntaxes/value.c

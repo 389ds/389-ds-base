@@ -32,7 +32,7 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -40,115 +40,156 @@
 #  include <config.h>
 #endif
 
-/* dn.c - dn syntax routines */
+/* bitstring.c - Bit String syntax routines */
 
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include "syntax.h"
 
-static int dn_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
-	Slapi_Value **bvals, int ftype, Slapi_Value **retVal );
-static int dn_filter_sub( Slapi_PBlock *pb, char *initial, char **any,
-	char *final, Slapi_Value **bvals );
-static int dn_values2keys( Slapi_PBlock *pb, Slapi_Value **vals,
-	Slapi_Value ***ivals, int ftype );
-static int dn_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
-	Slapi_Value ***ivals, int ftype );
-static int dn_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
-	char *final, Slapi_Value ***ivals );
-static int dn_validate( struct berval *val );
+static int bitstring_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
+		Slapi_Value **bvals, int ftype, Slapi_Value **retVal );
+static int bitstring_filter_sub( Slapi_PBlock *pb, char *initial, char **any,
+		char *final, Slapi_Value **bvals );
+static int bitstring_values2keys( Slapi_PBlock *pb, Slapi_Value **val,
+		Slapi_Value ***ivals, int ftype );
+static int bitstring_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
+		Slapi_Value ***ivals, int ftype );
+static int bitstring_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
+		char *final, Slapi_Value ***ivals );
+static int bitstring_compare(struct berval	*v1, struct berval	*v2);
+static int bitstring_validate(struct berval *val);
 
-/* the first name is the official one from RFC 2252 */
-static char *names[] = { "DN", DN_SYNTAX_OID, 0 };
+/* the first name is the official one from RFC 4517 */
+static char *names[] = { "Bit String", "bitstring", BITSTRING_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "dn-syntax", PLUGIN_MAGIC_VENDOR_STR,
-	PRODUCTTEXT, "distinguished name attribute syntax plugin" };
+static Slapi_PluginDesc pdesc = { "bitstring-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"Bit String attribute syntax plugin" };
 
 int
-dn_init( Slapi_PBlock *pb )
+bitstring_init( Slapi_PBlock *pb )
 {
-	int	rc;
+	int	rc, flags;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> dn_init\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> bitstring_init\n", 0, 0, 0 );
 
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    (void *) SLAPI_PLUGIN_VERSION_01 );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
 	    (void *)&pdesc );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FILTER_AVA,
-	    (void *) dn_filter_ava );
+	    (void *) bitstring_filter_ava );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FILTER_SUB,
-	    (void *) dn_filter_sub );
+	    (void *) bitstring_filter_sub );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALUES2KEYS,
-	    (void *) dn_values2keys );
+	    (void *) bitstring_values2keys );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA,
-	    (void *) dn_assertion2keys_ava );
+	    (void *) bitstring_assertion2keys_ava );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB,
-	    (void *) dn_assertion2keys_sub );
+	    (void *) bitstring_assertion2keys_sub );
+	flags = SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING;
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FLAGS,
+	    (void *) &flags );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NAMES,
 	    (void *) names );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_OID,
-	    (void *) DN_SYNTAX_OID );
+	    (void *) BITSTRING_SYNTAX_OID );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
+	    (void *) bitstring_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
-	    (void *) dn_validate );
+	    (void *) bitstring_validate );
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= dn_init %d\n", rc, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= bitstring_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
 static int
-dn_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
-    Slapi_Value **bvals, int ftype, Slapi_Value **retVal )
+bitstring_filter_ava(
+    Slapi_PBlock		*pb,
+    struct berval	*bvfilter,
+    Slapi_Value	**bvals,
+    int			ftype,
+	Slapi_Value **retVal
+)
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS | SYNTAX_DN,
+	return( string_filter_ava( bvfilter, bvals, SYNTAX_CES,
 	    ftype, retVal ) );
 }
 
+
 static int
-dn_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
-    Slapi_Value **bvals )
+bitstring_filter_sub(
+    Slapi_PBlock		*pb,
+    char		*initial,
+    char		**any,
+    char		*final,
+    Slapi_Value	**bvals
+)
 {
-	return( string_filter_sub( pb, initial, any, final, bvals,
-	    SYNTAX_CIS | SYNTAX_DN ) );
+	return( string_filter_sub( pb, initial, any, final, bvals, SYNTAX_CES ) );
 }
 
 static int
-dn_values2keys( Slapi_PBlock *pb, Slapi_Value **vals, Slapi_Value ***ivals,
-    int ftype )
+bitstring_values2keys(
+    Slapi_PBlock		*pb,
+    Slapi_Value	**vals,
+    Slapi_Value	***ivals,
+    int			ftype
+)
 {
-	return( string_values2keys( pb, vals, ivals, SYNTAX_CIS | SYNTAX_DN,
+	return( string_values2keys( pb, vals, ivals, SYNTAX_CES,
 	    ftype ) );
 }
 
 static int
-dn_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
-    Slapi_Value ***ivals, int ftype )
+bitstring_assertion2keys_ava(
+    Slapi_PBlock		*pb,
+    Slapi_Value	*val,
+    Slapi_Value	***ivals,
+    int			ftype
+)
 {
-	return( string_assertion2keys_ava( pb, val, ivals,
-	    SYNTAX_CIS | SYNTAX_DN, ftype ) );
+	return(string_assertion2keys_ava( pb, val, ivals,
+	    SYNTAX_CES, ftype ));
 }
 
 static int
-dn_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
-    Slapi_Value ***ivals )
+bitstring_assertion2keys_sub(
+    Slapi_PBlock		*pb,
+    char		*initial,
+    char		**any,
+    char		*final,
+    Slapi_Value	***ivals
+)
 {
 	return( string_assertion2keys_sub( pb, initial, any, final, ivals,
-	    SYNTAX_CIS | SYNTAX_DN ) );
+	    SYNTAX_CES ) );
 }
 
-static int dn_validate( struct berval *val )
+static int bitstring_compare(    
+	struct berval	*v1,
+    struct berval	*v2
+)
 {
-	int rc = 0; /* Assume value is valid */
-	char *val_copy = NULL;
+	return value_cmp(v1, v2, SYNTAX_CES, 3 /* Normalise both values */);
+}
 
-	/* A 0 length value is valid for the DN syntax. */
-	if (val == NULL) {
+static int
+bitstring_validate(
+	struct berval	*val
+)
+{
+	int     rc = 0;    /* assume the value is valid */
+
+	/* Don't allow a 0 length string */
+	if ((val == NULL) || (val->bv_len == 0)) {
 		rc = 1;
-	} else if (val->bv_len > 0) {
-		rc = distinguishedname_validate(val->bv_val, &(val->bv_val[val->bv_len - 1]));
+		goto exit;
 	}
 
+	rc = bitstring_validate_internal(val->bv_val, &(val->bv_val[val->bv_len - 1]));
+
+exit:
 	return rc;
 }
 

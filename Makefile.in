@@ -664,16 +664,23 @@ libstatechange_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 libsyntax_plugin_la_LIBADD =
 am_libsyntax_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-cis.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-debug.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-dn.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-phonetic.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-sicis.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate_task.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-value.lo
@@ -1363,7 +1370,6 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DialogManager.pm \
 	ldap/admin/src/scripts/Dialog.pm \
 	ldap/admin/src/scripts/DSDialogs.pm \
-	ldap/admin/src/scripts/Setup.pm \
 	ldap/admin/src/scripts/Migration.pm \
 	ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/FileConn.pm \
@@ -1967,16 +1973,23 @@ libstatechange_plugin_la_LDFLAGS = -avoid-version
 # libsyntax-plugin
 #------------------------
 libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
+	ldap/servers/plugins/syntaxes/bitstring.c \
 	ldap/servers/plugins/syntaxes/ces.c \
 	ldap/servers/plugins/syntaxes/cis.c \
 	ldap/servers/plugins/syntaxes/debug.c \
 	ldap/servers/plugins/syntaxes/dn.c \
+	ldap/servers/plugins/syntaxes/deliverymethod.c \
+	ldap/servers/plugins/syntaxes/facsimile.c \
+	ldap/servers/plugins/syntaxes/guide.c \
 	ldap/servers/plugins/syntaxes/int.c \
+	ldap/servers/plugins/syntaxes/nameoptuid.c \
 	ldap/servers/plugins/syntaxes/numericstring.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \
 	ldap/servers/plugins/syntaxes/sicis.c \
 	ldap/servers/plugins/syntaxes/string.c \
 	ldap/servers/plugins/syntaxes/tel.c \
+	ldap/servers/plugins/syntaxes/telex.c \
+	ldap/servers/plugins/syntaxes/teletex.c \
 	ldap/servers/plugins/syntaxes/validate.c \
 	ldap/servers/plugins/syntaxes/validate_task.c \
 	ldap/servers/plugins/syntaxes/value.c
@@ -3669,6 +3682,9 @@ ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp):
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
@@ -3681,7 +3697,19 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-debug.lo:  \
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-dn.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.lo:  \
@@ -3697,6 +3725,12 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.lo:  \
@@ -4403,16 +4437,26 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-cis.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-cis.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-debug.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-debug.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-dn.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-dn.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-phonetic.$(OBJEXT)
@@ -4423,6 +4467,10 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate_task.$(OBJEXT)
@@ -5071,16 +5119,23 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/shared/$(DEPDIR)/libattr_unique_plugin_la-utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/statechange/$(DEPDIR)/libstatechange_plugin_la-statechange.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-bin.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-bitstring.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-ces.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-cis.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-debug.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-deliverymethod.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-dn.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-facsimile.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-guide.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-int.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-nameoptuid.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-numericstring.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-phonetic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-sicis.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-string.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-tel.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-teletex.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-telex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-validate.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-validate_task.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-value.Plo@am__quote@
@@ -7714,6 +7769,13 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.lo: ldap/servers/plugins/s
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.lo `test -f 'ldap/servers/plugins/syntaxes/bin.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/bin.c
 
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo: ldap/servers/plugins/syntaxes/bitstring.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-bitstring.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo `test -f 'ldap/servers/plugins/syntaxes/bitstring.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/bitstring.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-bitstring.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-bitstring.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/bitstring.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo `test -f 'ldap/servers/plugins/syntaxes/bitstring.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/bitstring.c
+
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.lo: ldap/servers/plugins/syntaxes/ces.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-ces.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-ces.lo `test -f 'ldap/servers/plugins/syntaxes/ces.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/ces.c
 @am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-ces.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-ces.Plo
@@ -7742,12 +7804,40 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-dn.lo: ldap/servers/plugins/sy
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-dn.lo `test -f 'ldap/servers/plugins/syntaxes/dn.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/dn.c
 
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo: ldap/servers/plugins/syntaxes/deliverymethod.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-deliverymethod.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo `test -f 'ldap/servers/plugins/syntaxes/deliverymethod.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/deliverymethod.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-deliverymethod.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-deliverymethod.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/deliverymethod.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-deliverymethod.lo `test -f 'ldap/servers/plugins/syntaxes/deliverymethod.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/deliverymethod.c
+
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo: ldap/servers/plugins/syntaxes/facsimile.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-facsimile.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo `test -f 'ldap/servers/plugins/syntaxes/facsimile.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/facsimile.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-facsimile.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-facsimile.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/facsimile.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-facsimile.lo `test -f 'ldap/servers/plugins/syntaxes/facsimile.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/facsimile.c
+
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo: ldap/servers/plugins/syntaxes/guide.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-guide.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo `test -f 'ldap/servers/plugins/syntaxes/guide.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/guide.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-guide.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-guide.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/guide.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-guide.lo `test -f 'ldap/servers/plugins/syntaxes/guide.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/guide.c
+
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo: ldap/servers/plugins/syntaxes/int.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-int.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo `test -f 'ldap/servers/plugins/syntaxes/int.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/int.c
 @am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-int.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-int.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/int.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-int.lo `test -f 'ldap/servers/plugins/syntaxes/int.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/int.c
+
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo: ldap/servers/plugins/syntaxes/nameoptuid.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-nameoptuid.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo `test -f 'ldap/servers/plugins/syntaxes/nameoptuid.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/nameoptuid.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-nameoptuid.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-nameoptuid.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/nameoptuid.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-nameoptuid.lo `test -f 'ldap/servers/plugins/syntaxes/nameoptuid.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/nameoptuid.c
 
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.lo: ldap/servers/plugins/syntaxes/numericstring.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-numericstring.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-numericstring.lo `test -f 'ldap/servers/plugins/syntaxes/numericstring.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/numericstring.c
@@ -7783,6 +7873,20 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo: ldap/servers/plugins/s
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/tel.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo `test -f 'ldap/servers/plugins/syntaxes/tel.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/tel.c
+
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo: ldap/servers/plugins/syntaxes/telex.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-telex.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo `test -f 'ldap/servers/plugins/syntaxes/telex.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/telex.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-telex.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-telex.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/telex.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo `test -f 'ldap/servers/plugins/syntaxes/telex.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/telex.c
+
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo: ldap/servers/plugins/syntaxes/teletex.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-teletex.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo `test -f 'ldap/servers/plugins/syntaxes/teletex.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/teletex.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-teletex.Tpo ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-teletex.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/teletex.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo `test -f 'ldap/servers/plugins/syntaxes/teletex.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/teletex.c
 
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.lo: ldap/servers/plugins/syntaxes/validate.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.lo -MD -MP -MF ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-validate.Tpo -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate.lo `test -f 'ldap/servers/plugins/syntaxes/validate.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/validate.c
