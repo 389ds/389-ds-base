@@ -1837,7 +1837,12 @@ int dblayer_instance_start(backend *be, int mode)
         return 0;
     }
 
-    attrcrypt_init(inst);
+    if (attrcrypt_init(inst)) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "Error: unable to initialize attrcrypt system for %s\n",
+                  inst->inst_name, 0, 0);
+        return -1;
+    }
 
     /* Get the name of the directory that holds index files
      * for this instance. */

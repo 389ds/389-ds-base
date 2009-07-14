@@ -209,9 +209,14 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
 		slapi_value_free(&key_value);
 		/* Store the entry */
 		slapi_add_entry_internal_set_pb(pb, e, NULL, li->inst_li->li_identity, 0);
-        	if ((rc = slapi_add_internal_pb(pb)) != LDAP_SUCCESS) {
-            		LDAPDebug(LDAP_DEBUG_ANY, "attrcrypt_keymgmt_store_key: failed to add config key entries to the DSE: %d\n", rc, 0, 0);
-        	}
+		rc = slapi_add_internal_pb(pb);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+		if (rc != LDAP_SUCCESS) {
+			char *resulttext = NULL;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &resulttext);
+			LDAPDebug(LDAP_DEBUG_ANY, "attrcrypt_keymgmt_store_key: failed to add config key entries to the DSE: %d: %s: %s\n", rc, ldap_err2string(rc), resulttext ? resulttext : "unknown");
+			ret = -1;
+		}
 		if (entry_string) {
 			slapi_ch_free((void**)&entry_string);
 		}
@@ -542,7 +547,7 @@ attrcrypt_get_acs(backend *be, attrcrypt_private *priv)
 #if defined(DEBUG_ATTRCRYPT)
 static void log_bytes(char* format_string, unsigned char *bytes, size_t length)
 {
-	size_t max_length = 20;
+	size_t max_length = 40;
 	size_t truncated_length = (length > max_length) ? max_length : length;
 	size_t x = 0;
 	char *print_buffer = NULL;
@@ -586,7 +591,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 	if (encrypt) {
 		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op encrypt '%s' (%d)\n", in_data, in_size, 0);
 	} else {
-		log_bytes("attrcrypt_crypto_op decrypt '%s' (%d)\n", in_data, in_size);
+		log_bytes("attrcrypt_crypto_op decrypt '%s' (%d)\n", (unsigned char *)in_data, in_size);
 	}
 #endif
 	/* Allocate the output buffer */
@@ -623,15 +628,35 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 		goto error;
 	} else {
 #if defined(DEBUG_ATTRCRYPT)
+		int recurse = 1;
 		if (encrypt) {
 			log_bytes("slapd_pk11_DigestFinal '%s' (%d)\n", output_buffer, output_buffer_size1 + output_buffer_size2);
 		} else {
 			LDAPDebug(LDAP_DEBUG_ANY,"slapd_pk11_DigestFinal '%s', %u\n", output_buffer, output_buffer_size2, 0);
 		}
+		if (*out_size == -1) {
+			recurse = 0;
+		}
 #endif
 		*out_size = output_buffer_size1 + output_buffer_size2;
 		*out_data = (char *)output_buffer;
 		ret = 0; /* success */
+#if defined(DEBUG_ATTRCRYPT)
+		if (recurse) {
+			char *redo_data = NULL;
+			size_t redo_size = -1;
+			int redo_ret;
+
+			LDAPDebug(LDAP_DEBUG_ANY,"------> check result of crypto op\n", 0, 0, 0);
+			redo_ret = attrcrypt_crypto_op(priv, be, ai, *out_data, *out_size, &redo_data, &redo_size, !encrypt);
+			slapi_log_error(SLAPI_LOG_FATAL, "DEBUG_ATTRCRYPT",
+							"orig length %ld redone length %ld\n", in_size, redo_size);
+			log_bytes("DEBUG_ATTRCRYPT orig bytes '%s' (%d)\n", (unsigned char *)in_data, in_size);
+			log_bytes("DEBUG_ATTRCRYPT redo bytes '%s' (%d)\n", (unsigned char *)redo_data, redo_size);
+
+			LDAPDebug(LDAP_DEBUG_ANY,"<------ check result of crypto op\n", 0, 0, 0);
+		}
+#endif
 	}
 error:
 	if (sec_context) {
