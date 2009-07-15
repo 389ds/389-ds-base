@@ -123,7 +123,16 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
         goto loser;
     } else if ( hash_len >= shaLen ) {
         salt.bv_val = (void*)(dbhash + shaLen);
-        salt.bv_len = SHA_SALT_LENGTH;
+        /* we don't know if the dbpwd is salted or not except for the hash_len
+           if dbpwd is not hashed, hash_len may be 1 or 2 greater than shaLen,
+           depending on the padding, but the difference will always be less than
+           SHA_SALT_LENGTH - so if hash_len - shaLen is less than SHA_SALT_LENGTH,
+           the password is not salted, and dbhash will contain exactly shaLen bytes -
+           if the password is salted, hash_len - shaLen >= SHA_SALT_LENGTH, and
+           dbhash will contain exactly shaLen + SHA_SALT_LENGTH bytes */
+        salt.bv_len = ((hash_len - shaLen) < SHA_SALT_LENGTH) ?
+            0 /* not salted */
+            : SHA_SALT_LENGTH; /* salted */
     } else if ( hash_len >= DS40B1_SALTED_SHA_LENGTH ) {
         salt.bv_val = (void*)dbhash;
         salt.bv_len = OLD_SALT_LENGTH;
