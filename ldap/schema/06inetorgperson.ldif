@@ -1,0 +1,134 @@
+# RFC 2798 - inetorgperson schema (2079, 1274 (partial))
+################################################################################
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.1 NAME 'carLicense'
+  DESC 'vehicle license or registration plate'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2
+  NAME 'departmentNumber'
+  DESC 'identifies a department within an organization'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.241
+  NAME 'displayName'
+  DESC 'preferred name of a person to be used when displaying entries'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.3
+  NAME 'employeeNumber'
+  DESC 'numerically identifies an employee within an organization'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.4
+  NAME 'employeeType'
+  DESC 'type of employment for a person'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 0.9.2342.19200300.100.1.60
+  NAME 'jpegPhoto'
+  DESC 'a JPEG image'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.28
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.39
+  NAME 'preferredLanguage'
+  DESC 'preferred written or spoken language for a person'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.40
+  NAME 'userSMIMECertificate'
+  DESC 'signed message used to support S/MIME'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.5
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.216
+  NAME 'userPKCS12'
+  DESC 'PKCS #12 PFX PDU for exchange of personal identity information'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.5
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#
+# RFC 1274 is obsoleted by RFC 4524.  The inetOrgPerson objectclass defined
+# in RFC 2798 allows the "audio" and "photo" attributes from RFC 1274 however,
+# which are not defined in RFC 4524.  We define these attributes here.
+#
+################################################################################
+#
+attributeTypes: ( 0.9.2342.19200300.100.1.55 NAME 'audio'
+  EQUALITY octetStringMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40{250000}
+  X-ORIGIN 'RFC 1274' )
+#
+################################################################################
+#
+attributeTypes: ( 0.9.2342.19200300.100.1.7 NAME 'photo'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.23{25000}
+  X-ORIGIN 'RFC 1274' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.250.1.57 NAME 'labeledURI'
+  EQUALITY caseExactMatch
+  SUBSTR caseExactSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 2079' )
+#
+################################################################################
+#
+objectClasses: ( 2.16.840.1.113730.3.2.2
+  NAME 'inetOrgPerson'
+  SUP organizationalPerson
+  STRUCTURAL
+  MAY ( audio $ businessCategory $ carLicense $ departmentNumber $
+      displayName $ employeeNumber $ employeeType $ givenName $
+      homePhone $ homePostalAddress $ initials $ jpegPhoto $
+      labeledURI $ mail $ manager $ mobile $ o $ pager $
+      photo $ roomNumber $ secretary $ uid $ userCertificate $
+      x500uniqueIdentifier $ preferredLanguage $
+      userSMIMECertificate $ userPKCS12)
+  X-ORIGIN 'RFC 2798' )
+#
+################################################################################
+#

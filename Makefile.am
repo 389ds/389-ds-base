@@ -218,13 +218,15 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(LIBPRESENCE_SCHEMA)
 
 schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
-	$(srcdir)/ldap/schema/01common.ldif \
-	$(srcdir)/ldap/schema/05rfc2247.ldif \
+	$(srcdir)/ldap/schema/01core389.ldif \
+	$(srcdir)/ldap/schema/02common.ldif \
 	$(srcdir)/ldap/schema/05rfc2927.ldif \
+	$(srcdir)/ldap/schema/05rfc4523.ldif \
+	$(srcdir)/ldap/schema/05rfc4524.ldif \
+	$(srcdir)/ldap/schema/06inetorgperson.ldif \
 	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \
 	$(srcdir)/ldap/schema/25java-object.ldif \
-	$(srcdir)/ldap/schema/28pilot.ldif \
 	$(srcdir)/ldap/schema/30ns-common.ldif \
 	$(srcdir)/ldap/schema/50ns-admin.ldif \
 	$(srcdir)/ldap/schema/50ns-certificate.ldif \

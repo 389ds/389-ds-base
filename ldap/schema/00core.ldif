@@ -1,47 +1,15 @@
+# 00core.ldif - Required Schema
 #
-# BEGIN COPYRIGHT BLOCK
-# This Program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; version 2 of the License.
-# 
-# This Program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License along with
-# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
-# Place, Suite 330, Boston, MA 02111-1307 USA.
-# 
-# In addition, as a special exception, Red Hat, Inc. gives You the additional
-# right to link the code of this Program with code not covered under the GNU
-# General Public License ("Non-GPL Code") and to distribute linked combinations
-# including the two, subject to the limitations in this paragraph. Non-GPL Code
-# permitted under this exception must only link to the code of this Program
-# through those well defined interfaces identified in the file named EXCEPTION
-# found in the source code files (the "Approved Interfaces"). The files of
-# Non-GPL Code may instantiate templates or use macros or inline functions from
-# the Approved Interfaces without causing the resulting work to be covered by
-# the GNU General Public License. Only Red Hat, Inc. may make changes or
-# additions to the list of Approved Interfaces. You must obey the GNU General
-# Public License in all respects for all of the Program code and other code used
-# in conjunction with the Program except the Non-GPL Code covered by this
-# exception. If you modify this file, you may extend this exception to your
-# version of the file, but you are not obligated to do so. If you do not wish to
-# provide this exception without modification, you must delete this exception
-# statement from your version and license this file solely under the GPL without
-# exception. 
-# 
-# 
-# Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2005 Red Hat, Inc.
-# All rights reserved.
-# END COPYRIGHT BLOCK
+# Contains standard schema from the following sources:
 #
+#  - RFC 4512
+#  - RFC 4519
+#  - LDAP Subentry Internet Draft
 #
-# Recommended core schema from the X.500 and LDAP standards (RFCs), and 
-# schema used by the Directory Server itself.
-# This is the schema that is required to bootstrap the server, to start it
-# and enable it to read in the other config and schema.
+# The DS specific "aci" attribute is also defined here so we can
+# set a default aci # on the schema entry.
+################################################################################
+#
 dn: cn=schema
 objectclass: top
 objectclass: ldapSubentry
@@ -53,100 +21,771 @@ cn: schema
 #
 aci: (target="ldap:///cn=schema")(targetattr !="aci")(version 3.0;acl "anonymous, no acis"; allow (read, search, compare) userdn = "ldap:///anyone";)
 #
-# attribute types:
+################################################################################
 #
-attributeTypes: ( 2.5.4.0 NAME 'objectClass' DESC 'Standard LDAP attribute type' EQUALITY objectIdentifierMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.38 X-ORIGIN 'RFC 2256' )
-attributeTypes: ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{32768} X-ORIGIN 'RFC 2256')
-attributeTypes: ( 2.5.4.49 NAME ( 'dn' 'distinguishedName' ) DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'RFC 2256' )
-attributeTypes: ( 2.5.4.3 NAME ( 'cn' 'commonName' ) DESC 'Standard LDAP attribute type' SUP name X-ORIGIN 'RFC 2256' )
-attributeTypes: ( 2.5.4.13 NAME 'description' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2256' )
-attributeTypes: ( 2.5.4.34 NAME 'seeAlso' DESC 'Standard LDAP attribute type' SUP distinguishedName X-ORIGIN 'RFC 2256' )
-attributeTypes: ( 2.5.4.35 NAME 'userPassword' DESC 'Standard LDAP attribute type' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40{128} X-ORIGIN 'RFC 2256' )
-attributeTypes: ( 2.5.18.1 NAME 'createTimestamp' DESC 'Standard LDAP attribute type' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.18.2 NAME 'modifyTimestamp' DESC 'Standard LDAP attribute type' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.18.3 NAME 'creatorsName' DESC 'Standard LDAP attribute type' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.18.4 NAME 'modifiersName' DESC 'Standard LDAP attribute type' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.5 NAME 'attributeTypes' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.6 NAME 'objectClasses' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.4 NAME 'matchingRules' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.8 NAME 'matchingRuleUse' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.1 NAME 'dITStructureRules' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.2 NAME 'dITContentRules' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.5.21.7 NAME 'nameForms' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.16.840.1.113730.3.1.55 NAME 'aci' DESC 'Netscape defined access control information attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.215 NAME 'oid' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.224 NAME 'nsslapd-pluginPath' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.225 NAME 'nsslapd-pluginInitfunc' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.226 NAME 'nsslapd-pluginType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.227 NAME 'nsslapd-pluginId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.228 NAME 'nsslapd-pluginVersion' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.229 NAME 'nsslapd-pluginVendor' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.230 NAME 'nsslapd-pluginDescription' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.231 NAME 'nsslapd-pluginEnabled' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.232 NAME 'nsSNMPEnabled' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.233 NAME 'nsSNMPOrganization' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.234 NAME 'nsSNMPLocation' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.235 NAME 'nsSNMPContact' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.236 NAME 'nsSNMPDescription' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.237 NAME 'nsSNMPMasterHost' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.238 NAME 'nsSNMPMasterPort' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.593 NAME 'nsSNMPName' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.242 NAME 'nsSystemIndex' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.327 NAME 'nsIndexType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.328 NAME 'nsMatchingRule' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.542 NAME 'nsUniqueId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.543 NAME 'nsState' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.544 NAME 'nsParentUniqueId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.545 NAME 'nscpEntryDN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 1.3.6.1.4.1.250.1.2 NAME 'multiLineDescription' DESC 'Pilot attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Internet White Pages Pilot' )
-attributeTypes: ( 2.16.840.1.113730.3.1.578 NAME 'nsDS5ReplicaHost' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.579 NAME 'nsDS5ReplicaPort' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.580 NAME 'nsDS5ReplicaTransportInfo' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.581 NAME 'nsDS5ReplicaBindDN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.582 NAME 'nsDS5ReplicaCredentials' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.583 NAME 'nsDS5ReplicaBindMethod' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.584 NAME 'nsDS5ReplicaRoot' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.585 NAME 'nsDS5ReplicatedAttributeList' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.586 NAME 'nsDS5ReplicaUpdateSchedule' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.587 NAME 'nsds50ruv' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2027 NAME 'nsruvReplicaLastModified' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.588 NAME 'nsDS5ReplicaId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.589 NAME 'nsDS5ReplicaType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.590 NAME 'nsDS5ReplicaName' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.591 NAME 'nsDS5ReplicaReferral' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.592 NAME 'nsDS5ReplicaAutoReferral' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.607 NAME 'nsDS5Flags' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.608 NAME 'nsDS5Task' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.609 NAME 'nsds5BeginReplicaRefresh' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.682 NAME 'nsds5ReplicaPurgeDelay' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.684 NAME 'nsds5ReplicaChangeCount' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.683 NAME 'nsds5ReplicaTombstonePurgeInterval' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.685 NAME 'nsds5replicaLastUpdateStart' DESC 'Netscape defined attribute type' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.686 NAME 'nsds5replicaLastUpdateEnd' DESC 'Netscape defined attribute type' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.687 NAME 'nsds5replicaChangesSentSinceStartup' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.688 NAME 'nsds5replicaLastUpdateStatus' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.689 NAME 'nsds5replicaUpdateInProgress' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.802 NAME 'nsds5ReplicaLegacyConsumer' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.804 NAME 'nsSchemaCSN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15  SINGLE-VALUE USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.805 NAME 'nsds5replicaTimeout' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.807 NAME 'nsds5replicaLastInitStart' DESC 'Netscape defined attribute type' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.808 NAME 'nsds5replicaLastInitEnd' DESC 'Netscape defined attribute type' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.809 NAME 'nsds5replicaLastInitStatus' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.1097 NAME 'nsds5replicaBusyWaitTime' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.1098 NAME 'nsds5replicaSessionPauseTime' DESC 'Netscape defined attribute type' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.9999999 NAME 'nsds5debugreplicatimeout' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.55 NAME 'aci'
+  DESC 'Netscape defined access control information attribute type'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE directoryOperation
+  X-ORIGIN 'Netscape Directory Server' )
 #
-# objectclasses
+################################################################################
 #
-objectClasses: ( 2.5.6.0 NAME 'top' DESC 'Standard LDAP objectclass' ABSTRACT MUST objectClass X-ORIGIN 'RFC 2256' )
-objectClasses: ( 2.5.20.1 NAME 'subschema' DESC 'Standard LDAP objectclass' SUP top AUXILIARY MAY ( dITStructureRules $ nameForms $ dITContentRules $ objectClasses $ attributeTypes $ matchingRules $ matchingRuleUse ) X-ORIGIN 'RFC 2252' )
-objectClasses: (  2.16.840.1.113719.2.142.6.1.1  NAME 'ldapSubEntry' DESC 'LDAP Subentry class, version 1' SUP top STRUCTURAL MAY ( cn ) X-ORIGIN 'LDAP Subentry Internet Draft' )
-objectClasses: ( 2.16.840.1.113730.3.2.40 NAME 'directoryServerFeature' DESC 'Netscape defined objectclass' SUP top MAY ( oid $ cn $ multiLineDescription ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.41 NAME 'nsslapdPlugin' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsslapd-pluginPath $ nsslapd-pluginInitFunc $ nsslapd-pluginType $ nsslapd-pluginId $ nsslapd-pluginVersion $ nsslapd-pluginVendor $ nsslapd-pluginDescription $ nsslapd-pluginEnabled ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.44 NAME 'nsIndex' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsSystemIndex ) MAY ( description $ nsIndexType $ nsMatchingRule ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.109 NAME 'nsBackendInstance' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.110 NAME 'nsMappingTree' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.104 NAME 'nsContainer' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.108 NAME 'nsDS5Replica' DESC 'Netscape defined objectclass' SUP top  MUST ( nsDS5ReplicaRoot $  nsDS5ReplicaId ) MAY (cn $ nsDS5ReplicaType $ nsDS5ReplicaBindDN $ nsState $ nsDS5ReplicaName $ nsDS5Flags $ nsDS5Task $ nsDS5ReplicaReferral $ nsDS5ReplicaAutoReferral $ nsds5ReplicaPurgeDelay $ nsds5ReplicaTombstonePurgeInterval $ nsds5ReplicaChangeCount $ nsds5ReplicaLegacyConsumer) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.113 NAME 'nsTombstone' DESC 'Netscape defined objectclass' SUP top MAY ( nsParentUniqueId $ nscpEntryDN ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.103 NAME 'nsDS5ReplicationAgreement' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsDS5ReplicaHost $ nsDS5ReplicaPort $ nsDS5ReplicaTransportInfo $ nsDS5ReplicaBindDN $ nsDS5ReplicaCredentials $ nsDS5ReplicaBindMethod $ nsDS5ReplicaRoot $ nsDS5ReplicatedAttributeList $ nsDS5ReplicaUpdateSchedule $ nsds5BeginReplicaRefresh $ description $ nsds50ruv $ nsruvReplicaLastModified $ nsds5ReplicaTimeout $ nsds5replicaChangesSentSinceStartup $ nsds5replicaLastUpdateEnd $ nsds5replicaLastUpdateStart $ nsds5replicaLastUpdateStatus $ nsds5replicaUpdateInProgress $ nsds5replicaLastInitEnd $ nsds5replicaLastInitStart $ nsds5replicaLastInitStatus $ nsds5debugreplicatimeout $ nsds5replicaBusyWaitTime $ nsds5replicaSessionPauseTime ) X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.5.6.0 NAME 'top'
+  ABSTRACT
+  MUST objectClass
+  X-ORIGIN 'RFC 4512' )
+  
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.1 NAME 'alias'
+  SUP top STRUCTURAL
+  MUST aliasedObjectName
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.1 NAME 'aliasedObjectName'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.0 NAME 'objectClass'
+  EQUALITY objectIdentifierMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.18.3 NAME 'creatorsName'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.18.1 NAME 'createTimestamp'
+  EQUALITY generalizedTimeMatch
+  ORDERING generalizedTimeOrderingMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.18.4 NAME 'modifiersName'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.18.2 NAME 'modifyTimestamp'
+  EQUALITY generalizedTimeMatch
+  ORDERING generalizedTimeOrderingMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.21.9 NAME 'structuralObjectClass'
+  EQUALITY objectIdentifierMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.21.10 NAME 'governingStructureRule'
+  EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.18.10 NAME 'subschemaSubentry'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.20.1 NAME 'subschema' AUXILIARY
+  MAY ( dITStructureRules $ nameForms $ ditContentRules $
+    objectClasses $ attributeTypes $ matchingRules $
+    matchingRuleUse )
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add Object Class Description syntax
+#attributeTypes: ( 2.5.21.6 NAME 'objectClasses'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.37
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.6 NAME 'objectClasses'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add Attribute Type Description syntax
+#attributeTypes: ( 2.5.21.5 NAME 'attributeTypes'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.3
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.5 NAME 'attributeTypes'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add Matching Rule Description syntax
+#attributeTypes: ( 2.5.21.4 NAME 'matchingRules'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.30
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.4 NAME 'matchingRules'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add Matching Rule Use Description syntax
+#attributeTypes: ( 2.5.21.8 NAME 'matchingRuleUse'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.31
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.8 NAME 'matchingRuleUse'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add LDAP Syntax Description syntax
+#attributeTypes: ( 1.3.6.1.4.1.1466.101.120.16 NAME 'ldapSyntaxes'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.54
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.16 NAME 'ldapSyntaxes'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add DIT Content Rule Description syntax
+#attributeTypes: ( 2.5.21.2 NAME 'dITContentRules'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.16
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.2 NAME 'dITContentRules'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add DIT Structure Rule Description syntax
+#attributeTypes: ( 2.5.21.1 NAME 'dITStructureRules'
+#  EQUALITY integerFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.17
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.1 NAME 'dITStructureRules'
+  EQUALITY integerFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+# TODO - Add Name Form Description syntax
+#attributeTypes: ( 2.5.21.7 NAME 'nameForms'
+#  EQUALITY objectIdentifierFirstComponentMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.35
+#  USAGE directoryOperation
+#  X-ORIGIN 'RFC 4512' )
+attributeTypes: ( 2.5.21.7 NAME 'nameForms'
+  EQUALITY objectIdentifierFirstComponentMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE directoryOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+objectClasses: ( 1.3.6.1.4.1.1466.101.120.111 NAME 'extensibleObject'
+  SUP top AUXILIARY
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.6 NAME 'altServer'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.5 NAME 'namingContexts'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.13 NAME 'supportedControl'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.7 NAME 'supportedExtension'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.4203.1.3.5 NAME 'supportedFeatures'
+  EQUALITY objectIdentifierMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.15 NAME 'supportedLDAPVersion'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 1.3.6.1.4.1.1466.101.120.14 NAME 'supportedSASLMechanisms'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  USAGE dSAOperation
+  X-ORIGIN 'RFC 4512' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.41 NAME 'name'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.15 NAME 'businessCategory'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.6 NAME 'c'
+  SUP name
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.11
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.3 NAME 'cn'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 0.9.2342.19200300.100.1.25 NAME 'dc'
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.13 NAME 'description'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.27 NAME 'destinationIndicator'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.44
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.49 NAME 'distinguishedName'
+  EQUALITY distinguishedNameMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.46 NAME 'dnQualifier'
+  EQUALITY caseIgnoreMatch
+  ORDERING caseIgnoreOrderingMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.44
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.47 NAME 'enhancedSearchGuide'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.21
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.23 NAME 'facsimileTelephoneNumber'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.22
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.44 NAME 'generationQualifier'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.42 NAME 'givenName'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.51 NAME 'houseIdentifier'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.43 NAME 'initials'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.25 NAME 'internationalISDNNumber'
+  EQUALITY numericStringMatch
+  SUBSTR numericStringSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.36
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.7 NAME 'l'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.31 NAME 'member'
+  SUP distinguishedName
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.10 NAME 'o'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.11 NAME 'ou'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.32 NAME 'owner'
+  SUP distinguishedName
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.19 NAME 'physicalDeliveryOfficeName'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.16 NAME 'postalAddress'
+  EQUALITY caseIgnoreListMatch
+  SUBSTR caseIgnoreListSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.41
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.17 NAME 'postalCode'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.18 NAME 'postOfficeBox'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.28 NAME 'preferredDeliveryMethod'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.14
+  SINGLE-VALUE
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.26 NAME 'registeredAddress'
+  SUP postalAddress
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.41
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.33 NAME 'roleOccupant'
+  SUP distinguishedName
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.14 NAME 'searchGuide'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.25
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.34 NAME 'seeAlso'
+  SUP distinguishedName
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.5 NAME 'serialNumber'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.44
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.4 NAME 'sn'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.8 NAME 'st'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.9 NAME 'street'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.20 NAME 'telephoneNumber'
+  EQUALITY telephoneNumberMatch
+  SUBSTR telephoneNumberSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.50
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.22 NAME 'teletexTerminalIdentifier'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.51
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.21 NAME 'telexNumber'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.52
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.12 NAME 'title'
+  SUP name
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 0.9.2342.19200300.100.1.1 NAME 'uid'
+  EQUALITY caseIgnoreMatch
+  SUBSTR caseIgnoreSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.50 NAME 'uniqueMember'
+  EQUALITY uniqueMemberMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.34
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.35 NAME 'userPassword'
+  EQUALITY octetStringMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.24 NAME 'x121Address'
+  EQUALITY numericStringMatch
+  SUBSTR numericStringSubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.36
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+attributeTypes: ( 2.5.4.45 NAME 'x500UniqueIdentifier'
+  EQUALITY bitStringMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.6
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.11 NAME 'applicationProcess'
+  SUP top
+  STRUCTURAL
+  MUST cn
+  MAY ( seeAlso $
+        ou $
+        l $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.2 NAME 'country'
+  SUP top
+  STRUCTURAL
+  MUST c
+  MAY ( searchGuide $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 1.3.6.1.4.1.1466.344 NAME 'dcObject'
+  SUP top
+  AUXILIARY
+  MUST dc
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.14 NAME 'device'
+  SUP top
+  STRUCTURAL
+  MUST cn
+  MAY ( serialNumber $
+        seeAlso $
+        owner $
+        ou $
+        o $
+        l $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.9 NAME 'groupOfNames'
+  SUP top
+  STRUCTURAL
+  MUST ( member $
+        cn )
+  MAY ( businessCategory $
+        seeAlso $
+        owner $
+        ou $
+        o $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.17 NAME 'groupOfUniqueNames'
+  SUP top
+  STRUCTURAL
+  MUST ( uniqueMember $
+        cn )
+  MAY ( businessCategory $
+        seeAlso $
+        owner $
+        ou $
+        o $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.3 NAME 'locality'
+  SUP top
+  STRUCTURAL
+  MAY ( street $
+        seeAlso $
+        searchGuide $
+        st $
+        l $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.4 NAME 'organization'
+  SUP top
+  STRUCTURAL
+  MUST o
+  MAY ( userPassword $ searchGuide $ seeAlso $
+        businessCategory $ x121Address $ registeredAddress $
+        destinationIndicator $ preferredDeliveryMethod $
+        telexNumber $ teletexTerminalIdentifier $
+        telephoneNumber $ internationalISDNNumber $
+        facsimileTelephoneNumber $ street $ postOfficeBox $
+        postalCode $ postalAddress $ physicalDeliveryOfficeName $
+        st $ l $ description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.6 NAME 'person'
+  SUP top
+  STRUCTURAL
+  MUST ( sn $
+        cn )
+  MAY ( userPassword $
+        telephoneNumber $
+        seeAlso $ description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.7 NAME 'organizationalPerson'
+  SUP person
+  STRUCTURAL
+  MAY ( title $ x121Address $ registeredAddress $
+        destinationIndicator $ preferredDeliveryMethod $
+        telexNumber $ teletexTerminalIdentifier $
+        telephoneNumber $ internationalISDNNumber $
+        facsimileTelephoneNumber $ street $ postOfficeBox $
+        postalCode $ postalAddress $ physicalDeliveryOfficeName $
+        ou $ st $ l )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.8 NAME 'organizationalRole'
+  SUP top
+  STRUCTURAL
+  MUST cn
+  MAY ( x121Address $ registeredAddress $ destinationIndicator $
+        preferredDeliveryMethod $ telexNumber $
+        teletexTerminalIdentifier $ telephoneNumber $
+        internationalISDNNumber $ facsimileTelephoneNumber $
+        seeAlso $ roleOccupant $ preferredDeliveryMethod $
+        street $ postOfficeBox $ postalCode $ postalAddress $
+        physicalDeliveryOfficeName $ ou $ st $ l $
+        description )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.5 NAME 'organizationalUnit'
+  SUP top
+  STRUCTURAL
+  MUST ou
+  MAY ( businessCategory $ description $ destinationIndicator $
+        facsimileTelephoneNumber $ internationalISDNNumber $ l $
+        physicalDeliveryOfficeName $ postalAddress $ postalCode $
+        postOfficeBox $ preferredDeliveryMethod $
+        registeredAddress $ searchGuide $ seeAlso $ st $ street $
+        telephoneNumber $ teletexTerminalIdentifier $
+        telexNumber $ userPassword $ x121Address )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.10 NAME 'residentialPerson'
+  SUP person
+  STRUCTURAL
+  MUST l
+  MAY ( businessCategory $ x121Address $ registeredAddress $
+        destinationIndicator $ preferredDeliveryMethod $
+        telexNumber $ teletexTerminalIdentifier $
+        telephoneNumber $ internationalISDNNumber $
+        facsimileTelephoneNumber $ preferredDeliveryMethod $
+        street $ postOfficeBox $ postalCode $ postalAddress $
+        physicalDeliveryOfficeName $ st $ l )
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: ( 1.3.6.1.1.3.1 NAME 'uidObject'
+  SUP top
+  AUXILIARY
+  MUST uid
+  X-ORIGIN 'RFC 4519' )
+#
+################################################################################
+#
+objectClasses: (  2.16.840.1.113719.2.142.6.1.1  NAME 'ldapSubEntry'
+  DESC 'LDAP Subentry class, version 1'
+  SUP top
+  STRUCTURAL
+  MAY ( cn )
+  X-ORIGIN 'LDAP Subentry Internet Draft' )
+#
+################################################################################
+#

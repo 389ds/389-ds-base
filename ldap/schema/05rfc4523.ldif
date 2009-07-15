@@ -1,0 +1,165 @@
+# RFC 4523 - Schema Definitions for X.509 Certificates
+################################################################################
+#
+dn: cn=schema
+#
+################################################################################
+# TODO - Add Certificate syntax
+#attributeTypes: ( 2.5.4.36 NAME 'userCertificate'
+#  DESC 'X.509 user certificate'
+#  EQUALITY certificateExactMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.8 )
+attributeTypes: ( 2.5.4.36 NAME 'userCertificate'
+  DESC 'X.509 user certificate'
+  EQUALITY certificateExactMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+# TODO - Add Certificate syntax
+#attributeTypes: ( 2.5.4.37 NAME 'cACertificate'
+#  DESC 'X.509 CA certificate'
+#  EQUALITY certificateExactMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.8 )
+attributeTypes: ( 2.5.4.37 NAME 'cACertificate'
+  DESC 'X.509 CA certificate'
+  EQUALITY certificateExactMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+# TODO - Add CertificatePair syntax
+#attributeTypes: ( 2.5.4.40 NAME 'crossCertificatePair'
+#  DESC 'X.509 cross certificate pair'
+#  EQUALITY certificatePairExactMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.10
+#  X-ORIGIN 'RFC 4523' )
+attributeTypes: ( 2.5.4.40 NAME 'crossCertificatePair'
+  DESC 'X.509 cross certificate pair'
+  EQUALITY certificatePairExactMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+# TODO - Add CertificateList syntax
+#attributeTypes: ( 2.5.4.39 NAME 'certificateRevocationList'
+#  DESC 'X.509 certificate revocation list'
+#  EQUALITY certificateListExactMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.9
+#  X-ORIGIN 'RFC 4523' )
+attributeTypes: ( 2.5.4.39 NAME 'certificateRevocationList'
+  DESC 'X.509 certificate revocation list'
+  EQUALITY certificateListExactMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+# TODO - Add CertificateList syntax
+#attributeTypes: ( 2.5.4.38 NAME 'authorityRevocationList'
+#  DESC 'X.509 authority revocation list'
+#  EQUALITY certificateListExactMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.9
+#  X-ORIGIN 'RFC 4523' )
+attributeTypes: ( 2.5.4.38 NAME 'authorityRevocationList'
+  DESC 'X.509 authority revocation list'
+  EQUALITY certificateListExactMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+# TODO - Add CertificateList syntax
+#attributeTypes: ( 2.5.4.53 NAME 'deltaRevocationList'
+#  DESC 'X.509 delta revocation list'
+#  EQUALITY certificateListExactMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.9
+#  X-ORIGIN 'RFC 4523' )
+attributeTypes: ( 2.5.4.53 NAME 'deltaRevocationList'
+  DESC 'X.509 delta revocation list'
+  EQUALITY certificateListExactMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+# TODO - Add SupportedAlgorithm syntax
+#attributeTypes: ( 2.5.4.52 NAME 'supportedAlgorithms'
+#  DESC 'X.509 supported algorithms'
+#  EQUALITY algorithmIdentifierMatch
+#  SYNTAX 1.3.6.1.4.1.1466.115.121.1.49
+#  X-ORIGIN 'RFC 4523' )
+attributeTypes: ( 2.5.4.52 NAME 'supportedAlgorithms'
+  DESC 'X.509 supported algorithms'
+  EQUALITY algorithmIdentifierMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.21 NAME 'pkiUser'
+  DESC 'X.509 PKI User'
+  SUP top AUXILIARY
+  MAY userCertificate
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.22 NAME 'pkiCA'
+  DESC 'X.509 PKI Certificate Authority'
+  SUP top AUXILIARY
+  MAY ( cACertificate $ certificateRevocationList $
+       authorityRevocationList $ crossCertificatePair )
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.19 NAME 'cRLDistributionPoint'
+  DESC 'X.509 CRL distribution point'
+  SUP top STRUCTURAL
+  MUST cn
+  MAY ( certificateRevocationList $
+       authorityRevocationList $ deltaRevocationList )
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.23 NAME 'deltaCRL'
+  DESC 'X.509 delta CRL'
+  SUP top AUXILIARY
+  MAY deltaRevocationList
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.15 NAME 'strongAuthenticationUser'
+  DESC 'X.521 strong authentication user'
+  SUP top AUXILIARY
+  MUST userCertificate
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.18 NAME 'userSecurityInformation'
+  DESC 'X.521 user security information'
+  SUP top AUXILIARY
+  MAY ( supportedAlgorithms )
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.16 NAME 'certificationAuthority'
+  DESC 'X.509 certificate authority'
+  SUP top AUXILIARY
+  MUST ( authorityRevocationList $
+       certificateRevocationList $ cACertificate )
+  MAY crossCertificatePair
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#
+objectClasses: ( 2.5.6.16.2 NAME 'certificationAuthority-V2'
+  DESC 'X.509 certificate authority, version 2'
+  SUP certificationAuthority AUXILIARY
+  MAY deltaRevocationList
+  X-ORIGIN 'RFC 4523' )
+#
+################################################################################
+#

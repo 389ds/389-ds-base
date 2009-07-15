@@ -2,6 +2,8 @@
 # mozillaAbPersonAlpha
 #
 # Created initial version --[[User:Standard8|Standard8]] 12:21, 5 Dec 2005 (PST)
+# Change fax to facsimileTelephoneNumber to reflect core.schema
+# ({{bug|327872}} --[[User:Standard8|Standard8]] 12:45, 11 Dec 2008 (PST)
 #
 # This file contains LDAPv3 schema for use with the Mozilla Address Book
 # and is intended to ...
@@ -223,7 +225,7 @@ objectClasses: (
   SUP top
   AUXILIARY
   MUST ( cn )
-  MAY ( c $ description $ displayName $ fax $ givenName $ homePhone $ l $ mail $ mobile $ mozillaCustom1 $ mozillaCustom2 $ mozillaCustom3 $ mozillaCustom4 $ mozillaHomeCountryName $ mozillaHomeLocalityName $ mozillaHomePostalCode $ mozillaHomeState $ mozillaHomeStreet $ mozillaHomeStreet2 $ mozillaHomeUrl $ mozillaNickname $ mozillaSecondEmail $ mozillaUseHtmlMail $ mozillaWorkStreet2 $ mozillaWorkUrl $ nsAIMid $ o $ ou $ pager $ postalCode $ postOfficeBox $ sn $ st $ street $ telephoneNumber $ title )
+  MAY ( c $ description $ displayName $ facsimileTelephoneNumber $ givenName $ homePhone $ l $ mail $ mobile $ mozillaCustom1 $ mozillaCustom2 $ mozillaCustom3 $ mozillaCustom4 $ mozillaHomeCountryName $ mozillaHomeLocalityName $ mozillaHomePostalCode $ mozillaHomeState $ mozillaHomeStreet $ mozillaHomeStreet2 $ mozillaHomeUrl $ mozillaNickname $ mozillaSecondEmail $ mozillaUseHtmlMail $ mozillaWorkStreet2 $ mozillaWorkUrl $ nsAIMid $ o $ ou $ pager $ postalCode $ postOfficeBox $ sn $ st $ street $ telephoneNumber $ title )
   X-ORIGIN 'Mozilla Address Book'
   )
 #
