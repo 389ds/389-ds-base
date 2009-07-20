@@ -2514,14 +2514,15 @@ static int _cl5DBOpen ()
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBOpen: "
                           "file %s has no matching replica; removing\n", entry->name);
 
-				PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, entry->name);
-                if (PR_Delete(fullpathname) != PR_SUCCESS)	
-	            {
-		            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBOpen: "
-                                    "failed to remove (%s) file; NSPR error - %d\n",
-						            entry->name, PR_GetError ());
-
-	            }
+                rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv,
+                                               0, fullpathname, 0, 0);
+                if (rc != 0)
+                {
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                                    "_cl5DBOpen: failed to remove (%s) file; "
+                                    "libdb error - %d (%s)\n",
+                                    fullpathname, rc, db_strerror(rc));
+                }
             }
         }
 	}
