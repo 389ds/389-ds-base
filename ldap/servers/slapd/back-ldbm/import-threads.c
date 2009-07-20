@@ -359,6 +359,7 @@ void import_producer(void *param)
     Slapi_Entry *e = NULL;
     struct backentry *ep = NULL, *old_ep = NULL;
     ldbm_instance *inst = job->inst;
+    backend *be = inst->inst_be;
     PRIntervalTime sleeptime;
     char *estr = NULL;
     int str2entry_flags =
@@ -406,6 +407,7 @@ void import_producer(void *param)
         int flags = 0;
         int prev_lineno = 0;
         int lines_in_entry = 0;
+        int syntax_err = 0;
 
         if (job->flags & FLAG_ABORT) { 
             goto error;
@@ -546,8 +548,49 @@ void import_producer(void *param)
             continue;
         }
 
+        /* If we are importing pre-encrypted attributes, we need
+         * to skip syntax checks for the encrypted values. */
+        if (!(job->encrypt) && inst->attrcrypt_configured) {
+            Slapi_Attr *attr = NULL;
+            Slapi_Entry *e_copy = NULL;
+
+            /* Scan through the entry to see if any present
+             * attributes are configured for encryption. */
+            slapi_entry_first_attr(e, &attr);
+            while (attr) {
+                char *type = NULL;
+                struct attrinfo *ai = NULL;
+
+                slapi_attr_get_type(attr, &type);
+
+                /* Check if this type is configured for encryption. */
+                ainfo_get(be, type, &ai);
+                if (ai->ai_attrcrypt != NULL) {
+                    /* Make a copy of the entry to use for syntax
+                     * checking if a copy has not been made yet. */
+                    if (e_copy == NULL) {
+                        e_copy = slapi_entry_dup(e);
+                    }
+
+                    /* Delete the enrypted attribute from the copy. */
+                    slapi_entry_attr_delete(e_copy, type);
+                }
+
+                slapi_entry_next_attr(e, attr, &attr);
+            }
+
+            if (e_copy) {
+                syntax_err = slapi_entry_syntax_check(NULL, e_copy, 0);
+                slapi_entry_free(e_copy);
+            } else {
+                syntax_err = slapi_entry_syntax_check(NULL, e, 0);
+            }
+        } else {
+            syntax_err = slapi_entry_syntax_check(NULL, e, 0);
+        }
+
         /* Check attribute syntax */
-        if (slapi_entry_syntax_check(NULL, e, 0) != 0)
+        if (syntax_err != 0)
         {
             char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\" which "
