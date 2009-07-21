@@ -110,11 +110,13 @@ sub usage {
 	# Now, check if the user/group exists
 
 	if ($opt_S) {
+		my $esc_opt_S = $opt_S;
+ 		$esc_opt_S =~ s/,/\\,/g;
 		print (STDERR "host = $opt_h, port = $opt_p, suffixDN = \"$opt_S\"\n\n") if $opt_v;
 		@base=(
 			"cn=nsPwPolicyContainer,$opt_S",
-			"cn=\"cn=nsPwPolicyEntry,$opt_S\",cn=nsPwPolicyContainer,$opt_S",
-			"cn=\"cn=nsPwTemplateEntry,$opt_S\",cn=nsPwPolicyContainer,$opt_S",
+			"cn=cn=nsPwPolicyEntry\\,$esc_opt_S,cn=nsPwPolicyContainer,$opt_S",
+			"cn=cn=nsPwTemplateEntry\\,$esc_opt_S,cn=nsPwPolicyContainer,$opt_S",
 			"cn=nsPwPolicy_cos,$opt_S"
 		);
 
@@ -126,25 +128,25 @@ sub usage {
 			"objectclass: top\n",
 			"objectclass: nsContainer\n\n" );
 		@pwpolicy=(
-			"dn: cn=\"cn=nsPwPolicyEntry,$opt_S\",cn=nsPwPolicyContainer,$opt_S\n",
+			"dn: cn=cn=nsPwPolicyEntry\\,$esc_opt_S,cn=nsPwPolicyContainer,$opt_S\n",
 			"objectclass: top\n",
 			"objectclass: ldapsubentry\n",
 			"objectclass: passwordpolicy\n\n" );
 		@template=(
-			"dn: cn=\"cn=nsPwTemplateEntry,$opt_S\",cn=nsPwPolicyContainer,$opt_S\n",
+			"dn: cn=cn=nsPwTemplateEntry\\,$esc_opt_S,cn=nsPwPolicyContainer,$opt_S\n",
 			"objectclass: top\n",
 			"objectclass: extensibleObject\n",
 			"objectclass: costemplate\n",
 			"objectclass: ldapsubentry\n",
 			"cosPriority: 1\n",
-			"pwdpolicysubentry: cn=\"cn=nsPwPolicyEntry,$opt_S\",cn=nsPwPolicyContainer,$opt_S\n\n" );
+			"pwdpolicysubentry: cn=cn=nsPwPolicyEntry\\,$esc_opt_S,cn=nsPwPolicyContainer,$opt_S\n\n" );
 		@cos=(
 			"dn: cn=nsPwPolicy_cos,$opt_S\n",
 			"objectclass: top\n",
 			"objectclass: LDAPsubentry\n",
 			"objectclass: cosSuperDefinition\n",
 			"objectclass: cosPointerDefinition\n",
-			"cosTemplateDn: cn=\"cn=nsPwTemplateEntry,$opt_S\",cn=nsPwPolicyContainer,$opt_S\n",
+			"cosTemplateDn: cn=cn=nsPwTemplateEntry\\,$esc_opt_S,cn=nsPwPolicyContainer,$opt_S\n",
 			"cosAttribute: pwdpolicysubentry default operational-default\n\n" );
 
 		@all=(\@container, \@pwpolicy, \@template, \@cos);
@@ -190,6 +192,8 @@ sub usage {
 
 	if ($opt_U) {
 		my $norm_opt_U = normalizeDN($opt_U);
+		my $esc_opt_U = $norm_opt_U;
+		$esc_opt_U =~ s/,/\\,/g;
 		print (STDERR "host = $opt_h, port = $opt_p, userDN = \"$norm_opt_U\"\n\n") if $opt_v;
 		$retcode = `$ldapsearch -h $opt_h -p $opt_p -b \"$norm_opt_U\" -s base \"\"`;
 		if ($retcode != 0 ) {
@@ -208,7 +212,7 @@ sub usage {
 
 		@base=(
 			"cn=nsPwPolicyContainer,$parentDN",
-			"cn=\"cn=nsPwPolicyEntry,$norm_opt_U\",cn=nsPwPolicyContainer,$parentDN"
+			"cn=cn=nsPwPolicyEntry\\,$esc_opt_U,cn=nsPwPolicyContainer,$parentDN"
 		);
 
 		$ldapadd="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w \"$opt_w\" -c -a 2>&1";
@@ -219,7 +223,7 @@ sub usage {
 			"objectclass: top\n",
 			"objectclass: nsContainer\n\n" );
 		@pwpolicy=(
-			"dn: cn=\"cn=nsPwPolicyEntry,$norm_opt_U\",cn=nsPwPolicyContainer,$parentDN\n",
+			"dn: cn=cn=nsPwPolicyEntry\\,$esc_opt_U,cn=nsPwPolicyContainer,$parentDN\n",
 			"objectclass: top\n",
 			"objectclass: ldapsubentry\n",
 			"objectclass: passwordpolicy\n\n" );
@@ -251,7 +255,7 @@ sub usage {
 			$i=$i+1;
 		}
 
-		$target = "cn=\"cn=nsPwPolicyEntry,$norm_opt_U\",cn=nsPwPolicyContainer,$parentDN";
+		$target = "cn=cn=nsPwPolicyEntry\\,$esc_opt_U,cn=nsPwPolicyContainer,$parentDN";
 		$modConfig = "dn: $norm_opt_U\nchangetype: modify\nreplace:pwdpolicysubentry\npwdpolicysubentry: $target\n\n";
 		open(FD,"| $modifyCfg ");
 		print(FD $modConfig);
