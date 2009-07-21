@@ -64,7 +64,7 @@ be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, i
     /* maximum group nesting level before giving up */
     be->be_maxnestlevel = SLAPD_DEFAULT_GROUPNESTLEVEL;
     be->be_noacl= 0;
-        be->be_flags=0;
+    be->be_flags=0;
     if (( fecfg = getFrontendConfig()) != NULL )
     {
         if ( fecfg->backendconfig != NULL && fecfg->backendconfig[ 0 ] != NULL )

@@ -739,6 +739,7 @@ typedef struct _back_search_result_set
 #define LDBM_DNCOMP_OID				"2.16.840.1.113730.3.1.603"
 #define LDBM_PARENTID_OID			"2.16.840.1.113730.3.1.604"
 #define LDBM_ENTRYID_OID			"2.16.840.1.113730.3.1.605"
+#define LDBM_ENTRYUSN_OID			"2.16.840.1.113730.3.1.606"
 
 /* Name of psuedo attribute used to track default indexes */
 #define LDBM_PSEUDO_ATTR_DEFAULT	".default"

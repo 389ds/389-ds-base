@@ -1115,6 +1115,7 @@ typedef struct backend {
 	PRRWLock    *be_lock;	
 	PRRWLock    *vlvSearchList_lock;
 	void        *vlvSearchList;
+	Slapi_Counter *be_usn_counter; /* USN counter; one counter per backend */
 } backend;
 
 enum
@@ -1488,6 +1489,8 @@ typedef struct slapi_pblock {
 	int		*pb_substrlens; /* user specified minimum substr search key lengths:
 							 * nsSubStrBegin, nsSubStrMiddle, nsSubStrEnd
 							 */
+	int		pb_plugin_enabled; /* nsslapd-pluginEnabled: on|off */
+							   /* used in plugin init; pb_plugin is not ready, then */
 } slapi_pblock;
 
 /* index if substrlens */

@@ -1592,6 +1592,10 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(IFP *)value) = pblock->pb_plugin->plg_entrystorefunc;
 		break;
 
+	case SLAPI_PLUGIN_ENABLED:
+		*((int *)value) =  pblock->pb_plugin_enabled;
+		break;
+
 	/* DSE add parameters */
 	case SLAPI_DSE_DONT_WRITE_WHEN_ADDING:
 		(*(int *)value) = pblock->pb_dse_dont_add_write;
@@ -2855,6 +2859,10 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_PLUGIN_ENTRY_STORE_FUNC:
 			pblock->pb_plugin->plg_entrystorefunc = (IFP) value;
+		break;
+
+	case SLAPI_PLUGIN_ENABLED:
+		pblock->pb_plugin_enabled = *((int *)value);
 		break;
 
 	/* DSE add parameters */

@@ -222,6 +222,9 @@ ldbm_back_start( Slapi_PBlock *pb )
     initialized = 1;
   }
 
+  /* initialize the USN counter */
+  ldbm_usn_init(li);
+
   LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend done starting\n", 0, 0, 0 );
 
   return( 0 );

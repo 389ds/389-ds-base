@@ -94,16 +94,18 @@ int return_on_disk_full(struct ldbminfo  *li)
 /* System Indexes */
 
 static const char *systemIndexes[] = {
-    "entrydn",
-    "parentid",
-    "objectclass",
     "aci",
+    "entrydn",
     "numsubordinates",
+    "parentid",
+    SLAPI_ATTR_OBJECTCLASS,
     SLAPI_ATTR_UNIQUEID,
     SLAPI_ATTR_NSCP_ENTRYDN,
     ATTR_NSDS5_REPLCONFLICT,
+    SLAPI_ATTR_ENTRYUSN,
     NULL
 };
+
 
 int
 ldbm_attribute_always_indexed(const char *attrtype)

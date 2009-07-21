@@ -84,6 +84,10 @@ ldbm_back_add_schema( Slapi_PBlock *pb )
 			LDBM_ENTRYID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE );
 
+	rc |= add_ldbm_internal_attr_syntax( "entryusn",
+			LDBM_ENTRYUSN_OID, INTEGER_SYNTAX_OID, INTFIRSTCOMPMATCH_NAME,
+			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
+
 	return rc;
 }
 

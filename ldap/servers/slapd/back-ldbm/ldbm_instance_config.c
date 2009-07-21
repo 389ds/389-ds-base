@@ -752,6 +752,12 @@ static int ldbm_instance_generate(struct ldbminfo *li, char *instance_name,
     ldbm_instance_config_load_dse_info(new_be->be_instance_info);
     rc = ldbm_instance_create_default_indexes(new_be);
 
+    /* if USN plugin is enabled, set slapi_counter */
+    if (plugin_enabled("USN", li->li_identity)) {
+        /* slapi_counter_new sets the initial value to 0 */
+        new_be->be_usn_counter = slapi_counter_new();
+    }
+
     if (ret_be != NULL) {
         *ret_be = new_be;
     }

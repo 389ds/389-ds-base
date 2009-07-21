@@ -159,6 +159,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
 	}
 	if ( slapi_op_abandoned( pb ) ) {
+		ldap_result_code = -1; /* needs to distinguish from "success" */
 		goto error_return;
 	}
 
@@ -847,6 +848,8 @@ common_return:
 	{
 		cache_return( &inst->inst_cache, &addingentry );
 	}
+	/* bepost op needs to know this result */
+	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/* JCMREPL - The bepostop is called even if the operation fails. */
 	plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_ADD_FN);
 
