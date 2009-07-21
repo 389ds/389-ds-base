@@ -157,9 +157,10 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libhttp-client-plugin.la liblinkedattrs-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
-	libroles-plugin.la libschemareload-plugin.la libstatechange-plugin.la \
-	libsyntax-plugin.la libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
-	$(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
+	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
+	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
+	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
+	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -312,6 +313,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
 	ldap/admin/src/scripts/template-schema-reload.pl \
 	ldap/admin/src/scripts/template-syntax-validate.pl \
+	ldap/admin/src/scripts/template-usn-tombstone-cleanup.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
@@ -615,6 +617,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/ldbm_modrdn.c \
 	ldap/servers/slapd/back-ldbm/ldbm_search.c \
 	ldap/servers/slapd/back-ldbm/ldbm_unbind.c \
+	ldap/servers/slapd/back-ldbm/ldbm_usn.c \
 	ldap/servers/slapd/back-ldbm/ldif2ldbm.c \
 	ldap/servers/slapd/back-ldbm/dbverify.c \
 	ldap/servers/slapd/back-ldbm/matchrule.c \
@@ -964,6 +967,15 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 
 libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libsyntax_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libusn-plugin
+#------------------------
+libusn_plugin_la_SOURCES = ldap/servers/plugins/usn/usn.c \
+                           ldap/servers/plugins/usn/usn_cleanup.c
+
+libusn_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libusn_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libviews-plugin

@@ -296,7 +296,9 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_OBJECTCLASS			"objectclass"
 #define SLAPI_ATTR_VALUE_TOMBSTONE		"nsTombstone"
 #define SLAPI_ATTR_VALUE_PARENT_UNIQUEID	"nsParentUniqueID"
-#define SLAPI_ATTR_NSCP_ENTRYDN "nscpEntryDN"
+#define SLAPI_ATTR_NSCP_ENTRYDN 		"nscpEntryDN"
+#define SLAPI_ATTR_ENTRYUSN 			"entryusn"
+#define SLAPI_ATTR_ENTRYUSN_PREV 		"preventryusn"
 
 
 /* opaque structures */
@@ -3272,6 +3274,7 @@ typedef struct slapi_plugindesc {
 /* entry fetch and entry store values */
 #define SLAPI_PLUGIN_ENTRY_FETCH_FUNC				813 
 #define SLAPI_PLUGIN_ENTRY_STORE_FUNC				814
+#define SLAPI_PLUGIN_ENABLED						815
 
 /*
  * Defined values of SLAPI_PLUGIN_SYNTAX_FLAGS:
@@ -3332,6 +3335,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_DELETE_TARGET			SLAPI_TARGET_DN
 #define SLAPI_DELETE_EXISTING_ENTRY		SLAPI_ADD_EXISTING_DN_ENTRY
 #define SLAPI_DELETE_GLUE_PARENT_ENTRY	SLAPI_ADD_PARENT_ENTRY
+#define SLAPI_DELETE_BEPREOP_ENTRY			SLAPI_ENTRY_PRE_OP
 
 /* modify arguments */
 #define SLAPI_MODIFY_TARGET			SLAPI_TARGET_DN
