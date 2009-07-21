@@ -1052,6 +1052,9 @@ static int import_all_done(ImportJob *job, int ret)
         if (ret != 0)
             return ret;
 
+        /* Reset USN slapi_counter with the last key of the entryUSN index */
+        ldbm_set_last_usn(inst->inst_be);
+
         /* bring backend online again */
         slapi_mtn_be_enable(inst->inst_be);
     }

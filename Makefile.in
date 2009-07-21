@@ -173,6 +173,7 @@ am_libback_ldbm_la_OBJECTS =  \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_modrdn.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_search.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo \
+	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.lo \
@@ -688,6 +689,14 @@ libsyntax_plugin_la_OBJECTS = $(am_libsyntax_plugin_la_OBJECTS)
 libsyntax_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libsyntax_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
+libusn_plugin_la_LIBADD =
+am_libusn_plugin_la_OBJECTS =  \
+	ldap/servers/plugins/usn/libusn_plugin_la-usn.lo \
+	ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo
+libusn_plugin_la_OBJECTS = $(am_libusn_plugin_la_OBJECTS)
+libusn_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(libusn_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
 libviews_plugin_la_LIBADD =
 am_libviews_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/views/libviews_plugin_la-views.lo
@@ -899,10 +908,11 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libretrocl_plugin_la_SOURCES) $(libroles_plugin_la_SOURCES) \
 	$(libschemareload_plugin_la_SOURCES) $(libslapd_la_SOURCES) \
 	$(libstatechange_plugin_la_SOURCES) \
-	$(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) \
-	$(dbscan_bin_SOURCES) $(dsktune_bin_SOURCES) \
-	$(infadd_bin_SOURCES) $(ldap_agent_bin_SOURCES) \
-	$(ldclt_bin_SOURCES) $(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
+	$(libsyntax_plugin_la_SOURCES) $(libusn_plugin_la_SOURCES) \
+	$(libviews_plugin_la_SOURCES) $(dbscan_bin_SOURCES) \
+	$(dsktune_bin_SOURCES) $(infadd_bin_SOURCES) \
+	$(ldap_agent_bin_SOURCES) $(ldclt_bin_SOURCES) \
+	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
 	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
 	$(ns_slapd_SOURCES) $(pwdhash_bin_SOURCES) \
 	$(rsearch_bin_SOURCES)
@@ -927,13 +937,14 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libschemareload_plugin_la_SOURCES) \
 	$(am__libslapd_la_SOURCES_DIST) \
 	$(libstatechange_plugin_la_SOURCES) \
-	$(libsyntax_plugin_la_SOURCES) $(libviews_plugin_la_SOURCES) \
-	$(dbscan_bin_SOURCES) $(dsktune_bin_SOURCES) \
-	$(infadd_bin_SOURCES) $(ldap_agent_bin_SOURCES) \
-	$(am__ldclt_bin_SOURCES_DIST) $(ldif_bin_SOURCES) \
-	$(makstrdb_SOURCES) $(migratecred_bin_SOURCES) \
-	$(mmldif_bin_SOURCES) $(am__ns_slapd_SOURCES_DIST) \
-	$(pwdhash_bin_SOURCES) $(rsearch_bin_SOURCES)
+	$(libsyntax_plugin_la_SOURCES) $(libusn_plugin_la_SOURCES) \
+	$(libviews_plugin_la_SOURCES) $(dbscan_bin_SOURCES) \
+	$(dsktune_bin_SOURCES) $(infadd_bin_SOURCES) \
+	$(ldap_agent_bin_SOURCES) $(am__ldclt_bin_SOURCES_DIST) \
+	$(ldif_bin_SOURCES) $(makstrdb_SOURCES) \
+	$(migratecred_bin_SOURCES) $(mmldif_bin_SOURCES) \
+	$(am__ns_slapd_SOURCES_DIST) $(pwdhash_bin_SOURCES) \
+	$(rsearch_bin_SOURCES)
 man1dir = $(mandir)/man1
 man8dir = $(mandir)/man8
 NROFF = nroff
@@ -1252,9 +1263,10 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libhttp-client-plugin.la liblinkedattrs-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
-	libroles-plugin.la libschemareload-plugin.la libstatechange-plugin.la \
-	libsyntax-plugin.la libviews-plugin.la $(LIBPAM_PASSTHRU_PLUGIN) \
-	$(LIBDNA_PLUGIN) $(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
+	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
+	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
+	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
+	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 noinst_LIBRARIES = libavl.a libldaputil.a
@@ -1408,6 +1420,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
 	ldap/admin/src/scripts/template-schema-reload.pl \
 	ldap/admin/src/scripts/template-syntax-validate.pl \
+	ldap/admin/src/scripts/template-usn-tombstone-cleanup.pl \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
@@ -1657,6 +1670,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/ldbm_modrdn.c \
 	ldap/servers/slapd/back-ldbm/ldbm_search.c \
 	ldap/servers/slapd/back-ldbm/ldbm_unbind.c \
+	ldap/servers/slapd/back-ldbm/ldbm_usn.c \
 	ldap/servers/slapd/back-ldbm/ldif2ldbm.c \
 	ldap/servers/slapd/back-ldbm/dbverify.c \
 	ldap/servers/slapd/back-ldbm/matchrule.c \
@@ -1999,6 +2013,15 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 
 libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libsyntax_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libusn-plugin
+#------------------------
+libusn_plugin_la_SOURCES = ldap/servers/plugins/usn/usn.c \
+                           ldap/servers/plugins/usn/usn_cleanup.c
+
+libusn_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libusn_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libviews-plugin
@@ -2624,6 +2647,9 @@ ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_search.lo:  \
 	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
 	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo:  \
+	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
+	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo:  \
 	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
 	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo:  \
@@ -3747,6 +3773,20 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-value.lo:  \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 libsyntax-plugin.la: $(libsyntax_plugin_la_OBJECTS) $(libsyntax_plugin_la_DEPENDENCIES) 
 	$(libsyntax_plugin_la_LINK) -rpath $(serverplugindir) $(libsyntax_plugin_la_OBJECTS) $(libsyntax_plugin_la_LIBADD) $(LIBS)
+ldap/servers/plugins/usn/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/usn
+	@: > ldap/servers/plugins/usn/$(am__dirstamp)
+ldap/servers/plugins/usn/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/usn/$(DEPDIR)
+	@: > ldap/servers/plugins/usn/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/usn/libusn_plugin_la-usn.lo:  \
+	ldap/servers/plugins/usn/$(am__dirstamp) \
+	ldap/servers/plugins/usn/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo:  \
+	ldap/servers/plugins/usn/$(am__dirstamp) \
+	ldap/servers/plugins/usn/$(DEPDIR)/$(am__dirstamp)
+libusn-plugin.la: $(libusn_plugin_la_OBJECTS) $(libusn_plugin_la_DEPENDENCIES) 
+	$(libusn_plugin_la_LINK) -rpath $(serverplugindir) $(libusn_plugin_la_OBJECTS) $(libusn_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/views/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/views
 	@: > ldap/servers/plugins/views/$(am__dirstamp)
@@ -4484,6 +4524,10 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/uiduniq/libattr_unique_plugin_la-7bit.lo
 	-rm -f ldap/servers/plugins/uiduniq/libattr_unique_plugin_la-uid.$(OBJEXT)
 	-rm -f ldap/servers/plugins/uiduniq/libattr_unique_plugin_la-uid.lo
+	-rm -f ldap/servers/plugins/usn/libusn_plugin_la-usn.$(OBJEXT)
+	-rm -f ldap/servers/plugins/usn/libusn_plugin_la-usn.lo
+	-rm -f ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.$(OBJEXT)
+	-rm -f ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo
 	-rm -f ldap/servers/plugins/views/libviews_plugin_la-views.$(OBJEXT)
 	-rm -f ldap/servers/plugins/views/libviews_plugin_la-views.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ancestorid.$(OBJEXT)
@@ -4572,6 +4616,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_search.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo
+	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.$(OBJEXT)
+	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-matchrule.$(OBJEXT)
@@ -5144,6 +5190,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-value.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/uiduniq/$(DEPDIR)/libattr_unique_plugin_la-7bit.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/uiduniq/$(DEPDIR)/libattr_unique_plugin_la-uid.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn_cleanup.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/views/$(DEPDIR)/libviews_plugin_la-views.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/ldap_agent_bin-agtmmap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-add.Plo@am__quote@
@@ -5316,6 +5364,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_modrdn.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_search.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_unbind.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_usn.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldif2ldbm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-matchrule.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-misc.Plo@am__quote@
@@ -5993,6 +6042,13 @@ ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo: ldap/servers/slapd/
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/back-ldbm/ldbm_unbind.c' object='ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_unbind.lo `test -f 'ldap/servers/slapd/back-ldbm/ldbm_unbind.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/ldbm_unbind.c
+
+ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo: ldap/servers/slapd/back-ldbm/ldbm_usn.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo -MD -MP -MF ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_usn.Tpo -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo `test -f 'ldap/servers/slapd/back-ldbm/ldbm_usn.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/ldbm_usn.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_usn.Tpo ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldbm_usn.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/back-ldbm/ldbm_usn.c' object='ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldbm_usn.lo `test -f 'ldap/servers/slapd/back-ldbm/ldbm_usn.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/ldbm_usn.c
 
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo: ldap/servers/slapd/back-ldbm/ldif2ldbm.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo -MD -MP -MF ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-ldif2ldbm.Tpo -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-ldif2ldbm.lo `test -f 'ldap/servers/slapd/back-ldbm/ldif2ldbm.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/ldif2ldbm.c
@@ -7912,6 +7968,20 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-value.lo: ldap/servers/plugins
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-value.lo `test -f 'ldap/servers/plugins/syntaxes/value.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/value.c
 
+ldap/servers/plugins/usn/libusn_plugin_la-usn.lo: ldap/servers/plugins/usn/usn.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libusn_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/usn/libusn_plugin_la-usn.lo -MD -MP -MF ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn.Tpo -c -o ldap/servers/plugins/usn/libusn_plugin_la-usn.lo `test -f 'ldap/servers/plugins/usn/usn.c' || echo '$(srcdir)/'`ldap/servers/plugins/usn/usn.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn.Tpo ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/usn/usn.c' object='ldap/servers/plugins/usn/libusn_plugin_la-usn.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libusn_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/usn/libusn_plugin_la-usn.lo `test -f 'ldap/servers/plugins/usn/usn.c' || echo '$(srcdir)/'`ldap/servers/plugins/usn/usn.c
+
+ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo: ldap/servers/plugins/usn/usn_cleanup.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libusn_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo -MD -MP -MF ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn_cleanup.Tpo -c -o ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo `test -f 'ldap/servers/plugins/usn/usn_cleanup.c' || echo '$(srcdir)/'`ldap/servers/plugins/usn/usn_cleanup.c
+@am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn_cleanup.Tpo ldap/servers/plugins/usn/$(DEPDIR)/libusn_plugin_la-usn_cleanup.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/usn/usn_cleanup.c' object='ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libusn_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo `test -f 'ldap/servers/plugins/usn/usn_cleanup.c' || echo '$(srcdir)/'`ldap/servers/plugins/usn/usn_cleanup.c
+
 ldap/servers/plugins/views/libviews_plugin_la-views.lo: ldap/servers/plugins/views/views.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libviews_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/views/libviews_plugin_la-views.lo -MD -MP -MF ldap/servers/plugins/views/$(DEPDIR)/libviews_plugin_la-views.Tpo -c -o ldap/servers/plugins/views/libviews_plugin_la-views.lo `test -f 'ldap/servers/plugins/views/views.c' || echo '$(srcdir)/'`ldap/servers/plugins/views/views.c
 @am__fastdepCC_TRUE@	mv -f ldap/servers/plugins/views/$(DEPDIR)/libviews_plugin_la-views.Tpo ldap/servers/plugins/views/$(DEPDIR)/libviews_plugin_la-views.Plo
@@ -9128,6 +9198,7 @@ clean-libtool:
 	-rm -rf ldap/servers/plugins/statechange/.libs ldap/servers/plugins/statechange/_libs
 	-rm -rf ldap/servers/plugins/syntaxes/.libs ldap/servers/plugins/syntaxes/_libs
 	-rm -rf ldap/servers/plugins/uiduniq/.libs ldap/servers/plugins/uiduniq/_libs
+	-rm -rf ldap/servers/plugins/usn/.libs ldap/servers/plugins/usn/_libs
 	-rm -rf ldap/servers/plugins/views/.libs ldap/servers/plugins/views/_libs
 	-rm -rf ldap/servers/slapd/.libs ldap/servers/slapd/_libs
 	-rm -rf ldap/servers/slapd/back-ldbm/.libs ldap/servers/slapd/back-ldbm/_libs
@@ -9642,6 +9713,8 @@ distclean-generic:
 	-rm -f ldap/servers/plugins/syntaxes/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/uiduniq/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/uiduniq/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/usn/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/usn/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/views/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/views/$(am__dirstamp)
 	-rm -f ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
@@ -9682,7 +9755,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libtool \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/usn/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -9724,7 +9797,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/shared/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/usn/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

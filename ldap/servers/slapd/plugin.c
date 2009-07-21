@@ -2166,6 +2166,20 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	configdir = config_get_configdir();
 	slapi_pblock_set(&pb, SLAPI_CONFIG_DIRECTORY, configdir);
 
+	/* see if the plugin is enabled or not */
+	if ((value = slapi_entry_attr_get_charptr(plugin_entry,
+											  ATTR_PLUGIN_ENABLED)) &&
+		!strcasecmp(value, "off"))
+	{
+		enabled = 0;
+	}
+	else
+	{
+		enabled = 1;
+	}
+
+	slapi_pblock_set(&pb, SLAPI_PLUGIN_ENABLED, &enabled);
+
 	if ((*initfunc)(&pb) != 0)
 	{
         LDAPDebug(LDAP_DEBUG_ANY, "Init function \"%s\" for \"%s\" plugin"
@@ -2191,18 +2205,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 					   SLAPI_PLUGIN_SUPPORTED_VERSIONS);
 			approved = 0;
 		}
-	}
-
-	/* see if the plugin is enabled or not */
-	if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-											  ATTR_PLUGIN_ENABLED)) &&
-		!strcasecmp(value, "off"))
-	{
-		enabled = 0;
-	}
-	else
-	{
-		enabled = 1;
 	}
 
 	if (value)
@@ -2858,4 +2860,46 @@ void plugin_print_versions(void)
 	  slapd_print_pluginlist_versions(get_plugin_list(i));
 	}
 
+}
+
+/*
+ * check the spedified plugin entry and its nssladp-pluginEnabled value
+ * Return Value: 1 if the plugin is on.
+ *             : 0 otherwise.
+ */
+int
+plugin_enabled(const char *plugin_name, void *identity)
+{
+	Slapi_PBlock *search_pb = NULL;
+	Slapi_Entry **entries = NULL, **ep = NULL;
+	char *on_off = NULL;
+	char *filter = NULL;
+	int rc = 0;	/* disabled, by default */
+
+	filter = slapi_ch_smprintf("cn=%s", plugin_name);
+	search_pb = slapi_pblock_new();
+	slapi_search_internal_set_pb(search_pb, PLUGIN_BASE_DN, LDAP_SCOPE_ONELEVEL,
+								 filter, NULL, 0, NULL, NULL, identity, 0);
+	slapi_search_internal_pb(search_pb);
+	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+	if (LDAP_SUCCESS != rc) { /* plugin is not available */
+		goto bail;
+	}
+
+	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+	for (ep = entries; ep && *ep; ep++) {
+		on_off = slapi_entry_attr_get_charptr(*ep, "nsslapd-pluginEnabled");
+		if (on_off && (0 == strcasecmp(on_off, "on"))) {
+			rc = 1; /* plugin is on */
+			goto bail;
+		}
+	}
+
+bail:
+	slapi_ch_free_string(&on_off);
+	slapi_free_search_results_internal(search_pb);
+	slapi_pblock_destroy(search_pb);
+	slapi_ch_free_string(&filter);
+
+	return rc;
 }

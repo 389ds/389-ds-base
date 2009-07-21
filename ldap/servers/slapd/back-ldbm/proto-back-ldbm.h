@@ -632,3 +632,12 @@ int attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout);
 int attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentry **out);
 int attrcrypt_encrypt_index_key(backend *be, struct attrinfo	*ai, const struct berval	*in, struct berval **out);
 int attrcrypt_init(ldbm_instance *li);
+
+/*
+ * ldbm_usn.c
+ */
+void ldbm_usn_init(struct ldbminfo *li);
+int ldbm_usn_enabled(backend *be);
+int ldbm_set_last_usn(Slapi_Backend *be);
+
+

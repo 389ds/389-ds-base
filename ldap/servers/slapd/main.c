@@ -2372,6 +2372,8 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	}
 	slapi_ch_free( (void**)&myname );
     if (db2ldif_dump_replica) {
+        eq_stop();         /* event queue should be shutdown before closing
+                              all plugins (especailly, replication plugin) */
         plugin_closeall( 1 /* Close Backends */, 1 /* Close Globals */);
     }
     return( return_value );
