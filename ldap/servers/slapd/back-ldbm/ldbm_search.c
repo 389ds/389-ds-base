@@ -1122,6 +1122,18 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     slapi_pblock_get( pb, SLAPI_SEARCH_REFERRALS, &urls );
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
     slapi_pblock_get( pb, SLAPI_TARGET_UNIQUEID, &target_uniqueid );
+
+    if (sr->sr_current_sizelimit >= 0) {
+        /* 
+         * sr_current_sizelimit contains the current sizelimit.
+         * In case of paged results, getting one page is one operation,
+         * while the results on each page are from same back_search_result_set.
+         * To maintain sizelimit beyond operations, back_search_result_set
+         * holds the current sizelimit value.
+         * (The current sizelimit is valid inside an operation, as well.)
+         */
+        slimit = sr->sr_current_sizelimit;
+    }
     
     inst = (ldbm_instance *) be->be_instance_info;
 
@@ -1354,6 +1366,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                          goto bail;
                      }
                      slapi_pblock_set( pb, SLAPI_SEARCH_SIZELIMIT, &slimit );
+                     sr->sr_current_sizelimit = slimit;
                  }
                  if ( (filter_test != 0) && sr->sr_virtuallistview)
                  {
@@ -1412,15 +1425,12 @@ bail:
 static back_search_result_set*
 new_search_result_set(IDList *idl, int vlv, int lookthroughlimit)
 {
-    back_search_result_set *p= (back_search_result_set *)slapi_ch_malloc( sizeof( back_search_result_set ));
+    back_search_result_set *p = (back_search_result_set *)slapi_ch_calloc( 1, sizeof( back_search_result_set ));
     p->sr_candidates = idl;
     p->sr_current = idl_iterator_init(idl);
-    p->sr_entry = NULL;
-    p->sr_lookthroughcount = 0;
     p->sr_lookthroughlimit = lookthroughlimit;
-    p->sr_virtuallistview= vlv;
-    p->sr_vlventry = NULL;
-    p->sr_flags = 0;
+    p->sr_virtuallistview = vlv;
+    p->sr_current_sizelimit = -1;
     return p;
 }
 
