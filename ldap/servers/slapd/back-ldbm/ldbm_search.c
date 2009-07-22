@@ -491,8 +491,23 @@ ldbm_back_search( Slapi_PBlock *pb )
             /*
              * Client wants the server to sort the results.
              */
-            if (sort && (NULL != candidates))
+            if (sort)
             {
+              if (NULL == candidates)
+              {
+                /* Even if candidates is NULL, we have to return a sort 
+                 * response control with the LDAP_SUCCESS return code. */
+                if (LDAP_SUCCESS != 
+                    sort_make_sort_response_control( pb, LDAP_SUCCESS, NULL ))
+                {
+                    return ldbm_back_search_cleanup(pb, li, sort_control,
+                                             (abandoned?-1:LDAP_PROTOCOL_ERROR),
+                                             "Sort Response Control", -1,
+                                             &basesdn, &vlv_request_control);
+                }
+              }
+              else
+              {
                 /* Before we haste off to sort the candidates, we need to 
                  * prepare some information for the purpose of imposing the
                  * administrative limits.
@@ -574,6 +589,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                                              "Sort Response Control", -1,
                                              &basesdn, &vlv_request_control);
                 }
+              }
             }
             /*
              * If we're presenting a virtual list view, then the candidate list
