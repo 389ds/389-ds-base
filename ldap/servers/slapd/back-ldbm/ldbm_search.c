@@ -1410,9 +1410,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                   rc = SLAPI_FAIL_GENERAL;
                   goto bail;
               }
-              /* Since the filter test failed, the result won't be sent.
-               * sr_lookthroughcount should be decremented. */
-              --sr->sr_lookthroughcount;
           }
         }
     }
