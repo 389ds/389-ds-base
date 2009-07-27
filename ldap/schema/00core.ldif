@@ -73,7 +73,7 @@ attributeTypes: ( 2.5.21.8 NAME 'matchingRuleUse' DESC 'Standard LDAP attribute 
 attributeTypes: ( 2.5.21.1 NAME 'dITStructureRules' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
 attributeTypes: ( 2.5.21.2 NAME 'dITContentRules' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
 attributeTypes: ( 2.5.21.7 NAME 'nameForms' DESC 'Standard LDAP attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )
-attributeTypes: ( 2.16.840.1.113730.3.1.55 NAME 'aci' DESC 'Netscape defined access control information attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.55 NAME 'aci' DESC 'Netscape defined access control information attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.215 NAME 'oid' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.224 NAME 'nsslapd-pluginPath' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.225 NAME 'nsslapd-pluginInitfunc' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
