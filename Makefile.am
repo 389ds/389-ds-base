@@ -153,7 +153,7 @@ endif
 
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
-	libcos-plugin.la libdes-plugin.la libdistrib-plugin.la \
+	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \
 	libhttp-client-plugin.la liblinkedattrs-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
@@ -731,6 +731,14 @@ libcos_plugin_la_SOURCES = ldap/servers/plugins/cos/cos.c \
 
 libcos_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libcos_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libderef-plugin
+#-----------------------
+libderef_plugin_la_SOURCES = ldap/servers/plugins/deref/deref.c
+
+libderef_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libderef_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdes-plugin

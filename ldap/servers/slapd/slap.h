@@ -1491,6 +1491,8 @@ typedef struct slapi_pblock {
 							 */
 	int		pb_plugin_enabled; /* nsslapd-pluginEnabled: on|off */
 							   /* used in plugin init; pb_plugin is not ready, then */
+	LDAPControl	**pb_search_ctrls; /* for search operations, allows plugins to provide
+									  controls to pass for each entry or referral returned */
 } slapi_pblock;
 
 /* index if substrlens */
