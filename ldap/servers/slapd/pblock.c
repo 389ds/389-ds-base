@@ -1634,6 +1634,10 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(char **)value) = pblock->pb_urp_tombstone_uniqueid;
 		break;
 		
+	case SLAPI_SEARCH_CTRLS:
+		(*(LDAPControl ***)value) = pblock->pb_search_ctrls;
+		break;
+		
 	default:
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "Unknown parameter block argument %d\n", arg, 0, 0 );
@@ -2906,6 +2910,10 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_LDIF2DB_ENCRYPT:
 	case SLAPI_DB2LDIF_DECRYPT:
 		pblock->pb_ldif_encrypt = *((int *)value);
+		break;
+
+	case SLAPI_SEARCH_CTRLS:
+		pblock->pb_search_ctrls = (LDAPControl **) value;
 		break;
 
 	default:

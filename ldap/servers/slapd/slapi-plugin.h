@@ -3295,6 +3295,19 @@ typedef struct slapi_plugindesc {
 /* Copies of entry before and after add, mod, mod[r]dn operations */
 #define	SLAPI_ENTRY_PRE_OP			52
 #define	SLAPI_ENTRY_POST_OP			53
+/* a PRE_ENTRY_FN may alter the entry to be returned to the client -
+   SLAPI_SEARCH_ORIG_ENTRY holds the original entry from
+   the database - this must not be changed
+   SLAPI_SEARCH_ENTRY_COPY holds a copy of the original entry that
+   has been modified by the plugin - this will be NULL by default -
+   if a plugin needs to modify the entry, it should first check to
+   see if there is already a SLAPI_SEARCH_ENTRY_COPY - if not, the
+   plugin must use slapi_entry_dup() or similar to make a copy, edit
+   the copy, then store it in SLAPI_SEARCH_ENTRY_COPY - the internal
+   server code will free SLAPI_SEARCH_ENTRY_COPY
+*/
+#define	SLAPI_SEARCH_ENTRY_ORIG		SLAPI_ENTRY_PRE_OP
+#define	SLAPI_SEARCH_ENTRY_COPY		SLAPI_ENTRY_POST_OP
 
 /* LDAPv3 controls to be sent with the operation result */
 #define SLAPI_RESCONTROLS			55
@@ -3466,6 +3479,10 @@ typedef struct slapi_plugindesc {
 #define	SLAPI_NENTRIES				195
 /* Any referrals encountered during the search */
 #define SLAPI_SEARCH_REFERRALS			196
+/* for search operations, allows plugins to provide
+   controls to pass for each entry or referral returned
+   corresponds to pb_search_ctrls */
+#define SLAPI_SEARCH_CTRLS			198
 
 #define SLAPI_RESULT_CODE			881
 #define SLAPI_RESULT_TEXT			882

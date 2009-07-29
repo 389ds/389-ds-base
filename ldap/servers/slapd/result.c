@@ -1181,7 +1181,7 @@ send_ldap_search_entry_ext(
 {
 	Connection	*conn = pb->pb_conn;
 	Operation	*op = pb->pb_op;
-	BerElement	*ber;
+	BerElement	*ber = NULL;
 	int		i, rc = 0, logit = 0;
 	int		alluserattrs, noattrs, some_named_attrs;
 	int *dontsendattr= NULL;
@@ -1189,11 +1189,34 @@ send_ldap_search_entry_ext(
 	int real_attrs_only = 0;
 	LDAPControl		**ctrlp = 0;
 	Slapi_Entry *gerentry = NULL;
+	Slapi_Entry *ecopy = NULL;
+	LDAPControl	**searchctrlp = NULL;
+	
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_ldap_search_entry (%s)\n",
 	    e?slapi_entry_get_dn_const(e):"null", 0, 0 );
+
+	/* set current entry */
+	slapi_pblock_set(pb, SLAPI_SEARCH_ENTRY_ORIG, e);
+	/* set controls */
+	slapi_pblock_set(pb, SLAPI_SEARCH_CTRLS, ectrls);
+
+	/* call pre entry fn */
+	rc = plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_ENTRY_FN);
+	if (rc) {
+		LDAPDebug( LDAP_DEBUG_ANY,
+				   "error returned by pre entry plugins for entry %s\n",
+				   e?slapi_entry_get_dn_const(e):"null", 0, 0 );
+		goto cleanup;
+	}
+
+	slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_COPY, &ecopy);
+	if (ecopy) {
+		e = ecopy; /* send back the altered entry */
+	}
+	slapi_pblock_get(pb, SLAPI_SEARCH_CTRLS, &searchctrlp);
 
 	if ( conn == NULL && e ) {
 		if ( op->o_search_entry_handler != NULL ) {
@@ -1202,10 +1225,11 @@ send_ldap_search_entry_ext(
 				logit = 1;
 				goto log_and_return;
 			} else {
-				return rc;
+				goto cleanup;
 			}
 		}
-		return 0;
+		rc = 0;
+		goto cleanup;
 	}
 
 #if !defined(DISABLE_ACL_CHECK)
@@ -1213,19 +1237,22 @@ send_ldap_search_entry_ext(
 				    SLAPI_ACL_READ, ACLPLUGIN_ACCESS_READ_ON_ENTRY, NULL ) != LDAP_SUCCESS ) {
 		LDAPDebug( LDAP_DEBUG_ACL, "acl: access to entry not allowed\n",
 		    0, 0, 0 );
-		return( 1 );
+		rc = 1;
+		goto cleanup;
 	}
 #endif
 
 	if (NULL == e) {
-		return 1;	/* everything is ok - don't send the result */
+		rc = 1;	/* everything is ok - don't send the result */
+		goto cleanup;
 	}
 
 	if ( (ber = der_alloc()) == NULL ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_alloc", 0, NULL );
-		return( -1 );
+		rc = -1;
+		goto cleanup;
 	}
 
 	rc = ber_printf( ber, "{it{s{", op->o_msgid,
@@ -1233,10 +1260,9 @@ send_ldap_search_entry_ext(
 
 	if ( rc == -1 ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
-		ber_free( ber, 1 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf dn", 0, NULL );
-		return( -1 );
+		goto cleanup;
 	}
 
 	/*
@@ -1292,11 +1318,10 @@ send_ldap_search_entry_ext(
 		else
 		{
 			/* we cannot service a request for virtual only and real only */
-			ber_free( ber, 1 );
-    			slapi_ch_free( (void **) &dontsendattr );
 			send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 				"Both real and virtual attributes only controls", 0, NULL );
-			return( -1 );
+			rc = -1;
+			goto cleanup;
 		}
 	}
 
@@ -1335,23 +1360,20 @@ send_ldap_search_entry_ext(
 		}
 	}
 
-    slapi_ch_free( (void **) &dontsendattr ); /* I know it looks like we could free this when it wasn't allocated, the function ignores null pointers */
-
 	if (rc != 0) {
-		ber_free( ber, 1 );
-		goto exit;
+		goto cleanup;
 	}
 
 	rc = ber_printf( ber, "}}" );
 
 	if ( conn->c_ldapversion >= LDAP_VERSION3 ) {
-		if ( ectrls != NULL ) {
-			rc = write_controls( ber, ectrls );
+		if ( searchctrlp != NULL ) {
+			rc = write_controls( ber, searchctrlp );
 		}
 		/*
 		 * The get-effective-rights control is called within
 		 * the current function. Hence it can't be already in
-		 * ectrls
+		 * searchctrlp
 		 */
 		if ( operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS ) {
 			LDAPControl *gerctrl[2];
@@ -1386,10 +1408,9 @@ send_ldap_search_entry_ext(
 
 	if ( rc == -1 ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
-		ber_free( ber, 1 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf entry end", 0, NULL );
-		return( -1 );
+		goto cleanup;
 	}
 
 	if (send_result) {
@@ -1400,6 +1421,7 @@ send_ldap_search_entry_ext(
 	if ( (rc = flush_ber( pb, conn, op, ber, _LDAP_SEND_ENTRY )) == 0 ) {
 		logit = 1;
 	}
+	ber = NULL; /* flush_ber will always free the ber */
 
 log_and_return:
 	if ( logit && operation_is_flag_set(operation,
@@ -1438,13 +1460,20 @@ log_and_return:
 		log_result( pb, op, LDAP_SUCCESS, tag, nentries );
 	    }
 	}
-
-	if (gerentry)
-	{
-		slapi_entry_free(gerentry);
+cleanup:
+	slapi_entry_free(gerentry);
+	slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_COPY, &ecopy);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ENTRY_COPY, NULL);
+	slapi_entry_free(ecopy);
+	slapi_pblock_get(pb, SLAPI_SEARCH_CTRLS, &searchctrlp);
+	slapi_pblock_set(pb, SLAPI_SEARCH_CTRLS, NULL);
+	if (searchctrlp != ectrls) {
+		ldap_controls_free(searchctrlp);
 	}
+	ber_free( ber, 1 );
+	slapi_ch_free( (void **) &dontsendattr );
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_search_entry\n", 0, 0, 0 );
-exit:
+
 	return( rc );
 }
 
@@ -1472,9 +1501,6 @@ flush_ber(
 		break;
 	case _LDAP_SEND_REFERRAL:
 		rc = plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_REFERRAL_FN );
-		break;
-	case _LDAP_SEND_ENTRY:
-		rc = plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_ENTRY_FN );
 		break;
 	}
 
