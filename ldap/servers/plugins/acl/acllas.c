@@ -4025,7 +4025,6 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
                	int i, j;
 				char *patched_rule;
 
-				a = NULL;
 	            i= slapi_attr_first_value ( attr, &sval );
     	        while(i != -1) {
         	    	attrValue = slapi_value_get_berval(sval);
@@ -4045,12 +4044,23 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
 
 				/*
 				 * Here, a is working_list, where each member has had
-				 * macro_str replaced with attrVal.
-				*/
+				 * macro_str replaced with attrVal.  We hand a over,
+				 * so we must set it to NULL since the working list
+				 * may be free'd later. */
 
 				charray_free(working_list);
-				working_list = a;
-				working_rule = a[0];
+				if (a == NULL) {
+					/* This shouldn't happen, but we play
+					 * if safe to avoid any problems. */
+					slapi_ch_free((void **)&macro_str);
+					slapi_ch_free((void **)&macro_attr_name);
+					charray_add(&a, slapi_ch_strdup(""));
+					return(a);
+				} else {
+					working_list = a;
+					working_rule = a[0];
+					a = NULL;
+				}
 			}
 			slapi_ch_free((void **)&macro_str);
 			slapi_ch_free((void **)&macro_attr_name);
