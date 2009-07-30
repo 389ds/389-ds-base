@@ -112,7 +112,7 @@ nameoptuid_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS,
+	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS | SYNTAX_DN,
 	    ftype, retVal ) );
 }
 
@@ -126,7 +126,8 @@ nameoptuid_filter_sub(
     Slapi_Value	**bvals
 )
 {
-	return( string_filter_sub( pb, initial, any, final, bvals, SYNTAX_CIS ) );
+	return( string_filter_sub( pb, initial, any, final, bvals, 
+            SYNTAX_CIS | SYNTAX_DN ) );
 }
 
 static int
@@ -137,7 +138,7 @@ nameoptuid_values2keys(
     int			ftype
 )
 {
-	return( string_values2keys( pb, vals, ivals, SYNTAX_CIS,
+	return( string_values2keys( pb, vals, ivals, SYNTAX_CIS | SYNTAX_DN,
 	    ftype ) );
 }
 
@@ -150,7 +151,7 @@ nameoptuid_assertion2keys_ava(
 )
 {
 	return(string_assertion2keys_ava( pb, val, ivals,
-	    SYNTAX_CIS, ftype ));
+	    SYNTAX_CIS | SYNTAX_DN, ftype ));
 }
 
 static int
@@ -163,7 +164,7 @@ nameoptuid_assertion2keys_sub(
 )
 {
 	return( string_assertion2keys_sub( pb, initial, any, final, ivals,
-	    SYNTAX_CIS ) );
+	    SYNTAX_CIS | SYNTAX_DN ) );
 }
 
 static int nameoptuid_compare(    
@@ -171,7 +172,7 @@ static int nameoptuid_compare(
     struct berval	*v2
 )
 {
-	return value_cmp(v1, v2, SYNTAX_CIS, 3 /* Normalise both values */);
+	return value_cmp(v1, v2, SYNTAX_CIS | SYNTAX_DN, 3 /* Normalise both values */);
 }
 
 static int
