@@ -1370,36 +1370,6 @@ send_ldap_search_entry_ext(
 		if ( searchctrlp != NULL ) {
 			rc = write_controls( ber, searchctrlp );
 		}
-		/*
-		 * The get-effective-rights control is called within
-		 * the current function. Hence it can't be already in
-		 * searchctrlp
-		 */
-		if ( operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS ) {
-			LDAPControl *gerctrl[2];
-			slapi_pblock_get (pb, SLAPI_RESCONTROLS, &ctrlp);
-			for ( i = 0; ctrlp != NULL && ctrlp[i] != NULL; i++ ) {
-				if (strcmp(ctrlp[i]->ldctl_oid, LDAP_CONTROL_GET_EFFECTIVE_RIGHTS ) == 0 ) {
-					gerctrl[0] = ctrlp[i];
-					gerctrl[1] = NULL;
-					rc = write_controls( ber, gerctrl );
-					break;
-				}
-			}
-		}
-		if ( operation->o_flags & OP_FLAG_PAGED_RESULTS ) {
-			LDAPControl *pagedctrl[2];
-			slapi_pblock_get (pb, SLAPI_RESCONTROLS, &ctrlp);
-			for ( i = 0; ctrlp != NULL && ctrlp[i] != NULL; i++ ) {
-				if (strcmp(ctrlp[i]->ldctl_oid, LDAP_CONTROL_PAGEDRESULTS )
-																	== 0 ) {
-					pagedctrl[0] = ctrlp[i];
-					pagedctrl[1] = NULL;
-					rc = write_controls( ber, pagedctrl );
-					break;
-				}
-			}
-		}
 	}
 
 	if ( rc != -1 ) {
