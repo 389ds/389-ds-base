@@ -48,3 +48,4 @@
 # 
 ds_suffix =		Suffix
 naming_value =  naming_value
+rootdn =		RootDN
