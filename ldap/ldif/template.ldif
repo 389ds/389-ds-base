@@ -37,6 +37,13 @@
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
+#
+# Note: %rootdn% (Directory Manager) has all rights on every entry by nature.  
+# Thus, it is not needed to give any acis.  This template has several 
+# groupOfUniqueNames objects which MUST have uniqueMember.  At this moment,
+# there is no entry which could be a uniqueMember.  Just to satisfy the 
+# objectclass, set %rootdn% to uniqueMember of the objectclass.
+#
 dn: %ds_suffix%
 changetype: modify
 add: aci
@@ -48,6 +55,7 @@ dn: cn=Directory Administrators, %ds_suffix%
 objectClass: top
 objectClass: groupofuniquenames
 cn: Directory Administrators
+uniqueMember: %rootdn%
 
 dn: ou=Groups, %ds_suffix%
 objectclass: top
@@ -90,6 +98,7 @@ objectclass: groupOfUniqueNames
 cn: Accounting Managers
 ou: groups
 description: People who can manage accounting entries
+uniqueMember: %rootdn%
 
 dn: cn=HR Managers,ou=groups,%ds_suffix%
 objectclass: top
@@ -97,6 +106,7 @@ objectclass: groupOfUniqueNames
 cn: HR Managers
 ou: groups
 description: People who can manage HR entries
+uniqueMember: %rootdn%
 
 dn: cn=QA Managers,ou=groups,%ds_suffix%
 objectclass: top
@@ -104,6 +114,7 @@ objectclass: groupOfUniqueNames
 cn: QA Managers
 ou: groups
 description: People who can manage QA entries
+uniqueMember: %rootdn%
 
 dn: cn=PD Managers,ou=groups,%ds_suffix%
 objectclass: top
@@ -111,3 +122,4 @@ objectclass: groupOfUniqueNames
 cn: PD Managers
 ou: groups
 description: People who can manage engineer entries
+uniqueMember: %rootdn%
