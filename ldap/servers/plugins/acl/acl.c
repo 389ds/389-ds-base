@@ -351,8 +351,9 @@ acl_access_allowed(
 		slapi_attr_get_syntax_oid_copy(sa, &oid);
   
 		/* We only want to perform this check if the attribute is
-		 * defined using the DN syntax. */
-		if (oid && (strcasecmp(oid, DN_SYNTAX_OID) == 0)) { 
+		 * defined using the DN or Name And Optional UID syntaxes. */
+		if (oid && ((strcasecmp(oid, DN_SYNTAX_OID) == 0) ||
+		            (strcasecmp(oid, NAMEANDOPTIONALUID_SYNTAX_OID) == 0))) { 
 			/* should use slapi_sdn_compare() but that'a an extra malloc/free */
 			char *dn_val_to_write = slapi_dn_normalize(slapi_ch_strdup(val->bv_val));
 			if ( aclpb->aclpb_authorization_sdn && 
