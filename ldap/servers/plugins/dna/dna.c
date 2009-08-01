@@ -2683,15 +2683,24 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                             /* This is either adding or replacing a value */
                             struct berval *bv = slapi_mod_get_first_value(smod);
 
+                            /* If generate is already set, a previous mod in
+                             * this same modify operation either removed all
+                             * values or set the magic value.  It's possible
+                             * that this mod is adding a valid value, which
+                             * means we would not want to generate a new value.
+                             * It is safe to unset generate since it will be
+                             * reset here if necessary. */
+                            generate = 0;
+
                             /* If we have a value, see if it's the magic value. */
                             if (bv) {
                                 int len = strlen(config_entry->generate);
                                 if (len == bv->bv_len) {
                                     if (!slapi_UTF8NCASECMP(bv->bv_val,
                                                             config_entry->generate,
-                                                            len))
+                                                            len)) {
                                         generate = 1;
-                                    break;
+                                    }
                                 }
                             } else {
                                 /* This is a replace with no new values, so we need
@@ -2783,9 +2792,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
   bailmod:
     if (LDAP_CHANGETYPE_MODIFY == modtype) {
-        /* these are the mods you made, really,
-         * I didn't change them, honest, just had a quick look
-         */
+        /* Put the updated mods back into place. */
         mods = slapi_mods_get_ldapmods_passout(smods);
         slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
         slapi_mods_free(&smods);
