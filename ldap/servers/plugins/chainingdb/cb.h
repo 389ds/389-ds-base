@@ -400,6 +400,7 @@ typedef struct _cb_searchContext {
 	Slapi_Entry	*tobefreed;
 	LDAPMessage	*pending_result;
 	int 		pending_result_type;
+	Slapi_Entry	*readahead;
 } cb_searchContext;
 
 #define CB_REOPEN_CONN		-1968	/* Different from any LDAP_XXX errors */
@@ -481,6 +482,8 @@ int chainingdb_bind (Slapi_PBlock *pb );
 int cb_db_size (Slapi_PBlock *pb );
 int cb_back_close (Slapi_PBlock *pb );
 int cb_back_cleanup (Slapi_PBlock *pb );
+void chaining_back_search_results_release( void **sr );
+void chainingdb_prev_search_results ( Slapi_PBlock *pb );
 
 long cb_atol(char *str);
 
