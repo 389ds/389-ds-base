@@ -604,7 +604,7 @@ void dse_unset_dont_ever_write_dse_files(void);
 int dse_next_search_entry (Slapi_PBlock *pb);
 char *dse_read_next_entry( char *buf, char **lastp );
 void dse_search_set_release (void **ss);
-
+void dse_prev_search_results (Slapi_PBlock *pb);
 
 
 /*

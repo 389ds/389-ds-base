@@ -451,6 +451,7 @@ void dl_add_index(DataList *dl, void *element, int index);
 void *dl_replace(const DataList *dl, const void *elementOld, void *elementNew, CMPFN cmpfn, FREEFN freefn);
 void *dl_get_first (const DataList *dl, int *cookie);
 void *dl_get_next (const DataList *dl, int *cookie);
+void *dl_get_prev (const DataList *dl, int *cookie);
 void *dl_get (const DataList *dl, const void *element, CMPFN cmpfn);
 void *dl_delete (DataList *dl, const void *element, CMPFN cmpfn, FREEFN freefn);
 int  dl_get_count (const DataList *dl);
@@ -868,6 +869,7 @@ int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v)
 #define SLAPI_PLUGIN_DB_DBVERIFY_FN			236
 #define SLAPI_PLUGIN_DB_ADD_SCHEMA_FN		237
 #define SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN	238
+#define SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN	239
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280

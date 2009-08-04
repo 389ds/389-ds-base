@@ -292,11 +292,6 @@ IDList * idl_new_fetch(
         }
 
         LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
-
-        ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP|DB_MULTIPLE);
-        if (0 != ret) {
-            break;
-        }
 #if defined(DB_ALLIDS_ON_READ)	
 		/* enforce the allids read limit */
 		if (NEW_IDL_NO_ALLID != *flag_err &&
@@ -307,6 +302,10 @@ IDList * idl_new_fetch(
 			break;
 		}
 #endif
+        ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP|DB_MULTIPLE);
+        if (0 != ret) {
+            break;
+        }
    }
 #else
     for (;;) {

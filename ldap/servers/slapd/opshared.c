@@ -1065,21 +1065,20 @@ iterate_with_lookahead(Slapi_PBlock *pb, Slapi_Backend *be, int send_result, int
  */
 static int
 iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
-        int *pnentries, int pagesize, unsigned int *pr_stat) 
+        int *pnentries, int pagesize, unsigned int *pr_statp) 
 {
     int rc;
+    int rval = 1; /* no error, by default */
     int attrsonly;
     int done = 0;
     Slapi_Entry *e = NULL;
     char **attrs = NULL;
+    unsigned int pr_stat = 0;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
 
     *pnentries = 0;
-    if (pr_stat) {
-        *pr_stat = 0;
-    }
     
     while (!done) 
     {
@@ -1097,9 +1096,11 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
             {
                 operation_out_of_disk_space();
             }
-            *pr_stat = PAGEDRESULTS_SEARCH_END;
+            pr_stat = PAGEDRESULTS_SEARCH_END;
             pagedresults_set_timelimit(pb->pb_conn, 0);
-            return -1;
+            rval = -1;
+            done = 1;
+            continue;
         } 
 
         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
@@ -1148,14 +1149,15 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
                     if (NULL == e) {
                         /* everything is ok - don't send the result */
-                        *pr_stat = PAGEDRESULTS_SEARCH_END;
-                        return 1;
+                        pr_stat = PAGEDRESULTS_SEARCH_END;
+                        done = 1;
+                        continue;
                     }
                     gerentry = e;
                 }
                 if ( rc != LDAP_SUCCESS ) {
                     /* Send error result and 
-                           abort op if the control is critical */
+                       abort op if the control is critical */
                      LDAPDebug( LDAP_DEBUG_ANY,
                     "Failed to get effective rights for entry (%s), rc=%d\n",
                     slapi_entry_get_dn_const(e), rc, 0 );
@@ -1163,13 +1165,14 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                     slapi_ch_free ( (void**)&errbuf );
                     if (gerentry)
                     {
-                        slapi_pblock_set(pb,
-                                        SLAPI_SEARCH_RESULT_ENTRY, NULL);
+                        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
                         slapi_entry_free(gerentry);
                         gerentry = e = NULL;
                     }
-                    *pr_stat = PAGEDRESULTS_SEARCH_END;
-                    return( -1 );
+                    pr_stat = PAGEDRESULTS_SEARCH_END;
+                    rval = -1;
+                    done = 1;
+                    continue;
                 }
                 slapi_ch_free ( (void**)&errbuf );
                 if (process_entry(pb, e, send_result)) 
@@ -1177,8 +1180,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                     /* shouldn't send this entry */
                     if (gerentry)
                     {
-                        slapi_pblock_set(pb,
-                                        SLAPI_SEARCH_RESULT_ENTRY, NULL);
+                        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
                         slapi_entry_free(gerentry);
                         gerentry = e = NULL;
                     }
@@ -1190,8 +1192,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                  * managedsait control is on.  In either case, send
                  * the entry.
                  */
-                switch (send_ldap_search_entry(pb, e,
-                                        NULL, attrs, attrsonly)) 
+                switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) 
                 {
                     case 0:        /* entry sent ok */
                         (*pnentries)++;
@@ -1199,7 +1200,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                         break;
                     case 1:        /* entry not sent */
                         break;
-                    case -1:    /* connection closed */
+                    case -1:       /* connection closed */
                         /*
                          * mark the operation as abandoned so the backend
                          * next entry function gets called again and has
@@ -1222,13 +1223,21 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
             {
                 /* no more entries */
                 done = 1;
-                if (pr_stat) {
-                    *pr_stat = PAGEDRESULTS_SEARCH_END;
-                }
+                pr_stat = PAGEDRESULTS_SEARCH_END;
             }
         }
         else if (e)
         {
+            if (PAGEDRESULTS_PAGE_END == pr_stat)
+            {
+                /* 
+                 * read ahead -- there is at least more entry.
+                 * undo it and return the PAGE_END
+                 */
+                be->be_prev_search_results(pb);
+                done = 1;
+                continue;
+            }
             if (process_entry(pb, e, send_result)) 
             {
                 /* shouldn't  send this entry */
@@ -1248,7 +1257,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                     break;
                 case 1:        /* entry not sent */
                     break;
-                case -1:    /* connection closed */
+                case -1:       /* connection closed */
                     /*
                      * mark the operation as abandoned so the backend
                      * next entry function gets called again and has
@@ -1260,25 +1269,25 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
             if (pagesize == *pnentries)
             { 
                 /* PAGED RESULTS: reached the pagesize */
-                done = 1;
-                if (pr_stat) {
-                    *pr_stat = PAGEDRESULTS_PAGE_END;
-                }
+                /* We don't set "done = 1" here.
+                 * We read ahead next entry to check whether there is
+                 * more entries to return or not. */
+                pr_stat = PAGEDRESULTS_PAGE_END;
             }
         }
         else
         {
             /* no more entries */
             done = 1;
-            if (pr_stat) {
-                *pr_stat = PAGEDRESULTS_SEARCH_END;
-            }
+            pr_stat = PAGEDRESULTS_SEARCH_END;
         }
     }
 
-    return 1;
+    if (pr_statp) {
+        *pr_statp = pr_stat;
+    }
+    return rval;
 }
-
 
 static int        timelimit_reslimit_handle = -1;
 static int        sizelimit_reslimit_handle = -1;

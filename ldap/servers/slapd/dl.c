@@ -160,6 +160,19 @@ void *dl_get_next (const DataList *dl, int *cookie)
 	return dl->elements[(*cookie)++];
 }
 
+void *dl_get_prev (const DataList *dl, int *cookie)
+{
+  PR_ASSERT (dl);
+  PR_ASSERT (cookie && *cookie > 0);
+
+  if (*cookie < 0)
+      return NULL;
+  if (*cookie > 0)
+      (*cookie)--;
+
+  return dl->elements[*cookie];
+}
+
 void *dl_replace(const DataList *dl, const void *elementOld, void *elementNew, CMPFN cmpfn, FREEFN freefn)
 {
 	int i;

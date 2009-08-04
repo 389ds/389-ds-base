@@ -1418,6 +1418,22 @@ bail:
     return rc;
 }
 
+/*
+ * Move back the current position in the search result set by one.
+ * Paged Results needs to read ahead one entry to catch the end of the search
+ * result set at the last entry not to show the prompt when there is no more
+ * entries.
+ */
+void
+ldbm_back_prev_search_results( Slapi_PBlock *pb )
+{
+    back_search_result_set *sr;
+    slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
+    if (sr) {
+        idl_iterator_decrement(&(sr->sr_current));
+    }
+    return;
+}
 
 static back_search_result_set*
 new_search_result_set(IDList *idl, int vlv, int lookthroughlimit)
