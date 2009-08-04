@@ -454,6 +454,18 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 		return 0;
 	}
 
+	if ( NULL != ctx->readahead) {
+		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, ctx);
+		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, ctx->readahead);
+		if (ctx->tobefreed != ctx->readahead) {
+			slapi_entry_free(ctx->tobefreed);
+		}
+		ctx->tobefreed = ctx->readahead;
+		ctx->readahead = NULL;
+		cb_set_acl_policy(pb);
+		return 0;
+	}
+
 	if ( NULL != ctx->tobefreed ) {
 		slapi_entry_free(ctx->tobefreed);
 		ctx->tobefreed=NULL;
@@ -737,3 +749,31 @@ chaining_back_entry_release ( Slapi_PBlock *pb ) {
 	return 0;
 }
 
+void
+chaining_back_search_results_release ( void **sr )
+{
+    cb_searchContext *ctx = (cb_searchContext *)(*sr);
+
+    slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                     "chaining_back_search_results_release\n");
+    if (ctx->readahead != ctx->tobefreed) {
+        slapi_entry_free(ctx->readahead);
+    }
+    slapi_entry_free(ctx->tobefreed);
+    ctx->tobefreed = NULL;
+    slapi_ch_free((void **)&ctx->data);
+    slapi_ch_free((void **)&ctx);
+    return;
+}
+
+void
+chainingdb_prev_search_results ( Slapi_PBlock *pb )
+{
+    cb_searchContext *ctx = NULL;
+    Slapi_Entry      *entry = NULL;
+
+    slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &ctx );
+    slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_ENTRY, &entry );
+    ctx->readahead = entry;
+    return;
+}

@@ -518,6 +518,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(VFPP *)value) = pblock->pb_plugin->plg_search_results_release;
 		break;
+	case SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
+			return( -1 );
+		}
+		(*(VFP *)value) = pblock->pb_plugin->plg_prev_search_results;
+		break;
 	case SLAPI_PLUGIN_DB_COMPARE_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
 			return( -1 );
@@ -1823,6 +1829,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_search_results_release = (VFPP) value;
+		break;
+	case SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_prev_search_results = (VFP) value;
 		break;
 	case SLAPI_PLUGIN_DB_COMPARE_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {

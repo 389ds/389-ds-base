@@ -94,6 +94,10 @@ chaining_back_init( Slapi_PBlock *pb )
 		(void *) chainingdb_build_candidate_list );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN, 
 		(void *) chainingdb_next_search_entry );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN, 
+		(void *) chainingdb_prev_search_results );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN, 
+		(void *) chaining_back_search_results_release );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, 
 		(void *) chainingdb_start ) ;
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_BIND_FN, 

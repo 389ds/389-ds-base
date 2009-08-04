@@ -2322,6 +2322,18 @@ dse_search_set_release (void **ss)
 	dse_search_set_delete(*(dse_search_set **)ss);
 }
 
+void 
+dse_prev_search_results (Slapi_PBlock *pb)
+{
+	dse_search_set *ss;
+	slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &ss );
+	if (ss) {
+		dl_get_prev (&ss->dl, &ss->current_entry);
+	}
+	return;
+
+}
+
 static void 
 dse_search_set_delete (dse_search_set *ss)
 {

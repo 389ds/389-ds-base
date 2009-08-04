@@ -777,6 +777,7 @@ struct slapdplugin {
 			IFP	plg_un_db_next_search_entry;	/* iterate */
 	        IFP plg_un_db_next_search_entry_ext;
 			VFPP plg_un_db_search_results_release; /* PAGED RESULTS */
+			VFP plg_un_db_prev_search_results;     /* PAGED RESULTS */
 	        IFP plg_un_db_entry_release;
 			IFP	plg_un_db_compare;	  /* compare */
 			IFP	plg_un_db_modify;	  /* modify */
@@ -815,6 +816,7 @@ struct slapdplugin {
 #define plg_next_search_entry	plg_un.plg_un_db.plg_un_db_next_search_entry
 #define plg_next_search_entry_ext plg_un.plg_un_db.plg_un_db_next_search_entry_ext
 #define plg_search_results_release plg_un.plg_un_db.plg_un_db_search_results_release
+#define plg_prev_search_results plg_un.plg_un_db.plg_un_db_prev_search_results
 #define plg_entry_release       plg_un.plg_un_db.plg_un_db_entry_release
 #define plg_compare		plg_un.plg_un_db.plg_un_db_compare
 #define plg_modify		plg_un.plg_un_db.plg_un_db_modify
@@ -1069,6 +1071,7 @@ typedef struct backend {
 #define be_next_search_entry_ext be_database->plg_next_search_entry_ext
 #define be_entry_release be_database->plg_entry_release
 #define be_search_results_release be_database->plg_search_results_release
+#define be_prev_search_results be_database->plg_prev_search_results
 #define be_compare		be_database->plg_compare
 #define be_modify		be_database->plg_modify
 #define be_modrdn		be_database->plg_modrdn

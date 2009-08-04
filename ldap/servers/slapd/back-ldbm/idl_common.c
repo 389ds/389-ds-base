@@ -413,7 +413,9 @@ idl_iterator idl_iterator_increment(idl_iterator *i)
 idl_iterator idl_iterator_decrement(idl_iterator *i)
 {
 	size_t t = (size_t) *i;
-	t -= 1;
+	if (t > 0) {
+		t -= 1;
+	}
 	*i = (idl_iterator) t;
 	return *i;
 }
