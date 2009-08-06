@@ -4324,7 +4324,7 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         }
         else
         {
-            rval = PR_Delete(filename);
+            rval = ldbm_delete_dirs(filename);
         }
     }
     PR_CloseDir(dirhandle);

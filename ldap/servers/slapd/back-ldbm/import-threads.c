@@ -651,11 +651,11 @@ void import_producer(void *param)
         old_ep = job->fifo.item[idx].entry;
         if (old_ep) {
             /* for the slot to be recycled, it needs to be already absorbed
-             * by the foreman (id >= ready_ID), and all the workers need to
+             * by the foreman (id >= ready_EID), and all the workers need to
              * be finished with it (refcount = 0).
              */
             while (((old_ep->ep_refcnt > 0) ||
-                    (old_ep->ep_id >= job->ready_ID))
+                    (old_ep->ep_id >= job->ready_EID))
                    && (info->command != ABORT) && !(job->flags & FLAG_ABORT)) {
                 info->state = WAITING;
                 DS_Sleep(sleeptime);
@@ -887,11 +887,11 @@ void index_producer(void *param)
         old_ep = job->fifo.item[idx].entry;
         if (old_ep) {
             /* for the slot to be recycled, it needs to be already absorbed
-             * by the foreman (id >= ready_ID), and all the workers need to
+             * by the foreman (id >= ready_EID), and all the workers need to
              * be finished with it (refcount = 0).
              */
             while (((old_ep->ep_refcnt > 0) ||
-                    (old_ep->ep_id >= job->ready_ID))
+                    (old_ep->ep_id >= job->ready_EID))
                    && (info->command != ABORT) && !(job->flags & FLAG_ABORT)) {
                 info->state = WAITING;
                 DS_Sleep(sleeptime);
@@ -980,7 +980,7 @@ import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
         for ( i = 0, slot_found = 0 ; i < job->fifo.size ; i++ ) {
             temp_ep = job->fifo.item[i].entry;
             if (temp_ep) {
-                if (temp_ep->ep_refcnt == 0 && temp_ep->ep_id <= job->ready_ID) {
+                if (temp_ep->ep_refcnt == 0 && temp_ep->ep_id <= job->ready_EID) {
                     job->fifo.item[i].entry = NULL;
                     if (job->fifo.c_bsize > job->fifo.item[i].esize)
                         job->fifo.c_bsize -= job->fifo.item[i].esize;
@@ -1094,7 +1094,6 @@ void import_foreman(void *param)
     int ret = 0;
     struct attrinfo *parentid_ai;
     Slapi_PBlock *pb = slapi_pblock_new();
-	int shift = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -1136,10 +1135,13 @@ void import_foreman(void *param)
         info->state = RUNNING;
 
         /* Read that entry from the cache */
-        fi = import_fifo_fetch(job, id, 0, shift);
-        if (! fi) {
+        fi = import_fifo_fetch(job, id, 0);
+        if (NULL == fi) {
             import_log_notice(job, "WARNING: entry id %d is missing", id);
-			shift++;
+            continue;
+        }
+        if (NULL == fi->entry) {
+            import_log_notice(job, "WARNING: entry for id %d is missing", id);
             continue;
         }
 
@@ -1249,17 +1251,20 @@ void import_foreman(void *param)
          }
 
 
-        /* Remove the entry from the cache (caused by id2entry_add) */
-    if (!(job->flags & FLAG_REINDEXING))/* reindex reads data from id2entry */
-        cache_remove(&inst->inst_cache, fi->entry);
+        /* Remove the entry from the cache (Put in the cache in id2entry_add) */
+        if (!(job->flags & FLAG_REINDEXING)) {
+            /* reindex reads data from id2entry */
+            cache_remove(&inst->inst_cache, fi->entry);
+        }
         fi->entry->ep_refcnt = job->number_indexers;
 
-    cont:
+cont:
          if (job->flags & FLAG_ABORT) { 
              goto error;
          }
 
         job->ready_ID = id;
+        job->ready_EID = fi->entry->ep_id;
         info->last_ID_processed = id;
         id++;
 
@@ -1377,7 +1382,7 @@ void import_worker(void *param)
             info->state = RUNNING;
 
             /* Read that entry from the cache */
-            fi = import_fifo_fetch(job, id, 1, 0);
+            fi = import_fifo_fetch(job, id, 1);
             ep = fi ? fi->entry : NULL;
             if (!ep) {
                 /* skipping an entry that turned out to be bad */
@@ -1706,9 +1711,9 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
         /* the producer could be running thru the fifo while
          * everyone else is cycling to a new pass...
-         * double-check that this entry is < ready_ID
+         * double-check that this entry is < ready_EID
          */
-        while ((old_ep->ep_id >= job->ready_ID) && !(job->flags & FLAG_ABORT))
+        while ((old_ep->ep_id >= job->ready_EID) && !(job->flags & FLAG_ABORT))
         {
             DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
         }

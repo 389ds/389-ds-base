@@ -124,6 +124,7 @@ typedef struct {
     ID first_ID;		/* Import pass starts at this ID */
     ID lead_ID;			/* Highest ID available in the cache */
     ID ready_ID;		/* Highest ID the foreman is done with */
+    ID ready_EID;		/* Highest Entry ID the foreman is done with */
     ID trailing_ID;		/* Lowest ID still available in the cache */
     int current_pass;		/* un-merged pass number in a multi-pass import */
     int total_pass;		/* total pass number in a multi-pass import */
@@ -204,7 +205,7 @@ struct _import_worker_info {
 
 
 /* import.c */
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker, int shift);
+FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_free_job(ImportJob *job);
 void import_log_notice(ImportJob *job, char *format, ...)
 #ifdef __GNUC__ 
