@@ -95,23 +95,22 @@ static int import_fifo_init(ImportJob *job)
     return 0;
 }
 
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker, int shift)
+FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
 {
     int idx = id % job->fifo.size;
     FifoItem *fi;
 
     if (job->fifo.item) {
-    fi = &(job->fifo.item[idx]);
+        fi = &(job->fifo.item[idx]);
     } else {
-    return NULL;
+        return NULL;
     }
     if (fi->entry) {
-        if (id != fi->entry->ep_id - shift)
-            fi = NULL;
-        else if (worker) {
-            if (fi->bad) return NULL;
-            PR_ASSERT(fi->entry->ep_refcnt > 0);
+        if (worker && fi->bad) {
+        	import_log_notice(job, "WARNING: bad entry: ID %d", id);
+            return NULL;
         }
+        PR_ASSERT(fi->entry->ep_refcnt > 0);
     }
     return fi;
 }
