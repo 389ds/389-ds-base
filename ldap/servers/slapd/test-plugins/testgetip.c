@@ -79,7 +79,7 @@
 #include "slapi-plugin.h"
 #include "nspr.h"
 
-Slapi_PluginDesc getippdesc = { "test-getip", "Fedora Project", "1.0.4",
+Slapi_PluginDesc getippdesc = { "test-getip", VENDOR, PACKAGE_VERSION,
 	"sample pre-operation plugin" };
 
 static char *netaddr2str( PRNetAddr *addrp, char *buf, size_t buflen );

@@ -38,11 +38,9 @@
 
                    ----------------------------
                  Sample pluggable distribution logic
-                     for Netscape Directory Server
                    ----------------------------
 
-This directory contains code for some sample server plug-ins intended for
-use with the Fedora Directory Server 1.  
+This directory contains code for some sample server plug-ins.  
 
     NOTE: Before you compile and run these examples, make sure 
     to change any server-specific data in the examples to  

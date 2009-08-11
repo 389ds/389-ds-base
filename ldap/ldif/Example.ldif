@@ -3006,8 +3006,8 @@ uniquemember: uid=kwinters, ou=People, dc=example,dc=com
 uniquemember: uid=trigden, ou=People, dc=example,dc=com
 description: People who can manage engineer entries
 
-dn: ou=Fedora Servers,dc=example,dc=com
+dn: ou=Dirsrv Servers,dc=example,dc=com
 objectclass: top
 objectclass: organizationalUnit
-ou: Fedora Servers
-description: Standard branch for Fedora Server registration
+ou: Dirsrv Servers
+description: Standard branch for Dirsrv Server registration

@@ -43,11 +43,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include "dirver.h"
 
 #include "rever.h"
 
-static Slapi_PluginDesc pdesc = { "des-storage-scheme", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "DES storage scheme plugin" };
+static Slapi_PluginDesc pdesc = { "des-storage-scheme", VENDOR, PACKAGE_VERSION, "DES storage scheme plugin" };
 
 static char *plugin_name = "ReverStoragePlugin";
 

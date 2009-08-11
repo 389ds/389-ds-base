@@ -39,11 +39,10 @@
 
                    ----------------------------
                       Sample Server Plug-Ins
-                     for Directory Server 1
+                     for Directory Server
                    ----------------------------
 
-This directory contains code for some sample server plug-ins intended for
-use with the Fedora Directory Server 1.  
+This directory contains code for some sample server plug-ins.
 
     NOTE: Before you compile and run these examples, make sure 
     to change any server-specific data in the examples to  
@@ -178,7 +177,7 @@ Server plug-ins are built as libraries available to the server.
    $ autogen.sh   # make sure there is no errors / warnings
    $ mkdir testbuild
    $ cd testbuild
-   $ ../configure --with-fhs [ --prefix=/opt/fedora-ds ... ]
+   $ ../configure --with-fhs [ --prefix=/opt/dirsrv ... ]
    $ make install
 
 Plugging the Library Into the Server

@@ -79,22 +79,22 @@ static char *fax_names[] = { "FAX", FAX_SYNTAX_OID, 0 };
  * a number of attributes in our default schema.  We should try to eliminate
  * it's use and remove support for it. */
 static Slapi_PluginDesc bin_pdesc = {
-	"bin-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"bin-syntax", VENDOR, PACKAGE_VERSION,
 	"binary attribute syntax plugin"
 };
 
 static Slapi_PluginDesc octetstring_pdesc = {
-	"octetstring-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"octetstring-syntax", VENDOR, PACKAGE_VERSION,
 	"octet string attribute syntax plugin"
 };
 
 static Slapi_PluginDesc jpeg_pdesc = {
-	"jpeg-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"jpeg-syntax", VENDOR, PACKAGE_VERSION,
 	"JPEG attribute syntax plugin"
 };
 
 static Slapi_PluginDesc fax_pdesc = {
-	"fax-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"fax-syntax", VENDOR, PACKAGE_VERSION,
 	"Fax attribute syntax plugin"
 };
 

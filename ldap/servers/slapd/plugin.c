@@ -62,7 +62,6 @@ static int plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlo
 static PRBool plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock *pb);
 static PRBool plugin_matches_operation (Slapi_DN *target_spec, PluginTargetData *ptd, 
 										PRBool bindop, PRBool isroot, PRBool islocal, int method);
-static int isApprovedPlugin( struct slapdplugin *plugin );
 
 static void plugin_config_init (struct pluginconfig *config);
 static void plugin_config_cleanup (struct pluginconfig *config);
@@ -1545,48 +1544,6 @@ slapi_get_supported_extended_ops_copy( void )
 }
 
 
-/* isApprovedPlugin: 
- * returns 1 if the plugin is approved to be loaded, 0 otherwise.
- *
- * If the server is running as the Full version, all plugins are approved,
- * otherwise, if the server is running as DirectoryLite, only plugins from 
- * Red Hat are approved.
- *
- * We have a special case for the NT Synch plugin, which is disabled for DLite.
- */
-static int 
-isApprovedPlugin( struct slapdplugin *plugin )
-{
-  if ( config_is_slapd_lite() == 0 ) {
-	/* All the plugins are approved  for Directory Full */
-	return 1;
-  }
-
-  if ( plugin == NULL ) {
-	LDAPDebug( LDAP_DEBUG_ANY, "isApprovedPlugin: plugin is NULL\n", 0,0,0 );
-	return 0;
-  }
-  if (plugin->plg_desc.spd_vendor == NULL ) {
-	LDAPDebug( LDAP_DEBUG_ANY, "isApprovedPlugin: plugin vendor is NULL\n",0,0,0 );
-	return 0;
-  }
-  
-  LDAPDebug ( LDAP_DEBUG_TRACE, "isApprovedPlugin() looking at plugin \"%s\" from vendor %s\n",
-			 plugin->plg_name, plugin->plg_desc.spd_vendor, 0 );
-  
-  /*
-   * approved plugins must have their vendor string set to PLUGIN_MAGIC VENDOR_STR. External
-   * plugins are not allowed for Lite.
-   */
-  if ( strcmp( plugin->plg_desc.spd_vendor, PLUGIN_MAGIC_VENDOR_STR ) == 0) 
-	return 1;
-  
-  LDAPDebug ( LDAP_DEBUG_ANY, "isApprovedPlugin() plugin \"%s\" is not approved for Directory Lite\n",
-			 plugin->plg_name, 0,0 );
-  return 0;
-}
-
-
 /*
   looks up the given string type to convert to the internal integral type; also
   returns the plugin list associated with the plugin type
@@ -1997,7 +1954,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	slapi_plugin_init_fnptr initfunc = p_initfunc;
 	Slapi_PBlock pb;
 	int status = 0;
-	int approved = 1;
 	int enabled = 1;
 	char *configdir = 0;
 
@@ -2194,47 +2150,25 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		status = plugin_add_descriptive_attributes( plugin_entry, plugin );
 	}
 
-	/* see if the plugin is approved or not */
-	if ((approved = isApprovedPlugin(plugin)) != 0)
-	{
-		if ((!plugin->plg_version) ||
-			(!SLAPI_PLUGIN_IS_COMPAT(plugin->plg_version))) {
-			LDAPDebug( LDAP_DEBUG_ANY, "Plugin \"%s\" from library \"%s\""
-					   " has wrong version (supported versions: %s)\n",
-					   plugin->plg_name, plugin->plg_libpath,
-					   SLAPI_PLUGIN_SUPPORTED_VERSIONS);
-			approved = 0;
-		}
-	}
-
 	if (value)
 		slapi_ch_free((void**)&value);
 
-	if (!approved) {
-		enabled = 0;
-		LDAPDebug(LDAP_DEBUG_ANY, "Plugin \"%s\" is disabled.\n",
-				  plugin->plg_name,0,0);
+	if(enabled)
+	{
+		/* don't use raw pointer from plugin_entry because it
+		   will be freed later by the caller */
+		Slapi_DN *dn_copy = slapi_sdn_dup(slapi_entry_get_sdn_const(plugin_entry));
+		add_plugin_to_list(plugin_list, plugin);
+		add_plugin_entry_dn(dn_copy);
 	}
 
-	if (approved)
+	if (add_entry)
 	{
-		if(enabled)
-		{
-			/* don't use raw pointer from plugin_entry because it
-			   will be freed later by the caller */
-			Slapi_DN *dn_copy = slapi_sdn_dup(slapi_entry_get_sdn_const(plugin_entry));
-			add_plugin_to_list(plugin_list, plugin);
-			add_plugin_entry_dn(dn_copy);
-		}
-
-		if (add_entry)
-		{
-			/* make a copy of the plugin entry for our own use because it will
-			   be freed later by the caller */
-			Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
-			/* new_plugin_entry(&plugin_entries, plugin_entry, plugin); */
-			new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
-		}
+		/* make a copy of the plugin entry for our own use because it will
+		   be freed later by the caller */
+		Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
+		/* new_plugin_entry(&plugin_entries, plugin_entry, plugin); */
+		new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
 	}
 
 

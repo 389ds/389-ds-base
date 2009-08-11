@@ -69,7 +69,7 @@ static char *names[] = { "SpaceInsensitiveString",
 		SPACE_INSENSITIVE_STRING_SYNTAX_OID, 0 };
 
 static Slapi_PluginDesc pdesc = { "spaceinsensitivestring-syntax",
-	PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	VENDOR, PACKAGE_VERSION,
 	"space insensitive string attribute syntax plugin" };
 
 int

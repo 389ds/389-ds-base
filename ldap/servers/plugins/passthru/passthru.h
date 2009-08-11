@@ -54,8 +54,6 @@
 #include <sys/types.h>
 #include "portable.h"
 #include "slapi-plugin.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 #include <nspr.h>
 
 /* Private API: to get slapd_pr_strerror() and SLAPI_COMPONENT_NAME_NSPR */

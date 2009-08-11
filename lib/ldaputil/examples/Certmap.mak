@@ -104,8 +104,8 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "c:\Fedora\servers\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "c:\Fedora\servers\include" /D "WIN32"\
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "c:\$(VENDOR)\servers\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "c:\$(VENDOR)\servers\include" /D "WIN32"\
  /D "NDEBUG" /D "_WINDOWS" /Fp"$(INTDIR)/Certmap.pch" /YX /Fo"$(INTDIR)/" /c 
 CPP_OBJS=.\Release/
 CPP_SBRS=.\.
@@ -131,7 +131,7 @@ LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
 LINK32_OBJS= \
 	"$(INTDIR)\init.obj" \
 	"$(INTDIR)\plugin.obj" \
-	"C:\Fedora\servers\lib\nsldap32v10.lib"
+	"C:\$(VENDOR)\servers\lib\nsldap32v10.lib"
 
 "$(OUTDIR)\Certmap.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -170,8 +170,8 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /I "c:\Fedora\servers\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /Zi /Od /I "c:\Fedora\servers\include" /D\
+# ADD CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /I "c:\$(VENDOR)\servers\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /Zi /Od /I "c:\$(VENDOR)\servers\include" /D\
  "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"$(INTDIR)/Certmap.pch" /YX\
  /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
 CPP_OBJS=.\Debug/
@@ -198,7 +198,7 @@ LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
 LINK32_OBJS= \
 	"$(INTDIR)\init.obj" \
 	"$(INTDIR)\plugin.obj" \
-	"C:\Fedora\servers\lib\nsldap32v10.lib"
+	"C:\$(VENDOR)\servers\lib\nsldap32v10.lib"
 
 "$(OUTDIR)\Certmap.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -243,9 +243,9 @@ LINK32_OBJS= \
 SOURCE=.\plugin.c
 DEP_CPP_PLUGI=\
 	".\plugin.h"\
-	"c:\Fedora\servers\include\certmap.h"\
-	"c:\Fedora\servers\include\lber.h"\
-	"c:\Fedora\servers\include\ldap.h"\
+	"c:\$(VENDOR)\servers\include\certmap.h"\
+	"c:\$(VENDOR)\servers\include\lber.h"\
+	"c:\$(VENDOR)\servers\include\ldap.h"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 
@@ -259,9 +259,9 @@ DEP_CPP_PLUGI=\
 SOURCE=.\init.c
 DEP_CPP_INIT_=\
 	".\plugin.h"\
-	"c:\Fedora\servers\include\certmap.h"\
-	"c:\Fedora\servers\include\lber.h"\
-	"c:\Fedora\servers\include\ldap.h"\
+	"c:\$(VENDOR)\servers\include\certmap.h"\
+	"c:\$(VENDOR)\servers\include\lber.h"\
+	"c:\$(VENDOR)\servers\include\ldap.h"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 
@@ -272,7 +272,7 @@ DEP_CPP_INIT_=\
 ################################################################################
 # Begin Source File
 
-SOURCE=C:\Fedora\servers\lib\nsldap32v10.lib
+SOURCE=C:\$(VENDOR)\servers\lib\nsldap32v10.lib
 
 !IF  "$(CFG)" == "Certmap - Win32 Release"
 

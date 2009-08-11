@@ -49,7 +49,6 @@
 
 #include "slap.h"
 #include "slapi-plugin.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
 #define SYNTAX_CIS		1
 #define SYNTAX_CES		2

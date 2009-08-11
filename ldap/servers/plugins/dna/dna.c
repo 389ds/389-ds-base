@@ -50,8 +50,6 @@
 #include "portable.h"
 #include "nspr.h"
 #include "slapi-private.h"
-#include "dirlite_strings.h"
-#include "dirver.h"
 #include "prclist.h"
 
 /* Required to get portable printf/scanf format macros */
@@ -124,13 +122,13 @@
 #define DNA_EXTEND_EXOP_RESPONSE_OID "2.16.840.1.113730.3.5.11"
 
 static Slapi_PluginDesc pdesc = { DNA_FEATURE_DESC,
-                                  PLUGIN_MAGIC_VENDOR_STR,
-                                  PRODUCTTEXT,
+                                  VENDOR,
+                                  PACKAGE_VERSION,
                                   DNA_PLUGIN_DESC };
 
 static Slapi_PluginDesc exop_pdesc = { DNA_EXOP_FEATURE_DESC,
-                                       PLUGIN_MAGIC_VENDOR_STR,
-                                       PRODUCTTEXT,
+                                       VENDOR,
+                                       PACKAGE_VERSION,
                                        DNA_EXOP_DESC };
 
 

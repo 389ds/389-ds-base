@@ -117,7 +117,6 @@ static int schema_check_name(char *name, PRBool isAttribute, char *errorbuf,
 		size_t errorbufsize );
 static int schema_check_oid(const char *name, const char *oid,
 		PRBool isAttribute, char *errorbuf, size_t errorbufsize);
-static int has_smart_referral( Slapi_Entry *e );
 static int isExtensibleObjectclass(const char *objectclass);
 static int strip_oc_options ( struct objclass *poc );
 static char *stripOption (char *attr);
@@ -458,13 +457,6 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
   char errtext[ BUFSIZ ];
   PRUint32 schema_flags = 0;
 
-  /* smart referrals are not allowed in Directory Lite */
-  if ( config_is_slapd_lite() ) {
-    if ( has_smart_referral(e) ) {
-      return 1;
-    }
-  }
-	  
   /*
    * say the schema checked out ok if we're not checking schema at
    * all, or if this is a replication update.
@@ -3838,44 +3830,6 @@ static void sizedbuffer_allocate(struct sizedbuffer *p, size_t sizeneeded)
 			p->size= sizeneeded;
     	}
 	}
-}
-
-/*
- * has_smart_referral: returns 1 if the entry contains a ref attribute,
- *                     or a referral objectclass.
- *
- *                     Returns 0 If not.
- */
-                       
-
-static int
-has_smart_referral( Slapi_Entry *e ) {
-  
-  Slapi_Attr *aoc;
-  char ebuf[BUFSIZ];
-
-  /* Look for the ref attribute */
-  if ( (aoc = attrlist_find( e->e_attrs, "ref" )) != NULL ) {
-	LDAPDebug ( LDAP_DEBUG_ANY, "Entry \"%s\" contains a ref attrbute. Smart referrals are disabled in Directory Lite.\n", escape_string(slapi_entry_get_dn_const(e), ebuf),0,0 );
-	return 1;
-  }
-  
-  /* Look for the referral objectclass */
-  if ( (aoc = attrlist_find( e->e_attrs, "objectclass" )) != NULL ) {
-    Slapi_Value target, *found;
-	slapi_value_init(&target);
-	slapi_value_set_string(&target,"referral");
-	found= slapi_valueset_find(aoc, &aoc->a_present_values, &target);
-	value_done(&target);
-	if(found!=NULL)
-	{
-		LDAPDebug ( LDAP_DEBUG_ANY, "Entry \"%s\" is a referral object class. Smart referrals are disabled in Directory Lite.\n", escape_string(slapi_entry_get_dn_const(e), ebuf),0,0 );
-		return 1;
-	}
-  }
-  
-  /* No smart referral here */
-  return 0;
 }
 
 /*

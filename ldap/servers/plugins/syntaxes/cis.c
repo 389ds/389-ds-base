@@ -153,31 +153,31 @@ n\" "
 
 
 static Slapi_PluginDesc dirstring_pdesc = { "directorystring-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"DirectoryString attribute syntax plugin" };
 
 static Slapi_PluginDesc boolean_pdesc = { "boolean-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"Boolean attribute syntax plugin" };
 
 static Slapi_PluginDesc time_pdesc = { "time-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"GeneralizedTime attribute syntax plugin" };
 
 static Slapi_PluginDesc country_pdesc = { "countrystring-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"Country String attribute syntax plugin" };
 
 static Slapi_PluginDesc postal_pdesc = { "postaladdress-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"Postal Address attribute syntax plugin" };
 
 static Slapi_PluginDesc oid_pdesc = { "oid-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"OID attribute syntax plugin" };
 
 static Slapi_PluginDesc printable_pdesc = { "printablestring-syntax",
-		PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+		VENDOR, PACKAGE_VERSION,
 		"Printable String attribtue syntax plugin" };
 
 

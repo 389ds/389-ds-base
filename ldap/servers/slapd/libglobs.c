@@ -4560,13 +4560,6 @@ config_get_require_secure_binds(void)
 return retVal;
 }
 
-
-int 
-config_is_slapd_lite ()
-{
-	return ( SLAPD_FULL );
-}
-
 int
 config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int apply )
 {

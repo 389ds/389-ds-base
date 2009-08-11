@@ -84,7 +84,7 @@
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc preoppdesc = { "test-preop", "Fedora Project", "1.0.4",
+Slapi_PluginDesc preoppdesc = { "test-preop", VENDOR, PACKAGE_VERSION,
 	"sample pre-operation plugin" };
 
 /* Pre-operation plug-in function */

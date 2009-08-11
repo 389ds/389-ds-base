@@ -207,8 +207,6 @@ static int readConfigLDAPurl(Slapi_ComponentId *plugin_id, char *plugindn);
 static int parseHTTPConfigEntry(Slapi_Entry *e);
 static int parseConfigEntry(Slapi_Entry *e);
 
-static int nssReinitializationRequired();
-
 /*SSL functions */
 PRFileDesc* setupSSLSocket(PRFileDesc* fd);
 
@@ -257,8 +255,6 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 
 	char *host = NULL;
 	char *path = NULL;
-	char *val = NULL;
-	char *defaultprefix = NULL;
    	PRFileDesc *fd = NULL;
 	PRNetAddr addr;
 	PRInt32 port;
@@ -315,49 +311,6 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
     setTCPNoDelay(fd);
 
     if (sslOn) {
-	
-		/* Have to reinitialize NSS is the DS security is set to off.
-		This is because the HTTPS required the cert dbs to be created.
-		The default prefixes are used as per DS norm */
-
-		if (PL_strcasecmp(httpConfig->DS_sslOn, "off") == 0) {	
-			if (!httpConfig->nssInitialized) {
-				if (nssReinitializationRequired())
-				{
-					PRInt32 nssStatus;
-					PRUint32 nssFlags = 0;
-					char certDir[1024];
-					char certPref[1024];
-					char keyPref[1024];
-
-					NSS_Shutdown();
-					nssFlags &= (~NSS_INIT_READONLY);
-       				val = config_get_certdir();
-       				PL_strncpyz(certDir, val, sizeof(certDir));
-					defaultprefix = strrchr(certDir, '/');
-					if (!defaultprefix)
-    						defaultprefix = strrchr(certDir, '\\');
-					if (!defaultprefix) /* still could not find it . . . */
-    						goto bail; /* . . . can't do anything */
-					defaultprefix++;
-					PR_snprintf(certPref, 1024, "%s-",defaultprefix);
-					PL_strncpyz(keyPref, certPref, sizeof(keyPref));
-       				nssStatus = NSS_Initialize(certDir, certPref, keyPref, "secmod.db", nssFlags);
-					slapi_ch_free((void **)&val);
-		
-   					if (nssStatus != 0) {
-   	    	 	 			slapi_log_error(SLAPI_LOG_FATAL, HTTP_PLUGIN_SUBSYSTEM,
-   	    		   			"doRequest: Unable to initialize NSS Cert/Key Database\n");
-							status = HTTP_CLIENT_ERROR_NSS_INITIALIZE;
-   	     	 			goto bail;
-   					}
-   				}
-				httpConfig->nssInitialized = 1;
-			}
-		}
-
-		NSS_SetDomesticPolicy();
-
 		fd = setupSSLSocket(fd);
 		if (fd == NULL) {
 			slapi_log_error( SLAPI_LOG_FATAL, HTTP_PLUGIN_SUBSYSTEM,
@@ -642,58 +595,6 @@ bail:
 	
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- processResponse -- END\n",0,0,0);
     return status;
-}
-
-static int nssReinitializationRequired()
-{
-	int nssReinitializationRequired = 0;
-	int err = 0;
-	float version = 0;
-	const float DSVERSION = 6.1;
-	char *str = NULL;
-	char *value   = NULL;
-	Slapi_Entry  **entry = NULL;
-	Slapi_PBlock *resultpb= NULL;
-
-	resultpb= slapi_search_internal( "", LDAP_SCOPE_BASE, "objectclass=*", NULL, NULL, 0);
-	slapi_pblock_get( resultpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entry );
-	slapi_pblock_get( resultpb, SLAPI_PLUGIN_INTOP_RESULT, &err);
-	if ( err == LDAP_SUCCESS && entry!=NULL  && entry[0]!=NULL)
-	{
-		value = slapi_entry_attr_get_charptr(entry[0], "vendorVersion");
-		if (value == NULL || strncmp(value, "Fedora", strlen("Fedora")))
-		{
-			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-				"nssReinitializationRequired: vendor is not Fedora \n");
-			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-				"or version [%s] is earlier than 6.0\n", value?value:"NULL");
-			nssReinitializationRequired = 1;
-			slapi_free_search_results_internal(resultpb);
-			slapi_pblock_destroy(resultpb);
-			slapi_ch_free((void **)&value);
-			return nssReinitializationRequired;
-		}
- 
-		if ( (str = strstr(value,"/")) != NULL )
-		{	
-			str++;
-			version = atof(str);
-			slapi_log_error( SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-				"nssReinitializationRequired: version is %f. \n", version);
-		}
-
-
-		if (str == NULL || version < DSVERSION)
-		{
-			nssReinitializationRequired = 1;
-		}
-		slapi_ch_free((void **)&value);
-
-	}
-	slapi_free_search_results_internal(resultpb);
-	slapi_pblock_destroy(resultpb);
-	return nssReinitializationRequired;
-
 }
 
 static PRStatus sendGetReq(PRFileDesc *fd, const char *path)

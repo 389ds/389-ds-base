@@ -63,7 +63,7 @@ static int telex_validate(struct berval *val);
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Telex Number", "telexnumber", TELEXNUMBER_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "telex-syntax", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "telex-syntax", VENDOR, PACKAGE_VERSION,
 	"Telex Number attribute syntax plugin" };
 
 int

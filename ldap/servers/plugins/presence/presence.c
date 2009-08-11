@@ -51,8 +51,6 @@
 #include "nspr.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
-#include "dirlite_strings.h"
-#include "dirver.h"
 #include "vattr_spi.h"
 #include "plhash.h"
 #include "ldif.h"
@@ -154,8 +152,8 @@ extern "C" {
 #define PRESENCE_RETURNED_ERROR_TEXT		"ERROR"
 
 static Slapi_PluginDesc pdesc = { "IM Presence",
-								  PLUGIN_MAGIC_VENDOR_STR,
-								  PRODUCTTEXT,
+								  VENDOR,
+								  PACKAGE_VERSION,
 	"presence plugin" };
 
 /**

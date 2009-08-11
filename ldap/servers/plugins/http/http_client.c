@@ -53,8 +53,6 @@
 
 #include "slapi-plugin.h"
 #include "slapi-private.h"
-#include "dirlite_strings.h"
-#include "dirver.h"
 
 #include "http_client.h"
 #include "http_impl.h"
@@ -122,8 +120,8 @@ static void *api[7];
  * Plugin identifiers
  */
 static Slapi_PluginDesc pdesc = { "http-client",
-								  PLUGIN_MAGIC_VENDOR_STR,
-								  PRODUCTTEXT,
+								  VENDOR,
+								  PACKAGE_VERSION,
 								  "HTTP Client plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;

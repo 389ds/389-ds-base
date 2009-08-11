@@ -205,7 +205,7 @@ sub modify_dse_ldif
     print DSE "nsslapd-pluginEnabled: on\n";
     print DSE "nsslapd-pluginId: oid-syntax\n";
     print DSE "nsslapd-pluginVersion: 1.0.3\n";
-    print DSE "nsslapd-pluginVendor: Fedora Project\n";
+    print DSE "nsslapd-pluginVendor: 389 Project\n";
     print DSE "nsslapd-pluginDescription: OID attribute syntax plugin\n";
     print DSE "\n";
   }
@@ -223,7 +223,7 @@ sub modify_dse_ldif
     print DSE "nsslapd-pluginEnabled: on\n";
     print DSE "nsslapd-pluginId: jpeg-syntax\n";
     print DSE "nsslapd-pluginVersion: 1.0.3\n";
-    print DSE "nsslapd-pluginVendor: Fedora Project\n";
+    print DSE "nsslapd-pluginVendor: 389 Project\n";
     print DSE "nsslapd-pluginDescription: JPEG attribute syntax plugin\n";
     print DSE "\n";
   }
@@ -241,7 +241,7 @@ sub modify_dse_ldif
     print DSE "nsslapd-pluginEnabled: on\n";
     print DSE "nsslapd-pluginId: spaceinsensitivestring-syntax\n";
     print DSE "nsslapd-pluginVersion: 1.0.3\n";
-    print DSE "nsslapd-pluginVendor: Fedora Project\n";
+    print DSE "nsslapd-pluginVendor: 389 Project\n";
     print DSE "nsslapd-pluginDescription: space insensitive string attribute syntax plugin\n";
     print DSE "\n";
   }
@@ -327,6 +327,17 @@ sub getSlapdVersion {
 #  print "Output from $prog -v:\n";
   while (<F>) {
     if (/^Red Hat-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
+      $version     = $1;
+      $minor       = $2;
+      if ($4) {
+        $subminor = $3;
+        $buildNumber = $4;
+      } else {
+        $buildNumber = $3;
+      }
+      last;
+    }
+    elsif (/^389-Directory\/(\d+)\.(\d+)(?:\.(\d+))?(?:b\d)*\s+(\S+)/) {
       $version     = $1;
       $minor       = $2;
       if ($4) {

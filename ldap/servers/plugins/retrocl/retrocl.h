@@ -51,11 +51,9 @@
 #include "slapi-private.h"
 #include "slapi-plugin.h"
 /* #include "portable.h" */
-#include "dirver.h"
 #include "ldaplog.h"
 #include "ldif.h"
 #include "slap.h"
-#include <dirlite_strings.h>
 
 /* max len of a long (2^64), represented as a string, including null byte */
 #define	CNUMSTR_LEN		21

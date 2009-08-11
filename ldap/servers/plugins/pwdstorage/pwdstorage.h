@@ -50,7 +50,6 @@
 #include "ldif.h"
 #include "md5.h"
 
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
 #define PWD_HASH_PREFIX_START   '{'
 #define PWD_HASH_PREFIX_END '}'

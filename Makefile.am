@@ -11,7 +11,7 @@ QUOTE := $(NULLSTRING)"# a double quote"
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
-DS_DEFINES = -DBUILD_NUM=$(BUILDNUM)
+DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\""
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
@@ -63,9 +63,9 @@ LIBCRUN=@LIBCRUN@
 #------------------------
 # Generated Sources
 #------------------------
-BUILT_SOURCES = dirver.h dberrstrs.h
+BUILT_SOURCES = dberrstrs.h
 
-CLEANFILES =  dirver.h dberrstrs.h ns-slapd.properties \
+CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
@@ -91,9 +91,6 @@ CLEANFILES =  dirver.h dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
-
-dirver.h: Makefile
-	perl $(srcdir)/dirver.pl -v "$(VERSION)" -o dirver.h
 
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
@@ -1115,7 +1112,6 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/globals.c \
 	ldap/servers/slapd/house.c \
 	ldap/servers/slapd/init.c \
-	ldap/servers/slapd/lite_entries.c \
 	ldap/servers/slapd/main.c \
 	ldap/servers/slapd/monitor.c \
 	ldap/servers/slapd/passwd_extop.c \
@@ -1167,9 +1163,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 # these are for the config files and scripts that we need to generate and replace
 # the paths and other tokens with the real values set during configure/make
 # note that we cannot just use AC_OUTPUT to do this for us, since it will do things like this:
-# LD_LIBRARY_PATH = ${prefix}/lib/fedora-ds
+# LD_LIBRARY_PATH = ${prefix}/lib/dirsrv
 # i.e. it literally copies in '${prefix}' rather than expanding it out - we want this instead:
-# LD_LIBRARY_PATH = /usr/lib/fedora-ds
+# LD_LIBRARY_PATH = /usr/lib/dirsrv
 if BUNDLE
 # on the systems on which we bundle, perldap will be in libdir/perl, so we need to point
 # the perlpath there - on other systems, perldap will be installed as a site module into

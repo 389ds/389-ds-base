@@ -69,11 +69,11 @@ static char *ia5_names[] = { "IA5String", "ces", "caseexactstring",
 /* the first name is the official one from RFC 2252 */
 static char *uri_names[] = { "URI", "1.3.6.1.4.1.4401.1.1.1",0};
 
-static Slapi_PluginDesc ia5_pdesc = { "ces-syntax", PLUGIN_MAGIC_VENDOR_STR,
-	PRODUCTTEXT, "caseExactString attribute syntax plugin" };
+static Slapi_PluginDesc ia5_pdesc = { "ces-syntax", VENDOR,
+	PACKAGE_VERSION, "caseExactString attribute syntax plugin" };
 
-static Slapi_PluginDesc uri_pdesc = { "uri-syntax", PLUGIN_MAGIC_VENDOR_STR,
-	PRODUCTTEXT, "uri attribute syntax plugin" };
+static Slapi_PluginDesc uri_pdesc = { "uri-syntax", VENDOR,
+	PACKAGE_VERSION, "uri attribute syntax plugin" };
 
 
 /*

@@ -1190,8 +1190,6 @@ main( int argc, char **argv)
 
 	if (slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
 		/* else do this after seteuid() */
-		lite_entries_init();
-
 		/* setup cn=tasks tree */
 		task_init();
 
@@ -2284,11 +2282,6 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	                   0, 0, 0 );
 	        return 1;
 	    }
-	    if ( config_is_slapd_lite () &&
-			 !slapi_config_get_readonly () && is_slapd_running() ) {
-	        LDAPDebug( LDAP_DEBUG_ANY, "%s\n", LITE_BACKUP_ERR, 0, 0);
-	        return 1;
-	    }
 	
 	    if (! (SLAPI_PLUGIN_IS_V2(plugin))) {
 	        LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do exports.\n",
@@ -2522,11 +2515,6 @@ slapd_exemode_db2archive()
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ERROR: no archive directory supplied\n",
 		    0, 0, 0 );
-		return 1;
-	}
-
-	if ( config_is_slapd_lite ()  && !slapi_config_get_readonly ()  && is_slapd_running ()) {
-		LDAPDebug( LDAP_DEBUG_ANY, "%s\n", LITE_BACKUP_ERR, 0, 0);
 		return 1;
 	}
 

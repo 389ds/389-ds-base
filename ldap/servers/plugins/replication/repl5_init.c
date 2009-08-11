@@ -70,8 +70,6 @@ nsslapd-plugindescription: Multi-Master Replication Plugin
 #include "repl.h"
 #include "repl5.h"
 #include "cl5.h"			 /* changelog interface */
-#include "dirver.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
 #include "plstr.h"
 
@@ -127,14 +125,14 @@ static char *response_name_list[] = {
 
 /* ----------------------------- Multi-Master Replication Plugin */
 
-static Slapi_PluginDesc multimasterdesc = {"replication-multimaster", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multi-master Replication Plugin"};
-static Slapi_PluginDesc multimasterpreopdesc = {"replication-multimaster-preop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multi-master replication pre-operation plugin"};
-static Slapi_PluginDesc multimasterpostopdesc = {"replication-multimaster-postop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multi-master replication post-operation plugin"};
-static Slapi_PluginDesc multimasterinternalpreopdesc = {"replication-multimaster-internalpreop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multi-master replication internal pre-operation plugin"};
-static Slapi_PluginDesc multimasterinternalpostopdesc = {"replication-multimaster-internalpostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multimaster replication internal post-operation plugin"};
-static Slapi_PluginDesc multimasterbepreopdesc = {"replication-multimaster-bepreop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multimaster replication bepre-operation plugin"};
-static Slapi_PluginDesc multimasterbepostopdesc = {"replication-multimaster-bepostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multimaster replication bepost-operation plugin"};
-static Slapi_PluginDesc multimasterextopdesc = { "replication-multimaster-extop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Multimaster replication extended-operation plugin" };
+static Slapi_PluginDesc multimasterdesc = {"replication-multimaster", VENDOR, PACKAGE_VERSION, "Multi-master Replication Plugin"};
+static Slapi_PluginDesc multimasterpreopdesc = {"replication-multimaster-preop", VENDOR, PACKAGE_VERSION, "Multi-master replication pre-operation plugin"};
+static Slapi_PluginDesc multimasterpostopdesc = {"replication-multimaster-postop", VENDOR, PACKAGE_VERSION, "Multi-master replication post-operation plugin"};
+static Slapi_PluginDesc multimasterinternalpreopdesc = {"replication-multimaster-internalpreop", VENDOR, PACKAGE_VERSION, "Multi-master replication internal pre-operation plugin"};
+static Slapi_PluginDesc multimasterinternalpostopdesc = {"replication-multimaster-internalpostop", VENDOR, PACKAGE_VERSION, "Multimaster replication internal post-operation plugin"};
+static Slapi_PluginDesc multimasterbepreopdesc = {"replication-multimaster-bepreop", VENDOR, PACKAGE_VERSION, "Multimaster replication bepre-operation plugin"};
+static Slapi_PluginDesc multimasterbepostopdesc = {"replication-multimaster-bepostop", VENDOR, PACKAGE_VERSION, "Multimaster replication bepost-operation plugin"};
+static Slapi_PluginDesc multimasterextopdesc = { "replication-multimaster-extop", VENDOR, PACKAGE_VERSION, "Multimaster replication extended-operation plugin" };
 
 static int multimaster_stopped_flag; /* A flag which is set when all the plugin threads are to stop */
 static int multimaster_started_flag = 0;
@@ -569,13 +567,6 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
 */
 	multimaster_mtnode_extension_init ();
 
-	if(config_is_slapd_lite())
-	{
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name,
-				"replication plugin not approved for restricted"
-				" mode Directory Server.\n" );
-	    rc= -1;
-	}
 	if(rc==0 && !multimaster_initialised)
 	{
         /* initialize replica hash - has to be done before mapping tree is

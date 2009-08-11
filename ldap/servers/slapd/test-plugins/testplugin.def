@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION		'Fedora Directory Server 1 test plugin'
+DESCRIPTION		'Dirsrv 1 test plugin'
 EXPORTS
 	testentry_scramble				@2
 	testentry_unscramble				@3

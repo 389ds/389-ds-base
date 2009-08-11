@@ -45,7 +45,6 @@
 #define _COLLATE_H_
 
 #include <stddef.h> /* size_t */
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
 struct indexer_t;
 

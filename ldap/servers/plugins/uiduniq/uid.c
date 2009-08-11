@@ -52,9 +52,7 @@
  */
 #include <slapi-plugin.h>
 #include <portable.h>
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 #include <string.h>
-#include "dirver.h"
 #include "plugin-utils.h"
 #include "nspr.h"
 
@@ -97,7 +95,7 @@ static int search_one_berval(const char *baseDN, const char *attrName,
 static char *plugin_name = "NSUniqueAttr";
 static Slapi_PluginDesc
 pluginDesc = { 
-	"NSUniqueAttr", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+	"NSUniqueAttr", VENDOR, PACKAGE_VERSION,
 	"Enforce unique attribute values" 
 };
 static void* plugin_identity = NULL;

@@ -1107,11 +1107,6 @@ struct matchingRuleList *g_get_global_mrl();
 void g_set_global_mrl(struct matchingRuleList *newglobalmrl);
 
 /*
- * lite_entries.c
- */
-void lite_entries_init();
-
-/*
  * generation.c
  */
 

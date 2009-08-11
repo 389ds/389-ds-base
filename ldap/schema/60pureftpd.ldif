@@ -1,4 +1,4 @@
-# 60pureftpd.ldif - pureftpd.schema for Fedora / Red Hat Directory Server
+# 60pureftpd.ldif - Pure-FTPd schema
 ################################################################################
 #
 # See README.LDAP in the Pure-FTPd documentation for more information.

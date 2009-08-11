@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Fedora Directory Server 1 Utility Library'
+DESCRIPTION     'Dirsrv 1.0 Plug-in Utility Library'
 EXPORTS
 	slapd_log_error_proc		@2
 	slapd_log_audit_proc		@3
@@ -567,7 +567,7 @@ EXPORTS
 	config_check_referral_mode	@533
 	attr_set_deletion_csn @534
     slapi_mod_dump @535
-	config_is_slapd_lite		@536
+;	config_is_slapd_lite		@536
 ;	config_set_slapd_type		@537
 	config_get_versionstring	@538
 	slapi_is_rootdse			@539
