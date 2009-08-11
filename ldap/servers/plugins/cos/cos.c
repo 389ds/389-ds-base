@@ -46,8 +46,6 @@
 #include "nspr.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 #include "cos_cache.h"
 #include "vattr_spi.h"
 
@@ -134,7 +132,7 @@ int cos_close( Slapi_PBlock *pb );
 int cos_post_op( Slapi_PBlock *pb );
 
 
-static Slapi_PluginDesc pdesc = { "cos", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "cos", VENDOR, PACKAGE_VERSION,
 	"class of service plugin" };
 
 static void * cos_plugin_identity = NULL;

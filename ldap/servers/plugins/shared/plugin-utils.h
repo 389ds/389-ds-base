@@ -69,14 +69,12 @@
  * slapi_modify_internal()
  */
 #include "slapi-plugin-compat4.h"
-#include <dirlite_strings.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef _WINDOWS
 #undef strcasecmp
 #define strcasecmp strcmpi
 #endif
-#include "dirver.h"
 
 #ifdef LDAP_DEBUG
 #ifndef DEBUG

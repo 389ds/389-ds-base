@@ -198,7 +198,7 @@ sub init {
 
     my $pkgname = "@package_name@";
 	# this is the new pkgname which may be something like
-	# fedora-ds-base - we have to strip off the -suffix
+	# 389-ds-base - we have to strip off the -suffix
     if ($pkgname =~ /-(core|base)$/) {
         $pkgname =~ s/-(core|base)$//;
     }

@@ -162,10 +162,8 @@ typedef struct symbol_t {
 #include "ldaplog.h"
 #include "portable.h"
 #include "rwlock.h"
-#include "litekey.h"
 #include "disconnect_errors.h"
 
-#include "dirver.h"
 #include "csngen.h"
 #include "uuid.h"
 
@@ -206,9 +204,9 @@ typedef struct symbol_t {
 #define LDAP_CONTROL_PAGEDRESULTS      "1.2.840.113556.1.4.319"
 #endif
 
-#define SLAPD_VENDOR_NAME	"Fedora Project"
-#define SLAPD_VERSION_STR	"Fedora-Directory/" PRODUCTTEXT
-#define SLAPD_SHORT_VERSION_STR	PRODUCTTEXT
+#define SLAPD_VENDOR_NAME	VENDOR
+#define SLAPD_VERSION_STR	CAPBRAND "-Directory/" PACKAGE_VERSION
+#define SLAPD_SHORT_VERSION_STR	PACKAGE_VERSION
 
 typedef void	(*VFP)(void *);
 typedef void	(*VFPP)(void **);
@@ -2032,9 +2030,6 @@ typedef struct _slapdFrontendConfig {
   int system_page_bits;			/* bit count to shift the system page size */
 #endif /* MEMPOOL_EXPERIMENTAL */
 } slapdFrontendConfig_t;
-
-#define SLAPD_FULL	0
-#define SLAPD_LITE	1
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
 #define CONFIG_SCHEMAREPLACE_STR_OFF				"off"

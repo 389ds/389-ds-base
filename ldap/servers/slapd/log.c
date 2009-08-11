@@ -1611,7 +1611,7 @@ log_write_title (LOGFD fp)
 	int err = 0;
 
 	PR_snprintf(buff, bufflen, "\t%s B%s\n",
-				fe_cfg->versionstring ? fe_cfg->versionstring : "Fedora-Directory",
+				fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" PACKAGE_VERSION,
 				buildnum ? buildnum : "");
 	LOG_WRITE_NOW(fp, buff, strlen(buff), 0, err);
 
@@ -2722,7 +2722,7 @@ log__access_rotationinfof(char *pathname)
 /*
 * log__check_prevlogs
 * 
-* check if a given prev log file (e.g., /opt/fedora-ds/slapd-fe/logs/errors.20051201-101347)
+* check if a given prev log file (e.g., /var/log/dirsrv/slapd-fe/logs/errors.20051201-101347)
 * is found in the rotationinfo file.
 */
 static int

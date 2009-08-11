@@ -37,7 +37,7 @@
 -- END COPYRIGHT BLOCK
 --
 --
--- MIB for Fedora Directory Server 7 
+-- MIB for Directory Server
 --
 -- This is an implementation of the MADMAN mib for monitoring LDAP/CLDAP and X.500
 -- directories described in RFC 2788 and 2789
@@ -79,7 +79,7 @@ IMPORTS
             DESCRIPTION
                " An implementation of the MADMAN mib for monitoring LDAP/CLDAP and X.500
 		 directories described in RFC 2788 and 2789
-                 used for Fedora Directory Server 7"
+                 used for Directory Server"
             ::= { netscape 7}
 
     dsOpsTable OBJECT-TYPE

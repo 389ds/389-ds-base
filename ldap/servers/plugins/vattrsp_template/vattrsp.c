@@ -46,8 +46,6 @@
 #include "nspr.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 #include "vattr_spi.h"
 
 /* the global plugin handle */
@@ -95,7 +93,7 @@ static int vattrsp_vattr_types(
 		);
 
 
-static Slapi_PluginDesc pdesc = { "vattrexamplesp", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "vattrexamplesp", VENDOR, PACKAGE_VERSION,
 	"vattr service provider example plugin" };
 
 static void * vattrsp_plugin_identity = NULL;

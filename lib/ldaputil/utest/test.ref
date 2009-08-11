@@ -286,9 +286,9 @@ plugin_verify_fn called.
 Matched entry to cert: "cn=Kirsten Vaughan, ou=Human Resources, o=Ace Industry, c=US"
 Authentication succeeded.
 
-Start of test: ./auth 10 "cn=Foo Bar, o=Fedora Project, c=US" "foobar"
+Start of test: ./auth 10 "cn=Foo Bar, o=$VENDOR, c=US" "foobar"
 Config file written: config_out.conf
-binddn from config file: "cn=Foo Bar, o=Fedora Project, c=US"
+binddn from config file: "cn=Foo Bar, o=$VENDOR, c=US"
 bindpw from config file: "foobar"
 Config file test succeeded
 Authentication succeeded.
@@ -323,7 +323,7 @@ certmap default default
 #default:FilterComps cn
 
 
-certmap default1 o=Fedora Project, c=US
+certmap default1 o=$VENDOR, c=US
 default1:library ./plugin.so
 default1:InitFn plugin_init_fn
 default1:DNComps  ou o c
@@ -349,7 +349,7 @@ default2:verifycert on
 
 certmap default default
 
-certmap default1 o=Fedora Project, c=US
+certmap default1 o=$VENDOR, c=US
 default1:library ./plugin.so
 default1:InitFn plugin_init_fn
 default1:DNComps ou o c
@@ -382,7 +382,7 @@ certmap default default
 #default:FilterComps cn
 
 
-certmap default1 o=Fedora Project, c=US
+certmap default1 o=$VENDOR, c=US
 default1:library ./plugin.so
 default1:InitFn plugin_init_fn
 default1:DNComps  ou o c
@@ -435,7 +435,7 @@ certmap default default
 #default:FilterComps cn
 
 
-certmap default1 o=Fedora Project, c=US
+certmap default1 o=$VENDOR, c=US
 default1:library ./plugin.so
 default1:InitFn plugin_init_fn
 default1:DNComps  ou o c
@@ -461,7 +461,7 @@ default2:verifycert on
 
 certmap default default
 
-certmap default1 o=Fedora Project, c=US
+certmap default1 o=$VENDOR, c=US
 default1:library ./plugin.so
 default1:InitFn plugin_init_fn
 default1:DNComps ou o c

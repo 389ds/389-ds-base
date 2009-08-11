@@ -66,16 +66,14 @@
 #endif
 
 #include "slapi-plugin.h"
-#include "dirver.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
 #include "string.h"
 #include "nspr.h"
 
 #include "memberof.h"
 
-static Slapi_PluginDesc pdesc = { "memberof", PLUGIN_MAGIC_VENDOR_STR,
-	PRODUCTTEXT, "memberof plugin" };
+static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
+	PACKAGE_VERSION, "memberof plugin" };
 
 static void* _PluginID = NULL;
 static Slapi_Mutex *memberof_operation_lock = 0;

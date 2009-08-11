@@ -85,7 +85,7 @@
 #define LDAP_EXTOP_PASSMOD_RANDOM_BYTES	6
 
 
-Slapi_PluginDesc passwdopdesc = { "passwd_modify_plugin", "Fedora", "0.1",
+Slapi_PluginDesc passwdopdesc = { "passwd_modify_plugin", VENDOR, PACKAGE_VERSION,
 	"Password Modify extended operation plugin" };
 
 /* Check SLAPI_USERPWD_ATTR attribute of the directory entry 

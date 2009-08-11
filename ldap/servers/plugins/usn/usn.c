@@ -42,7 +42,7 @@
 #include "usn.h"
 
 static Slapi_PluginDesc pdesc = {
-        "USN", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+        "USN", VENDOR, PACKAGE_VERSION,
         "USN (Update Sequence Number) plugin" };
 
 static CSNGen *_usn_csngen = NULL;

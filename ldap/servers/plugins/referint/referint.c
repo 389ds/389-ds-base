@@ -45,8 +45,6 @@
 #include "portable.h"
 #include "slapi-plugin.h"
 #include "slap.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 
 /* include NSPR header files */
 #include "prthread.h"
@@ -94,7 +92,7 @@ int keeprunning = 0;
 static PRLock 		*keeprunning_mutex = NULL; 
 static PRCondVar        *keeprunning_cv = NULL; 
 
-static Slapi_PluginDesc pdesc = { "referint", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "referint", VENDOR, PACKAGE_VERSION,
 	"referential integrity plugin" };
 
 static void* referint_plugin_identity = NULL;

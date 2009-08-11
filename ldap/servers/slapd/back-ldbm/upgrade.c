@@ -338,7 +338,7 @@ int ldbm_upgrade(ldbm_instance *inst, int action)
             {
                  LDAPDebug(LDAP_DEBUG_ANY, 
                    "ldbm_upgrade: Upgrading instance %s to %s%s is successfully done.\n",
-                   inst->inst_name, LDBM_VERSION_BASE, PRODUCTTEXT);
+                   inst->inst_name, LDBM_VERSION_BASE, PACKAGE_VERSION);
             }
             else
             {

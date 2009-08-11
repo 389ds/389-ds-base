@@ -58,7 +58,6 @@
 
 #include "ldaplog.h"
 #include "portable.h"
-#include "dirver.h"
 #include "slap.h"
 
 #ifdef _WIN32

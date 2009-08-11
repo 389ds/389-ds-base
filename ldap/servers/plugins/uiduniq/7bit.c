@@ -50,9 +50,7 @@
  */
 #include <stdio.h>
 #include <slapi-plugin.h>
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 #include <string.h>
-#include "dirver.h"
 
 /* DBDB this should be pulled from a common header file */
 #ifdef _WIN32
@@ -87,7 +85,7 @@
  */
 static char *plugin_name = "NS7bitAttr";
 static Slapi_PluginDesc
-pluginDesc = { "NS7bitAttr", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+pluginDesc = { "NS7bitAttr", VENDOR, PACKAGE_VERSION,
   "Enforce  7-bit clean attribute values" };
 
 

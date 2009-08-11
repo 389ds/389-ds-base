@@ -46,8 +46,6 @@
 #include <string.h>
 #include "portable.h"
 #include "slapi-plugin.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 #include "statechange.h"
 #include "views.h"
 
@@ -150,7 +148,7 @@ static int _internal_api_views_entry_dn_exists(char *view_dn, char *e_dn);
 static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *e, char *e_dn);
 
 
-static Slapi_PluginDesc pdesc = { "views", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "views", VENDOR, PACKAGE_VERSION,
 	"virtual directory information tree views plugin" };
 
 static void * view_plugin_identity = NULL;

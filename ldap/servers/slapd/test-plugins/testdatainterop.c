@@ -94,7 +94,7 @@
  nsslapd-pluginEnabled: on
  nsslapd-pluginId: nullsuffix-preop
  nsslapd-pluginVersion: 7.1
- nsslapd-pluginVendor: Fedora Project
+ nsslapd-pluginVendor: My Project
  nsslapd-pluginDescription: sample pre-operation null suffix plugin
 
  ******************************************/
@@ -118,7 +118,7 @@
 /*
  * Static variables.
  */
-static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, "Fedora Project", "1.0.4",
+static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, VENDOR, PACKAGE_VERSION,
 	"sample pre-operation null suffix plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;

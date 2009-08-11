@@ -1072,7 +1072,6 @@ int slapi_uniqueIDGenerateFromNameString(char **uId,
  * JCMREPL - Added for the replication plugin.
  */
  
-int config_is_slapd_lite( void );
 void schema_expand_objectclasses_nolock( Slapi_Entry *e );
 
 #define DSE_SCHEMA_NO_LOAD           0x0001  /* schema won't get loaded */

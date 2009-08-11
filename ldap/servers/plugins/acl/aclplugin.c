@@ -46,10 +46,8 @@
  *
  */
 #include "acl.h"
-#include "dirver.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
-static Slapi_PluginDesc pdesc = { "acl", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "acl access check plugin" };
+static Slapi_PluginDesc pdesc = { "acl", VENDOR, PACKAGE_VERSION, "acl access check plugin" };
 char *plugin_name = ACL_PLUGIN_NAME;
 
 /* Prototypes */

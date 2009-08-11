@@ -1,11 +1,11 @@
 ======================================================================= 
-                       Fedora Directory Server 1.0.4
+                       389 Directory Server 1.2.1
 =======================================================================
 
-The Fedora Directory Server is subject to the terms detailed in the
+The 389 Directory Server is subject to the terms detailed in the
 license agreement file called LICENSE.txt.
 
-Late-breaking news and information on the Fedora Directory Server is
+Late-breaking news and information on the 389 Directory Server is
 available at the following location:
 
-    http://directory.fedora.redhat.com
+    http://port389.org/

@@ -62,8 +62,8 @@ static int dn_validate( struct berval *val );
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "DN", DN_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "dn-syntax", PLUGIN_MAGIC_VENDOR_STR,
-	PRODUCTTEXT, "distinguished name attribute syntax plugin" };
+static Slapi_PluginDesc pdesc = { "dn-syntax", VENDOR,
+	PACKAGE_VERSION, "distinguished name attribute syntax plugin" };
 
 int
 dn_init( Slapi_PBlock *pb )

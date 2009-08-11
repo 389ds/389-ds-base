@@ -53,8 +53,8 @@
 #define	_NTSLAPDREGPARMS_H_
 
 #define COMPANY_KEY "SOFTWARE\\Netscape"
-#define COMPANY_NAME		"Fedora Project"
-#define PROGRAM_GROUP_NAME	"Fedora"
+#define COMPANY_NAME		VENDOR
+#define PROGRAM_GROUP_NAME	VENDOR
 #define PRODUCT_NAME		"slapd"
 #define PRODUCT_BIN			"ns-slapd"
 #define SLAPD_EXE		    "slapd.exe"
@@ -64,8 +64,8 @@
 #define SLAPD_DONGLE_FILE	"password.dng"
 #define DONGLE_FILE_NAME	SLAPD_DONGLE_FILE
 #define PRODUCT_VERSION		"1.0"
-#define EVENTLOG_APPNAME	"FedoraSlapd"
-#define DIRECTORY_SERVICE_PREFIX	"Fedora Directory Server "
+#define EVENTLOG_APPNAME	VENDOR "Slapd"
+#define DIRECTORY_SERVICE_PREFIX	CAPBRAND " Directory Server "
 #define SERVICE_PREFIX		DIRECTORY_SERVICE_PREFIX
 #define CONFIG_PATH_KEY		"ConfigurationPath"
 #define EVENTLOG_MESSAGES_KEY "EventMessageFile"

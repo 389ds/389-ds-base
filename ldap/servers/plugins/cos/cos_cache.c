@@ -71,8 +71,6 @@
 #include <string.h>
 #include "portable.h"
 #include "slapi-plugin.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 
 /* this is naughty, but the api for backend state change is currently here */
 #include "slapi-private.h"

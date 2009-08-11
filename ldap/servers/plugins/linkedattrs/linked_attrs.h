@@ -49,8 +49,6 @@
 #include "portable.h"
 #include "nspr.h"
 #include "slapi-plugin.h"
-#include "dirlite_strings.h"
-#include "dirver.h"
 #include "prclist.h"
 #include "ldif.h"
 

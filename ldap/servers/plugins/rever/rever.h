@@ -49,8 +49,6 @@
 #include "slap.h"
 #include "ldaplog.h"
 
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-
 #define REVER_SCHEME_NAME	"DES"
 #define PWD_HASH_PREFIX_START   '{'
 #define PWD_HASH_PREFIX_END '}'

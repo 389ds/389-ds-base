@@ -70,8 +70,6 @@ NOTE: This plugin depends on the Multi-Master Replication Plugin
 #include "repl5.h"
 #include "repl_shared.h"
 #include "cl4.h"	/* changelog interface */
-#include "dirver.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
 
 #ifdef _WIN32
 int *module_ldap_debug = 0;
@@ -84,12 +82,12 @@ void plugin_init_debug_level(int *level_ptr)
 
 /* ----------------------------- Legacy Replication Plugin */
 
-static Slapi_PluginDesc legacydesc = { "replication-legacy", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy Replication Plugin" };
-static Slapi_PluginDesc legacypreopdesc = { "replication-legacy-preop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication pre-operation plugin" };
-static Slapi_PluginDesc legacypostopdesc = { "replication-legacy-postop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication post-operation plugin" };
-static Slapi_PluginDesc legacyinternalpreopdesc = { "replication-legacy-internalpreop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication internal pre-operation plugin" };
-static Slapi_PluginDesc legacyinternalpostopdesc = { "replication-legacy-internalpostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication internal post-operation plugin" };
-static Slapi_PluginDesc legacyentrydesc = { "replication-legacy-entry", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Legacy replication entry plugin" };
+static Slapi_PluginDesc legacydesc = { "replication-legacy", VENDOR, PACKAGE_VERSION, "Legacy Replication Plugin" };
+static Slapi_PluginDesc legacypreopdesc = { "replication-legacy-preop", VENDOR, PACKAGE_VERSION, "Legacy replication pre-operation plugin" };
+static Slapi_PluginDesc legacypostopdesc = { "replication-legacy-postop", VENDOR, PACKAGE_VERSION, "Legacy replication post-operation plugin" };
+static Slapi_PluginDesc legacyinternalpreopdesc = { "replication-legacy-internalpreop", VENDOR, PACKAGE_VERSION, "Legacy replication internal pre-operation plugin" };
+static Slapi_PluginDesc legacyinternalpostopdesc = { "replication-legacy-internalpostop", VENDOR, PACKAGE_VERSION, "Legacy replication internal post-operation plugin" };
+static Slapi_PluginDesc legacyentrydesc = { "replication-legacy-entry", VENDOR, PACKAGE_VERSION, "Legacy replication entry plugin" };
 
 static int legacy_stopped; /* A flag which is set when all the plugin threads are to stop */        
 
@@ -312,13 +310,6 @@ replication_legacy_plugin_init(Slapi_PBlock *pb)
 	PR_ASSERT (identity);
 	repl_set_plugin_identity (PLUGIN_LEGACY_REPLICATION, identity);
 
-	if(config_is_slapd_lite())
-	{
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name,
-				"replication plugin not approved for restricted"
-				" mode Directory Server.\n" );
-	    rc= -1;
-	}
 	if(rc==0 && !legacy_initialised)
 	{
 	    rc= slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 );

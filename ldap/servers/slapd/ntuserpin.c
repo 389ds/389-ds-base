@@ -142,7 +142,7 @@ static char *getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     	if (retry)
     	{
             MessageBox(GetDesktopWindow(), nt_retryWarning,
-                        "Fedora Server", MB_ICONEXCLAMATION | MB_OK);
+                        CAPBRAND " Server", MB_ICONEXCLAMATION | MB_OK);
 	} else {
 	    if((cbRemotePassword != 0) && (szRemotePassword != 0))
 	    {

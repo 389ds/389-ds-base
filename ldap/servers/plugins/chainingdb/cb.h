@@ -52,8 +52,6 @@
 #include "slapi-plugin.h"
 #include "slapi-private.h"
 #include "portable.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 
 /* Constants */
 

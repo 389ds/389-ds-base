@@ -44,8 +44,6 @@
  */
 #include <string.h>
 #include "deref.h"
-#include "dirlite_strings.h"
-#include "dirver.h"
 #include <nspr.h>
 
 #ifndef DN_SYNTAX_OID
@@ -60,8 +58,8 @@ static char *_PluginDN = NULL;
 static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { DEREF_FEATURE_DESC,
-                                  PLUGIN_MAGIC_VENDOR_STR,
-                                  PRODUCTTEXT,
+                                  VENDOR,
+                                  PACKAGE_VERSION,
                                   DEREF_PLUGIN_DESC };
 
 /*

@@ -74,13 +74,11 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "nspr.h"
-#include "dirver.h"             /* PRODUCTTEXT */
-#include <dirlite_strings.h>    /* PLUGIN_MAGIC_VENDOR_STR */
 
 static PRLock *schemareload_lock = NULL;
 
 static Slapi_PluginDesc pdesc = { "schemareload",
-    PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+    VENDOR, PACKAGE_VERSION,
     "task plugin to reload schema files" };
 
 static int schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
