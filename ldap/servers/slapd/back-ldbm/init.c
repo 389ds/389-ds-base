@@ -48,8 +48,8 @@
 
 static void *IDL_api[3];
 
-static Slapi_PluginDesc pdesc = { "ldbm-backend", PLUGIN_MAGIC_VENDOR_STR,
-        PRODUCTTEXT, "high-performance LDAP backend database plugin" };
+static Slapi_PluginDesc pdesc = { "ldbm-backend", VENDOR,
+        PACKAGE_VERSION, "high-performance LDAP backend database plugin" };
 
 static int add_ldbm_internal_attr_syntax( const char *name, const char *oid,
 		const char *syntax, const char *mr_equality, unsigned long extraflags );
@@ -295,7 +295,7 @@ add_ldbm_internal_attr_syntax( const char *name, const char *oid,
 	origins[1] = NULL;
 
 	rc = attr_syntax_create( oid, names, 1,
-			"Fedora defined attribute type",
+			"internal server defined attribute type",
 			 NULL,						/* superior */
 			 mr_equality, NULL, NULL,	/* matching rules */
 			 origins, syntax,

@@ -76,7 +76,7 @@ nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
 nsslapd-pluginid: test-saslbind
 nsslapd-pluginversion: 5.0
-nsslapd-pluginvendor: Fedora Project
+nsslapd-pluginvendor: My Project
 nsslapd-plugindescription: sample SASL bind pre-operation plugin
 
 
@@ -85,7 +85,7 @@ nsslapd-plugindescription: sample SASL bind pre-operation plugin
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc saslpdesc = { "test-saslbind", "Fedora Project", "1.0.4",
+Slapi_PluginDesc saslpdesc = { "test-saslbind", VENDOR, PACKAGE_VERSION,
 	"sample SASL bind pre-operation plugin" };
 
 

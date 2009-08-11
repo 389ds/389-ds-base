@@ -47,7 +47,7 @@
 
 #include "passthru.h"
 
-static Slapi_PluginDesc pdesc = { "passthruauth",  PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "passthruauth",  VENDOR, PACKAGE_VERSION,
 	"pass through authentication plugin" };
 
 /*

@@ -88,7 +88,7 @@
 /* OID of the extended operation handled by this plug-in */
 #define MY_OID	"1.2.3.4"
 
-Slapi_PluginDesc expdesc = { "test-extendedop", "Fedora Project", "1.0.4",
+Slapi_PluginDesc expdesc = { "test-extendedop", VENDOR, PACKAGE_vERSION,
 	"sample extended operation plugin" };
 
 

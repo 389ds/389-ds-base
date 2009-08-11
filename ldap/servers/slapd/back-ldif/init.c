@@ -51,7 +51,7 @@
 
 #include "back-ldif.h"
 
-static Slapi_PluginDesc pdesc = { "ldif-backend", "Netscape", PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "ldif-backend", "Netscape", PACKAGE_VERSION,
 	"LDIF backend database plugin" };
 
 #ifdef _WIN32

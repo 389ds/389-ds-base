@@ -63,8 +63,8 @@ static char *names[] = { "Numeric String", "numstr", NUMERICSTRING_SYNTAX_OID, 0
 #define NUMERICSTRINGORDERINGMATCH_OID	"2.5.13.9"
 #define NUMERICSTRINGSUBSTRINGMATCH_OID	"2.5.13.10"
 
-static Slapi_PluginDesc pdesc = { "numstr-syntax", PLUGIN_MAGIC_VENDOR_STR,
-	PRODUCTTEXT, "numeric string attribute syntax plugin" };
+static Slapi_PluginDesc pdesc = { "numstr-syntax", VENDOR,
+	PACKAGE_VERSION, "numeric string attribute syntax plugin" };
 
 static Slapi_MatchingRuleEntry
 numericStringMatch = { NUMERICSTRINGMATCH_OID, NULL /* no alias? */,

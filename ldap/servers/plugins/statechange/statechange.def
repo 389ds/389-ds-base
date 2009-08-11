@@ -36,7 +36,7 @@
 ; All rights reserved.
 ; END COPYRIGHT BLOCK
 ;
-DESCRIPTION     'Fedora Directory Server 1.0 State Change Plugin'
+DESCRIPTION     'Dirsrv 1.0 State Change Plugin'
 EXPORTS
 	statechange_init        @2
 	plugin_init_debug_level	@3

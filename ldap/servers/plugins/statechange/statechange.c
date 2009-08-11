@@ -46,8 +46,6 @@
 #include <string.h>
 #include "portable.h"
 #include "slapi-plugin.h"
-#include <dirlite_strings.h> /* PLUGIN_MAGIC_VENDOR_STR */
-#include "dirver.h"
 #include "statechange.h"
 
 /* get file mode flags for unix */
@@ -91,7 +89,7 @@ static void _statechange_vattr_cache_invalidator_callback(Slapi_Entry *e, char *
 static SCNotify *statechange_find_notify(char *dn, char *filter, notify_callback func);
 
 
-static Slapi_PluginDesc pdesc = { "statechange", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "statechange", VENDOR, PACKAGE_VERSION,
 	"state change notification service plugin" };
 
 

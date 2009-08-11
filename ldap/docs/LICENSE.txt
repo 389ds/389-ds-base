@@ -1,14 +1,14 @@
 LICENSE AGREEMENT AND LIMITED PRODUCT WARRANTY
-FEDORA(TM) DIRECTORY SERVER
+389(TM) DIRECTORY SERVER
 
-This agreement governs the use of Fedora Directory Server,
+This agreement governs the use of 389 Directory Server,
 Administration Server and Management Console (collectively, the
 "SOFTWARE") and any updates to the Software, regardless of the
 delivery mechanism.
 
-1.  FEDORA DIRECTORY SERVER
+1.  389 DIRECTORY SERVER
 
-1.1 LICENSE GRANT.  Fedora Directory Server ("FDS") is a modular
+1.1 LICENSE GRANT.  389 Directory Server ("389") is a modular
 application consisting of hundreds of software components and is a
 collective work under U.S. Copyright Law.  Subject to the following
 terms, Red Hat, Inc. ("RED HAT") grants to the user ("LICENSEE") a

@@ -69,7 +69,7 @@
 /* #define START_TLS_OID	"1.3.6.1.4.1.1466.20037" */
 
 
-Slapi_PluginDesc exopdesc = { "start_tls_plugin", "Fedora", "0.1",
+Slapi_PluginDesc exopdesc = { "start_tls_plugin", VENDOR, PACKAGE_VERSION,
 	"Start TLS extended operation plugin" };
 
 

@@ -969,7 +969,7 @@ or_indexer_create (Slapi_PBlock* pb)
     return rc;
 }
 
-static Slapi_PluginDesc pdesc = { "orderingrule", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT,
+static Slapi_PluginDesc pdesc = { "orderingrule", VENDOR, PACKAGE_VERSION,
               "internationalized ordering rule plugin" };
 
 #define SLAPI_ORPLUGIN_NAME	pdesc.spd_description

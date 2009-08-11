@@ -44,7 +44,7 @@
 /********************************************************************
  *
  *      agtmmap.h: Memory Map interface for SNMP sub-agent for 
- *                 Fedora Directory Server stats (for UNIX environment).
+ *                 Directory Server stats (for UNIX environment).
  *
  *      Revision History:
  *      07/22/97        Created                 Steve Ross

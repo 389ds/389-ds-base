@@ -74,7 +74,7 @@
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc bindpdesc = { "test-bind", "Fedora Project", "1.0.4",
+Slapi_PluginDesc bindpdesc = { "test-bind", VENDOR, PACKAGE_VERSION,
 	"sample bind pre-operation plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;

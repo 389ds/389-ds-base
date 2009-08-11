@@ -79,9 +79,9 @@ Slapi_Backend *retrocl_be_changelog = NULL;
 
 /* ----------------------------- Retrocl Plugin */
 
-static Slapi_PluginDesc retrocldesc = {"retrocl", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "Retrocl Plugin"};
-static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "retrocl post-operation plugin"};
-static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", PLUGIN_MAGIC_VENDOR_STR, PRODUCTTEXT, "retrocl internal post-operation plugin"};
+static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, PACKAGE_VERSION, "Retrocl Plugin"};
+static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", VENDOR, PACKAGE_VERSION, "retrocl post-operation plugin"};
+static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", VENDOR, PACKAGE_VERSION, "retrocl internal post-operation plugin"};
 
 
 /*

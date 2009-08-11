@@ -58,7 +58,7 @@
 
 static const char* dllname = "plugin.so";
 
-char *global_issuer_dn = "o=Fedora Project, c=US";
+char *global_issuer_dn = "o=" VENDOR ", c=US";
 
 #define NSPR_INIT(Program) (PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 8))
 
@@ -99,7 +99,7 @@ static int ldapu_certinfo_delete_test (const char *fname, const char *old_fname)
     }
 
     /* rv = ldapu_certinfo_delete("o=Ace Industry, c=US"); */
-    rv = ldapu_certinfo_delete("o=Fedora Project, c=US");
+    rv = ldapu_certinfo_delete("o=" VENDOR ", c=US");
 
     if (rv != LDAPU_SUCCESS) {
 	fprintf(stderr, "ldapu_certinfo_delete failed.  Reason: %s\n",

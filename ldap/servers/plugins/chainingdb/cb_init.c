@@ -43,8 +43,8 @@
 #include "cb.h"
 
 Slapi_PluginDesc chainingdbdesc = { CB_PLUGIN_NAME,
-				    PLUGIN_MAGIC_VENDOR_STR,
-				    PRODUCTTEXT,
+				    VENDOR,
+				    PACKAGE_VERSION,
 				    CB_PLUGIN_DESCRIPTION };
 
 
