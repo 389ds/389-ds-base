@@ -53,6 +53,29 @@ AC_ARG_WITH(pcre, [  --with-pcre=PATH   Perl Compatible Regular Expression direc
 ],
 AC_MSG_RESULT(no))
 
+#
+# if PCRE is not found yet, try pkg-config
+if test -z "$pcre_inc" -o -z "$pcre_lib" -o -z "$pcre_libdir"; then
+  AC_PATH_PROG(PKG_CONFIG, pkg-config)
+  AC_MSG_CHECKING(for pcre with pkg-config)
+  if test -n "$PKG_CONFIG"; then
+    if $PKG_CONFIG --exists pcre; then
+      pcre_inc=`$PKG_CONFIG --cflags-only-I pcre`
+      pcre_lib=`$PKG_CONFIG --libs-only-L pcre`
+      pcre_libdir=`$PKG_CONFIG --libs-only-L pcre | sed -e s/-L// | sed -e s/\ .*$//`
+      AC_MSG_RESULT([using system PCRE])
+    elif $PKG_CONFIG --exists libpcre; then
+      pcre_inc=`$PKG_CONFIG --cflags-only-I libpcre`
+      pcre_lib=`$PKG_CONFIG --libs-only-L libpcre`
+      pcre_libdir=`$PKG_CONFIG --libs-only-L libpcre | sed -e s/-L// | sed -e s/\ .*$//`
+      AC_MSG_RESULT([using system PCRE])
+    else
+      AC_MSG_ERROR([PCRE not found, specify with --with-pcre.])
+    fi
+  fi
+fi
+
+dnl last resort
 dnl - check in system locations
 if test -z "$pcre_inc"; then
   AC_MSG_CHECKING(for pcre.h)
@@ -65,23 +88,5 @@ if test -z "$pcre_inc"; then
   else
     AC_MSG_RESULT(no)
     AC_MSG_ERROR([pcre not found, specify with --with-pcre.])
-  fi
-fi
-#
-# if PCRE is not found yet, try pkg-config
-
-# last resort
-if test -z "$pcre_inc" -o -z "$pcre_lib" -o -z "$pcre_libdir"; then
-  AC_PATH_PROG(PKG_CONFIG, pkg-config)
-  AC_MSG_CHECKING(for pcre with pkg-config)
-  if test -n "$PKG_CONFIG"; then
-    if $PKG_CONFIG --exists pcre; then
-      pcre_inc=`$PKG_CONFIG --cflags-only-I pcre`
-      pcre_lib=`$PKG_CONFIG --libs-only-L pcre`
-      pcre_libdir=`$PKG_CONFIG --libs-only-L pcre | sed -e s/-L// | sed -e s/\ .*$//`
-      AC_MSG_RESULT([using system PCRE])
-    else
-      AC_MSG_ERROR([PCRE not found, specify with --with-pcre.])
-    fi
   fi
 fi
