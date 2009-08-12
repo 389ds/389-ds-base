@@ -658,7 +658,10 @@ index_add_mods(
                         int found = 0;
                         for (j = 0; mods_valueArray[j] != NULL; j++ ) {
                             if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) > -1 ) {
+                                /* The same value found in evals. 
+                                 * We don't touch the equality index. */
                                 found = 1;
+                                break;
                             }
                         }
                         /* 
