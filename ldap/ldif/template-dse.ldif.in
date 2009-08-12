@@ -24,7 +24,7 @@ nsslapd-accesslog: %log_dir%/access
 nsslapd-enquote-sup-oc: off
 nsslapd-localhost: %fqdn%
 nsslapd-schemacheck: on
-nsslapd-syntaxcheck: on
+nsslapd-syntaxcheck: off
 nsslapd-dn-validate-strict: off
 nsslapd-rewrite-rfc1274: off
 nsslapd-return-exact-case: on
