@@ -45,6 +45,9 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 
+/* Perl Compatible Regular Expression */
+#include <pcre.h>
+
 struct slapi_regex_handle {
     pcre *re_pcre;            /* contains the compiled pattern */
     int  *re_ovector;        /* output vector */
