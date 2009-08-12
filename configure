@@ -27005,28 +27005,8 @@ else
 echo "${ECHO_T}no" >&6
 fi;
 
-if test -z "$pcre_inc"; then
-  echo "$as_me:$LINENO: checking for pcre.h" >&5
-echo $ECHO_N "checking for pcre.h... $ECHO_C" >&6
-  if test -f "/usr/include/pcre.h"; then
-    echo "$as_me:$LINENO: result: using /usr/include/pcre.h" >&5
-echo "${ECHO_T}using /usr/include/pcre.h" >&6
-    pcre_incdir="/usr/include"
-    pcre_inc="-I/usr/include"
-    pcre_lib='-L$(libdir)'
-    pcre_libdir='$(libdir)'
-  else
-    echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-    { { echo "$as_me:$LINENO: error: pcre not found, specify with --with-pcre." >&5
-echo "$as_me: error: pcre not found, specify with --with-pcre." >&2;}
-   { (exit 1); exit 1; }; }
-  fi
-fi
 #
 # if PCRE is not found yet, try pkg-config
-
-# last resort
 if test -z "$pcre_inc" -o -z "$pcre_lib" -o -z "$pcre_libdir"; then
   # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
@@ -27076,11 +27056,36 @@ echo $ECHO_N "checking for pcre with pkg-config... $ECHO_C" >&6
       pcre_libdir=`$PKG_CONFIG --libs-only-L pcre | sed -e s/-L// | sed -e s/\ .*$//`
       echo "$as_me:$LINENO: result: using system PCRE" >&5
 echo "${ECHO_T}using system PCRE" >&6
+    elif $PKG_CONFIG --exists libpcre; then
+      pcre_inc=`$PKG_CONFIG --cflags-only-I libpcre`
+      pcre_lib=`$PKG_CONFIG --libs-only-L libpcre`
+      pcre_libdir=`$PKG_CONFIG --libs-only-L libpcre | sed -e s/-L// | sed -e s/\ .*$//`
+      echo "$as_me:$LINENO: result: using system PCRE" >&5
+echo "${ECHO_T}using system PCRE" >&6
     else
       { { echo "$as_me:$LINENO: error: PCRE not found, specify with --with-pcre." >&5
 echo "$as_me: error: PCRE not found, specify with --with-pcre." >&2;}
    { (exit 1); exit 1; }; }
     fi
+  fi
+fi
+
+if test -z "$pcre_inc"; then
+  echo "$as_me:$LINENO: checking for pcre.h" >&5
+echo $ECHO_N "checking for pcre.h... $ECHO_C" >&6
+  if test -f "/usr/include/pcre.h"; then
+    echo "$as_me:$LINENO: result: using /usr/include/pcre.h" >&5
+echo "${ECHO_T}using /usr/include/pcre.h" >&6
+    pcre_incdir="/usr/include"
+    pcre_inc="-I/usr/include"
+    pcre_lib='-L$(libdir)'
+    pcre_libdir='$(libdir)'
+  else
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: pcre not found, specify with --with-pcre." >&5
+echo "$as_me: error: pcre not found, specify with --with-pcre." >&2;}
+   { (exit 1); exit 1; }; }
   fi
 fi
 

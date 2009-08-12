@@ -556,7 +556,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/vattr.c \
 	$(libavl_a_SOURCES)
 
-libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@
+libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
 if SOLARIS
 libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 endif
@@ -1130,7 +1130,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ \
-	@nspr_inc@ @svrcore_inc@ @pcre_inc@
+	@nspr_inc@ @svrcore_inc@
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load

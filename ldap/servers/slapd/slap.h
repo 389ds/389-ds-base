@@ -167,9 +167,6 @@ typedef struct symbol_t {
 #include "csngen.h"
 #include "uuid.h"
 
-/* Perl Compatible Regular Expression */
-#include <pcre.h>
-
 #if defined(OS_solaris)
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
