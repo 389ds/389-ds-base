@@ -66,16 +66,18 @@ LIBCRUN=@LIBCRUN@
 BUILT_SOURCES = dberrstrs.h
 
 CLEANFILES =  dberrstrs.h ns-slapd.properties \
+	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
 	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
 	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
-	ldap/admin/src/scripts/Setup.pm ldap/admin/src/scripts/template-bak2db \
-	ldap/admin/src/scripts/template-bak2db.pl ldap/admin/src/scripts/template-db2bak \
-	ldap/admin/src/scripts/template-db2bak.pl ldap/admin/src/scripts/template-db2index \
-	ldap/admin/src/scripts/template-db2index.pl ldap/admin/src/scripts/template-db2ldif \
-	ldap/admin/src/scripts/template-db2ldif.pl ldap/admin/src/scripts/template-dbverify \
+	ldap/admin/src/scripts/start-dirsrv ldap/admin/src/scripts/stop-dirsrv \
+	ldap/admin/src/scripts/restart-dirsrv ldap/admin/src/scripts/Setup.pm \
+	ldap/admin/src/scripts/template-bak2db ldap/admin/src/scripts/template-bak2db.pl \
+	ldap/admin/src/scripts/template-db2bak ldap/admin/src/scripts/template-db2bak.pl \
+	ldap/admin/src/scripts/template-db2index ldap/admin/src/scripts/template-db2index.pl \
+	ldap/admin/src/scripts/template-db2ldif ldap/admin/src/scripts/template-db2ldif.pl \
 	ldap/admin/src/scripts/template-ldif2db ldap/admin/src/scripts/template-ldif2db.pl \
 	ldap/admin/src/scripts/template-ldif2ldap ldap/admin/src/scripts/template-monitor \
 	ldap/admin/src/scripts/template-ns-accountstatus.pl ldap/admin/src/scripts/template-ns-activate.pl \
@@ -169,7 +171,8 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 # Installed Files
 #------------------------
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
-	$(srcdir)/ldap/schema/slapd-collations.conf
+	$(srcdir)/ldap/schema/slapd-collations.conf \
+	ldap/admin/src/template-initconfig
 
 # the schema files in this list are either not
 # standard schema, not tested, or not compatible
@@ -247,7 +250,10 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
-	ldap/admin/src/scripts/remove-ds.pl
+	ldap/admin/src/scripts/remove-ds.pl \
+	ldap/admin/src/scripts/start-dirsrv \
+	ldap/admin/src/scripts/stop-dirsrv \
+	ldap/admin/src/scripts/restart-dirsrv
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \

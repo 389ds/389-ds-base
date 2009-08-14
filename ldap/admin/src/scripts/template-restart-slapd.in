@@ -7,19 +7,5 @@
 #       2: Server started successfully (was not running)
 #       3: Server could not be stopped
 
-server_already_stopped=0
-{{INST-DIR}}/stop-slapd
-status=$?
-if [ $status -eq 1 ] ; then
-    exit 3;
-else
-   if [ $status -eq 2 ] ; then
-        server_already_stopped=1
-   fi
-fi
-{{INST-DIR}}/start-slapd
-status=$?
-if [ $server_already_stopped -eq 1 ] && [ $status -eq 0 ] ; then
-    exit 2;
-fi
-exit $status
+@sbindir@/restart-dirsrv {{SERV-ID}} "$@"
+exit $?

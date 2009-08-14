@@ -1,10 +1,9 @@
 # This file is sourced by @package_name@ upon startup to set
 # the default environment for all directory server instances.
-# To set instance specific defaults, make a copy of this
-# file in the same directory called @package_name@-instance
-# where "instance" is the name of your directory server
-# instance e.g. @package_name@-localhost for the
-# slapd-localhost instance
+# To set instance specific defaults, use the file in the same
+# directory called @package_name@-instance where "instance"
+# is the name of your directory server instance e.g.
+# @package_name@-localhost for the slapd-localhost instance.
 
 # In order to make more file descriptors available
 # to the directory server, first make sure the system
