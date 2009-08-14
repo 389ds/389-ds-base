@@ -421,6 +421,16 @@ sub createConfigFile {
 sub makeOtherConfigFiles {
     my $inf = shift;
     my @errs;
+    my %maptable = (
+        "DS-ROOT" => $inf->{General}->{prefix},
+        "SERVER-DIR" => $inf->{General}->{ServerRoot},
+        "CONFIG-DIR" => $inf->{slapd}->{config_dir},
+        "INST-DIR" => $inf->{slapd}->{inst_dir},
+        "RUN-DIR" => $inf->{slapd}->{run_dir},
+        "PRODUCT-NAME" => "slapd",
+        "SERVERBIN-DIR" => $inf->{slapd}->{sbindir},
+    );
+
     # install certmap.conf at <configdir>
     my $src = "$inf->{General}->{prefix}@configdir@/certmap.conf";
     my $dest = "$inf->{slapd}->{config_dir}/certmap.conf";
@@ -440,6 +450,29 @@ sub makeOtherConfigFiles {
     if ($!) {
         return ('error_copying_file', $src, $dest, $!);
     }
+    if (@errs = changeOwnerMode($inf, 4, $dest)) {
+        return @errs;
+    }
+
+    # install instance specific initconfig script
+    $src = "$inf->{General}->{prefix}@configdir@/template-initconfig";
+    $dest = "$inf->{General}->{prefix}@initconfigdir@/@package_name@-$inf->{slapd}->{ServerIdentifier}";
+    $! = 0; # clear errno
+
+    if (!open(SRC, "< $src")) {
+        return ("error_opening_scripttmpl", $src, $!);
+    }
+    if (!open(DEST, "> $dest")) {
+        return ("error_opening_scripttmpl", $dest, $!);
+    }
+    my $contents; # slurp entire file into memory
+    read SRC, $contents, int(-s $src);
+    close(SRC);
+    while (my ($key, $val) = each %maptable) {
+        $contents =~ s/\{\{$key\}\}/$val/g;
+    }
+    print DEST $contents;
+    close(DEST);
     if (@errs = changeOwnerMode($inf, 4, $dest)) {
         return @errs;
     }

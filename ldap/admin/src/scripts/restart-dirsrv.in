@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# Script that restarts the ns-slapd server.
+# Exit status can be:
+#       0: Server restarted successfully
+#       1: Server could not be started
+#       2: Server started successfully (was not running)
+#       3: Server could not be stopped
+
+restart_instance() {
+    SERV_ID=$1
+
+    server_already_stopped=0
+    @sbindir@/stop-dirsrv $SERV_ID
+    status=$?
+    if [ $status -eq 1 ] ; then
+        return 3;
+    else
+       if [ $status -eq 2 ] ; then
+            server_already_stopped=1
+       fi
+    fi
+    @sbindir@/start-dirsrv $SERV_ID
+    status=$?
+    if [ $server_already_stopped -eq 1 ] && [ $status -eq 0 ] ; then
+        return 2;
+    fi
+    return $status
+}
+
+if [ "$#" -eq 0 ]; then
+    # We're restarting all instances.
+    ret=0
+    for i in @initconfigdir@/@package_name@-*; do
+        inst=`echo $i | sed -e 's,@initconfigdir@/@package_name@-,,g'`
+        echo Restarting instance \"$inst\"
+        restart_instance $inst
+        if [ "$?" -ne 0 ]; then
+            ret=$?
+        fi
+    done
+    exit $ret
+else
+    # We're restarting a single instance.
+    restart_instance $*
+    exit $?
+fi

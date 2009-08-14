@@ -1,0 +1,18 @@
+# This file is sourced by @package_name@ upon startup to set
+# the default environment for a single specific  directory
+# server instances.  To set defaults for all instances, edit
+# the file in the same directory called @package_name@.
+
+# These settings are used by the start-dirsrv and
+# start-slapd scripts (as well as their associates stop
+# and restart scripts).  Do not edit them unless you know
+# what you are doing.
+SERVER_DIR={{SERVER-DIR}} ; export SERVER_DIR
+SERVERBIN_DIR={{SERVERBIN-DIR}} ; export SERVERBIN_DIR
+CONFIG_DIR={{CONFIG-DIR}} ; export CONFIG_DIR
+INST_DIR={{INST-DIR}} ; export INST_DIR
+RUN_DIR={{RUN-DIR}} ; export RUN_DIR
+DS_ROOT={{DS-ROOT}} ; export DS_ROOT
+PRODUCT_NAME={{PRODUCT-NAME}} ; export PRODUCT_NAME
+
+# Put custom instance specific settings below here.
