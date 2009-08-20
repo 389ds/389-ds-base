@@ -75,7 +75,9 @@ struct PRFilePrivate {
     PRBool send_encrypted; /* can only send encrypted data after the first read -
                               that is, we cannot send back an encrypted response
                               to the bind request that established the sasl io */
-    
+    const char *send_buffer; /* encrypted buffer to send to client */
+    unsigned int send_size; /* size of the encrypted buffer */
+    unsigned int send_offset; /* number of bytes sent so far */    
 };
 
 typedef PRFilePrivate sasl_io_private;
@@ -269,10 +271,10 @@ sasl_io_read_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt3
     Connection *c = sp->conn;
     size_t bytes_remaining_to_read = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
 
-    LDAPDebug( LDAP_DEBUG_CONNS,
+    LDAPDebug2Args( LDAP_DEBUG_CONNS,
                "sasl_io_read_packet: reading %d bytes for connection %" NSPRIu64 "\n",
                bytes_remaining_to_read,
-               c->c_connid, 0 );
+               c->c_connid );
     ret = PR_Recv(fd->lower, sp->encrypted_buffer + sp->encrypted_buffer_offset, bytes_remaining_to_read, flags, timeout);
     if (ret < 0) {
         *err = PR_GetError();
@@ -333,13 +335,13 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         {
             const char *output_buffer = NULL;
             unsigned int output_length = 0;
-            LDAPDebug( LDAP_DEBUG_CONNS,
-                       "sasl_io_recv finished reading packet for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
+            LDAPDebug1Arg( LDAP_DEBUG_CONNS,
+                       "sasl_io_recv finished reading packet for connection %" NSPRIu64 "\n", c->c_connid );
             /* Now decode it */
             ret = sasl_decode(c->c_sasl_conn,sp->encrypted_buffer,sp->encrypted_buffer_count,&output_buffer,&output_length);
             if (SASL_OK == ret) {
-                LDAPDebug( LDAP_DEBUG_CONNS,
-                           "sasl_io_recv decoded packet length %d for connection %" NSPRIu64 "\n", output_length, c->c_connid, 0 );
+                LDAPDebug2Args( LDAP_DEBUG_CONNS,
+                           "sasl_io_recv decoded packet length %d for connection %" NSPRIu64 "\n", output_length, c->c_connid );
                 if (output_length) {
                     sasl_io_resize_decrypted_buffer(sp,output_length);
                     memcpy(sp->decrypted_buffer,output_buffer,output_length);
@@ -350,8 +352,8 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
                     bytes_in_buffer = output_length;
                 }
             } else {
-                LDAPDebug( LDAP_DEBUG_ANY,
-                "sasl_io_recv failed to decode packet for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
+                LDAPDebug1Arg( LDAP_DEBUG_ANY,
+                "sasl_io_recv failed to decode packet for connection %" NSPRIu64 "\n", c->c_connid );
                 PR_SetError(PR_IO_ERROR, 0);
                 return PR_FAILURE;
             }
@@ -368,8 +370,8 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         if (bytes_in_buffer == bytes_to_return) {
             sp->decrypted_buffer_offset = 0;
             sp->decrypted_buffer_count = 0;
-            LDAPDebug( LDAP_DEBUG_CONNS,
-                       "sasl_io_recv all decrypted data returned for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
+            LDAPDebug1Arg( LDAP_DEBUG_CONNS,
+                       "sasl_io_recv all decrypted data returned for connection %" NSPRIu64 "\n", c->c_connid );
         } else {
             sp->decrypted_buffer_offset += bytes_to_return;
             LDAPDebug( LDAP_DEBUG_CONNS,
@@ -387,6 +389,14 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
     return ret;
 }
 
+static void
+reset_send_info(sasl_io_private *sp)
+{
+    sp->send_buffer = NULL;
+    sp->send_size = 0;
+    sp->send_offset = 0;
+}
+
 PRInt32
 sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount,
              PRIntn flags, PRIntervalTime timeout)
@@ -394,27 +404,49 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount,
     PRInt32 ret = 0;
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
-    const char *crypt_buffer = NULL;
-    unsigned crypt_buffer_size = 0;
 
-    LDAPDebug( LDAP_DEBUG_CONNS,
-               "sasl_io_send writing %d bytes\n", amount, 0, 0 );
+    LDAPDebug1Arg( LDAP_DEBUG_CONNS,
+                   "sasl_io_send writing %d bytes\n", amount );
     if (sp->send_encrypted) {
         /* Get SASL to encrypt the buffer */
-        ret = sasl_encode(c->c_sasl_conn, buf, amount, &crypt_buffer, &crypt_buffer_size);
-        LDAPDebug( LDAP_DEBUG_CONNS,
-                   "sasl_io_send encoded as %d bytes\n", crypt_buffer_size, 0, 0 );
-        ret = PR_Send(fd->lower, crypt_buffer, crypt_buffer_size, flags, timeout);
-        /* we need to return the amount of cleartext sent */
-        if (ret == crypt_buffer_size) {
-            ret = amount; /* sent amount of data requested by caller */
-        } else if (ret > 0) { /* could not send the entire encrypted buffer - error */
-            LDAPDebug( LDAP_DEBUG_CONNS,
-                       "sasl_io_send error: only sent %d of %d encoded bytes\n", ret, crypt_buffer_size, 0 );
-            ret = PR_FAILURE;
-            PR_SetError(PR_IO_ERROR, 0);
+        if (NULL == sp->send_buffer) {
+            ret = sasl_encode(c->c_sasl_conn, buf, amount, &sp->send_buffer, &sp->send_size);
+            if (ret != SASL_OK) {
+                const char *saslerr = sasl_errdetail(c->c_sasl_conn);
+                LDAPDebug2Args( LDAP_DEBUG_ANY,
+                                "sasl_io_send could not encode %d bytes - sasl error %s\n",
+                                amount, saslerr ? saslerr : "unknown" );
+                reset_send_info(sp);
+                PR_SetError(PR_IO_ERROR, 0);
+                return PR_FAILURE;
+            }
+            LDAPDebug1Arg( LDAP_DEBUG_CONNS,
+                           "sasl_io_send encoded as %d bytes\n", sp->send_size );
+            sp->send_offset = 0;
+        } else if ((amount > 0) && (sp->send_offset >= sp->send_size)) {
+            /* something went wrong - we sent too many bytes */
+            LDAPDebug2Args( LDAP_DEBUG_ANY,
+                           "sasl_io_send - client requested to send %d bytes but we "
+                            "already sent %d bytes\n", amount, (sp->send_offset >= sp->send_size));
+            reset_send_info(sp);
+            PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
+            return PR_FAILURE;
         }
-        /* else - ret is error */
+        ret = PR_Send(fd->lower, sp->send_buffer + sp->send_offset,
+                      sp->send_size - sp->send_offset, flags, timeout);
+        /* we need to return the amount of cleartext sent */
+        if (ret == (sp->send_size - sp->send_offset)) {
+            ret = amount; /* sent amount of data requested by caller */
+            reset_send_info(sp); /* done with this buffer, ready for next buffer */
+        } else if (ret > 0) { /* could not send the entire encrypted buffer - tell caller we're blocked */
+            LDAPDebug2Args( LDAP_DEBUG_CONNS,
+                       "sasl_io_send error: only sent %d of %d encoded bytes\n", ret,
+                            (sp->send_size - sp->send_offset) );
+            sp->send_offset += ret;
+            ret = PR_FAILURE;
+            PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
+        }
+        /* else - ret is error - caller will handle */
     } else {
         ret = PR_Send(fd->lower, buf, amount, flags, timeout);
     }

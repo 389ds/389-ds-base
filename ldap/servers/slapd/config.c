@@ -594,6 +594,20 @@ slapd_bootstrap_config(const char *configdir)
 				  }
 				}
 
+				/* what is our localhost name */
+				if (entry_has_attr_and_value(e, CONFIG_LOCALHOST_ATTRIBUTE,
+											 val, sizeof(val)))
+				{
+					if (config_set_localhost(
+								CONFIG_LOCALHOST_ATTRIBUTE, val, errorbuf, 
+								CONFIG_APPLY) != LDAP_SUCCESS)
+					{
+						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+								  CONFIG_LOCALHOST_ATTRIBUTE, errorbuf);
+					}
+					val[0] = 0;
+				}
+
 				if (e)
 					slapi_entry_free(e);
 			}
