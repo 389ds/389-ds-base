@@ -106,11 +106,13 @@ FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
         return NULL;
     }
     if (fi->entry) {
-        if (worker && fi->bad) {
-        	import_log_notice(job, "WARNING: bad entry: ID %d", id);
-            return NULL;
+        if (worker) {
+            if (fi->bad) {
+                import_log_notice(job, "WARNING: bad entry: ID %d", id);
+                return NULL;
+            }
+            PR_ASSERT(fi->entry->ep_refcnt > 0);
         }
-        PR_ASSERT(fi->entry->ep_refcnt > 0);
     }
     return fi;
 }
