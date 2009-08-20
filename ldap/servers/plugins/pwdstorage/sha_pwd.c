@@ -67,6 +67,28 @@ static char *plugin_name = "NSPwdStoragePlugin";
  * It's obsolescent now, but we still handle such stored values.
  */
 
+
+/*
+  calculate the number of bytes the base64 encoded encval
+  will have when decoded, taking into account padding
+*/
+static int
+base64_decode_len(const char *encval)
+{
+    int len = strlen(encval);
+    if (len && (0 == (len & 3))) {
+        if('=' == encval[len - 1]) {
+            if('=' == encval[len - 2]) {
+                len -= 2;
+            } else {
+                len -= 1;
+            }
+        }
+    }
+
+    return ((len * 3) / 4);
+}
+
 int
 sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
 {
@@ -110,7 +132,7 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     /*
      * Decode hash stored in database.
      */
-    hash_len = (strlen(dbpwd) * 3) / 4; /* includes the trailing = if any */
+    hash_len = base64_decode_len(dbpwd);
     if ( hash_len > sizeof(quick_dbhash) ) { /* get more space: */
         dbhash = (char*) slapi_ch_calloc( hash_len, sizeof(char) );
         if ( dbhash == NULL ) goto loser;
@@ -121,18 +143,9 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     if (NULL == hashresult) {
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
         goto loser;
-    } else if ( hash_len >= shaLen ) {
-        salt.bv_val = (void*)(dbhash + shaLen);
-        /* we don't know if the dbpwd is salted or not except for the hash_len
-           if dbpwd is not hashed, hash_len may be 1 or 2 greater than shaLen,
-           depending on the padding, but the difference will always be less than
-           SHA_SALT_LENGTH - so if hash_len - shaLen is less than SHA_SALT_LENGTH,
-           the password is not salted, and dbhash will contain exactly shaLen bytes -
-           if the password is salted, hash_len - shaLen >= SHA_SALT_LENGTH, and
-           dbhash will contain exactly shaLen + SHA_SALT_LENGTH bytes */
-        salt.bv_len = ((hash_len - shaLen) < SHA_SALT_LENGTH) ?
-            0 /* not salted */
-            : SHA_SALT_LENGTH; /* salted */
+    } else if ( hash_len >= shaLen ) { /* must be salted */
+        salt.bv_val = (void*)(dbhash + shaLen); /* salt starts after hash value */
+        salt.bv_len = hash_len - shaLen; /* remaining bytes must be salt */
     } else if ( hash_len >= DS40B1_SALTED_SHA_LENGTH ) {
         salt.bv_val = (void*)dbhash;
         salt.bv_len = OLD_SALT_LENGTH;
