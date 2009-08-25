@@ -473,6 +473,10 @@ attrcrypt_init(ldbm_instance *li)
 					ret = attrcrypt_cipher_init(li, ace, private_key, public_key, acs);
 					if (ret) {
 						LDAPDebug(LDAP_DEBUG_ANY,"Failed to initialize cipher %s in attrcrypt_init\n", ace->cipher_display_name, 0, 0);
+						if (!li->attrcrypt_configured) {
+							/* if not using attrcrypt, just return success */
+							ret = 0;
+						}
 						slapi_ch_free((void **)&acs);
 					} else {
 						/* Since we succeeded, add the acs to the backend instance list */
