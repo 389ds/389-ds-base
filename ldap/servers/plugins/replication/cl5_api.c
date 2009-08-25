@@ -560,6 +560,7 @@ int cl5Open (const char *dir, const CL5DBConfig *config)
 	else
 	{
 		s_cl5Desc.dbState = CL5_STATE_OPEN;	
+		clcache_set_config((CL5DBConfig *)config);
 	}
 
 done:;	

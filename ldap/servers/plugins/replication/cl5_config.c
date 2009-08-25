@@ -907,8 +907,6 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 		}
 		slapi_ch_free_string(&arg);
 	}
-	
-	clcache_set_config(&config->dbconfig);
 }
 
 static void replace_bslash (char *dir)
