@@ -81,6 +81,17 @@ attributeTypes: (
 #
 ################################################################################
 #
+attributeTypes: (
+  2.16.840.1.113730.3.1.2085
+  NAME 'isReplicated'
+  DESC 'a flag which indicates whether the change was replicated'
+  EQUALITY booleanMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+  SINGLE-VALUE
+  )
+#
+################################################################################
+#
 objectClasses: (
   2.16.840.1.113730.3.2.1
   NAME 'changeLogEntry'

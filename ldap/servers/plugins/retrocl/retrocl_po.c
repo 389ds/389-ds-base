@@ -64,6 +64,7 @@ const char *attr_changes = "changes";
 const char *attr_newsuperior = "newsuperior";
 const char *attr_changetime = "changetime";
 const char *attr_objectclass = "objectclass";
+const char *attr_isreplicated = "isreplicated";
 
 /*
  * Function: make_changes_string
@@ -154,6 +155,7 @@ static lenstr *make_changes_string(LDAPMod **ldm, const char **includeattrs)
  */
 static void
 write_replog_db(
+    Slapi_PBlock *pb,
     int			optype,
     char		*dn,
     LDAPMod		**log_m,
@@ -171,8 +173,9 @@ write_replog_db(
     Slapi_Entry		*e;
     char		chnobuf[ 20 ];
     int			err;
-    Slapi_PBlock	*pb = NULL;
+    Slapi_PBlock	*newPb = NULL;
     changeNumber changenum;
+    int			i;
 
     PR_Lock(retrocl_internal_lock);
     changenum = retrocl_assign_changenumber();
@@ -203,6 +206,54 @@ write_replog_db(
     val.bv_val = "changelogentry";
     val.bv_len = 14;
     slapi_entry_add_values( e, "objectclass", vals );
+
+    val.bv_val = "extensibleObject";
+    val.bv_len = 16;
+    slapi_entry_add_values( e, "objectclass", vals );
+
+    for ( i=0; i<retrocl_nattributes; i++ ) {
+        char* attributeName = retrocl_attributes[i];
+
+        if ( strcasecmp( attributeName, attr_isreplicated ) == 0 ) {
+            int isReplicated = 0;
+            char *attributeValue = NULL;
+
+            slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isReplicated );
+            attributeValue = isReplicated ? "TRUE" : "FALSE";
+
+            val.bv_val = attributeValue;
+            val.bv_len = strlen( attributeValue );
+
+            slapi_entry_add_values( e, attributeName, vals );
+
+        } else {
+            Slapi_Entry *entry = NULL;
+            Slapi_ValueSet *valueSet = NULL;
+            int type_name_disposition = 0;
+            char *actual_type_name = NULL;
+            int flags = 0;
+            int buffer_flags = 0;
+
+            slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &entry );
+            if ( entry != NULL ) {
+                slapi_vattr_values_get( entry, attributeName, &valueSet,
+                        &type_name_disposition, &actual_type_name, flags, &buffer_flags );
+            }
+
+            if ( valueSet == NULL ) {
+                slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &entry );
+                if ( entry != NULL ) {
+                    slapi_vattr_values_get( entry, attributeName, &valueSet,
+                            &type_name_disposition, &actual_type_name, flags, &buffer_flags );
+                }
+            }
+
+            if ( valueSet == NULL ) continue;
+
+            slapi_entry_add_valueset( e, attributeName, valueSet );
+            slapi_vattr_values_free( &valueSet, &actual_type_name, buffer_flags );
+        }
+    }
 
     /* Set the changeNumber attribute */
     sprintf( chnobuf, "%lu", changenum );
@@ -261,13 +312,13 @@ write_replog_db(
     if ( 0 == err ) {
 	int rc;
 
-	pb = slapi_pblock_new ();
-	slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
+	newPb = slapi_pblock_new ();
+	slapi_add_entry_internal_set_pb( newPb, e, NULL /* controls */, 
 					 g_plg_identity[PLUGIN_RETROCL], 
 					 0 /* actions */ );
-	slapi_add_internal_pb (pb);
-	slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
-	slapi_pblock_destroy(pb);
+	slapi_add_internal_pb (newPb);
+	slapi_pblock_get( newPb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
+	slapi_pblock_destroy(newPb);
 	if ( 0 != rc ) {
 	    slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
 			     "replog: an error occured while adding change "
@@ -552,7 +603,7 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
 
     /* check if we should log change to retro changelog, and
      * if so, do it here */
-    write_replog_db( optype, dn, log_m, flag, curtime, te,
+    write_replog_db( pb, optype, dn, log_m, flag, curtime, te,
 		     newrdn, modrdn_mods, newsuperior );
 
     return 0;

@@ -76,6 +76,8 @@ void plugin_init_debug_level(int *level_ptr)
 void* g_plg_identity [PLUGIN_MAX];
 
 Slapi_Backend *retrocl_be_changelog = NULL;
+int retrocl_nattributes = 0;
+char **retrocl_attributes = NULL;
 
 /* ----------------------------- Retrocl Plugin */
 
@@ -298,21 +300,39 @@ static int retrocl_start (Slapi_PBlock *pb)
 {
     static int retrocl_started = 0;
     int rc = 0;
+    Slapi_Entry *e = NULL;
 
-    if (!retrocl_started) {
-      retrocl_rootdse_init();
+    if (retrocl_started) {
+      return rc;
+    }
 
-      rc = retrocl_select_backend();      
+    retrocl_rootdse_init();
 
-      if (rc == 0) {
-	retrocl_init_trimming();
-      } else {
-	LDAPDebug1Arg(LDAP_DEBUG_TRACE,"Couldnt find backend, not trimming retro changelog (%d).\n",rc);
-      }
+    rc = retrocl_select_backend();      
+
+    if (rc != 0) {
+      LDAPDebug1Arg(LDAP_DEBUG_TRACE,"Couldnt find backend, not trimming retro changelog (%d).\n",rc);
+      return rc;
     }
    
+    retrocl_init_trimming();
+
+    if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "Missing config entry.\n");
+        return -1;
+    }
+
+    retrocl_attributes = slapi_entry_attr_get_charray(e, "nsslapd-attribute");
+    if (retrocl_attributes != NULL) {
+        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Attributes:\n");
+        for (retrocl_nattributes=0; retrocl_attributes && retrocl_attributes[retrocl_nattributes]; retrocl_nattributes++) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n", retrocl_attributes[retrocl_nattributes]);
+        }
+    }
+
     retrocl_started = 1;
-    return rc;
+
+    return 0;
 }
 
 /*
@@ -329,6 +349,8 @@ static int retrocl_start (Slapi_PBlock *pb)
 static int retrocl_stop (Slapi_PBlock *pb)
 {
   int rc = 0;
+
+  slapi_ch_array_free(retrocl_attributes);
 
   retrocl_stop_trimming();  
   retrocl_be_changelog = NULL;
