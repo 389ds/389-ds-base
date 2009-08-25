@@ -113,6 +113,8 @@ enum {
 
 extern void* g_plg_identity [PLUGIN_MAX];
 extern Slapi_Backend *retrocl_be_changelog;
+extern int retrocl_nattributes;
+extern char** retrocl_attributes;
 
 extern const char *attr_changenumber;
 extern const char *attr_targetdn;
@@ -123,6 +125,7 @@ extern const char *attr_deleteoldrdn;
 extern const char *attr_changes;
 extern const char *attr_changetime;
 extern const char *attr_objectclass;
+extern const char *attr_isreplicated;
 
 extern PRLock *retrocl_internal_lock;
 
