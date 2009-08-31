@@ -100,9 +100,9 @@ usn_init(Slapi_PBlock *pb)
         goto bail;
     }
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-                         (void *)usn_start) != 0 ) {
+                         (void *)usn_start) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-                         (void *)usn_close) != 0 ||
+                         (void *)usn_close) != 0 ) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
                         "usn_init: failed to register close callback & task\n");
         rc = -1;
@@ -260,6 +260,8 @@ usn_close(Slapi_PBlock *pb)
     csngen_free(&_usn_csngen);
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "<-- usn_close\n");
+
+    return 0;
 }
 
 /* 
@@ -522,6 +524,8 @@ usn_get_attr(Slapi_PBlock *pb, const char* type, void *value)
     } else {
         *(int *)value = 0;
     }
+
+    return 0;
 }
 
 void
