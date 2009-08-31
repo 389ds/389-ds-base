@@ -1179,7 +1179,7 @@ _agmt_set_default_fractional_attrs(Repl_Agmt *ra)
 				if (0 != rc) {
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"_agmt_set_default_fractional_attrs: failed to "
-							"parse default config (%s) attribute value: %s\n",
+							"parse default config (%s) attribute %s value: %s\n",
 							SLAPI_PLUGIN_DEFAULT_CONFIG,
 							type_nsds5ReplicatedAttributeList, val);
 				}

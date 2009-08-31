@@ -140,7 +140,6 @@ dn_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 static int dn_validate( struct berval *val )
 {
 	int rc = 0; /* Assume value is valid */
-	char *val_copy = NULL;
 
 	/* A 0 length value is valid for the DN syntax. */
 	if (val == NULL) {

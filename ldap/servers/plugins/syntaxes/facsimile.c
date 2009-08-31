@@ -266,7 +266,6 @@ fax_parameter_validate(const char *start, const char *end)
 {
 	int rc = 0; /* Assume string is valid */
 	size_t length = 0;
-	const char *p = NULL;
 
 	if ((start == NULL) || (end == NULL)) {
 		rc = 1;

@@ -99,7 +99,6 @@ static int
 usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
 {
     struct attrinfo *ai = NULL;
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc = -1;
     DB *db = NULL;
     DBC *dbc = NULL;
