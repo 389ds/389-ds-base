@@ -231,6 +231,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	Repl_Agmt *ra;
 	char *tmpstr;
 	Slapi_Attr *sattr;
+	char **denied_attrs = NULL;
 
 	char *auto_initialize = NULL;
 	char *val_nsds5BeginReplicaRefresh = "start";
@@ -396,27 +397,29 @@ agmt_new_from_entry(Slapi_Entry *e)
 	ra->last_init_status[0] = '\0';
 	
 	/* Fractional attributes */
-	if (slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr) == 0)	
+	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
+
+	/* New set of excluded attributes */
+	/* Note: even if sattrs is empty, we have to call this func since there 
+	 * could be a default excluded attr list in cn=plugin default config */
+	if (agmt_set_replicated_attributes_from_attr(ra, sattr) != 0)
 	{
-			char **denied_attrs = NULL;
-			/* New set of excluded attributes */
-			if (agmt_set_replicated_attributes_from_attr(ra, sattr) != 0)
-            {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_add_callback: " 
-                                "failed to parse replicated attributes for agreement %s\n",
-                                agmt_get_long_name(ra));	
-            }
-			/* Check that there are no verboten attributes in the exclude list */
-			denied_attrs = agmt_validate_replicated_attributes(ra);
-			if (denied_attrs)
-			{
-				/* Report the error to the client */
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "WARNING: "
-						"Attempt to exclude illegal attributes from a fractional agreement\n");
-				/* Free the list */
-				slapi_ch_array_free(denied_attrs);	
-				goto loser;
-			}
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"agmtlist_add_callback: failed to parse "
+						"replicated attributes for agreement %s\n",
+						agmt_get_long_name(ra));
+	}
+	/* Check that there are no verboten attributes in the exclude list */
+	denied_attrs = agmt_validate_replicated_attributes(ra);
+	if (denied_attrs)
+	{
+		/* Report the error to the client */
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+						"WARNING: Attempt to exclude illegal attributes "
+						"from a fractional agreement\n");
+		/* Free the list */
+		slapi_ch_array_free(denied_attrs);
+		goto loser;
 	}
 
 	if (!agmt_is_valid(ra))
@@ -487,6 +490,8 @@ agmt_delete(void **rap)
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free((void **)&(ra->hostname));
 	slapi_ch_free((void **)&(ra->binddn));
+
+	slapi_ch_array_free(ra->frac_attrs);
 
 	if (NULL != ra->creds)
 	{
@@ -1060,7 +1065,14 @@ agmt_parse_excluded_attrs_next(const char *attr_string, size_t *offset, char*** 
 		tmpstr = slapi_ch_malloc(stringlen + 1);
 		strncpy(tmpstr,beginstr,stringlen);
 		tmpstr[stringlen] = '\0';
-		charray_add(attrs,tmpstr);
+		if (charray_inlist(*attrs, tmpstr)) /* tmpstr is already in attrs */
+		{
+			slapi_ch_free_string(&tmpstr);
+		}
+		else
+		{
+			charray_add(attrs,tmpstr);
+		}
 		(*offset) += stringlen;
 		/* Skip a delimiting space */
 		if (c == ' ')
@@ -1073,17 +1085,22 @@ agmt_parse_excluded_attrs_next(const char *attr_string, size_t *offset, char*** 
 	}
 	return retval;
 }
- /* It looks like this:
- nsDS5ReplicatedAttributeList: (objectclass=*) $ EXCLUDE jpegPhoto telephoneNumber
+
+/* It looks like this:
+ * nsDS5ReplicatedAttributeList: (objectclass=*) $ EXCLUDE jpegPhoto telephoneNumber
+ * This function could be called multiple times: to set excluded attrs in the
+ * plugin default config and to set the ones in the replica agreement. 
+ * The excluded attrs from replica agreement are added to the ones from 
+ * default config.  (Therefore, *attrs should not be initialized in this 
+ * function.)
  */
 static int 
-agmt_parse_excluded_attrs_config_attr(const char *attr_string, char*** attrs)
+agmt_parse_excluded_attrs_config_attr(const char *attr_string, char ***attrs)
 {
 	int retval = 0;
 	size_t offset = 0;
 	char **new_attrs = NULL;
 
-	*attrs = NULL;
 	/* First parse and skip the filter */
 	retval = agmt_parse_excluded_attrs_filter(attr_string, &offset);
 	if (retval) 
@@ -1105,10 +1122,75 @@ agmt_parse_excluded_attrs_config_attr(const char *attr_string, char*** attrs)
 	retval = 0;
 	if (new_attrs) 
 	{
-		*attrs = new_attrs;
+		charray_merge_nodup(attrs, new_attrs, 1);
+		slapi_ch_array_free(new_attrs);
 	}
 error:
 	return retval;
+}
+
+/*
+ * _agmt_set_default_fractional_attrs
+ *   helper function to set nsds5ReplicatedAttributeList value (from cn=plugin
+ *   default config,cn=config) to frac_attrs in Repl_Agmt.  
+ *   nsds5ReplicatedAttributeList set in each agreement is added to the
+ *   default list set in this function.
+ */
+static int
+_agmt_set_default_fractional_attrs(Repl_Agmt *ra)
+{
+	Slapi_PBlock *newpb = NULL;
+	Slapi_Entry **entries = NULL;
+	int rc = LDAP_SUCCESS;
+	char *attrs[2];
+
+	attrs[0] = (char *)type_nsds5ReplicatedAttributeList;
+	attrs[1] = NULL;
+
+	newpb = slapi_pblock_new();
+	slapi_search_internal_set_pb(newpb,
+					SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN */
+					LDAP_SCOPE_BASE,
+					"(objectclass=*)",
+					attrs, /* Attrs */
+					0, /* AttrOnly */
+					NULL, /* Controls */
+					NULL, /* UniqueID */
+					repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+					0);
+	slapi_search_internal_pb(newpb);
+	slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+	slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+	ra->frac_attrs = NULL;
+	if (LDAP_SUCCESS == rc && entries && *entries) /* default config entry exists */
+	{
+		Slapi_Attr *attr;
+		Slapi_Value *sval = NULL;
+		if (0 == slapi_entry_attr_find(*entries,
+								      type_nsds5ReplicatedAttributeList, &attr))
+		{
+			int i;
+			const char *val = NULL;
+			for (i = slapi_attr_first_value(attr, &sval);
+				 i >= 0; i = slapi_attr_next_value(attr, i, &sval)) {
+				val = slapi_value_get_string(sval);
+				rc = agmt_parse_excluded_attrs_config_attr(val,
+														   &(ra->frac_attrs));
+				if (0 != rc) {
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"_agmt_set_default_fractional_attrs: failed to "
+							"parse default config (%s) attribute value: %s\n",
+							SLAPI_PLUGIN_DEFAULT_CONFIG,
+							type_nsds5ReplicatedAttributeList, val);
+				}
+			}
+		}
+	}
+
+	slapi_free_search_results_internal(newpb);
+	slapi_pblock_destroy(newpb);
+
+	return rc;
 }
 
 /*
@@ -1130,6 +1212,7 @@ agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 		slapi_ch_array_free(ra->frac_attrs);
 		ra->frac_attrs = NULL;
 	}
+	_agmt_set_default_fractional_attrs(ra);
 	if (NULL != sattr)
 	{
 		Slapi_Value *sval = NULL;
@@ -1162,6 +1245,7 @@ agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
 		slapi_ch_array_free(ra->frac_attrs);
 		ra->frac_attrs = NULL;
 	}
+	_agmt_set_default_fractional_attrs(ra);
 	if (NULL != sattr)
 	{
 		Slapi_Value *sval = NULL;

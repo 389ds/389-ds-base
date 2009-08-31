@@ -1177,6 +1177,8 @@ void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *add
    configuration entries will be found */
 #define PLUGIN_BASE_DN "cn=plugins,cn=config"
 
+#define SLAPI_PLUGIN_DEFAULT_CONFIG   "cn=plugin default config,cn=config"
+
 /***** End of items added for the replication plugin. ***********************/
 
 void    DS_Sleep(PRIntervalTime ticks);

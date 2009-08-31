@@ -2323,15 +2323,14 @@ dse_search_set_release (void **ss)
 }
 
 void 
-dse_prev_search_results (Slapi_PBlock *pb)
+dse_prev_search_results (void *vp)
 {
+	Slapi_PBlock *pb = (Slapi_PBlock *)vp;
 	dse_search_set *ss;
-	slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &ss );
+	slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &ss);
 	if (ss) {
 		dl_get_prev (&ss->dl, &ss->current_entry);
 	}
-	return;
-
 }
 
 static void 
