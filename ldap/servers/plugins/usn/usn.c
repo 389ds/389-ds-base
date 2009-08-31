@@ -112,13 +112,13 @@ usn_init(Slapi_PBlock *pb)
     rc = slapi_register_plugin("preoperation", 1 /* Enabled */,
                                "usn_preop_init", usn_preop_init,
                                "USN preoperation plugin", NULL, identity);
-    rc = slapi_register_plugin("bepreoperation", 1 /* Enabled */,
+    rc |= slapi_register_plugin("bepreoperation", 1 /* Enabled */,
                                "usn_bepreop_init", usn_bepreop_init,
                                "USN bepreoperation plugin", NULL, identity);
-    rc = slapi_register_plugin("bepostoperation", 1 /* Enabled */,
+    rc |= slapi_register_plugin("bepostoperation", 1 /* Enabled */,
                                "usn_bepostop_init", usn_bepostop_init,
                                "USN bepostoperation plugin", NULL, identity);
-   usn_set_identity(identity);
+    usn_set_identity(identity);
 bail:
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_init\n");
@@ -212,14 +212,40 @@ static int
 usn_start(Slapi_PBlock *pb)
 {
     int rc = 0;
+    Slapi_Value *value;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "--> usn_start\n");
 
     rc = usn_rootdse_init();
     rc |= usn_cleanup_start(pb);
+    if (rc) {
+        goto bail;
+    }
+    if (0) { /* Not executed; test code for slapi_get_plugin_default_config */
+        Slapi_ValueSet *vs = NULL;
+        Slapi_Value *v = NULL;
+        int i;
 
-    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "<-- usn_start\n");
-
+        slapi_get_plugin_default_config("nsds5ReplicatedAttributeList", &vs);
+        if (vs) {
+            for (i = slapi_valueset_first_value(vs, &v);
+                 i != -1;
+                 i = slapi_valueset_next_value(vs, i, &v)) {
+                slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
+                        "nsds5ReplicatedAttributeList: %s\n", 
+                        slapi_value_get_string(v));
+            }
+        }
+        slapi_valueset_free(vs);
+    }
+    /* add nsds5ReplicatedAttributeList: (objectclass=*) $ EXCLUDE entryusn 
+     * to cn=plugin default config,cn=config */
+    value = slapi_value_new_string("(objectclass=*) $ EXCLUDE entryusn");
+    rc = slapi_set_plugin_default_config("nsds5ReplicatedAttributeList", value);
+    slapi_value_free(&value);
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
+                    "<-- usn_start (rc: %d)\n", rc);
     return rc;
 }
 
@@ -547,7 +573,7 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
             continue;
         }
         /* get a next USN counter from be_usn_counter; then minus 1 from it */
-        PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64, 
+        PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d", 
                                  slapi_counter_get_value(be->be_usn_counter)-1);
         usn_berval.bv_len = strlen(usn_berval.bv_val);
 

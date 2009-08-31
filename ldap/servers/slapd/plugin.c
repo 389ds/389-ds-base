@@ -2837,3 +2837,159 @@ bail:
 
 	return rc;
 }
+
+/*
+ * Set given "type: attr" to the plugin default config entry
+ * (cn=plugin default config,cn=config) unless the same "type: attr" pair
+ * already exists in the entry.
+ */ 
+int
+slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
+{
+    Slapi_PBlock pb;
+    Slapi_Entry **entries = NULL;
+    int rc = LDAP_SUCCESS;
+    char **search_attrs = NULL; /* used by search */
+
+    if (NULL == type || '\0' == *type || NULL == value ) { /* nothing to do */
+        return rc;
+    }
+
+    charray_add(&search_attrs, slapi_ch_strdup(type));
+
+    /* cn=plugin default config,cn=config */
+    pblock_init(&pb);
+    slapi_search_internal_set_pb(&pb,
+                    SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN */
+                    LDAP_SCOPE_BASE,
+                    "(objectclass=*)",
+                    search_attrs, /* Attrs */
+                    0, /* AttrOnly */
+                    NULL, /* Controls */
+                    NULL, /* UniqueID */
+                    (void *)plugin_get_default_component_id(),
+                    0);
+    slapi_search_internal_pb(&pb);
+    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    if (LDAP_SUCCESS == rc && entries && *entries) {
+        /* plugin default config entry exists */
+        int exists = 0;
+        Slapi_Attr *attr = NULL;
+        rc = slapi_entry_attr_find(*entries, type, &attr);
+
+        if (0 == rc) { /* type exists in the entry */
+            if (0 == 
+                slapi_attr_value_find(attr, slapi_value_get_berval(value))) {
+                /* value exists in the entry; we don't have to do anything. */
+                exists = 1;
+            }
+        }
+        slapi_free_search_results_internal(&pb);
+        pblock_done(&pb);
+
+        if (!exists) {
+            /* The argument attr is not in the plugin default config.
+             * Let's add it. */
+            Slapi_Mods smods;
+            Slapi_Value *va[2];
+
+            va[0] = value;
+            va[1] = NULL;
+            slapi_mods_init(&smods, 1);
+            slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va);
+    
+            pblock_init(&pb);
+            slapi_modify_internal_set_pb(&pb, SLAPI_PLUGIN_DEFAULT_CONFIG,
+                                      slapi_mods_get_ldapmods_byref(&smods),
+                                      NULL, NULL, /* UniqueID */
+                                      (void *)plugin_get_default_component_id(),
+                                      0 /* Flags */ );
+            slapi_modify_internal_pb(&pb);
+            slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+            slapi_mods_done(&smods);
+            pblock_done(&pb);
+        }
+    } else { /* cn=plugin default config does not exist. Let's add it. */
+        Slapi_Mods smods;
+        Slapi_Value *va[2];
+
+        slapi_free_search_results_internal(&pb);
+        pblock_done(&pb);
+
+        va[0] = value;
+        va[1] = NULL;
+        slapi_mods_init(&smods, 1);
+
+        slapi_mods_add_string(&smods, LDAP_MOD_ADD, "objectClass", "top");
+        slapi_mods_add_string(&smods, LDAP_MOD_ADD, "objectClass",
+                                                        "extensibleObject");
+        slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va);
+
+        pblock_init(&pb);
+        slapi_add_internal_set_pb(&pb, SLAPI_PLUGIN_DEFAULT_CONFIG,
+                                  slapi_mods_get_ldapmods_byref(&smods), NULL, 
+                                  (void *)plugin_get_default_component_id(),
+                                  0 /* Flags */ );
+        slapi_add_internal_pb(&pb);
+        slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_mods_done(&smods);
+        pblock_done(&pb);
+    }
+    charray_free(search_attrs);
+
+    return rc;
+}
+
+/*
+ * Get attribute values of given type from the plugin default config entry
+ * (cn=plugin default config,cn=config).
+ *
+ * Caller is responsible to free attrs by slapi_valueset_free.
+ */
+int
+slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
+{
+    Slapi_PBlock pb;
+    Slapi_Entry **entries = NULL;
+    int rc = LDAP_PARAM_ERROR;
+    char **search_attrs = NULL; /* used by search */
+
+    if (NULL == type || '\0' == *type || NULL == valueset) { /* nothing to do */
+        return rc;
+    }
+
+    charray_add(&search_attrs, slapi_ch_strdup(type));
+
+    /* cn=plugin default config,cn=config */
+    pblock_init(&pb);
+    slapi_search_internal_set_pb(&pb,
+                    SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN */
+                    LDAP_SCOPE_BASE,
+                    "(objectclass=*)",
+                    search_attrs, /* Attrs */
+                    0, /* AttrOnly */
+                    NULL, /* Controls */
+                    NULL, /* UniqueID */
+                    (void *)plugin_get_default_component_id(),
+                    0);
+    slapi_search_internal_pb(&pb);
+    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    if (LDAP_SUCCESS == rc && entries && *entries) {
+        /* default config entry exists */
+        /* retrieve attribute values from the entry */
+        Slapi_Attr *attr = NULL;
+        rc = slapi_entry_attr_find(*entries, type, &attr);
+		if (0 == rc) { /* type value exists */
+			rc = slapi_attr_get_valueset(attr, valueset);
+		} else {
+			rc = LDAP_NO_SUCH_ATTRIBUTE;
+		}
+    }
+    slapi_free_search_results_internal(&pb);
+    pblock_done(&pb);
+    charray_free(search_attrs);
+
+    return rc;
+}

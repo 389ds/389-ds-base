@@ -3637,6 +3637,29 @@ char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
 #endif
 #endif
 
+/**
+ * Set given "type: value" to the plugin default config entry
+ * (cn=plugin default config,cn=config) unless the same "type: value" pair
+ * already exists in the entry.
+ *
+ * \param type Attribute type to add to the default config entry
+ * \param value Attribute value to add to the default config entry
+ * \return 0 if the operation was successful
+ * \return non-0 if the operation was not successful
+ */
+int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
+
+/**
+ * Get attribute values of given type from the plugin default config entry
+ * (cn=plugin default config,cn=config).
+ *
+ * \param type Attribute type to get from the default config entry
+ * \param valueset Valueset holding the attribute values
+ * \return 0 if the operation was successful
+ * \return non-0 if the operation was not successful
+ * \warning Caller is responsible to free attrs by slapi_ch_array_free
+ *     */
+int slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset);
 
 #ifdef __cplusplus
 }
