@@ -262,9 +262,8 @@ dd/mm/yy | Author	| Comments
 
 #include <prprf.h>
 
-
-
-
+#define LDCLT_DEREF_ATTR "secretary"
+int ldclt_create_deref_control( LDAP *ld, char *derefAttr, char **attrs, LDAPControl **ctrlp );
 
 /* ****************************************************************************
 	FUNCTION :	my_ldap_err2string
@@ -1722,6 +1721,15 @@ buildNewEntry (
       attribute.mod_op     = LDAP_MOD_ADD;
       attribute.mod_type   = "sn";
       attribute.mod_values = strList1 ("toto sn");
+      if (addAttrib (attrs, nbAttribs++, &attribute) < 0)
+        return (-1);
+    }
+    if ((mctx.mode & OC_INETORGPRSON) && (mctx.mod2 & M2_DEREF))
+    {
+      attribute.mod_op     = LDAP_MOD_ADD;
+      attribute.mod_type   = LDCLT_DEREF_ATTR;
+      /* refer itself */
+      attribute.mod_values = strList1 (newDn);
       if (addAttrib (attrs, nbAttribs++, &attribute) < 0)
         return (-1);
     }
@@ -3439,6 +3447,7 @@ doExactSearch (
   int		  ret;		/* Return value */
   LDAPMessage	 *res;		/* LDAP results */
   char		**attrlist;	/* Attribs list */		/*JLS 15-03-01*/
+  LDAPControl **ctrlsp = NULL, *ctrls[2], *dctrl = NULL; /* derefence control */
 
   /*
    * Connection to the server
@@ -3469,6 +3478,32 @@ doExactSearch (
     else							/*JLS 15-03-01*/
       attrlist = mctx.attrlist;					/*JLS 15-03-01*/
 
+  if (mctx.mod2 & M2_DEREF) /* dereference */
+  {
+    char *attrs[2];
+    attrs[0] = "cn";
+    attrs[1] = NULL;
+    ret = ldclt_create_deref_control(tttctx->ldapCtx,
+                                     LDCLT_DEREF_ATTR, attrs, &dctrl);
+    if (LDAP_SUCCESS == ret)
+    {
+        ctrls[0] = dctrl;
+        ctrls[1] = NULL;
+        ctrlsp = ctrls;
+    }
+    else
+    {
+      if (!((mctx.mode & QUIET) && ignoreError (ret))) 
+        fprintf (stderr, 
+          "ldclt[%d]: T%03d: ldclt_create_deref_control() failed, error=%d\n",
+          mctx.pid, tttctx->thrdNum, ret);
+      if (dctrl) {
+        ldap_control_free(dctrl);
+      }
+      if (addErrorStat(ret) < 0)
+        return (-1);
+    }
+  }
   /*
    * Do the search
    * Maybe we are in synchronous mode ? I hope so, it is really
@@ -3478,45 +3513,57 @@ doExactSearch (
   {
     ret = ldap_search_ext_s (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
 		tttctx->bufFilter, attrlist, 			/*JLS 15-03-01*/
-		mctx.attrsonly, NULL, NULL, NULL, -1, &res);	/*JLS 03-01-01*/
+		mctx.attrsonly, ctrlsp, NULL, NULL, -1, &res);	/*JLS 03-01-01*/
     if (ret != LDAP_SUCCESS)
     {
       if (!((mctx.mode & QUIET) && ignoreError (ret)))
 	(void) printErrorFromLdap (tttctx, res, ret,		/*JLS 03-08-00*/
 		"Cannot ldap_search()");			/*JLS 03-08-00*/
       if (addErrorStat (ret) < 0)
-	return (-1);
+      {
+        goto bail;
+      }
       if ((ret == LDAP_NO_SUCH_OBJECT) && 			/*JLS 15-12-00*/
 	  (mctx.mode & COUNT_EACH))				/*JLS 15-12-00*/
       {								/*JLS 15-12-00*/
-	if (incrementNbOpers (tttctx) < 0)			/*JLS 15-12-00*/
-	  return (-1);						/*JLS 15-12-00*/
+        if (incrementNbOpers (tttctx) < 0)			/*JLS 15-12-00*/
+        {
+          goto bail;
+        }
       }								/*JLS 15-12-00*/
     }
     else
     {
       if (incrementNbOpers (tttctx) < 0)/* Memorize operation */
-	return (-1);
+      {
+        goto bail;
+      }
 
       /*
        * Don't forget to free the returned message !
        */
       if ((ret = ldap_msgfree (res)) < 0)
       {
-	if (!((mctx.mode & QUIET) && ignoreError (ret)))
-	{
-	  printf ("ldclt[%d]: T%03d: Cannot ldap_msgfree(), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
-	  fflush (stdout);
-	}
-	if (addErrorStat (ret) < 0)
-	  return (-1);
+        if (!((mctx.mode & QUIET) && ignoreError (ret)))
+        {
+          printf ("ldclt[%d]: T%03d: Cannot ldap_msgfree(), error=%d (%s)\n",
+                  mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
+          fflush (stdout);
+        }
+        if (addErrorStat (ret) < 0)
+        {
+          goto bail;
+        }
       }
     }
 
     /*
      * End of synchronous operation
      */
+    if (dctrl)
+    {
+      ldap_control_free(dctrl);
+    }
     return (0);
   }
 
@@ -3537,7 +3584,9 @@ doExactSearch (
 	(void) printErrorFromLdap (tttctx, res, ret,		/*JLS 03-08-00*/
 		"Cannot ldap_result()");			/*JLS 03-08-00*/
       if (addErrorStat (ret) < 0)
-	return (-1);
+      {
+        goto bail;
+      }
     }
     else
     {
@@ -3548,14 +3597,16 @@ doExactSearch (
        */
       if ((ret = ldap_msgfree (res)) < 0)
       {
-	if (!((mctx.mode & QUIET) && ignoreError (ret)))
-	{
-	  printf ("ldclt[%d]: T%03d: Cannot ldap_msgfree(), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
-	  fflush (stdout);
-	}
-	if (addErrorStat (ret) < 0)
-	  return (-1);
+        if (!((mctx.mode & QUIET) && ignoreError (ret)))
+        {
+          printf ("ldclt[%d]: T%03d: Cannot ldap_msgfree(), error=%d (%s)\n",
+                mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
+          fflush (stdout);
+        }
+        if (addErrorStat (ret) < 0)
+        {
+          goto bail;
+        }
       }
     }
   }
@@ -3594,32 +3645,33 @@ doExactSearch (
 
     ret = ldap_search_ext (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
 		tttctx->bufFilter, attrlist, 			/*JLS 15-03-01*/
-		mctx.attrsonly, NULL, NULL, NULL, -1, &msgid);	/*JLS 03-01-01*/
+		mctx.attrsonly, ctrlsp, NULL, NULL, -1, &msgid);	/*JLS 03-01-01*/
     if (ret < 0)
     {
       if (ldap_get_option (tttctx->ldapCtx, LDAP_OPT_ERROR_NUMBER, &ret) < 0)
       {
-	printf ("ldclt[%d]: T%03d: Cannot ldap_get_option(LDAP_OPT_ERROR_NUMBER)\n",
-		mctx.pid, tttctx->thrdNum);
-	fflush (stdout);
-	return (-1);
+        printf ("ldclt[%d]: T%03d: Cannot ldap_get_option(LDAP_OPT_ERROR_NUMBER)\n",
+        mctx.pid, tttctx->thrdNum);
+        fflush (stdout);
+        goto bail;
       }
       else
       {
-	if (!((mctx.mode & QUIET) && ignoreError (ret)))
-	{
-	  printf ("ldclt[%d]: T%03d: Cannot ldap_search(), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
-	  fflush (stdout);
-	}
-	if (addErrorStat (ret) < 0)
-	  return (-1);
-	if ((ret == LDAP_NO_SUCH_OBJECT) && 			/*JLS 15-12-00*/
-	    (mctx.mode & COUNT_EACH))				/*JLS 15-12-00*/
-	{							/*JLS 15-12-00*/
-	  if (incrementNbOpers (tttctx) < 0)			/*JLS 15-12-00*/
-	    return (-1);					/*JLS 15-12-00*/
-	}							/*JLS 15-12-00*/
+        if (!((mctx.mode & QUIET) && ignoreError (ret)))
+        {
+          printf ("ldclt[%d]: T%03d: Cannot ldap_search(), error=%d (%s)\n",
+        	mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
+          fflush (stdout);
+        }
+        if (addErrorStat (ret) < 0)
+          return (-1);
+        if ((ret == LDAP_NO_SUCH_OBJECT) && 			/*JLS 15-12-00*/
+            (mctx.mode & COUNT_EACH))				/*JLS 15-12-00*/
+        {							/*JLS 15-12-00*/
+          if (incrementNbOpers (tttctx) < 0) {		/*JLS 15-12-00*/
+            goto bail;
+          }
+        }							/*JLS 15-12-00*/
       }
     }
     else
@@ -3627,8 +3679,9 @@ doExactSearch (
       /*
        * Memorize the operation
        */
-      if (incrementNbOpers (tttctx) < 0)
-	return (-1);
+      if (incrementNbOpers (tttctx) < 0) {
+        goto bail;
+      }
       tttctx->pendingNb++;
     }
   }
@@ -3640,7 +3693,18 @@ doExactSearch (
   /*
    * End of asynchronous operation... and also end of function.
    */
+  if (dctrl)
+  {
+    ldap_control_free(dctrl);
+  }
   return (0);
+
+bail:
+  if (dctrl)
+  {
+    ldap_control_free(dctrl);
+  }
+  return (-1);
 }
 
 /* ****************************************************************************
@@ -3811,6 +3875,44 @@ doAbandon (thread_context *tttctx)
    * End of asynchronous operation... and also end of function.
    */
   return (0);
+}
+
+#define	LDAP_CONTROL_X_DEREF			"1.3.6.1.4.1.4203.666.5.16"
+int 
+ldclt_create_deref_control( 
+    LDAP *ld, 
+    char *derefAttr,
+    char **attrs,
+    LDAPControl **ctrlp 
+)
+{
+    BerElement *ber;
+    int rc;
+    
+    if (ld == 0) {
+        return( LDAP_PARAM_ERROR );
+    }
+
+    if ( NULL == ctrlp || NULL == derefAttr ||
+         NULL == attrs || NULL == *attrs || 0 == strlen(*attrs) ) {
+        return ( LDAP_PARAM_ERROR );
+    }
+
+    /* create a ber package to hold the controlValue */
+    if ( LDAP_SUCCESS != nsldapi_alloc_ber_with_options( ld, &ber )  ) 
+    {
+        return( LDAP_NO_MEMORY );
+    }
+
+    if ( LBER_ERROR == ber_printf( ber, "{{s{v}}}", derefAttr, attrs ))
+    {
+        ber_free( ber, 1 );
+        return( LDAP_ENCODING_ERROR );
+    }
+
+    rc = nsldapi_build_control( LDAP_CONTROL_X_DEREF, ber, 1, 1, ctrlp );
+
+    return( rc );
 }
 
 /* End of file */

@@ -278,6 +278,7 @@ dd/mm/yy | Author	| Comments
 #define M2_SASLAUTH     0x00000040 /* -o : SASL authentication */
 #define M2_RANDOM_SASLAUTHID     0x00000080 /* -e randomauthid */
 #define M2_ABANDON     0x00000100 /* -e abandon */
+#define M2_DEREF     0x00000200 /* -e deref */
 
 /*
  * Combinatory defines
