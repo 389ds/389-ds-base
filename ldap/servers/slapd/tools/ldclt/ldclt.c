@@ -2121,6 +2121,8 @@ char *execParams[] = {
 	"randomauthidlow",
 #define EP_ABANDON		 	49
 	"abandon",
+#define EP_DEREF		 	50
+	"deref",
 	NULL
 };
 
@@ -2405,6 +2407,9 @@ decodeExecParams (
 	break;							/*JLS 15-12-00*/
       case EP_ABANDON:
 	mctx.mod2 |= M2_ABANDON;
+	break;
+      case EP_DEREF:
+	mctx.mod2 |= M2_DEREF;
 	break;
       default:
 	fprintf (stderr, "Error: illegal option -e %s\n", subvalue);
