@@ -98,7 +98,7 @@ struct config_info {
 #define CONFIG_INDEX_BUFFER_SIZE         "nsslapd-index-buffer-size"
 #define CONFIG_EXCLUDE_FROM_EXPORT		"nsslapd-exclude-from-export"
 #define CONFIG_EXCLUDE_FROM_EXPORT_DEFAULT_VALUE \
-	"entrydn entryid dncomp parentid numSubordinates"
+	"entrydn entryid dncomp parentid numSubordinates entryusn"
 
 /* dblayer config options - These are hidden from the user
  * and can't be updated on the fly. */
