@@ -63,8 +63,8 @@ sub new {
     $self = bless $self, $class;
 
     $self->{readonly} = $readonly;
-    for (@namingContexts) {
-        $self->setNamingContext($_);
+    for my $ctx (@namingContexts) {
+        $self->setNamingContext($ctx);
     }
     $self->setNamingContext(""); # root DSE
     if (!$self->read($filename)) {
@@ -192,9 +192,9 @@ sub write {
     }
 
     $self->iterate("", LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
-    for (keys %{$self->{namingContexts}}) {
-        next if (!$_); # skip "" - we already did that
-        $self->iterate($_, LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
+    for my $ctx (keys %{$self->{namingContexts}}) {
+        next if (!$ctx); # skip "" - we already did that
+        $self->iterate($ctx, LDAP_SCOPE_SUBTREE, \&writecb, \*MYLDIF);
     }
     close( MYLDIF );
 
@@ -354,12 +354,12 @@ sub cloneEntry {
     }
     my $dest = new Mozilla::LDAP::Entry();
     $dest->setDN($src->getDN());
-    for (keys %{$src}) {
-        if (ref($src->{$_})) {
-            my @copyary = @{$src->{$_}};
-            $dest->{$_} = [ @copyary ]; # make a deep copy
+    for my $key (keys %{$src}) {
+        if (ref($src->{$key})) {
+            my @copyary = @{$src->{$key}};
+            $dest->{$key} = [ @copyary ]; # make a deep copy
         } else {
-            $dest->{$_} = $src->{$_};
+            $dest->{$key} = $src->{$key};
         }
     }
 

@@ -88,31 +88,32 @@ sub read {
         }
         $inffh = \*INF;
     }
-    while (<$inffh>) {
+    my $line;
+    while ($line = <$inffh>) {
         my $iscontinuation;
-        chop; # trim trailing newline
-        if (/^\s*$/) { # skip blank/empty lines
+        chop $line; # trim trailing newline
+        if ($line =~ /^\s*$/) { # skip blank/empty lines
             $incontinuation = 0;
             next;
         }
-        if (/^\s*\#/) { # skip comment lines
+        if ($line =~ /^\s*\#/) { # skip comment lines
             $incontinuation = 0;
             next;
         }
-        if (/\\$/) { # line ends in \ - continued on next line
-            chop;
+        if ($line =~ /\\$/) { # line ends in \ - continued on next line
+            chop $line;
             $iscontinuation = 1;
         }
         if ($incontinuation) {
             if ($curval) {
-                $self->{$curSection}->{$curkey}->[$curval] .= "\n" . $_; # add line in entirety to current value
+                $self->{$curSection}->{$curkey}->[$curval] .= "\n" . $line; # add line in entirety to current value
             } else {
-                $self->{$curSection}->{$curkey} .= "\n" . $_; # add line in entirety to current value
+                $self->{$curSection}->{$curkey} .= "\n" . $line; # add line in entirety to current value
             }
-        } elsif (/^\[(.*?)\]/) { # e.g. [General]
+        } elsif ($line =~ /^\[(.*?)\]/) { # e.g. [General]
             $curSection = $1;
             $iscontinuation = 0; # disallow section continuations
-        } elsif (/^\s*(.*?)\s*=\s*(.*?)\s*$/) { # key = value
+        } elsif ($line =~ /^\s*(.*?)\s*=\s*(.*?)\s*$/) { # key = value
             $curkey = $1;
             # a single value is just a single scalar
             # multiple values are represented by an array ref
@@ -207,8 +208,8 @@ sub updateFromArgs {
     }
 
     # read args into temp inf
-    for (@_) {
-        if (/^([\w_-]+)\.([\w_-]+)=(.*)$/) { # e.g. section.param=value
+    for my $arg (@_) {
+        if ($arg =~ /^([\w_-]+)\.([\w_-]+)=(.*)$/) { # e.g. section.param=value
             my $sec = $1;
             my $parm = $2;
             my $val = $3;
@@ -227,7 +228,7 @@ sub updateFromArgs {
                 $argsinf->{$sec}->{$parm} = $val;
             }
         } else { # error
-            print STDERR "Error: unknown command line option $_\n";
+            print STDERR "Error: unknown command line option $arg\n";
             return;
         }
     }

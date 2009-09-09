@@ -1,0 +1,9 @@
+dn: cn=URI Syntax,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-pluginenabled
+nsslapd-pluginenabled: off
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

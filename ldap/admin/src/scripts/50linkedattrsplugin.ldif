@@ -1,0 +1,16 @@
+dn: cn=Linked Attributes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: nsContainer
+cn: Linked Attributes
+nsslapd-pluginpath: liblinkedattrs-plugin
+nsslapd-plugininitfunc: linked_attrs_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

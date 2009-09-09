@@ -1,0 +1,14 @@
+dn: cn=Schema Reload,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Schema Reload
+nsslapd-pluginpath: libschemareload-plugin
+nsslapd-plugininitfunc: schemareload_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: on
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

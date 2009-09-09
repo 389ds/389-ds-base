@@ -64,8 +64,8 @@ use Mozilla::LDAP::LDIF;
 
 use Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(createDSInstance removeDSInstance);
-@EXPORT_OK = qw(createDSInstance removeDSInstance);
+@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts installSchema);
+@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts installSchema);
 
 use strict;
 
@@ -207,9 +207,9 @@ sub makeDSDirs {
     # more privileged user than the directory server, but
     # still allows the admin server to manage directory
     # server files/dirs without being root
-    for (qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir
+    for my $kw (qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir
             cert_dir db_dir ldif_dir bak_dir)) {
-        my $dir = $inf->{slapd}->{$_};
+        my $dir = $inf->{slapd}->{$kw};
         @errs = makePaths($dir, $mode, $inf->{General}->{SuiteSpotUserID},
                           $inf->{General}->{SuiteSpotGroup});
         if (@errs) {
@@ -240,8 +240,8 @@ sub makeDSDirs {
     }
     # set the group of the parent dir of config_dir and inst_dir
     if (defined($inf->{General}->{SuiteSpotGroup})) {
-        for (qw(inst_dir config_dir)) {
-            my $dir = $inf->{slapd}->{$_};
+        for my $kw (qw(inst_dir config_dir)) {
+            my $dir = $inf->{slapd}->{$kw};
             my $parent = dirname($dir);
                   # changeOwnerMode(inf, mode, file, gidonly & default mode);
             @errs = changeOwnerMode($inf, 7, $parent, 5);
@@ -256,6 +256,7 @@ sub makeDSDirs {
 
 sub createInstanceScripts {
     my $inf = shift;
+    my $skip = shift;
     my $perlexec = "@perlexec@" || "/usr/bin/env perl";
     my $myperl = "!$perlexec";
     my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
@@ -280,18 +281,21 @@ sub createInstanceScripts {
     );
 
     my $dir = "$inf->{General}->{prefix}@taskdir@";
-    for (glob("$dir/template-*")) {
-        my $basename = $_;
+    for my $file (glob("$dir/template-*")) {
+        my $basename = $file;
         $basename =~ s/^.*template-//;
         my $destfile = "$inf->{slapd}->{inst_dir}/$basename";
-        if (!open(SRC, "< $_")) {
-            return ("error_opening_scripttmpl", $_, $!);
+
+        next if ($skip and -f $destfile); # in skip mode, skip files that already exist
+
+        if (!open(SRC, "< $file")) {
+            return ("error_opening_scripttmpl", $file, $!);
         }
         if (!open(DEST, "> $destfile")) {
             return ("error_opening_scripttmpl", $destfile, $!);
         }
         my $contents; # slurp entire file into memory
-        read SRC, $contents, int(-s $_);
+        read SRC, $contents, int(-s $file);
         close(SRC);
         while (my ($key, $val) = each %maptable) {
             $contents =~ s/\{\{$key\}\}/$val/g;
@@ -482,6 +486,7 @@ sub makeOtherConfigFiles {
 
 sub installSchema {
     my $inf = shift;
+    my $skip = shift;
     my @errs;
     my @schemafiles = ();
     if (!defined($inf->{slapd}->{install_full_schema}) or
@@ -499,10 +504,13 @@ sub installSchema {
             push @schemafiles, $inf->{slapd}->{SchemaFile};
         }
     }
-    for (@schemafiles) {
-        my $src = $_;
+    for my $file (@schemafiles) {
+        my $src = $file;
         my $basename = basename($src);
         my $dest = "$inf->{slapd}->{schema_dir}/$basename";
+
+        next if ($skip and -f $dest); # skip files that already exist
+
         $! = 0; # clear errno
         copy($src, $dest);
         if ($!) {
@@ -667,17 +675,18 @@ sub startServer {
     }
         
     my $pos = tell(IN);
+    my $line;
     while (($done == 0) && (time < $timeout)) {
-        for (; ($done == 0) && ($_ = <IN>); $pos = tell(IN)) {
-            $lastLine = $_;
-            debug(1, $_);
-            if (/$cmdPat/) {
+        for (; ($done == 0) && ($line = <IN>); $pos = tell(IN)) {
+            $lastLine = $line;
+            debug(1, $line);
+            if ($line =~ /$cmdPat/) {
                 $done = 1;
                 $started = 1;
-            } elsif (/Initialization Failed/) {
+            } elsif ($line =~ /Initialization Failed/) {
                 debug(1, "Server failed to start, retrying . . .\n");
                 $code = system($startcmd);
-            } elsif (/exiting\./) {
+            } elsif ($line =~ /exiting\./) {
                 debug(1, "Server failed to start, retrying . . .\n");
                 $code = system($startcmd);
             }

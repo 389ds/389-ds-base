@@ -135,3 +135,48 @@ error_creating_templdif = Could not create temporary LDIF file. Error: %s\n
 error_no_such_instance = Error: could not find directory server configuration directory '%s'.  Error: %s\n
 error_finding_config_entry = Error: could not find the config entry '%s' in '%s'.  Error: %s\n
 error_removing_path = Error: could not remove path '%s'.  Error: %s\n
+error_loading_update = Error: not applying update '%s'.  Error: %s\n
+error_unknown_update = Error: cannot apply update '%s'.  Not a recognized update type.\n
+error_executing_update = Error: update '%s' returned code '%s': %s\n
+error_updating = Error: could not update the directory server.\n
+update_successful = Finished successful update of directory server.\n
+
+update_dialog_first = This program will update the %s Directory Server.\n\nIt is recommended that you have "root" privilege to perform the update.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" or the word "back" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the update\n\n
+# %s -> brand
+
+update_dialog_first_prompt = Would you like to continue with update?
+
+update_dialog_mode =\
+The update process can work in one of two modes:\
+\
+  - Online: The changes are made to the running directory servers using LDAP.\
+            The operations must be performed as an administrative user.\
+            You must provide the name and password, for each instance\
+            if there is more than one instance of directory server.\
+            Some operations may require a directory server restart to take\
+            effect.  The update script will notify you if you need to restart\
+            the server.\
+\
+  - Offline: The changes are made to the server configuration files.  The\
+             servers MUST FIRST BE SHUTDOWN BY YOU.  The script will not\
+             shutdown the servers for you.  You MUST shutdown the\
+             servers in order to use this mode.  A username and password\
+             are not required to use Offline mode.  If the servers are not\
+             shutdown, CHANGES WILL BE LOST.\
+\
+To summarize:\
+  Online - servers remain running - you must provide admin name and password\
+           for each server - servers may need to be restarted\
+  Offline - servers must be shutdown - no username or password required\n\n
+
+update_dialog_mode_prompt = Which update mode do you want to use?
+
+update_admin_dialog = Please specify the authentication data for '%s'\n\n
+update_admin_id_prompt = Full DN of administrative user
+update_admin_pwd_prompt = Password for this user
+error_renaming_schema = Could not rename schema file '%s' tp '%s'.  Error: %s\n
+error_reading_schema_dir = Schema directory '%s' does not exist or is not readable\n
+error_online_update = Could not open a connection to the server at %s port %s as '%s'.\
+Please make sure the server is up and running before using online mode,\
+or use offline mode.\n\n
+error_offline_update = Could not read the server config file '%s'. Error: %s\n\n

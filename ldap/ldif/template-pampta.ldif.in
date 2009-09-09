@@ -17,4 +17,8 @@ pamIDAttr: notUsedWithRDNMethod
 pamFallback: FALSE
 pamSecure: TRUE
 pamService: ldapserver
-
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

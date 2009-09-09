@@ -46,11 +46,11 @@ use Mozilla::LDAP::LDIF;
 require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
-                process_maptbl check_and_add_entry getMappedEntries
+                process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
-                process_maptbl check_and_add_entry getMappedEntries
+                process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 
@@ -658,7 +658,7 @@ sub process_maptbl
                 }
                 else
                 {
-                    push @{$errs}, 'no_mapvalue_for_key', $value, $key;
+                    push @{$errs}, ['no_mapvalue_for_key', $value, $key];
                     return {};
                 }
             }
@@ -813,21 +813,21 @@ sub makePaths {
          $parent = dirname($parent)) {
         unshift @dirnames, $parent;
     }
-    for (@dirnames) {
-        next if (-d $_);
+    for my $dir (@dirnames) {
+        next if (-d $dir);
         $! = 0; # clear
-        mkdir $_, $mode;
+        mkdir $dir, $mode;
         if ($!) {
-            return ('error_creating_directory', $_, $!);
+            return ('error_creating_directory', $dir, $!);
         }
-        chown $uid, $gid, $_;
+        chown $uid, $gid, $dir;
         if ($!) {
-            return ('error_chowning_directory', $_, $!);
+            return ('error_chowning_directory', $dir, $!);
         }
-        chmod $mode, $_;
+        chmod $mode, $dir;
         $mode_string = sprintf "%lo", $mode;
-        debug(1, "makePaths: created directory $_ mode $mode_string user $user group $group\n");
-        debug(2, "\t" . `ls -ld $_`);
+        debug(1, "makePaths: created directory $dir mode $mode_string user $user group $group\n");
+        debug(2, "\t" . `ls -ld $dir`);
     }
 
     return ();
@@ -917,6 +917,52 @@ sub remove_tree
 sub remove_pidfile
 {
     my ($type, $instdir, $instname) = @_;
+    my $serv_id;
+    my $run_dir;
+    my $product_name;
+    my $pidfile;
+
+    # Get the serv_id from the start-slapd script.
+    unless(open(INFILE,"$instdir/start-slapd")) {
+        print("Cannot open start-slapd file for reading "); return 0;
+    }
+    my $line;
+    while($line = <INFILE>) {
+        if ($line =~ /start-dirsrv /g) {
+            my @servline=split(/start-dirsrv /, $line);
+            @servline=split(/\s+/, $servline[1]);
+            $serv_id=$servline[0];
+        }
+    }
+    close(INFILE);
+
+    # Get the run_dir and product_name from the instance initconfig script.
+    unless(open(INFILE,"@initconfigdir@/@package_name@-$serv_id")) {
+        print("Couldn't open @initconfigdir@/@package_name@-$serv_id "); return 0;
+    }
+    while($line = <INFILE>) {
+        if ($line =~ /RUN_DIR=/g) {
+            my @rundir_line=split(/RUN_DIR=+/, $line);
+            @rundir_line=split(/;/, $rundir_line[1]);
+            $run_dir = $rundir_line[0];
+            chop($run_dir);
+        } elsif ($line =~ /PRODUCT_NAME=/g) {
+            my @product_line=split(/PRODUCT_NAME=+/, $line);
+            @product_line=split(/;/, $product_line[1]);
+            $product_name = $product_line[0];
+            chop($product_name);
+        }
+    }
+    close(INFILE);
+
+    # Construct the pidfile name as follows:
+    #     PIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.pid
+    #     STARTPIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.startpid
+    if ($type eq "PIDFILE") {
+        $pidfile = $run_dir . "/" . $product_name . "-" . $serv_id . ".pid";
+    } elsif ($type eq "STARTPIDFILE") {
+        $pidfile = $run_dir . "/" . $product_name . "-" . $serv_id . ".startpid";
+    }
 
     my $pattern = "^" . $type . ".*=";
     my $pidline = `grep $pattern $instdir/start-slapd`;

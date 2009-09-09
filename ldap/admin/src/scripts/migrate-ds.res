@@ -9,7 +9,6 @@ error_reading_olddbconfig = Could not read the old database configuration inform
 error_migrating_schema = Could not copy old schema file '%s'.  Error: %s\n
 error_opening_schema = Could not open new schema file '%s'.  Error: %s\n
 error_schema_permissions = Could not reset permissions on schema file '%s'.  Error: %s\n
-error_renaming_schema = Could not rename schema file '%s' tp '%s'.  Error: %s\n
 error_copying_dbdir = Could not copy database directory '%s' to '%s'.  Error: %s\n
 error_copying_dbfile = Could not copy database file '%s' to '%s'.  Error: %s\n
 error_dbsrcdir_not_exist = Could not copy from the database source directory '%s' because it does not exist.  Please check your configuration.\n
