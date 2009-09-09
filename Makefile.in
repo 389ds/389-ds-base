@@ -61,7 +61,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/fhs.m4 $(top_srcdir)/m4/nspr.m4 \
 	$(top_srcdir)/m4/sasl.m4 $(top_srcdir)/m4/svrcore.m4 \
 	$(top_srcdir)/m4/icu.m4 $(top_srcdir)/m4/netsnmp.m4 \
 	$(top_srcdir)/m4/kerberos.m4 $(top_srcdir)/m4/pcre.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/selinux.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -101,8 +101,9 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" \
 	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" \
 	"$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(policydir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" \
+	"$(DESTDIR)$(schemadir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -884,12 +885,13 @@ initconfigDATA_INSTALL = $(INSTALL_DATA)
 mibDATA_INSTALL = $(INSTALL_DATA)
 nodist_propertyDATA_INSTALL = $(INSTALL_DATA)
 perlDATA_INSTALL = $(INSTALL_DATA)
+policyDATA_INSTALL = $(INSTALL_DATA)
 propertyDATA_INSTALL = $(INSTALL_DATA)
 sampledataDATA_INSTALL = $(INSTALL_DATA)
 schemaDATA_INSTALL = $(INSTALL_DATA)
 DATA = $(config_DATA) $(inf_DATA) $(initconfig_DATA) $(mib_DATA) \
-	$(nodist_property_DATA) $(perl_DATA) $(property_DATA) \
-	$(sampledata_DATA) $(schema_DATA)
+	$(nodist_property_DATA) $(perl_DATA) $(policy_DATA) \
+	$(property_DATA) $(sampledata_DATA) $(schema_DATA)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -974,6 +976,8 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
 SED = @SED@
+SELINUX_FALSE = @SELINUX_FALSE@
+SELINUX_TRUE = @SELINUX_TRUE@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
@@ -1104,6 +1108,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 vendor = @vendor@
 with_fhs_opt = @with_fhs_opt@
+with_selinux = @with_selinux@
 
 # look for included m4 files in the ./m4/ directory
 ACLOCAL_AMFLAGS = -I m4
@@ -1190,6 +1195,7 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
 
 taskdir = $(datadir)@scripttemplatedir@
+policydir = $(datadir)/selinux/targeted
 server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
 # this is how to add optional plugins
@@ -1203,6 +1209,7 @@ server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 @enable_presence_TRUE@LIBPRESENCE_SCHEMA = $(srcdir)/ldap/schema/10presence.ldif
 @enable_presence_FALSE@enable_presence = off
 @enable_presence_TRUE@enable_presence = on
+@SELINUX_TRUE@POLICY_MODULE = selinux-built/dirsrv.pp
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
 	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \
@@ -1220,6 +1227,7 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 #------------------------
 # Installed Files
 #------------------------
+policy_DATA = $(POLICY_MODULE)
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	ldap/admin/src/template-initconfig
@@ -2183,6 +2191,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@defaultuser\@,$(defaultuser),g' \
 @BUNDLE_FALSE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 @BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+@BUNDLE_FALSE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_FALSE@	-e 's,@perlexec\@,@perlexec@,g' \
 @BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g'
 
@@ -2244,6 +2253,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@defaultuser\@,$(defaultuser),g' \
 @BUNDLE_TRUE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 @BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+@BUNDLE_TRUE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_TRUE@	-e 's,@perlexec\@,@perlexec@,g' \
 @BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'
 
@@ -9339,6 +9349,23 @@ uninstall-perlDATA:
 	  echo " rm -f '$(DESTDIR)$(perldir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(perldir)/$$f"; \
 	done
+install-policyDATA: $(policy_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(policydir)" || $(mkdir_p) "$(DESTDIR)$(policydir)"
+	@list='$(policy_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(policyDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(policydir)/$$f'"; \
+	  $(policyDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(policydir)/$$f"; \
+	done
+
+uninstall-policyDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(policy_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(policydir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(policydir)/$$f"; \
+	done
 install-propertyDATA: $(property_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(propertydir)" || $(mkdir_p) "$(DESTDIR)$(propertydir)"
@@ -9572,7 +9599,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(MANS) $(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(policydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9684,7 +9711,7 @@ maintainer-clean-generic:
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool \
+clean-am: clean-binPROGRAMS clean-generic clean-libtool clean-local \
 	clean-noinstLIBRARIES clean-noinstPROGRAMS clean-sbinPROGRAMS \
 	clean-serverLTLIBRARIES clean-serverpluginLTLIBRARIES \
 	mostlyclean-am
@@ -9709,9 +9736,9 @@ info-am:
 install-data-am: install-configDATA install-infDATA \
 	install-initSCRIPTS install-initconfigDATA install-man \
 	install-mibDATA install-nodist_propertyDATA install-perlDATA \
-	install-propertyDATA install-sampledataDATA install-schemaDATA \
-	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
-	install-taskSCRIPTS
+	install-policyDATA install-propertyDATA install-sampledataDATA \
+	install-schemaDATA install-serverLTLIBRARIES \
+	install-serverpluginLTLIBRARIES install-taskSCRIPTS
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS \
 	install-sbinPROGRAMS install-sbinSCRIPTS
@@ -9746,7 +9773,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-info-am \
 	uninstall-initSCRIPTS uninstall-initconfigDATA uninstall-man \
 	uninstall-mibDATA uninstall-nodist_propertyDATA \
-	uninstall-perlDATA uninstall-propertyDATA \
+	uninstall-perlDATA uninstall-policyDATA uninstall-propertyDATA \
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
@@ -9755,7 +9782,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 uninstall-man: uninstall-man1 uninstall-man8
 
 .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
-	clean-binPROGRAMS clean-generic clean-libtool \
+	clean-binPROGRAMS clean-generic clean-libtool clean-local \
 	clean-noinstLIBRARIES clean-noinstPROGRAMS clean-sbinPROGRAMS \
 	clean-serverLTLIBRARIES clean-serverpluginLTLIBRARIES ctags \
 	dist dist-all dist-bzip2 dist-gzip dist-shar dist-tarZ \
@@ -9769,7 +9796,7 @@ uninstall-man: uninstall-man1 uninstall-man8
 	install-initSCRIPTS install-initconfigDATA install-man \
 	install-man1 install-man8 install-mibDATA \
 	install-nodist_propertyDATA install-perlDATA \
-	install-propertyDATA install-sampledataDATA \
+	install-policyDATA install-propertyDATA install-sampledataDATA \
 	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
 	install-strip install-taskSCRIPTS installcheck installcheck-am \
@@ -9781,14 +9808,27 @@ uninstall-man: uninstall-man1 uninstall-man8
 	uninstall-initSCRIPTS uninstall-initconfigDATA uninstall-man \
 	uninstall-man1 uninstall-man8 uninstall-mibDATA \
 	uninstall-nodist_propertyDATA uninstall-perlDATA \
-	uninstall-propertyDATA uninstall-sampledataDATA \
-	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
-	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
-	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS
+	uninstall-policyDATA uninstall-propertyDATA \
+	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
+	uninstall-sbinSCRIPTS uninstall-schemaDATA \
+	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
+	uninstall-taskSCRIPTS
 
+
+clean-local:
+	-rm -rf selinux-built
 
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
+
+selinux-built:
+	cp -r $(srcdir)/selinux $@
+
+selinux-built/dirsrv.fc: selinux-built
+	$(fixupcmd) selinux-built/dirsrv.fc.in > $@
+
+selinux-built/dirsrv.pp: selinux-built/dirsrv.fc
+	cd selinux-built && $(MAKE)
 
 #------------------------
 # ns-slapd.properties

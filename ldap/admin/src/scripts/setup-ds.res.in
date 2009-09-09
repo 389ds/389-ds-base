@@ -135,3 +135,4 @@ error_creating_templdif = Could not create temporary LDIF file. Error: %s\n
 error_no_such_instance = Error: could not find directory server configuration directory '%s'.  Error: %s\n
 error_finding_config_entry = Error: could not find the config entry '%s' in '%s'.  Error: %s\n
 error_removing_path = Error: could not remove path '%s'.  Error: %s\n
+error_removing_port_label = Error: could not remove selinux label from port '%s'.  Error: %s\n

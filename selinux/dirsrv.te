@@ -1,0 +1,127 @@
+policy_module(dirsrv,1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+# main daemon
+type dirsrv_t;
+type dirsrv_exec_t;
+domain_type(dirsrv_t)
+init_daemon_domain(dirsrv_t, dirsrv_exec_t)
+
+# dynamic libraries
+type dirsrv_lib_t;
+files_type(dirsrv_lib_t)
+
+# var/lib files
+type dirsrv_var_lib_t;
+files_type(dirsrv_var_lib_t)
+
+# log files
+type dirsrv_var_log_t;
+logging_log_file(dirsrv_var_log_t)
+
+# pid files
+type dirsrv_var_run_t;
+files_pid_file(dirsrv_var_run_t)
+
+# lock files
+type dirsrv_var_lock_t;
+files_lock_file(dirsrv_var_lock_t)
+
+# config files
+type dirsrv_config_t;
+files_type(dirsrv_config_t)
+
+# tmp files
+type dirsrv_tmp_t;
+files_tmp_file(dirsrv_tmp_t)
+
+# semaphores
+type dirsrv_tmpfs_t;
+files_tmpfs_file(dirsrv_tmpfs_t)
+
+# shared files
+type dirsrv_share_t;
+files_type(dirsrv_share_t);
+
+########################################
+#
+# dirsrv local policy
+#
+
+# Some common macros
+files_read_etc_files(dirsrv_t)
+corecmd_search_sbin(dirsrv_t)
+files_read_usr_symlinks(dirsrv_t)
+miscfiles_read_localization(dirsrv_t)
+dev_read_urand(dirsrv_t)
+libs_use_ld_so(dirsrv_t)
+libs_use_shared_libs(dirsrv_t)
+allow dirsrv_t self:fifo_file { read write };
+
+# process stuff
+allow dirsrv_t self:process { getsched setsched signal_perms};
+allow dirsrv_t self:capability { sys_nice setuid setgid chown dac_override };
+
+# semaphores
+allow dirsrv_t self:sem all_sem_perms;
+manage_files_pattern(dirsrv_t, dirsrv_tmpfs_t, dirsrv_tmpfs_t)
+fs_tmpfs_filetrans(dirsrv_t, dirsrv_tmpfs_t, file)
+
+# dynamic libraries
+allow dirsrv_t dirsrv_lib_t:file exec_file_perms;
+allow dirsrv_t dirsrv_lib_t:lnk_file read_lnk_file_perms;
+allow dirsrv_t dirsrv_lib_t:dir search_dir_perms;
+
+# var/lib files for dirsrv
+manage_files_pattern(dirsrv_t, dirsrv_var_lib_t, dirsrv_var_lib_t)
+manage_dirs_pattern(dirsrv_t, dirsrv_var_lib_t, dirsrv_var_lib_t)
+files_var_lib_filetrans(dirsrv_t,dirsrv_var_lib_t, { file dir sock_file })
+
+# log files
+manage_files_pattern(dirsrv_t, dirsrv_var_log_t, dirsrv_var_log_t)
+allow dirsrv_t dirsrv_var_log_t:dir { setattr };
+logging_log_filetrans(dirsrv_t,dirsrv_var_log_t,{ sock_file file dir })
+
+# pid files
+manage_files_pattern(dirsrv_t, dirsrv_var_run_t, dirsrv_var_run_t)
+files_pid_filetrans(dirsrv_t,dirsrv_var_run_t, { file sock_file })
+
+#lock files
+manage_files_pattern(dirsrv_t, dirsrv_var_lock_t, dirsrv_var_lock_t)
+manage_dirs_pattern(dirsrv_t, dirsrv_var_lock_t, dirsrv_var_lock_t)
+files_lock_filetrans(dirsrv_t,dirsrv_var_lock_t, { file })
+
+# config files
+manage_files_pattern(dirsrv_t, dirsrv_config_t, dirsrv_config_t)
+
+# tmp files
+manage_files_pattern(dirsrv_t, dirsrv_tmp_t, dirsrv_tmp_t)
+manage_dirs_pattern(dirsrv_t, dirsrv_tmp_t, dirsrv_tmp_t)
+files_tmp_filetrans(dirsrv_t, dirsrv_tmp_t, { file dir })
+
+# system state
+fs_getattr_all_fs(dirsrv_t)
+kernel_read_system_state(dirsrv_t)
+
+# Networking basics
+sysnet_dns_name_resolve(dirsrv_t)
+corenet_all_recvfrom_unlabeled(dirsrv_t)
+corenet_all_recvfrom_netlabel(dirsrv_t)
+corenet_tcp_sendrecv_generic_if(dirsrv_t)
+corenet_tcp_sendrecv_generic_node(dirsrv_t)
+corenet_tcp_sendrecv_all_ports(dirsrv_t)
+corenet_tcp_bind_all_nodes(dirsrv_t)
+corenet_tcp_bind_ldap_port(dirsrv_t)
+corenet_tcp_connect_all_ports(dirsrv_t)
+corenet_sendrecv_ldap_server_packets(dirsrv_t)
+corenet_sendrecv_all_client_packets(dirsrv_t)
+allow dirsrv_t self:tcp_socket { create_stream_socket_perms };
+
+# Init script handling
+init_use_fds(dirsrv_t)
+init_use_script_ptys(dirsrv_t)
+domain_use_interactive_fds(dirsrv_t)

@@ -94,8 +94,22 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
 
+clean-local:
+	-rm -rf selinux-built
+
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
+
+selinux-built:
+	cp -r $(srcdir)/selinux $@
+
+selinux-built/dirsrv.fc: selinux-built
+	$(fixupcmd) selinux-built/dirsrv.fc.in > $@
+
+selinux-built/dirsrv.pp: selinux-built/dirsrv.fc
+	cd selinux-built && $(MAKE)
+
+
 
 #------------------------
 # Install Paths
@@ -113,6 +127,7 @@ instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
 mibdir = $(datadir)@mibdir@
+policydir = $(datadir)/selinux/targeted
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -150,6 +165,10 @@ else
 enable_presence = off
 endif
 
+if SELINUX
+POLICY_MODULE = selinux-built/dirsrv.pp
+endif
+
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
 	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \
@@ -170,6 +189,8 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 #------------------------
 # Installed Files
 #------------------------
+policy_DATA = $(POLICY_MODULE)
+
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	ldap/admin/src/template-initconfig
@@ -1226,6 +1247,7 @@ fixupcmd = sed \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'
 else
@@ -1277,6 +1299,7 @@ fixupcmd = sed \
 	-e 's,@defaultuser\@,$(defaultuser),g' \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
+	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'
 endif

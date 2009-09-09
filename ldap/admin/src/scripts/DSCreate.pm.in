@@ -888,6 +888,41 @@ sub setDefaults {
     return ();
 }
 
+sub updateSelinuxPolicy {
+    my $inf = shift;
+
+    # if selinux is not available, do nothing
+    if ("@with_selinux@") {
+        # run restorecon on all directories we created
+        for (qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir
+                cert_dir db_dir ldif_dir bak_dir)) {
+            my $dir = $inf->{slapd}->{$_};
+            system("restorecon -R $dir");
+        }
+
+        # label the selected port as ldap_port_t
+        if ($inf->{slapd}->{ServerPort} != 0) {
+            my $need_label = 1;
+
+            # check if the port is already labeled properly
+            my $portline = `semanage port -l | grep ldap_port_t | grep tcp`;
+            chomp($portline);
+            $portline =~ s/ldap_port_t\s+tcp\s+//g;
+            my @labeledports = split(/,\s+/, $portline);
+            foreach my $labeledport (@labeledports) {
+                if ($inf->{slapd}->{ServerPort} == $labeledport) {
+                    $need_label = 0;
+                    last;
+                }
+            }
+
+            if ($need_label == 1) {
+                system("semanage port -a -t ldap_port_t -p tcp $inf->{slapd}->{ServerPort}");
+            }
+        }
+    }
+}
+
 sub createDSInstance {
     my $inf = shift;
     my @errs;
@@ -923,6 +958,8 @@ sub createDSInstance {
     if (@errs = initDatabase($inf)) {
         return @errs;
     }
+
+    updateSelinuxPolicy($inf);
 
     if (@errs = startServer($inf)) {
         return @errs;
@@ -1047,6 +1084,31 @@ sub removeDSInstance {
     }
     # Finally, config dir
     push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
+
+    # remove the selinux label from the ports if needed
+    if ("@with_selinux@") {
+        foreach my $port (@{$entry->{"nsslapd-port"}}) 
+        {
+            my $semanage_err = `semanage port -d -t ldap_port_t -p tcp $port 2>&1`;
+            if ($? != 0)  {
+                if ($semanage_err !~ /defined in policy, cannot be deleted/) {
+                    push @errs, [ 'error_removing_port_label', $port, $semanage_err];
+                    debug(1, "Warning: Port $port not removed from selinux policy correctly.  Error: $semanage_err\n");
+                }
+            }
+        }
+
+        foreach my $secureport (@{$entry->{"nsslapd-secureport"}})
+        {
+            my $semanage_err = `semanage port -d -t ldap_port_t -p tcp $secureport 2>&1`;
+            if ($? != 0)  {
+                if ($semanage_err !~ /defined in policy, cannot be deleted/) {
+                    push @errs, [ 'error_removing_port_label', $secureport, $semanage_err];
+                    debug(1, "Warning: Port $secureport not removed from selinux policy correctly.  Error: $semanage_err\n");
+                }
+            }
+        }
+    }
 
     # if we got here, report success
     if (@errs) {

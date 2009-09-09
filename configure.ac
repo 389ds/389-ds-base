@@ -439,6 +439,7 @@ m4_include(m4/icu.m4)
 m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
 m4_include(m4/pcre.m4)
+m4_include(m4/selinux.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
@@ -450,6 +451,7 @@ else
   sasl_path="$sasl_libdir/sasl2"
 fi
 
+AM_CONDITIONAL(SELINUX,test "$with_selinux" = "yes")
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 
 # write out paths for binary components

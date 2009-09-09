@@ -1141,6 +1141,9 @@ sub migrateDS {
             return 0;
         }
 
+	# ensure any selinux relabeling gets done if needed
+        DSCreate::updateSelinuxPolicy($inf);
+
         # finally, start the server
         if ($mig->{start_servers}) {
             $inf->{slapd}->{start_server} = 1;

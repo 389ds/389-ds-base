@@ -1,0 +1,23 @@
+## <summary>policy for dirsrv</summary>
+
+########################################
+## <summary>
+##	Execute a domain transition to run dirsrv.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`dirsrv_domtrans',`
+	gen_require(`
+		type dirsrv_t, dirsrv_exec_t;
+	')
+
+	domain_auto_trans($1,dirsrv_exec_t,dirsrv_t)
+
+	allow dirsrv_t $1:fd use;
+	allow dirsrv_t $1:fifo_file rw_file_perms;
+	allow dirsrv_t $1:process sigchld;
+')
