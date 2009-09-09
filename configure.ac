@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
 # This version is the version returned by ns-slapd -v
-AC_INIT([dirsrv], [1.2.2], [http://bugzilla.redhat.com/])
+AC_INIT([dirsrv], [1.2.3], [http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
@@ -205,6 +205,8 @@ if test "$with_fhs_opt" = "yes"; then
   sampledatadir=/data
   # relative to datadir
   scripttemplatedir=/script-templates
+  # relative to datadir
+  updatedir=/updates
   # relative to libdir
   serverdir=
   # relative to libdir
@@ -231,6 +233,8 @@ else
   sampledatadir=/$PACKAGE_NAME/data
   # relative to datadir
   scripttemplatedir=/$PACKAGE_NAME/script-templates
+  # relative to datadir
+  updatedir=/$PACKAGE_NAME/updates
   # relative to libdir
   serverdir=/$PACKAGE_NAME
   # relative to libdir
@@ -272,6 +276,7 @@ AC_SUBST(perldir)
 AC_SUBST(infdir)
 AC_SUBST(mibdir)
 AC_SUBST(mandir)
+AC_SUBST(updatedir)
 
 AC_SUBST(defaultuser)
 AC_SUBST(defaultgroup)

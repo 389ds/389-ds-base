@@ -77,27 +77,28 @@ sub read {
         my $incontinuation = 0;
         my $curkey;
         open RES, $filename or die "Error: could not open resource file $filename: $!";
-        while (<RES>) {
+        my $line;
+        while ($line = <RES>) {
             my $iscontinuation;
-            chop; # trim trailing newline
-            if (/^\s*$/) { # skip blank/empty lines
+            chop $line; # trim trailing newline
+            if ($line =~ /^\s*$/) { # skip blank/empty lines
                 $incontinuation = 0;
                 next;
             }
-            if (/^\s*\#/) { # skip comment lines
+            if ($line =~ /^\s*\#/) { # skip comment lines
                 $incontinuation = 0;
                 next;
             }
             # read name = value pairs like this
             # bol whitespace* name whitespace* '=' whitespace* value eol
             # the value will include any trailing whitespace
-            if (/\\$/) {
-                chop;
+            if ($line =~ /\\$/) {
+                chop $line;
                 $iscontinuation = 1;
             }
             if ($incontinuation) {
-                $self->{res}->{$curkey} .= "\n" . $_;
-            } elsif (/^\s*(.*?)\s*=\s*(.*?)$/) {
+                $self->{res}->{$curkey} .= "\n" . $line;
+            } elsif ($line =~ /^\s*(.*?)\s*=\s*(.*?)$/) {
                 # replace \n with real newline
                 if ($curkey) {
                     $self->{res}->{$curkey} =~ s/\\n/\n/g;

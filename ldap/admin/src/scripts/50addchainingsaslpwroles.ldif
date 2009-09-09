@@ -1,0 +1,6 @@
+dn: cn=config,cn=chaining database,cn=plugins,cn=config
+changetype: modify
+add: nsPossibleChainingComponents
+nsPossibleChainingComponents: cn=password policy,cn=components,cn=config
+nsPossibleChainingComponents: cn=sasl,cn=components,cn=config
+nsPossibleChainingComponents: cn=roles,cn=components,cn=config

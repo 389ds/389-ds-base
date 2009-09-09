@@ -1,0 +1,14 @@
+dn: cn=Delivery Method Syntax,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Delivery Method Syntax
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: delivery_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

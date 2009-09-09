@@ -97,13 +97,14 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" \
-	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" \
-	"$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" \
-	"$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" \
-	"$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(perldir)" "$(DESTDIR)$(policydir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" \
-	"$(DESTDIR)$(schemadir)"
+	"$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" \
+	"$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" \
+	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" \
+	"$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" \
+	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" \
+	"$(DESTDIR)$(policydir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" \
+	"$(DESTDIR)$(updatedir)"
 serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
@@ -794,8 +795,9 @@ binSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 initSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 taskSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+updateSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 SCRIPTS = $(bin_SCRIPTS) $(init_SCRIPTS) $(sbin_SCRIPTS) \
-	$(task_SCRIPTS)
+	$(task_SCRIPTS) $(update_SCRIPTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -889,9 +891,11 @@ policyDATA_INSTALL = $(INSTALL_DATA)
 propertyDATA_INSTALL = $(INSTALL_DATA)
 sampledataDATA_INSTALL = $(INSTALL_DATA)
 schemaDATA_INSTALL = $(INSTALL_DATA)
+updateDATA_INSTALL = $(INSTALL_DATA)
 DATA = $(config_DATA) $(inf_DATA) $(initconfig_DATA) $(mib_DATA) \
 	$(nodist_property_DATA) $(perl_DATA) $(policy_DATA) \
-	$(property_DATA) $(sampledata_DATA) $(schema_DATA)
+	$(property_DATA) $(sampledata_DATA) $(schema_DATA) \
+	$(update_DATA)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -1106,6 +1110,7 @@ svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
+updatedir = $(datadir)@updatedir@
 vendor = @vendor@
 with_fhs_opt = @with_fhs_opt@
 with_selinux = @with_selinux@
@@ -1169,6 +1174,7 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
 	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
+	ldap/admin/src/scripts/DSUpdate.pm ldap/admin/src/scripts/dsupdate.map \
 	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
 	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
@@ -1347,7 +1353,9 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Migration.pm \
 	ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/FileConn.pm \
-	ldap/admin/src/scripts/DSCreate.pm
+	ldap/admin/src/scripts/DSCreate.pm \
+	ldap/admin/src/scripts/DSUpdate.pm \
+	ldap/admin/src/scripts/DSUpdateDialogs.pm
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
@@ -1389,6 +1397,7 @@ init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/dsupdate.map \
 	ldap/admin/src/scripts/dsorgentries.map
 
 mib_DATA = ldap/servers/snmp/RFC-1215.txt \
@@ -1422,6 +1431,44 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/setup-ds.pl.8 \
 	man/man8/remove-ds.pl.8
 
+
+#------------------------
+# updates
+# the first 3 are just the examples provided - since they
+# do not begin with two digits, they will be ignored
+# the remaining items should begin with two digits that
+# correspond to the order in which they should be applied
+# perl files and LDIF files are DATA - not executable
+# processed by the update script
+# shell scripts and other files are SCRIPTS - executable
+#------------------------
+update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
+	ldap/admin/src/scripts/exampleupdate.ldif \
+	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
+	ldap/admin/src/scripts/50memberofindex.ldif \
+	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50memberofplugin.ldif \
+	ldap/admin/src/scripts/50deliverymethodsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50nameuidsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50derefplugin.ldif \
+	ldap/admin/src/scripts/50numericstringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50disableurisyntaxplugin.ldif \
+	ldap/admin/src/scripts/50printablestringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50enhancedguidesyntaxplugin.ldif \
+	ldap/admin/src/scripts/50schemareloadplugin.ldif \
+	ldap/admin/src/scripts/50entryusnindex.ldif \
+	ldap/admin/src/scripts/50syntaxvalidplugin.ldif \
+	ldap/admin/src/scripts/50faxnumbersyntaxplugin.ldif \
+	ldap/admin/src/scripts/50teletexterminalidsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50faxsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
+	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
+	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
+	ldap/admin/src/scripts/50usnplugin.ldif \
+	ldap/admin/src/scripts/60upgradeschemafiles.pl \
+	ldap/admin/src/scripts/dnaplugindepends.ldif
+
+update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
 
 #////////////////////////////////////////////////////////////////
 #
@@ -2196,7 +2243,8 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 @BUNDLE_FALSE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_FALSE@	-e 's,@perlexec\@,@perlexec@,g' \
-@BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g'
+@BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g' \
+@BUNDLE_FALSE@	-e 's,@updatedir\@,$(updatedir),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -2258,7 +2306,8 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 @BUNDLE_TRUE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_TRUE@	-e 's,@perlexec\@,@perlexec@,g' \
-@BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'
+@BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'\
+@BUNDLE_TRUE@	-e 's,@updatedir\@,$(updatedir),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -4172,6 +4221,25 @@ uninstall-taskSCRIPTS:
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
 	  echo " rm -f '$(DESTDIR)$(taskdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(taskdir)/$$f"; \
+	done
+install-updateSCRIPTS: $(update_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(updatedir)" || $(mkdir_p) "$(DESTDIR)$(updatedir)"
+	@list='$(update_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(updateSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(updatedir)/$$f'"; \
+	    $(updateSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(updatedir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-updateSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(update_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(updatedir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(updatedir)/$$f"; \
 	done
 
 mostlyclean-compile:
@@ -9420,6 +9488,23 @@ uninstall-schemaDATA:
 	  echo " rm -f '$(DESTDIR)$(schemadir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(schemadir)/$$f"; \
 	done
+install-updateDATA: $(update_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(updatedir)" || $(mkdir_p) "$(DESTDIR)$(updatedir)"
+	@list='$(update_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(updateDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(updatedir)/$$f'"; \
+	  $(updateDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(updatedir)/$$f"; \
+	done
+
+uninstall-updateDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(update_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(updatedir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(updatedir)/$$f"; \
+	done
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -9602,7 +9687,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(MANS) $(DATA) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(policydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(policydir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(updatedir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -9741,7 +9826,8 @@ install-data-am: install-configDATA install-infDATA \
 	install-mibDATA install-nodist_propertyDATA install-perlDATA \
 	install-policyDATA install-propertyDATA install-sampledataDATA \
 	install-schemaDATA install-serverLTLIBRARIES \
-	install-serverpluginLTLIBRARIES install-taskSCRIPTS
+	install-serverpluginLTLIBRARIES install-taskSCRIPTS \
+	install-updateDATA install-updateSCRIPTS
 
 install-exec-am: install-binPROGRAMS install-binSCRIPTS \
 	install-sbinPROGRAMS install-sbinSCRIPTS
@@ -9780,7 +9866,8 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
-	uninstall-taskSCRIPTS
+	uninstall-taskSCRIPTS uninstall-updateDATA \
+	uninstall-updateSCRIPTS
 
 uninstall-man: uninstall-man1 uninstall-man8
 
@@ -9802,11 +9889,12 @@ uninstall-man: uninstall-man1 uninstall-man8
 	install-policyDATA install-propertyDATA install-sampledataDATA \
 	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
-	install-strip install-taskSCRIPTS installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-binSCRIPTS \
+	install-strip install-taskSCRIPTS install-updateDATA \
+	install-updateSCRIPTS installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am tags uninstall uninstall-am \
+	uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-info-am \
 	uninstall-initSCRIPTS uninstall-initconfigDATA uninstall-man \
 	uninstall-man1 uninstall-man8 uninstall-mibDATA \
@@ -9815,7 +9903,8 @@ uninstall-man: uninstall-man1 uninstall-man8
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
-	uninstall-taskSCRIPTS
+	uninstall-taskSCRIPTS uninstall-updateDATA \
+	uninstall-updateSCRIPTS
 
 
 clean-local:

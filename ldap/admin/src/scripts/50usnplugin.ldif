@@ -1,0 +1,15 @@
+dn: cn=USN,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: USN
+nsslapd-pluginpath: libusn-plugin
+nsslapd-plugininitfunc: usn_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: off
+nsslapd-plugin-depends-on-type: database
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

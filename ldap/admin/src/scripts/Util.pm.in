@@ -46,11 +46,11 @@ use Mozilla::LDAP::LDIF;
 require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
-                process_maptbl check_and_add_entry getMappedEntries
+                process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
-                process_maptbl check_and_add_entry getMappedEntries
+                process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
 
@@ -658,7 +658,7 @@ sub process_maptbl
                 }
                 else
                 {
-                    push @{$errs}, 'no_mapvalue_for_key', $value, $key;
+                    push @{$errs}, ['no_mapvalue_for_key', $value, $key];
                     return {};
                 }
             }
@@ -813,21 +813,21 @@ sub makePaths {
          $parent = dirname($parent)) {
         unshift @dirnames, $parent;
     }
-    for (@dirnames) {
-        next if (-d $_);
+    for my $dir (@dirnames) {
+        next if (-d $dir);
         $! = 0; # clear
-        mkdir $_, $mode;
+        mkdir $dir, $mode;
         if ($!) {
-            return ('error_creating_directory', $_, $!);
+            return ('error_creating_directory', $dir, $!);
         }
-        chown $uid, $gid, $_;
+        chown $uid, $gid, $dir;
         if ($!) {
-            return ('error_chowning_directory', $_, $!);
+            return ('error_chowning_directory', $dir, $!);
         }
-        chmod $mode, $_;
+        chmod $mode, $dir;
         $mode_string = sprintf "%lo", $mode;
-        debug(1, "makePaths: created directory $_ mode $mode_string user $user group $group\n");
-        debug(2, "\t" . `ls -ld $_`);
+        debug(1, "makePaths: created directory $dir mode $mode_string user $user group $group\n");
+        debug(2, "\t" . `ls -ld $dir`);
     }
 
     return ();
@@ -926,9 +926,10 @@ sub remove_pidfile
     unless(open(INFILE,"$instdir/start-slapd")) {
         print("Cannot open start-slapd file for reading "); return 0;
     }
-    while(<INFILE>) {
-        if (/start-dirsrv /g) {
-            my @servline=split(/start-dirsrv /, );
+    my $line;
+    while($line = <INFILE>) {
+        if ($line =~ /start-dirsrv /g) {
+            my @servline=split(/start-dirsrv /, $line);
             @servline=split(/\s+/, $servline[1]);
             $serv_id=$servline[0];
         }
@@ -939,14 +940,14 @@ sub remove_pidfile
     unless(open(INFILE,"@initconfigdir@/@package_name@-$serv_id")) {
         print("Couldn't open @initconfigdir@/@package_name@-$serv_id "); return 0;
     }
-    while(<INFILE>) {
-        if (/RUN_DIR=/g) {
-            my @rundir_line=split(/RUN_DIR=+/, );
+    while($line = <INFILE>) {
+        if ($line =~ /RUN_DIR=/g) {
+            my @rundir_line=split(/RUN_DIR=+/, $line);
             @rundir_line=split(/;/, $rundir_line[1]);
             $run_dir = $rundir_line[0];
             chop($run_dir);
-        } elsif (/PRODUCT_NAME=/g) {
-            my @product_line=split(/PRODUCT_NAME=+/, );
+        } elsif ($line =~ /PRODUCT_NAME=/g) {
+            my @product_line=split(/PRODUCT_NAME=+/, $line);
             @product_line=split(/;/, $product_line[1]);
             $product_name = $product_line[0];
             chop($product_name);

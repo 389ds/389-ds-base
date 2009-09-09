@@ -69,6 +69,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
 	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
+	ldap/admin/src/scripts/DSUpdate.pm ldap/admin/src/scripts/dsupdate.map \
 	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
 	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
@@ -128,6 +129,7 @@ perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
 mibdir = $(datadir)@mibdir@
 policydir = $(datadir)/selinux/targeted
+updatedir = $(datadir)@updatedir@
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -308,7 +310,9 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Migration.pm \
 	ldap/admin/src/scripts/DSMigration.pm \
 	ldap/admin/src/scripts/FileConn.pm \
-	ldap/admin/src/scripts/DSCreate.pm
+	ldap/admin/src/scripts/DSCreate.pm \
+	ldap/admin/src/scripts/DSUpdate.pm \
+	ldap/admin/src/scripts/DSUpdateDialogs.pm
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
@@ -351,6 +355,7 @@ initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
+	ldap/admin/src/scripts/dsupdate.map \
 	ldap/admin/src/scripts/dsorgentries.map
 
 mib_DATA = ldap/servers/snmp/RFC-1215.txt \
@@ -382,6 +387,44 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/ns-slapd.8 \
         man/man8/setup-ds.pl.8 \
 	man/man8/remove-ds.pl.8
+
+#------------------------
+# updates
+# the first 3 are just the examples provided - since they
+# do not begin with two digits, they will be ignored
+# the remaining items should begin with two digits that
+# correspond to the order in which they should be applied
+# perl files and LDIF files are DATA - not executable
+# processed by the update script
+# shell scripts and other files are SCRIPTS - executable
+#------------------------
+update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
+	ldap/admin/src/scripts/exampleupdate.ldif \
+	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
+	ldap/admin/src/scripts/50memberofindex.ldif \
+	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50memberofplugin.ldif \
+	ldap/admin/src/scripts/50deliverymethodsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50nameuidsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50derefplugin.ldif \
+	ldap/admin/src/scripts/50numericstringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50disableurisyntaxplugin.ldif \
+	ldap/admin/src/scripts/50printablestringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50enhancedguidesyntaxplugin.ldif \
+	ldap/admin/src/scripts/50schemareloadplugin.ldif \
+	ldap/admin/src/scripts/50entryusnindex.ldif \
+	ldap/admin/src/scripts/50syntaxvalidplugin.ldif \
+	ldap/admin/src/scripts/50faxnumbersyntaxplugin.ldif \
+	ldap/admin/src/scripts/50teletexterminalidsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50faxsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
+	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
+	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
+	ldap/admin/src/scripts/50usnplugin.ldif \
+	ldap/admin/src/scripts/60upgradeschemafiles.pl \
+	ldap/admin/src/scripts/dnaplugindepends.ldif
+
+update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1251,7 +1294,8 @@ fixupcmd = sed \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
-	-e 's,@initconfigdir\@,$(initconfigdir),g'
+	-e 's,@initconfigdir\@,$(initconfigdir),g'\
+	-e 's,@updatedir\@,$(updatedir),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1303,7 +1347,8 @@ fixupcmd = sed \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
-	-e 's,@initconfigdir\@,$(initconfigdir),g'
+	-e 's,@initconfigdir\@,$(initconfigdir),g' \
+	-e 's,@updatedir\@,$(updatedir),g'
 endif
 
 %: %.in

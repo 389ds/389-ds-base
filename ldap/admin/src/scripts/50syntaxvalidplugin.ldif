@@ -1,0 +1,14 @@
+dn: cn=Syntax Validation Task,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Syntax Validation Task
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: syntax_validate_task_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: on
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

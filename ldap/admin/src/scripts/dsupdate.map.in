@@ -1,17 +1,16 @@
-#!@perlexec@
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation; version 2 of the License.
-# 
+#
 # This Program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
 # Place, Suite 330, Boston, MA 02111-1307 USA.
-# 
+#
 # In addition, as a special exception, Red Hat, Inc. gives You the additional
 # right to link the code of this Program with code not covered under the GNU
 # General Public License ("Non-GPL Code") and to distribute linked combinations
@@ -29,92 +28,38 @@
 # version of the file, but you are not obligated to do so. If you do not wish to
 # provide this exception without modification, you must delete this exception
 # statement from your version and license this file solely under the GPL without
-# exception. 
-# 
-# 
-# Copyright (C) 2007 Red Hat, Inc.
+# exception.
+#
+#
+# Copyright (C) 2009 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
+# [Parameter resolution rules]
+# * If the right-hand value is in ` (backquote), the value is eval'ed by perl.
+#   The output should be stored in $returnvalue to pass to the internal hash.
+# * If the right-hand value is in " (doublequote), the value is passed as is.
+# * If the right-hand value is not in any quote, the value should be found
+#   in either of the setup inf file (static) or the install inf file (dynamic).
+# * Variables surrounded by @ (e.g., @configdir@) are replaced with the 
+#   system path at the compile time.
+# * The right-hand value can contain variables surrounded by % (e.g., %asid%)
+#   which refers the right-hand value (key) of this map file.
+# 
+fqdn =			FullMachineName
+dsid =			ServerIdentifier
+ds_user =		SuiteSpotUserID
+ds_port =		ServerPort
+rootdn =		RootDN
 
-use lib qw(@perlpath@);
-
-use strict;
-
-use Setup;
-use SetupLog;
-use Inf;
-use Resource;
-use DialogManager;
-use Util;
-use DSCreate;
-use DSUpdate;
-
-my $res = new Resource("@propertydir@/setup-ds.res");
-
-my $setup = new Setup($res);
-
-if (!$setup->{silent}) {
-    my $dialogmgr = new DialogManager($setup, $res, $TYPICAL);
-
-    my @dialogs;
-    if ($setup->{update}) {
-        require DSUpdateDialogs;
-        push @dialogs, DSUpdateDialogs->getDialogs();
-    } else {
-        require SetupDialogs;
-        require DSDialogs;
-        push @dialogs, SetupDialogs->getDialogs();
-        push @dialogs, DSDialogs->getDialogs();
-    }
-
-    $dialogmgr->addDialog(@dialogs);
-
-    my $rc = $dialogmgr->run();
-    if ($rc) {
-        $setup->doExit();
-    }
-    $setup->{inf}->write();
-}
-
-my @errs;
-if ($setup->{update}) {
-    @errs = updateDS($setup);
-} else {
-    @errs = createDSInstance($setup->{inf});
-}
-
-if (@errs) {
-    $setup->msg(@errs);
-    if ($setup->{update}) {
-        $setup->msg($FATAL, 'error_updating');
-    } else {
-        $setup->msg($FATAL, 'error_creating_dsinstance',
-                    $setup->{inf}->{slapd}->{ServerIdentifier});
-    }
-    $setup->doExit(1);
-} else {
-    if ($setup->{update}) {
-        $setup->msg('update_successful');
-    } else {
-        $setup->msg('created_dsinstance',
-                    $setup->{inf}->{slapd}->{ServerIdentifier});
-    }
-}
-
-$setup->doExit(0);
-
-END {
-    if ($setup) {
-        if (!$setup->{keep}) {
-            unlink $setup->{inffile};
-        }
-    }
-}
-
-# emacs settings
-# Local Variables:
-# mode:perl
-# indent-tabs-mode: nil
-# tab-width: 4
-# End:
+schema_dir =    schema_dir
+lock_dir =      lock_dir
+tmp_dir =       tmp_dir
+cert_dir =      cert_dir
+ldif_dir =      ldif_dir
+bak_dir =       bak_dir
+inst_dir =      inst_dir
+log_dir =       log_dir
+config_dir =    config_dir
+db_dir =        db_dir
+run_dir =       run_dir

@@ -1,0 +1,7 @@
+dn: cn=entryusn,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: entryusn
+nssystemindex: true
+nsindextype: eq
+nsmatchingrule: integerOrderingMatch

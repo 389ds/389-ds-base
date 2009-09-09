@@ -1,4 +1,4 @@
-#!@perlexec@
+#!/bin/sh
 # BEGIN COPYRIGHT BLOCK
 # This Program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,89 +32,32 @@
 # exception. 
 # 
 # 
-# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
 
-use lib qw(@perlpath@);
+# There are several environment variables passed in:
+my $PRE_STAGE = "pre";
+my $PREINST_STAGE = "preinst";
+my $RUNINST_STAGE = "runinst";
+my $POSTINST_STAGE = "postinst";
+my $POST_STAGE = "post";
 
-use strict;
+# $DS_UPDATE_STAGE - the current stage of the update - one of
+# pre - called at the beginning of the update
+# preinst - called before processing an instance
+# runinst - the main update stage for an instance
+# postinst - called after processing an instance
+# post - called the the end of the update
+# you should definitely check the stage to make sure you only perform
+# your actions during the correct stage e.g.
 
-use Setup;
-use SetupLog;
-use Inf;
-use Resource;
-use DialogManager;
-use Util;
-use DSCreate;
-use DSUpdate;
+if [ "$DS_UPDATE_STAGE" != "pre" ] ; then
+    exit 0
+fi
 
-my $res = new Resource("@propertydir@/setup-ds.res");
-
-my $setup = new Setup($res);
-
-if (!$setup->{silent}) {
-    my $dialogmgr = new DialogManager($setup, $res, $TYPICAL);
-
-    my @dialogs;
-    if ($setup->{update}) {
-        require DSUpdateDialogs;
-        push @dialogs, DSUpdateDialogs->getDialogs();
-    } else {
-        require SetupDialogs;
-        require DSDialogs;
-        push @dialogs, SetupDialogs->getDialogs();
-        push @dialogs, DSDialogs->getDialogs();
-    }
-
-    $dialogmgr->addDialog(@dialogs);
-
-    my $rc = $dialogmgr->run();
-    if ($rc) {
-        $setup->doExit();
-    }
-    $setup->{inf}->write();
-}
-
-my @errs;
-if ($setup->{update}) {
-    @errs = updateDS($setup);
-} else {
-    @errs = createDSInstance($setup->{inf});
-}
-
-if (@errs) {
-    $setup->msg(@errs);
-    if ($setup->{update}) {
-        $setup->msg($FATAL, 'error_updating');
-    } else {
-        $setup->msg($FATAL, 'error_creating_dsinstance',
-                    $setup->{inf}->{slapd}->{ServerIdentifier});
-    }
-    $setup->doExit(1);
-} else {
-    if ($setup->{update}) {
-        $setup->msg('update_successful');
-    } else {
-        $setup->msg('created_dsinstance',
-                    $setup->{inf}->{slapd}->{ServerIdentifier});
-    }
-}
-
-$setup->doExit(0);
-
-END {
-    if ($setup) {
-        if (!$setup->{keep}) {
-            unlink $setup->{inffile};
-        }
-    }
-}
-
-# emacs settings
-# Local Variables:
-# mode:perl
-# indent-tabs-mode: nil
-# tab-width: 4
-# End:
+# $DS_UPDATE_DIR - the main config directory containing the schema dir
+#   the config dir and the instance specific (slapd-instance) directories
+# $DS_UPDATE_INST - the name of the instance (slapd-instance), if one of the instance specific stages
+# $DS_UPDATE_DSELDIF - the full path ane filename of the dse.ldif file for the instance
