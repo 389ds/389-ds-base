@@ -88,12 +88,15 @@ logging_log_filetrans(dirsrv_t,dirsrv_var_log_t,{ sock_file file dir })
 
 # pid files
 manage_files_pattern(dirsrv_t, dirsrv_var_run_t, dirsrv_var_run_t)
-files_pid_filetrans(dirsrv_t,dirsrv_var_run_t, { file sock_file })
+files_pid_filetrans(dirsrv_t, dirsrv_var_run_t, { file sock_file })
+
+# ldapi socket
+manage_sock_files_pattern(dirsrv_t, dirsrv_var_run_t, dirsrv_var_run_t)
 
 #lock files
 manage_files_pattern(dirsrv_t, dirsrv_var_lock_t, dirsrv_var_lock_t)
 manage_dirs_pattern(dirsrv_t, dirsrv_var_lock_t, dirsrv_var_lock_t)
-files_lock_filetrans(dirsrv_t,dirsrv_var_lock_t, { file })
+files_lock_filetrans(dirsrv_t, dirsrv_var_lock_t, { file })
 
 # config files
 manage_files_pattern(dirsrv_t, dirsrv_config_t, dirsrv_config_t)
