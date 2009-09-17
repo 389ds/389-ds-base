@@ -5,7 +5,7 @@
 ###############################################################################
 
 LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@netsnmp_libdir@
-BIN_DIR=@bindir@
+BIN_DIR=@sbindir@
 COMMAND=ldap-agent-bin
 
 # We don't need to load any mibs, so set MIBS to nothing.

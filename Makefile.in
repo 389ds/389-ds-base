@@ -40,10 +40,10 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-sbin_PROGRAMS = ns-slapd$(EXEEXT)
+sbin_PROGRAMS = ns-slapd$(EXEEXT) ldap-agent-bin$(EXEEXT)
 bin_PROGRAMS = dbscan-bin$(EXEEXT) dsktune-bin$(EXEEXT) \
-	infadd-bin$(EXEEXT) ldap-agent-bin$(EXEEXT) ldclt-bin$(EXEEXT) \
-	ldif-bin$(EXEEXT) migratecred-bin$(EXEEXT) mmldif-bin$(EXEEXT) \
+	infadd-bin$(EXEEXT) ldclt-bin$(EXEEXT) ldif-bin$(EXEEXT) \
+	migratecred-bin$(EXEEXT) mmldif-bin$(EXEEXT) \
 	pwdhash-bin$(EXEEXT) rsearch-bin$(EXEEXT)
 noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
@@ -1230,7 +1230,8 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 policy_DATA = $(POLICY_MODULE)
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
-	ldap/admin/src/template-initconfig
+	ldap/admin/src/template-initconfig \
+	ldap/servers/snmp/ldap-agent.conf
 
 
 # the schema files in this list are either not
@@ -1312,13 +1313,13 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/start-dirsrv \
 	ldap/admin/src/scripts/stop-dirsrv \
-	ldap/admin/src/scripts/restart-dirsrv
+	ldap/admin/src/scripts/restart-dirsrv \
+        wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
 	wrappers/dsktune \
 	wrappers/infadd \
-	wrappers/ldap-agent \
 	wrappers/ldclt \
 	wrappers/ldif \
 	$(srcdir)/ldap/admin/src/logconv.pl \
@@ -1382,7 +1383,9 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
-init_SCRIPTS = wrappers/$(PACKAGE_NAME)
+init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
+	wrappers/$(PACKAGE_NAME)-snmp
+
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
@@ -9845,6 +9848,10 @@ ns-slapd.properties: makstrdb
 	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME): %/initconfig.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

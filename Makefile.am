@@ -135,10 +135,10 @@ defaultgroup=@defaultgroup@
 #------------------------
 # Build Products
 #------------------------
-sbin_PROGRAMS = ns-slapd
+sbin_PROGRAMS = ns-slapd ldap-agent-bin
 
-bin_PROGRAMS = dbscan-bin dsktune-bin infadd-bin ldap-agent-bin \
-	ldclt-bin ldif-bin migratecred-bin mmldif-bin pwdhash-bin rsearch-bin
+bin_PROGRAMS = dbscan-bin dsktune-bin infadd-bin ldclt-bin \
+	ldif-bin migratecred-bin mmldif-bin pwdhash-bin rsearch-bin
 
 server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
@@ -193,7 +193,8 @@ policy_DATA = $(POLICY_MODULE)
 
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
-	ldap/admin/src/template-initconfig
+	ldap/admin/src/template-initconfig \
+	ldap/servers/snmp/ldap-agent.conf
 
 # the schema files in this list are either not
 # standard schema, not tested, or not compatible
@@ -274,13 +275,13 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/remove-ds.pl \
 	ldap/admin/src/scripts/start-dirsrv \
 	ldap/admin/src/scripts/stop-dirsrv \
-	ldap/admin/src/scripts/restart-dirsrv
+	ldap/admin/src/scripts/restart-dirsrv \
+        wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
 	wrappers/dsktune \
 	wrappers/infadd \
-	wrappers/ldap-agent \
 	wrappers/ldclt \
 	wrappers/ldif \
 	$(srcdir)/ldap/admin/src/logconv.pl \
@@ -343,7 +344,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
-init_SCRIPTS = wrappers/$(PACKAGE_NAME)
+init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
+	wrappers/$(PACKAGE_NAME)-snmp
 
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 
@@ -1315,3 +1317,8 @@ endif
 %/$(PACKAGE_NAME): %/initconfig.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+

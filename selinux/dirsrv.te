@@ -5,11 +5,25 @@ policy_module(dirsrv,1.0.0)
 # Declarations
 #
 
+# NGK - this can go away when bz 478629, bz 523548,
+# and bz 523771 are addressed.  See the notes below
+# where we work around those issues.
+require {
+    type snmpd_var_lib_t;
+    type snmpd_t;
+}
+
 # main daemon
 type dirsrv_t;
 type dirsrv_exec_t;
 domain_type(dirsrv_t)
 init_daemon_domain(dirsrv_t, dirsrv_exec_t)
+
+# snmp subagent daemon
+type dirsrv_snmp_t;
+type dirsrv_snmp_exec_t;
+domain_type(dirsrv_snmp_t)
+init_daemon_domain(dirsrv_snmp_t, dirsrv_snmp_exec_t)
 
 # dynamic libraries
 type dirsrv_lib_t;
@@ -23,9 +37,17 @@ files_type(dirsrv_var_lib_t)
 type dirsrv_var_log_t;
 logging_log_file(dirsrv_var_log_t)
 
+# snmp log file
+type dirsrv_snmp_var_log_t;
+logging_log_file(dirsrv_snmp_var_log_t)
+
 # pid files
 type dirsrv_var_run_t;
 files_pid_file(dirsrv_var_run_t)
+
+# snmp pid file
+type dirsrv_snmp_var_run_t;
+files_pid_file(dirsrv_snmp_var_run_t)
 
 # lock files
 type dirsrv_var_lock_t;
@@ -93,7 +115,7 @@ files_pid_filetrans(dirsrv_t, dirsrv_var_run_t, { file sock_file })
 # ldapi socket
 manage_sock_files_pattern(dirsrv_t, dirsrv_var_run_t, dirsrv_var_run_t)
 
-#lock files
+# lock files
 manage_files_pattern(dirsrv_t, dirsrv_var_lock_t, dirsrv_var_lock_t)
 manage_dirs_pattern(dirsrv_t, dirsrv_var_lock_t, dirsrv_var_lock_t)
 files_lock_filetrans(dirsrv_t, dirsrv_var_lock_t, { file })
@@ -128,3 +150,64 @@ allow dirsrv_t self:tcp_socket { create_stream_socket_perms };
 init_use_fds(dirsrv_t)
 init_use_script_ptys(dirsrv_t)
 domain_use_interactive_fds(dirsrv_t)
+
+
+########################################
+#
+# dirsrv-snmp local policy
+#
+
+# Some common macros
+files_read_etc_files(dirsrv_snmp_t)
+miscfiles_read_localization(dirsrv_snmp_t)
+libs_use_ld_so(dirsrv_snmp_t)
+libs_use_shared_libs(dirsrv_snmp_t)
+dev_read_rand(dirsrv_snmp_t)
+dev_read_urand(dirsrv_snmp_t)
+files_read_usr_files(dirsrv_snmp_t)
+fs_getattr_tmpfs(dirsrv_snmp_t)
+fs_search_tmpfs(dirsrv_snmp_t)
+allow dirsrv_snmp_t self:fifo_file { read write };
+sysnet_read_config(dirsrv_snmp_t)
+sysnet_dns_name_resolve(dirsrv_snmp_t)
+
+# Net-SNMP /var/lib files (includes agentx unix domain socket)
+snmp_dontaudit_read_snmp_var_lib_files(dirsrv_snmp_t)
+snmp_dontaudit_write_snmp_var_lib_files(dirsrv_snmp_t)
+# NGK - there really should be a macro for this. (see bz 523771)
+allow dirsrv_snmp_t snmpd_var_lib_t:file append;
+# NGK - use snmp_stream_connect(dirsrv_snmp_t) when it is made
+# available on all platforms we build on (see bz 478629 and bz 523548)
+stream_connect_pattern(dirsrv_snmp_t, snmpd_var_lib_t, snmpd_var_lib_t, snmpd_t)
+
+# Net-SNMP agentx tcp socket
+corenet_tcp_connect_agentx_port(dirsrv_snmp_t)
+
+# Net-SNMP persistent data file
+files_manage_var_files(dirsrv_snmp_t)
+
+# stats file semaphore
+rw_files_pattern(dirsrv_snmp_t, dirsrv_tmpfs_t, dirsrv_tmpfs_t)
+
+# stats file
+read_files_pattern(dirsrv_snmp_t, dirsrv_var_run_t, dirsrv_var_run_t)
+
+# process stuff
+allow dirsrv_snmp_t self:capability { dac_override dac_read_search };
+
+# config file
+read_files_pattern(dirsrv_snmp_t, dirsrv_config_t, dirsrv_config_t)
+
+# pid file
+admin_pattern(dirsrv_snmp_t, dirsrv_snmp_var_run_t)
+files_pid_filetrans(dirsrv_snmp_t, dirsrv_snmp_var_run_t, { file sock_file })
+search_dirs_pattern(dirsrv_snmp_t, dirsrv_var_run_t, dirsrv_var_run_t)
+
+# log file
+manage_files_pattern(dirsrv_snmp_t, dirsrv_var_log_t, dirsrv_snmp_var_log_t);
+filetrans_pattern(dirsrv_snmp_t, dirsrv_var_log_t, dirsrv_snmp_var_log_t, file)
+
+# Init script handling
+init_use_fds(dirsrv_snmp_t)
+init_use_script_ptys(dirsrv_snmp_t)
+domain_use_interactive_fds(dirsrv_snmp_t)

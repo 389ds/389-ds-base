@@ -4,14 +4,18 @@
 # MCS categories: <none>
 
 @sbindir@/ns-slapd			--	gen_context(system_u:object_r:dirsrv_exec_t,s0)
+@sbindir@/ldap-agent			--	gen_context(system_u:object_r:initrc_exec_t,s0)
+@sbindir@/ldap-agent-bin		--	gen_context(system_u:object_r:dirsrv_snmp_exec_t,s0)
 @sbindir@/start-dirsrv			--	gen_context(system_u:object_r:initrc_exec_t,s0)
 @sbindir@/restart-dirsrv		--	gen_context(system_u:object_r:initrc_exec_t,s0)
 @serverdir@					gen_context(system_u:object_r:dirsrv_lib_t,s0)
 @serverdir@(/.*)				gen_context(system_u:object_r:dirsrv_lib_t,s0)
 @localstatedir@/run/@package_name@		gen_context(system_u:object_r:dirsrv_var_run_t,s0)
 @localstatedir@/run/@package_name@(/.*)		gen_context(system_u:object_r:dirsrv_var_run_t,s0)
+@localstatedir@/run/ldap-agent.pid		gen_context(system_u:object_r:dirsrv_snmp_var_run_t,s0)
 @localstatedir@/log/@package_name@		gen_context(system_u:object_r:dirsrv_var_log_t,s0)
 @localstatedir@/log/@package_name@(/.*)		gen_context(system_u:object_r:dirsrv_var_log_t,s0)
+@localstatedir@/log/@package_name@/ldap-agent.log	gen_context(system_u:object_r:dirsrv_snmp_var_log_t,s0)
 @localstatedir@/lock/@package_name@		gen_context(system_u:object_r:dirsrv_var_lock_t,s0)
 @localstatedir@/lock/@package_name@(/.*)	gen_context(system_u:object_r:dirsrv_var_lock_t,s0)
 @localstatedir@/lib/@package_name@		gen_context(system_u:object_r:dirsrv_var_lib_t,s0)
