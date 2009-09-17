@@ -199,7 +199,7 @@ allow dirsrv_snmp_t self:capability { dac_override dac_read_search };
 read_files_pattern(dirsrv_snmp_t, dirsrv_config_t, dirsrv_config_t)
 
 # pid file
-admin_pattern(dirsrv_snmp_t, dirsrv_snmp_var_run_t)
+manage_files_pattern(dirsrv_snmp_t, dirsrv_snmp_var_run_t, dirsrv_snmp_var_run_t)
 files_pid_filetrans(dirsrv_snmp_t, dirsrv_snmp_var_run_t, { file sock_file })
 search_dirs_pattern(dirsrv_snmp_t, dirsrv_var_run_t, dirsrv_var_run_t)
 
