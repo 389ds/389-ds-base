@@ -46,7 +46,7 @@ use Mozilla::LDAP::API qw(:constant ldap_explode_dn ldap_err2string); # Direct a
 use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::LDIF;
 
-use Util qw(debug);
+use DSUtil qw(debug);
 
 require    Exporter;
 @ISA       = qw(Exporter Mozilla::LDAP::Conn);

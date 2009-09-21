@@ -36,7 +36,7 @@
 # END COPYRIGHT BLOCK
 #
 
-package Util;
+package DSUtil;
 
 use Mozilla::LDAP::Conn;
 use Mozilla::LDAP::Utils qw(normalizeDN);
@@ -64,13 +64,13 @@ use File::Path qw(rmtree);
 
 use Carp;
 
-$Util::debuglevel = 0;
+$DSUtil::debuglevel = 0;
 # use like this:
 # debug(3, "message");
 # this will only print "message" if $debuglevel is 3 or higher (-ddd on the command line)
 sub debug {
     my ($level, @rest) = @_;
-    if ($level <= $Util::debuglevel) {
+    if ($level <= $DSUtil::debuglevel) {
         print STDERR "+" x $level, @rest;
     }
 }

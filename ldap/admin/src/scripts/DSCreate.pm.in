@@ -44,7 +44,7 @@
 ##########################
 
 package DSCreate;
-use Util;
+use DSUtil;
 use Inf;
 use FileConn;
 
@@ -198,7 +198,7 @@ sub changeOwnerMode {
 
 sub makeDSDirs {
     my $inf = shift;
-    my $verbose = ($Util::debuglevel > 0);
+    my $verbose = ($DSUtil::debuglevel > 0);
     my $mode = getMode($inf, 7);
     my @errs;
 

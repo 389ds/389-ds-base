@@ -43,7 +43,7 @@ use strict;
 use DialogManager;
 use Setup;
 use Dialog;
-use Util;
+use DSUtil;
 use FileConn;
 
 my @updateadmindialogs;

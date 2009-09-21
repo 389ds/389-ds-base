@@ -44,7 +44,7 @@ use Net::Domain qw(hostname hostfqdn);
 use DialogManager;
 use Setup;
 use Dialog;
-use Util;
+use DSUtil;
 
 my $dsport = new Dialog (
     $TYPICAL,

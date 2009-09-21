@@ -46,7 +46,7 @@ use SetupLog;
 use Inf;
 use Resource;
 use DialogManager;
-use Util;
+use DSUtil;
 use DSCreate;
 use DSUpdate;
 

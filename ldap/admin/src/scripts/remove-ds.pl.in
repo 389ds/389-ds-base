@@ -23,7 +23,7 @@ use strict;
 
 use File::Basename;
 use File::Path;
-use Util;
+use DSUtil;
 use Resource;
 use DSCreate qw(removeDSInstance);
 
@@ -48,7 +48,7 @@ while ($i <= $#ARGV) {
         $i++;
         $instname = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-d") {
-        $Util::debuglevel++;
+        $DSUtil::debuglevel++;
     } else {
         &usage; exit(1);
     }

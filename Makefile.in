@@ -1192,7 +1192,7 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-saveconfig ldap/admin/src/scripts/template-start-slapd \
 	ldap/admin/src/scripts/template-stop-slapd ldap/admin/src/scripts/template-suffix2instance \
 	ldap/admin/src/scripts/template-upgradedb ldap/admin/src/scripts/template-verify-db.pl \
-	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/Util.pm \
+	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/DSUtil.pm \
 	ldap/ldif/template-baseacis.ldif ldap/ldif/template-bitwise.ldif ldap/ldif/template-country.ldif \
 	ldap/ldif/template-dnaplugin.ldif ldap/ldif/template-domain.ldif ldap/ldif/template-dse.ldif \
 	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
@@ -1343,7 +1343,7 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 # and should not be marked as executable - so use DATA
 perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/Resource.pm \
-	ldap/admin/src/scripts/Util.pm \
+	ldap/admin/src/scripts/DSUtil.pm \
 	ldap/admin/src/scripts/Setup.pm \
 	ldap/admin/src/scripts/SetupDialogs.pm \
 	ldap/admin/src/scripts/Inf.pm \
