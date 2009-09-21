@@ -44,7 +44,7 @@
 ##########################
 
 package DSUpdate;
-use Util;
+use DSUtil;
 use Inf;
 use FileConn;
 use DSCreate qw(setDefaults createInstanceScripts);

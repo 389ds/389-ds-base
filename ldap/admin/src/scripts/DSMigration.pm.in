@@ -48,7 +48,7 @@
 
 package DSMigration;
 use Migration;
-use Util;
+use DSUtil;
 use Inf;
 use DSCreate;
 
@@ -75,7 +75,6 @@ use Exporter;
 use strict;
 
 use SetupLog;
-use Util;
 
 # these are the attributes for which we will always use
 # the new value, or which do not apply anymore

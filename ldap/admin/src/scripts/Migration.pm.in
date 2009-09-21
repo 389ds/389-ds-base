@@ -71,7 +71,7 @@ use Getopt::Long;
 use File::Temp qw(tempfile tempdir);
 
 use SetupLog;
-use Util;
+use DSUtil;
 
 # process command line options
 Getopt::Long::Configure(qw(bundling)); # bundling allows -ddddd
@@ -184,7 +184,7 @@ sub init {
 
     GetOptions('help|h|?' => sub { VersionMessage(); HelpMessage(); exit 0 },
                'version|v' => sub { VersionMessage(); exit 0 },
-               'debug|d+' => \$Util::debuglevel,
+               'debug|d+' => \$DSUtil::debuglevel,
                'silent|s' => \$silent,
                'file|f=s' => \$inffile,
                'keepcache|k' => \$keep,

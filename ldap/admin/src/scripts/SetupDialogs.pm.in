@@ -44,7 +44,7 @@ use DialogManager;
 use Setup;
 use Dialog;
 use Net::Domain qw(hostfqdn);
-use Util;
+use DSUtil;
 
 my $welcome = new DialogYesNo (
     $EXPRESS,
