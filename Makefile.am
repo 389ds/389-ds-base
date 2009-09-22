@@ -63,7 +63,8 @@ LIBCRUN=@LIBCRUN@
 #------------------------
 # Generated Sources
 #------------------------
-BUILT_SOURCES = dberrstrs.h
+BUILT_SOURCES = dberrstrs.h \
+	$(POLICY_FC)
 
 CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
@@ -107,10 +108,6 @@ selinux-built:
 selinux-built/dirsrv.fc: selinux-built
 	$(fixupcmd) selinux-built/dirsrv.fc.in > $@
 
-selinux-built/dirsrv.pp: selinux-built/dirsrv.fc
-	cd selinux-built && $(MAKE)
-
-
 
 #------------------------
 # Install Paths
@@ -128,7 +125,6 @@ instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
 mibdir = $(datadir)@mibdir@
-policydir = $(datadir)/selinux/targeted
 updatedir = $(datadir)@updatedir@
 
 defaultuser=@defaultuser@
@@ -168,7 +164,7 @@ enable_presence = off
 endif
 
 if SELINUX
-POLICY_MODULE = selinux-built/dirsrv.pp
+POLICY_FC = selinux-built/dirsrv.fc
 endif
 
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
@@ -191,8 +187,6 @@ noinst_LIBRARIES = libavl.a libldaputil.a
 #------------------------
 # Installed Files
 #------------------------
-policy_DATA = $(POLICY_MODULE)
-
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	ldap/admin/src/template-initconfig \
