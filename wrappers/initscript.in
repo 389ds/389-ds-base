@@ -161,6 +161,7 @@ start() {
                 # start the directory server in a subshell so that the instance specific
                 # init config environment will not apply to any other instance
                 (
+                    umask 002 # reset umask to allow logs and other files modes to be explicitly set
                     [ -f @initconfigdir@/@package_name@-$instance ] && . @initconfigdir@/@package_name@-$instance
                     $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
                 )
