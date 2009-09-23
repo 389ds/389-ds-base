@@ -493,23 +493,28 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
         ACL_CritEnter();
         if (*LAS_cookie == NULL) {    /* must check again */
             *LAS_cookie = context = 
-		(LASIpContext_t *)PERM_MALLOC(sizeof(LASIpContext_t));
+                (LASIpContext_t *)PERM_MALLOC(sizeof(LASIpContext_t));
             if (context == NULL) {
-		nserrGenerate(errp, ACLERRNOMEM, ACLERR5230, ACL_Program, 1, XP_GetAdminStr(DBT_lasipevalUnableToAllocateContext_));
+                nserrGenerate(errp, ACLERRNOMEM, ACLERR5230, ACL_Program, 1, XP_GetAdminStr(DBT_lasipevalUnableToAllocateContext_));
                 ACL_CritExit();
                 return LAS_EVAL_FAIL;
             }
             context->treetop = NULL;
             retcode = LASIpBuild(errp, attr_name, comparator, attr_pattern, 
-				 &context->treetop);
+                                 &context->treetop);
             if (retcode) {
                 ACL_CritExit();
                 return (retcode);
-	    }
+            }
+        } else {
+            context = (LASIpContext *) *LAS_cookie;
         }
-	ACL_CritExit();
-    } else
+        ACL_CritExit();
+    } else {
+        ACL_CritEnter();
         context = (LASIpContext *) *LAS_cookie;
+        ACL_CritExit();
+    }
 
     node    = context->treetop;
 
