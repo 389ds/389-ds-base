@@ -1112,9 +1112,12 @@ cleanup:
 }
 
 static int
-looks_like_a_dn(const char *username)
+looks_like_a_princ_name(const char *name)
 {
-    return (username && strchr(username, '='));
+    /* a valid principal name will be a non-empty string
+       that doesn't have a = in it (which will likely be
+       a bind DN) */
+    return (name && *name && !strchr(name, '='));
 }
 
 static int
@@ -1335,7 +1338,7 @@ set_krb5_creds(
        2) use username
        3) construct one in the form ldap/fqdn@REALM
     */
-    if (!princ && username && !looks_like_a_dn(username) &&
+    if (!princ && looks_like_a_princ_name(username) &&
         (rc = krb5_parse_name(ctx, username, &princ))) {
         slapi_log_error(SLAPI_LOG_FATAL, logname,
                         "Error: could not convert [%s] into a kerberos "
