@@ -368,21 +368,26 @@ int LASDnsEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
     /* If this is the first time through, build the pattern tree first.  */
     if (*LAS_cookie == NULL) {
-	ACL_CritEnter();
+        ACL_CritEnter();
         if (*LAS_cookie == NULL) {	/* Must check again */
             *LAS_cookie = context = 
                 (LASDnsContext_t *)PERM_MALLOC(sizeof(LASDnsContext_t));
             if (context == NULL) {
-		nserrGenerate(errp, ACLERRNOMEM, ACLERR4820, ACL_Program, 1, XP_GetAdminStr(DBT_lasdnsevalUnableToAllocateContex_));
-		ACL_CritExit();
+                nserrGenerate(errp, ACLERRNOMEM, ACLERR4820, ACL_Program, 1, XP_GetAdminStr(DBT_lasdnsevalUnableToAllocateContex_));
+                ACL_CritExit();
                 return LAS_EVAL_FAIL;
             }
-    	    context->Table = NULL;
-    	    LASDnsBuild(errp, attr_pattern, context, aliasflg);
-	}
-	ACL_CritExit();
-    } else
+            context->Table = NULL;
+            LASDnsBuild(errp, attr_pattern, context, aliasflg);
+        } else {
+            context = (LASDnsContext *) *LAS_cookie;
+        }
+        ACL_CritExit();
+    } else {
+        ACL_CritEnter();
         context = (LASDnsContext *) *LAS_cookie;
+        ACL_CritExit();
+    }
 
     /* Call the DNS attribute getter */
 #ifdef  UTEST
