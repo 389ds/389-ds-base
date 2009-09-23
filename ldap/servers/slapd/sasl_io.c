@@ -467,15 +467,25 @@ sasl_io_write(PRFileDesc *fd, const void *buf, PRInt32 amount)
 static PRStatus PR_CALLBACK
 sasl_pop_IO_layer(PRFileDesc* stack)
 {
-    PRFileDesc* layer = PR_PopIOLayer(stack, sasl_LayerID);
+    PRFileDesc* layer = NULL;
     sasl_io_private *sp = NULL;
 
+    /* see if stack has the sasl io layer */
+    if (!sasl_LayerID || !stack || !PR_GetIdentitiesLayer(stack, sasl_LayerID)) {
+        LDAPDebug0Args( LDAP_DEBUG_CONNS,
+                        "sasl_pop_IO_layer: no SASL IO layer\n" );
+        return PR_SUCCESS;
+    }
+
+    /* remove the layer from the stack */
+    layer = PR_PopIOLayer(stack, sasl_LayerID);
     if (!layer) {
         LDAPDebug0Args( LDAP_DEBUG_CONNS,
-                        "sasl_pop_IO_layer: error - no SASL IO layer\n" );
+                        "sasl_pop_IO_layer: error - could not pop SASL IO layer\n" );
         return PR_FAILURE;
     }
 
+    /* get our private data and clean it up */
     sp = sasl_get_io_private(layer);
 
     if (sp) {

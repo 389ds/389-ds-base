@@ -592,6 +592,7 @@ slapd_bootstrap_config(const char *configdir)
 					      CONFIG_REWRITE_RFC1274_ATTRIBUTE, 
 					      errorbuf);
 				  }
+				  val[0] = 0;
 				}
 
 				/* what is our localhost name */
