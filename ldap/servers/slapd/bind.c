@@ -424,9 +424,18 @@ do_bind( Slapi_PBlock *pb )
         /* accept null binds */
         if (dn == NULL || *dn == '\0') {
             slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
-            /* by definition its anonymous is also UnAuthenticated so increment 
+            /* by definition anonymous is also unauthenticated so increment 
                that counter */
             slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+
+            /* Refuse the operation if anonymous access is disabled. */
+            if (!config_get_anon_access_switch()) {
+                send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                                 "Anonymous access is not allowed", 0, NULL);
+                /* increment BindSecurityErrorcount */
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                goto free_and_return;
+            }
 
             /* call preop plugins */
             if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0){
@@ -443,6 +452,15 @@ do_bind( Slapi_PBlock *pb )
         } else if ( cred.bv_len == 0 ) {
             /* Increment unauthenticated bind counter */
             slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+
+            /* Refuse the operation if anonymous access is disabled. */
+            if (!config_get_anon_access_switch()) {
+                send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                                 "Anonymous access is not allowed", 0, NULL);
+                /* increment BindSecurityErrorcount */
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                goto free_and_return;
+            }
 
             /* Refuse the operation if unauthenticated binds are disabled. */
             if (!config_get_unauth_binds_switch()) {

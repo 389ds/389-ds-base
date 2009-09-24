@@ -609,7 +609,11 @@ static struct config_get_and_set {
 	{CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE, config_set_require_secure_binds,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.require_secure_binds, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_require_secure_binds}
+		(ConfigGetFunc)config_get_require_secure_binds},
+	{CONFIG_ANON_ACCESS_ATTRIBUTE, config_set_anon_access_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.allow_anon_access, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_anon_access_switch}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -861,6 +865,7 @@ FrontendConfig_init () {
 #endif
   cfg->allow_unauth_binds = LDAP_OFF;
   cfg->require_secure_binds = LDAP_OFF;
+  cfg->allow_anon_access = LDAP_ON;
   cfg->slapi_counters = LDAP_ON;
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
@@ -4557,7 +4562,19 @@ config_get_require_secure_binds(void)
 	retVal = slapdFrontendConfig->require_secure_binds;
 	CFG_UNLOCK_READ(slapdFrontendConfig);
 
-return retVal;
+	return retVal;
+}
+
+int
+config_get_anon_access_switch(void)
+{
+	int retVal;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = slapdFrontendConfig->allow_anon_access;
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal;
 }
 
 int
@@ -5330,6 +5347,22 @@ config_set_require_secure_binds( const char *attrname, char *value,
 	retVal = config_set_onoff(attrname,
 		value,
 		&(slapdFrontendConfig->require_secure_binds),
+		errorbuf,
+		apply);
+
+	return retVal;
+}
+
+int
+config_set_anon_access_switch( const char *attrname, char *value,
+		char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->allow_anon_access),
 		errorbuf,
 		apply);
 
