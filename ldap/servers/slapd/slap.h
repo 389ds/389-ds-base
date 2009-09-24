@@ -1722,6 +1722,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SVRTAB_ATTRIBUTE "nsslapd-svrtab"
 #define CONFIG_UNAUTH_BINDS_ATTRIBUTE "nsslapd-allow-unauthenticated-binds"
 #define CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE "nsslapd-require-secure-binds"
+#define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
 #ifndef _WIN32
 #define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
 #endif /* !_WIN32 */
@@ -2016,6 +2017,7 @@ typedef struct _slapdFrontendConfig {
   int slapi_counters;           /* switch to turn slapi_counters on/off */
   int allow_unauth_binds;       /* switch to enable/disable unauthenticated binds */
   int require_secure_binds;	/* switch to require simple binds to use a secure channel */
+  int allow_anon_access;	/* switch to enable/disable anonymous access */
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */

@@ -480,8 +480,21 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	/* Copy the Connection DN into the operation struct */
 	op_copy_identity( conn, op );
 
-	/* process the operation */
+	/* If anonymous access is disabled and the connection is
+	 * not authenticated, only allow the BIND operation. */
+	if (!config_get_anon_access_switch() && (op->o_tag != LDAP_REQ_BIND) &&
+            ((op->o_authtype == NULL) || (strcasecmp(op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
+		slapi_log_access( LDAP_DEBUG_STATS,
+			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION\n",
+            		conn->c_connid, op->o_opid );
 
+		send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                                  "Anonymous access is not allowed.",
+                                  0, NULL );
+		return;
+	}
+
+	/* process the operation */
 	switch ( op->o_tag ) {
 	case LDAP_REQ_BIND:
 		operation_set_type(op,SLAPI_OPERATION_BIND);

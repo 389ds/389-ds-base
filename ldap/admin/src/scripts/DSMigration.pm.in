@@ -101,6 +101,7 @@ my %ignoreOld =
  'nsslapd-plugin-depends-on-named' => 'nsslapd-plugin-depends-on-named',
 # these are new attrs that we should just pass through
  'nsslapd-allow-unauthenticated-binds' => 'nsslapd-allow-unauthenticated-binds',
+ 'nsslapd-allow-anonymous-access'  => 'nsslapd-allow-anonymous-access',
  'nsslapd-saslpath'                => 'nsslapd-saslpath',
  'nsslapd-rundir'                  => 'nsslapd-rundir',
  'nsslapd-schemadir'               => 'nsslapd-schemadir',
