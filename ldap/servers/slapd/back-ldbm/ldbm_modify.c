@@ -598,13 +598,16 @@ mods_have_effect (Slapi_Entry *entry, Slapi_Mods *smods)
 					 * to actually remove an existing attribute
 					 */
 					if ( strcasecmp ( mod->mod_type, attr->a_type ) == 0 ) {
+						have_effect = 1; /* found one - mod has effect */
 						goto done;
 					}
+					/* this mod type was not found in the entry - if we don't
+					   find one of the other mod types, or if there are no more
+					   mod types to look for, this mod does not apply */
+					have_effect = 0;
 				}
-				have_effect = 0;
 			}
 		}
-
 	}
 
 done:
