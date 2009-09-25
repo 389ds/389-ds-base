@@ -105,12 +105,16 @@ internal_bitwise_filter_match(void* obj, Slapi_Entry* entry, Slapi_Attr* attr, i
  */
 {
     struct bitwise_match_cb *bmc = obj;
-    unsigned long long a, b;
-    char *val_from_entry = NULL;
     auto int rc = -1; /* no match */
+    char **ary = NULL;
+    int ii;
 
-    val_from_entry = slapi_entry_attr_get_charptr(entry, bmc->type);
-    if (val_from_entry) {
+    ary = slapi_entry_attr_get_charray(entry, bmc->type);
+
+    /* look through all values until we find a match */
+    for (ii = 0; (rc == -1) && ary && ary[ii]; ++ii) {
+	unsigned long long a, b;
+	char *val_from_entry = ary[ii];
 	errno = 0;
 	a = strtoull(val_from_entry, NULL, 10);
 	if (errno != ERANGE) {
@@ -130,8 +134,8 @@ internal_bitwise_filter_match(void* obj, Slapi_Entry* entry, Slapi_Attr* attr, i
 		}
 	    }
 	}
-	slapi_ch_free_string(&val_from_entry);
     }
+    slapi_ch_array_free(ary);
     return rc;
 }
 
