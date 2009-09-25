@@ -322,8 +322,12 @@ import_add_created_attrs(Slapi_Entry *e)
     
     bv.bv_val = "";
     bv.bv_len = 0;
-    slapi_entry_attr_replace(e, "creatorsname", bvals);
-    slapi_entry_attr_replace(e, "modifiersname", bvals);
+    if ( !attrlist_find(e->e_attrs,"creatorsname") ) {
+        slapi_entry_attr_replace(e, "creatorsname", bvals);
+    }
+    if ( !attrlist_find(e->e_attrs,"modifiersname") ) {
+        slapi_entry_attr_replace(e, "modifiersname", bvals);
+    }
 
     curtime = current_time();
 #ifdef _WIN32
@@ -339,11 +343,12 @@ import_add_created_attrs(Slapi_Entry *e)
 
     bv.bv_val = buf;
     bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "createtimestamp", bvals);
-
-    bv.bv_val = buf;
-    bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "modifytimestamp", bvals);
+    if ( !attrlist_find(e->e_attrs,"createtimestamp") ) {
+        slapi_entry_attr_replace(e, "createtimestamp", bvals);
+    }
+    if ( !attrlist_find(e->e_attrs,"modifytimestamp") ) {
+        slapi_entry_attr_replace(e, "modifytimestamp", bvals);
+    }
 }
 
 /* producer thread:
