@@ -10,7 +10,7 @@ sub runinst {
 
     # these schema files are obsolete, or we want to replace
     # them with newer versions
-    my @toremove = qw(00core.ldif 01common.ldif 05rfc2247.ldif 10presence.ldif 28pilot.ldif 50ns-directory.ldif 60mozilla.ldif);
+    my @toremove = qw(00core.ldif 01core389.ldif 01common.ldif 02common.ldif 05rfc2247.ldif 10presence.ldif 28pilot.ldif 30ns-common.ldif 50ns-directory.ldif 60mozilla.ldif);
 
     # make a backup directory to store the deleted schema, then
     # don't really delete it, just move it to that directory

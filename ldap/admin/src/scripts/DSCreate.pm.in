@@ -493,7 +493,8 @@ sub installSchema {
         $inf->{slapd}->{install_full_schema}) {
         push @schemafiles, glob("$inf->{General}->{prefix}@schemadir@/*");
     } else {
-        push @schemafiles, "$inf->{General}->{prefix}@schemadir@/00core.ldif";
+        push @schemafiles, "$inf->{General}->{prefix}@schemadir@/00core.ldif",
+        	"$inf->{General}->{prefix}@schemadir@/01core389.ldif";
     }
 
     # additional schema files
