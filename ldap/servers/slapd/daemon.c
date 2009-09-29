@@ -1695,7 +1695,7 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
             } else if (bytes == 0) { /* disconnect */
                 PRErrorCode prerr = PR_GetError();
                 LDAPDebug(LDAP_DEBUG_CONNS,
-                          "PR_Recv(%d) - 0 (EOF) %d:%s\n", /* disconnected */
+                          "PR_Write(%d) - 0 (EOF) %d:%s\n", /* disconnected */
                           fd, prerr, slapd_pr_strerror(prerr));
                 PR_SetError(PR_PIPE_ERROR, EPIPE);
                 break;

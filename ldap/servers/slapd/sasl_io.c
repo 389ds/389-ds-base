@@ -194,6 +194,12 @@ sasl_get_io_private(PRFileDesc *fd)
     return sp;
 }
 
+/*
+ * return values:
+ * 0 - connection was closed
+ * 1 - success
+ * -1 - error
+ */
 static PRInt32
 sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt32 *err)
 {
@@ -212,9 +218,14 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                "read sasl packet length returned %d on connection %" NSPRIu64 "\n", ret, c->c_connid, 0 );
     if (ret <= 0) {
         *err = PR_GetError();
-        LDAPDebug( LDAP_DEBUG_ANY,
-                   "sasl_io_start_packet: error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
-        return PR_FAILURE;
+        if (ret == 0) {
+            LDAPDebug1Arg( LDAP_DEBUG_CONNS,
+                       "sasl_io_start_packet: connection closed while reading sasl packet length on connection %" NSPRIu64 "\n", c->c_connid );
+        } else {
+            LDAPDebug( LDAP_DEBUG_CONNS,
+                       "sasl_io_start_packet: error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
+        }
+        return ret;
     }
     /*
      * NOTE: A better way to do this would be to read the bytes and add them to 
@@ -224,11 +235,11 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
      * perhaps only in error conditions, in which case the ret < 0 case above
      * will run
      */
-    if (ret != 0 && ret < sizeof(buffer)) {
+    if (ret < sizeof(buffer)) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "sasl_io_start_packet: failed - read only %d bytes of sasl packet length on connection %" NSPRIu64 "\n", ret, c->c_connid, 0 );
 	    PR_SetError(PR_IO_ERROR, 0);
-	    return PR_FAILURE;        
+	    return -1;        
     }
     if (ret == sizeof(buffer)) {
         /* Decode the length (could use ntohl here ??) */
@@ -249,7 +260,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                  packet_length, config_get_maxsasliosize(), 0);
             PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
             *err = PR_BUFFER_OVERFLOW_ERROR;
-            return PR_FAILURE;
+            return -1;
         }
 
         sasl_io_resize_encrypted_buffer(sp, packet_length);
@@ -260,7 +271,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         sp->encrypted_buffer_offset = 4;
     }
 
-    return PR_SUCCESS;
+    return 1;
 }
 
 static PRInt32
@@ -276,11 +287,16 @@ sasl_io_read_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt3
                bytes_remaining_to_read,
                c->c_connid );
     ret = PR_Recv(fd->lower, sp->encrypted_buffer + sp->encrypted_buffer_offset, bytes_remaining_to_read, flags, timeout);
-    if (ret < 0) {
+    if (ret <= 0) {
         *err = PR_GetError();
-        LDAPDebug( LDAP_DEBUG_ANY,
-                   "sasl_io_read_packet: error reading sasl packet on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
-        return PR_FAILURE;
+        if (ret == 0) {
+            LDAPDebug1Arg( LDAP_DEBUG_CONNS,
+                       "sasl_io_read_packet: connection closed while reading sasl packet on connection %" NSPRIu64 "\n", c->c_connid );
+        } else {
+            LDAPDebug( LDAP_DEBUG_CONNS,
+                       "sasl_io_read_packet: error reading sasl packet on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
+        }
+        return ret;
     }
     sp->encrypted_buffer_offset += ret;
     return ret;
@@ -307,8 +323,8 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         if (!sasl_io_reading_packet(sp)) {
             /* First read the packet length and so on */
             ret = sasl_io_start_packet(fd, flags, timeout, &err);
-            if (0 != ret) {
-                /* Most likely the i/o timed out */
+            if (0 >= ret) {
+                /* timeout, connection closed, or error */
                 return ret;
             }
         }
@@ -316,7 +332,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
          * we now must read more data off the wire until we have the complete packet
          */
         ret = sasl_io_read_packet(fd, flags, timeout, &err);
-        if (PR_FAILURE == ret) {
+        if (0 >= ret) {
             return ret; /* read packet will set pr error */
         }
         /* If we have not read the packet yet, we cannot return any decrypted data to the
