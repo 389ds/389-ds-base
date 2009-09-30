@@ -295,6 +295,26 @@ do_extended( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
+	if (strcmp(extoid, START_TLS_OID) != 0) {
+		int minssf = config_get_minssf();
+
+		/* If anonymous access is disabled and we haven't
+		 * authenticated yet, only allow startTLS. */
+		if (!config_get_anon_access_switch() && ((pb->pb_op->o_authtype == NULL) ||
+    		        (strcasecmp(pb->pb_op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
+			send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+				"Anonymous access is not allowed.", 0, NULL );
+			goto free_and_return;
+		}
+
+		/* If the minssf is not met, only allow startTLS. */
+		if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf)) {
+			send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+				"Minimum SSF not met.", 0, NULL );
+			goto free_and_return;
+		}
+	}
+
 	/* If a password change is required, only allow the password
 	 * modify extended operation */
 	if (!pb->pb_conn->c_isreplication_session &&

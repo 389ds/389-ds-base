@@ -32,6 +32,7 @@ nsslapd-ssl-check-hostname: on
 nsslapd-allow-unauthenticated-binds: off
 nsslapd-require-secure-binds: off
 nsslapd-allow-anonymous-access: on
+nsslapd-minssf: 0
 nsslapd-port: %ds_port%
 nsslapd-localuser: %ds_user%
 nsslapd-errorlog-logging-enabled: on

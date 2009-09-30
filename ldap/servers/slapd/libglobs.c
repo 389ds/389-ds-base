@@ -613,7 +613,10 @@ static struct config_get_and_set {
 	{CONFIG_ANON_ACCESS_ATTRIBUTE, config_set_anon_access_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allow_anon_access, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_anon_access_switch}
+		(ConfigGetFunc)config_get_anon_access_switch},
+	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.minssf, CONFIG_INT, NULL}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -875,6 +878,7 @@ FrontendConfig_init () {
   cfg->outbound_ldap_io_timeout = SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT;
   cfg->max_filter_nest_level = SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL;
   cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
+  cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
 
 #ifdef _WIN32
   cfg->conntablesize = SLAPD_DEFAULT_CONNTABLESIZE;
@@ -4663,6 +4667,59 @@ config_get_maxsasliosize()
   maxsasliosize = slapdFrontendConfig->maxsasliosize;
 
   return maxsasliosize;
+}
+
+int
+config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal =  LDAP_SUCCESS;
+  int minssf;
+  char *endptr;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  minssf = (int) strtol(value, &endptr, 10);
+
+  /* Check for non-numeric garbage in the value */
+  if (*endptr != '\0') {
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
+
+  /* Check for a value overflow */
+  if (((minssf == INT_MAX) || (minssf == INT_MIN)) && (errno == ERANGE)){
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
+
+  /* Don't allow negative values. */
+  if (minssf < 0) {
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
+
+  if (retVal != LDAP_SUCCESS) {
+    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                 "%s: \"%s\" is invalid. Value must range from 0 to %d",
+                 attrname, value, INT_MAX );
+  } else if (apply) {
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->minssf = minssf;
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
+config_get_minssf()
+{
+  int minssf;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  minssf = slapdFrontendConfig->minssf;
+
+  return minssf;
 }
 
 int
