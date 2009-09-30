@@ -140,7 +140,7 @@ error_loading_update = Error: not applying update '%s'.  Error: %s\n
 error_unknown_update = Error: cannot apply update '%s'.  Not a recognized update type.\n
 error_executing_update = Error: update '%s' returned code '%s': %s\n
 error_updating = Error: could not update the directory server.\n
-update_successful = Finished successful update of directory server.\n
+update_successful = Finished successful update of directory server.\nPlease restart your directory servers.\n
 
 update_dialog_first = This program will update the %s Directory Server.\n\nIt is recommended that you have "root" privilege to perform the update.\nTips for using this  program:\n  - Press "Enter" to choose the default and go to the next screen\n  - Type "Control-B" or the word "back" then "Enter" to go back to the previous screen\n  - Type "Control-C" to cancel the update\n\n
 # %s -> brand
