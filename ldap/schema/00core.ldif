@@ -8,6 +8,14 @@
 #
 # The DS specific "aci" attribute is also defined here so we can
 # set a default aci # on the schema entry.
+#
+# NOTE: There is one very important deviation from the LDAP standard:
+# there is a bug in the standard definition of groupOfNames and
+# groupOfUniqueNames - the member/uniqueMember attribute is in the MUST
+# list, not the MAY list, which means you cannot have an empty group.
+# Until the LDAP community figures out how to do grouping properly, we
+# have put the member/uniqueMember attribute into the MAY list, to allow
+# empty groups.
 ################################################################################
 #
 dn: cn=schema
