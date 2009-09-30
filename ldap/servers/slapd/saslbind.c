@@ -636,6 +636,7 @@ void ids_sasl_server_new(Connection *conn)
     /* Enable security for this connection */
     secprops.maxbufsize = 2048; /* DBDB: hack */
     secprops.max_ssf = 0xffffffff;
+    secprops.min_ssf = config_get_minssf();
     rc = sasl_setprop(sasl_conn, SASL_SEC_PROPS, &secprops);
     if (rc != SASL_OK) {
         LDAPDebug(LDAP_DEBUG_ANY, "sasl_setprop: %s\n",

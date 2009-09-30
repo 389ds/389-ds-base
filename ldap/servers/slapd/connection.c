@@ -65,6 +65,7 @@ static Slapi_PBlock *get_pb( void );
 static void connection_add_operation(Connection* conn, Operation *op);
 static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
+static void connection_set_ssl_ssf(Connection *conn);
 static int is_ber_too_big(const Connection *conn, ber_len_t ber_len);
 static void log_ber_too_big_error(const Connection *conn,
 				ber_len_t ber_len, ber_len_t maxbersize);
@@ -194,6 +195,7 @@ connection_cleanup(Connection *conn)
 	conn->c_next= NULL;
 	conn->c_prev= NULL;
 	conn->c_extension= NULL;
+	conn->c_ssl_ssf = 0; 
 	/* remove any SASL I/O from the connection */
 	sasl_io_cleanup(conn);
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
@@ -372,6 +374,9 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     conn->c_idlesince = conn->c_starttime;
     conn->c_flags = is_SSL ? CONN_FLAG_SSL : 0;
     conn->c_authtype = slapi_ch_strdup(SLAPD_AUTH_NONE);
+    /* Just initialize the SSL SSF to 0 now since the handshake isn't complete
+     * yet, which prevents us from getting the effective key length. */
+    conn->c_ssl_ssf = 0;
 }
 
 /* Create a pool of threads for handling the operations */ 
@@ -477,15 +482,42 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 static void
 connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
+	int minssf = config_get_minssf();
+
 	/* Copy the Connection DN into the operation struct */
 	op_copy_identity( conn, op );
 
-	/* If anonymous access is disabled and the connection is
-	 * not authenticated, only allow the BIND operation. */
-	if (!config_get_anon_access_switch() && (op->o_tag != LDAP_REQ_BIND) &&
-            ((op->o_authtype == NULL) || (strcasecmp(op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
+	/* Get the effective key length now since the first SSL handshake should be complete */
+	connection_set_ssl_ssf( conn );
+
+	/* If the minimum SSF requirements are not met, only allow
+	 * bind and extended operations through.  The bind and extop
+	 * code will ensure that only SASL binds and startTLS are
+	 * allowed, which gives the connection a chance to meet the
+	 * SSF requirements.  We also allow UNBIND and ABANDON.*/
+	if ((conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
+	    (op->o_tag != LDAP_REQ_BIND) && (op->o_tag != LDAP_REQ_EXTENDED) &&
+	    (op->o_tag != LDAP_REQ_UNBIND) && (op->o_tag != LDAP_REQ_ABANDON)) {
 		slapi_log_access( LDAP_DEBUG_STATS,
-			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION\n",
+			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
+			" - Insufficient SSF (sasl_ssf=%d ssl_ssf=%d)\n",
+			conn->c_connid, op->o_opid, conn->c_sasl_ssf, conn->c_ssl_ssf );
+		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+			"Minimum SSF not met.", 0, NULL );
+		return;
+	}
+
+	/* If anonymous access is disabled and the connection is
+	 * not authenticated, only allow bind and extended operations.
+	 * We allow extended operations so one can do a startTLS prior
+	 * to binding to protect their credentials in transit. 
+	 * We also allow UNBIND and ABANDON. */
+	if (!config_get_anon_access_switch() && (op->o_tag != LDAP_REQ_BIND) &&
+	    (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
+	    (op->o_tag != LDAP_REQ_ABANDON) && (slapi_sdn_get_dn(&(op->o_sdn)) == NULL )) {
+		slapi_log_access( LDAP_DEBUG_STATS,
+			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
+			" - Anonymous access not allowed\n",
             		conn->c_connid, op->o_opid );
 
 		send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
@@ -2541,6 +2573,20 @@ op_copy_identity(Connection *conn, Operation *op)
 	PR_Unlock( conn->c_mutex );
 }
 
+/* Sets the SSL SSF in the connection struct. */
+static void
+connection_set_ssl_ssf(Connection *conn)
+{
+	PR_Lock( conn->c_mutex );
+
+	if (conn->c_flags & CONN_FLAG_SSL) {
+		SSL_SecurityStatus(conn->c_prfd, NULL, NULL, NULL, &(conn->c_ssl_ssf), NULL, NULL);
+	} else {
+		conn->c_ssl_ssf = 0;
+	}
+
+	PR_Unlock( conn->c_mutex );
+}
 
 static int
 is_ber_too_big(const Connection *conn, ber_len_t ber_len)

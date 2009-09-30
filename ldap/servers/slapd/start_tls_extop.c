@@ -282,6 +282,8 @@ start_tls( Slapi_PBlock *pb )
 	conn->c_sd = ns;
 	conn->c_prfd = newsocket;
 
+        /* Get the effective key length */
+	SSL_SecurityStatus(conn->c_prfd, NULL, NULL, NULL, &(conn->c_ssl_ssf), NULL, NULL);
 	
 	rv = slapd_ssl_handshakeCallback (conn->c_prfd, (void *)handle_handshake_done, conn);
 
@@ -411,6 +413,7 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	c->c_sd = ns;
         c->c_flags &= ~CONN_FLAG_SSL;
         c->c_flags &= ~CONN_FLAG_START_TLS;
+        c->c_ssl_ssf = 0;
 
 	/*  authentication & authorization credentials must be set to "anonymous". */
 

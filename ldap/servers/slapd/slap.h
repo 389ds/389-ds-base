@@ -279,6 +279,7 @@ typedef void	(*VFP0)(void);
 #define SLAPD_DEFAULT_MAX_THREADS			30		/* connection pool threads */
 #define SLAPD_DEFAULT_MAX_THREADS_PER_CONN	5		/* allowed per connection */
 #define SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES	LDAP_OFF
+#define SLAPD_DEFAULT_MIN_SSF			0	/* allow unsecured connections (no privacy or integrity) */
 
 							/* We'd like this number to be prime for 
 							    the hash into the Connection table */
@@ -1277,6 +1278,7 @@ typedef struct conn {
 	void *c_extension; /* plugins are able to extend the Connection object */
     void *c_sasl_conn;   /* sasl library connection sasl_conn_t */
     int				c_sasl_ssf; /* flag to tell us the SASL SSF */
+    int				c_ssl_ssf; /* flag to tell us the SSL/TLS SSF */
     int				c_unix_local; /* flag true for LDAPI */
     int				c_local_valid; /* flag true if the uid/gid are valid */
     uid_t			c_local_uid;  /* uid of connecting process */
@@ -1723,6 +1725,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_UNAUTH_BINDS_ATTRIBUTE "nsslapd-allow-unauthenticated-binds"
 #define CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE "nsslapd-require-secure-binds"
 #define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
+#define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
 #ifndef _WIN32
 #define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
 #endif /* !_WIN32 */
@@ -2018,6 +2021,7 @@ typedef struct _slapdFrontendConfig {
   int allow_unauth_binds;       /* switch to enable/disable unauthenticated binds */
   int require_secure_binds;	/* switch to require simple binds to use a secure channel */
   int allow_anon_access;	/* switch to enable/disable anonymous access */
+  int minssf;			/* minimum security strength factor (for SASL and SSL/TLS) */
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */

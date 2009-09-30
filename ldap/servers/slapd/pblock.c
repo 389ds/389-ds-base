@@ -351,6 +351,16 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(int *)value) = pblock->pb_conn->c_sasl_ssf;
 		PR_Unlock( pblock->pb_conn->c_mutex );
 		break;
+	case SLAPI_CONN_SSL_SSF:
+		if (pblock->pb_conn == NULL) {
+			LDAPDebug( LDAP_DEBUG_ANY,
+			  "Connection is NULL and hence cannot access SLAPI_CONN_SSL_SSF \n", 0, 0, 0 );
+			return (-1);
+		}
+		PR_Lock( pblock->pb_conn->c_mutex );
+		(*(int *)value) = pblock->pb_conn->c_ssl_ssf;
+		PR_Unlock( pblock->pb_conn->c_mutex );
+		break;
 	case SLAPI_CONN_CERT:
 		if (pblock->pb_conn == NULL) {
 			LDAPDebug( LDAP_DEBUG_ANY,
