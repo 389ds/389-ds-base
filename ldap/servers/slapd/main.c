@@ -999,7 +999,7 @@ main( int argc, char **argv)
 
 		/* Ensure that we can read from and write to our rundir */
 		if (access(rundir, R_OK | W_OK)) {
-			LDAPDebug(LDAP_DEBUG_ANY, "Unable to access nsslapd-rundir: %s\n",
+			LDAPDebug(LDAP_DEBUG_ANY, "Unable to access " CONFIG_RUNDIR_ATTRIBUTE ": %s\n",
 				slapd_system_strerror(errno), 0, 0);
 			LDAPDebug(LDAP_DEBUG_ANY, "Ensure that user \"%s\" has read and write "
 				"permissions on %s\n",

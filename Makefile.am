@@ -246,6 +246,7 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \
 	$(srcdir)/ldap/schema/25java-object.ldif \
+	$(srcdir)/ldap/schema/28pilot.ldif \
 	$(srcdir)/ldap/schema/30ns-common.ldif \
 	$(srcdir)/ldap/schema/50ns-admin.ldif \
 	$(srcdir)/ldap/schema/50ns-certificate.ldif \
@@ -394,6 +395,8 @@ dist_man_MANS = man/man1/dbscan.1 \
 #------------------------
 update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/exampleupdate.ldif \
+	ldap/admin/src/scripts/10delautodnsuffix.pl \
+	ldap/admin/src/scripts/10fixrundir.pl \
 	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
 	ldap/admin/src/scripts/50memberofindex.ldif \
 	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
