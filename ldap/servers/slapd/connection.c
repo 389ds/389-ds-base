@@ -484,11 +484,11 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
 	int minssf = config_get_minssf();
 
-	/* Copy the Connection DN into the operation struct */
-	op_copy_identity( conn, op );
-
 	/* Get the effective key length now since the first SSL handshake should be complete */
 	connection_set_ssl_ssf( conn );
+
+	/* Copy the Connection DN and SSF into the operation struct */
+	op_copy_identity( conn, op );
 
 	/* If the minimum SSF requirements are not met, only allow
 	 * bind and extended operations through.  The bind and extop
@@ -2538,7 +2538,7 @@ connection_operations_pending( Connection *conn, Operation *op2ignore,
  * that is, after the first few bytes of the request are received.
  * In particular, we want the first request from an LDAPS client
  * to have an authorization identity derived from the initial SSL
- * handshake.
+ * handshake.  We also copy the SSF at this time.
  */
 static void 
 op_copy_identity(Connection *conn, Operation *op)
@@ -2570,6 +2570,15 @@ op_copy_identity(Connection *conn, Operation *op)
 
     /* copy isroot flag as well so root DN privileges are preserved */
     op->o_isroot = conn->c_isroot;
+
+    /* copy the highest SSF (between SASL and SSL/TLS) into the
+     * operation for use by access control. */
+    if (conn->c_sasl_ssf >= conn->c_ssl_ssf) {
+        op->o_ssf = conn->c_sasl_ssf;
+    } else {
+        op->o_ssf = conn->c_ssl_ssf;
+    }
+
 	PR_Unlock( conn->c_mutex );
 }
 

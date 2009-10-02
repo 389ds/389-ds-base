@@ -1544,6 +1544,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
     		(*( char **)value ) = pblock->pb_op->o_authtype;
 		break;	
 
+	case SLAPI_OPERATION_SSF:
+		if (pblock->pb_op!=NULL) {
+			* ((int *) value) = pblock->pb_op->o_ssf;
+		}
+		break;
+
 	case SLAPI_CLIENT_DNS:
 		if (pblock->pb_conn == NULL) {
 			LDAPDebug( LDAP_DEBUG_ANY,

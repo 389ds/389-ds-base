@@ -567,5 +567,12 @@ __aclinit__RegisterLases(void)
 				"Unable to register USERATTR Las\n");
 		return ACL_ERR;
 	}
+	if (ACL_LasRegister(NULL, DS_LAS_SSF,
+				(LASEvalFunc_t)DS_LASSSFEval,
+				(LASFlushFunc_t)NULL) < 0) {
+		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
+			"Unable to register SSF Las\n");
+		return ACL_ERR;
+	}
 	return ACL_OK;
 }

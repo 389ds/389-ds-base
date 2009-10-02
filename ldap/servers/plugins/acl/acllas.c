@@ -254,7 +254,7 @@ static int 		acllas__get_members (Slapi_Entry* e, void *callback_data);
 static int 		acllas__client_match_URL (struct acl_pblock *aclpb,
 						   char *n_dn, char *url );
 static int 		acllas__handle_client_search (Slapi_Entry *e, void *callback_data);
-static int 		__acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
+static int 		__acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_range,
 						char *attr_pattern, int *cachable, void **LAS_cookie,
         				PList_t subject, PList_t resource, PList_t auth_info,
         				PList_t global_auth, char *lasType, char *lasName, lasInfo *linfo);
@@ -483,7 +483,7 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	lasInfo			lasinfo;
 	int			got_undefined = 0;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_USERDN, "DS_LASUserDnEval", &lasinfo )) ) {
@@ -761,7 +761,7 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	int 			got_undefined = 0;
 
 	/* the setup should not fail under normal operation */
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_GROUPDN, "DS_LASGroupDnEval", &lasinfo )) ) {
@@ -979,7 +979,7 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_ROLEDN, "DS_LASRoleDnEval",
@@ -1154,7 +1154,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_USERDNATTR, "DS_LASUserDnAttrEval", 
@@ -1629,7 +1629,7 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	char		*s = NULL;
 	lasInfo			lasinfo;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_AUTHMETHOD, "DS_LASAuthMethodEval", 
@@ -1679,6 +1679,143 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	return rc;
 }
+
+/***************************************************************************
+*
+* DS_LASSSFEval
+*
+*
+* Input:
+*       attr_name       The string "ssf" - in lower case.
+*       comparator      CMP_OP_EQ, CMP_OP_NE, CMP_OP_GT, CMP_OP_LT, CMP_OP_GE, CMP_OP_LE
+*       attr_pattern    An integer representing the SSF
+*       cachable        Always set to FALSE.
+*       subject         Subject property list
+*       resource        Resource property list
+*       auth_info       Authentication info, if any
+*
+* Returns:
+*       retcode         The usual LAS return codes.
+*
+* Error Handling:
+*       None.
+*
+**************************************************************************/
+int
+DS_LASSSFEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
+                char *attr_pattern, int *cachable, void **LAS_cookie,
+                PList_t subject, PList_t resource, PList_t auth_info,
+                PList_t global_auth)
+{
+	char            *attr;
+	char            *ptr;
+	int             len;
+	int             rc;
+	char            *s = NULL;
+	lasInfo         lasinfo;
+	int		aclssf;
+
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 1, /* Allow range comparators */
+					attr_pattern,cachable,LAS_cookie,
+					subject, resource, auth_info,global_auth,
+					DS_LAS_SSF, "DS_LASSSFEval",
+					&lasinfo )) ) {
+		return LAS_EVAL_FAIL;
+	}
+
+	attr = attr_pattern;
+
+	/* ignore leading and trailing whitespace */
+	while(ldap_utf8isspace(attr)) LDAP_UTF8INC(attr);
+	len = strlen(attr);
+	ptr = attr+len-1;
+	while(ptr >= attr && ldap_utf8isspace(ptr)) {
+		*ptr = '\0';
+		LDAP_UTF8DEC(ptr);
+	}
+
+	/* Convert SSF from bind rule to an int. */
+	aclssf = (int) strtol(attr, &ptr, 10);
+	if (*ptr != '\0') {
+		rc = LAS_EVAL_FAIL;
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+			"Error parsing numeric SSF from bind rule.\n");
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+			"Returning UNDEFINED for ssf evaluation.\n");
+	}
+
+	/* Check for negative values or a value overflow. */
+	if ((aclssf < 0) || (((aclssf == INT_MAX) || (aclssf == INT_MIN)) && (errno == ERANGE))){
+		rc = LAS_EVAL_FAIL;
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+			"SSF \"%s\" is invalid. Value must range from 0 to %d",
+			attr, INT_MAX);
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+			"Returning UNDEFINED for ssf evaluation.\n");
+	}
+
+	slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+		"DS_LASSSFEval: aclssf:%d, ssf:%d\n",
+		aclssf, lasinfo.ssf);
+
+	switch ((int)comparator) {
+		case CMP_OP_EQ:
+			if (lasinfo.ssf == aclssf) {
+				rc = LAS_EVAL_TRUE;
+			} else {
+				rc = LAS_EVAL_FALSE;
+			}
+			break;
+		case CMP_OP_NE:
+			if (lasinfo.ssf != aclssf) {
+				rc = LAS_EVAL_TRUE;
+			} else {
+				rc = LAS_EVAL_FALSE;
+			}
+			break;
+		case CMP_OP_GT:
+			if (lasinfo.ssf > aclssf) {
+				rc = LAS_EVAL_TRUE;
+			} else {
+				rc = LAS_EVAL_FALSE;
+			}
+			break;
+		case CMP_OP_LT:
+			if (lasinfo.ssf < aclssf) {
+				rc = LAS_EVAL_TRUE;
+			} else {
+				rc = LAS_EVAL_FALSE;
+			}
+			break;
+		case CMP_OP_GE:
+			if (lasinfo.ssf >= aclssf) {
+				rc = LAS_EVAL_TRUE;
+			} else {
+				rc = LAS_EVAL_FALSE;
+			}
+			break;
+		case CMP_OP_LE:
+			if (lasinfo.ssf <= aclssf) {
+				rc = LAS_EVAL_TRUE;
+			} else {
+				rc = LAS_EVAL_FALSE;
+			}
+			break;
+		default:
+			/* This should never happen since the comparator is
+			 * validated by __acllas_setup(), but better safe
+			 * than sorry. */
+			rc = LAS_EVAL_FAIL;
+			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+				"Invalid comparator \"%d\" evaluating SSF.\n",
+				(int)comparator);
+			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+				"Returning UNDEFINED for ssf evaluation.\n");
+	}
+
+	return rc;
+}
+
 
 /****************************************************************************
 * Struct to evaluate and keep the current members being evaluated
@@ -2394,7 +2531,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_GROUPDNATTR, "DS_LASGroupDnAttrEval", 
@@ -3145,7 +3282,7 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_USERATTR, "DS_LASUserAttrEval", 
@@ -3414,7 +3551,7 @@ acllas__handle_client_search ( Slapi_Entry *e, void *callback_data )
 
 static int
 __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
-		char *attr_pattern, int *cachable, void **LAS_cookie,
+		int allow_range, char *attr_pattern, int *cachable, void **LAS_cookie,
         PList_t subject, PList_t resource, PList_t auth_info,
         PList_t global_auth, char *lasType, char*lasName, lasInfo *linfo)
 {
@@ -3431,9 +3568,16 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		return LAS_EVAL_INVALID;
 	}
 
-	if ((comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE)) {
+	/* Validate the comparator */
+	if (allow_range && (comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE) &&
+	    (comparator != CMP_OP_GT) && (comparator != CMP_OP_LT) &&
+	    (comparator != CMP_OP_GE) && (comparator != CMP_OP_LE)) {
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+			"%s:Invalid comparator(%d)\n", lasName, (int)comparator);
+		return LAS_EVAL_INVALID;
+	} else if (!allow_range && (comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE)) {
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-			  "%s:Invalid comparator(%d)\n", lasName, (int)comparator);
+			"%s:Invalid comparator(%d)\n", lasName, (int)comparator);
 		return LAS_EVAL_INVALID;
 	}
 
@@ -3490,6 +3634,14 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 		          "%s:Unable to get the auth type(%d)\n", lasName, rc);
 		return LAS_EVAL_FAIL;
+	}
+
+	/* get the SSF */
+	if ((rc = PListFindValue(subject, DS_ATTR_SSF,
+					(void **)&linfo->ssf, NULL)) < 0) {
+		acl_print_acllib_err(errp, NULL);
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+			"%s:Unable to get the ssf(%d)\n", lasName, rc);
 	}
 	return 0;	
 }
@@ -3568,7 +3720,7 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	int				k=0;
 	int				got_undefined = 0;
 
-	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator,
+	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
 									DS_LAS_ROLEDN, "DS_LASRoleDnAttrEval", 

@@ -68,6 +68,7 @@
 #include 	<stdio.h>
 #include 	<string.h>
 #include 	<sys/types.h>
+#include	<limits.h>
 #ifndef _WIN32
 #include 	<sys/socket.h>
 #include 	<netinet/in.h>
@@ -147,6 +148,7 @@ static char* const access_str_proxy 	= "proxy";
 #define DS_LAS_USERATTR		"userattr"
 #define DS_LAS_ROLEDN		"roledn"
 #define DS_LAS_ROLEDNATTR	"rolednattr"
+#define DS_LAS_SSF		"ssf"
 
 
 /* These define the things that aclutil_evaluate_macro() supports */
@@ -203,6 +205,7 @@ typedef enum
 #define DS_PROP_ACLPB		"aclblock"
 #define DS_ATTR_AUTHTYPE	"authtype"
 #define DS_ATTR_CERT		"clientcert"
+#define DS_ATTR_SSF		"ssf"
 
 #define ACL_ANOM_MAX_ACL 40
 struct scoped_entry_anominfo {
@@ -294,6 +297,7 @@ typedef struct aci {
 #define ACI_PARAM_ATTRRULE	(short)	0x0800
 #define ACI_USERDN_SELFRULE (short) 0x1000
 #define ACI_ROLEDN_RULE		(short) 0x2000
+#define ACI_SSF_RULE		(short) 0x4000
 
 
 
@@ -645,7 +649,7 @@ typedef struct {
 	int			anomUser;
 	Acl_PBlock	*aclpb;
 	Slapi_Entry	*resourceEntry;
-	
+	int		ssf;
 }lasInfo;
 
 
@@ -754,6 +758,12 @@ extern int DS_LASRoleDnAttrEval(NSErr_t *errp, char *attribute,
 		PList_t global_auth);
 
 extern int DS_LASUserAttrEval(NSErr_t *errp, char *attribute, 
+		CmpOp_t comparator,
+		char *pattern, int *cachable, void **las_cookie,
+		PList_t subject, PList_t resource, PList_t auth_info,
+		PList_t global_auth);
+
+extern int DS_LASSSFEval(NSErr_t *errp, char *attribute,
 		CmpOp_t comparator,
 		char *pattern, int *cachable, void **las_cookie,
 		PList_t subject, PList_t resource, PList_t auth_info,
