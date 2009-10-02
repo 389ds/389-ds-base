@@ -409,6 +409,10 @@ aclutil__Ruletypestr (int type , char str[])
 		strcpy (p, "paramAttr ");
 		p = strchr (p, '\0');	
 	}
+	if ( type & ACI_SSF_RULE) {
+		strcpy (p, "ssf ");
+		p = strchr (p, '\0');
+	}
 }
 /*
 ** acl_gen_err_msg

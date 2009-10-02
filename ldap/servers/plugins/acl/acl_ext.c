@@ -580,9 +580,14 @@ acl__malloc_aclpb ( )
 					"Unable to set the AUTH TYPE in the Plist\n");
 		return NULL;
 	}
-    if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_ENTRY, aclpb, 0) < 0) {
+	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_ENTRY, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 					"Unable to set the ENTRY TYPE in the Plist\n");
+		return NULL;
+	}
+	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_SSF, aclpb, 0) < 0) {
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+					"Unable to set the SSF in the Plist\n");
 		return NULL;
 	}
 
@@ -648,6 +653,7 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_
 	char				*authType;
 	void				*conn;
 	int					op_type;
+	int			ssf = 0;
 	
 
 	if ( NULL == aclpb ) {
@@ -688,6 +694,13 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_
 				"Unable to set the AUTH TYPE in the Plist\n");
 		return;
 	}
+	slapi_pblock_get ( pb, SLAPI_OPERATION_SSF, &ssf);
+	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_SSF, ssf, 0) < 0) {
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+				"Unable to set the SSF in the Plist\n");
+		return;
+	}
+
 	/* PKBxxx: We should be getting it from the OP struct */
 	slapi_pblock_get ( pb, SLAPI_CONN_CERT, &aclpb->aclpb_clientcert );
 

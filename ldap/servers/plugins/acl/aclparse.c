@@ -927,7 +927,10 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 			} else if ((ruleStart = strstr(word, ACL_ATTR_DNS)) != NULL) {
 				ruleType = ACI_DNS_RULE;
 				ruleLen = strlen ( ACL_ATTR_DNS) ;
-			} 
+			} else if ((ruleStart = strstr(word, DS_LAS_SSF)) != NULL) {
+				ruleType = ACI_SSF_RULE;
+				ruleLen = strlen ( DS_LAS_SSF) ;
+			}
 			/* Here, we've found a space...if we were in in_dn_expr mode
 			 * and we'vve found a closure for that ie.a '"' or a ')'
 			 * eg. "'ldap:///all"' or 'ldap:///all")' then exit in_dn_expr mode.

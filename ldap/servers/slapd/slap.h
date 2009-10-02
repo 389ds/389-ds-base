@@ -1197,6 +1197,7 @@ typedef struct op {
 	int		o_isroot;	/* requestor is manager		  */
 	Slapi_DN	o_sdn;		/* dn bound when op was initiated */
 	char		*o_authtype;	/* auth method used to bind dn	  */
+	int		o_ssf;		/* ssf for this operation (highest between SASL and TLS/SSL) */
 	int		o_opid;		/* id of this operation		  */
 	PRUint64	o_connid;	/* id of conn initiating this op; for logging only */
 	void		*o_handler_data;
