@@ -496,6 +496,9 @@ static struct config_get_and_set {
                 NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix, CONFIG_STRING, NULL},
 #endif
+	{CONFIG_ANON_LIMITS_DN_ATTRIBUTE, config_set_anon_limits_dn,
+                NULL, 0,
+                (void**)&global_slapdFrontendConfig.anon_limits_dn, CONFIG_STRING, NULL},
 	{CONFIG_SLAPI_COUNTER_ATTRIBUTE, config_set_slapi_counters,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.slapi_counters, CONFIG_ON_OFF, 
@@ -906,6 +909,7 @@ FrontendConfig_init () {
   cfg->versionstring = SLAPD_VERSION_STR;
   cfg->sizelimit = SLAPD_DEFAULT_SIZELIMIT;
   cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
+  cfg->anon_limits_dn = slapi_ch_strdup("");
   cfg->schemacheck = LDAP_ON;
   cfg->syntaxcheck = LDAP_OFF;
   cfg->syntaxlogging = LDAP_OFF;
@@ -1433,6 +1437,25 @@ int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *er
   return retVal;
 }
 #endif
+
+int config_set_anon_limits_dn( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  if ( apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->anon_limits_dn) );
+        slapdFrontendConfig->anon_limits_dn = slapi_ch_strdup ( value );
+         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+  return retVal;
+}
 
 /*
  * Set nsslapd-counters: on | off to the internal config variable slapi_counters.
@@ -3538,6 +3561,17 @@ char *config_get_ldapi_auto_dn_suffix(){
   return retVal;
 }
 #endif
+
+
+char *config_get_anon_limits_dn(){
+  char *retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapi_ch_strdup(slapdFrontendConfig->anon_limits_dn);
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
 
 int config_get_slapi_counters()
 {   

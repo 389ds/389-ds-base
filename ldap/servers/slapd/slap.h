@@ -1743,6 +1743,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE "nsslapd-ldapigidnumbertype"
 #define CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE "nsslapd-ldapientrysearchbase"
 #define CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE "nsslapd-ldapiautodnsuffix"
+#define CONFIG_ANON_LIMITS_DN_ATTRIBUTE "nsslapd-anonlimitsdn"
 #define CONFIG_SLAPI_COUNTER_ATTRIBUTE "nsslapd-counters"
 #define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
 #define CONFIG_SSL3CIPHERS_ATTRIBUTE "nsslapd-SSL3ciphers"
@@ -2024,6 +2025,7 @@ typedef struct _slapdFrontendConfig {
   int allow_anon_access;	/* switch to enable/disable anonymous access */
   int minssf;			/* minimum security strength factor (for SASL and SSL/TLS) */
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
+  char *anon_limits_dn;		/* template entry for anonymous resource limits */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */

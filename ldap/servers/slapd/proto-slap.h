@@ -255,6 +255,7 @@ int config_set_ldapi_search_base_dn( const char *attrname, char *value, char *er
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 int config_set_ldapi_auto_dn_suffix( const char *attrname, char *value, char *errorbuf, int apply );   
 #endif
+int config_set_anon_limits_dn( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_slapi_counters( const char *attrname, char *value, char *errorbuf, int apply );   
 int config_set_srvtab( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int apply );
@@ -379,6 +380,7 @@ char *config_get_ldapi_search_base_dn();
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 char *config_get_ldapi_auto_dn_suffix(); 
 #endif
+char *config_get_anon_limits_dn();
 int config_get_slapi_counters(); 
 char *config_get_srvtab();
 int config_get_sizelimit();
