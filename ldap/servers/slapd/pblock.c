@@ -3093,14 +3093,26 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 		if ( conn->c_dn != NULL ) {
 			if ( bind_target_entry == NULL )
 			{
-				Slapi_DN	*sdn;
+				Slapi_DN        *sdn;
 
 				sdn = slapi_sdn_new_dn_byref( conn->c_dn );			/* set */
 				reslimit_update_from_dn( conn, sdn );
 				slapi_sdn_free( &sdn );
-			}
-			else
+			} else {
 				reslimit_update_from_entry( conn, bind_target_entry );	
+			}
+		} else {
+			char *anon_dn = config_get_anon_limits_dn();
+			Slapi_DN *anon_sdn = NULL;
+
+			/* If an anonymous limits dn is set, use it to set the limits. */
+			if (anon_dn && (strlen(anon_dn) > 0)) {
+				anon_sdn = slapi_sdn_new_dn_byref( anon_dn );
+				reslimit_update_from_dn( conn, anon_sdn );
+				slapi_sdn_free( &anon_sdn );
+			}
+
+			slapi_ch_free_string( &anon_dn );
 		}
 	}
 }
