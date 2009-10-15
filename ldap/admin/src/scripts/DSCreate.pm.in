@@ -903,7 +903,21 @@ sub updateSelinuxPolicy {
 
     # if selinux is not available, do nothing
     if ("@with_selinux@") {
-        # run restorecon on all directories we created
+        my $localstatedir = $inf->{slapd}->{localstatedir};
+
+        # run restorecon on all of the parent directories we
+        # may have created (this only happens if this is the
+        # first instance created).
+        if ("@with_fhs_opt@") {
+            system("restorecon -R $localstatedir/@PACKAGE_NAME@");
+        } else {
+            system("restorecon -R $localstatedir/lock/@PACKAGE_NAME@");
+            system("restorecon -R $localstatedir/log/@PACKAGE_NAME@");
+            system("restorecon -R $localstatedir/run/@PACKAGE_NAME@");
+            system("restorecon -R $localstatedir/lib/@PACKAGE_NAME@");
+        }
+
+        # run restorecon on all instance directories we created
         for my $kw (qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir
                 cert_dir db_dir ldif_dir bak_dir)) {
             my $dir = $inf->{slapd}->{$kw};
