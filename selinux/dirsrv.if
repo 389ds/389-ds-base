@@ -118,6 +118,24 @@ interface(`dirsrv_manage_var_run',`
 	files_pid_filetrans($1, dirsrv_var_run_t, dir)
 ')
 
+#######################################
+## <summary>
+##      Allow a domain to read dirsrv /var/run files.
+## </summary>
+## <param name="domain">
+## <summary>
+##      Domain allowed access.
+## </summary>
+## </param>
+#
+interface(`dirsrv_read_var_run',`
+        gen_require(`
+                type dirsrv_var_run_t;
+        ')
+        allow $1 dirsrv_var_run_t:dir list_dir_perms;
+        allow $1 dirsrv_var_run_t:file read_file_perms;
+')
+
 ########################################
 ## <summary>
 ##      Manage dirsrv configuration files.
@@ -152,8 +170,10 @@ interface(`dirsrv_exec_lib',`
 		type dirsrv_lib_t;
 	')
 
-	allow $1 dirsrv_lib_t:dir { search getattr };
-	allow $1 dirsrv_lib_t:file { read getattr open execute execute_no_trans ioctl};
+	allow $1 dirsrv_lib_t:dir search_dir_perms;
+	allow $1 dirsrv_lib_t:file exec_file_perms;
+	# Not all platforms include ioctl in exec_file_perms
+	allow $1 dirsrv_lib_t:file ioctl;
 ')
 
 ########################################
@@ -171,6 +191,7 @@ interface(`dirsrv_read_share',`
 		type dirsrv_share_t;
 	')
 
-	allow $1 dirsrv_share_t:dir { search getattr };
-	allow $1 dirsrv_share_t:file { read getattr open };
+	allow $1 dirsrv_share_t:dir list_dir_perms;
+	allow $1 dirsrv_share_t:file read_file_perms;
+	allow $1 dirsrv_share_t:lnk_file read;
 ')
