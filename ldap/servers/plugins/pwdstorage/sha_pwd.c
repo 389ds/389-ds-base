@@ -67,28 +67,6 @@ static char *plugin_name = "NSPwdStoragePlugin";
  * It's obsolescent now, but we still handle such stored values.
  */
 
-
-/*
-  calculate the number of bytes the base64 encoded encval
-  will have when decoded, taking into account padding
-*/
-static int
-base64_decode_len(const char *encval)
-{
-    int len = strlen(encval);
-    if (len && (0 == (len & 3))) {
-        if('=' == encval[len - 1]) {
-            if('=' == encval[len - 2]) {
-                len -= 2;
-            } else {
-                len -= 1;
-            }
-        }
-    }
-
-    return ((len * 3) / 4);
-}
-
 int
 sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
 {
@@ -132,7 +110,7 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     /*
      * Decode hash stored in database.
      */
-    hash_len = base64_decode_len(dbpwd);
+    hash_len = pwdstorage_base64_decode_len(dbpwd);
     if ( hash_len > sizeof(quick_dbhash) ) { /* get more space: */
         dbhash = (char*) slapi_ch_calloc( hash_len, sizeof(char) );
         if ( dbhash == NULL ) goto loser;

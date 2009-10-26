@@ -363,7 +363,9 @@ am_libpwdstorage_plugin_la_OBJECTS = ldap/servers/plugins/pwdstorage/libpwdstora
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-md5c.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ns-mta-md5_pwd.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_init.lo \
+	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo \
+	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo
 libpwdstorage_plugin_la_OBJECTS =  \
 	$(am_libpwdstorage_plugin_la_OBJECTS)
@@ -1453,6 +1455,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
 	ldap/admin/src/scripts/50usnplugin.ldif \
+	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
@@ -1878,7 +1881,9 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 	ldap/servers/plugins/pwdstorage/md5c.c \
 	ldap/servers/plugins/pwdstorage/ns-mta-md5_pwd.c \
 	ldap/servers/plugins/pwdstorage/pwd_init.c \
+	ldap/servers/plugins/pwdstorage/pwd_util.c \
 	ldap/servers/plugins/pwdstorage/sha_pwd.c \
+	ldap/servers/plugins/pwdstorage/smd5_pwd.c \
 	ldap/servers/plugins/pwdstorage/ssha_pwd.c
 
 libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
@@ -3176,7 +3181,13 @@ ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ns-mta-md5_pwd.lo:  \
 ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_init.lo:  \
 	ldap/servers/plugins/pwdstorage/$(am__dirstamp) \
 	ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo:  \
+	ldap/servers/plugins/pwdstorage/$(am__dirstamp) \
+	ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo:  \
+	ldap/servers/plugins/pwdstorage/$(am__dirstamp) \
+	ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo:  \
 	ldap/servers/plugins/pwdstorage/$(am__dirstamp) \
 	ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo:  \
@@ -4371,8 +4382,12 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ns-mta-md5_pwd.lo
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_init.$(OBJEXT)
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_init.lo
+	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.$(OBJEXT)
+	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.$(OBJEXT)
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo
+	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.$(OBJEXT)
+	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.$(OBJEXT)
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo
 	-rm -f ldap/servers/plugins/referint/libreferint_plugin_la-referint.$(OBJEXT)
@@ -5130,7 +5145,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-md5c.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-ns-mta-md5_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-pwd_init.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-pwd_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-sha_pwd.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-smd5_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-ssha_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/referint/$(DEPDIR)/libreferint_plugin_la-referint.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-cl5_api.Plo@am__quote@
@@ -6717,12 +6734,26 @@ ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_init.lo: ldap/server
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_init.lo `test -f 'ldap/servers/plugins/pwdstorage/pwd_init.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/pwd_init.c
 
+ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo: ldap/servers/plugins/pwdstorage/pwd_util.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo -MD -MP -MF "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-pwd_util.Tpo" -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo `test -f 'ldap/servers/plugins/pwdstorage/pwd_util.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/pwd_util.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-pwd_util.Tpo" "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-pwd_util.Plo"; else rm -f "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-pwd_util.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/pwdstorage/pwd_util.c' object='ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-pwd_util.lo `test -f 'ldap/servers/plugins/pwdstorage/pwd_util.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/pwd_util.c
+
 ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo: ldap/servers/plugins/pwdstorage/sha_pwd.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo -MD -MP -MF "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-sha_pwd.Tpo" -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo `test -f 'ldap/servers/plugins/pwdstorage/sha_pwd.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/sha_pwd.c; \
 @am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-sha_pwd.Tpo" "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-sha_pwd.Plo"; else rm -f "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-sha_pwd.Tpo"; exit 1; fi
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/pwdstorage/sha_pwd.c' object='ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-sha_pwd.lo `test -f 'ldap/servers/plugins/pwdstorage/sha_pwd.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/sha_pwd.c
+
+ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo: ldap/servers/plugins/pwdstorage/smd5_pwd.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo -MD -MP -MF "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-smd5_pwd.Tpo" -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo `test -f 'ldap/servers/plugins/pwdstorage/smd5_pwd.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/smd5_pwd.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-smd5_pwd.Tpo" "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-smd5_pwd.Plo"; else rm -f "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-smd5_pwd.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/pwdstorage/smd5_pwd.c' object='ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-smd5_pwd.lo `test -f 'ldap/servers/plugins/pwdstorage/smd5_pwd.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/smd5_pwd.c
 
 ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo: ldap/servers/plugins/pwdstorage/ssha_pwd.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpwdstorage_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo -MD -MP -MF "ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-ssha_pwd.Tpo" -c -o ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo `test -f 'ldap/servers/plugins/pwdstorage/ssha_pwd.c' || echo '$(srcdir)/'`ldap/servers/plugins/pwdstorage/ssha_pwd.c; \

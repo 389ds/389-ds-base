@@ -398,6 +398,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
 	ldap/admin/src/scripts/50usnplugin.ldif \
+	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
@@ -882,7 +883,9 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 	ldap/servers/plugins/pwdstorage/md5c.c \
 	ldap/servers/plugins/pwdstorage/ns-mta-md5_pwd.c \
 	ldap/servers/plugins/pwdstorage/pwd_init.c \
+	ldap/servers/plugins/pwdstorage/pwd_util.c \
 	ldap/servers/plugins/pwdstorage/sha_pwd.c \
+	ldap/servers/plugins/pwdstorage/smd5_pwd.c \
 	ldap/servers/plugins/pwdstorage/ssha_pwd.c
 
 libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)

@@ -73,6 +73,8 @@ static Slapi_PluginDesc ns_mta_md5_pdesc = { "NS-MTA-MD5-password-storage-scheme
 
 static Slapi_PluginDesc md5_pdesc = { "md5-password-storage-scheme", VENDOR, PACKAGE_VERSION, "MD5 hash algorithm (MD5)" };
 
+static Slapi_PluginDesc smd5_pdesc = { "smd5-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Salted MD5 hash algorithm (SMD5)" };
+
 static char *plugin_name = "NSPwdStoragePlugin";
 
 int
@@ -367,5 +369,29 @@ md5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 							name );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= md5_pwd_storage_scheme_init %d\n\n", rc );
+	return( rc );
+}
+
+int
+smd5_pwd_storage_scheme_init( Slapi_PBlock *pb )
+{
+	int     rc;
+	char *name;
+
+	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> smd5_pwd_storage_scheme_init\n" );
+
+	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+							(void *) SLAPI_PLUGIN_VERSION_01 );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+							(void *)&smd5_pdesc );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+							(void *) smd5_pw_enc );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+							(void *) smd5_pw_cmp );
+	name = slapi_ch_strdup("SMD5");
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+							name );
+
+	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= smd5_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
 }
