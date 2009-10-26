@@ -58,21 +58,6 @@
 
 #define SHA_SALT_LENGTH    8   /* number of bytes of data in salt */
 
-static void ssha_rand_array(void *randx, size_t len);
-
-
-/* ***************************************************
-	Identical function to slapi_rand_array in util.c, but can't use
-	that here since this module is included in libds_admin, which doesn't
-	link to libslapd.
-   *************************************************** */
-static void
-ssha_rand_array(void *randx, size_t len)
-{
-    PK11_RandomUpdate(randx, len);
-    PK11_GenerateRandom((unsigned char *)randx, (int)len);
-}
-
 SECStatus
 sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID)
 {
@@ -168,7 +153,7 @@ salted_sha_pw_enc( const char *pwd, unsigned int shaLen )
     saltval.bv_len = SHA_SALT_LENGTH;
 
     /* generate a new random salt */
-    ssha_rand_array( salt, SHA_SALT_LENGTH );
+    slapi_rand_array( salt, SHA_SALT_LENGTH );
 
     /* hash the user's key */
     if ( sha_salted_hash( hash, pwd, &saltval, secOID ) != SECSuccess ) {

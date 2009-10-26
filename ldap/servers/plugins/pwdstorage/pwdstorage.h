@@ -80,6 +80,8 @@
 #define CLEARTEXT_NAME_LEN  5
 #define MD5_SCHEME_NAME "MD5"
 #define MD5_NAME_LEN 3
+#define SALTED_MD5_SCHEME_NAME "SMD5"
+#define SALTED_MD5_NAME_LEN 4
 
 SECStatus sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID);
 int sha_pw_cmp( const char *userpwd, const char *dbpwd, unsigned int shaLen );
@@ -107,5 +109,10 @@ char *crypt_pw_enc( const char *pwd );
 int ns_mta_md5_pw_cmp( const char *userpwd, const char *dbpwd );
 int md5_pw_cmp( const char *userpwd, const char *dbpwd );
 char *md5_pw_enc( const char *pwd );
+int smd5_pw_cmp( const char *userpwd, const char *dbpwd );
+char *smd5_pw_enc( const char *pwd );
+
+/* Utility functions */
+int pwdstorage_base64_decode_len(const char *encval);
 
 #endif /* _PWDSTORAGE_H */

@@ -1,0 +1,8 @@
+dn: cn=SMD5,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: SMD5
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: smd5_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
