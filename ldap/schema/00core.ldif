@@ -43,7 +43,6 @@ objectClasses: ( 2.5.6.0 NAME 'top'
   ABSTRACT
   MUST objectClass
   X-ORIGIN 'RFC 4512' )
-  
 #
 ################################################################################
 #
