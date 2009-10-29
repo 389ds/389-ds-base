@@ -175,7 +175,9 @@ update_admin_dialog = Please specify the authentication data for '%s'\n\n
 update_admin_id_prompt = Full DN of administrative user
 update_admin_pwd_prompt = Password for this user
 error_renaming_schema = Could not rename schema file '%s' tp '%s'.  Error: %s\n
+error_reading_schema_file = Schema file '%s' does not exist or is not readable.  Error: %s\n
 error_reading_schema_dir = Schema directory '%s' does not exist or is not readable\n
+error_writing_schema_file = Schema file '%s' could not be opened for writing.  Error: %s\n
 error_online_update = Could not open a connection to the server at %s port %s as '%s'.\
 Please make sure the server is up and running before using online mode,\
 or use offline mode.\n\n
