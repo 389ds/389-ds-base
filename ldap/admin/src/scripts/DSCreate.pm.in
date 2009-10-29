@@ -1057,6 +1057,16 @@ sub removeDSInstance {
     # Finally, config dir
     push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
 
+    # Remove the instance specific initconfig script
+    if ( -f "@initconfigdir@/@package_name@-$inst" ) {
+        my $rc = unlink("@initconfigdir@/@package_name@-$inst");
+        if ( 0 == $rc )
+        {
+            push @errs, [ 'error_removing_path', "@initconfigdir@/@package_name@-$inst", $! ];
+            debug(1, "Warning: @initconfigdir@/@package_name@-$inst was not removed. Error: $!\n");
+        }
+    }
+
     # if we got here, report success
     if (@errs) {
         debug(1, "Could not successfully remove $instname\n");
