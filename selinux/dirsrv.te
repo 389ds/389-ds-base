@@ -85,7 +85,7 @@ libs_use_shared_libs(dirsrv_t)
 allow dirsrv_t self:fifo_file { read write };
 
 # process stuff
-allow dirsrv_t self:process { getsched setsched signal_perms};
+allow dirsrv_t self:process { getsched setsched setfscreate signal_perms};
 allow dirsrv_t self:capability { sys_nice setuid setgid chown dac_override fowner };
 
 # semaphores
@@ -131,6 +131,10 @@ files_tmp_filetrans(dirsrv_t, dirsrv_tmp_t, { file dir })
 # system state
 fs_getattr_all_fs(dirsrv_t)
 kernel_read_system_state(dirsrv_t)
+
+# kerberos config for SASL GSSAPI
+kerberos_read_config(dirsrv_t)
+kerberos_dontaudit_write_config(dirsrv_t)
 
 # Networking basics
 sysnet_dns_name_resolve(dirsrv_t)
