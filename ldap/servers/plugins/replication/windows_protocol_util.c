@@ -2615,10 +2615,13 @@ extract_guid_from_tombstone_dn(const char *dn)
 		"CN=WDel Userdb1\\\nDEL:551706bc-ecf2-4b38-9284-9a8554171d69,CN=Deleted Objects,DC=magpie,DC=com" */
 
 	/* First find the 'DEL:' */
-	colon_offset = strchr(dn,':');
-	/* Then scan forward to the next ',' */
-	comma_offset = strchr(dn,',');
-	/* The characters inbetween are the GUID, copy them to a new string and return to the caller */
+	if (colon_offset = strchr(dn,':')) {
+		/* Then scan forward to the next ',' */
+		comma_offset = strchr(colon_offset,',');
+	}
+
+	/* The characters inbetween are the GUID, copy them
+	 * to a new string and return to the caller */
 	if (comma_offset && colon_offset && comma_offset > colon_offset) {
 		guid = slapi_ch_malloc(comma_offset - colon_offset);
 		strncpy(guid,colon_offset+1,(comma_offset-colon_offset)-1);
