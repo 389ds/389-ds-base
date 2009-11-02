@@ -279,6 +279,7 @@ dd/mm/yy | Author	| Comments
 #define M2_RANDOM_SASLAUTHID     0x00000080 /* -e randomauthid */
 #define M2_ABANDON     0x00000100 /* -e abandon */
 #define M2_DEREF     0x00000200 /* -e deref */
+#define M2_ATTR_REPLACE_FILE	 0x00000400 /* -e attreplacefile */
 
 /*
  * Combinatory defines
@@ -288,11 +289,11 @@ dd/mm/yy | Author	| Comments
  *  - VALID_OPERS	: valid operations
  */
 #define NEED_FILTER	(ADD_ENTRIES|DELETE_ENTRIES|EXACT_SEARCH|RENAME_ENTRIES|ATTR_REPLACE|SCALAB01)
-#define M2_NEED_FILTER	(M2_ABANDON)
+#define M2_NEED_FILTER	(M2_ABANDON|M2_ATTR_REPLACE_FILE)
 #define NEED_RANGE	(INCREMENTAL|RANDOM)
 #define NEED_RND_INCR	(ADD_ENTRIES|DELETE_ENTRIES|RENAME_ENTRIES)
 #define VALID_OPERS	(ADD_ENTRIES|DELETE_ENTRIES|EXACT_SEARCH|RENAME_ENTRIES|ATTR_REPLACE|SCALAB01)
-#define M2_VALID_OPERS	(M2_GENLDIF|M2_BINDONLY|M2_ABANDON)
+#define M2_VALID_OPERS	(M2_GENLDIF|M2_BINDONLY|M2_ABANDON|M2_ATTR_REPLACE_FILE)
 #define NEED_CLASSES	(ADD_ENTRIES)
 #define THE_CLASSES	(OC_PERSON|OC_EMAILPERSON|OC_INETORGPRSON)
 
@@ -506,6 +507,9 @@ typedef struct main_context {
 	char		*attrlist[MAX_ATTRIBS];			/*JLS 15-03-01*/
 	int		 attrlistNb;	/* Nb attrib in list */	/*JLS 15-03-01*/
 	char		*attrpl;	/* Attrib argument */	/*JLS 21-11-00*/
+	char		*attrplFile;	/* Attrib file to get value from */
+	char		*attrplFileContent;	/* Attrib file content */
+	int		attrplFileSize;		/* Attrib file size*/
 	char		*attrplHead;	/* Attrib value head */	/*JLS 21-11-00*/
 	char		*attrplName;	/* Attrib name */	/*JLS 21-11-00*/
 	int		 attrplNbDigit;	/* Attrib nb digits */	/*JLS 21-11-00*/
