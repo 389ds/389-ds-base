@@ -1267,6 +1267,10 @@ basicInit (void)
   int		 i;	/* For the loops */			/*JLS 21-11-00*/
   int		 ret;	/* Return value */
   int		 oflags;/* open() flags */			/*JLS 05-04-01*/
+  struct stat file_st ; /* file status checker for attreplacefile option */
+  FILE *attrF;		/* file pointer for attreplacefile option */
+  int	buffersize=1024;	/* buffer size for buffer */
+  char	buffer[buffersize];	/* buffer used to read attreplacefile content */
 
   /*
    * Misc inits
@@ -1470,6 +1474,86 @@ basicInit (void)
       return (-1);						/*JLS 21-11-00*/
     }								/*JLS 21-11-00*/
   }								/*JLS 21-11-00*/
+
+  /*
+   * Parse attreplacefile subvalue
+   */
+  if (mctx.mod2 & M2_ATTR_REPLACE_FILE)
+  {
+    printf ("debug: parse attreplacefile subvalue\n");
+    /*
+     * Find the attribute name
+     */
+    for (i=0 ; (i<strlen(mctx.attrpl)) &&
+                        (mctx.attrpl[i]!=':') ; i++);
+    mctx.attrplName = (char *)malloc(i+1);
+    strncpy (mctx.attrplName, mctx.attrpl, i);
+    mctx.attrplName[i] = '\0';
+
+    /*
+     * Parse the attribute value
+     */
+    mctx.attrplFile = (char *)malloc(strlen(mctx.attrpl+i+1) + 1);
+    if (mctx.attrplFile == NULL) {
+      printf ("Error: unable to allocate memory for attreplfile\n");
+      return (-1);
+    }
+
+    strncpy(mctx.attrplFile, mctx.attrpl+i+1, strlen(mctx.attrpl+i+1));
+    mctx.attrplFile[strlen(mctx.attrpl+i+1)] = '\0';
+
+   /* 
+    * start working on file verification here 
+      (1) check whether file exist 
+      (2) check whether we have permission to read it 
+      (3) save the content into mctx.attrplFileContent 
+    */
+
+    /* determine file size here */
+    if (stat(mctx.attrplFile, &file_st) < 0){
+      printf ("attr replace file [%s] does not exist, exit\n", mctx.attrplFile);
+      return (-1);
+    }else{
+      mctx.attrplFileSize = file_st.st_size;
+      printf ("file has size [%d] bytes\n", mctx.attrplFileSize );
+    }   
+   
+    /* open file to read */ 
+    if ((attrF = fopen(mctx.attrplFile, "r")) == NULL )
+    {
+      printf("ERROR reading attr file [%s]\n",mctx.attrplFile); 
+      return (-1);
+    }else{
+      printf("file opened for reading\n");
+    }
+
+    /* start to read file content */
+    mctx.attrplFileContent = (char *)malloc(mctx.attrplFileSize + 1);    
+    i=0;
+    while ( fread(buffer, buffersize , 1, attrF) )
+    {
+      memcpy(mctx.attrplFileContent+i, buffer , buffersize );
+      memset(buffer ,'\0', buffersize );
+      i = i + buffersize;
+    } 
+    /* copy remainding content into mctx.attrplFileContent */
+    if (i<mctx.attrplFileSize)
+    {
+      memcpy(mctx.attrplFileContent+i, buffer , (mctx.attrplFileSize - 1 - i));
+      memset(buffer ,'\0', buffersize );  /* clear the buffer */
+    }
+
+    mctx.attrplFileContent[mctx.attrplFileSize]='\0'; // append the close bit
+
+    if ((fclose(attrF)) == EOF )
+    {
+      printf("ERROR closing attr file [%s]\n",mctx.attrplFile);
+      return (-1);
+    }else{
+      printf("file closed\n");
+    }
+
+  }
 
 
   /*
@@ -2123,6 +2207,8 @@ char *execParams[] = {
 	"abandon",
 #define EP_DEREF		 	50
 	"deref",
+#define EP_ATT_REPLACE_FILE		51
+	"attreplacefile",
 	NULL
 };
 
@@ -2165,6 +2251,15 @@ decodeExecParams (
 	}							/*JLS 21-11-00*/
 	mctx.attrpl = strdup (subvalue);			/*JLS 21-11-00*/
 	break;							/*JLS 21-11-00*/
+      case EP_ATT_REPLACE_FILE:
+        mctx.mod2 |= M2_ATTR_REPLACE_FILE;
+        if (subvalue == NULL)
+        {
+          fprintf (stderr, "Error: missing arg attreplacefile\n");
+          return (-1);
+        }
+        mctx.attrpl = strdup (subvalue);
+        break;
       case EP_ATTRLIST:						/*JLS 15-03-01*/
 	return (addAttrToList (subvalue));			/*JLS 15-03-01*/
 	break;							/*JLS 15-03-01*/
@@ -3094,6 +3189,11 @@ main (
       printf ("Attribute's head   = \"%s\"\n", mctx.attrplHead);/*JLS 21-11-00*/
       printf ("Attribute's tail   = \"%s\"\n", mctx.attrplTail);/*JLS 21-11-00*/
     }								/*JLS 21-11-00*/
+    if (mctx.mod2 & M2_ATTR_REPLACE_FILE)
+    {
+      printf ("Attribute to replace  = \"%s\"\n", mctx.attrplName);
+      printf ("Attribute value file  = \"%s\"\n", mctx.attrplFile);
+    }
     if (mctx.mode & ASYNC)
     {
       printf ("Async max pending  = %d\n", mctx.asyncMax);

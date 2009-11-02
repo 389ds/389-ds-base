@@ -163,6 +163,7 @@ void usage ()
   (void) printf ("		add               : ldap_add() entries.\n");
   (void) printf ("		append            : append entries to the genldif file.\n");
   (void) printf ("		ascii             : ascii 7-bits strings.\n");
+  (void) printf ("		attreplacefile=attrname:<file name> : replace attribute with given file content.\n");
   (void) printf ("		attreplace=name:mask    : replace attribute of existing entry.\n");
   (void) printf ("		attrlist=name:name:name : specify list of attribs to retrieve\n");
   (void) printf ("		attrsonly=0|1     : ldap_search() parameter. Set 0 to read values.\n");

@@ -1114,6 +1114,23 @@ threadMain (
 			mctx.attrplTail);
   }
 
+
+  /*
+   * Initiates the attribute replace buffers attrplName
+   */
+  if ( mctx.mod2 & M2_ATTR_REPLACE_FILE )
+  {
+    /* bufAttrpl should point to the same memory location that mctx.attrplFileContent points to */
+    tttctx->bufAttrpl = mctx.attrplFileContent;
+    if (tttctx->bufAttrpl == NULL)
+    {
+      printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufAttrpl), error=%d (%s), can we read file [%s]\n",
+		mctx.pid, tttctx->thrdNum, errno, strerror (errno), mctx.attrplFile);
+      ldcltExit (EXIT_INIT);					/*JLS 18-12-00*/
+    }
+  }
+
+
   /*
    * We are ready to go !
    */
@@ -1154,6 +1171,14 @@ threadMain (
 	go = 0;							/*JLS 21-11-00*/
 	continue;						/*JLS 21-11-00*/
       }								/*JLS 21-11-00*/
+
+    if (mctx.mod2 & M2_ATTR_REPLACE_FILE )
+      if (doAttrFileReplace (tttctx) < 0)
+      {	
+	go = 0;	
+	continue;
+      }	
+
     if (tttctx->mode & DELETE_ENTRIES)
       if (doDeleteEntry (tttctx) < 0)
       {

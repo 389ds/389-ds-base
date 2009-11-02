@@ -1349,18 +1349,22 @@ int
 freeAttrib (
 	LDAPMod	**attrs)
 {
-  int	 i;
-  for (i=0 ; attrs[i]!=NULL ; i++)
-  {
-    if (attrs[i]->mod_op & LDAP_MOD_BVALUES)
-    {
-      free (attrs[i]->mod_bvalues[0]);
+  int	i;
+  int	j;
+
+  for (i=0 ; attrs[i]!=NULL ; i++) {
+    if (attrs[i]->mod_op & LDAP_MOD_BVALUES) {
+      for (j=0; attrs[i]->mod_bvalues[j] != NULL; j++) {
+        free (attrs[i]->mod_bvalues[j]);
+      }
       free (attrs[i]->mod_bvalues);
-    }
-    else
+    } else {
       free (attrs[i]->mod_values);
+    }
+
     free (attrs[i]);
   }
+
   return (0);
 }
 
@@ -1478,7 +1482,70 @@ printErrorFromLdap (
 
 
 
-					/* New function */	/*JLS 21-11-00*/
+
+
+
+
+/* ****************************************************************************
+	FUNCTION :	buildNewModAttribFile
+	PURPOSE :	Build a new (random or incremental) target DN and the
+			corresponding LDAPMod for attribute modification.
+	INPUT :		tttctx	= thread context
+	OUTPUT :	newDN	= DN of the new entry
+			attrs	= attributes for the ldap_modify
+	RETURN :	-1 if error, 0 else.
+ *****************************************************************************/
+int
+buildNewModAttribFile (
+	thread_context	 *tttctx,
+	char		 *newDn,
+	LDAPMod		**attrs)
+{
+  int		 nbAttribs;	/* Nb of attributes */
+  LDAPMod	 attribute;	/* To build the attributes */
+  struct berval	*bv = malloc(sizeof(struct berval *));
+  attribute.mod_bvalues = (struct berval **)malloc(2 * sizeof(struct berval *));
+
+  if ((bv == NULL) || (attribute.mod_bvalues == NULL)) {
+    return -1;
+  }
+
+  /*
+   * Build the new DN
+   * We will assume that the filter (-f argument) is set to use it
+   * to build the rdn of the new entry.
+   * Note that the random new attribute is also build by this function.
+   */
+  if (buildRandomRdnOrFilter (tttctx) < 0)
+    return (-1);
+  strcpy (newDn, tttctx->bufFilter);
+  strcat (newDn, ",");
+  strcat (newDn, tttctx->bufBaseDN);
+
+  /*
+   * Build the attributes modification
+   */
+  bv->bv_len = mctx.attrplFileSize;
+  bv->bv_val = mctx.attrplFileContent;
+  attrs[0]  = NULL;	/* No attributes yet */
+  nbAttribs = 0;	/* No attributes yet */
+  attribute.mod_op     = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+  attribute.mod_type   = mctx.attrplName;
+  attribute.mod_bvalues[0] = bv;
+  attribute.mod_bvalues[1] = NULL;
+
+  if (addAttrib (attrs, nbAttribs++, &attribute) < 0)
+    return (-1);
+
+  /*
+   * Normal end
+   */
+  return (0);
+}
+
+
+
+/* New function */	/*JLS 21-11-00*/
 /* ****************************************************************************
 	FUNCTION :	buildNewModAttrib
 	PURPOSE :	Build a new (random or incremental) target DN and the
@@ -3050,7 +3117,6 @@ doAddEntry (
 
 
 
-
 /* ****************************************************************************
 	FUNCTION :	doAttrReplace
 	PURPOSE :	Perform an ldap_modify() operation, to replace an
@@ -3207,7 +3273,161 @@ doAttrReplace (
 
 
 
+/* ****************************************************************************
+	FUNCTION :	doAttrFileReplace
+	PURPOSE :	Perform an ldap_modify() operation, to replace an
+			attribute of the entry with content read from file .
+	INPUT :		tttctx	= thread context
+	OUTPUT :	None.
+	RETURN :	-1 if error, 0 else.
+	DESCRIPTION :
+ *****************************************************************************/
+int
+doAttrFileReplace (
+	thread_context	*tttctx)
+{
+  char		 newDn[MAX_DN_LENGTH];	/* DN of the new entry */
+  LDAPMod	*attrs[MAX_ATTRIBS];	/* Attributes of this entry */
+  int		 ret;			/* Return values */
+  int		 msgid;			/* For asynchronous mode */
 
+  /*
+   * Connection to the server
+   * The function connectToServer() will take care of the various connection/
+   * disconnection, bind/unbind/close etc... requested by the user.
+   * The cost is one more function call in this application, but the
+   * resulting source code will be much more easiest to maintain.
+   */
+  if (connectToServer (tttctx) < 0)	/* if connection is being established, */
+    return (-1);			/* then tttctx->ldapCtx would exist and holds connection */
+  if (!(tttctx->binded))
+    return (0);
+
+  /*
+   * Do the modify
+   * Maybe we are in synchronous mode ?
+   */
+  if (!(mctx.mode & ASYNC))
+  {
+    /*
+     * Build the new entry
+     */
+    if (buildNewModAttribFile (tttctx, newDn, attrs) < 0)
+      return (-1);
+
+    /*
+     * We will modify this entry
+     */
+    ret = ldap_modify_ext_s (tttctx->ldapCtx, newDn, attrs, NULL, NULL);
+    if (ret != LDAP_SUCCESS)
+    {
+      if (!((mctx.mode & QUIET) && ignoreError (ret)))
+      {
+	printf ("ldclt[%d]: T%03d: AttriFileReplace Error Cannot modify (%s), error=%d (%s)\n",
+		mctx.pid, tttctx->thrdNum, newDn, ret, my_ldap_err2string (ret));
+	fflush (stdout);
+      }
+      if (addErrorStat (ret) < 0)
+	return (-1);
+    }
+    else
+    {
+      printf ("ldclt[%d]: T%03d: AttriFileReplace modify (%s) success ,\n",
+		mctx.pid, tttctx->thrdNum, newDn);
+      if (incrementNbOpers (tttctx) < 0)	/* Memorize operation */
+	return (-1);
+    }
+
+    /*
+     * Free the attributes
+     */
+    if (freeAttrib (attrs) < 0)
+      return (-1);
+
+    /*
+     * End of synchronous operations
+     */
+    return (0);
+  }
+
+  /*
+   * Here, we are in asynchronous mode...
+   * Too bad, lot of things to do here.
+   * First, let's see if we are above the reading threshold.
+   */
+  if (getPending (tttctx, &(mctx.timeval)) < 0)
+    return (-1);
+
+  /*
+   * Maybe we may send another request ?
+   * Well... there is no proper way to retrieve the error number for
+   * this, so I guess I may use direct access to the ldap context
+   * to read the field ld_errno.
+   */
+  if (tttctx->pendingNb > mctx.asyncMax)
+  {
+    if ((mctx.mode & VERBOSE)   &&
+	(tttctx->asyncHit == 1) &&
+	(!(mctx.mode & SUPER_QUIET)))
+    {
+      tttctx->asyncHit = 1;
+      printf ("ldclt[%d]: T%03d: Max pending request hit.\n",
+               mctx.pid, tttctx->thrdNum);
+      fflush (stdout);
+    }
+  }
+  else
+  {
+    if ((mctx.mode & VERBOSE)   &&
+	(tttctx->asyncHit == 1) &&
+	(!(mctx.mode & SUPER_QUIET)))
+    {
+      tttctx->asyncHit = 0;
+      printf ("ldclt[%d]: T%03d: Restart sending.\n",
+               mctx.pid, tttctx->thrdNum);
+      fflush (stdout);
+    }
+
+    /*
+     * Build the new entry
+     */
+    if (buildNewModAttrib (tttctx, newDn, attrs) < 0)
+      return (-1);
+
+    ret = ldap_modify_ext (tttctx->ldapCtx, newDn, attrs, NULL, NULL, &msgid);
+    if (ret != LDAP_SUCCESS)
+    {
+      if (!((mctx.mode & QUIET) && ignoreError (ret)))
+      {
+	printf ("ldclt[%d]: T%03d: Cannot modify(%s), error=%d (%s)\n",
+		mctx.pid, tttctx->thrdNum, newDn, ret, my_ldap_err2string (ret));
+	fflush (stdout);
+      }
+      if (addErrorStat (ret) < 0)
+	return (-1);
+    }
+    else
+    {
+      /*
+       * Memorize the operation
+       */
+      if (msgIdAdd (tttctx, msgid, newDn, newDn, attrs) < 0)
+	return (-1);
+      if (incrementNbOpers (tttctx) < 0)
+	return (-1);
+      tttctx->pendingNb++;
+    }
+  }
+
+  if (mctx.mode & VERY_VERBOSE)
+    printf ("ldclt[%d]: T%03d: pendingNb=%d\n",
+             mctx.pid, tttctx->thrdNum, tttctx->pendingNb);
+
+  /*
+   * End of asynchronous operation... and also end of function.
+   */
+  return (0);
+}
 
 
 /* ****************************************************************************
