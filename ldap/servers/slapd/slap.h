@@ -691,6 +691,12 @@ struct matchingRuleList {
 #define ATTR_PLUGIN_INVOKE_FOR_REPLOP	"nsslapd-invokeForReplOp"
 #define ATTR_PLUGIN_LOAD_NOW            "nsslapd-pluginLoadNow"
 #define ATTR_PLUGIN_LOAD_GLOBAL         "nsslapd-pluginLoadGlobal"
+#define ATTR_PLUGIN_PRECEDENCE			"nsslapd-pluginPrecedence"
+
+/* plugin precedence defines */
+#define PLUGIN_DEFAULT_PRECEDENCE 50
+#define PLUGIN_MIN_PRECEDENCE 1
+#define PLUGIN_MAX_PRECEDENCE 99
 
 /* plugin action states */
 enum
@@ -738,16 +744,17 @@ struct pluginconfig{
 struct slapdplugin {
 	void				*plg_private;	/* data private to plugin */
 	char				*plg_version;	/* version of this plugin */
-    int                 plg_argc;       /* argc from config file */
+	int                 plg_argc;       /* argc from config file */
 	char				**plg_argv;		/* args from config file */
 	char				*plg_libpath;	/* library path for dll/so */
-    char				*plg_initfunc;  /* init symbol */
+	char				*plg_initfunc;  /* init symbol */
 	IFP					plg_close;		/* close function */
 	Slapi_PluginDesc	plg_desc;		/* vendor's info */
-    char				*plg_name;		/* used for plugin rdn in cn=config */
+	char				*plg_name;		/* used for plugin rdn in cn=config */
 	struct slapdplugin	*plg_next;		/* for plugin lists */
 	int					plg_type;		/* discriminates union */
-    char				*plg_dn;		/* config dn for this plugin */
+	char				*plg_dn;		/* config dn for this plugin */
+	int					plg_precedence;	/* for plugin execution ordering */
 	struct slapdplugin  *plg_group;		/* pointer to the group to which this plugin belongs */
 	struct pluginconfig plg_conf;		/* plugin configuration parameters */
 	IFP					plg_cleanup;	/* cleanup function */

@@ -1134,6 +1134,7 @@ main( int argc, char **argv)
 		 */
 		task_cleanup();
 
+		plugin_print_lists();
 		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
 			return_value = 1;
