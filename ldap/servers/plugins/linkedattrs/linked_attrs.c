@@ -1582,10 +1582,6 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
         /* First check if the config is being modified. */
         if (linked_attrs_dn_is_config(dn)) {
             linked_attrs_load_config();
-        } else {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
-                            "linked_attrs_mod_post_op: Error "
-                            "retrieving dn\n");
         }
 
         /* get the mod set */

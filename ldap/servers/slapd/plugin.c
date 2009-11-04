@@ -105,11 +105,43 @@ static void
 add_plugin_to_list(struct slapdplugin **list, struct slapdplugin *plugin)
 {
 	struct slapdplugin **tmp;
+	struct slapdplugin *last = NULL;
+	int plugin_added = 0;
+
+	/* Insert the plugin into list based off of precedence. */
 	for ( tmp = list; *tmp; tmp = &(*tmp)->plg_next )
 	{
-	  ;	/* NULL */
+		if (plugin->plg_precedence < (*tmp)->plg_precedence)
+		{
+			if (last)
+			{
+				/* Insert item between last and tmp. */
+				plugin->plg_next = *tmp;
+				last->plg_next = plugin;
+			} else {
+				/* Add as the first list item. */
+				plugin->plg_next = *tmp;
+				*list = plugin;
+			}
+
+			plugin_added = 1;
+
+			/* We've added the plug-in to the
+ 			 * list, so bail from the loop. */
+			break;
+		}
+
+		/* Save a pointer to this plugin so we can
+		 * refer to it on the next loop iteration. */
+		last = *tmp;
 	}
-	*tmp = plugin;
+
+	/* If we didn't add the plug-in to the list yet,
+	 * it needs to be added to the end of the list. */
+	if (!plugin_added)
+	{
+		*tmp = plugin;
+	}
 }
 
 struct slapdplugin *
@@ -2024,6 +2056,37 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		plugin->plg_name = value; /* plugin owns value's memory now, don't free */
 	}
 
+	if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_PRECEDENCE)))
+	{
+		/* A precedence isn't set, so just use the default. */
+		plugin->plg_precedence = PLUGIN_DEFAULT_PRECEDENCE;
+	}
+	else
+	{
+		/* A precedence was set, so let's make sure it's valid. */
+		int precedence = 0;
+		char *endptr = NULL;
+
+		/* Convert the value. */
+		precedence = strtol(value, &endptr, 10);
+
+		/* Make sure the precedence is within our valid
+		 * range and that we had no conversion errors. */
+		if ((*value == '\0') || (*endptr != '\0') ||
+			(precedence < PLUGIN_MIN_PRECEDENCE) || (precedence > PLUGIN_MAX_PRECEDENCE))
+		{
+			LDAPDebug(LDAP_DEBUG_ANY, "Error: value for attribute %s must be "
+				"an integer between %d and %d\n", ATTR_PLUGIN_PRECEDENCE,
+				PLUGIN_MIN_PRECEDENCE, PLUGIN_MAX_PRECEDENCE);
+			status = -1;
+			goto PLUGIN_CLEANUP;
+		}
+		else
+		{
+			plugin->plg_precedence = precedence;
+		}
+	}
+
 	if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
 											   ATTR_PLUGIN_INITFN)))
 	{
@@ -2794,6 +2857,31 @@ void plugin_print_versions(void)
 	  slapd_print_pluginlist_versions(get_plugin_list(i));
 	}
 
+}
+
+/*
+ * Prints a list of plugins in execution order for each
+ * plug-in type.  This will only be printed at the
+ * SLAPI_LOG_PLUGIN log level.
+ */
+void plugin_print_lists(void)
+{
+	int i;
+	struct slapdplugin *list = NULL;
+	struct slapdplugin *tmp = NULL;
+
+	for (i = 0; i < PLUGIN_LIST_GLOBAL_MAX; i++) {
+		if (list = get_plugin_list(i))
+		{
+			slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
+				"---- Plugin List (type %d) ----\n", i);
+			for ( tmp = list; tmp; tmp = tmp->plg_next )
+			{
+				slapi_log_error(SLAPI_LOG_PLUGIN, NULL, "  %s (precedence: %d)\n",
+					tmp->plg_name, tmp->plg_precedence);
+			}
+		}
+	}
 }
 
 /*

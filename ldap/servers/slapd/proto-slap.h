@@ -772,6 +772,7 @@ int plugin_add_descriptive_attributes( Slapi_Entry *e,
 void plugin_call_entryfetch_plugins(char **entrystr, uint *size);
 void plugin_call_entrystore_plugins(char **entrystr, uint *size);
 void plugin_print_versions(void);
+void plugin_print_lists(void);
 
 /*
  * plugin_mr.c
