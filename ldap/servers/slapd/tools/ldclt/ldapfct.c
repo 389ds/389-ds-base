@@ -3666,8 +3666,16 @@ doExactSearch (
 {
   int		  ret;		/* Return value */
   LDAPMessage	 *res;		/* LDAP results */
+  LDAPMessage	 *e;		/* LDAP results */
   char		**attrlist;	/* Attribs list */		/*JLS 15-03-01*/
   LDAPControl **ctrlsp = NULL, *ctrls[2], *dctrl = NULL; /* derefence control */
+
+  /* the following variables are used for response parsing */
+  int             i;        /* for counting purpose */
+  int             msgtype, parse_rc , rc ; /* for search result parsing */
+  char            *matcheddn, *errmsg, *dn ;
+  LDAPControl     **resctrls; 
+  LDAPControl     **rcp;
 
   /*
    * Connection to the server
@@ -3701,10 +3709,30 @@ doExactSearch (
   if (mctx.mod2 & M2_DEREF) /* dereference */
   {
     char *attrs[2];
-    attrs[0] = "cn";
+    /* I have stored ref attr at mctx.attRef , deref attr at mctx.attRefDef */
+
+    /* using hard coded value for dereferenced attribute if no mctx.attRef is set */
+    if (mctx.attRef == NULL )
+    {
+      attrs[0] = "cn"; 
+    }else{
+      attrs[0] = mctx.attRefDef;
+    }
+
     attrs[1] = NULL;
-    ret = ldclt_create_deref_control(tttctx->ldapCtx,
+
+    /* use pre-defined value if passin mctx.attrRefDef is null 
+     * the pre-defined value LDCLT_DEREF_ATTR is "secretary"
+     */
+    if (mctx.attRef == NULL ){
+      ret = ldclt_create_deref_control(tttctx->ldapCtx,
                                      LDCLT_DEREF_ATTR, attrs, &dctrl);
+    }else{
+      ret = ldclt_create_deref_control(tttctx->ldapCtx,
+                                     mctx.attRef , attrs, &dctrl);
+    }
+
+    /* dctrl contains the returned reference value */
     if (LDAP_SUCCESS == ret)
     {
         ctrls[0] = dctrl;
@@ -3734,8 +3762,8 @@ doExactSearch (
     ret = ldap_search_ext_s (tttctx->ldapCtx, tttctx->bufBaseDN, mctx.scope,
 		tttctx->bufFilter, attrlist, 			/*JLS 15-03-01*/
 		mctx.attrsonly, ctrlsp, NULL, NULL, -1, &res);	/*JLS 03-01-01*/
-    if (ret != LDAP_SUCCESS)
-    {
+    if (ret != LDAP_SUCCESS) 
+    { /* if search failed */
       if (!((mctx.mode & QUIET) && ignoreError (ret)))
 	(void) printErrorFromLdap (tttctx, res, ret,		/*JLS 03-08-00*/
 		"Cannot ldap_search()");			/*JLS 03-08-00*/
@@ -3753,7 +3781,63 @@ doExactSearch (
       }								/*JLS 15-12-00*/
     }
     else
-    {
+    { /* if search success & we are in verbose mode */
+      if (mctx.mode & VERBOSE)
+      {
+        for (e = ldap_first_message (tttctx->ldapCtx, res); e != NULL ; e = ldap_next_message (tttctx->ldapCtx, e) )
+        {
+          msgtype = ldap_msgtype (e);
+          switch (msgtype)
+          {
+            /* if this is an entry that returned */
+            case LDAP_RES_SEARCH_ENTRY:
+              /* get dereferenced value into resctrls:  deref parsing  */
+              parse_rc = ldap_get_entry_controls ( tttctx->ldapCtx, e, &resctrls );
+              if ( resctrls != NULL ) 
+              {/* parse it only when we have return saved in server control */
+                /* get dn */
+                if (( dn = ldap_get_dn (tttctx->ldapCtx, e)) != NULL )
+                {
+                  for ( rcp = resctrls; rcp && *rcp; rcp++ ) 
+                  {
+                    /* if very_verbose */
+                    if ( mctx.mode & VERY_VERBOSE )
+                    {
+                      printf("dn: [%s] -> deref oid: %s, value: %s\n",
+                        dn, 
+                        (**rcp).ldctl_oid?(**rcp).ldctl_oid:"none",
+                        (**rcp).ldctl_value.bv_val?(**rcp).ldctl_value.bv_val:"none");
+                    }
+                  }
+                  ldap_controls_free( resctrls );
+                  ldap_memfree (dn);
+                }
+              }
+            break; /*end of case LDAP_RES_SEARCH_ENTRY */
+  
+            /* if this is an reference that returned */
+            case LDAP_RES_SEARCH_REFERENCE: /* we do nothing here */
+            break;
+  
+            /* if we reach the end of search result */
+            case LDAP_RES_SEARCH_RESULT:
+              /* just free the returned msg */
+              parse_rc = ldap_parse_result (tttctx->ldapCtx, e, &rc, &matcheddn, &errmsg, NULL , NULL , 0); 
+              if ( parse_rc != LDAP_SUCCESS )
+              {
+                printf("ldap_parse_result error: [%s]\n", ldap_err2string( parse_rc ));
+              }
+              if ( rc != LDAP_SUCCESS )
+              {
+                printf ("ldap_search_ext_s error: [%s]\n", ldap_err2string( rc ));
+              }
+            break; /* end of case LDAP_RES_SEARCH_RESULT */
+            default:
+            break;
+          }
+        } /*end of message retriving */
+      } /* end of verbose mode */
+
       if (incrementNbOpers (tttctx) < 0)/* Memorize operation */
       {
         goto bail;

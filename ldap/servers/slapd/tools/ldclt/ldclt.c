@@ -1475,12 +1475,41 @@ basicInit (void)
     }								/*JLS 21-11-00*/
   }								/*JLS 21-11-00*/
 
+
+  /*YI parse reference atrr and dereference attr */
+  /*
+   * Parse deref subvalue
+   */
+  if (mctx.mod2 & M2_DEREF)
+  {
+     /*
+     * Find the reference attribute name
+     */
+    for (i=0 ; (i<strlen(mctx.attrpl)) &&
+                        (mctx.attrpl[i]!=':') ; i++);
+    mctx.attRef= (char *)malloc(i+1);
+    strncpy (mctx.attRef, mctx.attrpl, i);
+    mctx.attRef[i] = '\0';
+
+    /*
+     * Parse the deference attribute value
+     */
+    mctx.attRefDef= (char *)malloc(strlen(mctx.attrpl+i+1) + 1);
+    if (mctx.attRefDef== NULL) {
+      printf ("Error: unable to allocate memory for attRefDef\n");
+      return (-1);
+    }
+
+    strncpy(mctx.attRefDef, mctx.attrpl+i+1, strlen(mctx.attrpl+i+1));
+    mctx.attRefDef[strlen(mctx.attrpl+i+1)] = '\0';
+  }
+
+
   /*
    * Parse attreplacefile subvalue
    */
   if (mctx.mod2 & M2_ATTR_REPLACE_FILE)
   {
-    printf ("debug: parse attreplacefile subvalue\n");
     /*
      * Find the attribute name
      */
@@ -2505,6 +2534,12 @@ decodeExecParams (
 	break;
       case EP_DEREF:
 	mctx.mod2 |= M2_DEREF;
+        if (subvalue == NULL)
+        {
+          fprintf (stderr, "Error: missing arg deref argument pair (deref:attr)\n");
+          return (-1);
+        }
+        mctx.attrpl = strdup (subvalue);
 	break;
       default:
 	fprintf (stderr, "Error: illegal option -e %s\n", subvalue);
@@ -3193,6 +3228,11 @@ main (
     {
       printf ("Attribute to replace  = \"%s\"\n", mctx.attrplName);
       printf ("Attribute value file  = \"%s\"\n", mctx.attrplFile);
+    }
+    if (mctx.mod2 & M2_DEREF)
+    {
+      printf ("  Referenced Attribute = \"%s\"\n", mctx.attRef);
+      printf ("Dereferenced Attribute = \"%s\"\n", mctx.attRefDef);
     }
     if (mctx.mode & ASYNC)
     {
