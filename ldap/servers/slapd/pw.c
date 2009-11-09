@@ -1120,8 +1120,8 @@ int update_pw_history( Slapi_PBlock *pb, char *dn, char *old_pw ) {
 static
 int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 {
-	Slapi_Value   *history[25];
-	Slapi_Value   historycv[25];
+	Slapi_Value **trimmed_history;
+	int num_history_vals = 0;
 	int i;
 	int	ret = -1;
 	const char *pw_str = slapi_value_get_string(pw_val);
@@ -1144,16 +1144,25 @@ int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 				}
 			}
 		}
-	}
-	else { /* Password is in clear */
+	} else { /* Password is in clear */
+		/* Count the number of history vals. */
+		for (i = 0; history_vals[i] != NULL; i++ )
+		{
+			num_history_vals++;
+		}
+
+		/* Allocate the array */
+		trimmed_history = (Slapi_Value **)slapi_ch_calloc(num_history_vals + 1, sizeof(Slapi_Value *));
+
 		/* strip the timestamps  */
 		for ( i = 0; history_vals[i] != NULL; i++ )
 		{
 			char *h_val = (char *)slapi_value_get_string(history_vals[i]);
 			size_t h_len = slapi_value_get_length(history_vals[i]);
+
+			/* Allocate a value and put it in the array. */
+			trimmed_history[i] = (Slapi_Value *)slapi_ch_calloc(1, sizeof(Slapi_Value));
 			
-			historycv[i].v_csnset = NULL; /* JCM - I don't understand this */
-			history[i] = &historycv[i];
 			if ( h_val != NULL && 
 				 h_len >= 14 )
 			{
@@ -1161,17 +1170,30 @@ int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 				int pos = 14;
 				if (h_val[pos] == 'Z')
 					pos++;
-				historycv[i].bv.bv_val = &(h_val[pos]);
-				historycv[i].bv.bv_len = h_len - pos;
+				trimmed_history[i]->bv.bv_val = &(h_val[pos]);
+				trimmed_history[i]->bv.bv_len = h_len - pos;
 			} else {
-				historycv[i].bv.bv_val = NULL;
-				historycv[i].bv.bv_len = 0;
+				trimmed_history[i]->bv.bv_val = NULL;
+				trimmed_history[i]->bv.bv_len = 0;
 			}
 		}
-		history[i] = NULL;
-		ret = slapi_pw_find_sv( history, pw_val);
+
+		/* NULL terminate the array. */
+		trimmed_history[i] = NULL;
+
+		/* Check if the new password is in the trimmed history list. */
+		ret = slapi_pw_find_sv(trimmed_history, pw_val);
 	}
 	
+	/* Free the trimmed values. */
+	for ( i = 0; trimmed_history[i] != NULL; i++ )
+	{
+		slapi_ch_free((void **)&trimmed_history[i]);
+	}
+
+	/* Free the array. */
+	slapi_ch_free((void **)&trimmed_history);
+
 	return ( ret );
 }
 
