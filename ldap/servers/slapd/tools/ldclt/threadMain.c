@@ -1124,9 +1124,8 @@ threadMain (
     tttctx->bufAttrpl = mctx.attrplFileContent;
     if (tttctx->bufAttrpl == NULL)
     {
-      printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufAttrpl), error=%d (%s), can we read file [%s]\n",
-		mctx.pid, tttctx->thrdNum, errno, strerror (errno), mctx.attrplFile);
-      ldcltExit (EXIT_INIT);					/*JLS 18-12-00*/
+      printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufAttrpl), error=%d (%s), can we read file [%s]\n", mctx.pid, tttctx->thrdNum, errno, strerror (errno), mctx.attrplFile);
+      ldcltExit (EXIT_INIT);
     }
   }
 

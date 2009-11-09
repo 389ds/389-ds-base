@@ -289,11 +289,11 @@ dd/mm/yy | Author	| Comments
  *  - VALID_OPERS	: valid operations
  */
 #define NEED_FILTER	(ADD_ENTRIES|DELETE_ENTRIES|EXACT_SEARCH|RENAME_ENTRIES|ATTR_REPLACE|SCALAB01)
-#define M2_NEED_FILTER	(M2_ABANDON|M2_ATTR_REPLACE_FILE)
+#define M2_NEED_FILTER	(M2_ABANDON|M2_ATTR_REPLACE_FILE|M2_DEREF)
 #define NEED_RANGE	(INCREMENTAL|RANDOM)
 #define NEED_RND_INCR	(ADD_ENTRIES|DELETE_ENTRIES|RENAME_ENTRIES)
 #define VALID_OPERS	(ADD_ENTRIES|DELETE_ENTRIES|EXACT_SEARCH|RENAME_ENTRIES|ATTR_REPLACE|SCALAB01)
-#define M2_VALID_OPERS	(M2_GENLDIF|M2_BINDONLY|M2_ABANDON|M2_ATTR_REPLACE_FILE)
+#define M2_VALID_OPERS	(M2_GENLDIF|M2_BINDONLY|M2_ABANDON|M2_ATTR_REPLACE_FILE|M2_DEREF)
 #define NEED_CLASSES	(ADD_ENTRIES)
 #define THE_CLASSES	(OC_PERSON|OC_EMAILPERSON|OC_INETORGPRSON)
 
@@ -506,6 +506,8 @@ typedef struct main_context {
 	int		 asyncMax;	/* Max async pending */
 	char		*attrlist[MAX_ATTRIBS];			/*JLS 15-03-01*/
 	int		 attrlistNb;	/* Nb attrib in list */	/*JLS 15-03-01*/
+	char		*attRef;	/* Name of referenced attribute name */
+	char		*attRefDef;	/* Name of dereferenced attribute name*/
 	char		*attrpl;	/* Attrib argument */	/*JLS 21-11-00*/
 	char		*attrplFile;	/* Attrib file to get value from */
 	char		*attrplFileContent;	/* Attrib file content */
