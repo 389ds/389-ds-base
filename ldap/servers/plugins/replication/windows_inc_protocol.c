@@ -864,8 +864,12 @@ windows_inc_run(Private_Repl_Protocol *prp)
 
 	if ( run_dirsync )
 	{
-		windows_dirsync_inc_run(prp);
-		windows_private_save_dirsync_cookie(prp->agmt);
+		/* Don't run dirsync if we encountered
+		 * an error when sending updates to AD. */
+		if (rc == UPDATE_NO_MORE_UPDATES) {
+			windows_dirsync_inc_run(prp);
+			windows_private_save_dirsync_cookie(prp->agmt);
+		}
 		run_dirsync = PR_FALSE;
 	}
 
