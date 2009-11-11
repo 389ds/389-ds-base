@@ -211,42 +211,40 @@ strcpy_unescape_value( char *d, const char *s )
     {
         switch ( *s )
         {
+        case '"':
+            break;
         case '\\':
-            if ( gotesc ) {
-                gotesc = 0;
-            } else {
-                gotesc = 1;
-                if ( s+2 < end ) {
-                    int n = hexchar2int( s[1] );
-                    /* If 8th bit is on, the char is not ASCII (not UTF-8).  
-                     * Thus, not UTF-8 */
-                    if ( n >= 0 && n < 8 ) {
-                        int n2 = hexchar2int( s[2] );
-                        if ( n2 >= 0 ) {
-                            n = (n << 4) + n2;
-                            if (n == 0) { /* don't change \00 */
-                                *d++ = *s++;
-                                *d++ = *s++;
-                                *d++ = *s;
-                            } else { /* change \xx to a single char */
-                                *d++ = (char)n;
-                                s += 2;
-                            }
-                            gotesc = 0;
+            gotesc = 1;
+            if ( s+2 < end ) {
+                int n = hexchar2int( s[1] );
+                /* If 8th bit is on, the char is not ASCII (not UTF-8).  
+                 * Thus, not UTF-8 */
+                if ( n >= 0 && n < 8 ) {
+                    int n2 = hexchar2int( s[2] );
+                    if ( n2 >= 0 ) {
+                        n = (n << 4) + n2;
+                        if (n == 0) { /* don't change \00 */
+                            *d++ = *s++;
+                            *d++ = *s++;
+                            *d++ = *s;
+                        } else { /* change \xx to a single char */
+                            *d++ = (char)n;
+                            s += 2;
                         }
+                        gotesc = 0;
                     }
                 }
-                if (gotesc) {
-                    *d++ = *s;
-                }
+            }
+            /* This is an escaped single character (like \"), so
+             * just copy the special character and not the escape. */
+            if (gotesc) {
+                s++;
+                *d++ = *s;
+                gotesc = 0;
             }
             break;
         default:
-            if (gotesc) {
-                d--;
-            }
             *d++ = *s;
-            gotesc = 0;
             break;
         }
     }
