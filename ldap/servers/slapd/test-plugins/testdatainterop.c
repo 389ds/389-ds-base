@@ -118,7 +118,7 @@
 /*
  * Static variables.
  */
-static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc plugindesc = { PLUGIN_NAME, VENDOR, DS_PACKAGE_VERSION,
 	"sample pre-operation null suffix plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;

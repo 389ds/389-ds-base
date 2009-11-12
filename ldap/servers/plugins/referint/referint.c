@@ -92,7 +92,7 @@ int keeprunning = 0;
 static PRLock 		*keeprunning_mutex = NULL; 
 static PRCondVar        *keeprunning_cv = NULL; 
 
-static Slapi_PluginDesc pdesc = { "referint", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "referint", VENDOR, DS_PACKAGE_VERSION,
 	"referential integrity plugin" };
 
 static void* referint_plugin_identity = NULL;

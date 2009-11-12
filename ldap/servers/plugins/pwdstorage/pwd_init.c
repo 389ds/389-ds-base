@@ -47,33 +47,33 @@
 
 #include "pwdstorage.h"
 
-static Slapi_PluginDesc sha_pdesc = { "sha-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Secure Hashing Algorithm (SHA)" };
+static Slapi_PluginDesc sha_pdesc = { "sha-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Secure Hashing Algorithm (SHA)" };
 
-static Slapi_PluginDesc ssha_pdesc = { "ssha-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA)" };
+static Slapi_PluginDesc ssha_pdesc = { "ssha-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA)" };
 
-static Slapi_PluginDesc sha256_pdesc = { "sha256-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Secure Hashing Algorithm (SHA256)" };
+static Slapi_PluginDesc sha256_pdesc = { "sha256-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Secure Hashing Algorithm (SHA256)" };
 
-static Slapi_PluginDesc ssha256_pdesc = { "ssha256-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA256)" };
+static Slapi_PluginDesc ssha256_pdesc = { "ssha256-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA256)" };
 
-static Slapi_PluginDesc sha384_pdesc = { "sha384-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Secure Hashing Algorithm (SHA384)" };
+static Slapi_PluginDesc sha384_pdesc = { "sha384-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Secure Hashing Algorithm (SHA384)" };
 
-static Slapi_PluginDesc ssha384_pdesc = { "ssha384-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA384)" };
+static Slapi_PluginDesc ssha384_pdesc = { "ssha384-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA384)" };
 
-static Slapi_PluginDesc sha512_pdesc = { "sha512-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Secure Hashing Algorithm (SHA512)" };
+static Slapi_PluginDesc sha512_pdesc = { "sha512-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Secure Hashing Algorithm (SHA512)" };
 
-static Slapi_PluginDesc ssha512_pdesc = { "ssha512-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA512)" };
+static Slapi_PluginDesc ssha512_pdesc = { "ssha512-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA512)" };
 
 #ifndef _WIN32
-static Slapi_PluginDesc crypt_pdesc = { "crypt-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Unix crypt algorithm (CRYPT)" };
+static Slapi_PluginDesc crypt_pdesc = { "crypt-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT)" };
 #endif
 
-static Slapi_PluginDesc clear_pdesc = { "clear-password-storage-scheme", VENDOR, PACKAGE_VERSION, "No encryption (CLEAR)" };
+static Slapi_PluginDesc clear_pdesc = { "clear-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "No encryption (CLEAR)" };
 
-static Slapi_PluginDesc ns_mta_md5_pdesc = { "NS-MTA-MD5-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Netscape MD5 (NS-MTA-MD5)" };
+static Slapi_PluginDesc ns_mta_md5_pdesc = { "NS-MTA-MD5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Netscape MD5 (NS-MTA-MD5)" };
 
-static Slapi_PluginDesc md5_pdesc = { "md5-password-storage-scheme", VENDOR, PACKAGE_VERSION, "MD5 hash algorithm (MD5)" };
+static Slapi_PluginDesc md5_pdesc = { "md5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "MD5 hash algorithm (MD5)" };
 
-static Slapi_PluginDesc smd5_pdesc = { "smd5-password-storage-scheme", VENDOR, PACKAGE_VERSION, "Salted MD5 hash algorithm (SMD5)" };
+static Slapi_PluginDesc smd5_pdesc = { "smd5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted MD5 hash algorithm (SMD5)" };
 
 static char *plugin_name = "NSPwdStoragePlugin";
 

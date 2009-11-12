@@ -63,7 +63,7 @@ static int bitstring_validate(struct berval *val);
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Bit String", "bitstring", BITSTRING_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "bitstring-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "bitstring-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Bit String attribute syntax plugin" };
 
 int

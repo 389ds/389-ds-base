@@ -11,7 +11,9 @@ QUOTE := $(NULLSTRING)"# a double quote"
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
-DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\""
+# the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
+DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
+	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
@@ -1340,3 +1342,23 @@ endif
 %/$(PACKAGE_NAME): %/initconfig.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+# if distdir is a git tag, use that for the git archive tag, else
+# just assume a developer build and use HEAD
+git-archive:
+	if [ -n "$(SRCDISTDIR)" -a -d "$(SRCDISTDIR)" ] ; then \
+		srcdistdir=$(SRCDISTDIR) ; \
+	else \
+		srcdistdir=`pwd` ; \
+	fi ; \
+	cd $(srcdir) ; \
+	if git show-ref --tags -q $(distdir) ; then \
+		gittag=$(distdir) ; \
+	else \
+		gittag=HEAD ; \
+	fi ; \
+	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2

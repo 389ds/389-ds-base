@@ -1,11 +1,22 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-# This version is the version returned by ns-slapd -v
-AC_INIT([dirsrv], [1.2.4], [http://bugzilla.redhat.com/])
+AC_INIT([dirsrv],[1.0],[http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
+# include the version information
+. $srcdir/VERSION.sh
+AC_MSG_NOTICE(This is configure for $PACKAGE_TARNAME $PACKAGE_VERSION)
+AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$PACKAGE_VERSION", [package version])
+AC_DEFINE_UNQUOTED([DS_PACKAGE_TARNAME], "$PACKAGE_TARNAME", [package tarball name])
+AC_DEFINE_UNQUOTED([DS_PACKAGE_BUGREPORT], "$PACKAGE_BUGREPORT", [package bug report url])
+AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_STRING", [package string])
+AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define])
+# define these for automake distdir
+VERSION=$PACKAGE_VERSION
+PACKAGE=$PACKAGE_TARNAME
+AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
+AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE", [package tar name])
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
 
@@ -184,10 +195,6 @@ AM_CONDITIONAL(enable_presence,test "$enable_presence" = "yes")
 
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
-
-brand=389
-capbrand=389
-vendor="389 Project"
 
 m4_include(m4/fhs.m4)
 

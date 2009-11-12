@@ -191,7 +191,7 @@ bitwise_filter_create (Slapi_PBlock* pb)
     return LDAP_SUCCESS;
 }
 
-static Slapi_PluginDesc pdesc = { "bitwise", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "bitwise", VENDOR, DS_PACKAGE_VERSION,
               "bitwise match plugin" };
 
 int /* LDAP error code */

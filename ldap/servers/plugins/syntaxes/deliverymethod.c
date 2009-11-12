@@ -64,7 +64,7 @@ static int pdm_validate(const char *start, const char *end);
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Delivery Method", "delivery", DELIVERYMETHOD_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "delivery-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "delivery-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Delivery Method attribute syntax plugin" };
 
 int

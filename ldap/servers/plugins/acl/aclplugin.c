@@ -47,7 +47,7 @@
  */
 #include "acl.h"
 
-static Slapi_PluginDesc pdesc = { "acl", VENDOR, PACKAGE_VERSION, "acl access check plugin" };
+static Slapi_PluginDesc pdesc = { "acl", VENDOR, DS_PACKAGE_VERSION, "acl access check plugin" };
 char *plugin_name = ACL_PLUGIN_NAME;
 
 /* Prototypes */

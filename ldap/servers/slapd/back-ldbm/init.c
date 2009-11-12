@@ -49,7 +49,7 @@
 static void *IDL_api[3];
 
 static Slapi_PluginDesc pdesc = { "ldbm-backend", VENDOR,
-        PACKAGE_VERSION, "high-performance LDAP backend database plugin" };
+        DS_PACKAGE_VERSION, "high-performance LDAP backend database plugin" };
 
 static int add_ldbm_internal_attr_syntax( const char *name, const char *oid,
 		const char *syntax, const char *mr_equality, unsigned long extraflags );

@@ -46,7 +46,7 @@
 
 #include "pam_passthru.h"
 
-static Slapi_PluginDesc pdesc = { "pam_passthruauth",  VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "pam_passthruauth",  VENDOR, DS_PACKAGE_VERSION,
 	"PAM pass through authentication plugin" };
 
 static void * pam_passthruauth_plugin_identity = NULL;

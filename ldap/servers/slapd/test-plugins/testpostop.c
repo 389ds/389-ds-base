@@ -98,7 +98,7 @@ static char changelogfile[MAX_PATH+1];
 static char *changelogfile = "/tmp/changelog";
 #endif
 
-Slapi_PluginDesc postoppdesc = { "test-postop", VENDOR, PACKAGE_VERSION,
+Slapi_PluginDesc postoppdesc = { "test-postop", VENDOR, DS_PACKAGE_VERSION,
 	"sample post-operation plugin" };
 
 static void write_changelog( int optype, char *dn, void *change, int flag );

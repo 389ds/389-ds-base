@@ -73,7 +73,7 @@
 #include "memberof.h"
 
 static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
-	PACKAGE_VERSION, "memberof plugin" };
+	DS_PACKAGE_VERSION, "memberof plugin" };
 
 static void* _PluginID = NULL;
 static Slapi_Mutex *memberof_operation_lock = 0;

@@ -64,7 +64,7 @@ static int ttx_param_validate(const char *start, const char *end);
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Teletex Terminal Identifier", "teletextermid", TELETEXTERMID_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "teletextermid-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "teletextermid-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Teletex Terminal Identifier attribute syntax plugin" };
 
 int

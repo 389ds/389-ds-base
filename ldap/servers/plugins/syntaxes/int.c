@@ -63,7 +63,7 @@ static char *names[] = { "INTEGER", "int", INTEGER_SYNTAX_OID, 0 };
 #define INTEGERORDERINGMATCH_OID "2.5.13.15"
 
 static Slapi_PluginDesc pdesc = { "int-syntax", VENDOR,
-	PACKAGE_VERSION, "integer attribute syntax plugin" };
+	DS_PACKAGE_VERSION, "integer attribute syntax plugin" };
 
 static Slapi_MatchingRuleEntry
 integerMatch = { INTEGERMATCH_OID, NULL /* no alias? */,

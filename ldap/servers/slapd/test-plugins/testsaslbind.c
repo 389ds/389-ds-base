@@ -85,7 +85,7 @@ nsslapd-plugindescription: sample SASL bind pre-operation plugin
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc saslpdesc = { "test-saslbind", VENDOR, PACKAGE_VERSION,
+Slapi_PluginDesc saslpdesc = { "test-saslbind", VENDOR, DS_PACKAGE_VERSION,
 	"sample SASL bind pre-operation plugin" };
 
 

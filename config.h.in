@@ -21,6 +21,18 @@
 /* cpu type x86_64 */
 #undef CPU_x86_64
 
+/* package bug report url */
+#undef DS_PACKAGE_BUGREPORT
+
+/* package string */
+#undef DS_PACKAGE_STRING
+
+/* package tarball name */
+#undef DS_PACKAGE_TARNAME
+
+/* package version */
+#undef DS_PACKAGE_VERSION
+
 /* enable ldapi auto bind support in the server */
 #undef ENABLE_AUTOBIND
 
@@ -327,7 +339,7 @@
 /* OS SOLARIS */
 #undef OS_solaris
 
-/* Name of package */
+/* package tar name */
 #undef PACKAGE
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -375,7 +387,7 @@
 /* If defined, using OpenLDAP for LDAP SDK */
 #undef USE_OPENLDAP
 
-/* Version number of package */
+/* package version */
 #undef VERSION
 
 /* UNIX */

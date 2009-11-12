@@ -64,7 +64,7 @@ static int fax_parameter_validate(const char *start, const char *end);
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Facsimile Telephone Number", "facsimile", FACSIMILE_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "facsimile-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "facsimile-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Facsimile Telephone Number attribute syntax plugin" };
 
 int

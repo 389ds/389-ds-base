@@ -153,7 +153,7 @@ extern "C" {
 
 static Slapi_PluginDesc pdesc = { "IM Presence",
 								  VENDOR,
-								  PACKAGE_VERSION,
+								  DS_PACKAGE_VERSION,
 	"presence plugin" };
 
 /**
