@@ -492,7 +492,7 @@ test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
 static Slapi_PluginDesc test_winsync_pdesc = {
     "test-winsync-plugin",
     VENDOR,
-    PACKAGE_VERSION,
+    DS_PACKAGE_VERSION,
     "test winsync plugin"
 };
 

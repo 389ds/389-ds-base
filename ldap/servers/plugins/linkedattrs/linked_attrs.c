@@ -58,7 +58,7 @@ static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { LINK_FEATURE_DESC,
                                   VENDOR,
-                                  PACKAGE_VERSION,
+                                  DS_PACKAGE_VERSION,
                                   LINK_PLUGIN_DESC };
 
 /*

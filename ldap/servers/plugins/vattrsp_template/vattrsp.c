@@ -93,7 +93,7 @@ static int vattrsp_vattr_types(
 		);
 
 
-static Slapi_PluginDesc pdesc = { "vattrexamplesp", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "vattrexamplesp", VENDOR, DS_PACKAGE_VERSION,
 	"vattr service provider example plugin" };
 
 static void * vattrsp_plugin_identity = NULL;

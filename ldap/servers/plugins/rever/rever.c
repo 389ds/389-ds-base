@@ -46,7 +46,7 @@
 
 #include "rever.h"
 
-static Slapi_PluginDesc pdesc = { "des-storage-scheme", VENDOR, PACKAGE_VERSION, "DES storage scheme plugin" };
+static Slapi_PluginDesc pdesc = { "des-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "DES storage scheme plugin" };
 
 static char *plugin_name = "ReverStoragePlugin";
 

@@ -70,10 +70,10 @@ static char *ia5_names[] = { "IA5String", "ces", "caseexactstring",
 static char *uri_names[] = { "URI", "1.3.6.1.4.1.4401.1.1.1",0};
 
 static Slapi_PluginDesc ia5_pdesc = { "ces-syntax", VENDOR,
-	PACKAGE_VERSION, "caseExactString attribute syntax plugin" };
+	DS_PACKAGE_VERSION, "caseExactString attribute syntax plugin" };
 
 static Slapi_PluginDesc uri_pdesc = { "uri-syntax", VENDOR,
-	PACKAGE_VERSION, "uri attribute syntax plugin" };
+	DS_PACKAGE_VERSION, "uri attribute syntax plugin" };
 
 
 /*

@@ -63,7 +63,7 @@ static int dn_validate( struct berval *val );
 static char *names[] = { "DN", DN_SYNTAX_OID, 0 };
 
 static Slapi_PluginDesc pdesc = { "dn-syntax", VENDOR,
-	PACKAGE_VERSION, "distinguished name attribute syntax plugin" };
+	DS_PACKAGE_VERSION, "distinguished name attribute syntax plugin" };
 
 int
 dn_init( Slapi_PBlock *pb )

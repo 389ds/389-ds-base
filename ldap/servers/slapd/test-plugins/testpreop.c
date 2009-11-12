@@ -84,7 +84,7 @@
 #include <string.h>
 #include "slapi-plugin.h"
 
-Slapi_PluginDesc preoppdesc = { "test-preop", VENDOR, PACKAGE_VERSION,
+Slapi_PluginDesc preoppdesc = { "test-preop", VENDOR, DS_PACKAGE_VERSION,
 	"sample pre-operation plugin" };
 
 /* Pre-operation plug-in function */

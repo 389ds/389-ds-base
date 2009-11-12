@@ -63,7 +63,7 @@ static int nameoptuid_validate(struct berval *val);
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Name And Optional UID", "nameoptuid", NAMEANDOPTIONALUID_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "nameoptuid-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "nameoptuid-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Name And Optional UID attribute syntax plugin" };
 
 int

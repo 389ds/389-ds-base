@@ -63,7 +63,7 @@ static int tel_validate(struct berval *val);
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "TelephoneNumber", "tel", TELEPHONE_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc pdesc = { "tele-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "tele-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"telephoneNumber attribute syntax plugin" };
 
 int

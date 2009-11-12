@@ -202,8 +202,8 @@ typedef struct symbol_t {
 #endif
 
 #define SLAPD_VENDOR_NAME	VENDOR
-#define SLAPD_VERSION_STR	CAPBRAND "-Directory/" PACKAGE_VERSION
-#define SLAPD_SHORT_VERSION_STR	PACKAGE_VERSION
+#define SLAPD_VERSION_STR	CAPBRAND "-Directory/" DS_PACKAGE_VERSION
+#define SLAPD_SHORT_VERSION_STR	DS_PACKAGE_VERSION
 
 typedef void	(*VFP)(void *);
 typedef void	(*VFPP)(void **);

@@ -904,8 +904,8 @@ am__remove_distdir = \
   { test ! -d $(distdir) \
     || { find $(distdir) -type d ! -perm -200 -exec chmod u+w {} ';' \
          && rm -fr $(distdir); }; }
-DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
+DIST_ARCHIVES = $(distdir).tar.bz2
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
@@ -1127,7 +1127,10 @@ QUOTE := $(NULLSTRING)"# a double quote"
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
-DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\""
+# the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
+DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
+	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
+
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
@@ -9606,7 +9609,6 @@ distdir: $(DISTFILES)
 dist-gzip: distdir
 	tardir=$(distdir) && $(am__tar) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).tar.gz
 	$(am__remove_distdir)
-
 dist-bzip2: distdir
 	tardir=$(distdir) && $(am__tar) | bzip2 -9 -c >$(distdir).tar.bz2
 	$(am__remove_distdir)
@@ -9625,7 +9627,7 @@ dist-zip: distdir
 	$(am__remove_distdir)
 
 dist dist-all: distdir
-	tardir=$(distdir) && $(am__tar) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).tar.gz
+	tardir=$(distdir) && $(am__tar) | bzip2 -9 -c >$(distdir).tar.bz2
 	$(am__remove_distdir)
 
 # This target untars the dist file and tries a VPATH configuration.  Then
@@ -9952,6 +9954,22 @@ ns-slapd.properties: makstrdb
 %/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
+
+# if distdir is a git tag, use that for the git archive tag, else
+# just assume a developer build and use HEAD
+git-archive:
+	if [ -n "$(SRCDISTDIR)" -a -d "$(SRCDISTDIR)" ] ; then \
+		srcdistdir=$(SRCDISTDIR) ; \
+	else \
+		srcdistdir=`pwd` ; \
+	fi ; \
+	cd $(srcdir) ; \
+	if git show-ref --tags -q $(distdir) ; then \
+		gittag=$(distdir) ; \
+	else \
+		gittag=HEAD ; \
+	fi ; \
+	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -61,7 +61,7 @@
 static void * roles_plugin_identity = NULL;
 
 static Slapi_PluginDesc pdesc = { "roles",
-		VENDOR, PACKAGE_VERSION, "roles plugin" };
+		VENDOR, DS_PACKAGE_VERSION, "roles plugin" };
 
 #ifdef _WIN32
 int *module_ldap_debug = 0;

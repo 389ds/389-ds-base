@@ -95,7 +95,7 @@ static int search_one_berval(const char *baseDN, const char *attrName,
 static char *plugin_name = "NSUniqueAttr";
 static Slapi_PluginDesc
 pluginDesc = { 
-	"NSUniqueAttr", VENDOR, PACKAGE_VERSION,
+	"NSUniqueAttr", VENDOR, DS_PACKAGE_VERSION,
 	"Enforce unique attribute values" 
 };
 static void* plugin_identity = NULL;

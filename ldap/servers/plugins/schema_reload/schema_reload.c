@@ -78,7 +78,7 @@
 static PRLock *schemareload_lock = NULL;
 
 static Slapi_PluginDesc pdesc = { "schemareload",
-    VENDOR, PACKAGE_VERSION,
+    VENDOR, DS_PACKAGE_VERSION,
     "task plugin to reload schema files" };
 
 static int schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,

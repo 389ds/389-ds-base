@@ -44,7 +44,7 @@
 
 Slapi_PluginDesc chainingdbdesc = { CB_PLUGIN_NAME,
 				    VENDOR,
-				    PACKAGE_VERSION,
+				    DS_PACKAGE_VERSION,
 				    CB_PLUGIN_DESCRIPTION };
 
 

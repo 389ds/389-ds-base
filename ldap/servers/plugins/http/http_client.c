@@ -121,7 +121,7 @@ static void *api[7];
  */
 static Slapi_PluginDesc pdesc = { "http-client",
 								  VENDOR,
-								  PACKAGE_VERSION,
+								  DS_PACKAGE_VERSION,
 								  "HTTP Client plugin" };
 
 static Slapi_ComponentId *plugin_id = NULL;

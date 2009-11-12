@@ -125,14 +125,14 @@ static char *response_name_list[] = {
 
 /* ----------------------------- Multi-Master Replication Plugin */
 
-static Slapi_PluginDesc multimasterdesc = {"replication-multimaster", VENDOR, PACKAGE_VERSION, "Multi-master Replication Plugin"};
-static Slapi_PluginDesc multimasterpreopdesc = {"replication-multimaster-preop", VENDOR, PACKAGE_VERSION, "Multi-master replication pre-operation plugin"};
-static Slapi_PluginDesc multimasterpostopdesc = {"replication-multimaster-postop", VENDOR, PACKAGE_VERSION, "Multi-master replication post-operation plugin"};
-static Slapi_PluginDesc multimasterinternalpreopdesc = {"replication-multimaster-internalpreop", VENDOR, PACKAGE_VERSION, "Multi-master replication internal pre-operation plugin"};
-static Slapi_PluginDesc multimasterinternalpostopdesc = {"replication-multimaster-internalpostop", VENDOR, PACKAGE_VERSION, "Multimaster replication internal post-operation plugin"};
-static Slapi_PluginDesc multimasterbepreopdesc = {"replication-multimaster-bepreop", VENDOR, PACKAGE_VERSION, "Multimaster replication bepre-operation plugin"};
-static Slapi_PluginDesc multimasterbepostopdesc = {"replication-multimaster-bepostop", VENDOR, PACKAGE_VERSION, "Multimaster replication bepost-operation plugin"};
-static Slapi_PluginDesc multimasterextopdesc = { "replication-multimaster-extop", VENDOR, PACKAGE_VERSION, "Multimaster replication extended-operation plugin" };
+static Slapi_PluginDesc multimasterdesc = {"replication-multimaster", VENDOR, DS_PACKAGE_VERSION, "Multi-master Replication Plugin"};
+static Slapi_PluginDesc multimasterpreopdesc = {"replication-multimaster-preop", VENDOR, DS_PACKAGE_VERSION, "Multi-master replication pre-operation plugin"};
+static Slapi_PluginDesc multimasterpostopdesc = {"replication-multimaster-postop", VENDOR, DS_PACKAGE_VERSION, "Multi-master replication post-operation plugin"};
+static Slapi_PluginDesc multimasterinternalpreopdesc = {"replication-multimaster-internalpreop", VENDOR, DS_PACKAGE_VERSION, "Multi-master replication internal pre-operation plugin"};
+static Slapi_PluginDesc multimasterinternalpostopdesc = {"replication-multimaster-internalpostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication internal post-operation plugin"};
+static Slapi_PluginDesc multimasterbepreopdesc = {"replication-multimaster-bepreop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication bepre-operation plugin"};
+static Slapi_PluginDesc multimasterbepostopdesc = {"replication-multimaster-bepostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication bepost-operation plugin"};
+static Slapi_PluginDesc multimasterextopdesc = { "replication-multimaster-extop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication extended-operation plugin" };
 
 static int multimaster_stopped_flag; /* A flag which is set when all the plugin threads are to stop */
 static int multimaster_started_flag = 0;

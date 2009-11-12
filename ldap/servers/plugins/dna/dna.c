@@ -123,12 +123,12 @@
 
 static Slapi_PluginDesc pdesc = { DNA_FEATURE_DESC,
                                   VENDOR,
-                                  PACKAGE_VERSION,
+                                  DS_PACKAGE_VERSION,
                                   DNA_PLUGIN_DESC };
 
 static Slapi_PluginDesc exop_pdesc = { DNA_EXOP_FEATURE_DESC,
                                        VENDOR,
-                                       PACKAGE_VERSION,
+                                       DS_PACKAGE_VERSION,
                                        DNA_EXOP_DESC };
 
 

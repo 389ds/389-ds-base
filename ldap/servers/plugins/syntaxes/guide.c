@@ -70,11 +70,11 @@ static char *guide_names[] = { "Guide", "guide", GUIDE_SYNTAX_OID, 0 };
 static char *enhancedguide_names[] = { "Enhanced Guide", "enhancedguide",
 		ENHANCEDGUIDE_SYNTAX_OID, 0 };
 
-static Slapi_PluginDesc guide_pdesc = { "guide-syntax", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc guide_pdesc = { "guide-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Guide attribute syntax plugin" };
 
 static Slapi_PluginDesc enhancedguide_pdesc = { "enhancedguide-syntax",
-		VENDOR, PACKAGE_VERSION,
+		VENDOR, DS_PACKAGE_VERSION,
 		"Enhanced Guide attribute syntax plugin" };
 
 int

@@ -1639,7 +1639,7 @@ log_write_title (LOGFD fp)
 	int err = 0;
 
 	PR_snprintf(buff, bufflen, "\t%s B%s\n",
-				fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" PACKAGE_VERSION,
+				fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" DS_PACKAGE_VERSION,
 				buildnum ? buildnum : "");
 	LOG_WRITE_NOW(fp, buff, strlen(buff), 0, err);
 

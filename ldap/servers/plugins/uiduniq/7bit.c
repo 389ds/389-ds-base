@@ -85,7 +85,7 @@
  */
 static char *plugin_name = "NS7bitAttr";
 static Slapi_PluginDesc
-pluginDesc = { "NS7bitAttr", VENDOR, PACKAGE_VERSION,
+pluginDesc = { "NS7bitAttr", VENDOR, DS_PACKAGE_VERSION,
   "Enforce  7-bit clean attribute values" };
 
 

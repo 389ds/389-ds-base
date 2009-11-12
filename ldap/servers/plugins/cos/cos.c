@@ -132,7 +132,7 @@ int cos_close( Slapi_PBlock *pb );
 int cos_post_op( Slapi_PBlock *pb );
 
 
-static Slapi_PluginDesc pdesc = { "cos", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "cos", VENDOR, DS_PACKAGE_VERSION,
 	"class of service plugin" };
 
 static void * cos_plugin_identity = NULL;

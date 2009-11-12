@@ -89,7 +89,7 @@ static void _statechange_vattr_cache_invalidator_callback(Slapi_Entry *e, char *
 static SCNotify *statechange_find_notify(char *dn, char *filter, notify_callback func);
 
 
-static Slapi_PluginDesc pdesc = { "statechange", VENDOR, PACKAGE_VERSION,
+static Slapi_PluginDesc pdesc = { "statechange", VENDOR, DS_PACKAGE_VERSION,
 	"state change notification service plugin" };
 
 

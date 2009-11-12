@@ -81,9 +81,9 @@ char **retrocl_attributes = NULL;
 
 /* ----------------------------- Retrocl Plugin */
 
-static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, PACKAGE_VERSION, "Retrocl Plugin"};
-static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", VENDOR, PACKAGE_VERSION, "retrocl post-operation plugin"};
-static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", VENDOR, PACKAGE_VERSION, "retrocl internal post-operation plugin"};
+static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, DS_PACKAGE_VERSION, "Retrocl Plugin"};
+static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", VENDOR, DS_PACKAGE_VERSION, "retrocl post-operation plugin"};
+static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", VENDOR, DS_PACKAGE_VERSION, "retrocl internal post-operation plugin"};
 
 
 /*

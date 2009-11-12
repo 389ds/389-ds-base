@@ -82,12 +82,12 @@ void plugin_init_debug_level(int *level_ptr)
 
 /* ----------------------------- Legacy Replication Plugin */
 
-static Slapi_PluginDesc legacydesc = { "replication-legacy", VENDOR, PACKAGE_VERSION, "Legacy Replication Plugin" };
-static Slapi_PluginDesc legacypreopdesc = { "replication-legacy-preop", VENDOR, PACKAGE_VERSION, "Legacy replication pre-operation plugin" };
-static Slapi_PluginDesc legacypostopdesc = { "replication-legacy-postop", VENDOR, PACKAGE_VERSION, "Legacy replication post-operation plugin" };
-static Slapi_PluginDesc legacyinternalpreopdesc = { "replication-legacy-internalpreop", VENDOR, PACKAGE_VERSION, "Legacy replication internal pre-operation plugin" };
-static Slapi_PluginDesc legacyinternalpostopdesc = { "replication-legacy-internalpostop", VENDOR, PACKAGE_VERSION, "Legacy replication internal post-operation plugin" };
-static Slapi_PluginDesc legacyentrydesc = { "replication-legacy-entry", VENDOR, PACKAGE_VERSION, "Legacy replication entry plugin" };
+static Slapi_PluginDesc legacydesc = { "replication-legacy", VENDOR, DS_PACKAGE_VERSION, "Legacy Replication Plugin" };
+static Slapi_PluginDesc legacypreopdesc = { "replication-legacy-preop", VENDOR, DS_PACKAGE_VERSION, "Legacy replication pre-operation plugin" };
+static Slapi_PluginDesc legacypostopdesc = { "replication-legacy-postop", VENDOR, DS_PACKAGE_VERSION, "Legacy replication post-operation plugin" };
+static Slapi_PluginDesc legacyinternalpreopdesc = { "replication-legacy-internalpreop", VENDOR, DS_PACKAGE_VERSION, "Legacy replication internal pre-operation plugin" };
+static Slapi_PluginDesc legacyinternalpostopdesc = { "replication-legacy-internalpostop", VENDOR, DS_PACKAGE_VERSION, "Legacy replication internal post-operation plugin" };
+static Slapi_PluginDesc legacyentrydesc = { "replication-legacy-entry", VENDOR, DS_PACKAGE_VERSION, "Legacy replication entry plugin" };
 
 static int legacy_stopped; /* A flag which is set when all the plugin threads are to stop */        
 
