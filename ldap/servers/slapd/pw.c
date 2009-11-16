@@ -1120,7 +1120,7 @@ int update_pw_history( Slapi_PBlock *pb, char *dn, char *old_pw ) {
 static
 int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 {
-	Slapi_Value **trimmed_history;
+	Slapi_Value **trimmed_history = NULL;
 	int num_history_vals = 0;
 	int i;
 	int	ret = -1;
@@ -1183,16 +1183,16 @@ int pw_in_history( Slapi_Value **history_vals, const Slapi_Value *pw_val)
 
 		/* Check if the new password is in the trimmed history list. */
 		ret = slapi_pw_find_sv(trimmed_history, pw_val);
-	}
 	
-	/* Free the trimmed values. */
-	for ( i = 0; trimmed_history[i] != NULL; i++ )
-	{
-		slapi_ch_free((void **)&trimmed_history[i]);
-	}
+		/* Free the trimmed values. */
+		for ( i = 0; trimmed_history[i] != NULL; i++ )
+		{
+			slapi_ch_free((void **)&trimmed_history[i]);
+		}
 
-	/* Free the array. */
-	slapi_ch_free((void **)&trimmed_history);
+		/* Free the array. */
+		slapi_ch_free((void **)&trimmed_history);
+	}
 
 	return ( ret );
 }
