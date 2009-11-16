@@ -46,7 +46,7 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 
-static void resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state);
+static void resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, int delete_priority);
 
 static int
 entry_present_value_to_deleted_value(Slapi_Attr *a, Slapi_Value *v)
@@ -477,7 +477,7 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 			 * Now delete non-RDN values from a->a_present_values; and
 			 * restore possible RDN values from a->a_deleted_values
 			 */
-			resolve_attribute_state(e, a, attr_state);
+			resolve_attribute_state(e, a, attr_state, 0);
 			retVal= LDAP_SUCCESS;
 		}
 		else
@@ -547,7 +547,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			attr_set_deletion_csn(a,csn);
 			if(urp)
 			{
-				resolve_attribute_state(e, a, attr_state); /* ABSOLVED */
+				resolve_attribute_state(e, a, attr_state, 1 /* set delete priority */); /* ABSOLVED */
 			}
 			else
 			{
@@ -589,7 +589,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 				 * should free valuestodelete only (don't call valuearray_free)
 				 * [622023] */
 				slapi_ch_free((void **)&valuestodelete);
-				resolve_attribute_state(e, a, attr_state);
+				resolve_attribute_state(e, a, attr_state, 0);
 				retVal= LDAP_SUCCESS;
 			}
 			else
@@ -955,7 +955,7 @@ value_distinguished_at_csn(const Slapi_Entry *e, const Slapi_Attr *original_attr
 }
 
 static void
-resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribute_state)
+resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, int delete_priority)
 {
 	int i;
 	const CSN *adcsn= attr_get_deletion_csn(a);
@@ -976,7 +976,17 @@ resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribut
 		vdcsn= value_get_csn(v, CSN_TYPE_VALUE_DELETED);
 		vucsn= value_get_csn(v, CSN_TYPE_VALUE_UPDATED);
 		deletedcsn= csn_max(vdcsn, adcsn);
-		if(csn_compare(vucsn,deletedcsn)<0) /* check if the attribute or value was deleted after the value was last updated */
+
+		/* Check if the attribute or value was deleted after the value was
+		 * last updated.  If the value update CSN and the deleted CSN are
+		 * the same (meaning they are separate mods from the same exact
+		 * operation), we should only delete the value if delete priority
+		 * is set.  Delete priority should only be set when we are deleting
+		 * all value of an attribute.  This prevents us from leaving a value
+		 * that was added as a previous mod in the same exact modify
+		 * operation as the subsequent delete.*/
+		if((csn_compare(vucsn,deletedcsn)<0) ||
+			(delete_priority && (csn_compare(vucsn,deletedcsn) == 0)))
 		{
 	        if(!value_distinguished_at_csn(e, a, v, deletedcsn))
 			{
@@ -1000,7 +1010,9 @@ resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribut
 		vdcsn= value_get_csn(v, CSN_TYPE_VALUE_DELETED);
 		vucsn= value_get_csn(v, CSN_TYPE_VALUE_UPDATED);
 		deletedcsn= csn_max(vdcsn, adcsn);
-		if((csn_compare(vucsn,deletedcsn)>=0) || /* check if the attribute or value was deleted after the value was last updated */
+
+		/* check if the attribute or value was deleted after the value was last updated */
+		if((csn_compare(vucsn,deletedcsn)>0) ||
 	        value_distinguished_at_csn(e, a, v, deletedcsn))
 		{
 			entry_deleted_value_to_present_value(a,v);
@@ -1178,7 +1190,7 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 }
 
 static void
-resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state)
+resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, int delete_priority)
 {
 	if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
 	{
@@ -1186,6 +1198,6 @@ resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state)
 	}
 	else
 	{
-		resolve_attribute_state_multi_valued(e,a,attribute_state);
+		resolve_attribute_state_multi_valued(e,a,attribute_state, delete_priority);
 	}
 }
