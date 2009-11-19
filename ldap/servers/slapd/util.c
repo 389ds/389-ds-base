@@ -236,8 +236,10 @@ strcpy_unescape_value( char *d, const char *s )
                 }
             }
             /* This is an escaped single character (like \"), so
-             * just copy the special character and not the escape. */
-            if (gotesc) {
+             * just copy the special character and not the escape.
+             * We need to be careful to not go past the end of
+             * the string when the loop increments s. */
+            if (gotesc && (s+1 < end)) {
                 s++;
                 *d++ = *s;
                 gotesc = 0;
