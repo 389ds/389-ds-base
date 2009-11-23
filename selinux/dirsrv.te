@@ -105,6 +105,7 @@ files_var_lib_filetrans(dirsrv_t,dirsrv_var_lib_t, { file dir sock_file })
 
 # log files
 manage_files_pattern(dirsrv_t, dirsrv_var_log_t, dirsrv_var_log_t)
+manage_fifo_files_pattern(dirsrv_t, dirsrv_var_log_t, dirsrv_var_log_t)
 allow dirsrv_t dirsrv_var_log_t:dir { setattr };
 logging_log_filetrans(dirsrv_t,dirsrv_var_log_t,{ sock_file file dir })
 
