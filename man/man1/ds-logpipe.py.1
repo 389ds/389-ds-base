@@ -1,0 +1,100 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH DS-LOGPIPE.PY 1 "November 24, 2009"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+ds-logpipe.py \- Create and read from a named pipe instead of a log file
+.SH SYNOPSIS
+.B ds\-logpipe.py
+/full/path/to/namedpipe
+       [\fI-m maxlinestobuffer\fR] [\fI-u userid\fR] [\fI-s serverpidfile\fR] [\fI-t servertimeout\fR] [\fI--plugin=/path/to/pluginfile.py\fR] [\fIpluginfile.arg=value\fR]
+
+.PP
+.SH DESCRIPTION
+The Named Pipe Log Script allows you to replace a log file with a named pipe attached to a script. The server can then send the log output to a script instead of to a log file. This allows you to do many different things such as:
+
+ * log only certain events e.g. failed binds, connections from certain ip addresses, etc.
+ * log only lines that match a certain pattern
+ * log only the last N lines - useful for enabling full error log debug levels in production environments
+ * send an email or other notification when a certain event is detected 
+
+The script is written in python, and allows plugins. By default, the script will log the last N lines (default 1000). There are two plugins provided - one to log only failed bind attempts, and one that will log only lines that match given regular expressions.
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics, 
+.\" respectively.
+.SH OPTIONS
+A summary of options is included below.
+.TP
+.B /full/path/to/namedpipe
+Required - full path and file name of the named pipe. If this does not exist, it will be created.  If it exists and is a named pipe, the script will use it.  If it exists and is not a pipe, the script will abort.  The ownership will be the same as the user running the script (or see the -u option below).
+.TP
+.B \-m|\-\-maxlines=N
+Number of lines to buffer - default is 1000
+.TP
+.B \-u|\-\-userid=user
+The pipe and any other files created by the script will be chown()'d to this userid.  This may be a string userid name or a numeric userid value.
+.TP
+.B \-s|\-\-serverpidfile=/path/to/servername.pid
+If you want the script to exit when a particular directory server exists, specify the full path to the file containing the server pid.  The default is usually something like /var/run/dirsrv/slapd-<instancename>.pid where <instancename> is usually the hostname
+.TP
+.B \-t|\-\-servertimeout=N
+Since the serverpidfile may not exist yet when the script is run, the script will wait by default 60 seconds for the pid file to exist and the server to be started.  Use this option to specify a different timeout.
+.TP
+.B \-\-serverpid=P
+IF the server you want to track is already running, you can specify it using this argument.  If the specified pid is not valid, the script will abort.
+.TP
+.B \-p|\-\-plugin=/full/path/to/pluginname.py
+Specify a plugin to use.  The plugin must be a python file and must end in \fI.py\fR.  It must specify a function called \fIplugin\fR and may specify functions called \fIpre\fR and \fIpost\fR.
+.TP
+.B pluginname.arg1=value ... pluginname.argN=value
+You can specify arguments to plugins on the command line.  If there is a plugin specified as --plugin=/full/path/to/pluginname.py, the arguments for that plugin are specified as \fIpluginname.argname=value\fR.  The script parses these arguments and passes them to the plugin \fIpre\fR function as a python dict.  IF there is more than one argument named \fIpluginname.argname\fR the values are passed as a python list.
+.SH DIRECTORY SERVER NOTES
+The directory server will usually need to be configured to log to the named pipe instead of the usual log file.  For example, use the following LDIF to tell the server to use the file \fIaccess.pipe\fR for the access log:
+ dn: cn=config
+ changetype: modify
+ replace: nsslapd-accesslog-maxlogsperdir
+ nsslapd-accesslog-maxlogsperdir: 1
+ -
+ replace: nsslapd-accesslog-logexpirationtime
+ nsslapd-accesslog-logexpirationtime: -1
+ -
+ replace: nsslapd-accesslog-logrotationtime
+ nsslapd-accesslog-logrotationtime: -1
+ -
+ replace: nsslapd-accesslog
+ nsslapd-accesslog: /var/log/dirsrv/slapd-localhost/access.pipe
+ -
+ replace: nsslapd-accesslog-logbuffering
+ nsslapd-accesslog-logbuffering: off
+
+NOTE: Before doing this, you should save your current configuration so you can restore it later.
+ ldapsearch ... -s base -b "cn=config" nsslapd-accesslog-maxlogsperdir nsslapd-accesslog-logexpirationtime \
+  nsslapd-accesslog-logrotationtime nsslapd-accesslog nsslapd-accesslog > savedaccesslog.ldif
+
+The error log and audit log have similarly named configuration attributes e.g. nsslapd-errorlog, nsslapd-auditlog.  Note that the audit log is disabled by default - use nsslapd-auditlog-logging-enabled: on to enable it.
+.br
+.SH AUTHOR
+ds-logpipe.py was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2009 Red Hat, Inc.
+.br
+This is free software.  You may redistribute copies of it under the terms of
+the Directory Server license found in the LICENSE file of this
+software distribution.  This license is essentially the GNU General Public
+License version 2 with an exception for plug-in distribution.

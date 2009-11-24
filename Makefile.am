@@ -199,7 +199,9 @@ config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 # with the default schema e.g. there is
 # considerable overlap of 60changelog.ldif and 01common.ldif
 # and 60inetmail.ldif and 50ns-mail.ldif among others
-sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
+sampledata_DATA = ldap/admin/src/scripts/failedbinds.py \
+	ldap/admin/src/scripts/logregex.py \
+	$(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
 	$(srcdir)/ldap/ldif/Example.ldif \
@@ -291,7 +293,8 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/cl-dump \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
-	ldap/admin/src/scripts/repl-monitor.pl
+	ldap/admin/src/scripts/repl-monitor.pl \
+	ldap/admin/src/scripts/ds-logpipe.py
 
 # SCRIPTS makes them executables - these are perl modules
 # and should not be marked as executable - so use DATA
@@ -369,6 +372,7 @@ mib_DATA = ldap/servers/snmp/RFC-1215.txt \
 dist_man_MANS = man/man1/dbscan.1 \
         man/man1/cl-dump.1 \
         man/man1/dbgen.pl.1 \
+        man/man1/ds-logpipe.py.1 \
         man/man1/dsktune.1 \
         man/man1/infadd.1 \
         man/man1/ldap-agent.1 \
