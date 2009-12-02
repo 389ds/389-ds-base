@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #195302
+ *
  * END COPYRIGHT BLOCK */
 
 #ifdef HAVE_CONFIG_H
@@ -2274,6 +2280,9 @@ int slapi_pw_find_sv( Slapi_Value **vals, const Slapi_Value *v );
 int slapi_is_encoded(char *value); 
 /* encode value with the specified algorithm */
 char* slapi_encode(char *value, char *alg);
+/* encode value with the specified algorithm, or with local algorithm if pb
+ * and sdn are specified instead, or global algorithm if pb and sdn are null */
+char* slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg);
 
 
 /* UTF8 related */

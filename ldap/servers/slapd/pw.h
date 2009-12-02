@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #195302
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -76,6 +82,7 @@ struct pw_scheme {
 struct pw_scheme *pw_name2scheme( char *name );
 struct pw_scheme *pw_val2scheme( char *val, char **valpwdp, int first_is_default );
 int pw_encodevals( Slapi_Value **vals );
+int pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals );
 int checkPrefix(char *cipher, char *schemaName, char **encrypt);
 struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, char *dn );
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);

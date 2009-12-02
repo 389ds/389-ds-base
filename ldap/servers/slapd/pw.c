@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #195302
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -177,17 +183,23 @@ int slapi_is_encoded (char *value)
 
 char* slapi_encode (char *value, char *alg)
 {
+	return( slapi_encode_ext( NULL, NULL, value, alg ) );
+}
+
+char* slapi_encode_ext (Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
+{
 	struct pw_scheme *enc_scheme = NULL;
+	char *(*pws_enc) ( char *pwd ) = NULL;
 	char *hashedval = NULL;
-	int need_to_free = 0;
+	passwdPolicy *pwpolicy=NULL;
 
-	if (alg == NULL) /* use server encoding scheme */
+	if (alg == NULL) /* use local scheme, or global if we can't fetch local */
 	{
-		slapdFrontendConfig_t * slapdFrontendConfig = getFrontendConfig();
-		
-		enc_scheme = slapdFrontendConfig->pw_storagescheme;
+		pwpolicy = new_passwdPolicy(pb, (char*)slapi_sdn_get_ndn(sdn) );
+		pws_enc = pwpolicy->pw_storagescheme->pws_enc;
+		delete_passwdPolicy(&pwpolicy);
 
-		if (enc_scheme == NULL)
+		if (pws_enc == NULL)
 		{
 			slapi_log_error( SLAPI_LOG_FATAL, NULL, 
 							"slapi_encode: no server scheme\n" );
@@ -212,12 +224,11 @@ char* slapi_encode (char *value, char *alg)
 			}
 			return NULL;
 		}
-		need_to_free = 1;
+		pws_enc = enc_scheme->pws_enc;
+		free_pw_scheme(enc_scheme);
 	}
 	
-	hashedval = enc_scheme->pws_enc(value);
-	if (need_to_free)
-		free_pw_scheme(enc_scheme);	
+	hashedval = (*pws_enc)(value);
 
 	return hashedval;
 }
@@ -318,18 +329,39 @@ pw_val2scheme( char *val, char **valpwdp, int first_is_default )
 int
 pw_encodevals( Slapi_Value **vals )
 {
+	return( pw_encodevals_ext( NULL, NULL, vals ) );
+}
+
+/*
+ * Same as pw_encodevals, except if a pb and sdn are passed in, we will try
+ * to check the password scheme specified by local password policy.
+ */
+int
+pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals )
+{
 	int	i;
-	slapdFrontendConfig_t * slapdFrontendConfig = getFrontendConfig();
+	passwdPolicy *pwpolicy=NULL;
+	char *dn;
+	char *(*pws_enc) ( char *pwd ) = NULL;
 
+	if ( vals == NULL ) {
+		return( 0 );
+	}
+ 
+	/* new_passwdPolicy gives us a local policy if sdn and pb are set and
+	   can be used to find a local policy, else we get the global policy */
+   	pwpolicy = new_passwdPolicy(pb, (char*)slapi_sdn_get_ndn(sdn) );
+	pws_enc = pwpolicy->pw_storagescheme->pws_enc;
+	delete_passwdPolicy(&pwpolicy);
 
-	if ( vals == NULL || slapdFrontendConfig->pw_storagescheme == NULL ||
-	   slapdFrontendConfig->pw_storagescheme->pws_enc == NULL ) {
+	/* Password scheme encryption function was not found */
+	if ( pws_enc == NULL ) {
 		return( 0 );
 	}
 
 	for ( i = 0; vals[ i ] != NULL; ++i ) {
-		struct pw_scheme    *pwsp;
-		char	*enc = NULL;
+		struct pw_scheme *pwsp = NULL;
+		char *enc = NULL;
 		if ( (pwsp=pw_val2scheme( (char*)slapi_value_get_string(vals[ i ]), NULL, 0)) != NULL ) { /* JCM Innards */
 			/* If the value already specifies clear storage, call the
 			 * clear storage plug-in */
@@ -340,14 +372,14 @@ pw_encodevals( Slapi_Value **vals )
 				continue;	/* don't touch pre-encoded values */
 			}
 		}
-		if ((!enc) && (( enc = (*slapdFrontendConfig->pw_storagescheme->pws_enc)( (char*)slapi_value_get_string(vals[ i ]) )) /* JCM Innards */
-		    == NULL )) {
-			free_pw_scheme( pwsp );
+		free_pw_scheme( pwsp );
+
+		if ((!enc) && (( enc = (*pws_enc)( (char*)slapi_value_get_string(vals[ i ]) )) == NULL )) {
 			return( -1 );
 		}
+
                 slapi_value_free(&vals[ i ]);
                 vals[ i ] = slapi_value_new_string_passin(enc);
-		free_pw_scheme( pwsp );
 	}
 
 	return( 0 );
@@ -1460,6 +1492,7 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 	int attr_free_flags = 0;
 	int rc=0;
 	passwdPolicy *pwdpolicy = NULL;
+	struct pw_scheme *pwdscheme = NULL;
 	Slapi_Attr *attr;
 	char *attr_name;
 	Slapi_Value **sval;
@@ -1471,10 +1504,12 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 	slapdFrontendConfig = getFrontendConfig();
 	pwdpolicy = (passwdPolicy *)slapi_ch_calloc(1, sizeof(passwdPolicy));
 
-	slapi_pblock_get( pb, SLAPI_OPERATION, &op);
-	slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_OPERATION, &op);
+		slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
+	}
 
-	if (dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
+	if (pb && dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
 		/*  If we're doing an add, COS does not apply yet so we check
 			parents for the pwdpolicysubentry.  We look only for virtual
 			attributes, because real ones are for single-target policy. */
@@ -1701,13 +1736,20 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 						pwdpolicy->pw_gracelimit = slapi_value_get_int(*sval);
 					}
 				}
+				else
+				if (!strcasecmp(attr_name, "passwordstoragescheme")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_storagescheme =
+						pw_name2scheme((char*)slapi_value_get_string(*sval));
+					}
+				}
                         
 			} /* end of for() loop */
 			if (pw_entry) {
 				slapi_entry_free(pw_entry);
 			}
 			return pwdpolicy;
-		} else if ( e ) {
+		} else if ( e ) { 
 			slapi_entry_free( e );
 		}
 	}
@@ -1718,6 +1760,11 @@ done:
 	 */
 
 	*pwdpolicy = slapdFrontendConfig->pw_policy;
+	pwdscheme = (struct pw_scheme *)slapi_ch_calloc(1, sizeof(struct pw_scheme));
+	*pwdscheme = *slapdFrontendConfig->pw_storagescheme;
+	pwdscheme->pws_name = strdup( slapdFrontendConfig->pw_storagescheme->pws_name );
+	pwdpolicy->pw_storagescheme = pwdscheme;
+
 	return pwdpolicy;
 
 } /* End of new_passwdPolicy() */
@@ -1725,7 +1772,10 @@ done:
 void
 delete_passwdPolicy( passwdPolicy **pwpolicy)
 {
-	slapi_ch_free((void **)pwpolicy);
+	if (pwpolicy && *pwpolicy) {
+		free_pw_scheme( (*(*pwpolicy)).pw_storagescheme );
+		slapi_ch_free((void **)pwpolicy);
+	}
 }
 
 /*

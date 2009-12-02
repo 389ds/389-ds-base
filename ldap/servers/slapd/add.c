@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #195302
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -512,7 +518,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 				Slapi_Value **vals= NULL;
 				valuearray_add_valuearray(&unhashed_password_vals, present_values, 0);
 				valuearray_add_valuearray(&vals, present_values, 0);
-				pw_encodevals(vals);			
+				pw_encodevals_ext(pb, slapi_entry_get_sdn (e), vals);
 				add_password_attrs(pb, operation, e);
 				slapi_entry_attr_replace_sv(e, SLAPI_USERPWD_ATTR, vals);
 				valuearray_free(&vals);

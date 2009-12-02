@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #195302
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -1874,6 +1880,7 @@ typedef struct passwordpolicyarray {
   long pw_lockduration;
   long pw_resetfailurecount;
   int pw_gracelimit;
+  struct pw_scheme *pw_storagescheme;
 } passwdPolicy;
 
 typedef struct _slapdFrontendConfig {
