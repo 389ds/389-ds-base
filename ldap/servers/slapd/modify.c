@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #195302
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -712,7 +718,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			valuearray_init_bervalarray(pw_mod->mod_bvalues, &va);
 
 			/* encode password */
-			pw_encodevals(va);
+			pw_encodevals_ext(pb, &sdn, va);
 
 			/* remove current clear value of userpassword */
 			ber_bvecfree(pw_mod->mod_bvalues);
