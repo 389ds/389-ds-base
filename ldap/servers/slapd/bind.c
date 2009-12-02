@@ -32,8 +32,14 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
+ *
+ * Contributors:
+ *   Hewlett-Packard Development Company, L.P.
+ *     Bugfix for bug #193297
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -370,7 +376,10 @@ do_bind( Slapi_PBlock *pb )
         }
         if (!pmech) {
             /* now check the sasl library */
+            /* ids_sasl_check_bind takes care of calling bind
+             * pre-op plugins after it knows the target DN */
             ids_sasl_check_bind(pb);
+            plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
             goto free_and_return;
         }
         else {
@@ -378,6 +387,11 @@ do_bind( Slapi_PBlock *pb )
         }
 
         if (!strcasecmp (saslmech, LDAP_SASL_EXTERNAL)) {
+            /* call preop plugins */
+            if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
+                goto free_and_return;
+            }
+
 #if defined(ENABLE_AUTOBIND)
             if (1 == auto_bind) {
                 /* Already AUTO-BOUND */
@@ -392,6 +406,8 @@ do_bind( Slapi_PBlock *pb )
                 send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                   "SASL EXTERNAL bind requires an SSL connection",
                                   0, NULL );
+                /* call postop plugins */
+                plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
                 goto free_and_return;
             }
 
@@ -403,6 +419,8 @@ do_bind( Slapi_PBlock *pb )
                  NULL == pb->pb_conn->c_external_dn ) {
                 send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
                                   "client certificate mapping failed", 0, NULL );
+                /* call postop plugins */
+                plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
                 goto free_and_return;
             }
 
@@ -417,6 +435,8 @@ do_bind( Slapi_PBlock *pb )
                 slapi_add_auth_response_control( pb, pb->pb_conn->c_external_dn );
             }
             send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
+            /* call postop plugins */
+            plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
             goto free_and_return;
         }
         break;
