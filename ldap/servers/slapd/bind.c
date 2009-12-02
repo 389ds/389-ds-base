@@ -39,6 +39,7 @@
  * Contributors:
  *   Hewlett-Packard Development Company, L.P.
  *     Bugfix for bug #193297
+ *     Bugfix for bug #201275
  *
  * END COPYRIGHT BLOCK **/
 
@@ -422,6 +423,17 @@ do_bind( Slapi_PBlock *pb )
                 /* call postop plugins */
                 plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
                 goto free_and_return;
+            }
+
+            if (!isroot ) {
+            /* check if the account is locked */
+                bind_target_entry = get_entry(pb, pb->pb_conn->c_external_dn);
+                if ( bind_target_entry != NULL && check_account_lock(pb, bind_target_entry,
+                     pw_response_requested, 0 /*not account_inactivation_only*/ ) == 1) {
+                    /* call postop plugins */
+                    plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
+                    goto free_and_return;
+                }
             }
 
             /*
