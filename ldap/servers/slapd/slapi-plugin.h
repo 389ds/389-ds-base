@@ -1706,7 +1706,7 @@ int slapi_entry_merge_values_sv( Slapi_Entry *e, const char *type, Slapi_Value *
  * \param type Attribute type which will receive the replaced values
  * \param vals \c NULL terminated array of #Slapi_Value valyes that should replace
  *             the existing values of the attribute.
- * \return \c 0 when successfull; any other value returned signals failure.
+ * \return \c 0 when successful; any other value returned signals failure.
  * \warning This function makes a copy of \c vals.  The \c vals parameter
  *          can be \c NULL.
  */
@@ -1723,7 +1723,7 @@ int slapi_entry_attr_replace_sv( Slapi_Entry *e, const char *type, Slapi_Value *
  * \param e Entry to which you want to add a value.
  * \param type Attribute to which you want to add a value.
  * \param value The #Slapi_Value data value you want to add to the entry.
- * \return \c 0 when successfull; any other value returned signals failure.
+ * \return \c 0 when successful; any other value returned signals failure.
  * \warning This function makes a copy of \c value.  The \c value parameter
  *          can be \c NULL.
  */
@@ -1740,7 +1740,7 @@ int slapi_entry_add_value(Slapi_Entry *e, const char *type, const Slapi_Value *v
  * \param e Entry to which you want to add a string value.
  * \param type Attribute to which you want to add a string value.
  * \param value String value you want to add.
- * \return \c 0 when successfull; any other value returned signals failure.
+ * \return \c 0 when successful; any other value returned signals failure.
  * \warning This function makes a copy of \c value.  The \c value parameter
  *          can be \c NULL.
  */
@@ -1752,7 +1752,7 @@ int slapi_entry_add_string(Slapi_Entry *e, const char *type, const char *value);
  * \param e Entry from which you want the string deleted.
  * \param type Attribute type from which you want the string deleted.
  * \param value Value of string to delete.
- * \return \c 0 when successfull; any other value returned signals failure.
+ * \return \c 0 when successful; any other value returned signals failure.
  */
 int slapi_entry_delete_string(Slapi_Entry *e, const char *type, const char *value);
 
@@ -1873,95 +1873,1000 @@ void slapi_entry_vattrcache_watermark_invalidate(Slapi_Entry *e);
 void slapi_entrycache_vattrcache_watermark_invalidate();
 
 
-/* TODO - Pickup Doxygen work here */
 /*
  * Slapi_DN routines
  */
+/**
+ * Creates a new \c Slapi_DN structure.
+ *
+ * This function will allocate the necessary memory for a \c Slapi_DN
+ * and initialize both the DN and normalized DN values to \c NULL.
+ *
+ * \return A pointer to the newly allocated, and still empty,
+ *         \c Slapi_DN structure.
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
 Slapi_DN *slapi_sdn_new( void );
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's DN to a requested value.
+ *
+ * The DN of the new structure will point to a copy of the string pointed to by \c dn.
+ * The DN value is passed in to the parameter by value.
+ *
+ * \param dn The DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         a DN value set to the content of \c dn.
+ * \warning The \c dn value is copied by the function itself.  The caller
+ *          is still responsible for the memory used by \c dn.
+ * \see slapi_sdn_new_dn_byref()
+ * \see slapi_sdn_new_dn_passin()
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
 Slapi_DN *slapi_sdn_new_dn_byval(const char *dn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
+ *
+ * The normalized DN of the new structure will point to a copy of the string pointed to by
+ * \c ndn.  The normalized DN value is passed in to the parameter by value.
+ *
+ * \param ndn The normalized DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         the normalized DN value set to the content of \c ndn.
+ * \warning The \c ndn value is copied by the function itself.  The caller
+ *          is still responsible for the memory used by \c ndn.
+ * \see slapi_sdn_new_ndn_byref()
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
 Slapi_DN *slapi_sdn_new_ndn_byval(const char *ndn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's DN to a requested value.
+ *
+ * The DN of the new structure will point to the same string pointed to by \c dn.
+ * The DN value is passed in to the parameter by reference.
+ *
+ * \param dn The DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         a DN value set to the content of \c dn.
+ * \warning The caller is still responsible for the memory used by \c dn.  This
+ *          memory should not be freed until the returned \c Slapi_DN has been
+ *          disposed of or reinitialized.
+ * \see slapi_sdn_new_dn_byval()
+ * \see slapi_sdn_new_dn_passin()
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
 Slapi_DN *slapi_sdn_new_dn_byref(const char *dn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
+ *
+ * The normalized DN of the new structure will point to the same string pointed to by \c ndn.
+ * The normalized DN value is passed in to the parameter by reference.
+ *
+ * \param ndn The normalized DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         the normalized DN value set to the content of \c ndn.
+ * \warning The caller is still responsible for the memory used by \c ndn.  This
+ *          memory should not be freed until the returned \c Slapi_DN has been
+ *          disposed of or reinitialized.
+ * \see slapi_sdn_new_ndn_byval()
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
 Slapi_DN *slapi_sdn_new_ndn_byref(const char *ndn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's DN to a requested value.
+ *
+ * The DN of the new structure will point to the same string pointed to by \c dn.
+ * Ownership of the memory pointed to by \c dn is tranferred to the Slapi_DN.
+ *
+ * \param dn The DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         a DN value set to the content of \c dn.
+ * \warning The caller is no longer responsible for the memory used by \c dn.
+ *          This memory should not be freed directly.  It will be freed when
+ *          the \c Slapi_DN is properly disposed of.
+ * \see slapi_sdn_new_dn_byval()
+ * \see slapi_sdn_new_dn_byref()
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
 Slapi_DN *slapi_sdn_new_dn_passin(const char *dn);
+
+/**
+ * Sets a DN value in a \c Slapi_DN structure.
+ *
+ * The DN of the structure will point to a copy of the string pointed to by
+ * \c dn.  The DN value is passed in to the parameter by value.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param dn The DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new DN value.
+ * \warning The \c dn value is copied by the function itself.  The caller
+ *          is still responsible for the memory used by \c dn.
+ * \see slapi_sdn_set_dn_byref()
+ * \see slapi_sdn_set_dn_passin()
+ */
 Slapi_DN *slapi_sdn_set_dn_byval(Slapi_DN *sdn, const char *dn);
+
+/**
+ * Sets a DN value in a \c Slapi_DN structure.
+ *
+ * The DN of the structure will point to the same string pointed to by \c dn.
+ * The DN value is passed in to the parameter by reference.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param dn The DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new DN value.
+ * \warning The caller is still responsible for the memory used by \c dn.  This
+ *          memory should not be freed until the returned \c Slapi_DN has been
+ *          disposed of or reinitialized.
+ * \see slapi_sdn_set_dn_byval()
+ * \see slapi_sdn_set_dn_passin()
+ */
 Slapi_DN *slapi_sdn_set_dn_byref(Slapi_DN *sdn, const char *dn);
+
+/**
+ * Sets a DN value in a \c Slapi_DN structure.
+ *
+ * The DN of the structure will point to the same string pointed to by \c dn.
+ * Ownership of the memory pointed to by \c dn is tranferred to the Slapi_DN.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param dn The DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new DN value.
+ * \warning The caller is no longer responsible for the memory used by \c dn.
+ *          This memory should not be freed directly.  It will be freed when
+ *          the \c Slapi_DN is properly disposed of.
+ * \see slapi_sdn_set_dn_byval()
+ * \see slapi_sdn_set_dn_byref()
+ */
 Slapi_DN *slapi_sdn_set_dn_passin(Slapi_DN *sdn, const char *dn);
+
+/**
+ * Sets a normalized DN value in a \c Slapi_DN structure.
+ *
+ * The normalized DN of the structure will point to a copy of the string
+ * pointed to by \c ndn.  The normalized DN value is passed in to the parameter
+ * by value.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param ndn The normalized DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new normalized DN value.
+ * \warning The \c ndn value is copied by the function itself.  The caller
+ *          is still responsible for the memory used by \c ndn.
+ * \see slapi_sdn_set_ndn_byref()
+ */
 Slapi_DN *slapi_sdn_set_ndn_byval(Slapi_DN *sdn, const char *ndn);
+
+/**
+ * Sets a normalized DN value in a \c Slapi_DN structure.
+ *
+ * The normalized DN of the structure will point to the same string pointed to
+ * by \c ndn.  The normalized DN value is passed in to the parameter by reference.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param ndn The normalized DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new normalized DN value.
+ * \warning The caller is still responsible for the memory used by \c ndn.  This
+ *          memory should not be freed until the returned \c Slapi_DN has been
+ *          disposed of or reinitialized.
+ * \see slapi_sdn_set_ndn_byval()
+ */
 Slapi_DN *slapi_sdn_set_ndn_byref(Slapi_DN *sdn, const char *ndn);
+
+/**
+ * Clears the contents of a Slapi_DN structure.
+ *
+ * Both the DN and the normalized DN are freed if the \c Slapi_DN structure
+ * owns the memory.  Both pointers are then set to \c NULL.
+ *
+ * \param sdn Pointer to the \c Slapi_DN to clear.
+ * \see slapi_sdn_free()
+ */
 void slapi_sdn_done(Slapi_DN *sdn);
+
+/**
+ * Frees a \c Slapi_DN structure.
+ *
+ * Both the DN and the normalized DN are freed if the \c Slapi_DN structure
+ * owns the memory.  The \c Slapi_DN structure itself is then freed.
+ *
+ * \param sdn Pointer to the pointer of the \c Slapi_DN structure to be freed.
+ * \see slapi_sdn_done()
+ * \see slapi_sdn_new()
+ */
 void slapi_sdn_free(Slapi_DN **sdn);
+
+/**
+ * Retrieves the DN value of a \c Slapi_DN structure.
+ *
+ * \param sdn The \c Slapi_DN strucure containing the DN value.
+ * \return A pointer to the DN value if one is set.
+ * \return A pointer to the normalized DN value if one is set and no
+ *         DN value is set.
+ * \return \c NULL if no DN or normalized DN value is set.
+ * \warning The pointer returned is the actual value from the structure, not a copy.
+ * \see slapi_sdn_get_ndn()
+ */
 const char * slapi_sdn_get_dn(const Slapi_DN *sdn);
+
+/**
+ * Retrieves the normalized DN value of a \c Slapi_DN structure.
+ *
+ * If the structure does not contain a normalized DN yet, it will normalize
+ * the DN and set it in the structure.
+ *
+ * \param sdn The \c Slapi_DN strucure containing the normalized DN value.
+ * \return The normalized DN value.
+ * \return \c NULL if no DN or normalized DN value is set.
+ * \warning The pointer returned is the actual value from the structure, not a copy.
+ * \see slapi_sdn_get_dn()
+ */
 const char * slapi_sdn_get_ndn(const Slapi_DN *sdn);
+
+/**
+ * Fills in an existing \c Slapi_DN structure with the parent DN of the passed in \c Slapi_DN.
+ *
+ * \param sdn Pointer to the \c Slapi_DN structure containing the DN whose parent is desired.
+ * \param sdn_parent Pointer to the \c Slapi_DN structure where the parent DN is returned.
+ *        The existing contents (if any) will be cleared before the new DN value is set.
+ * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
+ * \see slapi_sdn_get_backend_parent()
+ */
 void slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent);
+
+/**
+ * Fills in an existing \c Slapi_DN structure with the parent DN of an entry within a specific backend.
+ *
+ * The parent DN is returned in \c sdn_parent, unless \c sdn is empty or is a suffix of the backend
+ * itself. In this case, \c sdn_parent is empty.
+ *
+ * \param sdn Pointer to the \c Slapi_DN structure containing the DN whose parent is desired.
+ * \param sdn_parent Pointer to the \c Slapi_DN structure where the parent DN is returned.
+ *        The existing contents (if any) will be cleared before the new DN value is set.
+ * \param backend Backend to search for the parent of \c sdn.
+ * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
+ * \see slapi_sdn_get_parent()
+ */
 void slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend);
+
+/**
+ * Duplicates a \c Slapi_DN structure.
+ *
+ * \param sdn Pointer to the \c Slapi_DN structure to duplicate.
+ * \return A pointer to a duplicate of \c sdn.
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_new()
+ * \see slapi_sdn_free()
+ */
 Slapi_DN * slapi_sdn_dup(const Slapi_DN *sdn);
+
+/**
+ * Copies the contents of a \c Slapi_DN to another \c existing Slapi_DN.
+ *
+ * \param from A pointer to the \c Slapi_DN structure to copy from.
+ * \param to A pointer to the \c Slapi_DN structure to copy to.
+ * \warning You must allocate \c to before calling this function.
+ * \see slapi_sdn_dup()
+ */
 void slapi_sdn_copy(const Slapi_DN *from, Slapi_DN *to);
+
+/**
+ * Compares two \c Slapi_DN structures.
+ *
+ * Performs a case-sensitive comparison of two \c Slapi_DN structures.
+ *
+ * \param sdn1 A pointer to the first \c Slapi_DN structure to compare.
+ * \param sdn2 A pointer to the second \c Slapi_DN structure to compare.
+ * \return \c 0 if \c sdn1 is equal to \c sdn2.
+ * \return \c -1 if \c sdn1 is \c NULL.
+ * \return \c 1 if \c sdn2 is \c NULL and \c sdn1 is not \c NULL.
+ */
 int slapi_sdn_compare( const Slapi_DN *sdn1, const Slapi_DN *sdn2 );
+
+/**
+ * Checks if a DN or normalized DN is set in a \c Slapi_DN.
+ *
+ * \param sdn A pointer to the \c Slapi_DN structure to check.
+ * \return \c 1 if there is no DN or normalized DN set in \c sdn.
+ * \return \c 0 if \c sdn is not empty.
+ * \see slapi_sdn_done()
+ */
 int slapi_sdn_isempty( const Slapi_DN *sdn);
+
+/**
+ * Checks whether a \c Slapi_DN structure contains a suffix of another \c Slapi_DN structure.
+ *
+ * \param sdn A pointer to the \c Slapi_DN structure to check.
+ * \param suffixsdn A pointer to the \c Slapi_DN structure of the suffix.
+ * \return \c 1 if the DN in \c suffixsdn is a suffix of \c sdn.
+ * \return \c 0 if the DN in \c suffixsdn is not a suffix of \c sdn.
+ * \see slapi_sdn_isparent()
+ * \see slapi_sdn_isgrandparent()
+ */
 int slapi_sdn_issuffix(const Slapi_DN *sdn, const Slapi_DN *suffixsdn);
+
+/**
+ * Checks whether a DN is the parent of a given DN.
+ *
+ * \param parent A pointer to the \c Slapi_DN structure containing the DN
+ *        which claims to be the parent of the DN in \c child.
+ * \param child A pointer to the Slapi_DN structure containing the DN of the
+ *        supposed child of the DN in the structure pointed to by \c parent.
+ * \return \c 1 if the DN in \c parent is the parent of the DN in \c child.
+ * \return \c 0 if the DN in \c parent is not the parent of the DN in \c child.
+ * \see slapi_sdn_isgrandparent()
+ * \see slapi_sdn_issuffix()
+ * \see slapi_sdn_get_parent()
+ */
 int slapi_sdn_isparent( const Slapi_DN *parent, const Slapi_DN *child );
+
+/**
+ * Checks whether a DN is the grandparent of a given DN.
+ *
+ * \param parent A pointer to the \c Slapi_DN structure containing the DN
+ *        which claims to be the grandparent of the DN in \c child.
+ * \param child A pointer to the Slapi_DN structure containing the DN of the
+ *        supposed grandchild of the DN in the structure pointed to by \c parent.
+ * \return \c 1 if the DN in \c parent is the grandparent of the DN in \c child.
+ * \return \c 0 if the DN in \c parent is not the grandparent of the DN in \c child.
+ * \see slapi_sdn_isparent()
+ * \see slapi_sdn_issuffix()
+ * \see slapi_sdn_get_parent()
+ */
 int slapi_sdn_isgrandparent( const Slapi_DN *parent, const Slapi_DN *child );
+
+/**
+ * Gets the length of the normalized DN of a Slapi_DN structure.
+ *
+ * This function normalizes \c sdn if it has not already been normalized.
+ *
+ * \param sdn A pointer to the \c Slapi_DN structure containing the DN value.
+ * \return The length of the normalized DN.
+ */
 int slapi_sdn_get_ndn_len(const Slapi_DN *sdn);
+
+/**
+ * Checks if a DN is within a specified scope under a specified base DN.
+ *
+ * \param dn A pointer to the \c Slapi_DN structure to test.
+ * \param base The base DN against which \c dn is going to be tested.
+ * \param scope The scope tested.  Valid scopes are:
+ *        \arg \c LDAP_SCOPE_BASE
+ *        \arg \c LDAP_SCOPE_ONELEVEL
+ *        \arg \c LDAP_SCOPE_SUBTREE
+ * \return non-zero if \c dn matches the scoping criteria given by \c base and \c scope.
+ * \see slapi_sdn_compare()
+ * \see slapi_sdn_isparent()
+ * \see slapi_sdn_issuffix()
+ */
 int slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope );
+
+/**
+ * Retreives the RDN from a given DN.
+ *
+ * This function takes the DN stored in the \c Slapi_DN structure pointed to
+ * by \c sdn and fills in it's RDN within the \c Slapi_RDN structure pointed
+ * to by \c rdn.
+ *
+ * \param sdn A pointer to the \c Slapi_DN structure containing the DN.
+ * \param rdn A pointer to the \c Slapi_RDN structure where the RDN is filled in.
+ * \warning The caller must allocate \c rdn before calling this function.
+ * \see slapi_sdn_get_dn()
+ * \see slapi_sdn_set_rdn()
+ * \see slapi_sdn_add_rdn()
+ * \see slapi_sdn_is_rdn_component()
+ */
 void slapi_sdn_get_rdn(const Slapi_DN *sdn,Slapi_RDN *rdn);
+
+/**
+ * Sets a new RDN for a given DN.
+ *
+ * This function changes the RDN of \c sdn by adding the value from
+ * \c rdn to the parent DN of \c sdn.
+ *
+ * \param sdn The DN that you want to rename.
+ * \param rdn The new RDN.
+ * \return A pointer to the \c Slapi_DN structure that has been renamed.
+ * \see slapi_sdn_get_rdn()
+ */
 Slapi_DN *slapi_sdn_set_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
+
+/**
+ * Sets a new parent for a given DN.
+ *
+ * This function keeps the RDN of the original DN and adds it to the
+ * specified parent DN.
+ *
+ * \param sdn The \c Slapi_DN structure containing the DN whose parent you want to change.
+ * \param parentdn The \c Slapi_DN structure containing the new parent DN.
+ * \return A pointer to the \c Slapi_DN structure that contains the new DN.
+ * \see slapi_sdn_isparent()
+ * \see slapi_sdn_get_parent()
+ */
 Slapi_DN *slapi_sdn_set_parent(Slapi_DN *sdn, const Slapi_DN *parentdn);
-int slapi_sdn_is_rdn_component(const Slapi_DN *rdn, const Slapi_Attr *a, const Slapi_Value *v);
+
+/**
+ * Builds a new DN out of a new RDN and the DN of the new parent.
+ *
+ * The new DN is worked out by adding the new RDN in \c newrdn to a
+ * parent DN. The parent will be the value in \c newsuperiordn if different
+ * from \c NULL, and will otherwise be taken from \c dn_olddn by removing
+ * the old RDN (the parent of the entry will still be the same as the new DN).
+ *
+ * \param dn_olddn The old DN value.
+ * \param newrdn The new RDN value.
+ * \param newsuperiordn If not \c NULL, will be the DN of the future superior
+ *        entry of the new DN, which will be worked out by adding the value
+ *        in \c newrdn in front of the content of this parameter.
+ * \return The new DN for the entry whose previous DN was \c dn_olddn.
+ */
 char * slapi_moddn_get_newdn(Slapi_DN *dn_olddn, char *newrdn, char *newsuperiordn);
 
 
 /*
  * Slapi_RDN functions
  */
+/**
+ * Creates a new \c Slapi_RDN structure.
+ *
+ * Allocates the necessary memory and initializes both the
+ * RDN value and the array of split RDNs to \c NULL.
+ *
+ * \return A pointer to the newly allocated, and still empty, \c Slapi_RDN structure.
+ * \warning You must free the returned \c Slapi_RDN structure by calling \c slapi_rdn_free()
+ *       when you are finished using it.
+ * \see slapi_rdn_init()
+ * \see slapi_rdn_done()
+ * \see slapi_rdn_free()
+ */
 Slapi_RDN *slapi_rdn_new( void );
+
+/**
+ * Creates a new \c Slapi_RDN structure and initializes it from a string.
+ *
+ * \param dn The DN value whose RDN will be used to initialize the new
+ *        \c Slapi_RDN structure.
+ * \return A pointer to the newly allocated and initialized \c Slapi_RDN structure.
+ * \warning You must free the returned \c Slapi_RDN structure by calling \c slapi_rdn_free()
+ *       when you are finished using it.
+ * \see slapi_rdn_new_sdn()
+ * \see slapi_rdn_new_rdn()
+ * \see slapi_rdn_free()
+ */
 Slapi_RDN *slapi_rdn_new_dn(const char *dn);
+
+/**
+ * Creates a new \c Slapi_RDN structure and initializes it from a \c Slapi_DN.
+ * 
+ * \param sdn The \c Slapi_DN structure whose RDN will be used to initialize
+ *        the new \c Slapi_RDN structure.
+ * \return A pointer to the newly allocated and initialized \c Slapi_RDN structure.
+ * \warning You must free the returned \c Slapi_RDN structure by calling \c slapi_rdn_free()
+ *       when you are finished using it.
+ * \see slapi_rdn_new_dn()
+ * \see slapi_rdn_new_rdn()
+ * \see slapi_rdn_free()
+ */
 Slapi_RDN *slapi_rdn_new_sdn(const Slapi_DN *sdn);
+
+/**
+ * Creates a new \c Slapi_RDN structure and initializes it from a \c Slapi_RDN.
+ *
+ * \param fromrdn The \c Slapi_RDN structure whose RDN will be used to initialize
+ *        the new \c Slapi_RDN structure.
+ * \return A pointer to the newly allocated and initialized \c Slapi_RDN structure.
+ * \warning You must free the returned \c Slapi_RDN structure by calling \c slapi_rdn_free()
+ *       when you are finished using it.
+ * \see slapi_rdn_new_dn()
+ * \see slapi_rdn_new_sdn()
+ * \see slapi_rdn_free()
+ */
 Slapi_RDN *slapi_rdn_new_rdn(const Slapi_RDN *fromrdn);
+
+/**
+ * Clears out a \c Slapi_RDN structure.
+ *
+ * Sets both the RDN value and the array of split RDNs to \c NULL.
+ *
+ * \param rdn The \c Slapi_RDN structure to be initialized.
+ * \warning The previous contents of \c rdn are not freed.  It is
+ *       up to the caller to do this first if necessary.
+ * \see slapi_rdn_new()
+ * \see slapi_rdn_free()
+ * \see slapi_rdn_done()
+ */
 void slapi_rdn_init(Slapi_RDN *rdn);
+
+/**
+ * Initializes a \c Slapi_RDN structure from a string.
+ *
+ * \param rdn The \c Slapi_RDN structure to be initialized.
+ * \param dn The DN value whose RDN will be used to initialize \c rdn.
+ * \warning The previous contents of \c rdn are not freed.  It is
+ *       up to the caller to do this first if necessary.
+ * \see slapi_rdn_done()
+ * \see slapi_rdn_init_sdn()
+ * \see slapi_rdn_init_rdn()
+ */
 void slapi_rdn_init_dn(Slapi_RDN *rdn,const char *dn);
+
+/**
+ * Initializes a \c Slapi_RDN structure from a \c Slapi_DN.
+ *
+ * \param rdn The \c Slapi_RDN structure to be initialized.
+ * \param sdn The \c Slapi_DN whose RDN will be used to initialize \c rdn.
+ * \warning The previous contents of \c rdn are not freed.  It is
+ *       up to the caller to do this first if necessary.
+ * \see slapi_rdn_done()
+ * \see slapi_rdn_init_dn()
+ * \see slapi_rdn_init_rdn()
+ */
 void slapi_rdn_init_sdn(Slapi_RDN *rdn,const Slapi_DN *sdn);
+
+/**
+ * Initializes a \c Slapi_RDN structure from another \c Slapi_RDN.
+ *
+ * \param rdn The \c Slapi_RDN structure to be initialized.
+ * \param fromrdn The \c Slapi_RDN structure that will be used to
+ *        initialize \c rdn.
+ * \warning The previous contents of \c rdn are not freed.  It is
+ *       up to the caller to do this first if necessary.
+ * \see slapi_rdn_done()
+ * \see slapi_rdn_init_dn()
+ * \see slapi_rdn_init_sdn()
+ */
 void slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
+
+/**
+ * Sets the RDN value in a \c Slapi_RDN structure from a string.
+ *
+ * The previous contents of the \c rdn are freed before
+ * the new RDN is set.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param dn The DN value whose RDN will be set in \c rdn.
+ * \see slapi_rdn_set_sdn()
+ * \see slapi_rdn_set_rdn()
+ */
 void slapi_rdn_set_dn(Slapi_RDN *rdn,const char *dn);
+
+/**
+ * Sets the RDN value in a \c Slapi_RDN structure from a \c Slapi_DN.
+ *
+ * The previous contents of the \c rdn are freed before
+ * the new RDN is set.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param sdn The \c Slapi_DN value whose RDN will be set in \c rdn.
+ * \see slapi_rdn_set_dn()
+ * \see slapi_rdn_set_rdn()
+ */
 void slapi_rdn_set_sdn(Slapi_RDN *rdn,const Slapi_DN *sdn);
+
+/**
+ * Sets the RDN value in a \c Slapi_RDN structure from a \c Slapi_RDN.
+ *
+ * The previous contents of the \c rdn are freed before
+ * the new RDN is set.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param fromrdn The \c Slapi_RDN value whose RDN will be set in \c rdn.
+ * \see slapi_rdn_set_dn()
+ * \see slapi_rdn_set_sdn()
+ */
 void slapi_rdn_set_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
+
+/**
+ * Frees a \c Slapi_RDN structure and it's contents from memory.
+ *
+ * \param rdn A pointer to a pointer of the \c Slapi_RDN strucure to be freed.
+ * \see slapi_rdn_new()
+ * \see slapi_rdn_done()
+ */
 void slapi_rdn_free(Slapi_RDN **rdn);
+
+/**
+ * Frees and clears the contents of a \c Slapi_RDN structure from memory.
+ *
+ * Both the RDN value and the array of split RDNs are freed. Those pointers
+ * are then set to \c NULL.
+ *
+ * \param rdn A pointer to the \c Slapi_RDN strucure to clear.
+ * \see slapi_rdn_free()
+ * \see slapi_rdn_init()
+ */
 void slapi_rdn_done(Slapi_RDN *rdn);
+
+/**
+ * Gets the first RDN stored in a \c Slapi_RDN structure.
+ *
+ * The type and the value of the first RDN are retrieved.
+ *
+ * \param rdn The \c Slapi_RDN structure containing the RDN value(s).
+ * \param type Address to return a pointer to the type of the first RDN.  If
+ *        this is \c NULL at the return of the function, it means that \c rdn
+ *        is empty.
+ * \param value Address to return a pointer to the value of the first RDN.
+ *        If this is \c NULL at the return of the function, it means that
+ *        \c rdn is empty.
+ * \return \c -1 if \c rdn is empty.
+ * \return \c 1 if the operation is successful.
+ * \warning Do not free the returned type or value.
+ * \see slapi_rdn_get_next()
+ * \see slapi_rdn_get_rdn()
+ */
 int slapi_rdn_get_first(Slapi_RDN *rdn, char **type, char **value);
+
+/**
+ * Gets the next RDN stored in a \c Slapi_RDN structure.
+ *
+ * The type/value pair for the RDN at the position following that indicated
+ * by \c index will be retrieved.
+ *
+ * \param rdn The \c Slapi_RDN structure containing the RDN value(s).
+ * \param index Indicates the position that precedes that of the desired RDN.
+ *        For example, pass 1 if you would like the second RDN.
+ * \param type Address to return a pointer to the type of the next RDN.  If
+ *        this is \c NULL at the return of the function, it means that \c rdn
+ *        is empty.
+ * \param value Address to return a pointer to the value of the next RDN.
+ *        If this is \c NULL at the return of the function, it means that
+ *        \c rdn is empty.
+ * \return \c -1 if no RDN exists at the index position.
+ * \return The position (\c index + \c 1) of the retrieved RDN if the operation is successful.
+ * \see slapi_rdn_get_first()
+ * \see slapi_rdn_get_rdn()
+ */
 int slapi_rdn_get_next(Slapi_RDN *rdn, int index, char **type, char **value);
+
+/**
+ * Finds a RDN in a \c Slapi_RDN structure and returns it's index.
+ *
+ * The \c Slapi_RDN structure will be searched for a RDN matching
+ * the given type and value.
+ *
+ * \param rdn The \c Slapi_RDN structure containing the RDN value(s).
+ * \param type Type (\c cn, \c o, \c ou, etc.) of the RDN that is searched for.
+ * \param value Value of the RDN that is searched for.
+ * \param length Gives the length of the value that should be taken into
+ *        account for the string comparisons when searching for the RDN.
+ * \return The index of the RDN that matches \c type and \c value.
+ * \return \c -1 if no RDN stored in \c rdn matches \c type and \c value.
+ * \see slapi_rdn_get_index_attr()
+ * \see slapi_rdn_contains()
+ */
 int slapi_rdn_get_index(Slapi_RDN *rdn, const char *type, const char *value,size_t length);
+
+/**
+ * Finds a RDN for a given type in a \c Slapi_RDN structure and returns it's index.
+ *
+ * \param rdn The \c Slapi_RDN structure containing the RDN value(s).
+ * \param type Type (\c cn, \c o, \c ou, etc.) of the RDN that is searched for.
+ * \param value Address to return a pointer to the value of the next RDN.
+ *        If this is \c NULL at the return of the function, it means that
+ *        no matching RDN exist in \c rdn.
+ * \return The index of the RDN that matches \c type.
+ * \return \c -1 if no RDN stored in \c rdn matches \c type.
+ * \see slapi_rdn_get_index()
+ */
 int slapi_rdn_get_index_attr(Slapi_RDN *rdn, const char *type, char **value);
+
+/**
+ * Checks if a RDN exists in a \c Slapi_RDN structure.
+ *
+ * \param rdn The \c Slapi_RDN structure containing the RDN value(s).
+ * \param type Type (\c cn, \c o, \c ou, etc.) of the RDN that is searched for.
+ * \param value Value of the RDN that is searched for.
+ * \param length Gives the length of the value that should be taken into
+ *        account for the string comparisons when searching for the RDN.
+ * \return \c 1 if \c rdn contains a RDN that matches \c type and \c value.
+ * \return \c 0 if no RDN stored in \c rdn matches \c type and \c value.
+ * \see slapi_rdn_get_index()
+ * \see slapi_rdn_contains_attr()
+ */
 int slapi_rdn_contains(Slapi_RDN *rdn, const char *type, const char *value,size_t length);
+
+/**
+ * Checks if a RDN for a given type exists in a \c Slapi_RDN structure.
+ *
+ * \param rdn The \c Slapi_RDN structure containing the RDN value(s).
+ * \param type Type (\c cn, \c o, \c ou, etc.) of the RDN that is searched for.
+ * \param value Address to return a pointer to the value of the next RDN.
+ *        If this is \c NULL at the return of the function, it means that
+ *        no matching RDN exist in \c rdn.
+ * \return \c 1 if \c rdn contains a RDN that matches \c type.
+ * \return \c 0 if no RDN stored in \c rdn matches \c type.
+ * \see slapi_rdn_get_index_attr()
+ * \see slapi_rdn_contains()
+ */
 int slapi_rdn_contains_attr(Slapi_RDN *rdn, const char *type, char **value);
+
+/**
+ * Adds a new RDN to a \c Slapi_RDN structure.
+ *
+ * A new type/value pair will be added to an existing RDN, or the type/value
+ * pair will be set as the new RDN if \c rdn is empty. This function resets the
+ * FLAG_RDNS flags, which means that the RDN array with-in the \c Slapi_RDN
+ * structure is no longer current with the new RDN.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param type The type (\c cn, \c o, \c ou, etc.) of the RDN to be added.
+ *        This parameter cannot be \c NULL.
+ * \param value The value of the RDN to be added. This parameter cannot
+ *        be \c NULL.
+ * \return Always returns 1.
+ * \see slapi_rdn_get_num_components()
+ */
 int slapi_rdn_add(Slapi_RDN *rdn, const char *type, const char *value);
+
+/**
+ * Removes a RDN from a \c Slapi_RDN structure at a given position.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param atindex The index of the RDN type/value pair to remove.
+ * \return \c 1 if the RDN is removed from \c rdn.
+ * \return \c 0 if no RDN is removed because either \c rdn is empty
+ *         or \c atindex goes beyond the number of RDNs present.
+ * \see slapi_rdn_remove()
+ * \see slapi_rdn_remove_attr()
+ */
 int slapi_rdn_remove_index(Slapi_RDN *rdn, int atindex);
+
+/**
+ * Removes a RDN from a \c Slapi_RDN structure matching a given type/value pair.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param type The type (\c cn, \c o, \c ou, etc.) of the RDN to be removed.
+ * \param value The value of the RDN to be removed.
+ * \param length Gives the length of the value that should be taken into
+ *        account for the string comparisons when searching for the RDN.
+ * \return \c 1 if the RDN is removed from \c rdn.
+ * \return \c 0 if no RDN is removed.
+ * \see slapi_rdn_remove_attr()
+ * \see slapi_rdn_remove_index()
+ */
 int slapi_rdn_remove(Slapi_RDN *rdn, const char *type, const char *value, size_t length);
+
+/**
+ * Removes a RDN from a \c Slapi_RDN structure matching a given type.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \param type The type (\c cn, \c o, \c ou, etc.) of the RDN to be removed.
+ * \return \c 1 if the RDN is removed from \c rdn.
+ * \return \c 0 if no RDN is removed.
+ * \see slapi_rdn_remove()
+ * \see slapi_rdn_remove_index()
+ */
 int slapi_rdn_remove_attr(Slapi_RDN *rdn, const char *type);
+
+/**
+ * Checks whether a RDN value is stored in a \c Slapi_RDN structure.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \return \c 1 if there is no RDN value present.
+ * \return \c 0 if rdn contains a value.
+ * \see slapi_rdn_init()
+ * \see slapi_rdn_done()
+ * \see slapi_rdn_free()
+ */
 int slapi_rdn_isempty(const Slapi_RDN *rdn);
+
+/**
+ * Gets the number of RDN type/value pairs present in a \c Slapi_RDN structure.
+ *
+ * \param rdn The target \c Slapi_RDN structure.
+ * \return The number of RDN type/value pairs present in \c rdn.
+ * \see slapi_rdn_add()
+ */
 int slapi_rdn_get_num_components(Slapi_RDN *rdn);
+
+/**
+ * Compares two \c Slapi_RDN structures.
+ *
+ * For RDNs to be considered equal, the order of their components
+ * do not have to be the same.
+ *
+ * \param rdn1 The first RDN to compare.
+ * \param rdn2 The second RDN to compare.
+ * \return \c 0 if \c rdn1 and \c rdn2 have the same RDN components.
+ * \return \c -1 if they do not have the same components.
+ */
 int slapi_rdn_compare(Slapi_RDN *rdn1, Slapi_RDN *rdn2);
+
+/**
+ * Gets the RDN from a \c Slapi_RDN structure.
+ *
+ * \param rdn The \c Slapi_RDN structure holding the RDN value.
+ * \return The RDN value.
+ * \warning Do not free the returned RDN value.
+ */
 const char *slapi_rdn_get_rdn(const Slapi_RDN *rdn);
+
+/**
+ * Gets the normalized RDN from a \c Slapi_RDN structure
+ *
+ * \param rdn The \c Slapi_RDN structure holding the RDN value.
+ * \return The normalized RDN value.
+ * \deprecated This function is not inmplemented.  Do not use it.
+ */
 const char *slapi_rdn_get_nrdn(const Slapi_RDN *rdn); 
+
+/**
+ * Adds a RDN from a \c Slapi_RDN structure to a DN in a \c Slapi_DN structure.
+ *
+ * The RDN in the \c Slapi_RDN structure will be appended to the DN
+ * value in \c sdn.
+ *
+ * \param sdn \c Slapi_DN structure containing the value to which
+ *        a new RDN is to be added.
+ * \param rdn \c Slapi_RDN structure containing the RDN value
+ *        that is to be added to the DN value.
+ * \return The \c Slapi_DN structure with the new DN.
+ * \see slapi_sdn_set_rdn()
+ */
 Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
 
 
 /*
  * utility routines for dealing with DNs
  */
+/**
+ * Normalizes a DN.
+ *
+ * \param dn The DN to normalize.
+ * \return The normalized DN.
+ * \deprecated Use slapi_sdn_get_ndn() instead.
+ */
 char *slapi_dn_normalize( char *dn );
+
+/**
+ * Normalizes a portion of a DN value.
+ *
+ * \param dn The DN value to normalize.
+ * \param end Pointer to the end of what will be normalized from the DN
+ *        value in \c dn.  If this parameter is \c NULL, the DN value
+ *        will be wholly normalized.
+ * \return A pointer to the end of the DN that has been normalized.
+ * \warning This function does not null-terminate the string.  Use this
+ *          function only if you know what you are doing.
+ */
 char *slapi_dn_normalize_to_end( char *dn, char *end );
+
+/**
+ * Converts a DN to lowercase.
+ *
+ * \param dn The DN to convert.
+ * \return A pointer to the converted DN.
+ * \deprecated Use slapi_sdn_get_ndn() instead to normalize the case,
+ *             or use slapi_sdn_compare() to compare regardless of case.
+ */
 char *slapi_dn_ignore_case( char *dn );
+
+/**
+ * Converts a DN to canonical format and converts all characters to lowercase.
+ *
+ * \param dn DN that you want to normalize and convert to lowercase.
+ * \return The normalized and converted DN.
+ * \note The \c dn parameter is converted in place.
+ */
 char *slapi_dn_normalize_case( char *dn );
+
+/**
+ * Get a copy of the parent DN of a DN.
+ *
+ * \param pb A parameter block with the backend set.
+ * \param dn The DN whose parent is desired.
+ * \return A pointer to the parent DN of \c dn.
+ * \return \c NULL if the DN is a suffix of the backend.
+ * \warning The caller must free the returned DN when finished with it.
+ * \deprecated Use slapi_sdn_get_backend_parent() instead.
+ */
 char *slapi_dn_beparent( Slapi_PBlock *pb, const char *dn );
+
+/**
+ * Finds the parent DN of a DN within the same string.
+ *
+ * \param dn The DN whose parent DN is desired.
+ * \return A pointer to the parent DN within \c dn.
+ */
 const char *slapi_dn_find_parent( const char *dn );
+
+/**
+ * Gets the parent DN of a given DN.
+ *
+ * \param dn The DN whose parent is desired.
+ * \return A pointer to the parent DN of \c dn.
+ * \warning The caller must free the returned DN when finished with it.
+ * \deprecated Use slapi_sdn_get_parent() instead.
+ */
 char *slapi_dn_parent( const char *dn );
+
+/**
+ * Checks if a DN belongs to a suffix.
+ *
+ * \param dn The DN to check.
+ * \param suffix The suffix to check.
+ * \return \c 1 if \c dn belongs to \c suffix
+ * \return \c 0 if \c dn does not belong to \c suffix.
+ * \warning Both \c dn and \c suffix must be normalized before calling this function.
+ * \deprecated Use slapi_sdn_issuffix() instead.
+ */
 int slapi_dn_issuffix( const char *dn, const char *suffix );
+
+/**
+ * Checks if a DN is the parent of another DN.
+ *
+ * \param parentdn The DN of the supposed parent.
+ * \param childdn The DN of the supposed child.
+ * \return non-zero if \c parentdn is the parent of \c childdn.
+ * \return \c 0 if \c parentdn is not the paret of \c childdn.
+ * \deprecated Use slapi_sdn_isparent() instead.
+ */
 int slapi_dn_isparent( const char *parentdn, const char *childdn );
+
+/**
+ * Determines is a DN is the root DN.
+ *
+ * \param dn The DN to check
+ * \return \c 1 if the DN is the root DN.
+ * \return \c 0 if the DN is not the root DN.
+ * \warning You must normalize \c dn before calling this function.
+ */
 int slapi_dn_isroot( const char *dn );
+
+/**
+ * Checks if a DN is the backend suffix.
+ *
+ * \param pb A parameter block with the backend set.
+ * \param dn The DN to check.
+ * \return \c 1 if \c dn is the backend suffix.
+ * \return \c 0 if \c dn is not the backend suffix.
+ * \deprecated slapi_be_issuffix()
+ */
 int slapi_dn_isbesuffix( Slapi_PBlock *pb, const char *dn );
+
+/**
+ * Converts the second RDN type value to the berval value.
+ *
+ * Returns the new RDN value as a berval value in \c bv.  This function
+ * can be used for creating the RDN as an attribute value since it returns
+ * the value of the RDN in the berval structure.
+ *
+ * \param rdn Second RDN value.
+ * \param type Address of a pointer to receive the attribute type
+ *        of the second RDN.
+ * \param bv A pointer to the berval structure to receive the value.
+ */
 int slapi_rdn2typeval( char *rdn, char **type, struct berval *bv );
+
+/**
+ * Adds a RDN to a DN.
+ *
+ * \param dn The DN to add the RDN to.
+ * \param rdn the new RDN to add to the DN.
+ * \return A pointer to the new DN.
+ * \warning The caller must free the returnd DN when finished with it.
+ * \deprecated Use slapi_sdn_add_rdn() instead.
+ */
 char *slapi_dn_plus_rdn(const char *dn, const char *rdn);
 
 
+/* TODO - Pickup Doxygen work here */
 /*
  * thread safe random functions
  */
@@ -3659,7 +4564,7 @@ char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
  *
  * \param type Attribute type to add to the default config entry
  * \param value Attribute value to add to the default config entry
- * \return 0 if the operation was successful
+ * \return \c 0 if the operation was successful
  * \return non-0 if the operation was not successful
  */
 int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
@@ -3670,7 +4575,7 @@ int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
  *
  * \param type Attribute type to get from the default config entry
  * \param valueset Valueset holding the attribute values
- * \return 0 if the operation was successful
+ * \return \c 0 if the operation was successful
  * \return non-0 if the operation was not successful
  * \warning Caller is responsible to free attrs by slapi_ch_array_free
  *     */
