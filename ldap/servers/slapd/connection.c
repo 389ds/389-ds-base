@@ -196,6 +196,7 @@ connection_cleanup(Connection *conn)
 	conn->c_prev= NULL;
 	conn->c_extension= NULL;
 	conn->c_ssl_ssf = 0; 
+	conn->c_unix_local = 0;
 	/* remove any SASL I/O from the connection */
 	sasl_io_cleanup(conn);
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
