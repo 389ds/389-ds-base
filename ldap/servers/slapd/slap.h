@@ -2074,7 +2074,7 @@ int slapd_bind_local_user(Connection *conn);
 
 extern char	*attr_dataversion;
 #define	ATTR_DATAVERSION				"dataVersion"
-#define ATTR_WITH_DIRSTRING_SYNTAX		"cn"
+#define ATTR_WITH_OCTETSTRING_SYNTAX		"userPassword"
 
 #define SLAPD_SNMP_UPDATE_INTERVAL (10 * 1000) /* 10 seconds */
 

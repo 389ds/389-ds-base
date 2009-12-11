@@ -255,12 +255,12 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 		{
 			a->a_type = attr_syntax_normalize_no_lookup( type );
 			/*
-			 * no syntax for this type... return DirectoryString
+			 * no syntax for this type... return Octet String
 			 * syntax.  we accomplish this by looking up a well known
 			 * attribute type that has that syntax.
 			 */
 			asi = attr_syntax_get_by_name_locking_optional(
-					ATTR_WITH_DIRSTRING_SYNTAX, use_lock);
+					ATTR_WITH_OCTETSTRING_SYNTAX, use_lock);
 		}
 		else
 		{
