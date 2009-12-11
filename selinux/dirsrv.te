@@ -86,7 +86,7 @@ allow dirsrv_t self:fifo_file { read write };
 
 # process stuff
 allow dirsrv_t self:process { getsched setsched setfscreate signal_perms};
-allow dirsrv_t self:capability { sys_nice setuid setgid chown dac_override fowner };
+allow dirsrv_t self:capability { sys_nice setuid setgid fsetid chown dac_override fowner };
 
 # semaphores
 allow dirsrv_t self:sem all_sem_perms;
