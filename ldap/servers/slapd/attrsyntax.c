@@ -515,11 +515,11 @@ attr_syntax_get_plugin_by_name_with_default( const char *type )
 	 */
 	if ( (asi = attr_syntax_get_by_name(type)) == NULL ) {
 		/*
-		 * no syntax for this type... return DirectoryString
+		 * no syntax for this type... return Octet String
 		 * syntax.  we accomplish this by looking up a well known
 		 * attribute type that has that syntax.
 		 */
-		asi = attr_syntax_get_by_name(ATTR_WITH_DIRSTRING_SYNTAX);
+		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
 	}
 	if ( NULL != asi ) {
 		plugin = asi->asi_plugin;
