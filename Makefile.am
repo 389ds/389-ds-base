@@ -425,6 +425,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
 	ldap/admin/src/scripts/50usnplugin.ldif \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
+	ldap/admin/src/scripts/50retroclprecedence.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 

@@ -2616,6 +2616,9 @@ int slapi_register_plugin( const char *plugintype, int enabled,
 	const char *initsymbol, slapi_plugin_init_fnptr initfunc,
 	const char *name, char **argv, void *group_identity);
 
+int slapi_register_plugin_ext( const char *plugintype, int enabled,
+	const char *initsymbol, slapi_plugin_init_fnptr initfunc,
+	const char *name, char **argv, void *group_identity, int precedence);
 
 /*
  * logging
@@ -3130,6 +3133,7 @@ typedef struct slapi_plugindesc {
 } Slapi_PluginDesc;
 
 #define SLAPI_PLUGIN_IDENTITY                   13
+#define SLAPI_PLUGIN_PRECEDENCE			14
 
 /* common for internal plugin_ops */
 #define SLAPI_PLUGIN_INTOP_RESULT		15

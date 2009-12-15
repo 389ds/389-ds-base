@@ -123,6 +123,7 @@ files_lock_filetrans(dirsrv_t, dirsrv_var_lock_t, { file })
 
 # config files
 manage_files_pattern(dirsrv_t, dirsrv_config_t, dirsrv_config_t)
+manage_dirs_pattern(dirsrv_t, dirsrv_config_t, dirsrv_config_t)
 
 # tmp files
 manage_files_pattern(dirsrv_t, dirsrv_tmp_t, dirsrv_tmp_t)
