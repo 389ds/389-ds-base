@@ -1,0 +1,4 @@
+dn: cn=Retro Changelog Plugin,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-pluginPrecedence
+nsslapd-pluginPrecedence: 25

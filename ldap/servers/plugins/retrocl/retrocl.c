@@ -353,20 +353,23 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 {
   	static int legacy_initialised= 0;
     	int rc = 0;
+	int precedence = 0;
 	void *identity = NULL;
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);
 	PR_ASSERT (identity);
 	g_plg_identity[PLUGIN_RETROCL] = identity;
+
+	slapi_pblock_get( pb, SLAPI_PLUGIN_PRECEDENCE, &precedence );
     
 	if (!legacy_initialised) {
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 );
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retrocldesc );
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void *) retrocl_start );
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) retrocl_stop );
-	  
-	  rc= slapi_register_plugin("postoperation", 1 /* Enabled */, "retrocl_postop_init", retrocl_postop_init, "Retrocl postoperation plugin", NULL, identity);
-	  rc= slapi_register_plugin("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity);
+
+	  rc= slapi_register_plugin_ext("postoperation", 1 /* Enabled */, "retrocl_postop_init", retrocl_postop_init, "Retrocl postoperation plugin", NULL, identity, precedence);
+	  rc= slapi_register_plugin_ext("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity, precedence);
 	}
 	
     legacy_initialised = 1;

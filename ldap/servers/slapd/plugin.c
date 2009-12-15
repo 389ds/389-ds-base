@@ -241,13 +241,29 @@ add_plugin_entry_dn(const Slapi_DN *plugin_dn)
  */
 int
 slapi_register_plugin(
-    const char *plugintype,
+	const char *plugintype,
+	int enabled,
+	const char *initsymbol,
+	slapi_plugin_init_fnptr initfunc,
+	const char *name,
+	char **argv,
+	void *group_identity
+)
+{
+	return slapi_register_plugin_ext(plugintype, enabled, initsymbol,
+			initfunc, name, argv, group_identity, PLUGIN_DEFAULT_PRECEDENCE);
+}
+
+int
+slapi_register_plugin_ext(
+	const char *plugintype,
 	int enabled,
 	const char *initsymbol,
 	slapi_plugin_init_fnptr initfunc,
 	const char *name, 
-    char **argv,
-	void *group_identity
+	char **argv,
+	void *group_identity,
+	int precedence
 )
 {
 	int ii = 0;
@@ -263,6 +279,7 @@ slapi_register_plugin(
 		slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_ENABLED, "off");
 
 	slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_INITFN, initsymbol);
+	slapi_entry_attr_set_int(e, ATTR_PLUGIN_PRECEDENCE, precedence);
 
 	for (ii = 0; argv && argv[ii]; ++ii) {
 		char argname[64];
