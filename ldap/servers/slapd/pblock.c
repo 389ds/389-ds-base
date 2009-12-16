@@ -1783,7 +1783,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_plugin->plg_version = (char *) value;
 		break;
 	case SLAPI_PLUGIN_PRECEDENCE:
-		pblock->pb_plugin->plg_precedence = *((int *) value;
+		pblock->pb_plugin->plg_precedence = *((int *) value);
 		break;
 	case SLAPI_PLUGIN_OPRETURN:
 		pblock->pb_opreturn = *((int *) value);
