@@ -1614,6 +1614,8 @@ bail:
     slapi_ch_free_string(&lower_str);
     slapi_ch_free_string(&upper_str);
     ber_free(respber, 1);
+    ber_bvfree(request);
+    ber_bvfree(responsedata);
 
     if (ret != 0) {
         *upper = 0;
@@ -2648,6 +2650,8 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     || 0 == value) {
                     generate = 1;
                 }
+
+		slapi_ch_free_string(&value);
             } else {
                 /* check mods for magic value */
                 Slapi_Mod *next_mod = slapi_mod_new();
