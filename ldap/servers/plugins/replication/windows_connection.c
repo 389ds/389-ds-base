@@ -1825,7 +1825,7 @@ do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> do_simple_bind\n", 0, 0, 0 );
 
-	if( ( msgid = slapi_ldap_bind( ld, binddn, password, LDAP_SASL_SIMPLE, NULL, NULL, NULL, &msgid ) ) == -1 ) 
+	if( LDAP_SUCCESS != slapi_ldap_bind( ld, binddn, password, LDAP_SASL_SIMPLE, NULL, NULL, NULL, &msgid ) ) 
 	{
 		char *ldaperrtext = NULL;
 		int ldaperr;
