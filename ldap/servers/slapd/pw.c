@@ -350,8 +350,12 @@ pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals )
  
 	/* new_passwdPolicy gives us a local policy if sdn and pb are set and
 	   can be used to find a local policy, else we get the global policy */
-   	pwpolicy = new_passwdPolicy(pb, sdn ? (char*)slapi_sdn_get_ndn(sdn) : NULL );
-	pws_enc = pwpolicy->pw_storagescheme->pws_enc;
+	pwpolicy = new_passwdPolicy(pb, sdn ? (char*)slapi_sdn_get_ndn(sdn) : NULL );
+
+	if (pwpolicy->pw_storagescheme) {
+		pws_enc = pwpolicy->pw_storagescheme->pws_enc;
+	}
+
 	delete_passwdPolicy(&pwpolicy);
 
 	/* Password scheme encryption function was not found */
