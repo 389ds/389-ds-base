@@ -83,6 +83,7 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     unsigned int secOID;
     char *schemeName;
     char *hashresult = NULL;
+    PRUint32 dbpwd_len;
 
     /* Determine which algorithm we're using */
     switch (shaLen) {
@@ -107,17 +108,25 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
             goto loser;
     }
 
+    /* in some cases, the password was stored incorrectly - the base64 dbpwd ends
+       in a newline - we check for this case and remove the newline, if any -
+       see bug 552421 */
+    dbpwd_len = strlen(dbpwd);
+    if ((dbpwd_len > 0) && (dbpwd[dbpwd_len-1] == '\n')) {
+        dbpwd_len--;
+    }
+
     /*
      * Decode hash stored in database.
      */
-    hash_len = pwdstorage_base64_decode_len(dbpwd);
+    hash_len = pwdstorage_base64_decode_len(dbpwd, dbpwd_len);
     if ( hash_len > sizeof(quick_dbhash) ) { /* get more space: */
         dbhash = (char*) slapi_ch_calloc( hash_len, sizeof(char) );
         if ( dbhash == NULL ) goto loser;
     } else {
         memset( quick_dbhash, 0, sizeof(quick_dbhash) );
     }
-    hashresult = PL_Base64Decode( dbpwd, 0, dbhash );
+    hashresult = PL_Base64Decode( dbpwd, dbpwd_len, dbhash );
     if (NULL == hashresult) {
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
         goto loser;

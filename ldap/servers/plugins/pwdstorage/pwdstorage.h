@@ -113,6 +113,6 @@ int smd5_pw_cmp( const char *userpwd, const char *dbpwd );
 char *smd5_pw_enc( const char *pwd );
 
 /* Utility functions */
-int pwdstorage_base64_decode_len(const char *encval);
+PRUint32 pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen);
 
 #endif /* _PWDSTORAGE_H */

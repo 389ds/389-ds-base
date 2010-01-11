@@ -82,7 +82,7 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
    /*
     * Decode hash stored in database.
     */
-   hash_len = pwdstorage_base64_decode_len(dbpwd);
+   hash_len = pwdstorage_base64_decode_len(dbpwd, 0);
    if ( hash_len >= sizeof(quick_dbhash) ) { /* get more space: */
       dbhash = (char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
       if ( dbhash == NULL ) goto loser;
