@@ -50,10 +50,14 @@
  * calculate the number of bytes the base64 encoded encval
  * will have when decoded, taking into account padding
  */
-int
-pwdstorage_base64_decode_len(const char *encval)
+PRUint32
+pwdstorage_base64_decode_len(const char *encval, PRUint32 enclen)
 {
-    int len = strlen(encval);
+    PRUint32 len = enclen;
+
+    if (len == 0) {
+        len = strlen(encval);
+    }
     if (len && (0 == (len & 3))) {
         if('=' == encval[len - 1]) {
             if('=' == encval[len - 2]) {
