@@ -76,6 +76,7 @@ void plugin_init_debug_level(int *level_ptr)
 void* g_plg_identity [PLUGIN_MAX];
 
 Slapi_Backend *retrocl_be_changelog = NULL;
+PRLock *retrocl_internal_lock = NULL;
 int retrocl_nattributes = 0;
 char **retrocl_attributes = NULL;
 
@@ -392,6 +393,9 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 
 	  rc= slapi_register_plugin_ext("postoperation", 1 /* Enabled */, "retrocl_postop_init", retrocl_postop_init, "Retrocl postoperation plugin", NULL, identity, precedence);
 	  rc= slapi_register_plugin_ext("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity, precedence);
+
+	  retrocl_internal_lock = PR_NewLock();
+	  if (retrocl_internal_lock == NULL) return -1;
 	}
 	
     legacy_initialised = 1;
