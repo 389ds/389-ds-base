@@ -64,6 +64,7 @@ const char *attr_changes = "changes";
 const char *attr_newsuperior = "newsuperior";
 const char *attr_changetime = "changetime";
 const char *attr_objectclass = "objectclass";
+const char *attr_nsuniqueid = "nsuniqueid";
 const char *attr_isreplicated = "isreplicated";
 
 /*
@@ -176,6 +177,7 @@ write_replog_db(
     Slapi_PBlock	*newPb = NULL;
     changeNumber changenum;
     int			i;
+    int			extensibleObject = 0;
 
     PR_Lock(retrocl_internal_lock);
     changenum = retrocl_assign_changenumber();
@@ -207,24 +209,51 @@ write_replog_db(
     val.bv_len = 14;
     slapi_entry_add_values( e, "objectclass", vals );
 
-    val.bv_val = "extensibleObject";
-    val.bv_len = 16;
-    slapi_entry_add_values( e, "objectclass", vals );
-
     for ( i=0; i<retrocl_nattributes; i++ ) {
         char* attributeName = retrocl_attributes[i];
+        char* attributeAlias = retrocl_aliases[i];
 
-        if ( strcasecmp( attributeName, attr_isreplicated ) == 0 ) {
+        if ( attributeAlias == NULL ) {
+            attributeAlias = attributeName;
+        }
+
+        if ( strcasecmp( attributeName, attr_nsuniqueid ) == 0 ) {
+            Slapi_Entry *entry = NULL;
+            char *uniqueId = NULL;
+
+            slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &entry );
+            if ( entry == NULL ) {
+                slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &entry );
+            }
+
+            uniqueId = slapi_entry_get_uniqueid( entry );
+
+            slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+	        "write_replog_db: add %s: \"%s\"\n", attributeAlias, uniqueId );
+
+            val.bv_val = uniqueId;
+            val.bv_len = strlen( uniqueId );
+
+            slapi_entry_add_values( e, attributeAlias, vals );
+
+            extensibleObject = 1;
+
+        } else if ( strcasecmp( attributeName, attr_isreplicated ) == 0 ) {
             int isReplicated = 0;
             char *attributeValue = NULL;
 
             slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isReplicated );
             attributeValue = isReplicated ? "TRUE" : "FALSE";
 
+            slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+	        "write_replog_db: add %s: \"%s\"\n", attributeAlias, attributeValue );
+
             val.bv_val = attributeValue;
             val.bv_len = strlen( attributeValue );
 
-            slapi_entry_add_values( e, attributeName, vals );
+            slapi_entry_add_values( e, attributeAlias, vals );
+
+            extensibleObject = 1;
 
         } else {
             Slapi_Entry *entry = NULL;
@@ -250,9 +279,20 @@ write_replog_db(
 
             if ( valueSet == NULL ) continue;
 
-            slapi_entry_add_valueset( e, attributeName, valueSet );
+            slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+	        "write_replog_db: add %s\n", attributeAlias );
+
+            slapi_entry_add_valueset( e, attributeAlias, valueSet );
             slapi_vattr_values_free( &valueSet, &actual_type_name, buffer_flags );
+
+            extensibleObject = 1;
         }
+    }
+
+    if ( extensibleObject ) {
+        val.bv_val = "extensibleObject";
+        val.bv_len = 16;
+        slapi_entry_add_values( e, "objectclass", vals );
     }
 
     /* Set the changeNumber attribute */

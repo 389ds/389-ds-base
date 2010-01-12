@@ -79,6 +79,7 @@ Slapi_Backend *retrocl_be_changelog = NULL;
 PRLock *retrocl_internal_lock = NULL;
 int retrocl_nattributes = 0;
 char **retrocl_attributes = NULL;
+char **retrocl_aliases = NULL;
 
 /* ----------------------------- Retrocl Plugin */
 
@@ -302,6 +303,7 @@ static int retrocl_start (Slapi_PBlock *pb)
     static int retrocl_started = 0;
     int rc = 0;
     Slapi_Entry *e = NULL;
+    char **values = NULL;
 
     if (retrocl_started) {
       return rc;
@@ -323,12 +325,49 @@ static int retrocl_start (Slapi_PBlock *pb)
         return -1;
     }
 
-    retrocl_attributes = slapi_entry_attr_get_charray(e, "nsslapd-attribute");
-    if (retrocl_attributes != NULL) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Attributes:\n");
-        for (retrocl_nattributes=0; retrocl_attributes && retrocl_attributes[retrocl_nattributes]; retrocl_nattributes++) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n", retrocl_attributes[retrocl_nattributes]);
+    values = slapi_entry_attr_get_charray(e, "nsslapd-attribute");
+    if (values != NULL) {
+        int n = 0;
+        int i = 0;
+
+        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "nsslapd-attribute:\n");
+
+        for (n=0; values && values[n]; n++) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n", values[n]);
         }
+
+        retrocl_nattributes = n;
+
+        retrocl_attributes = (char **)slapi_ch_calloc(n, sizeof(char *));
+        retrocl_aliases = (char **)slapi_ch_calloc(n, sizeof(char *));
+
+        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Attributes:\n");
+
+        for (i=0; i<n; i++) {
+            char *value = values[i];
+            size_t length = strlen(value);
+
+            char *pos = strchr(value, ':');
+            if (pos == NULL) {
+                retrocl_attributes[i] = slapi_ch_strdup(value);
+                retrocl_aliases[i] = NULL;
+
+                slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n",
+                    retrocl_attributes[i]);
+
+            } else {
+                retrocl_attributes[i] = slapi_ch_malloc(pos-value+1);
+                strncpy(retrocl_attributes[i], value, pos-value);
+
+                retrocl_aliases[i] = slapi_ch_malloc(value+length-pos);
+                strcpy(retrocl_aliases[i], pos+1);
+
+                slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s [%s]\n",
+                    retrocl_attributes[i], retrocl_aliases[i]);
+            }
+        }
+
+        slapi_ch_array_free(values);
     }
 
     retrocl_started = 1;
@@ -352,6 +391,7 @@ static int retrocl_stop (Slapi_PBlock *pb)
   int rc = 0;
 
   slapi_ch_array_free(retrocl_attributes);
+  slapi_ch_array_free(retrocl_aliases);
 
   retrocl_stop_trimming();  
   retrocl_be_changelog = NULL;
