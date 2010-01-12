@@ -45,7 +45,6 @@
 
 static changeNumber retrocl_internal_cn = 0;
 static changeNumber retrocl_first_cn = 0;
-PRLock *retrocl_internal_lock = NULL;
 
 /*
  * Function: a2changeNumber
@@ -154,12 +153,6 @@ int retrocl_get_changenumbers(void)
 { 
     cnumRet cr;
 
-    if (retrocl_internal_lock == NULL) {
-      retrocl_internal_lock = PR_NewLock();
-      
-      if (retrocl_internal_lock == NULL) return -1;
-    }
-    
     if (retrocl_be_changelog == NULL) return -1;
     
     cr.cr_cnum = 0;
@@ -245,8 +238,6 @@ time_t retrocl_getchangetime( int type, int *err )
 
 void retrocl_forget_changenumbers(void) 
 { 
-    if (retrocl_internal_lock == NULL) return;
-
     PR_Lock(retrocl_internal_lock);
     retrocl_first_cn = 0;
     retrocl_internal_cn = 0;
@@ -362,12 +353,6 @@ int retrocl_update_lastchangenumber(void)
 {
     cnumRet cr;
 
-    if (retrocl_internal_lock == NULL) {
-      retrocl_internal_lock = PR_NewLock();
-
-      if (retrocl_internal_lock == NULL) return -1;
-    }
-
     if (retrocl_be_changelog == NULL) return -1;
 
     cr.cr_cnum = 0;
@@ -405,8 +390,6 @@ changeNumber retrocl_assign_changenumber(void)
 {
     changeNumber cn;
  
-    if (retrocl_internal_lock == NULL) return 0;
-
     /* Before we assign the changenumber; we should check for the
      * validity of the internal assignment of retrocl_internal_cn 
      * we had from the startup */  
