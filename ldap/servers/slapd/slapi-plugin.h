@@ -102,13 +102,71 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  *
  * Note that the flag values 0x0010, 0x0020, 0x4000, and 0x8000 are reserved.
  */
+/**
+ * Flag indicating that an attribtue is single-valued.
+ *
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_SINGLE		0x0001	/* single-valued attribute */
+
+/**
+ * Flag indicating than an attribute is operational.
+ *
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_OPATTR		0x0002	/* operational attribute */
+
+/**
+ * Flag indicating than an attribute is read-only.
+ *
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_READONLY	0x0004	/* read from shipped config file */
+
+/**
+ * Flag indicating than an attribute is read-only.
+ *
+ *  This is an alias for #SLAPI_ATTR_FLAG_READONLY.
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_STD_ATTR	SLAPI_ATTR_FLAG_READONLY /* alias for read only */
+
+/**
+ * Flag indicating than an attribute is obsolete.
+ *
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_OBSOLETE	0x0040	/* an outdated definition */
+
+/**
+ * Flag indicating that an attribute is collective.
+ *
+ * \warning Collective attributes are not supported, so this
+ *          flag has no effect.
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_COLLECTIVE	0x0080	/* collective (not supported) */
+
+/**
+ * Flag indicating that an attribute is not modifiable over LDAP.
+ *
+ * \see slapi_attr_flag_is_set()
+ * \see slapi_attr_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_NOUSERMOD	0x0100	/* can't be modified over LDAP */
+
+/**
+ * Flag to indicate that the attribute value is normalized.
+ *
+ * \see slapi_value_set_flags()
+ * \see slapi_values_set_flags()
+ */
 #define SLAPI_ATTR_FLAG_NORMALIZED	0x0200	/* the attr value is normalized */
 
 /* operation flags */
@@ -2866,110 +2924,1133 @@ int slapi_rdn2typeval( char *rdn, char **type, struct berval *bv );
 char *slapi_dn_plus_rdn(const char *dn, const char *rdn);
 
 
-/* TODO - Pickup Doxygen work here */
 /*
  * thread safe random functions
  */
+/**
+ * Generate a pseudo-random integer with optional seed.
+ *
+ * \param seed A seed to use when generating the pseudo random number.
+ * \return A pseudo random number.
+ * \see slapi_rand()
+ * \see slapi_rand_array()
+ */
 int slapi_rand_r(unsigned int * seed);
+
+/* Generate a pseudo-random integer in an array.
+ *
+ * \param randx The array you want filled with the random number.
+ * \param len The length of the array you want filled with the random number.
+ * \see slapi_rand()
+ * \see slapi_rand_r()
+ */
 void slapi_rand_array(void *randx, size_t len);
+
+/**
+ * Generate a pseudo-random integer.
+ *
+ * \return A pseudo random number.
+ * \see slapi_rand_r()
+ * \see slapi_rand_array()
+ */
 int slapi_rand();
 
 
 /*
  * attribute routines
  */
+/**
+ * Create a new empty attribute.
+ *
+ * \return A pointer to the newly created attribute.
+ * \warning You must free the returned attribute using slapi_attr_free().
+ * \see slapi_attr_init()
+ * \see slapi_attr_dup()
+ * \see slapi_attr_free()
+ */
 Slapi_Attr *slapi_attr_new( void );
+
+/**
+ * Initializes an attribute with an attribute type.
+ *
+ * \param a The attribute to initialize.
+ * \param type The attribute type to set.
+ * \return A pointer to the initialized attribute.
+ */
 Slapi_Attr *slapi_attr_init(Slapi_Attr *a, const char *type);
+
+/**
+ * Frees an attribute from memory.
+ *
+ * \param a Address of a pointer to the attribute to be freed.
+ * \see slapi_attr_init()
+ * \see slapi_attr_dup()
+ * \see slapi_attr_new()
+ */
 void slapi_attr_free( Slapi_Attr **a );
+
+/**
+ * Make a copy of an attribute.
+ *
+ * \param attr The attribute to be duplicated.
+ * \return The newly created copy of the attribute.
+ * \warning You must free the returned attribute using slapi_attr_free().
+ * \see slapi_attr_new()
+ * \see slapi_attr_init()
+ * \see slapi_attr_free()
+ */
 Slapi_Attr *slapi_attr_dup(const Slapi_Attr *attr);
+
+/**
+ * Adds a value to an attribute.
+ *
+ * \param a The attribute that will contain the values.
+ * \param v Value to be added to the attribute.
+ * \return Always returns 0.
+ * \see slapi_attr_first_value()
+ * \see slapi_attr_next_value()
+ * \see slapi_attr_get_numvalues()
+ * \see slapi_attr_value_cmp()
+ * \see slapi_attr_value_find()
+ */
 int slapi_attr_add_value(Slapi_Attr *a, const Slapi_Value *v);
+
+/**
+ * Find syntax plugin associated with an attribute type.
+ *
+ * \param type Type of attribute for which you want to get the plugin.
+ * \param pi Address to receive a pointer to the plugin structure.
+ * \return \c 0 if successful.
+ * \return \c -1 if the plugin is not found.
+ * \see slapi_attr_get_type()
+ * \see slapi_attr_type_cmp()
+ * \see slapi_attr_types_equivalent()
+ * \see slapi_attr_basetype()
+ */
 int slapi_attr_type2plugin( const char *type, void **pi );
+
+/**
+ * Get the name of the attribute type from a specified attribute.
+ *
+ * \param attr Attribute for which you want to get the type.
+ * \param type Address to receive a pointer to the attribute type.
+ * \return Always returns \c 0.
+ * \warning Do not free the returned attribute type.  The type is a part
+ *       if the actual attribute data, not a copy.
+ * \see slapi_attr_type2plugin()
+ * \see slapi_attr_type_cmp()
+ * \see slapi_attr_types_equivalent()
+ * \see slapi_attr_basetype()
+ */
 int slapi_attr_get_type( Slapi_Attr *attr, char **type );
+
+/**
+ * Get the attribute type OID of a particular attribute.
+ *
+ * \param attr Attribute that contains the desired OID.
+ * \param oidp Address to receive a pointer to a copy of the
+ *        attribute type OID.
+ * \return \c 0 if the attribute type is found.
+ * \return \c -1 if the attribute type is not found.
+ * \warning The returned OID should be freed by calling the
+ *       slapi_ch_free_string() function.
+ * \see slapi_attr_get_syntax_oid_copy()
+ */
 int slapi_attr_get_oid_copy( const Slapi_Attr *attr, char **oidp );
+
+/*
+ * Get the syntax OID of a particular attribute.
+ *
+ * \param a Attribute that contains the desired OID.
+ * \param oidp Address to receive a pointer to a copy of the
+ *        syntax OID.
+ * \return \c 0 if the syntax OID is found.
+ * \return \c -1 if the syntax OID is not found.
+ * \warning The returned OID should be freed by calling the
+ *       slapi_ch_free_string() function.
+ * \see slapi_attr_get_oid_copy()
+ */
 int slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp );
+
+/**
+ * Get the flags associated with a particular attribute.
+ *
+ * Valid flags are:
+ *     \arg #SLAPI_ATTR_FLAG_SINGLE
+ *     \arg #SLAPI_ATTR_FLAG_OPATTR
+ *     \arg #SLAPI_ATTR_FLAG_READONLY
+ *     \arg #SLAPI_ATTR_FLAG_OBSOLETE
+ *     \arg #SLAPI_ATTR_FLAG_COLLECTIVE
+ *     \arg #SLAPI_ATTR_FLAG_NOUSERMOD
+ *     \arg #SLAPI_ATTR_FLAG_NORMALIZED
+ *
+ * \param attr Attribute for which you want to get the flags.
+ * \param flags Address of an integer that you want to reveive the flags.
+ * \return \c Always returns 0.
+ * \see slapi_attr_flag_is_set()
+ */
 int slapi_attr_get_flags( const Slapi_Attr *attr, unsigned long *flags );
+
+/**
+ * Checks if certain flags are set for a particular attribute.
+ *
+ * Valid flags are:
+ *     \arg #SLAPI_ATTR_FLAG_SINGLE
+ *     \arg #SLAPI_ATTR_FLAG_OPATTR
+ *     \arg #SLAPI_ATTR_FLAG_READONLY
+ *     \arg #SLAPI_ATTR_FLAG_OBSOLETE
+ *     \arg #SLAPI_ATTR_FLAG_COLLECTIVE
+ *     \arg #SLAPI_ATTR_FLAG_NOUSERMOD
+ *     \arg #SLAPI_ATTR_FLAG_NORMALIZED
+ *
+ * \param attr Attribute that you want to check.
+ * \param flag Flags to check in the attribute.
+ * \return \c 1 if the specified flags are set.
+ * \return \c 0 if the specified flags are not set.
+ * \see slapi_attr_get_flags()
+ */
 int slapi_attr_flag_is_set( const Slapi_Attr *attr, unsigned long flag );
+
+/**
+ * Comare two values for a given attribute.
+ *
+ * \param attr Attribute used to determine how these values are compared; for
+ *        example, the syntax of the attribute may perform case-insensitive
+ *        comparisons.
+ * \param v1 Pointer to the \c berval structure containing the first value
+ *        that you want to compare.
+ * \param v2 Pointer to the \c berval structure containing the second value
+ *        that you want to compare.
+ * \return \c 0 if the values are equal.
+ * \return \c -1 if the values are not equal.
+ * \see slapi_attr_add_value()
+ * \see slapi_attr_first_value()
+ * \see slapi_attr_next_value()
+ * \see slapi_attr_get_numvalues()
+ * \see slapi_attr_value_find()
+ */
 int slapi_attr_value_cmp( const Slapi_Attr *attr, const struct berval *v1, const struct berval *v2 );
+
+/**
+ * Determine if an attribute contains a given value.
+ *
+ * \param a Attribute that you want to check.
+ * \param v Pointer to the \c berval structure containing the value for
+ *          which you want to search.
+ * \return \c 0 if the attribute contains the specified value.
+ * \return \c 01 if the attribute does not contain the specified value.
+ * \see slapi_attr_add_value()
+ * \see slapi_attr_first_value()
+ * \see slapi_attr_next_value()
+ * \see slapi_attr_get_numvalues()
+ * \see slapi_attr_value_cmp()
+ */
 int slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v );
 
+/**
+ * Compare two attribute types.
+ *
+ * \param t1 Name of the first attribute type to compare.
+ * \param t2 Name of the second attribute type to compare.
+ * \param opt One of the following options:
+ *        \arg #SLAPI_TYPE_CMP_EXACT
+ *        \arg #SLAPI_TYPE_CMP_BASE
+ *        \arg #SLAPI_TYPE_CMP_SUBTYPE
+ * \return \c 0 if the type names are equal.
+ * \return A non-zero value if the type names are not equal.
+ * \see slapi_attr_type2plugin()
+ * \see slapi_attr_get_type()
+ * \see slapi_attr_types_equivalent()
+ * \see slapi_attr_basetype()
+ */
 int slapi_attr_type_cmp( const char *t1, const char *t2, int opt );
+
 /* Mode of operation (opt) values for slapi_attr_type_cmp() */
+/**
+ * Compare the types as-is.
+ *
+ * \see slapi_attr_type_cmp()
+ */
 #define SLAPI_TYPE_CMP_EXACT	0
+
+/**
+ * Compare only the base names of the types.
+ *
+ * \see slapi_attr_type_cmp()
+ */
 #define SLAPI_TYPE_CMP_BASE	1
+
+/**
+ * Ignore any subtypes in the second type that are not in the first subtype.
+ *
+ * \see slapi_attr_type_cmp()
+ */
 #define SLAPI_TYPE_CMP_SUBTYPE	2
 
+/**
+ * Compare two attribute names to determine if they represent the same value.
+ *
+ * \param t1 Pointer to the first attribute you want to compare.
+ * \param t2 Pointer to the second attribute you want to compare.
+ * \return \c 1 if \c t1 and \c t2 represent the same attribute.
+ * \return \c 0 if \c t1 and \c t2 do not represent the same attribute.
+ * \see slapi_attr_type_cmp()
+ * \see slapi_attr_get_type()
+ * \see slapi_attr_basetype()
+ */
 int slapi_attr_types_equivalent(const char *t1, const char *t2);
+
+/**
+ * Get the base type of an attribute.
+ *
+ * For example, if given \c cn;lang-jp, returns \c cn.
+ *
+ * \param type Attribute type from which you want to get the base type.
+ * \param buf Buffer to hold the returned base type.
+ * \param bufsiz Size of the buffer.
+ * \return \c NULL if the base type fits in the buffer.
+ * \return A pointer to a newly allocated base type if the buffer is
+ *         too small to hold it.
+ * \warning If a base type is returned, if should be freed by calling
+ *          slapi_ch_free_string().
+ * \see slapi_attr_get_type()
+ * \see slapi_attr_type_cmp()
+ * \see slapi_attr_types_equivalent()
+ */
 char *slapi_attr_basetype( const char *type, char *buf, size_t bufsiz );
+
+/**
+ * Get the first value of an attribute.
+ *
+ * This is part of a set of functions to enumerate over a
+ * \c Slapi_Attr structure.
+ *
+ * \param a Attribute containing the desired value.
+ * \param v Holds the first value of the attribute.
+ * \return \c 0, which is the index of the first value.
+ * \return \c -1 if \c NULL or if the value is not found.
+ * \warning Do not free the returned value.  It is a part
+ *          of the attribute structure and not a copy.
+ * \see slapi_attr_next_value()
+ * \see slapi_attr_get_num_values()
+ */
 int slapi_attr_first_value( Slapi_Attr *a, Slapi_Value **v );
+
+/**
+ * Get the next value of an attribute.
+ *
+ * The value of an attribute associated with an index is placed into
+ * a value.  This is pare of a set of functions to enumerate over a
+ * \c Slapi_Attr structure.
+ *
+ * \param a Attribute containing the desired value.
+ * \param hint Index of the value to be returned.
+ * \param v Holds the value of the attribute.
+ * \return \c hint plus \c 1 if the value is found.
+ * \return \c -1 if \c NULL or if a value at \c hint is not found.
+ * \warning Do not free the returned value.  It is a part
+ *          of the attribute structure and not a copy.
+ * \see slapi_attr_first_value()
+ * \see slapi_attr_get_num_values()
+ */
 int slapi_attr_next_value( Slapi_Attr *a, int hint, Slapi_Value **v );
+
+/**
+ * Get the number of values present in an attribute.
+ *
+ * Counts the number of values in an attribute and places that
+ * count in an integer.
+ *
+ * \param a Attribute containing the values to be counted.
+ * \param numValues Integer to hold the counted values.
+ * \see slapi_attr_first_value()
+ * \see slapi_attr_next_value()
+ */
 int slapi_attr_get_numvalues( const Slapi_Attr *a, int *numValues);
+
+/**
+ * Copy existing values contained in an attribute into a valueset.
+ *
+ * \param a Attribute containing the values to be placed into
+ *        a valueset.
+ * \param vs Receives the values from the attribute.
+ * \return Always returns \c 0.
+ * \warning Free the returned valueset with slapi_valueset_free()
+ *          when finished using it.
+ * \see slapi_entry_add_valueset()
+ * \see slapi_valueset_new()
+ * \see slapi_valueset_free()
+ * \see slapi_valueset_init()
+ * \see slapi_valueset_done()
+ * \see slapi_valueset_add_value()
+ * \see slapi_valueset_first_value()
+ * \see slapi_valueset_next_value()
+ * \see slapi_valueset_count()
+ */
 int slapi_attr_get_valueset(const Slapi_Attr *a, Slapi_ValueSet **vs);
-/* Make the valuset in Slapi_Attr be *vs--not a copy */
+
+/**
+ * Sets the valueset in an attribute.
+ *
+ * Intializes a valueset in a \c Slapi_Attr structure from a specified
+ * \c Slapi_ValueSet structure.  The valueset in the \c Slapi_Attr
+ * will be \c vs, not a copy.
+ *
+ * \param a The attribute to set the valueset in.
+ * \param vs The valueset that you want to set in the attribute.
+ * \return Always returns \c 0.
+ * \warning Do not free \c vs.  Ownership of \c vs is tranferred to
+ *          the attribute.
+ * \see slapi_valueset_set_valueset()
+ */
 int slapi_attr_set_valueset(Slapi_Attr *a, const Slapi_ValueSet *vs);
+
+/**
+ * Set the attribute type of an attribute.
+ *
+ * \param a The attribute whose type you want to set.
+ * \param type The attribute type you want to set.
+ * \return \c 0 if the type was set.
+ * \return \c -1 if the type was not set.
+ * \warning The passed in type is copied, so ownership of \c type
+ *          remains with the caller.
+ * \see slapi_attr_get_type()
+ */
 int slapi_attr_set_type(Slapi_Attr *a, const char *type);
+
+/**
+ * Copy the values from an attribute into a berval array.
+ *
+ * \param a Attribute that contains the desired values.
+ * \param vals Pointer to an array of berval structure pointers to
+ *        hold the desired values.
+ * \return \c 0 if values are found.
+ * \return \c -1 if \c NULL.
+ * \warning You should free the array using ber_bvecfree() from the
+ *          Mozilla LDAP C SDK.
+ */
 int slapi_attr_get_bervals_copy( Slapi_Attr *a, struct berval ***vals );
+
+/**
+ * Normalize an attribute type.
+ *
+ * The attribute type will be looked up in the defined syntaxes to
+ * get the normalized form.  If it is not found, the passed in type
+ * will be normalized.
+ *
+ * \param s The attribute type that you want to normalize.
+ * \return A normalized copy of the passed in attribute type.
+ * \warning You should free the returned string using slapi_ch_free_string().
+ * \see slapi_ch_free_string()
+ */
 char * slapi_attr_syntax_normalize( const char *s );
-void slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
-void slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod);
 
 
 /*
  * value routines
  */
+/**
+ * Create a new empty \c Slapi_Value structure.
+ *
+ * \return A pointer to the newly allocated \c Slapi_Value structure.
+ * \warning If space can not be allocated, the \c ns-slapd program terminates.
+ * \warning When you are no longer using the value, free it from memory
+ *          by calling slapi_value_free()
+ * \see slapi_value_free()
+ * \see slapi_value_dup()
+ * \see slapi_value_new_berval()
+ * \see slapi_value_new_string()
+ * \see slapi_value_new_string_passin()
+ */
 Slapi_Value *slapi_value_new( void );
+
+/**
+ * Create a new \c Slapi_value structure and initialize it's value.
+ *
+ * \param bval Pointer to the \c berval structure used to initialize
+ *        the newly allocated \c Slapi_value.
+ * \return A pointer to the newly allocated and initialized value.
+ * \warning The passed in \c berval structure will be copied.  Ownership
+ *          of \c bval remains with the caller.
+ * \warning If space can not be allocated, the \c ns-slapd program terminates.
+ * \warning When you are no longer using the value, free it from memory
+ *          by calling slapi_value_free()
+ * \see slapi_value_free()
+ * \see slapi_value_new()
+ * \see slapi_value_new_string()
+ * \see slapi_value_new_string_passin()
+ * \see slapi_value_dup()
+ */
 Slapi_Value *slapi_value_new_berval(const struct berval *bval);
+
+/**
+ * Duplicate a \c Slapi_Value structure.
+ *
+ * \param v The value to duplicate.
+ * \return A pointer to the copy of the value.
+ * \warning If space can not be allocated, the \c ns-slapd program terminates.
+ * \warning When you are no longer using the value, free it from memory
+ *          by calling slapi_value_free()
+ * \warning This function is identical to slapi_value_dup().
+ * \see slapi_value_dup()
+ * \see slapi_value_free()
+ */
 Slapi_Value *slapi_value_new_value(const Slapi_Value *v);
+
+/**
+ * Create a new \c Slapi_value structure and initialize it's value.
+ *
+ * \param s A \c NULL terminated string used to initialize
+ *        the newly allocated \c Slapi_value.
+ * \return A pointer to the newly allocated and initialized value.
+ * \warning The passed in string will be copied.  Ownership of \c s
+ *          remains with the caller.
+ * \warning If space can not be allocated, the \c ns-slapd program terminates.
+ * \warning When you are no longer using the value, free it from memory
+ *          by calling slapi_value_free()
+ * \see slapi_value_free()
+ * \see slapi_value_new()
+ * \see slapi_value_new_berval()
+ \see slapi_value_new_string_passin()
+ * \see slapi_value_dup()
+ */
 Slapi_Value *slapi_value_new_string(const char *s);
+
+/**
+ * Create a new \c Slapi_value structure and initialize it's value.
+ *
+ * \param s A \c NULL terminated string used to initialize
+ *        the newly allocated \c Slapi_value.
+ * \return A pointer to the newly allocated and initialized value.
+ * \warning The passed in string will be used directly as the value.
+ *          It will not be copied.  Ownership of \c s is transferred
+ *          to the new \c Slapi_Value structure, so it should not be
+ *          freed by the caller.
+ * \warning If space can not be allocated, the \c ns-slapd program terminates.
+ * \warning When you are no longer using the value, free it from memory
+ *          by calling slapi_value_free()
+ * \see slapi_value_free()
+ * \see slapi_value_new()
+ * \see slapi_value_new_berval()
+ * \see slapi_value_new_string()
+ * \see slapi_value_dup()
+ */
 Slapi_Value *slapi_value_new_string_passin(char *s);
+
+/**
+ * Initialize a \c Slapi_Value structure.
+ *
+ * All fields of the passed in \c Slapi_Value will be reset to zero.
+ *
+ * \param v The value to initialize.
+ * \return A pointer to the initialized value.
+ * \warning The passed in value must not be \c NULL.
+ * \see slapi_value_init_berval()
+ * \see slapi_value_init_string()
+ * \see slapi_value_init_string_passin()
+ */
 Slapi_Value *slapi_value_init(Slapi_Value *v);
+
+/**
+ * Initialize a \c Slapi_Value structure from the value contained in a \c berval structure.
+ *
+ * \param v The value to initialize.
+ * \param bval The \c berval structure to be used to intialize the value.
+ * \return A pointer to the initialized value.
+ * \warning The passed in \c Slapi_Value must not be \c NULL.
+ * \warning The content of the \c berval structure is duplicated.  It is up
+ *          to the caller to manage the memory used by the \c berval.
+ * \see slapi_value_init()
+ * \see slapi_value_init_string()
+ * \see slapi_value_init_string_passin()
+ */
 Slapi_Value *slapi_value_init_berval(Slapi_Value *v, struct berval *bval);
+
+/**
+ * Initialize a \c Slapi_Value with a copy of the value contained in a string.
+ *
+ * \param v The value to initialize.
+ * \param s The null-terminated string to be used to initialize the value.
+ * \return A pointer to the initialized value.
+ * \warning The passed in \c Slapi_Value must not be \c NULL.
+ * \warning The passed in string is duplicated.  It is up to the caller to
+ *          manage the memory used by the passed in string.
+ * \see slapi_value_init()
+ * \see slapi_value_init_berval()
+ * \see slapi_value_init_string_passin()
+ */
 Slapi_Value *slapi_value_init_string(Slapi_Value *v,const char *s);
+
+/* Initialize a \c Slapi_Value with the value contained in a string.
+ *
+ * \param v The value to initialize.
+ * \param s The null-terminated string to be used to initialize the value.
+ * \return A pointer to the initialized value.
+ * \warning The passed in \c Slapi_Value must not be \c NULL.
+ * \warning The passed in string is not duplicated.  Responsibility for the
+ *          memory used by the string is handed over to the \c Slapi_Value
+ *          structure.
+ * \warning The passed in string must not be freed.  It will be freed when
+ *          the \c Slapi_Value structure is freed by calling \c slapi_value_free().
+ * \see slapi_value_free()
+ * \see slapi_value_init()
+ * \see slapi_value_init_berval()
+ * \see slapi_value_init_string()
+ */
 Slapi_Value *slapi_value_init_string_passin(Slapi_Value *v, char *s);
+
+/**
+ * Duplicate a \c Slapi_Value structure.
+ *
+ * \param v The value to duplicate.
+ * \return A pointer to the copy of the value.
+ * \warning If space can not be allocated, the \c ns-slapd program terminates.
+ * \warning When you are no longer using the value, free it from memory
+ *          by calling slapi_value_free()
+ * \warning This function is identical to slapi_value_new_value().
+ * \see slapi_value_new_value()
+ * \see slapi_value_free()
+ */
 Slapi_Value *slapi_value_dup(const Slapi_Value *v);
+
+/**
+ * Sets the flags in a \c Slapi_Value structure.
+ *
+ * Valid flags are:
+ *     \arg #SLAPI_ATTR_FLAG_NORMALIZED
+ *
+ * \param v Pointer to the \c Slapi_Value structure for which to
+ *        set the flags.
+ * \param flags The flags you want to set.
+ * \warning The flags support bit-wise operations.
+ * \see slapi_values_set_flags()
+ * \see slapi_value_get_flags()
+ */
 void slapi_value_set_flags(Slapi_Value *v, unsigned long flags);
+
+/**
+ * Sets the flags in an array of \c Slapi_Value structures.
+ *
+ * Valid flags are:
+ *     \arg #SLAPI_ATTR_FLAG_NORMALIZED
+ *
+ * \param vs Pointer to the \c Slapi_Value array for which you
+ *        want to set the flags.
+ * \param flags The flags you want to set.
+ * \warning The flags support bit-wise operations.
+ * \see slapi_value_set_flags()
+ * \see slapi_value_get_flags()
+ */
 void slapi_values_set_flags(Slapi_Value **vs, unsigned long flags);
+
+/**
+ * Retrieves the flags from a \c Slapi_Value structure.
+ *
+ * \param v Pointer to the \c Slapi_Value structure from which the
+ *       flags are to be retrieved.
+ * \return The flags that are set in the value.
+ * \see slapi_value_set_flags()
+ * \see slapi_values_set_flags()
+ */
 unsigned long slapi_value_get_flags(Slapi_Value *v);
+
+/**
+ * Frees a \c Slapi_Value structure from memory.
+ *
+ * The contents of the value will be freed along with the \c Slapi_Value
+ * structure itself.  The pointer will also be set to \c NULL.
+ *
+ * \param value Address of the pointer to the \c Slapi_Value structure
+ *        you wish to free.
+ * \see slapi_value_new()
+ */
 void slapi_value_free(Slapi_Value **value);
+
+/**
+ * Gets the \c berval structure of the value.
+ *
+ * \param value Pointer to the \c Slapi_Value of which you wish
+ *        to get the \c berval.
+ * \return A pointer to the \c berval structure contained in the
+ *         \c Slapi_Value.
+ * \warning The returned pointer point to the actual \c berval structure
+ *          inside of the value, not a copy.
+ * \warning You should not free the returned \c berval structure unless
+ *          you plan to replace it by calling \c slapi_value_set_berval().
+ * \see slapi_value_set_berval()
+ */
 const struct berval *slapi_value_get_berval( const Slapi_Value *value );
+
+/**
+ * Sets the value of a \c Slapi_Value structure from a \c berval structure.
+ *
+ * The value is duplicated from the passed in \c berval structure.
+ *
+ * \param value Pointer to the \c Slapi_Value structure in which to
+ *        set the value.
+ * \param bval Pointer to the \c berval value to be copied.
+ * \return Pointer to the \c Slapi_Value structure passed in as \c value.
+ * \return NULL if the passed in value was \c NULL.
+ * \warning If the pointer to the \c Slapi_Value structure is \c NULL,
+ *          nothing is done, and the function returns \c NULL.
+ * \warning If the \c Slapi_Value structure already contains a value, it
+ *          is freed from memory before the new one is set.
+ * \warning When you are no longer using the \c Slapi_Value structure, you
+ *          should free it from memory by valling \c slapi_value_free().
+ * \see slapi_value_free()
+ * \see slapi_value_get_berval()
+ */
 Slapi_Value *slapi_value_set_berval( Slapi_Value *value, const struct berval *bval );
+
+/**
+ * Sets the value of a \c Slapi_Value structure from another \c Slapi_Value structure.
+ *
+ * The value is duplicated from the supplied \c Slapi_value structure.
+ *
+ * \param value Pointer to the \c Slapi_Value structure in which to set
+ *        the value.
+ * \param vfrom Pointer to the \c Slapi_Value structure from which to
+ *        get the value.
+ * \return Pointer to the \c Slapi_Value structure passed as the \c value paramter.
+ * \return \c NULL if the \c value parameter was \c NULL.
+ * \warning The \c vfrom parameter must not be \c NULL.
+ * \warning If the pointer to the \c Slapi_Value structure is \c NULL,
+ *          nothing is done, and the function returns \c NULL.
+ * \warning If the \c Slapi_Value structure already contains a value, it
+ *          is freed from memory before the new one is set.
+ * \warning When you are no longer using the \c Slapi_Value structure, you
+ *          should free it from memory by valling \c slapi_value_free().
+ * \see slapi_value_free()
+ */
 Slapi_Value *slapi_value_set_value( Slapi_Value *value, const Slapi_Value *vfrom);
+
+/**
+ * Sets the value of a \c Slapi_Value structure.
+ *
+ * The value is a duplicate of the data pointed to by \c val and the
+ * length \c len.
+ *
+ * \param value Pointer to the \c Slapi_Value structure in which to set
+ *        the value.
+ * \param val Pointer to the value.
+ * \param len Length of the value.
+ * \return Pointer to the \c Slapi_Value structure with the value set.
+ * \return \c NULL if the supplied \c Slapi_Value is \c NULL.
+ * \warning If the pointer to the \c Slapi_Value structure is \c NULL,
+ *          nothing is done, and the function returns \c NULL.
+ * \warning If the \c Slapi_Value structure already contains a value, it
+ *          is freed from memory before the new one is set.
+ * \warning When you are no longer using the \c Slapi_Value structure, you
+ *          should free it from memory by valling \c slapi_value_free().
+ * \see slapi_value_free()
+ */
 Slapi_Value *slapi_value_set( Slapi_Value *value, void *val, unsigned long len);
+
+/**
+ * Sets the value of a \c Slapi_Value structure from a string.
+ *
+ * The value is duplicated from a supplied string.
+ *
+ * \param value Pointer to the \c Slapi_Value structure in which to set
+ *        the value.
+ * \param strVal The string containing the value to set.
+ * \return \c 0 if the value is set.
+ * \return \c -1 if the pointer to the \c Slapi_Value is \c NULL.
+ * \warning If the pointer to the \c Slapi_Value structure is \c NULL,
+ *          nothing is done, and the function returns \c -1.
+ * \warning If the \c Slapi_Value structure already contains a value, it
+ *          is freed from memory before the new one is set.
+ * \warning When you are no longer using the \c Slapi_Value structure, you
+ *          should free it from memory by valling \c slapi_value_free().
+ * \see slapi_value_free()
+ * \see slapi_value_set_string_passin()
+ */
 int slapi_value_set_string(Slapi_Value *value, const char *strVal);
+
+/**
+ * Sets the value of a \c Slapi_Value structure from a string.
+ *
+ * The supplied string is used as the value within the \c Slapi_Value
+ * structure.
+ *
+ * \param value Pointer to the \c Slapi_Value structure in which to set
+ *        the value.
+ * \param strVal The string containing the value to set.
+ * \return \c 0 if the value is set.
+ * \return \c -1 if the pointer to the \c Slapi_Value is \c NULL.
+ * \warning Do not free the passed in string pointer to by \c strVal.
+ *          Responsibility for the memory used by the string is handed
+ *          over to the \c Slapi_Value structure.
+ * \warning When you are no longer using the \c Slapi_Value structure, you
+ *          should free it from memory by valling \c slapi_value_free().
+ * \see slapi_value_free()
+ * \see slapi_value_set_string()
+ */
 int slapi_value_set_string_passin(Slapi_Value *value, char *strVal);
+
+/**
+ * Sets the value of a \c Slapi_Value structure from an integer.
+ *
+ * \param value Pointer to the \c Slapi_Value structure in which to set
+ *        the value.
+ * \param intVal The integer containing the value to set.
+ * \return \c 0 if the value is set.
+ * \return \c -1 if the pointer to the \c Slapi_Value is \c NULL.
+ * \warning If the pointer to the \c Slapi_Value structure is \c NULL,
+ *          nothing is done, and the function returns \c -1.
+ * \warning If the \c Slapi_Value structure already contains a value, it
+ *          is freed from memory before the new one is set.
+ * \warning When you are no longer using the \c Slapi_Value structure, you
+ *          should free it from memory by valling \c slapi_value_free().
+ * \see slapi_value_free()
+ */
 int slapi_value_set_int(Slapi_Value *value, int intVal);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as a string.
+ *
+ * \param value Pointer to the value you wish to get as a string.
+ * \return A string containing the value.
+ * \return \c NULL if there is no value.
+ * \warning The returned string is the actual value, not a copy.  You
+ *          should not free the returned string unless you plan to
+ *          replace it by calling slapi_value_set_string().
+ * \see slapi_value_set_string()
+ */
 const char*slapi_value_get_string(const Slapi_Value *value);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as an integer.
+ *
+ * \param value Pointer to the value you wish to get as an integer.
+ * \return An integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \see slapi_value_get_uint()
+ * \see slapi_value_get_long()
+ * \see slapi_value_get_ulong()
+ * \see slapi_value_get_longlong()
+ * \see slapi_value_get_ulonglong()
+ */
 int slapi_value_get_int(const Slapi_Value *value);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as an unsigned integer.
+ *
+ * \param value Pointer to the value you wish to get as an unsigned integer.
+ * \return An unsigned integer that corresponds to the value stored in
+ *         the \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \see slapi_value_get_int()
+ * \see slapi_value_get_long()
+ * \see slapi_value_get_ulong()
+ * \see slapi_value_get_longlong()
+ * \see slapi_value_get_ulonglong()
+ */
 unsigned int slapi_value_get_uint(const Slapi_Value *value);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as a long integer.
+ *
+ * \param value Pointer to the value you wish to get as a long integer.
+ * \return A long integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \see slapi_value_get_int()
+ * \see slapi_value_get_uint()
+ * \see slapi_value_get_ulong()
+ * \see slapi_value_get_longlong()
+ * \see slapi_value_get_ulonglong()
+ */
 long slapi_value_get_long(const Slapi_Value *value);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as an unsigned long integer.
+ *
+ * \param value Pointer to the value you wish to get as an unsigned long integer.
+ * \return An unsigned long integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \see slapi_value_get_int()
+ * \see slapi_value_get_uint()
+ * \see slapi_value_get_long()
+ * \see slapi_value_get_longlong()
+ * \see slapi_value_get_ulonglong()
+ */
 unsigned long slapi_value_get_ulong(const Slapi_Value *value);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as a long long integer.
+ *
+ * \param value Pointer to the value you wish to get as a long long integer.
+ * \return A long long integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \see slapi_value_get_int()
+ * \see slapi_value_get_uint()
+ * \see slapi_value_get_long()
+ * \see slapi_value_get_ulong()
+ * \see slapi_value_get_ulonglong()
+ */
 long long slapi_value_get_longlong(const Slapi_Value *value);
+
+/**
+ * Retrieves the value of a \c Slapi_Value structure as an unsigned long long integer.
+ *
+ * \param value Pointer to the value you wish to get as an unsigned long long integer.
+ * \return An unsigned long long integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \see slapi_value_get_int()
+ * \see slapi_value_get_uint()
+ * \see slapi_value_get_long()
+ * \see slapi_value_get_ulong()
+ * \see slapi_value_get_longlong()
+ */
 unsigned long long slapi_value_get_ulonglong(const Slapi_Value *value);
+
+/**
+ * Gets the length of a value contained in a \c Slapi_Value structure.
+ *
+ * \param value Pointer to the value of which you wish to get the length.
+ * \return The length of the value.
+ * \return \c 0 if there is no value.
+ */
 size_t slapi_value_get_length(const Slapi_Value *value);
+
+/**
+ * Compares two \c Slapi_Value structures
+ * 
+ * The matching rule associated with the supplied attribute \c a is used
+ * to compare the two values.
+ *
+ * \param a A pointer to an attribute used to determine how the
+ *        two values will be compared.
+ * \param v1 Pointer to the \c Slapi_Value structure containing the first
+ *        value to compare.
+ * \param v2 Pointer to the \c Slapi_Value structure containing the second
+ *        value to compare.
+ * \return \c 0 if the two values are equal.
+ * \return \c -1 if \c v1 is smaller than \c v2.
+ * \return \c 1 if \c v1 is greater than \c v2.
+ */
 int slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Value *v2);
 
 
 /*
  * Valueset functions.
  */
+
+/**
+ * Flag that indicates that the value should be used by reference.
+ *
+ * \see slapi_valueset_add_value_ext()
+ */
 #define SLAPI_VALUE_FLAG_PASSIN			0x1
 #define SLAPI_VALUE_FLAG_IGNOREERROR	0x2
 #define SLAPI_VALUE_FLAG_PRESERVECSNSET	0x4
 #define SLAPI_VALUE_FLAG_USENEWVALUE	0x8	/* see valueset_remove_valuearray */
 
+/**
+ * Creates an empty \c Slapi_ValueSet structure.
+ *
+ * \return Pointer to the newly allocated \c Slapi_ValueSet structure.
+ * \warning If no space can be allocated (for example, if no more virtual
+ *          memory exists), the \c ns-slapd program terminates.
+ * \warning When you are no longer using the valueset, you should free it
+ *          from memory by calling \c slapi_valueset_free().
+ * \see slapi_valueset_free()
+ */
 Slapi_ValueSet *slapi_valueset_new( void );
+
+/**
+ * Free a \c Slapi_ValueSet structure from memory.
+ *
+ * Call this function when you are done working with the structure.
+ * All members of the valueset will be freed as well if they are not
+ * \c NULL.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet to free.
+ * \see slapi_valueset_done()
+ */
 void slapi_valueset_free(Slapi_ValueSet *vs);
+
+/**
+ * Initializes a \c Slapi_ValueSet structure.
+ *
+ * All values inside of the structure will be cleared (set to \c 0).
+ * The values will not be freed by this function.  To free the values
+ * first, call \c slapi_valueset_done().
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet to initialize.
+ * \warning When you are no longer using the \c Slapi_ValueSet structure,
+ *          you should free it from memory by calling \c slapi_valueset_free().
+ * \see slapi_valueset_done()
+ * \see slapi_valueset_free()
+ */
 void slapi_valueset_init(Slapi_ValueSet *vs);
+
+/**
+ * Frees the values contained in a \c Slapi_ValueSet structure.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure from which
+ *        you want to free its values.
+ * \warning Use this function when you are no longer using the values
+ *          but you want to re-use the \c Slapi_ValueSet structure for
+ *          a new set of values.
+ * \see slapi_valueset_init()
+ */
 void slapi_valueset_done(Slapi_ValueSet *vs);
+
+/**
+ * Adds a value to a \c Slapi_ValueSet structure.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure to which to
+ *        add the value.
+ * \param addval Pointer to the \c Slapi_Value structure to add to
+ *        the \c Slapi_ValueSet.
+ * \warning The value is duplicated from the \c Slapi_Value structure,
+ *          which can be freed frmo memory without altering the
+ *          \c Slapi_ValueSet structure.
+ * \warning This function does not verify if the value is already present
+ *          in the \c Slapi_ValueSet structure.  You can manually check
+ *          this using \c slapi_valueset_first_value() and
+ *          \c slapi_valueset_next_value().
+ * \see slapi_valueset_first_value()
+ * \see slapi_valueset_next_value()
+ */
 void slapi_valueset_add_value(Slapi_ValueSet *vs, const Slapi_Value *addval);
+
+/**
+ * Adds a value to a \c Slapi_ValueSet structure with optional flags.
+ *
+ * This function is similar to \c slapi_valueset_add_value(), but it
+ * allows optional flags to be specified to allow the new value to be
+ * used by reference.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure to which to
+ *        add the value.
+ * \param addval Pointer to the \c Slapi_Value structure to add to
+ *        the \c Slapi_ValueSet.
+ * \param flags If #SLAPI_VALUE_FLAG_PASSIN bit is set in the flags,
+ *        the function will take over the ownership of the new value
+ *        to be added without duplicating it.
+ * \warning This function does not verify if the value is already present
+ *          in the \c Slapi_ValueSet structure.  You can manually check
+ *          this using \c slapi_valueset_first_value() and
+ *          \c slapi_valueset_next_value().
+ * \see slapi_valueset_add_value()
+ * \see slapi_valueset_first_value()
+ * \see slapi_valueset_next_value()
+ */
 void slapi_valueset_add_value_ext(Slapi_ValueSet *vs, Slapi_Value *addval, unsigned long flags);
+
+/**
+ * Gets the first value in a \c Slapi_ValueSet structure.
+ *
+ * This function can be used with \c slapi_valueset_next_value() to
+ * iterate through all values in a \c Slapi_ValueSet structure.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure from which
+ *        you wish to get the value.
+ * \param v Address of the pointer to the \c Slapi_Value structure
+ *        for the returned value.
+ * \return The index of the value in the Slapi_ValueSet structure.
+ * \return \c -1 if there was no value.
+ * \warning This function gives a pointer to the actual value within
+ *          the \c Slapi_ValueSet structure.  You should not free it
+ *          from memory.
+ * \warning You will need to pass this index to slapi_valueset_next_value()
+ *          if you wish to iterate through all values in the valueset.
+ * \see slapi_valueset_next_value().
+ */
 int slapi_valueset_first_value( Slapi_ValueSet *vs, Slapi_Value **v );
+
+/**
+ * Gets the next value in a \c Slapi_ValueSet structure.
+ *
+ * This is part of a pair of iterator functions.  It should be
+ * called after first calling \c slapi_valueset_first_value().
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure from which
+ *        you wish to get the value.
+ * \param index Value returned by the previous call to \c slapi_valueset_first_value()
+ *        or \c slapi_valueset_next_value().
+ * \param v Address of the pointer to the \c Slapi_Value structure
+ *        for the returned value.
+ * \return The index of the value in the Slapi_ValueSet structure.
+ * \return \c -1 if there was no value.
+ * \warning This function gives a pointer to the actual value within
+ *          the \c Slapi_ValueSet structure.  You should not free it
+ *          from memory.
+ * \warning You will need to pass this index to slapi_valueset_next_value()
+ *          if you wish to iterate through all values in the valueset.
+ * \see slapi_valueset_first_value()
+ */
 int slapi_valueset_next_value( Slapi_ValueSet *vs, int index, Slapi_Value **v);
+
+/**
+ * Returns the number of values contained in a \c Slapi_ValueSet structure.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure of which
+ *        you wish to get the count.
+ * \return The number of values contained in the \c Slapi_ValueSet structure.
+ */
 int slapi_valueset_count( const Slapi_ValueSet *vs);
+
+/**
+ * Initializes a \c Slapi_ValueSet with copies of the values of a \c Slapi_Mod structure.
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure into which
+ *        you wish to copy the values.
+ * \param smod Pointer to the \c Slapi_Mod structure from which you
+ *        want to copy the values.
+ * \warning This function does not verify that the \c Slapi_ValueSet
+ *          structure already contains values, so it is your responsibility
+ *          to verify that there are no values prior to calling this function.
+ *          If you do not verify this, the allocated memory space will leak.
+ *          You can free existing values by calling slapi_valueset_done().
+ * \see slapi_valueset_done()
+ */
 void slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod);
+
+/**
+ * Initializes a \c Slapi_ValueSet with copies of the values of another \c Slapi_ValueSet. 
+ *
+ * \param vs1 Pointer to the \c Slapi_ValueSet structure into which
+ *        you wish to copy the values.
+ * \param vs2 Pointer to the \c Slapi_ValueSet structure from which
+ *        you want to copy the values.
+ * \warning This function does not verify that the \c Slapi_ValueSet
+ *          structure already contains values, so it is your responsibility
+ *          to verify that there are no values prior to calling this function.
+ *          If you do not verify this, the allocated memory space will leak.
+ *          You can free existing values by calling slapi_valueset_done().
+ * \see slapi_valueset_done()
+ */
 void slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
+
+/**
+ * Finds a requested value in a valueset.
+ *
+ * The syntax of a supplied attribute will be used to compare the values.
+ * This function can be used to check for duplicate values in a valueset.
+ *
+ * \param a Pointer to the attribute. This is used to determine the
+ *        syntax of the values and how to match them.
+ * \param vs Pointer to the \c Slapi_ValueSet structure from which
+ *        you wish to find the value.
+ * \param v Pointer to the \c Slapi_Value structure containing the
+ *        value that you wish to find.
+ * \return Pointer to the value in the valueset if the value was found.
+ * \return \c NULL if the value was not found.
+ * \warning The returned pointer points to the actual value in the
+ *          \c Slapi_ValueSet structure.  It should not be freed.
+ */
 Slapi_Value *slapi_valueset_find(const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v);
 
 
+/* TODO - Pickup Doxygen work here */
 /*
  * operation routines
  */
