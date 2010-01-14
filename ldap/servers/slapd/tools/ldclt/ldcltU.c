@@ -100,7 +100,7 @@
  * 		randombaselow=value    : low value for random generator.
  * 		randombasehigh=value   : high value for random generator.
  * 		randombinddn           : random bind DN.
- * 		randombinddnfromfile=fine : retrieve bind DN & passwd from file
+ * 		randombinddnfromfile=file : retrieve bind DN & passwd from file
  * 		randombinddnlow=value  : low value for random generator.
  * 		randombinddnhigh=value : high value for random generator.
  * 		rdn=attrname:value     : alternate for -f.
@@ -195,7 +195,7 @@ void usage ()
   (void) printf ("		randombaselow=value    : low value for random generator.\n");
   (void) printf ("		randombasehigh=value   : high value for random generator.\n");
   (void) printf ("		randombinddn           : random bind DN.\n");
-  (void) printf ("		randombinddnfromfile=fine : retrieve bind DN & passwd from file\n");
+  (void) printf ("		randombinddnfromfile=file : retrieve bind DN & passwd from file\n");
   (void) printf ("		randombinddnlow=value  : low value for random generator.\n");
   (void) printf ("		randombinddnhigh=value : high value for random generator.\n");
   (void) printf ("		rdn=attrname:value     : alternate for -f.\n");
