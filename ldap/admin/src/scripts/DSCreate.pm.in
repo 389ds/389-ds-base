@@ -762,9 +762,10 @@ sub setDefaults {
         # convert fqdn to dc= domain components
         $suffix =~ s/^[^\.]*\.//; # just the domain part
         $suffix = "dc=$suffix";
-        $suffix =~ s/\./, dc=/g;
+        $suffix =~ s/\./,dc=/g;
         $inf->{slapd}->{Suffix} = $suffix;
     }
+    $inf->{slapd}->{Suffix} = normalizeDN($inf->{slapd}->{Suffix});
 
     if (!$inf->{slapd}->{ServerIdentifier}) {
         my $servid = $inf->{General}->{FullMachineName};
