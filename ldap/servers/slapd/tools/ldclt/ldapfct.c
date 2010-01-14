@@ -770,10 +770,12 @@ connectToServer (
       binddn = "";
       passwd = NULL;
     } else {
-      binddn = tttctx->bufBindDN;
-      passwd = tttctx->bufPasswd;
-      cred.bv_val = (char *)passwd;
-      cred.bv_len = strlen(passwd);
+      binddn = tttctx->bufBindDN?tttctx->bufBindDN:mctx.bindDN;
+      passwd = tttctx->bufPasswd?tttctx->bufPasswd:mctx.passwd;
+      if (passwd) {
+        cred.bv_val = (char *)passwd;
+        cred.bv_len = strlen(passwd);
+      }
     }
 
     if (mctx.mode & LDAP_V2)
@@ -931,22 +933,35 @@ connectToServer (
 	((!(tttctx->binded)) || (mctx.mode & BIND_EACH_OPER)))
     {
       struct berval *servercredp = NULL;
+      char *binddn = NULL;
+      char *passwd = NULL;
 
       if (buildNewBindDN (tttctx) < 0)				/*JLS 05-01-01*/
-	return (-1);						/*JLS 05-01-01*/
+        return (-1);						/*JLS 05-01-01*/
+      if (tttctx->bufPasswd) {
+        binddn = tttctx->bufBindDN;
+        passwd = tttctx->bufPasswd;
+      } else if (mctx.passwd) {
+        binddn = mctx.bindDN;
+        passwd = mctx.passwd;
+      }
+      if (passwd) {
+        cred.bv_val = passwd;
+        cred.bv_len = strlen(passwd);
+      }
       if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
-		mctx.pid, tttctx->thrdNum, tttctx->bufBindDN,
-		mctx.passwd?tttctx->bufPasswd:"NO PASSWORD PROVIDED");
-      ret = ldap_sasl_bind_s (tttctx->ldapCtx, tttctx->bufBindDN, LDAP_SASL_SIMPLE,
-			      &cred, NULL, NULL, &servercredp);	/*JLS 05-01-01*/
+        printf ("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
+                mctx.pid, tttctx->thrdNum, binddn,
+                passwd?passwd:"NO PASSWORD PROVIDED");
+      ret = ldap_sasl_bind_s (tttctx->ldapCtx, binddn,
+            LDAP_SASL_SIMPLE, &cred, NULL, NULL, &servercredp);	/*JLS 05-01-01*/
       ber_bvfree(servercredp);
       if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldap_simple_bind_s (%s, %s)\n",
-		mctx.pid, tttctx->thrdNum, tttctx->bufBindDN,
-		mctx.passwd?tttctx->bufPasswd:"NO PASSWORD PROVIDED");
+        printf ("ldclt[%d]: T%03d: After ldap_simple_bind_s (%s, %s)\n",
+                mctx.pid, tttctx->thrdNum, binddn,
+                passwd?passwd:"NO PASSWORD PROVIDED");
       if (ret == LDAP_SUCCESS)					/*JLS 18-12-00*/
-	tttctx->binded = 1;					/*JLS 18-12-00*/
+        tttctx->binded = 1;					/*JLS 18-12-00*/
       else							/*JLS 18-12-00*/
       {								/*JLS 18-12-00*/
 	tttctx->binded  = 0;					/*JLS 18-12-00*/
@@ -2048,10 +2063,12 @@ createMissingNodes (
       binddn = "";
       passwd = NULL;
     } else {
-      binddn = tttctx->bufBindDN;
-      passwd = tttctx->bufPasswd;
-      cred.bv_val = (char *)passwd;
-      cred.bv_len = strlen(passwd);
+      binddn = tttctx->bufBindDN?tttctx->bufBindDN:mctx.bindDN;
+      passwd = tttctx->bufPasswd?tttctx->bufPasswd:mctx.passwd;
+      if (passwd) {
+        cred.bv_val = (char *)passwd;
+        cred.bv_len = strlen(passwd);
+      }
     }
 
     if (mctx.mode & LDAP_V2)

@@ -50,7 +50,7 @@ usage: ldclt [-qQvV] [-E <max errors>]
 		randombaselow=value    : low value for random generator.
 		randombasehigh=value   : high value for random generator.
 		randombinddn           : random bind DN.
-		randombinddnfromfile=fine : retrieve bind DN & passwd from file
+		randombinddnfromfile=file : retrieve bind DN & passwd from file
 		randombinddnlow=value  : low value for random generator.
 		randombinddnhigh=value : high value for random generator.
 		rdn=attrname:value     : alternate for -f.
