@@ -77,7 +77,7 @@ interface(`dirsrv_manage_log',`
 
 	allow $1 dirsrv_var_log_t:dir manage_dir_perms;
 	allow $1 dirsrv_var_log_t:file manage_file_perms;
-	allow $1 dirsrv_var_log_t:fifo_file: manage_fifo_file_perms;
+	allow $1 dirsrv_var_log_t:fifo_file manage_fifo_file_perms;
 ')
 
 #######################################
