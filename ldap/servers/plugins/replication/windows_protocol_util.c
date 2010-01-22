@@ -3818,7 +3818,11 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 						slapi_mods_add_mod_values(smods,LDAP_MOD_ADD,local_type,valueset_get_valuearray(vs));
 					}
 				}
-				*do_modify = 1;
+
+				/* Only set the do_modify flag if smods is not empty */
+				if (slapi_mods_get_num_mods(smods) > 0) {
+					*do_modify = 1;
+				}
 			}
 		}
 
