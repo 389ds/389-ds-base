@@ -1091,6 +1091,8 @@ Optional Packages:
   --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library directory
   --with-ldapsdk-bin=PATH     Mozilla LDAP SDK binary directory
   --with-db=PATH   Berkeley DB directory
+  --with-db-inc=PATH        Berkeley DB include file directory
+  --with-db-lib=PATH        Berkeley DB library directory
   --with-sasl=PATH   Use sasl from supplied path
   --with-sasl-inc=PATH   SASL include file directory
   --with-sasl-lib=PATH   SASL library directory
@@ -4386,7 +4388,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4389 "configure"' > conftest.$ac_ext
+  echo '#line 4391 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5521,7 +5523,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5524:" \
+echo "$as_me:5526:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6584,11 +6586,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6587: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6589: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6591: \$? = $ac_status" >&5
+   echo "$as_me:6593: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6852,11 +6854,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6855: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6857: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6859: \$? = $ac_status" >&5
+   echo "$as_me:6861: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6956,11 +6958,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6959: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6961: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6963: \$? = $ac_status" >&5
+   echo "$as_me:6965: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8425,7 +8427,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8428 "configure"' > conftest.$ac_ext
+    echo '#line 8430 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -9322,7 +9324,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9325 "configure"
+#line 9327 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9422,7 +9424,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9425 "configure"
+#line 9427 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11765,11 +11767,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11768: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11770: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11772: \$? = $ac_status" >&5
+   echo "$as_me:11774: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11869,11 +11871,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11872: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11874: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11876: \$? = $ac_status" >&5
+   echo "$as_me:11878: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12405,7 +12407,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 12408 "configure"' > conftest.$ac_ext
+    echo '#line 12410 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -13463,11 +13465,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13466: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13468: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13470: \$? = $ac_status" >&5
+   echo "$as_me:13472: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13567,11 +13569,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13570: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13572: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13574: \$? = $ac_status" >&5
+   echo "$as_me:13576: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -15016,7 +15018,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 15019 "configure"' > conftest.$ac_ext
+    echo '#line 15021 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15794,11 +15796,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15797: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15799: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15801: \$? = $ac_status" >&5
+   echo "$as_me:15803: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16062,11 +16064,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16065: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16067: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16069: \$? = $ac_status" >&5
+   echo "$as_me:16071: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16166,11 +16168,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16169: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16171: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16173: \$? = $ac_status" >&5
+   echo "$as_me:16175: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17635,7 +17637,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17638 "configure"' > conftest.$ac_ext
+    echo '#line 17640 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -25196,10 +25198,69 @@ else
 echo "${ECHO_T}no" >&6
 fi;
 
+# check for --with-db-inc
+echo "$as_me:$LINENO: checking for --with-db-inc" >&5
+echo $ECHO_N "checking for --with-db-inc... $ECHO_C" >&6
+
+# Check whether --with-db-inc or --without-db-inc was given.
+if test "${with_db_inc+set}" = set; then
+  withval="$with_db_inc"
+
+  if test -e "$withval"/db.h
+  then
+    echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6
+    db_incdir="$withval"
+    db_inc="-I$withval"
+  else
+    echo
+    { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi;
+
+# check for --with-db-lib
+echo "$as_me:$LINENO: checking for --with-db-lib" >&5
+echo $ECHO_N "checking for --with-db-lib... $ECHO_C" >&6
+
+# Check whether --with-db-lib or --without-db-lib was given.
+if test "${with_db_lib+set}" = set; then
+  withval="$with_db_lib"
+
+  if test -d "$withval"
+  then
+    echo "$as_me:$LINENO: result: using $withval" >&5
+echo "${ECHO_T}using $withval" >&6
+    db_lib="-L$withval"
+    db_libdir="$withval"
+  else
+    echo
+    { { echo "$as_me:$LINENO: error: $withval not found" >&5
+echo "$as_me: error: $withval not found" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi;
+
 if test -z "$db_inc"; then
   echo "$as_me:$LINENO: checking for db.h" >&5
 echo $ECHO_N "checking for db.h... $ECHO_C" >&6
-  if test -f "/usr/include/db.h"; then
+  if test -f "/usr/include/db4/db.h"; then
+    echo "$as_me:$LINENO: result: using /usr/include/db4/db.h" >&5
+echo "${ECHO_T}using /usr/include/db4/db.h" >&6
+    db_incdir="/usr/include/db4"
+    db_inc="-I/usr/include/db4"
+    db_lib='-L$(libdir)'
+    db_libdir='$(libdir)'
+  elif test -f "/usr/include/db.h"; then
     echo "$as_me:$LINENO: result: using /usr/include/db.h" >&5
 echo "${ECHO_T}using /usr/include/db.h" >&6
     db_incdir="/usr/include"

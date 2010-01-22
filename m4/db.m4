@@ -54,10 +54,48 @@ AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
 AC_MSG_RESULT(no))
 dnl default path for the db tools (see [210947] for more details)
 
+# check for --with-db-inc
+AC_MSG_CHECKING(for --with-db-inc)
+AC_ARG_WITH(db-inc, [  --with-db-inc=PATH        Berkeley DB include file directory],
+[
+  if test -e "$withval"/db.h
+  then
+    AC_MSG_RESULT([using $withval])
+    db_incdir="$withval"
+    db_inc="-I$withval"
+  else
+    echo
+    AC_MSG_ERROR([$withval not found])
+  fi
+],
+AC_MSG_RESULT(no))
+
+# check for --with-db-lib
+AC_MSG_CHECKING(for --with-db-lib)
+AC_ARG_WITH(db-lib, [  --with-db-lib=PATH        Berkeley DB library directory],
+[
+  if test -d "$withval"
+  then
+    AC_MSG_RESULT([using $withval])
+    db_lib="-L$withval"
+    db_libdir="$withval"
+  else
+    echo
+    AC_MSG_ERROR([$withval not found])
+  fi
+],
+AC_MSG_RESULT(no))
+
 dnl - check in system locations
 if test -z "$db_inc"; then
   AC_MSG_CHECKING(for db.h)
-  if test -f "/usr/include/db.h"; then
+  if test -f "/usr/include/db4/db.h"; then
+    AC_MSG_RESULT([using /usr/include/db4/db.h])
+    db_incdir="/usr/include/db4"
+    db_inc="-I/usr/include/db4"
+    db_lib='-L$(libdir)'
+    db_libdir='$(libdir)'
+  elif test -f "/usr/include/db.h"; then
     AC_MSG_RESULT([using /usr/include/db.h])
     db_incdir="/usr/include"
     db_inc="-I/usr/include"
